@@ -55,8 +55,8 @@ func getContainerCount(t *testing.T) int {
 	result := icmd.RunCommand(dockerBinary, "info")
 	result.Assert(t, icmd.Success)
 
-	lines := strings.Split(result.Combined(), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(result.Combined(), "\n")
+	for line := range lines {
 		if strings.Contains(line, containers) {
 			output := strings.TrimSpace(line)
 			output = strings.TrimPrefix(output, containers)
@@ -435,7 +435,7 @@ func loadSpecialImage(t *testing.T, imageFunc specialimage.SpecialImageFunc) str
 
 	out := cli.DockerCmd(t, "load", "-i", imgTar).Stdout()
 
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		line = strings.TrimSpace(line)
 
 		if _, imageID, hasID := strings.Cut(line, "Loaded image ID: "); hasID {

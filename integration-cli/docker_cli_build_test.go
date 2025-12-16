@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -1590,8 +1591,8 @@ func (s *DockerCLIBuildSuite) TestBuildExposeMorePorts(c *testing.T) {
 	portList := make([]string, 50)
 	line := make([]string, 100)
 	expectedPorts := make([]int, len(portList)*len(line))
-	for i := 0; i < len(portList); i++ {
-		for j := 0; j < len(line); j++ {
+	for i := range portList {
+		for j := range line {
 			p := i*len(line) + j + 1
 			line[j] = strconv.Itoa(p)
 			expectedPorts[p-1] = p
@@ -4357,13 +4358,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgExpansion(c *testing.T) {
 	var resArr []string
 	inspectFieldAndUnmarshall(c, imgName, "Config.Env", &resArr)
 
-	found := false
-	for _, v := range resArr {
-		if fmt.Sprintf("%s=%s", envVar, envVal) == v {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(resArr, fmt.Sprintf("%s=%s", envVar, envVal))
 	if !found {
 		c.Fatalf("Config.Env value mismatch. Expected <key=value> to exist: %s=%s, got: %v",
 			envVar, envVal, resArr)
@@ -4707,11 +4702,8 @@ func (s *DockerCLIBuildSuite) TestBuildTagEvent(c *testing.T) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	actions := eventActionsByIDAndType(c, events, imgName+":latest", "image")
 	var foundTag bool
-	for _, a := range actions {
-		if a == "tag" {
-			foundTag = true
-			break
-		}
+	if slices.Contains(actions, "tag") {
+		foundTag = true
 	}
 
 	assert.Assert(c, foundTag, "No tag event found:\n%s", out)
@@ -5645,7 +5637,7 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageCopyFromSyntax(c *testing.T) {
 	assert.Equal(c, strings.Count(result.Combined(), "Using cache"), 7)
 	assert.Equal(c, getIDByName(c, "build1"), getIDByName(c, "build2"))
 
-	err := os.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(fmt.Sprintf(dockerfile, "COPY baz/aa foo")), 0o644)
+	err := os.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), fmt.Appendf(nil, dockerfile, "COPY baz/aa foo"), 0o644)
 	assert.NilError(c, err)
 
 	// changing file in parent block should not affect last block

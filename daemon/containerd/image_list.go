@@ -634,8 +634,8 @@ func setupLabelFilter(ctx context.Context, store content.Store, fltrs filters.Ar
 			negate := strings.HasSuffix(fltrName, "!")
 
 			// If filter value is key!=value then flip the above.
-			if strings.HasSuffix(k, "!") {
-				k = strings.TrimSuffix(k, "!")
+			if before, ok := strings.CutSuffix(k, "!"); ok {
+				k = before
 				negate = !negate
 			}
 

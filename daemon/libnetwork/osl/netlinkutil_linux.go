@@ -37,7 +37,7 @@ func (d deviceFlags) String() string {
 		unknown uint32
 	)
 
-	for i := uint(0); i < 32; i++ {
+	for i := range uint(32) {
 		if d&(1<<i) != 0 {
 			if s, ok := deviceFlagStrings[deviceFlags(1<<i)]; ok {
 				flags = append(flags, s)

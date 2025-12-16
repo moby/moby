@@ -302,7 +302,7 @@ func TestTarSumsReadSize(t *testing.T) {
 	// Test always on the same layer (that is big enough)
 	layer := testLayers[0]
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		reader, err := os.Open(layer.filename)
 		if err != nil {
 			t.Fatal(err)
@@ -580,8 +580,8 @@ func Benchmark9kTar(b *testing.B) {
 	reader := bytes.NewReader(buf.Bytes())
 
 	b.SetBytes(n)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		reader.Seek(0, 0)
 		ts, err := NewTarSum(reader, true, Version0)
 		if err != nil {
@@ -611,8 +611,8 @@ func Benchmark9kTarGzip(b *testing.B) {
 	reader := bytes.NewReader(buf.Bytes())
 
 	b.SetBytes(n)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		reader.Seek(0, 0)
 		ts, err := NewTarSum(reader, false, Version0)
 		if err != nil {

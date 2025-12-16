@@ -3,6 +3,7 @@ package fluentd
 import (
 	"bufio"
 	"context"
+	"maps"
 	"net"
 	"path/filepath"
 	"runtime"
@@ -350,9 +351,7 @@ func TestReadWriteTimeoutsAreEffective(t *testing.T) {
 				"fluentd-buffer-limit": "1",
 			}
 			// Update the config with test specific configs.
-			for k, v := range tc.cfg {
-				cfg[k] = v
-			}
+			maps.Copy(cfg, tc.cfg)
 
 			f, err := New(logger.Info{
 				ContainerName: "/test-container",

@@ -188,7 +188,7 @@ func TestStoreLen(t *testing.T) {
 
 	expected := 10
 	for i := range expected {
-		_, err := imgStore.Create([]byte(fmt.Sprintf(`{"comment": "abc%d", "rootfs": {"type": "layers"}}`, i)))
+		_, err := imgStore.Create(fmt.Appendf(nil, `{"comment": "abc%d", "rootfs": {"type": "layers"}}`, i))
 		assert.NilError(t, err)
 	}
 	numImages := imgStore.Len()

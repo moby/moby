@@ -60,7 +60,7 @@ func (e *imageExporter) Resolve(ctx context.Context, id int, attrs map[string]st
 	for k, v := range attrs {
 		switch exptypes.ImageExporterOptKey(k) {
 		case exptypes.OptKeyName:
-			for _, v := range strings.Split(v, ",") {
+			for v := range strings.SplitSeq(v, ",") {
 				ref, err := reference.ParseNormalizedNamed(v)
 				if err != nil {
 					return nil, err

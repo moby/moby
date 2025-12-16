@@ -1127,7 +1127,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *testing.T)
 	maxChildren := 10
 	chErr := make(chan error, maxChildren)
 
-	for i := 0; i < maxChildren; i++ {
+	for i := range maxChildren {
 		wg.Add(1)
 		name := fmt.Sprintf("test%d", i)
 
@@ -2125,7 +2125,7 @@ func (s *DockerDaemonSuite) TestShmSizeReload(c *testing.T) {
 	configFile := filepath.Join(configPath, "config.json")
 
 	size := 67108864 * 2
-	configData := []byte(fmt.Sprintf(`{"default-shm-size": "%dM"}`, size/1024/1024))
+	configData := fmt.Appendf(nil, `{"default-shm-size": "%dM"}`, size/1024/1024)
 	assert.Assert(c, os.WriteFile(configFile, configData, 0o666) == nil, "could not write temp file for config reload")
 	pattern := regexp.MustCompile(fmt.Sprintf("shm on /dev/shm type tmpfs(.*)size=%dk", size/1024))
 
@@ -2140,7 +2140,7 @@ func (s *DockerDaemonSuite) TestShmSizeReload(c *testing.T) {
 	assert.Equal(c, strings.TrimSpace(out), fmt.Sprintf("%v", size))
 
 	size = 67108864 * 3
-	configData = []byte(fmt.Sprintf(`{"default-shm-size": "%dM"}`, size/1024/1024))
+	configData = fmt.Appendf(nil, `{"default-shm-size": "%dM"}`, size/1024/1024)
 	assert.Assert(c, os.WriteFile(configFile, configData, 0o666) == nil, "could not write temp file for config reload")
 	pattern = regexp.MustCompile(fmt.Sprintf("shm on /dev/shm type tmpfs(.*)size=%dk", size/1024))
 

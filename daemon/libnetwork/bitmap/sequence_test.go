@@ -923,7 +923,7 @@ func TestMethods(t *testing.T) {
 		t.Fatalf("Unexpected sequence string: %s", hnd.head.toString())
 	}
 
-	for i := 0; i < 192; i++ {
+	for range 192 {
 		_, err := hnd.SetAny(false)
 		if err != nil {
 			t.Fatal(err)
@@ -1185,7 +1185,7 @@ func TestMarshalJSON(t *testing.T) {
 	hnd := New(uint64(len(expected) * 8))
 
 	for i, c := range expected {
-		for j := 0; j < 8; j++ {
+		for j := range 8 {
 			if c&(1<<j) == 0 {
 				continue
 			}

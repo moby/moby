@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -94,9 +95,7 @@ func copyAttributes(attributes, labels map[string]string) {
 	if labels == nil {
 		return
 	}
-	for k, v := range labels {
-		attributes[k] = v
-	}
+	maps.Copy(attributes, labels)
 }
 
 // ProcessClusterNotifications gets changes from store and add them to event list

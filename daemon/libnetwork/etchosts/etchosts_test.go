@@ -371,7 +371,7 @@ func TestConcurrentWrites(t *testing.T) {
 	}
 
 	group := new(errgroup.Group)
-	for i := byte(0); i < 10; i++ {
+	for i := range byte(10) {
 		group.Go(func() error {
 			addr, ok := netip.AddrFromSlice([]byte{i, i, i, i})
 			assert.Assert(t, ok)
@@ -382,7 +382,7 @@ func TestConcurrentWrites(t *testing.T) {
 				},
 			}
 
-			for j := 0; j < 25; j++ {
+			for range 25 {
 				if err := Add(file.Name(), rec); err != nil {
 					return err
 				}
@@ -429,7 +429,7 @@ func benchDelete(b *testing.B) {
 
 	var records []Record
 	var toDelete []Record
-	for i := byte(0); i < 255; i++ {
+	for i := range byte(255) {
 		addr, ok := netip.AddrFromSlice([]byte{i, i, i, i})
 		assert.Assert(b, ok)
 		record := Record{
@@ -453,7 +453,7 @@ func benchDelete(b *testing.B) {
 }
 
 func BenchmarkDelete(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		benchDelete(b)
 	}
 }

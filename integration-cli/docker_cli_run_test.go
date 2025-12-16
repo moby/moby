@@ -806,7 +806,7 @@ func (s *DockerCLIRunSuite) TestRunTwoConcurrentContainers(c *testing.T) {
 	group.Add(2)
 
 	errChan := make(chan error, 2)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		go func() {
 			defer group.Done()
 			_, _, err := dockerCmdWithError("run", "busybox", "sleep", sleepTime)
@@ -2857,7 +2857,7 @@ func (s *DockerCLIRunSuite) TestRunUnshareProc(c *testing.T) {
 	}()
 
 	var retErr error
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		err := <-errChan
 		if retErr == nil && err != nil {
 			retErr = err
@@ -4111,7 +4111,7 @@ func (s *DockerCLIRunSuite) TestSlowStdinClosing(c *testing.T) {
 		skip.If(c, testEnv.GitHubActions())
 	}
 	const repeat = 3 // regression happened 50% of the time
-	for i := 0; i < repeat; i++ {
+	for i := range repeat {
 		c.Run(strconv.Itoa(i), func(c *testing.T) {
 			cmd := icmd.Cmd{
 				Command: []string{dockerBinary, "run", "--rm", "-i", "busybox", "cat"},

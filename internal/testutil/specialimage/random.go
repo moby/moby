@@ -20,7 +20,7 @@ func RandomSinglePlatform(dir string, platform ocispec.Platform, source rand.Sou
 	layerCount := r.Intn(8)
 
 	var layers []ocispec.Descriptor
-	for i := 0; i < layerCount; i++ {
+	for i := range layerCount {
 		layerDesc, err := writeLayerWithOneFile(dir, "layer-"+strconv.Itoa(i), []byte(strconv.Itoa(i)))
 		if err != nil {
 			return nil, err

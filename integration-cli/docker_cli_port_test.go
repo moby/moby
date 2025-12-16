@@ -104,7 +104,7 @@ func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 	testRange := func() {
 		// host port ranges used
 		IDs := make([]string, 3)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			out = cli.DockerCmd(c, "run", "-d", "-p", "9090-9092:80", "busybox", "top").Stdout()
 			IDs[i] = strings.TrimSpace(out)
 
@@ -121,7 +121,7 @@ func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 		// Exhausted port range did not return an error
 		assert.Assert(c, err != nil, "out: %s", out)
 
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			cli.DockerCmd(c, "rm", "-f", IDs[i])
 		}
 	}
@@ -182,7 +182,7 @@ func assertPortList(t *testing.T, out string, expected []string) {
 		return old
 	}
 
-	for i := 0; i < len(expected); i++ {
+	for i := range expected {
 		if lines[i] == expected[i] {
 			continue
 		}

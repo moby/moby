@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net"
 	"net/netip"
 	"slices"
@@ -126,9 +127,7 @@ func (sb *Sandbox) Labels() map[string]any {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
 	opts := make(map[string]any, len(sb.config.generic))
-	for k, v := range sb.config.generic {
-		opts[k] = v
-	}
+	maps.Copy(opts, sb.config.generic)
 	return opts
 }
 
@@ -280,9 +279,7 @@ func (sb *Sandbox) UpdateLabels(labels map[string]any) {
 	if sb.config.generic == nil {
 		sb.config.generic = make(map[string]any, len(labels))
 	}
-	for k, v := range labels {
-		sb.config.generic[k] = v
-	}
+	maps.Copy(sb.config.generic, labels)
 }
 
 func (sb *Sandbox) MarshalJSON() ([]byte, error) {

@@ -79,12 +79,13 @@ func dispatchLabel(ctx context.Context, d dispatchRequest, c *instructions.Label
 	if d.state.runConfig.Labels == nil {
 		d.state.runConfig.Labels = make(map[string]string)
 	}
-	commitStr := "LABEL"
+	var commitStr strings.Builder
+	commitStr.WriteString("LABEL")
 	for _, v := range c.Labels {
 		d.state.runConfig.Labels[v.Key] = v.Value
-		commitStr += " " + v.String()
+		commitStr.WriteString(" " + v.String())
 	}
-	return d.builder.commit(ctx, d.state, commitStr)
+	return d.builder.commit(ctx, d.state, commitStr.String())
 }
 
 // ADD foo /path
@@ -628,7 +629,7 @@ func parsePortSpec(rawPort string) ([]network.PortMap, error) {
 	count := endPort - startPort + 1
 	ports := make([]network.PortMap, 0, count)
 
-	for i := uint16(0); i < count; i++ {
+	for i := range count {
 		hPort := ""
 		if hostPort != "" {
 			hPort = strconv.Itoa(int(startHostPort + i))

@@ -893,7 +893,7 @@ func TestFirewallBackendSwitch(t *testing.T) {
 		})
 
 		// TODO: (When Go 1.24 is min version) Replace with `strings.Lines(dump)`.
-		for _, line := range strings.Split(dump, "\n") {
+		for line := range strings.SplitSeq(dump, "\n") {
 			line = strings.TrimSpace(line)
 			if line == "" {
 				continue
