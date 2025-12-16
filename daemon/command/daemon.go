@@ -44,6 +44,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/router/container"
 	debugrouter "github.com/moby/moby/v2/daemon/server/router/debug"
 	distributionrouter "github.com/moby/moby/v2/daemon/server/router/distribution"
+	extensionrouter "github.com/moby/moby/v2/daemon/server/router/extension"
 	grpcrouter "github.com/moby/moby/v2/daemon/server/router/grpc"
 	"github.com/moby/moby/v2/daemon/server/router/image"
 	"github.com/moby/moby/v2/daemon/server/router/network"
@@ -313,7 +314,7 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	p.SetHTTP2(true)
 	p.SetUnencryptedHTTP2(true)
 
-	routers := buildRouters(routerOptions{
+	routers := buildRouters(ctx, routerOptions{
 		features: d.Features,
 		daemon:   d,
 		cluster:  c,
@@ -718,7 +719,7 @@ func normalizeHosts(cfg *config.Config) error {
 	return nil
 }
 
-func buildRouters(opts routerOptions) []router.Router {
+func buildRouters(ctx context.Context, opts routerOptions) []router.Router {
 	routers := []router.Router{
 		// we need to add the checkpoint router before the container router or the DELETE gets masked
 		checkpointrouter.NewRouter(opts.daemon),
@@ -740,6 +741,12 @@ func buildRouters(opts routerOptions) []router.Router {
 
 	if opts.builder.backend != nil {
 		routers = append(routers, grpcrouter.NewRouter(opts.builder.backend))
+	}
+
+	if opts.features()["api-extensions"] {
+		// Load extension routers from /var/lib/docker/extensions.d
+		// Uses gRPC reflection to discover services and creates routes as "/<service_name>/"
+		routers = append(routers, extensionrouter.LoadExtensionRouters(ctx)...)
 	}
 
 	if opts.daemon.HasExperimental() {

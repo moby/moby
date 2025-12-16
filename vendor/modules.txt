@@ -293,6 +293,10 @@ github.com/beorn7/perks/quantile
 # github.com/bits-and-blooms/bitset v1.13.0
 ## explicit; go 1.16
 github.com/bits-and-blooms/bitset
+# github.com/bufbuild/protocompile v0.14.1
+## explicit; go 1.21
+github.com/bufbuild/protocompile/internal/editions
+github.com/bufbuild/protocompile/protoutil
 # github.com/cenkalti/backoff/v5 v5.0.3
 ## explicit; go 1.23
 github.com/cenkalti/backoff/v5
@@ -822,6 +826,13 @@ github.com/inconshreveable/mousetrap
 # github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2
 ## explicit; go 1.12
 github.com/ishidawataru/sctp
+# github.com/jhump/protoreflect v1.17.0
+## explicit; go 1.21
+github.com/jhump/protoreflect/desc
+github.com/jhump/protoreflect/desc/internal
+github.com/jhump/protoreflect/desc/sourceinfo
+github.com/jhump/protoreflect/grpcreflect
+github.com/jhump/protoreflect/internal
 # github.com/jmoiron/sqlx v1.3.3
 ## explicit; go 1.10
 github.com/jmoiron/sqlx/types
@@ -1819,6 +1830,10 @@ google.golang.org/grpc/keepalive
 google.golang.org/grpc/mem
 google.golang.org/grpc/metadata
 google.golang.org/grpc/peer
+google.golang.org/grpc/reflection
+google.golang.org/grpc/reflection/grpc_reflection_v1
+google.golang.org/grpc/reflection/grpc_reflection_v1alpha
+google.golang.org/grpc/reflection/internal
 google.golang.org/grpc/resolver
 google.golang.org/grpc/resolver/dns
 google.golang.org/grpc/resolver/manual
