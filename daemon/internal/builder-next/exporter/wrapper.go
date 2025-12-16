@@ -2,8 +2,11 @@ package exporter
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
+	"time"
 
+	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/moby/buildkit/exporter"
@@ -26,14 +29,16 @@ type BuildkitCallbacks struct {
 // overrides to the exporter attributes.
 type imageExporterMobyWrapper struct {
 	exp       exporter.Exporter
+	content   content.Store
 	callbacks BuildkitCallbacks
 }
 
 // NewWrapper returns an exporter wrapper that applies moby specific attributes
 // and hooks the export process.
-func NewWrapper(exp exporter.Exporter, callbacks BuildkitCallbacks) (exporter.Exporter, error) {
+func NewWrapper(exp exporter.Exporter, content content.Store, callbacks BuildkitCallbacks) (exporter.Exporter, error) {
 	return &imageExporterMobyWrapper{
 		exp:       exp,
+		content:   content,
 		callbacks: callbacks,
 	}, nil
 }
@@ -43,6 +48,7 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, id int, exporter
 	if exporterAttrs == nil {
 		exporterAttrs = make(map[string]string)
 	}
+	log.L.Infof("wrapper.Resolve: id=%d, attrs=%v", id, exporterAttrs)
 	reposAndTags, err := overrides.SanitizeRepoAndTags(strings.Split(exporterAttrs[string(exptypes.OptKeyName)], ","))
 	if err != nil {
 		return nil, err
@@ -65,12 +71,14 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, id int, exporter
 	return &imageExporterInstanceWrapper{
 		ExporterInstance: inst,
 		callbacks:        e.callbacks,
+		content:          e.content,
 	}, nil
 }
 
 type imageExporterInstanceWrapper struct {
 	exporter.ExporterInstance
 	callbacks BuildkitCallbacks
+	content   content.Store
 }
 
 func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter.Source, buildInfo exporter.ExportBuildInfo) (map[string]string, exporter.DescriptorReference, error) {
@@ -81,6 +89,27 @@ func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter
 
 	desc := ref.Descriptor()
 	imageID := out[exptypes.ExporterImageDigestKey]
+
+	log.L.Infof("wrapper.Export: imageID=%s, desc=%v, out=%+v, buildInfo=%+v", imageID, desc, out, buildInfo)
+
+	now := time.Now()
+	refLabelBytes, err := json.Marshal(BuildRefLabelValue{
+		CreatedAt: &now,
+	})
+	if err != nil {
+		return out, ref, err
+	}
+	refLabelKey := BuildRefLabel + buildInfo.Ref
+	_, err = i.content.Update(ctx, content.Info{
+		Digest: desc.Digest,
+		Labels: map[string]string{
+			refLabelKey: string(refLabelBytes),
+		},
+	}, "labels."+refLabelKey)
+	if err != nil {
+		return out, ref, err
+	}
+
 	if i.callbacks.Exported != nil {
 		i.callbacks.Exported(ctx, imageID, desc)
 	}

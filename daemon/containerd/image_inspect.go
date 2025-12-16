@@ -1,8 +1,12 @@
 package containerd
 
 import (
+	"cmp"
 	"context"
+	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -14,8 +18,10 @@ import (
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/storage"
+	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/internal/sliceutil"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/semaphore"
 )
@@ -80,6 +86,11 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 		target = multi.Best.Target()
 	}
 
+	identity, err := i.imageIdentity(ctx, target.Digest)
+	if err != nil {
+		log.G(ctx).WithError(err).Warn("failed to determine Identity property")
+	}
+
 	resp := &imagebackend.InspectData{
 		InspectResponse: imagetypes.InspectResponse{
 			ID:          target.Digest.String(),
@@ -91,6 +102,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 			Metadata: imagetypes.Metadata{
 				LastTagTime: lastUpdated,
 			},
+			Identity: identity,
 		},
 		Parent: parent, // field is deprecated with the legacy builder, but returned by the API if present.
 
@@ -131,6 +143,41 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 	}
 
 	return resp, nil
+}
+
+func (i *ImageService) imageIdentity(ctx context.Context, dgst digest.Digest) (*imagetypes.ImageIdentity, error) {
+	info, err := i.content.Info(ctx, dgst)
+	if err != nil {
+		return nil, err
+	}
+	identity := &imagetypes.ImageIdentity{}
+
+	for k, v := range info.Labels {
+		if ref, ok := strings.CutPrefix(k, exporter.BuildRefLabel); ok {
+			var val exporter.BuildRefLabelValue
+			if err := json.Unmarshal([]byte(v), &val); err == nil {
+				var createdAt time.Time
+				if val.CreatedAt != nil {
+					createdAt = *val.CreatedAt
+				}
+				identity.Build = append(identity.Build, imagetypes.ImageBuildIdentity{
+					Ref:       ref,
+					CreatedAt: createdAt,
+				})
+			}
+		}
+	}
+
+	// return nil if there is no identity information
+	if len(identity.Build) == 0 && len(identity.Pull) == 0 && len(identity.Signature) == 0 {
+		return nil, nil
+	}
+
+	slices.SortFunc(identity.Build, func(a, b imagetypes.ImageBuildIdentity) int {
+		return cmp.Compare(a.Ref, b.Ref)
+	})
+
+	return identity, nil
 }
 
 func collectRepoTagsAndDigests(ctx context.Context, tagged []c8dimages.Image) (repoTags []string, repoDigests []string) {
