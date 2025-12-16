@@ -560,8 +560,8 @@ RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio'
 		build.WithFile("test_file1", "test1"),
 		build.WithFile("test_file2", "test2"),
 		build.WithFile("test_file3", "test3"),
-		build.WithFile("test_file3", "test3"),
-		build.WithFile("test_file4", "test4")))
+		build.WithFile("test_file4", "test4"),
+	))
 }
 
 // These tests are mainly for user namespaces to verify that new directories
