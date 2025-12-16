@@ -789,6 +789,8 @@ func TestPortMappingRestore(t *testing.T) {
 	const svrName = "svr"
 	cid := ctr.Run(ctx, t, c,
 		ctr.WithExposedPorts("80/tcp"),
+		// TODO(robmry): this test supplies an empty list of PortBindings.
+		// https://github.com/moby/moby/issues/51727 will break it.
 		ctr.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {}}),
 		ctr.WithName(svrName),
 		ctr.WithRestartPolicy(containertypes.RestartPolicyUnlessStopped),
@@ -996,7 +998,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 			{}, // An empty PortBinding is backfilled
 		}}
 		expWarnings := []string{
-			"Following container port(s) have an empty list of port-bindings: 80/tcp. Starting with API 1.53, such bindings will be discarded.",
+			"Following container port(s) have an empty list of port-bindings: 80/tcp. Such bindings will be discarded in a future version.",
 		}
 
 		mappings, warnings := createInspect(t, "1.52", []networktypes.PortBinding{})
@@ -1005,6 +1007,7 @@ func TestEmptyPortBindingsBC(t *testing.T) {
 	})
 
 	t.Run("no backfilling on API 1.53", func(t *testing.T) {
+		t.Skip("Backfilling was not removed in 1.53. See https://github.com/moby/moby/issues/51727")
 		expMappings := networktypes.PortMap{}
 		expWarnings := make([]string, 0)
 
