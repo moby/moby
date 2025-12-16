@@ -14,9 +14,13 @@ import (
 	"github.com/moby/moby/client/internal"
 )
 
+type ImagePullJSONMessage struct {
+	jsonstream.Message
+}
+
 type ImagePullResponse interface {
 	io.ReadCloser
-	JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, error]
+	JSONMessages(ctx context.Context) iter.Seq2[ImagePullJSONMessage, error]
 	Wait(ctx context.Context) error
 }
 
@@ -60,7 +64,7 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options ImagePu
 		return nil, err
 	}
 
-	return internal.NewJSONMessageStream[jsonstream.Message](resp.Body), nil
+	return internal.NewJSONMessageStream[ImagePullJSONMessage](resp.Body), nil
 }
 
 // getAPITagFromNamedRef returns a tag from the specified reference.
