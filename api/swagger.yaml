@@ -12071,6 +12071,9 @@ paths:
   /nodes/{id}/update:
     post:
       summary: "Update a node"
+      description: |
+        **API version 1.53 and above:** Use request body with version and spec.
+        **API version 1.52 and below:** Use query parameter for version (deprecated).
       operationId: "NodeUpdate"
       responses:
         200:
@@ -12097,18 +12100,30 @@ paths:
           description: "The ID of the node"
           type: "string"
           required: true
+        # For API version >= 1.53
         - name: "body"
           in: "body"
           schema:
-            $ref: "#/definitions/NodeSpec"
+            type: "object"
+            properties:
+              version:
+                type: "integer"
+                format: "int64"
+                description: |
+                  The version number of the node object being updated. This is required
+                  to avoid conflicting writes.
+              spec:
+                $ref: "#/definitions/NodeSpec"
+        # For API version < 1.53
         - name: "version"
           in: "query"
           description: |
             The version number of the node object being updated. This is required
             to avoid conflicting writes.
+
+            **Deprecated:** For API version 1.53 and above, use the request body instead.
           type: "integer"
           format: "int64"
-          required: true
       tags: ["Node"]
   /swarm:
     get:
