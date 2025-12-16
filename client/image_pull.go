@@ -60,7 +60,7 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options ImagePu
 		return nil, err
 	}
 
-	return internal.NewJSONMessageStream(resp.Body), nil
+	return internal.NewJSONMessageStream[jsonstream.Message](resp.Body), nil
 }
 
 // getAPITagFromNamedRef returns a tag from the specified reference.
