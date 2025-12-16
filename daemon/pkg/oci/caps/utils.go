@@ -38,11 +38,6 @@ func knownCapabilities() map[string]*struct{} {
 	return knownCaps
 }
 
-// inSlice tests whether a string is contained in a slice of strings or not.
-func inSlice(slice []string, s string) bool {
-	return slices.Contains(slice, s)
-}
-
 const allCapabilities = "ALL"
 
 // NormalizeLegacyCapabilities normalizes, and validates CapAdd/CapDrop capabilities
@@ -99,20 +94,20 @@ func TweakCapabilities(basics, adds, drops []string, privileged bool) ([]string,
 	var caps []string
 
 	switch {
-	case inSlice(capAdd, allCapabilities):
+	case slices.Contains(capAdd, allCapabilities):
 		// Add all capabilities except ones on capDrop
 		for _, c := range GetAllCapabilities() {
-			if !inSlice(capDrop, c) {
+			if !slices.Contains(capDrop, c) {
 				caps = append(caps, c)
 			}
 		}
-	case inSlice(capDrop, allCapabilities):
+	case slices.Contains(capDrop, allCapabilities):
 		// "Drop" all capabilities; use what's in capAdd instead
 		caps = capAdd
 	default:
 		// First drop some capabilities
 		for _, c := range basics {
-			if !inSlice(capDrop, c) {
+			if !slices.Contains(capDrop, c) {
 				caps = append(caps, c)
 			}
 		}

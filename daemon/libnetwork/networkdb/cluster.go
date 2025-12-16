@@ -543,12 +543,7 @@ func (nDB *NetworkDB) bulkSyncTables() {
 		// successfully completed bulk sync in this iteration.
 		updatedNetworks := make([]string, 0, len(networks))
 		for _, nid := range networks {
-			var found bool
-			if slices.Contains(completed, nid) {
-				found = true
-			}
-
-			if !found {
+			if !slices.Contains(completed, nid) {
 				updatedNetworks = append(updatedNetworks, nid)
 			}
 		}

@@ -730,8 +730,7 @@ func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 // in the passed network only if it is not already present. Caller
 // should hold the NetworkDB lock while calling this
 func (nDB *NetworkDB) addNetworkNode(nid string, nodeName string) {
-	nodes := nDB.networkNodes[nid]
-	if slices.Contains(nodes, nodeName) {
+	if slices.Contains(nDB.networkNodes[nid], nodeName) {
 		return
 	}
 

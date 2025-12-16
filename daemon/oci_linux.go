@@ -466,12 +466,6 @@ var (
 	}
 )
 
-// inSlice tests whether a string is contained in a slice of strings or not.
-// Comparison is case sensitive
-func inSlice(slice []string, s string) bool {
-	return slices.Contains(slice, s)
-}
-
 // withMounts sets the container's mounts
 func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, mounts []container.Mount) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
@@ -641,7 +635,7 @@ func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, 
 					continue
 				}
 				if _, ok := userMounts[m.Destination]; !ok {
-					if !inSlice(m.Options, "ro") {
+					if !slices.Contains(m.Options, "ro") {
 						s.Mounts[i].Options = append(s.Mounts[i].Options, "ro")
 					}
 				}
