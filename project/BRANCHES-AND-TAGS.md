@@ -9,8 +9,8 @@ The Moby Project repository contains multiple components with their own versioni
 
 - **Moby** - the core library, versioned as `v2.x` (currently in beta)
 - **Docker Engine** - built from this repository, versioned independently
-- **API** (`api/`) - a separate Go module of the client library
-- **Client** (`client/`) - a separate Go module containing the materialization of the API specification, follows API versioning
+- **API** (`api/`) - a separate Go module containing the materialization of the API specification, follows API versioning
+- **Client** (`client/`) - a separate Go module of the client library
 
 # Branches
 
