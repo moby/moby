@@ -1,0 +1,130 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - depguard
+    - durationcheck
+    - errname
+    - errorlint
+    - fatcontext
+    - forbidigo
+    - gocritic
+    - gosec
+    - govet
+    - importas
+    - ineffassign
+    - makezero
+    - misspell
+    - noctx
+    - nolintlint
+    - revive
+    - staticcheck
+    - testifylint
+    - unused
+    - usestdlibvars
+    - whitespace
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: github.com/containerd/containerd/errdefs
+              desc: The containerd errdefs package was migrated to a separate module. Use github.com/containerd/errdefs instead.
+            - pkg: github.com/containerd/containerd/log
+              desc: The containerd log package was migrated to a separate module. Use github.com/containerd/log instead.
+            - pkg: github.com/containerd/containerd/platforms
+              desc: The containerd platforms package was migrated to a separate module. Use github.com/containerd/platforms instead.
+            - pkg: io/ioutil
+              desc: The io/ioutil package has been deprecated.
+    forbidigo:
+      forbid:
+        - pattern: ^context\.WithCancel(# use context\.WithCancelCause instead)?$
+        - pattern: ^context\.WithDeadline(# use context\.WithDeadline instead)?$
+        - pattern: ^context\.WithTimeout(# use context\.WithTimeoutCause instead)?$
+        - pattern: ^ctx\.Err(# use context\.Cause instead)?$
+        - pattern: ^fmt\.Errorf(# use errors\.Errorf instead)?$
+        - pattern: ^logrus\.(Trace|Debug|Info|Warn|Warning|Error|Fatal)(f|ln)?(# use bklog\.G or bklog\.L instead of logrus directly)?$
+        - pattern: ^log\.G\(ctx\)\.(# use bklog import instead of shadowing stdlib)?
+        - pattern: ^log\.L\.(# use bklog import instead of shadowing stdlib)?
+        - pattern: ^platforms\.DefaultString(# use platforms\.Format(platforms\.DefaultSpec()) instead\. Be aware that DefaultSpec is for the local platform, so must be avoided when working cross-platform)?$
+    gocritic:
+      disabled-checks:
+        - ifElseChain
+        - assignOp
+        - appendAssign
+        - singleCaseSwitch
+    gosec:
+      excludes:
+        - G101
+        - G402
+        - G504
+        - G601
+        - G115
+      config:
+        G306: "0644"
+    govet:
+      enable:
+        - nilness
+        - unusedwrite
+    importas:
+      alias:
+        - pkg: github.com/containerd/errdefs
+          alias: cerrdefs
+        - pkg: github.com/opencontainers/image-spec/specs-go/v1
+          alias: ocispecs
+        - pkg: github.com/opencontainers/go-digest
+          alias: digest
+      no-unaliased: true
+    staticcheck:
+      checks:
+        - all
+    testifylint:
+      disable:
+        - empty
+        - bool-compare
+        - len
+        - negative-positive
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - revive
+        text: stutters
+      - linters:
+          - revive
+        text: empty-block
+      - linters:
+          - revive
+        text: superfluous-else
+      - linters:
+          - revive
+        text: unused-parameter
+      - linters:
+          - revive
+        text: redefines-builtin-id
+      - linters:
+          - revive
+        text: if-return
+    paths:
+      - .*\.pb\.go$
+      - examples
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - .*\.pb\.go$
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

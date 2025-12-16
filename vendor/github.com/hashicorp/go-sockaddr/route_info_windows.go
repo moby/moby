@@ -1,14 +1,16 @@
 package sockaddr
 
-import "os/exec"
+import (
+	"os/exec"
+	"strings"
+)
 
 var cmds map[string][]string = map[string][]string{
+	"defaultInterface": {"powershell", "Get-NetRoute -DestinationPrefix '0.0.0.0/0' | select -ExpandProperty InterfaceAlias"},
+	// These commands enable GetDefaultInterfaceNameLegacy and should be removed
+	// when it is.
 	"netstat":  {"netstat", "-rn"},
 	"ipconfig": {"ipconfig"},
-}
-
-type routeInfo struct {
-	cmds map[string][]string
 }
 
 // NewRouteInfo returns a BSD-specific implementation of the RouteInfo
@@ -22,6 +24,23 @@ func NewRouteInfo() (routeInfo, error) {
 // GetDefaultInterfaceName returns the interface name attached to the default
 // route on the default interface.
 func (ri routeInfo) GetDefaultInterfaceName() (string, error) {
+	if !hasPowershell() {
+		// No powershell, fallback to legacy method
+		return ri.GetDefaultInterfaceNameLegacy()
+	}
+
+	ifNameOut, err := exec.Command(cmds["defaultInterface"][0], cmds["defaultInterface"][1:]...).Output()
+	if err != nil {
+		return "", err
+	}
+
+	ifName := strings.TrimSpace(string(ifNameOut[:]))
+	return ifName, nil
+}
+
+// GetDefaultInterfaceNameLegacy provides legacy behavior for GetDefaultInterfaceName
+// on Windows machines without powershell.
+func (ri routeInfo) GetDefaultInterfaceNameLegacy() (string, error) {
 	ifNameOut, err := exec.Command(cmds["netstat"][0], cmds["netstat"][1:]...).Output()
 	if err != nil {
 		return "", err
@@ -38,4 +57,9 @@ func (ri routeInfo) GetDefaultInterfaceName() (string, error) {
 	}
 
 	return ifName, nil
+}
+
+func hasPowershell() bool {
+	_, err := exec.LookPath("powershell")
+	return (err != nil)
 }

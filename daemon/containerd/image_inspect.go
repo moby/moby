@@ -10,7 +10,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/containerd/containerd/v2/core/content"
 	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/pkg/labels"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
@@ -22,8 +24,11 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/internal/sliceutil"
-	"github.com/opencontainers/go-digest"
+	policyimage "github.com/moby/policy-helpers/image"
+	policytypes "github.com/moby/policy-helpers/types"
+	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -87,7 +92,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 		target = multi.Best.Target()
 	}
 
-	identity, err := i.imageIdentity(ctx, target.Digest)
+	identity, err := i.imageIdentity(ctx, c8dImg.Target, multi)
 	if err != nil {
 		log.G(ctx).WithError(err).Warn("failed to determine Identity property")
 	}
@@ -146,8 +151,8 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 	return resp, nil
 }
 
-func (i *ImageService) imageIdentity(ctx context.Context, dgst digest.Digest) (*imagetypes.ImageIdentity, error) {
-	info, err := i.content.Info(ctx, dgst)
+func (i *ImageService) imageIdentity(ctx context.Context, desc ocispec.Descriptor, multi *multiPlatformSummary) (*imagetypes.ImageIdentity, error) {
+	info, err := i.content.Info(ctx, desc.Digest)
 	if err != nil {
 		return nil, err
 	}
@@ -188,6 +193,16 @@ func (i *ImageService) imageIdentity(ctx context.Context, dgst digest.Digest) (*
 		}
 	}
 
+	if multi.Best != nil {
+		si, err := i.signatureIndentity(ctx, desc, multi.Best, multi.BestPlatform)
+		if err != nil {
+			log.G(ctx).WithError(err).Error("failed to validate image signature")
+		}
+		if si != nil {
+			identity.Signature = append(identity.Signature, *si)
+		}
+	}
+
 	// return nil if there is no identity information
 	if len(identity.Build) == 0 && len(identity.Pull) == 0 && len(identity.Signature) == 0 {
 		return nil, nil
@@ -198,6 +213,126 @@ func (i *ImageService) imageIdentity(ctx context.Context, dgst digest.Digest) (*
 	})
 
 	return identity, nil
+}
+
+func (i *ImageService) signatureIndentity(ctx context.Context, desc ocispec.Descriptor, img *ImageManifest, platform ocispec.Platform) (*imagetypes.ImageSignatureIdentity, error) {
+	rp := &referrersProvider{Store: i.content}
+	sc, err := policyimage.ResolveSignatureChain(ctx, rp, desc, &platform)
+	if err != nil {
+		return nil, errors.Wrapf(err, "resolving signature chain for image %s", desc.Digest)
+	}
+	if sc.SignatureManifest == nil || sc.ImageManifest == nil {
+		return nil, nil
+	}
+
+	if sc.ImageManifest.Digest != img.Target().Digest {
+		log.L.Infof("signature chain image manifest digest mismatch: %s != %s", sc.ImageManifest.Digest, img.Target().Digest)
+		return nil, nil
+	}
+
+	v, err := i.policyVerifier()
+	if err != nil {
+		return nil, err
+	}
+
+	out := &imagetypes.ImageSignatureIdentity{}
+
+	si, err := v.VerifyImage(ctx, rp, desc, &platform)
+	if err != nil {
+		out.Error = err.Error()
+		return out, nil
+	}
+
+	out.Name = si.Name()
+	out.DockerReference = si.DockerReference
+
+	if si.IsDHI { // update upstream to also use known signer type instead of bool
+		out.KnownSigner = imagetypes.KnownSignerDHI
+	}
+
+	switch si.SignatureType {
+	case policytypes.SignatureBundleV03:
+		out.SignatureType = string(imagetypes.ImageSignatureTypeBundleV03)
+	case policytypes.SignatureSimpleSigningV1:
+		out.SignatureType = string(imagetypes.ImageSignatureTypeSimpleSigning)
+	}
+
+	for _, ts := range si.Timestamps {
+		out.Timestamps = append(out.Timestamps, imagetypes.ImageSignatureTimestamp{
+			Type:      imagetypes.ImageSignatureTimestampType(ts.Type),
+			URI:       ts.URI,
+			Timestamp: ts.Timestamp,
+		})
+	}
+
+	if signer := si.Signer; signer != nil {
+		out.Signer = &imagetypes.ImageSignatureSigner{
+			CertificateIssuer:                   signer.CertificateIssuer,
+			SubjectAlternativeName:              signer.SubjectAlternativeName,
+			Issuer:                              signer.Issuer,
+			BuildSignerURI:                      signer.BuildSignerURI,
+			BuildSignerDigest:                   signer.BuildSignerDigest,
+			RunnerEnvironment:                   signer.RunnerEnvironment,
+			SourceRepositoryURI:                 signer.SourceRepositoryURI,
+			SourceRepositoryDigest:              signer.SourceRepositoryDigest,
+			SourceRepositoryRef:                 signer.SourceRepositoryRef,
+			SourceRepositoryIdentifier:          signer.SourceRepositoryIdentifier,
+			SourceRepositoryOwnerURI:            signer.SourceRepositoryOwnerURI,
+			SourceRepositoryOwnerIdentifier:     signer.SourceRepositoryOwnerIdentifier,
+			BuildConfigURI:                      signer.BuildConfigURI,
+			BuildConfigDigest:                   signer.BuildConfigDigest,
+			BuildTrigger:                        signer.BuildTrigger,
+			RunInvocationURI:                    signer.RunInvocationURI,
+			SourceRepositoryVisibilityAtSigning: signer.SourceRepositoryVisibilityAtSigning,
+		}
+	}
+
+	if si.TrustRootStatus.Error != "" {
+		out.Warnings = append(out.Warnings, si.TrustRootStatus.Error)
+	}
+
+	return out, nil
+}
+
+type referrersProvider struct {
+	content.Store
+}
+
+var _ policyimage.ReferrersProvider = &referrersProvider{}
+
+func (p *referrersProvider) FetchReferrers(ctx context.Context, dgst digest.Digest, opts ...remotes.FetchReferrersOpt) ([]ocispec.Descriptor, error) {
+	rfe := &referrersForExport{store: p.Store}
+	descs, err := rfe.Referrers(ctx, ocispec.Descriptor{Digest: dgst})
+	if err != nil {
+		return nil, errors.Wrapf(err, "fetching referrers for %s", dgst)
+	}
+
+	if len(descs) == 0 {
+		return nil, nil
+	}
+
+	cfg := &remotes.FetchReferrersConfig{}
+	for _, opt := range opts {
+		if err := opt(ctx, cfg); err != nil {
+			return nil, err
+		}
+	}
+	filter := make(map[string]struct{})
+	for _, t := range cfg.ArtifactTypes {
+		filter[t] = struct{}{}
+	}
+
+	if len(filter) == 0 {
+		return descs, nil
+	}
+
+	out := make([]ocispec.Descriptor, 0, len(descs))
+	for _, d := range descs {
+		if _, ok := filter[d.MediaType]; ok {
+			out = append(out, d)
+		}
+	}
+	return out, nil
 }
 
 func collectRepoTagsAndDigests(ctx context.Context, tagged []c8dimages.Image) (repoTags []string, repoDigests []string) {
