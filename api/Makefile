@@ -19,18 +19,18 @@ DOCKER_RUN := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
 
 DOCKER_CONTAINER_NAME := $(if $(CONTAINER_NAME),--name $(CONTAINER_NAME),)
 
+DOCKER_BUILD_ARGS += --build-arg=GO_VERSION
+DOCKER_BUILD_ARGS += --build-arg=SWAGGER_VERSION
+
 BUILD_CMD := $(BUILDX) build
-GO_VERSION ?= 1.25.4
-SWAGGER_VERSION ?= v0.33.1
+
 SWAGGER_DOCS_PORT ?= 9000
 
 .DEFAULT_GOAL := help
 
 .PHONY: build
 build:
-	$(BUILD_CMD) \
-		--build-arg GO_VERSION=$(GO_VERSION) \
-		--build-arg SWAGGER_VERSION=$(SWAGGER_VERSION) \
+	$(BUILD_CMD) $(DOCKER_BUILD_ARGS) \
 		--target dev \
 		--load \
 		-t "$(DOCKER_IMAGE)" \
@@ -45,7 +45,7 @@ swagger-gen: build ## generate swagger API types
 swagger-docs: ## preview the API documentation
 	@echo "API docs preview will be running at http://localhost:$(SWAGGER_DOCS_PORT)"
 	@docker run --rm \
-		-v $(PWD)/:/usr/share/nginx/html/swagger/ \
+		-v ./:/usr/share/nginx/html/swagger/ \
 		-e 'REDOC_OPTIONS=hide-hostname="true" lazy-rendering' \
 		-e SPEC_URL="swagger/swagger.yaml" \
 		-p $(SWAGGER_DOCS_PORT):80 \
