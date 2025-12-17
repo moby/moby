@@ -653,43 +653,7 @@ func (lbf *llbBridgeForwarder) ResolveSourceMeta(ctx context.Context, req *pb.Re
 	if err != nil {
 		return nil, err
 	}
-
-	r := &pb.ResolveSourceMetaResponse{
-		Source: resp.Op,
-	}
-
-	if resp.Image != nil {
-		r.Image = &pb.ResolveSourceImageResponse{
-			Digest: string(resp.Image.Digest),
-			Config: resp.Image.Config,
-		}
-		if resp.Image.AttestationChain != nil {
-			r.Image.AttestationChain = toPBAttestationChain(resp.Image.AttestationChain)
-		}
-	}
-	if resp.Git != nil {
-		r.Git = &pb.ResolveSourceGitResponse{
-			Checksum:       resp.Git.Checksum,
-			Ref:            resp.Git.Ref,
-			CommitChecksum: resp.Git.CommitChecksum,
-			CommitObject:   resp.Git.CommitObject,
-			TagObject:      resp.Git.TagObject,
-		}
-	}
-	if resp.HTTP != nil {
-		var lastModified *timestamp.Timestamp
-		if resp.HTTP.LastModified != nil {
-			lastModified = &timestamp.Timestamp{
-				Seconds: resp.HTTP.LastModified.Unix(),
-			}
-		}
-		r.HTTP = &pb.ResolveSourceHTTPResponse{
-			Checksum:     resp.HTTP.Digest.String(),
-			Filename:     resp.HTTP.Filename,
-			LastModified: lastModified,
-		}
-	}
-	return r, nil
+	return ToPBResolveSourceMetaResponse(resp), nil
 }
 
 func (lbf *llbBridgeForwarder) ResolveImageConfig(ctx context.Context, req *pb.ResolveImageConfigRequest) (*pb.ResolveImageConfigResponse, error) {
@@ -1703,6 +1667,45 @@ func getCaps(label string) map[string]struct{} {
 		}
 	}
 	return out
+}
+
+func ToPBResolveSourceMetaResponse(in *sourceresolver.MetaResponse) *pb.ResolveSourceMetaResponse {
+	r := &pb.ResolveSourceMetaResponse{
+		Source: in.Op,
+	}
+
+	if in.Image != nil {
+		r.Image = &pb.ResolveSourceImageResponse{
+			Digest: string(in.Image.Digest),
+			Config: in.Image.Config,
+		}
+		if in.Image.AttestationChain != nil {
+			r.Image.AttestationChain = toPBAttestationChain(in.Image.AttestationChain)
+		}
+	}
+	if in.Git != nil {
+		r.Git = &pb.ResolveSourceGitResponse{
+			Checksum:       in.Git.Checksum,
+			Ref:            in.Git.Ref,
+			CommitChecksum: in.Git.CommitChecksum,
+			CommitObject:   in.Git.CommitObject,
+			TagObject:      in.Git.TagObject,
+		}
+	}
+	if in.HTTP != nil {
+		var lastModified *timestamp.Timestamp
+		if in.HTTP.LastModified != nil {
+			lastModified = &timestamp.Timestamp{
+				Seconds: in.HTTP.LastModified.Unix(),
+			}
+		}
+		r.HTTP = &pb.ResolveSourceHTTPResponse{
+			Checksum:     in.HTTP.Digest.String(),
+			Filename:     in.HTTP.Filename,
+			LastModified: lastModified,
+		}
+	}
+	return r
 }
 
 func toPBAttestationChain(ac *sourceresolver.AttestationChain) *pb.AttestationChain {
