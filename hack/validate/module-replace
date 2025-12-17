@@ -13,7 +13,13 @@ api_files=$(
 		|| true
 )
 
-client_files=$(validate_diff --diff-filter=ACMR --name-only -- 'client/' || true)
+client_files=$(
+	validate_diff --diff-filter=ACMR --name-only -- \
+		'client/' \
+		':(exclude)client/go.mod' \
+		':(exclude)client/go.sum' \
+		|| true
+)
 
 has_errors=0
 
