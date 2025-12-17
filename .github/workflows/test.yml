@@ -179,7 +179,7 @@ jobs:
       - 
         name: Build api module image
         run: |
-          make build GO_VERSION=${{ env.GO_VERSION }}
+          make build
       - 
         name: Validate swagger
         run: |
