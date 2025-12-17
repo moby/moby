@@ -21,7 +21,7 @@ func NewJSONStreamEncoder(w io.Writer, contentType string) EncoderFn {
 			json: jsonEncoder,
 		}
 		return jseq.Encode
-	case types.MediaTypeNDJSON, types.MediaTypeJSON:
+	case types.MediaTypeNDJSON, types.MediaTypeJSON, types.MediaTypeJSONLines:
 		fallthrough
 	default:
 		return jsonEncoder.Encode
