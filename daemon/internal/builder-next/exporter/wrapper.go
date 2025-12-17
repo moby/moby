@@ -73,8 +73,8 @@ type imageExporterInstanceWrapper struct {
 	callbacks BuildkitCallbacks
 }
 
-func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter.Source, inlineCache exptypes.InlineCache, sessionID string) (map[string]string, exporter.DescriptorReference, error) {
-	out, ref, err := i.ExporterInstance.Export(ctx, src, inlineCache, sessionID)
+func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter.Source, buildInfo exporter.ExportBuildInfo) (map[string]string, exporter.DescriptorReference, error) {
+	out, ref, err := i.ExporterInstance.Export(ctx, src, buildInfo)
 	if err != nil {
 		return out, ref, err
 	}

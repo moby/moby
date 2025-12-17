@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/platforms"
@@ -64,7 +65,7 @@ func (m *staticEmulatorMount) Mount() ([]mount.Mount, func() error, error) {
 	if err := copy.Copy(context.TODO(), filepath.Dir(m.path), filepath.Base(m.path), tmpdir, qemuMountName, func(ci *copy.CopyInfo) {
 		m := 0555
 		ci.Mode = &m
-	}, copy.WithChown(uid, gid)); err != nil {
+	}, copy.WithChown(uid, gid), copy.WithXAttrErrorHandler(ignoreSELinuxXAttrErrorHandler)); err != nil {
 		return nil, nil, err
 	}
 
@@ -122,4 +123,21 @@ func getEmulator(ctx context.Context, p *pb.Platform) (*emulator, error) {
 	}
 
 	return &emulator{path: fn}, nil
+}
+
+// ignoreSELinuxXAttrErrorHandler is an error handler for xattr copy operations
+// that specifically ignores ENOTSUP errors for security.selinux extended attributes.
+// This addresses SELinux compatibility issues where copying files to filesystems that
+// don't support SELinux xattrs (like tmpfs) would fail with ENOTSUP, preventing
+// qemu emulator setup on SELinux-enabled systems. Since the security.selinux xattr
+// is not critical for the emulator functionality, we safely ignore these errors
+// while preserving other xattr error handling.
+func ignoreSELinuxXAttrErrorHandler(dst, src, xattrKey string, err error) error {
+	// Ignore ENOTSUP errors specifically for security.selinux xattr
+	// This allows qemu emulator setup to succeed on SELinux systems
+	// when copying to filesystems that don't support SELinux xattrs
+	if errors.Is(err, syscall.ENOTSUP) && xattrKey == "security.selinux" {
+		return nil
+	}
+	return err
 }
