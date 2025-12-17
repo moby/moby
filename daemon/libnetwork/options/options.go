@@ -3,7 +3,6 @@
 package options
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 )
@@ -55,9 +54,6 @@ func GenerateFromModel[T any](options Generic) (T, error) {
 	var zero T
 
 	modType := reflect.TypeFor[T]()
-	if modType == nil {
-		return zero, errors.New("invalid model: model is nil")
-	}
 
 	isPtr := modType.Kind() == reflect.Ptr
 
