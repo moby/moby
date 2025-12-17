@@ -147,6 +147,8 @@ jobs:
       -
         name: Build test image
         uses: docker/bake-action@v6
+        env:
+          GO_VERSION: "1.26.0"
         with:
           source: .
           workdir: ./buildkit
