@@ -148,7 +148,7 @@ type ResourceRequirements struct {
 	// Tune container memory swappiness (0 to 100) - if not specified, defaults
 	// to the container OS's default - generally 60, or the value predefined in
 	// the image; set to -1 to unset a previously set value
-	MemorySwappiness *int64 `json:MemorySwappiness,omitzero"`
+	MemorySwappiness *int64 `json:"MemorySwappiness,omitzero"`
 }
 
 // Placement represents orchestration parameters.
