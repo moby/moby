@@ -256,3 +256,7 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.0.0 // indirect
 )
+
+replace github.com/moby/moby/api => ./api
+
+replace github.com/moby/moby/client => ./client
