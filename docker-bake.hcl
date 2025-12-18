@@ -53,9 +53,15 @@ target "docker-metadata-action" {
 variable "DESTDIR" {
   default = ""
 }
+
 function "bindir" {
   params = [defaultdir]
   result = DESTDIR != "" ? DESTDIR : "./bundles/${defaultdir}"
+}
+
+function "buildtags" {
+  params = [defaulttags]
+  result = "${defaulttags} nri_no_wasm"
 }
 
 target "_common" {
@@ -64,7 +70,7 @@ target "_common" {
     DOCKER_DEBUG = DOCKER_DEBUG
     DOCKER_STATIC = DOCKER_STATIC
     DOCKER_LDFLAGS = DOCKER_LDFLAGS
-    DOCKER_BUILDTAGS = DOCKER_BUILDTAGS
+    DOCKER_BUILDTAGS = buildtags(DOCKER_BUILDTAGS)
     DOCKER_GITCOMMIT = DOCKER_GITCOMMIT
     VERSION = VERSION
     PLATFORM = PLATFORM
