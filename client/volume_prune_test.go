@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/containerd/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/volume"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -81,7 +81,7 @@ func TestVolumePrune(t *testing.T) {
 
 			_, err = client.VolumePrune(t.Context(), tc.opts)
 			if tc.expectedError != "" {
-				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidArgument))
+				assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 				assert.Check(t, is.Error(err, tc.expectedError))
 			} else {
 				assert.NilError(t, err)

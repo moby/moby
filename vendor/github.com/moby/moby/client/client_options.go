@@ -133,8 +133,6 @@ func (tf testRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 	return tf(req)
 }
 
-func (testRoundTripper) skipConfigureTransport() bool { return true }
-
 // WithHostFromEnv overrides the client host with the host specified in the
 // DOCKER_HOST ([EnvOverrideHost]) environment variable. If DOCKER_HOST is not set,
 // or set to an empty value, the host is not modified.
