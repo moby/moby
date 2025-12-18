@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -149,7 +150,7 @@ func TestExecStartConsoleSize(t *testing.T) {
 			client, err := New(
 				WithMockClient(func(req *http.Request) (*http.Response, error) {
 					if tc.expErr != "" {
-						return nil, fmt.Errorf("should not have made API request")
+						return nil, errors.New("should not have made API request")
 					}
 					if err := json.NewDecoder(req.Body).Decode(&actualReq); err != nil {
 						return nil, err
