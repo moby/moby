@@ -219,7 +219,7 @@ func (e *imageExporterInstance) Attrs() map[string]string {
 	return e.attrs
 }
 
-func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source, inlineCache exptypes.InlineCache, sessionID string) (_ map[string]string, descref exporter.DescriptorReference, err error) {
+func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source, buildInfo exporter.ExportBuildInfo) (_ map[string]string, descref exporter.DescriptorReference, err error) {
 	src = src.Clone()
 	if src.Metadata == nil {
 		src.Metadata = make(map[string][]byte)
@@ -243,7 +243,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 		}
 	}()
 
-	desc, err := e.opt.ImageWriter.Commit(ctx, src, sessionID, inlineCache, &opts)
+	desc, err := e.opt.ImageWriter.Commit(ctx, src, buildInfo.SessionID, buildInfo.InlineCache, &opts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -317,7 +317,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 						// https://github.com/moby/buildkit/pull/4057#discussion_r1324106088
 						return nil, nil, errors.New("exporter option \"rewrite-timestamp\" conflicts with \"unpack\"")
 					}
-					if err := e.unpackImage(ctx, img, src, session.NewGroup(sessionID)); err != nil {
+					if err := e.unpackImage(ctx, img, src, session.NewGroup(buildInfo.SessionID)); err != nil {
 						return nil, nil, err
 					}
 				}
@@ -336,7 +336,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 					eg, ctx := errgroup.WithContext(ctx)
 					for _, ref := range refs {
 						eg.Go(func() error {
-							remotes, err := ref.GetRemotes(ctx, false, e.opts.RefCfg, false, session.NewGroup(sessionID))
+							remotes, err := ref.GetRemotes(ctx, false, e.opts.RefCfg, false, session.NewGroup(buildInfo.SessionID))
 							if err != nil {
 								return err
 							}
@@ -355,7 +355,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 				}
 			}
 			if e.push {
-				err = e.pushImage(ctx, src, sessionID, targetName, desc.Digest)
+				err = e.pushImage(ctx, src, buildInfo.SessionID, targetName, desc.Digest)
 				if err != nil {
 					var statusErr remoteserrors.ErrUnexpectedStatus
 					if errors.As(err, &statusErr) {
