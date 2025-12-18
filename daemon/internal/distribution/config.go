@@ -72,6 +72,8 @@ type ImagePushConfig struct {
 	ConfigMediaType string
 	// LayerStores manages layers.
 	LayerStores PushLayerProvider
+	// ForceCheckLayerExist indicates force checking if layers exist in remote registry when pushing image layers
+	ForceCheckLayerExist bool
 	// UploadManager dispatches uploads.
 	UploadManager *xfer.LayerUploadManager
 }
