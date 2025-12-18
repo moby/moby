@@ -156,7 +156,7 @@ func (s *Spec) write(overwrite bool) error {
 		return fmt.Errorf("failed to create Spec file: %w", err)
 	}
 	_, err = tmp.Write(data)
-	tmp.Close()
+	_ = tmp.Close()
 	if err != nil {
 		return fmt.Errorf("failed to write Spec file: %w", err)
 	}
@@ -164,7 +164,7 @@ func (s *Spec) write(overwrite bool) error {
 	err = renameIn(dir, filepath.Base(tmp.Name()), filepath.Base(s.path), overwrite)
 
 	if err != nil {
-		os.Remove(tmp.Name())
+		_ = os.Remove(tmp.Name())
 		err = fmt.Errorf("failed to write Spec file: %w", err)
 	}
 

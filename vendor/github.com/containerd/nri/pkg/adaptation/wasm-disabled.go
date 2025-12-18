@@ -1,8 +1,7 @@
-//go:build darwin
-// +build darwin
+//go:build nri_no_wasm
 
 /*
-   Copyright © 2021 The CDI Authors
+   Copyright The containerd Authors.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -17,10 +16,12 @@
    limitations under the License.
 */
 
-package cdi
+package adaptation
 
-import "syscall"
+import (
+	"github.com/containerd/nri/pkg/api"
+)
 
-func osSync() {
-	_ = syscall.Sync()
+func getWasmService() (*api.PluginPlugin, error) {
+	return nil, ErrWasmDisabled
 }

@@ -25,7 +25,8 @@ import (
 //
 
 // Aliased request/response/event types for api/api.proto.
-// nolint
+//
+//nolint:revive // revive thinks the comment is for the exported type below
 type (
 	RegisterPluginRequest    = api.RegisterPluginRequest
 	RegisterPluginResponse   = api.Empty
@@ -91,18 +92,25 @@ type (
 	LinuxDeviceCgroup        = api.LinuxDeviceCgroup
 	LinuxIOPriority          = api.LinuxIOPriority
 	LinuxSeccomp             = api.LinuxSeccomp
+	LinuxNetDevice           = api.LinuxNetDevice
+	LinuxScheduler           = api.LinuxScheduler
+	LinuxSchedulerPolicy     = api.LinuxSchedulerPolicy
+	LinuxSchedulerFlag       = api.LinuxSchedulerFlag
+	LinuxRdt                 = api.LinuxRdt
 	CDIDevice                = api.CDIDevice
 	HugepageLimit            = api.HugepageLimit
 	Hooks                    = api.Hooks
 	Hook                     = api.Hook
 	POSIXRlimit              = api.POSIXRlimit
 	SecurityProfile          = api.SecurityProfile
+	User                     = api.User
 
 	EventMask = api.EventMask
 )
 
 // Aliased consts for api/api.proto.
-// nolint
+//
+//nolint:revive // ignore const naming from auto-generated code
 const (
 	Event_UNKNOWN                       = api.Event_UNKNOWN
 	Event_RUN_POD_SANDBOX               = api.Event_RUN_POD_SANDBOX
@@ -134,7 +142,8 @@ const (
 )
 
 // Aliased types for api/optional.go.
-// nolint
+//
+//nolint:revive // revive thinks the comment is for the exported type below
 type (
 	OptionalString   = api.OptionalString
 	OptionalInt      = api.OptionalInt
@@ -147,20 +156,19 @@ type (
 )
 
 // Aliased functions for api/optional.go.
-// nolint
 var (
-	String   = api.String
-	Int      = api.Int
-	Int32    = api.Int32
-	UInt32   = api.UInt32
-	Int64    = api.Int64
-	UInt64   = api.UInt64
-	Bool     = api.Bool
-	FileMode = api.FileMode
+	String         = api.String
+	RepeatedString = api.RepeatedString
+	Int            = api.Int
+	Int32          = api.Int32
+	UInt32         = api.UInt32
+	Int64          = api.Int64
+	UInt64         = api.UInt64
+	Bool           = api.Bool
+	FileMode       = api.FileMode
 )
 
 // Aliased functions for api/types.go.
-// nolint
 var (
 	FromOCIMounts          = api.FromOCIMounts
 	FromOCIHooks           = api.FromOCIHooks

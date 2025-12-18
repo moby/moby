@@ -116,6 +116,7 @@ func (a *ContainerAdjustment) AddHooks(h *Hooks) {
 	}
 }
 
+// AddRlimit records the addition of rlimit (POSIX resource limits) to a container.
 func (a *ContainerAdjustment) AddRlimit(typ string, hard, soft uint64) {
 	a.initRlimits()
 	a.Rlimits = append(a.Rlimits, &POSIXRlimit{
@@ -159,6 +160,24 @@ func (a *ContainerAdjustment) RemoveNamespace(n *LinuxNamespace) {
 	a.Linux.Namespaces = append(a.Linux.Namespaces, &LinuxNamespace{
 		Type: MarkForRemoval(n.Type),
 	})
+}
+
+// AddLinuxNetDevice records the addition of the given network device to a container.
+func (a *ContainerAdjustment) AddLinuxNetDevice(hostDev string, d *LinuxNetDevice) {
+	if d == nil {
+		return
+	}
+	a.initLinuxNetDevices()
+	a.Linux.NetDevices[hostDev] = d
+}
+
+// RemoveLinuxNetDevice records the removal of a network device from a container.
+// Normally it is an error for a plugin to try and alter a network device
+// touched by another container. However, this is not an error if
+// the plugin removes that device prior to touching it.
+func (a *ContainerAdjustment) RemoveLinuxNetDevice(hostDev string) {
+	a.initLinuxNetDevices()
+	a.Linux.NetDevices[MarkForRemoval(hostDev)] = nil
 }
 
 // SetLinuxMemoryLimit records setting the memory limit for a container.
@@ -279,6 +298,30 @@ func (a *ContainerAdjustment) SetLinuxRDTClass(value string) {
 	a.Linux.Resources.RdtClass = String(value)
 }
 
+// SetLinuxRDTClosID records setting the RDT CLOS id for a container.
+func (a *ContainerAdjustment) SetLinuxRDTClosID(value string) {
+	a.initLinuxRdt()
+	a.Linux.Rdt.ClosId = String(value)
+}
+
+// SetLinuxRDTSchemata records setting the RDT schemata for a container.
+func (a *ContainerAdjustment) SetLinuxRDTSchemata(value []string) {
+	a.initLinuxRdt()
+	a.Linux.Rdt.Schemata = RepeatedString(value)
+}
+
+// SetLinuxRDTEnableMonitoring records enabling RDT monitoring for a container.
+func (a *ContainerAdjustment) SetLinuxRDTEnableMonitoring(value bool) {
+	a.initLinuxRdt()
+	a.Linux.Rdt.EnableMonitoring = Bool(value)
+}
+
+// RemoveLinuxRDT records the removal of the RDT configuration.
+func (a *ContainerAdjustment) RemoveLinuxRDT() {
+	a.initLinuxRdt()
+	a.Linux.Rdt.Remove = true
+}
+
 // AddLinuxUnified sets a cgroupv2 unified resource.
 func (a *ContainerAdjustment) AddLinuxUnified(key, value string) {
 	a.initLinuxResourcesUnified()
@@ -307,6 +350,21 @@ func (a *ContainerAdjustment) SetLinuxIOPriority(ioprio *LinuxIOPriority) {
 func (a *ContainerAdjustment) SetLinuxSeccompPolicy(seccomp *LinuxSeccomp) {
 	a.initLinux()
 	a.Linux.SeccompPolicy = seccomp
+}
+
+// SetLinuxSysctl records setting a sysctl for a container.
+func (a *ContainerAdjustment) SetLinuxSysctl(key, value string) {
+	a.initLinux()
+	if a.Linux.Sysctl == nil {
+		a.Linux.Sysctl = make(map[string]string)
+	}
+	a.Linux.Sysctl[key] = value
+}
+
+// SetLinuxScheduler records setting the Linux scheduler attributes for a container.
+func (a *ContainerAdjustment) SetLinuxScheduler(sch *LinuxScheduler) {
+	a.initLinux()
+	a.Linux.Scheduler = sch
 }
 
 //
@@ -376,5 +434,19 @@ func (a *ContainerAdjustment) initLinuxResourcesUnified() {
 	a.initLinuxResources()
 	if a.Linux.Resources.Unified == nil {
 		a.Linux.Resources.Unified = make(map[string]string)
+	}
+}
+
+func (a *ContainerAdjustment) initLinuxNetDevices() {
+	a.initLinux()
+	if a.Linux.NetDevices == nil {
+		a.Linux.NetDevices = make(map[string]*LinuxNetDevice)
+	}
+}
+
+func (a *ContainerAdjustment) initLinuxRdt() {
+	a.initLinux()
+	if a.Linux.Rdt == nil {
+		a.Linux.Rdt = &LinuxRdt{}
 	}
 }

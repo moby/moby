@@ -24,12 +24,13 @@ type Device struct {
 
 // ContainerEdits are edits a container runtime must make to the OCI spec to expose the device.
 type ContainerEdits struct {
-	Env            []string      `json:"env,omitempty"            yaml:"env,omitempty"`
-	DeviceNodes    []*DeviceNode `json:"deviceNodes,omitempty"    yaml:"deviceNodes,omitempty"`
-	Hooks          []*Hook       `json:"hooks,omitempty"          yaml:"hooks,omitempty"`
-	Mounts         []*Mount      `json:"mounts,omitempty"         yaml:"mounts,omitempty"`
-	IntelRdt       *IntelRdt     `json:"intelRdt,omitempty"       yaml:"intelRdt,omitempty"`       // Added in v0.7.0
-	AdditionalGIDs []uint32      `json:"additionalGids,omitempty" yaml:"additionalGids,omitempty"` // Added in v0.7.0
+	Env            []string          `json:"env,omitempty"            yaml:"env,omitempty"`
+	DeviceNodes    []*DeviceNode     `json:"deviceNodes,omitempty"    yaml:"deviceNodes,omitempty"`
+	NetDevices     []*LinuxNetDevice `json:"netDevices,omitempty"     yaml:"netDevices,omitempty"` // Added in v1.1.0
+	Hooks          []*Hook           `json:"hooks,omitempty"          yaml:"hooks,omitempty"`
+	Mounts         []*Mount          `json:"mounts,omitempty"         yaml:"mounts,omitempty"`
+	IntelRdt       *IntelRdt         `json:"intelRdt,omitempty"       yaml:"intelRdt,omitempty"`       // Added in v0.7.0
+	AdditionalGIDs []uint32          `json:"additionalGids,omitempty" yaml:"additionalGids,omitempty"` // Added in v0.7.0
 }
 
 // DeviceNode represents a device node that needs to be added to the OCI spec.
@@ -64,9 +65,15 @@ type Hook struct {
 
 // IntelRdt describes the Linux IntelRdt parameters to set in the OCI spec.
 type IntelRdt struct {
-	ClosID        string `json:"closID,omitempty"        yaml:"closID,omitempty"`
-	L3CacheSchema string `json:"l3CacheSchema,omitempty" yaml:"l3CacheSchema,omitempty"`
-	MemBwSchema   string `json:"memBwSchema,omitempty"   yaml:"memBwSchema,omitempty"`
-	EnableCMT     bool   `json:"enableCMT,omitempty"     yaml:"enableCMT,omitempty"`
-	EnableMBM     bool   `json:"enableMBM,omitempty"     yaml:"enableMBM,omitempty"`
+	ClosID           string   `json:"closID,omitempty"           yaml:"closID,omitempty"`
+	L3CacheSchema    string   `json:"l3CacheSchema,omitempty"    yaml:"l3CacheSchema,omitempty"`
+	MemBwSchema      string   `json:"memBwSchema,omitempty"      yaml:"memBwSchema,omitempty"`
+	Schemata         []string `json:"schemata,omitempty"         yaml:"schemata,omitempty"`         // Added in v1.1.0.
+	EnableMonitoring bool     `json:"enableMonitoring,omitempty" yaml:"enableMonitoring,omitempty"` // Added in v1.1.0.
+}
+
+// LinuxNetDevice represents an OCI LinuxNetDevice to be added to the OCI Spec.
+type LinuxNetDevice struct {
+	HostInterfaceName string `json:"hostInterfaceName" yaml:"hostInterfaceName"`
+	Name              string `json:"name"   yaml:"name"`
 }

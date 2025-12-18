@@ -25,7 +25,7 @@ import (
 
 const (
 	// CurrentVersion is the current version of the Spec.
-	CurrentVersion = "1.0.0"
+	CurrentVersion = "1.1.0"
 
 	// vCurrent is the current version as a semver-comparable type
 	vCurrent version = "v" + CurrentVersion
@@ -40,6 +40,7 @@ const (
 	v070 version = "v0.7.0"
 	v080 version = "v0.8.0"
 	v100 version = "v1.0.0"
+	v110 version = "v1.1.0"
 
 	// vEarliest is the earliest supported version of the CDI specification
 	vEarliest version = v030
@@ -58,6 +59,7 @@ var validSpecVersions = requiredVersionMap{
 	v070: requiresV070,
 	v080: requiresV080,
 	v100: requiresV100,
+	v110: requiresV110,
 }
 
 // ValidateVersion checks whether the specified spec version is valid.
@@ -138,6 +140,33 @@ func (r requiredVersionMap) requiredVersion(spec *Spec) version {
 	}
 
 	return minVersion
+}
+
+// requiresV110 returns true if the spec uses v1.1.0 features.
+func requiresV110(spec *Spec) bool {
+	if i := spec.ContainerEdits.IntelRdt; i != nil {
+		if i.Schemata != nil || i.EnableMonitoring {
+			return true
+		}
+	}
+
+	if len(spec.ContainerEdits.NetDevices) > 0 {
+		return true
+	}
+
+	for _, dev := range spec.Devices {
+		if i := dev.ContainerEdits.IntelRdt; i != nil {
+			if i.Schemata != nil || i.EnableMonitoring {
+				return true
+			}
+		}
+
+		if len(dev.ContainerEdits.NetDevices) > 0 {
+			return true
+		}
+	}
+
+	return false
 }
 
 // requiresV100 returns true if the spec uses v1.0.0 features.
