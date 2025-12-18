@@ -343,6 +343,11 @@ linters:
         linters:
           - forbidigo
 
+      # These interfaces in the client module are identical by design to allow future expansion.
+      - text: "^identical: interface '(ContainerExportResult|ContainerLogsResult|ImagePullResponse|ImagePushResponse|ImageImportResult|ImageLoadResult|ImageSaveResult|ServiceLogsResult|TaskLogsResult)'"
+        linters:
+          - iface
+
     # Log a warning if an exclusion rule is unused.
     # Default: false
     warn-unused: true
