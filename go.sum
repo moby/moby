@@ -555,8 +555,8 @@ github.com/prometheus/procfs v0.16.1 h1:hZ15bTNuirocR6u0JZ6BAHHmwS1p8B4P6MRqxtzM
 github.com/prometheus/procfs v0.16.1/go.mod h1:teAbpZRB1iIAJYREa1LsoWUXykVXA1KlTmWl8x/U+Is=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
-github.com/rootless-containers/rootlesskit/v2 v2.3.5 h1:WGY05oHE7xQpSkCGfYP9lMY5z19tCxA8PhWlvP1cKx8=
-github.com/rootless-containers/rootlesskit/v2 v2.3.5/go.mod h1:83EIYLeMX8UeNgLHkR1PefoSV76aKEC+OyI3vzrEfvw=
+github.com/rootless-containers/rootlesskit/v2 v2.3.6 h1:m/26nAx0DbHZYaM46+uoQjfpu9G77QLzWj2jz25chO8=
+github.com/rootless-containers/rootlesskit/v2 v2.3.6/go.mod h1:pv+RESmjRmeUIOsEWOT1f8560CrdaQrDW0YsF4K5kAY=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=
 github.com/ryanuber/columnize v2.1.0+incompatible/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=
