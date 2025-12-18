@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/containerd/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
 )
 
@@ -152,7 +152,7 @@ func (cli *Client) ExecAttach(ctx context.Context, execID string, options ExecAt
 func getConsoleSize(hasTTY bool, consoleSize ConsoleSize) (*[2]uint, error) {
 	if consoleSize.Height != 0 || consoleSize.Width != 0 {
 		if !hasTTY {
-			return nil, errdefs.ErrInvalidArgument.WithMessage("console size is only supported when TTY is enabled")
+			return nil, cerrdefs.ErrInvalidArgument.WithMessage("console size is only supported when TTY is enabled")
 		}
 		return &[2]uint{consoleSize.Height, consoleSize.Width}, nil
 	}

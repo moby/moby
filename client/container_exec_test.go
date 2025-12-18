@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/containerd/errdefs"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
@@ -163,7 +162,7 @@ func TestExecStartConsoleSize(t *testing.T) {
 
 			_, err = client.ExecStart(t.Context(), "exec_id", tc.options)
 			if tc.expErr != "" {
-				assert.Check(t, is.ErrorType(err, errdefs.IsInvalidArgument))
+				assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 				assert.Check(t, is.ErrorContains(err, tc.expErr))
 				assert.Check(t, is.DeepEqual(actualReq, tc.expReq))
 			} else {
