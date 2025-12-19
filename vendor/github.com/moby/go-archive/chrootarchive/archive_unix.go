@@ -5,20 +5,11 @@ package chrootarchive
 import (
 	"errors"
 	"io"
-	"net"
-	"os/user"
 	"path/filepath"
 	"strings"
 
 	"github.com/moby/go-archive"
 )
-
-func init() {
-	// initialize nss libraries in Glibc so that the dynamic libraries are loaded in the host
-	// environment not in the chroot from untrusted files.
-	_, _ = user.Lookup("docker")
-	_, _ = net.LookupHost("localhost")
-}
 
 func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.TarOptions, root string) error {
 	relDest, err := resolvePathInChroot(root, dest)
