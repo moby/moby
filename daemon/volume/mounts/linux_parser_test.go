@@ -2,7 +2,7 @@ package mounts
 
 import (
 	"errors"
-	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -269,13 +269,16 @@ func TestLinuxValidateMounts(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	tests := []struct {
-		doc      string
-		mount    mount.Mount
-		expected *MountPoint
-		expErr   string
+		doc         string
+		mount       mount.Mount
+		expected    *MountPoint
+		expErr      string
+		skipWindows bool
 	}{
 		{
 			doc: "read-write",
+			// Skip Windows tests because the source path won't be a valid Windows path.
+			skipWindows: true,
 			mount: mount.Mount{
 				Source: tmpDir,
 				Target: "/tmp1",
@@ -315,11 +318,11 @@ func TestLinuxValidateMounts(t *testing.T) {
 		{
 			doc: "invalid source path",
 			mount: mount.Mount{
-				Source: filepath.Join(tmpDir, "no-such-path"),
+				Source: "/tmp/definitely-no-such-path",
 				Target: "/data/anonymous-read-only-volume",
 				Type:   mount.TypeBind,
 			},
-			expErr: `invalid mount config for type "bind": bind source path does not exist: ` + filepath.Join(tmpDir, "no-such-path"),
+			expErr: `invalid mount config for type "bind": bind source path does not exist: /tmp/definitely-no-such-path`,
 		},
 		{
 			doc: "invalid mount type",
@@ -335,6 +338,9 @@ func TestLinuxValidateMounts(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
+			if tc.skipWindows && runtime.GOOS == "windows" {
+				t.Skip("skip on Windows")
+			}
 			m, err := parser.ParseMountSpec(tc.mount)
 			if tc.expErr != "" {
 				assert.Check(t, is.Nil(m))
