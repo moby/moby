@@ -88,7 +88,7 @@ if [ -z "$DOCKER_DEBUG" ]; then
 	LDFLAGS='-w'
 fi
 
-BUILDFLAGS=(${BUILDFLAGS} -tags "netgo osusergo static_build $DOCKER_BUILDTAGS")
+BUILDFLAGS=(${BUILDFLAGS} -tags "netgo osusergo static_build nri_no_wasm $DOCKER_BUILDTAGS")
 LDFLAGS_STATIC="-extldflags -static"
 
 if [ "$(uname -s)" = 'FreeBSD' ]; then
