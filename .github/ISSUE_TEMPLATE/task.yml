@@ -1,0 +1,49 @@
+name: Task
+description: Track maintenance tasks and action items (for maintainers only)
+labels:
+  - kind/task
+  - status/0-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This template is intended for use by maintainers only.**
+
+        Use this template to track maintenance tasks, action items, and project work.
+        For bug reports, please use the "Bug report" template.
+        For feature requests, please use the "Feature request" template.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the task that needs to be completed
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What conditions must be met for this task to be considered complete?
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+    validations:
+      required: false
+  - type: textarea
+    id: related
+    attributes:
+      label: Related issues/PRs
+      description: Link to any related issues or pull requests
+      placeholder: |
+        - #1234
+        - #5678
+    validations:
+      required: false
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional information
+      description: Any other context or information about the task
+    validations:
+      required: false
