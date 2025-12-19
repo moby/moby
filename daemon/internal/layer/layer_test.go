@@ -12,6 +12,7 @@ import (
 
 	"github.com/containerd/continuity/driver"
 	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/compression"
 	"github.com/moby/moby/v2/daemon/graphdriver"
 	"github.com/moby/moby/v2/daemon/graphdriver/vfs"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
@@ -587,7 +588,7 @@ func tarFromFiles(files ...FileApplier) ([]byte, error) {
 		}
 	}
 
-	r, err := archive.Tar(td, archive.Uncompressed)
+	r, err := archive.Tar(td, compression.None)
 	if err != nil {
 		return nil, err
 	}

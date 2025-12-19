@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/compression"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/builder"
@@ -61,7 +62,7 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 	if runtime.GOOS != "windows" {
 		skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	}
-	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
+	tarStream, err := archive.Tar(contextDir, compression.None)
 	assert.NilError(t, err)
 
 	defer func() {

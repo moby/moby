@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
+	"github.com/moby/go-archive/compression"
 	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/moby/sys/user"
 )
@@ -64,7 +65,7 @@ func (gdw *NaiveDiffDriver) Diff(id, parent string) (arch io.ReadCloser, retErr 
 	}()
 
 	if parent == "" {
-		tarArchive, err := archive.Tar(layerFs, archive.Uncompressed)
+		tarArchive, err := archive.Tar(layerFs, compression.None)
 		if err != nil {
 			return nil, err
 		}
