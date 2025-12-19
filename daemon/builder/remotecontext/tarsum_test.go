@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/compression"
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
@@ -128,7 +129,7 @@ func TestRemoveDirectory(t *testing.T) {
 
 func makeTestArchiveContext(t *testing.T, dir string) builder.Source {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
-	tarStream, err := archive.Tar(dir, archive.Uncompressed)
+	tarStream, err := archive.Tar(dir, compression.None)
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}

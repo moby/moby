@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/compression"
 	"github.com/moby/moby/api/types/events"
 	plugintypes "github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
@@ -209,7 +210,7 @@ func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
 	if err := archive.NewDefaultArchiver().CopyFileWithTar(cfg.binPath, filepath.Join(inPath, "rootfs", p.Entrypoint[0])); err != nil {
 		return nil, errors.Wrap(err, "error copying plugin binary to rootfs path")
 	}
-	tar, err := archive.Tar(inPath, archive.Uncompressed)
+	tar, err := archive.Tar(inPath, compression.None)
 	return tar, errors.Wrap(err, "error making plugin archive")
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/go-archive"
 	"github.com/moby/go-archive/chrootarchive"
+	"github.com/moby/go-archive/compression"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/errdefs"
@@ -65,7 +66,7 @@ func (daemon *Daemon) containerExport(ctx context.Context, ctr *container.Contai
 	}()
 
 	archv, err := chrootarchive.Tar(basefs, &archive.TarOptions{
-		Compression: archive.Uncompressed,
+		Compression: compression.None,
 		IDMap:       daemon.idMapping,
 	}, basefs)
 	if err != nil {

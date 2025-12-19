@@ -2025,11 +2025,11 @@ CMD ["cat", "/foo"]`),
 }
 
 func (s *DockerCLIBuildSuite) TestBuildContextTarGzip(c *testing.T) {
-	testContextTar(c, archive.Gzip)
+	testContextTar(c, compression.Gzip)
 }
 
 func (s *DockerCLIBuildSuite) TestBuildContextTarNoCompression(c *testing.T) {
-	testContextTar(c, archive.Uncompressed)
+	testContextTar(c, compression.None)
 }
 
 func (s *DockerCLIBuildSuite) TestBuildNoContext(c *testing.T) {
