@@ -109,7 +109,7 @@ jobs:
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: test-reports-unit-*
           path: /tmp/reports
