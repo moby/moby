@@ -112,9 +112,6 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 				return &errMountConfig{mnt, errInvalidSubpath}
 			}
 		}
-		if mnt.ReadOnly && anonymousVolume {
-			return &errMountConfig{mnt, errors.New("must not set ReadOnly mode when using anonymous volumes")}
-		}
 	case mount.TypeTmpfs:
 		if mnt.BindOptions != nil {
 			return &errMountConfig{mnt, errExtraField("BindOptions")}
