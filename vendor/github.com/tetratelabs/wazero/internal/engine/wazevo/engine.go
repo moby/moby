@@ -150,7 +150,7 @@ func (e *engine) CompileModule(ctx context.Context, module *wasm.Module, listene
 	if err != nil {
 		return err
 	}
-	if err = e.addCompiledModule(module, cm); err != nil {
+	if cm, err = e.addCompiledModule(module, cm); err != nil {
 		return err
 	}
 
@@ -372,7 +372,7 @@ func (e *engine) compileModule(ctx context.Context, module *wasm.Module, listene
 
 	relocator.resolveRelocations(machine, executable, importedFns)
 
-	if err = platform.MprotectRX(executable); err != nil {
+	if err = platform.MprotectCodeSegment(executable); err != nil {
 		return nil, err
 	}
 	cm.sharedFunctions = e.sharedFunctions
@@ -615,7 +615,7 @@ func (e *engine) compileHostModule(ctx context.Context, module *wasm.Module, lis
 		wazevoapi.PerfMap.Flush(uintptr(unsafe.Pointer(&executable[0])), cm.functionOffsets)
 	}
 
-	if err = platform.MprotectRX(executable); err != nil {
+	if err = platform.MprotectCodeSegment(executable); err != nil {
 		return nil, err
 	}
 	e.setFinalizer(cm.executables, executablesFinalizer)
@@ -877,7 +877,7 @@ func mmapExecutable(src []byte) []byte {
 
 	copy(executable, src)
 
-	if err = platform.MprotectRX(executable); err != nil {
+	if err = platform.MprotectCodeSegment(executable); err != nil {
 		panic(err)
 	}
 	return executable

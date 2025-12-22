@@ -1,4 +1,4 @@
-//go:build plan9 || tinygo
+//go:build !(unix || windows)
 
 package sysfs
 

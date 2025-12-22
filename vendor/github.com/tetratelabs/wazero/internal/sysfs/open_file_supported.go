@@ -1,4 +1,4 @@
-//go:build !tinygo
+//go:build linux || netbsd || openbsd || solaris
 
 package sysfs
 

@@ -87,8 +87,7 @@ func NewMemoryInstance(memSec *Memory, allocator experimental.MemoryAllocator, m
 		//
 		// Also, allocating Max here isn't harmful as the Go runtime uses mmap for large allocations, therefore,
 		// the memory buffer allocation here is virtual and doesn't consume physical memory until it's used.
-		// 	* https://github.com/golang/go/blob/8121604559035734c9677d5281bbdac8b1c17a1e/src/runtime/malloc.go#L1059
-		//	* https://github.com/golang/go/blob/8121604559035734c9677d5281bbdac8b1c17a1e/src/runtime/malloc.go#L1165
+		// 	* https://github.com/golang/go/blob/go1.24.0/src/runtime/malloc.go#L1059
 		buffer = make([]byte, minBytes, maxBytes)
 	} else {
 		buffer = make([]byte, minBytes, capBytes)

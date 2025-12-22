@@ -1,4 +1,4 @@
-//go:build (!windows && !linux && !darwin) || tinygo
+//go:build !(windows || linux || darwin)
 
 package sysfs
 

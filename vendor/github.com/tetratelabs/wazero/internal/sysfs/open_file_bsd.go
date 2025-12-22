@@ -1,3 +1,5 @@
+//go:build freebsd || dragonfly
+
 package sysfs
 
 import (

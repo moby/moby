@@ -160,8 +160,8 @@ var (
 	// tmpReg is used to perform spill/load on large stack offsets, and load large constants.
 	// Therefore, be cautious to use this register in the middle of the compilation, especially before the register allocation.
 	// This is the same as golang/go, but it's only described in the source code:
-	// https://github.com/golang/go/blob/18e17e2cb12837ea2c8582ecdb0cc780f49a1aac/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go#L59
-	// https://github.com/golang/go/blob/18e17e2cb12837ea2c8582ecdb0cc780f49a1aac/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go#L13-L15
+	// https://github.com/golang/go/blob/go1.24.0/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go#L59
+	// https://github.com/golang/go/blob/go1.24.0/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go#L13-L15
 	tmpRegVReg = regalloc.FromRealReg(tmp, regalloc.RegTypeInt)
 	v28VReg    = regalloc.FromRealReg(v28, regalloc.RegTypeFloat)
 	v29VReg    = regalloc.FromRealReg(v29, regalloc.RegTypeFloat)

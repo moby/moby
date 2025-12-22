@@ -84,6 +84,10 @@ func (e *engine) deleteCompiledFunctions(module *wasm.Module) {
 func (e *engine) addCompiledFunctions(module *wasm.Module, fs []compiledFunction) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
+	if c, ok := e.compiledFunctions[module.ID]; ok {
+		c.refCount++
+		return
+	}
 	e.compiledFunctions[module.ID] = &compiledFunctionWithCount{funcs: fs, refCount: 1}
 }
 
@@ -250,7 +254,7 @@ func functionFromUintptr(ptr uintptr) *function {
 	//
 	// For example, if we have (*function)(unsafe.Pointer(ptr)) instead, then the race detector's "checkptr"
 	// subroutine wanrs as "checkptr: pointer arithmetic result points to invalid allocation"
-	// https://github.com/golang/go/blob/1ce7fcf139417d618c2730010ede2afb41664211/src/runtime/checkptr.go#L69
+	// https://github.com/golang/go/blob/go1.24.0/src/runtime/checkptr.go#L69
 	var wrapped *uintptr = &ptr
 	return *(**function)(unsafe.Pointer(wrapped))
 }

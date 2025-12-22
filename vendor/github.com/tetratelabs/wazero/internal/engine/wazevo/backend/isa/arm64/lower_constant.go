@@ -96,7 +96,7 @@ func (m *machine) lowerConstantI32(dst regalloc.VReg, c int32) {
 
 func (m *machine) lowerConstantI64(dst regalloc.VReg, c int64) {
 	// Following the logic here:
-	// https://github.com/golang/go/blob/release-branch.go1.15/src/cmd/internal/obj/arm64/asm7.go#L1798-L1852
+	// https://github.com/golang/go/blob/go1.24.0/src/cmd/internal/obj/arm64/asm7.go#L2161-L2215
 	if c >= 0 && (c <= 0xfff || (c&0xfff) == 0 && (uint64(c>>12) <= 0xfff)) {
 		if isBitMaskImmediate(uint64(c), true) {
 			m.lowerConstViaBitMaskImmediate(uint64(c), dst, true)
@@ -188,7 +188,7 @@ func const16bitAligned(v int64) (ret int) {
 // load64bitConst loads a 64-bit constant into the register, following the same logic to decide how to load large 64-bit
 // consts as in the Go assembler.
 //
-// See https://github.com/golang/go/blob/release-branch.go1.15/src/cmd/internal/obj/arm64/asm7.go#L6632-L6759
+// See https://github.com/golang/go/blob/go1.24.0/src/cmd/internal/obj/arm64/asm7.go#L7555-L7682
 func (m *machine) load64bitConst(c int64, dst regalloc.VReg) {
 	var bits [4]uint64
 	var zeros, negs int

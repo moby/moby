@@ -1,4 +1,4 @@
-//go:build unix && !tinygo
+//go:build unix
 
 package sysfs
 

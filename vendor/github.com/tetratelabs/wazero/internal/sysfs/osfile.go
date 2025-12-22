@@ -89,7 +89,7 @@ func (f *osFile) SetAppend(enable bool) (errno experimentalsys.Errno) {
 	}
 
 	// appendMode cannot be changed later, so we have to re-open the file
-	// https://github.com/golang/go/blob/go1.23/src/os/file_unix.go#L60
+	// https://github.com/golang/go/blob/go1.24.0/src/os/file_unix.go#L65
 	return fileError(f, f.closed, f.reopen())
 }
 

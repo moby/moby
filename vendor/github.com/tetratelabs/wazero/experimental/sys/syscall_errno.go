@@ -1,4 +1,4 @@
-//go:build !plan9 && !aix
+//go:build !(plan9 || aix)
 
 package sys
 

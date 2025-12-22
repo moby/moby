@@ -1,33 +1,22 @@
-//go:build !tinygo
-
 package sysfs
 
 import (
 	"syscall"
 	"unsafe"
-	_ "unsafe"
+
+	"golang.org/x/sys/unix"
 
 	experimentalsys "github.com/tetratelabs/wazero/experimental/sys"
 )
 
-const (
-	_AT_FDCWD   = -0x64
-	_UTIME_OMIT = (1 << 30) - 2
-)
+const _UTIME_OMIT = unix.UTIME_OMIT
 
 func utimens(path string, atim, mtim int64) experimentalsys.Errno {
 	times := timesToTimespecs(atim, mtim)
 	if times == nil {
 		return 0
 	}
-
-	var flags int
-	var _p0 *byte
-	_p0, err := syscall.BytePtrFromString(path)
-	if err == nil {
-		err = utimensat(_AT_FDCWD, uintptr(unsafe.Pointer(_p0)), times, flags)
-	}
-	return experimentalsys.UnwrapOSError(err)
+	return experimentalsys.UnwrapOSError(syscall.UtimesNano(path, times[:]))
 }
 
 // On linux, implement futimens via utimensat with the NUL path.

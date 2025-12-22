@@ -1,4 +1,7 @@
-//go:build (amd64 || arm64) && (darwin || freebsd)
+//go:build linux || darwin || freebsd || netbsd || openbsd || dragonfly || solaris
+
+// Note: This expression is not the same as compiler support, even if it looks
+// similar. Platform functions here are used in interpreter mode as well.
 
 package sysfs
 

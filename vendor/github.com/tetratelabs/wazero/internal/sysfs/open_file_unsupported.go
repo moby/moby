@@ -1,10 +1,8 @@
-//go:build !darwin && !linux && !windows && !illumos && !solaris && !freebsd
+//go:build !(freebsd || dragonfly || darwin || linux || netbsd || openbsd || solaris || windows)
 
 package sysfs
 
-import (
-	"github.com/tetratelabs/wazero/experimental/sys"
-)
+import "github.com/tetratelabs/wazero/experimental/sys"
 
 const supportedSyscallOflag = sys.Oflag(0)
 

@@ -7,7 +7,7 @@ import (
 )
 
 // For the details of the ABI, see:
-// https://github.com/golang/go/blob/49d42128fd8594c172162961ead19ac95e247d24/src/cmd/compile/abi-internal.md#amd64-architecture
+// https://github.com/golang/go/blob/go1.24.0/src/cmd/compile/abi-internal.md#amd64-architecture
 
 var (
 	intArgResultRegs   = []regalloc.RealReg{rax, rbx, rcx, rdi, rsi, r8, r9, r10, r11}

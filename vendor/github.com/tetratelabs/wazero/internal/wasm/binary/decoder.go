@@ -38,6 +38,7 @@ func DecodeModule(
 	memSizer := newMemorySizer(memoryLimitPages, memoryCapacityFromMax)
 
 	m := &wasm.Module{}
+	var lastSectionID wasm.SectionID
 	var info, line, str, abbrev, ranges []byte // For DWARF Data.
 	for {
 		// TODO: except custom sections, all others are required to be in order, but we aren't checking yet.
@@ -52,6 +53,12 @@ func DecodeModule(
 		sectionSize, _, err := leb128.DecodeUint32(r)
 		if err != nil {
 			return nil, fmt.Errorf("get size of section %s: %v", wasm.SectionIDName(sectionID), err)
+		}
+
+		var ok bool
+		lastSectionID, ok = checkSectionOrder(sectionID, lastSectionID)
+		if !ok {
+			return nil, errors.New("invalid section order")
 		}
 
 		sectionContentStart := r.Len()
@@ -123,9 +130,6 @@ func DecodeModule(
 		case wasm.SectionIDExport:
 			m.ExportSection, m.Exports, err = decodeExportSection(r)
 		case wasm.SectionIDStart:
-			if m.StartSection != nil {
-				return nil, errors.New("multiple start sections are invalid")
-			}
 			m.StartSection, err = decodeStartSection(r)
 		case wasm.SectionIDElement:
 			m.ElementSection, err = decodeElementSection(r, enabledFeatures)
@@ -162,6 +166,34 @@ func DecodeModule(
 		return nil, fmt.Errorf("function and code section have inconsistent lengths: %d != %d", functionCount, codeCount)
 	}
 	return m, nil
+}
+
+func checkSectionOrder(current, previous wasm.SectionID) (byte, bool) {
+	// https://webassembly.github.io/spec/core/binary/modules.html#binary-module
+
+	// Custom sections can show up anywhere.
+	if current == wasm.SectionIDCustom {
+		return previous, true
+	}
+
+	// DataCount was introduced in Wasm 2.0,
+	// and it's the maximum we support so far.
+	// It must come after Element and before Code.
+	if current > wasm.SectionIDDataCount {
+		return current, false
+	}
+	if current == wasm.SectionIDDataCount {
+		return current, previous <= wasm.SectionIDElement
+	}
+	if previous == wasm.SectionIDDataCount {
+		return current, current >= wasm.SectionIDCode
+	}
+
+	// Tag will be introduced in Wasm 3.0.
+	// It must come after Memory and before Global.
+
+	// Otherwise, strictly increasing order.
+	return current, current > previous
 }
 
 // memorySizer derives min, capacity and max pages from decoded wasm.

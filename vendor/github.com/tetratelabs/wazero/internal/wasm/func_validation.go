@@ -40,6 +40,11 @@ func readMemArg(pc uint64, body []byte) (align, offset uint32, read uint64, err 
 		err = fmt.Errorf("read memory align: %v", err)
 		return
 	}
+	if align >= 32 {
+		// Prevent 1<<align uint32 overflow.
+		err = fmt.Errorf("invalid memory alignment")
+		return
+	}
 	read += num
 
 	offset, num, err = leb128.LoadUint32(body[pc+num:])

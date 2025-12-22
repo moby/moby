@@ -6,13 +6,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
-)
 
-const (
-	// https://man7.org/linux/man-pages/man2/mmap.2.html
-	__MAP_HUGE_SHIFT = 26
-	__MAP_HUGETLB    = 0x40000
+	"golang.org/x/sys/unix"
 )
 
 var hugePagesConfigs []hugePagesConfig
@@ -50,7 +45,7 @@ func init() {
 		n *= 1024
 		hugePagesConfigs = append(hugePagesConfigs, hugePagesConfig{
 			size: int(n),
-			flag: int(bits.TrailingZeros64(n)<<__MAP_HUGE_SHIFT) | __MAP_HUGETLB,
+			flag: int(bits.TrailingZeros64(n)<<unix.MAP_HUGE_SHIFT) | unix.MAP_HUGETLB,
 		})
 	}
 
@@ -60,15 +55,12 @@ func init() {
 }
 
 func mmapCodeSegment(size int) ([]byte, error) {
-	flag := syscall.MAP_ANON | syscall.MAP_PRIVATE
-	prot := syscall.PROT_READ | syscall.PROT_WRITE
-	if noopMprotectRX {
-		prot = syscall.PROT_READ | syscall.PROT_WRITE | syscall.PROT_EXEC
-	}
+	flag := unix.MAP_ANON | unix.MAP_PRIVATE
+	prot := unix.PROT_READ | unix.PROT_WRITE
 
 	for _, hugePagesConfig := range hugePagesConfigs {
 		if hugePagesConfig.match(size) {
-			b, err := syscall.Mmap(-1, 0, size, prot, flag|hugePagesConfig.flag)
+			b, err := unix.Mmap(-1, 0, size, prot, flag|hugePagesConfig.flag)
 			if err != nil {
 				continue
 			}
@@ -76,5 +68,5 @@ func mmapCodeSegment(size int) ([]byte, error) {
 		}
 	}
 
-	return syscall.Mmap(-1, 0, size, prot, flag)
+	return unix.Mmap(-1, 0, size, prot, flag)
 }

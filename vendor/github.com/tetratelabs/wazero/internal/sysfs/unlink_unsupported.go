@@ -1,12 +1,14 @@
+//go:build !(unix || windows)
+
 package sysfs
 
 import (
-	"syscall"
+	"os"
 
 	"github.com/tetratelabs/wazero/experimental/sys"
 )
 
 func unlink(name string) sys.Errno {
-	err := syscall.Remove(name)
+	err := os.Remove(name)
 	return sys.UnwrapOSError(err)
 }

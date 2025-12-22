@@ -1,4 +1,4 @@
-//go:build (!arm64 && !amd64) || tinygo
+//go:build !(arm64 || amd64)
 
 package wazevo
 

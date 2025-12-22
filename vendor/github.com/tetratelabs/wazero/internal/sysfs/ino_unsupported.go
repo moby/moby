@@ -1,4 +1,4 @@
-//go:build tinygo
+//go:build !(unix || windows)
 
 package sysfs
 
@@ -10,5 +10,8 @@ import (
 )
 
 func inoFromFileInfo(_ string, info fs.FileInfo) (sys.Inode, experimentalsys.Errno) {
-	return 0, experimentalsys.ENOTSUP
+	if v, ok := info.Sys().(*sys.Stat_t); ok {
+		return v.Ino, 0
+	}
+	return 0, 0
 }

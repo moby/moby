@@ -1,4 +1,4 @@
-//go:build darwin || freebsd || netbsd
+//go:build linux || openbsd || dragonfly || solaris
 
 package sys
 
@@ -17,11 +17,11 @@ func statFromFileInfo(info fs.FileInfo) Stat_t {
 		st.Mode = info.Mode()
 		st.Nlink = uint64(d.Nlink)
 		st.Size = int64(d.Size)
-		atime := d.Atimespec
+		atime := d.Atim
 		st.Atim = EpochNanos(atime.Sec)*1e9 + EpochNanos(atime.Nsec)
-		mtime := d.Mtimespec
+		mtime := d.Mtim
 		st.Mtim = EpochNanos(mtime.Sec)*1e9 + EpochNanos(mtime.Nsec)
-		ctime := d.Ctimespec
+		ctime := d.Ctim
 		st.Ctim = EpochNanos(ctime.Sec)*1e9 + EpochNanos(ctime.Nsec)
 		return st
 	}
