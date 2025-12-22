@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/v2/daemon/volume"
 )
@@ -376,6 +377,8 @@ func (p *linuxParser) parseMountSpec(cfg mount.Mount, validateBindSourceExists b
 		if cfg.Target == "" {
 			mp.Destination = "/var/run/docker.sock"
 		}
+		log.L.Errorf("linuxParser.parseMountSpec: mount api socket: %+v", mp)
+
 	default:
 		// TODO(thaJeztah): make switch exhaustive: anything to do for mount.TypeNamedPipe, mount.TypeCluster ?
 	}
