@@ -288,6 +288,7 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 				return err
 			}
 			mp.Source = socket
+			log.L.Errorf("daemon.registerMountPoints: mount api socket: %+v", mp)
 		case mounttypes.TypeTmpfs, mounttypes.TypeCluster, mounttypes.TypeNamedPipe:
 			// nothing to do
 		}
