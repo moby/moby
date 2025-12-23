@@ -13,6 +13,7 @@ import (
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client/pkg/versions"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // DiskUsageOptions holds parameters for [Client.DiskUsage] operations.
@@ -244,20 +245,17 @@ func imageDiskUsageFromLegacyAPI(du *legacyDiskUsage) ImagesDiskUsage {
 		Items:      du.Images,
 	}
 
-	var used int64
 	for _, i := range idu.Items {
 		if i.Containers > 0 {
 			idu.ActiveCount++
-
-			if i.Size == -1 || i.SharedSize == -1 {
-				continue
+		} else if i.Size != -1 && i.SharedSize != -1 {
+			// Only count reclaimable size if we have size information
+			idu.Reclaimable += (i.Size - i.SharedSize)
+			// Also include the size of image index if it was included
+			if i.Descriptor != nil && i.Descriptor.MediaType == ocispec.MediaTypeImageIndex {
+				idu.Reclaimable += i.Descriptor.Size
 			}
-			used += (i.Size - i.SharedSize)
 		}
-	}
-
-	if idu.TotalCount > 0 {
-		idu.Reclaimable = idu.TotalSize - used
 	}
 
 	return idu

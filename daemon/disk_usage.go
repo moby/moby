@@ -8,6 +8,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -74,18 +75,20 @@ func (daemon *Daemon) imageDiskUsage(ctx context.Context, verbose bool) (*backen
 		}
 
 		du := &backend.ImageDiskUsage{
-			ActiveCount: int64(len(images)),
-			Reclaimable: totalSize,
-			TotalCount:  int64(len(images)),
-			TotalSize:   totalSize,
+			TotalCount: int64(len(images)),
+			TotalSize:  totalSize,
 		}
+
 		for _, i := range images {
-			if i.Containers == 0 {
-				du.ActiveCount--
-				if i.Size == -1 || i.SharedSize == -1 {
-					continue
+			if i.Containers > 0 {
+				du.ActiveCount++
+			} else if i.Size != -1 && i.SharedSize != -1 {
+				// Only count reclaimable size if we have size information
+				du.Reclaimable += (i.Size - i.SharedSize)
+				// Also include the size of image index if it was included
+				if i.Descriptor != nil && i.Descriptor.MediaType == ocispec.MediaTypeImageIndex {
+					du.Reclaimable += i.Descriptor.Size
 				}
-				du.Reclaimable -= i.Size - i.SharedSize
 			}
 		}
 
