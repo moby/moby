@@ -26,7 +26,7 @@ func (l *mockLogger) Close() error {
 func TestRingLogger(t *testing.T) {
 	mockLog := &mockLogger{make(chan *Message)} // no buffer on this channel
 	ring := newRingLogger(mockLog, Info{}, 1)
-	defer ring.setClosed()
+	defer ring.Closed()
 
 	// this should never block
 	ring.Log(&Message{Line: []byte("1")})
