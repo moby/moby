@@ -3015,6 +3015,21 @@ definitions:
       total:
         type: "integer"
 
+  ImagePullJSONMessage:
+    type: "object"
+    description: "JSON message streamed in response body of image pull operation"
+    properties:
+      status:
+        type: "string"
+        description: "Status message"
+      progressDetail:
+        $ref: "#/definitions/ProgressDetail"
+      id:
+        type: "string"
+        description: "Short blob digest"
+      errorDetail:
+        $ref: "#/definitions/ErrorDetail"
+
   ErrorResponse:
     description: "Represents an error."
     type: "object"
@@ -9742,10 +9757,16 @@ paths:
         - "text/plain"
         - "application/octet-stream"
       produces:
+        - "application/x-ndjson"
         - "application/json"
       responses:
         200:
-          description: "no error"
+          description: |
+            no error - returns a stream of JSON messages (one per line)
+          # TODO: This needs to be properly encoded as a line-delimited JSON stream.
+          # Fix this once we switch to OpenAPI 3: https://github.com/moby/moby/pull/51565
+          # schema:
+          #  $ref: "#/definitions/ImagePullJSONMessage"
         404:
           description: "repository does not exist or no read access"
           schema:
