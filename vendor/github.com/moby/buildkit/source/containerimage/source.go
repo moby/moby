@@ -173,7 +173,7 @@ func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier,
 	if err != nil {
 		return nil, err
 	}
-	rslvr := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, "pull", sm, g).WithImageStore(is.ImageStore, rm)
+	rslvr := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, resolver.ScopeType{}, sm, g).WithImageStore(is.ImageStore, rm)
 	key += rm.String()
 
 	ret := &sourceresolver.ResolveImageResponse{}

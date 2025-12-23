@@ -90,7 +90,7 @@ func ResolveCacheExporterFunc(sm *session.Manager, hosts docker.RegistryHosts) r
 			insecure = b
 		}
 
-		scope, hosts := registryConfig(hosts, ref, "push", insecure)
+		scope, hosts := registryConfig(hosts, ref, resolver.ScopeType{Push: true}, insecure)
 		remote := resolver.DefaultPool.GetResolver(hosts, refString, scope, sm, g)
 		pusher, err := push.Pusher(ctx, remote, refString)
 		if err != nil {
@@ -116,7 +116,7 @@ func ResolveCacheImporterFunc(sm *session.Manager, cs content.Store, hosts docke
 			insecure = b
 		}
 
-		scope, hosts := registryConfig(hosts, ref, "pull", insecure)
+		scope, hosts := registryConfig(hosts, ref, resolver.ScopeType{}, insecure)
 		remote := resolver.DefaultPool.GetResolver(hosts, refString, scope, sm, g)
 		xref, desc, err := remote.Resolve(ctx, refString)
 		if err != nil {
@@ -173,7 +173,7 @@ func (dsl *withDistributionSourceLabel) SnapshotLabels(descs []ocispecs.Descript
 	return labels
 }
 
-func registryConfig(hosts docker.RegistryHosts, ref reference.Named, scope string, insecure bool) (string, docker.RegistryHosts) {
+func registryConfig(hosts docker.RegistryHosts, ref reference.Named, scope resolver.ScopeType, insecure bool) (resolver.ScopeType, docker.RegistryHosts) {
 	if insecure {
 		insecureTrue := true
 		httpTrue := true
@@ -183,7 +183,7 @@ func registryConfig(hosts docker.RegistryHosts, ref reference.Named, scope strin
 				PlainHTTP: &httpTrue,
 			},
 		})
-		scope += ":insecure"
+		scope.Insecure = true
 	}
 	return scope, hosts
 }
