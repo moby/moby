@@ -23,7 +23,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.25.5"
+  GO_VERSION: "1.26.0-rc.1"
   DESTDIR: ./build
   SETUP_BUILDX_VERSION: edge
   SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
@@ -147,6 +147,8 @@ jobs:
       -
         name: Build test image
         uses: docker/bake-action@v6
+        env:
+          GO_VERSION: "1.26rc1"
         with:
           source: .
           workdir: ./buildkit

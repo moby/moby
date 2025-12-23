@@ -3,7 +3,7 @@ version: "2"
 run:
   # prevent golangci-lint from deducting the go version to lint for through go.mod,
   # which causes it to fallback to go1.17 semantics.
-  go: "1.25.5"
+  go: "1.26rc1"
   # Only supported with go modules enabled (build flag -mod=vendor only valid when using modules)
   # modules-download-mode: vendor
 
