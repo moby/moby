@@ -1,4 +1,4 @@
-//go:build !plan9 && !js && !tinygo
+//go:build !(plan9 || js)
 
 package sock
 

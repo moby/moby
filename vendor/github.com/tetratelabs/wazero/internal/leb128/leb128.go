@@ -109,7 +109,7 @@ func LoadUint32(buf []byte) (ret uint32, bytesRead uint64, err error) {
 }
 
 func decodeUint32(next nextByte) (ret uint32, bytesRead uint64, err error) {
-	// Derived from https://github.com/golang/go/blob/go1.20/src/encoding/binary/varint.go
+	// Derived from https://github.com/golang/go/blob/go1.24.0/src/encoding/binary/varint.go
 	// with the modification on the overflow handling tailored for 32-bits.
 	var s uint32
 	for i := 0; i < maxVarintLen32; i++ {
@@ -124,7 +124,7 @@ func decodeUint32(next nextByte) (ret uint32, bytesRead uint64, err error) {
 			}
 			return ret | uint32(b)<<s, uint64(i) + 1, nil
 		}
-		ret |= (uint32(b) & 0x7f) << s
+		ret |= uint32(b&0x7f) << s
 		s += 7
 	}
 	return 0, 0, errOverflow32
@@ -136,7 +136,7 @@ func LoadUint64(buf []byte) (ret uint64, bytesRead uint64, err error) {
 		return 0, 0, io.EOF
 	}
 
-	// Derived from https://github.com/golang/go/blob/go1.20/src/encoding/binary/varint.go
+	// Derived from https://github.com/golang/go/blob/go1.24.0/src/encoding/binary/varint.go
 	var s uint64
 	for i := 0; i < maxVarintLen64; i++ {
 		if i >= bufLen {
@@ -150,7 +150,7 @@ func LoadUint64(buf []byte) (ret uint64, bytesRead uint64, err error) {
 			}
 			return ret | uint64(b)<<s, uint64(i) + 1, nil
 		}
-		ret |= (uint64(b) & 0x7f) << s
+		ret |= uint64(b&0x7f) << s
 		s += 7
 	}
 	return 0, 0, errOverflow64

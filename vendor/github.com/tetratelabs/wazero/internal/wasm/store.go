@@ -456,7 +456,7 @@ func (m *ModuleInstance) resolveImports(ctx context.Context, module *Module) (er
 					return
 				}
 
-				if expected.Min > importedTable.Min {
+				if uint64(expected.Min) > uint64(len(importedTable.References)) {
 					err = errorMinSizeMismatch(i, expected.Min, importedTable.Min)
 					return
 				}

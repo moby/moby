@@ -57,7 +57,7 @@ func openFile(path string, oflag sys.Oflag, perm fs.FileMode) (*os.File, sys.Err
 
 const supportedSyscallOflag = sys.O_NONBLOCK
 
-// Map to synthetic values here https://github.com/golang/go/blob/go1.20/src/syscall/types_windows.go#L34-L48
+// Map to synthetic values here https://github.com/golang/go/blob/go1.24.0/src/syscall/types_windows.go#L35-L52
 func withSyscallOflag(oflag sys.Oflag, flag int) int {
 	// O_DIRECTORY not defined in windows
 	// O_DSYNC not defined in windows

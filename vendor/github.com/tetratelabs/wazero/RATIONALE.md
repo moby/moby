@@ -7,23 +7,18 @@ have heavy impact usually due to CGO. By avoiding CGO, wazero avoids
 prerequisites such as shared libraries or libc, and lets users keep features
 like cross compilation.
 
-Avoiding go.mod dependencies reduces interference on Go version support, and
-size of a statically compiled binary. However, doing so brings some
+Avoiding most `go.mod` dependencies reduces interference on Go version support,
+and size of a statically compiled binary. However, doing so brings some
 responsibility into the project.
 
-Go's native platform support is good: We don't need platform-specific code to
+Go's native platform support is good: we don't need platform-specific code to
 get monotonic time, nor do we need much work to implement certain features
 needed by our compiler such as `mmap`. That said, Go does not support all
-common operating systems to the same degree. For example, Go 1.18 includes
-`Mprotect` on Linux and Darwin, but not FreeBSD.
+common operating systems to the same degree.
 
-The general tradeoff the project takes from a zero dependency policy is more
+The general tradeoff the project takes from a strict dependency policy is more
 explicit support of platforms (in the compiler runtime), as well a larger and
 more technically difficult codebase.
-
-At some point, we may allow extensions to supply their own platform-specific
-hooks. Until then, one end user impact/tradeoff is some glitches trying
-untested platforms (with the Compiler runtime).
 
 ### Why do we use CGO to implement system calls on darwin?
 
@@ -45,25 +40,20 @@ This plays to our advantage for system calls that aren't yet exposed in the Go
 standard library, notably `futimens` for nanosecond-precision timestamp
 manipulation.
 
-### Why not x/sys
+### Why x/sys
 
-Going beyond Go's SDK limitations can be accomplished with their [x/sys library](https://pkg.go.dev/golang.org/x/sys/unix).
-For example, this includes `zsyscall_freebsd_amd64.go` missing from the Go SDK.
+The [x/sys library](https://pkg.go.dev/golang.org/x/sys/unix) is currently
+our only `go.mod` dependency.
 
-However, like all dependencies, x/sys is a source of conflict. For example,
-x/sys had to be in order to upgrade to Go 1.18.
+That module is maintained by the Go authors, and covers OSes that the syscall
+package neglects.
 
-If we depended on x/sys, we could get more precise functionality needed for
-features such as clocks or more platform support for the compiler runtime.
+After [heavy consideration](https://github.com/wazero/wazero/issues/2434) we
+decided to it as a dependency.
 
-That said, formally supporting an operating system may still require testing as
-even use of x/sys can require platform-specifics. For example, [mmap-go](https://github.com/edsrzf/mmap-go)
-uses x/sys, but also mentions limitations, some not surmountable with x/sys
-alone.
-
-Regardless, we may at some point introduce a separate go.mod for users to use
-x/sys as a platform plugin without forcing all users to maintain that
-dependency.
+Using was shown to improve the experience of using wazero on older,
+or less common, OSes without increasing the maintenance work, or creating
+deployment issues for users of wazero.
 
 ## Project structure
 
@@ -756,7 +746,7 @@ value (possibly `PWD`). Those unable to control the compiled code should only
 use absolute paths in configuration.
 
 See
-* https://github.com/golang/go/blob/go1.20/src/syscall/fs_js.go#L324
+* https://github.com/golang/go/blob/go1.24.0/src/syscall/fs_js.go#L341
 * https://github.com/WebAssembly/wasi-libc/pull/214#issue-673090117
 * https://github.com/ziglang/zig/blob/53a9ee699a35a3d245ab6d1dac1f0687a4dcb42c/src/main.zig#L32
 
@@ -1064,7 +1054,7 @@ reason, wazero adds overhead to synthesize dot entries despite it being
 unnecessary for most users.
 
 See https://pubs.opengroup.org/onlinepubs/9699919799/functions/readdir.html
-See https://github.com/golang/go/blob/go1.20/src/os/dir_unix.go#L108-L110
+See https://github.com/golang/go/blob/go1.24.0/src/os/dir_unix.go#L122-L124
 See https://github.com/bytecodealliance/preview2-prototyping/blob/e4c04bcfbd11c42c27c28984948d501a3e168121/crates/wasi-preview1-component-adapter/src/lib.rs#L1026-L1041
 
 ### Why don't we pre-populate an inode for the dot-dot ("..") entry?
@@ -1150,7 +1140,7 @@ See
  * https://linux.die.net/man/3/getdents
  * https://www.unix.com/man-page/osx/2/getdirentries/
  * https://man.openbsd.org/OpenBSD-5.4/getdirentries.2
- * https://github.com/golang/go/blob/go1.20/src/syscall/dirent.go#L60-L102
+ * https://github.com/golang/go/blob/go1.24.0/src/syscall/dirent.go#L57-L101
  * https://go-review.googlesource.com/c/go/+/507915
 
 ## sys.Walltime and Nanotime
@@ -1201,7 +1191,7 @@ See https://go.googlesource.com/proposal/+/master/design/12914-monotonic.md
 WebAssembly time imports do not have the same concern. In fact even Go's
 imports for clocks split walltime from nanotime readings.
 
-See https://github.com/golang/go/blob/go1.20/misc/wasm/wasm_exec.js#L243-L255
+See https://github.com/golang/go/blob/go1.24.0/lib/wasm/wasm_exec.js#L258-L268
 
 Finally, Go's clock is not an interface. WebAssembly users who want determinism
 or security need to be able to substitute an alternative clock implementation
@@ -1215,13 +1205,13 @@ value. For now, we return fixed values of 1us for realtime and 1ns for monotonic
 often lower precision than monotonic clocks. In the future, this could be improved by having OS+arch specific assembly
 to make syscalls.
 
-For example, Go implements time.Now for linux-amd64 with this [assembly](https://github.com/golang/go/blob/go1.20/src/runtime/time_linux_amd64.s).
+For example, Go implements time.Now for linux-amd64 with this [assembly](https://github.com/golang/go/blob/go1.24.0/src/runtime/time_linux_amd64.s).
 Because retrieving resolution is not generally called often, unlike getting time, it could be appropriate to only
 implement the fallback logic that does not use VDSO (executing syscalls in user mode). The syscall for clock_getres
 is 229 and should be usable. https://pkg.go.dev/syscall#pkg-constants.
 
-If implementing similar for Windows, [mingw](https://github.com/mirror/mingw-w64/blob/6a0e9165008f731bccadfc41a59719cf7c8efc02/mingw-w64-libraries/winpthreads/src/clock.c#L77
-) is often a good source to find the Windows API calls that correspond
+If implementing similar for Windows, [mingw](https://github.com/mirror/mingw-w64/blob/v12.0.0/mingw-w64-libraries/winpthreads/src/clock.c#L54)
+is often a good source to find the Windows API calls that correspond
 to a POSIX method.
 
 Writing assembly would allow making syscalls without CGO, but comes with the cost that it will require implementations
@@ -1490,7 +1480,7 @@ This is due to the same reason for the limitation on the number of functions abo
 
 While the the spec does not clarify a limitation of function stack values, wazero limits this to 2^27 = 134,217,728.
 The reason is that we internally represent all the values as 64-bit integers regardless of its types (including f32, f64), and 2^27 values means
-1 GiB = (2^30). 1 GiB is the reasonable for most applications [as we see a Goroutine has 250 MB as a limit on the stack for 32-bit arch](https://github.com/golang/go/blob/go1.20/src/runtime/proc.go#L152-L159), considering that WebAssembly is (currently) 32-bit environment.
+1 GiB = (2^30). 1 GiB is the reasonable for most applications [as we see a Goroutine has 250 MB as a limit on the stack for 32-bit arch](https://github.com/golang/go/blob/go1.24.0/src/runtime/proc.go#L154-L161), considering that WebAssembly is (currently) 32-bit environment.
 
 All the functions are statically analyzed at module instantiation phase, and if a function can potentially reach this limit, an error is returned.
 
@@ -1523,8 +1513,8 @@ since it tries to interrupt the execution of Goroutine at any point of function,
 Fortunately, our runtime-generated machine codes do not need to take the async preemption into account.
 All the assembly codes are entered via the trampoline implemented as Go Assembler Function (e.g. [arch_amd64.s](./arch_amd64.s)),
 and as of Go 1.20, these assembler functions are considered as _unsafe_ for async preemption:
-- https://github.com/golang/go/blob/go1.20rc1/src/runtime/preempt.go#L406-L407
-- https://github.com/golang/go/blob/9f0234214473dfb785a5ad84a8fc62a6a395cbc3/src/runtime/traceback.go#L227
+- https://github.com/golang/go/blob/go1.24.0/src/runtime/preempt.go#L407-L408
+- https://github.com/golang/go/blob/go1.24.0/src/runtime/traceback.go#L350
 
 From the Go runtime point of view, the execution of runtime-generated machine codes is considered as a part of
 that trampoline function. Therefore, runtime-generated machine code is also correctly considered unsafe for async preemption.
@@ -1582,6 +1572,6 @@ In lieu of formal documentation, we infer this pattern works from other sources 
  * `sync.WaitGroup` by definition must support calling `Add` from other goroutines. Internally, it uses atomics.
  * rsc in golang/go#5045 writes "atomics guarantee sequential consistency among the atomic variables".
 
-See https://github.com/golang/go/blob/go1.20/src/sync/waitgroup.go#L64
+See https://github.com/golang/go/blob/go1.24.0/src/sync/waitgroup.go#L76
 See https://github.com/golang/go/issues/5045#issuecomment-252730563
 See https://www.youtube.com/watch?v=VmrEG-3bWyM

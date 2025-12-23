@@ -1,9 +1,14 @@
-//go:build (linux || darwin || freebsd || netbsd || dragonfly || solaris) && !tinygo
+//go:build unix
 
 package platform
 
-import "syscall"
+import "golang.org/x/sys/unix"
 
 func munmapCodeSegment(code []byte) error {
-	return syscall.Munmap(code)
+	return unix.Munmap(code)
+}
+
+// MprotectCodeSegment is like unix.Mprotect with RX permission.
+func MprotectCodeSegment(b []byte) (err error) {
+	return unix.Mprotect(b, unix.PROT_READ|unix.PROT_EXEC)
 }

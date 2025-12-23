@@ -1,4 +1,4 @@
-//go:build (!((amd64 || arm64 || ppc64le || riscv64 || s390x) && linux) && !((amd64 || arm64) && (darwin || freebsd)) && !((amd64 || arm64) && windows)) || js
+//go:build !(linux || darwin || freebsd || netbsd || openbsd || dragonfly || solaris || windows)
 
 package sys
 

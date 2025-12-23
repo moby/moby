@@ -7,6 +7,8 @@ import (
 	"syscall"
 	"unsafe"
 
+	"golang.org/x/sys/windows"
+
 	"github.com/tetratelabs/wazero/experimental/sys"
 	"github.com/tetratelabs/wazero/internal/fsapi"
 	socketapi "github.com/tetratelabs/wazero/internal/sock"
@@ -14,8 +16,7 @@ import (
 
 const (
 	// MSG_PEEK is the flag PEEK for syscall.Recvfrom on Windows.
-	// This constant is not exported on this platform.
-	MSG_PEEK = 0x2
+	MSG_PEEK = windows.MSG_PEEK
 	// _FIONBIO is the flag to set the O_NONBLOCK flag on socket handles using ioctlsocket.
 	_FIONBIO = 0x8004667e
 )

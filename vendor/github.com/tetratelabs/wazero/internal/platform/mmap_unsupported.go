@@ -1,4 +1,4 @@
-//go:build !(linux || darwin || freebsd || netbsd || dragonfly || solaris || windows) || tinygo
+//go:build !(unix || windows)
 
 package platform
 
@@ -17,6 +17,6 @@ func mmapCodeSegment(size int) ([]byte, error) {
 	panic(errUnsupported)
 }
 
-func MprotectRX(b []byte) (err error) {
+func MprotectCodeSegment(b []byte) (err error) {
 	panic(errUnsupported)
 }

@@ -7,7 +7,7 @@ import (
 )
 
 // References:
-// * https://github.com/golang/go/blob/49d42128fd8594c172162961ead19ac95e247d24/src/cmd/compile/abi-internal.md#arm64-architecture
+// * https://github.com/golang/go/blob/go1.24.0/src/cmd/compile/abi-internal.md#arm64-architecture
 // * https://developer.arm.com/documentation/102374/0101/Procedure-Call-Standard
 
 var (

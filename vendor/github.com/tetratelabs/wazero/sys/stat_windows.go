@@ -1,5 +1,3 @@
-//go:build (amd64 || arm64) && windows
-
 package sys
 
 import (

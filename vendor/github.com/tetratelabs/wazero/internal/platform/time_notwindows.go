@@ -1,4 +1,4 @@
-//go:build cgo && !windows
+//go:build !windows
 
 package platform
 

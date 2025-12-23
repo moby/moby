@@ -17,7 +17,7 @@ import (
 // NewBackend returns a new backend for arm64.
 func NewBackend() backend.Machine {
 	m := &machine{
-		cpuFeatures:                         platform.CpuFeatures(),
+		cpuFeatures:                         platform.CpuFeatures,
 		regAlloc:                            regalloc.NewAllocator[*instruction, *labelPosition, *regAllocFn](regInfo),
 		spillSlots:                          map[regalloc.VRegID]int64{},
 		amodePool:                           wazevoapi.NewPool[amode](nil),
@@ -1067,7 +1067,7 @@ func (m *machine) LowerInstr(instr *ssa.Instruction) {
 		dst := m.c.VRegOf(instr.Return())
 
 		// At this point, the ptr is ensured to be aligned, so using a normal load is atomic.
-		// https://github.com/golang/go/blob/adead1a93f472affa97c494ef19f2f492ee6f34a/src/runtime/internal/atomic/atomic_amd64.go#L30
+		// https://github.com/golang/go/blob/go1.24.0/src/internal/runtime/atomic/atomic_amd64.go#L29
 		mem := newOperandMem(m.lowerToAddressMode(ptr, 0))
 		load := m.allocateInstr()
 		switch size {
@@ -1410,7 +1410,7 @@ func (m *machine) lowerVconst(dst regalloc.VReg, lo, hi uint64) {
 }
 
 func (m *machine) lowerCtz(instr *ssa.Instruction) {
-	if m.cpuFeatures.HasExtra(platform.CpuExtraFeatureAmd64ABM) {
+	if m.cpuFeatures.Has(platform.CpuFeatureAmd64BMI1) {
 		m.lowerUnaryRmR(instr, unaryRmROpcodeTzcnt)
 	} else {
 		// On processors that do not support TZCNT, the BSF instruction is
@@ -1464,7 +1464,7 @@ func (m *machine) lowerCtz(instr *ssa.Instruction) {
 }
 
 func (m *machine) lowerClz(instr *ssa.Instruction) {
-	if m.cpuFeatures.HasExtra(platform.CpuExtraFeatureAmd64ABM) {
+	if m.cpuFeatures.Has(platform.CpuFeatureAmd64ABM) {
 		m.lowerUnaryRmR(instr, unaryRmROpcodeLzcnt)
 	} else {
 		// On processors that do not support LZCNT, we combine BSR (calculating
@@ -1892,8 +1892,8 @@ func (m *machine) lowerCall(si *ssa.Instruction) {
 
 	if isMemmove {
 		// Go's memmove *might* use all xmm0-xmm15, so we need to release them.
-		// https://github.com/golang/go/blob/49d42128fd8594c172162961ead19ac95e247d24/src/cmd/compile/abi-internal.md#architecture-specifics
-		// https://github.com/golang/go/blob/49d42128fd8594c172162961ead19ac95e247d24/src/runtime/memmove_amd64.s#L271-L286
+		// https://github.com/golang/go/blob/go1.24.0/src/cmd/compile/abi-internal.md#architecture-specifics
+		// https://github.com/golang/go/blob/go1.24.0/src/runtime/memmove_amd64.s#L286-L301
 		for i := regalloc.RealReg(0); i < 16; i++ {
 			m.insert(m.allocateInstr().asDefineUninitializedReg(regInfo.RealRegToVReg[xmm0+i]))
 		}

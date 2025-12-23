@@ -1,5 +1,3 @@
-//go:build amd64 && !tinygo
-
 package wazevo
 
 import _ "unsafe"

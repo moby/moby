@@ -2,28 +2,19 @@ package sysfs
 
 import (
 	"syscall"
-	_ "unsafe"
+	"unsafe"
 
 	experimentalsys "github.com/tetratelabs/wazero/experimental/sys"
 )
 
-const (
-	_AT_FDCWD            = -0x2
-	_AT_SYMLINK_NOFOLLOW = 0x0020
-	_UTIME_OMIT          = -2
-)
-
-//go:noescape
-//go:linkname utimensat syscall.utimensat
-func utimensat(dirfd int, path string, times *[2]syscall.Timespec, flags int) error
+const _UTIME_OMIT = -2
 
 func utimens(path string, atim, mtim int64) experimentalsys.Errno {
 	times := timesToTimespecs(atim, mtim)
 	if times == nil {
 		return 0
 	}
-	var flags int
-	return experimentalsys.UnwrapOSError(utimensat(_AT_FDCWD, path, times, flags))
+	return experimentalsys.UnwrapOSError(syscall.UtimesNano(path, times[:]))
 }
 
 func futimens(fd uintptr, atim, mtim int64) experimentalsys.Errno {
@@ -31,7 +22,7 @@ func futimens(fd uintptr, atim, mtim int64) experimentalsys.Errno {
 	if times == nil {
 		return 0
 	}
-	_p0 := timesToPtr(times)
+	_p0 := unsafe.Pointer(&times[0])
 
 	// Warning: futimens only exists since High Sierra (10.13).
 	_, _, e1 := syscall_syscall6(libc_futimens_trampoline_addr, fd, uintptr(_p0), 0, 0, 0, 0)

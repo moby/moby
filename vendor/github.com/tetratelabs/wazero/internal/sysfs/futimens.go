@@ -1,20 +1,12 @@
-//go:build (linux || darwin) && !tinygo
+//go:build linux || darwin
 
 package sysfs
 
 import (
 	"syscall"
-	"unsafe"
 
 	"github.com/tetratelabs/wazero/experimental/sys"
 )
-
-func timesToPtr(times *[2]syscall.Timespec) unsafe.Pointer { //nolint:unused
-	if times != nil {
-		return unsafe.Pointer(&times[0])
-	}
-	return unsafe.Pointer(nil)
-}
 
 func timesToTimespecs(atim int64, mtim int64) (times *[2]syscall.Timespec) {
 	// When both inputs are omitted, there is nothing to change.
