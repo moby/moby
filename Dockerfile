@@ -109,13 +109,12 @@ RUN /download-frozen-image-v2.sh /build \
 # delve
 FROM base AS delve-src
 WORKDIR /usr/src/delve
-RUN git init . && git remote add origin "https://github.com/go-delve/delve.git"
 # DELVE_VERSION specifies the version of the Delve debugger binary
 # from the https://github.com/go-delve/delve repository.
 # It can be used to run Docker with a possibility of
 # attaching debugger to it.
 ARG DELVE_VERSION=v1.25.2
-RUN git fetch -q --depth 1 origin "${DELVE_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ADD https://github.com/go-delve/delve.git?ref=${DELVE_VERSION}&keep-git-dir=1 .
 
 FROM base AS delve-supported
 WORKDIR /usr/src/delve
@@ -134,21 +133,22 @@ FROM delve-${DELVE_SUPPORTED} AS delve
 FROM base AS gowinres
 # GOWINRES_VERSION defines go-winres tool version
 ARG GOWINRES_VERSION=v0.3.1
+ADD https://github.com/tc-hib/go-winres.git?ref=${GOWINRES_VERSION}&keep-git-dir=1 /go/src/github.com/tc-hib/go-winres
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build CGO_ENABLED=0 go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
+        cd /go/src/github.com/tc-hib/go-winres && \
+        GOBIN=/build CGO_ENABLED=0 go install . \
      && /build/go-winres --help
 
 # containerd
 FROM base AS containerd-src
 WORKDIR /usr/src/containerd
-RUN git init . && git remote add origin "https://github.com/containerd/containerd.git"
 # CONTAINERD_VERSION is used to build containerd binaries, and used for the
 # integration tests. The distributed docker .deb and .rpm packages depend on a
 # separate (containerd.io) package, which may be a different version as is
 # specified here.
 ARG CONTAINERD_VERSION=v2.2.1
-RUN git fetch -q --depth 1 origin "${CONTAINERD_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ADD https://github.com/containerd/containerd.git?ref=${CONTAINERD_VERSION}&keep-git-dir=1 .
 
 FROM base AS containerd-build
 WORKDIR /go/src/github.com/containerd/containerd
@@ -179,27 +179,34 @@ FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
 ARG GOLANGCI_LINT_VERSION=v2.7.2
+ADD https://github.com/golangci/golangci-lint.git?ref=${GOLANGCI_LINT_VERSION}&keep-git-dir=1 /go/src/github.com/golangci/golangci-lint
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build CGO_ENABLED=0 go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
+        cd /go/src/github.com/golangci/golangci-lint && \
+        GOBIN=/build CGO_ENABLED=0 go install ./cmd/golangci-lint \
      && /build/golangci-lint --version
 
 FROM base AS gotestsum
 # GOTESTSUM_VERSION is the version of gotest.tools/gotestsum to install.
 ARG GOTESTSUM_VERSION=v1.13.0
+ADD https://github.com/gotestyourself/gotestsum.git?ref=${GOTESTSUM_VERSION}&keep-git-dir=1 /go/src/gotest.tools/gotestsum
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build CGO_ENABLED=0 go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}" \
+        cd /go/src/gotest.tools/gotestsum && \
+        GOBIN=/build CGO_ENABLED=0 go install . \
      && /build/gotestsum --version
 
 FROM base AS shfmt
 ARG SHFMT_VERSION=v3.8.0
+ADD https://github.com/mvdan/sh.git?ref=${SHFMT_VERSION}&keep-git-dir=1 /go/src/mvdan.cc/sh
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build CGO_ENABLED=0 go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
+        cd /go/src/mvdan.cc/sh && \
+        GOBIN=/build CGO_ENABLED=0 go install ./cmd/shfmt \
      && /build/shfmt --version
 
 FROM base AS gopls
+# No ARG GOPLS_VERSION, as gopls is only used for devcontainer
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         GOBIN=/build CGO_ENABLED=0 go install "golang.org/x/tools/gopls@latest" \
@@ -233,13 +240,12 @@ RUN --mount=source=hack/dockerfile/cli.sh,target=/download-or-build-cli.sh \
 # runc
 FROM base AS runc-src
 WORKDIR /usr/src/runc
-RUN git init . && git remote add origin "https://github.com/opencontainers/runc.git"
 # RUNC_VERSION sets the version of runc to install in the dev-container.
 # This version should usually match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged.
 ARG RUNC_VERSION=v1.3.4
-RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ADD https://github.com/opencontainers/runc.git?ref=${RUNC_VERSION}&keep-git-dir=1 .
 
 FROM base AS runc-build
 WORKDIR /go/src/github.com/opencontainers/runc
@@ -269,11 +275,10 @@ FROM runc-${TARGETOS} AS runc
 # tini
 FROM base AS tini-src
 WORKDIR /usr/src/tini
-RUN git init . && git remote add origin "https://github.com/krallin/tini.git"
 # TINI_VERSION specifies the version of tini (docker-init) to build. This
 # binary is used when starting containers with the `--init` option.
 ARG TINI_VERSION=v0.19.0
-RUN git fetch -q --depth 1 origin "${TINI_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ADD https://github.com/krallin/tini.git?ref=${TINI_VERSION}&keep-git-dir=1 .
 
 FROM base AS tini-build
 WORKDIR /go/src/github.com/krallin/tini
@@ -304,9 +309,8 @@ FROM tini-${TARGETOS} AS tini
 # rootlesskit
 FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
-RUN git init . && git remote add origin "https://github.com/rootless-containers/rootlesskit.git"
 ARG ROOTLESSKIT_VERSION=v2.3.6
-RUN git fetch -q --depth 1 origin "${ROOTLESSKIT_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ADD https://github.com/rootless-containers/rootlesskit.git?ref=${ROOTLESSKIT_VERSION}&keep-git-dir=1 .
 
 FROM base AS rootlesskit-build
 WORKDIR /go/src/github.com/rootless-containers/rootlesskit
@@ -350,11 +354,9 @@ RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
             libyajl-dev \
             python3 \
             ;
-RUN --mount=type=tmpfs,target=/tmp/crun-build \
-    git clone https://github.com/containers/crun.git /tmp/crun-build && \
-    cd /tmp/crun-build && \
-    git checkout -q "${CRUN_VERSION}" && \
-    ./autogen.sh && \
+WORKDIR /tmp/crun-build
+ADD https://github.com/containers/crun.git?ref=${CRUN_VERSION}&keep-git-dir=1 .
+RUN ./autogen.sh && \
     ./configure --bindir=/build && \
     make -j install
 
@@ -374,9 +376,8 @@ FROM vpnkit-${TARGETOS} AS vpnkit
 # containerutility
 FROM base AS containerutil-src
 WORKDIR /usr/src/containerutil
-RUN git init . && git remote add origin "https://github.com/docker-archive/windows-container-utility.git"
 ARG CONTAINERUTILITY_VERSION=aa1ba87e99b68e0113bd27ec26c60b88f9d4ccd9
-RUN git fetch -q --depth 1 origin "${CONTAINERUTILITY_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ADD https://github.com/docker-archive/windows-container-utility.git?commit=${CONTAINERUTILITY_VERSION}&keep-git-dir=1 .
 
 FROM base AS containerutil-build
 WORKDIR /usr/src/containerutil
