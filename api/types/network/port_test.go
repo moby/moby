@@ -3,7 +3,6 @@ package network
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -531,7 +530,7 @@ func TestPortRange(t *testing.T) {
 		for _, tc := range tests {
 			pr := MustParsePortRange(tc.in)
 			ports := slices.Collect(pr.All())
-			if !reflect.DeepEqual(ports, tc.want) {
+			if !slices.Equal(ports, tc.want) {
 				t.Errorf("PortRange.All() = %#v, want %#v", ports, tc.want)
 			}
 		}
@@ -546,7 +545,7 @@ func TestPortRange(t *testing.T) {
 					break
 				}
 			}
-			if !reflect.DeepEqual(ports, want) {
+			if !slices.Equal(ports, want) {
 				t.Errorf("PortRange.All() = %#v, want %#v", ports, want)
 			}
 		})
