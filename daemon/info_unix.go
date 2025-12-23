@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	runcoptions "github.com/containerd/containerd/api/types/runc/options"
@@ -178,6 +179,51 @@ func (daemon *Daemon) fillPlatformVersion(ctx context.Context, v *system.Version
 			return err
 		}
 		log.G(ctx).WithError(err).Warn("Failed to fill rootless version")
+	}
+
+	if err := daemon.fillModuleversion(ctx, v); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (daemon *Daemon) fillModuleversion(ctx context.Context, v *types.Version) error {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		log.G(ctx).Warn("Failed to read build info")
+		return nil
+	}
+
+	if len(v.Components) > 0 && v.Components[0].Name == "Engine" && v.Components[0].Details != nil {
+		v.Components[0].Details["Module"] = info.Main.Path
+		v.Components[0].Details["ModuleVersion"] = info.Main.Version
+	}
+
+	for _, dep := range info.Deps {
+		var name string
+		switch dep.Path {
+		case "github.com/moby/moby/v2":
+			name = "moby"
+		case "github.com/moby/moby/api":
+			name = "moby/api"
+		case "github.com/moby/moby/client":
+			name = "moby/client"
+		case "github.com/containerd/containerd/v2":
+			name = "containerd/client"
+		case "github.com/containerd/containerd/api":
+			name = "containerd/api"
+		default:
+			continue
+		}
+
+		v.Components = append(v.Components, types.ComponentVersion{
+			Name:    name,
+			Version: dep.Version,
+			Details: map[string]string{
+				"Module": dep.Path,
+			},
+		})
 	}
 	return nil
 }
