@@ -378,7 +378,7 @@ RUN git init . && git remote add origin "https://github.com/docker-archive/windo
 ARG CONTAINERUTILITY_VERSION=aa1ba87e99b68e0113bd27ec26c60b88f9d4ccd9
 RUN git fetch -q --depth 1 origin "${CONTAINERUTILITY_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
-FROM base AS containerutil-build
+FROM --platform=$TARGETPLATFORM base AS containerutil-build
 WORKDIR /usr/src/containerutil
 ARG TARGETPLATFORM
 RUN xx-apt-get install -y --no-install-recommends \
@@ -397,6 +397,7 @@ EOT
 
 FROM binary-dummy AS containerutil-linux
 FROM containerutil-build AS containerutil-windows-amd64
+FROM containerutil-build AS containerutil-windows-arm64
 FROM containerutil-windows-${TARGETARCH} AS containerutil-windows
 FROM containerutil-${TARGETOS} AS containerutil
 FROM docker/buildx-bin:${BUILDX_VERSION} AS buildx
