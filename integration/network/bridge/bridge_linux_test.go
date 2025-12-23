@@ -1392,3 +1392,37 @@ func TestPreferredSubnetRestore(t *testing.T) {
 	assert.Check(t, is.Equal(dualv4after, dualv4), "expected same v4 subnet after restart")
 	assert.Check(t, is.Equal(dualv6after, dualv6), "expected same v6 subnet after restart")
 }
+
+func TestCreateNetworkWithGlobalDefaultSubnetSize(t *testing.T) {
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.Start(t, "--default-subnet-size=24", "--feature=global-default-subnet-size=true")
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	nid, err := network.Create(ctx, c, "testnet",
+		network.WithIPv4(true),
+		network.WithIPv6())
+	assert.NilError(t, err)
+	defer network.RemoveNoError(ctx, t, c, nid)
+
+	inspect, err := c.NetworkInspect(ctx, nid, client.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(inspect.Network.IPAM.Config, 2))
+
+	var v4, v6 bool
+	for _, cfg := range inspect.Network.IPAM.Config {
+		if cfg.Subnet.Addr().Is4() {
+			v4 = true
+			assert.Equal(t, cfg.Subnet.Bits(), 24)
+		}
+		if cfg.Subnet.Addr().Is6() {
+			v6 = true
+			assert.Equal(t, cfg.Subnet.Bits(), 64)
+		}
+	}
+
+	assert.Assert(t, v4 && v6, "both IPv4 and IPv6 subnets should be present")
+}
