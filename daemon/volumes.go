@@ -287,6 +287,14 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 			mp.RW = false
 		}
 
+		if mp.Type == mounttypes.TypeAPISocket {
+			socket, err := daemon.apiSocket(ctr.ID, cfg.APISocketOptions)
+			if err != nil {
+				return err
+			}
+			mp.Source = socket
+			log.L.Errorf("daemon.registerMountPoints: mount api socket: %+v", mp)
+		}
 		binds[mp.Destination] = true
 		dereferenceIfExists(mp.Destination)
 		mountPoints[mp.Destination] = mp

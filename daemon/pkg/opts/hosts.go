@@ -27,6 +27,8 @@ const (
 	DefaultTLSHost = "tcp://" + DefaultHTTPHost + ":2376"
 	// DefaultNamedPipe defines the default named pipe used by docker on Windows
 	DefaultNamedPipe = `//./pipe/docker_engine`
+	// APISocket Path for the socket used to expose API socket to containers by mount type apisocket;access=unconfined
+	APISocket = "/var/run/docker-api.sock"
 	// HostGatewayName is the string value that can be passed
 	// to the IPAddr section in --add-host that is replaced by
 	// the value of HostGatewayIP daemon config value

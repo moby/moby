@@ -115,3 +115,7 @@ func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) e
 func validateCPURealtimeOptions(_ *config.Config) error {
 	return nil
 }
+
+func appendApiSocket(hosts []string) []string {
+	return hosts
+}

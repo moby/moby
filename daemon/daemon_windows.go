@@ -12,6 +12,7 @@ import (
 	"github.com/Microsoft/hcsshim"
 	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/containerd/log"
+	dmount "github.com/moby/moby/api/types/mount"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/config"
@@ -24,6 +25,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/network"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/parsers/operatingsystem"
 	"github.com/moby/moby/v2/pkg/sysinfo"
 	"github.com/moby/sys/user"
@@ -569,4 +571,8 @@ func setupResolvConf(config *config.Config) {}
 
 func getSysInfo(*config.Config) *sysinfo.SysInfo {
 	return sysinfo.New()
+}
+
+func (daemon *Daemon) apiSocket(_ string, opts *dmount.APISocketOptions) (string, error) {
+	return "", errdefs.NotImplemented(fmt.Errorf("api socket is not supported on this platform"))
 }

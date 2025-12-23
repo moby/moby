@@ -12,9 +12,11 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	dmount "github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/moby/moby/v2/daemon/libnetwork/resolvconf"
+	dopts "github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
@@ -236,4 +238,12 @@ func supportsRecursivelyReadOnly(cfg *configStore, runtime string) error {
 		return nil
 	}
 	return fmt.Errorf("rro is not supported by runtime %q", runtime)
+}
+
+// apiSocket returns a Unix socket for container to access the daemon's API
+func (daemon *Daemon) apiSocket(_ string, opts *dmount.APISocketOptions) (string, error) {
+	if opts != nil && opts.Access != dmount.AccessUnconfined {
+		return "", fmt.Errorf("API socket access %q is not supported", opts.Access)
+	}
+	return dopts.APISocket, nil
 }

@@ -683,6 +683,14 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 	}
 
+	if versions.LessThan(version, "1.53") {
+		for _, m := range hostConfig.Mounts {
+			if m.Type == mount.TypeAPISocket {
+				return errdefs.InvalidParameter(errors.New(`Mount type "APISocket" needs API v1.53 or newer`))
+			}
+		}
+	}
+
 	if warn, err := handleSysctlBC(hostConfig, networkingConfig, version); err != nil {
 		return err
 	} else if warn != "" {

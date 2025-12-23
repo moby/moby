@@ -14,6 +14,7 @@ import (
 	"github.com/moby/moby/v2/daemon"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
+	dopts "github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/pkg/homedir"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -121,4 +122,8 @@ func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) e
 	}
 
 	return cli.initializeContainerd(ctx)
+}
+
+func appendApiSocket(hosts []string) []string {
+	return append(hosts, "unix://"+dopts.APISocket)
 }
