@@ -411,7 +411,7 @@ func (n *Network) validateConfiguration() error {
 		// (Note that the default for enableIPv4 is 'true', ipamType has its own default,
 		// and other settings are zero valued by default.)
 		if n.ipamType != "" &&
-			n.ipamType != defaultIpamForNetworkType(n.networkType) ||
+			n.ipamType != defaultipam.DriverName ||
 			!n.enableIPv4 || n.enableIPv6 ||
 			len(n.labels) > 0 || len(n.ipamOptions) > 0 ||
 			len(n.ipamV4Config) > 0 || len(n.ipamV6Config) > 0 {
@@ -858,9 +858,6 @@ func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ip
 	return func(n *Network) {
 		if ipamDriver != "" {
 			n.ipamType = ipamDriver
-			if ipamDriver == defaultipam.DriverName {
-				n.ipamType = defaultIpamForNetworkType(n.Type())
-			}
 		}
 		n.ipamOptions = opts
 		n.addrSpace = addrSpace
@@ -1881,21 +1878,6 @@ func (n *Network) TableEventRegister(tableName string, objType driverapi.ObjectT
 	defer n.mu.Unlock()
 	n.driverTables = append(n.driverTables, t)
 	return nil
-}
-
-func (n *Network) UpdateIpamConfig(ipV4Data []driverapi.IPAMData) {
-	ipamV4Config := make([]*IpamConf, len(ipV4Data))
-
-	for i, data := range ipV4Data {
-		ic := &IpamConf{}
-		ic.PreferredPool = data.Pool.String()
-		ic.Gateway = data.Gateway.IP.String()
-		ipamV4Config[i] = ic
-	}
-
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	n.ipamV4Config = ipamV4Config
 }
 
 // Special drivers are ones which do not need to perform any Network plumbing
