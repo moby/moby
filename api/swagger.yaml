@@ -6587,7 +6587,9 @@ definitions:
         example: "linux"
       Arch:
         description: |
-          The architecture that the daemon is running on
+          Architecture of the daemon, as returned by the Go runtime (`GOARCH`).
+
+          A full list of possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
         type: "string"
         example: "amd64"
       KernelVersion:
@@ -6814,10 +6816,13 @@ definitions:
         example: "linux"
       Architecture:
         description: |
-          Hardware architecture of the host, as returned by the Go runtime
-          (`GOARCH`).
+          Hardware architecture of the host, as returned by the operating system.
+          This is equivalent to the output of `uname -m` on Linux.
 
-          A full list of possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
+          Unlike `Arch` (from `/version`), this reports the machine's native
+          architecture, which can differ from the Go runtime architecture when
+          running a binary compiled for a different architecture (for example,
+          a 32-bit binary running on 64-bit hardware).
         type: "string"
         example: "x86_64"
       NCPU:
