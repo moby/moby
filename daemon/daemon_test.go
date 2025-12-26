@@ -300,6 +300,20 @@ func TestValidateContainerIsolation(t *testing.T) {
 	assert.Check(t, is.Error(err, "invalid isolation 'invalid' on "+runtime.GOOS))
 }
 
+func TestValidateHostnameLength(t *testing.T) {
+	d := Daemon{}
+
+	// Valid hostname (exactly 64 characters)
+	validHostname := strings.Repeat("a", 64)
+	_, err := d.verifyContainerSettings(&configStore{}, nil, &containertypes.Config{Hostname: validHostname}, false)
+	assert.NilError(t, err)
+
+	// Invalid hostname (65 characters, exceeds limit)
+	invalidHostname := strings.Repeat("a", 65)
+	_, err = d.verifyContainerSettings(&configStore{}, nil, &containertypes.Config{Hostname: invalidHostname}, false)
+	assert.ErrorContains(t, err, "is too long")
+}
+
 func TestInvalidContainerPort0(t *testing.T) {
 	d := Daemon{}
 
