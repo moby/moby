@@ -47,10 +47,16 @@ func (cli *Client) ContainerStatPath(ctx context.Context, containerID string, op
 // CopyToContainerOptions holds information
 // about files to copy into a container
 type CopyToContainerOptions struct {
-	DestinationPath           string
-	Content                   io.Reader
+	// DestinationPath is the path in the container where the content will be extracted.
+	DestinationPath string
+	// Content must be a TAR archive that will be extracted at DestinationPath.
+	// The archive can be compressed with gzip, bzip2, or xz.
+	Content io.Reader
+	// AllowOverwriteDirWithFile controls whether an existing directory can be
+	// replaced by a file and vice versa.
 	AllowOverwriteDirWithFile bool
-	CopyUIDGID                bool
+	// CopyUIDGID copies the UID/GID from the source files.
+	CopyUIDGID bool
 }
 
 type CopyToContainerResult struct{}
