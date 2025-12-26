@@ -6247,7 +6247,11 @@ definitions:
         example: 0
       stats:
         description: |
-          All the stats exported via memory.stat. when using cgroups v2.
+          All the stats exported via memory.stat.
+
+          The fields in this object differ between cgroups v1 and v2.
+          On cgroups v1, fields such as `cache`, `rss`, `mapped_file` are available.
+          On cgroups v2, fields such as `file`, `anon`, `inactive_file` are available.
 
           This field is Linux-specific and omitted for Windows containers.
         type: "object"
@@ -8515,7 +8519,8 @@ paths:
 
         To calculate the values shown by the `stats` command of the docker cli tool
         the following formulas can be used:
-        * used_memory = `memory_stats.usage - memory_stats.stats.cache`
+        * used_memory = `memory_stats.usage - memory_stats.stats.cache` (cgroups v1)
+        * used_memory = `memory_stats.usage - memory_stats.stats.inactive_file` (cgroups v2)
         * available_memory = `memory_stats.limit`
         * Memory usage % = `(used_memory / available_memory) * 100.0`
         * cpu_delta = `cpu_stats.cpu_usage.total_usage - precpu_stats.cpu_usage.total_usage`
