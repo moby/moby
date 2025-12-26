@@ -391,10 +391,11 @@ func getSourceMount(source string) (string, string, error) {
 		return "", "", fmt.Errorf("Can't find mount point of %s", source)
 	}
 
-	// find the longest mount point
+	// find the longest mount point, preferring later entries when there are
+	// multiple mounts at the same path (e.g., with different propagation settings)
 	var idx, maxlen int
 	for i := range mi {
-		if len(mi[i].Mountpoint) > maxlen {
+		if len(mi[i].Mountpoint) >= maxlen {
 			maxlen = len(mi[i].Mountpoint)
 			idx = i
 		}
