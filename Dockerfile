@@ -477,7 +477,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             bash-completion \
             bzip2 \
             fuse-overlayfs \
-            inetutils-ping \
+            iputils-ping \
             iproute2 \
             iptables \
             nftables \
