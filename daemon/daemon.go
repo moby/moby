@@ -1498,7 +1498,9 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	// running anymore. If there are still some open connections to the
 	// '/events' endpoint, closing the EventsService should tear them down
 	// immediately.
-	daemon.EventsService.Close()
+	if daemon.EventsService != nil {
+		daemon.EventsService.Close()
+	}
 
 	return daemon.cleanupMounts(cfg)
 }
