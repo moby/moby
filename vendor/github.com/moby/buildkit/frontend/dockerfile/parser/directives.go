@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"strings"
+	"sync"
+	"unicode"
 
 	"github.com/pkg/errors"
 )
@@ -32,14 +33,18 @@ type Directive struct {
 // DirectiveParser is a parser for Dockerfile directives that enforces the
 // quirks of the directive parser.
 type DirectiveParser struct {
-	line   int
-	regexp *regexp.Regexp
-	seen   map[string]struct{}
-	done   bool
+	line    int
+	comment *string
+	seen    map[string]struct{}
+	done    bool
 }
 
-func (d *DirectiveParser) setComment(comment string) {
-	d.regexp = regexp.MustCompile(fmt.Sprintf(`^%s\s*([a-zA-Z][a-zA-Z0-9]*)\s*=\s*(.+?)\s*$`, comment))
+var directiveRegexp = sync.OnceValue(func() *regexp.Regexp {
+	return regexp.MustCompile(`^([a-zA-Z][a-zA-Z0-9]*)\s*=\s*(.+?)\s*$`)
+})
+
+func (d *DirectiveParser) SetComment(comment string) {
+	d.comment = &comment
 }
 
 func (d *DirectiveParser) ParseLine(line []byte) (*Directive, error) {
@@ -47,11 +52,18 @@ func (d *DirectiveParser) ParseLine(line []byte) (*Directive, error) {
 	if d.done {
 		return nil, nil
 	}
-	if d.regexp == nil {
-		d.setComment("#")
+	if d.comment == nil {
+		d.SetComment("#")
 	}
 
-	match := d.regexp.FindSubmatch(line)
+	line, ok := bytes.CutPrefix(line, []byte(*d.comment))
+	if !ok {
+		d.done = true
+		return nil, nil
+	}
+	line = bytes.TrimLeftFunc(line, unicode.IsSpace)
+
+	match := directiveRegexp().FindSubmatch(line)
 	if len(match) == 0 {
 		d.done = true
 		return nil, nil
@@ -142,7 +154,7 @@ func parseDirective(key string, dt []byte, anyFormat bool) (string, string, []Ra
 
 	// use directive with different comment prefix, and search for //key=
 	directiveParser = DirectiveParser{line: line}
-	directiveParser.setComment("//")
+	directiveParser.SetComment("//")
 	if syntax, cmdline, loc, ok := detectDirectiveFromParser(key, dt, directiveParser); ok {
 		return syntax, cmdline, loc, true
 	}
