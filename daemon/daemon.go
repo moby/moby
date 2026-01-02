@@ -1640,6 +1640,13 @@ func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.Plugin
 	}
 	options = append(options, nwconfig.OptionDefaultAddressPoolConfig(defaultAddressPools))
 
+	if enabled := conf.Features["global-default-subnet-size"]; enabled {
+		if conf.DefaultSubnetSize <= 0 || conf.DefaultSubnetSize >= 32 {
+			return nil, errors.New("default-subnet-size needs to be greater than 0 and less than 32")
+		}
+		options = append(options, nwconfig.OptionDefaultSubnetSize(conf.DefaultSubnetSize))
+	}
+
 	if conf.LiveRestoreEnabled && len(activeSandboxes) != 0 {
 		options = append(options, nwconfig.OptionActiveSandboxes(activeSandboxes))
 	}
