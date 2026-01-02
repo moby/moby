@@ -21,6 +21,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   when negotiating content-type.
 * Deprecated: The `POST /grpc` and `POST /session` endpoints are deprecated and
   will be removed in a future version.
+* `POST /images/pull` now propagates raw OCI registry errors through the aux
+  progress stream.
 
 ## v1.52 API changes
 
