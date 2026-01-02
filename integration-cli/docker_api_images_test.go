@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
@@ -36,13 +37,27 @@ func (s *DockerAPISuite) TestAPIImagesImportBadSrc(c *testing.T) {
 	}
 }
 
-// #14846
-func (s *DockerAPISuite) TestAPIImagesSearchJSONContentType(c *testing.T) {
-	testRequires(c, Network)
+// Test case for 30027: image size reported as -1 in v1.12 client against v1.13 daemon.
+// This test checks to make sure both v1.12 and v1.13 client against v1.13 daemon get correct `Size` after the fix.
+func (s *DockerAPISuite) TestAPIImagesSizeCompatibility(c *testing.T) {
+	apiclient := testEnv.APIClient()
+	defer apiclient.Close()
 
-	res, b, err := request.Get(testutil.GetContext(c), "/images/search?term=test", request.JSON)
+	imageList, err := apiclient.ImageList(testutil.GetContext(c), client.ImageListOptions{})
 	assert.NilError(c, err)
-	b.Close()
-	assert.Equal(c, res.StatusCode, http.StatusOK)
-	assert.Equal(c, res.Header.Get("Content-Type"), "application/json")
+	assert.Assert(c, len(imageList.Items) != 0)
+	for _, img := range imageList.Items {
+		assert.Assert(c, img.Size != int64(-1))
+	}
+
+	apiclient, err = client.New(client.FromEnv, client.WithAPIVersion("v1.24"))
+	assert.NilError(c, err)
+	defer apiclient.Close()
+
+	v124Images, err := apiclient.ImageList(testutil.GetContext(c), client.ImageListOptions{})
+	assert.NilError(c, err)
+	assert.Assert(c, len(v124Images.Items) != 0)
+	for _, img := range v124Images.Items {
+		assert.Assert(c, img.Size != int64(-1))
+	}
 }
