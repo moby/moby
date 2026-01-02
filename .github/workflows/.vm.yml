@@ -20,7 +20,7 @@ on:
         type: string
 
 env:
-  GO_VERSION: "1.25.5"
+  GO_VERSION: "1.26.0-rc.1"
   TESTSTAT_VERSION: v0.1.25
   TEMPLATE_NAME: ${{ inputs.template }}
 

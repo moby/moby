@@ -23,7 +23,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.25.5"
+  GO_VERSION: "1.26.0-rc.1"
   GIT_PAGER: "cat"
   PAGER: "cat"
   SETUP_BUILDX_VERSION: edge
@@ -176,15 +176,13 @@ jobs:
       -
         name: Checkout
         uses: actions/checkout@v4
-      - 
-        name: Build api module image
-        run: |
-          make build
-      - 
+      -
         name: Validate swagger
         run: |
           make validate-swagger
           make validate-swagger-gen
+        env:
+          GO_VERSION: "1.26rc1"
 
   smoke-prepare:
     runs-on: ubuntu-24.04
