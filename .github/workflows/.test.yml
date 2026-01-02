@@ -24,7 +24,7 @@ env:
   GO_VERSION: "1.25.5"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
-  ITG_CLI_MATRIX_SIZE: 6
+  ITG_CLI_MATRIX_SIZE: 15
   DOCKER_EXPERIMENTAL: 1
   DOCKER_GRAPHDRIVER: ${{ inputs.storage == 'snapshotter' && 'overlayfs' || 'overlay2' }}
   TEST_INTEGRATION_USE_GRAPHDRIVER: ${{ inputs.storage == 'graphdriver' && '1' || '' }}
@@ -316,7 +316,7 @@ jobs:
           # also overrides being added to the matrix like "./..." to run
           # "Test integration" step exclusively and specific tests suites that
           # take a long time to run.
-          matrix="$(gotestlist -d ${{ env.ITG_CLI_MATRIX_SIZE }} -o "./..." -o "DockerSwarmSuite" -o "DockerNetworkSuite|DockerExternalVolumeSuite" ./...)"
+          matrix="$(gotestlist -d ${{ env.ITG_CLI_MATRIX_SIZE }} -o "DockerSwarmSuite" -o "DockerNetworkSuite|DockerExternalVolumeSuite" ./...)"
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
       -
         name: Create gha matrix
