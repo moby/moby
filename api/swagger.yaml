@@ -862,6 +862,10 @@ definitions:
         description: |
           The time to wait before considering the check to have hung. It should
           be 0 or at least 1000000 (1 ms). 0 means inherit.
+
+          If the health check command does not complete within this timeout,
+          the check is considered failed and the health check process is
+          forcibly terminated.
         type: "integer"
         format: "int64"
       Retries:
