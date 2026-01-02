@@ -399,6 +399,7 @@ definitions:
           - `tmpfs` Create a tmpfs with the given options. The mount source cannot be specified for tmpfs.
           - `npipe` Mounts a named pipe from the host into the container. Must exist prior to creating the container.
           - `cluster` a Swarm cluster volume
+          - `apisocket` Mounts the Docker engine socket into the container.
         type: "string"
         enum:
           - "bind"
@@ -407,6 +408,7 @@ definitions:
           - "tmpfs"
           - "npipe"
           - "cluster"
+          - "apisocket"
       ReadOnly:
         description: "Whether the mount should be read-only."
         type: "boolean"
@@ -515,6 +517,14 @@ definitions:
                 type: "string"
             example:
               [["noexec"]]
+      APISocketOptions:
+        description: "Optional configuration for the `apisocket` type."
+        type: object
+        required: ["access"]
+        properties:
+          isolation:
+            type: string
+            enum: ["unconfined"]
 
   RestartPolicy:
     description: |
