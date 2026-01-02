@@ -232,6 +232,10 @@ func (daemon *Daemon) verifyContainerSettings(daemonCfg *configStore, hostConfig
 	return warnings, err
 }
 
+// maxHostnameLen is the maximum length of a hostname on Linux.
+// This is defined by HOST_NAME_MAX in the kernel.
+const maxHostnameLen = 64
+
 func validateContainerConfig(config *containertypes.Config) error {
 	if config == nil {
 		return nil
@@ -243,6 +247,10 @@ func validateContainerConfig(config *containertypes.Config) error {
 		if _, err := signal.ParseSignal(config.StopSignal); err != nil {
 			return err
 		}
+	}
+	// Validate hostname length. Linux limits hostnames to 64 bytes.
+	if len(config.Hostname) > maxHostnameLen {
+		return errors.Errorf("hostname %q is too long (max %d characters)", config.Hostname, maxHostnameLen)
 	}
 	// Validate if Env contains empty variable or not (e.g., ``, `=foo`)
 	for _, env := range config.Env {
