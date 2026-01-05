@@ -838,7 +838,9 @@ definitions:
           Value: "UUID2"
 
   HealthConfig:
-    description: "A test to perform to check that the container is healthy."
+    description: |
+      A test to perform to check that the container is healthy.
+      Healthcheck commands should be side-effect free.
     type: "object"
     properties:
       Test:
@@ -849,6 +851,12 @@ definitions:
           - `["NONE"]` disable healthcheck
           - `["CMD", args...]` exec arguments directly
           - `["CMD-SHELL", command]` run command with system's default shell
+
+          A non-zero exit code indicates a failed healthcheck:
+          - `0` healthy
+          - `1` unhealthy
+          - `2` reserved (treated as unhealthy)
+          - other values: error running probe
         type: "array"
         items:
           type: "string"
@@ -865,7 +873,7 @@ definitions:
 
           If the health check command does not complete within this timeout,
           the check is considered failed and the health check process is
-          forcibly terminated.
+          forcibly terminated without a graceful shutdown.
         type: "integer"
         format: "int64"
       Retries:
