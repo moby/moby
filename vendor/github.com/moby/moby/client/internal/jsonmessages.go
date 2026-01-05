@@ -45,12 +45,15 @@ func (r stream) Close() error {
 // JSONMessages decodes the response stream as a sequence of JSONMessages.
 // if stream ends or context is cancelled, the underlying [io.Reader] is closed.
 func (r stream) JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, error] {
-	context.AfterFunc(ctx, func() {
+	stop := context.AfterFunc(ctx, func() {
 		_ = r.Close()
 	})
 	dec := json.NewDecoder(r)
 	return func(yield func(jsonstream.Message, error) bool) {
-		defer r.Close()
+		defer func() {
+			stop() // unregister AfterFunc
+			r.Close()
+		}()
 		for {
 			var jm jsonstream.Message
 			err := dec.Decode(&jm)
