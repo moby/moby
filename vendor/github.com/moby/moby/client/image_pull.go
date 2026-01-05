@@ -14,9 +14,20 @@ import (
 	"github.com/moby/moby/client/internal"
 )
 
+type OCIRegistryError struct {
+	Code    string      `json:"code"`
+	Message string      `json:"message,omitempty"`
+	Detail  interface{} `json:"detail,omitempty"`
+}
+
+type ImagePullJSONMessage struct {
+	jsonstream.Message
+	RegistryErrors []OCIRegistryError
+}
+
 type ImagePullResponse interface {
 	io.ReadCloser
-	JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, error]
+	JSONMessages(ctx context.Context) iter.Seq2[ImagePullJSONMessage, error]
 	Wait(ctx context.Context) error
 }
 
@@ -60,7 +71,7 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options ImagePu
 		return nil, err
 	}
 
-	return internal.NewJSONMessageStream(resp.Body), nil
+	return internal.NewJSONMessageStream[ImagePullJSONMessage](resp.Body), nil
 }
 
 // getAPITagFromNamedRef returns a tag from the specified reference.

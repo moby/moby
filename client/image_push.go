@@ -70,7 +70,7 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePus
 	if err != nil {
 		return nil, err
 	}
-	return internal.NewJSONMessageStream(resp.Body), nil
+	return internal.NewJSONMessageStream[jsonstream.Message](resp.Body), nil
 }
 
 func (cli *Client) tryImagePush(ctx context.Context, imageID string, query url.Values, resolveAuth registry.RequestAuthConfig) (*http.Response, error) {

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/client/internal"
 	"gotest.tools/v3/assert"
@@ -190,10 +189,10 @@ func TestImagePullWithoutErrors(t *testing.T) {
 
 func TestImagePullResponse(t *testing.T) {
 	r, w := io.Pipe()
-	response := internal.NewJSONMessageStream(r)
+	response := internal.NewJSONMessageStream[ImagePullJSONMessage](r)
 	ctx, cancel := context.WithCancel(t.Context())
 	messages := response.JSONMessages(ctx)
-	c := make(chan jsonstream.Message)
+	c := make(chan ImagePullJSONMessage)
 	go func() {
 		for message, err := range messages {
 			if err != nil {
