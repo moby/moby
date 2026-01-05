@@ -70,6 +70,26 @@ func TestJsonProgressFormatterFormatStatus(t *testing.T) {
 	assert.Check(t, is.Equal(`{"status":"a1","id":"ID"}`+streamNewline, string(res)))
 }
 
+func TestJsonProgressFormatterFormatStatusWithPushResult(t *testing.T) {
+	sf := jsonProgressFormatter{}
+	pushResult := &jsonstream.PushResult{
+		Tag:    "latest",
+		Digest: "sha256:deadbeef",
+		Size:   1234,
+	}
+	res := sf.formatStatusWithAux("ID", "done", pushResult)
+	msg := &jsonstream.Message{}
+
+	assert.NilError(t, json.Unmarshal(res, msg))
+
+	expected := &jsonstream.Message{
+		ID:     "ID",
+		Status: "done",
+		Push:   pushResult,
+	}
+	assert.DeepEqual(t, msg, expected, cmpJSONMessageOpt())
+}
+
 func TestNewJSONProgressOutput(t *testing.T) {
 	b := bytes.Buffer{}
 	b.Write(FormatStatus("id", "Downloading"))
