@@ -33,6 +33,7 @@ func newDockerHubPullSuite() *DockerHubPullSuite {
 // SetUpSuite starts the suite daemon.
 func (s *DockerHubPullSuite) SetUpSuite(ctx context.Context, t *testing.T) {
 	testRequires(t, DaemonIsLinux, testEnv.IsLocalDaemon)
+	t.Logf("SETTING UP TEST")
 	s.d = daemon.New(t, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 	s.d.Start(t)
 }
@@ -66,7 +67,7 @@ func (s *DockerHubPullSuite) Cmd(t *testing.T, name string, arg ...string) strin
 	t.Helper()
 	args := append([]string{"--host", s.d.Sock(), name}, arg...)
 	out, err := exec.CommandContext(t.Context(), dockerBinary, args...).CombinedOutput()
-	assert.Assert(t, err == nil, "%q failed with errors: %s, %v", strings.Join(args, " "), string(out), err)
+	assert.Assert(t, err == nil, "%q failed with errors: %s %s, %v", dockerBinary, strings.Join(args, " "), string(out), err)
 	return string(out)
 }
 

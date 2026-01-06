@@ -239,6 +239,7 @@ func New(t testing.TB, ops ...Option) *Daemon {
 	}
 
 	t.Cleanup(func() {
+		t.Logf("Cleaning up daemon2: %s", d.id)
 		if err := d.Kill(); err != nil && !errors.Is(err, errDaemonNotStarted) {
 			t.Errorf("[%s] error while stopping the daemon during cleanup: %v", d.id, err)
 		}
@@ -325,6 +326,7 @@ func (d *Daemon) NewClient(extraOpts ...client.Opt) (*client.Client, error) {
 // Cleanup cleans the daemon files : exec root (network namespaces, ...), swarmkit files
 func (d *Daemon) Cleanup(t testing.TB) {
 	t.Helper()
+	t.Logf("Cleaning up daemon: %s", d.id)
 	if err := d.Kill(); err != nil && !errors.Is(err, errDaemonNotStarted) {
 		t.Errorf("[%s] error while stopping the daemon during cleanup: %v", d.id, err)
 	}
