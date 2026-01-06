@@ -34,7 +34,7 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *testing.T) {
 	if err != nil && strings.Contains(err.Error(), "toomanyrequests") {
 		c.Skipf("XFAIL: %s", err.Error())
 	}
-	assert.NilError(c, err)
+	assert.NilError(c, err, out)
 	defer deleteImages("hello-world")
 
 	assert.Assert(c, strings.Contains(out, "Using default tag: latest"), "expected the 'latest' tag to be automatically assumed")
