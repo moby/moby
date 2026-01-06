@@ -49,7 +49,6 @@ func testBuildWithCgroupNs(ctx context.Context, t *testing.T, daemonNsMode strin
 		RUN readlink /proc/self/ns/cgroup
 	`
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
-	defer source.Close()
 
 	apiClient := d.NewClientT(t)
 	resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{

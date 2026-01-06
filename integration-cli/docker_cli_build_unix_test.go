@@ -124,8 +124,6 @@ func (s *DockerCLIBuildSuite) TestBuildAddChangeOwnership(c *testing.T) {
 		return fakecontext.New(c, tmpDir)
 	}()
 
-	defer ctx.Close()
-
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 }
 
@@ -152,7 +150,6 @@ func (s *DockerCLIBuildSuite) TestBuildCancellationKillsSleep(c *testing.T) {
 
 	// (Note: one year, will never finish)
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile("FROM busybox\nRUN sleep 31536000"))
-	defer ctx.Close()
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
 	buildCmd.Dir = ctx.Dir

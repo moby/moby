@@ -285,7 +285,6 @@ CMD echo foobar`
 echo "I am an entrypoint"
 exec "$@"`,
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 

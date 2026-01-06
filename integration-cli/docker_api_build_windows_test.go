@@ -23,7 +23,6 @@ func (s *DockerAPISuite) TestBuildWithRecycleBin(c *testing.T) {
 		"RUN dir missing\n"
 
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(dockerfile))
-	defer ctx.Close()
 
 	res, body, err := request.Post(testutil.GetContext(c),
 		"/build",

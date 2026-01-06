@@ -155,7 +155,6 @@ func TestBuildMultiStageCopy(t *testing.T) {
 	assert.NilError(t, err)
 
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(string(dockerfile)))
-	defer source.Close()
 
 	apiclient := testEnv.APIClient()
 
@@ -205,7 +204,6 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 
 	ctx := setupTest(t)
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
-	defer source.Close()
 
 	apiclient := testEnv.APIClient()
 	imgName := strings.ToLower(t.Name())
@@ -250,7 +248,6 @@ func TestBuildLabelWithTargets(t *testing.T) {
 
 	ctx := setupTest(t)
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
-	defer source.Close()
 
 	apiclient := testEnv.APIClient()
 	// For `target-a` build
@@ -317,7 +314,6 @@ COPY    3/ /target/
 		fakecontext.WithFile("1/a", "asdf"),
 		fakecontext.WithFile("2/a", "asdf"),
 		fakecontext.WithFile("3/a", "asdf"))
-	defer source.Close()
 
 	apiclient := testEnv.APIClient()
 	resp, err := apiclient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
@@ -351,7 +347,6 @@ RUN cat somefile`
 
 	source := fakecontext.New(t, "",
 		fakecontext.WithDockerfile(dockerfile))
-	defer source.Close()
 
 	apiclient := testEnv.APIClient()
 	resp, err := apiclient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
@@ -455,7 +450,6 @@ RUN [ ! -f foo ]
 		fakecontext.WithFile("foo", "0"),
 		fakecontext.WithFile("bar", "1"),
 		fakecontext.WithDockerfile(dockerfile))
-	defer source.Close()
 
 	apiClient := testEnv.APIClient()
 	resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
@@ -626,7 +620,6 @@ func TestBuildPreserveOwnership(t *testing.T) {
 	assert.NilError(t, err)
 
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(string(dockerfile)))
-	defer source.Close()
 
 	apiClient := testEnv.APIClient()
 
@@ -685,7 +678,6 @@ func TestBuildWorkdirNoCacheMiss(t *testing.T) {
 		dockerfile := tc.dockerfile
 		t.Run(tc.name, func(t *testing.T) {
 			source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
-			defer source.Close()
 
 			apiClient := testEnv.APIClient()
 
@@ -714,7 +706,6 @@ func TestBuildEmitsImageCreateEvent(t *testing.T) {
 
 	dockerfile := "FROM busybox\nRUN echo hello > /hello"
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
-	defer source.Close()
 
 	apiClient := testEnv.APIClient()
 
@@ -781,7 +772,6 @@ func TestBuildHistoryDoesNotPreventRemoval(t *testing.T) {
 
 	dockerfile := "FROM busybox\nRUN echo hello world > /hello"
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
-	defer source.Close()
 
 	apiClient := testEnv.APIClient()
 

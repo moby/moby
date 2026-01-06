@@ -462,7 +462,6 @@ func (s *DockerCLIBuildSuite) TestBuildModifyFileInFolder(c *testing.T) {
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(`FROM busybox
 RUN ["mkdir", "/test"]
 ADD folder/file /test/changetarget`))
-	defer ctx.Close()
 	if err := ctx.Add("folder/file", "first"); err != nil {
 		c.Fatal(err)
 	}
@@ -502,7 +501,6 @@ func (s *DockerCLIBuildSuite) TestBuildAddSingleFileToWorkdir(c *testing.T) {
 		fakecontext.WithFiles(map[string]string{
 			"test_file": "test1",
 		}))
-	defer ctx.Close()
 
 	errChan := make(chan error, 1)
 	go func() {
@@ -673,7 +671,6 @@ func (s *DockerCLIBuildSuite) TestBuildCopyWildcard(c *testing.T) {
 			"dir/nested_dir/nest_nest_file": "2 times nested",
 			"dirt":                          "dirty",
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, name)
@@ -714,7 +711,6 @@ func (s *DockerCLIBuildSuite) TestBuildCopyWildcardCache(c *testing.T) {
 		fakecontext.WithFiles(map[string]string{
 			"file1.txt": "test1",
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, name)
@@ -843,7 +839,6 @@ COPY test_file .`),
 		fakecontext.WithFiles(map[string]string{
 			"test_file": "test1",
 		}))
-	defer ctx.Close()
 
 	errChan := make(chan error, 1)
 	go func() {
@@ -947,7 +942,6 @@ func (s *DockerCLIBuildSuite) TestBuildAddBadLinks(c *testing.T) {
 	targetFile := "foo.txt"
 	const name = "test-link-absolute"
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(dockerfile))
-	defer ctx.Close()
 
 	tempDir, err := os.MkdirTemp("", "test-link-absolute-temp-")
 	if err != nil {
@@ -1028,7 +1022,6 @@ func (s *DockerCLIBuildSuite) TestBuildAddBadLinksVolume(c *testing.T) {
 	nonExistingFile := filepath.Join(tempDir, targetFile)
 
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(dockerfile))
-	defer ctx.Close()
 	fooPath := filepath.Join(ctx.Dir, targetFile)
 
 	err = os.WriteFile(fooPath, []byte("test"), 0o666)
@@ -1054,7 +1047,6 @@ func (s *DockerCLIBuildSuite) TestBuildWithInaccessibleFilesInContext(c *testing
 			fakecontext.WithDockerfile("FROM scratch\nADD . /foo/"),
 			fakecontext.WithFiles(map[string]string{"fileWithoutReadAccess": "foo"}),
 		)
-		defer buildCTX.Close()
 		// This is used to ensure we detect inaccessible files early during build in the cli client
 		pathToFileWithoutReadAccess := filepath.Join(buildCTX.Dir, "fileWithoutReadAccess")
 
@@ -1082,7 +1074,6 @@ func (s *DockerCLIBuildSuite) TestBuildWithInaccessibleFilesInContext(c *testing
 			fakecontext.WithDockerfile("FROM scratch\nADD . /foo/"),
 			fakecontext.WithFiles(map[string]string{"directoryWeCantStat/bar": "foo"}),
 		)
-		defer buildCTX.Close()
 		// This is used to ensure we detect inaccessible directories early during build in the cli client
 		pathToDirectoryWithoutReadAccess := filepath.Join(buildCTX.Dir, "directoryWeCantStat")
 		pathToFileInDirectoryWithoutReadAccess := filepath.Join(pathToDirectoryWithoutReadAccess, "bar")
@@ -1112,7 +1103,6 @@ func (s *DockerCLIBuildSuite) TestBuildWithInaccessibleFilesInContext(c *testing
 	t.Run("links OK", func(t *testing.T) {
 		const name = "testlinksok"
 		buildCTX := fakecontext.New(t, "", fakecontext.WithDockerfile("FROM scratch\nADD . /foo/"))
-		defer buildCTX.Close()
 
 		target := "../../../../../../../../../../../../../../../../../../../azA"
 		if err := os.Symlink(filepath.Join(buildCTX.Dir, "g"), target); err != nil {
@@ -1132,7 +1122,6 @@ func (s *DockerCLIBuildSuite) TestBuildWithInaccessibleFilesInContext(c *testing
 				".dockerignore":           "directoryWeCantStat",
 			}),
 		)
-		defer ctx.Close()
 		// This is used to ensure we don't try to add inaccessible files when they are ignored by a .dockerignore pattern
 		pathToDirectoryWithoutReadAccess := filepath.Join(ctx.Dir, "directoryWeCantStat")
 		pathToFileInDirectoryWithoutReadAccess := filepath.Join(pathToDirectoryWithoutReadAccess, "bar")
@@ -1763,7 +1752,6 @@ func (s *DockerCLIBuildSuite) TestBuildConditionalCache(c *testing.T) {
 		fakecontext.WithFiles(map[string]string{
 			"foo": "hello",
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, name)
@@ -1803,7 +1791,6 @@ func (s *DockerCLIBuildSuite) TestBuildAddMultipleLocalFileWithAndWithoutCache(c
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(dockerfile), fakecontext.WithFiles(map[string]string{
 		"foo": "hello",
 	}))
-	defer ctx.Close()
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, name)
 	result2 := cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
@@ -1828,7 +1815,6 @@ func (s *DockerCLIBuildSuite) TestBuildCopyDirButNotFile(c *testing.T) {
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(dockerfile), fakecontext.WithFiles(map[string]string{
 		"dir/foo": "hello",
 	}))
-	defer ctx.Close()
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, name)
 	// Check that adding file with similar name doesn't mess with cache
@@ -1854,7 +1840,6 @@ func (s *DockerCLIBuildSuite) TestBuildAddCurrentDirWithCache(c *testing.T) {
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(dockerfile), fakecontext.WithFiles(map[string]string{
 		"foo": "hello",
 	}))
-	defer ctx.Close()
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, name)
 	// Check that adding file invalidate cache of "ADD ."
@@ -1898,7 +1883,6 @@ func (s *DockerCLIBuildSuite) TestBuildAddCurrentDirWithoutCache(c *testing.T) {
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(dockerfile), fakecontext.WithFiles(map[string]string{
 		"foo": "hello",
 	}))
-	defer ctx.Close()
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, name)
 	cli.BuildCmd(c, name, build.WithoutCache, build.WithExternalBuildContext(ctx))
@@ -1945,7 +1929,6 @@ func (s *DockerCLIBuildSuite) TestBuildAddRemoteFileMTime(c *testing.T) {
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(fmt.Sprintf(`FROM `+minimalBaseImage()+`
         MAINTAINER dockerio
         ADD %s/baz /usr/lib/baz/quux`, server.URL())))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, name)
@@ -1967,7 +1950,6 @@ func (s *DockerCLIBuildSuite) TestBuildAddRemoteFileMTime(c *testing.T) {
 	ctx2 := fakecontext.New(c, "", fakecontext.WithDockerfile(fmt.Sprintf(`FROM `+minimalBaseImage()+`
         MAINTAINER dockerio
         ADD %s/baz /usr/lib/baz/quux`, server2.URL())))
-	defer ctx2.Close()
 	cli.BuildCmd(c, name3, build.WithExternalBuildContext(ctx2))
 	id3 := getIDByName(c, name3)
 	if id1 != id3 {
@@ -1990,7 +1972,6 @@ func (s *DockerCLIBuildSuite) TestBuildAddLocalAndRemoteFilesWithAndWithoutCache
 		fakecontext.WithFiles(map[string]string{
 			"foo": "hello world",
 		}))
-	defer ctx.Close()
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, name)
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
@@ -2014,7 +1995,6 @@ CMD ["cat", "/foo"]`),
 			"foo": "bar",
 		}),
 	)
-	defer ctx.Close()
 	buildContext, err := archive.Tar(ctx.Dir, comp)
 	if err != nil {
 		t.Fatalf("failed to build context tar: %v", err)
@@ -2426,7 +2406,6 @@ func (s *DockerCLIBuildSuite) TestBuildDockerignoreTouchDockerfile(c *testing.T)
 		fakecontext.WithFiles(map[string]string{
 			".dockerignore": "Dockerfile\n",
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, name)
@@ -2851,7 +2830,6 @@ RUN cat /existing-directory-trailing-slash/test/foo | grep Hi`
 		}
 		return fakecontext.New(c, tmpDir)
 	}()
-	defer ctx.Close()
 
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 }
@@ -2900,7 +2878,6 @@ ADD test.tar /`
 		}
 		return fakecontext.New(c, tmpDir)
 	}()
-	defer ctx.Close()
 
 	cli.Docker(cli.Args("build", "-t", name), build.WithExternalBuildContext(ctx)).Assert(c, icmd.Expected{
 		ExitCode: 1,
@@ -2964,8 +2941,6 @@ func (s *DockerCLIBuildSuite) TestBuildAddTarXz(c *testing.T) {
 		return fakecontext.New(c, tmpDir)
 	}()
 
-	defer ctx.Close()
-
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 }
 
@@ -3015,8 +2990,6 @@ func (s *DockerCLIBuildSuite) TestBuildAddTarXzGz(c *testing.T) {
 		}
 		return fakecontext.New(c, tmpDir)
 	}()
-
-	defer ctx.Close()
 
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
 }
@@ -3568,7 +3541,6 @@ RUN [ $(ls -l /test | awk '{print $3":"$4}') = 'root:root' ]
 		fakecontext.WithFiles(map[string]string{
 			"test": "test",
 		}))
-	defer ctx.Close()
 
 	if err := os.Chown(filepath.Join(ctx.Dir, "test"), 4242, 4242); err != nil {
 		c.Fatal(err)
@@ -3714,7 +3686,6 @@ RUN find /tmp/`}))
 
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(`FROM busybox
 	RUN echo from Dockerfile`))
-	defer ctx.Close()
 
 	// Make sure that -f is ignored and that we don't use the Dockerfile
 	// that's in the current dir
@@ -3737,7 +3708,6 @@ func (s *DockerCLIBuildSuite) TestBuildFromStdinWithF(c *testing.T) {
 
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(`FROM busybox
 RUN echo "from Dockerfile"`))
-	defer ctx.Close()
 
 	// Make sure that -f is ignored and that we don't use the Dockerfile
 	// that's in the current dir
@@ -3780,7 +3750,6 @@ func (s *DockerCLIBuildSuite) TestBuildSpaces(c *testing.T) {
 	// doesn't change the error msg we get
 	const name = "testspaces"
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile("FROM busybox\nCOPY\n"))
-	defer ctx.Close()
 
 	result1 := cli.Docker(cli.Args("build", "-t", name), build.WithExternalBuildContext(ctx))
 	result1.Assert(c, icmd.Expected{
@@ -4732,7 +4701,6 @@ func (s *DockerCLIBuildSuite) TestBuildCacheBrokenSymlink(c *testing.T) {
 		fakecontext.WithFiles(map[string]string{
 			"foo": "bar",
 		}))
-	defer ctx.Close()
 
 	err := os.Symlink(filepath.Join(ctx.Dir, "nosuchfile"), filepath.Join(ctx.Dir, "asymlink"))
 	assert.NilError(c, err)
@@ -4759,7 +4727,6 @@ func (s *DockerCLIBuildSuite) TestBuildFollowSymlinkToFile(c *testing.T) {
 		fakecontext.WithFiles(map[string]string{
 			"foo": "bar",
 		}))
-	defer ctx.Close()
 
 	err := os.Symlink("foo", filepath.Join(ctx.Dir, "asymlink"))
 	assert.NilError(c, err)
@@ -4789,7 +4756,6 @@ func (s *DockerCLIBuildSuite) TestBuildFollowSymlinkToDir(c *testing.T) {
 			"foo/abc": "bar",
 			"foo/def": "baz",
 		}))
-	defer ctx.Close()
 
 	err := os.Symlink("foo", filepath.Join(ctx.Dir, "asymlink"))
 	assert.NilError(c, err)
@@ -4820,7 +4786,6 @@ func (s *DockerCLIBuildSuite) TestBuildSymlinkBasename(c *testing.T) {
 		fakecontext.WithFiles(map[string]string{
 			"foo": "bar",
 		}))
-	defer ctx.Close()
 
 	err := os.Symlink("foo", filepath.Join(ctx.Dir, "asymlink"))
 	assert.NilError(c, err)
@@ -4841,7 +4806,6 @@ func (s *DockerCLIBuildSuite) TestBuildCacheRootSource(c *testing.T) {
 		fakecontext.WithFiles(map[string]string{
 			"foo": "bar",
 		}))
-	defer ctx.Close()
 
 	// warm up cache
 	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
@@ -5377,7 +5341,6 @@ func (s *DockerCLIBuildSuite) TestBuildCacheFromEqualDiffIDsLength(c *testing.T)
 		fakecontext.WithFiles(map[string]string{
 			"Dockerfile": dockerfile,
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, "build1")
@@ -5402,7 +5365,6 @@ func (s *DockerCLIBuildSuite) TestBuildCacheFrom(c *testing.T) {
 			"Dockerfile": dockerfile,
 			"baz":        "baz",
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, "build1")
@@ -5464,7 +5426,6 @@ func (s *DockerCLIBuildSuite) TestBuildCacheFromLoad(c *testing.T) {
 			"Dockerfile": dockerfile,
 			"baz":        "baz",
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
 	id1 := getIDByName(c, "build1")
@@ -5515,7 +5476,6 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageCache(c *testing.T) {
 			"Dockerfile": dockerfile,
 			"baz":        "baz",
 		}))
-	defer ctx.Close()
 
 	result := cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
 	// second part of dockerfile was a repeat of first so should be cached
@@ -5621,7 +5581,6 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageCopyFromSyntax(c *testing.T) {
 			"baz/aa": "ghi",
 			"baz/bb": "jkl",
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
 
@@ -5657,6 +5616,7 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageCopyFromSyntax(c *testing.T) {
 
 func (s *DockerCLIBuildSuite) TestBuildMultiStageCopyFromErrors(c *testing.T) {
 	testCases := []struct {
+		doc           string
 		dockerfile    string
 		expectedError string
 	}{
@@ -5686,19 +5646,19 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageCopyFromErrors(c *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		ctx := fakecontext.New(c, "",
-			fakecontext.WithDockerfile(tc.dockerfile),
-			fakecontext.WithFiles(map[string]string{
-				"foo": "abc",
-			}))
+	for i, tc := range testCases {
+		c.Run(strconv.Itoa(i), func(t *testing.T) {
+			ctx := fakecontext.New(c, "",
+				fakecontext.WithDockerfile(tc.dockerfile),
+				fakecontext.WithFiles(map[string]string{
+					"foo": "abc",
+				}))
 
-		cli.Docker(cli.Args("build", "-t", "build1"), build.WithExternalBuildContext(ctx)).Assert(c, icmd.Expected{
-			ExitCode: 1,
-			Err:      tc.expectedError,
+			cli.Docker(cli.Args("build", "-t", "build1"), build.WithExternalBuildContext(ctx)).Assert(t, icmd.Expected{
+				ExitCode: 1,
+				Err:      tc.expectedError,
+			})
 		})
-
-		ctx.Close()
 	}
 }
 
@@ -5711,7 +5671,6 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageMultipleBuilds(c *testing.T) {
 		fakecontext.WithFiles(map[string]string{
 			"foo": "abc",
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
 
@@ -5725,7 +5684,6 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageMultipleBuilds(c *testing.T) {
 		fakecontext.WithFiles(map[string]string{
 			"foo": "def",
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, "build2", build.WithExternalBuildContext(ctx))
 
@@ -5750,7 +5708,6 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageImplicitFrom(c *testing.T) {
 	ctx := fakecontext.New(c, "",
 		fakecontext.WithDockerfile(dockerfile),
 	)
-	defer ctx.Close()
 
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
 
@@ -5773,7 +5730,6 @@ func (s *DockerRegistrySuite) TestBuildMultiStageImplicitPull(c *testing.T) {
 		fakecontext.WithFiles(map[string]string{
 			"foo": "abc",
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, imgName, build.WithExternalBuildContext(ctx))
 
@@ -5785,8 +5741,6 @@ func (s *DockerRegistrySuite) TestBuildMultiStageImplicitPull(c *testing.T) {
 		COPY --from=%s bar baz`
 
 	ctx = fakecontext.New(c, "", fakecontext.WithDockerfile(fmt.Sprintf(dockerfile, imgName)))
-	defer ctx.Close()
-
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
 
 	cli.Docker(cli.Args("run", "build1", "cat", "baz")).Assert(c, icmd.Expected{Out: "abc"})
@@ -5809,7 +5763,6 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageNameVariants(c *testing.T) {
 		fakecontext.WithFiles(map[string]string{
 			"foo": "bar",
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
 	cli.Docker(cli.Args("run", "build1", "cat", "foo")).Assert(c, icmd.Expected{Out: "bar"})
@@ -5827,7 +5780,6 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageMultipleBuildsWindows(c *testin
 		fakecontext.WithFiles(map[string]string{
 			"foo": "abc",
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
 
@@ -5841,7 +5793,6 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageMultipleBuildsWindows(c *testin
 		fakecontext.WithFiles(map[string]string{
 			"foo": "def",
 		}))
-	defer ctx.Close()
 
 	cli.BuildCmd(c, "build2", build.WithExternalBuildContext(ctx))
 
@@ -5917,8 +5868,6 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageResetScratch(c *testing.T) {
 	ctx := fakecontext.New(c, "",
 		fakecontext.WithDockerfile(dockerfile),
 	)
-	defer ctx.Close()
-
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
 
 	res := cli.InspectCmd(c, "build1", cli.Format(".Config.WorkingDir")).Combined()
@@ -5933,8 +5882,6 @@ func (s *DockerCLIBuildSuite) TestBuildIntermediateTarget(c *testing.T) {
 		CMD ["/dist"]
 		`
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(dockerfile))
-	defer ctx.Close()
-
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx),
 		cli.WithFlags("--target", "build-env"))
 

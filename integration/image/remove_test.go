@@ -189,7 +189,6 @@ func TestAPIImagesDelete(t *testing.T) {
 	buildCtx := fakecontext.New(t, t.TempDir(),
 		fakecontext.WithDockerfile(`FROM busybox
 ENV FOO=bar`))
-	defer buildCtx.Close()
 
 	imgID := build.Do(ctx, t, apiClient, buildCtx)
 

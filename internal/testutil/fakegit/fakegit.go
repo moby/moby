@@ -48,7 +48,6 @@ func (g *FakeGit) Close() {
 func New(c testing.TB, name string, files map[string]string, enforceLocalServer bool) *FakeGit {
 	c.Helper()
 	ctx := fakecontext.New(c, "", fakecontext.WithFiles(files))
-	defer ctx.Close()
 	curdir, err := os.Getwd()
 	if err != nil {
 		c.Fatal(err)

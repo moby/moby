@@ -28,12 +28,10 @@ func TestNoNewPrivileges(t *testing.T) {
 	`
 	imageTag := "captest"
 
-	source := fakecontext.New(t, "", fakecontext.WithDockerfile(withFileCapability))
-	defer source.Close()
-
 	apiClient := testEnv.APIClient()
 
 	// Build image
+	source := fakecontext.New(t, "", fakecontext.WithDockerfile(withFileCapability))
 	resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
 		Tags: []string{imageTag},
 	})

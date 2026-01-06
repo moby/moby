@@ -328,7 +328,6 @@ func setupTestImage(t *testing.T, ctx context.Context, apiClient client.APIClien
 		fakecontext.WithFile("foo", "bar"),
 		fakecontext.WithFile("subdir/hello", "world"),
 	)
-	defer source.Close()
 
 	resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
 		Remove:      false,
