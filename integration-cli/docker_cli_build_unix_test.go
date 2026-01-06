@@ -28,7 +28,7 @@ func (s *DockerCLIBuildSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) 
 	const name = "testbuildresourceconstraints"
 	const buildLabel = "DockerCLIBuildSuite.TestBuildResourceConstraintsAreUsed"
 
-	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(`
+	buildCtx := fakecontext.New(c, "", fakecontext.WithDockerfile(`
 	FROM hello-world:frozen
 	RUN ["/hello"]
 	`))
@@ -45,7 +45,7 @@ func (s *DockerCLIBuildSuite) TestBuildResourceConstraintsAreUsed(c *testing.T) 
 			"--ulimit", "nofile=50",
 			"--label="+buildLabel,
 			"-t", name, "."),
-		cli.InDir(ctx.Dir),
+		cli.InDir(buildCtx.Dir),
 	).Assert(c, icmd.Success)
 
 	out := cli.DockerCmd(c, "ps", "-lq", "--filter", "label="+buildLabel).Combined()
@@ -149,10 +149,10 @@ func (s *DockerCLIBuildSuite) TestBuildCancellationKillsSleep(c *testing.T) {
 	defer observer.Stop()
 
 	// (Note: one year, will never finish)
-	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile("FROM busybox\nRUN sleep 31536000"))
+	buildCtx := fakecontext.New(c, "", fakecontext.WithDockerfile("FROM busybox\nRUN sleep 31536000"))
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
-	buildCmd.Dir = ctx.Dir
+	buildCmd.Dir = buildCtx.Dir
 
 	stdoutBuild, err := buildCmd.StdoutPipe()
 	assert.NilError(c, err)
