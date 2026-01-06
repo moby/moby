@@ -293,6 +293,11 @@ linters:
         linters:
           - gosec
 
+      - text: "^G402: " # Look for bad TLS connection settings
+        source: "cmpopts\\.Ignore"
+        linters:
+          - gosec
+
         # FIXME: ignoring unused assigns to ctx for now; too many hits in libnetwork/xxx functions that setup traces
       - text: "assigned to ctx, but never used afterwards"
         linters:
