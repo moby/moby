@@ -1,6 +1,7 @@
 package resolvconf
 
 import (
+	"bufio"
 	"bytes"
 	"io/fs"
 	"net/netip"
@@ -551,6 +552,16 @@ unrecognised thing
 	content, err := rc.Generate(true)
 	assert.NilError(t, err)
 	assert.Check(t, golden.String(string(content), t.Name()+".golden"))
+}
+
+// TestRCParseErrors tests that attempting to read a resolv.conf with a
+// very long line produces a useful error.
+// see https://github.com/moby/moby/issues/51679#issuecomment-3714403300
+func TestRCParseErrors(t *testing.T) {
+	input := strings.Repeat("a", bufio.MaxScanTokenSize+1) + "\n"
+
+	_, err := Parse(bytes.NewBufferString(input), "/etc/resolv.conf")
+	assert.Error(t, err, `failed to parse resolv.conf from /etc/resolv.conf: line too long (exceeds 65536)`)
 }
 
 func BenchmarkGenerate(b *testing.B) {
