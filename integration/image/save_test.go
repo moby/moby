@@ -503,7 +503,7 @@ RUN touch /opt/a/b/c && chown user:user /opt/a/b/c`
 		assert.NilError(t, err)
 
 		entries, err := listTar(f)
-		f.Close()
+		assert.Check(t, f.Close())
 		assert.NilError(t, err)
 
 		for _, e := range entries {
