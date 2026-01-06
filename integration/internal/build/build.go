@@ -49,12 +49,10 @@ func GetImageIDFromBody(t *testing.T, body io.Reader) string {
 		}
 
 		buf.Reset()
-		jsonmessage.Display(jm, buf, false, 0)
+		assert.NilError(t, jsonmessage.Display(jm, buf, false, 0), buf.String())
 		if buf.Len() == 0 {
 			continue
 		}
-
-		t.Log(buf.String())
 
 		if jm.Aux == nil {
 			continue
