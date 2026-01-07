@@ -16,7 +16,7 @@ if pkg-config 'libsystemd' 2> /dev/null; then
 fi
 
 # Note: exclude github.com/docker/docker/man as it contains no Go code.
-mods=($(find . -name "go.mod" -type f -exec dirname {} \; | grep -v "man" | sort -u))
+mods=($(find "${REPODIR}" -name "go.mod" -type f -exec dirname {} \; | grep -v "/man" | sort -u))
 for mod in "${mods[@]}"; do
 	pushd "${mod}" > /dev/null
 	echo -e "\n\033[0;36mINFO\033[0m Start validation for module '${mod}' with golang-ci-lint"
