@@ -4,7 +4,7 @@ go 1.24.3
 
 require (
 	cloud.google.com/go/compute/metadata v0.8.0
-	cloud.google.com/go/logging v1.13.0
+	cloud.google.com/go/logging v1.13.1
 	code.cloudfoundry.org/clock v1.37.0
 	dario.cat/mergo v1.0.2
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
