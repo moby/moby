@@ -609,7 +609,9 @@ definitions:
           Value: "UUID2"
 
   HealthConfig:
-    description: "A test to perform to check that the container is healthy."
+    description: |
+      A test to perform to check that the container is healthy.
+      Healthcheck commands should be side-effect free.
     type: "object"
     properties:
       Test:
@@ -620,6 +622,12 @@ definitions:
           - `["NONE"]` disable healthcheck
           - `["CMD", args...]` exec arguments directly
           - `["CMD-SHELL", command]` run command with system's default shell
+
+          A non-zero exit code indicates a failed healthcheck:
+          - `0` healthy
+          - `1` unhealthy
+          - `2` reserved (treated as unhealthy)
+          - other values: error running probe
         type: "array"
         items:
           type: "string"
@@ -3396,8 +3404,8 @@ definitions:
           com.example.some-other-label: "some-other-value"
       Data:
         description: |
-          Data is the data to store as a secret, formatted as a Base64-url-safe-encoded
-          ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-5)) string.
+          Data is the data to store as a secret, formatted as a standard base64-encoded
+          ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-4)) string.
           It must be empty if the Driver field is set, in which case the data is
           loaded from an external secret store. The maximum allowed size is 500KB,
           as defined in [MaxSecretSize](https://pkg.go.dev/github.com/moby/swarmkit/v2@v2.0.0/api/validation#MaxSecretSize).
@@ -3442,8 +3450,8 @@ definitions:
           type: "string"
       Data:
         description: |
-          Data is the data to store as a config, formatted as a Base64-url-safe-encoded
-          ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-5)) string.
+          Data is the data to store as a config, formatted as a standard base64-encoded
+          ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-4)) string.
           The maximum allowed size is 1000KB, as defined in [MaxConfigSize](https://pkg.go.dev/github.com/moby/swarmkit/v2@v2.0.0-20250103191802-8c1959736554/manager/controlapi#MaxConfigSize).
         type: "string"
 
@@ -3684,10 +3692,13 @@ definitions:
         example: "linux"
       Architecture:
         description: |
-          Hardware architecture of the host, as returned by the Go runtime
-          (`GOARCH`).
+          Hardware architecture of the host, as returned by the operating system.
+          This is equivalent to the output of `uname -m` on Linux.
 
-          A full list of possible values can be found in the [Go documentation](https://go.dev/doc/install/source#environment).
+          Unlike `Arch` (from `/version`), this reports the machine's native
+          architecture, which can differ from the Go runtime architecture when
+          running a binary compiled for a different architecture (for example,
+          a 32-bit binary running on 64-bit hardware).
         type: "string"
         example: "x86_64"
       NCPU:
@@ -6531,7 +6542,12 @@ paths:
   /images/{name}/tag:
     post:
       summary: "Tag an image"
-      description: "Tag an image so that it becomes part of a repository."
+      description: |
+        Create a tag that refers to a source image.
+
+        This creates an additional reference (tag) to the source image. The tag
+        can include a different repository name and/or tag. If the repository
+        or tag already exists, it will be overwritten.
       operationId: "ImageTag"
       responses:
         201:
