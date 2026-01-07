@@ -149,7 +149,16 @@ func WithHostFromEnv() Opt {
 func WithHTTPClient(client *http.Client) Opt {
 	return func(c *clientConfig) error {
 		if client != nil {
-			c.client = client
+			// Make a clone of client so modifications do not affect
+			// the caller's client. Clone here instead of in New()
+			// as other options (WithHost) also mutate c.client.
+			// Cloned clients share the same CookieJar as the
+			// original.
+			hc := *client
+			if ht, ok := hc.Transport.(*http.Transport); ok {
+				hc.Transport = ht.Clone()
+			}
+			c.client = &hc
 		}
 		return nil
 	}

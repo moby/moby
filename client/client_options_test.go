@@ -1,12 +1,15 @@
 package client
 
 import (
+	"crypto/tls"
 	"net/http"
+	"net/http/cookiejar"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -366,4 +369,24 @@ func TestWithUserAgent(t *testing.T) {
 		assert.NilError(t, err)
 		assert.NilError(t, c.Close())
 	})
+}
+
+func TestWithHTTPClient(t *testing.T) {
+	cookieJar, err := cookiejar.New(nil)
+	assert.NilError(t, err)
+	pristineHTTPClient := func() *http.Client {
+		return &http.Client{
+			Timeout: 42 * time.Second,
+			Jar:     cookieJar,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{ServerName: "example.com", MinVersion: tls.VersionTLS12},
+			},
+		}
+	}
+	hc := pristineHTTPClient()
+	_, err = New(WithHTTPClient(hc), WithHost("tcp://example.com:443"))
+	assert.NilError(t, err)
+	assert.DeepEqual(t, hc, pristineHTTPClient(),
+		cmpopts.IgnoreUnexported(http.Transport{}, tls.Config{}),
+		cmpopts.EquateComparable(&cookiejar.Jar{}))
 }
