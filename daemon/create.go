@@ -18,6 +18,7 @@ import (
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/multierror"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
@@ -227,8 +228,12 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 
 	ctr.ImageManifest = imgManifest
 
+	var initLayerFunc layer.MountInit
+	if !daemon.idMapping.Empty() {
+		initLayerFunc = setupInitLayer(daemon.idMapping.RootPair())
+	}
 	// Set RWLayer for container after mount labels have been set
-	rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping.RootPair()))
+	rwLayer, err := daemon.imageService.CreateLayer(ctr, initLayerFunc)
 	if err != nil {
 		return nil, errdefs.System(err)
 	}
