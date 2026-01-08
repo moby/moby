@@ -138,7 +138,7 @@ jobs:
               { os: 'ubuntu-22.04', mode: 'rootless' },
               { os: 'ubuntu-22.04', mode: 'systemd' },
               { os: 'ubuntu-24.04', mode: '' },
-              // { os: 'ubuntu-24.04', mode: 'rootless' },  // FIXME: https://github.com/moby/moby/pull/49579#issuecomment-2698622223
+              { os: 'ubuntu-24.04', mode: 'rootless' },
               { os: 'ubuntu-24.04', mode: 'systemd' },
               // { os: 'ubuntu-24.04', mode: 'rootless-systemd' }, // FIXME: https://github.com/moby/moby/issues/44084
             ];
