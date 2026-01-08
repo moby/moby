@@ -11,6 +11,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/google/uuid"
 	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/compression"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -137,7 +138,7 @@ func fileArchive(dir string, name string, content []byte) (io.ReadCloser, error)
 		return nil, err
 	}
 
-	return archive.Tar(tmp, archive.Uncompressed)
+	return archive.Tar(tmp, compression.None)
 }
 
 func writeLayerWithOneFile(dir string, filename string, content []byte) (ocispec.Descriptor, error) {
