@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"maps"
 	"os"
@@ -258,10 +259,11 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 				StorageOpt: ctr.HostConfig.StorageOpt,
 			}
 
-			// Include the destination in the layer name to make it unique for each mount point and container.
+			// Hash the source and destination to create a safe, unique identifier for each mount point and container.
 			// This makes sure that the same image can be mounted multiple times with different destinations.
-			// Hex encode the destination to create a safe, unique identifier
-			layerName := hex.EncodeToString([]byte(ctr.ID + ",src=" + mp.Source + ",dst=" + mp.Destination))
+			// We hash it so that the snapshot name is friendly to the underlying filesystem and doesn't exceed path length limits.
+			destHash := sha256.Sum256([]byte(ctr.ID + "-src=" + mp.Source + "-dst=" + mp.Destination))
+			layerName := hex.EncodeToString(destHash[:])
 			layer, err := daemon.imageService.CreateLayerFromImage(img, layerName, rwLayerOpts)
 			if err != nil {
 				return err
