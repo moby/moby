@@ -59,6 +59,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -240,6 +241,13 @@ func New(ops ...Opt) (*Client, error) {
 	}
 
 	c.client.Transport = otelhttp.NewTransport(c.client.Transport, c.traceOpts...)
+
+	if len(cfg.responseHooks) > 0 {
+		c.client.Transport = &responseHookTransport{
+			base:  c.client.Transport,
+			hooks: slices.Clone(cfg.responseHooks),
+		}
+	}
 
 	return c, nil
 }

@@ -2,6 +2,8 @@ package client
 
 import (
 	"crypto/tls"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"runtime"
@@ -389,4 +391,107 @@ func TestWithHTTPClient(t *testing.T) {
 	assert.DeepEqual(t, hc, pristineHTTPClient(),
 		cmpopts.IgnoreUnexported(http.Transport{}, tls.Config{}),
 		cmpopts.EquateComparable(&cookiejar.Jar{}))
+}
+
+func TestWithResponseHook(t *testing.T) {
+	const hdrKey = "X-Test-Header"
+	const hdrVal = "hello-world"
+
+	t.Run("single hook", func(t *testing.T) {
+		var got string
+		c, err := New(
+			WithResponseHook(func(resp *http.Response) error {
+				got = resp.Header.Get(hdrKey)
+				return nil
+			}),
+			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
+				resp := &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+				}
+				resp.Header.Set(hdrKey, hdrVal)
+				return resp, nil
+			}),
+		)
+		assert.NilError(t, err)
+
+		_, err = c.Ping(t.Context(), PingOptions{})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(got, hdrVal))
+
+		assert.NilError(t, c.Close())
+	})
+
+	t.Run("invalid hook", func(t *testing.T) {
+		_, err := New(WithResponseHook(nil))
+		assert.Error(t, err, "invalid response hook: hook is nil")
+	})
+
+	t.Run("multiple hooks", func(t *testing.T) {
+		var triggered []string
+
+		c, err := New(
+			WithResponseHook(func(*http.Response) error {
+				triggered = append(triggered, "hook 1: "+hdrVal)
+				return nil
+			}),
+			WithResponseHook(func(*http.Response) error {
+				triggered = append(triggered, "hook 2: "+hdrVal)
+				return nil
+			}),
+			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
+				resp := &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+				}
+				resp.Header.Set(hdrKey, hdrVal)
+				return resp, nil
+			}),
+		)
+		assert.NilError(t, err)
+
+		_, err = c.Ping(t.Context(), PingOptions{})
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(triggered, []string{"hook 1: " + hdrVal, "hook 2: " + hdrVal}))
+
+		assert.NilError(t, c.Close())
+	})
+
+	t.Run("hook error", func(t *testing.T) {
+		closed := false
+		expError := errors.New("hook failed")
+
+		c, err := New(
+			WithResponseHook(func(*http.Response) error {
+				return expError
+			}),
+			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+					Body:       &closeTracker{onClose: func() { closed = true }},
+				}, nil
+			}),
+		)
+		assert.NilError(t, err)
+
+		_, err = c.Ping(t.Context(), PingOptions{})
+		assert.Check(t, is.ErrorIs(err, expError))
+		assert.Check(t, closed)
+
+		assert.NilError(t, c.Close())
+	})
+}
+
+type closeTracker struct {
+	onClose func()
+}
+
+func (c *closeTracker) Read(p []byte) (int, error) { return 0, io.EOF }
+
+func (c *closeTracker) Close() error {
+	if c.onClose != nil {
+		c.onClose()
+	}
+	return nil
 }
