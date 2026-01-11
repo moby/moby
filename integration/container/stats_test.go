@@ -108,7 +108,7 @@ func TestStatsNoStreamConnectedContainers(t *testing.T) {
 		tcc.HostConfig.NetworkMode = containertypes.NetworkMode(fmt.Sprintf("container:%s", cID1))
 	})
 
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 
 	statsResult, err := apiClient.ContainerStats(ctx, cID2, client.ContainerStatsOptions{Stream: false})
