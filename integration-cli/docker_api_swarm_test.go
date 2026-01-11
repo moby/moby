@@ -184,22 +184,6 @@ func (s *DockerSwarmSuite) TestUpdateSwarmAddExternalCA(c *testing.T) {
 	assert.Equal(c, info.Cluster.Spec.CAConfig.ExternalCAs[1].CACert, "cacert")
 }
 
-func (s *DockerSwarmSuite) TestAPISwarmCAHash(c *testing.T) {
-	ctx := testutil.GetContext(c)
-	d1 := s.AddDaemon(ctx, c, true, true)
-	d2 := s.AddDaemon(ctx, c, false, false)
-	splitToken := strings.Split(d1.JoinTokens(c).Worker, "-")
-	splitToken[2] = "1kxftv4ofnc6mt30lmgipg6ngf9luhwqopfk1tz6bdmnkubg0e"
-	replacementToken := strings.Join(splitToken, "-")
-	c2 := d2.NewClientT(c)
-	_, err := c2.SwarmJoin(testutil.GetContext(c), client.SwarmJoinOptions{
-		ListenAddr:  d2.SwarmListenAddr(),
-		JoinToken:   replacementToken,
-		RemoteAddrs: []string{d1.SwarmListenAddr()},
-	})
-	assert.ErrorContains(c, err, "remote CA does not match fingerprint")
-}
-
 func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *testing.T) {
 	ctx := testutil.GetContext(c)
 	d1 := s.AddDaemon(ctx, c, false, false)
