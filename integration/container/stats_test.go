@@ -1,10 +1,13 @@
 package container
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"reflect"
 	"testing"
+	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -92,4 +95,31 @@ func TestStatsContainerNotFound(t *testing.T) {
 			assert.ErrorContains(t, err, "no-such-container")
 		})
 	}
+}
+
+func TestStatsNoStreamConnectedContainers(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	ctx := setupTest(t)
+
+	apiClient := testEnv.APIClient()
+
+	cID1 := container.Run(ctx, t, apiClient)
+	cID2 := container.Run(ctx, t, apiClient, func(tcc *container.TestContainerConfig) {
+		tcc.HostConfig.NetworkMode = containertypes.NetworkMode(fmt.Sprintf("container:%s", cID1))
+	})
+
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+
+	statsResult, err := apiClient.ContainerStats(ctx, cID2, client.ContainerStatsOptions{Stream: false})
+	assert.NilError(t, err)
+
+	defer statsResult.Body.Close()
+
+	var v containertypes.StatsResponse
+	dec := json.NewDecoder(statsResult.Body)
+	assert.NilError(t, dec.Decode(&v))
+	assert.Check(t, is.Equal(v.ID, cID2))
+	err = dec.Decode(&v)
+	assert.Check(t, is.ErrorIs(err, io.EOF), "Expected only a single result")
 }
