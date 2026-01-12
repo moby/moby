@@ -180,7 +180,7 @@ func (is *Source) resolveRemote(ctx context.Context, ref string, platform *ocisp
 	// key is used to synchronize resolutions that can happen in parallel when doing multi-stage.
 	key := "getconfig::" + ref + "::" + platforms.FormatAll(p)
 	res, err := is.g.Do(ctx, key, func(ctx context.Context) (*resolveRemoteResult, error) {
-		res := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, "pull", sm, g)
+		res := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, resolver.ScopeType{}, sm, g)
 		dgst, dt, err := imageutil.Config(ctx, ref, res, is.ContentStore, is.LeaseManager, platform)
 		if err != nil {
 			return nil, err
@@ -285,7 +285,7 @@ type puller struct {
 }
 
 func (p *puller) resolver(g session.Group) remotes.Resolver {
-	return resolver.DefaultPool.GetResolver(p.is.RegistryHosts, p.src.Reference.String(), "pull", p.sm, g)
+	return resolver.DefaultPool.GetResolver(p.is.RegistryHosts, p.src.Reference.String(), resolver.ScopeType{}, p.sm, g)
 }
 
 func (p *puller) mainManifestKey(platform ocispec.Platform) (digest.Digest, error) {
