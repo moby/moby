@@ -19,6 +19,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   is enabled, this field contains information describing it.
 * `GET /events` now also supports [`application/jsonl`](https://jsonlines.org/)
   when negotiating content-type.
+* `GET /images/{name}/json` now includes an `Identity` field with trusted
+  identity and origin information for the image.
 * Deprecated: The `POST /grpc` and `POST /session` endpoints are deprecated and
   will be removed in a future version.
 

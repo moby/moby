@@ -1836,6 +1836,13 @@ definitions:
         x-nullable: true
         items:
           $ref: "#/definitions/ImageManifestSummary"
+      Identity:
+        description: |-
+          Identity holds information about the identity and origin of the image.
+          This is trusted information verified by the daemon and cannot be modified
+          by tagging an image to a different name.
+        x-nullable: true
+        $ref: "#/definitions/Identity"
       RepoTags:
         description: |
           List of image names/tags in the local image cache that reference this
@@ -1962,6 +1969,220 @@ definitions:
             format: "dateTime"
             example: "2022-02-28T14:40:02.623929178Z"
             x-nullable: true
+
+  Identity:
+    description: |-
+      Identity holds information about the identity and origin of the image.
+      This is trusted information verified by the daemon and cannot be modified
+      by tagging an image to a different name.
+    type: "object"
+    properties:
+      Signature:
+        description: |-
+          Signature contains the properties of verified signatures for the image.
+        type: "array"
+        items:
+          $ref: "#/definitions/SignatureIdentity"
+      Pull:
+        description: |-
+          Pull contains remote location information if image was created via pull.
+          If image was pulled via mirror, this contains the original repository location.
+          After successful push this images also contains the pushed repository location.
+        type: "array"
+        items:
+          $ref: "#/definitions/PullIdentity"
+      Build:
+        description: |-
+          Build contains build reference information if image was created via build.
+        type: "array"
+        items:
+          $ref: "#/definitions/BuildIdentity"
+
+  BuildIdentity:
+    description: |-
+      BuildIdentity contains build reference information if image was created via build.
+    type: "object"
+    properties:
+      Ref:
+        description: |-
+          Ref is the identifier for the build request. This reference can be used to
+          look up the build details in BuildKit history API.
+        type: "string"
+      CreatedAt:
+        description: |-
+          CreatedAt is the time when the build ran.
+        type: "string"
+        format: "date-time"
+
+  PullIdentity:
+    description: |-
+      PullIdentity contains remote location information if image was created via pull.
+      If image was pulled via mirror, this contains the original repository location.
+    type: "object"
+    properties:
+      Repository:
+        description: |-
+          Repository is the remote repository location the image was pulled from.
+        type: "string"
+
+  SignatureIdentity:
+    description: |-
+      SignatureIdentity contains the properties of verified signatures for the image.
+    type: "object"
+    properties:
+      Name:
+        description: |-
+          Name is a textual description summarizing the type of signature.
+        type: "string"
+      Timestamps:
+        description: |-
+          Timestamps contains a list of verified signed timestamps for the signature.
+        type: "array"
+        items:
+          $ref: "#/definitions/SignatureTimestamp"
+      KnownSigner:
+        description: |-
+          KnownSigner is an identifier for a special signer identity that is known to the implementation.
+        $ref: "#/definitions/KnownSignerIdentity"
+      DockerReference:
+        description: |-
+          DockerReference is the Docker image reference associated with the signature.
+          This is an optional field only present in older hashedrecord signatures.
+        type: "string"
+      Signer:
+        description: |-
+          Signer contains information about the signer certificate used to sign the image.
+        $ref: "#/definitions/SignerIdentity"
+      SignatureType:
+        description: |-
+          SignatureType is the type of signature format. E.g. "bundle-v0.3" or "hashedrecord".
+        $ref: "#/definitions/SignatureType"
+      Error:
+        description: |-
+          Error contains error information if signature verification failed.
+          Other fields will be empty in this case.
+        type: "string"
+      Warnings:
+        description: |-
+          Warnings contains any warnings that occurred during signature verification.
+          For example, if there was no internet connectivity and cached trust roots were used.
+          Warning does not indicate a failed verification but may point to configuration issues.
+        type: "array"
+        items:
+          type: "string"
+
+  SignatureTimestamp:
+    description: |-
+      SignatureTimestamp contains information about a verified signed timestamp for an image signature.
+    type: "object"
+    properties:
+      Type:
+        $ref: "#/definitions/SignatureTimestampType"
+      URI:
+        type: "string"
+      Timestamp:
+        type: "string"
+        format: "date-time"
+
+  SignatureTimestampType:
+    description: |-
+      SignatureTimestampType is the type of timestamp used in the signature.
+    type: "string"
+    enum:
+      - "Tlog"
+      - "TimestampAuthority"
+
+  SignatureType:
+    description: |-
+      SignatureType is the type of signature format.
+    type: "string"
+    enum:
+      - "bundle-v0.3"
+      - "simplesigning-v1"
+
+  KnownSignerIdentity:
+    description: |-
+      KnownSignerIdentity is an identifier for a special signer identity that is known to the implementation.
+    type: "string"
+    enum:
+      - "DHI"
+
+  SignerIdentity:
+    description: |-
+      SignerIdentity contains information about the signer certificate used to sign the image.
+    type: "object"
+    properties:
+      CertificateIssuer:
+        type: "string"
+        description: |-
+          CertificateIssuer is the certificate issuer.
+      SubjectAlternativeName:
+        type: "string"
+        description: |-
+          SubjectAlternativeName is the certificate subject alternative name.
+      Issuer:
+        type: "string"
+        description: |-
+          The OIDC issuer. Should match `iss` claim of ID token or, in the case of
+          a federated login like Dex it should match the issuer URL of the
+          upstream issuer. The issuer is not set the extensions are invalid and
+          will fail to render.
+      BuildSignerURI:
+        type: "string"
+        description: |-
+          Reference to specific build instructions that are responsible for signing.
+      BuildSignerDigest:
+        type: "string"
+        description: |-
+          Immutable reference to the specific version of the build instructions that is responsible for signing.
+      RunnerEnvironment:
+        type: "string"
+        description: |-
+          Specifies whether the build took place in platform-hosted cloud infrastructure or customer/self-hosted infrastructure.
+      SourceRepositoryURI:
+        type: "string"
+        description: |-
+          Source repository URL that the build was based on.
+      SourceRepositoryDigest:
+        type: "string"
+        description: |-
+          Immutable reference to a specific version of the source code that the build was based upon.
+      SourceRepositoryRef:
+        type: "string"
+        description: |-
+          Source Repository Ref that the build run was based upon.
+      SourceRepositoryIdentifier:
+        type: "string"
+        description: |-
+          Immutable identifier for the source repository the workflow was based upon.
+      SourceRepositoryOwnerURI:
+        type: "string"
+        description: |-
+          Source repository owner URL of the owner of the source repository that the build was based on.
+      SourceRepositoryOwnerIdentifier:
+        type: "string"
+        description: |-
+          Immutable identifier for the owner of the source repository that the workflow was based upon.
+      BuildConfigURI:
+        type: "string"
+        description: |-
+          Build Config URL to the top-level/initiating build instructions.
+      BuildConfigDigest:
+        type: "string"
+        description: |-
+          Immutable reference to the specific version of the top-level/initiating build instructions.
+      BuildTrigger:
+        type: "string"
+        description: |-
+          Event or action that initiated the build.
+      RunInvocationURI:
+        type: "string"
+        description: |-
+          Run Invocation URL to uniquely identify the build execution.
+      SourceRepositoryVisibilityAtSigning:
+        type: "string"
+        description: |-
+          Source repository visibility at the time of signing the certificate.
 
   ImageSummary:
     type: "object"
