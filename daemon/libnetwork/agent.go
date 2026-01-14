@@ -362,7 +362,7 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	}
 	c.mu.Unlock()
 
-	go c.handleTableEvents(ch, c.handleEpTableEvent)
+	go c.handleTableEvents(ch, func(ev events.Event) { handleEpTableEvent(c, ev) })
 	go c.handleTableEvents(nodeCh, c.handleNodeTableEvent)
 
 	keys, tags := c.getKeys(subsysIPSec)
@@ -894,14 +894,17 @@ func unmarshalEndpointRecord(data []byte) (*endpointEvent, error) {
 	}, nil
 }
 
-// EquivalentTo returns true if ev is semantically equivalent to other.
+// EquivalentTo returns true if ev is semantically equivalent to other,
+// ignoring the ServiceDisabled field.
 func (ev *endpointEvent) EquivalentTo(other *endpointEvent) bool {
+	if ev == nil || other == nil {
+		return (ev == nil) == (other == nil)
+	}
 	return ev.Name == other.Name &&
 		ev.ServiceName == other.ServiceName &&
 		ev.ServiceID == other.ServiceID &&
 		ev.VirtualIP == other.VirtualIP &&
 		ev.EndpointIP == other.EndpointIP &&
-		ev.ServiceDisabled == other.ServiceDisabled &&
 		iterutil.SameValues(
 			iterutil.Deref(slices.Values(ev.IngressPorts)),
 			iterutil.Deref(slices.Values(other.IngressPorts))) &&
@@ -909,7 +912,14 @@ func (ev *endpointEvent) EquivalentTo(other *endpointEvent) bool {
 		iterutil.SameValues(slices.Values(ev.TaskAliases), slices.Values(other.TaskAliases))
 }
 
-func (c *Controller) handleEpTableEvent(ev events.Event) {
+type serviceBinder interface {
+	addContainerNameResolution(nID, eID, containerName string, taskAliases []string, ip net.IP, method string) error
+	delContainerNameResolution(nID, eID, containerName string, taskAliases []string, ip net.IP, method string) error
+	addServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases, taskAliases []string, ip net.IP, method string) error
+	rmServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases []string, taskAliases []string, ip net.IP, method string, deleteSvcRecords bool, fullRemove bool) error
+}
+
+func handleEpTableEvent(c serviceBinder, ev events.Event) {
 	event := ev.(networkdb.WatchEvent)
 	nid := event.NetworkID
 	eid := event.Key
@@ -939,8 +949,9 @@ func (c *Controller) handleEpTableEvent(ev events.Event) {
 	})
 	logger.Debug("handleEpTableEvent")
 
+	equivalent := prev.EquivalentTo(epRec)
 	if prev != nil {
-		if epRec != nil && prev.EquivalentTo(epRec) {
+		if equivalent && prev.ServiceDisabled == epRec.ServiceDisabled {
 			// Avoid flapping if we would otherwise remove a service
 			// binding then immediately replace it with an equivalent one.
 			return
@@ -948,7 +959,11 @@ func (c *Controller) handleEpTableEvent(ev events.Event) {
 
 		if prev.ServiceID != "" {
 			// This is a remote task part of a service
-			if !prev.ServiceDisabled {
+			if epRec == nil || !equivalent {
+				// Either the endpoint is deleted from NetworkDB or has
+				// been replaced with a different one. Remove the old
+				// binding. The new binding, if any, will be added
+				// below.
 				err := c.rmServiceBinding(prev.ServiceName, prev.ServiceID, nid, eid,
 					prev.Name, prev.VirtualIP.AsSlice(), prev.IngressPorts,
 					prev.Aliases, prev.TaskAliases, prev.EndpointIP.AsSlice(),
@@ -957,7 +972,7 @@ func (c *Controller) handleEpTableEvent(ev events.Event) {
 					logger.WithError(err).Error("failed removing service binding")
 				}
 			}
-		} else {
+		} else if !prev.ServiceDisabled && (!equivalent || epRec == nil || epRec.ServiceDisabled) {
 			// This is a remote container simply attached to an attachable network
 			err := c.delContainerNameResolution(nid, eid, prev.Name, prev.TaskAliases,
 				prev.EndpointIP.AsSlice(), "handleEpTableEvent")
@@ -970,19 +985,16 @@ func (c *Controller) handleEpTableEvent(ev events.Event) {
 	if epRec != nil {
 		if epRec.ServiceID != "" {
 			// This is a remote task part of a service
-			if epRec.ServiceDisabled {
-				// Don't double-remove a service binding
-				if prev == nil || prev.ServiceID != epRec.ServiceID || !prev.ServiceDisabled {
-					err := c.rmServiceBinding(epRec.ServiceName, epRec.ServiceID,
-						nid, eid, epRec.Name, epRec.VirtualIP.AsSlice(),
-						epRec.IngressPorts, epRec.Aliases, epRec.TaskAliases,
-						epRec.EndpointIP.AsSlice(), "handleEpTableEvent", true, false)
-					if err != nil {
-						logger.WithError(err).Error("failed disabling service binding")
-						return
-					}
+			if equivalent && !prev.ServiceDisabled && epRec.ServiceDisabled {
+				err := c.rmServiceBinding(epRec.ServiceName, epRec.ServiceID,
+					nid, eid, epRec.Name, epRec.VirtualIP.AsSlice(),
+					epRec.IngressPorts, epRec.Aliases, epRec.TaskAliases,
+					epRec.EndpointIP.AsSlice(), "handleEpTableEvent", true, false)
+				if err != nil {
+					logger.WithError(err).Error("failed disabling service binding")
+					return
 				}
-			} else {
+			} else if !epRec.ServiceDisabled {
 				err := c.addServiceBinding(epRec.ServiceName, epRec.ServiceID, nid, eid,
 					epRec.Name, epRec.VirtualIP.AsSlice(), epRec.IngressPorts,
 					epRec.Aliases, epRec.TaskAliases, epRec.EndpointIP.AsSlice(),
@@ -992,7 +1004,7 @@ func (c *Controller) handleEpTableEvent(ev events.Event) {
 					return
 				}
 			}
-		} else {
+		} else if !epRec.ServiceDisabled && (!equivalent || prev == nil || prev.ServiceDisabled) {
 			// This is a remote container simply attached to an attachable network
 			err := c.addContainerNameResolution(nid, eid, epRec.Name, epRec.TaskAliases,
 				epRec.EndpointIP.AsSlice(), "handleEpTableEvent")
