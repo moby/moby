@@ -1,13 +1,11 @@
+//go:build android
+
 package sockaddr
 
 import (
 	"errors"
 	"os/exec"
 )
-
-type routeInfo struct {
-	cmds map[string][]string
-}
 
 // NewRouteInfo returns a Android-specific implementation of the RouteInfo
 // interface.

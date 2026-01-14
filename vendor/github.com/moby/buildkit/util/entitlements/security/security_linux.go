@@ -120,7 +120,7 @@ func getFreeLoopID() (int, error) {
 	}
 	defer fd.Close()
 
-	const _LOOP_CTL_GET_FREE = 0x4C82 //nolint:revive,staticcheck
+	const _LOOP_CTL_GET_FREE = 0x4C82 //nolint:staticcheck
 	r1, _, uerr := unix.Syscall(unix.SYS_IOCTL, fd.Fd(), _LOOP_CTL_GET_FREE, 0)
 	if uerr == 0 {
 		return int(r1), nil

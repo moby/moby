@@ -483,6 +483,8 @@ type Options2LO struct {
 	Audience string
 	// PrivateClaims allows specifying any custom claims for the JWT. Optional.
 	PrivateClaims map[string]interface{}
+	// UniverseDomain is the default service domain for a given Cloud universe.
+	UniverseDomain string
 
 	// Client is the client to be used to make the underlying token requests.
 	// Optional.

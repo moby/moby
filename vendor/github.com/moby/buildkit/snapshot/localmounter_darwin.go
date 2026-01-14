@@ -13,6 +13,10 @@ func (lm *localMounter) Mount() (string, error) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
+	if lm.target != "" {
+		return lm.target, nil
+	}
+
 	if lm.mounts == nil && lm.mountable != nil {
 		mounts, release, err := lm.mountable.Mount()
 		if err != nil {

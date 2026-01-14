@@ -450,8 +450,15 @@ func parseOnBuild(req parseRequest) (*OnbuildCommand, error) {
 	}
 
 	original := regexp.MustCompile(`(?i)^\s*ONBUILD\s*`).ReplaceAllString(req.original, "")
-	for _, heredoc := range req.heredocs {
-		original += "\n" + heredoc.Content + heredoc.Name
+	if len(req.heredocs) > 0 {
+		var b strings.Builder
+		b.WriteString(original)
+		for _, heredoc := range req.heredocs {
+			b.WriteByte('\n')
+			b.WriteString(heredoc.Content)
+			b.WriteString(heredoc.Name)
+		}
+		original = b.String()
 	}
 
 	return &OnbuildCommand{

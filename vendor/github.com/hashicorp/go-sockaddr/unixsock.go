@@ -27,6 +27,16 @@ func NewUnixSock(s string) (ret UnixSock, err error) {
 	return ret, nil
 }
 
+// Contains returns true if sa and us have the same path
+func (us UnixSock) Contains(sa SockAddr) bool {
+	usb, ok := sa.(UnixSock)
+	if !ok {
+		return false
+	}
+
+	return usb.path == us.path
+}
+
 // CmpAddress follows the Cmp() standard protocol and returns:
 //
 // - -1 If the receiver should sort first because its name lexically sorts before arg
@@ -40,6 +50,9 @@ func (us UnixSock) CmpAddress(sa SockAddr) int {
 
 	return strings.Compare(us.Path(), usb.Path())
 }
+
+// CmpRFC doesn't make sense for a Unix socket, so just return defer decision
+func (us UnixSock) CmpRFC(rfcNum uint, sa SockAddr) int { return sortDeferDecision }
 
 // DialPacketArgs returns the arguments required to be passed to net.DialUnix()
 // with the `unixgram` network type.

@@ -65,7 +65,12 @@ func timeOperationMetric[T any](
 	ctx context.Context, metric string, fn func() (T, error),
 	opts ...metrics.RecordMetricOption,
 ) (T, error) {
-	instr := getOperationMetrics(ctx).histogramFor(metric)
+	mm := getOperationMetrics(ctx)
+	if mm == nil { // not using the metrics system
+		return fn()
+	}
+
+	instr := mm.histogramFor(metric)
 	opts = append([]metrics.RecordMetricOption{withOperationMetadata(ctx)}, opts...)
 
 	start := time.Now()
@@ -78,7 +83,12 @@ func timeOperationMetric[T any](
 }
 
 func startMetricTimer(ctx context.Context, metric string, opts ...metrics.RecordMetricOption) func() {
-	instr := getOperationMetrics(ctx).histogramFor(metric)
+	mm := getOperationMetrics(ctx)
+	if mm == nil { // not using the metrics system
+		return func() {}
+	}
+
+	instr := mm.histogramFor(metric)
 	opts = append([]metrics.RecordMetricOption{withOperationMetadata(ctx)}, opts...)
 
 	var ended bool
@@ -106,6 +116,12 @@ func withOperationMetadata(ctx context.Context) metrics.RecordMetricOption {
 type operationMetricsKey struct{}
 
 func withOperationMetrics(parent context.Context, mp metrics.MeterProvider) (context.Context, error) {
+	if _, ok := mp.(metrics.NopMeterProvider); ok {
+		// not using the metrics system - setting up the metrics context is a memory-intensive operation
+		// so we should skip it in this case
+		return parent, nil
+	}
+
 	meter := mp.Meter("github.com/aws/aws-sdk-go-v2/service/ssooidc")
 	om := &operationMetrics{}
 
@@ -153,7 +169,10 @@ func operationMetricTimer(m metrics.Meter, name, desc string) (metrics.Float64Hi
 }
 
 func getOperationMetrics(ctx context.Context) *operationMetrics {
-	return ctx.Value(operationMetricsKey{}).(*operationMetrics)
+	if v := ctx.Value(operationMetricsKey{}); v != nil {
+		return v.(*operationMetrics)
+	}
+	return nil
 }
 
 func operationTracer(p tracing.TracerProvider) tracing.Tracer {
@@ -882,138 +901,49 @@ func addInterceptAttempt(stack *middleware.Stack, opts Options) error {
 	}, "Retry", middleware.After)
 }
 
-func addInterceptExecution(stack *middleware.Stack, opts Options) error {
-	return stack.Initialize.Add(&smithyhttp.InterceptExecution{
-		BeforeExecution: opts.Interceptors.BeforeExecution,
-		AfterExecution:  opts.Interceptors.AfterExecution,
-	}, middleware.Before)
-}
+func addInterceptors(stack *middleware.Stack, opts Options) error {
+	// middlewares are expensive, don't add all of these interceptor ones unless the caller
+	// actually has at least one interceptor configured
+	//
+	// at the moment it's all-or-nothing because some of the middlewares here are responsible for
+	// setting fields in the interceptor context for future ones
+	if len(opts.Interceptors.BeforeExecution) == 0 &&
+		len(opts.Interceptors.BeforeSerialization) == 0 && len(opts.Interceptors.AfterSerialization) == 0 &&
+		len(opts.Interceptors.BeforeRetryLoop) == 0 &&
+		len(opts.Interceptors.BeforeAttempt) == 0 &&
+		len(opts.Interceptors.BeforeSigning) == 0 && len(opts.Interceptors.AfterSigning) == 0 &&
+		len(opts.Interceptors.BeforeTransmit) == 0 && len(opts.Interceptors.AfterTransmit) == 0 &&
+		len(opts.Interceptors.BeforeDeserialization) == 0 && len(opts.Interceptors.AfterDeserialization) == 0 &&
+		len(opts.Interceptors.AfterAttempt) == 0 && len(opts.Interceptors.AfterExecution) == 0 {
+		return nil
+	}
 
-func addInterceptBeforeSerialization(stack *middleware.Stack, opts Options) error {
-	return stack.Serialize.Insert(&smithyhttp.InterceptBeforeSerialization{
-		Interceptors: opts.Interceptors.BeforeSerialization,
-	}, "OperationSerializer", middleware.Before)
-}
-
-func addInterceptAfterSerialization(stack *middleware.Stack, opts Options) error {
-	return stack.Serialize.Insert(&smithyhttp.InterceptAfterSerialization{
-		Interceptors: opts.Interceptors.AfterSerialization,
-	}, "OperationSerializer", middleware.After)
-}
-
-func addInterceptBeforeSigning(stack *middleware.Stack, opts Options) error {
-	return stack.Finalize.Insert(&smithyhttp.InterceptBeforeSigning{
-		Interceptors: opts.Interceptors.BeforeSigning,
-	}, "Signing", middleware.Before)
-}
-
-func addInterceptAfterSigning(stack *middleware.Stack, opts Options) error {
-	return stack.Finalize.Insert(&smithyhttp.InterceptAfterSigning{
-		Interceptors: opts.Interceptors.AfterSigning,
-	}, "Signing", middleware.After)
-}
-
-func addInterceptTransmit(stack *middleware.Stack, opts Options) error {
-	return stack.Deserialize.Add(&smithyhttp.InterceptTransmit{
-		BeforeTransmit: opts.Interceptors.BeforeTransmit,
-		AfterTransmit:  opts.Interceptors.AfterTransmit,
-	}, middleware.After)
-}
-
-func addInterceptBeforeDeserialization(stack *middleware.Stack, opts Options) error {
-	return stack.Deserialize.Insert(&smithyhttp.InterceptBeforeDeserialization{
-		Interceptors: opts.Interceptors.BeforeDeserialization,
-	}, "OperationDeserializer", middleware.After) // (deserialize stack is called in reverse)
-}
-
-func addInterceptAfterDeserialization(stack *middleware.Stack, opts Options) error {
-	return stack.Deserialize.Insert(&smithyhttp.InterceptAfterDeserialization{
-		Interceptors: opts.Interceptors.AfterDeserialization,
-	}, "OperationDeserializer", middleware.Before)
-}
-
-type spanInitializeStart struct {
-}
-
-func (*spanInitializeStart) ID() string {
-	return "spanInitializeStart"
-}
-
-func (m *spanInitializeStart) HandleInitialize(
-	ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler,
-) (
-	middleware.InitializeOutput, middleware.Metadata, error,
-) {
-	ctx, _ = tracing.StartSpan(ctx, "Initialize")
-
-	return next.HandleInitialize(ctx, in)
-}
-
-type spanInitializeEnd struct {
-}
-
-func (*spanInitializeEnd) ID() string {
-	return "spanInitializeEnd"
-}
-
-func (m *spanInitializeEnd) HandleInitialize(
-	ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler,
-) (
-	middleware.InitializeOutput, middleware.Metadata, error,
-) {
-	ctx, span := tracing.PopSpan(ctx)
-	span.End()
-
-	return next.HandleInitialize(ctx, in)
-}
-
-type spanBuildRequestStart struct {
-}
-
-func (*spanBuildRequestStart) ID() string {
-	return "spanBuildRequestStart"
-}
-
-func (m *spanBuildRequestStart) HandleSerialize(
-	ctx context.Context, in middleware.SerializeInput, next middleware.SerializeHandler,
-) (
-	middleware.SerializeOutput, middleware.Metadata, error,
-) {
-	ctx, _ = tracing.StartSpan(ctx, "BuildRequest")
-
-	return next.HandleSerialize(ctx, in)
-}
-
-type spanBuildRequestEnd struct {
-}
-
-func (*spanBuildRequestEnd) ID() string {
-	return "spanBuildRequestEnd"
-}
-
-func (m *spanBuildRequestEnd) HandleBuild(
-	ctx context.Context, in middleware.BuildInput, next middleware.BuildHandler,
-) (
-	middleware.BuildOutput, middleware.Metadata, error,
-) {
-	ctx, span := tracing.PopSpan(ctx)
-	span.End()
-
-	return next.HandleBuild(ctx, in)
-}
-
-func addSpanInitializeStart(stack *middleware.Stack) error {
-	return stack.Initialize.Add(&spanInitializeStart{}, middleware.Before)
-}
-
-func addSpanInitializeEnd(stack *middleware.Stack) error {
-	return stack.Initialize.Add(&spanInitializeEnd{}, middleware.After)
-}
-
-func addSpanBuildRequestStart(stack *middleware.Stack) error {
-	return stack.Serialize.Add(&spanBuildRequestStart{}, middleware.Before)
-}
-
-func addSpanBuildRequestEnd(stack *middleware.Stack) error {
-	return stack.Build.Add(&spanBuildRequestEnd{}, middleware.After)
+	return errors.Join(
+		stack.Initialize.Add(&smithyhttp.InterceptExecution{
+			BeforeExecution: opts.Interceptors.BeforeExecution,
+			AfterExecution:  opts.Interceptors.AfterExecution,
+		}, middleware.Before),
+		stack.Serialize.Insert(&smithyhttp.InterceptBeforeSerialization{
+			Interceptors: opts.Interceptors.BeforeSerialization,
+		}, "OperationSerializer", middleware.Before),
+		stack.Serialize.Insert(&smithyhttp.InterceptAfterSerialization{
+			Interceptors: opts.Interceptors.AfterSerialization,
+		}, "OperationSerializer", middleware.After),
+		stack.Finalize.Insert(&smithyhttp.InterceptBeforeSigning{
+			Interceptors: opts.Interceptors.BeforeSigning,
+		}, "Signing", middleware.Before),
+		stack.Finalize.Insert(&smithyhttp.InterceptAfterSigning{
+			Interceptors: opts.Interceptors.AfterSigning,
+		}, "Signing", middleware.After),
+		stack.Deserialize.Add(&smithyhttp.InterceptTransmit{
+			BeforeTransmit: opts.Interceptors.BeforeTransmit,
+			AfterTransmit:  opts.Interceptors.AfterTransmit,
+		}, middleware.After),
+		stack.Deserialize.Insert(&smithyhttp.InterceptBeforeDeserialization{
+			Interceptors: opts.Interceptors.BeforeDeserialization,
+		}, "OperationDeserializer", middleware.After), // (deserialize stack is called in reverse)
+		stack.Deserialize.Insert(&smithyhttp.InterceptAfterDeserialization{
+			Interceptors: opts.Interceptors.AfterDeserialization,
+		}, "OperationDeserializer", middleware.Before),
+	)
 }

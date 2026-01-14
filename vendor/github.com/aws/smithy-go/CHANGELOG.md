@@ -1,3 +1,13 @@
+# Release (2025-11-03)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.23.2
+  * **Bug Fix**: Adjust the initial sizes of each middleware phase to avoid some unnecessary reallocation.
+  * **Bug Fix**: Avoid unnecessary allocation overhead from the metrics system when not in use.
+
 # Release (2025-10-15)
 
 ## General Highlights
