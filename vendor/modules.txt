@@ -21,8 +21,8 @@ cloud.google.com/go/auth/internal/transport/cert
 # cloud.google.com/go/auth/oauth2adapt v0.2.8
 ## explicit; go 1.23.0
 cloud.google.com/go/auth/oauth2adapt
-# cloud.google.com/go/compute/metadata v0.8.0
-## explicit; go 1.23.0
+# cloud.google.com/go/compute/metadata v0.9.0
+## explicit; go 1.24.0
 cloud.google.com/go/compute/metadata
 # cloud.google.com/go/logging v1.13.1
 ## explicit; go 1.24.0
