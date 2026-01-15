@@ -79,7 +79,8 @@ type FinalizeStep struct {
 // initialization added to it.
 func NewFinalizeStep() *FinalizeStep {
 	return &FinalizeStep{
-		ids: newOrderedIDs(),
+		// downstream SDK typically has larger Finalize step
+		ids: newOrderedIDs(baseOrderedItems * 2),
 	}
 }
 

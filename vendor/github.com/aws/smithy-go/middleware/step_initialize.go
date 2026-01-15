@@ -79,7 +79,7 @@ type InitializeStep struct {
 // initialization added to it.
 func NewInitializeStep() *InitializeStep {
 	return &InitializeStep{
-		ids: newOrderedIDs(),
+		ids: newOrderedIDs(baseOrderedItems),
 	}
 }
 

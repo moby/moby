@@ -3,4 +3,4 @@
 package config
 
 // goModuleVersion is the tagged release for this module
-const goModuleVersion = "1.31.15"
+const goModuleVersion = "1.31.20"
