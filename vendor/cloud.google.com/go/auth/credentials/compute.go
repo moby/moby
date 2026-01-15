@@ -92,11 +92,11 @@ func (cs *computeProvider) Token(ctx context.Context) (*auth.Token, error) {
 	if res.ExpiresInSec == 0 || res.AccessToken == "" {
 		return nil, errors.New("credentials: incomplete token received from metadata")
 	}
-	return &auth.Token{
+	token := &auth.Token{
 		Value:    res.AccessToken,
 		Type:     res.TokenType,
 		Expiry:   time.Now().Add(time.Duration(res.ExpiresInSec) * time.Second),
 		Metadata: computeTokenMetadata,
-	}, nil
-
+	}
+	return token, nil
 }

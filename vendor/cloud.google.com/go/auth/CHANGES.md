@@ -1,3 +1,10 @@
+## [0.17.0](https://github.com/googleapis/google-cloud-go/releases/tag/auth%2Fv0.17.0) (2025-10-02)
+
+### Features
+
+* Add trust boundary support for service accounts and impersonation (HTTP/gRPC) (#11870) ([5c2b665](https://github.com/googleapis/google-cloud-go/commit/5c2b665f392e6dd90192f107188720aa1357e7da))
+* add trust boundary support for external accounts (#12864) ([a67a146](https://github.com/googleapis/google-cloud-go/commit/a67a146a6a88a6f1ba10c409dfce8015ecd60a64))
+
 # Changelog
 
 ## [0.16.5](https://github.com/googleapis/google-cloud-go/compare/auth/v0.16.4...auth/v0.16.5) (2025-08-14)

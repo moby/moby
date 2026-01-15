@@ -1,8 +1,8 @@
 # cloud.google.com/go v0.121.6
 ## explicit; go 1.23.0
 cloud.google.com/go
-# cloud.google.com/go/auth v0.16.5
-## explicit; go 1.23.0
+# cloud.google.com/go/auth v0.17.0
+## explicit; go 1.24.0
 cloud.google.com/go/auth
 cloud.google.com/go/auth/credentials
 cloud.google.com/go/auth/credentials/internal/externalaccount
@@ -16,8 +16,11 @@ cloud.google.com/go/auth/internal
 cloud.google.com/go/auth/internal/compute
 cloud.google.com/go/auth/internal/credsfile
 cloud.google.com/go/auth/internal/jwt
+cloud.google.com/go/auth/internal/retry
 cloud.google.com/go/auth/internal/transport
 cloud.google.com/go/auth/internal/transport/cert
+cloud.google.com/go/auth/internal/transport/headers
+cloud.google.com/go/auth/internal/trustboundary
 # cloud.google.com/go/auth/oauth2adapt v0.2.8
 ## explicit; go 1.23.0
 cloud.google.com/go/auth/oauth2adapt
