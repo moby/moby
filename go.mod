@@ -302,3 +302,6 @@ require (
 replace github.com/moby/moby/api => ./api
 
 replace github.com/moby/moby/client => ./client
+
+// patch from v0.27.0-rc2
+replace github.com/moby/buildkit => github.com/tonistiigi/buildkit v0.25.0-rc1.0.20260115011818-3402a0c281ce
