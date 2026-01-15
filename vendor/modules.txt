@@ -792,8 +792,8 @@ github.com/hashicorp/go-msgpack/codec
 # github.com/hashicorp/go-multierror v1.1.1
 ## explicit; go 1.13
 github.com/hashicorp/go-multierror
-# github.com/hashicorp/go-sockaddr v1.0.2
-## explicit
+# github.com/hashicorp/go-sockaddr v1.0.7
+## explicit; go 1.19
 github.com/hashicorp/go-sockaddr
 # github.com/hashicorp/golang-lru v0.5.4
 ## explicit; go 1.12
