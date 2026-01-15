@@ -85,7 +85,7 @@ type SerializeStep struct {
 // serialize the input parameters into.
 func NewSerializeStep(newRequest func() interface{}) *SerializeStep {
 	return &SerializeStep{
-		ids:        newOrderedIDs(),
+		ids:        newOrderedIDs(baseOrderedItems),
 		newRequest: newRequest,
 	}
 }
