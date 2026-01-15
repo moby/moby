@@ -14,7 +14,7 @@ require (
 	github.com/Microsoft/hcsshim v0.14.0-rc.1
 	github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
 	github.com/aws/aws-sdk-go-v2 v1.39.6
-	github.com/aws/aws-sdk-go-v2/config v1.31.15
+	github.com/aws/aws-sdk-go-v2/config v1.31.20
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.24
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.13
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.58.5
