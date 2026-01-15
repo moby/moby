@@ -156,7 +156,7 @@ require (
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/go-cni v1.1.13 // indirect
 	github.com/containerd/go-runc v1.1.0 // indirect
-	github.com/containerd/nydus-snapshotter v0.15.4 // indirect
+	github.com/containerd/nydus-snapshotter v0.15.10 // indirect
 	github.com/containerd/plugin v1.0.0 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.17.0 // indirect
 	github.com/containerd/ttrpc v1.2.7 // indirect

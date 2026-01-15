@@ -507,7 +507,7 @@ github.com/containerd/nri/pkg/plugin
 github.com/containerd/nri/pkg/stub
 github.com/containerd/nri/plugins/default-validator
 github.com/containerd/nri/plugins/default-validator/builtin
-# github.com/containerd/nydus-snapshotter v0.15.4
+# github.com/containerd/nydus-snapshotter v0.15.10
 ## explicit; go 1.24.0
 github.com/containerd/nydus-snapshotter/pkg/converter
 github.com/containerd/nydus-snapshotter/pkg/converter/tool
