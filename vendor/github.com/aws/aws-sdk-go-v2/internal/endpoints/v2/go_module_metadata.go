@@ -3,4 +3,4 @@
 package endpoints
 
 // goModuleVersion is the tagged release for this module
-const goModuleVersion = "2.7.11"
+const goModuleVersion = "2.7.13"

@@ -34,6 +34,31 @@ func (e *ExpiredTokenException) ErrorCode() string {
 }
 func (e *ExpiredTokenException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
+type ExpiredTradeInTokenException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *ExpiredTradeInTokenException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *ExpiredTradeInTokenException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *ExpiredTradeInTokenException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "ExpiredTradeInTokenException"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *ExpiredTradeInTokenException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+
 // The request could not be fulfilled because the identity provider (IDP) that was
 // asked to verify the incoming identity token could not be reached. This is often
 // a transient error caused by network conditions. Retry the request a limited
@@ -221,7 +246,7 @@ func (e *PackedPolicyTooLargeException) ErrorFault() smithy.ErrorFault { return 
 // console to activate STS in that region. For more information, see [Activating and Deactivating STS in an Amazon Web Services Region]in the IAM
 // User Guide.
 //
-// [Activating and Deactivating STS in an Amazon Web Services Region]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_enable-regions.html
+// [Activating and Deactivating STS in an Amazon Web Services Region]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_enable-regions.html#sts-regions-activate-deactivate
 type RegionDisabledException struct {
 	Message *string
 
