@@ -175,7 +175,7 @@ github.com/RackSec/srslog
 # github.com/agext/levenshtein v1.2.3
 ## explicit
 github.com/agext/levenshtein
-# github.com/anchore/go-struct-converter v0.0.0-20221118182256-c68fdcfa2092
+# github.com/anchore/go-struct-converter v0.1.0
 ## explicit; go 1.18
 github.com/anchore/go-struct-converter
 # github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2
