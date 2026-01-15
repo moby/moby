@@ -381,6 +381,7 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 
 	inspectData, err := ir.backend.ImageInspect(ctx, vars["name"], imagebackend.ImageInspectOpts{
 		Manifests: manifests,
+		Identity:  versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.53"),
 		Platform:  platform,
 	})
 	if err != nil {
