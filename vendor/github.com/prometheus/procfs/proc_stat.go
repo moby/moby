@@ -101,6 +101,12 @@ type ProcStat struct {
 	RSS int
 	// Soft limit in bytes on the rss of the process.
 	RSSLimit uint64
+	// The address above which program text can run.
+	StartCode uint64
+	// The address below which program text can run.
+	EndCode uint64
+	// The address of the start (i.e., bottom) of the stack.
+	StartStack uint64
 	// CPU number last executed on.
 	Processor uint
 	// Real-time scheduling priority, a number in the range 1 to 99 for processes
@@ -177,9 +183,9 @@ func (p Proc) Stat() (ProcStat, error) {
 		&s.VSize,
 		&s.RSS,
 		&s.RSSLimit,
-		&ignoreUint64,
-		&ignoreUint64,
-		&ignoreUint64,
+		&s.StartCode,
+		&s.EndCode,
+		&s.StartStack,
 		&ignoreUint64,
 		&ignoreUint64,
 		&ignoreUint64,

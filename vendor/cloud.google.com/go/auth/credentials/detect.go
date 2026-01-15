@@ -27,6 +27,7 @@ import (
 	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/internal"
 	"cloud.google.com/go/auth/internal/credsfile"
+	"cloud.google.com/go/auth/internal/trustboundary"
 	"cloud.google.com/go/compute/metadata"
 	"github.com/googleapis/gax-go/v2/internallog"
 )
@@ -95,6 +96,10 @@ func DetectDefault(opts *DetectOptions) (*auth.Credentials, error) {
 	if err := opts.validate(); err != nil {
 		return nil, err
 	}
+	trustBoundaryEnabled, err := trustboundary.IsEnabled()
+	if err != nil {
+		return nil, err
+	}
 	if len(opts.CredentialsJSON) > 0 {
 		return readCredentialsFileJSON(opts.CredentialsJSON, opts)
 	}
@@ -119,14 +124,26 @@ func DetectDefault(opts *DetectOptions) (*auth.Credentials, error) {
 			Logger:           opts.logger(),
 			UseDefaultClient: true,
 		})
+		gceUniverseDomainProvider := &internal.ComputeUniverseDomainProvider{
+			MetadataClient: metadataClient,
+		}
+
+		tp := computeTokenProvider(opts, metadataClient)
+		if trustBoundaryEnabled {
+			gceConfigProvider := trustboundary.NewGCEConfigProvider(gceUniverseDomainProvider)
+			var err error
+			tp, err = trustboundary.NewProvider(opts.client(), gceConfigProvider, opts.logger(), tp)
+			if err != nil {
+				return nil, fmt.Errorf("credentials: failed to initialize GCE trust boundary provider: %w", err)
+			}
+
+		}
 		return auth.NewCredentials(&auth.CredentialsOptions{
-			TokenProvider: computeTokenProvider(opts, metadataClient),
+			TokenProvider: tp,
 			ProjectIDProvider: auth.CredentialsPropertyFunc(func(ctx context.Context) (string, error) {
 				return metadataClient.ProjectIDWithContext(ctx)
 			}),
-			UniverseDomainProvider: &internal.ComputeUniverseDomainProvider{
-				MetadataClient: metadataClient,
-			},
+			UniverseDomainProvider: gceUniverseDomainProvider,
 		}), nil
 	}
 

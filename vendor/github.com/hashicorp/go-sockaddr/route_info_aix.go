@@ -1,4 +1,4 @@
-//go:build android
+//go:build aix
 
 package sockaddr
 
@@ -7,25 +7,28 @@ import (
 	"os/exec"
 )
 
-// NewRouteInfo returns a Android-specific implementation of the RouteInfo
+var cmds map[string][]string = map[string][]string{
+	"route": {"/usr/sbin/route", "-n", "get", "default"},
+}
+
+// NewRouteInfo returns a BSD-specific implementation of the RouteInfo
 // interface.
 func NewRouteInfo() (routeInfo, error) {
 	return routeInfo{
-		cmds: map[string][]string{"ip": {"/system/bin/ip", "route", "get", "8.8.8.8"}},
+		cmds: cmds,
 	}, nil
 }
 
 // GetDefaultInterfaceName returns the interface name attached to the default
 // route on the default interface.
 func (ri routeInfo) GetDefaultInterfaceName() (string, error) {
-	out, err := exec.Command(ri.cmds["ip"][0], ri.cmds["ip"][1:]...).Output()
+	out, err := exec.Command(cmds["route"][0], cmds["route"][1:]...).Output()
 	if err != nil {
 		return "", err
 	}
 
-
 	var ifName string
-	if ifName, err = parseDefaultIfNameFromIPCmdAndroid(string(out)); err != nil {
+	if ifName, err = parseDefaultIfNameFromRoute(string(out)); err != nil {
 		return "", errors.New("No default interface found")
 	}
 	return ifName, nil
