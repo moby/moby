@@ -84,6 +84,7 @@ import (
 	"github.com/moby/moby/v2/pkg/authorization"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/moby/v2/pkg/sysinfo"
+	policyverifier "github.com/moby/policy-helpers"
 )
 
 type configStore struct {
@@ -1270,14 +1271,15 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 		d.usesSnapshotter = true
 		d.imageService = ctrd.NewService(ctrd.ImageServiceConfig{
-			Client:          d.containerdClient,
-			Containers:      d.containers,
-			Snapshotter:     driverName,
-			RegistryHosts:   d.RegistryHosts,
-			Registry:        d.registryService,
-			EventsService:   d.EventsService,
-			IDMapping:       idMapping,
-			RefCountMounter: snapshotter.NewMounter(config.Root, driverName, idMapping),
+			Client:                 d.containerdClient,
+			Containers:             d.containers,
+			Snapshotter:            driverName,
+			RegistryHosts:          d.RegistryHosts,
+			Registry:               d.registryService,
+			EventsService:          d.EventsService,
+			IDMapping:              idMapping,
+			RefCountMounter:        snapshotter.NewMounter(config.Root, driverName, idMapping),
+			PolicyVerifierProvider: verifierProvider(cfgStore.Root),
 		})
 
 		if migrationConfig.ImageCount > 0 {
@@ -1360,6 +1362,34 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}).Info("Docker daemon")
 
 	return d, nil
+}
+
+func verifierProvider(root string) func() (*policyverifier.Verifier, error) {
+	var verifier *policyverifier.Verifier
+	var mu sync.Mutex
+
+	return func() (*policyverifier.Verifier, error) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if verifier != nil {
+			return verifier, nil
+		}
+
+		confDir := filepath.Join(root, "policy")
+		if err := os.MkdirAll(filepath.Join(confDir, "tuf"), 0o644); err != nil {
+			return nil, errors.Wrapf(err, "failed to create policy verifier config dir")
+		}
+
+		v, err := policyverifier.NewVerifier(policyverifier.Config{
+			StateDir: confDir,
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to create policy verifier")
+		}
+		verifier = v
+		return verifier, nil
+	}
 }
 
 // DistributionServices returns services controlling daemon storage

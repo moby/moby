@@ -105,4 +105,33 @@ type InspectResponse struct {
 	// WARNING: This is experimental and may change at any time without any backward
 	// compatibility.
 	Manifests []ManifestSummary `json:"Manifests,omitempty"`
+
+	// Identity holds information about the identity and origin of the image.
+	// This is trusted information verified by the daemon and cannot be modified
+	// by tagging an image to a different name.
+	Identity *Identity `json:"Identity,omitempty"`
 }
+
+// SignatureTimestampType is the type of timestamp used in the signature.
+type SignatureTimestampType string
+
+const (
+	SignatureTimestampTlog      SignatureTimestampType = "Tlog"
+	SignatureTimestampAuthority SignatureTimestampType = "TimestampAuthority"
+)
+
+// SignatureType is the type of signature format.
+type SignatureType string
+
+const (
+	SignatureTypeBundleV03       SignatureType = "bundle-v0.3"
+	SignatureTypeSimpleSigningV1 SignatureType = "simplesigning-v1"
+)
+
+// KnownSignerIdentity is an identifier for a special signer identity that is known to the implementation.
+type KnownSignerIdentity string
+
+const (
+	// KnownSignerDHI is the known identity for Docker Hardened Images.
+	KnownSignerDHI KnownSignerIdentity = "DHI"
+)
