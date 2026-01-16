@@ -216,6 +216,9 @@ func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier,
 			if err != nil {
 				return nil, err
 			}
+			if desc.MediaType != ocispecs.MediaTypeImageIndex {
+				return nil, nil
+			}
 			prov := contentutil.ReferrersProviderWithBuffer(contentutil.FromFetcher(f), is.ContentStore, named.Name())
 			sc, err := policyimage.ResolveSignatureChain(ctx, prov, desc, opt.Platform)
 			if err != nil {
