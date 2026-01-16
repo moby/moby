@@ -21,6 +21,10 @@ type policyEvaluator struct {
 }
 
 func (p *policyEvaluator) Evaluate(ctx context.Context, op *pb.Op) (bool, error) {
+	return p.evaluate(ctx, op, 10)
+}
+
+func (p *policyEvaluator) evaluate(ctx context.Context, op *pb.Op, max int) (bool, error) {
 	source := op.GetSource()
 	if source == nil {
 		return false, nil
@@ -49,10 +53,9 @@ func (p *policyEvaluator) Evaluate(ctx context.Context, op *pb.Op) (bool, error)
 		},
 	}
 
-	max := 0
 	for {
-		max++
-		if max > 10 { // TODO: better loop detection
+		max--
+		if max < 0 { // TODO: better loop detection
 			return false, errors.Errorf("too many policy requests")
 		}
 		resp, err := verifier.CheckPolicy(ctx, req)
@@ -117,10 +120,21 @@ func (p *policyEvaluator) Evaluate(ctx context.Context, op *pb.Op) (bool, error)
 			return false, errors.Errorf("no decision in policy response")
 		}
 		if decision.Action == spb.PolicyAction_CONVERT {
-			return false, errors.Errorf("convert action not yet supported")
+			newSrc := decision.Update
+			if newSrc == nil {
+				return false, errors.Errorf("convert action requires updated source")
+			}
+			source.Identifier = newSrc.Identifier
+			source.Attrs = newSrc.Attrs
+			_, err = p.evaluate(ctx, op, max)
+			if err != nil {
+				return false, err
+			}
+			return true, nil
 		}
 		if decision.Action != spb.PolicyAction_ALLOW {
-			return false, errors.Errorf("source %q not allowed by policy: action %s", source.Identifier, decision.Action.String())
+			err := errors.Errorf("source %q not allowed by policy: action %s", source.Identifier, decision.Action.String())
+			return false, policysession.WrapDenyMessages(err, decision.GetDenyMessages())
 		}
 		return ok, nil
 	}

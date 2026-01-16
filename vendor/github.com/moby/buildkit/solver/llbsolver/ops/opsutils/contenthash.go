@@ -44,7 +44,6 @@ func NewContentHashFunc(selectors []Selector) solver.ResultBasedCacheFunc {
 		eg, ctx := errgroup.WithContext(ctx)
 
 		for i, sel := range selectors {
-			i, sel := i, sel
 			eg.Go(func() error {
 				dgst, err := contenthash.Checksum(
 					ctx, ref.ImmutableRef, path.Join("/", sel.Path),

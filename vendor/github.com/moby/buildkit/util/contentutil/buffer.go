@@ -95,7 +95,14 @@ func (b *buffer) Writer(ctx context.Context, opts ...content.WriterOpt) (content
 		}
 	}
 	b.mu.Lock()
+	if wOpts.Desc.Digest != "" {
+		if _, ok := b.buffers[wOpts.Desc.Digest]; ok {
+			b.mu.Unlock()
+			return nil, errors.Wrapf(cerrdefs.ErrAlreadyExists, "content %v already exists", wOpts.Desc.Digest)
+		}
+	}
 	if _, ok := b.refs[wOpts.Ref]; ok {
+		b.mu.Unlock()
 		return nil, errors.Wrapf(cerrdefs.ErrUnavailable, "ref %s locked", wOpts.Ref)
 	}
 	b.mu.Unlock()

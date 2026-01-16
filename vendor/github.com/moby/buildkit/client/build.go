@@ -178,6 +178,36 @@ func (g *gatewayClientForBuild) ReleaseContainer(ctx context.Context, in *gatewa
 	return g.gateway.ReleaseContainer(ctx, in, opts...)
 }
 
+func (g *gatewayClientForBuild) ReadFileContainer(ctx context.Context, in *gatewayapi.ReadFileRequest, opts ...grpc.CallOption) (*gatewayapi.ReadFileResponse, error) {
+	if g.caps != nil {
+		if err := g.caps.Supports(gatewayapi.CapGatewayExecFilesystem); err != nil {
+			return nil, err
+		}
+	}
+	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
+	return g.gateway.ReadFileContainer(ctx, in, opts...)
+}
+
+func (g *gatewayClientForBuild) ReadDirContainer(ctx context.Context, in *gatewayapi.ReadDirRequest, opts ...grpc.CallOption) (*gatewayapi.ReadDirResponse, error) {
+	if g.caps != nil {
+		if err := g.caps.Supports(gatewayapi.CapGatewayExecFilesystem); err != nil {
+			return nil, err
+		}
+	}
+	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
+	return g.gateway.ReadDirContainer(ctx, in, opts...)
+}
+
+func (g *gatewayClientForBuild) StatFileContainer(ctx context.Context, in *gatewayapi.StatFileRequest, opts ...grpc.CallOption) (*gatewayapi.StatFileResponse, error) {
+	if g.caps != nil {
+		if err := g.caps.Supports(gatewayapi.CapGatewayExecFilesystem); err != nil {
+			return nil, err
+		}
+	}
+	ctx = buildid.AppendToOutgoingContext(ctx, g.buildID)
+	return g.gateway.StatFileContainer(ctx, in, opts...)
+}
+
 func (g *gatewayClientForBuild) ExecProcess(ctx context.Context, opts ...grpc.CallOption) (gatewayapi.LLBBridge_ExecProcessClient, error) {
 	if g.caps != nil {
 		if err := g.caps.Supports(gatewayapi.CapGatewayExec); err != nil {

@@ -17,10 +17,12 @@ import (
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/progress/logs"
+	"github.com/moby/buildkit/util/resolver/limited"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/semaphore"
 )
 
 type ResolveCacheExporterFunc func(ctx context.Context, g session.Group, attrs map[string]string) (Exporter, error)
@@ -197,17 +199,33 @@ func (ce *contentCacheExporter) Finalize(ctx context.Context) (map[string]string
 		return nil, err
 	}
 
-	for _, l := range config.Layers {
+	// Collect layer descriptors for parallel pushing.
+	layerDescs := make([]ocispecs.Descriptor, len(config.Layers))
+	for i, l := range config.Layers {
 		dgstPair, ok := descs[l.Blob]
 		if !ok {
 			return nil, errors.Errorf("missing blob %s", l.Blob)
 		}
-		layerDone := progress.OneOff(ctx, fmt.Sprintf("writing layer %s", l.Blob))
-		if err := contentutil.Copy(ctx, ce.ingester, dgstPair.Provider, dgstPair.Descriptor, ce.ref, logs.LoggerFromContext(ctx)); err != nil {
+		layerDescs[i] = dgstPair.Descriptor
+	}
+
+	// Push all layer blobs in parallel using images.Dispatch.
+	copyHandler := images.HandlerFunc(func(ctx context.Context, desc ocispecs.Descriptor) ([]ocispecs.Descriptor, error) {
+		dgstPair := descs[desc.Digest]
+		layerDone := progress.OneOff(ctx, fmt.Sprintf("writing layer %s", desc.Digest))
+		if err := contentutil.Copy(ctx, ce.ingester, dgstPair.Provider, desc, ce.ref, logs.LoggerFromContext(ctx)); err != nil {
 			return nil, layerDone(errors.Wrap(err, "error writing layer blob"))
 		}
 		layerDone(nil)
-		cache.AddCacheBlob(dgstPair.Descriptor)
+		return nil, nil
+	})
+	if err := images.Dispatch(ctx, copyHandler, semaphore.NewWeighted(limited.DefaultMaxConcurrency), layerDescs...); err != nil {
+		return nil, err
+	}
+
+	// Add blobs to cache manifest in order.
+	for _, desc := range layerDescs {
+		cache.AddCacheBlob(desc)
 	}
 
 	cache.FinalizeCache(ctx)

@@ -1,4 +1,4 @@
-package moby_buildkit_v1_frontend //nolint:revive,staticcheck
+package moby_buildkit_v1_frontend //nolint:staticcheck
 
 import (
 	"fmt"

@@ -1279,11 +1279,14 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 		} else {
 			// More complex heredoc, so reconstitute it, and pass it to the
 			// shell to handle.
-			full := args[0]
+			var b strings.Builder
+			b.WriteString(args[0])
 			for _, file := range c.Files {
-				full += "\n" + file.Data + file.Name
+				b.WriteByte('\n')
+				b.WriteString(file.Data)
+				b.WriteString(file.Name)
 			}
-			args = []string{full}
+			args = []string{b.String()}
 		}
 	}
 	if c.PrependShell {

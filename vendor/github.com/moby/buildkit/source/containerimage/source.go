@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/diff"
@@ -12,6 +13,7 @@ import (
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/platforms"
+	distreference "github.com/distribution/reference"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
@@ -24,6 +26,7 @@ import (
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/imageutil"
+	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/pull"
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
@@ -192,16 +195,28 @@ func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier,
 		ret.Config = res.dt
 	}
 	if opt.AttestationChain {
+		ctx, done, err := leaseutil.WithLease(ctx, is.LeaseManager, leases.WithExpiration(5*time.Minute), leaseutil.MakeTemporary)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		defer func() {
+			// this lease is not deleted to allow other components to access manifest/config from cache. It will be deleted after 5 min deadline or on pruning inactive builder
+			imageutil.AddLease(done)
+		}()
 		res, err := is.gAttestChain.Do(ctx, key, func(ctx context.Context) (*sourceresolver.AttestationChain, error) {
 			refStr, desc, err := rslvr.Resolve(ctx, ref)
 			if err != nil {
-				return nil, err
+				return nil, errors.WithStack(err)
 			}
 			f, err := rslvr.Fetcher(ctx, refStr)
 			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+			named, err := distreference.ParseNormalizedNamed(ref)
+			if err != nil {
 				return nil, err
 			}
-			prov := contentutil.FromFetcher(f)
+			prov := contentutil.ReferrersProviderWithBuffer(contentutil.FromFetcher(f), is.ContentStore, named.Name())
 			sc, err := policyimage.ResolveSignatureChain(ctx, prov, desc, opt.Platform)
 			if err != nil {
 				return nil, err
@@ -225,14 +240,14 @@ func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier,
 				descs = append(descs, sc.SignatureManifest.Descriptor)
 				mfst, err := sc.OCIManifest(ctx, sc.SignatureManifest)
 				if err != nil {
-					return nil, err
+					return nil, errors.WithStack(err)
 				}
 				descs = append(descs, mfst.Layers...)
 			}
 			for _, desc := range descs {
 				dt, err := policyimage.ReadBlob(ctx, prov, desc)
 				if err != nil {
-					return nil, err
+					return nil, errors.WithStack(err)
 				}
 				if ac.Blobs == nil {
 					ac.Blobs = make(map[digest.Digest]sourceresolver.Blob)
@@ -241,6 +256,9 @@ func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier,
 					Descriptor: desc,
 					Data:       dt,
 				}
+			}
+			if err := prov.SetGCLabels(ctx, desc); err != nil {
+				return nil, errors.WithStack(err)
 			}
 			return ac, nil
 		})
