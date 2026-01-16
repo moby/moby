@@ -3,5 +3,13 @@
   "extends": [
     "config:recommended",
     ":gitSignOff"
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": ["go"],
+      "groupName": "golang.org/x packages",
+      "groupSlug": "golang-x",
+      "matchPackageNames": ["/^golang\\.org/x//"]
+    }
   ]
 }
