@@ -20,7 +20,10 @@ type contextKeyT string
 
 var contextKey = contextKeyT("buildkit/util/resolver/limited")
 
-var Default = New(4)
+// DefaultMaxConcurrency is the default number of concurrent connections per registry.
+var DefaultMaxConcurrency int64 = 4
+
+var Default = New(int(DefaultMaxConcurrency))
 
 type Group struct {
 	mu   sync.Mutex

@@ -4,6 +4,8 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -25,6 +27,7 @@ import (
 	"github.com/moby/buildkit/util/stack"
 	"github.com/moby/buildkit/worker"
 	"github.com/pkg/errors"
+	fstypes "github.com/tonistiigi/fsutil/types"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -104,6 +107,9 @@ func NewContainer(ctx context.Context, cm cache.Manager, exec executor.Executor,
 	ctr.rootFS = p.Root
 	ctr.mounts = p.Mounts
 
+	// Setup the local mounts.
+	ctr.localMounts = setupLocalMounts(mnts, p)
+
 	for _, o := range p.OutputRefs {
 		ctr.cleanup = append(ctr.cleanup, func() error {
 			return o.Ref.Release(context.TODO())
@@ -116,6 +122,28 @@ func NewContainer(ctx context.Context, cm cache.Manager, exec executor.Executor,
 	}
 
 	return ctr, nil
+}
+
+// setupLocalMounts will setup the local mounts from the prepared mounts. These need
+// to be in the same order as the original parameters.
+func setupLocalMounts(mnts []*opspb.Mount, p PreparedMounts) []gatewayContainerMount {
+	var mountableByDest map[string]executor.Mountable
+	if len(p.Mounts) > 0 {
+		mountableByDest = make(map[string]executor.Mountable, len(p.Mounts))
+		for _, m := range p.Mounts {
+			mountableByDest[m.Dest] = m.Src
+		}
+	}
+
+	localMounts := make([]gatewayContainerMount, len(mnts))
+	for i, m := range mnts {
+		if m.Dest == "/" {
+			localMounts[i].Src = p.Root.Src
+			continue
+		}
+		localMounts[i].Src = mountableByDest[m.Dest]
+	}
+	return localMounts
 }
 
 type PreparedMounts struct {
@@ -281,22 +309,23 @@ func PrepareMounts(ctx context.Context, mm *mounts.MountManager, cm cache.Manage
 }
 
 type gatewayContainer struct {
-	id         string
-	netMode    opspb.NetMode
-	hostname   string
-	extraHosts []executor.HostIP
-	platform   *opspb.Platform
-	rootFS     executor.Mount
-	mounts     []executor.Mount
-	executor   executor.Executor
-	sm         *session.Manager
-	group      session.Group
-	started    bool
-	errGroup   *errgroup.Group
-	mu         sync.Mutex
-	cleanup    []func() error
-	ctx        context.Context
-	cancel     func(error)
+	id          string
+	netMode     opspb.NetMode
+	hostname    string
+	extraHosts  []executor.HostIP
+	platform    *opspb.Platform
+	rootFS      executor.Mount
+	mounts      []executor.Mount
+	executor    executor.Executor
+	sm          *session.Manager
+	group       session.Group
+	started     bool
+	errGroup    *errgroup.Group
+	mu          sync.Mutex
+	cleanup     []func() error
+	ctx         context.Context
+	cancel      func(error)
+	localMounts []gatewayContainerMount
 }
 
 func (gwCtr *gatewayContainer) Start(ctx context.Context, req client.StartRequest) (client.ContainerProcess, error) {
@@ -419,6 +448,122 @@ func (gwCtr *gatewayContainer) Release(ctx context.Context) error {
 	return stack.Enable(err2)
 }
 
+func (gwCtr *gatewayContainer) ReadFile(ctx context.Context, req client.ReadContainerRequest) ([]byte, error) {
+	fsys, err := gwCtr.mount(ctx, req.MountIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	path, err := filepath.Rel("/", req.Filename)
+	if err != nil {
+		return nil, err
+	}
+	return fs.ReadFile(fsys, path)
+}
+
+func (gwCtr *gatewayContainer) ReadDir(ctx context.Context, req client.ReadDirContainerRequest) ([]*fstypes.Stat, error) {
+	fsys, err := gwCtr.mount(ctx, req.MountIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	path, err := filepath.Rel("/", req.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	entries, err := fs.ReadDir(fsys, path)
+	if err != nil {
+		return nil, err
+	}
+
+	files := make([]*fstypes.Stat, len(entries))
+	for i, e := range entries {
+		fullpath := filepath.Join(req.Path, e.Name())
+		fi, err := e.Info()
+		if err != nil {
+			return nil, err
+		}
+
+		files[i], err = mkstat(fsys, fullpath, e.Name(), fi)
+		if err != nil {
+			return nil, errors.Wrap(err, "mkstat")
+		}
+	}
+	return files, nil
+}
+
+func (gwCtr *gatewayContainer) StatFile(ctx context.Context, req client.StatContainerRequest) (*fstypes.Stat, error) {
+	fsys, err := gwCtr.mount(ctx, req.MountIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	path, err := filepath.Rel("/", req.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	fi, err := fs.Stat(fsys, path)
+	if err != nil {
+		return nil, err
+	}
+	return mkstat(fsys, req.Path, filepath.Base(req.Path), fi)
+}
+
+func (gwCtr *gatewayContainer) mount(ctx context.Context, index int) (fs.FS, error) {
+	// No lock needed for this because the number of mounts does
+	// not change.
+	if index < 0 || index >= len(gwCtr.localMounts) {
+		return nil, errors.Errorf("mount index %d is out of bounds (%d available)", index, len(gwCtr.localMounts))
+	}
+
+	gwCtr.mu.Lock()
+	defer gwCtr.mu.Unlock()
+
+	mount := gwCtr.localMounts[index]
+
+	// Already mounted?
+	if mount.FS != nil {
+		return mount.FS, nil
+	}
+
+	// Defensively check that this mount really exists.
+	if mount.Src == nil {
+		return nil, errors.Errorf("mountable %d not found", index)
+	}
+
+	// Need to mount an instance.
+	ref, err := mount.Src.Mount(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+
+	mounter := snapshot.LocalMounter(ref)
+	dir, err := mounter.Mount()
+	if err != nil {
+		return nil, err
+	}
+
+	// Register cleanup.
+	gwCtr.cleanup = append(gwCtr.cleanup, func() error {
+		return mounter.Unmount()
+	})
+
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	gwCtr.cleanup = append(gwCtr.cleanup, func() error {
+		return root.Close()
+	})
+
+	f := root.FS()
+	gwCtr.localMounts[index].FS = f
+	return f, nil
+}
+
 type gatewayContainerProcess struct {
 	errGroup *errgroup.Group
 	groupCtx context.Context
@@ -510,4 +655,50 @@ type mountable struct {
 
 func (m *mountable) Mount(ctx context.Context, readonly bool) (snapshot.Mountable, error) {
 	return m.m.Mount(ctx, readonly, m.g)
+}
+
+// constructs a Stat object. path is where the path can be found right
+// now, relpath is the desired path to be recorded in the stat (so
+// relative to whatever base dir is relevant). fi is the os.Stat
+// info. inodemap is used to calculate hardlinks over a series of
+// mkstat calls and maps inode to the canonical (aka "first") path for
+// a set of hardlinks to that inode.
+func mkstat(fsys fs.FS, path, relpath string, fi os.FileInfo) (*fstypes.Stat, error) {
+	relpath = filepath.ToSlash(relpath)
+
+	stat := &fstypes.Stat{
+		Path:    filepath.FromSlash(relpath),
+		Mode:    uint32(fi.Mode()),
+		ModTime: fi.ModTime().UnixNano(),
+	}
+
+	if !fi.IsDir() {
+		stat.Size = fi.Size()
+		if fi.Mode()&os.ModeSymlink != 0 {
+			link, err := fs.ReadLink(fsys, path)
+			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+			stat.Linkname = link
+		}
+	}
+
+	if runtime.GOOS == "windows" {
+		permPart := stat.Mode & uint32(os.ModePerm)
+		noPermPart := stat.Mode &^ uint32(os.ModePerm)
+		// Add the x bit: make everything +x from windows
+		permPart |= 0o111
+		permPart &= 0o755
+		stat.Mode = noPermPart | permPart
+	}
+
+	// Clear the socket bit since archive/tar.FileInfoHeader does not handle it
+	stat.Mode &^= uint32(os.ModeSocket)
+
+	return stat, nil
+}
+
+type gatewayContainerMount struct {
+	Src executor.Mountable
+	FS  fs.FS
 }

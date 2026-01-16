@@ -5,6 +5,7 @@ package archutil
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"io"
 	"os"
 	"os/exec"
@@ -46,7 +47,7 @@ func check(arch, bin string) (string, error) {
 	}
 	f.Close()
 
-	cmd := exec.Command("/check")
+	cmd := exec.CommandContext(context.TODO(), "/check")
 	withChroot(cmd, tmpdir)
 	err = cmd.Run()
 	if arch != "amd64" {

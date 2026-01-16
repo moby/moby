@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/platforms"
+	distreference "github.com/distribution/reference"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
@@ -201,7 +202,11 @@ func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier,
 			if err != nil {
 				return nil, err
 			}
-			prov := contentutil.FromFetcher(f)
+			named, err := distreference.ParseNormalizedNamed(ref)
+			if err != nil {
+				return nil, err
+			}
+			prov := contentutil.ReferrersProviderWithBuffer(contentutil.FromFetcher(f), is.ContentStore, named.Name())
 			sc, err := policyimage.ResolveSignatureChain(ctx, prov, desc, opt.Platform)
 			if err != nil {
 				return nil, err
@@ -241,6 +246,9 @@ func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier,
 					Descriptor: desc,
 					Data:       dt,
 				}
+			}
+			if err := prov.SetGCLabels(ctx, desc); err != nil {
+				return nil, err
 			}
 			return ac, nil
 		})

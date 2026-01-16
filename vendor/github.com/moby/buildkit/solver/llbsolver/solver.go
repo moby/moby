@@ -319,7 +319,6 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 				if r == nil {
 					continue
 				}
-				k, r := k, r
 				cp := res.Provenance.Refs[k]
 				eg.Go(func() error {
 					desc, release, err := makeProvenance(k, r, cp)
@@ -367,7 +366,6 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 
 		setDeprecated := true
 		for i, descref := range descrefs {
-			i, descref := i, descref
 			if descref == nil {
 				continue
 			}
@@ -777,7 +775,6 @@ func runCacheExporters(ctx context.Context, exporters []RemoteCacheExporter, j *
 	var cacheExporterResponse map[string]string
 	resps := make([]map[string]string, len(exporters))
 	for i, exp := range exporters {
-		i, exp := i, exp
 		eg.Go(func() (err error) {
 			id := fmt.Sprint(j.SessionID, "-cache-", i)
 			err = inBuilderContext(ctx, j, exp.Name(), id, func(ctx context.Context, _ solver.JobContext) error {
@@ -853,7 +850,6 @@ func (s *Solver) runExporters(ctx context.Context, ref string, exporters []expor
 	descs := make([]exporter.DescriptorReference, len(exporters))
 	var inlineCacheMu sync.Mutex
 	for i, exp := range exporters {
-		i, exp := i, exp
 		eg.Go(func() error {
 			id := fmt.Sprint(job.SessionID, "-export-", i)
 			return inBuilderContext(ctx, job, exp.Name(), id, func(ctx context.Context, _ solver.JobContext) error {

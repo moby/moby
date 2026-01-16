@@ -29,9 +29,12 @@ const (
 )
 
 const (
-	ArtifactTypeCosignSignature  = "application/vnd.dev.cosign.artifact.sig.v1+json"
-	ArtifactTypeSigstoreBundle   = "application/vnd.dev.sigstore.bundle.v0.3+json"
-	MediaTypeCosignSimpleSigning = "application/vnd.dev.cosign.simplesigning.v1+json"
+	ArtifactTypeCosignSignature   = "application/vnd.dev.cosign.artifact.sig.v1+json"
+	ArtifactTypeSigstoreBundle    = "application/vnd.dev.sigstore.bundle.v0.3+json"
+	ArtifactTypeInTotoJSON        = "application/vnd.in-toto+json"
+	MediaTypeCosignSimpleSigning  = "application/vnd.dev.cosign.simplesigning.v1+json"
+	SLSAProvenancePredicateType02 = "https://slsa.dev/provenance/v0.2"
+	SLSAProvenancePredicateType1  = "https://slsa.dev/provenance/v1"
 )
 
 func resolveImageManifest(idx ocispecs.Index, platform ocispecs.Platform) (ocispecs.Descriptor, error) {
@@ -76,6 +79,7 @@ type SignatureChain struct {
 	AttestationManifest *Manifest
 	SignatureManifest   *Manifest
 	Provider            content.Provider
+	DHI                 bool
 }
 
 func (sc *SignatureChain) ManifestBytes(ctx context.Context, m *Manifest) ([]byte, error) {
@@ -127,6 +131,8 @@ func ResolveSignatureChain(ctx context.Context, provider ReferrersProvider, desc
 		return nil, errors.Wrapf(err, "unmarshaling image index")
 	}
 
+	isDHI := isDHIIndex(index)
+
 	if platform == nil {
 		p := platforms.Normalize(platforms.DefaultSpec())
 		platform = &p
@@ -138,10 +144,35 @@ func ResolveSignatureChain(ctx context.Context, provider ReferrersProvider, desc
 	}
 
 	var attestationDesc *ocispecs.Descriptor
-	for _, d := range index.Manifests {
-		if d.Annotations[AnnotationDockerReferenceType] == AttestationManifestType && d.Annotations[AnnotationDockerReferenceDigest] == manifestDesc.Digest.String() {
-			attestationDesc = &d
-			break
+	if isDHI {
+		provider = &dhiReferrersProvider{ReferrersProvider: provider}
+		allRefs, err := provider.FetchReferrers(ctx, manifestDesc.Digest,
+			remotes.WithReferrerArtifactTypes(ArtifactTypeInTotoJSON),
+			remotes.WithReferrerQueryFilter("predicateType", SLSAProvenancePredicateType02),
+			remotes.WithReferrerQueryFilter("predicateType", SLSAProvenancePredicateType1),
+		)
+		if err != nil {
+			return nil, errors.Wrapf(err, "fetching referrers for manifest %s", manifestDesc.Digest)
+		}
+		refs := make([]ocispecs.Descriptor, 0, len(allRefs))
+		for _, r := range allRefs {
+			if r.ArtifactType == ArtifactTypeInTotoJSON {
+				switch r.Annotations["in-toto.io/predicate-type"] {
+				case SLSAProvenancePredicateType02, SLSAProvenancePredicateType1:
+					refs = append(refs, r)
+				}
+			}
+		}
+		if len(refs) == 0 {
+			return nil, errors.Errorf("no attestation referrers found for DHI manifest %s", manifestDesc.Digest)
+		}
+		attestationDesc = &refs[0]
+	} else {
+		for _, d := range index.Manifests {
+			if d.Annotations[AnnotationDockerReferenceType] == AttestationManifestType && d.Annotations[AnnotationDockerReferenceDigest] == manifestDesc.Digest.String() {
+				attestationDesc = &d
+				break
+			}
 		}
 	}
 	sh := &SignatureChain{
@@ -149,6 +180,7 @@ func ResolveSignatureChain(ctx context.Context, provider ReferrersProvider, desc
 			Descriptor: manifestDesc,
 		},
 		Provider: provider,
+		DHI:      isDHI,
 	}
 
 	if attestationDesc == nil {
