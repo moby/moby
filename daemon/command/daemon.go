@@ -114,6 +114,11 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		debug.Enable()
 	}
 
+	// Verify platform-specific requirements before proceeding with daemon initialization
+	if err := daemon.CheckSystem(); err != nil {
+		return fmt.Errorf("system requirements not met: %w", err)
+	}
+
 	if rootless.RunningWithRootlessKit() && !cli.Config.IsRootless() {
 		return errors.New("rootless mode needs to be enabled for running with RootlessKit")
 	}
