@@ -1179,7 +1179,7 @@ github.com/moby/moby/api/types/storage
 github.com/moby/moby/api/types/swarm
 github.com/moby/moby/api/types/system
 github.com/moby/moby/api/types/volume
-# github.com/moby/moby/client v0.2.2-rc.1.0.20260119105042-d7d2e9bedfe5
+# github.com/moby/moby/client v0.2.2-rc.2
 ## explicit; go 1.24.0
 github.com/moby/moby/client
 github.com/moby/moby/client/internal
