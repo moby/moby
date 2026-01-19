@@ -18,6 +18,7 @@ type ContainerListOptions struct {
 	Before  string
 	Limit   int
 	Filters Filters
+	Verbose bool // Show verbose information including PID and namespace details
 }
 
 type ContainerListResult struct {
@@ -46,6 +47,10 @@ func (cli *Client) ContainerList(ctx context.Context, options ContainerListOptio
 
 	if options.Size {
 		query.Set("size", "1")
+	}
+
+	if options.Verbose {
+		query.Set("verbose", "1")
 	}
 
 	options.Filters.updateURLValues(query)
