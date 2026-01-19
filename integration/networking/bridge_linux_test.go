@@ -1049,7 +1049,7 @@ func TestDisableIPv6OnInterface(t *testing.T) {
 			netName: "bridge",
 		},
 		{
-			name:    "user defined bridge",
+			name:    "user-defined bridge",
 			netName: "testnet",
 		},
 	}

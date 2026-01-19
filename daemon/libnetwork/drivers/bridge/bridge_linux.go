@@ -117,13 +117,13 @@ const (
 	ifaceCreatedByUser
 )
 
-// containerConfiguration represents the user specified configuration for a container
+// containerConfiguration represents the user-specified configuration for a container
 type containerConfiguration struct {
 	ParentEndpoints []string
 	ChildEndpoints  []string
 }
 
-// connectivityConfiguration represents the user specified configuration regarding the external connectivity
+// connectivityConfiguration represents the user-specified configuration regarding the external connectivity
 type connectivityConfiguration struct {
 	PortBindings []portmapperapi.PortBindingReq
 	ExposedPorts []types.TransportPort

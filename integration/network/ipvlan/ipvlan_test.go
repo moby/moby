@@ -257,7 +257,7 @@ func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, apiClient client
 	)
 	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
-	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.100.0/24 and 2001:db8:abc2::/64
+	// start dual stack containers and verify the user-specified --ip and --ip6 addresses on subnets 172.28.100.0/24 and 2001:db8:abc2::/64
 	id1 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.200.20"),
@@ -282,7 +282,7 @@ func testIpvlanL2MultiSubnet(t *testing.T, ctx context.Context, apiClient client
 	_, err = container.Exec(ctx, apiClient, id2, []string{"ping6", "-c", "1", c1.Container.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 
-	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
+	// start dual stack containers and verify the user-specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
 	id3 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.202.20"),
@@ -327,7 +327,7 @@ func testIpvlanL3MultiSubnet(t *testing.T, ctx context.Context, apiClient client
 	)
 	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
-	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.100.0/24 and 2001:db8:abc2::/64
+	// start dual stack containers and verify the user-specified --ip and --ip6 addresses on subnets 172.28.100.0/24 and 2001:db8:abc2::/64
 	id1 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.10.20"),
@@ -348,7 +348,7 @@ func testIpvlanL3MultiSubnet(t *testing.T, ctx context.Context, apiClient client
 	_, err = container.Exec(ctx, apiClient, id2, []string{"ping6", "-c", "1", c1.Container.NetworkSettings.Networks[netName].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 
-	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
+	// start dual stack containers and verify the user-specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
 	id3 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(netName),
 		container.WithIPv4(netName, "172.28.12.20"),

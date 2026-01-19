@@ -867,7 +867,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[netip.Prefix]s
 		return nil, err
 	}
 
-	// We don't support user defined address spaces yet so just
+	// We don't support user-defined address spaces yet so just
 	// retrieve default address space names for the driver.
 	_, asName, err := ipam.GetDefaultAddressSpaces()
 	if err != nil {
