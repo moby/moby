@@ -149,7 +149,7 @@ func setExitCodeFromError(setExitCode func(exitStatus), err error) error {
 		return startInvalidConfigError(errDesc)
 	}
 
-	// attempted to mount a file onto a directory, or a directory onto a file, maybe from user specified bind mounts
+	// attempted to mount a file onto a directory, or a directory onto a file, maybe from user-specified bind mounts
 	if contains(errDesc, syscall.ENOTDIR.Error()) {
 		errDesc += ": Are you trying to mount a directory onto a file (or vice-versa)? Check if the specified host path exists and is the expected type"
 		setExitCode(exitCmdNotFound)

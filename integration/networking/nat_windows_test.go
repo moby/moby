@@ -28,11 +28,11 @@ func TestNatNetworkICC(t *testing.T) {
 		netName string
 	}{
 		{
-			name:    "Default nat network",
+			name:    "default nat network",
 			netName: "nat",
 		},
 		{
-			name:    "User defined nat network",
+			name:    "user-defined nat network",
 			netName: "mynat",
 		},
 	}

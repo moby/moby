@@ -3459,7 +3459,7 @@ func (s *DockerCLIRunSuite) TestContainerWithConflictingHostNetworks(c *testing.
 	// Create a network using bridge driver
 	cli.DockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
 
-	// Connecting to the user defined network must fail
+	// Connecting to the user-defined network must fail
 	_, _, err := dockerCmdWithError("network", "connect", "testnetwork1", "first")
 	assert.ErrorContains(c, err, "")
 }
@@ -3475,7 +3475,7 @@ func (s *DockerCLIRunSuite) TestContainerWithConflictingSharedNetwork(c *testing
 	// Create a network using bridge driver
 	cli.DockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
 
-	// Connecting to the user defined network must fail
+	// Connecting to the user-defined network must fail
 	out, _, err := dockerCmdWithError("network", "connect", "testnetwork1", "second")
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, is.Contains(out, "container sharing network namespace with another container or host cannot be connected to any other network"))
@@ -3489,7 +3489,7 @@ func (s *DockerCLIRunSuite) TestContainerWithConflictingNoneNetwork(c *testing.T
 	// Create a network using bridge driver
 	cli.DockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
 
-	// Connecting to the user defined network must fail
+	// Connecting to the user-defined network must fail
 	out, _, err := dockerCmdWithError("network", "connect", "testnetwork1", "first")
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, is.Contains(out, "container cannot be connected to multiple networks with one of the networks in private (none) mode"))

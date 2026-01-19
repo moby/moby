@@ -415,7 +415,7 @@ func (n *Network) validateConfiguration() error {
 			!n.enableIPv4 || n.enableIPv6 ||
 			len(n.labels) > 0 || len(n.ipamOptions) > 0 ||
 			len(n.ipamV4Config) > 0 || len(n.ipamV6Config) > 0 {
-			return types.ForbiddenErrorf("user specified configurations are not supported if the network depends on a configuration network")
+			return types.ForbiddenErrorf("user-specified configurations are not supported if the network depends on a configuration network")
 		}
 		if len(n.generic) > 0 {
 			if data, ok := n.generic[netlabel.GenericData]; ok {
