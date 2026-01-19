@@ -307,6 +307,15 @@ func (r *Reader) initFields() error {
 		}
 	}
 
+	if len(r.m) == 0 {
+		r.m[""] = &TOCEntry{
+			Name:    "",
+			Type:    "dir",
+			Mode:    0755,
+			NumLink: 1,
+		}
+	}
+
 	return nil
 }
 
