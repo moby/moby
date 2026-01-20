@@ -104,7 +104,6 @@ type ContainerInspectOptions struct {
 type ContainerListOptions struct {
 	Size    bool
 	All     bool
-	Latest  bool
 	Limit   int
 	Filters filters.Args
 }
