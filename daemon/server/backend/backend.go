@@ -105,8 +105,6 @@ type ContainerListOptions struct {
 	Size    bool
 	All     bool
 	Latest  bool
-	Since   string
-	Before  string
 	Limit   int
 	Filters filters.Args
 }
