@@ -93,6 +93,12 @@ func newDaemonCLI(opts *daemonOptions) (*daemonCLI, error) {
 		return nil, err
 	}
 
+	// Verify platform-specific requirements.
+	// This is checked early so that `dockerd --validate` also validates system requirements.
+	if err := daemon.CheckSystem(); err != nil {
+		return nil, fmt.Errorf("system requirements not met: %w", err)
+	}
+
 	return &daemonCLI{
 		Config:       cfg,
 		configFile:   &opts.configFile,

@@ -807,15 +807,15 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 	return daemon.config().IsSwarmCompatible()
 }
 
+// CheckSystem verifies that the system meets the platform-specific requirements
+// for running the Docker daemon.
+func CheckSystem() error {
+	return checkSystem()
+}
+
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
 func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (_ *Daemon, retErr error) {
-	// Verify platform-specific requirements.
-	// TODO(thaJeztah): this should be called before we try to create the daemon; perhaps together with the config validation.
-	if err := checkSystem(); err != nil {
-		return nil, err
-	}
-
 	registryService, err := registry.NewService(config.ServiceOptions)
 	if err != nil {
 		return nil, err
