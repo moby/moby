@@ -113,8 +113,6 @@ func (c *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 	containers, err := c.backend.Containers(ctx, &backend.ContainerListOptions{
 		All:     httputils.BoolValue(r, "all"),
 		Size:    httputils.BoolValue(r, "size"),
-		Since:   r.Form.Get("since"),
-		Before:  r.Form.Get("before"),
 		Limit:   limit,
 		Filters: filter,
 	})
