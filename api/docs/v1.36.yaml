@@ -200,6 +200,22 @@ definitions:
       PublicPort: 80
       Type: "tcp"
 
+  MountType:
+    description: |-
+      The mount type. Available types:
+
+      - `bind` a mount of a file or directory from the host into the container.
+      - `npipe` a named pipe from the host into the container.
+      - `tmpfs` a `tmpfs`.
+      - `volume` a docker volume with the given `Name`.
+    type: "string"
+    enum:
+      - "bind"
+      - "npipe"
+      - "tmpfs"
+      - "volume"
+    example: "volume"
+
   MountPoint:
     type: "object"
     description: |
@@ -211,15 +227,11 @@ definitions:
           The mount type:
 
           - `bind` a mount of a file or directory from the host into the container.
-          - `volume` a docker volume with the given `Name`.
-          - `tmpfs` a `tmpfs`.
           - `npipe` a named pipe from the host into the container.
-        type: "string"
-        enum:
-          - "bind"
-          - "volume"
-          - "tmpfs"
-          - "npipe"
+          - `tmpfs` a `tmpfs`.
+          - `volume` a docker volume with the given `Name`.
+        allOf:
+          - $ref: "#/definitions/MountType"
         example: "volume"
       Name:
         description: |
@@ -303,20 +315,23 @@ definitions:
         description: "Container path."
         type: "string"
       Source:
-        description: "Mount source (e.g. a volume name, a host path)."
+        description: |-
+          Mount source (e.g. a volume name, a host path). The source cannot be
+          specified when using `Type=tmpfs`. For `Type=bind`, the source path
+          must exist prior to creating the container.
+
+          For `Type=npipe`, the pipe must exist prior to creating the container.
         type: "string"
       Type:
         description: |
           The mount type. Available types:
 
-          - `bind` Mounts a file or directory from the host into the container. Must exist prior to creating the container.
+          - `bind` Mounts a file or directory from the host into the container. The `Source` must exist prior to creating the container.
+          - `npipe` Mounts a named pipe from the host into the container. The `Source` must exist prior to creating the container.
+          - `tmpfs` Create a tmpfs with the given options. The mount `Source` cannot be specified for tmpfs.
           - `volume` Creates a volume with the given name and options (or uses a pre-existing volume with the same name and options). These are **not** removed when the container is removed.
-          - `tmpfs` Create a tmpfs with the given options. The mount source cannot be specified for tmpfs.
-        type: "string"
-        enum:
-          - "bind"
-          - "volume"
-          - "tmpfs"
+        allOf:
+          - $ref: "#/definitions/MountType"
       ReadOnly:
         description: "Whether the mount should be read-only."
         type: "boolean"
