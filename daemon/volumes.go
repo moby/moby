@@ -204,7 +204,8 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 			return duplicateMountPointError(cfg.Target)
 		}
 
-		if mp.Type == mounttypes.TypeVolume {
+		switch mp.Type {
+		case mounttypes.TypeVolume:
 			var v *volumetypes.Volume
 			if cfg.VolumeOptions != nil {
 				var driverOpts map[string]string
@@ -234,9 +235,7 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 			if mp.Driver == volume.DefaultDriverName {
 				setBindModeIfNull(mp)
 			}
-		}
-
-		if mp.Type == mounttypes.TypeBind {
+		case mounttypes.TypeBind:
 			if cfg.BindOptions == nil || !cfg.BindOptions.CreateMountpoint {
 				mp.SkipMountpointCreation = true
 			}
@@ -247,9 +246,7 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 				}
 				mp.Spec.BindOptions.ReadOnlyNonRecursive = true
 			}
-		}
-
-		if mp.Type == mounttypes.TypeImage {
+		case mounttypes.TypeImage:
 			img, err := daemon.imageService.GetImage(ctx, mp.Source, imagebackend.GetImageOpts{})
 			if err != nil {
 				return err
@@ -287,6 +284,8 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 			mp.Source = path
 			mp.Layer = layer
 			mp.RW = false
+		case mounttypes.TypeTmpfs, mounttypes.TypeCluster, mounttypes.TypeNamedPipe:
+			// nothing to do
 		}
 
 		binds[mp.Destination] = true
