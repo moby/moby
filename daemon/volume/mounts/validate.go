@@ -27,3 +27,24 @@ func errExtraField(name string) error {
 func errMissingField(name string) error {
 	return errors.Errorf("field %s must not be empty", name)
 }
+
+// validateExclusiveOptions checks if the given mount config only contains
+// options for the given mount-type.
+func validateExclusiveOptions(mnt *mount.Mount) error {
+	if mnt.Type != mount.TypeBind && mnt.BindOptions != nil {
+		return errExtraField("BindOptions")
+	}
+	if mnt.Type != mount.TypeVolume && mnt.VolumeOptions != nil {
+		return errExtraField("VolumeOptions")
+	}
+	if mnt.Type != mount.TypeImage && mnt.ImageOptions != nil {
+		return errExtraField("ImageOptions")
+	}
+	if mnt.Type != mount.TypeTmpfs && mnt.TmpfsOptions != nil {
+		return errExtraField("TmpfsOptions")
+	}
+	if mnt.Type != mount.TypeCluster && mnt.ClusterOptions != nil {
+		return errExtraField("ClusterOptions")
+	}
+	return nil
+}
