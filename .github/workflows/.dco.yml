@@ -30,14 +30,14 @@ jobs:
           fetch-depth: 0
       -
         name: Dump context
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             console.log(JSON.stringify(context, null, 2));
       -
         name: Get base ref
         id: base-ref
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           result-encoding: string
           script: |
