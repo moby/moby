@@ -36,9 +36,9 @@ const (
 // ValidateHost validates that the specified string is a valid host and returns it.
 func ValidateHost(val string) (string, error) {
 	host := strings.TrimSpace(val)
-	// The empty string means default and is not handled by parseDaemonHost
+	// The empty string means default and is not handled by ParseDaemonHost
 	if host != "" {
-		_, err := parseDaemonHost(host)
+		_, err := ParseDaemonHost(host)
 		if err != nil {
 			return val, err
 		}
@@ -66,7 +66,7 @@ func ParseHost(defaultToTLS, defaultToUnixXDG bool, val string) (string, error) 
 		}
 	} else {
 		var err error
-		host, err = parseDaemonHost(host)
+		host, err = ParseDaemonHost(host)
 		if err != nil {
 			return val, err
 		}
@@ -74,9 +74,9 @@ func ParseHost(defaultToTLS, defaultToUnixXDG bool, val string) (string, error) 
 	return host, nil
 }
 
-// parseDaemonHost parses the specified address and returns an address that will be used as the host.
+// ParseDaemonHost parses the specified address and returns an address that will be used as the host.
 // Depending on the address specified, this may return one of the global Default* strings defined in hosts.go.
-func parseDaemonHost(address string) (string, error) {
+func ParseDaemonHost(address string) (string, error) {
 	proto, addr, ok := strings.Cut(address, "://")
 	if !ok && proto != "" {
 		addr = proto

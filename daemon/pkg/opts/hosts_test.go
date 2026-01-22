@@ -116,7 +116,7 @@ func TestParseDockerDaemonHost(t *testing.T) {
 	}
 	for invalidAddr, expectedError := range invalids {
 		t.Run(invalidAddr, func(t *testing.T) {
-			addr, err := parseDaemonHost(invalidAddr)
+			addr, err := ParseDaemonHost(invalidAddr)
 			if err == nil || err.Error() != expectedError {
 				t.Errorf(`expected error "%s", got "%v"`, expectedError, err)
 			}
@@ -127,7 +127,7 @@ func TestParseDockerDaemonHost(t *testing.T) {
 	}
 	for validAddr, expectedAddr := range valids {
 		t.Run(validAddr, func(t *testing.T) {
-			addr, err := parseDaemonHost(validAddr)
+			addr, err := ParseDaemonHost(validAddr)
 			if err != nil {
 				t.Errorf(`unexpected error: "%v"`, err)
 			}
