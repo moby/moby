@@ -284,10 +284,11 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	activeSandboxes := make(map[string]any)
 
 	for _, c := range containers {
-		group.Add(1)
-		go func(c *container.Container) {
-			defer group.Done()
-			_ = sem.Acquire(context.Background(), 1)
+		group.Go(func() {
+			if err := sem.Acquire(context.WithoutCancel(ctx), 1); err != nil {
+				// ctx is done; should never happen.
+				return
+			}
 			defer sem.Release(1)
 
 			logger := log.G(ctx).WithField("container", c.ID)
@@ -317,7 +318,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 				mapLock.Unlock()
 				return
 			}
-		}(c)
+		})
 	}
 	group.Wait()
 
