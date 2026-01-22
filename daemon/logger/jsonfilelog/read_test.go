@@ -3,6 +3,7 @@ package jsonfilelog
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/loggertest"
+	"github.com/moby/moby/v2/daemon/server/backend"
 	"gotest.tools/v3/assert"
 )
 
@@ -105,6 +107,60 @@ func TestEncodeDecode(t *testing.T) {
 
 	_, err = dec.Decode()
 	assert.Assert(t, errors.Is(err, io.EOF))
+}
+
+func TestWriteReassemblesPartialChunks(t *testing.T) {
+	t.Parallel()
+
+	// With write-side reassembly, the logger buffers non-last chunks and only
+	// writes a single JSON entry once the last chunk arrives.
+	tmp := t.TempDir()
+
+	jsonlogger, err := New(logger.Info{
+		ContainerID: "partialtest",
+		LogPath:     filepath.Join(tmp, "container.log"),
+	})
+	assert.NilError(t, err)
+	defer jsonlogger.Close()
+
+	md1 := &backend.PartialLogMetaData{ID: "p1", Ordinal: 1, Last: false}
+	md2 := &backend.PartialLogMetaData{ID: "p1", Ordinal: 2, Last: true}
+
+	assert.NilError(t, jsonlogger.Log(&logger.Message{Line: []byte("hello "), Timestamp: time.Now(), Source: "stdout", PLogMetaData: md1}))
+	assert.NilError(t, jsonlogger.Log(&logger.Message{Line: []byte("world"), Timestamp: time.Now(), Source: "stdout", PLogMetaData: md2}))
+	assert.NilError(t, jsonlogger.Close())
+
+	lw := jsonlogger.(*JSONFileLogger).ReadLogs(context.TODO(), logger.ReadConfig{Tail: -1})
+	defer lw.ConsumerGone()
+
+	msg, err := readMessage(lw)
+	assert.NilError(t, err)
+	assert.Equal(t, "hello world\n", string(msg.Line))
+
+	_, err = readMessage(lw)
+	assert.Assert(t, errors.Is(err, io.EOF))
+}
+
+func readMessage(lw *logger.LogWatcher) (*logger.Message, error) {
+	select {
+	case msg, ok := <-lw.Msg:
+		if !ok {
+			select {
+			case err := <-lw.Err:
+				if err != nil {
+					return nil, err
+				}
+			default:
+			}
+			return nil, io.EOF
+		}
+		return msg, nil
+	case err, ok := <-lw.Err:
+		if ok && err != nil {
+			return nil, err
+		}
+		return nil, io.EOF
+	}
 }
 
 func TestReadLogs(t *testing.T) {
