@@ -11,5 +11,8 @@
       "groupSlug": "golang-x",
       "matchPackageNames": ["/^golang\\.org/x//"]
     }
+  ],
+  "ignoreDeps": [
+    "github.com/Graylog2/go-gelf"
   ]
 }
