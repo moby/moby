@@ -249,9 +249,12 @@ func (daemon *Daemon) apiSocket(_ string, options *mounttypes.APISocketOptions) 
 	}
 	switch accessType {
 	case mounttypes.AccessUnconfined:
+		// FIXME(thaJeztah): This patch needs to be aware of rootless (XDG) vs non-rootless.
 		return opts.APISocket, nil
 	case "":
-		return "", errors.New("API socket access option is not set")
+		// FIXME(thaJeztah): CLI needs updating to recognize this option (and to allow empty target).
+		return opts.APISocket, nil
+		// return "", errors.New("API socket access option is not set")
 	default:
 		return "", fmt.Errorf("API socket access %q is not supported", accessType)
 	}
