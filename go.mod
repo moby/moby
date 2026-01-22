@@ -57,7 +57,7 @@ require (
 	github.com/miekg/dns v1.1.70
 	github.com/mistifyio/go-zfs/v3 v3.1.0
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.27.0-rc2
+	github.com/moby/buildkit v0.27.0
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/go-archive v0.2.0
 	github.com/moby/ipvs v1.1.0
@@ -258,7 +258,7 @@ require (
 	github.com/tinylib/msgp v1.3.0 // indirect
 	github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323 // indirect
 	github.com/tonistiigi/fsutil v0.0.0-20251211185533-a2aa163d723f // indirect
-	github.com/tonistiigi/go-actions-cache v0.0.0-20250626083717-378c5ed1ddd9 // indirect
+	github.com/tonistiigi/go-actions-cache v0.0.0-20260120203934-54bc28c26fd2 // indirect
 	github.com/tonistiigi/go-csvvalue v0.0.0-20240814133006-030d3b2625d0 // indirect
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea // indirect
 	github.com/tonistiigi/vt100 v0.0.0-20240514184818-90bafcd6abab // indirect
