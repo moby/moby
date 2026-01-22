@@ -4,6 +4,7 @@
     "config:recommended",
     ":gitSignOff"
   ],
+  "postUpdateOptions": ["gomodTidy"],
   "packageRules": [
     {
       "matchDatasources": ["go"],
