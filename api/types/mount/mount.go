@@ -105,6 +105,7 @@ type VolumeOptions struct {
 
 type ImageOptions struct {
 	Subpath string `json:",omitempty"`
+	RW      bool   `json:",omitempty"`
 }
 
 // Driver represents a volume driver.

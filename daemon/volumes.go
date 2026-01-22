@@ -282,11 +282,17 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 				mp.ID = metadata["ID"]
 			}
 
+			rw := false
+
+			if mp.Spec.ImageOptions.RW == true {
+				rw = true
+			}
+
 			mp.Name = mp.Spec.Source
 			mp.Spec.Source = img.ID().String()
 			mp.Source = path
 			mp.Layer = layer
-			mp.RW = false
+			mp.RW = rw
 		}
 
 		binds[mp.Destination] = true
