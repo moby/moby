@@ -950,7 +950,7 @@ github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/knqyf263/go-plugin v0.9.0
 ## explicit; go 1.24.0
 github.com/knqyf263/go-plugin/wasm
-# github.com/miekg/dns v1.1.70
+# github.com/miekg/dns v1.1.72
 ## explicit; go 1.24.0
 github.com/miekg/dns
 # github.com/mistifyio/go-zfs/v3 v3.1.0
