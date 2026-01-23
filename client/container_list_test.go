@@ -44,19 +44,19 @@ func TestContainerList(t *testing.T) {
 			expected: url.Values{"all": []string{"1"}},
 		},
 		{
-			doc:      "latest", // FIXME(thaJeztah): the "latest" option is a cli-side shortcut for "limit: 1". It has never been used https://github.com/moby/moby/commit/d05aa418b0466553a24d42896f99176cfa29765f
-			options:  ContainerListOptions{Latest: true},
+			doc:      "latest",
+			options:  ContainerListOptions{Latest: true}, //nolint:staticcheck // ignore SA1019: field is deprecated.
 			expected: url.Values{},
 		},
 		{
-			doc:      "since", // FIXME(thaJeztah): the "since" option was deprecated, and is no longer handled by the API server; https://github.com/moby/moby/pull/22138
-			options:  ContainerListOptions{Since: "container"},
-			expected: url.Values{"since": []string{"container"}},
+			doc:      "since",
+			options:  ContainerListOptions{Since: "container"}, //nolint:staticcheck // ignore SA1019: field is deprecated.
+			expected: url.Values{},
 		},
 		{
-			doc:      "before", // FIXME(thaJeztah): the "before" option was deprecated, and is no longer handled by the API server; https://github.com/moby/moby/pull/22138
-			options:  ContainerListOptions{Before: "container"},
-			expected: url.Values{"before": []string{"container"}},
+			doc:      "before",
+			options:  ContainerListOptions{Before: "container"}, //nolint:staticcheck // ignore SA1019: field is deprecated.
+			expected: url.Values{},
 		},
 		{
 			doc:      "limit",
