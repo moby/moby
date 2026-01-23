@@ -13,9 +13,13 @@ import (
 type ContainerListOptions struct {
 	Size    bool
 	All     bool
-	Latest  bool
 	Limit   int
 	Filters Filters
+
+	// Latest is non-functional and should not be used. Use Limit: 1 instead.
+	//
+	// Deprecated: the Latest option is non-functional and should not be used. Use Limit: 1 instead.
+	Latest bool
 
 	// Since is no longer supported. Use the "since" filter instead.
 	//
