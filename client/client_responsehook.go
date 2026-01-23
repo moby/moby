@@ -16,10 +16,7 @@ func (t *responseHookTransport) RoundTrip(req *http.Request) (*http.Response, er
 	}
 
 	for _, h := range t.hooks {
-		if err := h(resp); err != nil {
-			_ = resp.Body.Close()
-			return nil, err
-		}
+		h(resp)
 	}
 
 	return resp, nil

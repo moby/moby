@@ -67,7 +67,7 @@ type clientConfig struct {
 // Hooks are invoked in the order they were added.
 //
 // Hooks must not read or close resp.Body.
-type ResponseHook func(*http.Response) error
+type ResponseHook func(*http.Response)
 
 // Opt is a configuration option to initialize a [Client].
 type Opt func(*clientConfig) error
