@@ -24,7 +24,7 @@ func (r Refable) MarshalJSON() ([]byte, error) {
 	return r.Ref.MarshalJSON()
 }
 
-// UnmarshalJSON unmarshalss the ref from json
+// UnmarshalJSON unmarshals the ref from json
 func (r *Refable) UnmarshalJSON(d []byte) error {
 	return json.Unmarshal(d, &r.Ref)
 }

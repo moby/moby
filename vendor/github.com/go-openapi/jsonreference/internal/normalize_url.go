@@ -14,9 +14,11 @@ const (
 	defaultHTTPSPort = ":443"
 )
 
-// Regular expressions used by the normalizations
-var rxPort = regexp.MustCompile(`(:\d+)/?$`)
-var rxDupSlashes = regexp.MustCompile(`/{2,}`)
+// Regular expressions used by the normalizations.
+var (
+	rxPort       = regexp.MustCompile(`(:\d+)/?$`)
+	rxDupSlashes = regexp.MustCompile(`/{2,}`)
+)
 
 // NormalizeURL will normalize the specified URL
 // This was added to replace a previous call to the no longer maintained purell library:

@@ -5,6 +5,7 @@ package errors
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -62,14 +63,15 @@ const (
 const maximumValidHTTPCode = 600
 
 // All code responses can be used to differentiate errors for different handling
-// by the consuming program
+// by the consuming program.
 const (
 	// CompositeErrorCode remains 422 for backwards-compatibility
-	// and to separate it from validation errors with cause
+	// and to separate it from validation errors with cause.
 	CompositeErrorCode = http.StatusUnprocessableEntity
 
-	// InvalidTypeCode is used for any subclass of invalid types
+	// InvalidTypeCode is used for any subclass of invalid types.
 	InvalidTypeCode = maximumValidHTTPCode + iota
+	// RequiredFailCode indicates a required field is missing.
 	RequiredFailCode
 	TooLongFailCode
 	TooShortFailCode
@@ -90,22 +92,26 @@ const (
 	ReadOnlyFailCode
 )
 
-// CompositeError is an error that groups several errors together
+// CompositeError is an error that groups several errors together.
 type CompositeError struct {
 	Errors  []error
 	code    int32
 	message string
 }
 
-// Code for this error
+// Code returns the HTTP status code for this composite error.
 func (c *CompositeError) Code() int32 {
 	return c.code
 }
 
+// Error implements the standard error interface.
 func (c *CompositeError) Error() string {
 	if len(c.Errors) > 0 {
 		msgs := []string{c.message + ":"}
 		for _, e := range c.Errors {
+			if e == nil {
+				continue
+			}
 			msgs = append(msgs, e.Error())
 		}
 		return strings.Join(msgs, "\n")
@@ -113,11 +119,12 @@ func (c *CompositeError) Error() string {
 	return c.message
 }
 
+// Unwrap implements the [errors.Unwrap] interface.
 func (c *CompositeError) Unwrap() []error {
 	return c.Errors
 }
 
-// MarshalJSON implements the JSON encoding interface
+// MarshalJSON implements the JSON encoding interface.
 func (c CompositeError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
 		"code":    c.code,
@@ -126,7 +133,7 @@ func (c CompositeError) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// CompositeValidationError an error to wrap a bunch of other errors
+// CompositeValidationError an error to wrap a bunch of other errors.
 func CompositeValidationError(errors ...error) *CompositeError {
 	return &CompositeError{
 		code:    CompositeErrorCode,
@@ -135,20 +142,33 @@ func CompositeValidationError(errors ...error) *CompositeError {
 	}
 }
 
-// ValidateName recursively sets the name for all validations or updates them for nested properties
+// ValidateName recursively sets the name for all validations or updates them for nested properties.
 func (c *CompositeError) ValidateName(name string) *CompositeError {
 	for i, e := range c.Errors {
-		if ve, ok := e.(*Validation); ok {
-			c.Errors[i] = ve.ValidateName(name)
-		} else if ce, ok := e.(*CompositeError); ok {
-			c.Errors[i] = ce.ValidateName(name)
+		if e == nil {
+			continue
 		}
+
+		ce := &CompositeError{}
+		if errors.As(e, &ce) {
+			c.Errors[i] = ce.ValidateName(name)
+
+			continue
+		}
+
+		ve := &Validation{}
+		if errors.As(e, &ve) {
+			c.Errors[i] = ve.ValidateName(name)
+
+			continue
+		}
+
 	}
 
 	return c
 }
 
-// FailedAllPatternProperties an error for when the property doesn't match a pattern
+// FailedAllPatternProperties an error for when the property doesn't match a pattern.
 func FailedAllPatternProperties(name, in, key string) *Validation {
 	msg := fmt.Sprintf(failedAllPatternProps, name, key, in)
 	if in == "" {
@@ -163,7 +183,7 @@ func FailedAllPatternProperties(name, in, key string) *Validation {
 	}
 }
 
-// PropertyNotAllowed an error for when the property doesn't match a pattern
+// PropertyNotAllowed an error for when the property doesn't match a pattern.
 func PropertyNotAllowed(name, in, key string) *Validation {
 	msg := fmt.Sprintf(unallowedProperty, name, key, in)
 	if in == "" {
@@ -178,7 +198,7 @@ func PropertyNotAllowed(name, in, key string) *Validation {
 	}
 }
 
-// TooFewProperties an error for an object with too few properties
+// TooFewProperties an error for an object with too few properties.
 func TooFewProperties(name, in string, n int64) *Validation {
 	msg := fmt.Sprintf(tooFewProperties, name, in, n)
 	if in == "" {
@@ -193,7 +213,7 @@ func TooFewProperties(name, in string, n int64) *Validation {
 	}
 }
 
-// TooManyProperties an error for an object with too many properties
+// TooManyProperties an error for an object with too many properties.
 func TooManyProperties(name, in string, n int64) *Validation {
 	msg := fmt.Sprintf(tooManyProperties, name, in, n)
 	if in == "" {
@@ -208,7 +228,7 @@ func TooManyProperties(name, in string, n int64) *Validation {
 	}
 }
 
-// AdditionalItemsNotAllowed an error for invalid additional items
+// AdditionalItemsNotAllowed an error for invalid additional items.
 func AdditionalItemsNotAllowed(name, in string) *Validation {
 	msg := fmt.Sprintf(noAdditionalItems, name, in)
 	if in == "" {
@@ -222,7 +242,7 @@ func AdditionalItemsNotAllowed(name, in string) *Validation {
 	}
 }
 
-// InvalidCollectionFormat another flavor of invalid type error
+// InvalidCollectionFormat another flavor of invalid type error.
 func InvalidCollectionFormat(name, in, format string) *Validation {
 	return &Validation{
 		code:    InvalidTypeCode,
@@ -233,7 +253,7 @@ func InvalidCollectionFormat(name, in, format string) *Validation {
 	}
 }
 
-// InvalidTypeName an error for when the type is invalid
+// InvalidTypeName an error for when the type is invalid.
 func InvalidTypeName(typeName string) *Validation {
 	return &Validation{
 		code:    InvalidTypeCode,
@@ -242,7 +262,7 @@ func InvalidTypeName(typeName string) *Validation {
 	}
 }
 
-// InvalidType creates an error for when the type is invalid
+// InvalidType creates an error for when the type is invalid.
 func InvalidType(name, in, typeName string, value any) *Validation {
 	var message string
 
@@ -273,10 +293,9 @@ func InvalidType(name, in, typeName string, value any) *Validation {
 		Value:   value,
 		message: message,
 	}
-
 }
 
-// DuplicateItems error for when an array contains duplicates
+// DuplicateItems error for when an array contains duplicates.
 func DuplicateItems(name, in string) *Validation {
 	msg := fmt.Sprintf(uniqueFail, name, in)
 	if in == "" {
@@ -290,7 +309,7 @@ func DuplicateItems(name, in string) *Validation {
 	}
 }
 
-// TooManyItems error for when an array contains too many items
+// TooManyItems error for when an array contains too many items.
 func TooManyItems(name, in string, maximum int64, value any) *Validation {
 	msg := fmt.Sprintf(maximumItemsFail, name, in, maximum)
 	if in == "" {
@@ -306,7 +325,7 @@ func TooManyItems(name, in string, maximum int64, value any) *Validation {
 	}
 }
 
-// TooFewItems error for when an array contains too few items
+// TooFewItems error for when an array contains too few items.
 func TooFewItems(name, in string, minimum int64, value any) *Validation {
 	msg := fmt.Sprintf(minItemsFail, name, in, minimum)
 	if in == "" {
@@ -321,7 +340,7 @@ func TooFewItems(name, in string, minimum int64, value any) *Validation {
 	}
 }
 
-// ExceedsMaximumInt error for when maximumimum validation fails
+// ExceedsMaximumInt error for when maximum validation fails.
 func ExceedsMaximumInt(name, in string, maximum int64, exclusive bool, value any) *Validation {
 	var message string
 	if in == "" {
@@ -346,7 +365,7 @@ func ExceedsMaximumInt(name, in string, maximum int64, exclusive bool, value any
 	}
 }
 
-// ExceedsMaximumUint error for when maximumimum validation fails
+// ExceedsMaximumUint error for when maximum validation fails.
 func ExceedsMaximumUint(name, in string, maximum uint64, exclusive bool, value any) *Validation {
 	var message string
 	if in == "" {
@@ -371,7 +390,7 @@ func ExceedsMaximumUint(name, in string, maximum uint64, exclusive bool, value a
 	}
 }
 
-// ExceedsMaximum error for when maximumimum validation fails
+// ExceedsMaximum error for when maximum validation fails.
 func ExceedsMaximum(name, in string, maximum float64, exclusive bool, value any) *Validation {
 	var message string
 	if in == "" {
@@ -396,7 +415,7 @@ func ExceedsMaximum(name, in string, maximum float64, exclusive bool, value any)
 	}
 }
 
-// ExceedsMinimumInt error for when minimum validation fails
+// ExceedsMinimumInt error for when minimum validation fails.
 func ExceedsMinimumInt(name, in string, minimum int64, exclusive bool, value any) *Validation {
 	var message string
 	if in == "" {
@@ -421,7 +440,7 @@ func ExceedsMinimumInt(name, in string, minimum int64, exclusive bool, value any
 	}
 }
 
-// ExceedsMinimumUint error for when minimum validation fails
+// ExceedsMinimumUint error for when minimum validation fails.
 func ExceedsMinimumUint(name, in string, minimum uint64, exclusive bool, value any) *Validation {
 	var message string
 	if in == "" {
@@ -446,7 +465,7 @@ func ExceedsMinimumUint(name, in string, minimum uint64, exclusive bool, value a
 	}
 }
 
-// ExceedsMinimum error for when minimum validation fails
+// ExceedsMinimum error for when minimum validation fails.
 func ExceedsMinimum(name, in string, minimum float64, exclusive bool, value any) *Validation {
 	var message string
 	if in == "" {
@@ -471,7 +490,7 @@ func ExceedsMinimum(name, in string, minimum float64, exclusive bool, value any)
 	}
 }
 
-// NotMultipleOf error for when multiple of validation fails
+// NotMultipleOf error for when multiple of validation fails.
 func NotMultipleOf(name, in string, multiple, value any) *Validation {
 	var msg string
 	if in == "" {
@@ -488,7 +507,7 @@ func NotMultipleOf(name, in string, multiple, value any) *Validation {
 	}
 }
 
-// EnumFail error for when an enum validation fails
+// EnumFail error for when an enum validation fails.
 func EnumFail(name, in string, value any, values []any) *Validation {
 	var msg string
 	if in == "" {
@@ -507,7 +526,7 @@ func EnumFail(name, in string, value any, values []any) *Validation {
 	}
 }
 
-// Required error for when a value is missing
+// Required error for when a value is missing.
 func Required(name, in string, value any) *Validation {
 	var msg string
 	if in == "" {
@@ -524,7 +543,7 @@ func Required(name, in string, value any) *Validation {
 	}
 }
 
-// ReadOnly error for when a value is present in request
+// ReadOnly error for when a value is present in request.
 func ReadOnly(name, in string, value any) *Validation {
 	var msg string
 	if in == "" {
@@ -541,7 +560,7 @@ func ReadOnly(name, in string, value any) *Validation {
 	}
 }
 
-// TooLong error for when a string is too long
+// TooLong error for when a string is too long.
 func TooLong(name, in string, maximum int64, value any) *Validation {
 	var msg string
 	if in == "" {
@@ -558,7 +577,7 @@ func TooLong(name, in string, maximum int64, value any) *Validation {
 	}
 }
 
-// TooShort error for when a string is too short
+// TooShort error for when a string is too short.
 func TooShort(name, in string, minimum int64, value any) *Validation {
 	var msg string
 	if in == "" {
@@ -596,7 +615,7 @@ func FailedPattern(name, in, pattern string, value any) *Validation {
 }
 
 // MultipleOfMustBePositive error for when a
-// multipleOf factor is negative
+// multipleOf factor is negative.
 func MultipleOfMustBePositive(name, in string, factor any) *Validation {
 	return &Validation{
 		code:    MultipleOfMustBePositiveCode,
