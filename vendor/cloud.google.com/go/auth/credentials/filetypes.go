@@ -28,18 +28,21 @@ import (
 	"cloud.google.com/go/auth/internal/trustboundary"
 )
 
+const cloudPlatformScope = "https://www.googleapis.com/auth/cloud-platform"
+
 func fileCredentials(b []byte, opts *DetectOptions) (*auth.Credentials, error) {
 	fileType, err := credsfile.ParseFileType(b)
 	if err != nil {
 		return nil, err
 	}
+	if fileType == "" {
+		return nil, errors.New("credentials: unsupported unidentified file type")
+	}
 
 	var projectID, universeDomain string
 	var tp auth.TokenProvider
-	switch fileType {
-	case credsfile.UnknownCredType:
-		return nil, errors.New("credentials: unsupported unidentified file type")
-	case credsfile.ServiceAccountKey:
+	switch CredType(fileType) {
+	case ServiceAccount:
 		f, err := credsfile.ParseServiceAccount(b)
 		if err != nil {
 			return nil, err
@@ -50,7 +53,7 @@ func fileCredentials(b []byte, opts *DetectOptions) (*auth.Credentials, error) {
 		}
 		projectID = f.ProjectID
 		universeDomain = resolveUniverseDomain(opts.UniverseDomain, f.UniverseDomain)
-	case credsfile.UserCredentialsKey:
+	case AuthorizedUser:
 		f, err := credsfile.ParseUserCredentials(b)
 		if err != nil {
 			return nil, err
@@ -60,7 +63,7 @@ func fileCredentials(b []byte, opts *DetectOptions) (*auth.Credentials, error) {
 			return nil, err
 		}
 		universeDomain = f.UniverseDomain
-	case credsfile.ExternalAccountKey:
+	case ExternalAccount:
 		f, err := credsfile.ParseExternalAccount(b)
 		if err != nil {
 			return nil, err
@@ -70,7 +73,7 @@ func fileCredentials(b []byte, opts *DetectOptions) (*auth.Credentials, error) {
 			return nil, err
 		}
 		universeDomain = resolveUniverseDomain(opts.UniverseDomain, f.UniverseDomain)
-	case credsfile.ExternalAccountAuthorizedUserKey:
+	case ExternalAccountAuthorizedUser:
 		f, err := credsfile.ParseExternalAccountAuthorizedUser(b)
 		if err != nil {
 			return nil, err
@@ -80,7 +83,7 @@ func fileCredentials(b []byte, opts *DetectOptions) (*auth.Credentials, error) {
 			return nil, err
 		}
 		universeDomain = f.UniverseDomain
-	case credsfile.ImpersonatedServiceAccountKey:
+	case ImpersonatedServiceAccount:
 		f, err := credsfile.ParseImpersonatedServiceAccount(b)
 		if err != nil {
 			return nil, err
@@ -90,7 +93,7 @@ func fileCredentials(b []byte, opts *DetectOptions) (*auth.Credentials, error) {
 			return nil, err
 		}
 		universeDomain = resolveUniverseDomain(opts.UniverseDomain, f.UniverseDomain)
-	case credsfile.GDCHServiceAccountKey:
+	case GDCHServiceAccount:
 		f, err := credsfile.ParseGDCHServiceAccount(b)
 		if err != nil {
 			return nil, err
@@ -275,14 +278,24 @@ func handleImpersonatedServiceAccount(f *credsfile.ImpersonatedServiceAccountFil
 		return nil, errors.New("missing 'source_credentials' field or 'service_account_impersonation_url' in credentials")
 	}
 
-	sourceTP, err := fileCredentials(f.CredSource, opts)
+	sourceOpts := *opts
+
+	// Source credential needs IAM or Cloud Platform scope to call the
+	// iamcredentials endpoint. The scopes provided by the user are for the
+	// impersonated credentials.
+	sourceOpts.Scopes = []string{cloudPlatformScope}
+	sourceTP, err := fileCredentials(f.CredSource, &sourceOpts)
 	if err != nil {
 		return nil, err
 	}
 	ud := resolveUniverseDomain(opts.UniverseDomain, f.UniverseDomain)
+	scopes := opts.scopes()
+	if len(scopes) == 0 {
+		scopes = f.Scopes
+	}
 	impOpts := &impersonate.Options{
 		URL:            f.ServiceAccountImpersonationURL,
-		Scopes:         opts.scopes(),
+		Scopes:         scopes,
 		Tp:             sourceTP,
 		Delegates:      f.Delegates,
 		Client:         opts.client(),
