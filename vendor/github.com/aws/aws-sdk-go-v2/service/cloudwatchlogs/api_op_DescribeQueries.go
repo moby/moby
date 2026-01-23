@@ -14,6 +14,11 @@ import (
 // Returns a list of CloudWatch Logs Insights queries that are scheduled, running,
 // or have been run recently in this account. You can request all queries or limit
 // it to queries of a specific log group or queries with a certain status.
+//
+// This operation includes both interactive queries started directly by users and
+// automated queries executed by scheduled query configurations. Scheduled query
+// executions appear in the results alongside manually initiated queries, providing
+// visibility into all query activity in your account.
 func (c *Client) DescribeQueries(ctx context.Context, params *DescribeQueriesInput, optFns ...func(*Options)) (*DescribeQueriesOutput, error) {
 	if params == nil {
 		params = &DescribeQueriesInput{}
@@ -156,40 +161,7 @@ func (c *Client) addOperationDescribeQueriesMiddlewares(stack *middleware.Stack,
 	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addInterceptExecution(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptTransmit(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addSpanInitializeStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanInitializeEnd(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil
