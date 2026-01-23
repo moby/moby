@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -39,14 +39,15 @@ func init() {
 		Citation:      "BRs: 6.1.6",
 		Source:        lint.CABFBaselineRequirements,
 		EffectiveDate: util.CABV113Date,
-		Lint:          &rsaParsedTestsExpInRange{},
+		Lint:          NewRsaParsedTestsExpInRange,
 	})
 }
 
-func (l *rsaParsedTestsExpInRange) Initialize() error {
+func NewRsaParsedTestsExpInRange() lint.LintInterface {
+	l := &rsaParsedTestsExpInRange{}
 	l.upperBound = &big.Int{}
 	l.upperBound.Exp(big.NewInt(2), big.NewInt(256), nil)
-	return nil
+	return l
 }
 
 func (l *rsaParsedTestsExpInRange) CheckApplies(c *x509.Certificate) bool {
@@ -57,8 +58,8 @@ func (l *rsaParsedTestsExpInRange) CheckApplies(c *x509.Certificate) bool {
 func (l *rsaParsedTestsExpInRange) Execute(c *x509.Certificate) *lint.LintResult {
 	key := c.PublicKey.(*rsa.PublicKey)
 	exponent := key.E
-	const lowerBound = 65536 // 2^16 + 1
-	if exponent > lowerBound && l.upperBound.Cmp(big.NewInt(int64(exponent))) == 1 {
+	const lowerBound = 65537 // 2^16 + 1
+	if exponent >= lowerBound && l.upperBound.Cmp(big.NewInt(int64(exponent))) == 1 {
 		return &lint.LintResult{Status: lint.Pass}
 	}
 	return &lint.LintResult{Status: lint.Warn}

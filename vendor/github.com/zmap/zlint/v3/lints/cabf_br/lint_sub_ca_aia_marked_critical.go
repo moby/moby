@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -29,12 +29,12 @@ func init() {
 		Citation:      "BRs: 7.1.2.2",
 		Source:        lint.CABFBaselineRequirements,
 		EffectiveDate: util.ZeroDate,
-		Lint:          &subCaAIAMarkedCritical{},
+		Lint:          NewSubCaAIAMarkedCritical,
 	})
 }
 
-func (l *subCaAIAMarkedCritical) Initialize() error {
-	return nil
+func NewSubCaAIAMarkedCritical() lint.LintInterface {
+	return &subCaAIAMarkedCritical{}
 }
 
 func (l *subCaAIAMarkedCritical) CheckApplies(c *x509.Certificate) bool {

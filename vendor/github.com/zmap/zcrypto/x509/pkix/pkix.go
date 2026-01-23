@@ -7,11 +7,17 @@
 package pkix
 
 import (
-	"encoding/asn1"
+	"encoding/hex"
+	"fmt"
 	"math/big"
-	"strings"
 	"time"
+
+	"github.com/zmap/zcrypto/encoding/asn1"
 )
+
+// LegacyNameString allows to specify legacy ZCrypto behaviour
+// for X509Name.String() in reverse order
+var LegacyNameString = false
 
 // AlgorithmIdentifier represents the ASN.1 structure of the same name. See RFC
 // 5280, section 4.1.1.2.
@@ -25,7 +31,7 @@ type RDNSequence []RelativeDistinguishedNameSET
 type RelativeDistinguishedNameSET []AttributeTypeAndValue
 
 // AttributeTypeAndValue mirrors the ASN.1 structure of the same name in
-// http://tools.ietf.org/html/rfc5280#section-4.1.2.4
+// RFC 5280, Section 4.1.2.4.
 type AttributeTypeAndValue struct {
 	Type  asn1.ObjectIdentifier `json:"type"`
 	Value interface{}           `json:"value"`
@@ -47,7 +53,9 @@ type Extension struct {
 }
 
 // Name represents an X.509 distinguished name. This only includes the common
-// elements of a DN.  Additional elements in the name are ignored.
+// elements of a DN. Note that Name is only an approximation of the X.509
+// structure. If an accurate representation is needed, asn1.Unmarshal the raw
+// subject or issuer as an RDNSequence.
 type Name struct {
 	Country, Organization, OrganizationalUnit  []string
 	Locality, Province                         []string
@@ -60,71 +68,81 @@ type Name struct {
 	// EV Components
 	JurisdictionLocality, JurisdictionProvince, JurisdictionCountry []string
 
-	Names      []AttributeTypeAndValue
-	ExtraNames []AttributeTypeAndValue
+	// Names contains all parsed attributes. When parsing distinguished names,
+	// this can be used to extract non-standard attributes that are not parsed
+	// by this package. When marshaling to RDNSequences, the Names field is
+	// ignored, see ExtraNames.
+	Names []AttributeTypeAndValue
 
+	// ExtraNames contains attributes to be copied, raw, into any marshaled
+	// distinguished names. Values override any attributes with the same OID.
+	// The ExtraNames field is not populated when parsing, see Names.
+	ExtraNames []AttributeTypeAndValue
 	// OriginalRDNS is saved if the name is populated using FillFromRDNSequence.
 	// Additionally, if OriginalRDNS is non-nil, the String and ToRDNSequence
 	// methods will simply use this.
 	OriginalRDNS RDNSequence
 }
 
-// FillFromRDNSequence populates n based on the AttributeTypeAndValueSETs in the
-// RDNSequence. It save the sequence as OriginalRDNS.
+// FillFromRDNSequence populates n from the provided RDNSequence.
+// Multi-entry RDNs are flattened, all entries are added to the
+// relevant n fields, and the grouping is not preserved.
 func (n *Name) FillFromRDNSequence(rdns *RDNSequence) {
 	n.OriginalRDNS = *rdns
 	for _, rdn := range *rdns {
 		if len(rdn) == 0 {
 			continue
 		}
-		atv := rdn[0]
-		n.Names = append(n.Names, atv)
-		value, ok := atv.Value.(string)
-		if !ok {
-			continue
-		}
 
-		t := atv.Type
-		if len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 {
-			switch t[3] {
-			case 3:
-				n.CommonName = value
-				n.CommonNames = append(n.CommonNames, value)
-			case 4:
-				n.Surname = append(n.Surname, value)
-			case 5:
-				n.SerialNumber = value
-				n.SerialNumbers = append(n.SerialNumbers, value)
-			case 6:
-				n.Country = append(n.Country, value)
-			case 7:
-				n.Locality = append(n.Locality, value)
-			case 8:
-				n.Province = append(n.Province, value)
-			case 9:
-				n.StreetAddress = append(n.StreetAddress, value)
-			case 10:
-				n.Organization = append(n.Organization, value)
-			case 11:
-				n.OrganizationalUnit = append(n.OrganizationalUnit, value)
-			case 17:
-				n.PostalCode = append(n.PostalCode, value)
-			case 42:
-				n.GivenName = append(n.GivenName, value)
-			case 97:
-				n.OrganizationIDs = append(n.OrganizationIDs, value)
+		for _, atv := range rdn {
+			n.Names = append(n.Names, atv)
+			value, ok := atv.Value.(string)
+			if !ok {
+				continue
 			}
-		} else if t.Equal(oidDomainComponent) {
-			n.DomainComponent = append(n.DomainComponent, value)
-		} else if t.Equal(oidDNEmailAddress) {
-			// Deprecated, see RFC 5280 Section 4.1.2.6
-			n.EmailAddress = append(n.EmailAddress, value)
-		} else if t.Equal(oidJurisdictionLocality) {
-			n.JurisdictionLocality = append(n.JurisdictionLocality, value)
-		} else if t.Equal(oidJurisdictionProvince) {
-			n.JurisdictionProvince = append(n.JurisdictionProvince, value)
-		} else if t.Equal(oidJurisdictionCountry) {
-			n.JurisdictionCountry = append(n.JurisdictionCountry, value)
+
+			t := atv.Type
+			if len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 {
+				switch t[3] {
+				case 3:
+					n.CommonName = value
+					n.CommonNames = append(n.CommonNames, value)
+				case 4:
+					n.Surname = append(n.Surname, value)
+				case 5:
+					n.SerialNumber = value
+					n.SerialNumbers = append(n.SerialNumbers, value)
+				case 6:
+					n.Country = append(n.Country, value)
+				case 7:
+					n.Locality = append(n.Locality, value)
+				case 8:
+					n.Province = append(n.Province, value)
+				case 9:
+					n.StreetAddress = append(n.StreetAddress, value)
+				case 10:
+					n.Organization = append(n.Organization, value)
+				case 11:
+					n.OrganizationalUnit = append(n.OrganizationalUnit, value)
+				case 17:
+					n.PostalCode = append(n.PostalCode, value)
+				case 42:
+					n.GivenName = append(n.GivenName, value)
+				case 97:
+					n.OrganizationIDs = append(n.OrganizationIDs, value)
+				}
+			} else if t.Equal(oidDomainComponent) {
+				n.DomainComponent = append(n.DomainComponent, value)
+			} else if t.Equal(oidDNEmailAddress) {
+				// Deprecated, see RFC 5280 Section 4.1.2.6
+				n.EmailAddress = append(n.EmailAddress, value)
+			} else if t.Equal(oidJurisdictionLocality) {
+				n.JurisdictionLocality = append(n.JurisdictionLocality, value)
+			} else if t.Equal(oidJurisdictionProvince) {
+				n.JurisdictionProvince = append(n.JurisdictionProvince, value)
+			} else if t.Equal(oidJurisdictionCountry) {
+				n.JurisdictionCountry = append(n.JurisdictionCountry, value)
+			}
 		}
 	}
 }
@@ -171,39 +189,82 @@ func (n Name) appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentif
 	return append(in, s)
 }
 
-// String returns an RDNSequence as comma seperated list of
-// AttributeTypeAndValues in canonical form.
-func (seq RDNSequence) String() string {
-	out := make([]string, 0, len(seq))
-	// An RDNSequence is effectively an [][]AttributeTypeAndValue
-	for _, atvSet := range seq {
-		for _, atv := range atvSet {
-			// Convert each individual AttributeTypeAndValue to X=Y
-			attrParts := make([]string, 0, 2)
-			oidString := atv.Type.String()
-			oidName, ok := oidDotNotationToNames[oidString]
-			if ok {
-				attrParts = append(attrParts, oidName.ShortName)
-			} else {
-				attrParts = append(attrParts, oidString)
+// String returns a string representation of the sequence r,
+// roughly following the RFC 2253 Distinguished Names syntax.
+func (r RDNSequence) String() string {
+	s := ""
+	for i := 0; i < len(r); i++ {
+		idx := len(r) - 1 - i
+		if LegacyNameString {
+			idx = i
+		}
+		rdn := r[idx]
+		if i > 0 {
+			s += ", "
+		}
+		for j, tv := range rdn {
+			if j > 0 {
+				s += ", "
 			}
-			switch value := atv.Value.(type) {
-			case string:
-				attrParts = append(attrParts, value)
-			case []byte:
-				attrParts = append(attrParts, string(value))
-			default:
-				continue
+
+			oidString := tv.Type.String()
+			var typeName string
+			if oidName, ok := oidDotNotationToNames[oidString]; ok {
+				typeName = oidName.ShortName
 			}
-			attrString := strings.Join(attrParts, "=")
-			out = append(out, attrString)
+			if typeName == "" {
+				derBytes, err := asn1.Marshal(tv.Value)
+				if err == nil {
+					s += oidString + "=#" + hex.EncodeToString(derBytes)
+					continue // No value escaping necessary.
+				}
+
+				typeName = oidString
+			}
+
+			valueString := fmt.Sprint(tv.Value)
+			escaped := make([]rune, 0, len(valueString))
+
+			for k, c := range valueString {
+				escape := false
+
+				switch c {
+				case ',', '+', '"', '\\', '<', '>', ';':
+					escape = true
+
+				case ' ':
+					escape = k == 0 || k == len(valueString)-1
+
+				case '#':
+					escape = k == 0
+				}
+
+				if escape {
+					escaped = append(escaped, '\\', c)
+				} else {
+					escaped = append(escaped, c)
+				}
+			}
+
+			s += typeName + "=" + string(escaped)
 		}
 	}
-	return strings.Join(out, ", ")
+
+	return s
 }
 
-// ToRDNSequence returns OriginalRDNS is populated. Otherwise, it builds an
-// RDNSequence in canonical order.
+// ToRDNSequence converts n into a single RDNSequence. The following
+// attributes are encoded as multi-value RDNs:
+//
+//   - Country
+//   - Organization
+//   - OrganizationalUnit
+//   - Locality
+//   - Province
+//   - StreetAddress
+//   - PostalCode
+//
+// Each ExtraNames entry is encoded as an individual RDN.
 func (n Name) ToRDNSequence() (ret RDNSequence) {
 	if n.OriginalRDNS != nil {
 		return n.OriginalRDNS
@@ -228,19 +289,11 @@ func (n Name) ToRDNSequence() (ret RDNSequence) {
 	if len(n.SerialNumber) > 0 {
 		ret = n.appendRDNs(ret, []string{n.SerialNumber}, oidSerialNumber)
 	}
-	ret = append(ret, n.ExtraNames)
-	return ret
-}
-
-// oidInAttributeTypeAndValue returns whether a type with the given OID exists
-// in atv.
-func oidInAttributeTypeAndValue(oid asn1.ObjectIdentifier, atv []AttributeTypeAndValue) bool {
-	for _, a := range atv {
-		if a.Type.Equal(oid) {
-			return true
-		}
+	for _, atv := range n.ExtraNames {
+		ret = append(ret, []AttributeTypeAndValue{atv})
 	}
-	return false
+
+	return ret
 }
 
 // CertificateList represents the ASN.1 structure of the same name. See RFC
@@ -252,15 +305,34 @@ type CertificateList struct {
 	SignatureValue     asn1.BitString
 }
 
-// HasExpired reports whether now is past the expiry time of certList.
+// HasExpired reports whether certList should have been updated by now.
 func (certList *CertificateList) HasExpired(now time.Time) bool {
-	return now.After(certList.TBSCertList.NextUpdate)
+	return !now.Before(certList.TBSCertList.NextUpdate)
 }
 
-// String returns a canonical representation of a DistinguishedName
-func (n *Name) String() string {
-	seq := n.ToRDNSequence()
-	return seq.String()
+// String returns the string form of n, roughly following
+// the RFC 2253 Distinguished Names syntax.
+func (n Name) String() string {
+	var rdns RDNSequence
+	// If there are no ExtraNames, surface the parsed value (all entries in
+	// Names) instead.
+	if n.ExtraNames == nil {
+		for _, atv := range n.Names {
+			t := atv.Type
+			if len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 {
+				switch t[3] {
+				case 3, 5, 6, 7, 8, 9, 10, 11, 17:
+					// These attributes were already parsed into named fields.
+					continue
+				}
+			}
+			// Place non-standard parsed values at the beginning of the sequence
+			// so they will be at the end of the string. See Issue 39924.
+			rdns = append(rdns, []AttributeTypeAndValue{atv})
+		}
+	}
+	rdns = append(rdns, n.ToRDNSequence()...)
+	return rdns.String()
 }
 
 // OtherName represents the ASN.1 structure of the same name. See RFC
