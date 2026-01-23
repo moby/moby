@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -718,38 +718,34 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	return conf, nil
 }
 
-// normalizeHosts normalizes the configured config.Hosts and remove duplicates.
+// normalizeHosts normalizes the configured config.Hosts and removes duplicates.
 // It returns an error if it fails to parse a host.
 func normalizeHosts(cfg *config.Config) error {
-	if len(cfg.Hosts) == 0 {
+	hosts := slices.Clone(cfg.Hosts)
+	if len(hosts) == 0 {
 		// if no hosts are configured, create a single entry slice, so that the
 		// default is used.
 		//
 		// TODO(thaJeztah) implement a cleaner way for this; this depends on a
 		//                 side-effect of how we parse empty/partial hosts.
-		cfg.Hosts = make([]string, 1)
+		hosts = make([]string, 1)
 	}
-	hosts := make([]string, 0, len(cfg.Hosts))
-	seen := make(map[string]struct{}, len(cfg.Hosts))
 
 	useTLS := DefaultTLSValue
 	if cfg.TLS != nil {
 		useTLS = *cfg.TLS
 	}
 
-	for _, h := range cfg.Hosts {
-		host, err := dopts.ParseHost(useTLS, honorXDG, h)
+	for i, h := range hosts {
+		var err error
+		hosts[i], err = dopts.ParseHost(useTLS, honorXDG, h)
 		if err != nil {
 			return err
 		}
-		if _, ok := seen[host]; ok {
-			continue
-		}
-		seen[host] = struct{}{}
-		hosts = append(hosts, host)
 	}
-	sort.Strings(hosts)
-	cfg.Hosts = hosts
+
+	slices.Sort(hosts)
+	cfg.Hosts = slices.Compact(hosts)
 	return nil
 }
 
