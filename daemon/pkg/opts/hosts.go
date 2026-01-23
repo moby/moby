@@ -3,11 +3,9 @@ package opts
 import (
 	"net"
 	"net/url"
-	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/moby/moby/v2/pkg/homedir"
 	"github.com/pkg/errors"
 )
 
@@ -46,32 +44,6 @@ func ValidateHost(val string) (string, error) {
 	// Note: unlike most flag validators, we don't return the mutated value here
 	//       we need to know what the user entered later (using ParseHost) to adjust for TLS
 	return val, nil
-}
-
-// ParseHost and set defaults for a Daemon host string.
-// defaultToTLS is preferred over defaultToUnixXDG.
-func ParseHost(defaultToTLS, defaultToUnixXDG bool, val string) (string, error) {
-	host := strings.TrimSpace(val)
-	if host == "" {
-		if defaultToTLS {
-			host = DefaultTLSHost
-		} else if defaultToUnixXDG {
-			runtimeDir, err := homedir.GetRuntimeDir()
-			if err != nil {
-				return "", err
-			}
-			host = "unix://" + filepath.Join(runtimeDir, "docker.sock")
-		} else {
-			host = DefaultHost
-		}
-	} else {
-		var err error
-		host, err = ParseDaemonHost(host)
-		if err != nil {
-			return val, err
-		}
-	}
-	return host, nil
 }
 
 // ParseDaemonHost parses the specified address and returns an address that will be used as the host.
