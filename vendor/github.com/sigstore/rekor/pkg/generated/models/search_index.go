@@ -238,10 +238,6 @@ type SearchIndexPublicKey struct {
 	// Required: true
 	// Enum: ["pgp","x509","minisign","ssh","tuf"]
 	Format *string `json:"format"`
-
-	// url
-	// Format: uri
-	URL strfmt.URI `json:"url,omitempty"`
 }
 
 // Validate validates this search index public key
@@ -249,10 +245,6 @@ func (m *SearchIndexPublicKey) Validate(formats strfmt.Registry) error {
 	var res []error
 
 	if err := m.validateFormat(formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.validateURL(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -308,18 +300,6 @@ func (m *SearchIndexPublicKey) validateFormat(formats strfmt.Registry) error {
 
 	// value enum
 	if err := m.validateFormatEnum("publicKey"+"."+"format", "body", *m.Format); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *SearchIndexPublicKey) validateURL(formats strfmt.Registry) error {
-	if swag.IsZero(m.URL) { // not required
-		return nil
-	}
-
-	if err := validate.FormatOf("publicKey"+"."+"url", "body", "uri", m.URL.String(), formats); err != nil {
 		return err
 	}
 

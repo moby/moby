@@ -292,6 +292,9 @@ func (v *V001Entry) Unmarshal(pe models.ProposedEntry) error {
 	}
 
 	env := &dsse.Envelope{}
+	if dsseObj.ProposedContent.Envelope == nil {
+		return errors.New("proposed content envelope is missing")
+	}
 	if err := json.Unmarshal([]byte(*dsseObj.ProposedContent.Envelope), env); err != nil {
 		return err
 	}
@@ -374,7 +377,7 @@ func (v *V001Entry) Canonicalize(_ context.Context) ([]byte, error) {
 	}
 
 	for _, s := range canonicalEntry.Signatures {
-		if s.Signature == nil {
+		if s == nil || s.Signature == nil {
 			return nil, errors.New("canonical entry missing required signature")
 		}
 	}
