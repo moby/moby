@@ -166,7 +166,7 @@ func (v CommonValidations) HasEnum() bool {
 // SchemaValidations describes the validation properties of a schema
 //
 // NOTE: at this moment, this is not embedded in SchemaProps because this would induce a breaking change
-// in the exported members: all initializers using litterals would fail.
+// in the exported members: all initializers using literals would fail.
 type SchemaValidations struct {
 	CommonValidations
 

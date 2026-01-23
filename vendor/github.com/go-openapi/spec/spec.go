@@ -28,7 +28,7 @@ func MustLoadJSONSchemaDraft04() *Schema {
 	return d
 }
 
-// JSONSchemaDraft04 loads the json schema document for json shema draft04
+// JSONSchemaDraft04 loads the json schema document for json schema draft04
 func JSONSchemaDraft04() (*Schema, error) {
 	b, err := jsonschemaDraft04JSONBytes()
 	if err != nil {

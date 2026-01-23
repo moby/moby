@@ -110,7 +110,7 @@ func ResolvePathItem(root any, ref Ref, options *ExpandOptions) (*PathItem, erro
 
 // ResolveItemsWithBase resolves parameter items reference against a context root and base path.
 //
-// NOTE: stricly speaking, this construct is not supported by Swagger 2.0.
+// NOTE: strictly speaking, this construct is not supported by Swagger 2.0.
 // Similarly, $ref are forbidden in response headers.
 func ResolveItemsWithBase(root any, ref Ref, options *ExpandOptions) (*Items, error) {
 	result := new(Items)
