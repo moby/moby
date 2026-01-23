@@ -11,7 +11,10 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This API is currently unavailable for general use.
+// Exchanges a trade-in token for temporary Amazon Web Services credentials with
+// the permissions associated with the assumed principal. This operation allows you
+// to obtain credentials for a specific principal based on a trade-in token,
+// enabling delegation of access to Amazon Web Services resources.
 func (c *Client) GetDelegatedAccessToken(ctx context.Context, params *GetDelegatedAccessTokenInput, optFns ...func(*Options)) (*GetDelegatedAccessTokenOutput, error) {
 	if params == nil {
 		params = &GetDelegatedAccessTokenInput{}
@@ -29,7 +32,8 @@ func (c *Client) GetDelegatedAccessToken(ctx context.Context, params *GetDelegat
 
 type GetDelegatedAccessTokenInput struct {
 
-	//
+	// The token to exchange for temporary Amazon Web Services credentials. This token
+	// must be valid and unexpired at the time of the request.
 	//
 	// This member is required.
 	TradeInToken *string
@@ -39,13 +43,18 @@ type GetDelegatedAccessTokenInput struct {
 
 type GetDelegatedAccessTokenOutput struct {
 
-	//
+	// The Amazon Resource Name (ARN) of the principal that was assumed when obtaining
+	// the delegated access token. This ARN identifies the IAM entity whose permissions
+	// are granted by the temporary credentials.
 	AssumedPrincipal *string
 
 	// Amazon Web Services credentials for API authentication.
 	Credentials *types.Credentials
 
-	//
+	// The percentage of the maximum policy size that is used by the session policy.
+	// The policy size is calculated as the sum of all the session policies and
+	// permission boundaries attached to the session. If the packed size exceeds 100%,
+	// the request fails.
 	PackedPolicySize *int32
 
 	// Metadata pertaining to the operation's result.
