@@ -20,6 +20,7 @@ import (
 	"cloud.google.com/go/auth/oauth2adapt"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/internal/cert"
+	"google.golang.org/api/internal/credentialstype"
 	"google.golang.org/api/internal/impersonate"
 
 	"golang.org/x/oauth2/google"
@@ -139,11 +140,13 @@ func detectDefaultFromDialSettings(settings *DialSettings) (*auth.Credentials, e
 		aud = settings.DefaultAudience
 	}
 
+	credsFile, _ := settings.GetAuthCredentialsFile()
+	credsJSON, _ := settings.GetAuthCredentialsJSON()
 	return credentials.DetectDefault(&credentials.DetectOptions{
 		Scopes:           scopes,
 		Audience:         aud,
-		CredentialsFile:  settings.CredentialsFile,
-		CredentialsJSON:  settings.CredentialsJSON,
+		CredentialsFile:  credsFile,
+		CredentialsJSON:  credsJSON,
 		UseSelfSignedJWT: useSelfSignedJWT,
 		Logger:           settings.Logger,
 	})
@@ -156,15 +159,15 @@ func baseCreds(ctx context.Context, ds *DialSettings) (*google.Credentials, erro
 	if ds.Credentials != nil {
 		return ds.Credentials, nil
 	}
-	if len(ds.CredentialsJSON) > 0 {
-		return credentialsFromJSON(ctx, ds.CredentialsJSON, ds)
+	if credsJSON, checkCredType := ds.GetAuthCredentialsJSON(); len(credsJSON) > 0 {
+		return credentialsFromJSON(ctx, credsJSON, ds, checkCredType)
 	}
-	if ds.CredentialsFile != "" {
-		data, err := os.ReadFile(ds.CredentialsFile)
+	if credsFile, checkCredType := ds.GetAuthCredentialsFile(); credsFile != "" {
+		data, err := os.ReadFile(credsFile)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read credentials file: %v", err)
 		}
-		return credentialsFromJSON(ctx, data, ds)
+		return credentialsFromJSON(ctx, data, ds, checkCredType)
 	}
 	if ds.TokenSource != nil {
 		return &google.Credentials{TokenSource: ds.TokenSource}, nil
@@ -174,7 +177,7 @@ func baseCreds(ctx context.Context, ds *DialSettings) (*google.Credentials, erro
 		return nil, err
 	}
 	if len(cred.JSON) > 0 {
-		return credentialsFromJSON(ctx, cred.JSON, ds)
+		return credentialsFromJSON(ctx, cred.JSON, ds, credentialstype.Unknown)
 	}
 	// For GAE and GCE, the JSON is empty so return the default credentials directly.
 	return cred, nil
@@ -197,7 +200,12 @@ const (
 //
 // - Otherwise, executes standard OAuth 2.0 flow
 // More details: google.aip.dev/auth/4111
-func credentialsFromJSON(ctx context.Context, data []byte, ds *DialSettings) (*google.Credentials, error) {
+func credentialsFromJSON(ctx context.Context, data []byte, ds *DialSettings, checkCredType credentialstype.CredType) (*google.Credentials, error) {
+	if checkCredType != credentialstype.Unknown {
+		if err := credentialstype.CheckCredentialType(data, checkCredType); err != nil {
+			return nil, err
+		}
+	}
 	var params google.CredentialsParams
 	params.Scopes = ds.GetScopes()
 
