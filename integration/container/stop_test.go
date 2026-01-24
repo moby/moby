@@ -152,7 +152,6 @@ func TestContainerAPIPostContainerStop(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.testName, func(t *testing.T) {
-
 			res, _, err := request.Post(ctx, "/containers/"+tc.id+"/stop")
 
 			assert.Equal(t, res.StatusCode, tc.expStatusCode)
