@@ -44,9 +44,7 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string, platform *
 		return nil, err
 	}
 
-	var (
-		history []*imagetype.HistoryResponseItem
-	)
+	var history []*imagetype.HistoryResponseItem
 	s := i.client.SnapshotService(i.snapshotter)
 
 	diffIDs := ociImage.RootFS.DiffIDs
