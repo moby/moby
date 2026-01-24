@@ -17,8 +17,12 @@ import (
 // more information about using cross-account observability to set up monitoring
 // accounts and source accounts, see [CloudWatch cross-account observability].
 //
-// You can optionally filter the list by log group class and by using regular
-// expressions in your request to match strings in the log group names.
+// You can optionally filter the list by log group class, by using regular
+// expressions in your request to match strings in the log group names, by using
+// the fieldIndexes parameter to filter log groups based on which field indexes are
+// configured, by using the dataSources parameter to filter log groups by data
+// source types, and by using the fieldIndexNames parameter to filter by specific
+// field index names.
 //
 // This operation is paginated. By default, your first use of this operation
 // returns 50 results, and includes a token to use in a subsequent operation to
@@ -46,6 +50,17 @@ type ListLogGroupsInput struct {
 	// list of accounts to search. You can specify as many as 20 account IDs in the
 	// array.
 	AccountIdentifiers []string
+
+	// An array of data source filters to filter log groups by their associated data
+	// sources. You can filter by data source name, type, or both. Multiple filters
+	// within the same dimension are combined with OR logic, while filters across
+	// different dimensions are combined with AND logic.
+	DataSources []types.DataSourceFilter
+
+	// An array of field index names to filter log groups that have specific field
+	// indexes. Only log groups containing all specified field indexes are returned.
+	// You can specify 1 to 20 field index names, each with 1 to 512 characters.
+	FieldIndexNames []string
 
 	// If you are using a monitoring account, set this to true to have the operation
 	// return log groups in the accounts listed in accountIdentifiers .
@@ -172,6 +187,9 @@ func (c *Client) addOperationListLogGroupsMiddlewares(stack *middleware.Stack, o
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
+	if err = addOpListLogGroupsValidationMiddleware(stack); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListLogGroups(options.Region), middleware.Before); err != nil {
 		return err
 	}
@@ -196,40 +214,7 @@ func (c *Client) addOperationListLogGroupsMiddlewares(stack *middleware.Stack, o
 	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addInterceptExecution(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptTransmit(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addSpanInitializeStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanInitializeEnd(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

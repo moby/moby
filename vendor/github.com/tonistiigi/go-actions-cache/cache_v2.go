@@ -210,6 +210,9 @@ func (c *Cache) loadV2(ctx context.Context, keys ...string) (*Entry, error) {
 		if err != nil {
 			return errors.WithStack(err)
 		}
+		if v == nil {
+			return errors.New("cache entry no longer exists")
+		}
 		ce.URL = v.URL
 		ce.Key = v.Key
 		return nil

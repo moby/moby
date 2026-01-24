@@ -63,7 +63,27 @@ dependencies outside of the standard library.
 
 ## Release notes
 
-### v0.25.2 (draft, unpublished)
+### v0.25.4
+
+** mangling**
+
+Bug fix
+
+* [x] mangler may panic with pluralized overlapping initialisms
+
+Tests
+
+* [x] introduced fuzz tests
+
+### v0.25.3
+
+** mangling**
+
+Bug fix
+
+* [x] mangler may panic with pluralized initialisms
+
+### v0.25.2
 
 Minor changes due to internal maintenance that don't affect the behavior of the library.
 

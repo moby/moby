@@ -6,7 +6,7 @@ ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
 # XX_VERSION specifies the version of the xx utility to use.
 # It must be a valid tag in the docker.io/tonistiigi/xx image repository.
-ARG XX_VERSION=1.7.0
+ARG XX_VERSION=1.9.0
 
 # VPNKIT_VERSION is the version of the vpnkit binary which is used as a fallback
 # network driver for rootless.
@@ -21,10 +21,10 @@ ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
 ARG DOCKERCLI_INTEGRATION_VERSION=v25.0.5
 
 # BUILDX_VERSION is the version of buildx to install in the dev container.
-ARG BUILDX_VERSION=0.30.1
+ARG BUILDX_VERSION=0.31.0
 
 # COMPOSE_VERSION is the version of compose to install in the dev container.
-ARG COMPOSE_VERSION=v5.0.0
+ARG COMPOSE_VERSION=v5.0.2
 
 ARG SYSTEMD="false"
 ARG FIREWALLD="false"

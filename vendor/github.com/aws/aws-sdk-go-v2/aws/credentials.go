@@ -118,6 +118,10 @@ const (
 	CredentialSourceHTTP
 	// CredentialSourceIMDS credentials resolved from the instance metadata service (IMDS)
 	CredentialSourceIMDS
+	// CredentialSourceProfileLogin credentials resolved from an `aws login` session sourced from a profile
+	CredentialSourceProfileLogin
+	// CredentialSourceLogin credentials resolved from an `aws login` session
+	CredentialSourceLogin
 )
 
 // A Credentials is the AWS credentials value for individual credential fields.

@@ -5,6 +5,7 @@ package errors
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -12,9 +13,11 @@ import (
 )
 
 // DefaultHTTPCode is used when the error Code cannot be used as an HTTP code.
+//
+//nolint:gochecknoglobals // it should have been a constant in the first place, but now it is mutable so we have to leave it here or introduce a breaking change.
 var DefaultHTTPCode = http.StatusUnprocessableEntity
 
-// Error represents a error interface all swagger framework errors implement
+// Error represents a error interface all swagger framework errors implement.
 type Error interface {
 	error
 	Code() int32
@@ -25,15 +28,17 @@ type apiError struct {
 	message string
 }
 
+// Error implements the standard error interface.
 func (a *apiError) Error() string {
 	return a.message
 }
 
+// Code returns the HTTP status code associated with this error.
 func (a *apiError) Code() int32 {
 	return a.code
 }
 
-// MarshalJSON implements the JSON encoding interface
+// MarshalJSON implements the JSON encoding interface.
 func (a apiError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
 		"code":    a.code,
@@ -41,7 +46,7 @@ func (a apiError) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// New creates a new API error with a code and a message
+// New creates a new API error with a code and a message.
 func New(code int32, message string, args ...any) Error {
 	if len(args) > 0 {
 		return &apiError{
@@ -55,7 +60,7 @@ func New(code int32, message string, args ...any) Error {
 	}
 }
 
-// NotFound creates a new not found error
+// NotFound creates a new not found error.
 func NotFound(message string, args ...any) Error {
 	if message == "" {
 		message = "Not found"
@@ -63,28 +68,29 @@ func NotFound(message string, args ...any) Error {
 	return New(http.StatusNotFound, message, args...)
 }
 
-// NotImplemented creates a new not implemented error
+// NotImplemented creates a new not implemented error.
 func NotImplemented(message string) Error {
 	return New(http.StatusNotImplemented, "%s", message)
 }
 
-// MethodNotAllowedError represents an error for when the path matches but the method doesn't
+// MethodNotAllowedError represents an error for when the path matches but the method doesn't.
 type MethodNotAllowedError struct {
 	code    int32
 	Allowed []string
 	message string
 }
 
+// Error implements the standard error interface.
 func (m *MethodNotAllowedError) Error() string {
 	return m.message
 }
 
-// Code the error code
+// Code returns 405 (Method Not Allowed) as the HTTP status code.
 func (m *MethodNotAllowedError) Code() int32 {
 	return m.code
 }
 
-// MarshalJSON implements the JSON encoding interface
+// MarshalJSON implements the JSON encoding interface.
 func (m MethodNotAllowedError) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
 		"code":    m.code,
@@ -104,25 +110,33 @@ func errorAsJSON(err Error) []byte {
 
 func flattenComposite(errs *CompositeError) *CompositeError {
 	var res []error
-	for _, er := range errs.Errors {
-		switch e := er.(type) {
-		case *CompositeError:
-			if e != nil && len(e.Errors) > 0 {
-				flat := flattenComposite(e)
-				if len(flat.Errors) > 0 {
-					res = append(res, flat.Errors...)
-				}
-			}
-		default:
-			if e != nil {
-				res = append(res, e)
-			}
+
+	for _, err := range errs.Errors {
+		if err == nil {
+			continue
 		}
+
+		e := &CompositeError{}
+		if !errors.As(err, &e) {
+			res = append(res, err)
+
+			continue
+		}
+
+		if len(e.Errors) == 0 {
+			res = append(res, e)
+
+			continue
+		}
+
+		flat := flattenComposite(e)
+		res = append(res, flat.Errors...)
 	}
+
 	return CompositeValidationError(res...)
 }
 
-// MethodNotAllowed creates a new method not allowed error
+// MethodNotAllowed creates a new method not allowed error.
 func MethodNotAllowed(requested string, allow []string) Error {
 	msg := fmt.Sprintf("method %s is not allowed, but [%s] are", requested, strings.Join(allow, ","))
 	return &MethodNotAllowedError{
@@ -132,39 +146,55 @@ func MethodNotAllowed(requested string, allow []string) Error {
 	}
 }
 
-// ServeError implements the http error handler interface
+// ServeError implements the http error handler interface.
 func ServeError(rw http.ResponseWriter, r *http.Request, err error) {
 	rw.Header().Set("Content-Type", "application/json")
-	switch e := err.(type) {
-	case *CompositeError:
-		er := flattenComposite(e)
+
+	if err == nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		_, _ = rw.Write(errorAsJSON(New(http.StatusInternalServerError, "Unknown error")))
+
+		return
+	}
+
+	errComposite := &CompositeError{}
+	errMethodNotAllowed := &MethodNotAllowedError{}
+	var errError Error
+
+	switch {
+	case errors.As(err, &errComposite):
+		er := flattenComposite(errComposite)
 		// strips composite errors to first element only
 		if len(er.Errors) > 0 {
 			ServeError(rw, r, er.Errors[0])
-		} else {
-			// guard against empty CompositeError (invalid construct)
-			ServeError(rw, r, nil)
+
+			return
 		}
-	case *MethodNotAllowedError:
-		rw.Header().Add("Allow", strings.Join(e.Allowed, ","))
-		rw.WriteHeader(asHTTPCode(int(e.Code())))
+
+		// guard against empty CompositeError (invalid construct)
+		ServeError(rw, r, nil)
+
+	case errors.As(err, &errMethodNotAllowed):
+		rw.Header().Add("Allow", strings.Join(errMethodNotAllowed.Allowed, ","))
+		rw.WriteHeader(asHTTPCode(int(errMethodNotAllowed.Code())))
 		if r == nil || r.Method != http.MethodHead {
-			_, _ = rw.Write(errorAsJSON(e))
+			_, _ = rw.Write(errorAsJSON(errMethodNotAllowed))
 		}
-	case Error:
-		value := reflect.ValueOf(e)
+
+	case errors.As(err, &errError):
+		value := reflect.ValueOf(errError)
 		if value.Kind() == reflect.Ptr && value.IsNil() {
 			rw.WriteHeader(http.StatusInternalServerError)
 			_, _ = rw.Write(errorAsJSON(New(http.StatusInternalServerError, "Unknown error")))
+
 			return
 		}
-		rw.WriteHeader(asHTTPCode(int(e.Code())))
+
+		rw.WriteHeader(asHTTPCode(int(errError.Code())))
 		if r == nil || r.Method != http.MethodHead {
-			_, _ = rw.Write(errorAsJSON(e))
+			_, _ = rw.Write(errorAsJSON(errError))
 		}
-	case nil:
-		rw.WriteHeader(http.StatusInternalServerError)
-		_, _ = rw.Write(errorAsJSON(New(http.StatusInternalServerError, "Unknown error")))
+
 	default:
 		rw.WriteHeader(http.StatusInternalServerError)
 		if r == nil || r.Method != http.MethodHead {

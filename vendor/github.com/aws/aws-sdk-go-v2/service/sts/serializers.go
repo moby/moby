@@ -711,6 +711,76 @@ func (m *awsAwsquery_serializeOpGetSessionToken) HandleSerialize(ctx context.Con
 	span.End()
 	return next.HandleSerialize(ctx, in)
 }
+
+type awsAwsquery_serializeOpGetWebIdentityToken struct {
+}
+
+func (*awsAwsquery_serializeOpGetWebIdentityToken) ID() string {
+	return "OperationSerializer"
+}
+
+func (m *awsAwsquery_serializeOpGetWebIdentityToken) HandleSerialize(ctx context.Context, in middleware.SerializeInput, next middleware.SerializeHandler) (
+	out middleware.SerializeOutput, metadata middleware.Metadata, err error,
+) {
+	_, span := tracing.StartSpan(ctx, "OperationSerializer")
+	endTimer := startMetricTimer(ctx, "client.call.serialization_duration")
+	defer endTimer()
+	defer span.End()
+	request, ok := in.Request.(*smithyhttp.Request)
+	if !ok {
+		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown transport type %T", in.Request)}
+	}
+
+	input, ok := in.Parameters.(*GetWebIdentityTokenInput)
+	_ = input
+	if !ok {
+		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown input parameters type %T", in.Parameters)}
+	}
+
+	operationPath := "/"
+	if len(request.Request.URL.Path) == 0 {
+		request.Request.URL.Path = operationPath
+	} else {
+		request.Request.URL.Path = path.Join(request.Request.URL.Path, operationPath)
+		if request.Request.URL.Path != "/" && operationPath[len(operationPath)-1] == '/' {
+			request.Request.URL.Path += "/"
+		}
+	}
+	request.Request.Method = "POST"
+	httpBindingEncoder, err := httpbinding.NewEncoder(request.URL.Path, request.URL.RawQuery, request.Header)
+	if err != nil {
+		return out, metadata, &smithy.SerializationError{Err: err}
+	}
+	httpBindingEncoder.SetHeader("Content-Type").String("application/x-www-form-urlencoded")
+
+	bodyWriter := bytes.NewBuffer(nil)
+	bodyEncoder := query.NewEncoder(bodyWriter)
+	body := bodyEncoder.Object()
+	body.Key("Action").String("GetWebIdentityToken")
+	body.Key("Version").String("2011-06-15")
+
+	if err := awsAwsquery_serializeOpDocumentGetWebIdentityTokenInput(input, bodyEncoder.Value); err != nil {
+		return out, metadata, &smithy.SerializationError{Err: err}
+	}
+
+	err = bodyEncoder.Encode()
+	if err != nil {
+		return out, metadata, &smithy.SerializationError{Err: err}
+	}
+
+	if request, err = request.SetStream(bytes.NewReader(bodyWriter.Bytes())); err != nil {
+		return out, metadata, &smithy.SerializationError{Err: err}
+	}
+
+	if request.Request, err = httpBindingEncoder.Encode(request.Request); err != nil {
+		return out, metadata, &smithy.SerializationError{Err: err}
+	}
+	in.Request = request
+
+	endTimer()
+	span.End()
+	return next.HandleSerialize(ctx, in)
+}
 func awsAwsquery_serializeDocumentPolicyDescriptorListType(v []types.PolicyDescriptorType, value query.Value) error {
 	array := value.Array("member")
 
@@ -799,6 +869,16 @@ func awsAwsquery_serializeDocumentTagListType(v []types.Tag, value query.Value) 
 		if err := awsAwsquery_serializeDocumentTag(&v[i], av); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func awsAwsquery_serializeDocumentWebIdentityTokenAudienceListType(v []string, value query.Value) error {
+	array := value.Array("member")
+
+	for i := range v {
+		av := array.Value()
+		av.String(v[i])
 	}
 	return nil
 }
@@ -1081,6 +1161,37 @@ func awsAwsquery_serializeOpDocumentGetSessionTokenInput(v *GetSessionTokenInput
 	if v.TokenCode != nil {
 		objectKey := object.Key("TokenCode")
 		objectKey.String(*v.TokenCode)
+	}
+
+	return nil
+}
+
+func awsAwsquery_serializeOpDocumentGetWebIdentityTokenInput(v *GetWebIdentityTokenInput, value query.Value) error {
+	object := value.Object()
+	_ = object
+
+	if v.Audience != nil {
+		objectKey := object.Key("Audience")
+		if err := awsAwsquery_serializeDocumentWebIdentityTokenAudienceListType(v.Audience, objectKey); err != nil {
+			return err
+		}
+	}
+
+	if v.DurationSeconds != nil {
+		objectKey := object.Key("DurationSeconds")
+		objectKey.Integer(*v.DurationSeconds)
+	}
+
+	if v.SigningAlgorithm != nil {
+		objectKey := object.Key("SigningAlgorithm")
+		objectKey.String(*v.SigningAlgorithm)
+	}
+
+	if v.Tags != nil {
+		objectKey := object.Key("Tags")
+		if err := awsAwsquery_serializeDocumentTagListType(v.Tags, objectKey); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -1,3 +1,12 @@
+# Release (2025-12-01)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.24.0
+  * **Feature**: Improve allocation footprint of the middleware stack. This should convey a ~10% reduction in allocations per SDK request.
+
 # Release (2025-11-03)
 
 ## General Highlights

@@ -19,6 +19,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/sha1" // nolint:gosec
 	"crypto/x509"
@@ -28,6 +29,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"slices"
 )
 
 const (
@@ -129,4 +131,28 @@ func genErrMsg(first, second crypto.PublicKey, keyType string) string {
 		return msg
 	}
 	return fmt.Sprintf("%s (%s, %s)", msg, hex.EncodeToString(firstSKID), hex.EncodeToString(secondSKID))
+}
+
+// ValidatePubKey validates the parameters of an RSA, ECDSA, or ED25519 public key.
+//
+// Deprecated: Prefer goodkey.ValidatePubKey. This function has been
+// updated to verify only the size of the key for RSA or the curve
+// for ECDSA.
+func ValidatePubKey(pub crypto.PublicKey) error {
+	switch pk := pub.(type) {
+	case *rsa.PublicKey:
+		if !slices.Contains([]int{2048, 3072, 4096}, pk.Size()*8) {
+			return fmt.Errorf("rsa key size %d is not supported supported, modulus size must be 2048, 3072, or 4096", pk.Size()*8)
+		}
+		return nil
+	case *ecdsa.PublicKey:
+		if !slices.Contains([]elliptic.Curve{elliptic.P256(), elliptic.P384(), elliptic.P521()}, pk.Curve) {
+			return fmt.Errorf("ecdsa curve %T is not supported, must be NIST P-256, P-384 or P-521", pk.Curve)
+		}
+		return nil
+	case ed25519.PublicKey:
+		// Nothing to validate for Ed25519
+		return nil
+	}
+	return fmt.Errorf("unsupported public key type: %T", pub)
 }

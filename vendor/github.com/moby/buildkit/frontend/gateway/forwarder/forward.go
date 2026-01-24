@@ -57,7 +57,9 @@ type BridgeClient struct {
 	buildOpts     client.BuildOpts
 	ctrs          []client.Container
 	executor      executor.Executor
-	mounts        map[string]snapshot.Mounter
+
+	mounts   map[string]snapshot.Mounter
+	mountsMu sync.Mutex
 }
 
 func (c *BridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*client.Result, error) {
@@ -215,9 +217,7 @@ func (c *BridgeClient) discard(err error) {
 		ctr.Release(context.TODO())
 	}
 
-	for _, mount := range c.mounts {
-		mount.Unmount()
-	}
+	c.discardMounts()
 
 	for id, workerRef := range c.workerRefByID {
 		workerRef.ImmutableRef.Release(context.TODO())
@@ -233,6 +233,16 @@ func (c *BridgeClient) discard(err error) {
 			}
 		}
 	}
+}
+
+func (c *BridgeClient) discardMounts() {
+	c.mountsMu.Lock()
+	defer c.mountsMu.Unlock()
+
+	for _, mount := range c.mounts {
+		mount.Unmount()
+	}
+	c.mounts = nil
 }
 
 func (c *BridgeClient) Warn(ctx context.Context, dgst digest.Digest, msg string, opts client.WarnOpts) error {
@@ -388,26 +398,28 @@ func (r *ref) StatFile(ctx context.Context, req client.StatRequest) (*fstypes.St
 
 func (r *ref) getMounter(ctx context.Context) (snapshot.Mounter, error) {
 	id := r.resultProxy.ID()
-	if mounter, ok := r.c.mounts[id]; ok {
-		return mounter, nil
-	}
 
-	rr, err := r.resultProxy.Result(ctx)
-	if err != nil {
-		return nil, r.c.wrapSolveError(err)
-	}
-	ref, ok := rr.Sys().(*worker.WorkerRef)
+	r.c.mountsMu.Lock()
+	defer r.c.mountsMu.Unlock()
+
+	mounter, ok := r.c.mounts[id]
 	if !ok {
-		return nil, errors.Errorf("invalid ref: %T", rr.Sys())
-	}
+		rr, err := r.resultProxy.Result(ctx)
+		if err != nil {
+			return nil, r.c.wrapSolveError(err)
+		}
+		ref, ok := rr.Sys().(*worker.WorkerRef)
+		if !ok {
+			return nil, errors.Errorf("invalid ref: %T", rr.Sys())
+		}
 
-	mountable, err := ref.ImmutableRef.Mount(ctx, true, r.session)
-	if err != nil {
-		return nil, err
+		mountable, err := ref.ImmutableRef.Mount(ctx, true, r.session)
+		if err != nil {
+			return nil, err
+		}
+		mounter = snapshot.LocalMounter(mountable)
+		r.c.mounts[id] = mounter
 	}
-	mounter := snapshot.LocalMounter(mountable)
-
-	r.c.mounts[id] = mounter
 	return mounter, nil
 }
 

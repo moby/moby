@@ -84,7 +84,7 @@ type ClientService interface {
 /*
 CreateLogEntry creates an entry in the transparency log
 
-Creates an entry in the transparency log for a detached signature, public key, and content. Items can be included in the request or fetched by the server when URLs are specified.
+Creates an entry in the transparency log for a detached signature, public key, and content.
 */
 func (a *Client) CreateLogEntry(params *CreateLogEntryParams, opts ...ClientOption) (*CreateLogEntryCreated, error) {
 	// NOTE: parameters are not validated before sending

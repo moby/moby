@@ -15,6 +15,7 @@ import (
 	smithy "github.com/aws/smithy-go"
 	smithyauth "github.com/aws/smithy-go/auth"
 	smithyendpoints "github.com/aws/smithy-go/endpoints"
+	"github.com/aws/smithy-go/endpoints/private/rulesfn"
 	"github.com/aws/smithy-go/middleware"
 	"github.com/aws/smithy-go/ptr"
 	"github.com/aws/smithy-go/tracing"
@@ -222,7 +223,7 @@ func bindRegion(region string) (*string, error) {
 	if region == "" {
 		return nil, nil
 	}
-	if !smithyhttp.ValidHostLabel(region) {
+	if !rulesfn.IsValidHostLabel(region, true) {
 		return nil, fmt.Errorf("invalid input region %s", region)
 	}
 

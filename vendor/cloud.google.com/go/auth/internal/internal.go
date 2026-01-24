@@ -88,12 +88,13 @@ func ParseKey(key []byte) (crypto.Signer, error) {
 		key = block.Bytes
 	}
 	var parsedKey crypto.PrivateKey
-	var err error
-	parsedKey, err = x509.ParsePKCS8PrivateKey(key)
-	if err != nil {
-		parsedKey, err = x509.ParsePKCS1PrivateKey(key)
-		if err != nil {
-			return nil, fmt.Errorf("private key should be a PEM or plain PKCS1 or PKCS8: %w", err)
+
+	var errPKCS8, errPKCS1, errEC error
+	if parsedKey, errPKCS8 = x509.ParsePKCS8PrivateKey(key); errPKCS8 != nil {
+		if parsedKey, errPKCS1 = x509.ParsePKCS1PrivateKey(key); errPKCS1 != nil {
+			if parsedKey, errEC = x509.ParseECPrivateKey(key); errEC != nil {
+				return nil, fmt.Errorf("failed to parse private key. Tried PKCS8, PKCS1, and EC formats. Errors: [PKCS8: %v], [PKCS1: %v], [EC: %v]", errPKCS8, errPKCS1, errEC)
+			}
 		}
 	}
 	parsed, ok := parsedKey.(crypto.Signer)

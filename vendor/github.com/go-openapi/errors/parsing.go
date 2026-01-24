@@ -9,7 +9,7 @@ import (
 	"net/http"
 )
 
-// ParseError represents a parsing error
+// ParseError represents a parsing error.
 type ParseError struct {
 	code    int32
 	Name    string
@@ -19,7 +19,7 @@ type ParseError struct {
 	message string
 }
 
-// NewParseError creates a new parse error
+// NewParseError creates a new parse error.
 func NewParseError(name, in, value string, reason error) *ParseError {
 	var msg string
 	if in == "" {
@@ -37,16 +37,17 @@ func NewParseError(name, in, value string, reason error) *ParseError {
 	}
 }
 
+// Error implements the standard error interface.
 func (e *ParseError) Error() string {
 	return e.message
 }
 
-// Code returns the http status code for this error
+// Code returns 400 (Bad Request) as the HTTP status code for parsing errors.
 func (e *ParseError) Code() int32 {
 	return e.code
 }
 
-// MarshalJSON implements the JSON encoding interface
+// MarshalJSON implements the JSON encoding interface.
 func (e ParseError) MarshalJSON() ([]byte, error) {
 	var reason string
 	if e.Reason != nil {

@@ -67,6 +67,12 @@ type CreateLogGroupInput struct {
 	// This member is required.
 	LogGroupName *string
 
+	// Use this parameter to enable deletion protection for the new log group. When
+	// enabled on a log group, deletion protection blocks all deletion operations until
+	// it is explicitly disabled. By default log groups are created without deletion
+	// protection enabled.
+	DeletionProtectionEnabled *bool
+
 	// The Amazon Resource Name (ARN) of the KMS key to use when encrypting log data.
 	// For more information, see [Amazon Resource Names].
 	//
@@ -212,40 +218,7 @@ func (c *Client) addOperationCreateLogGroupMiddlewares(stack *middleware.Stack, 
 	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addInterceptExecution(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptTransmit(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addSpanInitializeStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanInitializeEnd(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

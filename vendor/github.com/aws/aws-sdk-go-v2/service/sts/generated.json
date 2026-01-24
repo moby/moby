@@ -20,6 +20,7 @@
         "api_op_GetDelegatedAccessToken.go",
         "api_op_GetFederationToken.go",
         "api_op_GetSessionToken.go",
+        "api_op_GetWebIdentityToken.go",
         "auth.go",
         "deserializers.go",
         "doc.go",
