@@ -299,7 +299,11 @@ func (s *State) SetRestarting(exitStatus *ExitStatus) {
 	s.Restarting = true
 	s.Paused = false
 	s.Pid = 0
-	s.FinishedAt = time.Now().UTC()
+	finishedAt := exitStatus.ExitedAt
+	if finishedAt.IsZero() {
+		finishedAt = time.Now().UTC()
+	}
+	s.FinishedAt = finishedAt
 	s.ExitCode = exitStatus.ExitCode
 
 	s.notifyAndClear(&s.stopWaiters)
