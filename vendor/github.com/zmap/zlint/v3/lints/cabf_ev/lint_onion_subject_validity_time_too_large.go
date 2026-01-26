@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -41,14 +41,15 @@ func init() {
 		Citation:      "EVGs: Appendix F",
 		Source:        lint.CABFEVGuidelines,
 		EffectiveDate: util.OnionOnlyEVDate,
-		Lint:          &torValidityTooLarge{},
+		Lint:          NewTorValidityTooLarge,
 	})
 }
 
-// Initialize for a torValidityTooLarge linter is a NOP.
-func (l *torValidityTooLarge) Initialize() error {
-	return nil
+func NewTorValidityTooLarge() lint.LintInterface {
+	return &torValidityTooLarge{}
 }
+
+// Initialize for a torValidityTooLarge linter is a NOP.
 
 // CheckApplies returns true if the certificate is a subscriber certificate that
 // contains a subject name ending in `.onion`.

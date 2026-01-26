@@ -19,6 +19,7 @@ import (
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/log"
 	ocspConfig "github.com/cloudflare/cfssl/ocsp/config"
+
 	// empty import of zlint/v3 required to have lints registered.
 	_ "github.com/zmap/zlint/v3"
 	"github.com/zmap/zlint/v3/lint"
@@ -296,7 +297,7 @@ func (p *SigningProfile) populate(cfg *Config) error {
 
 	if p.AuthRemote.AuthKeyName != "" {
 		log.Debug("match auth remote key in profile to auth_keys section")
-		if key, ok := cfg.AuthKeys[p.AuthRemote.AuthKeyName]; ok == true {
+		if key, ok := cfg.AuthKeys[p.AuthRemote.AuthKeyName]; ok {
 			if key.Type == "standard" {
 				p.RemoteProvider, err = auth.New(key.Key, nil)
 				if err != nil {
@@ -441,11 +442,7 @@ func (p *Signing) NeedsRemoteSigner() bool {
 		}
 	}
 
-	if p.Default.RemoteServer != "" {
-		return true
-	}
-
-	return false
+	return p.Default.RemoteServer != ""
 }
 
 // NeedsLocalSigner returns true if one of the profiles doe not have a remote set
@@ -456,11 +453,7 @@ func (p *Signing) NeedsLocalSigner() bool {
 		}
 	}
 
-	if p.Default.RemoteServer == "" {
-		return true
-	}
-
-	return false
+	return p.Default.RemoteServer == ""
 }
 
 // Usages parses the list of key uses in the profile, translating them
@@ -559,7 +552,7 @@ func (p *SigningProfile) hasLocalConfig() bool {
 		p.OCSP != "" ||
 		p.ExpiryString != "" ||
 		p.BackdateString != "" ||
-		p.CAConstraint.IsCA != false ||
+		p.CAConstraint.IsCA ||
 		!p.NotBefore.IsZero() ||
 		!p.NotAfter.IsZero() ||
 		p.NameWhitelistString != "" ||

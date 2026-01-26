@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,9 +15,9 @@
 package util
 
 import (
-	"encoding/asn1"
 	"errors"
 
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zcrypto/x509/pkix"
 )
@@ -110,7 +110,6 @@ func IsExtInCert(cert *x509.Certificate, oid asn1.ObjectIdentifier) bool {
 
 // GetExtFromCert returns the extension with the matching OID, if present. If
 // the extension if not present, it returns nil.
-//nolint:interfacer
 func GetExtFromCert(cert *x509.Certificate, oid asn1.ObjectIdentifier) *pkix.Extension {
 	// Since this function is called by many Lint CheckApplies functions we use
 	// the x509.Certificate.ExtensionsMap field added by zcrypto to check for
@@ -142,7 +141,7 @@ func TypeInName(name *pkix.Name, oid asn1.ObjectIdentifier) bool {
 	return false
 }
 
-//helper function to parse policyMapping extensions, returns slices of CertPolicyIds separated by domain
+// helper function to parse policyMapping extensions, returns slices of CertPolicyIds separated by domain
 func GetMappedPolicies(polMap *pkix.Extension) ([][2]asn1.ObjectIdentifier, error) {
 	if polMap == nil {
 		return nil, errors.New("policyMap: null pointer")

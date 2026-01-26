@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -31,12 +31,12 @@ func init() {
 		Citation:      "CABF Ballot 144",
 		Source:        lint.CABFBaselineRequirements,
 		EffectiveDate: util.OnionOnlyEVDate,
-		Lint:          &onionNotEV{},
+		Lint:          NewOnionNotEV,
 	})
 }
 
-func (l *onionNotEV) Initialize() error {
-	return nil
+func NewOnionNotEV() lint.LintInterface {
+	return &onionNotEV{}
 }
 
 // This lint only applies for certificates issued before CA/Browser Forum

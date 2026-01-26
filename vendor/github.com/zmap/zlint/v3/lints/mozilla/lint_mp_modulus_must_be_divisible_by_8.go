@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -36,12 +36,12 @@ func init() {
 		Citation:      "Mozilla Root Store Policy / Section 5.1",
 		Source:        lint.MozillaRootStorePolicy,
 		EffectiveDate: util.MozillaPolicy24Date,
-		Lint:          &modulusDivisibleBy8{},
+		Lint:          NewModulusDivisibleBy8,
 	})
 }
 
-func (l *modulusDivisibleBy8) Initialize() error {
-	return nil
+func NewModulusDivisibleBy8() lint.LintInterface {
+	return &modulusDivisibleBy8{}
 }
 
 func (l *modulusDivisibleBy8) CheckApplies(c *x509.Certificate) bool {

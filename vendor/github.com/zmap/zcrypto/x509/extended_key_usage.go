@@ -7,7 +7,7 @@
 package x509
 
 import (
-	"encoding/asn1"
+	"github.com/zmap/zcrypto/encoding/asn1"
 )
 
 const (
@@ -29,6 +29,7 @@ const (
 	OID_EKU_APPLE_CRYPTO_TIER1_QOS             = "1.2.840.113635.100.4.6.2"
 	OID_EKU_APPLE_CRYPTO_TIER2_QOS             = "1.2.840.113635.100.4.6.3"
 	OID_EKU_APPLE_CRYPTO_TIER3_QOS             = "1.2.840.113635.100.4.6.4"
+	OID_EKU_ADOBE_AUTHENTIC_DOCUMENT_TRUST     = "1.2.840.113583.1.1.5"
 	OID_EKU_MICROSOFT_CERT_TRUST_LIST_SIGNING  = "1.3.6.1.4.1.311.10.3.1"
 	OID_EKU_MICROSOFT_QUALIFIED_SUBORDINATE    = "1.3.6.1.4.1.311.10.3.10"
 	OID_EKU_MICROSOFT_KEY_RECOVERY_3           = "1.3.6.1.4.1.311.10.3.11"
@@ -95,6 +96,7 @@ var (
 	oidExtKeyUsageAppleCryptoTier1Qos            = asn1.ObjectIdentifier{1, 2, 840, 113635, 100, 4, 6, 2}
 	oidExtKeyUsageAppleCryptoTier2Qos            = asn1.ObjectIdentifier{1, 2, 840, 113635, 100, 4, 6, 3}
 	oidExtKeyUsageAppleCryptoTier3Qos            = asn1.ObjectIdentifier{1, 2, 840, 113635, 100, 4, 6, 4}
+	oidExtKeyUsageAdobeAuthenticDocumentTrust    = asn1.ObjectIdentifier{1, 2, 840, 113583, 1, 1, 5}
 	oidExtKeyUsageMicrosoftCertTrustListSigning  = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 10, 3, 1}
 	oidExtKeyUsageMicrosoftQualifiedSubordinate  = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 10, 3, 10}
 	oidExtKeyUsageMicrosoftKeyRecovery3          = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 10, 3, 11}
@@ -161,6 +163,7 @@ const (
 	ExtKeyUsageAppleCryptoTier1Qos
 	ExtKeyUsageAppleCryptoTier2Qos
 	ExtKeyUsageAppleCryptoTier3Qos
+	ExtKeyUsageAdobeAuthenticDocumentTrust
 	ExtKeyUsageMicrosoftCertTrustListSigning
 	ExtKeyUsageMicrosoftQualifiedSubordinate
 	ExtKeyUsageMicrosoftKeyRecovery3
@@ -227,6 +230,7 @@ type auxExtendedKeyUsage struct {
 	AppleCryptoTier1Qos            bool     `json:"apple_crypto_tier1_qos,omitempty" oid:"1.2.840.113635.100.4.6.2"`
 	AppleCryptoTier2Qos            bool     `json:"apple_crypto_tier2_qos,omitempty" oid:"1.2.840.113635.100.4.6.3"`
 	AppleCryptoTier3Qos            bool     `json:"apple_crypto_tier3_qos,omitempty" oid:"1.2.840.113635.100.4.6.4"`
+	AdobeAuthenticDocumentTrust    bool     `json:"adobe_authentic_document_trust,omitempty" oid:"1.2.840.113583.1.1.5"`
 	MicrosoftCertTrustListSigning  bool     `json:"microsoft_cert_trust_list_signing,omitempty" oid:"1.3.6.1.4.1.311.10.3.1"`
 	MicrosoftQualifiedSubordinate  bool     `json:"microsoft_qualified_subordinate,omitempty" oid:"1.3.6.1.4.1.311.10.3.10"`
 	MicrosoftKeyRecovery3          bool     `json:"microsoft_key_recovery_3,omitempty" oid:"1.3.6.1.4.1.311.10.3.11"`
@@ -314,6 +318,8 @@ func (aux *auxExtendedKeyUsage) populateFromASN1(oid asn1.ObjectIdentifier) {
 		aux.AppleCryptoTier2Qos = true
 	case OID_EKU_APPLE_CRYPTO_TIER3_QOS:
 		aux.AppleCryptoTier3Qos = true
+	case OID_EKU_ADOBE_AUTHENTIC_DOCUMENT_TRUST:
+		aux.AdobeAuthenticDocumentTrust = true
 	case OID_EKU_MICROSOFT_CERT_TRUST_LIST_SIGNING:
 		aux.MicrosoftCertTrustListSigning = true
 	case OID_EKU_MICROSOFT_QUALIFIED_SUBORDINATE:
@@ -447,6 +453,8 @@ func (aux *auxExtendedKeyUsage) populateFromExtKeyUsage(eku ExtKeyUsage) {
 		aux.AppleCryptoTier2Qos = true
 	case ExtKeyUsageAppleCryptoTier3Qos:
 		aux.AppleCryptoTier3Qos = true
+	case ExtKeyUsageAdobeAuthenticDocumentTrust:
+		aux.AdobeAuthenticDocumentTrust = true
 	case ExtKeyUsageMicrosoftCertTrustListSigning:
 		aux.MicrosoftCertTrustListSigning = true
 	case ExtKeyUsageMicrosoftQualifiedSubordinate:
@@ -566,6 +574,7 @@ func init() {
 	ekuOIDs[OID_EKU_APPLE_CRYPTO_TIER1_QOS] = oidExtKeyUsageAppleCryptoTier1Qos
 	ekuOIDs[OID_EKU_APPLE_CRYPTO_TIER2_QOS] = oidExtKeyUsageAppleCryptoTier2Qos
 	ekuOIDs[OID_EKU_APPLE_CRYPTO_TIER3_QOS] = oidExtKeyUsageAppleCryptoTier3Qos
+	ekuOIDs[OID_EKU_ADOBE_AUTHENTIC_DOCUMENT_TRUST] = oidExtKeyUsageAdobeAuthenticDocumentTrust
 	ekuOIDs[OID_EKU_MICROSOFT_CERT_TRUST_LIST_SIGNING] = oidExtKeyUsageMicrosoftCertTrustListSigning
 	ekuOIDs[OID_EKU_MICROSOFT_QUALIFIED_SUBORDINATE] = oidExtKeyUsageMicrosoftQualifiedSubordinate
 	ekuOIDs[OID_EKU_MICROSOFT_KEY_RECOVERY_3] = oidExtKeyUsageMicrosoftKeyRecovery3
@@ -631,6 +640,7 @@ func init() {
 	ekuConstants[OID_EKU_APPLE_CRYPTO_TIER1_QOS] = ExtKeyUsageAppleCryptoTier1Qos
 	ekuConstants[OID_EKU_APPLE_CRYPTO_TIER2_QOS] = ExtKeyUsageAppleCryptoTier2Qos
 	ekuConstants[OID_EKU_APPLE_CRYPTO_TIER3_QOS] = ExtKeyUsageAppleCryptoTier3Qos
+	ekuConstants[OID_EKU_ADOBE_AUTHENTIC_DOCUMENT_TRUST] = ExtKeyUsageAdobeAuthenticDocumentTrust
 	ekuConstants[OID_EKU_MICROSOFT_CERT_TRUST_LIST_SIGNING] = ExtKeyUsageMicrosoftCertTrustListSigning
 	ekuConstants[OID_EKU_MICROSOFT_QUALIFIED_SUBORDINATE] = ExtKeyUsageMicrosoftQualifiedSubordinate
 	ekuConstants[OID_EKU_MICROSOFT_KEY_RECOVERY_3] = ExtKeyUsageMicrosoftKeyRecovery3

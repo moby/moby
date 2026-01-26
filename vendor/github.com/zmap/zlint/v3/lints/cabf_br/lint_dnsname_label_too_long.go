@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -31,12 +31,12 @@ func init() {
 		Citation:      "RFC 1035",
 		Source:        lint.CABFBaselineRequirements,
 		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &DNSNameLabelLengthTooLong{},
+		Lint:          NewDNSNameLabelLengthTooLong,
 	})
 }
 
-func (l *DNSNameLabelLengthTooLong) Initialize() error {
-	return nil
+func NewDNSNameLabelLengthTooLong() lint.LintInterface {
+	return &DNSNameLabelLengthTooLong{}
 }
 
 func (l *DNSNameLabelLengthTooLong) CheckApplies(c *x509.Certificate) bool {

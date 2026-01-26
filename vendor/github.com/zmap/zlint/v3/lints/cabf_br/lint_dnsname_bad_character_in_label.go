@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -33,16 +33,14 @@ func init() {
 		Citation:      "BRs: 7.1.4.2",
 		Source:        lint.CABFBaselineRequirements,
 		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &DNSNameProperCharacters{},
+		Lint:          NewDNSNameProperCharacters,
 	})
 }
 
-func (l *DNSNameProperCharacters) Initialize() error {
-	const dnsNameRegexp = `^(\*\.)?(\?\.)*([A-Za-z0-9*_-]+\.)*[A-Za-z0-9*_-]*$`
-	var err error
-	l.CompiledExpression, err = regexp.Compile(dnsNameRegexp)
-
-	return err
+func NewDNSNameProperCharacters() lint.LintInterface {
+	return &DNSNameProperCharacters{
+		CompiledExpression: regexp.MustCompile(`^(\*\.)?(\?\.)*([A-Za-z0-9*_-]+\.)*[A-Za-z0-9*_-]*$`),
+	}
 }
 
 func (l *DNSNameProperCharacters) CheckApplies(c *x509.Certificate) bool {

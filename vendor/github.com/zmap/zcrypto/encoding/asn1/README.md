@@ -1,0 +1,1 @@
+Forked from standard "encoding/asn1" to allow more permissive decoding
