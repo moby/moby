@@ -390,3 +390,65 @@ func TestWithHTTPClient(t *testing.T) {
 		cmpopts.IgnoreUnexported(http.Transport{}, tls.Config{}),
 		cmpopts.EquateComparable(&cookiejar.Jar{}))
 }
+
+func TestWithResponseHook(t *testing.T) {
+	const hdrKey = "X-Test-Header"
+	const hdrVal = "hello-world"
+
+	t.Run("single hook", func(t *testing.T) {
+		var got string
+		c, err := New(
+			WithResponseHook(func(resp *http.Response) {
+				got = resp.Header.Get(hdrKey)
+			}),
+			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
+				resp := &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+				}
+				resp.Header.Set(hdrKey, hdrVal)
+				return resp, nil
+			}),
+		)
+		assert.NilError(t, err)
+
+		_, err = c.Ping(t.Context(), PingOptions{})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(got, hdrVal))
+
+		assert.NilError(t, c.Close())
+	})
+
+	t.Run("invalid hook", func(t *testing.T) {
+		_, err := New(WithResponseHook(nil))
+		assert.Error(t, err, "invalid response hook: hook is nil")
+	})
+
+	t.Run("multiple hooks", func(t *testing.T) {
+		var triggered []string
+
+		c, err := New(
+			WithResponseHook(func(*http.Response) {
+				triggered = append(triggered, "hook 1: "+hdrVal)
+			}),
+			WithResponseHook(func(*http.Response) {
+				triggered = append(triggered, "hook 2: "+hdrVal)
+			}),
+			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
+				resp := &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+				}
+				resp.Header.Set(hdrKey, hdrVal)
+				return resp, nil
+			}),
+		)
+		assert.NilError(t, err)
+
+		_, err = c.Ping(t.Context(), PingOptions{})
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(triggered, []string{"hook 1: " + hdrVal, "hook 2: " + hdrVal}))
+
+		assert.NilError(t, c.Close())
+	})
+}
