@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -639,6 +639,30 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		}
 	}
 
+	// TODO(thaJeztah): consider making empty strings an error. Existing behavior allowed for empty strings to be used as default, even if explicitly set (`dockerd -H ""`).
+	conf.Hosts = slices.DeleteFunc(conf.Hosts, func(h string) bool {
+		return strings.TrimSpace(h) == ""
+	})
+	if len(conf.Hosts) == 0 {
+		// Set the default host if no hosts are configured.
+		// TODO(thaJeztah) can set defaults in config.New() instead?
+		if conf.TLS != nil && *conf.TLS {
+			// If no host is configured, but the "--tls" flag is set, we
+			// default to using a TCP connection instead of a unix-socket
+			// or named pipe.
+			//
+			// See https://github.com/moby/moby/commit/0906195fbbd6f379c163b80f23e4c5a60bcfc5f0
+			conf.Hosts = append(conf.Hosts, dopts.DefaultTLSHost)
+		} else {
+			// Otherwise use the default unix-socket (Linux) or named pipe (Windows).
+			h, err := defaultAPISocketPath(honorXDG)
+			if err != nil {
+				return nil, err
+			}
+			conf.Hosts = append(conf.Hosts, h)
+		}
+	}
+
 	if err := normalizeHosts(conf); err != nil {
 		return nil, err
 	}
@@ -718,38 +742,44 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	return conf, nil
 }
 
-// normalizeHosts normalizes the configured config.Hosts and remove duplicates.
+// defaultAPISocketPath returns the default path for the Unix socket (Linux)
+// or named pipe (Windows).
+//
+// When running with rootlessKit, XDG dirs should be preferred, and the
+// default is to listen on an unprivileged socket in [XDG_RUNTIME_DIR].
+//
+// [XDG_RUNTIME_DIR]: https://specifications.freedesktop.org/basedir/0.8/#variables
+func defaultAPISocketPath(honorXDG bool) (string, error) {
+	if honorXDG {
+		runtimeDir, err := homedir.GetRuntimeDir()
+		if err != nil {
+			return "", err
+		}
+		return "unix://" + filepath.Join(runtimeDir, "docker.sock"), nil
+	}
+
+	// default unix-socket (Linux) or named pipe (Windows).
+	return dopts.DefaultHost, nil
+}
+
+// normalizeHosts normalizes the configured config.Hosts and removes duplicates.
 // It returns an error if it fails to parse a host.
 func normalizeHosts(cfg *config.Config) error {
 	if len(cfg.Hosts) == 0 {
-		// if no hosts are configured, create a single entry slice, so that the
-		// default is used.
-		//
-		// TODO(thaJeztah) implement a cleaner way for this; this depends on a
-		//                 side-effect of how we parse empty/partial hosts.
-		cfg.Hosts = make([]string, 1)
-	}
-	hosts := make([]string, 0, len(cfg.Hosts))
-	seen := make(map[string]struct{}, len(cfg.Hosts))
-
-	useTLS := DefaultTLSValue
-	if cfg.TLS != nil {
-		useTLS = *cfg.TLS
+		return errors.New("no hosts specified")
 	}
 
-	for _, h := range cfg.Hosts {
-		host, err := dopts.ParseHost(useTLS, honorXDG, h)
+	hosts := slices.Clone(cfg.Hosts)
+	for i, h := range hosts {
+		var err error
+		hosts[i], err = dopts.ParseDaemonHost(h)
 		if err != nil {
 			return err
 		}
-		if _, ok := seen[host]; ok {
-			continue
-		}
-		seen[host] = struct{}{}
-		hosts = append(hosts, host)
 	}
-	sort.Strings(hosts)
-	cfg.Hosts = hosts
+
+	slices.Sort(hosts)
+	cfg.Hosts = slices.Compact(hosts)
 	return nil
 }
 

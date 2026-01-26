@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-func TestParseHost(t *testing.T) {
-	invalid := map[string]string{
+func TestParseDockerDaemonHost(t *testing.T) {
+	invalids := map[string]string{
 		"something with spaces": `invalid bind address (something with spaces): parse "tcp://something with spaces": invalid character " " in host name`,
 		"://":                   `invalid bind address (://): unsupported proto ''`,
 		"unknown://":            `invalid bind address (unknown://): unsupported proto 'unknown'`,
@@ -20,15 +20,43 @@ func TestParseHost(t *testing.T) {
 		"tcp://[::1]:/":         `invalid bind address (tcp://[::1]:/): should not contain a path element`,
 		"tcp://[::1]:5555/":     `invalid bind address (tcp://[::1]:5555/): should not contain a path element`,
 		"tcp://[::1]:5555/p":    `invalid bind address (tcp://[::1]:5555/p): should not contain a path element`,
-		" tcp://:5555/path ":    `invalid bind address (tcp://:5555/path): should not contain a path element`,
-	}
 
-	valid := map[string]string{
-		"":                         DefaultHost,
-		" ":                        DefaultHost,
-		"  ":                       DefaultHost,
+		"tcp:a.b.c.d":                   `invalid bind address (tcp:a.b.c.d): parse "tcp://tcp:a.b.c.d": invalid port ":a.b.c.d" after host`,
+		"tcp:a.b.c.d/path":              `invalid bind address (tcp:a.b.c.d/path): parse "tcp://tcp:a.b.c.d/path": invalid port ":a.b.c.d" after host`,
+		"tcp://127.0.0.1/":              "invalid bind address (tcp://127.0.0.1/): should not contain a path element",
+		"udp://127.0.0.1":               "invalid bind address (udp://127.0.0.1): unsupported proto 'udp'",
+		"udp://127.0.0.1:5555":          "invalid bind address (udp://127.0.0.1:5555): unsupported proto 'udp'",
+		"tcp://unix:///run/docker.sock": "invalid bind address (tcp://unix:///run/docker.sock): should not contain a path element",
+		" tcp://:5555/path ":            "invalid bind address ( tcp://:5555/path ): unsupported proto ' tcp'", //nolint:gocritic // This is a valid test case.
+		"":                              "invalid bind address (): unsupported proto ''",
+		" ":                             `invalid bind address ( ): parse "tcp:// ": invalid character " " in host name`,
+		":5555/path":                    "invalid bind address (:5555/path): should not contain a path element",
+		"0.0.0.1:5555/path":             "invalid bind address (0.0.0.1:5555/path): should not contain a path element",
+		"[::1]:5555/path":               "invalid bind address ([::1]:5555/path): should not contain a path element",
+		"[0:0:0:0:0:0:0:1]:5555/path":   "invalid bind address ([0:0:0:0:0:0:0:1]:5555/path): should not contain a path element",
+		"tcp://:5555/path":              "invalid bind address (tcp://:5555/path): should not contain a path element",
+		"localhost:5555/path":           "invalid bind address (localhost:5555/path): should not contain a path element",
+		"unix://tcp://127.0.0.1":        "invalid bind address (unix://tcp://127.0.0.1): invalid unix address: tcp://127.0.0.1",
+		"unix://unix://tcp://127.0.0.1": "invalid bind address (unix://unix://tcp://127.0.0.1): invalid unix address: unix://tcp://127.0.0.1",
+	}
+	valids := map[string]string{
+		":":                        DefaultTCPHost,
+		":5555":                    fmt.Sprintf("tcp://%s:5555", DefaultHTTPHost), //nolint:nosprintfhostport // sprintf is more readable for this case.
+		"0.0.0.1:":                 fmt.Sprintf("tcp://0.0.0.1:%d", DefaultHTTPPort),
+		"0.0.0.1:5555":             "tcp://0.0.0.1:5555",
+		"[::1]":                    fmt.Sprintf("tcp://[::1]:%d", DefaultHTTPPort),
+		"[::1]:":                   fmt.Sprintf("tcp://[::1]:%d", DefaultHTTPPort),
+		"[::1]:5555":               "tcp://[::1]:5555",
+		"[0:0:0:0:0:0:0:1]":        fmt.Sprintf("tcp://[0:0:0:0:0:0:0:1]:%d", DefaultHTTPPort),
+		"[0:0:0:0:0:0:0:1]:":       fmt.Sprintf("tcp://[0:0:0:0:0:0:0:1]:%d", DefaultHTTPPort),
+		"[0:0:0:0:0:0:0:1]:5555":   "tcp://[0:0:0:0:0:0:0:1]:5555",
+		"localhost":                fmt.Sprintf("tcp://localhost:%d", DefaultHTTPPort),
+		"localhost:":               fmt.Sprintf("tcp://localhost:%d", DefaultHTTPPort),
+		"localhost:5555":           "tcp://localhost:5555",
 		"fd://":                    "fd://",
 		"fd://something":           "fd://something",
+		"npipe://":                 "npipe://" + DefaultNamedPipe,
+		"npipe:////./pipe/foo":     "npipe:////./pipe/foo",
 		"tcp://host:":              fmt.Sprintf("tcp://host:%d", DefaultHTTPPort),
 		"tcp://":                   DefaultTCPHost,
 		"tcp://:":                  DefaultTCPHost,
@@ -43,80 +71,11 @@ func TestParseHost(t *testing.T) {
 		"tcp://docker.com:5555":    "tcp://docker.com:5555",
 		"unix://":                  "unix://" + DefaultUnixSocket,
 		"unix://path/to/socket":    "unix://path/to/socket",
-		"npipe://":                 "npipe://" + DefaultNamedPipe,
-		"npipe:////./pipe/foo":     "npipe:////./pipe/foo",
-	}
-
-	for value, expectedError := range invalid {
-		t.Run(value, func(t *testing.T) {
-			_, err := ParseHost(false, false, value)
-			if err == nil || err.Error() != expectedError {
-				t.Errorf(`expected error "%s", got "%v"`, expectedError, err)
-			}
-		})
-	}
-
-	for value, expected := range valid {
-		t.Run(value, func(t *testing.T) {
-			actual, err := ParseHost(false, false, value)
-			if err != nil {
-				t.Errorf(`unexpected error: "%v"`, err)
-			}
-			if actual != expected {
-				t.Errorf(`expected "%s", got "%s""`, expected, actual)
-			}
-		})
-	}
-}
-
-func TestParseDockerDaemonHost(t *testing.T) {
-	invalids := map[string]string{
-		"tcp:a.b.c.d":                   `invalid bind address (tcp:a.b.c.d): parse "tcp://tcp:a.b.c.d": invalid port ":a.b.c.d" after host`,
-		"tcp:a.b.c.d/path":              `invalid bind address (tcp:a.b.c.d/path): parse "tcp://tcp:a.b.c.d/path": invalid port ":a.b.c.d" after host`,
-		"tcp://127.0.0.1/":              "invalid bind address (tcp://127.0.0.1/): should not contain a path element",
-		"udp://127.0.0.1":               "invalid bind address (udp://127.0.0.1): unsupported proto 'udp'",
-		"udp://127.0.0.1:5555":          "invalid bind address (udp://127.0.0.1:5555): unsupported proto 'udp'",
-		"tcp://unix:///run/docker.sock": "invalid bind address (tcp://unix:///run/docker.sock): should not contain a path element",
-		" tcp://:5555/path ":            "invalid bind address ( tcp://:5555/path ): unsupported proto ' tcp'", //nolint:gocritic // This is a valid test case.
-		"":                              "invalid bind address (): unsupported proto ''",
-		":5555/path":                    "invalid bind address (:5555/path): should not contain a path element",
-		"0.0.0.1:5555/path":             "invalid bind address (0.0.0.1:5555/path): should not contain a path element",
-		"[::1]:5555/path":               "invalid bind address ([::1]:5555/path): should not contain a path element",
-		"[0:0:0:0:0:0:0:1]:5555/path":   "invalid bind address ([0:0:0:0:0:0:0:1]:5555/path): should not contain a path element",
-		"tcp://:5555/path":              "invalid bind address (tcp://:5555/path): should not contain a path element",
-		"localhost:5555/path":           "invalid bind address (localhost:5555/path): should not contain a path element",
-		"unix://tcp://127.0.0.1":        "invalid bind address (unix://tcp://127.0.0.1): invalid unix address: tcp://127.0.0.1",
-		"unix://unix://tcp://127.0.0.1": "invalid bind address (unix://unix://tcp://127.0.0.1): invalid unix address: unix://tcp://127.0.0.1",
-	}
-	valids := map[string]string{
-		":":                       DefaultTCPHost,
-		":5555":                   fmt.Sprintf("tcp://%s:5555", DefaultHTTPHost), //nolint:nosprintfhostport // sprintf is more readable for this case.
-		"0.0.0.1:":                fmt.Sprintf("tcp://0.0.0.1:%d", DefaultHTTPPort),
-		"0.0.0.1:5555":            "tcp://0.0.0.1:5555",
-		"[::1]":                   fmt.Sprintf("tcp://[::1]:%d", DefaultHTTPPort),
-		"[::1]:":                  fmt.Sprintf("tcp://[::1]:%d", DefaultHTTPPort),
-		"[::1]:5555":              "tcp://[::1]:5555",
-		"[0:0:0:0:0:0:0:1]":       fmt.Sprintf("tcp://[0:0:0:0:0:0:0:1]:%d", DefaultHTTPPort),
-		"[0:0:0:0:0:0:0:1]:":      fmt.Sprintf("tcp://[0:0:0:0:0:0:0:1]:%d", DefaultHTTPPort),
-		"[0:0:0:0:0:0:0:1]:5555":  "tcp://[0:0:0:0:0:0:0:1]:5555",
-		"localhost":               fmt.Sprintf("tcp://localhost:%d", DefaultHTTPPort),
-		"localhost:":              fmt.Sprintf("tcp://localhost:%d", DefaultHTTPPort),
-		"localhost:5555":          "tcp://localhost:5555",
-		"fd://":                   "fd://",
-		"fd://something":          "fd://something",
-		"npipe://":                "npipe://" + DefaultNamedPipe,
-		"npipe:////./pipe/foo":    "npipe:////./pipe/foo",
-		"tcp://":                  DefaultTCPHost,
-		"tcp://:5555":             fmt.Sprintf("tcp://%s:5555", DefaultHTTPHost), //nolint:nosprintfhostport // sprintf is more readable for this case.
-		"tcp://[::1]":             fmt.Sprintf("tcp://[::1]:%d", DefaultHTTPPort),
-		"tcp://[::1]:":            fmt.Sprintf("tcp://[::1]:%d", DefaultHTTPPort),
-		"tcp://[::1]:5555":        "tcp://[::1]:5555",
-		"unix://":                 "unix://" + DefaultUnixSocket,
-		"unix:///run/docker.sock": "unix:///run/docker.sock",
+		"unix:///run/docker.sock":  "unix:///run/docker.sock",
 	}
 	for invalidAddr, expectedError := range invalids {
 		t.Run(invalidAddr, func(t *testing.T) {
-			addr, err := parseDaemonHost(invalidAddr)
+			addr, err := ParseDaemonHost(invalidAddr)
 			if err == nil || err.Error() != expectedError {
 				t.Errorf(`expected error "%s", got "%v"`, expectedError, err)
 			}
@@ -127,7 +86,7 @@ func TestParseDockerDaemonHost(t *testing.T) {
 	}
 	for validAddr, expectedAddr := range valids {
 		t.Run(validAddr, func(t *testing.T) {
-			addr, err := parseDaemonHost(validAddr)
+			addr, err := ParseDaemonHost(validAddr)
 			if err != nil {
 				t.Errorf(`unexpected error: "%v"`, err)
 			}
