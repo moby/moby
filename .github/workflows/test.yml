@@ -71,7 +71,7 @@ jobs:
       -
         name: Cache dev image
         if: matrix.mode == ''
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           key: dev-image-${{ github.run_id }}
           path: /tmp/dev-image.tar
@@ -149,7 +149,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Restore dev image
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           key: dev-image-${{ github.run_id }}
           path: /tmp/dev-image.tar
