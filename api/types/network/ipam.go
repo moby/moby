@@ -13,9 +13,9 @@ type IPAM struct {
 
 // IPAMConfig represents IPAM configurations
 type IPAMConfig struct {
-	Subnet     netip.Prefix          `json:",omitempty"`
-	IPRange    netip.Prefix          `json:",omitempty"`
-	Gateway    netip.Addr            `json:",omitempty"`
+	Subnet     netip.Prefix          `json:"Subnet,omitzero"`
+	IPRange    netip.Prefix          `json:"IPRange,omitzero"`
+	Gateway    netip.Addr            `json:"Gateway,omitzero"`
 	AuxAddress map[string]netip.Addr `json:"AuxiliaryAddresses,omitempty"`
 }
 
