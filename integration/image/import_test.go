@@ -242,5 +242,4 @@ func TestImageImportBadSrc(t *testing.T) {
 			assert.Check(t, tc.expectErr(err))
 		})
 	}
-
 }

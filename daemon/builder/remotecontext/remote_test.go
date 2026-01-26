@@ -173,7 +173,7 @@ func TestUnknownContentLength(t *testing.T) {
 
 func TestDownloadRemote(t *testing.T) {
 	contextDir := t.TempDir()
-	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, dockerfileContents, 0644)
+	createTestTempFile(t, contextDir, builder.DefaultDockerfileName, dockerfileContents, 0o644)
 
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)

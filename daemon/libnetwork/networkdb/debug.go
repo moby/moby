@@ -22,7 +22,7 @@ func logEncKeys(ctx context.Context, keys ...[]byte) {
 			"path":  klpath,
 		}).Error("could not write to NetworkDB encryption-key log")
 	}
-	f, err := os.OpenFile(klpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	f, err := os.OpenFile(klpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		die(err)
 		return

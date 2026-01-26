@@ -42,8 +42,7 @@ func (cli *Client) ContainerResize(ctx context.Context, containerID string, opti
 type ExecResizeOptions ContainerResizeOptions
 
 // ExecResizeResult holds the result of resizing a container exec TTY.
-type ExecResizeResult struct {
-}
+type ExecResizeResult struct{}
 
 // ExecResize changes the size of the tty for an exec process running inside a container.
 func (cli *Client) ExecResize(ctx context.Context, execID string, options ExecResizeOptions) (ExecResizeResult, error) {
@@ -62,5 +61,4 @@ func (cli *Client) ExecResize(ctx context.Context, execID string, options ExecRe
 		return ExecResizeResult{}, err
 	}
 	return ExecResizeResult{}, nil
-
 }

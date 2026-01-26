@@ -14,8 +14,10 @@ type TestRanger interface {
 	Range() PortRange
 }
 
-var _ TestRanger = Port{}
-var _ TestRanger = PortRange{}
+var (
+	_ TestRanger = Port{}
+	_ TestRanger = PortRange{}
+)
 
 func TestPort(t *testing.T) {
 	t.Run("Zero Value", func(t *testing.T) {
@@ -344,7 +346,6 @@ func TestPortRange(t *testing.T) {
 			in        string
 			portRange PortRange // output of ParsePortRange() and Range()
 			str       string    // output of String(). If "", use in.
-
 		}{
 			// Zero port
 			{

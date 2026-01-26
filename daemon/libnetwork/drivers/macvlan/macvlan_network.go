@@ -198,7 +198,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 // parseNetworkOptions parses docker network options
 func parseNetworkOptions(id string, option options.Generic) (*configuration, error) {
-	var config = &configuration{}
+	config := &configuration{}
 
 	// parse generic labels first
 	if genData, ok := option[netlabel.GenericData]; ok && genData != nil {

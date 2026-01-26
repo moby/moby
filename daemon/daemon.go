@@ -658,7 +658,6 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			if err := daemon.containerRm(&cfg.Config, cid, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 				log.G(ctx).WithField("container", cid).WithError(err).Error("failed to remove container")
 			}
-
 		}(id, c)
 	}
 	group.Wait()

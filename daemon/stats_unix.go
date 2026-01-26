@@ -336,7 +336,6 @@ func readSystemCPUUsage(r io.Reader) (cpuUsage uint64, cpuNum uint32, _ error) {
 
 	for {
 		data, isPartial, err := rdr.ReadLine()
-
 		if err != nil {
 			return 0, 0, fmt.Errorf("error scanning /proc/stat file: %w", err)
 		}

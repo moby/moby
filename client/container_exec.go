@@ -82,8 +82,7 @@ type ExecStartOptions struct {
 }
 
 // ExecStartResult holds the result of starting a container exec.
-type ExecStartResult struct {
-}
+type ExecStartResult struct{}
 
 // ExecStart starts an exec process already created in the docker host.
 func (cli *Client) ExecStart(ctx context.Context, execID string, options ExecStartOptions) (ExecStartResult, error) {
@@ -160,8 +159,7 @@ func getConsoleSize(hasTTY bool, consoleSize ConsoleSize) (*[2]uint, error) {
 }
 
 // ExecInspectOptions holds options for inspecting a container exec.
-type ExecInspectOptions struct {
-}
+type ExecInspectOptions struct{}
 
 // ExecInspectResult holds the result of inspecting a container exec.
 //

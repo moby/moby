@@ -399,6 +399,7 @@ func newReferrersList() *referrersList {
 		m: make(map[digest.Digest][]ocispec.Descriptor),
 	}
 }
+
 func (rl *referrersList) Get(dgst digest.Digest) ([]ocispec.Descriptor, bool) {
 	rl.mu.RLock()
 	defer rl.mu.RUnlock()
