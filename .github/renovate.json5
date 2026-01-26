@@ -14,6 +14,7 @@
     }
   ],
   "ignoreDeps": [
-    "github.com/Graylog2/go-gelf"
+    // We're using the "v2" branch, not the default ("v1") branch.
+    "github.com/Graylog2/go-gelf",
   ]
 }
