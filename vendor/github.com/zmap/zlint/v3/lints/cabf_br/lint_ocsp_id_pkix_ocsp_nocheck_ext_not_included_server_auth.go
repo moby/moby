@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -30,12 +30,12 @@ func init() {
 		Citation:      "BRs: 4.9.9",
 		Source:        lint.CABFBaselineRequirements,
 		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &OCSPIDPKIXOCSPNocheckExtNotIncludedServerAuth{},
+		Lint:          NewOCSPIDPKIXOCSPNocheckExtNotIncludedServerAuth,
 	})
 }
 
-func (l *OCSPIDPKIXOCSPNocheckExtNotIncludedServerAuth) Initialize() error {
-	return nil
+func NewOCSPIDPKIXOCSPNocheckExtNotIncludedServerAuth() lint.LintInterface {
+	return &OCSPIDPKIXOCSPNocheckExtNotIncludedServerAuth{}
 }
 
 func (l *OCSPIDPKIXOCSPNocheckExtNotIncludedServerAuth) CheckApplies(c *x509.Certificate) bool {
