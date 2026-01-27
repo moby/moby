@@ -48,6 +48,13 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		return nil
 	}
 
+	// Ignore duplicate exit event that may arrive after the first one.
+	// See moby/moby#46212.
+	if daemon.shouldIgnoreExitEventWithLock(c, e) {
+		c.Unlock()
+		return nil
+	}
+
 	cfg := daemon.config()
 
 	// Health checks will be automatically restarted if/when the
@@ -337,5 +344,52 @@ func (daemon *Daemon) autoRemove(cfg *config.Config, c *container.Container) {
 			return
 		}
 		log.G(context.TODO()).WithFields(log.Fields{"error": err, "container": c.ID}).Error("error removing container")
+	}
+}
+
+func (daemon *Daemon) shouldIgnoreExitEventWithLock(c *container.Container, e *libcontainerdtypes.EventInfo) (ret bool) {
+	if e == nil {
+		return false
+	}
+
+	curState := c.State.State()
+
+	defer func() {
+		if ret {
+			log.G(context.TODO()).
+				WithFields(log.Fields{
+					"container": c.ID,
+					"state":     c.State.String(),
+					"exitCode":  e.ExitCode,
+					"exitedAt":  e.ExitedAt,
+				}).Info("ignoring duplicate container exit event")
+		}
+	}()
+
+	switch curState {
+	case containertypes.StateRemoving,
+		containertypes.StateExited,
+		containertypes.StateDead:
+
+		return true
+
+	case containertypes.StateRunning:
+		// If the container is running, but the exit event is from
+		// before it was started, ignore it. This can happen when a
+		// duplicate exit arrives while the restart path holds the
+		// container lock; by the time we process it, a new task is
+		// already running, so the exit belongs to the previous task.
+		return !e.ExitedAt.IsZero() && e.ExitedAt.Before(c.StartedAt)
+
+	case containertypes.StateRestarting:
+		// The restart path acquires and holds the container lock before
+		// processing; on failure it transitions the container to exited,
+		// and on success it transitions to running. Therefore, any exit
+		// event observed while still restarting is a late duplicate from
+		// the previous task and should be ignored.
+		return !e.ExitedAt.IsZero() && e.ExitedAt.After(c.FinishedAt)
+
+	default:
+		return false
 	}
 }
