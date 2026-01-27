@@ -135,7 +135,7 @@ func (d *driver) setupEncryption(remoteIP netip.Addr) error {
 	indices := make([]spi, 0, len(d.keys))
 
 	for i, k := range d.keys {
-		spis := spi{buildSPI(advIP.AsSlice(), remoteIP.AsSlice(), k.tag), buildSPI(remoteIP.AsSlice(), advIP.AsSlice(), k.tag)}
+		spis := spi{buildSPI(advIP, remoteIP, k.tag), buildSPI(remoteIP, advIP, k.tag)}
 		dir := reverse
 		if i == 0 {
 			dir = bidir
@@ -430,14 +430,14 @@ func spExists(sp *netlink.XfrmPolicy) (bool, error) {
 	}
 }
 
-func buildSPI(src, dst net.IP, st uint32) int {
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, st)
+func buildSPI(src, dst netip.Addr, st uint32) int {
 	h := fnv.New32a()
-	h.Write(src)
-	h.Write(b)
-	h.Write(dst)
-	return int(binary.BigEndian.Uint32(h.Sum(nil)))
+	v := src.As16()
+	h.Write(v[:])
+	binary.Write(h, binary.BigEndian, st)
+	v = dst.As16()
+	h.Write(v[:])
+	return int(h.Sum32())
 }
 
 func buildAeadAlgo(k *key, s int) *netlink.XfrmStateAlgo {
@@ -542,7 +542,7 @@ func (d *driver) updateKeys(ctx context.Context, encrData discoverapi.DriverEncr
 	}
 
 	for rIP, node := range d.secMap {
-		idxs := updateNodeKey(lIP.AsSlice(), aIP.AsSlice(), rIP.AsSlice(), node.spi, d.keys, newIdx, priIdx, delIdx)
+		idxs := updateNodeKey(lIP, aIP, rIP, node.spi, d.keys, newIdx, priIdx, delIdx)
 		if idxs != nil {
 			d.secMap[rIP] = encrNode{idxs, node.count}
 		}
@@ -574,7 +574,7 @@ func (d *driver) updateKeys(ctx context.Context, encrData discoverapi.DriverEncr
  *********************************************************/
 
 // Spis and keys are sorted in such away the one in position 0 is the primary
-func updateNodeKey(lIP, aIP, rIP net.IP, idxs []spi, curKeys []*key, newIdx, priIdx, delIdx int) []spi {
+func updateNodeKey(lIP, aIP, rIP netip.Addr, idxs []spi, curKeys []*key, newIdx, priIdx, delIdx int) []spi {
 	log.G(context.TODO()).Debugf("Updating keys for node: %s (%d,%d,%d)", rIP, newIdx, priIdx, delIdx)
 
 	spis := idxs
@@ -590,17 +590,17 @@ func updateNodeKey(lIP, aIP, rIP net.IP, idxs []spi, curKeys []*key, newIdx, pri
 
 	if delIdx != -1 {
 		// -rSA0
-		programSA(lIP, rIP, spis[delIdx], nil, reverse, false)
+		programSA(lIP.AsSlice(), rIP.AsSlice(), spis[delIdx], nil, reverse, false)
 	}
 
 	if newIdx > -1 {
 		// +rSA2
-		programSA(lIP, rIP, spis[newIdx], curKeys[newIdx], reverse, true)
+		programSA(lIP.AsSlice(), rIP.AsSlice(), spis[newIdx], curKeys[newIdx], reverse, true)
 	}
 
 	if priIdx > 0 {
 		// +fSA2
-		fSA2, _, _ := programSA(lIP, rIP, spis[priIdx], curKeys[priIdx], forward, true)
+		fSA2, _, _ := programSA(lIP.AsSlice(), rIP.AsSlice(), spis[priIdx], curKeys[priIdx], forward, true)
 
 		// +fSP2, -fSP1
 		s := getMinimalIP(fSA2.Src)
@@ -631,7 +631,7 @@ func updateNodeKey(lIP, aIP, rIP net.IP, idxs []spi, curKeys []*key, newIdx, pri
 		}
 
 		// -fSA1
-		programSA(lIP, rIP, spis[0], nil, forward, false)
+		programSA(lIP.AsSlice(), rIP.AsSlice(), spis[0], nil, forward, false)
 	}
 
 	// swap
