@@ -154,6 +154,9 @@ func (e *Events) loadBufferedEvents(since, until time.Time, topic func(any) bool
 
 // Close all the channels returned to event subscribers.
 func (e *Events) Close() error {
+	if e == nil || e.pub == nil {
+		return nil
+	}
 	e.pub.Close()
 	return nil
 }
