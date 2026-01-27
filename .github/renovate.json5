@@ -2,7 +2,9 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    ":gitSignOff"
+    ":gitSignOff",
+    "helpers:githubDigestChangelogs",
+    "helpers:goXPackagesChangelogLink"
   ],
   "postUpdateOptions": ["gomodTidy"],
   "packageRules": [
