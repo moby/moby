@@ -47,7 +47,7 @@ algorithms to sign the data. The threshold parameter is legacy and is ignored.
 Deprecated: This function simply calls NewEnvelopeSigner, and that function should
 be preferred.
 */
-func NewMultiEnvelopeSigner(threshold int, p ...Signer) (*EnvelopeSigner, error) {
+func NewMultiEnvelopeSigner(_ int, p ...Signer) (*EnvelopeSigner, error) {
 	return NewEnvelopeSigner(p...)
 }
 

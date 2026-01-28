@@ -59,7 +59,7 @@ func NewRSAPSSSignerVerifierFromSSLibKey(key *SSLibKey) (*RSAPSSSignerVerifier, 
 }
 
 // Sign creates a signature for `data`.
-func (sv *RSAPSSSignerVerifier) Sign(ctx context.Context, data []byte) ([]byte, error) {
+func (sv *RSAPSSSignerVerifier) Sign(_ context.Context, data []byte) ([]byte, error) {
 	if sv.private == nil {
 		return nil, ErrNotPrivateKey
 	}
@@ -70,7 +70,7 @@ func (sv *RSAPSSSignerVerifier) Sign(ctx context.Context, data []byte) ([]byte, 
 }
 
 // Verify verifies the `sig` value passed in against `data`.
-func (sv *RSAPSSSignerVerifier) Verify(ctx context.Context, data []byte, sig []byte) error {
+func (sv *RSAPSSSignerVerifier) Verify(_ context.Context, data []byte, sig []byte) error {
 	hashedData := hashBeforeSigning(data, sha256.New())
 
 	if err := rsa.VerifyPSS(sv.public, crypto.SHA256, hashedData, sig, &rsa.PSSOptions{SaltLength: sha256.Size, Hash: crypto.SHA256}); err != nil {
@@ -95,8 +95,7 @@ func (sv *RSAPSSSignerVerifier) Public() crypto.PublicKey {
 // LoadRSAPSSKeyFromFile returns an SSLibKey instance for an RSA key stored in a
 // file.
 //
-// Deprecated: use LoadKey(). The custom serialization format has been
-// deprecated. Use
+// Deprecated: use LoadKey(). The custom serialization format is deprecated. Use
 // https://github.com/secure-systems-lab/securesystemslib/blob/main/docs/migrate_key.py
 // to convert your key.
 func LoadRSAPSSKeyFromFile(path string) (*SSLibKey, error) {
