@@ -55,7 +55,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 	if p.PluginObj.Config.Network.Type != "" {
 		// TODO: if net == bridge, use libnetwork controller to create a new plugin-specific bridge, bind mount /etc/hosts and /etc/resolv.conf look at the docker code (allocateNetwork, initialize)
 		if p.PluginObj.Config.Network.Type == "host" {
-			oci.RemoveNamespace(&s, specs.LinuxNamespaceType("network"))
+			oci.RemoveNamespace(&s, specs.NetworkNamespace)
 		}
 		etcHosts := "/etc/hosts"
 		resolvConf := "/etc/resolv.conf"
@@ -74,11 +74,11 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 			})
 	}
 	if p.PluginObj.Config.PidHost {
-		oci.RemoveNamespace(&s, specs.LinuxNamespaceType("pid"))
+		oci.RemoveNamespace(&s, specs.PIDNamespace)
 	}
 
 	if p.PluginObj.Config.IpcHost {
-		oci.RemoveNamespace(&s, specs.LinuxNamespaceType("ipc"))
+		oci.RemoveNamespace(&s, specs.IPCNamespace)
 	}
 
 	for _, mnt := range mounts {
