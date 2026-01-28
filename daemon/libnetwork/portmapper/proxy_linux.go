@@ -17,6 +17,18 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
+var (
+	// Global adaptive timeout manager for proxy startup optimization
+	adaptiveTimeout = NewAdaptiveTimeout()
+	// Global system load monitor for dynamic timeout adjustment
+	systemLoadMonitor = NewSystemLoadMonitor(adaptiveTimeout)
+)
+
+// init initializes the system load monitor
+func init() {
+	systemLoadMonitor.Start()
+}
+
 // StartProxy starts the proxy process at proxyPath.
 // If listenSock is not nil, it must be a bound socket that can be passed to
 // the proxy process for it to listen on.
@@ -24,6 +36,15 @@ func StartProxy(pb types.PortBinding,
 	proxyPath string,
 	listenSock *os.File,
 ) (stop func() error, retErr error) {
+	// Record successful startup time for adaptive timeout optimization
+	startTime := time.Now()
+	defer func() {
+		if retErr == nil {
+			startupDuration := time.Since(startTime)
+			adaptiveTimeout.RecordStartupTime(startupDuration)
+		}
+	}()
+	
 	if proxyPath == "" {
 		return nil, errors.New("no path provided for userland-proxy binary")
 	}
@@ -126,7 +147,7 @@ func StartProxy(pb types.PortBinding,
 		if err != nil {
 			return nil, err
 		}
-	case <-time.After(16 * time.Second):
+	case <-time.After(adaptiveTimeout.GetTimeout()):
 		return nil, errors.New("timed out starting the userland proxy")
 	}
 
@@ -141,5 +162,6 @@ func StartProxy(pb types.PortBinding,
 		}
 		return <-wait
 	}
+	
 	return stopFn, nil
 }
