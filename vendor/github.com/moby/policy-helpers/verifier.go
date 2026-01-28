@@ -320,11 +320,9 @@ func (v *Verifier) VerifyImage(ctx context.Context, provider image.ReferrersProv
 }
 
 func (v *Verifier) loadTrustProvider() (*roots.TrustProvider, error) {
-	var tpCache *roots.TrustProvider
-	_, err, _ := v.sf.Do("", func() (any, error) {
+	res, err, _ := v.sf.Do("", func() (any, error) {
 		if v.tp != nil {
-			tpCache = v.tp
-			return nil, nil
+			return v.tp, nil
 		}
 		tp, err := roots.NewTrustProvider(roots.SigstoreRootsConfig{
 			CachePath:      filepath.Join(v.cfg.StateDir, "tuf"),
@@ -335,13 +333,16 @@ func (v *Verifier) loadTrustProvider() (*roots.TrustProvider, error) {
 			return nil, err
 		}
 		v.tp = tp
-		tpCache = tp
-		return nil, nil
+		return tp, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return tpCache, nil
+	tp, ok := res.(*roots.TrustProvider)
+	if !ok || tp == nil {
+		return nil, errors.Errorf("trust provider not initialized %T", res)
+	}
+	return tp, nil
 }
 
 func anyCerificateIdentity() (verify.PolicyOption, error) {
