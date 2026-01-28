@@ -746,7 +746,7 @@ func (container *Container) CloseStreams() error {
 // InitializeStdio is called by libcontainerd to connect the stdio.
 func (container *Container) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
 	if err := container.startLogging(); err != nil {
-		container.Reset(false)
+		container.Reset()
 		return nil, err
 	}
 

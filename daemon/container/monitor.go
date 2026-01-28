@@ -12,12 +12,9 @@ const (
 )
 
 // Reset puts a container into a state where it can be restarted again.
-func (container *Container) Reset(lock bool) {
-	if lock {
-		container.Lock()
-		defer container.Unlock()
-	}
-
+//
+// Callers are expected to obtain a lock on the container.
+func (container *Container) Reset() {
 	if err := container.CloseStreams(); err != nil {
 		log.G(context.TODO()).Errorf("%s: %s", container.ID, err)
 	}
