@@ -4,7 +4,7 @@ Want to hack on the Moby Project? Awesome! We have a contributor's guide that ex
 [setting up a development environment and the contribution
 process](docs/contributing/). 
 
-[![Contributors guide](docs/static_files/contributors.png)](https://docs.docker.com/opensource/project/who-written-for/)
+[![Contributors guide](docs/static_files/contributors.png)](docs/contributing/who-written-for.md)
 
 This page contains information about reporting issues as well as some tips and
 guidelines useful to experienced open source contributors. Finally, make sure
@@ -72,7 +72,7 @@ anybody starts working on it.
 We are always thrilled to receive pull requests. We do our best to process them
 quickly. If your pull request is not accepted on the first try,
 don't get discouraged! Our contributor's guide explains [the review process we
-use for simple changes](https://docs.docker.com/contribute/overview/).
+use for simple changes](docs/contributing/).
 
 ### Design and cleanup proposals
 
@@ -80,7 +80,7 @@ You can propose new designs for existing Docker features. You can also design
 entirely new features. We really appreciate contributors who want to refactor or
 otherwise cleanup our project. For information on making these types of
 contributions, see [the advanced contribution
-section](https://docs.docker.com/opensource/workflow/advanced-contributing/) in
+section](docs/contributing/) in
 the contributors guide.
 
 ### Where to put your changes
@@ -169,8 +169,8 @@ tests in `docker/cli` and end-to-end tests for Docker.
 Update the documentation when creating or modifying features. Test your
 documentation changes for clarity, concision, and correctness, as well as a
 clean documentation build. See our contributors guide for [our style
-guide](https://docs.docker.com/opensource/doc-style) and instructions on [building
-the documentation](https://docs.docker.com/opensource/project/test-and-docs/#build-and-test-the-documentation).
+guide](docs/contributing/) and instructions on [building
+the documentation](docs/contributing/).
 
 Write clean code. Universally formatted code promotes ease of writing, reading,
 and maintenance. Always run `gofmt -s -w file.go` on each changed file before
