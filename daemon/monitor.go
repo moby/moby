@@ -352,21 +352,18 @@ func (daemon *Daemon) shouldIgnoreExitEventWithLock(c *container.Container, e *l
 		return false
 	}
 
-	curState := c.State.State()
-
 	defer func() {
 		if ret {
-			log.G(context.TODO()).
-				WithFields(log.Fields{
-					"container": c.ID,
-					"state":     c.State.String(),
-					"exitCode":  e.ExitCode,
-					"exitedAt":  e.ExitedAt,
-				}).Info("ignoring duplicate container exit event")
+			log.G(context.TODO()).WithFields(log.Fields{
+				"container": c.ID,
+				"state":     c.State.State(),
+				"exitCode":  e.ExitCode,
+				"exitedAt":  e.ExitedAt,
+			}).Info("ignoring duplicate container exit event")
 		}
 	}()
 
-	switch curState {
+	switch c.State.State() {
 	case containertypes.StateRemoving,
 		containertypes.StateExited,
 		containertypes.StateDead:
@@ -379,7 +376,7 @@ func (daemon *Daemon) shouldIgnoreExitEventWithLock(c *container.Container, e *l
 		// duplicate exit arrives while the restart path holds the
 		// container lock; by the time we process it, a new task is
 		// already running, so the exit belongs to the previous task.
-		return !e.ExitedAt.IsZero() && e.ExitedAt.Before(c.StartedAt)
+		return !e.ExitedAt.IsZero() && e.ExitedAt.Before(c.State.StartedAt)
 
 	case containertypes.StateRestarting:
 		// The restart path acquires and holds the container lock before
@@ -387,7 +384,7 @@ func (daemon *Daemon) shouldIgnoreExitEventWithLock(c *container.Container, e *l
 		// and on success it transitions to running. Therefore, any exit
 		// event observed while still restarting is a late duplicate from
 		// the previous task and should be ignored.
-		return !e.ExitedAt.IsZero() && e.ExitedAt.After(c.FinishedAt)
+		return !e.ExitedAt.IsZero() && e.ExitedAt.After(c.State.FinishedAt)
 
 	default:
 		return false
