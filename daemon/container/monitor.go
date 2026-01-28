@@ -27,31 +27,33 @@ func (container *Container) Reset() {
 		container.StreamConfig.NewInputPipes()
 	}
 
-	if container.LogDriver != nil {
-		if container.LogCopier != nil {
-			exit := make(chan struct{})
-			go func() {
-				container.LogCopier.Wait()
-				close(exit)
-			}()
+	if container.LogDriver == nil {
+		return
+	}
 
-			timer := time.NewTimer(loggerCloseTimeout)
-			defer timer.Stop()
-			select {
-			case <-timer.C:
-				log.G(context.TODO()).WithFields(log.Fields{
-					"container": container.ID,
-				}).Warn("logger didn't exit in time: logs may be truncated")
-			case <-exit:
-			}
-		}
-		if err := container.LogDriver.Close(); err != nil {
+	if container.LogCopier != nil {
+		exit := make(chan struct{})
+		go func() {
+			container.LogCopier.Wait()
+			close(exit)
+		}()
+
+		timer := time.NewTimer(loggerCloseTimeout)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
 			log.G(context.TODO()).WithFields(log.Fields{
 				"container": container.ID,
-				"error":     err,
-			}).Warn("error closing log driver")
+			}).Warn("logger didn't exit in time: logs may be truncated")
+		case <-exit:
 		}
-		container.LogCopier = nil
-		container.LogDriver = nil
 	}
+	if err := container.LogDriver.Close(); err != nil {
+		log.G(context.TODO()).WithFields(log.Fields{
+			"container": container.ID,
+			"error":     err,
+		}).Warn("error closing log driver")
+	}
+	container.LogCopier = nil
+	container.LogDriver = nil
 }
