@@ -83,7 +83,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	c.StreamConfig.Wait(ctx)
 	cancel()
 
-	c.Reset(false)
+	c.Reset()
 
 	if e != nil {
 		ctrExitStatus.ExitCode = int(e.ExitCode)
