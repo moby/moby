@@ -16,7 +16,10 @@ const (
 // Callers are expected to obtain a lock on the container.
 func (container *Container) Reset() {
 	if err := container.CloseStreams(); err != nil {
-		log.G(context.TODO()).Errorf("%s: %s", container.ID, err)
+		log.G(context.TODO()).WithFields(log.Fields{
+			"container": container.ID,
+			"error":     err,
+		}).Error("failed to close container streams")
 	}
 
 	// Re-create a brand new stdin pipe once the container exited
@@ -36,11 +39,18 @@ func (container *Container) Reset() {
 			defer timer.Stop()
 			select {
 			case <-timer.C:
-				log.G(context.TODO()).Warn("Logger didn't exit in time: logs may be truncated")
+				log.G(context.TODO()).WithFields(log.Fields{
+					"container": container.ID,
+				}).Warn("logger didn't exit in time: logs may be truncated")
 			case <-exit:
 			}
 		}
-		container.LogDriver.Close()
+		if err := container.LogDriver.Close(); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"container": container.ID,
+				"error":     err,
+			}).Warn("error closing log driver")
+		}
 		container.LogCopier = nil
 		container.LogDriver = nil
 	}
