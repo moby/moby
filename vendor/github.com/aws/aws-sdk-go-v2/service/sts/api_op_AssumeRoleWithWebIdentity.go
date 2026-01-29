@@ -75,7 +75,7 @@ import (
 //
 // (Optional) You can configure your IdP to pass attributes into your web identity
 // token as session tags. Each session tag consists of a key name and an associated
-// value. For more information about session tags, see [Passing Session Tags in STS]in the IAM User Guide.
+// value. For more information about session tags, see [Passing session tags using AssumeRoleWithWebIdentity]in the IAM User Guide.
 //
 // You can pass up to 50 session tags. The plaintext session tag keys can’t exceed
 // 128 characters and the values can’t exceed 256 characters. For these and
@@ -123,6 +123,7 @@ import (
 //     providers to get and use temporary security credentials.
 //
 // [Amazon Web Services SDK for iOS Developer Guide]: http://aws.amazon.com/sdkforios/
+// [Passing session tags using AssumeRoleWithWebIdentity]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html#id_session-tags_adding-assume-role-idp
 // [Amazon Web Services SDK for Android Developer Guide]: http://aws.amazon.com/sdkforandroid/
 // [IAM and STS Character Limits]: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-limits.html#reference_iam-limits-entity-length
 // [session policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session
@@ -135,7 +136,6 @@ import (
 // [Using IAM Roles]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use.html
 // [Session Policies]: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html#policies_session
 // [Amazon Cognito federated identities]: https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-identity.html
-// [Passing Session Tags in STS]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html
 // [Chaining Roles with Session Tags]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html#id_session-tags_role-chaining
 // [Update the maximum session duration for a role]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_update-role-settings.html#id_roles_update-session-duration
 // [Using Web Identity Federation API Operations for Mobile Apps]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_oidc_manual.html
@@ -460,40 +460,7 @@ func (c *Client) addOperationAssumeRoleWithWebIdentityMiddlewares(stack *middlew
 	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addInterceptExecution(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptTransmit(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addSpanInitializeStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanInitializeEnd(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

@@ -17,6 +17,12 @@ var now = time.Now
 func withMetrics(parent context.Context, client ClientDo, meter metrics.Meter) (
 	context.Context, ClientDo, error,
 ) {
+	// WithClientTrace is an expensive operation - avoid calling it if we're
+	// not actually using a metrics sink.
+	if _, ok := meter.(metrics.NopMeter); ok {
+		return parent, client, nil
+	}
+
 	hm, err := newHTTPMetrics(meter)
 	if err != nil {
 		return nil, nil, err

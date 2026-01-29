@@ -221,9 +221,9 @@ func ToResources(spec *specs.LinuxResources) *Resources {
 		}
 		resources.HugeTlb = &hugeTlbUsage
 	}
-	if pids := spec.Pids; pids != nil {
+	if pids := spec.Pids; pids != nil && pids.Limit != nil {
 		resources.Pids = &Pids{
-			Max: pids.Limit,
+			Max: *pids.Limit,
 		}
 	}
 	if i := spec.BlockIO; i != nil {
@@ -291,6 +291,31 @@ func getStatFileContentUint64(filePath string) uint64 {
 	}
 
 	return res
+}
+
+// getKVStatsFileContentUint64 gets uint64 parsed content of key-value cgroup stat file
+func getKVStatsFileContentUint64(filePath string, propertyName string) uint64 {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		name, value, err := parseKV(s.Text())
+		if name == propertyName {
+			if err != nil {
+				log.L.WithError(err).Errorf("unable to parse %q as a uint from Cgroup file %q", propertyName, filePath)
+				return 0
+			}
+			return value
+		}
+	}
+	if err = s.Err(); err != nil {
+		log.L.WithError(err).Errorf("error reading Cgroup file %q for property %q", filePath, propertyName)
+	}
+	return 0
 }
 
 func readIoStats(path string) []*stats.IOEntry {
@@ -362,22 +387,25 @@ func parseRdmaKV(raw string, entry *stats.RdmaEntry) {
 	var value uint64
 	var err error
 
-	parts := strings.Split(raw, "=")
-	switch len(parts) {
-	case 2:
-		if parts[1] == "max" {
-			value = math.MaxUint32
-		} else {
-			value, err = parseUint(parts[1], 10, 32)
-			if err != nil {
-				return
-			}
+	k, v, found := strings.Cut(raw, "=")
+	if !found {
+		return
+	}
+
+	if v == "max" {
+		value = math.MaxUint32
+	} else {
+		value, err = parseUint(v, 10, 32)
+		if err != nil {
+			return
 		}
-		if parts[0] == "hca_handle" {
-			entry.HcaHandles = uint32(value)
-		} else if parts[0] == "hca_object" {
-			entry.HcaObjects = uint32(value)
-		}
+	}
+
+	switch k {
+	case "hca_handle":
+		entry.HcaHandles = uint32(value)
+	case "hca_object":
+		entry.HcaObjects = uint32(value)
 	}
 }
 
@@ -423,7 +451,7 @@ func readHugeTlbStats(path string) []*stats.HugeTlbStat {
 			Max:      getStatFileContentUint64(filepath.Join(path, "hugetlb."+pagesize+".max")),
 			Current:  getStatFileContentUint64(filepath.Join(path, "hugetlb."+pagesize+".current")),
 			Pagesize: pagesize,
-			Failcnt:  getStatFileContentUint64(filepath.Join(path, "hugetlb."+pagesize+".events")),
+			Failcnt:  getKVStatsFileContentUint64(filepath.Join(path, "hugetlb."+pagesize+".events"), "max"),
 		}
 	}
 	return usage
@@ -447,8 +475,8 @@ func hugePageSizes() []string {
 		if err != nil {
 			return
 		}
+		defer dir.Close()
 		files, err := dir.Readdirnames(0)
-		dir.Close()
 		if err != nil {
 			return
 		}

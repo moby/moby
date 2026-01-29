@@ -94,7 +94,7 @@ func (c *TLSCurveID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&aux)
 }
 
-//UnmarshalJSON implements the json.Unmarshaler interface
+// UnmarshalJSON implements the json.Unmarshaler interface
 func (c *TLSCurveID) UnmarshalJSON(b []byte) error {
 	aux := struct {
 		ID uint16 `json:"id"`

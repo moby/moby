@@ -1,0 +1,9 @@
+# Codecov for main is visible here https://app.codecov.io/gh/tetratelabs/wazero
+
+# We use codecov only as a UI, so we disable PR comments and commit status.
+# See https://docs.codecov.com/docs/pull-request-comments
+comment: false
+coverage:
+  status:
+    project: off
+    patch: off

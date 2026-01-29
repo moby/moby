@@ -81,10 +81,7 @@ func PrefixCompare(a, b netip.Prefix) int {
 
 // PrefixAfter returns the prefix of size 'sz' right after 'prev'.
 func PrefixAfter(prev netip.Prefix, sz int) netip.Prefix {
-	s := sz
-	if prev.Bits() < sz {
-		s = prev.Bits()
-	}
+	s := min(prev.Bits(), sz)
 	addr := ipbits.Add(prev.Addr(), 1, uint(prev.Addr().BitLen()-s))
 	if addr.IsUnspecified() {
 		return netip.Prefix{}

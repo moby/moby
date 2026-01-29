@@ -71,10 +71,14 @@ func DecodeRequestBody(r io.ReadCloser) (*registry.AuthConfig, error) {
 
 func decode(r io.Reader) (*registry.AuthConfig, error) {
 	authConfig := &registry.AuthConfig{}
-	if err := json.NewDecoder(r).Decode(authConfig); err != nil {
+	dec := json.NewDecoder(r)
+	if err := dec.Decode(authConfig); err != nil {
 		// always return an (empty) AuthConfig to increase compatibility with
 		// the existing API.
 		return &registry.AuthConfig{}, invalid(fmt.Errorf("invalid JSON: %w", err))
+	}
+	if dec.More() {
+		return &registry.AuthConfig{}, invalid(errors.New("multiple JSON documents not allowed"))
 	}
 	return authConfig, nil
 }

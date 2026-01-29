@@ -3,6 +3,7 @@ package v2
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -71,19 +72,11 @@ func (set *settable) isSettable(allowedSettableFields []string, settable []strin
 		}
 	}
 
-	isAllowed := false
-	for _, allowedSettableField := range allowedSettableFields {
-		if set.field == allowedSettableField {
-			isAllowed = true
-			break
-		}
-	}
+	isAllowed := slices.Contains(allowedSettableFields, set.field)
 
 	if isAllowed {
-		for _, settableField := range settable {
-			if set.field == settableField {
-				return true, nil
-			}
+		if slices.Contains(settable, set.field) {
+			return true, nil
 		}
 	}
 

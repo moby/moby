@@ -249,7 +249,7 @@ func compareIpamConfList(listA, listB []*IpamConf) bool {
 	if len(listA) != len(listB) {
 		return false
 	}
-	for i := 0; i < len(listA); i++ {
+	for i := range listA {
 		a = listA[i]
 		b = listB[i]
 		if a.PreferredPool != b.PreferredPool ||
@@ -266,7 +266,7 @@ func compareIpamInfoList(listA, listB []*IpamInfo) bool {
 	if len(listA) != len(listB) {
 		return false
 	}
-	for i := 0; i < len(listA); i++ {
+	for i := range listA {
 		a = listA[i]
 		b = listB[i]
 		if a.PoolID != b.PoolID || !compareStringMaps(a.Meta, b.Meta) ||

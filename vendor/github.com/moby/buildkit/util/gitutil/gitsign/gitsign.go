@@ -67,11 +67,18 @@ func verifyPGPSignature(obj *gitobject.GitObject, sig *packet.Signature, pubKeyD
 		return err
 	}
 
+	config := &packet.Config{}
+	if policy == nil || !policy.RejectExpiredKeys {
+		config.Time = func() time.Time {
+			return sig.CreationTime
+		}
+	}
+
 	signer, err := openpgp.CheckDetachedSignature(
 		ents,
 		bytes.NewReader([]byte(obj.SignedData)),
 		bytes.NewReader(sigBlock),
-		&packet.Config{},
+		config,
 	)
 	if err != nil {
 		if sig.IssuerKeyId != nil {

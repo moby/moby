@@ -468,7 +468,7 @@ type overwriteTransformer struct {
 }
 
 func (tf overwriteTransformer) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
-	if typ == reflect.TypeOf(CommonConfig{}) {
+	if typ == reflect.TypeFor[CommonConfig]() {
 		return func(dst, src reflect.Value) error {
 			dst.FieldByName(tf.fieldName).Set(src.FieldByName(tf.fieldName))
 			return nil
@@ -702,7 +702,7 @@ func TestConfigInvalidDNS(t *testing.T) {
 }
 
 func field(field string) cmp.Option {
-	tmp := reflect.TypeOf(Config{})
+	tmp := reflect.TypeFor[Config]()
 	ignoreFields := make([]string, 0, tmp.NumField())
 	for i := 0; i < tmp.NumField(); i++ {
 		if tmp.Field(i).Name != field {

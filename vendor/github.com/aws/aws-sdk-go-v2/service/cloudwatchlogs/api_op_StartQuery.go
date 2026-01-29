@@ -11,14 +11,20 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Starts a query of one or more log groups using CloudWatch Logs Insights. You
-// specify the log groups and time range to query and the query string to use.
+// Starts a query of one or more log groups or data sources using CloudWatch Logs
+// Insights. You specify the log groups or data sources and time range to query and
+// the query string to use. You can query up to 10 data sources in a single query.
 //
 // For more information, see [CloudWatch Logs Insights Query Syntax].
 //
 // After you run a query using StartQuery , the query results are stored by
 // CloudWatch Logs. You can use [GetQueryResults]to retrieve the results of a query, using the
 // queryId that StartQuery returns.
+//
+// Interactive queries started with StartQuery share concurrency limits with
+// automated scheduled query executions. Both types of queries count toward the
+// same regional concurrent query quota, so high scheduled query activity may
+// affect the availability of concurrent slots for interactive queries.
 //
 // To specify the log groups to query, a StartQuery operation must include one of
 // the following:
@@ -28,7 +34,8 @@ import (
 //
 //   - Or the queryString must include a SOURCE command to select log groups for
 //     the query. The SOURCE command can select log groups based on log group name
-//     prefix, account ID, and log class.
+//     prefix, account ID, and log class, or select data sources using dataSource
+//     syntax in LogsQL, PPL, and SQL.
 //
 // For more information about the SOURCE command, see [SOURCE].
 //
@@ -245,40 +252,7 @@ func (c *Client) addOperationStartQueryMiddlewares(stack *middleware.Stack, opti
 	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addInterceptExecution(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptTransmit(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addSpanInitializeStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanInitializeEnd(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

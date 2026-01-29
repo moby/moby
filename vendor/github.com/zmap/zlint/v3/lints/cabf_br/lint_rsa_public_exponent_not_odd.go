@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -36,12 +36,12 @@ func init() {
 		Citation:      "BRs: 6.1.6",
 		Source:        lint.CABFBaselineRequirements,
 		EffectiveDate: util.CABV113Date,
-		Lint:          &rsaParsedTestsKeyExpOdd{},
+		Lint:          NewRsaParsedTestsKeyExpOdd,
 	})
 }
 
-func (l *rsaParsedTestsKeyExpOdd) Initialize() error {
-	return nil
+func NewRsaParsedTestsKeyExpOdd() lint.LintInterface {
+	return &rsaParsedTestsKeyExpOdd{}
 }
 
 func (l *rsaParsedTestsKeyExpOdd) CheckApplies(c *x509.Certificate) bool {

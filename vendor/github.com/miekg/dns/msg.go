@@ -338,11 +338,13 @@ loop:
 		return off + 2, nil
 	}
 
+	// Trailing root label
 	if off < len(msg) {
 		msg[off] = 0
+		return off + 1, nil
 	}
 
-	return off + 1, nil
+	return off, ErrBuf
 }
 
 // isRootLabel returns whether s or bs, from off to end, is the root
@@ -872,7 +874,7 @@ func (dns *Msg) unpack(dh Header, msg []byte, off int) (err error) {
 	// TODO(miek) make this an error?
 	// use PackOpt to let people tell how detailed the error reporting should be?
 	// if off != len(msg) {
-	// 	// println("dns: extra bytes in dns packet", off, "<", len(msg))
+	//	// println("dns: extra bytes in dns packet", off, "<", len(msg))
 	// }
 	return err
 }
@@ -1123,23 +1125,28 @@ func unpackQuestion(msg []byte, off int) (Question, int, error) {
 	)
 	q.Name, off, err = UnpackDomainName(msg, off)
 	if err != nil {
-		return q, off, err
+		return q, off, fmt.Errorf("bad question name: %w", err)
 	}
 	if off == len(msg) {
 		return q, off, nil
 	}
 	q.Qtype, off, err = unpackUint16(msg, off)
 	if err != nil {
-		return q, off, err
+		return q, off, fmt.Errorf("bad question qtype: %w", err)
 	}
 	if off == len(msg) {
 		return q, off, nil
 	}
 	q.Qclass, off, err = unpackUint16(msg, off)
+	if err != nil {
+		return q, off, fmt.Errorf("bad question qclass: %w", err)
+	}
+
 	if off == len(msg) {
 		return q, off, nil
 	}
-	return q, off, err
+
+	return q, off, nil
 }
 
 func (dh *Header) pack(msg []byte, off int, compression compressionMap, compress bool) (int, error) {
@@ -1177,27 +1184,27 @@ func unpackMsgHdr(msg []byte, off int) (Header, int, error) {
 	)
 	dh.Id, off, err = unpackUint16(msg, off)
 	if err != nil {
-		return dh, off, err
+		return dh, off, fmt.Errorf("bad header id: %w", err)
 	}
 	dh.Bits, off, err = unpackUint16(msg, off)
 	if err != nil {
-		return dh, off, err
+		return dh, off, fmt.Errorf("bad header bits: %w", err)
 	}
 	dh.Qdcount, off, err = unpackUint16(msg, off)
 	if err != nil {
-		return dh, off, err
+		return dh, off, fmt.Errorf("bad header question count: %w", err)
 	}
 	dh.Ancount, off, err = unpackUint16(msg, off)
 	if err != nil {
-		return dh, off, err
+		return dh, off, fmt.Errorf("bad header answer count: %w", err)
 	}
 	dh.Nscount, off, err = unpackUint16(msg, off)
 	if err != nil {
-		return dh, off, err
+		return dh, off, fmt.Errorf("bad header ns count: %w", err)
 	}
 	dh.Arcount, off, err = unpackUint16(msg, off)
 	if err != nil {
-		return dh, off, err
+		return dh, off, fmt.Errorf("bad header extra count: %w", err)
 	}
 	return dh, off, nil
 }

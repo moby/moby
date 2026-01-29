@@ -76,8 +76,8 @@ func GenerateKey(containerID string) string {
 
 		for _, v := range dir {
 			id := v.Name()
-			if strings.HasSuffix(id, containerID[:maxLen-1]) {
-				indexStr = strings.TrimSuffix(id, containerID[:maxLen-1])
+			if before, ok := strings.CutSuffix(id, containerID[:maxLen-1]); ok {
+				indexStr = before
 				tmpindex, err := strconv.Atoi(indexStr)
 				if err != nil {
 					return ""

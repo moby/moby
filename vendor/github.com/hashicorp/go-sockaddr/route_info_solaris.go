@@ -1,3 +1,5 @@
+//go:build solaris
+
 package sockaddr
 
 import (
@@ -7,10 +9,6 @@ import (
 
 var cmds map[string][]string = map[string][]string{
 	"route": {"/usr/sbin/route", "-n", "get", "default"},
-}
-
-type routeInfo struct {
-	cmds map[string][]string
 }
 
 // NewRouteInfo returns a BSD-specific implementation of the RouteInfo

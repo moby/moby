@@ -15,13 +15,19 @@ if pkg-config 'libsystemd' 2> /dev/null; then
 	DOCKER_BUILDTAGS+=" journald"
 fi
 
-echo -e "\n\033[0;36mINFO\033[0m Start validation with golang-ci-lint"
+# Note: exclude github.com/docker/docker/man as it contains no Go code.
+mods=($(find "${REPODIR}" -name "go.mod" -type f -exec dirname {} \; | grep -v "/man" | sort -u))
+for mod in "${mods[@]}"; do
+	pushd "${mod}" > /dev/null
+	echo -e "\n\033[0;36mINFO\033[0m Start validation for module '${mod}' with golang-ci-lint"
 
-# TODO use --out-format=junit-xml and store artifacts
-# shellcheck disable=SC2086
-GOGC=75 golangci-lint run \
-	${GOLANGCI_LINT_OPTS} \
-	--print-resources-usage \
-	--build-tags="${DOCKER_BUILDTAGS}" \
-	--verbose \
-	--config "${REPODIR}/.golangci.yml"
+	# TODO use --out-format=junit-xml and store artifacts
+	# shellcheck disable=SC2086
+	GOGC=75 golangci-lint run \
+		${GOLANGCI_LINT_OPTS} \
+		--print-resources-usage \
+		--build-tags="${DOCKER_BUILDTAGS}" \
+		--verbose \
+		--config "${REPODIR}/.golangci.yml"
+	popd > /dev/null
+done

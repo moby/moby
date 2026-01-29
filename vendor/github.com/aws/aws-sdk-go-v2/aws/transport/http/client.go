@@ -18,6 +18,7 @@ var (
 	// Default connection pool options
 	DefaultHTTPTransportMaxIdleConns        = 100
 	DefaultHTTPTransportMaxIdleConnsPerHost = 10
+	DefaultHTTPTransportMaxConnsPerHost     = 2048
 
 	// Default connection timeouts
 	DefaultHTTPTransportIdleConnTimeout       = 90 * time.Second
@@ -186,6 +187,7 @@ func defaultHTTPTransport() *http.Transport {
 		TLSHandshakeTimeout:   DefaultHTTPTransportTLSHandleshakeTimeout,
 		MaxIdleConns:          DefaultHTTPTransportMaxIdleConns,
 		MaxIdleConnsPerHost:   DefaultHTTPTransportMaxIdleConnsPerHost,
+		MaxConnsPerHost:       DefaultHTTPTransportMaxConnsPerHost,
 		IdleConnTimeout:       DefaultHTTPTransportIdleConnTimeout,
 		ExpectContinueTimeout: DefaultHTTPTransportExpectContinueTimeout,
 		ForceAttemptHTTP2:     true,

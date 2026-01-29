@@ -2,6 +2,7 @@ package images
 
 import (
 	"context"
+	"maps"
 
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
@@ -32,7 +33,5 @@ func copyAttributes(attributes, labels map[string]string) {
 	if labels == nil {
 		return
 	}
-	for k, v := range labels {
-		attributes[k] = v
-	}
+	maps.Copy(attributes, labels)
 }

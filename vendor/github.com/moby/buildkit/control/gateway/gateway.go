@@ -188,6 +188,30 @@ func (gwf *GatewayForwarder) ReleaseContainer(ctx context.Context, req *gwapi.Re
 	return fwd.ReleaseContainer(ctx, req)
 }
 
+func (gwf *GatewayForwarder) ReadFileContainer(ctx context.Context, req *gwapi.ReadFileRequest) (*gwapi.ReadFileResponse, error) {
+	fwd, err := gwf.lookupForwarder(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "forwarding ReadFileContainer")
+	}
+	return fwd.ReadFileContainer(ctx, req)
+}
+
+func (gwf *GatewayForwarder) ReadDirContainer(ctx context.Context, req *gwapi.ReadDirRequest) (*gwapi.ReadDirResponse, error) {
+	fwd, err := gwf.lookupForwarder(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "forwarding ReadDirContainer")
+	}
+	return fwd.ReadDirContainer(ctx, req)
+}
+
+func (gwf *GatewayForwarder) StatFileContainer(ctx context.Context, req *gwapi.StatFileRequest) (*gwapi.StatFileResponse, error) {
+	fwd, err := gwf.lookupForwarder(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "forwarding StatFileContainer")
+	}
+	return fwd.StatFileContainer(ctx, req)
+}
+
 func (gwf *GatewayForwarder) ExecProcess(srv gwapi.LLBBridge_ExecProcessServer) error {
 	fwd, err := gwf.lookupForwarder(srv.Context())
 	if err != nil {

@@ -60,7 +60,7 @@ func (e *imageExporter) Resolve(ctx context.Context, id int, attrs map[string]st
 	for k, v := range attrs {
 		switch exptypes.ImageExporterOptKey(k) {
 		case exptypes.OptKeyName:
-			for _, v := range strings.Split(v, ",") {
+			for v := range strings.SplitSeq(v, ",") {
 				ref, err := reference.ParseNormalizedNamed(v)
 				if err != nil {
 					return nil, err
@@ -105,7 +105,7 @@ func (e *imageExporterInstance) Attrs() map[string]string {
 	return e.attrs
 }
 
-func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source, inlineCache exptypes.InlineCache, sessionID string) (map[string]string, exporter.DescriptorReference, error) {
+func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source, buildInfo exporter.ExportBuildInfo) (map[string]string, exporter.DescriptorReference, error) {
 	if len(inp.Refs) > 1 {
 		return nil, nil, errors.New("exporting multiple references to image store is currently unsupported")
 	}
@@ -173,8 +173,8 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 	diffs, history = normalizeLayersAndHistory(diffs, history, ref)
 
 	var inlineCacheEntry *exptypes.InlineCacheEntry
-	if inlineCache != nil {
-		inlineCacheResult, err := inlineCache(ctx)
+	if buildInfo.InlineCache != nil {
+		inlineCacheResult, err := buildInfo.InlineCache(ctx)
 		if err != nil {
 			return nil, nil, err
 		}

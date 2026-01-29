@@ -47,6 +47,12 @@ const (
 	// DefaultUniverseDomain is the default value for universe domain.
 	// Universe domain is the default service domain for a given Cloud universe.
 	DefaultUniverseDomain = "googleapis.com"
+
+	// TrustBoundaryNoOp is a constant indicating no trust boundary is enforced.
+	TrustBoundaryNoOp = "0x0"
+
+	// TrustBoundaryDataKey is the key used to store trust boundary data in a token's metadata.
+	TrustBoundaryDataKey = "google.auth.trust_boundary_data"
 )
 
 type clonableTransport interface {
@@ -82,12 +88,13 @@ func ParseKey(key []byte) (crypto.Signer, error) {
 		key = block.Bytes
 	}
 	var parsedKey crypto.PrivateKey
-	var err error
-	parsedKey, err = x509.ParsePKCS8PrivateKey(key)
-	if err != nil {
-		parsedKey, err = x509.ParsePKCS1PrivateKey(key)
-		if err != nil {
-			return nil, fmt.Errorf("private key should be a PEM or plain PKCS1 or PKCS8: %w", err)
+
+	var errPKCS8, errPKCS1, errEC error
+	if parsedKey, errPKCS8 = x509.ParsePKCS8PrivateKey(key); errPKCS8 != nil {
+		if parsedKey, errPKCS1 = x509.ParsePKCS1PrivateKey(key); errPKCS1 != nil {
+			if parsedKey, errEC = x509.ParseECPrivateKey(key); errEC != nil {
+				return nil, fmt.Errorf("failed to parse private key. Tried PKCS8, PKCS1, and EC formats. Errors: [PKCS8: %v], [PKCS1: %v], [EC: %v]", errPKCS8, errPKCS1, errEC)
+			}
 		}
 	}
 	parsed, ok := parsedKey.(crypto.Signer)
@@ -222,4 +229,57 @@ func getMetadataUniverseDomain(ctx context.Context, client *metadata.Client) (st
 // name.
 func FormatIAMServiceAccountResource(name string) string {
 	return fmt.Sprintf("projects/-/serviceAccounts/%s", name)
+}
+
+// TrustBoundaryData represents the trust boundary data associated with a token.
+// It contains information about the regions or environments where the token is valid.
+type TrustBoundaryData struct {
+	// Locations is the list of locations that the token is allowed to be used in.
+	Locations []string
+	// EncodedLocations represents the locations in an encoded format.
+	EncodedLocations string
+}
+
+// NewTrustBoundaryData returns a new TrustBoundaryData with the specified locations and encoded locations.
+func NewTrustBoundaryData(locations []string, encodedLocations string) *TrustBoundaryData {
+	// Ensure consistency by treating a nil slice as an empty slice.
+	if locations == nil {
+		locations = []string{}
+	}
+	locationsCopy := make([]string, len(locations))
+	copy(locationsCopy, locations)
+	return &TrustBoundaryData{
+		Locations:        locationsCopy,
+		EncodedLocations: encodedLocations,
+	}
+}
+
+// NewNoOpTrustBoundaryData returns a new TrustBoundaryData with no restrictions.
+func NewNoOpTrustBoundaryData() *TrustBoundaryData {
+	return &TrustBoundaryData{
+		Locations:        []string{},
+		EncodedLocations: TrustBoundaryNoOp,
+	}
+}
+
+// TrustBoundaryHeader returns the value for the x-allowed-locations header and a bool
+// indicating if the header should be set. The return values are structured to
+// handle three distinct states required by the backend:
+// 1. Header not set: (value="", present=false) -> data is empty.
+// 2. Header set to an empty string: (value="", present=true) -> data is a no-op.
+// 3. Header set to a value: (value="...", present=true) -> data has locations.
+func (t TrustBoundaryData) TrustBoundaryHeader() (value string, present bool) {
+	if t.EncodedLocations == "" {
+		// If the data is empty, the header should not be present.
+		return "", false
+	}
+
+	// If data is not empty, the header should always be present.
+	present = true
+	value = ""
+	if t.EncodedLocations != TrustBoundaryNoOp {
+		value = t.EncodedLocations
+	}
+	// For a no-op, the backend requires an empty string.
+	return value, present
 }

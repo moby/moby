@@ -103,36 +103,6 @@ func (hrs *httpReadSeeker) Close() error {
 	return nil
 }
 
-func (hrs *httpReadSeeker) ReadAt(p []byte, offset int64) (n int, err error) {
-	if hrs.closed {
-		return 0, fmt.Errorf("httpReadSeeker.ReadAt: closed: %w", errdefs.ErrUnavailable)
-	}
-
-	if offset < 0 {
-		return 0, fmt.Errorf("httpReadSeeker.ReadAt: negative offset: %w", errdefs.ErrInvalidArgument)
-	}
-
-	if hrs.size != -1 && offset >= hrs.size {
-		return 0, io.EOF
-	}
-
-	if hrs.open == nil {
-		return 0, fmt.Errorf("httpReadSeeker.ReadAt: cannot open: %w", errdefs.ErrNotImplemented)
-	}
-
-	rc, err := hrs.open(offset)
-	if err != nil {
-		return 0, fmt.Errorf("httpReadSeeker.ReadAt: failed to open at offset %d: %w", offset, err)
-	}
-	defer func() {
-		if closeErr := rc.Close(); closeErr != nil {
-			log.L.WithError(closeErr).Error("httpReadSeeker.ReadAt: failed to close ReadCloser")
-		}
-	}()
-
-	return io.ReadFull(rc, p)
-}
-
 func (hrs *httpReadSeeker) Seek(offset int64, whence int) (int64, error) {
 	if hrs.closed {
 		return 0, fmt.Errorf("Fetcher.Seek: closed: %w", errdefs.ErrUnavailable)

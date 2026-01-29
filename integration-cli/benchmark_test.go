@@ -33,7 +33,7 @@ func (s *DockerBenchmarkSuite) BenchmarkConcurrentContainerActions(c *testing.B)
 	outerGroup.Add(maxConcurrency)
 	chErr := make(chan error, numIterations*2*maxConcurrency)
 
-	for i := 0; i < maxConcurrency; i++ {
+	for range maxConcurrency {
 		go func() {
 			defer outerGroup.Done()
 			innerGroup := &sync.WaitGroup{}
@@ -41,7 +41,7 @@ func (s *DockerBenchmarkSuite) BenchmarkConcurrentContainerActions(c *testing.B)
 
 			go func() {
 				defer innerGroup.Done()
-				for i := 0; i < numIterations; i++ {
+				for range numIterations {
 					args := []string{"run", "-d", "busybox"}
 					args = append(args, sleepCommandForDaemonPlatform()...)
 					out, _, err := dockerCmdWithError(args...)
@@ -88,7 +88,7 @@ func (s *DockerBenchmarkSuite) BenchmarkConcurrentContainerActions(c *testing.B)
 
 			go func() {
 				defer innerGroup.Done()
-				for i := 0; i < numIterations; i++ {
+				for range numIterations {
 					out, _, err := dockerCmdWithError("ps")
 					if err != nil {
 						chErr <- errors.New(out)

@@ -319,7 +319,6 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 				if r == nil {
 					continue
 				}
-				k, r := k, r
 				cp := res.Provenance.Refs[k]
 				eg.Go(func() error {
 					desc, release, err := makeProvenance(k, r, cp)
@@ -367,7 +366,6 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 
 		setDeprecated := true
 		for i, descref := range descrefs {
-			i, descref := i, descref
 			if descref == nil {
 				continue
 			}
@@ -671,7 +669,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	}
 
 	var exporterResponse map[string]string
-	exporterResponse, descrefs, err = s.runExporters(ctx, exp.Exporters, inlineCacheExporter, j, cached, inp)
+	exporterResponse, descrefs, err = s.runExporters(ctx, id, exp.Exporters, inlineCacheExporter, j, cached, inp)
 	if err != nil {
 		return nil, err
 	}
@@ -777,7 +775,6 @@ func runCacheExporters(ctx context.Context, exporters []RemoteCacheExporter, j *
 	var cacheExporterResponse map[string]string
 	resps := make([]map[string]string, len(exporters))
 	for i, exp := range exporters {
-		i, exp := i, exp
 		eg.Go(func() (err error) {
 			id := fmt.Sprint(j.SessionID, "-cache-", i)
 			err = inBuilderContext(ctx, j, exp.Name(), id, func(ctx context.Context, _ solver.JobContext) error {
@@ -842,7 +839,7 @@ func runInlineCacheExporter(ctx context.Context, e exporter.ExporterInstance, in
 	return res, done(err)
 }
 
-func (s *Solver) runExporters(ctx context.Context, exporters []exporter.ExporterInstance, inlineCacheExporter inlineCacheExporter, job *solver.Job, cached *result.Result[solver.CachedResult], inp *exporter.Source) (exporterResponse map[string]string, descrefs []exporter.DescriptorReference, err error) {
+func (s *Solver) runExporters(ctx context.Context, ref string, exporters []exporter.ExporterInstance, inlineCacheExporter inlineCacheExporter, job *solver.Job, cached *result.Result[solver.CachedResult], inp *exporter.Source) (exporterResponse map[string]string, descrefs []exporter.DescriptorReference, err error) {
 	warnings, err := verifier.CheckInvalidPlatforms(ctx, inp)
 	if err != nil {
 		return nil, nil, err
@@ -853,7 +850,6 @@ func (s *Solver) runExporters(ctx context.Context, exporters []exporter.Exporter
 	descs := make([]exporter.DescriptorReference, len(exporters))
 	var inlineCacheMu sync.Mutex
 	for i, exp := range exporters {
-		i, exp := i, exp
 		eg.Go(func() error {
 			id := fmt.Sprint(job.SessionID, "-export-", i)
 			return inBuilderContext(ctx, job, exp.Name(), id, func(ctx context.Context, _ solver.JobContext) error {
@@ -875,7 +871,11 @@ func (s *Solver) runExporters(ctx context.Context, exporters []exporter.Exporter
 					return runInlineCacheExporter(ctx, exp, inlineCacheExporter, job, cached)
 				})
 
-				resps[i], descs[i], err = exp.Export(ctx, inp, inlineCache, job.SessionID)
+				resps[i], descs[i], err = exp.Export(ctx, inp, exporter.ExportBuildInfo{
+					Ref:         ref,
+					SessionID:   job.SessionID,
+					InlineCache: inlineCache,
+				})
 				if err != nil {
 					return err
 				}

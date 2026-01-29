@@ -74,6 +74,7 @@ type Info struct {
 	FirewallBackend     *FirewallInfo        `json:"FirewallBackend,omitempty"`
 	CDISpecDirs         []string
 	DiscoveredDevices   []DeviceInfo `json:",omitempty"`
+	NRI                 *NRIInfo     `json:",omitempty"`
 
 	Containerd *ContainerdInfo `json:",omitempty"`
 
@@ -162,4 +163,9 @@ type DeviceInfo struct {
 	// ID is the unique identifier for the device.
 	// Example: CDI FQDN like "vendor.com/gpu=0", or other driver-specific device ID
 	ID string `json:"ID"`
+}
+
+// NRIInfo describes the NRI configuration.
+type NRIInfo struct {
+	Info [][2]string `json:"Info,omitempty"`
 }

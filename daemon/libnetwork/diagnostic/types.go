@@ -3,6 +3,7 @@ package diagnostic
 import (
 	"fmt"
 	"net/netip"
+	"strings"
 )
 
 // StringInterface interface that has to be implemented by messages
@@ -82,11 +83,12 @@ type TableObj struct {
 }
 
 func (t *TableObj) String() string {
-	output := fmt.Sprintf("total entries: %d\n", t.Length)
+	var output strings.Builder
+	output.WriteString(fmt.Sprintf("total entries: %d\n", t.Length))
 	for _, e := range t.Elements {
-		output += e.String()
+		output.WriteString(e.String())
 	}
-	return output
+	return output.String()
 }
 
 // PeerEntryObj entry in the networkdb peer table

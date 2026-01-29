@@ -153,7 +153,7 @@ func delVlanLink(linkName string) error {
 		log.G(context.TODO()).Debugf("Deleted a vlan tagged netlink subinterface: %s", linkName)
 	}
 	// if the subinterface doesn't parse to iface.vlan_id leave the interface in
-	// place since it could be a user specified name not created by the driver.
+	// place since it could be a user-specified name not created by the driver.
 	return nil
 }
 

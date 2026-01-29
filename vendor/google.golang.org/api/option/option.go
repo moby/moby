@@ -14,8 +14,43 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/internal"
+	"google.golang.org/api/internal/credentialstype"
 	"google.golang.org/api/internal/impersonate"
 	"google.golang.org/grpc"
+)
+
+// CredentialsType specifies the type of JSON credentials being provided
+// to a loading function such as [WithAuthCredentialsFile] or
+// [WithAuthCredentialsJSON].
+type CredentialsType = credentialstype.CredType
+
+const (
+	// ServiceAccount represents a service account file type.
+	ServiceAccount = credentialstype.ServiceAccount
+	// AuthorizedUser represents an authorized user credentials file type.
+	AuthorizedUser = credentialstype.AuthorizedUser
+	// ImpersonatedServiceAccount represents an impersonated service account file type.
+	//
+	// IMPORTANT:
+	// This credential type does not validate the credential configuration. A security
+	// risk occurs when a credential configuration configured with malicious urls
+	// is used.
+	// You should validate credential configurations provided by untrusted sources.
+	// See [Security requirements when using credential configurations from an external
+	// source] https://cloud.google.com/docs/authentication/external/externally-sourced-credentials
+	// for more details.
+	ImpersonatedServiceAccount = credentialstype.ImpersonatedServiceAccount
+	// ExternalAccount represents an external account file type.
+	//
+	// IMPORTANT:
+	// This credential type does not validate the credential configuration. A security
+	// risk occurs when a credential configuration configured with malicious urls
+	// is used.
+	// You should validate credential configurations provided by untrusted sources.
+	// See [Security requirements when using credential configurations from an external
+	// source] https://cloud.google.com/docs/authentication/external/externally-sourced-credentials
+	// for more details.
+	ExternalAccount = credentialstype.ExternalAccount
 )
 
 // A ClientOption is an option for a Google API client.
@@ -45,6 +80,36 @@ func (w withCredFile) Apply(o *internal.DialSettings) {
 // API calls with the given service account or refresh token JSON
 // credentials file.
 //
+// Deprecated: This function is being deprecated because of a potential security risk.
+//
+// This function does not validate the credential configuration. The security
+// risk occurs when a credential configuration is accepted from a source that
+// is not under your control and used without validation on your side.
+//
+// If you know that you will be loading credential configurations of a
+// specific type, it is recommended to use a credential-type-specific
+// option function.
+// This will ensure that an unexpected credential type with potential for
+// malicious intent is not loaded unintentionally. You might still have to do
+// validation for certain credential types. Please follow the recommendation
+// for that function. For example, if you want to load only service accounts,
+// you can use [WithAuthCredentialsFile] with [ServiceAccount]:
+//
+//	option.WithAuthCredentialsFile(option.ServiceAccount, "/path/to/file.json")
+//
+// If you are loading your credential configuration from an untrusted source and have
+// not mitigated the risks (e.g. by validating the configuration yourself), make
+// these changes as soon as possible to prevent security risks to your environment.
+//
+// Regardless of the function used, it is always your responsibility to validate
+// configurations received from external sources.
+func WithCredentialsFile(filename string) ClientOption {
+	return withCredFile(filename)
+}
+
+// WithAuthCredentialsFile returns a ClientOption that authenticates API calls
+// with the given JSON credentials file and credential type.
+//
 // Important: If you accept a credential configuration (credential
 // JSON/File/Stream) from an external source for authentication to Google
 // Cloud Platform, you must validate it before providing it to any Google
@@ -52,8 +117,21 @@ func (w withCredFile) Apply(o *internal.DialSettings) {
 // Google APIs can compromise the security of your systems and data. For
 // more information, refer to [Validate credential configurations from
 // external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
-func WithCredentialsFile(filename string) ClientOption {
-	return withCredFile(filename)
+func WithAuthCredentialsFile(credType CredentialsType, filename string) ClientOption {
+	return withAuthCredentialsFile{
+		credsType: credType,
+		filename:  filename,
+	}
+}
+
+type withAuthCredentialsFile struct {
+	credsType CredentialsType
+	filename  string
+}
+
+func (w withAuthCredentialsFile) Apply(o *internal.DialSettings) {
+	o.AuthCredentialsFile = w.filename
+	o.AuthCredentialsType = w.credsType
 }
 
 // WithServiceAccountFile returns a ClientOption that uses a Google service
@@ -67,22 +145,38 @@ func WithCredentialsFile(filename string) ClientOption {
 // more information, refer to [Validate credential configurations from
 // external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 //
-// Deprecated: Use WithCredentialsFile instead.
+// Deprecated: Use WithAuthCredentialsFile instead.
 func WithServiceAccountFile(filename string) ClientOption {
-	return WithCredentialsFile(filename)
+	return WithAuthCredentialsFile(ServiceAccount, filename)
 }
 
 // WithCredentialsJSON returns a ClientOption that authenticates
 // API calls with the given service account or refresh token JSON
 // credentials.
 //
-// Important: If you accept a credential configuration (credential
-// JSON/File/Stream) from an external source for authentication to Google
-// Cloud Platform, you must validate it before providing it to any Google
-// API or library. Providing an unvalidated credential configuration to
-// Google APIs can compromise the security of your systems and data. For
-// more information, refer to [Validate credential configurations from
-// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
+// Deprecated: This function is being deprecated because of a potential security risk.
+//
+// This function does not validate the credential configuration. The security
+// risk occurs when a credential configuration is accepted from a source that
+// is not under your control and used without validation on your side.
+//
+// If you know that you will be loading credential configurations of a
+// specific type, it is recommended to use a credential-type-specific
+// option function.
+// This will ensure that an unexpected credential type with potential for
+// malicious intent is not loaded unintentionally. You might still have to do
+// validation for certain credential types. Please follow the recommendation
+// for that function. For example, if you want to load only service accounts,
+// you can use [WithAuthCredentialsJSON] with [ServiceAccount]:
+//
+//	option.WithAuthCredentialsJSON(option.ServiceAccount, json)
+//
+// If you are loading your credential configuration from an untrusted source and have
+// not mitigated the risks (e.g. by validating the configuration yourself), make
+// these changes as soon as possible to prevent security risks to your environment.
+//
+// Regardless of the function used, it is always your responsibility to validate
+// configurations received from external sources.
 func WithCredentialsJSON(p []byte) ClientOption {
 	return withCredentialsJSON(p)
 }
@@ -92,6 +186,33 @@ type withCredentialsJSON []byte
 func (w withCredentialsJSON) Apply(o *internal.DialSettings) {
 	o.CredentialsJSON = make([]byte, len(w))
 	copy(o.CredentialsJSON, w)
+}
+
+// WithAuthCredentialsJSON returns a ClientOption that authenticates API calls
+// with the given JSON credentials and credential type.
+//
+// Important: If you accept a credential configuration (credential
+// JSON/File/Stream) from an external source for authentication to Google
+// Cloud Platform, you must validate it before providing it to any Google
+// API or library. Providing an unvalidated credential configuration to
+// Google APIs can compromise the security of your systems and data. For
+// more information, refer to [Validate credential configurations from
+// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
+func WithAuthCredentialsJSON(credType CredentialsType, json []byte) ClientOption {
+	return withAuthCredentialsJSON{
+		credsType: credType,
+		json:      json,
+	}
+}
+
+type withAuthCredentialsJSON struct {
+	credsType CredentialsType
+	json      []byte
+}
+
+func (w withAuthCredentialsJSON) Apply(o *internal.DialSettings) {
+	o.AuthCredentialsJSON = w.json
+	o.AuthCredentialsType = w.credsType
 }
 
 // WithEndpoint returns a ClientOption that overrides the default endpoint

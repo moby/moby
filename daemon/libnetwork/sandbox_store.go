@@ -66,10 +66,7 @@ func (sbs *sbState) Index() uint64 {
 		return sbs.dbIndex
 	}
 
-	maxIndex := sb.dbIndex
-	if sbs.dbIndex > maxIndex {
-		maxIndex = sbs.dbIndex
-	}
+	maxIndex := max(sbs.dbIndex, sb.dbIndex)
 
 	return maxIndex
 }

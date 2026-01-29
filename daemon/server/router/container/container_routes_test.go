@@ -1,6 +1,7 @@
 package container
 
 import (
+	"maps"
 	"strings"
 	"testing"
 
@@ -315,9 +316,7 @@ func TestHandleSysctlBC(t *testing.T) {
 				NetworkMode: container.NetworkMode(tc.networkMode),
 				Sysctls:     map[string]string{},
 			}
-			for k, v := range tc.sysctls {
-				hostCfg.Sysctls[k] = v
-			}
+			maps.Copy(hostCfg.Sysctls, tc.sysctls)
 			netCfg := &network.NetworkingConfig{
 				EndpointsConfig: tc.epConfig,
 			}

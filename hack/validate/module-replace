@@ -4,23 +4,59 @@ set -e
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPTDIR}/.validate"
 
-api_files=$(
-	validate_diff --diff-filter=ACMR --name-only -- \
+# Leaves only actual changes, not the diff header
+filter_diff() {
+	sed '1,4d' | grep -E '^[+-]' | grep -Ev '^(\+\+\+|\-\-\-)'
+}
+
+api_diff=$(
+	validate_diff --diff-filter=ACMR -U0 -- \
 		'api/' \
 		':(exclude)api/README.md' \
 		':(exclude)api/swagger.yaml' \
 		':(exclude)api/docs/' \
+		| filter_diff \
 		|| true
 )
 
-client_files=$(validate_diff --diff-filter=ACMR --name-only -- 'client/' || true)
+client_diff=$(validate_diff --diff-filter=ACMR -U0 -- 'client/' | filter_diff || true)
 
 has_errors=0
 
+echo "================================================"
+echo "go.mod:"
 cat go.mod
+echo "================================================"
 
+# reads stdin and returns 1 or 0 if it only contains changes related to the
+# provided module
+# example input:
+# -	github.com/moby/moby/api v1.52.0
+# +	github.com/moby/moby/api v1.52.1-0.20251217102041-b8093b76fb43
+# -
+# -replace github.com/moby/moby/api => ../api
+# +github.com/moby/moby/api v1.52.1-0.20251217102041-b8093b76fb43 h1:CTVB9ByfoOULdpH0GiDWwHK3B1jxwjoWtHiEGia1nRc=
+# +github.com/moby/moby/api v1.52.1-0.20251217102041-b8093b76fb43/go.mod h1:8mb+ReTlisw4pS6BRzCMts5M49W5M7bKt1cJy/YbAqc=
+only_changes_module() {
+	local module="$1"
+	input=$(cat | sed '/^[-+]$/d') # strip empty lines
+
+	# Check if ALL lines contain the module string
+	# The grep command checks if there's NO match for the module string, and
+	# then we negate the results
+	if grep -vqF "${module}" <<< "${input}"; then
+		return 1
+	fi
+
+	return 0
+}
+
+echo >&2 "================================================"
+echo >&2 "api diff:"
+echo >&2 "${api_diff}"
+echo >&2 "================================================"
 # Check if changes to ./api require a replace rule in go.mod
-if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ -n "${api_files}" ]; then
+if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ -n "${api_diff}" ]; then
 	echo "Detected changes in ./api directory, checking for replace rule..."
 	if ! go list -mod=readonly -m -json github.com/moby/moby/api | jq -e '.Replace'; then
 		echo >&2 "ERROR: Changes detected in ./api but go.mod is missing a replace rule for github.com/moby/moby/api"
@@ -31,10 +67,16 @@ if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ -n "${api_files}" ]; then
 	fi
 fi
 
+echo >&2 "================================================"
+echo >&2 "client diff:"
+echo >&2 "${client_diff}"
+echo >&2 "================================================"
 # Check if changes to ./client require a replace rule in go.mod
-if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ -n "${client_files}" ]; then
+if [ -n "${TEST_FORCE_VALIDATE:-}" ] || [ -n "${client_diff}" ]; then
 	echo "Detected changes in ./client directory, checking for replace rule..."
-	if ! go list -mod=readonly -m -json github.com/moby/moby/client | jq -e '.Replace'; then
+	if only_changes_module "github.com/moby/moby/api" <<< "${client_diff}"; then
+		echo >&2 "✓ This seems to only change the module github.com/moby/moby/api revision"
+	elif ! go list -mod=readonly -m -json github.com/moby/moby/client | jq -e '.Replace'; then
 		echo >&2 "ERROR: Changes detected in ./client but go.mod is missing a replace rule for github.com/moby/moby/client"
 		echo >&2 "Please run ./hack/vendor.sh replace"
 		has_errors=1

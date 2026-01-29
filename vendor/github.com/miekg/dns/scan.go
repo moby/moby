@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -1231,7 +1232,7 @@ func typeToInt(token string) (uint16, bool) {
 
 // stringToTTL parses things like 2w, 2m, etc, and returns the time in seconds.
 func stringToTTL(token string) (uint32, bool) {
-	var s, i uint32
+	var s, i uint
 	for _, c := range token {
 		switch c {
 		case 's', 'S':
@@ -1251,12 +1252,15 @@ func stringToTTL(token string) (uint32, bool) {
 			i = 0
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 			i *= 10
-			i += uint32(c) - '0'
+			i += uint(c) - '0'
 		default:
 			return 0, false
 		}
 	}
-	return s + i, true
+	if s+i > math.MaxUint32 {
+		return 0, false
+	}
+	return uint32(s + i), true
 }
 
 // Parse LOC records' <digits>[.<digits>][mM] into a

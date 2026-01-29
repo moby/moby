@@ -41,7 +41,7 @@ func benchmarkReplaceOrAppendEnvValues(b *testing.B, extraEnv int) {
 
 	if extraEnv > 0 {
 		buf := make([]byte, 5)
-		for i := 0; i < extraEnv; i++ {
+		for range extraEnv {
 			n, err := rand.Read(buf)
 			assert.NilError(b, err)
 			key := string(buf[:n])

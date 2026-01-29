@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/moby/buildkit/cache/remotecache/gha/ghatypes"
 	resolverconfig "github.com/moby/buildkit/util/resolver/config"
 )
 
@@ -46,6 +47,12 @@ type Config struct {
 	// ProvenanceEnvDir is the directory where extra config is loaded
 	// that is added to the provenance of builds. Defaults to /etc/buildkit/provenance.d/ ,
 	ProvenanceEnvDir string `toml:"provenanceEnvDir"`
+
+	Cache CacheConfig `toml:"cache"`
+}
+
+type CacheConfig struct {
+	GHA *ghatypes.CacheConfig `toml:"gha"`
 }
 
 type SystemConfig struct {

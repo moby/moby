@@ -61,7 +61,7 @@ type EndpointVirtualIP struct {
 	// Addr is the virtual ip address.
 	// This field accepts CIDR notation, for example `10.0.0.1/24`, to maintain backwards
 	// compatibility, but only the IP address is used.
-	Addr netip.Prefix `json:",omitempty"`
+	Addr netip.Prefix `json:"Addr,omitzero"`
 }
 
 // Network represents a network.
@@ -111,7 +111,7 @@ type IPAMOptions struct {
 
 // IPAMConfig represents ipam configuration.
 type IPAMConfig struct {
-	Subnet  netip.Prefix `json:",omitempty"`
-	Range   netip.Prefix `json:",omitempty"`
-	Gateway netip.Addr   `json:",omitempty"`
+	Subnet  netip.Prefix `json:"Subnet,omitzero"`
+	Range   netip.Prefix `json:"Range,omitzero"`
+	Gateway netip.Addr   `json:"Gateway,omitzero"`
 }

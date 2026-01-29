@@ -290,7 +290,7 @@ func GetLogger(opts []option.ClientOption) *slog.Logger {
 // options, in this order:
 //
 //   - [option.WithoutAuthentication]
-//   - [option.WithAuthCredentials]
+//   - [option.Credentials]
 //   - [WithCredentials] (internal use only)
 //   - [option.WithCredentials]
 //   - [option.WithTokenSource]
@@ -300,7 +300,9 @@ func GetLogger(opts []option.ClientOption) *slog.Logger {
 // returns the result:
 //
 //   - [option.WithAudiences]
+//   - [option.WithAuthCredentialsFile]
 //   - [option.WithCredentialsFile]
+//   - [option.WithAuthCredentialsJSON]
 //   - [option.WithCredentialsJSON]
 //   - [option.WithScopes]
 //   - [WithDefaultScopes] (internal use only)

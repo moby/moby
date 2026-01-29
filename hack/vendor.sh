@@ -42,15 +42,34 @@ replace() (
 
 dropreplace() (
 	set -x
+	ref=$1
+	if [ -z "$ref" ]; then
+		# module@master not always results in the actual latest commit on the
+		# master branch.
+		# Use the actual branch from the upstream or origin remote.
+		for r in "upstream" "origin"; do
+			if git remote get-url "$r" >/dev/null 2>&1; then
+				ref="$r/master"
+				break
+			fi
+		done
+		if [ -z "$ref" ]; then
+			echo "No valid master ref found" >&2
+			exit 1
+		fi
+		echo "Using $ref" >&2
+	fi
+
+	ref=$(git rev-parse "$ref")
 	go mod edit -dropreplace=github.com/moby/moby/api -dropreplace=github.com/moby/moby/client
 	go mod edit -modfile client/go.mod -dropreplace=github.com/moby/moby/api
 
-	go mod edit -modfile client/go.mod -require='github.com/moby/moby/api@master'
+	go mod edit -modfile client/go.mod -require="github.com/moby/moby/api@$ref"
 	(cd client; go mod tidy)
 
 	go mod edit \
-		-require='github.com/moby/moby/api@master' \
-		-require='github.com/moby/moby/client@master'
+		-require="github.com/moby/moby/api@$ref" \
+		-require="github.com/moby/moby/client@$ref"
 	go mod tidy
 	go mod vendor
 )
@@ -60,7 +79,7 @@ help() {
 	echo "  - tidy: run go mod tidy"
 	echo "  - vendor: run go mod vendor"
 	echo "  - replace: run go mod edit replace for local modules"
-	echo "  - dropreplace: run go mod edit dropreplace for local modules"
+	echo "  - dropreplace [<gitref>]: remove replace rules and update the api and client modules to the provided ref (defaults to upstream/master)"
 	echo "  - all: run tidy && vendor"
 	echo "  - help: show this help"
 }
@@ -69,7 +88,7 @@ case "$1" in
 	tidy) tidy ;;
 	vendor) vendor ;;
 	replace) replace ;;
-	dropreplace) dropreplace ;;
+	dropreplace) dropreplace "$2" ;;
 	""|all) tidy && vendor ;;
 	*) help ;;
 esac

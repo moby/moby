@@ -54,7 +54,7 @@ func (s *DockerCLIAttachSuite) TestAttachMultipleAndRestart(c *testing.T) {
 		close(startDone)
 	}()
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		go func() {
 			cmd := exec.Command(dockerBinary, "attach", "attacher")
 

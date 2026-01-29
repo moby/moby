@@ -75,7 +75,7 @@ func (ds *dispatchState) args(visited map[string]struct{}) []outline.Arg {
 				args = append(args, outline.Arg{
 					Name:        a.definition.Key,
 					Value:       a.value,
-					Description: a.definition.Comment,
+					Description: a.definition.DocComment,
 					Location:    toSourceLocation(a.location),
 				})
 				visited[k] = struct{}{}
@@ -153,7 +153,7 @@ func (ds *dispatchState) Outline(dt []byte) outline.Outline {
 
 	out := outline.Outline{
 		Name:        ds.stage.Name,
-		Description: ds.stage.Comment,
+		Description: ds.stage.DocComment,
 		Sources:     [][]byte{dt},
 		Args:        args,
 		Secrets:     secrets,

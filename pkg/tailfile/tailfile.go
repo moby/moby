@@ -103,10 +103,7 @@ func NewTailReaderWithDelimiter(ctx context.Context, r SizeReaderAt, reqLines in
 
 func newScanner(r SizeReaderAt, delim []byte) *scanner {
 	size := r.Size()
-	readSize := blockSize
-	if readSize > int(size) {
-		readSize = int(size)
-	}
+	readSize := min(blockSize, int(size))
 	// silly case...
 	if len(delim) >= readSize/2 {
 		readSize = len(delim)*2 + 2
@@ -178,10 +175,7 @@ func (s *scanner) Scan(ctx context.Context) bool {
 
 		idx := s.idx - len(s.delim)
 		if idx < 0 {
-			readSize := int(s.pos)
-			if readSize > len(s.buf) {
-				readSize = len(s.buf)
-			}
+			readSize := min(int(s.pos), len(s.buf))
 
 			if readSize < len(s.delim) {
 				return false

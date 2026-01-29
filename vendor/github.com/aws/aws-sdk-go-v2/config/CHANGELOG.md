@@ -1,3 +1,62 @@
+# v1.32.7 (2026-01-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.6 (2025-12-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.5 (2025-12-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.4 (2025-12-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.3 (2025-12-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+* **Dependency Update**: Upgrade to smithy-go v1.24.0. Notably this version of the library reduces the allocation footprint of the middleware system. We observe a ~10% reduction in allocations per SDK call with this change.
+
+# v1.32.2 (2025-11-25)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.1 (2025-11-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.0 (2025-11-19.2)
+
+* **Feature**: Add support for AWS Login credentials (package credentials/logincreds) to the default credential chain.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.21 (2025-11-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.20 (2025-11-12)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.19 (2025-11-11)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.18 (2025-11-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.17 (2025-11-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+* **Dependency Update**: Upgrade to smithy-go v1.23.2 which should convey some passive reduction of overall allocations, especially when not using the metrics system.
+
+# v1.31.16 (2025-10-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.31.15 (2025-10-23)
 
 * **Dependency Update**: Updated to the latest SDK module versions

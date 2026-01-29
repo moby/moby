@@ -26,7 +26,7 @@ func (l *mockLogger) Close() error {
 func TestRingLogger(t *testing.T) {
 	mockLog := &mockLogger{make(chan *Message)} // no buffer on this channel
 	ring := newRingLogger(mockLog, Info{}, 1)
-	defer ring.setClosed()
+	defer ring.Close()
 
 	// this should never block
 	ring.Log(&Message{Line: []byte("1")})
@@ -51,7 +51,7 @@ func TestRingLogger(t *testing.T) {
 
 func TestRingCap(t *testing.T) {
 	r := newRing(5)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		// queue messages with "0" to "10"
 		// the "5" to "10" messages should be dropped since we only allow 5 bytes in the buffer
 		if err := r.Enqueue(&Message{Line: []byte(strconv.Itoa(i))}); err != nil {
@@ -60,7 +60,7 @@ func TestRingCap(t *testing.T) {
 	}
 
 	// should have messages in the queue for "0" to "4"
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		m, err := r.Dequeue()
 		if err != nil {
 			t.Fatal(err)
@@ -119,7 +119,7 @@ func TestRingClose(t *testing.T) {
 
 func TestRingDrain(t *testing.T) {
 	r := newRing(5)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if err := r.Enqueue(&Message{Line: []byte(strconv.Itoa(i))}); err != nil {
 			t.Fatal(err)
 		}
@@ -130,7 +130,7 @@ func TestRingDrain(t *testing.T) {
 		t.Fatal("got unexpected length after drain")
 	}
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if string(ls[i].Line) != strconv.Itoa(i) {
 			t.Fatalf("got unexpected message at position %d: %s", i, string(ls[i].Line))
 		}
@@ -158,7 +158,7 @@ func BenchmarkRingLoggerThroughputNoReceiver(b *testing.B) {
 	msg := &Message{Line: []byte("hello humans and everyone else!")}
 	b.SetBytes(int64(len(msg.Line)))
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}
@@ -170,7 +170,7 @@ func BenchmarkRingLoggerThroughputWithReceiverDelay0(b *testing.B) {
 	msg := &Message{Line: []byte("hello humans and everyone else!")}
 	b.SetBytes(int64(len(msg.Line)))
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}
@@ -206,7 +206,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay1(b *testing.B) {
 	cancel := consumeWithDelay(1*time.Millisecond, mockLog.c)
 	defer cancel()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}
@@ -223,7 +223,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay10(b *testing.B) {
 	cancel := consumeWithDelay(10*time.Millisecond, mockLog.c)
 	defer cancel()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}
@@ -240,7 +240,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay50(b *testing.B) {
 	cancel := consumeWithDelay(50*time.Millisecond, mockLog.c)
 	defer cancel()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}
@@ -257,7 +257,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay100(b *testing.B) {
 	cancel := consumeWithDelay(100*time.Millisecond, mockLog.c)
 	defer cancel()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}
@@ -274,7 +274,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay300(b *testing.B) {
 	cancel := consumeWithDelay(300*time.Millisecond, mockLog.c)
 	defer cancel()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}
@@ -291,7 +291,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay500(b *testing.B) {
 	cancel := consumeWithDelay(500*time.Millisecond, mockLog.c)
 	defer cancel()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		if err := l.Log(msg); err != nil {
 			b.Fatal(err)
 		}

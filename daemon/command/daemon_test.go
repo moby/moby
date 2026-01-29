@@ -296,7 +296,7 @@ func TestOtelMeterLeak(t *testing.T) {
 	runtime.ReadMemStats(&before)
 
 	const counters = 10 * 1000 * 1000
-	for i := 0; i < counters; i++ {
+	for range counters {
 		_, _ = meter.Int64Counter("bar")
 	}
 

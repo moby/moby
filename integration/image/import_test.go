@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"io"
+	"net/http/httptest"
 	"runtime"
 	"strconv"
 	"strings"
@@ -186,6 +187,59 @@ func TestImportWithCustomPlatformReject(t *testing.T) {
 
 			assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 			assert.Check(t, is.ErrorContains(err, tc.expectedErr))
+		})
+	}
+}
+
+func TestImageImportBadSrc(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	skip.If(t, testEnv.IsRootless, "rootless daemon cannot access the test's HTTP server in the host's netns")
+
+	server := httptest.NewServer(nil)
+	defer server.Close()
+
+	trimmedHTTP := strings.TrimPrefix(server.URL, "http://")
+
+	tests := []struct {
+		name      string
+		fromSrc   string
+		expectErr func(error) bool
+	}{
+		{
+			name:      "missing file via full URL",
+			fromSrc:   server.URL + "/nofile.tar",
+			expectErr: cerrdefs.IsNotFound,
+		},
+		{
+			name:      "missing file via trimmed URL",
+			fromSrc:   trimmedHTTP + "/nofile.tar",
+			expectErr: cerrdefs.IsNotFound,
+		},
+		{
+			name:      "encoded path via trimmed URL",
+			fromSrc:   trimmedHTTP + "/%2Fdata%2Ffile.tar",
+			expectErr: cerrdefs.IsNotFound,
+		},
+		{
+			name:      "encoded absolute path",
+			fromSrc:   "%2Fdata%2Ffile.tar",
+			expectErr: cerrdefs.IsInvalidArgument,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := apiClient.ImageImport(ctx,
+				client.ImageImportSource{
+					SourceName: tc.fromSrc,
+				},
+				"import-bad-src:test",
+				client.ImageImportOptions{},
+			)
+
+			assert.Check(t, tc.expectErr(err))
 		})
 	}
 }

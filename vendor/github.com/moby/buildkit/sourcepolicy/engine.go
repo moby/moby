@@ -49,7 +49,7 @@ func (e *Engine) selectorCache(src *spb.Selector) *selectorCache {
 		return s
 	}
 
-	s := &selectorCache{Selector: src}
+	s := newSelectorCache(src)
 	e.sources[key] = s
 	return s
 }

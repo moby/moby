@@ -11,9 +11,11 @@ import (
 // in the absence of go.dev/issue/29678.
 type HardwareAddr net.HardwareAddr
 
-var _ encoding.TextMarshaler = (HardwareAddr)(nil)
-var _ encoding.TextUnmarshaler = (*HardwareAddr)(nil)
-var _ fmt.Stringer = (HardwareAddr)(nil)
+var (
+	_ encoding.TextMarshaler   = (HardwareAddr)(nil)
+	_ encoding.TextUnmarshaler = (*HardwareAddr)(nil)
+	_ fmt.Stringer             = (HardwareAddr)(nil)
+)
 
 func (m *HardwareAddr) UnmarshalText(text []byte) error {
 	if len(text) == 0 {

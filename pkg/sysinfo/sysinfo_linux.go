@@ -55,7 +55,7 @@ func findCgroupV1Mountpoints() (map[string]string, error) {
 
 	mps := make(map[string]string)
 	for _, mi := range mounts {
-		for _, opt := range strings.Split(mi.VFSOptions, ",") {
+		for opt := range strings.SplitSeq(mi.VFSOptions, ",") {
 			seen, known := allMap[opt]
 			if known && !seen {
 				allMap[opt] = true
@@ -375,7 +375,7 @@ func parseUintList(val string, maximum int) (map[int]struct{}, error) {
 	availableInts := make(map[int]struct{})
 	errInvalidFormat := fmt.Errorf("invalid format: %s", val)
 
-	for _, r := range strings.Split(val, ",") {
+	for r := range strings.SplitSeq(val, ",") {
 		if !strings.Contains(r, "-") {
 			v, err := strconv.Atoi(r)
 			if err != nil {

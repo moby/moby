@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,9 +15,9 @@
 package rfc
 
 import (
-	"encoding/asn1"
 	"unicode/utf8"
 
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
@@ -32,12 +32,12 @@ func init() {
 		Citation:      "RFC 5280: Appendix A",
 		Source:        lint.RFC5280,
 		EffectiveDate: util.ZeroDate,
-		Lint:          &subjectDNNotPrintableCharacters{},
+		Lint:          NewSubjectDNNotPrintableCharacters,
 	})
 }
 
-func (l *subjectDNNotPrintableCharacters) Initialize() error {
-	return nil
+func NewSubjectDNNotPrintableCharacters() lint.LintInterface {
+	return &subjectDNNotPrintableCharacters{}
 }
 
 func (l *subjectDNNotPrintableCharacters) CheckApplies(c *x509.Certificate) bool {

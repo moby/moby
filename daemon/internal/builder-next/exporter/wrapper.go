@@ -2,8 +2,11 @@ package exporter
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
+	"time"
 
+	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/moby/buildkit/exporter"
@@ -26,14 +29,16 @@ type BuildkitCallbacks struct {
 // overrides to the exporter attributes.
 type imageExporterMobyWrapper struct {
 	exp       exporter.Exporter
+	content   content.Store
 	callbacks BuildkitCallbacks
 }
 
 // NewWrapper returns an exporter wrapper that applies moby specific attributes
 // and hooks the export process.
-func NewWrapper(exp exporter.Exporter, callbacks BuildkitCallbacks) (exporter.Exporter, error) {
+func NewWrapper(exp exporter.Exporter, content content.Store, callbacks BuildkitCallbacks) (exporter.Exporter, error) {
 	return &imageExporterMobyWrapper{
 		exp:       exp,
+		content:   content,
 		callbacks: callbacks,
 	}, nil
 }
@@ -65,22 +70,43 @@ func (e *imageExporterMobyWrapper) Resolve(ctx context.Context, id int, exporter
 	return &imageExporterInstanceWrapper{
 		ExporterInstance: inst,
 		callbacks:        e.callbacks,
+		content:          e.content,
 	}, nil
 }
 
 type imageExporterInstanceWrapper struct {
 	exporter.ExporterInstance
 	callbacks BuildkitCallbacks
+	content   content.Store
 }
 
-func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter.Source, inlineCache exptypes.InlineCache, sessionID string) (map[string]string, exporter.DescriptorReference, error) {
-	out, ref, err := i.ExporterInstance.Export(ctx, src, inlineCache, sessionID)
+func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter.Source, buildInfo exporter.ExportBuildInfo) (map[string]string, exporter.DescriptorReference, error) {
+	out, ref, err := i.ExporterInstance.Export(ctx, src, buildInfo)
 	if err != nil {
-		return out, ref, err
+		return nil, nil, err
 	}
 
 	desc := ref.Descriptor()
 	imageID := out[exptypes.ExporterImageDigestKey]
+
+	now := time.Now()
+	refLabelBytes, err := json.Marshal(BuildRefLabelValue{
+		CreatedAt: &now,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	refLabelKey := BuildRefLabel + buildInfo.Ref
+	_, err = i.content.Update(ctx, content.Info{
+		Digest: desc.Digest,
+		Labels: map[string]string{
+			refLabelKey: string(refLabelBytes),
+		},
+	}, "labels."+refLabelKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	if i.callbacks.Exported != nil {
 		i.callbacks.Exported(ctx, imageID, desc)
 	}
@@ -100,7 +126,7 @@ func (i *imageExporterInstanceWrapper) processNamedCallback(ctx context.Context,
 		return
 	}
 
-	for _, name := range strings.Split(imageName, ",") {
+	for name := range strings.SplitSeq(imageName, ",") {
 		ref, err := reference.ParseNormalizedNamed(name)
 		if err != nil {
 			// Shouldn't happen, but log if it does and continue.

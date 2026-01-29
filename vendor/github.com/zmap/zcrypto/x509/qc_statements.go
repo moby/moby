@@ -1,9 +1,10 @@
 package x509
 
 import (
-	"encoding/asn1"
 	"encoding/json"
 	"errors"
+
+	"github.com/zmap/zcrypto/encoding/asn1"
 )
 
 type QCStatementASN struct {

@@ -49,25 +49,29 @@ func (node *Node) Location() []Range {
 // Dump dumps the AST defined by `node` as a list of sexps.
 // Returns a string suitable for printing.
 func (node *Node) Dump() string {
-	str := strings.ToLower(node.Value)
+	var str strings.Builder
+	str.WriteString(strings.ToLower(node.Value))
 
 	if len(node.Flags) > 0 {
-		str += fmt.Sprintf(" %q", node.Flags)
+		fmt.Fprintf(&str, " %q", node.Flags)
 	}
 
 	for _, n := range node.Children {
-		str += "(" + n.Dump() + ")\n"
+		str.WriteByte('(')
+		str.WriteString(n.Dump())
+		str.WriteString(")\n")
 	}
 
 	for n := node.Next; n != nil; n = n.Next {
+		str.WriteByte(' ')
 		if len(n.Children) > 0 {
-			str += " " + n.Dump()
+			str.WriteString(n.Dump())
 		} else {
-			str += " " + strconv.Quote(n.Value)
+			str.WriteString(strconv.Quote(n.Value))
 		}
 	}
 
-	return strings.TrimSpace(str)
+	return strings.TrimSpace(str.String())
 }
 
 func (node *Node) lines(start, end int) {
@@ -367,6 +371,8 @@ func Parse(rwc io.Reader) (*Result, error) {
 			for _, heredoc := range heredocs {
 				terminator := []byte(heredoc.Name)
 				terminated := false
+				var content strings.Builder
+				content.WriteString(heredoc.Content)
 				for scanner.Scan() {
 					bytesRead := scanner.Bytes()
 					currentLine++
@@ -379,12 +385,13 @@ func Parse(rwc io.Reader) (*Result, error) {
 						terminated = true
 						break
 					}
-					heredoc.Content += string(bytesRead)
+					content.Write(bytesRead)
 				}
 				if !terminated {
 					return nil, withLocation(errors.New("unterminated heredoc"), startLine, currentLine)
 				}
 
+				heredoc.Content = content.String()
 				child.Heredocs = append(child.Heredocs, heredoc)
 			}
 		}

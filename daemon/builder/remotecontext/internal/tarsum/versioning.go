@@ -34,11 +34,11 @@ func WriteV1Header(h *tar.Header, w io.Writer) {
 // the string or an empty string if no label separator is found.
 func VersionLabelForChecksum(checksum string) string {
 	// Checksums are in the form: {versionLabel}+{hashID}:{hex}
-	sepIndex := strings.Index(checksum, "+")
-	if sepIndex < 0 {
+	before, _, ok := strings.Cut(checksum, "+")
+	if !ok {
 		return ""
 	}
-	return checksum[:sepIndex]
+	return before
 }
 
 // GetVersions gets a list of all known tarsum versions.

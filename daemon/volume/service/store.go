@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 
@@ -39,9 +41,7 @@ func (v volumeWrapper) Options() map[string]string {
 		return nil
 	}
 	options := make(map[string]string, len(v.options))
-	for key, value := range v.options {
-		options[key] = value
-	}
+	maps.Copy(options, v.options)
 	return options
 }
 
@@ -51,9 +51,7 @@ func (v volumeWrapper) Labels() map[string]string {
 	}
 
 	labels := make(map[string]string, len(v.labels))
-	for key, value := range v.labels {
-		labels[key] = value
-	}
+	maps.Copy(labels, v.labels)
 	return labels
 }
 
@@ -232,12 +230,7 @@ type VolumeStore struct {
 
 func filterByDriver(names []string) filterFunc {
 	return func(v volume.Volume) bool {
-		for _, name := range names {
-			if name == v.DriverName() {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(names, v.DriverName())
 	}
 }
 

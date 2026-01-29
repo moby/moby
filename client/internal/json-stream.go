@@ -17,7 +17,7 @@ func NewJSONStreamDecoder(r io.Reader, contentType string) DecoderFn {
 	switch contentType {
 	case types.MediaTypeJSONSequence:
 		return json.NewDecoder(NewRSFilterReader(r)).Decode
-	case types.MediaTypeJSON, types.MediaTypeNDJSON:
+	case types.MediaTypeJSON, types.MediaTypeNDJSON, types.MediaTypeJSONLines:
 		fallthrough
 	default:
 		return json.NewDecoder(r).Decode

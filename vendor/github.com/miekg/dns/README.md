@@ -3,6 +3,16 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/miekg/dns)](https://goreportcard.com/report/miekg/dns)
 [![](https://godoc.org/github.com/miekg/dns?status.svg)](https://godoc.org/github.com/miekg/dns)
 
+DNS version 2 is now available at <https://codeberg.org/miekg/dns>, check it out if you want to
+help shape the next 15 years of the Go DNS package.
+
+The version here will see no new features and less and less development, and my time (if any) will be fully
+devoted towards v2.
+
+**December 2025**: v2 should be (already) a good replacement, the coming months would be a good time to
+migrate, see [this file describing the
+differences](https://codeberg.org/miekg/dns/src/branch/main/README-diff-with-v1.md), to help you get started.
+
 # Alternative (more granular) approach to a DNS library
 
 > Less is more.
@@ -17,96 +27,97 @@ avoiding breaking changes wherever reasonable. We support the last two versions 
 
 # Goals
 
-* KISS;
-* Fast;
-* Small API. If it's easy to code in Go, don't make a function for it.
+- KISS;
+- Fast;
+- Small API. If it's easy to code in Go, don't make a function for it.
 
 # Users
 
 A not-so-up-to-date-list-that-may-be-actually-current:
 
-* https://github.com/coredns/coredns
-* https://github.com/abh/geodns
-* https://github.com/baidu/bfe
-* http://www.statdns.com/
-* http://www.dnsinspect.com/
-* https://github.com/chuangbo/jianbing-dictionary-dns
-* http://www.dns-lg.com/
-* https://github.com/fcambus/rrda
-* https://github.com/kenshinx/godns
-* https://github.com/skynetservices/skydns
-* https://github.com/hashicorp/consul
-* https://github.com/DevelopersPL/godnsagent
-* https://github.com/duedil-ltd/discodns
-* https://github.com/StalkR/dns-reverse-proxy
-* https://github.com/tianon/rawdns
-* https://mesosphere.github.io/mesos-dns/
-* https://github.com/fcambus/statzone
-* https://github.com/benschw/dns-clb-go
-* https://github.com/corny/dnscheck for <http://public-dns.info/>
-* https://github.com/miekg/unbound
-* https://github.com/miekg/exdns
-* https://dnslookup.org
-* https://github.com/looterz/grimd
-* https://github.com/phamhongviet/serf-dns
-* https://github.com/mehrdadrad/mylg
-* https://github.com/bamarni/dockness
-* https://github.com/fffaraz/microdns
-* https://github.com/ipdcode/hades <https://jd.com>
-* https://github.com/StackExchange/dnscontrol/
-* https://www.dnsperf.com/
-* https://dnssectest.net/
-* https://github.com/oif/apex
-* https://github.com/jedisct1/dnscrypt-proxy
-* https://github.com/jedisct1/rpdns
-* https://github.com/xor-gate/sshfp
-* https://github.com/rs/dnstrace
-* https://blitiri.com.ar/p/dnss ([github mirror](https://github.com/albertito/dnss))
-* https://render.com
-* https://github.com/peterzen/goresolver
-* https://github.com/folbricht/routedns
-* https://domainr.com/
-* https://zonedb.org/
-* https://router7.org/
-* https://github.com/fortio/dnsping
-* https://github.com/Luzilla/dnsbl_exporter
-* https://github.com/bodgit/tsig
-* https://github.com/v2fly/v2ray-core (test only)
-* https://kuma.io/
-* https://www.misaka.io/services/dns
-* https://ping.sx/dig
-* https://fleetdeck.io/
-* https://github.com/markdingo/autoreverse
-* https://github.com/slackhq/nebula
-* https://addr.tools/
-* https://dnscheck.tools/
-* https://github.com/egbakou/domainverifier
-* https://github.com/semihalev/sdns
-* https://github.com/wintbiit/NineDNS
-* https://linuxcontainers.org/incus/
-* https://ifconfig.es
-* https://github.com/zmap/zdns
-* https://framagit.org/bortzmeyer/check-soa
+- https://github.com/coredns/coredns
+- https://github.com/abh/geodns
+- https://github.com/baidu/bfe
+- http://www.statdns.com/
+- http://www.dnsinspect.com/
+- https://github.com/chuangbo/jianbing-dictionary-dns
+- http://www.dns-lg.com/
+- https://github.com/fcambus/rrda
+- https://github.com/kenshinx/godns
+- https://github.com/skynetservices/skydns
+- https://github.com/hashicorp/consul
+- https://github.com/DevelopersPL/godnsagent
+- https://github.com/duedil-ltd/discodns
+- https://github.com/StalkR/dns-reverse-proxy
+- https://github.com/tianon/rawdns
+- https://mesosphere.github.io/mesos-dns/
+- https://github.com/fcambus/statzone
+- https://github.com/benschw/dns-clb-go
+- https://github.com/corny/dnscheck for <http://public-dns.info/>
+- https://github.com/miekg/unbound
+- https://github.com/miekg/exdns
+- https://dnslookup.org
+- https://github.com/looterz/grimd
+- https://github.com/phamhongviet/serf-dns
+- https://github.com/mehrdadrad/mylg
+- https://github.com/bamarni/dockness
+- https://github.com/fffaraz/microdns
+- https://github.com/ipdcode/hades <https://jd.com>
+- https://github.com/StackExchange/dnscontrol/
+- https://www.dnsperf.com/
+- https://dnssectest.net/
+- https://github.com/oif/apex
+- https://github.com/jedisct1/dnscrypt-proxy (migrated to v2)
+- https://github.com/jedisct1/rpdns
+- https://github.com/xor-gate/sshfp
+- https://github.com/rs/dnstrace
+- https://blitiri.com.ar/p/dnss ([github mirror](https://github.com/albertito/dnss))
+- https://render.com
+- https://github.com/peterzen/goresolver
+- https://github.com/folbricht/routedns
+- https://domainr.com/
+- https://zonedb.org/
+- https://router7.org/
+- https://github.com/fortio/dnsping
+- https://github.com/Luzilla/dnsbl_exporter
+- https://github.com/bodgit/tsig
+- https://github.com/v2fly/v2ray-core (test only)
+- https://kuma.io/
+- https://www.misaka.io/services/dns
+- https://ping.sx/dig
+- https://fleetdeck.io/
+- https://github.com/markdingo/autoreverse
+- https://github.com/slackhq/nebula
+- https://addr.tools/
+- https://dnscheck.tools/
+- https://github.com/egbakou/domainverifier
+- https://github.com/semihalev/sdns
+- https://github.com/wintbiit/NineDNS
+- https://linuxcontainers.org/incus/
+- https://ifconfig.es
+- https://github.com/zmap/zdns
+- https://framagit.org/bortzmeyer/check-soa
+- https://github.com/jkerdreux-imt/owns
 
 Send pull request if you want to be listed here.
 
 # Features
 
-* UDP/TCP queries, IPv4 and IPv6
-* RFC 1035 zone file parsing ($INCLUDE, $ORIGIN, $TTL and $GENERATE (for all record types) are supported
-* Fast
-* Server side programming (mimicking the net/http package)
-* Client side programming
-* DNSSEC: signing, validating and key generation for DSA, RSA, ECDSA and Ed25519
-* EDNS0, NSID, Cookies
-* AXFR/IXFR
-* TSIG, SIG(0)
-* DNS over TLS (DoT): encrypted connection between client and server over TCP
-* DNS name compression
+- UDP/TCP queries, IPv4 and IPv6
+- RFC 1035 zone file parsing ($INCLUDE, $ORIGIN, $TTL and $GENERATE (for all record types) are supported
+- Fast
+- Server side programming (mimicking the net/http package)
+- Client side programming
+- DNSSEC: signing, validating and key generation for DSA, RSA, ECDSA and Ed25519
+- EDNS0, NSID, Cookies
+- AXFR/IXFR
+- TSIG, SIG(0)
+- DNS over TLS (DoT): encrypted connection between client and server over TCP
+- DNS name compression
 
 Have fun!
 
-Miek Gieben  -  2010-2012  -  <miek@miek.nl>
+Miek Gieben - 2010-2012 - <miek@miek.nl>
 DNS Authors 2012-
 
 # Building
@@ -126,81 +137,83 @@ Example programs can be found in the `github.com/miekg/exdns` repository.
 
 ## Supported RFCs
 
-*all of them*
+_all of them_
 
-* 103{4,5} - DNS standard
-* 1183 - ISDN, X25 and other deprecated records
-* 1348 - NSAP record (removed the record)
-* 1982 - Serial Arithmetic
-* 1876 - LOC record
-* 1995 - IXFR
-* 1996 - DNS notify
-* 2136 - DNS Update (dynamic updates)
-* 2181 - RRset definition - there is no RRset type though, just []RR
-* 2537 - RSAMD5 DNS keys
-* 2065 - DNSSEC (updated in later RFCs)
-* 2671 - EDNS record
-* 2782 - SRV record
-* 2845 - TSIG record
-* 2915 - NAPTR record
-* 2929 - DNS IANA Considerations
-* 3110 - RSASHA1 DNS keys
-* 3123 - APL record
-* 3225 - DO bit (DNSSEC OK)
-* 340{1,2,3} - NAPTR record
-* 3445 - Limiting the scope of (DNS)KEY
-* 3596 - AAAA record
-* 3597 - Unknown RRs
-* 4025 - A Method for Storing IPsec Keying Material in DNS
-* 403{3,4,5} - DNSSEC + validation functions
-* 4255 - SSHFP record
-* 4343 - Case insensitivity
-* 4408 - SPF record
-* 4509 - SHA256 Hash in DS
-* 4592 - Wildcards in the DNS
-* 4635 - HMAC SHA TSIG
-* 4701 - DHCID
-* 4892 - id.server
-* 5001 - NSID
-* 5155 - NSEC3 record
-* 5205 - HIP record
-* 5702 - SHA2 in the DNS
-* 5936 - AXFR
-* 5966 - TCP implementation recommendations
-* 6605 - ECDSA
-* 6725 - IANA Registry Update
-* 6742 - ILNP DNS
-* 6840 - Clarifications and Implementation Notes for DNS Security
-* 6844 - CAA record
-* 6891 - EDNS0 update
-* 6895 - DNS IANA considerations
-* 6944 - DNSSEC DNSKEY Algorithm Status
-* 6975 - Algorithm Understanding in DNSSEC
-* 7043 - EUI48/EUI64 records
-* 7314 - DNS (EDNS) EXPIRE Option
-* 7477 - CSYNC RR
-* 7828 - edns-tcp-keepalive EDNS0 Option
-* 7553 - URI record
-* 7858 - DNS over TLS: Initiation and Performance Considerations
-* 7871 - EDNS0 Client Subnet
-* 7873 - Domain Name System (DNS) Cookies
-* 8080 - EdDSA for DNSSEC
-* 8490 - DNS Stateful Operations
-* 8499 - DNS Terminology
-* 8659 - DNS Certification Authority Authorization (CAA) Resource Record
-* 8777 - DNS Reverse IP Automatic Multicast Tunneling (AMT) Discovery
-* 8914 - Extended DNS Errors
-* 8976 - Message Digest for DNS Zones (ZONEMD RR)
-* 9460 - Service Binding and Parameter Specification via the DNS
-* 9461 - Service Binding Mapping for DNS Servers
-* 9462 - Discovery of Designated Resolvers
-* 9460 - SVCB and HTTPS Records
-* 9606 - DNS Resolver Information
-* Draft - Compact Denial of Existence in DNSSEC
+- 103{4,5} - DNS standard
+- 1183 - ISDN, X25 and other deprecated records
+- 1348 - NSAP record (removed the record)
+- 1982 - Serial Arithmetic
+- 1876 - LOC record
+- 1995 - IXFR
+- 1996 - DNS notify
+- 2136 - DNS Update (dynamic updates)
+- 2181 - RRset definition - there is no RRset type though, just []RR
+- 2537 - RSAMD5 DNS keys
+- 2065 - DNSSEC (updated in later RFCs)
+- 2671 - EDNS record
+- 2782 - SRV record
+- 2845 - TSIG record
+- 2915 - NAPTR record
+- 2929 - DNS IANA Considerations
+- 3110 - RSASHA1 DNS keys
+- 3123 - APL record
+- 3225 - DO bit (DNSSEC OK)
+- 340{1,2,3} - NAPTR record
+- 3445 - Limiting the scope of (DNS)KEY
+- 3596 - AAAA record
+- 3597 - Unknown RRs
+- 4025 - A Method for Storing IPsec Keying Material in DNS
+- 403{3,4,5} - DNSSEC + validation functions
+- 4255 - SSHFP record
+- 4343 - Case insensitivity
+- 4408 - SPF record
+- 4509 - SHA256 Hash in DS
+- 4592 - Wildcards in the DNS
+- 4635 - HMAC SHA TSIG
+- 4701 - DHCID
+- 4892 - id.server
+- 5001 - NSID
+- 5155 - NSEC3 record
+- 5205 - HIP record
+- 5702 - SHA2 in the DNS
+- 5936 - AXFR
+- 5966 - TCP implementation recommendations
+- 6605 - ECDSA
+- 6725 - IANA Registry Update
+- 6742 - ILNP DNS
+- 6840 - Clarifications and Implementation Notes for DNS Security
+- 6844 - CAA record
+- 6891 - EDNS0 update
+- 6895 - DNS IANA considerations
+- 6944 - DNSSEC DNSKEY Algorithm Status
+- 6975 - Algorithm Understanding in DNSSEC
+- 7043 - EUI48/EUI64 records
+- 7314 - DNS (EDNS) EXPIRE Option
+- 7477 - CSYNC RR
+- 7828 - edns-tcp-keepalive EDNS0 Option
+- 7553 - URI record
+- 7858 - DNS over TLS: Initiation and Performance Considerations
+- 7871 - EDNS0 Client Subnet
+- 7873 - Domain Name System (DNS) Cookies
+- 8080 - EdDSA for DNSSEC
+- 8490 - DNS Stateful Operations
+- 8499 - DNS Terminology
+- 8659 - DNS Certification Authority Authorization (CAA) Resource Record
+- 8777 - DNS Reverse IP Automatic Multicast Tunneling (AMT) Discovery
+- 8914 - Extended DNS Errors
+- 8976 - Message Digest for DNS Zones (ZONEMD RR)
+- 9460 - Service Binding and Parameter Specification via the DNS
+- 9461 - Service Binding Mapping for DNS Servers
+- 9462 - Discovery of Designated Resolvers
+- 9460 - SVCB and HTTPS Records
+- 9567 - DNS Error Reporting
+- 9606 - DNS Resolver Information
+- 9660 - DNS Zone Version (ZONEVERSION) Option
+- Draft - Compact Denial of Existence in DNSSEC
 
 ## Loosely Based Upon
 
-* ldns - <https://nlnetlabs.nl/projects/ldns/about/>
-* NSD - <https://nlnetlabs.nl/projects/nsd/about/>
-* Net::DNS - <http://www.net-dns.org/>
-* GRONG - <https://github.com/bortzmeyer/grong>
+- ldns - <https://nlnetlabs.nl/projects/ldns/about/>
+- NSD - <https://nlnetlabs.nl/projects/nsd/about/>
+- Net::DNS - <http://www.net-dns.org/>
+- GRONG - <https://github.com/bortzmeyer/grong>

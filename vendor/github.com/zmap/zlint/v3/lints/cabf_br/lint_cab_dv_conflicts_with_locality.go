@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -23,11 +23,22 @@ import (
 	"github.com/zmap/zlint/v3/util"
 )
 
-type certPolicyConflictsWithLocality struct{}
-
-func (l *certPolicyConflictsWithLocality) Initialize() error {
-	return nil
+func init() {
+	lint.RegisterLint(&lint.Lint{
+		Name:          "e_cab_dv_conflicts_with_locality",
+		Description:   "If certificate policy 2.23.140.1.2.1 (CA/B BR domain validated) is included, locality name MUST NOT be included in subject",
+		Citation:      "BRs: 7.1.6.1",
+		Source:        lint.CABFBaselineRequirements,
+		EffectiveDate: util.CABEffectiveDate,
+		Lint:          NewCertPolicyConflictsWithLocality,
+	})
 }
+
+func NewCertPolicyConflictsWithLocality() lint.LintInterface {
+	return &certPolicyConflictsWithLocality{}
+}
+
+type certPolicyConflictsWithLocality struct{}
 
 func (l *certPolicyConflictsWithLocality) CheckApplies(cert *x509.Certificate) bool {
 	return util.SliceContainsOID(cert.PolicyIdentifiers, util.BRDomainValidatedOID) && !util.IsCACert(cert)
@@ -38,15 +49,4 @@ func (l *certPolicyConflictsWithLocality) Execute(cert *x509.Certificate) *lint.
 		return &lint.LintResult{Status: lint.Error}
 	}
 	return &lint.LintResult{Status: lint.Pass}
-}
-
-func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_cab_dv_conflicts_with_locality",
-		Description:   "If certificate policy 2.23.140.1.2.1 (CA/B BR domain validated) is included, locality name MUST NOT be included in subject",
-		Citation:      "BRs: 7.1.6.1",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &certPolicyConflictsWithLocality{},
-	})
 }

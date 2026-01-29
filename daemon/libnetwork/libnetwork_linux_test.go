@@ -304,8 +304,8 @@ func TestNetworkConfig(t *testing.T) {
 			//nolint:dupword // ignore "Duplicate words (network) found (dupword)"
 			// Doing a partial match here omn the error-string here, as this produces either;
 			//
-			// 	user specified configurations are not supported if the network depends on a configuration network
-			// 	network driver options are not supported if the network depends on a configuration network
+			// - user-specified configurations are not supported if the network depends on a configuration network.
+			// - network driver options are not supported if the network depends on a configuration network.
 			//
 			// We can  consider changing this to a proper test-table.
 			assert.Check(t, is.ErrorContains(err, `not supported if the network depends on a configuration network`))

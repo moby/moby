@@ -953,19 +953,6 @@ func (s *DockerAPISuite) TestContainerAPIChunkedEncoding(c *testing.T) {
 	assert.Equal(c, resp.StatusCode, http.StatusCreated)
 }
 
-func (s *DockerAPISuite) TestContainerAPIPostContainerStop(c *testing.T) {
-	containerID := runSleepingContainer(c)
-	cli.WaitRun(c, containerID)
-
-	apiClient, err := client.New(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	_, err = apiClient.ContainerStop(testutil.GetContext(c), containerID, client.ContainerStopOptions{})
-	assert.NilError(c, err)
-	assert.NilError(c, waitInspect(containerID, "{{ .State.Running  }}", "false", 60*time.Second))
-}
-
 // Ensure an error occurs when you have a container read-only rootfs but you
 // extract an archive to a symlink in a writable volume which points to a
 // directory outside of the volume.

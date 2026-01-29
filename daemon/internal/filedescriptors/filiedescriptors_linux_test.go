@@ -8,7 +8,7 @@ import (
 func BenchmarkGetTotalUsedFds(b *testing.B) {
 	ctx := context.Background()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = GetTotalUsedFds(ctx)
 	}
 }

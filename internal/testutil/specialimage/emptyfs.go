@@ -59,7 +59,7 @@ type zeroReader struct{}
 
 func (zeroReader) Read(p []byte) (int, error) {
 	l := len(p)
-	for idx := 0; idx < l; idx++ {
+	for idx := range l {
 		p[idx] = 0
 	}
 	return l, nil

@@ -149,7 +149,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *testing.T) {
 	ctx := testutil.GetContext(c)
 	const nodeCount = 3
 	var daemons [nodeCount]*daemon.Daemon
-	for i := 0; i < nodeCount; i++ {
+	for i := range nodeCount {
 		daemons[i] = s.AddDaemon(ctx, c, true, i == 0)
 	}
 	// wait for nodes ready
@@ -305,7 +305,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesFailedUpdate(c *testing.T) {
 	ctx := testutil.GetContext(c)
 	const nodeCount = 3
 	var daemons [nodeCount]*daemon.Daemon
-	for i := 0; i < nodeCount; i++ {
+	for i := range nodeCount {
 		daemons[i] = s.AddDaemon(ctx, c, true, i == 0)
 	}
 	// wait for nodes ready
@@ -344,7 +344,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *testing.T) {
 	ctx := testutil.GetContext(c)
 	const nodeCount = 3
 	var daemons [nodeCount]*daemon.Daemon
-	for i := 0; i < nodeCount; i++ {
+	for i := range nodeCount {
 		daemons[i] = s.AddDaemon(ctx, c, true, i == 0)
 	}
 	// wait for nodes ready
@@ -397,7 +397,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *testing.T) {
 	ctx := testutil.GetContext(c)
 	const nodeCount = 3
 	var daemons [nodeCount]*daemon.Daemon
-	for i := 0; i < nodeCount; i++ {
+	for i := range nodeCount {
 		daemons[i] = s.AddDaemon(ctx, c, true, i == 0)
 	}
 	// wait for nodes ready
@@ -494,7 +494,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicePlacementPrefs(c *testing.T) {
 
 	const nodeCount = 3
 	var daemons [nodeCount]*daemon.Daemon
-	for i := 0; i < nodeCount; i++ {
+	for i := range nodeCount {
 		daemons[i] = s.AddDaemon(ctx, c, true, i == 0)
 	}
 	// wait for nodes ready

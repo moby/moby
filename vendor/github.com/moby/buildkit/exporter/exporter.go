@@ -24,7 +24,13 @@ type ExporterInstance interface {
 	Config() *Config
 	Type() string
 	Attrs() map[string]string
-	Export(ctx context.Context, src *Source, inlineCache exptypes.InlineCache, sessionID string) (map[string]string, DescriptorReference, error)
+	Export(ctx context.Context, src *Source, buildInfo ExportBuildInfo) (map[string]string, DescriptorReference, error)
+}
+
+type ExportBuildInfo struct {
+	Ref         string
+	InlineCache exptypes.InlineCache
+	SessionID   string
 }
 
 type DescriptorReference interface {

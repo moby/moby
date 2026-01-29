@@ -147,7 +147,7 @@ func TestAllocateAllPorts(t *testing.T) {
 func BenchmarkAllocatePorts(b *testing.B) {
 	p := newInstance()
 
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		for i := 0; i <= p.end-p.begin; i++ {
 			port, err := p.RequestPort(net.IPv4zero, "tcp", 0)
 			if err != nil {

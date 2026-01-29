@@ -57,8 +57,8 @@ type Client struct {
 	// Client.Dialer) or context.Context.Deadline (see ExchangeContext)
 	Timeout      time.Duration
 	DialTimeout  time.Duration     // net.DialTimeout, defaults to 2 seconds, or net.Dialer.Timeout if expiring earlier - overridden by Timeout when that value is non-zero
-	ReadTimeout  time.Duration     // net.Conn.SetReadTimeout value for connections, defaults to 2 seconds - overridden by Timeout when that value is non-zero
-	WriteTimeout time.Duration     // net.Conn.SetWriteTimeout value for connections, defaults to 2 seconds - overridden by Timeout when that value is non-zero
+	ReadTimeout  time.Duration     // net.Conn.SetReadDeadline value for connections, defaults to 2 seconds - overridden by Timeout when that value is non-zero
+	WriteTimeout time.Duration     // net.Conn.SetWriteDeadline value for connections, defaults to 2 seconds - overridden by Timeout when that value is non-zero
 	TsigSecret   map[string]string // secret(s) for Tsig map[<zonename>]<base64 secret>, zonename must be in canonical form (lowercase, fqdn, see RFC 4034 Section 6.2)
 	TsigProvider TsigProvider      // An implementation of the TsigProvider interface. If defined it replaces TsigSecret and is used for all TSIG operations.
 
@@ -92,6 +92,9 @@ func (c *Client) dialTimeout() time.Duration {
 }
 
 func (c *Client) readTimeout() time.Duration {
+	if c.Timeout != 0 {
+		return c.Timeout
+	}
 	if c.ReadTimeout != 0 {
 		return c.ReadTimeout
 	}
@@ -99,6 +102,9 @@ func (c *Client) readTimeout() time.Duration {
 }
 
 func (c *Client) writeTimeout() time.Duration {
+	if c.Timeout != 0 {
+		return c.Timeout
+	}
 	if c.WriteTimeout != 0 {
 		return c.WriteTimeout
 	}

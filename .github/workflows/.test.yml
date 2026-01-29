@@ -82,7 +82,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: test-reports-docker-py-${{ inputs.storage }}
           path: /tmp/reports/*
@@ -130,7 +130,7 @@ jobs:
       -
         name: Create matrix includes
         id: set
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             let includes = [
@@ -236,7 +236,7 @@ jobs:
           tree -nh $reportsPath
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -250,7 +250,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: test-reports-integration-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
@@ -272,7 +272,7 @@ jobs:
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: /tmp/reports
           pattern: test-reports-integration-${{ inputs.storage }}-*
@@ -321,7 +321,7 @@ jobs:
       -
         name: Create gha matrix
         id: set
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             let matrix = {
@@ -452,7 +452,7 @@ jobs:
           tree -nh $reportsPath
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -466,7 +466,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
@@ -488,7 +488,7 @@ jobs:
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: /tmp/reports
           pattern: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-*

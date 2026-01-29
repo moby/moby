@@ -3,6 +3,7 @@ package dockerfile
 import (
 	"fmt"
 	"io"
+	"maps"
 	"sort"
 )
 
@@ -47,12 +48,8 @@ func NewBuildArgs(argsFromOptions map[string]*string) *BuildArgs {
 // Clone returns a copy of the BuildArgs type
 func (b *BuildArgs) Clone() *BuildArgs {
 	result := NewBuildArgs(b.argsFromOptions)
-	for k, v := range b.allowedBuildArgs {
-		result.allowedBuildArgs[k] = v
-	}
-	for k, v := range b.allowedMetaArgs {
-		result.allowedMetaArgs[k] = v
-	}
+	maps.Copy(result.allowedBuildArgs, b.allowedBuildArgs)
+	maps.Copy(result.allowedMetaArgs, b.allowedMetaArgs)
 	for k := range b.referencedArgs {
 		result.referencedArgs[k] = struct{}{}
 	}

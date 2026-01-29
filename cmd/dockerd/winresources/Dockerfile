@@ -4,7 +4,7 @@ ARG DEBIAN_VERSION=bookworm
 
 # XX_VERSION specifies the version of the xx utility to use.
 # It must be a valid tag in the docker.io/tonistiigi/xx image repository.
-ARG XX_VERSION=1.7.0
+ARG XX_VERSION=1.9.0
 
 # xx is a helper for cross-compilation
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx

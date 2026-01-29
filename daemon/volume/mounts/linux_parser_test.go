@@ -2,6 +2,7 @@ package mounts
 
 import (
 	"errors"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -252,6 +253,95 @@ func TestLinuxParseMountRawSplit(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.bind, func(t *testing.T) {
 			m, err := parser.ParseMountRaw(tc.bind, tc.driver)
+			if tc.expErr != "" {
+				assert.Check(t, is.Nil(m))
+				assert.Check(t, is.Error(err, tc.expErr))
+				return
+			}
+
+			assert.NilError(t, err)
+			assert.Check(t, is.DeepEqual(*m, *tc.expected, cmpopts.IgnoreUnexported(MountPoint{})))
+		})
+	}
+}
+
+func TestLinuxValidateMounts(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	tests := []struct {
+		doc         string
+		mount       mount.Mount
+		expected    *MountPoint
+		expErr      string
+		skipWindows bool
+	}{
+		{
+			doc: "read-write",
+			// Skip Windows tests because the source path won't be a valid Windows path.
+			skipWindows: true,
+			mount: mount.Mount{
+				Source: tmpDir,
+				Target: "/tmp1",
+				Type:   mount.TypeBind,
+			},
+			expected: &MountPoint{
+				Source:      tmpDir,
+				Destination: "/tmp1",
+				RW:          true,
+				Type:        mount.TypeBind,
+				Propagation: "rprivate",
+				Spec: mount.Mount{
+					Source: tmpDir,
+					Target: "/tmp1",
+					Type:   mount.TypeBind,
+				},
+			},
+		},
+		{
+			doc: "read-only",
+			mount: mount.Mount{
+				Target:   "/data/anonymous-read-only-volume",
+				ReadOnly: true,
+				Type:     mount.TypeVolume,
+			},
+			expected: &MountPoint{
+				Destination: "/data/anonymous-read-only-volume",
+				Type:        mount.TypeVolume,
+				CopyData:    true,
+				Spec: mount.Mount{
+					Target:   "/data/anonymous-read-only-volume",
+					ReadOnly: true,
+					Type:     mount.TypeVolume,
+				},
+			},
+		},
+		{
+			doc: "invalid source path",
+			mount: mount.Mount{
+				Source: "/tmp/definitely-no-such-path",
+				Target: "/data/anonymous-read-only-volume",
+				Type:   mount.TypeBind,
+			},
+			expErr: `invalid mount config for type "bind": bind source path does not exist: /tmp/definitely-no-such-path`,
+		},
+		{
+			doc: "invalid mount type",
+			mount: mount.Mount{
+				Target: "/data/invalid-type",
+				Type:   "invalid",
+			},
+			expErr: `invalid mount config for type "invalid": mount type unknown`,
+		},
+	}
+
+	parser := NewLinuxParser()
+
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			if tc.skipWindows && runtime.GOOS == "windows" {
+				t.Skip("skip on Windows")
+			}
+			m, err := parser.ParseMountSpec(tc.mount)
 			if tc.expErr != "" {
 				assert.Check(t, is.Nil(m))
 				assert.Check(t, is.Error(err, tc.expErr))
