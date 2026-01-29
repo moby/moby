@@ -7,10 +7,10 @@
   "postUpdateOptions": ["gomodTidy"],
   "packageRules": [
     {
-      "matchDatasources": ["go"],
+      "matchManagers": ["gomod"],
       "groupName": "golang.org/x packages",
       "groupSlug": "golang-x",
-      "matchPackageNames": ["/^golang\\.org\\/x\\//"]
+      "matchDepNames": ["/^golang\\.org\\/x\\//"]
     },
     {
       // Keep all the google.golang.org/genproto modules at the same version.
