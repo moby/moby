@@ -32,7 +32,7 @@ jobs:
 
   build:
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
-    uses: docker/github-builder-experimental/.github/workflows/bake.yml@7643588149117bf0ca3a906caa3968c70484027a
+    uses: docker/github-builder/.github/workflows/bake.yml@v1
     needs:
       - validate-dco
     permissions:
@@ -45,12 +45,12 @@ jobs:
       cache-scope: bin-image
       output: image
       push: ${{ github.event_name != 'pull_request' }}
-      set: |
-        *.args.DOCKER_GITCOMMIT=${{ github.sha }}
-        *.args.VERSION=${{ github.ref }}
-        *.args.PLATFORM=Moby Engine - Nightly
-        *.args.PRODUCT=moby-bin
-        *.args.PACKAGER_NAME=The Moby Project
+      vars: |
+        DOCKER_GITCOMMIT=${{ github.sha }}
+        VERSION=${{ github.ref }}
+        PLATFORM=Moby Engine - Nightly
+        PRODUCT=moby-bin
+        PACKAGER_NAME=The Moby Project
       meta-images: |
         moby/moby-bin
       ### versioning strategy
