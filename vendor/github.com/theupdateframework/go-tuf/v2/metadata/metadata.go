@@ -292,6 +292,13 @@ func (meta *Metadata[T]) VerifyDelegate(delegatedRole string, delegatedMetadata 
 	if len(roleKeyIDs) == 0 {
 		return &ErrValue{Msg: fmt.Sprintf("no delegation found for %s", delegatedRole)}
 	}
+
+	if roleThreshold < 1 {
+		return &ErrValue{Msg: fmt.Sprintf("insufficient threshold (%d) configured for %s",
+			roleThreshold,
+			delegatedRole)}
+	}
+
 	// loop through each role keyID
 	for _, keyID := range roleKeyIDs {
 		key, ok := keys[keyID]
@@ -619,7 +626,7 @@ func (role *SuccinctRoles) GetRoles() []string {
 	res := []string{}
 	suffixLen, numberOfBins := role.GetSuffixLen()
 
-	for binNumber := 0; binNumber < numberOfBins; binNumber++ {
+	for binNumber := range numberOfBins {
 		suffix := fmt.Sprintf("%0*x", suffixLen, binNumber)
 		res = append(res, fmt.Sprintf("%s-%s", role.NamePrefix, suffix))
 	}
@@ -900,7 +907,15 @@ func checkType[T Roles](data []byte) error {
 	if err := json.Unmarshal(data, &m); err != nil {
 		return err
 	}
-	signedType := m["signed"].(map[string]any)["_type"].(string)
+	signed, ok := m["signed"].(map[string]any)
+	if !ok {
+		return &ErrValue{Msg: "metadata 'signed' field is missing or not an object"}
+	}
+	signedType, ok := signed["_type"].(string)
+	if !ok {
+		return &ErrValue{Msg: "no _type found in signed"}
+	}
+
 	switch i.(type) {
 	case *RootType:
 		if ROOT != signedType {

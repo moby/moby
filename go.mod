@@ -1,6 +1,6 @@
 module github.com/moby/moby/v2
 
-go 1.25.0
+go 1.25.5
 
 require (
 	cloud.google.com/go/compute/metadata v0.9.0
@@ -244,7 +244,7 @@ require (
 	github.com/prometheus/procfs v0.17.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.5 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
-	github.com/secure-systems-lab/go-securesystemslib v0.9.1 // indirect
+	github.com/secure-systems-lab/go-securesystemslib v0.10.0 // indirect
 	github.com/shibumi/go-pathspec v1.3.0 // indirect
 	github.com/sigstore/protobuf-specs v0.5.0 // indirect
 	github.com/sigstore/rekor v1.5.0 // indirect
@@ -255,7 +255,7 @@ require (
 	github.com/spdx/tools-golang v0.5.7 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tetratelabs/wazero v1.11.0 // indirect
-	github.com/theupdateframework/go-tuf/v2 v2.3.0 // indirect
+	github.com/theupdateframework/go-tuf/v2 v2.3.1 // indirect
 	github.com/tinylib/msgp v1.3.0 // indirect
 	github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323 // indirect
 	github.com/tonistiigi/fsutil v0.0.0-20251211185533-a2aa163d723f // indirect
