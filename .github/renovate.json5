@@ -13,6 +13,14 @@
       "matchPackageNames": ["/^golang\\.org\\/x\\//"]
     },
     {
+      // Keep all the google.golang.org/genproto modules at the same version.
+      "matchManagers": ["gomod"],
+      "groupName": "google.golang.org/genproto packages",
+      "groupSlug": "google-genproto",
+      "matchDepNames": ["/^google\\.golang\\.org\\/genproto(\\/|$)/"],
+      "schedule": ["every month"],
+    },
+    {
       // Do not update "api" and "client" module dependencies. We keep dependency
       // versions low for these to stick with "MVS" (Minimum Version Selection);
       // https://research.swtch.com/vgo-mvs
