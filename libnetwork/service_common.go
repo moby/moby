@@ -160,9 +160,14 @@ func (c *Controller) getLBIndex(sid, nid string, ingressPorts []*PortConfig) int
 	}
 
 	s.Lock()
+	defer s.Unlock()
+	if s.deleted {
+		return 0
+	}
 	lb := s.loadBalancers[nid]
-	s.Unlock()
-
+	if lb == nil {
+		return 0
+	}
 	return int(lb.fwMark)
 }
 
