@@ -32,50 +32,6 @@ const (
 	userCredsFilename    = "application_default_credentials.json"
 )
 
-// CredentialType represents different credential filetypes Google credentials
-// can be.
-type CredentialType int
-
-const (
-	// UnknownCredType is an unidentified file type.
-	UnknownCredType CredentialType = iota
-	// UserCredentialsKey represents a user creds file type.
-	UserCredentialsKey
-	// ServiceAccountKey represents a service account file type.
-	ServiceAccountKey
-	// ImpersonatedServiceAccountKey represents a impersonated service account
-	// file type.
-	ImpersonatedServiceAccountKey
-	// ExternalAccountKey represents a external account file type.
-	ExternalAccountKey
-	// GDCHServiceAccountKey represents a GDCH file type.
-	GDCHServiceAccountKey
-	// ExternalAccountAuthorizedUserKey represents a external account authorized
-	// user file type.
-	ExternalAccountAuthorizedUserKey
-)
-
-// parseCredentialType returns the associated filetype based on the parsed
-// typeString provided.
-func parseCredentialType(typeString string) CredentialType {
-	switch typeString {
-	case "service_account":
-		return ServiceAccountKey
-	case "authorized_user":
-		return UserCredentialsKey
-	case "impersonated_service_account":
-		return ImpersonatedServiceAccountKey
-	case "external_account":
-		return ExternalAccountKey
-	case "external_account_authorized_user":
-		return ExternalAccountAuthorizedUserKey
-	case "gdch_service_account":
-		return GDCHServiceAccountKey
-	default:
-		return UnknownCredType
-	}
-}
-
 // GetFileNameFromEnv returns the override if provided or detects a filename
 // from the environment.
 func GetFileNameFromEnv(override string) string {

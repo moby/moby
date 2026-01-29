@@ -1,0 +1,167 @@
+{
+ "signatures": [
+  {
+   "keyid": "e71a54d543835ba86adad9460379c7641fb8726d164ea766801a1c522aba7ea2",
+   "sig": "3044022054d6a8fe5f1eb2884cf4d6bb39e37515c70fc14f5730d07d8240b5da287aa2df022029054f010dd87e5bf64c75e061c81337a7946b3c870376587812156519572c2b"
+  },
+  {
+   "keyid": "22f4caec6d8e6f9555af66b3d4c3cb06a3bb23fdc7e39c916c61f462e6f52b06",
+   "sig": "30450220531a618d5c05608521ae05807299db298fc3319492fab15c4de6ac30d8011844022100b8fc501ccc1fb0aabc536a19abb805c4951c7fe0a957eb935eeca7b8072e9c58"
+  },
+  {
+   "keyid": "61643838125b440b40db6942f5cb5a31c0dc04368316eb2aaa58b95904a58222",
+   "sig": "30440220180f029a56100e3f02ef26f7355595cad0c9eb8235fd6fcf71ba419c243f59cd022023d5619c686320409d71971137ca8eb2ce01b29da5864b36053e6b5207d6d39c"
+  },
+  {
+   "keyid": "a687e5bf4fab82b0ee58d46e05c9535145a2c9afb458f43d42b45ca0fdce2a70",
+   "sig": ""
+  },
+  {
+   "keyid": "183e64f37670dc13ca0d28995a3053f3740954ddce44321a41e46534cf44e632",
+   "sig": "3046022100f748b26ba6c6d02bddea73df9d84d39dc365513bc60b6495b1391db785fffe1a022100aca703faf2839c8ab45cc22a8311b4b86b10422392b14cc94c1f0ed7ee634d37"
+  }
+ ],
+ "signed": {
+  "_type": "targets",
+  "delegations": {
+   "keys": {
+    "5e3a4021b11a425fd0a444f1670457ce5b15bbe036144f2417426f7f4b9721da": {
+     "keytype": "ecdsa",
+     "keyval": {
+      "public": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVfei1dXQRVeArCMcTDgxJtYg+Fs7\nV87DjhQbGlRJPyC7SW5TbNNkmvpmi4LeTv6moLVZ7T2nVqiRZbSkD+cf8w==\n-----END PUBLIC KEY-----\n"
+     },
+     "scheme": "ecdsa-sha2-nistp256",
+     "x-tuf-on-ci-online-uri": "azurekms://npm-tuf-delegate.vault.azure.net/keys/npm-tuf-delegate-2024-08/e2772c1d01ca400da571096889f1660e"
+    }
+   },
+   "roles": [
+    {
+     "keyids": [
+      "5e3a4021b11a425fd0a444f1670457ce5b15bbe036144f2417426f7f4b9721da"
+     ],
+     "name": "registry.npmjs.org",
+     "paths": [
+      "registry.npmjs.org/*"
+     ],
+     "terminating": true,
+     "threshold": 1
+    }
+   ]
+  },
+  "expires": "2035-09-29T08:18:33Z",
+  "spec_version": "1.0",
+  "targets": {
+   "artifact.pub": {
+    "custom": {
+     "sigstore": {
+      "status": "Active",
+      "usage": "Unknown"
+     }
+    },
+    "hashes": {
+     "sha256": "59ebf97a9850aecec4bc39c1f5c1dc46e6490a6b5fd2a6cacdcac0c3a6fc4cbf"
+    },
+    "length": 177
+   },
+   "ctfe.pub": {
+    "custom": {
+     "sigstore": {
+      "status": "Active",
+      "uri": "https://ctfe.sigstore.dev/test",
+      "usage": "CTFE"
+     }
+    },
+    "hashes": {
+     "sha256": "7fcb94a5d0ed541260473b990b99a6c39864c1fb16f3f3e594a5a3cebbfe138a"
+    },
+    "length": 177
+   },
+   "ctfe_2022.pub": {
+    "custom": {
+     "sigstore": {
+      "status": "Active",
+      "uri": "https://ctfe.sigstore.dev/2022",
+      "usage": "CTFE"
+     }
+    },
+    "hashes": {
+     "sha256": "270488a309d22e804eeb245493e87c667658d749006b9fee9cc614572d4fbbdc"
+    },
+    "length": 178
+   },
+   "fulcio.crt.pem": {
+    "custom": {
+     "sigstore": {
+      "status": "Expired",
+      "uri": "https://fulcio.sigstore.dev",
+      "usage": "Fulcio"
+     }
+    },
+    "hashes": {
+     "sha256": "f360c53b2e13495a628b9b8096455badcb6d375b185c4816d95a5d746ff29908"
+    },
+    "length": 744
+   },
+   "fulcio_intermediate_v1.crt.pem": {
+    "custom": {
+     "sigstore": {
+      "status": "Active",
+      "uri": "https://fulcio.sigstore.dev",
+      "usage": "Fulcio"
+     }
+    },
+    "hashes": {
+     "sha256": "f8cbecf186db7714624a5f4e99da31a917cbef70a94dd6921f5c3ca969dfe30a"
+    },
+    "length": 789
+   },
+   "fulcio_v1.crt.pem": {
+    "custom": {
+     "sigstore": {
+      "status": "Active",
+      "uri": "https://fulcio.sigstore.dev",
+      "usage": "Fulcio"
+     }
+    },
+    "hashes": {
+     "sha256": "f989aa23def87c549404eadba767768d2a3c8d6d30a8b793f9f518a8eafd2cf5"
+    },
+    "length": 740
+   },
+   "rekor.pub": {
+    "custom": {
+     "sigstore": {
+      "status": "Active",
+      "uri": "https://rekor.sigstore.dev",
+      "usage": "Rekor"
+     }
+    },
+    "hashes": {
+     "sha256": "dce5ef715502ec9f3cdfd11f8cc384b31a6141023d3e7595e9908a81cb6241bd"
+    },
+    "length": 178
+   },
+   "signing_config.json": {
+    "hashes": {
+     "sha256": "d358c75d032833f4193500f5b01b5760409410558fac962c599439adbb268b0f"
+    },
+    "length": 219
+   },
+   "signing_config.v0.2.json": {
+    "hashes": {
+     "sha256": "9711a6d5375706957a4859af31c5866a4474f81f0544f9f4b76c9c4f4c8a539c"
+    },
+    "length": 1034
+   },
+   "trusted_root.json": {
+    "hashes": {
+     "sha256": "6494e21ea73fa7ee769f85f57d5a3e6a08725eae1e38c755fc3517c9e6bc0b66"
+    },
+    "length": 6787
+   }
+  },
+  "version": 13,
+  "x-tuf-on-ci-expiry-period": 3650,
+  "x-tuf-on-ci-signing-period": 31
+ }
+}

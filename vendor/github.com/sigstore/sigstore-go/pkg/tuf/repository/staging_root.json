@@ -1,0 +1,107 @@
+{
+ "signatures": [
+  {
+   "keyid": "aa61e09f6af7662ac686cf0c6364079f63d3e7a86836684eeced93eace3acd81",
+   "sig": "3046022100fe72afdbab1bef70c6f461f39f5e75cf543e5277648bfab798a108a0f76f0ca002210098e1e1804b7a13bab42c063691864d85fc4bf6f5a875346b388be00f139c6118"
+  },
+  {
+   "keyid": "61f9609d2655b346fcebccd66b509d5828168d5e447110e261f0bcc8553624bc",
+   "sig": "304502210094423ead9a7d546d703f649b408441688eb30f3279fb065b28eea05d2b36843102206f21fa2888836485964c7cb7468a16ddb6297784c50cdba03888578d7b46e0c7"
+  },
+  {
+   "keyid": "9471fbda95411d10109e467ad526082d15f14a38de54ea2ada9687ab39d8e237",
+   "sig": ""
+  },
+  {
+   "keyid": "0374a9e18a20a2103736cb4277e2fdd7f8453642c7d9eaf4ad8aee9cf2d47bb5",
+   "sig": ""
+  }
+ ],
+ "signed": {
+  "_type": "root",
+  "consistent_snapshot": true,
+  "expires": "2025-12-26T13:27:03Z",
+  "keys": {
+   "0374a9e18a20a2103736cb4277e2fdd7f8453642c7d9eaf4ad8aee9cf2d47bb5": {
+    "keytype": "ecdsa",
+    "keyval": {
+     "public": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEoxkvDOmtGEknB3M+ZkPts8joDM0X\nIH5JZwPlgC2CXs/eqOuNF8AcEWwGYRiDhV/IMlQw5bg8PLICQcgsbrDiKg==\n-----END PUBLIC KEY-----\n"
+    },
+    "scheme": "ecdsa-sha2-nistp256",
+    "x-tuf-on-ci-keyowner": "@mnm678"
+   },
+   "61f9609d2655b346fcebccd66b509d5828168d5e447110e261f0bcc8553624bc": {
+    "keytype": "ecdsa",
+    "keyval": {
+     "public": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE++Wv+DcLRk+mfkmlpCwl1GUi9EMh\npBUTz8K0fH7bE4mQuViGSyWA/eyMc0HvzZi6Xr0diHw0/lUPBvok214YQw==\n-----END PUBLIC KEY-----\n"
+    },
+    "scheme": "ecdsa-sha2-nistp256",
+    "x-tuf-on-ci-keyowner": "@kommendorkapten"
+   },
+   "9471fbda95411d10109e467ad526082d15f14a38de54ea2ada9687ab39d8e237": {
+    "keytype": "ecdsa",
+    "keyval": {
+     "public": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEFHDb85JH+JYR1LQmxiz4UMokVMnP\nxKoWpaEnFCKXH8W4Fc/DfIxMnkpjCuvWUBdJXkO0aDIxwsij8TOFh2R7dw==\n-----END PUBLIC KEY-----\n"
+    },
+    "scheme": "ecdsa-sha2-nistp256",
+    "x-tuf-on-ci-keyowner": "@joshuagl"
+   },
+   "aa61e09f6af7662ac686cf0c6364079f63d3e7a86836684eeced93eace3acd81": {
+    "keytype": "ecdsa",
+    "keyval": {
+     "public": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEohqIdE+yTl4OxpX8ZxNUPrg3SL9H\nBDnhZuceKkxy2oMhUOxhWweZeG3bfM1T4ZLnJimC6CAYVU5+F5jZCoftRw==\n-----END PUBLIC KEY-----\n"
+    },
+    "scheme": "ecdsa-sha2-nistp256",
+    "x-tuf-on-ci-keyowner": "@jku"
+   },
+   "c3479007e861445ce5dc109d9661ed77b35bbc0e3f161852c46114266fc2daa4": {
+    "keytype": "ecdsa",
+    "keyval": {
+     "public": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExxmEtmhF5U+i+v/6he4BcSLzCgMx\n/0qSrvDg6bUWwUrkSKS2vDpcJrhGy5fmmhRrGawjPp1ALpC3y1kqFTpXDg==\n-----END PUBLIC KEY-----\n"
+    },
+    "scheme": "ecdsa-sha2-nistp256",
+    "x-tuf-on-ci-online-uri": "gcpkms:projects/projectsigstore-staging/locations/global/keyRings/tuf-keyring/cryptoKeys/tuf-key/cryptoKeyVersions/2"
+   }
+  },
+  "roles": {
+   "root": {
+    "keyids": [
+     "aa61e09f6af7662ac686cf0c6364079f63d3e7a86836684eeced93eace3acd81",
+     "61f9609d2655b346fcebccd66b509d5828168d5e447110e261f0bcc8553624bc",
+     "9471fbda95411d10109e467ad526082d15f14a38de54ea2ada9687ab39d8e237",
+     "0374a9e18a20a2103736cb4277e2fdd7f8453642c7d9eaf4ad8aee9cf2d47bb5"
+    ],
+    "threshold": 2
+   },
+   "snapshot": {
+    "keyids": [
+     "c3479007e861445ce5dc109d9661ed77b35bbc0e3f161852c46114266fc2daa4"
+    ],
+    "threshold": 1,
+    "x-tuf-on-ci-expiry-period": 3650,
+    "x-tuf-on-ci-signing-period": 365
+   },
+   "targets": {
+    "keyids": [
+     "aa61e09f6af7662ac686cf0c6364079f63d3e7a86836684eeced93eace3acd81",
+     "61f9609d2655b346fcebccd66b509d5828168d5e447110e261f0bcc8553624bc",
+     "9471fbda95411d10109e467ad526082d15f14a38de54ea2ada9687ab39d8e237",
+     "0374a9e18a20a2103736cb4277e2fdd7f8453642c7d9eaf4ad8aee9cf2d47bb5"
+    ],
+    "threshold": 1
+   },
+   "timestamp": {
+    "keyids": [
+     "c3479007e861445ce5dc109d9661ed77b35bbc0e3f161852c46114266fc2daa4"
+    ],
+    "threshold": 1,
+    "x-tuf-on-ci-expiry-period": 7,
+    "x-tuf-on-ci-signing-period": 6
+   }
+  },
+  "spec_version": "1.0",
+  "version": 12,
+  "x-tuf-on-ci-expiry-period": 182,
+  "x-tuf-on-ci-signing-period": 35
+ }
+}

@@ -89,10 +89,11 @@ type fileTypeChecker struct {
 }
 
 // ParseFileType determines the [CredentialType] based on bytes provided.
-func ParseFileType(b []byte) (CredentialType, error) {
+// Only returns error for json.Unmarshal.
+func ParseFileType(b []byte) (string, error) {
 	var f fileTypeChecker
 	if err := json.Unmarshal(b, &f); err != nil {
-		return 0, err
+		return "", err
 	}
-	return parseCredentialType(f.Type), nil
+	return f.Type, nil
 }

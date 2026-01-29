@@ -267,6 +267,12 @@ func (opts Options) New(req *pluginpb.CodeGeneratorRequest) (*Plugin, error) {
 		return nil, fmt.Errorf("cannot use module= with paths=source_relative")
 	}
 
+	// Instead of generating each gen.Request.ProtoFile,
+	// generate gen.Request.FileToGenerate and its transitive dependencies.
+	//
+	// This effectively filters out 'import option' dependencies.
+	files := gatherTransitiveDependencies(gen.Request)
+
 	// Figure out the import path and package name for each file.
 	//
 	// The rules here are complicated and have grown organically over time.
@@ -281,7 +287,7 @@ func (opts Options) New(req *pluginpb.CodeGeneratorRequest) (*Plugin, error) {
 	//
 	// Alternatively, build systems which want to exert full control over
 	// import paths may specify M<filename>=<import_path> flags.
-	for _, fdesc := range gen.Request.ProtoFile {
+	for _, fdesc := range files {
 		filename := fdesc.GetName()
 		// The "M" command-line flags take precedence over
 		// the "go_package" option in the .proto source file.
@@ -351,7 +357,7 @@ func (opts Options) New(req *pluginpb.CodeGeneratorRequest) (*Plugin, error) {
 
 	// The extracted types from the full import set
 	typeRegistry := newExtensionRegistry()
-	for _, fdesc := range gen.Request.ProtoFile {
+	for _, fdesc := range files {
 		filename := fdesc.GetName()
 		if gen.FilesByPath[filename] != nil {
 			return nil, fmt.Errorf("duplicate file name: %q", filename)
@@ -388,6 +394,50 @@ func (opts Options) New(req *pluginpb.CodeGeneratorRequest) (*Plugin, error) {
 		}
 	}
 	return gen, nil
+}
+
+type transitiveDependencies struct {
+	files      map[string]*descriptorpb.FileDescriptorProto
+	deps       map[string]bool
+	sortedDeps []*descriptorpb.FileDescriptorProto
+}
+
+func newTransitiveDependencies(req *pluginpb.CodeGeneratorRequest) *transitiveDependencies {
+	files := make(map[string]*descriptorpb.FileDescriptorProto)
+	for _, f := range req.GetProtoFile() {
+		files[f.GetName()] = f
+	}
+	return &transitiveDependencies{
+		files: files,
+		deps:  make(map[string]bool),
+	}
+}
+
+func (td *transitiveDependencies) add(name string) {
+	if td.deps[name] {
+		return
+	}
+	f := td.files[name]
+	if f == nil {
+		// This shouldn't happen, but will fail later if it does.
+		return
+	}
+	td.deps[name] = true
+	for _, dep := range f.GetDependency() {
+		td.add(dep)
+	}
+	td.sortedDeps = append(td.sortedDeps, f)
+}
+
+func gatherTransitiveDependencies(req *pluginpb.CodeGeneratorRequest) []*descriptorpb.FileDescriptorProto {
+	if len(req.GetFileToGenerate()) == 0 {
+		return req.GetProtoFile()
+	}
+	td := newTransitiveDependencies(req)
+	for _, f := range req.GetFileToGenerate() {
+		td.add(f)
+	}
+	return td.sortedDeps
 }
 
 // InternalStripForEditionsDiff returns whether or not to strip non-functional

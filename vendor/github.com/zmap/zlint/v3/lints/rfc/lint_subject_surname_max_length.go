@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -26,25 +26,42 @@ type subjectSurnameMaxLength struct{}
 
 /************************************************
 RFC 5280: A.1
-	* In this Appendix, there is a list of upperbounds
-	for fields in a x509 Certificate. *
-	ub-surname-length INTEGER ::= 40
+-- Naming attributes of type X520name
 
+id-at-surname             AttributeType ::= { id-at  4 }
+
+-- Naming attributes of type X520Name:
+--   X520name ::= DirectoryString (SIZE (1..ub-name))
+--
+-- Expanded to avoid parameterized type:
+X520name ::= CHOICE {
+      teletexString     TeletexString   (SIZE (1..ub-name)),
+      printableString   PrintableString (SIZE (1..ub-name)),
+      universalString   UniversalString (SIZE (1..ub-name)),
+      utf8String        UTF8String      (SIZE (1..ub-name)),
+      bmpString         BMPString       (SIZE (1..ub-name)) }
+
+--  specifications of Upper Bounds MUST be regarded as mandatory
+--  from Annex B of ITU-T X.411 Reference Definition of MTS Parameter
+--  Upper Bounds
+
+-- Upper Bounds
+ub-name INTEGER ::= 32768
 ************************************************/
 
 func init() {
 	lint.RegisterLint(&lint.Lint{
 		Name:          "e_subject_surname_max_length",
-		Description:   "The 'Surname' field of the subject MUST be less than 41 characters",
+		Description:   "The 'Surname' field of the subject MUST be less than 32769 characters",
 		Citation:      "RFC 5280: A.1",
 		Source:        lint.RFC5280,
 		EffectiveDate: util.RFC2459Date,
-		Lint:          &subjectSurnameMaxLength{},
+		Lint:          NewSubjectSurnameMaxLength,
 	})
 }
 
-func (l *subjectSurnameMaxLength) Initialize() error {
-	return nil
+func NewSubjectSurnameMaxLength() lint.LintInterface {
+	return &subjectSurnameMaxLength{}
 }
 
 func (l *subjectSurnameMaxLength) CheckApplies(c *x509.Certificate) bool {
@@ -52,11 +69,11 @@ func (l *subjectSurnameMaxLength) CheckApplies(c *x509.Certificate) bool {
 }
 
 func (l *subjectSurnameMaxLength) Execute(c *x509.Certificate) *lint.LintResult {
-	for _, j := range c.Subject.Surname {
-		if utf8.RuneCountInString(j) > 40 {
+	for _, surname := range c.Subject.Surname {
+		characters := utf8.RuneCountInString(surname)
+		if characters > 32768 {
 			return &lint.LintResult{Status: lint.Error}
 		}
 	}
-
 	return &lint.LintResult{Status: lint.Pass}
 }

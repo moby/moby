@@ -20,6 +20,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/distribution"
 	"github.com/moby/moby/v2/daemon/snapshotter"
 	"github.com/moby/moby/v2/errdefs"
+	policyverifier "github.com/moby/policy-helpers"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -40,20 +41,22 @@ type ImageService struct {
 	pruneRunning        atomic.Bool
 	refCountMounter     snapshotter.Mounter
 	idMapping           user.IdentityMapping
+	policyVerifier      func() (*policyverifier.Verifier, error)
 
 	// defaultPlatformOverride is used in tests to override the host platform.
 	defaultPlatformOverride platforms.MatchComparer
 }
 
 type ImageServiceConfig struct {
-	Client          *containerd.Client
-	Containers      container.Store
-	Snapshotter     string
-	RegistryHosts   docker.RegistryHosts
-	Registry        distribution.RegistryResolver
-	EventsService   *daemonevents.Events
-	RefCountMounter snapshotter.Mounter
-	IDMapping       user.IdentityMapping
+	Client                 *containerd.Client
+	Containers             container.Store
+	Snapshotter            string
+	RegistryHosts          docker.RegistryHosts
+	Registry               distribution.RegistryResolver
+	EventsService          *daemonevents.Events
+	RefCountMounter        snapshotter.Mounter
+	IDMapping              user.IdentityMapping
+	PolicyVerifierProvider func() (*policyverifier.Verifier, error)
 }
 
 // NewService creates a new ImageService.
@@ -72,6 +75,7 @@ func NewService(config ImageServiceConfig) *ImageService {
 		eventsService:   config.EventsService,
 		refCountMounter: config.RefCountMounter,
 		idMapping:       config.IDMapping,
+		policyVerifier:  config.PolicyVerifierProvider,
 	}
 }
 

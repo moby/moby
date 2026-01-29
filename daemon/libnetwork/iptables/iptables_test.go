@@ -137,7 +137,7 @@ func TestConcurrencyWithWait(t *testing.T) {
 	proto := "tcp"
 
 	group := new(errgroup.Group)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		group.Go(func() error {
 			return addSomeRules(natChain, ip, port, proto, dstAddr, dstPort)
 		})

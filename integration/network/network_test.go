@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/integration/internal/swarm"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
@@ -143,4 +145,25 @@ func TestAPINetworkFilter(t *testing.T) {
 		}
 	}
 	assert.Assert(t, found, fmt.Sprintf("%s is not found", networkName))
+}
+
+func TestNetworkInspectWithScope(t *testing.T) {
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
+	defer d.Stop(t)
+
+	cli := d.NewClientT(t) // IMPORTANT: talk to swarm daemon
+
+	name := "test-scoped-network"
+	create, err := cli.NetworkCreate(ctx, name, client.NetworkCreateOptions{Driver: "overlay"})
+	assert.NilError(t, err)
+
+	inspect, err := cli.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("swarm", inspect.Network.Scope))
+	assert.Check(t, is.Equal(create.ID, inspect.Network.ID))
+
+	_, err = cli.NetworkInspect(ctx, name, client.NetworkInspectOptions{Scope: "local"})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }

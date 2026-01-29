@@ -56,7 +56,7 @@ type networkConfiguration struct {
 	OutboundNatExceptions []string
 }
 
-// endpointConfiguration represents the user specified configuration for the sandbox endpoint
+// endpointConfiguration represents the user-specified configuration for the sandbox endpoint
 type endpointOption struct {
 	MacAddress  net.HardwareAddr
 	QosPolicies []types.QosPolicy
@@ -84,8 +84,8 @@ type hnsEndpoint struct {
 	// when windows properly supports a sandboxID.
 	sandboxID      string
 	macAddress     net.HardwareAddr
-	epOption       *endpointOption       // User specified parameters
-	epConnectivity *EndpointConnectivity // User specified parameters
+	epOption       *endpointOption       // User-specified parameters
+	epConnectivity *EndpointConnectivity // User-specified parameters
 	portMapping    []types.PortBinding   // Operation port bindings
 	addr           *net.IPNet
 	gateway        net.IP

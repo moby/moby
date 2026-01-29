@@ -27,6 +27,7 @@ import (
 	"cloud.google.com/go/auth/internal"
 	"cloud.google.com/go/auth/internal/transport"
 	"cloud.google.com/go/auth/internal/transport/cert"
+	"cloud.google.com/go/auth/internal/transport/headers"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/net/http2"
 )
@@ -228,7 +229,7 @@ func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 	}
 	req2 := req.Clone(req.Context())
-	SetAuthHeader(token, req2)
+	headers.SetAuthHeader(token, req2)
 	reqBodyClosed = true
 	return t.base.RoundTrip(req2)
 }

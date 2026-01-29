@@ -102,8 +102,8 @@ func (e *eventObserver) CheckEventError(t *testing.T, id, event string, match ev
 	if e.disconnectionError != nil {
 		until := daemonUnixTime(t)
 		out := cli.DockerCmd(t, "events", "--since", e.startTime, "--until", until).Stdout()
-		events := strings.Split(strings.TrimSpace(out), "\n")
-		for _, e := range events {
+		events := strings.SplitSeq(strings.TrimSpace(out), "\n")
+		for e := range events {
 			if _, ok := match(e); ok {
 				foundEvent = true
 				break
@@ -176,7 +176,7 @@ func matchEventID(matches map[string]string, id string) bool {
 	if !matchID && matches["attributes"] != "" {
 		// try matching a name in the attributes
 		attributes := map[string]string{}
-		for _, a := range strings.Split(matches["attributes"], ", ") {
+		for a := range strings.SplitSeq(matches["attributes"], ", ") {
 			kv := strings.Split(a, "=")
 			attributes[kv[0]] = kv[1]
 		}
@@ -186,8 +186,8 @@ func matchEventID(matches map[string]string, id string) bool {
 }
 
 func parseEvents(t *testing.T, out, match string) {
-	events := strings.Split(strings.TrimSpace(out), "\n")
-	for _, event := range events {
+	events := strings.SplitSeq(strings.TrimSpace(out), "\n")
+	for event := range events {
 		matches := eventstestutils.ScanMap(event)
 		matched, err := regexp.MatchString(match, matches["action"])
 		assert.NilError(t, err)

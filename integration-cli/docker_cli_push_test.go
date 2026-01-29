@@ -79,7 +79,7 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *testing.T) {
 	// Ensure layer list is equivalent for repoTag1 and repoTag2
 	out1 := cli.DockerCmd(c, "push", repoTag1).Combined()
 	var out1Lines []string
-	for _, outputLine := range strings.Split(out1, "\n") {
+	for outputLine := range strings.SplitSeq(out1, "\n") {
 		if strings.Contains(outputLine, imageAlreadyExists) {
 			out1Lines = append(out1Lines, outputLine)
 		}
@@ -87,7 +87,7 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *testing.T) {
 
 	out2 := cli.DockerCmd(c, "push", repoTag2).Combined()
 	var out2Lines []string
-	for _, outputLine := range strings.Split(out2, "\n") {
+	for outputLine := range strings.SplitSeq(out2, "\n") {
 		if strings.Contains(outputLine, imageAlreadyExists) {
 			out2Lines = append(out2Lines, outputLine)
 		}

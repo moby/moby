@@ -59,6 +59,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -106,7 +107,7 @@ const DummyHost = "api.moby.localhost"
 // overriding the version and disable API-version negotiation.
 //
 // This version may be lower than the version of the api library module used.
-const MaxAPIVersion = "1.52"
+const MaxAPIVersion = "1.53"
 
 // MinAPIVersion is the minimum API version supported by the client. API versions
 // below this version are not considered when performing API-version negotiation.
@@ -240,6 +241,13 @@ func New(ops ...Opt) (*Client, error) {
 	}
 
 	c.client.Transport = otelhttp.NewTransport(c.client.Transport, c.traceOpts...)
+
+	if len(cfg.responseHooks) > 0 {
+		c.client.Transport = &responseHookTransport{
+			base:  c.client.Transport,
+			hooks: slices.Clone(cfg.responseHooks),
+		}
+	}
 
 	return c, nil
 }

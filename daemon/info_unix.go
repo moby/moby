@@ -343,8 +343,8 @@ func parseInitVersion(v string) (version string, commit string, _ error) {
 		}
 	}
 	parts[0] = strings.TrimSpace(parts[0])
-	if strings.HasPrefix(parts[0], "tini version ") {
-		version = strings.TrimPrefix(parts[0], "tini version ")
+	if after, ok := strings.CutPrefix(parts[0], "tini version "); ok {
+		version = after
 	}
 	if version == "" && commit == "" {
 		return "", "", errors.Errorf("unknown output format: %s", v)
@@ -361,16 +361,16 @@ func parseInitVersion(v string) (version string, commit string, _ error) {
 //	commit: 69663f0bd4b60df09991c08812a60108003fa340
 //	spec: 1.0.0
 func parseRuntimeVersion(v string) (runtime, version, commit string, _ error) {
-	lines := strings.Split(strings.TrimSpace(v), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(strings.TrimSpace(v), "\n")
+	for line := range lines {
 		if strings.Contains(line, "version") {
 			s := strings.Split(line, "version")
 			runtime = strings.TrimSpace(s[0])
 			version = strings.TrimSpace(s[len(s)-1])
 			continue
 		}
-		if strings.HasPrefix(line, "commit:") {
-			commit = strings.TrimSpace(strings.TrimPrefix(line, "commit:"))
+		if after, ok := strings.CutPrefix(line, "commit:"); ok {
+			commit = strings.TrimSpace(after)
 			continue
 		}
 	}

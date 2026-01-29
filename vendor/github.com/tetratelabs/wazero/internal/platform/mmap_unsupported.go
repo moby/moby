@@ -1,0 +1,22 @@
+//go:build !(unix || windows)
+
+package platform
+
+import (
+	"fmt"
+	"runtime"
+)
+
+var errUnsupported = fmt.Errorf("mmap unsupported on GOOS=%s. Use interpreter instead.", runtime.GOOS)
+
+func munmapCodeSegment(code []byte) error {
+	panic(errUnsupported)
+}
+
+func mmapCodeSegment(size int) ([]byte, error) {
+	panic(errUnsupported)
+}
+
+func MprotectCodeSegment(b []byte) (err error) {
+	panic(errUnsupported)
+}

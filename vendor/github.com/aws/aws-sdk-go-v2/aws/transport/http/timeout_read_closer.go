@@ -64,6 +64,11 @@ func (r *timeoutReadCloser) Close() error {
 
 // AddResponseReadTimeoutMiddleware adds a middleware to the stack that wraps the
 // response body so that a read that takes too long will return an error.
+//
+// Deprecated: This API was previously exposed to customize behavior of the
+// Kinesis service. That customization has been removed and this middleware's
+// implementation can cause panics within the standard library networking loop.
+// See #2752.
 func AddResponseReadTimeoutMiddleware(stack *middleware.Stack, duration time.Duration) error {
 	return stack.Deserialize.Add(&readTimeout{duration: duration}, middleware.After)
 }

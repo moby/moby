@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -213,9 +214,7 @@ func (b *Builder) Prune(ctx context.Context, opts buildbackend.CachePruneOptions
 	validFilters["until"] = true
 	validFilters["label"] = true  // TODO(tiborvass): handle label
 	validFilters["label!"] = true // TODO(tiborvass): handle label!
-	for k, v := range cacheFields {
-		validFilters[k] = v
-	}
+	maps.Copy(validFilters, cacheFields)
 	if err := opts.Filters.Validate(validFilters); err != nil {
 		return 0, nil, err
 	}

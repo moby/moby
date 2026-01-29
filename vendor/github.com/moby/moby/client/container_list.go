@@ -13,11 +13,23 @@ import (
 type ContainerListOptions struct {
 	Size    bool
 	All     bool
-	Latest  bool
-	Since   string
-	Before  string
 	Limit   int
 	Filters Filters
+
+	// Latest is non-functional and should not be used. Use Limit: 1 instead.
+	//
+	// Deprecated: the Latest option is non-functional and should not be used. Use Limit: 1 instead.
+	Latest bool
+
+	// Since is no longer supported. Use the "since" filter instead.
+	//
+	// Deprecated: the Since option is no longer supported since docker 1.12 (API 1.24). Use the "since" filter instead.
+	Since string
+
+	// Before is no longer supported. Use the "since" filter instead.
+	//
+	// Deprecated: the Before option is no longer supported since docker 1.12 (API 1.24). Use the "before" filter instead.
+	Before string
 }
 
 type ContainerListResult struct {
@@ -34,14 +46,6 @@ func (cli *Client) ContainerList(ctx context.Context, options ContainerListOptio
 
 	if options.Limit > 0 {
 		query.Set("limit", strconv.Itoa(options.Limit))
-	}
-
-	if options.Since != "" {
-		query.Set("since", options.Since)
-	}
-
-	if options.Before != "" {
-		query.Set("before", options.Before)
 	}
 
 	if options.Size {

@@ -50,34 +50,41 @@ type Generic map[string]any
 //
 // The return value is of the same type than the model (including a potential
 // pointer qualifier).
-func GenerateFromModel(options Generic, model any) (any, error) {
-	modType := reflect.TypeOf(model)
+func GenerateFromModel[T any](options Generic) (T, error) {
+	var zero T
+
+	modType := reflect.TypeFor[T]()
+
+	isPtr := modType.Kind() == reflect.Ptr
 
 	// If the model is of pointer type, we need to dereference for New.
-	resType := reflect.TypeOf(model)
-	if modType.Kind() == reflect.Ptr {
+	resType := modType
+	if isPtr {
 		resType = resType.Elem()
 	}
 
 	// Populate the result structure with the generic layout content.
 	res := reflect.New(resType)
+	resVal := res.Elem()
+
 	for name, value := range options {
-		field := res.Elem().FieldByName(name)
+		field := resVal.FieldByName(name)
 		if !field.IsValid() {
-			return nil, NoSuchFieldError{name, resType.String()}
+			return zero, NoSuchFieldError{Field: name, Type: resType.String()}
 		}
 		if !field.CanSet() {
-			return nil, CannotSetFieldError{name, resType.String()}
+			return zero, CannotSetFieldError{Field: name, Type: resType.String()}
 		}
-		if reflect.TypeOf(value) != field.Type() {
-			return nil, TypeMismatchError{name, field.Type().String(), reflect.TypeOf(value).String()}
+		val := reflect.ValueOf(value)
+		if val.Type() != field.Type() {
+			return zero, TypeMismatchError{Field: name, ExpectType: field.Type().String(), ActualType: val.Type().String()}
 		}
-		field.Set(reflect.ValueOf(value))
+		field.Set(val)
 	}
 
 	// If the model is not of pointer type, return content of the result.
-	if modType.Kind() == reflect.Ptr {
-		return res.Interface(), nil
+	if isPtr {
+		return res.Interface().(T), nil
 	}
-	return res.Elem().Interface(), nil
+	return resVal.Interface().(T), nil
 }

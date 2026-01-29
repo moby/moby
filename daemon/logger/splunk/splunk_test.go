@@ -827,7 +827,7 @@ func TestBatching(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < defaultStreamChannelSize*4; i++ {
+	for i := range defaultStreamChannelSize * 4 {
 		if err := loggerDriver.Log(&logger.Message{Line: []byte(strconv.Itoa(i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
@@ -887,7 +887,7 @@ func TestFrequency(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		if err := loggerDriver.Log(&logger.Message{Line: []byte(strconv.Itoa(i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
@@ -958,7 +958,7 @@ func TestOneMessagePerRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		if err := loggerDriver.Log(&logger.Message{Line: []byte(strconv.Itoa(i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
@@ -1050,7 +1050,7 @@ func TestSkipVerify(t *testing.T) {
 		t.Fatal("Connection should not be verified")
 	}
 
-	for i := 0; i < defaultStreamChannelSize*2; i++ {
+	for i := range defaultStreamChannelSize * 2 {
 		if err := loggerDriver.Log(&logger.Message{Line: []byte(strconv.Itoa(i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
@@ -1124,7 +1124,7 @@ func TestBufferMaximum(t *testing.T) {
 		t.Fatal("Connection should not be verified")
 	}
 
-	for i := 0; i < 11; i++ {
+	for i := range 11 {
 		if err := loggerDriver.Log(&logger.Message{Line: []byte(strconv.Itoa(i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}
@@ -1193,7 +1193,7 @@ func TestServerAlwaysDown(t *testing.T) {
 		t.Fatal("Connection should not be verified")
 	}
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if err := loggerDriver.Log(&logger.Message{Line: []byte(strconv.Itoa(i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
 			t.Fatal(err)
 		}

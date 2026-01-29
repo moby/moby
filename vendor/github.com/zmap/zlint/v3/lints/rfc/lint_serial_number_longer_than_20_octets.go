@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,9 +15,9 @@ package rfc
  */
 
 import (
-	"encoding/asn1"
 	"fmt"
 
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
@@ -49,12 +49,12 @@ func init() {
 		Citation:      "RFC 5280: 4.1.2.2",
 		Source:        lint.RFC5280,
 		EffectiveDate: util.RFC3280Date,
-		Lint:          &serialNumberTooLong{},
+		Lint:          NewSerialNumberTooLong,
 	})
 }
 
-func (l *serialNumberTooLong) Initialize() error {
-	return nil
+func NewSerialNumberTooLong() lint.LintInterface {
+	return &serialNumberTooLong{}
 }
 
 func (l *serialNumberTooLong) CheckApplies(c *x509.Certificate) bool {

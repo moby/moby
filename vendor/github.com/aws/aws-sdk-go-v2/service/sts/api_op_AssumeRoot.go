@@ -12,7 +12,9 @@ import (
 )
 
 // Returns a set of short term credentials you can use to perform privileged tasks
-// on a member account in your organization.
+// on a member account in your organization. You must use credentials from an
+// Organizations management account or a delegated administrator account for IAM to
+// call AssumeRoot . You cannot use root user credentials to make this call.
 //
 // Before you can launch a privileged session, you must have centralized root
 // access in your organization. For steps to enable this feature, see [Centralize root access for member accounts]in the IAM
@@ -24,8 +26,16 @@ import (
 // You can track AssumeRoot in CloudTrail logs to determine what actions were
 // performed in a session. For more information, see [Track privileged tasks in CloudTrail]in the IAM User Guide.
 //
+// When granting access to privileged tasks you should only grant the necessary
+// permissions required to perform that task. For more information, see [Security best practices in IAM]. In
+// addition, you can use [service control policies](SCPs) to manage and limit permissions in your
+// organization. See [General examples]in the Organizations User Guide for more information on SCPs.
+//
 // [Endpoints]: https://docs.aws.amazon.com/STS/latest/APIReference/welcome.html#sts-endpoints
+// [Security best practices in IAM]: https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html
 // [Track privileged tasks in CloudTrail]: https://docs.aws.amazon.com/IAM/latest/UserGuide/cloudtrail-track-privileged-tasks.html
+// [General examples]: https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps_examples_general.html
+// [service control policies]: https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html
 // [Centralize root access for member accounts]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_root-enable-root-access.html
 func (c *Client) AssumeRoot(ctx context.Context, params *AssumeRootInput, optFns ...func(*Options)) (*AssumeRootOutput, error) {
 	if params == nil {
@@ -50,8 +60,10 @@ type AssumeRootInput struct {
 	TargetPrincipal *string
 
 	// The identity based policy that scopes the session to the privileged tasks that
-	// can be performed. You can use one of following Amazon Web Services managed
-	// policies to scope root session actions.
+	// can be performed. You must
+	//
+	// use one of following Amazon Web Services managed policies to scope root session
+	// actions:
 	//
 	// [IAMAuditRootUserCredentials]
 	//
@@ -205,40 +217,7 @@ func (c *Client) addOperationAssumeRootMiddlewares(stack *middleware.Stack, opti
 	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addInterceptExecution(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptTransmit(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addSpanInitializeStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanInitializeEnd(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

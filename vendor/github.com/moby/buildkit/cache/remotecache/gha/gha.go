@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"github.com/containerd/containerd/v2/pkg/labels"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/cache/remotecache"
+	"github.com/moby/buildkit/cache/remotecache/gha/ghatypes"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	cacheimporttypes "github.com/moby/buildkit/cache/remotecache/v1/types"
 	"github.com/moby/buildkit/session"
@@ -26,9 +28,11 @@ import (
 	"github.com/moby/buildkit/util/tracing"
 	bkversion "github.com/moby/buildkit/version"
 	"github.com/moby/buildkit/worker"
+	policy "github.com/moby/policy-helpers"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/sigstore/sigstore-go/pkg/fulcio/certificate"
 	actionscache "github.com/tonistiigi/go-actions-cache"
 	"golang.org/x/sync/errgroup"
 )
@@ -51,6 +55,8 @@ const (
 	defaultTimeout = 10 * time.Minute
 )
 
+type VerifierProvider func() (*policy.Verifier, error)
+
 type Config struct {
 	Scope      string
 	URL        string
@@ -59,9 +65,12 @@ type Config struct {
 	Repository string
 	Version    int
 	Timeout    time.Duration
+
+	*ghatypes.CacheConfig
+	verifier VerifierProvider
 }
 
-func getConfig(attrs map[string]string) (*Config, error) {
+func getConfig(conf *ghatypes.CacheConfig, v VerifierProvider, attrs map[string]string) (*Config, error) {
 	scope, ok := attrs[attrScope]
 	if !ok {
 		scope = "buildkit"
@@ -109,21 +118,28 @@ func getConfig(attrs map[string]string) (*Config, error) {
 			return nil, errors.Wrap(err, "failed to parse timeout for github actions cache")
 		}
 	}
+
+	if conf == nil {
+		conf = &ghatypes.CacheConfig{}
+	}
+
 	return &Config{
-		Scope:      scope,
-		URL:        url,
-		Token:      token,
-		Timeout:    timeout,
-		GHToken:    attrs[attrGHToken],
-		Repository: attrs[attrRepository],
-		Version:    apiVersionInt,
+		Scope:       scope,
+		URL:         url,
+		Token:       token,
+		Timeout:     timeout,
+		GHToken:     attrs[attrGHToken],
+		Repository:  attrs[attrRepository],
+		Version:     apiVersionInt,
+		CacheConfig: conf,
+		verifier:    v,
 	}, nil
 }
 
 // ResolveCacheExporterFunc for Github actions cache exporter.
-func ResolveCacheExporterFunc() remotecache.ResolveCacheExporterFunc {
+func ResolveCacheExporterFunc(conf *ghatypes.CacheConfig, v VerifierProvider) remotecache.ResolveCacheExporterFunc {
 	return func(ctx context.Context, g session.Group, attrs map[string]string) (remotecache.Exporter, error) {
-		cfg, err := getConfig(attrs)
+		cfg, err := getConfig(conf, v, attrs)
 		if err != nil {
 			return nil, err
 		}
@@ -163,12 +179,12 @@ func (ce *exporter) Config() remotecache.Config {
 	}
 }
 
-func (ce *exporter) blobKeyPrefix() string {
+func blobKeyPrefix() string {
 	return "buildkit-blob-" + version + "-"
 }
 
-func (ce *exporter) blobKey(dgst digest.Digest) string {
-	return ce.blobKeyPrefix() + dgst.String()
+func blobKey(dgst digest.Digest) string {
+	return blobKeyPrefix() + dgst.String()
 }
 
 func (ce *exporter) indexKey() string {
@@ -178,8 +194,17 @@ func (ce *exporter) indexKey() string {
 			scope = s.Scope
 		}
 	}
+	return indexKey(scope, ce.config)
+}
+
+func indexKey(scope string, config *Config) string {
 	scope = digest.FromBytes([]byte(scope)).Hex()[:8]
-	return "index-" + ce.config.Scope + "-" + version + "-" + scope
+	key := "index-" + config.Scope + "-" + version + "-" + scope
+	// just to be sure lets namespace the signed vs unsigned caches
+	if config.Sign != nil || config.Verify.Required {
+		key += "-sig"
+	}
+	return key
 }
 
 func (ce *exporter) initActiveKeyMap(ctx context.Context) {
@@ -204,14 +229,14 @@ func (ce *exporter) initActiveKeyMapOnce(ctx context.Context) (map[string]struct
 	if err != nil {
 		return nil, err
 	}
-	keys, err := ce.cache.AllKeys(ctx, api, ce.blobKeyPrefix())
+	keys, err := ce.cache.AllKeys(ctx, api, blobKeyPrefix())
 	if err != nil {
 		return nil, err
 	}
 	return keys, nil
 }
 
-func (ce *exporter) Finalize(ctx context.Context) (map[string]string, error) {
+func (ce *exporter) Finalize(ctx context.Context) (_ map[string]string, err error) {
 	// res := make(map[string]string)
 	config, descs, err := ce.chains.Marshal(ctx)
 	if err != nil {
@@ -239,7 +264,7 @@ func (ce *exporter) Finalize(ctx context.Context) (map[string]string, error) {
 		diffID = dgst
 		ce.initActiveKeyMap(ctx)
 
-		key := ce.blobKey(dgstPair.Descriptor.Digest)
+		key := blobKey(dgstPair.Descriptor.Digest)
 
 		exists := false
 		if ce.keyMap != nil {
@@ -294,13 +319,111 @@ func (ce *exporter) Finalize(ctx context.Context) (map[string]string, error) {
 		return nil, err
 	}
 
+	if ce.config.Sign == nil {
+		return nil, nil
+	}
+
+	args := ce.config.Sign.Command
+	if len(args) == 0 {
+		return nil, nil
+	}
+
+	dgst := digest.FromBytes(dt)
+	signDone := progress.OneOff(ctx, fmt.Sprintf("signing cache index %s", dgst))
+	defer signDone(err)
+
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...) //nolint:gosec // defined in toml config
+	cmd.Stdin = bytes.NewReader(dt)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, errors.Wrapf(err, "signing command failed: %s", stderr.String())
+	}
+
+	// validate signature before uploading
+	if err := verifySignature(ctx, dgst, out.Bytes(), ce.config); err != nil {
+		return nil, err
+	}
+
+	key := blobKey(dgst + "-sig")
+	if err := ce.cache.Save(ctx, key, actionscache.NewBlob(out.Bytes())); err != nil {
+		return nil, err
+	}
+
 	return nil, nil
 }
 
+func verifySignature(ctx context.Context, dgst digest.Digest, bundle []byte, config *Config) error {
+	v, err := config.verifier()
+	if err != nil {
+		return err
+	}
+	if v == nil {
+		return errors.New("no verifier available for signed github actions cache")
+	}
+
+	sig, err := v.VerifyArtifact(ctx, dgst, bundle, policy.WithSLSANotRequired())
+	if err != nil {
+		return err
+	}
+	if sig.Signer == nil {
+		return errors.New("signature verification failed: no signer found")
+	}
+	numTimestamps := len(sig.Timestamps)
+	numTlog := 0
+	for _, t := range sig.Timestamps {
+		if t.Type == "Tlog" {
+			numTlog++
+		}
+	}
+	policyRules := config.Verify.Policy
+	if policyRules.TimestampThreshold > numTimestamps {
+		return errors.Errorf("signature verification failed: not enough timestamp authorities: have %d, need %d", numTimestamps, policyRules.TimestampThreshold)
+	}
+	if policyRules.TlogThreshold > numTlog {
+		return errors.Errorf("signature verification failed: not enough tlog authorities: have %d, need %d", numTlog, policyRules.TlogThreshold)
+	}
+
+	certRules, err := certToStringMap(&config.Verify.Policy.Summary)
+	if err != nil {
+		return err
+	}
+	certFields, err := certToStringMap(sig.Signer)
+	if err != nil {
+		return err
+	}
+	bklog.G(ctx).Debugf("signature verification: %+v", sig)
+	bklog.G(ctx).Debugf("signer: %+v", sig.Signer)
+	for k, v := range certRules {
+		if v == "" {
+			continue
+		}
+		if !simplePatternMatch(v, certFields[k]) {
+			return errors.Errorf("signature verification failed: certificate field %q does not match policy (%q != %q)", k, certFields[k], v)
+		}
+		bklog.G(ctx).Debugf("certificate field %q matches policy (%q)", k, certFields[k])
+	}
+	return nil
+}
+
+func certToStringMap(cert *certificate.Summary) (map[string]string, error) {
+	dt, err := json.Marshal(cert)
+	if err != nil {
+		return nil, err
+	}
+	m := map[string]string{}
+	if err := json.Unmarshal(dt, &m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // ResolveCacheImporterFunc for Github actions cache importer.
-func ResolveCacheImporterFunc() remotecache.ResolveCacheImporterFunc {
+func ResolveCacheImporterFunc(conf *ghatypes.CacheConfig, v VerifierProvider) remotecache.ResolveCacheImporterFunc {
 	return func(ctx context.Context, g session.Group, attrs map[string]string) (remotecache.Importer, ocispecs.Descriptor, error) {
-		cfg, err := getConfig(attrs)
+		cfg, err := getConfig(conf, v, attrs)
 		if err != nil {
 			return nil, ocispecs.Descriptor{}, err
 		}
@@ -360,8 +483,7 @@ func (ci *importer) makeDescriptorProviderPair(l cacheimporttypes.CacheLayer) (*
 }
 
 func (ci *importer) loadScope(ctx context.Context, scope string) (*v1.CacheChains, error) {
-	scope = digest.FromBytes([]byte(scope)).Hex()[:8]
-	key := "index-" + ci.config.Scope + "-" + version + "-" + scope
+	key := indexKey(scope, ci.config)
 
 	entry, err := ci.cache.Load(ctx, key)
 	if err != nil {
@@ -371,10 +493,36 @@ func (ci *importer) loadScope(ctx context.Context, scope string) (*v1.CacheChain
 		return v1.NewCacheChains(), nil
 	}
 
-	// TODO: this buffer can be removed
 	buf := &bytes.Buffer{}
 	if err := entry.WriteTo(ctx, buf); err != nil {
 		return nil, err
+	}
+
+	if ci.config.Verify.Required {
+		dgst := digest.FromBytes(buf.Bytes())
+
+		verifyDone := progress.OneOff(ctx, fmt.Sprintf("verifying signature of cache index %s", dgst))
+		sigKey := blobKey(dgst) + "-sig"
+		sigEntry, err := ci.cache.Load(ctx, sigKey)
+		if err != nil {
+			verifyDone(err)
+			return nil, err
+		}
+		if sigEntry == nil {
+			err := errors.Errorf("missing signature for github actions cache")
+			verifyDone(err)
+			return nil, err
+		}
+		sigBuf := &bytes.Buffer{}
+		if err := sigEntry.WriteTo(ctx, sigBuf); err != nil {
+			verifyDone(err)
+			return nil, err
+		}
+		if err := verifySignature(ctx, dgst, sigBuf.Bytes(), ci.config); err != nil {
+			verifyDone(err)
+			return nil, err
+		}
+		verifyDone(nil)
 	}
 
 	var config cacheimporttypes.CacheConfig
@@ -499,4 +647,20 @@ func (r *readerAt) ReadAt(p []byte, off int64) (int, error) {
 
 func (r *readerAt) Size() int64 {
 	return r.desc.Size
+}
+
+func simplePatternMatch(pat, s string) bool {
+	if pat == "*" {
+		return true
+	}
+	if strings.HasPrefix(pat, "*") && strings.HasSuffix(pat, "*") {
+		return strings.Contains(s, pat[1:len(pat)-1])
+	}
+	if strings.HasPrefix(pat, "*") {
+		return strings.HasSuffix(s, pat[1:])
+	}
+	if strings.HasSuffix(pat, "*") {
+		return strings.HasPrefix(s, pat[:len(pat)-1])
+	}
+	return s == pat
 }

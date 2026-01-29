@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -31,12 +31,12 @@ func init() {
 		Citation:      "BRs: 1.6.1, Wildcard Domain Name",
 		Source:        lint.CABFBaselineRequirements,
 		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &DNSNameWildcardOnlyInLeftlabel{},
+		Lint:          NewDNSNameWildcardOnlyInLeftlabel,
 	})
 }
 
-func (l *DNSNameWildcardOnlyInLeftlabel) Initialize() error {
-	return nil
+func NewDNSNameWildcardOnlyInLeftlabel() lint.LintInterface {
+	return &DNSNameWildcardOnlyInLeftlabel{}
 }
 
 func (l *DNSNameWildcardOnlyInLeftlabel) CheckApplies(c *x509.Certificate) bool {

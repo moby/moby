@@ -211,7 +211,7 @@ func compareBindings(a, b []portmapperapi.PortBinding) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		if !comparePortBinding(&a[i].PortBinding, &b[i].PortBinding) {
 			return false
 		}
@@ -1250,7 +1250,7 @@ func TestCreateParallel(t *testing.T) {
 	ipV4Data := getIPv4Data(t)
 
 	ch := make(chan error, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		name := "net" + strconv.Itoa(i)
 		c.Go(t, func() {
 			config := &networkConfiguration{BridgeName: name, EnableIPv4: true}
@@ -1269,7 +1269,7 @@ func TestCreateParallel(t *testing.T) {
 	}
 	// wait for the go routines
 	var success int
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		val := <-ch
 		if val == nil {
 			success++

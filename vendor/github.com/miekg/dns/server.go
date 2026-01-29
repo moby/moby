@@ -194,7 +194,9 @@ type DecorateWriter func(Writer) Writer
 // rejected (or ignored) by the MsgAcceptFunc, or passed to this function.
 type MsgInvalidFunc func(m []byte, err error)
 
-func DefaultMsgInvalidFunc(m []byte, err error) {}
+var DefaultMsgInvalidFunc MsgInvalidFunc = defaultMsgInvalidFunc
+
+func defaultMsgInvalidFunc(m []byte, err error) {}
 
 // A Server defines parameters for running an DNS server.
 type Server struct {
@@ -332,7 +334,7 @@ func (srv *Server) ListenAndServe() error {
 		return srv.serveTCP(l)
 	case "tcp-tls", "tcp4-tls", "tcp6-tls":
 		if srv.TLSConfig == nil || (len(srv.TLSConfig.Certificates) == 0 && srv.TLSConfig.GetCertificate == nil) {
-			return errors.New("dns: neither Certificates nor GetCertificate set in Config")
+			return errors.New("neither Certificates nor GetCertificate set in config")
 		}
 		network := strings.TrimSuffix(srv.Net, "-tls")
 		l, err := listenTCP(network, addr, srv.ReusePort, srv.ReuseAddr)

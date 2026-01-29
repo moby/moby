@@ -26,6 +26,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -193,12 +194,7 @@ func (p *Plugin) implements(kind string) bool {
 	if p.Manifest == nil {
 		return false
 	}
-	for _, driver := range p.Manifest.Implements {
-		if driver == kind {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(p.Manifest.Implements, kind)
 }
 
 func loadWithRetry(name string, retry bool) (*Plugin, error) {

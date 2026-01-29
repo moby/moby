@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -96,12 +97,7 @@ func TestGetVersions(t *testing.T) {
 }
 
 func containsVersion(versions []Version, version Version) bool {
-	for _, v := range versions {
-		if v == version {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(versions, version)
 }
 
 func TestSelectXattrsV1(t *testing.T) {

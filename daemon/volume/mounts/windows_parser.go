@@ -214,6 +214,10 @@ func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, _ error
 }
 
 func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValidators ...mountValidator) error {
+	if err := validateExclusiveOptions(mnt); err != nil {
+		return &errMountConfig{mount: mnt, err: err}
+	}
+
 	if mnt.Target == "" {
 		return &errMountConfig{mnt, errMissingField("Target")}
 	}
@@ -234,9 +238,6 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 				return &errMountConfig{mnt, fmt.Errorf("invalid propagation mode: %s", opts.Propagation)}
 			}
 		}
-		if mnt.VolumeOptions != nil {
-			return &errMountConfig{mnt, errExtraField("VolumeOptions")}
-		}
 
 		if err := windowsValidateAbsolute(mnt.Source); err != nil {
 			return &errMountConfig{mnt, err}
@@ -254,10 +255,6 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 		}
 
 	case mount.TypeVolume:
-		if mnt.BindOptions != nil {
-			return &errMountConfig{mnt, errExtraField("BindOptions")}
-		}
-
 		anonymousVolume := mnt.Source == ""
 		if mnt.VolumeOptions != nil && mnt.VolumeOptions.Subpath != "" {
 			if anonymousVolume {
@@ -270,10 +267,6 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 			}
 		}
 
-		if anonymousVolume && mnt.ReadOnly {
-			return &errMountConfig{mnt, errors.New("must not set ReadOnly mode when using anonymous volumes")}
-		}
-
 		if mnt.Source != "" {
 			if err := p.ValidateVolumeName(mnt.Source); err != nil {
 				return &errMountConfig{mnt, err}
@@ -282,10 +275,6 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 	case mount.TypeNamedPipe:
 		if mnt.Source == "" {
 			return &errMountConfig{mnt, errMissingField("Source")}
-		}
-
-		if mnt.BindOptions != nil {
-			return &errMountConfig{mnt, errExtraField("BindOptions")}
 		}
 
 		if mnt.ReadOnly {

@@ -157,7 +157,7 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *testing.T) {
 
 	// Verify that the line for 'dockercore/engine-pull-all-test-fixture:latest' is left unchanged.
 	var latestLine string
-	for _, line := range strings.Split(outImageAllTagCmd, "\n") {
+	for line := range strings.SplitSeq(outImageAllTagCmd, "\n") {
 		if strings.HasPrefix(line, "dockercore/engine-pull-all-test-fixture") && strings.Contains(line, "latest") {
 			latestLine = line
 			break

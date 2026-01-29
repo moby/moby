@@ -2,6 +2,7 @@ package linter
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 
@@ -19,7 +20,7 @@ type Config struct {
 }
 
 type Linter struct {
-	CalledRules       []string
+	CalledRules       *[]string
 	ExperimentalAll   bool
 	ExperimentalRules map[string]struct{}
 	ReturnAsError     bool
@@ -32,7 +33,7 @@ func New(config *Config) *Linter {
 	toret := &Linter{
 		SkippedRules:      map[string]struct{}{},
 		ExperimentalRules: map[string]struct{}{},
-		CalledRules:       []string{},
+		CalledRules:       new([]string),
 		Warn:              config.Warn,
 	}
 	toret.SkipAll = config.SkipAll
@@ -65,20 +66,70 @@ func (lc *Linter) Run(rule LinterRuleI, location []parser.Range, txt ...string) 
 		}
 	}
 
-	lc.CalledRules = append(lc.CalledRules, rulename)
+	*lc.CalledRules = append(*lc.CalledRules, rulename)
 	rule.Run(lc.Warn, location, txt...)
+}
+
+func (lc *Linter) WithMergedConfig(other *Config) *Linter {
+	cloned := *lc
+	if other.ExperimentalAll {
+		cloned.ExperimentalAll = true
+	}
+
+	if len(other.ExperimentalRules) > 0 {
+		cloned.ExperimentalRules = maps.Clone(cloned.ExperimentalRules)
+		for _, rulename := range other.ExperimentalRules {
+			cloned.ExperimentalRules[rulename] = struct{}{}
+		}
+	}
+
+	if other.SkipAll {
+		cloned.SkipAll = true
+	}
+
+	if len(other.SkipRules) > 0 {
+		cloned.SkippedRules = maps.Clone(cloned.SkippedRules)
+		for _, rulename := range other.SkipRules {
+			cloned.SkippedRules[rulename] = struct{}{}
+		}
+	}
+	return &cloned
+}
+
+func (lc *Linter) WithMergedConfigFromComments(comments []string) *Linter {
+	if comments == nil {
+		return lc
+	}
+
+	for _, comment := range comments {
+		p := parser.DirectiveParser{}
+		p.SetComment("")
+
+		d, _ := p.ParseLine([]byte(comment))
+		if d == nil || d.Name != "check" {
+			continue
+		}
+
+		v, _, _ := strings.Cut(d.Value, " ")
+		lintConfig, err := ParseLintOptions(v)
+		if err != nil {
+			return lc
+		}
+		return lc.WithMergedConfig(lintConfig)
+	}
+	return lc
 }
 
 func (lc *Linter) Error() error {
 	if lc == nil || !lc.ReturnAsError {
 		return nil
 	}
-	if len(lc.CalledRules) == 0 {
+	if len(*lc.CalledRules) == 0 {
 		return nil
 	}
 	var rules []string
 	uniqueRules := map[string]struct{}{}
-	for _, r := range lc.CalledRules {
+	for _, r := range *lc.CalledRules {
 		uniqueRules[r] = struct{}{}
 	}
 	for r := range uniqueRules {

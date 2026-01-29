@@ -168,7 +168,7 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer l.Close()
-	for i := 0; i < 36; i++ {
+	for i := range 36 {
 		if err := l.Log(&logger.Message{Line: []byte("line" + strconv.Itoa(i)), Source: "src1"}); err != nil {
 			t.Fatal(err)
 		}

@@ -22,6 +22,7 @@ on:
 env:
   GO_VERSION: "1.25.6"
   TESTSTAT_VERSION: v0.1.25
+  TEMPLATE_NAME: ${{ inputs.template }}
 
 jobs:
   integration:
@@ -42,13 +43,13 @@ jobs:
         uses: actions/checkout@v6
       -
         name: Set up Lima
-        uses: lima-vm/lima-actions/setup@03b96d61959e83b2c737e44162c3088e81de0886  # v1.0.1
+        uses: lima-vm/lima-actions/setup@55627e31b78637bf254a8b2a14da8ea7d12564e5  # v1.1.0
         id: lima-actions-setup
         with:
-          version: v1.2.2
+          version: v2.0.2
       -
         name: Cache ~/.cache/lima
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/lima
           key: lima-${{ steps.lima-actions-setup.outputs.version }}-${{ inputs.template }}
@@ -147,7 +148,8 @@ jobs:
         run: |
           set -eux -o pipefail
           limactl cp -v -r default:/tmp/docker/bundles . || true
-          reportsName="$(basename ${{ inputs.template }})"
+          reportsName="${{ env.TEMPLATE_NAME }}"
+          reportsName="${reportsName#template:}"
           if [ -n "${{ matrix.mode }}" ]; then
             reportsName="$reportsName-${{ matrix.mode }}"
           fi
@@ -167,7 +169,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: test-reports-integration-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
@@ -189,10 +191,13 @@ jobs:
           cache: false
       -
         name: Prepare reports
-        run: echo "TESTREPORTS_NAME=$(basename ${{ inputs.template }})*" >> $GITHUB_ENV
+        run: |
+          TEMPLATE="${{ env.TEMPLATE_NAME }}"
+          TEMPLATE="${TEMPLATE#template:}"
+          echo "TESTREPORTS_NAME=${TEMPLATE}*" >> $GITHUB_ENV
       -
         name: Download reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: /tmp/reports
           pattern: test-reports-integration-${{ env.TESTREPORTS_NAME }}

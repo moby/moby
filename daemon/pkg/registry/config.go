@@ -102,9 +102,7 @@ func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
 // copy constructs a new ServiceConfig with a copy of the configuration in config.
 func (config *serviceConfig) copy() *registry.ServiceConfig {
 	ic := make(map[string]*registry.IndexInfo)
-	for key, value := range config.IndexConfigs {
-		ic[key] = value
-	}
+	maps.Copy(ic, config.IndexConfigs)
 	return &registry.ServiceConfig{
 		InsecureRegistryCIDRs: slices.Clone(config.InsecureRegistryCIDRs),
 		IndexConfigs:          ic,

@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -33,14 +33,15 @@ func init() {
 		Citation:      "https://support.apple.com/en-us/HT205280",
 		Source:        lint.AppleRootStorePolicy,
 		EffectiveDate: util.AppleCTPolicyDate,
-		Lint:          &sctPolicyCount{},
+		Lint:          NewSctPolicyCount,
 	})
 }
 
-// Initialize for a sctPolicyCount instance does nothing.
-func (l *sctPolicyCount) Initialize() error {
-	return nil
+func NewSctPolicyCount() lint.LintInterface {
+	return &sctPolicyCount{}
 }
+
+// Initialize for a sctPolicyCount instance does nothing.
 
 // CheckApplies returns true for any subscriber certificates that are not
 // precertificates (e.g. that do not have the CT poison extension defined in RFC

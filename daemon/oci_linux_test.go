@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -119,7 +120,7 @@ func TestIpcPrivateVsReadonly(t *testing.T) {
 		if m.Destination != "/dev/shm" {
 			continue
 		}
-		assert.Check(t, is.Equal(false, inSlice(m.Options, "ro")))
+		assert.Check(t, is.Equal(false, slices.Contains(m.Options, "ro")))
 	}
 }
 

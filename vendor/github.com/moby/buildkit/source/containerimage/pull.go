@@ -94,7 +94,7 @@ func (p *puller) CacheKey(ctx context.Context, jobCtx solver.JobContext, index i
 	var getResolver pull.SessionResolver
 	switch p.ResolverType {
 	case ResolverTypeRegistry:
-		resolver := resolver.DefaultPool.GetResolver(p.RegistryHosts, p.Ref, "pull", p.SessionManager, g).WithImageStore(p.ImageStore, p.Mode)
+		resolver := resolver.DefaultPool.GetResolver(p.RegistryHosts, p.Ref, resolver.ScopeType{}, p.SessionManager, g).WithImageStore(p.ImageStore, p.Mode)
 		p.Resolver = resolver
 		getResolver = func(g session.Group) remotes.Resolver { return resolver.WithSession(g) }
 	case ResolverTypeOCILayout:
@@ -218,7 +218,7 @@ func (p *puller) Snapshot(ctx context.Context, jobCtx solver.JobContext) (ir cac
 	var getResolver pull.SessionResolver
 	switch p.ResolverType {
 	case ResolverTypeRegistry:
-		resolver := resolver.DefaultPool.GetResolver(p.RegistryHosts, p.Ref, "pull", p.SessionManager, g).WithImageStore(p.ImageStore, p.Mode)
+		resolver := resolver.DefaultPool.GetResolver(p.RegistryHosts, p.Ref, resolver.ScopeType{}, p.SessionManager, g).WithImageStore(p.ImageStore, p.Mode)
 		p.Resolver = resolver
 		getResolver = func(g session.Group) remotes.Resolver { return resolver.WithSession(g) }
 	case ResolverTypeOCILayout:

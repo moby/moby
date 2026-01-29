@@ -330,7 +330,6 @@ func (md *Message) unmarshalFull(b []byte, sb *strs.Builder) {
 				md.L1.Extensions.List[extensionIdx].unmarshalFull(v, sb)
 				extensionIdx++
 			case genid.DescriptorProto_Options_field_number:
-				md.unmarshalOptions(v)
 				rawOptions = appendOptions(rawOptions, v)
 			}
 		default:
@@ -354,27 +353,6 @@ func (md *Message) unmarshalFull(b []byte, sb *strs.Builder) {
 		}
 	}
 	md.L2.Options = md.L0.ParentFile.builder.optionsUnmarshaler(&descopts.Message, rawOptions)
-}
-
-func (md *Message) unmarshalOptions(b []byte) {
-	for len(b) > 0 {
-		num, typ, n := protowire.ConsumeTag(b)
-		b = b[n:]
-		switch typ {
-		case protowire.VarintType:
-			v, m := protowire.ConsumeVarint(b)
-			b = b[m:]
-			switch num {
-			case genid.MessageOptions_MapEntry_field_number:
-				md.L1.IsMapEntry = protowire.DecodeBool(v)
-			case genid.MessageOptions_MessageSetWireFormat_field_number:
-				md.L1.IsMessageSet = protowire.DecodeBool(v)
-			}
-		default:
-			m := protowire.ConsumeFieldValue(num, typ, b)
-			b = b[m:]
-		}
-	}
 }
 
 func unmarshalMessageReservedRange(b []byte) (r [2]protoreflect.FieldNumber) {

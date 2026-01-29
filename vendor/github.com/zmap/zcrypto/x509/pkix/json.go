@@ -5,11 +5,12 @@
 package pkix
 
 import (
-	"encoding/asn1"
 	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
+
+	"github.com/zmap/zcrypto/encoding/asn1"
 )
 
 type auxAttributeTypeAndValue struct {

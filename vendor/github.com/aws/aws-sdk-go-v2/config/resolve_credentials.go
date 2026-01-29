@@ -13,10 +13,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/credentials/ec2rolecreds"
 	"github.com/aws/aws-sdk-go-v2/credentials/endpointcreds"
+	"github.com/aws/aws-sdk-go-v2/credentials/logincreds"
 	"github.com/aws/aws-sdk-go-v2/credentials/processcreds"
 	"github.com/aws/aws-sdk-go-v2/credentials/ssocreds"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+	"github.com/aws/aws-sdk-go-v2/service/signin"
 	"github.com/aws/aws-sdk-go-v2/service/sso"
 	"github.com/aws/aws-sdk-go-v2/service/ssooidc"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
@@ -172,7 +174,10 @@ func resolveCredsFromProfile(ctx context.Context, cfg *aws.Config, envConfig *En
 			ctx = addCredentialSource(ctx, aws.CredentialSourceProfileSSO)
 		}
 		err = resolveSSOCredentials(ctx, cfg, sharedConfig, configs)
-
+	case len(sharedConfig.LoginSession) > 0:
+		ctx = addCredentialSource(ctx, aws.CredentialSourceProfileLogin)
+		ctx = addCredentialSource(ctx, aws.CredentialSourceLogin)
+		err = resolveLoginCredentials(ctx, cfg, sharedConfig, configs)
 	case len(sharedConfig.CredentialProcess) != 0:
 		// Get credentials from CredentialProcess
 		ctx = addCredentialSource(ctx, aws.CredentialSourceProfileProcess)
@@ -624,4 +629,22 @@ func addCredentialSource(ctx context.Context, source aws.CredentialSource) conte
 
 func getCredentialSources(ctx context.Context) []aws.CredentialSource {
 	return ctx.Value(credentialSource{}).([]aws.CredentialSource)
+}
+
+func resolveLoginCredentials(ctx context.Context, cfg *aws.Config, sharedCfg *SharedConfig, configs configs) error {
+	cacheDir := os.Getenv("AWS_LOGIN_CACHE_DIRECTORY")
+	tokenPath, err := logincreds.StandardCachedTokenFilepath(sharedCfg.LoginSession, cacheDir)
+	if err != nil {
+		return err
+	}
+
+	svc := signin.NewFromConfig(*cfg)
+	provider := logincreds.New(svc, tokenPath, func(o *logincreds.Options) {
+		o.CredentialSources = getCredentialSources(ctx)
+	})
+	cfg.Credentials, err = wrapWithCredentialsCache(ctx, configs, provider)
+	if err != nil {
+		return err
+	}
+	return nil
 }

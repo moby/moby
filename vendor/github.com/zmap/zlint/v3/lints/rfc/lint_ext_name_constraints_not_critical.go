@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -37,16 +37,16 @@ Restrictions are defined in terms of permitted or excluded name
 func init() {
 	lint.RegisterLint(&lint.Lint{
 		Name:          "e_ext_name_constraints_not_critical",
-		Description:   "If it is included, conforming CAs MUST mark the name constrains extension as critical",
+		Description:   "If it is included, conforming CAs MUST mark the name constraints extension as critical",
 		Citation:      "RFC 5280: 4.2.1.10",
 		Source:        lint.RFC5280,
 		EffectiveDate: util.RFC2459Date,
-		Lint:          &nameConstraintCrit{},
+		Lint:          NewNameConstraintCrit,
 	})
 }
 
-func (l *nameConstraintCrit) Initialize() error {
-	return nil
+func NewNameConstraintCrit() lint.LintInterface {
+	return &nameConstraintCrit{}
 }
 
 func (l *nameConstraintCrit) CheckApplies(c *x509.Certificate) bool {

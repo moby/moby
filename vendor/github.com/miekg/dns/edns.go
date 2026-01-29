@@ -24,6 +24,8 @@ const (
 	EDNS0TCPKEEPALIVE = 0xb     // EDNS0 tcp keep alive (See RFC 7828)
 	EDNS0PADDING      = 0xc     // EDNS0 padding (See RFC 7830)
 	EDNS0EDE          = 0xf     // EDNS0 extended DNS errors (See RFC 8914)
+	EDNS0REPORTING    = 0x12    // EDNS0 reporting (See RFC 9567)
+	EDNS0ZONEVERSION  = 0x13    // EDNS0 Zone Version (See RFC 9660)
 	EDNS0LOCALSTART   = 0xFDE9  // Beginning of range reserved for local/experimental use (See RFC 6891)
 	EDNS0LOCALEND     = 0xFFFE  // End of range reserved for local/experimental use (See RFC 6891)
 	_DO               = 1 << 15 // DNSSEC OK
@@ -60,6 +62,10 @@ func makeDataOpt(code uint16) EDNS0 {
 		return new(EDNS0_EDE)
 	case EDNS0ESU:
 		return new(EDNS0_ESU)
+	case EDNS0REPORTING:
+		return new(EDNS0_REPORTING)
+	case EDNS0ZONEVERSION:
+		return new(EDNS0_ZONEVERSION)
 	default:
 		e := new(EDNS0_LOCAL)
 		e.Code = code
@@ -75,17 +81,16 @@ type OPT struct {
 
 func (rr *OPT) String() string {
 	s := "\n;; OPT PSEUDOSECTION:\n; EDNS: version " + strconv.Itoa(int(rr.Version())) + "; "
+	s += "flags:"
 	if rr.Do() {
-		if rr.Co() {
-			s += "flags: do, co; "
-		} else {
-			s += "flags: do; "
-		}
-	} else {
-		s += "flags:; "
+		s += " do"
 	}
-	if rr.Hdr.Ttl&0x7FFF != 0 {
-		s += fmt.Sprintf("MBZ: 0x%04x, ", rr.Hdr.Ttl&0x7FFF)
+	if rr.Co() {
+		s += " co"
+	}
+	s += "; "
+	if z := rr.Z(); z != 0 {
+		s += fmt.Sprintf("MBZ: 0x%04x, ", z)
 	}
 	s += "udp: " + strconv.Itoa(int(rr.UDPSize()))
 
@@ -127,6 +132,10 @@ func (rr *OPT) String() string {
 			s += "\n; EDE: " + o.String()
 		case *EDNS0_ESU:
 			s += "\n; ESU: " + o.String()
+		case *EDNS0_REPORTING:
+			s += "\n; REPORT-CHANNEL: " + o.String()
+		case *EDNS0_ZONEVERSION:
+			s += "\n; ZONEVERSION: " + o.String()
 		}
 	}
 	return s
@@ -308,41 +317,54 @@ type EDNS0_SUBNET struct {
 func (e *EDNS0_SUBNET) Option() uint16 { return EDNS0SUBNET }
 
 func (e *EDNS0_SUBNET) pack() ([]byte, error) {
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint16(b[0:], e.Family)
-	b[2] = e.SourceNetmask
-	b[3] = e.SourceScope
 	switch e.Family {
 	case 0:
 		// "dig" sets AddressFamily to 0 if SourceNetmask is also 0
 		// We might don't need to complain either
 		if e.SourceNetmask != 0 {
-			return nil, errors.New("dns: bad address family")
+			return nil, errors.New("bad address family")
 		}
+		b := make([]byte, 4)
+		b[3] = e.SourceScope
+		return b, nil
 	case 1:
 		if e.SourceNetmask > net.IPv4len*8 {
-			return nil, errors.New("dns: bad netmask")
+			return nil, errors.New("bad netmask")
 		}
-		if len(e.Address.To4()) != net.IPv4len {
-			return nil, errors.New("dns: bad address")
+		ip4 := e.Address.To4()
+		if len(ip4) != net.IPv4len {
+			return nil, errors.New("bad address")
 		}
-		ip := e.Address.To4().Mask(net.CIDRMask(int(e.SourceNetmask), net.IPv4len*8))
 		needLength := (e.SourceNetmask + 8 - 1) / 8 // division rounding up
-		b = append(b, ip[:needLength]...)
+		b := make([]byte, 4+needLength)
+		binary.BigEndian.PutUint16(b[0:], e.Family)
+		b[2] = e.SourceNetmask
+		b[3] = e.SourceScope
+		if needLength > 0 {
+			ip := ip4.Mask(net.CIDRMask(int(e.SourceNetmask), net.IPv4len*8))
+			copy(b[4:], ip[:needLength])
+		}
+		return b, nil
 	case 2:
 		if e.SourceNetmask > net.IPv6len*8 {
-			return nil, errors.New("dns: bad netmask")
+			return nil, errors.New("bad netmask")
 		}
 		if len(e.Address) != net.IPv6len {
-			return nil, errors.New("dns: bad address")
+			return nil, errors.New("bad address")
 		}
-		ip := e.Address.Mask(net.CIDRMask(int(e.SourceNetmask), net.IPv6len*8))
 		needLength := (e.SourceNetmask + 8 - 1) / 8 // division rounding up
-		b = append(b, ip[:needLength]...)
+		b := make([]byte, 4+needLength)
+		binary.BigEndian.PutUint16(b[0:], e.Family)
+		b[2] = e.SourceNetmask
+		b[3] = e.SourceScope
+		if needLength > 0 {
+			ip := e.Address.Mask(net.CIDRMask(int(e.SourceNetmask), net.IPv6len*8))
+			copy(b[4:], ip[:needLength])
+		}
+		return b, nil
 	default:
-		return nil, errors.New("dns: bad address family")
+		return nil, errors.New("bad address family")
 	}
-	return b, nil
 }
 
 func (e *EDNS0_SUBNET) unpack(b []byte) error {
@@ -357,25 +379,25 @@ func (e *EDNS0_SUBNET) unpack(b []byte) error {
 		// "dig" sets AddressFamily to 0 if SourceNetmask is also 0
 		// It's okay to accept such a packet
 		if e.SourceNetmask != 0 {
-			return errors.New("dns: bad address family")
+			return errors.New("bad address family")
 		}
 		e.Address = net.IPv4(0, 0, 0, 0)
 	case 1:
 		if e.SourceNetmask > net.IPv4len*8 || e.SourceScope > net.IPv4len*8 {
-			return errors.New("dns: bad netmask")
+			return errors.New("bad netmask")
 		}
 		addr := make(net.IP, net.IPv4len)
 		copy(addr, b[4:])
 		e.Address = addr.To16()
 	case 2:
 		if e.SourceNetmask > net.IPv6len*8 || e.SourceScope > net.IPv6len*8 {
-			return errors.New("dns: bad netmask")
+			return errors.New("bad netmask")
 		}
 		addr := make(net.IP, net.IPv6len)
 		copy(addr, b[4:])
 		e.Address = addr
 	default:
-		return errors.New("dns: bad address family")
+		return errors.New("bad address family")
 	}
 	return nil
 }
@@ -720,7 +742,7 @@ func (e *EDNS0_TCP_KEEPALIVE) unpack(b []byte) error {
 	case 2:
 		e.Timeout = binary.BigEndian.Uint16(b)
 	default:
-		return fmt.Errorf("dns: length mismatch, want 0/2 but got %d", len(b))
+		return fmt.Errorf("length mismatch, want 0/2 but got %d", len(b))
 	}
 	return nil
 }
@@ -873,5 +895,76 @@ func (e *EDNS0_ESU) copy() EDNS0           { return &EDNS0_ESU{e.Code, e.Uri} }
 func (e *EDNS0_ESU) pack() ([]byte, error) { return []byte(e.Uri), nil }
 func (e *EDNS0_ESU) unpack(b []byte) error {
 	e.Uri = string(b)
+	return nil
+}
+
+// EDNS0_REPORTING implements the EDNS0 Reporting Channel option (RFC 9567).
+type EDNS0_REPORTING struct {
+	Code        uint16 // always EDNS0REPORTING
+	AgentDomain string
+}
+
+func (e *EDNS0_REPORTING) Option() uint16 { return EDNS0REPORTING }
+func (e *EDNS0_REPORTING) String() string { return e.AgentDomain }
+func (e *EDNS0_REPORTING) copy() EDNS0    { return &EDNS0_REPORTING{e.Code, e.AgentDomain} }
+func (e *EDNS0_REPORTING) pack() ([]byte, error) {
+	b := make([]byte, 255)
+	off1, err := PackDomainName(Fqdn(e.AgentDomain), b, 0, nil, false)
+	if err != nil {
+		return nil, fmt.Errorf("bad agent domain: %w", err)
+	}
+	return b[:off1], nil
+}
+func (e *EDNS0_REPORTING) unpack(b []byte) error {
+	domain, _, err := UnpackDomainName(b, 0)
+	if err != nil {
+		return fmt.Errorf("bad agent domain: %w", err)
+	}
+	e.AgentDomain = domain
+	return nil
+}
+
+// EDNS0_ZONEVERSION implements the EDNS0 Zone Version option (RFC 9660).
+type EDNS0_ZONEVERSION struct {
+	// always EDNS0ZONEVERSION (19)
+	Code uint16
+	// An unsigned 1-octet Label Count indicating
+	// the number of labels for the name of the zone that VERSION value refers to.
+	LabelCount uint8
+	// An unsigned 1-octet type number distinguishing the format and meaning of version.
+	// 0 SOA-SERIAL, 1-245 Unassigned, 246-255 Reserved for private use, see RFC 9660.
+	Type uint8
+	// An opaque octet string conveying the zone version data (VERSION).
+	Version string
+}
+
+func (e *EDNS0_ZONEVERSION) Option() uint16 { return EDNS0ZONEVERSION }
+func (e *EDNS0_ZONEVERSION) String() string { return e.Version }
+func (e *EDNS0_ZONEVERSION) copy() EDNS0 {
+	return &EDNS0_ZONEVERSION{e.Code, e.LabelCount, e.Type, e.Version}
+}
+func (e *EDNS0_ZONEVERSION) pack() ([]byte, error) {
+	b := []byte{
+		// first octet label count
+		e.LabelCount,
+		// second octet is type
+		e.Type,
+	}
+	if len(e.Version) > 0 {
+		b = append(b, []byte(e.Version)...)
+	}
+	return b, nil
+}
+func (e *EDNS0_ZONEVERSION) unpack(b []byte) error {
+	if len(b) < 2 {
+		return ErrBuf
+	}
+	e.LabelCount = b[0]
+	e.Type = b[1]
+	if len(b) > 2 {
+		e.Version = string(b[2:])
+	} else {
+		e.Version = ""
+	}
 	return nil
 }

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":gitSignOff"
+  ],
+  "postUpdateOptions": ["gomodTidy"],
+  "packageRules": [
+    {
+      "matchDatasources": ["go"],
+      "groupName": "golang.org/x packages",
+      "groupSlug": "golang-x",
+      "matchPackageNames": ["/^golang\\.org\\/x\\//"]
+    },
+    {
+      // Do not update "api" and "client" module dependencies. We keep dependency
+      // versions low for these to stick with "MVS" (Minimum Version Selection);
+      // https://research.swtch.com/vgo-mvs
+      //
+      // The order of rules matters, because later rules may override configuration
+      // options from earlier ones, if they both specify the same option.
+      // https://docs.renovatebot.com/configuration-options/#packagerules
+      "matchManagers": ["gomod"],
+      "matchPaths": ["api/go.mod", "client/go.mod"],
+      "enabled": false
+    }
+  ],
+  "ignoreDeps": [
+    // We're using the "v2" branch, not the default ("v1") branch.
+    "github.com/Graylog2/go-gelf",
+  ]
+}

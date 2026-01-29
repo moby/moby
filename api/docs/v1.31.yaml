@@ -131,6 +131,34 @@ tags:
     x-displayName: "System"
 
 definitions:
+  ImageHistoryResponseItem:
+    type: "object"
+    x-go-name: HistoryResponseItem
+    title: "HistoryResponseItem"
+    description: "individual image layer information in response to ImageHistory operation"
+    required: [Id, Created, CreatedBy, Tags, Size, Comment]
+    properties:
+      Id:
+        type: "string"
+        x-nullable: false
+      Created:
+        type: "integer"
+        format: "int64"
+        x-nullable: false
+      CreatedBy:
+        type: "string"
+        x-nullable: false
+      Tags:
+        type: "array"
+        items:
+          type: "string"
+      Size:
+        type: "integer"
+        format: "int64"
+        x-nullable: false
+      Comment:
+        type: "string"
+        x-nullable: false
   Port:
     type: "object"
     description: "An open port on a container"
@@ -157,6 +185,20 @@ definitions:
       PublicPort: 80
       Type: "tcp"
 
+  MountType:
+    description: |-
+      The mount type. Available types:
+
+      - `bind` a mount of a file or directory from the host into the container.
+      - `tmpfs` a `tmpfs`.
+      - `volume` a docker volume with the given `Name`.
+    type: "string"
+    enum:
+      - "bind"
+      - "tmpfs"
+      - "volume"
+    example: "volume"
+
   MountPoint:
     type: "object"
     description: |
@@ -168,13 +210,10 @@ definitions:
           The mount type:
 
           - `bind` a mount of a file or directory from the host into the container.
-          - `volume` a docker volume with the given `Name`.
           - `tmpfs` a `tmpfs`.
-        type: "string"
-        enum:
-          - "bind"
-          - "volume"
-          - "tmpfs"
+          - `volume` a docker volume with the given `Name`.
+        allOf:
+          - $ref: "#/definitions/MountType"
         example: "volume"
       Name:
         description: |
@@ -258,20 +297,20 @@ definitions:
         description: "Container path."
         type: "string"
       Source:
-        description: "Mount source (e.g. a volume name, a host path)."
+        description: |-
+          Mount source (e.g. a volume name, a host path). The source cannot be
+          specified when using `Type=tmpfs`. For `Type=bind`, the source path
+          must exist prior to creating the container.
         type: "string"
       Type:
         description: |
           The mount type. Available types:
 
-          - `bind` Mounts a file or directory from the host into the container. Must exist prior to creating the container.
+          - `bind` Mounts a file or directory from the host into the container. The `Source` must exist prior to creating the container.
+          - `tmpfs` Create a tmpfs with the given options. The mount `Source` cannot be specified for tmpfs.
           - `volume` Creates a volume with the given name and options (or uses a pre-existing volume with the same name and options). These are **not** removed when the container is removed.
-          - `tmpfs` Create a tmpfs with the given options. The mount source cannot be specified for tmpfs.
-        type: "string"
-        enum:
-          - "bind"
-          - "volume"
-          - "tmpfs"
+        allOf:
+          - $ref: "#/definitions/MountType"
       ReadOnly:
         description: "Whether the mount should be read-only."
         type: "boolean"
@@ -325,7 +364,10 @@ definitions:
             type: "integer"
             format: "int64"
           Mode:
-            description: "The permission mode for the tmpfs mount in an integer."
+            description: |
+              The permission mode for the tmpfs mount in an integer.
+              The value must not be in octal format (e.g. 755) but rather
+              the decimal representation of the octal value (e.g. 493).
             type: "integer"
   RestartPolicy:
     description: |
@@ -510,7 +552,9 @@ definitions:
         format: "int64"
 
   HealthConfig:
-    description: "A test to perform to check that the container is healthy."
+    description: |
+      A test to perform to check that the container is healthy.
+      Healthcheck commands should be side-effect free.
     type: "object"
     properties:
       Test:
@@ -521,6 +565,12 @@ definitions:
           - `["NONE"]` disable healthcheck
           - `["CMD", args...]` exec arguments directly
           - `["CMD-SHELL", command]` run command with system's default shell
+
+          A non-zero exit code indicates a failed healthcheck:
+          - `0` healthy
+          - `1` unhealthy
+          - `2` reserved (treated as unhealthy)
+          - other values: error running probe
         type: "array"
         items:
           type: "string"
@@ -2857,8 +2907,8 @@ definitions:
           com.example.some-other-label: "some-other-value"
       Data:
         description: |
-          Data is the data to store as a secret, formatted as a Base64-url-safe-encoded
-          ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-5)) string.
+          Data is the data to store as a secret, formatted as a standard base64-encoded
+          ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-4)) string.
           It must be empty if the Driver field is set, in which case the data is
           loaded from an external secret store. The maximum allowed size is 500KB,
           as defined in [MaxSecretSize](https://pkg.go.dev/github.com/moby/swarmkit/v2@v2.0.0/api/validation#MaxSecretSize).
@@ -2902,8 +2952,8 @@ definitions:
           type: "string"
       Data:
         description: |
-          Data is the data to store as a config, formatted as a Base64-url-safe-encoded
-          ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-5)) string.
+          Data is the data to store as a config, formatted as a standard base64-encoded
+          ([RFC 4648](https://tools.ietf.org/html/rfc4648#section-4)) string.
           The maximum allowed size is 1000KB, as defined in [MaxConfigSize](https://pkg.go.dev/github.com/moby/swarmkit/v2@v2.0.0-20250103191802-8c1959736554/manager/controlapi#MaxConfigSize).
         type: "string"
   Config:
@@ -5149,31 +5199,7 @@ paths:
           schema:
             type: "array"
             items:
-              type: "object"
-              x-go-name: HistoryResponseItem
-              required: [Id, Created, CreatedBy, Tags, Size, Comment]
-              properties:
-                Id:
-                  type: "string"
-                  x-nullable: false
-                Created:
-                  type: "integer"
-                  format: "int64"
-                  x-nullable: false
-                CreatedBy:
-                  type: "string"
-                  x-nullable: false
-                Tags:
-                  type: "array"
-                  items:
-                    type: "string"
-                Size:
-                  type: "integer"
-                  format: "int64"
-                  x-nullable: false
-                Comment:
-                  type: "string"
-                  x-nullable: false
+              $ref: "#/definitions/ImageHistoryResponseItem"
           examples:
             application/json:
               - Id: "3db9c44f45209632d6050b35958829c3a2aa256d81b9a7be45b362ff85c54710"
@@ -5266,7 +5292,12 @@ paths:
   /images/{name}/tag:
     post:
       summary: "Tag an image"
-      description: "Tag an image so that it becomes part of a repository."
+      description: |
+        Create a tag that refers to a source image.
+
+        This creates an additional reference (tag) to the source image. The tag
+        can include a different repository name and/or tag. If the repository
+        or tag already exists, it will be overwritten.
       operationId: "ImageTag"
       responses:
         201:

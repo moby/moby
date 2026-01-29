@@ -67,9 +67,8 @@ func (d *DB) saveFrames(key string, frames []Frame) {
 	if d.db == nil {
 		return
 	}
-	d.wg.Add(1)
-	go func() {
-		defer d.wg.Done()
+
+	d.wg.Go(func() {
 		val, err := encodeFrames(frames)
 		if err != nil {
 			// Optionally log error
@@ -82,7 +81,7 @@ func (d *DB) saveFrames(key string, frames []Frame) {
 			}
 			return b.Put([]byte(key), val)
 		})
-	}()
+	})
 }
 
 func (d *DB) Get(ctx context.Context, dgst string) (Type, []Frame, error) {

@@ -3,7 +3,6 @@ package build
 import (
 	"context"
 	"errors"
-	"net"
 	"testing"
 	"time"
 
@@ -34,15 +33,8 @@ func TestBuildkitHistoryTracePropagation(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 
 	c := testEnv.APIClient()
-	opts := []client.ClientOpt{
-		client.WithSessionDialer(func(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error) {
-			return c.DialHijack(ctx, "/session", proto, meta)
-		}),
-		client.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
-			return c.DialHijack(ctx, "/grpc", "h2c", nil)
-		}),
-	}
-	bc, err := client.New(ctx, "", opts...)
+	bc, err := client.New(ctx, c.DaemonHost())
+
 	assert.NilError(t, err)
 	defer bc.Close()
 

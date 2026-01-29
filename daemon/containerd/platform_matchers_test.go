@@ -168,6 +168,7 @@ func testOnlyAndOnlyStrict(t *testing.T, daemonPlatform platforms.MatchComparer,
 		}
 	})
 }
+
 func TestPlatformsWithPreferenceMatcher(t *testing.T) {
 	platformList := []ocispec.Platform{
 		pLinuxAmd64,

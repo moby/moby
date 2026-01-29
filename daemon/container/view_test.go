@@ -347,11 +347,11 @@ func assertIndexGet(t *testing.T, snapshot *ViewDB, input, expectedResult string
 
 func BenchmarkDBAdd100(b *testing.B) {
 	var testSet []string
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		testSet = append(testSet, stringid.GenerateRandomID())
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		db, err := NewViewDB()
 		if err != nil {
 			b.Fatal(err)
@@ -367,7 +367,7 @@ func BenchmarkDBAdd100(b *testing.B) {
 func BenchmarkDBGetByPrefix100(b *testing.B) {
 	var testSet []string
 	var testKeys []string
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		testSet = append(testSet, stringid.GenerateRandomID())
 	}
 	db, err := NewViewDB()
@@ -381,8 +381,8 @@ func BenchmarkDBGetByPrefix100(b *testing.B) {
 		l := rand.Intn(12) + 12
 		testKeys = append(testKeys, id[:l])
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		for _, id := range testKeys {
 			if res, err := db.GetByPrefix(id); err != nil {
 				b.Fatal(res, err)
@@ -394,7 +394,7 @@ func BenchmarkDBGetByPrefix100(b *testing.B) {
 func BenchmarkDBGetByPrefix250(b *testing.B) {
 	var testSet []string
 	var testKeys []string
-	for i := 0; i < 250; i++ {
+	for range 250 {
 		testSet = append(testSet, stringid.GenerateRandomID())
 	}
 	db, err := NewViewDB()
@@ -408,8 +408,8 @@ func BenchmarkDBGetByPrefix250(b *testing.B) {
 		l := rand.Intn(12) + 12
 		testKeys = append(testKeys, id[:l])
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		for _, id := range testKeys {
 			if res, err := db.GetByPrefix(id); err != nil {
 				b.Fatal(res, err)
@@ -421,7 +421,7 @@ func BenchmarkDBGetByPrefix250(b *testing.B) {
 func BenchmarkDBGetByPrefix500(b *testing.B) {
 	var testSet []string
 	var testKeys []string
-	for i := 0; i < 500; i++ {
+	for range 500 {
 		testSet = append(testSet, stringid.GenerateRandomID())
 	}
 	db, err := NewViewDB()
@@ -435,8 +435,8 @@ func BenchmarkDBGetByPrefix500(b *testing.B) {
 		l := rand.Intn(12) + 12
 		testKeys = append(testKeys, id[:l])
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		for _, id := range testKeys {
 			if res, err := db.GetByPrefix(id); err != nil {
 				b.Fatal(res, err)

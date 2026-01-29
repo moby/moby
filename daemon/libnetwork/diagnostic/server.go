@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -154,13 +155,13 @@ func (s *Server) help(w http.ResponseWriter, r *http.Request) {
 		"url":       r.URL.String(),
 	}).Info("help done")
 
-	var result string
+	var result strings.Builder
 	s.mu.Lock()
 	for path := range s.handlers {
-		result += fmt.Sprintf("%s\n", path)
+		result.WriteString(fmt.Sprintf("%s\n", path))
 	}
 	s.mu.Unlock()
-	_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: result}), jsonOutput)
+	_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: result.String()}), jsonOutput)
 }
 
 func ready(w http.ResponseWriter, r *http.Request) {

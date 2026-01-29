@@ -1,6 +1,7 @@
 package labelstore
 
 import (
+	"maps"
 	"sync"
 
 	"github.com/opencontainers/go-digest"
@@ -40,9 +41,7 @@ func (s *InMemory) Update(dgst digest.Digest, update map[string]string) (map[str
 	if !ok {
 		labels = map[string]string{}
 	}
-	for k, v := range update {
-		labels[k] = v
-	}
+	maps.Copy(labels, update)
 	if s.labels == nil {
 		s.labels = map[digest.Digest]map[string]string{}
 	}

@@ -78,7 +78,7 @@ jobs:
           tree -nh /tmp/reports
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           directory: ./bundles
           env_vars: RUNNER_OS
@@ -87,7 +87,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: test-reports-unit--${{ matrix.mode }}
           path: /tmp/reports/*
@@ -109,7 +109,7 @@ jobs:
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: test-reports-unit-*
           path: /tmp/reports

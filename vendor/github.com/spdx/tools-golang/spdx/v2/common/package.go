@@ -28,14 +28,14 @@ func (s *Supplier) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	supplierFields := strings.SplitN(supplierStr, ": ", 2)
+	supplierFields := strings.SplitN(supplierStr, ":", 2)
 
 	if len(supplierFields) != 2 {
 		return fmt.Errorf("failed to parse Supplier '%s'", supplierStr)
 	}
 
-	s.SupplierType = supplierFields[0]
-	s.Supplier = supplierFields[1]
+	s.SupplierType = strings.TrimSpace(supplierFields[0])
+	s.Supplier = strings.TrimSpace(supplierFields[1])
 
 	return nil
 }
