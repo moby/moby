@@ -118,16 +118,17 @@ func KeyFromPublicKey(k crypto.PublicKey) (*Key, error) {
 	return key, nil
 }
 
-// ID returns the keyID value for the given Key
-func (k *Key) ID() string {
+// ID returns the keyID value for the given Key, or an error if the key
+// cannot be canonically encoded.
+func (k *Key) ID() (string, error) {
 	// the identifier is a hexdigest of the SHA-256 hash of the canonical form of the key
 	if k.id == "" {
 		data, err := cjson.EncodeCanonical(k)
 		if err != nil {
-			panic(fmt.Errorf("error creating key ID: %w", err))
+			return "", fmt.Errorf("error creating key ID: %w", err)
 		}
 		digest := sha256.Sum256(data)
 		k.id = hex.EncodeToString(digest[:])
 	}
-	return k.id
+	return k.id, nil
 }
