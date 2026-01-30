@@ -191,13 +191,13 @@ func newDriver(networkType string, store *datastore.Store) (*driver, error) {
 }
 
 // RegisterBuiltinLocalDrivers registers the builtin local drivers.
-func RegisterBuiltinLocalDrivers(r driverapi.Registerer, store *datastore.Store) error {
+func RegisterBuiltinLocalDrivers(ctx context.Context, r driverapi.Registerer, store *datastore.Store) error {
 	for networkType := range builtinLocalDrivers {
 		d, err := newDriver(networkType, store)
 		if err != nil {
 			return err
 		}
-		err = r.RegisterDriver(networkType, d, driverapi.Capability{
+		err = r.RegisterDriver(ctx, networkType, d, driverapi.Capability{
 			DataScope:         scope.Local,
 			ConnectivityScope: scope.Local,
 		})

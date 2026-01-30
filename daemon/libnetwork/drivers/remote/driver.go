@@ -61,7 +61,7 @@ func Register(r driverapi.Registerer, pg plugingetter.PluginGetter) error {
 			log.G(context.TODO()).Errorf("error getting capability for %s due to %v", name, err)
 			return
 		}
-		if err = r.RegisterDriver(name, d, *c); err != nil {
+		if err = r.RegisterDriver(context.TODO(), name, d, *c); err != nil {
 			log.G(context.TODO()).Errorf("error registering driver for %s due to %v", name, err)
 		}
 		if c.DataScope == scope.Global {

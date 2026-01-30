@@ -211,12 +211,12 @@ func newDriver(store *datastore.Store, config Configuration, pms *drvregistry.Po
 }
 
 // Register registers a new instance of bridge driver.
-func Register(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config Configuration) error {
+func Register(ctx context.Context, r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config Configuration) error {
 	d, err := newDriver(store, config, pms)
 	if err != nil {
 		return err
 	}
-	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
+	return r.RegisterDriver(ctx, NetworkType, d, driverapi.Capability{
 		DataScope:         scope.Local,
 		ConnectivityScope: scope.Local,
 	})

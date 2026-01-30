@@ -810,7 +810,7 @@ type badDriver struct {
 var bd = badDriver{failNetworkCreation: true}
 
 func badDriverRegister(reg driverapi.Registerer) error {
-	return reg.RegisterDriver(badDriverName, &bd, driverapi.Capability{DataScope: scope.Local})
+	return reg.RegisterDriver(context.TODO(), badDriverName, &bd, driverapi.Capability{DataScope: scope.Local})
 }
 
 func (b *badDriver) CreateNetwork(ctx context.Context, nid string, options map[string]any, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
