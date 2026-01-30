@@ -312,6 +312,7 @@ func (idc *imageDeleteConflict) Conflict() {}
 // the image. If quiet is true, any encountered conflicts will be ignored and
 // the function will return nil immediately without deleting the image.
 func (i *ImageService) imageDeleteHelper(ctx context.Context, imgID image.ID, records *[]imagetypes.DeleteResponse, force, prune, quiet bool) error {
+	ctx = context.WithoutCancel(ctx)
 	// First, determine if this image has any conflicts. Ignore soft conflicts
 	// if force is true.
 	c := conflictHard

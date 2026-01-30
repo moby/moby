@@ -358,6 +358,8 @@ func (c *Cluster) UnlockSwarm(ctx context.Context, req types.UnlockRequest) erro
 
 // Leave shuts down Cluster and removes current state.
 func (c *Cluster) Leave(ctx context.Context, force bool) error {
+	ctx = context.WithoutCancel(ctx)
+
 	c.controlMutex.Lock()
 	defer c.controlMutex.Unlock()
 
