@@ -35,10 +35,6 @@
   ],
   "ignoreDeps": [
     // We're using the "v2" branch, not the default ("v1") branch.
-    "github.com/Graylog2/go-gelf",
-    // This action has no tagged releases, so Renovate would open a PR for
-    // every new commit.
-    // TODO: Remove once there's a tagged release.
-    "docker/github-builder-experimental",
+    "github.com/Graylog2/go-gelf"
   ]
 }
