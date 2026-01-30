@@ -47,6 +47,7 @@ import (
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/baggage"
 	"golang.org/x/sys/unix"
 )
@@ -846,7 +847,13 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 	return nil
 }
 
-func configureNetworking(ctx context.Context, controller *libnetwork.Controller, conf *config.Config) error {
+func configureNetworking(ctx context.Context, controller *libnetwork.Controller, conf *config.Config) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "configureNetworking")
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	// Create predefined network "none"
 	if n, _ := controller.NetworkByName(network.NetworkNone); n == nil {
 		if _, err := controller.NewNetwork(ctx, "null", network.NetworkNone, "", libnetwork.NetworkOptionPersist(true)); err != nil {

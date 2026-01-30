@@ -301,14 +301,18 @@ func (c *Controller) clusterAgentInit() {
 			fallthrough
 		case cluster.EventSocketChange, cluster.EventNodeReady:
 			if keysAvailable && c.isSwarmNode() {
+				_, span := otel.Tracer("").Start(context.Background(), "libnetwork.Controller.clusterAgentInit@NodeReady")
 				c.agentOperationStart()
 				if err := c.agentSetup(clusterProvider); err != nil {
 					c.agentStopComplete()
 				} else {
 					c.agentInitComplete()
 				}
+				span.End()
 			}
 		case cluster.EventNodeLeave:
+			_, span := otel.Tracer("").Start(context.Background(), "libnetwork.Controller.clusterAgentInit@EventNodeLeave")
+			defer span.End()
 			c.agentOperationStart()
 			c.mu.Lock()
 			c.keys = nil

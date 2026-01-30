@@ -18,6 +18,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
@@ -996,12 +997,21 @@ func (n *Network) Delete(options ...NetworkDeleteOption) error {
 //     remove load balancer and network if endpoint count == 1
 //   - controller.networkCleanup() -- (true, true)
 //     remove the network no matter what
-func (n *Network) delete(force bool, rmLBEndpoint bool) error {
+func (n *Network) delete(force bool, rmLBEndpoint bool) (retErr error) {
 	n.mu.Lock()
 	c := n.ctrlr
 	name := n.name
 	id := n.id
 	n.mu.Unlock()
+
+	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Network.delete", trace.WithAttributes(
+		attribute.String("nid", id),
+		attribute.String("network.name", name),
+	))
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
 
 	c.networkLocker.Lock(id)
 	defer c.networkLocker.Unlock(id) //nolint:errcheck
@@ -1047,7 +1057,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 				return err
 			}
 			// continue deletion when force is true even on error
-			log.G(context.TODO()).Warnf("Error deleting load balancer sandbox: %v", err)
+			log.G(ctx).Warnf("Error deleting load balancer sandbox: %v", err)
 		}
 	}
 
@@ -1058,7 +1068,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 
 	// Mark the network for deletion
 	n.inDelete = true
-	if err = c.storeNetwork(context.TODO(), n); err != nil {
+	if err = c.storeNetwork(ctx, n); err != nil {
 		return fmt.Errorf("error marking network %s (%s) for deletion: %v", n.Name(), n.ID(), err)
 	}
 
@@ -1076,7 +1086,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 	// bindings cleanup requires the network in the store.
 	n.cancelDriverWatches()
 	if err = n.leaveCluster(); err != nil {
-		log.G(context.TODO()).Errorf("Failed leaving network %s from the agent cluster: %v", n.Name(), err)
+		log.G(ctx).Errorf("Failed leaving network %s from the agent cluster: %v", n.Name(), err)
 	}
 
 	// Cleanup the service discovery for this network
@@ -1094,7 +1104,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 		if !force {
 			return err
 		}
-		log.G(context.TODO()).Debugf("driver failed to delete stale network %s (%s): %v", n.Name(), n.ID(), err)
+		log.G(ctx).Debugf("driver failed to delete stale network %s (%s): %v", n.Name(), n.ID(), err)
 	}
 
 removeFromStore:
@@ -1104,7 +1114,7 @@ removeFromStore:
 	// can't.
 	if err := c.store.DeleteObject(&endpointCnt{n: n}); err != nil {
 		if !errors.Is(err, datastore.ErrKeyNotFound) {
-			log.G(context.TODO()).WithFields(log.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"network": n.name,
 				"error":   err,
 			}).Debug("Error deleting network endpoint count from store")
@@ -2094,20 +2104,28 @@ func (n *Network) lbEndpointName() string {
 }
 
 func (n *Network) createLoadBalancerSandbox() (retErr error) {
+	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.createLoadBalancerSandbox", trace.WithAttributes(
+		attribute.String("nid", n.id),
+		attribute.String("libnet.network.name", n.name),
+		attribute.Bool("libnet.network.ingress", n.ingress),
+	))
+	defer span.End()
 	sandboxName := n.lbSandboxName()
 	// Mark the sandbox to be a load balancer
 	sbOptions := []SandboxOption{OptionLoadBalancer(n.id)}
 	if n.ingress {
 		sbOptions = append(sbOptions, OptionIngress())
 	}
-	sb, err := n.ctrlr.NewSandbox(context.TODO(), sandboxName, sbOptions...)
+	sb, err := n.ctrlr.NewSandbox(ctx, sandboxName, sbOptions...)
 	if err != nil {
 		return err
 	}
 	defer func() {
+		otelutil.RecordStatus(span, retErr)
 		if retErr != nil {
-			if e := n.ctrlr.SandboxDestroy(context.WithoutCancel(context.TODO()), sandboxName); e != nil {
-				log.G(context.TODO()).Warnf("could not delete sandbox %s on failure on failure (%v): %v", sandboxName, retErr, e)
+			if e := n.ctrlr.SandboxDestroy(context.WithoutCancel(ctx), sandboxName); e != nil {
+				span.RecordError(e)
+				log.G(ctx).Warnf("could not delete sandbox %s on failure on failure (%v): %v", sandboxName, retErr, e)
 			}
 		}
 	}()
@@ -2117,26 +2135,35 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 		CreateOptionIPAM(n.loadBalancerIP, nil, nil),
 		CreateOptionLoadBalancer(),
 	}
-	ep, err := n.createEndpoint(context.TODO(), endpointName, epOptions...)
+	ep, err := n.createEndpoint(ctx, endpointName, epOptions...)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if retErr != nil {
-			if e := ep.Delete(context.WithoutCancel(context.TODO()), true); e != nil {
-				log.G(context.TODO()).Warnf("could not delete endpoint %s on failure on failure (%v): %v", endpointName, retErr, e)
+			if e := ep.Delete(context.WithoutCancel(ctx), true); e != nil {
+				span.RecordError(e)
+				log.G(ctx).Warnf("could not delete endpoint %s on failure on failure (%v): %v", endpointName, retErr, e)
 			}
 		}
 	}()
 
-	if err := ep.Join(context.TODO(), sb, nil); err != nil {
+	if err := ep.Join(ctx, sb, nil); err != nil {
 		return err
 	}
 
 	return sb.EnableService()
 }
 
-func (n *Network) deleteLoadBalancerSandbox() error {
+func (n *Network) deleteLoadBalancerSandbox() (retErr error) {
+	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Network.deleteLoadBalancerSandbox", trace.WithAttributes(
+		attribute.String("nid", n.id),
+	))
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	n.mu.Lock()
 	c := n.ctrlr
 	name := n.name
@@ -2147,26 +2174,26 @@ func (n *Network) deleteLoadBalancerSandbox() error {
 
 	endpoint, err := n.EndpointByName(endpointName)
 	if err != nil {
-		log.G(context.TODO()).Warnf("Failed to find load balancer endpoint %s on network %s: %v", endpointName, name, err)
+		log.G(ctx).Warnf("Failed to find load balancer endpoint %s on network %s: %v", endpointName, name, err)
 	} else {
 		info := endpoint.Info()
 		if info != nil {
 			sb := info.Sandbox()
 			if sb != nil {
 				if err := sb.DisableService(); err != nil {
-					log.G(context.TODO()).Warnf("Failed to disable service on sandbox %s: %v", sandboxName, err)
+					log.G(ctx).Warnf("Failed to disable service on sandbox %s: %v", sandboxName, err)
 					// Ignore error and attempt to delete the load balancer endpoint
 				}
 			}
 		}
 
-		if err := endpoint.Delete(context.TODO(), true); err != nil {
-			log.G(context.TODO()).Warnf("Failed to delete endpoint %s (%s) in %s: %v", endpoint.Name(), endpoint.ID(), sandboxName, err)
+		if err := endpoint.Delete(ctx, true); err != nil {
+			log.G(ctx).Warnf("Failed to delete endpoint %s (%s) in %s: %v", endpoint.Name(), endpoint.ID(), sandboxName, err)
 			// Ignore error and attempt to delete the sandbox.
 		}
 	}
 
-	if err := c.SandboxDestroy(context.TODO(), sandboxName); err != nil {
+	if err := c.SandboxDestroy(ctx, sandboxName); err != nil {
 		return fmt.Errorf("Failed to delete %s sandbox: %v", sandboxName, err)
 	}
 	return nil

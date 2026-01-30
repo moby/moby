@@ -39,7 +39,10 @@ import (
 	"github.com/moby/moby/v2/internal/iterutil"
 	"github.com/moby/moby/v2/internal/sliceutil"
 	"github.com/moby/moby/v2/pkg/plugingetter"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/baggage"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // PredefinedNetworkError is returned when user tries to create predefined network that already exists.
@@ -200,6 +203,12 @@ func (daemon *Daemon) ReleaseIngress() (<-chan struct{}, error) {
 }
 
 func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.NetworkCreateRequest, ip net.IP, staleID string) {
+	ctx, span := otel.Tracer("").Start(context.TODO(), "daemon.setupIngress")
+	defer span.End()
+	ctx = baggage.ContextWithBaggage(ctx, otelutil.MustNewBaggage(
+		otelutil.MustNewMemberRaw(otelutil.TriggerKey, "daemon.setupIngress"),
+	))
+
 	controller := daemon.netController
 	controller.AgentInitWait()
 
@@ -207,9 +216,6 @@ func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.Netw
 		daemon.releaseIngress(staleID)
 	}
 
-	ctx := baggage.ContextWithBaggage(context.TODO(), otelutil.MustNewBaggage(
-		otelutil.MustNewMemberRaw(otelutil.TriggerKey, "daemon.setupIngress"),
-	))
 	if _, err := daemon.createNetwork(ctx, cfg, create.CreateRequest, create.ID, true); err != nil {
 		// If it is any other error other than already
 		// exists error log error and return.
@@ -222,11 +228,16 @@ func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.Netw
 
 	_, err := daemon.GetNetworkByID(create.ID)
 	if err != nil {
-		log.G(context.TODO()).Errorf("Failed getting ingress network by id after creating: %v", err)
+		log.G(ctx).Errorf("Failed getting ingress network by id after creating: %v", err)
 	}
 }
 
 func (daemon *Daemon) releaseIngress(id string) {
+	ctx, span := otel.Tracer("").Start(context.TODO(), "daemon.releaseIngress", trace.WithAttributes(
+		attribute.String("nid", id),
+	))
+	defer span.End()
+
 	controller := daemon.netController
 
 	if id == "" {
@@ -235,12 +246,14 @@ func (daemon *Daemon) releaseIngress(id string) {
 
 	n, err := controller.NetworkByID(id)
 	if err != nil {
-		log.G(context.TODO()).Errorf("failed to retrieve ingress network %s: %v", id, err)
+		log.G(ctx).Errorf("failed to retrieve ingress network %s: %v", id, err)
+		otelutil.RecordStatus(span, err)
 		return
 	}
 
 	if err := n.Delete(libnetwork.NetworkDeleteOptionRemoveLB); err != nil {
-		log.G(context.TODO()).Errorf("Failed to delete ingress network %s: %v", n.ID(), err)
+		log.G(ctx).Errorf("Failed to delete ingress network %s: %v", n.ID(), err)
+		otelutil.RecordStatus(span, err)
 		return
 	}
 }
