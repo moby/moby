@@ -279,8 +279,8 @@ func (n *Namespace) GetLoopbackIfaceName() string {
 }
 
 // AddAliasIP adds the passed IP address to the named interface
-func (n *Namespace) AddAliasIP(ifName string, ip *net.IPNet) error {
-	_, span := otel.Tracer("").Start(context.TODO(), "osl.Namespace.AddAliasIP", trace.WithAttributes(
+func (n *Namespace) AddAliasIP(ctx context.Context, ifName string, ip *net.IPNet) error {
+	ctx, span := otel.Tracer("").Start(ctx, "osl.Namespace.AddAliasIP", trace.WithAttributes(
 		attribute.String("ifName", ifName),
 		attribute.String("ip", ip.String()),
 	))
@@ -293,8 +293,8 @@ func (n *Namespace) AddAliasIP(ifName string, ip *net.IPNet) error {
 }
 
 // RemoveAliasIP removes the passed IP address from the named interface
-func (n *Namespace) RemoveAliasIP(ifName string, ip *net.IPNet) error {
-	_, span := otel.Tracer("").Start(context.TODO(), "osl.Namespace.RemoveAliasIP", trace.WithAttributes(
+func (n *Namespace) RemoveAliasIP(ctx context.Context, ifName string, ip *net.IPNet) error {
+	ctx, span := otel.Tracer("").Start(ctx, "osl.Namespace.RemoveAliasIP", trace.WithAttributes(
 		attribute.String("ifName", ifName),
 		attribute.String("ip", ip.String()),
 	))

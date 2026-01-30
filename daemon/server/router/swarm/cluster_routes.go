@@ -35,7 +35,7 @@ func (sr *swarmRouter) initCluster(ctx context.Context, w http.ResponseWriter, r
 	if versions.LessThan(version, "1.40") {
 		req.DataPathPort = 0
 	}
-	nodeID, err := sr.backend.Init(req)
+	nodeID, err := sr.backend.Init(ctx, req)
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error initializing swarm")
 		return err
@@ -48,7 +48,7 @@ func (sr *swarmRouter) joinCluster(ctx context.Context, w http.ResponseWriter, r
 	if err := httputils.ReadJSON(r, &req); err != nil {
 		return err
 	}
-	return sr.backend.Join(req)
+	return sr.backend.Join(ctx, req)
 }
 
 func (sr *swarmRouter) leaveCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -61,7 +61,7 @@ func (sr *swarmRouter) leaveCluster(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (sr *swarmRouter) inspectCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	swarm, err := sr.backend.Inspect()
+	swarm, err := sr.backend.Inspect(ctx)
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting swarm")
 		return err
@@ -114,7 +114,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 		flags.RotateManagerUnlockKey = rot
 	}
 
-	if err := sr.backend.Update(version, swarm, flags); err != nil {
+	if err := sr.backend.Update(ctx, version, swarm, flags); err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error configuring swarm")
 		return err
 	}
@@ -127,7 +127,7 @@ func (sr *swarmRouter) unlockCluster(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	if err := sr.backend.UnlockSwarm(req); err != nil {
+	if err := sr.backend.UnlockSwarm(ctx, req); err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error unlocking swarm")
 		return err
 	}
@@ -135,7 +135,7 @@ func (sr *swarmRouter) unlockCluster(ctx context.Context, w http.ResponseWriter,
 }
 
 func (sr *swarmRouter) getUnlockKey(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	unlockKey, err := sr.backend.GetUnlockKey()
+	unlockKey, err := sr.backend.GetUnlockKey(ctx)
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error retrieving swarm unlock key")
 		return err
@@ -167,7 +167,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 
-	services, err := sr.backend.GetServices(swarmbackend.ServiceListOptions{Filters: filter, Status: status})
+	services, err := sr.backend.GetServices(ctx, swarmbackend.ServiceListOptions{Filters: filter, Status: status})
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting services")
 		return err
@@ -200,7 +200,7 @@ func (sr *swarmRouter) getService(ctx context.Context, w http.ResponseWriter, r 
 	// required to accommodate it would be too disruptive, and because that
 	// field is so rarely needed as part of an individual service inspection.
 
-	service, err := sr.backend.GetService(vars["id"], insertDefaults)
+	service, err := sr.backend.GetService(ctx, vars["id"], insertDefaults)
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":      err,
@@ -247,7 +247,7 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 	}
 
 	serviceSpec := service.ServiceSpec
-	resp, err := sr.backend.CreateService(serviceSpec, encodedAuth, queryRegistry)
+	resp, err := sr.backend.CreateService(ctx, serviceSpec, encodedAuth, queryRegistry)
 	if err != nil {
 		log.G(ctx).WithFields(log.Fields{
 			"error":        err,
@@ -294,7 +294,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	}
 
 	serviceSpec := service.ServiceSpec
-	resp, err := sr.backend.UpdateService(vars["id"], version, serviceSpec, flags, queryRegistry)
+	resp, err := sr.backend.UpdateService(ctx, vars["id"], version, serviceSpec, flags, queryRegistry)
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":      err,
@@ -306,7 +306,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 }
 
 func (sr *swarmRouter) removeService(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := sr.backend.RemoveService(vars["id"]); err != nil {
+	if err := sr.backend.RemoveService(ctx, vars["id"]); err != nil {
 		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":      err,
 			"service-id": vars["id"],
@@ -349,7 +349,7 @@ func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *h
 		return err
 	}
 
-	nodes, err := sr.backend.GetNodes(swarmbackend.NodeListOptions{Filters: filter})
+	nodes, err := sr.backend.GetNodes(ctx, swarmbackend.NodeListOptions{Filters: filter})
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting nodes")
 		return err
@@ -359,7 +359,7 @@ func (sr *swarmRouter) getNodes(ctx context.Context, w http.ResponseWriter, r *h
 }
 
 func (sr *swarmRouter) getNode(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	node, err := sr.backend.GetNode(vars["id"])
+	node, err := sr.backend.GetNode(ctx, vars["id"])
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":   err,
@@ -384,7 +384,7 @@ func (sr *swarmRouter) updateNode(ctx context.Context, w http.ResponseWriter, r 
 		return errdefs.InvalidParameter(err)
 	}
 
-	if err := sr.backend.UpdateNode(vars["id"], version, node); err != nil {
+	if err := sr.backend.UpdateNode(ctx, vars["id"], version, node); err != nil {
 		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":   err,
 			"node-id": vars["id"],
@@ -401,7 +401,7 @@ func (sr *swarmRouter) removeNode(ctx context.Context, w http.ResponseWriter, r 
 
 	force := httputils.BoolValue(r, "force")
 
-	if err := sr.backend.RemoveNode(vars["id"], force); err != nil {
+	if err := sr.backend.RemoveNode(ctx, vars["id"], force); err != nil {
 		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":   err,
 			"node-id": vars["id"],
@@ -420,7 +420,7 @@ func (sr *swarmRouter) getTasks(ctx context.Context, w http.ResponseWriter, r *h
 		return err
 	}
 
-	tasks, err := sr.backend.GetTasks(swarmbackend.TaskListOptions{Filters: filter})
+	tasks, err := sr.backend.GetTasks(ctx, swarmbackend.TaskListOptions{Filters: filter})
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithError(err).Debug("Error getting tasks")
 		return err
@@ -430,7 +430,7 @@ func (sr *swarmRouter) getTasks(ctx context.Context, w http.ResponseWriter, r *h
 }
 
 func (sr *swarmRouter) getTask(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	task, err := sr.backend.GetTask(vars["id"])
+	task, err := sr.backend.GetTask(ctx, vars["id"])
 	if err != nil {
 		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
 			"error":   err,
@@ -451,7 +451,7 @@ func (sr *swarmRouter) getSecrets(ctx context.Context, w http.ResponseWriter, r 
 		return err
 	}
 
-	secrets, err := sr.backend.GetSecrets(swarmbackend.SecretListOptions{Filters: filters})
+	secrets, err := sr.backend.GetSecrets(ctx, swarmbackend.SecretListOptions{Filters: filters})
 	if err != nil {
 		return err
 	}
@@ -469,7 +469,7 @@ func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, 
 		return errdefs.InvalidParameter(errors.Errorf("secret templating is not supported on the specified API version: %s", version))
 	}
 
-	id, err := sr.backend.CreateSecret(secret)
+	id, err := sr.backend.CreateSecret(ctx, secret)
 	if err != nil {
 		return err
 	}
@@ -480,7 +480,7 @@ func (sr *swarmRouter) createSecret(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (sr *swarmRouter) removeSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := sr.backend.RemoveSecret(vars["id"]); err != nil {
+	if err := sr.backend.RemoveSecret(ctx, vars["id"]); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -489,7 +489,7 @@ func (sr *swarmRouter) removeSecret(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (sr *swarmRouter) getSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	secret, err := sr.backend.GetSecret(vars["id"])
+	secret, err := sr.backend.GetSecret(ctx, vars["id"])
 	if err != nil {
 		return err
 	}
@@ -510,7 +510,7 @@ func (sr *swarmRouter) updateSecret(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	id := vars["id"]
-	return sr.backend.UpdateSecret(id, version, secret)
+	return sr.backend.UpdateSecret(ctx, id, version, secret)
 }
 
 func (sr *swarmRouter) getConfigs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -522,7 +522,7 @@ func (sr *swarmRouter) getConfigs(ctx context.Context, w http.ResponseWriter, r 
 		return err
 	}
 
-	configs, err := sr.backend.GetConfigs(swarmbackend.ConfigListOptions{Filters: filters})
+	configs, err := sr.backend.GetConfigs(ctx, swarmbackend.ConfigListOptions{Filters: filters})
 	if err != nil {
 		return err
 	}
@@ -541,7 +541,7 @@ func (sr *swarmRouter) createConfig(ctx context.Context, w http.ResponseWriter, 
 		return errdefs.InvalidParameter(errors.Errorf("config templating is not supported on the specified API version: %s", version))
 	}
 
-	id, err := sr.backend.CreateConfig(config)
+	id, err := sr.backend.CreateConfig(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -552,7 +552,7 @@ func (sr *swarmRouter) createConfig(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (sr *swarmRouter) removeConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := sr.backend.RemoveConfig(vars["id"]); err != nil {
+	if err := sr.backend.RemoveConfig(ctx, vars["id"]); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -561,7 +561,7 @@ func (sr *swarmRouter) removeConfig(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (sr *swarmRouter) getConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	config, err := sr.backend.GetConfig(vars["id"])
+	config, err := sr.backend.GetConfig(ctx, vars["id"])
 	if err != nil {
 		return err
 	}
@@ -582,7 +582,7 @@ func (sr *swarmRouter) updateConfig(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	id := vars["id"]
-	return sr.backend.UpdateConfig(id, version, config)
+	return sr.backend.UpdateConfig(ctx, id, version, config)
 }
 
 func backFillLegacyNetwork(s types.Service) *compat.Wrapper {

@@ -484,7 +484,7 @@ func TestRemoteDriver(t *testing.T) {
 	if _, err = d.EndpointOperInfo(netID, endID); err != nil {
 		t.Fatal(err)
 	}
-	if err = d.Leave(netID, endID); err != nil {
+	if err = d.Leave(context.Background(), netID, endID); err != nil {
 		t.Fatal(err)
 	}
 	if err = d.DeleteEndpoint(netID, endID); err != nil {
@@ -497,10 +497,10 @@ func TestRemoteDriver(t *testing.T) {
 	data := discoverapi.NodeDiscoveryData{
 		Address: "192.168.1.1",
 	}
-	if err = d.DiscoverNew(discoverapi.NodeDiscovery, data); err != nil {
+	if err = d.DiscoverNew(context.Background(), discoverapi.NodeDiscovery, data); err != nil {
 		t.Fatal(err)
 	}
-	if err = d.DiscoverDelete(discoverapi.NodeDiscovery, data); err != nil {
+	if err = d.DiscoverDelete(context.Background(), discoverapi.NodeDiscovery, data); err != nil {
 		t.Fatal(err)
 	}
 }

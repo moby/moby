@@ -377,7 +377,7 @@ func TestEndpointNameLabel(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	defer func() {
-		err := gnw.Delete()
+		err := gnw.Delete(context.Background())
 		assert.NilError(t, err)
 	}()
 
@@ -520,7 +520,7 @@ func TestSRVServiceQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := n.Delete(); err != nil {
+		if err := n.Delete(context.Background()); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -621,7 +621,7 @@ func TestServiceVIPReuse(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := n.Delete(); err != nil {
+		if err := n.Delete(context.Background()); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -751,7 +751,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := gnw.Delete(); err != nil {
+	if err := gnw.Delete(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -765,7 +765,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := bnw.Delete(); err != nil {
+		if err := bnw.Delete(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -784,7 +784,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := gnw.Delete(); err != nil {
+		if err := gnw.Delete(context.Background()); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -840,7 +840,7 @@ func (b *badDriver) Join(_ context.Context, nid, eid string, sboxKey string, jin
 	return errors.New("I will not allow any join")
 }
 
-func (b *badDriver) Leave(nid, eid string) error {
+func (b *badDriver) Leave(_ context.Context, nid, eid string) error {
 	return nil
 }
 

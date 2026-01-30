@@ -65,9 +65,9 @@ func (daemon *Daemon) NetworkController() *libnetwork.Controller {
 // 2. Full Name
 // 3. Partial ID
 // as long as there is no ambiguity
-func (daemon *Daemon) FindNetwork(term string) (*libnetwork.Network, error) {
+func (daemon *Daemon) FindNetwork(ctx context.Context, term string) (*libnetwork.Network, error) {
 	var listByFullName, listByPartialID []*libnetwork.Network
-	for _, nw := range daemon.getAllNetworks() {
+	for _, nw := range daemon.getAllNetworks(ctx) {
 		nwID := nw.ID()
 		if nwID == term {
 			return nw, nil
@@ -138,12 +138,11 @@ func (daemon *Daemon) GetNetworksByIDPrefix(partialID string) []*libnetwork.Netw
 }
 
 // getAllNetworks returns a list containing all networks
-func (daemon *Daemon) getAllNetworks() []*libnetwork.Network {
+func (daemon *Daemon) getAllNetworks(ctx context.Context) []*libnetwork.Network {
 	c := daemon.netController
 	if c == nil {
 		return nil
 	}
-	ctx := context.TODO()
 	return c.Networks(ctx)
 }
 
@@ -165,10 +164,10 @@ func (daemon *Daemon) startIngressWorker() {
 	go func() {
 		for r := range ingressJobsChannel {
 			if r.create != nil {
-				daemon.setupIngress(&daemon.config().Config, r.create, r.ip, ingressID)
+				daemon.setupIngress(r.ctx, &daemon.config().Config, r.create, r.ip, ingressID)
 				ingressID = r.create.ID
 			} else {
-				daemon.releaseIngress(ingressID)
+				daemon.releaseIngress(r.ctx, ingressID)
 				ingressID = ""
 			}
 			close(r.jobDone)
@@ -187,22 +186,22 @@ func (daemon *Daemon) enqueueIngressJob(ctx context.Context, create *clustertype
 
 // SetupIngress setups ingress networking.
 // The function returns a channel which will signal the caller when the programming is completed.
-func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nodeIP string) (<-chan struct{}, error) {
+func (daemon *Daemon) SetupIngress(ctx context.Context, create clustertypes.NetworkCreateRequest, nodeIP string) (<-chan struct{}, error) {
 	ip, _, err := net.ParseCIDR(nodeIP)
 	if err != nil {
 		return nil, err
 	}
-	return daemon.enqueueIngressJob(context.TODO(), &create, ip), nil
+	return daemon.enqueueIngressJob(ctx, &create, ip), nil
 }
 
 // ReleaseIngress releases the ingress networking.
 // The function returns a channel which will signal the caller when the programming is completed.
-func (daemon *Daemon) ReleaseIngress() (<-chan struct{}, error) {
-	return daemon.enqueueIngressJob(context.TODO(), nil, nil), nil
+func (daemon *Daemon) ReleaseIngress(ctx context.Context) (<-chan struct{}, error) {
+	return daemon.enqueueIngressJob(ctx, nil, nil), nil
 }
 
-func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.NetworkCreateRequest, ip net.IP, staleID string) {
-	ctx, span := otel.Tracer("").Start(context.TODO(), "daemon.setupIngress")
+func (daemon *Daemon) setupIngress(ctx context.Context, cfg *config.Config, create *clustertypes.NetworkCreateRequest, ip net.IP, staleID string) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.setupIngress")
 	defer span.End()
 	ctx = baggage.ContextWithBaggage(ctx, otelutil.MustNewBaggage(
 		otelutil.MustNewMemberRaw(otelutil.TriggerKey, "daemon.setupIngress"),
@@ -212,7 +211,7 @@ func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.Netw
 	controller.AgentInitWait()
 
 	if staleID != "" && staleID != create.ID {
-		daemon.releaseIngress(staleID)
+		daemon.releaseIngress(ctx, staleID)
 	}
 
 	if _, err := daemon.createNetwork(ctx, cfg, create.CreateRequest, create.ID, true); err != nil {
@@ -231,8 +230,8 @@ func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.Netw
 	}
 }
 
-func (daemon *Daemon) releaseIngress(id string) {
-	ctx, span := otel.Tracer("").Start(context.TODO(), "daemon.releaseIngress", trace.WithAttributes(
+func (daemon *Daemon) releaseIngress(ctx context.Context, id string) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.releaseIngress", trace.WithAttributes(
 		attribute.String("nid", id),
 	))
 	defer span.End()
@@ -250,7 +249,7 @@ func (daemon *Daemon) releaseIngress(id string) {
 		return
 	}
 
-	if err := n.Delete(libnetwork.NetworkDeleteOptionRemoveLB); err != nil {
+	if err := n.Delete(ctx, libnetwork.NetworkDeleteOptionRemoveLB); err != nil {
 		log.G(ctx).Errorf("Failed to delete ingress network %s: %v", n.ID(), err)
 		otelutil.RecordStatus(span, err)
 		return
@@ -268,13 +267,13 @@ func (daemon *Daemon) SetNetworkBootstrapKeys(keys []*lntypes.EncryptionKey) err
 }
 
 // UpdateAttachment notifies the attacher about the attachment config.
-func (daemon *Daemon) UpdateAttachment(networkName, networkID, containerID string, config *networktypes.NetworkingConfig) error {
+func (daemon *Daemon) UpdateAttachment(ctx context.Context, networkName, networkID, containerID string, config *networktypes.NetworkingConfig) error {
 	if daemon.clusterProvider == nil {
 		return errors.New("cluster provider is not initialized")
 	}
 
-	if err := daemon.clusterProvider.UpdateAttachment(networkName, containerID, config); err != nil {
-		return daemon.clusterProvider.UpdateAttachment(networkID, containerID, config)
+	if err := daemon.clusterProvider.UpdateAttachment(ctx, networkName, containerID, config); err != nil {
+		return daemon.clusterProvider.UpdateAttachment(ctx, networkID, containerID, config)
 	}
 
 	return nil
@@ -291,8 +290,8 @@ func (daemon *Daemon) WaitForDetachment(ctx context.Context, networkName, networ
 }
 
 // CreateManagedNetwork creates an agent network.
-func (daemon *Daemon) CreateManagedNetwork(create clustertypes.NetworkCreateRequest) error {
-	_, err := daemon.createNetwork(context.TODO(), &daemon.config().Config, create.CreateRequest, create.ID, true)
+func (daemon *Daemon) CreateManagedNetwork(ctx context.Context, create clustertypes.NetworkCreateRequest) error {
+	_, err := daemon.createNetwork(ctx, &daemon.config().Config, create.CreateRequest, create.ID, true)
 	return err
 }
 
@@ -587,15 +586,15 @@ func (daemon *Daemon) ConnectContainerToNetwork(ctx context.Context, containerNa
 
 // DisconnectContainerFromNetwork disconnects the given container from
 // the given network. If either cannot be found, an err is returned.
-func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error {
+func (daemon *Daemon) DisconnectContainerFromNetwork(ctx context.Context, containerName string, networkName string, force bool) error {
 	ctr, err := daemon.GetContainer(containerName)
 	if err != nil {
 		if force {
-			return daemon.ForceEndpointDelete(containerName, networkName)
+			return daemon.ForceEndpointDelete(ctx, containerName, networkName)
 		}
 		return err
 	}
-	return daemon.DisconnectFromNetwork(context.TODO(), ctr, networkName, force)
+	return daemon.DisconnectFromNetwork(ctx, ctr, networkName, force)
 }
 
 // GetNetworkDriverList returns the list of plugins drivers
@@ -634,24 +633,24 @@ func (daemon *Daemon) GetNetworkDriverList(ctx context.Context) []string {
 
 // DeleteManagedNetwork deletes an agent network.
 // The requirement of networkID is enforced.
-func (daemon *Daemon) DeleteManagedNetwork(networkID string) error {
+func (daemon *Daemon) DeleteManagedNetwork(ctx context.Context, networkID string) error {
 	n, err := daemon.GetNetworkByID(networkID)
 	if err != nil {
 		return err
 	}
-	return daemon.deleteNetwork(n, true)
+	return daemon.deleteNetwork(ctx, n, true)
 }
 
 // DeleteNetwork destroys a network unless it's one of docker's predefined networks.
-func (daemon *Daemon) DeleteNetwork(networkID string) error {
+func (daemon *Daemon) DeleteNetwork(ctx context.Context, networkID string) error {
 	n, err := daemon.GetNetworkByID(networkID)
 	if err != nil {
 		return fmt.Errorf("could not find network by ID: %w", err)
 	}
-	return daemon.deleteNetwork(n, false)
+	return daemon.deleteNetwork(ctx, n, false)
 }
 
-func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error {
+func (daemon *Daemon) deleteNetwork(ctx context.Context, nw *libnetwork.Network, dynamic bool) error {
 	if network.IsPredefined(nw.Name()) && !dynamic {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be removed", nw.Name())
 		return errdefs.Forbidden(err)
@@ -667,7 +666,7 @@ func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error 
 		return errdefs.Forbidden(err)
 	}
 
-	if err := nw.Delete(); err != nil {
+	if err := nw.Delete(ctx); err != nil {
 		return fmt.Errorf("error while removing network: %w", err)
 	}
 
@@ -684,8 +683,8 @@ func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error 
 }
 
 // GetNetworks returns a list of all networks
-func (daemon *Daemon) GetNetworks(filter network.Filter, config backend.NetworkListConfig) ([]networktypes.Inspect, error) {
-	allNetworks := daemon.getAllNetworks()
+func (daemon *Daemon) GetNetworks(ctx context.Context, filter network.Filter, config backend.NetworkListConfig) ([]networktypes.Inspect, error) {
+	allNetworks := daemon.getAllNetworks(ctx)
 	networks := make([]networktypes.Inspect, 0, len(allNetworks))
 	for _, n := range allNetworks {
 		if filter.Matches(n) {
@@ -697,9 +696,9 @@ func (daemon *Daemon) GetNetworks(filter network.Filter, config backend.NetworkL
 				nr.Services = buildServiceAttachments(n)
 			}
 			if config.WithStatus {
-				ipam, err := n.IPAMStatus(context.TODO())
+				ipam, err := n.IPAMStatus(ctx)
 				if err != nil {
-					log.G(context.TODO()).WithFields(log.Fields{
+					log.G(ctx).WithFields(log.Fields{
 						"network": n.Name(),
 						"id":      n.ID(),
 						"error":   err,
@@ -716,8 +715,8 @@ func (daemon *Daemon) GetNetworks(filter network.Filter, config backend.NetworkL
 	return networks, nil
 }
 
-func (daemon *Daemon) GetNetworkSummaries(filter network.Filter) ([]networktypes.Summary, error) {
-	allNetworks := daemon.getAllNetworks()
+func (daemon *Daemon) GetNetworkSummaries(ctx context.Context, filter network.Filter) ([]networktypes.Summary, error) {
+	allNetworks := daemon.getAllNetworks(ctx)
 	networks := make([]networktypes.Summary, 0, len(allNetworks))
 	for _, n := range allNetworks {
 		if filter.Matches(n) {
@@ -904,8 +903,8 @@ func buildEndpointResource(ep *libnetwork.Endpoint, info libnetwork.EndpointInfo
 
 // clearAttachableNetworks removes the attachable networks
 // after disconnecting any connected container
-func (daemon *Daemon) clearAttachableNetworks() {
-	for _, n := range daemon.getAllNetworks() {
+func (daemon *Daemon) clearAttachableNetworks(ctx context.Context) {
+	for _, n := range daemon.getAllNetworks(ctx) {
 		if !n.Attachable() {
 			continue
 		}
@@ -919,13 +918,13 @@ func (daemon *Daemon) clearAttachableNetworks() {
 				continue
 			}
 			containerID := sb.ContainerID()
-			if err := daemon.DisconnectContainerFromNetwork(containerID, n.ID(), true); err != nil {
-				log.G(context.TODO()).Warnf("Failed to disconnect container %s from swarm network %s on cluster leave: %v",
+			if err := daemon.DisconnectContainerFromNetwork(ctx, containerID, n.ID(), true); err != nil {
+				log.G(ctx).Warnf("Failed to disconnect container %s from swarm network %s on cluster leave: %v",
 					containerID, n.Name(), err)
 			}
 		}
-		if err := daemon.DeleteManagedNetwork(n.ID()); err != nil {
-			log.G(context.TODO()).Warnf("Failed to remove swarm network %s on cluster leave: %v", n.Name(), err)
+		if err := daemon.DeleteManagedNetwork(ctx, n.ID()); err != nil {
+			log.G(ctx).Warnf("Failed to remove swarm network %s on cluster leave: %v", n.Name(), err)
 		}
 	}
 }

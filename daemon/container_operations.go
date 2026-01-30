@@ -154,7 +154,7 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 	return sboxOptions, nil
 }
 
-func (daemon *Daemon) updateNetworkSettings(ctr *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings) error {
+func (daemon *Daemon) updateNetworkSettings(ctx context.Context, ctr *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings) error {
 	if ctr.NetworkSettings == nil {
 		ctr.NetworkSettings = &network.Settings{}
 	}
@@ -167,8 +167,11 @@ func (daemon *Daemon) updateNetworkSettings(ctr *container.Container, n *libnetw
 	}
 
 	for s, v := range ctr.NetworkSettings.Networks {
-		sn, err := daemon.FindNetwork(getNetworkID(s, v.EndpointSettings))
+		sn, err := daemon.FindNetwork(ctx, getNetworkID(s, v.EndpointSettings))
 		if err != nil {
+			if ctx.Err() != nil {
+				return context.Cause(ctx)
+			}
 			continue
 		}
 
@@ -208,7 +211,7 @@ func (daemon *Daemon) updateEndpointNetworkSettings(cfg *config.Config, ctr *con
 
 // UpdateNetwork is used to update the container's network (e.g. when linked containers
 // get removed/unlinked).
-func (daemon *Daemon) updateNetwork(cfg *config.Config, ctr *container.Container) error {
+func (daemon *Daemon) updateNetwork(ctx context.Context, cfg *config.Config, ctr *container.Container) error {
 	var (
 		start = time.Now()
 		ctrl  = daemon.netController
@@ -223,7 +226,7 @@ func (daemon *Daemon) updateNetwork(cfg *config.Config, ctr *container.Container
 	// Find if container is connected to the default bridge network
 	var n *libnetwork.Network
 	for name, v := range ctr.NetworkSettings.Networks {
-		sn, err := daemon.FindNetwork(getNetworkID(name, v.EndpointSettings))
+		sn, err := daemon.FindNetwork(ctx, getNetworkID(name, v.EndpointSettings))
 		if err != nil {
 			continue
 		}
@@ -243,7 +246,7 @@ func (daemon *Daemon) updateNetwork(cfg *config.Config, ctr *container.Container
 		return fmt.Errorf("Update network failed: %v", err)
 	}
 
-	if err := sb.Refresh(context.TODO(), sbOptions...); err != nil {
+	if err := sb.Refresh(ctx, sbOptions...); err != nil {
 		return fmt.Errorf("Update network failed: Failure in refresh sandbox %s: %v", sid, err)
 	}
 
@@ -252,10 +255,10 @@ func (daemon *Daemon) updateNetwork(cfg *config.Config, ctr *container.Container
 	return nil
 }
 
-func (daemon *Daemon) findAndAttachNetwork(ctr *container.Container, idOrName string, epConfig *networktypes.EndpointSettings) (*libnetwork.Network, *networktypes.NetworkingConfig, error) {
+func (daemon *Daemon) findAndAttachNetwork(ctx context.Context, ctr *container.Container, idOrName string, epConfig *networktypes.EndpointSettings) (*libnetwork.Network, *networktypes.NetworkingConfig, error) {
 	id := getNetworkID(idOrName, epConfig)
 
-	n, err := daemon.FindNetwork(id)
+	n, err := daemon.FindNetwork(ctx, id)
 	if err != nil {
 		// We should always be able to find the network for a managed container.
 		if ctr.Managed {
@@ -302,18 +305,21 @@ func (daemon *Daemon) findAndAttachNetwork(ctr *container.Container, idOrName st
 		// trigger attachment in the swarm cluster manager.
 		if daemon.clusterProvider != nil {
 			var err error
-			nwCfg, err = daemon.clusterProvider.AttachNetwork(id, ctr.ID, addresses)
+			nwCfg, err = daemon.clusterProvider.AttachNetwork(ctx, id, ctr.ID, addresses)
 			if err != nil {
 				return nil, nil, err
 			}
 		}
 
-		n, err = daemon.FindNetwork(id)
+		n, err = daemon.FindNetwork(ctx, id)
 		if err != nil {
 			if daemon.clusterProvider != nil {
-				if err := daemon.clusterProvider.DetachNetwork(id, ctr.ID); err != nil {
-					log.G(context.TODO()).Warnf("Could not rollback attachment for container %s to network %s: %v", ctr.ID, idOrName, err)
+				if err := daemon.clusterProvider.DetachNetwork(context.WithoutCancel(ctx), id, ctr.ID); err != nil {
+					log.G(ctx).Warnf("Could not rollback attachment for container %s to network %s: %v", ctr.ID, idOrName, err)
 				}
+			}
+			if ctx.Err() != nil {
+				return nil, nil, context.Cause(ctx)
 			}
 
 			// Retry network attach again if we failed to
@@ -346,7 +352,7 @@ func (daemon *Daemon) findAndAttachNetwork(ctr *container.Container, idOrName st
 }
 
 // updateContainerNetworkSettings updates the network settings
-func (daemon *Daemon) updateContainerNetworkSettings(ctr *container.Container, endpointsConfig map[string]*networktypes.EndpointSettings) {
+func (daemon *Daemon) updateContainerNetworkSettings(ctx context.Context, ctr *container.Container, endpointsConfig map[string]*networktypes.EndpointSettings) {
 	var n *libnetwork.Network
 
 	mode := ctr.HostConfig.NetworkMode
@@ -359,7 +365,7 @@ func (daemon *Daemon) updateContainerNetworkSettings(ctr *container.Container, e
 	if mode.IsUserDefined() {
 		var err error
 
-		n, err = daemon.FindNetwork(networkName)
+		n, err = daemon.FindNetwork(ctx, networkName)
 		if err == nil {
 			networkName = n.Name()
 		}
@@ -450,7 +456,7 @@ func (daemon *Daemon) initializeNetworking(ctx context.Context, cfg *config.Conf
 			return nil, err
 		}
 
-		err = daemon.initializeNetworkingPaths(ctr, nc)
+		err = daemon.initializeNetworkingPaths(ctx, ctr, nc)
 		if err != nil {
 			return nil, err
 		}
@@ -468,7 +474,7 @@ func (daemon *Daemon) initializeNetworking(ctx context.Context, cfg *config.Conf
 		ctr.Config.Hostname = hn
 	}
 
-	daemon.updateContainerNetworkSettings(ctr, nil)
+	daemon.updateContainerNetworkSettings(ctx, ctr, nil)
 
 	sbOptions, err := buildSandboxOptions(cfg, ctr)
 	if err != nil {
@@ -637,7 +643,7 @@ func cleanOperationalData(es *network.EndpointSettings) {
 	}
 }
 
-func (daemon *Daemon) updateNetworkConfig(ctr *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings) error {
+func (daemon *Daemon) updateNetworkConfig(ctx context.Context, ctr *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings) error {
 	// Set up DNS names for a user-defined network, and for the default 'nat'
 	// network on Windows (IsBridge() returns true for nat).
 	if containertypes.NetworkMode(n.Name()).IsUserDefined() ||
@@ -649,7 +655,7 @@ func (daemon *Daemon) updateNetworkConfig(ctr *container.Container, n *libnetwor
 		return errdefs.InvalidParameter(err)
 	}
 
-	return daemon.updateNetworkSettings(ctr, n, endpointConfig)
+	return daemon.updateNetworkSettings(ctx, ctr, n, endpointConfig)
 }
 
 // buildEndpointDNSNames constructs the list of DNSNames that should be assigned to a given endpoint. The order within
@@ -698,7 +704,7 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 		}
 	}
 
-	n, nwCfg, err := daemon.findAndAttachNetwork(ctr, idOrName, endpointConfig.EndpointSettings)
+	n, nwCfg, err := daemon.findAndAttachNetwork(ctx, ctr, idOrName, endpointConfig.EndpointSettings)
 	if err != nil {
 		return err
 	}
@@ -708,7 +714,7 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 	nwName := n.Name()
 
 	if idOrName != ctr.HostConfig.NetworkMode.NetworkName() {
-		if err := daemon.normalizeNetMode(ctr); err != nil {
+		if err := daemon.normalizeNetMode(ctx, ctr); err != nil {
 			return err
 		}
 	}
@@ -726,7 +732,7 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 		}
 	}
 
-	if err := daemon.updateNetworkConfig(ctr, n, endpointConfig.EndpointSettings); err != nil {
+	if err := daemon.updateNetworkConfig(ctx, ctr, n, endpointConfig.EndpointSettings); err != nil {
 		return err
 	}
 
@@ -798,7 +804,7 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 
 	if !ctr.Managed {
 		// add container name/alias to DNS
-		if err := daemon.ActivateContainerServiceBinding(ctr.Name); err != nil {
+		if err := daemon.ActivateContainerServiceBinding(ctx, ctr.Name); err != nil {
 			return fmt.Errorf("activate container service binding for %s failed: %v", ctr.Name, err)
 		}
 	}
@@ -838,8 +844,8 @@ func updateJoinInfo(networkSettings *network.Settings, n *libnetwork.Network, ep
 }
 
 // ForceEndpointDelete deletes an endpoint from a network forcefully
-func (daemon *Daemon) ForceEndpointDelete(name string, networkName string) error {
-	n, err := daemon.FindNetwork(networkName)
+func (daemon *Daemon) ForceEndpointDelete(ctx context.Context, name string, networkName string) error {
+	n, err := daemon.FindNetwork(ctx, networkName)
 	if err != nil {
 		return err
 	}
@@ -848,7 +854,7 @@ func (daemon *Daemon) ForceEndpointDelete(name string, networkName string) error
 	if err != nil {
 		return err
 	}
-	return ep.Delete(context.TODO(), true)
+	return ep.Delete(ctx, true)
 }
 
 func (daemon *Daemon) disconnectFromNetwork(ctx context.Context, ctr *container.Container, n *libnetwork.Network, force bool) error {
@@ -895,17 +901,17 @@ func (daemon *Daemon) disconnectFromNetwork(ctx context.Context, ctr *container.
 
 	delete(ctr.NetworkSettings.Networks, n.Name())
 
-	daemon.tryDetachContainerFromClusterNetwork(n, ctr)
+	daemon.tryDetachContainerFromClusterNetwork(ctx, n, ctr)
 
 	return nil
 }
 
-func (daemon *Daemon) tryDetachContainerFromClusterNetwork(network *libnetwork.Network, ctr *container.Container) {
+func (daemon *Daemon) tryDetachContainerFromClusterNetwork(ctx context.Context, network *libnetwork.Network, ctr *container.Container) {
 	if !ctr.Managed && daemon.clusterProvider != nil && network.Dynamic() {
-		if err := daemon.clusterProvider.DetachNetwork(network.Name(), ctr.ID); err != nil {
-			log.G(context.TODO()).WithError(err).Warn("error detaching from network")
-			if err := daemon.clusterProvider.DetachNetwork(network.ID(), ctr.ID); err != nil {
-				log.G(context.TODO()).WithError(err).Warn("error detaching from network")
+		if err := daemon.clusterProvider.DetachNetwork(ctx, network.Name(), ctr.ID); err != nil {
+			log.G(ctx).WithError(err).Warn("error detaching from network")
+			if err := daemon.clusterProvider.DetachNetwork(ctx, network.ID(), ctr.ID); err != nil {
+				log.G(ctx).WithError(err).Warn("error detaching from network")
 			}
 		}
 	}
@@ -917,10 +923,10 @@ func (daemon *Daemon) tryDetachContainerFromClusterNetwork(network *libnetwork.N
 // normalizeNetMode checks whether the network mode references a network by a partial ID. In that case, it replaces the
 // partial ID with the full network ID.
 // TODO(aker): transform ID into name when the referenced network is one of the predefined.
-func (daemon *Daemon) normalizeNetMode(ctr *container.Container) error {
+func (daemon *Daemon) normalizeNetMode(ctx context.Context, ctr *container.Container) error {
 	if ctr.HostConfig.NetworkMode.IsUserDefined() {
 		netMode := ctr.HostConfig.NetworkMode.NetworkName()
-		nw, err := daemon.FindNetwork(netMode)
+		nw, err := daemon.FindNetwork(ctx, netMode)
 		if err != nil {
 			return fmt.Errorf("could not find a network matching network mode %s: %w", netMode, err)
 		}
@@ -996,7 +1002,7 @@ func (daemon *Daemon) releaseNetwork(ctx context.Context, ctr *container.Contain
 
 	var networks []*libnetwork.Network
 	for n, epSettings := range ctr.NetworkSettings.Networks {
-		if nw, err := daemon.FindNetwork(getNetworkID(n, epSettings.EndpointSettings)); err == nil {
+		if nw, err := daemon.FindNetwork(ctx, getNetworkID(n, epSettings.EndpointSettings)); err == nil {
 			networks = append(networks, nw)
 		}
 
@@ -1018,7 +1024,7 @@ func (daemon *Daemon) releaseNetwork(ctx context.Context, ctr *container.Contain
 	}
 
 	for _, nw := range networks {
-		daemon.tryDetachContainerFromClusterNetwork(nw, ctr)
+		daemon.tryDetachContainerFromClusterNetwork(ctx, nw, ctr)
 	}
 	metrics.NetworkActions.WithValues("release").UpdateSince(start)
 }
@@ -1040,9 +1046,9 @@ func (daemon *Daemon) ConnectToNetwork(ctx context.Context, ctr *container.Conta
 			return errRemovalContainer(ctr.ID)
 		}
 
-		n, err := daemon.FindNetwork(idOrName)
+		n, err := daemon.FindNetwork(ctx, idOrName)
 		if err == nil && n != nil {
-			if err := daemon.updateNetworkConfig(ctr, n, endpointConfig); err != nil {
+			if err := daemon.updateNetworkConfig(ctx, ctr, n, endpointConfig); err != nil {
 				return err
 			}
 		} else {
@@ -1064,7 +1070,7 @@ func (daemon *Daemon) ConnectToNetwork(ctx context.Context, ctr *container.Conta
 
 // DisconnectFromNetwork disconnects container from network n.
 func (daemon *Daemon) DisconnectFromNetwork(ctx context.Context, ctr *container.Container, networkName string, force bool) error {
-	n, err := daemon.FindNetwork(networkName)
+	n, err := daemon.FindNetwork(ctx, networkName)
 	ctr.Lock()
 	defer ctr.Unlock()
 
@@ -1101,8 +1107,8 @@ func (daemon *Daemon) DisconnectFromNetwork(ctx context.Context, ctr *container.
 }
 
 // ActivateContainerServiceBinding puts this container into load balancer active rotation and DNS response
-func (daemon *Daemon) ActivateContainerServiceBinding(containerName string) (retErr error) {
-	_, span := otel.Tracer("").Start(context.TODO(), "daemon.ActivateContainerServiceBinding", trace.WithAttributes(
+func (daemon *Daemon) ActivateContainerServiceBinding(ctx context.Context, containerName string) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.ActivateContainerServiceBinding", trace.WithAttributes(
 		attribute.String("container.name", containerName)))
 	defer func() {
 		otelutil.RecordStatus(span, retErr)
@@ -1116,12 +1122,12 @@ func (daemon *Daemon) ActivateContainerServiceBinding(containerName string) (ret
 	if err != nil {
 		return fmt.Errorf("failed to activate service binding for container %s: %w", containerName, err)
 	}
-	return sb.EnableService()
+	return sb.EnableService(ctx)
 }
 
 // DeactivateContainerServiceBinding removes this container from load balancer active rotation, and DNS response
-func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) (retErr error) {
-	ctx, span := otel.Tracer("").Start(context.TODO(), "daemon.DeactivateContainerServiceBinding", trace.WithAttributes(
+func (daemon *Daemon) DeactivateContainerServiceBinding(ctx context.Context, containerName string) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.DeactivateContainerServiceBinding", trace.WithAttributes(
 		attribute.String("container.name", containerName)))
 	defer func() {
 		otelutil.RecordStatus(span, retErr)
@@ -1137,7 +1143,7 @@ func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) (r
 		log.G(ctx).WithError(err).Debugf("Could not find network sandbox for container %s on service binding deactivation request", containerName)
 		return nil
 	}
-	return sb.DisableService()
+	return sb.DisableService(ctx)
 }
 
 func getNetworkID(name string, endpointSettings *networktypes.EndpointSettings) string {

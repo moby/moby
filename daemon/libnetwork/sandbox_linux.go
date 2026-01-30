@@ -19,8 +19,8 @@ import (
 // Linux-specific container configuration flags.
 type containerConfigOS struct{} //nolint:nolintlint,unused // only populated on windows
 
-func releaseOSSboxResources(ns *osl.Namespace, ep *Endpoint) {
-	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.releaseOSSboxResources", trace.WithAttributes(
+func releaseOSSboxResources(ctx context.Context, ns *osl.Namespace, ep *Endpoint) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.releaseOSSboxResources", trace.WithAttributes(
 		attribute.String("eid", ep.ID()),
 	))
 	defer span.End()
@@ -42,7 +42,7 @@ func releaseOSSboxResources(ns *osl.Namespace, ep *Endpoint) {
 
 	if len(vip) > 0 && lbModeIsDSR {
 		ipNet := &net.IPNet{IP: vip, Mask: net.CIDRMask(32, 32)}
-		if err := ns.RemoveAliasIP(ns.GetLoopbackIfaceName(), ipNet); err != nil {
+		if err := ns.RemoveAliasIP(ctx, ns.GetLoopbackIfaceName(), ipNet); err != nil {
 			log.G(ctx).WithError(err).Debugf("failed to remove virtual ip %v to loopback", ipNet)
 			span.RecordError(err)
 		}
@@ -191,7 +191,7 @@ func (sb *Sandbox) SetKey(ctx context.Context, basePath string) (retErr error) {
 		// If we already have an OS sandbox, release the network resources from that
 		// and destroy the OS snab. We are moving into a new home further down. Note that none
 		// of the network resources gets destroyed during the move.
-		if err := sb.releaseOSSbox(); err != nil {
+		if err := sb.releaseOSSbox(ctx); err != nil {
 			log.G(ctx).WithError(err).Error("Error destroying os sandbox")
 			span.RecordError(err)
 		}
@@ -264,8 +264,8 @@ func (sb *Sandbox) IPv6Enabled() (enabled, ok bool) {
 	return osSbox.IPv6LoEnabled(), true
 }
 
-func (sb *Sandbox) releaseOSSbox() error {
-	_, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Sandbox.releaseOSSbox")
+func (sb *Sandbox) releaseOSSbox(ctx context.Context) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.releaseOSSbox")
 	defer span.End()
 	sb.mu.Lock()
 	osSbox := sb.osSbox
@@ -277,7 +277,7 @@ func (sb *Sandbox) releaseOSSbox() error {
 	}
 
 	for _, ep := range sb.Endpoints() {
-		releaseOSSboxResources(osSbox, ep)
+		releaseOSSboxResources(ctx, osSbox, ep)
 	}
 
 	return otelutil.RecordStatus(span, osSbox.Destroy())
@@ -444,7 +444,7 @@ func (sb *Sandbox) populateNetworkResourcesOS(ctx context.Context, ep *Endpoint)
 				}
 			}
 			ipNet := &net.IPNet{IP: ep.virtualIP, Mask: net.CIDRMask(32, 32)}
-			if err := sb.osSbox.AddAliasIP(sb.osSbox.GetLoopbackIfaceName(), ipNet); err != nil {
+			if err := sb.osSbox.AddAliasIP(ctx, sb.osSbox.GetLoopbackIfaceName(), ipNet); err != nil {
 				return fmt.Errorf("failed to add virtual ip %v to loopback: %v", ipNet, err)
 			}
 		}

@@ -174,7 +174,7 @@ func buildSandboxPlatformOptions(ctr *container.Container, cfg *config.Config) (
 	return nil, nil
 }
 
-func (daemon *Daemon) initializeNetworkingPaths(ctr *container.Container, nc *container.Container) error {
+func (daemon *Daemon) initializeNetworkingPaths(ctx context.Context, ctr *container.Container, nc *container.Container) error {
 	if nc.HostConfig.Isolation.IsHyperV() {
 		return fmt.Errorf("sharing of hyperv containers network is not supported")
 	}
@@ -183,7 +183,7 @@ func (daemon *Daemon) initializeNetworkingPaths(ctr *container.Container, nc *co
 
 	if nc.NetworkSettings != nil {
 		for n := range nc.NetworkSettings.Networks {
-			sn, err := daemon.FindNetwork(n)
+			sn, err := daemon.FindNetwork(ctx, n)
 			if err != nil {
 				continue
 			}

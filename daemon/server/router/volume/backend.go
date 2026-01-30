@@ -24,10 +24,10 @@ type Backend interface {
 // between the cluster package and the volume package, we simply provide two
 // backends here.
 type ClusterBackend interface {
-	GetVolume(nameOrID string) (volume.Volume, error)
-	GetVolumes(options volumebackend.ListOptions) ([]volume.Volume, error)
-	CreateVolume(volume volume.CreateRequest) (*volume.Volume, error)
-	RemoveVolume(nameOrID string, force bool) error
-	UpdateVolume(nameOrID string, version uint64, volume volumebackend.UpdateOptions) error
+	GetVolume(ctx context.Context, nameOrID string) (volume.Volume, error)
+	GetVolumes(ctx context.Context, options volumebackend.ListOptions) ([]volume.Volume, error)
+	CreateVolume(ctx context.Context, volume volume.CreateRequest) (*volume.Volume, error)
+	RemoveVolume(ctx context.Context, nameOrID string, force bool) error
+	UpdateVolume(ctx context.Context, nameOrID string, version uint64, volume volumebackend.UpdateOptions) error
 	IsManager() bool
 }

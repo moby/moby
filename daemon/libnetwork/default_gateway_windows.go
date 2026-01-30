@@ -1,6 +1,8 @@
 package libnetwork
 
 import (
+	"context"
+
 	windriver "github.com/moby/moby/v2/daemon/libnetwork/drivers/windows"
 	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -16,6 +18,6 @@ func getPlatformOption() EndpointOption {
 	return EndpointOptionGeneric(epOption)
 }
 
-func (c *Controller) createGWNetwork() (*Network, error) {
+func (c *Controller) createGWNetwork(context.Context) (*Network, error) {
 	return nil, types.NotImplementedErrorf("default gateway functionality is not implemented in windows")
 }

@@ -68,7 +68,7 @@ func (b *Builder) commitContainer(ctx context.Context, dispatchState *dispatchSt
 }
 
 func (b *Builder) exportImage(ctx context.Context, state *dispatchState, layer builder.RWLayer, parent builder.Image, runConfig *container.Config) error {
-	newLayer, err := layer.Commit()
+	newLayer, err := layer.Commit(ctx)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 
 	// TODO: should this have been using origPaths instead of srcHash in the comment?
 	runConfigWithCommentCmd := copyRunConfig(state.runConfig, withCmdCommentString(commentStr, state.operatingSystem))
-	hit, err := b.probeCache(state, runConfigWithCommentCmd)
+	hit, err := b.probeCache(ctx, state, runConfigWithCommentCmd)
 	if err != nil || hit {
 		return err
 	}
@@ -146,7 +146,7 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 	if err != nil {
 		return err
 	}
-	defer rwLayer.Release()
+	defer rwLayer.Release(context.WithoutCancel(ctx))
 
 	destInfo, err := createDestInfo(state.runConfig.WorkingDir, inst, rwLayer)
 	if err != nil {
@@ -305,8 +305,8 @@ func getShell(c *container.Config, os string) []string {
 	return append([]string{}, c.Shell[:]...)
 }
 
-func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.Config) (bool, error) {
-	cachedID, err := b.imageProber.Probe(dispatchState.imageID, runConfig, b.getPlatform(dispatchState))
+func (b *Builder) probeCache(ctx context.Context, dispatchState *dispatchState, runConfig *container.Config) (bool, error) {
+	cachedID, err := b.imageProber.Probe(ctx, dispatchState.imageID, runConfig, b.getPlatform(dispatchState))
 	if cachedID == "" || err != nil {
 		return false, err
 	}
@@ -319,7 +319,7 @@ func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.
 var defaultLogConfig = container.LogConfig{Type: "none"}
 
 func (b *Builder) probeAndCreate(ctx context.Context, dispatchState *dispatchState, runConfig *container.Config) (string, error) {
-	if hit, err := b.probeCache(dispatchState, runConfig); err != nil || hit {
+	if hit, err := b.probeCache(ctx, dispatchState, runConfig); err != nil || hit {
 		return "", err
 	}
 	return b.create(ctx, runConfig)

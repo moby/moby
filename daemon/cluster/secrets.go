@@ -11,10 +11,10 @@ import (
 )
 
 // GetSecret returns a secret from a managed swarm cluster
-func (c *Cluster) GetSecret(input string) (types.Secret, error) {
+func (c *Cluster) GetSecret(ctx context.Context, input string) (types.Secret, error) {
 	var secret *swarmapi.Secret
 
-	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		s, err := getSecret(ctx, state.controlClient, input)
 		if err != nil {
 			return err
@@ -28,14 +28,14 @@ func (c *Cluster) GetSecret(input string) (types.Secret, error) {
 }
 
 // GetSecrets returns all secrets of a managed swarm cluster.
-func (c *Cluster) GetSecrets(options swarmbackend.SecretListOptions) ([]types.Secret, error) {
+func (c *Cluster) GetSecrets(ctx context.Context, options swarmbackend.SecretListOptions) ([]types.Secret, error) {
 	filters, err := newListSecretsFilters(options.Filters)
 	if err != nil {
 		return nil, err
 	}
 
 	var r *swarmapi.ListSecretsResponse
-	err = c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+	err = c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		var err error
 		r, err = state.controlClient.ListSecrets(ctx,
 			&swarmapi.ListSecretsRequest{Filters: filters},
@@ -57,9 +57,9 @@ func (c *Cluster) GetSecrets(options swarmbackend.SecretListOptions) ([]types.Se
 }
 
 // CreateSecret creates a new secret in a managed swarm cluster.
-func (c *Cluster) CreateSecret(s types.SecretSpec) (string, error) {
+func (c *Cluster) CreateSecret(ctx context.Context, s types.SecretSpec) (string, error) {
 	var resp *swarmapi.CreateSecretResponse
-	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		secretSpec := convert.SecretSpecToGRPC(s)
 
 		r, err := state.controlClient.CreateSecret(ctx,
@@ -76,8 +76,8 @@ func (c *Cluster) CreateSecret(s types.SecretSpec) (string, error) {
 }
 
 // RemoveSecret removes a secret from a managed swarm cluster.
-func (c *Cluster) RemoveSecret(input string) error {
-	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+func (c *Cluster) RemoveSecret(ctx context.Context, input string) error {
+	return c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		secret, err := getSecret(ctx, state.controlClient, input)
 		if err != nil {
 			return err
@@ -94,8 +94,8 @@ func (c *Cluster) RemoveSecret(input string) error {
 
 // UpdateSecret updates a secret in a managed swarm cluster.
 // Note: this is not exposed to the CLI but is available from the API only
-func (c *Cluster) UpdateSecret(input string, version uint64, spec types.SecretSpec) error {
-	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+func (c *Cluster) UpdateSecret(ctx context.Context, input string, version uint64, spec types.SecretSpec) error {
+	return c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		secret, err := getSecret(ctx, state.controlClient, input)
 		if err != nil {
 			return err

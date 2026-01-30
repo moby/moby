@@ -36,7 +36,7 @@ func TestDNSNamesOrder(t *testing.T) {
 		Aliases: []string{"myctr"},
 	}
 
-	if err := d.updateNetworkConfig(ctr, nw, epSettings); err != nil {
+	if err := d.updateNetworkConfig(t.Context(), ctr, nw, epSettings); err != nil {
 		t.Fatal(err)
 	}
 

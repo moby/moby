@@ -545,7 +545,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	}
 	defer func() {
 		if retErr != nil {
-			if err := d.Leave(nid, epid); err != nil {
+			if err := d.Leave(ctx, nid, epid); err != nil {
 				log.G(ctx).WithError(err).Warnf("driver leave failed while rolling back join")
 				span.RecordError(err)
 			}
@@ -686,11 +686,11 @@ func (ep *Endpoint) rename(name string) error {
 	return nil
 }
 
-func (ep *Endpoint) UpdateDNSNames(dnsNames []string) error {
+func (ep *Endpoint) UpdateDNSNames(ctx context.Context, dnsNames []string) error {
 	nw := ep.getNetwork()
 	c := nw.getController()
 
-	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Endpoint.UpdateDNSNames", trace.WithAttributes(
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Endpoint.UpdateDNSNames", trace.WithAttributes(
 		attribute.String("eid", ep.ID()),
 		attribute.String("nid", nw.ID()),
 	))
@@ -706,12 +706,12 @@ func (ep *Endpoint) UpdateDNSNames(dnsNames []string) error {
 	}
 
 	if c.isAgent() {
-		if err := ep.deleteServiceInfoFromCluster(sb, true, "UpdateDNSNames"); err != nil {
+		if err := ep.deleteServiceInfoFromCluster(ctx, sb, true, "UpdateDNSNames"); err != nil {
 			return types.InternalErrorf("could not delete service state for endpoint %s from cluster on UpdateDNSNames: %v", ep.Name(), err)
 		}
 
 		ep.dnsNames = dnsNames
-		if err := ep.addServiceInfoToCluster(sb); err != nil {
+		if err := ep.addServiceInfoToCluster(ctx, sb); err != nil {
 			return types.InternalErrorf("could not add service state for endpoint %s to cluster on UpdateDNSNames: %v", ep.Name(), err)
 		}
 	} else {
@@ -811,14 +811,14 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 			}
 		}
 
-		if err := d.Leave(n.id, ep.id); err != nil {
+		if err := d.Leave(context.WithoutCancel(ctx), n.id, ep.id); err != nil {
 			if _, ok := err.(types.MaskableError); !ok {
 				log.G(ctx).WithError(err).Warn("driver error disconnecting container")
 			}
 		}
 	}
 
-	if err := ep.deleteServiceInfoFromCluster(sb, true, "sbLeave"); err != nil {
+	if err := ep.deleteServiceInfoFromCluster(ctx, sb, true, "sbLeave"); err != nil {
 		log.G(ctx).WithError(err).Warn("Failed to clean up service info on container disconnect")
 	}
 
@@ -844,7 +844,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 
 	// Delete interfaces, routes etc. from the OS.
 	if osSbox != nil {
-		releaseOSSboxResources(osSbox, ep)
+		releaseOSSboxResources(ctx, osSbox, ep)
 
 		// Even if the interface was initially created in the container's namespace, it's
 		// now been moved out. When a legacy link is deleted, the Endpoint is removed and
@@ -898,7 +898,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 	sb.deleteHostsEntries(etcHostsAddrs)
 
 	if !sbInDelete && sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
-		return sb.setupDefaultGW()
+		return sb.setupDefaultGW(ctx)
 	}
 
 	// Disable upstream forwarding if the sandbox lost external connectivity.
@@ -920,7 +920,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 	}
 
 	if !sb.needDefaultGW() {
-		if err := sb.clearDefaultGW(); err != nil {
+		if err := sb.clearDefaultGW(ctx); err != nil {
 			log.G(ctx).WithFields(log.Fields{
 				"error": err,
 				"sid":   sb.ID(),

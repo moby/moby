@@ -24,11 +24,11 @@ import (
 // is returned if the container is not found, or if the remove
 // fails. If the remove succeeds, the container name is released, and
 // network links are removed.
-func (daemon *Daemon) ContainerRm(name string, config *backend.ContainerRmConfig) error {
-	return daemon.containerRm(&daemon.config().Config, name, config)
+func (daemon *Daemon) ContainerRm(ctx context.Context, name string, config *backend.ContainerRmConfig) error {
+	return daemon.containerRm(ctx, &daemon.config().Config, name, config)
 }
 
-func (daemon *Daemon) containerRm(cfg *config.Config, name string, opts *backend.ContainerRmConfig) error {
+func (daemon *Daemon) containerRm(ctx context.Context, cfg *config.Config, name string, opts *backend.ContainerRmConfig) error {
 	start := time.Now()
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
@@ -48,10 +48,10 @@ func (daemon *Daemon) containerRm(cfg *config.Config, name string, opts *backend
 	}
 
 	if opts.RemoveLink {
-		return daemon.rmLink(cfg, ctr, name)
+		return daemon.rmLink(ctx, cfg, ctr, name)
 	}
 
-	err = daemon.cleanupContainer(ctr, *opts)
+	err = daemon.cleanupContainer(ctx, ctr, *opts)
 	metrics.ContainerActions.WithValues("delete").UpdateSince(start)
 	if err != nil {
 		return fmt.Errorf("cannot remove container %q: %w", name, err)
@@ -59,7 +59,7 @@ func (daemon *Daemon) containerRm(cfg *config.Config, name string, opts *backend
 	return nil
 }
 
-func (daemon *Daemon) rmLink(cfg *config.Config, ctr *container.Container, name string) error {
+func (daemon *Daemon) rmLink(ctx context.Context, cfg *config.Config, ctr *container.Container, name string) error {
 	if name[0] != '/' {
 		name = "/" + name
 	}
@@ -77,8 +77,8 @@ func (daemon *Daemon) rmLink(cfg *config.Config, ctr *container.Container, name 
 	daemon.releaseName(name)
 	if parentContainer := daemon.containers.Get(parentID); parentContainer != nil {
 		daemon.linkIndex.unlink(name, ctr, parentContainer)
-		if err := daemon.updateNetwork(cfg, parentContainer); err != nil {
-			log.G(context.TODO()).Debugf("Could not update network to remove link %s: %v", n, err)
+		if err := daemon.updateNetwork(ctx, cfg, parentContainer); err != nil {
+			log.G(ctx).Debugf("Could not update network to remove link %s: %v", n, err)
 		}
 	}
 	return nil
@@ -86,7 +86,7 @@ func (daemon *Daemon) rmLink(cfg *config.Config, ctr *container.Container, name 
 
 // cleanupContainer unregisters a container from the daemon, stops stats
 // collection and cleanly removes contents and metadata from the filesystem.
-func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.ContainerRmConfig) error {
+func (daemon *Daemon) cleanupContainer(ctx context.Context, ctr *container.Container, config backend.ContainerRmConfig) error {
 	if ctr.State.IsRunning() {
 		if !config.ForceRemove {
 			if ctr.State.Paused {
@@ -116,7 +116,7 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 	// If you arrived here and know the answer, you earned yourself a picture
 	// of a cute animal of your own choosing.
 	stopTimeout := 3
-	if err := daemon.containerStop(context.TODO(), ctr, backend.ContainerStopOptions{Timeout: &stopTimeout}); err != nil {
+	if err := daemon.containerStop(context.WithoutCancel(ctx), ctr, backend.ContainerStopOptions{Timeout: &stopTimeout}); err != nil {
 		return err
 	}
 
@@ -131,15 +131,15 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 	// Save container state to disk. So that if error happens before
 	// container meta file got removed from disk, then a restart of
 	// docker should not make a dead container alive.
-	if err := ctr.CheckpointTo(context.WithoutCancel(context.TODO()), daemon.containersReplica); err != nil && !os.IsNotExist(err) {
-		log.G(context.TODO()).Errorf("Error saving dying container to disk: %v", err)
+	if err := ctr.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica); err != nil && !os.IsNotExist(err) {
+		log.G(ctx).Errorf("Error saving dying container to disk: %v", err)
 	}
 	ctr.Unlock()
 
 	// When container creation fails and `RWLayer` has not been created yet, we
 	// do not call `ReleaseRWLayer`
 	if rwLayer != nil {
-		if err := daemon.imageService.ReleaseLayer(rwLayer); err != nil {
+		if err := daemon.imageService.ReleaseLayer(context.WithoutCancel(ctx), rwLayer); err != nil {
 			// Restore the reference on error as it possibly was not released.
 			ctr.Lock()
 			ctr.RWLayer = rwLayer
@@ -168,8 +168,8 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 	selinux.ReleaseLabel(ctr.ProcessLabel)
 	daemon.containers.Delete(ctr.ID)
 	daemon.containersReplica.Delete(ctr)
-	if err := daemon.removeMountPoints(ctr, config.RemoveVolume); err != nil {
-		log.G(context.TODO()).Error(err)
+	if err := daemon.removeMountPoints(ctx, ctr, config.RemoveVolume); err != nil {
+		log.G(ctx).Error(err)
 	}
 	for _, name := range linkNames {
 		daemon.releaseName(name)

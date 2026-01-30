@@ -229,8 +229,8 @@ func configureMaxThreads(_ context.Context) error {
 	return nil
 }
 
-func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSandboxes map[string]any) error {
-	ctx, span := otel.Tracer("").Start(context.TODO(), "Daemon.initNetworkController")
+func (daemon *Daemon) initNetworkController(ctx context.Context, daemonCfg *config.Config, activeSandboxes map[string]any) error {
+	ctx, span := otel.Tracer("").Start(ctx, "Daemon.initNetworkController")
 	defer span.End()
 
 	netOptions, err := daemon.networkOptions(daemonCfg, nil, daemon.id, nil)
@@ -272,7 +272,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 				name := v.Name()
 				id := v.ID()
 
-				err = v.Delete()
+				err = v.Delete(ctx)
 				if err != nil {
 					log.G(ctx).Errorf("Error occurred when removing network %v", err)
 				}
@@ -292,7 +292,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 
 			// global networks should not be deleted by local HNS
 			if v.Scope() != scope.Global {
-				err = v.Delete()
+				err = v.Delete(ctx)
 				if err != nil {
 					log.G(ctx).Errorf("Error occurred when removing network %v", err)
 				}
@@ -356,7 +356,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 			// restore option if it existed before
 			drvOptions = n.DriverOptions()
 			labels = n.Labels()
-			n.Delete()
+			n.Delete(ctx)
 		}
 		netOption := map[string]string{
 			winlibnetwork.NetworkName: v.Name,
@@ -508,23 +508,23 @@ func (daemon *Daemon) runAsHyperVContainer(hostConfig *containertypes.HostConfig
 
 // conditionalMountOnStart is a platform specific helper function during the
 // container start to call mount.
-func (daemon *Daemon) conditionalMountOnStart(container *container.Container) error {
+func (daemon *Daemon) conditionalMountOnStart(ctx context.Context, container *container.Container) error {
 	if daemon.runAsHyperVContainer(container.HostConfig) {
 		// We do not mount if a Hyper-V container as it needs to be mounted inside the
 		// utility VM, not the host.
 		return nil
 	}
-	return daemon.Mount(container)
+	return daemon.Mount(ctx, container)
 }
 
 // conditionalUnmountOnCleanup is a platform specific helper function called
 // during the cleanup of a container to unmount.
-func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) error {
+func (daemon *Daemon) conditionalUnmountOnCleanup(ctx context.Context, container *container.Container) error {
 	if daemon.runAsHyperVContainer(container.HostConfig) {
 		// We do not unmount if a Hyper-V container
 		return nil
 	}
-	return daemon.Unmount(container)
+	return daemon.Unmount(ctx, container)
 }
 
 func networkPlatformOptions(_ *config.Config) []nwconfig.Option {

@@ -1,13 +1,15 @@
 package discoverapi
 
+import "context"
+
 // Discover is an interface to be implemented by the component interested in receiving discover events
 // like new node joining the cluster or datastore updates
 type Discover interface {
 	// DiscoverNew is a notification for a new discovery event, Example:a new node joining a cluster
-	DiscoverNew(dType DiscoveryType, data any) error
+	DiscoverNew(ctx context.Context, dType DiscoveryType, data any) error
 
 	// DiscoverDelete is a notification for a discovery delete event, Example:a node leaving a cluster
-	DiscoverDelete(dType DiscoveryType, data any) error
+	DiscoverDelete(ctx context.Context, dType DiscoveryType, data any) error
 }
 
 // DiscoveryType represents the type of discovery element the DiscoverNew function is invoked on

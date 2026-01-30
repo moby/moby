@@ -163,7 +163,7 @@ func (o *copier) Cleanup() {
 	}
 	o.tmpPaths = []string{}
 	if o.activeLayer != nil {
-		o.activeLayer.Release()
+		o.activeLayer.Release(context.TODO())
 		o.activeLayer = nil
 	}
 }

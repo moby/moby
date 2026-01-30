@@ -55,15 +55,13 @@ type containerFSView struct {
 }
 
 // openContainerFS opens a new view of the container's filesystem.
-func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSView, retErr error) {
-	ctx := context.TODO()
-
-	if err := daemon.Mount(ctr); err != nil {
+func (daemon *Daemon) openContainerFS(ctx context.Context, ctr *container.Container) (_ *containerFSView, retErr error) {
+	if err := daemon.Mount(ctx, ctr); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if retErr != nil {
-			if err := daemon.Unmount(ctr); err != nil {
+			if err := daemon.Unmount(ctx, ctr); err != nil {
 				log.G(ctx).WithError(err).Debug("Failed to unmount container after failure")
 			}
 		}
@@ -215,24 +213,24 @@ func (vw *containerFSView) GoInFS(ctx context.Context, fn func()) error {
 
 // Close waits until any in-flight operations complete and frees all
 // resources associated with vw.
-func (vw *containerFSView) Close() error {
+func (vw *containerFSView) Close(ctx context.Context) error {
 	runtime.SetFinalizer(vw, nil)
 	close(vw.todo)
 	var errs []error
 	errs = append(errs,
 		<-vw.done,
-		vw.ctr.UnmountVolumes(context.TODO(), vw.d.LogVolumeEvent),
-		vw.d.Unmount(vw.ctr),
+		vw.ctr.UnmountVolumes(ctx, vw.d.LogVolumeEvent),
+		vw.d.Unmount(ctx, vw.ctr),
 	)
 	return errors.Join(errs...)
 }
 
 func (vw *containerFSView) finalize() {
-	_, span := otel.Tracer("").Start(context.Background(), "containerFSView.finalize", trace.WithAttributes(
+	ctx, span := otel.Tracer("").Start(context.Background(), "containerFSView.finalize", trace.WithAttributes(
 		attribute.String("container.id", vw.ctr.ID),
 	))
 	defer span.End()
-	otelutil.RecordStatus(span, vw.Close())
+	otelutil.RecordStatus(span, vw.Close(ctx))
 }
 
 // Stat returns the metadata for path, relative to the current working directory

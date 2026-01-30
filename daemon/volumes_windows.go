@@ -32,7 +32,7 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 
 	var mnts []container.Mount
 	for _, mp := range c.MountPoints { // type is volumemounts.MountPoint
-		if err := daemon.lazyInitializeVolume(c.ID, mp); err != nil {
+		if err := daemon.lazyInitializeVolume(ctx, c.ID, mp); err != nil {
 			return nil, nil, err
 		}
 		s, c, err := mp.Setup(ctx, c.MountLabel, idtools.Identity{}, nil)
