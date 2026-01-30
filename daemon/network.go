@@ -148,6 +148,7 @@ func (daemon *Daemon) getAllNetworks() []*libnetwork.Network {
 }
 
 type ingressJob struct {
+	ctx     context.Context
 	create  *clustertypes.NetworkCreateRequest
 	ip      net.IP
 	jobDone chan struct{}
@@ -177,9 +178,11 @@ func (daemon *Daemon) startIngressWorker() {
 
 // enqueueIngressJob adds a ingress add/rm request to the worker queue.
 // It guarantees the worker is started.
-func (daemon *Daemon) enqueueIngressJob(job *ingressJob) {
+func (daemon *Daemon) enqueueIngressJob(ctx context.Context, create *clustertypes.NetworkCreateRequest, ip net.IP) <-chan struct{} {
 	ingressWorkerOnce.Do(daemon.startIngressWorker)
-	ingressJobsChannel <- job
+	done := make(chan struct{})
+	ingressJobsChannel <- &ingressJob{ctx, create, ip, done}
+	return done
 }
 
 // SetupIngress setups ingress networking.
@@ -189,17 +192,13 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 	if err != nil {
 		return nil, err
 	}
-	done := make(chan struct{})
-	daemon.enqueueIngressJob(&ingressJob{&create, ip, done})
-	return done, nil
+	return daemon.enqueueIngressJob(context.TODO(), &create, ip), nil
 }
 
 // ReleaseIngress releases the ingress networking.
 // The function returns a channel which will signal the caller when the programming is completed.
 func (daemon *Daemon) ReleaseIngress() (<-chan struct{}, error) {
-	done := make(chan struct{})
-	daemon.enqueueIngressJob(&ingressJob{nil, nil, done})
-	return done, nil
+	return daemon.enqueueIngressJob(context.TODO(), nil, nil), nil
 }
 
 func (daemon *Daemon) setupIngress(cfg *config.Config, create *clustertypes.NetworkCreateRequest, ip net.IP, staleID string) {
