@@ -17,6 +17,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 )
 
 var (
@@ -92,6 +93,9 @@ func (daemon *Daemon) ContainerPrune(ctx context.Context, pruneFilters filters.A
 
 // localNetworkPrune removes unused local networks
 func (daemon *Daemon) localNetworkPrune(ctx context.Context, pruneFilters dnetwork.Filter) *network.PruneReport {
+	ctx, span := otel.Tracer("").Start(ctx, "Daemon.localNetworkPrune")
+	defer span.End()
+
 	rep := &network.PruneReport{}
 
 	// When the function returns true, the walk will stop.
@@ -116,6 +120,7 @@ func (daemon *Daemon) localNetworkPrune(ctx context.Context, pruneFilters dnetwo
 		}
 		if err := daemon.DeleteNetwork(nw.ID()); err != nil {
 			log.G(ctx).Warnf("could not remove local network %s: %v", nw.Name(), err)
+			span.RecordError(err)
 			return false
 		}
 		rep.NetworksDeleted = append(rep.NetworksDeleted, nw.Name())

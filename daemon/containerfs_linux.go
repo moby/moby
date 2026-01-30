@@ -12,11 +12,15 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/symlink"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sys/unix"
 
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/mounttree"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/internal/unshare"
 )
 
@@ -175,7 +179,7 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 		todo: todo,
 		done: done,
 	}
-	runtime.SetFinalizer(vw, (*containerFSView).Close)
+	runtime.SetFinalizer(vw, (*containerFSView).finalize)
 	return vw, nil
 }
 
@@ -221,6 +225,14 @@ func (vw *containerFSView) Close() error {
 		vw.d.Unmount(vw.ctr),
 	)
 	return errors.Join(errs...)
+}
+
+func (vw *containerFSView) finalize() {
+	_, span := otel.Tracer("").Start(context.Background(), "containerFSView.finalize", trace.WithAttributes(
+		attribute.String("container.id", vw.ctr.ID),
+	))
+	defer span.End()
+	otelutil.RecordStatus(span, vw.Close())
 }
 
 // Stat returns the metadata for path, relative to the current working directory

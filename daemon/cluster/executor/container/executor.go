@@ -15,6 +15,7 @@ import (
 	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
 	clustertypes "github.com/moby/moby/v2/daemon/cluster/provider"
 	"github.com/moby/moby/v2/daemon/internal/filters"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	networktypes "github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/swarmkit/v2/agent"
@@ -24,6 +25,7 @@ import (
 	swarmlog "github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/template"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 )
 
 type executor struct {
@@ -57,9 +59,12 @@ func NewExecutor(b executorpkg.Backend, p plugin.Backend, i executorpkg.ImageBac
 
 // Describe returns the underlying node description from the docker client.
 func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.cluster.executor.container.executor.Describe")
+	defer span.End()
+
 	info, err := e.backend.SystemInfo(ctx)
 	if err != nil {
-		return nil, err
+		return nil, otelutil.RecordStatus(span, err)
 	}
 
 	plugins := map[api.PluginDescription]struct{}{}
@@ -154,7 +159,13 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 	return description, nil
 }
 
-func (e *executor) Configure(ctx context.Context, node *api.Node) error {
+func (e *executor) Configure(ctx context.Context, node *api.Node) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.cluster.executor.container.executor.Configure")
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	var ingressNA *api.NetworkAttachment
 	attachments := make(map[string]string)
 

@@ -21,6 +21,7 @@ import (
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/multierror"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
@@ -1100,7 +1101,13 @@ func (daemon *Daemon) DisconnectFromNetwork(ctx context.Context, ctr *container.
 }
 
 // ActivateContainerServiceBinding puts this container into load balancer active rotation and DNS response
-func (daemon *Daemon) ActivateContainerServiceBinding(containerName string) error {
+func (daemon *Daemon) ActivateContainerServiceBinding(containerName string) (retErr error) {
+	_, span := otel.Tracer("").Start(context.TODO(), "daemon.ActivateContainerServiceBinding", trace.WithAttributes(
+		attribute.String("container.name", containerName)))
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
 	ctr, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
@@ -1113,7 +1120,13 @@ func (daemon *Daemon) ActivateContainerServiceBinding(containerName string) erro
 }
 
 // DeactivateContainerServiceBinding removes this container from load balancer active rotation, and DNS response
-func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) error {
+func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) (retErr error) {
+	ctx, span := otel.Tracer("").Start(context.TODO(), "daemon.DeactivateContainerServiceBinding", trace.WithAttributes(
+		attribute.String("container.name", containerName)))
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
 	ctr, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
@@ -1121,7 +1134,7 @@ func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) er
 	sb, err := daemon.netController.GetSandbox(ctr.ID)
 	if err != nil {
 		// If the network sandbox is not found, then there is nothing to deactivate
-		log.G(context.TODO()).WithError(err).Debugf("Could not find network sandbox for container %s on service binding deactivation request", containerName)
+		log.G(ctx).WithError(err).Debugf("Could not find network sandbox for container %s on service binding deactivation request", containerName)
 		return nil
 	}
 	return sb.DisableService()

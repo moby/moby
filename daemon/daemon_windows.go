@@ -28,6 +28,7 @@ import (
 	"github.com/moby/moby/v2/pkg/sysinfo"
 	"github.com/moby/sys/user"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc/mgr"
 )
@@ -229,11 +230,14 @@ func configureMaxThreads(_ context.Context) error {
 }
 
 func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSandboxes map[string]any) error {
+	ctx, span := otel.Tracer("").Start(context.TODO(), "Daemon.initNetworkController")
+	defer span.End()
+
 	netOptions, err := daemon.networkOptions(daemonCfg, nil, daemon.id, nil)
 	if err != nil {
 		return err
 	}
-	daemon.netController, err = libnetwork.New(context.TODO(), netOptions...)
+	daemon.netController, err = libnetwork.New(ctx, netOptions...)
 	if err != nil {
 		return errors.Wrap(err, "error obtaining controller instance")
 	}
@@ -242,8 +246,6 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 	if err != nil {
 		return err
 	}
-
-	ctx := context.TODO()
 
 	// Remove networks not present in HNS
 	for _, v := range daemon.netController.Networks(ctx) {
@@ -272,10 +274,10 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 
 				err = v.Delete()
 				if err != nil {
-					log.G(context.TODO()).Errorf("Error occurred when removing network %v", err)
+					log.G(ctx).Errorf("Error occurred when removing network %v", err)
 				}
 
-				_, err := daemon.netController.NewNetwork(context.TODO(), "nat", name, id,
+				_, err := daemon.netController.NewNetwork(ctx, "nat", name, id,
 					libnetwork.NetworkOptionGeneric(options.Generic{
 						netlabel.GenericData: netOption,
 					}),
@@ -283,7 +285,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 					libnetwork.NetworkOptionLabels(v.Labels()),
 				)
 				if err != nil {
-					log.G(context.TODO()).Errorf("Error occurred when creating network %v", err)
+					log.G(ctx).Errorf("Error occurred when creating network %v", err)
 				}
 				continue
 			}
@@ -292,13 +294,13 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 			if v.Scope() != scope.Global {
 				err = v.Delete()
 				if err != nil {
-					log.G(context.TODO()).Errorf("Error occurred when removing network %v", err)
+					log.G(ctx).Errorf("Error occurred when removing network %v", err)
 				}
 			}
 		}
 	}
 
-	_, err = daemon.netController.NewNetwork(context.TODO(), "null", "none", "", libnetwork.NetworkOptionPersist(false))
+	_, err = daemon.netController.NewNetwork(ctx, "null", "none", "", libnetwork.NetworkOptionPersist(false))
 	if err != nil {
 		return err
 	}

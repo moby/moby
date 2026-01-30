@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/internal/unshare"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
@@ -22,6 +23,9 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sys/unix"
 )
 
@@ -276,20 +280,30 @@ func (n *Namespace) GetLoopbackIfaceName() string {
 
 // AddAliasIP adds the passed IP address to the named interface
 func (n *Namespace) AddAliasIP(ifName string, ip *net.IPNet) error {
+	_, span := otel.Tracer("").Start(context.TODO(), "osl.Namespace.AddAliasIP", trace.WithAttributes(
+		attribute.String("ifName", ifName),
+		attribute.String("ip", ip.String()),
+	))
+	defer span.End()
 	iface, err := n.nlHandle.LinkByName(ifName)
 	if err != nil {
-		return err
+		return otelutil.RecordStatus(span, err)
 	}
-	return n.nlHandle.AddrAdd(iface, &netlink.Addr{IPNet: ip})
+	return otelutil.RecordStatus(span, n.nlHandle.AddrAdd(iface, &netlink.Addr{IPNet: ip}))
 }
 
 // RemoveAliasIP removes the passed IP address from the named interface
 func (n *Namespace) RemoveAliasIP(ifName string, ip *net.IPNet) error {
+	_, span := otel.Tracer("").Start(context.TODO(), "osl.Namespace.RemoveAliasIP", trace.WithAttributes(
+		attribute.String("ifName", ifName),
+		attribute.String("ip", ip.String()),
+	))
+	defer span.End()
 	iface, err := n.nlHandle.LinkByName(ifName)
 	if err != nil {
-		return err
+		return otelutil.RecordStatus(span, err)
 	}
-	return n.nlHandle.AddrDel(iface, &netlink.Addr{IPNet: ip})
+	return otelutil.RecordStatus(span, n.nlHandle.AddrDel(iface, &netlink.Addr{IPNet: ip}))
 }
 
 // DisableARPForVIP disables ARP replies and requests for VIP addresses

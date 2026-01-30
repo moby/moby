@@ -16,10 +16,15 @@ import (
 	"github.com/containerd/log"
 	"github.com/ishidawataru/sctp"
 	"github.com/moby/ipvs"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/vishvananda/netlink/nl"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Populate all loadbalancers on the network that the passed endpoint
@@ -82,23 +87,38 @@ func findIfaceDstName(sb *Sandbox, ep *Endpoint) string {
 // Add loadbalancer backend to the loadbalancer sandbox for the network.
 // If needed add the service as well.
 func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
+	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Network.addLBBackend", trace.WithAttributes(
+		attribute.String("nid", n.id),
+		attribute.String("ip", ip.String()),
+		attribute.String("vip", lb.vip.String()),
+	))
+	defer span.End()
+
 	if len(lb.vip) == 0 {
 		return
 	}
 	ep, sb, err := n.findLBEndpointSandbox()
 	if err != nil {
-		log.G(context.TODO()).Errorf("addLBBackend %s/%s: %v", n.ID(), n.Name(), err)
+		log.G(ctx).Errorf("addLBBackend %s/%s: %v", n.ID(), n.Name(), err)
+		otelutil.RecordStatus(span, err)
 		return
 	}
 	if sb.osSbox == nil {
 		return
 	}
 
+	span.SetAttributes(
+		attribute.String("eid", ep.ID()),
+		attribute.String("endpoint.name", ep.Name()),
+		attribute.String("sandboxID", sb.ID()),
+		attribute.String("container.id", sb.ContainerID()),
+	)
 	eIP := ep.Iface().Address()
 
 	i, err := ipvs.New(sb.Key())
 	if err != nil {
-		log.G(context.TODO()).Errorf("Failed to create an ipvs handle for sbox %.7s (%.7s,%s) for lb addition: %v", sb.ID(), sb.ContainerID(), sb.Key(), err)
+		log.G(ctx).Errorf("Failed to create an ipvs handle for sbox %.7s (%.7s,%s) for lb addition: %v", sb.ID(), sb.ContainerID(), sb.Key(), err)
+		otelutil.RecordStatus(span, err)
 		return
 	}
 	defer i.Close()
@@ -113,12 +133,14 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 		// Add IP alias for the VIP to the endpoint
 		ifName := findIfaceDstName(sb, ep)
 		if ifName == "" {
-			log.G(context.TODO()).Errorf("Failed find interface name for endpoint %s(%s) to create LB alias", ep.ID(), ep.Name())
+			log.G(ctx).Errorf("Failed find interface name for endpoint %s(%s) to create LB alias", ep.ID(), ep.Name())
+			span.SetStatus(codes.Error, "network interface not found")
 			return
 		}
 		err := sb.osSbox.AddAliasIP(ifName, &net.IPNet{IP: lb.vip, Mask: net.CIDRMask(32, 32)})
 		if err != nil {
-			log.G(context.TODO()).Errorf("Failed add IP alias %s to network %s LB endpoint interface %s: %v", lb.vip, n.ID(), ifName, err)
+			log.G(ctx).Errorf("Failed add IP alias %s to network %s LB endpoint interface %s: %v", lb.vip, n.ID(), ifName, err)
+			otelutil.RecordStatus(span, err)
 			return
 		}
 
@@ -173,12 +195,22 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 // If 'fullRemove' is true then completely remove the entry, otherwise
 // just deweight it for now.
 func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullRemove bool) {
+	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Network.rmLBBackend", trace.WithAttributes(
+		attribute.String("nid", n.id),
+		attribute.String("ip", ip.String()),
+		attribute.String("vip", lb.vip.String()),
+		attribute.Bool("rmService", rmService),
+		attribute.Bool("fullRemove", fullRemove),
+	))
+	defer span.End()
+
 	if len(lb.vip) == 0 {
 		return
 	}
 	ep, sb, err := n.findLBEndpointSandbox()
 	if err != nil {
-		log.G(context.TODO()).Debugf("rmLBBackend for %s/%s: %v -- probably transient state", n.ID(), n.Name(), err)
+		log.G(ctx).Debugf("rmLBBackend for %s/%s: %v -- probably transient state", n.ID(), n.Name(), err)
+		otelutil.RecordStatus(span, err)
 		return
 	}
 	if sb.osSbox == nil {
@@ -189,7 +221,8 @@ func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 
 	i, err := ipvs.New(sb.Key())
 	if err != nil {
-		log.G(context.TODO()).Errorf("Failed to create an ipvs handle for sbox %.7s (%.7s,%s) for lb removal: %v", sb.ID(), sb.ContainerID(), sb.Key(), err)
+		log.G(ctx).Errorf("Failed to create an ipvs handle for sbox %.7s (%.7s,%s) for lb removal: %v", sb.ID(), sb.ContainerID(), sb.Key(), err)
+		otelutil.RecordStatus(span, err)
 		return
 	}
 	defer i.Close()
@@ -210,19 +243,22 @@ func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 
 	if fullRemove {
 		if err := i.DelDestination(s, d); err != nil && !errors.Is(err, syscall.ENOENT) {
-			log.G(context.TODO()).Errorf("Failed to delete real server %s for vip %s fwmark %d in sbox %.7s (%.7s): %v", ip, lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
+			log.G(ctx).Errorf("Failed to delete real server %s for vip %s fwmark %d in sbox %.7s (%.7s): %v", ip, lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
+			span.RecordError(err)
 		}
 	} else {
 		d.Weight = 0
 		if err := i.UpdateDestination(s, d); err != nil && !errors.Is(err, syscall.ENOENT) {
-			log.G(context.TODO()).Errorf("Failed to set LB weight of real server %s to 0 for vip %s fwmark %d in sbox %.7s (%.7s): %v", ip, lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
+			log.G(ctx).Errorf("Failed to set LB weight of real server %s to 0 for vip %s fwmark %d in sbox %.7s (%.7s): %v", ip, lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
+			span.RecordError(err)
 		}
 	}
 
 	if rmService {
 		s.SchedName = ipvs.RoundRobin
 		if err := i.DelService(s); err != nil && !errors.Is(err, syscall.ENOENT) {
-			log.G(context.TODO()).Errorf("Failed to delete service for vip %s fwmark %d in sbox %.7s (%.7s): %v", lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
+			log.G(ctx).Errorf("Failed to delete service for vip %s fwmark %d in sbox %.7s (%.7s): %v", lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
+			span.RecordError(err)
 		}
 
 		if sb.ingress {
@@ -231,23 +267,27 @@ func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 				gwIP = gwEP.Iface().Address().IP
 			}
 			if err := removeIngressPorts(gwIP, lb.service.ingressPorts); err != nil {
-				log.G(context.TODO()).Errorf("Failed to delete ingress: %v", err)
+				log.G(ctx).Errorf("Failed to delete ingress: %v", err)
+				span.RecordError(err)
 			}
 		}
 
 		if err := sb.configureFWMark(lb.vip, lb.fwMark, lb.service.ingressPorts, eIP, true, n.loadBalancerMode); err != nil {
-			log.G(context.TODO()).Errorf("Failed to delete firewall mark rule in sbox %.7s (%.7s): %v", sb.ID(), sb.ContainerID(), err)
+			log.G(ctx).Errorf("Failed to delete firewall mark rule in sbox %.7s (%.7s): %v", sb.ID(), sb.ContainerID(), err)
+			span.RecordError(err)
 		}
 
 		// Remove IP alias from the VIP to the endpoint
 		ifName := findIfaceDstName(sb, ep)
 		if ifName == "" {
-			log.G(context.TODO()).Errorf("Failed find interface name for endpoint %s(%s) to create LB alias", ep.ID(), ep.Name())
+			log.G(ctx).Errorf("Failed find interface name for endpoint %s(%s) to remove LB alias", ep.ID(), ep.Name())
+			span.SetStatus(codes.Error, "network interface not found")
 			return
 		}
 		err := sb.osSbox.RemoveAliasIP(ifName, &net.IPNet{IP: lb.vip, Mask: net.CIDRMask(32, 32)})
 		if err != nil {
-			log.G(context.TODO()).Errorf("Failed to remove IP alias %s from network %s LB endpoint interface %s: %v", lb.vip, n.ID(), ifName, err)
+			log.G(ctx).Errorf("Failed to remove IP alias %s from network %s LB endpoint interface %s: %v", lb.vip, n.ID(), ifName, err)
+			span.RecordError(err)
 		}
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/etchosts"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
@@ -565,15 +566,20 @@ func (sb *Sandbox) hasExternalAccess() bool {
 // EnableService makes a managed container's service available by adding the
 // endpoint to the service load balancer and service discovery.
 func (sb *Sandbox) EnableService() (retErr error) {
-	log.G(context.TODO()).WithField("container", sb.containerID).Debug("EnableService START")
+	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Sandbox.EnableService", trace.WithAttributes(
+		attribute.String("container.ID", sb.containerID)))
+	defer span.End()
+	log.G(ctx).WithField("container", sb.containerID).Debug("EnableService START")
 	defer func() {
+		otelutil.RecordStatus(span, retErr)
 		if retErr != nil {
 			if err := sb.DisableService(); err != nil {
-				log.G(context.TODO()).WithFields(log.Fields{
+				log.G(ctx).WithFields(log.Fields{
 					"error":     err,
 					"origError": retErr,
 					"container": sb.containerID,
 				}).Error("Error while disabling service after original error")
+				span.RecordError(err)
 			}
 		}
 	}()
@@ -585,14 +591,17 @@ func (sb *Sandbox) EnableService() (retErr error) {
 			ep.enableService()
 		}
 	}
-	log.G(context.TODO()).WithField("container", sb.containerID).Debug("EnableService DONE")
+	log.G(ctx).WithField("container", sb.containerID).Debug("EnableService DONE")
 	return nil
 }
 
 // DisableService removes a managed container's endpoints from the load balancer
 // and service discovery.
 func (sb *Sandbox) DisableService() error {
-	log.G(context.TODO()).WithField("container", sb.containerID).Debug("DisableService START")
+	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Sandbox.DisableService", trace.WithAttributes(
+		attribute.String("container.ID", sb.containerID)))
+	defer span.End()
+	log.G(ctx).WithField("container", sb.containerID).Debug("DisableService START")
 	var failedEps []string
 	for _, ep := range sb.Endpoints() {
 		if !ep.isServiceEnabled() {
@@ -600,7 +609,7 @@ func (sb *Sandbox) DisableService() error {
 		}
 		if err := ep.deleteServiceInfoFromCluster(sb, false, "DisableService"); err != nil {
 			failedEps = append(failedEps, ep.Name())
-			log.G(context.TODO()).WithFields(log.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"container": sb.containerID,
 				"error":     err,
 				"ep":        ep.Name(),
@@ -608,9 +617,9 @@ func (sb *Sandbox) DisableService() error {
 		}
 		ep.disableService()
 	}
-	log.G(context.TODO()).WithField("container", sb.containerID).Debug("DisableService DONE")
+	log.G(ctx).WithField("container", sb.containerID).Debug("DisableService DONE")
 	if len(failedEps) > 0 {
-		return fmt.Errorf("failed to disable service on sandbox:%s, for endpoints %s", sb.ID(), strings.Join(failedEps, ","))
+		return otelutil.RecordStatus(span, fmt.Errorf("failed to disable service on sandbox:%s, for endpoints %s", sb.ID(), strings.Join(failedEps, ",")))
 	}
 	return nil
 }

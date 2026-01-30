@@ -128,11 +128,14 @@ retry:
 }
 
 func (c *Controller) networkCleanup() {
-	for _, n := range c.getNetworksFromStore(context.TODO()) {
+	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Controller.networkCleanup")
+	defer span.End()
+	for _, n := range c.getNetworksFromStore(ctx) {
 		if n.inDelete {
-			log.G(context.TODO()).Infof("Removing stale network %s (%s)", n.Name(), n.ID())
+			log.G(ctx).Infof("Removing stale network %s (%s)", n.Name(), n.ID())
 			if err := n.delete(true, true); err != nil {
-				log.G(context.TODO()).Debugf("Error while removing stale network: %v", err)
+				log.G(ctx).Debugf("Error while removing stale network: %v", err)
+				span.RecordError(err)
 			}
 		}
 	}

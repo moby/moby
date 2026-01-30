@@ -7,8 +7,10 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"go.opentelemetry.io/otel"
 )
 
 const (
@@ -31,7 +33,13 @@ var procGwNetwork = make(chan (bool), 1)
    - its deleted when an endpoint with GW joins the container
 */
 
-func (sb *Sandbox) setupDefaultGW() error {
+func (sb *Sandbox) setupDefaultGW() (retErr error) {
+	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Sandbox.setupDefaultGW")
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	// check if the container already has a GW endpoint
 	if ep := sb.getEndpointInGWNetwork(); ep != nil {
 		return nil
@@ -72,21 +80,22 @@ func (sb *Sandbox) setupDefaultGW() error {
 		createOptions = append(createOptions, epOption)
 	}
 
-	newEp, err := n.CreateEndpoint(context.TODO(), gwName, createOptions...)
+	newEp, err := n.CreateEndpoint(ctx, gwName, createOptions...)
 	if err != nil {
 		return fmt.Errorf("container %s: endpoint create on GW Network failed: %v", sb.containerID, err)
 	}
 
 	defer func() {
-		if err != nil {
-			if err2 := newEp.Delete(context.WithoutCancel(context.TODO()), true); err2 != nil {
-				log.G(context.TODO()).Warnf("Failed to remove gw endpoint for container %s after failing to join the gateway network: %v",
+		if retErr != nil {
+			if err2 := newEp.Delete(context.WithoutCancel(ctx), true); err2 != nil {
+				log.G(ctx).Warnf("Failed to remove gw endpoint for container %s after failing to join the gateway network: %v",
 					sb.containerID, err2)
+				span.RecordError(err2)
 			}
 		}
 	}()
 
-	if err = newEp.sbJoin(context.TODO(), sb); err != nil {
+	if err := newEp.sbJoin(ctx, sb); err != nil {
 		return fmt.Errorf("container %s: endpoint join on GW Network failed: %v", sb.containerID, err)
 	}
 

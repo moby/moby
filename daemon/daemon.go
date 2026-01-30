@@ -37,6 +37,7 @@ import (
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/internal/nri"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
@@ -763,6 +764,9 @@ func (daemon *Daemon) DaemonJoinsCluster(clusterProvider cluster.Provider) {
 
 // DaemonLeavesCluster informs the daemon has left the cluster
 func (daemon *Daemon) DaemonLeavesCluster() {
+	ctx, span := otel.Tracer("").Start(context.TODO(), "Daemon.DaemonLeavesCluster")
+	defer span.End()
+
 	// Daemon is in charge of removing the attachable networks with
 	// connected containers when the node leaves the swarm
 	daemon.clearAttachableNetworks()
@@ -784,10 +788,10 @@ func (daemon *Daemon) DaemonLeavesCluster() {
 		select {
 		case <-done:
 		case <-timeout.C:
-			log.G(context.TODO()).Warn("timeout while waiting for ingress network removal")
+			log.G(ctx).Warn("timeout while waiting for ingress network removal")
 		}
 	} else {
-		log.G(context.TODO()).Warnf("failed to initiate ingress network removal: %v", err)
+		log.G(ctx).Warnf("failed to initiate ingress network removal: %v", err)
 	}
 
 	daemon.attachmentStore.ClearAttachments()
@@ -815,6 +819,12 @@ func CheckSystem() error {
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
 func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (_ *Daemon, retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "NewDaemon")
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	registryService, err := registry.NewService(config.ServiceOptions)
 	if err != nil {
 		return nil, err

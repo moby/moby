@@ -13,11 +13,15 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/network"
 	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/time/rate"
 )
 
@@ -63,27 +67,42 @@ func (r *controller) Task() (*api.Task, error) {
 
 // ContainerStatus returns the container-specific status for the task.
 func (r *controller) ContainerStatus(ctx context.Context) (*api.ContainerStatus, error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.cluster.executor.container.controller.ContainerStatus",
+		trace.WithAttributes(
+			attribute.String("container.name", r.adapter.container.name()),
+		),
+	)
+	defer span.End()
 	ctnr, err := r.adapter.inspect(ctx)
 	if err != nil {
 		if cerrdefs.IsNotFound(err) {
+			span.RecordError(err)
 			return nil, nil
 		}
-		return nil, err
+		return nil, otelutil.RecordStatus(span, err)
 	}
-	return parseContainerStatus(ctnr)
+	s, err := parseContainerStatus(ctnr)
+	return s, otelutil.RecordStatus(span, err)
 }
 
 func (r *controller) PortStatus(ctx context.Context) (*api.PortStatus, error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.cluster.executor.container.controller.PortStatus",
+		trace.WithAttributes(
+			attribute.String("container.name", r.adapter.container.name()),
+		),
+	)
+	defer span.End()
 	ctnr, err := r.adapter.inspect(ctx)
 	if err != nil {
 		if cerrdefs.IsNotFound(err) {
 			return nil, nil
 		}
 
-		return nil, err
+		return nil, otelutil.RecordStatus(span, err)
 	}
 
-	return parsePortStatus(ctnr)
+	s, err := parsePortStatus(ctnr)
+	return s, otelutil.RecordStatus(span, err)
 }
 
 // Update tasks a recent task update and applies it to the container.
@@ -97,7 +116,17 @@ func (r *controller) Update(ctx context.Context, t *api.Task) error {
 // Prepare creates a container and ensures the image is pulled.
 //
 // If the container has already be created, exec.ErrTaskPrepared is returned.
-func (r *controller) Prepare(ctx context.Context) error {
+func (r *controller) Prepare(ctx context.Context) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.cluster.executor.container.controller.Prepare",
+		trace.WithAttributes(
+			attribute.String("container.name", r.adapter.container.name()),
+		),
+	)
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	if err := r.checkClosed(); err != nil {
 		return err
 	}
@@ -149,7 +178,7 @@ func (r *controller) Prepare(ctx context.Context) error {
 			var pctx context.Context
 
 			r.pulled = make(chan struct{})
-			pctx, r.cancelPull = context.WithCancel(context.Background()) // TODO(stevvooe): Bind a context to the entire controller.
+			pctx, r.cancelPull = context.WithCancel(ctx)
 
 			go func() {
 				defer close(r.pulled)
@@ -174,6 +203,7 @@ func (r *controller) Prepare(ctx context.Context) error {
 				// If you don't want this behavior, lock down your image to an
 				// immutable tag or digest.
 				log.G(ctx).WithError(r.pullErr).Error("pulling image failed")
+				span.RecordError(r.pullErr)
 			}
 		}
 	}
@@ -194,7 +224,17 @@ func (r *controller) Prepare(ctx context.Context) error {
 }
 
 // Start the container. An error will be returned if the container is already started.
-func (r *controller) Start(ctx context.Context) error {
+func (r *controller) Start(ctx context.Context) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.cluster.executor.container.controller.Start",
+		trace.WithAttributes(
+			attribute.String("container.name", r.adapter.container.name()),
+		),
+	)
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	if err := r.checkClosed(); err != nil {
 		return err
 	}
@@ -292,12 +332,22 @@ func (r *controller) Start(ctx context.Context) error {
 }
 
 // Wait on the container to exit.
-func (r *controller) Wait(pctx context.Context) error {
+func (r *controller) Wait(ctx context.Context) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.cluster.executor.container.controller.Wait",
+		trace.WithAttributes(
+			attribute.String("container.name", r.adapter.container.name()),
+		),
+	)
+	defer func() {
+		span.RecordError(retErr)
+		span.End()
+	}()
+
 	if err := r.checkClosed(); err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithCancel(pctx)
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	healthErr := make(chan error, 1)
@@ -308,6 +358,7 @@ func (r *controller) Wait(pctx context.Context) error {
 			healthErr <- ErrContainerUnhealthy
 			if err := r.Shutdown(ectx); err != nil {
 				log.G(ectx).WithError(err).Debug("shutdown failed on unhealthy")
+				span.RecordError(err)
 			}
 		}
 	}()
@@ -357,7 +408,17 @@ func (r *controller) hasServiceBinding() bool {
 }
 
 // Shutdown the container cleanly.
-func (r *controller) Shutdown(ctx context.Context) error {
+func (r *controller) Shutdown(ctx context.Context) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.cluster.executor.container.controller.Shutdown",
+		trace.WithAttributes(
+			attribute.String("container.name", r.adapter.container.name()),
+		),
+	)
+	defer func() {
+		span.RecordError(retErr)
+		span.End()
+	}()
+
 	if err := r.checkClosed(); err != nil {
 		return err
 	}
@@ -398,7 +459,17 @@ func (r *controller) Shutdown(ctx context.Context) error {
 }
 
 // Terminate the container, with force.
-func (r *controller) Terminate(ctx context.Context) error {
+func (r *controller) Terminate(ctx context.Context) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.cluster.executor.container.controller.Terminate",
+		trace.WithAttributes(
+			attribute.String("container.name", r.adapter.container.name()),
+		),
+	)
+	defer func() {
+		span.RecordError(retErr)
+		span.End()
+	}()
+
 	if err := r.checkClosed(); err != nil {
 		return err
 	}
@@ -419,7 +490,17 @@ func (r *controller) Terminate(ctx context.Context) error {
 }
 
 // Remove the container and its resources.
-func (r *controller) Remove(ctx context.Context) error {
+func (r *controller) Remove(ctx context.Context) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.cluster.executor.container.controller.Remove",
+		trace.WithAttributes(
+			attribute.String("container.name", r.adapter.container.name()),
+		),
+	)
+	defer func() {
+		span.RecordError(retErr)
+		span.End()
+	}()
+
 	if err := r.checkClosed(); err != nil {
 		return err
 	}
@@ -449,12 +530,22 @@ func (r *controller) Remove(ctx context.Context) error {
 
 // waitReady waits for a container to be "ready".
 // Ready means it's past the started state.
-func (r *controller) waitReady(pctx context.Context) error {
+func (r *controller) waitReady(ctx context.Context) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.cluster.executor.container.controller.waitReady",
+		trace.WithAttributes(
+			attribute.String("container.name", r.adapter.container.name()),
+		),
+	)
+	defer func() {
+		span.RecordError(retErr)
+		span.End()
+	}()
+
 	if err := r.checkClosed(); err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithCancel(pctx)
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	eventq := r.adapter.events(ctx)
@@ -494,7 +585,17 @@ func (r *controller) waitReady(pctx context.Context) error {
 	}
 }
 
-func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, options api.LogSubscriptionOptions) error {
+func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, options api.LogSubscriptionOptions) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.cluster.executor.container.controller.Logs",
+		trace.WithAttributes(
+			attribute.String("container.name", r.adapter.container.name()),
+		),
+	)
+	defer func() {
+		span.RecordError(retErr)
+		span.End()
+	}()
+
 	if err := r.checkClosed(); err != nil {
 		return err
 	}

@@ -8,16 +8,28 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ContainerRename changes the name of a container, using the oldName
 // to find the container. An error is returned if newName is already
 // reserved.
 func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
+	ctx, span := otel.Tracer("").Start(context.TODO(), "daemon.ContainerRename", trace.WithAttributes(
+		attribute.String("oldName", oldName),
+		attribute.String("newName", newName),
+	))
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
 	oldName = strings.TrimSpace(oldName)
 	newName = strings.TrimSpace(newName)
 	if strings.TrimPrefix(oldName, "/") == "" || strings.TrimPrefix(newName, "/") == "" {
@@ -80,7 +92,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 		daemon.linkIndex.unlink(oldName+k, v, ctr)
 		daemon.containersReplica.ReleaseName(oldName + k)
 	}
-	if err := ctr.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
+	if err := ctr.CheckpointTo(ctx, daemon.containersReplica); err != nil {
 		return err
 	}
 
@@ -94,8 +106,9 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 	defer func() {
 		if retErr != nil {
 			ctr.Name = oldName
-			if err := ctr.CheckpointTo(context.WithoutCancel(context.TODO()), daemon.containersReplica); err != nil {
-				log.G(context.TODO()).WithFields(log.Fields{
+			if err := ctr.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica); err != nil {
+				span.RecordError(err)
+				log.G(ctx).WithFields(log.Fields{
 					"containerID": ctr.ID,
 					"error":       err,
 				}).Error("failed to write container state to disk during rename")
@@ -114,7 +127,8 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 		defer func() {
 			if retErr != nil {
 				if err := sb.Rename(oldName); err != nil {
-					log.G(context.TODO()).WithFields(log.Fields{
+					span.RecordError(err)
+					log.G(ctx).WithFields(log.Fields{
 						"sandboxID": sid,
 						"oldName":   oldName,
 						"newName":   newName,
@@ -150,7 +164,8 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 
 				epConfig.DNSNames = oldDNSNames
 				if err := ep.UpdateDNSNames(epConfig.DNSNames); err != nil {
-					log.G(context.TODO()).WithFields(log.Fields{
+					span.RecordError(err)
+					log.G(ctx).WithFields(log.Fields{
 						"sandboxID": sid,
 						"oldName":   oldName,
 						"newName":   newName,
