@@ -21,8 +21,8 @@ import (
 // ContainerRename changes the name of a container, using the oldName
 // to find the container. An error is returned if newName is already
 // reserved.
-func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
-	ctx, span := otel.Tracer("").Start(context.TODO(), "daemon.ContainerRename", trace.WithAttributes(
+func (daemon *Daemon) ContainerRename(ctx context.Context, oldName, newName string) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.ContainerRename", trace.WithAttributes(
 		attribute.String("oldName", oldName),
 		attribute.String("newName", newName),
 	))
@@ -139,7 +139,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 		}()
 
 		for nwName, epConfig := range ctr.NetworkSettings.Networks {
-			nw, err := daemon.FindNetwork(nwName)
+			nw, err := daemon.FindNetwork(ctx, nwName)
 			if err != nil {
 				return err
 			}
@@ -153,7 +153,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 			copy(oldDNSNames, epConfig.DNSNames)
 
 			epConfig.DNSNames = buildEndpointDNSNames(ctr, epConfig.Aliases)
-			if err := ep.UpdateDNSNames(epConfig.DNSNames); err != nil {
+			if err := ep.UpdateDNSNames(ctx, epConfig.DNSNames); err != nil {
 				return err
 			}
 
@@ -163,7 +163,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) (retErr error) {
 				}
 
 				epConfig.DNSNames = oldDNSNames
-				if err := ep.UpdateDNSNames(epConfig.DNSNames); err != nil {
+				if err := ep.UpdateDNSNames(ctx, epConfig.DNSNames); err != nil {
 					span.RecordError(err)
 					log.G(ctx).WithFields(log.Fields{
 						"sandboxID": sid,

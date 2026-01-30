@@ -981,12 +981,12 @@ func (n *Network) driver(load bool) (driverapi.Driver, error) {
 }
 
 // Delete the network.
-func (n *Network) Delete(options ...NetworkDeleteOption) error {
+func (n *Network) Delete(ctx context.Context, options ...NetworkDeleteOption) error {
 	var params networkDeleteParams
 	for _, opt := range options {
 		opt(&params)
 	}
-	return n.delete(false, params.rmLBEndpoint)
+	return n.delete(ctx, false, params.rmLBEndpoint)
 }
 
 // This function gets called in 3 ways:
@@ -997,14 +997,14 @@ func (n *Network) Delete(options ...NetworkDeleteOption) error {
 //     remove load balancer and network if endpoint count == 1
 //   - controller.networkCleanup() -- (true, true)
 //     remove the network no matter what
-func (n *Network) delete(force bool, rmLBEndpoint bool) (retErr error) {
+func (n *Network) delete(ctx context.Context, force bool, rmLBEndpoint bool) (retErr error) {
 	n.mu.Lock()
 	c := n.ctrlr
 	name := n.name
 	id := n.id
 	n.mu.Unlock()
 
-	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Network.delete", trace.WithAttributes(
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Network.delete", trace.WithAttributes(
 		attribute.String("nid", id),
 		attribute.String("network.name", name),
 	))
@@ -1052,7 +1052,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) (retErr error) {
 	if n.hasLoadBalancerEndpoint() {
 		// If we got to this point, then the following must hold:
 		//  * force is true OR endpoint count == 1
-		if err := n.deleteLoadBalancerSandbox(); err != nil {
+		if err := n.deleteLoadBalancerSandbox(ctx); err != nil {
 			if !force {
 				return err
 			}
@@ -1096,7 +1096,7 @@ func (n *Network) delete(force bool, rmLBEndpoint bool) (retErr error) {
 	// to remove remote loadbalancers in VFP, and must be performed before
 	// dataplane network deletion.
 	if runtime.GOOS == "windows" {
-		c.cleanupServiceBindings(n.ID())
+		c.cleanupServiceBindings(ctx, n.ID())
 	}
 
 	// Delete the network from the dataplane
@@ -2103,8 +2103,8 @@ func (n *Network) lbEndpointName() string {
 	return n.name + "-endpoint"
 }
 
-func (n *Network) createLoadBalancerSandbox() (retErr error) {
-	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.createLoadBalancerSandbox", trace.WithAttributes(
+func (n *Network) createLoadBalancerSandbox(ctx context.Context) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.createLoadBalancerSandbox", trace.WithAttributes(
 		attribute.String("nid", n.id),
 		attribute.String("libnet.network.name", n.name),
 		attribute.Bool("libnet.network.ingress", n.ingress),
@@ -2152,11 +2152,11 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 		return err
 	}
 
-	return sb.EnableService()
+	return sb.EnableService(ctx)
 }
 
-func (n *Network) deleteLoadBalancerSandbox() (retErr error) {
-	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Network.deleteLoadBalancerSandbox", trace.WithAttributes(
+func (n *Network) deleteLoadBalancerSandbox(ctx context.Context) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Network.deleteLoadBalancerSandbox", trace.WithAttributes(
 		attribute.String("nid", n.id),
 	))
 	defer func() {
@@ -2180,7 +2180,7 @@ func (n *Network) deleteLoadBalancerSandbox() (retErr error) {
 		if info != nil {
 			sb := info.Sandbox()
 			if sb != nil {
-				if err := sb.DisableService(); err != nil {
+				if err := sb.DisableService(ctx); err != nil {
 					log.G(ctx).Warnf("Failed to disable service on sandbox %s: %v", sandboxName, err)
 					// Ignore error and attempt to delete the load balancer endpoint
 				}

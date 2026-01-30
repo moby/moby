@@ -23,7 +23,7 @@ import (
 )
 
 // CreateLayer creates a new layer for a container.
-func (i *ImageService) CreateLayer(ctr *container.Container, initFunc layer.MountInit) (container.RWLayer, error) {
+func (i *ImageService) CreateLayer(ctx context.Context, ctr *container.Container, initFunc layer.MountInit) (container.RWLayer, error) {
 	var descriptor *ocispec.Descriptor
 	if ctr.ImageManifest != nil {
 		descriptor = ctr.ImageManifest
@@ -33,21 +33,20 @@ func (i *ImageService) CreateLayer(ctr *container.Container, initFunc layer.Moun
 		StorageOpt: ctr.HostConfig.StorageOpt,
 	}
 
-	return i.createLayer(descriptor, ctr.ID, rwLayerOpts, initFunc)
+	return i.createLayer(ctx, descriptor, ctr.ID, rwLayerOpts, initFunc)
 }
 
 // CreateLayerFromImage creates a new layer from an image
-func (i *ImageService) CreateLayerFromImage(img *image.Image, layerName string, rwLayerOpts *layer.CreateRWLayerOpts) (container.RWLayer, error) {
+func (i *ImageService) CreateLayerFromImage(ctx context.Context, img *image.Image, layerName string, rwLayerOpts *layer.CreateRWLayerOpts) (container.RWLayer, error) {
 	var descriptor *ocispec.Descriptor
 	if img != nil {
 		descriptor = img.Details.ManifestDescriptor
 	}
 
-	return i.createLayer(descriptor, layerName, rwLayerOpts, nil)
+	return i.createLayer(ctx, descriptor, layerName, rwLayerOpts, nil)
 }
 
-func (i *ImageService) createLayer(descriptor *ocispec.Descriptor, layerName string, rwLayerOpts *layer.CreateRWLayerOpts, initFunc layer.MountInit) (container.RWLayer, error) {
-	ctx := context.TODO()
+func (i *ImageService) createLayer(ctx context.Context, descriptor *ocispec.Descriptor, layerName string, rwLayerOpts *layer.CreateRWLayerOpts, initFunc layer.MountInit) (container.RWLayer, error) {
 	var parentSnapshot string
 	if descriptor != nil {
 		snapshot, err := i.getImageSnapshot(ctx, descriptor)
@@ -149,9 +148,7 @@ func (l *rwLayer) mounts(ctx context.Context) ([]mount.Mount, error) {
 	return l.snapshotter.Mounts(ctx, l.id)
 }
 
-func (l *rwLayer) Mount(mountLabel string) (string, error) {
-	ctx := context.TODO()
-
+func (l *rwLayer) Mount(ctx context.Context, mountLabel string) (string, error) {
 	// TODO: Investigate how we can handle mountLabel
 	_ = mountLabel
 	mounts, err := l.mounts(ctx)
@@ -171,9 +168,7 @@ func (l *rwLayer) Mount(mountLabel string) (string, error) {
 
 // GetLayerByID returns a layer by ID
 // called from daemon.go Daemon.restore().
-func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
-	ctx := context.TODO()
-
+func (i *ImageService) GetLayerByID(ctx context.Context, cid string) (container.RWLayer, error) {
 	sn := i.client.SnapshotService(i.StorageDriver())
 	if _, err := sn.Stat(ctx, cid); err != nil {
 		if !cerrdefs.IsNotFound(err) {
@@ -217,9 +212,7 @@ func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 	}, nil
 }
 
-func (l *rwLayer) Unmount() error {
-	ctx := context.TODO()
-
+func (l *rwLayer) Unmount(ctx context.Context) error {
 	if l.root == "" {
 		target, err := l.refCountMounter.Mounted(l.id)
 		if err != nil {
@@ -247,14 +240,14 @@ func (l rwLayer) Metadata() (map[string]string, error) {
 
 // ReleaseLayer releases a layer allowing it to be removed
 // called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
-func (i *ImageService) ReleaseLayer(rwlayer container.RWLayer) error {
+func (i *ImageService) ReleaseLayer(ctx context.Context, rwlayer container.RWLayer) error {
 	c8dLayer, ok := rwlayer.(*rwLayer)
 	if !ok {
 		return fmt.Errorf("invalid layer type %T", rwlayer)
 	}
 
 	ls := i.client.LeasesService()
-	if err := ls.Delete(context.Background(), c8dLayer.lease, leases.SynchronousDelete); err != nil {
+	if err := ls.Delete(ctx, c8dLayer.lease, leases.SynchronousDelete); err != nil {
 		if !cerrdefs.IsNotFound(err) {
 			return err
 		}

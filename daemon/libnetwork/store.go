@@ -127,13 +127,13 @@ retry:
 	return nil
 }
 
-func (c *Controller) networkCleanup() {
-	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Controller.networkCleanup")
+func (c *Controller) networkCleanup(ctx context.Context) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Controller.networkCleanup")
 	defer span.End()
 	for _, n := range c.getNetworksFromStore(ctx) {
 		if n.inDelete {
 			log.G(ctx).Infof("Removing stale network %s (%s)", n.Name(), n.ID())
-			if err := n.delete(true, true); err != nil {
+			if err := n.delete(ctx, true, true); err != nil {
 				log.G(ctx).Debugf("Error while removing stale network: %v", err)
 				span.RecordError(err)
 			}

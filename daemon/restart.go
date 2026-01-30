@@ -50,8 +50,8 @@ func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configSto
 	// access to mount the containers filesystem inside the utility
 	// VM.
 	if !containertypes.Isolation.IsHyperV(actualIsolation) {
-		if err := daemon.Mount(container); err == nil {
-			defer daemon.Unmount(container)
+		if err := daemon.Mount(ctx, container); err == nil {
+			defer daemon.Unmount(ctx, container)
 		}
 	}
 

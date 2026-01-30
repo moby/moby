@@ -35,7 +35,7 @@ func (daemon *Daemon) setStateCounter(c *container.Container) {
 	}
 }
 
-func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontainerdtypes.EventInfo) error {
+func (daemon *Daemon) handleContainerExit(ctx context.Context, c *container.Container, e *libcontainerdtypes.EventInfo) error {
 	var ctrExitStatus container.ExitStatus
 	c.Lock()
 
@@ -84,8 +84,8 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	c.StreamConfig.Wait(ctx)
+	wctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	c.StreamConfig.Wait(wctx)
 	cancel()
 
 	c.Reset()
@@ -123,7 +123,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		"exitCode":     strconv.Itoa(ctrExitStatus.ExitCode),
 		"execDuration": strconv.Itoa(int(execDuration.Seconds())),
 	}
-	daemon.Cleanup(context.TODO(), c)
+	daemon.Cleanup(context.WithoutCancel(ctx), c)
 
 	if restart {
 		c.RestartCount++
@@ -139,13 +139,13 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	} else {
 		c.State.SetStopped(&ctrExitStatus)
 		if !c.HasBeenManuallyRestarted {
-			defer daemon.autoRemove(&cfg.Config, c)
+			defer daemon.autoRemove(context.WithoutCancel(ctx), &cfg.Config, c)
 		}
 	}
 	defer c.Unlock() // needs to be called before autoRemove
 
 	daemon.setStateCounter(c)
-	checkpointErr := c.CheckpointTo(context.TODO(), daemon.containersReplica)
+	checkpointErr := c.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica)
 
 	daemon.LogContainerEventWithAttributes(c, events.ActionDie, attributes)
 
@@ -176,7 +176,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 				daemon.setStateCounter(c)
 				c.CheckpointTo(ctx, daemon.containersReplica)
 				c.Unlock()
-				defer daemon.autoRemove(&cfg.Config, c)
+				defer daemon.autoRemove(ctx, &cfg.Config, c)
 				if !errors.Is(waitErr, restartmanager.ErrRestartCanceled) {
 					log.G(ctx).Errorf("restartmanger wait error: %+v", waitErr)
 				}
@@ -221,7 +221,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		return nil
 	case libcontainerdtypes.EventExit:
 		if ei.ProcessID == ei.ContainerID {
-			return daemon.handleContainerExit(c, &ei)
+			return daemon.handleContainerExit(ctx, c, &ei)
 		}
 
 		exitCode := 127
@@ -353,7 +353,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 	}
 }
 
-func (daemon *Daemon) autoRemove(cfg *config.Config, c *container.Container) {
+func (daemon *Daemon) autoRemove(ctx context.Context, cfg *config.Config, c *container.Container) {
 	c.Lock()
 	ar := c.HostConfig.AutoRemove
 	c.Unlock()
@@ -361,13 +361,13 @@ func (daemon *Daemon) autoRemove(cfg *config.Config, c *container.Container) {
 		return
 	}
 
-	err := daemon.containerRm(cfg, c.ID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
+	err := daemon.containerRm(ctx, cfg, c.ID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
 	if err != nil {
 		if daemon.containers.Get(c.ID) == nil {
 			// container no longer found, so remove worked after all.
 			return
 		}
-		log.G(context.TODO()).WithFields(log.Fields{"error": err, "container": c.ID}).Error("error removing container")
+		log.G(ctx).WithFields(log.Fields{"error": err, "container": c.ID}).Error("error removing container")
 	}
 }
 

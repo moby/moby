@@ -87,11 +87,11 @@ func (pm *peerMap) Delete(eid string, peerIP netip.Prefix, peerMac hashable.MACA
 //
 // The caller is responsible for ensuring that peerAdd and peerDelete are not
 // called concurrently with this function to guarantee consistency.
-func (n *network) initSandboxPeerDB() error {
+func (n *network) initSandboxPeerDB(ctx context.Context) error {
 	var errs []error
 	n.peerdb.Walk(func(peerIP netip.Prefix, pEntry peerEntry) {
 		if !pEntry.isLocal() {
-			if err := n.addNeighbor(peerIP, pEntry.mac, pEntry.vtep); err != nil {
+			if err := n.addNeighbor(ctx, peerIP, pEntry.mac, pEntry.vtep); err != nil {
 				errs = append(errs, fmt.Errorf("failed to add neighbor entries for %s: %w", peerIP, err))
 			}
 		}
@@ -102,18 +102,18 @@ func (n *network) initSandboxPeerDB() error {
 // peerAdd adds a new entry to the peer database.
 //
 // Local peers are signified by an invalid vtep (i.e. netip.Addr{}).
-func (n *network) peerAdd(eid string, peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) error {
+func (n *network) peerAdd(ctx context.Context, eid string, peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) error {
 	if eid == "" {
 		return errors.New("invalid endpoint id")
 	}
 
 	inserted, dbEntries := n.peerdb.Add(eid, peerIP, peerMac, vtep)
 	if !inserted {
-		log.G(context.TODO()).Warnf("Entry already present in db: nid:%s eid:%s peerIP:%v peerMac:%v vtep:%v",
+		log.G(ctx).Warnf("Entry already present in db: nid:%s eid:%s peerIP:%v peerMac:%v vtep:%v",
 			n.id, eid, peerIP, peerMac, vtep)
 	}
 	if vtep.IsValid() {
-		err := n.addNeighbor(peerIP, peerMac, vtep)
+		err := n.addNeighbor(ctx, peerIP, peerMac, vtep)
 		if err != nil {
 			if dbEntries > 1 && errors.As(err, &osl.NeighborSearchError{}) {
 				// Conflicting neighbor entries are already programmed into the kernel and we are in the transient case.
@@ -127,7 +127,7 @@ func (n *network) peerAdd(eid string, peerIP netip.Prefix, peerMac hashable.MACA
 }
 
 // addNeighbor programs the kernel so the given peer is reachable through the VXLAN tunnel.
-func (n *network) addNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) error {
+func (n *network) addNeighbor(ctx context.Context, peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) error {
 	if n.sbox == nil {
 		// We are hitting this case for all the events that are arriving before that the sandbox
 		// is being created. The peer got already added into the database and the sandbox init will
@@ -140,13 +140,13 @@ func (n *network) addNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, vte
 		return fmt.Errorf("couldn't find the subnet %q in network %q", peerIP.String(), n.id)
 	}
 
-	if err := n.joinSandbox(s, false); err != nil {
+	if err := n.joinSandbox(ctx, s, false); err != nil {
 		return fmt.Errorf("subnet sandbox join failed for %q: %v", s.subnetIP.String(), err)
 	}
 
 	if n.secure {
 		if err := n.driver.setupEncryption(vtep); err != nil {
-			log.G(context.TODO()).Warn(err)
+			log.G(ctx).Warn(err)
 		}
 	}
 
@@ -168,12 +168,12 @@ func (n *network) addNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, vte
 // peerDelete removes an entry from the peer database.
 //
 // Local peers are signified by an invalid vtep (i.e. netip.Addr{}).
-func (n *network) peerDelete(eid string, peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) error {
+func (n *network) peerDelete(ctx context.Context, eid string, peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) error {
 	if eid == "" {
 		return errors.New("invalid endpoint id")
 	}
 
-	logger := log.G(context.TODO()).WithFields(log.Fields{
+	logger := log.G(ctx).WithFields(log.Fields{
 		"nid":  n.id,
 		"eid":  eid,
 		"ip":   peerIP,
@@ -204,7 +204,7 @@ func (n *network) peerDelete(eid string, peerIP netip.Prefix, peerMac hashable.M
 		if !ok {
 			return fmt.Errorf("peerDelete: unable to restore a configuration: no entry for %v found in the database", peerIP)
 		}
-		err := n.addNeighbor(peerIP, peerEntry.mac, peerEntry.vtep)
+		err := n.addNeighbor(ctx, peerIP, peerEntry.mac, peerEntry.vtep)
 		if err != nil {
 			return fmt.Errorf("peer delete operation failed: %w", err)
 		}

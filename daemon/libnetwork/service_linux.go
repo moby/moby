@@ -86,8 +86,8 @@ func findIfaceDstName(sb *Sandbox, ep *Endpoint) string {
 
 // Add loadbalancer backend to the loadbalancer sandbox for the network.
 // If needed add the service as well.
-func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
-	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Network.addLBBackend", trace.WithAttributes(
+func (n *Network) addLBBackend(ctx context.Context, ip net.IP, lb *loadBalancer) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Network.addLBBackend", trace.WithAttributes(
 		attribute.String("nid", n.id),
 		attribute.String("ip", ip.String()),
 		attribute.String("vip", lb.vip.String()),
@@ -137,7 +137,7 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 			span.SetStatus(codes.Error, "network interface not found")
 			return
 		}
-		err := sb.osSbox.AddAliasIP(ifName, &net.IPNet{IP: lb.vip, Mask: net.CIDRMask(32, 32)})
+		err := sb.osSbox.AddAliasIP(ctx, ifName, &net.IPNet{IP: lb.vip, Mask: net.CIDRMask(32, 32)})
 		if err != nil {
 			log.G(ctx).Errorf("Failed add IP alias %s to network %s LB endpoint interface %s: %v", lb.vip, n.ID(), ifName, err)
 			otelutil.RecordStatus(span, err)
@@ -194,8 +194,8 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 // network. If 'rmService' is true, then remove the service entry as well.
 // If 'fullRemove' is true then completely remove the entry, otherwise
 // just deweight it for now.
-func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullRemove bool) {
-	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Network.rmLBBackend", trace.WithAttributes(
+func (n *Network) rmLBBackend(ctx context.Context, ip net.IP, lb *loadBalancer, rmService bool, fullRemove bool) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Network.rmLBBackend", trace.WithAttributes(
 		attribute.String("nid", n.id),
 		attribute.String("ip", ip.String()),
 		attribute.String("vip", lb.vip.String()),
@@ -284,7 +284,7 @@ func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 			span.SetStatus(codes.Error, "network interface not found")
 			return
 		}
-		err := sb.osSbox.RemoveAliasIP(ifName, &net.IPNet{IP: lb.vip, Mask: net.CIDRMask(32, 32)})
+		err := sb.osSbox.RemoveAliasIP(ctx, ifName, &net.IPNet{IP: lb.vip, Mask: net.CIDRMask(32, 32)})
 		if err != nil {
 			log.G(ctx).Errorf("Failed to remove IP alias %s from network %s LB endpoint interface %s: %v", lb.vip, n.ID(), ifName, err)
 			span.RecordError(err)

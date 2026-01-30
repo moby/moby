@@ -24,10 +24,10 @@ type execBackend interface {
 
 // copyBackend includes functions to implement to provide container copy functionality.
 type copyBackend interface {
-	ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *container.PathStat, err error)
+	ContainerArchivePath(ctx context.Context, name string, path string) (content io.ReadCloser, stat *container.PathStat, err error)
 	ContainerExport(ctx context.Context, name string, out io.Writer) error
-	ContainerExtractToDir(name, path string, copyUIDGID, allowOverwriteDirWithFile bool, content io.Reader) error
-	ContainerStatPath(name string, path string) (stat *container.PathStat, err error)
+	ContainerExtractToDir(ctx context.Context, name, path string, copyUIDGID, allowOverwriteDirWithFile bool, content io.Reader) error
+	ContainerStatPath(ctx context.Context, name string, path string) (stat *container.PathStat, err error)
 }
 
 // stateBackend includes functions to implement to provide container state lifecycle functionality.
@@ -35,10 +35,10 @@ type stateBackend interface {
 	ContainerCreate(ctx context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error)
 	ContainerKill(name string, signal string) error
 	ContainerPause(name string) error
-	ContainerRename(oldName, newName string) error
+	ContainerRename(ctx context.Context, oldName, newName string) error
 	ContainerResize(ctx context.Context, name string, height, width uint32) error
 	ContainerRestart(ctx context.Context, name string, options backend.ContainerStopOptions) error
-	ContainerRm(name string, config *backend.ContainerRmConfig) error
+	ContainerRm(ctx context.Context, name string, config *backend.ContainerRmConfig) error
 	ContainerStart(ctx context.Context, name string, checkpoint string, checkpointDir string) error
 	ContainerStop(ctx context.Context, name string, options backend.ContainerStopOptions) error
 	ContainerUnpause(name string) error

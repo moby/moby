@@ -19,7 +19,7 @@ import (
 type Store interface {
 	Create(config []byte) (ID, error)
 	Get(id ID) (*Image, error)
-	Delete(id ID) ([]layer.Metadata, error)
+	Delete(ctx context.Context, id ID) ([]layer.Metadata, error)
 	Search(partialID string) (ID, error)
 	SetParent(id ID, parent ID) error
 	GetParent(id ID) (ID, error)
@@ -229,7 +229,7 @@ func (is *store) Get(id ID) (*Image, error) {
 	return img, nil
 }
 
-func (is *store) Delete(id ID) ([]layer.Metadata, error) {
+func (is *store) Delete(ctx context.Context, id ID) ([]layer.Metadata, error) {
 	is.Lock()
 	defer is.Unlock()
 
@@ -249,7 +249,7 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	}
 
 	if err := is.digestSet.Remove(id.Digest()); err != nil {
-		log.G(context.TODO()).Errorf("error removing %s from digest set: %q", id, err)
+		log.G(ctx).Errorf("error removing %s from digest set: %q", id, err)
 	}
 	delete(is.images, id)
 	is.fs.Delete(id.Digest())

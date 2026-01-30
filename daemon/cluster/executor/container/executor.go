@@ -223,7 +223,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) (retErr error)
 	}
 
 	if ingressNA == nil {
-		e.backend.ReleaseIngress()
+		e.backend.ReleaseIngress(ctx)
 	} else {
 		networkCreateRequest := network.CreateRequest{
 			Name:   ingressNA.Network.Spec.Annotations.Name,
@@ -243,7 +243,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) (retErr error)
 			networkCreateRequest.IPAM.Config = append(networkCreateRequest.IPAM.Config, c)
 		}
 
-		_, err := e.backend.SetupIngress(clustertypes.NetworkCreateRequest{
+		_, err := e.backend.SetupIngress(ctx, clustertypes.NetworkCreateRequest{
 			ID:            ingressNA.Network.ID,
 			CreateRequest: networkCreateRequest,
 		}, ingressNA.Addresses[0])
@@ -259,7 +259,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) (retErr error)
 
 	// now, finally, remove any network LB attachments that we no longer have.
 	for nw, gone := range removeAttachments {
-		err := e.backend.DeleteManagedNetwork(nw)
+		err := e.backend.DeleteManagedNetwork(ctx, nw)
 		switch {
 		case err == nil:
 			continue

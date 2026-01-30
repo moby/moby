@@ -30,8 +30,7 @@ type cacheAdaptor struct {
 	is *ImageService
 }
 
-func (c cacheAdaptor) Get(id image.ID) (*image.Image, error) {
-	ctx := context.TODO()
+func (c cacheAdaptor) Get(ctx context.Context, id image.ID) (*image.Image, error) {
 	ref := id.String()
 
 	outImg, err := c.is.GetImage(ctx, id.String(), imagebackend.GetImageOpts{})
@@ -113,8 +112,7 @@ func (c cacheAdaptor) GetByRef(ctx context.Context, refOrId string) (*image.Imag
 	return c.is.GetImage(ctx, refOrId, imagebackend.GetImageOpts{})
 }
 
-func (c cacheAdaptor) SetParent(target, parent image.ID) error {
-	ctx := context.TODO()
+func (c cacheAdaptor) SetParent(ctx context.Context, target, parent image.ID) error {
 	_, imgs, err := c.is.resolveAllReferences(ctx, target.String())
 	if err != nil {
 		return fmt.Errorf("failed to list images with digest %q", target)
@@ -135,8 +133,7 @@ func (c cacheAdaptor) SetParent(target, parent image.ID) error {
 	return multierror.Join(errs...)
 }
 
-func (c cacheAdaptor) GetParent(target image.ID) (image.ID, error) {
-	ctx := context.TODO()
+func (c cacheAdaptor) GetParent(ctx context.Context, target image.ID) (image.ID, error) {
 	value, err := c.is.getImageLabelByDigest(ctx, target.Digest(), imageLabelClassicBuilderParent)
 	if err != nil {
 		return "", fmt.Errorf("failed to read parent image: %w", err)
@@ -150,8 +147,7 @@ func (c cacheAdaptor) GetParent(target image.ID) (image.ID, error) {
 	return image.ID(dgst), nil
 }
 
-func (c cacheAdaptor) Create(parent *image.Image, target image.Image, extraLayer layer.DiffID) (image.ID, error) {
-	ctx := context.TODO()
+func (c cacheAdaptor) Create(ctx context.Context, parent *image.Image, target image.Image, extraLayer layer.DiffID) (image.ID, error) {
 	data, err := json.Marshal(target)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal image config: %w", err)
@@ -178,8 +174,7 @@ func (c cacheAdaptor) Create(parent *image.Image, target image.Image, extraLayer
 	return image.ID(img.ImageID()), nil
 }
 
-func (c cacheAdaptor) IsBuiltLocally(target image.ID) (bool, error) {
-	ctx := context.TODO()
+func (c cacheAdaptor) IsBuiltLocally(ctx context.Context, target image.ID) (bool, error) {
 	value, err := c.is.getImageLabelByDigest(ctx, target.Digest(), imageLabelClassicBuilderContainerConfig)
 	if err != nil {
 		return false, fmt.Errorf("failed to read container config label: %w", err)
@@ -187,8 +182,7 @@ func (c cacheAdaptor) IsBuiltLocally(target image.ID) (bool, error) {
 	return value != "", nil
 }
 
-func (c cacheAdaptor) Children(id image.ID) []image.ID {
-	ctx := context.TODO()
+func (c cacheAdaptor) Children(ctx context.Context, id image.ID) []image.ID {
 
 	if id.String() == "" {
 		imgs, err := c.is.getImagesWithLabel(ctx, imageLabelClassicBuilderFromScratch, "1")

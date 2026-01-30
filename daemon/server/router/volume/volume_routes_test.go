@@ -669,7 +669,7 @@ func (c *fakeClusterBackend) IsManager() bool {
 	return c.swarm && c.manager
 }
 
-func (c *fakeClusterBackend) GetVolume(nameOrID string) (volume.Volume, error) {
+func (c *fakeClusterBackend) GetVolume(ctx context.Context, nameOrID string) (volume.Volume, error) {
 	if err := c.checkSwarm(); err != nil {
 		return volume.Volume{}, err
 	}
@@ -680,7 +680,7 @@ func (c *fakeClusterBackend) GetVolume(nameOrID string) (volume.Volume, error) {
 	return volume.Volume{}, errdefs.NotFound(fmt.Errorf("volume %s not found", nameOrID))
 }
 
-func (c *fakeClusterBackend) GetVolumes(_ volumebackend.ListOptions) ([]volume.Volume, error) {
+func (c *fakeClusterBackend) GetVolumes(context.Context, volumebackend.ListOptions) ([]volume.Volume, error) {
 	if err := c.checkSwarm(); err != nil {
 		return nil, err
 	}
@@ -692,7 +692,7 @@ func (c *fakeClusterBackend) GetVolumes(_ volumebackend.ListOptions) ([]volume.V
 	return volumes, nil
 }
 
-func (c *fakeClusterBackend) CreateVolume(volumeCreate volume.CreateRequest) (*volume.Volume, error) {
+func (c *fakeClusterBackend) CreateVolume(ctx context.Context, volumeCreate volume.CreateRequest) (*volume.Volume, error) {
 	if err := c.checkSwarm(); err != nil {
 		return nil, err
 	}
@@ -726,7 +726,7 @@ func (c *fakeClusterBackend) CreateVolume(volumeCreate volume.CreateRequest) (*v
 	return &v, nil
 }
 
-func (c *fakeClusterBackend) RemoveVolume(nameOrID string, force bool) error {
+func (c *fakeClusterBackend) RemoveVolume(ctx context.Context, nameOrID string, force bool) error {
 	if err := c.checkSwarm(); err != nil {
 		return err
 	}
@@ -745,7 +745,7 @@ func (c *fakeClusterBackend) RemoveVolume(nameOrID string, force bool) error {
 	return nil
 }
 
-func (c *fakeClusterBackend) UpdateVolume(nameOrID string, version uint64, _ volumebackend.UpdateOptions) error {
+func (c *fakeClusterBackend) UpdateVolume(ctx context.Context, nameOrID string, version uint64, _ volumebackend.UpdateOptions) error {
 	if err := c.checkSwarm(); err != nil {
 		return err
 	}

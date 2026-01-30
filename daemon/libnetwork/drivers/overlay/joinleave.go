@@ -65,7 +65,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		return fmt.Errorf("could not find subnet for endpoint %s", eid)
 	}
 
-	if err := n.joinSandbox(s, true); err != nil {
+	if err := n.joinSandbox(ctx, s, true); err != nil {
 		return fmt.Errorf("network sandbox join failed: %v", err)
 	}
 
@@ -123,7 +123,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 		}
 	}
 
-	if err := n.peerAdd(eid, ep.addr, ep.mac, netip.Addr{}); err != nil {
+	if err := n.peerAdd(ctx, eid, ep.addr, ep.mac, netip.Addr{}); err != nil {
 		return fmt.Errorf("overlay: failed to add local endpoint to network peer db: %w", err)
 	}
 
@@ -160,9 +160,9 @@ func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (s
 	}
 }
 
-func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
+func (d *driver) EventNotify(ctx context.Context, nid, tableName, key string, prev, value []byte) {
 	if tableName != OverlayPeerTable {
-		log.G(context.TODO()).Errorf("Unexpected table notification for table %s received", tableName)
+		log.G(ctx).Errorf("Unexpected table notification for table %s received", tableName)
 		return
 	}
 
@@ -173,7 +173,7 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 		var err error
 		prevPeer, err = UnmarshalPeerRecord(prev)
 		if err != nil {
-			log.G(context.TODO()).WithError(err).Error("Failed to unmarshal previous peer record")
+			log.G(ctx).WithError(err).Error("Failed to unmarshal previous peer record")
 		} else if prevPeer.TunnelEndpointIP == d.advertiseAddress {
 			// Ignore local peers. We don't add them to the VXLAN
 			// FDB so don't need to remove them.
@@ -184,7 +184,7 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 		var err error
 		newPeer, err = UnmarshalPeerRecord(value)
 		if err != nil {
-			log.G(context.TODO()).WithError(err).Error("Failed to unmarshal peer record")
+			log.G(ctx).WithError(err).Error("Failed to unmarshal peer record")
 		} else if newPeer.TunnelEndpointIP == d.advertiseAddress {
 			newPeer = nil
 		}
@@ -202,7 +202,7 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 
 	n, unlock, err := d.lockNetwork(nid)
 	if err != nil {
-		log.G(context.TODO()).WithFields(log.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"error": err,
 			"nid":   nid,
 		}).Error("overlay: handling peer event")
@@ -211,8 +211,8 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 	defer unlock()
 
 	if prevPeer != nil {
-		if err := n.peerDelete(eid, prevPeer.EndpointIP, prevPeer.EndpointMAC, prevPeer.TunnelEndpointIP); err != nil {
-			log.G(context.TODO()).WithFields(log.Fields{
+		if err := n.peerDelete(ctx, eid, prevPeer.EndpointIP, prevPeer.EndpointMAC, prevPeer.TunnelEndpointIP); err != nil {
+			log.G(ctx).WithFields(log.Fields{
 				"error": err,
 				"nid":   n.id,
 				"peer":  prevPeer,
@@ -220,8 +220,8 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 		}
 	}
 	if newPeer != nil {
-		if err := n.peerAdd(eid, newPeer.EndpointIP, newPeer.EndpointMAC, newPeer.TunnelEndpointIP); err != nil {
-			log.G(context.TODO()).WithFields(log.Fields{
+		if err := n.peerAdd(ctx, eid, newPeer.EndpointIP, newPeer.EndpointMAC, newPeer.TunnelEndpointIP); err != nil {
+			log.G(ctx).WithFields(log.Fields{
 				"error": err,
 				"nid":   n.id,
 				"peer":  newPeer,
@@ -231,7 +231,7 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid string) error {
+func (d *driver) Leave(ctx context.Context, nid, eid string) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
@@ -248,11 +248,11 @@ func (d *driver) Leave(nid, eid string) error {
 		return types.InternalMaskableErrorf("could not find endpoint with id %s", eid)
 	}
 
-	if err := n.peerDelete(eid, ep.addr, ep.mac, netip.Addr{}); err != nil {
+	if err := n.peerDelete(ctx, eid, ep.addr, ep.mac, netip.Addr{}); err != nil {
 		return fmt.Errorf("overlay: failed to delete local endpoint eid:%s from network peer db: %w", eid, err)
 	}
 
-	n.leaveSandbox()
+	n.leaveSandbox(context.WithoutCancel(ctx))
 
 	return nil
 }

@@ -109,7 +109,7 @@ func (d *driver) nodeJoin(data discoverapi.NodeDiscoveryData) error {
 }
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
-func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data any) error {
+func (d *driver) DiscoverNew(ctx context.Context, dType discoverapi.DiscoveryType, data any) error {
 	switch dType {
 	case discoverapi.NodeDiscovery:
 		nodeData, ok := data.(discoverapi.NodeDiscoveryData)
@@ -122,19 +122,19 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data any) error {
 		if !ok {
 			return fmt.Errorf("invalid encryption key notification data type: %T", data)
 		}
-		return d.setKeys(context.TODO(), encrData)
+		return d.setKeys(ctx, encrData)
 	case discoverapi.EncryptionKeysUpdate:
 		encrData, ok := data.(discoverapi.DriverEncryptionUpdate)
 		if !ok {
 			return fmt.Errorf("invalid encryption key notification data type: %T", data)
 		}
-		return d.updateKeys(context.TODO(), encrData)
+		return d.updateKeys(ctx, encrData)
 	default:
 		return nil
 	}
 }
 
 // DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
-func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data any) error {
+func (d *driver) DiscoverDelete(ctx context.Context, dType discoverapi.DiscoveryType, data any) error {
 	return nil
 }

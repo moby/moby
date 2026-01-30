@@ -368,9 +368,9 @@ func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) (
 			if sb.getEndpointInGWNetwork() == nil {
 				// sb.populateNetworkResources() will be called recursively for the new
 				// gateway endpoint. So, it'll set the resolver's forwarding policy.
-				return sb.setupDefaultGW()
+				return sb.setupDefaultGW(ctx)
 			}
-		} else if err := sb.clearDefaultGW(); err != nil {
+		} else if err := sb.clearDefaultGW(ctx); err != nil {
 			log.G(ctx).WithFields(log.Fields{
 				"error": err,
 				"sid":   sb.ID(),
@@ -565,15 +565,15 @@ func (sb *Sandbox) hasExternalAccess() bool {
 
 // EnableService makes a managed container's service available by adding the
 // endpoint to the service load balancer and service discovery.
-func (sb *Sandbox) EnableService() (retErr error) {
-	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Sandbox.EnableService", trace.WithAttributes(
+func (sb *Sandbox) EnableService(ctx context.Context) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.EnableService", trace.WithAttributes(
 		attribute.String("container.ID", sb.containerID)))
 	defer span.End()
 	log.G(ctx).WithField("container", sb.containerID).Debug("EnableService START")
 	defer func() {
 		otelutil.RecordStatus(span, retErr)
 		if retErr != nil {
-			if err := sb.DisableService(); err != nil {
+			if err := sb.DisableService(ctx); err != nil {
 				log.G(ctx).WithFields(log.Fields{
 					"error":     err,
 					"origError": retErr,
@@ -585,7 +585,7 @@ func (sb *Sandbox) EnableService() (retErr error) {
 	}()
 	for _, ep := range sb.Endpoints() {
 		if !ep.isServiceEnabled() {
-			if err := ep.addServiceInfoToCluster(sb); err != nil {
+			if err := ep.addServiceInfoToCluster(ctx, sb); err != nil {
 				return fmt.Errorf("could not update state for endpoint %s into cluster: %v", ep.Name(), err)
 			}
 			ep.enableService()
@@ -597,8 +597,8 @@ func (sb *Sandbox) EnableService() (retErr error) {
 
 // DisableService removes a managed container's endpoints from the load balancer
 // and service discovery.
-func (sb *Sandbox) DisableService() error {
-	ctx, span := otel.Tracer("").Start(context.TODO(), "libnetwork.Sandbox.DisableService", trace.WithAttributes(
+func (sb *Sandbox) DisableService(ctx context.Context) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.DisableService", trace.WithAttributes(
 		attribute.String("container.ID", sb.containerID)))
 	defer span.End()
 	log.G(ctx).WithField("container", sb.containerID).Debug("DisableService START")
@@ -607,7 +607,7 @@ func (sb *Sandbox) DisableService() error {
 		if !ep.isServiceEnabled() {
 			continue
 		}
-		if err := ep.deleteServiceInfoFromCluster(sb, false, "DisableService"); err != nil {
+		if err := ep.deleteServiceInfoFromCluster(ctx, sb, false, "DisableService"); err != nil {
 			failedEps = append(failedEps, ep.Name())
 			log.G(ctx).WithFields(log.Fields{
 				"container": sb.containerID,
