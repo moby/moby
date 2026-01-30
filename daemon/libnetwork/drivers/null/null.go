@@ -17,8 +17,8 @@ type driver struct {
 }
 
 // Register registers a new instance of the null driver.
-func Register(r driverapi.Registerer) error {
-	return r.RegisterDriver(NetworkType, &driver{}, driverapi.Capability{
+func Register(ctx context.Context, r driverapi.Registerer) error {
+	return r.RegisterDriver(ctx, NetworkType, &driver{}, driverapi.Capability{
 		DataScope: scope.Local,
 	})
 }

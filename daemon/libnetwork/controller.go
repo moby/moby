@@ -189,7 +189,7 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 		return nil, err
 	}
 
-	if err := registerNetworkDrivers(&c.drvRegistry, c.cfg, c.store, &c.pmRegistry); err != nil {
+	if err := registerNetworkDrivers(ctx, &c.drvRegistry, c.cfg, c.store, &c.pmRegistry); err != nil {
 		return nil, err
 	}
 
@@ -488,7 +488,7 @@ func (c *Controller) GetPluginGetter() plugingetter.PluginGetter {
 	return c.cfg.PluginGetter
 }
 
-func (c *Controller) RegisterDriver(_ string, driver driverapi.Driver, _ driverapi.Capability) error {
+func (c *Controller) RegisterDriver(_ context.Context, _ string, driver driverapi.Driver, _ driverapi.Capability) error {
 	if d, ok := driver.(discoverapi.Discover); ok {
 		c.agentDriverNotify(d)
 	}

@@ -210,7 +210,7 @@ type JoinInfo interface {
 
 // Registerer provides a way for network drivers to be dynamically registered.
 type Registerer interface {
-	RegisterDriver(name string, driver Driver, capability Capability) error
+	RegisterDriver(ctx context.Context, name string, driver Driver, capability Capability) error
 	RegisterNetworkAllocator(name string, driver NetworkAllocator) error
 }
 

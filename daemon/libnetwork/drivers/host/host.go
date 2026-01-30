@@ -16,8 +16,8 @@ type driver struct {
 	sync.Mutex
 }
 
-func Register(r driverapi.Registerer) error {
-	return r.RegisterDriver(NetworkType, &driver{}, driverapi.Capability{
+func Register(ctx context.Context, r driverapi.Registerer) error {
+	return r.RegisterDriver(ctx, NetworkType, &driver{}, driverapi.Capability{
 		DataScope:         scope.Local,
 		ConnectivityScope: scope.Local,
 	})
