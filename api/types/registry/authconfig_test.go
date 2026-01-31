@@ -1,7 +1,5 @@
 package registry // import "github.com/docker/docker/api/types/registry"
 import (
-	"io"
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -44,12 +42,6 @@ func TestDecodeAuthConfig(t *testing.T) {
 		assert.ErrorContains(t, err, "invalid X-Registry-Auth header: unexpected EOF")
 		assert.Equal(t, *token, AuthConfig{})
 	})
-}
-
-func TestDecodeAuthConfigBody(t *testing.T) {
-	token, err := DecodeAuthConfigBody(io.NopCloser(strings.NewReader(unencoded)))
-	assert.NilError(t, err)
-	assert.Equal(t, *token, expected)
 }
 
 func TestEncodeAuthConfig(t *testing.T) {
