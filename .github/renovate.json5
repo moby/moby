@@ -1,40 +1,48 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    ":gitSignOff"
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+    ':gitSignOff',
   ],
-  "postUpdateOptions": ["gomodTidy"],
-  "packageRules": [
+  postUpdateOptions: [
+    'gomodTidy',
+  ],
+  packageRules: [
     {
-      "matchManagers": ["gomod"],
-      "groupName": "golang.org/x packages",
-      "groupSlug": "golang-x",
-      "matchDepNames": ["/^golang\\.org\\/x\\//"]
+      matchManagers: [
+        'gomod',
+      ],
+      groupName: 'golang.org/x packages',
+      groupSlug: 'golang-x',
+      matchDepNames: [
+        '/^golang\\.org\\/x\\//',
+      ],
     },
     {
-      // Keep all the google.golang.org/genproto modules at the same version.
-      "matchManagers": ["gomod"],
-      "groupName": "google.golang.org/genproto packages",
-      "groupSlug": "google-genproto",
-      "matchDepNames": ["/^google\\.golang\\.org\\/genproto(\\/|$)/"],
-      "schedule": ["every month"],
+      matchManagers: [
+        'gomod',
+      ],
+      groupName: 'google.golang.org/genproto packages',
+      groupSlug: 'google-genproto',
+      matchDepNames: [
+        '/^google\\.golang\\.org\\/genproto(\\/|$)/',
+      ],
+      schedule: [
+        'every month',
+      ],
     },
     {
-      // Do not update "api" and "client" module dependencies. We keep dependency
-      // versions low for these to stick with "MVS" (Minimum Version Selection);
-      // https://research.swtch.com/vgo-mvs
-      //
-      // The order of rules matters, because later rules may override configuration
-      // options from earlier ones, if they both specify the same option.
-      // https://docs.renovatebot.com/configuration-options/#packagerules
-      "matchManagers": ["gomod"],
-      "matchPaths": ["api/go.mod", "client/go.mod"],
-      "enabled": false
-    }
+      matchManagers: [
+        'gomod',
+      ],
+      matchFileNames: [
+        'api/go.mod',
+        'client/go.mod',
+      ],
+      enabled: false,
+    },
   ],
-  "ignoreDeps": [
-    // We're using the "v2" branch, not the default ("v1") branch.
-    "github.com/Graylog2/go-gelf"
-  ]
+  ignoreDeps: [
+    'github.com/Graylog2/go-gelf',
+  ],
 }
