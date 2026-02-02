@@ -8,16 +8,15 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 )
 
@@ -62,9 +61,7 @@ var (
 		Host:   DefaultRegistryHost,
 	}
 
-	validHostPortRegex = sync.OnceValue(func() *regexp.Regexp {
-		return regexp.MustCompile(`^` + reference.DomainRegexp.String() + `$`)
-	})
+	validHostPortRegex = lazyregexp.New(`^` + reference.DomainRegexp.String() + `$`)
 )
 
 // CertsDir is the directory where certificates are stored.
@@ -322,7 +319,7 @@ func validateHostPort(s string) error {
 	}
 	// If match against the `host:port` pattern fails,
 	// it might be `IPv6:port`, which will be captured by net.ParseIP(host)
-	if !validHostPortRegex().MatchString(s) && net.ParseIP(host) == nil {
+	if !validHostPortRegex.MatchString(s) && net.ParseIP(host) == nil {
 		return invalidParamf("invalid host %q", host)
 	}
 	if port != "" {
