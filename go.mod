@@ -55,7 +55,7 @@ require (
 	github.com/in-toto/in-toto-golang v0.9.0
 	github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2
 	github.com/miekg/dns v1.1.72
-	github.com/mistifyio/go-zfs/v3 v3.1.0
+	github.com/mistifyio/go-zfs/v4 v4.0.0
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/moby/buildkit v0.27.1
 	github.com/moby/docker-image-spec v1.3.1
@@ -120,6 +120,8 @@ require (
 	resenje.org/singleflight v0.4.3
 	tags.cncf.io/container-device-interface v1.1.0
 )
+
+require github.com/mistifyio/go-zfs/v3 v3.0.1
 
 require (
 	cloud.google.com/go v0.121.6 // indirect
