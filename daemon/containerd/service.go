@@ -180,6 +180,10 @@ func (i *ImageService) layerDiskUsage(ctx context.Context) (allLayersSize int64,
 	err = snapshotter.Walk(ctx, func(ctx context.Context, info snapshots.Info) error {
 		usage, err := snapshotter.Usage(ctx, info.Name)
 		if err != nil {
+			// Snapshot may have been deleted already.
+			if cerrdefs.IsNotFound(err) {
+				return nil
+			}
 			return err
 		}
 		allLayersSize += usage.Size
