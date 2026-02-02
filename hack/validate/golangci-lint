@@ -25,7 +25,6 @@ for mod in "${mods[@]}"; do
 	# shellcheck disable=SC2086
 	GOGC=75 golangci-lint run \
 		${GOLANGCI_LINT_OPTS} \
-		--print-resources-usage \
 		--build-tags="${DOCKER_BUILDTAGS}" \
 		--verbose \
 		--config "${REPODIR}/.golangci.yml"
