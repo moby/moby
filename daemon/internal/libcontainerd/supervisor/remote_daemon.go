@@ -17,7 +17,7 @@ import (
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/moby/v2/pkg/pidfile"
 	"github.com/moby/moby/v2/pkg/process"
-	"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
