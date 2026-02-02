@@ -58,6 +58,11 @@ import (
 //     target file is already locally cached.
 //   - DownloadTarget() downloads a target file and ensures it is
 //     verified correct by the metadata.
+//
+// Thread Safety: Updater is NOT safe for concurrent use. If multiple goroutines
+// need to use an Updater concurrently, external synchronization is required
+// (e.g., a sync.Mutex). Alternatively, create separate Updater instances for
+// each goroutine.
 type Updater struct {
 	trusted *trustedmetadata.TrustedMetadata
 	cfg     *config.UpdaterConfig

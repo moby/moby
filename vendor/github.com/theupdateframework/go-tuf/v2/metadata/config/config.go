@@ -84,7 +84,12 @@ func (cfg *UpdaterConfig) EnsurePathsExist() error {
 	}
 
 	for _, path := range []string{cfg.LocalMetadataDir, cfg.LocalTargetsDir} {
-		if err := os.MkdirAll(path, os.ModePerm); err != nil {
+		// Use 0700 for cache directories: only the owner can read, write, and
+		// access the directory. This prevents other users on shared systems from
+		// reading or writing to the TUF cache, which could be a security risk.
+		// If different permissions are needed, pre-create the directories with
+		// the desired permissions before calling this function.
+		if err := os.MkdirAll(path, 0700); err != nil {
 			return err
 		}
 	}
