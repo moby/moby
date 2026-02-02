@@ -29,7 +29,7 @@
       // options from earlier ones, if they both specify the same option.
       // https://docs.renovatebot.com/configuration-options/#packagerules
       "matchManagers": ["gomod"],
-      "matchPaths": ["api/go.mod", "client/go.mod"],
+      "matchFileNames": ["api/go.mod", "client/go.mod"],
       "enabled": false
     }
   ],
