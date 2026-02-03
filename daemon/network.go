@@ -52,6 +52,16 @@ func (pnr PredefinedNetworkError) Error() string {
 // Forbidden denotes the type of this error
 func (pnr PredefinedNetworkError) Forbidden() {}
 
+// ReservedNetworkError is returned when user tries to create a network with a reserved name.
+type ReservedNetworkError string
+
+func (rnr ReservedNetworkError) Error() string {
+	return fmt.Sprintf("%s is a reserved network name and cannot be created", string(rnr))
+}
+
+// Forbidden denotes the type of this error
+func (rnr ReservedNetworkError) Forbidden() {}
+
 // NetworkController returns the network controller created by the daemon.
 func (daemon *Daemon) NetworkController() *libnetwork.Controller {
 	return daemon.netController
@@ -292,6 +302,10 @@ func (daemon *Daemon) CreateNetwork(ctx context.Context, create networktypes.Cre
 func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, create networktypes.CreateRequest, id string, agent bool) (*networktypes.CreateResponse, error) {
 	if network.IsPredefined(create.Name) {
 		return nil, PredefinedNetworkError(create.Name)
+	}
+
+	if network.IsReserved(create.Name) {
+		return nil, ReservedNetworkError(create.Name)
 	}
 
 	c := daemon.netController

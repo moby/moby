@@ -5,8 +5,7 @@ import "github.com/moby/moby/api/types/container"
 // validateNetContainerMode ensures that the various combinations of requested
 // network settings wrt container mode are valid.
 func validateNetContainerMode(c *container.Config, hc *container.HostConfig) error {
-	// FIXME(thaJeztah): a network named "container" (without colon) is not seen as "container-mode" network.
-	if string(hc.NetworkMode) != "container" && !hc.NetworkMode.IsContainer() {
+	if !hc.NetworkMode.IsContainer() {
 		return nil
 	}
 
