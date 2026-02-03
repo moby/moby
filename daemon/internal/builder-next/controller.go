@@ -82,7 +82,7 @@ func getTraceExporter(ctx context.Context) trace.SpanExporter {
 	return tc
 }
 
-func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
+func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt) (_ *control.Controller, retErr error) {
 	if err := os.MkdirAll(opt.Root, 0o711); err != nil {
 		return nil, err
 	}
@@ -91,11 +91,21 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			_ = historyDB.Close()
+		}
+	}()
 
 	cacheStorage, err := bboltcachestorage.NewStore(filepath.Join(opt.Root, "cache.db"))
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			_ = cacheStorage.Close()
+		}
+	}()
 
 	nc := netproviders.Opt{
 		Mode: "host",
@@ -234,7 +244,7 @@ func openHistoryDB(root string, fn string, cfg *config.BuilderHistoryConfig) (*b
 	return db, conf, nil
 }
 
-func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
+func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt) (_ *control.Controller, retErr error) {
 	if err := os.MkdirAll(opt.Root, 0o711); err != nil {
 		return nil, err
 	}
@@ -272,6 +282,11 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+	defer func() {
+		if retErr != nil {
+			_ = db.Close()
+		}
+	}()
 
 	mdb := ctdmetadata.NewDB(db, innerStore, map[string]snapshots.Snapshotter{})
 
@@ -286,6 +301,11 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			_ = snapshotter.Close()
+		}
+	}()
 
 	if err := cache.MigrateV2(context.Background(), filepath.Join(root, "metadata.db"), filepath.Join(root, "metadata_v2.db"), store, snapshotter, lm); err != nil {
 		return nil, err
@@ -295,6 +315,11 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			_ = md.Close()
+		}
+	}()
 
 	layerGetter, ok := snapshotter.(imagerefchecker.LayerGetter)
 	if !ok {
@@ -380,11 +405,21 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			_ = cacheStorage.Close()
+		}
+	}()
 
 	historyDB, historyConf, err := openHistoryDB(opt.Root, "history.db", opt.BuilderConfig.History)
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			_ = historyDB.Close()
+		}
+	}()
 
 	gcPolicy, err := getGCPolicy(opt.BuilderConfig, root)
 	if err != nil {
