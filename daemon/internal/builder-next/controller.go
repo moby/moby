@@ -107,24 +107,18 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		}
 	}()
 
-	nc := netproviders.Opt{
-		Mode: "host",
-	}
-
-	// HACK! Windows doesn't have 'host' mode networking.
+	networkMode := "host"
 	if runtime.GOOS == "windows" {
-		nc = netproviders.Opt{
-			Mode: "auto",
-		}
+		// HACK! Windows doesn't have 'host' mode networking.
+		networkMode = "auto"
 	}
-
-	dns := getDNSConfig(opt.DNSConfig)
 
 	cdiManager, err := getCDIManager(opt)
 	if err != nil {
 		return nil, err
 	}
 
+	dnsConfig := getDNSConfig(opt.DNSConfig)
 	workerOpts := containerd.WorkerOptions{
 		Root:            opt.Root,
 		Address:         opt.ContainerdAddress,
@@ -134,8 +128,8 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		Labels: map[string]string{
 			label.Snapshotter: opt.Snapshotter,
 		},
-		DNS:             dns,
-		NetworkOpt:      nc,
+		DNS:             dnsConfig,
+		NetworkOpt:      netproviders.Opt{Mode: networkMode},
 		ApparmorProfile: opt.ApparmorProfile,
 		Selinux:         false,
 		CDIManager:      cdiManager,
@@ -164,7 +158,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		opt.Root,
 		opt.DefaultCgroupParent,
 		opt.NetworkController,
-		dns,
+		dnsConfig,
 		opt.Rootless,
 		opt.IdentityMapping,
 		opt.ApparmorProfile,
