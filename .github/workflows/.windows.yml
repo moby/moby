@@ -340,19 +340,24 @@ jobs:
         name: Starting test daemon
         run: |
           Write-Host "Creating service"
+          $args = @(
+            "--debug",
+            "--host=npipe:////./pipe/docker_engine", `
+            "--data-root=$env:TEMP\moby-root", `
+            "--exec-root=$env:TEMP\moby-exec", `
+            "--pidfile=$env:TEMP\docker.pid", `
+            "--register-service"
+          )
           If ("${{ matrix.runtime }}" -eq "containerd") {
-            $runtimeArg="--default-runtime=io.containerd.runhcs.v1"
+            $args += "--default-runtime=io.containerd.runhcs.v1"
             echo "DOCKER_WINDOWS_CONTAINERD_RUNTIME=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          }
+          if ("${{ inputs.storage }}" -eq "snapshotter") {
+            $args += "--feature=containerd-snapshotter"
           }
           New-Item -ItemType Directory "$env:TEMP\moby-root" -ErrorAction SilentlyContinue | Out-Null
           New-Item -ItemType Directory "$env:TEMP\moby-exec" -ErrorAction SilentlyContinue | Out-Null
-          Start-Process -Wait -NoNewWindow "${{ env.BIN_OUT }}\dockerd" `
-            -ArgumentList $runtimeArg, "--debug", `
-              "--host=npipe:////./pipe/docker_engine", `
-              "--data-root=$env:TEMP\moby-root", `
-              "--exec-root=$env:TEMP\moby-exec", `
-              "--pidfile=$env:TEMP\docker.pid", `
-              "--register-service"
+          Start-Process -Wait -NoNewWindow "${{ env.BIN_OUT }}\dockerd" -ArgumentList $args
           # Make the env-var visible to the service-managed dockerd, as there's no CLI flag for this option.
           $dockerEnviron = @("DOCKER_MIN_API_VERSION=1.24")
           $dockerEnviron += @(Get-Item Env:\OTEL_* | ForEach-Object { "$($_.Name)=$($_.Value)" })
