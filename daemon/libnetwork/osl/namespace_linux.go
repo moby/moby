@@ -397,10 +397,14 @@ func (n *Namespace) Destroy() error {
 	return nil
 }
 
-// RestoreInterfaces restores the network namespace's interfaces.
-func (n *Namespace) RestoreInterfaces(interfaces map[Iface][]IfaceOption) error {
+// RestoreInterfaces restores the network namespace's interfaces and sends
+// unsolicited ARP/NA messages to update neighbor caches.
+func (n *Namespace) RestoreInterfaces(ctx context.Context, interfaces map[Iface][]IfaceOption) error {
 	// restore interfaces
 	for iface, opts := range interfaces {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		i, err := newInterface(n, iface.SrcName, iface.DstPrefix, iface.DstName, opts...)
 		if err != nil {
 			return err
@@ -458,6 +462,29 @@ func (n *Namespace) RestoreInterfaces(interfaces map[Iface][]IfaceOption) error 
 			n.mu.Lock()
 			n.iFaces = append(n.iFaces, i)
 			n.mu.Unlock()
+		}
+
+		// Send unsolicited ARP/NA messages to update neighbor caches with the
+		// MAC address associated with the interface's IP addresses. This is
+		// necessary after a daemon restart because other hosts may have stale
+		// neighbor cache entries.
+		if i.dstName != "" {
+			log.G(ctx).WithFields(log.Fields{
+				"interface": i.dstName,
+				"ipv4":      i.address,
+				"ipv6":      i.addressIPv6,
+			}).Debug("Sending neighbor advertisements during restore")
+			link, err := n.nlHandle.LinkByName(i.dstName)
+			if err != nil {
+				log.G(ctx).WithFields(log.Fields{"error": err, "interface": i.dstName}).Warn("Failed to get link for neighbor advertisement during restore")
+				continue
+			}
+			ifIndex := link.Attrs().Index
+			waitForBridgePort(ctx, ns.NlHandle(), link)
+			mcastRouteOk := waitForMcastRoute(ctx, ifIndex, i, n.nlHandle)
+			if err := n.advertiseAddrs(ctx, ifIndex, i, n.nlHandle, mcastRouteOk); err != nil {
+				log.G(ctx).WithError(err).WithField("interface", i.dstName).Warn("Failed to send neighbor advertisement during restore")
+			}
 		}
 	}
 	return nil
