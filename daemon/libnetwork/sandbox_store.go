@@ -256,7 +256,7 @@ func (c *Controller) sandboxRestore(activeSandboxes map[string]any) error {
 
 		// reconstruct osl sandbox field
 		if !sb.config.useDefaultSandBox {
-			if err := sb.restoreOslSandbox(); err != nil {
+			if err := sb.restoreOslSandbox(ctx); err != nil {
 				log.G(ctx).WithError(err).Error("Failed to populate fields for osl sandbox")
 				continue
 			}
