@@ -294,16 +294,20 @@ linters:
           - gosec
 
       - text: "^G402: " # Look for bad TLS connection settings
+        path: '^client/'
         source: "cmpopts\\.Ignore"
         linters:
           - gosec
 
         # FIXME: ignoring unused assigns to ctx for now; too many hits in libnetwork/xxx functions that setup traces
       - text: "assigned to ctx, but never used afterwards"
+        path: '^daemon/'
+        source: "ctx[, ].*=.*\\(ctx[,)]"
         linters:
           - wastedassign
 
       - text: "ineffectual assignment to ctx"
+        path: '^daemon/'
         source: "ctx[, ].*=.*\\(ctx[,)]"
         linters:
           - ineffassign
@@ -328,24 +332,13 @@ linters:
         linters:
           - govet
       - text: 'use of `regexp.MustCompile` forbidden'
-        path: _test\.go
-        linters:
-          - forbidigo
-      - text: 'use of `regexp.MustCompile` forbidden'
-        path: "daemon/internal/lazyregexp"
-        linters:
-          - forbidigo
-      - text: 'use of `regexp.MustCompile` forbidden'
-        path: "internal/testutils"
-        linters:
-          - forbidigo
-      - text: 'use of `regexp.MustCompile` forbidden'
-        path: "libnetwork/cmd/networkdb-test/dbclient"
+        path: '(_test\.go|^daemon/internal/lazyregexp|^integration/internal/testutils|^daemon/libnetwork/cmd/networkdb-test/dbclient)'
         linters:
           - forbidigo
 
       # These interfaces in the client module are identical by design to allow future expansion.
       - text: "^identical: interface '(ContainerExportResult|ContainerLogsResult|ImagePullResponse|ImagePushResponse|ImageImportResult|ImageLoadResult|ImageSaveResult|ServiceLogsResult|TaskLogsResult)'"
+        path: '^client/'
         linters:
           - iface
 
