@@ -276,16 +276,19 @@ jobs:
       -
         name: Set up OpenTelemetry Collector
         run: |
-          # The collectors is set up on Linux through the setup-tracing action. If you update the collector here, don't forget to
-          # update the version set in .github/actions/setup-tracing/action.yml.
           New-Item -ItemType Directory -Force -Path bundles -ErrorAction Continue
           Start-Process "msiexec" -ArgumentList "/i",
-              "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.140.0/otelcol_0.140.0_windows_x64.msi",
+              "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v$($Env:OTEL_COLLECTOR_VERSION)/otelcol_$($Env:OTEL_COLLECTOR_VERSION)_windows_x64.msi",
               "/qn", "/l*v", "$(Join-Path (Get-Location) "bundles/otelcol-install.log")",
               "COLLECTOR_SVC_ARGS=`"--config=`"`"file:$(Join-Path (Get-Location) "otelcol-ci-config.yml")`"`" --config=`"`"yaml:exporters::file::path: $(Join-Path (Get-Location) "bundles/otel-trace.jsonl")`"`"`"" `
               -NoNewWindow -Wait
           @("OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318", "OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf") | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
         shell: pwsh
+        env:
+          # The collector is set up on Linux through the setup-tracing action.
+          # If you update the collector here, don't forget to update the version
+          # set in .github/actions/setup-tracing/action.yml.
+          OTEL_COLLECTOR_VERSION: "0.144.0"
       -
         name: Env
         run: |
