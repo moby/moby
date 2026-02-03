@@ -113,7 +113,9 @@ func getDNSConfig(cfg config.DNSConfig) *oci.DNSConfig {
 func ipAddresses(ips []netip.Addr) []string {
 	var addrs []string
 	for _, ip := range ips {
-		addrs = append(addrs, ip.String())
+		if ip.IsValid() {
+			addrs = append(addrs, ip.String())
+		}
 	}
 	return addrs
 }
