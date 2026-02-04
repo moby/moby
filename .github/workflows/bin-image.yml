@@ -31,7 +31,7 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   build:
-    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
+    if: ${{ !failure() && !cancelled() && (github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only')) }}
     uses: docker/github-builder/.github/workflows/bake.yml@v1
     needs:
       - validate-dco
