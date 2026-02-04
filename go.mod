@@ -5,7 +5,7 @@ go 1.25.5
 require (
 	cloud.google.com/go/compute/metadata v0.9.0
 	cloud.google.com/go/logging v1.13.1
-	code.cloudfoundry.org/clock v1.59.0
+	code.cloudfoundry.org/clock v1.60.0
 	dario.cat/mergo v1.0.2
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c
