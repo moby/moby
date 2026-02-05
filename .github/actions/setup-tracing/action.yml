@@ -6,18 +6,20 @@ runs:
   steps:
     - run: |
         set -e
-        # The OTEL Collector is set up on Windows through an inline run step. If
-        # you update the collector here, don't forget to update the version set
-        # in .github/workflows/.windows.yml.
         mkdir -p /tmp/reports
         chmod 777 /tmp/reports
         docker run -d --net=host --name otelcol \
-          -v "$(pwd)/otelcol-ci-config.yml:/etc/otelcol-contrib/config.yaml" \
+          -v "./otelcol-ci-config.yml:/etc/otelcol-contrib/config.yaml" \
           -v "/tmp/reports:/data" \
-          otel/opentelemetry-collector-contrib:0.140.0 \
+          otel/opentelemetry-collector-contrib:${OTEL_COLLECTOR_VERSION} \
             --config file:/etc/otelcol-contrib/config.yaml \
             --config "yaml:exporters::file::path: /data/otel-trace.jsonl"
         docker0_ip="$(ip -f inet addr show docker0 | grep -Po 'inet \K[\d.]+')"
         echo "OTEL_EXPORTER_OTLP_ENDPOINT=http://${docker0_ip}:4318" >> "${GITHUB_ENV}"
         echo "OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf" >> "${GITHUB_ENV}"
       shell: bash
+      env:
+        # The OTEL Collector is set up on Windows through an inline run step. If
+        # you update the collector here, don't forget to update the version set
+        # in .github/workflows/.windows.yml.
+        OTEL_COLLECTOR_VERSION: "0.144.0"
