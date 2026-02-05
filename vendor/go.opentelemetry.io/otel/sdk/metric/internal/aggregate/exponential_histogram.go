@@ -301,7 +301,7 @@ func newExponentialHistogram[N int64 | float64](
 		maxScale: maxScale,
 
 		newRes: r,
-		limit:  newLimiter[*expoHistogramDataPoint[N]](limit),
+		limit:  newLimiter[expoHistogramDataPoint[N]](limit),
 		values: make(map[attribute.Distinct]*expoHistogramDataPoint[N]),
 
 		start: now(),
@@ -317,7 +317,7 @@ type expoHistogram[N int64 | float64] struct {
 	maxScale int32
 
 	newRes   func(attribute.Set) FilteredExemplarReservoir[N]
-	limit    limiter[*expoHistogramDataPoint[N]]
+	limit    limiter[expoHistogramDataPoint[N]]
 	values   map[attribute.Distinct]*expoHistogramDataPoint[N]
 	valuesMu sync.Mutex
 
@@ -338,13 +338,18 @@ func (e *expoHistogram[N]) measure(
 	e.valuesMu.Lock()
 	defer e.valuesMu.Unlock()
 
-	attr := e.limit.Attributes(fltrAttr, e.values)
-	v, ok := e.values[attr.Equivalent()]
+	v, ok := e.values[fltrAttr.Equivalent()]
 	if !ok {
-		v = newExpoHistogramDataPoint[N](attr, e.maxSize, e.maxScale, e.noMinMax, e.noSum)
-		v.res = e.newRes(attr)
+		fltrAttr = e.limit.Attributes(fltrAttr, e.values)
+		// If we overflowed, make sure we add to the existing overflow series
+		// if it already exists.
+		v, ok = e.values[fltrAttr.Equivalent()]
+		if !ok {
+			v = newExpoHistogramDataPoint[N](fltrAttr, e.maxSize, e.maxScale, e.noMinMax, e.noSum)
+			v.res = e.newRes(fltrAttr)
 
-		e.values[attr.Equivalent()] = v
+			e.values[fltrAttr.Equivalent()] = v
+		}
 	}
 	v.record(value)
 	v.res.Offer(ctx, value, droppedAttr)

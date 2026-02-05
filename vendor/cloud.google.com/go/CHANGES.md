@@ -2,6 +2,40 @@
 
 
 
+## [0.123.0](https://github.com/googleapis/google-cloud-go/compare/v0.122.0...v0.123.0) (2025-09-18)
+
+
+### Features
+
+* **internal/stategen:** Populate the latest googleapis commit ([#12880](https://github.com/googleapis/google-cloud-go/issues/12880)) ([7b017a0](https://github.com/googleapis/google-cloud-go/commit/7b017a083ddd322b21faf413a329ba870a98db96))
+* **librariangen:** Implement the build command ([#12817](https://github.com/googleapis/google-cloud-go/issues/12817)) ([14734c8](https://github.com/googleapis/google-cloud-go/commit/14734c875103f97748857b9b0472fd0b2658663f))
+
+
+### Bug Fixes
+
+* **internal/librariangen:** Add link to source commit in release notes ([#12881](https://github.com/googleapis/google-cloud-go/issues/12881)) ([1c06cc6](https://github.com/googleapis/google-cloud-go/commit/1c06cc6109a84941c367896575b187b79befc3af))
+* **internal/librariangen:** Fix CHANGES.md headers ([#12849](https://github.com/googleapis/google-cloud-go/issues/12849)) ([baf515d](https://github.com/googleapis/google-cloud-go/commit/baf515dfe0d94f36c9dc232f6b55e9828b268eb0))
+* **internal/librariangen:** Remove go mod init/tidy from postprocessor ([#12832](https://github.com/googleapis/google-cloud-go/issues/12832)) ([1fe506a](https://github.com/googleapis/google-cloud-go/commit/1fe506a37e68497b6da4587d409b79e7b4d2a113))
+* **internal/librariangen:** Test for error path with flags ([#12830](https://github.com/googleapis/google-cloud-go/issues/12830)) ([f0da7b2](https://github.com/googleapis/google-cloud-go/commit/f0da7b22488b4d9f6232d227d3e196d8d2b92858))
+* **internal/postprocessor:** Add dlp to skip-module-scan-paths ([#12857](https://github.com/googleapis/google-cloud-go/issues/12857)) ([45a7d9b](https://github.com/googleapis/google-cloud-go/commit/45a7d9b4b9083d1bcaca89c3d86878ba77c230e3))
+* **librariangen:** Honor original container contract ([#12846](https://github.com/googleapis/google-cloud-go/issues/12846)) ([71c8fd3](https://github.com/googleapis/google-cloud-go/commit/71c8fd368667f74426aa31b6c50def8151482480))
+* **librariangen:** Improvements to release-init ([#12842](https://github.com/googleapis/google-cloud-go/issues/12842)) ([0db677a](https://github.com/googleapis/google-cloud-go/commit/0db677a93fe16b9a62bb69a3cea7bc45d5aaec36))
+* **stategen:** Specify an appropriate tag format for google-cloud-go ([#12835](https://github.com/googleapis/google-cloud-go/issues/12835)) ([ffcff33](https://github.com/googleapis/google-cloud-go/commit/ffcff33a0c3fad720a31083672c4cf2498af719f))
+
+## [0.122.0](https://github.com/googleapis/google-cloud-go/compare/v0.121.6...v0.122.0) (2025-09-04)
+
+
+### Features
+
+* **internal/librariangen:** Add release-init command ([#12751](https://github.com/googleapis/google-cloud-go/issues/12751)) ([52e84cc](https://github.com/googleapis/google-cloud-go/commit/52e84cc9a11077eb3c50a0b5fc9aa26361d63b47))
+
+
+### Bug Fixes
+
+* **internal/godocfx:** Better support for v2 modules ([#12797](https://github.com/googleapis/google-cloud-go/issues/12797)) ([4bc8785](https://github.com/googleapis/google-cloud-go/commit/4bc878597a5e6bd97cf3ee2174f6df7fbdd2d47b))
+* **internal/godocfx:** Module detection when tidy errors ([#12801](https://github.com/googleapis/google-cloud-go/issues/12801)) ([83d46cd](https://github.com/googleapis/google-cloud-go/commit/83d46cdc5ed7cfbb94038e7fa1f787adfe532c74))
+* **internal/librariangen:** Fix goimports errors ([#12765](https://github.com/googleapis/google-cloud-go/issues/12765)) ([83bdaa4](https://github.com/googleapis/google-cloud-go/commit/83bdaa4ce4e42f8b4a29e2055fc4894d8c6b1e2c))
+
 ## [0.121.6](https://github.com/googleapis/google-cloud-go/compare/v0.121.5...v0.121.6) (2025-08-14)
 
 
