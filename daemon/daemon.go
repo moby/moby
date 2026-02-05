@@ -809,6 +809,9 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 // CheckSystem verifies that the system meets the platform-specific requirements
 // for running the Docker daemon.
 func CheckSystem() error {
+	if os.Getenv("TEST_SYSTEM_REQUIREMENTS_FAILURE") != "" {
+		return errors.New("fake system requirements not met error")
+	}
 	return checkSystem()
 }
 
