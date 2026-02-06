@@ -904,16 +904,31 @@ func setHostGatewayIP(controller *libnetwork.Controller, config *config.Config) 
 // networkPlatformOptions returns a slice of platform-specific libnetwork
 // options.
 func networkPlatformOptions(conf *config.Config) []nwconfig.Option {
+	// Lookup the userland-proxy binary path only if userland-proxy is enabled.
+	// This avoids unnecessary filesystem lookups during daemon initialization
+	// when userland-proxy is disabled or when running commands like "dockerd --version".
+	var proxyPath string
+	if conf.EnableUserlandProxy {
+		var err error
+		proxyPath, err = conf.LookupUserlandProxyPath()
+		if err != nil {
+			// Log the error but continue. This allows running a daemon with
+			// userland-proxy disabled (which does not require the binary to be present).
+			// The daemon will fail later if userland-proxy is actually needed but not found.
+			log.G(context.TODO()).WithError(err).Warn("failed to find userland-proxy binary")
+		}
+	}
+
 	return []nwconfig.Option{
 		nwconfig.OptionRootless(conf.Rootless),
-		nwconfig.OptionUserlandProxy(conf.EnableUserlandProxy, conf.UserlandProxyPath),
+		nwconfig.OptionUserlandProxy(conf.EnableUserlandProxy, proxyPath),
 		nwconfig.OptionBridgeConfig(bridge.Configuration{
 			EnableIPForwarding:       conf.BridgeConfig.EnableIPForward,
 			DisableFilterForwardDrop: conf.BridgeConfig.DisableFilterForwardDrop,
 			EnableIPTables:           conf.BridgeConfig.EnableIPTables,
 			EnableIP6Tables:          conf.BridgeConfig.EnableIP6Tables,
-			EnableProxy:              conf.EnableUserlandProxy && conf.UserlandProxyPath != "",
-			ProxyPath:                conf.UserlandProxyPath,
+			EnableProxy:              conf.EnableUserlandProxy && proxyPath != "",
+			ProxyPath:                proxyPath,
 			AllowDirectRouting:       conf.BridgeConfig.AllowDirectRouting,
 			AcceptFwMark:             conf.BridgeConfig.BridgeAcceptFwMark,
 		}),
