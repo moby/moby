@@ -875,3 +875,8 @@ func getImageIDsFromBuild(output []byte) ([]string, error) {
 	}
 	return ids, nil
 }
+
+func TestWindowsIntegrationHarnessDoesNotFailFast(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
+	t.Fatal("failpoint")
+}
