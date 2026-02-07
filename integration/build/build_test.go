@@ -720,9 +720,8 @@ func TestBuildEmitsImageCreateEvent(t *testing.T) {
 
 	for _, builderVersion := range []build.BuilderVersion{build.BuilderV1, build.BuilderBuildKit} {
 		t.Run("v"+string(builderVersion), func(t *testing.T) {
-			if builderVersion == build.BuilderBuildKit {
-				skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Buildkit is not supported on Windows")
-			}
+			skip.If(t, builderVersion == build.BuilderBuildKit && testEnv.DaemonInfo.OSType == "windows" && !testEnv.UsingSnapshotter(),
+				"Buildkit is not supported on Windows with graphdrivers")
 
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
@@ -774,7 +773,6 @@ func TestBuildEmitsImageCreateEvent(t *testing.T) {
 }
 
 func TestBuildHistoryDoesNotPreventRemoval(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "buildkit is not supported on Windows")
 	skip.If(t, !testEnv.UsingSnapshotter(), "only relevant to c8d integration")
 
 	ctx := setupTest(t)
