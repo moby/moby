@@ -65,7 +65,7 @@ require (
 	github.com/moby/moby/api v1.53.0
 	github.com/moby/moby/client v0.2.2
 	github.com/moby/patternmatcher v0.6.0
-	github.com/moby/policy-helpers v0.0.0-20260127165209-eeebf1a0ab2b
+	github.com/moby/policy-helpers v0.0.0-20260206215144-77d543533e15
 	github.com/moby/profiles/apparmor v0.1.0
 	github.com/moby/profiles/seccomp v0.1.0
 	github.com/moby/pubsub v1.0.0
@@ -250,8 +250,8 @@ require (
 	github.com/sigstore/rekor v1.5.0 // indirect
 	github.com/sigstore/rekor-tiles/v2 v2.0.1 // indirect
 	github.com/sigstore/sigstore v1.10.4 // indirect
-	github.com/sigstore/sigstore-go v1.1.4-0.20251124094504-b5fe07a5a7d7 // indirect
-	github.com/sigstore/timestamp-authority/v2 v2.0.2 // indirect
+	github.com/sigstore/sigstore-go v1.1.4 // indirect
+	github.com/sigstore/timestamp-authority/v2 v2.0.3 // indirect
 	github.com/spdx/tools-golang v0.5.7 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tetratelabs/wazero v1.11.0 // indirect
