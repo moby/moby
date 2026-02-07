@@ -60,6 +60,10 @@ registryBase='https://registry-1.docker.io'
 authBase='https://auth.docker.io'
 authService='registry.docker.io'
 
+curlRetry='7'
+# 5 minutes
+curlRetryMax='300'
+
 # https://github.com/moby/moby/issues/33700
 fetch_blob() {
 	local token="$1"
@@ -73,6 +77,8 @@ fetch_blob() {
 	local curlArgs=("$@")
 
 	curl -L -S "${curlArgs[@]}" \
+		--retry "$curlRetry" \
+		--retry-max-time "$curlRetryMax" \
 		-H "Authorization: Bearer $token" \
 		"$registryBase/v2/$image/blobs/$digest" \
 		-o "$targetFile" \
@@ -278,6 +284,8 @@ while [ $# -gt 0 ]; do
 
 	manifestJson="$(
 		curl -fsSL \
+			--retry "$curlRetry" \
+			--retry-max-time "$curlRetryMax" \
 			-H "Authorization: Bearer $token" \
 			-H 'Accept: application/vnd.oci.image.manifest.v1+json' \
 			-H 'Accept: application/vnd.oci.image.index.v1+json' \
@@ -322,6 +330,8 @@ while [ $# -gt 0 ]; do
 							# get second level single manifest
 							submanifestJson="$(
 								curl -fsSL \
+									--retry "$curlRetry" \
+									--retry-max-time "$curlRetryMax" \
 									-H "Authorization: Bearer $token" \
 									-H 'Accept: application/vnd.oci.image.manifest.v1+json' \
 									-H 'Accept: application/vnd.oci.image.index.v1+json' \
