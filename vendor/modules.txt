@@ -1197,7 +1197,7 @@ github.com/moby/moby/client/pkg/versions
 ## explicit; go 1.19
 github.com/moby/patternmatcher
 github.com/moby/patternmatcher/ignorefile
-# github.com/moby/policy-helpers v0.0.0-20260127165209-eeebf1a0ab2b
+# github.com/moby/policy-helpers v0.0.0-20260206215144-77d543533e15
 ## explicit; go 1.25.0
 github.com/moby/policy-helpers
 github.com/moby/policy-helpers/image
@@ -1470,7 +1470,7 @@ github.com/sigstore/sigstore/pkg/signature
 github.com/sigstore/sigstore/pkg/signature/dsse
 github.com/sigstore/sigstore/pkg/signature/options
 github.com/sigstore/sigstore/pkg/signature/payload
-# github.com/sigstore/sigstore-go v1.1.4-0.20251124094504-b5fe07a5a7d7
+# github.com/sigstore/sigstore-go v1.1.4
 ## explicit; go 1.25.0
 github.com/sigstore/sigstore-go/pkg/bundle
 github.com/sigstore/sigstore-go/pkg/fulcio/certificate
@@ -1479,7 +1479,7 @@ github.com/sigstore/sigstore-go/pkg/tlog
 github.com/sigstore/sigstore-go/pkg/tuf
 github.com/sigstore/sigstore-go/pkg/util
 github.com/sigstore/sigstore-go/pkg/verify
-# github.com/sigstore/timestamp-authority/v2 v2.0.2
+# github.com/sigstore/timestamp-authority/v2 v2.0.3
 ## explicit; go 1.25.0
 github.com/sigstore/timestamp-authority/v2/pkg/verification
 # github.com/sirupsen/logrus v1.9.4
