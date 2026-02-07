@@ -356,13 +356,9 @@ func (p *linuxParser) parseMountSpec(cfg mount.Mount, validateBindSourceExists b
 		// NOP
 	case mount.TypeImage:
 		mp.Source = cfg.Source
-		if cfg.BindOptions != nil && len(cfg.BindOptions.Propagation) > 0 {
-			mp.Propagation = cfg.BindOptions.Propagation
-		} else {
-			// If user did not specify a propagation mode, get
-			// default propagation mode.
-			mp.Propagation = linuxDefaultPropagationMode
-		}
+		// Propagation is currently not configurable for image mounts.
+		// See https://github.com/moby/moby/issues/51980#issuecomment-3848407167
+		mp.Propagation = linuxDefaultPropagationMode
 	default:
 		// TODO(thaJeztah): make switch exhaustive: anything to do for mount.TypeNamedPipe, mount.TypeCluster ?
 	}
