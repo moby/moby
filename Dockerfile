@@ -36,14 +36,15 @@ ARG DOCKER_STATIC=1
 # specified here should match a current release.
 ARG REGISTRY_VERSION=3.0.0
 
-# delve is currently only supported on linux/amd64 and linux/arm64;
-# https://github.com/go-delve/delve/blob/v1.25.0/pkg/proc/native/support_sentinel.go#L1
-# https://github.com/go-delve/delve/blob/v1.25.0/pkg/proc/native/support_sentinel_linux.go#L1
+# delve is currently only supported on linux/amd64, linux/arm64, and linux/ppc64le;
+# https://github.com/go-delve/delve/blob/v1.26.0/pkg/proc/native/support_sentinel.go#L1
+# https://github.com/go-delve/delve/blob/v1.26.0/pkg/proc/native/support_sentinel_linux.go#L1
 #
-# ppc64le support was added in v1.21.1, but is still experimental, and requires
-# the "-tags exp.linuxppc64le" build-tag to be set:
-# https://github.com/go-delve/delve/commit/71f12207175a1cc09668f856340d8a543c87dcca
-ARG DELVE_SUPPORTED=${TARGETPLATFORM#linux/amd64} DELVE_SUPPORTED=${DELVE_SUPPORTED#linux/arm64} DELVE_SUPPORTED=${DELVE_SUPPORTED#linux/ppc64le}
+# Remove supported, non-experimental platforms; if anything remains, it's unsupported.
+ARG DELVE_SUPPORTED=${TARGETPLATFORM#linux/amd64}
+ARG DELVE_SUPPORTED=${DELVE_SUPPORTED#linux/arm64}
+ARG DELVE_SUPPORTED=${DELVE_SUPPORTED#linux/ppc64le}
+ARG DELVE_SUPPORTED=${DELVE_SUPPORTED#linux/riscv64}
 ARG DELVE_SUPPORTED=${DELVE_SUPPORTED:+"unsupported"}
 ARG DELVE_SUPPORTED=${DELVE_SUPPORTED:-"supported"}
 
@@ -114,7 +115,7 @@ RUN git init . && git remote add origin "https://github.com/go-delve/delve.git"
 # from the https://github.com/go-delve/delve repository.
 # It can be used to run Docker with a possibility of
 # attaching debugger to it.
-ARG DELVE_VERSION=v1.25.2
+ARG DELVE_VERSION=v1.26.0
 RUN git fetch -q --depth 1 origin "${DELVE_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS delve-supported
