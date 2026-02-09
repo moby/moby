@@ -716,27 +716,29 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 	sem := semaphore.NewWeighted(int64(parallelLimit))
 
 	for _, c := range daemon.List() {
-		if !c.State.IsRunning() && !c.State.IsPaused() {
-			// Autostart all the containers which has a
-			// swarm endpoint now that the cluster is
-			// initialized.
-			if cfg.AutoRestart && c.ShouldRestart() && c.NetworkSettings.HasSwarmEndpoint && c.HasBeenStartedBefore {
-				group.Add(1)
-				go func(c *container.Container) {
-					if err := sem.Acquire(ctx, 1); err != nil {
-						// ctx is done.
-						group.Done()
-						return
-					}
+		if c.State.IsRunning() || c.State.IsPaused() {
+			continue
+		}
 
-					if err := daemon.containerStart(ctx, cfg, c, "", "", true); err != nil {
-						log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
-					}
-
-					sem.Release(1)
+		// Autostart all the containers which has a
+		// swarm endpoint now that the cluster is
+		// initialized.
+		if cfg.AutoRestart && c.ShouldRestart() && c.NetworkSettings.HasSwarmEndpoint && c.HasBeenStartedBefore {
+			group.Add(1)
+			go func(c *container.Container) {
+				if err := sem.Acquire(ctx, 1); err != nil {
+					// ctx is done.
 					group.Done()
-				}(c)
-			}
+					return
+				}
+
+				if err := daemon.containerStart(ctx, cfg, c, "", "", true); err != nil {
+					log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
+				}
+
+				sem.Release(1)
+				group.Done()
+			}(c)
 		}
 	}
 	group.Wait()
