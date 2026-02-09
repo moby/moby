@@ -310,7 +310,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 				mapLock.Unlock()
 				return
 			}
-			if err := daemon.register(context.TODO(), c); err != nil {
+			if err := daemon.register(ctx, c); err != nil {
 				logger.WithError(err).Error("failed to register container")
 				mapLock.Lock()
 				delete(containers, c.ID)
