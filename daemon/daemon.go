@@ -1325,10 +1325,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 				continue
 			}
 			for id := range all {
-				log.G(ctx).WithField("container", id).
-					WithField("driver", driver).
-					WithField("current_driver", driverName).
-					Debugf("not restoring container because it was created with another storage driver (%s)", driver)
+				log.G(ctx).WithFields(log.Fields{
+					"container":      id,
+					"driver":         driver,
+					"current_driver": driverName,
+				}).Debugf("not restoring container because it was created with another storage driver (%s)", driver)
 			}
 		}
 	}
