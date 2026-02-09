@@ -73,6 +73,7 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 	}
 
 	for _, d := range dirs {
+		// TODO(thaJeztah): this should probably skip non-volume directories (directories without a "_data" directory and no "opts.json" file).
 		if !d.IsDir() {
 			continue
 		}
