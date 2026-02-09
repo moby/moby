@@ -36,7 +36,7 @@ func marshalSockaddr(ip net.IP, port int, zone string, b []byte) int {
 	if ip4 := ip.To4(); ip4 != nil {
 		switch runtime.GOOS {
 		case "android", "illumos", "linux", "solaris", "windows":
-			NativeEndian.PutUint16(b[:2], uint16(sysAF_INET))
+			binary.NativeEndian.PutUint16(b[:2], uint16(sysAF_INET))
 		default:
 			b[0] = sizeofSockaddrInet4
 			b[1] = sysAF_INET
@@ -48,7 +48,7 @@ func marshalSockaddr(ip net.IP, port int, zone string, b []byte) int {
 	if ip6 := ip.To16(); ip6 != nil && ip.To4() == nil {
 		switch runtime.GOOS {
 		case "android", "illumos", "linux", "solaris", "windows":
-			NativeEndian.PutUint16(b[:2], uint16(sysAF_INET6))
+			binary.NativeEndian.PutUint16(b[:2], uint16(sysAF_INET6))
 		default:
 			b[0] = sizeofSockaddrInet6
 			b[1] = sysAF_INET6
@@ -56,7 +56,7 @@ func marshalSockaddr(ip net.IP, port int, zone string, b []byte) int {
 		binary.BigEndian.PutUint16(b[2:4], uint16(port))
 		copy(b[8:24], ip6)
 		if zone != "" {
-			NativeEndian.PutUint32(b[24:28], uint32(zoneCache.index(zone)))
+			binary.NativeEndian.PutUint32(b[24:28], uint32(zoneCache.index(zone)))
 		}
 		return sizeofSockaddrInet6
 	}
@@ -70,7 +70,7 @@ func parseInetAddr(b []byte, network string) (net.Addr, error) {
 	var af int
 	switch runtime.GOOS {
 	case "android", "illumos", "linux", "solaris", "windows":
-		af = int(NativeEndian.Uint16(b[:2]))
+		af = int(binary.NativeEndian.Uint16(b[:2]))
 	default:
 		af = int(b[1])
 	}
@@ -89,7 +89,7 @@ func parseInetAddr(b []byte, network string) (net.Addr, error) {
 		}
 		ip = make(net.IP, net.IPv6len)
 		copy(ip, b[8:24])
-		if id := int(NativeEndian.Uint32(b[24:28])); id > 0 {
+		if id := int(binary.NativeEndian.Uint32(b[24:28])); id > 0 {
 			zone = zoneCache.name(id)
 		}
 	}
