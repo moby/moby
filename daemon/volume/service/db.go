@@ -86,7 +86,10 @@ func listMeta(tx *bolt.Tx) []volumeMetadata {
 		var m volumeMetadata
 		if err := json.Unmarshal(v, &m); err != nil {
 			// Just log the error
-			log.G(context.TODO()).Errorf("Error while reading volume metadata for volume %q: %v", string(k), err)
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error":  err,
+				"volume": string(k),
+			}).Error("Error while reading volume metadata for volume")
 			return nil
 		}
 		ls = append(ls, m)
