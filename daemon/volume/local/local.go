@@ -75,8 +75,19 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 		log.G(context.TODO()).Debugf("No quota support for local volumes in %s: %v", r.path, err)
 	}
 
+	// isVolume checks if the given volume is a volume-directory; it either
+	// contains a "_data" directory or a "opts.json".
+	isVolume := func(v *localVolume) bool {
+		if _, err := os.Lstat(v.path); err == nil {
+			return true
+		}
+		if _, err := os.Lstat(v.optsFile); err == nil {
+			return true
+		}
+		return false
+	}
+
 	for _, d := range dirs {
-		// TODO(thaJeztah): this should probably skip non-volume directories (directories without a "_data" directory and no "opts.json" file).
 		if !d.IsDir() {
 			continue
 		}
@@ -89,6 +100,14 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 			path:       filepath.Join(r.path, name, volumeDataPathName),
 			optsFile:   filepath.Join(r.path, name, volumeOptsFile),
 			quotaCtl:   r.quotaCtl,
+		}
+
+		if !isVolume(v) {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"volume":    v.name,
+				"root-path": v.rootPath,
+			}).Debug("skipping non-volume directory")
+			continue
 		}
 
 		if err := v.loadOpts(); err != nil {
