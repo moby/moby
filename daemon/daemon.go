@@ -304,14 +304,14 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			}).Debug("loaded container")
 
 			if err := daemon.registerName(c); err != nil {
-				log.G(ctx).WithError(err).Errorf("failed to register container name: %s", c.Name)
+				logger.WithError(err).Errorf("failed to register container name: %s", c.Name)
 				mapLock.Lock()
 				delete(containers, c.ID)
 				mapLock.Unlock()
 				return
 			}
 			if err := daemon.register(context.TODO(), c); err != nil {
-				log.G(ctx).WithError(err).Error("failed to register container")
+				logger.WithError(err).Error("failed to register container")
 				mapLock.Lock()
 				delete(containers, c.ID)
 				mapLock.Unlock()
