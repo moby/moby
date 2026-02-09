@@ -193,11 +193,11 @@ func (s *VolumeStore) purge(ctx context.Context, name string) error {
 	if exists {
 		driverName := v.DriverName()
 		if _, err := s.drivers.ReleaseDriver(driverName); err != nil {
-			log.G(ctx).WithFields(log.Fields{"error": err, "driver": driverName, "volume-name": name}).Error("Error releasing reference to volume driver")
+			log.G(ctx).WithFields(log.Fields{"error": err, "driver": driverName, "volume": name}).Error("Error releasing reference to volume driver")
 		}
 	}
 	if err := s.removeMeta(name); err != nil {
-		log.G(ctx).WithFields(log.Fields{"error": err, "volume-name": name}).Error("Error removing volume metadata")
+		log.G(ctx).WithFields(log.Fields{"error": err, "volume": name}).Error("Error removing volume metadata")
 	}
 	delete(s.names, name)
 	delete(s.refs, name)
@@ -340,7 +340,10 @@ func unique(ls *[]volume.Volume) {
 // If a driver returns a volume that has name which conflicts with another volume from a different driver,
 // the first volume is chosen and the conflicting volume is dropped.
 func (s *VolumeStore) Find(ctx context.Context, by By) (vols []volume.Volume, warnings []string, err error) {
-	log.G(ctx).WithField("ByType", fmt.Sprintf("%T", by)).WithField("ByValue", fmt.Sprintf("%+v", by)).Debug("VolumeStore.Find")
+	log.G(ctx).WithFields(log.Fields{
+		"ByType":  fmt.Sprintf("%T", by),
+		"ByValue": fmt.Sprintf("%+v", by),
+	}).Debug("VolumeStore.Find")
 	switch f := by.(type) {
 	case nil, orCombinator, andCombinator, byDriver, ByReferenced, CustomFilter:
 		warnings, err = s.filter(ctx, &vols, by)
@@ -616,12 +619,12 @@ func (s *VolumeStore) create(ctx context.Context, name, driverName string, opts,
 		return nil, false, &OpErr{Op: "create", Name: name, Err: err}
 	}
 
-	log.G(ctx).WithFields(log.Fields{"driver": vd.Name(), "volume-name": name}).Debug("Registering new volume reference")
+	log.G(ctx).WithFields(log.Fields{"driver": vd.Name(), "volume": name}).Debug("Registering new volume reference")
 	if v, _ = vd.Get(name); v == nil {
 		v, err = vd.Create(name, opts)
 		if err != nil {
 			if _, err := s.drivers.ReleaseDriver(driverName); err != nil {
-				log.G(ctx).WithFields(log.Fields{"error": err, "driver": driverName, "volume-name": name}).Error("Error releasing reference to volume driver")
+				log.G(ctx).WithFields(log.Fields{"error": err, "driver": driverName, "volume": name}).Error("Error releasing reference to volume driver")
 			}
 			return nil, false, err
 		}
@@ -725,7 +728,7 @@ func (s *VolumeStore) getVolume(ctx context.Context, name, driverName string) (v
 		return volumeWrapper{vol, meta.Labels, scope, meta.Options}, nil
 	}
 
-	log.G(ctx).WithField("volume-name", name).Debugf("Probing all drivers for volume")
+	log.G(ctx).WithField("volume", name).Debug("Probing all drivers for volume")
 	drvrs, err := s.drivers.GetAllDrivers()
 	if err != nil {
 		return nil, err
@@ -777,7 +780,7 @@ func lookupVolume(ctx context.Context, store *drivers.Store, driverName, volumeN
 
 		// At this point, the error could be anything from the driver, such as "no such volume"
 		// Let's not check an error here, and instead check if the driver returned a volume
-		log.G(ctx).WithFields(log.Fields{"error": err, "driver": driverName, "volume-name": volumeName}).Debug("Error while looking up volume")
+		log.G(ctx).WithFields(log.Fields{"error": err, "driver": driverName, "volume": volumeName}).Debug("Error while looking up volume")
 	}
 	return v, nil
 }
@@ -813,7 +816,7 @@ func (s *VolumeStore) Remove(ctx context.Context, v volume.Volume, rmOpts ...opt
 		return &OpErr{Err: err, Name: v.DriverName(), Op: "remove"}
 	}
 
-	log.G(ctx).WithFields(log.Fields{"driver": v.DriverName(), "volume-name": name}).Debug("Removing volume reference")
+	log.G(ctx).WithFields(log.Fields{"driver": v.DriverName(), "volume": name}).Debug("Removing volume reference")
 	vol := unwrapVolume(v)
 
 	err = vd.Remove(vol)
