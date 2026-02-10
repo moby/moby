@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package memberlist
 
 /*
@@ -55,7 +58,7 @@ func (m *Memberlist) encodeAndBroadcast(node string, msgType messageType, msg in
 // and notifies the given channel when transmission is finished. Fails
 // silently if there is an encoding error.
 func (m *Memberlist) encodeBroadcastNotify(node string, msgType messageType, msg interface{}, notify chan struct{}) {
-	buf, err := encode(msgType, msg)
+	buf, err := encode(msgType, msg, m.config.MsgpackUseNewTimeFormat)
 	if err != nil {
 		m.logger.Printf("[ERR] memberlist: Failed to encode message for broadcast: %s", err)
 	} else {
