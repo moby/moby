@@ -79,14 +79,9 @@ func RegisterPlugin(store *plugin.Store, path string) error {
 
 // CleanupPlugin stops metrics collection for all plugins
 func CleanupPlugin(store plugingetter.PluginGetter) {
-	plugins := store.GetAllManagedPluginsByCap(pluginType)
 	var wg sync.WaitGroup
-	wg.Add(len(plugins))
-
-	for _, p := range plugins {
-		go func() {
-			defer wg.Done()
-
+	for _, p := range store.GetAllManagedPluginsByCap(pluginType) {
+		wg.Go(func() {
 			adapter, err := makePluginAdapter(p)
 			if err != nil {
 				log.G(context.TODO()).WithFields(log.Fields{
@@ -101,7 +96,7 @@ func CleanupPlugin(store plugingetter.PluginGetter) {
 					"plugin": p.Name(),
 				}).Error("Error stopping plugin metrics collection")
 			}
-		}()
+		})
 	}
 	wg.Wait()
 
