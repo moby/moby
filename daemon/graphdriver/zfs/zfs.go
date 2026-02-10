@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	zfs "github.com/mistifyio/go-zfs/v3"
+	zfs "github.com/mistifyio/go-zfs/v4"
 	"github.com/moby/locker"
 	"github.com/moby/moby/v2/daemon/graphdriver"
 	"github.com/moby/moby/v2/daemon/internal/mountref"

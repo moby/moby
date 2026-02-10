@@ -312,7 +312,7 @@ func (d *Dataset) SetProperty(key, val string) error {
 // A full list of available ZFS properties may be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
 func (d *Dataset) GetProperty(key string) (string, error) {
-	out, err := zfsOutput("get", "-H", key, d.Name)
+	out, err := zfsOutput("get", "-Hp", key, d.Name)
 	if err != nil {
 		return "", err
 	}
