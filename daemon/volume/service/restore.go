@@ -37,7 +37,11 @@ func (s *VolumeStore) restore() {
 			if meta.Driver != "" {
 				v, err = lookupVolume(ctx, s.drivers, meta.Driver, meta.Name)
 				if err != nil && !errors.Is(err, errNoSuchVolume) {
-					log.G(ctx).WithError(err).WithField("driver", meta.Driver).WithField("volume", meta.Name).Warn("Error restoring volume")
+					log.G(ctx).WithFields(log.Fields{
+						"error":  err,
+						"driver": meta.Driver,
+						"volume": meta.Name,
+					}).Warn("Error restoring volume")
 					return
 				}
 				if v == nil {
@@ -56,7 +60,11 @@ func (s *VolumeStore) restore() {
 
 				meta.Driver = v.DriverName()
 				if err := s.setMeta(v.Name(), meta); err != nil {
-					log.G(ctx).WithError(err).WithField("driver", meta.Driver).WithField("volume", v.Name()).Warn("Error updating volume metadata on restore")
+					log.G(ctx).WithFields(log.Fields{
+						"error":  err,
+						"driver": meta.Driver,
+						"volume": v.Name(),
+					}).Warn("Error updating volume metadata on restore")
 				}
 			}
 
@@ -78,7 +86,10 @@ func (s *VolumeStore) restore() {
 	s.db.Update(func(tx *bolt.Tx) error {
 		for meta := range chRemove {
 			if err := removeMeta(tx, meta.Name); err != nil {
-				log.G(ctx).WithField("volume", meta.Name).Warnf("Error removing stale entry from volume db: %v", err)
+				log.G(ctx).WithFields(log.Fields{
+					"error":  err,
+					"volume": meta.Name,
+				}).Warn("Error removing stale entry from volume db")
 			}
 		}
 		return nil

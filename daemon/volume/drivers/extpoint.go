@@ -105,8 +105,12 @@ func (s *Store) lookup(name string, mode int) (volume.Driver, error) {
 		if err := validateDriver(d); err != nil {
 			if mode > 0 {
 				// Undo any reference count changes from the initial `Get`
-				if _, err := s.pluginGetter.Get(name, extName, mode*-1); err != nil {
-					log.G(context.TODO()).WithError(err).WithField("action", "validate-driver").WithField("plugin", name).Error("error releasing reference to plugin")
+				if _, getErr := s.pluginGetter.Get(name, extName, mode*-1); getErr != nil {
+					log.G(context.TODO()).WithFields(log.Fields{
+						"error":  getErr,
+						"action": "validate-driver",
+						"plugin": name,
+					}).Errorf("error releasing reference to plugin after validation error: %v", err)
 				}
 			}
 			return nil, err

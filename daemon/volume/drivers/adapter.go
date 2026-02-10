@@ -94,7 +94,10 @@ func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
 	if err != nil {
 		// `GetCapabilities` is a not a required endpoint.
 		// On error assume it's a local-only driver
-		log.G(context.TODO()).WithError(err).WithField("driver", a.name).Debug("Volume driver returned an error while trying to query its capabilities, using default capabilities")
+		log.G(context.TODO()).WithFields(log.Fields{
+			"error":  err,
+			"driver": a.name,
+		}).Debug("Volume driver returned an error while trying to query its capabilities, using default capabilities")
 		return volume.Capability{Scope: volume.LocalScope}
 	}
 
@@ -105,7 +108,10 @@ func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
 
 	capabilities.Scope = strings.ToLower(capabilities.Scope)
 	if capabilities.Scope != volume.LocalScope && capabilities.Scope != volume.GlobalScope {
-		log.G(context.TODO()).WithField("driver", a.Name()).WithField("scope", a.Scope).Warn("Volume driver returned an invalid scope")
+		log.G(context.TODO()).WithFields(log.Fields{
+			"driver": a.name,
+			"scope":  capabilities.Scope,
+		}).Warn("Volume driver returned an invalid scope")
 		capabilities.Scope = volume.LocalScope
 	}
 
