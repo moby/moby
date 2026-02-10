@@ -806,10 +806,15 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 	return daemon.config().IsSwarmCompatible()
 }
 
+var checkSystemOnce = sync.OnceValue(checkSystem)
+
 // CheckSystem verifies that the system meets the platform-specific requirements
 // for running the Docker daemon.
 func CheckSystem() error {
-	return checkSystem()
+	if os.Getenv("TEST_SYSTEM_REQUIREMENTS_FAILURE") != "" {
+		return errors.New("fake system requirements not met error")
+	}
+	return checkSystemOnce()
 }
 
 // NewDaemon sets up everything for the daemon to be able to service
