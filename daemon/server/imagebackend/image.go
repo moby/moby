@@ -45,6 +45,9 @@ type ListOptions struct {
 
 	// Manifests indicates whether the image manifests should be returned.
 	Manifests bool
+
+	// Identity indicates whether image identity information should be returned.
+	Identity bool
 }
 
 // GetImageOpts holds parameters to retrieve image information
