@@ -16,8 +16,8 @@ cloud.google.com/go/logging v1.13.1 h1:O7LvmO0kGLaHY/gq8cV7T0dyp6zJhYAOtZPX4TF3Q
 cloud.google.com/go/logging v1.13.1/go.mod h1:XAQkfkMBxQRjQek96WLPNze7vsOmay9H5PqfsNYDqvw=
 cloud.google.com/go/longrunning v0.7.0 h1:FV0+SYF1RIj59gyoWDRi45GiYUMM3K1qO51qoboQT1E=
 cloud.google.com/go/longrunning v0.7.0/go.mod h1:ySn2yXmjbK9Ba0zsQqunhDkYi0+9rlXIwnoAf+h+TPY=
-code.cloudfoundry.org/clock v1.60.0 h1:X47eUg0qVXhzGnGSo6TTQtWKfT1vjMfomP7a3sXi2lo=
-code.cloudfoundry.org/clock v1.60.0/go.mod h1:aIq+ZIUPz32B/Mr8QQlPtEksMKRDKnWOxy+b9d9D7i8=
+code.cloudfoundry.org/clock v1.61.0 h1:59Gs1zSMFWJrSLg9gLL5rzhDbpY/8kOH4QDRhGI2274=
+code.cloudfoundry.org/clock v1.61.0/go.mod h1:MMoSJxwFuEv8lIx4Oroz6YEb5eVJjoWN82Of+FoxTZo=
 cyphar.com/go-pathrs v0.2.1 h1:9nx1vOgwVvX1mNBWDu93+vaceedpbsDqo+XuBGL40b8=
 cyphar.com/go-pathrs v0.2.1/go.mod h1:y8f1EMG7r+hCuFf/rXsKqMJrJAUoADZGNh5/vZPKcGc=
 dario.cat/mergo v1.0.2 h1:85+piFYR1tMbRrLcDwR18y4UKJ3aH1Tbzi24VRW1TK8=
