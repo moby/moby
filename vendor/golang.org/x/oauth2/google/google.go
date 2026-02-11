@@ -103,6 +103,7 @@ const (
 	externalAccountKey               = "external_account"
 	externalAccountAuthorizedUserKey = "external_account_authorized_user"
 	impersonatedServiceAccount       = "impersonated_service_account"
+	gdchServiceAccountKey            = "gdch_service_account"
 )
 
 // credentialsFile is the unmarshalled representation of a credentials file.
@@ -165,7 +166,7 @@ func (f *credentialsFile) jwtConfig(scopes []string, subject string) *jwt.Config
 
 func (f *credentialsFile) tokenSource(ctx context.Context, params CredentialsParams) (oauth2.TokenSource, error) {
 	switch f.Type {
-	case serviceAccountKey:
+	case serviceAccountKey, gdchServiceAccountKey:
 		cfg := f.jwtConfig(params.Scopes, params.Subject)
 		return cfg.TokenSource(ctx), nil
 	case userCredentialsKey:
