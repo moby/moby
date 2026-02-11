@@ -145,12 +145,10 @@ func demultiplexStreams(ctx context.Context, resp client.HijackedResponse) (stre
 	outputDone := make(chan error, 1)
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		_, err := stdcopy.StdCopy(&s.stdout, &s.stderr, resp.Reader)
 		outputDone <- err
-		wg.Done()
-	}()
+	})
 
 	var err error
 	select {

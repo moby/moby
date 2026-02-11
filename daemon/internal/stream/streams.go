@@ -126,9 +126,7 @@ func (c *Config) CopyToPipe(iop *cio.DirectIO) {
 
 	c.dio = iop
 	copyFunc := func(name string, w io.Writer, r io.ReadCloser) {
-		c.wg.Add(1)
-		go func() {
-			defer c.wg.Done()
+		c.wg.Go(func() {
 			if _, err := pools.Copy(w, r); err != nil {
 				if c.closed.Load() {
 					return
@@ -138,7 +136,7 @@ func (c *Config) CopyToPipe(iop *cio.DirectIO) {
 			if err := r.Close(); err != nil && !c.closed.Load() {
 				log.G(ctx).WithFields(log.Fields{"stream": name, "error": err}).Warn("close stream failed")
 			}
-		}()
+		})
 	}
 
 	if iop.Stdout != nil {
