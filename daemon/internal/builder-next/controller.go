@@ -154,19 +154,19 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	wo.RegistryHosts = opt.RegistryHosts
 	wo.Labels = getLabels(opt, wo.Labels)
 
-	exec, err := newExecutor(
-		opt.Root,
-		opt.DefaultCgroupParent,
-		opt.NetworkController,
-		dnsConfig,
-		opt.Rootless,
-		opt.IdentityMapping,
-		opt.ApparmorProfile,
-		cdiManager,
-		opt.ContainerdAddress,
-		opt.ContainerdNamespace,
-		opt.HyperVIsolation,
-	)
+	exec, err := newExecutor(executorOpts{
+		root:                opt.Root,
+		networkController:   opt.NetworkController,
+		dnsConfig:           dnsConfig,
+		cdiManager:          cdiManager,
+		cgroupParent:        opt.DefaultCgroupParent,
+		apparmorProfile:     opt.ApparmorProfile,
+		rootless:            opt.Rootless,
+		identityMapping:     opt.IdentityMapping,
+		containerdAddr:      opt.ContainerdAddress,
+		containerdNamespace: opt.ContainerdNamespace,
+		hypervIsolation:     opt.HyperVIsolation,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -354,25 +354,26 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		return nil, err
 	}
 
-	dns := getDNSConfig(opt.DNSConfig)
-
 	cdiManager, err := getCDIManager(opt)
 	if err != nil {
 		return nil, err
 	}
 
-	exec, err := newExecutorGD(
-		root,
-		opt.DefaultCgroupParent,
-		opt.NetworkController,
-		dns,
-		opt.Rootless,
-		opt.IdentityMapping,
-		opt.ApparmorProfile,
-		cdiManager,
-		opt.ContainerdAddress,
-		opt.ContainerdNamespace,
-	)
+	exec, err := newExecutorGD(executorOpts{
+		root:              root,
+		networkController: opt.NetworkController,
+		dnsConfig:         getDNSConfig(opt.DNSConfig),
+		cdiManager:        cdiManager,
+		cgroupParent:      opt.DefaultCgroupParent,
+		apparmorProfile:   opt.ApparmorProfile,
+		rootless:          opt.Rootless,
+		identityMapping:   opt.IdentityMapping,
+
+		// Windows-only fields (currently not used, as newExecutorGD is not implemented on Windows)
+		containerdAddr:      opt.ContainerdAddress,
+		containerdNamespace: opt.ContainerdNamespace,
+		hypervIsolation:     opt.HyperVIsolation,
+	})
 	if err != nil {
 		return nil, err
 	}
