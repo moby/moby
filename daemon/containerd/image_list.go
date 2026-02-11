@@ -384,7 +384,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 
 	var imageIdentity *imagetypes.Identity
 	if opts.Identity {
-		imageIdentity, err = i.imageIdentity(ctx, img.Target, summary)
+		imageIdentity, err = i.imageIdentityFromCache(ctx, img.Target, summary)
 		if err != nil {
 			log.G(ctx).WithError(err).Warn("failed to determine Identity property")
 		}
