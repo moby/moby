@@ -1,6 +1,6 @@
 package networkdb
 
-//go:generate protoc -I=. -I=../../../vendor/ --gogofaster_out=import_path=github.com/docker/docker/daemon/libnetwork/networkdb:. networkdb.proto
+//go:generate protoc -I=. -I=../../../vendor/ --gogofaster_out=import_path=github.com/moby/moby/v2/daemon/libnetwork/networkdb:. networkdb.proto
 
 import (
 	"context"
