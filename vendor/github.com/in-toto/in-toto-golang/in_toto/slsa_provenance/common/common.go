@@ -4,7 +4,7 @@ package common
 // algorithm name to lowercase hex-encoded value.
 type DigestSet map[string]string
 
-// ProvenanceBuilder idenfifies the entity that executed the build steps.
+// ProvenanceBuilder identifies the entity that executed the build steps.
 type ProvenanceBuilder struct {
 	ID string `json:"id"`
 }
