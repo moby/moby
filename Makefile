@@ -21,7 +21,7 @@ export GIT_PAGER
 # option of "go build". For example, a built-in graphdriver priority list
 # can be changed during build time like this:
 #
-# make DOCKER_LDFLAGS="-X github.com/docker/docker/daemon/graphdriver.priority=overlay2,zfs" dynbinary
+# make DOCKER_LDFLAGS="-X github.com/moby/moby/v2/daemon/graphdriver.priority=overlay2,zfs" dynbinary
 #
 DOCKER_ENVS := \
 	-e BUILDFLAGS \
