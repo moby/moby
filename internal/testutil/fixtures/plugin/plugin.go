@@ -226,7 +226,7 @@ func ensureBasicPluginBin() (string, error) {
 		return "", err
 	}
 	installPath := filepath.Join(os.Getenv("GOBIN"), name)
-	sourcePath := filepath.Join("usr", "src", "moby", "internal", "testutil", "fixtures", "plugin", "basic")
+	sourcePath := filepath.Join("/", "usr", "src", "moby", "internal", "testutil", "fixtures", "plugin", "basic")
 	cmd := exec.Command(goBin, "build", "-o", installPath, sourcePath)
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GO111MODULE=off")
 	if out, err := cmd.CombinedOutput(); err != nil {
