@@ -22,11 +22,8 @@ run:
   # which causes it to fallback to go1.17 semantics.
   go: "1.24.3"
   concurrency: 2
-  # Only supported with go modules enabled (build flag -mod=vendor only valid when using modules)
-  modules-download-mode: vendor
-
-  skip-dirs:
-    - docs
+  # NOTE: modules-download-mode: vendor is NOT supported since this project
+  # does not use go.mod (only vendor.mod for CalVer compatibility).
 
 linters-settings:
   importas:
@@ -66,9 +63,13 @@ linters-settings:
       - name: package-comments
         disabled: true
       - name: redefines-builtin-id
+        disabled: true
 issues:
   # The default exclusion rules are a bit too permissive, so copying the relevant ones below
   exclude-use-default: false
+
+  exclude-dirs:
+    - docs
 
   exclude-rules:
     # We prefer to use an "exclude-list" so that new "default" exclusions are not
