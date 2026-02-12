@@ -63,6 +63,22 @@
 //     issues for databases that cannot handle high cardinality.
 //   - A too low of a limit causes loss of attribute detail as more data falls into overflow.
 //
+// # Ordering and Collection Guarantees
+//
+// For performance reasons, the SDK does not guarantee that the order in which
+// synchronous measurements are made to the SDK is reflected in the collected
+// metric data. This means that even when a single goroutine makes sequential
+// synchronous measurements, it is possible for a later measurement to be
+// included in the collected metric data when an earlier measurement is not.
+// This applies to measurements made to different instruments, or to different
+// attribute sets on the same instrument. Sequential measurements made to the
+// same instrument and with the same attributes are guaranteed to preserve
+// ordering with respect to collection.
+//
+// Additionally, the SDK does not guarantee that exemplars are always included
+// in the same batch of metric data as the measurement they are associated
+// with.
+//
 // See [go.opentelemetry.io/otel/metric] for more information about
 // the metric API.
 //
