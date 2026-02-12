@@ -401,7 +401,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 		}, summary, nil
 	}
 
-	image, err := i.singlePlatformImage(ctx, i.content, tagsByDigest[best.RealTarget.Digest], best)
+	image, err := i.singlePlatformImage(ctx, tagsByDigest[best.RealTarget.Digest], best)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -413,7 +413,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 	return image, summary, nil
 }
 
-func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest) (*imagetypes.Summary, error) {
+func (i *ImageService) singlePlatformImage(ctx context.Context, repoTags []string, imageManifest *ImageManifest) (*imagetypes.Summary, error) {
 	var repoDigests []string
 	rawImg := imageManifest.Metadata()
 	target := rawImg.Target.Digest
