@@ -1,5 +1,11 @@
 # Changes
 
+## [0.8.0](https://github.com/googleapis/google-cloud-go/releases/tag/longrunning%2Fv0.8.0) (2026-01-08)
+
+### Bug Fixes
+
+* upgrade gRPC service registration func An update to Go gRPC Protobuf generation will change service registration function signatures to use an interface instead of a concrete type in generated .pb.go service files. This change should affect very few client library users. See release notes advisories in https://github.com/googleapis/google-cloud-go/pull/11025. ([185951b](https://github.com/googleapis/google-cloud-go/commit/185951b3bea9fb942979e81ce248ccdebb40d94b))
+
 ## [0.7.0](https://github.com/googleapis/google-cloud-go/releases/tag/longrunning%2Fv0.7.0) (2025-10-14)
 
 ### Features

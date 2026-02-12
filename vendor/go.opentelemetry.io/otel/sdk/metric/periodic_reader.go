@@ -13,7 +13,9 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/internal/global"
+	"go.opentelemetry.io/otel/sdk/metric/internal/observ"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 )
 
 // Default periodic reader timing.
@@ -126,7 +128,24 @@ func NewPeriodicReader(exporter Exporter, options ...PeriodicReaderOption) *Peri
 		r.run(ctx, conf.interval)
 	}()
 
+	var err error
+	r.inst, err = observ.NewInstrumentation(
+		semconv.OTelComponentTypePeriodicMetricReader.Value.AsString(),
+		nextPeriodicReaderID(),
+	)
+	if err != nil {
+		otel.Handle(err)
+	}
+
 	return r
+}
+
+var periodicReaderIDCounter atomic.Int64
+
+// nextPeriodicReaderID returns an identifier for this periodic reader,
+// starting with 0 and incrementing by 1 each time it is called.
+func nextPeriodicReaderID() int64 {
+	return periodicReaderIDCounter.Add(1) - 1
 }
 
 // PeriodicReader is a Reader that continuously collects and exports metric
@@ -148,6 +167,8 @@ type PeriodicReader struct {
 	shutdownOnce sync.Once
 
 	rmPool sync.Pool
+
+	inst *observ.Instrumentation
 }
 
 // Compile time check the periodicReader implements Reader and is comparable.
@@ -235,8 +256,15 @@ func (r *PeriodicReader) Collect(ctx context.Context, rm *metricdata.ResourceMet
 
 // collect unwraps p as a produceHolder and returns its produce results.
 func (r *PeriodicReader) collect(ctx context.Context, p any, rm *metricdata.ResourceMetrics) error {
+	var err error
+	if r.inst != nil {
+		cp := r.inst.CollectMetrics(ctx)
+		defer func() { cp.End(err) }()
+	}
+
 	if p == nil {
-		return ErrReaderNotRegistered
+		err = ErrReaderNotRegistered
+		return err
 	}
 
 	ph, ok := p.(produceHolder)
@@ -245,11 +273,11 @@ func (r *PeriodicReader) collect(ctx context.Context, p any, rm *metricdata.Reso
 		// this should never happen. In the unforeseen case that this does
 		// happen, return an error instead of panicking so a users code does
 		// not halt in the processes.
-		err := fmt.Errorf("periodic reader: invalid producer: %T", p)
+		err = fmt.Errorf("periodic reader: invalid producer: %T", p)
 		return err
 	}
 
-	err := ph.produce(ctx, rm)
+	err = ph.produce(ctx, rm)
 	if err != nil {
 		return err
 	}
