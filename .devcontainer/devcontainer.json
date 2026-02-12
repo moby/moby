@@ -5,8 +5,8 @@
     "dockerfile": "../Dockerfile",
     "target": "devcontainer"
   },
-  "workspaceFolder": "/go/src/github.com/moby/moby/v2",
-  "workspaceMount": "source=${localWorkspaceFolder},target=/go/src/github.com/moby/moby/v2,type=bind,consistency=cached",
+  "workspaceFolder": "/usr/src/moby",
+  "workspaceMount": "source=${localWorkspaceFolder},target=${containerWorkspaceFolder},type=bind,consistency=cached",
 
   "remoteUser": "root",
   "runArgs": ["--privileged"],
