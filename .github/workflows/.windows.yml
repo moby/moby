@@ -47,15 +47,10 @@ jobs:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
       BIN_OUT: ${{ github.workspace }}\out
-    defaults:
-      run:
-        working-directory: /usr/src/moby
     steps:
       -
         name: Checkout
         uses: actions/checkout@v6
-        with:
-          path: /usr/src/moby
       -
         name: Env
         run: |
@@ -113,15 +108,10 @@ jobs:
     env:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
-    defaults:
-      run:
-        working-directory: /usr/src/moby
     steps:
       -
         name: Checkout
         uses: actions/checkout@v6
-        with:
-          path: /usr/src/moby
       -
         name: Env
         run: |
@@ -153,14 +143,13 @@ jobs:
         name: Test
         run: |
           & docker run --name ${{ env.TEST_CTN_NAME }} -e "DOCKER_GITCOMMIT=${{ github.sha }}" `
-            -v "C:\usr\src\moby\bundles:C:\usr\src\moby\bundles" `
+            -v ".\bundles:C:\usr\src\moby\bundles" `
             ${{ env.TEST_IMAGE_NAME }} hack\make.ps1 -TestUnit
       -
         name: Send to Codecov
         if: inputs.send_coverage
         uses: codecov/codecov-action@v5
         with:
-          working-directory: C:\usr\src\moby\
           directory: bundles
           env_vars: RUNNER_OS
           flags: unit
@@ -171,7 +160,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
-          path: C:\usr\src\moby\bundles\*
+          path: bundles/*
           retention-days: 1
 
   unit-test-report:
@@ -260,15 +249,10 @@ jobs:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
       BIN_OUT: ${{ github.workspace }}\out
-    defaults:
-      run:
-        working-directory: /usr/src/moby
     steps:
       -
         name: Checkout
         uses: actions/checkout@v6
-        with:
-          path: /usr/src/moby
       -
         name: Set up Go
         uses: actions/setup-go@v6
@@ -445,7 +429,6 @@ jobs:
         if: inputs.send_coverage
         uses: codecov/codecov-action@v5
         with:
-          working-directory: C:\usr\src\moby\
           directory: bundles
           env_vars: RUNNER_OS
           flags: integration,${{ matrix.runtime }}
@@ -485,7 +468,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-${{ env.TESTREPORTS_NAME }}
-          path: C:\usr\src\moby\bundles\*
+          path: bundles/*
           retention-days: 1
 
   integration-test-report:

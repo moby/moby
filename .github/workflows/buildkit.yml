@@ -179,14 +179,9 @@ jobs:
       WINDOWS_BASE_TAG_2022: ltsc2022
       TEST_IMAGE_NAME: moby:test
       TEST_CTN_NAME: moby
-    defaults:
-      run:
-        working-directory: /usr/src/moby
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          path: /usr/src/moby
 
       - name: Env
         run: |
