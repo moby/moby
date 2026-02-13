@@ -113,6 +113,15 @@ jobs:
           ref: ${{ env.BUILDKIT_REF }}
           path: buildkit
       -
+        name: Patch deprecated Schema1Image test
+        run: |
+          # Skip TestSchema1Image - gcr.io no longer supports Docker Schema1 manifests
+          # The test tries to pull gcr.io/google_containers/pause:3.0 which returns 400 Bad Request
+          # Add t.Skip() at the start of the function to skip the test gracefully
+          sed -i 's/func testSchema1Image(t \*testing.T, sb integration.Sandbox) {/func testSchema1Image(t *testing.T, sb integration.Sandbox) {\n\tt.Skip("gcr.io no longer supports Schema1 manifests")/' buildkit/client/client_test.go
+          echo "Patched Schema1Image test to skip execution"
+          grep -A 3 "func testSchema1Image" buildkit/client/client_test.go
+      -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       -
