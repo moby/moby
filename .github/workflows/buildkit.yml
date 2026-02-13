@@ -24,7 +24,7 @@ on:
 env:
   GO_VERSION: "1.25.2"
   DESTDIR: ./build
-  ALPINE_VERSION: "3.20"
+  ALPINE_VERSION: "3.22"
 
 jobs:
   validate-dco:
