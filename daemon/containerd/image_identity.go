@@ -326,8 +326,14 @@ func (i *ImageService) warmImageIdentityCache(ctx context.Context, img c8dimages
 			log.G(warmCtx).WithError(err).WithField("image", img.Name).Debug("failed to build image identity cache in background")
 			return
 		}
-		if _, err := i.imageIdentity(warmCtx, img.Target, multi); err != nil {
-			log.G(warmCtx).WithError(err).WithField("image", img.Name).Debug("failed to build image identity cache in background")
+		// Warm signature identities for all locally available image manifests.
+		for _, ref := range multi.manifestIdentityRefs {
+			if _, err := i.imageIdentity(warmCtx, img.Target, &multiPlatformSummary{
+				Best:         ref.manifest,
+				BestPlatform: ref.platform,
+			}); err != nil {
+				log.G(warmCtx).WithError(err).WithField("image", img.Name).Debug("failed to build image identity cache in background")
+			}
 		}
 	}()
 }
