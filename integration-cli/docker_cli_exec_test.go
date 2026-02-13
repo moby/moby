@@ -284,9 +284,7 @@ func (s *DockerCLIExecSuite) TestExecCgroup(c *testing.T) {
 	errChan := make(chan error, 5)
 	// exec a few times concurrently to get consistent failure
 	for range 5 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			out, _, err := dockerCmdWithError("exec", "testing", "cat", "/proc/self/cgroup")
 			if err != nil {
 				errChan <- err
@@ -297,7 +295,7 @@ func (s *DockerCLIExecSuite) TestExecCgroup(c *testing.T) {
 			mu.Lock()
 			execCgroups = append(execCgroups, cg)
 			mu.Unlock()
-		}()
+		})
 	}
 	wg.Wait()
 	close(errChan)

@@ -72,12 +72,10 @@ func TestAddInterfaceInParallel(t *testing.T) {
 	wg := sync.WaitGroup{}
 	for i := range 10 {
 		src := fmt.Sprintf("dummy%d", i)
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			err := ns.AddInterface(context.Background(), src, "eth", "", WithCreatedInContainer(true))
 			assert.NilError(t, err)
-		}()
+		})
 	}
 	wg.Wait()
 

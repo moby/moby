@@ -233,17 +233,14 @@ func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string
 	sem := semaphore.NewWeighted(int64(parallelLimit))
 
 	for _, v := range dir {
-		group.Add(1)
-		go func(id string) {
-			defer group.Done()
-			_ = sem.Acquire(context.Background(), 1)
+		id := v.Name()
+		group.Go(func() {
+			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
 			defer sem.Release(1)
-
-			logger := log.G(ctx).WithField("container", id)
 
 			c, err := daemon.load(id)
 			if err != nil {
-				logger.WithError(err).Error("failed to load container")
+				log.G(ctx).WithFields(log.Fields{"error": err, "container": id}).Error("Failed to load container")
 				return
 			}
 
@@ -256,7 +253,7 @@ func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string
 				containers[c.ID] = c
 			}
 			mapLock.Unlock()
-		}(v.Name())
+		})
 	}
 	group.Wait()
 
@@ -284,10 +281,11 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	activeSandboxes := make(map[string]any)
 
 	for _, c := range containers {
-		group.Add(1)
-		go func(c *container.Container) {
-			defer group.Done()
-			_ = sem.Acquire(context.Background(), 1)
+		group.Go(func() {
+			if err := sem.Acquire(context.WithoutCancel(ctx), 1); err != nil {
+				// ctx is done; should never happen.
+				return
+			}
 			defer sem.Release(1)
 
 			logger := log.G(ctx).WithField("container", c.ID)
@@ -317,7 +315,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 				mapLock.Unlock()
 				return
 			}
-		}(c)
+		})
 	}
 	group.Wait()
 
