@@ -304,14 +304,14 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			}).Debug("loaded container")
 
 			if err := daemon.registerName(c); err != nil {
-				log.G(ctx).WithError(err).Errorf("failed to register container name: %s", c.Name)
+				logger.WithError(err).Errorf("failed to register container name: %s", c.Name)
 				mapLock.Lock()
 				delete(containers, c.ID)
 				mapLock.Unlock()
 				return
 			}
-			if err := daemon.register(context.TODO(), c); err != nil {
-				log.G(ctx).WithError(err).Error("failed to register container")
+			if err := daemon.register(ctx, c); err != nil {
+				logger.WithError(err).Error("failed to register container")
 				mapLock.Lock()
 				delete(containers, c.ID)
 				mapLock.Unlock()
@@ -716,27 +716,29 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 	sem := semaphore.NewWeighted(int64(parallelLimit))
 
 	for _, c := range daemon.List() {
-		if !c.State.IsRunning() && !c.State.IsPaused() {
-			// Autostart all the containers which has a
-			// swarm endpoint now that the cluster is
-			// initialized.
-			if cfg.AutoRestart && c.ShouldRestart() && c.NetworkSettings.HasSwarmEndpoint && c.HasBeenStartedBefore {
-				group.Add(1)
-				go func(c *container.Container) {
-					if err := sem.Acquire(ctx, 1); err != nil {
-						// ctx is done.
-						group.Done()
-						return
-					}
+		if c.State.IsRunning() || c.State.IsPaused() {
+			continue
+		}
 
-					if err := daemon.containerStart(ctx, cfg, c, "", "", true); err != nil {
-						log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
-					}
-
-					sem.Release(1)
+		// Autostart all the containers which has a
+		// swarm endpoint now that the cluster is
+		// initialized.
+		if cfg.AutoRestart && c.ShouldRestart() && c.NetworkSettings.HasSwarmEndpoint && c.HasBeenStartedBefore {
+			group.Add(1)
+			go func(c *container.Container) {
+				if err := sem.Acquire(ctx, 1); err != nil {
+					// ctx is done.
 					group.Done()
-				}(c)
-			}
+					return
+				}
+
+				if err := daemon.containerStart(ctx, cfg, c, "", "", true); err != nil {
+					log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
+				}
+
+				sem.Release(1)
+				group.Done()
+			}(c)
 		}
 	}
 	group.Wait()
@@ -1323,10 +1325,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 				continue
 			}
 			for id := range all {
-				log.G(ctx).WithField("container", id).
-					WithField("driver", driver).
-					WithField("current_driver", driverName).
-					Debugf("not restoring container because it was created with another storage driver (%s)", driver)
+				log.G(ctx).WithFields(log.Fields{
+					"container":      id,
+					"driver":         driver,
+					"current_driver": driverName,
+				}).Debugf("not restoring container because it was created with another storage driver (%s)", driver)
 			}
 		}
 	}
