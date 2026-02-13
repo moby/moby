@@ -20,7 +20,7 @@ on:
         type: string
 
 env:
-  GO_VERSION: "1.25.2"
+  GO_VERSION: "1.25.7"
   TESTSTAT_VERSION: v0.1.25
 
 jobs:
