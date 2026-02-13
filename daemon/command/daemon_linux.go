@@ -58,6 +58,25 @@ func notifyStopping() {
 	_, _ = systemdDaemon.SdNotify(false, systemdDaemon.SdNotifyStopping)
 }
 
+// notifyReloading sends a message to the host when the server got signaled to
+// reloading its configuration, see [sd_notify(3)]. The server should be running
+// as a systemd unit with "Type=notify" or "Type=notify-reload" (see
+// [systemd.service(5)]).
+//
+// notifyReloading returns a callback that must be called after reloading completes
+// (either successfully or unsuccessfully) to send [notifyReady].
+//
+// [sd_notify(3)]: https://www.freedesktop.org/software/systemd/man/latest/sd_notify.html#RELOADING=1
+// [systemd.service(5)]: https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html#Type=
+func notifyReloading() (done func()) {
+	sent, _ := systemdDaemon.SdNotify(false, systemdDaemon.SdNotifyReloading+"\n"+systemdDaemon.SdNotifyMonotonicUsec())
+	if !sent {
+		// Nothing to do if no reloading event was sent.
+		return func() {}
+	}
+	return notifyReady
+}
+
 func validateCPURealtimeOptions(cfg *config.Config) error {
 	if cfg.CPURealtimePeriod == 0 && cfg.CPURealtimeRuntime == 0 {
 		return nil
