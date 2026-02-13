@@ -50,12 +50,12 @@ func preNotifyReady() error {
 // notifyReady sends a message to the host when the server is ready to be used
 func notifyReady() {
 	// Tell the init daemon we are accepting requests
-	_, _ = systemdDaemon.SdNotify(false, systemdDaemon.SdNotifyReady)
+	go systemdDaemon.SdNotify(false, systemdDaemon.SdNotifyReady)
 }
 
 // notifyStopping sends a message to the host when the server is shutting down
 func notifyStopping() {
-	_, _ = systemdDaemon.SdNotify(false, systemdDaemon.SdNotifyStopping)
+	go systemdDaemon.SdNotify(false, systemdDaemon.SdNotifyStopping)
 }
 
 func validateCPURealtimeOptions(cfg *config.Config) error {
