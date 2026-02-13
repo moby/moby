@@ -1264,7 +1264,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 func (d *driver) Leave(nid, eid string) error {
 	network, err := d.getNetwork(nid)
 	if err != nil {
-		return types.InternalMaskableErrorf("%s", err)
+		return types.InternalMaskableErrorf("%v", err)
 	}
 
 	endpoint, err := network.getEndpoint(eid)
