@@ -7,9 +7,11 @@ import (
 	"context"
 	"slices"
 	"sort"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/sdk/metric/internal/reservoir"
 )
 
 // HistogramReservoirProvider is a provider of [HistogramReservoir].
@@ -39,7 +41,9 @@ var _ Reservoir = &HistogramReservoir{}
 // falls within a histogram bucket. The histogram bucket upper-boundaries are
 // define by bounds.
 type HistogramReservoir struct {
+	reservoir.ConcurrentSafe
 	*storage
+	mu sync.Mutex
 
 	// bounds are bucket bounds in ascending order.
 	bounds []float64
@@ -57,14 +61,29 @@ type HistogramReservoir struct {
 // parameters are the value and dropped (filtered) attributes of the
 // measurement respectively.
 func (r *HistogramReservoir) Offer(ctx context.Context, t time.Time, v Value, a []attribute.KeyValue) {
-	var x float64
+	var n float64
 	switch v.Type() {
 	case Int64ValueType:
-		x = float64(v.Int64())
+		n = float64(v.Int64())
 	case Float64ValueType:
-		x = v.Float64()
+		n = v.Float64()
 	default:
 		panic("unknown value type")
 	}
-	r.store[sort.SearchFloat64s(r.bounds, x)] = newMeasurement(ctx, t, v, a)
+
+	idx := sort.SearchFloat64s(r.bounds, n)
+	m := newMeasurement(ctx, t, v, a)
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.store(idx, m)
+}
+
+// Collect returns all the held exemplars.
+//
+// The Reservoir state is preserved after this call.
+func (r *HistogramReservoir) Collect(dest *[]Exemplar) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.storage.Collect(dest)
 }
