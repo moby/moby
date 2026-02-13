@@ -113,6 +113,41 @@ jobs:
           ref: ${{ env.BUILDKIT_REF }}
           path: buildkit
       -
+        name: Patch deprecated Schema1Image test
+        run: |
+          # Skip TestSchema1Image - gcr.io no longer supports Docker Schema1 manifests
+          # The test tries to pull gcr.io/google_containers/pause:3.0 which returns 400 Bad Request
+          # Add t.Skip() at the start of the function to skip the test gracefully
+          sed -i 's/func testSchema1Image(t \*testing.T, sb integration.Sandbox) {/func testSchema1Image(t *testing.T, sb integration.Sandbox) {\n\tt.Skip("gcr.io no longer supports Schema1 manifests")/' buildkit/client/client_test.go
+          echo "Patched Schema1Image test to skip execution"
+          grep -A 3 "func testSchema1Image" buildkit/client/client_test.go
+      -
+        name: Update BuildKit test image pins
+        run: |
+          # Update Alpine pins to latest Alpine 3.20 digests
+          # Get current digests for alpine:3.20
+          AMD64_DIGEST=$(docker buildx imagetools inspect --raw alpine:3.20 | jq -r '.manifests[] | select(.platform.architecture=="amd64") | .digest')
+          ARM64_DIGEST=$(docker buildx imagetools inspect --raw alpine:3.20 | jq -r '.manifests[] | select(.platform.architecture=="arm64") | .digest')
+          LIBRARY_DIGEST=$(docker buildx imagetools inspect --raw alpine:3.20 | jq -r '.digest')
+
+          echo "Using Alpine 3.20 digests:"
+          echo "  amd64: $AMD64_DIGEST"
+          echo "  arm64: $ARM64_DIGEST"
+          echo "  library: $LIBRARY_DIGEST"
+
+          # Patch pins.go with updated digests using sed
+          sed -i \
+            -e "s|sha256:25fad2a32ad1f6f510e528448ae1ec69a28ef81916a004d3629874104f8a7f70|$AMD64_DIGEST|g" \
+            -e "s|sha256:e3bd82196e98898cae9fe7fbfd6e2436530485974dc4fb3b7ddb69134eda2407|$ARM64_DIGEST|g" \
+            -e "s|sha256:82d1e9d7ed48a7523bdebc18cf6290bdb97b82302a8a9c27d4fe885949ea94d1|$LIBRARY_DIGEST|g" \
+            buildkit/util/testutil/integration/pins.go
+
+          # Update the comment to reflect Alpine 3.20
+          sed -i 's|// alpine 3.18|// alpine 3.20|g' buildkit/util/testutil/integration/pins.go
+
+          echo "Updated pins.go:"
+          cat buildkit/util/testutil/integration/pins.go
+      -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       -
