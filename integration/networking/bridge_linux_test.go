@@ -1897,6 +1897,128 @@ func TestAdvertiseAddresses(t *testing.T) {
 	}
 }
 
+// TestAdvertiseAddressesLiveRestore verifies that unsolicited ARP/NA messages are
+// sent when the daemon restarts with live-restore enabled. This ensures that
+// neighbor caches on other hosts are updated with the container's MAC address
+// after a daemon restart.
+func TestAdvertiseAddressesLiveRestore(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "can't listen for ARP/NA messages in rootlesskit's namespace")
+
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, "--live-restore")
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const netName = "dsnet-lr"
+	const brName = "br-advaddrlr"
+	network.CreateNoError(ctx, t, c, netName,
+		network.WithOption(bridge.BridgeName, brName),
+		network.WithIPv6(),
+		network.WithIPAM("172.23.23.0/24", "172.23.23.1"),
+		network.WithIPAM("fd4c:f70b:973d::/64", "fd4c:f70b:973d::1"),
+	)
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	// Create ctr1 which will be used to verify neighbor cache updates.
+	ctr1Id := container.Run(ctx, t, c, container.WithName("ctr1-lr"), container.WithNetworkMode(netName))
+	defer c.ContainerRemove(ctx, ctr1Id, client.ContainerRemoveOptions{Force: true})
+
+	// Create ctr2 with fixed IP addresses.
+	const ctr2Name = "ctr2-lr"
+	const ctr2Addr4 = "172.23.23.22"
+	const ctr2Addr6 = "fd4c:f70b:973d::2222"
+	ctr2Id := container.Run(ctx, t, c,
+		container.WithName(ctr2Name),
+		container.WithNetworkMode(netName),
+		container.WithIPv4(netName, ctr2Addr4),
+		container.WithIPv6(netName, ctr2Addr6),
+	)
+	defer c.ContainerRemove(ctx, ctr2Id, client.ContainerRemoveOptions{Force: true})
+
+	ctr2MAC := container.Inspect(ctx, t, c, ctr2Id).NetworkSettings.Networks[netName].MacAddress
+
+	// Ping from ctr1 to ctr2 to populate ctr1's neighbor caches.
+	pingRes := container.ExecT(ctx, t, c, ctr1Id, []string{"ping", "-4", "-c1", ctr2Name})
+	assert.Assert(t, is.Equal(pingRes.ExitCode, 0))
+	pingRes = container.ExecT(ctx, t, c, ctr1Id, []string{"ping", "-6", "-c1", ctr2Name})
+	assert.Assert(t, is.Equal(pingRes.ExitCode, 0))
+
+	// Verify ctr1 has neighbor entries for ctr2.
+	ctr1Neighs := container.ExecT(ctx, t, c, ctr1Id, []string{"ip", "neigh", "show"})
+	assert.Assert(t, is.Equal(ctr1Neighs.ExitCode, 0))
+	t.Logf("ctr1 neighbours before restart:\n%s", ctr1Neighs.Combined())
+
+	// Wait for initial ARP/NA retransmits from container creation to settle.
+	// The daemon sends unsolicited ARP/NA messages for a couple of seconds after
+	// AddInterface, so we need to wait before starting to listen to avoid counting
+	// those messages instead of the ones sent during restore.
+	t.Log("Waiting for initial ARP/NA retransmits to settle...")
+	time.Sleep(5 * time.Second)
+
+	// Now start listening for ARP/NA messages.
+	stopARPListen := network.CollectBcastARPs(t, brName)
+	defer stopARPListen()
+	stopICMP6Listen := network.CollectICMP6(t, brName)
+	defer stopICMP6Listen()
+
+	// Restart the daemon - this should trigger RestoreInterfaces which sends ARP/NA.
+	d.Restart(t, "--live-restore")
+
+	// Give time for ARP/NA messages to be sent after restart.
+	t.Log("Sleeping for 5s to collect ARP/NA messages after daemon restart...")
+	time.Sleep(5 * time.Second)
+
+	// Verify that ARP/NA messages were sent for ctr2's addresses.
+	arps := stopARPListen()
+	var arpCount int
+	for i, p := range arps {
+		ha, pa, err := network.UnpackUnsolARP(p)
+		if err != nil {
+			t.Logf("ARP %d: %s: %s: %s", i+1, p.ReceivedAt.Format("15:04:05.000"), hex.EncodeToString(p.Data), err)
+			continue
+		}
+		t.Logf("ARP %d: %s '%s' is at '%s'", i+1, p.ReceivedAt.Format("15:04:05.000"), pa, ha)
+		if pa == netip.MustParseAddr(ctr2Addr4) && slices.Compare(ha, net.HardwareAddr(ctr2MAC)) == 0 {
+			arpCount++
+			t.Logf("---> found ARP for ctr2")
+		}
+	}
+	assert.Check(t, arpCount >= 1, "expected at least 1 ARP message for ctr2 after live-restore, got %d", arpCount)
+
+	icmps := stopICMP6Listen()
+	var naCount int
+	for i, p := range icmps {
+		ha, pa, err := network.UnpackUnsolNA(p)
+		if err != nil {
+			t.Logf("ICMP6 %d: %s: %s: %s", i+1, p.ReceivedAt.Format("15:04:05.000"), hex.EncodeToString(p.Data), err)
+			continue
+		}
+		t.Logf("ICMP6 %d: %s '%s' is at '%s'", i+1, p.ReceivedAt.Format("15:04:05.000"), pa, ha)
+		if pa == netip.MustParseAddr(ctr2Addr6) && slices.Compare(ha, net.HardwareAddr(ctr2MAC)) == 0 {
+			naCount++
+			t.Logf("---> found NA for ctr2")
+		}
+	}
+	assert.Check(t, naCount >= 1, "expected at least 1 NA message for ctr2 after live-restore, got %d", naCount)
+
+	// Verify ctr1 still has valid neighbor entries (connectivity should work).
+	ctr1Neighs = container.ExecT(ctx, t, c, ctr1Id, []string{"ip", "neigh", "show"})
+	assert.Assert(t, is.Equal(ctr1Neighs.ExitCode, 0))
+	t.Logf("ctr1 neighbours after restart:\n%s", ctr1Neighs.Combined())
+
+	// Verify connectivity still works after restart.
+	pingRes = container.ExecT(ctx, t, c, ctr1Id, []string{"ping", "-4", "-c1", ctr2Name})
+	assert.Assert(t, is.Equal(pingRes.ExitCode, 0))
+	pingRes = container.ExecT(ctx, t, c, ctr1Id, []string{"ping", "-6", "-c1", ctr2Name})
+	assert.Assert(t, is.Equal(pingRes.ExitCode, 0))
+
+	if t.Failed() {
+		d.TailLogsT(t, 100)
+	}
+}
+
 // TestNetworkInspectGateway checks that gateways reported in inspect output are parseable as addresses.
 func TestNetworkInspectGateway(t *testing.T) {
 	ctx := setupTest(t)

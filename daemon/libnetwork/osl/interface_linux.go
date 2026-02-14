@@ -665,6 +665,17 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 	defer span.End()
 
 	mac := i.MacAddress()
+	// If MAC is not stored in the interface struct, get it from the actual link.
+	// This can happen with some network drivers (e.g., SR-IOV, macvlan) that don't
+	// store the MAC in the endpoint configuration.
+	if len(mac) == 0 {
+		link, err := nlh.LinkByIndex(ifIndex)
+		if err != nil {
+			log.G(ctx).WithFields(log.Fields{"error": err, "ifi": ifIndex}).Warn("Failed to lookup link by index to determine MAC address; treating as no MAC to advertise")
+		} else if hw := link.Attrs().HardwareAddr; len(hw) > 0 {
+			mac = hw
+		}
+	}
 	address4 := i.Address()
 	address6 := i.AddressIPv6()
 	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
@@ -681,7 +692,7 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 		log.G(ctx).Debug("No IP addresses to advertise")
 		return nil
 	}
-	if mac == nil {
+	if len(mac) == 0 {
 		// Nothing to do - for example, a layer-3 ipvlan.
 		log.G(ctx).Debug("No MAC address to advertise")
 		return nil
@@ -691,7 +702,7 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 		return nil
 	}
 
-	arpSender, naSender := n.prepAdvertiseAddrs(ctx, i, ifIndex)
+	arpSender, naSender := n.prepAdvertiseAddrs(ctx, i, ifIndex, mac)
 	if arpSender == nil && naSender == nil {
 		return nil
 	}
@@ -740,9 +751,13 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 		return errors.Join(errs...)
 	}
 
-	// Send an initial message. If it fails, skip the resends.
+	// Send an initial message. If it fails, log a warning but don't fail container
+	// creation - NA is an optimization, neighbors will still discover addresses via
+	// normal NDP solicitation. This can happen with L3 ipvlan which doesn't support
+	// multicast.
 	if err := send(ctx); err != nil {
-		return err
+		log.G(ctx).WithError(err).Warn("Failed to send initial neighbor advertisement")
+		return nil
 	}
 	if i.advertiseAddrNMsgs == 1 {
 		return nil
@@ -775,20 +790,20 @@ func (n *Namespace) advertiseAddrs(ctx context.Context, ifIndex int, i *Interfac
 	return nil
 }
 
-func (n *Namespace) prepAdvertiseAddrs(ctx context.Context, i *Interface, ifIndex int) (*l2disco.UnsolARP, *l2disco.UnsolNA) {
+func (n *Namespace) prepAdvertiseAddrs(ctx context.Context, i *Interface, ifIndex int, mac net.HardwareAddr) (*l2disco.UnsolARP, *l2disco.UnsolNA) {
 	var ua *l2disco.UnsolARP
 	var un *l2disco.UnsolNA
 	if err := n.InvokeFunc(func() {
 		if address4 := i.Address(); address4 != nil {
 			var err error
-			ua, err = l2disco.NewUnsolARP(ctx, address4.IP, i.MacAddress(), ifIndex)
+			ua, err = l2disco.NewUnsolARP(ctx, address4.IP, mac, ifIndex)
 			if err != nil {
 				log.G(ctx).WithError(err).Warn("Failed to prepare unsolicited ARP")
 			}
 		}
 		if address6 := i.AddressIPv6(); address6 != nil {
 			var err error
-			un, err = l2disco.NewUnsolNA(ctx, address6.IP, i.MacAddress(), ifIndex)
+			un, err = l2disco.NewUnsolNA(ctx, address6.IP, mac, ifIndex)
 			if err != nil {
 				log.G(ctx).WithError(err).Warn("Failed to prepare unsolicited NA")
 			}
