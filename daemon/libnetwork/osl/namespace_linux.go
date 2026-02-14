@@ -483,7 +483,10 @@ func (n *Namespace) RestoreInterfaces(ctx context.Context, interfaces map[Iface]
 			waitForBridgePort(ctx, ns.NlHandle(), link)
 			mcastRouteOk := waitForMcastRoute(ctx, ifIndex, i, n.nlHandle)
 			if err := n.advertiseAddrs(ctx, ifIndex, i, n.nlHandle, mcastRouteOk); err != nil {
-				log.G(ctx).WithError(err).WithField("interface", i.dstName).Warn("Failed to send neighbor advertisement during restore")
+				log.G(ctx).WithFields(log.Fields{
+					"error":     err,
+					"interface": i.dstName,
+				}).Warn("Failed to send neighbor advertisement during restore")
 			}
 		}
 	}
