@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 )
 
-const maxBodySize = 1048576 // 1MB
+const maxBodySize = 4 * 1024 * 1024 // 4MiB
 
 // NewCtx creates new authZ context, it is used to store authorization information related to a specific docker
 // REST http session
