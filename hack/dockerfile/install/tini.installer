@@ -10,7 +10,13 @@ install_tini() {
 	git clone https://github.com/krallin/tini.git "$GOPATH/tini"
 	cd "$GOPATH/tini"
 	git checkout -q "$TINI_VERSION"
-	cmake .
+
+	# CMake 4.x removed compatibility with CMake < 3.5, which breaks building
+	# tini, as it declares support for old policy versions.
+	#
+	# can be removed once https://github.com/krallin/tini/pull/233 is in a release.
+	cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 .
+
 	make tini-static
 	mkdir -p "${PREFIX}"
 	cp tini-static "${PREFIX}/docker-init"
