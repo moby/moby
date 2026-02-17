@@ -137,21 +137,22 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 			FinishedAt: ctr.State.FinishedAt.Format(time.RFC3339Nano),
 			Health:     containerHealth,
 		},
-		Image:        ctr.ImageID.String(),
-		LogPath:      ctr.LogPath,
-		Name:         ctr.Name,
-		RestartCount: ctr.RestartCount,
-		Driver:       ctr.Driver,
-		Platform:     ctr.ImagePlatform.OS,
-		MountLabel:   ctr.MountLabel,
-		ProcessLabel: ctr.ProcessLabel,
-		ExecIDs:      ctr.GetExecIDs(),
-		HostConfig:   &hostConfig,
-		Config:       ctr.Config,
+		Image:           ctr.ImageID.String(),
+		ResolvConfPath:  ctr.ResolvConfPath, // Only used on Linux.
+		HostnamePath:    ctr.HostnamePath,   // Only used on Linux.
+		HostsPath:       ctr.HostsPath,      // Only used on Linux.
+		LogPath:         ctr.LogPath,
+		Name:            ctr.Name,
+		RestartCount:    ctr.RestartCount,
+		Driver:          ctr.Driver,
+		Platform:        ctr.ImagePlatform.OS,
+		MountLabel:      ctr.MountLabel,      // Only used on Linux.
+		ProcessLabel:    ctr.ProcessLabel,    // Only used on Linux.
+		AppArmorProfile: ctr.AppArmorProfile, // Only used on Linux.
+		ExecIDs:         ctr.GetExecIDs(),
+		HostConfig:      &hostConfig,
+		Config:          ctr.Config,
 	}
-
-	// Now set any platform-specific fields
-	inspectResponse = setPlatformSpecificContainerFields(ctr, inspectResponse)
 
 	if daemon.UsesSnapshotter() {
 		inspectResponse.Storage = &storage.Storage{
