@@ -18,27 +18,22 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	imagetypes "github.com/moby/moby/api/types/image"
+	identitycache "github.com/moby/moby/v2/daemon/containerd/internal/identitycache"
 	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter"
 	policyimage "github.com/moby/policy-helpers/image"
 	policytypes "github.com/moby/policy-helpers/types"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	bolt "go.etcd.io/bbolt"
 )
 
 const (
 	imageIdentityCacheTTL      = time.Hour
 	imageIdentityErrorCacheTTL = 5 * time.Minute
 	imageIdentityWarmupTimeout = 2 * time.Minute
-	imageIdentityCacheBucket   = "image-identity-cache-v1"
 )
 
-type imageIdentityCacheEntry struct {
-	CachedAt  time.Time
-	ExpiresAt time.Time
-	Signature *imagetypes.SignatureIdentity
-}
+type imageIdentityCacheEntry = identitycache.Entry
 
 func (i *ImageService) imageIdentity(ctx context.Context, desc ocispec.Descriptor, multi *multiPlatformSummary) (*imagetypes.Identity, error) {
 	return i.imageIdentityWithCachePolicy(ctx, desc, multi, true)
@@ -57,13 +52,13 @@ func (i *ImageService) imageIdentityWithCachePolicy(ctx context.Context, desc oc
 	identity := imageIdentityFromLabels(ctx, info.Labels)
 	bestDigest, bestPlatform := imageIdentityBestMatch(multi)
 	cacheKey := imageIdentityCacheKey(desc.Digest.String(), bestDigest, bestPlatform)
-	signature, ok, err := i.imageSignatureIdentityFromCache(cacheKey)
+	signature, ok, err := i.imageSignatureIdentityFromCache(ctx, cacheKey)
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("image", desc.Digest).Debug("failed to load image identity cache entry")
 	}
 	if !ok && computeOnCacheMiss {
 		v, err, _ := i.identityFlight.Do(cacheKey, func() (any, error) {
-			if cached, ok, err := i.imageSignatureIdentityFromCache(cacheKey); err == nil && ok {
+			if cached, ok, err := i.imageSignatureIdentityFromCache(ctx, cacheKey); err == nil && ok {
 				return cached, nil
 			} else if err != nil {
 				log.G(ctx).WithError(err).WithField("image", desc.Digest).Debug("failed to refresh image identity cache entry")
@@ -76,7 +71,7 @@ func (i *ImageService) imageIdentityWithCachePolicy(ctx context.Context, desc oc
 				// so cache these for a shorter period
 				ttl = imageIdentityErrorCacheTTL
 			}
-			if err := i.updateImageIdentityCache(cacheKey, computedSignature, ttl); err != nil {
+			if err := i.updateImageIdentityCache(ctx, cacheKey, computedSignature, ttl); err != nil {
 				log.G(ctx).WithError(err).WithField("image", desc.Digest).Debug("failed to update image identity cache entry")
 			}
 
@@ -228,7 +223,7 @@ func imageIdentityCacheKey(imageDigest, bestDigest, bestPlatform string) string 
 	return strings.Join([]string{imageDigest, bestDigest, bestPlatform}, "|")
 }
 
-func (i *ImageService) imageSignatureIdentityFromCache(cacheKey string) (*imagetypes.SignatureIdentity, bool, error) {
+func (i *ImageService) imageSignatureIdentityFromCache(ctx context.Context, cacheKey string) (*imagetypes.SignatureIdentity, bool, error) {
 	now := time.Now()
 
 	i.identityCacheMu.Lock()
@@ -242,7 +237,10 @@ func (i *ImageService) imageSignatureIdentityFromCache(cacheKey string) (*imaget
 	}
 	i.identityCacheMu.Unlock()
 
-	cached, ok, err := i.loadImageIdentityCacheEntryFromDB(cacheKey, now)
+	if i.identityCacheStore == nil {
+		return nil, false, nil
+	}
+	cached, ok, err := i.identityCacheStore.Load(ctx, cacheKey, now)
 	if err != nil {
 		return nil, false, err
 	}
@@ -259,7 +257,7 @@ func (i *ImageService) imageSignatureIdentityFromCache(cacheKey string) (*imaget
 	return cloneSignatureIdentity(cached.Signature), true, nil
 }
 
-func (i *ImageService) updateImageIdentityCache(cacheKey string, signature *imagetypes.SignatureIdentity, ttl time.Duration) error {
+func (i *ImageService) updateImageIdentityCache(ctx context.Context, cacheKey string, signature *imagetypes.SignatureIdentity, ttl time.Duration) error {
 	if ttl <= 0 {
 		return nil
 	}
@@ -279,95 +277,10 @@ func (i *ImageService) updateImageIdentityCache(cacheKey string, signature *imag
 	pruneImageIdentityCacheEntries(i.identityCache, now)
 	i.identityCacheMu.Unlock()
 
-	return i.storeImageIdentityCacheEntryInDB(cacheKey, entry, now)
-}
-
-func (i *ImageService) loadImageIdentityCacheEntryFromDB(cacheKey string, now time.Time) (imageIdentityCacheEntry, bool, error) {
-	if i.identityCacheDB == nil {
-		return imageIdentityCacheEntry{}, false, nil
-	}
-
-	var (
-		entry   imageIdentityCacheEntry
-		payload []byte
-	)
-	err := i.identityCacheDB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(imageIdentityCacheBucket))
-		if b == nil {
-			return nil
-		}
-		value := b.Get([]byte(cacheKey))
-		if value == nil {
-			return nil
-		}
-		payload = append([]byte(nil), value...)
-		return nil
-	})
-	if err != nil {
-		return imageIdentityCacheEntry{}, false, err
-	}
-	if len(payload) == 0 {
-		return imageIdentityCacheEntry{}, false, nil
-	}
-	if err := json.Unmarshal(payload, &entry); err != nil {
-		if delErr := i.deleteImageIdentityCacheEntryFromDB(cacheKey); delErr != nil {
-			log.G(context.TODO()).WithError(delErr).Debug("failed to delete malformed image identity cache entry")
-		}
-		return imageIdentityCacheEntry{}, false, nil
-	}
-	if now.After(entry.ExpiresAt) {
-		if delErr := i.deleteImageIdentityCacheEntryFromDB(cacheKey); delErr != nil {
-			return imageIdentityCacheEntry{}, false, delErr
-		}
-		return imageIdentityCacheEntry{}, false, nil
-	}
-	return entry, true, nil
-}
-
-func (i *ImageService) deleteImageIdentityCacheEntryFromDB(cacheKey string) error {
-	if i.identityCacheDB == nil {
+	if i.identityCacheStore == nil {
 		return nil
 	}
-	return i.identityCacheDB.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(imageIdentityCacheBucket))
-		if b == nil {
-			return nil
-		}
-		return b.Delete([]byte(cacheKey))
-	})
-}
-
-func (i *ImageService) storeImageIdentityCacheEntryInDB(cacheKey string, entry imageIdentityCacheEntry, now time.Time) error {
-	if i.identityCacheDB == nil {
-		return nil
-	}
-	payload, err := json.Marshal(entry)
-	if err != nil {
-		return err
-	}
-	return i.identityCacheDB.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte(imageIdentityCacheBucket))
-		if err != nil {
-			return err
-		}
-		if err := b.Put([]byte(cacheKey), payload); err != nil {
-			return err
-		}
-		return pruneImageIdentityCacheBucketEntries(b, now)
-	})
-}
-
-func pruneImageIdentityCacheBucketEntries(bucket *bolt.Bucket, now time.Time) error {
-	cursor := bucket.Cursor()
-	for key, value := cursor.First(); key != nil; key, value = cursor.Next() {
-		var entry imageIdentityCacheEntry
-		if err := json.Unmarshal(value, &entry); err != nil || now.After(entry.ExpiresAt) {
-			if err := bucket.Delete(key); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return i.identityCacheStore.Store(ctx, cacheKey, entry, now)
 }
 
 func cloneSignatureIdentity(s *imagetypes.SignatureIdentity) *imagetypes.SignatureIdentity {

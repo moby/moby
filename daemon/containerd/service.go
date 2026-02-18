@@ -3,11 +3,8 @@ package containerd
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/content"
@@ -19,6 +16,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/moby/moby/v2/daemon/container"
+	identitycache "github.com/moby/moby/v2/daemon/containerd/internal/identitycache"
 	daemonevents "github.com/moby/moby/v2/daemon/events"
 	dimages "github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/distribution"
@@ -29,7 +27,6 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -51,7 +48,7 @@ type ImageService struct {
 	identityFlight      singleflight.Group
 	identityCacheMu     sync.Mutex
 	identityCache       map[string]imageIdentityCacheEntry
-	identityCacheDB     *bolt.DB
+	identityCacheStore  identitycache.Backend
 
 	// defaultPlatformOverride is used in tests to override the host platform.
 	defaultPlatformOverride platforms.MatchComparer
@@ -72,6 +69,12 @@ type ImageServiceConfig struct {
 
 // NewService creates a new ImageService.
 func NewService(config ImageServiceConfig) *ImageService {
+	identityCacheStore, err := identitycache.NewBoltDBBackend(config.Root)
+	if err != nil {
+		log.G(context.TODO()).WithError(err).Warn("failed to initialize image identity bbolt cache backend")
+		identityCacheStore = identitycache.NewNopBackend()
+	}
+
 	return &ImageService{
 		client:  config.Client,
 		images:  config.Client.ImageService(),
@@ -79,39 +82,16 @@ func NewService(config ImageServiceConfig) *ImageService {
 		snapshotterServices: map[string]snapshots.Snapshotter{
 			config.Snapshotter: config.Client.SnapshotService(config.Snapshotter),
 		},
-		containers:      config.Containers,
-		snapshotter:     config.Snapshotter,
-		registryHosts:   config.RegistryHosts,
-		registryService: config.Registry,
-		eventsService:   config.EventsService,
-		refCountMounter: config.RefCountMounter,
-		idMapping:       config.IDMapping,
-		policyVerifier:  config.PolicyVerifierProvider,
-		identityCache:   make(map[string]imageIdentityCacheEntry),
-		identityCacheDB: func(root string) *bolt.DB {
-			if root == "" {
-				return nil
-			}
-			cacheDir := filepath.Join(root, "image")
-			if err := os.MkdirAll(cacheDir, 0o700); err != nil {
-				log.G(context.TODO()).WithError(err).WithField("path", cacheDir).Warn("failed to create image identity cache directory")
-				return nil
-			}
-			db, err := bolt.Open(filepath.Join(cacheDir, "identity-cache.db"), 0o600, &bolt.Options{Timeout: time.Second})
-			if err != nil {
-				log.G(context.TODO()).WithError(err).Warn("failed to open image identity cache db")
-				return nil
-			}
-			if err := db.Update(func(tx *bolt.Tx) error {
-				_, err := tx.CreateBucketIfNotExists([]byte(imageIdentityCacheBucket))
-				return err
-			}); err != nil {
-				_ = db.Close()
-				log.G(context.TODO()).WithError(err).Warn("failed to initialize image identity cache db")
-				return nil
-			}
-			return db
-		}(config.Root),
+		containers:         config.Containers,
+		snapshotter:        config.Snapshotter,
+		registryHosts:      config.RegistryHosts,
+		registryService:    config.Registry,
+		eventsService:      config.EventsService,
+		refCountMounter:    config.RefCountMounter,
+		idMapping:          config.IDMapping,
+		policyVerifier:     config.PolicyVerifierProvider,
+		identityCache:      make(map[string]imageIdentityCacheEntry),
+		identityCacheStore: identityCacheStore,
 	}
 }
 
@@ -168,8 +148,8 @@ func (i *ImageService) GetLayerMountID(cid string) (string, error) {
 // Cleanup resources before the process is shutdown.
 // called from daemon.go Daemon.Shutdown()
 func (i *ImageService) Cleanup() error {
-	if i.identityCacheDB != nil {
-		return i.identityCacheDB.Close()
+	if i.identityCacheStore != nil {
+		return i.identityCacheStore.Close()
 	}
 	return nil
 }
