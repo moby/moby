@@ -32,20 +32,19 @@ const (
 // TrySetNetworkMount attempts to set the network mounts given a provided destination and
 // the path to use for it; return true if the given destination was a network mount file
 func (container *Container) TrySetNetworkMount(destination string, path string) bool {
-	if destination == "/etc/resolv.conf" {
+	switch destination {
+	case "/etc/resolv.conf":
 		container.ResolvConfPath = path
 		return true
-	}
-	if destination == "/etc/hostname" {
+	case "/etc/hostname":
 		container.HostnamePath = path
 		return true
-	}
-	if destination == "/etc/hosts" {
+	case "/etc/hosts":
 		container.HostsPath = path
 		return true
+	default:
+		return false
 	}
-
-	return false
 }
 
 // BuildHostnameFile writes the container's hostname file.
