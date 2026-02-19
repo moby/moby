@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
+	"reflect"
 	"strconv"
 
 	"github.com/containerd/log"
@@ -13,6 +15,19 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 )
+
+func init() {
+	// Register a custom copier for netip.Addr. The copystructure library uses
+	// reflection which cannot access unexported fields in netip.Addr, resulting
+	// in zero-value copies. Since netip.Addr is an immutable value type, we can
+	// safely return it as-is.
+	//
+	// Note: copystructure is archived (https://github.com/mitchellh/copystructure)
+	// and won't receive upstream fixes for this limitation.
+	copystructure.Copiers[reflect.TypeOf(netip.Addr{})] = func(v any) (any, error) {
+		return v.(netip.Addr), nil
+	}
+}
 
 // reloadTxn is used to defer side effects of a config reload.
 type reloadTxn struct {
