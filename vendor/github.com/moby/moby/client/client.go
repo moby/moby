@@ -111,7 +111,7 @@ const MaxAPIVersion = "1.53"
 
 // MinAPIVersion is the minimum API version supported by the client. API versions
 // below this version are not considered when performing API-version negotiation.
-const MinAPIVersion = "1.41"
+const MinAPIVersion = "1.40"
 
 // Ensure that Client always implements APIClient.
 var _ APIClient = &Client{}
