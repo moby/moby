@@ -16,51 +16,37 @@ import (
 
 const streamNewline = "\r\n"
 
-type jsonProgressFormatter struct{}
-
 func appendNewline(source []byte) []byte {
 	return append(source, '\r', '\n')
 }
 
-// formatStatus formats the specified objects according to the specified format (and id).
-func formatStatus(id, format string, a ...any) []byte {
-	str := fmt.Sprintf(format, a...)
-	b, err := json.Marshal(&jsonstream.Message{ID: id, Status: str})
+type jsonProgressFormatter struct{}
+
+// formatStatus formats the id and status.
+func (sf *jsonProgressFormatter) formatStatus(id, status string) []byte {
+	b, err := json.Marshal(&jsonstream.Message{
+		ID:     id,
+		Status: status,
+	})
 	if err != nil {
-		return formatError(err)
+		// should never happen with the given struct.
+		return nil
 	}
 	return appendNewline(b)
 }
 
-// formatError formats the error as a JSON object
-func formatError(err error) []byte {
-	jsonError, ok := err.(*jsonstream.Error)
-	if !ok {
-		jsonError = &jsonstream.Error{Message: err.Error()}
-	}
-	if b, err := json.Marshal(&jsonstream.Message{Error: jsonError}); err == nil {
-		return appendNewline(b)
-	}
-	return []byte(`{"error":"format error"}` + streamNewline)
-}
-
-func (sf *jsonProgressFormatter) formatStatus(id, format string, a ...any) []byte {
-	return formatStatus(id, format, a...)
-}
-
 // formatProgress formats the progress information for a specified action.
 func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jsonstream.Progress, aux any) []byte {
-	if progress == nil {
-		progress = &jsonstream.Progress{}
-	}
 	var auxJSON *json.RawMessage
 	if aux != nil {
-		auxJSONBytes, err := json.Marshal(aux)
+		b, err := json.Marshal(aux)
 		if err != nil {
 			return nil
 		}
-		auxJSON = new(json.RawMessage)
-		*auxJSON = auxJSONBytes
+		auxJSON = (*json.RawMessage)(&b)
+	}
+	if progress == nil {
+		progress = &jsonstream.Progress{}
 	}
 	b, err := json.Marshal(&jsonstream.Message{
 		Status:   action,
@@ -76,8 +62,8 @@ func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jso
 
 type rawProgressFormatter struct{}
 
-func (sf *rawProgressFormatter) formatStatus(id, format string, a ...any) []byte {
-	return []byte(fmt.Sprintf(format, a...) + streamNewline)
+func (sf *rawProgressFormatter) formatStatus(id, status string) []byte {
+	return []byte(status + streamNewline)
 }
 
 func rawProgressString(p *jsonstream.Progress) string {
@@ -158,7 +144,7 @@ func NewJSONProgressOutput(out io.Writer, newLines bool) progress.Output {
 }
 
 type formatProgress interface {
-	formatStatus(id, format string, a ...any) []byte
+	formatStatus(id, status string) []byte
 	formatProgress(id, action string, progress *jsonstream.Progress, aux any) []byte
 }
 

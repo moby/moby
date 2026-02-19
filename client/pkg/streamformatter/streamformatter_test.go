@@ -3,7 +3,6 @@ package streamformatter
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"strings"
 	"testing"
 
@@ -14,53 +13,32 @@ import (
 )
 
 func TestRawProgressFormatterFormatStatus(t *testing.T) {
-	sf := rawProgressFormatter{}
-	res := sf.formatStatus("ID", "%s%d", "a", 1)
-	assert.Check(t, is.Equal("a1\r\n", string(res)))
+	res := new(rawProgressFormatter).formatStatus("ID", "status")
+	expected := "status" + streamNewline
+	assert.Check(t, is.Equal(string(res), expected))
 }
 
 func TestRawProgressFormatterFormatProgress(t *testing.T) {
-	sf := rawProgressFormatter{}
 	jsonProgress := &jsonstream.Progress{
 		Current: 15,
 		Total:   30,
 		Start:   1,
 	}
-	res := sf.formatProgress("id", "action", jsonProgress, nil)
+	res := new(rawProgressFormatter).formatProgress("id", "action", jsonProgress, nil)
 	out := string(res)
 	assert.Check(t, strings.HasPrefix(out, "action [===="))
 	assert.Check(t, is.Contains(out, "15B/30B"))
 	assert.Check(t, strings.HasSuffix(out, "\r"))
 }
 
-func TestFormatStatus(t *testing.T) {
-	res := formatStatus("ID", "%s%d", "a", 1)
-	expected := `{"status":"a1","id":"ID"}` + streamNewline
-	assert.Check(t, is.Equal(expected, string(res)))
-}
-
-func TestFormatError(t *testing.T) {
-	res := formatError(errors.New("Error for formatter"))
-	expected := `{"errorDetail":{"message":"Error for formatter"}}` + "\r\n"
-	assert.Check(t, is.Equal(expected, string(res)))
-}
-
-func TestFormatJSONError(t *testing.T) {
-	err := &jsonstream.Error{Code: 50, Message: "Json error"}
-	res := formatError(err)
-	expected := `{"errorDetail":{"code":50,"message":"Json error"}}` + streamNewline
-	assert.Check(t, is.Equal(expected, string(res)))
-}
-
-func TestJsonProgressFormatterFormatProgress(t *testing.T) {
-	sf := &jsonProgressFormatter{}
+func TestJSONProgressFormatterFormatProgress(t *testing.T) {
 	jsonProgress := &jsonstream.Progress{
 		Current: 15,
 		Total:   30,
 		Start:   1,
 	}
 	aux := "aux message"
-	res := sf.formatProgress("id", "action", jsonProgress, aux)
+	res := new(jsonProgressFormatter).formatProgress("id", "action", jsonProgress, aux)
 	msg := &jsonstream.Message{}
 
 	assert.NilError(t, json.Unmarshal(res, msg))
@@ -75,10 +53,10 @@ func TestJsonProgressFormatterFormatProgress(t *testing.T) {
 	assert.DeepEqual(t, msg, expected)
 }
 
-func TestJsonProgressFormatterFormatStatus(t *testing.T) {
-	sf := jsonProgressFormatter{}
-	res := sf.formatStatus("ID", "%s%d", "a", 1)
-	assert.Check(t, is.Equal(`{"status":"a1","id":"ID"}`+streamNewline, string(res)))
+func TestJSONProgressFormatterFormatStatus(t *testing.T) {
+	res := new(jsonProgressFormatter).formatStatus("ID", "status")
+	expected := `{"status":"status","id":"ID"}` + streamNewline
+	assert.Check(t, is.Equal(string(res), expected))
 }
 
 func TestJSONProgressOutputWriteProgress(t *testing.T) {
