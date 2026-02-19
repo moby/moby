@@ -149,8 +149,14 @@ type formatProgress interface {
 }
 
 type progressOutput struct {
-	sf       formatProgress
-	out      io.Writer
+	sf  formatProgress
+	out io.Writer
+
+	// TODO(thaJeztah): investigate if this can be removed or replaced.
+	//
+	// It was a workaround for responses adding an extra (final) (aux) message
+	// progress; see https://github.com/moby/moby/pull/1425. When updating, also
+	// check for the similar implementation in daemon/internal/streamformatter.
 	newLines bool
 	mu       sync.Mutex
 }
