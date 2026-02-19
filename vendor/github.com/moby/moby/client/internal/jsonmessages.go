@@ -11,23 +11,23 @@ import (
 	"github.com/moby/moby/api/types/jsonstream"
 )
 
-func NewJSONMessageStream(rc io.ReadCloser) stream {
+func NewJSONMessageStream(rc io.ReadCloser) Stream {
 	if rc == nil {
 		panic("nil io.ReadCloser")
 	}
-	return stream{
+	return Stream{
 		rc:    rc,
 		close: sync.OnceValue(rc.Close),
 	}
 }
 
-type stream struct {
+type Stream struct {
 	rc    io.ReadCloser
 	close func() error
 }
 
 // Read implements io.ReadCloser
-func (r stream) Read(p []byte) (n int, err error) {
+func (r Stream) Read(p []byte) (n int, err error) {
 	if r.rc == nil {
 		return 0, io.EOF
 	}
@@ -35,16 +35,18 @@ func (r stream) Read(p []byte) (n int, err error) {
 }
 
 // Close implements io.ReadCloser
-func (r stream) Close() error {
+func (r Stream) Close() error {
 	if r.close == nil {
 		return nil
 	}
 	return r.close()
 }
 
+var _ io.ReadCloser = Stream{}
+
 // JSONMessages decodes the response stream as a sequence of JSONMessages.
 // if stream ends or context is cancelled, the underlying [io.Reader] is closed.
-func (r stream) JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, error] {
+func (r Stream) JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, error] {
 	stop := context.AfterFunc(ctx, func() {
 		_ = r.Close()
 	})
@@ -72,7 +74,7 @@ func (r stream) JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, 
 }
 
 // Wait waits for operation to complete and detects errors reported as JSONMessage
-func (r stream) Wait(ctx context.Context) error {
+func (r Stream) Wait(ctx context.Context) error {
 	for _, err := range r.JSONMessages(ctx) {
 		if err != nil {
 			return err
