@@ -2,15 +2,19 @@ package daemon
 
 import (
 	"context"
+	"net/netip"
 	"os"
 	"testing"
 
 	"github.com/containerd/log"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/mitchellh/copystructure"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // muteLogs suppresses logs that are generated during the test
@@ -20,6 +24,15 @@ func muteLogs(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestCopystructureNetipAddr(t *testing.T) {
+	// Verify that our custom copier for netip.Addr works correctly.
+	// Without it, copystructure.Copy produces zero-value (invalid) addresses.
+	original := []netip.Addr{netip.MustParseAddr("8.8.8.8")}
+	copied, err := copystructure.Copy(original)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(copied.([]netip.Addr), original, cmpopts.EquateComparable(netip.Addr{})))
 }
 
 func newDaemonForReloadT(t *testing.T, cfg *config.Config) *Daemon {
@@ -355,5 +368,51 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	// Check that the diagnostic is enable
 	if !daemon.netController.IsDiagnosticEnabled() {
 		t.Fatalf("diagnostic should be enable")
+	}
+}
+
+func TestDaemonReloadPreservesDNSConfig(t *testing.T) {
+	dnsServers := []netip.Addr{
+		netip.MustParseAddr("8.8.8.8"),
+		netip.MustParseAddr("8.8.4.4"),
+	}
+	hostGatewayIPs := []netip.Addr{
+		netip.MustParseAddr("192.168.1.1"),
+		netip.MustParseAddr("fd00::1"),
+	}
+
+	daemon := newDaemonForReloadT(t, &config.Config{
+		CommonConfig: config.CommonConfig{
+			Labels: []string{"foo:bar"},
+			DNSConfig: config.DNSConfig{
+				DNS:            dnsServers,
+				HostGatewayIPs: hostGatewayIPs,
+			},
+		},
+	})
+	muteLogs(t)
+
+	// Reload with a different config (labels change)
+	newConfig := &config.Config{
+		CommonConfig: config.CommonConfig{
+			Labels:    []string{"foo:baz"},
+			ValuesSet: map[string]any{"labels": "foo:baz"},
+		},
+	}
+
+	err := daemon.Reload(newConfig)
+	assert.NilError(t, err)
+
+	// Verify DNS config is preserved after reload
+	cfg := daemon.config()
+	assert.Check(t, is.DeepEqual(cfg.DNS, dnsServers, cmpopts.EquateComparable(netip.Addr{})))
+	assert.Check(t, is.DeepEqual(cfg.HostGatewayIPs, hostGatewayIPs, cmpopts.EquateComparable(netip.Addr{})))
+
+	// Verify all addresses are valid (not zero-value)
+	for i, addr := range cfg.DNS {
+		assert.Check(t, addr.IsValid(), "DNS[%d] should be valid, got %q", i, addr)
+	}
+	for i, addr := range cfg.HostGatewayIPs {
+		assert.Check(t, addr.IsValid(), "HostGatewayIPs[%d] should be valid, got %q", i, addr)
 	}
 }
