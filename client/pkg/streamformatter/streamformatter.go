@@ -19,7 +19,7 @@ const streamNewline = "\r\n"
 type jsonProgressFormatter struct{}
 
 func appendNewline(source []byte) []byte {
-	return append(source, []byte(streamNewline)...)
+	return append(source, '\r', '\n')
 }
 
 // formatStatus formats the specified objects according to the specified format (and id).
