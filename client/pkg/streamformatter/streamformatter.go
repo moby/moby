@@ -22,6 +22,26 @@ func appendNewline(source []byte) []byte {
 
 type jsonProgressFormatter struct{}
 
+func (sf *jsonProgressFormatter) format(prog progress.Progress) []byte {
+	if sf == nil {
+		return nil
+	}
+	if prog.Message != "" {
+		return sf.formatStatus(prog.ID, prog.Message)
+	}
+	jsonProgress := jsonstream.Progress{
+		Current:    prog.Current,
+		Total:      prog.Total,
+		HideCounts: prog.HideCounts,
+		Units:      prog.Units,
+	}
+	return sf.formatProgress(prog.ID, prog.Action, &jsonProgress, prog.Aux)
+}
+
+func (sf *jsonProgressFormatter) emptyMessage() []byte {
+	return []byte(`{}` + streamNewline)
+}
+
 // formatStatus formats the id and status.
 func (sf *jsonProgressFormatter) formatStatus(id, status string) []byte {
 	b, err := json.Marshal(&jsonstream.Message{
@@ -62,8 +82,25 @@ func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jso
 
 type rawProgressFormatter struct{}
 
-func (sf *rawProgressFormatter) formatStatus(id, status string) []byte {
-	return []byte(status + streamNewline)
+func (sf *rawProgressFormatter) format(prog progress.Progress) []byte {
+	if sf == nil {
+		return nil
+	}
+	if prog.Message != "" {
+		return []byte(prog.Message + streamNewline)
+	}
+
+	// TODO(thaJeztah): ID and Aux are not printed by the rawProgressFormatter; should they?
+	return sf.formatProgress(prog.Action, &jsonstream.Progress{
+		Current:    prog.Current,
+		Total:      prog.Total,
+		HideCounts: prog.HideCounts,
+		Units:      prog.Units,
+	})
+}
+
+func (sf *rawProgressFormatter) emptyMessage() []byte {
+	return []byte(streamNewline)
 }
 
 func rawProgressString(p *jsonstream.Progress) string {
@@ -112,6 +149,7 @@ func rawProgressString(p *jsonstream.Progress) string {
 		}
 	}
 
+	// FIXME(thaJeztah): p.Start is never set, because progress.Progress doesn't have this field
 	var timeLeftBox string
 	if p.Current > 0 && p.Start > 0 && percentage < 50 {
 		fromStart := time.Since(time.Unix(p.Start, 0))
@@ -122,7 +160,7 @@ func rawProgressString(p *jsonstream.Progress) string {
 	return pbBox + numbersBox + timeLeftBox
 }
 
-func (sf *rawProgressFormatter) formatProgress(id, action string, progress *jsonstream.Progress, aux any) []byte {
+func (sf *rawProgressFormatter) formatProgress(action string, progress *jsonstream.Progress) []byte {
 	endl := "\r"
 	out := rawProgressString(progress)
 	if out == "" {
@@ -144,8 +182,12 @@ func NewJSONProgressOutput(out io.Writer, newLines bool) progress.Output {
 }
 
 type formatProgress interface {
-	formatStatus(id, status string) []byte
-	formatProgress(id, action string, progress *jsonstream.Progress, aux any) []byte
+	// format formats progress information from a ProgressReader.
+	format(prog progress.Progress) []byte
+
+	// emptyMessage returns the output of an empty message if the formatter
+	// is configured to emit a trailing newline.
+	emptyMessage() []byte
 }
 
 type progressOutput struct {
@@ -163,19 +205,7 @@ type progressOutput struct {
 
 // WriteProgress formats progress information from a ProgressReader.
 func (out *progressOutput) WriteProgress(prog progress.Progress) error {
-	var formatted []byte
-	if prog.Message != "" {
-		formatted = out.sf.formatStatus(prog.ID, prog.Message)
-	} else {
-		jsonProgress := jsonstream.Progress{
-			Current:    prog.Current,
-			Total:      prog.Total,
-			HideCounts: prog.HideCounts,
-			Units:      prog.Units,
-		}
-		formatted = out.sf.formatProgress(prog.ID, prog.Action, &jsonProgress, prog.Aux)
-	}
-
+	formatted := out.sf.format(prog)
 	out.mu.Lock()
 	defer out.mu.Unlock()
 	_, err := out.out.Write(formatted)
@@ -184,7 +214,7 @@ func (out *progressOutput) WriteProgress(prog progress.Progress) error {
 	}
 
 	if out.newLines && prog.LastUpdate {
-		_, err = out.out.Write(out.sf.formatStatus("", ""))
+		_, err = out.out.Write(out.sf.emptyMessage())
 		return err
 	}
 
