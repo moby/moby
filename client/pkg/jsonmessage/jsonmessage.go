@@ -17,7 +17,7 @@ import (
 var timeNow = time.Now // For overriding in tests.
 
 // RFC3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to
-// ensure the formatted time isalways the same number of characters.
+// ensure the formatted time is always the same number of characters.
 const RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 
 func RenderTUIProgress(p jsonstream.Progress, width uint16) string {
