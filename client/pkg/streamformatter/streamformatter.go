@@ -137,9 +137,6 @@ func rawProgressString(p *jsonstream.Progress) string {
 }
 
 func (sf *rawProgressFormatter) formatProgress(id, action string, progress *jsonstream.Progress, aux any) []byte {
-	if progress == nil {
-		progress = &jsonstream.Progress{}
-	}
 	endl := "\r"
 	out := rawProgressString(progress)
 	if out == "" {
