@@ -141,6 +141,7 @@ jobs:
             DOCKER_ROOTLESS=${DOCKER_ROOTLESS} \
             DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER} \
             DOCKER_IGNORE_BR_NETFILTER_ERROR=${DOCKER_IGNORE_BR_NETFILTER_ERROR} \
+            TIMEOUT=15m \
             make test-integration
       -
         name: Prepare reports
