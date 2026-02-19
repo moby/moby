@@ -10,6 +10,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/integration/internal/container"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -261,6 +262,8 @@ func TestAPIImagesListManifests(t *testing.T) {
 		assert.Assert(t, is.Len(imageList.Items, 1))
 		assert.Check(t, is.Nil(imageList.Items[0].Manifests))
 	})
+
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.47"), "requires API v1.47")
 
 	api147 := d.NewClientT(t, client.WithAPIVersion("1.47"))
 

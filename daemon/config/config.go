@@ -64,7 +64,7 @@ const (
 	// This version can be overridden through the "DOCKER_MIN_API_VERSION"
 	// environment variable. The minimum allowed version is determined
 	// by [MinAPIVersion].
-	defaultMinAPIVersion = "1.44"
+	defaultMinAPIVersion = "1.41"
 	// MinAPIVersion is the minimum API version supported by the daemon.
 	MinAPIVersion = "1.24"
 	// SeccompProfileDefault is the built-in default seccomp profile.

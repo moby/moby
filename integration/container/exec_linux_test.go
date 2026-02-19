@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
@@ -12,6 +13,7 @@ import (
 
 func TestExecConsoleSize(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "requires API v1.42")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
