@@ -44,26 +44,41 @@ func WriteLogStream(_ context.Context, w http.ResponseWriter, msgs <-chan *backe
 		if !ok {
 			return
 		}
-		// check if the message contains an error. if so, write that error
-		// and exit
+
 		if msg.Err != nil {
-			fmt.Fprintf(sysErrStream, "Error grabbing logs: %v\n", msg.Err)
+			// message contains an error; write the error and continue
+			_, _ = fmt.Fprintf(sysErrStream, "Error grabbing logs: %v\n", msg.Err)
 			continue
 		}
-		logLine := msg.Line
-		if config.Details {
-			logLine = append(attrsByteSlice(msg.Attrs), ' ')
-			logLine = append(logLine, msg.Line...)
+
+		var dst io.Writer
+		switch msg.Source {
+		case "stdout":
+			if !config.ShowStdout {
+				continue
+			}
+			dst = outStream
+		case "stderr":
+			if !config.ShowStderr {
+				continue
+			}
+			dst = errStream
+		default:
+			// unknown source
+			continue
 		}
+
 		if config.Timestamps {
-			logLine = append([]byte(msg.Timestamp.Format(rfc3339NanoFixed)+" "), logLine...)
+			_, _ = io.WriteString(dst, msg.Timestamp.Format(rfc3339NanoFixed))
+			_, _ = io.WriteString(dst, " ")
 		}
-		if msg.Source == "stdout" && config.ShowStdout {
-			_, _ = outStream.Write(logLine)
+
+		if config.Details {
+			_, _ = dst.Write(attrsByteSlice(msg.Attrs))
+			_, _ = io.WriteString(dst, " ")
 		}
-		if msg.Source == "stderr" && config.ShowStderr {
-			_, _ = errStream.Write(logLine)
-		}
+
+		_, _ = dst.Write(msg.Line)
 	}
 }
 
