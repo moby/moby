@@ -1,11 +1,14 @@
 package containerd
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/metadata"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log/logtest"
 	"github.com/moby/moby/v2/daemon/container"
 	daemonevents "github.com/moby/moby/v2/daemon/events"
@@ -282,3 +285,64 @@ func (*testContainerStore) First(container.StoreFilter) *container.Container {
 }
 
 func (*testContainerStore) ApplyAll(container.StoreReducer) {}
+
+func TestCategorizeImageDeleteError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected string
+	}{
+		{
+			name:     "not found error",
+			err:      cerrdefs.ErrNotFound,
+			expected: "not_found",
+		},
+		{
+			name:     "conflict error",
+			err:      cerrdefs.ErrConflict,
+			expected: "conflict",
+		},
+		{
+			name:     "unauthenticated error",
+			err:      cerrdefs.ErrUnauthenticated,
+			expected: "permission_denied",
+		},
+		{
+			name:     "permission denied error",
+			err:      cerrdefs.ErrPermissionDenied,
+			expected: "permission_denied",
+		},
+		{
+			name:     "invalid argument error",
+			err:      cerrdefs.ErrInvalidArgument,
+			expected: "invalid_argument",
+		},
+		{
+			name:     "wrapped not found error",
+			err:      fmt.Errorf("image not available: %w", cerrdefs.ErrNotFound),
+			expected: "not_found",
+		},
+		{
+			name:     "wrapped conflict error",
+			err:      fmt.Errorf("container is using image: %w", cerrdefs.ErrConflict),
+			expected: "conflict",
+		},
+		{
+			name:     "unknown error",
+			err:      errors.New("some random error"),
+			expected: "unknown",
+		},
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: "unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := categorizeImageDeleteError(tt.err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

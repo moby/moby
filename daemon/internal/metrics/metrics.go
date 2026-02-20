@@ -42,6 +42,11 @@ var (
 	// HealthCheckStartDuration tracks the time taken to prepare health checks
 	HealthCheckStartDuration = metricsNS.NewTimer("health_check_start_duration", "The number of seconds it takes to prepare to run health checks")
 
+	// ImageDeletesCounter tracks the total number of successful image deletions
+	ImageDeletesCounter = metricsNS.NewCounter("image_deletes", "The total number of successful image deletions")
+	// ImageDeletesFailedCounter tracks the number of failed image deletions
+	ImageDeletesFailedCounter = metricsNS.NewLabeledCounter("image_deletes_failed", "The total number of failed image deletions", "reason")
+
 	// StateCtr tracks container states
 	StateCtr = newStateCounter(metricsNS, metricsNS.NewDesc("container_states", "The count of containers in various states", gometrics.Unit("containers"), "state"))
 

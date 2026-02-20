@@ -63,9 +63,18 @@ const (
 // If options.PruneChildren is true, ancestor images are attempted to be deleted quietly,
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
-func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options imagebackend.RemoveOptions) ([]imagetypes.DeleteResponse, error) {
+func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options imagebackend.RemoveOptions) (records []imagetypes.DeleteResponse, retErr error) {
 	start := time.Now()
-	records := []imagetypes.DeleteResponse{}
+	defer func() {
+		if retErr == nil {
+			metrics.ImageActions.WithValues("delete").UpdateSince(start)
+			metrics.ImageDeletesCounter.Inc()
+		} else {
+			reason := categorizeImageDeleteError(retErr)
+			metrics.ImageDeletesFailedCounter.WithValues(reason).Inc()
+		}
+	}()
+	records = []imagetypes.DeleteResponse{}
 
 	var platform *ocispec.Platform
 	switch len(options.Platforms) {
@@ -197,8 +206,6 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 	if err := i.imageDeleteHelper(imgID, &records, force, prune, removedRepositoryRef); err != nil {
 		return nil, err
 	}
-
-	metrics.ImageActions.WithValues("delete").UpdateSince(start)
 
 	return records, nil
 }
@@ -425,4 +432,26 @@ func (i *ImageService) checkImageDeleteConflict(imgID image.ID, mask conflictTyp
 // child images.
 func (i *ImageService) imageIsDangling(imgID image.ID) bool {
 	return len(i.referenceStore.References(imgID.Digest())) == 0 && len(i.imageStore.Children(imgID)) == 0
+}
+
+// categorizeImageDeleteError categorizes an image deletion error for metrics reporting.
+func categorizeImageDeleteError(err error) string {
+	var e interface{ NotFound() }
+	if errors.As(err, &e) {
+		return "not_found"
+	}
+	var ec interface{ Conflict() }
+	if errors.As(err, &ec) {
+		return "conflict"
+	}
+	var eu interface{ Unauthorized() }
+	var ef interface{ Forbidden() }
+	if errors.As(err, &eu) || errors.As(err, &ef) {
+		return "permission_denied"
+	}
+	var ei interface{ InvalidParameter() }
+	if errors.As(err, &ei) {
+		return "invalid_argument"
+	}
+	return "unknown"
 }
