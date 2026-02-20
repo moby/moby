@@ -131,7 +131,7 @@ type ExecAttachResult struct {
 // You can use [stdcopy.StdCopy] to demultiplex this stream. Refer to
 // [Client.ContainerAttach] for details about the multiplexed stream.
 //
-// [stdcopy.StdCopy]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#StdCopy
+// [stdcopy.StdCopy]: https://pkg.go.dev/github.com/moby/moby/client/pkg/stdcopy#StdCopy
 func (cli *Client) ExecAttach(ctx context.Context, execID string, options ExecAttachOptions) (ExecAttachResult, error) {
 	consoleSize, err := getConsoleSize(options.TTY, options.ConsoleSize)
 	if err != nil {

@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/client/pkg/stdcopy"
 	"github.com/moby/moby/v2/daemon/internal/stdcopymux"
 )
 
