@@ -15,6 +15,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.53 API changes
 
+* `POST /networks/{id}/connect` now correctly applies the `MacAddress` field in
+  `EndpointSettings`. This field was added in API v1.44, but was previously ignored.
 * `GET /info` now includes an `NRI` field. If the Node Resource Interface (NRI)
   is enabled, this field contains information describing it.
 * `GET /events` now also supports [`application/jsonl`](https://jsonlines.org/)
