@@ -2336,6 +2336,13 @@ definitions:
           compatibility.
         x-nullable: true
         $ref: "#/definitions/OCIDescriptor"
+      Identity:
+        description: |-
+          Identity holds information about the identity and origin of the image.
+          This is trusted information verified by the daemon and cannot be modified
+          by tagging an image to a different name.
+        x-nullable: true
+        $ref: "#/definitions/Identity"
 
   ImagesDiskUsage:
     type: "object"
@@ -9720,6 +9727,11 @@ paths:
         - name: "manifests"
           in: "query"
           description: "Include `Manifests` in the image summary."
+          type: "boolean"
+          default: false
+        - name: "identity"
+          in: "query"
+          description: "Include `Identity` in the image summary."
           type: "boolean"
           default: false
       tags: ["Image"]

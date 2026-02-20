@@ -1278,6 +1278,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			Client:                 d.containerdClient,
 			Containers:             d.containers,
 			Snapshotter:            driverName,
+			Root:                   config.Root,
 			RegistryHosts:          d.RegistryHosts,
 			Registry:               d.registryService,
 			EventsService:          d.EventsService,

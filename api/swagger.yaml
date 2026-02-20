@@ -1835,6 +1835,13 @@ definitions:
           compatibility.
         x-nullable: true
         $ref: "#/definitions/OCIDescriptor"
+      Identity:
+        description: |-
+          Identity holds information about the identity and origin of the image.
+          This is trusted information verified by the daemon and cannot be modified
+          by tagging an image to a different name.
+        x-nullable: true
+        $ref: "#/definitions/Identity"
       Manifests:
         description: |
           Manifests is a list of image manifests available in this image. It
@@ -1850,13 +1857,6 @@ definitions:
         x-nullable: true
         items:
           $ref: "#/definitions/ImageManifestSummary"
-      Identity:
-        description: |-
-          Identity holds information about the identity and origin of the image.
-          This is trusted information verified by the daemon and cannot be modified
-          by tagging an image to a different name.
-        x-nullable: true
-        $ref: "#/definitions/Identity"
       RepoTags:
         description: |
           List of image names/tags in the local image cache that reference this
@@ -9720,6 +9720,11 @@ paths:
         - name: "manifests"
           in: "query"
           description: "Include `Manifests` in the image summary."
+          type: "boolean"
+          default: false
+        - name: "identity"
+          in: "query"
+          description: "Include `Identity` in the image summary."
           type: "boolean"
           default: false
       tags: ["Image"]

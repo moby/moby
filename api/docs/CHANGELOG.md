@@ -21,6 +21,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   when negotiating content-type.
 * `GET /images/{name}/json` now includes an `Identity` field with trusted
   identity and origin information for the image.
+* `GET /images/json` now supports an `identity` query parameter. When set,
+  the response may include an `Identity` field with trusted identity and origin
+  information for each image.
 * Deprecated: The `POST /grpc` and `POST /session` endpoints are deprecated and
   will be removed in a future version.
 

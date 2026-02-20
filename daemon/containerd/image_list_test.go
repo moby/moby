@@ -208,6 +208,25 @@ func blobSize(t *testing.T, ctx context.Context, cs content.Store, dgst digest.D
 	return info.Size
 }
 
+func TestImageListIdentityUsesCacheOnly(t *testing.T) {
+	ctx := namespaces.WithNamespace(t.Context(), "testing-"+t.Name())
+
+	blobsDir := t.TempDir()
+	idx, err := specialimage.MultiLayer(blobsDir)
+	assert.NilError(t, err)
+
+	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
+	service := fakeImageService(t, ctx, cs)
+
+	_, err = service.images.Create(ctx, imagesFromIndex(idx)[0])
+	assert.NilError(t, err)
+
+	all, err := service.Images(ctx, imagebackend.ListOptions{Identity: true})
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(all, 1))
+	assert.Check(t, all[0].Identity == nil)
+}
+
 func TestImageList(t *testing.T) {
 	ctx := namespaces.WithNamespace(t.Context(), "testing")
 

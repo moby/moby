@@ -382,6 +382,14 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 		return nil, nil, err
 	}
 
+	var imageIdentity *imagetypes.Identity
+	if opts.Identity {
+		imageIdentity, err = i.imageIdentityFromCache(ctx, img.Target, summary)
+		if err != nil {
+			log.G(ctx).WithError(err).Warn("failed to determine Identity property")
+		}
+	}
+
 	best := summary.Best
 	if best == nil {
 		target := img.Target
@@ -398,6 +406,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 			SharedSize: -1,
 			Containers: -1,
 			Descriptor: &target,
+			Identity:   imageIdentity,
 		}, summary, nil
 	}
 
@@ -410,6 +419,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 	target := img.Target
 	image.Descriptor = &target
 	image.Containers = summary.ContainersCount
+	image.Identity = imageIdentity
 	return image, summary, nil
 }
 

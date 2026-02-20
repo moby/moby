@@ -496,11 +496,17 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		manifests = httputils.BoolValue(r, "manifests")
 	}
 
+	var identity bool
+	if versions.GreaterThanOrEqualTo(version, "1.53") {
+		identity = httputils.BoolValue(r, "identity")
+	}
+
 	images, err := ir.backend.Images(ctx, imagebackend.ListOptions{
 		All:        httputils.BoolValue(r, "all"),
 		Filters:    imageFilters,
 		SharedSize: sharedSize,
 		Manifests:  manifests,
+		Identity:   identity,
 	})
 	if err != nil {
 		return err

@@ -50,6 +50,11 @@ type Summary struct {
 	// compatibility.
 	Descriptor *ocispec.Descriptor `json:"Descriptor,omitempty"`
 
+	// Identity holds information about the identity and origin of the image.
+	// This is trusted information verified by the daemon and cannot be modified
+	// by tagging an image to a different name.
+	Identity *Identity `json:"Identity,omitempty"`
+
 	// Manifests is a list of image manifests available in this image.  It
 	// provides a more detailed view of the platform-specific image manifests or
 	// other image-attached data like build attestations.
