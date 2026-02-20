@@ -13,12 +13,11 @@ import (
 // New creates a fake build context
 func New(t testing.TB, dir string, modifiers ...func(*Fake) error) *Fake {
 	t.Helper()
-	fakeContext := &Fake{Dir: dir}
 	if dir == "" {
-		if err := newDir(fakeContext); err != nil {
-			t.Fatal(err)
-		}
+		dir = t.TempDir()
 	}
+
+	fakeContext := &Fake{Dir: dir}
 
 	for _, modifier := range modifiers {
 		if err := modifier(fakeContext); err != nil {
@@ -27,18 +26,6 @@ func New(t testing.TB, dir string, modifiers ...func(*Fake) error) *Fake {
 	}
 
 	return fakeContext
-}
-
-func newDir(fake *Fake) error {
-	tmp, err := os.MkdirTemp("", "fake-context")
-	if err != nil {
-		return err
-	}
-	if err := os.Chmod(tmp, 0o755); err != nil {
-		return err
-	}
-	fake.Dir = tmp
-	return nil
 }
 
 // WithFile adds the specified file (with content) in the build context
