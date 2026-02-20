@@ -127,6 +127,7 @@ run_test_integration_suites() {
 					--format=standard-verbose \
 					--jsonfile="${ABS_DEST}/${pkgname//./-}-go-test-report.json" \
 					--junitfile="${ABS_DEST}/${pkgname//./-}-junit-report.xml" \
+					--max-fails=20 \
 					--raw-command \
 					-- go tool test2json -p "${pkgname}" -t ./test.main ${pkgtestflags}
 			fi
