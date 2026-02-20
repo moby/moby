@@ -16,6 +16,7 @@ type PullOptions struct {
 	Platforms   []ocispec.Platform
 	MetaHeaders http.Header
 	AuthConfig  *registry.AuthConfig
+	ClientAuth  bool
 	OutStream   io.Writer
 }
 
@@ -23,6 +24,7 @@ type PushOptions struct {
 	Platforms   []ocispec.Platform
 	MetaHeaders http.Header
 	AuthConfig  *registry.AuthConfig
+	ClientAuth  bool
 	OutStream   io.Writer
 }
 

@@ -66,7 +66,7 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, o
 	}
 
 	if !reference.IsNameOnly(baseRef) {
-		return i.pullTag(ctx, baseRef, platform, options.MetaHeaders, options.AuthConfig, out)
+		return i.pullTag(ctx, baseRef, platform, options.MetaHeaders, options.AuthConfig, out, options.ClientAuth)
 	}
 
 	tags, err := distribution.Tags(ctx, baseRef, &distribution.Config{
@@ -88,7 +88,7 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, o
 			continue
 		}
 
-		if err := i.pullTag(ctx, ref, platform, options.MetaHeaders, options.AuthConfig, out); err != nil {
+		if err := i.pullTag(ctx, ref, platform, options.MetaHeaders, options.AuthConfig, out, options.ClientAuth); err != nil {
 			return fmt.Errorf("error pulling %s: %w", ref, err)
 		}
 	}
@@ -96,13 +96,13 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, o
 	return nil
 }
 
-func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
+func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output, clientAuth bool) error {
 	var opts []containerd.RemoteOpt
 	if platform != nil {
 		opts = append(opts, containerd.WithPlatform(platforms.FormatAll(*platform)))
 	}
 
-	resolver, _ := i.newResolverFromAuthConfig(ctx, authConfig, ref, metaHeaders)
+	resolver, _ := i.newResolverFromAuthConfig(ctx, authConfig, ref, metaHeaders, clientAuth)
 	opts = append(opts, containerd.WithResolver(resolver))
 
 	oldImage, err := i.resolveImage(ctx, ref.String())
@@ -237,6 +237,12 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 			// https://github.com/containerd/containerd/blob/v2.1.1/core/remotes/docker/authorizer.go#L201-L203
 			if strings.Contains(err.Error(), "no basic auth credentials") {
 				return err
+			}
+			var authChallengeErr *ErrAuthenticationChallenge
+			if errors.As(err, &authChallengeErr) {
+				// Return immediately if the request return an auth challenge
+				// so that we can surface that to the client.
+				return authChallengeErr
 			}
 			return errdefs.NotFound(fmt.Errorf("pull access denied for %s, repository does not exist or may require 'docker login'", reference.FamiliarName(ref)))
 		}
