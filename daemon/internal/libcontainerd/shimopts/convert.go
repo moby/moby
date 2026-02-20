@@ -5,7 +5,7 @@ import (
 	runcoptions "github.com/containerd/containerd/api/types/runc/options"
 	runtimeoptions "github.com/containerd/containerd/api/types/runtimeoptions/v1"
 	"github.com/containerd/containerd/v2/plugins"
-	"github.com/pelletier/go-toml"
+	"github.com/pelletier/go-toml/v2"
 )
 
 // Generate converts opts into a runtime options value for the runtimeType which
@@ -27,11 +27,11 @@ func Generate(runtimeType string, opts map[string]any) (any, error) {
 
 	// We can't use mergo.Map as it is too strict about type-assignability
 	// with numeric types.
-	tree, err := toml.TreeFromMap(opts)
+	b, err := toml.Marshal(opts)
 	if err != nil {
 		return nil, err
 	}
-	if err := tree.Unmarshal(out); err != nil {
+	if err := toml.Unmarshal(b, out); err != nil {
 		return nil, err
 	}
 	return out, nil
