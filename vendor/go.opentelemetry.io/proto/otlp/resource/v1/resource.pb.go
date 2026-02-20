@@ -44,8 +44,9 @@ type Resource struct {
 	// Set of attributes that describe the resource.
 	// Attribute keys MUST be unique (it is not allowed to have more than one
 	// attribute with the same key).
+	// The behavior of software that receives duplicated keys can be unpredictable.
 	Attributes []*v1.KeyValue `protobuf:"bytes,1,rep,name=attributes,proto3" json:"attributes,omitempty"`
-	// dropped_attributes_count is the number of dropped attributes. If the value is 0, then
+	// The number of dropped attributes. If the value is 0, then
 	// no attributes were dropped.
 	DroppedAttributesCount uint32 `protobuf:"varint,2,opt,name=dropped_attributes_count,json=droppedAttributesCount,proto3" json:"dropped_attributes_count,omitempty"`
 	// Set of entities that participate in this Resource.
