@@ -11,8 +11,10 @@ import (
 	"strings"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/moby/moby/client/pkg/versions"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -39,6 +41,24 @@ type clientConfig struct {
 	userAgent *string
 	// custom HTTP headers configured by users.
 	customHTTPHeaders map[string]string
+
+	// minAPIVersion overrides the minimum API version to consider for API-version
+	// negotiation. This field will only be non-empty if a valid-formed version
+	// was set through [WithMinAPIVersion].
+	//
+	// If both minAPIVersion and envMinAPIVersion are set, envMinAPIVersion
+	// takes precedence. If neither fields are set, then the default is
+	// [MinAPIVersion].
+	minAPIVersion string
+
+	// envMinAPIVersion overrides the minimum API version to consider for API-version
+	// negotiation. This field will only be non-empty if a valid-formed version
+	// was set through [WithMinAPIVersionFromEnv].
+	//
+	// If both minAPIVersion and envMinAPIVersion are set, envMinAPIVersion
+	// takes precedence. If neither fields are set, then the default is
+	// [MinAPIVersion].
+	envMinAPIVersion string
 
 	// manualAPIVersion contains the API version set by users. This field
 	// will only be non-empty if a valid-formed version was set through
@@ -74,13 +94,16 @@ type Opt func(*clientConfig) error
 
 // FromEnv configures the client with values from environment variables. It
 // is the equivalent of using the [WithTLSClientConfigFromEnv], [WithHostFromEnv],
-// and [WithAPIVersionFromEnv] options.
+// [WithAPIVersionFromEnv], and [WithMinAPIVersionFromEnv] options.
 //
 // FromEnv uses the following environment variables:
 //
 //   - DOCKER_HOST ([EnvOverrideHost]) to set the URL to the docker server.
 //   - DOCKER_API_VERSION ([EnvOverrideAPIVersion]) to set the version of the
 //     API to use, leave empty for latest.
+//   - DOCKER_MIN_API_VERSION ([EnvOverrideMinAPIVersion]) to override the
+//     minimum API version used for API version negotiation. Leave empty
+//     to use the default ([MinAPIVersion]).
 //   - DOCKER_CERT_PATH ([EnvOverrideCertPath]) to specify the directory from
 //     which to load the TLS certificates ("ca.pem", "cert.pem", "key.pem').
 //   - DOCKER_TLS_VERIFY ([EnvTLSVerify]) to enable or disable TLS verification
@@ -90,6 +113,7 @@ func FromEnv(c *clientConfig) error {
 		WithTLSClientConfigFromEnv(),
 		WithHostFromEnv(),
 		WithAPIVersionFromEnv(),
+		WithMinAPIVersionFromEnv(),
 	}
 	for _, op := range ops {
 		if err := op(c); err != nil {
@@ -261,6 +285,73 @@ func WithTLSClientConfigFromEnv() Opt {
 		c.client = &http.Client{
 			Transport:     &http.Transport{TLSClientConfig: tlsc},
 			CheckRedirect: CheckRedirect,
+		}
+		return nil
+	}
+}
+
+// WithMinAPIVersion overrides the client's minimum API version used for
+// API version negotiation.
+//
+// The given version must be formatted "<major>.<minor>" (for example, "1.52").
+// It returns an error if the given value is empty, not in the correct format,
+// or if the version is higher than the maximum supported version ([MaxAPIVersion]).
+//
+// WithMinAPIVersion allows a client to connect with a daemon using a lower
+// API version than supported ([MinAPIVersion]), or to raise the minimum API
+// version considered for API version negotiation. Setting an API versions
+// lower than the supported version range may result in degraded functionality.
+//
+// [WithMinAPIVersionFromEnv] takes precedence if WithMinAPIVersion and
+// WithMinAPIVersionFromEnv are both set.
+func WithMinAPIVersion(version string) Opt {
+	return func(c *clientConfig) error {
+		ver, err := parseAPIVersion(version)
+		if err != nil {
+			return fmt.Errorf("invalid minimum API version (%s): %w", version, err)
+		}
+		if versions.GreaterThan(ver, MaxAPIVersion) {
+			return cerrdefs.ErrInvalidArgument.WithMessage(
+				fmt.Sprintf("invalid minimum API version (%s): must be lower than maximum API version (%s)",
+					ver, MaxAPIVersion))
+		}
+		c.minAPIVersion = ver
+		return nil
+	}
+}
+
+// WithMinAPIVersionFromEnv overrides the client's minimum API version considered
+// for API version negotiation with the version specified in the DOCKER_MIN_API_VERSION
+// ([EnvOverrideMinAPIVersion]) environment variable.
+//
+// The given version must be formatted "<major>.<minor>" (for example, "1.52").
+// It returns an error if the given value is not in the correct format, or if
+// the version is higher than the maximum supported version ([MaxAPIVersion]).
+//
+// If DOCKER_MIN_API_VERSION is not set, or set to an empty value, the version
+// is not modified.
+//
+// WithMinAPIVersionFromEnv allows a client to connect with a daemon using a lower
+// API version than supported ([MinAPIVersion]), or to raise the minimum API
+// version considered for API version negotiation. Setting an API versions
+// lower than the supported version range may result in degraded functionality.
+//
+// WithMinAPIVersionFromEnv takes precedence if [WithMinAPIVersion] and
+// WithMinAPIVersionFromEnv are both set.
+func WithMinAPIVersionFromEnv() Opt {
+	return func(c *clientConfig) error {
+		version := strings.TrimSpace(os.Getenv(EnvOverrideMinAPIVersion))
+		if val := strings.TrimPrefix(version, "v"); val != "" {
+			ver, err := parseAPIVersion(val)
+			if err != nil {
+				return fmt.Errorf("%s contains an invalid API version (%s): %w", EnvOverrideMinAPIVersion, version, err)
+			}
+			if versions.GreaterThan(ver, MaxAPIVersion) {
+				return cerrdefs.ErrInvalidArgument.WithMessage(
+					fmt.Sprintf("%s contains an invalid API version (%s): must be lower than maximum API version (%s)",
+						EnvOverrideMinAPIVersion, ver, MaxAPIVersion))
+			}
+			c.envMinAPIVersion = ver
 		}
 		return nil
 	}

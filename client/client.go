@@ -333,8 +333,15 @@ func (cli *Client) negotiateAPIVersion(pingVersion string) error {
 		return err
 	}
 
-	if versions.LessThan(pingVersion, MinAPIVersion) {
-		return cerrdefs.ErrInvalidArgument.WithMessage(fmt.Sprintf("API version %s is not supported by this client: the minimum supported API version is %s", pingVersion, MinAPIVersion))
+	minVersion := MinAPIVersion
+	if cli.envMinAPIVersion != "" {
+		minVersion = cli.envMinAPIVersion
+	} else if cli.minAPIVersion != "" {
+		minVersion = cli.minAPIVersion
+	}
+
+	if versions.LessThan(pingVersion, minVersion) {
+		return cerrdefs.ErrInvalidArgument.WithMessage(fmt.Sprintf("API version %s is not supported by this client: the minimum supported API version is %s", pingVersion, minVersion))
 	}
 
 	// if the client is not initialized with a version, start with the latest supported version
