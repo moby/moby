@@ -53,13 +53,15 @@ import (
 // If prune is true, ancestor images are attempted to be deleted quietly,
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
-//
-// TODO(thaJeztah): image delete should send prometheus counters; see https://github.com/moby/moby/issues/45268
 func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options imagebackend.RemoveOptions) (response []imagetypes.DeleteResponse, retErr error) {
 	start := time.Now()
 	defer func() {
 		if retErr == nil {
 			metrics.ImageActions.WithValues("delete").UpdateSince(start)
+			metrics.ImageDeletesCounter.Inc()
+		} else {
+			reason := categorizeImageDeleteError(retErr)
+			metrics.ImageDeletesFailedCounter.WithValues(reason).Inc()
 		}
 	}()
 
@@ -530,4 +532,21 @@ func (i *ImageService) checkImageDeleteConflict(ctx context.Context, imgID image
 	}
 
 	return nil
+}
+
+// categorizeImageDeleteError categorizes an image deletion error for metrics reporting.
+func categorizeImageDeleteError(err error) string {
+	if cerrdefs.IsNotFound(err) {
+		return "not_found"
+	}
+	if cerrdefs.IsConflict(err) {
+		return "conflict"
+	}
+	if cerrdefs.IsUnauthorized(err) || cerrdefs.IsPermissionDenied(err) {
+		return "permission_denied"
+	}
+	if cerrdefs.IsInvalidArgument(err) {
+		return "invalid_argument"
+	}
+	return "unknown"
 }
