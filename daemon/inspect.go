@@ -2,12 +2,14 @@ package daemon
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
 	"runtime"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/storage"
@@ -32,6 +34,23 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 	if err != nil {
 		ctr.Unlock()
 		return nil, nil, err
+	}
+	ctrSpec, err := daemon.GetOCISpec(ctx, ctr.ID)
+	if err != nil && !cerrdefs.IsNotFound(err) {
+		ctr.Unlock()
+		return nil, nil, err
+	}
+	if ctrSpec != nil {
+		var specJSON json.RawMessage
+		specJSON, err = json.Marshal(ctrSpec)
+		if err != nil && !cerrdefs.IsNotFound(err) {
+			ctr.Unlock()
+			return nil, nil, err
+		}
+
+		base.Spec = map[string]json.RawMessage{
+			"current": specJSON,
+		}
 	}
 
 	// TODO(thaJeztah): do we need a deep copy here? Otherwise we could use maps.Clone (see https://github.com/moby/moby/commit/7917a36cc787ada58987320e67cc6d96858f3b55)
