@@ -16,7 +16,6 @@ import (
 var honorXDG bool
 
 func newDaemonCommand() (*cobra.Command, error) {
-	// FIXME(thaJeztah): config.New also looks up default binary-path, but this code is also executed when running "--version".
 	cfg, err := config.New()
 	if err != nil {
 		return nil, err
