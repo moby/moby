@@ -14,6 +14,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
+	"github.com/golang/gddo/httputil"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
@@ -175,6 +176,12 @@ func (c *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 	})
 }
 
+var jsonTypes = []string{
+	types.MediaTypeJSONLines,
+	types.MediaTypeNDJSON,
+	types.MediaTypeJSONSequence,
+}
+
 func (c *containerRouter) getContainersLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
@@ -190,6 +197,17 @@ func (c *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 		return errdefs.InvalidParameter(errors.New("Bad parameters: you must choose at least one stream"))
 	}
 
+	var logFormat, logEncoding string
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.53") { // FIXME(thaJeztah): should be API 1.54
+		logFormat = r.Form.Get("format")
+		logEncoding = r.Form.Get("encoding")
+
+		// Opt-in through JSOM stream accept header.
+		if logFormat == "" && httputil.NegotiateContentType(r, jsonTypes, "") != "" {
+			logFormat = "json"
+		}
+	}
+
 	containerName := vars["name"]
 	logsConfig := &backend.ContainerLogsOptions{
 		Follow:     httputils.BoolValue(r, "follow"),
@@ -200,11 +218,19 @@ func (c *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 		ShowStdout: stdout,
 		ShowStderr: stderr,
 		Details:    httputils.BoolValue(r, "details"),
+		Format:     logFormat,
+		Encoding:   logEncoding,
 	}
 
 	msgs, tty, err := c.backend.ContainerLogs(ctx, containerName, logsConfig)
 	if err != nil {
 		return err
+	}
+
+	if logFormat == "json" {
+		w.Header().Set("Content-Type", httputil.NegotiateContentType(r, jsonTypes, types.MediaTypeNDJSON))
+		httputils.WriteJSONLogStream(ctx, w, msgs, logsConfig)
+		return nil
 	}
 
 	contentType := types.MediaTypeRawStream
