@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 /*
 memberlist is a library that manages cluster
 membership and member failure detection using a gossip based protocol.
@@ -27,9 +30,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/armon/go-metrics"
-	multierror "github.com/hashicorp/go-multierror"
-	sockaddr "github.com/hashicorp/go-sockaddr"
+	"github.com/hashicorp/go-metrics/compat"
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-sockaddr"
 	"github.com/miekg/dns"
 )
 
@@ -233,6 +236,7 @@ func newMemberlist(conf *Config) (*Memberlist, error) {
 	go m.streamListen()
 	go m.packetListen()
 	go m.packetHandler()
+	go m.checkBroadcastQueueDepth()
 	return m, nil
 }
 
@@ -775,4 +779,18 @@ func (m *Memberlist) changeNode(addr string, f func(*nodeState)) {
 
 	n := m.nodeMap[addr]
 	f(n)
+}
+
+// checkBroadcastQueueDepth periodically checks the size of the broadcast queue
+// to see if it is too large
+func (m *Memberlist) checkBroadcastQueueDepth() {
+	for {
+		select {
+		case <-time.After(m.config.QueueCheckInterval):
+			numq := m.broadcasts.NumQueued()
+			metrics.AddSampleWithLabels([]string{"memberlist", "queue", "broadcasts"}, float32(numq), m.metricLabels)
+		case <-m.shutdownCh:
+			return
+		}
+	}
 }
