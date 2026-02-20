@@ -14,6 +14,7 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/v2/daemon/internal/distribution/metadata"
 	"github.com/moby/moby/v2/daemon/internal/distribution/xfer"
 	"github.com/moby/moby/v2/daemon/internal/layer"
@@ -204,7 +205,15 @@ func (p *pusher) pushTag(ctx context.Context, ref reference.NamedTagged, id dige
 	}
 
 	manifestDigest := digest.FromBytes(canonicalManifest)
-	progress.Messagef(p.config.ProgressOutput, "", "%s: digest: %s size: %d", ref.Tag(), manifestDigest, len(canonicalManifest))
+	pushInfo := &jsonstream.PushResult{
+		Tag:    ref.Tag(),
+		Digest: manifestDigest.String(),
+		Size:   len(canonicalManifest),
+	}
+	_ = p.config.ProgressOutput.WriteProgress(progress.Progress{
+		Message: fmt.Sprintf("%s: digest: %s size: %d", ref.Tag(), manifestDigest, len(canonicalManifest)),
+		Aux:     pushInfo,
+	})
 
 	if err := addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id); err != nil {
 		return err

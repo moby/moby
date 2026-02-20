@@ -22,6 +22,17 @@ func appendNewline(source []byte) []byte {
 	return append(source, []byte(streamNewline)...)
 }
 
+func pushResultFromAux(aux any) *jsonstream.PushResult {
+	switch v := aux.(type) {
+	case jsonstream.PushResult:
+		return &v
+	case *jsonstream.PushResult:
+		return v
+	default:
+		return nil
+	}
+}
+
 // formatStatus formats the specified objects according to the specified format (and id).
 func formatStatus(id, format string, a ...any) []byte {
 	str := fmt.Sprintf(format, a...)
@@ -48,13 +59,26 @@ func (sf *jsonProgressFormatter) formatStatus(id, format string, a ...any) []byt
 	return formatStatus(id, format, a...)
 }
 
+func (sf *jsonProgressFormatter) formatStatusWithAux(id, message string, aux any) []byte {
+	pushResult := pushResultFromAux(aux)
+	if pushResult == nil {
+		return nil
+	}
+	b, err := json.Marshal(&jsonstream.Message{ID: id, Status: message, Push: pushResult})
+	if err != nil {
+		return nil
+	}
+	return appendNewline(b)
+}
+
 // formatProgress formats the progress information for a specified action.
 func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jsonstream.Progress, aux any) []byte {
 	if progress == nil {
 		progress = &jsonstream.Progress{}
 	}
+	pushResult := pushResultFromAux(aux)
 	var auxJSON *json.RawMessage
-	if aux != nil {
+	if aux != nil && pushResult == nil {
 		auxJSONBytes, err := json.Marshal(aux)
 		if err != nil {
 			return nil
@@ -66,6 +90,7 @@ func (sf *jsonProgressFormatter) formatProgress(id, action string, progress *jso
 		Status:   action,
 		Progress: progress,
 		ID:       id,
+		Push:     pushResult,
 		Aux:      auxJSON,
 	})
 	if err != nil {
@@ -165,6 +190,10 @@ type formatProgress interface {
 	formatProgress(id, action string, progress *jsonstream.Progress, aux any) []byte
 }
 
+type formatStatusWithAux interface {
+	formatStatusWithAux(id, message string, aux any) []byte
+}
+
 type progressOutput struct {
 	sf       formatProgress
 	out      io.Writer
@@ -176,7 +205,14 @@ type progressOutput struct {
 func (out *progressOutput) WriteProgress(prog progress.Progress) error {
 	var formatted []byte
 	if prog.Message != "" {
-		formatted = out.sf.formatStatus(prog.ID, prog.Message)
+		if prog.Aux != nil {
+			if formatter, ok := out.sf.(formatStatusWithAux); ok {
+				formatted = formatter.formatStatusWithAux(prog.ID, prog.Message, prog.Aux)
+			}
+		}
+		if formatted == nil {
+			formatted = out.sf.formatStatus(prog.ID, prog.Message)
+		}
 	} else {
 		jsonProgress := jsonstream.Progress{
 			Current:    prog.Current,
