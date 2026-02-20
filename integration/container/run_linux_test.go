@@ -18,6 +18,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/integration/internal/container"
 	net "github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -178,6 +179,7 @@ func TestPrivilegedHostDevices(t *testing.T) {
 
 func TestRunConsoleSize(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "requires API v1.42")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()

@@ -236,6 +236,58 @@ func TestEpConfigForNetMode(t *testing.T) {
 	}
 }
 
+func TestRejectLegacyCapabilities(t *testing.T) {
+	testcases := []struct {
+		name         string
+		apiVersion   string
+		capabilities []string
+		expError     bool
+	}{
+		{
+			name:         "API 1.40 with capabilities is rejected",
+			apiVersion:   "1.40",
+			capabilities: []string{"CAP_NET_RAW", "CAP_SYS_CHROOT"},
+			expError:     true,
+		},
+		{
+			name:         "API 1.40 with empty capabilities is allowed",
+			apiVersion:   "1.40",
+			capabilities: []string{},
+		},
+		{
+			name:         "API 1.40 with nil capabilities is allowed",
+			apiVersion:   "1.40",
+			capabilities: nil,
+		},
+		{
+			name:         "API 1.41 with capabilities is ignored",
+			apiVersion:   "1.41",
+			capabilities: []string{"CAP_NET_RAW"},
+		},
+		{
+			name:         "API 1.43 with capabilities is ignored",
+			apiVersion:   "1.43",
+			capabilities: []string{"CAP_NET_RAW"},
+		},
+		{
+			name:         "API 1.44 with capabilities is ignored",
+			apiVersion:   "1.44",
+			capabilities: []string{"CAP_NET_RAW"},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := rejectLegacyCapabilities(tc.capabilities, tc.apiVersion)
+			if !tc.expError {
+				assert.Check(t, err)
+			} else {
+				assert.Check(t, is.ErrorIs(err, errLegacyCapabilities))
+			}
+		})
+	}
+}
+
 func TestHandleSysctlBC(t *testing.T) {
 	testcases := []struct {
 		name               string
