@@ -189,7 +189,7 @@ func (daemon *Daemon) getPIDContainer(id string) (*container.Container, error) {
 }
 
 // setupContainerDirs sets up base container directories (root, ipc, tmpfs and secrets).
-func (daemon *Daemon) setupContainerDirs(ctr *container.Container) (_ []container.Mount, err error) {
+func (daemon *Daemon) setupContainerDirs(ctx context.Context, ctr *container.Container) (_ []container.Mount, err error) {
 	if err := daemon.setupContainerMountsRoot(ctr); err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func (daemon *Daemon) setupContainerDirs(ctr *container.Container) (_ []containe
 		return nil, err
 	}
 
-	if err := daemon.setupSecretDir(ctr); err != nil {
+	if err := daemon.setupSecretDir(ctx, ctr); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -283,7 +283,7 @@ func (daemon *Daemon) setupIPCDirs(ctr *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) setupSecretDir(ctr *container.Container) (setupErr error) {
+func (daemon *Daemon) setupSecretDir(ctx context.Context, ctr *container.Container) (setupErr error) {
 	if len(ctr.SecretReferences) == 0 && len(ctr.ConfigReferences) == 0 {
 		return nil
 	}
@@ -307,7 +307,7 @@ func (daemon *Daemon) setupSecretDir(ctr *container.Container) (setupErr error) 
 	for _, s := range ctr.SecretReferences {
 		// TODO (ehazlett): use type switch when more are supported
 		if s.File == nil {
-			log.G(context.TODO()).Error("secret target type is not a file target")
+			log.G(ctx).Error("secret target type is not a file target")
 			continue
 		}
 
@@ -321,7 +321,7 @@ func (daemon *Daemon) setupSecretDir(ctr *container.Container) (setupErr error) 
 			return errors.Wrap(err, "error creating secret mount path")
 		}
 
-		log.G(context.TODO()).WithFields(log.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"name": s.File.Name,
 			"path": fPath,
 		}).Debug("injecting secret")
@@ -580,7 +580,7 @@ func buildSandboxPlatformOptions(ctr *container.Container, cfg *config.Config) (
 	return sboxOptions, nil
 }
 
-func (daemon *Daemon) initializeNetworkingPaths(ctr *container.Container, nc *container.Container) error {
+func (daemon *Daemon) initializeNetworkingPaths(_ context.Context, ctr *container.Container, nc *container.Container) error {
 	ctr.HostnamePath = nc.HostnamePath
 	ctr.HostsPath = nc.HostsPath
 	ctr.ResolvConfPath = nc.ResolvConfPath

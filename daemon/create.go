@@ -111,7 +111,7 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		}
 	}
 
-	err = daemon.validateNetworkingConfig(opts.params.NetworkingConfig)
+	err = daemon.validateNetworkingConfig(ctx, opts.params.NetworkingConfig)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
@@ -208,7 +208,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	}
 	defer func() {
 		if retErr != nil {
-			err = daemon.cleanupContainer(ctr, backend.ContainerRmConfig{
+			err = daemon.cleanupContainer(ctx, ctr, backend.ContainerRmConfig{
 				ForceRemove:  true,
 				RemoveVolume: true,
 			})
@@ -228,7 +228,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	ctr.ImageManifest = imgManifest
 
 	// Set RWLayer for container after mount labels have been set
-	rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping.RootPair()))
+	rwLayer, err := daemon.imageService.CreateLayer(ctx, ctr, setupInitLayer(daemon.idMapping.RootPair()))
 	if err != nil {
 		return nil, errdefs.System(err)
 	}
@@ -259,13 +259,13 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	if ctr.HostConfig != nil && ctr.HostConfig.NetworkMode == "" {
 		ctr.HostConfig.NetworkMode = networktypes.NetworkDefault
 	}
-	daemon.updateContainerNetworkSettings(ctr, endpointsConfigs)
+	daemon.updateContainerNetworkSettings(ctx, ctr, endpointsConfigs)
 
 	if err := daemon.nri.CreateContainer(ctx, ctr); err != nil {
 		return nil, err
 	}
 
-	if err := daemon.registerMountPoints(ctr, opts.params.DefaultReadOnlyNonRecursive); err != nil {
+	if err := daemon.registerMountPoints(ctx, ctr, opts.params.DefaultReadOnlyNonRecursive); err != nil {
 		return nil, err
 	}
 	if err := daemon.createContainerVolumesOS(ctx, ctr, opts.params.Config); err != nil {
@@ -362,7 +362,7 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 }
 
 // validateNetworkingConfig checks whether a container's NetworkingConfig is valid.
-func (daemon *Daemon) validateNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
+func (daemon *Daemon) validateNetworkingConfig(ctx context.Context, nwConfig *networktypes.NetworkingConfig) error {
 	if nwConfig == nil {
 		return nil
 	}
@@ -375,7 +375,10 @@ func (daemon *Daemon) validateNetworkingConfig(nwConfig *networktypes.Networking
 		}
 
 		// The referenced network k might not exist when the container is created, so just ignore the error in that case.
-		nw, _ := daemon.FindNetwork(k)
+		nw, _ := daemon.FindNetwork(ctx, k)
+		if ctx.Err() != nil {
+			return context.Cause(ctx)
+		}
 		if err := validateEndpointSettings(nw, k, v); err != nil {
 			errs = append(errs, fmt.Errorf("invalid config for network %s: %w", k, err))
 		}

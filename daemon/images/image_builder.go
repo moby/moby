@@ -40,14 +40,14 @@ func (l *roLayer) DiffID() layer.DiffID {
 	return l.roLayer.DiffID()
 }
 
-func (l *roLayer) Release() error {
+func (l *roLayer) Release(ctx context.Context) error {
 	if l.released {
 		return nil
 	}
 	if l.roLayer != nil {
 		metadata, err := l.layerStore.Release(l.roLayer)
 		for _, m := range metadata {
-			log.G(context.TODO()).WithField("chainID", m.ChainID).Infof("release ROLayer: cleaned up layer %s", m.ChainID)
+			log.G(ctx).WithField("chainID", m.ChainID).Infof("release ROLayer: cleaned up layer %s", m.ChainID)
 		}
 		if err != nil {
 			return errors.Wrap(err, "failed to release ROLayer")
@@ -58,7 +58,7 @@ func (l *roLayer) Release() error {
 	return nil
 }
 
-func (l *roLayer) NewRWLayer() (builder.RWLayer, error) {
+func (l *roLayer) NewRWLayer(ctx context.Context) (builder.RWLayer, error) {
 	var chainID layer.ChainID
 	if l.roLayer != nil {
 		chainID = l.roLayer.ChainID()
@@ -72,9 +72,9 @@ func (l *roLayer) NewRWLayer() (builder.RWLayer, error) {
 
 	rwLayer := &rwLayer{layerStore: l.layerStore, rwLayer: newLayer}
 
-	fs, err := newLayer.Mount("")
+	fs, err := newLayer.Mount(ctx, "")
 	if err != nil {
-		rwLayer.Release()
+		rwLayer.Release(context.WithoutCancel(ctx))
 		return nil, err
 	}
 
@@ -94,7 +94,7 @@ func (l *rwLayer) Root() string {
 	return l.fs
 }
 
-func (l *rwLayer) Commit() (builder.ROLayer, error) {
+func (l *rwLayer) Commit(ctx context.Context) (builder.ROLayer, error) {
 	stream, err := l.rwLayer.TarStream()
 	if err != nil {
 		return nil, err
@@ -114,13 +114,13 @@ func (l *rwLayer) Commit() (builder.ROLayer, error) {
 	return &roLayer{layerStore: l.layerStore, roLayer: newLayer}, nil
 }
 
-func (l *rwLayer) Release() error {
+func (l *rwLayer) Release(ctx context.Context) error {
 	if l.released {
 		return nil
 	}
 
 	if l.fs != "" {
-		if err := l.rwLayer.Unmount(); err != nil {
+		if err := l.rwLayer.Unmount(ctx); err != nil {
 			return errors.Wrap(err, "failed to unmount RWLayer")
 		}
 		l.fs = ""
@@ -128,7 +128,7 @@ func (l *rwLayer) Release() error {
 
 	metadata, err := l.layerStore.ReleaseRWLayer(l.rwLayer)
 	for _, m := range metadata {
-		log.G(context.TODO()).WithField("chainID", m.ChainID).Infof("release RWLayer: cleaned up layer %s", m.ChainID)
+		log.G(ctx).WithField("chainID", m.ChainID).Infof("release RWLayer: cleaned up layer %s", m.ChainID)
 	}
 	if err != nil {
 		return errors.Wrap(err, "failed to release RWLayer")

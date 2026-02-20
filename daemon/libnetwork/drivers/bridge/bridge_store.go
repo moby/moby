@@ -30,13 +30,13 @@ const (
 	bridgeEndpointPrefix = "bridge-endpoint"
 )
 
-func (d *driver) initStore() error {
-	err := d.populateNetworks()
+func (d *driver) initStore(ctx context.Context) error {
+	err := d.populateNetworks(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = d.populateEndpoints()
+	err = d.populateEndpoints(ctx)
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func (d *driver) initStore() error {
 	return nil
 }
 
-func (d *driver) populateNetworks() error {
+func (d *driver) populateNetworks(ctx context.Context) error {
 	kvol, err := d.store.List(&networkConfiguration{})
 	if err != nil && !errors.Is(err, datastore.ErrKeyNotFound) {
 		return fmt.Errorf("failed to get bridge network configurations from store: %w", err)
@@ -61,21 +61,21 @@ func (d *driver) populateNetworks() error {
 		return nil
 	}
 
-	ctx := baggage.ContextWithBaggage(context.TODO(), otelutil.MustNewBaggage(
+	ctx = baggage.ContextWithBaggage(ctx, otelutil.MustNewBaggage(
 		otelutil.MustNewMemberRaw(otelutil.TriggerKey, spanPrefix+".initStore"),
 	))
 	for _, kvo := range kvol {
 		ncfg := kvo.(*networkConfiguration)
 		if err = d.createNetwork(ctx, ncfg); err != nil {
-			log.G(context.TODO()).Warnf("could not create bridge network for id %s bridge name %s while booting up from persistent state: %v", ncfg.ID, ncfg.BridgeName, err)
+			log.G(ctx).Warnf("could not create bridge network for id %s bridge name %s while booting up from persistent state: %v", ncfg.ID, ncfg.BridgeName, err)
 		}
-		log.G(context.TODO()).Debugf("Network (%.7s) restored", ncfg.ID)
+		log.G(ctx).Debugf("Network (%.7s) restored", ncfg.ID)
 	}
 
 	return nil
 }
 
-func (d *driver) populateEndpoints() error {
+func (d *driver) populateEndpoints(ctx context.Context) error {
 	kvol, err := d.store.List(&bridgeEndpoint{})
 	if err != nil && !errors.Is(err, datastore.ErrKeyNotFound) {
 		return fmt.Errorf("failed to get bridge endpoints from store: %w", err)
@@ -89,23 +89,23 @@ func (d *driver) populateEndpoints() error {
 		ep := kvo.(*bridgeEndpoint)
 		n, ok := d.networks[ep.nid]
 		if !ok {
-			log.G(context.TODO()).Debugf("Network (%.7s) not found for restored bridge endpoint (%.7s)", ep.nid, ep.id)
-			log.G(context.TODO()).Debugf("Deleting stale bridge endpoint (%.7s) from store", ep.id)
+			log.G(ctx).Debugf("Network (%.7s) not found for restored bridge endpoint (%.7s)", ep.nid, ep.id)
+			log.G(ctx).Debugf("Deleting stale bridge endpoint (%.7s) from store", ep.id)
 			if err := d.storeDelete(ep); err != nil {
-				log.G(context.TODO()).Debugf("Failed to delete stale bridge endpoint (%.7s) from store", ep.id)
+				log.G(ctx).Debugf("Failed to delete stale bridge endpoint (%.7s) from store", ep.id)
 			}
 			continue
 		}
 		n.endpoints[ep.id] = ep
 		netip4, netip6 := ep.netipAddrs()
-		if err := n.firewallerNetwork.AddEndpoint(context.TODO(), netip4, netip6); err != nil {
-			log.G(context.TODO()).WithFields(log.Fields{
+		if err := n.firewallerNetwork.AddEndpoint(ctx, netip4, netip6); err != nil {
+			log.G(ctx).WithFields(log.Fields{
 				"error": err,
 				"ep.id": ep.id,
 			}).Warn("Failed to restore per-endpoint firewall rules")
 		}
 		n.restorePortAllocations(ep)
-		log.G(context.TODO()).Debugf("Endpoint (%.7s) restored to network (%.7s)", ep.id, ep.nid)
+		log.G(ctx).Debugf("Endpoint (%.7s) restored to network (%.7s)", ep.id, ep.nid)
 	}
 
 	return nil

@@ -42,25 +42,25 @@ type ImageService interface {
 	GetImage(ctx context.Context, refOrID string, options imagebackend.GetImageOpts) (*image.Image, error)
 	ImageHistory(ctx context.Context, name string, platform *ocispec.Platform) ([]*imagetype.HistoryResponseItem, error)
 	CommitImage(ctx context.Context, c backend.CommitConfig) (image.ID, error)
-	SquashImage(id, parent string) (string, error)
+	SquashImage(ctx context.Context, id, parent string) (string, error)
 	ImageInspect(ctx context.Context, refOrID string, opts imagebackend.ImageInspectOpts) (*imagebackend.InspectData, error)
 	ImageDiskUsage(ctx context.Context) (int64, error)
 
 	// Layers
 
 	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts buildbackend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error)
-	CreateLayer(container *container.Container, initFunc layer.MountInit) (container.RWLayer, error)
-	CreateLayerFromImage(img *image.Image, layerName string, rwLayerOpts *layer.CreateRWLayerOpts) (container.RWLayer, error)
-	GetLayerByID(cid string) (container.RWLayer, error)
+	CreateLayer(ctx context.Context, container *container.Container, initFunc layer.MountInit) (container.RWLayer, error)
+	CreateLayerFromImage(ctx context.Context, img *image.Image, layerName string, rwLayerOpts *layer.CreateRWLayerOpts) (container.RWLayer, error)
+	GetLayerByID(ctx context.Context, cid string) (container.RWLayer, error)
 	LayerStoreStatus() [][2]string
 	GetLayerMountID(cid string) (string, error)
-	ReleaseLayer(rwlayer container.RWLayer) error
+	ReleaseLayer(ctx context.Context, rwlayer container.RWLayer) error
 	GetContainerLayerSize(ctx context.Context, containerID string) (int64, int64, error)
 	Changes(ctx context.Context, container *container.Container) ([]archive.Change, error)
 
 	// Windows specific
 
-	GetLayerFolders(img *image.Image, rwLayer container.RWLayer, containerID string) ([]string, error)
+	GetLayerFolders(ctx context.Context, img *image.Image, rwLayer container.RWLayer, containerID string) ([]string, error)
 
 	// Build
 

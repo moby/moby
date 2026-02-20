@@ -26,7 +26,7 @@ import (
 )
 
 // GetServices returns all services of a managed swarm cluster.
-func (c *Cluster) GetServices(options swarmbackend.ServiceListOptions) ([]swarm.Service, error) {
+func (c *Cluster) GetServices(ctx context.Context, options swarmbackend.ServiceListOptions) ([]swarm.Service, error) {
 	// We move the accepted filter check here as "mode" filter
 	// is processed in the daemon, not in SwarmKit. So it might
 	// be good to have accepted file check in the same file as
@@ -55,7 +55,7 @@ func (c *Cluster) GetServices(options swarmbackend.ServiceListOptions) ([]swarm.
 	}
 
 	var services []swarm.Service
-	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+	err := c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		var err error
 		r, err := state.controlClient.ListServices(
 			ctx,
@@ -155,9 +155,9 @@ func (c *Cluster) GetServices(options swarmbackend.ServiceListOptions) ([]swarm.
 }
 
 // GetService returns a service based on an ID or name.
-func (c *Cluster) GetService(input string, insertDefaults bool) (swarm.Service, error) {
+func (c *Cluster) GetService(ctx context.Context, input string, insertDefaults bool) (swarm.Service, error) {
 	var service *swarmapi.Service
-	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		s, err := getService(ctx, state.controlClient, input, insertDefaults)
 		if err != nil {
 			return err
@@ -175,9 +175,9 @@ func (c *Cluster) GetService(input string, insertDefaults bool) (swarm.Service, 
 }
 
 // CreateService creates a new service in a managed swarm cluster.
-func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRegistry bool) (*swarm.ServiceCreateResponse, error) {
+func (c *Cluster) CreateService(ctx context.Context, s swarm.ServiceSpec, encodedAuth string, queryRegistry bool) (*swarm.ServiceCreateResponse, error) {
 	var resp *swarm.ServiceCreateResponse
-	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+	err := c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		err := c.populateNetworkID(ctx, state.controlClient, &s)
 		if err != nil {
 			return err
@@ -276,10 +276,10 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 }
 
 // UpdateService updates existing service to match new properties.
-func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swarm.ServiceSpec, flags swarmbackend.ServiceUpdateOptions, queryRegistry bool) (*swarm.ServiceUpdateResponse, error) {
+func (c *Cluster) UpdateService(ctx context.Context, serviceIDOrName string, version uint64, spec swarm.ServiceSpec, flags swarmbackend.ServiceUpdateOptions, queryRegistry bool) (*swarm.ServiceUpdateResponse, error) {
 	var resp *swarm.ServiceUpdateResponse
 
-	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+	err := c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		err := c.populateNetworkID(ctx, state.controlClient, &spec)
 		if err != nil {
 			return err
@@ -408,8 +408,8 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 }
 
 // RemoveService removes a service from a managed swarm cluster.
-func (c *Cluster) RemoveService(input string) error {
-	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+func (c *Cluster) RemoveService(ctx context.Context, input string) error {
+	return c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		service, err := getService(ctx, state.controlClient, input, false)
 		if err != nil {
 			return err

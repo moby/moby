@@ -24,7 +24,7 @@ import (
 )
 
 // Init initializes new cluster from user provided request.
-func (c *Cluster) Init(req types.InitRequest) (string, error) {
+func (c *Cluster) Init(ctx context.Context, req types.InitRequest) (string, error) {
 	c.controlMutex.Lock()
 	defer c.controlMutex.Unlock()
 	if c.nr != nil {
@@ -88,7 +88,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		if !found {
 			ip, err := c.resolveSystemAddr()
 			if err != nil {
-				log.G(context.TODO()).Warnf("Could not find a local address: %v", err)
+				log.G(ctx).Warnf("Could not find a local address: %v", err)
 				return "", errMustSpecifyListenAddr
 			}
 			localAddr = ip.String()
@@ -145,7 +145,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 }
 
 // Join makes current Cluster part of an existing swarm cluster.
-func (c *Cluster) Join(req types.JoinRequest) error {
+func (c *Cluster) Join(ctx context.Context, req types.JoinRequest) error {
 	c.controlMutex.Lock()
 	defer c.controlMutex.Unlock()
 	c.mu.Lock()
@@ -216,9 +216,9 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 }
 
 // Inspect retrieves the configuration properties of a managed swarm cluster.
-func (c *Cluster) Inspect() (types.Swarm, error) {
+func (c *Cluster) Inspect(ctx context.Context) (types.Swarm, error) {
 	var swarm types.Swarm
-	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		s, err := c.inspect(ctx, state)
 		if err != nil {
 			return err
@@ -240,8 +240,8 @@ func (c *Cluster) inspect(ctx context.Context, state nodeState) (types.Swarm, er
 }
 
 // Update updates configuration of a managed swarm cluster.
-func (c *Cluster) Update(version uint64, spec types.Spec, flags swarmbackend.UpdateFlags) error {
-	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+func (c *Cluster) Update(ctx context.Context, version uint64, spec types.Spec, flags swarmbackend.UpdateFlags) error {
+	return c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		swarm, err := getSwarm(ctx, state.controlClient)
 		if err != nil {
 			return err
@@ -282,9 +282,9 @@ func (c *Cluster) Update(version uint64, spec types.Spec, flags swarmbackend.Upd
 }
 
 // GetUnlockKey returns the unlock key for the swarm.
-func (c *Cluster) GetUnlockKey() (string, error) {
+func (c *Cluster) GetUnlockKey(ctx context.Context) (string, error) {
 	var resp *swarmapi.GetUnlockKeyResponse
-	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		client := swarmapi.NewCAClient(state.grpcConn)
 
 		r, err := client.GetUnlockKey(ctx, &swarmapi.GetUnlockKeyRequest{})
@@ -304,7 +304,7 @@ func (c *Cluster) GetUnlockKey() (string, error) {
 }
 
 // UnlockSwarm provides a key to decrypt data that is encrypted at rest.
-func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
+func (c *Cluster) UnlockSwarm(ctx context.Context, req types.UnlockRequest) error {
 	c.controlMutex.Lock()
 	defer c.controlMutex.Unlock()
 
@@ -358,6 +358,8 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 
 // Leave shuts down Cluster and removes current state.
 func (c *Cluster) Leave(ctx context.Context, force bool) error {
+	ctx = context.WithoutCancel(ctx)
+
 	c.controlMutex.Lock()
 	defer c.controlMutex.Unlock()
 
@@ -414,7 +416,7 @@ func (c *Cluster) Leave(ctx context.Context, force bool) error {
 			return err
 		}
 		for _, id := range nodeContainers {
-			if err := c.config.Backend.ContainerRm(id, &backend.ContainerRmConfig{ForceRemove: true}); err != nil {
+			if err := c.config.Backend.ContainerRm(ctx, id, &backend.ContainerRmConfig{ForceRemove: true}); err != nil {
 				log.G(ctx).Errorf("error removing %v: %v", id, err)
 			}
 		}
@@ -424,7 +426,7 @@ func (c *Cluster) Leave(ctx context.Context, force bool) error {
 	if err := clearPersistentState(c.stateDir); err != nil {
 		return err
 	}
-	c.config.Backend.DaemonLeavesCluster()
+	c.config.Backend.DaemonLeavesCluster(ctx)
 	return nil
 }
 

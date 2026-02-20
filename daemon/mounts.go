@@ -11,16 +11,16 @@ import (
 	volumesservice "github.com/moby/moby/v2/daemon/volume/service"
 )
 
-func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
+func (daemon *Daemon) prepareMountPoints(ctx context.Context, container *container.Container) error {
 	alive := container.State.IsRunning()
 	for _, config := range container.MountPoints {
-		if err := daemon.lazyInitializeVolume(container.ID, config); err != nil {
+		if err := daemon.lazyInitializeVolume(ctx, container.ID, config); err != nil {
 			return err
 		}
 
 		// Restore reference to image mount layer
 		if config.Type == mounttypes.TypeImage && config.Layer == nil {
-			layer, err := daemon.imageService.GetLayerByID(config.ID)
+			layer, err := daemon.imageService.GetLayerByID(ctx, config.ID)
 			if err != nil {
 				return err
 			}
@@ -33,11 +33,11 @@ func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
 			continue
 		}
 		if alive {
-			log.G(context.TODO()).WithFields(log.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"container": container.ID,
 				"volume":    config.Volume.Name(),
 			}).Debug("Live-restoring volume for alive container")
-			if err := config.LiveRestore(context.TODO()); err != nil {
+			if err := config.LiveRestore(ctx); err != nil {
 				return err
 			}
 		}
@@ -45,9 +45,8 @@ func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool) error {
+func (daemon *Daemon) removeMountPoints(ctx context.Context, container *container.Container, rm bool) error {
 	var rmErrors []string
-	ctx := context.TODO()
 	for _, m := range container.MountPoints {
 		if m.Type == mounttypes.TypeVolume {
 			if m.Volume == nil {
@@ -78,12 +77,12 @@ func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool)
 		if m.Type == mounttypes.TypeImage {
 			layer := m.Layer
 			if layer != nil {
-				err := layer.Unmount()
+				err := layer.Unmount(ctx)
 				if err != nil {
 					rmErrors = append(rmErrors, err.Error())
 					continue
 				}
-				err = daemon.imageService.ReleaseLayer(layer)
+				err = daemon.imageService.ReleaseLayer(ctx, layer)
 				if err != nil {
 					rmErrors = append(rmErrors, err.Error())
 					continue
