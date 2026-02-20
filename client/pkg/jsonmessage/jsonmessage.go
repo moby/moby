@@ -144,14 +144,14 @@ func Display(jm jsonstream.Message, out io.Writer, isTerminal bool, width uint16
 	return nil
 }
 
-type JSONMessagesStream iter.Seq2[jsonstream.Message, error]
+type JSONMessagesStream = iter.Seq2[jsonstream.Message, error]
 
 // DisplayJSONMessagesStream reads a JSON message stream from in, and writes
 // each [JSONMessage] to out.
 // see DisplayJSONMessages for details
 func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(jsonstream.Message)) error {
 	dec := json.NewDecoder(in)
-	var f JSONMessagesStream = func(yield func(jsonstream.Message, error) bool) {
+	f := func(yield func(jsonstream.Message, error) bool) {
 		for {
 			var jm jsonstream.Message
 			err := dec.Decode(&jm)
@@ -183,7 +183,7 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 //   - auxCallback allows handling the [JSONMessage.Aux] field. It is
 //     called if a JSONMessage contains an Aux field, in which case
 //     DisplayJSONMessagesStream does not present the JSONMessage.
-func DisplayJSONMessages(messages JSONMessagesStream, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(jsonstream.Message)) error {
+func DisplayJSONMessages(messages iter.Seq2[jsonstream.Message, error], out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(jsonstream.Message)) error {
 	ids := make(map[string]uint)
 	var width uint16 = 200
 	if isTerminal {
