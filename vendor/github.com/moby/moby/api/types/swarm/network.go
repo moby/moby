@@ -1,6 +1,7 @@
 package swarm
 
 import (
+	"cmp"
 	"net/netip"
 
 	"github.com/moby/moby/api/types/network"
@@ -39,6 +40,27 @@ type PortConfig struct {
 	PublishedPort uint32 `json:",omitempty"`
 	// PublishMode is the mode in which port is published
 	PublishMode PortConfigPublishMode `json:",omitempty"`
+}
+
+// Compare returns the lexical ordering of p and other, and can be used
+// with [slices.SortFunc].
+//
+// The comparison is performed in the following priority order:
+//  1. PublishedPort (host port)
+//  2. TargetPort (container port)
+//  3. Protocol
+//  4. PublishMode
+func (p PortConfig) Compare(other PortConfig) int {
+	if n := cmp.Compare(p.PublishedPort, other.PublishedPort); n != 0 {
+		return n
+	}
+	if n := cmp.Compare(p.TargetPort, other.TargetPort); n != 0 {
+		return n
+	}
+	if n := cmp.Compare(p.Protocol, other.Protocol); n != 0 {
+		return n
+	}
+	return cmp.Compare(p.PublishMode, other.PublishMode)
 }
 
 // PortConfigPublishMode represents the mode in which the port is to
