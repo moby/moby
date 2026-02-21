@@ -345,22 +345,22 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 
 	cli.setupConfigReloadTrap()
 
-	// after the daemon is done setting up we can notify systemd api
-	notifyReady()
 	log.G(ctx).Info("Daemon has completed initialization")
 
 	// Daemon is fully initialized. Start handling API traffic
 	// and wait for serve API to complete.
 	var (
-		apiWG  sync.WaitGroup
-		errAPI = make(chan error, 1)
+		apiWG      sync.WaitGroup
+		errAPI     = make(chan error, 1)
+		apiStartWG sync.WaitGroup
 	)
+
+	apiStartWG.Add(len(lss))
 	for _, ls := range lss {
-		apiWG.Add(1)
-		go func(ls net.Listener) {
-			defer apiWG.Done()
+		apiWG.Go(func() {
 			log.G(ctx).Infof("API listen on %s", ls.Addr())
-			if err := httpServer.Serve(ls); err != http.ErrServerClosed {
+			apiStartWG.Done()
+			if err := httpServer.Serve(ls); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				log.G(ctx).WithFields(log.Fields{
 					"error":    err,
 					"listener": ls.Addr(),
@@ -371,8 +371,20 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 				default:
 				}
 			}
-		}(ls)
+		})
 	}
+
+	// Wait for all API listeners to start handling requests.
+	apiStartWG.Wait()
+
+	select {
+	case <-errAPI:
+		// An API listener failed to start; skip notifying systemd that we're ready.
+	default:
+		// All API listeners started handling requests; notify systemd that we're ready.
+		notifyReady()
+	}
+
 	apiWG.Wait()
 	close(errAPI)
 
