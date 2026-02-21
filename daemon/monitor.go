@@ -97,15 +97,20 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	execDuration := time.Since(c.State.StartedAt)
 	restart, wait, err := c.RestartManager().ShouldRestart(uint32(ctrExitStatus.ExitCode), daemonShutdown || c.HasBeenManuallyStopped, execDuration)
 	if err != nil {
-		log.G(ctx).WithFields(log.Fields{
-			"error":                  err,
-			"container":              c.ID,
-			"restartCount":           c.RestartCount,
-			"exitStatus":             ctrExitStatus,
-			"daemonShuttingDown":     daemonShutdown,
-			"hasBeenManuallyStopped": c.HasBeenManuallyStopped,
-			"execDuration":           execDuration,
-		}).Warn("ShouldRestart failed, container will not be restarted")
+		// Ignore ErrRestartCanceled errors, which mean the restart-manager
+		// was stopped (e.g., during daemon shutdown).
+		if !errors.Is(err, restartmanager.ErrRestartCanceled) {
+			log.G(ctx).WithFields(log.Fields{
+				"error":                  err,
+				"container":              c.ID,
+				"restartCount":           c.RestartCount,
+				"exitCode":               ctrExitStatus.ExitCode,
+				"exitedAt":               ctrExitStatus.ExitedAt,
+				"daemonShuttingDown":     daemonShutdown,
+				"hasBeenManuallyStopped": c.HasBeenManuallyStopped,
+				"execDuration":           execDuration,
+			}).Warn("ShouldRestart failed: container will not be restarted")
+		}
 		restart = false
 	}
 
@@ -119,10 +124,12 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 		c.RestartCount++
 		log.G(ctx).WithFields(log.Fields{
 			"container":     c.ID,
+			"restartPolicy": c.HostConfig.RestartPolicy,
 			"restartCount":  c.RestartCount,
-			"exitStatus":    ctrExitStatus,
+			"exitCode":      ctrExitStatus.ExitCode,
+			"exitedAt":      ctrExitStatus.ExitedAt,
 			"manualRestart": c.HasBeenManuallyRestarted,
-		}).Debug("Restarting container")
+		}).Info("restarting container")
 		c.State.SetRestarting(&ctrExitStatus)
 	} else {
 		c.State.SetStopped(&ctrExitStatus)
