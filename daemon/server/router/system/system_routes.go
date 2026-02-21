@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/golang/gddo/httputil"
 	"github.com/moby/moby/api/pkg/authconfig"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/events"
@@ -22,6 +21,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/daemon/server/httputils/contenttype"
 	"github.com/moby/moby/v2/daemon/server/router/build"
 	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/pkg/errors"
@@ -310,7 +310,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	contentType := httputil.NegotiateContentType(r, []string{
+	contentType := contenttype.Negotiate(r.Header, []string{
 		types.MediaTypeJSONLines,
 		types.MediaTypeNDJSON,
 		types.MediaTypeJSONSequence,
