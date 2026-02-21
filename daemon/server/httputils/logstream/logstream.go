@@ -1,4 +1,4 @@
-package httputils
+package logstream
 
 import (
 	"context"
@@ -18,9 +18,9 @@ import (
 // ensure the formatted time isalways the same number of characters.
 const rfc3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 
-// WriteLogStream writes an encoded byte stream of log messages from the
+// Write writes an encoded byte stream of log messages from the
 // messages channel, multiplexing them with a stdcopy.Writer if mux is true
-func WriteLogStream(_ context.Context, w http.ResponseWriter, msgs <-chan *backend.LogMessage, config *backend.ContainerLogsOptions, mux bool) {
+func Write(_ context.Context, w http.ResponseWriter, msgs <-chan *backend.LogMessage, config *backend.ContainerLogsOptions, mux bool) {
 	// See https://github.com/moby/moby/issues/47448
 	// Trigger headers to be written immediately.
 	w.WriteHeader(http.StatusOK)

@@ -26,6 +26,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httpstatus"
 	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/daemon/server/httputils/logstream"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/ioutils"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -217,7 +218,7 @@ func (c *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	// this is the point of no return for writing a response. once we call
 	// WriteLogStream, the response has been started and errors will be
 	// returned in band by WriteLogStream
-	httputils.WriteLogStream(ctx, w, msgs, logsConfig, !tty)
+	logstream.Write(ctx, w, msgs, logsConfig, !tty)
 	return nil
 }
 
