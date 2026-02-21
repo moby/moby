@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
@@ -197,8 +198,13 @@ func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 	}
 
 	root, err := i.refCountMounter.Mounted(cid)
-	if err != nil {
-		log.G(ctx).WithField("container", cid).Warn("failed to determine if container is already mounted")
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		// TODO(thaJeztah): should os.ErrNotExist be handled by refCountMounter, and should it still attempt to decrement?
+		//	see https://github.com/moby/moby/blob/f74e5d48b3a8a83a6b969be2dd2b14af3d9d4d22/daemon/snapshotter/mount.go#L96-L111
+		log.G(ctx).WithFields(log.Fields{
+			"error":     err,
+			"container": cid,
+		}).Warn("failed to determine if container is already mounted")
 	}
 
 	return &rwLayer{
