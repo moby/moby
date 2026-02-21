@@ -248,8 +248,14 @@ var clusterEventAction = map[swarmapi.WatchActionKind]events.Action{
 }
 
 func (daemon *Daemon) logClusterEvent(action swarmapi.WatchActionKind, id string, eventType events.Type, eventTime time.Time, attributes map[string]string) {
+	eventAction, ok := clusterEventAction[action]
+	if !ok {
+		// Unknown action kind - skip publishing invalid event
+		return
+	}
+
 	daemon.EventsService.PublishMessage(events.Message{
-		Action: clusterEventAction[action],
+		Action: eventAction,
 		Type:   eventType,
 		Actor: events.Actor{
 			ID:         id,
@@ -272,8 +278,13 @@ func eventTimestamp(meta swarmapi.Meta, action swarmapi.WatchActionKind) time.Ti
 		// There is no timestamp from store message for remove operations.
 		// Use current time.
 		eventTime = time.Now()
+	case swarmapi.WatchActionKindUnknown:
+		// WatchActionKindUnknown is the zero value and should not occur
+		// in practice, but we handle it defensively.
+		fallthrough
 	default:
-		// TODO(thaJeztah): make switch exhaustive: anything to do for swarmapi.WatchActionKindUnknown or "other" ?
+		// For any unexpected action kinds, use current time as fallback.
+		eventTime = time.Now()
 	}
 	return eventTime
 }
