@@ -115,7 +115,7 @@ func newDaemonCLI(opts *daemonOptions) (*daemonCLI, error) {
 	}, nil
 }
 
-func (cli *daemonCLI) start(ctx context.Context) (err error) {
+func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	if err := daemon.CheckSystem(); err != nil {
 		return fmt.Errorf("system requirements not met: %w", err)
 	}
@@ -125,6 +125,13 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	}
 
 	log.G(ctx).Info("Starting up")
+	defer func() {
+		l := log.G(ctx)
+		if retErr != nil && !errors.Is(retErr, context.Canceled) {
+			l = l.WithError(retErr)
+		}
+		l.Info("Daemon shutdown complete")
+	}()
 
 	if cli.Config.Debug {
 		debug.Enable()
@@ -156,10 +163,10 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	potentiallyUnderRuntimeDir := []string{cli.Config.ExecRoot}
 
 	if cli.Pidfile != "" {
-		if err = os.MkdirAll(filepath.Dir(cli.Pidfile), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(cli.Pidfile), 0o755); err != nil {
 			return errors.Wrap(err, "failed to create pidfile directory")
 		}
-		if err = pidfile.Write(cli.Pidfile, os.Getpid()); err != nil {
+		if err := pidfile.Write(cli.Pidfile, os.Getpid()); err != nil {
 			return errors.Wrapf(err, "failed to start daemon, ensure docker is not running or delete %s", cli.Pidfile)
 		}
 		potentiallyUnderRuntimeDir = append(potentiallyUnderRuntimeDir, cli.Pidfile)
@@ -279,10 +286,11 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 	}
 
 	var apiServer apiserver.Server
-	cli.authzMiddleware, err = initMiddlewares(ctx, &apiServer, cli.Config, pluginStore)
+	authz, err := initMiddlewares(ctx, &apiServer, cli.Config, pluginStore)
 	if err != nil {
 		return errors.Wrap(err, "failed to start API server")
 	}
+	cli.authzMiddleware = authz
 
 	d, err := daemon.NewDaemon(ctx, cli.Config, pluginStore, cli.authzMiddleware)
 	if err != nil {
@@ -396,7 +404,6 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		log.G(ctx).WithError(err).Error("Failed to shutdown OTEL tracing")
 	}
 
-	log.G(ctx).Info("Daemon shutdown complete")
 	return nil
 }
 
