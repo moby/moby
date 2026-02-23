@@ -7,9 +7,9 @@ import (
 	"net/http"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client/pkg/stdcopy"
 	"github.com/moby/moby/v2/daemon/internal/stdcopymux"
 	"github.com/moby/moby/v2/daemon/internal/versions"
 	"github.com/moby/moby/v2/daemon/server/backend"

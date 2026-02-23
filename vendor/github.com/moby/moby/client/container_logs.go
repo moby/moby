@@ -50,11 +50,11 @@ type ContainerLogsResult interface {
 // as big endian, this is the size of OUTPUT. You can use [stdcopy.StdCopy]
 // to demultiplex this stream.
 //
-// [stdcopy]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy
-// [stdcopy.StdCopy]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#StdCopy
-// [stdcopy.StdType]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#StdType
-// [Stdout]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#Stdout
-// [Stderr]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#Stderr
+// [stdcopy]: https://pkg.go.dev/github.com/moby/moby/client/pkg/stdcopy
+// [stdcopy.StdCopy]: https://pkg.go.dev/github.com/moby/moby/client/pkg/stdcopy#StdCopy
+// [stdcopy.StdType]: https://pkg.go.dev/github.com/moby/moby/client/pkg/stdcopy#StdType
+// [Stdout]: https://pkg.go.dev/github.com/moby/moby/client/pkg/stdcopy#Stdout
+// [Stderr]: https://pkg.go.dev/github.com/moby/moby/client/pkg/stdcopy#Stderr
 func (cli *Client) ContainerLogs(ctx context.Context, containerID string, options ContainerLogsOptions) (ContainerLogsResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {

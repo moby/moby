@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/stdcopy"
 	"github.com/moby/moby/v2/daemon/logger/jsonfilelog"
 	"github.com/moby/moby/v2/daemon/logger/local"
 	"github.com/moby/moby/v2/integration/internal/container"
