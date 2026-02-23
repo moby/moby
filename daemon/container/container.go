@@ -405,7 +405,7 @@ func cleanScopedPath(path string) string {
 // path. See symlink.FollowSymlinkInScope for more details.
 func (container *Container) GetRootResourcePath(path string) (string, error) {
 	// IMPORTANT - These are paths on the OS where the daemon is running, hence
-	// any filepath operations must be done in an OS agnostic way.
+	// any filepath operations must be done in an OS-agnostic way.
 	cleanPath := filepath.Join(string(os.PathSeparator), path)
 	return symlink.FollowSymlinkInScope(filepath.Join(container.Root, cleanPath), container.Root)
 }
@@ -413,6 +413,11 @@ func (container *Container) GetRootResourcePath(path string) (string, error) {
 // ExitOnNext signals to the monitor that it should not restart the container
 // after we send the kill signal.
 func (container *Container) ExitOnNext() {
+	if !container.HostConfig.RestartPolicy.IsNone() {
+		log.G(context.TODO()).WithField("container", container.ID).Info("stopping restart-manager")
+	}
+	// If the container does not have a restartmanager, one is created (through
+	// [container.RestartManager]), which is needed to handle daemon shutdown.
 	container.RestartManager().Cancel()
 }
 
