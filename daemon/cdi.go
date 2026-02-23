@@ -85,10 +85,10 @@ func createCDICache(cdiSpecDirs ...string) (*cdi.Cache, error) {
 	for dir, errs := range cache.GetErrors() {
 		for _, err := range errs {
 			if errors.Is(err, os.ErrNotExist) {
-				log.L.WithField("dir", dir).Infof("CDI directory does not exist, skipping: %v", err)
+				log.L.WithField("dir", dir).Info("CDI directory does not exist, skipping")
 				continue
 			}
-			log.L.WithField("dir", dir).Warnf("CDI setup error: %+v", err)
+			log.L.WithFields(log.Fields{"error": err, "dir": dir}).Warn("CDI setup error")
 		}
 	}
 
