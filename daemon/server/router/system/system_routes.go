@@ -270,6 +270,12 @@ func (e invalidRequestError) Error() string {
 
 func (e invalidRequestError) InvalidParameter() {}
 
+var jsonTypes = []string{
+	types.MediaTypeJSONLines,
+	types.MediaTypeNDJSON,
+	types.MediaTypeJSONSequence,
+}
+
 func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
@@ -310,11 +316,14 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	contentType := contenttype.Negotiate(r.Header, []string{
-		types.MediaTypeJSONLines,
-		types.MediaTypeNDJSON,
-		types.MediaTypeJSONSequence,
-	}, types.MediaTypeJSON) // output isn't actually JSON but API used to  this content-type
+	contentType := types.MediaTypeJSONLines
+	if versions.LessThan(httputils.VersionFromContext(ctx), "1.52") {
+		// output isn't actually JSON but API used to use this content-type.
+		contentType = types.MediaTypeJSON
+	}
+	if ct := contenttype.MatchAcceptStrict(r.Header, jsonTypes); ct != "" {
+		contentType = ct
+	}
 	w.Header().Set("Content-Type", contentType)
 	w.WriteHeader(http.StatusOK)
 	output := ioutils.NewWriteFlusher(w)
