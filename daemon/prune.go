@@ -70,7 +70,11 @@ func (daemon *Daemon) ContainerPrune(ctx context.Context, pruneFilters filters.A
 			}
 			cSize, _, err := daemon.imageService.GetContainerLayerSize(ctx, c.ID)
 			if err != nil {
-				return nil, err
+				// Debug log only, the size is only for informational purposes anyway
+				log.G(ctx).WithFields(log.Fields{
+					"error":     err,
+					"container": c.ID,
+				}).Debug("failed to get layer size for container")
 			}
 			// TODO: sets RmLink to true?
 			err = daemon.containerRm(cfg, c.ID, &backend.ContainerRmConfig{})
