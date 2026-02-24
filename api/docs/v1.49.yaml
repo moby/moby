@@ -9737,10 +9737,31 @@ paths:
           required: true
         - name: "manifests"
           in: "query"
-          description: "Include Manifests in the image summary."
+          description: |-
+            Include Manifests in the image summary.
+
+            The `manifests` and `platform` options are mutually exclusive, and
+            an error is produced if both are set.
           type: "boolean"
           default: false
           required: false
+        - name: "platform"
+          type: "string"
+          in: "query"
+          description: |-
+            JSON-encoded OCI platform to select the platform-variant.
+            If omitted, it defaults to any locally available platform,
+            prioritizing the daemon's host platform.
+
+            If the daemon provides a multi-platform image store, this selects
+            the platform-variant to show inspect. If the image is
+            a single-platform image, or if the multi-platform image does not
+            provide a variant matching the given platform, an error is returned.
+
+            The `platform` and `manifests` options are mutually exclusive, and
+            an error is produced if both are set.
+
+            Example: `{"os": "linux", "architecture": "arm", "variant": "v5"}`
       tags: ["Image"]
   /images/{name}/history:
     get:
