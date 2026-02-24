@@ -1,4 +1,4 @@
-package httputils
+package logstream
 
 import (
 	"context"
@@ -18,9 +18,9 @@ import (
 // ensure the formatted time isalways the same number of characters.
 const rfc3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 
-// WriteLogStream writes an encoded byte stream of log messages from the
+// Write writes an encoded byte stream of log messages from the
 // messages channel, multiplexing them with a stdcopy.Writer if mux is true
-func WriteLogStream(_ context.Context, w http.ResponseWriter, msgs <-chan *backend.LogMessage, config *backend.ContainerLogsOptions, mux bool) {
+func Write(ctx context.Context, w http.ResponseWriter, msgs <-chan *backend.LogMessage, config *backend.ContainerLogsOptions, mux bool) {
 	// See https://github.com/moby/moby/issues/47448
 	// Trigger headers to be written immediately.
 	w.WriteHeader(http.StatusOK)
@@ -40,29 +40,42 @@ func WriteLogStream(_ context.Context, w http.ResponseWriter, msgs <-chan *backe
 	}
 
 	for {
-		msg, ok := <-msgs
-		if !ok {
+		select {
+		case <-ctx.Done():
 			return
-		}
-		// check if the message contains an error. if so, write that error
-		// and exit
-		if msg.Err != nil {
-			fmt.Fprintf(sysErrStream, "Error grabbing logs: %v\n", msg.Err)
-			continue
-		}
-		logLine := msg.Line
-		if config.Details {
-			logLine = append(attrsByteSlice(msg.Attrs), ' ')
-			logLine = append(logLine, msg.Line...)
-		}
-		if config.Timestamps {
-			logLine = append([]byte(msg.Timestamp.Format(rfc3339NanoFixed)+" "), logLine...)
-		}
-		if msg.Source == "stdout" && config.ShowStdout {
-			_, _ = outStream.Write(logLine)
-		}
-		if msg.Source == "stderr" && config.ShowStderr {
-			_, _ = errStream.Write(logLine)
+		case msg, ok := <-msgs:
+			if !ok {
+				return
+			}
+			// check if the message contains an error. if so, write that error
+			// and exit
+			if msg.Err != nil {
+				fmt.Fprintf(sysErrStream, "Error grabbing logs: %v\n", msg.Err)
+				continue
+			}
+			logLine := msg.Line
+			if config.Details {
+				logLine = append(attrsByteSlice(msg.Attrs), ' ')
+				logLine = append(logLine, msg.Line...)
+			}
+			if config.Timestamps {
+				logLine = append([]byte(msg.Timestamp.Format(rfc3339NanoFixed)+" "), logLine...)
+			}
+			switch msg.Source {
+			case "stdout":
+				if config.ShowStdout {
+					_, _ = outStream.Write(logLine)
+				}
+				continue
+			case "stderr":
+				if config.ShowStderr {
+					_, _ = errStream.Write(logLine)
+				}
+				continue
+			default:
+				// unknown source
+				continue
+			}
 		}
 	}
 }
