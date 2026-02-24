@@ -237,7 +237,7 @@ func (r *Reader) initFields() error {
 			if ent.Gname != "" {
 				gname[ent.GID] = ent.Gname
 			} else {
-				ent.Gname = uname[ent.GID]
+				ent.Gname = gname[ent.GID]
 			}
 
 			ent.modTime, _ = time.Parse(time.RFC3339, ent.ModTime3339)

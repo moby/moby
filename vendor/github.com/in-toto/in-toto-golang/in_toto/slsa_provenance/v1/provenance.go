@@ -12,6 +12,12 @@ const (
 )
 
 // ProvenancePredicate is the provenance predicate definition.
+//
+// Deprecated: ProvenancePredicate exists for historical compatibility
+// and should not be used. This implementation has been superseded by the
+// Provenance struct generated from the Protobuf definition provided
+// by the in-toto Attestation Framework.
+// https://github.com/in-toto/attestation/tree/main/protos/in_toto_attestation/predicates/provenance/v1.
 type ProvenancePredicate struct {
 	// The BuildDefinition describes all of the inputs to the build. The
 	// accuracy and completeness are implied by runDetails.builder.id.
@@ -25,6 +31,11 @@ type ProvenancePredicate struct {
 }
 
 // ProvenanceBuildDefinition describes the inputs to the build.
+//
+// Deprecated: ProvenanceBuildDefinition exists for historical compatibility
+// and should not be used. This implementation has been superseded by the
+// BuildDefinition struct generated from the Protobuf definition in
+// https://github.com/in-toto/attestation/tree/main/protos/in_toto_attestation/predicates/provenance/v1.
 type ProvenanceBuildDefinition struct {
 	// Identifies the template for how to perform the build and interpret the
 	// parameters and dependencies.
@@ -37,7 +48,7 @@ type ProvenanceBuildDefinition struct {
 
 	// The parameters that are under external control, such as those set by a
 	// user or tenant of the build system. They MUST be complete at SLSA Build
-	// L3, meaning that that there is no additional mechanism for an external
+	// L3, meaning that there is no additional mechanism for an external
 	// party to influence the build. (At lower SLSA Build levels, the
 	// completeness MAY be best effort.)
 
@@ -66,6 +77,11 @@ type ProvenanceBuildDefinition struct {
 
 // ProvenanceRunDetails includes details specific to a particular execution of a
 // build.
+//
+// Deprecated: ProvenanceRunDetails exists for historical compatibility
+// and should not be used. This implementation has been superseded by the
+// RunDetails struct generated from the Protobuf definition in
+// https://github.com/in-toto/attestation/tree/main/protos/in_toto_attestation/predicates/provenance/v1.
 type ProvenanceRunDetails struct {
 	// Identifies the entity that executed the invocation, which is trusted to
 	// have correctly performed the operation and populated this provenance.
@@ -92,6 +108,12 @@ type ProvenanceRunDetails struct {
 // ResourceDescriptor describes a particular software artifact or resource
 // (mutable or immutable).
 // See https://github.com/in-toto/attestation/blob/main/spec/v1.0/resource_descriptor.md
+//
+// Deprecated: This implementation of ResoureDescriptor exists for
+// historical compatibility and should not be used. This struct has been
+// superseded by the ResourceDescriptor struct generated from the Protobuf
+// definition in
+// https://github.com/in-toto/attestation/tree/main/protos/in_toto_attestation/v1.
 type ResourceDescriptor struct {
 	// A URI used to identify the resource or artifact globally. This field is
 	// REQUIRED unless either digest or content is set.
@@ -123,6 +145,11 @@ type ResourceDescriptor struct {
 
 // Builder represents the transitive closure of all the entities that are, by
 // necessity, trusted to faithfully run the build and record the provenance.
+//
+// Deprecated: This implementation of Builder exists for historical
+// compatibility and should not be used. This implementation has been
+// superseded by the Builder struct generated from the Protobuf definition in
+// https://github.com/in-toto/attestation/tree/main/protos/in_toto_attestation/predicates/provenance/v1.
 type Builder struct {
 	// URI indicating the transitive closure of the trusted builder.
 	ID string `json:"id"`
@@ -136,12 +163,17 @@ type Builder struct {
 	BuilderDependencies []ResourceDescriptor `json:"builderDependencies,omitempty"`
 }
 
+// Deprecated: This implementation of BuildMetadata exists for historical
+// compatibility and should not be used. This implementation has been
+// superseded by the BuildMetadata struct generated from the Protobuf
+// definition in
+// https://github.com/in-toto/attestation/tree/main/protos/in_toto_attestation/predicates/provenance/v1.
 type BuildMetadata struct {
 	// Identifies this particular build invocation, which can be useful for
 	// finding associated logs or other ad-hoc analysis. The exact meaning and
 	// format is defined by builder.id; by default it is treated as opaque and
 	// case-sensitive. The value SHOULD be globally unique.
-	InvocationID string `json:"invocationID,omitempty"`
+	InvocationID string `json:"invocationId,omitempty"`
 
 	// The timestamp of when the build started.
 	StartedOn *time.Time `json:"startedOn,omitempty"`

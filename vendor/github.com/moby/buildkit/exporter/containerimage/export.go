@@ -219,7 +219,7 @@ func (e *imageExporterInstance) Attrs() map[string]string {
 	return e.attrs
 }
 
-func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source, buildInfo exporter.ExportBuildInfo) (_ map[string]string, descref exporter.DescriptorReference, err error) {
+func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source, buildInfo exporter.ExportBuildInfo) (_ map[string]string, _ exporter.FinalizeFunc, descref exporter.DescriptorReference, err error) {
 	src = src.Clone()
 	if src.Metadata == nil {
 		src.Metadata = make(map[string][]byte)
@@ -229,14 +229,17 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 	opts := e.opts
 	as, _, err := ParseAnnotations(src.Metadata)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	opts.Annotations = opts.Annotations.Merge(as)
 
 	ctx, done, err := leaseutil.WithLease(ctx, e.opt.LeaseManager, leaseutil.MakeTemporary)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
+	// On success, we create descref which holds the lease's done function.
+	// The solver will release descref after recording the descriptor in build
+	// history. On error (descref is nil), we release the lease here.
 	defer func() {
 		if descref == nil {
 			done(context.WithoutCancel(ctx))
@@ -245,13 +248,8 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 
 	desc, err := e.opt.ImageWriter.Commit(ctx, src, buildInfo.SessionID, buildInfo.InlineCache, &opts)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	defer func() {
-		if err == nil {
-			descref = NewDescriptorReference(*desc, done)
-		}
-	}()
 
 	resp := make(map[string]string)
 
@@ -269,6 +267,9 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 			nameCanonical = false
 		}
 	}
+
+	// Collect names for finalize callback to push
+	var namesToPush []string
 
 	if e.opts.ImageName != "" {
 		targetNames := strings.SplitSeq(e.opts.ImageName, ",")
@@ -297,14 +298,20 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 				}
 				for _, sfx := range sfx {
 					img.Name = targetName + sfx
-					if _, err := e.opt.Images.Update(imageClientCtx, img); err != nil {
-						if !errors.Is(err, cerrdefs.ErrNotFound) {
-							return nil, nil, tagDone(err)
-						}
+					for { // handle possible race between Update and Create
+						if _, err := e.opt.Images.Update(imageClientCtx, img); err != nil {
+							if !errors.Is(err, cerrdefs.ErrNotFound) {
+								return nil, nil, nil, tagDone(err)
+							}
 
-						if _, err := e.opt.Images.Create(imageClientCtx, img); err != nil {
-							return nil, nil, tagDone(err)
+							if _, err := e.opt.Images.Create(imageClientCtx, img); err != nil {
+								if !errors.Is(err, cerrdefs.ErrAlreadyExists) {
+									return nil, nil, nil, tagDone(err)
+								}
+								continue
+							}
 						}
+						break
 					}
 				}
 				tagDone(nil)
@@ -315,10 +322,10 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 						// /
 						// TODO: change e.unpackImage so that it takes Result[Remote] as parameter.
 						// https://github.com/moby/buildkit/pull/4057#discussion_r1324106088
-						return nil, nil, errors.New("exporter option \"rewrite-timestamp\" conflicts with \"unpack\"")
+						return nil, nil, nil, errors.New("exporter option \"rewrite-timestamp\" conflicts with \"unpack\"")
 					}
 					if err := e.unpackImage(ctx, img, src, session.NewGroup(buildInfo.SessionID)); err != nil {
-						return nil, nil, err
+						return nil, nil, nil, err
 					}
 				}
 
@@ -350,19 +357,13 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 						})
 					}
 					if err := eg.Wait(); err != nil {
-						return nil, nil, err
+						return nil, nil, nil, err
 					}
 				}
 			}
+			// Collect names for pushing in finalize
 			if e.push {
-				err = e.pushImage(ctx, src, buildInfo.SessionID, targetName, desc.Digest)
-				if err != nil {
-					var statusErr remoteserrors.ErrUnexpectedStatus
-					if errors.As(err, &statusErr) {
-						err = errutil.WithDetails(err)
-					}
-					return nil, nil, errors.Wrapf(err, "failed to push %v", targetName)
-				}
+				namesToPush = append(namesToPush, targetName)
 			}
 		}
 		resp[exptypes.ExporterImageNameKey] = e.opts.ImageName
@@ -376,11 +377,34 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 
 	dtdesc, err := json.Marshal(desc)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	resp[exptypes.ExporterImageDescriptorKey] = base64.StdEncoding.EncodeToString(dtdesc)
 
-	return resp, nil, nil
+	// Create descref so descriptor is recorded in build history.
+	// Transfer lease ownership to descref - caller releases after finalize.
+	descref = NewDescriptorReference(*desc, done)
+
+	if len(namesToPush) == 0 {
+		return resp, nil, descref, nil
+	}
+
+	// Create finalize callback for pushing
+	finalize := func(ctx context.Context) error {
+		for _, targetName := range namesToPush {
+			err := e.pushImage(ctx, src, buildInfo.SessionID, targetName, desc.Digest)
+			if err != nil {
+				var statusErr remoteserrors.ErrUnexpectedStatus
+				if errors.As(err, &statusErr) {
+					err = errutil.WithDetails(err)
+				}
+				return errors.Wrapf(err, "failed to push %v", targetName)
+			}
+		}
+		return nil
+	}
+
+	return resp, finalize, descref, nil
 }
 
 func (e *imageExporterInstance) pushImage(ctx context.Context, src *exporter.Source, sessionID string, targetName string, dgst digest.Digest) error {

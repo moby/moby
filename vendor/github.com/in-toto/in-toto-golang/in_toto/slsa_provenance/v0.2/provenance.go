@@ -127,8 +127,8 @@ type ProvenanceMetadata struct {
 	Reproducible bool `json:"reproducible"`
 }
 
-// ProvenanceComplete indicates wheter the claims in build/recipe are complete.
-// For in depth information refer to the specifictaion:
+// ProvenanceComplete indicates whether the claims in build/recipe are complete.
+// For in depth information refer to the specification:
 // https://github.com/in-toto/attestation/blob/v0.1.0/spec/predicates/provenance.md
 type ProvenanceComplete struct {
 	// Parameters if true, means the builder claims that [ProvenanceInvocation.Parameters] is

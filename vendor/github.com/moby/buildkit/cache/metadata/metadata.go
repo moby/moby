@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -27,6 +29,18 @@ type Store struct {
 }
 
 func NewStore(dbPath string) (*Store, error) {
+	// Check for legacy (v1) cache state.
+	//
+	// Automatic migration was removed in https://github.com/moby/buildkit/pull/6509
+	if _, err := os.Stat(dbPath); errors.Is(err, os.ErrNotExist) {
+		legacyMetadata := filepath.Join(filepath.Dir(dbPath), "metadata.db")
+		if _, err := os.Stat(legacyMetadata); err == nil {
+			return nil, errors.Errorf(
+				"legacy (v1) cache metadata found at %q and needs to be removed or migrated; downgrade BuildKit to v0.27.1 to perform automatic migration or remove the existing cache",
+				legacyMetadata,
+			)
+		}
+	}
 	db, err := boltutil.Open(dbPath, 0600, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to open database file %s", dbPath)

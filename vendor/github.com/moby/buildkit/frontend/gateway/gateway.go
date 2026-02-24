@@ -591,6 +591,7 @@ func (lbf *llbBridgeForwarder) ResolveSourceMeta(ctx context.Context, req *pb.Re
 	if req.Image != nil {
 		resolveopt.ImageOpt.NoConfig = req.Image.NoConfig
 		resolveopt.ImageOpt.AttestationChain = req.Image.AttestationChain
+		resolveopt.ImageOpt.ResolveAttestations = slices.Clone(req.Image.ResolveAttestations)
 	}
 	resolveopt.OCILayoutOpt = &sourceresolver.ResolveOCILayoutOpt{
 		Platform: platform,
@@ -598,6 +599,14 @@ func (lbf *llbBridgeForwarder) ResolveSourceMeta(ctx context.Context, req *pb.Re
 	if req.Git != nil {
 		resolveopt.GitOpt = &sourceresolver.ResolveGitOpt{
 			ReturnObject: req.Git.ReturnObject,
+		}
+	}
+	if req.HTTP != nil && req.HTTP.ChecksumRequest != nil {
+		resolveopt.HTTPOpt = &sourceresolver.ResolveHTTPOpt{
+			ChecksumReq: &sourceresolver.ResolveHTTPChecksumRequest{
+				Algo:   fromPBHTTPChecksumAlgo(req.HTTP.ChecksumRequest.Algo),
+				Suffix: slices.Clone(req.HTTP.ChecksumRequest.Suffix),
+			},
 		}
 	}
 
@@ -1766,8 +1775,27 @@ func ToPBResolveSourceMetaResponse(in *sourceresolver.MetaResponse) *pb.ResolveS
 			Filename:     in.HTTP.Filename,
 			LastModified: lastModified,
 		}
+		if in.HTTP.ChecksumResponse != nil {
+			r.HTTP.ChecksumResponse = &pb.ChecksumResponse{
+				Digest: in.HTTP.ChecksumResponse.Digest,
+				Suffix: slices.Clone(in.HTTP.ChecksumResponse.Suffix),
+			}
+		}
 	}
 	return r
+}
+
+func fromPBHTTPChecksumAlgo(in pb.ChecksumRequest_ChecksumAlgo) sourceresolver.ResolveHTTPChecksumAlgo {
+	switch in {
+	case pb.ChecksumRequest_CHECKSUM_ALGO_SHA256:
+		return sourceresolver.ResolveHTTPChecksumAlgoSHA256
+	case pb.ChecksumRequest_CHECKSUM_ALGO_SHA384:
+		return sourceresolver.ResolveHTTPChecksumAlgoSHA384
+	case pb.ChecksumRequest_CHECKSUM_ALGO_SHA512:
+		return sourceresolver.ResolveHTTPChecksumAlgoSHA512
+	default:
+		return sourceresolver.ResolveHTTPChecksumAlgo(in)
+	}
 }
 
 func toPBAttestationChain(ac *sourceresolver.AttestationChain) *pb.AttestationChain {

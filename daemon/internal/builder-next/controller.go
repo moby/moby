@@ -301,10 +301,6 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		}
 	}()
 
-	if err := cache.MigrateV2(context.Background(), filepath.Join(root, "metadata.db"), filepath.Join(root, "metadata_v2.db"), store, snapshotter, lm); err != nil {
-		return nil, err
-	}
-
 	md, err := metadata.NewStore(filepath.Join(root, "metadata_v2.db"))
 	if err != nil {
 		return nil, err
