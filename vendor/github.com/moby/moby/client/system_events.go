@@ -45,9 +45,9 @@ func (cli *Client) Events(ctx context.Context, options EventsListOptions) Events
 		}
 
 		headers := http.Header{}
-		headers.Add("Accept", types.MediaTypeJSONSequence)
-		headers.Add("Accept", types.MediaTypeJSONLines)
-		headers.Add("Accept", types.MediaTypeNDJSON)
+		headers.Add("Accept", types.MediaTypeJSONLines) // Implicit q=1.0; in case server doesn't parse correctly.
+		headers.Add("Accept", types.MediaTypeNDJSON+";q=0.9")
+		headers.Add("Accept", types.MediaTypeJSONSequence+";q=0.5")
 		resp, err := cli.get(ctx, "/events", query, headers)
 		if err != nil {
 			close(started)
