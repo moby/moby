@@ -61,11 +61,20 @@ func Write(ctx context.Context, w http.ResponseWriter, msgs <-chan *backend.LogM
 			if config.Timestamps {
 				logLine = append([]byte(msg.Timestamp.Format(rfc3339NanoFixed)+" "), logLine...)
 			}
-			if msg.Source == "stdout" && config.ShowStdout {
-				_, _ = outStream.Write(logLine)
-			}
-			if msg.Source == "stderr" && config.ShowStderr {
-				_, _ = errStream.Write(logLine)
+			switch msg.Source {
+			case "stdout":
+				if config.ShowStdout {
+					_, _ = outStream.Write(logLine)
+				}
+				continue
+			case "stderr":
+				if config.ShowStderr {
+					_, _ = errStream.Write(logLine)
+				}
+				continue
+			default:
+				// unknown source
+				continue
 			}
 		}
 	}
