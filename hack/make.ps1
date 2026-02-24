@@ -346,7 +346,7 @@ Function Run-UnitTests() {
     $xmlFilePath = $bundlesDir + "\junit-report-unit-tests.xml"
     $coverageFilePath = $bundlesDir + "\coverage-report-unit-tests.txt"
     $rerunReportPath = $bundlesDir + "\rerun-report-unit-tests.txt"
-    $goTestArg = "--max-fails=20 --rerun-fails=2 --rerun-fails-max-failures=10 --rerun-fails-abort-on-data-race --rerun-fails-report=$rerunReportPath --format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- " + $raceParm + " -coverprofile=$coverageFilePath -covermode=atomic -ldflags -w -a -test.timeout=10m -test.skip=TestFlaky.*" + " $pkgList"
+    $goTestArg = "--max-fails=20 --rerun-fails=2 --rerun-fails-max-failures=10 --rerun-fails-abort-on-data-race --rerun-fails-report=$rerunReportPath --format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath """ + "--packages=$pkgList" + """ -- " + $raceParm + " -coverprofile=$coverageFilePath -covermode=atomic -ldflags -w -a -test.timeout=10m -test.skip=TestFlaky.*"
     Write-Host "INFO: Invoking unit tests run with $GOTESTSUM_LOCATION\gotestsum.exe $goTestArg"
     $pinfo = New-Object System.Diagnostics.ProcessStartInfo
     $pinfo.FileName = "$GOTESTSUM_LOCATION\gotestsum.exe"
@@ -391,7 +391,7 @@ Function Run-IntegrationTests() {
         $pinfo.WorkingDirectory = "$($PWD.Path)"
         $pinfo.UseShellExecute = $false
         $rerunReportPath = $bundlesDir + "\rerun-report-int-tests-$normDir.txt"
-        $pinfo.Arguments = "--max-fails=20 --rerun-fails=2 --rerun-fails-max-failures=10 --rerun-fails-abort-on-data-race --rerun-fails-report=$rerunReportPath --format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- -coverprofile=$coverageFilePath -covermode=atomic -test.timeout=60m $env:INTEGRATION_TESTFLAGS"
+        $pinfo.Arguments = "--max-fails=20 --rerun-fails=2 --rerun-fails-max-failures=10 --rerun-fails-abort-on-data-race --rerun-fails-report=$rerunReportPath --format=standard-verbose --packages=./... --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- -coverprofile=$coverageFilePath -covermode=atomic -test.timeout=60m $env:INTEGRATION_TESTFLAGS"
         $p = New-Object System.Diagnostics.Process
         $p.StartInfo = $pinfo
         $p.Start() | Out-Null
