@@ -1,8 +1,8 @@
 package timestamp
 
 import (
+	"errors"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -88,11 +88,10 @@ func Parse(value string, reference time.Time) (time.Time, error) {
 		if strings.Contains(value, "-") {
 			return time.Time{}, err // was probably an RFC3339 like timestamp but the parser failed with an error
 		}
-		sec, nsec, err := parseTimestamp(value)
+		t, err = parseTimestamp(value)
 		if err != nil {
-			return time.Time{}, fmt.Errorf("failed to parse value as time or duration: %q", value)
+			return time.Time{}, fmt.Errorf("failed to parse value as time or duration: %w", err)
 		}
-		return time.Unix(sec, nsec), nil
 	}
 
 	return t.UTC(), nil
@@ -112,27 +111,53 @@ func ParseTimestamps(value string, defaultSeconds int64) (seconds int64, nanosec
 	if value == "" {
 		return defaultSeconds, 0, nil
 	}
-	s, n, err := parseTimestamp(value)
+	t, err := parseTimestamp(value)
 	if err != nil {
 		return 0, 0, fmt.Errorf("invalid timestamp %q: %w", value, err)
 	}
-	return s, n, nil
+	return t.Unix(), int64(t.Nanosecond()), nil
 }
 
-func parseTimestamp(value string) (seconds int64, nanoseconds int64, _ error) {
+func parseTimestamp(value string) (time.Time, error) {
 	s, n, ok := strings.Cut(value, ".")
 	sec, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return 0, 0, err
+		var numErr *strconv.NumError
+		if errors.As(err, &numErr) {
+			err = numErr.Err
+		}
+		return time.Time{}, fmt.Errorf("invalid seconds %q: %w", s, err)
 	}
-	if !ok || n == "0" || n == "" {
-		return sec, 0, nil
+	if !ok || n == "" || n == "000000000" || n == "0" {
+		// Fast path for "zero" nanoseconds
+		return time.Unix(sec, 0).UTC(), nil
+	}
+
+	// The documented format is 9 digits. Historically we allowed more and
+	// truncated to nanoseconds precision. Let's add some sensible limit;
+	// 20 digits would be a full uint64 value.
+	const maxFracDigits = 20
+	if len(n) > maxFracDigits {
+		return time.Time{}, fmt.Errorf("invalid nanoseconds: length %d exceeds maximum %d", len(n), maxFracDigits)
+	}
+
+	// Nanoseconds must be digits only (reject '+' / '-' and other junk).
+	for i := range len(n) {
+		if c := n[i]; c < '0' || c > '9' {
+			return time.Time{}, fmt.Errorf("invalid nanoseconds: invalid character %q at position %d", c, i)
+		}
+	}
+
+	// cap at 9 digits, or pad to 9 digits
+	if len(n) > 9 {
+		n = n[:9]
+	} else if len(n) < 9 {
+		n += strings.Repeat("0", 9-len(n))
 	}
 	nsec, err := strconv.ParseInt(n, 10, 64)
 	if err != nil {
-		return 0, 0, err
+		// this should never fail, but just in case
+		return time.Time{}, fmt.Errorf("invalid nanoseconds %q: %w", n, err)
 	}
-	// should already be in nanoseconds but just in case convert n to nanoseconds
-	nsec = int64(float64(nsec) * math.Pow(float64(10), float64(9-len(n))))
-	return sec, nsec, nil
+	return time.Unix(sec, nsec).UTC(), nil
 }

@@ -48,6 +48,8 @@ func TestParse(t *testing.T) {
 		// Unix timestamps
 		{in: "1136073600", expected: "2006-01-01T00:00:00Z"},
 		{in: "1136073600.000000001", expected: "2006-01-01T00:00:00.000000001Z"},
+		{in: "1136073600.00000000000000000001", expected: "2006-01-01T00:00:00Z"}, // max length
+		{in: "1136073600.000000000000000000001", expectedErr: true},               // too long
 
 		// Durations (relative to `now`)
 		{in: "-1m", expected: "2020-01-02T03:05:05.123456789Z"}, // welcome to the future ¯\_(ツ)_/¯
