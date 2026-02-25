@@ -193,13 +193,9 @@ func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
 	if len(untilFilters) > 1 {
 		return time.Time{}, errdefs.InvalidParameter(errors.New("more than one until filter specified"))
 	}
-	ts, err := timestamp.GetTimestamp(untilFilters[0], time.Now())
+	t, err := timestamp.Parse(untilFilters[0], time.Now())
 	if err != nil {
 		return time.Time{}, errdefs.InvalidParameter(fmt.Errorf("invalid value for 'until' filter: %w", err))
 	}
-	seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
-	if err != nil {
-		return time.Time{}, errdefs.InvalidParameter(fmt.Errorf("invalid value for 'until' filter: %w", err))
-	}
-	return time.Unix(seconds, nanoseconds), nil
+	return t, nil
 }

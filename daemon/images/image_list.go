@@ -62,17 +62,14 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 		return nil, err
 	}
 
+	now := time.Now()
 	err = opts.Filters.WalkValues("until", func(value string) error {
-		ts, err := timestamp.GetTimestamp(value, time.Now())
+		ts, err := timestamp.Parse(value, now)
 		if err != nil {
 			return errdefs.InvalidParameter(fmt.Errorf("invalid value for 'until' filter: %w", err))
 		}
-		seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
-		if err != nil {
-			return errdefs.InvalidParameter(fmt.Errorf("invalid value for 'until' filter: %w", err))
-		}
-		if tsUnix := time.Unix(seconds, nanoseconds); beforeFilter.IsZero() || beforeFilter.After(tsUnix) {
-			beforeFilter = tsUnix
+		if beforeFilter.IsZero() || beforeFilter.After(ts) {
+			beforeFilter = ts
 		}
 		return nil
 	})

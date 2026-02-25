@@ -601,20 +601,15 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		return nil, err
 	}
 
+	now := time.Now()
 	err = imageFilters.WalkValues("until", func(value string) error {
-		ts, err := timestamp.GetTimestamp(value, time.Now())
+		until, err := timestamp.Parse(value, now)
 		if err != nil {
 			return errdefs.InvalidParameter(fmt.Errorf("invalid value for 'until' filter: %w", err))
 		}
-		seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
-		if err != nil {
-			return errdefs.InvalidParameter(fmt.Errorf("invalid value for 'until' filter: %w", err))
-		}
-		until := time.Unix(seconds, nanoseconds)
 
 		fltrs = append(fltrs, func(image c8dimages.Image) bool {
-			created := image.CreatedAt
-			return created.Before(until)
+			return image.CreatedAt.Before(until)
 		})
 		return nil
 	})
