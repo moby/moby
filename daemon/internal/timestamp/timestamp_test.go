@@ -87,10 +87,9 @@ func TestParse(t *testing.T) {
 	}
 }
 
-func TestParseTimestamps(t *testing.T) {
+func TestParseUnixTimestamp(t *testing.T) {
 	tests := []struct {
 		in          string
-		def         int64
 		expectedS   int64
 		expectedN   int64
 		expectedErr bool
@@ -112,8 +111,8 @@ func TestParseTimestamps(t *testing.T) {
 		{in: ".0000000009", expectedErr: true},
 		{in: "1136073600.bar", expectedErr: true},
 
-		// default value
-		{in: "", def: -1, expectedS: -1, expectedN: 0},
+		// empty value
+		{in: ""},
 	}
 
 	for _, tc := range tests {
@@ -122,14 +121,18 @@ func TestParseTimestamps(t *testing.T) {
 			name = "<empty>"
 		}
 		t.Run(name, func(t *testing.T) {
-			s, n, err := timestamp.ParseTimestamps(tc.in, tc.def)
+			out, err := timestamp.ParseUnixTimestamp(tc.in)
 			if tc.expectedErr {
 				assert.Assert(t, err != nil, "expected error for %q, got none", tc.in)
 				return
 			}
 			assert.NilError(t, err)
-			assert.Check(t, is.Equal(s, tc.expectedS))
-			assert.Check(t, is.Equal(n, tc.expectedN))
+			if tc.in == "" {
+				assert.Assert(t, out.IsZero())
+				return
+			}
+			assert.Check(t, is.Equal(out.Unix(), tc.expectedS))
+			assert.Check(t, is.Equal(int64(out.Nanosecond()), tc.expectedN))
 		})
 	}
 }

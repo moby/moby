@@ -97,25 +97,30 @@ func Parse(value string, reference time.Time) (time.Time, error) {
 	return t.UTC(), nil
 }
 
-// ParseTimestamps returns seconds and nanoseconds from a timestamp that has
-// the format ("%d.%09d", time.Unix(), int64(time.Nanosecond())).
-// If the incoming nanosecond portion is longer than 9 digits it is truncated.
-// The expectation is that the seconds and nanoseconds will be used to create a
-// time variable.  For example:
+// ParseUnixTimestamp parses a UNIX timestamp with optional nanoseconds
+// and returns it as a [time.Time].
 //
-//	seconds, nanoseconds, _ := ParseTimestamp("1136073600.000000001",0)
-//	since := time.Unix(seconds, nanoseconds)
+// Value should be formatted as
 //
-// returns seconds as defaultSeconds if value == ""
-func ParseTimestamps(value string, defaultSeconds int64) (seconds int64, nanoseconds int64, _ error) {
+//	"%d.%09d"  (seconds.nanoseconds)
+//
+// It accepts either:
+//   - "seconds"
+//   - "seconds.nanoseconds"
+//
+// If the nanoseconds has less than 9 digits it is right-padded with zeros.
+// If it has more than 9 digits it is truncated.
+//
+// Empty values ("") produce a zero-value, with no error.
+func ParseUnixTimestamp(value string) (time.Time, error) {
 	if value == "" {
-		return defaultSeconds, 0, nil
+		return time.Time{}, nil
 	}
 	t, err := parseTimestamp(value)
 	if err != nil {
-		return 0, 0, fmt.Errorf("invalid timestamp %q: %w", value, err)
+		return time.Time{}, fmt.Errorf("invalid timestamp %q: %w", value, err)
 	}
-	return t.Unix(), int64(t.Nanosecond()), nil
+	return t, nil
 }
 
 func parseTimestamp(value string) (time.Time, error) {
@@ -128,7 +133,7 @@ func parseTimestamp(value string) (time.Time, error) {
 		}
 		return time.Time{}, fmt.Errorf("invalid seconds %q: %w", s, err)
 	}
-	if !ok || n == "0" {
+	if !ok || n == "0" || n == "" {
 		return time.Unix(sec, 0).UTC(), nil
 	}
 
