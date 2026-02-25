@@ -11,6 +11,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/server/httputils/logstream"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 // swarmLogs takes an http response, request, and selector, and writes the logs
@@ -23,7 +24,7 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *
 	// with the appropriate status code.
 	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
 	if !stdout && !stderr {
-		return errors.New("Bad parameters: you must choose at least one stream")
+		return errdefs.InvalidParameter(errors.New("must specify at least one of 'stdout' or 'stderr'"))
 	}
 
 	// there is probably a neater way to manufacture the LogsOptions
