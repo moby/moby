@@ -105,6 +105,7 @@ func TestParseTimestamps(t *testing.T) {
 	}{
 		// unix timestamps
 		{in: "1136073600", expectedS: 1136073600, expectedN: 0},
+		{in: "1136073600.", expectedS: 1136073600, expectedN: 0}, // allow empty nanoseconds
 		{in: "1136073600.0", expectedS: 1136073600, expectedN: 0},
 		{in: "1136073600.000000001", expectedS: 1136073600, expectedN: 1},
 		{in: "1136073600.0000000010", expectedS: 1136073600, expectedN: 1}, // truncates

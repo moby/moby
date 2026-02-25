@@ -1,6 +1,7 @@
 package timestamp
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -116,21 +117,33 @@ func ParseTimestamps(value string, defaultSeconds int64) (seconds int64, nanosec
 	if value == "" {
 		return defaultSeconds, 0, nil
 	}
-	return parseTimestamp(value)
+	s, n, err := parseTimestamp(value)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid timestamp %q: %w", value, err)
+	}
+	return s, n, nil
 }
 
 func parseTimestamp(value string) (seconds int64, nanoseconds int64, _ error) {
 	s, n, ok := strings.Cut(value, ".")
 	sec, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return sec, 0, err
+		var numErr *strconv.NumError
+		if errors.As(err, &numErr) {
+			err = numErr.Err
+		}
+		return 0, 0, fmt.Errorf("invalid seconds %q: %w", s, err)
 	}
-	if !ok {
+	if !ok || n == "0" || n == "" {
 		return sec, 0, nil
 	}
 	nsec, err := strconv.ParseInt(n, 10, 64)
 	if err != nil {
-		return sec, nsec, err
+		var numErr *strconv.NumError
+		if errors.As(err, &numErr) {
+			err = numErr.Err
+		}
+		return 0, 0, fmt.Errorf("invalid nanoseconds %q: %w", n, err)
 	}
 	// should already be in nanoseconds but just in case convert n to nanoseconds
 	nsec = int64(float64(nsec) * math.Pow(float64(10), float64(9-len(n))))
