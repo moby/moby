@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
@@ -20,6 +21,7 @@ import (
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/runconfig"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/internal/versions"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	networkSettings "github.com/moby/moby/v2/daemon/network"
@@ -191,12 +193,30 @@ func (c *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 		return errdefs.InvalidParameter(errors.New("must specify at least one of 'stdout' or 'stderr'"))
 	}
 
+	var since time.Time
+	if v := r.Form.Get("since"); v != "" {
+		var err error
+		since, err = timestamp.ParseUnixTimestamp(v)
+		if err != nil {
+			return errdefs.InvalidParameter(fmt.Errorf(`invalid value for "since": %w`, err))
+		}
+	}
+
+	var until time.Time
+	if v := r.Form.Get("until"); v != "" && v != "0" {
+		var err error
+		until, err = timestamp.ParseUnixTimestamp(v)
+		if err != nil {
+			return errdefs.InvalidParameter(fmt.Errorf(`invalid value for "until": %w`, err))
+		}
+	}
+
 	containerName := vars["name"]
 	logsConfig := &backend.ContainerLogsOptions{
 		Follow:     httputils.BoolValue(r, "follow"),
 		Timestamps: httputils.BoolValue(r, "timestamps"),
-		Since:      r.Form.Get("since"),
-		Until:      r.Form.Get("until"),
+		Since:      since,
+		Until:      until,
 		Tail:       r.Form.Get("tail"),
 		ShowStdout: stdout,
 		ShowStderr: stderr,

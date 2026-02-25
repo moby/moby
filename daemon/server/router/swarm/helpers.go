@@ -3,10 +3,13 @@ package swarm
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"time"
 
 	basictypes "github.com/moby/moby/api/types"
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/internal/versions"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
@@ -27,12 +30,21 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *
 		return errdefs.InvalidParameter(errors.New("must specify at least one of 'stdout' or 'stderr'"))
 	}
 
+	var since time.Time
+	if s := r.Form.Get("since"); s != "" {
+		var err error
+		since, err = timestamp.ParseUnixTimestamp(s)
+		if err != nil {
+			return errdefs.InvalidParameter(fmt.Errorf(`invalid value for "since": %w`, err))
+		}
+	}
+
 	// there is probably a neater way to manufacture the LogsOptions
 	// struct, probably in the caller, to eliminate the dependency on net/http
 	logsConfig := &backend.ContainerLogsOptions{
 		Follow:     httputils.BoolValue(r, "follow"),
 		Timestamps: httputils.BoolValue(r, "timestamps"),
-		Since:      r.Form.Get("since"),
+		Since:      since,
 		Tail:       r.Form.Get("tail"),
 		ShowStdout: stdout,
 		ShowStderr: stderr,
