@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
@@ -461,11 +460,10 @@ func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector
 	// get the since value - the time in the past we're looking at logs starting from
 	var sinceProto *gogotypes.Timestamp
 	if config.Since != "" {
-		s, n, err := timestamp.ParseTimestamps(config.Since, 0)
+		since, err := timestamp.ParseUnixTimestamp(config.Since)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not parse since timestamp")
 		}
-		since := time.Unix(s, n)
 		sinceProto, err = gogotypes.TimestampProto(since)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not parse timestamp to proto")

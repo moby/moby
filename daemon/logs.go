@@ -79,20 +79,18 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 
 	var since time.Time
 	if config.Since != "" {
-		s, n, err := timestamp.ParseTimestamps(config.Since, 0)
+		since, err = timestamp.ParseUnixTimestamp(config.Since)
 		if err != nil {
 			return nil, false, err
 		}
-		since = time.Unix(s, n)
 	}
 
 	var until time.Time
 	if config.Until != "" && config.Until != "0" {
-		s, n, err := timestamp.ParseTimestamps(config.Until, 0)
+		until, err = timestamp.ParseUnixTimestamp(config.Until)
 		if err != nil {
 			return nil, false, err
 		}
-		until = time.Unix(s, n)
 	}
 
 	follow := config.Follow && !cLogCreated
