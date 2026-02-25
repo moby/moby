@@ -15,6 +15,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/containerd/identitycache"
 	daemonevents "github.com/moby/moby/v2/daemon/events"
 	dimages "github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/distribution"
@@ -42,6 +43,7 @@ type ImageService struct {
 	refCountMounter     snapshotter.Mounter
 	idMapping           user.IdentityMapping
 	policyVerifier      func() (*policyverifier.Verifier, error)
+	identity            imageIdentityState
 
 	// defaultPlatformOverride is used in tests to override the host platform.
 	defaultPlatformOverride platforms.MatchComparer
@@ -51,6 +53,7 @@ type ImageServiceConfig struct {
 	Client                 *containerd.Client
 	Containers             container.Store
 	Snapshotter            string
+	IdentityCacheBackend   identitycache.Backend
 	RegistryHosts          docker.RegistryHosts
 	Registry               distribution.RegistryResolver
 	EventsService          *daemonevents.Events
@@ -76,6 +79,15 @@ func NewService(config ImageServiceConfig) *ImageService {
 		refCountMounter: config.RefCountMounter,
 		idMapping:       config.IDMapping,
 		policyVerifier:  config.PolicyVerifierProvider,
+		identity: imageIdentityState{
+			cache: make(map[string]imageIdentityCacheEntry),
+			cacheStore: func() identitycache.Backend {
+				if config.IdentityCacheBackend != nil {
+					return config.IdentityCacheBackend
+				}
+				return identitycache.NewNopBackend()
+			}(),
+		},
 	}
 }
 
@@ -132,6 +144,9 @@ func (i *ImageService) GetLayerMountID(cid string) (string, error) {
 // Cleanup resources before the process is shutdown.
 // called from daemon.go Daemon.Shutdown()
 func (i *ImageService) Cleanup() error {
+	if i.identity.cacheStore != nil {
+		return i.identity.cacheStore.Close()
+	}
 	return nil
 }
 
