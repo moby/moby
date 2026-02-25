@@ -188,7 +188,7 @@ func (c *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	// with the appropriate status code.
 	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
 	if !stdout && !stderr {
-		return errdefs.InvalidParameter(errors.New("Bad parameters: you must choose at least one stream"))
+		return errdefs.InvalidParameter(errors.New("must specify at least one of 'stdout' or 'stderr'"))
 	}
 
 	containerName := vars["name"]
