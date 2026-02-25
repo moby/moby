@@ -133,6 +133,9 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 			return nil, nil, errors.Errorf("number of platforms does not match references %d %d", len(ps.Platforms), len(inp.Refs))
 		}
 		config = inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, ps.Platforms[0].ID)]
+		if len(config) == 0 {
+			config = inp.Metadata[exptypes.ExporterImageConfigKey]
+		}
 	}
 
 	var diffs []digest.Digest

@@ -57,7 +57,7 @@ func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, erro
 			if tp != nil {
 				p = *tp
 			} else {
-				p = platforms.DefaultSpec()
+				p = img.Platform
 			}
 			expPlat := makeExportPlatform(p, img.Platform)
 			if bc.MultiPlatformRequested {

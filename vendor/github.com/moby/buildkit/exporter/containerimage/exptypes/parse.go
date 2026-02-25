@@ -3,6 +3,7 @@ package exptypes
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/containerd/platforms"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -33,7 +34,19 @@ func ParsePlatforms(meta map[string][]byte) (Platforms, error) {
 	}
 
 	var p ocispecs.Platform
-	if imgConfig, ok := meta[ExporterImageConfigKey]; ok {
+	var imgConfig []byte
+	if c, ok := meta[ExporterImageConfigKey]; ok {
+		imgConfig = c
+	} else {
+		for k, v := range meta {
+			if len(v) > 0 && strings.HasPrefix(k, ExporterImageConfigKey+"/") {
+				imgConfig = v
+				break
+			}
+		}
+	}
+
+	if len(imgConfig) > 0 {
 		var img ocispecs.Image
 		err := json.Unmarshal(imgConfig, &img)
 		if err != nil {
