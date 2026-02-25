@@ -1,8 +1,6 @@
 package timestamp_test
 
 import (
-	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
@@ -11,7 +9,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestGetTimestamp(t *testing.T) {
+func TestParse(t *testing.T) {
 	now := time.Date(2020, 1, 2, 3, 4, 5, 123456789, time.UTC)
 	tests := []struct {
 		in          string
@@ -70,26 +68,20 @@ func TestGetTimestamp(t *testing.T) {
 			name = "<empty>"
 		}
 		t.Run(name, func(t *testing.T) {
-			out, err := timestamp.GetTimestamp(tc.in, now)
+			out, err := timestamp.Parse(tc.in, now)
 			if tc.expectedErr {
 				assert.Assert(t, err != nil, "expected error for %q, got none", tc.in)
 				return
 			}
 			assert.NilError(t, err)
 
-			exp, err := time.Parse(time.RFC3339Nano, tc.expected)
+			want, err := time.Parse(time.RFC3339Nano, tc.expected)
 			assert.NilError(t, err, "invalid expected value")
 
-			var want string
-			if exp.Nanosecond() == 0 {
-				want = strconv.FormatInt(exp.Unix(), 10)
-			} else {
-				want = fmt.Sprintf("%d.%09d", exp.Unix(), exp.Nanosecond())
-			}
-			assert.Assert(t, out == want,
+			assert.Assert(t, out.Equal(want),
 				"expected: %s\ngot:      %s",
-				want,
-				out,
+				want.Format(time.RFC3339Nano),
+				out.Format(time.RFC3339Nano),
 			)
 		})
 	}

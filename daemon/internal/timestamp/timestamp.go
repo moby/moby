@@ -18,19 +18,17 @@ const (
 	dateLocal        = "2006-01-02"                    // RFC3339 with local timezone and time at 00:00:00
 )
 
-// GetTimestamp tries to parse given string as golang duration,
-// then RFC3339 time and finally as a Unix timestamp. If
-// any of these were successful, it returns a Unix timestamp
-// as string otherwise returns the given value back.
-// In case of duration input, the returned timestamp is computed
-// as the given reference time minus the amount of the duration.
-func GetTimestamp(value string, reference time.Time) (string, error) {
+// Parse tries to parse given string as golang duration, then RFC3339 time and
+// finally as a Unix timestamp. The returned time is normalized to UTC.
+//
+// In case of duration input, the returned timestamp is computed as the given
+// reference time minus the amount of the duration.
+func Parse(value string, reference time.Time) (time.Time, error) {
+	if strings.TrimSpace(value) == "" {
+		return time.Time{}, errors.New("failed to parse value as time or duration: value is empty")
+	}
 	if d, err := time.ParseDuration(value); value != "0" && err == nil {
-		t := reference.Add(-d)
-		if t.Nanosecond() == 0 {
-			return strconv.FormatInt(t.Unix(), 10), nil
-		}
-		return fmt.Sprintf("%d.%09d", t.Unix(), t.Nanosecond()), nil
+		return reference.Add(-d).UTC(), nil
 	}
 
 	var format string
@@ -89,18 +87,16 @@ func GetTimestamp(value string, reference time.Time) (string, error) {
 	if err != nil {
 		// if there is a `-` then it's an RFC3339 like timestamp
 		if strings.Contains(value, "-") {
-			return "", err // was probably an RFC3339 like timestamp but the parser failed with an error
+			return time.Time{}, err // was probably an RFC3339 like timestamp but the parser failed with an error
 		}
-		if _, _, err := parseTimestamp(value); err != nil {
-			return "", fmt.Errorf("failed to parse value as time or duration: %q", value)
+		sec, nsec, err := parseTimestamp(value)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("failed to parse value as time or duration: %q", value)
 		}
-		return value, nil // unix timestamp in and out case (meaning: the value passed at the command line is already in the right format for passing to the server)
+		return time.Unix(sec, nsec), nil
 	}
 
-	if t.Nanosecond() == 0 {
-		return strconv.FormatInt(t.Unix(), 10), nil
-	}
-	return fmt.Sprintf("%d.%09d", t.Unix(), t.Nanosecond()), nil
+	return t.UTC(), nil
 }
 
 // ParseTimestamps returns seconds and nanoseconds from a timestamp that has
