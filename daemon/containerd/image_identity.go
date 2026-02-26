@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -33,6 +35,11 @@ const (
 	imageIdentityCacheTTL      = 48 * time.Hour
 	imageIdentityErrorCacheTTL = 15 * time.Minute
 	imageIdentityWarmupTimeout = 2 * time.Minute
+
+	imageIdentityRefreshConcurrency = 4
+	imageIdentityRefreshTimeout     = 2 * time.Minute
+	imageIdentityRefreshInterval    = 30 * time.Minute
+	imageIdentityRefreshAhead       = imageIdentityRefreshInterval + imageIdentityRefreshTimeout
 )
 
 type imageIdentityCacheEntry = identitycache.Entry
@@ -42,6 +49,10 @@ type imageIdentityState struct {
 	cacheMu    sync.Mutex
 	cache      map[string]imageIdentityCacheEntry
 	cacheStore identitycache.Backend
+
+	stopRefreshOnce sync.Once
+	stopRefresh     chan struct{}
+	refreshDone     chan struct{}
 }
 
 func (i *ImageService) imageIdentity(ctx context.Context, desc ocispec.Descriptor, multi *multiPlatformSummary) (*imagetypes.Identity, error) {
@@ -74,16 +85,7 @@ func (i *ImageService) imageIdentityWithCachePolicy(ctx context.Context, desc oc
 			}
 
 			computedSignature, hasTransientVerificationError := i.computeSignatureIdentity(ctx, desc, multi)
-			ttl := imageIdentityCacheTTL
-			if hasTransientVerificationError {
-				// signature verification errors can be temporary (e.g. no network),
-				// so cache these for a shorter period
-				ttl = imageIdentityErrorCacheTTL
-			}
-			if err := i.updateImageIdentityCache(ctx, cacheKey, computedSignature, ttl); err != nil {
-				log.G(ctx).WithError(err).WithField("image", desc.Digest).Debug("failed to update image identity cache entry")
-			}
-
+			computedSignature = i.cacheComputedSignatureIdentity(ctx, cacheKey, desc, computedSignature, hasTransientVerificationError)
 			return computedSignature, nil
 		})
 		if err != nil {
@@ -292,6 +294,19 @@ func (i *ImageService) updateImageIdentityCache(ctx context.Context, cacheKey st
 	return i.identity.cacheStore.Store(ctx, cacheKey, entry, now)
 }
 
+func (i *ImageService) cacheComputedSignatureIdentity(ctx context.Context, cacheKey string, desc ocispec.Descriptor, computedSignature *imagetypes.SignatureIdentity, hasTransientVerificationError bool) *imagetypes.SignatureIdentity {
+	ttl := imageIdentityCacheTTL
+	if hasTransientVerificationError {
+		// signature verification errors can be temporary (e.g. no network),
+		// so cache these for a shorter period
+		ttl = imageIdentityErrorCacheTTL
+	}
+	if err := i.updateImageIdentityCache(ctx, cacheKey, computedSignature, ttl); err != nil {
+		log.G(ctx).WithError(err).WithField("image", desc.Digest).Debug("failed to update image identity cache entry")
+	}
+	return computedSignature
+}
+
 func cloneSignatureIdentity(s *imagetypes.SignatureIdentity) *imagetypes.SignatureIdentity {
 	if s == nil {
 		return nil
@@ -312,6 +327,211 @@ func pruneImageIdentityCacheEntries(entries map[string]imageIdentityCacheEntry, 
 			delete(entries, key)
 		}
 	}
+}
+
+func imageIdentityCacheEntryNeedsRefresh(entry imageIdentityCacheEntry, now time.Time) bool {
+	if entry.ExpiresAt.IsZero() {
+		return false
+	}
+	return !entry.ExpiresAt.After(now.Add(imageIdentityRefreshAhead))
+}
+
+func (i *ImageService) imageIdentityCacheKeysToRefresh(ctx context.Context, now time.Time) ([]string, error) {
+	seen := map[string]struct{}{}
+
+	i.identity.cacheMu.Lock()
+	for key, entry := range i.identity.cache {
+		if imageIdentityCacheEntryNeedsRefresh(entry, now) {
+			seen[key] = struct{}{}
+		}
+	}
+	i.identity.cacheMu.Unlock()
+
+	if i.identity.cacheStore != nil {
+		if err := i.identity.cacheStore.Walk(ctx, now, func(cacheKey string, entry imageIdentityCacheEntry) error {
+			if imageIdentityCacheEntryNeedsRefresh(entry, now) {
+				seen[cacheKey] = struct{}{}
+			}
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+	}
+
+	out := make([]string, 0, len(seen))
+	for key := range seen {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+func (i *ImageService) refreshImageIdentityCache(ctx context.Context, now time.Time) {
+	keys, err := i.imageIdentityCacheKeysToRefresh(ctx, now)
+	if err != nil {
+		log.G(ctx).WithError(err).Debug("failed to list image identity cache refresh candidates")
+		return
+	}
+	if len(keys) == 0 {
+		return
+	}
+
+	var g errgroup.Group
+	g.SetLimit(imageIdentityRefreshConcurrency)
+	for _, key := range keys {
+		g.Go(func() error {
+			if err := i.refreshImageIdentityCacheKey(ctx, key); err != nil {
+				log.G(ctx).WithError(err).WithField("cacheKey", key).Debug("failed to refresh image identity cache entry")
+			}
+			return nil
+		})
+	}
+	_ = g.Wait()
+}
+
+func (i *ImageService) pruneImageIdentityInMemoryCacheEntries(now time.Time) {
+	i.identity.cacheMu.Lock()
+	pruneImageIdentityCacheEntries(i.identity.cache, now)
+	i.identity.cacheMu.Unlock()
+}
+
+func (i *ImageService) pruneImageIdentityCacheStore(ctx context.Context, now time.Time) {
+	if i.identity.cacheStore == nil {
+		return
+	}
+	if err := i.identity.cacheStore.PruneExpired(ctx, now); err != nil {
+		log.G(ctx).WithError(err).Debug("failed to prune expired image identity cache entries")
+	}
+}
+
+func (i *ImageService) runImageIdentityCacheMaintenance(ctx context.Context, now time.Time) {
+	i.refreshImageIdentityCache(ctx, now)
+	i.pruneImageIdentityInMemoryCacheEntries(now)
+	i.pruneImageIdentityCacheStore(ctx, now)
+}
+
+func (i *ImageService) refreshImageIdentityCacheKey(ctx context.Context, cacheKey string) error {
+	imageDigest, bestDigest, bestPlatform, err := parseImageIdentityCacheKey(cacheKey)
+	if err != nil {
+		return err
+	}
+
+	imgs, err := i.images.List(ctx, "target.digest=="+imageDigest.String())
+	if err != nil {
+		return err
+	}
+	if len(imgs) == 0 {
+		return nil
+	}
+
+	platformMatcher, err := imageIdentityPlatformMatcher(bestPlatform)
+	if err != nil {
+		return err
+	}
+
+	for _, img := range imgs {
+		multi, err := i.multiPlatformSummary(ctx, img, platformMatcher)
+		if err != nil {
+			continue
+		}
+		if multi.Best == nil {
+			continue
+		}
+		if bestDigest != "" && multi.Best.Target().Digest != bestDigest {
+			continue
+		}
+		computedSignature, hasTransientVerificationError := i.computeSignatureIdentity(ctx, img.Target, multi)
+		_ = i.cacheComputedSignatureIdentity(ctx, cacheKey, img.Target, computedSignature, hasTransientVerificationError)
+		return nil
+	}
+
+	return nil
+}
+
+func imageIdentityPlatformMatcher(platform string) (platforms.MatchComparer, error) {
+	if platform == "" {
+		return matchAnyWithPreference(platforms.Default(), nil), nil
+	}
+	parsed, err := platforms.Parse(platform)
+	if err != nil {
+		return nil, err
+	}
+	return platforms.Only(parsed), nil
+}
+
+func parseImageIdentityCacheKey(cacheKey string) (digest.Digest, digest.Digest, string, error) {
+	parts := strings.Split(cacheKey, "|")
+	if len(parts) != 3 {
+		return "", "", "", errors.Errorf("invalid image identity cache key %q", cacheKey)
+	}
+
+	imageDigest, err := digest.Parse(parts[0])
+	if err != nil {
+		return "", "", "", errors.Wrapf(err, "invalid image digest in image identity cache key %q", cacheKey)
+	}
+
+	var bestDigest digest.Digest
+	if parts[1] != "" {
+		bestDigest, err = digest.Parse(parts[1])
+		if err != nil {
+			return "", "", "", errors.Wrapf(err, "invalid best digest in image identity cache key %q", cacheKey)
+		}
+	}
+
+	return imageDigest, bestDigest, parts[2], nil
+}
+
+func (i *ImageService) startImageIdentityCacheRefresh() {
+	i.identity.cacheMu.Lock()
+	if i.identity.stopRefresh != nil {
+		i.identity.cacheMu.Unlock()
+		return
+	}
+	i.identity.stopRefresh = make(chan struct{})
+	i.identity.refreshDone = make(chan struct{})
+	stopCh := i.identity.stopRefresh
+	doneCh := i.identity.refreshDone
+	i.identity.cacheMu.Unlock()
+
+	go func() {
+		defer close(doneCh)
+		runMaintenance := func() {
+			now := time.Now()
+
+			maintenanceCtx, cancel := context.WithTimeout(context.Background(), imageIdentityRefreshTimeout)
+			defer cancel()
+			i.runImageIdentityCacheMaintenance(maintenanceCtx, now)
+		}
+
+		// Run one pass right after startup to refresh expired entries and prune stale ones.
+		runMaintenance()
+
+		timer := time.NewTicker(imageIdentityRefreshInterval)
+		defer timer.Stop()
+		for {
+			select {
+			case <-stopCh:
+				return
+			case <-timer.C:
+				runMaintenance()
+			}
+		}
+	}()
+}
+
+func (i *ImageService) stopImageIdentityCacheRefresh() {
+	i.identity.stopRefreshOnce.Do(func() {
+		i.identity.cacheMu.Lock()
+		stopCh := i.identity.stopRefresh
+		doneCh := i.identity.refreshDone
+		i.identity.cacheMu.Unlock()
+		if stopCh != nil {
+			close(stopCh)
+		}
+		if doneCh != nil {
+			<-doneCh
+		}
+	})
 }
 
 func (i *ImageService) warmImageIdentityCache(ctx context.Context, img c8dimages.Image) {

@@ -17,9 +17,11 @@ import (
 	"github.com/containerd/containerd/v2/pkg/labels"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/plugins/content/local"
+	"github.com/containerd/platforms"
 	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/daemon/containerd/identitycache"
 	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter"
+	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	bolt "go.etcd.io/bbolt"
@@ -206,6 +208,79 @@ func TestImageIdentityCachePersistsAcrossRestart(t *testing.T) {
 		t.Fatal("expected cached signature identity after restart")
 	}
 	assert.Check(t, is.Equal(res.Name, "persisted"))
+}
+
+func TestImageIdentityCacheKeysToRefresh(t *testing.T) {
+	ctx := namespaces.WithNamespace(t.Context(), "testing-"+t.Name())
+	now := time.Now().UTC()
+
+	service := &ImageService{
+		identity: imageIdentityState{
+			cache: map[string]imageIdentityCacheEntry{
+				"expired": {
+					CachedAt:  now.Add(-2 * time.Hour),
+					ExpiresAt: now.Add(-time.Minute),
+				},
+				"near": {
+					CachedAt:  now.Add(-time.Hour),
+					ExpiresAt: now.Add(imageIdentityRefreshAhead / 2),
+				},
+				"fresh": {
+					CachedAt:  now.Add(-time.Minute),
+					ExpiresAt: now.Add(imageIdentityRefreshAhead + time.Hour),
+				},
+			},
+		},
+	}
+
+	keys, err := service.imageIdentityCacheKeysToRefresh(ctx, now)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(keys, []string{"expired", "near"}))
+}
+
+func TestRefreshImageIdentityCacheUpdatesExpiredPersistedEntry(t *testing.T) {
+	ctx := namespaces.WithNamespace(t.Context(), "testing-"+t.Name())
+
+	blobsDir := t.TempDir()
+	idx, err := specialimage.MultiLayer(blobsDir)
+	assert.NilError(t, err)
+
+	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
+	service := fakeImageService(t, ctx, cs)
+
+	img, err := service.images.Create(ctx, imagesFromIndex(idx)[0])
+	assert.NilError(t, err)
+
+	backend, err := identitycache.NewBoltDBBackend(t.TempDir())
+	assert.NilError(t, err)
+	defer backend.Close()
+
+	service.identity.cacheStore = backend
+	service.identity.cache = map[string]imageIdentityCacheEntry{}
+
+	multi, err := service.multiPlatformSummary(ctx, img, matchAnyWithPreference(platforms.Default(), nil))
+	assert.NilError(t, err)
+	if multi.Best == nil {
+		t.Fatal("expected best manifest for test image")
+	}
+
+	key := imageIdentityCacheKey(img.Target.Digest.String(), multi.Best.Target().Digest.String(), platforms.FormatAll(multi.BestPlatform))
+	now := time.Now().UTC()
+	assert.NilError(t, backend.Store(ctx, key, imageIdentityCacheEntry{
+		CachedAt:  now.Add(-2 * time.Hour),
+		ExpiresAt: now.Add(-time.Minute),
+	}, now))
+
+	_, ok, err := backend.Load(ctx, key, now)
+	assert.NilError(t, err)
+	assert.Check(t, !ok)
+
+	service.refreshImageIdentityCache(ctx, now)
+
+	refreshed, ok, err := backend.Load(ctx, key, now)
+	assert.NilError(t, err)
+	assert.Check(t, ok)
+	assert.Check(t, refreshed.ExpiresAt.After(now))
 }
 
 type timeoutNetError struct{}

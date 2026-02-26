@@ -64,7 +64,7 @@ type ImageServiceConfig struct {
 
 // NewService creates a new ImageService.
 func NewService(config ImageServiceConfig) *ImageService {
-	return &ImageService{
+	service := &ImageService{
 		client:  config.Client,
 		images:  config.Client.ImageService(),
 		content: config.Client.ContentStore(),
@@ -89,6 +89,8 @@ func NewService(config ImageServiceConfig) *ImageService {
 			}(),
 		},
 	}
+	service.startImageIdentityCacheRefresh()
+	return service
 }
 
 func (i *ImageService) snapshotterService(snapshotter string) snapshots.Snapshotter {
@@ -144,6 +146,7 @@ func (i *ImageService) GetLayerMountID(cid string) (string, error) {
 // Cleanup resources before the process is shutdown.
 // called from daemon.go Daemon.Shutdown()
 func (i *ImageService) Cleanup() error {
+	i.stopImageIdentityCacheRefresh()
 	if i.identity.cacheStore != nil {
 		return i.identity.cacheStore.Close()
 	}
