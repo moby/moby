@@ -25,7 +25,11 @@ const (
 // as the given reference time minus the amount of the duration.
 func GetTimestamp(value string, reference time.Time) (string, error) {
 	if d, err := time.ParseDuration(value); value != "0" && err == nil {
-		return strconv.FormatInt(reference.Add(-d).Unix(), 10), nil
+		t := reference.Add(-d)
+		if t.Nanosecond() == 0 {
+			return strconv.FormatInt(t.Unix(), 10), nil
+		}
+		return fmt.Sprintf("%d.%09d", t.Unix(), t.Nanosecond()), nil
 	}
 
 	var format string
@@ -92,7 +96,10 @@ func GetTimestamp(value string, reference time.Time) (string, error) {
 		return value, nil // unix timestamp in and out case (meaning: the value passed at the command line is already in the right format for passing to the server)
 	}
 
-	return fmt.Sprintf("%d.%09d", t.Unix(), int64(t.Nanosecond())), nil
+	if t.Nanosecond() == 0 {
+		return strconv.FormatInt(t.Unix(), 10), nil
+	}
+	return fmt.Sprintf("%d.%09d", t.Unix(), t.Nanosecond()), nil
 }
 
 // ParseTimestamps returns seconds and nanoseconds from a timestamp that has
