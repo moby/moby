@@ -1,8 +1,8 @@
 package timestamp
 
 import (
+	"errors"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -17,15 +17,17 @@ const (
 	dateLocal        = "2006-01-02"                    // RFC3339 with local timezone and time at 00:00:00
 )
 
-// GetTimestamp tries to parse given string as golang duration,
-// then RFC3339 time and finally as a Unix timestamp. If
-// any of these were successful, it returns a Unix timestamp
-// as string otherwise returns the given value back.
-// In case of duration input, the returned timestamp is computed
-// as the given reference time minus the amount of the duration.
-func GetTimestamp(value string, reference time.Time) (string, error) {
+// Parse tries to parse given string as golang duration, then RFC3339 time and
+// finally as a Unix timestamp. The returned time is normalized to UTC.
+//
+// In case of duration input, the returned timestamp is computed as the given
+// reference time minus the amount of the duration.
+func Parse(value string, reference time.Time) (time.Time, error) {
+	if strings.TrimSpace(value) == "" {
+		return time.Time{}, errors.New("failed to parse value as time or duration: value is empty")
+	}
 	if d, err := time.ParseDuration(value); value != "0" && err == nil {
-		return strconv.FormatInt(reference.Add(-d).Unix(), 10), nil
+		return reference.Add(-d).UTC(), nil
 	}
 
 	var format string
@@ -84,48 +86,70 @@ func GetTimestamp(value string, reference time.Time) (string, error) {
 	if err != nil {
 		// if there is a `-` then it's an RFC3339 like timestamp
 		if strings.Contains(value, "-") {
-			return "", err // was probably an RFC3339 like timestamp but the parser failed with an error
+			return time.Time{}, err // was probably an RFC3339 like timestamp but the parser failed with an error
 		}
-		if _, _, err := parseTimestamp(value); err != nil {
-			return "", fmt.Errorf("failed to parse value as time or duration: %q", value)
+		t, err = parseTimestamp(value)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("failed to parse value as time or duration: %q", value)
 		}
-		return value, nil // unix timestamp in and out case (meaning: the value passed at the command line is already in the right format for passing to the server)
 	}
 
-	return fmt.Sprintf("%d.%09d", t.Unix(), int64(t.Nanosecond())), nil
+	return t.UTC(), nil
 }
 
-// ParseTimestamps returns seconds and nanoseconds from a timestamp that has
-// the format ("%d.%09d", time.Unix(), int64(time.Nanosecond())).
-// If the incoming nanosecond portion is longer than 9 digits it is truncated.
-// The expectation is that the seconds and nanoseconds will be used to create a
-// time variable.  For example:
+// ParseUnixTimestamp parses a UNIX timestamp with optional nanoseconds
+// and returns it as a [time.Time].
 //
-//	seconds, nanoseconds, _ := ParseTimestamp("1136073600.000000001",0)
-//	since := time.Unix(seconds, nanoseconds)
+// Value should be formatted as
 //
-// returns seconds as defaultSeconds if value == ""
-func ParseTimestamps(value string, defaultSeconds int64) (seconds int64, nanoseconds int64, _ error) {
+//	"%d.%09d"  (seconds.nanoseconds)
+//
+// It accepts either:
+//   - "seconds"
+//   - "seconds.nanoseconds"
+//
+// If the nanoseconds has less than 9 digits it is right-padded with zeros.
+// If it has more than 9 digits it is truncated.
+//
+// Empty values ("") produce a zero-value, with no error.
+func ParseUnixTimestamp(value string) (time.Time, error) {
 	if value == "" {
-		return defaultSeconds, 0, nil
+		return time.Time{}, nil
 	}
-	return parseTimestamp(value)
+	t, err := parseTimestamp(value)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid timestamp %q: %w", value, err)
+	}
+	return t, nil
 }
 
-func parseTimestamp(value string) (seconds int64, nanoseconds int64, _ error) {
+func parseTimestamp(value string) (time.Time, error) {
 	s, n, ok := strings.Cut(value, ".")
 	sec, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return sec, 0, err
+		var numErr *strconv.NumError
+		if errors.As(err, &numErr) {
+			err = numErr.Err
+		}
+		return time.Time{}, fmt.Errorf("invalid seconds %q: %w", s, err)
 	}
-	if !ok {
-		return sec, 0, nil
+	if !ok || n == "0" || n == "" {
+		return time.Unix(sec, 0).UTC(), nil
+	}
+
+	// Truncate to 9 digits; right-pad if shorter.
+	if len(n) > 9 {
+		n = n[:9]
+	} else if len(n) < 9 {
+		n += strings.Repeat("0", 9-len(n))
 	}
 	nsec, err := strconv.ParseInt(n, 10, 64)
 	if err != nil {
-		return sec, nsec, err
+		var numErr *strconv.NumError
+		if errors.As(err, &numErr) {
+			err = numErr.Err
+		}
+		return time.Time{}, fmt.Errorf("invalid nanoseconds %q: %w", n, err)
 	}
-	// should already be in nanoseconds but just in case convert n to nanoseconds
-	nsec = int64(float64(nsec) * math.Pow(float64(10), float64(9-len(n))))
-	return sec, nsec, nil
+	return time.Unix(sec, nsec).UTC(), nil
 }

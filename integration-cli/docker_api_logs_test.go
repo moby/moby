@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
@@ -63,7 +64,8 @@ func (s *DockerAPISuite) TestLogsAPINoStdoutNorStderr(c *testing.T) {
 	defer apiClient.Close()
 
 	_, err = apiClient.ContainerLogs(testutil.GetContext(c), name, client.ContainerLogsOptions{})
-	assert.ErrorContains(c, err, "Bad parameters: you must choose at least one stream")
+	assert.ErrorType(c, err, cerrdefs.IsInvalidArgument)
+	assert.ErrorContains(c, err, "must specify at least one of 'stdout' or 'stderr'")
 }
 
 // Regression test for #12704

@@ -185,22 +185,16 @@ func matchLabels(pruneFilters filters.Args, labels map[string]string) bool {
 }
 
 func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
-	until := time.Time{}
 	if !pruneFilters.Contains("until") {
-		return until, nil
+		return time.Time{}, nil
 	}
 	untilFilters := pruneFilters.Get("until")
 	if len(untilFilters) > 1 {
-		return until, errors.New("more than one until filter specified")
+		return time.Time{}, errdefs.InvalidParameter(errors.New("more than one until filter specified"))
 	}
-	ts, err := timestamp.GetTimestamp(untilFilters[0], time.Now())
+	t, err := timestamp.Parse(untilFilters[0], time.Now())
 	if err != nil {
-		return until, err
+		return time.Time{}, errdefs.InvalidParameter(err)
 	}
-	seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
-	if err != nil {
-		return until, err
-	}
-	until = time.Unix(seconds, nanoseconds)
-	return until, nil
+	return t, nil
 }

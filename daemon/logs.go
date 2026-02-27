@@ -3,14 +3,12 @@ package daemon
 import (
 	"context"
 	"strconv"
-	"time"
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
-	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/logger"
 	logcache "github.com/moby/moby/v2/daemon/logger/loggerutils/cache"
 	"github.com/moby/moby/v2/daemon/server/backend"
@@ -77,28 +75,10 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		tailLines = -1
 	}
 
-	var since time.Time
-	if config.Since != "" {
-		s, n, err := timestamp.ParseTimestamps(config.Since, 0)
-		if err != nil {
-			return nil, false, err
-		}
-		since = time.Unix(s, n)
-	}
-
-	var until time.Time
-	if config.Until != "" && config.Until != "0" {
-		s, n, err := timestamp.ParseTimestamps(config.Until, 0)
-		if err != nil {
-			return nil, false, err
-		}
-		until = time.Unix(s, n)
-	}
-
 	follow := config.Follow && !cLogCreated
 	logs := logReader.ReadLogs(ctx, logger.ReadConfig{
-		Since:  since,
-		Until:  until,
+		Since:  config.Since,
+		Until:  config.Until,
 		Tail:   tailLines,
 		Follow: follow,
 	})

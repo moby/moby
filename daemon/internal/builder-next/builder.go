@@ -674,20 +674,13 @@ func toBuildkitPruneInfo(opts buildbackend.CachePruneOptions) (client.PruneInfo,
 	case 0:
 		// nothing to do
 	case 1:
-		ts, err := timestamp.GetTimestamp(untilValues[0], time.Now())
+		parsed, err := timestamp.Parse(untilValues[0], time.Now())
 		if err != nil {
 			return client.PruneInfo{}, errInvalidFilterValue{
 				errors.Wrapf(err, "%q filter expects a duration (e.g., '24h') or a timestamp", filterKey),
 			}
 		}
-		seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
-		if err != nil {
-			return client.PruneInfo{}, errInvalidFilterValue{
-				errors.Wrapf(err, "failed to parse timestamp %q", ts),
-			}
-		}
-
-		until = time.Since(time.Unix(seconds, nanoseconds))
+		until = time.Since(parsed)
 	default:
 		return client.PruneInfo{}, errMultipleFilterValues{}
 	}

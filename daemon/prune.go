@@ -205,24 +205,18 @@ func (daemon *Daemon) NetworkPrune(ctx context.Context, filterArgs filters.Args)
 }
 
 func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
-	until := time.Time{}
 	if !pruneFilters.Contains("until") {
-		return until, nil
+		return time.Time{}, nil
 	}
 	untilFilters := pruneFilters.Get("until")
 	if len(untilFilters) > 1 {
-		return until, errdefs.InvalidParameter(errors.New("more than one until filter specified"))
+		return time.Time{}, errdefs.InvalidParameter(errors.New("more than one until filter specified"))
 	}
-	ts, err := timestamp.GetTimestamp(untilFilters[0], time.Now())
+	t, err := timestamp.Parse(untilFilters[0], time.Now())
 	if err != nil {
-		return until, errdefs.InvalidParameter(err)
+		return time.Time{}, errdefs.InvalidParameter(err)
 	}
-	seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
-	if err != nil {
-		return until, errdefs.InvalidParameter(err)
-	}
-	until = time.Unix(seconds, nanoseconds)
-	return until, nil
+	return t, nil
 }
 
 func matchLabels(pruneFilters filters.Args, labels map[string]string) bool {
