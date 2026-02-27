@@ -60,6 +60,9 @@ func (s *Server) makeHTTPHandler(r router.Route) http.HandlerFunc {
 			vars = make(map[string]string)
 		}
 
+		// Close the body when the context is done
+		context.AfterFunc(ctx, func() { r.Body.Close() })
+
 		if err := handlerFunc(ctx, w, r, vars); err != nil {
 			statusCode := httpstatus.FromError(err)
 			if statusCode >= http.StatusInternalServerError {
