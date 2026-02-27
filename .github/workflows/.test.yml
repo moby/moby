@@ -82,7 +82,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: test-reports-docker-py-${{ inputs.storage }}
           path: /tmp/reports/*
@@ -250,7 +250,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: test-reports-integration-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
@@ -272,7 +272,7 @@ jobs:
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: /tmp/reports
           pattern: test-reports-integration-${{ inputs.storage }}-*
@@ -466,7 +466,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
@@ -488,7 +488,7 @@ jobs:
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: /tmp/reports
           pattern: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-*

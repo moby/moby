@@ -87,7 +87,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: test-reports-unit--${{ matrix.mode }}
           path: /tmp/reports/*
@@ -109,7 +109,7 @@ jobs:
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: test-reports-unit-*
           path: /tmp/reports
