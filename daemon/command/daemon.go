@@ -691,6 +691,14 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 			conf.Hosts = append(conf.Hosts, h)
 		}
 	}
+	if runtime.GOOS != "windows" {
+		// Always create a socket for bind-mounting into containers.
+		h, err := getAPISocket(honorXDG)
+		if err != nil {
+			return nil, err
+		}
+		conf.Hosts = append(conf.Hosts, h)
+	}
 
 	if err := normalizeHosts(conf); err != nil {
 		return nil, err
@@ -789,6 +797,20 @@ func defaultAPISocketPath(honorXDG bool) (string, error) {
 
 	// default unix-socket (Linux) or named pipe (Windows).
 	return dopts.DefaultHost, nil
+}
+
+// getAPISocket returns the address for the API-socket to use for mounting into containers.
+func getAPISocket(defaultToUnixXDG bool) (string, error) {
+	if defaultToUnixXDG {
+		// For rootless mode, the default is to listen on an unprivileged socket
+		// in XDG_RUNTIME_DIR.
+		runtimeDir, err := homedir.GetRuntimeDir()
+		if err != nil {
+			return "", err
+		}
+		return "unix://" + filepath.Join(runtimeDir, "docker-api.sock"), nil
+	}
+	return "unix://" + dopts.APISocket, nil
 }
 
 // normalizeHosts normalizes the configured config.Hosts and removes duplicates.

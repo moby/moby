@@ -14,6 +14,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/common"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/stringid"
@@ -834,4 +835,44 @@ func TestContainerdContainerImageInfo(t *testing.T) {
 		// This field is not set when not using containerd backed storage.
 		assert.Equal(t, ctr.Image, "")
 	}
+}
+
+func TestCreateWithAPISocket(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	config := container.Config{
+		Image: "busybox",
+	}
+	ctr, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:           &config,
+		NetworkingConfig: &network.NetworkingConfig{},
+		HostConfig: &container.HostConfig{
+			Mounts: []mount.Mount{
+				{
+					Type: mount.TypeAPISocket,
+					APISocketOptions: &mount.APISocketOptions{
+						Access: mount.AccessUnconfined,
+					},
+				},
+			},
+		},
+	})
+	assert.NilError(t, err)
+
+	inspect, err := apiClient.ContainerInspect(ctx, ctr.ID, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+
+	assert.DeepEqual(t, inspect.Container.HostConfig.Mounts, []mount.Mount{
+		{
+			Type:   mount.TypeAPISocket,
+			Source: "/var/run/docker-api.sock",
+			Target: "/var/run/docker.sock",
+			APISocketOptions: &mount.APISocketOptions{
+				Access: mount.AccessUnconfined,
+			},
+		},
+	})
 }
