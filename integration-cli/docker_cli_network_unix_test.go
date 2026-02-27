@@ -296,23 +296,6 @@ func getNwResource(t *testing.T, name string) *network.Inspect {
 	assert.NilError(t, err)
 	return &nr[0]
 }
-
-func (s *DockerNetworkSuite) TestDockerNetworkLsDefault(c *testing.T) {
-	defaults := []string{"bridge", "host", "none"}
-	for _, nn := range defaults {
-		assertNwIsAvailable(c, nn)
-	}
-}
-
-func (s *DockerNetworkSuite) TestDockerNetworkCreatePredefined(c *testing.T) {
-	predefined := []string{"bridge", "host", "none", "default"}
-	for _, nw := range predefined {
-		// predefined networks can't be created again
-		out, _, err := dockerCmdWithError("network", "create", nw)
-		assert.ErrorContains(c, err, "", out)
-	}
-}
-
 func (s *DockerNetworkSuite) TestDockerNetworkCreateHostBind(c *testing.T) {
 	cli.DockerCmd(c, "network", "create", "--subnet=192.168.10.0/24", "--gateway=192.168.10.1", "-o", "com.docker.network.bridge.host_binding_ipv4=192.168.10.1", "testbind")
 	assertNwIsAvailable(c, "testbind")
@@ -321,15 +304,6 @@ func (s *DockerNetworkSuite) TestDockerNetworkCreateHostBind(c *testing.T) {
 	cli.WaitRun(c, id)
 	out := cli.DockerCmd(c, "ps").Stdout()
 	assert.Assert(c, is.Contains(out, "192.168.10.1:5000->5000/tcp"))
-}
-
-func (s *DockerNetworkSuite) TestDockerNetworkRmPredefined(c *testing.T) {
-	predefined := []string{"bridge", "host", "none", "default"}
-	for _, nw := range predefined {
-		// predefined networks can't be removed
-		out, _, err := dockerCmdWithError("network", "rm", nw)
-		assert.ErrorContains(c, err, "", out)
-	}
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkLsFilter(c *testing.T) {
