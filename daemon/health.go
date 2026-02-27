@@ -410,7 +410,7 @@ func (b *limitedBuffer) Write(data []byte) (int, error) {
 
 	bufLen := b.buf.Len()
 	dataLen := len(data)
-	keep := minInt(maxOutputLen-bufLen, dataLen)
+	keep := min(maxOutputLen-bufLen, dataLen)
 	if keep > 0 {
 		b.buf.Write(data[:keep])
 	}
@@ -438,13 +438,6 @@ func timeoutWithDefault(configuredValue time.Duration, defaultValue time.Duratio
 		return defaultValue
 	}
 	return configuredValue
-}
-
-func minInt(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
 }
 
 func getShell(cntr *container.Container) []string {
