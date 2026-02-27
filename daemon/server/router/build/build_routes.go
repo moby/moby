@@ -170,63 +170,97 @@ func parseVersion(s string) (build.BuilderVersion, error) {
 	}
 }
 
+// For API  >= v1.53 BuildCachePruneRequest holds the arguments that were in query args for prior versions
+type BuildCachePruneRequest struct {
+	All           bool            `json:"all,omitempty"`
+	ReservedSpace int64           `json:"reservedSpace,omitempty"`
+	MaxUsedSpace  int64           `json:"maxUsedSpace,omitempty"`
+	MinFreeSpace  int64           `json:"minFreeSpace,omitempty"`
+	Filters       json.RawMessage `json:"filters,omitempty"`
+}
+
 func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	fltrs, err := filters.FromJSON(r.Form.Get("filters"))
-	if err != nil {
-		return err
-	}
-
-	opts := buildbackend.CachePruneOptions{
-		All:     httputils.BoolValue(r, "all"),
-		Filters: fltrs,
-	}
-
-	parseBytesFromFormValue := func(name string) (int64, error) {
-		if fv := r.FormValue(name); fv != "" {
-			bs, err := strconv.Atoi(fv)
-			if err != nil {
-				return 0, invalidParam{errors.Wrapf(err, "%s is in bytes and expects an integer, got %v", name, fv)}
-			}
-			return int64(bs), nil
-		}
-		return 0, nil
-	}
-
+	var opts buildbackend.CachePruneOptions
 	version := httputils.VersionFromContext(ctx)
-	if versions.GreaterThanOrEqualTo(version, "1.48") {
-		if bs, err := parseBytesFromFormValue("reserved-space"); err != nil {
-			return err
-		} else {
-			if bs == 0 {
-				// Deprecated parameter. Only checked if reserved-space is not used.
-				bs, err = parseBytesFromFormValue("keep-storage")
-				if err != nil {
-					return err
-				}
+	if versions.GreaterThanOrEqualTo(version, "1.53") {
+		var req BuildCachePruneRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			return fmt.Errorf("error parsing JSON body: %w", err)
+		}
+		// handle Filters separately
+		var fltrs filters.Args
+		if len(req.Filters) > 0 {
+			var err error
+			fltrs, err = filters.FromJSON(string(req.Filters))
+			if err != nil {
+				return fmt.Errorf("error parsing filters: %w", err)
 			}
-			opts.ReservedSpace = bs
 		}
 
-		if bs, err := parseBytesFromFormValue("max-used-space"); err != nil {
-			return err
-		} else {
-			opts.MaxUsedSpace = bs
-		}
-
-		if bs, err := parseBytesFromFormValue("min-free-space"); err != nil {
-			return err
-		} else {
-			opts.MinFreeSpace = bs
+		opts = buildbackend.CachePruneOptions{
+			All:           req.All,
+			ReservedSpace: req.ReservedSpace,
+			MaxUsedSpace:  req.MaxUsedSpace,
+			MinFreeSpace:  req.MinFreeSpace,
+			Filters:       fltrs,
 		}
 	} else {
-		// Only keep-storage was valid in pre-1.48 versions.
-		if bs, err := parseBytesFromFormValue("keep-storage"); err != nil {
+		fltrs, err := filters.FromJSON(r.Form.Get("filters"))
+		if err != nil {
 			return err
+		}
+
+		opts = buildbackend.CachePruneOptions{
+			All:     httputils.BoolValue(r, "all"),
+			Filters: fltrs,
+		}
+
+		parseBytesFromFormValue := func(name string) (int64, error) {
+			if fv := r.FormValue(name); fv != "" {
+				bs, err := strconv.Atoi(fv)
+				if err != nil {
+					return 0, invalidParam{errors.Wrapf(err, "%s is in bytes and expects an integer, got %v", name, fv)}
+				}
+				return int64(bs), nil
+			}
+			return 0, nil
+		}
+
+		if versions.GreaterThanOrEqualTo(version, "1.48") {
+			if bs, err := parseBytesFromFormValue("reserved-space"); err != nil {
+				return err
+			} else {
+				if bs == 0 {
+					// Deprecated parameter. Only checked if reserved-space is not used.
+					bs, err = parseBytesFromFormValue("keep-storage")
+					if err != nil {
+						return err
+					}
+				}
+				opts.ReservedSpace = bs
+			}
+
+			if bs, err := parseBytesFromFormValue("max-used-space"); err != nil {
+				return err
+			} else {
+				opts.MaxUsedSpace = bs
+			}
+
+			if bs, err := parseBytesFromFormValue("min-free-space"); err != nil {
+				return err
+			} else {
+				opts.MinFreeSpace = bs
+			}
 		} else {
-			opts.ReservedSpace = bs
+			// Only keep-storage was valid in pre-1.48 versions.
+			if bs, err := parseBytesFromFormValue("keep-storage"); err != nil {
+				return err
+			} else {
+				opts.ReservedSpace = bs
+			}
 		}
 	}
 
