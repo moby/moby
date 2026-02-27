@@ -531,6 +531,16 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
+	if versions.LessThan(version, "1.44") {
+		wrapped := make([]*compat.Wrapper, len(images))
+		for i := range images {
+			wrapped[i] = compat.Wrap(&images[i], compat.WithExtraFields(map[string]any{
+				"VirtualSize": images[i].Size,
+			}))
+		}
+		return httputils.WriteJSON(w, http.StatusOK, wrapped)
+	}
+
 	return httputils.WriteJSON(w, http.StatusOK, images)
 }
 

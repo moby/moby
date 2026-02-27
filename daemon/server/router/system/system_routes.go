@@ -237,6 +237,20 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		}
 	}
 	if versions.LessThan(version, "1.52") {
+		if versions.LessThan(version, "1.44") && len(legacy.Images) > 0 {
+			wrappedImages := make([]*compat.Wrapper, len(legacy.Images))
+			for i := range legacy.Images {
+				wrappedImages[i] = compat.Wrap(&legacy.Images[i], compat.WithExtraFields(map[string]any{
+					"VirtualSize": legacy.Images[i].Size,
+				}))
+			}
+			return httputils.WriteJSON(w, http.StatusOK, compat.Wrap(&legacy,
+				compat.WithOmittedFields("Images"),
+				compat.WithExtraFields(map[string]any{
+					"Images": wrappedImages,
+				}),
+			))
+		}
 		return httputils.WriteJSON(w, http.StatusOK, &legacy)
 	}
 

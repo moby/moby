@@ -14,6 +14,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
@@ -31,6 +32,8 @@ import (
 )
 
 func TestCreateWithMultiNetworks(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.44"), "requires API v1.44")
+
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 

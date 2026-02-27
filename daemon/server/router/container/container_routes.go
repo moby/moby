@@ -35,6 +35,10 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// errLegacyCapabilities is returned when a client sends the deprecated
+// HostConfig.Capabilities field, which this daemon can no longer fulfill.
+var errLegacyCapabilities = errdefs.InvalidParameter(errors.New("the HostConfig.Capabilities field is not supported by this daemon; use CapAdd and CapDrop to set capabilities"))
+
 // commitRequest may contain an optional [container.Config].
 type commitRequest struct {
 	*container.Config
@@ -673,8 +677,19 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			//
 			// MacAddress field is deprecated since API v1.44. Use EndpointSettings.MacAddress instead.
 			MacAddress network.HardwareAddr `json:",omitempty"`
+
+			HostConfig struct {
+				// Capabilities was removed in commit 24f173a003 for
+				// API version 1.41, favoring CapAdd and CapDrop instead.
+				Capabilities []string `json:",omitempty"`
+			} `json:",omitempty"`
 		}
 		_ = json.Unmarshal(requestBody.Bytes(), &legacyConfig)
+
+		if err := rejectLegacyCapabilities(legacyConfig.HostConfig.Capabilities, version); err != nil {
+			return err
+		}
+
 		if warn, err := handleMACAddressBC(hostConfig, networkingConfig, version, legacyConfig.MacAddress); err != nil {
 			return err
 		} else if warn != "" {
@@ -740,6 +755,26 @@ func handleVolumeDriverBC(version string, hostConfig *container.HostConfig) (war
 		return "WARNING: the container-wide volume-driver configuration is ignored for volumes specified via 'mount'. Use '--mount type=volume,volume-driver=...' instead"
 	}
 	return ""
+}
+
+// rejectLegacyCapabilities returns an error if the deprecated
+// HostConfig.Capabilities field is present in a request for API version 1.40.
+//
+// The Capabilities field was added in API 1.40 (Docker 19.03) as a way to
+// specify the exact set of kernel capabilities for a container, overriding
+// the CapAdd/CapDrop mechanism. It was removed before API 1.41 (Docker 20.10)
+// because putting the burden of providing the full capability list on the
+// client was considered a poor design (see 24f173a003).
+//
+// The field has since been deleted from the API type, so json.Unmarshal
+// silently drops it. This daemon cannot honor the field, so it is best to
+// return an explicit error rather than silently ignoring the field when it is
+// expected to be supported.
+func rejectLegacyCapabilities(capabilities []string, version string) error {
+	if len(capabilities) > 0 && versions.Equal(version, "1.40") {
+		return errLegacyCapabilities
+	}
+	return nil
 }
 
 // handleMACAddressBC takes care of backward-compatibility for the container-wide MAC address by mutating the
