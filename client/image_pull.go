@@ -52,10 +52,19 @@ func (cli *Client) ImagePull(ctx context.Context, refStr string, options ImagePu
 		}
 		query.Set("platform", formatPlatform(options.Platforms[0]))
 	}
-	resp, err := cli.tryImageCreate(ctx, query, staticAuth(options.RegistryAuth))
-	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
-		resp, err = cli.tryImageCreate(ctx, query, options.PrivilegeFunc)
-	}
+
+	// PrivilegeFunc was added in [18472] as an alternative to passing static
+	// authentication. The default was still to try the static authentication
+	// before calling the PrivilegeFunc (if present).
+	//
+	// For now, we need to keep this behavior, as PrivilegeFunc may be an
+	// interactive prompt, however, we should change this to only use static
+	// auth if not empty. Ultimately, we should deprecate its use in favor of
+	// callers providing a PrivilegeFunc (which can be chained), or a list of
+	// PrivilegeFuncs.
+	//
+	// [18472]: https://github.com/moby/moby/commit/e78f02c4dbc3cada909c114fef6b6643969ab912
+	resp, err := cli.tryImagePull(ctx, query, ChainPrivilegeFuncs(staticAuth(options.RegistryAuth), options.PrivilegeFunc))
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +87,7 @@ func getAPITagFromNamedRef(ref reference.Named) string {
 	return ""
 }
 
-func (cli *Client) tryImageCreate(ctx context.Context, query url.Values, resolveAuth registry.RequestAuthConfig) (*http.Response, error) {
+func (cli *Client) tryImagePull(ctx context.Context, query url.Values, resolveAuth registry.RequestAuthConfig) (*http.Response, error) {
 	hdr := http.Header{}
 	if resolveAuth != nil {
 		registryAuth, err := resolveAuth(ctx)
