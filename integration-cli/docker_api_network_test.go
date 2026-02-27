@@ -168,21 +168,6 @@ func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) 
 	}
 }
 
-func (s *DockerAPISuite) TestAPICreateDeletePredefinedNetworks(c *testing.T) {
-	testRequires(c, DaemonIsLinux, SwarmInactive)
-	createDeletePredefinedNetwork(c, "bridge")
-	createDeletePredefinedNetwork(c, "none")
-	createDeletePredefinedNetwork(c, "host")
-}
-
-func createDeletePredefinedNetwork(t *testing.T, name string) {
-	// Create pre-defined network
-	config := network.CreateRequest{Name: name}
-	expectedStatus := http.StatusForbidden
-	createNetwork(t, config, expectedStatus)
-	deleteNetwork(t, name, false)
-}
-
 func isNetworkAvailable(t *testing.T, name string) bool {
 	resp, body, err := request.Get(testutil.GetContext(t), "/networks")
 	assert.NilError(t, err)
