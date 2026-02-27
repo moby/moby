@@ -29,6 +29,17 @@ func (ps PartialSuccess) Error() string {
 	return fmt.Sprintf("OTLP partial success: %s (%d %s rejected)", msg, ps.RejectedItems, ps.RejectedKind)
 }
 
+// As returns true if ps can be assigned to target and makes the assignment.
+// Otherwise, it returns false. This supports the errors.As() interface.
+func (ps PartialSuccess) As(target any) bool {
+	t, ok := target.(*PartialSuccess)
+	if !ok {
+		return false
+	}
+	*t = ps
+	return true
+}
+
 // Is supports the errors.Is() interface.
 func (ps PartialSuccess) Is(err error) bool {
 	_, ok := err.(PartialSuccess)

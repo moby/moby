@@ -18,8 +18,9 @@ const _Temporality_name = "undefinedTemporalityCumulativeTemporalityDeltaTempora
 var _Temporality_index = [...]uint8{0, 20, 41, 57}
 
 func (i Temporality) String() string {
-	if i >= Temporality(len(_Temporality_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_Temporality_index)-1 {
 		return "Temporality(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Temporality_name[_Temporality_index[i]:_Temporality_index[i+1]]
+	return _Temporality_name[_Temporality_index[idx]:_Temporality_index[idx+1]]
 }
