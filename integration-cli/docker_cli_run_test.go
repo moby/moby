@@ -3905,16 +3905,15 @@ RUN chmod 755 /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 CMD echo foobar`
 
-	ctx := fakecontext.New(c, "",
+	buildCtx := fakecontext.New(c, "",
 		fakecontext.WithDockerfile(dockerfile),
 		fakecontext.WithFiles(map[string]string{
 			"entrypoint.sh": `#!/bin/sh
 echo "I am an entrypoint"
 exec "$@"`,
 		}))
-	defer ctx.Close()
 
-	cli.BuildCmd(c, name, build.WithExternalBuildContext(ctx))
+	cli.BuildCmd(c, name, build.WithExternalBuildContext(buildCtx))
 
 	out := cli.DockerCmd(c, "run", "--entrypoint=", "-t", name, "echo", "foo").Combined()
 	assert.Equal(c, strings.TrimSpace(out), "foo")

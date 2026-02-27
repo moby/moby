@@ -22,12 +22,11 @@ func (s *DockerAPISuite) TestBuildWithRecycleBin(c *testing.T) {
 		"RUN dir $Recycle.Bin && exit 1 || exit 0\n" +
 		"RUN dir missing\n"
 
-	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(dockerfile))
-	defer ctx.Close()
+	buildCtx := fakecontext.New(c, "", fakecontext.WithDockerfile(dockerfile))
 
 	res, body, err := request.Post(testutil.GetContext(c),
 		"/build",
-		request.RawContent(ctx.AsTarReader(c)),
+		request.RawContent(buildCtx.AsTarReader(c)),
 		request.ContentType("application/x-tar"))
 
 	assert.NilError(c, err)

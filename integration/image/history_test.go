@@ -64,7 +64,6 @@ func TestAPIImageHistoryCrossPlatform(t *testing.T) {
 	dockerfile := "FROM alpine\nRUN true"
 
 	buildCtx := fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile))
-	defer buildCtx.Close()
 
 	// Build the image for a non-native platform
 	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), client.ImageBuildOptions{

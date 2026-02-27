@@ -47,7 +47,6 @@ func TestBuildSquashParent(t *testing.T) {
 
 	// build and get the ID that we can use later for history comparison
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
-	defer source.Close()
 
 	name := strings.ToLower(t.Name())
 	resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{

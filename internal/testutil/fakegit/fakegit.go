@@ -47,18 +47,17 @@ func (g *FakeGit) Close() {
 // New create a fake git server that can be used for git related tests
 func New(c testing.TB, name string, files map[string]string, enforceLocalServer bool) *FakeGit {
 	c.Helper()
-	ctx := fakecontext.New(c, "", fakecontext.WithFiles(files))
-	defer ctx.Close()
+	buildCtx := fakecontext.New(c, "", fakecontext.WithFiles(files))
 	curdir, err := os.Getwd()
 	if err != nil {
 		c.Fatal(err)
 	}
 	defer os.Chdir(curdir)
 
-	if output, err := exec.Command("git", "init", ctx.Dir).CombinedOutput(); err != nil {
+	if output, err := exec.Command("git", "init", buildCtx.Dir).CombinedOutput(); err != nil {
 		c.Fatalf("error trying to init repo: %s (%s)", err, output)
 	}
-	err = os.Chdir(ctx.Dir)
+	err = os.Chdir(buildCtx.Dir)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -80,7 +79,7 @@ func New(c testing.TB, name string, files map[string]string, enforceLocalServer 
 		c.Fatal(err)
 	}
 	repoPath := filepath.Join(root, name+".git")
-	if output, err := exec.Command("git", "clone", "--bare", ctx.Dir, repoPath).CombinedOutput(); err != nil {
+	if output, err := exec.Command("git", "clone", "--bare", buildCtx.Dir, repoPath).CombinedOutput(); err != nil {
 		os.RemoveAll(root)
 		c.Fatalf("error trying to clone --bare: %s (%s)", err, output)
 	}

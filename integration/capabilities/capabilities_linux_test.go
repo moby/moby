@@ -2,13 +2,13 @@ package capabilities
 
 import (
 	"bytes"
-	"io"
 	"strings"
 	"testing"
 
 	"github.com/moby/moby/api/pkg/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
@@ -19,28 +19,14 @@ import (
 func TestNoNewPrivileges(t *testing.T) {
 	ctx := setupTest(t)
 
-	withFileCapability := `
-		FROM debian:bullseye-slim
-		RUN apt-get update && apt-get install -y libcap2-bin --no-install-recommends
-		RUN setcap CAP_DAC_OVERRIDE=+eip /bin/cat
-		RUN echo "hello" > /txt && chown 0:0 /txt && chmod 700 /txt
-		RUN useradd -u 1500 test
-	`
-	imageTag := "captest"
-
-	source := fakecontext.New(t, "", fakecontext.WithDockerfile(withFileCapability))
-	defer source.Close()
-
 	apiClient := testEnv.APIClient()
-
-	// Build image
-	resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
-		Tags: []string{imageTag},
-	})
-	assert.NilError(t, err)
-	_, err = io.Copy(io.Discard, resp.Body)
-	assert.NilError(t, err)
-	resp.Body.Close()
+	imgID := build.Do(ctx, t, apiClient, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(`
+FROM debian:bullseye-slim
+RUN apt-get update && apt-get install -y libcap2-bin --no-install-recommends
+RUN setcap CAP_DAC_OVERRIDE=+eip /bin/cat
+RUN echo "hello" > /txt && chown 0:0 /txt && chmod 700 /txt
+RUN useradd -u 1500 test
+`)))
 
 	testCases := []struct {
 		doc            string
@@ -71,7 +57,7 @@ func TestNoNewPrivileges(t *testing.T) {
 
 			// Run the container with the image
 			opts := append(tc.opts,
-				container.WithImage(imageTag),
+				container.WithImage(imgID),
 				container.WithCmd("/bin/cat", "/txt"),
 				container.WithSecurityOpt("no-new-privileges=true"),
 			)
