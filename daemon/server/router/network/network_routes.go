@@ -292,6 +292,11 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 		return err
 	}
 
+	// TODO: Do we want to version gate it?
+	// if versions.LessThan(httputils.VersionFromContext(ctx), "1.54") && connect.EndpointConfig != nil {
+	// 	connect.EndpointConfig.MacAddress = nil
+	// }
+
 	// Unlike other operations, we does not check ambiguity of the name/ID here.
 	// The reason is that, In case of attachable network in swarm scope, the actual local network
 	// may not be available at the time. At the same time, inside daemon `ConnectContainerToNetwork`

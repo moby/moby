@@ -191,7 +191,8 @@ func (daemon *Daemon) updateNetworkSettings(ctr *container.Container, n *libnetw
 	}
 
 	ctr.NetworkSettings.Networks[n.Name()] = &network.EndpointSettings{
-		EndpointSettings: endpointConfig,
+		EndpointSettings:  endpointConfig,
+		DesiredMacAddress: endpointConfig.MacAddress,
 	}
 
 	return nil
@@ -1046,12 +1047,14 @@ func (daemon *Daemon) ConnectToNetwork(ctx context.Context, ctr *container.Conta
 			}
 		} else {
 			ctr.NetworkSettings.Networks[idOrName] = &network.EndpointSettings{
-				EndpointSettings: endpointConfig,
+				EndpointSettings:  endpointConfig,
+				DesiredMacAddress: endpointConfig.MacAddress,
 			}
 		}
 	} else {
 		epc := &network.EndpointSettings{
-			EndpointSettings: endpointConfig,
+			EndpointSettings:  endpointConfig,
+			DesiredMacAddress: endpointConfig.MacAddress,
 		}
 		if err := daemon.connectToNetwork(ctx, &daemon.config().Config, ctr, idOrName, epc); err != nil {
 			return err
