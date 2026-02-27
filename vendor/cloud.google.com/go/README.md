@@ -24,8 +24,8 @@ Our libraries are compatible with the two most recent major Go
 releases, the same [policy](https://go.dev/doc/devel/release#policy) the Go
 programming language follows. This means the currently supported versions are:
 
-- Go 1.23
 - Go 1.24
+- Go 1.25
 
 ## Authentication
 
