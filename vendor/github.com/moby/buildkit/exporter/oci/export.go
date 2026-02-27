@@ -131,9 +131,9 @@ func (e *imageExporterInstance) Config() *exporter.Config {
 	return exporter.NewConfigWithCompression(e.opts.RefCfg.Compression)
 }
 
-func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source, buildInfo exporter.ExportBuildInfo) (_ map[string]string, descref exporter.DescriptorReference, err error) {
+func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source, buildInfo exporter.ExportBuildInfo) (_ map[string]string, _ exporter.FinalizeFunc, descref exporter.DescriptorReference, err error) {
 	if e.opt.Variant == VariantDocker && len(src.Refs) > 0 {
-		return nil, nil, errors.Errorf("docker exporter does not currently support exporting manifest lists")
+		return nil, nil, nil, errors.Errorf("docker exporter does not currently support exporting manifest lists")
 	}
 
 	src = src.Clone()
@@ -145,13 +145,13 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 	opts := e.opts
 	as, _, err := containerimage.ParseAnnotations(src.Metadata)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	opts.Annotations = opts.Annotations.Merge(as)
 
 	ctx, done, err := leaseutil.WithLease(ctx, e.opt.LeaseManager, leaseutil.MakeTemporary)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	defer func() {
 		if descref == nil {
@@ -161,7 +161,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 
 	desc, err := e.opt.ImageWriter.Commit(ctx, src, buildInfo.SessionID, buildInfo.InlineCache, &opts)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	defer func() {
 		if err == nil {
@@ -190,7 +190,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 
 	dtdesc, err := json.Marshal(desc)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	resp[exptypes.ExporterImageDescriptorKey] = base64.StdEncoding.EncodeToString(dtdesc)
 
@@ -200,7 +200,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 
 	names, err := normalizedNames(e.opts.ImageName)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	if len(names) != 0 {
@@ -213,7 +213,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 		expOpts = append(expOpts, archiveexporter.WithAllPlatforms(), archiveexporter.WithSkipDockerManifest())
 	case VariantDocker:
 	default:
-		return nil, nil, errors.Errorf("invalid variant %q", e.opt.Variant)
+		return nil, nil, nil, errors.Errorf("invalid variant %q", e.opt.Variant)
 	}
 
 	timeoutCtx, cancel := context.WithCancelCause(ctx)
@@ -222,7 +222,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 
 	caller, err := e.opt.SessionManager.Get(timeoutCtx, buildInfo.SessionID, false)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	var refs []cache.ImmutableRef
@@ -256,43 +256,43 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 		})
 	}
 	if err := eg.Wait(); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	if e.tar {
 		w, err := filesync.CopyFileWriter(ctx, resp, e.id, caller)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		report := progress.OneOff(ctx, "sending tarball")
 		if err := archiveexporter.Export(ctx, mprovider, w, expOpts...); err != nil {
 			w.Close()
 			if grpcerrors.Code(err) == codes.AlreadyExists {
-				return resp, nil, report(nil)
+				return resp, nil, nil, report(nil)
 			}
-			return nil, nil, report(err)
+			return nil, nil, nil, report(err)
 		}
 		err = w.Close()
 		if grpcerrors.Code(err) == codes.AlreadyExists {
-			return resp, nil, report(nil)
+			return resp, nil, nil, report(nil)
 		}
 		if err != nil {
-			return nil, nil, report(err)
+			return nil, nil, nil, report(err)
 		}
 		report(nil)
 	} else {
 		store := sessioncontent.NewCallerStore(caller, "export")
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		err := contentutil.CopyChain(ctx, store, mprovider, *desc)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
-	return resp, nil, nil
+	return resp, nil, nil, nil
 }
 
 func normalizedNames(name string) ([]string, error) {

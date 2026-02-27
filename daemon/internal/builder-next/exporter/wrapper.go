@@ -80,10 +80,10 @@ type imageExporterInstanceWrapper struct {
 	content   content.Store
 }
 
-func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter.Source, buildInfo exporter.ExportBuildInfo) (map[string]string, exporter.DescriptorReference, error) {
-	out, ref, err := i.ExporterInstance.Export(ctx, src, buildInfo)
+func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter.Source, buildInfo exporter.ExportBuildInfo) (map[string]string, exporter.FinalizeFunc, exporter.DescriptorReference, error) {
+	out, finalize, ref, err := i.ExporterInstance.Export(ctx, src, buildInfo)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	desc := ref.Descriptor()
@@ -94,7 +94,7 @@ func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter
 		CreatedAt: &now,
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	refLabelKey := BuildRefLabel + buildInfo.Ref
 	_, err = i.content.Update(ctx, content.Info{
@@ -104,7 +104,7 @@ func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter
 		},
 	}, "labels."+refLabelKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	if i.callbacks.Exported != nil {
@@ -115,7 +115,7 @@ func (i *imageExporterInstanceWrapper) Export(ctx context.Context, src *exporter
 		i.processNamedCallback(ctx, out, desc)
 	}
 
-	return out, ref, nil
+	return out, finalize, ref, nil
 }
 
 func (i *imageExporterInstanceWrapper) processNamedCallback(ctx context.Context, out map[string]string, desc ocispec.Descriptor) {

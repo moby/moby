@@ -52,11 +52,28 @@ func (p *ReferrersProviderBuffer) ReaderAt(ctx context.Context, desc ocispecs.De
 		}
 		return nil, err
 	}
+	if st, err := cw.Status(); err == nil {
+		if st.Offset > 0 {
+			if err := cw.Truncate(0); err != nil {
+				cw.Close()
+				return nil, err
+			}
+		}
+	}
+	abort := func() {
+		_ = p.cache.Abort(ctx, desc.Digest.String())
+	}
+	defer func() {
+		if abort != nil {
+			abort()
+		}
+	}()
 	ra, err := p.p.ReaderAt(ctx, desc)
 	if err != nil {
 		cw.Close()
 		return nil, err
 	}
+	defer ra.Close()
 	if err := content.CopyReaderAt(cw, ra, ra.Size()); err != nil {
 		cw.Close()
 		return nil, err
@@ -65,6 +82,7 @@ func (p *ReferrersProviderBuffer) ReaderAt(ctx context.Context, desc ocispecs.De
 		cw.Close()
 		return nil, err
 	}
+	abort = nil
 	ra, err = p.cache.ReaderAt(ctx, desc)
 	if err != nil {
 		return nil, err

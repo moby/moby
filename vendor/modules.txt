@@ -519,7 +519,7 @@ github.com/containerd/nri/pkg/plugin
 github.com/containerd/nri/pkg/stub
 github.com/containerd/nri/plugins/default-validator
 github.com/containerd/nri/plugins/default-validator/builtin
-# github.com/containerd/nydus-snapshotter v0.15.10
+# github.com/containerd/nydus-snapshotter v0.15.11
 ## explicit; go 1.24.0
 github.com/containerd/nydus-snapshotter/pkg/converter
 github.com/containerd/nydus-snapshotter/pkg/converter/tool
@@ -530,7 +530,7 @@ github.com/containerd/platforms
 # github.com/containerd/plugin v1.0.0
 ## explicit; go 1.20
 github.com/containerd/plugin
-# github.com/containerd/stargz-snapshotter/estargz v0.18.1
+# github.com/containerd/stargz-snapshotter/estargz v0.18.2
 ## explicit; go 1.24.0
 github.com/containerd/stargz-snapshotter/estargz
 github.com/containerd/stargz-snapshotter/estargz/errorutil
@@ -928,8 +928,8 @@ github.com/hiddeco/sshsig
 # github.com/in-toto/attestation v1.1.2
 ## explicit; go 1.22
 github.com/in-toto/attestation/go/v1
-# github.com/in-toto/in-toto-golang v0.9.0
-## explicit; go 1.20
+# github.com/in-toto/in-toto-golang v0.10.0
+## explicit; go 1.24.0
 github.com/in-toto/in-toto-golang/in_toto
 github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/common
 github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.1
@@ -944,7 +944,7 @@ github.com/ishidawataru/sctp
 # github.com/jmoiron/sqlx v1.4.0
 ## explicit; go 1.10
 github.com/jmoiron/sqlx/types
-# github.com/klauspost/compress v1.18.3
+# github.com/klauspost/compress v1.18.4
 ## explicit; go 1.23
 github.com/klauspost/compress
 github.com/klauspost/compress/fse
@@ -972,8 +972,8 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.27.1
-## explicit; go 1.25.0
+# github.com/moby/buildkit v0.28.0-rc1
+## explicit; go 1.25.5
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
 github.com/moby/buildkit/cache
@@ -1071,6 +1071,7 @@ github.com/moby/buildkit/solver/llbsolver/provenance/types
 github.com/moby/buildkit/solver/pb
 github.com/moby/buildkit/solver/result
 github.com/moby/buildkit/source
+github.com/moby/buildkit/source/containerblob
 github.com/moby/buildkit/source/containerimage
 github.com/moby/buildkit/source/git
 github.com/moby/buildkit/source/http
@@ -1111,6 +1112,7 @@ github.com/moby/buildkit/util/network
 github.com/moby/buildkit/util/network/cniprovider
 github.com/moby/buildkit/util/network/netproviders
 github.com/moby/buildkit/util/overlay
+github.com/moby/buildkit/util/pgpsign
 github.com/moby/buildkit/util/progress
 github.com/moby/buildkit/util/progress/controller
 github.com/moby/buildkit/util/progress/logs
@@ -1322,8 +1324,8 @@ github.com/moby/term/windows
 # github.com/montanaflynn/stats v0.7.1
 ## explicit; go 1.13
 github.com/montanaflynn/stats
-# github.com/morikuni/aec v1.0.0
-## explicit
+# github.com/morikuni/aec v1.1.0
+## explicit; go 1.21
 github.com/morikuni/aec
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit

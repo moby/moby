@@ -2,6 +2,7 @@ package containerimage
 
 import (
 	"context"
+	"encoding/json"
 	"slices"
 	"strconv"
 	"time"
@@ -179,6 +180,10 @@ func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier,
 	rslvr := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, resolver.ScopeType{}, sm, g).WithImageStore(is.ImageStore, rm)
 	key += rm.String()
 
+	if len(opt.ResolveAttestations) > 0 {
+		opt.AttestationChain = true
+	}
+
 	ret := &sourceresolver.ResolveImageResponse{}
 	if !opt.NoConfig {
 		res, err := is.gImageRes.Do(ctx, key, func(ctx context.Context) (*resolveImageResult, error) {
@@ -260,6 +265,11 @@ func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier,
 					Data:       dt,
 				}
 			}
+			if len(opt.ResolveAttestations) > 0 && ac.AttestationManifest != "" {
+				if err := addAttestationBlobs(ctx, prov, ac, opt.ResolveAttestations); err != nil {
+					return nil, err
+				}
+			}
 			if err := prov.SetGCLabels(ctx, desc); err != nil {
 				return nil, errors.WithStack(err)
 			}
@@ -320,6 +330,49 @@ func (is *Source) ResolveOCILayoutMetadata(ctx context.Context, id *OCIIdentifie
 type resolveImageResult struct {
 	dgst digest.Digest
 	dt   []byte
+}
+
+func addAttestationBlobs(ctx context.Context, prov policyimage.ReferrersProvider, ac *sourceresolver.AttestationChain, predicateTypes []string) error {
+	if ac == nil || ac.AttestationManifest == "" || ac.Blobs == nil || len(predicateTypes) == 0 {
+		return nil
+	}
+	att, ok := ac.Blobs[ac.AttestationManifest]
+	if !ok || len(att.Data) == 0 {
+		return nil
+	}
+	need := map[string]struct{}{}
+	for _, p := range predicateTypes {
+		if p == "" {
+			continue
+		}
+		need[p] = struct{}{}
+	}
+	if len(need) == 0 {
+		return nil
+	}
+	var manifest ocispecs.Manifest
+	if err := json.Unmarshal(att.Data, &manifest); err != nil {
+		return errors.Wrapf(err, "unmarshaling attestation manifest %s", ac.AttestationManifest)
+	}
+
+	for _, layer := range manifest.Layers {
+		predicateType := layer.Annotations["in-toto.io/predicate-type"]
+		if _, ok := need[predicateType]; !ok {
+			continue
+		}
+		if _, ok := ac.Blobs[layer.Digest]; ok {
+			continue
+		}
+		dt, err := policyimage.ReadBlob(ctx, prov, layer)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		ac.Blobs[layer.Digest] = sourceresolver.Blob{
+			Descriptor: layer,
+			Data:       dt,
+		}
+	}
+	return nil
 }
 
 func (is *Source) registryIdentifier(ref string, attrs map[string]string, platform *pb.Platform) (source.Identifier, error) {

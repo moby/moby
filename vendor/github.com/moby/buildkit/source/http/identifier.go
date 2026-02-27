@@ -27,6 +27,12 @@ type HTTPIdentifier struct {
 	GID              int
 	AuthHeaderSecret string
 	Header           []HeaderField
+	VerifySignature  *HTTPSignatureVerifyOptions
+}
+
+type HTTPSignatureVerifyOptions struct {
+	PubKey    []byte
+	Signature []byte
 }
 
 type HeaderField struct {

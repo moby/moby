@@ -2041,7 +2041,13 @@ func addReachableStages(s *dispatchState, stages map[*dispatchState]struct{}) {
 }
 
 func validateCopySourcePath(src string, cfg *copyConfig) error {
-	if cfg.ignoreMatcher == nil {
+	// Do not validate copy source paths if there is no dockerignore file
+	// or if the dockerignore file contains exclusions.
+	//
+	// Exclusions are too difficult to statically determine if they're proper
+	// because it's ok for a directory to be excluded and a file inside the directory
+	// to be negated.
+	if cfg.ignoreMatcher == nil || cfg.ignoreMatcher.Exclusions() {
 		return nil
 	}
 	cmd := "Copy"
@@ -2616,6 +2622,8 @@ func getSecretsRegex() (*regexp.Regexp, *regexp.Regexp) {
 
 		allowTokens := []string{
 			"public",
+			"file",
+			"version",
 		}
 		allowPattern := `(?i)(?:_|^)(?:` + strings.Join(allowTokens, "|") + `)(?:_|$)`
 		secretsAllowRegexp = regexp.MustCompile(allowPattern)

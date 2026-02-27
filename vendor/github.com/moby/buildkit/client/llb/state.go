@@ -526,6 +526,7 @@ type ConstraintsOpt interface {
 	RunOption
 	LocalOption
 	HTTPOption
+	ImageBlobOption
 	ImageOption
 	GitOption
 	OCILayoutOption
@@ -551,6 +552,10 @@ func (fn constraintsOptFunc) SetOCILayoutOption(oi *OCILayoutInfo) {
 
 func (fn constraintsOptFunc) SetHTTPOption(hi *HTTPInfo) {
 	hi.applyConstraints(fn)
+}
+
+func (fn constraintsOptFunc) SetImageBlobOption(ii *ImageBlobInfo) {
+	ii.applyConstraints(fn)
 }
 
 func (fn constraintsOptFunc) SetImageOption(ii *ImageInfo) {
@@ -736,6 +741,7 @@ var (
 	LinuxS390x   = Platform(ocispecs.Platform{OS: "linux", Architecture: "s390x"})
 	LinuxPpc64   = Platform(ocispecs.Platform{OS: "linux", Architecture: "ppc64"})
 	LinuxPpc64le = Platform(ocispecs.Platform{OS: "linux", Architecture: "ppc64le"})
+	LinuxRiscv64 = Platform(ocispecs.Platform{OS: "linux", Architecture: "riscv64"})
 	Darwin       = Platform(ocispecs.Platform{OS: "darwin", Architecture: "amd64"})
 	Windows      = Platform(ocispecs.Platform{OS: "windows", Architecture: "amd64"})
 )

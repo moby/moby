@@ -129,8 +129,10 @@ func init() {
 		All:  2,
 	}
 
-	Save = newAnsi(esc + "s")
-	Restore = newAnsi(esc + "u")
+	// Save use both SCO (ESC[s) and DEC (ESC7) sequences as those were never standardised as part of the ANSI
+	Save = newAnsi(esc + "s" + "\x1b7")
+	// Restore use both SCO (ESC[u) and DEC (ESC8) and DEC sequences as those were never standardised as part of the ANSI
+	Restore = newAnsi(esc + "u" + "\x1b8")
 	Hide = newAnsi(esc + "?25l")
 	Show = newAnsi(esc + "?25h")
 	Report = newAnsi(esc + "6n")

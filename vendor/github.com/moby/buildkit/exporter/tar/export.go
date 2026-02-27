@@ -77,7 +77,7 @@ func (e *localExporterInstance) Config() *exporter.Config {
 	return exporter.NewConfig()
 }
 
-func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source, buildInfo exporter.ExportBuildInfo) (map[string]string, exporter.DescriptorReference, error) {
+func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source, buildInfo exporter.ExportBuildInfo) (map[string]string, exporter.FinalizeFunc, exporter.DescriptorReference, error) {
 	var defers []func() error
 
 	defer func() {
@@ -88,7 +88,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 
 	if e.opts.Epoch == nil {
 		if tm, ok, err := epoch.ParseSource(inp); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		} else if ok {
 			e.opts.Epoch = tm
 		}
@@ -121,14 +121,14 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 	}
 
 	if _, ok := inp.Metadata[exptypes.ExporterPlatformsKey]; isMap && !ok {
-		return nil, nil, errors.Errorf("unable to export multiple refs, missing platforms mapping")
+		return nil, nil, nil, errors.Errorf("unable to export multiple refs, missing platforms mapping")
 	}
 	p, err := exptypes.ParsePlatforms(inp.Metadata)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if !isMap && len(p.Platforms) > 1 {
-		return nil, nil, errors.Errorf("unable to export multiple platforms without map")
+		return nil, nil, nil, errors.Errorf("unable to export multiple platforms without map")
 	}
 
 	var fs fsutil.FS
@@ -138,11 +138,11 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 		for _, p := range p.Platforms {
 			r, ok := inp.FindRef(p.ID)
 			if !ok {
-				return nil, nil, errors.Errorf("failed to find ref for ID %s", p.ID)
+				return nil, nil, nil, errors.Errorf("failed to find ref for ID %s", p.ID)
 			}
 			d, err := getDir(ctx, p.ID, r, inp.Attestations[p.ID])
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			dirs = append(dirs, *d)
 		}
@@ -150,7 +150,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 			var err error
 			fs, err = fsutil.SubDirFS(dirs)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		} else {
 			fs = dirs[0].FS
@@ -158,7 +158,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 	} else {
 		d, err := getDir(ctx, "", inp.Ref, nil)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		fs = d.FS
 	}
@@ -169,17 +169,17 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 
 	caller, err := e.opt.SessionManager.Get(timeoutCtx, buildInfo.SessionID, false)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	w, err := filesync.CopyFileWriter(ctx, nil, e.id, caller)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	report := progress.OneOff(ctx, "sending tarball")
 	if err := writeTar(ctx, fs, w); err != nil {
 		w.Close()
-		return nil, nil, report(err)
+		return nil, nil, nil, report(err)
 	}
-	return nil, nil, report(w.Close())
+	return nil, nil, nil, report(w.Close())
 }

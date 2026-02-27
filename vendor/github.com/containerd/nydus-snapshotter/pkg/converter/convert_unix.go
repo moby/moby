@@ -531,7 +531,7 @@ func packFromTar(ctx context.Context, dest io.Writer, opt PackOption) (io.WriteC
 		if err != nil {
 			// Without handling the returned error because we just only
 			// focus on the command exit status in `tool.Pack`.
-			wc.Close()
+			_ = wc.Close()
 		}
 		return errors.Wrapf(err, "call builder")
 	})
@@ -803,7 +803,7 @@ func Unpack(ctx context.Context, ra content.ReaderAt, dest io.Writer, opt Unpack
 		if err != nil {
 			return errors.Wrap(err, "new content store proxy")
 		}
-		defer proxy.close()
+		defer func() { _ = proxy.close() }()
 
 		// generate backend config file
 		backendConfigStr := fmt.Sprintf(`{"version":2,"backend":{"type":"http-proxy","http-proxy":{"addr":"%s"}}}`, proxy.socketPath)

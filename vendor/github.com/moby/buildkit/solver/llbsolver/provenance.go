@@ -337,7 +337,7 @@ func captureProvenance(ctx context.Context, res solver.CachedResultWithProvenanc
 }
 
 type ProvenanceCreator struct {
-	pr          *provenancetypes.ProvenancePredicateSLSA02
+	pr          *provenancetypes.ProvenancePredicateSLSA1
 	slsaVersion provenancetypes.ProvenanceSLSA
 	j           *solver.Job
 	sampler     *resources.SysSampler
@@ -345,6 +345,10 @@ type ProvenanceCreator struct {
 }
 
 func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.ProvenanceSLSA, cp *provenance.Capture, res solver.ResultProxy, attrs map[string]string, j *solver.Job, usage *resources.SysSampler, customEnv map[string]any) (*ProvenanceCreator, error) {
+	if slsaVersion == "" {
+		slsaVersion = provenancetypes.ProvenanceSLSA1
+	}
+
 	var reproducible bool
 	if v, ok := attrs["reproducible"]; ok {
 		b, err := strconv.ParseBool(v)
@@ -376,30 +380,33 @@ func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.Prove
 	if err != nil {
 		return nil, err
 	}
+	if pr.RunDetails.Metadata == nil {
+		pr.RunDetails.Metadata = &provenancetypes.ProvenanceMetadataSLSA1{}
+	}
 
 	st := j.StartedTime()
 
-	pr.Metadata.BuildStartedOn = &st
-	pr.Metadata.Reproducible = reproducible
-	pr.Metadata.BuildInvocationID = j.UniqueID()
+	pr.RunDetails.Metadata.StartedOn = &st
+	pr.RunDetails.Metadata.Reproducible = reproducible
+	pr.RunDetails.Metadata.InvocationID = j.UniqueID()
 
-	pr.Builder.ID = attrs["builder-id"]
+	pr.RunDetails.Builder.ID = attrs["builder-id"]
 
 	var addLayers func(context.Context) error
 
 	switch mode {
 	case "min":
 		args := make(map[string]string)
-		for k, v := range pr.Invocation.Parameters.Args {
+		for k, v := range pr.BuildDefinition.ExternalParameters.Request.Args {
 			if strings.HasPrefix(k, "build-arg:") || strings.HasPrefix(k, "label:") {
-				pr.Metadata.Completeness.Parameters = false
+				pr.RunDetails.Metadata.Completeness.Request = false
 				continue
 			}
 			args[k] = v
 		}
-		pr.Invocation.Parameters.Args = args
-		pr.Invocation.Parameters.Secrets = nil
-		pr.Invocation.Parameters.SSH = nil
+		pr.BuildDefinition.ExternalParameters.Request.Args = args
+		pr.BuildDefinition.ExternalParameters.Request.Secrets = nil
+		pr.BuildDefinition.ExternalParameters.Request.SSH = nil
 	case "max":
 		dgsts, err := AddBuildConfig(ctx, pr, cp, res, withUsage)
 		if err != nil {
@@ -444,10 +451,10 @@ func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.Prove
 			}
 
 			if len(m) != 0 {
-				if pr.Metadata == nil {
-					pr.Metadata = &provenancetypes.ProvenanceMetadataSLSA02{}
+				if pr.RunDetails.Metadata == nil {
+					pr.RunDetails.Metadata = &provenancetypes.ProvenanceMetadataSLSA1{}
 				}
-				pr.Metadata.BuildKitMetadata.Layers = m
+				pr.RunDetails.Metadata.BuildKitMetadata.Layers = m
 			}
 
 			return nil
@@ -456,7 +463,7 @@ func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.Prove
 		return nil, errors.Errorf("invalid mode %q", mode)
 	}
 
-	pr.Invocation.Environment.ProvenanceCustomEnv = customEnv
+	pr.BuildDefinition.InternalParameters.ProvenanceCustomEnv = customEnv
 
 	pc := &ProvenanceCreator{
 		pr:          pr,
@@ -471,15 +478,18 @@ func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.Prove
 }
 
 func (p *ProvenanceCreator) PredicateType() string {
-	if p.slsaVersion == provenancetypes.ProvenanceSLSA1 {
-		return slsa1.PredicateSLSAProvenance
+	if p.slsaVersion == provenancetypes.ProvenanceSLSA02 {
+		return slsa02.PredicateSLSAProvenance
 	}
-	return slsa02.PredicateSLSAProvenance
+	return slsa1.PredicateSLSAProvenance
 }
 
 func (p *ProvenanceCreator) Predicate(ctx context.Context) (any, error) {
 	end := p.j.RegisterCompleteTime()
-	p.pr.Metadata.BuildFinishedOn = &end
+	if p.pr.RunDetails.Metadata == nil {
+		p.pr.RunDetails.Metadata = &provenancetypes.ProvenanceMetadataSLSA1{}
+	}
+	p.pr.RunDetails.Metadata.FinishedOn = &end
 
 	if p.addLayers != nil {
 		if err := p.addLayers(ctx); err != nil {
@@ -492,11 +502,11 @@ func (p *ProvenanceCreator) Predicate(ctx context.Context) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		p.pr.Metadata.BuildKitMetadata.SysUsage = sysSamples
+		p.pr.RunDetails.Metadata.BuildKitMetadata.SysUsage = sysSamples
 	}
 
-	if p.slsaVersion == provenancetypes.ProvenanceSLSA1 {
-		return p.pr.ConvertToSLSA1(), nil
+	if p.slsaVersion == provenancetypes.ProvenanceSLSA02 {
+		return p.pr.ConvertToSLSA02(), nil
 	}
 
 	return p.pr, nil
@@ -559,7 +569,7 @@ func resolveRemotes(ctx context.Context, res solver.Result) ([]*solver.Remote, e
 	return remotes, nil
 }
 
-func AddBuildConfig(ctx context.Context, p *provenancetypes.ProvenancePredicateSLSA02, c *provenance.Capture, rp solver.ResultProxy, withUsage bool) (map[digest.Digest]int, error) {
+func AddBuildConfig(ctx context.Context, p *provenancetypes.ProvenancePredicateSLSA1, c *provenance.Capture, rp solver.ResultProxy, withUsage bool) (map[digest.Digest]int, error) {
 	def := rp.Definition()
 	steps, indexes, err := toBuildSteps(def, c, withUsage)
 	if err != nil {
@@ -571,7 +581,7 @@ func AddBuildConfig(ctx context.Context, p *provenancetypes.ProvenancePredicateS
 		DigestMapping: digestMap(indexes),
 	}
 
-	p.BuildConfig = bc
+	p.BuildDefinition.InternalParameters.BuildConfig = bc
 
 	if def.Source != nil {
 		sis := make([]provenancetypes.SourceInfo, len(def.Source.Infos))
@@ -600,10 +610,10 @@ func AddBuildConfig(ctx context.Context, p *provenancetypes.ProvenancePredicateS
 				locs[fmt.Sprintf("step%d", idx)] = l
 			}
 
-			if p.Metadata == nil {
-				p.Metadata = &provenancetypes.ProvenanceMetadataSLSA02{}
+			if p.RunDetails.Metadata == nil {
+				p.RunDetails.Metadata = &provenancetypes.ProvenanceMetadataSLSA1{}
 			}
-			p.Metadata.BuildKitMetadata.Source = &provenancetypes.Source{
+			p.RunDetails.Metadata.BuildKitMetadata.Source = &provenancetypes.Source{
 				Infos:     sis,
 				Locations: locs,
 			}

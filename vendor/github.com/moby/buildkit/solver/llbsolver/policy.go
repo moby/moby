@@ -2,6 +2,7 @@ package llbsolver
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/moby/buildkit/client/llb/sourceresolver"
@@ -99,11 +100,20 @@ func (p *policyEvaluator) evaluate(ctx context.Context, op *pb.Op, max int) (boo
 				}
 				op.ImageOpt.NoConfig = metareq.Image.NoConfig
 				op.ImageOpt.AttestationChain = metareq.Image.AttestationChain
+				op.ImageOpt.ResolveAttestations = slices.Clone(metareq.Image.ResolveAttestations)
 			}
 
 			if metareq.Git != nil {
 				op.GitOpt = &sourceresolver.ResolveGitOpt{
 					ReturnObject: metareq.Git.ReturnObject,
+				}
+			}
+			if metareq.HTTP != nil && metareq.HTTP.ChecksumRequest != nil {
+				op.HTTPOpt = &sourceresolver.ResolveHTTPOpt{
+					ChecksumReq: &sourceresolver.ResolveHTTPChecksumRequest{
+						Algo:   fromPBHTTPChecksumAlgo(metareq.HTTP.ChecksumRequest.Algo),
+						Suffix: slices.Clone(metareq.HTTP.ChecksumRequest.Suffix),
+					},
 				}
 			}
 
@@ -179,5 +189,18 @@ func toOCIPlatform(p *pb.Platform) *ocispecs.Platform {
 		Variant:      p.Variant,
 		OSVersion:    p.OSVersion,
 		OSFeatures:   p.OSFeatures,
+	}
+}
+
+func fromPBHTTPChecksumAlgo(in gatewaypb.ChecksumRequest_ChecksumAlgo) sourceresolver.ResolveHTTPChecksumAlgo {
+	switch in {
+	case gatewaypb.ChecksumRequest_CHECKSUM_ALGO_SHA256:
+		return sourceresolver.ResolveHTTPChecksumAlgoSHA256
+	case gatewaypb.ChecksumRequest_CHECKSUM_ALGO_SHA384:
+		return sourceresolver.ResolveHTTPChecksumAlgoSHA384
+	case gatewaypb.ChecksumRequest_CHECKSUM_ALGO_SHA512:
+		return sourceresolver.ResolveHTTPChecksumAlgoSHA512
+	default:
+		return sourceresolver.ResolveHTTPChecksumAlgo(in)
 	}
 }

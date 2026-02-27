@@ -30,6 +30,7 @@ import (
 	"github.com/moby/buildkit/util/gitutil"
 	"github.com/moby/buildkit/util/gitutil/gitobject"
 	"github.com/moby/buildkit/util/gitutil/gitsign"
+	"github.com/moby/buildkit/util/pgpsign"
 	"github.com/moby/buildkit/util/progress/logs"
 	"github.com/moby/buildkit/util/urlutil"
 	"github.com/moby/locker"
@@ -308,7 +309,7 @@ func verifyGitSignature(md *Metadata, opts *GitSignatureVerifyOptions) error {
 			if err := tagObj.VerifyChecksum(md.Checksum); err != nil {
 				return errors.Wrap(err, "tag object checksum verification failed")
 			}
-			tagVerifyError = gitsign.VerifySignature(tagObj, opts.PubKey, &gitsign.VerifyPolicy{
+			tagVerifyError = gitsign.VerifySignature(tagObj, opts.PubKey, &pgpsign.VerifyPolicy{
 				RejectExpiredKeys: opts.RejectExpiredKeys,
 			})
 			if tagVerifyError == nil {
@@ -333,7 +334,7 @@ func verifyGitSignature(md *Metadata, opts *GitSignatureVerifyOptions) error {
 	if err := commitObj.VerifyChecksum(expected); err != nil {
 		return errors.Wrap(err, "commit object checksum verification failed")
 	}
-	return gitsign.VerifySignature(commitObj, opts.PubKey, &gitsign.VerifyPolicy{
+	return gitsign.VerifySignature(commitObj, opts.PubKey, &pgpsign.VerifyPolicy{
 		RejectExpiredKeys: opts.RejectExpiredKeys,
 	})
 }

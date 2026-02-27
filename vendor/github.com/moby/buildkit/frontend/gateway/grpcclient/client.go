@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -478,6 +479,9 @@ func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.Source
 		} else if v, ok := strings.CutPrefix(op.Identifier, "oci-layout://"); ok {
 			ref = v
 		} else {
+			if opt.HTTPOpt != nil && opt.HTTPOpt.ChecksumReq != nil {
+				return nil, errors.New("http checksum request requires source metadata resolver support")
+			}
 			return &sourceresolver.MetaResponse{Op: op}, nil
 		}
 		retRef, dgst, config, err := c.ResolveImageConfig(ctx, ref, opt)
@@ -523,15 +527,33 @@ func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.Source
 		SourcePolicies: opt.SourcePolicies,
 	}
 	if opt.ImageOpt != nil {
+		attestationChain := opt.ImageOpt.AttestationChain
+		if len(opt.ImageOpt.ResolveAttestations) > 0 {
+			attestationChain = true
+		}
+		req.ResolveMode = opt.ImageOpt.ResolveMode
 		req.Image = &pb.ResolveSourceImageRequest{
-			NoConfig:         opt.ImageOpt.NoConfig,
-			AttestationChain: opt.ImageOpt.AttestationChain,
+			NoConfig:            opt.ImageOpt.NoConfig,
+			AttestationChain:    attestationChain,
+			ResolveAttestations: slices.Clone(opt.ImageOpt.ResolveAttestations),
 		}
 	}
 
 	if opt.GitOpt != nil {
 		req.Git = &pb.ResolveSourceGitRequest{
 			ReturnObject: opt.GitOpt.ReturnObject,
+		}
+	}
+	if opt.HTTPOpt != nil && opt.HTTPOpt.ChecksumReq != nil {
+		algo, err := toPBHTTPChecksumAlgo(opt.HTTPOpt.ChecksumReq.Algo)
+		if err != nil {
+			return nil, err
+		}
+		req.HTTP = &pb.ResolveSourceHTTPRequest{
+			ChecksumRequest: &pb.ChecksumRequest{
+				Algo:   algo,
+				Suffix: slices.Clone(opt.HTTPOpt.ChecksumReq.Suffix),
+			},
 		}
 	}
 
@@ -569,8 +591,32 @@ func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.Source
 			tm := resp.HTTP.LastModified.AsTime()
 			r.HTTP.LastModified = &tm
 		}
+		if resp.HTTP.ChecksumResponse != nil {
+			r.HTTP.ChecksumResponse = &sourceresolver.ResolveHTTPChecksumResponse{
+				Digest: resp.HTTP.ChecksumResponse.Digest,
+				Suffix: slices.Clone(resp.HTTP.ChecksumResponse.Suffix),
+			}
+		}
+	}
+	if opt.HTTPOpt != nil && opt.HTTPOpt.ChecksumReq != nil {
+		if resp.HTTP == nil || resp.HTTP.ChecksumResponse == nil {
+			return nil, errors.New("http checksum request was sent but response did not include checksum response")
+		}
 	}
 	return r, nil
+}
+
+func toPBHTTPChecksumAlgo(in sourceresolver.ResolveHTTPChecksumAlgo) (pb.ChecksumRequest_ChecksumAlgo, error) {
+	switch in {
+	case sourceresolver.ResolveHTTPChecksumAlgoSHA256:
+		return pb.ChecksumRequest_CHECKSUM_ALGO_SHA256, nil
+	case sourceresolver.ResolveHTTPChecksumAlgoSHA384:
+		return pb.ChecksumRequest_CHECKSUM_ALGO_SHA384, nil
+	case sourceresolver.ResolveHTTPChecksumAlgoSHA512:
+		return pb.ChecksumRequest_CHECKSUM_ALGO_SHA512, nil
+	default:
+		return pb.ChecksumRequest_CHECKSUM_ALGO_SHA256, errors.Errorf("invalid http checksum algorithm: %d", in)
+	}
 }
 
 func imgResponseFromPB(resp *pb.ResolveSourceImageResponse) *sourceresolver.ResolveImageResponse {

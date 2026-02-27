@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -246,18 +245,11 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 			}
 		}
 
-		slsaVersion := provenancetypes.ProvenanceSLSA02
-		if v, ok := req.FrontendOpt["build-arg:BUILDKIT_HISTORY_PROVENANCE_V1"]; ok {
-			if b, err := strconv.ParseBool(v); err == nil && b {
-				slsaVersion = provenancetypes.ProvenanceSLSA1
-			}
-		}
-
 		makeProvenance := func(name string, res solver.ResultProxy, cap *provenance.Capture) (*controlapi.Descriptor, func(), error) {
 			span, ctx := tracing.StartSpan(ctx, fmt.Sprintf("create %s history provenance", name))
 			defer span.End()
 
-			pc, err := NewProvenanceCreator(ctx2, slsaVersion, cap, res, attrs, j, usage, s.provenanceEnv)
+			pc, err := NewProvenanceCreator(ctx2, provenancetypes.ProvenanceSLSA1, cap, res, attrs, j, usage, s.provenanceEnv)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -643,9 +635,11 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	}
 
 	// Functions that create new objects in containerd (eg. content blobs) need to have a lease to ensure
-	// that the object is not garbage collected immediately. This is protected by the indivual components,
+	// that the object is not garbage collected immediately. This is protected by the individual components,
 	// but because creating a lease is not cheap and requires a disk write, we create a single lease here
-	// early and let all the exporters, cache export and provenance creation use the same one.
+	// early and let all the exporters, cache export, provenance creation, and finalize callbacks use the
+	// same one. The lease must span both artifact creation and the finalize phase (registry push) to
+	// prevent GC from collecting blobs before they are pushed.
 	lm, err := s.leaseManager()
 	if err != nil {
 		return nil, err
@@ -669,13 +663,31 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	}
 
 	var exporterResponse map[string]string
-	exporterResponse, descrefs, err = s.runExporters(ctx, id, exp.Exporters, inlineCacheExporter, j, cached, inp)
+	var finalizers []exporter.FinalizeFunc
+	exporterResponse, finalizers, descrefs, err = s.runExporters(ctx, id, exp.Exporters, inlineCacheExporter, j, cached, inp)
 	if err != nil {
 		return nil, err
 	}
 
-	cacheExporterResponse, err := runCacheExporters(ctx, cacheExporters, j, cached, inp)
-	if err != nil {
+	// Run image finalize and cache export in parallel.
+	// Image Export has already created layers in the content store,
+	// so cache exporters can see and reuse them.
+	eg, egCtx := errgroup.WithContext(ctx)
+	for _, finalize := range finalizers {
+		if finalize == nil {
+			continue
+		}
+		eg.Go(func() error {
+			return finalize(egCtx)
+		})
+	}
+	var cacheExporterResponse map[string]string
+	eg.Go(func() error {
+		var err error
+		cacheExporterResponse, err = runCacheExporters(egCtx, cacheExporters, j, cached, inp)
+		return err
+	})
+	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
 
@@ -772,11 +784,10 @@ func validateSourcePolicy(pol *spb.Policy) error {
 func runCacheExporters(ctx context.Context, exporters []RemoteCacheExporter, j *solver.Job, cached *result.Result[solver.CachedResult], inp *result.Result[cache.ImmutableRef]) (map[string]string, error) {
 	eg, ctx := errgroup.WithContext(ctx)
 	g := session.NewGroup(j.SessionID)
-	var cacheExporterResponse map[string]string
 	resps := make([]map[string]string, len(exporters))
 	for i, exp := range exporters {
+		id := fmt.Sprint(j.SessionID, "-cache-", i)
 		eg.Go(func() (err error) {
-			id := fmt.Sprint(j.SessionID, "-cache-", i)
 			err = inBuilderContext(ctx, j, exp.Name(), id, func(ctx context.Context, _ solver.JobContext) error {
 				prepareDone := progress.OneOff(ctx, "preparing build cache for export")
 				if err := result.EachRef(cached, inp, func(res solver.CachedResult, ref cache.ImmutableRef) error {
@@ -796,8 +807,10 @@ func runCacheExporters(ctx context.Context, exporters []RemoteCacheExporter, j *
 				}); err != nil {
 					return prepareDone(err)
 				}
+				prepareDone(nil)
+				finalizeDone := progress.OneOff(ctx, "sending cache export")
 				resps[i], err = exp.Finalize(ctx)
-				return prepareDone(err)
+				return finalizeDone(err)
 			})
 			if exp.IgnoreError {
 				err = nil
@@ -809,8 +822,7 @@ func runCacheExporters(ctx context.Context, exporters []RemoteCacheExporter, j *
 		return nil, err
 	}
 
-	// TODO: separate these out, and return multiple cache exporter responses
-	// to the client
+	var cacheExporterResponse map[string]string
 	for _, resp := range resps {
 		if cacheExporterResponse == nil {
 			cacheExporterResponse = make(map[string]string)
@@ -839,14 +851,15 @@ func runInlineCacheExporter(ctx context.Context, e exporter.ExporterInstance, in
 	return res, done(err)
 }
 
-func (s *Solver) runExporters(ctx context.Context, ref string, exporters []exporter.ExporterInstance, inlineCacheExporter inlineCacheExporter, job *solver.Job, cached *result.Result[solver.CachedResult], inp *exporter.Source) (exporterResponse map[string]string, descrefs []exporter.DescriptorReference, err error) {
+func (s *Solver) runExporters(ctx context.Context, ref string, exporters []exporter.ExporterInstance, inlineCacheExporter inlineCacheExporter, job *solver.Job, cached *result.Result[solver.CachedResult], inp *exporter.Source) (exporterResponse map[string]string, finalizers []exporter.FinalizeFunc, descrefs []exporter.DescriptorReference, err error) {
 	warnings, err := verifier.CheckInvalidPlatforms(ctx, inp)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	eg, ctx := errgroup.WithContext(ctx)
 	resps := make([]map[string]string, len(exporters))
+	finalizeFuncs := make([]exporter.FinalizeFunc, len(exporters))
 	descs := make([]exporter.DescriptorReference, len(exporters))
 	var inlineCacheMu sync.Mutex
 	for i, exp := range exporters {
@@ -871,20 +884,21 @@ func (s *Solver) runExporters(ctx context.Context, ref string, exporters []expor
 					return runInlineCacheExporter(ctx, exp, inlineCacheExporter, job, cached)
 				})
 
-				resps[i], descs[i], err = exp.Export(ctx, inp, exporter.ExportBuildInfo{
+				resp, finalize, desc, expErr := exp.Export(ctx, inp, exporter.ExportBuildInfo{
 					Ref:         ref,
 					SessionID:   job.SessionID,
 					InlineCache: inlineCache,
 				})
-				if err != nil {
-					return err
+				resps[i], finalizeFuncs[i], descs[i] = resp, finalize, desc
+				if expErr != nil {
+					return expErr
 				}
 				return nil
 			})
 		})
 	}
 	if err := eg.Wait(); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	if len(exporters) == 0 && len(warnings) > 0 {
@@ -896,7 +910,7 @@ func (s *Solver) runExporters(ctx context.Context, ref string, exporters []expor
 			return pw.Close()
 		})
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
@@ -911,7 +925,7 @@ func (s *Solver) runExporters(ctx context.Context, ref string, exporters []expor
 		}
 	}
 
-	return exporterResponse, descs, nil
+	return exporterResponse, finalizeFuncs, descs, nil
 }
 
 func (s *Solver) leaseManager() (*leaseutil.Manager, error) {

@@ -40,8 +40,11 @@ const (
 	CapSourceHTTPChecksum apicaps.CapID = "source.http.checksum"
 	CapSourceHTTPPerm     apicaps.CapID = "source.http.perm"
 	// NOTE the historical typo
-	CapSourceHTTPUIDGID apicaps.CapID = "soruce.http.uidgid"
-	CapSourceHTTPHeader apicaps.CapID = "source.http.header"
+	CapSourceHTTPUIDGID          apicaps.CapID = "soruce.http.uidgid"
+	CapSourceHTTPHeader          apicaps.CapID = "source.http.header"
+	CapSourceHTTPSignatureVerify apicaps.CapID = "source.http.signatureverify"
+
+	CapSourceImageBlob apicaps.CapID = "source.imageblob"
 
 	CapSourceOCILayout apicaps.CapID = "source.ocilayout"
 
@@ -284,6 +287,18 @@ func init() {
 
 	Caps.Init(apicaps.Cap{
 		ID:      CapSourceHTTPHeader,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapSourceHTTPSignatureVerify,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapSourceImageBlob,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})
