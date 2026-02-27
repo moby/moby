@@ -129,7 +129,7 @@ can take over 15 minutes to complete.
 
    ```none
    Successfully built 3d872560918e
-   docker run --rm -i --privileged -e BUILDFLAGS -e KEEPBUNDLE -e DOCKER_DEBUG -e DOCKER_EXPERIMENTAL -e DOCKER_GITCOMMIT -e DOCKER_GRAPHDRIVER=vfs -e DOCKER_REMAP_ROOT -e DOCKER_STORAGE_OPTS -e DOCKER_USERLANDPROXY -e TESTDIRS -e TESTFLAGS -e TIMEOUT -v "home/ubuntu/repos/docker/bundles:/go/src/github.com/docker/docker/bundles" -t "docker-dev" bash
+   docker run --rm -i --privileged -e BUILDFLAGS -e KEEPBUNDLE -e DOCKER_DEBUG -e DOCKER_EXPERIMENTAL -e DOCKER_GITCOMMIT -e DOCKER_GRAPHDRIVER=vfs -e DOCKER_REMAP_ROOT -e DOCKER_STORAGE_OPTS -e DOCKER_USERLANDPROXY -e TESTDIRS -e TESTFLAGS -e TIMEOUT -v "home/ubuntu/repos/moby-fork/bundles:/usr/src/bundles" -t "docker-dev" bash
    #
    ```
 
@@ -141,9 +141,9 @@ can take over 15 minutes to complete.
 > It does not automatically tag the image with your current branch name, even if you are on a feature branch.
 > Some older documentation or examples may refer to a branch-specific tag, but that behavior is no longer used.
 
-5. List the contents of the current directory (`/go/src/github.com/docker/docker`).
+5. List the contents of the current directory (`/usr/src/moby`).
 
-   You should see the image's source from the  `/go/src/github.com/docker/docker`
+   You should see the image's source from the  `/usr/src/moby`
    directory.
 
    ![List example](images/list_example.png)

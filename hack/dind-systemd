@@ -95,7 +95,7 @@ After=firewalld.service
 Type=oneshot
 ExecStart=/bin/true
 RemainAfterExit=true
-ExecStop=cp /var/log/firewalld /go/src/github.com/docker/docker/bundles/firewalld.log
+ExecStop=cp /var/log/firewalld /usr/src/moby/bundles/firewalld.log
 
 [Install]
 WantedBy=firewalld.service
