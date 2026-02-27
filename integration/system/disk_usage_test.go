@@ -76,6 +76,9 @@ func TestDiskUsage(t *testing.T) {
 				})
 				assert.NilError(t, err)
 
+				assert.Equal(t, du.Images.ActiveCount, int64(0))
+				assert.Equal(t, du.Images.TotalCount, int64(1))
+				assert.Equal(t, du.Images.Reclaimable, du.Images.TotalSize)
 				assert.Assert(t, du.Images.TotalSize > 0)
 				assert.Equal(t, len(du.Images.Items), 1)
 				assert.Equal(t, len(du.Images.Items[0].RepoTags), 1)
@@ -113,6 +116,7 @@ func TestDiskUsage(t *testing.T) {
 
 				assert.Equal(t, du.Images.ActiveCount, int64(1))
 				assert.Equal(t, du.Images.TotalCount, int64(1))
+				assert.Equal(t, du.Images.Reclaimable, int64(0))
 				assert.Equal(t, len(du.Images.Items), 1)
 				assert.Equal(t, du.Images.Items[0].Containers, prev.Images.Items[0].Containers+1)
 
