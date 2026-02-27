@@ -156,28 +156,35 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 
 		summary := newImageSummary(img, size)
 
+		var matchedFilter bool
 		for _, ref := range i.referenceStore.References(id.Digest()) {
 			if opts.Filters.Contains("reference") {
-				var found bool
-				var matchErr error
 				for _, pattern := range opts.Filters.Get("reference") {
-					found, matchErr = reference.FamiliarMatch(pattern, ref)
+					found, matchErr := reference.FamiliarMatch(pattern, ref)
 					if matchErr != nil {
 						return nil, matchErr
 					}
 					if found {
+						matchedFilter = true
 						break
 					}
 				}
-				if !found {
-					continue
+				if matchedFilter {
+					break
 				}
+			} else {
+				matchedFilter = true
+				break
 			}
-			if _, ok := ref.(reference.Canonical); ok {
-				summary.RepoDigests = append(summary.RepoDigests, reference.FamiliarString(ref))
-			}
-			if _, ok := ref.(reference.NamedTagged); ok {
-				summary.RepoTags = append(summary.RepoTags, reference.FamiliarString(ref))
+		}
+		if matchedFilter {
+			for _, ref := range i.referenceStore.References(id.Digest()) {
+				if tagged, ok := ref.(reference.NamedTagged); ok {
+					summary.RepoTags = append(summary.RepoTags, reference.FamiliarString(tagged))
+				}
+				if canonical, ok := ref.(reference.Canonical); ok {
+					summary.RepoDigests = append(summary.RepoDigests, reference.FamiliarString(canonical))
+				}
 			}
 		}
 		if summary.RepoDigests == nil && summary.RepoTags == nil {
