@@ -59,9 +59,10 @@ func (i *ImageService) PushImage(ctx context.Context, ref reference.Named, optio
 			ImageStore:       distribution.NewImageConfigStoreFromStore(i.imageStore),
 			ReferenceStore:   i.referenceStore,
 		},
-		ConfigMediaType: schema2.MediaTypeImageConfig,
-		LayerStores:     distribution.NewLayerProvidersFromStore(i.layerStore),
-		UploadManager:   i.uploadManager,
+		ForceCheckLayerExist: options.ForceCheckLayerExist,
+		ConfigMediaType:      schema2.MediaTypeImageConfig,
+		LayerStores:          distribution.NewLayerProvidersFromStore(i.layerStore),
+		UploadManager:        i.uploadManager,
 	}
 
 	err := distribution.Push(ctx, ref, imagePushConfig)
