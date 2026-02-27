@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package memberlist
 
 import (
@@ -131,13 +134,13 @@ type Broadcast interface {
 // You shoud ensure that Invalidates() checks the same uniqueness as the
 // example below:
 //
-// func (b *foo) Invalidates(other Broadcast) bool {
-// 	nb, ok := other.(NamedBroadcast)
-// 	if !ok {
-// 		return false
-// 	}
-// 	return b.Name() == nb.Name()
-// }
+//	func (b *foo) Invalidates(other Broadcast) bool {
+//		nb, ok := other.(NamedBroadcast)
+//		if !ok {
+//			return false
+//		}
+//		return b.Name() == nb.Name()
+//	}
 //
 // Invalidates() isn't currently used for NamedBroadcasts, but that may change
 // in the future.
