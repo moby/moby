@@ -103,7 +103,7 @@ jobs:
           EOF
           # TODO: use native packages for AlmaLinux: https://github.com/docker/packaging/pull/138
           lima sudo dnf config-manager --add-repo=https://download.docker.com/linux/rhel/docker-ce.repo
-          lima sudo dnf -q -y install --nobest docker-ce make
+          lima sudo dnf -q -y install --nobest docker-ce make git
           lima sudo systemctl enable --now docker
           lima docker info
       -
