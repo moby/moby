@@ -241,15 +241,25 @@ func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *
 	daemon.logClusterEvent(action, service.ID, events.ServiceEventType, eventTime, attributes)
 }
 
-var clusterEventAction = map[swarmapi.WatchActionKind]events.Action{
-	swarmapi.WatchActionKindCreate: events.ActionCreate,
-	swarmapi.WatchActionKindUpdate: events.ActionUpdate,
-	swarmapi.WatchActionKindRemove: events.ActionRemove,
-}
-
 func (daemon *Daemon) logClusterEvent(action swarmapi.WatchActionKind, id string, eventType events.Type, eventTime time.Time, attributes map[string]string) {
+	var eventAction events.Action
+	switch action {
+	case swarmapi.WatchActionKindCreate:
+		eventAction = events.ActionCreate
+	case swarmapi.WatchActionKindUpdate:
+		eventAction = events.ActionUpdate
+	case swarmapi.WatchActionKindRemove:
+		eventAction = events.ActionRemove
+	case swarmapi.WatchActionKindUnknown:
+		// Unknown action kind - skip publishing invalid event
+		return
+	default:
+		// Unknown action kind - skip publishing invalid event
+		return
+	}
+
 	daemon.EventsService.PublishMessage(events.Message{
-		Action: clusterEventAction[action],
+		Action: eventAction,
 		Type:   eventType,
 		Actor: events.Actor{
 			ID:         id,
@@ -262,18 +272,21 @@ func (daemon *Daemon) logClusterEvent(action swarmapi.WatchActionKind, id string
 }
 
 func eventTimestamp(meta swarmapi.Meta, action swarmapi.WatchActionKind) time.Time {
-	var eventTime time.Time
 	switch action {
 	case swarmapi.WatchActionKindCreate:
-		eventTime, _ = gogotypes.TimestampFromProto(meta.CreatedAt)
+		eventTime, _ := gogotypes.TimestampFromProto(meta.CreatedAt)
+		return eventTime
 	case swarmapi.WatchActionKindUpdate:
-		eventTime, _ = gogotypes.TimestampFromProto(meta.UpdatedAt)
+		eventTime, _ := gogotypes.TimestampFromProto(meta.UpdatedAt)
+		return eventTime
 	case swarmapi.WatchActionKindRemove:
 		// There is no timestamp from store message for remove operations.
 		// Use current time.
-		eventTime = time.Now()
+		return time.Now()
+	case swarmapi.WatchActionKindUnknown:
+		return time.Now()
 	default:
-		// TODO(thaJeztah): make switch exhaustive: anything to do for swarmapi.WatchActionKindUnknown or "other" ?
+		// For any unexpected action kinds, use current time as fallback.
+		return time.Now()
 	}
-	return eventTime
 }
