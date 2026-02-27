@@ -91,6 +91,7 @@ message MemoryEvents {
 	uint64 max = 3;
 	uint64 oom = 4;
 	uint64 oom_kill = 5;
+	uint64 oom_group_kill = 6;
 }
 
 message RdmaStat {

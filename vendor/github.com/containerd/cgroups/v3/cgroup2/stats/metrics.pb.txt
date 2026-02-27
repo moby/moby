@@ -509,6 +509,13 @@ file {
       type: TYPE_UINT64
       json_name: "oomKill"
     }
+    field {
+      name: "oom_group_kill"
+      number: 6
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "oomGroupKill"
+    }
   }
   message_type {
     name: "RdmaStat"
