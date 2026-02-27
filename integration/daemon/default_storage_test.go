@@ -35,6 +35,7 @@ func TestDefaultStorageDriver(t *testing.T) {
 // migrating to containerd snapshotters automatically.
 func TestGraphDriverPersistence(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows does not support running sub-daemons")
+	skip.If(t, testEnv.IsRootless() && testEnv.IsSELinuxEnforcing(), "rootless mode doesn't support overlay2 with SELinux enabled")
 	t.Setenv("DOCKER_DRIVER", "")
 	t.Setenv("DOCKER_GRAPHDRIVER", "")
 	t.Setenv("TEST_INTEGRATION_USE_GRAPHDRIVER", "")

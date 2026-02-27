@@ -16,6 +16,7 @@ import (
 )
 
 func TestMigrateOverlaySnapshotter(t *testing.T) {
+	skip.If(t, testEnv.IsRootless() && testEnv.IsSELinuxEnforcing(), "rootless mode doesn't support overlay2 with SELinux enabled")
 	testMigrateSnapshotter(t, "overlay2", "overlayfs")
 }
 
@@ -89,6 +90,7 @@ func testMigrateSnapshotter(t *testing.T, graphdriver, snapshotter string) {
 
 func TestMigrateSaveLoad(t *testing.T) {
 	skip.If(t, runtime.GOOS != "linux")
+	skip.If(t, testEnv.IsRootless() && testEnv.IsSELinuxEnforcing(), "rootless mode doesn't support overlay2 with SELinux enabled")
 
 	t.Setenv("DOCKER_MIGRATE_SNAPSHOTTER_THRESHOLD", "200M")
 	t.Setenv("DOCKER_DRIVER", "")
