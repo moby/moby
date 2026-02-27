@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package coordinate
 
 import (
@@ -7,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-metrics/compat"
 )
 
 // Client manages the estimated network coordinate for a given node, and adjusts
@@ -218,7 +221,7 @@ func (c *Client) Update(node string, other *Coordinate, rtt time.Duration) (*Coo
 		return nil, fmt.Errorf("round trip time not in valid range, duration %v is not a positive value less than %v ", rtt, maxRTT)
 	}
 	if rtt == 0 {
-		metrics.IncrCounter([]string{"serf", "coordinate", "zero-rtt"}, 1)
+		metrics.IncrCounterWithLabels([]string{"serf", "coordinate", "zero-rtt"}, 1, c.config.MetricLabels)
 	}
 
 	rttSeconds := c.latencyFilter(node, rtt.Seconds())

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package memberlist
 
 import (
@@ -10,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-metrics/compat"
 	sockaddr "github.com/hashicorp/go-sockaddr"
 )
 
