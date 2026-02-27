@@ -34,7 +34,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// AnyValue is used to represent any type of attribute value. AnyValue may contain a
+// Represents any type of attribute value. AnyValue may contain a
 // primitive value such as a string or integer or it may contain an arbitrary nested
 // object containing arrays, key-value lists and primitives.
 type AnyValue struct {
@@ -252,8 +252,10 @@ type KeyValueList struct {
 
 	// A collection of key/value pairs of key-value pairs. The list may be empty (may
 	// contain 0 elements).
+	//
 	// The keys MUST be unique (it is not allowed to have more than one
 	// value with the same key).
+	// The behavior of software that receives duplicated keys can be unpredictable.
 	Values []*KeyValue `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
 }
 
@@ -296,14 +298,16 @@ func (x *KeyValueList) GetValues() []*KeyValue {
 	return nil
 }
 
-// KeyValue is a key-value pair that is used to store Span attributes, Link
+// Represents a key-value pair that is used to store Span attributes, Link
 // attributes, etc.
 type KeyValue struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Key   string    `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	// The key name of the pair.
+	Key string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	// The value of the pair.
 	Value *AnyValue `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
 }
 
@@ -360,14 +364,21 @@ type InstrumentationScope struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// A name denoting the Instrumentation scope.
 	// An empty instrumentation scope name means the name is unknown.
-	Name    string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Defines the version of the instrumentation scope.
+	// An empty instrumentation scope version means the version is unknown.
 	Version string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
 	// Additional attributes that describe the scope. [Optional].
 	// Attribute keys MUST be unique (it is not allowed to have more than one
 	// attribute with the same key).
-	Attributes             []*KeyValue `protobuf:"bytes,3,rep,name=attributes,proto3" json:"attributes,omitempty"`
-	DroppedAttributesCount uint32      `protobuf:"varint,4,opt,name=dropped_attributes_count,json=droppedAttributesCount,proto3" json:"dropped_attributes_count,omitempty"`
+	// The behavior of software that receives duplicated keys can be unpredictable.
+	Attributes []*KeyValue `protobuf:"bytes,3,rep,name=attributes,proto3" json:"attributes,omitempty"`
+	// The number of attributes that were discarded. Attributes
+	// can be discarded because their keys are too long or because there are too many
+	// attributes. If this value is 0, then no attributes were dropped.
+	DroppedAttributesCount uint32 `protobuf:"varint,4,opt,name=dropped_attributes_count,json=droppedAttributesCount,proto3" json:"dropped_attributes_count,omitempty"`
 }
 
 func (x *InstrumentationScope) Reset() {

@@ -30,7 +30,7 @@ func newLimiter[V any](aggregation int) limiter[V] {
 // aggregation cardinality limit for the existing measurements. If it will,
 // overflowSet is returned. Otherwise, if it will not exceed the limit, or the
 // limit is not set (limit <= 0), attr is returned.
-func (l limiter[V]) Attributes(attrs attribute.Set, measurements map[attribute.Distinct]V) attribute.Set {
+func (l limiter[V]) Attributes(attrs attribute.Set, measurements map[attribute.Distinct]*V) attribute.Set {
 	if l.aggLimit > 0 {
 		_, exists := measurements[attrs.Equivalent()]
 		if !exists && len(measurements) >= l.aggLimit-1 {
