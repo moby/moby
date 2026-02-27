@@ -73,6 +73,11 @@ type ImageProperties struct {
 	// Required: true
 	Platform ocispec.Platform `json:"Platform"`
 
+	// Identity holds information about the identity and origin of the image.
+	// For image list responses, this can duplicate Build/Pull fields across
+	// image manifests, because those parts of identity are image-level metadata.
+	Identity *Identity `json:"Identity,omitempty"`
+
 	Size struct {
 		// Unpacked is the size (in bytes) of the locally unpacked
 		// (uncompressed) image content that's directly usable by the containers

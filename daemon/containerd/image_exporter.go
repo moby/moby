@@ -346,6 +346,10 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 			name = reference.FamiliarString(reference.TagNameOnly(named))
 		}
 
+		if !isDanglingImage(img) {
+			i.warmImageIdentityCache(ctx, img)
+		}
+
 		err = i.walkImageManifests(ctx, img, func(platformImg *ImageManifest) error {
 			logger := log.G(ctx).WithFields(log.Fields{
 				"image":    name,

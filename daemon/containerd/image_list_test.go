@@ -208,6 +208,63 @@ func blobSize(t *testing.T, ctx context.Context, cs content.Store, dgst digest.D
 	return info.Size
 }
 
+func TestImageListIdentityUsesCacheOnly(t *testing.T) {
+	ctx := namespaces.WithNamespace(t.Context(), "testing-"+t.Name())
+
+	blobsDir := t.TempDir()
+	idx, err := specialimage.MultiLayer(blobsDir)
+	assert.NilError(t, err)
+
+	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
+	service := fakeImageService(t, ctx, cs)
+
+	_, err = service.images.Create(ctx, imagesFromIndex(idx)[0])
+	assert.NilError(t, err)
+
+	all, err := service.Images(ctx, imagebackend.ListOptions{Identity: true})
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(all, 1))
+	assert.Check(t, is.Len(all[0].Manifests, 1))
+	assert.Check(t, all[0].Manifests[0].ImageData != nil)
+	assert.Check(t, all[0].Manifests[0].ImageData.Identity == nil)
+}
+
+func TestImageListIdentityIsManifestScoped(t *testing.T) {
+	ctx := namespaces.WithNamespace(t.Context(), "testing-"+t.Name())
+
+	blobsDir := t.TempDir()
+	idx, err := specialimage.MultiLayer(blobsDir)
+	assert.NilError(t, err)
+
+	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
+	service := fakeImageService(t, ctx, cs)
+
+	img, err := service.images.Create(ctx, imagesFromIndex(idx)[0])
+	assert.NilError(t, err)
+
+	summary, err := service.multiPlatformSummary(ctx, img, matchAnyWithPreference(platforms.Default(), nil))
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(summary.manifestIdentityRefs, 1))
+
+	var ref manifestIdentityRef
+	for _, candidate := range summary.manifestIdentityRefs {
+		ref = candidate
+		break
+	}
+
+	key := imageIdentityCacheKey(img.Target.Digest.String(), ref.manifest.Target().Digest.String(), platforms.FormatAll(ref.platform))
+	assert.NilError(t, service.updateImageIdentityCache(ctx, key, &imagetypes.SignatureIdentity{Name: "cached"}, time.Minute))
+
+	all, err := service.Images(ctx, imagebackend.ListOptions{Identity: true})
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(all, 1))
+	assert.Check(t, is.Len(all[0].Manifests, 1))
+	if assert.Check(t, all[0].Manifests[0].ImageData != nil) && assert.Check(t, all[0].Manifests[0].ImageData.Identity != nil) {
+		assert.Check(t, is.Len(all[0].Manifests[0].ImageData.Identity.Signature, 1))
+		assert.Check(t, is.Equal(all[0].Manifests[0].ImageData.Identity.Signature[0].Name, "cached"))
+	}
+}
+
 func TestImageList(t *testing.T) {
 	ctx := namespaces.WithNamespace(t.Context(), "testing")
 

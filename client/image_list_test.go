@@ -82,6 +82,16 @@ func TestImageList(t *testing.T) {
 				"shared-size": "1",
 			},
 		},
+		{
+			doc: "with identity",
+			options: ImageListOptions{
+				Identity: true,
+			},
+			expectedQueryParams: map[string]string{
+				"identity":  "1",
+				"manifests": "1",
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {

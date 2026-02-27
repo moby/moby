@@ -53,6 +53,7 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	ctrd "github.com/moby/moby/v2/daemon/containerd"
+	"github.com/moby/moby/v2/daemon/containerd/identitycache"
 	"github.com/moby/moby/v2/daemon/containerd/migration"
 	"github.com/moby/moby/v2/daemon/events"
 	_ "github.com/moby/moby/v2/daemon/graphdriver/register" // register graph drivers
@@ -1273,11 +1274,17 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		if err := configureKernelSecuritySupport(&cfgStore.Config, driverName); err != nil {
 			return nil, err
 		}
+		identityCacheBackend, err := identitycache.NewBoltDBBackend(config.Root)
+		if err != nil {
+			log.G(ctx).WithError(err).Warn("failed to initialize image identity bbolt cache backend")
+			identityCacheBackend = identitycache.NewNopBackend()
+		}
 		d.usesSnapshotter = true
 		d.imageService = ctrd.NewService(ctrd.ImageServiceConfig{
 			Client:                 d.containerdClient,
 			Containers:             d.containers,
 			Snapshotter:            driverName,
+			IdentityCacheBackend:   identityCacheBackend,
 			RegistryHosts:          d.RegistryHosts,
 			Registry:               d.registryService,
 			EventsService:          d.EventsService,

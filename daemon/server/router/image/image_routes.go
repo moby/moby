@@ -496,11 +496,20 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		manifests = httputils.BoolValue(r, "manifests")
 	}
 
+	var identity bool
+	if versions.GreaterThanOrEqualTo(version, "1.54") {
+		identity = httputils.BoolValue(r, "identity")
+		if identity && !manifests {
+			return errdefs.InvalidParameter(errors.New("conflicting options: identity requires manifests=1"))
+		}
+	}
+
 	images, err := ir.backend.Images(ctx, imagebackend.ListOptions{
 		All:        httputils.BoolValue(r, "all"),
 		Filters:    imageFilters,
 		SharedSize: sharedSize,
 		Manifests:  manifests,
+		Identity:   identity,
 	})
 	if err != nil {
 		return err

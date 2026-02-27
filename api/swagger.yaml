@@ -19,10 +19,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.53"
+basePath: "/v1.54"
 info:
   title: "Docker Engine API"
-  version: "1.53"
+  version: "1.54"
   x-logo:
     url: "https://docs.docker.com/assets/images/logo-docker-main.png"
   description: |
@@ -1835,6 +1835,13 @@ definitions:
           compatibility.
         x-nullable: true
         $ref: "#/definitions/OCIDescriptor"
+      Identity:
+        description: |-
+          Identity holds information about the identity and origin of the image.
+          This is trusted information verified by the daemon and cannot be modified
+          by tagging an image to a different name.
+        x-nullable: true
+        $ref: "#/definitions/Identity"
       Manifests:
         description: |
           Manifests is a list of image manifests available in this image. It
@@ -1850,13 +1857,6 @@ definitions:
         x-nullable: true
         items:
           $ref: "#/definitions/ImageManifestSummary"
-      Identity:
-        description: |-
-          Identity holds information about the identity and origin of the image.
-          This is trusted information verified by the daemon and cannot be modified
-          by tagging an image to a different name.
-        x-nullable: true
-        $ref: "#/definitions/Identity"
       RepoTags:
         description: |
           List of image names/tags in the local image cache that reference this
@@ -8212,6 +8212,13 @@ definitions:
               OCI platform of the image. This will be the platform specified in the
               manifest descriptor from the index/manifest list.
               If it's not available, it will be obtained from the image config.
+          Identity:
+            description: |
+              Identity holds information about the identity and origin of this image.
+              For image list responses, this can duplicate Build/Pull fields across
+              image manifests, because those parts are image-level metadata.
+            x-nullable: true
+            $ref: "#/definitions/Identity"
           Containers:
             description: |
               The IDs of the containers that are using this image.
@@ -9720,6 +9727,11 @@ paths:
         - name: "manifests"
           in: "query"
           description: "Include `Manifests` in the image summary."
+          type: "boolean"
+          default: false
+        - name: "identity"
+          in: "query"
+          description: "Include `Identity` in each manifest summary. Requires `manifests=1`."
           type: "boolean"
           default: false
       tags: ["Image"]
