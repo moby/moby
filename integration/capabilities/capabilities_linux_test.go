@@ -3,6 +3,7 @@ package capabilities
 import (
 	"bytes"
 	"io"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -17,6 +18,11 @@ import (
 )
 
 func TestNoNewPrivileges(t *testing.T) {
+	switch runtime.GOARCH {
+	case "amd64", "arm64":
+	default:
+		t.Skipf("skipping on unsupported architecture: %s", runtime.GOARCH)
+	}
 	ctx := setupTest(t)
 
 	withFileCapability := `
