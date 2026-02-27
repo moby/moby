@@ -365,6 +365,11 @@ jobs:
           gotestsum \
             --jsonfile="./bin/testreports/go-test-report-${{ env.TEST_REPORT_NAME }}.json" \
             --junitfile="./bin/testreports/junit-report-${{ env.TEST_REPORT_NAME }}.xml" \
+            --max-fails=20 \
+            --rerun-fails=2 \
+            --rerun-fails-max-failures=10 \
+            --rerun-fails-abort-on-data-race \
+            --rerun-fails-report="./bin/testreports/rerun-report-${{ env.TEST_REPORT_NAME }}.txt" \
             --packages="${{ env.TESTPKG }}" \
             -- \
               "-mod=vendor" \
