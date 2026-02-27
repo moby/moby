@@ -58,7 +58,7 @@ func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
 }
 
 func TestLoadDaemonConfigWithTrueDefaultValues(t *testing.T) {
-	content := `{ "userland-proxy": false }`
+	content := `{ "userland-proxy": true }`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
 
 	opts := defaultOptions(t, tempFile.Path())
@@ -66,12 +66,12 @@ func TestLoadDaemonConfigWithTrueDefaultValues(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
 
-	assert.Check(t, !loadedConfig.EnableUserlandProxy)
+	assert.Check(t, loadedConfig.EnableUserlandProxy)
 
 	// make sure reloading doesn't generate configuration
 	// conflicts after normalizing boolean values.
 	reload := func(reloadedConfig *config.Config) {
-		assert.Check(t, !reloadedConfig.EnableUserlandProxy)
+		assert.Check(t, reloadedConfig.EnableUserlandProxy)
 	}
 	assert.Check(t, config.Reload(opts.configFile, opts.flags, reload))
 }
@@ -84,5 +84,5 @@ func TestLoadDaemonConfigWithTrueDefaultValuesLeaveDefaults(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
 
-	assert.Check(t, loadedConfig.EnableUserlandProxy)
+	assert.Check(t, !loadedConfig.EnableUserlandProxy)
 }
