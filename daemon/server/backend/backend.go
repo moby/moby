@@ -118,6 +118,8 @@ type ContainerLogsOptions struct {
 	Follow     bool
 	Tail       string
 	Details    bool
+	Format     string
+	Encoding   string
 }
 
 // ContainerStopOptions holds the options to stop or restart a container.
