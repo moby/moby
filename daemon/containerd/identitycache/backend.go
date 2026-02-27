@@ -18,6 +18,8 @@ type Entry struct {
 type Backend interface {
 	Load(ctx context.Context, cacheKey string, now time.Time) (Entry, bool, error)
 	Store(ctx context.Context, cacheKey string, entry Entry, now time.Time) error
+	Walk(ctx context.Context, now time.Time, fn func(cacheKey string, entry Entry) error) error
+	PruneExpired(ctx context.Context, now time.Time) error
 	Close() error
 }
 
@@ -33,6 +35,14 @@ func (nopBackend) Load(context.Context, string, time.Time) (Entry, bool, error) 
 }
 
 func (nopBackend) Store(context.Context, string, Entry, time.Time) error {
+	return nil
+}
+
+func (nopBackend) Walk(context.Context, time.Time, func(string, Entry) error) error {
+	return nil
+}
+
+func (nopBackend) PruneExpired(context.Context, time.Time) error {
 	return nil
 }
 

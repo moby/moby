@@ -2,34 +2,23 @@ package identitycache
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
-	"math/big"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
-	boltdb "github.com/moby/buildkit/util/db"
-	"github.com/moby/buildkit/util/db/boltutil"
+	"github.com/containerd/log"
 	bolt "go.etcd.io/bbolt"
 )
 
 var bboltCacheBucket = []byte("image-identity-cache-v1")
 
-const (
-	// 15m matches the shortest cache TTL (imageIdentityErrorCacheTTL), so
-	// prune won't lag far behind shortest-lived entries.
-	pruneIntervalMin    = 15 * time.Minute
-	pruneIntervalSpread = 15 * time.Minute
-)
-
 type boltBackend struct {
-	db        boltdb.DB
+	db        *bolt.DB
 	closeOnce sync.Once
 	closeErr  error
-	stopPrune chan struct{}
-	pruneDone chan struct{}
 }
 
 // NewBoltDBBackend creates a bbolt-backed persistent cache backend.
@@ -41,7 +30,7 @@ func NewBoltDBBackend(root string) (Backend, error) {
 	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
 		return nil, err
 	}
-	db, err := boltutil.SafeOpen(filepath.Join(cacheDir, "identity-cache.db"), 0o600, nil)
+	db, err := safeOpen(filepath.Join(cacheDir, "identity-cache.db"), 0o600, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +42,6 @@ func NewBoltDBBackend(root string) (Backend, error) {
 		_ = db.Close()
 		return nil, err
 	}
-	b.startPrune()
 	return b, nil
 }
 
@@ -85,9 +73,6 @@ func (b *boltBackend) Load(_ context.Context, cacheKey string, now time.Time) (E
 		return Entry{}, false, nil
 	}
 	if now.After(entry.ExpiresAt) {
-		if err := b.delete(cacheKey); err != nil {
-			return Entry{}, false, err
-		}
 		return Entry{}, false, nil
 	}
 	return entry, true, nil
@@ -107,17 +92,39 @@ func (b *boltBackend) Store(_ context.Context, cacheKey string, entry Entry, _ t
 	})
 }
 
+func (b *boltBackend) Walk(ctx context.Context, _ time.Time, fn func(cacheKey string, entry Entry) error) error {
+	return b.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(bboltCacheBucket)
+		if bucket == nil {
+			return nil
+		}
+		cursor := bucket.Cursor()
+		for key, value := cursor.First(); key != nil; key, value = cursor.Next() {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+
+			var entry Entry
+			if err := json.Unmarshal(value, &entry); err != nil {
+				continue
+			}
+			if err := fn(string(key), entry); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (b *boltBackend) PruneExpired(_ context.Context, now time.Time) error {
+	return b.pruneExpiredEntries(now)
+}
+
 func (b *boltBackend) Close() error {
 	if b == nil || b.db == nil {
 		return nil
 	}
 	b.closeOnce.Do(func() {
-		if b.stopPrune != nil {
-			close(b.stopPrune)
-		}
-		if b.pruneDone != nil {
-			<-b.pruneDone
-		}
 		b.closeErr = b.db.Close()
 	})
 	return b.closeErr
@@ -131,33 +138,6 @@ func (b *boltBackend) delete(cacheKey string) error {
 		}
 		return bucket.Delete([]byte(cacheKey))
 	})
-}
-
-func (b *boltBackend) startPrune() {
-	b.stopPrune = make(chan struct{})
-	b.pruneDone = make(chan struct{})
-	go func() {
-		defer close(b.pruneDone)
-		timer := time.NewTimer(nextPruneDelay())
-		defer timer.Stop()
-		for {
-			select {
-			case <-b.stopPrune:
-				return
-			case <-timer.C:
-				_ = b.pruneExpiredEntries(time.Now().UTC())
-				timer.Reset(nextPruneDelay())
-			}
-		}
-	}()
-}
-
-func nextPruneDelay() time.Duration {
-	n, err := rand.Int(rand.Reader, big.NewInt(int64(pruneIntervalSpread)))
-	if err != nil {
-		return pruneIntervalMin
-	}
-	return pruneIntervalMin + time.Duration(n.Int64())
 }
 
 func (b *boltBackend) pruneExpiredEntries(now time.Time) error {
@@ -177,4 +157,46 @@ func (b *boltBackend) pruneExpiredEntries(now time.Time) error {
 		}
 		return nil
 	})
+}
+
+// safeOpen opens a bolt database with automatic recovery from corruption.
+// If the database file is corrupted, it backs up the corrupted file and creates
+// a new empty database.
+func safeOpen(dbPath string, mode os.FileMode, opts *bolt.Options) (db *bolt.DB, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+		}
+		// If we fail opening the DB, but can read a non-empty file, try resetting it.
+		if err != nil && fileHasContent(dbPath) {
+			db, err = fallbackOpen(dbPath, mode, opts, err)
+		}
+	}()
+	return openDB(dbPath, mode, opts)
+}
+
+func openDB(dbPath string, mode os.FileMode, opts *bolt.Options) (*bolt.DB, error) {
+	bdb, err := bolt.Open(dbPath, mode, opts)
+	if err != nil {
+		return nil, err
+	}
+	return bdb, nil
+}
+
+func fallbackOpen(dbPath string, mode os.FileMode, opts *bolt.Options, openErr error) (*bolt.DB, error) {
+	backupPath := dbPath + "." + fmt.Sprintf("%d", time.Now().UnixNano()) + ".bak"
+	log.L.Errorf("failed to open moby image identity cache database %s, resetting to empty. "+
+		"Old database is backed up to %s. This usually means dockerd crashed or was terminated abruptly, leaving the cache DB corrupted. "+
+		"If this keeps happening, please report at https://github.com/moby/moby/issues. original error: %v",
+		dbPath, backupPath, openErr)
+	if err := os.Rename(dbPath, backupPath); err != nil {
+		return nil, fmt.Errorf("failed to rename database file %s to %s: %w", dbPath, backupPath, err)
+	}
+	// Second open should create a new database; failure here is permanent.
+	return openDB(dbPath, mode, opts)
+}
+
+func fileHasContent(dbPath string) bool {
+	st, err := os.Stat(dbPath)
+	return err == nil && st.Size() > 0
 }
