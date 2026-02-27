@@ -166,11 +166,10 @@ If your changes need integration tests, write them against the API. The `cli`
 integration tests are slowly either migrated to API tests or moved away as unit
 tests in `docker/cli` and end-to-end tests for Docker.
 
-Update the documentation when creating or modifying features. Test your
-documentation changes for clarity, concision, and correctness, as well as a
-clean documentation build. See our contributors guide for [our style
-guide](https://docs.docker.com/opensource/doc-style) and instructions on [building
-the documentation](https://docs.docker.com/opensource/project/test-and-docs/#build-and-test-the-documentation).
+Update the documentation when creating or modifying features. Run `make swagger-gen`
+to test your documentation changes for clarity, concision, and correctness, as well
+as a clean documentation build. See our contributors guide for [our style
+guide](https://docs.docker.com/contribute/).
 
 Write clean code. Universally formatted code promotes ease of writing, reading,
 and maintenance. Always run `gofmt -s -w file.go` on each changed file before
