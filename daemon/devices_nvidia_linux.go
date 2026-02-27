@@ -13,6 +13,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/internal/capabilities"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
 // TODO: nvidia should not be hard-coded, and should be a device plugin instead on the daemon object.
@@ -23,7 +24,6 @@ var errConflictCountDeviceIDs = errors.New("cannot set both Count and DeviceIDs 
 const (
 	nvidiaContainerRuntimeHookExecutableName = "nvidia-container-runtime-hook"
 	nvidiaCDIHookExecutableName              = "nvidia-cdi-hook"
-	amdContainerRuntimeExecutableName        = "amd-container-runtime"
 )
 
 // These are NVIDIA-specific capabilities stolen from github.com/containerd/containerd/contrib/nvidia.allCaps
@@ -36,7 +36,10 @@ var allNvidiaCaps = map[string]struct{}{
 	"display":  {},
 }
 
-func init() {
+// RegisterGPUDeviceDrivers registers GPU device drivers
+// If the cdiCache is provided, it is used to detect presence of CDI specs for AMD GPUs.
+// For NVIDIA GPUs, presence of CDI specs is detected by checking for the nvidia-cdi-hook binary.
+func RegisterGPUDeviceDrivers(cdiCache *cdi.Cache) {
 	// Register NVIDIA device drivers.
 	if nvidiaDrivers := getNVIDIADeviceDrivers(); len(nvidiaDrivers) > 0 {
 		for name, driver := range nvidiaDrivers {
@@ -45,12 +48,9 @@ func init() {
 		return
 	}
 
-	// Register AMD driver if AMD helper binary is present.
-	if _, err := exec.LookPath(amdContainerRuntimeExecutableName); err == nil {
-		registerDeviceDriver("amd", &deviceDriver{
-			capset:     capabilities.Set{"gpu": struct{}{}, "amd": struct{}{}},
-			updateSpec: setAMDGPUs,
-		})
+	// Register AMD driver if AMD CDI spec or helper binary is present.
+	if amdDriver := getAMDDeviceDrivers(cdiCache); amdDriver != nil {
+		registerDeviceDriver("amd", amdDriver)
 		return
 	}
 

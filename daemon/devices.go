@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/container"
@@ -36,6 +37,18 @@ type deviceInstance struct {
 
 func registerDeviceDriver(name string, d *deviceDriver) {
 	deviceDrivers[name] = d
+}
+
+func getFirstAvailableVendor(vendorList []string) (string, error) {
+	knownVendors := []string{"nvidia.com", "amd.com"}
+	for _, vendor := range knownVendors {
+		for _, available := range vendorList {
+			if vendor == available {
+				return vendor, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no known GPU vendor found")
 }
 
 func (daemon *Daemon) handleDevice(req container.DeviceRequest, spec *specs.Spec) error {
