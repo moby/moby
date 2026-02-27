@@ -10219,6 +10219,16 @@ paths:
         `registry.example.com/myimage:latest`.
 
         The push is cancelled if the HTTP connection is closed.
+
+        The response is a stream of JSON objects. The final object in the stream
+        contains the image digest in a `push` field:
+
+        ```json
+        {"status":"latest: digest: sha256:... size: 1234","push":{"tag":"latest","digest":"sha256:...","size":1234}}
+        ```
+
+        The `digest` field contains the content-addressable digest of the pushed
+        image manifest, which can be used to reference the image.
       operationId: "ImagePush"
       consumes:
         - "application/octet-stream"

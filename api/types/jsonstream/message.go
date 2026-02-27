@@ -11,5 +11,6 @@ type Message struct {
 	Progress *Progress        `json:"progressDetail,omitempty"`
 	ID       string           `json:"id,omitempty"`
 	Error    *Error           `json:"errorDetail,omitempty"`
-	Aux      *json.RawMessage `json:"aux,omitempty"` // Aux contains out-of-band data, such as digests for push signing and image id after building.
+	Push     *PushResult      `json:"push,omitempty"`
+	Aux      *json.RawMessage `json:"aux,omitempty"` // Aux contains out-of-band data, such as legacy digests for push signing and image id after building.
 }
