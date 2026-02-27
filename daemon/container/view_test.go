@@ -30,7 +30,7 @@ func TestViewSaveDelete(t *testing.T) {
 	tmpDir := t.TempDir()
 	c := newContainer(t, tmpDir)
 	assert.NilError(t, c.CheckpointTo(context.Background(), db))
-	assert.NilError(t, db.Delete(c))
+	db.Delete(c.ID)
 }
 
 func TestViewAll(t *testing.T) {
@@ -130,7 +130,7 @@ func TestNames(t *testing.T) {
 	assert.Check(t, is.DeepEqual(map[string][]string{"containerid1": {"name1", "name3", "name4"}, "containerid4": {"name2"}}, view.GetAllNames()))
 
 	// Release containerid1's names with Delete even though no container exists
-	assert.Check(t, db.Delete(&Container{ID: "containerid1"}))
+	db.Delete("containerid1")
 
 	// Reusing one of those names should work
 	assert.Check(t, db.ReserveName("name1", "containerid4"))
@@ -271,7 +271,7 @@ func TestTruncIndex(t *testing.T) {
 	}
 
 	// Deleting id2 should remove conflicts
-	assert.NilError(t, db.Delete(&Container{ID: id2}))
+	db.Delete(id2)
 
 	for _, tc := range []testacase{
 		{
@@ -441,6 +441,32 @@ func BenchmarkDBGetByPrefix500(b *testing.B) {
 			if res, err := db.GetByPrefix(id); err != nil {
 				b.Fatal(res, err)
 			}
+		}
+	}
+}
+
+func BenchmarkDBDelete(b *testing.B) {
+	var testSet []string
+	var testKeys []string
+	for i := 0; i < 2500; i++ {
+		testSet = append(testSet, stringid.GenerateRandomID())
+	}
+	db, err := NewViewDB()
+	if err != nil {
+		b.Fatal(err)
+	}
+	for _, id := range testSet {
+		if err := db.Save(&Container{ID: id}); err != nil {
+			b.Fatal(err)
+		}
+		l := rand.Intn(12) + 12
+		testKeys = append(testKeys, id[:l])
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, id := range testKeys {
+			db.Delete(id)
 		}
 	}
 }
