@@ -17,6 +17,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 )
 
 var (
@@ -77,7 +78,7 @@ func (daemon *Daemon) ContainerPrune(ctx context.Context, pruneFilters filters.A
 				}).Debug("failed to get layer size for container")
 			}
 			// TODO: sets RmLink to true?
-			err = daemon.containerRm(cfg, c.ID, &backend.ContainerRmConfig{})
+			err = daemon.containerRm(ctx, cfg, c.ID, &backend.ContainerRmConfig{})
 			if err != nil {
 				log.G(ctx).Warnf("failed to prune container %s: %v", c.ID, err)
 				continue
@@ -96,6 +97,9 @@ func (daemon *Daemon) ContainerPrune(ctx context.Context, pruneFilters filters.A
 
 // localNetworkPrune removes unused local networks
 func (daemon *Daemon) localNetworkPrune(ctx context.Context, pruneFilters dnetwork.Filter) *network.PruneReport {
+	ctx, span := otel.Tracer("").Start(ctx, "Daemon.localNetworkPrune")
+	defer span.End()
+
 	rep := &network.PruneReport{}
 
 	// When the function returns true, the walk will stop.
@@ -118,8 +122,9 @@ func (daemon *Daemon) localNetworkPrune(ctx context.Context, pruneFilters dnetwo
 		if len(nw.Endpoints()) > 0 {
 			return false
 		}
-		if err := daemon.DeleteNetwork(nw.ID()); err != nil {
+		if err := daemon.DeleteNetwork(ctx, nw.ID()); err != nil {
 			log.G(ctx).Warnf("could not remove local network %s: %v", nw.Name(), err)
+			span.RecordError(err)
 			return false
 		}
 		rep.NetworksDeleted = append(rep.NetworksDeleted, nw.Name())
@@ -140,7 +145,7 @@ func (daemon *Daemon) clusterNetworkPrune(ctx context.Context, pruneFilters dnet
 		return rep, nil
 	}
 
-	networks, err := cluster.GetNetworks(pruneFilters, false)
+	networks, err := cluster.GetNetworks(ctx, pruneFilters, false)
 	if err != nil {
 		return rep, err
 	}
@@ -157,7 +162,7 @@ func (daemon *Daemon) clusterNetworkPrune(ctx context.Context, pruneFilters dnet
 			// https://github.com/moby/moby/issues/24186
 			// `docker network inspect` unfortunately displays ONLY those containers that are local to that node.
 			// So we try to remove it anyway and check the error
-			err = cluster.RemoveNetwork(nw.ID)
+			err = cluster.RemoveNetwork(ctx, nw.ID)
 			if err != nil {
 				// we can safely ignore the "network .. is in use" error
 				match := networkIsInUse.FindStringSubmatch(err.Error())

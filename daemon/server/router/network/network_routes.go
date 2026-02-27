@@ -35,7 +35,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 	}
 
 	if versions.LessThan(httputils.VersionFromContext(ctx), "1.28") {
-		list, _ := n.cluster.GetNetworks(filter, false)
+		list, _ := n.cluster.GetNetworks(ctx, filter, false)
 		var idx map[string]bool
 		if len(list) > 0 {
 			idx = make(map[string]bool, len(list))
@@ -44,7 +44,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 			}
 		}
 
-		localNetworks, err := n.backend.GetNetworks(filter, backend.NetworkListConfig{WithServices: false})
+		localNetworks, err := n.backend.GetNetworks(ctx, filter, backend.NetworkListConfig{WithServices: false})
 		if err != nil {
 			return err
 		}
@@ -59,7 +59,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 		return httputils.WriteJSON(w, http.StatusOK, list)
 	}
 
-	list, _ := n.cluster.GetNetworkSummaries(filter)
+	list, _ := n.cluster.GetNetworkSummaries(ctx, filter)
 	var idx map[string]bool
 	if len(list) > 0 {
 		idx = make(map[string]bool, len(list))
@@ -70,7 +70,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 
 	// Combine the network list returned by Docker daemon if it is not already
 	// returned by the cluster manager
-	localNetworks, err := n.backend.GetNetworkSummaries(filter)
+	localNetworks, err := n.backend.GetNetworkSummaries(ctx, filter)
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 	filter.IDAlsoMatchesName = true
 
 	withStatus := versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.52")
-	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{
+	networks, _ := n.backend.GetNetworks(ctx, filter, backend.NetworkListConfig{
 		WithServices: verbose,
 		WithStatus:   withStatus,
 	})
@@ -167,7 +167,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 
-	nwk, err := n.cluster.GetNetwork(term, withStatus)
+	nwk, err := n.cluster.GetNetwork(ctx, term, withStatus)
 	if err == nil {
 		// If the get network is passed with a specific network ID / partial network ID
 		// or if the get network was passed with a network name and scope as swarm
@@ -188,7 +188,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 
-	networks, _ = n.cluster.GetNetworks(filter, withStatus)
+	networks, _ = n.cluster.GetNetworks(ctx, filter, withStatus)
 	for _, nw := range networks {
 		if nw.ID == term {
 			return httputils.WriteJSON(w, http.StatusOK, nw)
@@ -250,7 +250,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	if nws, err := n.cluster.GetNetworksByName(create.Name); err == nil && len(nws) > 0 {
+	if nws, err := n.cluster.GetNetworksByName(ctx, create.Name); err == nil && len(nws) > 0 {
 		return libnetwork.NetworkNameError(create.Name)
 	}
 
@@ -270,7 +270,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		if _, ok := err.(libnetwork.ManagerRedirectError); !ok {
 			return err
 		}
-		id, err := n.cluster.CreateNetwork(create)
+		id, err := n.cluster.CreateNetwork(ctx, create)
 		if err != nil {
 			return err
 		}
@@ -309,7 +309,7 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 		return err
 	}
 
-	return n.backend.DisconnectContainerFromNetwork(disconnect.Container, vars["id"], disconnect.Force)
+	return n.backend.DisconnectContainerFromNetwork(ctx, disconnect.Container, vars["id"], disconnect.Force)
 }
 
 func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -317,16 +317,16 @@ func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	nw, err := n.findUniqueNetwork(vars["id"])
+	nw, err := n.findUniqueNetwork(ctx, vars["id"])
 	if err != nil {
 		return err
 	}
 	if nw.Scope == "swarm" {
-		if err = n.cluster.RemoveNetwork(nw.ID); err != nil {
+		if err = n.cluster.RemoveNetwork(ctx, nw.ID); err != nil {
 			return err
 		}
 	} else {
-		if err := n.backend.DeleteNetwork(nw.ID); err != nil {
+		if err := n.backend.DeleteNetwork(ctx, nw.ID); err != nil {
 			return err
 		}
 	}
@@ -359,7 +359,7 @@ func (n *networkRouter) postNetworkPrune(ctx context.Context, w http.ResponseWri
 // For full name and partial ID, save the result first, and process later
 // in case multiple records was found based on the same term
 // TODO (yongtang): should we wrap with version here for backward compatibility?
-func (n *networkRouter) findUniqueNetwork(term string) (network.Inspect, error) {
+func (n *networkRouter) findUniqueNetwork(ctx context.Context, term string) (network.Inspect, error) {
 	listByFullName := map[string]network.Inspect{}
 	listByPartialID := map[string]network.Inspect{}
 
@@ -369,7 +369,7 @@ func (n *networkRouter) findUniqueNetwork(term string) (network.Inspect, error) 
 	}
 	filter.IDAlsoMatchesName = true
 
-	networks, _ := n.backend.GetNetworks(filter, backend.NetworkListConfig{})
+	networks, _ := n.backend.GetNetworks(ctx, filter, backend.NetworkListConfig{})
 	for _, nw := range networks {
 		if nw.ID == term {
 			return nw, nil
@@ -386,7 +386,7 @@ func (n *networkRouter) findUniqueNetwork(term string) (network.Inspect, error) 
 		}
 	}
 
-	networks, _ = n.cluster.GetNetworks(filter, false)
+	networks, _ = n.cluster.GetNetworks(ctx, filter, false)
 	for _, nw := range networks {
 		if nw.ID == term {
 			return nw, nil

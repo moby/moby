@@ -20,7 +20,7 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 		return "", err
 	}
 
-	rwTar, err := exportContainerRw(i.layerStore, c.ContainerID, c.ContainerMountLabel)
+	rwTar, err := exportContainerRw(ctx, i.layerStore, c.ContainerID, c.ContainerMountLabel)
 	if err != nil {
 		return "", err
 	}
@@ -79,7 +79,7 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 	return id, nil
 }
 
-func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.ReadCloser, retErr error) {
+func exportContainerRw(ctx context.Context, layerStore layer.Store, id, mountLabel string) (arch io.ReadCloser, retErr error) {
 	rwlayer, err := layerStore.GetRWLayer(id)
 	if err != nil {
 		return nil, err
@@ -94,18 +94,18 @@ func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.R
 	// mount the layer if needed. But the Diff() function for windows requests that
 	// the layer should be mounted when calling it. So we reserve this mount call
 	// until windows driver can implement Diff() interface correctly.
-	if _, err := rwlayer.Mount(mountLabel); err != nil {
+	if _, err := rwlayer.Mount(ctx, mountLabel); err != nil {
 		return nil, err
 	}
 
 	archive, err := rwlayer.TarStream()
 	if err != nil {
-		_ = rwlayer.Unmount()
+		_ = rwlayer.Unmount(context.WithoutCancel(ctx))
 		return nil, err
 	}
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 		_ = archive.Close()
-		err := rwlayer.Unmount()
+		err := rwlayer.Unmount(context.WithoutCancel(ctx))
 		_, _ = layerStore.ReleaseRWLayer(rwlayer)
 		return err
 	}), nil

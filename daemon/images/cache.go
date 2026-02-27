@@ -17,7 +17,7 @@ type cacheAdaptor struct {
 	is *ImageService
 }
 
-func (c cacheAdaptor) Get(id image.ID) (*image.Image, error) {
+func (c cacheAdaptor) Get(ctx context.Context, id image.ID) (*image.Image, error) {
 	return c.is.imageStore.Get(id)
 }
 
@@ -25,19 +25,19 @@ func (c cacheAdaptor) GetByRef(ctx context.Context, refOrId string) (*image.Imag
 	return c.is.GetImage(ctx, refOrId, imagebackend.GetImageOpts{})
 }
 
-func (c cacheAdaptor) SetParent(target, parent image.ID) error {
+func (c cacheAdaptor) SetParent(ctx context.Context, target, parent image.ID) error {
 	return c.is.imageStore.SetParent(target, parent)
 }
 
-func (c cacheAdaptor) GetParent(target image.ID) (image.ID, error) {
+func (c cacheAdaptor) GetParent(ctx context.Context, target image.ID) (image.ID, error) {
 	return c.is.imageStore.GetParent(target)
 }
 
-func (c cacheAdaptor) IsBuiltLocally(target image.ID) (bool, error) {
+func (c cacheAdaptor) IsBuiltLocally(ctx context.Context, target image.ID) (bool, error) {
 	return c.is.imageStore.IsBuiltLocally(target)
 }
 
-func (c cacheAdaptor) Children(imgID image.ID) []image.ID {
+func (c cacheAdaptor) Children(ctx context.Context, imgID image.ID) []image.ID {
 	// Not FROM scratch
 	if imgID != "" {
 		return c.is.imageStore.Children(imgID)
@@ -52,7 +52,7 @@ func (c cacheAdaptor) Children(imgID image.ID) []image.ID {
 
 		builtLocally, err := c.is.imageStore.IsBuiltLocally(id)
 		if err != nil {
-			log.G(context.TODO()).WithFields(log.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"error": err,
 				"id":    id,
 			}).Warn("failed to check if image was built locally")
@@ -67,7 +67,7 @@ func (c cacheAdaptor) Children(imgID image.ID) []image.ID {
 	return siblings
 }
 
-func (c cacheAdaptor) Create(parent *image.Image, image image.Image, _ layer.DiffID) (image.ID, error) {
+func (c cacheAdaptor) Create(ctx context.Context, parent *image.Image, image image.Image, _ layer.DiffID) (image.ID, error) {
 	data, err := json.Marshal(image)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal image config: %w", err)

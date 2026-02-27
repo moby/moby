@@ -543,7 +543,7 @@ func (c *containerConfig) resources() container.Resources {
 	return resources
 }
 
-func (c *containerConfig) createNetworkingConfig(b executorpkg.Backend) *network.NetworkingConfig {
+func (c *containerConfig) createNetworkingConfig(ctx context.Context, b executorpkg.Backend) *network.NetworkingConfig {
 	var networks []*api.NetworkAttachment
 	if c.task.Spec.GetContainer() != nil || c.task.Spec.GetAttachment() != nil {
 		networks = c.task.Networks
@@ -551,13 +551,13 @@ func (c *containerConfig) createNetworkingConfig(b executorpkg.Backend) *network
 
 	epConfig := make(map[string]*network.EndpointSettings)
 	for _, na := range networks {
-		epConfig[na.Network.Spec.Annotations.Name] = getEndpointConfig(na, b)
+		epConfig[na.Network.Spec.Annotations.Name] = getEndpointConfig(ctx, na, b)
 	}
 
 	return &network.NetworkingConfig{EndpointsConfig: epConfig}
 }
 
-func getEndpointConfig(na *api.NetworkAttachment, b executorpkg.Backend) *network.EndpointSettings {
+func getEndpointConfig(ctx context.Context, na *api.NetworkAttachment, b executorpkg.Backend) *network.EndpointSettings {
 	var ipv4, ipv6 netip.Addr
 	for _, addr := range na.Addresses {
 		pfx, err := netiputil.ParseCIDR(addr)
@@ -582,7 +582,7 @@ func getEndpointConfig(na *api.NetworkAttachment, b executorpkg.Backend) *networ
 		DriverOpts: na.DriverAttachmentOpts,
 	}
 	if v, ok := na.Network.Spec.Annotations.Labels["com.docker.swarm.predefined"]; ok && v == "true" {
-		if ln, err := b.FindNetwork(na.Network.Spec.Annotations.Name); err == nil {
+		if ln, err := b.FindNetwork(ctx, na.Network.Spec.Annotations.Name); err == nil {
 			n.NetworkID = ln.ID()
 		}
 	}

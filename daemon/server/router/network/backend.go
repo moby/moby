@@ -12,22 +12,22 @@ import (
 // Backend is all the methods that need to be implemented
 // to provide network specific functionality.
 type Backend interface {
-	GetNetworks(dnetwork.Filter, backend.NetworkListConfig) ([]network.Inspect, error)
-	GetNetworkSummaries(dnetwork.Filter) ([]network.Summary, error)
-	CreateNetwork(ctx context.Context, nc network.CreateRequest) (*network.CreateResponse, error)
+	GetNetworks(context.Context, dnetwork.Filter, backend.NetworkListConfig) ([]network.Inspect, error)
+	GetNetworkSummaries(context.Context, dnetwork.Filter) ([]network.Summary, error)
+	CreateNetwork(context.Context, network.CreateRequest) (*network.CreateResponse, error)
 	ConnectContainerToNetwork(ctx context.Context, containerName, networkName string, endpointConfig *network.EndpointSettings) error
-	DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error
-	DeleteNetwork(networkID string) error
+	DisconnectContainerFromNetwork(ctx context.Context, containerName string, networkName string, force bool) error
+	DeleteNetwork(ctx context.Context, networkID string) error
 	NetworkPrune(ctx context.Context, pruneFilters filters.Args) (*network.PruneReport, error)
 }
 
 // ClusterBackend is all the methods that need to be implemented
 // to provide cluster network specific functionality.
 type ClusterBackend interface {
-	GetNetworks(filter dnetwork.Filter, withStatus bool) ([]network.Inspect, error)
-	GetNetworkSummaries(dnetwork.Filter) ([]network.Summary, error)
-	GetNetwork(name string, withStatus bool) (network.Inspect, error)
-	GetNetworksByName(name string) ([]network.Network, error)
-	CreateNetwork(nc network.CreateRequest) (string, error)
-	RemoveNetwork(name string) error
+	GetNetworks(ctx context.Context, filter dnetwork.Filter, withStatus bool) ([]network.Inspect, error)
+	GetNetworkSummaries(context.Context, dnetwork.Filter) ([]network.Summary, error)
+	GetNetwork(ctx context.Context, name string, withStatus bool) (network.Inspect, error)
+	GetNetworksByName(context.Context, string) ([]network.Network, error)
+	CreateNetwork(context.Context, network.CreateRequest) (string, error)
+	RemoveNetwork(ctx context.Context, name string) error
 }

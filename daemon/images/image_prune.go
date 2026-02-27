@@ -118,7 +118,7 @@ deleteImagesLoop:
 					imgDel, err := i.ImageDelete(ctx, ref.String(), imagebackend.RemoveOptions{
 						PruneChildren: true,
 					})
-					if imageDeleteFailed(ref.String(), err) {
+					if imageDeleteFailed(ctx, ref.String(), err) {
 						continue
 					}
 					deletedImages = append(deletedImages, imgDel...)
@@ -129,7 +129,7 @@ deleteImagesLoop:
 			imgDel, err := i.ImageDelete(ctx, hex, imagebackend.RemoveOptions{
 				PruneChildren: true,
 			})
-			if imageDeleteFailed(hex, err) {
+			if imageDeleteFailed(ctx, hex, err) {
 				continue
 			}
 			deletedImages = append(deletedImages, imgDel...)
@@ -158,14 +158,14 @@ deleteImagesLoop:
 	return rep, nil
 }
 
-func imageDeleteFailed(ref string, err error) bool {
+func imageDeleteFailed(ctx context.Context, ref string, err error) bool {
 	switch {
 	case err == nil:
 		return false
 	case cerrdefs.IsConflict(err), errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return true
 	default:
-		log.G(context.TODO()).Warnf("failed to prune image %s: %v", ref, err)
+		log.G(ctx).Warnf("failed to prune image %s: %v", ref, err)
 		return true
 	}
 }

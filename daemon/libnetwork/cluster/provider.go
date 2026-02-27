@@ -30,8 +30,8 @@ type Provider interface {
 	GetDataPathAddress() string
 	GetRemoteAddressList() []string
 	ListenClusterEvents() <-chan ConfigEventType
-	AttachNetwork(string, string, []string) (*network.NetworkingConfig, error)
-	DetachNetwork(string, string) error
-	UpdateAttachment(string, string, *network.NetworkingConfig) error
+	AttachNetwork(context.Context, string, string, []string) (*network.NetworkingConfig, error)
+	DetachNetwork(context.Context, string, string) error
+	UpdateAttachment(context.Context, string, string, *network.NetworkingConfig) error
 	WaitForDetachment(context.Context, string, string, string, string) error
 }

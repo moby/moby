@@ -180,13 +180,13 @@ const (
 )
 
 // New constructs a new bridge driver
-func newDriver(store *datastore.Store, config Configuration, pms *drvregistry.PortMappers) (*driver, error) {
-	fw, err := newFirewaller(context.Background(), firewaller.Config{
+func newDriver(ctx context.Context, store *datastore.Store, config Configuration, pms *drvregistry.PortMappers) (*driver, error) {
+	fw, err := newFirewaller(ctx, firewaller.Config{
 		IPv4:               config.EnableIPTables,
 		IPv6:               config.EnableIP6Tables,
 		Hairpin:            !config.EnableProxy,
 		AllowDirectRouting: config.AllowDirectRouting,
-		WSL2Mirrored:       isRunningUnderWSL2MirroredMode(context.Background()),
+		WSL2Mirrored:       isRunningUnderWSL2MirroredMode(ctx),
 	})
 	if err != nil {
 		return nil, err
@@ -201,7 +201,7 @@ func newDriver(store *datastore.Store, config Configuration, pms *drvregistry.Po
 		portmappers: pms,
 	}
 
-	if err := d.initStore(); err != nil {
+	if err := d.initStore(ctx); err != nil {
 		return nil, err
 	}
 
@@ -211,12 +211,12 @@ func newDriver(store *datastore.Store, config Configuration, pms *drvregistry.Po
 }
 
 // Register registers a new instance of bridge driver.
-func Register(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config Configuration) error {
-	d, err := newDriver(store, config, pms)
+func Register(ctx context.Context, r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config Configuration) error {
+	d, err := newDriver(ctx, store, config, pms)
 	if err != nil {
 		return err
 	}
-	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
+	return r.RegisterDriver(ctx, NetworkType, d, driverapi.Capability{
 		DataScope:         scope.Local,
 		ConnectivityScope: scope.Local,
 	})
@@ -1469,7 +1469,7 @@ func (d *driver) ReleaseIPv6(ctx context.Context, nid, eid string) error {
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid string) error {
+func (d *driver) Leave(ctx context.Context, nid, eid string) error {
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return types.InternalMaskableErrorf("%v", err)
@@ -1488,7 +1488,7 @@ func (d *driver) Leave(nid, eid string) error {
 		if err := network.releasePorts(endpoint); err != nil {
 			return err
 		}
-		if err = d.storeUpdate(context.TODO(), endpoint); err != nil {
+		if err = d.storeUpdate(ctx, endpoint); err != nil {
 			return fmt.Errorf("during leave, failed to store bridge endpoint %.7s: %v", endpoint.id, err)
 		}
 	}

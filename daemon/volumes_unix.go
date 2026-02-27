@@ -48,7 +48,7 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 		if tmpfsMounts[m.Destination] {
 			continue
 		}
-		if err := daemon.lazyInitializeVolume(c.ID, m); err != nil {
+		if err := daemon.lazyInitializeVolume(ctx, c.ID, m); err != nil {
 			return nil, nil, err
 		}
 		// If the daemon is being shutdown, we should not let a container start if it is trying to

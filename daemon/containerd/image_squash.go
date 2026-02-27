@@ -1,6 +1,7 @@
 package containerd
 
 import (
+	"context"
 	"errors"
 
 	"github.com/moby/moby/v2/errdefs"
@@ -12,6 +13,6 @@ import (
 // The existing image(s) is not destroyed. If no parent is specified, a new
 // image with the diff of all the specified image's layers merged into a new
 // layer that has no parents.
-func (i *ImageService) SquashImage(id, parent string) (string, error) {
+func (i *ImageService) SquashImage(ctx context.Context, id, parent string) (string, error) {
 	return "", errdefs.NotImplemented(errors.New("not implemented"))
 }

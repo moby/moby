@@ -40,7 +40,7 @@ func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter
 
 	version := httputils.VersionFromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
-		clusterVolumes, swarmErr := v.cluster.GetVolumes(volumebackend.ListOptions{Filters: f})
+		clusterVolumes, swarmErr := v.cluster.GetVolumes(ctx, volumebackend.ListOptions{Filters: f})
 		if swarmErr != nil {
 			// if there is a swarm error, we may not want to error out right
 			// away. the local list probably worked. instead, let's do what we
@@ -72,7 +72,7 @@ func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWrite
 	// is using an API version greater than 1.42 (when cluster volumes were
 	// introduced), then check if Swarm has the volume.
 	if cerrdefs.IsNotFound(err) && versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
-		swarmVol, err := v.cluster.GetVolume(vars["name"])
+		swarmVol, err := v.cluster.GetVolume(ctx, vars["name"])
 		// if swarm returns an error and that error indicates that swarm is not
 		// initialized, return original NotFound error. Otherwise, we'd return
 		// a weird swarm unavailable error on non-swarm engines.
@@ -119,7 +119,7 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 	// should not break anything.
 	if req.ClusterVolumeSpec != nil && versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) {
 		log.G(ctx).Debug("using cluster volume")
-		vol, err = v.cluster.CreateVolume(req)
+		vol, err = v.cluster.CreateVolume(ctx, req)
 	} else {
 		log.G(ctx).Debug("using regular volume")
 		vol, err = v.backend.Create(ctx, req.Name, req.Driver, opts.WithCreateOptions(req.DriverOpts), opts.WithCreateLabels(req.Labels))
@@ -152,7 +152,7 @@ func (v *volumeRouter) putVolumesUpdate(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
-	return v.cluster.UpdateVolume(vars["name"], version, req)
+	return v.cluster.UpdateVolume(ctx, vars["name"], version, req)
 }
 
 func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -177,7 +177,7 @@ func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter,
 	if cerrdefs.IsNotFound(err) || force {
 		version := httputils.VersionFromContext(ctx)
 		if versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
-			err = v.cluster.RemoveVolume(vars["name"], force)
+			err = v.cluster.RemoveVolume(ctx, vars["name"], force)
 		}
 	}
 

@@ -30,23 +30,23 @@ func (m *mockDriver) IsBuiltIn() bool {
 func TestNetworks(t *testing.T) {
 	t.Run("RegisterDriver", func(t *testing.T) {
 		var reg Networks
-		err := reg.RegisterDriver(mockDriverName, &md, mockDriverCaps)
+		err := reg.RegisterDriver(t.Context(), mockDriverName, &md, mockDriverCaps)
 		assert.NilError(t, err)
 	})
 
 	t.Run("RegisterDuplicateDriver", func(t *testing.T) {
 		var reg Networks
-		err := reg.RegisterDriver(mockDriverName, &md, mockDriverCaps)
+		err := reg.RegisterDriver(t.Context(), mockDriverName, &md, mockDriverCaps)
 		assert.NilError(t, err)
 
 		// Try adding the same driver
-		err = reg.RegisterDriver(mockDriverName, &md, mockDriverCaps)
+		err = reg.RegisterDriver(t.Context(), mockDriverName, &md, mockDriverCaps)
 		assert.Check(t, is.ErrorContains(err, ""))
 	})
 
 	t.Run("Driver", func(t *testing.T) {
 		var reg Networks
-		err := reg.RegisterDriver(mockDriverName, &md, mockDriverCaps)
+		err := reg.RegisterDriver(t.Context(), mockDriverName, &md, mockDriverCaps)
 		assert.NilError(t, err)
 
 		driver, capability := reg.Driver(mockDriverName)
@@ -56,7 +56,7 @@ func TestNetworks(t *testing.T) {
 
 	t.Run("WalkDrivers", func(t *testing.T) {
 		var reg Networks
-		err := reg.RegisterDriver(mockDriverName, &md, mockDriverCaps)
+		err := reg.RegisterDriver(t.Context(), mockDriverName, &md, mockDriverCaps)
 		assert.NilError(t, err)
 
 		var driverName string

@@ -14,6 +14,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
@@ -23,6 +24,8 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/internal/sliceutil"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ByNetworkType sorts a [Endpoint] slice based on the network-type
@@ -481,8 +484,11 @@ func epShortId(ep *Endpoint) string {
 }
 
 func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...EndpointOption) (retErr error) {
-	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.sbJoin")
-	defer span.End()
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Endpoint.sbJoin")
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
 
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
@@ -518,6 +524,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 					"error":  err,
 					"retErr": retErr,
 				}).Warn("Failed to remove endpoint after join error")
+				span.RecordError(err)
 			}
 		}
 	}()
@@ -538,8 +545,9 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 	}
 	defer func() {
 		if retErr != nil {
-			if err := d.Leave(nid, epid); err != nil {
+			if err := d.Leave(ctx, nid, epid); err != nil {
 				log.G(ctx).WithError(err).Warnf("driver leave failed while rolling back join")
+				span.RecordError(err)
 			}
 		}
 	}()
@@ -678,9 +686,16 @@ func (ep *Endpoint) rename(name string) error {
 	return nil
 }
 
-func (ep *Endpoint) UpdateDNSNames(dnsNames []string) error {
+func (ep *Endpoint) UpdateDNSNames(ctx context.Context, dnsNames []string) error {
 	nw := ep.getNetwork()
 	c := nw.getController()
+
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Endpoint.UpdateDNSNames", trace.WithAttributes(
+		attribute.String("eid", ep.ID()),
+		attribute.String("nid", nw.ID()),
+	))
+	defer span.End()
+
 	sb, ok := ep.getSandbox()
 	if !ok {
 		log.G(context.TODO()).WithFields(log.Fields{
@@ -691,23 +706,23 @@ func (ep *Endpoint) UpdateDNSNames(dnsNames []string) error {
 	}
 
 	if c.isAgent() {
-		if err := ep.deleteServiceInfoFromCluster(sb, true, "UpdateDNSNames"); err != nil {
+		if err := ep.deleteServiceInfoFromCluster(ctx, sb, true, "UpdateDNSNames"); err != nil {
 			return types.InternalErrorf("could not delete service state for endpoint %s from cluster on UpdateDNSNames: %v", ep.Name(), err)
 		}
 
 		ep.dnsNames = dnsNames
-		if err := ep.addServiceInfoToCluster(sb); err != nil {
+		if err := ep.addServiceInfoToCluster(ctx, sb); err != nil {
 			return types.InternalErrorf("could not add service state for endpoint %s to cluster on UpdateDNSNames: %v", ep.Name(), err)
 		}
 	} else {
-		nw.updateSvcRecord(context.WithoutCancel(context.TODO()), ep, false)
+		nw.updateSvcRecord(context.WithoutCancel(ctx), ep, false)
 
 		ep.dnsNames = dnsNames
-		nw.updateSvcRecord(context.WithoutCancel(context.TODO()), ep, true)
+		nw.updateSvcRecord(context.WithoutCancel(ctx), ep, true)
 	}
 
 	// Update the store with the updated name
-	if err := c.storeEndpoint(context.TODO(), ep); err != nil {
+	if err := c.storeEndpoint(ctx, ep); err != nil {
 		return err
 	}
 
@@ -743,7 +758,19 @@ func (ep *Endpoint) Leave(ctx context.Context, sb *Sandbox) error {
 	return storedEp.sbLeave(ctx, sb, n, false)
 }
 
-func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force bool) error {
+func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force bool) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Endpoint.sbLeave", trace.WithAttributes(
+		attribute.String("nid", n.ID()),
+		attribute.String("network.name", n.Name()),
+		attribute.String("eid", epId(ep)),
+		attribute.String("ep", ep.Name()),
+		attribute.String("sid", sb.ID()),
+		attribute.String("container.ID", sb.ContainerID()),
+	))
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
 	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
 		"nid": stringid.TruncateID(n.ID()),
 		"net": n.Name(),
@@ -784,14 +811,14 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 			}
 		}
 
-		if err := d.Leave(n.id, ep.id); err != nil {
+		if err := d.Leave(context.WithoutCancel(ctx), n.id, ep.id); err != nil {
 			if _, ok := err.(types.MaskableError); !ok {
 				log.G(ctx).WithError(err).Warn("driver error disconnecting container")
 			}
 		}
 	}
 
-	if err := ep.deleteServiceInfoFromCluster(sb, true, "sbLeave"); err != nil {
+	if err := ep.deleteServiceInfoFromCluster(ctx, sb, true, "sbLeave"); err != nil {
 		log.G(ctx).WithError(err).Warn("Failed to clean up service info on container disconnect")
 	}
 
@@ -817,7 +844,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 
 	// Delete interfaces, routes etc. from the OS.
 	if osSbox != nil {
-		releaseOSSboxResources(osSbox, ep)
+		releaseOSSboxResources(ctx, osSbox, ep)
 
 		// Even if the interface was initially created in the container's namespace, it's
 		// now been moved out. When a legacy link is deleted, the Endpoint is removed and
@@ -871,7 +898,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 	sb.deleteHostsEntries(etcHostsAddrs)
 
 	if !sbInDelete && sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
-		return sb.setupDefaultGW()
+		return sb.setupDefaultGW(ctx)
 	}
 
 	// Disable upstream forwarding if the sandbox lost external connectivity.
@@ -893,7 +920,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 	}
 
 	if !sb.needDefaultGW() {
-		if err := sb.clearDefaultGW(); err != nil {
+		if err := sb.clearDefaultGW(ctx); err != nil {
 			log.G(ctx).WithFields(log.Fields{
 				"error": err,
 				"sid":   sb.ID(),

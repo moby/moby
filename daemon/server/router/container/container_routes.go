@@ -446,7 +446,7 @@ func (c *containerRouter) postContainerRename(ctx context.Context, w http.Respon
 
 	name := vars["name"]
 	newName := r.Form.Get("name")
-	if err := c.backend.ContainerRename(name, newName); err != nil {
+	if err := c.backend.ContainerRename(ctx, name, newName); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -998,7 +998,7 @@ func (c *containerRouter) deleteContainers(ctx context.Context, w http.ResponseW
 		RemoveLink:   httputils.BoolValue(r, "link"),
 	}
 
-	if err := c.backend.ContainerRm(name, config); err != nil {
+	if err := c.backend.ContainerRm(ctx, name, config); err != nil {
 		return err
 	}
 

@@ -1,6 +1,7 @@
 package dockerfile
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -173,9 +174,9 @@ func TestDeepCopyRunConfig(t *testing.T) {
 
 type MockRWLayer struct{}
 
-func (l *MockRWLayer) Release() error { return nil }
-func (l *MockRWLayer) Root() string   { return "" }
-func (l *MockRWLayer) Commit() (builder.ROLayer, error) {
+func (l *MockRWLayer) Release(context.Context) error { return nil }
+func (l *MockRWLayer) Root() string                  { return "" }
+func (l *MockRWLayer) Commit(context.Context) (builder.ROLayer, error) {
 	return &MockROLayer{
 		diffID: "sha256:1234",
 	}, nil
@@ -185,10 +186,10 @@ type MockROLayer struct {
 	diffID layer.DiffID
 }
 
-func (l *MockROLayer) ContentStoreDigest() digest.Digest    { return "" }
-func (l *MockROLayer) Release() error                       { return nil }
-func (l *MockROLayer) NewRWLayer() (builder.RWLayer, error) { return nil, nil }
-func (l *MockROLayer) DiffID() layer.DiffID                 { return l.diffID }
+func (l *MockROLayer) ContentStoreDigest() digest.Digest                   { return "" }
+func (l *MockROLayer) Release(context.Context) error                       { return nil }
+func (l *MockROLayer) NewRWLayer(context.Context) (builder.RWLayer, error) { return nil, nil }
+func (l *MockROLayer) DiffID() layer.DiffID                                { return l.diffID }
 
 func getMockBuildBackend() builder.Backend {
 	return &MockBackend{}

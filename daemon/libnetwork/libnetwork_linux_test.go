@@ -108,7 +108,7 @@ func TestNull(t *testing.T) {
 	assert.NilError(t, err)
 
 	// host type is special network. Cannot be removed.
-	err = network.Delete()
+	err = network.Delete(context.Background())
 
 	// TODO(thaJeztah): should this be an [errdefs.ErrInvalidParameter] ?
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
@@ -156,7 +156,7 @@ func TestNetworkName(t *testing.T) {
 	n, err := createTestNetwork(controller, bridgeNetType, networkName, netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, n.Delete())
+		assert.Check(t, n.Delete(t.Context()))
 	}()
 
 	assert.Check(t, is.Equal(n.Name(), networkName))
@@ -176,7 +176,7 @@ func TestNetworkType(t *testing.T) {
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, n.Delete())
+		assert.Check(t, n.Delete(t.Context()))
 	}()
 
 	assert.Check(t, is.Equal(n.Type(), bridgeNetType))
@@ -196,7 +196,7 @@ func TestNetworkID(t *testing.T) {
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, n.Delete())
+		assert.Check(t, n.Delete(t.Context()))
 	}()
 
 	assert.Check(t, n.ID() != "", "Expected non-empty network id")
@@ -219,7 +219,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 	ep, err := network.CreateEndpoint(context.Background(), "testep")
 	assert.NilError(t, err)
 
-	err = network.Delete()
+	err = network.Delete(context.Background())
 	var activeEndpointsError *libnetwork.ActiveEndpointsError
 	assert.Check(t, errors.As(err, &activeEndpointsError))
 	assert.Check(t, is.ErrorContains(err, "has active endpoints"))
@@ -230,7 +230,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 	err = ep.Delete(context.Background(), false)
 	assert.NilError(t, err)
 
-	err = network.Delete()
+	err = network.Delete(t.Context())
 	assert.NilError(t, err)
 }
 
@@ -318,17 +318,17 @@ func TestNetworkConfig(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Verify the config network cannot be removed
-	err = configNetwork.Delete()
+	err = configNetwork.Delete(context.Background())
 	// TODO(thaJeztah): should this be [errdefs.ErrConflict] or [errdefs.ErrInvalidParameter]?
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 	assert.Check(t, is.Error(err, `configuration network "config_network0" is in use`))
 
 	// Delete network
-	err = network.Delete()
+	err = network.Delete(context.Background())
 	assert.NilError(t, err)
 
 	// Verify the config network can now be removed
-	err = configNetwork.Delete()
+	err = configNetwork.Delete(context.Background())
 	assert.NilError(t, err)
 }
 
@@ -346,10 +346,10 @@ func TestUnknownNetwork(t *testing.T) {
 	network, err := createTestNetwork(controller, bridgeNetType, "testnetwork", option, nil, nil)
 	assert.NilError(t, err)
 
-	err = network.Delete()
+	err = network.Delete(t.Context())
 	assert.NilError(t, err)
 
-	err = network.Delete()
+	err = network.Delete(t.Context())
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 	assert.Check(t, is.ErrorContains(err, "unknown network testnetwork id"))
 }
@@ -380,13 +380,14 @@ func TestUnknownEndpoint(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Done testing. Now cleanup
-	err = network.Delete()
+	err = network.Delete(context.Background())
 	assert.NilError(t, err)
 }
 
 func TestNetworkEndpointsWalkers(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
+	ctx := t.Context()
 
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	netOption := options.Generic{
@@ -399,19 +400,19 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	net1, err := createTestNetwork(controller, bridgeNetType, "network1", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, net1.Delete())
+		assert.Check(t, net1.Delete(ctx))
 	}()
 
-	ep11, err := net1.CreateEndpoint(context.Background(), "ep11")
+	ep11, err := net1.CreateEndpoint(ctx, "ep11")
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, ep11.Delete(context.Background(), false))
+		assert.Check(t, ep11.Delete(ctx, false))
 	}()
 
-	ep12, err := net1.CreateEndpoint(context.Background(), "ep12")
+	ep12, err := net1.CreateEndpoint(ctx, "ep12")
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, ep12.Delete(context.Background(), false))
+		assert.Check(t, ep12.Delete(ctx, false))
 	}()
 
 	// Test list methods on net1
@@ -438,7 +439,6 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	assert.Assert(t, epWanted != nil)
 	assert.Assert(t, is.Equal(epWanted, ep11))
 
-	ctx := t.Context()
 	current := len(controller.Networks(ctx))
 
 	// Create network 2
@@ -452,7 +452,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	net2, err := createTestNetwork(controller, bridgeNetType, "network2", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, net2.Delete())
+		assert.Check(t, net2.Delete(ctx))
 	}()
 
 	// Test Networks method
@@ -494,7 +494,7 @@ func TestDuplicateEndpoint(t *testing.T) {
 	n, err := createTestNetwork(controller, bridgeNetType, "testnetwork", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, n.Delete())
+		assert.Check(t, n.Delete(context.Background()))
 	}()
 
 	ep, err := n.CreateEndpoint(context.Background(), "ep1")
@@ -530,7 +530,7 @@ func TestControllerQuery(t *testing.T) {
 	net1, err := createTestNetwork(controller, bridgeNetType, "network1", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, net1.Delete())
+		assert.Check(t, net1.Delete(t.Context()))
 	}()
 
 	// Create network 2
@@ -543,7 +543,7 @@ func TestControllerQuery(t *testing.T) {
 	net2, err := createTestNetwork(controller, bridgeNetType, "network2", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, net2.Delete())
+		assert.Check(t, net2.Delete(t.Context()))
 	}()
 
 	_, err = controller.NetworkByName("")
@@ -592,7 +592,7 @@ func TestNetworkQuery(t *testing.T) {
 	net1, err := createTestNetwork(controller, bridgeNetType, "network1", netOption, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, net1.Delete())
+		assert.Check(t, net1.Delete(context.Background()))
 	}()
 
 	ep11, err := net1.CreateEndpoint(context.Background(), "ep11")
@@ -635,7 +635,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, n.Delete())
+		assert.Check(t, n.Delete(context.Background()))
 	}()
 
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2", options.Generic{
@@ -646,7 +646,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, n2.Delete())
+		assert.Check(t, n2.Delete(context.Background()))
 	}()
 
 	ep, err := n.CreateEndpoint(context.Background(), "ep1")
@@ -691,7 +691,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, n.Delete())
+		assert.Check(t, n.Delete(context.Background()))
 	}()
 
 	ep, err := n.CreateEndpoint(context.Background(), "ep1")
@@ -741,7 +741,7 @@ func TestLeaveAll(t *testing.T) {
 	assert.NilError(t, err)
 	defer func() {
 		// If this goes through, it means cnt.Delete() effectively detached from all the endpoints
-		assert.Check(t, n.Delete())
+		assert.Check(t, n.Delete(context.Background()))
 	}()
 
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2", options.Generic{
@@ -752,7 +752,7 @@ func TestLeaveAll(t *testing.T) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, n2.Delete())
+		assert.Check(t, n2.Delete(context.Background()))
 	}()
 
 	ep1, err := n.CreateEndpoint(context.Background(), "ep1")
@@ -786,7 +786,7 @@ func TestContainerInvalidLeave(t *testing.T) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, n.Delete())
+		assert.Check(t, n.Delete(context.Background()))
 	}()
 
 	ep, err := n.CreateEndpoint(context.Background(), "ep1")
@@ -834,7 +834,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, n.Delete())
+		assert.Check(t, n.Delete(context.Background()))
 	}()
 
 	ep1, err := n.CreateEndpoint(context.Background(), "ep1")
@@ -939,7 +939,7 @@ func TestValidRemoteDriver(t *testing.T) {
 		return
 	}
 	defer func() {
-		assert.Check(t, n.Delete())
+		assert.Check(t, n.Delete(context.Background()))
 	}()
 }
 
@@ -1085,7 +1085,7 @@ func TestEndpointJoin(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, n1.Delete())
+		assert.Check(t, n1.Delete(context.Background()))
 	}()
 
 	ep1, err := n1.CreateEndpoint(context.Background(), "ep1")
@@ -1164,7 +1164,7 @@ func TestEndpointJoin(t *testing.T) {
 		}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, n2.Delete())
+		assert.Check(t, n2.Delete(context.Background()))
 	}()
 
 	ep2, err := n2.CreateEndpoint(context.Background(), "ep2")
@@ -1200,7 +1200,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, n.Delete())
+		assert.Check(t, n.Delete(context.Background()))
 	}()
 
 	n2, err := createTestNetwork(controller, bridgeNetType, "testnetwork2", options.Generic{
@@ -1211,7 +1211,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	}, nil, nil)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, n2.Delete())
+		assert.Check(t, n2.Delete(context.Background()))
 	}()
 
 	ep, err := n.CreateEndpoint(context.Background(), "ep1")
@@ -1358,7 +1358,7 @@ func TestResolvConf(t *testing.T) {
 			n := tc.makeNet(t, c)
 			if tc.delNet {
 				defer func() {
-					assert.Check(t, n.Delete())
+					assert.Check(t, n.Delete(context.Background()))
 				}()
 			}
 
@@ -1470,10 +1470,10 @@ func TestParallel(t *testing.T) {
 	}
 
 	net1 := makeTesthostNetwork(t, controller)
-	defer net1.Delete()
+	defer net1.Delete(context.Background())
 	net2, err := createTestNetwork(controller, "bridge", "network2", netOption, nil, nil)
 	assert.NilError(t, err)
-	defer net2.Delete()
+	defer net2.Delete(context.Background())
 
 	_, err = net1.CreateEndpoint(context.Background(), "pep1")
 	assert.NilError(t, err)
@@ -1528,7 +1528,7 @@ func TestBridge(t *testing.T) {
 	network, err := createTestNetwork(controller, bridgeNetType, "testnetwork", netOption, ipamV4ConfList, ipamV6ConfList)
 	assert.NilError(t, err)
 	defer func() {
-		assert.Check(t, network.Delete())
+		assert.Check(t, network.Delete(context.Background()))
 	}()
 
 	ep, err := network.CreateEndpoint(context.Background(), "testep")
