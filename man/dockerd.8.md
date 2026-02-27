@@ -25,6 +25,7 @@ dockerd - Enable daemon mode
 [**--default-ipc-mode**=*MODE*]
 [**--default-shm-size**[=*64MiB*]]
 [**--default-ulimit**[=*[]*]]
+[**--insecure-disable-init-layer**[=**false**]]
 [**--dns**[=*[]*]]
 [**--dns-opt**[=*[]*]]
 [**--dns-search**[=*[]*]]
@@ -195,6 +196,18 @@ Bridge networks will accept packets with this firewall mark/mask.
 
 **--default-ulimit**=[]
   Default ulimits for containers.
+
+**--insecure-disable-init-layer**=**true**|**false**
+  Disable the setup of the init layer for containers. Default is **false**.
+
+  **WARNING: This is a security-sensitive option.**
+
+  The init layer is not just for initializing special files (such as
+  /etc/resolv.conf, /etc/hosts, /.dockerenv). More importantly, it protects
+  against malicious images that control paths which will be bind-mounted by
+  the runtime. Without the init layer, such malicious images could use
+  symlinks or other mechanisms to cause the runtime to overwrite files on
+  the host system.
 
 **--dns**=""
   Force Docker to use specific DNS servers.
