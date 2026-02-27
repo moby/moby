@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	syslog "github.com/RackSec/srslog"
+	"github.com/moby/moby/v2/daemon/logger"
 )
 
 func functionMatches(expectedFun any, actualFun any) bool {
@@ -184,5 +185,115 @@ func TestValidateLogOpt(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("Expecting error on unsupported options")
+	}
+}
+
+// New tests for the programmatic TLS constructor and shared parameter parsing.
+// These are behaviour-focused tests that avoid depending on a real syslog
+// server.
+
+// TestNewWithTLSConfigRequiresTLSConfigForTCPTLS ensures that using
+// NewWithTLSConfig with a tcp+tls address requires a non-nil *tls.Config.
+func TestNewWithTLSConfigRequiresTLSConfigForTCPTLS(t *testing.T) {
+	info := logger.Info{
+		Config: map[string]string{
+			"syslog-address":  "tcp+tls://1.2.3.4:6514",
+			"syslog-facility": "daemon",
+			"syslog-format":   "rfc3164",
+		},
+		// DefaultTemplate for log tags is "{{.ID}}", which uses Info.ID() and
+		// expects a non-empty ContainerID. Provide a minimal 12-character ID so
+		// loggerutils.ParseLogTag succeeds without panicking.
+		ContainerID:   "123456789012",
+		ContainerName: "test-container",
+	}
+
+	logger, err := NewWithTLSConfig(info, nil)
+	if err == nil {
+		if logger != nil {
+			_ = logger.Close()
+		}
+		t.Fatal("expected error when tls config is nil for tcp+tls syslog")
+	}
+
+	const expected = "tls config is required for tcp+tls syslog"
+	if err.Error() != expected {
+		t.Fatalf("expected error %q, got %q", expected, err.Error())
+	}
+}
+
+// TestBuildSyslogParamsBasicUDPConfig validates that the shared parameter
+// builder used by both New and NewWithTLSConfig can successfully parse a
+// straightforward non-TLS configuration.
+func TestBuildSyslogParamsBasicUDPConfig(t *testing.T) {
+	info := logger.Info{
+		Config: map[string]string{
+			"syslog-address":  "udp://1.2.3.4:514",
+			"syslog-facility": "daemon",
+			"syslog-format":   "rfc3164",
+		},
+		ContainerID:   "123456789012",
+		ContainerName: "test-container",
+	}
+
+	if _, err := buildSyslogParams(info); err != nil {
+		t.Fatalf("buildSyslogParams returned error: %v", err)
+	}
+
+	// secure rfc5424 config should select the secure proto, correct address,
+	// LOG_DAEMON facility, and the RFC5424 formatter/framer pair for RFC5425.
+	info = logger.Info{
+		Config: map[string]string{
+			"syslog-address":  "tcp+tls://1.2.3.4:6514",
+			"syslog-facility": "daemon",
+			"syslog-format":   "rfc5424",
+		},
+		ContainerID:   "123456789012",
+		ContainerName: "test-container",
+	}
+
+	params, err := buildSyslogParams(info)
+	if err != nil {
+		t.Fatalf("buildSyslogParams returned error: %v", err)
+	}
+	if params.proto != secureProto {
+		t.Fatalf("expected proto %q, got %q", secureProto, params.proto)
+	}
+	if params.address != "1.2.3.4:6514" {
+		t.Fatalf("expected address %q, got %q", "1.2.3.4:6514", params.address)
+	}
+	if params.facility != syslog.LOG_DAEMON {
+		t.Fatalf("expected LOG_DAEMON facility, got %v", params.facility)
+	}
+	if !functionMatches(rfc5424formatterWithAppNameAsTag, params.formatter) {
+		t.Fatalf("unexpected formatter for secure rfc5424 config: %#v", params.formatter)
+	}
+	if !functionMatches(syslog.RFC5425MessageLengthFramer, params.framer) {
+		t.Fatalf("unexpected framer for secure rfc5424 config: %#v", params.framer)
+	}
+}
+
+// TestNewWithTLSConfigNonSecureProto verifies that NewWithTLSConfig behaves like
+// New for non-tcp+tls protocols and does not require a TLS config.
+func TestNewWithTLSConfigNonSecureProto(t *testing.T) {
+	info := logger.Info{
+		Config: map[string]string{
+			"syslog-address":  "udp://127.0.0.1:514",
+			"syslog-facility": "daemon",
+			"syslog-format":   "rfc3164",
+		},
+		ContainerID:   "123456789012",
+		ContainerName: "test-container",
+	}
+
+	logger, err := NewWithTLSConfig(info, nil)
+	if err != nil {
+		t.Fatalf("expected nil error for non-secure proto, got %v", err)
+	}
+	if logger == nil {
+		t.Fatal("expected non-nil logger for non-secure proto")
+	}
+	if err := logger.Close(); err != nil {
+		t.Fatalf("failed to close logger: %v", err)
 	}
 }
