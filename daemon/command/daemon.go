@@ -268,6 +268,8 @@ func (cli *daemonCLI) start(ctx context.Context) (err error) {
 		cdiCache = daemon.RegisterCDIDriver(cli.Config.CDISpecDirs...)
 	}
 
+	daemon.RegisterGPUDeviceDrivers(cdiCache)
+
 	var apiServer apiserver.Server
 	cli.authzMiddleware, err = initMiddlewares(ctx, &apiServer, cli.Config, pluginStore)
 	if err != nil {
