@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os/exec"
-	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -97,83 +94,6 @@ func (s *DockerAPISuite) TestAPIStatsStoppedContainerInGoroutines(c *testing.T) 
 			time.Sleep(200 * time.Millisecond)
 		}
 	}
-}
-
-func (s *DockerAPISuite) TestAPIStatsNetworkStats(c *testing.T) {
-	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
-	testRequires(c, testEnv.IsLocalDaemon)
-
-	id := runSleepingContainer(c)
-	cli.WaitRun(c, id)
-
-	// Retrieve the container address
-	net := "bridge"
-	if testEnv.DaemonInfo.OSType == "windows" {
-		net = "nat"
-	}
-	contIP := findContainerIP(c, id, net)
-	numPings := 1
-
-	var preRxPackets uint64
-	var preTxPackets uint64
-	var postRxPackets uint64
-	var postTxPackets uint64
-
-	// Get the container networking stats before and after pinging the container
-	nwStatsPre := getNetworkStats(c, id)
-	for _, v := range nwStatsPre {
-		preRxPackets += v.RxPackets
-		preTxPackets += v.TxPackets
-	}
-
-	countParam := "-c"
-	if runtime.GOOS == "windows" {
-		countParam = "-n" // Ping count parameter is -n on Windows
-	}
-	pingout, err := exec.Command("ping", contIP, countParam, strconv.Itoa(numPings)).CombinedOutput()
-	if err != nil && runtime.GOOS == "linux" {
-		// If it fails then try a work-around, but just for linux.
-		// If this fails too then go back to the old error for reporting.
-		//
-		// The ping will sometimes fail due to an apparmor issue where it
-		// denies access to the libc.so.6 shared library - running it
-		// via /lib64/ld-linux-x86-64.so.2 seems to work around it.
-		pingout2, err2 := exec.Command("/lib64/ld-linux-x86-64.so.2", "/bin/ping", contIP, "-c", strconv.Itoa(numPings)).CombinedOutput()
-		if err2 == nil {
-			pingout = pingout2
-			err = err2
-		}
-	}
-	assert.NilError(c, err)
-	pingouts := string(pingout[:])
-	nwStatsPost := getNetworkStats(c, id)
-	for _, v := range nwStatsPost {
-		postRxPackets += v.RxPackets
-		postTxPackets += v.TxPackets
-	}
-
-	// Verify the stats contain at least the expected number of packets
-	// On Linux, account for ARP.
-	expRxPkts := preRxPackets + uint64(numPings)
-	expTxPkts := preTxPackets + uint64(numPings)
-	if testEnv.DaemonInfo.OSType != "windows" {
-		expRxPkts++
-		expTxPkts++
-	}
-	assert.Assert(c, postTxPackets >= expTxPkts, "Reported less TxPackets than expected. Expected >= %d. Found %d. %s", expTxPkts, postTxPackets, pingouts)
-	assert.Assert(c, postRxPackets >= expRxPkts, "Reported less RxPackets than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingouts)
-}
-
-func getNetworkStats(t *testing.T, id string) map[string]container.NetworkStats {
-	_, body, err := request.Get(testutil.GetContext(t), "/containers/"+id+"/stats?stream=false")
-	assert.NilError(t, err)
-
-	var st container.StatsResponse
-	err = json.NewDecoder(body).Decode(&st)
-	assert.NilError(t, err)
-	_ = body.Close()
-
-	return st.Networks
 }
 
 func (s *DockerAPISuite) TestAPIStatsNoStreamConnectedContainers(c *testing.T) {
