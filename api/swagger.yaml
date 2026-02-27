@@ -3583,7 +3583,7 @@ definitions:
         x-nullable: false
         example: "tiborvass/sample-volume-plugin"
       Enabled:
-        description:
+        description: |
           True if the plugin is running. False if the plugin is not running,
           only installed.
         type: "boolean"
