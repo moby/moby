@@ -251,7 +251,7 @@ func TestNetworkConfigurationMarshalling(t *testing.T) {
 func getIPv4Data(t *testing.T) []driverapi.IPAMData {
 	t.Helper()
 
-	a, _ := defaultipam.NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), nil)
+	a, _ := defaultipam.NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), nil, nil)
 	alloc, err := a.RequestPool(ipamapi.PoolRequest{
 		AddressSpace: "LocalDefault",
 		Exclude:      netutils.InferReservedNetworks(false),
