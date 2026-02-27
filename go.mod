@@ -62,7 +62,7 @@ require (
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
 	github.com/moby/moby/api v1.54.0-rc.1
-	github.com/moby/moby/client v0.2.3-0.20260227184636-bfec2cbdd32e
+	github.com/moby/moby/client v0.2.3-rc.1
 	github.com/moby/patternmatcher v0.6.0
 	github.com/moby/policy-helpers v0.0.0-20260211190020-824747bfdd3c
 	github.com/moby/profiles/apparmor v0.1.0
