@@ -100,3 +100,10 @@ func (a authCookieSha1) generateChallenge() []byte {
 	hex.Encode(enc, b)
 	return enc
 }
+
+func getHomeDir() string {
+	if dir, err := os.UserHomeDir(); err == nil {
+		return dir
+	}
+	return "/"
+}
