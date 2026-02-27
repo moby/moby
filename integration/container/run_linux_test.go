@@ -504,7 +504,7 @@ func TestCgroupRW(t *testing.T) {
 func TestContainerShmSize(t *testing.T) {
 	ctx := setupTest(t)
 
-	const defaultSize = "1000k"
+	const defaultSize = "1024k"
 	defaultSizeBytes, err := units.RAMInBytes(defaultSize)
 	assert.NilError(t, err)
 
@@ -533,7 +533,7 @@ func TestContainerShmSize(t *testing.T) {
 		{
 			doc:     "custom shmSize",
 			opt:     container.WithHostConfig(&containertypes.HostConfig{ShmSize: defaultSizeBytes * 2}),
-			expSize: "2000k",
+			expSize: "2048k",
 		},
 		{
 			doc:    "negative shmSize",
@@ -570,7 +570,7 @@ func TestContainerShmSize(t *testing.T) {
 			out, err := container.Output(ctx, apiClient, cID)
 			assert.NilError(t, err)
 
-			// e.g., "218 213 0:87 / /dev/shm rw,nosuid,nodev,noexec,relatime - tmpfs shm rw,size=1000k"
+			// e.g., "218 213 0:87 / /dev/shm rw,nosuid,nodev,noexec,relatime - tmpfs shm rw,size=1024k"
 			assert.Assert(t, is.Contains(out.Stdout, "/dev/shm "), "shm mount not found in output: \n%v", out.Stdout)
 			assert.Check(t, is.Contains(out.Stdout, "size="+tc.expSize))
 		})
