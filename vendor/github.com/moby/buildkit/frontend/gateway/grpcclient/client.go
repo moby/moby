@@ -472,14 +472,20 @@ func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (res *
 }
 
 func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.SourceOp, opt sourceresolver.Opt) (*sourceresolver.MetaResponse, error) {
+	requiresImageAttestationResolve := opt.ImageOpt != nil && (opt.ImageOpt.AttestationChain || len(opt.ImageOpt.ResolveAttestations) > 0)
+	requiresHTTPChecksumRequest := opt.HTTPOpt != nil && opt.HTTPOpt.ChecksumReq != nil
+
 	if c.caps.Supports(pb.CapSourceMetaResolver) != nil {
+		if requiresImageAttestationResolve {
+			return nil, errors.New("image attestation resolution requires source metadata resolver support")
+		}
 		var ref string
 		if v, ok := strings.CutPrefix(op.Identifier, "docker-image://"); ok {
 			ref = v
 		} else if v, ok := strings.CutPrefix(op.Identifier, "oci-layout://"); ok {
 			ref = v
 		} else {
-			if opt.HTTPOpt != nil && opt.HTTPOpt.ChecksumReq != nil {
+			if requiresHTTPChecksumRequest {
 				return nil, errors.New("http checksum request requires source metadata resolver support")
 			}
 			return &sourceresolver.MetaResponse{Op: op}, nil
@@ -501,6 +507,17 @@ func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.Source
 				Config: config,
 			},
 		}, nil
+	}
+
+	if requiresImageAttestationResolve {
+		if err := c.caps.Supports(pb.CapSourceMetaResolverImageAttestations); err != nil {
+			return nil, errors.Wrap(err, "image attestation resolution requires additional source metadata resolver support")
+		}
+	}
+	if requiresHTTPChecksumRequest {
+		if err := c.caps.Supports(pb.CapSourceMetaResolverHTTPChecksumRequest); err != nil {
+			return nil, errors.Wrap(err, "http checksum request requires additional source metadata resolver support")
+		}
 	}
 
 	var platform *ocispecs.Platform
@@ -544,7 +561,7 @@ func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.Source
 			ReturnObject: opt.GitOpt.ReturnObject,
 		}
 	}
-	if opt.HTTPOpt != nil && opt.HTTPOpt.ChecksumReq != nil {
+	if requiresHTTPChecksumRequest {
 		algo, err := toPBHTTPChecksumAlgo(opt.HTTPOpt.ChecksumReq.Algo)
 		if err != nil {
 			return nil, err
@@ -598,7 +615,7 @@ func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.Source
 			}
 		}
 	}
-	if opt.HTTPOpt != nil && opt.HTTPOpt.ChecksumReq != nil {
+	if requiresHTTPChecksumRequest {
 		if resp.HTTP == nil || resp.HTTP.ChecksumResponse == nil {
 			return nil, errors.New("http checksum request was sent but response did not include checksum response")
 		}

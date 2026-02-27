@@ -76,6 +76,12 @@ const (
 	// CapSourceMetaResolver is the capability to indicates support for ResolveSourceMetadata
 	// function in gateway API
 	CapSourceMetaResolver apicaps.CapID = "source.metaresolver"
+	// CapSourceMetaResolverImageAttestations is the capability to indicate support
+	// for attestation resolution fields in ResolveSourceMeta image requests.
+	CapSourceMetaResolverImageAttestations apicaps.CapID = "source.metaresolver.image.attestations"
+	// CapSourceMetaResolverHTTPChecksumRequest is the capability to indicate support
+	// for custom checksum request fields in ResolveSourceMeta http requests.
+	CapSourceMetaResolverHTTPChecksumRequest apicaps.CapID = "source.metaresolver.http.checksumrequest"
 )
 
 func init() {
@@ -250,6 +256,20 @@ func init() {
 	Caps.Init(apicaps.Cap{
 		ID:      CapSourceMetaResolver,
 		Name:    "source meta resolver",
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapSourceMetaResolverImageAttestations,
+		Name:    "source meta resolver image attestations",
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapSourceMetaResolverHTTPChecksumRequest,
+		Name:    "source meta resolver http checksum request",
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})
