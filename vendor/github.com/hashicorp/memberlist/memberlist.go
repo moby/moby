@@ -1,3 +1,6 @@
+// Copyright IBM Corp. 2013, 2025
+// SPDX-License-Identifier: MPL-2.0
+
 /*
 memberlist is a library that manages cluster
 membership and member failure detection using a gossip based protocol.
@@ -27,9 +30,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/armon/go-metrics"
-	multierror "github.com/hashicorp/go-multierror"
-	sockaddr "github.com/hashicorp/go-sockaddr"
+	metrics "github.com/hashicorp/go-metrics/compat"
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-sockaddr"
 	"github.com/miekg/dns"
 )
 
@@ -96,10 +99,10 @@ func (conf *Config) BuildVsnArray() []uint8 {
 // Does not schedule execution of background maintenance.
 func newMemberlist(conf *Config) (*Memberlist, error) {
 	if conf.ProtocolVersion < ProtocolVersionMin {
-		return nil, fmt.Errorf("Protocol version '%d' too low. Must be in range: [%d, %d]",
+		return nil, fmt.Errorf("protocol version '%d' too low. Must be in range: [%d, %d]",
 			conf.ProtocolVersion, ProtocolVersionMin, ProtocolVersionMax)
 	} else if conf.ProtocolVersion > ProtocolVersionMax {
-		return nil, fmt.Errorf("Protocol version '%d' too high. Must be in range: [%d, %d]",
+		return nil, fmt.Errorf("protocol version '%d' too high. Must be in range: [%d, %d]",
 			conf.ProtocolVersion, ProtocolVersionMin, ProtocolVersionMax)
 	}
 
@@ -121,7 +124,7 @@ func newMemberlist(conf *Config) (*Memberlist, error) {
 	}
 
 	if conf.LogOutput != nil && conf.Logger != nil {
-		return nil, fmt.Errorf("Cannot specify both LogOutput and Logger. Please choose a single log configuration setting.")
+		return nil, fmt.Errorf("cannot specify both LogOutput and Logger; please choose a single log configuration setting")
 	}
 
 	logDest := conf.LogOutput
@@ -175,7 +178,7 @@ func newMemberlist(conf *Config) (*Memberlist, error) {
 
 		nt, err := makeNetRetry(limit)
 		if err != nil {
-			return nil, fmt.Errorf("Could not set up network transport: %v", err)
+			return nil, fmt.Errorf("could not set up network transport: %v", err)
 		}
 		if conf.BindPort == 0 {
 			port := nt.GetAutoBindPort()
@@ -233,6 +236,7 @@ func newMemberlist(conf *Config) (*Memberlist, error) {
 	go m.streamListen()
 	go m.packetListen()
 	go m.packetHandler()
+	go m.checkBroadcastQueueDepth()
 	return m, nil
 }
 
@@ -247,7 +251,7 @@ func Create(conf *Config) (*Memberlist, error) {
 		return nil, err
 	}
 	if err := m.setAlive(); err != nil {
-		m.Shutdown()
+		_ = m.Shutdown()
 		return nil, err
 	}
 	m.schedule()
@@ -269,7 +273,7 @@ func (m *Memberlist) Join(existing []string) (int, error) {
 	for _, exist := range existing {
 		addrs, err := m.resolveAddr(exist)
 		if err != nil {
-			err = fmt.Errorf("Failed to resolve %s: %v", exist, err)
+			err = fmt.Errorf("failed to resolve %s: %v", exist, err)
 			errs = multierror.Append(errs, err)
 			m.logger.Printf("[WARN] memberlist: %v", err)
 			continue
@@ -279,7 +283,7 @@ func (m *Memberlist) Join(existing []string) (int, error) {
 			hp := joinHostPort(addr.ip.String(), addr.port)
 			a := Address{Addr: hp, Name: addr.nodeName}
 			if err := m.pushPullNode(a, true); err != nil {
-				err = fmt.Errorf("Failed to join %s: %v", a.Addr, err)
+				err = fmt.Errorf("failed to join %s: %v", a.Addr, err)
 				errs = multierror.Append(errs, err)
 				m.logger.Printf("[DEBUG] memberlist: %v", err)
 				continue
@@ -435,14 +439,15 @@ func (m *Memberlist) setAlive() error {
 	// Check if this is a public address without encryption
 	ipAddr, err := sockaddr.NewIPAddr(addr.String())
 	if err != nil {
-		return fmt.Errorf("Failed to parse interface addresses: %v", err)
+		return fmt.Errorf("failed to parse interface addresses: %v", err)
 	}
 	ifAddrs := []sockaddr.IfAddr{
 		sockaddr.IfAddr{
 			SockAddr: ipAddr,
 		},
 	}
-	_, publicIfs, err := sockaddr.IfByRFC("6890", ifAddrs)
+	_, publicIfs, _ := sockaddr.IfByRFC("6890", ifAddrs)
+
 	if len(publicIfs) > 0 && !m.config.EncryptionEnabled() {
 		m.logger.Printf("[WARN] memberlist: Binding to public address without encryption!")
 	}
@@ -486,7 +491,7 @@ func (m *Memberlist) refreshAdvertise() (net.IP, int, error) {
 	addr, port, err := m.transport.FinalAdvertiseAddr(
 		m.config.AdvertiseAddr, m.config.AdvertisePort)
 	if err != nil {
-		return nil, 0, fmt.Errorf("Failed to get final advertise address: %v", err)
+		return nil, 0, fmt.Errorf("failed to get final advertise address: %v", err)
 	}
 	m.setAdvertise(addr, port)
 	return addr, port, nil
@@ -775,4 +780,18 @@ func (m *Memberlist) changeNode(addr string, f func(*nodeState)) {
 
 	n := m.nodeMap[addr]
 	f(n)
+}
+
+// checkBroadcastQueueDepth periodically checks the size of the broadcast queue
+// to see if it is too large
+func (m *Memberlist) checkBroadcastQueueDepth() {
+	for {
+		select {
+		case <-time.After(m.config.QueueCheckInterval):
+			numq := m.broadcasts.NumQueued()
+			metrics.AddSampleWithLabels([]string{"memberlist", "queue", "broadcasts"}, float32(numq), m.metricLabels)
+		case <-m.shutdownCh:
+			return
+		}
+	}
 }

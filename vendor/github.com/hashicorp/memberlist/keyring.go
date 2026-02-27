@@ -1,3 +1,6 @@
+// Copyright IBM Corp. 2013, 2025
+// SPDX-License-Identifier: MPL-2.0
+
 package memberlist
 
 import (
@@ -43,7 +46,7 @@ func NewKeyring(keys [][]byte, primaryKey []byte) (*Keyring, error) {
 
 	if len(keys) > 0 || len(primaryKey) > 0 {
 		if len(primaryKey) == 0 {
-			return nil, fmt.Errorf("Empty primary key not allowed")
+			return nil, fmt.Errorf("empty primary key not allowed")
 		}
 		if err := keyring.AddKey(primaryKey); err != nil {
 			return nil, err
@@ -105,14 +108,14 @@ func (k *Keyring) UseKey(key []byte) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("Requested key is not in the keyring")
+	return fmt.Errorf("requested key is not in the keyring")
 }
 
 // RemoveKey drops a key from the keyring. This will return an error if the key
 // requested for removal is currently at position 0 (primary key).
 func (k *Keyring) RemoveKey(key []byte) error {
 	if bytes.Equal(key, k.keys[0]) {
-		return fmt.Errorf("Removing the primary key is not allowed")
+		return fmt.Errorf("removing the primary key is not allowed")
 	}
 	for i, installedKey := range k.keys {
 		if bytes.Equal(key, installedKey) {
