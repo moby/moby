@@ -146,7 +146,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: test-reports-unit-arm64-graphdriver
           path: /tmp/reports/*
@@ -168,7 +168,7 @@ jobs:
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: test-reports-unit-arm64-*
           path: /tmp/reports
@@ -250,7 +250,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: test-reports-integration-arm64-graphdriver
           path: /tmp/reports/*
@@ -272,7 +272,7 @@ jobs:
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: /tmp/reports
           pattern: test-reports-integration-arm64-*
