@@ -10803,13 +10803,13 @@ paths:
             type: "object"
             title: "SystemDataUsageResponse"
             properties:
-              ImagesDiskUsage:
+              ImageUsage:
                 $ref: "#/definitions/ImagesDiskUsage"
-              ContainersDiskUsage:
+              ContainerUsage:
                 $ref: "#/definitions/ContainersDiskUsage"
-              VolumesDiskUsage:
+              VolumeUsage:
                 $ref: "#/definitions/VolumesDiskUsage"
-              BuildCacheDiskUsage:
+              BuildCacheUsage:
                 $ref: "#/definitions/BuildCacheDiskUsage"
         500:
           description: "server error"
