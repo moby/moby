@@ -179,10 +179,7 @@ func NewClientWithOpts(ops ...Opt) (*Client, error) {
 // [WithAPIVersionFromEnv] to configure the client with a fixed API version
 // and disable API version negotiation.
 //
-//	cli, err := client.New(
-//		client.FromEnv,
-//		client.WithAPIVersionNegotiation(),
-//	)
+//	cli, err := client.New(client.FromEnv)
 func New(ops ...Opt) (*Client, error) {
 	hostURL, err := ParseHostURL(DefaultDockerHost)
 	if err != nil {
