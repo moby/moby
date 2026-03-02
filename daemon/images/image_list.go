@@ -14,6 +14,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 var acceptedImageFilterTags = map[string]bool{
@@ -64,11 +65,11 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 	err = opts.Filters.WalkValues("until", func(value string) error {
 		ts, err := timestamp.GetTimestamp(value, time.Now())
 		if err != nil {
-			return err
+			return errdefs.InvalidParameter(fmt.Errorf("invalid value for 'until' filter: %w", err))
 		}
 		seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
 		if err != nil {
-			return err
+			return errdefs.InvalidParameter(fmt.Errorf("invalid value for 'until' filter: %w", err))
 		}
 		if tsUnix := time.Unix(seconds, nanoseconds); beforeFilter.IsZero() || beforeFilter.After(tsUnix) {
 			beforeFilter = tsUnix

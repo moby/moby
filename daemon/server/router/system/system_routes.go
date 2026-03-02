@@ -297,11 +297,11 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 
 	since, err := eventTime(r.Form.Get("since"))
 	if err != nil {
-		return err
+		return invalidRequestError{fmt.Errorf("invalid value for 'since': %w", err)}
 	}
 	until, err := eventTime(r.Form.Get("until"))
 	if err != nil {
-		return err
+		return invalidRequestError{fmt.Errorf("invalid value for 'until': %w", err)}
 	}
 
 	var (

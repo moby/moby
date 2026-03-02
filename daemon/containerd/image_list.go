@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"runtime"
 	"sort"
 	"strings"
@@ -603,11 +604,11 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 	err = imageFilters.WalkValues("until", func(value string) error {
 		ts, err := timestamp.GetTimestamp(value, time.Now())
 		if err != nil {
-			return err
+			return errdefs.InvalidParameter(fmt.Errorf("invalid value for 'until' filter: %w", err))
 		}
 		seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
 		if err != nil {
-			return err
+			return errdefs.InvalidParameter(fmt.Errorf("invalid value for 'until' filter: %w", err))
 		}
 		until := time.Unix(seconds, nanoseconds)
 
@@ -615,7 +616,7 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 			created := image.CreatedAt
 			return created.Before(until)
 		})
-		return err
+		return nil
 	})
 	if err != nil {
 		return nil, err
