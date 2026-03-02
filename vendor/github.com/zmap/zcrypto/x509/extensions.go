@@ -5,13 +5,13 @@
 package x509
 
 import (
-	"encoding/asn1"
 	"encoding/hex"
 	"encoding/json"
 	"net"
 	"strconv"
 	"strings"
 
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509/ct"
 	"github.com/zmap/zcrypto/x509/pkix"
 )
@@ -27,6 +27,8 @@ var (
 	oidExtSubjectKeyId       = asn1.ObjectIdentifier{2, 5, 29, 14}
 	oidExtExtendedKeyUsage   = asn1.ObjectIdentifier{2, 5, 29, 37}
 	oidExtCertificatePolicy  = asn1.ObjectIdentifier{2, 5, 29, 32}
+	oidExtensionCRLNumber    = asn1.ObjectIdentifier{2, 5, 29, 20}
+	oidExtensionReasonCode   = asn1.ObjectIdentifier{2, 5, 29, 21}
 
 	oidExtAuthorityInfoAccess            = oidExtensionAuthorityInfoAccess
 	oidExtensionCTPrecertificatePoison   = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
@@ -121,16 +123,16 @@ func (cp *CertificatePoliciesData) MarshalJSON() ([]byte, error) {
 // GeneralNames corresponds an X.509 GeneralName defined in
 // Section 4.2.1.6 of RFC 5280.
 //
-// GeneralName ::= CHOICE {
-//      otherName                 [0]  AnotherName,
-//      rfc822Name                [1]  IA5String,
-//      dNSName                   [2]  IA5String,
-//      x400Address               [3]  ORAddress,
-//      directoryName             [4]  Name,
-//      ediPartyName              [5]  EDIPartyName,
-//      uniformResourceIdentifier [6]  IA5String,
-//      iPAddress                 [7]  OCTET STRING,
-//      registeredID              [8]  OBJECT IDENTIFIER }
+//	GeneralName ::= CHOICE {
+//	     otherName                 [0]  AnotherName,
+//	     rfc822Name                [1]  IA5String,
+//	     dNSName                   [2]  IA5String,
+//	     x400Address               [3]  ORAddress,
+//	     directoryName             [4]  Name,
+//	     ediPartyName              [5]  EDIPartyName,
+//	     uniformResourceIdentifier [6]  IA5String,
+//	     iPAddress                 [7]  OCTET STRING,
+//	     registeredID              [8]  OBJECT IDENTIFIER }
 type GeneralNames struct {
 	DirectoryNames []pkix.Name
 	DNSNames       []string
@@ -404,6 +406,7 @@ func (e *ExtendedKeyUsageExtension) UnmarshalJSON(b []byte) error {
 
 // The string functions for CertValidationLevel are auto-generated via
 // `go generate <full_path_to_x509_package>` or running `go generate` in the package directory
+//
 //go:generate stringer -type=CertValidationLevel -output=generated_certvalidationlevel_string.go
 type CertValidationLevel int
 
@@ -694,21 +697,21 @@ type AuthorityInfoAccess struct {
 }
 
 /*
-    id-CABFOrganizationIdentifier OBJECT IDENTIFIER ::= { joint-iso-itu-t(2) international-organizations(23) ca-browser-forum(140) certificate-extensions(3) cabf-organization-identifier(1) }
+	    id-CABFOrganizationIdentifier OBJECT IDENTIFIER ::= { joint-iso-itu-t(2) international-organizations(23) ca-browser-forum(140) certificate-extensions(3) cabf-organization-identifier(1) }
 
-    ext-CABFOrganizationIdentifier EXTENSION ::= { SYNTAX CABFOrganizationIdentifier IDENTIFIED BY id-CABFOrganizationIdentifier }
+	    ext-CABFOrganizationIdentifier EXTENSION ::= { SYNTAX CABFOrganizationIdentifier IDENTIFIED BY id-CABFOrganizationIdentifier }
 
-    CABFOrganizationIdentifier ::= SEQUENCE {
+	    CABFOrganizationIdentifier ::= SEQUENCE {
 
-        registrationSchemeIdentifier   PrintableString (SIZE(3)),
+	        registrationSchemeIdentifier   PrintableString (SIZE(3)),
 
-        registrationCountry            PrintableString (SIZE(2)),
+	        registrationCountry            PrintableString (SIZE(2)),
 
-        registrationStateOrProvince    [0] IMPLICIT PrintableString OPTIONAL (SIZE(0..128)),
+	        registrationStateOrProvince    [0] IMPLICIT PrintableString OPTIONAL (SIZE(0..128)),
 
-        registrationReference          UTF8String
+	        registrationReference          UTF8String
 
-	}
+		}
 */
 type CABFOrganizationIDASN struct {
 	RegistrationSchemeIdentifier string `asn1:"printable"`

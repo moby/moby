@@ -163,16 +163,16 @@ func testIptabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 		// - iptables-nft and iptables-legacy pick a different order when dumping all tables
 		// - if the raw table isn't used it's not included in the all-tables dump but, once it's been used, it's always
 		//   included ... so, "cleaned" results would differ only in the empty raw table.
-		var dump string
+		var dump strings.Builder
 		for _, table := range []string{"raw", "filter", "nat"} {
 			res := icmd.RunCommand(cmd+"-save", "-t", table)
 			assert.Assert(t, res.Error)
 			if !en {
 				name = tn + "/no"
 			}
-			dump += res.Combined()
+			dump.WriteString(res.Combined())
 		}
-		assert.Check(t, golden.String(stripComments(dump), name+"__"+cmd+".golden"))
+		assert.Check(t, golden.String(stripComments(dump.String()), name+"__"+cmd+".golden"))
 	}
 
 	makePB := func(hip string, cip netip.Addr) types.PortBinding {

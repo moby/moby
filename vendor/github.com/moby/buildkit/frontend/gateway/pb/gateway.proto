@@ -36,6 +36,11 @@ service LLBBridge {
 	rpc ReleaseContainer(ReleaseContainerRequest) returns (ReleaseContainerResponse);
 	rpc ExecProcess(stream ExecMessage) returns (stream ExecMessage);
 
+	// apicaps:CapGatewayExecFilesystem
+	rpc ReadFileContainer(ReadFileRequest) returns (ReadFileResponse);
+	rpc ReadDirContainer(ReadDirRequest) returns (ReadDirResponse);
+	rpc StatFileContainer(StatFileRequest) returns (StatFileResponse);
+
 	// apicaps:CapGatewayWarnings
 	rpc Warn(WarnRequest) returns (WarnResponse);
 }
@@ -228,6 +233,7 @@ message ReadFileRequest {
 	string Ref = 1;
 	string FilePath = 2;
 	FileRange Range = 3;
+	int32 MountIndex = 4;
 }
 
 message FileRange {
@@ -243,6 +249,7 @@ message ReadDirRequest {
 	string Ref = 1;
 	string DirPath = 2;
 	string IncludePattern = 3;
+	int32 MountIndex = 4;
 }
 
 message ReadDirResponse {
@@ -252,6 +259,7 @@ message ReadDirResponse {
 message StatFileRequest {
 	string Ref = 1;
 	string Path = 2;
+	int32 MountIndex = 3;
 }
 
 message StatFileResponse {

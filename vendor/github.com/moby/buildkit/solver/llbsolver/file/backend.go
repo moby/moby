@@ -261,7 +261,7 @@ func docopy(ctx context.Context, src, dest string, action *pb.FileActionCopy, u 
 				continue
 			}
 		}
-		if err := copy.Copy(ctx, src, s, dest, destPath, opt...); err != nil {
+		if err := platformCopy(ctx, src, s, dest, destPath, opt...); err != nil {
 			return errors.WithStack(err)
 		}
 	}

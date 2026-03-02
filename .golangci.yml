@@ -174,6 +174,7 @@ linters:
         - G306 # G306: Expect WriteFile permissions to be 0600 or less (too restrictive; also flags "0o644" permissions)
         - G307 # G307: Deferring unsafe method "*os.File" on type "Close" (also EXC0008); (TODO: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close")
         - G504 # G504: Blocklisted import net/http/cgi: Go versions < 1.6.3 are vulnerable to Httpoxy attack: (CVE-2016-5386); (only affects go < 1.6.3)
+        - G602 # G602: slice index out of range (TODO: too many false positives; see https://github.com/securego/gosec/issues/1406)
 
     govet:
       enable-all: true
@@ -292,11 +293,10 @@ linters:
         linters:
           - gosec
 
-        # Suppress golint complaining about generated types in api/types/
-      - text: "type name will be used as (container|volume)\\.(Container|Volume).* by other packages, and that stutters; consider calling this"
-        path: "api/types/(volume|container)/"
+      - text: "^G402: " # Look for bad TLS connection settings
+        source: "cmpopts\\.Ignore"
         linters:
-          - revive
+          - gosec
 
         # FIXME: ignoring unused assigns to ctx for now; too many hits in libnetwork/xxx functions that setup traces
       - text: "assigned to ctx, but never used afterwards"
@@ -347,6 +347,11 @@ linters:
         path: "registry/"
         linters:
           - forbidigo
+
+      # These interfaces in the client module are identical by design to allow future expansion.
+      - text: "^identical: interface '(ContainerExportResult|ContainerLogsResult|ImagePullResponse|ImagePushResponse|ImageImportResult|ImageLoadResult|ImageSaveResult|ServiceLogsResult|TaskLogsResult)'"
+        linters:
+          - iface
 
     # Log a warning if an exclusion rule is unused.
     # Default: false

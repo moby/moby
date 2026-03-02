@@ -3,6 +3,7 @@ package drivers
 import (
 	"context"
 	"errors"
+	"maps"
 	"strings"
 	"time"
 
@@ -169,8 +170,6 @@ func (a *volumeAdapter) CreatedAt() (time.Time, error) {
 
 func (a *volumeAdapter) Status() map[string]any {
 	out := make(map[string]any, len(a.status))
-	for k, v := range a.status {
-		out[k] = v
-	}
+	maps.Copy(out, a.status)
 	return out
 }

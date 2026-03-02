@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"maps"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/moby/moby/api/types/events"
@@ -45,7 +46,5 @@ func copyAttributes(attributes, labels map[string]string) {
 	if labels == nil {
 		return
 	}
-	for k, v := range labels {
-		attributes[k] = v
-	}
+	maps.Copy(attributes, labels)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/moby/moby/v2/pkg/parsers/kernel"
@@ -80,19 +81,19 @@ const charsToEscape = `();\`
 
 // escapeStr returns s with every rune in charsToEscape escaped by a backslash
 func escapeStr(s string) string {
-	var ret string
+	var ret strings.Builder
 	for _, currRune := range s {
 		appended := false
 		for _, escapableRune := range charsToEscape {
 			if currRune == escapableRune {
-				ret += `\` + string(currRune)
+				ret.WriteString(`\` + string(currRune))
 				appended = true
 				break
 			}
 		}
 		if !appended {
-			ret += string(currRune)
+			ret.WriteRune(currRune)
 		}
 	}
-	return ret
+	return ret.String()
 }

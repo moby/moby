@@ -24,7 +24,6 @@ import (
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/defaults"
-	"github.com/containerd/containerd/v2/pkg/dialer"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
@@ -37,6 +36,7 @@ import (
 	networktypes "github.com/moby/moby/api/types/network"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/daemon/internal/nri"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
@@ -45,8 +45,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/backoff"
-	"google.golang.org/grpc/credentials/insecure"
 	"resenje.org/singleflight"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 
@@ -86,6 +84,7 @@ import (
 	"github.com/moby/moby/v2/pkg/authorization"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/moby/v2/pkg/sysinfo"
+	policyverifier "github.com/moby/policy-helpers"
 )
 
 type configStore struct {
@@ -116,6 +115,7 @@ type Daemon struct {
 	shutdown          bool
 	idMapping         user.IdentityMapping
 	PluginStore       *plugin.Store // TODO: remove
+	nri               *nri.NRI
 	pluginManager     *plugin.Manager
 	linkIndex         *linkIndex
 	containerdClient  *containerd.Client
@@ -658,7 +658,6 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			if err := daemon.containerRm(&cfg.Config, cid, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 				log.G(ctx).WithField("container", cid).WithError(err).Error("failed to remove container")
 			}
-
 		}(id, c)
 	}
 	group.Wait()
@@ -807,15 +806,15 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 	return daemon.config().IsSwarmCompatible()
 }
 
+// CheckSystem verifies that the system meets the platform-specific requirements
+// for running the Docker daemon.
+func CheckSystem() error {
+	return checkSystem()
+}
+
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
 func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (_ *Daemon, retErr error) {
-	// Verify platform-specific requirements.
-	// TODO(thaJeztah): this should be called before we try to create the daemon; perhaps together with the config validation.
-	if err := checkSystem(); err != nil {
-		return nil, err
-	}
-
 	registryService, err := registry.NewService(config.ServiceOptions)
 	if err != nil {
 		return nil, err
@@ -969,30 +968,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	const connTimeout = 60 * time.Second
 
-	// Set the max backoff delay to match our containerd.WithTimeout(),
-	// aligning with how containerd client's defaults sets this;
-	// https://github.com/containerd/containerd/blob/v2.0.2/client/client.go#L129-L136
-	backoffConfig := backoff.DefaultConfig
-	backoffConfig.MaxDelay = connTimeout
-	connParams := grpc.ConnectParams{
-		Backoff: backoffConfig,
-	}
 	gopts := []grpc.DialOption{
-		// ------------------------------------------------------------------
-		// options below are copied from containerd client's default options
-		//
-		// We need to set these options, because setting any custom DialOptions
-		// currently overwrites (not appends to) the defaults;
-		// https://github.com/containerd/containerd/blob/v2.0.2/client/client.go#L129-L141
-		//
-		// TODO(thaJeztah): use containerd.WithExtraDialOpts() once https://github.com/containerd/containerd/pull/11276 is merged and in a release.
-		// ------------------------------------------------------------------
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithConnectParams(connParams),
-		grpc.WithContextDialer(dialer.ContextDialer),
-		// ------------------------------------------------------------------
-		// end of options copied from containerd client's default
-		// ------------------------------------------------------------------
 		grpc.WithStatsHandler(tracing.ClientStatsHandler(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))),
 		grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
 		grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
@@ -1006,7 +982,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		d.containerdClient, err = containerd.New(
 			cfgStore.ContainerdAddr,
 			containerd.WithDefaultNamespace(cfgStore.ContainerdNamespace),
-			containerd.WithDialOpts(gopts),
+			containerd.WithExtraDialOpts(gopts),
 			containerd.WithTimeout(connTimeout),
 		)
 		if err != nil {
@@ -1021,7 +997,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			pluginCli, err = containerd.New(
 				cfgStore.ContainerdAddr,
 				containerd.WithDefaultNamespace(cfgStore.ContainerdPluginNamespace),
-				containerd.WithDialOpts(gopts),
+				containerd.WithExtraDialOpts(gopts),
 				containerd.WithTimeout(connTimeout),
 			)
 			if err != nil {
@@ -1099,6 +1075,14 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d.linkIndex = newLinkIndex()
 
 	containers, err := d.loadContainers(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	d.nri, err = nri.NewNRI(ctx, nri.Config{
+		DaemonConfig:    config.NRIOpts,
+		ContainerLister: d.containers,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -1286,14 +1270,15 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 		d.usesSnapshotter = true
 		d.imageService = ctrd.NewService(ctrd.ImageServiceConfig{
-			Client:          d.containerdClient,
-			Containers:      d.containers,
-			Snapshotter:     driverName,
-			RegistryHosts:   d.RegistryHosts,
-			Registry:        d.registryService,
-			EventsService:   d.EventsService,
-			IDMapping:       idMapping,
-			RefCountMounter: snapshotter.NewMounter(config.Root, driverName, idMapping),
+			Client:                 d.containerdClient,
+			Containers:             d.containers,
+			Snapshotter:            driverName,
+			RegistryHosts:          d.RegistryHosts,
+			Registry:               d.registryService,
+			EventsService:          d.EventsService,
+			IDMapping:              idMapping,
+			RefCountMounter:        snapshotter.NewMounter(config.Root, driverName, idMapping),
+			PolicyVerifierProvider: verifierProvider(cfgStore.Root),
 		})
 
 		if migrationConfig.ImageCount > 0 {
@@ -1376,6 +1361,34 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}).Info("Docker daemon")
 
 	return d, nil
+}
+
+func verifierProvider(root string) func() (*policyverifier.Verifier, error) {
+	var verifier *policyverifier.Verifier
+	var mu sync.Mutex
+
+	return func() (*policyverifier.Verifier, error) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if verifier != nil {
+			return verifier, nil
+		}
+
+		confDir := filepath.Join(root, "policy")
+		if err := os.MkdirAll(filepath.Join(confDir, "tuf"), 0o644); err != nil {
+			return nil, errors.Wrapf(err, "failed to create policy verifier config dir")
+		}
+
+		v, err := policyverifier.NewVerifier(policyverifier.Config{
+			StateDir: confDir,
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to create policy verifier")
+		}
+		verifier = v
+		return verifier, nil
+	}
 }
 
 // DistributionServices returns services controlling daemon storage
@@ -1493,6 +1506,10 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	// Shutdown plugins after containers and layerstore. Don't change the order.
 	daemon.pluginShutdown()
 
+	if daemon.nri != nil {
+		daemon.nri.Shutdown(ctx)
+	}
+
 	// trigger libnetwork Stop only if it's initialized
 	if daemon.netController != nil {
 		daemon.netController.Stop()
@@ -1510,7 +1527,9 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	// running anymore. If there are still some open connections to the
 	// '/events' endpoint, closing the EventsService should tear them down
 	// immediately.
-	daemon.EventsService.Close()
+	if daemon.EventsService != nil {
+		daemon.EventsService.Close()
+	}
 
 	return daemon.cleanupMounts(cfg)
 }

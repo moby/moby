@@ -3,6 +3,7 @@ package cnmallocator
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net"
 	"net/netip"
 	"slices"
@@ -725,14 +726,10 @@ func (na *cnmNetworkAllocator) allocateDriverState(d *networkDriver, n *api.Netw
 	// reconcile the driver specific options from the network spec
 	// and from the operational state retrieved from the store
 	if n.Spec.DriverConfig != nil {
-		for k, v := range n.Spec.DriverConfig.Options {
-			options[k] = v
-		}
+		maps.Copy(options, n.Spec.DriverConfig.Options)
 	}
 	if n.DriverState != nil {
-		for k, v := range n.DriverState.Options {
-			options[k] = v
-		}
+		maps.Copy(options, n.DriverState.Options)
 	}
 
 	// Construct IPAM data for driver consumption.
@@ -870,7 +867,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[netip.Prefix]s
 		return nil, err
 	}
 
-	// We don't support user defined address spaces yet so just
+	// We don't support user-defined address spaces yet so just
 	// retrieve default address space names for the driver.
 	_, asName, err := ipam.GetDefaultAddressSpaces()
 	if err != nil {

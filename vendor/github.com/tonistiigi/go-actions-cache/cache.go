@@ -531,16 +531,70 @@ func (c *Cache) doWithRetries(ctx context.Context, r *request) (*http.Response, 
 			var he HTTPError
 			if errors.As(err, &he) {
 				if he.StatusCode == http.StatusTooManyRequests {
-					c.opt.BackoffPool.Delay()
+					resp.Body.Close()
+					if retryAfter, ok := parseRetryAfter(resp.Header.Get("Retry-After")); ok {
+						if err1 := sleepWithTimeout(ctx, retryAfter, time.Until(max)); err1 != nil {
+							return nil, errors.Wrapf(err, "%v", err1)
+						}
+					} else {
+						c.opt.BackoffPool.Delay()
+					}
 					lastErr = err
 					continue
 				}
 			}
+			resp.Body.Close()
 			c.opt.BackoffPool.Reset()
 			return nil, err
 		}
 		c.opt.BackoffPool.Reset()
 		return resp, nil
+	}
+}
+
+func parseRetryAfter(header string) (time.Duration, bool) {
+	header = strings.TrimSpace(header)
+	if header == "" {
+		return 0, false
+	}
+
+	secs, err := strconv.Atoi(header)
+	if err == nil {
+		if secs < 0 {
+			return 0, true
+		}
+		return time.Duration(secs) * time.Second, true
+	}
+
+	tm, err := http.ParseTime(header)
+	if err != nil {
+		return 0, false
+	}
+
+	delay := time.Until(tm)
+	if delay < 0 {
+		delay = 0
+	}
+	return delay, true
+}
+
+func sleepWithTimeout(ctx context.Context, delay, timeout time.Duration) error {
+	if delay <= 0 {
+		return nil
+	}
+	if timeout <= 0 {
+		return errors.Errorf("maximum timeout reached")
+	}
+
+	if delay > timeout {
+		return errors.Errorf("requested delay %.2fs exceeds maximum timeout %v", delay.Seconds(), timeout)
+	}
+
+	select {
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	case <-time.After(delay):
+		return nil
 	}
 }
 
@@ -627,6 +681,7 @@ func (ce *Entry) Download(ctx context.Context) ReaderAtCloser {
 			return nil, errors.WithStack(err)
 		}
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			defer resp.Body.Close()
 			if resp.StatusCode == http.StatusRequestedRangeNotSatisfiable {
 				return nil, errors.Errorf("invalid status response %v for %s, range: %v", resp.Status, ce.URL, req.Header.Get("Range"))
 			}

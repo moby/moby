@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -55,9 +56,18 @@ type clientConfig struct {
 	// takes precedence. Either field disables API-version negotiation.
 	envAPIVersion string
 
+	// responseHooks is a list of custom response hooks to call on responses.
+	responseHooks []ResponseHook
+
 	// traceOpts is a list of options to configure the tracing span.
 	traceOpts []otelhttp.Option
 }
+
+// ResponseHook is called for each HTTP response returned by the daemon.
+// Hooks are invoked in the order they were added.
+//
+// Hooks must not read or close resp.Body.
+type ResponseHook func(*http.Response)
 
 // Opt is a configuration option to initialize a [Client].
 type Opt func(*clientConfig) error
@@ -133,8 +143,6 @@ func (tf testRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 	return tf(req)
 }
 
-func (testRoundTripper) skipConfigureTransport() bool { return true }
-
 // WithHostFromEnv overrides the client host with the host specified in the
 // DOCKER_HOST ([EnvOverrideHost]) environment variable. If DOCKER_HOST is not set,
 // or set to an empty value, the host is not modified.
@@ -151,7 +159,16 @@ func WithHostFromEnv() Opt {
 func WithHTTPClient(client *http.Client) Opt {
 	return func(c *clientConfig) error {
 		if client != nil {
-			c.client = client
+			// Make a clone of client so modifications do not affect
+			// the caller's client. Clone here instead of in New()
+			// as other options (WithHost) also mutate c.client.
+			// Cloned clients share the same CookieJar as the
+			// original.
+			hc := *client
+			if ht, ok := hc.Transport.(*http.Transport); ok {
+				hc.Transport = ht.Clone()
+			}
+			c.client = &hc
 		}
 		return nil
 	}
@@ -338,6 +355,21 @@ func WithTraceProvider(provider trace.TracerProvider) Opt {
 func WithTraceOptions(opts ...otelhttp.Option) Opt {
 	return func(c *clientConfig) error {
 		c.traceOpts = append(c.traceOpts, opts...)
+		return nil
+	}
+}
+
+// WithResponseHook adds a ResponseHook to the client. ResponseHooks are called
+// for each HTTP response returned by the daemon. Hooks are invoked in the order
+// they were added.
+//
+// Hooks must not read or close resp.Body.
+func WithResponseHook(h ResponseHook) Opt {
+	return func(c *clientConfig) error {
+		if h == nil {
+			return errors.New("invalid response hook: hook is nil")
+		}
+		c.responseHooks = append(c.responseHooks, h)
 		return nil
 	}
 }

@@ -49,7 +49,7 @@ func BenchmarkImageList(b *testing.B) {
 		// Use constant seed for reproducibility
 		src := rand.NewSource(1982731263716)
 
-		for i := 0; i < count; i++ {
+		for i := range count {
 			platform := platforms.DefaultSpec()
 
 			// 20% is other architecture than the host
@@ -73,7 +73,7 @@ func BenchmarkImageList(b *testing.B) {
 				}
 
 				containersCount := r2 % maxContainerCount
-				for j := 0; j < containersCount; j++ {
+				for range containersCount {
 					id := digest.FromString(desc.Name + strconv.Itoa(i)).String()
 
 					target := desc.Target

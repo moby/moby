@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/netip"
@@ -115,7 +116,15 @@ func Parse(reader io.Reader, path string) (ResolvConf, error) {
 		rc.processLine(scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
-		return ResolvConf{}, systemError{err}
+		src := rc.md.SourcePath
+		if errors.Is(err, bufio.ErrTooLong) {
+			return ResolvConf{}, systemError{
+				fmt.Errorf("failed to parse resolv.conf from %s: line too long (exceeds %d)", src, bufio.MaxScanTokenSize),
+			}
+		}
+		return ResolvConf{}, systemError{
+			fmt.Errorf("failed to parse resolv.conf from %s: %w", src, err),
+		}
 	}
 	if _, ok := rc.Option("ndots"); ok {
 		rc.md.NDotsFrom = "host"

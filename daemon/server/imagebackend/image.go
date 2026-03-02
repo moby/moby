@@ -56,6 +56,7 @@ type GetImageOpts struct {
 // ImageInspectOpts holds parameters to inspect an image.
 type ImageInspectOpts struct {
 	Manifests bool
+	Identity  bool
 	Platform  *ocispec.Platform
 }
 

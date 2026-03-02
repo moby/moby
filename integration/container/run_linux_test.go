@@ -82,7 +82,7 @@ func TestHostnameDnsResolution(t *testing.T) {
 		hostname = "foobar"
 	)
 
-	// using user defined network as we want to use internal DNS
+	// using user-defined network as we want to use internal DNS
 	netName := "foobar-net"
 	net.CreateNoError(ctx, t, apiClient, netName, net.WithDriver("bridge"))
 

@@ -4,13 +4,14 @@
 package otelgrpc // import "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 import (
-	"google.golang.org/grpc/stats"
+	"context"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/stats"
 )
 
 // ScopeName is the instrumentation scope name.
@@ -39,6 +40,9 @@ type config struct {
 	SpanAttributes    []attribute.KeyValue
 	MetricAttributes  []attribute.KeyValue
 
+	PublicEndpoint   bool
+	PublicEndpointFn func(ctx context.Context, info *stats.RPCTagInfo) bool
+
 	ReceivedEvent bool
 	SentEvent     bool
 }
@@ -59,6 +63,38 @@ func newConfig(opts []Option) *config {
 		o.apply(c)
 	}
 	return c
+}
+
+type publicEndpointOption struct{ p bool }
+
+func (o publicEndpointOption) apply(c *config) {
+	c.PublicEndpoint = o.p
+}
+
+// WithPublicEndpoint configures the Handler to link the span with an incoming
+// span context. If this option is not provided, then the association is a child
+// association instead of a link.
+func WithPublicEndpoint() Option {
+	return publicEndpointOption{p: true}
+}
+
+type publicEndpointFnOption struct {
+	fn func(context.Context, *stats.RPCTagInfo) bool
+}
+
+func (o publicEndpointFnOption) apply(c *config) {
+	if o.fn != nil {
+		c.PublicEndpointFn = o.fn
+	}
+}
+
+// WithPublicEndpointFn runs with every request, and allows conditionally
+// configuring the Handler to link the span with an incoming span context. If
+// this option is not provided or returns false, then the association is a
+// child association instead of a link.
+// Note: WithPublicEndpoint takes precedence over WithPublicEndpointFn.
+func WithPublicEndpointFn(fn func(context.Context, *stats.RPCTagInfo) bool) Option {
+	return publicEndpointFnOption{fn: fn}
 }
 
 type propagatorsOption struct{ p propagation.TextMapPropagator }
@@ -178,6 +214,8 @@ func (o spanStartOption) apply(c *config) {
 
 // WithSpanOptions configures an additional set of
 // trace.SpanOptions, which are applied to each new span.
+//
+// Deprecated: It is only used by the deprecated interceptor, and is unused by [NewClientHandler] and [NewServerHandler].
 func WithSpanOptions(opts ...trace.SpanStartOption) Option {
 	return spanStartOption{opts}
 }

@@ -1,7 +1,7 @@
 package community
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,8 +15,7 @@ package community
  */
 
 import (
-	"encoding/asn1"
-
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zcrypto/x509/pkix"
 	"github.com/zmap/zlint/v3/lint"
@@ -28,16 +27,16 @@ type SubjectRDNHasMultipleAttribute struct{}
 func init() {
 	lint.RegisterLint(&lint.Lint{
 		Name:          "n_multiple_subject_rdn",
-		Description:   "Certificates typically do not have have multiple attributes in a single RDN (subject). This may be an error.",
+		Description:   "Certificates typically do not have multiple attributes in a single RDN (subject). This may be an error.",
 		Citation:      "lint.AWSLabs certlint",
 		Source:        lint.Community,
 		EffectiveDate: util.ZeroDate,
-		Lint:          &SubjectRDNHasMultipleAttribute{},
+		Lint:          NewSubjectRDNHasMultipleAttribute,
 	})
 }
 
-func (l *SubjectRDNHasMultipleAttribute) Initialize() error {
-	return nil
+func NewSubjectRDNHasMultipleAttribute() lint.LintInterface {
+	return &SubjectRDNHasMultipleAttribute{}
 }
 
 func (l *SubjectRDNHasMultipleAttribute) CheckApplies(c *x509.Certificate) bool {

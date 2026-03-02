@@ -58,9 +58,9 @@ func (es *EndpointSettings) Copy() *EndpointSettings {
 
 // EndpointIPAMConfig represents IPAM configurations for the endpoint
 type EndpointIPAMConfig struct {
-	IPv4Address  netip.Addr   `json:",omitempty"`
-	IPv6Address  netip.Addr   `json:",omitempty"`
-	LinkLocalIPs []netip.Addr `json:",omitempty"`
+	IPv4Address  netip.Addr   `json:"IPv4Address,omitzero"`
+	IPv6Address  netip.Addr   `json:"IPv6Address,omitzero"`
+	LinkLocalIPs []netip.Addr `json:"LinkLocalIPs,omitempty"`
 }
 
 // Copy makes a copy of the endpoint ipam config

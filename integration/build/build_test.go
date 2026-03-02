@@ -861,7 +861,7 @@ type buildLine struct {
 
 func getImageIDsFromBuild(output []byte) ([]string, error) {
 	var ids []string
-	for _, line := range bytes.Split(output, []byte("\n")) {
+	for line := range bytes.SplitSeq(output, []byte("\n")) {
 		if len(line) == 0 {
 			continue
 		}

@@ -1,4 +1,4 @@
-package moby_buildkit_v1_frontend //nolint:revive,staticcheck
+package moby_buildkit_v1_frontend //nolint:staticcheck
 
 import "github.com/moby/buildkit/util/apicaps"
 
@@ -51,6 +51,10 @@ const (
 	// CapGatewayExecExtraHosts is the capability to send signals to a process
 	// created via gateway exec.
 	CapGatewayExecSignals apicaps.CapID = "gateway.exec.signals"
+
+	// CapGatewayExecFilesystem is the capability to interact with the filesystem for
+	// containers directly through the gateway.
+	CapGatewayExecFilesystem apicaps.CapID = "gateway.exec.filesystem"
 
 	// CapFrontendCaps can be used to check that frontends define support for certain capabilities
 	CapFrontendCaps apicaps.CapID = "frontend.caps"
@@ -197,6 +201,13 @@ func init() {
 	Caps.Init(apicaps.Cap{
 		ID:      CapGatewayExecSignals,
 		Name:    "gateway exec signals",
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapGatewayExecFilesystem,
+		Name:    "gateway exec filesystem",
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

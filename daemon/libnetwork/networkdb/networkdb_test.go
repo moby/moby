@@ -51,7 +51,7 @@ func launchNode(t TestingT, conf Config) *NetworkDB {
 func createNetworkDBInstances(t TestingT, num int, namePrefix string, conf *Config) []*NetworkDB {
 	t.Helper()
 	var dbs []*NetworkDB
-	for i := 0; i < num; i++ {
+	for i := range num {
 		localConfig := *conf
 		localConfig.Hostname = fmt.Sprintf("%s%d", namePrefix, i+1)
 		localConfig.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
@@ -69,7 +69,7 @@ func createNetworkDBInstances(t TestingT, num int, namePrefix string, conf *Conf
 	// Wait till the cluster creation is successful
 	check := func(t poll.LogT) poll.Result {
 		// Check that the cluster is properly created
-		for i := 0; i < num; i++ {
+		for i := range num {
 			if num != len(dbs[i].ClusterPeers()) {
 				return poll.Continue("%s:Waiting for cluster peers to be established", dbs[i].config.Hostname)
 			}
@@ -91,7 +91,7 @@ func closeNetworkDBInstances(t TestingT, dbs []*NetworkDB) {
 
 func (nDB *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool) {
 	t.Helper()
-	for i := 0; i < 80; i++ {
+	for range 80 {
 		nDB.RLock()
 		_, ok := nDB.nodes[node]
 		nDB.RUnlock()
@@ -154,7 +154,7 @@ func (nDB *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value 
 	t.Helper()
 	n := 80
 	var v []byte
-	for i := 0; i < n; i++ {
+	for range n {
 		var err error
 		v, err = nDB.GetEntry(tname, nid, key)
 		if present && err == nil && string(v) == value {
@@ -324,14 +324,14 @@ func TestNetworkDBCRUDTableEntries(t *testing.T) {
 	for i := 1; i <= n; i++ {
 		err = dbs[0].CreateEntry("test_table", "network1",
 			fmt.Sprintf("test_key0%d", i),
-			[]byte(fmt.Sprintf("test_value0%d", i)))
+			fmt.Appendf(nil, "test_value0%d", i))
 		assert.NilError(t, err)
 	}
 
 	for i := 1; i <= n; i++ {
 		err = dbs[1].CreateEntry("test_table", "network1",
 			fmt.Sprintf("test_key1%d", i),
-			[]byte(fmt.Sprintf("test_value1%d", i)))
+			fmt.Appendf(nil, "test_value1%d", i))
 		assert.NilError(t, err)
 	}
 
@@ -445,7 +445,7 @@ func TestNetworkDBBulkSync(t *testing.T) {
 	for i := 1; i <= n; i++ {
 		err = dbs[0].CreateEntry("test_table", "network1",
 			fmt.Sprintf("test_key0%d", i),
-			[]byte(fmt.Sprintf("test_value0%d", i)))
+			fmt.Appendf(nil, "test_value0%d", i))
 		assert.NilError(t, err)
 	}
 
@@ -485,8 +485,8 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 		}(db)
 	}
 
-	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
+	for i := range n {
+		for j := range n {
 			if i == j {
 				continue
 			}
@@ -495,13 +495,13 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 		}
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		err := dbs[i].JoinNetwork("network1")
 		assert.NilError(t, err)
 	}
 
-	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
+	for i := range n {
+		for j := range n {
 			dbs[i].verifyNetworkExistence(t, dbs[j].config.NodeID, "network1", true)
 		}
 	}
@@ -627,16 +627,16 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	err = dbs[1].JoinNetwork("network1")
 	assert.NilError(t, err)
 
-	for i := 0; i < keysWriteDelete; i++ {
+	for i := range keysWriteDelete {
 		err = dbs[i%2].CreateEntry("testTable", "network1", "key-"+strconv.Itoa(i), []byte("value"))
 		assert.NilError(t, err)
 	}
 	time.Sleep(time.Second)
-	for i := 0; i < keysWriteDelete; i++ {
+	for i := range keysWriteDelete {
 		err = dbs[i%2].DeleteEntry("testTable", "network1", "key-"+strconv.Itoa(i))
 		assert.NilError(t, err)
 	}
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		dbs[i].Lock()
 		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries number should match")
 		dbs[i].Unlock()
@@ -647,14 +647,14 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 
 	err = dbs[2].JoinNetwork("network1")
 	assert.NilError(t, err)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		dbs[i].Lock()
 		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries number should match")
 		dbs[i].Unlock()
 	}
 	// at this point the entries should had been all deleted
 	time.Sleep(30 * time.Second)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		dbs[i].Lock()
 		assert.Check(t, is.Equal(int64(0), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries should had been garbage collected")
 		dbs[i].Unlock()
@@ -662,7 +662,7 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 
 	// make sure that entries are not coming back
 	time.Sleep(15 * time.Second)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		dbs[i].Lock()
 		assert.Check(t, is.Equal(int64(0), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries should had been garbage collected")
 		dbs[i].Unlock()
@@ -832,7 +832,7 @@ func TestParallelCreate(t *testing.T) {
 	startCh := make(chan int)
 	doneCh := make(chan error)
 	var success atomic.Uint32
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		go func() {
 			<-startCh
 			err := dbs[0].CreateEntry("testTable", "testNetwork", "key", []byte("value"))
@@ -845,7 +845,7 @@ func TestParallelCreate(t *testing.T) {
 
 	close(startCh)
 
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		<-doneCh
 	}
 	close(doneCh)
@@ -864,7 +864,7 @@ func TestParallelDelete(t *testing.T) {
 	startCh := make(chan int)
 	doneCh := make(chan error)
 	var success atomic.Uint32
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		go func() {
 			<-startCh
 			err := dbs[0].DeleteEntry("testTable", "testNetwork", "key")
@@ -877,7 +877,7 @@ func TestParallelDelete(t *testing.T) {
 
 	close(startCh)
 
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		<-doneCh
 	}
 	close(doneCh)
@@ -923,7 +923,7 @@ func TestNetworkDBIslands(t *testing.T) {
 	}
 
 	// Now the 3 bootstrap nodes will cleanly leave, and will be properly removed from the other 2 nodes
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		log.G(t.Context()).Infof("node %d leaving", i)
 		dbs[i].Close()
 	}
@@ -958,7 +958,7 @@ func TestNetworkDBIslands(t *testing.T) {
 	poll.WaitOn(t, check, poll.WithDelay(time.Second), poll.WithTimeout(pollTimeout()))
 
 	// Spawn again the first 3 nodes with different names but same IP:port
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		log.G(t.Context()).Infof("node %d coming back", i)
 		conf := *dbs[i].config
 		conf.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
@@ -968,7 +968,7 @@ func TestNetworkDBIslands(t *testing.T) {
 	// Give some time for the reconnect routine to run, it runs every 6s.
 	check = func(t poll.LogT) poll.Result {
 		// Verify that the cluster is again all connected. Note that the 3 previous node did not do any join
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			db := dbs[i]
 			db.RLock()
 			if len(db.nodes) != 5 {

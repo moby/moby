@@ -80,7 +80,8 @@ func MountSSHSocket(ctx context.Context, c session.Caller, opt SocketOpt) (sockP
 
 	sockPath = filepath.Join(dir, "ssh_auth_sock")
 
-	l, err := net.Listen("unix", sockPath)
+	listener := net.ListenConfig{}
+	l, err := listener.Listen(context.TODO(), "unix", sockPath)
 	if err != nil {
 		return "", nil, errors.WithStack(err)
 	}

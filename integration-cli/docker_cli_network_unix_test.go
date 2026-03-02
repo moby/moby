@@ -1123,7 +1123,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 	s.d.StartWithBusybox(ctx, c)
 
 	// Run a few containers on host network
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		cName := fmt.Sprintf("hostc-%d", i)
 		out, err := s.d.Cmd("run", "-d", "--name", cName, "--net=host", "--restart=always", "busybox", "top")
 		assert.NilError(c, err, out)
@@ -1138,7 +1138,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 	s.d.Start(c)
 
 	// make sure all the containers are up and running
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		err := s.d.WaitRun(fmt.Sprintf("hostc-%d", i))
 		assert.NilError(c, err)
 	}
@@ -1319,7 +1319,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectPreferredIP(c *testing.T) {
 	// Still it should fail to connect to the default network with a specified IP (whatever ip)
 	out, _, err := dockerCmdWithError("network", "connect", "--ip", "172.21.55.44", "bridge", "c0")
 	assert.Assert(c, err != nil, "out: %s", out)
-	assert.Assert(c, is.Contains(out, "user specified IP address is supported on user defined networks only"))
+	assert.Assert(c, is.Contains(out, "user-specified IP address is supported on user-defined networks only"))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkConnectPreferredIPStoppedContainer(c *testing.T) {
@@ -1351,7 +1351,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkUnsupportedRequiredIP(c *testing.T
 		checkUnsupportedNetworkAndIP(c, mode)
 	}
 
-	// requested IP is not supported on networks with no user defined subnets
+	// requested IP is not supported on networks with no user-defined subnets
 	cli.DockerCmd(c, "network", "create", "n0")
 	assertNwIsAvailable(c, "n0")
 
@@ -1368,7 +1368,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkUnsupportedRequiredIP(c *testing.T
 func checkUnsupportedNetworkAndIP(t *testing.T, nwMode string) {
 	out, _, err := dockerCmdWithError("run", "-d", "--net", nwMode, "--ip", "172.28.99.88", "--ip6", "2001:db8:1234::9988", "busybox", "top")
 	assert.Assert(t, err != nil, "out: %s", out)
-	assert.Assert(t, is.Contains(out, "user specified IP address is supported on user defined networks only"))
+	assert.Assert(t, is.Contains(out, "user-specified IP address is supported on user-defined networks only"))
 }
 
 func verifyIPAddressConfig(t *testing.T, cName, nwname, ipv4, ipv6 string) {

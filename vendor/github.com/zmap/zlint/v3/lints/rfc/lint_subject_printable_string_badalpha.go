@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,15 +15,30 @@
 package rfc
 
 import (
-	"encoding/asn1"
 	"errors"
 	"fmt"
 	"regexp"
 
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
 )
+
+func init() {
+	lint.RegisterLint(&lint.Lint{
+		Name:          "e_subject_printable_string_badalpha",
+		Description:   "PrintableString type's alphabet only includes a-z, A-Z, 0-9, and 11 special characters",
+		Citation:      "RFC 5280: Appendix B. ASN.1 Notes",
+		Source:        lint.RFC5280,
+		EffectiveDate: util.RFC2459Date,
+		Lint:          NewSubjectPrintableStringBadAlpha,
+	})
+}
+
+func NewSubjectPrintableStringBadAlpha() lint.LintInterface {
+	return &subjectPrintableStringBadAlpha{}
+}
 
 var (
 	// Per RFC 5280, Appendix B. ASN.1 Notes:
@@ -44,21 +59,6 @@ func validatePrintableString(rawPS []byte) error {
 }
 
 type subjectPrintableStringBadAlpha struct {
-}
-
-func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_subject_printable_string_badalpha",
-		Description:   "PrintableString type's alphabet only includes a-z, A-Z, 0-9, and 11 special characters",
-		Citation:      "RFC 5280: Appendix B. ASN.1 Notes",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC2459Date,
-		Lint:          &subjectPrintableStringBadAlpha{},
-	})
-}
-
-func (l *subjectPrintableStringBadAlpha) Initialize() error {
-	return nil
 }
 
 // CheckApplies returns true for any certificate with a non-empty RawSubject.

@@ -367,6 +367,7 @@ func TestNegotiateAPIVersionOverride(t *testing.T) {
 	_, err = client.Ping(t.Context(), PingOptions{
 		NegotiateAPIVersion: true,
 	})
+	assert.NilError(t, err)
 	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 }
 
@@ -381,6 +382,8 @@ func TestNegotiateAPIVersionConnectionFailure(t *testing.T) {
 	_, err = client.Ping(t.Context(), PingOptions{
 		NegotiateAPIVersion: true,
 	})
+	assert.Check(t, is.ErrorType(err, IsErrConnectionFailed))
+	assert.Check(t, is.ErrorContains(err, `failed to connect to the docker API at tcp://no-such-host.invalid`))
 	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 }
 
@@ -425,6 +428,7 @@ func TestNegotiateAPIVersionWithEmptyVersion(t *testing.T) {
 	_, err = client.Ping(t.Context(), PingOptions{
 		NegotiateAPIVersion: true,
 	})
+	assert.NilError(t, err)
 	assert.Check(t, is.Equal(client.ClientVersion(), expected))
 }
 

@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,7 +15,7 @@ package cabf_br
  */
 
 import (
-	"crypto/dsa"
+	"github.com/zmap/zcrypto/dsa"
 
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
@@ -31,12 +31,12 @@ func init() {
 		Citation:      "BRs v1.7.0: 6.1.5",
 		Source:        lint.CABFBaselineRequirements,
 		EffectiveDate: util.ZeroDate,
-		Lint:          &dsaImproperSize{},
+		Lint:          NewDsaImproperSize,
 	})
 }
 
-func (l *dsaImproperSize) Initialize() error {
-	return nil
+func NewDsaImproperSize() lint.LintInterface {
+	return &dsaImproperSize{}
 }
 
 func (l *dsaImproperSize) CheckApplies(c *x509.Certificate) bool {

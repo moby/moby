@@ -9,6 +9,7 @@ import (
 	rnd "math/rand"
 	"net"
 	"net/netip"
+	"slices"
 	"strings"
 	"time"
 
@@ -542,15 +543,7 @@ func (nDB *NetworkDB) bulkSyncTables() {
 		// successfully completed bulk sync in this iteration.
 		updatedNetworks := make([]string, 0, len(networks))
 		for _, nid := range networks {
-			var found bool
-			for _, completedNid := range completed {
-				if nid == completedNid {
-					found = true
-					break
-				}
-			}
-
-			if !found {
+			if !slices.Contains(completed, nid) {
 				updatedNetworks = append(updatedNetworks, nid)
 			}
 		}

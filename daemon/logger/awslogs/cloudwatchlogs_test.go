@@ -37,12 +37,12 @@ const (
 
 // Generates i multi-line events each with j lines
 func (l *logStream) logGenerator(lineCount int, multilineCount int) {
-	for i := 0; i < multilineCount; i++ {
+	for range multilineCount {
 		l.Log(&logger.Message{
 			Line:      []byte(multilineLogline),
 			Timestamp: time.Time{},
 		})
-		for j := 0; j < lineCount; j++ {
+		for range lineCount {
 			l.Log(&logger.Message{
 				Line:      []byte(logline),
 				Timestamp: time.Time{},
@@ -728,7 +728,7 @@ func TestCollectBatchMultilinePattern(t *testing.T) {
 }
 
 func BenchmarkCollectBatch(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		mockClient := &mockClient{}
 		stream := &logStream{
 			client:        mockClient,
@@ -759,7 +759,7 @@ func BenchmarkCollectBatch(b *testing.B) {
 }
 
 func BenchmarkCollectBatchMultilinePattern(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		mockClient := &mockClient{}
 		multilinePattern := regexp.MustCompile(`\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1,2][0-9]|3[0,1]) (?:[0,1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]`)
 		stream := &logStream{
@@ -1288,7 +1288,7 @@ func TestCollectBatchMaxTotalBytes(t *testing.T) {
 	// no ticks, guarantee batch by size (and chan close)
 	stream.Close()
 
-	for i := 0; i < expectedPuts; i++ {
+	for range expectedPuts {
 		<-called
 	}
 	assert.Assert(t, len(calls) == expectedPuts)
@@ -1364,7 +1364,7 @@ func TestCollectBatchMaxTotalBytesWithBinary(t *testing.T) {
 	// no ticks, guarantee batch by size (and chan close)
 	stream.Close()
 
-	for i := 0; i < expectedPuts; i++ {
+	for range expectedPuts {
 		<-called
 	}
 	assert.Assert(t, len(calls) == expectedPuts)
@@ -1422,7 +1422,7 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 	var expectedEvents []types.InputLogEvent
 	times := maximumLogEventsPerPut
 	timestamp := time.Now()
-	for i := 0; i < times; i++ {
+	for i := range times {
 		line := strconv.Itoa(i)
 		if i%2 == 0 {
 			timestamp = timestamp.Add(1 * time.Nanosecond)
@@ -1446,7 +1446,7 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 	close(called)
 	assert.Assert(t, argument != nil)
 	assert.Assert(t, len(argument.LogEvents) == times)
-	for i := 0; i < times; i++ {
+	for i := range times {
 		if !reflect.DeepEqual(argument.LogEvents[i], expectedEvents[i]) {
 			t.Errorf("Expected event to be %v but was %v", expectedEvents[i], argument.LogEvents[i])
 		}
@@ -1659,15 +1659,14 @@ func TestCreateTagSuccess(t *testing.T) {
 
 func BenchmarkUnwrapEvents(b *testing.B) {
 	events := make([]wrappedEvent, maximumLogEventsPerPut)
-	for i := 0; i < maximumLogEventsPerPut; i++ {
+	for i := range maximumLogEventsPerPut {
 		mes := strings.Repeat("0", maximumBytesPerEvent)
 		events[i].inputLogEvent = types.InputLogEvent{
 			Message: &mes,
 		}
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		res := unwrapEvents(events)
 		assert.Check(b, is.Len(res, maximumLogEventsPerPut))
 	}

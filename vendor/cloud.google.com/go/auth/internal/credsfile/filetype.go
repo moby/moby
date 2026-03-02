@@ -140,6 +140,7 @@ type ImpersonatedServiceAccountFile struct {
 	Type                           string          `json:"type"`
 	ServiceAccountImpersonationURL string          `json:"service_account_impersonation_url"`
 	Delegates                      []string        `json:"delegates"`
+	Scopes                         []string        `json:"scopes"`
 	CredSource                     json.RawMessage `json:"source_credentials"`
 	UniverseDomain                 string          `json:"universe_domain"`
 }

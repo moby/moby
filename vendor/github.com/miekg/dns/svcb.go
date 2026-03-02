@@ -298,7 +298,7 @@ func (s *SVCBMandatory) pack() ([]byte, error) {
 
 func (s *SVCBMandatory) unpack(b []byte) error {
 	if len(b)%2 != 0 {
-		return errors.New("dns: svcbmandatory: value length is not a multiple of 2")
+		return errors.New("bad svcbmandatory: value length is not a multiple of 2")
 	}
 	codes := make([]SVCBKey, 0, len(b)/2)
 	for i := 0; i < len(b); i += 2 {
@@ -395,10 +395,10 @@ func (s *SVCBAlpn) pack() ([]byte, error) {
 	b := make([]byte, 0, 10*len(s.Alpn))
 	for _, e := range s.Alpn {
 		if e == "" {
-			return nil, errors.New("dns: svcbalpn: empty alpn-id")
+			return nil, errors.New("bad svcbalpn: empty alpn-id")
 		}
 		if len(e) > 255 {
-			return nil, errors.New("dns: svcbalpn: alpn-id too long")
+			return nil, errors.New("bad svcbalpn: alpn-id too long")
 		}
 		b = append(b, byte(len(e)))
 		b = append(b, e...)
@@ -413,7 +413,7 @@ func (s *SVCBAlpn) unpack(b []byte) error {
 		length := int(b[i])
 		i++
 		if i+length > len(b) {
-			return errors.New("dns: svcbalpn: alpn array overflowing")
+			return errors.New("bad svcbalpn: alpn array overflowing")
 		}
 		alpn = append(alpn, string(b[i:i+length]))
 		i += length
@@ -433,13 +433,13 @@ func (s *SVCBAlpn) parse(b string) error {
 	for p := 0; p < len(b); {
 		c, q := nextByte(b, p)
 		if q == 0 {
-			return errors.New("dns: svcbalpn: unterminated escape")
+			return errors.New("bad svcbalpn: unterminated escape")
 		}
 		p += q
 		// If we find a comma, we have finished reading an alpn.
 		if c == ',' {
 			if len(a) == 0 {
-				return errors.New("dns: svcbalpn: empty protocol identifier")
+				return errors.New("bad svcbalpn: empty protocol identifier")
 			}
 			alpn = append(alpn, string(a))
 			a = []byte{}
@@ -449,10 +449,10 @@ func (s *SVCBAlpn) parse(b string) error {
 		if c == '\\' {
 			dc, dq := nextByte(b, p)
 			if dq == 0 {
-				return errors.New("dns: svcbalpn: unterminated escape decoding comma-separated list")
+				return errors.New("bad svcbalpn: unterminated escape decoding comma-separated list")
 			}
 			if dc != '\\' && dc != ',' {
-				return errors.New("dns: svcbalpn: bad escaped character decoding comma-separated list")
+				return errors.New("bad svcbalpn: bad escaped character decoding comma-separated list")
 			}
 			p += dq
 			c = dc
@@ -461,7 +461,7 @@ func (s *SVCBAlpn) parse(b string) error {
 	}
 	// Add the final alpn.
 	if len(a) == 0 {
-		return errors.New("dns: svcbalpn: last protocol identifier empty")
+		return errors.New("bad svcbalpn: last protocol identifier empty")
 	}
 	s.Alpn = append(alpn, string(a))
 	return nil
@@ -499,14 +499,14 @@ func (*SVCBNoDefaultAlpn) len() int              { return 0 }
 
 func (*SVCBNoDefaultAlpn) unpack(b []byte) error {
 	if len(b) != 0 {
-		return errors.New("dns: svcbnodefaultalpn: no-default-alpn must have no value")
+		return errors.New("bad svcbnodefaultalpn: no-default-alpn must have no value")
 	}
 	return nil
 }
 
 func (*SVCBNoDefaultAlpn) parse(b string) error {
 	if b != "" {
-		return errors.New("dns: svcbnodefaultalpn: no-default-alpn must have no value")
+		return errors.New("bad svcbnodefaultalpn: no-default-alpn must have no value")
 	}
 	return nil
 }
@@ -529,7 +529,7 @@ func (s *SVCBPort) copy() SVCBKeyValue { return &SVCBPort{s.Port} }
 
 func (s *SVCBPort) unpack(b []byte) error {
 	if len(b) != 2 {
-		return errors.New("dns: svcbport: port length is not exactly 2 octets")
+		return errors.New("bad svcbport: port length is not exactly 2 octets")
 	}
 	s.Port = binary.BigEndian.Uint16(b)
 	return nil
@@ -544,7 +544,7 @@ func (s *SVCBPort) pack() ([]byte, error) {
 func (s *SVCBPort) parse(b string) error {
 	port, err := strconv.ParseUint(b, 10, 16)
 	if err != nil {
-		return errors.New("dns: svcbport: port out of range")
+		return errors.New("bad svcbport: port out of range")
 	}
 	s.Port = uint16(port)
 	return nil
@@ -577,7 +577,7 @@ func (s *SVCBIPv4Hint) pack() ([]byte, error) {
 	for _, e := range s.Hint {
 		x := e.To4()
 		if x == nil {
-			return nil, errors.New("dns: svcbipv4hint: expected ipv4, hint is ipv6")
+			return nil, errors.New("bad svcbipv4hint: expected ipv4, hint is ipv6")
 		}
 		b = append(b, x...)
 	}
@@ -586,7 +586,7 @@ func (s *SVCBIPv4Hint) pack() ([]byte, error) {
 
 func (s *SVCBIPv4Hint) unpack(b []byte) error {
 	if len(b) == 0 || len(b)%4 != 0 {
-		return errors.New("dns: svcbipv4hint: ipv4 address byte array length is not a multiple of 4")
+		return errors.New("bad svcbipv4hint: ipv4 address byte array length is not a multiple of 4")
 	}
 	b = cloneSlice(b)
 	x := make([]net.IP, 0, len(b)/4)
@@ -611,10 +611,10 @@ func (s *SVCBIPv4Hint) String() string {
 
 func (s *SVCBIPv4Hint) parse(b string) error {
 	if b == "" {
-		return errors.New("dns: svcbipv4hint: empty hint")
+		return errors.New("bad svcbipv4hint: empty hint")
 	}
 	if strings.Contains(b, ":") {
-		return errors.New("dns: svcbipv4hint: expected ipv4, got ipv6")
+		return errors.New("bad svcbipv4hint: expected ipv4, got ipv6")
 	}
 
 	hint := make([]net.IP, 0, strings.Count(b, ",")+1)
@@ -623,7 +623,7 @@ func (s *SVCBIPv4Hint) parse(b string) error {
 		e, b, _ = strings.Cut(b, ",")
 		ip := net.ParseIP(e).To4()
 		if ip == nil {
-			return errors.New("dns: svcbipv4hint: bad ip")
+			return errors.New("bad svcbipv4hint: bad ip")
 		}
 		hint = append(hint, ip)
 	}
@@ -671,7 +671,7 @@ func (s *SVCBECHConfig) unpack(b []byte) error {
 func (s *SVCBECHConfig) parse(b string) error {
 	x, err := fromBase64([]byte(b))
 	if err != nil {
-		return errors.New("dns: svcbech: bad base64 ech")
+		return errors.New("bad svcbech: bad base64 ech")
 	}
 	s.ECH = x
 	return nil
@@ -699,7 +699,7 @@ func (s *SVCBIPv6Hint) pack() ([]byte, error) {
 	b := make([]byte, 0, 16*len(s.Hint))
 	for _, e := range s.Hint {
 		if len(e) != net.IPv6len || e.To4() != nil {
-			return nil, errors.New("dns: svcbipv6hint: expected ipv6, hint is ipv4")
+			return nil, errors.New("bad svcbipv6hint: expected ipv6, hint is ipv4")
 		}
 		b = append(b, e...)
 	}
@@ -708,14 +708,14 @@ func (s *SVCBIPv6Hint) pack() ([]byte, error) {
 
 func (s *SVCBIPv6Hint) unpack(b []byte) error {
 	if len(b) == 0 || len(b)%16 != 0 {
-		return errors.New("dns: svcbipv6hint: ipv6 address byte array length not a multiple of 16")
+		return errors.New("bas svcbipv6hint: ipv6 address byte array length not a multiple of 16")
 	}
 	b = cloneSlice(b)
 	x := make([]net.IP, 0, len(b)/16)
 	for i := 0; i < len(b); i += 16 {
 		ip := net.IP(b[i : i+16])
 		if ip.To4() != nil {
-			return errors.New("dns: svcbipv6hint: expected ipv6, got ipv4")
+			return errors.New("bad svcbipv6hint: expected ipv6, got ipv4")
 		}
 		x = append(x, ip)
 	}
@@ -736,7 +736,7 @@ func (s *SVCBIPv6Hint) String() string {
 
 func (s *SVCBIPv6Hint) parse(b string) error {
 	if b == "" {
-		return errors.New("dns: svcbipv6hint: empty hint")
+		return errors.New("bad svcbipv6hint: empty hint")
 	}
 
 	hint := make([]net.IP, 0, strings.Count(b, ",")+1)
@@ -745,10 +745,10 @@ func (s *SVCBIPv6Hint) parse(b string) error {
 		e, b, _ = strings.Cut(b, ",")
 		ip := net.ParseIP(e)
 		if ip == nil {
-			return errors.New("dns: svcbipv6hint: bad ip")
+			return errors.New("bad svcbipv6hint: bad ip")
 		}
 		if ip.To4() != nil {
-			return errors.New("dns: svcbipv6hint: expected ipv6, got ipv4-mapped-ipv6")
+			return errors.New("bad svcbipv6hint: expected ipv6, got ipv4-mapped-ipv6")
 		}
 		hint = append(hint, ip)
 	}
@@ -800,7 +800,7 @@ func (s *SVCBDoHPath) unpack(b []byte) error {
 func (s *SVCBDoHPath) parse(b string) error {
 	template, err := svcbParseParam(b)
 	if err != nil {
-		return fmt.Errorf("dns: svcbdohpath: %w", err)
+		return fmt.Errorf("bad svcbdohpath: %w", err)
 	}
 	s.Template = string(template)
 	return nil
@@ -838,14 +838,14 @@ func (*SVCBOhttp) len() int              { return 0 }
 
 func (*SVCBOhttp) unpack(b []byte) error {
 	if len(b) != 0 {
-		return errors.New("dns: svcbotthp: svcbotthp must have no value")
+		return errors.New("bad svcbotthp: svcbotthp must have no value")
 	}
 	return nil
 }
 
 func (*SVCBOhttp) parse(b string) error {
 	if b != "" {
-		return errors.New("dns: svcbotthp: svcbotthp must have no value")
+		return errors.New("bad svcbotthp: svcbotthp must have no value")
 	}
 	return nil
 }
@@ -878,7 +878,7 @@ func (s *SVCBLocal) unpack(b []byte) error {
 func (s *SVCBLocal) parse(b string) error {
 	data, err := svcbParseParam(b)
 	if err != nil {
-		return fmt.Errorf("dns: svcblocal: svcb private/experimental key %w", err)
+		return fmt.Errorf("bad svcblocal: svcb private/experimental key %w", err)
 	}
 	s.Data = data
 	return nil

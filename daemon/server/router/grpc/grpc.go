@@ -1,3 +1,9 @@
+// Package grpc provides the router for the /grpc endpoint.
+//
+// Deprecated: The /grpc endpoint is deprecated and will be removed in the next
+// major version. The Engine now properly supports HTTP/2 and h2c requests and can
+// serve gRPC without this endpoint. Clients should establish gRPC connections
+// directly over HTTP/2.
 package grpc
 
 import (
@@ -25,6 +31,9 @@ type grpcRouter struct {
 }
 
 // NewRouter initializes a new grpc http router
+//
+// Deprecated: The /grpc endpoint is deprecated and will be removed in the next
+// major version. The Engine now properly supports HTTP/2 and h2c requests.
 func NewRouter(backends ...Backend) router.Router {
 	tp, _ := otelutil.NewTracerProvider(context.Background(), false)
 	opts := []grpc.ServerOption{

@@ -57,7 +57,7 @@ func TestCopier(t *testing.T) {
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		if _, err := stdout.WriteString(stdoutLine + "\n"); err != nil {
 			t.Fatal(err)
 		}
@@ -131,7 +131,7 @@ func TestCopierLongLines(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		if _, err := stdout.WriteString(stdoutLongLine); err != nil {
 			t.Fatal(err)
 		}
@@ -196,7 +196,7 @@ func TestCopierLongLines(t *testing.T) {
 func TestCopierSlow(t *testing.T) {
 	stdoutLine := "Line that thinks that it is log line from docker stdout"
 	var stdout bytes.Buffer
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		if _, err := stdout.WriteString(stdoutLine + "\n"); err != nil {
 			t.Fatal(err)
 		}
@@ -300,7 +300,7 @@ func TestCopierWithPartial(t *testing.T) {
 	var stderr bytes.Buffer
 	var normalMsg bytes.Buffer
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		if _, err := stdout.WriteString(stdoutLongLine); err != nil {
 			t.Fatal(err)
 		}
@@ -479,7 +479,7 @@ func piped(b *testing.B, iterations int, delay time.Duration, buf []byte) io.Rea
 		return nil
 	}
 	go func() {
-		for i := 0; i < iterations; i++ {
+		for range iterations {
 			time.Sleep(delay)
 			if n, err := w.Write(buf); err != nil || n != len(buf) {
 				if err != nil {

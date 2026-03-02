@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"maps"
 	"runtime"
 	"sync"
 
@@ -91,9 +92,7 @@ func NewExecStore() *ExecStore {
 func (e *ExecStore) Commands() map[string]*ExecConfig {
 	e.mu.RLock()
 	byID := make(map[string]*ExecConfig, len(e.byID))
-	for id, config := range e.byID {
-		byID[id] = config
-	}
+	maps.Copy(byID, e.byID)
 	e.mu.RUnlock()
 	return byID
 }

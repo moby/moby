@@ -796,10 +796,12 @@ func opaqueGenWhichOneof(g *protogen.GeneratedFile, f *fileInfo, message *messag
 			caseType := opaqueOneofCaseTypeName(oneof)
 			g.P("const ", message.GoIdent.GoName, "_", oneof.GoName, "_not_set_case ", caseType, " = ", 0)
 			for _, f := range oneof.Fields {
+				g.AnnotateSymbol(message.GoIdent.GoName+"_"+f.GoName+"_case", protogen.Annotation{Location: f.Location})
 				g.P("const ", message.GoIdent.GoName, "_", f.GoName, "_case ", caseType, " = ", f.Desc.Number())
 			}
 			fieldtrackNoInterface(g, message.noInterface)
 			whicherName := oneof.MethodName("Which")
+			g.AnnotateSymbol(message.GoIdent.GoName+"."+whicherName, protogen.Annotation{Location: oneof.Location})
 			g.P("func (x *", message.GoIdent, ") ", whicherName, "() ", caseType, " {")
 			g.P("if x == nil {")
 			g.P("return ", message.GoIdent.GoName, "_", oneof.GoName, "_not_set_case ")

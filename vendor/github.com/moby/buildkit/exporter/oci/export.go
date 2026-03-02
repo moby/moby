@@ -131,7 +131,7 @@ func (e *imageExporterInstance) Config() *exporter.Config {
 	return exporter.NewConfigWithCompression(e.opts.RefCfg.Compression)
 }
 
-func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source, inlineCache exptypes.InlineCache, sessionID string) (_ map[string]string, descref exporter.DescriptorReference, err error) {
+func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source, buildInfo exporter.ExportBuildInfo) (_ map[string]string, descref exporter.DescriptorReference, err error) {
 	if e.opt.Variant == VariantDocker && len(src.Refs) > 0 {
 		return nil, nil, errors.Errorf("docker exporter does not currently support exporting manifest lists")
 	}
@@ -159,7 +159,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 		}
 	}()
 
-	desc, err := e.opt.ImageWriter.Commit(ctx, src, sessionID, inlineCache, &opts)
+	desc, err := e.opt.ImageWriter.Commit(ctx, src, buildInfo.SessionID, buildInfo.InlineCache, &opts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -220,7 +220,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 	timeoutCtx, _ = context.WithTimeoutCause(timeoutCtx, 5*time.Second, errors.WithStack(context.DeadlineExceeded)) //nolint:govet
 	defer func() { cancel(errors.WithStack(context.Canceled)) }()
 
-	caller, err := e.opt.SessionManager.Get(timeoutCtx, sessionID, false)
+	caller, err := e.opt.SessionManager.Get(timeoutCtx, buildInfo.SessionID, false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -239,7 +239,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 			if ref == nil {
 				return nil
 			}
-			remotes, err := ref.GetRemotes(egCtx, false, e.opts.RefCfg, false, session.NewGroup(sessionID))
+			remotes, err := ref.GetRemotes(egCtx, false, e.opts.RefCfg, false, session.NewGroup(buildInfo.SessionID))
 			if err != nil {
 				return err
 			}

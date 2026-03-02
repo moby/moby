@@ -8,7 +8,7 @@ type ipVersion string
 const (
 	// IPv4 is version 4
 	ip4 ipVersion = "4"
-	// IPv4 is version 6
+	// IPv6 is version 6
 	ip6 ipVersion = "6"
 )
 

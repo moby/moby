@@ -36,10 +36,6 @@ import (
 const ImpliedDirectoryMode = 0o755
 
 type (
-	// Compression is the state represents if compressed or not.
-	//
-	// Deprecated: use [compression.Compression].
-	Compression = compression.Compression
 	// WhiteoutFormat is the format of whiteouts unpacked
 	WhiteoutFormat int
 
@@ -96,14 +92,6 @@ func NewDefaultArchiver() *Archiver {
 type breakoutError error
 
 const (
-	Uncompressed = compression.None  // Deprecated: use [compression.None].
-	Bzip2        = compression.Bzip2 // Deprecated: use [compression.Bzip2].
-	Gzip         = compression.Gzip  // Deprecated: use [compression.Gzip].
-	Xz           = compression.Xz    // Deprecated: use [compression.Xz].
-	Zstd         = compression.Zstd  // Deprecated: use [compression.Zstd].
-)
-
-const (
 	AUFSWhiteoutFormat    WhiteoutFormat = 0 // AUFSWhiteoutFormat is the default format for whiteouts
 	OverlayWhiteoutFormat WhiteoutFormat = 1 // OverlayWhiteoutFormat formats whiteout according to the overlay standard.
 )
@@ -124,27 +112,6 @@ func IsArchivePath(path string) bool {
 	r := tar.NewReader(rdr)
 	_, err = r.Next()
 	return err == nil
-}
-
-// DetectCompression detects the compression algorithm of the source.
-//
-// Deprecated: use [compression.Detect].
-func DetectCompression(source []byte) compression.Compression {
-	return compression.Detect(source)
-}
-
-// DecompressStream decompresses the archive and returns a ReaderCloser with the decompressed archive.
-//
-// Deprecated: use [compression.DecompressStream].
-func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
-	return compression.DecompressStream(archive)
-}
-
-// CompressStream compresses the dest with specified compression algorithm.
-//
-// Deprecated: use [compression.CompressStream].
-func CompressStream(dest io.Writer, comp compression.Compression) (io.WriteCloser, error) {
-	return compression.CompressStream(dest, comp)
 }
 
 // TarModifierFunc is a function that can be passed to ReplaceFileTarWrapper to
@@ -233,13 +200,6 @@ func ReplaceFileTarWrapper(inputTarStream io.ReadCloser, mods map[string]TarModi
 		pipeWriter.Close()
 	}()
 	return pipeReader
-}
-
-// FileInfoHeaderNoLookups creates a partially-populated tar.Header from fi.
-//
-// Deprecated: use [tarheader.FileInfoHeaderNoLookups].
-func FileInfoHeaderNoLookups(fi os.FileInfo, link string) (*tar.Header, error) {
-	return tarheader.FileInfoHeaderNoLookups(fi, link)
 }
 
 // FileInfoHeader creates a populated Header from fi.

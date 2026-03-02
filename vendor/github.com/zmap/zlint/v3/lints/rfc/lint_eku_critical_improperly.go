@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -42,12 +42,12 @@ func init() {
 		Citation:      "RFC 5280: 4.2.1.12",
 		Source:        lint.RFC5280,
 		EffectiveDate: util.RFC3280Date,
-		Lint:          &ekuBadCritical{},
+		Lint:          NewEkuBadCritical,
 	})
 }
 
-func (l *ekuBadCritical) Initialize() error {
-	return nil
+func NewEkuBadCritical() lint.LintInterface {
+	return &ekuBadCritical{}
 }
 
 func (l *ekuBadCritical) CheckApplies(c *x509.Certificate) bool {

@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 /*
    Copyright © 2021 The CDI Authors
@@ -22,6 +21,7 @@ package cdi
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"golang.org/x/sys/unix"
 )
@@ -32,16 +32,28 @@ const (
 	fifoDevice  = "p"
 )
 
+type deviceInfo struct {
+	// cgroup properties
+	deviceType string
+	major      int64
+	minor      int64
+
+	// device node properties
+	fileMode os.FileMode
+}
+
 // deviceInfoFromPath takes the path to a device and returns its type,
 // major and minor device numbers.
 //
 // It was adapted from https://github.com/opencontainers/runc/blob/v1.1.9/libcontainer/devices/device_unix.go#L30-L69
-func deviceInfoFromPath(path string) (devType string, major, minor int64, _ error) {
+func deviceInfoFromPath(path string) (*deviceInfo, error) {
 	var stat unix.Stat_t
 	err := unix.Lstat(path, &stat)
 	if err != nil {
-		return "", 0, 0, err
+		return nil, err
 	}
+
+	var devType string
 	switch stat.Mode & unix.S_IFMT {
 	case unix.S_IFBLK:
 		devType = blockDevice
@@ -50,38 +62,71 @@ func deviceInfoFromPath(path string) (devType string, major, minor int64, _ erro
 	case unix.S_IFIFO:
 		devType = fifoDevice
 	default:
-		return "", 0, 0, errors.New("not a device node")
+		return nil, errors.New("not a device node")
 	}
 	devNumber := uint64(stat.Rdev) //nolint:unconvert // Rdev is uint32 on e.g. MIPS.
-	return devType, int64(unix.Major(devNumber)), int64(unix.Minor(devNumber)), nil
+
+	di := deviceInfo{
+		deviceType: devType,
+		major:      int64(unix.Major(devNumber)),
+		minor:      int64(unix.Minor(devNumber)),
+		fileMode:   os.FileMode(stat.Mode &^ unix.S_IFMT),
+	}
+
+	return &di, nil
 }
 
 // fillMissingInfo fills in missing mandatory attributes from the host device.
 func (d *DeviceNode) fillMissingInfo() error {
+	hasMinimalSpecification := d.Type != "" && (d.Major != 0 || d.Type == fifoDevice)
+
+	// Ensure that the host path and the container path match.
 	if d.HostPath == "" {
 		d.HostPath = d.Path
 	}
 
-	if d.Type != "" && (d.Major != 0 || d.Type == "p") {
+	// Try to extract the device info from the host path.
+	di, err := deviceInfoFromPath(d.HostPath)
+	if err != nil {
+		// The error is only considered fatal if the device is not already
+		// minimally specified since it is allowed for a device vendor to fully
+		// specify a device node specification.
+		if !hasMinimalSpecification {
+			return fmt.Errorf("failed to stat CDI host device %q: %w", d.HostPath, err)
+		}
 		return nil
 	}
 
-	deviceType, major, minor, err := deviceInfoFromPath(d.HostPath)
-	if err != nil {
-		return fmt.Errorf("failed to stat CDI host device %q: %w", d.HostPath, err)
+	// Even for minimally-specified device nodes, we update the file mode if
+	// required. This is useful for rootless containers where device node
+	// requests may be treated as bind mounts.
+	if d.FileMode == nil {
+		d.FileMode = &di.fileMode
+	}
+
+	// If the device is minimally specified, we make no further updates and
+	// don't perform additional checks.
+	if hasMinimalSpecification {
+		return nil
 	}
 
 	if d.Type == "" {
-		d.Type = deviceType
-	} else {
-		if d.Type != deviceType {
-			return fmt.Errorf("CDI device (%q, %q), host type mismatch (%s, %s)",
-				d.Path, d.HostPath, d.Type, deviceType)
-		}
+		d.Type = di.deviceType
 	}
-	if d.Major == 0 && d.Type != "p" {
-		d.Major = major
-		d.Minor = minor
+	if d.Type != di.deviceType {
+		return fmt.Errorf("CDI device (%q, %q), host type mismatch (%s, %s)",
+			d.Path, d.HostPath, d.Type, di.deviceType)
+	}
+
+	// For a fifoDevice, we do not update the major and minor number.
+	if d.Type == fifoDevice {
+		return nil
+	}
+
+	// Update the major and minor number for the device node if required.
+	if d.Major == 0 {
+		d.Major = di.major
+		d.Minor = di.minor
 	}
 
 	return nil

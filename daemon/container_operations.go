@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
 	"os"
 	"runtime"
@@ -413,9 +414,7 @@ func (daemon *Daemon) allocateNetwork(ctx context.Context, cfg *config.Config, c
 
 	// An intermediate map is necessary because "connectToNetwork" modifies "container.NetworkSettings.Networks"
 	networks := make(map[string]*network.EndpointSettings)
-	for n, epConf := range ctr.NetworkSettings.Networks {
-		networks[n] = epConf
-	}
+	maps.Copy(networks, ctr.NetworkSettings.Networks)
 	for netName, epConf := range networks {
 		cleanOperationalData(epConf)
 		if err := daemon.connectToNetwork(ctx, cfg, ctr, netName, epConf); err != nil {
@@ -528,9 +527,9 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 	//  serviceDiscoveryOnDefaultNetwork are removed.
 	if !containertypes.NetworkMode(nwName).IsUserDefined() {
 		hasStaticAddresses := ipamConfig.IPv4Address.IsValid() || ipamConfig.IPv6Address.IsValid()
-		// On Linux, user specified IP address is accepted only by networks with user specified subnets.
+		// On Linux, user-specified IP address is accepted only by networks with user-specified subnets.
 		if hasStaticAddresses && !enableIPOnPredefinedNetwork() {
-			errs = append(errs, cerrdefs.ErrInvalidArgument.WithMessage("user specified IP address is supported on user defined networks only"))
+			errs = append(errs, cerrdefs.ErrInvalidArgument.WithMessage("user-specified IP address is supported on user-defined networks only"))
 		}
 		if len(epConfig.Aliases) > 0 && !serviceDiscoveryOnDefaultNetwork() {
 			errs = append(errs, cerrdefs.ErrInvalidArgument.WithMessage("network-scoped aliases are only supported for user-defined networks"))
@@ -545,7 +544,7 @@ func validateEndpointSettings(nw *libnetwork.Network, nwName string, epConfig *n
 	}
 
 	if sysctls, ok := epConfig.DriverOpts[netlabel.EndpointSysctls]; ok {
-		for _, sysctl := range strings.Split(sysctls, ",") {
+		for sysctl := range strings.SplitSeq(sysctls, ",") {
 			scname := strings.SplitN(sysctl, ".", 5)
 			// Allow "ifname" as well as "IFNAME", because the CLI converts to lower case.
 			if len(scname) != 5 ||
@@ -638,7 +637,7 @@ func cleanOperationalData(es *network.EndpointSettings) {
 }
 
 func (daemon *Daemon) updateNetworkConfig(ctr *container.Container, n *libnetwork.Network, endpointConfig *networktypes.EndpointSettings) error {
-	// Set up DNS names for a user defined network, and for the default 'nat'
+	// Set up DNS names for a user-defined network, and for the default 'nat'
 	// network on Windows (IsBridge() returns true for nat).
 	if containertypes.NetworkMode(n.Name()).IsUserDefined() ||
 		(serviceDiscoveryOnDefaultNetwork() && containertypes.NetworkMode(n.Name()).IsBridge()) {
@@ -1129,7 +1128,7 @@ func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) er
 }
 
 func getNetworkID(name string, endpointSettings *networktypes.EndpointSettings) string {
-	// We only want to prefer NetworkID for user defined networks.
+	// We only want to prefer NetworkID for user-defined networks.
 	// For systems like bridge, none, etc. the name is preferred (otherwise restart may cause issues)
 	if containertypes.NetworkMode(name).IsUserDefined() && endpointSettings != nil && endpointSettings.NetworkID != "" {
 		return endpointSettings.NetworkID

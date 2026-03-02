@@ -817,6 +817,7 @@ func genExtensions(g *protogen.GeneratedFile, f *fileInfo) {
 			leadingComments = appendDeprecationSuffix(leadingComments,
 				x.Desc.ParentFile(),
 				x.Desc.Options().(*descriptorpb.FieldOptions).GetDeprecated())
+			g.AnnotateSymbol("E_"+x.GoIdent.GoName, protogen.Annotation{Location: x.Location})
 			g.P(leadingComments,
 				"E_", x.GoIdent, " = &", extensionTypesVarName(f), "[", allExtensionsByPtr[x], "]",
 				trailingComment(x.Comments.Trailing))

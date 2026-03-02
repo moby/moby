@@ -77,7 +77,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithWrongHostnamesStored(c *
 	c.Setenv("PATH", testPath)
 
 	cmd := exec.Command("docker-credential-shell-test", "store")
-	stdin := bytes.NewReader([]byte(fmt.Sprintf(`{"ServerURL": "https://%s", "Username": %q, "Secret": %q}`, privateRegistryURL, s.reg.Username(), s.reg.Password())))
+	stdin := bytes.NewReader(fmt.Appendf(nil, `{"ServerURL": "https://%s", "Username": %q, "Secret": %q}`, privateRegistryURL, s.reg.Username(), s.reg.Password()))
 	cmd.Stdin = stdin
 	assert.NilError(c, cmd.Run())
 

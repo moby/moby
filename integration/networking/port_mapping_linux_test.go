@@ -281,8 +281,8 @@ func enableIPv6OnAll(t *testing.T) func() {
 	ifaces := map[string]string{}
 	var allVal string
 
-	sysctls := strings.Split(string(out), "\n")
-	for _, sysctl := range sysctls {
+	sysctls := strings.SplitSeq(string(out), "\n")
+	for sysctl := range sysctls {
 		if sysctl == "" {
 			continue
 		}
@@ -706,7 +706,9 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 			container.WithName("ctr-"+gwMode),
 			container.WithExposedPorts("80/tcp"),
 			container.WithPortMap(networktypes.PortMap{
-				networktypes.MustParsePort("80/tcp"): {},
+				// TODO(robmry): this test supplies an empty list of PortBindings.
+				// https://github.com/moby/moby/issues/51727 will break it.
+				networktypes.MustParsePort("80/tcp"): {{}},
 			}),
 		)
 		t.Cleanup(func() {
@@ -1468,7 +1470,7 @@ func TestAccessPortPublishedOnLoopbackAddress(t *testing.T) {
 func sendPayloadFromHost(t *testing.T, host networking.Host, daddr, dport, payload string, check func() bool) bool {
 	var res bool
 	host.Do(t, func() {
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			t.Logf("Sending probe #%d to %s:%s from host %s", i, daddr, dport, host.Name)
 			icmd.RunCommand("/bin/sh", "-c", fmt.Sprintf("echo '%s' | nc -w1 -u %s %s", payload, daddr, dport)).Assert(t, icmd.Success)
 

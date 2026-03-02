@@ -110,11 +110,11 @@ func testConvergence(t *rapid.T) {
 
 	// Log the convergence time to disk for later statistical analysis.
 
-	if err := os.Mkdir("testdata", 0755); err != nil && !os.IsExist(err) {
+	if err := os.Mkdir("testdata", 0o755); err != nil && !os.IsExist(err) {
 		t.Logf("Could not log convergence time to disk: failed to create testdata directory: %v", err)
 		return
 	}
-	f, err := os.OpenFile("testdata/convergence_time.csv", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	f, err := os.OpenFile("testdata/convergence_time.csv", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
 		t.Logf("Could not log convergence time to disk: failed to open file: %v", err)
 		return

@@ -24,9 +24,9 @@ func (kvp *KeyValuePair) String() string {
 
 // KeyValuePairOptional is identical to KeyValuePair, but allows for optional values.
 type KeyValuePairOptional struct {
-	Key     string
-	Value   *string
-	Comment string
+	Key        string
+	Value      *string
+	DocComment string
 }
 
 func (kvpo *KeyValuePairOptional) String() string {
@@ -49,6 +49,7 @@ func (kvpo *KeyValuePairOptional) ValueString() string {
 type Command interface {
 	Name() string
 	Location() []parser.Range
+	Comments() []string
 }
 
 // KeyValuePairs is a slice of KeyValuePair
@@ -59,6 +60,7 @@ type withNameAndCode struct {
 	code     string
 	name     string
 	location []parser.Range
+	comments []string
 }
 
 func (c *withNameAndCode) String() string {
@@ -75,8 +77,17 @@ func (c *withNameAndCode) Location() []parser.Range {
 	return c.location
 }
 
+func (c *withNameAndCode) Comments() []string {
+	return c.comments
+}
+
 func newWithNameAndCode(req parseRequest) withNameAndCode {
-	return withNameAndCode{code: strings.TrimSpace(req.original), name: req.command, location: req.location}
+	return withNameAndCode{
+		code:     strings.TrimSpace(req.original),
+		name:     req.command,
+		location: req.location,
+		comments: req.comments,
+	}
 }
 
 // SingleWordExpander is a provider for variable expansion where a single word
@@ -511,10 +522,11 @@ type Stage struct {
 	BaseName string    // name of the base stage or source
 	Platform string    // platform of base source to use
 
-	Comment string // doc-comment directly above the stage
+	DocComment string // doc-comment directly above the stage
 
 	SourceCode string         // contents of the defining FROM command
 	Location   []parser.Range // location of the defining FROM command
+	Comments   []string
 }
 
 // AddCommand appends a command to the stage.

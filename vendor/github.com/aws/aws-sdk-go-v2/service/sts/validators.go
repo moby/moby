@@ -130,6 +130,26 @@ func (m *validateOpGetAccessKeyInfo) HandleInitialize(ctx context.Context, in mi
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpGetDelegatedAccessToken struct {
+}
+
+func (*validateOpGetDelegatedAccessToken) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpGetDelegatedAccessToken) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*GetDelegatedAccessTokenInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpGetDelegatedAccessTokenInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpGetFederationToken struct {
 }
 
@@ -145,6 +165,26 @@ func (m *validateOpGetFederationToken) HandleInitialize(ctx context.Context, in 
 		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
 	}
 	if err := validateOpGetFederationTokenInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
+type validateOpGetWebIdentityToken struct {
+}
+
+func (*validateOpGetWebIdentityToken) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpGetWebIdentityToken) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*GetWebIdentityTokenInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpGetWebIdentityTokenInput(input); err != nil {
 		return out, metadata, err
 	}
 	return next.HandleInitialize(ctx, in)
@@ -174,8 +214,16 @@ func addOpGetAccessKeyInfoValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpGetAccessKeyInfo{}, middleware.After)
 }
 
+func addOpGetDelegatedAccessTokenValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpGetDelegatedAccessToken{}, middleware.After)
+}
+
 func addOpGetFederationTokenValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpGetFederationToken{}, middleware.After)
+}
+
+func addOpGetWebIdentityTokenValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpGetWebIdentityToken{}, middleware.After)
 }
 
 func validateTag(v *types.Tag) error {
@@ -326,6 +374,21 @@ func validateOpGetAccessKeyInfoInput(v *GetAccessKeyInfoInput) error {
 	}
 }
 
+func validateOpGetDelegatedAccessTokenInput(v *GetDelegatedAccessTokenInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "GetDelegatedAccessTokenInput"}
+	if v.TradeInToken == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("TradeInToken"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
 func validateOpGetFederationTokenInput(v *GetFederationTokenInput) error {
 	if v == nil {
 		return nil
@@ -333,6 +396,29 @@ func validateOpGetFederationTokenInput(v *GetFederationTokenInput) error {
 	invalidParams := smithy.InvalidParamsError{Context: "GetFederationTokenInput"}
 	if v.Name == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("Name"))
+	}
+	if v.Tags != nil {
+		if err := validateTagListType(v.Tags); err != nil {
+			invalidParams.AddNested("Tags", err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpGetWebIdentityTokenInput(v *GetWebIdentityTokenInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "GetWebIdentityTokenInput"}
+	if v.Audience == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Audience"))
+	}
+	if v.SigningAlgorithm == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("SigningAlgorithm"))
 	}
 	if v.Tags != nil {
 		if err := validateTagListType(v.Tags); err != nil {

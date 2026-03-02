@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -61,15 +61,16 @@ func init() {
 		Citation:      "BRs: 7.1.4.2.1",
 		Source:        lint.CABFBaselineRequirements,
 		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &arpaReservedIP{},
+		Lint:          NewArpaReservedIP,
 	})
+}
+
+func NewArpaReservedIP() lint.LintInterface {
+	return &arpaReservedIP{}
 }
 
 // Initialize for an arpaReservedIP linter is a NOP to statisfy linting
 // interfaces.
-func (l *arpaReservedIP) Initialize() error {
-	return nil
-}
 
 // CheckApplies returns true if the certificate contains any names that end in
 // one of the two designated zones for reverse DNS: in-addr.arpa or ip6.arpa.
@@ -169,9 +170,9 @@ func reversedLabelsToIPv6(labels []string) net.IP {
 // address under the respective ARPA zone based on the address class. An error
 // is returned if:
 //
-// 1. The IP address labels parse as an IP of the wrong address class for the
-//    arpa suffix the name is using.
-// 2. The IP address is within an IANA reserved range.
+//  1. The IP address labels parse as an IP of the wrong address class for the
+//     arpa suffix the name is using.
+//  2. The IP address is within an IANA reserved range.
 func lintReversedIPAddress(name string, ipv6 bool) error {
 	numRequiredLabels := rdnsIPv4Labels
 	zoneSuffix := rdnsIPv4Suffix

@@ -6,6 +6,7 @@ package filters
 
 import (
 	"encoding/json"
+	"maps"
 	"regexp"
 	"strings"
 )
@@ -280,9 +281,7 @@ func (args Args) Clone() (newArgs Args) {
 		var mm map[string]bool
 		if m != nil {
 			mm = make(map[string]bool, len(m))
-			for kk, v := range m {
-				mm[kk] = v
-			}
+			maps.Copy(mm, m)
 		}
 		newArgs.fields[k] = mm
 	}

@@ -197,12 +197,12 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		CacheManager:     solver.NewCacheManager(ctx, "local", cacheStorage, worker.NewCacheResultStorage(wc)),
 		CacheStore:       cacheStorage,
 		ResolveCacheImporterFuncs: map[string]remotecache.ResolveCacheImporterFunc{
-			"gha":      gha.ResolveCacheImporterFunc(),
+			"gha":      gha.ResolveCacheImporterFunc(nil, nil),
 			"local":    localremotecache.ResolveCacheImporterFunc(opt.SessionManager),
 			"registry": registryremotecache.ResolveCacheImporterFunc(opt.SessionManager, wo.ContentStore, opt.RegistryHosts),
 		},
 		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{
-			"gha":      gha.ResolveCacheExporterFunc(),
+			"gha":      gha.ResolveCacheExporterFunc(nil, nil),
 			"inline":   inlineremotecache.ResolveCacheExporterFunc(),
 			"local":    localremotecache.ResolveCacheExporterFunc(opt.SessionManager),
 			"registry": registryremotecache.ResolveCacheExporterFunc(opt.SessionManager, opt.RegistryHosts),
