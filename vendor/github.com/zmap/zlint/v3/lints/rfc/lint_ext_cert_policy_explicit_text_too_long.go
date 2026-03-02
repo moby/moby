@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -42,15 +42,15 @@ func init() {
 		Citation:      "RFC 6818: 3",
 		Source:        lint.RFC5280,
 		EffectiveDate: util.RFC6818Date,
-		Lint:          &explicitTextTooLong{},
+		Lint:          NewExplicitTextTooLong,
 	})
 }
 
-const tagBMPString int = 30
-
-func (l *explicitTextTooLong) Initialize() error {
-	return nil
+func NewExplicitTextTooLong() lint.LintInterface {
+	return &explicitTextTooLong{}
 }
+
+const tagBMPString int = 30
 
 func (l *explicitTextTooLong) CheckApplies(c *x509.Certificate) bool {
 	for _, text := range c.ExplicitTexts {

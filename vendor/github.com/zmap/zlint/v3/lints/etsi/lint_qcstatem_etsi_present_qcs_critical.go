@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -29,12 +29,12 @@ func init() {
 		Citation:      "ETSI EN 319 412 - 5 V2.2.1 (2017 - 11) / Section 4.1",
 		Source:        lint.EtsiEsi,
 		EffectiveDate: util.EtsiEn319_412_5_V2_2_1_Date,
-		Lint:          &qcStatemQcEtsiPresentQcsCritical{},
+		Lint:          NewQcStatemQcEtsiPresentQcsCritical,
 	})
 }
 
-func (l *qcStatemQcEtsiPresentQcsCritical) Initialize() error {
-	return nil
+func NewQcStatemQcEtsiPresentQcsCritical() lint.LintInterface {
+	return &qcStatemQcEtsiPresentQcsCritical{}
 }
 
 func (l *qcStatemQcEtsiPresentQcsCritical) CheckApplies(c *x509.Certificate) bool {

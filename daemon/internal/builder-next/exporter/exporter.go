@@ -1,3 +1,12 @@
 package exporter
 
-const Moby = "moby"
+import "time"
+
+const (
+	Moby          = "moby"
+	BuildRefLabel = "moby/build.ref."
+)
+
+type BuildRefLabelValue struct {
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
+}

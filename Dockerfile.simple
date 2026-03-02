@@ -34,12 +34,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		vim-common \
 	&& rm -rf /var/lib/apt/lists/*
 
-# Install runc, containerd, and tini
-# Please edit hack/dockerfile/install/<name>.installer to update them.
-COPY hack/dockerfile/install hack/dockerfile/install
-RUN set -e; for i in runc containerd tini dockercli; \
-		do hack/dockerfile/install/install.sh $i; \
-	done
+# Install containerd.io (includes runc), tini, and docker-ce-cli.
+# The versions of these dependencies differ from the main Dockerfile,
+# but it should be sufficient for minimal build and test purposes.
+ADD --chmod=0644 --checksum=sha256:1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570 \
+	https://download.docker.com/linux/debian/gpg /etc/apt/keyrings/docker.asc
+ARG BASE_DEBIAN_DISTRO
+ADD <<-EOT /etc/apt/sources.list.d/docker.sources
+Types: deb
+URIs: https://download.docker.com/linux/debian
+Suites: ${BASE_DEBIAN_DISTRO}
+Components: stable
+Signed-By: /etc/apt/keyrings/docker.asc
+EOT
+RUN apt-get update && apt-get install -y --no-install-recommends \
+		containerd.io \
+		tini \
+		docker-ce-cli \
+	&& rm -rf /var/lib/apt/lists/* \
+	&& ln -s /usr/bin/tini-static /usr/local/bin/docker-init
+
 ENV PATH=/usr/local/cli:$PATH
 
 ENV AUTO_GOPATH 1

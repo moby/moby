@@ -111,6 +111,7 @@ func Copy(ctx context.Context, srcRoot, src, dstRoot, dst string, opts ...Opt) e
 	if err != nil {
 		return err
 	}
+	c.testHookLstat = ci.testHookLstat
 	srcs := []string{src}
 
 	if ci.AllowWildcards {
@@ -206,6 +207,9 @@ type CopyInfo struct {
 	// replace any existing symlink or file)
 	AlwaysReplaceExistingDestPaths bool
 	ChangeFunc                     fsutil.ChangeFunc
+
+	// testHookLstat is called before each os.Lstat if non-nil (for testing only)
+	testHookLstat func(path string)
 }
 
 type Opt func(*CopyInfo)
@@ -272,6 +276,7 @@ type copier struct {
 	changefn                       fsutil.ChangeFunc
 	root                           string
 	alwaysReplaceExistingDestPaths bool
+	testHookLstat                  func(string)
 }
 
 type parentDir struct {
@@ -317,6 +322,7 @@ func newCopier(root string, chown Chowner, tm *time.Time, mode *int, modeSet *mo
 		excludePatternMatcher:          excludePatternMatcher,
 		changefn:                       changeFunc,
 		alwaysReplaceExistingDestPaths: alwaysReplaceExistingDestPaths,
+		testHookLstat:                  nil,
 	}, nil
 }
 
@@ -328,16 +334,10 @@ func (c *copier) copy(ctx context.Context, src, srcComponents, target string, ov
 	default:
 	}
 
-	fi, err := os.Lstat(src)
-	if err != nil {
-		return errors.Wrapf(err, "failed to stat %s", src)
-	}
-	targetFi, err := os.Lstat(target)
-	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "failed to stat %s", src)
-	}
-
+	// Check exclude patterns BEFORE calling os.Lstat to avoid permission errors
+	// on inaccessible files/directories (e.g., protected Windows system folders)
 	include := true
+	excluded := false
 	var (
 		includeMatchInfo patternmatcher.MatchInfo
 		excludeMatchInfo patternmatcher.MatchInfo
@@ -345,6 +345,7 @@ func (c *copier) copy(ctx context.Context, src, srcComponents, target string, ov
 	if srcComponents != "" {
 		matchesIncludePattern := false
 		matchesExcludePattern := false
+		var err error
 		matchesIncludePattern, includeMatchInfo, err = c.include(srcComponents, parentIncludeMatchInfo)
 		if err != nil {
 			return err
@@ -357,7 +358,40 @@ func (c *copier) copy(ctx context.Context, src, srcComponents, target string, ov
 		}
 		if matchesExcludePattern {
 			include = false
+			excluded = true
 		}
+
+		// Optimization: Skip os.Lstat() for excluded paths when safe to do so.
+		// We can skip Lstat if:
+		// 1. The path is explicitly excluded
+		// 2. There are no include patterns (no need to check children)
+		// 3. There are no negation patterns in excludes (no exceptions to exclusions)
+		//
+		// This prevents "Access is denied" errors on Windows protected folders
+		// like "System Volume Information" and "WcSandboxState".
+		canSkip := !include && c.includePatternMatcher == nil &&
+			(c.excludePatternMatcher == nil || !c.excludePatternMatcher.Exclusions())
+		if canSkip {
+			return nil
+		}
+	}
+
+	if c.testHookLstat != nil {
+		c.testHookLstat(src)
+	}
+	fi, err := os.Lstat(src)
+	if err != nil {
+		return errors.Wrapf(err, "failed to stat %s", src)
+	}
+
+	// After Lstat, if this item is excluded and is NOT a directory, skip it
+	if !include && !fi.IsDir() {
+		return nil
+	}
+
+	targetFi, err := os.Lstat(target)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrapf(err, "failed to stat %s", target)
 	}
 
 	if include {
@@ -388,7 +422,7 @@ func (c *copier) copy(ctx context.Context, src, srcComponents, target string, ov
 	case fi.IsDir():
 		if created, err := c.copyDirectory(
 			ctx, src, srcComponents, target, fi, overwriteTargetMetadata,
-			include, includeMatchInfo, excludeMatchInfo,
+			include, excluded, includeMatchInfo, excludeMatchInfo,
 		); err != nil {
 			return err
 		} else if !overwriteTargetMetadata {
@@ -539,6 +573,7 @@ func (c *copier) copyDirectory(
 	stat os.FileInfo,
 	overwriteTargetMetadata bool,
 	include bool,
+	excluded bool,
 	includeMatchInfo patternmatcher.MatchInfo,
 	excludeMatchInfo patternmatcher.MatchInfo,
 ) (bool, error) {
@@ -576,6 +611,13 @@ func (c *copier) copyDirectory(
 	defer func() {
 		c.parentDirs = c.parentDirs[:len(c.parentDirs)-1]
 	}()
+
+	// Skip reading directory contents if explicitly excluded AND no negation patterns exist.
+	// If negation patterns exist (e.g., "!bar/baz"), we must traverse excluded directories
+	// to find children that might be un-excluded by the negation.
+	if excluded && (c.excludePatternMatcher == nil || !c.excludePatternMatcher.Exclusions()) {
+		return false, nil
+	}
 
 	fis, err := os.ReadDir(src)
 	if err != nil {

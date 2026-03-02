@@ -2,6 +2,7 @@ package caps
 
 import (
 	"context"
+	"slices"
 	"sync"
 
 	ccaps "github.com/containerd/containerd/v2/pkg/cap"
@@ -27,7 +28,7 @@ func initCaps() {
 			// old (pre-detection) behavior, and prevents creating containers with
 			// no capabilities. The OCI runtime or kernel may still refuse capa-
 			// bilities that are not available, and produce an error in that case.
-			if len(curCaps) > 0 && !inSlice(curCaps, capName) {
+			if len(curCaps) > 0 && !slices.Contains(curCaps, capName) {
 				knownCaps[capName] = nil
 				continue
 			}

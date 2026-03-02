@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,8 +15,7 @@
 package etsi
 
 import (
-	"encoding/asn1"
-
+	"github.com/zmap/zcrypto/encoding/asn1"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
@@ -31,16 +30,16 @@ func init() {
 		Citation:      "ETSI EN 319 412 - 5 V2.2.1 (2017 - 11)/ Section 4.3.3",
 		Source:        lint.EtsiEsi,
 		EffectiveDate: util.EtsiEn319_412_5_V2_2_1_Date,
-		Lint:          &qcStatemQcRetentionPeriodValid{},
+		Lint:          NewQcStatemQcRetentionPeriodValid,
 	})
+}
+
+func NewQcStatemQcRetentionPeriodValid() lint.LintInterface {
+	return &qcStatemQcRetentionPeriodValid{}
 }
 
 func (this *qcStatemQcRetentionPeriodValid) getStatementOid() *asn1.ObjectIdentifier {
 	return &util.IdEtsiQcsQcRetentionPeriod
-}
-
-func (l *qcStatemQcRetentionPeriodValid) Initialize() error {
-	return nil
 }
 
 func (l *qcStatemQcRetentionPeriodValid) CheckApplies(c *x509.Certificate) bool {

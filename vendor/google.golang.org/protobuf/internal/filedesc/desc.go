@@ -32,6 +32,7 @@ const (
 	EditionProto3      Edition = 999
 	Edition2023        Edition = 1000
 	Edition2024        Edition = 1001
+	EditionUnstable    Edition = 9999
 	EditionUnsupported Edition = 100000
 )
 

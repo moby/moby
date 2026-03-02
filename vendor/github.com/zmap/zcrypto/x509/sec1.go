@@ -7,18 +7,21 @@ package x509
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"encoding/asn1"
 	"errors"
 	"fmt"
 	"math/big"
+
+	"github.com/zmap/zcrypto/encoding/asn1"
 )
 
 const ecPrivKeyVersion = 1
 
 // ecPrivateKey reflects an ASN.1 Elliptic Curve Private Key Structure.
 // References:
-//   RFC 5915
-//   SEC1 - http://www.secg.org/sec1-v2.pdf
+//
+//	RFC 5915
+//	SEC1 - http://www.secg.org/sec1-v2.pdf
+//
 // Per RFC 5915 the NamedCurveOID is marked as ASN.1 OPTIONAL, however in
 // most cases it is not.
 type ecPrivateKey struct {

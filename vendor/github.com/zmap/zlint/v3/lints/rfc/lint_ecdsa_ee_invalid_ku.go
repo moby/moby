@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -33,14 +33,15 @@ func init() {
 		Citation:      "RFC 5480 Section 3",
 		Source:        lint.RFC5480,
 		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &ecdsaInvalidKU{},
+		Lint:          NewEcdsaInvalidKU,
 	})
 }
 
-// Initialize is a no-op for this lint.
-func (l *ecdsaInvalidKU) Initialize() error {
-	return nil
+func NewEcdsaInvalidKU() lint.LintInterface {
+	return &ecdsaInvalidKU{}
 }
+
+// Initialize is a no-op for this lint.
 
 // CheckApplies returns true when the certificate is a subscriber cert using an
 // ECDSA public key algorithm.

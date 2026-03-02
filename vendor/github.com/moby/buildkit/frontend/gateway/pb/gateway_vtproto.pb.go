@@ -667,6 +667,7 @@ func (m *ReadFileRequest) CloneVT() *ReadFileRequest {
 	r.Ref = m.Ref
 	r.FilePath = m.FilePath
 	r.Range = m.Range.CloneVT()
+	r.MountIndex = m.MountIndex
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = make([]byte, len(m.unknownFields))
 		copy(r.unknownFields, m.unknownFields)
@@ -725,6 +726,7 @@ func (m *ReadDirRequest) CloneVT() *ReadDirRequest {
 	r.Ref = m.Ref
 	r.DirPath = m.DirPath
 	r.IncludePattern = m.IncludePattern
+	r.MountIndex = m.MountIndex
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = make([]byte, len(m.unknownFields))
 		copy(r.unknownFields, m.unknownFields)
@@ -770,6 +772,7 @@ func (m *StatFileRequest) CloneVT() *StatFileRequest {
 	r := new(StatFileRequest)
 	r.Ref = m.Ref
 	r.Path = m.Path
+	r.MountIndex = m.MountIndex
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = make([]byte, len(m.unknownFields))
 		copy(r.unknownFields, m.unknownFields)
@@ -2264,6 +2267,9 @@ func (this *ReadFileRequest) EqualVT(that *ReadFileRequest) bool {
 	if !this.Range.EqualVT(that.Range) {
 		return false
 	}
+	if this.MountIndex != that.MountIndex {
+		return false
+	}
 	return string(this.unknownFields) == string(that.unknownFields)
 }
 
@@ -2330,6 +2336,9 @@ func (this *ReadDirRequest) EqualVT(that *ReadDirRequest) bool {
 	if this.IncludePattern != that.IncludePattern {
 		return false
 	}
+	if this.MountIndex != that.MountIndex {
+		return false
+	}
 	return string(this.unknownFields) == string(that.unknownFields)
 }
 
@@ -2387,6 +2396,9 @@ func (this *StatFileRequest) EqualVT(that *StatFileRequest) bool {
 		return false
 	}
 	if this.Path != that.Path {
+		return false
+	}
+	if this.MountIndex != that.MountIndex {
 		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
@@ -4858,6 +4870,11 @@ func (m *ReadFileRequest) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if m.MountIndex != 0 {
+		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.MountIndex))
+		i--
+		dAtA[i] = 0x20
+	}
 	if m.Range != nil {
 		size, err := m.Range.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
@@ -4998,6 +5015,11 @@ func (m *ReadDirRequest) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if m.MountIndex != 0 {
+		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.MountIndex))
+		i--
+		dAtA[i] = 0x20
+	}
 	if len(m.IncludePattern) > 0 {
 		i -= len(m.IncludePattern)
 		copy(dAtA[i:], m.IncludePattern)
@@ -5108,6 +5130,11 @@ func (m *StatFileRequest) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m.unknownFields != nil {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.MountIndex != 0 {
+		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.MountIndex))
+		i--
+		dAtA[i] = 0x18
 	}
 	if len(m.Path) > 0 {
 		i -= len(m.Path)
@@ -7065,6 +7092,9 @@ func (m *ReadFileRequest) SizeVT() (n int) {
 		l = m.Range.SizeVT()
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
+	if m.MountIndex != 0 {
+		n += 1 + protohelpers.SizeOfVarint(uint64(m.MountIndex))
+	}
 	n += len(m.unknownFields)
 	return n
 }
@@ -7117,6 +7147,9 @@ func (m *ReadDirRequest) SizeVT() (n int) {
 	if l > 0 {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
+	if m.MountIndex != 0 {
+		n += 1 + protohelpers.SizeOfVarint(uint64(m.MountIndex))
+	}
 	n += len(m.unknownFields)
 	return n
 }
@@ -7156,6 +7189,9 @@ func (m *StatFileRequest) SizeVT() (n int) {
 	l = len(m.Path)
 	if l > 0 {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
+	}
+	if m.MountIndex != 0 {
+		n += 1 + protohelpers.SizeOfVarint(uint64(m.MountIndex))
 	}
 	n += len(m.unknownFields)
 	return n
@@ -12506,6 +12542,25 @@ func (m *ReadFileRequest) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MountIndex", wireType)
+			}
+			m.MountIndex = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return protohelpers.ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MountIndex |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := protohelpers.Skip(dAtA[iNdEx:])
@@ -12827,6 +12882,25 @@ func (m *ReadDirRequest) UnmarshalVT(dAtA []byte) error {
 			}
 			m.IncludePattern = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MountIndex", wireType)
+			}
+			m.MountIndex = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return protohelpers.ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MountIndex |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := protohelpers.Skip(dAtA[iNdEx:])
@@ -13035,6 +13109,25 @@ func (m *StatFileRequest) UnmarshalVT(dAtA []byte) error {
 			}
 			m.Path = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MountIndex", wireType)
+			}
+			m.MountIndex = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return protohelpers.ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MountIndex |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := protohelpers.Skip(dAtA[iNdEx:])

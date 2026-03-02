@@ -1,6 +1,7 @@
 package resolvconf
 
 import (
+	"bufio"
 	"bytes"
 	"io/fs"
 	"net/netip"
@@ -199,19 +200,19 @@ func TestRCModify(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			tc := tc
-			var input string
+			var input strings.Builder
 			if len(tc.inputNS) != 0 {
 				for _, ns := range tc.inputNS {
-					input += "nameserver " + ns + "\n"
+					input.WriteString("nameserver " + ns + "\n")
 				}
 			}
 			if len(tc.inputSearch) != 0 {
-				input += "search " + strings.Join(tc.inputSearch, " ") + "\n"
+				input.WriteString("search " + strings.Join(tc.inputSearch, " ") + "\n")
 			}
 			if len(tc.inputOptions) != 0 {
-				input += "options " + strings.Join(tc.inputOptions, " ") + "\n"
+				input.WriteString("options " + strings.Join(tc.inputOptions, " ") + "\n")
 			}
-			rc, err := Parse(bytes.NewBufferString(input), "")
+			rc, err := Parse(bytes.NewBufferString(input.String()), "")
 			assert.NilError(t, err)
 			assert.Check(t, is.DeepEqual(a2s(rc.NameServers()), tc.inputNS, cmpopts.EquateEmpty()))
 			assert.Check(t, is.DeepEqual(rc.Search(), tc.inputSearch))
@@ -553,6 +554,16 @@ unrecognised thing
 	assert.Check(t, golden.String(string(content), t.Name()+".golden"))
 }
 
+// TestRCParseErrors tests that attempting to read a resolv.conf with a
+// very long line produces a useful error.
+// see https://github.com/moby/moby/issues/51679#issuecomment-3714403300
+func TestRCParseErrors(t *testing.T) {
+	input := strings.Repeat("a", bufio.MaxScanTokenSize+1) + "\n"
+
+	_, err := Parse(bytes.NewBufferString(input), "/etc/resolv.conf")
+	assert.Error(t, err, `failed to parse resolv.conf from /etc/resolv.conf: line too long (exceeds 65536)`)
+}
+
 func BenchmarkGenerate(b *testing.B) {
 	rc := &ResolvConf{
 		nameServers: []netip.Addr{
@@ -580,7 +591,7 @@ func BenchmarkGenerate(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, err := rc.Generate(true)
 		if err != nil {
 			b.Fatal(err)

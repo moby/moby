@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -33,17 +33,18 @@ contained in the Certificate’s subjectAltName extension (see Section 7.1.4.2.1
 
 func init() {
 	lint.RegisterLint(&lint.Lint{
-		Name:          "e_subject_common_name_not_from_san",
-		Description:   "The common name field in subscriber certificates must include only names from the SAN extension",
-		Citation:      "BRs: 7.1.4.2.2",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &subjectCommonNameNotFromSAN{},
+		Name:            "e_subject_common_name_not_from_san",
+		Description:     "The common name field in subscriber certificates must include only names from the SAN extension",
+		Citation:        "BRs: 7.1.4.2.2",
+		Source:          lint.CABFBaselineRequirements,
+		EffectiveDate:   util.CABEffectiveDate,
+		IneffectiveDate: util.CABFBRs_1_8_0_Date,
+		Lint:            NewSubjectCommonNameNotFromSAN,
 	})
 }
 
-func (l *subjectCommonNameNotFromSAN) Initialize() error {
-	return nil
+func NewSubjectCommonNameNotFromSAN() lint.LintInterface {
+	return &subjectCommonNameNotFromSAN{}
 }
 
 func (l *subjectCommonNameNotFromSAN) CheckApplies(c *x509.Certificate) bool {

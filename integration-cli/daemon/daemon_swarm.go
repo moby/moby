@@ -200,7 +200,7 @@ func (d *Daemon) CmdRetryOutOfSequence(args ...string) (string, error) {
 		err    error
 	)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		output, err = d.Cmd(args...)
 		// error, no error, whatever. if we don't have "update out of
 		// sequence", we don't retry, we just return.

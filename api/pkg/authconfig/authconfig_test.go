@@ -48,15 +48,11 @@ func TestDecodeAuthConfig(t *testing.T) {
 			},
 		},
 		{
-			// FIXME(thaJeztah): we should not accept multiple JSON documents.
-			doc:         "multiple authConfig",
+			doc:         "multiple authConfig (should be rejected)",
 			input:       `{"username":"testuser","password":"testpassword","serveraddress":"example.com"}{"username":"testuser2","password":"testpassword2","serveraddress":"example.org"}`,
 			inputBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifXsidXNlcm5hbWUiOiJ0ZXN0dXNlcjIiLCJwYXNzd29yZCI6InRlc3RwYXNzd29yZDIiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5vcmcifQ==`,
-			expected: registry.AuthConfig{
-				Username:      "testuser",
-				Password:      "testpassword",
-				ServerAddress: "example.com",
-			},
+			expected:    registry.AuthConfig{},
+			expectedErr: `invalid X-Registry-Auth header: multiple JSON documents not allowed`,
 		},
 		// We currently only support base64url encoding with padding, so
 		// un-padded should produce an error.
@@ -76,6 +72,29 @@ func TestDecodeAuthConfig(t *testing.T) {
 			inputBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQiLCJzZXJ2ZXJhZGRyZXNzIjoiZXhhbXBsZS5jb20ifQ`,
 			expected:    registry.AuthConfig{},
 			expectedErr: `invalid X-Registry-Auth header: must be a valid base64url-encoded string`,
+		},
+		{
+			doc:         "JSON with trailing whitespace (should accept)",
+			input:       `{"username":"testuser","password":"testpassword"}   `,
+			inputBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwicGFzc3dvcmQiOiJ0ZXN0cGFzc3dvcmQifSAgIA==`,
+			expected: registry.AuthConfig{
+				Username: "testuser",
+				Password: "testpassword",
+			},
+		},
+		{
+			doc:         "JSON with trailing invalid data",
+			input:       `{"username":"testuser"}invalid`,
+			inputBase64: `eyJ1c2VybmFtZSI6InRlc3R1c2VyIn1pbnZhbGlk`,
+			expected:    registry.AuthConfig{},
+			expectedErr: `invalid X-Registry-Auth header: multiple JSON documents not allowed`,
+		},
+		{
+			doc:         "multiple empty JSON documents",
+			input:       `{}{}`,
+			inputBase64: `e317fQ==`,
+			expected:    registry.AuthConfig{},
+			expectedErr: `invalid X-Registry-Auth header: multiple JSON documents not allowed`,
 		},
 	}
 

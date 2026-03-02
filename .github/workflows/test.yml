@@ -71,7 +71,7 @@ jobs:
       -
         name: Cache dev image
         if: matrix.mode == ''
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           key: dev-image-${{ github.run_id }}
           path: /tmp/dev-image.tar
@@ -149,7 +149,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Restore dev image
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           key: dev-image-${{ github.run_id }}
           path: /tmp/dev-image.tar
@@ -162,6 +162,29 @@ jobs:
         name: Validate
         run: |
           make -o build validate-${{ matrix.script }}
+
+  validate-api-swagger:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10 # guardrails timeout for the whole job
+    defaults:
+      run:
+        working-directory: api
+    needs:
+      - validate-dco
+    name: validate (api-swagger)
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v6
+      - 
+        name: Build api module image
+        run: |
+          make build
+      - 
+        name: Validate swagger
+        run: |
+          make validate-swagger
+          make validate-swagger-gen
 
   smoke-prepare:
     runs-on: ubuntu-24.04

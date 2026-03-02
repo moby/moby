@@ -297,7 +297,7 @@ func (d *Daemon) NewClientT(t testing.TB, extraOpts ...client.Opt) *client.Clien
 
 	c, err := d.NewClient(extraOpts...)
 	assert.NilError(t, err, "[%s] could not create daemon client", d.id)
-	t.Cleanup(func() { c.Close() })
+	t.Cleanup(func() { _ = c.Close() })
 	return c
 }
 
@@ -571,20 +571,20 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		close(wait)
 	}()
 
-	clientConfig, err := d.getClientConfig()
+	clientCfg, err := d.getClientConfig()
 	if err != nil {
 		return err
 	}
-	client := &http.Client{
-		Transport: clientConfig.transport,
+	httpClient := &http.Client{
+		Transport: clientCfg.transport,
 	}
 
 	req, err := http.NewRequest(http.MethodGet, "/_ping", http.NoBody)
 	if err != nil {
 		return errors.Wrapf(err, "[%s] could not create new request", d.id)
 	}
-	req.URL.Host = clientConfig.addr
-	req.URL.Scheme = clientConfig.scheme
+	req.URL.Host = clientCfg.addr
+	req.URL.Scheme = clientCfg.scheme
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -602,7 +602,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 			rctx, rcancel := context.WithTimeout(context.TODO(), 2*time.Second)
 			defer rcancel()
 
-			resp, err := client.Do(req.WithContext(rctx))
+			resp, err := httpClient.Do(req.WithContext(rctx))
 			if err != nil {
 				if i > 2 { // don't log the first couple, this ends up just being noise
 					d.log.Logf("[%s] error pinging daemon on start: %v", d.id, err)
@@ -615,7 +615,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 				continue
 			}
 
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
 				d.log.Logf("[%s] received status != 200 OK: %s\n", d.id, resp.Status)
 			}
@@ -644,7 +644,7 @@ func (d *Daemon) Kill() error {
 	}
 
 	defer func() {
-		d.logFile.Close()
+		_ = d.logFile.Close()
 		d.cmd = nil
 	}()
 
@@ -1062,7 +1062,7 @@ func cleanupRaftDir(t testing.TB, d *Daemon) {
 // artifacts.
 //
 // We currently do not include container logs in the bundles, so this also
-// removes the "containers" sub-directory.
+// removes the "containers" subdirectory.
 func cleanupDaemonStorage(t testing.TB, d *Daemon) {
 	t.Helper()
 	dirs := []string{

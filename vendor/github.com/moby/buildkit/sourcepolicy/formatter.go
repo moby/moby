@@ -2,18 +2,33 @@ package sourcepolicy
 
 import (
 	"regexp"
+	"sync"
 
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
 	"github.com/moby/buildkit/util/wildcard"
 	"github.com/pkg/errors"
 )
 
-// Source wraps a protobuf source in order to store cached state such as the compiled regexes.
+// selectorCache wraps a protobuf selector in order to store cached state such as the compiled regexes.
 type selectorCache struct {
 	*spb.Selector
+	regex    func() (*regexp.Regexp, error)
+	wildcard func() (*wildcardCache, error)
+}
 
-	re *regexp.Regexp
-	w  *wildcardCache
+func newSelectorCache(sel *spb.Selector) *selectorCache {
+	s := &selectorCache{Selector: sel}
+	s.regex = sync.OnceValues(func() (*regexp.Regexp, error) {
+		return regexp.Compile(sel.Identifier)
+	})
+	s.wildcard = sync.OnceValues(func() (*wildcardCache, error) {
+		w, err := wildcard.New(sel.Identifier)
+		if err != nil {
+			return nil, err
+		}
+		return &wildcardCache{w: w}, nil
+	})
+	return s
 }
 
 // Format formats the provided ref according to the match/type of the source.
@@ -40,7 +55,6 @@ func (s *selectorCache) Format(match, format string) (string, error) {
 		if m == nil {
 			return match, nil
 		}
-
 		return m.Format(format)
 	}
 	return "", errors.Errorf("unknown match type: %s", s.MatchType)
@@ -49,11 +63,15 @@ func (s *selectorCache) Format(match, format string) (string, error) {
 // wildcardCache wraps a wildcard.Wildcard to cache returned matches by ref.
 // This way a match only needs to be computed once per ref.
 type wildcardCache struct {
-	w *wildcard.Wildcard
-	m map[string]*wildcard.Match
+	mu sync.Mutex
+	w  *wildcard.Wildcard
+	m  map[string]*wildcard.Match
 }
 
 func (w *wildcardCache) Match(ref string) *wildcard.Match {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	if w.m == nil {
 		w.m = make(map[string]*wildcard.Match)
 	}
@@ -65,28 +83,4 @@ func (w *wildcardCache) Match(ref string) *wildcard.Match {
 	m := w.w.Match(ref)
 	w.m[ref] = m
 	return m
-}
-
-func (s *selectorCache) wildcard() (*wildcardCache, error) {
-	if s.w != nil {
-		return s.w, nil
-	}
-	w, err := wildcard.New(s.Identifier)
-	if err != nil {
-		return nil, err
-	}
-	s.w = &wildcardCache{w: w}
-	return s.w, nil
-}
-
-func (s *selectorCache) regex() (*regexp.Regexp, error) {
-	if s.re != nil {
-		return s.re, nil
-	}
-	re, err := regexp.Compile(s.Identifier)
-	if err != nil {
-		return nil, err
-	}
-	s.re = re
-	return re, nil
 }

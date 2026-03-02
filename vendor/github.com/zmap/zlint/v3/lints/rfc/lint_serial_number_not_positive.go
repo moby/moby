@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -46,12 +46,12 @@ func init() {
 		Citation:      "RFC 5280: 4.1.2.2",
 		Source:        lint.RFC5280,
 		EffectiveDate: util.RFC3280Date,
-		Lint:          &SerialNumberNotPositive{},
+		Lint:          NewSerialNumberNotPositive,
 	})
 }
 
-func (l *SerialNumberNotPositive) Initialize() error {
-	return nil
+func NewSerialNumberNotPositive() lint.LintInterface {
+	return &SerialNumberNotPositive{}
 }
 
 func (l *SerialNumberNotPositive) CheckApplies(cert *x509.Certificate) bool {
@@ -59,7 +59,9 @@ func (l *SerialNumberNotPositive) CheckApplies(cert *x509.Certificate) bool {
 }
 
 func (l *SerialNumberNotPositive) Execute(cert *x509.Certificate) *lint.LintResult {
-	if cert.SerialNumber.Sign() == -1 { // -1 Means negative when using big.Sign()
+	// -1 Means negative when using big.Sign()
+	// As per the BitLen docs, "The bit length of 0 is 0."
+	if cert.SerialNumber.Sign() == -1 || cert.SerialNumber.BitLen() == 0 {
 		return &lint.LintResult{Status: lint.Error}
 	} else {
 		return &lint.LintResult{Status: lint.Pass}

@@ -31,7 +31,7 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string
 	extra := make(map[string]string)
 
 	if labels, ok := info.Config["labels"]; ok && labels != "" {
-		for _, l := range strings.Split(labels, ",") {
+		for l := range strings.SplitSeq(labels, ",") {
 			if v, ok := info.ContainerLabels[l]; ok {
 				if keyMod != nil {
 					l = keyMod(l)
@@ -69,7 +69,7 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string
 	}
 
 	if env, ok := info.Config["env"]; ok && env != "" {
-		for _, l := range strings.Split(env, ",") {
+		for l := range strings.SplitSeq(env, ",") {
 			if v, ok := envMapping[l]; ok {
 				if keyMod != nil {
 					l = keyMod(l)

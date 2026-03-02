@@ -22,14 +22,14 @@ type Creator struct {
 func (c *Creator) UnmarshalJSON(data []byte) error {
 	str := string(data)
 	str = strings.Trim(str, "\"")
-	fields := strings.SplitN(str, ": ", 2)
+	fields := strings.SplitN(str, ":", 2)
 
 	if len(fields) != 2 {
 		return fmt.Errorf("failed to parse Creator '%s'", str)
 	}
 
-	c.CreatorType = fields[0]
-	c.Creator = fields[1]
+	c.CreatorType = strings.TrimSpace(fields[0])
+	c.Creator = strings.TrimSpace(fields[1])
 
 	return nil
 }

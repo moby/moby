@@ -281,7 +281,6 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 
 			eg, ctx2 := errgroup.WithContext(ctx)
 			for i, att := range attestations {
-				i, att := i, att
 				eg.Go(func() error {
 					att, err := supplementSBOM(ctx2, session.NewGroup(sessionID), r, remote, att)
 					if err != nil {
@@ -420,7 +419,6 @@ func (ic *ImageWriter) rewriteRemoteWithEpoch(ctx context.Context, opts *ImageCo
 		fmt.Sprintf("rewriting layers with source-date-epoch %d (%s)", opts.Epoch.Unix(), opts.Epoch.String()))
 	var divergedFromBase bool
 	for i, desc := range remoteDescriptors {
-		i, desc := i, desc
 		// Usually we get non-empty diffID here, but if the content was ingested via a third-party containerd client,
 		// diffID here can be empty, and will be computed by the converter.
 		diffID := digest.Digest(desc.Annotations[labels.LabelUncompressed])
@@ -567,8 +565,6 @@ func (ic *ImageWriter) commitAttestationsManifest(ctx context.Context, opts *Ima
 
 	layers := make([]ocispecs.Descriptor, len(statements))
 	for i, statement := range statements {
-		i, statement := i, statement
-
 		data, err := json.Marshal(statement)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to marshal attestation")

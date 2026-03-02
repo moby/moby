@@ -34,7 +34,6 @@ func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, erro
 	eg, ctx := errgroup.WithContext(ctx)
 
 	for i, tp := range targets {
-		i, tp := i, tp
 		eg.Go(func() error {
 			ref, img, baseImg, err := fn(ctx, tp, i)
 			if err != nil {

@@ -77,7 +77,7 @@ func (e *localExporterInstance) Config() *exporter.Config {
 	return exporter.NewConfig()
 }
 
-func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source, _ exptypes.InlineCache, sessionID string) (map[string]string, exporter.DescriptorReference, error) {
+func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source, buildInfo exporter.ExportBuildInfo) (map[string]string, exporter.DescriptorReference, error) {
 	var defers []func() error
 
 	defer func() {
@@ -98,7 +98,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 	isMap := len(inp.Refs) > 0
 
 	getDir := func(ctx context.Context, k string, ref cache.ImmutableRef, attestations []exporter.Attestation) (*fsutil.Dir, error) {
-		outputFS, cleanup, err := local.CreateFS(ctx, sessionID, k, ref, attestations, now, isMap, e.opts)
+		outputFS, cleanup, err := local.CreateFS(ctx, buildInfo.SessionID, k, ref, attestations, now, isMap, e.opts)
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +167,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 	timeoutCtx, _ = context.WithTimeoutCause(timeoutCtx, 5*time.Second, errors.WithStack(context.DeadlineExceeded)) //nolint:govet
 	defer func() { cancel(errors.WithStack(context.Canceled)) }()
 
-	caller, err := e.opt.SessionManager.Get(timeoutCtx, sessionID, false)
+	caller, err := e.opt.SessionManager.Get(timeoutCtx, buildInfo.SessionID, false)
 	if err != nil {
 		return nil, nil, err
 	}

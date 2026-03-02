@@ -16,19 +16,20 @@ func printArgs(args []fnArg) string {
 }
 
 func buildImports(specs []importSpec) string {
-	imports := `
+	var imports strings.Builder
+	imports.WriteString(`
 import(
 	"errors"
 	"time"
 
 	"github.com/moby/moby/v2/pkg/plugins"
-`
+`)
 	for _, i := range specs {
-		imports += "\t" + i.String() + "\n"
+		imports.WriteString("\t" + i.String() + "\n")
 	}
-	imports += `)
-`
-	return imports
+	imports.WriteString(`)
+`)
+	return imports.String()
 }
 
 func marshalType(t string) string {

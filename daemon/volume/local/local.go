@@ -419,9 +419,9 @@ func (v *localVolume) LiveRestoreVolume(ctx context.Context, _ string) error {
 
 // getAddress finds out address/hostname from options
 func getAddress(opts string) string {
-	for _, opt := range strings.Split(opts, ",") {
-		if strings.HasPrefix(opt, "addr=") {
-			return strings.TrimPrefix(opt, "addr=")
+	for opt := range strings.SplitSeq(opts, ",") {
+		if after, ok := strings.CutPrefix(opt, "addr="); ok {
+			return after
 		}
 	}
 	return ""
@@ -429,9 +429,9 @@ func getAddress(opts string) string {
 
 // getPassword finds out a password from options
 func getPassword(opts string) string {
-	for _, opt := range strings.Split(opts, ",") {
-		if strings.HasPrefix(opt, "password=") {
-			return strings.TrimPrefix(opt, "password=")
+	for opt := range strings.SplitSeq(opts, ",") {
+		if after, ok := strings.CutPrefix(opt, "password="); ok {
+			return after
 		}
 	}
 	return ""

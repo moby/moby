@@ -30,7 +30,6 @@ func Unbundle(ctx context.Context, s session.Group, bundled []exporter.Attestati
 	unbundled := make([][]exporter.Attestation, len(bundled))
 
 	for i, att := range bundled {
-		i, att := i, att
 		eg.Go(func() error {
 			switch att.Kind {
 			case gatewaypb.AttestationKind_InToto:

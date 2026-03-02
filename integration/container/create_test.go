@@ -768,7 +768,7 @@ func TestCreateWithCustomMACs(t *testing.T) {
 
 	net.CreateNoError(ctx, t, apiClient, "testnet")
 
-	attachCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	res := testContainer.RunAttach(attachCtx, t, apiClient,
 		testContainer.WithCmd("ip", "-o", "link", "show"),

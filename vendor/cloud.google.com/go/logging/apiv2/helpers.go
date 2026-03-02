@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package logging
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -28,9 +29,12 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const serviceName = "logging.googleapis.com"
+
+var protoVersion = fmt.Sprintf("1.%d", protoimpl.MaxVersion)
 
 // For more information on implementing a client constructor hook, see
 // https://github.com/googleapis/google-cloud-go/wiki/Customizing-constructors.
@@ -69,7 +73,7 @@ func executeHTTPRequestWithResponse(ctx context.Context, client *http.Client, re
 		return nil, nil, err
 	}
 	logger.DebugContext(ctx, "api response", "serviceName", serviceName, "rpcName", rpc, "response", internallog.HTTPResponse(resp, buf))
-	if err = googleapi.CheckResponse(resp); err != nil {
+	if err = googleapi.CheckResponseWithBody(resp, buf); err != nil {
 		return nil, nil, err
 	}
 	return buf, resp, nil

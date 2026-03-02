@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -177,10 +178,8 @@ func reloaded() {
 
 // OnReloaded add callback
 func OnReloaded(callback func()) {
-	for _, pf := range onReloaded {
-		if pf == &callback {
-			return
-		}
+	if slices.Contains(onReloaded, &callback) {
+		return
 	}
 	onReloaded = append(onReloaded, &callback)
 }
@@ -366,10 +365,5 @@ type interfaceNotFound struct{ error }
 func (interfaceNotFound) NotFound() {}
 
 func contains(list []string, val string) bool {
-	for _, v := range list {
-		if v == val {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, val)
 }

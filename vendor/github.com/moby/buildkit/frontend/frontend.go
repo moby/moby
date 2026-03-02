@@ -17,6 +17,8 @@ const (
 	// KeySource is the option key used by the gateway frontend to represent
 	// the source for the external frontend
 	KeySource = "source"
+
+	KeyDevelDeprecated = "gateway-devel"
 )
 
 type Result = result.Result[solver.ResultProxy]

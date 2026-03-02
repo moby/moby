@@ -29,7 +29,7 @@ func TestSharedTempFileConverter(t *testing.T) {
 		uut := newSharedTempFileConverter(copyTransform(strings.ToUpper))
 		uut.TempDir = dir
 
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			t.Logf("Iteration %v", i)
 
 			rdr := convertPath(t, uut, name)
@@ -113,7 +113,7 @@ func TestSharedTempFileConverter(t *testing.T) {
 		closers := make(chan io.Closer, 4)
 		var wg sync.WaitGroup
 		wg.Add(3)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			go func() {
 				defer wg.Done()
 				t.Logf("goroutine %v: enter", i)
@@ -174,7 +174,7 @@ func TestSharedTempFileConverter(t *testing.T) {
 
 		var done sync.WaitGroup
 		done.Add(3)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			go func() {
 				defer done.Done()
 				t.Logf("goroutine %v: enter", i)

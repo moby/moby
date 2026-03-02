@@ -47,21 +47,21 @@ func (p *Pool) gc() {
 
 	for k, ns := range p.m {
 		ns.muHandlers.Lock()
-		for key, h := range ns.handlers {
+		for key, h := range ns.fetchers {
 			if time.Since(h.lastUsed) < 10*time.Minute {
 				continue
 			}
 			parts := strings.SplitN(key, "/", 2)
 			if len(parts) != 2 {
-				delete(ns.handlers, key)
+				delete(ns.fetchers, key)
 				continue
 			}
 			c, err := ns.sm.Get(context.TODO(), parts[1], true)
 			if c == nil || err != nil {
-				delete(ns.handlers, key)
+				delete(ns.fetchers, key)
 			}
 		}
-		if len(ns.handlers) == 0 {
+		if len(ns.fetchers) == 0 {
 			delete(p.m, k)
 		}
 		ns.muHandlers.Unlock()
@@ -78,7 +78,7 @@ func (p *Pool) Clear() {
 }
 
 // GetResolver gets a resolver for a specified scope from the pool
-func (p *Pool) GetResolver(hosts docker.RegistryHosts, ref, scope string, sm *session.Manager, g session.Group) *Resolver {
+func (p *Pool) GetResolver(hosts docker.RegistryHosts, ref string, scope ScopeType, sm *session.Manager, g session.Group) *Resolver {
 	name := ref
 	named, err := distreference.ParseNormalizedNamed(ref)
 	if err == nil {
@@ -86,18 +86,18 @@ func (p *Pool) GetResolver(hosts docker.RegistryHosts, ref, scope string, sm *se
 	}
 
 	var key string
-	if strings.Contains(scope, "push") {
+	if scope.Push {
 		// When scope includes "push", index the authHandlerNS cache by session
 		// id(s) as well to prevent tokens with potential write access to third
 		// party registries from leaking between client sessions. The key will end
 		// up looking something like:
 		// 'wujskoey891qc5cv1edd3yj3p::repository:foo/bar::pull,push'
-		key = fmt.Sprintf("%s::%s::%s", strings.Join(session.AllSessionIDs(g), ":"), name, scope)
+		key = fmt.Sprintf("%s::%s::%s", strings.Join(session.AllSessionIDs(g), ":"), name, scope.String())
 	} else {
 		// The authHandlerNS is not isolated for pull-only scopes since LLB
 		// verticies from pulls all end up in the cache anyway and all
 		// requests/clients have access to the same cache
-		key = fmt.Sprintf("%s::%s", name, scope)
+		key = fmt.Sprintf("%s::%s", name, scope.String())
 	}
 
 	p.mu.Lock()
@@ -141,6 +141,22 @@ func newResolver(hosts docker.RegistryHosts, handler *authHandlerNS, sm *session
 		Headers: headers,
 	})
 	return r
+}
+
+type ScopeType struct {
+	Push     bool
+	Insecure bool
+}
+
+func (s ScopeType) String() string {
+	out := "pull"
+	if s.Push {
+		out = "push"
+	}
+	if s.Insecure {
+		out += ":insecure"
+	}
+	return out
 }
 
 // Resolver is a wrapper around remotes.Resolver

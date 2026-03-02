@@ -12,8 +12,23 @@ import (
 )
 
 // Creates or updates a resource policy allowing other Amazon Web Services
-// services to put log events to this account, such as Amazon Route 53. An account
-// can have up to 10 resource policies per Amazon Web Services Region.
+// services to put log events to this account, such as Amazon Route 53. This API
+// has the following restrictions:
+//
+//   - Supported actions - Policy only supports logs:PutLogEvents and
+//     logs:CreateLogStream actions
+//
+//   - Supported principals - Policy only applies when operations are invoked by
+//     Amazon Web Services service principals (not IAM users, roles, or cross-account
+//     principals
+//
+//   - Policy limits - An account can have a maximum of 10 policies without
+//     resourceARN and one per LogGroup resourceARN
+//
+// Resource policies with actions invoked by non-Amazon Web Services service
+// principals (such as IAM users, roles, or other Amazon Web Services accounts)
+// will not be enforced. For access control involving these principals, use the IAM
+// policies.
 func (c *Client) PutResourcePolicy(ctx context.Context, params *PutResourcePolicyInput, optFns ...func(*Options)) (*PutResourcePolicyOutput, error) {
 	if params == nil {
 		params = &PutResourcePolicyInput{}
@@ -177,40 +192,7 @@ func (c *Client) addOperationPutResourcePolicyMiddlewares(stack *middleware.Stac
 	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addInterceptExecution(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptTransmit(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addSpanInitializeStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanInitializeEnd(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

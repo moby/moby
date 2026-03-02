@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -559,8 +560,8 @@ RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio'
 		build.WithFile("test_file1", "test1"),
 		build.WithFile("test_file2", "test2"),
 		build.WithFile("test_file3", "test3"),
-		build.WithFile("test_file3", "test3"),
-		build.WithFile("test_file4", "test4")))
+		build.WithFile("test_file4", "test4"),
+	))
 }
 
 // These tests are mainly for user namespaces to verify that new directories
@@ -1590,8 +1591,8 @@ func (s *DockerCLIBuildSuite) TestBuildExposeMorePorts(c *testing.T) {
 	portList := make([]string, 50)
 	line := make([]string, 100)
 	expectedPorts := make([]int, len(portList)*len(line))
-	for i := 0; i < len(portList); i++ {
-		for j := 0; j < len(line); j++ {
+	for i := range portList {
+		for j := range line {
 			p := i*len(line) + j + 1
 			line[j] = strconv.Itoa(p)
 			expectedPorts[p-1] = p
@@ -4051,7 +4052,7 @@ func (s *DockerCLIBuildSuite) TestBuildNullStringInAddCopyVolume(c *testing.T) {
 
 func (s *DockerCLIBuildSuite) TestBuildStopSignal(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows does not support STOPSIGNAL yet
-	imgName := "test_build_stop_signal"
+	imgName := strings.ToLower(c.Name())
 	cli.BuildCmd(c, imgName, build.WithDockerfile(`FROM busybox
 		 STOPSIGNAL SIGKILL`))
 	res := inspectFieldJSON(c, imgName, "Config.StopSignal")
@@ -4068,7 +4069,7 @@ func (s *DockerCLIBuildSuite) TestBuildStopSignal(c *testing.T) {
 }
 
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArg(c *testing.T) {
-	imgName := "bldargtest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "foo"
 	envVal := "bar"
 	var dockerfile string
@@ -4100,7 +4101,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArg(c *testing.T) {
 }
 
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgHistory(c *testing.T) {
-	imgName := "bldargtest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "foo"
 	envVal := "bar"
 	envDef := "bar1"
@@ -4121,7 +4122,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgHistory(c *testing.T) {
 }
 
 func (s *DockerCLIBuildSuite) TestBuildTimeArgHistoryExclusions(c *testing.T) {
-	imgName := "bldargtest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "foo"
 	envVal := "bar"
 	proxy := "HTTP_PROXY=http://user:password@proxy.example.com"
@@ -4161,7 +4162,7 @@ func (s *DockerCLIBuildSuite) TestBuildTimeArgHistoryExclusions(c *testing.T) {
 }
 
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgCacheHit(c *testing.T) {
-	imgName := "bldargtest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "foo"
 	envVal := "bar"
 	dockerfile := fmt.Sprintf(`FROM busybox
@@ -4216,7 +4217,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgCacheMissExtraArg(c *testing.
 }
 
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgCacheMissSameArgDiffVal(c *testing.T) {
-	imgName := "bldargtest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "foo"
 	envVal := "bar"
 	newEnvVal := "bar1"
@@ -4242,7 +4243,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgCacheMissSameArgDiffVal(c *te
 
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgOverrideArgDefinedBeforeEnv(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows does not support ARG
-	imgName := "bldargtest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "foo"
 	envVal := "bar"
 	envValOverride := "barOverride"
@@ -4271,7 +4272,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgOverrideArgDefinedBeforeEnv(c
 // FIXME(vdemeester) might be useful to merge with the one above ?
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgOverrideEnvDefinedBeforeArg(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows does not support ARG
-	imgName := "bldargtest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "foo"
 	envVal := "bar"
 	envValOverride := "barOverride"
@@ -4297,7 +4298,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgOverrideEnvDefinedBeforeArg(c
 }
 
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgExpansion(c *testing.T) {
-	imgName := "bldvarstest"
+	imgName := strings.ToLower(c.Name())
 
 	wdVar := "WDIR"
 	wdVal := "/tmp"
@@ -4357,13 +4358,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgExpansion(c *testing.T) {
 	var resArr []string
 	inspectFieldAndUnmarshall(c, imgName, "Config.Env", &resArr)
 
-	found := false
-	for _, v := range resArr {
-		if fmt.Sprintf("%s=%s", envVar, envVal) == v {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(resArr, fmt.Sprintf("%s=%s", envVar, envVal))
 	if !found {
 		c.Fatalf("Config.Env value mismatch. Expected <key=value> to exist: %s=%s, got: %v",
 			envVar, envVal, resArr)
@@ -4388,7 +4383,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgExpansion(c *testing.T) {
 
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgExpansionOverride(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows does not support ARG
-	imgName := "bldvarstest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "foo"
 	envVal := "bar"
 	envKey1 := "foo1"
@@ -4416,7 +4411,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgExpansionOverride(c *testing.
 
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgUntrustedDefinedAfterUse(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows does not support ARG
-	imgName := "bldargtest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "foo"
 	envVal := "bar"
 	dockerfile := fmt.Sprintf(`FROM busybox
@@ -4440,7 +4435,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgUntrustedDefinedAfterUse(c *t
 
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgBuiltinArg(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows does not support --build-arg
-	imgName := "bldargtest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "HTTP_PROXY"
 	envVal := "bar"
 	dockerfile := fmt.Sprintf(`FROM busybox
@@ -4463,7 +4458,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgBuiltinArg(c *testing.T) {
 
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgDefaultOverride(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows does not support ARG
-	imgName := "bldargtest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "foo"
 	envVal := "bar"
 	envValOverride := "barOverride"
@@ -4488,7 +4483,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgDefaultOverride(c *testing.T)
 }
 
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgUnconsumedArg(c *testing.T) {
-	imgName := "bldargtest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "foo"
 	envVal := "bar"
 	dockerfile := fmt.Sprintf(`FROM busybox
@@ -4564,7 +4559,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgEnv(c *testing.T) {
 }
 
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgQuotedValVariants(c *testing.T) {
-	imgName := "bldargtest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "foo"
 	envKey1 := "foo1"
 	envKey2 := "foo2"
@@ -4586,7 +4581,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgQuotedValVariants(c *testing.
 
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgEmptyValVariants(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows does not support ARG
-	imgName := "bldargtest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "foo"
 	envKey1 := "foo1"
 	envKey2 := "foo2"
@@ -4601,7 +4596,7 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgEmptyValVariants(c *testing.T
 }
 
 func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgDefinitionWithNoEnvInjection(c *testing.T) {
-	imgName := "bldargtest"
+	imgName := strings.ToLower(c.Name())
 	envKey := "foo"
 	dockerfile := fmt.Sprintf(`FROM busybox
 		ARG %s
@@ -4614,65 +4609,44 @@ func (s *DockerCLIBuildSuite) TestBuildBuildTimeArgDefinitionWithNoEnvInjection(
 	}
 }
 
+// TestBuildMultiStageArg verifies that build-args are scoped to the FROM
+// they're defined in. Test for https://github.com/moby/moby/issues/31892
 func (s *DockerCLIBuildSuite) TestBuildMultiStageArg(c *testing.T) {
-	imgName := "multifrombldargtest"
-	dockerfile := `FROM busybox
-    ARG foo=abc
-    LABEL multifromtest=1
-    RUN env > /out
-    FROM busybox
-    ARG bar=def
-    RUN env > /out`
+	imgName := strings.ToLower(c.Name())
+	const dockerfile = `FROM busybox
+ARG stage_1_arg=AAAA
+LABEL multifromtest=1
+RUN env > /out
+FROM busybox
+ARG stage_2_arg=BBBB
+RUN env > /out
+`
 
-	result := cli.BuildCmd(c, imgName, build.WithDockerfile(dockerfile))
-	result.Assert(c, icmd.Success)
+	cli.BuildCmd(c, imgName, build.WithDockerfile(dockerfile))
 
-	result = cli.DockerCmd(c, "images", "-q", "-f", "label=multifromtest=1")
-	result.Assert(c, icmd.Success)
-
-	imgs := strings.Split(strings.TrimSpace(result.Stdout()), "\n")
-	assert.Assert(c, is.Len(imgs, 1), `only one image with "multifromtest" label is expected`)
-
-	parentID := imgs[0]
-
-	result = cli.DockerCmd(c, "run", "--rm", parentID, "cat", "/out")
-	assert.Assert(c, is.Contains(result.Stdout(), "foo=abc"))
-	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
-	assert.Assert(c, !strings.Contains(result.Stdout(), "foo"))
-	assert.Assert(c, is.Contains(result.Stdout(), "bar=def"))
+	result := cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
+	assert.Check(c, !strings.Contains(result.Stdout(), "stage_1_arg"), "build arg leaked to second stage")
+	assert.Assert(c, is.Contains(result.Stdout(), "stage_2_arg=BBBB"), "build arg not applied to second stage")
 }
 
 func (s *DockerCLIBuildSuite) TestBuildMultiStageGlobalArg(c *testing.T) {
-	imgName := "multifrombldargtest"
-	dockerfile := `ARG tag=nosuchtag
-     FROM busybox:${tag}
-     LABEL multifromtest2=1
-     RUN env > /out
-     FROM busybox:${tag}
-     ARG tag
-     RUN env > /out`
+	imgName := strings.ToLower(c.Name())
+	const dockerfile = `ARG tag=nosuchtag
+FROM busybox:${tag}
+LABEL multifromtest2=1
+RUN env > /out
+FROM busybox:${tag}
+ARG tag
+RUN env > /out`
 
-	result := cli.BuildCmd(c, imgName,
-		build.WithDockerfile(dockerfile),
-		cli.WithFlags("--build-arg", "tag=latest"))
-	result.Assert(c, icmd.Success)
+	cli.BuildCmd(c, imgName, build.WithDockerfile(dockerfile), cli.WithFlags("--build-arg", "tag=latest"))
 
-	result = cli.DockerCmd(c, "images", "-q", "-f", "label=multifromtest2=1")
-	result.Assert(c, icmd.Success)
-
-	imgs := strings.Split(strings.TrimSpace(result.Stdout()), "\n")
-	assert.Assert(c, is.Len(imgs, 1), `only one image with "multifromtest" label is expected`)
-
-	parentID := imgs[0]
-
-	result = cli.DockerCmd(c, "run", "--rm", parentID, "cat", "/out")
-	assert.Assert(c, !strings.Contains(result.Stdout(), "tag"))
-	result = cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
+	result := cli.DockerCmd(c, "run", "--rm", imgName, "cat", "/out")
 	assert.Assert(c, is.Contains(result.Stdout(), "tag=latest"))
 }
 
 func (s *DockerCLIBuildSuite) TestBuildMultiStageUnusedArg(c *testing.T) {
-	imgName := "multifromunusedarg"
+	imgName := strings.ToLower(c.Name())
 	dockerfile := `FROM busybox
     ARG foo
     FROM busybox
@@ -4691,40 +4665,45 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageUnusedArg(c *testing.T) {
 }
 
 func (s *DockerCLIBuildSuite) TestBuildNoNamedVolume(c *testing.T) {
+	imgName := strings.ToLower(c.Name())
 	volName := "testname:/foo"
+	expError := `ls: /foo/oops: No such file or directory`
 
 	if testEnv.DaemonInfo.OSType == "windows" {
 		volName = "testname:C:\\foo"
+		expError = `invalid volume specification`
 	}
 	cli.DockerCmd(c, "run", "-v", volName, "busybox", "sh", "-c", "touch /foo/oops")
 
+	// Named volumes are not supported in VOLUME, so the `<volume-name>:<path>`
+	// should be used as-is and to be considered a path inside the image.
 	dockerFile := `FROM busybox
 	VOLUME ` + volName + `
 	RUN ls /foo/oops
 	`
-	cli.Docker(cli.Args("build", "-t", "test"), build.WithDockerfile(dockerFile)).Assert(c, icmd.Expected{
+
+	res := cli.Docker(cli.Args("build", "-t", imgName), build.WithDockerfile(dockerFile)).Assert(c, icmd.Expected{
 		ExitCode: 1,
 	})
+	assert.Check(c, is.Contains(res.Combined(), expError))
 }
 
 func (s *DockerCLIBuildSuite) TestBuildTagEvent(c *testing.T) {
+	imgName := strings.ToLower(c.Name())
 	since := daemonUnixTime(c)
 
 	dockerFile := `FROM busybox
 	RUN echo events
 	`
-	cli.BuildCmd(c, "test", build.WithDockerfile(dockerFile))
+	cli.BuildCmd(c, imgName, build.WithDockerfile(dockerFile))
 
 	until := daemonUnixTime(c)
 	out := cli.DockerCmd(c, "events", "--since", since, "--until", until, "--filter", "type=image").Stdout()
 	events := strings.Split(strings.TrimSpace(out), "\n")
-	actions := eventActionsByIDAndType(c, events, "test:latest", "image")
+	actions := eventActionsByIDAndType(c, events, imgName+":latest", "image")
 	var foundTag bool
-	for _, a := range actions {
-		if a == "tag" {
-			foundTag = true
-			break
-		}
+	if slices.Contains(actions, "tag") {
+		foundTag = true
 	}
 
 	assert.Assert(c, foundTag, "No tag event found:\n%s", out)
@@ -5010,7 +4989,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *testing.T
 	testPath := fmt.Sprintf("%s%c%s", osPath, filepath.ListSeparator, absolute)
 	c.Setenv("PATH", testPath)
 
-	repoName := fmt.Sprintf("%v/dockercli/busybox:authtest", privateRegistryURL)
+	imgName := fmt.Sprintf("%v/dockercli/busybox:authtest", privateRegistryURL)
 
 	tmp, err := os.MkdirTemp("", "integration-cli-")
 	assert.NilError(c, err)
@@ -5026,15 +5005,15 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *testing.T
 	b, err := os.ReadFile(configPath)
 	assert.NilError(c, err)
 	assert.Assert(c, !strings.Contains(string(b), "\"auth\":"))
-	cli.DockerCmd(c, "--config", tmp, "tag", "busybox", repoName)
-	cli.DockerCmd(c, "--config", tmp, "push", repoName)
+	cli.DockerCmd(c, "--config", tmp, "tag", "busybox", imgName)
+	cli.DockerCmd(c, "--config", tmp, "push", imgName)
 
 	// make sure the image is pulled when building
-	cli.DockerCmd(c, "rmi", repoName)
+	cli.DockerCmd(c, "rmi", imgName)
 
 	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "--config", tmp, "build", "-"},
-		Stdin:   strings.NewReader(fmt.Sprintf("FROM %s", repoName)),
+		Stdin:   strings.NewReader(fmt.Sprintf("FROM %s", imgName)),
 	}).Assert(c, icmd.Success)
 }
 
@@ -5658,7 +5637,7 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageCopyFromSyntax(c *testing.T) {
 	assert.Equal(c, strings.Count(result.Combined(), "Using cache"), 7)
 	assert.Equal(c, getIDByName(c, "build1"), getIDByName(c, "build2"))
 
-	err := os.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), []byte(fmt.Sprintf(dockerfile, "COPY baz/aa foo")), 0o644)
+	err := os.WriteFile(filepath.Join(ctx.Dir, "Dockerfile"), fmt.Appendf(nil, dockerfile, "COPY baz/aa foo"), 0o644)
 	assert.NilError(c, err)
 
 	// changing file in parent block should not affect last block
@@ -5784,7 +5763,7 @@ func (s *DockerCLIBuildSuite) TestBuildMultiStageImplicitFrom(c *testing.T) {
 }
 
 func (s *DockerRegistrySuite) TestBuildMultiStageImplicitPull(c *testing.T) {
-	repoName := fmt.Sprintf("%v/dockercli/testf", privateRegistryURL)
+	imgName := fmt.Sprintf("%v/dockercli/testf", privateRegistryURL)
 
 	dockerfile := `
 		FROM busybox
@@ -5796,16 +5775,16 @@ func (s *DockerRegistrySuite) TestBuildMultiStageImplicitPull(c *testing.T) {
 		}))
 	defer ctx.Close()
 
-	cli.BuildCmd(c, repoName, build.WithExternalBuildContext(ctx))
+	cli.BuildCmd(c, imgName, build.WithExternalBuildContext(ctx))
 
-	cli.DockerCmd(c, "push", repoName)
-	cli.DockerCmd(c, "rmi", repoName)
+	cli.DockerCmd(c, "push", imgName)
+	cli.DockerCmd(c, "rmi", imgName)
 
 	dockerfile = `
 		FROM busybox
 		COPY --from=%s bar baz`
 
-	ctx = fakecontext.New(c, "", fakecontext.WithDockerfile(fmt.Sprintf(dockerfile, repoName)))
+	ctx = fakecontext.New(c, "", fakecontext.WithDockerfile(fmt.Sprintf(dockerfile, imgName)))
 	defer ctx.Close()
 
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx))
@@ -6041,7 +6020,7 @@ func (s *DockerCLIBuildSuite) TestBuildWindowsEnvCaseInsensitive(c *testing.T) {
 
 // Test case for 29667
 func (s *DockerCLIBuildSuite) TestBuildWorkdirImageCmd(c *testing.T) {
-	imgName := "testworkdirimagecmd"
+	imgName := strings.ToLower(c.Name())
 	cli.BuildCmd(c, imgName, build.WithDockerfile(`
 FROM busybox
 WORKDIR /foo/bar

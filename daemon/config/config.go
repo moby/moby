@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/netip"
 	"net/url"
@@ -58,7 +59,7 @@ const (
 	// MaxAPIVersion is the highest REST API version supported by the daemon.
 	//
 	// This version may be lower than the version of the api library module used.
-	MaxAPIVersion = "1.52"
+	MaxAPIVersion = "1.53"
 	// defaultMinAPIVersion is the minimum API version supported by the API.
 	// This version can be overridden through the "DOCKER_MIN_API_VERSION"
 	// environment variable. The minimum allowed version is determined
@@ -88,6 +89,7 @@ var flatOptions = map[string]bool{
 	"default-ulimits":      true,
 	"features":             true,
 	"builder":              true,
+	"nri-opts":             true,
 }
 
 // skipValidateOptions contains configuration keys
@@ -283,6 +285,9 @@ type CommonConfig struct {
 
 	// CDISpecDirs is a list of directories in which CDI specifications can be found.
 	CDISpecDirs []string `json:"cdi-spec-dirs,omitempty"`
+
+	// NRIOpts defines configuration for NRI (Node Resource Interface).
+	NRIOpts opts.NRIOpts `json:"nri-opts,omitempty"`
 
 	// The minimum API version provided by the daemon. Defaults to [defaultMinAPIVersion].
 	//
@@ -583,9 +588,7 @@ func configValuesSet(config map[string]any) map[string]any {
 	flatten := make(map[string]any)
 	for k, v := range config {
 		if m, isMap := v.(map[string]any); isMap && !flatOptions[k] {
-			for km, vm := range m {
-				flatten[km] = vm
-			}
+			maps.Copy(flatten, m)
 			continue
 		}
 

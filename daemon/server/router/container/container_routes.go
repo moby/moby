@@ -113,8 +113,6 @@ func (c *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 	containers, err := c.backend.Containers(ctx, &backend.ContainerListOptions{
 		All:     httputils.BoolValue(r, "all"),
 		Size:    httputils.BoolValue(r, "size"),
-		Since:   r.Form.Get("since"),
-		Before:  r.Form.Get("before"),
 		Limit:   limit,
 		Filters: filter,
 	})
@@ -903,18 +901,25 @@ func handlePortBindingsBC(hostConfig *container.HostConfig, version string) stri
 		if len(bindings) > 0 {
 			continue
 		}
-		if versions.GreaterThan(version, "1.52") && len(bindings) == 0 {
-			// Starting with API 1.53, no backfilling is done. An empty slice
-			// of port bindings is treated as "no port bindings" by the daemon,
-			// but it still needs to backfill empty slices when loading the
-			// on-disk state for containers created by older versions of the
-			// Engine. Drop the PortBindings entry to ensure that no backfilling
-			// will happen when restarting the daemon.
-			delete(hostConfig.PortBindings, port)
-			continue
-		}
+		/*
+			API 1.53 shipped in a minor release. We cannot introduce a breaking change there, so
+			we must still backfill empty port bindings. This change can be re-introduced for the
+			API version that ships in 30.x. Note that some networking tests will need fixing.
+			See https://github.com/moby/moby/issues/51727
 
-		if versions.Equal(version, "1.52") {
+			if versions.GreaterThan(version, "1.52") && len(bindings) == 0 {
+				// Starting with API 1.53, no backfilling is done. An empty slice
+				// of port bindings is treated as "no port bindings" by the daemon,
+				// but it still needs to backfill empty slices when loading the
+				// on-disk state for containers created by older versions of the
+				// Engine. Drop the PortBindings entry to ensure that no backfilling
+				// will happen when restarting the daemon.
+				delete(hostConfig.PortBindings, port)
+				continue
+			}
+		*/
+
+		if versions.GreaterThanOrEqualTo(version, "1.52") {
 			emptyPBs = append(emptyPBs, port.String())
 		}
 
@@ -922,7 +927,7 @@ func handlePortBindingsBC(hostConfig *container.HostConfig, version string) stri
 	}
 
 	if len(emptyPBs) > 0 {
-		return fmt.Sprintf("Following container port(s) have an empty list of port-bindings: %s. Starting with API 1.53, such bindings will be discarded.", strings.Join(emptyPBs, ", "))
+		return fmt.Sprintf("Following container port(s) have an empty list of port-bindings: %s. Such bindings will be discarded in a future version.", strings.Join(emptyPBs, ", "))
 	}
 
 	return ""

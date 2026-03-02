@@ -46,6 +46,10 @@ func (p *linuxParser) ValidateMountConfig(mnt *mount.Mount) error {
 }
 
 func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSourceExists bool) error {
+	if err := validateExclusiveOptions(mnt); err != nil {
+		return &errMountConfig{mount: mnt, err: err}
+	}
+
 	if mnt.Target == "" {
 		return &errMountConfig{mnt, errMissingField("Target")}
 	}
@@ -71,12 +75,6 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 				}
 			}
 		}
-		if mnt.VolumeOptions != nil {
-			return &errMountConfig{mnt, errExtraField("VolumeOptions")}
-		}
-		if mnt.ImageOptions != nil {
-			return &errMountConfig{mnt, errExtraField("ImageOptions")}
-		}
 
 		if err := linuxValidateAbsolute(mnt.Source); err != nil {
 			return &errMountConfig{mnt, err}
@@ -95,12 +93,6 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 		}
 
 	case mount.TypeVolume:
-		if mnt.BindOptions != nil {
-			return &errMountConfig{mnt, errExtraField("BindOptions")}
-		}
-		if mnt.ImageOptions != nil {
-			return &errMountConfig{mnt, errExtraField("ImageOptions")}
-		}
 		anonymousVolume := mnt.Source == ""
 
 		if mnt.VolumeOptions != nil && mnt.VolumeOptions.Subpath != "" {
@@ -112,16 +104,7 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 				return &errMountConfig{mnt, errInvalidSubpath}
 			}
 		}
-		if mnt.ReadOnly && anonymousVolume {
-			return &errMountConfig{mnt, errors.New("must not set ReadOnly mode when using anonymous volumes")}
-		}
 	case mount.TypeTmpfs:
-		if mnt.BindOptions != nil {
-			return &errMountConfig{mnt, errExtraField("BindOptions")}
-		}
-		if mnt.ImageOptions != nil {
-			return &errMountConfig{mnt, errExtraField("ImageOptions")}
-		}
 		if mnt.Source != "" {
 			return &errMountConfig{mnt, errExtraField("Source")}
 		}
@@ -129,12 +112,6 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 			return &errMountConfig{mnt, err}
 		}
 	case mount.TypeImage:
-		if mnt.BindOptions != nil {
-			return &errMountConfig{mnt, errExtraField("BindOptions")}
-		}
-		if mnt.VolumeOptions != nil {
-			return &errMountConfig{mnt, errExtraField("VolumeOptions")}
-		}
 		if mnt.Source == "" {
 			return &errMountConfig{mnt, errMissingField("Source")}
 		}
@@ -174,7 +151,7 @@ var linuxPropagationModes = map[mount.Propagation]bool{
 const linuxDefaultPropagationMode = mount.PropagationRPrivate
 
 func linuxGetPropagation(mode string) mount.Propagation {
-	for _, o := range strings.Split(mode, ",") {
+	for o := range strings.SplitSeq(mode, ",") {
 		prop := mount.Propagation(o)
 		if linuxPropagationModes[prop] {
 			return prop
@@ -184,7 +161,7 @@ func linuxGetPropagation(mode string) mount.Propagation {
 }
 
 func linuxHasPropagation(mode string) bool {
-	for _, o := range strings.Split(mode, ",") {
+	for o := range strings.SplitSeq(mode, ",") {
 		if linuxPropagationModes[mount.Propagation(o)] {
 			return true
 		}
@@ -203,7 +180,7 @@ func linuxValidMountMode(mode string) bool {
 	copyModeCount := 0
 	consistencyModeCount := 0
 
-	for _, o := range strings.Split(mode, ",") {
+	for o := range strings.SplitSeq(mode, ",") {
 		switch {
 		case rwModes[o]:
 			rwModeCount++
@@ -256,7 +233,7 @@ func (p *linuxParser) ReadWrite(mode string) bool {
 		return false
 	}
 
-	for _, o := range strings.Split(mode, ",") {
+	for o := range strings.SplitSeq(mode, ",") {
 		if o == "ro" {
 			return false
 		}

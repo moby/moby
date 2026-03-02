@@ -72,6 +72,7 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 		LiveRestoreEnabled: cfg.LiveRestoreEnabled,
 		Isolation:          daemon.defaultIsolation,
 		CDISpecDirs:        promoteNil(cfg.CDISpecDirs),
+		NRI:                daemon.nri.GetInfo(),
 	}
 
 	daemon.fillContainerStates(v)

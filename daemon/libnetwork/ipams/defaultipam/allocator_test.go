@@ -1099,7 +1099,7 @@ func testAllocateRandomDeallocate(t *testing.T, pool, subPool string, num int, s
 	// Allocate num ip addresses
 	indices := make(map[int]*net.IPNet, num)
 	allocated := make(map[string]bool, num)
-	for i := 0; i < num; i++ {
+	for i := range num {
 		ip, _, err := a.RequestAddress(alloc.PoolID, nil, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -1202,7 +1202,7 @@ func runParallelTests(t *testing.T, instance int) {
 	if instance == first {
 		done.Wait()
 		// Now check each instance got a different pool
-		for i := 0; i < numInstances; i++ {
+		for i := range numInstances {
 			for j := i + 1; j < numInstances; j++ {
 				if types.CompareIPNet(pools[i], pools[j]) {
 					t.Errorf("Instance %d and %d were given the same predefined pool: %v", i, j, pools)
@@ -1240,7 +1240,7 @@ func TestRequestReleaseAddressDuplicate(t *testing.T) {
 
 	group, ctx := errgroup.WithContext(context.Background())
 outer:
-	for n := 0; n < 10000; n++ {
+	for range 10000 {
 		var c *net.IPNet
 		for {
 			select {
@@ -1331,7 +1331,7 @@ func BenchmarkPoolIDToString(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = k.String()
 	}
 }
@@ -1340,7 +1340,7 @@ func BenchmarkPoolIDFromString(b *testing.B) {
 	const poolIDString = "default/172.27.0.0/16/172.27.3.0/24"
 
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, err := PoolIDFromString(poolIDString)
 		if err != nil {
 			b.Fatal(err)

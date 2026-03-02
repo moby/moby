@@ -64,7 +64,7 @@ type MetadataOpts struct {
 
 // Supported returns nil if the system supports Git source
 func Supported() error {
-	if err := exec.Command("git", "version").Run(); err != nil {
+	if err := exec.CommandContext(context.TODO(), "git", "version").Run(); err != nil {
 		return errors.Wrap(err, "failed to find git binary")
 	}
 	return nil
@@ -904,7 +904,7 @@ func (gs *gitSourceHandler) tryRemoteFetch(ctx context.Context, g session.Group,
 				// only hope is to abandon the existing shared repo and start a fresh one
 				return nil, &wouldClobberExistingTagError{err}
 			}
-			if strings.Contains(err.Error(), "(unable to update local ref)") && strings.Contains(err.Error(), "some local refs could not be updated;") {
+			if isUnableToUpdateLocalRef(err) {
 				// this can happen if a branch updated in remote so that old branch
 				// is now a parent dir of a new branch
 				return nil, &unableToUpdateLocalRefError{err}
@@ -1154,6 +1154,18 @@ type unableToUpdateLocalRefError struct {
 
 func (e *unableToUpdateLocalRefError) Unwrap() error {
 	return e.error
+}
+
+func isUnableToUpdateLocalRef(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "some local refs could not be updated;") {
+		return false
+	}
+	return strings.Contains(msg, "(unable to update local ref)") ||
+		strings.Contains(msg, "refname conflict")
 }
 
 func (gs *gitSourceHandler) emptyGitCli(ctx context.Context, g session.Group, opts ...gitutil.Option) (*gitutil.GitCLI, func() error, error) {

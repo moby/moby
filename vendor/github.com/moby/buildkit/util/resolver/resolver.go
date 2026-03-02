@@ -81,9 +81,10 @@ func loadTLSConfig(c config.RegistryConfig) (*tls.Config, error) {
 				c.RootCAs = append(c.RootCAs, filepath.Join(d, f.Name()))
 			}
 			if strings.HasSuffix(f.Name(), ".cert") {
+				base, _ := strings.CutSuffix(f.Name(), ".cert")
 				c.KeyPairs = append(c.KeyPairs, config.TLSKeyPair{
 					Certificate: filepath.Join(d, f.Name()),
-					Key:         filepath.Join(d, strings.TrimSuffix(f.Name(), ".cert")+".key"),
+					Key:         filepath.Join(d, base+".key"),
 				})
 			}
 		}

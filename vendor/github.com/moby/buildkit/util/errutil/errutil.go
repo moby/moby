@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	remoteserrors "github.com/containerd/containerd/v2/core/remotes/errors"
@@ -81,11 +82,13 @@ func (e *formattedDockerError) Error() string {
 	case 1:
 		return format(e.dErr[0])
 	default:
-		msg := "errors:\n"
+		var msg strings.Builder
+		msg.WriteString("errors:\n")
 		for _, err := range e.dErr {
-			msg += format(err) + "\n"
+			msg.WriteString(format(err))
+			msg.WriteByte('\n')
 		}
-		return msg
+		return msg.String()
 	}
 }
 

@@ -163,7 +163,6 @@ var (
 		Format: func(cmd, file string) string {
 			return fmt.Sprintf("Attempting to %s file %q that is excluded by .dockerignore", cmd, file)
 		},
-		Experimental: true,
 	}
 	RuleInvalidDefinitionDescription = LinterRule[func(string, string) string]{
 		Name:        "InvalidDefinitionDescription",

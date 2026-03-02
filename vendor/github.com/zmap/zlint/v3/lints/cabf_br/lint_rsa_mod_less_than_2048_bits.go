@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -31,17 +31,17 @@ func init() {
 		Citation:      "BRs: 6.1.5",
 		Source:        lint.CABFBaselineRequirements,
 		EffectiveDate: util.ZeroDate,
-		Lint:          &rsaParsedTestsKeySize{},
+		Lint:          NewRsaParsedTestsKeySize,
 	})
 }
 
-func (l *rsaParsedTestsKeySize) Initialize() error {
-	return nil
+func NewRsaParsedTestsKeySize() lint.LintInterface {
+	return &rsaParsedTestsKeySize{}
 }
 
 func (l *rsaParsedTestsKeySize) CheckApplies(c *x509.Certificate) bool {
 	_, ok := c.PublicKey.(*rsa.PublicKey)
-	return ok && c.PublicKeyAlgorithm == x509.RSA && c.NotAfter.After(util.NoRSA1024Date.Add(-1))
+	return ok && c.PublicKeyAlgorithm == x509.RSA && util.OnOrAfter(c.NotAfter, util.NoRSA1024Date)
 }
 
 func (l *rsaParsedTestsKeySize) Execute(c *x509.Certificate) *lint.LintResult {
