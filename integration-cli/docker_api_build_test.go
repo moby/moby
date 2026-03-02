@@ -261,7 +261,6 @@ func (s *DockerAPISuite) TestBuildOnBuildWithCopy(c *testing.T) {
 		fakecontext.WithDockerfile(dockerfile),
 		fakecontext.WithFile("file", "some content"),
 	)
-	defer bCtx.Close()
 
 	ctx := testutil.GetContext(c)
 	res, body, err := request.Post(
@@ -282,7 +281,6 @@ func (s *DockerAPISuite) TestBuildOnBuildCache(c *testing.T) {
 		bCtx := fakecontext.New(c, "",
 			fakecontext.WithDockerfile(dockerfile),
 		)
-		defer bCtx.Close()
 
 		ctx := testutil.GetContext(c)
 		res, body, err := request.Post(
@@ -362,7 +360,6 @@ func (s *DockerRegistrySuite) TestBuildCopyFromForcePull(c *testing.T) {
 	bCtx := fakecontext.New(c, "",
 		fakecontext.WithDockerfile(dockerfile),
 	)
-	defer bCtx.Close()
 
 	res, body, err := request.Post(
 		ctx,
@@ -407,7 +404,6 @@ func (s *DockerAPISuite) TestBuildAddRemoteNoDecompress(c *testing.T) {
 	bCtx := fakecontext.New(c, "",
 		fakecontext.WithDockerfile(dockerfile),
 	)
-	defer bCtx.Close()
 
 	ctx := testutil.GetContext(c)
 	res, body, err := request.Post(
@@ -438,7 +434,6 @@ func (s *DockerAPISuite) TestBuildChownOnCopy(c *testing.T) {
 		fakecontext.WithDockerfile(dockerfile),
 		fakecontext.WithFile("test_file1", "some test content"),
 	)
-	defer bCtx.Close()
 
 	ctx := testutil.GetContext(c)
 	res, body, err := request.Post(
@@ -544,7 +539,6 @@ ENV foo bar`
 	bCtx := fakecontext.New(c, "",
 		fakecontext.WithDockerfile(dockerfile),
 	)
-	defer bCtx.Close()
 
 	ctx := testutil.GetContext(c)
 	res, body, err := request.Post(

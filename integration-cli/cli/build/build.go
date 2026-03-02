@@ -72,11 +72,11 @@ func WithExternalBuildContext(ctx *fakecontext.Fake) func(*icmd.Cmd) func() {
 // WithBuildContext sets up the build context
 func WithBuildContext(t testing.TB, contextOperators ...func(*fakecontext.Fake) error) func(*icmd.Cmd) func() {
 	// FIXME(vdemeester) de-duplicate that
-	ctx := fakecontext.New(t, "", contextOperators...)
+	buildCtx := fakecontext.New(t, "", contextOperators...)
 	return func(cmd *icmd.Cmd) func() {
-		cmd.Dir = ctx.Dir
+		cmd.Dir = buildCtx.Dir
 		cmd.Command = append(cmd.Command, ".")
-		return closeBuildContext(t, ctx)
+		return closeBuildContext(t, buildCtx)
 	}
 }
 

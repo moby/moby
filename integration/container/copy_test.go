@@ -209,7 +209,6 @@ func makeTestImage(ctx context.Context, t *testing.T) (imageID string) {
 		RUN addgroup -g 2376 testgroup && adduser -D -u 2375 -G testgroup testuser
 		USER testuser:testgroup
 	`))
-	defer buildCtx.Close()
 
 	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), client.ImageBuildOptions{})
 	assert.NilError(t, err)
@@ -283,7 +282,6 @@ func TestCopyFromContainer(t *testing.T) {
 		RUN ln -s notexist /bar/notarget && ln -s quux/baz /bar/filesymlink && ln -s quux /bar/dirsymlink && ln -s / /bar/root
 		CMD /fake
 	`))
-	defer buildCtx.Close()
 
 	resp, err := apiClient.ImageBuild(ctx, buildCtx.AsTarReader(t), client.ImageBuildOptions{})
 	assert.NilError(t, err)

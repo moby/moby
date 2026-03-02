@@ -61,8 +61,6 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	`
 
 	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
-	defer source.Close()
-
 	resp, err := clientUserRemap.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
 		Tags: []string{imageTag},
 	})

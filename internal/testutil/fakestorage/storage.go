@@ -43,14 +43,14 @@ func New(t testing.TB, dir string, modifiers ...func(*fakecontext.Fake) error) F
 	if testEnv == nil {
 		t.Fatal("fakstorage package requires SetTestEnvironment() to be called before use.")
 	}
-	ctx := fakecontext.New(t, dir, modifiers...)
+	buildCtx := fakecontext.New(t, dir, modifiers...)
 	switch {
 	case testEnv.IsRemoteDaemon() && strings.HasPrefix(request.DaemonHost(), "unix:///"):
 		t.Skip("e2e run : daemon is remote but docker host points to a unix socket")
 	case testEnv.IsLocalDaemon():
-		return newLocalFakeStorage(ctx)
+		return newLocalFakeStorage(buildCtx)
 	default:
-		return newRemoteFileServer(t, ctx, testEnv.APIClient())
+		return newRemoteFileServer(t, buildCtx, testEnv.APIClient())
 	}
 	return nil
 }
