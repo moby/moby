@@ -18,6 +18,11 @@ on:
       template:
         required: true
         type: string
+      integration_dir:
+        description: If set, only run integration tests from these directories (space-separated)
+        required: false
+        type: string
+        default: ""
 
 env:
   GO_VERSION: "1.25.7"
@@ -137,6 +142,7 @@ jobs:
           # TODO: enable GHA cache?
           LIMA_WORKDIR=/tmp/docker lima \
             TEST_SKIP_INTEGRATION_CLI=1 \
+            TEST_INTEGRATION_DIR="${{ inputs.integration_dir }}" \
             TEST_INTEGRATION_USE_GRAPHDRIVER=1 \
             DOCKER_ROOTLESS=${DOCKER_ROOTLESS} \
             DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER} \

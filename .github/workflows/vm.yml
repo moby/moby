@@ -33,14 +33,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        template:
+        include:
           # EL 8 is used for running the tests with cgroup v1.
           # Do not upgrade this to EL 9 until formally deprecating the cgroup v1 support.
+          #
+          # To minimize CI time the whole test suite takes, only run
+          # integration packages that currently contain cgroup-v1/v2 specific
+          # coverage (cgroup namespaces, cgroup driver/systemd, and resource
+          # update verification via /sys/fs/cgroup paths).
           #
           # FIXME: use almalinux-8, then probably no need to keep oraclelinux-8 here.
           # On almalinux-8, port forwarding tests are failing:
           # https://github.com/moby/moby/pull/49819#issuecomment-2815676000
-          - template:oraclelinux-8  # Oracle's kernel 5.15
-          # - template:almalinux-8  # kernel 4.18
+          - template: template:oraclelinux-8  # Oracle's kernel 5.15
+            integration_dir: ./integration/container ./integration/build ./integration/system
     with:
       template: ${{ matrix.template }}
+      integration_dir: ${{ matrix.integration_dir }}
