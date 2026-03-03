@@ -17,11 +17,12 @@
 package cgroup2
 
 type Memory struct {
-	Swap *int64
-	Min  *int64
-	Max  *int64
-	Low  *int64
-	High *int64
+	Swap     *int64
+	Min      *int64
+	Max      *int64
+	Low      *int64
+	High     *int64
+	OOMGroup *bool
 }
 
 func (r *Memory) Values() (o []Value) {
@@ -53,6 +54,16 @@ func (r *Memory) Values() (o []Value) {
 		o = append(o, Value{
 			filename: "memory.high",
 			value:    *r.High,
+		})
+	}
+	if r.OOMGroup != nil {
+		var val int64
+		if *r.OOMGroup {
+			val = 1
+		}
+		o = append(o, Value{
+			filename: "memory.oom.group",
+			value:    val,
 		})
 	}
 	return o
