@@ -17,7 +17,6 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace/noop"
 	"gotest.tools/v3/icmd"
 )
@@ -33,6 +32,12 @@ func (d devZero) Read(p []byte) (int, error) {
 	}
 	return len(p), nil
 }
+
+// serviceNameKey is the OpenTelemetry semantic convention key for the
+// service name. See [service.name].
+//
+// [service.name]: https://opentelemetry.io/docs/specs/semconv/registry/attributes/service/#service-name
+const serviceNameKey = "service.name"
 
 var tracingOnce sync.Once
 
@@ -55,7 +60,9 @@ func ConfigureTracing() func(context.Context) {
 		tp = trace.NewTracerProvider(
 			trace.WithSpanProcessor(sp),
 			trace.WithSampler(trace.AlwaysSample()),
-			trace.WithResource(resource.NewSchemaless(semconv.ServiceName("integration-test-client"))),
+			trace.WithResource(resource.NewSchemaless(
+				attribute.String(serviceNameKey, "integration-test-client"),
+			)),
 		)
 		otel.SetTracerProvider(tp)
 
