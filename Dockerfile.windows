@@ -161,9 +161,13 @@ FROM ${WINDOWS_BASE_IMAGE}:${WINDOWS_BASE_IMAGE_TAG}
 # Use PowerShell as the default shell
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ARG GOTESTSUM_VERSION=v1.8.2
-ARG GO_VERSION=1.23.9
-ARG GOWINRES_VERSION=v0.3.1
+ARG GO_VERSION=1.25.7
+
+# GOTESTSUM_VERSION is the version of gotest.tools/gotestsum to install.
+ARG GOTESTSUM_VERSION=v1.13.0
+
+# GOWINRES_VERSION is the version of go-winres to install.
+ARG GOWINRES_VERSION=v0.3.3
 ARG CONTAINERD_VERSION=v1.7.27
 
 # Environment variable notes:
