@@ -10,12 +10,9 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/internal/capabilities"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
 var deviceDrivers = map[string]*deviceDriver{}
-
-var RegisterGPUDeviceDrivers = func(_ *cdi.Cache) {}
 
 type deviceListing struct {
 	Devices  []system.DeviceInfo
