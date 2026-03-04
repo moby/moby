@@ -23,7 +23,6 @@ var errConflictCountDeviceIDs = errors.New("cannot set both Count and DeviceIDs 
 const (
 	nvidiaContainerRuntimeHookExecutableName = "nvidia-container-runtime-hook"
 	nvidiaCDIHookExecutableName              = "nvidia-cdi-hook"
-	amdContainerRuntimeExecutableName        = "amd-container-runtime"
 )
 
 // These are NVIDIA-specific capabilities stolen from github.com/containerd/containerd/contrib/nvidia.allCaps
@@ -34,27 +33,6 @@ var allNvidiaCaps = map[string]struct{}{
 	"utility":  {},
 	"video":    {},
 	"display":  {},
-}
-
-func init() {
-	// Register NVIDIA device drivers.
-	if nvidiaDrivers := getNVIDIADeviceDrivers(); len(nvidiaDrivers) > 0 {
-		for name, driver := range nvidiaDrivers {
-			registerDeviceDriver(name, driver)
-		}
-		return
-	}
-
-	// Register AMD driver if AMD helper binary is present.
-	if _, err := exec.LookPath(amdContainerRuntimeExecutableName); err == nil {
-		registerDeviceDriver("amd", &deviceDriver{
-			capset:     capabilities.Set{"gpu": struct{}{}, "amd": struct{}{}},
-			updateSpec: setAMDGPUs,
-		})
-		return
-	}
-
-	// No "gpu" capability
 }
 
 func getNVIDIADeviceDrivers() map[string]*deviceDriver {
