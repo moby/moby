@@ -136,7 +136,6 @@ area/testing:
       - any-glob-to-any-file:
         - 'integration/**'
         - 'integration-cli/**'
-        - '**/*_test.go'
         - 'internal/test*'
         - 'internal/testutil/**'
       - all-globs-to-all-files: '!vendor/**'
