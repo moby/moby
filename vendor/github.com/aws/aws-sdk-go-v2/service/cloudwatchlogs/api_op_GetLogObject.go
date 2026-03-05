@@ -25,6 +25,15 @@ import (
 // original JSON structure where the large field was located. For example, this
 // could be @ptr.$['input']['message'] , @ptr.$['AAA']['BBB']['CCC']['DDD'] ,
 // @ptr.$['AAA'] , or any other path matching your log structure.
+//
+// The GetLogObject API routes requests using SDK host prefix injection. SDK
+// versions released before April 1, 2026 route to
+// streaming-logs.Region.amazonaws.com , which does not support VPC endpoints. SDK
+// versions released on or after April 1, 2026 route to
+// stream-logs.Region.amazonaws.com , which supports VPC endpoints. To set up a VPC
+// endpoint for this API, see [Creating a VPC endpoint for CloudWatch Logs].
+//
+// [Creating a VPC endpoint for CloudWatch Logs]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/cloudwatch-logs-and-interface-VPC.html#create-VPC-endpoint-for-CloudWatchLogs
 func (c *Client) GetLogObject(ctx context.Context, params *GetLogObjectInput, optFns ...func(*Options)) (*GetLogObjectOutput, error) {
 	if params == nil {
 		params = &GetLogObjectInput{}

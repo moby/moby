@@ -1,3 +1,8 @@
+# v1.7.6 (2026-03-03)
+
+* **Bug Fix**: Modernize non codegen files with go fix
+* **Dependency Update**: Bump minimum Go version to 1.24
+
 # v1.7.5 (2026-02-23)
 
 * No change notes available for this release.

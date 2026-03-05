@@ -34,7 +34,7 @@ func (hs *Headers) Set(name string, value Value) {
 // Get returns the Value associated with the header. Nil is returned if the
 // value does not exist.
 func (hs Headers) Get(name string) Value {
-	for i := 0; i < len(hs); i++ {
+	for i := range hs {
 		if h := hs[i]; h.Name == name {
 			return h.Value
 		}
