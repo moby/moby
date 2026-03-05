@@ -78,8 +78,10 @@ func getNVIDIADeviceDrivers() map[string]*deviceDriver {
 	return nvidiaDrivers
 }
 
-// specUpdaters refer to a list of functions used updated an OCI spec for a
-// given device instance.
+// firstSuccessfulUpdater refer to a list of functions used updated an OCI spec
+// for a given device instance.
+// The functions are called in sequence, and if an error is returned, the next
+// function is called.
 type firstSuccessfulUpdater []func(*specs.Spec, *deviceInstance) error
 
 // updateSpec returns on the first successful spec update.
