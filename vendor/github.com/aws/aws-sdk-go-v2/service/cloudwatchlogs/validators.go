@@ -1150,6 +1150,26 @@ func (m *validateOpPutAccountPolicy) HandleInitialize(ctx context.Context, in mi
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpPutBearerTokenAuthentication struct {
+}
+
+func (*validateOpPutBearerTokenAuthentication) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpPutBearerTokenAuthentication) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*PutBearerTokenAuthenticationInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpPutBearerTokenAuthenticationInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpPutDataProtectionPolicy struct {
 }
 
@@ -1936,6 +1956,10 @@ func addOpListTagsLogGroupValidationMiddleware(stack *middleware.Stack) error {
 
 func addOpPutAccountPolicyValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpPutAccountPolicy{}, middleware.After)
+}
+
+func addOpPutBearerTokenAuthenticationValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpPutBearerTokenAuthentication{}, middleware.After)
 }
 
 func addOpPutDataProtectionPolicyValidationMiddleware(stack *middleware.Stack) error {
@@ -3802,6 +3826,24 @@ func validateOpPutAccountPolicyInput(v *PutAccountPolicyInput) error {
 	}
 	if len(v.PolicyType) == 0 {
 		invalidParams.Add(smithy.NewErrParamRequired("PolicyType"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpPutBearerTokenAuthenticationInput(v *PutBearerTokenAuthenticationInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "PutBearerTokenAuthenticationInput"}
+	if v.LogGroupIdentifier == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("LogGroupIdentifier"))
+	}
+	if v.BearerTokenAuthenticationEnabled == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("BearerTokenAuthenticationEnabled"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams

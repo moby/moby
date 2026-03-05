@@ -21,7 +21,7 @@ import (
 // This should be used as the first resolver in the slice of resolvers when
 // resolving external configuration.
 func resolveDefaultAWSConfig(ctx context.Context, cfg *aws.Config, cfgs configs) error {
-	var sources []interface{}
+	var sources []any
 	for _, s := range cfgs {
 		sources = append(sources, s)
 	}
@@ -106,9 +106,9 @@ func resolveRegion(ctx context.Context, cfg *aws.Config, configs configs) error 
 }
 
 func resolveBaseEndpoint(ctx context.Context, cfg *aws.Config, configs configs) error {
-	var downcastCfgSources []interface{}
+	var downcastCfgSources []any
 	for _, cs := range configs {
-		downcastCfgSources = append(downcastCfgSources, interface{}(cs))
+		downcastCfgSources = append(downcastCfgSources, any(cs))
 	}
 
 	if val, found, err := GetIgnoreConfiguredEndpoints(ctx, downcastCfgSources); found && val && err == nil {
