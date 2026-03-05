@@ -1,8 +1,6 @@
 package daemon
 
 import (
-	"errors"
-	"fmt"
 	"os/exec"
 	"strings"
 
@@ -37,18 +35,7 @@ func setAMDGPUs(s *specs.Spec, dev *deviceInstance) error {
 
 func createAMDCDIUpdater(cdiCache *cdi.Cache) func(*specs.Spec, *deviceInstance) error {
 	return func(s *specs.Spec, dev *deviceInstance) error {
-		vendor, err := getFirstAvailableVendor(cdiCache.ListVendors())
-		if err != nil {
-			return fmt.Errorf("failed to discover GPU vendor from CDI: %w", err)
-		}
-
-		if vendor != "amd.com" {
-			return errors.New("AMD CDI spec not found")
-		}
-
-		injector := &cdiDeviceInjector{
-			defaultCDIDeviceKind: "amd.com/gpu",
-		}
+		injector := createCDIInjector(cdiCache, "amd.com")
 		return injector.injectDevices(s, dev)
 	}
 }
