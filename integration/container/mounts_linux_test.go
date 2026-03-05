@@ -31,6 +31,46 @@ import (
 // this is a copy of https://github.com/moby/moby/blob/9e00a63d65434cdedc444e79a2b33a7c202b10d8/pkg/plugins/client.go#L253-L254
 const testNonExistingPlugin = "this-plugin-does-not-exist"
 
+// TestContainerMultipleMountsSamePath verifies that when a host path has
+// multiple bind mount entries in /proc/self/mountinfo with different
+// propagation (e.g., slave then shared), Docker reads the most recent
+// entry and allows containers to use the path with shared propagation.
+//
+// Regression test for https://github.com/moby/moby/issues/43714
+func TestContainerMultipleMountsSamePath(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsUserNamespace)
+	skip.If(t, testEnv.IsRootless, "cannot be tested because RootlessKit executes the daemon in private mount namespace (https://github.com/rootless-containers/rootlesskit/issues/97)")
+
+	ctx := setupTest(t)
+
+	tmpDir := fs.NewDir(t, "propagation-test", fs.WithMode(0o755))
+	src := tmpDir.Path()
+
+	// First bind mount + make slave → mountinfo entry 1 (master:N)
+	assert.NilError(t, syscall.Mount(src, src, "", syscall.MS_BIND, ""))
+	t.Cleanup(func() { syscall.Unmount(src, syscall.MNT_DETACH) })
+	assert.NilError(t, syscall.Mount("", src, "", syscall.MS_SLAVE, ""))
+
+	// Second bind mount + make shared → mountinfo entry 2 (shared:N)
+	assert.NilError(t, syscall.Mount(src, src, "", syscall.MS_BIND, ""))
+	t.Cleanup(func() { syscall.Unmount(src, syscall.MNT_DETACH) })
+	assert.NilError(t, syscall.Mount("", src, "", syscall.MS_SHARED, ""))
+
+	apiClient := testEnv.APIClient()
+	ctrID := container.Run(ctx, t, apiClient,
+		container.WithCmd("true"),
+		container.WithMount(mounttypes.Mount{
+			Type:   mounttypes.TypeBind,
+			Source: src,
+			Target: "/volume-dest",
+			BindOptions: &mounttypes.BindOptions{
+				Propagation: mounttypes.PropagationShared,
+			},
+		}),
+	)
+	poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, ctrID))
+}
 func TestContainerNetworkMountsNoChown(t *testing.T) {
 	// chown only applies to Linux bind mounted volumes; must be same host to verify
 	skip.If(t, testEnv.IsRemoteDaemon)
