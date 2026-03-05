@@ -57,7 +57,6 @@ func (s *Service) ReplaceConfig(options ServiceOptions) (commit func(), _ error)
 // and returns OK if authentication was successful.
 // It can be used to verify the validity of a client's credentials.
 func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (token string, _ error) {
-	// TODO Use ctx when searching for repositories
 	registryHostName := IndexHostname
 
 	if authConfig.ServerAddress != "" {
@@ -104,14 +103,21 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 }
 
 func parseRegistryHostName(serverAddress string) (string, error) {
-	if !strings.HasPrefix(serverAddress, "https://") && !strings.HasPrefix(serverAddress, "http://") {
+	if !strings.Contains(serverAddress, "://") {
+		// url.Parse treats input without a scheme as path, not hostname.
 		serverAddress = "https://" + serverAddress
 	}
 	u, err := url.Parse(serverAddress)
 	if err != nil {
-		return "", invalidParamWrapf(err, "unable to parse server address")
+		return "", invalidParamWrapf(err, `invalid server address: unable to parse`)
 	}
-	return u.Host, nil
+	switch u.Scheme {
+	case "http", "https":
+		// all good
+		return u.Host, nil
+	default:
+		return "", invalidParamf(`invalid server address %q: unsupported URL scheme %q: must be "http" or "https"`, serverAddress, u.Scheme)
+	}
 }
 
 // ResolveAuthConfig looks up authentication for the given reference from the

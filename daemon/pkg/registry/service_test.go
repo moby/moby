@@ -55,9 +55,14 @@ func TestParseRegistryHostName(t *testing.T) {
 			want:          `example.com`,
 		},
 		{
+			doc:           "unsupported scheme",
+			serverAddress: "ftp://registry.example.com",
+			wantErr:       `unsupported URL scheme "ftp"`,
+		},
+		{
 			doc:           "malformed http URL",
 			serverAddress: "http://[::1",
-			wantErr:       `unable to parse server address:`,
+			wantErr:       `invalid server address: unable to parse:`,
 		},
 	}
 
