@@ -12,7 +12,7 @@ import (
 // For NVIDIA GPUs, presence of CDI specs is detected by checking for the nvidia-cdi-hook binary.
 func RegisterGPUDeviceDrivers(cdiCache *cdi.Cache) {
 	// Register NVIDIA device drivers.
-	if nvidiaDrivers := getNVIDIADeviceDrivers(); len(nvidiaDrivers) > 0 {
+	if nvidiaDrivers := getNVIDIADeviceDrivers(cdiCache); len(nvidiaDrivers) > 0 {
 		for name, driver := range nvidiaDrivers {
 			registerDeviceDriver(name, driver)
 		}
