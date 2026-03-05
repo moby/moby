@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
+	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -303,6 +304,54 @@ func TestWatchtowerCreate(t *testing.T) {
 	netSettings := inspect.NetworkSettings.Networks[netName]
 	assert.Check(t, is.Equal(netSettings.IPAddress, netip.MustParseAddr(ctrIP)))
 	assert.Check(t, is.Equal(netSettings.MacAddress.String(), ctrMAC))
+}
+
+// TestNetworkConnectWithMACAddress tests that a MAC address can be specified
+// when connecting a container to a network using NetworkConnect.
+// This is a feature request from https://github.com/moby/moby/issues/51796
+func TestNetworkConnectWithMACAddress(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const netName = "testmacconnect"
+	network.CreateNoError(ctx, t, c, netName,
+		network.WithDriver("bridge"),
+		network.WithOption(bridge.BridgeName, netName))
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	const ctrName = "ctr1"
+	id := container.Run(ctx, t, c,
+		container.WithName(ctrName),
+		container.WithImage("busybox:latest"),
+		container.WithCmd("top"))
+	defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+
+	const wantMAC = "02:42:ac:11:00:42"
+	_, err := c.NetworkConnect(ctx, netName, client.NetworkConnectOptions{
+		Container: ctrName,
+		EndpointConfig: &networktypes.EndpointSettings{
+			MacAddress: networktypes.HardwareAddr{0x02, 0x42, 0xac, 0x11, 0x00, 0x42},
+		},
+	})
+	assert.NilError(t, err)
+
+	// Verify via container inspect
+	inspect := container.Inspect(ctx, t, c, ctrName)
+	gotMAC := inspect.NetworkSettings.Networks[netName].MacAddress
+	assert.Check(t, is.Equal(wantMAC, gotMAC.String()))
+
+	// Verify the MAC address is actually applied to the interface inside the container
+	res := container.ExecT(ctx, t, c, id, []string{"cat", "/sys/class/net/eth1/address"})
+	res.AssertSuccess(t)
+	assert.Check(t, is.Equal(wantMAC+"\n", res.Stdout()))
 }
 
 type legacyCreateRequest struct {
