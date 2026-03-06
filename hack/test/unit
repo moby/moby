@@ -40,14 +40,20 @@ if [ -n "${api_pkg_list}" ]; then
 	#   and to report an error if `go.mod` needs to be updated.
 	(
 		cd api
-		gotestsum --format=standard-quiet --jsonfile=../bundles/api-go-test-report.json --junitfile=../bundles/api-junit-report.xml -- \
+		gotestsum --format=standard-quiet --jsonfile=../bundles/api-go-test-report.json --junitfile=../bundles/api-junit-report.xml \
+			--max-fails=20 \
+			--rerun-fails=2 \
+			--rerun-fails-max-failures=10 \
+			--rerun-fails-abort-on-data-race \
+			--rerun-fails-report=../bundles/api-rerun-report.txt \
+			--packages="${api_pkg_list}" \
+			-- \
 			"${BUILDFLAGS[@]}" \
 			-cover \
 			-coverprofile=../bundles/api-coverage.out \
 			-covermode=atomic \
 			-mod=readonly \
-			${TESTFLAGS} \
-			${api_pkg_list} || exit $?
+			${TESTFLAGS} || exit $?
 	)
 fi
 
@@ -70,14 +76,20 @@ if [ -n "${client_pkg_list}" ]; then
 	#   and to report an error if `go.mod` needs to be updated.
 	(
 		cd client
-		gotestsum --format=standard-quiet --jsonfile=../bundles/client-go-test-report.json --junitfile=../bundles/client-junit-report.xml -- \
+		gotestsum --format=standard-quiet --jsonfile=../bundles/client-go-test-report.json --junitfile=../bundles/client-junit-report.xml \
+			--max-fails=20 \
+			--rerun-fails=2 \
+			--rerun-fails-max-failures=10 \
+			--rerun-fails-abort-on-data-race \
+			--rerun-fails-report=../bundles/client-rerun-report.txt \
+			--packages="${client_pkg_list}" \
+			-- \
 			"${BUILDFLAGS[@]}" \
 			-cover \
 			-coverprofile=../bundles/client-coverage.out \
 			-covermode=atomic \
 			-mod=readonly \
-			${TESTFLAGS} \
-			${client_pkg_list} || exit $?
+			${TESTFLAGS} || exit $?
 	)
 fi
 
@@ -100,13 +112,19 @@ case "$TESTDIRS" in
 esac
 
 if [ -n "${pkg_list}" ]; then
-	gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report.json --junitfile=bundles/junit-report.xml -- \
+	gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report.json --junitfile=bundles/junit-report.xml \
+		--max-fails=20 \
+		--rerun-fails=2 \
+		--rerun-fails-max-failures=10 \
+		--rerun-fails-abort-on-data-race \
+		--rerun-fails-report=bundles/rerun-report.txt \
+		--packages="${pkg_list}" \
+		-- \
 		"${BUILDFLAGS[@]}" \
 		-cover \
 		-coverprofile=bundles/coverage.out \
 		-covermode=atomic \
-		${TESTFLAGS} \
-		${pkg_list}
+		${TESTFLAGS}
 fi
 
 if [ -n "${libnetwork_pkg_list}" ]; then
@@ -123,19 +141,28 @@ if [ -n "${libnetwork_pkg_list}" ]; then
 	# tests within /libnetwork with '-p=1' to run them sequentially. See
 	# https://github.com/moby/moby/issues/42458#issuecomment-873216754 for details.
 	gotestsum --format=standard-quiet --jsonfile=bundles/libnetwork-go-test-report.json --junitfile=bundles/libnetwork-junit-report.xml \
+		--max-fails=20 \
+		--rerun-fails=2 \
+		--rerun-fails-max-failures=10 \
+		--rerun-fails-abort-on-data-race \
+		--rerun-fails-report=bundles/libnetwork-rerun-report.txt \
+		--packages="${libnetwork_pkg_list}" \
 		-- "${BUILDFLAGS[@]}" \
 		-cover \
 		-coverprofile=bundles/libnetwork-coverage.out \
 		-covermode=atomic \
 		-p=1 \
 		${gotest_extra_flags} \
-		${TESTFLAGS} \
-		${libnetwork_pkg_list}
+		${TESTFLAGS}
 
 	if [ $rerun_flaky -eq 1 ]; then
 		gotestsum --format=standard-quiet --jsonfile=bundles/libnetwork-flaky-go-test-report.json --junitfile=bundles/libnetwork-flaky-junit-report.xml \
-			--packages "${libnetwork_pkg_list}" \
+			--max-fails=20 \
+			--packages="${libnetwork_pkg_list}" \
 			--rerun-fails=4 \
+			--rerun-fails-max-failures=10 \
+			--rerun-fails-abort-on-data-race \
+			--rerun-fails-report=bundles/libnetwork-flaky-rerun-report.txt \
 			-- "${BUILDFLAGS[@]}" \
 			-cover \
 			-coverprofile=bundles/libnetwork-flaky-coverage.out \
