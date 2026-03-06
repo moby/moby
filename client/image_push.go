@@ -63,6 +63,10 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePus
 		query.Set("platform", string(pJson))
 	}
 
+	if options.ForceCheckLayerExist {
+		query.Set("force-check", "true")
+	}
+
 	resp, err := cli.tryImagePush(ctx, ref.Name(), query, staticAuth(options.RegistryAuth))
 	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
 		resp, err = cli.tryImagePush(ctx, ref.Name(), query, options.PrivilegeFunc)
