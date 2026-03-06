@@ -62,8 +62,21 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePus
 
 		query.Set("platform", string(pJson))
 	}
+	if options.ChallengeHandlerFunc != nil {
+		query.Set("clientAuth", "1")
+	}
 
 	resp, err := cli.tryImagePush(ctx, ref.Name(), query, staticAuth(options.RegistryAuth))
+	if challenge := resp.Header.Get("WWW-Authenticate"); challenge != "" && err != nil {
+		if options.ChallengeHandlerFunc != nil {
+			var newAuthHeader string
+			newAuthHeader, err = options.ChallengeHandlerFunc(ctx, challenge)
+			if err != nil {
+				return nil, err
+			}
+			resp, err = cli.tryImagePush(ctx, ref.Name(), query, staticAuth(newAuthHeader))
+		}
+	}
 	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
 		resp, err = cli.tryImagePush(ctx, ref.Name(), query, options.PrivilegeFunc)
 	}
