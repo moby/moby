@@ -185,11 +185,10 @@ test-coverage: $(GOCOVMERGE)
 .PHONY: benchmark
 benchmark: $(OTEL_GO_MOD_DIRS:%=benchmark/%)
 benchmark/%:
-	@echo "$(GO) test -run=xxxxxMatchNothingxxxxx -bench=. $*..." \
-		&& cd $* \
-		&& $(GO) list ./... \
-		| grep -v third_party \
-		| xargs $(GO) test -run=xxxxxMatchNothingxxxxx -bench=.
+	cd $* && $(GO) test -run='^$$' -bench=. $(ARGS) ./...
+
+print-sharded-benchmarks:
+	@echo $(OTEL_GO_MOD_DIRS) | jq -cR 'split(" ")'
 
 .PHONY: golangci-lint golangci-lint-fix
 golangci-lint-fix: ARGS=--fix
@@ -215,7 +214,7 @@ go-mod-tidy/%: crosslink
 		&& $(GO) mod tidy -compat=1.21
 
 .PHONY: lint
-lint: misspell go-mod-tidy golangci-lint govulncheck
+lint: misspell go-mod-tidy golangci-lint
 
 .PHONY: vanity-import-check
 vanity-import-check: $(PORTO)
