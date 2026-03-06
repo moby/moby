@@ -56,6 +56,8 @@ var ourTransport = &http.Transport{
 	ExpectContinueTimeout: 1 * time.Second,
 }
 
+var errInsecureEndpointWithTLS = errors.New("insecure HTTP endpoint cannot use TLS client configuration")
+
 type client struct {
 	name        string
 	cfg         otlpconfig.SignalConfig
@@ -110,6 +112,10 @@ func NewClient(opts ...Option) otlptrace.Client {
 
 // Start does nothing in a HTTP client.
 func (c *client) Start(ctx context.Context) error {
+	if c.cfg.Insecure && c.cfg.TLSCfg != nil {
+		return errInsecureEndpointWithTLS
+	}
+
 	// Initialize the instrumentation if not already done.
 	//
 	// Initialize here instead of NewClient to allow any errors to be passed
@@ -174,6 +180,7 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 		}
 
 		request.reset(ctx)
+		// nolint:gosec // URL is constructed from validated OTLP endpoint configuration
 		resp, err := d.client.Do(request.Request)
 		var urlErr *url.Error
 		if errors.As(err, &urlErr) && urlErr.Temporary() {
