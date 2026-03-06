@@ -193,7 +193,7 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 		return nil, err
 	}
 
-	if err := ipams.Register(&c.ipamRegistry, c.cfg.PluginGetter, c.cfg.DefaultAddressPool, nil); err != nil {
+	if err := ipams.Register(&c.ipamRegistry, c.cfg.PluginGetter, c.cfg.DefaultAddressPool, nil, c.cfg.DefaultSubnetSize); err != nil {
 		return nil, err
 	}
 

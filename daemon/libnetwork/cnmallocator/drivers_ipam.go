@@ -43,7 +43,7 @@ func initIPAMDrivers(r ipamapi.Registerer, netConfig *networkallocator.Config) e
 		log.G(context.TODO()).Info("Swarm initialized global default address pool to: " + str.String())
 	}
 
-	if err := ipams.Register(r, nil, nil, addressPool); err != nil {
+	if err := ipams.Register(r, nil, nil, addressPool, nil); err != nil {
 		return err
 	}
 

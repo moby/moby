@@ -154,6 +154,9 @@ type commonBridgeConfig struct {
 type NetworkConfig struct {
 	// Default address pools for docker networks
 	DefaultAddressPools opts.PoolsOpt `json:"default-address-pools,omitempty"`
+	// DefaultSubnetSize is the default size used for dynamic IPv4 subnet allocation. In v29.x, this option is ignored
+	// unless the feature flag 'global-default-subnet-size' is enabled. For IPv6, the default size is hardcoded to /64.
+	DefaultSubnetSize int `json:"default-subnet-size,omitempty"`
 	// NetworkControlPlaneMTU allows to specify the control plane MTU, this will allow to optimize the network use in some components
 	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
 	// Default options for newly created networks
