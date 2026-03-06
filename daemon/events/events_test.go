@@ -126,10 +126,7 @@ func TestLogEvents(t *testing.T) {
 //	2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)
 func TestLoadBufferedEvents(t *testing.T) {
 	now := time.Now()
-	f, err := timestamp.GetTimestamp("2016-03-07T17:28:03.100000000+02:00", now)
-	assert.NilError(t, err)
-
-	s, sNano, err := timestamp.ParseTimestamps(f, -1)
+	since, err := timestamp.Parse("2016-03-07T17:28:03.100000000+02:00", now)
 	assert.NilError(t, err)
 
 	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
@@ -145,7 +142,6 @@ func TestLoadBufferedEvents(t *testing.T) {
 		events: []events.Message{*m1, *m2, *m3},
 	}
 
-	since := time.Unix(s, sNano)
 	until := time.Time{}
 
 	messages := evts.loadBufferedEvents(since, until, nil)
@@ -154,16 +150,11 @@ func TestLoadBufferedEvents(t *testing.T) {
 
 func TestLoadBufferedEventsOnlyFromPast(t *testing.T) {
 	now := time.Now()
-	f, err := timestamp.GetTimestamp("2016-03-07T17:28:03.090000000+02:00", now)
+
+	since, err := timestamp.Parse("2016-03-07T17:28:03.090000000+02:00", now)
 	assert.NilError(t, err)
 
-	s, sNano, err := timestamp.ParseTimestamps(f, 0)
-	assert.NilError(t, err)
-
-	f, err = timestamp.GetTimestamp("2016-03-07T17:28:03.100000000+02:00", now)
-	assert.NilError(t, err)
-
-	u, uNano, err := timestamp.ParseTimestamps(f, 0)
+	until, err := timestamp.Parse("2016-03-07T17:28:03.100000000+02:00", now)
 	assert.NilError(t, err)
 
 	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
@@ -178,9 +169,6 @@ func TestLoadBufferedEventsOnlyFromPast(t *testing.T) {
 	evts := &Events{
 		events: []events.Message{*m1, *m2, *m3},
 	}
-
-	since := time.Unix(s, sNano)
-	until := time.Unix(u, uNano)
 
 	messages := evts.loadBufferedEvents(since, until, nil)
 	assert.Assert(t, is.Len(messages, 1))

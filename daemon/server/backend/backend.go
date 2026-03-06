@@ -112,8 +112,8 @@ type ContainerListOptions struct {
 type ContainerLogsOptions struct {
 	ShowStdout bool
 	ShowStderr bool
-	Since      string
-	Until      string
+	Since      time.Time
+	Until      time.Time
 	Timestamps bool
 	Follow     bool
 	Tail       string
