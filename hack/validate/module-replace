@@ -12,6 +12,7 @@ filter_diff() {
 api_diff=$(
 	validate_diff --diff-filter=ACMR -U0 -- \
 		'api/' \
+		':(exclude)api/Dockerfile' \
 		':(exclude)api/README.md' \
 		':(exclude)api/swagger.yaml' \
 		':(exclude)api/docs/' \
