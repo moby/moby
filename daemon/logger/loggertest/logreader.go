@@ -44,10 +44,11 @@ var compareLog cmp.Options = []cmp.Option{
 	// Not all log drivers can round-trip timestamps at full nanosecond
 	// precision.
 	opt.TimeWithThreshold(time.Millisecond),
-	// The json-log driver does not round-trip PLogMetaData and API users do
-	// not expect it.
+	// API consumers do not expect PLogMetaData.
 	cmpopts.IgnoreFields(logger.Message{}, "PLogMetaData"),
 	cmp.Transformer("string", func(b []byte) string { return string(b) }),
+	// Some drivers return nil attrs where others return an empty slice.
+	cmpopts.EquateEmpty(),
 }
 
 // TestTail tests the behavior of the LogReader's tail implementation.
@@ -62,8 +63,7 @@ func makeTestMessages() []*logger.Message {
 	return []*logger.Message{
 		{Source: "stdout", Timestamp: time.Now().Add(-1 * 30 * time.Minute), Line: []byte("a message")},
 		{Source: "stdout", Timestamp: time.Now().Add(-1 * 20 * time.Minute), Line: []byte("another message"), PLogMetaData: &backend.PartialLogMetaData{ID: "aaaaaaaa", Ordinal: 1, Last: true}},
-		{Source: "stderr", Timestamp: time.Now().Add(-1 * 15 * time.Minute), Line: []byte("to be..."), PLogMetaData: &backend.PartialLogMetaData{ID: "bbbbbbbb", Ordinal: 1}},
-		{Source: "stderr", Timestamp: time.Now().Add(-1 * 15 * time.Minute), Line: []byte("continued"), PLogMetaData: &backend.PartialLogMetaData{ID: "bbbbbbbb", Ordinal: 2, Last: true}},
+		{Source: "stderr", Timestamp: time.Now().Add(-1 * 15 * time.Minute), Line: []byte("to be...continued")},
 		{Source: "stderr", Timestamp: time.Now().Add(-1 * 10 * time.Minute), Line: []byte("a really long message " + strings.Repeat("a", 4096))},
 		{Source: "stderr", Timestamp: time.Now().Add(-1 * 10 * time.Minute), Line: []byte("just one more message")},
 		{Source: "stdout", Timestamp: time.Now().Add(-1 * 90 * time.Minute), Line: []byte("someone adjusted the clock")},

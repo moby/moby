@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/docker/go-units"
 	"github.com/moby/moby/v2/daemon/logger"
@@ -32,6 +33,27 @@ type JSONFileLogger struct {
 	writer *loggerutils.LogFile
 	tag    string // tag values requested by the user to log
 	extra  json.RawMessage
+
+	mu      sync.Mutex
+	partial partialWriter
+}
+
+type partialWriter struct {
+	isActive bool
+	// keying is based on the chunk metadata; we also track stream and timestamp to
+	// preserve the behavior of using the first chunk's timestamp.
+	id     string
+	source string
+	ts     time.Time
+	buf    []byte
+}
+
+func (p *partialWriter) reset() {
+	p.isActive = false
+	p.id = ""
+	p.source = ""
+	p.ts = time.Time{}
+	p.buf = nil
 }
 
 func init() {
@@ -118,19 +140,78 @@ func New(info logger.Info) (logger.Logger, error) {
 
 // Log converts logger.Message to jsonlog.JSONLog and serializes it to file.
 func (l *JSONFileLogger) Log(msg *logger.Message) error {
+	// Fast path: most messages are not partial and do not need the write-side
+	// reassembly state.
+	if msg.PLogMetaData == nil {
+		buf := buffersPool.Get().(*bytes.Buffer)
+		buf.Reset()
+		defer buffersPool.Put(buf)
+
+		err := marshalMessage(msg, l.extra, buf)
+		logger.PutMessage(msg)
+		if err != nil {
+			return err
+		}
+		return l.writer.WriteLogEntry(msg.Timestamp, buf.Bytes())
+	}
+
+	// Partial path: buffer chunks until Last=true.
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	md := msg.PLogMetaData
+	if !l.partial.isActive {
+		l.partial.isActive = true
+		l.partial.id = md.ID
+		l.partial.source = msg.Source
+		l.partial.ts = msg.Timestamp
+		l.partial.buf = append(l.partial.buf[:0], msg.Line...)
+	} else if md.ID == l.partial.id && msg.Source == l.partial.source {
+		l.partial.buf = append(l.partial.buf, msg.Line...)
+	} else {
+		buf := buffersPool.Get().(*bytes.Buffer)
+		buf.Reset()
+		defer buffersPool.Put(buf)
+
+		// Best effort: if the sequence doesn't match, flush the current buffer as-is
+		// and start a new one.
+		flushMsg := &logger.Message{Source: l.partial.source, Timestamp: l.partial.ts, Line: l.partial.buf}
+		if err := marshalMessage(flushMsg, l.extra, buf); err != nil {
+			logger.PutMessage(msg)
+			l.partial.reset()
+			return err
+		}
+		if err := l.writer.WriteLogEntry(l.partial.ts, buf.Bytes()); err != nil {
+			logger.PutMessage(msg)
+			l.partial.reset()
+			return err
+		}
+
+		l.partial.isActive = true
+		l.partial.id = md.ID
+		l.partial.source = msg.Source
+		l.partial.ts = msg.Timestamp
+		l.partial.buf = append(l.partial.buf[:0], msg.Line...)
+	}
+
+	if !md.Last {
+		logger.PutMessage(msg)
+		return nil
+	}
+
 	buf := buffersPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer buffersPool.Put(buf)
 
-	timestamp := msg.Timestamp
-	err := marshalMessage(msg, l.extra, buf)
+	// Last chunk: emit as a single message.
+	out := &logger.Message{Source: l.partial.source, Timestamp: l.partial.ts, Line: l.partial.buf}
+	err := marshalMessage(out, l.extra, buf)
+	l.partial.reset()
 	logger.PutMessage(msg)
-
 	if err != nil {
 		return err
 	}
-
-	return l.writer.WriteLogEntry(timestamp, buf.Bytes())
+	return l.writer.WriteLogEntry(out.Timestamp, buf.Bytes())
 }
 
 func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
