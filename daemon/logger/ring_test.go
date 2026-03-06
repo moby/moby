@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -142,6 +143,70 @@ func TestRingDrain(t *testing.T) {
 	ls = r.Drain()
 	if len(ls) != 0 {
 		t.Fatalf("expected 0 messages on 2nd drain: %v", ls)
+	}
+}
+
+// blockingLogger simulates a logger whose Log method blocks until
+// its channel is closed, reproducing the scenario in issue #51301.
+type blockingLogger struct {
+	once    sync.Once
+	blocked chan struct{} // closed when Log is blocking
+	unblock chan struct{} // close to unblock Log
+}
+
+func (l *blockingLogger) Log(*Message) error {
+	l.once.Do(func() { close(l.blocked) })
+	<-l.unblock
+	return nil
+}
+
+func (l *blockingLogger) Name() string { return "blocking" }
+func (l *blockingLogger) Close() error { return nil }
+
+// TestRingLoggerCloseWithBlockingLog verifies that Close does not hang
+// when the underlying logger's Log method is blocked (issue #51301).
+// It also verifies that Close properly waits for the in-flight Log()
+// goroutine before proceeding (preventing concurrent Log/Close on the
+// underlying driver).
+func TestRingLoggerCloseWithBlockingLog(t *testing.T) {
+	bl := &blockingLogger{
+		blocked: make(chan struct{}),
+		unblock: make(chan struct{}),
+	}
+	ring := newRingLogger(bl, Info{}, defaultRingMaxSize)
+
+	// Enqueue a message so that run() will call bl.Log().
+	ring.Log(&Message{Line: []byte("hello")})
+
+	// Wait until the logger is actually blocked inside Log().
+	select {
+	case <-bl.blocked:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for Log to be called")
+	}
+
+	// Close must return promptly even though Log() is still blocking.
+	// Before the fix, Close() would block forever on wg.Wait() because
+	// run() was stuck in the blocking Log() call.
+	closed := make(chan error, 1)
+	go func() {
+		closed <- ring.Close()
+	}()
+
+	// Unblock the logger after a brief delay so Close() can proceed
+	// without waiting the full orphan timeout. This exercises the
+	// code path where the orphaned Log() goroutine completes during
+	// the wait in Close().
+	time.Sleep(50 * time.Millisecond)
+	close(bl.unblock)
+
+	select {
+	case err := <-closed:
+		if err != nil {
+			t.Fatalf("unexpected Close error: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Close blocked; goroutine leak detected (issue #51301)")
 	}
 }
 
