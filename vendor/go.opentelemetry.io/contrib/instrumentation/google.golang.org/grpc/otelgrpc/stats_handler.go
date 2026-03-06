@@ -5,15 +5,15 @@ package otelgrpc // import "go.opentelemetry.io/contrib/instrumentation/google.g
 
 import (
 	"context"
-	"sync/atomic"
+	"strconv"
 	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
-	"go.opentelemetry.io/otel/semconv/v1.37.0/rpcconv"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	"go.opentelemetry.io/otel/semconv/v1.40.0/rpcconv"
 	"go.opentelemetry.io/otel/trace"
 	grpc_codes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
@@ -26,8 +26,6 @@ import (
 type gRPCContextKey struct{}
 
 type gRPCContext struct {
-	inMessages  int64
-	outMessages int64
 	metricAttrs []attribute.KeyValue
 	record      bool
 }
@@ -37,51 +35,37 @@ type serverHandler struct {
 
 	tracer trace.Tracer
 
-	duration rpcconv.ServerDuration
-	inSize   rpcconv.ServerRequestSize
-	outSize  rpcconv.ServerResponseSize
-	inMsg    rpcconv.ServerRequestsPerRPC
-	outMsg   rpcconv.ServerResponsesPerRPC
+	duration rpcconv.ServerCallDuration
 }
 
 // NewServerHandler creates a stats.Handler for a gRPC server.
 func NewServerHandler(opts ...Option) stats.Handler {
 	c := newConfig(opts)
+	if c.SpanKind == trace.SpanKindUnspecified {
+		c.SpanKind = trace.SpanKindServer
+	}
+
 	h := &serverHandler{config: c}
 
 	h.tracer = c.TracerProvider.Tracer(
 		ScopeName,
-		trace.WithInstrumentationVersion(Version()),
+		trace.WithInstrumentationVersion(Version),
 	)
 
 	meter := c.MeterProvider.Meter(
 		ScopeName,
-		metric.WithInstrumentationVersion(Version()),
+		metric.WithInstrumentationVersion(Version),
 		metric.WithSchemaURL(semconv.SchemaURL),
 	)
 
 	var err error
-	h.duration, err = rpcconv.NewServerDuration(meter)
-	if err != nil {
-		otel.Handle(err)
-	}
-
-	h.inSize, err = rpcconv.NewServerRequestSize(meter)
-	if err != nil {
-		otel.Handle(err)
-	}
-
-	h.outSize, err = rpcconv.NewServerResponseSize(meter)
-	if err != nil {
-		otel.Handle(err)
-	}
-
-	h.inMsg, err = rpcconv.NewServerRequestsPerRPC(meter)
-	if err != nil {
-		otel.Handle(err)
-	}
-
-	h.outMsg, err = rpcconv.NewServerResponsesPerRPC(meter)
+	h.duration, err = rpcconv.NewServerCallDuration(
+		meter,
+		metric.WithExplicitBucketBoundaries(
+			0.005, 0.01, 0.025, 0.05, 0.075, 0.1,
+			0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10,
+		),
+	)
 	if err != nil {
 		otel.Handle(err)
 	}
@@ -103,7 +87,7 @@ func (h *serverHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) cont
 	ctx = extract(ctx, h.Propagators)
 
 	name, attrs := internal.ParseFullMethod(info.FullMethodName)
-	attrs = append(attrs, semconv.RPCSystemGRPC)
+	attrs = append(attrs, semconv.RPCSystemNameGRPC)
 
 	record := true
 	if h.Filter != nil {
@@ -111,9 +95,12 @@ func (h *serverHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) cont
 	}
 
 	if record {
+		// Make a new slice to avoid aliasing into the same attrs slice used by metrics.
+		spanAttributes := make([]attribute.KeyValue, 0, len(attrs)+len(h.SpanAttributes))
+		spanAttributes = append(append(spanAttributes, attrs...), h.SpanAttributes...)
 		opts := []trace.SpanStartOption{
-			trace.WithSpanKind(trace.SpanKindServer),
-			trace.WithAttributes(append(attrs, h.SpanAttributes...)...),
+			trace.WithSpanKind(h.SpanKind),
+			trace.WithAttributes(spanAttributes...),
 		}
 		if h.PublicEndpoint || (h.PublicEndpointFn != nil && h.PublicEndpointFn(ctx, info)) {
 			opts = append(opts, trace.WithNewRoot())
@@ -134,6 +121,11 @@ func (h *serverHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) cont
 		record:      record,
 	}
 
+	if h.MetricAttributesFn != nil {
+		extraAttrs := h.MetricAttributesFn(ctx)
+		gctx.metricAttrs = append(gctx.metricAttrs, extraAttrs...)
+	}
+
 	return context.WithValue(ctx, gRPCContextKey{}, &gctx)
 }
 
@@ -143,10 +135,6 @@ func (h *serverHandler) HandleRPC(ctx context.Context, rs stats.RPCStats) {
 		ctx,
 		rs,
 		h.duration.Inst(),
-		h.inSize,
-		h.outSize,
-		h.inMsg.Inst(),
-		h.outMsg.Inst(),
 		serverStatus,
 	)
 }
@@ -156,51 +144,37 @@ type clientHandler struct {
 
 	tracer trace.Tracer
 
-	duration rpcconv.ClientDuration
-	inSize   rpcconv.ClientResponseSize
-	outSize  rpcconv.ClientRequestSize
-	inMsg    rpcconv.ClientResponsesPerRPC
-	outMsg   rpcconv.ClientRequestsPerRPC
+	duration rpcconv.ClientCallDuration
 }
 
 // NewClientHandler creates a stats.Handler for a gRPC client.
 func NewClientHandler(opts ...Option) stats.Handler {
 	c := newConfig(opts)
+	if c.SpanKind == trace.SpanKindUnspecified {
+		c.SpanKind = trace.SpanKindClient
+	}
+
 	h := &clientHandler{config: c}
 
 	h.tracer = c.TracerProvider.Tracer(
 		ScopeName,
-		trace.WithInstrumentationVersion(Version()),
+		trace.WithInstrumentationVersion(Version),
 	)
 
 	meter := c.MeterProvider.Meter(
 		ScopeName,
-		metric.WithInstrumentationVersion(Version()),
+		metric.WithInstrumentationVersion(Version),
 		metric.WithSchemaURL(semconv.SchemaURL),
 	)
 
 	var err error
-	h.duration, err = rpcconv.NewClientDuration(meter)
-	if err != nil {
-		otel.Handle(err)
-	}
-
-	h.inSize, err = rpcconv.NewClientResponseSize(meter)
-	if err != nil {
-		otel.Handle(err)
-	}
-
-	h.outSize, err = rpcconv.NewClientRequestSize(meter)
-	if err != nil {
-		otel.Handle(err)
-	}
-
-	h.inMsg, err = rpcconv.NewClientResponsesPerRPC(meter)
-	if err != nil {
-		otel.Handle(err)
-	}
-
-	h.outMsg, err = rpcconv.NewClientRequestsPerRPC(meter)
+	h.duration, err = rpcconv.NewClientCallDuration(
+		meter,
+		metric.WithExplicitBucketBoundaries(
+			0.005, 0.01, 0.025, 0.05, 0.075, 0.1,
+			0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10,
+		),
+	)
 	if err != nil {
 		otel.Handle(err)
 	}
@@ -211,7 +185,7 @@ func NewClientHandler(opts ...Option) stats.Handler {
 // TagRPC can attach some information to the given context.
 func (h *clientHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) context.Context {
 	name, attrs := internal.ParseFullMethod(info.FullMethodName)
-	attrs = append(attrs, semconv.RPCSystemGRPC)
+	attrs = append(attrs, semconv.RPCSystemNameGRPC)
 
 	record := true
 	if h.Filter != nil {
@@ -219,17 +193,25 @@ func (h *clientHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) cont
 	}
 
 	if record {
+		// Make a new slice to avoid aliasing into the same attrs slice used by metrics.
+		spanAttributes := make([]attribute.KeyValue, 0, len(attrs)+len(h.SpanAttributes))
+		spanAttributes = append(append(spanAttributes, attrs...), h.SpanAttributes...)
 		ctx, _ = h.tracer.Start(
 			ctx,
 			name,
-			trace.WithSpanKind(trace.SpanKindClient),
-			trace.WithAttributes(append(attrs, h.SpanAttributes...)...),
+			trace.WithSpanKind(h.SpanKind),
+			trace.WithAttributes(spanAttributes...),
 		)
 	}
 
 	gctx := gRPCContext{
 		metricAttrs: append(attrs, h.MetricAttributes...),
 		record:      record,
+	}
+
+	if h.MetricAttributesFn != nil {
+		extraAttrs := h.MetricAttributesFn(ctx)
+		gctx.metricAttrs = append(gctx.metricAttrs, extraAttrs...)
 	}
 
 	return inject(context.WithValue(ctx, gRPCContextKey{}, &gctx), h.Propagators)
@@ -241,10 +223,6 @@ func (h *clientHandler) HandleRPC(ctx context.Context, rs stats.RPCStats) {
 		ctx,
 		rs,
 		h.duration.Inst(),
-		h.inSize,
-		h.outSize,
-		h.inMsg.Inst(),
-		h.outMsg.Inst(),
 		func(s *status.Status) (codes.Code, string) {
 			return codes.Error, s.Message()
 		},
@@ -261,16 +239,10 @@ func (*clientHandler) HandleConn(context.Context, stats.ConnStats) {
 	// no-op
 }
 
-type int64Hist interface {
-	Record(context.Context, int64, ...attribute.KeyValue)
-}
-
-func (c *config) handleRPC(
+func (*config) handleRPC(
 	ctx context.Context,
 	rs stats.RPCStats,
 	duration metric.Float64Histogram,
-	inSize, outSize int64Hist,
-	inMsg, outMsg metric.Int64Histogram,
 	recordStatus func(*status.Status) (codes.Code, string),
 ) {
 	gctx, _ := ctx.Value(gRPCContextKey{}).(*gRPCContext)
@@ -279,42 +251,11 @@ func (c *config) handleRPC(
 	}
 
 	span := trace.SpanFromContext(ctx)
-	var messageId int64
 
 	switch rs := rs.(type) {
 	case *stats.Begin:
 	case *stats.InPayload:
-		if gctx != nil {
-			messageId = atomic.AddInt64(&gctx.inMessages, 1)
-			inSize.Record(ctx, int64(rs.Length), gctx.metricAttrs...)
-		}
-
-		if c.ReceivedEvent && span.IsRecording() {
-			span.AddEvent("message",
-				trace.WithAttributes(
-					semconv.RPCMessageTypeReceived,
-					semconv.RPCMessageIDKey.Int64(messageId),
-					semconv.RPCMessageCompressedSizeKey.Int(rs.CompressedLength),
-					semconv.RPCMessageUncompressedSizeKey.Int(rs.Length),
-				),
-			)
-		}
 	case *stats.OutPayload:
-		if gctx != nil {
-			messageId = atomic.AddInt64(&gctx.outMessages, 1)
-			outSize.Record(ctx, int64(rs.Length), gctx.metricAttrs...)
-		}
-
-		if c.SentEvent && span.IsRecording() {
-			span.AddEvent("message",
-				trace.WithAttributes(
-					semconv.RPCMessageTypeSent,
-					semconv.RPCMessageIDKey.Int64(messageId),
-					semconv.RPCMessageCompressedSizeKey.Int(rs.CompressedLength),
-					semconv.RPCMessageUncompressedSizeKey.Int(rs.Length),
-				),
-			)
-		}
 	case *stats.OutTrailer:
 	case *stats.OutHeader:
 		if span.IsRecording() {
@@ -328,9 +269,9 @@ func (c *config) handleRPC(
 		var s *status.Status
 		if rs.Error != nil {
 			s, _ = status.FromError(rs.Error)
-			rpcStatusAttr = semconv.RPCGRPCStatusCodeKey.Int(int(s.Code()))
+			rpcStatusAttr = semconv.RPCResponseStatusCode(canonicalString(s.Code()))
 		} else {
-			rpcStatusAttr = semconv.RPCGRPCStatusCodeKey.Int(int(grpc_codes.OK))
+			rpcStatusAttr = semconv.RPCResponseStatusCode(canonicalString(grpc_codes.OK))
 		}
 		if span.IsRecording() {
 			if s != nil {
@@ -343,6 +284,9 @@ func (c *config) handleRPC(
 
 		var metricAttrs []attribute.KeyValue
 		if gctx != nil {
+			// Don't use gctx.metricAttrSet here, because it requires passing
+			// multiple RecordOptions, which would call metric.mergeSets and
+			// allocate a new set for each Record call.
 			metricAttrs = make([]attribute.KeyValue, 0, len(gctx.metricAttrs)+1)
 			metricAttrs = append(metricAttrs, gctx.metricAttrs...)
 		}
@@ -352,14 +296,51 @@ func (c *config) handleRPC(
 
 		// Use floating point division here for higher precision (instead of Millisecond method).
 		// Measure right before calling Record() to capture as much elapsed time as possible.
-		elapsedTime := float64(rs.EndTime.Sub(rs.BeginTime)) / float64(time.Millisecond)
+		elapsedTime := float64(rs.EndTime.Sub(rs.BeginTime)) / float64(time.Second)
 
 		duration.Record(ctx, elapsedTime, recordOpts...)
-		if gctx != nil {
-			inMsg.Record(ctx, atomic.LoadInt64(&gctx.inMessages), recordOpts...)
-			outMsg.Record(ctx, atomic.LoadInt64(&gctx.outMessages), recordOpts...)
-		}
 	default:
 		return
+	}
+}
+
+func canonicalString(code grpc_codes.Code) string {
+	switch code {
+	case grpc_codes.OK:
+		return "OK"
+	case grpc_codes.Canceled:
+		return "CANCELLED"
+	case grpc_codes.Unknown:
+		return "UNKNOWN"
+	case grpc_codes.InvalidArgument:
+		return "INVALID_ARGUMENT"
+	case grpc_codes.DeadlineExceeded:
+		return "DEADLINE_EXCEEDED"
+	case grpc_codes.NotFound:
+		return "NOT_FOUND"
+	case grpc_codes.AlreadyExists:
+		return "ALREADY_EXISTS"
+	case grpc_codes.PermissionDenied:
+		return "PERMISSION_DENIED"
+	case grpc_codes.ResourceExhausted:
+		return "RESOURCE_EXHAUSTED"
+	case grpc_codes.FailedPrecondition:
+		return "FAILED_PRECONDITION"
+	case grpc_codes.Aborted:
+		return "ABORTED"
+	case grpc_codes.OutOfRange:
+		return "OUT_OF_RANGE"
+	case grpc_codes.Unimplemented:
+		return "UNIMPLEMENTED"
+	case grpc_codes.Internal:
+		return "INTERNAL"
+	case grpc_codes.Unavailable:
+		return "UNAVAILABLE"
+	case grpc_codes.DataLoss:
+		return "DATA_LOSS"
+	case grpc_codes.Unauthenticated:
+		return "UNAUTHENTICATED"
+	default:
+		return "CODE(" + strconv.FormatInt(int64(code), 10) + ")"
 	}
 }
