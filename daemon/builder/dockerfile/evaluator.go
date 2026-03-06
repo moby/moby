@@ -57,11 +57,11 @@ func dispatch(ctx context.Context, d dispatchRequest, cmd instructions.Command) 
 
 	defer func() {
 		if d.builder.options.ForceRemove {
-			d.builder.containerManager.RemoveAll(d.builder.Stdout)
+			d.builder.containerManager.RemoveAll(ctx, d.builder.Stdout)
 			return
 		}
 		if d.builder.options.Remove && retErr == nil {
-			d.builder.containerManager.RemoveAll(d.builder.Stdout)
+			d.builder.containerManager.RemoveAll(ctx, d.builder.Stdout)
 			return
 		}
 	}()

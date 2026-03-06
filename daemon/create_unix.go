@@ -35,10 +35,10 @@ func (daemon *Daemon) createContainerOSSpecificSettings(ctx context.Context, ctr
 
 // createContainerVolumesOS performs host-OS specific volume creation
 func (daemon *Daemon) createContainerVolumesOS(ctx context.Context, ctr *container.Container, config *containertypes.Config) error {
-	if err := daemon.Mount(ctr); err != nil {
+	if err := daemon.Mount(ctx, ctr); err != nil {
 		return err
 	}
-	defer daemon.Unmount(ctr)
+	defer daemon.Unmount(ctx, ctr)
 
 	if err := ctr.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
 		return err

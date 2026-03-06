@@ -28,7 +28,7 @@ func TestDNSIPQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := n.Delete(); err != nil {
+		if err := n.Delete(context.Background()); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -127,7 +127,7 @@ func TestDNSProxyServFail(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := n.Delete(); err != nil {
+		if err := n.Delete(context.Background()); err != nil {
 			t.Fatal(err)
 		}
 	}()

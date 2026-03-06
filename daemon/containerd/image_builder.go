@@ -268,10 +268,10 @@ func (rl *rolayer) DiffID() layer.DiffID {
 	return rl.diffID
 }
 
-func (rl *rolayer) Release() error {
+func (rl *rolayer) Release(ctx context.Context) error {
 	if rl.lease != nil {
 		lm := rl.c.LeasesService()
-		err := lm.Delete(context.TODO(), *rl.lease)
+		err := lm.Delete(ctx, *rl.lease)
 		if err != nil {
 			return err
 		}
@@ -281,18 +281,18 @@ func (rl *rolayer) Release() error {
 }
 
 // NewRWLayer creates a new read-write layer for the builder
-func (rl *rolayer) NewRWLayer() (_ builder.RWLayer, outErr error) {
+func (rl *rolayer) NewRWLayer(ctx context.Context) (_ builder.RWLayer, outErr error) {
 	snapshotter := rl.c.SnapshotService(rl.snapshotter)
 
 	key := stringid.GenerateRandomID()
 
-	ctx, lease, err := createLease(context.TODO(), rl.c.LeasesService())
+	ctx, lease, err := createLease(ctx, rl.c.LeasesService())
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if outErr != nil {
-			if err := rl.c.LeasesService().Delete(ctx, lease); err != nil {
+			if err := rl.c.LeasesService().Delete(context.WithoutCancel(ctx), lease); err != nil {
 				log.G(ctx).WithError(err).Warn("failed to remove lease after NewRWLayer error")
 			}
 		}
@@ -334,13 +334,13 @@ func (rw *rwlayer) Root() string {
 	return rw.root
 }
 
-func (rw *rwlayer) Commit() (_ builder.ROLayer, outErr error) {
+func (rw *rwlayer) Commit(ctx context.Context) (_ builder.ROLayer, outErr error) {
 	snapshotter := rw.c.SnapshotService(rw.snapshotter)
 
 	key := stringid.GenerateRandomID()
 
 	lm := rw.c.LeasesService()
-	ctx, lease, err := createLease(context.TODO(), lm)
+	ctx, lease, err := createLease(ctx, lm)
 	if err != nil {
 		return nil, err
 	}
@@ -401,26 +401,26 @@ func (rw *rwlayer) Commit() (_ builder.ROLayer, outErr error) {
 	}, nil
 }
 
-func (rw *rwlayer) Release() (outErr error) {
+func (rw *rwlayer) Release(ctx context.Context) (outErr error) {
 	if rw.root == "" { // nothing to release
 		return nil
 	}
 
 	if err := mount.UnmountAll(rw.root, 0); err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.G(context.TODO()).WithError(err).WithField("root", rw.root).Error("failed to unmount RWLayer")
+		log.G(ctx).WithError(err).WithField("root", rw.root).Error("failed to unmount RWLayer")
 		return err
 	}
 	if err := os.Remove(rw.root); err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.G(context.TODO()).WithError(err).WithField("dir", rw.root).Error("failed to remove mount temp dir")
+		log.G(ctx).WithError(err).WithField("dir", rw.root).Error("failed to remove mount temp dir")
 		return err
 	}
 	rw.root = ""
 
 	if rw.lease != nil {
 		lm := rw.c.LeasesService()
-		err := lm.Delete(context.TODO(), *rw.lease)
+		err := lm.Delete(ctx, *rw.lease)
 		if err != nil {
-			log.G(context.TODO()).WithError(err).Warn("failed to delete lease when releasing RWLayer")
+			log.G(ctx).WithError(err).Warn("failed to delete lease when releasing RWLayer")
 		} else {
 			rw.lease = nil
 		}

@@ -45,7 +45,7 @@ type Backend interface {
 	// a build step.
 	CommitBuildStep(context.Context, backend.CommitConfig) (image.ID, error)
 	// ContainerCreateWorkdir creates the workdir
-	ContainerCreateWorkdir(containerID string) error
+	ContainerCreateWorkdir(ctx context.Context, containerID string) error
 	CreateImage(ctx context.Context, config []byte, parent string, contentStoreDigest digest.Digest) (Image, error)
 
 	ImageCacheBuilder
@@ -63,7 +63,7 @@ type ExecBackend interface {
 	// ContainerCreateIgnoreImagesArgsEscaped creates a new Docker container and returns potential warnings
 	ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error)
 	// ContainerRm removes a container specified by `id`.
-	ContainerRm(name string, config *backend.ContainerRmConfig) error
+	ContainerRm(ctx context.Context, name string, config *backend.ContainerRmConfig) error
 	// ContainerStart starts a new container
 	ContainerStart(ctx context.Context, containerID string, checkpoint string, checkpointDir string) error
 	// ContainerWait stops processing until the given container is stopped.
@@ -87,7 +87,7 @@ type ImageCacheBuilder interface {
 type ImageCache interface {
 	// GetCache returns a reference to a cached image whose parent equals `parent`
 	// and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
-	GetCache(parentID string, cfg *container.Config, platform ocispec.Platform) (imageID string, err error)
+	GetCache(ctx context.Context, parentID string, cfg *container.Config, platform ocispec.Platform) (imageID string, err error)
 }
 
 // Image represents a Docker image used by the builder.
@@ -100,15 +100,15 @@ type Image interface {
 
 // ROLayer is a reference to image rootfs layer
 type ROLayer interface {
-	Release() error
-	NewRWLayer() (RWLayer, error)
+	Release(context.Context) error
+	NewRWLayer(context.Context) (RWLayer, error)
 	DiffID() layer.DiffID
 	ContentStoreDigest() digest.Digest
 }
 
 // RWLayer is active layer that can be read/modified
 type RWLayer interface {
-	Release() error
+	Release(context.Context) error
 	Root() string
-	Commit() (ROLayer, error)
+	Commit(context.Context) (ROLayer, error)
 }

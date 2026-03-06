@@ -2,6 +2,7 @@ package layer
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -79,7 +80,7 @@ func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 		return nil, err
 	}
 
-	pathFS, err := mount.Mount("")
+	pathFS, err := mount.Mount(context.Background(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +100,7 @@ func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 		return nil, err
 	}
 
-	if err := mount.Unmount(); err != nil {
+	if err := mount.Unmount(context.Background()); err != nil {
 		return nil, err
 	}
 
@@ -251,7 +252,7 @@ func TestMountAndRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	path2, err := mount2.Mount("")
+	path2, err := mount2.Mount(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +266,7 @@ func TestMountAndRegister(t *testing.T) {
 		t.Fatalf("Wrong file data, expected %q, got %q", expected, string(b))
 	}
 
-	if err := mount2.Unmount(); err != nil {
+	if err := mount2.Unmount(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -357,7 +358,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pathFS, err := m.Mount("")
+	pathFS, err := m.Mount(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,7 +367,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := m.Unmount(); err != nil {
+	if err := m.Unmount(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -394,18 +395,18 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if mountPath, err := m2.Mount(""); err != nil {
+	if mountPath, err := m2.Mount(context.Background(), ""); err != nil {
 		t.Fatal(err)
 	} else if pathFS != mountPath {
 		t.Fatalf("Unexpected path %s, expected %s", mountPath, pathFS)
 	}
 
-	if mountPath, err := m2.Mount(""); err != nil {
+	if mountPath, err := m2.Mount(context.Background(), ""); err != nil {
 		t.Fatal(err)
 	} else if pathFS != mountPath {
 		t.Fatalf("Unexpected path %s, expected %s", mountPath, pathFS)
 	}
-	if err := m2.Unmount(); err != nil {
+	if err := m2.Unmount(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -417,7 +418,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatalf("Unexpected content %q, expected %q", string(b), expected)
 	}
 
-	if err := m2.Unmount(); err != nil {
+	if err := m2.Unmount(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 

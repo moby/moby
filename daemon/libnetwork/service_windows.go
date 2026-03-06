@@ -15,7 +15,7 @@ type policyLists struct {
 
 var lbPolicylistMap = make(map[*loadBalancer]*policyLists)
 
-func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
+func (n *Network) addLBBackend(ctx context.Context, ip net.IP, lb *loadBalancer) {
 	if len(lb.vip) == 0 {
 		return
 	}
@@ -39,7 +39,7 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	}
 
 	if sourceVIP == "" {
-		log.G(context.TODO()).Errorf("Failed to find load balancer IP for network %s", n.Name())
+		log.G(ctx).Errorf("Failed to find load balancer IP for network %s", n.Name())
 		return
 	}
 
@@ -52,7 +52,7 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 		// Call HNS to get back ID (GUID) corresponding to the endpoint.
 		hnsEndpoint, err := hcsshim.GetHNSEndpointByName(eid)
 		if err != nil {
-			log.G(context.TODO()).Errorf("Failed to find HNS ID for endpoint %v: %v", eid, err)
+			log.G(ctx).Errorf("Failed to find HNS ID for endpoint %v: %v", eid, err)
 			return
 		}
 
@@ -75,7 +75,7 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 
 	ilbPolicy, err := hcsshim.AddLoadBalancer(endpoints, true, sourceVIP, vip.String(), 0, 0, 0)
 	if err != nil {
-		log.G(context.TODO()).Errorf("Failed to add ILB policy for service %s (%s) with endpoints %v using load balancer IP %s on network %s: %v",
+		log.G(ctx).Errorf("Failed to add ILB policy for service %s (%s) with endpoints %v using load balancer IP %s on network %s: %v",
 			lb.service.name, vip.String(), endpoints, sourceVIP, n.Name(), err)
 		return
 	}
@@ -110,44 +110,44 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 
 		lbPolicylistMap[lb].elb, err = hcsshim.AddLoadBalancer(endpoints, false, sourceVIP, "", protocol, uint16(port.TargetPort), uint16(port.PublishedPort))
 		if err != nil {
-			log.G(context.TODO()).Errorf("Failed to add ELB policy for service %s (ip:%s target port:%v published port:%v) with endpoints %v using load balancer IP %s on network %s: %v",
+			log.G(ctx).Errorf("Failed to add ELB policy for service %s (ip:%s target port:%v published port:%v) with endpoints %v using load balancer IP %s on network %s: %v",
 				lb.service.name, vip.String(), uint16(port.TargetPort), uint16(port.PublishedPort), endpoints, sourceVIP, n.Name(), err)
 			return
 		}
 	}
 }
 
-func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullRemove bool) {
+func (n *Network) rmLBBackend(ctx context.Context, ip net.IP, lb *loadBalancer, rmService bool, fullRemove bool) {
 	if len(lb.vip) == 0 {
 		return
 	}
 
 	if numEnabledBackends(lb) > 0 {
 		// Reprogram HNS (actually VFP) with the existing backends.
-		n.addLBBackend(ip, lb)
+		n.addLBBackend(ctx, ip, lb)
 	} else {
 		lb.Lock()
 		defer lb.Unlock()
-		log.G(context.TODO()).Debugf("No more backends for service %s (ip:%s).  Removing all policies", lb.service.name, lb.vip.String())
+		log.G(ctx).Debugf("No more backends for service %s (ip:%s).  Removing all policies", lb.service.name, lb.vip.String())
 
 		if policyLists, ok := lbPolicylistMap[lb]; ok {
 			if policyLists.ilb != nil {
 				if _, err := policyLists.ilb.Delete(); err != nil {
-					log.G(context.TODO()).Errorf("Failed to remove HNS ILB policylist %s: %s", policyLists.ilb.ID, err)
+					log.G(ctx).Errorf("Failed to remove HNS ILB policylist %s: %s", policyLists.ilb.ID, err)
 				}
 				policyLists.ilb = nil
 			}
 
 			if policyLists.elb != nil {
 				if _, err := policyLists.elb.Delete(); err != nil {
-					log.G(context.TODO()).Errorf("Failed to remove HNS ELB policylist %s: %s", policyLists.elb.ID, err)
+					log.G(ctx).Errorf("Failed to remove HNS ELB policylist %s: %s", policyLists.elb.ID, err)
 				}
 				policyLists.elb = nil
 			}
 			delete(lbPolicylistMap, lb)
 
 		} else {
-			log.G(context.TODO()).Errorf("Failed to find policies for service %s (%s)", lb.service.name, lb.vip.String())
+			log.G(ctx).Errorf("Failed to find policies for service %s (%s)", lb.service.name, lb.vip.String())
 		}
 	}
 }

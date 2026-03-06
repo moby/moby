@@ -119,7 +119,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 			// if containers AutoRemove flag is set, remove it after clean up
 			if container.HostConfig.AutoRemove {
 				container.Unlock()
-				if err := daemon.containerRm(&daemonCfg.Config, container.ID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+				if err := daemon.containerRm(context.WithoutCancel(ctx), &daemonCfg.Config, container.ID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 					log.G(ctx).Errorf("can't remove container %s: %v", container.ID, err)
 				}
 				container.Lock()
@@ -127,7 +127,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		}
 	}()
 
-	if err := daemon.conditionalMountOnStart(container); err != nil {
+	if err := daemon.conditionalMountOnStart(ctx, container); err != nil {
 		return err
 	}
 
@@ -146,7 +146,7 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		}
 	}()
 
-	mnts, err := daemon.setupContainerDirs(container)
+	mnts, err := daemon.setupContainerDirs(ctx, container)
 	if err != nil {
 		return err
 	}
@@ -282,7 +282,7 @@ func (daemon *Daemon) Cleanup(ctx context.Context, container *container.Containe
 		log.G(ctx).Warnf("%s cleanup: failed to unmount IPC: %s", container.ID, err)
 	}
 
-	if err := daemon.conditionalUnmountOnCleanup(container); err != nil {
+	if err := daemon.conditionalUnmountOnCleanup(ctx, container); err != nil {
 		// FIXME: remove once reference counting for graphdrivers has been refactored
 		// Ensure that all the mounts are gone
 		if mountid, err := daemon.imageService.GetLayerMountID(container.ID); err == nil {

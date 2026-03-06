@@ -61,7 +61,7 @@ func Register(r driverapi.Registerer, pg plugingetter.PluginGetter) error {
 			log.G(context.TODO()).Errorf("error getting capability for %s due to %v", name, err)
 			return
 		}
-		if err = r.RegisterDriver(name, d, *c); err != nil {
+		if err = r.RegisterDriver(context.TODO(), name, d, *c); err != nil {
 			log.G(context.TODO()).Errorf("error registering driver for %s due to %v", name, err)
 		}
 		if c.DataScope == scope.Global {
@@ -287,7 +287,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, options map[string]any) (retErr error) {
+func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, options map[string]any) (retErr error) {
 	join := &api.JoinRequest{
 		NetworkID:  nid,
 		EndpointID: eid,
@@ -304,7 +304,7 @@ func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo 
 
 	defer func() {
 		if retErr != nil {
-			if err := d.Leave(nid, eid); err != nil {
+			if err := d.Leave(context.WithoutCancel(ctx), nid, eid); err != nil {
 				retErr = fmt.Errorf("%w; failed to roll back: %w", err, retErr)
 			} else {
 				retErr = fmt.Errorf("%w; rolled back", retErr)
@@ -358,7 +358,7 @@ func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo 
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid string) error {
+func (d *driver) Leave(_ context.Context, nid, eid string) error {
 	leave := &api.LeaveRequest{
 		NetworkID:  nid,
 		EndpointID: eid,
@@ -443,7 +443,7 @@ func (d *driver) IsBuiltIn() bool {
 }
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
-func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data any) error {
+func (d *driver) DiscoverNew(_ context.Context, dType discoverapi.DiscoveryType, data any) error {
 	if dType != discoverapi.NodeDiscovery {
 		return nil
 	}
@@ -455,7 +455,7 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data any) error {
 }
 
 // DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
-func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data any) error {
+func (d *driver) DiscoverDelete(_ context.Context, dType discoverapi.DiscoveryType, data any) error {
 	if dType != discoverapi.NodeDiscovery {
 		return nil
 	}
