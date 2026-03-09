@@ -18,6 +18,8 @@ TESTDIRS="${TESTDIRS:-./...}"
 
 : "${api_pkg_list:=}"
 : "${client_pkg_list:=}"
+: "${pkg_list:=}"
+: "${libnetwork_pkg_list:=}"
 
 mkdir -p bundles
 
