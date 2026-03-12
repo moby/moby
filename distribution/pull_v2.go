@@ -20,6 +20,7 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
+	"github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	v1 "github.com/docker/docker/image/v1"
@@ -239,7 +240,12 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput progress
 		}
 	}
 
-	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, layerDownload), progressOutput, size-offset, ld.ID(), "Downloading")
+	reader := progress.NewProgressReader(
+		&utils.MetricsReader{
+			ReadCloser: ioutils.NewCancelReadCloser(ctx, layerDownload),
+			Counter:    utils.ImagePullBytes,
+		}, progressOutput, size-offset, ld.ID(), "Downloading",
+	)
 	defer reader.Close()
 
 	if ld.verifier == nil {
