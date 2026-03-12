@@ -171,7 +171,7 @@ ARG GOWINRES_VERSION=v0.3.3
 
 # TODO: Update containerd version to match Linux version once 
 # https://github.com/microsoft/hcsshim/issues/2488 is resolved.
-ARG CONTAINERD_VERSION=v2.0.7
+ARG CONTAINERD_VERSION=v2.2.1
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
