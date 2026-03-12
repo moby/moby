@@ -106,7 +106,8 @@ func (p Port) IsValid() bool {
 }
 
 // String returns a string representation of the port in the format "<portnum>/<proto>".
-// If the port is the zero value, it returns "invalid port".
+// If the port is the zero value, it returns "invalid port", and users should
+// check [PortRange.IsValid] or [PortRange.IsZero] before using this method.
 func (p Port) String() string {
 	switch p.proto {
 	case protoZero:
@@ -261,8 +262,12 @@ func (pr PortRange) IsValid() bool {
 	return pr.proto != protoZero
 }
 
-// String returns a string representation of the port range in the format "<start>-<end>/<proto>" or "<portnum>/<proto>" if start == end.
-// If the port range is the zero value, it returns "invalid port range".
+// String returns a string representation of the port range in the format
+// "<start>-<end>/<proto>" or "<portnum>/<proto>" (if start == end).
+//
+// If the port range is the zero value, it returns "invalid port range",
+// and users should check [PortRange.IsValid] or [PortRange.IsZero] before
+// using this method.
 func (pr PortRange) String() string {
 	switch pr.proto {
 	case protoZero:
