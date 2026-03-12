@@ -46,6 +46,11 @@ func moduleVersion(name string, bi *debug.BuildInfo) (modVersion string) {
 		return ""
 	}
 
+	// Check if we're the main module.
+	if v, ok := getVersion(name, &bi.Main); ok {
+		return v
+	}
+
 	// iterate over all dependencies and find name
 	for _, dep := range bi.Deps {
 		if v, ok := getVersion(name, dep); ok {
