@@ -77,6 +77,16 @@ func (p Port) Num() uint16 {
 	return p.num
 }
 
+// Port returns p's port number as a string.
+//
+// It returns an empty string for zero-values.
+func (p Port) Port() string {
+	if p.proto == protoZero {
+		return ""
+	}
+	return strconv.Itoa(int(p.num))
+}
+
 // Proto returns p's network protocol.
 func (p Port) Proto() IPProtocol {
 	if p.proto == protoZero {

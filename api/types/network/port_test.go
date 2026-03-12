@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -27,6 +28,7 @@ func TestPort(t *testing.T) {
 		assert.Equal(t, p.String(), "invalid port")
 		assert.Equal(t, p.Proto(), IPProtocol(""))
 		assert.Equal(t, p.Num(), uint16(0))
+		assert.Equal(t, p.String(), "")
 		assert.Equal(t, p.Range(), PortRange{})
 
 		t.Run("Marshal Unmarshal", func(t *testing.T) {
@@ -70,6 +72,7 @@ func TestPort(t *testing.T) {
 				p, ok := PortFrom(tc.num, tc.proto)
 				assert.Check(t, ok)
 				assert.Equal(t, p.Num(), tc.num)
+				assert.Equal(t, p.Port(), strconv.Itoa(int(tc.num)))
 				assert.Equal(t, p.Proto(), tc.proto)
 			})
 		}
