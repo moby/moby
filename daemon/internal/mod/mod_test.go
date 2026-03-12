@@ -42,8 +42,10 @@ mod	github.com/moby/moby/v2	(devel)
 dep	github.com/moby/buildkit	v0.11.5	h1:JZvvWzulcnA2G4c/gJiSIqKDUoBjctYw2WMuS+XJexU=
 =>	github.com/moby/buildkit	v0.12.0	h1:3YO8J4RtmG7elEgaWMb4HgmpS2CfY1QlaOz9nwB+ZSs=
 			`,
-			module:      "github.com/moby/buildkit",
-			wantVersion: "v0.12.0",
+			module: "github.com/moby/buildkit",
+			// we currently do not include a version if a "replace" is used;
+			// see https://github.com/moby/moby/pull/52170#issuecomment-4178353517
+			// wantVersion: "v0.12.0",
 		},
 		{
 			name: "returns the base version of pseudo version",
