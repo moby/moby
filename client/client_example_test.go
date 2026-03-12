@@ -8,12 +8,22 @@ import (
 	"github.com/moby/moby/client"
 )
 
-func ExampleNew() {
-	// Create a new client that handles common environment variables
-	// for configuration (DOCKER_HOST, DOCKER_API_VERSION), and does
-	// API-version negotiation to allow downgrading the API version
-	// when connecting with an older daemon version.
-	apiClient, err := client.New(client.FromEnv)
+// This example demonstrates basic usage of the API client.
+//
+// It creates a new client with [client.New] using [client.FromEnv] (configuring
+// the client from commonly used environment variables such as DOCKER_HOST and
+// DOCKER_API_VERSION) and sets a custom User-Agent using [client.WithUserAgent].
+//
+// API-version negotiation is enabled by default to allow downgrading
+// the API version when connecting with an older daemon version.
+//
+// It then lists all containers (both stopped and running) similar to
+// "docker ps --all".
+func Example() {
+	apiClient, err := client.New(
+		client.FromEnv,
+		client.WithUserAgent("my-application/1.0.0"),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}

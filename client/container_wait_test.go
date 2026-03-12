@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"syscall"
 	"testing"
 	"testing/iotest"
-	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
@@ -160,16 +158,5 @@ func TestContainerWaitErrorHandling(t *testing.T) {
 			}
 			// Unexpected - we should not reach this line
 		})
-	}
-}
-
-func ExampleClient_ContainerWait_withTimeout() {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	client, _ := New(FromEnv)
-	wait := client.ContainerWait(ctx, "container_id", ContainerWaitOptions{})
-	if err := <-wait.Error; err != nil {
-		log.Fatal(err)
 	}
 }
