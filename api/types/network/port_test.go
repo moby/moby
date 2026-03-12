@@ -25,6 +25,9 @@ func TestPort(t *testing.T) {
 		assert.Check(t, p.IsZero())
 		assert.Check(t, !p.IsValid())
 		assert.Equal(t, p.String(), "invalid port")
+		assert.Equal(t, p.Proto(), IPProtocol(""))
+		assert.Equal(t, p.Num(), uint16(0))
+		assert.Equal(t, p.Range(), PortRange{})
 
 		t.Run("Marshal Unmarshal", func(t *testing.T) {
 			var p Port
@@ -266,6 +269,11 @@ func TestPortRange(t *testing.T) {
 		assert.Check(t, pr.IsZero())
 		assert.Check(t, !pr.IsValid())
 		assert.Equal(t, pr.String(), "invalid port range")
+		assert.Equal(t, pr.Start(), uint16(0))
+		assert.Equal(t, pr.End(), uint16(0))
+		assert.Equal(t, pr.Proto(), IPProtocol(""))
+		assert.Equal(t, pr.Range(), pr)
+		assert.Check(t, slices.Equal(slices.Collect(pr.All()), []Port{}))
 
 		t.Run("Marshal Unmarshal", func(t *testing.T) {
 			var pr PortRange
@@ -515,7 +523,7 @@ func TestPortRange(t *testing.T) {
 				want: []Port{portFrom(1000, TCP), portFrom(1001, TCP), portFrom(1002, TCP)},
 			},
 			{
-				in:   "0-0/tcp",
+				in:   "0-0/tcp", // TODO(thaJeztah): should this result in "zero-value range" and an empty list?
 				want: []Port{portFrom(0, TCP)},
 			},
 			{

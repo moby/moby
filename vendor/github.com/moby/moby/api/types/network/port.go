@@ -79,6 +79,9 @@ func (p Port) Num() uint16 {
 
 // Proto returns p's network protocol.
 func (p Port) Proto() IPProtocol {
+	if p.proto == protoZero {
+		return ""
+	}
 	return p.proto.Value()
 }
 
@@ -232,6 +235,9 @@ func (pr PortRange) End() uint16 {
 
 // Proto returns pr's network protocol.
 func (pr PortRange) Proto() IPProtocol {
+	if pr.proto == protoZero {
+		return ""
+	}
 	return pr.proto.Value()
 }
 
@@ -307,6 +313,9 @@ func (pr PortRange) Range() PortRange {
 //	}
 func (pr PortRange) All() iter.Seq[Port] {
 	return func(yield func(Port) bool) {
+		if pr.proto == protoZero {
+			return
+		}
 		for i := uint32(pr.Start()); i <= uint32(pr.End()); i++ {
 			if !yield(Port{num: uint16(i), proto: pr.proto}) {
 				return
