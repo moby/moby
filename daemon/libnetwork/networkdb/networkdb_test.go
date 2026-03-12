@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"text/tabwriter"
@@ -17,6 +18,7 @@ import (
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -462,6 +464,88 @@ func TestNetworkDBBulkSync(t *testing.T) {
 	}
 
 	closeNetworkDBInstances(t, dbs)
+}
+
+// logrus hook that counts entries whose message contains substr.
+type timeoutCounter struct {
+	substr string
+	count  atomic.Int32
+}
+
+func (h *timeoutCounter) Levels() []logrus.Level { return logrus.AllLevels }
+
+func (h *timeoutCounter) Fire(entry *logrus.Entry) error {
+	if strings.Contains(entry.Message, h.substr) {
+		h.count.Add(1)
+	}
+	return nil
+}
+
+// Regression test for https://github.com/moby/moby/issues/51701
+//
+// Fires 4 concurrent bulkSyncNode calls at the same target. Without
+// the per-node mutex, all but the last caller's ack channel gets
+// overwritten in bulkSyncAckTbl and never closed, so those callers
+// sit for 30s each waiting for nothing.
+//
+// We hook into logrus and count "timed out" messages instead of using
+// a wall-clock deadline, so this fails deterministically on broken
+// code even if the Go test timeout is long enough.
+func TestBulkSyncNodeConcurrent(t *testing.T) {
+	hook := &timeoutCounter{substr: "timed out"}
+	logrus.StandardLogger().AddHook(hook)
+	origHooks := logrus.StandardLogger().Hooks
+	t.Cleanup(func() { logrus.StandardLogger().ReplaceHooks(origHooks) })
+
+	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
+
+	err := dbs[0].JoinNetwork("network1")
+	assert.NilError(t, err)
+
+	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
+
+	err = dbs[1].JoinNetwork("network1")
+	assert.NilError(t, err)
+
+	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
+
+	for i := range 50 {
+		err = dbs[0].CreateEntry("test_table", "network1",
+			fmt.Sprintf("key%d", i),
+			fmt.Appendf(nil, "val%d", i))
+		assert.NilError(t, err)
+	}
+
+	const N = 4
+	start := make(chan struct{})
+	errs := make([]error, N)
+	var wg sync.WaitGroup
+	wg.Add(N)
+	for i := range N {
+		go func(idx int) {
+			defer wg.Done()
+			<-start
+			errs[idx] = dbs[1].bulkSyncNode(
+				[]string{"network1"}, dbs[0].config.NodeID, true)
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	for i, err := range errs {
+		assert.NilError(t, err, "bulkSyncNode call %d", i)
+	}
+
+	// No bulk sync should have timed out. On broken code this is N-1.
+	assert.Equal(t, hook.count.Load(), int32(0),
+		"expected 0 bulk sync timeouts, but some ack channels were orphaned")
+
+	dbs[1].RLock()
+	remaining := len(dbs[1].bulkSyncAckTbl)
+	dbs[1].RUnlock()
+	assert.Equal(t, remaining, 0,
+		"bulkSyncAckTbl should be empty after all syncs complete")
 }
 
 func TestNetworkDBCRUDMediumCluster(t *testing.T) {

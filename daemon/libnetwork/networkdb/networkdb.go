@@ -83,6 +83,10 @@ type NetworkDB struct {
 	// waiting for an ack.
 	bulkSyncAckTbl map[string]chan struct{}
 
+	// Guards bulkSyncNode so only one call per target node runs
+	// at a time. See bulkSyncNode for why this matters.
+	bulkSyncNodeMu sync.Map
+
 	// Broadcast queue for network event gossip.
 	networkBroadcasts *memberlist.TransmitLimitedQueue
 
