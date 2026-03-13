@@ -1,3 +1,6 @@
+// Copyright IBM Corp. 2013, 2025
+// SPDX-License-Identifier: MPL-2.0
+
 package memberlist
 
 import (
@@ -13,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/sean-/seed"
 )
 
@@ -30,7 +33,7 @@ const (
 )
 
 func init() {
-	seed.Init()
+	_, _ = seed.Init()
 }
 
 // Decode reverses the encode operation on a byte slice input
@@ -42,10 +45,12 @@ func decode(buf []byte, out interface{}) error {
 }
 
 // Encode writes an encoded object to a new bytes buffer
-func encode(msgType messageType, in interface{}) (*bytes.Buffer, error) {
+func encode(msgType messageType, in interface{}, msgpackUseNewTimeFormat bool) (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteByte(uint8(msgType))
 	hd := codec.MsgpackHandle{}
+	hd.TimeNotBuiltin = !msgpackUseNewTimeFormat
+
 	enc := codec.NewEncoder(buf, &hd)
 	err := enc.Encode(in)
 	return buf, err
@@ -141,7 +146,7 @@ OUTER:
 
 		// Check if we have this node already
 		for j := 0; j < len(kNodes); j++ {
-			if state.Node.Name == kNodes[j].Name {
+			if state.Name == kNodes[j].Name {
 				continue OUTER
 			}
 		}
@@ -183,7 +188,7 @@ func makeCompoundMessage(msgs [][]byte) *bytes.Buffer {
 
 	// Add the message lengths
 	for _, m := range msgs {
-		binary.Write(buf, binary.BigEndian, uint16(len(m)))
+		_ = binary.Write(buf, binary.BigEndian, uint16(len(m)))
 	}
 
 	// Append the messages
@@ -235,7 +240,7 @@ func decodeCompoundMessage(buf []byte) (trunc int, parts [][]byte, err error) {
 
 // compressPayload takes an opaque input buffer, compresses it
 // and wraps it in a compress{} message that is encoded.
-func compressPayload(inp []byte) (*bytes.Buffer, error) {
+func compressPayload(inp []byte, msgpackUseNewTimeFormat bool) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	compressor := lzw.NewWriter(&buf, lzw.LSB, lzwLitWidth)
 
@@ -254,7 +259,7 @@ func compressPayload(inp []byte) (*bytes.Buffer, error) {
 		Algo: lzwAlgo,
 		Buf:  buf.Bytes(),
 	}
-	return encode(compressMsg, &c)
+	return encode(compressMsg, &c, msgpackUseNewTimeFormat)
 }
 
 // decompressPayload is used to unpack an encoded compress{}
@@ -273,12 +278,14 @@ func decompressPayload(msg []byte) ([]byte, error) {
 func decompressBuffer(c *compress) ([]byte, error) {
 	// Verify the algorithm
 	if c.Algo != lzwAlgo {
-		return nil, fmt.Errorf("Cannot decompress unknown algorithm %d", c.Algo)
+		return nil, fmt.Errorf("cannot decompress unknown algorithm %d", c.Algo)
 	}
 
 	// Create a uncompressor
 	uncomp := lzw.NewReader(bytes.NewReader(c.Buf), lzw.LSB, lzwLitWidth)
-	defer uncomp.Close()
+	defer func() {
+		_ = uncomp.Close()
+	}()
 
 	// Read all the data
 	var b bytes.Buffer
