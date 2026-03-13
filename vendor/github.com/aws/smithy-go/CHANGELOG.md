@@ -1,7 +1,16 @@
+# Release (2026-02-27)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # Release (2026-02-20)
 
 ## General Highlights
 * **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.24.1
+  * **Feature**: Add new middleware functions to get event stream output from middleware
 
 # Release (2025-12-01)
 

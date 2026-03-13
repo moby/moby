@@ -226,10 +226,10 @@ func WithAPIOptions(optFns ...func(*middleware.Stack) error) func(*Options) {
 }
 
 func (c *Client) invokeOperation(
-	ctx context.Context, opID string, params interface{}, optFns []func(*Options),
+	ctx context.Context, opID string, params any, optFns []func(*Options),
 	stackFns ...func(*middleware.Stack, Options) error,
 ) (
-	result interface{}, metadata middleware.Metadata, err error,
+	result any, metadata middleware.Metadata, err error,
 ) {
 	stack := middleware.NewStack(opID, smithyhttp.NewStackRequest)
 	options := c.options.Copy()
