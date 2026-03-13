@@ -1,15 +1,10 @@
 package client
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"os"
 	"testing"
-	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
@@ -176,25 +171,5 @@ func TestContainerLogs(t *testing.T) {
 			assert.NilError(t, err)
 			assert.Check(t, is.Contains(string(content), "response"))
 		})
-	}
-}
-
-func ExampleClient_ContainerLogs_withTimeout() {
-	client, err := New(FromEnv)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	res, err := client.ContainerLogs(ctx, "container_id", ContainerLogsOptions{})
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer res.Close()
-
-	_, err = io.Copy(os.Stdout, res)
-	if err != nil && !errors.Is(err, io.EOF) {
-		log.Fatal(err)
 	}
 }

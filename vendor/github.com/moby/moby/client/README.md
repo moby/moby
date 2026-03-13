@@ -23,11 +23,16 @@ import (
 )
 
 func main() {
-	// Create a new client that handles common environment variables
-	// for configuration (DOCKER_HOST, DOCKER_API_VERSION), and does
-	// API-version negotiation to allow downgrading the API version
-	// when connecting with an older daemon version.
-	apiClient, err := client.New(client.FromEnv)
+	// Create a new client with "client.FromEnv" (configuring the client
+	// from commonly used environment variables such as DOCKER_HOST and
+	// DOCKER_API_VERSION) and set a custom User-Agent.
+	//
+	// API-version negotiation is enabled by default to allow downgrading
+	// the API version when connecting with an older daemon version.
+	apiClient, err := client.New(
+		client.FromEnv,
+		client.WithUserAgent("my-application/1.0.0"),
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -49,4 +54,4 @@ func main() {
 }
 ```
 
-[Full documentation is available on pkg.go.dev.](https://pkg.go.dev/github.com/moby/moby/client)
+Full documentation is available on [pkg.go.dev](https://pkg.go.dev/github.com/moby/moby/client).
