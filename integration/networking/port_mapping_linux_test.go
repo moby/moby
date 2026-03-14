@@ -759,7 +759,7 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 		t.Parallel()
 		l3.Hosts["remote"].Do(t, func() {
 			t.Helper()
-			pingRes := icmd.RunCommand(cmd, "--numeric", "--count=1", "--timeout=3", addr)
+			pingRes := icmd.RunCommand(cmd, "-n", "-c1", "-W3", addr)
 			assert.Check(t, pingRes.ExitCode == expExit, "%s %s -> out:%s err:%s",
 				cmd, addr, pingRes.Stdout(), pingRes.Stderr())
 		})
@@ -880,7 +880,7 @@ func TestAcceptFwMark(t *testing.T) {
 		t.Parallel()
 		l3.Hosts["remote"].Do(t, func() {
 			t.Helper()
-			pingRes := icmd.RunCommand(cmd, "--numeric", "--count=1", "--timeout=3", addr)
+			pingRes := icmd.RunCommand(cmd, "-n", "-c1", "-W3", addr)
 			assert.Check(t, pingRes.ExitCode == expExit, "%s %s -> out:%s err:%s",
 				cmd, addr, pingRes.Stdout(), pingRes.Stderr())
 		})
