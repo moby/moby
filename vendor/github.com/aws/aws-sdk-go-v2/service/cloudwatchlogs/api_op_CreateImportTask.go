@@ -34,9 +34,10 @@ import (
 //
 //   - logs:PutResourcePolicy
 //
-//   - (If source has an associated AWS KMS Key) kms:Decrypt
+//   - (If source has an associated Amazon Web Services KMS Key) kms:Decrypt
 //
-//   - (If source has an associated AWS KMS Key) kms:GenerateDataKey
+//   - (If source has an associated Amazon Web Services KMS Key)
+//     kms:GenerateDataKey
 //
 // Example IAM policy for provided import role:
 //
