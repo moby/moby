@@ -37,16 +37,10 @@ func RenderTUIProgress(p jsonstream.Progress, width uint16) string {
 		}
 	}
 
-	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
-	if percentage > 50 {
-		percentage = 50
-	}
+	percentage := min(int(float64(p.Current)/float64(p.Total)*100)/2, 50)
 	if width > 110 {
 		// this number can't be negative gh#7136
-		numSpaces := 0
-		if 50-percentage > 0 {
-			numSpaces = 50 - percentage
-		}
+		numSpaces := max(50-percentage, 0)
 		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", numSpaces))
 	}
 

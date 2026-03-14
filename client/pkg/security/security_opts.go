@@ -21,7 +21,7 @@ func DecodeOptions(opts []string) []Option {
 	so := make([]Option, 0, len(opts))
 	for _, opt := range opts {
 		secopt := Option{}
-		for _, s := range strings.Split(opt, ",") {
+		for s := range strings.SplitSeq(opt, ",") {
 			k, v, _ := strings.Cut(s, "=")
 			if k == "" {
 				continue

@@ -344,7 +344,7 @@ func jsonEncode(data any) (io.Reader, error) {
 	// encoding/json encodes a nil pointer as the JSON document `null`,
 	// irrespective of whether the type implements json.Marshaler or encoding.TextMarshaler.
 	// That is almost certainly not what the caller intended as the request body.
-	if v := reflect.ValueOf(data); v.Kind() == reflect.Ptr && v.IsNil() {
+	if v := reflect.ValueOf(data); v.Kind() == reflect.Pointer && v.IsNil() {
 		return http.NoBody, nil
 	}
 
