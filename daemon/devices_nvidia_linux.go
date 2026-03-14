@@ -13,6 +13,7 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/internal/capabilities"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
 
 // TODO: nvidia should not be hard-coded, and should be a device plugin instead on the daemon object.
@@ -22,7 +23,6 @@ var errConflictCountDeviceIDs = errors.New("cannot set both Count and DeviceIDs 
 
 const (
 	nvidiaContainerRuntimeHookExecutableName = "nvidia-container-runtime-hook"
-	nvidiaCDIHookExecutableName              = "nvidia-cdi-hook"
 )
 
 // These are NVIDIA-specific capabilities stolen from github.com/containerd/containerd/contrib/nvidia.allCaps
@@ -35,20 +35,21 @@ var allNvidiaCaps = map[string]struct{}{
 	"display":  {},
 }
 
-func getNVIDIADeviceDrivers() map[string]*deviceDriver {
+func getNVIDIADeviceDrivers(cdiCache *cdi.Cache) map[string]*deviceDriver {
 	var composite firstSuccessfulUpdater
 	nvidiaDrivers := make(map[string]*deviceDriver)
 
-	if _, err := exec.LookPath(nvidiaCDIHookExecutableName); err == nil {
-		// Register a driver specific to CDI if present.
+	if cdiCache != nil {
+		// Create a device injector that handles --gpus device requests using
+		// nvidia.com CDI requests.
+		injector := createCDIInjector(cdiCache, "nvidia.com")
+		// Register a named device driver for this injector so that a user can
+		// explicitly request it.
 		// This has no capabilities associated to not inadvertently match requests.
-		cdiDeviceDriver := &deviceDriver{
-			updateSpec: (&cdiDeviceInjector{
-				defaultCDIDeviceKind: "nvidia.com/gpu",
-			}).injectDevices,
+		nvidiaDrivers["nvidia.cdi"] = &deviceDriver{
+			updateSpec: injector.injectDevices,
 		}
-		nvidiaDrivers["nvidia.cdi"] = cdiDeviceDriver
-		composite = append(composite, cdiDeviceDriver.updateSpec)
+		composite = append(composite, injector.injectDevices)
 	}
 
 	if _, err := exec.LookPath(nvidiaContainerRuntimeHookExecutableName); err == nil {
@@ -78,8 +79,10 @@ func getNVIDIADeviceDrivers() map[string]*deviceDriver {
 	return nvidiaDrivers
 }
 
-// specUpdaters refer to a list of functions used updated an OCI spec for a
-// given device instance.
+// firstSuccessfulUpdater refer to a list of functions used updated an OCI spec
+// for a given device instance.
+// The functions are called in sequence, and if an error is returned, the next
+// function is called.
 type firstSuccessfulUpdater []func(*specs.Spec, *deviceInstance) error
 
 // updateSpec returns on the first successful spec update.
