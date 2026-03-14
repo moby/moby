@@ -120,6 +120,8 @@ require (
 	tags.cncf.io/container-device-interface v1.1.0
 )
 
+require github.com/stretchr/testify v1.11.1
+
 require (
 	cloud.google.com/go v0.121.6 // indirect
 	cloud.google.com/go/auth v0.18.0 // indirect
@@ -253,7 +255,6 @@ require (
 	github.com/sigstore/sigstore-go v1.1.4 // indirect
 	github.com/sigstore/timestamp-authority/v2 v2.0.3 // indirect
 	github.com/spdx/tools-golang v0.5.7 // indirect
-	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tetratelabs/wazero v1.11.0 // indirect
 	github.com/theupdateframework/go-tuf/v2 v2.4.1 // indirect
 	github.com/tinylib/msgp v1.3.0 // indirect
