@@ -165,7 +165,9 @@ func CheckRedirect(_ *http.Request, via []*http.Request) error {
 
 // NewClientWithOpts initializes a new API client.
 //
-// Deprecated: use New. This function will be removed in the next release.
+// Deprecated: use [New]. This function will be removed in the next release.
+//
+//go:fix inline
 func NewClientWithOpts(ops ...Opt) (*Client, error) {
 	return New(ops...)
 }
