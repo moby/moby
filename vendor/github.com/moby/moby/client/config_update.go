@@ -13,6 +13,7 @@ type ConfigUpdateOptions struct {
 	Spec    swarm.ConfigSpec
 }
 
+// ConfigUpdateResult holds the result of [Client.ConfigUpdate].
 type ConfigUpdateResult struct{}
 
 // ConfigUpdate attempts to update a config

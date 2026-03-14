@@ -12,6 +12,7 @@ import (
 // NodeInspectOptions holds parameters to inspect nodes with.
 type NodeInspectOptions struct{}
 
+// NodeInspectResult holds the result of [Client.NodeInspect].
 type NodeInspectResult struct {
 	Node swarm.Node
 	Raw  json.RawMessage

@@ -2,10 +2,12 @@ package client
 
 import "context"
 
+// SecretRemoveOptions holds options for [Client.SecretRemove].
 type SecretRemoveOptions struct {
 	// Add future optional parameters here
 }
 
+// SecretRemoveResult holds the result of [Client.SecretRemove].
 type SecretRemoveResult struct {
 	// Add future fields here
 }

@@ -13,6 +13,7 @@ type NodeUpdateOptions struct {
 	Spec    swarm.NodeSpec
 }
 
+// NodeUpdateResult holds the result of [Client.NodeUpdate].
 type NodeUpdateResult struct{}
 
 // NodeUpdate updates a Node.
