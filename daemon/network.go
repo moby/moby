@@ -24,6 +24,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/netipstringer"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	lncluster "github.com/moby/moby/v2/daemon/libnetwork/cluster"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
@@ -280,13 +281,21 @@ func (daemon *Daemon) WaitForDetachment(ctx context.Context, networkName, networ
 
 // CreateManagedNetwork creates an agent network.
 func (daemon *Daemon) CreateManagedNetwork(create clustertypes.NetworkCreateRequest) error {
-	_, err := daemon.createNetwork(context.TODO(), &daemon.config().Config, create.CreateRequest, create.ID, true)
-	return err
+	return rootless.RunInDetachedNetNS(func() error {
+		_, err := daemon.createNetwork(context.TODO(), &daemon.config().Config, create.CreateRequest, create.ID, true)
+		return err
+	})
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
 func (daemon *Daemon) CreateNetwork(ctx context.Context, create networktypes.CreateRequest) (*networktypes.CreateResponse, error) {
-	return daemon.createNetwork(ctx, &daemon.config().Config, create, "", false)
+	var resp *networktypes.CreateResponse
+	err := rootless.RunInDetachedNetNS(func() error {
+		var err error
+		resp, err = daemon.createNetwork(ctx, &daemon.config().Config, create, "", false)
+		return err
+	})
+	return resp, err
 }
 
 func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, create networktypes.CreateRequest, id string, agent bool) (*networktypes.CreateResponse, error) {
@@ -623,20 +632,24 @@ func (daemon *Daemon) GetNetworkDriverList(ctx context.Context) []string {
 // DeleteManagedNetwork deletes an agent network.
 // The requirement of networkID is enforced.
 func (daemon *Daemon) DeleteManagedNetwork(networkID string) error {
-	n, err := daemon.GetNetworkByID(networkID)
-	if err != nil {
-		return err
-	}
-	return daemon.deleteNetwork(n, true)
+	return rootless.RunInDetachedNetNS(func() error {
+		n, err := daemon.GetNetworkByID(networkID)
+		if err != nil {
+			return err
+		}
+		return daemon.deleteNetwork(n, true)
+	})
 }
 
 // DeleteNetwork destroys a network unless it's one of docker's predefined networks.
 func (daemon *Daemon) DeleteNetwork(networkID string) error {
-	n, err := daemon.GetNetworkByID(networkID)
-	if err != nil {
-		return fmt.Errorf("could not find network by ID: %w", err)
-	}
-	return daemon.deleteNetwork(n, false)
+	return rootless.RunInDetachedNetNS(func() error {
+		n, err := daemon.GetNetworkByID(networkID)
+		if err != nil {
+			return fmt.Errorf("could not find network by ID: %w", err)
+		}
+		return daemon.deleteNetwork(n, false)
+	})
 }
 
 func (daemon *Daemon) deleteNetwork(nw *libnetwork.Network, dynamic bool) error {
