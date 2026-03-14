@@ -76,7 +76,7 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to export layer: %w", err)
 	}
-	imageConfig := generateCommitImageConfig(parentImage, diffID, cc)
+	imageConfig := generateCommitImageConfig(ctx, parentImage, diffID, cc)
 
 	layers := parentManifest.Layers
 	if diffLayerDesc != nil {
@@ -94,7 +94,7 @@ func (i *ImageService) CommitImage(ctx context.Context, cc backend.CommitConfig)
 
 // generateCommitImageConfig generates an OCI Image config based on the
 // container's image and the CommitConfig options.
-func generateCommitImageConfig(baseConfig dockerspec.DockerOCIImage, diffID digest.Digest, opts backend.CommitConfig) dockerspec.DockerOCIImage {
+func generateCommitImageConfig(ctx context.Context, baseConfig dockerspec.DockerOCIImage, diffID digest.Digest, opts backend.CommitConfig) dockerspec.DockerOCIImage {
 	if opts.Author == "" {
 		opts.Author = baseConfig.Author
 	}
@@ -103,14 +103,14 @@ func generateCommitImageConfig(baseConfig dockerspec.DockerOCIImage, diffID dige
 	arch := baseConfig.Architecture
 	if arch == "" {
 		arch = runtime.GOARCH
-		log.G(context.TODO()).Warnf("assuming arch=%q", arch)
+		log.G(ctx).Warnf("assuming arch=%q", arch)
 	}
 	os := baseConfig.OS
 	if os == "" {
 		os = runtime.GOOS
-		log.G(context.TODO()).Warnf("assuming os=%q", os)
+		log.G(ctx).Warnf("assuming os=%q", os)
 	}
-	log.G(context.TODO()).Debugf("generateCommitImageConfig(): arch=%q, os=%q", arch, os)
+	log.G(ctx).Debugf("generateCommitImageConfig(): arch=%q, os=%q", arch, os)
 
 	diffIds := baseConfig.RootFS.DiffIDs
 	if diffID != "" {

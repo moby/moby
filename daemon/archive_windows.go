@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -18,7 +19,7 @@ import (
 
 // containerStatPath stats the filesystem resource at the specified path in this
 // container. Returns stat info about the resource.
-func (daemon *Daemon) containerStatPath(container *container.Container, path string) (*containertypes.PathStat, error) {
+func (daemon *Daemon) containerStatPath(ctx context.Context, container *container.Container, path string) (*containertypes.PathStat, error) {
 	container.Lock()
 	defer container.Unlock()
 
@@ -27,10 +28,10 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 		return nil, err
 	}
 
-	if err := daemon.Mount(container); err != nil {
+	if err := daemon.Mount(ctx, container); err != nil {
 		return nil, err
 	}
-	defer daemon.Unmount(container)
+	defer daemon.Unmount(context.WithoutCancel(ctx), container)
 
 	err := daemon.mountVolumes(container)
 	defer container.DetachAndUnmount(daemon.LogVolumeEvent)
@@ -52,7 +53,7 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 // containerArchivePath creates an archive of the filesystem resource at the specified
 // path in this container. Returns a tar archive of the resource and stat info
 // about the resource.
-func (daemon *Daemon) containerArchivePath(container *container.Container, path string) (content io.ReadCloser, stat *containertypes.PathStat, retErr error) {
+func (daemon *Daemon) containerArchivePath(ctx context.Context, container *container.Container, path string) (content io.ReadCloser, stat *containertypes.PathStat, retErr error) {
 	container.Lock()
 
 	defer func() {
@@ -69,7 +70,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 		return nil, nil, err
 	}
 
-	if err := daemon.Mount(container); err != nil {
+	if err := daemon.Mount(ctx, container); err != nil {
 		return nil, nil, err
 	}
 
@@ -78,7 +79,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 			// unmount any volumes
 			container.DetachAndUnmount(daemon.LogVolumeEvent)
 			// unmount the container's rootfs
-			daemon.Unmount(container)
+			daemon.Unmount(context.WithoutCancel(ctx), container)
 		}
 	}()
 
@@ -131,7 +132,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 	content = ioutils.NewReadCloserWrapper(data, func() error {
 		err := data.Close()
 		container.DetachAndUnmount(daemon.LogVolumeEvent)
-		daemon.Unmount(container)
+		daemon.Unmount(context.WithoutCancel(ctx), container)
 		container.Unlock()
 		return err
 	})
@@ -149,7 +150,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 // directory and vice versa.
 //
 // FIXME(thaJeztah): copyUIDGID is not supported on Windows, but currently ignored silently
-func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, allowOverwriteDirWithFile bool, content io.Reader) error {
+func (daemon *Daemon) containerExtractToDir(ctx context.Context, container *container.Container, path string, copyUIDGID, allowOverwriteDirWithFile bool, content io.Reader) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -158,10 +159,10 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		return err
 	}
 
-	if err := daemon.Mount(container); err != nil {
+	if err := daemon.Mount(ctx, container); err != nil {
 		return err
 	}
-	defer daemon.Unmount(container)
+	defer daemon.Unmount(context.WithoutCancel(ctx), container)
 
 	err := daemon.mountVolumes(container)
 	defer container.DetachAndUnmount(daemon.LogVolumeEvent)
@@ -224,7 +225,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	return nil
 }
 
-func (daemon *Daemon) containerCopy(container *container.Container, resource string) (_ io.ReadCloser, retErr error) {
+func (daemon *Daemon) containerCopy(ctx context.Context, container *container.Container, resource string) (_ io.ReadCloser, retErr error) {
 	if resource[0] == '/' || resource[0] == '\\' {
 		resource = resource[1:]
 	}
@@ -244,7 +245,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 		return nil, err
 	}
 
-	if err := daemon.Mount(container); err != nil {
+	if err := daemon.Mount(ctx, container); err != nil {
 		return nil, err
 	}
 
@@ -253,7 +254,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 			// unmount any volumes
 			container.DetachAndUnmount(daemon.LogVolumeEvent)
 			// unmount the container's rootfs
-			daemon.Unmount(container)
+			daemon.Unmount(context.WithoutCancel(ctx), container)
 		}
 	}()
 
@@ -289,7 +290,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	reader := ioutils.NewReadCloserWrapper(archv, func() error {
 		err := archv.Close()
 		container.DetachAndUnmount(daemon.LogVolumeEvent)
-		daemon.Unmount(container)
+		daemon.Unmount(context.WithoutCancel(ctx), container)
 		container.Unlock()
 		return err
 	})

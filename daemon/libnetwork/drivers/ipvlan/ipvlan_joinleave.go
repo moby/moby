@@ -150,7 +150,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid string) error {
+func (d *driver) Leave(_ context.Context, nid, eid string) error {
 	return nil
 }
 

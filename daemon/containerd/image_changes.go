@@ -32,12 +32,12 @@ func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) ([
 		}
 	}()
 
-	containerRoot, err := rwl.Mount(ctr.GetMountLabel())
+	containerRoot, err := rwl.Mount(ctx, ctr.GetMountLabel())
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		if err := rwl.Unmount(); err != nil {
+		if err := rwl.Unmount(ctx); err != nil {
 			log.G(ctx).WithFields(log.Fields{"error": err, "container": ctr.ID}).Warn("Failed to unmount container RWLayer after export")
 		}
 	}()

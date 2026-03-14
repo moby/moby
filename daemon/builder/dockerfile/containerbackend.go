@@ -61,7 +61,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 		select {
 		case <-ctx.Done():
 			log.G(ctx).Debugln("Build cancelled, removing container:", cID)
-			err := c.backend.ContainerRm(cID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
+			err := c.backend.ContainerRm(context.WithoutCancel(ctx), cID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
 			if err != nil {
 				_, _ = fmt.Fprintf(stdout, "Removing container %s: %v\n", stringid.TruncateID(cID), err)
 			}
@@ -124,9 +124,9 @@ func (e *statusCodeError) StatusCode() int {
 }
 
 // RemoveAll containers managed by this container manager
-func (c *containerManager) RemoveAll(stdout io.Writer) {
+func (c *containerManager) RemoveAll(ctx context.Context, stdout io.Writer) {
 	for containerID := range c.tmpContainers {
-		if err := c.backend.ContainerRm(containerID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil && !cerrdefs.IsNotFound(err) {
+		if err := c.backend.ContainerRm(ctx, containerID, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil && !cerrdefs.IsNotFound(err) {
 			_, _ = fmt.Fprintf(stdout, "Removing intermediate container %s: %v\n", stringid.TruncateID(containerID), err)
 			continue
 		}

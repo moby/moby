@@ -11,7 +11,7 @@ import (
 )
 
 // GetLayerFolders returns the layer folders from an image RootFS
-func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer container.RWLayer, containerID string) ([]string, error) {
+func (i *ImageService) GetLayerFolders(ctx context.Context, img *image.Image, rwLayer container.RWLayer, containerID string) ([]string, error) {
 	// Windows specific
 	panic("not implemented")
 }

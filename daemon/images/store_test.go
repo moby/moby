@@ -53,20 +53,20 @@ func TestImageDelete(t *testing.T) {
 	t.Run("no lease", func(t *testing.T) {
 		id, err := images.Create([]byte(`{"rootFS": {}}`))
 		assert.NilError(t, err)
-		defer images.Delete(id)
+		defer images.Delete(ctx, id)
 
 		ls, err := images.leases.List(ctx)
 		assert.NilError(t, err)
 		assert.Equal(t, len(ls), 0, ls)
 
-		_, err = images.Delete(id)
+		_, err = images.Delete(ctx, id)
 		assert.NilError(t, err, "should not error when there is no lease")
 	})
 
 	t.Run("lease exists", func(t *testing.T) {
 		id, err := images.Create([]byte(`{"rootFS": {}}`))
 		assert.NilError(t, err)
-		defer images.Delete(id)
+		defer images.Delete(ctx, id)
 
 		leaseID := imageKey(id.String())
 		_, err = images.leases.Create(ctx, leases.WithID(leaseID))
@@ -77,7 +77,7 @@ func TestImageDelete(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(len(ls), 1), ls)
 
-		_, err = images.Delete(id)
+		_, err = images.Delete(ctx, id)
 		assert.NilError(t, err)
 
 		ls, err = images.leases.List(ctx)

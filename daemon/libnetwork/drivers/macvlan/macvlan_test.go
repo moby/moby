@@ -3,6 +3,7 @@
 package macvlan
 
 import (
+	"context"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
@@ -16,7 +17,7 @@ type driverTester struct {
 	d *driver
 }
 
-func (dt *driverTester) RegisterDriver(name string, drv driverapi.Driver, capability driverapi.Capability) error {
+func (dt *driverTester) RegisterDriver(_ context.Context, name string, drv driverapi.Driver, capability driverapi.Capability) error {
 	if name != testNetworkType {
 		dt.t.Fatalf("Expected driver register name to be %q. Instead got %q",
 			testNetworkType, name)
@@ -37,14 +38,14 @@ func (dt *driverTester) RegisterNetworkAllocator(name string, _ driverapi.Networ
 }
 
 func TestMacvlanRegister(t *testing.T) {
-	if err := Register(&driverTester{t: t}, storeutils.NewTempStore(t)); err != nil {
+	if err := Register(t.Context(), &driverTester{t: t}, storeutils.NewTempStore(t)); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestMacvlanNilConfig(t *testing.T) {
 	dt := &driverTester{t: t}
-	if err := Register(dt, storeutils.NewTempStore(t)); err != nil {
+	if err := Register(t.Context(), dt, storeutils.NewTempStore(t)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -55,7 +56,7 @@ func TestMacvlanNilConfig(t *testing.T) {
 
 func TestMacvlanType(t *testing.T) {
 	dt := &driverTester{t: t}
-	if err := Register(dt, storeutils.NewTempStore(t)); err != nil {
+	if err := Register(t.Context(), dt, storeutils.NewTempStore(t)); err != nil {
 		t.Fatal(err)
 	}
 

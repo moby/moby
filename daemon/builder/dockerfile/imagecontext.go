@@ -112,7 +112,7 @@ func (im *imageMount) unmount() error {
 	if im.layer == nil {
 		return nil
 	}
-	if err := im.layer.Release(); err != nil {
+	if err := im.layer.Release(context.TODO()); err != nil {
 		return errors.Wrapf(err, "failed to unmount previous build image %s", im.image.ImageID())
 	}
 	im.layer = nil
@@ -124,7 +124,7 @@ func (im *imageMount) Image() builder.Image {
 }
 
 func (im *imageMount) NewRWLayer() (builder.RWLayer, error) {
-	return im.layer.NewRWLayer()
+	return im.layer.NewRWLayer(context.TODO())
 }
 
 func (im *imageMount) ImageID() string {
