@@ -128,7 +128,7 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 // when failing to make a connection, On error, any Response can be ignored.
 // A non-2xx status code doesn't cause an error.
 func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
-	resp, err := cli.client.Do(req)
+	resp, err := cli.client.Do(req) // #nosec G704 -- ignore "SSRF via taint analysis"; API client intentionally sends caller-provided requests/URLs.
 	if err == nil {
 		return resp, nil
 	}

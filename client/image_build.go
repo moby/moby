@@ -23,7 +23,7 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 		return ImageBuildResult{}, err
 	}
 
-	buf, err := json.Marshal(options.AuthConfigs)
+	buf, err := json.Marshal(options.AuthConfigs) // #nosec G117 -- ignore "Marshaled struct field "Password" (JSON key "password") matches secret pattern"
 	if err != nil {
 		return ImageBuildResult{}, err
 	}
