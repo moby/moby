@@ -293,6 +293,11 @@ linters:
         linters:
           - gosec
 
+      - text: "G120: Parsing form data without limiting request body size can allow memory exhaustion"
+        path: _test\.go
+        linters:
+          - gosec
+
       - text: "G404: Use of weak random number generator"
         path: _test\.go
         linters:
