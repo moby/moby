@@ -179,14 +179,9 @@ jobs:
       WINDOWS_BASE_TAG_2022: ltsc2022
       TEST_IMAGE_NAME: moby:test
       TEST_CTN_NAME: moby
-    defaults:
-      run:
-        working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          path: ${{ env.GOPATH }}/src/github.com/docker/docker
 
       - name: Env
         run: |
@@ -239,8 +234,8 @@ jobs:
       - name: Copy artifacts
         run: |
           New-Item -ItemType "directory" -Path "${{ env.BIN_OUT }}"
-          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\src\github.com\docker\docker\bundles\docker.exe" ${{ env.BIN_OUT }}\
-          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\src\github.com\docker\docker\bundles\dockerd.exe" ${{ env.BIN_OUT }}\
+          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\usr\src\moby\bundles\docker.exe" ${{ env.BIN_OUT }}\
+          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\usr\src\moby\bundles\dockerd.exe" ${{ env.BIN_OUT }}\
           docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\bin\gotestsum.exe" ${{ env.BIN_OUT }}\
           docker cp "${{ env.TEST_CTN_NAME }}`:c`:\containerd\bin\containerd.exe" ${{ env.BIN_OUT }}\
           docker cp "${{ env.TEST_CTN_NAME }}`:c`:\containerd\bin\containerd-shim-runhcs-v1.exe" ${{ env.BIN_OUT }}\
