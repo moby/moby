@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containerd/containerd/v2/pkg/tracing"
@@ -16,6 +17,7 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/internal/filedescriptors"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
+	"github.com/moby/moby/v2/daemon/internal/mod"
 	"github.com/moby/moby/v2/daemon/internal/platform"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
@@ -95,6 +97,18 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 	return v, nil
 }
 
+const (
+	moduleName           = "github.com/moby/moby/v2"
+	defaultModuleVersion = "v2.0.0+unknown"
+)
+
+var moduleVersion = sync.OnceValue(func() string {
+	if v := mod.Version(moduleName); v != "" {
+		return v
+	}
+	return defaultModuleVersion
+})
+
 // SystemVersion returns version information about the daemon.
 //
 // The only error this should return is due to context cancellation/deadline.
@@ -121,6 +135,8 @@ func (daemon *Daemon) SystemVersion(ctx context.Context) (system.VersionResponse
 					"Arch":          runtime.GOARCH,
 					"BuildTime":     dockerversion.BuildTime,
 					"KernelVersion": kernelVer,
+					"Module":        moduleName,
+					"ModuleVersion": moduleVersion(),
 					"Experimental":  strconv.FormatBool(cfg.Experimental),
 				},
 			},
