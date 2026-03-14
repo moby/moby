@@ -12,8 +12,8 @@ import (
 
 // Register registers all the builtin drivers (ie. default, windowsipam, null
 // and remote). 'pg' is nil here in case of non-managed plugins which Windows is using.
-func Register(r ipamapi.Registerer, pg plugingetter.PluginGetter, lAddrPools, gAddrPools []*ipamutils.NetworkToSplit) error {
-	if err := defaultipam.Register(r, lAddrPools, gAddrPools); err != nil {
+func Register(r ipamapi.Registerer, pg plugingetter.PluginGetter, lAddrPools, gAddrPools []*ipamutils.NetworkToSplit, defaultSubnetSize *int) error {
+	if err := defaultipam.Register(r, lAddrPools, gAddrPools, defaultSubnetSize); err != nil {
 		return err
 	}
 	if err := windowsipam.Register(r); err != nil {
