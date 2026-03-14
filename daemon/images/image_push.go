@@ -18,6 +18,9 @@ import (
 // PushImage initiates a push operation on the repository named localName.
 // func (i *ImageService) PushImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registry.AuthConfig, outStream io.Writer) error {
 func (i *ImageService) PushImage(ctx context.Context, ref reference.Named, options imagebackend.PushOptions) error {
+	if options.ClientAuth {
+		return cerrdefs.ErrNotImplemented.WithMessage("engine is using the graphdriver image store, which does not support client auth handling")
+	}
 	if len(options.Platforms) > 1 {
 		// TODO(thaJeztah): add support for pushing multiple platforms
 		return cerrdefs.ErrInvalidArgument.WithMessage("multiple platforms is not supported")
