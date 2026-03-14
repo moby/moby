@@ -1,3 +1,6 @@
+// Copyright IBM Corp. 2013, 2025
+// SPDX-License-Identifier: MPL-2.0
+
 package memberlist
 
 import (
@@ -10,10 +13,25 @@ import (
 	"sync/atomic"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	metrics "github.com/hashicorp/go-metrics/compat"
 )
 
 type NodeStateType int
+
+func (t NodeStateType) metricsString() string {
+	switch t {
+	case StateAlive:
+		return "alive"
+	case StateDead:
+		return "dead"
+	case StateSuspect:
+		return "suspect"
+	case StateLeft:
+		return "left"
+	default:
+		return fmt.Sprintf("unhandled-value-%d", t)
+	}
+}
 
 const (
 	StateAlive NodeStateType = iota
@@ -234,9 +252,8 @@ START:
 
 	// Determine if we should probe this node
 	skip := false
-	var node nodeState
+	node := *m.nodes[m.probeIndex]
 
-	node = *m.nodes[m.probeIndex]
 	if node.Name == m.config.Name {
 		skip = true
 	} else if node.DeadOrLeft() {
@@ -338,14 +355,14 @@ func (m *Memberlist) probeNode(node *nodeState) {
 		}
 	} else {
 		var msgs [][]byte
-		if buf, err := encode(pingMsg, &ping); err != nil {
+		if buf, err := encode(pingMsg, &ping, m.config.MsgpackUseNewTimeFormat); err != nil {
 			m.logger.Printf("[ERR] memberlist: Failed to encode UDP ping message: %s", err)
 			return
 		} else {
 			msgs = append(msgs, buf.Bytes())
 		}
 		s := suspect{Incarnation: node.Incarnation, Node: node.Name, From: m.config.Name}
-		if buf, err := encode(suspectMsg, &s); err != nil {
+		if buf, err := encode(suspectMsg, &s, m.config.MsgpackUseNewTimeFormat); err != nil {
 			m.logger.Printf("[ERR] memberlist: Failed to encode suspect message: %s", err)
 			return
 		} else {
@@ -373,7 +390,7 @@ func (m *Memberlist) probeNode(node *nodeState) {
 	// Wait for response or round-trip-time.
 	select {
 	case v := <-ackCh:
-		if v.Complete == true {
+		if v.Complete {
 			if m.config.Ping != nil {
 				rtt := v.Timestamp.Sub(sent)
 				m.config.Ping.NotifyPingComplete(&node.Node, rtt, v.Payload)
@@ -383,7 +400,7 @@ func (m *Memberlist) probeNode(node *nodeState) {
 
 		// As an edge case, if we get a timeout, we need to re-enqueue it
 		// here to break out of the select below.
-		if v.Complete == false {
+		if !v.Complete {
 			ackCh <- v
 		}
 	case <-time.After(m.config.ProbeTimeout):
@@ -466,11 +483,9 @@ HANDLE_REMOTE_FAILURE:
 	// channel here because we want to issue a warning below if that's the
 	// *only* way we hear back from the peer, so we have to let this time
 	// out first to allow the normal UDP-based acks to come in.
-	select {
-	case v := <-ackCh:
-		if v.Complete == true {
-			return
-		}
+	v := <-ackCh
+	if v.Complete {
+		return
 	}
 
 	// Finally, poll the fallback channel. The timeouts are set such that
@@ -534,7 +549,7 @@ func (m *Memberlist) Ping(node string, addr net.Addr) (time.Duration, error) {
 	// Wait for response or timeout.
 	select {
 	case v := <-ackCh:
-		if v.Complete == true {
+		if v.Complete {
 			return v.Timestamp.Sub(sent), nil
 		}
 	case <-time.After(m.config.ProbeTimeout):
@@ -1213,7 +1228,7 @@ func (m *Memberlist) suspectNode(s *suspect) {
 
 		m.nodeLock.Lock()
 		state, ok := m.nodeMap[s.Node]
-		timeout := ok && state.State == StateSuspect && state.StateChange == changeTime
+		timeout := ok && state.State == StateSuspect && state.StateChange.Equal(changeTime)
 		if timeout {
 			d = &dead{Incarnation: state.Incarnation, Node: state.Name, From: m.config.Name}
 		}
