@@ -222,10 +222,17 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 			platform = p
 		}
 	}
+	var forceCheck bool
+	if formForceCheck := r.Form.Get("force-check"); formForceCheck != "" {
+		if val, err := strconv.ParseBool(formForceCheck); err == nil {
+			forceCheck = val
+		}
+	}
 	pushOptions := imagebackend.PushOptions{
-		AuthConfig:  authConfig,
-		MetaHeaders: metaHeaders,
-		OutStream:   output,
+		AuthConfig:           authConfig,
+		MetaHeaders:          metaHeaders,
+		ForceCheckLayerExist: forceCheck,
+		OutStream:            output,
 	}
 	if platform != nil {
 		pushOptions.Platforms = append(pushOptions.Platforms, *platform)
