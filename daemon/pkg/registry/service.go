@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net/url"
-	"strings"
 	"sync"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -57,17 +57,26 @@ func (s *Service) ReplaceConfig(options ServiceOptions) (commit func(), _ error)
 // and returns OK if authentication was successful.
 // It can be used to verify the validity of a client's credentials.
 func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, userAgent string) (token string, _ error) {
-	// TODO Use ctx when searching for repositories
 	registryHostName := IndexHostname
 
 	if authConfig.ServerAddress != "" {
 		serverAddress := authConfig.ServerAddress
-		if !strings.HasPrefix(serverAddress, "https://") && !strings.HasPrefix(serverAddress, "http://") {
-			serverAddress = "https://" + serverAddress
-		}
 		u, err := url.Parse(serverAddress)
 		if err != nil {
-			return "", invalidParamWrapf(err, "unable to parse server address")
+			return "", invalidParam(fmt.Errorf(`invalid server address: unable to parse: %w`, err))
+		}
+		if u.Scheme == "" {
+			// url.Parse treats input without a scheme as path, not hostname.
+			u, err = url.Parse("https://" + serverAddress)
+			if err != nil {
+				return "", invalidParam(fmt.Errorf(`invalid server address: unable to parse: %w`, err))
+			}
+		}
+		switch u.Scheme {
+		case "http", "https":
+			// all good
+		default:
+			return "", invalidParamf(`invalid server address %q: unsupported URL scheme %q: must be "http" or "https"`, serverAddress, u.Scheme)
 		}
 		registryHostName = u.Host
 	}
