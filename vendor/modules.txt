@@ -1167,7 +1167,7 @@ github.com/moby/ipvs
 ## explicit; go 1.13
 github.com/moby/locker
 # github.com/moby/moby/api v1.54.0 => ./api
-## explicit; go 1.24.0
+## explicit; go 1.24
 github.com/moby/moby/api/pkg/authconfig
 github.com/moby/moby/api/pkg/stdcopy
 github.com/moby/moby/api/types
