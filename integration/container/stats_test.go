@@ -15,9 +15,10 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
-	"github.com/stretchr/testify/require"
+
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -111,10 +112,8 @@ func TestStatsNetworkStats(t *testing.T) {
 	cID := container.Run(ctx, t, apiClient)
 
 	var (
-		preRxPackets  uint64
-		preTxPackets  uint64
-		postRxPackets uint64
-		postTxPackets uint64
+		preRxPackets uint64
+		preTxPackets uint64
 	)
 
 	net := "bridge"
@@ -157,31 +156,25 @@ func TestStatsNetworkStats(t *testing.T) {
 	expTxPkts := preTxPackets + uint64(numPings)
 
 	// Poll for both PostTxPackets and PostRxPackets until they have the expected quantity
-	waitFor := 2 * time.Second
-	poll := 100 * time.Millisecond
-
-	require.Eventuallyf(t, func() bool {
+	poll.WaitOn(t, func(l poll.LogT) poll.Result {
 		nwStatsPost := getNetworkStats(ctx, t, apiClient, cID)
-
+		postRxPackets := uint64(0)
 		postTxPackets := uint64(0)
 		for _, v := range nwStatsPost {
 			postTxPackets += v.TxPackets
+			postRxPackets += v.RxPackets
 		}
 
-		return postTxPackets >= expTxPkts
-	}, waitFor, poll, "Reported less Tx packets than expected. Expected >= %d. Found %d. %s", expTxPkts, postTxPackets, pingouts)
-
-	require.Eventuallyf(t, func() bool {
-		nwStatsPost := getNetworkStats(ctx, t, apiClient, cID)
-
-		postRxPackets := uint64(0)
-		for _, v := range nwStatsPost {
-			postRxPackets += v.TxPackets
+		if postTxPackets < expTxPkts {
+			return poll.Continue("Reported less Tx packets than expected. Expected >= %d. Found %d. %s", expTxPkts, postTxPackets, pingouts)
 		}
 
-		return postRxPackets >= expRxPkts
-	}, waitFor, poll, "Reported less Rx packets than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingouts)
+		if postRxPackets < expRxPkts {
+			return poll.Continue("Reported less Rx packets than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingouts)
+		}
 
+		return poll.Success()
+	}, poll.WithDelay(100*time.Millisecond), poll.WithTimeout(2*time.Second))
 }
 
 func getNetworkStats(ctx context.Context, t *testing.T, apiClient client.APIClient, id string) map[string]containertypes.NetworkStats {
