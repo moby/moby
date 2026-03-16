@@ -84,7 +84,7 @@ type TableObj struct {
 
 func (t *TableObj) String() string {
 	var output strings.Builder
-	output.WriteString(fmt.Sprintf("total entries: %d\n", t.Length))
+	fmt.Fprintf(&output, "total entries: %d\n", t.Length)
 	for _, e := range t.Elements {
 		output.WriteString(e.String())
 	}

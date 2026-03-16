@@ -128,7 +128,7 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 // when failing to make a connection, On error, any Response can be ignored.
 // A non-2xx status code doesn't cause an error.
 func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
-	resp, err := cli.client.Do(req)
+	resp, err := cli.client.Do(req) // #nosec G704 -- ignore "SSRF via taint analysis"; API client intentionally sends caller-provided requests/URLs.
 	if err == nil {
 		return resp, nil
 	}
@@ -344,7 +344,7 @@ func jsonEncode(data any) (io.Reader, error) {
 	// encoding/json encodes a nil pointer as the JSON document `null`,
 	// irrespective of whether the type implements json.Marshaler or encoding.TextMarshaler.
 	// That is almost certainly not what the caller intended as the request body.
-	if v := reflect.ValueOf(data); v.Kind() == reflect.Ptr && v.IsNil() {
+	if v := reflect.ValueOf(data); v.Kind() == reflect.Pointer && v.IsNil() {
 		return http.NoBody, nil
 	}
 

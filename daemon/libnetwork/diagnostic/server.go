@@ -158,7 +158,7 @@ func (s *Server) help(w http.ResponseWriter, r *http.Request) {
 	var result strings.Builder
 	s.mu.Lock()
 	for path := range s.handlers {
-		result.WriteString(fmt.Sprintf("%s\n", path))
+		fmt.Fprintf(&result, "%s\n", path)
 	}
 	s.mu.Unlock()
 	_, _ = HTTPReply(w, CommandSucceed(&StringCmd{Info: result.String()}), jsonOutput)
