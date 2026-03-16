@@ -863,6 +863,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 		_ = os.Setenv("TEMP", realTmp)
 		_ = os.Setenv("TMP", realTmp)
+		// Set the SystemTemp environment variable, because for system processes
+		// GetTempPath2() uses it rather than TEMP/TMP:
+		// https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-gettemppath2w
+		_ = os.Setenv("SystemTemp", realTmp)
 	} else {
 		_ = os.Setenv("TMPDIR", realTmp)
 	}
