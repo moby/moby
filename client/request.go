@@ -317,12 +317,17 @@ func (cli *Client) addHeaders(req *http.Request, headers http.Header) *http.Requ
 		req.Header[http.CanonicalHeaderKey(k)] = v
 	}
 
-	if cli.userAgent != nil {
-		if *cli.userAgent == "" {
-			req.Header.Del("User-Agent")
-		} else {
-			req.Header.Set("User-Agent", *cli.userAgent)
+	if cli.userAgent == nil {
+		// No custom User-Agent set: use the default.
+		if req.Header.Get("User-Agent") == "" {
+			req.Header.Set("User-Agent", defaultUserAgent())
 		}
+	} else if *cli.userAgent == "" {
+		// User-Agent set to empty value; remove User-Agent.
+		req.Header.Del("User-Agent")
+	} else {
+		// Custom User-Agent set.
+		req.Header.Set("User-Agent", *cli.userAgent)
 	}
 	return req
 }

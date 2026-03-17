@@ -344,7 +344,7 @@ func TestWithUserAgent(t *testing.T) {
 		c, err := New(
 			WithHTTPHeaders(map[string]string{"Other-Header": "hello-world"}),
 			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
-				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), ""))
+				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), defaultUserAgent()))
 				assert.Check(t, is.Equal(req.Header.Get("Other-Header"), "hello-world"))
 				return &http.Response{StatusCode: http.StatusOK}, nil
 			}),
