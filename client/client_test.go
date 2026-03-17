@@ -13,6 +13,22 @@ import (
 	"gotest.tools/v3/skip"
 )
 
+func TestNewClientWithNilOpt(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("should not panic on nil Opt: %v", r)
+		}
+	}()
+
+	client, err := New(nil)
+	assert.NilError(t, err)
+	assert.Check(t, client != nil)
+
+	client, err = New(Opt(nil))
+	assert.NilError(t, err)
+	assert.Check(t, client != nil)
+}
+
 func TestNewClientWithOpsFromEnv(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows")
 

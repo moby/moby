@@ -213,6 +213,9 @@ func New(ops ...Opt) (*Client, error) {
 	cfg := &c.clientConfig
 
 	for _, op := range ops {
+		if op == nil {
+			continue
+		}
 		if err := op(cfg); err != nil {
 			return nil, err
 		}
