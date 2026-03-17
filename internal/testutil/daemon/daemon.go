@@ -467,16 +467,20 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		if d.dockerdBinary != defaultDockerdBinary {
 			return errors.Errorf("[%s] DOCKER_ROOTLESS doesn't support non-default dockerd binary path %q", d.id, d.dockerdBinary)
 		}
-		dockerdBinary = "sudo"
-		d.args = append(d.args,
-			"-u", d.rootlessUser.Username,
-			"--preserve-env",
-			"--preserve-env=PATH", // Pass through PATH, overriding secure_path.
-			"XDG_RUNTIME_DIR="+d.rootlessXDGRuntimeDir,
-			"HOME="+d.rootlessUser.HomeDir,
-			"--",
-			defaultDockerdRootlessBinary,
-		)
+		if os.Geteuid() == 0 {
+			dockerdBinary = "sudo"
+			d.args = append(d.args,
+				"-u", d.rootlessUser.Username,
+				"--preserve-env",
+				"--preserve-env=PATH", // Pass through PATH, overriding secure_path.
+				"XDG_RUNTIME_DIR="+d.rootlessXDGRuntimeDir,
+				"HOME="+d.rootlessUser.HomeDir,
+				"--",
+				defaultDockerdRootlessBinary,
+			)
+		} else {
+			dockerdBinary = defaultDockerdRootlessBinary
+		}
 	}
 
 	d.args = append(d.args,
