@@ -42,7 +42,7 @@ func getNVIDIADeviceDrivers(cdiCache *cdi.Cache) map[string]*deviceDriver {
 	if cdiCache != nil {
 		// Create a device injector that handles --gpus device requests using
 		// nvidia.com CDI requests.
-		injector := createCDIInjector(cdiCache, "nvidia.com")
+		injector := createCDIDeviceInjector(cdiCache, "nvidia.com")
 		// Register a named device driver for this injector so that a user can
 		// explicitly request it.
 		// This has no capabilities associated to not inadvertently match requests.
@@ -191,7 +191,29 @@ func countToDevices(count int) []string {
 // A cdiDeviceInjector is used to map regular device requests to CDI device
 // requests.
 type cdiDeviceInjector struct {
-	defaultCDIDeviceKind string
+	availableVendors vendorLister
+	validVendors     vendors
+}
+
+type vendorLister interface {
+	ListVendors() []string
+}
+
+// createCDIInjector creates a injector for CDI devices from the specified a set
+// of available vendors.
+// The available vendors are resolved at the point of injection and compared
+// against the set of allowed vendors. If no allowed vendors are specified, the
+// default list is used.
+func createCDIDeviceInjector(availableVendors vendorLister, allowedVendors ...string) *cdiDeviceInjector {
+	validVendors := defaultVendors
+	if len(allowedVendors) > 0 {
+		validVendors = vendors(allowedVendors)
+	}
+
+	return &cdiDeviceInjector{
+		availableVendors: availableVendors,
+		validVendors:     validVendors,
+	}
 }
 
 // injectDevices converts an incoming device request to a request for devices
@@ -215,7 +237,11 @@ func (i *cdiDeviceInjector) injectDevices(s *specs.Spec, dev *deviceInstance) er
 
 	var cdiDeviceIDs []string
 	for _, deviceID := range deviceIDs {
-		cdiDeviceIDs = append(cdiDeviceIDs, i.normalizeDeviceID(deviceID))
+		cdiDeviceID, err := i.normalizeDeviceID(deviceID)
+		if err != nil {
+			return err
+		}
+		cdiDeviceIDs = append(cdiDeviceIDs, cdiDeviceID)
 	}
 
 	// We construct a device instance using the CDI device IDs and forward this
@@ -235,12 +261,25 @@ func (i *cdiDeviceInjector) injectDevices(s *specs.Spec, dev *deviceInstance) er
 // If the deviceID is already a fully-qualified CDI device name it is returned
 // as-is, otherwise, the default CDI device kind (vendor/class) is used to
 // construct a fully qualified CDI device name.
-func (i *cdiDeviceInjector) normalizeDeviceID(deviceID string) string {
+func (i *cdiDeviceInjector) normalizeDeviceID(deviceID string) (string, error) {
 	// if deviceID is of the form vendor.com/class=name, we return it as-is.
 	// TODO: We should ideally use the parser from the tags.cncf.io/cdi packages.
 	if _, _, ok := strings.Cut(deviceID, "="); ok {
-		return deviceID
+		return deviceID, nil
 	}
 
-	return i.defaultCDIDeviceKind + "=" + deviceID
+	cdiVendor, err := i.resolveVendor()
+	if err != nil {
+		return "", fmt.Errorf("failed to discover GPU vendor from CDI: %w", err)
+	}
+
+	return cdiVendor + "/gpu=" + deviceID, nil
+}
+
+func (i *cdiDeviceInjector) resolveVendor() (string, error) {
+	vendor, err := i.validVendors.getFirstAvailableIn(i.availableVendors.ListVendors())
+	if err != nil {
+		return "", err
+	}
+	return vendor, nil
 }

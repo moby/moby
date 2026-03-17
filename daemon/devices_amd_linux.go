@@ -35,7 +35,7 @@ func setAMDGPUs(s *specs.Spec, dev *deviceInstance) error {
 
 func createAMDCDIUpdater(cdiCache *cdi.Cache) func(*specs.Spec, *deviceInstance) error {
 	return func(s *specs.Spec, dev *deviceInstance) error {
-		injector := createCDIInjector(cdiCache, "amd.com")
+		injector := createCDIDeviceInjector(cdiCache, "amd.com")
 		return injector.injectDevices(s, dev)
 	}
 }
