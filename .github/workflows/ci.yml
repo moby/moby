@@ -52,7 +52,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@v7
         with:
           targets: ${{ matrix.target }}
       -
@@ -113,7 +113,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@v7
         with:
           targets: all
           set: |
@@ -146,7 +146,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Run
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@v7
         with:
           targets: govulncheck
         env:
@@ -173,7 +173,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dind image
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@v7
         with:
           targets: dind
           set: |
