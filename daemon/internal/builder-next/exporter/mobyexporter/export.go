@@ -15,6 +15,7 @@ import (
 	"github.com/moby/buildkit/exporter/containerimage"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/util/leaseutil"
+	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/opencontainers/go-digest"
@@ -137,7 +138,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 
 	var diffs []digest.Digest
 	if ref != nil {
-		layersDone := oneOffProgress(ctx, "exporting layers")
+		layersDone := progress.OneOff(ctx, "exporting layers")
 
 		if err := ref.Finalize(ctx); err != nil {
 			return nil, nil, nil, layersDone(err)
@@ -193,7 +194,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 
 	configDigest := digest.FromBytes(config)
 
-	configDone := oneOffProgress(ctx, fmt.Sprintf("writing image %s", configDigest))
+	configDone := progress.OneOff(ctx, fmt.Sprintf("writing image %s", configDigest))
 	id, err := e.opt.ImageStore.Create(config)
 	if err != nil {
 		return nil, nil, nil, configDone(err)
@@ -204,7 +205,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp *exporter.Source
 	for _, targetName := range e.targetNames {
 		names = append(names, targetName.String())
 		if e.opt.ImageTagger != nil {
-			tagDone := oneOffProgress(ctx, "naming to "+targetName.String())
+			tagDone := progress.OneOff(ctx, "naming to "+targetName.String())
 			if err := e.opt.ImageTagger.TagImage(ctx, image.ID(digest.Digest(id)), targetName); err != nil {
 				return nil, nil, nil, tagDone(err)
 			}
