@@ -56,7 +56,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@v7
         with:
           targets: ${{ matrix.target }}
       -
@@ -84,7 +84,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@v7
         with:
           targets: dev
           set: |
@@ -117,7 +117,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@v7
         with:
           targets: dev
           set: |
@@ -210,7 +210,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
       -
         name: Build dev image
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@v7
         with:
           targets: dev
           set: |

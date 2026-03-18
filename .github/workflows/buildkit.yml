@@ -48,7 +48,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@v7
         with:
           targets: binary
       -
@@ -146,7 +146,7 @@ jobs:
           docker info
       -
         name: Build test image
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@v7
         with:
           source: .
           workdir: ./buildkit
