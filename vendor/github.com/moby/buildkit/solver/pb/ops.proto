@@ -1,0 +1,446 @@
+syntax = "proto3";
+
+// Package pb provides the protobuf definition of LLB: low-level builder instruction.
+// LLB is DAG-structured; Op represents a vertex, and Definition represents a graph.
+package pb;
+
+option go_package = "github.com/moby/buildkit/solver/pb";
+
+// Op represents a vertex of the LLB DAG.
+message Op {
+	// changes to this structure must be represented in json.go.
+	// inputs is a set of input edges.
+	repeated Input inputs = 1;
+	oneof op {
+		ExecOp exec = 2;
+		SourceOp source = 3;
+		FileOp file = 4;
+		BuildOp build = 5;
+		MergeOp merge = 6;
+		DiffOp diff = 7;
+	}
+	Platform platform = 10;
+	WorkerConstraints constraints = 11;
+}
+
+// Platform is github.com/opencontainers/image-spec/specs-go/v1.Platform
+message Platform {
+	string Architecture = 1;
+	string OS = 2;
+	string Variant = 3;
+	string OSVersion = 4;
+	repeated string OSFeatures = 5; // unused
+}
+
+// Input represents an input edge for an Op.
+message Input {
+	// digest of the marshaled input Op
+	string digest = 1;
+	// output index of the input Op
+	int64 index = 2;
+}
+
+// ExecOp executes a command in a container.
+message ExecOp {
+	Meta meta = 1;
+	repeated Mount mounts = 2;
+	NetMode network = 3;
+	SecurityMode security = 4;
+	repeated SecretEnv secretenv = 5;
+	repeated CDIDevice cdiDevices = 6;
+}
+
+// Meta is a set of arguments for ExecOp.
+// Meta is unrelated to LLB metadata.
+// FIXME: rename (ExecContext? ExecArgs?)
+message Meta {
+	repeated string args = 1;
+	repeated string env = 2;
+	string cwd = 3;
+	string user = 4;
+	ProxyEnv proxy_env = 5;
+	repeated HostIP extraHosts = 6;
+	string hostname = 7;
+	repeated Ulimit ulimit = 9;
+	string cgroupParent = 10;
+	bool removeMountStubsRecursive = 11;
+	repeated int32 validExitCodes = 12;
+}
+
+message HostIP {
+	string Host = 1;
+	string IP = 2;
+}
+
+message Ulimit {
+	string Name = 1;
+	int64 Soft = 2;
+	int64 Hard = 3;
+}
+
+enum NetMode {
+	UNSET = 0; // sandbox
+	HOST = 1;
+	NONE = 2;
+}
+
+enum SecurityMode {
+	SANDBOX = 0;
+	INSECURE = 1; // privileged mode
+}
+
+// SecretEnv is an environment variable that is backed by a secret.
+message SecretEnv {
+	string ID = 1;
+	string name = 2;
+	bool optional = 3;
+}
+
+// CDIDevice specifies a CDI device information.
+message CDIDevice {
+	// Fully qualified CDI device name (e.g., vendor.com/gpu=gpudevice1)
+	// https://github.com/cncf-tags/container-device-interface/blob/main/SPEC.md
+	string name = 1;
+	// Optional defines if CDI device is required.
+	bool optional = 2;
+}
+
+// Mount specifies how to mount an input Op as a filesystem.
+message Mount {
+	int64 input = 1;
+	string selector = 2;
+	string dest = 3;
+	int64 output = 4;
+	bool readonly = 5;
+	MountType mountType = 6;
+	TmpfsOpt TmpfsOpt = 19;
+	CacheOpt cacheOpt = 20;
+	SecretOpt secretOpt = 21;
+	SSHOpt SSHOpt = 22;
+	string resultID = 23;
+	MountContentCache contentCache = 24;
+}
+
+// MountType defines a type of a mount from a supported set
+enum MountType {
+	BIND = 0;
+	SECRET = 1;
+	SSH = 2;
+	CACHE = 3;
+	TMPFS = 4;
+}
+
+// MountContentCache ...
+enum MountContentCache {
+	DEFAULT = 0;
+	ON = 1;
+	OFF = 2;
+}
+
+// TmpfsOpt defines options describing tpmfs mounts
+message TmpfsOpt {
+	// Specify an upper limit on the size of the filesystem.
+	int64 size = 1;
+}
+
+// CacheOpt defines options specific to cache mounts
+message CacheOpt {
+	// ID is an optional namespace for the mount
+	string ID = 1;
+	// Sharing is the sharing mode for the mount
+	CacheSharingOpt sharing = 2;
+}
+
+// CacheSharingOpt defines different sharing modes for cache mount
+enum CacheSharingOpt {
+	// SHARED cache mount can be used concurrently by multiple writers
+	SHARED = 0;
+	// PRIVATE creates a new mount if there are multiple writers
+	PRIVATE = 1;
+	// LOCKED pauses second writer until first one releases the mount
+	LOCKED = 2;
+}
+
+// SecretOpt defines options describing secret mounts
+message SecretOpt {
+	// ID of secret. Used for quering the value.
+	string ID = 1;
+	// UID of secret file
+	uint32 uid = 2;
+	// GID of secret file
+	uint32 gid = 3;
+	// Mode is the filesystem mode of secret file
+	uint32 mode = 4;
+	// Optional defines if secret value is required. Error is produced
+	// if value is not found and optional is false.
+	bool optional = 5;
+}
+
+// SSHOpt defines options describing ssh mounts
+message SSHOpt {
+	// ID of exposed ssh rule. Used for quering the value.
+	string ID = 1;
+	// UID of agent socket
+	uint32 uid = 2;
+	// GID of agent socket
+	uint32 gid = 3;
+	// Mode is the filesystem mode of agent socket
+	uint32 mode = 4;
+	// Optional defines if ssh socket is required. Error is produced
+	// if client does not expose ssh.
+	bool optional = 5;
+}
+
+// SourceOp specifies a source such as build contexts and images.
+message SourceOp {
+	// TODO: use source type or any type instead of URL protocol.
+	// identifier e.g. local://, docker-image://, git://, https://...
+	string identifier = 1;
+	// attrs are defined in attr.go
+	map<string, string> attrs = 2;
+}
+
+// BuildOp is used for nested build invocation.
+// BuildOp is experimental and can break without backwards compatibility
+message BuildOp {
+	int64 builder = 1;
+	map<string, BuildInput> inputs = 2;
+	Definition def = 3;
+	map<string, string> attrs = 4;
+	// outputs
+}
+
+// BuildInput is used for BuildOp.
+message BuildInput {
+	int64 input = 1;
+}
+
+// OpMetadata is a per-vertex metadata entry, which can be defined for arbitrary Op vertex and overridable on the run time.
+message OpMetadata {
+	// ignore_cache specifies to ignore the cache for this Op.
+	bool ignore_cache = 1;
+	// Description can be used for keeping any text fields that builder doesn't parse
+	map<string, string> description = 2;
+	// index 3 reserved for WorkerConstraint in previous versions
+	// WorkerConstraint worker_constraint = 3;
+	ExportCache export_cache = 4;
+
+	map<string, bool> caps = 5;
+
+	ProgressGroup progress_group = 6;
+}
+
+// Source is a source mapping description for a file
+message Source {
+	map<string, Locations> locations = 1;
+	repeated SourceInfo infos = 2;
+}
+
+// Locations is a list of ranges with a index to its source map.
+message Locations {
+	repeated Location locations = 1;
+}
+
+// Source info contains the shared metadata of a source mapping
+message SourceInfo {
+	string filename = 1;
+	bytes data = 2;
+	Definition definition = 3;
+	string language = 4;
+}
+
+// Location defines list of areas in to source file
+message Location {
+	int32 sourceIndex = 1;
+	repeated Range ranges = 2;
+}
+
+// Range is an area in the source file
+message Range {
+	Position start = 1;
+	Position end = 2;
+}
+
+// Position is single location in a source file
+message Position {
+	int32 line = 1;
+	int32 character = 2;
+}
+
+message ExportCache {
+	bool Value = 1;
+}
+
+message ProgressGroup {
+	string id = 1;
+	string name = 2;
+	bool weak = 3;
+}
+
+message ProxyEnv {
+	string http_proxy = 1;
+	string https_proxy = 2;
+	string ftp_proxy = 3;
+	string no_proxy = 4;
+	string all_proxy = 5;
+}
+
+// WorkerConstraints defines conditions for the worker
+message WorkerConstraints {
+	repeated string filter = 1; // containerd-style filter
+}
+
+// Definition is the LLB definition structure with per-vertex metadata entries
+message Definition {
+	// def is a list of marshaled Op messages
+	repeated bytes def = 1;
+	// metadata contains metadata for the each of the Op messages.
+	// A key must be an LLB op digest string. Currently, empty string is not expected as a key, but it may change in the future.
+	map<string, OpMetadata> metadata = 2;
+	// Source contains the source mapping information for the vertexes in the definition
+	Source Source = 3;
+}
+
+message FileOp {
+	repeated FileAction actions = 2;
+}
+
+message FileAction {
+	// changes to this structure must be represented in json.go.
+	int64 input = 1; // could be real input or target (target index + max input index)
+	int64 secondaryInput = 2; // --//--
+	int64 output = 3;
+	oneof action {
+		// FileActionCopy copies files from secondaryInput on top of input
+		FileActionCopy copy = 4;
+		// FileActionMkFile creates a new file
+		FileActionMkFile mkfile = 5;
+		// FileActionMkDir creates a new directory
+		FileActionMkDir mkdir = 6;
+		// FileActionRm removes a file
+		FileActionRm rm = 7;
+		// FileActionSymlink creates a symlink
+		FileActionSymlink symlink = 8;
+	}
+}
+
+message FileActionCopy {
+	// src is the source path
+	string src = 1;
+	// dest path
+	string dest = 2;
+	// optional owner override
+	ChownOpt owner = 3;
+	// optional permission bits override
+	int32 mode = 4;
+	// followSymlink resolves symlinks in src
+	bool followSymlink = 5;
+	// dirCopyContents only copies contents if src is a directory
+	bool dirCopyContents = 6;
+	// attemptUnpackDockerCompatibility detects if src is an archive to unpack it instead
+	bool attemptUnpackDockerCompatibility = 7;
+	// createDestPath creates dest path directories if needed
+	bool createDestPath = 8;
+	// allowWildcard allows filepath.Match wildcards in src path
+	bool allowWildcard = 9;
+	// allowEmptyWildcard doesn't fail the whole copy if wildcard doesn't resolve to files
+	bool allowEmptyWildcard = 10;
+	// optional created time override
+	int64 timestamp = 11;
+	// include only files/dirs matching at least one of these patterns
+	repeated string include_patterns = 12;
+	// exclude files/dir matching any of these patterns (even if they match an include pattern)
+	repeated string exclude_patterns = 13;
+	// alwaysReplaceExistingDestPaths results in an existing dest path that differs in type from the src path being replaced rather than the default of returning an error
+	bool alwaysReplaceExistingDestPaths = 14;
+	// mode in non-octal format
+	string modeStr = 15;
+	// required paths that must be included in the copy. This is only used when
+	// include_patterns has at least one pattern.
+	repeated string required_paths = 16;
+}
+
+message FileActionMkFile {
+	// path for the new file
+	string path = 1;
+	// permission bits
+	int32 mode = 2;
+	// data is the new file contents
+	bytes data = 3;
+	// optional owner for the new file
+	ChownOpt owner = 4;
+	// optional created time override
+	int64 timestamp = 5;
+}
+
+message FileActionSymlink {
+	// destination path for the new file representing the link
+	string oldpath = 1;
+	// source path for the link
+	string newpath = 2;
+	// optional owner for the new file
+	ChownOpt owner = 3;
+	// optional created time override
+	int64 timestamp = 4;
+}
+
+message FileActionMkDir {
+	// path for the new directory
+	string path = 1;
+	// permission bits
+	int32 mode = 2;
+	// makeParents creates parent directories as well if needed
+	bool makeParents = 3;
+	// optional owner for the new directory
+	ChownOpt owner = 4;
+	// optional created time override
+	int64 timestamp = 5;
+}
+
+message FileActionRm {
+	// path to remove
+	string path = 1;
+	// allowNotFound doesn't fail the rm if file is not found
+	bool allowNotFound = 2;
+	// allowWildcard allows filepath.Match wildcards in path
+	bool allowWildcard = 3;
+}
+
+message ChownOpt {
+	UserOpt user = 1;
+	UserOpt group = 2;
+}
+
+message UserOpt {
+	// changes to this structure must be represented in json.go.
+	oneof user {
+		NamedUserOpt byName = 1;
+		uint32 byID = 2;
+	}
+}
+
+message NamedUserOpt {
+	string name = 1;
+	int64 input = 2;
+}
+
+message MergeInput {
+	int64 input = 1;
+}
+
+message MergeOp {
+	repeated MergeInput inputs = 1;
+}
+
+message LowerDiffInput {
+	int64 input = 1;
+}
+
+message UpperDiffInput {
+	int64 input = 1;
+}
+
+message DiffOp {
+	LowerDiffInput lower = 1;
+	UpperDiffInput upper = 2;
+}

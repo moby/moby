@@ -1,0 +1,32 @@
+linters:
+  enable:
+    - copyloopvar
+    - gofmt
+    - goimports
+    - gosec
+    - ineffassign
+    - misspell
+    - nolintlint
+    - revive
+    - staticcheck
+    - tenv # Detects using os.Setenv instead of t.Setenv since Go 1.17
+    - unconvert
+    - unused
+    - govet
+    - dupword # Checks for duplicate words in the source code
+  disable:
+    - errcheck
+
+run:
+  timeout: 5m
+
+issues:
+  exclude-dirs:
+    - api
+    - cluster
+    - design
+    - docs
+    - docs/man
+    - releases
+    - reports
+    - test # e2e scripts

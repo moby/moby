@@ -1,0 +1,364 @@
+version: "2"
+
+run:
+  # prevent golangci-lint from deducting the go version to lint for through go.mod,
+  # which causes it to fallback to go1.17 semantics.
+  go: "1.25.8"
+  # Only supported with go modules enabled (build flag -mod=vendor only valid when using modules)
+  # modules-download-mode: vendor
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+linters:
+  enable:
+    - asasalint                 # Detects "[]any" used as argument for variadic "func(...any)".
+    - copyloopvar               # Detects places where loop variables are copied.
+    - depguard
+    - dogsled                   # Detects assignments with too many blank identifiers.
+    - dupword                   # Detects duplicate words.
+    - durationcheck             # Detect cases where two time.Duration values are being multiplied in possibly erroneous ways.
+    - errorlint                 # Detects code that will cause problems with the error wrapping scheme introduced in Go 1.13.
+    - errchkjson                # Detects unsupported types passed to json encoding functions and reports if checks for the returned error can be omitted.
+    - exhaustive                # Detects missing options in enum switch statements.
+    - exptostd                  # Detects functions from golang.org/x/exp/ that can be replaced by std functions.
+    - fatcontext                # Detects nested contexts in loops and function literals.
+    - forbidigo
+    - gocheckcompilerdirectives # Detects invalid go compiler directive comments (//go:).
+    - gocritic                  # Detects for bugs, performance and style issues.
+    - gosec                     # Detects security problems.
+    - govet
+    - iface                     # Detects incorrect use of interfaces. Currently only used for "identical" interfaces in the same package.
+    - importas
+    - ineffassign
+    - makezero                  # Finds slice declarations with non-zero initial length.
+    - mirror                    # Detects wrong mirror patterns of bytes/strings usage.
+    - misspell                  # Detects commonly misspelled English words in comments.
+    - nakedret                  # Detects uses of naked returns.
+    - nilnesserr                # Detects returning nil errors. It combines the features of nilness and nilerr,
+    - nosprintfhostport         # Detects misuse of Sprintf to construct a host with port in a URL.
+    - reassign                  # Detects reassigning a top-level variable in another package.
+    - revive                    # Metalinter; drop-in replacement for golint.
+    - spancheck                 # Detects mistakes with OpenTelemetry/Census spans.
+    - staticcheck
+    - thelper
+    - unconvert                 # Detects unnecessary type conversions.
+    - unused
+    - usestdlibvars             # Detects the possibility to use variables/constants from the Go standard library.
+    - wastedassign              # Detects wasted assignment statements.
+
+  disable:
+    - errcheck
+    - spancheck # FIXME
+
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: "github.com/stretchr/testify/assert"
+              desc: Use "gotest.tools/v3/assert" instead
+            - pkg: "github.com/stretchr/testify/require"
+              desc: Use "gotest.tools/v3/assert" instead
+            - pkg: "github.com/stretchr/testify/suite"
+              desc: Do not use
+            - pkg: "github.com/containerd/containerd/pkg/userns"
+              desc: Use github.com/moby/sys/userns instead.
+            - pkg: "github.com/tonistiigi/fsutil"
+              desc: The fsutil module does not have a stable API, so we should not have a direct dependency unless necessary.
+            - pkg: "github.com/hashicorp/go-multierror"
+              desc: "Use errors.Join instead"
+
+    dupword:
+      ignore:
+        - "true"    # some tests use this as expected output
+        - "false"   # some tests use this as expected output
+        - "root"    # for tests using "ls" output with files owned by "root:root"
+
+    errorlint:
+      # Check whether fmt.Errorf uses the %w verb for formatting errors.
+      # See the https://github.com/polyfloyd/go-errorlint for caveats.
+      errorf: false
+      # Check for plain type assertions and type switches.
+      asserts: false
+
+    exhaustive:
+      # Program elements to check for exhaustiveness.
+      # Default: [ switch ]
+      check:
+        - switch
+        # - map # TODO(thaJeztah): also enable for maps
+      # Presence of "default" case in switch statements satisfies exhaustiveness,
+      # even if all enum members are not listed.
+      # Default: false
+      #
+      # TODO(thaJeztah): consider not allowing this to catch new values being added (and falling through to "default")
+      default-signifies-exhaustive: true
+
+    forbidigo:
+      forbid:
+        - pkg: ^sync/atomic$
+          pattern: ^atomic\.(Add|CompareAndSwap|Load|Store|Swap).
+          msg: Go 1.19 atomic types should be used instead.
+        - pkg: ^regexp$
+          pattern: ^regexp\.MustCompile
+          msg: Use daemon/internal/lazyregexp.New instead.
+        - pkg: github.com/vishvananda/netlink$
+          pattern: ^netlink\.(Handle\.)?(AddrList|BridgeVlanList|ChainList|ClassList|ConntrackTableList|ConntrackDeleteFilter$|ConntrackDeleteFilters|DevLinkGetDeviceList|DevLinkGetAllPortList|DevlinkGetDeviceParams|FilterList|FouList|GenlFamilyList|GTPPDPList|LinkByName|LinkByAlias|LinkList|LinkSubscribeWithOptions|NeighList$|NeighProxyList|NeighListExecute|NeighSubscribeWithOptions|LinkGetProtinfo|QdiscList|RdmaLinkList|RdmaLinkByName|RdmaLinkDel|RouteList|RouteListFilteredIter|RuleListFiltered$|RouteSubscribeWithOptions|RuleList$|RuleListFiltered|SocketGet|SocketDiagTCPInfo|SocketDiagTCP|SocketDiagUDPInfo|SocketDiagUDP|UnixSocketDiagInfo|UnixSocketDiag|VDPAGetDevConfigList|VDPAGetDevList|VDPAGetMGMTDevList|XfrmPolicyList|XfrmStateList)
+          msg: Use internal nlwrap package for EINTR handling.
+        - pkg: github.com/moby/moby/v2/internal/nlwrap$
+          pattern: ^nlwrap.Handle.(BridgeVlanList|ChainList|ClassList|ConntrackDeleteFilter$|DevLinkGetDeviceList|DevLinkGetAllPortList|DevlinkGetDeviceParams|FilterList|FouList|GenlFamilyList|GTPPDPList|LinkByAlias|LinkSubscribeWithOptions|NeighList$|NeighProxyList|NeighListExecute|NeighSubscribeWithOptions|LinkGetProtinfo|QdiscList|RdmaLinkList|RdmaLinkByName|RdmaLinkDel|RouteListFilteredIter|RuleListFiltered$|RouteSubscribeWithOptions|RuleList$|RuleListFiltered|SocketGet|SocketDiagTCPInfo|SocketDiagTCP|SocketDiagUDPInfo|SocketDiagUDP|UnixSocketDiagInfo|UnixSocketDiag|VDPAGetDevConfigList|VDPAGetDevList|VDPAGetMGMTDevList)
+          msg: Add a wrapper to nlwrap.Handle for EINTR handling and update the list in .golangci.yml.
+      analyze-types: true
+
+    gocritic:
+      disabled-checks:
+        - appendAssign
+        - appendCombine
+        - assignOp
+        - builtinShadow
+        - builtinShadowDecl
+        - captLocal
+        - commentedOutCode
+        - deferInLoop
+        - dupImport
+        - dupSubExpr
+        - elseif
+        - emptyFallthrough
+        - equalFold
+        - evalOrder
+        - exitAfterDefer
+        - exposedSyncMutex
+        - filepathJoin
+        - hexLiteral
+        - hugeParam
+        - ifElseChain
+        - importShadow
+        - indexAlloc
+        - methodExprCall
+        - nestingReduce
+        - nilValReturn
+        - octalLiteral
+        - paramTypeCombine
+        - preferStringWriter
+        - ptrToRefParam
+        - rangeValCopy
+        - redundantSprint
+        - regexpMust
+        - regexpSimplify
+        - singleCaseSwitch
+        - sloppyReassign
+        - stringXbytes
+        - typeAssertChain
+        - typeDefFirst
+        - typeUnparen
+        - uncheckedInlineErr
+        - unlambda
+        - unnamedResult
+        - unnecessaryDefer
+        - unslice
+        - valSwap
+        - whyNoLint
+      enable-all: true
+
+    gosec:
+      excludes:
+        - G104 # G104: Errors unhandled; (TODO: reduce unhandled errors, or explicitly ignore)
+        - G115 # G115: integer overflow conversion; (TODO: verify these: https://github.com/moby/moby/issues/48358)
+        - G204 # G204: Subprocess launched with variable; too many false positives.
+        - G301 # G301: Expect directory permissions to be 0750 or less (also EXC0009); too restrictive
+        - G302 # G302: Expect file permissions to be 0600 or less (also EXC0009); too restrictive
+        - G304 # G304: Potential file inclusion via variable.
+        - G306 # G306: Expect WriteFile permissions to be 0600 or less (too restrictive; also flags "0o644" permissions)
+        - G307 # G307: Deferring unsafe method "*os.File" on type "Close" (also EXC0008); (TODO: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close")
+        - G504 # G504: Blocklisted import net/http/cgi: Go versions < 1.6.3 are vulnerable to Httpoxy attack: (CVE-2016-5386); (only affects go < 1.6.3)
+        - G602 # G602: slice index out of range (TODO: too many false positives; see https://github.com/securego/gosec/issues/1406)
+
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # TODO: evaluate which ones should be updated.
+
+    importas:
+      # Do not allow unaliased imports of aliased packages.
+      no-unaliased: true
+
+      alias:
+          # Enforce alias to prevent it accidentally being used instead of our
+          # own errdefs package (or vice-versa).
+        - pkg: github.com/containerd/errdefs
+          alias: cerrdefs
+        - pkg: github.com/containerd/containerd/images
+          alias: c8dimages
+        - pkg: github.com/opencontainers/image-spec/specs-go/v1
+          alias: ocispec
+        - pkg: github.com/moby/docker-image-spec/specs-go/v1
+          alias: dockerspec
+        - pkg: go.etcd.io/bbolt
+          alias: bolt
+          # Enforce that gotest.tools/v3/assert/cmp is always aliased as "is"
+        - pkg: gotest.tools/v3/assert/cmp
+          alias: is
+
+    nakedret:
+      # Disallow naked returns if func has more lines of code than this setting.
+      # Default: 30
+      max-func-lines: 0
+
+    revive:
+      # Only listed rules are applied
+      # https://github.com/mgechev/revive/blob/HEAD/RULES_DESCRIPTIONS.md
+      rules:
+        - name: increment-decrement
+          # FIXME make sure all packages have a description. Currently, there's many packages without.
+        - name: package-comments
+          disabled: true
+        - name: redefines-builtin-id
+        - name: superfluous-else
+          arguments:
+            - preserve-scope
+        - name: use-any
+        - name: use-errors-new
+        - name: var-declaration
+
+    staticcheck:
+      checks:
+        - all
+        - -QF1008 # Omit embedded fields from selector expression; https://staticcheck.dev/docs/checks/#QF1008
+        - -ST1000 # Incorrect or missing package comment; https://staticcheck.dev/docs/checks/#ST1000
+        - -ST1003 # Poorly chosen identifier; https://staticcheck.dev/docs/checks/#ST1003
+        - -ST1005 # Incorrectly formatted error string; https://staticcheck.dev/docs/checks/#ST1005
+
+    spancheck:
+      # Default: ["end"]
+      checks:
+        - end             # check that `span.End()` is called
+        - record-error    # check that `span.RecordError(err)` is called when an error is returned
+        - set-status      # check that `span.SetStatus(codes.Error, msg)` is called when an error is returned
+
+    thelper:
+      test:
+        # Check *testing.T is first param (or after context.Context) of helper function.
+        first: false
+        # Check t.Helper() begins helper function.
+        begin: false
+      benchmark:
+        # Check *testing.B is first param (or after context.Context) of helper function.
+        first: false
+        # Check b.Helper() begins helper function.
+        begin: false
+      tb:
+        # Check *testing.TB is first param (or after context.Context) of helper function.
+        first: false
+        # Check *testing.TB param has name tb.
+        name: false
+        # Check tb.Helper() begins helper function.
+        begin: false
+      fuzz:
+        # Check *testing.F is first param (or after context.Context) of helper function.
+        first: false
+        # Check f.Helper() begins helper function.
+        begin: false
+
+    usestdlibvars:
+      # Suggest the use of http.MethodXX.
+      http-method: true
+      # Suggest the use of http.StatusXX.
+      http-status-code: true
+
+  exclusions:
+    rules:
+        # We prefer to use an "linters.exclusions.rules" so that new "default" exclusions are not
+        # automatically inherited. We can decide whether or not to follow upstream
+        # defaults when updating golang-ci-lint versions.
+        # Unfortunately, this means we have to copy the whole exclusion pattern, as
+        # (unlike the "include" option), the "exclude" option does not take exclusion
+        # ID's.
+        #
+        # These exclusion patterns are copied from the default excludes at:
+        # https://github.com/golangci/golangci-lint/blob/v1.61.0/pkg/config/issues.go#L11-L104
+        #
+        # The default list of exclusions can be found at:
+        # https://golangci-lint.run/usage/false-positives/#default-exclusions
+
+        # Exclude some linters from running on tests files.
+      - path: _test\.go
+        linters:
+          - errcheck
+
+      - text: "G101: Potential hardcoded credentials"
+        path: _test\.go
+        linters:
+          - gosec
+
+      - text: "G120: Parsing form data without limiting request body size can allow memory exhaustion"
+        path: _test\.go
+        linters:
+          - gosec
+
+      - text: "G404: Use of weak random number generator"
+        path: _test\.go
+        linters:
+          - gosec
+
+      - text: "^G402: " # Look for bad TLS connection settings
+        path: '^client/'
+        source: "cmpopts\\.Ignore"
+        linters:
+          - gosec
+
+        # FIXME: ignoring unused assigns to ctx for now; too many hits in libnetwork/xxx functions that setup traces
+      - text: "assigned to ctx, but never used afterwards"
+        path: '^daemon/'
+        source: "ctx[, ].*=.*\\(ctx[,)]"
+        linters:
+          - wastedassign
+
+      - text: "ineffectual assignment to ctx"
+        path: '^daemon/'
+        source: "ctx[, ].*=.*\\(ctx[,)]"
+        linters:
+          - ineffassign
+
+      - text: "SA4006: this value of ctx is never used"
+        source: "ctx[, ].*=.*\\(ctx[,)]"
+        linters:
+          - staticcheck
+
+        # Ignore "nested context in function literal (fatcontext)" as we intentionally set up tracing on a base-context for tests.
+        # FIXME(thaJeztah): see if there's a more iodiomatic way to do this.
+      - text: 'nested context in function literal'
+        path: '((main|check)_(linux_|)test\.go)|testutil/helpers\.go'
+        linters:
+          - fatcontext
+
+      - text: '^shadow: declaration of "(ctx|err|ok)" shadows declaration'
+        linters:
+          - govet
+      - text: '^shadow: declaration of "(out)" shadows declaration'
+        path: _test\.go
+        linters:
+          - govet
+      - text: 'use of `regexp.MustCompile` forbidden'
+        path: '(_test\.go|^daemon/internal/lazyregexp|^integration/internal/testutils|^daemon/libnetwork/cmd/networkdb-test/dbclient)'
+        linters:
+          - forbidigo
+
+      # These interfaces in the client module are identical by design to allow future expansion.
+      - text: "^identical: interface '(ContainerExportResult|ContainerLogsResult|ImagePullResponse|ImagePushResponse|ImageImportResult|ImageLoadResult|ImageSaveResult|ServiceLogsResult|TaskLogsResult)'"
+        path: '^client/'
+        linters:
+          - iface
+
+    # Log a warning if an exclusion rule is unused.
+    # Default: false
+    warn-unused: true
+
+issues:
+  # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
+  max-issues-per-linter: 0
+
+  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-same-issues: 0

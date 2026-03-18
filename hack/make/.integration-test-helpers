@@ -1,0 +1,237 @@
+#!/usr/bin/env bash
+#
+# For integration-cli test, we use [gocheck](https://labix.org/gocheck), if you want
+# to run certain tests on your local host, you should run with command:
+#
+#     TESTFLAGS='-test.run TestDockerCLIBuildSuite' ./hack/make.sh binary test-integration
+#
+
+if [ -z "${MAKEDIR}" ]; then
+	MAKEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+	export MAKEDIR
+fi
+source "${MAKEDIR}/.go-autogen"
+
+# Set defaults
+: "${TEST_REPEAT:=1}"
+: "${TIMEOUT:=10m}"
+: "${TESTFLAGS:=}"
+: "${TESTDEBUG:=}"
+: "${TESTCOVERAGE:=}"
+: "${GOCACHE:=$(go env GOCACHE)}"
+
+setup_integration_test_filter() {
+	if [ -z "${TEST_FILTER}" ]; then
+		return
+	fi
+
+	local dirs
+	local files
+	if files=$(grep -rIlE --include '*_test.go' "func .*${TEST_FILTER}.*\(. \*testing\.T\)" ./integration*/); then
+		dirs=$(echo "$files" | xargs -I file dirname file | uniq)
+	fi
+
+	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
+		: "${TEST_INTEGRATION_DIR:=$(echo "$dirs" | grep -v '^\./integration-cli$')}"
+		if [ -z "${TEST_INTEGRATION_DIR}" ]; then
+			echo "Skipping integration tests since the supplied filter \"${TEST_FILTER}\" omits all integration tests"
+			TEST_SKIP_INTEGRATION=1
+		fi
+	fi
+
+	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
+		if ! echo "$dirs" | grep -q '^./integration-cli$'; then
+			TEST_SKIP_INTEGRATION_CLI=1
+			echo "Skipping integration-cli tests since the supplied filter \"${TEST_FILTER}\" omits all integration-cli tests"
+		fi
+	fi
+}
+
+setup_integration_test_filter
+if [ -z "${TEST_SKIP_INTEGRATION}" ] && [ -z "${TEST_INTEGRATION_DIR}" ]; then
+	integration_api_dirs="$(go list -test -f '{{- if ne .ForTest "" -}}{{- .Dir -}}{{- end -}}' ./integration/...)"
+else
+	integration_api_dirs="${TEST_INTEGRATION_DIR}"
+fi
+
+run_test_integration() {
+	set_repeat_timeout
+	local failed=0
+	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
+		if ! run_test_integration_suites "${integration_api_dirs}"; then
+			if [ -n "${TEST_INTEGRATION_FAIL_FAST}" ]; then
+				return 1
+			fi
+			failed=1
+		fi
+	fi
+	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
+		if ! TIMEOUT=360m run_test_integration_suites integration-cli; then
+			return 1
+		fi
+	fi
+
+	if [ $failed -eq 1 ]; then
+		return 1
+	fi
+}
+
+run_test_integration_suites() {
+	local dirs="$1"
+	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS "
+	if [ -n "${TEST_FILTER}" ]; then
+		if [ "$dirs" == "integration-cli" ]; then
+			flags+=" -test.run /${TEST_FILTER}"
+		else
+			flags+=" -test.run ${TEST_FILTER}"
+		fi
+	fi
+	local failed=0
+	for dir in ${dirs}; do
+		if ! (
+			cd "$dir"
+			# Create a useful package name based on the tests's $dir. We need to take
+			# into account that  "$dir" can be either an absolute (/go/src/github.com/moby/moby/integration/foo)
+			# or relative (./integration/foo) path. To account for both, first we strip
+			# the absolute path, then remove any leading periods and slashes.
+			pkgname="${dir}"
+			pkgname="${pkgname#*${GOPATH}/src/${DOCKER_PKG}}"
+			pkgname="${pkgname#*.}"
+			pkgname="${pkgname#*\/}"
+
+			# Finally, we use periods as separator (instead of slashes) to be more
+			# in line with Java package names (which is what junit.xml was designed for)
+			pkgname="$(go env GOARCH).${pkgname//\//.}"
+
+			pkgtestflags=$flags
+			if [ -n "${TESTCOVERAGE}" ]; then
+				pkgtestflags="$pkgtestflags -test.coverprofile=${ABS_DEST}/${pkgname//./-}-coverage.out"
+			fi
+
+			echo "Running $PWD (${pkgname}) flags=${pkgtestflags}"
+			[ -n "$TESTDEBUG" ] && set -x
+
+			if [ -n "$DELVE_PORT" ]; then
+				delve_listen_port="${DELVE_PORT##*:}"
+				test_env dlv --listen="0.0.0.0:${delve_listen_port}" \
+					--headless=true \
+					--log \
+					--api-version=2 \
+					--only-same-user=false \
+					--check-go-version=false \
+					--accept-multiclient \
+					test ./ -- ${pkgtestflags}
+			else
+				# shellcheck disable=SC2086
+				test_env gotestsum \
+					--format=standard-verbose \
+					--jsonfile="${ABS_DEST}/${pkgname//./-}-go-test-report.json" \
+					--junitfile="${ABS_DEST}/${pkgname//./-}-junit-report.xml" \
+					--raw-command \
+					-- go tool test2json -p "${pkgname}" -t ./test.main ${pkgtestflags}
+			fi
+		); then
+			if [ -n "${TEST_INTEGRATION_FAIL_FAST}" ]; then
+				return 1
+			fi
+			failed=1
+		fi
+	done
+	if [ $failed -eq 1 ]; then
+		return 1
+	fi
+}
+
+build_test_suite_binaries() {
+	if [ -n "${DOCKER_INTEGRATION_TESTS_VERIFIED}" ]; then
+		echo "Skipping building test binaries; as DOCKER_INTEGRATION_TESTS_VERIFIED is set"
+		return
+	fi
+	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
+		build_test_suite_binary ./integration-cli "test.main"
+	fi
+	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
+		for dir in ${integration_api_dirs}; do
+			build_test_suite_binary "$dir" "test.main"
+		done
+	fi
+}
+
+# Build a binary for a test suite package
+build_test_suite_binary() {
+	local dir="$1"
+	local out="$2"
+	local testflags
+	echo Building test suite binary "$dir/$out"
+	if [ -n "${TESTCOVERAGE}" ]; then
+		testflags="-cover -covermode=atomic"
+	fi
+	go test ${testflags} -c -o "$dir/$out" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" "$dir"
+}
+
+cleanup_test_suite_binaries() {
+	[ -n "$TESTDEBUG" ] && return
+	echo "Removing test suite binaries"
+	# shellcheck disable=SC2038
+	find integration* -name test.main | xargs -r rm
+}
+
+repeat() {
+	for i in $(seq 1 ${TEST_REPEAT}); do
+		echo "Running integration-test (iteration $i)"
+		$@
+	done
+}
+
+# use "env -i" to tightly control the environment variables that bleed into the tests
+test_env() {
+	(
+		set -e
+		[ -n "$TESTDEBUG" ] && set -x
+
+		# Disable collecting local telemetry, as collected by Go and Delve;
+		#
+		# - https://github.com/go-delve/delve/blob/v1.24.1/CHANGELOG.md#1231-2024-09-23
+		# - https://go.dev/doc/telemetry#background
+		HOME="$ABS_DEST/fake-HOME" go telemetry off
+
+		env -i \
+			DEST="$ABS_DEST" \
+			DOCKER_API_VERSION="$DOCKER_API_VERSION" \
+			DOCKER_BUILDKIT="$DOCKER_BUILDKIT" \
+			DOCKER_INTEGRATION_DAEMON_DEST="$DOCKER_INTEGRATION_DAEMON_DEST" \
+			DOCKER_TLS_VERIFY="$DOCKER_TEST_TLS_VERIFY" \
+			DOCKER_CERT_PATH="$DOCKER_TEST_CERT_PATH" \
+			DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
+			DOCKER_USERLANDPROXY="$DOCKER_USERLANDPROXY" \
+			DOCKER_HOST="$DOCKER_HOST" \
+			DOCKER_IGNORE_BR_NETFILTER_ERROR="$DOCKER_IGNORE_BR_NETFILTER_ERROR" \
+			DOCKER_REMAP_ROOT="$DOCKER_REMAP_ROOT" \
+			DOCKER_REMOTE_DAEMON="$DOCKER_REMOTE_DAEMON" \
+			DOCKER_ROOTLESS="$DOCKER_ROOTLESS" \
+			DOCKER_FIREWALL_BACKEND="$DOCKER_FIREWALL_BACKEND" \
+			GITHUB_ACTIONS="$GITHUB_ACTIONS" \
+			GOCACHE="$GOCACHE" \
+			GOPATH="$GOPATH" \
+			GOTRACEBACK=all \
+			HOME="$ABS_DEST/fake-HOME" \
+			PATH="$PATH" \
+			TEMP="$TEMP" \
+			TEST_CLIENT_BINARY="$TEST_CLIENT_BINARY" \
+			TEST_INTEGRATION_USE_GRAPHDRIVER="$TEST_INTEGRATION_USE_GRAPHDRIVER" \
+			OTEL_EXPORTER_OTLP_ENDPOINT="$OTEL_EXPORTER_OTLP_ENDPOINT" \
+			OTEL_SERVICE_NAME="$OTEL_SERVICE_NAME" \
+			"$@"
+	)
+}
+
+set_repeat_timeout() {
+	if [ "${TEST_REPEAT}" -gt 1 ]; then
+		# TIMEOUT needs to take TEST_REPEAT into account, or a premature time out may happen.
+		# The following ugliness will:
+		# - remove last character (usually 'm' from '10m')
+		# - multiply by testcount
+		# - add last character back
+		TIMEOUT=$((${TIMEOUT::-1} * ${TEST_REPEAT}))${TIMEOUT:$((${#TIMEOUT} - 1)):1}
+	fi
+}

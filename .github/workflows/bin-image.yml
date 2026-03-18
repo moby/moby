@@ -1,0 +1,78 @@
+name: bin-image
+
+# Default to 'contents: read', which grants actions to read commits.
+#
+# If any permission is set, any permission not included in the list is
+# implicitly set to "none".
+#
+# see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+      - '[0-9]+.[0-9]+'
+      - '[0-9]+.x'
+    tags:
+      - 'v*'
+      - 'docker-v*'
+  pull_request:
+
+jobs:
+  validate-dco:
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    uses: ./.github/workflows/.dco.yml
+
+  build:
+    if: ${{ !failure() && !cancelled() && (github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only')) }}
+    uses: docker/github-builder/.github/workflows/bake.yml@v1
+    needs:
+      - validate-dco
+    permissions:
+      contents: read # same as global permission
+      id-token: write # for signing attestation(s) with GitHub OIDC Token
+    with:
+      setup-qemu: true
+      target: bin-image-cross
+      cache: true
+      cache-scope: bin-image
+      output: image
+      push: ${{ github.event_name != 'pull_request' }}
+      vars: |
+        DOCKER_GITCOMMIT=${{ github.sha }}
+        VERSION=${{ github.ref }}
+        PLATFORM=Moby Engine - Nightly
+        PRODUCT=moby-bin
+        PACKAGER_NAME=The Moby Project
+      meta-images: |
+        moby/moby-bin
+      ### versioning strategy
+      ## push tag docker-v23.0.0
+      # moby/moby-bin:23.0.0
+      # moby/moby-bin:23.0
+      # moby/moby-bin:23
+      # moby/moby-bin:latest
+      ## push tag docker-v23.0.0-beta.1
+      # moby/moby-bin:23.0.0-beta.1
+      ## push on master
+      # moby/moby-bin:master
+      ## push on 28.x branch
+      # moby/moby-bin:28.x
+      meta-tags: |
+        type=ref,event=branch
+        type=ref,event=pr
+        type=semver,pattern={{version}},match=docker-(.*)
+        type=semver,pattern={{major}}.{{minor}},match=docker-(.*)
+        type=semver,pattern={{major}},match=docker-(.*)
+    secrets:
+      registry-auths: |
+        - registry: docker.io
+          username: ${{ secrets.DOCKERHUB_MOBYBIN_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_MOBYBIN_TOKEN }}

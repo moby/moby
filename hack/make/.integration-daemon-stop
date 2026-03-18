@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+if [ ! "$(go env GOOS)" = 'windows' ]; then
+	for pidFile in $(find "$DEST" -name docker.pid); do
+		pid=$(
+			[ -n "$TESTDEBUG" ] && set -x
+			cat "$pidFile"
+		)
+		(
+			[ -n "$TESTDEBUG" ] && set -x
+			kill "$pid"
+		)
+		if ! wait "$pid"; then
+			echo >&2 "warning: PID $pid from $pidFile had a nonzero exit code"
+		fi
+		root=$(dirname "$pidFile")/root
+		if [ -d "$root" ]; then
+			umount -q "$root" || true
+		fi
+	done
+
+	if [ -z "$DOCKER_TEST_HOST" ]; then
+		# Stop apparmor if it is enabled
+		if [ -e "/sys/module/apparmor/parameters/enabled" ] && [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
+			(
+				[ -n "$TESTDEBUG" ] && set -x
+				/etc/init.d/apparmor stop || true
+			)
+		fi
+	fi
+else
+	# Note this script is not actionable on Windows to Linux CI. Instead the
+	# DIND daemon under test is torn down by the Jenkins tear-down script
+	echo "INFO: Not stopping daemon on Windows CI"
+fi

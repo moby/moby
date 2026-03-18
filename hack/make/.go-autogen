@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+LDFLAGS="${LDFLAGS} \
+-X \"github.com/moby/moby/v2/dockerversion.Version=${VERSION}\" \
+-X \"github.com/moby/moby/v2/dockerversion.GitCommit=${GITCOMMIT}\" \
+-X \"github.com/moby/moby/v2/dockerversion.BuildTime=${BUILDTIME}\" \
+-X \"github.com/moby/moby/v2/dockerversion.PlatformName=${PLATFORM}\" \
+-X \"github.com/moby/moby/v2/dockerversion.ProductName=${PRODUCT}\" \
+-X \"github.com/moby/moby/v2/dockerversion.DefaultProductLicense=${DEFAULT_PRODUCT_LICENSE}\" "
+
+# Compile the Windows resources into the sources
+if [ "$(go env GOOS)" = "windows" ]; then
+  if [ ! -x "$(command -v go-winres)" ]; then
+    >&2 echo "go-winres not found, skipping manifesting binary"
+  else
+    (
+      . hack/make/.mkwinres
+      go generate -v "${GO_PACKAGE}"
+    )
+  fi
+fi

@@ -1,0 +1,197 @@
+BASE:=base.tar.gz
+DEV_BUILD:=0
+
+DELTA_TARGET=out/delta.tar.gz
+
+ifeq "$(DEV_BUILD)" "1"
+DELTA_TARGET=out/delta-dev.tar.gz
+endif
+
+ifeq "$(SNP_BUILD)" "1"
+DELTA_TARGET=out/delta-snp.tar.gz
+endif
+
+SRCROOT=$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
+
+PATH_PREFIX:=
+# These have PATH_PREFIX prepended to obtain the full path in recipies e.g. $(PATH_PREFIX)/$(VMGS_TOOL)
+VMGS_TOOL:=
+IGVM_TOOL:=
+KERNEL_PATH:=
+TAR2EXT4_TOOL:=bin/cmd/tar2ext4
+
+ROOTFS_DEVICE:=/dev/sda
+HASH_DEVICE:=/dev/sdb
+
+.PHONY: all always rootfs test snp simple
+
+.DEFAULT_GOAL := all
+
+all: out/initrd.img out/rootfs.tar.gz
+
+clean:
+	find -name '*.o' -print0 | xargs -0 -r rm
+	rm -rf bin rootfs out
+
+rootfs: out/rootfs.vhd
+
+snp: out/kernel.vmgs out/rootfs-verity.vhd out/v2056.vmgs out/v2056combined.vmgs
+
+simple: out/simple.vmgs snp
+
+%.vmgs: %.bin
+	rm -f $@
+	# du -BM returns the size of the bin file in M, eg 7M. The sed command replaces the M with *1024*1024 and then bc does the math to convert to bytes
+	$(PATH_PREFIX)/$(VMGS_TOOL) create --filepath $@ --filesize `du -BM $< | sed  "s/M.*/*1024*1024/" | bc`
+	$(PATH_PREFIX)/$(VMGS_TOOL) write --filepath $@ --datapath $< -i=8
+
+# Simplest debug UVM used to test changes to the linux kernel. No dmverity protection. Boots an initramdisk rather than directly booting a vhd disk.
+out/simple.bin: out/initrd.img $(PATH_PREFIX)/$(KERNEL_PATH) boot/startup_simple.sh
+	rm -f $@
+	python3 $(PATH_PREFIX)/$(IGVM_TOOL) \
+		-o $@ \
+		-kernel $(PATH_PREFIX)/$(KERNEL_PATH) \
+		-append "8250_core.nr_uarts=0 panic=-1 debug loglevel=7 rdinit=/startup_simple.sh" \
+		-rdinit out/initrd.img \
+		-vtl 0
+
+# The boot performance is optimized by supplying rootfs as a SCSI attachment. In this case the kernel boots with
+# dm-verity to ensure the integrity. Similar to layer VHDs the verity Merkle tree is appended to ext4 filesystem.
+# It transpires that the /dev/sd* order is not deterministic wrt the scsi device order. Thus build a single userland
+# fs + merkle tree device and boot that.
+#
+# From https://www.kernel.org/doc/html/latest/admin-guide/device-mapper/dm-init.html
+#
+# dm-mod.create=<name>,<uuid>,<minor>,<flags>,<table>[,<table>+][;<name>,<uuid>,<minor>,<flags>,<table>[,<table>+]+]
+#
+# where:
+# <name>          ::= The device name.
+# <uuid>          ::= xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx | ""
+# <minor>         ::= The device minor number | ""
+# <flags>         ::= "ro" | "rw"
+# <table>         ::= <start_sector> <num_sectors> <target_type> <target_args>
+# <target_type>   ::= "verity" | "linear" | ... (see list below)
+#
+# From https://docs.kernel.org/admin-guide/device-mapper/verity.html
+# <version> <dev> <hash_dev>
+# <data_block_size> <hash_block_size>
+# <num_data_blocks> <hash_start_block>
+# <algorithm> <digest> <salt>
+# [<#opt_params> <opt_params>]
+#
+# typical igvm tool line once all the macros are expanded
+# python3 /home/user/igvmfile.py -o out/v2056.bin -kernel /hose/user/bzImage -append "8250_core.nr_uarts=0 panic=-1 debug loglevel=9 ignore_loglevel dev.scsi.logging_level=9411 root=/dev/dm-0 dm-mod.create=\"dmverity,,,ro,0 196744 verity 1 /dev/sda /dev/sdb 4096 4096 24593 0 sha256 6d625a306aafdf73125a84388b7bfdd2c3a154bd8d698955f4adffc736bdfd66 b9065c23231f0d8901cc3a68e1d3b8d624213e76d6f9f6d3ccbcb829f9c710ba 1 ignore_corruption\" init=/startup_v2056.sh"  -vtl 0
+#
+# so a kernel command line of:
+# 8250_core.nr_uarts=0 panic=-1 debug loglevel=9 ignore_loglevel dev.scsi.logging_level=9411 root=/dev/dm-0 dm-mod.create=\"dmverity,,,ro,0 196744 verity 1 /dev/sda /dev/sdb 4096 4096 24593 0 sha256 6d625a306aafdf73125a84388b7bfdd2c3a154bd8d698955f4adffc736bdfd66 b9065c23231f0d8901cc3a68e1d3b8d624213e76d6f9f6d3ccbcb829f9c710ba 1 ignore_corruption\" init=/startup_v2056.sh
+#
+# and a dm-mod.create of:
+# dmverity,,,ro,0 196744 verity 1 /dev/sda /dev/sdb 4096 4096 24593 0 sha256 6d625a306aafdf73125a84388b7bfdd2c3a154bd8d698955f4adffc736bdfd66 b9065c23231f0d8901cc3a68e1d3b8d624213e76d6f9f6d3ccbcb829f9c710ba 1 ignore_corruption
+#
+# which breaks down to:
+#
+# name = "dmverity"
+# uuid = ""
+# minor = ""
+# flags = "ro"
+# table = 0 196744 verity "args"
+#     start_sector = 0
+#     num_sectors = 196744
+#     target_type = verity
+#     target_args = 1 /dev/sda /dev/sdb 4096 4096 24593 0 sha256 6d625a306aafdf73125a84388b7bfdd2c3a154bd8d698955f4adffc736bdfd66 b9065c23231f0d8901cc3a68e1d3b8d624213e76d6f9f6d3ccbcb829f9c710ba 1 ignore_corruption
+# args:
+#     version               1
+#     dev                   /dev/sda
+#     hash_dev              /dev/sdb
+#     data_block_size       4096
+#     hash_block_size       4096
+#     num_data_blocks       24593
+#     hash_start_block      0
+#     algorithm             sha256
+#     digest                6d625a306aafdf73125a84388b7bfdd2c3a154bd8d698955f4adffc736bdfd66
+#     salt                  b9065c23231f0d8901cc3a68e1d3b8d624213e76d6f9f6d3ccbcb829f9c710ba
+#     opt_params
+#         count = 1
+#         ignore_corruption
+#
+# combined typical (not bigger count of sectors for the whole device)
+# dmverity,,,ro,0 199672 verity 1 /dev/sda /dev/sda 4096 4096 24959 24959 sha256 4aa6e79866ee946ddbd9cddd6554bc6449272942fcc65934326817785a3bd374 adc4956274489c936395bab046a2d476f21ef436e571ba53da2fdf3aee59bf0a
+#
+# A few notes:
+#  - num_sectors is the size of the final (aka target) verity device, i.e. the size of our rootfs excluding the Merkle
+#    tree.
+#  - We don't add verity superblock, so the <hash_start_block> will be exactly at the end of ext4 filesystem and equal
+#    to its size. In the case when verity superblock is present an extra block should be added to the offset value,
+#    i.e. 24959 becomes 24960.
+
+
+# Debug build for use with uvmtester. UVM with dm-verity protected vhd disk mounted directly via the kernel command line.
+# Ignores corruption in dm-verity protected disk. (Use dmesg to see if dm-verity is ignoring data corruption.)
+out/v2056.bin: out/rootfs.vhd out/rootfs.hash.vhd $(PATH_PREFIX)/$(KERNEL_PATH) out/rootfs.hash.datasectors out/rootfs.hash.datablocksize out/rootfs.hash.hashblocksize out/rootfs.hash.datablocks out/rootfs.hash.rootdigest out/rootfs.hash.salt boot/startup_v2056.sh
+	rm -f $@
+	python3 $(PATH_PREFIX)/$(IGVM_TOOL) \
+		-o $@ \
+		-kernel $(PATH_PREFIX)/$(KERNEL_PATH) \
+		-append "8250_core.nr_uarts=0 panic=-1 debug loglevel=9 root=/dev/dm-0 dm-mod.create=\"dmverity,,,ro,0 $(shell cat out/rootfs.hash.datasectors) verity 1 $(ROOTFS_DEVICE) $(HASH_DEVICE) $(shell cat out/rootfs.hash.datablocksize) $(shell cat out/rootfs.hash.hashblocksize) $(shell cat out/rootfs.hash.datablocks) $(shell cat out/rootfs.hash.datablocks) sha256 $(shell cat out/rootfs.hash.rootdigest) $(shell cat out/rootfs.hash.salt) 1 ignore_corruption\" init=/startup_v2056.sh" \
+		-vtl 0
+
+out/v2056combined.bin: out/rootfs-verity.vhd $(PATH_PREFIX)/$(KERNEL_PATH) out/rootfs.hash.datablocksize out/rootfs.hash.hashblocksize out/rootfs.hash.datablocks out/rootfs.hash.rootdigest out/rootfs.hash.salt boot/startup_v2056.sh
+	rm -f $@
+	echo root=/dev/dm-0 dm-mod.create=\"dmverity,,,ro,0 $(shell cat out/rootfs.hash.datasectors) verity 1 $(ROOTFS_DEVICE) $(ROOTFS_DEVICE) $(shell cat out/rootfs.hash.datablocksize) $(shell cat out/rootfs.hash.hashblocksize) $(shell cat out/rootfs.hash.datablocks) $(shell cat out/rootfs.hash.datablocks) sha256 $(shell cat out/rootfs.hash.rootdigest) $(shell cat out/rootfs.hash.salt) 1 ignore_corruption\"
+	python3 $(PATH_PREFIX)/$(IGVM_TOOL) \
+		-o $@ \
+		-kernel $(PATH_PREFIX)/$(KERNEL_PATH) \
+		-append "8250_core.nr_uarts=0 panic=-1 debug loglevel=9 ignore_loglevel dev.scsi.logging_level=9411 root=/dev/dm-0 dm-mod.create=\"dmverity,,,ro,0 $(shell cat out/rootfs.hash.datasectors) verity 1 $(ROOTFS_DEVICE) $(ROOTFS_DEVICE) $(shell cat out/rootfs.hash.datablocksize) $(shell cat out/rootfs.hash.hashblocksize) $(shell cat out/rootfs.hash.datablocks) $(shell cat out/rootfs.hash.datablocks) sha256 $(shell cat out/rootfs.hash.rootdigest) $(shell cat out/rootfs.hash.salt) 1 ignore_corruption\" init=/startup_v2056.sh" \
+		-vtl 0
+
+# Full UVM with dm-verity protected vhd disk mounted directly via the kernel command line.
+out/kernel.bin: out/rootfs-verity.vhd $(PATH_PREFIX)/$(KERNEL_PATH) out/rootfs.hash.datasectors out/rootfs.hash.datablocksize out/rootfs.hash.hashblocksize out/rootfs.hash.datablocks out/rootfs.hash.rootdigest out/rootfs.hash.salt boot/startup.sh
+	rm -f $@
+	echo root=/dev/dm-0 dm-mod.create=\"dmverity,,,ro,0 $(shell cat out/rootfs.hash.datasectors) verity 1 $(ROOTFS_DEVICE) $(ROOTFS_DEVICE) $(shell cat out/rootfs.hash.datablocksize) $(shell cat out/rootfs.hash.hashblocksize) $(shell cat out/rootfs.hash.datablocks) $(shell cat out/rootfs.hash.datablocks) sha256 $(shell cat out/rootfs.hash.rootdigest) $(shell cat out/rootfs.hash.salt)\"
+	python3 $(PATH_PREFIX)/$(IGVM_TOOL) \
+		-o $@ \
+		-kernel $(PATH_PREFIX)/$(KERNEL_PATH) \
+		-append "8250_core.nr_uarts=0 panic=-1 debug loglevel=7 root=/dev/dm-0 dm-mod.create=\"dmverity,,,ro,0 $(shell cat out/rootfs.hash.datasectors) verity 1 $(ROOTFS_DEVICE) $(ROOTFS_DEVICE) $(shell cat out/rootfs.hash.datablocksize) $(shell cat out/rootfs.hash.hashblocksize) $(shell cat out/rootfs.hash.datablocks) $(shell cat out/rootfs.hash.datablocks) sha256 $(shell cat out/rootfs.hash.rootdigest) $(shell cat out/rootfs.hash.salt)\" init=/startup.sh" \
+		-vtl 0
+
+# Rule to make a vhd from a file. This is used to create the rootfs.hash.vhd from rootfs.hash.
+%.vhd: % $(TAR2EXT4_TOOL)
+	$(TAR2EXT4_TOOL) -only-vhd -i $< -o $@
+
+# Rule to make a vhd from an ext4 file. This is used to create the rootfs.vhd from rootfs.ext4.
+%.vhd: %.ext4 $(TAR2EXT4_TOOL)
+	$(TAR2EXT4_TOOL) -only-vhd -i $< -o $@
+
+%.hash %.hash.info %.hash.datablocks %.hash.rootdigest %hash.datablocksize %.hash.datasectors %.hash.hashblocksize: %.ext4 %.hash.salt
+	veritysetup format --no-superblock --salt $(shell cat out/rootfs.hash.salt) $< $*.hash > $*.hash.info
+    # Retrieve info required by dm-verity at boot time
+    # Get the blocksize of rootfs
+	cat $*.hash.info | awk '/^Root hash:/{ print $$3 }' > $*.hash.rootdigest
+	cat $*.hash.info | awk '/^Salt:/{ print $$2 }' > $*.hash.salt
+	cat $*.hash.info | awk '/^Data block size:/{ print $$4 }' > $*.hash.datablocksize
+	cat $*.hash.info | awk '/^Hash block size:/{ print $$4 }' > $*.hash.hashblocksize
+	cat $*.hash.info | awk '/^Data blocks:/{ print $$3 }' > $*.hash.datablocks
+	echo $$(( $$(cat $*.hash.datablocks) * $$(cat $*.hash.datablocksize) / 512 )) > $*.hash.datasectors
+
+out/rootfs.hash.salt:
+	hexdump -vn32 -e'8/4 "%08X" 1 "\n"' /dev/random > $@
+
+out/rootfs.ext4: out/rootfs.tar.gz $(TAR2EXT4_TOOL)
+	gzip -f -d ./out/rootfs.tar.gz
+	$(TAR2EXT4_TOOL) -i ./out/rootfs.tar -o $@
+
+out/rootfs-verity.ext4: out/rootfs.ext4 out/rootfs.hash
+	cp out/rootfs.ext4 $@
+	cat out/rootfs.hash >> $@
+
+out/rootfs.tar.gz: out/initrd.img
+	rm -rf rootfs-conv
+	mkdir rootfs-conv
+	gunzip -c out/initrd.img | (cd rootfs-conv && cpio -imd)
+	tar -zcf $@ -C rootfs-conv .
+	rm -rf rootfs-conv
+
+out/initrd.img: $(BASE) $(DELTA_TARGET) $(SRCROOT)/hack/catcpio.sh
+	$(SRCROOT)/hack/catcpio.sh "$(BASE)" $(DELTA_TARGET) > out/initrd.img.uncompressed
+	gzip -c out/initrd.img.uncompressed > $@
+	rm out/initrd.img.uncompressed

@@ -1,0 +1,7 @@
+table ip6 this_is_a_table {
+	map this_is_a_vmap {
+		type ifname : verdict
+		elements = { "eth0" : return,
+			     "eth1" : drop }
+	}
+}

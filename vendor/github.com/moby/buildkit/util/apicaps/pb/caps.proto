@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package moby.buildkit.v1.apicaps;
+
+option go_package = "github.com/moby/buildkit/util/apicaps/pb;moby_buildkit_v1_apicaps";
+
+// APICap defines a capability supported by the service
+message APICap {
+	string ID = 1;
+	bool Enabled = 2;
+	bool Deprecated = 3; // Unused. May be used for warnings in the future
+	string DisabledReason = 4; // Reason key for detection code
+	string DisabledReasonMsg = 5; // Message to the user
+	string DisabledAlternative = 6; // Identifier that updated client could catch.
+}

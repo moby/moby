@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package moby.buildkit.v1.sourcepolicy;
+
+option go_package = "github.com/moby/buildkit/sourcepolicy/pb;moby_buildkit_v1_sourcepolicy";
+
+// Rule defines the action(s) to take when a source is matched
+message Rule {
+	PolicyAction action = 1; 
+	Selector selector = 2;
+	Update updates = 3;
+}
+
+// Update contains updates to the matched build step after rule is applied
+message Update {
+	string identifier = 1;
+	map<string, string> attrs = 2;
+}
+
+// Selector identifies a source to match a policy to
+message Selector {
+	string identifier = 1;
+	// MatchType is the type of match to perform on the source identifier
+	MatchType match_type = 2;
+	repeated AttrConstraint constraints = 3;
+}
+
+// PolicyAction defines the action to take when a source is matched
+enum PolicyAction {
+	ALLOW = 0;
+	DENY = 1;
+	CONVERT = 2;
+}
+
+// AttrConstraint defines a constraint on a source attribute
+message AttrConstraint {
+	string key = 1;
+	string value = 2;
+	AttrMatch condition = 3;
+}
+
+// AttrMatch defines the condition to match a source attribute
+enum AttrMatch {
+	EQUAL = 0;
+	NOTEQUAL = 1;
+	MATCHES = 2;
+}
+
+// Policy is the list of rules the policy engine will perform
+message Policy {
+	int64 version = 1; // Currently 1
+	repeated Rule rules = 2;
+}
+
+// Match type is used to determine how a rule source is matched
+enum MatchType {
+	// WILDCARD is the default matching type.
+	// It may first attempt to due an exact match but will follow up with a wildcard match
+	// For something more powerful, use REGEX
+	WILDCARD = 0;
+	// EXACT treats the source identifier as a litteral string match
+	EXACT = 1;
+	// REGEX treats the source identifier as a regular expression
+	// With regex matching you can also use match groups to replace values in the destination identifier
+	REGEX = 2;
+}

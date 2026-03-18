@@ -1,0 +1,146 @@
+<!-- This is a generated file; DO NOT EDIT. -->
+
+## Container on a user-defined network, with a published port, no userland proxy
+
+Running the daemon with the userland proxy disabled then, as before, adding a network running a container with a mapped port, equivalent to:
+
+    dockerd --userland-proxy=false
+	docker network create \
+	  -o com.docker.network.bridge.name=bridge1 \
+	  --subnet 192.0.2.0/24 --gateway 192.0.2.1 bridge1
+	docker run --network bridge1 -p 8080:80 --name c1 busybox
+
+The filter table is the same as with the userland proxy enabled.
+
+<details>
+<summary>Filter table</summary>
+
+    Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    
+    Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DOCKER-USER  all  --  any    any     anywhere             anywhere            
+    2        0     0 DOCKER-FORWARD  all  --  any    any     anywhere             anywhere            
+    
+    Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    
+    Chain DOCKER (2 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 ACCEPT     tcp  --  !bridge1 bridge1  anywhere             192.0.2.2            tcp dpt:http
+    2        0     0 DROP       all  --  !docker0 docker0  anywhere             anywhere            
+    3        0     0 DROP       all  --  !bridge1 bridge1  anywhere             anywhere            
+    
+    Chain DOCKER-BRIDGE (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DOCKER     all  --  any    docker0  anywhere             anywhere            
+    2        0     0 DOCKER     all  --  any    bridge1  anywhere             anywhere            
+    
+    Chain DOCKER-CT (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 ACCEPT     all  --  any    docker0  anywhere             anywhere             ctstate RELATED,ESTABLISHED
+    2        0     0 ACCEPT     all  --  any    bridge1  anywhere             anywhere             ctstate RELATED,ESTABLISHED
+    
+    Chain DOCKER-FORWARD (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DOCKER-CT  all  --  any    any     anywhere             anywhere            
+    2        0     0 DOCKER-INTERNAL  all  --  any    any     anywhere             anywhere            
+    3        0     0 DOCKER-BRIDGE  all  --  any    any     anywhere             anywhere            
+    4        0     0 ACCEPT     all  --  docker0 any     anywhere             anywhere            
+    5        0     0 ACCEPT     all  --  bridge1 any     anywhere             anywhere            
+    
+    Chain DOCKER-INTERNAL (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    
+    Chain DOCKER-USER (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    
+
+    -P INPUT ACCEPT
+    -P FORWARD ACCEPT
+    -P OUTPUT ACCEPT
+    -N DOCKER
+    -N DOCKER-BRIDGE
+    -N DOCKER-CT
+    -N DOCKER-FORWARD
+    -N DOCKER-INTERNAL
+    -N DOCKER-USER
+    -A FORWARD -j DOCKER-USER
+    -A FORWARD -j DOCKER-FORWARD
+    -A DOCKER -d 192.0.2.2/32 ! -i bridge1 -o bridge1 -p tcp -m tcp --dport 80 -j ACCEPT
+    -A DOCKER ! -i docker0 -o docker0 -j DROP
+    -A DOCKER ! -i bridge1 -o bridge1 -j DROP
+    -A DOCKER-BRIDGE -o docker0 -j DOCKER
+    -A DOCKER-BRIDGE -o bridge1 -j DOCKER
+    -A DOCKER-CT -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-CT -o bridge1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-FORWARD -j DOCKER-CT
+    -A DOCKER-FORWARD -j DOCKER-INTERNAL
+    -A DOCKER-FORWARD -j DOCKER-BRIDGE
+    -A DOCKER-FORWARD -i docker0 -j ACCEPT
+    -A DOCKER-FORWARD -i bridge1 -j ACCEPT
+    
+
+</details>
+
+The nat table is:
+
+    Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DOCKER     all  --  any    any     anywhere             anywhere             ADDRTYPE match dst-type LOCAL
+    
+    Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    
+    Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DOCKER     all  --  any    any     anywhere             anywhere             ADDRTYPE match dst-type LOCAL
+    
+    Chain POSTROUTING (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 MASQUERADE  all  --  any    bridge1  anywhere             anywhere             ADDRTYPE match src-type LOCAL
+    2        0     0 MASQUERADE  all  --  any    !bridge1  192.0.2.0/24         anywhere            
+    3        0     0 MASQUERADE  all  --  any    docker0  anywhere             anywhere             ADDRTYPE match src-type LOCAL
+    4        0     0 MASQUERADE  all  --  any    !docker0  172.17.0.0/16        anywhere            
+    5        0     0 MASQUERADE  tcp  --  any    any     192.0.2.2            192.0.2.2            tcp dpt:http
+    
+    Chain DOCKER (2 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DNAT       tcp  --  any    any     anywhere             anywhere             tcp dpt:http-alt to:192.0.2.2:80
+    
+    
+<details>
+<summary>iptables commands</summary>
+
+    -P PREROUTING ACCEPT
+    -P INPUT ACCEPT
+    -P OUTPUT ACCEPT
+    -P POSTROUTING ACCEPT
+    -N DOCKER
+    -A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+    -A OUTPUT -m addrtype --dst-type LOCAL -j DOCKER
+    -A POSTROUTING -o bridge1 -m addrtype --src-type LOCAL -j MASQUERADE
+    -A POSTROUTING -s 192.0.2.0/24 ! -o bridge1 -j MASQUERADE
+    -A POSTROUTING -o docker0 -m addrtype --src-type LOCAL -j MASQUERADE
+    -A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+    -A POSTROUTING -s 192.0.2.2/32 -d 192.0.2.2/32 -p tcp -m tcp --dport 80 -j MASQUERADE
+    -A DOCKER -p tcp -m tcp --dport 8080 -j DNAT --to-destination 192.0.2.2:80
+    
+
+</details>
+
+Differences from [running with the proxy][0] are:
+
+  - The jump from the OUTPUT chain to DOCKER happens even for loopback addresses.
+    [ProgramChain][1].
+  - A MASQUERADE rule is added for packets sent from the container to one of its
+    own published ports on the host.
+  - A MASQUERADE rule for packets from a LOCAL source address is included in
+    POSTROUTING [setupIPTablesInternal][3].
+  - In the DOCKER chain's DNAT rule, there's no destination bridge [setPerPortNAT][4].
+
+[0]: usernet-portmap.md
+[1]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L302
+[3]: https://github.com/moby/moby/blob/333cfa640239153477bf635a8131734d0e9d099d/libnetwork/drivers/bridge/setup_ip_tables_linux.go#L302
+[4]: https://github.com/moby/moby/blob/675c2ac2db93e38bb9c5a6615d4155a969535fd9/libnetwork/drivers/bridge/port_mapping_linux.go#L772

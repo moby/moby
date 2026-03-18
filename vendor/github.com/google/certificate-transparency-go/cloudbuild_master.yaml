@@ -1,0 +1,230 @@
+#############################################################################
+## The top section of this file is identical in the 3 cloudbuild.*yaml files.
+## Make sure any edits you make here are copied over to the other files too
+## if appropriate.
+##
+## TODO(al): consider if it's possible to merge these 3 files and control via
+## substitutions.
+#############################################################################
+
+timeout: 1200s
+options:
+  machineType: N1_HIGHCPU_32
+  volumes:
+  - name: go-modules
+    path: /go
+  env:
+  - GOPROXY=https://proxy.golang.org
+  - PROJECT_ROOT=github.com/google/certificate-transparency-go
+  - GOPATH=/go
+
+substitutions:
+  _CLUSTER_NAME: trillian-opensource-ci
+  _MASTER_ZONE: us-central1-a
+
+# Cloud Build logs sent to GCS bucket
+logsBucket: 'gs://trillian-cloudbuild-logs'
+
+steps:
+# First build a "ct_testbase" docker image which contains most of the tools we need for the later steps:
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: 'bash'
+  args: ['-c', 'docker pull gcr.io/$PROJECT_ID/ct_testbase:latest || exit 0']
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'build',
+    '-t', 'gcr.io/$PROJECT_ID/ct_testbase:latest',
+    '--cache-from', 'gcr.io/$PROJECT_ID/ct_testbase:latest',
+    '-f', './integration/Dockerfile',
+    '.'
+  ]
+
+# prepare spins up an ephemeral trillian instance for testing use.
+- name: gcr.io/$PROJECT_ID/ct_testbase
+  entrypoint: 'bash'
+  id: 'prepare'
+  args:
+  - '-exc'
+  - |
+    # Use latest versions of Trillian docker images built by the Trillian CI cloudbuilders.
+    docker pull gcr.io/$PROJECT_ID/log_server:latest
+    docker tag gcr.io/$PROJECT_ID/log_server:latest deployment_trillian-log-server
+    docker pull gcr.io/$PROJECT_ID/log_signer:latest
+    docker tag gcr.io/$PROJECT_ID/log_signer:latest deployment_trillian-log-signer
+
+    # Bring up an ephemeral trillian instance using the docker-compose config in the Trillian repo:
+    export TRILLIAN_LOCATION="$$(go list -f '{{.Dir}}' github.com/google/trillian)"
+
+    # We need to fix up Trillian's docker-compose to connect to the CloudBuild network to that tests can use it:
+    echo -e "networks:\n      default:\n        external:\n          name: cloudbuild" >> $${TRILLIAN_LOCATION}/examples/deployment/docker-compose.yml
+
+    docker-compose -f $${TRILLIAN_LOCATION}/examples/deployment/docker-compose.yml pull mysql trillian-log-server trillian-log-signer
+    docker-compose -f $${TRILLIAN_LOCATION}/examples/deployment/docker-compose.yml up -d mysql trillian-log-server trillian-log-signer
+
+# Install proto related bits and block on Trillian being ready
+- name: gcr.io/$PROJECT_ID/ct_testbase
+  id: 'ci-ready'
+  entrypoint: 'bash'
+  args:
+    - '-ec'
+    - |
+      go install \
+        github.com/golang/protobuf/proto \
+        github.com/golang/protobuf/protoc-gen-go \
+        github.com/golang/mock/mockgen \
+        go.etcd.io/etcd/v3 go.etcd.io/etcd/etcdctl/v3 \
+        github.com/fullstorydev/grpcurl/cmd/grpcurl
+
+      # Generate all protoc and mockgen files
+      go generate -run="protoc" ./...
+      go generate -run="mockgen" ./...
+
+      # Cache all the modules we'll need too
+      go mod download
+      go test ./...
+
+      # Wait for trillian logserver to be up
+      until nc -z deployment_trillian-log-server_1 8090; do echo .; sleep 5; done
+
+      # Reset the CT test database
+      export CT_GO_PATH="$$(go list -f '{{.Dir}}' github.com/google/certificate-transparency-go)"
+      export MYSQL_HOST="mysql"
+      export MYSQL_ROOT_PASSWORD="zaphod"
+      export MYSQL_USER_HOST="%"
+      yes | bash "$${CT_GO_PATH}/scripts/resetctdb.sh" --verbose
+  waitFor: ['prepare']
+
+# Run the presubmit tests
+- name: gcr.io/$PROJECT_ID/ct_testbase
+  id: 'default_test'
+  env:
+    - 'GOFLAGS='
+    - 'PRESUBMIT_OPTS=--no-linters --no-generate'
+    - 'TRILLIAN_LOG_SERVERS=deployment_trillian-log-server_1:8090'
+    - 'TRILLIAN_LOG_SERVER_1=deployment_trillian-log-server_1:8090'
+  waitFor: ['ci-ready']
+
+- name: gcr.io/$PROJECT_ID/ct_testbase
+  id: 'race_detection'
+  env:
+    - 'GOFLAGS=-race'
+    - 'PRESUBMIT_OPTS=--no-linters --no-generate'
+    - 'TRILLIAN_LOG_SERVERS=deployment_trillian-log-server_1:8090'
+    - 'TRILLIAN_LOG_SERVER_1=deployment_trillian-log-server_1:8090'
+  waitFor: ['ci-ready']
+
+- name: gcr.io/$PROJECT_ID/ct_testbase
+  id: 'etcd_with_coverage'
+  env:
+    - 'GOFLAGS='
+    - 'PRESUBMIT_OPTS=--no-linters --no-generate --coverage'
+    - 'WITH_ETCD=true'
+    - 'TRILLIAN_LOG_SERVERS=deployment_trillian-log-server_1:8090'
+    - 'TRILLIAN_LOG_SERVER_1=deployment_trillian-log-server_1:8090'
+  waitFor: ['ci-ready']
+
+- name: gcr.io/$PROJECT_ID/ct_testbase
+  id: 'etcd_with_race'
+  env:
+    - 'GOFLAGS=-race'
+    - 'PRESUBMIT_OPTS=--no-linters --no-generate'
+    - 'WITH_ETCD=true'
+    - 'TRILLIAN_LOG_SERVERS=deployment_trillian-log-server_1:8090'
+    - 'TRILLIAN_LOG_SERVER_1=deployment_trillian-log-server_1:8090'
+  waitFor: ['ci-ready']
+
+- name: gcr.io/$PROJECT_ID/ct_testbase
+  id: 'with_pkcs11_and_race'
+  env:
+    - 'GOFLAGS=-race --tags=pkcs11'
+    - 'PRESUBMIT_OPTS=--no-linters --no-generate'
+    - 'WITH_PKCS11=true'
+    - 'TRILLIAN_LOG_SERVERS=deployment_trillian-log-server_1:8090'
+    - 'TRILLIAN_LOG_SERVER_1=deployment_trillian-log-server_1:8090'
+  waitFor: ['ci-ready']
+
+# Collect and submit codecoverage reports
+- name: 'gcr.io/cloud-builders/curl'
+  id: 'codecov.io'
+  entrypoint: bash
+  args: ['-c', 'bash <(curl -s https://codecov.io/bash)']
+  env:
+  - 'VCS_COMMIT_ID=$COMMIT_SHA'
+  - 'VCS_BRANCH_NAME=$BRANCH_NAME'
+  - 'VCS_PULL_REQUEST=$_PR_NUMBER'
+  - 'CI_BUILD_ID=$BUILD_ID'
+  - 'CODECOV_TOKEN=$_CODECOV_TOKEN' # _CODECOV_TOKEN is specified in the cloud build trigger
+  waitFor: ['etcd_with_coverage']
+
+- name: gcr.io/$PROJECT_ID/ct_testbase
+  id: 'ci_complete'
+  entrypoint: /bin/true
+  waitFor: ['codecov.io', 'default_test', 'race_detection', 'etcd_with_coverage', 'etcd_with_race', 'with_pkcs11_and_race']
+
+############################################################################
+## End of replicated section.
+## Below are deployment specific steps for the CD env.
+############################################################################
+
+- id: build_ctfe
+  name: gcr.io/cloud-builders/docker
+  args:
+  - build
+  - --file=trillian/examples/deployment/docker/ctfe/Dockerfile
+  - --tag=gcr.io/${PROJECT_ID}/ctfe:${COMMIT_SHA}
+  - --cache-from=gcr.io/${PROJECT_ID}/ctfe
+  - .
+  waitFor: ["-"]
+- id: push_ctfe
+  name: gcr.io/cloud-builders/docker
+  args:
+  - push
+  - gcr.io/${PROJECT_ID}/ctfe:${COMMIT_SHA}
+  waitFor:
+  - build_ctfe
+- id: tag_latest_ctfe
+  name: gcr.io/cloud-builders/gcloud
+  args:
+  - container
+  - images
+  - add-tag
+  - gcr.io/${PROJECT_ID}/ctfe:${COMMIT_SHA}
+  - gcr.io/${PROJECT_ID}/ctfe:latest
+  waitFor:
+  - push_ctfe
+- id: build_envsubst
+  name: gcr.io/cloud-builders/docker
+  args:
+  - build
+  - trillian/examples/deployment/docker/envsubst
+  - -t
+  - envsubst
+  waitFor: ["-"]
+- id: envsubst_kubernetes_configs
+  name: envsubst
+  args:
+  - trillian/examples/deployment/kubernetes/ctfe-deployment.yaml
+  - trillian/examples/deployment/kubernetes/ctfe-service.yaml
+  - trillian/examples/deployment/kubernetes/ctfe-ingress.yaml
+  env:
+  - PROJECT_ID=${PROJECT_ID}
+  - IMAGE_TAG=${COMMIT_SHA}
+  waitFor:
+  - build_envsubst
+- id: update_kubernetes_configs
+  name: gcr.io/cloud-builders/kubectl
+  args:
+  - apply
+  - -f=trillian/examples/deployment/kubernetes/ctfe-deployment.yaml
+  - -f=trillian/examples/deployment/kubernetes/ctfe-service.yaml
+  - -f=trillian/examples/deployment/kubernetes/ctfe-ingress.yaml
+  env:
+  - CLOUDSDK_COMPUTE_ZONE=${_MASTER_ZONE}
+  - CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}
+  waitFor:
+  - envsubst_kubernetes_configs
+  - push_ctfe
+
+images:
+- gcr.io/${PROJECT_ID}/ctfe:${COMMIT_SHA}
+- gcr.io/${PROJECT_ID}/ct_testbase:latest

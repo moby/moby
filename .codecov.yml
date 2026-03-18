@@ -1,0 +1,18 @@
+comment: false
+
+github_checks:
+  annotations: false
+
+coverage:
+  status:
+    patch: false
+    # project will give us the diff in the total code coverage between a commit
+    # and its parent
+    project:
+      default:
+        target: auto
+        threshold: "15%"
+    changes: false
+
+ignore:
+  - "vendor/**/*"

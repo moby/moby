@@ -1,0 +1,207 @@
+run:
+  # The default runtime timeout is 1m, which doesn't work well on Github Actions.
+  timeout: 4m
+
+# NOTE: This file is populated by the lint-install tool. Local adjustments may be overwritten.
+linters-settings:
+  cyclop:
+    # NOTE: This is a very high transitional threshold
+    max-complexity: 37
+    package-average: 34.0
+    skip-tests: true
+
+  gocognit:
+    # NOTE: This is a very high transitional threshold
+    min-complexity: 98
+
+  dupl:
+    threshold: 200
+
+  goconst:
+    min-len: 4
+    min-occurrences: 5
+    ignore-tests: true
+
+  gosec:
+    excludes:
+      - G107 # Potential HTTP request made with variable url
+      - G204 # Subprocess launched with function call as argument or cmd arguments
+      - G404 # Use of weak random number generator (math/rand instead of crypto/rand
+
+  errorlint:
+    # these are still common in Go: for instance, exit errors.
+    asserts: false
+
+  exhaustive:
+    default-signifies-exhaustive: true
+
+  nestif:
+    min-complexity: 8
+
+  nolintlint:
+    require-explanation: true
+    allow-unused: false
+    require-specific: true
+
+  revive:
+    ignore-generated-header: true
+    severity: warning
+    rules:
+      - name: atomic
+      - name: blank-imports
+      - name: bool-literal-in-expr
+      - name: confusing-naming
+      - name: constant-logical-expr
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: deep-exit
+      - name: defer
+      - name: range-val-in-closure
+      - name: range-val-address
+      - name: dot-imports
+      - name: error-naming
+      - name: error-return
+      - name: error-strings
+      - name: errorf
+      - name: exported
+      - name: identical-branches
+      - name: if-return
+      - name: import-shadowing
+      - name: increment-decrement
+      - name: indent-error-flow
+      - name: indent-error-flow
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: redefines-builtin-id
+      - name: superfluous-else
+      - name: struct-tag
+      - name: time-naming
+      - name: unexported-naming
+      - name: unexported-return
+      - name: unnecessary-stmt
+      - name: unreachable-code
+      - name: unused-parameter
+      - name: var-declaration
+      - name: var-naming
+      - name: unconditional-recursion
+      - name: waitgroup-by-value
+
+  staticcheck:
+    go: "1.16"
+
+  unused:
+    go: "1.16"
+
+output:
+  sort-results: true
+
+linters:
+  disable-all: true
+  enable:
+    - asciicheck
+    - bodyclose
+    - cyclop
+    - deadcode
+    - dogsled
+    - dupl
+    - durationcheck
+    - errcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - exportloopref
+    - forcetypeassert
+    - gocognit
+    - goconst
+    - gocritic
+    - godot
+    - gofmt
+    - gofumpt
+    - gosec
+    - goheader
+    - goimports
+    - goprintffuncname
+    - gosimple
+    - govet
+    - ifshort
+    - importas
+    - ineffassign
+    - makezero
+    - misspell
+    - nakedret
+    - nestif
+    - nilerr
+    - noctx
+    - nolintlint
+    - predeclared
+    # disabling for the initial iteration of the linting tool
+    # - promlinter
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - staticcheck
+    - structcheck
+    - stylecheck
+    - thelper
+    - tparallel
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+    - wastedassign
+    - whitespace
+
+  # Disabled linters, due to being misaligned with Go practices
+  # - exhaustivestruct
+  # - gochecknoglobals
+  # - gochecknoinits
+  # - goconst
+  # - godox
+  # - goerr113
+  # - gomnd
+  # - lll
+  # - nlreturn
+  # - testpackage
+  # - wsl
+  # Disabled linters, due to not being relevant to our code base:
+  # - maligned
+  # - prealloc "For most programs usage of prealloc will be a premature optimization."
+  # Disabled linters due to bad error messages or bugs
+  # - tagliatelle
+
+issues:
+  # Excluding configuration per-path, per-linter, per-text and per-source
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - errcheck
+        - forcetypeassert
+        - gocyclo
+        - gosec
+        - noctx
+
+    - path: .*cmd.*
+      linters:
+        - noctx
+
+    - path: main\.go
+      linters:
+        - noctx
+
+    - path: .*cmd.*
+      text: "deep-exit"
+
+    - path: main\.go
+      text: "deep-exit"
+
+    # This check is of questionable value
+    - linters:
+        - tparallel
+      text: "call t.Parallel on the top level as well as its subtests"
+
+  # Don't hide lint issues just because there are many of them
+  max-same-issues: 0
+  max-issues-per-linter: 0

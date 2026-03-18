@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+set -e
+rm -rf "$DEST"
+
+source "${MAKEDIR}/.install"
+
+(
+	DEST="$(dirname $DEST)/binary-daemon"
+	install_binary "${DEST}/dockerd"
+	install_binary "${DEST}/runc"
+	install_binary "${DEST}/containerd"
+	install_binary "${DEST}/ctr"
+	install_binary "${DEST}/containerd-shim-runc-v2"
+	install_binary "${DEST}/docker-proxy"
+	install_binary "${DEST}/docker-init"
+	install_binary "${DEST}/rootlesskit"
+	install_binary "${DEST}/dockerd-rootless.sh"
+	install_binary "${DEST}/dockerd-rootless-setuptool.sh"
+	if [ -f "${DEST}/vpnkit" ]; then
+		install_binary "${DEST}/vpnkit"
+	fi
+)

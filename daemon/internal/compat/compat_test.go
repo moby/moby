@@ -1,0 +1,195 @@
+package compat_test
+
+import (
+	"bytes"
+	"encoding/json"
+	"strings"
+	"testing"
+
+	"github.com/moby/moby/v2/daemon/internal/compat"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+)
+
+type Info struct {
+	Name     string        `json:"name"`
+	Version  string        `json:"version"`
+	NewField string        `json:"newfield"`
+	Nested   *NestedStruct `json:"legacy,omitempty"`
+}
+
+type NestedStruct struct {
+	Field1 string `json:"field1"`
+	Field2 int    `json:"field2"`
+}
+
+func TestWrap(t *testing.T) {
+	info := &Info{
+		Name:     "daemon",
+		Version:  "v2.0",
+		NewField: "new field",
+	}
+
+	tests := []struct {
+		name     string
+		options  []compat.Option
+		expected string
+	}{
+		{
+			name:     "none",
+			expected: `{"name":"daemon","version":"v2.0","newfield":"new field"}`,
+		},
+		{
+			name:     "extra fields",
+			options:  []compat.Option{compat.WithExtraFields(map[string]any{"legacy_field": "hello"})},
+			expected: `{"legacy_field":"hello","name":"daemon","newfield":"new field","version":"v2.0"}`,
+		},
+		{
+			name:     "omit fields",
+			options:  []compat.Option{compat.WithOmittedFields("newfield", "version")},
+			expected: `{"name":"daemon"}`,
+		},
+		{
+			name: "omit and extra fields",
+			options: []compat.Option{
+				compat.WithExtraFields(map[string]any{"legacy_field": "hello"}),
+				compat.WithOmittedFields("newfield", "version"),
+			},
+			expected: `{"legacy_field":"hello","name":"daemon"}`,
+		},
+		// TODO(thaJeztah): add a "replace" option to allow replacing existing fields.
+		/*
+			{
+				name: "replace field",
+				options: []compat.Option{compat.WithExtraFields(map[string]any{"version": struct {
+					Major, Minor int
+				}{Major: 1, Minor: 0}})},
+				expected: `{"name":"daemon","newfield":"new field","version":{"Major":1,"Minor":0}}`,
+			},
+		*/
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := compat.Wrap(info, tc.options...)
+			data, err := json.Marshal(resp)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(data) != tc.expected {
+				t.Errorf("\nExpected: %s\nGot:      %s", tc.expected, string(data))
+			}
+		})
+	}
+}
+
+func TestWrapNilPtrField(t *testing.T) {
+	type bStruct struct {
+		StringField string `json:"stringfield"`
+	}
+	type aStruct struct {
+		IntField    *int     `json:"intfield"`
+		StructField *bStruct `json:"structfield"`
+	}
+	info := &aStruct{}
+
+	tests := []struct {
+		name     string
+		options  []compat.Option
+		expected string
+	}{
+		{
+			name:     "none",
+			expected: `{"intfield":null,"structfield":null}`,
+		},
+		{
+			name:     "replace nil int",
+			options:  []compat.Option{compat.WithExtraFields(map[string]any{"intfield": 42})},
+			expected: `{"intfield":42,"structfield":null}`,
+		},
+		{
+			name: "replace nil struct",
+			options: []compat.Option{compat.WithExtraFields(map[string]any{
+				"structfield": map[string]any{"stringfield": "hello"},
+			})},
+			expected: `{"intfield":null,"structfield":{"stringfield":"hello"}}`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := compat.Wrap(info, tc.options...)
+			data, err := json.Marshal(resp)
+			if assert.Check(t, err) {
+				assert.Check(t, is.Equal(string(data), tc.expected))
+			}
+		})
+	}
+}
+
+func TestNestedCompat(t *testing.T) {
+	info := &Info{
+		Name:     "daemon",
+		Version:  "v2.0",
+		NewField: "new field",
+	}
+
+	detail := &NestedStruct{
+		Field1: "ok",
+		Field2: 42,
+	}
+	nested := compat.Wrap(detail, compat.WithExtraFields(map[string]any{
+		"legacy_field": "hello",
+	}))
+	resp := compat.Wrap(info, compat.WithExtraFields(map[string]any{
+		"nested": nested,
+	}))
+
+	data, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatalf("Marshal failed: %v", err)
+	}
+
+	const expected = `{"name":"daemon","nested":{"field1":"ok","field2":42,"legacy_field":"hello"},"newfield":"new field","version":"v2.0"}`
+	if string(data) != expected {
+		t.Errorf("\nExpected: %s\nGot:      %s", expected, string(data))
+	}
+}
+
+func TestCompatDoesntEscapeHTML(t *testing.T) {
+	info := &Info{
+		Name: "foobar & daemon",
+	}
+
+	testcases := []struct {
+		name     string
+		options  []compat.Option
+		expected string
+	}{
+		{
+			name:     "no options",
+			expected: `{"name":"foobar & daemon","version":"","newfield":""}`,
+		},
+		{
+			name:     "with extra fields",
+			options:  []compat.Option{compat.WithExtraFields(map[string]any{"legacy_field": "<hello>"})},
+			expected: `{"legacy_field":"<hello>","name":"foobar & daemon","newfield":"","version":""}`,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			enc := json.NewEncoder(&buf)
+			enc.SetEscapeHTML(false)
+			err := enc.Encode(compat.Wrap(info, tc.options...))
+			if err != nil {
+				t.Fatalf("Marshal failed: %v", err)
+			}
+
+			// json.Encoder.Encode adds a LF char at the end, trim it for comparison.
+			// See https://pkg.go.dev/encoding/json#Encoder.Encode.
+			if strings.TrimSpace(buf.String()) != tc.expected {
+				t.Errorf("\nExpected: %s\nGot:      %s", tc.expected, buf.String())
+			}
+		})
+	}
+}

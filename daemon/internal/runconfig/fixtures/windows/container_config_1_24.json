@@ -1,0 +1,108 @@
+{
+  "AttachStderr": true,
+  "AttachStdin": true,
+  "AttachStdout": true,
+  "Cmd": ["date"],
+  "Domainname": "",
+  "Entrypoint": ["cmd"],
+  "Env": [],
+  "ExposedPorts": {
+    "22/tcp": {}
+  },
+  "HostConfig": {
+    "AutoRemove": false,
+    "Binds": ["c:/windows:/tmp"],
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceWriteIOps": null,
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "CapAdd": ["NET_ADMIN"],
+    "CapDrop": ["MKNOD"],
+    "Cgroup": "",
+    "CgroupParent": "",
+    "ConsoleSize": [0,0],
+    "ContainerIDFile": "",
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuShares": 512,
+    "CpusetCpus": "0,1",
+    "CpusetMems": "",
+    "Devices": [],
+    "DiskQuota": 0,
+    "Dns": ["8.8.8.8"],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IOMaximumBandwidth": 0,
+    "IOMaximumIOps": 0,
+    "IpcMode": "",
+    "Isolation": "",
+    "KernelMemory": 0,
+    "Links": [
+      "redis3:redis"
+    ],
+    "LogConfig": {
+      "Config": {},
+      "Type": "json-file"
+    },
+    "Memory": 4194304,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": -1,
+    "NetworkMode": "bridge",
+    "OomKillDisable": false,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "PidsLimit": 0,
+    "PortBindings": {
+      "22/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "11022"
+        }
+      ]
+    },
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": false,
+    "RestartPolicy": {
+      "MaximumRetryCount": 0,
+      "Name": "no"
+    },
+    "SecurityOpt": null,
+    "ShmSize": 0,
+    "UTSMode": "",
+    "Ulimits": null,
+    "UsernsMode": "",
+    "VolumeDriver": "",
+    "VolumesFrom": [
+      "parent",
+      "other:ro"
+    ]
+  },
+  "Hostname": "",
+  "Image": "windows",
+  "Labels": {
+    "com.example.license": "GPL",
+    "com.example.vendor": "Acme",
+    "com.example.version": "1.0"
+  },
+  "MacAddress": "12:34:56:78:9a:bc",
+  "NetworkingConfig": {
+    "EndpointsConfig": {}
+  },
+  "OnBuild": null,
+  "OpenStdin": true,
+  "StdinOnce": true,
+  "Tty": true,
+  "User": "",
+  "Volumes": {
+    "c:/windows": {}
+  },
+  "WorkingDir": ""
+}

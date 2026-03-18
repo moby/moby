@@ -1,0 +1,204 @@
+/*
+	Copyright The containerd Authors.
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+		http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+
+syntax = "proto3";
+
+// Sandbox is a v2 runtime extension that allows more complex execution environments for containers.
+// This adds a notion of groups of containers that share same lifecycle and/or resources.
+// A few good fits for sandbox can be:
+// - A "pause" container in k8s, that acts as a parent process for child containers to hold network namespace.
+// - (micro)VMs that launch a VM process and executes containers inside guest OS.
+// containerd in this case remains implementation agnostic and delegates sandbox handling to runtimes.
+// See proposal and discussion here: https://github.com/containerd/containerd/issues/4131
+package containerd.services.sandbox.v1;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+
+import "github.com/containerd/containerd/api/types/sandbox.proto";
+import "github.com/containerd/containerd/api/types/mount.proto";
+import "github.com/containerd/containerd/api/types/platform.proto";
+import "github.com/containerd/containerd/api/types/metrics.proto";
+
+option go_package = "github.com/containerd/containerd/api/services/sandbox/v1;sandbox";
+
+// Store provides a metadata storage interface for sandboxes. Similarly to `Containers`,
+// sandbox object includes info required to start a new instance, but no runtime state.
+// When running a new sandbox instance, store objects are used as base type to create from.
+service Store {
+	rpc Create(StoreCreateRequest) returns (StoreCreateResponse);
+	rpc Update(StoreUpdateRequest) returns (StoreUpdateResponse);
+	rpc Delete(StoreDeleteRequest) returns (StoreDeleteResponse);
+	rpc List(StoreListRequest) returns (StoreListResponse);
+	rpc Get(StoreGetRequest) returns (StoreGetResponse);
+}
+
+message StoreCreateRequest {
+	containerd.types.Sandbox sandbox = 1;
+}
+
+message StoreCreateResponse {
+	containerd.types.Sandbox sandbox = 1;
+}
+
+message StoreUpdateRequest {
+	containerd.types.Sandbox sandbox = 1;
+	repeated string fields = 2;
+}
+
+message StoreUpdateResponse {
+	containerd.types.Sandbox sandbox = 1;
+}
+
+message StoreDeleteRequest {
+	string sandbox_id = 1;
+}
+
+message StoreDeleteResponse {}
+
+message StoreListRequest {
+	repeated string filters = 1;
+}
+
+message StoreListResponse {
+	repeated containerd.types.Sandbox list = 1;
+}
+
+message StoreGetRequest {
+	string sandbox_id = 1;
+}
+
+message StoreGetResponse {
+	containerd.types.Sandbox sandbox = 1;
+}
+
+// Controller is an interface to manage runtime sandbox instances.
+service Controller {
+	rpc Create(ControllerCreateRequest) returns (ControllerCreateResponse);
+	rpc Start(ControllerStartRequest) returns (ControllerStartResponse);
+	rpc Platform(ControllerPlatformRequest) returns (ControllerPlatformResponse);
+	rpc Stop(ControllerStopRequest) returns (ControllerStopResponse);
+	rpc Wait(ControllerWaitRequest) returns (ControllerWaitResponse);
+	rpc Status(ControllerStatusRequest) returns (ControllerStatusResponse);
+	rpc Shutdown(ControllerShutdownRequest) returns (ControllerShutdownResponse);
+	rpc Metrics(ControllerMetricsRequest) returns (ControllerMetricsResponse);
+	rpc Update(ControllerUpdateRequest) returns (ControllerUpdateResponse);
+}
+
+message ControllerCreateRequest {
+	string sandbox_id = 1;
+	repeated containerd.types.Mount rootfs = 2;
+	google.protobuf.Any options = 3;
+	string netns_path = 4;
+	map<string, string> annotations = 5;
+	containerd.types.Sandbox sandbox = 6;
+	string sandboxer = 10;
+}
+
+message ControllerCreateResponse {
+	string sandbox_id = 1;
+}
+
+message ControllerStartRequest {
+	string sandbox_id = 1;
+	string sandboxer = 10;
+}
+
+message ControllerStartResponse {
+	string sandbox_id = 1;
+	uint32 pid = 2;
+	google.protobuf.Timestamp created_at = 3;
+	map<string, string> labels = 4;
+	// Address of the sandbox for containerd to connect,
+	// for calling Task or other APIs serving in the sandbox.
+	// it is in the form of ttrpc+unix://path/to/uds or grpc+vsock://<vsock cid>:<port>.
+	string address = 5;
+	uint32 version = 6;
+}
+
+message ControllerPlatformRequest {
+	string sandbox_id = 1;
+	string sandboxer = 10;
+}
+
+message ControllerPlatformResponse {
+	containerd.types.Platform platform = 1;
+}
+
+message ControllerStopRequest {
+	string sandbox_id = 1;
+	uint32 timeout_secs = 2;
+	string sandboxer = 10;
+}
+
+message ControllerStopResponse {}
+
+message ControllerWaitRequest {
+	string sandbox_id = 1;
+	string sandboxer = 10;
+}
+
+message ControllerWaitResponse {
+	uint32 exit_status = 1;
+	google.protobuf.Timestamp exited_at = 2;
+}
+
+message ControllerStatusRequest {
+	string sandbox_id = 1;
+	bool verbose = 2;
+	string sandboxer = 10;
+}
+
+message ControllerStatusResponse {
+	string sandbox_id = 1;
+	uint32 pid = 2;
+	string state = 3;
+	map<string, string> info = 4;
+	google.protobuf.Timestamp created_at = 5;
+	google.protobuf.Timestamp exited_at = 6;
+	google.protobuf.Any extra = 7;
+	// Address of the sandbox for containerd to connect,
+	// for calling Task or other APIs serving in the sandbox.
+	// it is in the form of ttrpc+unix://path/to/uds or grpc+vsock://<vsock cid>:<port>.
+	string address = 8;
+	uint32 version = 9;
+}
+
+message ControllerShutdownRequest {
+	string sandbox_id = 1;
+	string sandboxer = 10;
+}
+
+message ControllerShutdownResponse {}
+
+message ControllerMetricsRequest {
+	string sandbox_id = 1;
+	string sandboxer = 10;
+}
+
+message ControllerMetricsResponse {
+	types.Metric metrics = 1;
+}
+
+message ControllerUpdateRequest {
+	string sandbox_id = 1;
+	string sandboxer = 2;
+	containerd.types.Sandbox sandbox = 3;
+	repeated string fields = 4;
+}
+
+message ControllerUpdateResponse {
+}

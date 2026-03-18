@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package moby.buildkit.v1.types;
+
+option go_package = "github.com/moby/buildkit/api/types;moby_buildkit_v1_types";
+
+import "github.com/moby/buildkit/solver/pb/ops.proto";
+
+message WorkerRecord {
+	string ID = 1;
+	map<string, string> Labels = 2;
+	repeated pb.Platform platforms = 3;
+	repeated GCPolicy GCPolicy = 4;
+	BuildkitVersion BuildkitVersion = 5;
+	repeated CDIDevice CDIDevices = 6;
+}
+
+message GCPolicy {
+	bool all = 1;
+	int64 keepDuration = 2;
+	repeated string filters = 4;
+
+	// reservedSpace was renamed from freeBytes
+	int64 reservedSpace = 3;
+	int64 maxUsedSpace = 5;
+	int64 minFreeSpace = 6;
+}
+
+message BuildkitVersion {
+	string package = 1;
+	string version = 2;
+	string revision = 3;
+}
+
+message CDIDevice {
+	string Name = 1;
+	bool AutoAllow = 2;
+	map<string, string> Annotations = 3;
+	bool OnDemand = 4;
+}

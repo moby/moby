@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+
+# see test-integration for example usage of this script
+
+base="$ABS_DEST/.."
+export PATH="$base/dynbinary-daemon:$base/binary-daemon:$PATH"
+
+if [ -z "$TEST_CLIENT_BINARY" ]; then
+	export TEST_CLIENT_BINARY=docker
+fi
+if [ -n "$DOCKER_CLI_PATH" ]; then
+	# /usr/local/cli is a bind mount to the base dir of DOCKER_CLI_PATH (if used)
+	export TEST_CLIENT_BINARY=/usr/local/cli/$(basename "$DOCKER_CLI_PATH")
+fi
+
+echo "Using test binary $TEST_CLIENT_BINARY"
+if ! command -v "$TEST_CLIENT_BINARY" &> /dev/null; then
+	echo >&2 'error: missing test client $TEST_CLIENT_BINARY'
+	false
+fi
+
+# This is a temporary hack for split-binary mode. It can be removed once
+# https://github.com/moby/moby/pull/22134 is merged into docker master
+if [ "$(go env GOOS)" = 'windows' ]; then
+	return
+fi
+
+if [ -z "$DOCKER_TEST_HOST" ]; then
+	if docker version &> /dev/null; then
+		echo >&2 'skipping daemon start, since daemon appears to be already started'
+		return
+	fi
+fi
+
+if ! command -v dockerd &> /dev/null; then
+	echo >&2 'error: binary-daemon or dynbinary-daemon must be run before .integration-daemon-start'
+	false
+fi
+
+# intentionally open a couple bogus file descriptors to help test that they get scrubbed in containers
+exec 41>&1 42>&2
+
+export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-native}
+export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
+
+# Allow testing old API versions
+export DOCKER_MIN_API_VERSION=1.24
+
+# example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
+storage_params=""
+if [ -n "$DOCKER_STORAGE_OPTS" ]; then
+	IFS=','
+	for i in ${DOCKER_STORAGE_OPTS}; do
+		storage_params="--storage-opt $i $storage_params"
+	done
+	unset IFS
+fi
+
+# example usage: DOCKER_REMAP_ROOT=default
+extra_params=""
+if [ "$DOCKER_REMAP_ROOT" ]; then
+	extra_params="--userns-remap $DOCKER_REMAP_ROOT"
+fi
+
+# example usage: DOCKER_EXPERIMENTAL=1
+if [ "$DOCKER_EXPERIMENTAL" ]; then
+	echo >&2 '# DOCKER_EXPERIMENTAL is set: starting daemon with experimental features enabled! '
+	extra_params="$extra_params --experimental"
+fi
+
+dockerd="dockerd"
+
+# When running with the nftables backend, dockerd will not enable IP forwarding (by default, it
+# will error on network creation if forwarding is not enabled).
+if [ "$DOCKER_FIREWALL_BACKEND" = "nftables" ]; then
+	sysctl -w net.ipv4.ip_forward=1 > /dev/null
+	sysctl -w net.ipv6.conf.all.forwarding=1 > /dev/null
+fi
+
+if [ -n "$DOCKER_ROOTLESS" ]; then
+	if [ -z "$TEST_SKIP_INTEGRATION_CLI" ]; then
+		echo >&2 '# DOCKER_ROOTLESS requires TEST_SKIP_INTEGRATION_CLI to be set'
+		exit 1
+	fi
+	user="unprivilegeduser"
+	uid=$(id -u $user)
+	# shellcheck disable=SC2174
+	mkdir -p -m 700 "/tmp/docker-${uid}"
+	chown "$user" "/tmp/docker-${uid}"
+	chmod -R o+w "$DEST"
+	# The rootless daemon won't be able to load modules for tests that need them, so do it here.
+	# There's no modprobe in the dev container, so https://x.com/lucabruno/status/902934379835662336
+	ip link show br_netfilter || true
+	dockerd="sudo -u $user -E -E XDG_RUNTIME_DIR=/tmp/docker-${uid} -E HOME=/home/${user} -E PATH=$PATH -- dockerd-rootless.sh"
+fi
+
+if [ -z "$DOCKER_TEST_HOST" ]; then
+	# Start apparmor if it is enabled
+	if [ -e "/sys/module/apparmor/parameters/enabled" ] && [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
+		# reset container variable so apparmor profile is applied to process
+		# see https://github.com/docker/libcontainer/blob/master/apparmor/apparmor.go#L16
+		export container=""
+		(
+			[ -n "$TESTDEBUG" ] && set -x
+			/etc/init.d/apparmor start
+		)
+	fi
+
+	if [ -n "${DOCKER_ROOTLESS}" ]; then
+		# "pwd" tricks to make sure $DEST is an absolute path, not a relative one
+		export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock"
+	else
+		# Put socket in /run because:
+		# 1. That's the normal place for such things
+		# 2. When running on Docker For Mac, if you need to run tests with the bundles dir mounted (e.g. to poke through test artifacts).
+		#    the socket will not work because it will be over osxfs.
+		mkdir -p /run/docker
+		sock_dir=$(mktemp -d -p /run/docker)
+		chmod 0755 "$sock_dir"
+		export DOCKER_HOST="unix://${sock_dir}/docker.sock"
+	fi
+	(
+		echo "Starting dockerd"
+		[ -n "$TESTDEBUG" ] && set -x
+		if [ -n "${FIREWALLD:-}" ] && [ "${DOCKER_FIREWALL_BACKEND:-}" == "iptables" ]; then
+			# Networking integration tests start their own daemon to have fine control over the configuration of the
+			# daemon-under-test. Two daemons running with firewalld integration enabled would race against each other
+			# when the firewalld reload signal is dispatched, and would result in iptables disappearing unexpectedly
+			# from the point of view of the daemon-under-test. So, disable firewalld integration on this daemon, as it's
+			# only used to load frozen images.
+			export DOCKER_TEST_NO_FIREWALLD="true"
+		fi
+		exec \
+			${dockerd} --debug \
+			--host "$DOCKER_HOST" \
+			--storage-driver "$DOCKER_GRAPHDRIVER" \
+			--pidfile "$DEST/docker.pid" \
+			--userland-proxy="$DOCKER_USERLANDPROXY" \
+			--firewall-backend="$DOCKER_FIREWALL_BACKEND" \
+			${storage_params} \
+			${extra_params} \
+			&> "$DEST/docker.log"
+	) &
+else
+	export DOCKER_HOST="$DOCKER_TEST_HOST"
+fi
+
+# give it a little time to come up so it's "ready"
+tries=60
+echo "INFO: Waiting for daemon to start..."
+while ! ${TEST_CLIENT_BINARY} version &> /dev/null; do
+	((tries--))
+	if [ $tries -le 0 ]; then
+		printf "\n"
+		if [ -z "$DOCKER_HOST" ]; then
+			echo >&2 "error: daemon failed to start"
+			echo >&2 "  check $DEST/docker.log for details"
+		else
+			echo >&2 "error: daemon at $DOCKER_HOST fails to '$TEST_CLIENT_BINARY version':"
+			${TEST_CLIENT_BINARY} version >&2 || true
+			# Additional Windows CI debugging as this is a common error as of
+			# January 2016
+			if [ "$(go env GOOS)" = 'windows' ]; then
+				echo >&2 "Container log below:"
+				echo >&2 "---"
+				# Important - use the docker on the CI host, not the one built locally
+				# which is currently in our path.
+				! /c/bin/docker -H=$MAIN_DOCKER_HOST logs docker-$COMMITHASH
+				echo >&2 "---"
+			fi
+		fi
+		false
+	fi
+	printf "."
+	sleep 2
+done
+printf "\n"

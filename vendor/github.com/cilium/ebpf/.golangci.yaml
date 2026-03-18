@@ -1,0 +1,31 @@
+---
+linters:
+  disable-all: true
+  enable:
+    - goimports
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - typecheck
+    - unused
+    - gofmt
+    - depguard
+linters-settings:
+  goimports:
+    # A comma-separated list of prefixes, which, if set, checks import paths
+    # with the given prefixes are grouped after 3rd-party packages.
+    # Default: ""
+    local-prefixes: github.com/cilium/ebpf
+  depguard:
+    rules:
+      no-x-sys-unix:
+        files:
+          # Filenames are matched against absolute paths, include **/ at the start.
+          - '!**/internal/unix/*.go'
+          - '!**/examples/**/*.go'
+          - '!**/docs/**/*.go'
+        deny:
+          - pkg: golang.org/x/sys/unix
+            desc: use internal/unix instead

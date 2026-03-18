@@ -1,0 +1,50 @@
+{{/*
+    Custom "structfield" template for Moby; it contains a work around for
+    CamelCase (IPv6 <--> IPV6) fields.
+
+    The orignal template can be found at:
+    https://github.com/go-swagger/go-swagger/blob/v0.33.1/generator/templates/structfield.gotmpl
+*/}}
+{{ define "structfield" }}
+  {{- if not $.IsBaseType -}}
+    // {{ template "docstring" . }}
+    {{- template "propertyValidationDocString" .}}
+  {{- end}}
+{{- /* TODO(moby): Work around bug where "IPv4" and "IPv6" specifically get mangled to "IPV4" and "IPV6", respectively. */}}
+{{- /* {{ pascalize .Name}} {{ template "schemaType" . }} {{ .PrintTags }} */}}
+{{ pascalize .Name | replace "IPV4" "IPv4" | replace "IPV6" "IPv6" }} {{ template "schemaType" . }} {{ .PrintTags }}
+{{ end }}
+
+{{- define "tuplefield" }}
+  {{- if not $.IsBaseType -}}
+    // {{ template "docstring" . }}
+    {{- template "propertyValidationDocString" .}}
+{{ end }}
+{{- pascalize .Name}} {{ template "schemaType" . }} `json:"-"
+{{- if .CustomTag }} {{ .CustomTag }}{{ end }}` // custom serializer
+{{ end }}
+
+{{- define "structfieldIface" }}
+  {{- if not $.IsBaseType -}}
+    // {{ template "docstring" . }}
+    {{- template "propertyValidationDocString" .}}
+  {{- end }}
+{{ pascalize .Name}}() {{ template "schemaType" . }}
+Set{{ pascalize .Name}}({{ template "schemaType" . }})
+{{ end }}
+{{ define "tuplefieldIface" }}
+  {{- if not $.IsBaseType -}}
+    // {{ template "docstring" . }}
+    {{- template "propertyValidationDocString" . }}
+{{ end }}
+{{- pascalize .Name}}() {{ template "schemaType" . }}
+Set{{ pascalize .Name}}({{ template "schemaType" . }})
+{{ end }}
+
+{{- define "privstructfield" }}
+  {{- camelize .Name}}Field {{ template "schemaType" . }}
+{{ end }}
+
+{{- define "privtuplefield" }}
+  {{- camelize .Name}}Field {{ template "schemaType" . }}
+{{ end }}

@@ -1,0 +1,10 @@
+permit:
+  - BSD.*
+  - CC0.*
+  - MIT.*
+  - Apache.*
+  - MPL.*
+  - ISC
+  - WTFPL
+
+ignore-packages:

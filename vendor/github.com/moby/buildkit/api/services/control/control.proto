@@ -1,0 +1,253 @@
+syntax = "proto3";
+
+package moby.buildkit.v1;
+
+option go_package = "github.com/moby/buildkit/api/services/control;moby_buildkit_v1";
+
+// import "github.com/containerd/containerd/api/types/descriptor.proto";
+import "github.com/moby/buildkit/api/types/worker.proto";
+import "github.com/moby/buildkit/solver/pb/ops.proto";
+import "github.com/moby/buildkit/sourcepolicy/pb/policy.proto";
+import "google/protobuf/timestamp.proto";
+import "google/rpc/status.proto";
+
+service Control {
+	rpc DiskUsage(DiskUsageRequest) returns (DiskUsageResponse);
+	rpc Prune(PruneRequest) returns (stream UsageRecord);
+	rpc Solve(SolveRequest) returns (SolveResponse);
+	rpc Status(StatusRequest) returns (stream StatusResponse);
+	rpc Session(stream BytesMessage) returns (stream BytesMessage);
+	rpc ListWorkers(ListWorkersRequest) returns (ListWorkersResponse);
+	rpc Info(InfoRequest) returns (InfoResponse);
+
+	rpc ListenBuildHistory(BuildHistoryRequest) returns (stream BuildHistoryEvent);
+	rpc UpdateBuildHistory(UpdateBuildHistoryRequest) returns (UpdateBuildHistoryResponse);
+}
+
+message PruneRequest {
+	repeated string filter = 1;
+	bool all = 2;
+	int64 keepDuration = 3;
+
+	int64 reservedSpace = 4;
+	int64 maxUsedSpace = 5;
+	int64 minFreeSpace = 6;
+}
+
+message DiskUsageRequest {
+	repeated string filter = 1; 
+	int64 ageLimit = 2;
+}
+
+message DiskUsageResponse {
+	repeated UsageRecord record = 1;
+}
+
+message UsageRecord {
+	string ID = 1;
+	bool Mutable = 2;
+	bool InUse = 3;
+	int64 Size = 4;
+	string Parent = 5 [deprecated=true];
+	google.protobuf.Timestamp CreatedAt = 6;
+	google.protobuf.Timestamp LastUsedAt = 7;
+	int64 UsageCount = 8;
+	string Description = 9;
+	string RecordType = 10;
+	bool Shared = 11;
+	repeated string Parents = 12;
+}
+
+message SolveRequest {
+	string Ref = 1;
+	pb.Definition Definition = 2;
+	// ExporterDeprecated and ExporterAttrsDeprecated are deprecated in favor
+	// of the new Exporters. If these fields are set, then they will be
+	// appended to the Exporters field if Exporters was not explicitly set.
+	string ExporterDeprecated = 3;
+	map<string, string> ExporterAttrsDeprecated = 4;
+	string Session = 5;
+	string Frontend = 6;
+	map<string, string> FrontendAttrs = 7;
+	CacheOptions Cache = 8;
+	repeated string Entitlements = 9;
+	map<string, pb.Definition> FrontendInputs = 10;
+	bool Internal = 11; // Internal builds are not recorded in build history
+	moby.buildkit.v1.sourcepolicy.Policy SourcePolicy = 12;
+	repeated Exporter Exporters = 13;
+	bool EnableSessionExporter = 14;
+	string SourcePolicySession = 15;
+}
+
+message CacheOptions {
+	// ExportRefDeprecated is deprecated in favor or the new Exports since BuildKit v0.4.0.
+	// When ExportRefDeprecated is set, the solver appends
+	// {.Type = "registry", .Attrs = ExportAttrs.add("ref", ExportRef)}
+	// to Exports for compatibility. (planned to be removed)
+	string ExportRefDeprecated = 1;
+	// ImportRefsDeprecated is deprecated in favor or the new Imports since BuildKit v0.4.0.
+	// When ImportRefsDeprecated is set, the solver appends
+	// {.Type = "registry", .Attrs = {"ref": importRef}}
+	// for each of the ImportRefs entry to Imports for compatibility. (planned to be removed)
+	repeated string ImportRefsDeprecated = 2;
+	// ExportAttrsDeprecated is deprecated since BuildKit v0.4.0.
+	// See the description of ExportRefDeprecated.
+	map<string, string> ExportAttrsDeprecated = 3;
+	// Exports was introduced in BuildKit v0.4.0.
+	repeated CacheOptionsEntry Exports = 4;
+	// Imports was introduced in BuildKit v0.4.0.
+	repeated CacheOptionsEntry Imports = 5;
+}
+
+message CacheOptionsEntry {
+	// Type is like "registry" or "local"
+	string Type = 1;
+	// Attrs are like mode=(min,max), ref=example.com:5000/foo/bar .
+	// See cache importer/exporter implementations' documentation.
+	map<string, string> Attrs = 2;
+}
+
+message SolveResponse {
+	map<string, string> ExporterResponse = 1;
+}
+
+message StatusRequest {
+	string Ref = 1;
+}
+
+message StatusResponse {
+	repeated Vertex vertexes = 1;
+	repeated VertexStatus statuses = 2;
+	repeated VertexLog logs = 3;
+	repeated VertexWarning warnings = 4;
+}
+
+message Vertex {
+	string digest = 1;
+	repeated string inputs = 2;
+	string name = 3;
+	bool cached = 4;
+	google.protobuf.Timestamp started = 5;
+	google.protobuf.Timestamp completed = 6;
+	string error = 7; // typed errors?
+	pb.ProgressGroup progressGroup = 8;
+}
+
+message VertexStatus {
+	string ID = 1;
+	string vertex = 2;
+	string name = 3;
+	int64 current = 4;
+	int64 total = 5;
+	google.protobuf.Timestamp timestamp = 6;
+	google.protobuf.Timestamp started = 7;
+	google.protobuf.Timestamp completed = 8;
+}
+
+message VertexLog {
+	string vertex = 1;
+	google.protobuf.Timestamp timestamp = 2;
+	int64 stream = 3;
+	bytes msg = 4;
+}
+
+message VertexWarning {
+	string vertex = 1;
+	int64 level = 2;
+	bytes short = 3;
+	repeated bytes detail = 4;
+	string url = 5;
+	pb.SourceInfo info = 6;
+	repeated pb.Range ranges = 7;
+}
+
+message BytesMessage {
+	bytes data = 1;
+}
+
+message ListWorkersRequest {
+	repeated string filter = 1; // containerd style
+}
+
+message ListWorkersResponse {
+	repeated moby.buildkit.v1.types.WorkerRecord record = 1;
+}
+
+message InfoRequest {}
+
+message InfoResponse {
+	moby.buildkit.v1.types.BuildkitVersion buildkitVersion = 1;
+}
+
+message BuildHistoryRequest {
+	bool ActiveOnly = 1;
+	string Ref = 2;
+	bool EarlyExit = 3;
+	repeated string Filter = 4;
+	int32 Limit = 5;
+}
+
+enum BuildHistoryEventType {
+	STARTED = 0;
+	COMPLETE = 1;
+	DELETED = 2;
+}
+
+message BuildHistoryEvent {
+	BuildHistoryEventType type = 1;
+	BuildHistoryRecord record = 2;
+}
+
+message BuildHistoryRecord {
+	string Ref = 1;
+	string Frontend = 2;
+	map<string, string> FrontendAttrs = 3;
+	repeated Exporter Exporters = 4;
+	google.rpc.Status error = 5;
+	google.protobuf.Timestamp CreatedAt = 6;
+	google.protobuf.Timestamp CompletedAt = 7;
+	Descriptor logs = 8;
+	map<string, string> ExporterResponse = 9;
+	BuildResultInfo Result = 10;
+	map<string, BuildResultInfo> Results = 11;
+	int32 Generation = 12;
+	Descriptor trace = 13;
+	bool pinned = 14;
+	int32 numCachedSteps = 15;
+	int32 numTotalSteps = 16;
+	int32 numCompletedSteps = 17;
+	Descriptor externalError = 18;
+	int32 numWarnings = 19;
+	// TODO: tags
+	// TODO: unclipped logs
+}
+
+message UpdateBuildHistoryRequest {
+	string Ref = 1;
+	bool Pinned = 2;
+	bool Delete = 3;
+	bool Finalize = 4;
+}
+
+message UpdateBuildHistoryResponse {}
+
+message Descriptor {
+	string media_type = 1;
+	string digest = 2;
+	int64 size = 3;
+	map<string, string> annotations = 5;
+}
+
+message BuildResultInfo {
+	Descriptor ResultDeprecated = 1;
+	repeated Descriptor Attestations = 2;
+	map<int64, Descriptor> Results = 3;
+}
+
+// Exporter describes the output exporter
+message Exporter {
+	// Type identifies the exporter
+	string Type = 1;
+	// Attrs specifies exporter configuration
+	map<string, string> Attrs = 2;
+}

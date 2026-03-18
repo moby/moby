@@ -1,0 +1,13 @@
+name: Feature request
+description: Missing functionality? Come tell us about it!
+labels:
+  - kind/feature
+  - status/0-triage
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is the feature you want to see?
+    validations:
+      required: true

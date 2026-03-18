@@ -1,0 +1,93 @@
+/*
+	Copyright The containerd Authors.
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+		http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+
+syntax = "proto3";
+
+package containerd.events;
+
+import "google/protobuf/timestamp.proto";
+import "github.com/containerd/containerd/api/types/mount.proto";
+import "github.com/containerd/containerd/api/types/fieldpath.proto";
+
+option go_package = "github.com/containerd/containerd/api/events;events";
+option (containerd.types.fieldpath_all) = true;
+
+message TaskCreate {
+	string container_id = 1;
+	string bundle = 2;
+	repeated containerd.types.Mount rootfs = 3;
+	TaskIO io = 4;
+	string checkpoint = 5;
+	uint32 pid = 6;
+}
+
+message TaskStart {
+	string container_id = 1;
+	uint32 pid = 2;
+}
+
+message TaskDelete {
+	string container_id = 1;
+	uint32 pid = 2;
+	uint32 exit_status = 3;
+	google.protobuf.Timestamp exited_at = 4;
+	// id is the specific exec. By default if omitted will be `""` thus matches
+	// the init exec of the task matching `container_id`.
+	string id = 5;
+}
+
+message TaskIO {
+	string stdin = 1;
+	string stdout = 2;
+	string stderr = 3;
+	bool terminal = 4;
+}
+
+message TaskExit {
+	string container_id = 1;
+	string id = 2;
+	uint32 pid = 3;
+	uint32 exit_status = 4;
+	google.protobuf.Timestamp exited_at = 5;
+}
+
+message TaskOOM {
+	string container_id = 1;
+}
+
+message TaskExecAdded {
+	string container_id = 1;
+	string exec_id = 2;
+}
+
+message TaskExecStarted {
+	string container_id = 1;
+	string exec_id = 2;
+	uint32 pid = 3;
+}
+
+message TaskPaused {
+	string container_id = 1;
+}
+
+message TaskResumed {
+	string container_id = 1;
+}
+
+message TaskCheckpointed {
+	string container_id = 1;
+	string checkpoint = 2;
+}

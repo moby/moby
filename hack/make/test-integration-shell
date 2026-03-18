@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+bundle .integration-daemon-start
+
+export ABS_DEST
+bash +e
+
+bundle .integration-daemon-stop

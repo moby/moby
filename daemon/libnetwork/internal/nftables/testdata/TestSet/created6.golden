@@ -1,0 +1,7 @@
+table ip6 table6 {
+	set set6 {
+		type ipv6_addr
+		flags interval
+		elements = { 2001:db8::/64 }
+	}
+}

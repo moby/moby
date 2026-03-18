@@ -1,0 +1,33 @@
+# Moby maintainers file
+#
+# See project/GOVERNANCE.md for committer versus reviewer roles
+#
+# COMMITTERS
+# GitHub ID, Name, Email address, GPG fingerprint
+"akerouanton","Albin Kerouanton","albinker@gmail.com"
+"AkihiroSuda","Akihiro Suda","akihiro.suda.cz@hco.ntt.co.jp"
+"austinvazquez","Austin Vazquez","austin.vazquez.dev@gmail.com"
+"corhere","Cory Snider","csnider@mirantis.com"
+"cpuguy83","Brian Goff","cpuguy83@gmail.com"
+"robmry","Rob Murray","rob.murray@docker.com"
+"thaJeztah","Sebastiaan van Stijn","github@gone.nl"
+"tianon","Tianon Gravi","admwiggin@gmail.com"
+"tonistiigi","Tõnis Tiigi","tonis@docker.com"
+"vvoland","Paweł Gronowski","pawel.gronowski@docker.com"
+#
+# REVIEWERS
+# GitHub ID, Name, Email address, GPG fingerprint
+"coolljt0725","Lei Jitang","leijitang@huawei.com"
+"crazy-max","Kevin Alvarez","contact@crazymax.dev"
+"dmcgowan","Derek McGowan","derek@mcgstyle.net"
+"estesp","Phil Estes","estesp@linux.vnet.ibm.com"
+"justincormack","Justin Cormack","justin.cormack@docker.com"
+"kolyshkin","Kir Kolyshkin","kolyshkin@gmail.com"
+"laurazard","Laura Brehm","laurabrehm@hey.com"
+"neersighted","Bjorn Neergaard","bjorn@neersighted.com"
+"rumpl","Djordje Lukic","djordje.lukic@docker.com"
+"samuelkarp","Samuel Karp","me@samuelkarp.com"
+"stevvooe","Stephen Day","stephen.day@docker.com"
+"thompson-shaun","Shaun Thompson","shaun.thompson@docker.com"
+"tiborvass","Tibor Vass","tibor@docker.com"
+"unclejack","Cristian Staretu","cristian.staretu@gmail.com"

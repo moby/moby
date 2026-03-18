@@ -1,0 +1,5 @@
+nameserver 127.0.0.1
+nameserver ::1
+
+# Based on host file: '/etc/resolv.conf' (legacy)
+# Overrides: [nameservers]
