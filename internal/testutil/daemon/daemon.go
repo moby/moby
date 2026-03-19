@@ -301,11 +301,20 @@ func (d *Daemon) NewClientT(t testing.TB, extraOpts ...client.Opt) *client.Clien
 	return c
 }
 
+// withNoTLS ensures plain HTTP is used in case DOCKER_TLS_VERIFY is set
+// when we are using client.FromEnv
+func withNoTLS() client.Opt {
+	return client.WithHTTPClient(&http.Client{
+		Transport: &http.Transport{},
+	})
+}
+
 // NewClient creates new client based on daemon's socket path
 func (d *Daemon) NewClient(extraOpts ...client.Opt) (*client.Client, error) {
 	clientOpts := []client.Opt{
 		client.FromEnv,
 		client.WithHost(d.Sock()),
+		withNoTLS(),
 	}
 	clientOpts = append(clientOpts, extraOpts...)
 
@@ -873,7 +882,7 @@ func (d *Daemon) LoadBusybox(ctx context.Context, t testing.TB) {
 
 func (d *Daemon) LoadImage(ctx context.Context, t testing.TB, img string) {
 	t.Helper()
-	clientHost, err := client.New(client.FromEnv)
+	clientHost, err := client.New(client.FromEnv, withNoTLS())
 	assert.NilError(t, err, "[%s] failed to create client", d.id)
 	defer clientHost.Close()
 
