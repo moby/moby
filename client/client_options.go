@@ -295,6 +295,8 @@ func WithAPIVersion(version string) Opt {
 // WithVersion overrides the client version with the specified one.
 //
 // Deprecated: use [WithAPIVersion] instead.
+//
+//go:fix inline
 func WithVersion(version string) Opt {
 	return WithAPIVersion(version)
 }
@@ -328,6 +330,8 @@ func WithAPIVersionFromEnv() Opt {
 // the DOCKER_API_VERSION ([EnvOverrideAPIVersion]) environment variable.
 //
 // Deprecated: use [WithAPIVersionFromEnv] instead.
+//
+//go:fix inline
 func WithVersionFromEnv() Opt {
 	return WithAPIVersionFromEnv()
 }
@@ -337,8 +341,11 @@ func WithVersionFromEnv() Opt {
 // to use when making requests. API version negotiation is performed on the first
 // request; subsequent requests do not re-negotiate.
 //
-// Deprecated: API-version negotiation is now enabled by default. Use [WithAPIVersion]
-// or [WithAPIVersionFromEnv] to disable API version negotiation.
+// Deprecated: API-version negotiation is now enabled by default and this options
+// is now a no-op.
+//
+// Use [WithAPIVersion] or [WithAPIVersionFromEnv] to set a fixed API version
+// instead of using automatic negotiation.
 func WithAPIVersionNegotiation() Opt {
 	return func(c *clientConfig) error {
 		return nil

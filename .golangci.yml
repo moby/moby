@@ -352,6 +352,11 @@ linters:
         linters:
           - iface
 
+      # TODO(thaJeztah): remove once https://github.com/leighmcculloch/gocheckcompilerdirectives/issues/7 is fixed.
+      - text: "compiler directive unrecognized: //go:fix"
+        linters:
+          - gocheckcompilerdirectives
+
     # Log a warning if an exclusion rule is unused.
     # Default: false
     warn-unused: true
