@@ -141,8 +141,7 @@ func newTransport(tlsConfig *tls.Config) http.RoundTripper {
 			}).DialContext,
 			TLSHandshakeTimeout: 10 * time.Second,
 			TLSClientConfig:     tlsConfig,
-			// TODO(dmcgowan): Call close idle connections when complete and use keep alive
-			DisableKeepAlives: true,
+			IdleConnTimeout:     30 * time.Second,
 		},
 	)
 }
