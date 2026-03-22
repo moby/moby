@@ -134,6 +134,7 @@ func TestPrivilegedHostDevices(t *testing.T) {
 	// so needs to be same host.
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
@@ -207,6 +208,7 @@ func TestRunConsoleSize(t *testing.T) {
 func TestRunWithAlternativeContainerdShim(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
