@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -210,56 +211,84 @@ func WithScheme(scheme string) Opt {
 	}
 }
 
-// WithTLSClientConfig applies a TLS config to the client transport.
-func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
+// WithTLSClientConfig configures the client's existing HTTP transport to use TLS.
+// The minimum TLS version is TLS 1.2.
+//
+// If caFile is non-empty, it specifies the CA certificate file to use for
+// server verification, and replaces the system root pool for that verification.
+// If certFile is empty, the system root pool is used.
+//
+// If either certFile or keyFile is set, both must point to readable files
+// containing a valid client certificate and unencrypted private key, or this
+// option returns an error.
+//
+// If both certPath and keyPath are empty, no client certificate is configured.
+// The connection will use TLS without client authentication (i.e., not mTLS).
+func WithTLSClientConfig(caFile, certFile, keyFile string) Opt {
 	return func(c *clientConfig) error {
 		transport, ok := c.client.Transport.(*http.Transport)
 		if !ok {
-			return fmt.Errorf("cannot apply tls config to transport: %T", c.client.Transport)
+			return fmt.Errorf("cannot configure TLS: unsupported HTTP transport %T", c.client.Transport)
 		}
 		config, err := tlsconfig.Client(tlsconfig.Options{
-			CAFile:             cacertPath,
-			CertFile:           certPath,
-			KeyFile:            keyPath,
+			CAFile:             caFile,
+			CertFile:           certFile,
+			KeyFile:            keyFile,
 			ExclusiveRootPools: true,
+			MinVersion:         tls.VersionTLS12,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create tls config: %w", err)
+			return fmt.Errorf("configure TLS: %w", err)
 		}
 		transport.TLSClientConfig = config
 		return nil
 	}
 }
 
-// WithTLSClientConfigFromEnv configures the client's TLS settings with the
-// settings in the DOCKER_CERT_PATH ([EnvOverrideCertPath]) and DOCKER_TLS_VERIFY
-// ([EnvTLSVerify]) environment variables. If DOCKER_CERT_PATH is not set or empty,
-// TLS configuration is not modified.
+// WithTLSClientConfigFromEnv configures the client for TLS using the
+// DOCKER_CERT_PATH ([EnvOverrideCertPath]) and DOCKER_TLS_VERIFY
+// ([EnvTLSVerify]) environment variables. The minimum TLS version is TLS 1.2.
 //
-// WithTLSClientConfigFromEnv uses the following environment variables:
+// If DOCKER_CERT_PATH is unset or empty, this option leaves the client
+// unchanged.
 //
-//   - DOCKER_CERT_PATH ([EnvOverrideCertPath]) to specify the directory from
-//     which to load the TLS certificates ("ca.pem", "cert.pem", "key.pem").
-//   - DOCKER_TLS_VERIFY ([EnvTLSVerify]) to enable or disable TLS verification
-//     (off by default).
+// When DOCKER_CERT_PATH is set, the following files are loaded from that
+// directory:
+//
+//   - "ca.pem" as the CA certificate
+//   - "cert.pem" as the client certificate
+//   - "key.pem" as the client private key
+//
+// These files must exist, be readable, and contain valid TLS material, or this
+// option returns an error. A client certificate is always loaded from "cert.pem"
+// and "key.pem" (mTLS is expected).
+//
+// If DOCKER_TLS_VERIFY is set to a non-empty value, server certificate
+// verification is enabled. In that case, "ca.pem" is added to the system root
+// pool used for verification.
+//
+// If DOCKER_TLS_VERIFY is unset or empty, server certificate verification is
+// disabled.
 func WithTLSClientConfigFromEnv() Opt {
 	return func(c *clientConfig) error {
 		dockerCertPath := os.Getenv(EnvOverrideCertPath)
 		if dockerCertPath == "" {
 			return nil
 		}
-		tlsc, err := tlsconfig.Client(tlsconfig.Options{
+		tlsConfig, err := tlsconfig.Client(tlsconfig.Options{
 			CAFile:             filepath.Join(dockerCertPath, "ca.pem"),
 			CertFile:           filepath.Join(dockerCertPath, "cert.pem"),
 			KeyFile:            filepath.Join(dockerCertPath, "key.pem"),
 			InsecureSkipVerify: os.Getenv(EnvTLSVerify) == "",
+			MinVersion:         tls.VersionTLS12,
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("configure TLS from %q: %w", EnvOverrideCertPath+"="+dockerCertPath, err)
 		}
 
+		// FIXME(thaJeztah): unlike WithTLSClientConfig, this option replaces the client's http.Client and transport; consider updating just the transport.
 		c.client = &http.Client{
-			Transport:     &http.Transport{TLSClientConfig: tlsc},
+			Transport:     &http.Transport{TLSClientConfig: tlsConfig},
 			CheckRedirect: CheckRedirect,
 		}
 		return nil
@@ -355,7 +384,10 @@ func WithAPIVersionNegotiation() Opt {
 // WithTraceProvider sets the trace provider for the client.
 // If this is not set then the global trace provider is used.
 func WithTraceProvider(provider trace.TracerProvider) Opt {
-	return WithTraceOptions(otelhttp.WithTracerProvider(provider))
+	return func(c *clientConfig) error {
+		c.traceOpts = append(c.traceOpts, otelhttp.WithTracerProvider(provider))
+		return nil
+	}
 }
 
 // WithTraceOptions sets tracing span options for the client.
