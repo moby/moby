@@ -97,6 +97,13 @@ func (i *ImageService) PullImage(ctx context.Context, baseRef reference.Named, o
 }
 
 func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *registrytypes.AuthConfig, out progress.Output) error {
+	// Register media types used by Sigstore bundles and OCI referrers so that
+	// MakeRefKey can assign a proper ref-key prefix instead of logging
+	// "reference for unknown type" warnings.
+	ctx = remotes.WithMediaTypeKeyPrefix(ctx, ocispec.MediaTypeEmptyJSON, "empty")
+	ctx = remotes.WithMediaTypeKeyPrefix(ctx, policyimage.ArtifactTypeCosignSignature, "cosign-signature")
+	ctx = remotes.WithMediaTypeKeyPrefix(ctx, policyimage.ArtifactTypeSigstoreBundle, "sigstore-bundle")
+
 	var opts []containerd.RemoteOpt
 	if platform != nil {
 		opts = append(opts, containerd.WithPlatform(platforms.FormatAll(*platform)))
