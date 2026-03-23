@@ -371,6 +371,44 @@ func TestWithUserAgent(t *testing.T) {
 	})
 }
 
+func TestWithHTTTPHeaders(t *testing.T) {
+	t.Run("duplicates", func(t *testing.T) {
+		c, err := New(
+			WithHTTPHeaders(map[string]string{
+				"custom-header": "custom-value-A",
+				"Custom-Header": "custom-value-B",
+				"CUSTOM-HEADER": "custom-value-C",
+			}),
+		)
+		assert.NilError(t, err)
+
+		// Check customHTTPHeaders directly for this test because we canonicalize
+		// headers before sending requests. Ultimately, we should produce an
+		// error if duplicate headers are provided.
+		assert.Check(t, c.customHTTPHeaders["Custom-Header"] != "", "canonical header should be set")
+		assert.Check(t, c.customHTTPHeaders["custom-header"] == "", "non-canonical header should not be set")
+		assert.Check(t, c.customHTTPHeaders["CUSTOM-HEADER"] == "", "non-canonical header should not be set")
+		assert.NilError(t, c.Close())
+	})
+	t.Run("multiple", func(t *testing.T) {
+		c, err := New(
+			WithHTTPHeaders(map[string]string{"custom-header-1": "hello"}),
+			WithHTTPHeaders(map[string]string{"custom-header-2": "custom-value-A"}),
+			WithHTTPHeaders(map[string]string{"Custom-Header-2": "custom-value-B"}),
+			WithHTTPHeaders(map[string]string{"CUSTOM-HEADER-2": "custom-value-C"}),
+			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
+				assert.Check(t, is.Equal(req.Header.Get("Custom-Header-1"), ""), "custom-header-1 should've been replaced")
+				assert.Check(t, is.Equal(req.Header.Get("Custom-Header-2"), "custom-value-C"))
+				return &http.Response{StatusCode: http.StatusOK}, nil
+			}),
+		)
+		assert.NilError(t, err)
+		_, err = c.Ping(t.Context(), PingOptions{})
+		assert.NilError(t, err)
+		assert.NilError(t, c.Close())
+	})
+}
+
 func TestWithHTTPClient(t *testing.T) {
 	cookieJar, err := cookiejar.New(nil)
 	assert.NilError(t, err)
