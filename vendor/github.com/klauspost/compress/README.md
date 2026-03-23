@@ -26,6 +26,12 @@ This package will support the current Go version and 2 versions back.
 Use the links above for more information on each.
 
 # changelog
+
+* Feb 9th, 2026 [1.18.4](https://github.com/klauspost/compress/releases/tag/v1.18.4)
+	* gzhttp: Add zstandard to server handler wrapper https://github.com/klauspost/compress/pull/1121
+	* zstd: Add ResetWithOptions to encoder/decoder https://github.com/klauspost/compress/pull/1122
+	* gzhttp: preserve qvalue when extra parameters follow in Accept-Encoding by @analytically in https://github.com/klauspost/compress/pull/1116
+
 * Jan 16th, 2026 [1.18.3](https://github.com/klauspost/compress/releases/tag/v1.18.3)
 	* Downstream CVE-2025-61728. See [golang/go#77102](https://github.com/golang/go/issues/77102).
 
@@ -687,6 +693,7 @@ Here are other packages of good quality and pure Go (no cgo wrappers or autoconv
 # license
 
 This code is licensed under the same conditions as the original Go code. See LICENSE file.
+
 
 
 
