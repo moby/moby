@@ -27,6 +27,7 @@ import (
 	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/internal"
 	"cloud.google.com/go/auth/internal/credsfile"
+	"cloud.google.com/go/auth/internal/trustboundary"
 	"cloud.google.com/go/compute/metadata"
 	"github.com/googleapis/gax-go/v2/internallog"
 )
@@ -49,6 +50,44 @@ const (
 var (
 	// for testing
 	allowOnGCECheck = true
+)
+
+// CredType specifies the type of JSON credentials being provided
+// to a loading function such as [NewCredentialsFromFile] or
+// [NewCredentialsFromJSON].
+type CredType string
+
+const (
+	// ServiceAccount represents a service account file type.
+	ServiceAccount CredType = "service_account"
+	// AuthorizedUser represents a user credentials file type.
+	AuthorizedUser CredType = "authorized_user"
+	// ExternalAccount represents an external account file type.
+	//
+	// IMPORTANT:
+	// This credential type does not validate the credential configuration. A security
+	// risk occurs when a credential configuration configured with malicious urls
+	// is used.
+	// You should validate credential configurations provided by untrusted sources.
+	// See [Security requirements when using credential configurations from an external
+	// source] https://cloud.google.com/docs/authentication/external/externally-sourced-credentials
+	// for more details.
+	ExternalAccount CredType = "external_account"
+	// ImpersonatedServiceAccount represents an impersonated service account file type.
+	//
+	// IMPORTANT:
+	// This credential type does not validate the credential configuration. A security
+	// risk occurs when a credential configuration configured with malicious urls
+	// is used.
+	// You should validate credential configurations provided by untrusted sources.
+	// See [Security requirements when using credential configurations from an external
+	// source] https://cloud.google.com/docs/authentication/external/externally-sourced-credentials
+	// for more details.
+	ImpersonatedServiceAccount CredType = "impersonated_service_account"
+	// GDCHServiceAccount represents a GDCH service account credentials.
+	GDCHServiceAccount CredType = "gdch_service_account"
+	// ExternalAccountAuthorizedUser represents an external account authorized user credentials.
+	ExternalAccountAuthorizedUser CredType = "external_account_authorized_user"
 )
 
 // TokenBindingType specifies the type of binding used when requesting a token
@@ -91,8 +130,20 @@ func OnGCE() bool {
 //   - On Google Compute Engine, Google App Engine standard second generation
 //     runtimes, and Google App Engine flexible environment, it fetches
 //     credentials from the metadata server.
+//
+// Important: If you accept a credential configuration (credential
+// JSON/File/Stream) from an external source for authentication to Google
+// Cloud Platform, you must validate it before providing it to any Google
+// API or library. Providing an unvalidated credential configuration to
+// Google APIs can compromise the security of your systems and data. For
+// more information, refer to [Validate credential configurations from
+// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
 func DetectDefault(opts *DetectOptions) (*auth.Credentials, error) {
 	if err := opts.validate(); err != nil {
+		return nil, err
+	}
+	trustBoundaryEnabled, err := trustboundary.IsEnabled()
+	if err != nil {
 		return nil, err
 	}
 	if len(opts.CredentialsJSON) > 0 {
@@ -119,14 +170,26 @@ func DetectDefault(opts *DetectOptions) (*auth.Credentials, error) {
 			Logger:           opts.logger(),
 			UseDefaultClient: true,
 		})
+		gceUniverseDomainProvider := &internal.ComputeUniverseDomainProvider{
+			MetadataClient: metadataClient,
+		}
+
+		tp := computeTokenProvider(opts, metadataClient)
+		if trustBoundaryEnabled {
+			gceConfigProvider := trustboundary.NewGCEConfigProvider(gceUniverseDomainProvider)
+			var err error
+			tp, err = trustboundary.NewProvider(opts.client(), gceConfigProvider, opts.logger(), tp)
+			if err != nil {
+				return nil, fmt.Errorf("credentials: failed to initialize GCE trust boundary provider: %w", err)
+			}
+
+		}
 		return auth.NewCredentials(&auth.CredentialsOptions{
-			TokenProvider: computeTokenProvider(opts, metadataClient),
+			TokenProvider: tp,
 			ProjectIDProvider: auth.CredentialsPropertyFunc(func(ctx context.Context) (string, error) {
 				return metadataClient.ProjectIDWithContext(ctx)
 			}),
-			UniverseDomainProvider: &internal.ComputeUniverseDomainProvider{
-				MetadataClient: metadataClient,
-			},
+			UniverseDomainProvider: gceUniverseDomainProvider,
 		}), nil
 	}
 
@@ -172,25 +235,61 @@ type DetectOptions struct {
 	// from the provided filepath. If provided, CredentialsJSON must not be.
 	// Optional.
 	//
-	// Important: If you accept a credential configuration (credential
-	// JSON/File/Stream) from an external source for authentication to Google
-	// Cloud Platform, you must validate it before providing it to any Google
-	// API or library. Providing an unvalidated credential configuration to
-	// Google APIs can compromise the security of your systems and data. For
-	// more information, refer to [Validate credential configurations from
-	// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
+	// Deprecated: This field is deprecated because of a potential security risk.
+	// It does not validate the credential configuration. The security risk occurs
+	// when a credential configuration is accepted from a source that is not
+	// under your control and used without validation on your side.
+	//
+	// If you know that you will be loading credential configurations of a
+	// specific type, it is recommended to use a credential-type-specific
+	// NewCredentialsFromFile method. This will ensure that an unexpected
+	// credential type with potential for malicious intent is not loaded
+	// unintentionally. You might still have to do validation for certain
+	// credential types. Please follow the recommendation for that method. For
+	// example, if you want to load only service accounts, you can use
+	//
+	//	creds, err := credentials.NewCredentialsFromFile(ctx, credentials.ServiceAccount, filename, opts)
+	//
+	// If you are loading your credential configuration from an untrusted source
+	// and have not mitigated the risks (e.g. by validating the configuration
+	// yourself), make these changes as soon as possible to prevent security
+	// risks to your environment.
+	//
+	// Regardless of the method used, it is always your responsibility to
+	// validate configurations received from external sources.
+	//
+	// For more details see:
+	// https://cloud.google.com/docs/authentication/external/externally-sourced-credentials
 	CredentialsFile string
 	// CredentialsJSON overrides detection logic and uses the JSON bytes as the
 	// source for the credential. If provided, CredentialsFile must not be.
 	// Optional.
 	//
-	// Important: If you accept a credential configuration (credential
-	// JSON/File/Stream) from an external source for authentication to Google
-	// Cloud Platform, you must validate it before providing it to any Google
-	// API or library. Providing an unvalidated credential configuration to
-	// Google APIs can compromise the security of your systems and data. For
-	// more information, refer to [Validate credential configurations from
-	// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
+	// Deprecated: This field is deprecated because of a potential security risk.
+	// It does not validate the credential configuration. The security risk occurs
+	// when a credential configuration is accepted from a source that is not
+	// under your control and used without validation on your side.
+	//
+	// If you know that you will be loading credential configurations of a
+	// specific type, it is recommended to use a credential-type-specific
+	// NewCredentialsFromJSON method. This will ensure that an unexpected
+	// credential type with potential for malicious intent is not loaded
+	// unintentionally. You might still have to do validation for certain
+	// credential types. Please follow the recommendation for that method. For
+	// example, if you want to load only service accounts, you can use
+	//
+	//	creds, err := credentials.NewCredentialsFromJSON(ctx, credentials.ServiceAccount, json, opts)
+	//
+	// If you are loading your credential configuration from an untrusted source
+	// and have not mitigated the risks (e.g. by validating the configuration
+	// yourself), make these changes as soon as possible to prevent security
+	// risks to your environment.
+	//
+	// Regardless of the method used, it is always your responsibility to
+	// validate configurations received from external sources.
+	//
+	// For more details see:
+	// https://cloud.google.com/docs/authentication/external/externally-sourced-credentials
 	CredentialsJSON []byte
 	// UseSelfSignedJWT directs service account based credentials to create a
 	// self-signed JWT with the private key found in the file, skipping any
@@ -208,6 +307,61 @@ type DetectOptions struct {
 	// enabled by setting GOOGLE_SDK_GO_LOGGING_LEVEL in which case a default
 	// logger will be used. Optional.
 	Logger *slog.Logger
+}
+
+// NewCredentialsFromFile creates a [cloud.google.com/go/auth.Credentials] from
+// the provided file. The credType argument specifies the expected credential
+// type. If the file content does not match the expected type, an error is
+// returned.
+//
+// Important: If you accept a credential configuration (credential
+// JSON/File/Stream) from an external source for authentication to Google
+// Cloud Platform, you must validate it before providing it to any Google
+// API or library. Providing an unvalidated credential configuration to
+// Google APIs can compromise the security of your systems and data. For
+// more information, refer to [Validate credential configurations from
+// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
+func NewCredentialsFromFile(credType CredType, filename string, opts *DetectOptions) (*auth.Credentials, error) {
+	b, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	return NewCredentialsFromJSON(credType, b, opts)
+}
+
+// NewCredentialsFromJSON creates a [cloud.google.com/go/auth.Credentials] from
+// the provided JSON bytes. The credType argument specifies the expected
+// credential type. If the JSON does not match the expected type, an error is
+// returned.
+//
+// Important: If you accept a credential configuration (credential
+// JSON/File/Stream) from an external source for authentication to Google
+// Cloud Platform, you must validate it before providing it to any Google
+// API or library. Providing an unvalidated credential configuration to
+// Google APIs can compromise the security of your systems and data. For
+// more information, refer to [Validate credential configurations from
+// external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
+func NewCredentialsFromJSON(credType CredType, b []byte, opts *DetectOptions) (*auth.Credentials, error) {
+	if err := checkCredentialType(b, credType); err != nil {
+		return nil, err
+	}
+	// We can't use readCredentialsFileJSON because it does auto-detection
+	// for client_credentials.json which we don't support here (no type field).
+	// Instead, we call fileCredentials just as readCredentialsFileJSON does
+	// when it doesn't detect client_credentials.json.
+	return fileCredentials(b, opts)
+}
+
+func checkCredentialType(b []byte, expected CredType) error {
+
+	fileType, err := credsfile.ParseFileType(b)
+	if err != nil {
+		return err
+	}
+	if CredType(fileType) != expected {
+		return fmt.Errorf("credentials: expected type %q, found %q", expected, fileType)
+	}
+	return nil
 }
 
 func (o *DetectOptions) validate() error {

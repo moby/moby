@@ -10,6 +10,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/versions"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/daemon/server/httputils/logstream"
 )
 
 // swarmLogs takes an http response, request, and selector, and writes the logs
@@ -67,7 +68,7 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *
 		contentType = basictypes.MediaTypeMultiplexedStream
 	}
 	w.Header().Set("Content-Type", contentType)
-	httputils.WriteLogStream(ctx, w, msgs, logsConfig, !tty)
+	logstream.Write(ctx, w, msgs, logsConfig, !tty)
 	return nil
 }
 

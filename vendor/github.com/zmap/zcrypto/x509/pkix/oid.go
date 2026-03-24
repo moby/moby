@@ -5,11 +5,12 @@
 package pkix
 
 import (
-	"encoding/asn1"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/zmap/zcrypto/encoding/asn1"
 )
 
 // AuxOID behaves similar to asn1.ObjectIdentifier, except encodes to JSON as a

@@ -44,6 +44,7 @@ FILENAME=${LINTNAME:2}
 STRUCTNAME=$3
 
 sed -e "s/PACKAGE/${PATHNAME}/" \
+    -e "s/PASCAL_CASE_SUBST/${STRUCTNAME^}/g" \
     -e "s/SUBST/${STRUCTNAME}/g" \
     -e "s/SUBTEST/${LINTNAME}/g" template > lints/${PATHNAME}/lint_${FILENAME}.go
 

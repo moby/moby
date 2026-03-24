@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/container"
@@ -38,6 +39,18 @@ func registerDeviceDriver(name string, d *deviceDriver) {
 	deviceDrivers[name] = d
 }
 
+func getFirstAvailableVendor(vendorList []string) (string, error) {
+	knownVendors := []string{"nvidia.com", "amd.com"}
+	for _, vendor := range knownVendors {
+		for _, available := range vendorList {
+			if vendor == available {
+				return vendor, nil
+			}
+		}
+	}
+	return "", errors.New("no known GPU vendor found")
+}
+
 func (daemon *Daemon) handleDevice(req container.DeviceRequest, spec *specs.Spec) error {
 	if req.Driver == "" {
 		// If no driver is explicitly requested, we iterate over the registered
@@ -50,7 +63,7 @@ func (daemon *Daemon) handleDevice(req container.DeviceRequest, spec *specs.Spec
 						"requested": req.Capabilities,
 						"selected":  selected,
 					},
-				}).Debugf("Selecting device driver by capabilities")
+				}).Debug("Selecting device driver by capabilities")
 				return dd.updateSpec(spec, &deviceInstance{req: req, selectedCaps: selected})
 			}
 		}
@@ -64,7 +77,7 @@ func (daemon *Daemon) handleDevice(req container.DeviceRequest, spec *specs.Spec
 				"requested": req.Capabilities,
 				"selected":  selected,
 			},
-		}).Debugf("Selecting device driver by driver name; possibly ignoring capabilities")
+		}).Debug("Selecting device driver by driver name; possibly ignoring capabilities")
 		return dd.updateSpec(spec, &deviceInstance{req: req, selectedCaps: selected})
 	}
 

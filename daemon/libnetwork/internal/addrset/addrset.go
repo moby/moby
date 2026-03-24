@@ -203,10 +203,7 @@ func (as *AddrSet) AddrsInPrefix(prefix netip.Prefix) (hi, lo uint64) {
 }
 
 func (as *AddrSet) getBitmap(addr netip.Addr) (*bitmap.Bitmap, netip.Prefix, error) {
-	bits := as.pool.Addr().BitLen() - as.pool.Bits()
-	if bits > maxBitsPerBitmap {
-		bits = maxBitsPerBitmap
-	}
+	bits := min(as.pool.Addr().BitLen()-as.pool.Bits(), maxBitsPerBitmap)
 	bmKey, err := addr.Prefix(as.pool.Addr().BitLen() - bits)
 	if err != nil {
 		return nil, netip.Prefix{}, err
@@ -220,10 +217,7 @@ func (as *AddrSet) getBitmap(addr netip.Addr) (*bitmap.Bitmap, netip.Prefix, err
 }
 
 func (as *AddrSet) addrsPerBitmap() uint64 {
-	bits := as.pool.Addr().BitLen() - as.pool.Bits()
-	if bits > maxBitsPerBitmap {
-		bits = maxBitsPerBitmap
-	}
+	bits := min(as.pool.Addr().BitLen()-as.pool.Bits(), maxBitsPerBitmap)
 	return uint64(1) << bits
 }
 

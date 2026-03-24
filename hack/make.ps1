@@ -363,6 +363,7 @@ Function Run-IntegrationTests() {
     $escRoot = [Regex]::Escape($root)
     $env:DOCKER_INTEGRATION_DAEMON_DEST = $bundlesDir + "\tmp"
     $dirs = go list -test -f '{{- if ne .ForTest "" -}}{{- .Dir -}}{{- end -}}' .\integration\...
+    $failed = $false
     ForEach($dir in $dirs) {
         # Normalize directory name for using in the test results files.
         $normDir = $dir.Trim()
@@ -392,8 +393,12 @@ Function Run-IntegrationTests() {
         $p.StartInfo = $pinfo
         $p.Start() | Out-Null
         $p.WaitForExit()
-        if ($p.ExitCode -ne 0) { Throw "Integration tests failed" }
+        if ($p.ExitCode -ne 0) {
+            $failed = $true
+            if (-not [string]::IsNullOrEmpty($env:TEST_INTEGRATION_FAIL_FAST)) { break }
+        }
     }
+    if ($failed) { Throw "Integration tests failed" }
 }
 
 # Run the integration-cli tests
@@ -535,6 +540,11 @@ Try {
             Finally {
                 Remove-Item -Force "docker.zip"
             }
+
+            if (-not ($buildx = $env:BUILDX_VERSION)) { $buildx = "0.31.1" }
+            Write-Host "INFO: Downloading docker/buildx version $buildx..."
+            $url = "https://github.com/docker/buildx/releases/download/v${buildx}/buildx-v${buildx}.windows-amd64.exe"
+            Invoke-WebRequest $url -OutFile "$PWD\bundles\docker-buildx.exe"
         }
     }
 

@@ -37,7 +37,7 @@ func TestServiceListWithStatuses(t *testing.T) {
 
 	serviceCount := 3
 	// create some services.
-	for i := 0; i < serviceCount; i++ {
+	for i := range serviceCount {
 		spec := fullSwarmServiceSpec(fmt.Sprintf("test-list-%d", i), uint64(i+1))
 		// for whatever reason, the args "-u root", when included, cause these
 		// tasks to fail and exit. instead, we'll just pass no args, which

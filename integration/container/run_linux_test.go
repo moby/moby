@@ -18,6 +18,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/integration/internal/container"
 	net "github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -82,7 +83,7 @@ func TestHostnameDnsResolution(t *testing.T) {
 		hostname = "foobar"
 	)
 
-	// using user defined network as we want to use internal DNS
+	// using user-defined network as we want to use internal DNS
 	netName := "foobar-net"
 	net.CreateNoError(ctx, t, apiClient, netName, net.WithDriver("bridge"))
 
@@ -178,6 +179,7 @@ func TestPrivilegedHostDevices(t *testing.T) {
 
 func TestRunConsoleSize(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "requires API v1.42")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
@@ -502,7 +504,7 @@ func TestCgroupRW(t *testing.T) {
 func TestContainerShmSize(t *testing.T) {
 	ctx := setupTest(t)
 
-	const defaultSize = "1000k"
+	const defaultSize = "1024k"
 	defaultSizeBytes, err := units.RAMInBytes(defaultSize)
 	assert.NilError(t, err)
 
@@ -531,7 +533,7 @@ func TestContainerShmSize(t *testing.T) {
 		{
 			doc:     "custom shmSize",
 			opt:     container.WithHostConfig(&containertypes.HostConfig{ShmSize: defaultSizeBytes * 2}),
-			expSize: "2000k",
+			expSize: "2048k",
 		},
 		{
 			doc:    "negative shmSize",
@@ -568,7 +570,7 @@ func TestContainerShmSize(t *testing.T) {
 			out, err := container.Output(ctx, apiClient, cID)
 			assert.NilError(t, err)
 
-			// e.g., "218 213 0:87 / /dev/shm rw,nosuid,nodev,noexec,relatime - tmpfs shm rw,size=1000k"
+			// e.g., "218 213 0:87 / /dev/shm rw,nosuid,nodev,noexec,relatime - tmpfs shm rw,size=1024k"
 			assert.Assert(t, is.Contains(out.Stdout, "/dev/shm "), "shm mount not found in output: \n%v", out.Stdout)
 			assert.Check(t, is.Contains(out.Stdout, "size="+tc.expSize))
 		})

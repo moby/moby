@@ -46,7 +46,7 @@ func (w *ContainerdWorker) Exporter(name string, sm *session.Manager) (bkexporte
 		if err != nil {
 			return nil, err
 		}
-		return exporter.NewWrapper(exp, w.callbacks)
+		return exporter.NewWrapper(exp, w.ContentStore(), w.callbacks)
 	default:
 		return w.Worker.Exporter(name, sm)
 	}

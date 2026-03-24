@@ -63,8 +63,24 @@ func TestContainerLogs(t *testing.T) {
 	}{
 		{
 			doc: "no options",
+		},
+		{
+			// magic "all" value that's used as default in docker/cli
+			// is equivalent to "don't send a tail option".
+			doc: "tail all",
+			options: ContainerLogsOptions{
+				Tail: "all",
+			},
+		},
+		{
+			// TODO(thaJeztah): tail=0 currently means: "return zero lines"; perhaps we should just make it "all"
+			//   or error, similar to "service logs"; https://github.com/moby/moby/blob/4d20b6fe56dfb2b06f4a5dd1f32913215a9c317b/daemon/cluster/services.go#L425-L449
+			doc: "tail 0",
+			options: ContainerLogsOptions{
+				Tail: "0",
+			},
 			expectedQueryParams: map[string]string{
-				"tail": "",
+				"tail": "0",
 			},
 		},
 		{
@@ -86,7 +102,6 @@ func TestContainerLogs(t *testing.T) {
 				Follow:     true,
 			},
 			expectedQueryParams: map[string]string{
-				"tail":       "",
 				"stdout":     "1",
 				"stderr":     "1",
 				"timestamps": "1",
@@ -101,7 +116,6 @@ func TestContainerLogs(t *testing.T) {
 				Since: "1136073600.000000001",
 			},
 			expectedQueryParams: map[string]string{
-				"tail":  "",
 				"since": "1136073600.000000001",
 			},
 		},
@@ -112,7 +126,6 @@ func TestContainerLogs(t *testing.T) {
 				Until: "1136073600.000000001",
 			},
 			expectedQueryParams: map[string]string{
-				"tail":  "",
 				"until": "1136073600.000000001",
 			},
 		},

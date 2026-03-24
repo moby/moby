@@ -18,7 +18,6 @@ import (
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/initca"
-	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
@@ -182,22 +181,6 @@ func (s *DockerSwarmSuite) TestUpdateSwarmAddExternalCA(c *testing.T) {
 	assert.Equal(c, len(info.Cluster.Spec.CAConfig.ExternalCAs), 2)
 	assert.Equal(c, info.Cluster.Spec.CAConfig.ExternalCAs[0].CACert, "")
 	assert.Equal(c, info.Cluster.Spec.CAConfig.ExternalCAs[1].CACert, "cacert")
-}
-
-func (s *DockerSwarmSuite) TestAPISwarmCAHash(c *testing.T) {
-	ctx := testutil.GetContext(c)
-	d1 := s.AddDaemon(ctx, c, true, true)
-	d2 := s.AddDaemon(ctx, c, false, false)
-	splitToken := strings.Split(d1.JoinTokens(c).Worker, "-")
-	splitToken[2] = "1kxftv4ofnc6mt30lmgipg6ngf9luhwqopfk1tz6bdmnkubg0e"
-	replacementToken := strings.Join(splitToken, "-")
-	c2 := d2.NewClientT(c)
-	_, err := c2.SwarmJoin(testutil.GetContext(c), client.SwarmJoinOptions{
-		ListenAddr:  d2.SwarmListenAddr(),
-		JoinToken:   replacementToken,
-		RemoteAddrs: []string{d1.SwarmListenAddr()},
-	})
-	assert.ErrorContains(c, err, "remote CA does not match fingerprint")
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *testing.T) {
@@ -816,7 +799,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRestartCluster(c *testing.T) {
 	mCount, wCount := 5, 1
 
 	var nodes []*daemon.Daemon
-	for i := 0; i < mCount; i++ {
+	for range mCount {
 		manager := s.AddDaemon(ctx, c, true, true)
 		info := manager.SwarmInfo(ctx, c)
 		assert.Equal(c, info.ControlAvailable, true)
@@ -824,7 +807,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRestartCluster(c *testing.T) {
 		nodes = append(nodes, manager)
 	}
 
-	for i := 0; i < wCount; i++ {
+	for range wCount {
 		worker := s.AddDaemon(ctx, c, true, false)
 		info := worker.SwarmInfo(ctx, c)
 		assert.Equal(c, info.ControlAvailable, false)
@@ -960,7 +943,7 @@ func (s *DockerSwarmSuite) TestSwarmRepeatedRootRotation(c *testing.T) {
 	currentTrustRoot := info.Cluster.TLSInfo.TrustRoot
 
 	// rotate multiple times
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		var err error
 		var cert, key []byte
 		if i%2 != 0 {
@@ -980,7 +963,7 @@ func (s *DockerSwarmSuite) TestSwarmRepeatedRootRotation(c *testing.T) {
 
 		// poll to make sure update succeeds
 		var clusterTLSInfo swarm.TLSInfo
-		for j := 0; j < 18; j++ {
+		for range 18 {
 			info := m.SwarmInfo(ctx, c)
 
 			// the desired CA cert and key is always redacted
@@ -1002,7 +985,7 @@ func (s *DockerSwarmSuite) TestSwarmRepeatedRootRotation(c *testing.T) {
 		}
 		// could take another second or two for the nodes to trust the new roots after they've all gotten
 		// new TLS certificates
-		for j := 0; j < 18; j++ {
+		for range 18 {
 			mInfo := m.GetNode(ctx, c, m.NodeID()).Description.TLSInfo
 			wInfo := m.GetNode(ctx, c, w.NodeID()).Description.TLSInfo
 
@@ -1018,23 +1001,4 @@ func (s *DockerSwarmSuite) TestSwarmRepeatedRootRotation(c *testing.T) {
 		assert.DeepEqual(c, m.GetNode(ctx, c, w.NodeID()).Description.TLSInfo, clusterTLSInfo)
 		currentTrustRoot = clusterTLSInfo.TrustRoot
 	}
-}
-
-func (s *DockerSwarmSuite) TestAPINetworkInspectWithScope(c *testing.T) {
-	ctx := testutil.GetContext(c)
-	d := s.AddDaemon(ctx, c, true, true)
-
-	name := "test-scoped-network"
-	apiclient := d.NewClientT(c)
-
-	create, err := apiclient.NetworkCreate(ctx, name, client.NetworkCreateOptions{Driver: "overlay"})
-	assert.NilError(c, err)
-
-	inspect, err := apiclient.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
-	assert.NilError(c, err)
-	assert.Check(c, is.Equal("swarm", inspect.Network.Scope))
-	assert.Check(c, is.Equal(create.ID, inspect.Network.ID))
-
-	_, err = apiclient.NetworkInspect(ctx, name, client.NetworkInspectOptions{Scope: "local"})
-	assert.Check(c, is.ErrorType(err, cerrdefs.IsNotFound))
 }

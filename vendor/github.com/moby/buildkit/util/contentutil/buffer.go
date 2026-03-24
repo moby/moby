@@ -19,6 +19,7 @@ import (
 type Buffer interface {
 	content.Provider
 	content.Ingester
+	content.IngestManager
 	content.Manager
 }
 
@@ -95,7 +96,14 @@ func (b *buffer) Writer(ctx context.Context, opts ...content.WriterOpt) (content
 		}
 	}
 	b.mu.Lock()
+	if wOpts.Desc.Digest != "" {
+		if _, ok := b.buffers[wOpts.Desc.Digest]; ok {
+			b.mu.Unlock()
+			return nil, errors.Wrapf(cerrdefs.ErrAlreadyExists, "content %v already exists", wOpts.Desc.Digest)
+		}
+	}
 	if _, ok := b.refs[wOpts.Ref]; ok {
+		b.mu.Unlock()
 		return nil, errors.Wrapf(cerrdefs.ErrUnavailable, "ref %s locked", wOpts.Ref)
 	}
 	b.mu.Unlock()
@@ -110,6 +118,21 @@ func (b *buffer) Writer(ctx context.Context, opts ...content.WriterOpt) (content
 			b.mu.Unlock()
 		},
 	}, nil
+}
+
+func (b *buffer) Status(ctx context.Context, ref string) (content.Status, error) {
+	return content.Status{}, cerrdefs.ErrNotFound
+}
+
+func (b *buffer) ListStatuses(ctx context.Context, filters ...string) ([]content.Status, error) {
+	return nil, nil
+}
+
+func (b *buffer) Abort(ctx context.Context, ref string) error {
+	b.mu.Lock()
+	delete(b.refs, ref)
+	b.mu.Unlock()
+	return nil
 }
 
 func (b *buffer) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content.ReaderAt, error) {

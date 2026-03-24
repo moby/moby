@@ -136,7 +136,7 @@ func assertContainerList(out string, expected []string) bool {
 	}
 
 	containerIDIndex := strings.Index(lines[0], "CONTAINER ID")
-	for i := 0; i < len(expected); i++ {
+	for i := range expected {
 		foundID := lines[i+1][containerIDIndex : containerIDIndex+12]
 		if foundID != expected[i][:12] {
 			return false
@@ -531,7 +531,7 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterCreated(c *testing.T) {
 	out = cli.DockerCmd(c, "ps", "-a").Stdout()
 
 	hits := 0
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if !strings.Contains(line, shortCID) {
 			continue
 		}

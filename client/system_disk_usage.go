@@ -276,6 +276,8 @@ func containerDiskUsageFromLegacyAPI(du *legacyDiskUsage) ContainersDiskUsage {
 		case container.StateRunning, container.StatePaused, container.StateRestarting:
 			cdu.ActiveCount++
 			used += c.SizeRw
+		case container.StateCreated, container.StateRemoving, container.StateExited, container.StateDead:
+			// not active
 		}
 	}
 

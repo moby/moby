@@ -154,7 +154,7 @@ jobs:
       -
         name: Upload SARIF report
         if: ${{ github.event_name != 'pull_request' && github.repository == 'moby/moby' }}
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: ${{ env.DESTDIR }}/govulncheck.out
 

@@ -131,6 +131,22 @@ func (e *Encoder) Reset(w io.Writer) {
 	s.frameContentSize = 0
 }
 
+// ResetWithOptions will re-initialize the writer and apply the given options
+// as a new, independent stream.
+// Options are applied on top of the existing options.
+// Some options cannot be changed on reset and will return an error.
+func (e *Encoder) ResetWithOptions(w io.Writer, opts ...EOption) error {
+	e.o.resetOpt = true
+	defer func() { e.o.resetOpt = false }()
+	for _, o := range opts {
+		if err := o(&e.o); err != nil {
+			return err
+		}
+	}
+	e.Reset(w)
+	return nil
+}
+
 // ResetContentSize will reset and set a content size for the next stream.
 // If the bytes written does not match the size given an error will be returned
 // when calling Close().

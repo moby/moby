@@ -3,7 +3,6 @@ package network
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -15,8 +14,10 @@ type TestRanger interface {
 	Range() PortRange
 }
 
-var _ TestRanger = Port{}
-var _ TestRanger = PortRange{}
+var (
+	_ TestRanger = Port{}
+	_ TestRanger = PortRange{}
+)
 
 func TestPort(t *testing.T) {
 	t.Run("Zero Value", func(t *testing.T) {
@@ -345,7 +346,6 @@ func TestPortRange(t *testing.T) {
 			in        string
 			portRange PortRange // output of ParsePortRange() and Range()
 			str       string    // output of String(). If "", use in.
-
 		}{
 			// Zero port
 			{
@@ -531,7 +531,7 @@ func TestPortRange(t *testing.T) {
 		for _, tc := range tests {
 			pr := MustParsePortRange(tc.in)
 			ports := slices.Collect(pr.All())
-			if !reflect.DeepEqual(ports, tc.want) {
+			if !slices.Equal(ports, tc.want) {
 				t.Errorf("PortRange.All() = %#v, want %#v", ports, tc.want)
 			}
 		}
@@ -546,7 +546,7 @@ func TestPortRange(t *testing.T) {
 					break
 				}
 			}
-			if !reflect.DeepEqual(ports, want) {
+			if !slices.Equal(ports, want) {
 				t.Errorf("PortRange.All() = %#v, want %#v", ports, want)
 			}
 		})

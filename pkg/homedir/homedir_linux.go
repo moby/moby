@@ -7,11 +7,12 @@ import (
 	"strings"
 )
 
-// GetRuntimeDir returns XDG_RUNTIME_DIR.
-// XDG_RUNTIME_DIR is typically configured via pam_systemd.
-// GetRuntimeDir returns non-nil error if XDG_RUNTIME_DIR is not set.
+// GetRuntimeDir returns [XDG_RUNTIME_DIR]. It returns a non-nil error if
+// XDG_RUNTIME_DIR is not set. XDG_RUNTIME_DIR is typically configured via
+// [pam_systemd].
 //
-// See also https://standards.freedesktop.org/basedir-spec/latest/ar01s03.html
+// [XDG_RUNTIME_DIR]: https://specifications.freedesktop.org/basedir/0.8/#variables
+// [pam_systemd]: https://man7.org/linux/man-pages/man8/pam_systemd.8.html
 func GetRuntimeDir() (string, error) {
 	if xdgRuntimeDir := os.Getenv("XDG_RUNTIME_DIR"); xdgRuntimeDir != "" {
 		return xdgRuntimeDir, nil
@@ -20,12 +21,15 @@ func GetRuntimeDir() (string, error) {
 }
 
 // StickRuntimeDirContents sets the sticky bit on files that are under
-// XDG_RUNTIME_DIR, so that the files won't be periodically removed by the system.
+// [XDG_RUNTIME_DIR], so that the files won't be periodically removed by the
+// system.
 //
-// StickyRuntimeDir returns slice of sticked files.
-// StickyRuntimeDir returns nil error if XDG_RUNTIME_DIR is not set.
+// It returns a slice of sticked files as absolute paths. The list of files may
+// be empty (nil) if XDG_RUNTIME_DIR is not set, in which case no error is returned.
+// StickyRuntimeDir produces an error when failing to resolve the absolute path
+// for the returned files.
 //
-// See also https://standards.freedesktop.org/basedir-spec/latest/ar01s03.html
+// [XDG_RUNTIME_DIR]: https://specifications.freedesktop.org/basedir/0.8/#variables
 func StickRuntimeDirContents(files []string) ([]string, error) {
 	runtimeDir, err := GetRuntimeDir()
 	if err != nil {
@@ -62,11 +66,12 @@ func stick(f string) error {
 	return os.Chmod(f, m)
 }
 
-// GetDataHome returns XDG_DATA_HOME.
-// GetDataHome returns $HOME/.local/share and nil error if XDG_DATA_HOME is not set.
-// If HOME and XDG_DATA_HOME are not set, getpwent(3) is consulted to determine the users home directory.
+// GetDataHome returns [XDG_DATA_HOME] or $HOME/.local/share and a nil error if
+// [XDG_DATA_HOME] is not set. If neither HOME nor XDG_DATA_HOME are set,
+// [getpwent(3)] is consulted to determine the users home directory.
 //
-// See also https://standards.freedesktop.org/basedir-spec/latest/ar01s03.html
+// [XDG_DATA_HOME]: https://specifications.freedesktop.org/basedir/0.8/#variables
+// [getpwent(3)]: https://man7.org/linux/man-pages/man3/getpwent.3.html
 func GetDataHome() (string, error) {
 	if xdgDataHome := os.Getenv("XDG_DATA_HOME"); xdgDataHome != "" {
 		return xdgDataHome, nil
@@ -78,11 +83,12 @@ func GetDataHome() (string, error) {
 	return filepath.Join(home, ".local", "share"), nil
 }
 
-// GetConfigHome returns XDG_CONFIG_HOME.
-// GetConfigHome returns $HOME/.config and nil error if XDG_CONFIG_HOME is not set.
-// If HOME and XDG_CONFIG_HOME are not set, getpwent(3) is consulted to determine the users home directory.
+// GetConfigHome returns [XDG_CONFIG_HOME] or $HOME/.config and a nil error if
+// XDG_CONFIG_HOME is not set. If neither HOME nor XDG_CONFIG_HOME are set,
+// [getpwent(3)] is consulted to determine the users home directory.
 //
-// See also https://standards.freedesktop.org/basedir-spec/latest/ar01s03.html
+// [XDG_CONFIG_HOME]: https://specifications.freedesktop.org/basedir/0.8/#variables
+// [getpwent(3)]: https://man7.org/linux/man-pages/man3/getpwent.3.html
 func GetConfigHome() (string, error) {
 	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
 		return xdgConfigHome, nil
@@ -94,12 +100,26 @@ func GetConfigHome() (string, error) {
 	return filepath.Join(home, ".config"), nil
 }
 
-// GetLibHome returns $HOME/.local/lib
-// If HOME is not set, getpwent(3) is consulted to determine the users home directory.
+// GetLibHome returns $HOME/.local/lib. If HOME is not set, [getpwent(3)] is
+// consulted to determine the users home directory.
+//
+// [getpwent(3)]: https://man7.org/linux/man-pages/man3/getpwent.3.html
 func GetLibHome() (string, error) {
 	home := Get()
 	if home == "" {
 		return "", errors.New("could not get HOME")
 	}
 	return filepath.Join(home, ".local/lib"), nil
+}
+
+// GetLibexecHome returns $HOME/.local/libexec. If HOME is not set,
+// [getpwent(3)] is consulted to determine the users home directory.
+//
+// [getpwent(3)]: https://man7.org/linux/man-pages/man3/getpwent.3.html
+func GetLibexecHome() (string, error) {
+	home := Get()
+	if home == "" {
+		return "", errors.New("could not get HOME")
+	}
+	return filepath.Join(home, ".local/libexec"), nil
 }

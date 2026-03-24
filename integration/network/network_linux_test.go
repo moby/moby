@@ -392,7 +392,7 @@ func checkCtrRoutes(t *testing.T, ctx context.Context, apiClient client.APIClien
 		fam = "-6"
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	res, err := container.Exec(ctx, apiClient, ctrID, []string{"ip", "-o", fam, "route", "show"})
 	assert.NilError(t, err)

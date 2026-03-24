@@ -1,12 +1,15 @@
 package client
 
 import (
+	"crypto/tls"
 	"net/http"
+	"net/http/cookiejar"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -298,7 +301,7 @@ func TestWithUserAgent(t *testing.T) {
 	t.Run("user-agent", func(t *testing.T) {
 		c, err := New(
 			WithUserAgent(userAgent),
-			WithMockClient(func(req *http.Request) (*http.Response, error) {
+			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
 				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), userAgent))
 				return &http.Response{StatusCode: http.StatusOK}, nil
 			}),
@@ -312,7 +315,7 @@ func TestWithUserAgent(t *testing.T) {
 		c, err := New(
 			WithUserAgent(userAgent),
 			WithHTTPHeaders(map[string]string{"User-Agent": "should-be-ignored/1.0.0", "Other-Header": "hello-world"}),
-			WithMockClient(func(req *http.Request) (*http.Response, error) {
+			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
 				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), userAgent))
 				assert.Check(t, is.Equal(req.Header.Get("Other-Header"), "hello-world"))
 				return &http.Response{StatusCode: http.StatusOK}, nil
@@ -326,7 +329,7 @@ func TestWithUserAgent(t *testing.T) {
 	t.Run("custom headers", func(t *testing.T) {
 		c, err := New(
 			WithHTTPHeaders(map[string]string{"User-Agent": "from-custom-headers/1.0.0", "Other-Header": "hello-world"}),
-			WithMockClient(func(req *http.Request) (*http.Response, error) {
+			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
 				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), "from-custom-headers/1.0.0"))
 				assert.Check(t, is.Equal(req.Header.Get("Other-Header"), "hello-world"))
 				return &http.Response{StatusCode: http.StatusOK}, nil
@@ -340,7 +343,7 @@ func TestWithUserAgent(t *testing.T) {
 	t.Run("no user-agent set", func(t *testing.T) {
 		c, err := New(
 			WithHTTPHeaders(map[string]string{"Other-Header": "hello-world"}),
-			WithMockClient(func(req *http.Request) (*http.Response, error) {
+			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
 				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), ""))
 				assert.Check(t, is.Equal(req.Header.Get("Other-Header"), "hello-world"))
 				return &http.Response{StatusCode: http.StatusOK}, nil
@@ -355,7 +358,7 @@ func TestWithUserAgent(t *testing.T) {
 		c, err := New(
 			WithUserAgent(""),
 			WithHTTPHeaders(map[string]string{"User-Agent": "from-custom-headers/1.0.0", "Other-Header": "hello-world"}),
-			WithMockClient(func(req *http.Request) (*http.Response, error) {
+			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
 				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), ""))
 				assert.Check(t, is.Equal(req.Header.Get("Other-Header"), "hello-world"))
 				return &http.Response{StatusCode: http.StatusOK}, nil
@@ -364,6 +367,88 @@ func TestWithUserAgent(t *testing.T) {
 		assert.NilError(t, err)
 		_, err = c.Ping(t.Context(), PingOptions{})
 		assert.NilError(t, err)
+		assert.NilError(t, c.Close())
+	})
+}
+
+func TestWithHTTPClient(t *testing.T) {
+	cookieJar, err := cookiejar.New(nil)
+	assert.NilError(t, err)
+	pristineHTTPClient := func() *http.Client {
+		return &http.Client{
+			Timeout: 42 * time.Second,
+			Jar:     cookieJar,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{ServerName: "example.com", MinVersion: tls.VersionTLS12},
+			},
+		}
+	}
+	hc := pristineHTTPClient()
+	_, err = New(WithHTTPClient(hc), WithHost("tcp://example.com:443"))
+	assert.NilError(t, err)
+	assert.DeepEqual(t, hc, pristineHTTPClient(),
+		cmpopts.IgnoreUnexported(http.Transport{}, tls.Config{}),
+		cmpopts.EquateComparable(&cookiejar.Jar{}))
+}
+
+func TestWithResponseHook(t *testing.T) {
+	const hdrKey = "X-Test-Header"
+	const hdrVal = "hello-world"
+
+	t.Run("single hook", func(t *testing.T) {
+		var got string
+		c, err := New(
+			WithResponseHook(func(resp *http.Response) {
+				got = resp.Header.Get(hdrKey)
+			}),
+			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
+				resp := &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+				}
+				resp.Header.Set(hdrKey, hdrVal)
+				return resp, nil
+			}),
+		)
+		assert.NilError(t, err)
+
+		_, err = c.Ping(t.Context(), PingOptions{})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(got, hdrVal))
+
+		assert.NilError(t, c.Close())
+	})
+
+	t.Run("invalid hook", func(t *testing.T) {
+		_, err := New(WithResponseHook(nil))
+		assert.Error(t, err, "invalid response hook: hook is nil")
+	})
+
+	t.Run("multiple hooks", func(t *testing.T) {
+		var triggered []string
+
+		c, err := New(
+			WithResponseHook(func(*http.Response) {
+				triggered = append(triggered, "hook 1: "+hdrVal)
+			}),
+			WithResponseHook(func(*http.Response) {
+				triggered = append(triggered, "hook 2: "+hdrVal)
+			}),
+			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
+				resp := &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+				}
+				resp.Header.Set(hdrKey, hdrVal)
+				return resp, nil
+			}),
+		)
+		assert.NilError(t, err)
+
+		_, err = c.Ping(t.Context(), PingOptions{})
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(triggered, []string{"hook 1: " + hdrVal, "hook 2: " + hdrVal}))
+
 		assert.NilError(t, c.Close())
 	})
 }

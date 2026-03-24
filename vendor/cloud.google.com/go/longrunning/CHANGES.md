@@ -1,5 +1,12 @@
 # Changes
 
+## [0.7.0](https://github.com/googleapis/google-cloud-go/releases/tag/longrunning%2Fv0.7.0) (2025-10-14)
+
+### Features
+
+* add ListOperations partial success flag
+* add ListOperations unreachable resources
+
 ## [0.6.7](https://github.com/googleapis/google-cloud-go/compare/longrunning/v0.6.6...longrunning/v0.6.7) (2025-04-15)
 
 
@@ -180,3 +187,4 @@
 ## v0.1.0
 
 Initial release.
+

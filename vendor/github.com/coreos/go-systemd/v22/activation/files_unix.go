@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !windows
+//go:build unix
 
 // Package activation implements primitives for systemd socket activation.
 package activation
@@ -51,7 +51,7 @@ func Files(unsetEnv bool) []*os.File {
 	}
 
 	nfds, err := strconv.Atoi(os.Getenv("LISTEN_FDS"))
-	if err != nil || nfds == 0 {
+	if err != nil || nfds <= 0 {
 		return nil
 	}
 

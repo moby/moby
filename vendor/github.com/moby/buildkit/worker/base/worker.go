@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/containerd/containerd/v2/core/content"
@@ -37,6 +38,7 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver/ops"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
+	"github.com/moby/buildkit/source/containerblob"
 	"github.com/moby/buildkit/source/containerimage"
 	"github.com/moby/buildkit/source/git"
 	"github.com/moby/buildkit/source/http"
@@ -144,6 +146,16 @@ func NewWorker(ctx context.Context, opt WorkerOpt) (*Worker, error) {
 	sm.Register(is)
 
 	var gitSource *git.Source
+	ibs, err := containerblob.NewSource(containerblob.SourceOpt{
+		ContentStore:  opt.ContentStore,
+		CacheAccessor: cm,
+		RegistryHosts: opt.RegistryHosts,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	sm.Register(ibs)
 	if err := git.Supported(); err == nil {
 		gs, err := git.NewSource(git.Opt{
 			CacheAccessor: cm,
@@ -480,16 +492,31 @@ func (w *Worker) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, opt
 		if w.HTTPSource == nil {
 			return nil, errors.New("http source is not supported")
 		}
-		md, err := w.HTTPSource.ResolveMetadata(ctx, idt, sm, jobCtx)
+		mdOpt := http.MetadataOpts{}
+		if opt.HTTPOpt != nil && opt.HTTPOpt.ChecksumReq != nil {
+			mdOpt.ChecksumReq = &http.MetadataChecksumRequest{
+				Algo:   http.MetadataChecksumAlgo(opt.HTTPOpt.ChecksumReq.Algo),
+				Suffix: slices.Clone(opt.HTTPOpt.ChecksumReq.Suffix),
+			}
+		}
+		md, err := w.HTTPSource.ResolveMetadata(ctx, idt, sm, jobCtx, mdOpt)
 		if err != nil {
 			return nil, err
+		}
+		var checksumResponse *sourceresolver.ResolveHTTPChecksumResponse
+		if md.ChecksumResponse != nil {
+			checksumResponse = &sourceresolver.ResolveHTTPChecksumResponse{
+				Digest: md.ChecksumResponse.Digest,
+				Suffix: slices.Clone(md.ChecksumResponse.Suffix),
+			}
 		}
 		return &sourceresolver.MetaResponse{
 			Op: op,
 			HTTP: &sourceresolver.ResolveHTTPResponse{
-				Digest:       md.Digest,
-				Filename:     md.Filename,
-				LastModified: md.LastModified,
+				Digest:           md.Digest,
+				Filename:         md.Filename,
+				LastModified:     md.LastModified,
+				ChecksumResponse: checksumResponse,
 			},
 		}, nil
 	}

@@ -70,6 +70,8 @@ func ParseInstruction(node *parser.Node) (v any, err error) {
 
 // ParseInstruction converts an AST to a typed instruction (either a command or a build stage beginning when encountering a `FROM` statement)
 func ParseInstructionWithLinter(node *parser.Node, lint *linter.Linter) (v any, err error) {
+	lint = lint.WithMergedConfigFromComments(node.PrevComment)
+
 	defer func() {
 		if err != nil {
 			err = parser.WithLocation(err, node.Location())
@@ -410,7 +412,8 @@ func parseFrom(req parseRequest) (*Stage, error) {
 		Commands:   []Command{},
 		Platform:   flPlatform.Value,
 		Location:   req.location,
-		Comment:    getComment(req.comments, stageName),
+		Comments:   req.comments,
+		DocComment: getDocComment(req.comments, stageName),
 	}, nil
 }
 
@@ -447,8 +450,15 @@ func parseOnBuild(req parseRequest) (*OnbuildCommand, error) {
 	}
 
 	original := regexp.MustCompile(`(?i)^\s*ONBUILD\s*`).ReplaceAllString(req.original, "")
-	for _, heredoc := range req.heredocs {
-		original += "\n" + heredoc.Content + heredoc.Name
+	if len(req.heredocs) > 0 {
+		var b strings.Builder
+		b.WriteString(original)
+		for _, heredoc := range req.heredocs {
+			b.WriteByte('\n')
+			b.WriteString(heredoc.Content)
+			b.WriteString(heredoc.Name)
+		}
+		original = b.String()
 	}
 
 	return &OnbuildCommand{
@@ -761,7 +771,7 @@ func parseArg(req parseRequest) (*ArgCommand, error) {
 		} else {
 			kvpo.Key = arg
 		}
-		kvpo.Comment = getComment(req.comments, kvpo.Key)
+		kvpo.DocComment = getDocComment(req.comments, kvpo.Key)
 		pairs[i] = kvpo
 	}
 
@@ -817,7 +827,7 @@ func errTooManyArguments(command string) error {
 	return errors.Errorf("Bad input to %s, too many arguments", command)
 }
 
-func getComment(comments []string, name string) string {
+func getDocComment(comments []string, name string) string {
 	if name == "" {
 		return ""
 	}

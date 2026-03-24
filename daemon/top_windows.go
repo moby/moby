@@ -51,6 +51,10 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.TopRe
 		return task, nil
 	}()
 
+	if err != nil {
+		return nil, err
+	}
+
 	s, err := task.Summary(context.Background())
 	if err != nil {
 		return nil, err

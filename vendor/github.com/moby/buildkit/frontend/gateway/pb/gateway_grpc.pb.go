@@ -32,6 +32,9 @@ const (
 	LLBBridge_NewContainer_FullMethodName       = "/moby.buildkit.v1.frontend.LLBBridge/NewContainer"
 	LLBBridge_ReleaseContainer_FullMethodName   = "/moby.buildkit.v1.frontend.LLBBridge/ReleaseContainer"
 	LLBBridge_ExecProcess_FullMethodName        = "/moby.buildkit.v1.frontend.LLBBridge/ExecProcess"
+	LLBBridge_ReadFileContainer_FullMethodName  = "/moby.buildkit.v1.frontend.LLBBridge/ReadFileContainer"
+	LLBBridge_ReadDirContainer_FullMethodName   = "/moby.buildkit.v1.frontend.LLBBridge/ReadDirContainer"
+	LLBBridge_StatFileContainer_FullMethodName  = "/moby.buildkit.v1.frontend.LLBBridge/StatFileContainer"
 	LLBBridge_Warn_FullMethodName               = "/moby.buildkit.v1.frontend.LLBBridge/Warn"
 )
 
@@ -60,6 +63,10 @@ type LLBBridgeClient interface {
 	NewContainer(ctx context.Context, in *NewContainerRequest, opts ...grpc.CallOption) (*NewContainerResponse, error)
 	ReleaseContainer(ctx context.Context, in *ReleaseContainerRequest, opts ...grpc.CallOption) (*ReleaseContainerResponse, error)
 	ExecProcess(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ExecMessage, ExecMessage], error)
+	// apicaps:CapGatewayExecFilesystem
+	ReadFileContainer(ctx context.Context, in *ReadFileRequest, opts ...grpc.CallOption) (*ReadFileResponse, error)
+	ReadDirContainer(ctx context.Context, in *ReadDirRequest, opts ...grpc.CallOption) (*ReadDirResponse, error)
+	StatFileContainer(ctx context.Context, in *StatFileRequest, opts ...grpc.CallOption) (*StatFileResponse, error)
 	// apicaps:CapGatewayWarnings
 	Warn(ctx context.Context, in *WarnRequest, opts ...grpc.CallOption) (*WarnResponse, error)
 }
@@ -205,6 +212,36 @@ func (c *lLBBridgeClient) ExecProcess(ctx context.Context, opts ...grpc.CallOpti
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type LLBBridge_ExecProcessClient = grpc.BidiStreamingClient[ExecMessage, ExecMessage]
 
+func (c *lLBBridgeClient) ReadFileContainer(ctx context.Context, in *ReadFileRequest, opts ...grpc.CallOption) (*ReadFileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReadFileResponse)
+	err := c.cc.Invoke(ctx, LLBBridge_ReadFileContainer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lLBBridgeClient) ReadDirContainer(ctx context.Context, in *ReadDirRequest, opts ...grpc.CallOption) (*ReadDirResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReadDirResponse)
+	err := c.cc.Invoke(ctx, LLBBridge_ReadDirContainer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lLBBridgeClient) StatFileContainer(ctx context.Context, in *StatFileRequest, opts ...grpc.CallOption) (*StatFileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StatFileResponse)
+	err := c.cc.Invoke(ctx, LLBBridge_StatFileContainer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *lLBBridgeClient) Warn(ctx context.Context, in *WarnRequest, opts ...grpc.CallOption) (*WarnResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(WarnResponse)
@@ -240,6 +277,10 @@ type LLBBridgeServer interface {
 	NewContainer(context.Context, *NewContainerRequest) (*NewContainerResponse, error)
 	ReleaseContainer(context.Context, *ReleaseContainerRequest) (*ReleaseContainerResponse, error)
 	ExecProcess(grpc.BidiStreamingServer[ExecMessage, ExecMessage]) error
+	// apicaps:CapGatewayExecFilesystem
+	ReadFileContainer(context.Context, *ReadFileRequest) (*ReadFileResponse, error)
+	ReadDirContainer(context.Context, *ReadDirRequest) (*ReadDirResponse, error)
+	StatFileContainer(context.Context, *StatFileRequest) (*StatFileResponse, error)
 	// apicaps:CapGatewayWarnings
 	Warn(context.Context, *WarnRequest) (*WarnResponse, error)
 }
@@ -289,6 +330,15 @@ func (UnimplementedLLBBridgeServer) ReleaseContainer(context.Context, *ReleaseCo
 }
 func (UnimplementedLLBBridgeServer) ExecProcess(grpc.BidiStreamingServer[ExecMessage, ExecMessage]) error {
 	return status.Errorf(codes.Unimplemented, "method ExecProcess not implemented")
+}
+func (UnimplementedLLBBridgeServer) ReadFileContainer(context.Context, *ReadFileRequest) (*ReadFileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadFileContainer not implemented")
+}
+func (UnimplementedLLBBridgeServer) ReadDirContainer(context.Context, *ReadDirRequest) (*ReadDirResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadDirContainer not implemented")
+}
+func (UnimplementedLLBBridgeServer) StatFileContainer(context.Context, *StatFileRequest) (*StatFileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StatFileContainer not implemented")
 }
 func (UnimplementedLLBBridgeServer) Warn(context.Context, *WarnRequest) (*WarnResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Warn not implemented")
@@ -536,6 +586,60 @@ func _LLBBridge_ExecProcess_Handler(srv interface{}, stream grpc.ServerStream) e
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type LLBBridge_ExecProcessServer = grpc.BidiStreamingServer[ExecMessage, ExecMessage]
 
+func _LLBBridge_ReadFileContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReadFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LLBBridgeServer).ReadFileContainer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LLBBridge_ReadFileContainer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LLBBridgeServer).ReadFileContainer(ctx, req.(*ReadFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LLBBridge_ReadDirContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReadDirRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LLBBridgeServer).ReadDirContainer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LLBBridge_ReadDirContainer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LLBBridgeServer).ReadDirContainer(ctx, req.(*ReadDirRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LLBBridge_StatFileContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LLBBridgeServer).StatFileContainer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LLBBridge_StatFileContainer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LLBBridgeServer).StatFileContainer(ctx, req.(*StatFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _LLBBridge_Warn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(WarnRequest)
 	if err := dec(in); err != nil {
@@ -608,6 +712,18 @@ var LLBBridge_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReleaseContainer",
 			Handler:    _LLBBridge_ReleaseContainer_Handler,
+		},
+		{
+			MethodName: "ReadFileContainer",
+			Handler:    _LLBBridge_ReadFileContainer_Handler,
+		},
+		{
+			MethodName: "ReadDirContainer",
+			Handler:    _LLBBridge_ReadDirContainer_Handler,
+		},
+		{
+			MethodName: "StatFileContainer",
+			Handler:    _LLBBridge_StatFileContainer_Handler,
 		},
 		{
 			MethodName: "Warn",

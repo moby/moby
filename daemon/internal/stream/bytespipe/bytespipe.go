@@ -96,10 +96,7 @@ loop0:
 		}
 
 		// add new byte slice to the buffers slice and continue writing
-		nextCap := b.Cap() * 2
-		if nextCap > maxCap {
-			nextCap = maxCap
-		}
+		nextCap := min(b.Cap()*2, maxCap)
 		bp.buf = append(bp.buf, getBuffer(nextCap))
 	}
 	bp.wait.Broadcast()

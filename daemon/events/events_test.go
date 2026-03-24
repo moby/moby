@@ -74,7 +74,7 @@ func TestEventsLogTimeout(t *testing.T) {
 func TestLogEvents(t *testing.T) {
 	e := New()
 
-	for i := 0; i < eventsLimit+16; i++ {
+	for i := range eventsLimit + 16 {
 		num := strconv.Itoa(i)
 		e.Log(events.Action("action_"+num), events.ContainerEventType, events.Actor{
 			ID:         "cont_" + num,
@@ -83,7 +83,7 @@ func TestLogEvents(t *testing.T) {
 	}
 	time.Sleep(50 * time.Millisecond)
 	current, l, _ := e.Subscribe()
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		num := strconv.Itoa(i + eventsLimit + 16)
 		e.Log(events.Action("action_"+num), events.ContainerEventType, events.Actor{
 			ID:         "cont_" + num,

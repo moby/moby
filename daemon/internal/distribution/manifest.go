@@ -86,8 +86,8 @@ func appendDistributionSourceLabel(originLabel, repo string) string {
 }
 
 func hasDistributionSource(label, repo string) bool {
-	sources := strings.Split(label, ",")
-	for _, s := range sources {
+	sources := strings.SplitSeq(label, ",")
+	for s := range sources {
 		if s == repo {
 			return true
 		}

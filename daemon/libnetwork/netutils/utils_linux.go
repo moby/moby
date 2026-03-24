@@ -117,7 +117,7 @@ func queryOnLinkRoutes() []netip.Prefix {
 // prefix and the length of random bytes. The api ensures that the
 // there is no interface which exists with that name.
 func GenerateIfaceName(nlh nlwrap.Handle, prefix string, length int) (string, error) {
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		name, err := GenerateRandomName(prefix, length)
 		if err != nil {
 			return "", err

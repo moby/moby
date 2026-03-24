@@ -72,6 +72,7 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 		LiveRestoreEnabled: cfg.LiveRestoreEnabled,
 		Isolation:          daemon.defaultIsolation,
 		CDISpecDirs:        promoteNil(cfg.CDISpecDirs),
+		NRI:                daemon.nri.GetInfo(),
 	}
 
 	daemon.fillContainerStates(v)
@@ -149,16 +150,6 @@ func (daemon *Daemon) SystemVersion(ctx context.Context) (system.VersionResponse
 func (daemon *Daemon) fillDriverInfo(v *system.Info) {
 	v.Driver = daemon.imageService.StorageDriver()
 	v.DriverStatus = daemon.imageService.LayerStoreStatus()
-
-	const warnMsg = `
-WARNING: The %s storage-driver is deprecated, and will be removed in a future release.
-         Refer to the documentation for more information: https://docs.docker.com/go/storage-driver/`
-
-	switch v.Driver {
-	case "overlay":
-		v.Warnings = append(v.Warnings, fmt.Sprintf(warnMsg, v.Driver))
-	}
-
 	fillDriverWarnings(v)
 }
 

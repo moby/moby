@@ -80,6 +80,15 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 		target = multi.Best.Target()
 	}
 
+	var identity *imagetypes.Identity
+	if opts.Identity {
+		var err error
+		identity, err = i.imageIdentity(ctx, c8dImg.Target, multi)
+		if err != nil {
+			log.G(ctx).WithError(err).Warn("failed to determine Identity property")
+		}
+	}
+
 	resp := &imagebackend.InspectData{
 		InspectResponse: imagetypes.InspectResponse{
 			ID:          target.Digest.String(),
@@ -91,6 +100,7 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 			Metadata: imagetypes.Metadata{
 				LastTagTime: lastUpdated,
 			},
+			Identity: identity,
 		},
 		Parent: parent, // field is deprecated with the legacy builder, but returned by the API if present.
 

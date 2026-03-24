@@ -82,7 +82,7 @@ func getTraceExporter(ctx context.Context) trace.SpanExporter {
 	return tc
 }
 
-func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
+func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt) (_ *control.Controller, retErr error) {
 	if err := os.MkdirAll(opt.Root, 0o711); err != nil {
 		return nil, err
 	}
@@ -91,30 +91,34 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			_ = historyDB.Close()
+		}
+	}()
 
 	cacheStorage, err := bboltcachestorage.NewStore(filepath.Join(opt.Root, "cache.db"))
 	if err != nil {
 		return nil, err
 	}
-
-	nc := netproviders.Opt{
-		Mode: "host",
-	}
-
-	// HACK! Windows doesn't have 'host' mode networking.
-	if runtime.GOOS == "windows" {
-		nc = netproviders.Opt{
-			Mode: "auto",
+	defer func() {
+		if retErr != nil {
+			_ = cacheStorage.Close()
 		}
-	}
+	}()
 
-	dns := getDNSConfig(opt.DNSConfig)
+	networkMode := "host"
+	if runtime.GOOS == "windows" {
+		// HACK! Windows doesn't have 'host' mode networking.
+		networkMode = "auto"
+	}
 
 	cdiManager, err := getCDIManager(opt)
 	if err != nil {
 		return nil, err
 	}
 
+	dnsConfig := getDNSConfig(opt.DNSConfig)
 	workerOpts := containerd.WorkerOptions{
 		Root:            opt.Root,
 		Address:         opt.ContainerdAddress,
@@ -124,8 +128,8 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		Labels: map[string]string{
 			label.Snapshotter: opt.Snapshotter,
 		},
-		DNS:             dns,
-		NetworkOpt:      nc,
+		DNS:             dnsConfig,
+		NetworkOpt:      netproviders.Opt{Mode: networkMode},
 		ApparmorProfile: opt.ApparmorProfile,
 		Selinux:         false,
 		CDIManager:      cdiManager,
@@ -150,19 +154,19 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	wo.RegistryHosts = opt.RegistryHosts
 	wo.Labels = getLabels(opt, wo.Labels)
 
-	exec, err := newExecutor(
-		opt.Root,
-		opt.DefaultCgroupParent,
-		opt.NetworkController,
-		dns,
-		opt.Rootless,
-		opt.IdentityMapping,
-		opt.ApparmorProfile,
-		cdiManager,
-		opt.ContainerdAddress,
-		opt.ContainerdNamespace,
-		opt.HyperVIsolation,
-	)
+	exec, err := newExecutor(executorOpts{
+		root:                opt.Root,
+		networkController:   opt.NetworkController,
+		dnsConfig:           dnsConfig,
+		cdiManager:          cdiManager,
+		cgroupParent:        opt.DefaultCgroupParent,
+		apparmorProfile:     opt.ApparmorProfile,
+		rootless:            opt.Rootless,
+		identityMapping:     opt.IdentityMapping,
+		containerdAddr:      opt.ContainerdAddress,
+		containerdNamespace: opt.ContainerdNamespace,
+		hypervIsolation:     opt.HyperVIsolation,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -197,12 +201,12 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		CacheManager:     solver.NewCacheManager(ctx, "local", cacheStorage, worker.NewCacheResultStorage(wc)),
 		CacheStore:       cacheStorage,
 		ResolveCacheImporterFuncs: map[string]remotecache.ResolveCacheImporterFunc{
-			"gha":      gha.ResolveCacheImporterFunc(),
+			"gha":      gha.ResolveCacheImporterFunc(nil, nil),
 			"local":    localremotecache.ResolveCacheImporterFunc(opt.SessionManager),
 			"registry": registryremotecache.ResolveCacheImporterFunc(opt.SessionManager, wo.ContentStore, opt.RegistryHosts),
 		},
 		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{
-			"gha":      gha.ResolveCacheExporterFunc(),
+			"gha":      gha.ResolveCacheExporterFunc(nil, nil),
 			"inline":   inlineremotecache.ResolveCacheExporterFunc(),
 			"local":    localremotecache.ResolveCacheExporterFunc(opt.SessionManager),
 			"registry": registryremotecache.ResolveCacheExporterFunc(opt.SessionManager, opt.RegistryHosts),
@@ -234,7 +238,7 @@ func openHistoryDB(root string, fn string, cfg *config.BuilderHistoryConfig) (*b
 	return db, conf, nil
 }
 
-func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
+func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt) (_ *control.Controller, retErr error) {
 	if err := os.MkdirAll(opt.Root, 0o711); err != nil {
 		return nil, err
 	}
@@ -272,6 +276,11 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+	defer func() {
+		if retErr != nil {
+			_ = db.Close()
+		}
+	}()
 
 	mdb := ctdmetadata.NewDB(db, innerStore, map[string]snapshots.Snapshotter{})
 
@@ -286,15 +295,21 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 	if err != nil {
 		return nil, err
 	}
-
-	if err := cache.MigrateV2(context.Background(), filepath.Join(root, "metadata.db"), filepath.Join(root, "metadata_v2.db"), store, snapshotter, lm); err != nil {
-		return nil, err
-	}
+	defer func() {
+		if retErr != nil {
+			_ = snapshotter.Close()
+		}
+	}()
 
 	md, err := metadata.NewStore(filepath.Join(root, "metadata_v2.db"))
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			_ = md.Close()
+		}
+	}()
 
 	layerGetter, ok := snapshotter.(imagerefchecker.LayerGetter)
 	if !ok {
@@ -335,25 +350,26 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		return nil, err
 	}
 
-	dns := getDNSConfig(opt.DNSConfig)
-
 	cdiManager, err := getCDIManager(opt)
 	if err != nil {
 		return nil, err
 	}
 
-	exec, err := newExecutorGD(
-		root,
-		opt.DefaultCgroupParent,
-		opt.NetworkController,
-		dns,
-		opt.Rootless,
-		opt.IdentityMapping,
-		opt.ApparmorProfile,
-		cdiManager,
-		opt.ContainerdAddress,
-		opt.ContainerdNamespace,
-	)
+	exec, err := newExecutorGD(executorOpts{
+		root:              root,
+		networkController: opt.NetworkController,
+		dnsConfig:         getDNSConfig(opt.DNSConfig),
+		cdiManager:        cdiManager,
+		cgroupParent:      opt.DefaultCgroupParent,
+		apparmorProfile:   opt.ApparmorProfile,
+		rootless:          opt.Rootless,
+		identityMapping:   opt.IdentityMapping,
+
+		// Windows-only fields (currently not used, as newExecutorGD is not implemented on Windows)
+		containerdAddr:      opt.ContainerdAddress,
+		containerdNamespace: opt.ContainerdNamespace,
+		hypervIsolation:     opt.HyperVIsolation,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -380,11 +396,21 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			_ = cacheStorage.Close()
+		}
+	}()
 
 	historyDB, historyConf, err := openHistoryDB(opt.Root, "history.db", opt.BuilderConfig.History)
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			_ = historyDB.Close()
+		}
+	}()
 
 	gcPolicy, err := getGCPolicy(opt.BuilderConfig, root)
 	if err != nil {

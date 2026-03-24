@@ -270,6 +270,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	}
 
 	i.LogImageEvent(ctx, reference.FamiliarString(ref), reference.FamiliarName(ref), events.ActionPull)
+	i.warmImageIdentityCache(ctx, img.Metadata())
 	outNewImg = img
 
 	return nil
@@ -399,6 +400,7 @@ func newReferrersList() *referrersList {
 		m: make(map[digest.Digest][]ocispec.Descriptor),
 	}
 }
+
 func (rl *referrersList) Get(dgst digest.Digest) ([]ocispec.Descriptor, bool) {
 	rl.mu.RLock()
 	defer rl.mu.RUnlock()

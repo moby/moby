@@ -177,7 +177,7 @@ func ListTargets(ctx context.Context, dt []byte) (*targets.List, error) {
 	for i, s := range stages {
 		t := targets.Target{
 			Name:        s.Name,
-			Description: s.Comment,
+			Description: s.DocComment,
 			Default:     i == len(stages)-1,
 			Base:        s.BaseName,
 			Platform:    s.Platform,
@@ -296,6 +296,8 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 
 	// set base state for every image
 	for i, st := range stages {
+		lint := lint.WithMergedConfigFromComments(st.Comments)
+
 		nameMatch, err := shlex.ProcessWordWithMatches(st.BaseName, globalArgs)
 		argKeys := unusedFromArgsCheckKeys(globalArgs, outline.allArgs)
 		reportUnusedFromArgs(argKeys, nameMatch.Unmatched, st.Location, lint)
@@ -914,6 +916,8 @@ func (e *envsFromState) Keys() []string {
 }
 
 func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
+	opt.lint = opt.lint.WithMergedConfigFromComments(cmd.Comments())
+
 	d.cmdIsOnBuild = cmd.isOnBuild
 	var err error
 	// ARG command value could be ignored, so defer handling the expansion error
@@ -1239,7 +1243,12 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 		}
 
 		if heredoc := parser.MustParseHeredoc(args[0]); heredoc != nil {
-			if d.image.OS != "windows" && strings.HasPrefix(c.Files[0].Data, "#!") {
+			data := c.Files[0].Data
+			if c.Files[0].Chomp {
+				data = parser.ChompHeredocContent(data)
+			}
+
+			if d.image.OS != "windows" && strings.HasPrefix(data, "#!") {
 				// This is a single heredoc with a shebang, so create a file
 				// and run it.
 				// NOTE: choosing to expand doesn't really make sense here, so
@@ -1248,10 +1257,6 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 				destPath := "/dev/pipes/"
 
 				f := c.Files[0].Name
-				data := c.Files[0].Data
-				if c.Files[0].Chomp {
-					data = parser.ChompHeredocContent(data)
-				}
 				st := llb.Scratch().Dir(sourcePath).File(
 					llb.Mkfile(f, 0755, []byte(data)),
 					dockerui.WithInternalName("preparing inline document"),
@@ -1268,21 +1273,20 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 				// the syntax can still be used for shells that don't support
 				// heredocs directly.
 				// NOTE: like above, we ignore the expand option.
-				data := c.Files[0].Data
-				if c.Files[0].Chomp {
-					data = parser.ChompHeredocContent(data)
-				}
 				args = []string{data}
 			}
 			customname += fmt.Sprintf(" (%s)", summarizeHeredoc(c.Files[0].Data))
 		} else {
 			// More complex heredoc, so reconstitute it, and pass it to the
 			// shell to handle.
-			full := args[0]
+			var b strings.Builder
+			b.WriteString(args[0])
 			for _, file := range c.Files {
-				full += "\n" + file.Data + file.Name
+				b.WriteByte('\n')
+				b.WriteString(file.Data)
+				b.WriteString(file.Name)
 			}
-			args = []string{full}
+			args = []string{b.String()}
 		}
 	}
 	if c.PrependShell {
@@ -2037,7 +2041,13 @@ func addReachableStages(s *dispatchState, stages map[*dispatchState]struct{}) {
 }
 
 func validateCopySourcePath(src string, cfg *copyConfig) error {
-	if cfg.ignoreMatcher == nil {
+	// Do not validate copy source paths if there is no dockerignore file
+	// or if the dockerignore file contains exclusions.
+	//
+	// Exclusions are too difficult to statically determine if they're proper
+	// because it's ok for a directory to be excluded and a file inside the directory
+	// to be negated.
+	if cfg.ignoreMatcher == nil || cfg.ignoreMatcher.Exclusions() {
 		return nil
 	}
 	cmd := "Copy"
@@ -2045,6 +2055,7 @@ func validateCopySourcePath(src string, cfg *copyConfig) error {
 		cmd = "Add"
 	}
 
+	src = filepath.ToSlash(filepath.Clean(src))
 	ok, err := cfg.ignoreMatcher.MatchesOrParentMatches(src)
 	if err != nil {
 		return err
@@ -2611,6 +2622,8 @@ func getSecretsRegex() (*regexp.Regexp, *regexp.Regexp) {
 
 		allowTokens := []string{
 			"public",
+			"file",
+			"version",
 		}
 		allowPattern := `(?i)(?:_|^)(?:` + strings.Join(allowTokens, "|") + `)(?:_|$)`
 		secretsAllowRegexp = regexp.MustCompile(allowPattern)

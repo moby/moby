@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/containerd/errdefs"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/volume"
 )
 
@@ -29,7 +29,7 @@ type VolumePruneResult struct {
 func (cli *Client) VolumePrune(ctx context.Context, options VolumePruneOptions) (VolumePruneResult, error) {
 	if options.All {
 		if _, ok := options.Filters["all"]; ok {
-			return VolumePruneResult{}, errdefs.ErrInvalidArgument.WithMessage(`conflicting options: cannot specify both "all" and "all" filter`)
+			return VolumePruneResult{}, cerrdefs.ErrInvalidArgument.WithMessage(`conflicting options: cannot specify both "all" and "all" filter`)
 		}
 		if options.Filters == nil {
 			options.Filters = Filters{}

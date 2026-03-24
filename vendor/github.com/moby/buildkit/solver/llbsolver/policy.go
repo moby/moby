@@ -2,6 +2,7 @@ package llbsolver
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/moby/buildkit/client/llb/sourceresolver"
@@ -21,6 +22,10 @@ type policyEvaluator struct {
 }
 
 func (p *policyEvaluator) Evaluate(ctx context.Context, op *pb.Op) (bool, error) {
+	return p.evaluate(ctx, op, 10)
+}
+
+func (p *policyEvaluator) evaluate(ctx context.Context, op *pb.Op, max int) (bool, error) {
 	source := op.GetSource()
 	if source == nil {
 		return false, nil
@@ -49,10 +54,9 @@ func (p *policyEvaluator) Evaluate(ctx context.Context, op *pb.Op) (bool, error)
 		},
 	}
 
-	max := 0
 	for {
-		max++
-		if max > 10 { // TODO: better loop detection
+		max--
+		if max < 0 { // TODO: better loop detection
 			return false, errors.Errorf("too many policy requests")
 		}
 		resp, err := verifier.CheckPolicy(ctx, req)
@@ -96,11 +100,20 @@ func (p *policyEvaluator) Evaluate(ctx context.Context, op *pb.Op) (bool, error)
 				}
 				op.ImageOpt.NoConfig = metareq.Image.NoConfig
 				op.ImageOpt.AttestationChain = metareq.Image.AttestationChain
+				op.ImageOpt.ResolveAttestations = slices.Clone(metareq.Image.ResolveAttestations)
 			}
 
 			if metareq.Git != nil {
 				op.GitOpt = &sourceresolver.ResolveGitOpt{
 					ReturnObject: metareq.Git.ReturnObject,
+				}
+			}
+			if metareq.HTTP != nil && metareq.HTTP.ChecksumRequest != nil {
+				op.HTTPOpt = &sourceresolver.ResolveHTTPOpt{
+					ChecksumReq: &sourceresolver.ResolveHTTPChecksumRequest{
+						Algo:   fromPBHTTPChecksumAlgo(metareq.HTTP.ChecksumRequest.Algo),
+						Suffix: slices.Clone(metareq.HTTP.ChecksumRequest.Suffix),
+					},
 				}
 			}
 
@@ -117,10 +130,21 @@ func (p *policyEvaluator) Evaluate(ctx context.Context, op *pb.Op) (bool, error)
 			return false, errors.Errorf("no decision in policy response")
 		}
 		if decision.Action == spb.PolicyAction_CONVERT {
-			return false, errors.Errorf("convert action not yet supported")
+			newSrc := decision.Update
+			if newSrc == nil {
+				return false, errors.Errorf("convert action requires updated source")
+			}
+			source.Identifier = newSrc.Identifier
+			source.Attrs = newSrc.Attrs
+			_, err = p.evaluate(ctx, op, max)
+			if err != nil {
+				return false, err
+			}
+			return true, nil
 		}
 		if decision.Action != spb.PolicyAction_ALLOW {
-			return false, errors.Errorf("source %q not allowed by policy: action %s", source.Identifier, decision.Action.String())
+			err := errors.Errorf("source %q not allowed by policy: action %s", source.Identifier, decision.Action.String())
+			return false, policysession.WrapDenyMessages(err, decision.GetDenyMessages())
 		}
 		return ok, nil
 	}
@@ -165,5 +189,18 @@ func toOCIPlatform(p *pb.Platform) *ocispecs.Platform {
 		Variant:      p.Variant,
 		OSVersion:    p.OSVersion,
 		OSFeatures:   p.OSFeatures,
+	}
+}
+
+func fromPBHTTPChecksumAlgo(in gatewaypb.ChecksumRequest_ChecksumAlgo) sourceresolver.ResolveHTTPChecksumAlgo {
+	switch in {
+	case gatewaypb.ChecksumRequest_CHECKSUM_ALGO_SHA256:
+		return sourceresolver.ResolveHTTPChecksumAlgoSHA256
+	case gatewaypb.ChecksumRequest_CHECKSUM_ALGO_SHA384:
+		return sourceresolver.ResolveHTTPChecksumAlgoSHA384
+	case gatewaypb.ChecksumRequest_CHECKSUM_ALGO_SHA512:
+		return sourceresolver.ResolveHTTPChecksumAlgoSHA512
+	default:
+		return sourceresolver.ResolveHTTPChecksumAlgo(in)
 	}
 }

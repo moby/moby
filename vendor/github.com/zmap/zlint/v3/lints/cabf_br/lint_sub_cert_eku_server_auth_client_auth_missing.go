@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -34,16 +34,16 @@ present.
 func init() {
 	lint.RegisterLint(&lint.Lint{
 		Name:          "e_sub_cert_eku_server_auth_client_auth_missing",
-		Description:   "Subscriber certificates MUST have have either id-kp-serverAuth or id-kp-clientAuth or both present in extKeyUsage",
+		Description:   "Subscriber certificates MUST have either id-kp-serverAuth or id-kp-clientAuth or both present in extKeyUsage",
 		Citation:      "BRs: 7.1.2.3",
 		Source:        lint.CABFBaselineRequirements,
 		EffectiveDate: util.CABEffectiveDate,
-		Lint:          &subExtKeyUsageClientOrServer{},
+		Lint:          NewSubExtKeyUsageClientOrServer,
 	})
 }
 
-func (l *subExtKeyUsageClientOrServer) Initialize() error {
-	return nil
+func NewSubExtKeyUsageClientOrServer() lint.LintInterface {
+	return &subExtKeyUsageClientOrServer{}
 }
 
 func (l *subExtKeyUsageClientOrServer) CheckApplies(c *x509.Certificate) bool {

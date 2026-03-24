@@ -121,7 +121,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	// a few times, to give tasks time to be deallocated
 	poll.WaitOn(t, swarm.NoTasksForService(ctx, apiClient, serviceID2), swarm.ServicePoll)
 
-	for retry := 0; retry < 5; retry++ {
+	for range 5 {
 		_, err = apiClient.NetworkRemove(ctx, overlayID, client.NetworkRemoveOptions{})
 		// TODO(dperny): using strings.Contains for error checking is awful,
 		// but so is the fact that swarm functions don't return errdefs errors.

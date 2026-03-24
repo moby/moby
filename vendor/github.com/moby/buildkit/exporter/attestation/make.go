@@ -61,7 +61,6 @@ func MakeInTotoStatements(ctx context.Context, s session.Group, attestations []e
 	statements := make([]intoto.Statement, len(attestations))
 
 	for i, att := range attestations {
-		i, att := i, att
 		eg.Go(func() error {
 			content, err := ReadAll(ctx, s, att)
 			if err != nil {

@@ -134,10 +134,7 @@ func (daemon *Daemon) Containers(ctx context.Context, config *backend.ContainerL
 	// dispatch a set number of worker goroutines to do the jobs. We choose
 	// log2(numContainers) workers to avoid creating too many goroutines
 	// for large number of containers.
-	numWorkers := int(math.Log2(float64(numContainers)))
-	if numWorkers < 1 {
-		numWorkers = 1
-	}
+	numWorkers := max(int(math.Log2(float64(numContainers))), 1)
 
 	resultsMut := sync.Mutex{}
 	results := make([]containertypes.Summary, numContainers)

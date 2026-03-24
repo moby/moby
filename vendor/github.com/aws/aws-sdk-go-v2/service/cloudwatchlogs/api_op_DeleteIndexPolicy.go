@@ -15,14 +15,21 @@ import (
 // will still be used for as many as 30 days to improve CloudWatch Logs Insights
 // queries.
 //
+// If the deleted policy included facet configurations, those facets will no
+// longer be available for interactive exploration in the CloudWatch Logs Insights
+// console for this log group. However, facet data is retained for up to 30 days.
+//
 // You can't use this operation to delete an account-level index policy. Instead,
-// use [DeletAccountPolicy].
+// use [DeleteAccountPolicy].
 //
 // If you delete a log-group level field index policy and there is an
 // account-level field index policy, in a few minutes the log group begins using
-// that account-wide policy to index new incoming log events.
+// that account-wide policy to index new incoming log events. This operation only
+// affects log group-level policies, including any facet configurations, and
+// preserves any data source-based account policies that may apply to the log
+// group.
 //
-// [DeletAccountPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DeleteAccountPolicy.html
+// [DeleteAccountPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_DeleteAccountPolicy.html
 func (c *Client) DeleteIndexPolicy(ctx context.Context, params *DeleteIndexPolicyInput, optFns ...func(*Options)) (*DeleteIndexPolicyOutput, error) {
 	if params == nil {
 		params = &DeleteIndexPolicyInput{}
@@ -150,40 +157,7 @@ func (c *Client) addOperationDeleteIndexPolicyMiddlewares(stack *middleware.Stac
 	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addInterceptExecution(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptTransmit(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addSpanInitializeStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanInitializeEnd(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

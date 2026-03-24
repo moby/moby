@@ -113,6 +113,14 @@ func (e *ContainerEdits) Apply(spec *oci.Spec) error {
 		}
 	}
 
+	if len(e.NetDevices) > 0 {
+		// specgen is currently missing functionality to set Linux NetDevices,
+		// so we use a locally rolled function for now.
+		for _, dev := range e.NetDevices {
+			specgenAddLinuxNetDevice(&specgen, dev.HostInterfaceName, (&LinuxNetDevice{dev}).toOCI())
+		}
+	}
+
 	if len(e.Mounts) > 0 {
 		for _, m := range e.Mounts {
 			specgen.RemoveMount(m.ContainerPath)
@@ -162,6 +170,24 @@ func (e *ContainerEdits) Apply(spec *oci.Spec) error {
 	return nil
 }
 
+func specgenAddLinuxNetDevice(specgen *ocigen.Generator, hostIf string, netDev *oci.LinuxNetDevice) {
+	if specgen == nil || netDev == nil {
+		return
+	}
+	ensureLinuxNetDevices(specgen.Config)
+	specgen.Config.Linux.NetDevices[hostIf] = *netDev
+}
+
+// Ensure OCI Spec Linux NetDevices map is not nil.
+func ensureLinuxNetDevices(spec *oci.Spec) {
+	if spec.Linux == nil {
+		spec.Linux = &oci.Linux{}
+	}
+	if spec.Linux.NetDevices == nil {
+		spec.Linux.NetDevices = map[string]oci.LinuxNetDevice{}
+	}
+}
+
 // Validate container edits.
 func (e *ContainerEdits) Validate() error {
 	if e == nil || e.ContainerEdits == nil {
@@ -191,6 +217,9 @@ func (e *ContainerEdits) Validate() error {
 			return err
 		}
 	}
+	if err := ValidateNetDevices(e.NetDevices); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -210,6 +239,7 @@ func (e *ContainerEdits) Append(o *ContainerEdits) *ContainerEdits {
 
 	e.Env = append(e.Env, o.Env...)
 	e.DeviceNodes = append(e.DeviceNodes, o.DeviceNodes...)
+	e.NetDevices = append(e.NetDevices, o.NetDevices...)
 	e.Hooks = append(e.Hooks, o.Hooks...)
 	e.Mounts = append(e.Mounts, o.Mounts...)
 	if o.IntelRdt != nil {
@@ -244,6 +274,9 @@ func (e *ContainerEdits) isEmpty() bool {
 	if e.IntelRdt != nil {
 		return false
 	}
+	if len(e.NetDevices) > 0 {
+		return false
+	}
 	return true
 }
 
@@ -253,6 +286,49 @@ func ValidateEnv(env []string) error {
 		if strings.IndexByte(v, byte('=')) <= 0 {
 			return fmt.Errorf("invalid environment variable %q", v)
 		}
+	}
+	return nil
+}
+
+// ValidateNetDevices validates the given net devices.
+func ValidateNetDevices(devices []*cdi.LinuxNetDevice) error {
+	var (
+		hostSeen = map[string]string{}
+		nameSeen = map[string]string{}
+	)
+
+	for _, dev := range devices {
+		if err := (&LinuxNetDevice{dev}).Validate(); err != nil {
+			return err
+		}
+		if other, ok := hostSeen[dev.HostInterfaceName]; ok {
+			return fmt.Errorf("invalid linux net device, duplicate HostInterfaceName %q with names %q and %q",
+				dev.HostInterfaceName, dev.Name, other)
+		}
+		hostSeen[dev.HostInterfaceName] = dev.Name
+
+		if other, ok := nameSeen[dev.Name]; ok {
+			return fmt.Errorf("invalid linux net device, duplicate Name %q with HostInterfaceName %q and %q",
+				dev.Name, dev.HostInterfaceName, other)
+		}
+		nameSeen[dev.Name] = dev.HostInterfaceName
+	}
+
+	return nil
+}
+
+// LinuxNetDevice is a CDI Spec LinuxNetDevice wrapper, used for OCI conversion and validating.
+type LinuxNetDevice struct {
+	*cdi.LinuxNetDevice
+}
+
+// Validate LinuxNetDevice.
+func (d *LinuxNetDevice) Validate() error {
+	if d.HostInterfaceName == "" {
+		return errors.New("invalid linux net device, empty HostInterfaceName")
+	}
+	if d.Name == "" {
+		return errors.New("invalid linux net device, empty Name")
 	}
 	return nil
 }
@@ -337,8 +413,10 @@ func ValidateIntelRdt(i *cdi.IntelRdt) error {
 
 // Validate validates the IntelRdt configuration.
 func (i *IntelRdt) Validate() error {
-	// ClosID must be a valid Linux filename
-	if len(i.ClosID) >= 4096 || i.ClosID == "." || i.ClosID == ".." || strings.ContainsAny(i.ClosID, "/\n") {
+	// ClosID must be a valid Linux filename. Exception: "/" refers to the root CLOS.
+	switch c := i.ClosID; {
+	case c == "/":
+	case len(c) >= 4096, c == ".", c == "..", strings.ContainsAny(c, "/\n"):
 		return errors.New("invalid ClosID")
 	}
 	return nil

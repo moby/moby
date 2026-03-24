@@ -14,37 +14,38 @@ import (
 )
 
 func translateRegistryError(ctx context.Context, err error) error {
+	if err == nil {
+		// Nothing to do
+		return nil
+	}
+
 	// Check for registry specific error
 	var derrs docker.Errors
 	if !errors.As(err, &derrs) {
 		var remoteErr remoteerrors.ErrUnexpectedStatus
+		var derr docker.Error
 		if errors.As(err, &remoteErr) {
 			if jerr := json.Unmarshal(remoteErr.Body, &derrs); jerr != nil {
-				log.G(ctx).WithError(derrs).Debug("unable to unmarshal registry error")
+				log.G(ctx).WithError(jerr).Debug("unable to unmarshal registry error")
 				return fmt.Errorf("%w: %w", cerrdefs.ErrUnknown, err)
 			}
-			if len(derrs) == 0 {
-				if remoteErr.StatusCode == http.StatusUnauthorized || remoteErr.StatusCode == http.StatusForbidden {
-					// Some registries or token servers may use an old deprecated error format
-					// which only has a "details" field and not the OCI defined "errors" array.
-					var tokenErr struct {
-						Details string `json:"details"`
+			if len(derrs) == 0 && (remoteErr.StatusCode == http.StatusUnauthorized || remoteErr.StatusCode == http.StatusForbidden) {
+				// Some registries or token servers may use an old deprecated error format
+				// which only has a "details" field and not the OCI defined "errors" array.
+				var tokenErr struct {
+					Details string `json:"details"`
+				}
+				if jerr := json.Unmarshal(remoteErr.Body, &tokenErr); jerr == nil && tokenErr.Details != "" {
+					if remoteErr.StatusCode == http.StatusUnauthorized {
+						return cerrdefs.ErrUnauthenticated.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeUnauthorized.Message(), tokenErr.Details))
 					}
-					if jerr := json.Unmarshal(remoteErr.Body, &tokenErr); jerr == nil && tokenErr.Details != "" {
-						if remoteErr.StatusCode == http.StatusUnauthorized {
-							return cerrdefs.ErrUnauthenticated.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeUnauthorized.Message(), tokenErr.Details))
-						}
-						return cerrdefs.ErrPermissionDenied.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeDenied.Message(), tokenErr.Details))
-					}
+					return cerrdefs.ErrPermissionDenied.WithMessage(fmt.Sprintf("%s - %s", docker.ErrorCodeDenied.Message(), tokenErr.Details))
 				}
 			}
+		} else if errors.As(err, &derr) {
+			derrs = append(derrs, derr)
 		} else {
-			var derr docker.Error
-			if errors.As(err, &derr) {
-				derrs = append(derrs, derr)
-			} else {
-				return err
-			}
+			return err
 		}
 	}
 	var errs []error

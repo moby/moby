@@ -98,7 +98,7 @@ type decoder struct {
 
 func (d *decoder) readRecord(size int) error {
 	var err error
-	for i := 0; i < maxDecodeRetry; i++ {
+	for range maxDecodeRetry {
 		var n int
 		n, err = io.ReadFull(d.rdr, d.buf[d.offset:size])
 		d.offset += n

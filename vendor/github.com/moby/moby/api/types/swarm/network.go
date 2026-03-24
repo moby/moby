@@ -1,6 +1,7 @@
 package swarm
 
 import (
+	"cmp"
 	"net/netip"
 
 	"github.com/moby/moby/api/types/network"
@@ -41,6 +42,27 @@ type PortConfig struct {
 	PublishMode PortConfigPublishMode `json:",omitempty"`
 }
 
+// Compare returns the lexical ordering of p and other, and can be used
+// with [slices.SortFunc].
+//
+// The comparison is performed in the following priority order:
+//  1. PublishedPort (host port)
+//  2. TargetPort (container port)
+//  3. Protocol
+//  4. PublishMode
+func (p PortConfig) Compare(other PortConfig) int {
+	if n := cmp.Compare(p.PublishedPort, other.PublishedPort); n != 0 {
+		return n
+	}
+	if n := cmp.Compare(p.TargetPort, other.TargetPort); n != 0 {
+		return n
+	}
+	if n := cmp.Compare(p.Protocol, other.Protocol); n != 0 {
+		return n
+	}
+	return cmp.Compare(p.PublishMode, other.PublishMode)
+}
+
 // PortConfigPublishMode represents the mode in which the port is to
 // be published.
 type PortConfigPublishMode string
@@ -61,7 +83,7 @@ type EndpointVirtualIP struct {
 	// Addr is the virtual ip address.
 	// This field accepts CIDR notation, for example `10.0.0.1/24`, to maintain backwards
 	// compatibility, but only the IP address is used.
-	Addr netip.Prefix `json:",omitempty"`
+	Addr netip.Prefix `json:"Addr,omitzero"`
 }
 
 // Network represents a network.
@@ -111,7 +133,7 @@ type IPAMOptions struct {
 
 // IPAMConfig represents ipam configuration.
 type IPAMConfig struct {
-	Subnet  netip.Prefix `json:",omitempty"`
-	Range   netip.Prefix `json:",omitempty"`
-	Gateway netip.Addr   `json:",omitempty"`
+	Subnet  netip.Prefix `json:"Subnet,omitzero"`
+	Range   netip.Prefix `json:"Range,omitzero"`
+	Gateway netip.Addr   `json:"Gateway,omitzero"`
 }

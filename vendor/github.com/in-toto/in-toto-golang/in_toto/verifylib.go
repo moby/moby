@@ -59,7 +59,11 @@ func RunInspections(layout Layout, runDir string, lineNormalization bool, useDSS
 			return nil, err
 		}
 
-		retVal := linkEnv.GetPayload().(Link).ByProducts["return-value"]
+		link, ok := linkEnv.GetPayload().(Link)
+		if !ok {
+			return nil, fmt.Errorf("invalid metadata")
+		}
+		retVal := link.ByProducts["return-value"]
 		if retVal != float64(0) {
 			return nil, fmt.Errorf("inspection command '%s' of inspection '%s'"+
 				" returned a non-zero value: %d", inspection.Run, inspection.Name,
@@ -80,7 +84,7 @@ func RunInspections(layout Layout, runDir string, lineNormalization bool, useDSS
 // verifyMatchRule is a helper function to process artifact rules of
 // type MATCH. See VerifyArtifacts for more details.
 func verifyMatchRule(ruleData map[string]string,
-	srcArtifacts map[string]interface{}, srcArtifactQueue Set,
+	srcArtifacts map[string]HashObj, srcArtifactQueue Set,
 	itemsMetadata map[string]Metadata) Set {
 	consumed := NewSet()
 	// Get destination link metadata
@@ -91,13 +95,19 @@ func verifyMatchRule(ruleData map[string]string,
 		return consumed
 	}
 
+	dstLink, ok := dstLinkEnv.GetPayload().(Link)
+	if !ok {
+		fmt.Printf("invalid metadata")
+		return consumed
+	}
+
 	// Get artifacts from destination link metadata
-	var dstArtifacts map[string]interface{}
+	var dstArtifacts map[string]HashObj
 	switch ruleData["dstType"] {
 	case "materials":
-		dstArtifacts = dstLinkEnv.GetPayload().(Link).Materials
+		dstArtifacts = dstLink.Materials
 	case "products":
-		dstArtifacts = dstLinkEnv.GetPayload().(Link).Products
+		dstArtifacts = dstLink.Products
 	}
 
 	// cleanup paths in pattern and artifact maps
@@ -216,18 +226,22 @@ func VerifyArtifacts(items []interface{},
 
 		// Create shortcuts to materials and products (including hashes) reported
 		// by the item's link, required to verify "match" rules
-		materials := srcLinkEnv.GetPayload().(Link).Materials
-		products := srcLinkEnv.GetPayload().(Link).Products
+		link, ok := srcLinkEnv.GetPayload().(Link)
+		if !ok {
+			return fmt.Errorf("invalid metadata")
+		}
+		materials := link.Materials
+		products := link.Products
 
 		// All other rules only require the material or product paths (without
 		// hashes). We extract them from the corresponding maps and store them as
 		// sets for convenience in further processing
 		materialPaths := NewSet()
-		for _, p := range InterfaceKeyStrings(materials) {
+		for _, p := range artifactsDictKeyStrings(materials) {
 			materialPaths.Add(path.Clean(p))
 		}
 		productPaths := NewSet()
-		for _, p := range InterfaceKeyStrings(products) {
+		for _, p := range artifactsDictKeyStrings(products) {
 			productPaths.Add(path.Clean(p))
 		}
 
@@ -269,17 +283,24 @@ func VerifyArtifacts(items []interface{},
 			// TODO: Add logging library (see in-toto/in-toto-golang#4)
 			// fmt.Printf("%s...\n", verificationData["srcType"])
 
-			rules := verificationData["rules"].([][]string)
-			artifacts := verificationData["artifacts"].(map[string]interface{})
-
+			rules, ok := verificationData["rules"].([][]string)
+			if !ok {
+				return fmt.Errorf(`rules must be of type [][]string`)
+			}
+			artifacts, ok := verificationData["artifacts"].(map[string]HashObj)
+			if !ok {
+				return fmt.Errorf(`artifacts must be of type map[string]HashObj`)
+			}
 			// Use artifacts (without hashes) as base queue. Each rule only operates
 			// on artifacts in that queue.  If a rule consumes an artifact (i.e. can
 			// be applied successfully), the artifact is removed from the queue. By
 			// applying a DISALLOW rule eventually, verification may return an error,
 			// if the rule matches any artifacts in the queue that should have been
 			// consumed earlier.
-			queue := verificationData["artifactPaths"].(Set)
-
+			queue, ok := verificationData["artifactPaths"].(Set)
+			if !ok {
+				return fmt.Errorf(`queue must be of type Set`)
+			}
 			// TODO: Add logging library (see in-toto/in-toto-golang#4)
 			// fmt.Printf("Initial state\nMaterials: %s\nProducts: %s\nQueue: %s\n\n",
 			// 	materialPaths.Slice(), productPaths.Slice(), queue.Slice())
@@ -398,10 +419,16 @@ func ReduceStepsMetadata(layout Layout,
 			// threshold requires, but not all of them are equal? Right now we would
 			// also error.
 			for keyID, linkEnv := range linksPerStep {
-				if !reflect.DeepEqual(linkEnv.GetPayload().(Link).Materials,
-					referenceLinkEnv.GetPayload().(Link).Materials) ||
-					!reflect.DeepEqual(linkEnv.GetPayload().(Link).Products,
-						referenceLinkEnv.GetPayload().(Link).Products) {
+				link, ok := linkEnv.GetPayload().(Link)
+				if !ok {
+					return nil, fmt.Errorf("invalid metadata")
+				}
+				refLink, ok := referenceLinkEnv.GetPayload().(Link)
+				if !ok {
+					return nil, fmt.Errorf("invalid metadata")
+				}
+				if !reflect.DeepEqual(link.Materials, refLink.Materials) ||
+					!reflect.DeepEqual(link.Products, refLink.Products) {
 					return nil, fmt.Errorf("link '%s' and '%s' have different"+
 						" artifacts",
 						fmt.Sprintf(LinkNameFormat, step.Name, referenceKeyID),
@@ -432,8 +459,13 @@ func VerifyStepCommandAlignment(layout Layout,
 		}
 
 		for signerKeyID, linkEnv := range linksPerStep {
+			link, ok := linkEnv.GetPayload().(Link)
+			if !ok {
+				fmt.Printf("invalid metadata")
+				return
+			}
 			expectedCommandS := strings.Join(step.ExpectedCommand, " ")
-			executedCommandS := strings.Join(linkEnv.GetPayload().(Link).Command, " ")
+			executedCommandS := strings.Join(link.Command, " ")
 
 			if expectedCommandS != executedCommandS {
 				linkName := fmt.Sprintf(LinkNameFormat, step.Name, signerKeyID)
@@ -708,16 +740,24 @@ func GetSummaryLink(layout Layout, stepsMetadataReduced map[string]Metadata,
 		firstStepLink := stepsMetadataReduced[layout.Steps[0].Name]
 		lastStepLink := stepsMetadataReduced[layout.Steps[len(layout.Steps)-1].Name]
 
-		summaryLink.Materials = firstStepLink.GetPayload().(Link).Materials
+		firstStepPayloadLink, ok := firstStepLink.GetPayload().(Link)
+		if !ok {
+			return nil, fmt.Errorf("invalid metadata")
+		}
+		summaryLink.Materials = firstStepPayloadLink.Materials
 		summaryLink.Name = stepName
-		summaryLink.Type = firstStepLink.GetPayload().(Link).Type
+		summaryLink.Type = firstStepPayloadLink.Type
 
-		summaryLink.Products = lastStepLink.GetPayload().(Link).Products
-		summaryLink.ByProducts = lastStepLink.GetPayload().(Link).ByProducts
+		lastStepPayloadLink, ok := lastStepLink.GetPayload().(Link)
+		if !ok {
+			return nil, fmt.Errorf("invalid metadata")
+		}
+		summaryLink.Products = lastStepPayloadLink.Products
+		summaryLink.ByProducts = lastStepPayloadLink.ByProducts
 		// Using the last command of the sublayout as the command
 		// of the summary link can be misleading. Is it necessary to
 		// include all the commands executed as part of sublayout?
-		summaryLink.Command = lastStepLink.GetPayload().(Link).Command
+		summaryLink.Command = lastStepPayloadLink.Command
 	}
 
 	if useDSSE {
@@ -845,7 +885,7 @@ the in-toto specification.  It requires the metadata of the root layout, a map
 that contains public keys to verify the root layout signatures, a path to a
 directory from where it can load link metadata files, which are treated as
 signed evidence for the steps defined in the layout, a step name, and a
-paramater dictionary used for parameter substitution. The step name only
+parameter dictionary used for parameter substitution. The step name only
 matters for sublayouts, where it's important to associate the summary of that
 step with a unique name. The verification routine is as follows:
 

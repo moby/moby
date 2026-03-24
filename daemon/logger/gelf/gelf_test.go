@@ -193,7 +193,7 @@ func TestNewGELFUDPWriter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	writer.Close()
+	err = writer.Close()
 	if err != nil {
 		t.Fatal(err)
 	}

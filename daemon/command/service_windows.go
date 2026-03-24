@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
@@ -216,7 +217,7 @@ func unregisterService() error {
 // initService is the entry point for running the daemon as a Windows
 // service. It returns an indication to stop (if registering/un-registering);
 // an indication of whether it is running as a service; and an error.
-func initService(cli *daemonCLI) (bool, bool, error) {
+func initService(ctx context.Context, cli *daemonCLI) (bool, bool, error) {
 	if *flUnregisterService {
 		if *flRegisterService {
 			return true, false, errors.New("--register-service and --unregister-service cannot be used together")
@@ -225,7 +226,13 @@ func initService(cli *daemonCLI) (bool, bool, error) {
 	}
 
 	if *flRegisterService {
-		return true, false, registerService()
+		if err := registerService(); err != nil {
+			return false, false, err
+		}
+		if err := daemon.CheckSystem(); err != nil {
+			log.G(ctx).Warnf("Windows service registration was successful but system requirements were not met: %v", err)
+		}
+		return true, false, nil
 	}
 
 	if !*flRunService {

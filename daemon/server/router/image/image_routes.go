@@ -381,6 +381,7 @@ func (ir *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWrite
 
 	inspectData, err := ir.backend.ImageInspect(ctx, vars["name"], imagebackend.ImageInspectOpts{
 		Manifests: manifests,
+		Identity:  versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.53"),
 		Platform:  platform,
 	})
 	if err != nil {
@@ -495,11 +496,20 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		manifests = httputils.BoolValue(r, "manifests")
 	}
 
+	var identity bool
+	if versions.GreaterThanOrEqualTo(version, "1.54") {
+		identity = httputils.BoolValue(r, "identity")
+		if identity && !manifests {
+			return errdefs.InvalidParameter(errors.New("conflicting options: identity requires manifests=1"))
+		}
+	}
+
 	images, err := ir.backend.Images(ctx, imagebackend.ListOptions{
 		All:        httputils.BoolValue(r, "all"),
 		Filters:    imageFilters,
 		SharedSize: sharedSize,
 		Manifests:  manifests,
+		Identity:   identity,
 	})
 	if err != nil {
 		return err
@@ -528,6 +538,16 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		if noContainers {
 			images[i].Containers = -1
 		}
+	}
+
+	if versions.LessThan(version, "1.44") {
+		wrapped := make([]*compat.Wrapper, len(images))
+		for i := range images {
+			wrapped[i] = compat.Wrap(&images[i], compat.WithExtraFields(map[string]any{
+				"VirtualSize": images[i].Size,
+			}))
+		}
+		return httputils.WriteJSON(w, http.StatusOK, wrapped)
 	}
 
 	return httputils.WriteJSON(w, http.StatusOK, images)

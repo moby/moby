@@ -59,7 +59,7 @@ func TestContinueAfterPluginCrash(t *testing.T) {
 	go func() {
 		defer close(chErr)
 		rdr := bufio.NewReader(attach.Reader)
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			_, _, err := rdr.ReadLine()
 			if err != nil {
 				chErr <- err

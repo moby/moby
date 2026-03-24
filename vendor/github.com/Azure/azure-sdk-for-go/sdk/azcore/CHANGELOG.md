@@ -1,5 +1,33 @@
 # Release History
 
+## 1.20.0 (2025-11-06)
+
+### Features Added
+
+* Added `runtime.FetcherForNextLinkOptions.HTTPVerb` to specify the HTTP verb when fetching the next page via next link. Defaults to `http.MethodGet`.
+
+### Bugs Fixed
+
+* Fixed potential panic when decoding base64 strings.
+* Fixed an issue in resource identifier parsing which prevented it from returning an error for malformed resource IDs.
+
+## 1.19.1 (2025-09-11)
+
+### Bugs Fixed
+
+* Fixed resource identifier parsing for provider-specific resource hierarchies containing "resourceGroups" segments.
+
+### Other Changes
+
+* Improved error fall-back for improperly authored long-running operations.
+* Upgraded dependencies.
+
+## 1.19.0 (2025-08-21)
+
+### Features Added
+
+* Added `runtime.APIVersionLocationPath` to be set by clients that set the API version in the path.
+
 ## 1.18.2 (2025-07-31)
 
 ### Bugs Fixed

@@ -57,7 +57,7 @@ func TestCopier(t *testing.T) {
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		if _, err := stdout.WriteString(stdoutLine + "\n"); err != nil {
 			t.Fatal(err)
 		}
@@ -104,18 +104,17 @@ func TestCopier(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
-		if msg.Source != "stdout" && msg.Source != "stderr" {
-			t.Fatalf("Wrong Source: %q, should be %q or %q", msg.Source, "stdout", "stderr")
-		}
-		if msg.Source == "stdout" {
+		switch msg.Source {
+		case "stdout":
 			if string(msg.Line) != stdoutLine && string(msg.Line) != stdoutTrailingLine {
 				t.Fatalf("Wrong Line: %q, expected %q or %q", msg.Line, stdoutLine, stdoutTrailingLine)
 			}
-		}
-		if msg.Source == "stderr" {
+		case "stderr":
 			if string(msg.Line) != stderrLine && string(msg.Line) != stderrTrailingLine {
 				t.Fatalf("Wrong Line: %q, expected %q or %q", msg.Line, stderrLine, stderrTrailingLine)
 			}
+		default:
+			t.Fatalf("Wrong Source: %q, should be %q or %q", msg.Source, "stdout", "stderr")
 		}
 	}
 }
@@ -131,7 +130,7 @@ func TestCopierLongLines(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		if _, err := stdout.WriteString(stdoutLongLine); err != nil {
 			t.Fatal(err)
 		}
@@ -177,18 +176,17 @@ func TestCopierLongLines(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
-		if msg.Source != "stdout" && msg.Source != "stderr" {
-			t.Fatalf("Wrong Source: %q, should be %q or %q", msg.Source, "stdout", "stderr")
-		}
-		if msg.Source == "stdout" {
+		switch msg.Source {
+		case "stdout":
 			if string(msg.Line) != stdoutLongLine && string(msg.Line) != stdoutTrailingLine {
 				t.Fatalf("Wrong Line: %q, expected 'stdoutLongLine' or 'stdoutTrailingLine'", msg.Line)
 			}
-		}
-		if msg.Source == "stderr" {
+		case "stderr":
 			if string(msg.Line) != stderrLongLine && string(msg.Line) != stderrTrailingLine {
 				t.Fatalf("Wrong Line: %q, expected 'stderrLongLine' or 'stderrTrailingLine'", msg.Line)
 			}
+		default:
+			t.Fatalf("Wrong Source: %q, should be %q or %q", msg.Source, "stdout", "stderr")
 		}
 	}
 }
@@ -196,7 +194,7 @@ func TestCopierLongLines(t *testing.T) {
 func TestCopierSlow(t *testing.T) {
 	stdoutLine := "Line that thinks that it is log line from docker stdout"
 	var stdout bytes.Buffer
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		if _, err := stdout.WriteString(stdoutLine + "\n"); err != nil {
 			t.Fatal(err)
 		}
@@ -300,7 +298,7 @@ func TestCopierWithPartial(t *testing.T) {
 	var stderr bytes.Buffer
 	var normalMsg bytes.Buffer
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		if _, err := stdout.WriteString(stdoutLongLine); err != nil {
 			t.Fatal(err)
 		}
@@ -357,11 +355,8 @@ func TestCopierWithPartial(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
-		if msg.Source != "stdout" && msg.Source != "stderr" && msg.Source != "normal" {
-			t.Fatalf("Wrong Source: %q, should be %q or %q or %q", msg.Source, "stdout", "stderr", "normal")
-		}
-
-		if msg.Source == "stdout" {
+		switch msg.Source {
+		case "stdout":
 			if string(msg.Line) != stdoutLongLine && string(msg.Line) != stdoutTrailingLine {
 				t.Fatalf("Wrong Line: %q, expected 'stdoutLongLine' or 'stdoutTrailingLine'", msg.Line)
 			}
@@ -379,9 +374,7 @@ func TestCopierWithPartial(t *testing.T) {
 			if msg.PLogMetaData.Ordinal == 4 && !msg.PLogMetaData.Last {
 				t.Fatalf("Last is not set for last chunk")
 			}
-		}
-
-		if msg.Source == "stderr" {
+		case "stderr":
 			if string(msg.Line) != stderrLongLine && string(msg.Line) != stderrTrailingLine {
 				t.Fatalf("Wrong Line: %q, expected 'stderrLongLine' or 'stderrTrailingLine'", msg.Line)
 			}
@@ -399,10 +392,12 @@ func TestCopierWithPartial(t *testing.T) {
 			if msg.PLogMetaData.Ordinal == 4 && !msg.PLogMetaData.Last {
 				t.Fatalf("Last is not set for last chunk")
 			}
-		}
-
-		if msg.Source == "normal" && msg.PLogMetaData != nil {
-			t.Fatalf("Normal messages should not have PartialLogMetaData")
+		case "normal":
+			if msg.PLogMetaData != nil {
+				t.Fatalf("Normal messages should not have PartialLogMetaData")
+			}
+		default:
+			t.Fatalf("Wrong Source: %q, should be %q or %q or %q", msg.Source, "stdout", "stderr", "normal")
 		}
 		recvMsgs++
 	}
@@ -479,7 +474,7 @@ func piped(b *testing.B, iterations int, delay time.Duration, buf []byte) io.Rea
 		return nil
 	}
 	go func() {
-		for i := 0; i < iterations; i++ {
+		for range iterations {
 			time.Sleep(delay)
 			if n, err := w.Write(buf); err != nil || n != len(buf) {
 				if err != nil {

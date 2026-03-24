@@ -170,7 +170,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 				return nil
 			}
 
-			if !opts.Manifests {
+			if !opts.Manifests && !opts.Identity {
 				image.Manifests = nil
 			}
 			resultsMut.Lock()
@@ -227,6 +227,13 @@ type multiPlatformSummary struct {
 
 	// BestPlatform is the platform of the best image.
 	BestPlatform ocispec.Platform
+
+	manifestIdentityRefs map[digest.Digest]manifestIdentityRef
+}
+
+type manifestIdentityRef struct {
+	manifest *ImageManifest
+	platform ocispec.Platform
 }
 
 func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.Image, platformMatcher platforms.MatchComparer) (*multiPlatformSummary, error) {
@@ -341,6 +348,16 @@ func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.I
 		}
 
 		platform := mfstSummary.ImageData.Platform
+		if available {
+			if summary.manifestIdentityRefs == nil {
+				summary.manifestIdentityRefs = map[digest.Digest]manifestIdentityRef{}
+			}
+			summary.manifestIdentityRefs[target.Digest] = manifestIdentityRef{
+				manifest: img,
+				platform: platform,
+			}
+		}
+
 		// Filter out platforms that don't match the requested platform.  Do it
 		// after the size, container count and chainIDs are summed up to have
 		// the single combined entry still represent the whole multi-platform
@@ -381,6 +398,9 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 	if err != nil {
 		return nil, nil, err
 	}
+	if opts.Identity {
+		i.populateManifestIdentitiesFromCache(ctx, img.Target, summary)
+	}
 
 	best := summary.Best
 	if best == nil {
@@ -401,7 +421,7 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 		}, summary, nil
 	}
 
-	image, err := i.singlePlatformImage(ctx, i.content, tagsByDigest[best.RealTarget.Digest], best)
+	image, err := i.singlePlatformImage(ctx, tagsByDigest[best.RealTarget.Digest], best)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -413,7 +433,44 @@ func (i *ImageService) imageSummary(ctx context.Context, img c8dimages.Image, pl
 	return image, summary, nil
 }
 
-func (i *ImageService) singlePlatformImage(ctx context.Context, contentStore content.Store, repoTags []string, imageManifest *ImageManifest) (*imagetypes.Summary, error) {
+func (i *ImageService) populateManifestIdentitiesFromCache(ctx context.Context, imageDesc ocispec.Descriptor, summary *multiPlatformSummary) {
+	if summary == nil {
+		return
+	}
+	for idx := range summary.Manifests {
+		mfst := &summary.Manifests[idx]
+		if mfst.Kind != imagetypes.ManifestKindImage || !mfst.Available {
+			continue
+		}
+		if mfst.ImageData == nil {
+			continue
+		}
+		ref, ok := summary.manifestIdentityRefs[mfst.Descriptor.Digest]
+		if !ok || ref.manifest == nil {
+			continue
+		}
+		idt, err := i.imageIdentityFromCache(ctx, imageDesc, &multiPlatformSummary{
+			Best:         ref.manifest,
+			BestPlatform: ref.platform,
+		})
+		if err != nil {
+			logger := log.G(ctx).WithError(err).WithFields(log.Fields{
+				"image":    imageDesc.Digest,
+				"manifest": mfst.Descriptor.Digest,
+				"platform": platforms.FormatAll(ref.platform),
+			})
+			if cerrdefs.IsNotFound(err) {
+				logger.Debug("skipping manifest Identity property: manifest content not found")
+				continue
+			}
+			logger.Warn("failed to determine manifest Identity property")
+			continue
+		}
+		mfst.ImageData.Identity = idt
+	}
+}
+
+func (i *ImageService) singlePlatformImage(ctx context.Context, repoTags []string, imageManifest *ImageManifest) (*imagetypes.Summary, error) {
 	var repoDigests []string
 	rawImg := imageManifest.Metadata()
 	target := rawImg.Target.Digest
@@ -634,8 +691,8 @@ func setupLabelFilter(ctx context.Context, store content.Store, fltrs filters.Ar
 			negate := strings.HasSuffix(fltrName, "!")
 
 			// If filter value is key!=value then flip the above.
-			if strings.HasSuffix(k, "!") {
-				k = strings.TrimSuffix(k, "!")
+			if before, ok := strings.CutSuffix(k, "!"); ok {
+				k = before
 				negate = !negate
 			}
 

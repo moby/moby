@@ -62,7 +62,7 @@ LABEL label.Z="Z"`))
 	actualValues := strings.Split(out, "\n")[1:27]
 	expectedValues := [26]string{"Z", "Y", "X", "W", "V", "U", "T", "S", "R", "Q", "P", "O", "N", "M", "L", "K", "J", "I", "H", "G", "F", "E", "D", "C", "B", "A"}
 
-	for i := 0; i < 26; i++ {
+	for i := range 26 {
 		echoValue := fmt.Sprintf("LABEL label.%s=%s", expectedValues[i], expectedValues[i])
 		actualValue := actualValues[i]
 		assert.Assert(c, is.Contains(actualValue, echoValue))

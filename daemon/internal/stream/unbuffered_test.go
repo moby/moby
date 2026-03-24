@@ -130,7 +130,7 @@ func TestRaceUnbuffered(t *testing.T) {
 func BenchmarkUnbuffered(b *testing.B) {
 	writer := new(unbuffered)
 	setUpWriter := func() {
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			writer.Add(devNullCloser(0))
 			writer.Add(devNullCloser(0))
 			writer.Add(devNullCloser(0))
@@ -138,20 +138,20 @@ func BenchmarkUnbuffered(b *testing.B) {
 	}
 	testLine := "Line that thinks that it is log line from docker"
 	var buf bytes.Buffer
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		buf.WriteString(testLine + "\n")
 	}
 	// line without eol
 	buf.WriteString(testLine)
 	testText := buf.Bytes()
 	b.SetBytes(int64(5 * len(testText)))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		b.StopTimer()
 		setUpWriter()
 		b.StartTimer()
 
-		for j := 0; j < 5; j++ {
+		for range 5 {
 			if _, err := writer.Write(testText); err != nil {
 				b.Fatal(err)
 			}

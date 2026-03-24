@@ -283,7 +283,7 @@ func checkTable(ctx context.Context, ips []string, port, networkName, tableName 
 func waitWriters(parallelWriters int, mustWrite bool, doneCh chan resultTuple) map[string]int {
 	var totalKeys int
 	resultTable := make(map[string]int)
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		log.G(context.TODO()).Infof("Waiting for %d workers", parallelWriters-i)
 		workerReturn := <-doneCh
 		totalKeys += workerReturn.result
@@ -337,7 +337,7 @@ func doClusterPeers(ips []string, args []string) {
 	doneCh := make(chan resultTuple, len(ips))
 	expectedPeers, _ := strconv.Atoi(args[0])
 	maxRetry, _ := strconv.Atoi(args[1])
-	for retry := 0; retry < maxRetry; retry++ {
+	for retry := range maxRetry {
 		// check all the nodes
 		for _, ip := range ips {
 			go clusterPeersNumber(ip, servicePort, doneCh)
@@ -398,7 +398,7 @@ func doNetworkPeers(ips []string, args []string) {
 	networkName := args[0]
 	expectedPeers, _ := strconv.Atoi(args[1])
 	maxRetry, _ := strconv.Atoi(args[2])
-	for retry := 0; retry < maxRetry; retry++ {
+	for retry := range maxRetry {
 		// check all the nodes
 		for _, ip := range ips {
 			go networkPeersNumber(ip, servicePort, networkName, doneCh)
@@ -469,14 +469,14 @@ func doWriteKeys(ips []string, args []string) {
 
 	doneCh := make(chan resultTuple, parallelWriters)
 	// Enable watch of tables from clients
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		go clientWatchTable(ips[i], servicePort, networkName, tableName, doneCh)
 	}
 	waitWriters(parallelWriters, false, doneCh)
 
 	// Start parallel writers that will create and delete unique keys
 	defer close(doneCh)
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		key := "key-" + strconv.Itoa(i) + "-"
 		log.G(context.TODO()).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go writeKeysNumber(ips[i], servicePort, networkName, tableName, key, numberOfKeys, doneCh)
@@ -502,14 +502,14 @@ func doDeleteKeys(ips []string, args []string) {
 
 	doneCh := make(chan resultTuple, parallelWriters)
 	// Enable watch of tables from clients
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		go clientWatchTable(ips[i], servicePort, networkName, tableName, doneCh)
 	}
 	waitWriters(parallelWriters, false, doneCh)
 
 	// Start parallel writers that will create and delete unique keys
 	defer close(doneCh)
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		key := "key-" + strconv.Itoa(i) + "-"
 		log.G(context.TODO()).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go deleteKeysNumber(ips[i], servicePort, networkName, tableName, key, numberOfKeys, doneCh)
@@ -535,14 +535,14 @@ func doWriteDeleteUniqueKeys(ips []string, args []string) {
 
 	doneCh := make(chan resultTuple, parallelWriters)
 	// Enable watch of tables from clients
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		go clientWatchTable(ips[i], servicePort, networkName, tableName, doneCh)
 	}
 	waitWriters(parallelWriters, false, doneCh)
 
 	// Start parallel writers that will create and delete unique keys
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(writeTimeSec)*time.Second)
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		key := "key-" + strconv.Itoa(i) + "-"
 		log.G(ctx).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go writeDeleteUniqueKeys(ctx, ips[i], servicePort, networkName, tableName, key, doneCh)
@@ -572,7 +572,7 @@ func doWriteUniqueKeys(ips []string, args []string) {
 
 	doneCh := make(chan resultTuple, parallelWriters)
 	// Enable watch of tables from clients
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		go clientWatchTable(ips[i], servicePort, networkName, tableName, doneCh)
 	}
 	waitWriters(parallelWriters, false, doneCh)
@@ -580,7 +580,7 @@ func doWriteUniqueKeys(ips []string, args []string) {
 	// Start parallel writers that will create and delete unique keys
 	defer close(doneCh)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(writeTimeSec)*time.Second)
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		key := "key-" + strconv.Itoa(i) + "-"
 		log.G(ctx).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go writeUniqueKeys(ctx, ips[i], servicePort, networkName, tableName, key, doneCh)
@@ -609,7 +609,7 @@ func doWriteDeleteLeaveJoin(ips []string, args []string) {
 	doneCh := make(chan resultTuple, parallelWriters)
 	defer close(doneCh)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(writeTimeSec)*time.Second)
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		key := "key-" + strconv.Itoa(i) + "-"
 		log.G(ctx).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go writeDeleteLeaveJoin(ctx, ips[i], servicePort, networkName, tableName, key, doneCh)
@@ -638,7 +638,7 @@ func doWriteDeleteWaitLeaveJoin(ips []string, args []string) {
 	doneCh := make(chan resultTuple, parallelWriters)
 	defer close(doneCh)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(writeTimeSec)*time.Second)
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		key := "key-" + strconv.Itoa(i) + "-"
 		log.G(ctx).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go writeDeleteUniqueKeys(ctx, ips[i], servicePort, networkName, tableName, key, doneCh)
@@ -650,7 +650,7 @@ func doWriteDeleteWaitLeaveJoin(ips []string, args []string) {
 	log.G(ctx).Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
 
 	// The writers will leave the network
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		log.G(ctx).Infof("worker leaveNetwork: %d on IP:%s", i, ips[i])
 		go leaveNetwork(ips[i], servicePort, networkName, doneCh)
 	}
@@ -660,7 +660,7 @@ func doWriteDeleteWaitLeaveJoin(ips []string, args []string) {
 	time.Sleep(100 * time.Millisecond)
 
 	// The writers will join the network
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		log.G(ctx).Infof("worker joinNetwork: %d on IP:%s", i, ips[i])
 		go joinNetwork(ips[i], servicePort, networkName, doneCh)
 	}
@@ -684,7 +684,7 @@ func doWriteWaitLeave(ips []string, args []string) {
 	doneCh := make(chan resultTuple, parallelWriters)
 	defer close(doneCh)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(writeTimeSec)*time.Second)
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		key := "key-" + strconv.Itoa(i) + "-"
 		log.G(ctx).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go writeUniqueKeys(ctx, ips[i], servicePort, networkName, tableName, key, doneCh)
@@ -696,7 +696,7 @@ func doWriteWaitLeave(ips []string, args []string) {
 	log.G(ctx).Infof("Written a total of %d keys on the cluster", keyMap[totalWrittenKeys])
 
 	// The writers will leave the network
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		log.G(ctx).Infof("worker leaveNetwork: %d on IP:%s", i, ips[i])
 		go leaveNetwork(ips[i], servicePort, networkName, doneCh)
 	}
@@ -721,7 +721,7 @@ func doWriteWaitLeaveJoin(ips []string, args []string) {
 	doneCh := make(chan resultTuple, parallelWriters)
 	defer close(doneCh)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(writeTimeSec)*time.Second)
-	for i := 0; i < parallelWriters; i++ {
+	for i := range parallelWriters {
 		key := "key-" + strconv.Itoa(i) + "-"
 		log.G(ctx).Infof("Spawn worker: %d on IP:%s", i, ips[i])
 		go writeUniqueKeys(ctx, ips[i], servicePort, networkName, tableName, key, doneCh)
@@ -734,7 +734,7 @@ func doWriteWaitLeaveJoin(ips []string, args []string) {
 
 	keysExpected := keyMap[totalWrittenKeys]
 	// The Leavers will leave the network
-	for i := 0; i < parallelLeaver; i++ {
+	for i := range parallelLeaver {
 		log.G(ctx).Infof("worker leaveNetwork: %d on IP:%s", i, ips[i])
 		go leaveNetwork(ips[i], servicePort, networkName, doneCh)
 		// Once a node leave all the keys written previously will be deleted, so the expected keys will consider that as removed
@@ -746,7 +746,7 @@ func doWriteWaitLeaveJoin(ips []string, args []string) {
 	time.Sleep(100 * time.Millisecond)
 
 	// The writers will join the network
-	for i := 0; i < parallelLeaver; i++ {
+	for i := range parallelLeaver {
 		log.G(ctx).Infof("worker joinNetwork: %d on IP:%s", i, ips[i])
 		go joinNetwork(ips[i], servicePort, networkName, doneCh)
 	}

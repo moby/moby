@@ -23,8 +23,9 @@ const _InstrumentKind_name = "instrumentKindUndefinedCounterUpDownCounterHistogr
 var _InstrumentKind_index = [...]uint8{0, 23, 30, 43, 52, 69, 92, 107, 112}
 
 func (i InstrumentKind) String() string {
-	if i >= InstrumentKind(len(_InstrumentKind_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_InstrumentKind_index)-1 {
 		return "InstrumentKind(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _InstrumentKind_name[_InstrumentKind_index[i]:_InstrumentKind_index[i+1]]
+	return _InstrumentKind_name[_InstrumentKind_index[idx]:_InstrumentKind_index[idx+1]]
 }
