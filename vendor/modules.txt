@@ -1196,7 +1196,7 @@ github.com/moby/moby/client/internal/timestamp
 github.com/moby/moby/client/pkg/jsonmessage
 github.com/moby/moby/client/pkg/stringid
 github.com/moby/moby/client/pkg/versions
-# github.com/moby/patternmatcher v0.6.0
+# github.com/moby/patternmatcher v0.6.1
 ## explicit; go 1.19
 github.com/moby/patternmatcher
 github.com/moby/patternmatcher/ignorefile
