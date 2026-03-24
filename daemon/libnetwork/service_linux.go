@@ -247,7 +247,7 @@ func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 		}
 		err := sb.osSbox.RemoveAliasIP(ifName, &net.IPNet{IP: lb.vip, Mask: net.CIDRMask(32, 32)})
 		if err != nil {
-			log.G(context.TODO()).Errorf("Failed add IP alias %s to network %s LB endpoint interface %s: %v", lb.vip, n.ID(), ifName, err)
+			log.G(context.TODO()).Errorf("Failed to remove IP alias %s from network %s LB endpoint interface %s: %v", lb.vip, n.ID(), ifName, err)
 		}
 	}
 }
@@ -450,7 +450,6 @@ func generateIngressRules(port *PortConfig, destIP net.IP) []iptables.Rule {
 }
 
 func programIngressPortsRules(gwIP net.IP, filteredPorts []*PortConfig) (portErr error) {
-
 	rollbackRules := make([]iptables.Rule, 0, len(filteredPorts)*3)
 	defer func() {
 		if portErr != nil {
@@ -463,7 +462,6 @@ func programIngressPortsRules(gwIP net.IP, filteredPorts []*PortConfig) (portErr
 	}()
 
 	for _, iPort := range filteredPorts {
-
 		for _, rule := range generateIngressRules(iPort, gwIP) {
 			if portErr = rule.Insert(); portErr != nil {
 				err := fmt.Errorf("set up rule failed, %v: %v", rule, portErr)
@@ -477,7 +475,6 @@ func programIngressPortsRules(gwIP net.IP, filteredPorts []*PortConfig) (portErr
 }
 
 func deleteIngressPortsRules(gwIP net.IP, filteredPorts []*PortConfig) error {
-
 	var portErr error
 
 	for _, iPort := range filteredPorts {

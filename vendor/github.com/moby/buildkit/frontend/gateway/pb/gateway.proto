@@ -36,6 +36,11 @@ service LLBBridge {
 	rpc ReleaseContainer(ReleaseContainerRequest) returns (ReleaseContainerResponse);
 	rpc ExecProcess(stream ExecMessage) returns (stream ExecMessage);
 
+	// apicaps:CapGatewayExecFilesystem
+	rpc ReadFileContainer(ReadFileRequest) returns (ReadFileResponse);
+	rpc ReadDirContainer(ReadDirRequest) returns (ReadDirResponse);
+	rpc StatFileContainer(StatFileRequest) returns (StatFileResponse);
+
 	// apicaps:CapGatewayWarnings
 	rpc Warn(WarnRequest) returns (WarnResponse);
 }
@@ -137,6 +142,7 @@ message ResolveSourceMetaRequest {
 	string ResolveMode = 4;
 	ResolveSourceGitRequest Git = 5;
 	ResolveSourceImageRequest Image = 6;
+	ResolveSourceHTTPRequest HTTP = 7;
 	repeated moby.buildkit.v1.sourcepolicy.Policy SourcePolicies = 8;
 }
 
@@ -150,6 +156,7 @@ message ResolveSourceMetaResponse {
 message ResolveSourceImageRequest {
 	bool NoConfig = 1;
 	bool AttestationChain = 2;
+	repeated string ResolveAttestations = 3;
 }
 
 message AttestationChain {
@@ -183,6 +190,26 @@ message ResolveSourceHTTPResponse {
 	string Checksum = 1;
 	string Filename = 2;
 	google.protobuf.Timestamp LastModified = 3;
+	ChecksumResponse ChecksumResponse = 4;
+}
+
+message ResolveSourceHTTPRequest {
+	ChecksumRequest ChecksumRequest = 1;
+}
+
+message ChecksumRequest {
+	enum ChecksumAlgo {
+		CHECKSUM_ALGO_SHA256 = 0;
+		CHECKSUM_ALGO_SHA384 = 1;
+		CHECKSUM_ALGO_SHA512 = 2;
+	}
+	ChecksumAlgo Algo = 1;
+	bytes Suffix = 2;
+}
+
+message ChecksumResponse {
+	string Digest = 1;
+	bytes Suffix = 2;
 }
 
 message SolveRequest {
@@ -228,6 +255,7 @@ message ReadFileRequest {
 	string Ref = 1;
 	string FilePath = 2;
 	FileRange Range = 3;
+	int32 MountIndex = 4;
 }
 
 message FileRange {
@@ -243,6 +271,7 @@ message ReadDirRequest {
 	string Ref = 1;
 	string DirPath = 2;
 	string IncludePattern = 3;
+	int32 MountIndex = 4;
 }
 
 message ReadDirResponse {
@@ -252,6 +281,7 @@ message ReadDirResponse {
 message StatFileRequest {
 	string Ref = 1;
 	string Path = 2;
+	int32 MountIndex = 3;
 }
 
 message StatFileResponse {

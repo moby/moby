@@ -280,7 +280,7 @@ func WithCgroupnsMode(mode string) func(*TestContainerConfig) {
 	}
 }
 
-// WithExtraHost sets the user defined IP:Host mappings in the container's
+// WithExtraHost sets the user-defined IP:Host mappings in the container's
 // /etc/hosts file
 func WithExtraHost(extraHost string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {

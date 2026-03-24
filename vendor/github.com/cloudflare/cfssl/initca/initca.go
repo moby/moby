@@ -3,8 +3,10 @@
 package initca
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -97,7 +99,6 @@ func New(req *csr.CertificateRequest) (cert, csrPEM, key []byte, err error) {
 	cert, err = s.Sign(signReq)
 
 	return
-
 }
 
 // NewFromPEM creates a new root certificate from the key file passed in.
@@ -157,7 +158,7 @@ func NewFromSigner(req *csr.CertificateRequest, priv crypto.Signer) (cert, csrPE
 		}
 
 		policy.Default.CAConstraint.MaxPathLen = req.CA.PathLength
-		if req.CA.PathLength != 0 && req.CA.PathLenZero == true {
+		if req.CA.PathLength != 0 && req.CA.PathLenZero {
 			log.Infof("ignore invalid 'pathlenzero' value")
 		} else {
 			policy.Default.CAConstraint.MaxPathLenZero = req.CA.PathLenZero
@@ -210,8 +211,17 @@ func RenewFromSigner(ca *x509.Certificate, priv crypto.Signer) ([]byte, error) {
 		if ca.PublicKey.(*ecdsa.PublicKey).X.Cmp(ecdsaPublicKey.X) != 0 {
 			return nil, cferr.New(cferr.PrivateKeyError, cferr.KeyMismatch)
 		}
+	case ca.PublicKeyAlgorithm == x509.Ed25519:
+		var ed25519PublicKey ed25519.PublicKey
+		var ok bool
+		if ed25519PublicKey, ok = priv.Public().(ed25519.PublicKey); !ok {
+			return nil, cferr.New(cferr.PrivateKeyError, cferr.KeyMismatch)
+		}
+		if !(bytes.Equal(ca.PublicKey.(ed25519.PublicKey), ed25519PublicKey)) {
+			return nil, cferr.New(cferr.PrivateKeyError, cferr.KeyMismatch)
+		}
 	default:
-		return nil, cferr.New(cferr.PrivateKeyError, cferr.NotRSAOrECC)
+		return nil, cferr.New(cferr.PrivateKeyError, cferr.NotRSAOrECCOrEd25519)
 	}
 
 	req := csr.ExtractCertificateRequest(ca)

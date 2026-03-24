@@ -91,7 +91,7 @@ func NewPoller[T any](resp *http.Response, pl exported.Pipeline, options *NewPol
 	// this is a back-stop in case the swagger is incorrect (i.e. missing one or more status codes for success).
 	// ideally the codegen should return an error if the initial response failed and not even create a poller.
 	if !poller.StatusCodeValid(resp) {
-		return nil, errors.New("the operation failed or was cancelled")
+		return nil, exported.NewResponseError(resp)
 	}
 
 	// determine the polling method

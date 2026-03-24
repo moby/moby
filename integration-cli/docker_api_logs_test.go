@@ -125,7 +125,7 @@ func (s *DockerAPISuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 	go func() {
 		bufReader := bufio.NewReader(reader)
 		defer reader.Close()
-		for i := 0; i < untilSecs; i++ {
+		for range untilSecs {
 			out, _, err := bufReader.ReadLine()
 			if err != nil {
 				if err == io.EOF {
@@ -148,7 +148,7 @@ func (s *DockerAPISuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 		}
 	}()
 
-	for i := 0; i < untilSecs; i++ {
+	for range untilSecs {
 		select {
 		case l := <-chLog:
 			assert.NilError(c, l.err)

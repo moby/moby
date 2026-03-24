@@ -14,6 +14,7 @@ type EOption func(*encoderOptions) error
 
 // options retains accumulated state of multiple options.
 type encoderOptions struct {
+	resetOpt        bool
 	concurrent      int
 	level           EncoderLevel
 	single          *bool
@@ -71,19 +72,28 @@ func (o encoderOptions) encoder() encoder {
 
 // WithEncoderCRC will add CRC value to output.
 // Output will be 4 bytes larger.
+// Can be changed with ResetWithOptions.
 func WithEncoderCRC(b bool) EOption {
 	return func(o *encoderOptions) error { o.crc = b; return nil }
 }
 
 // WithEncoderConcurrency will set the concurrency,
 // meaning the maximum number of encoders to run concurrently.
-// The value supplied must be at least 1.
+// The value supplied must be at least 0.
+// When a value of 0 is provided GOMAXPROCS will be used.
 // For streams, setting a value of 1 will disable async compression.
 // By default this will be set to GOMAXPROCS.
+// Cannot be changed with ResetWithOptions.
 func WithEncoderConcurrency(n int) EOption {
 	return func(o *encoderOptions) error {
-		if n <= 0 {
-			return fmt.Errorf("concurrency must be at least 1")
+		if n < 0 {
+			return errors.New("concurrency must at least 0")
+		}
+		if n == 0 {
+			n = runtime.GOMAXPROCS(0)
+		}
+		if o.resetOpt && n != o.concurrent {
+			return errors.New("WithEncoderConcurrency cannot be changed on Reset")
 		}
 		o.concurrent = n
 		return nil
@@ -95,6 +105,7 @@ func WithEncoderConcurrency(n int) EOption {
 // A larger value will enable better compression but allocate more memory and,
 // for above-default values, take considerably longer.
 // The default value is determined by the compression level and max 8MB.
+// Cannot be changed with ResetWithOptions.
 func WithWindowSize(n int) EOption {
 	return func(o *encoderOptions) error {
 		switch {
@@ -104,6 +115,9 @@ func WithWindowSize(n int) EOption {
 			return fmt.Errorf("window size must be at most %d", MaxWindowSize)
 		case (n & (n - 1)) != 0:
 			return errors.New("window size must be a power of 2")
+		}
+		if o.resetOpt && n != o.windowSize {
+			return errors.New("WithWindowSize cannot be changed on Reset")
 		}
 
 		o.windowSize = n
@@ -122,6 +136,7 @@ func WithWindowSize(n int) EOption {
 // n must be > 0 and <= 1GB, 1<<30 bytes.
 // The padded area will be filled with data from crypto/rand.Reader.
 // If `EncodeAll` is used with data already in the destination, the total size will be multiple of this.
+// Can be changed with ResetWithOptions.
 func WithEncoderPadding(n int) EOption {
 	return func(o *encoderOptions) error {
 		if n <= 0 {
@@ -215,11 +230,15 @@ func (e EncoderLevel) String() string {
 }
 
 // WithEncoderLevel specifies a predefined compression level.
+// Cannot be changed with ResetWithOptions.
 func WithEncoderLevel(l EncoderLevel) EOption {
 	return func(o *encoderOptions) error {
 		switch {
 		case l <= speedNotSet || l >= speedLast:
 			return fmt.Errorf("unknown encoder level")
+		}
+		if o.resetOpt && l != o.level {
+			return errors.New("WithEncoderLevel cannot be changed on Reset")
 		}
 		o.level = l
 		if !o.customWindow {
@@ -248,6 +267,7 @@ func WithEncoderLevel(l EncoderLevel) EOption {
 // WithZeroFrames will encode 0 length input as full frames.
 // This can be needed for compatibility with zstandard usage,
 // but is not needed for this package.
+// Can be changed with ResetWithOptions.
 func WithZeroFrames(b bool) EOption {
 	return func(o *encoderOptions) error {
 		o.fullZero = b
@@ -259,6 +279,7 @@ func WithZeroFrames(b bool) EOption {
 // Disabling this will skip incompressible data faster, but in cases with no matches but
 // skewed character distribution compression is lost.
 // Default value depends on the compression level selected.
+// Can be changed with ResetWithOptions.
 func WithAllLitEntropyCompression(b bool) EOption {
 	return func(o *encoderOptions) error {
 		o.customALEntropy = true
@@ -270,6 +291,7 @@ func WithAllLitEntropyCompression(b bool) EOption {
 // WithNoEntropyCompression will always skip entropy compression of literals.
 // This can be useful if content has matches, but unlikely to benefit from entropy
 // compression. Usually the slight speed improvement is not worth enabling this.
+// Can be changed with ResetWithOptions.
 func WithNoEntropyCompression(b bool) EOption {
 	return func(o *encoderOptions) error {
 		o.noEntropy = b
@@ -287,6 +309,7 @@ func WithNoEntropyCompression(b bool) EOption {
 // This is only a recommendation, each decoder is free to support higher or lower limits, depending on local limitations.
 // If this is not specified, block encodes will automatically choose this based on the input size and the window size.
 // This setting has no effect on streamed encodes.
+// Can be changed with ResetWithOptions.
 func WithSingleSegment(b bool) EOption {
 	return func(o *encoderOptions) error {
 		o.single = &b
@@ -298,8 +321,12 @@ func WithSingleSegment(b bool) EOption {
 // slower encoding speed.
 // This will not change the window size which is the primary function for reducing
 // memory usage. See WithWindowSize.
+// Cannot be changed with ResetWithOptions.
 func WithLowerEncoderMem(b bool) EOption {
 	return func(o *encoderOptions) error {
+		if o.resetOpt && b != o.lowMem {
+			return errors.New("WithLowerEncoderMem cannot be changed on Reset")
+		}
 		o.lowMem = b
 		return nil
 	}
@@ -311,6 +338,7 @@ func WithLowerEncoderMem(b bool) EOption {
 // "zstd --train" from the Zstandard reference implementation.
 //
 // The encoder *may* choose to use no dictionary instead for certain payloads.
+// Can be changed with ResetWithOptions.
 //
 // [dictionary format]: https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#dictionary-format
 func WithEncoderDict(dict []byte) EOption {
@@ -328,12 +356,22 @@ func WithEncoderDict(dict []byte) EOption {
 //
 // The slice content may contain arbitrary data. It will be used as an initial
 // history.
+// Can be changed with ResetWithOptions.
 func WithEncoderDictRaw(id uint32, content []byte) EOption {
 	return func(o *encoderOptions) error {
 		if bits.UintSize > 32 && uint(len(content)) > dictMaxLength {
 			return fmt.Errorf("dictionary of size %d > 2GiB too large", len(content))
 		}
 		o.dict = &dict{id: id, content: content, offsets: [3]int{1, 4, 8}}
+		return nil
+	}
+}
+
+// WithEncoderDictDelete clears the dictionary, so no dictionary will be used.
+// Should be used with ResetWithOptions.
+func WithEncoderDictDelete() EOption {
+	return func(o *encoderOptions) error {
+		o.dict = nil
 		return nil
 	}
 }

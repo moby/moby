@@ -70,7 +70,22 @@ func (cli *Client) ServiceLogs(ctx context.Context, serviceID string, options Se
 	if options.Follow {
 		query.Set("follow", "1")
 	}
-	query.Set("tail", options.Tail)
+	switch options.Tail {
+	case "", "all":
+		// don't send option; default is to show all logs.
+		//
+		// The default on the daemon-side is to show all logs; account for
+		// some special values. The CLI may set a magic "all" value that's
+		// used as default.
+		//
+		// Given that the default is to show all logs, we can ignore these
+		// values, and don't send "tail".
+		//
+		// see https://github.com/moby/moby/blob/0df791cb72b568eeadba2267fe9a5040d12b0487/daemon/logs.go#L75-L78
+		// see https://github.com/moby/moby/blob/4d20b6fe56dfb2b06f4a5dd1f32913215a9c317b/daemon/cluster/services.go#L425-L449
+	default:
+		query.Set("tail", options.Tail)
+	}
 
 	resp, err := cli.get(ctx, "/services/"+serviceID+"/logs", query, nil)
 	if err != nil {

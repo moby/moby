@@ -18,6 +18,7 @@ package mount
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -79,7 +80,7 @@ func (loopbackHandler) Unmount(ctx context.Context, path string) error {
 	defer loop.Close()
 
 	if err := setLoopAutoclear(loop, true); err != nil {
-		return err
+		return fmt.Errorf("failed to set auto clear on loop device %q: %w", loopdev, err)
 	}
 
 	if err := os.Remove(path); err != nil {

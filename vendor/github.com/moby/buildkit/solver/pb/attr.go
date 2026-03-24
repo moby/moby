@@ -32,6 +32,8 @@ const AttrHTTPUID = "http.uid"
 const AttrHTTPGID = "http.gid"
 const AttrHTTPAuthHeaderSecret = "http.authheadersecret"
 const AttrHTTPHeaderPrefix = "http.header."
+const AttrHTTPSignatureVerifyPubKey = "http.sig.pubkey"
+const AttrHTTPSignatureVerify = "http.sig.signature"
 
 const AttrImageResolveMode = "image.resolvemode"
 const AttrImageResolveModeDefault = "default"

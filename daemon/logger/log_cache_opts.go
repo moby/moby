@@ -1,5 +1,7 @@
 package logger
 
+import "maps"
+
 var externalValidators []LogOptValidator
 
 // RegisterExternalValidator adds the validator to the list of external validators.
@@ -14,9 +16,7 @@ func RegisterExternalValidator(v LogOptValidator) {
 // not be exposed as a usable log driver to the API.
 // This should only be called on package initialization.
 func AddBuiltinLogOpts(opts map[string]bool) {
-	for k, v := range opts {
-		builtInLogOpts[k] = v
-	}
+	maps.Copy(builtInLogOpts, opts)
 }
 
 func validateExternal(cfg map[string]string) error {

@@ -40,7 +40,7 @@
 //   - The NewContext method of the OpenCensus Tracer cannot embed an OpenCensus
 //     Span in a context unless that Span was created by that Tracer.
 //   - Conversion of custom OpenCensus Samplers to OpenTelemetry is not
-//     implemented, and An error will be sent to the OpenTelemetry ErrorHandler.
+//     implemented, and an error will be sent to the OpenTelemetry ErrorHandler.
 //
 // There are known limitations to the metric bridge:
 //   - GaugeDistribution-typed metrics are dropped

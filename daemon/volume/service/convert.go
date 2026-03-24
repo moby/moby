@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -69,7 +71,12 @@ func (s *VolumesService) volumesToAPI(ctx context.Context, volumes []volume.Volu
 			}
 			sz, err := directory.Size(ctx, p)
 			if err != nil {
-				log.G(ctx).WithError(err).WithField("volume", v.Name()).Warnf("Failed to determine size of volume")
+				if !errors.Is(err, os.ErrNotExist) {
+					log.G(ctx).WithFields(log.Fields{
+						"error":  err,
+						"volume": v.Name(),
+					}).Warn("Failed to determine size of volume")
+				}
 				sz = -1
 			}
 			apiV.UsageData = &volumetypes.UsageData{Size: sz, RefCount: int64(s.vs.CountReferences(v))}

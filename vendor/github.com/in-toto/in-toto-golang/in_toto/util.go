@@ -121,10 +121,10 @@ func (s Set) Slice() []string {
 }
 
 /*
-InterfaceKeyStrings returns string keys of passed interface{} map in an
+artifactsDictKeyStrings returns string keys of passed HashObj map in an
 unordered string slice.
 */
-func InterfaceKeyStrings(m map[string]interface{}) []string {
+func artifactsDictKeyStrings(m map[string]HashObj) []string {
 	res := make([]string, len(m))
 	i := 0
 	for k := range m {

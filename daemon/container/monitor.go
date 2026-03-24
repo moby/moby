@@ -12,14 +12,14 @@ const (
 )
 
 // Reset puts a container into a state where it can be restarted again.
-func (container *Container) Reset(lock bool) {
-	if lock {
-		container.Lock()
-		defer container.Unlock()
-	}
-
+//
+// Callers are expected to obtain a lock on the container.
+func (container *Container) Reset() {
 	if err := container.CloseStreams(); err != nil {
-		log.G(context.TODO()).Errorf("%s: %s", container.ID, err)
+		log.G(context.TODO()).WithFields(log.Fields{
+			"container": container.ID,
+			"error":     err,
+		}).Error("failed to close container streams")
 	}
 
 	// Re-create a brand new stdin pipe once the container exited
@@ -27,24 +27,33 @@ func (container *Container) Reset(lock bool) {
 		container.StreamConfig.NewInputPipes()
 	}
 
-	if container.LogDriver != nil {
-		if container.LogCopier != nil {
-			exit := make(chan struct{})
-			go func() {
-				container.LogCopier.Wait()
-				close(exit)
-			}()
-
-			timer := time.NewTimer(loggerCloseTimeout)
-			defer timer.Stop()
-			select {
-			case <-timer.C:
-				log.G(context.TODO()).Warn("Logger didn't exit in time: logs may be truncated")
-			case <-exit:
-			}
-		}
-		container.LogDriver.Close()
-		container.LogCopier = nil
-		container.LogDriver = nil
+	if container.LogDriver == nil {
+		return
 	}
+
+	if container.LogCopier != nil {
+		exit := make(chan struct{})
+		go func() {
+			container.LogCopier.Wait()
+			close(exit)
+		}()
+
+		timer := time.NewTimer(loggerCloseTimeout)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			log.G(context.TODO()).WithFields(log.Fields{
+				"container": container.ID,
+			}).Warn("logger didn't exit in time: logs may be truncated")
+		case <-exit:
+		}
+	}
+	if err := container.LogDriver.Close(); err != nil {
+		log.G(context.TODO()).WithFields(log.Fields{
+			"container": container.ID,
+			"error":     err,
+		}).Warn("error closing log driver")
+	}
+	container.LogCopier = nil
+	container.LogDriver = nil
 }

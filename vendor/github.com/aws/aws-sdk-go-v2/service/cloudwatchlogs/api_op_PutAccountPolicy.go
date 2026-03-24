@@ -13,7 +13,13 @@ import (
 
 // Creates an account-level data protection policy, subscription filter policy,
 // field index policy, transformer policy, or metric extraction policy that applies
-// to all log groups or a subset of log groups in the account.
+// to all log groups, a subset of log groups, or a data source name and type
+// combination in the account.
+//
+// For field index policies, you can configure indexed fields as facets to enable
+// interactive exploration of your logs. Facets provide value distributions and
+// counts for indexed fields in the CloudWatch Logs Insights console without
+// requiring query execution. For more information, see [Use facets to group and explore logs].
 //
 // To use this operation, you must be signed on with the correct permissions
 // depending on the type of policy that you are creating.
@@ -29,6 +35,9 @@ import (
 //
 //   - To create a field index policy, you must have the logs:PutIndexPolicy and
 //     logs:PutAccountPolicy permissions.
+//
+//   - To configure facets for field index policies, you must have the
+//     logs:PutIndexPolicy and logs:PutAccountPolicy permissions.
 //
 //   - To create a metric extraction policy, you must have the
 //     logs:PutMetricExtractionPolicy and logs:PutAccountPolicy permissions.
@@ -134,24 +143,8 @@ import (
 // selectionCriteria parameter. If you have multiple account-level transformer
 // policies with selection criteria, no two of them can use the same or overlapping
 // log group name prefixes. For example, if you have one policy filtered to log
-// groups that start with my-log , you can't have another field index policy
+// groups that start with my-log , you can't have another transformer policy
 // filtered to my-logpprod or my-logging .
-//
-// CloudWatch Logs provides default field indexes for all log groups in the
-// Standard log class. Default field indexes are automatically available for the
-// following fields:
-//
-//   - @aws.region
-//
-//   - @aws.account
-//
-//   - @source.log
-//
-//   - traceId
-//
-// Default field indexes are in addition to any custom field indexes you define
-// within your policy. Default field indexes are not counted towards your field
-// index quota.
 //
 // You can also set up a transformer at the log-group level. For more information,
 // see [PutTransformer]. If there is both a log-group level transformer created with PutTransformer
@@ -162,15 +155,16 @@ import (
 // # Field index policy
 //
 // You can use field index policies to create indexes on fields found in log
-// events in the log group. Creating field indexes can help lower the scan volume
-// for CloudWatch Logs Insights queries that reference those fields, because these
-// queries attempt to skip the processing of log events that are known to not match
-// the indexed field. Good fields to index are fields that you often need to query
-// for and fields or values that match only a small fraction of the total log
-// events. Common examples of indexes include request ID, session ID, user IDs, or
-// instance IDs. For more information, see [Create field indexes to improve query performance and reduce costs]
+// events for a log group or data source name and type combination. Creating field
+// indexes can help lower the scan volume for CloudWatch Logs Insights queries that
+// reference those fields, because these queries attempt to skip the processing of
+// log events that are known to not match the indexed field. Good fields to index
+// are fields that you often need to query for and fields or values that match only
+// a small fraction of the total log events. Common examples of indexes include
+// request ID, session ID, user IDs, or instance IDs. For more information, see [Create field indexes to improve query performance and reduce costs]
 //
-// To find the fields that are in your log group events, use the [GetLogGroupFields] operation.
+// To find the fields that are in your log group events, use the [GetLogGroupFields] operation. To
+// find the fields for a data source use the [GetLogFields]operation.
 //
 // For example, suppose you have created a field index for requestId . Then, any
 // CloudWatch Logs Insights query on that log group that includes requestId =
@@ -183,21 +177,108 @@ import (
 //
 // You can have one account-level field index policy that applies to all log
 // groups in the account. Or you can create as many as 20 account-level field index
-// policies that are each scoped to a subset of log groups with the
+// policies that are each scoped to a subset of log groups using LogGroupNamePrefix
+// with the selectionCriteria parameter. You can have another 20 account-level
+// field index policies using DataSourceName and DataSourceType for the
 // selectionCriteria parameter. If you have multiple account-level index policies
-// with selection criteria, no two of them can use the same or overlapping log
-// group name prefixes. For example, if you have one policy filtered to log groups
-// that start with my-log , you can't have another field index policy filtered to
-// my-logpprod or my-logging .
+// with LogGroupNamePrefix selection criteria, no two of them can use the same or
+// overlapping log group name prefixes. For example, if you have one policy
+// filtered to log groups that start with my-log, you can't have another field
+// index policy filtered to my-logpprod or my-logging. Similarly, if you have
+// multiple account-level index policies with DataSourceName and DataSourceType
+// selection criteria, no two of them can use the same data source name and type
+// combination. For example, if you have one policy filtered to the data source
+// name amazon_vpc and data source type flow you cannot create another policy with
+// this combination.
 //
 // If you create an account-level field index policy in a monitoring account in
 // cross-account observability, the policy is applied only to the monitoring
 // account and not to any source accounts.
 //
+// CloudWatch Logs provides default field indexes for all log groups in the
+// Standard log class. Default field indexes are automatically available for the
+// following fields:
+//
+//   - @logStream
+//
+//   - @aws.region
+//
+//   - @aws.account
+//
+//   - @source.log
+//
+//   - @data_source_name
+//
+//   - @data_source_type
+//
+//   - @data_format
+//
+//   - traceId
+//
+//   - severityText
+//
+//   - attributes.session.id
+//
+// CloudWatch Logs provides default field indexes for certain data source name and
+// type combinations as well. Default field indexes are automatically available for
+// the following data source name and type combinations as identified in the
+// following list:
+//
+//	  amazon_vpc.flow
+//
+//	- action
+//
+//	- logStatus
+//
+//	- region
+//
+//	- flowDirection
+//
+//	- type
+//
+//	  amazon_route53.resolver_query
+//
+//	- transport
+//
+//	- rcode
+//
+//	  aws_waf.access
+//
+//	- action
+//
+//	- httpRequest.country
+//
+// aws_cloudtrail.data , aws_cloudtrail.management
+//
+//   - eventSource
+//
+//   - eventName
+//
+//   - awsRegion
+//
+//   - userAgent
+//
+//   - errorCode
+//
+//   - eventType
+//
+//   - managementEvent
+//
+//   - readOnly
+//
+//   - eventCategory
+//
+//   - requestId
+//
+// Default field indexes are in addition to any custom field indexes you define
+// within your policy. Default field indexes are not counted towards your [field index quota].
+//
 // If you want to create a field index policy for a single log group, you can use [PutIndexPolicy]
-// instead of PutAccountPolicy . If you do so, that log group will use only that
-// log-group level policy, and will ignore the account-level policy that you create
-// with [PutAccountPolicy].
+// instead of PutAccountPolicy . If you do so, that log group will use that
+// log-group level policy and any account-level policies that match at the data
+// source level; any account-level policy that matches at the log group level (for
+// example, no selection criteria or log group name prefix selection criteria) will
+// be ignored.
 //
 // # Metric extraction policy
 //
@@ -255,15 +336,17 @@ import (
 //
 // [PutDestination]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDestination.html
 // [PutTransformer]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutTransformer.html
-// [PutIndexPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutIndexPolicy.html
+// [GetLogFields]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_GetLogFields.html
 // [PutDataProtectionPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDataProtectionPolicy.html
-// [Protect sensitive log data with masking]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/mask-sensitive-log-data.html
 // [FilterLogEvents]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_FilterLogEvents.html
-// [GetLogGroupFields]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_GetLogGroupFields.html
 // [Processors that you can use]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-Processors
-// [PutAccountPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutAccountPolicy.html
-// [Create field indexes to improve query performance and reduce costs]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogs-Field-Indexing.html
 // [GetLogEvents]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_GetLogEvents.html
+// [field index quota]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogs-Field-Indexing-Syntax
+// [PutIndexPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutIndexPolicy.html
+// [Protect sensitive log data with masking]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/mask-sensitive-log-data.html
+// [GetLogGroupFields]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_GetLogGroupFields.html
+// [Use facets to group and explore logs]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogs-Facets.html
+// [Create field indexes to improve query performance and reduce costs]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogs-Field-Indexing.html
 func (c *Client) PutAccountPolicy(ctx context.Context, params *PutAccountPolicyInput, optFns ...func(*Options)) (*PutAccountPolicyOutput, error) {
 	if params == nil {
 		params = &PutAccountPolicyInput{}
@@ -363,12 +446,20 @@ type PutAccountPolicyInput struct {
 	//
 	//   - Fields The array of field indexes to create.
 	//
+	//   - FieldsV2 The object of field indexes to create along with it's type.
+	//
 	// It must contain at least one field index.
 	//
-	// The following is an example of an index policy document that creates two
-	// indexes, RequestId and TransactionId .
+	// The following is an example of an index policy document that creates indexes
+	// with different types.
 	//
-	//     "policyDocument": "{ \"Fields\": [ \"RequestId\", \"TransactionId\" ] }"
+	//     "policyDocument": "{ \"Fields\": [ \"TransactionId\" ], \"FieldsV2\":
+	//     {\"RequestId\": {\"type\": \"FIELD_INDEX\"}, \"APIName\": {\"type\": \"FACET\"},
+	//     \"StatusCode\": {\"type\": \"FACET\"}}}"
+	//
+	// You can use FieldsV2 to specify the type for each field. Supported types are
+	// FIELD_INDEX and FACET . Field names within Fields and FieldsV2 must be mutually
+	// exclusive.
 	//
 	// [PutDestination]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDestination.html
 	// [Processors that you can use]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation.html#CloudWatch-Logs-Transformation-Processors
@@ -377,7 +468,8 @@ type PutAccountPolicyInput struct {
 	// This member is required.
 	PolicyDocument *string
 
-	// A name for the policy. This must be unique within the account.
+	// A name for the policy. This must be unique within the account and cannot start
+	// with aws/ .
 	//
 	// This member is required.
 	PolicyName *string
@@ -393,17 +485,27 @@ type PutAccountPolicyInput struct {
 	Scope types.Scope
 
 	// Use this parameter to apply the new policy to a subset of log groups in the
-	// account.
+	// account or a data source name and type combination.
 	//
 	// Specifying selectionCriteria is valid only when you specify
 	// SUBSCRIPTION_FILTER_POLICY , FIELD_INDEX_POLICY or TRANSFORMER_POLICY for
 	// policyType .
 	//
-	// If policyType is SUBSCRIPTION_FILTER_POLICY , the only supported
-	// selectionCriteria filter is LogGroupName NOT IN []
+	//   - If policyType is SUBSCRIPTION_FILTER_POLICY , the only supported
+	//   selectionCriteria filter is LogGroupName NOT IN []
 	//
-	// If policyType is FIELD_INDEX_POLICY or TRANSFORMER_POLICY , the only supported
-	// selectionCriteria filter is LogGroupNamePrefix
+	//   - If policyType is TRANSFORMER_POLICY , the only supported selectionCriteria
+	//   filter is LogGroupNamePrefix
+	//
+	//   - If policyType is FIELD_INDEX_POLICY , the supported selectionCriteria
+	//   filters are:
+	//
+	//   - LogGroupNamePrefix
+	//
+	//   - DataSourceName AND DataSourceType
+	//
+	// When you specify selectionCriteria for a field index policy you can use either
+	//   LogGroupNamePrefix by itself or DataSourceName and DataSourceType together.
 	//
 	// The selectionCriteria string can be up to 25KB in length. The length is
 	// determined by using its UTF-8 bytes.
@@ -522,40 +624,7 @@ func (c *Client) addOperationPutAccountPolicyMiddlewares(stack *middleware.Stack
 	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addInterceptExecution(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptTransmit(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addSpanInitializeStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanInitializeEnd(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

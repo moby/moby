@@ -687,7 +687,7 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 					"topic":     ev.Topic,
 					"type":      reflect.TypeOf(t),
 					"container": t.ContainerID,
-				}).Info("ignoring event")
+				}).Info("received task-delete event from containerd")
 			default:
 				c.logger.WithFields(log.Fields{
 					"topic": ev.Topic,

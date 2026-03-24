@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestDecode(t *testing.T) {
@@ -161,7 +161,7 @@ func TestDecode(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			got := DecodeOptions(tc.opts)
-			assert.Check(t, cmp.DeepEqual(got, tc.want))
+			assert.Check(t, is.DeepEqual(got, tc.want))
 		})
 	}
 }

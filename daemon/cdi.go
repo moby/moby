@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/system"
@@ -22,6 +23,14 @@ type cdiHandler struct {
 // The driver injects CDI devices into an incoming OCI spec and is called for DeviceRequests associated with CDI devices.
 // If the list of CDI spec directories is empty, the driver is not registered.
 func RegisterCDIDriver(cdiSpecDirs ...string) *cdi.Cache {
+	for i, dir := range cdiSpecDirs {
+		if _, err := os.Stat(dir); !errors.Is(err, os.ErrNotExist) {
+			cdiSpecDirs[i], err = filepath.EvalSymlinks(dir)
+			if err != nil {
+				log.L.WithField("dir", dir).WithError(err).Warn("Failed to evaluate symlinks for CDI spec directory")
+			}
+		}
+	}
 	driver, cache := newCDIDeviceDriver(cdiSpecDirs...)
 	registerDeviceDriver("cdi", driver)
 	return cache
@@ -76,10 +85,10 @@ func createCDICache(cdiSpecDirs ...string) (*cdi.Cache, error) {
 	for dir, errs := range cache.GetErrors() {
 		for _, err := range errs {
 			if errors.Is(err, os.ErrNotExist) {
-				log.L.WithField("dir", dir).Infof("CDI directory does not exist, skipping: %v", err)
+				log.L.WithField("dir", dir).Info("CDI directory does not exist, skipping")
 				continue
 			}
-			log.L.WithField("dir", dir).Warnf("CDI setup error: %+v", err)
+			log.L.WithFields(log.Fields{"error": err, "dir": dir}).Warn("CDI setup error")
 		}
 	}
 

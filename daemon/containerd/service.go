@@ -15,11 +15,13 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/containerd/identitycache"
 	daemonevents "github.com/moby/moby/v2/daemon/events"
 	dimages "github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/distribution"
 	"github.com/moby/moby/v2/daemon/snapshotter"
 	"github.com/moby/moby/v2/errdefs"
+	policyverifier "github.com/moby/policy-helpers"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -40,25 +42,29 @@ type ImageService struct {
 	pruneRunning        atomic.Bool
 	refCountMounter     snapshotter.Mounter
 	idMapping           user.IdentityMapping
+	policyVerifier      func() (*policyverifier.Verifier, error)
+	identity            imageIdentityState
 
 	// defaultPlatformOverride is used in tests to override the host platform.
 	defaultPlatformOverride platforms.MatchComparer
 }
 
 type ImageServiceConfig struct {
-	Client          *containerd.Client
-	Containers      container.Store
-	Snapshotter     string
-	RegistryHosts   docker.RegistryHosts
-	Registry        distribution.RegistryResolver
-	EventsService   *daemonevents.Events
-	RefCountMounter snapshotter.Mounter
-	IDMapping       user.IdentityMapping
+	Client                 *containerd.Client
+	Containers             container.Store
+	Snapshotter            string
+	IdentityCacheBackend   identitycache.Backend
+	RegistryHosts          docker.RegistryHosts
+	Registry               distribution.RegistryResolver
+	EventsService          *daemonevents.Events
+	RefCountMounter        snapshotter.Mounter
+	IDMapping              user.IdentityMapping
+	PolicyVerifierProvider func() (*policyverifier.Verifier, error)
 }
 
 // NewService creates a new ImageService.
 func NewService(config ImageServiceConfig) *ImageService {
-	return &ImageService{
+	service := &ImageService{
 		client:  config.Client,
 		images:  config.Client.ImageService(),
 		content: config.Client.ContentStore(),
@@ -72,7 +78,19 @@ func NewService(config ImageServiceConfig) *ImageService {
 		eventsService:   config.EventsService,
 		refCountMounter: config.RefCountMounter,
 		idMapping:       config.IDMapping,
+		policyVerifier:  config.PolicyVerifierProvider,
+		identity: imageIdentityState{
+			cache: make(map[string]imageIdentityCacheEntry),
+			cacheStore: func() identitycache.Backend {
+				if config.IdentityCacheBackend != nil {
+					return config.IdentityCacheBackend
+				}
+				return identitycache.NewNopBackend()
+			}(),
+		},
 	}
+	service.startImageIdentityCacheRefresh()
+	return service
 }
 
 func (i *ImageService) snapshotterService(snapshotter string) snapshots.Snapshotter {
@@ -128,6 +146,10 @@ func (i *ImageService) GetLayerMountID(cid string) (string, error) {
 // Cleanup resources before the process is shutdown.
 // called from daemon.go Daemon.Shutdown()
 func (i *ImageService) Cleanup() error {
+	i.stopImageIdentityCacheRefresh()
+	if i.identity.cacheStore != nil {
+		return i.identity.cacheStore.Close()
+	}
 	return nil
 }
 
@@ -176,6 +198,10 @@ func (i *ImageService) layerDiskUsage(ctx context.Context) (allLayersSize int64,
 	err = snapshotter.Walk(ctx, func(ctx context.Context, info snapshots.Info) error {
 		usage, err := snapshotter.Usage(ctx, info.Name)
 		if err != nil {
+			// Snapshot may have been deleted already.
+			if cerrdefs.IsNotFound(err) {
+				return nil
+			}
 			return err
 		}
 		allLayersSize += usage.Size

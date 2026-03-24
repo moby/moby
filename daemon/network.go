@@ -7,6 +7,7 @@ import (
 	"maps"
 	"net"
 	"net/netip"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -304,9 +305,7 @@ func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, cre
 	}
 
 	networkOptions := make(map[string]string)
-	for k, v := range create.Options {
-		networkOptions[k] = v
-	}
+	maps.Copy(networkOptions, create.Options)
 	if defaultOpts, ok := cfg.DefaultNetworkOpts[driver]; create.ConfigFrom == nil && ok {
 		for k, v := range defaultOpts {
 			if _, ok := networkOptions[k]; !ok {
@@ -435,10 +434,8 @@ func (daemon *Daemon) pluginRefCount(driver, capability string, mode int) {
 		// other capabilities can be ignored for now
 	}
 
-	for _, d := range builtinDrivers {
-		if d == driver {
-			return
-		}
+	if slices.Contains(builtinDrivers, driver) {
+		return
 	}
 
 	if daemon.PluginStore != nil {

@@ -3,9 +3,12 @@ package build
 import (
 	"context"
 	"errors"
-	"net"
 	"testing"
 	"time"
+
+	// Register the npipe: protocol connection helper so the Buildkit client
+	// can dial Windows daemons.
+	_ "github.com/moby/buildkit/client/connhelper/npipe"
 
 	moby_buildkit_v1 "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client"
@@ -29,20 +32,14 @@ func (t *testWriter) Write(p []byte) (int, error) {
 }
 
 func TestBuildkitHistoryTracePropagation(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "buildkit is not supported on Windows")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows" && !testEnv.UsingSnapshotter(),
+		"buildkit is not supported on Windows with graphdrivers")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
 	c := testEnv.APIClient()
-	opts := []client.ClientOpt{
-		client.WithSessionDialer(func(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error) {
-			return c.DialHijack(ctx, "/session", proto, meta)
-		}),
-		client.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
-			return c.DialHijack(ctx, "/grpc", "h2c", nil)
-		}),
-	}
-	bc, err := client.New(ctx, "", opts...)
+	bc, err := client.New(ctx, c.DaemonHost())
+
 	assert.NilError(t, err)
 	defer bc.Close()
 

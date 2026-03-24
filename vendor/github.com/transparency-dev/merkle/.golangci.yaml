@@ -1,0 +1,11 @@
+run:
+  # timeout for analysis, e.g. 30s, 5m, default is 1m
+  deadline: 90s
+
+linters-settings:
+  depguard:
+    list-type: blacklist
+    packages:
+      - golang.org/x/net/context
+      - github.com/gogo/protobuf/proto
+

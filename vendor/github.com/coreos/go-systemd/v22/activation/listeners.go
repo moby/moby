@@ -45,12 +45,7 @@ func ListenersWithNames() (map[string][]net.Listener, error) {
 
 	for _, f := range files {
 		if pc, err := net.FileListener(f); err == nil {
-			current, ok := listeners[f.Name()]
-			if !ok {
-				listeners[f.Name()] = []net.Listener{pc}
-			} else {
-				listeners[f.Name()] = append(current, pc)
-			}
+			listeners[f.Name()] = append(listeners[f.Name()], pc)
 			f.Close()
 		}
 	}

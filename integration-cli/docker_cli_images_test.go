@@ -199,8 +199,8 @@ func (s *DockerCLIImagesSuite) TestImagesFilterSinceAndBefore(c *testing.T) {
 
 func getImageIDs(out string) []string {
 	var actual []string
-	imgs := strings.Split(out, "\n")
-	for _, l := range imgs {
+	imgs := strings.SplitSeq(out, "\n")
+	for l := range imgs {
 		imgTag, imgDigest, _ := strings.Cut(l, "\t")
 		if strings.HasPrefix(imgTag, "test_") {
 			actual = append(actual, imgDigest)

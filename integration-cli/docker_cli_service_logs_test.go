@@ -203,7 +203,7 @@ func (s *DockerSwarmSuite) TestServiceLogsFollow(c *testing.T) {
 		}
 	}()
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		msg := <-ch
 		assert.NilError(c, msg.err)
 		assert.Assert(c, is.Contains(string(msg.data), "log test"))

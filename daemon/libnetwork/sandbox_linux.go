@@ -259,7 +259,7 @@ func (sb *Sandbox) releaseOSSbox() error {
 	return osSbox.Destroy()
 }
 
-func (sb *Sandbox) restoreOslSandbox() error {
+func (sb *Sandbox) restoreOslSandbox(ctx context.Context) error {
 	var routes []*types.StaticRoute
 
 	// restore osl sandbox
@@ -271,7 +271,7 @@ func (sb *Sandbox) restoreOslSandbox() error {
 		ep.mu.Unlock()
 
 		if i == nil {
-			log.G(context.TODO()).Errorf("error restoring endpoint %s for container %s", ep.Name(), sb.ContainerID())
+			log.G(ctx).Errorf("error restoring endpoint %s for container %s", ep.Name(), sb.ContainerID())
 			continue
 		}
 
@@ -298,7 +298,9 @@ func (sb *Sandbox) restoreOslSandbox() error {
 		}
 	}
 
-	if err := sb.osSbox.RestoreInterfaces(interfaces); err != nil {
+	// Use WithoutCancel so that restore completes even if the parent context is
+	// cancelled - we don't want to leave containers with partially restored networking.
+	if err := sb.osSbox.RestoreInterfaces(context.WithoutCancel(ctx), interfaces); err != nil {
 		return err
 	}
 	if len(routes) > 0 {

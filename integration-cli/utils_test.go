@@ -24,7 +24,7 @@ func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
 // a map which cgroup name as key and path as value.
 func ParseCgroupPaths(procCgroupData string) map[string]string {
 	cgroupPaths := map[string]string{}
-	for _, line := range strings.Split(procCgroupData, "\n") {
+	for line := range strings.SplitSeq(procCgroupData, "\n") {
 		parts := strings.Split(line, ":")
 		if len(parts) != 3 {
 			continue
@@ -120,7 +120,7 @@ func existingElements(t *testing.T, opts elementListOptions) []string {
 	}
 	out := cli.DockerCmd(t, args...).Combined()
 	var lines []string
-	for _, l := range strings.Split(out, "\n") {
+	for l := range strings.SplitSeq(out, "\n") {
 		if l != "" {
 			lines = append(lines, l)
 		}

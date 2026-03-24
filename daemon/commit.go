@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"maps"
 	"runtime"
 	"strings"
 	"time"
@@ -109,9 +110,7 @@ func merge(userConf, imageConf *containertypes.Config) error {
 	if len(userConf.Volumes) == 0 {
 		userConf.Volumes = imageConf.Volumes
 	} else {
-		for k, v := range imageConf.Volumes {
-			userConf.Volumes[k] = v
-		}
+		maps.Copy(userConf.Volumes, imageConf.Volumes)
 	}
 
 	if userConf.StopSignal == "" {

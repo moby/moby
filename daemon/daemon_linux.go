@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 
@@ -231,10 +232,8 @@ func supportsRecursivelyReadOnly(cfg *configStore, runtime string) error {
 	if features == nil {
 		return fmt.Errorf("rro is not supported by runtime %q: OCI features struct is not available", runtime)
 	}
-	for _, s := range features.MountOptions {
-		if s == "rro" {
-			return nil
-		}
+	if slices.Contains(features.MountOptions, "rro") {
+		return nil
 	}
 	return fmt.Errorf("rro is not supported by runtime %q", runtime)
 }

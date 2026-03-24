@@ -62,6 +62,12 @@ type ImageSource struct {
 	Local    bool
 }
 
+type ImageBlobSource struct {
+	Ref    string
+	Digest digest.Digest
+	Local  bool
+}
+
 type GitSource struct {
 	URL    string
 	Commit string
@@ -87,10 +93,11 @@ type SSH struct {
 }
 
 type Sources struct {
-	Images []ImageSource
-	Git    []GitSource
-	HTTP   []HTTPSource
-	Local  []LocalSource
+	Images     []ImageSource
+	ImageBlobs []ImageBlobSource
+	Git        []GitSource
+	HTTP       []HTTPSource
+	Local      []LocalSource
 }
 
 func (ps *ProvenanceSLSA) Validate() error {

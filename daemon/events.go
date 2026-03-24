@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -23,7 +24,9 @@ func (daemon *Daemon) LogContainerEvent(container *container.Container, action e
 
 // LogContainerEventWithAttributes generates an event related to a container with specific given attributes.
 func (daemon *Daemon) LogContainerEventWithAttributes(container *container.Container, action events.Action, attributes map[string]string) {
-	copyAttributes(attributes, container.Config.Labels)
+	if container.Config.Labels != nil {
+		maps.Copy(attributes, container.Config.Labels)
+	}
 	if container.Config.Image != "" {
 		attributes["image"] = container.Config.Image
 	}
@@ -87,16 +90,6 @@ func (daemon *Daemon) SubscribeToEvents(since, until time.Time, filter filters.A
 // channel where the daemon sends events to.
 func (daemon *Daemon) UnsubscribeFromEvents(listener chan any) {
 	daemon.EventsService.Evict(listener)
-}
-
-// copyAttributes guarantees that labels are not mutated by event triggers.
-func copyAttributes(attributes, labels map[string]string) {
-	if labels == nil {
-		return
-	}
-	for k, v := range labels {
-		attributes[k] = v
-	}
 }
 
 // ProcessClusterNotifications gets changes from store and add them to event list

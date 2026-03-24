@@ -15,6 +15,9 @@ import (
 // log group. Includes the percentage of log events that contain each field. The
 // search is limited to a time period that you specify.
 //
+// This operation is used for discovering fields within log group events. For
+// discovering fields across data sources, use the GetLogFields operation.
+//
 // You can specify the log group to search by using either logGroupIdentifier or
 // logGroupName . You must specify one of these parameters, but you can't specify
 // both.
@@ -176,40 +179,7 @@ func (c *Client) addOperationGetLogGroupFieldsMiddlewares(stack *middleware.Stac
 	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addInterceptExecution(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptTransmit(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addSpanInitializeStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanInitializeEnd(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

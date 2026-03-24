@@ -136,14 +136,19 @@ func newCancelReadCloser(ctx context.Context, rc io.ReadCloser) io.ReadCloser {
 		rc:    rc,
 		close: sync.OnceValue(rc.Close),
 	}
-	context.AfterFunc(ctx, func() { _ = crc.Close() })
+	crc.stop = context.AfterFunc(ctx, func() { _ = crc.Close() })
 	return crc
 }
 
 type cancelReadCloser struct {
 	rc    io.ReadCloser
 	close func() error
+	stop  func() bool
 }
 
 func (c *cancelReadCloser) Read(p []byte) (int, error) { return c.rc.Read(p) }
-func (c *cancelReadCloser) Close() error               { return c.close() }
+
+func (c *cancelReadCloser) Close() error {
+	c.stop() // unregister AfterFunc
+	return c.close()
+}

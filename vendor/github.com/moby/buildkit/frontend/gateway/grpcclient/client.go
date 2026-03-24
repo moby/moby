@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -471,13 +472,22 @@ func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (res *
 }
 
 func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.SourceOp, opt sourceresolver.Opt) (*sourceresolver.MetaResponse, error) {
+	requiresImageAttestationResolve := opt.ImageOpt != nil && (opt.ImageOpt.AttestationChain || len(opt.ImageOpt.ResolveAttestations) > 0)
+	requiresHTTPChecksumRequest := opt.HTTPOpt != nil && opt.HTTPOpt.ChecksumReq != nil
+
 	if c.caps.Supports(pb.CapSourceMetaResolver) != nil {
+		if requiresImageAttestationResolve {
+			return nil, errors.New("image attestation resolution requires source metadata resolver support")
+		}
 		var ref string
 		if v, ok := strings.CutPrefix(op.Identifier, "docker-image://"); ok {
 			ref = v
 		} else if v, ok := strings.CutPrefix(op.Identifier, "oci-layout://"); ok {
 			ref = v
 		} else {
+			if requiresHTTPChecksumRequest {
+				return nil, errors.New("http checksum request requires source metadata resolver support")
+			}
 			return &sourceresolver.MetaResponse{Op: op}, nil
 		}
 		retRef, dgst, config, err := c.ResolveImageConfig(ctx, ref, opt)
@@ -497,6 +507,17 @@ func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.Source
 				Config: config,
 			},
 		}, nil
+	}
+
+	if requiresImageAttestationResolve {
+		if err := c.caps.Supports(pb.CapSourceMetaResolverImageAttestations); err != nil {
+			return nil, errors.Wrap(err, "image attestation resolution requires additional source metadata resolver support")
+		}
+	}
+	if requiresHTTPChecksumRequest {
+		if err := c.caps.Supports(pb.CapSourceMetaResolverHTTPChecksumRequest); err != nil {
+			return nil, errors.Wrap(err, "http checksum request requires additional source metadata resolver support")
+		}
 	}
 
 	var platform *ocispecs.Platform
@@ -523,15 +544,33 @@ func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.Source
 		SourcePolicies: opt.SourcePolicies,
 	}
 	if opt.ImageOpt != nil {
+		attestationChain := opt.ImageOpt.AttestationChain
+		if len(opt.ImageOpt.ResolveAttestations) > 0 {
+			attestationChain = true
+		}
+		req.ResolveMode = opt.ImageOpt.ResolveMode
 		req.Image = &pb.ResolveSourceImageRequest{
-			NoConfig:         opt.ImageOpt.NoConfig,
-			AttestationChain: opt.ImageOpt.AttestationChain,
+			NoConfig:            opt.ImageOpt.NoConfig,
+			AttestationChain:    attestationChain,
+			ResolveAttestations: slices.Clone(opt.ImageOpt.ResolveAttestations),
 		}
 	}
 
 	if opt.GitOpt != nil {
 		req.Git = &pb.ResolveSourceGitRequest{
 			ReturnObject: opt.GitOpt.ReturnObject,
+		}
+	}
+	if requiresHTTPChecksumRequest {
+		algo, err := toPBHTTPChecksumAlgo(opt.HTTPOpt.ChecksumReq.Algo)
+		if err != nil {
+			return nil, err
+		}
+		req.HTTP = &pb.ResolveSourceHTTPRequest{
+			ChecksumRequest: &pb.ChecksumRequest{
+				Algo:   algo,
+				Suffix: slices.Clone(opt.HTTPOpt.ChecksumReq.Suffix),
+			},
 		}
 	}
 
@@ -569,8 +608,32 @@ func (c *grpcClient) ResolveSourceMetadata(ctx context.Context, op *opspb.Source
 			tm := resp.HTTP.LastModified.AsTime()
 			r.HTTP.LastModified = &tm
 		}
+		if resp.HTTP.ChecksumResponse != nil {
+			r.HTTP.ChecksumResponse = &sourceresolver.ResolveHTTPChecksumResponse{
+				Digest: resp.HTTP.ChecksumResponse.Digest,
+				Suffix: slices.Clone(resp.HTTP.ChecksumResponse.Suffix),
+			}
+		}
+	}
+	if requiresHTTPChecksumRequest {
+		if resp.HTTP == nil || resp.HTTP.ChecksumResponse == nil {
+			return nil, errors.New("http checksum request was sent but response did not include checksum response")
+		}
 	}
 	return r, nil
+}
+
+func toPBHTTPChecksumAlgo(in sourceresolver.ResolveHTTPChecksumAlgo) (pb.ChecksumRequest_ChecksumAlgo, error) {
+	switch in {
+	case sourceresolver.ResolveHTTPChecksumAlgoSHA256:
+		return pb.ChecksumRequest_CHECKSUM_ALGO_SHA256, nil
+	case sourceresolver.ResolveHTTPChecksumAlgoSHA384:
+		return pb.ChecksumRequest_CHECKSUM_ALGO_SHA384, nil
+	case sourceresolver.ResolveHTTPChecksumAlgoSHA512:
+		return pb.ChecksumRequest_CHECKSUM_ALGO_SHA512, nil
+	default:
+		return pb.ChecksumRequest_CHECKSUM_ALGO_SHA256, errors.Errorf("invalid http checksum algorithm: %d", in)
+	}
 }
 
 func imgResponseFromPB(resp *pb.ResolveSourceImageResponse) *sourceresolver.ResolveImageResponse {
@@ -1191,6 +1254,70 @@ func (ctr *container) Release(ctx context.Context) error {
 		ContainerID: ctr.id,
 	})
 	return err
+}
+
+func (ctr *container) ReadFile(ctx context.Context, req client.ReadContainerRequest) ([]byte, error) {
+	if err := ctr.caps.Supports(pb.CapGatewayExecFilesystem); err != nil {
+		return nil, err
+	}
+
+	bklog.G(ctx).Debugf("|---> ReadFileContainer %s@%d", ctr.id, req.MountIndex)
+	in := &pb.ReadFileRequest{
+		Ref:        ctr.id,
+		FilePath:   req.Filename,
+		MountIndex: int32(req.MountIndex),
+	}
+	if req.Range != nil {
+		in.Range = &pb.FileRange{
+			Length: int64(req.Range.Length),
+			Offset: int64(req.Range.Offset),
+		}
+	}
+
+	resp, err := ctr.client.ReadFileContainer(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Data, nil
+}
+
+func (ctr *container) ReadDir(ctx context.Context, req client.ReadDirContainerRequest) ([]*fstypes.Stat, error) {
+	if err := ctr.caps.Supports(pb.CapGatewayExecFilesystem); err != nil {
+		return nil, err
+	}
+
+	bklog.G(ctx).Debugf("|---> ReadDirContainer %s@%d", ctr.id, req.MountIndex)
+	in := &pb.ReadDirRequest{
+		Ref:            ctr.id,
+		DirPath:        req.Path,
+		IncludePattern: req.IncludePattern,
+		MountIndex:     int32(req.MountIndex),
+	}
+
+	resp, err := ctr.client.ReadDirContainer(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Entries, nil
+}
+
+func (ctr *container) StatFile(ctx context.Context, req client.StatContainerRequest) (*fstypes.Stat, error) {
+	if err := ctr.caps.Supports(pb.CapGatewayExecFilesystem); err != nil {
+		return nil, err
+	}
+
+	bklog.G(ctx).Debugf("|---> StatFileContainer %s@%d", ctr.id, req.MountIndex)
+	in := &pb.StatFileRequest{
+		Ref:        ctr.id,
+		Path:       req.Path,
+		MountIndex: int32(req.MountIndex),
+	}
+
+	resp, err := ctr.client.StatFileContainer(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Stat, nil
 }
 
 type containerProcess struct {

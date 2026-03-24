@@ -547,7 +547,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverCapabilities(c *test
 	s.d.Start(c)
 	assert.Equal(c, s.ec.caps, 0)
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		out, err := s.d.Cmd("volume", "create", "-d", volumePluginName, fmt.Sprintf("test%d", i))
 		assert.NilError(c, err, out)
 		assert.Equal(c, s.ec.caps, 1)

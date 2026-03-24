@@ -26,6 +26,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httpstatus"
 	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/daemon/server/httputils/logstream"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/ioutils"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -33,6 +34,10 @@ import (
 	"go.opentelemetry.io/otel"
 	"golang.org/x/net/websocket"
 )
+
+// errLegacyCapabilities is returned when a client sends the deprecated
+// HostConfig.Capabilities field, which this daemon can no longer fulfill.
+var errLegacyCapabilities = errdefs.InvalidParameter(errors.New("the HostConfig.Capabilities field is not supported by this daemon; use CapAdd and CapDrop to set capabilities"))
 
 // commitRequest may contain an optional [container.Config].
 type commitRequest struct {
@@ -113,8 +118,6 @@ func (c *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 	containers, err := c.backend.Containers(ctx, &backend.ContainerListOptions{
 		All:     httputils.BoolValue(r, "all"),
 		Size:    httputils.BoolValue(r, "size"),
-		Since:   r.Form.Get("since"),
-		Before:  r.Form.Get("before"),
 		Limit:   limit,
 		Filters: filter,
 	})
@@ -219,7 +222,7 @@ func (c *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	// this is the point of no return for writing a response. once we call
 	// WriteLogStream, the response has been started and errors will be
 	// returned in band by WriteLogStream
-	httputils.WriteLogStream(ctx, w, msgs, logsConfig, !tty)
+	logstream.Write(ctx, w, msgs, logsConfig, !tty)
 	return nil
 }
 
@@ -674,8 +677,19 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 			//
 			// MacAddress field is deprecated since API v1.44. Use EndpointSettings.MacAddress instead.
 			MacAddress network.HardwareAddr `json:",omitempty"`
+
+			HostConfig struct {
+				// Capabilities was removed in commit 24f173a003 for
+				// API version 1.41, favoring CapAdd and CapDrop instead.
+				Capabilities []string `json:",omitempty"`
+			} `json:",omitempty"`
 		}
 		_ = json.Unmarshal(requestBody.Bytes(), &legacyConfig)
+
+		if err := rejectLegacyCapabilities(legacyConfig.HostConfig.Capabilities, version); err != nil {
+			return err
+		}
+
 		if warn, err := handleMACAddressBC(hostConfig, networkingConfig, version, legacyConfig.MacAddress); err != nil {
 			return err
 		} else if warn != "" {
@@ -741,6 +755,26 @@ func handleVolumeDriverBC(version string, hostConfig *container.HostConfig) (war
 		return "WARNING: the container-wide volume-driver configuration is ignored for volumes specified via 'mount'. Use '--mount type=volume,volume-driver=...' instead"
 	}
 	return ""
+}
+
+// rejectLegacyCapabilities returns an error if the deprecated
+// HostConfig.Capabilities field is present in a request for API version 1.40.
+//
+// The Capabilities field was added in API 1.40 (Docker 19.03) as a way to
+// specify the exact set of kernel capabilities for a container, overriding
+// the CapAdd/CapDrop mechanism. It was removed before API 1.41 (Docker 20.10)
+// because putting the burden of providing the full capability list on the
+// client was considered a poor design (see 24f173a003).
+//
+// The field has since been deleted from the API type, so json.Unmarshal
+// silently drops it. This daemon cannot honor the field, so it is best to
+// return an explicit error rather than silently ignoring the field when it is
+// expected to be supported.
+func rejectLegacyCapabilities(capabilities []string, version string) error {
+	if len(capabilities) > 0 && versions.Equal(version, "1.40") {
+		return errLegacyCapabilities
+	}
+	return nil
 }
 
 // handleMACAddressBC takes care of backward-compatibility for the container-wide MAC address by mutating the
@@ -903,18 +937,25 @@ func handlePortBindingsBC(hostConfig *container.HostConfig, version string) stri
 		if len(bindings) > 0 {
 			continue
 		}
-		if versions.GreaterThan(version, "1.52") && len(bindings) == 0 {
-			// Starting with API 1.53, no backfilling is done. An empty slice
-			// of port bindings is treated as "no port bindings" by the daemon,
-			// but it still needs to backfill empty slices when loading the
-			// on-disk state for containers created by older versions of the
-			// Engine. Drop the PortBindings entry to ensure that no backfilling
-			// will happen when restarting the daemon.
-			delete(hostConfig.PortBindings, port)
-			continue
-		}
+		/*
+			API 1.53 shipped in a minor release. We cannot introduce a breaking change there, so
+			we must still backfill empty port bindings. This change can be re-introduced for the
+			API version that ships in 30.x. Note that some networking tests will need fixing.
+			See https://github.com/moby/moby/issues/51727
 
-		if versions.Equal(version, "1.52") {
+			if versions.GreaterThan(version, "1.52") && len(bindings) == 0 {
+				// Starting with API 1.53, no backfilling is done. An empty slice
+				// of port bindings is treated as "no port bindings" by the daemon,
+				// but it still needs to backfill empty slices when loading the
+				// on-disk state for containers created by older versions of the
+				// Engine. Drop the PortBindings entry to ensure that no backfilling
+				// will happen when restarting the daemon.
+				delete(hostConfig.PortBindings, port)
+				continue
+			}
+		*/
+
+		if versions.GreaterThanOrEqualTo(version, "1.52") {
 			emptyPBs = append(emptyPBs, port.String())
 		}
 
@@ -922,7 +963,7 @@ func handlePortBindingsBC(hostConfig *container.HostConfig, version string) stri
 	}
 
 	if len(emptyPBs) > 0 {
-		return fmt.Sprintf("Following container port(s) have an empty list of port-bindings: %s. Starting with API 1.53, such bindings will be discarded.", strings.Join(emptyPBs, ", "))
+		return fmt.Sprintf("Following container port(s) have an empty list of port-bindings: %s. Such bindings will be discarded in a future version.", strings.Join(emptyPBs, ", "))
 	}
 
 	return ""

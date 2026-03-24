@@ -9,6 +9,9 @@ type sessionRouter struct {
 }
 
 // NewRouter initializes a new session router
+//
+// Deprecated: The /session endpoint is deprecated and will be removed in the next
+// major version. The Engine now properly supports HTTP/2 and h2c requests.
 func NewRouter(b Backend) router.Router {
 	r := &sessionRouter{
 		backend: b,

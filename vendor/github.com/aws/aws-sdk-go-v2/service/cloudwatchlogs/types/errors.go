@@ -91,6 +91,34 @@ func (e *DataAlreadyAcceptedException) ErrorCode() string {
 }
 func (e *DataAlreadyAcceptedException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
+// An internal server error occurred while processing the request. This exception
+// is returned when the service encounters an unexpected condition that prevents it
+// from fulfilling the request.
+type InternalServerException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *InternalServerException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *InternalServerException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *InternalServerException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "InternalServerException"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *InternalServerException) ErrorFault() smithy.ErrorFault { return smithy.FaultServer }
+
 // An internal error occurred during the streaming of log data. This exception is
 // thrown when there's an issue with the internal streaming mechanism used by the
 // GetLogObject operation.

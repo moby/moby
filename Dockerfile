@@ -1,19 +1,19 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.25.6
+ARG GO_VERSION=1.25.7
 ARG BASE_DEBIAN_DISTRO="bookworm"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
 # XX_VERSION specifies the version of the xx utility to use.
 # It must be a valid tag in the docker.io/tonistiigi/xx image repository.
-ARG XX_VERSION=1.7.0
+ARG XX_VERSION=1.9.0
 
 # VPNKIT_VERSION is the version of the vpnkit binary which is used as a fallback
 # network driver for rootless.
 ARG VPNKIT_VERSION=0.6.0
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
-ARG DOCKERCLI_VERSION=v29.0.1
+ARG DOCKERCLI_VERSION=v29.2.1
 ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
 
 # cli version used for integration-cli tests
@@ -21,10 +21,10 @@ ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
 ARG DOCKERCLI_INTEGRATION_VERSION=v25.0.5
 
 # BUILDX_VERSION is the version of buildx to install in the dev container.
-ARG BUILDX_VERSION=0.30.1
+ARG BUILDX_VERSION=0.31.1
 
 # COMPOSE_VERSION is the version of compose to install in the dev container.
-ARG COMPOSE_VERSION=v2.40.0
+ARG COMPOSE_VERSION=v5.1.0
 
 ARG SYSTEMD="false"
 ARG FIREWALLD="false"
@@ -36,14 +36,15 @@ ARG DOCKER_STATIC=1
 # specified here should match a current release.
 ARG REGISTRY_VERSION=3.0.0
 
-# delve is currently only supported on linux/amd64 and linux/arm64;
-# https://github.com/go-delve/delve/blob/v1.25.0/pkg/proc/native/support_sentinel.go#L1
-# https://github.com/go-delve/delve/blob/v1.25.0/pkg/proc/native/support_sentinel_linux.go#L1
+# delve is currently only supported on linux/amd64, linux/arm64, and linux/ppc64le;
+# https://github.com/go-delve/delve/blob/v1.26.0/pkg/proc/native/support_sentinel.go#L1
+# https://github.com/go-delve/delve/blob/v1.26.0/pkg/proc/native/support_sentinel_linux.go#L1
 #
-# ppc64le support was added in v1.21.1, but is still experimental, and requires
-# the "-tags exp.linuxppc64le" build-tag to be set:
-# https://github.com/go-delve/delve/commit/71f12207175a1cc09668f856340d8a543c87dcca
-ARG DELVE_SUPPORTED=${TARGETPLATFORM#linux/amd64} DELVE_SUPPORTED=${DELVE_SUPPORTED#linux/arm64} DELVE_SUPPORTED=${DELVE_SUPPORTED#linux/ppc64le}
+# Remove supported, non-experimental platforms; if anything remains, it's unsupported.
+ARG DELVE_SUPPORTED=${TARGETPLATFORM#linux/amd64}
+ARG DELVE_SUPPORTED=${DELVE_SUPPORTED#linux/arm64}
+ARG DELVE_SUPPORTED=${DELVE_SUPPORTED#linux/ppc64le}
+ARG DELVE_SUPPORTED=${DELVE_SUPPORTED#linux/riscv64}
 ARG DELVE_SUPPORTED=${DELVE_SUPPORTED:+"unsupported"}
 ARG DELVE_SUPPORTED=${DELVE_SUPPORTED:-"supported"}
 
@@ -83,22 +84,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
 FROM distribution/distribution:$REGISTRY_VERSION AS registry
 RUN mkdir /build && mv /bin/registry /build/registry
 
-# go-swagger
-FROM base AS swagger
-WORKDIR /go/src/github.com/go-swagger/go-swagger
-ARG TARGETPLATFORM
-# GO_SWAGGER_VERSION specifies the version of the go-swagger binary to install.
-# Go-swagger is used in CI for generating types from swagger.yaml in
-# hack/validate/swagger-gen
-ARG GO_SWAGGER_VERSION=v0.33.1
-RUN --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLATFORM \
-    --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=tmpfs,target=/go/src/ <<EOT
-  set -e
-  GOBIN=/build CGO_ENABLED=0 xx-go install "github.com/go-swagger/go-swagger/cmd/swagger@${GO_SWAGGER_VERSION}"
-  xx-verify /build/swagger
-EOT
-
 # frozen-images
 # See also frozenImages in "testutil/environment/protect.go" (which needs to
 # be updated when adding images to this list)
@@ -130,7 +115,7 @@ RUN git init . && git remote add origin "https://github.com/go-delve/delve.git"
 # from the https://github.com/go-delve/delve repository.
 # It can be used to run Docker with a possibility of
 # attaching debugger to it.
-ARG DELVE_VERSION=v1.25.2
+ARG DELVE_VERSION=v1.26.0
 RUN git fetch -q --depth 1 origin "${DELVE_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS delve-supported
@@ -163,7 +148,7 @@ RUN git init . && git remote add origin "https://github.com/containerd/container
 # integration tests. The distributed docker .deb and .rpm packages depend on a
 # separate (containerd.io) package, which may be a different version as is
 # specified here.
-ARG CONTAINERD_VERSION=v2.2.0
+ARG CONTAINERD_VERSION=v2.2.1
 RUN git fetch -q --depth 1 origin "${CONTAINERD_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS containerd-build
@@ -194,7 +179,7 @@ FROM binary-dummy AS containerd-windows
 FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
-ARG GOLANGCI_LINT_VERSION=v2.1.5
+ARG GOLANGCI_LINT_VERSION=v2.8.0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         GOBIN=/build CGO_ENABLED=0 go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
@@ -321,8 +306,7 @@ FROM tini-${TARGETOS} AS tini
 FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
 RUN git init . && git remote add origin "https://github.com/rootless-containers/rootlesskit.git"
-# When updating, also update go.mod and hack/dockerfile/install/rootlesskit.installer accordingly.
-ARG ROOTLESSKIT_VERSION=v2.3.5
+ARG ROOTLESSKIT_VERSION=v2.3.6
 RUN git fetch -q --depth 1 origin "${ROOTLESSKIT_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
 
 FROM base AS rootlesskit-build
@@ -421,7 +405,6 @@ FROM docker/compose-bin:${COMPOSE_VERSION} AS compose
 
 FROM base AS dev-systemd-false
 COPY --link --from=frozen-images /build/ /docker-frozen-images
-COPY --link --from=swagger       /build/ /usr/local/bin/
 COPY --link --from=delve         /build/ /usr/local/bin/
 COPY --link --from=gowinres      /build/ /usr/local/bin/
 COPY --link --from=tini          /build/ /usr/local/bin/

@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -34,12 +34,12 @@ func init() {
 		Source:      lint.CABFBaselineRequirements,
 		// since effective date should be checked against end date in this specific case, putting time check into checkApplies instead, ZeroDate here to automatically pass NE test
 		EffectiveDate: util.ZeroDate,
-		Lint:          &subCaModSize{},
+		Lint:          NewSubCaModSize,
 	})
 }
 
-func (l *subCaModSize) Initialize() error {
-	return nil
+func NewSubCaModSize() lint.LintInterface {
+	return &subCaModSize{}
 }
 
 func (l *subCaModSize) CheckApplies(c *x509.Certificate) bool {

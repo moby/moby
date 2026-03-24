@@ -75,7 +75,7 @@ func TestRequestPoolParallel(t *testing.T) {
 	imax := 1 << (a.local4.predefined[0].Size - a.local4.predefined[0].Base.Bits())
 	allocCh := make(chan string, imax)
 
-	for i := 0; i < imax; i++ {
+	for i := range imax {
 		expected = append(expected, fmt.Sprintf("10.%d.%d.0/24", uint(i/256), i%256))
 
 		eg.Go(func() error {
@@ -177,7 +177,7 @@ func allocate(t *testing.T, tctx *testContext, parallel int64) {
 	wg.Wait()
 
 	// process results
-	for i := 0; i < routineNum; i++ {
+	for range routineNum {
 		ip := <-ch
 		if ip == nil {
 			continue

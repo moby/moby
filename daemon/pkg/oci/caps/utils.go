@@ -2,6 +2,7 @@ package caps
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/moby/moby/v2/errdefs"
@@ -35,16 +36,6 @@ func GetAllCapabilities() []string {
 func knownCapabilities() map[string]*struct{} {
 	initCaps()
 	return knownCaps
-}
-
-// inSlice tests whether a string is contained in a slice of strings or not.
-func inSlice(slice []string, s string) bool {
-	for _, ss := range slice {
-		if s == ss {
-			return true
-		}
-	}
-	return false
 }
 
 const allCapabilities = "ALL"
@@ -103,20 +94,20 @@ func TweakCapabilities(basics, adds, drops []string, privileged bool) ([]string,
 	var caps []string
 
 	switch {
-	case inSlice(capAdd, allCapabilities):
+	case slices.Contains(capAdd, allCapabilities):
 		// Add all capabilities except ones on capDrop
 		for _, c := range GetAllCapabilities() {
-			if !inSlice(capDrop, c) {
+			if !slices.Contains(capDrop, c) {
 				caps = append(caps, c)
 			}
 		}
-	case inSlice(capDrop, allCapabilities):
+	case slices.Contains(capDrop, allCapabilities):
 		// "Drop" all capabilities; use what's in capAdd instead
 		caps = capAdd
 	default:
 		// First drop some capabilities
 		for _, c := range basics {
-			if !inSlice(capDrop, c) {
+			if !slices.Contains(capDrop, c) {
 				caps = append(caps, c)
 			}
 		}

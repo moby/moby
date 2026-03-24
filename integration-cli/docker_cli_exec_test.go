@@ -283,10 +283,8 @@ func (s *DockerCLIExecSuite) TestExecCgroup(c *testing.T) {
 	var execCgroups []sort.StringSlice
 	errChan := make(chan error, 5)
 	// exec a few times concurrently to get consistent failure
-	for i := 0; i < 5; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 5 {
+		wg.Go(func() {
 			out, _, err := dockerCmdWithError("exec", "testing", "cat", "/proc/self/cgroup")
 			if err != nil {
 				errChan <- err
@@ -297,7 +295,7 @@ func (s *DockerCLIExecSuite) TestExecCgroup(c *testing.T) {
 			mu.Lock()
 			execCgroups = append(execCgroups, cg)
 			mu.Unlock()
-		}()
+		})
 	}
 	wg.Wait()
 	close(errChan)
@@ -337,7 +335,7 @@ func (s *DockerCLIExecSuite) TestExecInspectID(c *testing.T) {
 
 	// Give the exec 10 chances/seconds to start then give up and stop the test
 	tries := 10
-	for i := 0; i < tries; i++ {
+	for i := range tries {
 		// Since its still running we should see exec as part of the container
 		out = strings.TrimSpace(inspectField(c, id, "ExecIDs"))
 
@@ -360,7 +358,7 @@ func (s *DockerCLIExecSuite) TestExecInspectID(c *testing.T) {
 	cmd.Wait()
 
 	// Give the exec 10 chances/seconds to stop then give up and stop the test
-	for i := 0; i < tries; i++ {
+	for i := range tries {
 		// Since its still running we should see exec as part of the container
 		out = strings.TrimSpace(inspectField(c, id, "ExecIDs"))
 

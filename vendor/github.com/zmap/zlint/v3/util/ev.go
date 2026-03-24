@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2021 Regents of the University of Michigan
+ * ZLint Copyright 2023 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,10 +15,11 @@
 package util
 
 import (
-	"encoding/asn1"
+	"github.com/zmap/zcrypto/encoding/asn1"
 )
 
 var evoids = map[string]bool{
+	"2.23.140.1.1":                     true,
 	"1.3.159.1.17.1":                   true,
 	"1.3.6.1.4.1.34697.2.1":            true,
 	"1.3.6.1.4.1.34697.2.2":            true,

@@ -1,7 +1,6 @@
 package container
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -71,8 +70,7 @@ func TestWaitNodeAttachment(t *testing.T) {
 	}
 
 	// create a context to do call the method with
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// create a channel to allow the goroutine that we run the method call in
 	// to signal that it's done.

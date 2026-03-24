@@ -1,15 +1,12 @@
+//go:build darwin || dragonfly || freebsd || netbsd || openbsd
 // +build darwin dragonfly freebsd netbsd openbsd
 
 package sockaddr
 
 import "os/exec"
 
-var cmds map[string][]string = map[string][]string{
+var cmds = map[string][]string{
 	"route": {"/sbin/route", "-n", "get", "default"},
-}
-
-type routeInfo struct {
-	cmds map[string][]string
 }
 
 // NewRouteInfo returns a BSD-specific implementation of the RouteInfo

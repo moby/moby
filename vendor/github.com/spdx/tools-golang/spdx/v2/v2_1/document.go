@@ -18,7 +18,7 @@ type ExternalDocumentRef struct {
 	// DocumentRefID is the ID string defined in the start of the
 	// reference. It should _not_ contain the "DocumentRef-" part
 	// of the mandatory ID string.
-	DocumentRefID string `json:"externalDocumentId"`
+	DocumentRefID common.DocumentID `json:"externalDocumentId"`
 
 	// URI is the URI defined for the external document
 	URI string `json:"spdxDocument"`

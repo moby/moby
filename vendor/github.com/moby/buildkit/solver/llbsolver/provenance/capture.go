@@ -32,6 +32,9 @@ func (c *Capture) Merge(c2 *Capture) error {
 	for _, i := range c2.Sources.Images {
 		c.AddImage(i)
 	}
+	for _, i := range c2.Sources.ImageBlobs {
+		c.AddImageBlob(i)
+	}
 	for _, l := range c2.Sources.Local {
 		c.AddLocal(l)
 	}
@@ -58,6 +61,9 @@ func (c *Capture) Merge(c2 *Capture) error {
 
 func (c *Capture) Sort() {
 	slices.SortFunc(c.Sources.Images, func(a, b provenancetypes.ImageSource) int {
+		return cmp.Compare(a.Ref, b.Ref)
+	})
+	slices.SortFunc(c.Sources.ImageBlobs, func(a, b provenancetypes.ImageBlobSource) int {
 		return cmp.Compare(a.Ref, b.Ref)
 	})
 	slices.SortFunc(c.Sources.Local, func(a, b provenancetypes.LocalSource) int {
@@ -124,6 +130,15 @@ func (c *Capture) AddImage(i provenancetypes.ImageSource) {
 		}
 	}
 	c.Sources.Images = append(c.Sources.Images, i)
+}
+
+func (c *Capture) AddImageBlob(i provenancetypes.ImageBlobSource) {
+	for _, v := range c.Sources.ImageBlobs {
+		if v.Ref == i.Ref && v.Local == i.Local {
+			return
+		}
+	}
+	c.Sources.ImageBlobs = append(c.Sources.ImageBlobs, i)
 }
 
 func (c *Capture) AddLocal(l provenancetypes.LocalSource) {

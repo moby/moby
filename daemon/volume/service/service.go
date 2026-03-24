@@ -76,9 +76,9 @@ func (s *VolumesService) Create(ctx context.Context, name, driverName string, op
 			driverName = volume.DefaultDriverName
 		}
 		options = append(options, opts.WithCreateLabel(AnonymousLabel, ""))
-		log.G(ctx).WithFields(log.Fields{"volume-name": name, "driver": driverName}).Debug("Creating anonymous volume")
+		log.G(ctx).WithFields(log.Fields{"volume": name, "driver": driverName}).Debug("Creating anonymous volume")
 	} else {
-		log.G(ctx).WithField("volume-name", name).Debug("Creating named volume")
+		log.G(ctx).WithField("volume", name).Debug("Creating named volume")
 	}
 	v, err := s.vs.Create(ctx, name, driverName, options...)
 	if err != nil {
@@ -245,10 +245,16 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*volum
 
 		vSize, err := directory.Size(ctx, v.Path())
 		if err != nil {
-			log.G(ctx).WithField("volume", v.Name()).WithError(err).Warn("could not determine size of volume")
+			log.G(ctx).WithFields(log.Fields{
+				"error":  err,
+				"volume": v.Name(),
+			}).Warn("could not determine size of volume")
 		}
 		if err := s.vs.Remove(ctx, v); err != nil {
-			log.G(ctx).WithError(err).WithField("volume", v.Name()).Warnf("Could not determine size of volume")
+			log.G(ctx).WithFields(log.Fields{
+				"error":  err,
+				"volume": v.Name(),
+			}).Warn("Could not remove volume")
 			continue
 		}
 		rep.SpaceReclaimed += uint64(vSize)

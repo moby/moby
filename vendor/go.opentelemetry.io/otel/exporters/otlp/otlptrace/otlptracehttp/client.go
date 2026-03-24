@@ -22,9 +22,10 @@ import (
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/protobuf/proto"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp/internal"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp/internal/counter"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp/internal/observ"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp/internal/otlpconfig"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp/internal/retry"
 )
@@ -63,6 +64,9 @@ type client struct {
 	client      *http.Client
 	stopCh      chan struct{}
 	stopOnce    sync.Once
+
+	instID int64
+	inst   *observ.Instrumentation
 }
 
 var _ otlptrace.Client = (*client)(nil)
@@ -100,18 +104,29 @@ func NewClient(opts ...Option) otlptrace.Client {
 		requestFunc: cfg.RetryConfig.RequestFunc(evaluate),
 		stopCh:      stopCh,
 		client:      httpClient,
+		instID:      counter.NextExporterID(),
 	}
 }
 
 // Start does nothing in a HTTP client.
-func (*client) Start(ctx context.Context) error {
+func (c *client) Start(ctx context.Context) error {
+	// Initialize the instrumentation if not already done.
+	//
+	// Initialize here instead of NewClient to allow any errors to be passed
+	// back to the caller and so that any setup of the environment variables to
+	// enable instrumentation can be set via code.
+	var err error
+	if c.inst == nil {
+		c.inst, err = observ.NewInstrumentation(c.instID, c.cfg.Endpoint)
+	}
+
 	// nothing to do
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		err = errors.Join(err, ctx.Err())
 	default:
 	}
-	return nil
+	return err
 }
 
 // Stop shuts down the client and interrupt any in-flight request.
@@ -128,7 +143,7 @@ func (d *client) Stop(ctx context.Context) error {
 }
 
 // UploadTraces sends a batch of spans to the collector.
-func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.ResourceSpans) error {
+func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.ResourceSpans) (uploadErr error) {
 	pbRequest := &coltracepb.ExportTraceServiceRequest{
 		ResourceSpans: protoSpans,
 	}
@@ -145,7 +160,13 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 		return err
 	}
 
-	return d.requestFunc(ctx, func(ctx context.Context) error {
+	var statusCode int
+	if d.inst != nil {
+		op := d.inst.ExportSpans(ctx, len(protoSpans))
+		defer func() { op.End(uploadErr, statusCode) }()
+	}
+
+	return errors.Join(uploadErr, d.requestFunc(ctx, func(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -165,12 +186,13 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 		if resp != nil && resp.Body != nil {
 			defer func() {
 				if err := resp.Body.Close(); err != nil {
-					otel.Handle(err)
+					uploadErr = errors.Join(uploadErr, err)
 				}
 			}()
 		}
 
-		if sc := resp.StatusCode; sc >= 200 && sc <= 299 {
+		statusCode = resp.StatusCode
+		if statusCode >= 200 && statusCode <= 299 {
 			// Success, do not retry.
 			// Read the partial success message, if any.
 			var respData bytes.Buffer
@@ -192,7 +214,7 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 					n := respProto.PartialSuccess.GetRejectedSpans()
 					if n != 0 || msg != "" {
 						err := internal.TracePartialSuccessError(n, msg)
-						otel.Handle(err)
+						uploadErr = errors.Join(uploadErr, err)
 					}
 				}
 			}
@@ -214,7 +236,7 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 		}
 		bodyErr := fmt.Errorf("body: %s", respStr)
 
-		switch resp.StatusCode {
+		switch statusCode {
 		case http.StatusTooManyRequests,
 			http.StatusBadGateway,
 			http.StatusServiceUnavailable,
@@ -225,7 +247,7 @@ func (d *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 			// Non-retryable failure.
 			return fmt.Errorf("failed to send to %s: %s (%w)", request.URL, resp.Status, bodyErr)
 		}
-	})
+	}))
 }
 
 func (d *client) newRequest(body []byte) (request, error) {
@@ -248,6 +270,7 @@ func (d *client) newRequest(body []byte) (request, error) {
 	case NoCompression:
 		r.ContentLength = int64(len(body))
 		req.bodyReader = bodyReader(body)
+		req.GetBody = bodyReaderErr(body)
 	case GzipCompression:
 		// Ensure the content length is not used.
 		r.ContentLength = -1
@@ -268,6 +291,7 @@ func (d *client) newRequest(body []byte) (request, error) {
 		}
 
 		req.bodyReader = bodyReader(b.Bytes())
+		req.GetBody = bodyReaderErr(b.Bytes())
 	}
 
 	return req, nil
@@ -290,6 +314,13 @@ func (d *client) MarshalLog() any {
 func bodyReader(buf []byte) func() io.ReadCloser {
 	return func() io.ReadCloser {
 		return io.NopCloser(bytes.NewReader(buf))
+	}
+}
+
+// bodyReaderErr returns a closure returning a new reader for buf.
+func bodyReaderErr(buf []byte) func() (io.ReadCloser, error) {
+	return func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(buf)), nil
 	}
 }
 

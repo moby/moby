@@ -24,7 +24,7 @@ func (sb *Sandbox) releaseOSSbox() error {
 	return nil
 }
 
-func (sb *Sandbox) restoreOslSandbox() error {
+func (sb *Sandbox) restoreOslSandbox(_ context.Context) error {
 	// not implemented on Windows (Sandbox.osSbox is always nil)
 	return nil
 }

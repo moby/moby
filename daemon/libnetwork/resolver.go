@@ -542,9 +542,9 @@ func (r *Resolver) forwardExtDNS(ctx context.Context, proto string, remoteAddr n
 		}
 
 		// limits the number of outstanding concurrent queries.
-		ctx, cancel := context.WithTimeout(ctx, extIOTimeout)
-		err := r.fwdSem.Acquire(ctx, 1)
-		cancel()
+		semAcqCtx, cancelSemAcqCtx := context.WithTimeout(ctx, extIOTimeout)
+		err := r.fwdSem.Acquire(semAcqCtx, 1)
+		cancelSemAcqCtx()
 
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {

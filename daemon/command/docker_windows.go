@@ -11,7 +11,7 @@ import (
 func runDaemon(ctx context.Context, cli *daemonCLI) error {
 	// On Windows, this may be launching as a service or with an option to
 	// register the service.
-	stop, runAsService, err := initService(cli)
+	stop, runAsService, err := initService(ctx, cli)
 	if err != nil {
 		return err
 	}

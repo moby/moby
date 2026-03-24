@@ -15,7 +15,7 @@ const (
 
 const (
 	defaultSBOMGenerator = "docker/buildkit-syft-scanner:stable-1"
-	defaultSLSAVersion   = string(provenancetypes.ProvenanceSLSA02)
+	defaultSLSAVersion   = string(provenancetypes.ProvenanceSLSA1)
 )
 
 func Filter(v map[string]string) map[string]string {

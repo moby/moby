@@ -2,8 +2,10 @@ package containerimage
 
 import (
 	"context"
+	"encoding/json"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/diff"
@@ -12,6 +14,7 @@ import (
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/containerd/platforms"
+	distreference "github.com/distribution/reference"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
@@ -24,6 +27,7 @@ import (
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/flightcontrol"
 	"github.com/moby/buildkit/util/imageutil"
+	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/pull"
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
@@ -173,8 +177,12 @@ func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier,
 	if err != nil {
 		return nil, err
 	}
-	rslvr := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, "pull", sm, g).WithImageStore(is.ImageStore, rm)
+	rslvr := resolver.DefaultPool.GetResolver(is.RegistryHosts, ref, resolver.ScopeType{}, sm, g).WithImageStore(is.ImageStore, rm)
 	key += rm.String()
+
+	if len(opt.ResolveAttestations) > 0 {
+		opt.AttestationChain = true
+	}
 
 	ret := &sourceresolver.ResolveImageResponse{}
 	if !opt.NoConfig {
@@ -192,16 +200,31 @@ func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier,
 		ret.Config = res.dt
 	}
 	if opt.AttestationChain {
+		ctx, done, err := leaseutil.WithLease(ctx, is.LeaseManager, leases.WithExpiration(5*time.Minute), leaseutil.MakeTemporary)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		defer func() {
+			// this lease is not deleted to allow other components to access manifest/config from cache. It will be deleted after 5 min deadline or on pruning inactive builder
+			imageutil.AddLease(done)
+		}()
 		res, err := is.gAttestChain.Do(ctx, key, func(ctx context.Context) (*sourceresolver.AttestationChain, error) {
 			refStr, desc, err := rslvr.Resolve(ctx, ref)
 			if err != nil {
-				return nil, err
+				return nil, errors.WithStack(err)
 			}
 			f, err := rslvr.Fetcher(ctx, refStr)
 			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+			named, err := distreference.ParseNormalizedNamed(ref)
+			if err != nil {
 				return nil, err
 			}
-			prov := contentutil.FromFetcher(f)
+			if desc.MediaType != ocispecs.MediaTypeImageIndex {
+				return nil, nil
+			}
+			prov := contentutil.ReferrersProviderWithBuffer(contentutil.FromFetcher(f), is.ContentStore, named.Name())
 			sc, err := policyimage.ResolveSignatureChain(ctx, prov, desc, opt.Platform)
 			if err != nil {
 				return nil, err
@@ -225,14 +248,14 @@ func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier,
 				descs = append(descs, sc.SignatureManifest.Descriptor)
 				mfst, err := sc.OCIManifest(ctx, sc.SignatureManifest)
 				if err != nil {
-					return nil, err
+					return nil, errors.WithStack(err)
 				}
 				descs = append(descs, mfst.Layers...)
 			}
 			for _, desc := range descs {
 				dt, err := policyimage.ReadBlob(ctx, prov, desc)
 				if err != nil {
-					return nil, err
+					return nil, errors.WithStack(err)
 				}
 				if ac.Blobs == nil {
 					ac.Blobs = make(map[digest.Digest]sourceresolver.Blob)
@@ -241,6 +264,14 @@ func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier,
 					Descriptor: desc,
 					Data:       dt,
 				}
+			}
+			if len(opt.ResolveAttestations) > 0 && ac.AttestationManifest != "" {
+				if err := addAttestationBlobs(ctx, prov, ac, opt.ResolveAttestations); err != nil {
+					return nil, err
+				}
+			}
+			if err := prov.SetGCLabels(ctx, desc); err != nil {
+				return nil, errors.WithStack(err)
 			}
 			return ac, nil
 		})
@@ -299,6 +330,49 @@ func (is *Source) ResolveOCILayoutMetadata(ctx context.Context, id *OCIIdentifie
 type resolveImageResult struct {
 	dgst digest.Digest
 	dt   []byte
+}
+
+func addAttestationBlobs(ctx context.Context, prov policyimage.ReferrersProvider, ac *sourceresolver.AttestationChain, predicateTypes []string) error {
+	if ac == nil || ac.AttestationManifest == "" || ac.Blobs == nil || len(predicateTypes) == 0 {
+		return nil
+	}
+	att, ok := ac.Blobs[ac.AttestationManifest]
+	if !ok || len(att.Data) == 0 {
+		return nil
+	}
+	need := map[string]struct{}{}
+	for _, p := range predicateTypes {
+		if p == "" {
+			continue
+		}
+		need[p] = struct{}{}
+	}
+	if len(need) == 0 {
+		return nil
+	}
+	var manifest ocispecs.Manifest
+	if err := json.Unmarshal(att.Data, &manifest); err != nil {
+		return errors.Wrapf(err, "unmarshaling attestation manifest %s", ac.AttestationManifest)
+	}
+
+	for _, layer := range manifest.Layers {
+		predicateType := layer.Annotations["in-toto.io/predicate-type"]
+		if _, ok := need[predicateType]; !ok {
+			continue
+		}
+		if _, ok := ac.Blobs[layer.Digest]; ok {
+			continue
+		}
+		dt, err := policyimage.ReadBlob(ctx, prov, layer)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		ac.Blobs[layer.Digest] = sourceresolver.Blob{
+			Descriptor: layer,
+			Data:       dt,
+		}
+	}
+	return nil
 }
 
 func (is *Source) registryIdentifier(ref string, attrs map[string]string, platform *pb.Platform) (source.Identifier, error) {

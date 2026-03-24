@@ -345,7 +345,7 @@ func testMacvlanMultiSubnet(t *testing.T, ctx context.Context, apiClient client.
 
 	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, netName))
 
-	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.100.0/24 and 2001:db8:abc2::/64
+	// start dual stack containers and verify the user-specified --ip and --ip6 addresses on subnets 172.28.100.0/24 and 2001:db8:abc2::/64
 	id1 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode("dualstackbridge"),
 		container.WithIPv4("dualstackbridge", "172.28.100.20"),
@@ -370,7 +370,7 @@ func testMacvlanMultiSubnet(t *testing.T, ctx context.Context, apiClient client.
 	_, err = container.Exec(ctx, apiClient, id2, []string{"ping6", "-c", "1", c1.Container.NetworkSettings.Networks["dualstackbridge"].GlobalIPv6Address.String()})
 	assert.NilError(t, err)
 
-	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
+	// start dual stack containers and verify the user-specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
 	id3 := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode("dualstackbridge"),
 		container.WithIPv4("dualstackbridge", "172.28.102.20"),
@@ -428,7 +428,7 @@ func testMacvlanAddressing(t *testing.T, ctx context.Context, client client.APIC
 	assert.NilError(t, err)
 	assert.Check(t, !strings.Contains(result.Combined(), "default via"),
 		"result: %s", result.Combined())
-	// Validate macvlan bridge mode sets the v6 gateway to the user specified default gateway/next-hop
+	// Validate macvlan bridge mode sets the v6 gateway to the user-specified default gateway/next-hop
 	result, err = container.Exec(ctx, client, id1, []string{"ip", "-6", "route"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(result.Combined(), "default via 2001:db8:abca::254 dev eth0"))

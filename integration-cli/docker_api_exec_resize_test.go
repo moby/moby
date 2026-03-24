@@ -92,14 +92,12 @@ func (s *DockerAPISuite) TestExecResizeImmediatelyAfterExecStart(c *testing.T) {
 		ch = make(chan error, n)
 		wg sync.WaitGroup
 	)
-	for i := 0; i < n; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range n {
+		wg.Go(func() {
 			if err := testExecResize(); err != nil {
 				ch <- err
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
