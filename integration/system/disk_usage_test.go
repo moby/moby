@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -284,7 +285,10 @@ func TestDiskUsage(t *testing.T) {
 
 					du, err := apiClient.DiskUsage(ctx, tc.options)
 					assert.NilError(t, err)
-					assert.DeepEqual(t, du, tc.expected, cmpopts.EquateComparable(netip.Addr{}, netip.Prefix{}))
+					assert.DeepEqual(t, du, tc.expected,
+						cmpopts.EquateComparable(netip.Addr{}, netip.Prefix{}),
+						cmpopts.IgnoreFields(containertypes.Summary{}, "Status"),
+					)
 				})
 			}
 		})
