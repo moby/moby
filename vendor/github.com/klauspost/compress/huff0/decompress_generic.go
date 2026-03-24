@@ -1,5 +1,4 @@
 //go:build !amd64 || appengine || !gc || noasm
-// +build !amd64 appengine !gc noasm
 
 // This file contains a generic implementation of Decoder.Decompress4X.
 package huff0
