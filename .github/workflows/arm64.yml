@@ -49,7 +49,7 @@ jobs:
     steps:
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
@@ -77,7 +77,7 @@ jobs:
     steps:
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
@@ -107,7 +107,7 @@ jobs:
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
@@ -200,7 +200,7 @@ jobs:
         uses: ./.github/actions/setup-tracing
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
