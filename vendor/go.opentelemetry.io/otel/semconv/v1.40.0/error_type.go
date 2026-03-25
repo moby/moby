@@ -1,9 +1,10 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package semconv // import "go.opentelemetry.io/otel/semconv/v1.39.0"
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.40.0"
 
 import (
+	"errors"
 	"reflect"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -14,12 +15,14 @@ import (
 // If err is nil, the returned attribute has the default value
 // [ErrorTypeOther].
 //
-// If err's type has the method
+// If err or one of the errors in its chain has the method
 //
 //	ErrorType() string
 //
-// then the returned attribute has the value of err.ErrorType(). Otherwise, the
-// returned attribute has a value derived from the concrete type of err.
+// the returned attribute has that method's return value. If multiple errors in
+// the chain implement this method, the value from the first match found by
+// [errors.As] is used. Otherwise, the returned attribute has a value derived
+// from the concrete type of err.
 //
 // The key of the returned attribute is [ErrorTypeKey].
 func ErrorType(err error) attribute.KeyValue {
@@ -33,8 +36,15 @@ func ErrorType(err error) attribute.KeyValue {
 func errorType(err error) string {
 	var s string
 	if et, ok := err.(interface{ ErrorType() string }); ok {
-		// Prioritize the ErrorType method if available.
+		// Fast path: check the top-level error first.
 		s = et.ErrorType()
+	} else {
+		// Fallback: search the error chain for an ErrorType method.
+		var et interface{ ErrorType() string }
+		if errors.As(err, &et) {
+			// Prioritize the ErrorType method if available.
+			s = et.ErrorType()
+		}
 	}
 	if s == "" {
 		// Fallback to reflection if the ErrorType method is not supported or

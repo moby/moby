@@ -12,6 +12,11 @@ const (
 	// with the sampling bit set means the span is sampled.
 	FlagsSampled = TraceFlags(0x01)
 
+	// FlagsRandom is a bitmask with the random trace ID flag set. When
+	// set, it signals that the trace ID was generated randomly with at
+	// least 56 bits of randomness (W3C Trace Context Level 2).
+	FlagsRandom = TraceFlags(0x02)
+
 	errInvalidHexID errorConst = "trace-id and span-id can only contain [0-9a-f] characters, all lowercase"
 
 	errInvalidTraceIDLength errorConst = "hex encoded trace-id must have length equals to 32"
