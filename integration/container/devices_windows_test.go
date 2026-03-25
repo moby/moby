@@ -84,7 +84,6 @@ func TestWindowsDevices(t *testing.T) {
 	}
 
 	for _, d := range testData {
-		d := d
 		t.Run(d.doc, func(t *testing.T) {
 			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
