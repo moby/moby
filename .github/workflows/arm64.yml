@@ -114,7 +114,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
       -
         name: Build dev image
         uses: docker/bake-action@v7
@@ -207,7 +207,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
       -
         name: Build dev image
         uses: docker/bake-action@v7
