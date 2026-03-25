@@ -18,10 +18,12 @@ func (daemon *Daemon) saveAppArmorConfig(container *container.Container) error {
 		return errdefs.InvalidParameter(err)
 	}
 
-	if container.HostConfig.Privileged {
-		container.AppArmorProfile = unconfinedAppArmorProfile
-	} else if container.AppArmorProfile == "" {
-		container.AppArmorProfile = defaultAppArmorProfile
+	if container.AppArmorProfile == "" {
+		if container.HostConfig.Privileged {
+			container.AppArmorProfile = unconfinedAppArmorProfile
+		} else {
+			container.AppArmorProfile = defaultAppArmorProfile
+		}
 	}
 	return nil
 }
