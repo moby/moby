@@ -1,13 +1,13 @@
 package plugin
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -337,34 +337,42 @@ func makeLoggerStreams(id string) (stdout, stderr io.WriteCloser) {
 }
 
 func validatePrivileges(requiredPrivileges, privileges plugin.Privileges) error {
-	if !isEqual(requiredPrivileges, privileges, isEqualPrivilege) {
+	if len(requiredPrivileges) != len(privileges) {
 		return errors.New("incorrect privileges")
+	}
+
+	a := normalizePrivileges(requiredPrivileges)
+	b := normalizePrivileges(privileges)
+
+	for i := range a {
+		if a[i].Name != b[i].Name {
+			return errors.New("incorrect privileges")
+		}
+		if !slices.Equal(a[i].Value, b[i].Value) {
+			return errors.New("incorrect privileges")
+		}
 	}
 
 	return nil
 }
 
-func isEqual(arrOne, arrOther plugin.Privileges, compare func(x, y plugin.Privilege) bool) bool {
-	if len(arrOne) != len(arrOther) {
-		return false
-	}
-
-	sort.Sort(arrOne)
-	sort.Sort(arrOther)
-
-	for i := 1; i < arrOne.Len(); i++ {
-		if !compare(arrOne[i], arrOther[i]) {
-			return false
+// normalizePrivileges returns a normalized copy of privileges with privilege names
+// and each privilege's values sorted for order-insensitive comparison.
+// The input is not mutated.
+func normalizePrivileges(privileges plugin.Privileges) plugin.Privileges {
+	normalized := make(plugin.Privileges, len(privileges))
+	for i, privilege := range privileges {
+		normalized[i] = plugin.Privilege{
+			Name:        privilege.Name,
+			Description: privilege.Description,
+			Value:       slices.Clone(privilege.Value),
 		}
+		slices.Sort(normalized[i].Value)
 	}
 
-	return true
-}
+	slices.SortFunc(normalized, func(a, b plugin.Privilege) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
 
-func isEqualPrivilege(a, b plugin.Privilege) bool {
-	if a.Name != b.Name {
-		return false
-	}
-
-	return reflect.DeepEqual(a.Value, b.Value)
+	return normalized
 }
