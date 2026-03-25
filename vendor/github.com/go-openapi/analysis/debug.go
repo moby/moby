@@ -9,4 +9,4 @@ import (
 	"github.com/go-openapi/analysis/internal/debug"
 )
 
-var debugLog = debug.GetLogger("analysis", os.Getenv("SWAGGER_DEBUG") != "")
+var debugLog = debug.GetLogger("analysis", os.Getenv("SWAGGER_DEBUG") != "") //nolint:gochecknoglobals // it's okay to use a private global for logging

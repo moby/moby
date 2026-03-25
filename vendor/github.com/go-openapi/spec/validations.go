@@ -3,7 +3,7 @@
 
 package spec
 
-// CommonValidations describe common JSON-schema validations
+// CommonValidations describe common JSON-schema validations.
 type CommonValidations struct {
 	Maximum          *float64 `json:"maximum,omitempty"`
 	ExclusiveMaximum bool     `json:"exclusiveMaximum,omitempty"`
@@ -143,22 +143,22 @@ func (v CommonValidations) Validations() SchemaValidations {
 	}
 }
 
-// HasNumberValidations indicates if the validations are for numbers or integers
+// HasNumberValidations indicates if the validations are for numbers or integers.
 func (v CommonValidations) HasNumberValidations() bool {
 	return v.Maximum != nil || v.Minimum != nil || v.MultipleOf != nil
 }
 
-// HasStringValidations indicates if the validations are for strings
+// HasStringValidations indicates if the validations are for strings.
 func (v CommonValidations) HasStringValidations() bool {
 	return v.MaxLength != nil || v.MinLength != nil || v.Pattern != ""
 }
 
-// HasArrayValidations indicates if the validations are for arrays
+// HasArrayValidations indicates if the validations are for arrays.
 func (v CommonValidations) HasArrayValidations() bool {
 	return v.MaxItems != nil || v.MinItems != nil || v.UniqueItems
 }
 
-// HasEnum indicates if the validation includes some enum constraint
+// HasEnum indicates if the validation includes some enum constraint.
 func (v CommonValidations) HasEnum() bool {
 	return len(v.Enum) > 0
 }
@@ -175,12 +175,12 @@ type SchemaValidations struct {
 	MinProperties     *int64           `json:"minProperties,omitempty"`
 }
 
-// HasObjectValidations indicates if the validations are for objects
+// HasObjectValidations indicates if the validations are for objects.
 func (v SchemaValidations) HasObjectValidations() bool {
 	return v.MaxProperties != nil || v.MinProperties != nil || v.PatternProperties != nil
 }
 
-// SetValidations for schema validations
+// SetValidations for schema validations.
 func (v *SchemaValidations) SetValidations(val SchemaValidations) {
 	v.CommonValidations.SetValidations(val)
 	v.PatternProperties = val.PatternProperties
@@ -188,7 +188,7 @@ func (v *SchemaValidations) SetValidations(val SchemaValidations) {
 	v.MinProperties = val.MinProperties
 }
 
-// Validations for a schema
+// Validations for a schema.
 func (v SchemaValidations) Validations() SchemaValidations {
 	val := v.CommonValidations.Validations()
 	val.PatternProperties = v.PatternProperties
