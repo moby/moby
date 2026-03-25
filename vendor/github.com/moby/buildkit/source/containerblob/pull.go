@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/containerd/containerd/v2/core/remotes"
@@ -18,6 +17,7 @@ import (
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver"
 	srctypes "github.com/moby/buildkit/source/types"
+	"github.com/moby/buildkit/source/util/pathutil"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/iohelper"
 	"github.com/moby/buildkit/util/resolver"
@@ -225,10 +225,17 @@ func (p *puller) Snapshot(ctx context.Context, jobCtx solver.JobContext) (ir cac
 	fn := p.id.Filename
 	if fn == "" {
 		fn = p.dgst.Hex()
+	} else {
+		fn = pathutil.SafeFileName(fn)
 	}
 
-	fp := filepath.Join(dir, fn)
-	f, err := os.OpenFile(fp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(perm))
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+
+	f, err := root.OpenFile(fn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(perm))
 	if err != nil {
 		return nil, err
 	}
@@ -257,13 +264,13 @@ func (p *puller) Snapshot(ctx context.Context, jobCtx solver.JobContext) (ir cac
 		}
 	}
 	if gid != 0 || uid != 0 {
-		if err := os.Chown(fp, uid, gid); err != nil {
+		if err := root.Chown(fn, uid, gid); err != nil {
 			return nil, err
 		}
 	}
 
 	mTime := time.Unix(0, 0)
-	if err := os.Chtimes(fp, mTime, mTime); err != nil {
+	if err := root.Chtimes(fn, mTime, mTime); err != nil {
 		return nil, err
 	}
 
