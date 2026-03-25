@@ -44,12 +44,48 @@ func TestValidatePrivileges(t *testing.T) {
 			},
 			result: true,
 		},
+		"single-element-same": {
+			requiredPrivileges: []plugin.Privilege{
+				{Name: "allow-all-devices", Description: "Description", Value: []string{"true"}},
+			},
+			privileges: []plugin.Privilege{
+				{Name: "allow-all-devices", Description: "Description", Value: []string{"true"}},
+			},
+			result: true,
+		},
+		"single-element-diff-value": {
+			requiredPrivileges: []plugin.Privilege{
+				{Name: "allow-all-devices", Description: "Description", Value: []string{"false"}},
+			},
+			privileges: []plugin.Privilege{
+				{Name: "allow-all-devices", Description: "Description", Value: []string{"true"}},
+			},
+			result: false,
+		},
+		"first-sorted-element-diff-value": {
+			requiredPrivileges: []plugin.Privilege{
+				{Name: "allow-all-devices", Description: "Description", Value: []string{"false"}},
+				{Name: "network", Description: "Description", Value: []string{"host"}},
+			},
+			privileges: []plugin.Privilege{
+				{Name: "allow-all-devices", Description: "Description", Value: []string{"true"}},
+				{Name: "network", Description: "Description", Value: []string{"host"}},
+			},
+			result: false,
+		},
+		"empty-privileges": {
+			requiredPrivileges: []plugin.Privilege{},
+			privileges:         []plugin.Privilege{},
+			result:             true,
+		},
 	}
 
 	for key, data := range testData {
-		err := validatePrivileges(data.requiredPrivileges, data.privileges)
-		if (err == nil) != data.result {
-			t.Fatalf("Test item %s expected result to be %t, got %t", key, data.result, (err == nil))
-		}
+		t.Run(key, func(t *testing.T) {
+			err := validatePrivileges(data.requiredPrivileges, data.privileges)
+			if (err == nil) != data.result {
+				t.Fatalf("expected result to be %t, got %t", data.result, (err == nil))
+			}
+		})
 	}
 }
