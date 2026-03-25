@@ -13,6 +13,7 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
 	srctypes "github.com/moby/buildkit/source/types"
+	"github.com/moby/buildkit/source/util/pathutil"
 	"github.com/pkg/errors"
 )
 
@@ -86,7 +87,7 @@ func (is *Source) parseIdentifierAttrs(id *ImageBlobIdentifier, attrs map[string
 	for k, v := range attrs {
 		switch k {
 		case pb.AttrHTTPFilename:
-			id.Filename = v
+			id.Filename = pathutil.SafeFileName(v)
 		case pb.AttrHTTPPerm:
 			i, err := strconv.ParseInt(v, 0, 64)
 			if err != nil {
