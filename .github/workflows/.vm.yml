@@ -45,7 +45,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       -
         name: Set up Lima
         uses: lima-vm/lima-actions/setup@55627e31b78637bf254a8b2a14da8ea7d12564e5  # v1.1.0
@@ -54,7 +54,7 @@ jobs:
           version: v2.0.2
       -
         name: Cache ~/.cache/lima
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
         with:
           path: ~/.cache/lima
           key: lima-${{ steps.lima-actions-setup.outputs.version }}-${{ inputs.template }}
@@ -67,7 +67,9 @@ jobs:
             --cpus=4 \
             --memory=12 \
             --plain \
-            ${{ inputs.template }}
+            ${INPUTS_TEMPLATE}
+        env:
+          INPUTS_TEMPLATE: ${{ inputs.template }}
       -
         name: Load kernel modules in the guest VM
         run: |
@@ -142,13 +144,15 @@ jobs:
           # TODO: enable GHA cache?
           LIMA_WORKDIR=/tmp/docker lima \
             TEST_SKIP_INTEGRATION_CLI=1 \
-            TEST_INTEGRATION_DIR="${{ inputs.integration_dir }}" \
+            TEST_INTEGRATION_DIR="${INPUTS_INTEGRATION_DIR}" \
             TEST_INTEGRATION_USE_GRAPHDRIVER=1 \
             DOCKER_ROOTLESS=${DOCKER_ROOTLESS} \
             DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER} \
             DOCKER_IGNORE_BR_NETFILTER_ERROR=${DOCKER_IGNORE_BR_NETFILTER_ERROR} \
             TIMEOUT=15m \
             make test-integration
+        env:
+          INPUTS_INTEGRATION_DIR: ${{ inputs.integration_dir }}
       -
         name: Prepare reports
         if: always()
@@ -176,7 +180,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: test-reports-integration-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
@@ -192,7 +196,7 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -204,7 +208,7 @@ jobs:
           echo "TESTREPORTS_NAME=${TEMPLATE}*" >> $GITHUB_ENV
       -
         name: Download reports
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: /tmp/reports
           pattern: test-reports-integration-${{ env.TESTREPORTS_NAME }}

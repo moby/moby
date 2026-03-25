@@ -52,7 +52,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build
-        uses: docker/bake-action@v7
+        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
         with:
           targets: ${{ matrix.target }}
       -
@@ -75,7 +75,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       -
         name: Create matrix
         id: platforms
@@ -113,7 +113,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build
-        uses: docker/bake-action@v7
+        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
         with:
           targets: all
           set: |
@@ -146,7 +146,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Run
-        uses: docker/bake-action@v7
+        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
         with:
           targets: govulncheck
         env:
@@ -154,7 +154,7 @@ jobs:
       -
         name: Upload SARIF report
         if: ${{ github.event_name != 'pull_request' && github.repository == 'moby/moby' }}
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action@38697555549f1db7851b81482ff19f1fa5c4fedc # v4
         with:
           sarif_file: ${{ env.DESTDIR }}/govulncheck.out
 
@@ -173,7 +173,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dind image
-        uses: docker/bake-action@v7
+        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
         with:
           targets: dind
           set: |
