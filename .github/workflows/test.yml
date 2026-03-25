@@ -61,7 +61,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@v7
+        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
         with:
           targets: dev
           set: |
@@ -71,7 +71,7 @@ jobs:
       -
         name: Cache dev image
         if: matrix.mode == ''
-        uses: actions/cache/save@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
         with:
           key: dev-image-${{ github.run_id }}
           path: /tmp/dev-image.tar
@@ -110,7 +110,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       -
         name: Create matrix
         id: scripts
@@ -134,7 +134,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       -
@@ -149,7 +149,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Restore dev image
-        uses: actions/cache/restore@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
         with:
           key: dev-image-${{ github.run_id }}
           path: /tmp/dev-image.tar
@@ -175,7 +175,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - 
         name: Build api module image
         run: |
@@ -197,7 +197,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       -
         name: Create matrix
         id: platforms
@@ -237,7 +237,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Test
-        uses: docker/bake-action@v7
+        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
         with:
           targets: binary-smoketest
           set: |

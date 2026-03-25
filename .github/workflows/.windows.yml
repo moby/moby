@@ -53,7 +53,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
@@ -100,7 +100,7 @@ jobs:
           Get-ChildItem -Path ${{ env.BIN_OUT }}
       -
         name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: build-${{ inputs.storage }}-${{ inputs.os }}
           path: ${{ env.BIN_OUT }}/*
@@ -119,7 +119,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
@@ -158,7 +158,7 @@ jobs:
       -
         name: Send to Codecov
         if: inputs.send_coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
         with:
           working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
           directory: bundles
@@ -168,7 +168,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
@@ -183,13 +183,13 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
       -
         name: Download artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
           path: /tmp/artifacts
@@ -210,10 +210,10 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       -
         name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -266,12 +266,12 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
         name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -297,7 +297,7 @@ jobs:
           Get-ChildItem Env: | Out-String
       -
         name: Download artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: build-${{ inputs.storage }}-${{ inputs.os }}
           path: ${{ env.BIN_OUT }}
@@ -443,7 +443,7 @@ jobs:
       -
         name: Send to Codecov
         if: inputs.send_coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
         with:
           working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
           directory: bundles
@@ -482,7 +482,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-${{ env.TESTREPORTS_NAME }}
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
@@ -509,13 +509,13 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: /tmp/reports
           pattern: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-*
