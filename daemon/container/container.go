@@ -121,9 +121,9 @@ type Container struct {
 	ResolvConfPath string
 
 	// Fields here are specific to Windows
-	NetworkSharedContainerID string            `json:"-"`
-	SharedEndpointList       []string          `json:"-"`
-	LocalLogCacheMeta        localLogCacheMeta `json:",omitempty"`
+	NetworkSharedContainerID string   `json:"-"`
+	SharedEndpointList       []string `json:"-"`
+	LocalLogCacheMeta        localLogCacheMeta
 }
 
 type SecurityOptions struct {
