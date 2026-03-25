@@ -6,6 +6,7 @@ import (
 	"context"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 
 	"github.com/moby/buildkit/client/llb"
@@ -73,7 +74,11 @@ func (bc *Client) initContext(ctx context.Context) (*buildContext, error) {
 	if v, err := strconv.ParseBool(opts[keyContextKeepGitDirArg]); err == nil {
 		keepGit = &v
 	}
-	if st, ok, err := DetectGitContext(opts[localNameContext], keepGit); ok {
+	var extraGitOpts []llb.GitOption
+	if opts[keySourceDateEpoch] != "" {
+		extraGitOpts = append(extraGitOpts, llb.GitMTimeCommit())
+	}
+	if st, ok, err := DetectGitContext(opts[localNameContext], keepGit, extraGitOpts...); ok {
 		if err != nil {
 			return nil, err
 		}
@@ -143,15 +148,15 @@ func (bc *Client) initContext(ctx context.Context) (*buildContext, error) {
 	return bctx, nil
 }
 
-func DetectGitContext(ref string, keepGit *bool) (*llb.State, bool, error) {
+func DetectGitContext(ref string, keepGit *bool, opts ...llb.GitOption) (*llb.State, bool, error) {
 	g, isGit, err := dfgitutil.ParseGitRef(ref)
 	if err != nil {
 		return nil, isGit, err
 	}
-	gitOpts := []llb.GitOption{
+	gitOpts := slices.Concat(opts, []llb.GitOption{
 		llb.GitRef(g.Ref),
 		WithInternalName("load git source " + ref),
-	}
+	})
 	if g.KeepGitDir != nil && *g.KeepGitDir {
 		gitOpts = append(gitOpts, llb.KeepGitDir())
 	}
@@ -166,6 +171,9 @@ func DetectGitContext(ref string, keepGit *bool) (*llb.State, bool, error) {
 	}
 	if g.Submodules != nil && !*g.Submodules {
 		gitOpts = append(gitOpts, llb.GitSkipSubmodules())
+	}
+	if g.MTime != "" {
+		gitOpts = append(gitOpts, llb.GitMTime(g.MTime))
 	}
 
 	st := llb.Git(g.Remote, "", gitOpts...)
