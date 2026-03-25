@@ -55,7 +55,7 @@ go get github.com/go-openapi/spec
 > There is no plan to make it evolve toward supporting OpenAPI 3.x.
 > This [discussion thread](https://github.com/go-openapi/spec/issues/21) relates the full story.
 >
-> An early attempt to support Swagger 3 may be found at: https://github.com/go-openapi/spec3
+> An early attempt to support Swagger 3 may be found at: <https://github.com/go-openapi/spec3>
 
 * Does the unmarshaling support YAML?
 
@@ -64,13 +64,13 @@ go get github.com/go-openapi/spec
 > In order to load a YAML document as a Swagger spec, you need to use the loaders provided by
 > github.com/go-openapi/loads
 >
-> Take a look at the example there: https://pkg.go.dev/github.com/go-openapi/loads#example-Spec
+> Take a look at the example there: <https://pkg.go.dev/github.com/go-openapi/loads#example-Spec>
 >
-> See also https://github.com/go-openapi/spec/issues/164
+> See also <https://github.com/go-openapi/spec/issues/164>
 
 * How can I validate a spec?
 
-> Validation is provided by [the validate package](http://github.com/go-openapi/validate)
+Validation is provided by [the validate package](http://github.com/go-openapi/validate)
 
 * Why do we have an `ID` field for `Schema` which is not part of the swagger spec?
 
@@ -78,7 +78,7 @@ go get github.com/go-openapi/spec
 > how `$ref` are resolved.
 > This `id` does not conflict with any property named `id`.
 >
-> See also https://github.com/go-openapi/spec/issues/23
+> See also <https://github.com/go-openapi/spec/issues/23>
 
 ## Change log
 
@@ -136,7 +136,7 @@ Maintainers can cut a new release by either:
 [slack-badge]: https://img.shields.io/badge/slack-blue?link=https%3A%2F%2Fgoswagger.slack.com%2Farchives%2FC04R30YM
 [slack-url]: https://goswagger.slack.com/archives/C04R30YMU
 [discord-badge]: https://img.shields.io/discord/1446918742398341256?logo=discord&label=discord&color=blue
-[discord-url]: https://discord.gg/DrafRmZx
+[discord-url]: https://discord.gg/twZ9BwT3
 
 <!-- Badges: license & compliance -->
 [license-badge]: http://img.shields.io/badge/license-Apache%20v2-orange.svg

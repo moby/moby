@@ -14,14 +14,12 @@ import (
 // Debug is true when the SWAGGER_DEBUG env var is not empty.
 //
 // It enables a more verbose logging of this package.
-var Debug = os.Getenv("SWAGGER_DEBUG") != ""
+var Debug = os.Getenv("SWAGGER_DEBUG") != "" //nolint:gochecknoglobals // public toggle for debug logging
 
-var (
-	// specLogger is a debug logger for this package
-	specLogger *log.Logger
-)
+// specLogger is a debug logger for this package.
+var specLogger *log.Logger //nolint:gochecknoglobals // package-level debug logger
 
-func init() {
+func init() { //nolint:gochecknoinits // initializes debug logger at package load
 	debugOptions()
 }
 

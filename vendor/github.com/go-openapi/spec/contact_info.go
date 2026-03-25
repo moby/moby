@@ -17,14 +17,14 @@ type ContactInfo struct {
 	VendorExtensible
 }
 
-// ContactInfoProps hold the properties of a ContactInfo object
+// ContactInfoProps hold the properties of a ContactInfo object.
 type ContactInfoProps struct {
 	Name  string `json:"name,omitempty"`
 	URL   string `json:"url,omitempty"`
 	Email string `json:"email,omitempty"`
 }
 
-// UnmarshalJSON hydrates ContactInfo from json
+// UnmarshalJSON hydrates ContactInfo from json.
 func (c *ContactInfo) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &c.ContactInfoProps); err != nil {
 		return err
@@ -32,7 +32,7 @@ func (c *ContactInfo) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &c.VendorExtensible)
 }
 
-// MarshalJSON produces ContactInfo as json
+// MarshalJSON produces ContactInfo as json.
 func (c ContactInfo) MarshalJSON() ([]byte, error) {
 	b1, err := json.Marshal(c.ContactInfoProps)
 	if err != nil {

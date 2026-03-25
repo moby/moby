@@ -25,16 +25,16 @@ import (
 //
 // Returns an error flattening in a single standard error, all validation messages.
 //
-//   - TODO: $ref should not have siblings
-//   - TODO: make sure documentation reflects all checks and warnings
-//   - TODO: check on discriminators
-//   - TODO: explicit message on unsupported keywords (better than "forbidden property"...)
-//   - TODO: full list of unresolved refs
-//   - TODO: validate numeric constraints (issue#581): this should be handled like defaults and examples
-//   - TODO: option to determine if we validate for go-swagger or in a more general context
-//   - TODO: check on required properties to support anyOf, allOf, oneOf
+//   - Proposal for enhancement: $ref should not have siblings
+//   - Proposal for enhancement: make sure documentation reflects all checks and warnings
+//   - Proposal for enhancement: check on discriminators
+//   - Proposal for enhancement: explicit message on unsupported keywords (better than "forbidden property"...)
+//   - Proposal for enhancement: full list of unresolved refs
+//   - Proposal for enhancement: validate numeric constraints (issue#581): this should be handled like defaults and examples
+//   - Proposal for enhancement: option to determine if we validate for go-swagger or in a more general context
+//   - Proposal for enhancement: check on required properties to support anyOf, allOf, oneOf
 //
-// NOTE: SecurityScopes are maps: no need to check uniqueness
+// NOTE: SecurityScopes are maps: no need to check uniqueness.
 func Spec(doc *loads.Document, formats strfmt.Registry) error {
 	errs, _ /*warns*/ := NewSpecValidator(doc.Schema(), formats).Validate(doc)
 	if errs.HasErrors() {
@@ -43,7 +43,7 @@ func Spec(doc *loads.Document, formats strfmt.Registry) error {
 	return nil
 }
 
-// SpecValidator validates a swagger 2.0 spec
+// SpecValidator validates a swagger 2.0 spec.
 type SpecValidator struct {
 	schema        *spec.Schema // swagger 2.0 schema
 	spec          *loads.Document
@@ -54,7 +54,7 @@ type SpecValidator struct {
 	schemaOptions *SchemaValidatorOptions
 }
 
-// NewSpecValidator creates a new swagger spec validator instance
+// NewSpecValidator creates a new swagger spec validator instance.
 func NewSpecValidator(schema *spec.Schema, formats strfmt.Registry) *SpecValidator {
 	// schema options that apply to all called validators
 	schemaOptions := new(SchemaValidatorOptions)
@@ -74,7 +74,7 @@ func NewSpecValidator(schema *spec.Schema, formats strfmt.Registry) *SpecValidat
 	}
 }
 
-// Validate validates the swagger spec
+// Validate validates the swagger spec.
 func (s *SpecValidator) Validate(data any) (*Result, *Result) {
 	s.schemaOptions.skipSchemataResult = s.Options.SkipSchemataResult
 	var sd *loads.Document
@@ -347,6 +347,7 @@ func (s *SpecValidator) validateCircularAncestry(nm string, sch spec.Schema, kno
 	return ancs, res
 }
 
+//nolint:gocognit // refactor in a forthcoming PR
 func (s *SpecValidator) validateItems() *Result {
 	// validate parameter, items, schema and response objects for presence of item if type is array
 	res := pools.poolOfResults.BorrowResult()
@@ -406,7 +407,7 @@ func (s *SpecValidator) validateItems() *Result {
 	return res
 }
 
-// Verifies constraints on array type
+// Verifies constraints on array type.
 func (s *SpecValidator) validateSchemaItems(schema spec.Schema, prefix, opID string) *Result {
 	res := pools.poolOfResults.BorrowResult()
 	if !schema.Type.Contains(arrayType) {
@@ -597,7 +598,7 @@ func (s *SpecValidator) validateRequiredProperties(path, in string, v *spec.Sche
 			} else if v.AdditionalProperties.Schema != nil {
 				// additionalProperties as schema are upported in swagger
 				// recursively validates additionalProperties schema
-				// TODO : anyOf, allOf, oneOf like in schemaPropsValidator
+				// Proposal for enhancement: anyOf, allOf, oneOf like in schemaPropsValidator
 				red := s.validateRequiredProperties(path, in, v.AdditionalProperties.Schema)
 				if red.IsValid() {
 					additionalPropertiesMatch = true
@@ -620,6 +621,7 @@ func (s *SpecValidator) validateRequiredProperties(path, in string, v *spec.Sche
 	return res
 }
 
+//nolint:gocognit // refactor in a forthcoming PR
 func (s *SpecValidator) validateParameters() *Result {
 	// - for each method, path is unique, regardless of path parameters
 	//   e.g. GET:/petstore/{id}, GET:/petstore/{pet}, GET:/petstore are
@@ -645,7 +647,6 @@ func (s *SpecValidator) validateParameters() *Result {
 
 				// Check uniqueness of stripped paths
 				if _, found := methodPaths[method][pathToAdd]; found {
-
 					// Sort names for stable, testable output
 					if strings.Compare(path, methodPaths[method][pathToAdd]) < 0 {
 						res.AddErrors(pathOverlapMsg(path, methodPaths[method][pathToAdd]))
@@ -666,7 +667,7 @@ func (s *SpecValidator) validateParameters() *Result {
 			var hasForm, hasBody bool
 
 			// Check parameters names uniqueness for operation
-			// TODO: should be done after param expansion
+			// NOTE: should be done after param expansion
 			res.Merge(s.checkUniqueParams(path, method, op))
 
 			// pick the root schema from the swagger specification which describes a parameter

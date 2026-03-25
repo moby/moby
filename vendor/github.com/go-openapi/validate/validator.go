@@ -12,15 +12,15 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// An EntityValidator is an interface for things that can validate entities
+// An EntityValidator is an interface for things that can validate entities.
 type EntityValidator interface {
-	Validate(any) *Result
+	Validate(data any) *Result
 }
 
 type valueValidator interface {
 	SetPath(path string)
-	Applies(any, reflect.Kind) bool
-	Validate(any) *Result
+	Applies(source any, kind reflect.Kind) bool
+	Validate(data any) *Result
 }
 
 type itemsValidator struct {
@@ -286,7 +286,7 @@ func (b *basicCommonValidator) redeem() {
 	pools.poolOfBasicCommonValidators.RedeemValidator(b)
 }
 
-// A HeaderValidator has very limited subset of validations to apply
+// A HeaderValidator has very limited subset of validations to apply.
 type HeaderValidator struct {
 	name         string
 	header       *spec.Header
@@ -295,7 +295,7 @@ type HeaderValidator struct {
 	Options      *SchemaValidatorOptions
 }
 
-// NewHeaderValidator creates a new header validator object
+// NewHeaderValidator creates a new header validator object.
 func NewHeaderValidator(name string, header *spec.Header, formats strfmt.Registry, options ...Option) *HeaderValidator {
 	opts := new(SchemaValidatorOptions)
 	for _, o := range options {
@@ -340,7 +340,7 @@ func newHeaderValidator(name string, header *spec.Header, formats strfmt.Registr
 	return p
 }
 
-// Validate the value of the header against its schema
+// Validate the value of the header against its schema.
 func (p *HeaderValidator) Validate(data any) *Result {
 	if p.Options.recycleValidators {
 		defer func() {
@@ -479,7 +479,7 @@ func (p *HeaderValidator) redeemChildren() {
 	}
 }
 
-// A ParamValidator has very limited subset of validations to apply
+// A ParamValidator has very limited subset of validations to apply.
 type ParamValidator struct {
 	param        *spec.Parameter
 	validators   [6]valueValidator
@@ -487,7 +487,7 @@ type ParamValidator struct {
 	Options      *SchemaValidatorOptions
 }
 
-// NewParamValidator creates a new param validator object
+// NewParamValidator creates a new param validator object.
 func NewParamValidator(param *spec.Parameter, formats strfmt.Registry, options ...Option) *ParamValidator {
 	opts := new(SchemaValidatorOptions)
 	for _, o := range options {
@@ -531,7 +531,7 @@ func newParamValidator(param *spec.Parameter, formats strfmt.Registry, opts *Sch
 	return p
 }
 
-// Validate the data against the description of the parameter
+// Validate the data against the description of the parameter.
 func (p *ParamValidator) Validate(data any) *Result {
 	if data == nil {
 		return nil
@@ -554,7 +554,7 @@ func (p *ParamValidator) Validate(data any) *Result {
 		}()
 	}
 
-	// TODO: validate type
+	// Proposal for enhancement: validate type
 	for idx, validator := range p.validators {
 		if !validator.Applies(p.param, kind) {
 			if p.Options.recycleValidators {
@@ -688,7 +688,8 @@ func newBasicSliceValidator(
 	path, in string,
 	def any, maxItems, minItems *int64, uniqueItems bool, items *spec.Items,
 	source any, formats strfmt.Registry,
-	opts *SchemaValidatorOptions) *basicSliceValidator {
+	opts *SchemaValidatorOptions,
+) *basicSliceValidator {
 	if opts == nil {
 		opts = new(SchemaValidatorOptions)
 	}
@@ -797,7 +798,8 @@ func newNumberValidator(
 	path, in string, def any,
 	multipleOf, maximum *float64, exclusiveMaximum bool, minimum *float64, exclusiveMinimum bool,
 	typ, format string,
-	opts *SchemaValidatorOptions) *numberValidator {
+	opts *SchemaValidatorOptions,
+) *numberValidator {
 	if opts == nil {
 		opts = new(SchemaValidatorOptions)
 	}
@@ -857,9 +859,9 @@ func (n *numberValidator) Applies(source any, kind reflect.Kind) bool {
 //
 // If this is the case, replace AddErrors() by AddWarnings() and IsValid() by !HasWarnings().
 //
-// TODO: consider replacing boundary check errors by simple warnings.
+// Proposal for enhancement: consider replacing boundary check errors by simple warnings.
 //
-// TODO: default boundaries with MAX_SAFE_INTEGER are not checked (specific to json.Number?)
+// NOTE: default boundaries with MAX_SAFE_INTEGER are not checked (specific to json.Number?)
 func (n *numberValidator) Validate(val any) *Result {
 	if n.Options.recycleValidators {
 		defer func() {
@@ -959,7 +961,8 @@ type stringValidator struct {
 func newStringValidator(
 	path, in string,
 	def any, required, allowEmpty bool, maxLength, minLength *int64, pattern string,
-	opts *SchemaValidatorOptions) *stringValidator {
+	opts *SchemaValidatorOptions,
+) *stringValidator {
 	if opts == nil {
 		opts = new(SchemaValidatorOptions)
 	}

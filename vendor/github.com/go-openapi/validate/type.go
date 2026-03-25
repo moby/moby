@@ -71,7 +71,7 @@ func (t *typeValidator) Validate(data any) *Result {
 
 	if data == nil {
 		// nil or zero value for the passed structure require Type: null
-		if len(t.Type) > 0 && !t.Type.Contains(nullType) && !t.Nullable { // TODO: if a property is not required it also passes this
+		if len(t.Type) > 0 && !t.Type.Contains(nullType) && !t.Nullable { // NOTE: if a property is not required it also passes this
 			return errorHelp.sErr(errors.InvalidType(t.Path, t.In, strings.Join(t.Type, ","), nullType), t.Options.recycleResult)
 		}
 
@@ -86,15 +86,18 @@ func (t *typeValidator) Validate(data any) *Result {
 	schType, format := t.schemaInfoForType(data)
 
 	// check numerical types
-	// TODO: check unsigned ints
-	// TODO: check json.Number (see schema.go)
+	// Proposal for enhancement: check unsigned ints
+	// Proposal for enhancement: check json.Number (see schema.go)
 	isLowerInt := t.Format == integerFormatInt64 && format == integerFormatInt32
 	isLowerFloat := t.Format == numberFormatFloat64 && format == numberFormatFloat32
 	isFloatInt := schType == numberType && conv.IsFloat64AJSONInteger(val.Float()) && t.Type.Contains(integerType)
 	isIntFloat := schType == integerType && t.Type.Contains(numberType)
 
-	if kind != reflect.String && kind != reflect.Slice && t.Format != "" && !t.Type.Contains(schType) && format != t.Format && !isFloatInt && !isIntFloat && !isLowerInt && !isLowerFloat {
-		// TODO: test case
+	formatMismatch := kind != reflect.String && kind != reflect.Slice &&
+		t.Format != "" && !t.Type.Contains(schType) && format != t.Format &&
+		!isFloatInt && !isIntFloat && !isLowerInt && !isLowerFloat
+	if formatMismatch {
+		// NOTE: test case
 		return errorHelp.sErr(errors.InvalidType(t.Path, t.In, t.Format, format), t.Options.recycleResult)
 	}
 
@@ -112,7 +115,7 @@ func (t *typeValidator) Validate(data any) *Result {
 func (t *typeValidator) schemaInfoForType(data any) (string, string) {
 	// internal type to JSON type with swagger 2.0 format (with go-openapi/strfmt extensions),
 	// see https://github.com/go-openapi/strfmt/blob/master/README.md
-	// TODO: this switch really is some sort of reverse lookup for formats. It should be provided by strfmt.
+	// NOTE: this switch really is some sort of reverse lookup for formats. It should be provided by strfmt.
 	switch data.(type) {
 	case []byte, strfmt.Base64, *strfmt.Base64:
 		return stringType, stringFormatByte
@@ -162,8 +165,8 @@ func (t *typeValidator) schemaInfoForType(data any) (string, string) {
 		return stringType, stringFormatUUID4
 	case strfmt.UUID5, *strfmt.UUID5:
 		return stringType, stringFormatUUID5
-	// TODO: missing binary (io.ReadCloser)
-	// TODO: missing json.Number
+	// Proposal for enhancement: missing binary (io.ReadCloser)
+	// Proposal for enhancement: missing json.Number
 	default:
 		val := reflect.ValueOf(data)
 		tpe := val.Type()

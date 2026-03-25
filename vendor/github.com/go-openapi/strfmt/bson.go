@@ -5,62 +5,62 @@ package strfmt
 
 import (
 	"database/sql/driver"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
-
-	bsonprim "go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func init() {
+func init() { //nolint:gochecknoinits // registers bsonobjectid format in the default registry
 	var id ObjectId
-	// register this format in the default registry
 	Default.Add("bsonobjectid", &id, IsBSONObjectID)
 }
 
-// IsBSONObjectID returns true when the string is a valid BSON.ObjectId
+// IsBSONObjectID returns true when the string is a valid BSON [ObjectId].
 func IsBSONObjectID(str string) bool {
-	_, err := bsonprim.ObjectIDFromHex(str)
+	_, err := objectIDFromHex(str)
 	return err == nil
 }
 
-// ObjectId represents a BSON object ID (alias to go.mongodb.org/mongo-driver/bson/primitive.ObjectID)
+// ObjectId represents a BSON object ID (a 12-byte unique identifier).
 //
-// swagger:strfmt bsonobjectid
-type ObjectId bsonprim.ObjectID //nolint:revive
+// swagger:strfmt bsonobjectid.
+type ObjectId [12]byte //nolint:revive
 
-// NewObjectId creates a ObjectId from a Hex String
+// nilObjectID is the zero-value ObjectId.
+var nilObjectID ObjectId //nolint:gochecknoglobals // package-level sentinel
+
+// NewObjectId creates a [ObjectId] from a hexadecimal String.
 func NewObjectId(hex string) ObjectId { //nolint:revive
-	oid, err := bsonprim.ObjectIDFromHex(hex)
+	oid, err := objectIDFromHex(hex)
 	if err != nil {
 		panic(err)
 	}
-	return ObjectId(oid)
+	return oid
 }
 
-// MarshalText turns this instance into text
+// MarshalText turns this instance into text.
 func (id ObjectId) MarshalText() ([]byte, error) {
-	oid := bsonprim.ObjectID(id)
-	if oid == bsonprim.NilObjectID {
+	if id == nilObjectID {
 		return nil, nil
 	}
-	return []byte(oid.Hex()), nil
+	return []byte(id.Hex()), nil
 }
 
-// UnmarshalText hydrates this instance from text
+// UnmarshalText hydrates this instance from text.
 func (id *ObjectId) UnmarshalText(data []byte) error { // validation is performed later on
 	if len(data) == 0 {
-		*id = ObjectId(bsonprim.NilObjectID)
+		*id = nilObjectID
 		return nil
 	}
-	oidstr := string(data)
-	oid, err := bsonprim.ObjectIDFromHex(oidstr)
+	oid, err := objectIDFromHex(string(data))
 	if err != nil {
 		return err
 	}
-	*id = ObjectId(oid)
+	*id = oid
 	return nil
 }
 
-// Scan read a value from a database driver
+// Scan read a value from a database driver.
 func (id *ObjectId) Scan(raw any) error {
 	var data []byte
 	switch v := raw.(type) {
@@ -75,27 +75,36 @@ func (id *ObjectId) Scan(raw any) error {
 	return id.UnmarshalText(data)
 }
 
-// Value converts a value to a database driver value
+// Value converts a value to a database driver value.
 func (id ObjectId) Value() (driver.Value, error) {
-	return driver.Value(bsonprim.ObjectID(id).Hex()), nil
+	return driver.Value(id.Hex()), nil
+}
+
+// Hex returns the hex string representation of the [ObjectId].
+func (id ObjectId) Hex() string {
+	return hex.EncodeToString(id[:])
 }
 
 func (id ObjectId) String() string {
-	return bsonprim.ObjectID(id).Hex()
+	return id.Hex()
 }
 
-// MarshalJSON returns the ObjectId as JSON
+// MarshalJSON returns the [ObjectId] as JSON.
 func (id ObjectId) MarshalJSON() ([]byte, error) {
-	return bsonprim.ObjectID(id).MarshalJSON()
+	return json.Marshal(id.Hex())
 }
 
-// UnmarshalJSON sets the ObjectId from JSON
+// UnmarshalJSON sets the [ObjectId] from JSON.
 func (id *ObjectId) UnmarshalJSON(data []byte) error {
-	var obj bsonprim.ObjectID
-	if err := obj.UnmarshalJSON(data); err != nil {
+	var hexStr string
+	if err := json.Unmarshal(data, &hexStr); err != nil {
 		return err
 	}
-	*id = ObjectId(obj)
+	oid, err := objectIDFromHex(hexStr)
+	if err != nil {
+		return err
+	}
+	*id = oid
 	return nil
 }
 
@@ -104,7 +113,7 @@ func (id *ObjectId) DeepCopyInto(out *ObjectId) {
 	*out = *id
 }
 
-// DeepCopy copies the receiver into a new ObjectId.
+// DeepCopy copies the receiver into a new [ObjectId].
 func (id *ObjectId) DeepCopy() *ObjectId {
 	if id == nil {
 		return nil
@@ -112,4 +121,19 @@ func (id *ObjectId) DeepCopy() *ObjectId {
 	out := new(ObjectId)
 	id.DeepCopyInto(out)
 	return out
+}
+
+// objectIDFromHex parses a 24-character hex string into an [ObjectId].
+func objectIDFromHex(s string) (ObjectId, error) {
+	const objectIDHexLen = 24
+	if len(s) != objectIDHexLen {
+		return nilObjectID, fmt.Errorf("the provided hex string %q is not a valid ObjectID: %w", s, ErrFormat)
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return nilObjectID, fmt.Errorf("the provided hex string %q is not a valid ObjectID: %w", s, err)
+	}
+	var oid ObjectId
+	copy(oid[:], b)
+	return oid, nil
 }

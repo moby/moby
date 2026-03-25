@@ -17,7 +17,7 @@ import (
 	"github.com/go-openapi/swag/mangling"
 )
 
-// InlineSchemaNamer finds a new name for an inlined type
+// InlineSchemaNamer finds a new name for an inlined type.
 type InlineSchemaNamer struct {
 	Spec           *spec.Swagger
 	Operations     map[string]operations.OpRef
@@ -25,7 +25,7 @@ type InlineSchemaNamer struct {
 	opts           *FlattenOpts
 }
 
-// Name yields a new name for the inline schema
+// Name yields a new name for the inline schema.
 func (isn *InlineSchemaNamer) Name(key string, schema *spec.Schema, aschema *AnalyzedSchema) error {
 	debugLog("naming inlined schema at %s", key)
 
@@ -108,7 +108,7 @@ func (isn *InlineSchemaNamer) Name(key string, schema *spec.Schema, aschema *Ana
 	return nil
 }
 
-// uniqifyName yields a unique name for a definition
+// uniqifyName yields a unique name for a definition.
 func uniqifyName(definitions spec.Definitions, name string) (string, bool) {
 	isOAIGen := false
 	if name == "" {
@@ -244,7 +244,7 @@ func namesForDefinition(parts sortref.SplitKey) ([][]string, int) {
 	return [][]string{}, 0
 }
 
-// partAdder knows how to interpret a schema when it comes to build a name from parts
+// partAdder knows how to interpret a schema when it comes to build a name from parts.
 func partAdder(aschema *AnalyzedSchema) sortref.PartAdder {
 	return func(part string) []string {
 		segments := make([]string, 0, minSegments)

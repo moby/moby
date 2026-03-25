@@ -34,7 +34,8 @@ func (s *schemaPropsValidator) SetPath(path string) {
 
 func newSchemaPropsValidator(
 	path string, in string, allOf, oneOf, anyOf []spec.Schema, not *spec.Schema, deps spec.Dependencies, root any, formats strfmt.Registry,
-	opts *SchemaValidatorOptions) *schemaPropsValidator {
+	opts *SchemaValidatorOptions,
+) *schemaPropsValidator {
 	if opts == nil {
 		opts = new(SchemaValidatorOptions)
 	}
@@ -281,7 +282,7 @@ func (s *schemaPropsValidator) validateNot(data any, mainResult *Result) {
 }
 
 func (s *schemaPropsValidator) validateDependencies(data any, mainResult *Result) {
-	val := data.(map[string]any)
+	val := data.(map[string]any) //nolint:forcetypeassert // caller guarantees map[string]any
 	for key := range val {
 		dep, ok := s.Dependencies[key]
 		if !ok {

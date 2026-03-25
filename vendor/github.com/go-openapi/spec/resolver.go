@@ -20,7 +20,7 @@ func resolveAnyWithBase(root any, ref *Ref, result any, options *ExpandOptions) 
 	return nil
 }
 
-// ResolveRefWithBase resolves a reference against a context root with preservation of base path
+// ResolveRefWithBase resolves a reference against a context root with preservation of base path.
 func ResolveRefWithBase(root any, ref *Ref, options *ExpandOptions) (*Schema, error) {
 	result := new(Schema)
 
@@ -34,7 +34,7 @@ func ResolveRefWithBase(root any, ref *Ref, options *ExpandOptions) (*Schema, er
 // ResolveRef resolves a reference for a schema against a context root
 // ref is guaranteed to be in root (no need to go to external files)
 //
-// ResolveRef is ONLY called from the code generation module
+// ResolveRef is ONLY called from the code generation module.
 func ResolveRef(root any, ref *Ref) (*Schema, error) {
 	res, _, err := ref.GetPointer().Get(root)
 	if err != nil {
@@ -57,7 +57,7 @@ func ResolveRef(root any, ref *Ref) (*Schema, error) {
 	}
 }
 
-// ResolveParameterWithBase resolves a parameter reference against a context root and base path
+// ResolveParameterWithBase resolves a parameter reference against a context root and base path.
 func ResolveParameterWithBase(root any, ref Ref, options *ExpandOptions) (*Parameter, error) {
 	result := new(Parameter)
 
@@ -68,12 +68,12 @@ func ResolveParameterWithBase(root any, ref Ref, options *ExpandOptions) (*Param
 	return result, nil
 }
 
-// ResolveParameter resolves a parameter reference against a context root
+// ResolveParameter resolves a parameter reference against a context root.
 func ResolveParameter(root any, ref Ref) (*Parameter, error) {
 	return ResolveParameterWithBase(root, ref, nil)
 }
 
-// ResolveResponseWithBase resolves response a reference against a context root and base path
+// ResolveResponseWithBase resolves response a reference against a context root and base path.
 func ResolveResponseWithBase(root any, ref Ref, options *ExpandOptions) (*Response, error) {
 	result := new(Response)
 
@@ -85,12 +85,12 @@ func ResolveResponseWithBase(root any, ref Ref, options *ExpandOptions) (*Respon
 	return result, nil
 }
 
-// ResolveResponse resolves response a reference against a context root
+// ResolveResponse resolves response a reference against a context root.
 func ResolveResponse(root any, ref Ref) (*Response, error) {
 	return ResolveResponseWithBase(root, ref, nil)
 }
 
-// ResolvePathItemWithBase resolves response a path item against a context root and base path
+// ResolvePathItemWithBase resolves response a path item against a context root and base path.
 func ResolvePathItemWithBase(root any, ref Ref, options *ExpandOptions) (*PathItem, error) {
 	result := new(PathItem)
 
@@ -103,7 +103,7 @@ func ResolvePathItemWithBase(root any, ref Ref, options *ExpandOptions) (*PathIt
 
 // ResolvePathItem resolves response a path item against a context root and base path
 //
-// Deprecated: use ResolvePathItemWithBase instead
+// Deprecated: use ResolvePathItemWithBase instead.
 func ResolvePathItem(root any, ref Ref, options *ExpandOptions) (*PathItem, error) {
 	return ResolvePathItemWithBase(root, ref, options)
 }
@@ -124,7 +124,7 @@ func ResolveItemsWithBase(root any, ref Ref, options *ExpandOptions) (*Items, er
 
 // ResolveItems resolves parameter items reference against a context root and base path.
 //
-// Deprecated: use ResolveItemsWithBase instead
+// Deprecated: use ResolveItemsWithBase instead.
 func ResolveItems(root any, ref Ref, options *ExpandOptions) (*Items, error) {
 	return ResolveItemsWithBase(root, ref, options)
 }

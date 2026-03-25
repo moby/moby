@@ -58,7 +58,7 @@ func ErrCyclicChain(key string) error {
 }
 
 func ErrInvalidPointerType(key string, value any, err error) error {
-	return fmt.Errorf("invalid type for resolved JSON pointer %s. Expected a schema a, got: %T (%v): %w",
+	return fmt.Errorf("invalid type for resolved JSON pointer %s. Expected a schema a, got: %T (%w): %w",
 		key, value, err, ErrReplace,
 	)
 }

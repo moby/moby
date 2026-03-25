@@ -1490,20 +1490,6 @@ func Getgid() (gid int)                  { return -1 }
 func Getegid() (egid int)                { return -1 }
 func Getgroups() (gids []int, err error) { return nil, syscall.EWINDOWS }
 
-type Signal int
-
-func (s Signal) Signal() {}
-
-func (s Signal) String() string {
-	if 0 <= s && int(s) < len(signals) {
-		str := signals[s]
-		if str != "" {
-			return str
-		}
-	}
-	return "signal " + itoa(int(s))
-}
-
 func LoadCreateSymbolicLink() error {
 	return procCreateSymbolicLinkW.Find()
 }
