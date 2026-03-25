@@ -398,6 +398,8 @@ func Git(url, fragment string, opts ...GitOption) State {
 		AuthTokenSecret:  GitAuthTokenKey,
 	}
 	ref, subdir, ok := strings.Cut(fragment, ":")
+	subdir = path.Join("/", subdir)
+	subdir = strings.TrimPrefix(subdir, "/")
 	if ref != "" {
 		GitRef(ref).SetGitOption(gi)
 	}
