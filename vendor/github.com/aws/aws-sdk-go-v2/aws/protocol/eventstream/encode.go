@@ -157,7 +157,7 @@ func EncodeHeaders(w io.Writer, headers Headers) error {
 	return nil
 }
 
-func binaryWriteFields(w io.Writer, order binary.ByteOrder, vs ...interface{}) error {
+func binaryWriteFields(w io.Writer, order binary.ByteOrder, vs ...any) error {
 	for _, v := range vs {
 		if err := binary.Write(w, order, v); err != nil {
 			return err
