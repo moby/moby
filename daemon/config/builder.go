@@ -25,9 +25,6 @@ func (x *BuilderGCRule) UnmarshalJSON(data []byte) error {
 		ReservedSpace string          `json:",omitempty"`
 		MaxUsedSpace  string          `json:",omitempty"`
 		MinFreeSpace  string          `json:",omitempty"`
-
-		// Deprecated option is now equivalent to ReservedSpace.
-		KeepStorage string `json:",omitempty"`
 	}
 	if err := json.Unmarshal(data, &xx); err != nil {
 		return err
@@ -38,9 +35,6 @@ func (x *BuilderGCRule) UnmarshalJSON(data []byte) error {
 	x.ReservedSpace = xx.ReservedSpace
 	x.MaxUsedSpace = xx.MaxUsedSpace
 	x.MinFreeSpace = xx.MinFreeSpace
-	if x.ReservedSpace == "" {
-		x.ReservedSpace = xx.KeepStorage
-	}
 	return nil
 }
 
@@ -102,9 +96,6 @@ func (x *BuilderGCConfig) UnmarshalJSON(data []byte) error {
 		DefaultReservedSpace string          `json:",omitempty"`
 		DefaultMaxUsedSpace  string          `json:",omitempty"`
 		DefaultMinFreeSpace  string          `json:",omitempty"`
-
-		// Deprecated option is now equivalent to DefaultReservedSpace.
-		DefaultKeepStorage string `json:",omitempty"`
 	}
 
 	// Set defaults.
@@ -119,9 +110,6 @@ func (x *BuilderGCConfig) UnmarshalJSON(data []byte) error {
 	x.DefaultReservedSpace = xx.DefaultReservedSpace
 	x.DefaultMaxUsedSpace = xx.DefaultMaxUsedSpace
 	x.DefaultMinFreeSpace = xx.DefaultMinFreeSpace
-	if x.DefaultReservedSpace == "" {
-		x.DefaultReservedSpace = xx.DefaultKeepStorage
-	}
 	return nil
 }
 
