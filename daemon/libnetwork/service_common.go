@@ -5,6 +5,7 @@ package libnetwork
 import (
 	"context"
 	"net"
+	"slices"
 
 	"github.com/containerd/log"
 )
@@ -270,6 +271,36 @@ func (c *Controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 	}
 	log.G(context.TODO()).Debugf("addServiceBinding from %s START for %s %s p:%p nid:%s skey:%v", method, svcName, eID, s, nID, skey)
 	defer s.Unlock()
+
+	// Reconcile VIP DNS records if the service aliases have changed.
+	// During rolling updates, backends are replaced one by one. VIP alias
+	// DNS records are only added when the first backend joins a network
+	// (addService=true) and only removed when the last backend leaves
+	// (rmService=true). If aliases change between old and new tasks,
+	// the stale VIP DNS records are never cleaned up because neither
+	// condition triggers during the transition.
+	if !slices.Equal(s.aliases, serviceAliases) {
+		for lbNID, existingLB := range s.loadBalancers {
+			if len(existingLB.vip) == 0 {
+				continue
+			}
+			lbNetwork, err := c.NetworkByID(lbNID)
+			if err != nil {
+				continue
+			}
+			for _, oldAlias := range s.aliases {
+				if !slices.Contains(serviceAliases, oldAlias) {
+					lbNetwork.deleteSvcRecords(eID, oldAlias, svcID, existingLB.vip, nil, false, "updateServiceAlias")
+				}
+			}
+			for _, newAlias := range serviceAliases {
+				if !slices.Contains(s.aliases, newAlias) {
+					lbNetwork.addSvcRecords(eID, newAlias, svcID, existingLB.vip, nil, false, "updateServiceAlias")
+				}
+			}
+		}
+		s.aliases = serviceAliases
+	}
 
 	lb, ok := s.loadBalancers[nID]
 	if !ok {
