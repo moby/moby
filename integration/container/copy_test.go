@@ -14,11 +14,13 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/go-archive"
-	"github.com/moby/moby/api/types/build"
+	buildtypes "github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
+	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
+	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -216,7 +218,7 @@ func makeTestImage(ctx context.Context, t *testing.T) (imageID string) {
 	defer resp.Body.Close()
 
 	err = jsonmessage.DisplayStream(resp.Body, io.Discard, jsonmessage.WithAuxCallback(func(msg jsonstream.Message) {
-		var r build.Result
+		var r buildtypes.Result
 		assert.NilError(t, json.Unmarshal(*msg.Aux, &r))
 		imageID = r.ID
 	}))
@@ -291,7 +293,7 @@ func TestCopyFromContainer(t *testing.T) {
 
 	var imageID string
 	err = jsonmessage.DisplayStream(resp.Body, io.Discard, jsonmessage.WithAuxCallback(func(msg jsonstream.Message) {
-		var r build.Result
+		var r buildtypes.Result
 		assert.NilError(t, json.Unmarshal(*msg.Aux, &r))
 		imageID = r.ID
 	}))
@@ -361,4 +363,77 @@ func TestCopyFromContainer(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCopyToContainerXZBinaryNotExecutedOnDaemon tests that when
+// uploading an xz-compressed archive to a container via the
+// PUT /containers/{id}/archive API, the daemon does NOT execute the xz
+// binary found inside the container's filesystem.
+// This is a regression test for
+// https://github.com/moby/moby/security/advisories/GHSA-x86f-5xw2-fm2r
+func TestCopyToContainerXZBinaryNotExecutedOnDaemon(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
+	ctx := setupTest(t)
+
+	const tokenEnv = "MOBY_EXPLOIT_TEST_TOKEN"
+	const tokenVal = "host-boundary-crossed"
+
+	d := daemon.New(t)
+	defer d.Cleanup(t)
+	d.SetEnvVar(tokenEnv, tokenVal)
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
+	defer d.Stop(t)
+
+	apiClient := d.NewClientT(t)
+
+	dir := t.TempDir()
+	buildCtx := fakecontext.New(t, dir,
+		// The fake xz writes the daemon's secret env var to a marker file.
+		// A process inside the container would not have this env var.
+		fakecontext.WithFile("fake-xz", "#!/bin/sh\necho $"+tokenEnv+" > /xz-was-executed\n"),
+		fakecontext.WithDockerfile(`FROM busybox
+COPY fake-xz /usr/bin/xz
+RUN chmod +x /usr/bin/xz`),
+	)
+	defer buildCtx.Close()
+
+	imageID := build.Do(ctx, t, apiClient, buildCtx, client.ImageBuildOptions{})
+
+	cID := container.Run(ctx, t, apiClient, container.WithImage(imageID))
+	defer container.Remove(ctx, t, apiClient, cID, client.ContainerRemoveOptions{Force: true})
+
+	// Craft a payload that starts with xz magic bytes so the daemon's
+	// DecompressStream identifies it as xz-compressed. The payload is
+	// deliberately invalid xz data; we only care whether the daemon
+	// attempts to run the container's /usr/bin/xz to decompress it.
+	xzMagic := []byte{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00}
+	payload := append(xzMagic, []byte("not-real-xz-data")...)
+
+	// CopyToContainer is expected to fail because the payload is not a
+	// valid xz archive. We don't care about the error; we care about
+	// whether the container's xz binary was invoked.
+	_, _ = apiClient.CopyToContainer(ctx, cID, client.CopyToContainerOptions{
+		DestinationPath: "/tmp",
+		Content:         bytes.NewReader(payload),
+	})
+
+	t.Run("binary not executed", func(t *testing.T) {
+		// If the container's /usr/bin/xz was executed, the marker file
+		// will exist, and this assertion will fail.
+		res, err := container.Exec(ctx, apiClient, cID, []string{"test", "-f", "/xz-was-executed"})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(res.ExitCode, 1),
+			"container's xz binary was executed by the daemon during archive extraction; marker file /xz-was-executed was created")
+	})
+
+	t.Run("runs container", func(t *testing.T) {
+		// If the binary ran, check that it ran in the daemon's process
+		// context by looking for the daemon's secret env var in the
+		// marker file. A container process would not have this env var.
+		res, err := container.Exec(ctx, apiClient, cID, []string{"cat", "/xz-was-executed"})
+		assert.NilError(t, err)
+		assert.Check(t, !strings.Contains(res.Stdout(), tokenVal),
+			"container's xz binary was executed in the daemon's process context: marker file contains the daemon's secret env var")
+	})
 }
