@@ -39,9 +39,18 @@ func registerDeviceDriver(name string, d *deviceDriver) {
 	deviceDrivers[name] = d
 }
 
+type vendors []string
+
+var defaultVendors = vendors{"nvidia.com", "amd.com"}
+
 func getFirstAvailableVendor(vendorList []string) (string, error) {
-	knownVendors := []string{"nvidia.com", "amd.com"}
-	for _, vendor := range knownVendors {
+	return defaultVendors.getFirstAvailableIn(vendorList)
+}
+
+// getFirstAvailableIn returns the first of the defined vendors in the specified
+// vendor list.
+func (v vendors) getFirstAvailableIn(vendorList []string) (string, error) {
+	for _, vendor := range v {
 		for _, available := range vendorList {
 			if vendor == available {
 				return vendor, nil
