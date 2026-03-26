@@ -1056,7 +1056,7 @@ func (se SetElement) delete(ctx context.Context, t *table) (bool, error) {
 		"table":   t.Name,
 		"set":     s.Name,
 		"element": se.Element,
-	}).Debug("nftables: added set element")
+	}).Debug("nftables: deleted set element")
 	return true, nil
 }
 
