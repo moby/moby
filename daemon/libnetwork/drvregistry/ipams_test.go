@@ -14,7 +14,7 @@ import (
 func getNewIPAMs(t *testing.T) *IPAMs {
 	r := &IPAMs{}
 
-	assert.Assert(t, ipams.Register(r, nil, nil, nil))
+	assert.Assert(t, ipams.Register(r, nil, nil, nil, nil))
 
 	return r
 }
