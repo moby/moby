@@ -3,7 +3,7 @@ package stscreds
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -80,7 +80,7 @@ type IdentityTokenFile string
 
 // GetIdentityToken retrieves the JWT token from the file and returns the contents as a []byte
 func (j IdentityTokenFile) GetIdentityToken() ([]byte, error) {
-	b, err := ioutil.ReadFile(string(j))
+	b, err := os.ReadFile(string(j))
 	if err != nil {
 		return nil, fmt.Errorf("unable to read file at %s: %v", string(j), err)
 	}

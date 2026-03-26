@@ -3,7 +3,7 @@ package query
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -52,7 +52,7 @@ func (m *asGetRequest) HandleSerialize(
 		delim = "&"
 	}
 
-	b, err := ioutil.ReadAll(stream)
+	b, err := io.ReadAll(stream)
 	if err != nil {
 		return out, metadata, fmt.Errorf("unable to get request body %w", err)
 	}

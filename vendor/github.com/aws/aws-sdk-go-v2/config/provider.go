@@ -130,7 +130,7 @@ type IgnoreConfiguredEndpointsProvider interface {
 
 // GetIgnoreConfiguredEndpoints is used in knowing when to disable configured
 // endpoints feature.
-func GetIgnoreConfiguredEndpoints(ctx context.Context, configs []interface{}) (value bool, found bool, err error) {
+func GetIgnoreConfiguredEndpoints(ctx context.Context, configs []any) (value bool, found bool, err error) {
 	for _, cfg := range configs {
 		if p, ok := cfg.(IgnoreConfiguredEndpointsProvider); ok {
 			value, found, err = p.GetIgnoreConfiguredEndpoints(ctx)

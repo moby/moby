@@ -34,9 +34,10 @@ import (
 //
 //   - logs:PutResourcePolicy
 //
-//   - (If source has an associated AWS KMS Key) kms:Decrypt
+//   - (If source has an associated Amazon Web Services KMS Key) kms:Decrypt
 //
-//   - (If source has an associated AWS KMS Key) kms:GenerateDataKey
+//   - (If source has an associated Amazon Web Services KMS Key)
+//     kms:GenerateDataKey
 //
 // Example IAM policy for provided import role:
 //
@@ -157,7 +158,7 @@ func (c *Client) addOperationCreateImportTaskMiddlewares(stack *middleware.Stack
 	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetry(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
 	if err = addRawResponseToMetadata(stack); err != nil {
@@ -179,9 +180,6 @@ func (c *Client) addOperationCreateImportTaskMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addTimeOffsetBuild(stack, c); err != nil {
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {

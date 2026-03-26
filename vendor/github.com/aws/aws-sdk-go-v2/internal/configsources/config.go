@@ -14,7 +14,7 @@ type EnableEndpointDiscoveryProvider interface {
 // ResolveEnableEndpointDiscovery extracts the first instance of a EnableEndpointDiscoveryProvider from the config slice.
 // Additionally returns a aws.EndpointDiscoveryEnableState to indicate if the value was found in provided configs,
 // and error if one is encountered.
-func ResolveEnableEndpointDiscovery(ctx context.Context, configs []interface{}) (value aws.EndpointDiscoveryEnableState, found bool, err error) {
+func ResolveEnableEndpointDiscovery(ctx context.Context, configs []any) (value aws.EndpointDiscoveryEnableState, found bool, err error) {
 	for _, cfg := range configs {
 		if p, ok := cfg.(EnableEndpointDiscoveryProvider); ok {
 			value, found, err = p.GetEnableEndpointDiscovery(ctx)
@@ -33,7 +33,7 @@ type UseDualStackEndpointProvider interface {
 
 // ResolveUseDualStackEndpoint extracts the first instance of a UseDualStackEndpoint from the config slice.
 // Additionally returns a boolean to indicate if the value was found in provided configs, and error if one is encountered.
-func ResolveUseDualStackEndpoint(ctx context.Context, configs []interface{}) (value aws.DualStackEndpointState, found bool, err error) {
+func ResolveUseDualStackEndpoint(ctx context.Context, configs []any) (value aws.DualStackEndpointState, found bool, err error) {
 	for _, cfg := range configs {
 		if p, ok := cfg.(UseDualStackEndpointProvider); ok {
 			value, found, err = p.GetUseDualStackEndpoint(ctx)
@@ -52,7 +52,7 @@ type UseFIPSEndpointProvider interface {
 
 // ResolveUseFIPSEndpoint extracts the first instance of a UseFIPSEndpointProvider from the config slice.
 // Additionally, returns a boolean to indicate if the value was found in provided configs, and error if one is encountered.
-func ResolveUseFIPSEndpoint(ctx context.Context, configs []interface{}) (value aws.FIPSEndpointState, found bool, err error) {
+func ResolveUseFIPSEndpoint(ctx context.Context, configs []any) (value aws.FIPSEndpointState, found bool, err error) {
 	for _, cfg := range configs {
 		if p, ok := cfg.(UseFIPSEndpointProvider); ok {
 			value, found, err = p.GetUseFIPSEndpoint(ctx)
