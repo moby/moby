@@ -1,0 +1,7 @@
+use (
+	.
+	./enable/mongodb
+	./internal/testintegration
+)
+
+go 1.24.0

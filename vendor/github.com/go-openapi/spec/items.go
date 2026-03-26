@@ -15,7 +15,7 @@ const (
 	jsonRef = "$ref"
 )
 
-// SimpleSchema describe swagger simple schemas for parameters and headers
+// SimpleSchema describe swagger simple schemas for parameters and headers.
 type SimpleSchema struct {
 	Type             string `json:"type,omitempty"`
 	Nullable         bool   `json:"nullable,omitempty"`
@@ -26,7 +26,7 @@ type SimpleSchema struct {
 	Example          any    `json:"example,omitempty"`
 }
 
-// TypeName return the type (or format) of a simple schema
+// TypeName return the type (or format) of a simple schema.
 func (s *SimpleSchema) TypeName() string {
 	if s.Format != "" {
 		return s.Format
@@ -34,7 +34,7 @@ func (s *SimpleSchema) TypeName() string {
 	return s.Type
 }
 
-// ItemsTypeName yields the type of items in a simple schema array
+// ItemsTypeName yields the type of items in a simple schema array.
 func (s *SimpleSchema) ItemsTypeName() string {
 	if s.Items == nil {
 		return ""
@@ -53,12 +53,12 @@ type Items struct {
 	VendorExtensible
 }
 
-// NewItems creates a new instance of items
+// NewItems creates a new instance of items.
 func NewItems() *Items {
 	return &Items{}
 }
 
-// Typed a fluent builder method for the type of item
+// Typed a fluent builder method for the type of item.
 func (i *Items) Typed(tpe, format string) *Items {
 	i.Type = tpe
 	i.Format = format
@@ -71,7 +71,7 @@ func (i *Items) AsNullable() *Items {
 	return i
 }
 
-// CollectionOf a fluent builder method for an array item
+// CollectionOf a fluent builder method for an array item.
 func (i *Items) CollectionOf(items *Items, format string) *Items {
 	i.Type = jsonArray
 	i.Items = items
@@ -79,87 +79,87 @@ func (i *Items) CollectionOf(items *Items, format string) *Items {
 	return i
 }
 
-// WithDefault sets the default value on this item
+// WithDefault sets the default value on this item.
 func (i *Items) WithDefault(defaultValue any) *Items {
 	i.Default = defaultValue
 	return i
 }
 
-// WithMaxLength sets a max length value
+// WithMaxLength sets a max length value.
 func (i *Items) WithMaxLength(maximum int64) *Items {
 	i.MaxLength = &maximum
 	return i
 }
 
-// WithMinLength sets a min length value
+// WithMinLength sets a min length value.
 func (i *Items) WithMinLength(minimum int64) *Items {
 	i.MinLength = &minimum
 	return i
 }
 
-// WithPattern sets a pattern value
+// WithPattern sets a pattern value.
 func (i *Items) WithPattern(pattern string) *Items {
 	i.Pattern = pattern
 	return i
 }
 
-// WithMultipleOf sets a multiple of value
+// WithMultipleOf sets a multiple of value.
 func (i *Items) WithMultipleOf(number float64) *Items {
 	i.MultipleOf = &number
 	return i
 }
 
-// WithMaximum sets a maximum number value
+// WithMaximum sets a maximum number value.
 func (i *Items) WithMaximum(maximum float64, exclusive bool) *Items {
 	i.Maximum = &maximum
 	i.ExclusiveMaximum = exclusive
 	return i
 }
 
-// WithMinimum sets a minimum number value
+// WithMinimum sets a minimum number value.
 func (i *Items) WithMinimum(minimum float64, exclusive bool) *Items {
 	i.Minimum = &minimum
 	i.ExclusiveMinimum = exclusive
 	return i
 }
 
-// WithEnum sets a the enum values (replace)
+// WithEnum sets a the enum values (replace).
 func (i *Items) WithEnum(values ...any) *Items {
 	i.Enum = append([]any{}, values...)
 	return i
 }
 
-// WithMaxItems sets the max items
+// WithMaxItems sets the max items.
 func (i *Items) WithMaxItems(size int64) *Items {
 	i.MaxItems = &size
 	return i
 }
 
-// WithMinItems sets the min items
+// WithMinItems sets the min items.
 func (i *Items) WithMinItems(size int64) *Items {
 	i.MinItems = &size
 	return i
 }
 
-// UniqueValues dictates that this array can only have unique items
+// UniqueValues dictates that this array can only have unique items.
 func (i *Items) UniqueValues() *Items {
 	i.UniqueItems = true
 	return i
 }
 
-// AllowDuplicates this array can have duplicates
+// AllowDuplicates this array can have duplicates.
 func (i *Items) AllowDuplicates() *Items {
 	i.UniqueItems = false
 	return i
 }
 
-// WithValidations is a fluent method to set Items validations
+// WithValidations is a fluent method to set Items validations.
 func (i *Items) WithValidations(val CommonValidations) *Items {
 	i.SetValidations(SchemaValidations{CommonValidations: val})
 	return i
 }
 
-// UnmarshalJSON hydrates this items instance with the data from JSON
+// UnmarshalJSON hydrates this items instance with the data from JSON.
 func (i *Items) UnmarshalJSON(data []byte) error {
 	var validations CommonValidations
 	if err := json.Unmarshal(data, &validations); err != nil {
@@ -184,7 +184,7 @@ func (i *Items) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON converts this items object to JSON
+// MarshalJSON converts this items object to JSON.
 func (i Items) MarshalJSON() ([]byte, error) {
 	b1, err := json.Marshal(i.CommonValidations)
 	if err != nil {
@@ -205,7 +205,7 @@ func (i Items) MarshalJSON() ([]byte, error) {
 	return jsonutils.ConcatJSON(b4, b3, b1, b2), nil
 }
 
-// JSONLookup look up a value by the json property name
+// JSONLookup look up a value by the json property name.
 func (i Items) JSONLookup(token string) (any, error) {
 	if token == jsonRef {
 		return &i.Ref, nil

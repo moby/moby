@@ -21,15 +21,15 @@ func (e valueError) Error() string {
 	return string(e)
 }
 
-// ErrValue indicates that a value validation occurred
+// ErrValue indicates that a value validation occurred.
 const ErrValue valueError = "value validation error"
 
-// Enum validates if the data is a member of the enum
+// Enum validates if the data is a member of the enum.
 func Enum(path, in string, data any, enum any) *errors.Validation {
 	return EnumCase(path, in, data, enum, true)
 }
 
-// EnumCase validates if the data is a member of the enum and may respect case-sensitivity for strings
+// EnumCase validates if the data is a member of the enum and may respect case-sensitivity for strings.
 func EnumCase(path, in string, data any, enum any, caseSensitive bool) *errors.Validation {
 	val := reflect.ValueOf(enum)
 	if val.Kind() != reflect.Slice {
@@ -66,7 +66,7 @@ func EnumCase(path, in string, data any, enum any, caseSensitive bool) *errors.V
 	return errors.EnumFail(path, in, data, values)
 }
 
-// convertEnumCaseStringKind converts interface if it is kind of string and case insensitivity is set
+// convertEnumCaseStringKind converts interface if it is kind of string and case insensitivity is set.
 func convertEnumCaseStringKind(value any, caseSensitive bool) *string {
 	if caseSensitive {
 		return nil
@@ -81,7 +81,7 @@ func convertEnumCaseStringKind(value any, caseSensitive bool) *string {
 	return &str
 }
 
-// MinItems validates that there are at least n items in a slice
+// MinItems validates that there are at least n items in a slice.
 func MinItems(path, in string, size, minimum int64) *errors.Validation {
 	if size < minimum {
 		return errors.TooFewItems(path, in, minimum, size)
@@ -89,7 +89,7 @@ func MinItems(path, in string, size, minimum int64) *errors.Validation {
 	return nil
 }
 
-// MaxItems validates that there are at most n items in a slice
+// MaxItems validates that there are at most n items in a slice.
 func MaxItems(path, in string, size, maximum int64) *errors.Validation {
 	if size > maximum {
 		return errors.TooManyItems(path, in, maximum, size)
@@ -97,7 +97,7 @@ func MaxItems(path, in string, size, maximum int64) *errors.Validation {
 	return nil
 }
 
-// UniqueItems validates that the provided slice has unique elements
+// UniqueItems validates that the provided slice has unique elements.
 func UniqueItems(path, in string, data any) *errors.Validation {
 	val := reflect.ValueOf(data)
 	if val.Kind() != reflect.Slice {
@@ -116,7 +116,7 @@ func UniqueItems(path, in string, data any) *errors.Validation {
 	return nil
 }
 
-// MinLength validates a string for minimum length
+// MinLength validates a string for minimum length.
 func MinLength(path, in, data string, minLength int64) *errors.Validation {
 	strLen := int64(utf8.RuneCountInString(data))
 	if strLen < minLength {
@@ -125,7 +125,7 @@ func MinLength(path, in, data string, minLength int64) *errors.Validation {
 	return nil
 }
 
-// MaxLength validates a string for maximum length
+// MaxLength validates a string for maximum length.
 func MaxLength(path, in, data string, maxLength int64) *errors.Validation {
 	strLen := int64(utf8.RuneCountInString(data))
 	if strLen > maxLength {
@@ -134,9 +134,8 @@ func MaxLength(path, in, data string, maxLength int64) *errors.Validation {
 	return nil
 }
 
-// ReadOnly validates an interface for readonly
+// ReadOnly validates an interface for readonly.
 func ReadOnly(ctx context.Context, path, in string, data any) *errors.Validation {
-
 	// read only is only validated when operationType is request
 	if op := extractOperationType(ctx); op != request {
 		return nil
@@ -155,7 +154,7 @@ func ReadOnly(ctx context.Context, path, in string, data any) *errors.Validation
 	return errors.ReadOnly(path, in, data)
 }
 
-// Required validates an interface for requiredness
+// Required validates an interface for requiredness.
 func Required(path, in string, data any) *errors.Validation {
 	val := reflect.ValueOf(data)
 	if val.IsValid() {
@@ -167,7 +166,7 @@ func Required(path, in string, data any) *errors.Validation {
 	return errors.Required(path, in, data)
 }
 
-// RequiredString validates a string for requiredness
+// RequiredString validates a string for requiredness.
 func RequiredString(path, in, data string) *errors.Validation {
 	if data == "" {
 		return errors.Required(path, in, data)
@@ -175,7 +174,7 @@ func RequiredString(path, in, data string) *errors.Validation {
 	return nil
 }
 
-// RequiredNumber validates a number for requiredness
+// RequiredNumber validates a number for requiredness.
 func RequiredNumber(path, in string, data float64) *errors.Validation {
 	if data == 0 {
 		return errors.Required(path, in, data)
@@ -183,7 +182,7 @@ func RequiredNumber(path, in string, data float64) *errors.Validation {
 	return nil
 }
 
-// Pattern validates a string against a regular expression
+// Pattern validates a string against a regular expression.
 func Pattern(path, in, data, pattern string) *errors.Validation {
 	re, err := compileRegexp(pattern)
 	if err != nil {
@@ -195,7 +194,7 @@ func Pattern(path, in, data, pattern string) *errors.Validation {
 	return nil
 }
 
-// MaximumInt validates if a number is smaller than a given maximum
+// MaximumInt validates if a number is smaller than a given maximum.
 func MaximumInt(path, in string, data, maximum int64, exclusive bool) *errors.Validation {
 	if (!exclusive && data > maximum) || (exclusive && data >= maximum) {
 		return errors.ExceedsMaximumInt(path, in, maximum, exclusive, data)
@@ -203,7 +202,7 @@ func MaximumInt(path, in string, data, maximum int64, exclusive bool) *errors.Va
 	return nil
 }
 
-// MaximumUint validates if a number is smaller than a given maximum
+// MaximumUint validates if a number is smaller than a given maximum.
 func MaximumUint(path, in string, data, maximum uint64, exclusive bool) *errors.Validation {
 	if (!exclusive && data > maximum) || (exclusive && data >= maximum) {
 		return errors.ExceedsMaximumUint(path, in, maximum, exclusive, data)
@@ -211,7 +210,7 @@ func MaximumUint(path, in string, data, maximum uint64, exclusive bool) *errors.
 	return nil
 }
 
-// Maximum validates if a number is smaller than a given maximum
+// Maximum validates if a number is smaller than a given maximum.
 func Maximum(path, in string, data, maximum float64, exclusive bool) *errors.Validation {
 	if (!exclusive && data > maximum) || (exclusive && data >= maximum) {
 		return errors.ExceedsMaximum(path, in, maximum, exclusive, data)
@@ -219,7 +218,7 @@ func Maximum(path, in string, data, maximum float64, exclusive bool) *errors.Val
 	return nil
 }
 
-// Minimum validates if a number is smaller than a given minimum
+// Minimum validates if a number is smaller than a given minimum.
 func Minimum(path, in string, data, minimum float64, exclusive bool) *errors.Validation {
 	if (!exclusive && data < minimum) || (exclusive && data <= minimum) {
 		return errors.ExceedsMinimum(path, in, minimum, exclusive, data)
@@ -227,7 +226,7 @@ func Minimum(path, in string, data, minimum float64, exclusive bool) *errors.Val
 	return nil
 }
 
-// MinimumInt validates if a number is smaller than a given minimum
+// MinimumInt validates if a number is smaller than a given minimum.
 func MinimumInt(path, in string, data, minimum int64, exclusive bool) *errors.Validation {
 	if (!exclusive && data < minimum) || (exclusive && data <= minimum) {
 		return errors.ExceedsMinimumInt(path, in, minimum, exclusive, data)
@@ -235,7 +234,7 @@ func MinimumInt(path, in string, data, minimum int64, exclusive bool) *errors.Va
 	return nil
 }
 
-// MinimumUint validates if a number is smaller than a given minimum
+// MinimumUint validates if a number is smaller than a given minimum.
 func MinimumUint(path, in string, data, minimum uint64, exclusive bool) *errors.Validation {
 	if (!exclusive && data < minimum) || (exclusive && data <= minimum) {
 		return errors.ExceedsMinimumUint(path, in, minimum, exclusive, data)
@@ -243,7 +242,7 @@ func MinimumUint(path, in string, data, minimum uint64, exclusive bool) *errors.
 	return nil
 }
 
-// MultipleOf validates if the provided number is a multiple of the factor
+// MultipleOf validates if the provided number is a multiple of the factor.
 func MultipleOf(path, in string, data, factor float64) *errors.Validation {
 	// multipleOf factor must be positive
 	if factor <= 0 {
@@ -261,7 +260,7 @@ func MultipleOf(path, in string, data, factor float64) *errors.Validation {
 	return nil
 }
 
-// MultipleOfInt validates if the provided integer is a multiple of the factor
+// MultipleOfInt validates if the provided integer is a multiple of the factor.
 func MultipleOfInt(path, in string, data int64, factor int64) *errors.Validation {
 	// multipleOf factor must be positive
 	if factor <= 0 {
@@ -274,7 +273,7 @@ func MultipleOfInt(path, in string, data int64, factor int64) *errors.Validation
 	return nil
 }
 
-// MultipleOfUint validates if the provided unsigned integer is a multiple of the factor
+// MultipleOfUint validates if the provided unsigned integer is a multiple of the factor.
 func MultipleOfUint(path, in string, data, factor uint64) *errors.Validation {
 	// multipleOf factor must be positive
 	if factor == 0 {
@@ -287,7 +286,7 @@ func MultipleOfUint(path, in string, data, factor uint64) *errors.Validation {
 	return nil
 }
 
-// FormatOf validates if a string matches a format in the format registry
+// FormatOf validates if a string matches a format in the format registry.
 func FormatOf(path, in, format, data string, registry strfmt.Registry) *errors.Validation {
 	if registry == nil {
 		registry = strfmt.Default
@@ -310,10 +309,10 @@ func FormatOf(path, in, format, data string, registry strfmt.Registry) *errors.V
 // NOTE: currently, the max value is marshalled as a float64, no matter what,
 // which means there may be a loss during conversions (e.g. for very large integers)
 //
-// TODO: Normally, a JSON MAX_SAFE_INTEGER check would ensure conversion remains loss-free
+// NOTE: Normally, a JSON MAX_SAFE_INTEGER check would ensure conversion remains loss-free.
 func MaximumNativeType(path, in string, val any, maximum float64, exclusive bool) *errors.Validation {
 	kind := reflect.ValueOf(val).Type().Kind()
-	switch kind { //nolint:exhaustive
+	switch kind {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		value := valueHelp.asInt64(val)
 		return MaximumInt(path, in, value, int64(maximum), exclusive)
@@ -340,10 +339,10 @@ func MaximumNativeType(path, in string, val any, maximum float64, exclusive bool
 // NOTE: currently, the min value is marshalled as a float64, no matter what,
 // which means there may be a loss during conversions (e.g. for very large integers)
 //
-// TODO: Normally, a JSON MAX_SAFE_INTEGER check would ensure conversion remains loss-free
+// NOTE: Normally, a JSON MAX_SAFE_INTEGER check would ensure conversion remains loss-free.
 func MinimumNativeType(path, in string, val any, minimum float64, exclusive bool) *errors.Validation {
 	kind := reflect.ValueOf(val).Type().Kind()
-	switch kind { //nolint:exhaustive
+	switch kind {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		value := valueHelp.asInt64(val)
 		return MinimumInt(path, in, value, int64(minimum), exclusive)
@@ -362,7 +361,7 @@ func MinimumNativeType(path, in string, val any, minimum float64, exclusive bool
 }
 
 // MultipleOfNativeType provides native type constraint validation as a facade
-// to various numeric types version of MultipleOf constraint check.
+// to various numeric types version of [MultipleOf] constraint check.
 //
 // Assumes that any possible loss conversion during conversion has been
 // checked beforehand.
@@ -370,10 +369,10 @@ func MinimumNativeType(path, in string, val any, minimum float64, exclusive bool
 // NOTE: currently, the multipleOf factor is marshalled as a float64, no matter what,
 // which means there may be a loss during conversions (e.g. for very large integers)
 //
-// TODO: Normally, a JSON MAX_SAFE_INTEGER check would ensure conversion remains loss-free
+// NOTE: Normally, a JSON MAX_SAFE_INTEGER check would ensure conversion remains loss-free.
 func MultipleOfNativeType(path, in string, val any, multipleOf float64) *errors.Validation {
 	kind := reflect.ValueOf(val).Type().Kind()
-	switch kind { //nolint:exhaustive
+	switch kind {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		value := valueHelp.asInt64(val)
 		return MultipleOfInt(path, in, value, int64(multipleOf))
@@ -391,13 +390,13 @@ func MultipleOfNativeType(path, in string, val any, multipleOf float64) *errors.
 // IsValueValidAgainstRange checks that a numeric value is compatible with
 // the range defined by Type and Format, that is, may be converted without loss.
 //
-// NOTE: this check is about type capacity and not formal verification such as: 1.0 != 1L
+// NOTE: this check is about type capacity and not formal verification such as: 1.0 != 1L.
 func IsValueValidAgainstRange(val any, typeName, format, prefix, path string) error {
 	kind := reflect.ValueOf(val).Type().Kind()
 
 	// What is the string representation of val
 	var stringRep string
-	switch kind { //nolint:exhaustive
+	switch kind {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		stringRep = conv.FormatUinteger(valueHelp.asUint64(val))
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
