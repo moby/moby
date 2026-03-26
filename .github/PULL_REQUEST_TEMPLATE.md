@@ -5,7 +5,7 @@ https://github.com/moby/moby/blob/master/CONTRIBUTING.md
 ** Make sure all your commits include a signature generated with `git commit -s` **
 
 For additional information on our contributing process, read our contributing
-guide https://docs.docker.com/opensource/code/
+guide https://github.com/moby/moby/blob/master/docs/contributing/
 
 If this is a bug fix, make sure your description includes "fixes #xxxx", or
 "closes #xxxx"
