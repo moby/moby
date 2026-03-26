@@ -37,7 +37,7 @@ type configLabels struct {
 
 	Config struct {
 		Labels map[string]string `json:"Labels,omitempty"`
-	} `json:"config,omitempty"`
+	} `json:"config"`
 }
 
 var acceptedImageFilterTags = map[string]bool{

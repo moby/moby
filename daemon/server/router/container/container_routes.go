@@ -682,7 +682,7 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 				// Capabilities was removed in commit 24f173a003 for
 				// API version 1.41, favoring CapAdd and CapDrop instead.
 				Capabilities []string `json:",omitempty"`
-			} `json:",omitempty"`
+			}
 		}
 		_ = json.Unmarshal(requestBody.Bytes(), &legacyConfig)
 
