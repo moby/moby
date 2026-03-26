@@ -91,6 +91,13 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 			if err := mount.MakeRSlave("/"); err != nil {
 				return err
 			}
+
+			root, err := os.OpenRoot(ctr.BaseFS)
+			if err != nil {
+				return fmt.Errorf("open container root: %w", err)
+			}
+			defer root.Close()
+
 			for _, m := range mounts {
 				dest, err := ctr.GetResourcePath(m.Destination)
 				if err != nil {
@@ -102,7 +109,7 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 				if err != nil {
 					return err
 				}
-				if err := createIfNotExists(dest, stat.IsDir()); err != nil {
+				if err := createIfNotExists(root, strings.TrimPrefix(m.Destination, "/"), stat.IsDir()); err != nil {
 					return err
 				}
 
@@ -254,24 +261,24 @@ func (vw *containerFSView) Stat(ctx context.Context, path string) (*containertyp
 }
 
 // createIfNotExists creates a file or a directory only if it does not already exist.
-func createIfNotExists(dest string, isDir bool) error {
-	if _, err := os.Stat(dest); err != nil {
-		// FIXME(thaJeztah): this ignores any other error (which may include "dest" is of the wrong type, or permission errors).
-		if os.IsNotExist(err) {
-			if isDir {
-				return os.MkdirAll(dest, 0o755)
-			}
-			if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-				return err
-			}
-			f, err := os.OpenFile(dest, os.O_CREATE, 0o755)
-			if err != nil {
-				return err
-			}
-			_ = f.Close()
+// The path is scoped to root using [os.Root] to prevent symlink escape attacks.
+func createIfNotExists(root *os.Root, unsafePath string, isDir bool) error {
+	if isDir {
+		return root.MkdirAll(unsafePath, 0o755)
+	}
+
+	parent := filepath.Dir(unsafePath)
+	if parent != "." && parent != "/" {
+		if err := root.MkdirAll(parent, 0o755); err != nil {
+			return err
 		}
 	}
-	return nil
+
+	f, err := root.OpenFile(unsafePath, os.O_CREATE|os.O_WRONLY, 0o755)
+	if err != nil {
+		return err
+	}
+	return f.Close()
 }
 
 // makeMountRRO makes the mount recursively read-only.
