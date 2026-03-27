@@ -8,7 +8,7 @@ import (
 )
 
 func (daemon *Daemon) saveAppArmorConfig(container *container.Container) error {
-	container.AppArmorProfile = "" // we don't care about the previous value.
+	container.AppArmorProfile = "" // reset; parseSecurityOpt re-derives it from HostConfig.SecurityOpt.
 
 	if !daemon.RawSysInfo().AppArmor {
 		return nil // if apparmor is disabled there is nothing to do here.
