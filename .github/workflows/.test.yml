@@ -236,7 +236,7 @@ jobs:
           tree -nh $reportsPath
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -452,7 +452,7 @@ jobs:
           tree -nh $reportsPath
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
