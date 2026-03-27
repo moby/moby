@@ -79,7 +79,7 @@ require (
 	github.com/moby/sys/user v0.4.0
 	github.com/moby/sys/userns v0.1.0
 	github.com/moby/term v0.5.2
-	github.com/montanaflynn/stats v0.7.1
+	github.com/montanaflynn/stats v0.9.0
 	github.com/opencontainers/cgroups v0.0.6
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
