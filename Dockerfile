@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 ARG GO_VERSION=1.25.8
-ARG BASE_DEBIAN_DISTRO="bookworm"
+ARG BASE_DEBIAN_DISTRO="bookworm-20260316"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
 # XX_VERSION specifies the version of the xx utility to use.
