@@ -26,7 +26,7 @@ type IgnoreConfiguredEndpointsProvider interface {
 // Currently duplicated from github.com/aws/aws-sdk-go-v2/config because
 // service packages cannot import github.com/aws/aws-sdk-go-v2/config
 // due to result import cycle error.
-func GetIgnoreConfiguredEndpoints(ctx context.Context, configs []interface{}) (value bool, found bool, err error) {
+func GetIgnoreConfiguredEndpoints(ctx context.Context, configs []any) (value bool, found bool, err error) {
 	for _, cfg := range configs {
 		if p, ok := cfg.(IgnoreConfiguredEndpointsProvider); ok {
 			value, found, err = p.GetIgnoreConfiguredEndpoints(ctx)
@@ -40,7 +40,7 @@ func GetIgnoreConfiguredEndpoints(ctx context.Context, configs []interface{}) (v
 
 // ResolveServiceBaseEndpoint is used to retrieve service endpoints from configured sources
 // while allowing for configured endpoints to be disabled
-func ResolveServiceBaseEndpoint(ctx context.Context, sdkID string, configs []interface{}) (value string, found bool, err error) {
+func ResolveServiceBaseEndpoint(ctx context.Context, sdkID string, configs []any) (value string, found bool, err error) {
 	if val, found, _ := GetIgnoreConfiguredEndpoints(ctx, configs); found && val {
 		return "", false, nil
 	}

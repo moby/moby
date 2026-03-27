@@ -6,73 +6,79 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Lists the resource policies in this account.
-func (c *Client) DescribeResourcePolicies(ctx context.Context, params *DescribeResourcePoliciesInput, optFns ...func(*Options)) (*DescribeResourcePoliciesOutput, error) {
+// Enables or disables bearer token authentication for the specified log group.
+// When enabled on a log group, bearer token authentication is enabled on
+// operations until it is explicitly disabled.
+//
+// For information about the parameters that are common to all actions, see [Common Parameters].
+//
+// [Common Parameters]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/CommonParameters.html
+func (c *Client) PutBearerTokenAuthentication(ctx context.Context, params *PutBearerTokenAuthenticationInput, optFns ...func(*Options)) (*PutBearerTokenAuthenticationOutput, error) {
 	if params == nil {
-		params = &DescribeResourcePoliciesInput{}
+		params = &PutBearerTokenAuthenticationInput{}
 	}
 
-	result, metadata, err := c.invokeOperation(ctx, "DescribeResourcePolicies", params, optFns, c.addOperationDescribeResourcePoliciesMiddlewares)
+	result, metadata, err := c.invokeOperation(ctx, "PutBearerTokenAuthentication", params, optFns, c.addOperationPutBearerTokenAuthenticationMiddlewares)
 	if err != nil {
 		return nil, err
 	}
 
-	out := result.(*DescribeResourcePoliciesOutput)
+	out := result.(*PutBearerTokenAuthenticationOutput)
 	out.ResultMetadata = metadata
 	return out, nil
 }
 
-type DescribeResourcePoliciesInput struct {
+type PutBearerTokenAuthenticationInput struct {
 
-	// The maximum number of resource policies to be displayed with one call of this
-	// API.
-	Limit *int32
+	// Whether to enable bearer token authentication.
+	//
+	// Type: Boolean
+	//
+	// Required: Yes
+	//
+	// This member is required.
+	BearerTokenAuthenticationEnabled *bool
 
-	// The token for the next set of items to return. The token expires after 24 hours.
-	NextToken *string
-
-	// Specifies the scope of the resource policy. Valid values are ACCOUNT or RESOURCE
-	// . When not specified, defaults to ACCOUNT .
-	PolicyScope types.PolicyScope
-
-	// The ARN of the CloudWatch Logs resource for which to query the resource policy.
-	ResourceArn *string
+	// The name or ARN of the log group.
+	//
+	// Type: String
+	//
+	// Length Constraints: Minimum length of 1. Maximum length of 512.
+	//
+	// Pattern: [\.\-_/#A-Za-z0-9]+
+	//
+	// Required: Yes
+	//
+	// This member is required.
+	LogGroupIdentifier *string
 
 	noSmithyDocumentSerde
 }
 
-type DescribeResourcePoliciesOutput struct {
-
-	// The token for the next set of items to return. The token expires after 24 hours.
-	NextToken *string
-
-	// The resource policies that exist in this account.
-	ResourcePolicies []types.ResourcePolicy
-
+type PutBearerTokenAuthenticationOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
 
 	noSmithyDocumentSerde
 }
 
-func (c *Client) addOperationDescribeResourcePoliciesMiddlewares(stack *middleware.Stack, options Options) (err error) {
+func (c *Client) addOperationPutBearerTokenAuthenticationMiddlewares(stack *middleware.Stack, options Options) (err error) {
 	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeResourcePolicies{}, middleware.After)
+	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutBearerTokenAuthentication{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeResourcePolicies{}, middleware.After)
+	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutBearerTokenAuthentication{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "DescribeResourcePolicies"); err != nil {
+	if err := addProtocolFinalizerMiddlewares(stack, options, "PutBearerTokenAuthentication"); err != nil {
 		return fmt.Errorf("add protocol finalizers: %v", err)
 	}
 
@@ -124,7 +130,10 @@ func (c *Client) addOperationDescribeResourcePoliciesMiddlewares(stack *middlewa
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeResourcePolicies(options.Region), middleware.Before); err != nil {
+	if err = addOpPutBearerTokenAuthenticationValidationMiddleware(stack); err != nil {
+		return err
+	}
+	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opPutBearerTokenAuthentication(options.Region), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRecursionDetection(stack); err != nil {
@@ -154,10 +163,10 @@ func (c *Client) addOperationDescribeResourcePoliciesMiddlewares(stack *middlewa
 	return nil
 }
 
-func newServiceMetadataMiddleware_opDescribeResourcePolicies(region string) *awsmiddleware.RegisterServiceMetadata {
+func newServiceMetadataMiddleware_opPutBearerTokenAuthentication(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		OperationName: "DescribeResourcePolicies",
+		OperationName: "PutBearerTokenAuthentication",
 	}
 }

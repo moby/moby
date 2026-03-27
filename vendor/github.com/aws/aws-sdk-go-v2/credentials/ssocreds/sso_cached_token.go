@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -145,7 +144,7 @@ func getTokenFieldRFC3339(v interface{}, value **rfc3339) error {
 }
 
 func loadCachedToken(filename string) (token, error) {
-	fileBytes, err := ioutil.ReadFile(filename)
+	fileBytes, err := os.ReadFile(filename)
 	if err != nil {
 		return token{}, fmt.Errorf("failed to read cached SSO token file, %w", err)
 	}

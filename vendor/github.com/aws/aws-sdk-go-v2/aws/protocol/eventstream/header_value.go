@@ -62,7 +62,7 @@ type rawValue struct {
 	Value []byte // byte representation of value, BigEndian encoding.
 }
 
-func (r rawValue) encodeScalar(w io.Writer, v interface{}) error {
+func (r rawValue) encodeScalar(w io.Writer, v any) error {
 	return binaryWriteFields(w, binary.BigEndian,
 		r.Type,
 		v,
@@ -158,7 +158,7 @@ func decodeStringValue(r io.Reader) (string, error) {
 
 // Value represents the abstract header value.
 type Value interface {
-	Get() interface{}
+	Get() any
 	String() string
 	valueType() valueType
 	encode(io.Writer) error
@@ -169,7 +169,7 @@ type Value interface {
 type BoolValue bool
 
 // Get returns the underlying type
-func (v BoolValue) Get() interface{} {
+func (v BoolValue) Get() any {
 	return bool(v)
 }
 
@@ -196,7 +196,7 @@ func (v BoolValue) encode(w io.Writer) error {
 type Int8Value int8
 
 // Get returns the underlying value.
-func (v Int8Value) Get() interface{} {
+func (v Int8Value) Get() any {
 	return int8(v)
 }
 
@@ -234,7 +234,7 @@ func (v *Int8Value) decode(r io.Reader) error {
 type Int16Value int16
 
 // Get returns the underlying value.
-func (v Int16Value) Get() interface{} {
+func (v Int16Value) Get() any {
 	return int16(v)
 }
 
@@ -271,7 +271,7 @@ func (v *Int16Value) decode(r io.Reader) error {
 type Int32Value int32
 
 // Get returns the underlying value.
-func (v Int32Value) Get() interface{} {
+func (v Int32Value) Get() any {
 	return int32(v)
 }
 
@@ -308,7 +308,7 @@ func (v *Int32Value) decode(r io.Reader) error {
 type Int64Value int64
 
 // Get returns the underlying value.
-func (v Int64Value) Get() interface{} {
+func (v Int64Value) Get() any {
 	return int64(v)
 }
 
@@ -345,7 +345,7 @@ func (v *Int64Value) decode(r io.Reader) error {
 type BytesValue []byte
 
 // Get returns the underlying value.
-func (v BytesValue) Get() interface{} {
+func (v BytesValue) Get() any {
 	return []byte(v)
 }
 
@@ -383,7 +383,7 @@ func (v *BytesValue) decode(r io.Reader) error {
 type StringValue string
 
 // Get returns the underlying value.
-func (v StringValue) Get() interface{} {
+func (v StringValue) Get() any {
 	return string(v)
 }
 
@@ -421,7 +421,7 @@ func (v *StringValue) decode(r io.Reader) error {
 type TimestampValue time.Time
 
 // Get returns the underlying value.
-func (v TimestampValue) Get() interface{} {
+func (v TimestampValue) Get() any {
 	return time.Time(v)
 }
 
@@ -478,7 +478,7 @@ func timeFromEpochMilli(t int64) time.Time {
 type UUIDValue [16]byte
 
 // Get returns the underlying value.
-func (v UUIDValue) Get() interface{} {
+func (v UUIDValue) Get() any {
 	return v[:]
 }
 
