@@ -1150,6 +1150,26 @@ func (m *validateOpPutAccountPolicy) HandleInitialize(ctx context.Context, in mi
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpPutBearerTokenAuthentication struct {
+}
+
+func (*validateOpPutBearerTokenAuthentication) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpPutBearerTokenAuthentication) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*PutBearerTokenAuthenticationInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpPutBearerTokenAuthenticationInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpPutDataProtectionPolicy struct {
 }
 
@@ -1938,6 +1958,10 @@ func addOpPutAccountPolicyValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpPutAccountPolicy{}, middleware.After)
 }
 
+func addOpPutBearerTokenAuthenticationValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpPutBearerTokenAuthentication{}, middleware.After)
+}
+
 func addOpPutDataProtectionPolicyValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpPutDataProtectionPolicy{}, middleware.After)
 }
@@ -2583,6 +2607,38 @@ func validateProcessors(v []types.Processor) error {
 	invalidParams := smithy.InvalidParamsError{Context: "Processors"}
 	for i := range v {
 		if err := validateProcessor(&v[i]); err != nil {
+			invalidParams.AddNested(fmt.Sprintf("[%d]", i), err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateQueryParameter(v *types.QueryParameter) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "QueryParameter"}
+	if v.Name == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Name"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateQueryParameterList(v []types.QueryParameter) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "QueryParameterList"}
+	for i := range v {
+		if err := validateQueryParameter(&v[i]); err != nil {
 			invalidParams.AddNested(fmt.Sprintf("[%d]", i), err.(smithy.InvalidParamsError))
 		}
 	}
@@ -3810,6 +3866,24 @@ func validateOpPutAccountPolicyInput(v *PutAccountPolicyInput) error {
 	}
 }
 
+func validateOpPutBearerTokenAuthenticationInput(v *PutBearerTokenAuthenticationInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "PutBearerTokenAuthenticationInput"}
+	if v.LogGroupIdentifier == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("LogGroupIdentifier"))
+	}
+	if v.BearerTokenAuthenticationEnabled == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("BearerTokenAuthenticationEnabled"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
 func validateOpPutDataProtectionPolicyInput(v *PutDataProtectionPolicyInput) error {
 	if v == nil {
 		return nil
@@ -4050,6 +4124,11 @@ func validateOpPutQueryDefinitionInput(v *PutQueryDefinitionInput) error {
 	}
 	if v.QueryString == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("QueryString"))
+	}
+	if v.Parameters != nil {
+		if err := validateQueryParameterList(v.Parameters); err != nil {
+			invalidParams.AddNested("Parameters", err.(smithy.InvalidParamsError))
+		}
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams

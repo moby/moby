@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -346,7 +345,7 @@ func resolveHTTPCredProvider(ctx context.Context, cfg *aws.Config, url, authToke
 				options.AuthorizationTokenProvider = endpointcreds.TokenProviderFunc(func() (string, error) {
 					var contents []byte
 					var err error
-					if contents, err = ioutil.ReadFile(authFilePath); err != nil {
+					if contents, err = os.ReadFile(authFilePath); err != nil {
 						return "", fmt.Errorf("failed to read authorization token from %v: %v", authFilePath, err)
 					}
 					return string(contents), nil

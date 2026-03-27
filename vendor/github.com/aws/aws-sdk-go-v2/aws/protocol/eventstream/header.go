@@ -34,7 +34,7 @@ func (hs *Headers) Set(name string, value Value) {
 // Get returns the Value associated with the header. Nil is returned if the
 // value does not exist.
 func (hs Headers) Get(name string) Value {
-	for i := 0; i < len(hs); i++ {
+	for i := range hs {
 		if h := hs[i]; h.Name == name {
 			return h.Value
 		}
@@ -151,7 +151,7 @@ func decodeHeaderValue(r io.Reader) (Value, error) {
 		err = tv.decode(r)
 		v = tv
 	default:
-		panic(fmt.Sprintf("unknown value type %d", raw.Type))
+		return nil, fmt.Errorf("unable to decode header of unknown value type %d", raw.Type)
 	}
 
 	// Error could be EOF, let caller deal with it
