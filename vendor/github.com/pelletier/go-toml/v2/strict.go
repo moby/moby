@@ -1,7 +1,6 @@
 package toml
 
 import (
-	"github.com/pelletier/go-toml/v2/internal/danger"
 	"github.com/pelletier/go-toml/v2/internal/tracker"
 	"github.com/pelletier/go-toml/v2/unstable"
 )
@@ -13,6 +12,9 @@ type strict struct {
 	key tracker.KeyTracker
 
 	missing []unstable.ParserError
+
+	// Reference to the document for computing key ranges.
+	doc []byte
 }
 
 func (s *strict) EnterTable(node *unstable.Node) {
@@ -53,7 +55,7 @@ func (s *strict) MissingTable(node *unstable.Node) {
 	}
 
 	s.missing = append(s.missing, unstable.ParserError{
-		Highlight: keyLocation(node),
+		Highlight: s.keyLocation(node),
 		Message:   "missing table",
 		Key:       s.key.Key(),
 	})
@@ -65,7 +67,7 @@ func (s *strict) MissingField(node *unstable.Node) {
 	}
 
 	s.missing = append(s.missing, unstable.ParserError{
-		Highlight: keyLocation(node),
+		Highlight: s.keyLocation(node),
 		Message:   "missing field",
 		Key:       s.key.Key(),
 	})
@@ -88,7 +90,7 @@ func (s *strict) Error(doc []byte) error {
 	return err
 }
 
-func keyLocation(node *unstable.Node) []byte {
+func (s *strict) keyLocation(node *unstable.Node) []byte {
 	k := node.Key()
 
 	hasOne := k.Next()
@@ -96,12 +98,17 @@ func keyLocation(node *unstable.Node) []byte {
 		panic("should not be called with empty key")
 	}
 
-	start := k.Node().Data
-	end := k.Node().Data
+	// Get the range from the first key to the last key.
+	firstRaw := k.Node().Raw
+	lastRaw := firstRaw
 
 	for k.Next() {
-		end = k.Node().Data
+		lastRaw = k.Node().Raw
 	}
 
-	return danger.BytesRange(start, end)
+	// Compute the slice from the document using the ranges.
+	start := firstRaw.Offset
+	end := lastRaw.Offset + lastRaw.Length
+
+	return s.doc[start:end]
 }

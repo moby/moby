@@ -288,11 +288,12 @@ func (s *SeenTracker) checkKeyValue(node *unstable.Node) (bool, error) {
 			idx = s.create(parentIdx, k, tableKind, false, true)
 		} else {
 			entry := s.entries[idx]
-			if it.IsLast() {
+			switch {
+			case it.IsLast():
 				return false, fmt.Errorf("toml: key %s is already defined", string(k))
-			} else if entry.kind != tableKind {
+			case entry.kind != tableKind:
 				return false, fmt.Errorf("toml: expected %s to be a table, not a %s", string(k), entry.kind)
-			} else if entry.explicit {
+			case entry.explicit:
 				return false, fmt.Errorf("toml: cannot redefine table %s that has already been explicitly defined", string(k))
 			}
 		}
@@ -309,16 +310,16 @@ func (s *SeenTracker) checkKeyValue(node *unstable.Node) (bool, error) {
 		return s.checkInlineTable(value)
 	case unstable.Array:
 		return s.checkArray(value)
+	default:
+		return false, nil
 	}
-
-	return false, nil
 }
 
 func (s *SeenTracker) checkArray(node *unstable.Node) (first bool, err error) {
 	it := node.Children()
 	for it.Next() {
 		n := it.Node()
-		switch n.Kind {
+		switch n.Kind { //nolint:exhaustive
 		case unstable.InlineTable:
 			first, err = s.checkInlineTable(n)
 			if err != nil {

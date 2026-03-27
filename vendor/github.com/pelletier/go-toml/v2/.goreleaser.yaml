@@ -22,7 +22,6 @@ builds:
       - linux_riscv64
       - windows_amd64
       - windows_arm64
-      - windows_arm
       - darwin_amd64
       - darwin_arm64
   - id: tomljson
@@ -42,7 +41,6 @@ builds:
       - linux_riscv64
       - windows_amd64
       - windows_arm64
-      - windows_arm
       - darwin_amd64
       - darwin_arm64
   - id: jsontoml
@@ -62,7 +60,6 @@ builds:
       - linux_arm
       - windows_amd64
       - windows_arm64
-      - windows_arm
       - darwin_amd64
       - darwin_arm64
 universal_binaries:

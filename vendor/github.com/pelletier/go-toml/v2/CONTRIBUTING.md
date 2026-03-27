@@ -33,7 +33,7 @@ The documentation is present in the [README][readme] and thorough the source
 code. On release, it gets updated on [pkg.go.dev][pkg.go.dev]. To make a change
 to the documentation, create a pull request with your proposed changes. For
 simple changes like that, the easiest way to go is probably the "Fork this
-project and edit the file" button on Github, displayed at the top right of the
+project and edit the file" button on GitHub, displayed at the top right of the
 file. Unless it's a trivial change (for example a typo), provide a little bit of
 context in your pull request description or commit message.
 
@@ -92,6 +92,48 @@ However, given GitHub's new policy to _not_ run Actions on pull requests until a
 maintainer clicks on button, it is highly recommended that you run them locally
 as you make changes.
 
+### Test across Go versions
+
+The repository includes tooling to test go-toml across multiple Go versions
+(1.11 through 1.25) both locally and in GitHub Actions.
+
+#### Local testing with Docker
+
+Prerequisites: Docker installed and running, Bash shell, `rsync` command.
+
+```bash
+# Test all Go versions in parallel (default)
+./test-go-versions.sh
+
+# Test specific versions
+./test-go-versions.sh 1.21 1.22 1.23
+
+# Test sequentially (slower but uses less resources)
+./test-go-versions.sh --sequential
+
+# Verbose output with custom results directory
+./test-go-versions.sh --verbose --output ./my-results 1.24 1.25
+
+# Show all options
+./test-go-versions.sh --help
+```
+
+The script creates Docker containers for each Go version and runs the full test
+suite. Results are saved to a `test-results/` directory with individual logs and
+a comprehensive summary report.
+
+The script only exits with a non-zero status code if either of the two most
+recent Go versions fail.
+
+#### GitHub Actions testing (maintainers)
+
+1. Go to the **Actions** tab in the GitHub repository
+2. Select **"Go Versions Compatibility Test"** from the workflow list
+3. Click **"Run workflow"**
+4. Optionally customize:
+   - **Go versions**: Space-separated list (e.g., `1.21 1.22 1.23`)
+   - **Execution mode**: Parallel (faster) or sequential (more stable)
+
 ### Check coverage
 
 We use `go tool cover` to compute test coverage. Most code editors have a way to
@@ -111,7 +153,7 @@ code lowers the coverage.
 
 Go-toml aims to stay efficient. We rely on a set of scenarios executed with Go's
 builtin benchmark systems. Because of their noisy nature, containers provided by
-Github Actions cannot be reliably used for benchmarking. As a result, you are
+GitHub Actions cannot be reliably used for benchmarking. As a result, you are
 responsible for checking that your changes do not incur a performance penalty.
 You can run their following to execute benchmarks:
 
@@ -168,13 +210,13 @@ Checklist:
 1. Decide on the next version number. Use semver. Review commits since last
    version to assess.
 2. Tag release. For example:
-```
-git checkout v2
-git pull
-git tag v2.2.0
-git push --tags
-```
-3. CI automatically builds a draft Github release. Review it and edit as
+   ```
+   git checkout v2
+   git pull
+   git tag v2.2.0
+   git push --tags
+   ```
+3. CI automatically builds a draft GitHub release. Review it and edit as
    necessary. Look for "Other changes". That would indicate a pull request not
    labeled properly. Tweak labels and pull request titles until changelog looks
    good for users.
