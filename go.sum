@@ -181,8 +181,8 @@ github.com/containerd/nri v0.11.0 h1:26mcQwNG58AZn0YkOrlJQ0yxQVmyZooflnVWJTqQrqQ
 github.com/containerd/nri v0.11.0/go.mod h1:bjGTLdUA58WgghKHg8azFMGXr05n1wDHrt3NSVBHiGI=
 github.com/containerd/nydus-snapshotter v0.15.11 h1:YTdF4rsjFRsfyaIhnWVUSLz8FqJwOyRZ5FhvFjHh7Uc=
 github.com/containerd/nydus-snapshotter v0.15.11/go.mod h1:EWRd/QJ0b6UKHAqYgiV5gHlqLC2qq5cQiSlXEdVovrA=
-github.com/containerd/platforms v1.0.0-rc.2 h1:0SPgaNZPVWGEi4grZdV8VRYQn78y+nm6acgLGv/QzE4=
-github.com/containerd/platforms v1.0.0-rc.2/go.mod h1:J71L7B+aiM5SdIEqmd9wp6THLVRzJGXfNuWCZCllLA4=
+github.com/containerd/platforms v1.0.0-rc.3 h1:YdvwaHtrN6wHcGJ2mYRYP3Nso8OcysuqFe9Hxm1X/tI=
+github.com/containerd/platforms v1.0.0-rc.3/go.mod h1:gw0R+alP3nFQPh1L4K9bv13fRWeeyokLGLu2fKuqI10=
 github.com/containerd/plugin v1.0.0 h1:c8Kf1TNl6+e2TtMHZt+39yAPDbouRH9WAToRjex483Y=
 github.com/containerd/plugin v1.0.0/go.mod h1:hQfJe5nmWfImiqT1q8Si3jLv3ynMUIBB47bQ+KexvO8=
 github.com/containerd/stargz-snapshotter/estargz v0.18.2 h1:yXkZFYIzz3eoLwlTUZKz2iQ4MrckBxJjkmD16ynUTrw=

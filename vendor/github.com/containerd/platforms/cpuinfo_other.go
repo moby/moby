@@ -27,7 +27,8 @@ func getCPUVariant() (string, error) {
 
 	var variant string
 
-	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+	switch runtime.GOOS {
+	case "windows", "darwin":
 		// Windows/Darwin only supports v7 for ARM32 and v8 for ARM64 and so we can use
 		// runtime.GOARCH to determine the variants
 		switch runtime.GOARCH {
@@ -38,7 +39,7 @@ func getCPUVariant() (string, error) {
 		default:
 			variant = "unknown"
 		}
-	} else if runtime.GOOS == "freebsd" {
+	case "freebsd":
 		// FreeBSD supports ARMv6 and ARMv7 as well as ARMv4 and ARMv5 (though deprecated)
 		// detecting those variants is currently unimplemented
 		switch runtime.GOARCH {
@@ -47,7 +48,7 @@ func getCPUVariant() (string, error) {
 		default:
 			variant = "unknown"
 		}
-	} else {
+	default:
 		return "", fmt.Errorf("getCPUVariant for OS %s: %v", runtime.GOOS, errNotImplemented)
 	}
 

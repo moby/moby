@@ -213,8 +213,19 @@ func (c orderedPlatformComparer) Less(p1 specs.Platform, p2 specs.Platform) bool
 			return true
 		}
 		if p1m || p2m {
+			if p1m && p2m {
+				// Prefer one with most matching features
+				if len(p1.OSFeatures) != len(p2.OSFeatures) {
+					return len(p1.OSFeatures) > len(p2.OSFeatures)
+				}
+			}
 			return false
 		}
+	}
+	if len(p1.OSFeatures) > 0 || len(p2.OSFeatures) > 0 {
+		p1.OSFeatures = nil
+		p2.OSFeatures = nil
+		return c.Less(p1, p2)
 	}
 	return false
 }
@@ -242,9 +253,20 @@ func (c anyPlatformComparer) Less(p1, p2 specs.Platform) bool {
 			p2m = true
 		}
 		if p1m && p2m {
-			return false
+			if len(p1.OSFeatures) != len(p2.OSFeatures) {
+				return len(p1.OSFeatures) > len(p2.OSFeatures)
+			}
+			break
 		}
 	}
+
+	// If neither match and has features, strip features and compare
+	if !p1m && !p2m && (len(p1.OSFeatures) > 0 || len(p2.OSFeatures) > 0) {
+		p1.OSFeatures = nil
+		p2.OSFeatures = nil
+		return c.Less(p1, p2)
+	}
+
 	// If one matches, and the other does, sort match first
 	return p1m && !p2m
 }
