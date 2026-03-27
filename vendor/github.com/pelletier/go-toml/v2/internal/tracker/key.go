@@ -36,7 +36,7 @@ func (t *KeyTracker) Pop(node *unstable.Node) {
 	}
 }
 
-// Key returns the current key
+// Key returns the current key.
 func (t *KeyTracker) Key() []string {
 	k := make([]string, len(t.k))
 	copy(k, t.k)
