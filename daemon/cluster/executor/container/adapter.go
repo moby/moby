@@ -526,10 +526,7 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 		if err != nil {
 			return nil, err
 		}
-		// print since as this formatted string because the docker container
-		// logs interface expects it like this.
-		// see [github.com/moby/moby/v2/daemon/internal/timestamp.ParseTimestamps]
-		apiOptions.Since = fmt.Sprintf("%d.%09d", since.Unix(), int64(since.Nanosecond()))
+		apiOptions.Since = since
 	}
 
 	if options.Tail < 0 {

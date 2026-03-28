@@ -295,13 +295,13 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	since, err := eventTime(r.Form.Get("since"))
+	since, err := timestamp.ParseUnixTimestamp(r.Form.Get("since"))
 	if err != nil {
-		return err
+		return invalidRequestError{fmt.Errorf("invalid value for 'since': %w", err)}
 	}
-	until, err := eventTime(r.Form.Get("until"))
+	until, err := timestamp.ParseUnixTimestamp(r.Form.Get("until"))
 	if err != nil {
-		return err
+		return invalidRequestError{fmt.Errorf("invalid value for 'until': %w", err)}
 	}
 
 	var (
@@ -428,17 +428,6 @@ func (s *systemRouter) postAuth(ctx context.Context, w http.ResponseWriter, r *h
 		Status:        "Login Succeeded",
 		IdentityToken: token,
 	})
-}
-
-func eventTime(formTime string) (time.Time, error) {
-	t, tNano, err := timestamp.ParseTimestamps(formTime, -1)
-	if err != nil {
-		return time.Time{}, err
-	}
-	if t == -1 {
-		return time.Time{}, nil
-	}
-	return time.Unix(t, tNano), nil
 }
 
 // These fields were deprecated in docker v1.10, API v1.22, but not removed
