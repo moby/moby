@@ -407,6 +407,78 @@ func TestCopierWithPartial(t *testing.T) {
 	}
 }
 
+// TestCopierPartialLastOnEOF tests that the last partial message has
+// PLogMetaData.Last set to true when the stream ends with EOF and there
+// is no trailing newline.
+func TestCopierPartialLastOnEOF(t *testing.T) {
+	// Create a long line that exceeds the buffer size so it gets split
+	// into partials, but do NOT end with a newline so the last chunk
+	// is triggered by EOF.
+	longLine := strings.Repeat("x", defaultBufSize)
+	trailingData := "trailing-no-newline"
+
+	var input bytes.Buffer
+	// Write enough data to produce multiple partial messages.
+	for range 2 {
+		input.WriteString(longLine)
+	}
+	input.WriteString(trailingData)
+	// Deliberately no trailing '\n'.
+
+	var jsonBuf bytes.Buffer
+	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf)}
+
+	c := NewCopier(map[string]io.Reader{"stdout": &input}, jsonLog)
+	c.Run()
+	wait := make(chan struct{})
+	go func() {
+		c.Wait()
+		close(wait)
+	}()
+	select {
+	case <-time.After(1 * time.Second):
+		t.Fatal("Copier failed to do its work in 1 second")
+	case <-wait:
+	}
+
+	dec := json.NewDecoder(&jsonBuf)
+	var msgs []Message
+	for {
+		var msg Message
+		if err := dec.Decode(&msg); err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatal(err)
+		}
+		msgs = append(msgs, msg)
+	}
+
+	if len(msgs) < 2 {
+		t.Fatalf("Expected at least 2 partial messages, got %d", len(msgs))
+	}
+
+	// All messages should be partial.
+	for i, msg := range msgs {
+		if msg.PLogMetaData == nil {
+			t.Fatalf("Message %d: expected PLogMetaData to be set", i)
+		}
+	}
+
+	// All messages except the last should have Last == false.
+	for i := 0; i < len(msgs)-1; i++ {
+		if msgs[i].PLogMetaData.Last {
+			t.Fatalf("Message %d: expected Last to be false, got true", i)
+		}
+	}
+
+	// The last message should have Last == true.
+	last := msgs[len(msgs)-1]
+	if !last.PLogMetaData.Last {
+		t.Fatalf("Last message: expected Last to be true, got false (line=%q)", last.Line)
+	}
+}
+
 type BenchmarkLoggerDummy struct{}
 
 func (l *BenchmarkLoggerDummy) Log(m *Message) error { PutMessage(m); return nil }

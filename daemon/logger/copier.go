@@ -151,9 +151,9 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 					} else {
 						msg.Timestamp = partialTS
 					}
-					msg.PLogMetaData = &types.PartialLogMetaData{ID: partialid, Ordinal: ordinal, Last: false}
+					msg.PLogMetaData = &types.PartialLogMetaData{ID: partialid, Ordinal: ordinal, Last: eof}
 					ordinal++
-					hasMorePartial = true
+					hasMorePartial = !eof
 
 					if logErr := c.dst.Log(msg); logErr != nil {
 						logDriverError(c.dst.Name(), string(msg.Line), logErr)
