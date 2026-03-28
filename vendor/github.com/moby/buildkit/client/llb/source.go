@@ -478,6 +478,11 @@ func Git(url, fragment string, opts ...GitOption) State {
 		addCap(&gi.Constraints, pb.CapSourceGitSkipSubmodules)
 	}
 
+	if gi.MTime != "" {
+		attrs[pb.AttrGitMTime] = gi.MTime
+		addCap(&gi.Constraints, pb.CapSourceGitMTime)
+	}
+
 	addCap(&gi.Constraints, pb.CapSourceGit)
 
 	source := NewSource("git://"+id, attrs, gi.Constraints)
@@ -505,6 +510,7 @@ type GitInfo struct {
 	Ref              string
 	SubDir           string
 	SkipSubmodules   bool
+	MTime            string
 }
 
 func GitRef(v string) GitOption {
@@ -522,6 +528,20 @@ func GitSubDir(v string) GitOption {
 func GitSkipSubmodules() GitOption {
 	return gitOptionFunc(func(gi *GitInfo) {
 		gi.SkipSubmodules = true
+	})
+}
+
+// GitMTimeCommit sets file modification times to the commit timestamp
+// of the resolved commit, rather than the checkout time.
+func GitMTimeCommit() GitOption {
+	return GitMTime("commit")
+}
+
+// GitMTime sets the file modification time policy for git sources.
+// Valid values are "checkout" (default) and "commit".
+func GitMTime(v string) GitOption {
+	return gitOptionFunc(func(gi *GitInfo) {
+		gi.MTime = v
 	})
 }
 

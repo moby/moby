@@ -36,7 +36,7 @@ const (
 )
 
 type CreateFSOpts struct {
-	Epoch             *time.Time
+	Epoch             *epoch.Epoch
 	AttestationPrefix string
 	PlatformSplit     *bool
 }
@@ -129,9 +129,9 @@ func CreateFS(ctx context.Context, sessionID string, k string, ref cache.Immutab
 			// apply host uid/gid
 			res = idMapFunc(p, st)
 		}
-		if opt.Epoch != nil {
+		if opt.Epoch != nil && opt.Epoch.Value != nil {
 			// apply used-specified epoch time
-			st.ModTime = opt.Epoch.UnixNano()
+			st.ModTime = opt.Epoch.Value.UnixNano()
 		}
 		return res
 	}
@@ -205,8 +205,8 @@ func CreateFS(ctx context.Context, sessionID string, k string, ref cache.Immutab
 				Path:    name,
 				ModTime: defaultTime.UnixNano(),
 			}
-			if opt.Epoch != nil {
-				st.ModTime = opt.Epoch.UnixNano()
+			if opt.Epoch != nil && opt.Epoch.Value != nil {
+				st.ModTime = opt.Epoch.Value.UnixNano()
 			}
 			stmtFS.Add(name, st, dt)
 		}

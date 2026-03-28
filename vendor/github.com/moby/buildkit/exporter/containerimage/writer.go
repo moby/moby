@@ -94,10 +94,10 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 		}
 	}
 	if opts.Epoch == nil {
-		if tm, ok, err := epoch.ParseSource(inp); err != nil {
+		if tm, err := epoch.ParseSource(inp, nil); err != nil {
 			return nil, err
-		} else if ok {
-			opts.Epoch = tm
+		} else if tm != nil {
+			opts.Epoch = &epoch.Epoch{Value: tm}
 		}
 	}
 
@@ -119,13 +119,23 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 
 		var ref cache.ImmutableRef
 		var p *exptypes.Platform
+		var expEpoch *time.Time
 		if len(ps.Platforms) > 0 {
 			p = &ps.Platforms[0]
 			if r, ok := inp.FindRef(p.ID); ok {
 				ref = r
 			}
+			if opts.Epoch == nil {
+				expEpoch, err = epoch.ParseSource(inp, p)
+				if err != nil {
+					return nil, err
+				}
+			}
 		} else {
 			ref = inp.Ref
+		}
+		if opts.Epoch != nil {
+			expEpoch = opts.Epoch.Value
 		}
 		config := exptypes.ParseKey(inp.Metadata, exptypes.ExporterImageConfigKey, p)
 		baseImgConfig := exptypes.ParseKey(inp.Metadata, exptypes.ExporterImageBaseConfigKey, p)
@@ -144,7 +154,7 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 		}
 		remote := &remotes[0]
 		if opts.RewriteTimestamp {
-			remote, err = ic.rewriteRemoteWithEpoch(ctx, opts, remote, baseImg)
+			remote, err = ic.rewriteRemoteWithEpoch(ctx, opts, remote, baseImg, expEpoch)
 			if err != nil {
 				return nil, err
 			}
@@ -170,7 +180,7 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 			}
 		}
 
-		mfstDesc, configDesc, err := ic.commitDistributionManifest(ctx, opts, ref, config, remote, annotations, inlineCacheEntry, opts.Epoch, session.NewGroup(sessionID), baseImg)
+		mfstDesc, configDesc, err := ic.commitDistributionManifest(ctx, opts, ref, config, remote, annotations, inlineCacheEntry, expEpoch, session.NewGroup(sessionID), baseImg)
 		if err != nil {
 			return nil, err
 		}
@@ -245,6 +255,16 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 			baseImg = &baseImgX
 		}
 
+		var expEpoch *time.Time
+		if opts.Epoch == nil {
+			expEpoch, err = epoch.ParseSource(inp, &p)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			expEpoch = opts.Epoch.Value
+		}
+
 		remote := &remotes[remotesMap[p.ID]]
 		if remote == nil {
 			remote = &solver.Remote{
@@ -252,7 +272,7 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 			}
 		}
 		if opts.RewriteTimestamp {
-			remote, err = ic.rewriteRemoteWithEpoch(ctx, opts, remote, baseImg)
+			remote, err = ic.rewriteRemoteWithEpoch(ctx, opts, remote, baseImg, expEpoch)
 			if err != nil {
 				return nil, err
 			}
@@ -263,7 +283,7 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 			inlineCacheEntry, _ = inlineCacheResult.FindRef(p.ID)
 		}
 
-		desc, _, err := ic.commitDistributionManifest(ctx, opts, r, config, remote, opts.Annotations.Platform(&p.Platform), inlineCacheEntry, opts.Epoch, session.NewGroup(sessionID), baseImg)
+		desc, _, err := ic.commitDistributionManifest(ctx, opts, r, config, remote, opts.Annotations.Platform(&p.Platform), inlineCacheEntry, expEpoch, session.NewGroup(sessionID), baseImg)
 		if err != nil {
 			return nil, err
 		}
@@ -407,8 +427,8 @@ func rewriteImageLayerWithEpoch(ctx context.Context, cs content.Store, desc ocis
 	return converterFn(ctx, cs, desc)
 }
 
-func (ic *ImageWriter) rewriteRemoteWithEpoch(ctx context.Context, opts *ImageCommitOpts, remote *solver.Remote, baseImg *dockerspec.DockerOCIImage) (*solver.Remote, error) {
-	if opts.Epoch == nil {
+func (ic *ImageWriter) rewriteRemoteWithEpoch(ctx context.Context, opts *ImageCommitOpts, remote *solver.Remote, baseImg *dockerspec.DockerOCIImage, expEpoch *time.Time) (*solver.Remote, error) {
+	if expEpoch == nil {
 		bklog.G(ctx).Warn("rewrite-timestamp is specified, but no source-date-epoch was found")
 		return remote, nil
 	}
@@ -416,7 +436,7 @@ func (ic *ImageWriter) rewriteRemoteWithEpoch(ctx context.Context, opts *ImageCo
 	cs := contentutil.NewStoreWithProvider(ic.opt.ContentStore, remote.Provider)
 	eg, ctx := errgroup.WithContext(ctx)
 	rewriteDone := progress.OneOff(ctx,
-		fmt.Sprintf("rewriting layers with source-date-epoch %d (%s)", opts.Epoch.Unix(), opts.Epoch.String()))
+		fmt.Sprintf("rewriting layers with source-date-epoch %d (%s)", expEpoch.Unix(), expEpoch.String()))
 	var divergedFromBase bool
 	for i, desc := range remoteDescriptors {
 		// Usually we get non-empty diffID here, but if the content was ingested via a third-party containerd client,
@@ -439,9 +459,9 @@ func (ic *ImageWriter) rewriteRemoteWithEpoch(ctx context.Context, opts *ImageCo
 			divergedFromBase = true
 		}
 		eg.Go(func() error {
-			if rewrittenDesc, err := rewriteImageLayerWithEpoch(ctx, cs, desc, opts.RefCfg.Compression, opts.Epoch, immDiffID); err != nil {
+			if rewrittenDesc, err := rewriteImageLayerWithEpoch(ctx, cs, desc, opts.RefCfg.Compression, expEpoch, immDiffID); err != nil {
 				bklog.G(ctx).WithError(err).Warnf("failed to rewrite layer %d/%d to match source-date-epoch %d (%s)",
-					i+1, len(remoteDescriptors), opts.Epoch.Unix(), opts.Epoch.String())
+					i+1, len(remoteDescriptors), expEpoch.Unix(), expEpoch.String())
 			} else if rewrittenDesc != nil {
 				remoteDescriptors[i] = *rewrittenDesc
 			}

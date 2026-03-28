@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strconv"
+	"time"
 
 	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
+	commonexptypes "github.com/moby/buildkit/exporter/exptypes"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -15,7 +18,14 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type BuildFunc func(ctx context.Context, platform *ocispecs.Platform, idx int) (r client.Reference, img, baseImg *dockerspec.DockerOCIImage, err error)
+type BuildResult struct {
+	Reference client.Reference
+	Image     *dockerspec.DockerOCIImage
+	BaseImage *dockerspec.DockerOCIImage
+	Epoch     *time.Time
+}
+
+type BuildFunc func(ctx context.Context, platform *ocispecs.Platform, idx int) (*BuildResult, error)
 
 func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, error) {
 	res := client.NewResult()
@@ -35,10 +45,11 @@ func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, erro
 
 	for i, tp := range targets {
 		eg.Go(func() error {
-			ref, img, baseImg, err := fn(ctx, tp, i)
+			buildRes, err := fn(ctx, tp, i)
 			if err != nil {
 				return err
 			}
+			ref, img, baseImg := buildRes.Reference, buildRes.Image, buildRes.BaseImage
 
 			config, err := json.Marshal(img)
 			if err != nil {
@@ -66,11 +77,17 @@ func (bc *Client) Build(ctx context.Context, fn BuildFunc) (*ResultBuilder, erro
 				if len(baseConfig) > 0 {
 					res.AddMeta(fmt.Sprintf("%s/%s", exptypes.ExporterImageBaseConfigKey, expPlat.ID), baseConfig)
 				}
+				if buildRes.Epoch != nil {
+					res.AddMeta(fmt.Sprintf("%s/%s", commonexptypes.ExporterEpochKey, expPlat.ID), []byte(strconv.FormatInt(buildRes.Epoch.Unix(), 10)))
+				}
 			} else {
 				res.SetRef(ref)
 				res.AddMeta(exptypes.ExporterImageConfigKey, config)
 				if len(baseConfig) > 0 {
 					res.AddMeta(exptypes.ExporterImageBaseConfigKey, baseConfig)
+				}
+				if buildRes.Epoch != nil {
+					res.AddMeta(commonexptypes.ExporterEpochKey, []byte(strconv.FormatInt(buildRes.Epoch.Unix(), 10)))
 				}
 			}
 			expPlatforms.Platforms[i] = expPlat

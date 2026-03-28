@@ -34,6 +34,7 @@ import (
 	"github.com/moby/buildkit/solver/bboltcachestorage"
 	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
+	"github.com/moby/buildkit/solver/llbsolver/history"
 	"github.com/moby/buildkit/solver/llbsolver/proc"
 	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"
 	"github.com/moby/buildkit/solver/pb"
@@ -82,7 +83,7 @@ type Controller struct { // TODO: ControlService
 	buildCount                   int64
 	opt                          Opt
 	solver                       *llbsolver.Solver
-	history                      *llbsolver.HistoryQueue
+	history                      *history.Queue
 	cache                        solver.CacheManager
 	gatewayForwarder             *controlgateway.GatewayForwarder
 	throttledGC                  func()
@@ -94,7 +95,7 @@ type Controller struct { // TODO: ControlService
 func NewController(opt Opt) (*Controller, error) {
 	gatewayForwarder := controlgateway.NewGatewayForwarder()
 
-	hq, err := llbsolver.NewHistoryQueue(llbsolver.HistoryQueueOpt{
+	hq, err := history.NewQueue(history.QueueOpt{
 		DB:             opt.HistoryDB,
 		LeaseManager:   opt.LeaseManager,
 		ContentStore:   opt.ContentStore,

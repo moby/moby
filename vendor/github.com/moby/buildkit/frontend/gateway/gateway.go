@@ -1571,11 +1571,19 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 					return stack.Enable(err)
 				})
 
+				// startedSent gates the proc.Wait goroutine until
+				// Started is sent and output readers are spawned,
+				// preventing Exit-before-Started and a deadlock
+				// where pio.Close() races with reader setup.
+				startedSent := make(chan struct{})
+
 				eg.Go(func() error {
 					defer func() {
 						pio.Close()
 					}()
 					err := proc.Wait()
+
+					<-startedSent
 
 					var statusCode uint32
 					var exitError *pb.ExitError
@@ -1626,6 +1634,7 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 					},
 				})
 				if err != nil {
+					close(startedSent)
 					return stack.Enable(err)
 				}
 
@@ -1669,6 +1678,7 @@ func (lbf *llbBridgeForwarder) ExecProcess(srv pb.LLBBridge_ExecProcessServer) e
 						return stack.Enable(err)
 					})
 				}
+				close(startedSent)
 			}
 		}
 	})
