@@ -28,6 +28,7 @@ const (
 	// prefix with different root
 	bridgePrefix         = "bridge"
 	bridgeEndpointPrefix = "bridge-endpoint"
+	endpointPrefix       = "endpoint"
 )
 
 func (d *driver) initStore() error {
@@ -84,12 +85,33 @@ func (d *driver) populateEndpoints() error {
 	if errors.Is(err, datastore.ErrKeyNotFound) {
 		return nil
 	}
+	//Add check if the endpoint exists
+	eps := make(map[string]interface{})
+	if kvList, err := d.store.KVStore().List(datastore.Key(endpointPrefix)); err == nil {
+		for _, kvPair := range kvList {
+			if len(kvPair.Value) == 0 {
+				continue
+			}
+			ep := make(map[string]interface{})
+			if err = json.Unmarshal(kvPair.Value, &ep); err != nil {
+				log.G(context.TODO()).Warnf("failed to unmarshal endpoint %v", err)
+				continue
+			}
+			id, ok := ep["id"].(string)
+			if ok {
+				eps[id] = true
+			}
+		}
+	} else {
+		log.G(context.TODO()).Debugf("failed to get endpoints from store: %v", err)
+	}
 
 	for _, kvo := range kvol {
 		ep := kvo.(*bridgeEndpoint)
 		n, ok := d.networks[ep.nid]
-		if !ok {
-			log.G(context.TODO()).Debugf("Network (%.7s) not found for restored bridge endpoint (%.7s)", ep.nid, ep.id)
+		_, ok_1 := eps[ep.id]
+		if !ok || !ok_1 {
+			log.G(context.TODO()).Debugf("Network (%.7s) or endpoint not found for restored bridge endpoint (%.7s)", ep.nid, ep.id)
 			log.G(context.TODO()).Debugf("Deleting stale bridge endpoint (%.7s) from store", ep.id)
 			if err := d.storeDelete(ep); err != nil {
 				log.G(context.TODO()).Debugf("Failed to delete stale bridge endpoint (%.7s) from store", ep.id)
