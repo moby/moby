@@ -87,10 +87,10 @@ func (ic iptablesCleaner) DelEndpoint(ctx context.Context, nc firewaller.Network
 		ipt:    &Iptabler{config: ic.config},
 	}
 	if n.ipt.config.IPv4 && epIPv4.IsValid() {
-		_ = n.filterDirectAccess(ctx, iptables.IPv4, n.config.Config4, epIPv4, false)
+		_ = n.deleteLegacyDirectAccess(ctx, iptables.IPv4, n.config.Config4, epIPv4)
 	}
 	if n.ipt.config.IPv6 && epIPv6.IsValid() {
-		_ = n.filterDirectAccess(ctx, iptables.IPv6, n.config.Config6, epIPv6, false)
+		_ = n.deleteLegacyDirectAccess(ctx, iptables.IPv6, n.config.Config6, epIPv6)
 	}
 }
 
