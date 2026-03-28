@@ -7,6 +7,7 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/pkg/oci"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -34,7 +35,9 @@ func (daemon *Daemon) initializeCreatedTask(
 			return errdefs.System(err)
 		}
 	}
-	if err := daemon.allocateNetwork(ctx, cfg, ctr); err != nil {
+	if err := rootless.RunInDetachedNetNS(func() error {
+		return daemon.allocateNetwork(ctx, cfg, ctr)
+	}); err != nil {
 		return fmt.Errorf("%s: %w", errSetupNetworking, err)
 	}
 	return nil

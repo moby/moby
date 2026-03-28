@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd/v2/pkg/apparmor"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	aaprofile "github.com/moby/profiles/apparmor"
 )
 
@@ -18,13 +19,25 @@ const (
 // DefaultApparmorProfile returns the name of the default apparmor profile
 func DefaultApparmorProfile() string {
 	if apparmor.HostSupports() {
+		if detachedNetNS, _ := rootless.DetachedNetNS(); detachedNetNS != "" {
+			// AppArmor is inaccessible with detached-netns because sysfs is netns-scoped.
+			return ""
+		}
 		return defaultAppArmorProfile
 	}
 	return ""
 }
 
 func ensureDefaultAppArmorProfile() error {
-	if apparmor.HostSupports() {
+	hostSupports := apparmor.HostSupports()
+	if hostSupports {
+		if detachedNetNS, _ := rootless.DetachedNetNS(); detachedNetNS != "" {
+			// "open /sys/kernel/security/apparmor/profiles: permission denied"
+			// (because sysfs is netns-scoped)
+			hostSupports = false
+		}
+	}
+	if hostSupports {
 		loaded, err := aaprofile.IsLoaded(defaultAppArmorProfile)
 		if err != nil {
 			return fmt.Errorf("Could not check if %s AppArmor profile was loaded: %s", defaultAppArmorProfile, err)

@@ -20,6 +20,8 @@ package nlwrap
 
 import (
 	"context"
+	"fmt"
+	"runtime"
 
 	"github.com/containerd/log"
 	"github.com/pkg/errors"
@@ -42,12 +44,71 @@ func NewHandle(nlFamilies ...int) (Handle, error) {
 	return Handle{nlh}, nil
 }
 
+// NewHandleAt creates a new netlink handle in the specified network namespace.
+//
+// Unlike netlink.NewHandleAt, this function properly manages thread lifecycle
+// when the calling thread's network namespace cannot be restored after switching
+// (e.g. in rootless mode where setns back to the host netns fails with EPERM).
+// The upstream netlink library silently ignores setns restoration errors and
+// returns the tainted thread to the Go runtime's thread pool, which causes
+// goroutines scheduled on those threads to operate in the wrong network
+// namespace.
 func NewHandleAt(ns netns.NsHandle, nlFamilies ...int) (Handle, error) {
-	nlh, err := netlink.NewHandleAt(ns, nlFamilies...)
-	if err != nil {
-		return Handle{}, err
+	if !ns.IsOpen() {
+		// No target namespace; same as NewHandle.
+		return NewHandle(nlFamilies...)
 	}
-	return Handle{nlh}, nil
+
+	type result struct {
+		handle *netlink.Handle
+		err    error
+	}
+	ch := make(chan result, 1)
+
+	go func() {
+		runtime.LockOSThread()
+
+		origNS, err := netns.Get()
+		if err != nil {
+			runtime.UnlockOSThread()
+			ch <- result{err: fmt.Errorf("could not get current network namespace: %w", err)}
+			return
+		}
+		defer origNS.Close()
+
+		if err := netns.Set(ns); err != nil {
+			runtime.UnlockOSThread()
+			ch <- result{err: fmt.Errorf("failed to enter network namespace: %w", err)}
+			return
+		}
+
+		// Create netlink sockets in the target namespace.
+		// NewHandle with no ns args does not do any namespace switching.
+		nlh, err := netlink.NewHandle(nlFamilies...)
+		if err != nil {
+			// Best-effort restore before reporting the error.
+			netns.Set(origNS) //nolint:errcheck
+			runtime.UnlockOSThread()
+			ch <- result{err: err}
+			return
+		}
+
+		if err := netns.Set(origNS); err != nil {
+			// Cannot restore the thread's network namespace. Keep the
+			// goroutine locked to this thread so the Go runtime terminates
+			// it instead of returning a tainted thread to the pool.
+			ch <- result{handle: nlh}
+			return
+		}
+		runtime.UnlockOSThread()
+		ch <- result{handle: nlh}
+	}()
+
+	r := <-ch
+	if r.err != nil {
+		return Handle{}, r.err
+	}
+	return Handle{r.handle}, nil
 }
 
 func (nlh Handle) Close() {
@@ -160,10 +221,56 @@ func LinkList() (links []netlink.Link, err error) {
 	return links, discardErrDumpInterrupted(err)
 }
 
-// LinkSubscribeWithOptions calls netlink.LinkSubscribeWithOptions, retrying if necessary.
-// Close the done channel when done (rather than just sending on it), so that goroutines
-// started by the netlink package are all stopped.
+// LinkSubscribeWithOptions calls netlink.LinkSubscribeWithOptions, retrying if
+// necessary. Close the done channel when done (rather than just sending on it),
+// so that goroutines started by the netlink package are all stopped.
+//
+// When a target namespace is specified, the subscribe socket is created on a
+// dedicated OS thread to avoid the same executeInNetns thread contamination
+// issue described in [NewHandleAt].
 func LinkSubscribeWithOptions(ch chan<- netlink.LinkUpdate, done <-chan struct{}, options netlink.LinkSubscribeOptions) (err error) {
+	if options.Namespace != nil && options.Namespace.IsOpen() {
+		ns := *options.Namespace
+		// Clear the namespace option so the netlink library does not do
+		// its own namespace switching (via executeInNetns). We handle it.
+		options.Namespace = nil
+		errCh := make(chan error, 1)
+		go func() {
+			runtime.LockOSThread()
+
+			origNS, nserr := netns.Get()
+			if nserr != nil {
+				runtime.UnlockOSThread()
+				errCh <- fmt.Errorf("could not get current network namespace: %w", nserr)
+				return
+			}
+			defer origNS.Close()
+
+			if nserr := netns.Set(ns); nserr != nil {
+				runtime.UnlockOSThread()
+				errCh <- fmt.Errorf("failed to enter network namespace: %w", nserr)
+				return
+			}
+
+			// Create the subscribe socket in the target namespace.
+			// With Namespace cleared, the netlink library will not
+			// attempt any namespace switching internally.
+			retryOnIntr(func() error {
+				err = netlink.LinkSubscribeWithOptions(ch, done, options) //nolint:forbidigo
+				return err
+			})
+			errCh <- err
+
+			if nserr := netns.Set(origNS); nserr != nil {
+				// Cannot restore: keep locked so the runtime kills
+				// this thread instead of returning it to the pool.
+				return
+			}
+			runtime.UnlockOSThread()
+		}()
+		return <-errCh
+	}
+
 	retryOnIntr(func() error {
 		err = netlink.LinkSubscribeWithOptions(ch, done, options) //nolint:forbidigo
 		return err
