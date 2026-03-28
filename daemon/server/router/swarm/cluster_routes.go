@@ -371,17 +371,38 @@ func (sr *swarmRouter) getNode(ctx context.Context, w http.ResponseWriter, r *ht
 	return httputils.WriteJSON(w, http.StatusOK, node)
 }
 
-func (sr *swarmRouter) updateNode(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var node types.NodeSpec
-	if err := httputils.ReadJSON(r, &node); err != nil {
-		return err
-	}
+// NodeUpdateRequest holds the request body for API >= v1.53
+type NodeUpdateRequest struct {
+	Version uint64         `json:"version"`
+	Spec    types.NodeSpec `json:"spec"`
+}
 
-	rawVersion := r.URL.Query().Get("version")
-	version, err := strconv.ParseUint(rawVersion, 10, 64)
-	if err != nil {
-		err := fmt.Errorf("invalid node version '%s': %v", rawVersion, err)
-		return errdefs.InvalidParameter(err)
+func (sr *swarmRouter) updateNode(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var (
+		node    types.NodeSpec
+		version uint64
+	)
+
+	apiVersion := httputils.VersionFromContext(ctx)
+	if versions.GreaterThanOrEqualTo(apiVersion, "1.53") {
+		var req NodeUpdateRequest
+		if err := httputils.ReadJSON(r, &req); err != nil {
+			return err
+		}
+		version = req.Version
+		node = req.Spec
+	} else {
+		if err := httputils.ReadJSON(r, &node); err != nil {
+			return err
+		}
+
+		rawVersion := r.URL.Query().Get("version")
+		var err error
+		version, err = strconv.ParseUint(rawVersion, 10, 64)
+		if err != nil {
+			err := fmt.Errorf("invalid node version '%s': %v", rawVersion, err)
+			return errdefs.InvalidParameter(err)
+		}
 	}
 
 	if err := sr.backend.UpdateNode(vars["id"], version, node); err != nil {
