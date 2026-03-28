@@ -191,13 +191,13 @@ func newDriver(networkType string, store *datastore.Store) (*driver, error) {
 }
 
 // RegisterBuiltinLocalDrivers registers the builtin local drivers.
-func RegisterBuiltinLocalDrivers(r driverapi.Registerer, store *datastore.Store) error {
+func RegisterBuiltinLocalDrivers(ctx context.Context, r driverapi.Registerer, store *datastore.Store) error {
 	for networkType := range builtinLocalDrivers {
 		d, err := newDriver(networkType, store)
 		if err != nil {
 			return err
 		}
-		err = r.RegisterDriver(networkType, d, driverapi.Capability{
+		err = r.RegisterDriver(ctx, networkType, d, driverapi.Capability{
 			DataScope:         scope.Local,
 			ConnectivityScope: scope.Local,
 		})
@@ -924,7 +924,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid string) error {
+func (d *driver) Leave(_ context.Context, nid, eid string) error {
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return types.InternalMaskableErrorf("%v", err)

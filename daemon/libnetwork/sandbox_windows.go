@@ -7,7 +7,7 @@ import (
 	"github.com/moby/moby/v2/errdefs"
 )
 
-func releaseOSSboxResources(*osl.Namespace, *Endpoint) {}
+func releaseOSSboxResources(context.Context, *osl.Namespace, *Endpoint) {}
 
 func (sb *Sandbox) updateGateway(_, _ *Endpoint) error {
 	// not implemented on Windows (Sandbox.osSbox is always nil)

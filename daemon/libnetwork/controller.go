@@ -189,7 +189,7 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 		return nil, err
 	}
 
-	if err := registerNetworkDrivers(&c.drvRegistry, c.cfg, c.store, &c.pmRegistry); err != nil {
+	if err := registerNetworkDrivers(ctx, &c.drvRegistry, c.cfg, c.store, &c.pmRegistry); err != nil {
 		return nil, err
 	}
 
@@ -219,7 +219,7 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 	if err := c.cleanupLocalEndpoints(); err != nil {
 		log.G(ctx).WithError(err).Warnf("error during endpoint cleanup")
 	}
-	c.networkCleanup()
+	c.networkCleanup(ctx)
 
 	if err := c.startExternalKeyListener(); err != nil {
 		return nil, err
@@ -301,14 +301,18 @@ func (c *Controller) clusterAgentInit() {
 			fallthrough
 		case cluster.EventSocketChange, cluster.EventNodeReady:
 			if keysAvailable && c.isSwarmNode() {
+				ctx, span := otel.Tracer("").Start(context.Background(), "libnetwork.Controller.clusterAgentInit@NodeReady")
 				c.agentOperationStart()
-				if err := c.agentSetup(clusterProvider); err != nil {
+				if err := c.agentSetup(ctx, clusterProvider); err != nil {
 					c.agentStopComplete()
 				} else {
 					c.agentInitComplete()
 				}
+				span.End()
 			}
 		case cluster.EventNodeLeave:
+			ctx, span := otel.Tracer("").Start(context.Background(), "libnetwork.Controller.clusterAgentInit@EventNodeLeave")
+			defer span.End()
 			c.agentOperationStart()
 			c.mu.Lock()
 			c.keys = nil
@@ -323,7 +327,7 @@ func (c *Controller) clusterAgentInit() {
 			// service bindings
 			c.agentClose()
 			c.cleanupServiceDiscovery("")
-			c.cleanupServiceBindings("")
+			c.cleanupServiceBindings(ctx, "")
 
 			c.agentStopComplete()
 
@@ -414,16 +418,16 @@ func (c *Controller) BuiltinIPAMDrivers() []string {
 	return drivers
 }
 
-func (c *Controller) processNodeDiscovery(nodes []net.IP, add bool) {
+func (c *Controller) processNodeDiscovery(ctx context.Context, nodes []net.IP, add bool) {
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
 		if d, ok := driver.(discoverapi.Discover); ok {
-			c.pushNodeDiscovery(d, capability, nodes, add)
+			c.pushNodeDiscovery(ctx, d, capability, nodes, add)
 		}
 		return false
 	})
 }
 
-func (c *Controller) pushNodeDiscovery(d discoverapi.Discover, capability driverapi.Capability, nodes []net.IP, add bool) {
+func (c *Controller) pushNodeDiscovery(ctx context.Context, d discoverapi.Discover, capability driverapi.Capability, nodes []net.IP, add bool) {
 	var self net.IP
 	// try swarm-mode config
 	if agent := c.getAgent(); agent != nil {
@@ -438,12 +442,12 @@ func (c *Controller) pushNodeDiscovery(d discoverapi.Discover, capability driver
 		nodeData := discoverapi.NodeDiscoveryData{Address: node.String(), Self: node.Equal(self)}
 		var err error
 		if add {
-			err = d.DiscoverNew(discoverapi.NodeDiscovery, nodeData)
+			err = d.DiscoverNew(ctx, discoverapi.NodeDiscovery, nodeData)
 		} else {
-			err = d.DiscoverDelete(discoverapi.NodeDiscovery, nodeData)
+			err = d.DiscoverDelete(ctx, discoverapi.NodeDiscovery, nodeData)
 		}
 		if err != nil {
-			log.G(context.TODO()).Debugf("discovery notification error: %v", err)
+			log.G(ctx).Debugf("discovery notification error: %v", err)
 		}
 	}
 }
@@ -484,9 +488,9 @@ func (c *Controller) GetPluginGetter() plugingetter.PluginGetter {
 	return c.cfg.PluginGetter
 }
 
-func (c *Controller) RegisterDriver(_ string, driver driverapi.Driver, _ driverapi.Capability) error {
+func (c *Controller) RegisterDriver(ctx context.Context, _ string, driver driverapi.Driver, _ driverapi.Capability) error {
 	if d, ok := driver.(discoverapi.Discover); ok {
-		c.agentDriverNotify(d)
+		c.agentDriverNotify(ctx, d)
 	}
 	return nil
 }
@@ -730,7 +734,7 @@ addToStore:
 	}()
 
 	if nw.hasLoadBalancerEndpoint() {
-		if err := nw.createLoadBalancerSandbox(); err != nil {
+		if err := nw.createLoadBalancerSandbox(ctx); err != nil {
 			return nil, err
 		}
 	}

@@ -21,7 +21,7 @@ func TestCleanupServiceDiscovery(t *testing.T) {
 	defer c.Stop()
 
 	cleanup := func(n *Network) {
-		if err := n.Delete(); err != nil {
+		if err := n.Delete(context.Background()); err != nil {
 			t.Error(err)
 		}
 	}

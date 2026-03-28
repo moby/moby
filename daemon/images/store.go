@@ -35,12 +35,12 @@ type imageStoreWithLease struct {
 	ns string
 }
 
-func (s *imageStoreWithLease) Delete(id image.ID) ([]layer.Metadata, error) {
-	ctx := namespaces.WithNamespace(context.TODO(), s.ns)
+func (s *imageStoreWithLease) Delete(ctx context.Context, id image.ID) ([]layer.Metadata, error) {
+	ctx = namespaces.WithNamespace(ctx, s.ns)
 	if err := s.leases.Delete(ctx, leases.Lease{ID: imageKey(id.String())}); err != nil && !cerrdefs.IsNotFound(err) {
 		return nil, errors.Wrap(err, "error deleting lease")
 	}
-	return s.Store.Delete(id)
+	return s.Store.Delete(ctx, id)
 }
 
 // imageStoreForPull is created for each pull It wraps an underlying image store

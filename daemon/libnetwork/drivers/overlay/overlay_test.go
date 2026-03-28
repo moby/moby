@@ -3,6 +3,7 @@
 package overlay
 
 import (
+	"context"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
@@ -20,7 +21,7 @@ func (dt *driverTester) GetPluginGetter() plugingetter.PluginGetter {
 	return nil
 }
 
-func (dt *driverTester) RegisterDriver(name string, drv driverapi.Driver, capability driverapi.Capability) error {
+func (dt *driverTester) RegisterDriver(_ context.Context, name string, drv driverapi.Driver, capability driverapi.Capability) error {
 	if name != testNetworkType {
 		dt.t.Fatalf("Expected driver register name to be %q. Instead got %q",
 			testNetworkType, name)
@@ -41,14 +42,14 @@ func (dt *driverTester) RegisterNetworkAllocator(name string, _ driverapi.Networ
 }
 
 func TestOverlayInit(t *testing.T) {
-	if err := Register(&driverTester{t: t}); err != nil {
+	if err := Register(t.Context(), &driverTester{t: t}); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestOverlayType(t *testing.T) {
 	dt := &driverTester{t: t}
-	if err := Register(dt); err != nil {
+	if err := Register(t.Context(), dt); err != nil {
 		t.Fatal(err)
 	}
 

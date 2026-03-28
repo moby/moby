@@ -20,23 +20,23 @@ import (
 
 // containerStatPath stats the filesystem resource at the specified path in this
 // container. Returns stat info about the resource.
-func (daemon *Daemon) containerStatPath(container *container.Container, path string) (*containertypes.PathStat, error) {
+func (daemon *Daemon) containerStatPath(ctx context.Context, container *container.Container, path string) (*containertypes.PathStat, error) {
 	container.Lock()
 	defer container.Unlock()
 
-	cfs, err := daemon.openContainerFS(container)
+	cfs, err := daemon.openContainerFS(ctx, container)
 	if err != nil {
 		return nil, err
 	}
-	defer cfs.Close()
+	defer cfs.Close(context.WithoutCancel(ctx))
 
-	return cfs.Stat(context.TODO(), path)
+	return cfs.Stat(ctx, path)
 }
 
 // containerArchivePath creates an archive of the filesystem resource at the specified
 // path in this container. Returns a tar archive of the resource and stat info
 // about the resource.
-func (daemon *Daemon) containerArchivePath(container *container.Container, path string) (content io.ReadCloser, stat *containertypes.PathStat, retErr error) {
+func (daemon *Daemon) containerArchivePath(ctx context.Context, container *container.Container, path string) (content io.ReadCloser, stat *containertypes.PathStat, retErr error) {
 	container.Lock()
 
 	defer func() {
@@ -48,20 +48,20 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 		}
 	}()
 
-	cfs, err := daemon.openContainerFS(container)
+	cfs, err := daemon.openContainerFS(ctx, container)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	defer func() {
 		if retErr != nil {
-			_ = cfs.Close()
+			_ = cfs.Close(context.WithoutCancel(ctx))
 		}
 	}()
 
 	absPath := archive.PreserveTrailingDotOrSeparator(filepath.Join("/", path), path)
 
-	stat, err = cfs.Stat(context.TODO(), absPath)
+	stat, err = cfs.Stat(ctx, absPath)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -77,11 +77,11 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 		return nil, nil, err
 	}
 
-	cfs.GoInFS(context.TODO(), tb.Do)
+	cfs.GoInFS(ctx, tb.Do)
 	data := tb.Reader()
 	content = ioutils.NewReadCloserWrapper(data, func() error {
 		err := data.Close()
-		_ = cfs.Close()
+		_ = cfs.Close(ctx)
 		container.Unlock()
 		return err
 	})
@@ -97,17 +97,17 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 // noOverwriteDirNonDir is true then it will be an error if unpacking the
 // given content would cause an existing directory to be replaced with a non-
 // directory and vice versa.
-func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, allowOverwriteDirWithFile bool, content io.Reader) error {
+func (daemon *Daemon) containerExtractToDir(ctx context.Context, container *container.Container, path string, copyUIDGID, allowOverwriteDirWithFile bool, content io.Reader) error {
 	container.Lock()
 	defer container.Unlock()
 
-	cfs, err := daemon.openContainerFS(container)
+	cfs, err := daemon.openContainerFS(ctx, container)
 	if err != nil {
 		return err
 	}
-	defer cfs.Close()
+	defer cfs.Close(ctx)
 
-	err = cfs.RunInFS(context.TODO(), func() error {
+	err = cfs.RunInFS(ctx, func() error {
 		// The destination path needs to be resolved with all symbolic links
 		// followed. Note that we need to also evaluate the last path element if
 		// it is a symlink. This is so that you can extract an archive to a
