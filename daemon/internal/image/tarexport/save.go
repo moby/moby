@@ -24,6 +24,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/ioutils"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/system"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/sequential"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
@@ -104,7 +105,7 @@ func (l *tarexporter) parseNames(ctx context.Context, names []string) (desc map[
 
 		ref, err := reference.ParseAnyReference(name)
 		if err != nil {
-			return nil, err
+			return nil, errdefs.InvalidParameter(err)
 		}
 		namedRef, ok := ref.(reference.Named)
 		if !ok {
