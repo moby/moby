@@ -48,7 +48,7 @@ func ResetHandles() {
 		panic("ResetHandles should only be called from tests")
 	}
 	if initNs.IsOpen() {
-		initNs.Close()
+		_ = initNs.Close()
 		initNs = netns.None()
 	}
 	if initNl.Handle != nil {
@@ -99,7 +99,7 @@ func checkXfrmSocket() error {
 	if err != nil {
 		return err
 	}
-	syscall.Close(fd)
+	_ = syscall.Close(fd)
 	return nil
 }
 
@@ -109,6 +109,6 @@ func checkNfSocket() error {
 	if err != nil {
 		return err
 	}
-	syscall.Close(fd)
+	_ = syscall.Close(fd)
 	return nil
 }
