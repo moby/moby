@@ -27,7 +27,8 @@ linters:
     - fatcontext                # Detects nested contexts in loops and function literals.
     - forbidigo
     - gocheckcompilerdirectives # Detects invalid go compiler directive comments (//go:).
-    - gocritic                  # Detects for bugs, performance and style issues.
+    - gocritic                  # Detects bugs, performance and style issues.
+    - godoclint                 # Detects issues in godoc.
     - gosec                     # Detects security problems.
     - govet
     - iface                     # Detects incorrect use of interfaces. Currently only used for "identical" interfaces in the same package.
