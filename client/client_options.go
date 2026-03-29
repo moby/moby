@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -199,8 +200,7 @@ func WithUserAgent(ua string) Opt {
 //
 // It replaces any existing custom headers. Keys are case-insensitive and
 // canonicalized using [http.CanonicalHeaderKey]. If multiple entries map
-// to the same canonical key, the resulting value is undefined and may vary
-// between runs due to map iteration order.
+// to the same canonical key, a [cerrdefs.ErrInvalidArgument] is returned.
 func WithHTTPHeaders(headers map[string]string) Opt {
 	return func(c *clientConfig) error {
 		c.customHTTPHeaders = make(map[string]string)
@@ -208,8 +208,7 @@ func WithHTTPHeaders(headers map[string]string) Opt {
 			k = http.CanonicalHeaderKey(k)
 			_, ok := c.customHTTPHeaders[k]
 			if ok {
-				// TODO(thaJeztah): consider returning an error on duplicates
-				continue
+				return cerrdefs.ErrInvalidArgument.WithMessage(fmt.Sprintf("duplicate custom HTTP header (%s)", k))
 			}
 			c.customHTTPHeaders[k] = v
 		}

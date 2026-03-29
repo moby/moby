@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -380,15 +381,9 @@ func TestWithHTTTPHeaders(t *testing.T) {
 				"CUSTOM-HEADER": "custom-value-C",
 			}),
 		)
-		assert.NilError(t, err)
-
-		// Check customHTTPHeaders directly for this test because we canonicalize
-		// headers before sending requests. Ultimately, we should produce an
-		// error if duplicate headers are provided.
-		assert.Check(t, c.customHTTPHeaders["Custom-Header"] != "", "canonical header should be set")
-		assert.Check(t, c.customHTTPHeaders["custom-header"] == "", "non-canonical header should not be set")
-		assert.Check(t, c.customHTTPHeaders["CUSTOM-HEADER"] == "", "non-canonical header should not be set")
-		assert.NilError(t, c.Close())
+		assert.Check(t, is.ErrorIs(err, cerrdefs.ErrInvalidArgument))
+		assert.Check(t, is.Error(err, "duplicate custom HTTP header (Custom-Header)"))
+		assert.Check(t, is.Nil(c))
 	})
 	t.Run("multiple", func(t *testing.T) {
 		c, err := New(
