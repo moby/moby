@@ -65,18 +65,13 @@ func ResetHandles() {
 	}
 }
 
-// ParseHandlerInt transforms the namespace handler into an integer
-func ParseHandlerInt() int {
-	return int(getHandler())
-}
-
-// GetHandler returns the namespace handler
-func getHandler() netns.NsHandle {
+// NsHandle returns the network namespace handle for the initial (host) namespace.
+func NsHandle() netns.NsHandle {
 	ns, _ := initNamespace()
 	return ns
 }
 
-// NlHandle returns the netlink handler
+// NlHandle returns the netlink handle.
 func NlHandle() nlwrap.Handle {
 	_, nl := initNamespace()
 	return nl
