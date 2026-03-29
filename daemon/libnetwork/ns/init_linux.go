@@ -15,7 +15,7 @@ import (
 )
 
 // NetlinkSocketsTimeout represents the default timeout duration for the sockets.
-var NetlinkSocketsTimeout = 3 * time.Second
+const NetlinkSocketsTimeout = 3 * time.Second
 
 // initNamespace initializes a new network namespace.
 var initNamespace = sync.OnceValues(initHandles)
