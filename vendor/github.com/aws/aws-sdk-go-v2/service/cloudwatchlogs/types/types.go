@@ -1457,6 +1457,37 @@ type LogStream struct {
 	noSmithyDocumentSerde
 }
 
+// Contains metadata about a lookup table returned by DescribeLookupTables .
+type LookupTable struct {
+
+	// The description of the lookup table.
+	Description *string
+
+	// The ARN of the KMS key used to encrypt the lookup table data, if applicable.
+	KmsKeyId *string
+
+	// The time when the lookup table was last updated, expressed as the number of
+	// milliseconds after Jan 1, 1970 00:00:00 UTC .
+	LastUpdatedTime *int64
+
+	// The ARN of the lookup table.
+	LookupTableArn *string
+
+	// The name of the lookup table.
+	LookupTableName *string
+
+	// The number of data rows in the lookup table, excluding the header row.
+	RecordsCount *int64
+
+	// The size of the lookup table in bytes.
+	SizeBytes *int64
+
+	// The column headers from the first row of the CSV file.
+	TableFields []string
+
+	noSmithyDocumentSerde
+}
+
 // This processor converts a string to lowercase.
 //
 // For more information about this processor including examples, see [lowerCaseString] in the
