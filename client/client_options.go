@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -194,11 +195,23 @@ func WithUserAgent(ua string) Opt {
 }
 
 // WithHTTPHeaders appends custom HTTP headers to the client's default headers.
-// It does not allow for built-in headers (such as "User-Agent", if set) to
-// be overridden. Also see [WithUserAgent].
+// It does not allow overriding built-in headers (such as "User-Agent").
+// Also see [WithUserAgent].
+//
+// It replaces any existing custom headers. Keys are case-insensitive and
+// canonicalized using [http.CanonicalHeaderKey]. If multiple entries map
+// to the same canonical key, a [cerrdefs.ErrInvalidArgument] is returned.
 func WithHTTPHeaders(headers map[string]string) Opt {
 	return func(c *clientConfig) error {
-		c.customHTTPHeaders = headers
+		c.customHTTPHeaders = make(map[string]string)
+		for k, v := range headers {
+			k = http.CanonicalHeaderKey(k)
+			_, ok := c.customHTTPHeaders[k]
+			if ok {
+				return cerrdefs.ErrInvalidArgument.WithMessage(fmt.Sprintf("duplicate custom HTTP header (%s)", k))
+			}
+			c.customHTTPHeaders[k] = v
+		}
 		return nil
 	}
 }
