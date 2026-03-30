@@ -74,10 +74,12 @@ func (ic iptablesCleaner) DelNetwork(ctx context.Context, nc firewaller.NetworkC
 	if ic.config.IPv4 && nc.Config4.Prefix.IsValid() {
 		_ = deleteLegacyFilterRules(iptables.IPv4, nc.IfName)
 		_ = n.setupNonInternalNetworkRules(ctx, iptables.IPv4, nc.Config4, false)
+		_ = n.setSubnetProtection(ctx, iptables.IPv4, nc.Config4, false)
 	}
 	if ic.config.IPv6 && nc.Config6.Prefix.IsValid() {
 		_ = deleteLegacyFilterRules(iptables.IPv6, nc.IfName)
 		_ = n.setupNonInternalNetworkRules(ctx, iptables.IPv6, nc.Config6, false)
+		_ = n.setSubnetProtection(ctx, iptables.IPv6, nc.Config6, false)
 	}
 }
 
