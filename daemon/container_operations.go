@@ -74,10 +74,10 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 	}
 
 	for _, extraHost := range ctr.HostConfig.ExtraHosts {
-		// allow IPv6 addresses in extra hosts; only split on first ":"
 		if _, err := opts.ValidateExtraHost(extraHost); err != nil {
 			return nil, err
 		}
+		// allow IPv6 addresses in extra hosts; only split on first ":"
 		host, ip, _ := strings.Cut(extraHost, ":")
 		// If the IP Address is the literal string "host-gateway", replace this
 		// value with the IP address(es) stored in the daemon level HostGatewayIP
@@ -90,7 +90,21 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 				sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, gip.Unmap()))
 			}
 		} else {
-			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, netip.MustParseAddr(ip).Unmap()))
+			if ipAddr, err := netip.ParseAddr(ip); err != nil {
+				// Value should already be validated if we arrive here, but
+				// handle invalid IP-addresses gracefully: they may be part
+				// of an existing container-config created by docker < v29.0.0.
+				//
+				// See https://github.com/moby/moby/issues/52274
+				// See https://github.com/moby/moby/pull/50956
+				log.G(context.TODO()).WithFields(log.Fields{
+					"error":      err,
+					"extra_host": extraHost,
+					"container":  ctr.ID,
+				}).Warn("buildSandboxOptions: failed to parse IP address for extra hosts")
+			} else {
+				sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, ipAddr.Unmap()))
+			}
 		}
 	}
 
