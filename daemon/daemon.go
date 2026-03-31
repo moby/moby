@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -381,6 +382,19 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 						c.HostConfig.LogConfig.Config["fluentd-async"] = v
 					}
 					delete(c.HostConfig.LogConfig.Config, "fluentd-async-connect")
+				}
+				if len(c.HostConfig.ExtraHosts) > 0 {
+					// Daemon versions before v29.0.0 were more permissive when handling whitespace in the IP-address:
+					//
+					// See https://github.com/moby/moby/issues/52274
+					// See https://github.com/moby/moby/pull/50956
+					//
+					// TODO(thaJeztah): remove this migration when we no longer need migration for docker < v29.0.0
+					for i, h := range c.HostConfig.ExtraHosts {
+						if host, ip, ok := strings.Cut(h, ":"); ok {
+							c.HostConfig.ExtraHosts[i] = strings.TrimSpace(host) + ":" + strings.TrimSpace(ip)
+						}
+					}
 				}
 			}
 
