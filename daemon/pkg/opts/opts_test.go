@@ -24,7 +24,7 @@ func TestValidateIPAddress(t *testing.T) {
 		{
 			doc:         "IPv4 loopback with whitespace",
 			input:       ` 127.0.0.1 `,
-			expectedOut: `127.0.0.1`,
+			expectedErr: `IP address is not correctly formatted: ParseAddr(" 127.0.0.1 "): unexpected character (at " 127.0.0.1 ")`,
 		},
 		{
 			doc:         "IPv6 loopback long form",
@@ -39,7 +39,7 @@ func TestValidateIPAddress(t *testing.T) {
 		{
 			doc:         "IPv6 loopback with whitespace",
 			input:       ` ::1 `,
-			expectedOut: `::1`,
+			expectedErr: `IP address is not correctly formatted: ParseAddr(" ::1 "): each colon-separated field must have at least one digit (at " ::1 ")`,
 		},
 		{
 			doc:         "IPv6 lowercase",
@@ -54,17 +54,17 @@ func TestValidateIPAddress(t *testing.T) {
 		{
 			doc:         "IPv6 with brackets",
 			input:       `[::1]`,
-			expectedErr: `IP address is not correctly formatted: [::1]`,
+			expectedErr: `IP address is not correctly formatted: ParseAddr("[::1]"): each colon-separated field must have at least one digit (at "[::1]")`,
 		},
 		{
 			doc:         "IPv4 partial",
 			input:       `127`,
-			expectedErr: `IP address is not correctly formatted: 127`,
+			expectedErr: `IP address is not correctly formatted: ParseAddr("127"): unable to parse IP`,
 		},
 		{
 			doc:         "random invalid string",
 			input:       `random invalid string`,
-			expectedErr: `IP address is not correctly formatted: random invalid string`,
+			expectedErr: `IP address is not correctly formatted: ParseAddr("random invalid string"): unable to parse IP`,
 		},
 	}
 
