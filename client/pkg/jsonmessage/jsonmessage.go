@@ -140,10 +140,20 @@ func Display(jm jsonstream.Message, out io.Writer, isTerminal bool, width uint16
 
 type JSONMessagesStream = iter.Seq2[jsonstream.Message, error]
 
-// DisplayJSONMessagesStream reads a JSON message stream from in, and writes
-// each [JSONMessage] to out.
-// see DisplayJSONMessages for details
+// DisplayJSONMessagesStream is like [DisplayStream], but allows the caller to
+// explicitly provide the terminal file descriptor and whether out is a terminal.
 func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(jsonstream.Message)) error {
+	return displayJSONMessagesStream(in, out, terminalFd, isTerminal, auxCallback)
+}
+
+// DisplayStream reads a JSON message stream from in, and writes each
+// [jsonstream.Message] to out. See [DisplayMessages] for details.
+func DisplayStream(in io.Reader, out io.Writer, auxCallback func(jsonstream.Message)) error {
+	terminalFd, isTerminal := term.GetFdInfo(out)
+	return displayJSONMessagesStream(in, out, terminalFd, isTerminal, auxCallback)
+}
+
+func displayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(jsonstream.Message)) error {
 	dec := json.NewDecoder(in)
 	f := func(yield func(jsonstream.Message, error) bool) {
 		for {
@@ -158,26 +168,33 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 		}
 	}
 
-	return DisplayJSONMessages(f, out, terminalFd, isTerminal, auxCallback)
+	return displayJSONMessages(f, out, terminalFd, isTerminal, auxCallback)
 }
 
-// DisplayJSONMessages writes each [JSONMessage] from stream to out.
-// It returns an error if an invalid JSONMessage is received, or if
-// a JSONMessage containers a non-zero [JSONMessage.Error].
-//
-// Presentation of the JSONMessage depends on whether a terminal is attached,
-// and on the terminal width. Progress bars ([JSONProgress]) are suppressed
-// on narrower terminals (< 110 characters).
-//
-//   - isTerminal describes if out is a terminal, in which case it prints
-//     a newline ("\n") at the end of each line and moves the cursor while
-//     displaying.
-//   - terminalFd is the fd of the current terminal (if any), and used
-//     to get the terminal width.
-//   - auxCallback allows handling the [JSONMessage.Aux] field. It is
-//     called if a JSONMessage contains an Aux field, in which case
-//     DisplayJSONMessagesStream does not present the JSONMessage.
+// DisplayJSONMessages is like [DisplayMessages], but allows the caller to
+// explicitly provide the terminal file descriptor and whether out is a terminal.
 func DisplayJSONMessages(messages iter.Seq2[jsonstream.Message, error], out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(jsonstream.Message)) error {
+	return displayJSONMessages(messages, out, terminalFd, isTerminal, auxCallback)
+}
+
+// DisplayMessages writes each [jsonstream.Message] from stream to out.
+// It returns an error if an invalid [jsonstream.Message] is received, or if
+// a message contains a non-zero [jsonstream.Message.Error].
+//
+// Presentation of the message depends on whether out is a terminal, and on the
+// terminal width. Progress bars ([jsonstream.Progress]) are suppressed on
+// narrower terminals (< 110 characters). If out is a terminal, it prints a
+// newline ("\n") at the end of each line and moves the cursor while displaying.
+//
+// auxCallback allows handling the [jsonstream.Message.Aux] field. It is called
+// if a message contains an Aux field, in which case DisplayMessages does not
+// present the message.
+func DisplayMessages(messages iter.Seq2[jsonstream.Message, error], out io.Writer, auxCallback func(jsonstream.Message)) error {
+	terminalFd, isTerminal := term.GetFdInfo(out)
+	return displayJSONMessages(messages, out, terminalFd, isTerminal, auxCallback)
+}
+
+func displayJSONMessages(messages iter.Seq2[jsonstream.Message, error], out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(jsonstream.Message)) error {
 	ids := make(map[string]uint)
 	var width uint16 = 200
 	if isTerminal {

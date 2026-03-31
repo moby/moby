@@ -8,12 +8,11 @@ import (
 	"time"
 
 	"github.com/moby/moby/api/types/jsonstream"
-	"github.com/moby/term"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestProgressString(t *testing.T) {
+func TestRenderTUIProgress(t *testing.T) {
 	type expected struct {
 		short string
 		long  string
@@ -112,7 +111,7 @@ func TestProgressString(t *testing.T) {
 	}
 }
 
-func TestJSONMessageDisplay(t *testing.T) {
+func TestDisplay(t *testing.T) {
 	messages := map[jsonstream.Message][]string{
 		// Empty
 		{}: {"\n", "\n"},
@@ -171,8 +170,8 @@ func TestJSONMessageDisplay(t *testing.T) {
 	}
 }
 
-// Test JSONMessage with an Error. It returns an error with the given text, not the meaning of the HTTP code.
-func TestJSONMessageDisplayWithJSONError(t *testing.T) {
+// Test jsonstream.Message with an Error. It returns an error with the given text, not the meaning of the HTTP code.
+func TestDisplayWithJSONError(t *testing.T) {
 	data := bytes.NewBuffer([]byte{})
 	jsonMessage := jsonstream.Message{Error: &jsonstream.Error{Code: 404, Message: "Can't find it"}}
 
@@ -186,21 +185,16 @@ func TestJSONMessageDisplayWithJSONError(t *testing.T) {
 	assert.Check(t, is.Error(err, "Anything"))
 }
 
-func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {
-	var inFd uintptr
+func TestDisplayStreamInvalidJSON(t *testing.T) {
 	data := bytes.NewBuffer([]byte{})
 	reader := strings.NewReader("This is not a 'valid' JSON []")
-	inFd, _ = term.GetFdInfo(reader)
-
 	exp := "invalid character "
-	if err := DisplayJSONMessagesStream(reader, data, inFd, false, nil); err == nil || !strings.HasPrefix(err.Error(), exp) {
+	if err := DisplayStream(reader, data, nil); err == nil || !strings.HasPrefix(err.Error(), exp) {
 		t.Fatalf("Expected error (%s...), got %q", exp, err)
 	}
 }
 
 func TestDisplayJSONMessagesStream(t *testing.T) {
-	var inFd uintptr
-
 	messages := map[string][]string{
 		// empty string
 		"": {
@@ -231,20 +225,19 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 	for jsonMessage, expectedMessages := range messages {
 		data := bytes.NewBuffer([]byte{})
 		reader := strings.NewReader(jsonMessage)
-		inFd, _ = term.GetFdInfo(reader)
 
 		// Without terminal
-		if err := DisplayJSONMessagesStream(reader, data, inFd, false, nil); err != nil {
+		if err := DisplayStream(reader, data, nil); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
 			t.Fatalf("Expected an %q, got %q", expectedMessages[0], data.String())
 		}
 
-		// With terminal
+		// With terminal (forcing terminal mode)
 		data = bytes.NewBuffer([]byte{})
 		reader = strings.NewReader(jsonMessage)
-		if err := DisplayJSONMessagesStream(reader, data, inFd, true, nil); err != nil {
+		if err := DisplayJSONMessagesStream(reader, data, 0, true, nil); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {
