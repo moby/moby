@@ -10,7 +10,17 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
 )
 
-func (n *network) AddEndpoint(_ context.Context, _, _ netip.Addr) error {
+func (n *network) AddEndpoint(ctx context.Context, epIPv4, epIPv6 netip.Addr) error {
+	if n.ipt.config.IPv4 && epIPv4.IsValid() {
+		if err := n.deleteLegacyDirectAccess(ctx, iptables.IPv4, n.config.Config4, epIPv4); err != nil {
+			return err
+		}
+	}
+	if n.ipt.config.IPv6 && epIPv6.IsValid() {
+		if err := n.deleteLegacyDirectAccess(ctx, iptables.IPv6, n.config.Config6, epIPv6); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
