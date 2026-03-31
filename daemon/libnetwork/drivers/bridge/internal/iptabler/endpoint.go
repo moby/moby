@@ -25,9 +25,6 @@ func (n *network) deleteLegacyDirectAccess(ctx context.Context, ipv iptables.IPV
 	if n.config.Internal || config.Unprotected || config.Routed {
 		return nil
 	}
-	if n.ipt.config.AllowDirectRouting || rawRulesDisabled(ctx) {
-		return nil
-	}
 	for _, ifName := range n.config.TrustedHostInterfaces {
 		accept := iptables.Rule{IPVer: ipv, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
 			"-d", epIP.String(),
