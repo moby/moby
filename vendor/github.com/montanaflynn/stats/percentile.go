@@ -4,7 +4,19 @@ import (
 	"math"
 )
 
-// Percentile finds the relative standing in a slice of floats
+// Percentile finds the relative standing in a slice of floats.
+//
+// The function uses the Linear Interpolation Between Closest Ranks method
+// as recommended by NIST [1] and used by Excel (PERCENTILE), Google Sheets,
+// NumPy (default), and other standard tools.
+//
+// Algorithm (for percent p and sorted data of length n):
+//
+//  1. Compute the rank: rank = (p / 100) * (n - 1)
+//  2. Split into integer part k and fractional part f
+//  3. Result = data[k] + f * (data[k+1] - data[k])
+//
+// [1] https://www.itl.nist.gov/div898/handbook/prc/section2/prc262.htm
 func Percentile(input Float64Data, percent float64) (percentile float64, err error) {
 	length := input.Len()
 	if length == 0 {
@@ -22,28 +34,17 @@ func Percentile(input Float64Data, percent float64) (percentile float64, err err
 	// Start by sorting a copy of the slice
 	c := sortedCopy(input)
 
-	// Multiply percent by length of input
-	index := (percent / 100) * float64(len(c))
+	// Use the standard linear interpolation method:
+	// rank = (percent / 100) * (n - 1)
+	// result = c[k] + f * (c[k+1] - c[k])
+	rank := (percent / 100) * float64(length-1)
+	k := int(rank)
+	f := rank - float64(k)
 
-	// Check if the index is a whole number
-	if index == float64(int64(index)) {
-
-		// Convert float to int
-		i := int(index)
-
-		// Find the value at the index
-		percentile = c[i-1]
-
-	} else if index > 1 {
-
-		// Convert float to int via truncation
-		i := int(index)
-
-		// Find the average of the index and following values
-		percentile, _ = Mean(Float64Data{c[i-1], c[i]})
-
+	if k+1 < length {
+		percentile = c[k] + f*(c[k+1]-c[k])
 	} else {
-		return math.NaN(), BoundsErr
+		percentile = c[k]
 	}
 
 	return percentile, nil

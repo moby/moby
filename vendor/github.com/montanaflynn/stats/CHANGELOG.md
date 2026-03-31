@@ -2,6 +2,16 @@
 ## [Unreleased]
 
 
+<a name="v0.8.0"></a>
+## [v0.8.0] - 2026-03-11
+### Fix
+- Fix Percentile to use standard NIST linear interpolation method ([#92](https://github.com/montanaflynn/stats/issues/92))
+- Fix Percentile underflow bug ([#88](https://github.com/montanaflynn/stats/issues/88))
+
+### Update
+- Update Codecov upload to v4 and pass token
+
+
 <a name="v0.7.1"></a>
 ## [v0.7.1] - 2023-05-11
 ### Add
@@ -517,7 +527,8 @@
 - Merge pull request [#4](https://github.com/montanaflynn/stats/issues/4) from saromanov/sample
 
 
-[Unreleased]: https://github.com/montanaflynn/stats/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/montanaflynn/stats/compare/v0.8.0...HEAD
+[v0.8.0]: https://github.com/montanaflynn/stats/compare/v0.7.1...v0.8.0
 [v0.7.1]: https://github.com/montanaflynn/stats/compare/v0.7.0...v0.7.1
 [v0.7.0]: https://github.com/montanaflynn/stats/compare/v0.6.6...v0.7.0
 [v0.6.6]: https://github.com/montanaflynn/stats/compare/v0.6.5...v0.6.6
