@@ -19,6 +19,7 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/util/cachedigest"
+	"github.com/moby/buildkit/util/pools"
 	"github.com/moby/locker"
 	"github.com/moby/patternmatcher"
 	digest "github.com/opencontainers/go-digest"
@@ -1261,15 +1262,13 @@ func ensureOriginMetadata(md cache.RefMetadata) cache.RefMetadata {
 	return em
 }
 
-var pool32K = sync.Pool{
-	New: func() any {
-		buf := make([]byte, 32*1024) // 32K
-		return &buf
-	},
-}
+var pool32K = pools.New(func() *[]byte {
+	buf := make([]byte, 32*1024) // 32K
+	return &buf
+})
 
 func poolsCopy(dst io.Writer, src io.Reader) (written int64, err error) {
-	buf := pool32K.Get().(*[]byte)
+	buf := pool32K.Get()
 	written, err = io.CopyBuffer(dst, src, *buf)
 	pool32K.Put(buf)
 	return

@@ -174,8 +174,8 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 	}
 	if _, ok := desc.Annotations[ocispecs.AnnotationCreated]; !ok {
 		tm := time.Now()
-		if opts.Epoch != nil {
-			tm = *opts.Epoch
+		if opts.Epoch != nil && opts.Epoch.Value != nil {
+			tm = *opts.Epoch.Value
 		}
 		desc.Annotations[ocispecs.AnnotationCreated] = tm.UTC().Format(time.RFC3339)
 	}

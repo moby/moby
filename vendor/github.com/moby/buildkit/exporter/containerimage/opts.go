@@ -3,7 +3,6 @@ package containerimage
 import (
 	"context"
 	"strconv"
-	"time"
 
 	cacheconfig "github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
@@ -19,7 +18,7 @@ type ImageCommitOpts struct {
 	OCITypes    bool
 	OCIArtifact bool
 	Annotations AnnotationsGroup
-	Epoch       *time.Time
+	Epoch       *epoch.Epoch
 
 	ForceInlineAttestations bool // force inline attestations to be attached
 	RewriteTimestamp        bool // rewrite timestamps in layers to match the epoch

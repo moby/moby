@@ -84,10 +84,10 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 	defer func() { cancel(errors.WithStack(context.Canceled)) }()
 
 	if e.opts.Epoch == nil {
-		if tm, ok, err := epoch.ParseSource(inp); err != nil {
+		if tm, err := epoch.ParseSource(inp, nil); err != nil {
 			return nil, nil, nil, err
-		} else if ok {
-			e.opts.Epoch = tm
+		} else if tm != nil {
+			e.opts.Epoch = &epoch.Epoch{Value: tm}
 		}
 	}
 
@@ -115,9 +115,9 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 	visitedPath := map[string]string{}
 	var visitedMu sync.Mutex
 
-	export := func(ctx context.Context, k string, ref cache.ImmutableRef, attestations []exporter.Attestation) func() error {
+	export := func(ctx context.Context, k string, ref cache.ImmutableRef, attestations []exporter.Attestation, opt CreateFSOpts) func() error {
 		return func() error {
-			outputFS, cleanup, err := CreateFS(ctx, buildInfo.SessionID, k, ref, attestations, now, isMap, e.opts)
+			outputFS, cleanup, err := CreateFS(ctx, buildInfo.SessionID, k, ref, attestations, now, isMap, opt)
 			if err != nil {
 				return err
 			}
@@ -152,8 +152,8 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 					Mode: uint32(os.ModeDir | 0755),
 					Path: strings.ReplaceAll(k, "/", "_"),
 				}
-				if e.opts.Epoch != nil {
-					st.ModTime = e.opts.Epoch.UnixNano()
+				if opt.Epoch != nil && opt.Epoch.Value != nil {
+					st.ModTime = opt.Epoch.Value.UnixNano()
 				}
 				outputFS, err = fsutil.SubDirFS([]fsutil.Dir{{FS: outputFS, Stat: st}})
 				if err != nil {
@@ -177,10 +177,18 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 			if !ok {
 				return nil, nil, nil, errors.Errorf("failed to find ref for ID %s", p.ID)
 			}
-			eg.Go(export(ctx, p.ID, r, inp.Attestations[p.ID]))
+			opt := e.opts
+			if e.opts.Epoch == nil {
+				tm, err := epoch.ParseSource(inp, &p)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				opt.Epoch = &epoch.Epoch{Value: tm}
+			}
+			eg.Go(export(ctx, p.ID, r, inp.Attestations[p.ID], opt))
 		}
 	} else {
-		eg.Go(export(ctx, "", inp.Ref, nil))
+		eg.Go(export(ctx, "", inp.Ref, nil, e.opts))
 	}
 
 	if err := eg.Wait(); err != nil {
