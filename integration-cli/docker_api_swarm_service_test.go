@@ -185,7 +185,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *testing.T) {
 	// 2nd batch
 	poll.WaitOn(c, pollCheck(c, daemons[0].CheckRunningTaskImages(ctx), checker.DeepEquals(map[string]int{image1: instances - 2*parallelism, image2: 2 * parallelism})), poll.WithTimeout(defaultReconciliationTimeout))
 
-	// 3nd batch
+	// 3rd batch
 	poll.WaitOn(c, pollCheck(c, daemons[0].CheckRunningTaskImages(ctx), checker.DeepEquals(map[string]int{image2: instances})), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// Roll back to the previous version. This uses the CLI because
@@ -277,7 +277,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *testing.T) {
 
 	poll.WaitOn(c, pollCheck(c, d.CheckRunningTaskImages(ctx), checker.DeepEquals(map[string]int{image1: instances - 2*parallelism, image2: 2 * parallelism})), poll.WithTimeout(defaultReconciliationTimeout))
 
-	// 3nd batch
+	// 3rd batch
 
 	// The old tasks should be running, and the new ones should be starting.
 	startingTasks = checkStartingTasks(1)

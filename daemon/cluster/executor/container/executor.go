@@ -186,7 +186,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 	// or has just had its IP changed (false)
 	removeAttachments := make(map[string]bool)
 
-	// the first time we Configure, nodeObj wil be nil, because it will not be
+	// the first time we Configure, nodeObj will be nil, because it will not be
 	// set yet. in that case, skip this check.
 	if e.nodeObj != nil {
 		for _, na := range e.nodeObj.Attachments {

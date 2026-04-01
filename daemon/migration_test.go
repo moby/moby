@@ -93,7 +93,7 @@ func TestContainerMigrateOS(t *testing.T) {
 			},
 		},
 		{
-			name: "gd with an image thats no longer available",
+			name: "gd with missing image",
 			ctr: Container{
 				ImageManifest: graphdrivers,
 				ImageID:       "notfound",
@@ -119,7 +119,7 @@ func TestContainerMigrateOS(t *testing.T) {
 			},
 		},
 		{
-			name: "c8d with an image thats no longer available",
+			name: "c8d with missing image",
 			ctr: Container{
 				ImageManifest: &ocispec.Descriptor{
 					Digest: "notfound",
