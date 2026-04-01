@@ -296,11 +296,8 @@ type ValidatorFctType func(val string) (string, error)
 type ValidatorFctListType func(val string) ([]string, error)
 
 // ValidateIPAddress validates if the given value is a correctly formatted
-// IP address, and returns the value in normalized form. Leading and trailing
-// whitespace is allowed, but it does not allow IPv6 addresses surrounded by
-// square brackets ("[::1]").
-//
-// Refer to [net.ParseIP] for accepted formats.
+// IP address, and returns the value in normalized form.
+// Leading and trailing whitespace is not allowed.
 func ValidateIPAddress(val string) (string, error) {
 	ip, err := netip.ParseAddr(val)
 	if err != nil {
