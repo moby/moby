@@ -152,13 +152,13 @@ func TestPluginInstall(t *testing.T) {
 			Size   int
 		}
 		var buf strings.Builder
-		assert.NilError(t, jsonmessage.DisplayStream(res, &buf, func(j jsonstream.Message) {
+		assert.NilError(t, jsonmessage.DisplayStream(res, &buf, jsonmessage.WithAuxCallback(func(j jsonstream.Message) {
 			if j.Aux != nil {
 				var r pushResult
 				assert.NilError(t, json.Unmarshal(*j.Aux, &r))
 				digest = r.Digest
 			}
-		}), buf)
+		})), buf)
 
 		_, err = apiclient.PluginRemove(ctx, repo, client.PluginRemoveOptions{Force: true})
 		assert.NilError(t, err)
@@ -349,7 +349,7 @@ func TestPluginBackCompatMediaTypes(t *testing.T) {
 	defer res.Close()
 
 	var buf strings.Builder
-	assert.NilError(t, jsonmessage.DisplayStream(res, &buf, nil), buf)
+	assert.NilError(t, jsonmessage.DisplayStream(res, &buf), buf)
 
 	// Use custom header here because older versions of the registry do not
 	// parse the accept header correctly and does not like the accept header
