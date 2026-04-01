@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 
@@ -226,6 +227,12 @@ func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {
 //
 // Regression test for https://github.com/moby/moby/discussions/46682
 func TestContainerRestartWithCancelledRequest(t *testing.T) {
+	for i := range 100 {
+		t.Run(strconv.Itoa(i), testContainerRestartWithCancelledRequest)
+	}
+}
+
+func testContainerRestartWithCancelledRequest(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
