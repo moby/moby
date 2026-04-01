@@ -108,6 +108,14 @@ func (daemon *Daemon) SystemVersion(ctx context.Context) (system.VersionResponse
 	cfg := daemon.config()
 
 	v := system.VersionResponse{
+		Platform: system.PlatformInfo{
+			Name: dockerversion.PlatformName,
+		},
+		Version:       dockerversion.Version,
+		APIVersion:    config.MaxAPIVersion,
+		MinAPIVersion: cfg.MinAPIVersion,
+		Os:            runtime.GOOS,
+		Arch:          runtime.GOARCH,
 		Components: []system.ComponentVersion{
 			{
 				Name:    "Engine",
@@ -126,20 +134,19 @@ func (daemon *Daemon) SystemVersion(ctx context.Context) (system.VersionResponse
 			},
 		},
 
-		// Populate deprecated fields for older clients
-		Version:       dockerversion.Version,
+		// Populate deprecated fields for older clients.
+		//
+		// These fields were (soft) deprecated in API v1.35 in favor of the
+		// per-component build-info, but kept for backward-compatibility, see:
+		//
+		// - https://github.com/moby/moby/pull/35705
+		// - https://github.com/moby/moby/pull/51359
 		GitCommit:     dockerversion.GitCommit,
-		APIVersion:    config.MaxAPIVersion,
-		MinAPIVersion: cfg.MinAPIVersion,
 		GoVersion:     runtime.Version(),
-		Os:            runtime.GOOS,
-		Arch:          runtime.GOARCH,
-		BuildTime:     dockerversion.BuildTime,
 		KernelVersion: kernelVer,
 		Experimental:  cfg.Experimental,
+		BuildTime:     dockerversion.BuildTime,
 	}
-
-	v.Platform.Name = dockerversion.PlatformName
 
 	if err := daemon.fillPlatformVersion(ctx, &v, cfg); err != nil {
 		return v, err
