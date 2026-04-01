@@ -139,7 +139,6 @@ func TestPluginInstall(t *testing.T) {
 		assert.NilError(t, err)
 		defer res.Close()
 
-		assert.NilError(t, err)
 		var digest string
 
 		// PushResult contains the tag, manifest digest, and manifest size from the
