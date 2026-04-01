@@ -372,7 +372,7 @@ func TestWithUserAgent(t *testing.T) {
 	})
 }
 
-func TestWithHTTTPHeaders(t *testing.T) {
+func TestWithHTTPHeaders(t *testing.T) {
 	t.Run("duplicates", func(t *testing.T) {
 		c, err := New(
 			WithHTTPHeaders(map[string]string{
