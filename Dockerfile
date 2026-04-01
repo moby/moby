@@ -124,7 +124,7 @@ ARG TARGETPLATFORM
 RUN --mount=from=delve-src,src=/usr/src/delve,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=delve-build-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod <<EOT
-  set -e
+  set -ex
   xx-go build -o /build/dlv ./cmd/dlv
   xx-verify /build/dlv
 EOT
@@ -163,13 +163,22 @@ ARG DOCKER_STATIC
 RUN --mount=from=containerd-src,src=/usr/src/containerd,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=containerd-build-$TARGETPLATFORM <<EOT
   set -e
-  export CC=$(xx-info)-gcc
-  export CGO_ENABLED=$([ "$DOCKER_STATIC" = "1" ] && echo "0" || echo "1")
+
+  make_flags=
+  verify_flags=
+  cgo_enabled=1
+  if [ "$DOCKER_STATIC" = "1" ]; then
+      make_flags=STATIC=1
+      verify_flags=--static
+      cgo_enabled=0
+  fi
+
+  set -x
   xx-go --wrap
-  make $([ "$DOCKER_STATIC" = "1" ] && echo "STATIC=1") binaries
-  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") bin/containerd
-  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") bin/containerd-shim-runc-v2
-  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") bin/ctr
+  CC="$(xx-info)-gcc" CGO_ENABLED=$cgo_enabled make $make_flags binaries
+  xx-verify $verify_flags bin/containerd
+  xx-verify $verify_flags bin/containerd-shim-runc-v2
+  xx-verify $verify_flags bin/ctr
   mkdir /build
   mv bin/containerd bin/containerd-shim-runc-v2 bin/ctr /build
 EOT
@@ -257,8 +266,17 @@ RUN --mount=from=runc-src,src=/usr/src/runc,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=runc-build-$TARGETPLATFORM <<EOT
   set -e
   xx-go --wrap
-  CGO_ENABLED=1 make "$([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "runc")"
-  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") runc
+
+  target=runc
+  verify_flags=
+  if [ "$DOCKER_STATIC" = "1" ]; then
+    target=static
+    verify_flags=--static
+  fi
+
+  set -x
+  CGO_ENABLED=1 make "$target"
+  xx-verify $verify_flags runc
   mkdir /build
   mv runc /build/
 EOT
@@ -290,7 +308,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-tini-aptlib,target=/var/lib/apt \
             pkg-config
 RUN --mount=from=tini-src,src=/usr/src/tini,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=tini-build-$TARGETPLATFORM <<EOT
-  set -e
+  set -ex
   CC=$(xx-info)-gcc cmake .
   make tini-static
   xx-verify --static tini-static
@@ -323,9 +341,18 @@ RUN --mount=from=rootlesskit-src,src=/usr/src/rootlesskit,rw \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build,id=rootlesskit-build-$TARGETPLATFORM <<EOT
   set -e
-  export CGO_ENABLED=$([ "$DOCKER_STATIC" = "1" ] && echo "0" || echo "1")
-  xx-go build -o /build/rootlesskit -ldflags="$([ "$DOCKER_STATIC" != "1" ] && echo "-linkmode=external")" ./cmd/rootlesskit
-  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /build/rootlesskit
+
+  if [ "$DOCKER_STATIC" = "1" ]; then
+      set -x
+      export CGO_ENABLED=0
+      xx-go build -o /build/rootlesskit ./cmd/rootlesskit
+      xx-verify --static /build/rootlesskit
+  else
+      set -x
+      export CGO_ENABLED=1
+      xx-go build -o /build/rootlesskit -ldflags='-linkmode=external' ./cmd/rootlesskit
+      xx-verify /build/rootlesskit
+  fi
 EOT
 COPY --link ./contrib/dockerd-rootless.sh /build/
 COPY --link ./contrib/dockerd-rootless-setuptool.sh /build/
@@ -389,7 +416,7 @@ RUN xx-apt-get install -y --no-install-recommends \
         pkg-config
 RUN --mount=from=containerutil-src,src=/usr/src/containerutil,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=containerutil-build-$TARGETPLATFORM <<EOT
-  set -e
+  set -ex
   CC="$(xx-info)-gcc" CXX="$(xx-info)-g++" make
   xx-verify --static containerutility.exe
   mkdir /build
@@ -551,6 +578,7 @@ ARG PACKAGER_NAME
 # read only mount in current work dir
 ENV PREFIX=/tmp
 RUN <<EOT
+  set -ex
   # in bullseye arm64 target does not link with lld so configure it to use ld instead
   if [ "$(xx-info arch)" = "arm64" ]; then
     XX_CC_PREFER_LINKER=ld xx-clang --setup-target-triple
@@ -559,11 +587,25 @@ EOT
 RUN --mount=type=bind,target=.,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=moby-build-$TARGETPLATFORM <<EOT
   set -e
-  target=$([ "$DOCKER_STATIC" = "1" ] && echo "binary" || echo "dynbinary")
+
+  target=dynbinary
+  verify_flags=
+  exe_suffix=
+  if [ "$DOCKER_STATIC" = "1" ]; then
+      target=binary
+      verify_flags=--static
+  fi
+  if [ "$(xx-info os)" = "windows" ]; then
+      exe_suffix=.exe
+  fi
+
+  set -x
   xx-go --wrap
-  PKG_CONFIG=$(xx-go env PKG_CONFIG) ./hack/make.sh $target
-  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /tmp/bundles/${target}-daemon/dockerd$([ "$(xx-info os)" = "windows" ] && echo ".exe")
-  [ "$(xx-info os)" != "linux" ] || xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /tmp/bundles/${target}-daemon/docker-proxy
+  PKG_CONFIG=$(xx-go env PKG_CONFIG) ./hack/make.sh "$target"
+  xx-verify $verify_flags "/tmp/bundles/${target}-daemon/dockerd${exe_suffix}"
+  if [ "$(xx-info os)" = "linux" ]; then
+      xx-verify $verify_flags "/tmp/bundles/${target}-daemon/docker-proxy"
+  fi
   mkdir /build
   mv /tmp/bundles/${target}-daemon/* /build/
 EOT
