@@ -1,6 +1,9 @@
 package client
 
 import (
+	"context"
+	"io"
+	"strings"
 	"testing"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -53,5 +56,14 @@ func TestEncodePlatforms(t *testing.T) {
 			assert.NilError(t, err)
 			assert.Check(t, is.DeepEqual(out, tc.expected))
 		})
+	}
+}
+
+func TestNewCancelReadCloserRace(t *testing.T) {
+	for range 1000 {
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		_ = newCancelReadCloser(ctx, io.NopCloser(strings.NewReader("")))
 	}
 }
