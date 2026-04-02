@@ -49,13 +49,13 @@ func moduleVersion(name string, bi *debug.BuildInfo) (modVersion string) {
 	}
 
 	// Check if we're the main module.
-	if ok, v := getVersion(name, &bi.Main); ok {
+	if v, ok := getVersion(name, &bi.Main); ok {
 		return v
 	}
 
 	// iterate over all dependencies and find name
 	for _, dep := range bi.Deps {
-		if ok, v := getVersion(name, dep); ok {
+		if v, ok := getVersion(name, dep); ok {
 			return v
 		}
 	}
@@ -63,9 +63,9 @@ func moduleVersion(name string, bi *debug.BuildInfo) (modVersion string) {
 	return ""
 }
 
-func getVersion(name string, dep *debug.Module) (bool, string) {
+func getVersion(name string, dep *debug.Module) (string, bool) {
 	if dep == nil || dep.Path != name {
-		return false, ""
+		return "", false
 	}
 
 	v := dep.Version
@@ -73,10 +73,10 @@ func getVersion(name string, dep *debug.Module) (bool, string) {
 		v = dep.Replace.Version
 	}
 	if v == "" || v == "(devel)" {
-		return true, ""
+		return "", true
 	}
 
-	return true, normalize(v)
+	return normalize(v), true
 }
 
 // normalize converts a Go module version into a display-friendly form:
