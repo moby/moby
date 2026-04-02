@@ -210,6 +210,51 @@ func TestRingLoggerCloseWithBlockingLog(t *testing.T) {
 	}
 }
 
+// TestRingLoggerCloseWithBlockingLogTimeout verifies that Close proceeds
+// via the orphanedLogTimeout path when Log() remains blocked indefinitely.
+func TestRingLoggerCloseWithBlockingLogTimeout(t *testing.T) {
+	bl := &blockingLogger{
+		blocked: make(chan struct{}),
+		unblock: make(chan struct{}),
+	}
+	ring := newRingLogger(bl, Info{}, defaultRingMaxSize)
+	ring.orphanedLogTimeout = 100 * time.Millisecond
+
+	// Enqueue a message so that run() will call bl.Log() and block.
+	ring.Log(&Message{Line: []byte("timeout-path")})
+
+	// Wait until the logger is actually blocked inside Log().
+	select {
+	case <-bl.blocked:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for Log to be called")
+	}
+
+	// Close while Log() is still blocked and do NOT unblock it.
+	// Close should return after orphanedLogTimeout elapses.
+	closed := make(chan error, 1)
+	start := time.Now()
+	go func() {
+		closed <- ring.Close()
+	}()
+
+	select {
+	case err := <-closed:
+		if err != nil {
+			t.Fatalf("unexpected Close error: %v", err)
+		}
+		elapsed := time.Since(start)
+		if elapsed < ring.orphanedLogTimeout {
+			t.Fatalf("Close returned too early: got %v, want at least %v", elapsed, ring.orphanedLogTimeout)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Close blocked; goroutine leak detected")
+	}
+
+	// Unblock the leaked goroutine so the test doesn't leak it.
+	close(bl.unblock)
+}
+
 type nopLogger struct{}
 
 func (nopLogger) Name() string       { return "nopLogger" }
