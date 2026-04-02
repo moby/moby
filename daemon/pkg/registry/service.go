@@ -61,15 +61,11 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 	registryHostName := IndexHostname
 
 	if authConfig.ServerAddress != "" {
-		serverAddress := authConfig.ServerAddress
-		if !strings.HasPrefix(serverAddress, "https://") && !strings.HasPrefix(serverAddress, "http://") {
-			serverAddress = "https://" + serverAddress
-		}
-		u, err := url.Parse(serverAddress)
+		var err error
+		registryHostName, err = parseRegistryHostName(authConfig.ServerAddress)
 		if err != nil {
-			return "", invalidParamWrapf(err, "unable to parse server address")
+			return "", err
 		}
-		registryHostName = u.Host
 	}
 
 	// Lookup endpoints for authentication but exclude mirrors to prevent
@@ -105,6 +101,17 @@ func (s *Service) Auth(ctx context.Context, authConfig *registry.AuthConfig, use
 	}
 
 	return "", lastErr
+}
+
+func parseRegistryHostName(serverAddress string) (string, error) {
+	if !strings.HasPrefix(serverAddress, "https://") && !strings.HasPrefix(serverAddress, "http://") {
+		serverAddress = "https://" + serverAddress
+	}
+	u, err := url.Parse(serverAddress)
+	if err != nil {
+		return "", invalidParamWrapf(err, "unable to parse server address")
+	}
+	return u.Host, nil
 }
 
 // ResolveAuthConfig looks up authentication for the given reference from the
