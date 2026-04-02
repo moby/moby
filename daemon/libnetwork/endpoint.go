@@ -841,18 +841,26 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 		}
 	}
 
+	deleteDriverInfo := func() {
+		if e := ep.deleteDriverInfoFromCluster(); e != nil {
+			log.G(ctx).WithError(e).Error("Failed to delete endpoint state for endpoint from cluster")
+		}
+	}
+
 	// Update the store about the sandbox detach only after we
 	// have completed sb.clearNetworkResources above to avoid
 	// spurious logs when cleaning up the sandbox when the daemon
 	// ungracefully exits and restarts before completing sandbox
 	// detach but after store has been updated.
 	if err := n.getController().storeEndpoint(ctx, ep); err != nil {
+		// Delete driver info from the cluster (NetworkDB) - otherwise
+		// remote nodes will never learn about the endpoint deletion and stale
+		// PERMANENT ARP/FDB entries will accumulate in overlay network
+		// namespaces.
+		deleteDriverInfo()
 		return err
 	}
-
-	if e := ep.deleteDriverInfoFromCluster(); e != nil {
-		log.G(ctx).WithError(e).Error("Failed to delete endpoint state for endpoint from cluster")
-	}
+	deleteDriverInfo()
 
 	// When a container is connected to a network, it gets /etc/hosts
 	// entries for its addresses on that network. So, when it's connected
