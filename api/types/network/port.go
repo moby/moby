@@ -328,9 +328,11 @@ func (pr PortRange) Range() PortRange {
 //	}
 func (pr PortRange) All() iter.Seq[Port] {
 	return func(yield func(Port) bool) {
-		if pr.proto == protoZero {
-			return
-		}
+		// Do not skip zero values here, because a zero-value means
+		// "map the port to an ephemeral host port".
+		//
+		// For example, "--port 80" is shorthand for "--port 0:80"
+		// ("--port <ephemeral port>:80").
 		for i := uint32(pr.Start()); i <= uint32(pr.End()); i++ {
 			if !yield(Port{num: uint16(i), proto: pr.proto}) {
 				return
