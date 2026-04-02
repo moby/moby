@@ -278,7 +278,8 @@ func TestPortRange(t *testing.T) {
 		assert.Equal(t, pr.End(), uint16(0))
 		assert.Equal(t, pr.Proto(), network.IPProtocol(""))
 		assert.Equal(t, pr.Range(), pr)
-		assert.Check(t, slices.Equal(slices.Collect(pr.All()), []network.Port{}))
+		var ephemeralPort network.Port
+		assert.Check(t, slices.Equal(slices.Collect(pr.All()), []network.Port{ephemeralPort}))
 
 		t.Run("Marshal Unmarshal", func(t *testing.T) {
 			var pr network.PortRange
