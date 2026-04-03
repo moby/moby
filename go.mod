@@ -61,7 +61,7 @@ require (
 	github.com/moby/go-archive v0.2.0
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
-	github.com/moby/moby/api v1.54.1-0.20260403102726-ef0a1e449505
+	github.com/moby/moby/api v1.54.1
 	github.com/moby/moby/client v0.3.1-0.20260403102726-ef0a1e449505
 	github.com/moby/patternmatcher v0.6.1
 	github.com/moby/policy-helpers v0.0.0-20260324161837-b7c0b994300b
