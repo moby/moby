@@ -4,20 +4,15 @@
 
 // Package sign signs small messages using public-key cryptography.
 //
-// Sign uses Ed25519 to sign messages. The length of messages is not hidden.
-// Messages should be small because:
-// 1. The whole message needs to be held in memory to be processed.
-// 2. Using large messages pressures implementations on small machines to process
-// plaintext without verifying the signature. This is very dangerous, and this API
-// discourages it, but a protocol that uses excessive message sizes might present
-// some implementations with no other choice.
-// 3. Performance may be improved by working with messages that fit into data caches.
-// Thus large amounts of data should be chunked so that each message is small.
+// This package is interoperable with [libsodium], as well as [TweetNaCl].
 //
-// This package is not interoperable with the current release of NaCl
-// (https://nacl.cr.yp.to/sign.html), which does not support Ed25519 yet. However,
-// it is compatible with the NaCl fork libsodium (https://www.libsodium.org), as well
-// as TweetNaCl (https://tweetnacl.cr.yp.to/).
+// The sign package is essentially a wrapper for the Ed25519 signature
+// algorithm (implemented by crypto/ed25519). It is [frozen] and is not accepting
+// new features.
+//
+// [libsodium]: https://libsodium.gitbook.io/doc/public-key_cryptography/public-key_signatures
+// [TweetNaCl]: https://tweetnacl.cr.yp.to/
+// [frozen]: https://go.dev/wiki/Frozen
 package sign
 
 import (
