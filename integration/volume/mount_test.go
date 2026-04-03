@@ -210,7 +210,7 @@ func TestRunMountImage(t *testing.T) {
 				assert.ErrorContains(t, removeErr, fmt.Sprintf(`container %s is using its referenced image %s`, id[:12], imgId[:12]))
 			}
 
-			// Test that the container servives a restart when mounted image is removed
+			// Test that the container survives a restart when mounted image is removed
 			if tc.name == "image_remove_force" {
 				_, stopErr := apiClient.ContainerStop(ctx, id, client.ContainerStopOptions{})
 				assert.NilError(t, stopErr)

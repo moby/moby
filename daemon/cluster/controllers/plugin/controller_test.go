@@ -121,7 +121,7 @@ func TestWaitCancel(t *testing.T) {
 			t.Fatal(err)
 		}
 	case <-time.After(10 * time.Second):
-		t.Fatal("timeout waiting for cancelation")
+		t.Fatal("timeout waiting for cancellation")
 	}
 }
 
