@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
@@ -19,7 +18,7 @@ import (
 	"time"
 )
 
-var serviceAccountImpersonationRE = regexp.MustCompile("https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/(.*@.*):generateAccessToken")
+var serviceAccountImpersonationRE = regexp.MustCompile("https://iamcredentials\\..+/v1/projects/-/serviceAccounts/(.*@.*):generateAccessToken")
 
 const (
 	executableSupportedMaxVersion = 1
@@ -39,51 +38,51 @@ func (nce nonCacheableError) Error() string {
 }
 
 func missingFieldError(source, field string) error {
-	return fmt.Errorf("oauth2/google: %v missing `%q` field", source, field)
+	return fmt.Errorf("oauth2/google/externalaccount: %v missing `%q` field", source, field)
 }
 
 func jsonParsingError(source, data string) error {
-	return fmt.Errorf("oauth2/google: unable to parse %v\nResponse: %v", source, data)
+	return fmt.Errorf("oauth2/google/externalaccount: unable to parse %v\nResponse: %v", source, data)
 }
 
 func malformedFailureError() error {
-	return nonCacheableError{"oauth2/google: response must include `error` and `message` fields when unsuccessful"}
+	return nonCacheableError{"oauth2/google/externalaccount: response must include `error` and `message` fields when unsuccessful"}
 }
 
 func userDefinedError(code, message string) error {
-	return nonCacheableError{fmt.Sprintf("oauth2/google: response contains unsuccessful response: (%v) %v", code, message)}
+	return nonCacheableError{fmt.Sprintf("oauth2/google/externalaccount: response contains unsuccessful response: (%v) %v", code, message)}
 }
 
 func unsupportedVersionError(source string, version int) error {
-	return fmt.Errorf("oauth2/google: %v contains unsupported version: %v", source, version)
+	return fmt.Errorf("oauth2/google/externalaccount: %v contains unsupported version: %v", source, version)
 }
 
 func tokenExpiredError() error {
-	return nonCacheableError{"oauth2/google: the token returned by the executable is expired"}
+	return nonCacheableError{"oauth2/google/externalaccount: the token returned by the executable is expired"}
 }
 
 func tokenTypeError(source string) error {
-	return fmt.Errorf("oauth2/google: %v contains unsupported token type", source)
+	return fmt.Errorf("oauth2/google/externalaccount: %v contains unsupported token type", source)
 }
 
 func exitCodeError(exitCode int) error {
-	return fmt.Errorf("oauth2/google: executable command failed with exit code %v", exitCode)
+	return fmt.Errorf("oauth2/google/externalaccount: executable command failed with exit code %v", exitCode)
 }
 
 func executableError(err error) error {
-	return fmt.Errorf("oauth2/google: executable command failed: %v", err)
+	return fmt.Errorf("oauth2/google/externalaccount: executable command failed: %v", err)
 }
 
 func executablesDisallowedError() error {
-	return errors.New("oauth2/google: executables need to be explicitly allowed (set GOOGLE_EXTERNAL_ACCOUNT_ALLOW_EXECUTABLES to '1') to run")
+	return errors.New("oauth2/google/externalaccount: executables need to be explicitly allowed (set GOOGLE_EXTERNAL_ACCOUNT_ALLOW_EXECUTABLES to '1') to run")
 }
 
 func timeoutRangeError() error {
-	return errors.New("oauth2/google: invalid `timeout_millis` field — executable timeout must be between 5 and 120 seconds")
+	return errors.New("oauth2/google/externalaccount: invalid `timeout_millis` field — executable timeout must be between 5 and 120 seconds")
 }
 
 func commandMissingError() error {
-	return errors.New("oauth2/google: missing `command` field — executable command must be provided")
+	return errors.New("oauth2/google/externalaccount: missing `command` field — executable command must be provided")
 }
 
 type environment interface {
@@ -146,7 +145,7 @@ type executableCredentialSource struct {
 
 // CreateExecutableCredential creates an executableCredentialSource given an ExecutableConfig.
 // It also performs defaulting and type conversions.
-func CreateExecutableCredential(ctx context.Context, ec *ExecutableConfig, config *Config) (executableCredentialSource, error) {
+func createExecutableCredential(ctx context.Context, ec *ExecutableConfig, config *Config) (executableCredentialSource, error) {
 	if ec.Command == "" {
 		return executableCredentialSource{}, commandMissingError()
 	}
@@ -233,6 +232,10 @@ func (cs executableCredentialSource) parseSubjectTokenFromSource(response []byte
 	return "", tokenTypeError(source)
 }
 
+func (cs executableCredentialSource) credentialSourceType() string {
+	return "executable"
+}
+
 func (cs executableCredentialSource) subjectToken() (string, error) {
 	if token, err := cs.getTokenFromOutputFile(); token != "" || err != nil {
 		return token, err
@@ -254,7 +257,7 @@ func (cs executableCredentialSource) getTokenFromOutputFile() (token string, err
 	}
 	defer file.Close()
 
-	data, err := ioutil.ReadAll(io.LimitReader(file, 1<<20))
+	data, err := io.ReadAll(io.LimitReader(file, 1<<20))
 	if err != nil || len(data) == 0 {
 		// Cachefile exists, but no data found. Get new credential.
 		return "", nil

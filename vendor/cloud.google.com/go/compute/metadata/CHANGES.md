@@ -1,5 +1,12 @@
 # Changes
 
+## [0.3.0](https://github.com/googleapis/google-cloud-go/compare/compute/metadata/v0.2.3...compute/metadata/v0.3.0) (2024-04-15)
+
+
+### Features
+
+* **compute/metadata:** Add context aware functions  ([#9733](https://github.com/googleapis/google-cloud-go/issues/9733)) ([e4eb5b4](https://github.com/googleapis/google-cloud-go/commit/e4eb5b46ee2aec9d2fc18300bfd66015e25a0510))
+
 ## [0.2.3](https://github.com/googleapis/google-cloud-go/compare/compute/metadata/v0.2.2...compute/metadata/v0.2.3) (2022-12-15)
 
 
