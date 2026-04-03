@@ -34,7 +34,7 @@ type PKCEParams struct {
 // and returns an auth code and state upon approval.
 type AuthorizationHandler func(authCodeURL string) (code string, state string, err error)
 
-// TokenSourceWithPKCE is an enhanced version of TokenSource with PKCE support.
+// TokenSourceWithPKCE is an enhanced version of [oauth2.TokenSource] with PKCE support.
 //
 // The pkce parameter supports PKCE flow, which uses code challenge and code verifier
 // to prevent CSRF attacks. A unique code challenge and code verifier should be generated
@@ -43,12 +43,12 @@ func TokenSourceWithPKCE(ctx context.Context, config *oauth2.Config, state strin
 	return oauth2.ReuseTokenSource(nil, authHandlerSource{config: config, ctx: ctx, authHandler: authHandler, state: state, pkce: pkce})
 }
 
-// TokenSource returns an oauth2.TokenSource that fetches access tokens
+// TokenSource returns an [oauth2.TokenSource] that fetches access tokens
 // using 3-legged-OAuth flow.
 //
-// The provided context.Context is used for oauth2 Exchange operation.
+// The provided [context.Context] is used for oauth2 Exchange operation.
 //
-// The provided oauth2.Config should be a full configuration containing AuthURL,
+// The provided [oauth2.Config] should be a full configuration containing AuthURL,
 // TokenURL, and Scope.
 //
 // An environment-specific AuthorizationHandler is used to obtain user consent.

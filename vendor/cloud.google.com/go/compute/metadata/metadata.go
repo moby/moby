@@ -22,13 +22,14 @@ package metadata // import "cloud.google.com/go/compute/metadata"
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -61,19 +62,27 @@ var (
 	instID  = &cachedValue{k: "instance/id", trim: true}
 )
 
-var defaultClient = &Client{hc: newDefaultHTTPClient()}
+var defaultClient = &Client{
+	hc:        newDefaultHTTPClient(true),
+	subClient: newDefaultHTTPClient(false),
+	logger:    slog.New(noOpHandler{}),
+}
 
-func newDefaultHTTPClient() *http.Client {
-	return &http.Client{
-		Transport: &http.Transport{
-			Dial: (&net.Dialer{
-				Timeout:   2 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-			IdleConnTimeout: 60 * time.Second,
-		},
-		Timeout: 5 * time.Second,
+func newDefaultHTTPClient(enableTimeouts bool) *http.Client {
+	transport := &http.Transport{
+		Dial: (&net.Dialer{
+			Timeout:   2 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).Dial,
 	}
+	c := &http.Client{
+		Transport: transport,
+	}
+	if enableTimeouts {
+		transport.IdleConnTimeout = 60 * time.Second
+		c.Timeout = 5 * time.Second
+	}
+	return c
 }
 
 // NotDefinedError is returned when requested metadata is not defined.
@@ -88,16 +97,16 @@ func (suffix NotDefinedError) Error() string {
 	return fmt.Sprintf("metadata: GCE metadata %q not defined", string(suffix))
 }
 
-func (c *cachedValue) get(cl *Client) (v string, err error) {
+func (c *cachedValue) get(ctx context.Context, cl *Client) (v string, err error) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.v != "" {
 		return c.v, nil
 	}
 	if c.trim {
-		v, err = cl.getTrimmed(c.k)
+		v, err = cl.getTrimmed(ctx, c.k)
 	} else {
-		v, err = cl.Get(c.k)
+		v, err = cl.GetWithContext(ctx, c.k)
 	}
 	if err == nil {
 		c.v = v
@@ -110,50 +119,355 @@ var (
 	onGCE     bool
 )
 
-// OnGCE reports whether this process is running on Google Compute Engine.
+// OnGCE reports whether this process is running on Google Compute Platforms.
+// NOTE: True returned from `OnGCE` does not guarantee that the metadata server
+// is accessible from this process and have all the metadata defined.
 func OnGCE() bool {
-	onGCEOnce.Do(initOnGCE)
+	return OnGCEWithContext(context.Background())
+}
+
+// OnGCEWithContext reports whether this process is running on Google Compute Platforms.
+// This function's return value is memoized for better performance.
+// NOTE: True returned from `OnGCEWithContext` does not guarantee that the metadata server
+// is accessible from this process and have all the metadata defined.
+func OnGCEWithContext(ctx context.Context) bool {
+	onGCEOnce.Do(func() {
+		onGCE = defaultClient.OnGCEWithContext(ctx)
+	})
 	return onGCE
 }
 
-func initOnGCE() {
-	onGCE = testOnGCE()
+// Subscribe calls Client.SubscribeWithContext on the default client.
+//
+// Deprecated: Please use the context aware variant [SubscribeWithContext].
+func Subscribe(suffix string, fn func(v string, ok bool) error) error {
+	return defaultClient.SubscribeWithContext(context.Background(), suffix, func(ctx context.Context, v string, ok bool) error { return fn(v, ok) })
 }
 
-func testOnGCE() bool {
+// SubscribeWithContext calls Client.SubscribeWithContext on the default client.
+func SubscribeWithContext(ctx context.Context, suffix string, fn func(ctx context.Context, v string, ok bool) error) error {
+	return defaultClient.SubscribeWithContext(ctx, suffix, fn)
+}
+
+// Get calls Client.GetWithContext on the default client.
+//
+// Deprecated: Please use the context aware variant [GetWithContext].
+func Get(suffix string) (string, error) {
+	return defaultClient.GetWithContext(context.Background(), suffix)
+}
+
+// GetWithContext calls Client.GetWithContext on the default client.
+func GetWithContext(ctx context.Context, suffix string) (string, error) {
+	return defaultClient.GetWithContext(ctx, suffix)
+}
+
+// ProjectID returns the current instance's project ID string.
+//
+// Deprecated: Please use the context aware variant [ProjectIDWithContext].
+func ProjectID() (string, error) {
+	return defaultClient.ProjectIDWithContext(context.Background())
+}
+
+// ProjectIDWithContext returns the current instance's project ID string.
+func ProjectIDWithContext(ctx context.Context) (string, error) {
+	return defaultClient.ProjectIDWithContext(ctx)
+}
+
+// NumericProjectID returns the current instance's numeric project ID.
+//
+// Deprecated: Please use the context aware variant [NumericProjectIDWithContext].
+func NumericProjectID() (string, error) {
+	return defaultClient.NumericProjectIDWithContext(context.Background())
+}
+
+// NumericProjectIDWithContext returns the current instance's numeric project ID.
+func NumericProjectIDWithContext(ctx context.Context) (string, error) {
+	return defaultClient.NumericProjectIDWithContext(ctx)
+}
+
+// InternalIP returns the instance's primary internal IP address.
+//
+// Deprecated: Please use the context aware variant [InternalIPWithContext].
+func InternalIP() (string, error) {
+	return defaultClient.InternalIPWithContext(context.Background())
+}
+
+// InternalIPWithContext returns the instance's primary internal IP address.
+func InternalIPWithContext(ctx context.Context) (string, error) {
+	return defaultClient.InternalIPWithContext(ctx)
+}
+
+// ExternalIP returns the instance's primary external (public) IP address.
+//
+// Deprecated: Please use the context aware variant [ExternalIPWithContext].
+func ExternalIP() (string, error) {
+	return defaultClient.ExternalIPWithContext(context.Background())
+}
+
+// ExternalIPWithContext returns the instance's primary external (public) IP address.
+func ExternalIPWithContext(ctx context.Context) (string, error) {
+	return defaultClient.ExternalIPWithContext(ctx)
+}
+
+// Email calls Client.EmailWithContext on the default client.
+//
+// Deprecated: Please use the context aware variant [EmailWithContext].
+func Email(serviceAccount string) (string, error) {
+	return defaultClient.EmailWithContext(context.Background(), serviceAccount)
+}
+
+// EmailWithContext calls Client.EmailWithContext on the default client.
+func EmailWithContext(ctx context.Context, serviceAccount string) (string, error) {
+	return defaultClient.EmailWithContext(ctx, serviceAccount)
+}
+
+// Hostname returns the instance's hostname. This will be of the form
+// "<instanceID>.c.<projID>.internal".
+//
+// Deprecated: Please use the context aware variant [HostnameWithContext].
+func Hostname() (string, error) {
+	return defaultClient.HostnameWithContext(context.Background())
+}
+
+// HostnameWithContext returns the instance's hostname. This will be of the form
+// "<instanceID>.c.<projID>.internal".
+func HostnameWithContext(ctx context.Context) (string, error) {
+	return defaultClient.HostnameWithContext(ctx)
+}
+
+// InstanceTags returns the list of user-defined instance tags,
+// assigned when initially creating a GCE instance.
+//
+// Deprecated: Please use the context aware variant [InstanceTagsWithContext].
+func InstanceTags() ([]string, error) {
+	return defaultClient.InstanceTagsWithContext(context.Background())
+}
+
+// InstanceTagsWithContext returns the list of user-defined instance tags,
+// assigned when initially creating a GCE instance.
+func InstanceTagsWithContext(ctx context.Context) ([]string, error) {
+	return defaultClient.InstanceTagsWithContext(ctx)
+}
+
+// InstanceID returns the current VM's numeric instance ID.
+//
+// Deprecated: Please use the context aware variant [InstanceIDWithContext].
+func InstanceID() (string, error) {
+	return defaultClient.InstanceIDWithContext(context.Background())
+}
+
+// InstanceIDWithContext returns the current VM's numeric instance ID.
+func InstanceIDWithContext(ctx context.Context) (string, error) {
+	return defaultClient.InstanceIDWithContext(ctx)
+}
+
+// InstanceName returns the current VM's instance ID string.
+//
+// Deprecated: Please use the context aware variant [InstanceNameWithContext].
+func InstanceName() (string, error) {
+	return defaultClient.InstanceNameWithContext(context.Background())
+}
+
+// InstanceNameWithContext returns the current VM's instance ID string.
+func InstanceNameWithContext(ctx context.Context) (string, error) {
+	return defaultClient.InstanceNameWithContext(ctx)
+}
+
+// Zone returns the current VM's zone, such as "us-central1-b".
+//
+// Deprecated: Please use the context aware variant [ZoneWithContext].
+func Zone() (string, error) {
+	return defaultClient.ZoneWithContext(context.Background())
+}
+
+// ZoneWithContext returns the current VM's zone, such as "us-central1-b".
+func ZoneWithContext(ctx context.Context) (string, error) {
+	return defaultClient.ZoneWithContext(ctx)
+}
+
+// InstanceAttributes calls Client.InstanceAttributesWithContext on the default client.
+//
+// Deprecated: Please use the context aware variant [InstanceAttributesWithContext.
+func InstanceAttributes() ([]string, error) {
+	return defaultClient.InstanceAttributesWithContext(context.Background())
+}
+
+// InstanceAttributesWithContext calls Client.ProjectAttributesWithContext on the default client.
+func InstanceAttributesWithContext(ctx context.Context) ([]string, error) {
+	return defaultClient.InstanceAttributesWithContext(ctx)
+}
+
+// ProjectAttributes calls Client.ProjectAttributesWithContext on the default client.
+//
+// Deprecated: Please use the context aware variant [ProjectAttributesWithContext].
+func ProjectAttributes() ([]string, error) {
+	return defaultClient.ProjectAttributesWithContext(context.Background())
+}
+
+// ProjectAttributesWithContext calls Client.ProjectAttributesWithContext on the default client.
+func ProjectAttributesWithContext(ctx context.Context) ([]string, error) {
+	return defaultClient.ProjectAttributesWithContext(ctx)
+}
+
+// InstanceAttributeValue calls Client.InstanceAttributeValueWithContext on the default client.
+//
+// Deprecated: Please use the context aware variant [InstanceAttributeValueWithContext].
+func InstanceAttributeValue(attr string) (string, error) {
+	return defaultClient.InstanceAttributeValueWithContext(context.Background(), attr)
+}
+
+// InstanceAttributeValueWithContext calls Client.InstanceAttributeValueWithContext on the default client.
+func InstanceAttributeValueWithContext(ctx context.Context, attr string) (string, error) {
+	return defaultClient.InstanceAttributeValueWithContext(ctx, attr)
+}
+
+// ProjectAttributeValue calls Client.ProjectAttributeValueWithContext on the default client.
+//
+// Deprecated: Please use the context aware variant [ProjectAttributeValueWithContext].
+func ProjectAttributeValue(attr string) (string, error) {
+	return defaultClient.ProjectAttributeValueWithContext(context.Background(), attr)
+}
+
+// ProjectAttributeValueWithContext calls Client.ProjectAttributeValueWithContext on the default client.
+func ProjectAttributeValueWithContext(ctx context.Context, attr string) (string, error) {
+	return defaultClient.ProjectAttributeValueWithContext(ctx, attr)
+}
+
+// Scopes calls Client.ScopesWithContext on the default client.
+//
+// Deprecated: Please use the context aware variant [ScopesWithContext].
+func Scopes(serviceAccount string) ([]string, error) {
+	return defaultClient.ScopesWithContext(context.Background(), serviceAccount)
+}
+
+// ScopesWithContext calls Client.ScopesWithContext on the default client.
+func ScopesWithContext(ctx context.Context, serviceAccount string) ([]string, error) {
+	return defaultClient.ScopesWithContext(ctx, serviceAccount)
+}
+
+func strsContains(ss []string, s string) bool {
+	for _, v := range ss {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+// A Client provides metadata.
+type Client struct {
+	hc *http.Client
+	// subClient by default is a HTTP Client that is only used for subscribe
+	// methods that should not specify a timeout. If the user specifies a client
+	// this with be the same as 'hc'.
+	subClient *http.Client
+	logger    *slog.Logger
+}
+
+// Options for configuring a [Client].
+type Options struct {
+	// Client is the HTTP client used to make requests. Optional.
+	// If UseDefaultClient is true, this field is ignored.
+	// If this field is nil, a new default http.Client will be created.
+	Client *http.Client
+	// Logger is used to log information about HTTP request and responses.
+	// If not provided, nothing will be logged. Optional.
+	Logger *slog.Logger
+	// UseDefaultClient specifies that the client should use the same default
+	// internal http.Client that is used in functions such as GetWithContext.
+	// This is useful for sharing a single TCP connection pool across requests.
+	// The difference vs GetWithContext is the ability to use this struct
+	// to provide a custom logger. If this field is true, the Client
+	// field is ignored.
+	UseDefaultClient bool
+}
+
+// NewClient returns a Client that can be used to fetch metadata.
+// Returns the client that uses the specified http.Client for HTTP requests.
+// If nil is specified, returns the default internal Client that is
+// also used in functions such as GetWithContext. This is useful for sharing
+// a single TCP connection pool across requests.
+func NewClient(c *http.Client) *Client {
+	if c == nil {
+		// Preserve original behavior for nil argument.
+		return defaultClient
+	}
+	// Return a new client with a no-op logger for backward compatibility.
+	return &Client{hc: c, subClient: c, logger: slog.New(noOpHandler{})}
+}
+
+// NewWithOptions returns a Client that is configured with the provided Options.
+func NewWithOptions(opts *Options) *Client {
+	// Preserve original behavior for nil opts.
+	if opts == nil {
+		return defaultClient
+	}
+
+	// Handle explicit request for the internal default http.Client.
+	if opts.UseDefaultClient {
+		logger := opts.Logger
+		if logger == nil {
+			logger = slog.New(noOpHandler{})
+		}
+		return &Client{hc: defaultClient.hc, subClient: defaultClient.subClient, logger: logger}
+	}
+
+	// Handle isolated client creation.
+	client := opts.Client
+	subClient := opts.Client
+	if client == nil {
+		client = newDefaultHTTPClient(true)
+		subClient = newDefaultHTTPClient(false)
+	}
+	logger := opts.Logger
+	if logger == nil {
+		logger = slog.New(noOpHandler{})
+	}
+	return &Client{hc: client, subClient: subClient, logger: logger}
+}
+
+// NOTE: metadataRequestStrategy is assigned to a variable for test stubbing purposes.
+var metadataRequestStrategy = func(ctx context.Context, httpClient *http.Client, resc chan bool) {
+	req, _ := http.NewRequest("GET", "http://"+metadataIP, nil)
+	req.Header.Set("User-Agent", userAgent)
+	res, err := httpClient.Do(req.WithContext(ctx))
+	if err != nil {
+		resc <- false
+		return
+	}
+	defer res.Body.Close()
+	resc <- res.Header.Get("Metadata-Flavor") == "Google"
+}
+
+// NOTE: dnsRequestStrategy is assigned to a variable for test stubbing purposes.
+var dnsRequestStrategy = func(ctx context.Context, resc chan bool) {
+	resolver := &net.Resolver{}
+	addrs, err := resolver.LookupHost(ctx, "metadata.google.internal.")
+	if err != nil || len(addrs) == 0 {
+		resc <- false
+		return
+	}
+	resc <- strsContains(addrs, metadataIP)
+}
+
+// OnGCEWithContext reports whether this process is running on Google Compute Platforms.
+// NOTE: True returned from `OnGCEWithContext` does not guarantee that the metadata server
+// is accessible from this process and have all the metadata defined.
+func (c *Client) OnGCEWithContext(ctx context.Context) bool {
 	// The user explicitly said they're on GCE, so trust them.
 	if os.Getenv(metadataHostEnv) != "" {
 		return true
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	resc := make(chan bool, 2)
 
 	// Try two strategies in parallel.
 	// See https://github.com/googleapis/google-cloud-go/issues/194
-	go func() {
-		req, _ := http.NewRequest("GET", "http://"+metadataIP, nil)
-		req.Header.Set("User-Agent", userAgent)
-		res, err := newDefaultHTTPClient().Do(req.WithContext(ctx))
-		if err != nil {
-			resc <- false
-			return
-		}
-		defer res.Body.Close()
-		resc <- res.Header.Get("Metadata-Flavor") == "Google"
-	}()
-
-	go func() {
-		resolver := &net.Resolver{}
-		addrs, err := resolver.LookupHost(ctx, "metadata.google.internal.")
-		if err != nil || len(addrs) == 0 {
-			resc <- false
-			return
-		}
-		resc <- strsContains(addrs, metadataIP)
-	}()
+	go metadataRequestStrategy(ctx, c.hc, resc)
+	go dnsRequestStrategy(ctx, resc)
 
 	tryHarder := systemInfoSuggestsGCE()
 	if tryHarder {
@@ -162,16 +476,18 @@ func testOnGCE() bool {
 			// The first strategy succeeded, so let's use it.
 			return true
 		}
+
 		// Wait for either the DNS or metadata server probe to
 		// contradict the other one and say we are running on
 		// GCE. Give it a lot of time to do so, since the system
 		// info already suggests we're running on a GCE BIOS.
-		timer := time.NewTimer(5 * time.Second)
-		defer timer.Stop()
+		// Ensure cancellations from the calling context are respected.
+		waitContext, cancelWait := context.WithTimeout(ctx, 5*time.Second)
+		defer cancelWait()
 		select {
 		case res = <-resc:
 			return res
-		case <-timer.C:
+		case <-waitContext.Done():
 			// Too slow. Who knows what this system is.
 			return false
 		}
@@ -188,108 +504,13 @@ func testOnGCE() bool {
 	return <-resc
 }
 
-// systemInfoSuggestsGCE reports whether the local system (without
-// doing network requests) suggests that we're running on GCE. If this
-// returns true, testOnGCE tries a bit harder to reach its metadata
-// server.
-func systemInfoSuggestsGCE() bool {
-	if runtime.GOOS != "linux" {
-		// We don't have any non-Linux clues available, at least yet.
-		return false
-	}
-	slurp, _ := ioutil.ReadFile("/sys/class/dmi/id/product_name")
-	name := strings.TrimSpace(string(slurp))
-	return name == "Google" || name == "Google Compute Engine"
-}
-
-// Subscribe calls Client.Subscribe on the default client.
-func Subscribe(suffix string, fn func(v string, ok bool) error) error {
-	return defaultClient.Subscribe(suffix, fn)
-}
-
-// Get calls Client.Get on the default client.
-func Get(suffix string) (string, error) { return defaultClient.Get(suffix) }
-
-// ProjectID returns the current instance's project ID string.
-func ProjectID() (string, error) { return defaultClient.ProjectID() }
-
-// NumericProjectID returns the current instance's numeric project ID.
-func NumericProjectID() (string, error) { return defaultClient.NumericProjectID() }
-
-// InternalIP returns the instance's primary internal IP address.
-func InternalIP() (string, error) { return defaultClient.InternalIP() }
-
-// ExternalIP returns the instance's primary external (public) IP address.
-func ExternalIP() (string, error) { return defaultClient.ExternalIP() }
-
-// Email calls Client.Email on the default client.
-func Email(serviceAccount string) (string, error) { return defaultClient.Email(serviceAccount) }
-
-// Hostname returns the instance's hostname. This will be of the form
-// "<instanceID>.c.<projID>.internal".
-func Hostname() (string, error) { return defaultClient.Hostname() }
-
-// InstanceTags returns the list of user-defined instance tags,
-// assigned when initially creating a GCE instance.
-func InstanceTags() ([]string, error) { return defaultClient.InstanceTags() }
-
-// InstanceID returns the current VM's numeric instance ID.
-func InstanceID() (string, error) { return defaultClient.InstanceID() }
-
-// InstanceName returns the current VM's instance ID string.
-func InstanceName() (string, error) { return defaultClient.InstanceName() }
-
-// Zone returns the current VM's zone, such as "us-central1-b".
-func Zone() (string, error) { return defaultClient.Zone() }
-
-// InstanceAttributes calls Client.InstanceAttributes on the default client.
-func InstanceAttributes() ([]string, error) { return defaultClient.InstanceAttributes() }
-
-// ProjectAttributes calls Client.ProjectAttributes on the default client.
-func ProjectAttributes() ([]string, error) { return defaultClient.ProjectAttributes() }
-
-// InstanceAttributeValue calls Client.InstanceAttributeValue on the default client.
-func InstanceAttributeValue(attr string) (string, error) {
-	return defaultClient.InstanceAttributeValue(attr)
-}
-
-// ProjectAttributeValue calls Client.ProjectAttributeValue on the default client.
-func ProjectAttributeValue(attr string) (string, error) {
-	return defaultClient.ProjectAttributeValue(attr)
-}
-
-// Scopes calls Client.Scopes on the default client.
-func Scopes(serviceAccount string) ([]string, error) { return defaultClient.Scopes(serviceAccount) }
-
-func strsContains(ss []string, s string) bool {
-	for _, v := range ss {
-		if v == s {
-			return true
-		}
-	}
-	return false
-}
-
-// A Client provides metadata.
-type Client struct {
-	hc *http.Client
-}
-
-// NewClient returns a Client that can be used to fetch metadata.
-// Returns the client that uses the specified http.Client for HTTP requests.
-// If nil is specified, returns the default client.
-func NewClient(c *http.Client) *Client {
-	if c == nil {
-		return defaultClient
-	}
-
-	return &Client{hc: c}
-}
-
 // getETag returns a value from the metadata service as well as the associated ETag.
 // This func is otherwise equivalent to Get.
-func (c *Client) getETag(suffix string) (value, etag string, err error) {
-	ctx := context.TODO()
+func (c *Client) getETag(ctx context.Context, suffix string) (value, etag string, err error) {
+	return c.getETagWithSubClient(ctx, suffix, false)
+}
+
+func (c *Client) getETagWithSubClient(ctx context.Context, suffix string, enableSubClient bool) (value, etag string, err error) {
 	// Using a fixed IP makes it very difficult to spoof the metadata service in
 	// a container, which is an important use-case for local testing of cloud
 	// deployments. To enable spoofing of the metadata service, the environment
@@ -306,7 +527,7 @@ func (c *Client) getETag(suffix string) (value, etag string, err error) {
 	}
 	suffix = strings.TrimLeft(suffix, "/")
 	u := "http://" + host + "/computeMetadata/v1/" + suffix
-	req, err := http.NewRequest("GET", u, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
 	if err != nil {
 		return "", "", err
 	}
@@ -314,14 +535,30 @@ func (c *Client) getETag(suffix string) (value, etag string, err error) {
 	req.Header.Set("User-Agent", userAgent)
 	var res *http.Response
 	var reqErr error
+	var body []byte
 	retryer := newRetryer()
+	hc := c.hc
+	if enableSubClient {
+		hc = c.subClient
+	}
 	for {
-		res, reqErr = c.hc.Do(req)
+		c.logger.DebugContext(ctx, "metadata request", "request", httpRequest(req, nil))
+		res, reqErr = hc.Do(req)
 		var code int
 		if res != nil {
 			code = res.StatusCode
+			body, err = io.ReadAll(res.Body)
+			if err != nil {
+				res.Body.Close()
+				return "", "", err
+			}
+			c.logger.DebugContext(ctx, "metadata response", "response", httpResponse(res, body))
+			res.Body.Close()
 		}
 		if delay, shouldRetry := retryer.Retry(code, reqErr); shouldRetry {
+			if res != nil && res.Body != nil {
+				res.Body.Close()
+			}
 			if err := sleep(ctx, delay); err != nil {
 				return "", "", err
 			}
@@ -332,18 +569,13 @@ func (c *Client) getETag(suffix string) (value, etag string, err error) {
 	if reqErr != nil {
 		return "", "", reqErr
 	}
-	defer res.Body.Close()
 	if res.StatusCode == http.StatusNotFound {
 		return "", "", NotDefinedError(suffix)
 	}
-	all, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return "", "", err
-	}
 	if res.StatusCode != 200 {
-		return "", "", &Error{Code: res.StatusCode, Message: string(all)}
+		return "", "", &Error{Code: res.StatusCode, Message: string(body)}
 	}
-	return string(all), res.Header.Get("Etag"), nil
+	return string(body), res.Header.Get("Etag"), nil
 }
 
 // Get returns a value from the metadata service.
@@ -354,19 +586,37 @@ func (c *Client) getETag(suffix string) (value, etag string, err error) {
 //
 // If the requested metadata is not defined, the returned error will
 // be of type NotDefinedError.
+//
+// Deprecated: Please use the context aware variant [Client.GetWithContext].
 func (c *Client) Get(suffix string) (string, error) {
-	val, _, err := c.getETag(suffix)
+	return c.GetWithContext(context.Background(), suffix)
+}
+
+// GetWithContext returns a value from the metadata service.
+// The suffix is appended to "http://${GCE_METADATA_HOST}/computeMetadata/v1/".
+//
+// If the GCE_METADATA_HOST environment variable is not defined, a default of
+// 169.254.169.254 will be used instead.
+//
+// If the requested metadata is not defined, the returned error will
+// be of type NotDefinedError.
+//
+// NOTE: Without an extra deadline in the context this call can take in the
+// worst case, with internal backoff retries, up to 15 seconds (e.g. when server
+// is responding slowly). Pass context with additional timeouts when needed.
+func (c *Client) GetWithContext(ctx context.Context, suffix string) (string, error) {
+	val, _, err := c.getETag(ctx, suffix)
 	return val, err
 }
 
-func (c *Client) getTrimmed(suffix string) (s string, err error) {
-	s, err = c.Get(suffix)
+func (c *Client) getTrimmed(ctx context.Context, suffix string) (s string, err error) {
+	s, err = c.GetWithContext(ctx, suffix)
 	s = strings.TrimSpace(s)
 	return
 }
 
-func (c *Client) lines(suffix string) ([]string, error) {
-	j, err := c.Get(suffix)
+func (c *Client) lines(ctx context.Context, suffix string) ([]string, error) {
+	j, err := c.GetWithContext(ctx, suffix)
 	if err != nil {
 		return nil, err
 	}
@@ -378,45 +628,104 @@ func (c *Client) lines(suffix string) ([]string, error) {
 }
 
 // ProjectID returns the current instance's project ID string.
-func (c *Client) ProjectID() (string, error) { return projID.get(c) }
+//
+// Deprecated: Please use the context aware variant [Client.ProjectIDWithContext].
+func (c *Client) ProjectID() (string, error) { return c.ProjectIDWithContext(context.Background()) }
+
+// ProjectIDWithContext returns the current instance's project ID string.
+func (c *Client) ProjectIDWithContext(ctx context.Context) (string, error) { return projID.get(ctx, c) }
 
 // NumericProjectID returns the current instance's numeric project ID.
-func (c *Client) NumericProjectID() (string, error) { return projNum.get(c) }
+//
+// Deprecated: Please use the context aware variant [Client.NumericProjectIDWithContext].
+func (c *Client) NumericProjectID() (string, error) {
+	return c.NumericProjectIDWithContext(context.Background())
+}
+
+// NumericProjectIDWithContext returns the current instance's numeric project ID.
+func (c *Client) NumericProjectIDWithContext(ctx context.Context) (string, error) {
+	return projNum.get(ctx, c)
+}
 
 // InstanceID returns the current VM's numeric instance ID.
-func (c *Client) InstanceID() (string, error) { return instID.get(c) }
+//
+// Deprecated: Please use the context aware variant [Client.InstanceIDWithContext].
+func (c *Client) InstanceID() (string, error) {
+	return c.InstanceIDWithContext(context.Background())
+}
+
+// InstanceIDWithContext returns the current VM's numeric instance ID.
+func (c *Client) InstanceIDWithContext(ctx context.Context) (string, error) {
+	return instID.get(ctx, c)
+}
 
 // InternalIP returns the instance's primary internal IP address.
+//
+// Deprecated: Please use the context aware variant [Client.InternalIPWithContext].
 func (c *Client) InternalIP() (string, error) {
-	return c.getTrimmed("instance/network-interfaces/0/ip")
+	return c.InternalIPWithContext(context.Background())
+}
+
+// InternalIPWithContext returns the instance's primary internal IP address.
+func (c *Client) InternalIPWithContext(ctx context.Context) (string, error) {
+	return c.getTrimmed(ctx, "instance/network-interfaces/0/ip")
 }
 
 // Email returns the email address associated with the service account.
-// The account may be empty or the string "default" to use the instance's
-// main account.
+//
+// Deprecated: Please use the context aware variant [Client.EmailWithContext].
 func (c *Client) Email(serviceAccount string) (string, error) {
+	return c.EmailWithContext(context.Background(), serviceAccount)
+}
+
+// EmailWithContext returns the email address associated with the service account.
+// The serviceAccount parameter default value (empty string or "default" value)
+// will use the instance's main account.
+func (c *Client) EmailWithContext(ctx context.Context, serviceAccount string) (string, error) {
 	if serviceAccount == "" {
 		serviceAccount = "default"
 	}
-	return c.getTrimmed("instance/service-accounts/" + serviceAccount + "/email")
+	return c.getTrimmed(ctx, "instance/service-accounts/"+serviceAccount+"/email")
 }
 
 // ExternalIP returns the instance's primary external (public) IP address.
+//
+// Deprecated: Please use the context aware variant [Client.ExternalIPWithContext].
 func (c *Client) ExternalIP() (string, error) {
-	return c.getTrimmed("instance/network-interfaces/0/access-configs/0/external-ip")
+	return c.ExternalIPWithContext(context.Background())
+}
+
+// ExternalIPWithContext returns the instance's primary external (public) IP address.
+func (c *Client) ExternalIPWithContext(ctx context.Context) (string, error) {
+	return c.getTrimmed(ctx, "instance/network-interfaces/0/access-configs/0/external-ip")
 }
 
 // Hostname returns the instance's hostname. This will be of the form
 // "<instanceID>.c.<projID>.internal".
+//
+// Deprecated: Please use the context aware variant [Client.HostnameWithContext].
 func (c *Client) Hostname() (string, error) {
-	return c.getTrimmed("instance/hostname")
+	return c.HostnameWithContext(context.Background())
 }
 
-// InstanceTags returns the list of user-defined instance tags,
-// assigned when initially creating a GCE instance.
+// HostnameWithContext returns the instance's hostname. This will be of the form
+// "<instanceID>.c.<projID>.internal".
+func (c *Client) HostnameWithContext(ctx context.Context) (string, error) {
+	return c.getTrimmed(ctx, "instance/hostname")
+}
+
+// InstanceTags returns the list of user-defined instance tags.
+//
+// Deprecated: Please use the context aware variant [Client.InstanceTagsWithContext].
 func (c *Client) InstanceTags() ([]string, error) {
+	return c.InstanceTagsWithContext(context.Background())
+}
+
+// InstanceTagsWithContext returns the list of user-defined instance tags,
+// assigned when initially creating a GCE instance.
+func (c *Client) InstanceTagsWithContext(ctx context.Context) ([]string, error) {
 	var s []string
-	j, err := c.Get("instance/tags")
+	j, err := c.GetWithContext(ctx, "instance/tags")
 	if err != nil {
 		return nil, err
 	}
@@ -427,13 +736,27 @@ func (c *Client) InstanceTags() ([]string, error) {
 }
 
 // InstanceName returns the current VM's instance ID string.
+//
+// Deprecated: Please use the context aware variant [Client.InstanceNameWithContext].
 func (c *Client) InstanceName() (string, error) {
-	return c.getTrimmed("instance/name")
+	return c.InstanceNameWithContext(context.Background())
+}
+
+// InstanceNameWithContext returns the current VM's instance ID string.
+func (c *Client) InstanceNameWithContext(ctx context.Context) (string, error) {
+	return c.getTrimmed(ctx, "instance/name")
 }
 
 // Zone returns the current VM's zone, such as "us-central1-b".
+//
+// Deprecated: Please use the context aware variant [Client.ZoneWithContext].
 func (c *Client) Zone() (string, error) {
-	zone, err := c.getTrimmed("instance/zone")
+	return c.ZoneWithContext(context.Background())
+}
+
+// ZoneWithContext returns the current VM's zone, such as "us-central1-b".
+func (c *Client) ZoneWithContext(ctx context.Context) (string, error) {
+	zone, err := c.getTrimmed(ctx, "instance/zone")
 	// zone is of the form "projects/<projNum>/zones/<zoneName>".
 	if err != nil {
 		return "", err
@@ -444,12 +767,34 @@ func (c *Client) Zone() (string, error) {
 // InstanceAttributes returns the list of user-defined attributes,
 // assigned when initially creating a GCE VM instance. The value of an
 // attribute can be obtained with InstanceAttributeValue.
-func (c *Client) InstanceAttributes() ([]string, error) { return c.lines("instance/attributes/") }
+//
+// Deprecated: Please use the context aware variant [Client.InstanceAttributesWithContext].
+func (c *Client) InstanceAttributes() ([]string, error) {
+	return c.InstanceAttributesWithContext(context.Background())
+}
+
+// InstanceAttributesWithContext returns the list of user-defined attributes,
+// assigned when initially creating a GCE VM instance. The value of an
+// attribute can be obtained with InstanceAttributeValue.
+func (c *Client) InstanceAttributesWithContext(ctx context.Context) ([]string, error) {
+	return c.lines(ctx, "instance/attributes/")
+}
 
 // ProjectAttributes returns the list of user-defined attributes
 // applying to the project as a whole, not just this VM.  The value of
 // an attribute can be obtained with ProjectAttributeValue.
-func (c *Client) ProjectAttributes() ([]string, error) { return c.lines("project/attributes/") }
+//
+// Deprecated: Please use the context aware variant [Client.ProjectAttributesWithContext].
+func (c *Client) ProjectAttributes() ([]string, error) {
+	return c.ProjectAttributesWithContext(context.Background())
+}
+
+// ProjectAttributesWithContext returns the list of user-defined attributes
+// applying to the project as a whole, not just this VM.  The value of
+// an attribute can be obtained with ProjectAttributeValue.
+func (c *Client) ProjectAttributesWithContext(ctx context.Context) ([]string, error) {
+	return c.lines(ctx, "project/attributes/")
+}
 
 // InstanceAttributeValue returns the value of the provided VM
 // instance attribute.
@@ -459,8 +804,22 @@ func (c *Client) ProjectAttributes() ([]string, error) { return c.lines("project
 //
 // InstanceAttributeValue may return ("", nil) if the attribute was
 // defined to be the empty string.
+//
+// Deprecated: Please use the context aware variant [Client.InstanceAttributeValueWithContext].
 func (c *Client) InstanceAttributeValue(attr string) (string, error) {
-	return c.Get("instance/attributes/" + attr)
+	return c.InstanceAttributeValueWithContext(context.Background(), attr)
+}
+
+// InstanceAttributeValueWithContext returns the value of the provided VM
+// instance attribute.
+//
+// If the requested attribute is not defined, the returned error will
+// be of type NotDefinedError.
+//
+// InstanceAttributeValue may return ("", nil) if the attribute was
+// defined to be the empty string.
+func (c *Client) InstanceAttributeValueWithContext(ctx context.Context, attr string) (string, error) {
+	return c.GetWithContext(ctx, "instance/attributes/"+attr)
 }
 
 // ProjectAttributeValue returns the value of the provided
@@ -471,39 +830,71 @@ func (c *Client) InstanceAttributeValue(attr string) (string, error) {
 //
 // ProjectAttributeValue may return ("", nil) if the attribute was
 // defined to be the empty string.
+//
+// Deprecated: Please use the context aware variant [Client.ProjectAttributeValueWithContext].
 func (c *Client) ProjectAttributeValue(attr string) (string, error) {
-	return c.Get("project/attributes/" + attr)
+	return c.ProjectAttributeValueWithContext(context.Background(), attr)
+}
+
+// ProjectAttributeValueWithContext returns the value of the provided
+// project attribute.
+//
+// If the requested attribute is not defined, the returned error will
+// be of type NotDefinedError.
+//
+// ProjectAttributeValue may return ("", nil) if the attribute was
+// defined to be the empty string.
+func (c *Client) ProjectAttributeValueWithContext(ctx context.Context, attr string) (string, error) {
+	return c.GetWithContext(ctx, "project/attributes/"+attr)
 }
 
 // Scopes returns the service account scopes for the given account.
 // The account may be empty or the string "default" to use the instance's
 // main account.
+//
+// Deprecated: Please use the context aware variant [Client.ScopesWithContext].
 func (c *Client) Scopes(serviceAccount string) ([]string, error) {
+	return c.ScopesWithContext(context.Background(), serviceAccount)
+}
+
+// ScopesWithContext returns the service account scopes for the given account.
+// The account may be empty or the string "default" to use the instance's
+// main account.
+func (c *Client) ScopesWithContext(ctx context.Context, serviceAccount string) ([]string, error) {
 	if serviceAccount == "" {
 		serviceAccount = "default"
 	}
-	return c.lines("instance/service-accounts/" + serviceAccount + "/scopes")
+	return c.lines(ctx, "instance/service-accounts/"+serviceAccount+"/scopes")
 }
 
 // Subscribe subscribes to a value from the metadata service.
 // The suffix is appended to "http://${GCE_METADATA_HOST}/computeMetadata/v1/".
 // The suffix may contain query parameters.
 //
-// Subscribe calls fn with the latest metadata value indicated by the provided
-// suffix. If the metadata value is deleted, fn is called with the empty string
-// and ok false. Subscribe blocks until fn returns a non-nil error or the value
-// is deleted. Subscribe returns the error value returned from the last call to
-// fn, which may be nil when ok == false.
+// Deprecated: Please use the context aware variant [Client.SubscribeWithContext].
 func (c *Client) Subscribe(suffix string, fn func(v string, ok bool) error) error {
+	return c.SubscribeWithContext(context.Background(), suffix, func(ctx context.Context, v string, ok bool) error { return fn(v, ok) })
+}
+
+// SubscribeWithContext subscribes to a value from the metadata service.
+// The suffix is appended to "http://${GCE_METADATA_HOST}/computeMetadata/v1/".
+// The suffix may contain query parameters.
+//
+// SubscribeWithContext calls fn with the latest metadata value indicated by the
+// provided suffix. If the metadata value is deleted, fn is called with the
+// empty string and ok false. Subscribe blocks until fn returns a non-nil error
+// or the value is deleted. Subscribe returns the error value returned from the
+// last call to fn, which may be nil when ok == false.
+func (c *Client) SubscribeWithContext(ctx context.Context, suffix string, fn func(ctx context.Context, v string, ok bool) error) error {
 	const failedSubscribeSleep = time.Second * 5
 
 	// First check to see if the metadata value exists at all.
-	val, lastETag, err := c.getETag(suffix)
+	val, lastETag, err := c.getETagWithSubClient(ctx, suffix, true)
 	if err != nil {
 		return err
 	}
 
-	if err := fn(val, true); err != nil {
+	if err := fn(ctx, val, true); err != nil {
 		return err
 	}
 
@@ -514,8 +905,11 @@ func (c *Client) Subscribe(suffix string, fn func(v string, ok bool) error) erro
 		suffix += "?wait_for_change=true&last_etag="
 	}
 	for {
-		val, etag, err := c.getETag(suffix + url.QueryEscape(lastETag))
+		val, etag, err := c.getETagWithSubClient(ctx, suffix+url.QueryEscape(lastETag), true)
 		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return err
+			}
 			if _, deleted := err.(NotDefinedError); !deleted {
 				time.Sleep(failedSubscribeSleep)
 				continue // Retry on other errors.
@@ -524,7 +918,7 @@ func (c *Client) Subscribe(suffix string, fn func(v string, ok bool) error) erro
 		}
 		lastETag = etag
 
-		if err := fn(val, ok); err != nil || !ok {
+		if err := fn(ctx, val, ok); err != nil || !ok {
 			return err
 		}
 	}

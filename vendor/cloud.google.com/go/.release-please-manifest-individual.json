@@ -1,14 +1,15 @@
 {
-  "auth": "0.0.0",
-  "bigquery": "1.55.0",
-  "bigtable": "1.19.0",
-  "datastore": "1.14.0",
+  "auth": "0.1.0",
+  "auth/oauth2adapt": "0.1.0",
+  "bigquery": "1.57.0",
+  "bigtable": "1.20.0",
+  "datastore": "1.15.0",
   "errorreporting": "0.3.0",
-  "firestore": "1.12.0",
+  "firestore": "1.14.0",
   "logging": "1.8.1",
-  "profiler": "0.3.1",
+  "profiler": "0.4.0",
   "pubsub": "1.33.0",
   "pubsublite": "1.8.1",
-  "spanner": "1.49.0",
-  "storage": "1.33.0"
+  "spanner": "1.51.0",
+  "storage": "1.34.0"
 }

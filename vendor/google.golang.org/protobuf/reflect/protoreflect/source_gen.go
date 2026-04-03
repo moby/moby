@@ -21,6 +21,8 @@ func (p *SourcePath) appendFileDescriptorProto(b []byte) []byte {
 		b = p.appendRepeatedField(b, "public_dependency", nil)
 	case 11:
 		b = p.appendRepeatedField(b, "weak_dependency", nil)
+	case 15:
+		b = p.appendRepeatedField(b, "option_dependency", nil)
 	case 4:
 		b = p.appendRepeatedField(b, "message_type", (*SourcePath).appendDescriptorProto)
 	case 5:
@@ -66,6 +68,8 @@ func (p *SourcePath) appendDescriptorProto(b []byte) []byte {
 		b = p.appendRepeatedField(b, "reserved_range", (*SourcePath).appendDescriptorProto_ReservedRange)
 	case 10:
 		b = p.appendRepeatedField(b, "reserved_name", nil)
+	case 11:
+		b = p.appendSingularField(b, "visibility", nil)
 	}
 	return b
 }
@@ -85,6 +89,8 @@ func (p *SourcePath) appendEnumDescriptorProto(b []byte) []byte {
 		b = p.appendRepeatedField(b, "reserved_range", (*SourcePath).appendEnumDescriptorProto_EnumReservedRange)
 	case 5:
 		b = p.appendRepeatedField(b, "reserved_name", nil)
+	case 6:
+		b = p.appendSingularField(b, "visibility", nil)
 	}
 	return b
 }
@@ -373,6 +379,8 @@ func (p *SourcePath) appendFieldOptions(b []byte) []byte {
 		b = p.appendRepeatedField(b, "edition_defaults", (*SourcePath).appendFieldOptions_EditionDefault)
 	case 21:
 		b = p.appendSingularField(b, "features", (*SourcePath).appendFeatureSet)
+	case 22:
+		b = p.appendSingularField(b, "feature_support", (*SourcePath).appendFieldOptions_FeatureSupport)
 	case 999:
 		b = p.appendRepeatedField(b, "uninterpreted_option", (*SourcePath).appendUninterpretedOption)
 	}
@@ -396,6 +404,10 @@ func (p *SourcePath) appendFeatureSet(b []byte) []byte {
 		b = p.appendSingularField(b, "message_encoding", nil)
 	case 6:
 		b = p.appendSingularField(b, "json_format", nil)
+	case 7:
+		b = p.appendSingularField(b, "enforce_naming_style", nil)
+	case 8:
+		b = p.appendSingularField(b, "default_symbol_visibility", nil)
 	}
 	return b
 }
@@ -483,6 +495,8 @@ func (p *SourcePath) appendEnumValueOptions(b []byte) []byte {
 		b = p.appendSingularField(b, "features", (*SourcePath).appendFeatureSet)
 	case 3:
 		b = p.appendSingularField(b, "debug_redact", nil)
+	case 4:
+		b = p.appendSingularField(b, "feature_support", (*SourcePath).appendFieldOptions_FeatureSupport)
 	case 999:
 		b = p.appendRepeatedField(b, "uninterpreted_option", (*SourcePath).appendUninterpretedOption)
 	}
@@ -515,6 +529,23 @@ func (p *SourcePath) appendFieldOptions_EditionDefault(b []byte) []byte {
 		b = p.appendSingularField(b, "edition", nil)
 	case 2:
 		b = p.appendSingularField(b, "value", nil)
+	}
+	return b
+}
+
+func (p *SourcePath) appendFieldOptions_FeatureSupport(b []byte) []byte {
+	if len(*p) == 0 {
+		return b
+	}
+	switch (*p)[0] {
+	case 1:
+		b = p.appendSingularField(b, "edition_introduced", nil)
+	case 2:
+		b = p.appendSingularField(b, "edition_deprecated", nil)
+	case 3:
+		b = p.appendSingularField(b, "deprecation_warning", nil)
+	case 4:
+		b = p.appendSingularField(b, "edition_removed", nil)
 	}
 	return b
 }

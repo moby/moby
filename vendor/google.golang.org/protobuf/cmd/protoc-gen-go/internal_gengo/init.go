@@ -114,6 +114,7 @@ func newEnumInfo(f *fileInfo, enum *protogen.Enum) *enumInfo {
 	e := &enumInfo{Enum: enum}
 	e.genJSONMethod = true
 	e.genRawDescMethod = true
+	opaqueNewEnumInfoHook(f, e)
 	return e
 }
 
@@ -123,8 +124,8 @@ type messageInfo struct {
 	genRawDescMethod  bool
 	genExtRangeMethod bool
 
-	isTracked bool
-	hasWeak   bool
+	isTracked   bool
+	noInterface bool
 }
 
 func newMessageInfo(f *fileInfo, message *protogen.Message) *messageInfo {
@@ -132,9 +133,7 @@ func newMessageInfo(f *fileInfo, message *protogen.Message) *messageInfo {
 	m.genRawDescMethod = true
 	m.genExtRangeMethod = true
 	m.isTracked = isTrackedMessage(m)
-	for _, field := range m.Fields {
-		m.hasWeak = m.hasWeak || field.Desc.IsWeak()
-	}
+	opaqueNewMessageInfoHook(f, m)
 	return m
 }
 

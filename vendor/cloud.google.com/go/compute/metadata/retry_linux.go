@@ -17,10 +17,15 @@
 
 package metadata
 
-import "syscall"
+import (
+	"errors"
+	"syscall"
+)
 
 func init() {
 	// Initialize syscallRetryable to return true on transient socket-level
 	// errors. These errors are specific to Linux.
-	syscallRetryable = func(err error) bool { return err == syscall.ECONNRESET || err == syscall.ECONNREFUSED }
+	syscallRetryable = func(err error) bool {
+		return errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.ECONNREFUSED)
+	}
 }

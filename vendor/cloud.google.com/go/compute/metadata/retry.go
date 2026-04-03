@@ -27,7 +27,7 @@ const (
 )
 
 var (
-	syscallRetryable = func(err error) bool { return false }
+	syscallRetryable = func(error) bool { return false }
 )
 
 // defaultBackoff is basically equivalent to gax.Backoff without the need for
@@ -93,6 +93,9 @@ func (r *metadataRetryer) Retry(status int, err error) (time.Duration, bool) {
 
 func shouldRetry(status int, err error) bool {
 	if 500 <= status && status <= 599 {
+		return true
+	}
+	if status == http.StatusTooManyRequests {
 		return true
 	}
 	if err == io.ErrUnexpectedEOF {

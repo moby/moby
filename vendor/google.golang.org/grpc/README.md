@@ -10,7 +10,7 @@ RPC framework that puts mobile and HTTP/2 first. For more information see the
 
 ## Prerequisites
 
-- **[Go][]**: any one of the **three latest major** [releases][go-releases].
+- **[Go][]**: any one of the **two latest major** [releases][go-releases].
 
 ## Installation
 
@@ -32,6 +32,7 @@ import "google.golang.org/grpc"
 - [Low-level technical docs](Documentation) from this repository
 - [Performance benchmark][]
 - [Examples](examples)
+- [Contribution guidelines](CONTRIBUTING.md)
 
 ## FAQ
 

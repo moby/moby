@@ -18,7 +18,6 @@ package console
 
 import (
 	"fmt"
-	"os"
 
 	"golang.org/x/sys/unix"
 )
@@ -30,12 +29,12 @@ const (
 
 // unlockpt unlocks the slave pseudoterminal device corresponding to the master pseudoterminal referred to by f.
 // unlockpt should be called before opening the slave side of a pty.
-func unlockpt(f *os.File) error {
+func unlockpt(f File) error {
 	return unix.IoctlSetPointerInt(int(f.Fd()), unix.TIOCPTYUNLK, 0)
 }
 
 // ptsname retrieves the name of the first available pts for the given master.
-func ptsname(f *os.File) (string, error) {
+func ptsname(f File) (string, error) {
 	n, err := unix.IoctlGetInt(int(f.Fd()), unix.TIOCPTYGNAME)
 	if err != nil {
 		return "", err

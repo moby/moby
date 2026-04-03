@@ -1,16 +1,5 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 // Package noop provides an implementation of the OpenTelemetry metric API that
 // produces no telemetry and minimizes used computation resources.
@@ -43,6 +32,8 @@ var (
 	_ metric.Float64UpDownCounter           = Float64UpDownCounter{}
 	_ metric.Int64Histogram                 = Int64Histogram{}
 	_ metric.Float64Histogram               = Float64Histogram{}
+	_ metric.Int64Gauge                     = Int64Gauge{}
+	_ metric.Float64Gauge                   = Float64Gauge{}
 	_ metric.Int64ObservableCounter         = Int64ObservableCounter{}
 	_ metric.Float64ObservableCounter       = Float64ObservableCounter{}
 	_ metric.Int64ObservableGauge           = Int64ObservableGauge{}
@@ -87,15 +78,27 @@ func (Meter) Int64Histogram(string, ...metric.Int64HistogramOption) (metric.Int6
 	return Int64Histogram{}, nil
 }
 
+// Int64Gauge returns a Gauge used to record int64 measurements that
+// produces no telemetry.
+func (Meter) Int64Gauge(string, ...metric.Int64GaugeOption) (metric.Int64Gauge, error) {
+	return Int64Gauge{}, nil
+}
+
 // Int64ObservableCounter returns an ObservableCounter used to record int64
 // measurements that produces no telemetry.
-func (Meter) Int64ObservableCounter(string, ...metric.Int64ObservableCounterOption) (metric.Int64ObservableCounter, error) {
+func (Meter) Int64ObservableCounter(
+	string,
+	...metric.Int64ObservableCounterOption,
+) (metric.Int64ObservableCounter, error) {
 	return Int64ObservableCounter{}, nil
 }
 
 // Int64ObservableUpDownCounter returns an ObservableUpDownCounter used to
 // record int64 measurements that produces no telemetry.
-func (Meter) Int64ObservableUpDownCounter(string, ...metric.Int64ObservableUpDownCounterOption) (metric.Int64ObservableUpDownCounter, error) {
+func (Meter) Int64ObservableUpDownCounter(
+	string,
+	...metric.Int64ObservableUpDownCounterOption,
+) (metric.Int64ObservableUpDownCounter, error) {
 	return Int64ObservableUpDownCounter{}, nil
 }
 
@@ -123,21 +126,36 @@ func (Meter) Float64Histogram(string, ...metric.Float64HistogramOption) (metric.
 	return Float64Histogram{}, nil
 }
 
+// Float64Gauge returns a Gauge used to record float64 measurements that
+// produces no telemetry.
+func (Meter) Float64Gauge(string, ...metric.Float64GaugeOption) (metric.Float64Gauge, error) {
+	return Float64Gauge{}, nil
+}
+
 // Float64ObservableCounter returns an ObservableCounter used to record int64
 // measurements that produces no telemetry.
-func (Meter) Float64ObservableCounter(string, ...metric.Float64ObservableCounterOption) (metric.Float64ObservableCounter, error) {
+func (Meter) Float64ObservableCounter(
+	string,
+	...metric.Float64ObservableCounterOption,
+) (metric.Float64ObservableCounter, error) {
 	return Float64ObservableCounter{}, nil
 }
 
 // Float64ObservableUpDownCounter returns an ObservableUpDownCounter used to
 // record int64 measurements that produces no telemetry.
-func (Meter) Float64ObservableUpDownCounter(string, ...metric.Float64ObservableUpDownCounterOption) (metric.Float64ObservableUpDownCounter, error) {
+func (Meter) Float64ObservableUpDownCounter(
+	string,
+	...metric.Float64ObservableUpDownCounterOption,
+) (metric.Float64ObservableUpDownCounter, error) {
 	return Float64ObservableUpDownCounter{}, nil
 }
 
 // Float64ObservableGauge returns an ObservableGauge used to record int64
 // measurements that produces no telemetry.
-func (Meter) Float64ObservableGauge(string, ...metric.Float64ObservableGaugeOption) (metric.Float64ObservableGauge, error) {
+func (Meter) Float64ObservableGauge(
+	string,
+	...metric.Float64ObservableGaugeOption,
+) (metric.Float64ObservableGauge, error) {
 	return Float64ObservableGauge{}, nil
 }
 
@@ -207,6 +225,20 @@ type Float64Histogram struct{ embedded.Float64Histogram }
 
 // Record performs no operation.
 func (Float64Histogram) Record(context.Context, float64, ...metric.RecordOption) {}
+
+// Int64Gauge is an OpenTelemetry Gauge used to record instantaneous int64
+// measurements. It produces no telemetry.
+type Int64Gauge struct{ embedded.Int64Gauge }
+
+// Record performs no operation.
+func (Int64Gauge) Record(context.Context, int64, ...metric.RecordOption) {}
+
+// Float64Gauge is an OpenTelemetry Gauge used to record instantaneous float64
+// measurements. It produces no telemetry.
+type Float64Gauge struct{ embedded.Float64Gauge }
+
+// Record performs no operation.
+func (Float64Gauge) Record(context.Context, float64, ...metric.RecordOption) {}
 
 // Int64ObservableCounter is an OpenTelemetry ObservableCounter used to record
 // int64 measurements. It produces no telemetry.
