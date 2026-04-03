@@ -16,26 +16,30 @@ type TestInformation struct {
 }
 
 func newSuiteInformation() *SuiteInformation {
-	testStats := make(map[string]*TestInformation)
-
 	return &SuiteInformation{
-		TestStats: testStats,
+		TestStats: make(map[string]*TestInformation),
 	}
 }
 
-func (s SuiteInformation) start(testName string) {
+func (s *SuiteInformation) start(testName string) {
+	if s == nil {
+		return
+	}
 	s.TestStats[testName] = &TestInformation{
 		TestName: testName,
 		Start:    time.Now(),
 	}
 }
 
-func (s SuiteInformation) end(testName string, passed bool) {
+func (s *SuiteInformation) end(testName string, passed bool) {
+	if s == nil {
+		return
+	}
 	s.TestStats[testName].End = time.Now()
 	s.TestStats[testName].Passed = passed
 }
 
-func (s SuiteInformation) Passed() bool {
+func (s *SuiteInformation) Passed() bool {
 	for _, stats := range s.TestStats {
 		if !stats.Passed {
 			return false

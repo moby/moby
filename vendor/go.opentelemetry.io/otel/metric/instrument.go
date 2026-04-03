@@ -1,16 +1,5 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package metric // import "go.opentelemetry.io/otel/metric"
 
@@ -27,6 +16,7 @@ type InstrumentOption interface {
 	Int64CounterOption
 	Int64UpDownCounterOption
 	Int64HistogramOption
+	Int64GaugeOption
 	Int64ObservableCounterOption
 	Int64ObservableUpDownCounterOption
 	Int64ObservableGaugeOption
@@ -34,6 +24,7 @@ type InstrumentOption interface {
 	Float64CounterOption
 	Float64UpDownCounterOption
 	Float64HistogramOption
+	Float64GaugeOption
 	Float64ObservableCounterOption
 	Float64ObservableUpDownCounterOption
 	Float64ObservableGaugeOption
@@ -62,12 +53,19 @@ func (o descOpt) applyFloat64Histogram(c Float64HistogramConfig) Float64Histogra
 	return c
 }
 
+func (o descOpt) applyFloat64Gauge(c Float64GaugeConfig) Float64GaugeConfig {
+	c.description = string(o)
+	return c
+}
+
 func (o descOpt) applyFloat64ObservableCounter(c Float64ObservableCounterConfig) Float64ObservableCounterConfig {
 	c.description = string(o)
 	return c
 }
 
-func (o descOpt) applyFloat64ObservableUpDownCounter(c Float64ObservableUpDownCounterConfig) Float64ObservableUpDownCounterConfig {
+func (o descOpt) applyFloat64ObservableUpDownCounter(
+	c Float64ObservableUpDownCounterConfig,
+) Float64ObservableUpDownCounterConfig {
 	c.description = string(o)
 	return c
 }
@@ -92,12 +90,19 @@ func (o descOpt) applyInt64Histogram(c Int64HistogramConfig) Int64HistogramConfi
 	return c
 }
 
+func (o descOpt) applyInt64Gauge(c Int64GaugeConfig) Int64GaugeConfig {
+	c.description = string(o)
+	return c
+}
+
 func (o descOpt) applyInt64ObservableCounter(c Int64ObservableCounterConfig) Int64ObservableCounterConfig {
 	c.description = string(o)
 	return c
 }
 
-func (o descOpt) applyInt64ObservableUpDownCounter(c Int64ObservableUpDownCounterConfig) Int64ObservableUpDownCounterConfig {
+func (o descOpt) applyInt64ObservableUpDownCounter(
+	c Int64ObservableUpDownCounterConfig,
+) Int64ObservableUpDownCounterConfig {
 	c.description = string(o)
 	return c
 }
@@ -127,12 +132,19 @@ func (o unitOpt) applyFloat64Histogram(c Float64HistogramConfig) Float64Histogra
 	return c
 }
 
+func (o unitOpt) applyFloat64Gauge(c Float64GaugeConfig) Float64GaugeConfig {
+	c.unit = string(o)
+	return c
+}
+
 func (o unitOpt) applyFloat64ObservableCounter(c Float64ObservableCounterConfig) Float64ObservableCounterConfig {
 	c.unit = string(o)
 	return c
 }
 
-func (o unitOpt) applyFloat64ObservableUpDownCounter(c Float64ObservableUpDownCounterConfig) Float64ObservableUpDownCounterConfig {
+func (o unitOpt) applyFloat64ObservableUpDownCounter(
+	c Float64ObservableUpDownCounterConfig,
+) Float64ObservableUpDownCounterConfig {
 	c.unit = string(o)
 	return c
 }
@@ -157,12 +169,19 @@ func (o unitOpt) applyInt64Histogram(c Int64HistogramConfig) Int64HistogramConfi
 	return c
 }
 
+func (o unitOpt) applyInt64Gauge(c Int64GaugeConfig) Int64GaugeConfig {
+	c.unit = string(o)
+	return c
+}
+
 func (o unitOpt) applyInt64ObservableCounter(c Int64ObservableCounterConfig) Int64ObservableCounterConfig {
 	c.unit = string(o)
 	return c
 }
 
-func (o unitOpt) applyInt64ObservableUpDownCounter(c Int64ObservableUpDownCounterConfig) Int64ObservableUpDownCounterConfig {
+func (o unitOpt) applyInt64ObservableUpDownCounter(
+	c Int64ObservableUpDownCounterConfig,
+) Int64ObservableUpDownCounterConfig {
 	c.unit = string(o)
 	return c
 }
@@ -340,7 +359,7 @@ func WithAttributeSet(attributes attribute.Set) MeasurementOption {
 //
 //	cp := make([]attribute.KeyValue, len(attributes))
 //	copy(cp, attributes)
-//	WithAttributes(attribute.NewSet(cp...))
+//	WithAttributeSet(attribute.NewSet(cp...))
 //
 // [attribute.NewSet] may modify the passed attributes so this will make a copy
 // of attributes before creating a set in order to ensure this function is

@@ -5,15 +5,12 @@
 package impl
 
 import (
-	"fmt"
 	"reflect"
-	"sync"
 
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/internal/errors"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/runtime/protoiface"
 )
 
@@ -64,6 +61,9 @@ func (mi *MessageInfo) initOneofFieldCoders(od protoreflect.OneofDescriptor, si 
 			out, err := cf.funcs.unmarshal(b, pointerOfValue(vw).Apply(zeroOffset), wtyp, &cf, opts)
 			if err != nil {
 				return out, err
+			}
+			if cf.funcs.isInit == nil {
+				out.initialized = true
 			}
 			vi.Set(vw)
 			return out, nil
@@ -118,78 +118,6 @@ func (mi *MessageInfo) initOneofFieldCoders(od protoreflect.OneofDescriptor, si 
 	}
 }
 
-func makeWeakMessageFieldCoder(fd protoreflect.FieldDescriptor) pointerCoderFuncs {
-	var once sync.Once
-	var messageType protoreflect.MessageType
-	lazyInit := func() {
-		once.Do(func() {
-			messageName := fd.Message().FullName()
-			messageType, _ = protoregistry.GlobalTypes.FindMessageByName(messageName)
-		})
-	}
-
-	return pointerCoderFuncs{
-		size: func(p pointer, f *coderFieldInfo, opts marshalOptions) int {
-			m, ok := p.WeakFields().get(f.num)
-			if !ok {
-				return 0
-			}
-			lazyInit()
-			if messageType == nil {
-				panic(fmt.Sprintf("weak message %v is not linked in", fd.Message().FullName()))
-			}
-			return sizeMessage(m, f.tagsize, opts)
-		},
-		marshal: func(b []byte, p pointer, f *coderFieldInfo, opts marshalOptions) ([]byte, error) {
-			m, ok := p.WeakFields().get(f.num)
-			if !ok {
-				return b, nil
-			}
-			lazyInit()
-			if messageType == nil {
-				panic(fmt.Sprintf("weak message %v is not linked in", fd.Message().FullName()))
-			}
-			return appendMessage(b, m, f.wiretag, opts)
-		},
-		unmarshal: func(b []byte, p pointer, wtyp protowire.Type, f *coderFieldInfo, opts unmarshalOptions) (unmarshalOutput, error) {
-			fs := p.WeakFields()
-			m, ok := fs.get(f.num)
-			if !ok {
-				lazyInit()
-				if messageType == nil {
-					return unmarshalOutput{}, errUnknown
-				}
-				m = messageType.New().Interface()
-				fs.set(f.num, m)
-			}
-			return consumeMessage(b, m, wtyp, opts)
-		},
-		isInit: func(p pointer, f *coderFieldInfo) error {
-			m, ok := p.WeakFields().get(f.num)
-			if !ok {
-				return nil
-			}
-			return proto.CheckInitialized(m)
-		},
-		merge: func(dst, src pointer, f *coderFieldInfo, opts mergeOptions) {
-			sm, ok := src.WeakFields().get(f.num)
-			if !ok {
-				return
-			}
-			dm, ok := dst.WeakFields().get(f.num)
-			if !ok {
-				lazyInit()
-				if messageType == nil {
-					panic(fmt.Sprintf("weak message %v is not linked in", fd.Message().FullName()))
-				}
-				dm = messageType.New().Interface()
-				dst.WeakFields().set(f.num, dm)
-			}
-			opts.Merge(dm, sm)
-		},
-	}
-}
-
 func makeMessageFieldCoder(fd protoreflect.FieldDescriptor, ft reflect.Type) pointerCoderFuncs {
 	if mi := getMessageInfo(ft); mi != nil {
 		funcs := pointerCoderFuncs{
@@ -233,9 +161,15 @@ func sizeMessageInfo(p pointer, f *coderFieldInfo, opts marshalOptions) int {
 }
 
 func appendMessageInfo(b []byte, p pointer, f *coderFieldInfo, opts marshalOptions) ([]byte, error) {
+	calculatedSize := f.mi.sizePointer(p.Elem(), opts)
 	b = protowire.AppendVarint(b, f.wiretag)
-	b = protowire.AppendVarint(b, uint64(f.mi.sizePointer(p.Elem(), opts)))
-	return f.mi.marshalAppendPointer(b, p.Elem(), opts)
+	b = protowire.AppendVarint(b, uint64(calculatedSize))
+	before := len(b)
+	b, err := f.mi.marshalAppendPointer(b, p.Elem(), opts)
+	if measuredSize := len(b) - before; calculatedSize != measuredSize && err == nil {
+		return nil, errors.MismatchedSizeCalculation(calculatedSize, measuredSize)
+	}
+	return b, err
 }
 
 func consumeMessageInfo(b []byte, p pointer, wtyp protowire.Type, f *coderFieldInfo, opts unmarshalOptions) (out unmarshalOutput, err error) {
@@ -262,14 +196,21 @@ func isInitMessageInfo(p pointer, f *coderFieldInfo) error {
 	return f.mi.checkInitializedPointer(p.Elem())
 }
 
-func sizeMessage(m proto.Message, tagsize int, _ marshalOptions) int {
-	return protowire.SizeBytes(proto.Size(m)) + tagsize
+func sizeMessage(m proto.Message, tagsize int, opts marshalOptions) int {
+	return protowire.SizeBytes(opts.Options().Size(m)) + tagsize
 }
 
 func appendMessage(b []byte, m proto.Message, wiretag uint64, opts marshalOptions) ([]byte, error) {
+	mopts := opts.Options()
+	calculatedSize := mopts.Size(m)
 	b = protowire.AppendVarint(b, wiretag)
-	b = protowire.AppendVarint(b, uint64(proto.Size(m)))
-	return opts.Options().MarshalAppend(b, m)
+	b = protowire.AppendVarint(b, uint64(calculatedSize))
+	before := len(b)
+	b, err := mopts.MarshalAppend(b, m)
+	if measuredSize := len(b) - before; calculatedSize != measuredSize && err == nil {
+		return nil, errors.MismatchedSizeCalculation(calculatedSize, measuredSize)
+	}
+	return b, err
 }
 
 func consumeMessage(b []byte, m proto.Message, wtyp protowire.Type, opts unmarshalOptions) (out unmarshalOutput, err error) {
@@ -405,8 +346,8 @@ func consumeGroupType(b []byte, p pointer, wtyp protowire.Type, f *coderFieldInf
 	return f.mi.unmarshalPointer(b, p.Elem(), f.num, opts)
 }
 
-func sizeGroup(m proto.Message, tagsize int, _ marshalOptions) int {
-	return 2*tagsize + proto.Size(m)
+func sizeGroup(m proto.Message, tagsize int, opts marshalOptions) int {
+	return 2*tagsize + opts.Options().Size(m)
 }
 
 func appendGroup(b []byte, m proto.Message, wiretag uint64, opts marshalOptions) ([]byte, error) {
@@ -482,9 +423,13 @@ func appendMessageSliceInfo(b []byte, p pointer, f *coderFieldInfo, opts marshal
 		b = protowire.AppendVarint(b, f.wiretag)
 		siz := f.mi.sizePointer(v, opts)
 		b = protowire.AppendVarint(b, uint64(siz))
+		before := len(b)
 		b, err = f.mi.marshalAppendPointer(b, v, opts)
 		if err != nil {
 			return b, err
+		}
+		if measuredSize := len(b) - before; siz != measuredSize {
+			return nil, errors.MismatchedSizeCalculation(siz, measuredSize)
 		}
 	}
 	return b, nil
@@ -520,27 +465,33 @@ func isInitMessageSliceInfo(p pointer, f *coderFieldInfo) error {
 	return nil
 }
 
-func sizeMessageSlice(p pointer, goType reflect.Type, tagsize int, _ marshalOptions) int {
+func sizeMessageSlice(p pointer, goType reflect.Type, tagsize int, opts marshalOptions) int {
+	mopts := opts.Options()
 	s := p.PointerSlice()
 	n := 0
 	for _, v := range s {
 		m := asMessage(v.AsValueOf(goType.Elem()))
-		n += protowire.SizeBytes(proto.Size(m)) + tagsize
+		n += protowire.SizeBytes(mopts.Size(m)) + tagsize
 	}
 	return n
 }
 
 func appendMessageSlice(b []byte, p pointer, wiretag uint64, goType reflect.Type, opts marshalOptions) ([]byte, error) {
+	mopts := opts.Options()
 	s := p.PointerSlice()
 	var err error
 	for _, v := range s {
 		m := asMessage(v.AsValueOf(goType.Elem()))
 		b = protowire.AppendVarint(b, wiretag)
-		siz := proto.Size(m)
+		siz := mopts.Size(m)
 		b = protowire.AppendVarint(b, uint64(siz))
-		b, err = opts.Options().MarshalAppend(b, m)
+		before := len(b)
+		b, err = mopts.MarshalAppend(b, m)
 		if err != nil {
 			return b, err
+		}
+		if measuredSize := len(b) - before; siz != measuredSize {
+			return nil, errors.MismatchedSizeCalculation(siz, measuredSize)
 		}
 	}
 	return b, nil
@@ -582,11 +533,12 @@ func isInitMessageSlice(p pointer, goType reflect.Type) error {
 // Slices of messages
 
 func sizeMessageSliceValue(listv protoreflect.Value, tagsize int, opts marshalOptions) int {
+	mopts := opts.Options()
 	list := listv.List()
 	n := 0
 	for i, llen := 0, list.Len(); i < llen; i++ {
 		m := list.Get(i).Message().Interface()
-		n += protowire.SizeBytes(proto.Size(m)) + tagsize
+		n += protowire.SizeBytes(mopts.Size(m)) + tagsize
 	}
 	return n
 }
@@ -597,12 +549,16 @@ func appendMessageSliceValue(b []byte, listv protoreflect.Value, wiretag uint64,
 	for i, llen := 0, list.Len(); i < llen; i++ {
 		m := list.Get(i).Message().Interface()
 		b = protowire.AppendVarint(b, wiretag)
-		siz := proto.Size(m)
+		siz := mopts.Size(m)
 		b = protowire.AppendVarint(b, uint64(siz))
+		before := len(b)
 		var err error
 		b, err = mopts.MarshalAppend(b, m)
 		if err != nil {
 			return b, err
+		}
+		if measuredSize := len(b) - before; siz != measuredSize {
+			return nil, errors.MismatchedSizeCalculation(siz, measuredSize)
 		}
 	}
 	return b, nil
@@ -651,11 +607,12 @@ var coderMessageSliceValue = valueCoderFuncs{
 }
 
 func sizeGroupSliceValue(listv protoreflect.Value, tagsize int, opts marshalOptions) int {
+	mopts := opts.Options()
 	list := listv.List()
 	n := 0
 	for i, llen := 0, list.Len(); i < llen; i++ {
 		m := list.Get(i).Message().Interface()
-		n += 2*tagsize + proto.Size(m)
+		n += 2*tagsize + mopts.Size(m)
 	}
 	return n
 }
@@ -738,12 +695,13 @@ func makeGroupSliceFieldCoder(fd protoreflect.FieldDescriptor, ft reflect.Type) 
 	}
 }
 
-func sizeGroupSlice(p pointer, messageType reflect.Type, tagsize int, _ marshalOptions) int {
+func sizeGroupSlice(p pointer, messageType reflect.Type, tagsize int, opts marshalOptions) int {
+	mopts := opts.Options()
 	s := p.PointerSlice()
 	n := 0
 	for _, v := range s {
 		m := asMessage(v.AsValueOf(messageType.Elem()))
-		n += 2*tagsize + proto.Size(m)
+		n += 2*tagsize + mopts.Size(m)
 	}
 	return n
 }

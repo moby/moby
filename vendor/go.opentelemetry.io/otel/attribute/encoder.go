@@ -1,16 +1,5 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package attribute // import "go.opentelemetry.io/otel/attribute"
 
@@ -27,7 +16,7 @@ type (
 	// set into a wire representation.
 	Encoder interface {
 		// Encode returns the serialized encoding of the attribute set using
-		// its Iterator. This result may be cached by a attribute.Set.
+		// its Iterator. This result may be cached by an attribute.Set.
 		Encode(iterator Iterator) string
 
 		// ID returns a value that is unique for each class of attribute
@@ -89,7 +78,7 @@ func DefaultEncoder() Encoder {
 	defaultEncoderOnce.Do(func() {
 		defaultEncoderInstance = &defaultAttrEncoder{
 			pool: sync.Pool{
-				New: func() interface{} {
+				New: func() any {
 					return &bytes.Buffer{}
 				},
 			},
@@ -107,11 +96,11 @@ func (d *defaultAttrEncoder) Encode(iter Iterator) string {
 	for iter.Next() {
 		i, keyValue := iter.IndexedAttribute()
 		if i > 0 {
-			_, _ = buf.WriteRune(',')
+			_ = buf.WriteByte(',')
 		}
 		copyAndEscape(buf, string(keyValue.Key))
 
-		_, _ = buf.WriteRune('=')
+		_ = buf.WriteByte('=')
 
 		if keyValue.Value.Type() == STRING {
 			copyAndEscape(buf, keyValue.Value.AsString())
@@ -133,14 +122,14 @@ func copyAndEscape(buf *bytes.Buffer, val string) {
 	for _, ch := range val {
 		switch ch {
 		case '=', ',', escapeChar:
-			_, _ = buf.WriteRune(escapeChar)
+			_ = buf.WriteByte(escapeChar)
 		}
 		_, _ = buf.WriteRune(ch)
 	}
 }
 
-// Valid returns true if this encoder ID was allocated by
-// `NewEncoderID`.  Invalid encoder IDs will not be cached.
+// Valid reports whether this encoder ID was allocated by
+// [NewEncoderID]. Invalid encoder IDs will not be cached.
 func (id EncoderID) Valid() bool {
 	return id.value != 0
 }

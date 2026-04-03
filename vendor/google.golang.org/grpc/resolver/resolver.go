@@ -22,6 +22,7 @@ package resolver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -29,6 +30,8 @@ import (
 
 	"google.golang.org/grpc/attributes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/experimental/stats"
+	"google.golang.org/grpc/internal"
 	"google.golang.org/grpc/serviceconfig"
 )
 
@@ -63,16 +66,18 @@ func Get(scheme string) Builder {
 }
 
 // SetDefaultScheme sets the default scheme that will be used. The default
-// default scheme is "passthrough".
+// scheme is initially set to "passthrough".
 //
 // NOTE: this function must only be called during initialization time (i.e. in
 // an init() function), and is not thread-safe. The scheme set last overrides
 // previously set values.
 func SetDefaultScheme(scheme string) {
 	defaultScheme = scheme
+	internal.UserSetDefaultScheme = true
 }
 
-// GetDefaultScheme gets the default scheme that will be used.
+// GetDefaultScheme gets the default scheme that will be used by grpc.Dial.  If
+// SetDefaultScheme is never called, the default scheme used by grpc.NewClient is "dns" instead.
 func GetDefaultScheme() string {
 	return defaultScheme
 }
@@ -168,10 +173,16 @@ type BuildOptions struct {
 	// field. In most cases though, it is not appropriate, and this field may
 	// be ignored.
 	Dialer func(context.Context, string) (net.Conn, error)
+	// Authority is the effective authority of the clientconn for which the
+	// resolver is built.
+	Authority string
+	// MetricsRecorder is the metrics recorder to do recording.
+	MetricsRecorder stats.MetricsRecorder
 }
 
 // An Endpoint is one network endpoint, or server, which may have multiple
 // addresses with which it can be accessed.
+// TODO(i/8773) : make resolver.Endpoint and resolver.Address immutable
 type Endpoint struct {
 	// Addresses contains a list of addresses used to access this endpoint.
 	Addresses []Address
@@ -231,8 +242,8 @@ type ClientConn interface {
 	// UpdateState can be omitted.
 	UpdateState(State) error
 	// ReportError notifies the ClientConn that the Resolver encountered an
-	// error.  The ClientConn will notify the load balancer and begin calling
-	// ResolveNow on the Resolver with exponential backoff.
+	// error. The ClientConn then forwards this error to the load balancing
+	// policy.
 	ReportError(error)
 	// NewAddress is called by resolver to notify ClientConn a new list
 	// of resolved addresses.
@@ -240,11 +251,6 @@ type ClientConn interface {
 	//
 	// Deprecated: Use UpdateState instead.
 	NewAddress(addresses []Address)
-	// NewServiceConfig is called by resolver to notify ClientConn a new
-	// service config. The service config should be provided as a json string.
-	//
-	// Deprecated: Use UpdateState instead.
-	NewServiceConfig(serviceConfig string)
 	// ParseServiceConfig parses the provided service config and returns an
 	// object that provides the parsed config.
 	ParseServiceConfig(serviceConfigJSON string) *serviceconfig.ParseResult
@@ -286,6 +292,11 @@ func (t Target) Endpoint() string {
 	return strings.TrimPrefix(endpoint, "/")
 }
 
+// String returns the canonical string representation of Target.
+func (t Target) String() string {
+	return t.URL.Scheme + "://" + t.URL.Host + "/" + t.Endpoint()
+}
+
 // Builder creates a resolver that will be used to watch name resolution updates.
 type Builder interface {
 	// Build creates a new resolver for the given target.
@@ -313,4 +324,36 @@ type Resolver interface {
 	ResolveNow(ResolveNowOptions)
 	// Close closes the resolver.
 	Close()
+}
+
+// AuthorityOverrider is implemented by Builders that wish to override the
+// default authority for the ClientConn.
+// By default, the authority used is target.Endpoint().
+type AuthorityOverrider interface {
+	// OverrideAuthority returns the authority to use for a ClientConn with the
+	// given target. The implementation must generate it without blocking,
+	// typically in line, and must keep it unchanged.
+	//
+	// The returned string must be a valid ":authority" header value, i.e. be
+	// encoded according to
+	// [RFC3986](https://datatracker.ietf.org/doc/html/rfc3986#section-3.2) as
+	// necessary.
+	OverrideAuthority(Target) string
+}
+
+// ValidateEndpoints validates endpoints from a petiole policy's perspective.
+// Petiole policies should call this before calling into their children. See
+// [gRPC A61](https://github.com/grpc/proposal/blob/master/A61-IPv4-IPv6-dualstack-backends.md)
+// for details.
+func ValidateEndpoints(endpoints []Endpoint) error {
+	if len(endpoints) == 0 {
+		return errors.New("endpoints list is empty")
+	}
+
+	for _, endpoint := range endpoints {
+		for range endpoint.Addresses {
+			return nil
+		}
+	}
+	return errors.New("endpoints list contains no addresses")
 }

@@ -62,7 +62,7 @@ type Resolver struct {
 	// Fields actually belong to the resolver.
 	// Guards access to below fields.
 	mu sync.Mutex
-	CC resolver.ClientConn
+	cc resolver.ClientConn
 	// Storing the most recent state update makes this resolver resilient to
 	// restarts, which is possible with channel idleness.
 	lastSeenState *resolver.State
@@ -76,14 +76,16 @@ func (r *Resolver) InitialState(s resolver.State) {
 
 // Build returns itself for Resolver, because it's both a builder and a resolver.
 func (r *Resolver) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
-	r.BuildCallback(target, cc, opts)
 	r.mu.Lock()
-	r.CC = cc
+	defer r.mu.Unlock()
+	// Call BuildCallback after locking to avoid a race when UpdateState or CC
+	// is called before Build returns.
+	r.BuildCallback(target, cc, opts)
+	r.cc = cc
 	if r.lastSeenState != nil {
-		err := r.CC.UpdateState(*r.lastSeenState)
+		err := r.cc.UpdateState(*r.lastSeenState)
 		go r.UpdateStateCallback(err)
 	}
-	r.mu.Unlock()
 	return r, nil
 }
 
@@ -102,18 +104,27 @@ func (r *Resolver) Close() {
 	r.CloseCallback()
 }
 
-// UpdateState calls CC.UpdateState.
+// UpdateState calls UpdateState(s) on the channel.  If the resolver has not
+// been Built before, this instead sets the initial state of the resolver, like
+// InitialState.
 func (r *Resolver) UpdateState(s resolver.State) {
 	r.mu.Lock()
-	err := r.CC.UpdateState(s)
+	defer r.mu.Unlock()
 	r.lastSeenState = &s
-	r.mu.Unlock()
+	if r.cc == nil {
+		return
+	}
+	err := r.cc.UpdateState(s)
 	r.UpdateStateCallback(err)
 }
 
-// ReportError calls CC.ReportError.
-func (r *Resolver) ReportError(err error) {
+// CC returns r's ClientConn when r was last Built.  Panics if the resolver has
+// not been Built before.
+func (r *Resolver) CC() resolver.ClientConn {
 	r.mu.Lock()
-	r.CC.ReportError(err)
-	r.mu.Unlock()
+	defer r.mu.Unlock()
+	if r.cc == nil {
+		panic("Manual resolver instance has not yet been built.")
+	}
+	return r.cc
 }

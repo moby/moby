@@ -1,16 +1,5 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package tracetest // import "go.opentelemetry.io/otel/sdk/trace/tracetest"
 
@@ -58,14 +47,14 @@ func (sr *SpanRecorder) OnEnd(s sdktrace.ReadOnlySpan) {
 // Shutdown does nothing.
 //
 // This method is safe to be called concurrently.
-func (sr *SpanRecorder) Shutdown(context.Context) error {
+func (*SpanRecorder) Shutdown(context.Context) error {
 	return nil
 }
 
 // ForceFlush does nothing.
 //
 // This method is safe to be called concurrently.
-func (sr *SpanRecorder) ForceFlush(context.Context) error {
+func (*SpanRecorder) ForceFlush(context.Context) error {
 	return nil
 }
 
@@ -78,6 +67,19 @@ func (sr *SpanRecorder) Started() []sdktrace.ReadWriteSpan {
 	dst := make([]sdktrace.ReadWriteSpan, len(sr.started))
 	copy(dst, sr.started)
 	return dst
+}
+
+// Reset clears the recorded spans.
+//
+// This method is safe to be called concurrently.
+func (sr *SpanRecorder) Reset() {
+	sr.startedMu.Lock()
+	sr.endedMu.Lock()
+	defer sr.startedMu.Unlock()
+	defer sr.endedMu.Unlock()
+
+	sr.started = nil
+	sr.ended = nil
 }
 
 // Ended returns a copy of all ended spans that have been recorded.

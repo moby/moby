@@ -84,7 +84,7 @@ type decoder struct {
 }
 
 // newError returns an error object with position info.
-func (d decoder) newError(pos int, f string, x ...interface{}) error {
+func (d decoder) newError(pos int, f string, x ...any) error {
 	line, column := d.Position(pos)
 	head := fmt.Sprintf("(line %d:%d): ", line, column)
 	return errors.New(head+f, x...)
@@ -96,7 +96,7 @@ func (d decoder) unexpectedTokenError(tok text.Token) error {
 }
 
 // syntaxError returns a syntax error for given position.
-func (d decoder) syntaxError(pos int, f string, x ...interface{}) error {
+func (d decoder) syntaxError(pos int, f string, x ...any) error {
 	line, column := d.Position(pos)
 	head := fmt.Sprintf("syntax error (line %d:%d): ", line, column)
 	return errors.New(head+f, x...)
@@ -184,11 +184,6 @@ func (d decoder) unmarshalMessage(m protoreflect.Message, checkDelims bool) erro
 			}
 		} else if xtErr != nil && xtErr != protoregistry.NotFound {
 			return d.newError(tok.Pos(), "unable to resolve [%s]: %v", tok.RawString(), xtErr)
-		}
-		if flags.ProtoLegacy {
-			if fd != nil && fd.IsWeak() && fd.Message().IsPlaceholder() {
-				fd = nil // reset since the weak reference is not linked in
-			}
 		}
 
 		// Handle unknown fields.

@@ -1,16 +1,5 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package propagation // import "go.opentelemetry.io/otel/propagation"
 
@@ -20,6 +9,7 @@ import (
 )
 
 // TextMapCarrier is the storage medium used by a TextMapPropagator.
+// See ValuesGetter for how a TextMapCarrier can get multiple values for a key.
 type TextMapCarrier interface {
 	// DO NOT CHANGE: any modification will not be backwards compatible and
 	// must never be done outside of a new major release.
@@ -30,12 +20,24 @@ type TextMapCarrier interface {
 	// must never be done outside of a new major release.
 
 	// Set stores the key-value pair.
-	Set(key string, value string)
+	Set(key, value string)
 	// DO NOT CHANGE: any modification will not be backwards compatible and
 	// must never be done outside of a new major release.
 
 	// Keys lists the keys stored in this carrier.
 	Keys() []string
+	// DO NOT CHANGE: any modification will not be backwards compatible and
+	// must never be done outside of a new major release.
+}
+
+// ValuesGetter can return multiple values for a single key,
+// with contrast to TextMapCarrier.Get which returns a single value.
+type ValuesGetter interface {
+	// DO NOT CHANGE: any modification will not be backwards compatible and
+	// must never be done outside of a new major release.
+
+	// Values returns all values associated with the passed key.
+	Values(key string) []string
 	// DO NOT CHANGE: any modification will not be backwards compatible and
 	// must never be done outside of a new major release.
 }
@@ -66,16 +68,27 @@ func (c MapCarrier) Keys() []string {
 	return keys
 }
 
-// HeaderCarrier adapts http.Header to satisfy the TextMapCarrier interface.
+// HeaderCarrier adapts http.Header to satisfy the TextMapCarrier and ValuesGetter interfaces.
 type HeaderCarrier http.Header
 
-// Get returns the value associated with the passed key.
+// Compile time check that HeaderCarrier implements ValuesGetter.
+var _ TextMapCarrier = HeaderCarrier{}
+
+// Compile time check that HeaderCarrier implements TextMapCarrier.
+var _ ValuesGetter = HeaderCarrier{}
+
+// Get returns the first value associated with the passed key.
 func (hc HeaderCarrier) Get(key string) string {
 	return http.Header(hc).Get(key)
 }
 
+// Values returns all values associated with the passed key.
+func (hc HeaderCarrier) Values(key string) []string {
+	return http.Header(hc).Values(key)
+}
+
 // Set stores the key-value pair.
-func (hc HeaderCarrier) Set(key string, value string) {
+func (hc HeaderCarrier) Set(key, value string) {
 	http.Header(hc).Set(key, value)
 }
 
@@ -100,6 +113,8 @@ type TextMapPropagator interface {
 	// must never be done outside of a new major release.
 
 	// Extract reads cross-cutting concerns from the carrier into a Context.
+	// Implementations may check if the carrier implements ValuesGetter,
+	// to support extraction of multiple values per key.
 	Extract(ctx context.Context, carrier TextMapCarrier) context.Context
 	// DO NOT CHANGE: any modification will not be backwards compatible and
 	// must never be done outside of a new major release.

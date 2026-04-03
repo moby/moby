@@ -1,25 +1,12 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package trace // import "go.opentelemetry.io/otel/sdk/trace"
 
 import (
 	"context"
-	crand "crypto/rand"
 	"encoding/binary"
-	"math/rand"
-	"sync"
+	"math/rand/v2"
 
 	"go.opentelemetry.io/otel/trace"
 )
@@ -40,38 +27,43 @@ type IDGenerator interface {
 	// must never be done outside of a new major release.
 }
 
-type randomIDGenerator struct {
-	sync.Mutex
-	randSource *rand.Rand
-}
+type randomIDGenerator struct{}
 
 var _ IDGenerator = &randomIDGenerator{}
 
 // NewSpanID returns a non-zero span ID from a randomly-chosen sequence.
-func (gen *randomIDGenerator) NewSpanID(ctx context.Context, traceID trace.TraceID) trace.SpanID {
-	gen.Lock()
-	defer gen.Unlock()
+func (*randomIDGenerator) NewSpanID(context.Context, trace.TraceID) trace.SpanID {
 	sid := trace.SpanID{}
-	_, _ = gen.randSource.Read(sid[:])
+	for {
+		binary.NativeEndian.PutUint64(sid[:], rand.Uint64())
+		if sid.IsValid() {
+			break
+		}
+	}
 	return sid
 }
 
 // NewIDs returns a non-zero trace ID and a non-zero span ID from a
 // randomly-chosen sequence.
-func (gen *randomIDGenerator) NewIDs(ctx context.Context) (trace.TraceID, trace.SpanID) {
-	gen.Lock()
-	defer gen.Unlock()
+func (*randomIDGenerator) NewIDs(context.Context) (trace.TraceID, trace.SpanID) {
 	tid := trace.TraceID{}
-	_, _ = gen.randSource.Read(tid[:])
 	sid := trace.SpanID{}
-	_, _ = gen.randSource.Read(sid[:])
+	for {
+		binary.NativeEndian.PutUint64(tid[:8], rand.Uint64())
+		binary.NativeEndian.PutUint64(tid[8:], rand.Uint64())
+		if tid.IsValid() {
+			break
+		}
+	}
+	for {
+		binary.NativeEndian.PutUint64(sid[:], rand.Uint64())
+		if sid.IsValid() {
+			break
+		}
+	}
 	return tid, sid
 }
 
 func defaultIDGenerator() IDGenerator {
-	gen := &randomIDGenerator{}
-	var rngSeed int64
-	_ = binary.Read(crand.Reader, binary.LittleEndian, &rngSeed)
-	gen.randSource = rand.New(rand.NewSource(rngSeed))
-	return gen
+	return &randomIDGenerator{}
 }

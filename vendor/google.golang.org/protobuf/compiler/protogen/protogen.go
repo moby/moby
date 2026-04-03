@@ -19,7 +19,7 @@ import (
 	"go/printer"
 	"go/token"
 	"go/types"
-	"io/ioutil"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -28,15 +28,17 @@ import (
 	"strings"
 
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/internal/filedesc"
 	"google.golang.org/protobuf/internal/genid"
 	"google.golang.org/protobuf/internal/strs"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/dynamicpb"
 
 	"google.golang.org/protobuf/types/descriptorpb"
-	"google.golang.org/protobuf/types/dynamicpb"
+	"google.golang.org/protobuf/types/gofeaturespb"
 	"google.golang.org/protobuf/types/pluginpb"
 )
 
@@ -60,7 +62,7 @@ func run(opts Options, f func(*Plugin) error) error {
 	if len(os.Args) > 1 {
 		return fmt.Errorf("unknown argument %q (this program should be run by protoc, not directly)", os.Args[1])
 	}
-	in, err := ioutil.ReadAll(os.Stdin)
+	in, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		return err
 	}
@@ -108,6 +110,9 @@ type Plugin struct {
 	// google.protobuf.CodeGeneratorResponse.supported_features for details.
 	SupportedFeatures uint64
 
+	SupportedEditionsMinimum descriptorpb.Edition
+	SupportedEditionsMaximum descriptorpb.Edition
+
 	fileReg        *protoregistry.Files
 	enumsByName    map[protoreflect.FullName]*Enum
 	messagesByName map[protoreflect.FullName]*Message
@@ -140,7 +145,7 @@ type Options struct {
 	//   opts := &protogen.Options{
 	//     ParamFunc: flags.Set,
 	//   }
-	//   protogen.Run(opts, func(p *protogen.Plugin) error {
+	//   opts.Run(func(p *protogen.Plugin) error {
 	//     if *value { ... }
 	//   })
 	ParamFunc func(name, value string) error
@@ -149,6 +154,22 @@ type Options struct {
 	// imported by a generated file. It returns the import path to use
 	// for this package.
 	ImportRewriteFunc func(GoImportPath) GoImportPath
+
+	// StripForEditionsDiff true means that the plugin will not emit certain
+	// parts of the generated code in order to make it possible to compare a
+	// proto2/proto3 file with its equivalent (according to proto spec)
+	// editions file. Primarily, this is the encoded descriptor.
+	//
+	// This must be a registered flag that is initialized by ParamFunc. It will
+	// be used by Options.New after it has parsed the flags.
+	//
+	// This struct field is for internal use by Go Protobuf only. Do not use it,
+	// we might remove it at any time.
+	InternalStripForEditionsDiff *bool
+
+	// DefaultAPILevel overrides which API to generate by default (despite what
+	// the editions feature default specifies). One of OPEN, HYBRID or OPAQUE.
+	DefaultAPILevel gofeaturespb.GoFeatures_APILevel
 }
 
 // New returns a new Plugin.
@@ -162,8 +183,9 @@ func (opts Options) New(req *pluginpb.CodeGeneratorRequest) (*Plugin, error) {
 		opts:           opts,
 	}
 
-	packageNames := make(map[string]GoPackageName) // filename -> package name
-	importPaths := make(map[string]GoImportPath)   // filename -> import path
+	packageNames := make(map[string]GoPackageName)                // filename -> package name
+	importPaths := make(map[string]GoImportPath)                  // filename -> import path
+	apiLevel := make(map[string]gofeaturespb.GoFeatures_APILevel) // filename -> api level
 	for _, param := range strings.Split(req.GetParameter(), ",") {
 		var value string
 		if i := strings.Index(param, "="); i >= 0 {
@@ -192,6 +214,18 @@ func (opts Options) New(req *pluginpb.CodeGeneratorRequest) (*Plugin, error) {
 			default:
 				return nil, fmt.Errorf(`bad value for parameter %q: want "true" or "false"`, param)
 			}
+		case "default_api_level":
+			switch value {
+			case "API_OPEN":
+				opts.DefaultAPILevel = gofeaturespb.GoFeatures_API_OPEN
+			case "API_HYBRID":
+				opts.DefaultAPILevel = gofeaturespb.GoFeatures_API_HYBRID
+			case "API_OPAQUE":
+				opts.DefaultAPILevel = gofeaturespb.GoFeatures_API_OPAQUE
+			default:
+				return nil, fmt.Errorf(`unknown API level %q for parameter %q: want "API_OPEN", "API_HYBRID" or "API_OPAQUE"`, value, param)
+			}
+			gen.opts = opts
 		default:
 			if param[0] == 'M' {
 				impPath, pkgName := splitImportPathAndPackageName(value)
@@ -201,6 +235,21 @@ func (opts Options) New(req *pluginpb.CodeGeneratorRequest) (*Plugin, error) {
 				if impPath != "" {
 					importPaths[param[1:]] = impPath
 				}
+				continue
+			}
+			if strings.HasPrefix(param, "apilevelM") {
+				var level gofeaturespb.GoFeatures_APILevel
+				switch value {
+				case "API_OPEN":
+					level = gofeaturespb.GoFeatures_API_OPEN
+				case "API_HYBRID":
+					level = gofeaturespb.GoFeatures_API_HYBRID
+				case "API_OPAQUE":
+					level = gofeaturespb.GoFeatures_API_OPAQUE
+				default:
+					return nil, fmt.Errorf(`unknown API level %q for parameter %q: want "API_OPEN", "API_HYBRID" or "API_OPAQUE"`, value, param)
+				}
+				apiLevel[strings.TrimPrefix(param, "apilevelM")] = level
 				continue
 			}
 			if opts.ParamFunc != nil {
@@ -233,9 +282,9 @@ func (opts Options) New(req *pluginpb.CodeGeneratorRequest) (*Plugin, error) {
 	// Alternatively, build systems which want to exert full control over
 	// import paths may specify M<filename>=<import_path> flags.
 	for _, fdesc := range gen.Request.ProtoFile {
+		filename := fdesc.GetName()
 		// The "M" command-line flags take precedence over
 		// the "go_package" option in the .proto source file.
-		filename := fdesc.GetName()
 		impPath, pkgName := splitImportPathAndPackageName(fdesc.GetOptions().GetGoPackage())
 		if importPaths[filename] == "" && impPath != "" {
 			importPaths[filename] = impPath
@@ -307,7 +356,7 @@ func (opts Options) New(req *pluginpb.CodeGeneratorRequest) (*Plugin, error) {
 		if gen.FilesByPath[filename] != nil {
 			return nil, fmt.Errorf("duplicate file name: %q", filename)
 		}
-		f, err := newFile(gen, fdesc, packageNames[filename], importPaths[filename])
+		f, err := newFile(gen, fdesc, packageNames[filename], importPaths[filename], apiLevel[filename])
 		if err != nil {
 			return nil, err
 		}
@@ -341,6 +390,15 @@ func (opts Options) New(req *pluginpb.CodeGeneratorRequest) (*Plugin, error) {
 	return gen, nil
 }
 
+// InternalStripForEditionsDiff returns whether or not to strip non-functional
+// codegen for editions diff testing.
+//
+// This function is for internal use by Go Protobuf only. Do not use it, we
+// might remove it at any time.
+func (gen *Plugin) InternalStripForEditionsDiff() bool {
+	return gen.opts.InternalStripForEditionsDiff != nil && *gen.opts.InternalStripForEditionsDiff
+}
+
 // Error records an error in code generation. The generator will report the
 // error back to protoc and will not produce output.
 func (gen *Plugin) Error(err error) {
@@ -352,6 +410,20 @@ func (gen *Plugin) Error(err error) {
 // Response returns the generator output.
 func (gen *Plugin) Response() *pluginpb.CodeGeneratorResponse {
 	resp := &pluginpb.CodeGeneratorResponse{}
+	// Always report the support for editions. Otherwise protoc might obfuscate
+	// the error by saying editions are not supported by the plugin.
+	// It is arguable if protoc should handle this but it is possible that the
+	// error only exists because the plugin does not support editions and thus
+	// it is not unreasonable for protoc to suspect it is the lack of editions
+	// support that led to this error.
+	if gen.SupportedFeatures > 0 {
+		resp.SupportedFeatures = proto.Uint64(gen.SupportedFeatures)
+	}
+	if gen.SupportedEditionsMinimum != descriptorpb.Edition_EDITION_UNKNOWN && gen.SupportedEditionsMaximum != descriptorpb.Edition_EDITION_UNKNOWN {
+		resp.MinimumEdition = proto.Int32(int32(gen.SupportedEditionsMinimum))
+		resp.MaximumEdition = proto.Int32(int32(gen.SupportedEditionsMaximum))
+	}
+
 	if gen.err != nil {
 		resp.Error = proto.String(gen.err.Error())
 		return resp
@@ -393,9 +465,6 @@ func (gen *Plugin) Response() *pluginpb.CodeGeneratorResponse {
 			})
 		}
 	}
-	if gen.SupportedFeatures > 0 {
-		resp.SupportedFeatures = proto.Uint64(gen.SupportedFeatures)
-	}
 	return resp
 }
 
@@ -423,9 +492,12 @@ type File struct {
 	GeneratedFilenamePrefix string
 
 	location Location
+
+	// APILevel specifies which API to generate. One of OPEN, HYBRID or OPAQUE.
+	APILevel gofeaturespb.GoFeatures_APILevel
 }
 
-func newFile(gen *Plugin, p *descriptorpb.FileDescriptorProto, packageName GoPackageName, importPath GoImportPath) (*File, error) {
+func newFile(gen *Plugin, p *descriptorpb.FileDescriptorProto, packageName GoPackageName, importPath GoImportPath, apiLevel gofeaturespb.GoFeatures_APILevel) (*File, error) {
 	desc, err := protodesc.NewFile(p, gen.fileReg)
 	if err != nil {
 		return nil, fmt.Errorf("invalid FileDescriptorProto %q: %v", p.GetName(), err)
@@ -433,12 +505,18 @@ func newFile(gen *Plugin, p *descriptorpb.FileDescriptorProto, packageName GoPac
 	if err := gen.fileReg.RegisterFile(desc); err != nil {
 		return nil, fmt.Errorf("cannot register descriptor %q: %v", p.GetName(), err)
 	}
+	defaultAPILevel := gen.defaultAPILevel()
+	if apiLevel != gofeaturespb.GoFeatures_API_LEVEL_UNSPECIFIED {
+		defaultAPILevel = apiLevel
+	}
 	f := &File{
 		Desc:          desc,
 		Proto:         p,
 		GoPackageName: packageName,
 		GoImportPath:  importPath,
 		location:      Location{SourceFile: desc.Path()},
+
+		APILevel: fileAPILevel(desc, defaultAPILevel),
 	}
 
 	// Determine the prefix for generated Go files.
@@ -524,7 +602,7 @@ func newEnum(gen *Plugin, f *File, parent *Message, desc protoreflect.EnumDescri
 		Desc:     desc,
 		GoIdent:  newGoIdent(f, desc),
 		Location: loc,
-		Comments: makeCommentSet(f.Desc.SourceLocations().ByDescriptor(desc)),
+		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
 	}
 	gen.enumsByName[desc.FullName()] = enum
 	for i, vds := 0, enum.Desc.Values(); i < vds.Len(); i++ {
@@ -538,6 +616,12 @@ type EnumValue struct {
 	Desc protoreflect.EnumValueDescriptor
 
 	GoIdent GoIdent // name of the generated Go declaration
+
+	// PrefixedAlias is usually empty, except when the strip_enum_prefix feature
+	// for this enum was set to GENERATE_BOTH, in which case PrefixedAlias holds
+	// the old name which should be generated as an alias for the new name for
+	// compatibility.
+	PrefixedAlias GoIdent
 
 	Parent *Enum // enum in which this value is declared
 
@@ -555,14 +639,46 @@ func newEnumValue(gen *Plugin, f *File, message *Message, enum *Enum, desc proto
 		parentIdent = message.GoIdent
 	}
 	name := parentIdent.GoName + "_" + string(desc.Name())
+	var prefixedName string
 	loc := enum.Location.appendPath(genid.EnumDescriptorProto_Value_field_number, desc.Index())
-	return &EnumValue{
+	if ed, ok := enum.Desc.(*filedesc.Enum); ok {
+		prefix := strings.Replace(strings.ToLower(string(enum.Desc.Name())), "_", "", -1)
+
+		// Start with the StripEnumPrefix of the enum descriptor,
+		// then override it with the StripEnumPrefix of the enum value descriptor,
+		// if any.
+		sep := ed.L1.EditionFeatures.StripEnumPrefix
+		evof := desc.Options().(*descriptorpb.EnumValueOptions).GetFeatures()
+		if proto.HasExtension(evof, gofeaturespb.E_Go) {
+			gf := proto.GetExtension(evof, gofeaturespb.E_Go).(*gofeaturespb.GoFeatures)
+			if gf.StripEnumPrefix != nil {
+				sep = int(*gf.StripEnumPrefix)
+			}
+		}
+
+		switch sep {
+		case genid.GoFeatures_STRIP_ENUM_PREFIX_KEEP_enum_value:
+			// keep long name
+
+		case genid.GoFeatures_STRIP_ENUM_PREFIX_STRIP_enum_value:
+			name = parentIdent.GoName + "_" + strs.TrimEnumPrefix(string(desc.Name()), prefix)
+
+		case genid.GoFeatures_STRIP_ENUM_PREFIX_GENERATE_BOTH_enum_value:
+			prefixedName = name
+			name = parentIdent.GoName + "_" + strs.TrimEnumPrefix(string(desc.Name()), prefix)
+		}
+	}
+	ev := &EnumValue{
 		Desc:     desc,
 		GoIdent:  f.GoImportPath.Ident(name),
 		Parent:   enum,
 		Location: loc,
-		Comments: makeCommentSet(f.Desc.SourceLocations().ByDescriptor(desc)),
+		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
 	}
+	if prefixedName != "" {
+		ev.PrefixedAlias = f.GoImportPath.Ident(prefixedName)
+	}
+	return ev
 }
 
 // A Message describes a message.
@@ -580,6 +696,9 @@ type Message struct {
 
 	Location Location   // location of this message
 	Comments CommentSet // comments associated with this message
+
+	// APILevel specifies which API to generate. One of OPEN, HYBRID or OPAQUE.
+	APILevel gofeaturespb.GoFeatures_APILevel
 }
 
 func newMessage(gen *Plugin, f *File, parent *Message, desc protoreflect.MessageDescriptor) *Message {
@@ -589,11 +708,20 @@ func newMessage(gen *Plugin, f *File, parent *Message, desc protoreflect.Message
 	} else {
 		loc = f.location.appendPath(genid.FileDescriptorProto_MessageType_field_number, desc.Index())
 	}
+
+	def := f.APILevel
+	if parent != nil {
+		// editions feature semantics: applies to nested messages.
+		def = parent.APILevel
+	}
+
 	message := &Message{
 		Desc:     desc,
 		GoIdent:  newGoIdent(f, desc),
 		Location: loc,
-		Comments: makeCommentSet(f.Desc.SourceLocations().ByDescriptor(desc)),
+		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+
+		APILevel: messageAPILevel(desc, def),
 	}
 	gen.messagesByName[desc.FullName()] = message
 	for i, eds := 0, desc.Enums(); i < eds.Len(); i++ {
@@ -691,6 +819,8 @@ func newMessage(gen *Plugin, f *File, parent *Message, desc protoreflect.Message
 		}
 	}
 
+	opaqueNewMessageHook(message)
+
 	return message
 }
 
@@ -737,6 +867,18 @@ type Field struct {
 
 	Location Location   // location of this field
 	Comments CommentSet // comments associated with this field
+
+	// camelCase is the same as GoName, but without the name
+	// mangling.  This is used in builders, where only the single
+	// name "Build" needs to be mangled.
+	camelCase string
+
+	// hasConflictHybrid tells us if we are to insert an '_' into
+	// the method names, (e.g. SetFoo becomes Set_Foo).  This will
+	// be set even if we generate opaque protos, as we will want
+	// to potentially generate these method names anyway
+	// (opaque-v0).
+	hasConflictHybrid bool
 }
 
 func newField(gen *Plugin, f *File, message *Message, desc protoreflect.FieldDescriptor) *Field {
@@ -763,8 +905,11 @@ func newField(gen *Plugin, f *File, message *Message, desc protoreflect.FieldDes
 		},
 		Parent:   message,
 		Location: loc,
-		Comments: makeCommentSet(f.Desc.SourceLocations().ByDescriptor(desc)),
+		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
 	}
+
+	opaqueNewFieldHook(desc, field)
+
 	return field
 }
 
@@ -815,13 +960,24 @@ type Oneof struct {
 
 	Location Location   // location of this oneof
 	Comments CommentSet // comments associated with this oneof
+
+	// camelCase is the same as GoName, but without the name mangling.
+	// This is used in builders, which never have their names mangled
+	camelCase string
+
+	// hasConflictHybrid tells us if we are to insert an '_' into
+	// the method names, (e.g. SetFoo becomes Set_Foo).  This will
+	// be set even if we generate opaque protos, as we will want
+	// to potentially generate these method names anyway
+	// (opaque-v0).
+	hasConflictHybrid bool
 }
 
 func newOneof(gen *Plugin, f *File, message *Message, desc protoreflect.OneofDescriptor) *Oneof {
 	loc := message.Location.appendPath(genid.DescriptorProto_OneofDecl_field_number, desc.Index())
 	camelCased := strs.GoCamelCase(string(desc.Name()))
 	parentPrefix := message.GoIdent.GoName + "_"
-	return &Oneof{
+	oneof := &Oneof{
 		Desc:   desc,
 		Parent: message,
 		GoName: camelCased,
@@ -830,8 +986,12 @@ func newOneof(gen *Plugin, f *File, message *Message, desc protoreflect.OneofDes
 			GoName:       parentPrefix + camelCased,
 		},
 		Location: loc,
-		Comments: makeCommentSet(f.Desc.SourceLocations().ByDescriptor(desc)),
+		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
 	}
+
+	opaqueNewOneofHook(desc, oneof)
+
+	return oneof
 }
 
 // Extension is an alias of [Field] for documentation.
@@ -855,7 +1015,7 @@ func newService(gen *Plugin, f *File, desc protoreflect.ServiceDescriptor) *Serv
 		Desc:     desc,
 		GoName:   strs.GoCamelCase(string(desc.Name())),
 		Location: loc,
-		Comments: makeCommentSet(f.Desc.SourceLocations().ByDescriptor(desc)),
+		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
 	}
 	for i, mds := 0, desc.Methods(); i < mds.Len(); i++ {
 		service.Methods = append(service.Methods, newMethod(gen, f, service, mds.Get(i)))
@@ -885,7 +1045,7 @@ func newMethod(gen *Plugin, f *File, service *Service, desc protoreflect.MethodD
 		GoName:   strs.GoCamelCase(string(desc.Name())),
 		Parent:   service,
 		Location: loc,
-		Comments: makeCommentSet(f.Desc.SourceLocations().ByDescriptor(desc)),
+		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
 	}
 	return method
 }
@@ -912,28 +1072,30 @@ func (method *Method) resolveDependencies(gen *Plugin) error {
 
 // A GeneratedFile is a generated file.
 type GeneratedFile struct {
-	gen              *Plugin
-	skip             bool
-	filename         string
-	goImportPath     GoImportPath
-	buf              bytes.Buffer
-	packageNames     map[GoImportPath]GoPackageName
-	usedPackageNames map[GoPackageName]bool
-	manualImports    map[GoImportPath]bool
-	annotations      map[string][]Annotation
+	gen                  *Plugin
+	skip                 bool
+	filename             string
+	goImportPath         GoImportPath
+	buf                  bytes.Buffer
+	packageNames         map[GoImportPath]GoPackageName
+	usedPackageNames     map[GoPackageName]bool
+	manualImports        map[GoImportPath]bool
+	annotations          map[string][]Annotation
+	stripForEditionsDiff bool
 }
 
 // NewGeneratedFile creates a new generated file with the given filename
 // and import path.
 func (gen *Plugin) NewGeneratedFile(filename string, goImportPath GoImportPath) *GeneratedFile {
 	g := &GeneratedFile{
-		gen:              gen,
-		filename:         filename,
-		goImportPath:     goImportPath,
-		packageNames:     make(map[GoImportPath]GoPackageName),
-		usedPackageNames: make(map[GoPackageName]bool),
-		manualImports:    make(map[GoImportPath]bool),
-		annotations:      make(map[string][]Annotation),
+		gen:                  gen,
+		filename:             filename,
+		goImportPath:         goImportPath,
+		packageNames:         make(map[GoImportPath]GoPackageName),
+		usedPackageNames:     make(map[GoPackageName]bool),
+		manualImports:        make(map[GoImportPath]bool),
+		annotations:          make(map[string][]Annotation),
+		stripForEditionsDiff: gen.InternalStripForEditionsDiff(),
 	}
 
 	// All predeclared identifiers in Go are already used.
@@ -948,7 +1110,7 @@ func (gen *Plugin) NewGeneratedFile(filename string, goImportPath GoImportPath) 
 // P prints a line to the generated output. It converts each parameter to a
 // string following the same rules as [fmt.Print]. It never inserts spaces
 // between parameters.
-func (g *GeneratedFile) P(v ...interface{}) {
+func (g *GeneratedFile) P(v ...any) {
 	for _, x := range v {
 		switch x := x.(type) {
 		case GoIdent:
@@ -1004,6 +1166,17 @@ func (g *GeneratedFile) Skip() {
 // re-including the generated file in the plugin output.
 func (g *GeneratedFile) Unskip() {
 	g.skip = false
+}
+
+// InternalStripForEditionsDiff returns true if the plugin should not emit certain
+// parts of the generated code in order to make it possible to compare a
+// proto2/proto3 file with its equivalent (according to proto spec) editions
+// file. Primarily, this is the encoded descriptor.
+//
+// This function is for internal use by Go Protobuf only. Do not use it, we
+// might remove it at any time.
+func (g *GeneratedFile) InternalStripForEditionsDiff() bool {
+	return g.stripForEditionsDiff
 }
 
 // Annotate associates a symbol in a generated Go file with a location in a
@@ -1284,7 +1457,10 @@ type CommentSet struct {
 	Trailing        Comments
 }
 
-func makeCommentSet(loc protoreflect.SourceLocation) CommentSet {
+func makeCommentSet(gen *Plugin, loc protoreflect.SourceLocation) CommentSet {
+	if gen.InternalStripForEditionsDiff() {
+		return CommentSet{}
+	}
 	var leadingDetached []Comments
 	for _, s := range loc.LeadingDetachedComments {
 		leadingDetached = append(leadingDetached, Comments(s))

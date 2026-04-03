@@ -1,16 +1,5 @@
 // Copyright The OpenTelemetry Authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-License-Identifier: Apache-2.0
 
 package trace // import "go.opentelemetry.io/otel/sdk/trace"
 
@@ -58,12 +47,12 @@ const (
 	// Drop will not record the span and all attributes/events will be dropped.
 	Drop SamplingDecision = iota
 
-	// Record indicates the span's `IsRecording() == true`, but `Sampled` flag
-	// *must not* be set.
+	// RecordOnly indicates the span's IsRecording method returns true, but trace.FlagsSampled flag
+	// must not be set.
 	RecordOnly
 
-	// RecordAndSample has span's `IsRecording() == true` and `Sampled` flag
-	// *must* be set.
+	// RecordAndSample indicates the span's IsRecording method returns true and trace.FlagsSampled flag
+	// must be set.
 	RecordAndSample
 )
 
@@ -121,14 +110,14 @@ func TraceIDRatioBased(fraction float64) Sampler {
 
 type alwaysOnSampler struct{}
 
-func (as alwaysOnSampler) ShouldSample(p SamplingParameters) SamplingResult {
+func (alwaysOnSampler) ShouldSample(p SamplingParameters) SamplingResult {
 	return SamplingResult{
 		Decision:   RecordAndSample,
 		Tracestate: trace.SpanContextFromContext(p.ParentContext).TraceState(),
 	}
 }
 
-func (as alwaysOnSampler) Description() string {
+func (alwaysOnSampler) Description() string {
 	return "AlwaysOnSampler"
 }
 
@@ -142,14 +131,14 @@ func AlwaysSample() Sampler {
 
 type alwaysOffSampler struct{}
 
-func (as alwaysOffSampler) ShouldSample(p SamplingParameters) SamplingResult {
+func (alwaysOffSampler) ShouldSample(p SamplingParameters) SamplingResult {
 	return SamplingResult{
 		Decision:   Drop,
 		Tracestate: trace.SpanContextFromContext(p.ParentContext).TraceState(),
 	}
 }
 
-func (as alwaysOffSampler) Description() string {
+func (alwaysOffSampler) Description() string {
 	return "AlwaysOffSampler"
 }
 

@@ -44,8 +44,8 @@ import (
 	"google.golang.org/grpc/internal/resolver/dns"
 	"google.golang.org/grpc/resolver"
 	"google.golang.org/grpc/resolver/manual"
+	"google.golang.org/protobuf/types/known/durationpb"
 
-	durationpb "github.com/golang/protobuf/ptypes/duration"
 	lbpb "google.golang.org/grpc/balancer/grpclb/grpc_lb_v1"
 )
 
@@ -197,7 +197,7 @@ type lbBalancer struct {
 
 	// manualResolver is used in the remote LB ClientConn inside grpclb. When
 	// resolved address updates are received by grpclb, filtered updates will be
-	// send to remote LB ClientConn through this resolver.
+	// sent to remote LB ClientConn through this resolver.
 	manualResolver *manual.Resolver
 	// The ClientConn to talk to the remote balancer.
 	ccRemoteLB *remoteBalancerCCWrapper
@@ -219,7 +219,7 @@ type lbBalancer struct {
 	// All backends addresses, with metadata set to nil. This list contains all
 	// backend addresses in the same order and with the same duplicates as in
 	// serverlist. When generating picker, a SubConn slice with the same order
-	// but with only READY SCs will be gerenated.
+	// but with only READY SCs will be generated.
 	backendAddrsWithoutMetadata []resolver.Address
 	// Roundrobin functionalities.
 	state    connectivity.State
