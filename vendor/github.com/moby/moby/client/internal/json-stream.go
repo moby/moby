@@ -33,12 +33,29 @@ func NewRSFilterReader(r io.Reader) io.Reader {
 	return &rsFilterReader{reader: r}
 }
 
-func (r *rsFilterReader) Read(p []byte) (n int, err error) {
+func (r *rsFilterReader) Read(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
 
-	n, err = r.reader.Read(p)
-	filtered := slices.DeleteFunc(p[:n], func(b byte) bool { return b == rs })
-	return len(filtered), err
+	for {
+		n, err := r.reader.Read(p)
+		if n == 0 {
+			return 0, err
+		}
+
+		filtered := slices.DeleteFunc(p[:n], func(b byte) bool { return b == rs })
+		n = len(filtered)
+		if err != nil {
+			if err == io.EOF && n > 0 {
+				return n, nil
+			}
+			return n, err
+		}
+		if n == 0 {
+			// Avoid returning (0, nil) after consuming input; keep reading until data or an error (e.g., EOF).
+			continue
+		}
+		return n, nil
+	}
 }
