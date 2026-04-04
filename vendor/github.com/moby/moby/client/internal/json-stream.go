@@ -12,8 +12,9 @@ const rs = 0x1E
 
 type DecoderFn func(v any) error
 
-// NewJSONStreamDecoder builds adequate DecoderFn to read json records formatted with specified content-type
-func NewJSONStreamDecoder(r io.Reader, contentType string) DecoderFn {
+// NewJSONStreamDecoder builds a DecoderFn to read a stream of JSON records
+// formatted with the specified content-type.
+func NewJSONStreamDecoder(r io.Reader, contentType types.MediaType) DecoderFn {
 	switch contentType {
 	case types.MediaTypeJSONSequence:
 		return json.NewDecoder(NewRSFilterReader(r)).Decode

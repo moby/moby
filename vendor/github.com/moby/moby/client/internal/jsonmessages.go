@@ -46,8 +46,9 @@ func (r Stream) Close() error {
 
 var _ io.ReadCloser = Stream{}
 
-// JSONMessages decodes the response stream as a sequence of JSONMessages.
-// if stream ends or context is cancelled, the underlying [io.Reader] is closed.
+// JSONMessages decodes the response stream as a sequence of [jsonstream.Message].
+// The underlying [io.Reader] is closed when the stream ends or if the context
+// is cancelled.
 func (r Stream) JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, error] {
 	stop := context.AfterFunc(ctx, func() {
 		_ = r.Close()
@@ -82,7 +83,11 @@ func (r Stream) JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, 
 	}
 }
 
-// Wait waits for operation to complete and detects errors reported as JSONMessage
+// Wait consumes the stream until completion.
+//
+// It returns nil if the operation completes successfully. Errors are
+// returned if the context is canceled, a decoding/transport failure
+// occurs, or a JSON message reports an error ([jsonstream.Message.Error]).
 func (r Stream) Wait(ctx context.Context) error {
 	for jm, err := range r.JSONMessages(ctx) {
 		if err != nil {
