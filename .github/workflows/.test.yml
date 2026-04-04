@@ -70,7 +70,7 @@ jobs:
         run: |
           docker stop otelcol
           mkdir -p bundles /tmp/reports
-          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          find bundles -path '*/root/*' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
           tar -xzf /tmp/reports.tar.gz -C /tmp/reports
           sudo chown -R $(id -u):$(id -g) /tmp/reports
           tree -nh /tmp/reports
@@ -229,9 +229,9 @@ jobs:
           
           docker stop otelcol
           mkdir -p bundles $reportsPath
-          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          find bundles -path '*/root/*' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
           tar -xzf /tmp/reports.tar.gz -C $reportsPath
-          mv /tmp/reports/otel-trace*.jsonl $reportsPath/
+          sudo mv /tmp/reports/otel-trace*.jsonl $reportsPath/ 2>/dev/null || true
           sudo chown -R $(id -u):$(id -g) $reportsPath
           tree -nh $reportsPath
       -
@@ -253,7 +253,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: test-reports-integration-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
-          path: /tmp/reports/*
+          path: /tmp/reports/${{ env.TESTREPORTS_NAME }}/*
           retention-days: 1
 
   integration-report:
@@ -445,9 +445,9 @@ jobs:
           docker stop otelcol
           mkdir -p bundles $reportsPath
           echo "${{ matrix.test }}" | tr -s '|' '\n' | tee -a "$reportsPath/tests.txt"
-          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          find bundles -path '*/root/*' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
           tar -xzf /tmp/reports.tar.gz -C $reportsPath
-          mv /tmp/reports/otel-trace*.jsonl $reportsPath/
+          sudo mv /tmp/reports/otel-trace*.jsonl $reportsPath/ 2>/dev/null || true
           sudo chown -R $(id -u):$(id -g) $reportsPath
           tree -nh $reportsPath
       -
@@ -469,7 +469,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-${{ env.TESTREPORTS_NAME }}
-          path: /tmp/reports/*
+          path: /tmp/reports/${{ env.TESTREPORTS_NAME }}/*
           retention-days: 1
 
   integration-cli-report:
