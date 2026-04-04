@@ -248,7 +248,7 @@ WORKDIR /usr/src/runc
 # This version should usually match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged.
-ARG RUNC_VERSION=v1.4.3
+ARG RUNC_VERSION=v1.5.1
 ADD https://github.com/opencontainers/runc.git?ref=${RUNC_VERSION}&keep-git-dir=1 .
 
 FROM base AS runc-build
@@ -275,7 +275,7 @@ RUN --mount=from=runc-src,src=/usr/src/runc,rw \
   fi
 
   set -x
-  CGO_ENABLED=1 make "$target"
+  CGO_ENABLED=1 make RUNC_BUILDTAGS="-libpathrs" "$target"
   xx-verify $verify_flags runc
   mkdir /build
   mv runc /build/
