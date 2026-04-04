@@ -168,7 +168,7 @@ jobs:
           echo "TESTREPORTS_NAME=$reportsName" >> $GITHUB_ENV
 
           mkdir -p bundles $reportsPath
-          find bundles \( -path '*/root' -o -path '*/root/*' \) -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          find bundles \( -path '*/root' -o -path '*/root/*' \) -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print0 | sudo tar --null --files-from=- -czf /tmp/reports.tar.gz
           tar -xzf /tmp/reports.tar.gz -C $reportsPath
           sudo chown -R $(id -u):$(id -g) $reportsPath
           tree -nh $reportsPath
