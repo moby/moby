@@ -61,15 +61,21 @@ func (r Stream) JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, 
 		dec := json.NewDecoder(r)
 		for {
 			var jm jsonstream.Message
-			err := dec.Decode(&jm)
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			if ctx.Err() != nil {
-				yield(jm, ctx.Err())
+			if err := dec.Decode(&jm); err != nil {
+				if errors.Is(err, io.EOF) {
+					return
+				}
+				if err := ctx.Err(); err != nil {
+					// Do not return decoding errors if the context was
+					// cancelled, because the decoding errors may be due
+					// to the context being cancelled.
+					yield(jsonstream.Message{}, err)
+					return
+				}
+				yield(jsonstream.Message{}, err)
 				return
 			}
-			if !yield(jm, err) {
+			if !yield(jm, nil) {
 				return
 			}
 		}
