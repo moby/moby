@@ -52,12 +52,13 @@ func (r Stream) JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, 
 	stop := context.AfterFunc(ctx, func() {
 		_ = r.Close()
 	})
-	dec := json.NewDecoder(r)
 	return func(yield func(jsonstream.Message, error) bool) {
 		defer func() {
 			stop() // unregister AfterFunc
-			r.Close()
+			_ = r.Close()
 		}()
+
+		dec := json.NewDecoder(r)
 		for {
 			var jm jsonstream.Message
 			err := dec.Decode(&jm)
