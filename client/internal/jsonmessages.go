@@ -8,6 +8,8 @@ import (
 	"iter"
 	"sync"
 
+	"github.com/containerd/errdefs/pkg/errhttp"
+
 	"github.com/moby/moby/api/types/jsonstream"
 )
 
@@ -82,8 +84,40 @@ func (r Stream) Wait(ctx context.Context) error {
 		}
 		if jm.Error != nil {
 			// push/pull failures.
-			return jm.Error
+			return httpErrorFromStatusCode(jm.Error, jm.Error.Code)
 		}
 	}
 	return nil
+}
+
+type httpError struct {
+	err    error
+	errdef error
+}
+
+func (e *httpError) Error() string {
+	return e.err.Error()
+}
+
+func (e *httpError) Unwrap() error {
+	return e.err
+}
+
+func (e *httpError) Is(target error) bool {
+	return errors.Is(e.errdef, target)
+}
+
+// httpErrorFromStatusCode creates an errdef error, based on the provided HTTP status-code
+//
+// TODO(thaJeztah): unify with the implementation in client and move to an internal package
+// see https://github.com/moby/moby/blob/client/v0.4.0/client/errors.go#L76-L114
+func httpErrorFromStatusCode(err error, statusCode int) error {
+	if err == nil {
+		return nil
+	}
+
+	return &httpError{
+		err:    err,
+		errdef: errhttp.ToNative(statusCode),
+	}
 }

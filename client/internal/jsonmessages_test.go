@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 
@@ -17,6 +18,7 @@ func TestStreamWait(t *testing.T) {
 		doc      string
 		input    string
 		expError string
+		expType  func(error) bool
 	}{
 		{
 			doc:   "success",
@@ -26,6 +28,13 @@ func TestStreamWait(t *testing.T) {
 			doc:      "internal server error",
 			input:    `{"errorDetail": {"code": 500, "message": "something went wrong"}}`,
 			expError: "something went wrong",
+			expType:  cerrdefs.IsInternal,
+		},
+		{
+			doc:      "access error",
+			input:    `{"errorDetail": {"code": 403, "message": "access denied"}}`,
+			expError: "access denied",
+			expType:  cerrdefs.IsPermissionDenied,
 		},
 	}
 
@@ -40,6 +49,7 @@ func TestStreamWait(t *testing.T) {
 				return
 			}
 			assert.Check(t, is.ErrorContains(err, tc.expError))
+			assert.Check(t, is.ErrorType(err, tc.expType))
 		})
 	}
 }
