@@ -75,9 +75,14 @@ func (r Stream) JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, 
 
 // Wait waits for operation to complete and detects errors reported as JSONMessage
 func (r Stream) Wait(ctx context.Context) error {
-	for _, err := range r.JSONMessages(ctx) {
+	for jm, err := range r.JSONMessages(ctx) {
 		if err != nil {
+			// decode, transport and context cancellation errors.
 			return err
+		}
+		if jm.Error != nil {
+			// push/pull failures.
+			return jm.Error
 		}
 	}
 	return nil
