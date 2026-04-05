@@ -1067,3 +1067,46 @@ end point now returns the new boolean fields `CpuCfsPeriod`, `CpuCfsQuota`, and
 * `CgroupParent` can be passed in the host config to setup container cgroups under a specific cgroup.
 * `POST /build` closing the HTTP request cancels the build
 * `POST /containers/(id)/exec` includes `Warnings` field to response.
+
+### v1.17 API changes
+
+* The build supports `LABEL` command. Use this to add metadata to an image. For
+  example you could add data describing the content of an image. `LABEL
+"com.example.vendor"="ACME Incorporated"`
+* `POST /containers/(id)/attach` and `POST /exec/(id)/start`
+* The Docker client now hints potential proxies about connection hijacking using HTTP Upgrade headers.
+* `POST /containers/create` sets labels on container create describing the container.
+* `GET /containers/json` returns the labels associated with the containers (`Labels`).
+* `GET /containers/(id)/json` returns the list current execs associated with the
+  container (`ExecIDs`). This endpoint now returns the container labels
+  (`Config.Labels`).
+* `POST /containers/(id)/rename` renames a container `id` to a new name.*
+* `POST /containers/create` and `POST /containers/(id)/start` callers can pass
+  `ReadonlyRootfs` in the host config to mount the container's root filesystem as
+  read only.
+* `GET /containers/(id)/stats` returns a live stream of a container's resource usage statistics.
+* `GET /images/json` returns the labels associated with each image (`Labels`).
+
+
+### v1.16 API changes
+
+* `GET /info` returns the number of CPUs available on the machine (`NCPU`),
+  total memory available (`MemTotal`), a user-friendly name describing the running Docker daemon (`Name`), a unique ID identifying the daemon (`ID`), and
+  a list of daemon labels (`Labels`).
+* `POST /containers/create` callers can set the new container's MAC address explicitly.
+* Volumes are now initialized when the container is created.
+* `POST /containers/(id)/copy` copies data which is contained in a volume.
+
+### v1.15 API changes
+
+`POST /containers/create` you can set a container's `HostConfig` when creating a
+container. Previously this was only available when starting a container.
+
+### v1.14 API changes
+
+* `DELETE /containers/(id)` when using `force`, the container will be immediately killed with SIGKILL.
+* `POST /containers/(id)/start` the `HostConfig` option accepts the field `CapAdd`, which specifies a list of capabilities
+  to add, and the field `CapDrop`, which specifies a list of capabilities to drop.
+* `POST /images/create` th `fromImage` and `repo` parameters support the
+  `repo:tag` format. Consequently,  the `tag` parameter is now obsolete. Using the
+  new format and the `tag` parameter at the same time will return an error.
