@@ -64,6 +64,9 @@ func TestNew(t *testing.T) {
 	if expected := cgroupnsSupported(); sysInfo.CgroupNamespaces != expected {
 		t.Errorf("got CgroupNamespaces %v, wanted %v", sysInfo.CgroupNamespaces, expected)
 	}
+	if expected := timeNsSupported(); sysInfo.TimeNamespaces != expected {
+		t.Errorf("got TimeNamespaces %v, wanted %v", sysInfo.TimeNamespaces, expected)
+	}
 }
 
 func TestIsCpusetListAvailable(t *testing.T) {
