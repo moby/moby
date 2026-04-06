@@ -62,7 +62,7 @@ func TestNew(t *testing.T) {
 		t.Errorf("got AppArmor %v, wanted %v", sysInfo.AppArmor, expected)
 	}
 	if expected := cgroupnsSupported(); sysInfo.CgroupNamespaces != expected {
-		t.Errorf("got CgroupNamespaces %v, wanted %v", sysInfo.AppArmor, expected)
+		t.Errorf("got CgroupNamespaces %v, wanted %v", sysInfo.CgroupNamespaces, expected)
 	}
 }
 
