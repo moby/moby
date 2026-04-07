@@ -8,9 +8,11 @@ FROM golang:${GO_VERSION}-alpine AS base
 WORKDIR /go/src/github.com/moby/moby
 RUN apk add --no-cache jq moreutils
 ARG GOVULNCHECK_VERSION
+ADD https://github.com/golang/vuln.git?ref=${GOVULNCHECK_VERSION}&keep-git-dir=1 /go/src/golang.org/x/vuln
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/go/pkg/mod \
-    go install golang.org/x/vuln/cmd/govulncheck@$GOVULNCHECK_VERSION
+    cd /go/src/golang.org/x/vuln && \
+    go install ./cmd/govulncheck
 
 FROM base AS run
 ARG FORMAT
