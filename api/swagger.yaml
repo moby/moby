@@ -19,10 +19,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.54"
+basePath: "/v1.55"
 info:
   title: "Docker Engine API"
-  version: "1.54"
+  version: "1.55"
   x-logo:
     url: "https://docs.docker.com/assets/images/logo-docker-main.png"
   description: |
