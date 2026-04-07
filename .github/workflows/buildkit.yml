@@ -223,7 +223,9 @@ jobs:
               -v "${{ github.workspace }}\go-build:C:\Users\ContainerAdministrator\AppData\Local\go-build" `
               -v "${{ github.workspace }}\go\pkg\mod:C:\gopath\pkg\mod" `
               ${{ env.TEST_IMAGE_NAME }} hack\make.ps1 -Daemon -Client
-          go install github.com/distribution/distribution/v3/cmd/registry@latest
+          go install "github.com/distribution/distribution/v3/cmd/registry@${{ env.REGISTRY_VERSION }}"
+        env:
+          REGISTRY_VERSION: "v3.0.0"
 
       - name: Checkout BuildKit
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
