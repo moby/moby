@@ -3,8 +3,9 @@ package port
 import (
 	"context"
 	"net"
+	"net/http"
 
-	"github.com/rootless-containers/rootlesskit/v2/pkg/api"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
 )
 
 type Spec struct {
@@ -18,6 +19,7 @@ type Spec struct {
 	// Default values:
 	// - builtin     driver: 127.0.0.1
 	// - slirp4netns driver: slirp4netns's child IP, e.g., 10.0.2.100
+	// - gvisor-tap-vsock driver: gvisor-tap-vsock's child IP, e.g., 10.0.2.100
 	ChildIP string `json:"childIP,omitempty"`
 }
 
@@ -33,10 +35,21 @@ type Manager interface {
 	RemovePort(ctx context.Context, id int) error
 }
 
+// VirtualNetworkProvider is a minimal interface exposed by network drivers
+// that provide an in-process virtual network implementation usable by port drivers.
+// For drivers that do not expose such a network object, this can be nil.
+type VirtualNetworkProvider interface {
+	Mux() *http.ServeMux
+}
+
 // ChildContext is used for RunParentDriver
 type ChildContext struct {
 	// IP of the tap device
 	IP net.IP
+	// Network is the virtual network object from the network driver
+	Network VirtualNetworkProvider
+	// GatewayIP is the gateway IP address of the virtual network (e.g., 10.0.2.2)
+	GatewayIP net.IP
 }
 
 // ParentDriver is a driver for the parent process.
