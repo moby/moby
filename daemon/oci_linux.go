@@ -271,6 +271,13 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			}
 		}
 
+		// time
+		//
+		// TODO(thaJeztah): add to HostConfig and make this configurable ("host", "private", "container" (?))
+		if !daemon.RawSysInfo().TimeNamespaces {
+			oci.RemoveNamespace(s, specs.NetworkNamespace)
+		}
+
 		// ipc
 		ipcMode := c.HostConfig.IpcMode
 		if !ipcMode.Valid() {
