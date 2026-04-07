@@ -168,7 +168,7 @@ jobs:
           echo "TESTREPORTS_NAME=$reportsName" >> $GITHUB_ENV
 
           mkdir -p bundles $reportsPath
-          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          find bundles -path '*/root/*' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
           tar -xzf /tmp/reports.tar.gz -C $reportsPath
           sudo chown -R $(id -u):$(id -g) $reportsPath
           tree -nh $reportsPath
@@ -183,7 +183,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: test-reports-integration-${{ env.TESTREPORTS_NAME }}
-          path: /tmp/reports/*
+          path: /tmp/reports/${{ env.TESTREPORTS_NAME }}/*
           retention-days: 1
 
   integration-report:
