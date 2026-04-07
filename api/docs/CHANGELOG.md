@@ -275,7 +275,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /events` now supports image `create` event that is emitted when a new
   image is built regardless if it was tagged or not.
 
-### Deprecated Config fields in `GET /images/{name}/json` response
+#### Deprecated Config fields in `GET /images/{name}/json` response
 
 The `Config` field returned by this endpoint (used for "image inspect") returns
 additional fields that are not part of the image's configuration and not part of
