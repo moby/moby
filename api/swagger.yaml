@@ -7326,6 +7326,21 @@ definitions:
           - "/var/run/cdi"
       Containerd:
         $ref: "#/definitions/ContainerdInfo"
+      UserlandProxy:
+        description: |
+          Indicates if the userland proxy is enabled.
+          Added in v1.55.
+        type: "boolean"
+        x-nullable: true
+        example: true
+      UserlandProxyPath:
+        description: |
+          The path to the userland proxy binary.
+          This field is only populated if the userland proxy is enabled.
+          Added in v1.55.
+        type: "string"
+        x-nullable: true
+        example: "/usr/local/bin/docker-proxy"
 
   ContainerdInfo:
     description: |
