@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.26.1
+ARG GO_VERSION=1.26.2
 
 FROM golang:${GO_VERSION}-alpine AS base
 RUN apk add --no-cache bash make yamllint
