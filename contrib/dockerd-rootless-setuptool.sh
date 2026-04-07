@@ -298,7 +298,6 @@ init() {
 	# TODO: support printing non-essential but recommended instructions:
 	# - sysctl: "net.ipv4.ping_group_range"
 	# - sysctl: "net.ipv4.ip_unprivileged_port_start"
-	# - external binary: slirp4netns
 	# - external binary: fuse-overlayfs
 }
 
