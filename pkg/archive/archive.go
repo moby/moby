@@ -697,7 +697,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, o
 	case tar.TypeDir:
 		// Create directory unless it exists as a directory already.
 		// In that case we just want to merge the two
-		if fi, err := os.Lstat(path); !(err == nil && fi.IsDir()) {
+		if fi, err := os.Lstat(path); err != nil || !fi.IsDir() {
 			if err := os.Mkdir(path, hdrInfo.Mode()); err != nil {
 				return err
 			}
@@ -1157,7 +1157,7 @@ loop:
 				continue
 			}
 
-			if !(fi.IsDir() && hdr.Typeflag == tar.TypeDir) {
+			if !fi.IsDir() || hdr.Typeflag != tar.TypeDir {
 				if err := os.RemoveAll(path); err != nil {
 					return err
 				}
