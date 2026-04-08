@@ -165,7 +165,7 @@ func newPoolData(pool netip.Prefix) *PoolData {
 
 	// Pre-reserve the network address on IPv4 networks large
 	// enough to have one (i.e., anything bigger than a /31.
-	if !(pool.Addr().Is4() && numAddresses <= 2) {
+	if !pool.Addr().Is4() || numAddresses > 2 {
 		h.Set(0)
 	}
 
