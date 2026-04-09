@@ -575,12 +575,8 @@ func (n *Network) MarshalJSON() ([]byte, error) {
 }
 
 func (n *Network) UnmarshalJSON(b []byte) (err error) {
-<<<<<<< HEAD
-	var netMap map[string]interface{}
-=======
 	// TODO: Can be made much more generic with the help of reflection (but has some golang limitations)
-	var netMap map[string]any
->>>>>>> 1028b123e8 (integration, libnetwork: fix some godoc comments (ST1020))
+	var netMap map[string]interface{}
 	if err := json.Unmarshal(b, &netMap); err != nil {
 		return err
 	}
