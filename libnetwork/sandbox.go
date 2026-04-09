@@ -691,12 +691,15 @@ func (sb *Sandbox) joinLeaveEnd() {
 	}
 }
 
-// <=> Returns true if a < b, false if a > b and advances to next level if a == b
-// ep.prio <=> epj.prio           # 2 < 1
-// ep.gw <=> epj.gw               # non-gw < gw
-// ep.internal <=> epj.internal   # non-internal < internal
-// ep.joininfo <=> epj.joininfo   # ipv6 < ipv4
-// ep.name <=> epj.name           # bar < foo
+// Less defines an ordering over endpoints, with better candidates for the default
+// gateway sorted first.
+//
+//	<=> Returns true if a < b, false if a > b and advances to next level if a == b
+//	ep.prio <=> epj.prio           # 2 < 1
+//	ep.gw <=> epj.gw               # non-gw < gw
+//	ep.internal <=> epj.internal   # non-internal < internal
+//	ep.hasGw <=> epj.hasGw         # (gw4 and gw6) < (gw4 or gw6) < (no gw)
+//	ep.name <=> epj.name           # bar < foo
 func (ep *Endpoint) Less(epj *Endpoint) bool {
 	var prioi, prioj int
 

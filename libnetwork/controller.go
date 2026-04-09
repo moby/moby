@@ -714,7 +714,7 @@ addToStore:
 	return nw, nil
 }
 
-// Sets up the DOCKER-USER chain for each iptables version (IPv4, IPv6) that's
+// SetupUserChains sets up the DOCKER-USER chain for each iptables version (IPv4, IPv6) that's
 // enabled in the controller's configuration.
 func (c *Controller) SetupUserChains() error {
 	for _, ipVersion := range c.enabledIptablesVersions() {

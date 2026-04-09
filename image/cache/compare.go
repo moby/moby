@@ -8,8 +8,6 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// TODO: Remove once containerd image service directly uses the ImageCache and
-// LocalImageCache structs.
 func CompareConfig(a, b *container.Config) bool {
 	return compare(a, b)
 }
