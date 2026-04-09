@@ -92,13 +92,49 @@ jobs:
     with:
       storage: ${{ matrix.storage }}
 
+  test-unit-prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10 # guardrails timeout for the whole job
+    needs:
+      - validate-dco
+    outputs:
+      versions: ${{ steps.versions.outputs.versions }}
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      -
+        name: Create Go version matrix
+        id: versions
+        run: |
+          set -eu
+          oldstable="$(awk '/^go /{print $2; exit}' go.mod)"
+          if [ "$oldstable" = "${{ env.GO_VERSION }}" ]; then
+            versions="$(jq -nc --arg stable "${{ env.GO_VERSION }}" '[$stable]')"
+          else
+            versions="$(jq -nc --arg stable "${{ env.GO_VERSION }}" --arg oldstable "$oldstable" '[$stable, $oldstable]')"
+          fi
+          echo "versions=$versions" >> "$GITHUB_OUTPUT"
+      -
+        name: Show matrix
+        run: |
+          echo ${{ steps.versions.outputs.versions }}
+
   test-unit:
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
+    name: test-unit (go ${{ matrix.go-version }})
     needs:
       - build-dev
       - validate-dco
+      - test-unit-prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ${{ fromJson(needs.test-unit-prepare.outputs.versions) }}
     uses: ./.github/workflows/.test-unit.yml
     secrets: inherit
+    with:
+      go-version: ${{ matrix.go-version }}
 
   validate-prepare:
     runs-on: ubuntu-24.04
