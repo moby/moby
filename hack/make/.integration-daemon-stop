@@ -10,9 +10,9 @@ if [ ! "$(go env GOOS)" = 'windows' ]; then
 			[ -n "$TESTDEBUG" ] && set -x
 			kill "$pid"
 		)
-		if ! wait "$pid"; then
-			echo >&2 "warning: PID $pid from $pidFile had a nonzero exit code"
-		fi
+		while kill -0 "$pid" 2>/dev/null; do
+			sleep 0.1
+		done
 		root=$(dirname "$pidFile")/root
 		if [ -d "$root" ]; then
 			umount -q "$root" || true
