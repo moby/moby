@@ -43,14 +43,14 @@ func TestConcurrentLogging(t *testing.T) {
 	for ct := 0; ct < containers; ct++ {
 		ct := ct
 		dir := t.TempDir()
-		g.Go(func() (err error) {
+		g.Go(func() (retErr error) {
 			logfile, err := NewLogFile(filepath.Join(dir, "log.log"), capacity, maxFiles, compress, createDecoder, 0o644, getTailReader)
 			if err != nil {
 				return err
 			}
 			defer func() {
-				if cErr := logfile.Close(); cErr != nil && err == nil {
-					err = cErr
+				if err := logfile.Close(); err != nil && retErr == nil {
+					retErr = err
 				}
 			}()
 			lg, ctx := errgroup.WithContext(ctx)

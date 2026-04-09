@@ -62,8 +62,8 @@ type journald struct {
 	// Overrides for unit tests.
 
 	sendToJournal   func(message string, priority journal.Priority, vars map[string]string) error
-	journalReadDir  string //nolint:unused // Referenced in read.go, which has more restrictive build constraints.
-	readSyncTimeout time.Duration
+	journalReadDir  string        //nolint:unused // Referenced in read.go, which has more restrictive build constraints.
+	readSyncTimeout time.Duration //nolint:unused // Referenced in read.go, which has more restrictive build constraints.
 }
 
 func init() {
@@ -87,10 +87,11 @@ func sanitizeKeyMod(s string) string {
 		} else if ('Z' < v || v < 'A') && ('9' < v || v < '0') {
 			v = '_'
 		}
-		// If (n == "" && v == '_'), then we will skip as this is the beginning with '_'
-		if !(n == "" && v == '_') {
-			n += string(v)
+		if n == "" && v == '_' {
+			// skip leading underscores
+			continue
 		}
+		n += string(v)
 	}
 	return n
 }

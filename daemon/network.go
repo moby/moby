@@ -159,19 +159,15 @@ var (
 func (daemon *Daemon) startIngressWorker() {
 	ingressJobsChannel = make(chan *ingressJob, 100)
 	go func() {
-		//nolint: gosimple
-		for {
-			select {
-			case r := <-ingressJobsChannel:
-				if r.create != nil {
-					daemon.setupIngress(&daemon.config().Config, r.create, r.ip, ingressID)
-					ingressID = r.create.ID
-				} else {
-					daemon.releaseIngress(ingressID)
-					ingressID = ""
-				}
-				close(r.jobDone)
+		for r := range ingressJobsChannel {
+			if r.create != nil {
+				daemon.setupIngress(&daemon.config().Config, r.create, r.ip, ingressID)
+				ingressID = r.create.ID
+			} else {
+				daemon.releaseIngress(ingressID)
+				ingressID = ""
 			}
+			close(r.jobDone)
 		}
 	}()
 }
@@ -404,10 +400,13 @@ func (daemon *Daemon) createNetwork(cfg *config.Config, create types.NetworkCrea
 func (daemon *Daemon) pluginRefCount(driver, capability string, mode int) {
 	var builtinDrivers []string
 
-	if capability == driverapi.NetworkPluginEndpointType {
+	switch capability {
+	case driverapi.NetworkPluginEndpointType:
 		builtinDrivers = daemon.netController.BuiltinDrivers()
-	} else if capability == ipamapi.PluginEndpointType {
+	case ipamapi.PluginEndpointType:
 		builtinDrivers = daemon.netController.BuiltinIPAMDrivers()
+	default:
+		// other capabilities can be ignored for now
 	}
 
 	for _, d := range builtinDrivers {

@@ -98,13 +98,14 @@ func provisionSampleDir(t *testing.T, root string, files []FileData) {
 	now := time.Now()
 	for _, info := range files {
 		p := path.Join(root, info.path)
-		if info.filetype == Dir {
+		switch info.filetype {
+		case Dir:
 			err := os.MkdirAll(p, info.permissions)
 			assert.NilError(t, err)
-		} else if info.filetype == Regular {
+		case Regular:
 			err := os.WriteFile(p, []byte(info.contents), info.permissions)
 			assert.NilError(t, err)
-		} else if info.filetype == Symlink {
+		case Symlink:
 			err := os.Symlink(info.contents, p)
 			assert.NilError(t, err)
 		}

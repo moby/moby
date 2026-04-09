@@ -1,137 +1,141 @@
+version: "2"
+
+run:
+  # prevent golangci-lint from deducting the go version to lint for through go.mod,
+  # which causes it to fallback to go1.17 semantics.
+  go: "1.25.8"
+  # NOTE: modules-download-mode: vendor is NOT supported since this project
+  # does not use go.mod (only vendor.mod for CalVer compatibility).
+  concurrency: 2
 linters:
   enable:
     - depguard
-    - goimports
     - gosec
-    - gosimple
-    - govet
     - importas
-    - ineffassign
     - misspell
     - revive
-    - staticcheck
-    - typecheck
     - unconvert
-    - unused
-
   disable:
     - errcheck
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: io/ioutil
+              desc: The io/ioutil package has been deprecated, see https://go.dev/doc/go1.16#ioutil
+            - pkg: github.com/stretchr/testify/assert
+              desc: Use "gotest.tools/v3/assert" instead
+            - pkg: github.com/stretchr/testify/require
+              desc: Use "gotest.tools/v3/assert" instead
+            - pkg: github.com/stretchr/testify/suite
+              desc: Do not use
+    gosec:
+      excludes:
+        - G104 # G104: Errors unhandled; (TODO: reduce unhandled errors, or explicitly ignore)
+        - G113 # G113: Potential uncontrolled memory consumption in Rat.SetString (CVE-2022-23772); (only affects go < 1.16.14. and go < 1.17.7)
+        - G115 # G115: integer overflow conversion; (TODO: verify these: https://github.com/moby/moby/issues/48358)
+        - G204 # G204: Subprocess launched with variable; too many false positives.
+        - G301 # G301: Expect directory permissions to be 0750 or less (also EXC0009); too restrictive
+        - G302 # G302: Expect file permissions to be 0600 or less (also EXC0009); too restrictive
+        - G304 # G304: Potential file inclusion via variable.
+        - G306 # G306: Expect WriteFile permissions to be 0600 or less (too restrictive; also flags "0o644" permissions)
+        - G307 # G307: Deferring unsafe method "*os.File" on type "Close" (also EXC0008); (TODO: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close")
+        - G504 # G504: Blocklisted import net/http/cgi: Go versions < 1.6.3 are vulnerable to Httpoxy attack: (CVE-2016-5386); (only affects go < 1.6.3)
+        - G602 # G602: slice index out of range (TODO: too many false positives; see https://github.com/securego/gosec/issues/1406)
 
-  run:
-    concurrency: 2
-    modules-download-mode: vendor
+    dupword:
+      ignore:
+        - "true"    # some tests use this as expected output
+        - "false"   # some tests use this as expected output
+        - "root"    # for tests using "ls" output with files owned by "root:root"
+    forbidigo:
+      forbid:
+        - pkg: ^sync/atomic$
+          p: ^atomic\.(Add|CompareAndSwap|Load|Store|Swap).
+          msg: Go 1.19 atomic types should be used instead.
+      analyze-types: true
+      
+    importas:
+      # Do not allow unaliased imports of aliased packages.
+      no-unaliased: true
+      alias:
+        # Enforce alias to prevent it accidentally being used instead of our
+        # own errdefs package (or vice-versa).
+        - pkg: github.com/containerd/containerd/errdefs
+          alias: cerrdefs
+        - pkg: github.com/opencontainers/image-spec/specs-go/v1
+          alias: ocispec
+    revive:
+      rules:
+        # FIXME make sure all packages have a description. Currently, there's many packages without.
+        - name: package-comments
+          disabled: true
+        - name: redefines-builtin-id
+    staticcheck:
+      checks:
+        - all
+        - -QF1008 # Omit embedded fields from selector expression; https://staticcheck.dev/docs/checks/#QF1008
+        - -ST1000 # Incorrect or missing package comment; https://staticcheck.dev/docs/checks/#ST1000
+        - -ST1003 # Poorly chosen identifier; https://staticcheck.dev/docs/checks/#ST1003
+        - -ST1005 # Incorrectly formatted error string; https://staticcheck.dev/docs/checks/#ST1005
 
-    skip-dirs:
+  exclusions:
+    generated: lax
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+      - linters:
+          - errcheck
+        text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*print(f|ln)?|os\.(Un)?Setenv). is not checked
+      - linters:
+          - gosec
+        text: Use of unsafe calls should be audited
+      - linters:
+          - gosec
+        text: Subprocess launch(ed with variable|ing should be audited)
+      - linters:
+          - gosec
+        text: (G104|G307)
+      - linters:
+          - gosec
+        text: (Expect directory permissions to be 0750 or less|Expect file permissions to be 0600 or less)
+      - linters:
+          - gosec
+        text: Potential file inclusion via variable
+      - linters:
+          - gosec
+        text: 'G204: Subprocess launched with a potential tainted input or cmd arguments'
+      - linters:
+          - gosec
+        text: 'G306: Expect WriteFile permissions to be 0600 or less'
+      - linters:
+          - errcheck
+          - gosec
+        path: _test\.go
+      - linters:
+          - revive
+        path: api/types/(volume|container)/
+        text: type name will be used as (container|volume)\.(Container|Volume).* by other packages, and that stutters; consider calling this
+      - linters:
+          - staticcheck
+        text: 'SA1019: (assert|cmp|is)\.ErrorType is deprecated'
+    paths:
       - docs
-
-linters-settings:
-  importas:
-    # Do not allow unaliased imports of aliased packages.
-    no-unaliased: true
-
-    alias:
-      # Enforce alias to prevent it accidentally being used instead of our
-      # own errdefs package (or vice-versa).
-      - pkg: github.com/containerd/containerd/errdefs
-        alias: cerrdefs
-      - pkg: github.com/opencontainers/image-spec/specs-go/v1
-        alias: ocispec
-
-  govet:
-    check-shadowing: false
-
-  gosec:
-    excludes:
-      - G115 # FIXME temporarily suppress 'G115: integer overflow conversion': it produces many hits, some of which may be false positives, and need to be looked at; see https://github.com/moby/moby/issues/48358
-
-  depguard:
-    rules:
-      main:
-        deny:
-          - pkg: io/ioutil
-            desc: The io/ioutil package has been deprecated, see https://go.dev/doc/go1.16#ioutil
-          - pkg: "github.com/stretchr/testify/assert"
-            desc: Use "gotest.tools/v3/assert" instead
-          - pkg: "github.com/stretchr/testify/require"
-            desc: Use "gotest.tools/v3/assert" instead
-          - pkg: "github.com/stretchr/testify/suite"
-            desc: Do not use
-  revive:
-    rules:
-      # FIXME make sure all packages have a description. Currently, there's many packages without.
-      - name: package-comments
-        disabled: true
-      - name: redefines-builtin-id
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  # The default exclusion rules are a bit too permissive, so copying the relevant ones below
-  exclude-use-default: false
-
-  exclude-rules:
-    # We prefer to use an "exclude-list" so that new "default" exclusions are not
-    # automatically inherited. We can decide whether or not to follow upstream
-    # defaults when updating golang-ci-lint versions.
-    # Unfortunately, this means we have to copy the whole exclusion pattern, as
-    # (unlike the "include" option), the "exclude" option does not take exclusion
-    # ID's.
-    #
-    # These exclusion patterns are copied from the default excluses at:
-    # https://github.com/golangci/golangci-lint/blob/v1.46.2/pkg/config/issues.go#L10-L104
-
-    # EXC0001
-    - text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*print(f|ln)?|os\\.(Un)?Setenv). is not checked"
-      linters:
-        - errcheck
-    # EXC0006
-    - text: "Use of unsafe calls should be audited"
-      linters:
-        - gosec
-    # EXC0007
-    - text: "Subprocess launch(ed with variable|ing should be audited)"
-      linters:
-        - gosec
-    # EXC0008
-    # TODO: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close" (gosec)
-    - text: "(G104|G307)"
-      linters:
-        - gosec
-    # EXC0009
-    - text: "(Expect directory permissions to be 0750 or less|Expect file permissions to be 0600 or less)"
-      linters:
-        - gosec
-    # EXC0010
-    - text: "Potential file inclusion via variable"
-      linters:
-        - gosec
-
-    # Looks like the match in "EXC0007" above doesn't catch this one
-    # TODO: consider upstreaming this to golangci-lint's default exclusion rules
-    - text: "G204: Subprocess launched with a potential tainted input or cmd arguments"
-      linters:
-        - gosec
-    # Looks like the match in "EXC0009" above doesn't catch this one
-    # TODO: consider upstreaming this to golangci-lint's default exclusion rules
-    - text: "G306: Expect WriteFile permissions to be 0600 or less"
-      linters:
-        - gosec
-
-    # Exclude some linters from running on tests files.
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-
-    # Suppress golint complaining about generated types in api/types/
-    - text: "type name will be used as (container|volume)\\.(Container|Volume).* by other packages, and that stutters; consider calling this"
-      path: "api/types/(volume|container)/"
-      linters:
-        - revive
-    # FIXME temporarily suppress these (see https://github.com/gotestyourself/gotest.tools/issues/272)
-    - text: "SA1019: (assert|cmp|is)\\.ErrorType is deprecated"
-      linters:
-        - staticcheck
-
-  # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
   max-issues-per-linter: 0
-
-  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
   max-same-issues: 0
+formatters:
+  enable:
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - docs
+      - third_party$
+      - builtin$
+      - examples$

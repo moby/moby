@@ -152,11 +152,12 @@ func GetNameservers(resolvConf []byte, kind int) []string {
 	var nameservers []string
 	for _, line := range getLines(resolvConf, []byte("#")) {
 		var ns [][]byte
-		if kind == IP {
+		switch kind {
+		case IP:
 			ns = nsRegexp.FindSubmatch(line)
-		} else if kind == IPv4 {
+		case IPv4:
 			ns = nsIPv4Regexpmatch.FindSubmatch(line)
-		} else if kind == IPv6 {
+		case IPv6:
 			ns = nsIPv6Regexpmatch.FindSubmatch(line)
 		}
 		if len(ns) > 0 {

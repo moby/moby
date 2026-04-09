@@ -379,7 +379,7 @@ func (r *controller) Shutdown(ctx context.Context) error {
 	}
 
 	if err := r.adapter.shutdown(ctx); err != nil {
-		if !(isUnknownContainer(err) || isStoppedContainer(err)) {
+		if !isUnknownContainer(err) || !isStoppedContainer(err) {
 			return err
 		}
 	}
@@ -549,9 +549,10 @@ func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, opti
 			return errors.Wrap(err, "failed to convert timestamp")
 		}
 		var stream api.LogStream
-		if msg.Source == "stdout" {
+		switch msg.Source {
+		case "stdout":
 			stream = api.LogStreamStdout
-		} else if msg.Source == "stderr" {
+		case "stderr":
 			stream = api.LogStreamStderr
 		}
 
