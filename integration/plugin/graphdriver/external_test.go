@@ -324,7 +324,7 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		parent := r.URL.Query().Get("parent")
 
 		if id == "" {
-			http.Error(w, "missing id", 409)
+			http.Error(w, "missing id", http.StatusConflict)
 		}
 
 		size, err := driver.ApplyDiff(id, parent, diff)
