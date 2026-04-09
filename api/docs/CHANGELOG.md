@@ -1067,3 +1067,417 @@ end point now returns the new boolean fields `CpuCfsPeriod`, `CpuCfsQuota`, and
 * `CgroupParent` can be passed in the host config to setup container cgroups under a specific cgroup.
 * `POST /build` closing the HTTP request cancels the build
 * `POST /containers/(id)/exec` includes `Warnings` field to response.
+
+### v1.17 API changes
+
+* The build supports `LABEL` command. Use this to add metadata to an image. For
+  example you could add data describing the content of an image. `LABEL
+"com.example.vendor"="ACME Incorporated"`
+* `POST /containers/(id)/attach` and `POST /exec/(id)/start`
+* The Docker client now hints potential proxies about connection hijacking using HTTP Upgrade headers.
+* `POST /containers/create` sets labels on container create describing the container.
+* `GET /containers/json` returns the labels associated with the containers (`Labels`).
+* `GET /containers/(id)/json` returns the list current execs associated with the
+  container (`ExecIDs`). This endpoint now returns the container labels
+  (`Config.Labels`).
+* `POST /containers/(id)/rename` renames a container `id` to a new name.*
+* `POST /containers/create` and `POST /containers/(id)/start` callers can pass
+  `ReadonlyRootfs` in the host config to mount the container's root filesystem as
+  read only.
+* `GET /containers/(id)/stats` returns a live stream of a container's resource usage statistics.
+* `GET /images/json` returns the labels associated with each image (`Labels`).
+
+
+### v1.16 API changes
+
+* `GET /info` returns the number of CPUs available on the machine (`NCPU`),
+  total memory available (`MemTotal`), a user-friendly name describing the running Docker daemon (`Name`), a unique ID identifying the daemon (`ID`), and
+  a list of daemon labels (`Labels`).
+* `POST /containers/create` callers can set the new container's MAC address explicitly.
+* Volumes are now initialized when the container is created.
+* `POST /containers/(id)/copy` copies data which is contained in a volume.
+
+### v1.15 API changes
+
+`POST /containers/create` you can set a container's `HostConfig` when creating a
+container. Previously this was only available when starting a container.
+
+### v1.14 API changes
+
+* `DELETE /containers/(id)` when using `force`, the container will be immediately killed with SIGKILL.
+* `POST /containers/(id)/start` the `HostConfig` option accepts the field `CapAdd`, which specifies a list of capabilities
+  to add, and the field `CapDrop`, which specifies a list of capabilities to drop.
+* `POST /images/create` th `fromImage` and `repo` parameters support the
+  `repo:tag` format. Consequently,  the `tag` parameter is now obsolete. Using the
+  new format and the `tag` parameter at the same time will return an error.
+
+## v1.13 API changes
+
+### What's new
+
+`GET /containers/(name)/json`
+
+**New!**
+The `HostConfig.Links` field is now filled correctly
+
+**New!**
+`Sockets` parameter added to the `/info` endpoint listing all the sockets the
+daemon is configured to listen on.
+
+`POST /containers/(name)/start`
+`POST /containers/(name)/stop`
+
+**New!**
+`start` and `stop` will now return 304 if the container's status is not modified
+
+`POST /commit`
+
+**New!**
+Added a `pause` parameter (default `true`) to pause the container during commit
+
+## v1.12 API changes
+
+### What's new
+
+`POST /build`
+
+**New!**
+Build now has support for the `forcerm` parameter to always remove containers
+
+`GET /containers/(name)/json`
+`GET /images/(name)/json`
+
+**New!**
+All the JSON keys are now in CamelCase
+
+**New!**
+Trusted builds are now Automated Builds - `is_trusted` is now `is_automated`.
+
+**Removed Insert Endpoint**
+The `insert` endpoint has been removed.
+
+## v1.11 API changes
+
+### What's new
+
+`GET /_ping`
+
+**New!**
+You can now ping the server via the `_ping` endpoint.
+
+`GET /events`
+
+**New!**
+You can now use the `-until` parameter to close connection
+after timestamp.
+
+`GET /containers/(id)/logs`
+
+This url is preferred method for getting container logs now.
+
+## v1.10 API changes
+
+### What's new
+
+`DELETE /images/(name)`
+
+**New!**
+You can now use the force parameter to force delete of an
+image, even if it's tagged in multiple repositories. **New!**
+You
+can now use the noprune parameter to prevent the deletion of parent
+images
+
+`DELETE /containers/(id)`
+
+**New!**
+You can now use the force parameter to force delete a
+container, even if it is currently running
+
+## v1.9 API changes
+
+### What's new
+
+`POST /build`
+
+**New!**
+This endpoint now takes a serialized ConfigFile which it
+uses to resolve the proper registry auth credentials for pulling the
+base image. Clients which previously implemented the version
+accepting an AuthConfig object must be updated.
+
+## v1.8 API changes
+
+### What's new
+
+`POST /build`
+
+**New!**
+This endpoint now returns build status as json stream. In
+case of a build error, it returns the exit status of the failed
+command.
+
+`GET /containers/(id)/json`
+
+**New!**
+This endpoint now returns the host config for the
+container.
+
+`POST /images/create`
+
+`POST /images/(name)/insert`
+
+`POST /images/(name)/push`
+
+**New!**
+progressDetail object was added in the JSON. It's now
+possible to get the current value and the total of the progress
+without having to parse the string.
+
+## v1.7 API changes
+
+### What's new
+
+`GET /images/json`
+
+The format of the json returned from this uri changed. Instead of an
+entry for each repo/tag on an image, each image is only represented
+once, with a nested attribute indicating the repo/tags that apply to
+that image.
+
+Instead of:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    [
+      {
+        "VirtualSize": 131506275,
+        "Size": 131506275,
+        "Created": 1365714795,
+        "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
+        "Tag": "12.04",
+        "Repository": "ubuntu"
+      },
+      {
+        "VirtualSize": 131506275,
+        "Size": 131506275,
+        "Created": 1365714795,
+        "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
+        "Tag": "latest",
+        "Repository": "ubuntu"
+      },
+      {
+        "VirtualSize": 131506275,
+        "Size": 131506275,
+        "Created": 1365714795,
+        "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
+        "Tag": "precise",
+        "Repository": "ubuntu"
+      },
+      {
+        "VirtualSize": 180116135,
+        "Size": 24653,
+        "Created": 1364102658,
+        "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+        "Tag": "12.10",
+        "Repository": "ubuntu"
+      },
+      {
+        "VirtualSize": 180116135,
+        "Size": 24653,
+        "Created": 1364102658,
+        "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+        "Tag": "quantal",
+        "Repository": "ubuntu"
+      }
+    ]
+
+The returned json looks like this:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    [
+      {
+         "RepoTags": [
+           "ubuntu:12.04",
+           "ubuntu:precise",
+           "ubuntu:latest"
+         ],
+         "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
+         "Created": 1365714795,
+         "Size": 131506275,
+         "VirtualSize": 131506275
+      },
+      {
+         "RepoTags": [
+           "ubuntu:12.10",
+           "ubuntu:quantal"
+         ],
+         "ParentId": "27cf784147099545",
+         "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+         "Created": 1364102658,
+         "Size": 24653,
+         "VirtualSize": 180116135
+      }
+    ]
+
+`GET /images/viz`
+
+This URI no longer exists. The `images --viz`
+output is now generated in the client, using the
+`/images/json` data.
+
+## v1.6 API changes
+
+### What's new
+
+`POST /containers/(id)/attach`
+
+**New!**
+You can now split stderr from stdout. This is done by
+prefixing a header to each transmission. See
+[`POST /containers/(id)/attach`](
+/reference/api/docker_remote_api_v1.9/#attach-to-a-container "POST /containers/(id)/attach").
+The WebSocket attach is unchanged. Note that attach calls on the
+previous API version didn't change. Stdout and stderr are merged.
+
+## v1.5 API changes
+
+### What's new
+
+`POST /images/create`
+
+**New!**
+You can now pass registry credentials (via an AuthConfig
+object) through the X-Registry-Auth header
+
+`POST /images/(name)/push`
+
+**New!**
+The AuthConfig object now needs to be passed through the
+X-Registry-Auth header
+
+`GET /containers/json`
+
+**New!**
+The format of the Ports entry has been changed to a list of
+dicts each containing PublicPort, PrivatePort and Type describing a
+port mapping.
+
+## v1.4 API changes
+
+### What's new
+
+`POST /images/create`
+
+**New!**
+When pulling a repo, all images are now downloaded in parallel.
+
+`GET /containers/(id)/top`
+
+**New!**
+You can now use ps args with docker top, like docker top
+<container_id> aux
+
+`GET /events`
+
+**New!**
+Image's name added in the events
+
+## v1.3 API changes
+
+docker v0.5.0
+[51f6c4a](https://github.com/docker/docker/commit/51f6c4a7372450d164c61e0054daf0223ddbd909)
+
+### What's new
+
+`GET /containers/(id)/top`
+
+List the processes running inside a container.
+
+`GET /events`
+
+**New!**
+Monitor docker's events via streaming or via polling
+
+Builder (/build):
+
+- Simplify the upload of the build context
+- Simply stream a tarball instead of multipart upload with 4
+  intermediary buffers
+- Simpler, less memory usage, less disk usage and faster
+
+> **Warning**:
+> The /build improvements are not reverse-compatible. Pre 1.3 clients will
+> break on /build.
+
+List containers (/containers/json):
+
+- You can use size=1 to get the size of the containers
+
+Start containers (/containers/<id>/start):
+
+- You can now pass host-specific configuration (e.g., bind mounts) in
+  the POST body for start calls
+
+## v1.2 API changes
+
+docker v0.4.2
+[2e7649b](https://github.com/docker/docker/commit/2e7649beda7c820793bd46766cbc2cfeace7b168)
+
+### What's new
+
+The auth configuration is now handled by the client.
+
+The client should send it's authConfig as POST on each call of
+`/images/(name)/push`
+
+`GET /auth`
+
+**Deprecated.**
+
+`POST /auth`
+
+Only checks the configuration but doesn't store it on the server
+
+    Deleting an image is now improved, will only untag the image if it
+    has children and remove all the untagged parents if has any.
+
+`POST /images/<name>/delete`
+
+Now returns a JSON structure with the list of images
+deleted/untagged.
+
+## v1.1 API changes
+
+docker v0.4.0
+[a8ae398](https://github.com/docker/docker/commit/a8ae398bf52e97148ee7bd0d5868de2e15bd297f)
+
+### What's new
+
+`POST /images/create`
+
+`POST /images/(name)/insert`
+
+`POST /images/(name)/push`
+
+Uses json stream instead of HTML hijack, it looks like this:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {"status":"Pushing..."}
+        {"status":"Pushing", "progress":"1/? (n/a)"}
+        {"error":"Invalid..."}
+        ...
+
+## v1.0 API changes
+
+docker v0.3.4
+[8d73740](https://github.com/docker/docker/commit/8d73740343778651c09160cde9661f5f387b36f4)
+
+### What's new
+
+Initial version
