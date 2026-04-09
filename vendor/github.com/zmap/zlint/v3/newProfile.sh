@@ -5,22 +5,19 @@ USAGE="Usage: $0 <ARG1>
 ARG1: file_name"
 
 if [ $# -eq 0 ]; then
-    echo "No arguments provided..."
-    echo "$USAGE"
-    exit 1
+	echo "No arguments provided..."
+	echo "$USAGE"
+	exit 1
 fi
 
-if [ ! -d profiles ]
-then
-   echo "Directory 'profiles' does not exist. Can't make new file."
-   exit 1
+if [ ! -d profiles ]; then
+	echo "Directory 'profiles' does not exist. Can't make new file."
+	exit 1
 fi
 
-
-if [ -e profiles/profile_$1.go ]
-then
-   echo "File already exists. Can't make new file."
-   exit 1
+if [ -e profiles/profile_$1.go ]; then
+	echo "File already exists. Can't make new file."
+	exit 1
 fi
 
 PROFILE=$1

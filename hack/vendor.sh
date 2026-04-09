@@ -48,7 +48,7 @@ dropreplace() (
 		# master branch.
 		# Use the actual branch from the upstream or origin remote.
 		for r in "upstream" "origin"; do
-			if git remote get-url "$r" >/dev/null 2>&1; then
+			if git remote get-url "$r" > /dev/null 2>&1; then
 				ref="$r/master"
 				break
 			fi
@@ -65,7 +65,10 @@ dropreplace() (
 	go mod edit -modfile client/go.mod -dropreplace=github.com/moby/moby/api
 
 	go mod edit -modfile client/go.mod -require="github.com/moby/moby/api@$ref"
-	(cd client; go mod tidy)
+	(
+		cd client
+		go mod tidy
+	)
 
 	go mod edit \
 		-require="github.com/moby/moby/api@$ref" \
@@ -89,6 +92,6 @@ case "$1" in
 	vendor) vendor ;;
 	replace) replace ;;
 	dropreplace) dropreplace "$2" ;;
-	""|all) tidy && vendor ;;
+	"" | all) tidy && vendor ;;
 	*) help ;;
 esac
