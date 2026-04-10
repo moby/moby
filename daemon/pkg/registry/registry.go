@@ -29,9 +29,8 @@ func hostCertsDir(hostnameAndPort string) string {
 	return filepath.Join(CertsDir(), hostnameAndPort)
 }
 
-// newTLSConfig constructs a client TLS configuration based on server defaults
+// newTLSConfig constructs a client TLS configuration based on server defaults.
 func newTLSConfig(ctx context.Context, hostname string, isSecure bool) (*tls.Config, error) {
-	// PreferredServerCipherSuites should have no effect
 	tlsConfig := tlsconfig.ServerDefault()
 	tlsConfig.InsecureSkipVerify = !isSecure
 
@@ -111,9 +110,9 @@ func loadTLSConfig(ctx context.Context, directory string, tlsConfig *tls.Config)
 	return nil
 }
 
-// Headers returns request modifiers with a User-Agent and metaHeaders
+// Headers returns request modifiers with a User-Agent and metaHeaders.
 func Headers(userAgent string, metaHeaders http.Header) []transport.RequestModifier {
-	modifiers := []transport.RequestModifier{}
+	var modifiers []transport.RequestModifier
 	if userAgent != "" {
 		modifiers = append(modifiers, transport.NewHeaderRequestModifier(http.Header{
 			"User-Agent": []string{userAgent},
