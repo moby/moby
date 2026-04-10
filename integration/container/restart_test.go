@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 
@@ -226,6 +227,12 @@ func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {
 //
 // Regression test for https://github.com/moby/moby/discussions/46682
 func TestContainerRestartWithCancelledRequest(t *testing.T) {
+	for i := range 100 {
+		t.Run(strconv.Itoa(i), testContainerRestartWithCancelledRequest)
+	}
+}
+
+func testContainerRestartWithCancelledRequest(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
@@ -246,8 +253,11 @@ func TestContainerRestartWithCancelledRequest(t *testing.T) {
 		}
 	}()
 
-	// Start listening for events.
+	// Start listening for restart events from now on. Using Since avoids a race
+	// where the event stream is not fully established yet and we miss the event.
+	since := time.Now().UTC().Format(time.RFC3339Nano)
 	result := apiClient.Events(ctx, client.EventsListOptions{
+		Since:   since,
 		Filters: make(client.Filters).Add("container", cID).Add("event", string(events.ActionRestart)),
 	})
 	messages := result.Messages
@@ -268,7 +278,7 @@ func TestContainerRestartWithCancelledRequest(t *testing.T) {
 	//
 	// Note that we cannot use RestartCount for this, as that's only
 	// used for restart-policies.
-	restartTimeout := 2 * time.Second
+	restartTimeout := 5 * time.Second
 	if runtime.GOOS == "windows" {
 		// hcs can sometimes take a long time to stop container.
 		restartTimeout = StopContainerWindowsPollTimeout
@@ -280,7 +290,11 @@ func TestContainerRestartWithCancelledRequest(t *testing.T) {
 	case err := <-errs:
 		assert.NilError(t, err)
 	case <-time.After(restartTimeout):
-		t.Errorf("timeout waiting for restart event")
+		inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
+		if err == nil {
+			t.Logf("timeout waiting for restart event; container status=%s running=%v finishedAt=%s startedAt=%s", inspect.Container.State.Status, inspect.Container.State.Running, inspect.Container.State.FinishedAt, inspect.Container.State.StartedAt)
+		}
+		t.Fatalf("timeout waiting for restart event")
 	}
 
 	// Container should be restarted (running).
