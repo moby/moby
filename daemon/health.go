@@ -260,7 +260,8 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 	c.Unlock()
 
 	getInterval := func() time.Duration {
-		if time.Since(started) >= startPeriod {
+		sinceStart := time.Since(started)
+		if sinceStart >= startPeriod {
 			return probeInterval
 		}
 		c.Lock()
@@ -268,6 +269,13 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 		c.Unlock()
 
 		if status == containertypes.Starting {
+			// Cap the interval so we don't sleep past the end of the
+			// start period. Without this, a large StartInterval would
+			// delay the transition to the regular probe cadence.
+			remaining := startPeriod - sinceStart
+			if startInterval > remaining {
+				return remaining
+			}
 			return startInterval
 		}
 		return probeInterval
