@@ -31,6 +31,12 @@ func MultiLayer(dir string) (*ocispec.Index, error) {
 }
 
 func MultiLayerCustom(dir string, imageRef string, layers []SingleFileLayer) (*ocispec.Index, error) {
+	return MultiLayerCustomWithLabels(dir, imageRef, layers, nil)
+}
+
+// MultiLayerCustomWithLabels is like MultiLayerCustom but also sets the given
+// labels on the image config.
+func MultiLayerCustomWithLabels(dir string, imageRef string, layers []SingleFileLayer, labels map[string]string) (*ocispec.Index, error) {
 	var layerDescs []ocispec.Descriptor
 	var layerDgsts []digest.Digest
 	var layerBlobs []string
@@ -48,7 +54,8 @@ func MultiLayerCustom(dir string, imageRef string, layers []SingleFileLayer) (*o
 	configDesc, err := writeJsonBlob(dir, ocispec.MediaTypeImageConfig, ocispec.Image{
 		Platform: platforms.DefaultSpec(),
 		Config: ocispec.ImageConfig{
-			Env: []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
+			Env:    []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
+			Labels: labels,
 		},
 		RootFS: ocispec.RootFS{
 			Type:    "layers",
