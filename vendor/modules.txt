@@ -1414,12 +1414,12 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rootless-containers/rootlesskit/v2 v2.3.6
-## explicit; go 1.24.2
-github.com/rootless-containers/rootlesskit/v2/pkg/api
-github.com/rootless-containers/rootlesskit/v2/pkg/api/client
-github.com/rootless-containers/rootlesskit/v2/pkg/httputil
-github.com/rootless-containers/rootlesskit/v2/pkg/port
+# github.com/rootless-containers/rootlesskit/v3 v3.0.0
+## explicit; go 1.25.0
+github.com/rootless-containers/rootlesskit/v3/pkg/api
+github.com/rootless-containers/rootlesskit/v3/pkg/api/client
+github.com/rootless-containers/rootlesskit/v3/pkg/httputil
+github.com/rootless-containers/rootlesskit/v3/pkg/port
 # github.com/sasha-s/go-deadlock v0.3.5
 ## explicit
 github.com/sasha-s/go-deadlock
@@ -1899,7 +1899,7 @@ golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 golang.org/x/sync/singleflight
 golang.org/x/sync/syncmap
-# golang.org/x/sys v0.42.0
+# golang.org/x/sys v0.43.0
 ## explicit; go 1.25.0
 golang.org/x/sys/cpu
 golang.org/x/sys/plan9

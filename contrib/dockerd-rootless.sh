@@ -6,16 +6,15 @@
 # External dependencies:
 # * newuidmap and newgidmap needs to be installed.
 # * /etc/subuid and /etc/subgid needs to be configured for the current user.
-# * Either one of slirp4netns (>= v0.4.0), VPNKit, lxc-user-nic needs to be installed.
 #
 # Recognized environment variables:
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR=DIR: the rootlesskit state dir.
 #   * Defaults to "$XDG_RUNTIME_DIR/dockerd-rootless".
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_NET=(slirp4netns|vpnkit|pasta|lxc-user-nic): the rootlesskit network driver.
-#   * Defaults to "slirp4netns" if slirp4netns (>= v0.4.0) is installed, else "pasta", else "vpnkit".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_NET=(slirp4netns|vpnkit|pasta|gvisor-tap-vsock|lxc-user-nic): the rootlesskit network driver.
+#   * Defaults to "slirp4netns" if slirp4netns (>= v0.4.0) is installed, else "pasta", else "vpnkit", else "gvisor-tap-vsock".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_MTU=NUM: the MTU value for the rootlesskit network driver.
-#   * Defaults to 65520 for slirp4netns and pasta, 1500 for other rootlesskit network drivers.
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=(builtin|slirp4netns|implicit): the rootlesskit port driver.
+#   * Defaults to 65520 for slirp4netns, pasta, and gvisor-tap-vsock. Defaults to 1500 for other rootlesskit network drivers.
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=(builtin|slirp4netns|implicit|gvisor-tap-vsock): the rootlesskit port driver.
 #   * Defaults to "implicit" for "pasta", "builtin" for other rootlesskit network drivers.
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX=(auto|true|false): whether to protect slirp4netns with a dedicated mount namespace.
 #   * Defaults to "auto".
@@ -34,14 +33,18 @@
 
 # Guide to choose the network driver and the port driver:
 #
-#  Network driver | Port driver    | Net throughput | Port throughput | Src IP | No SUID | Note
-#  ---------------|----------------|----------------|-----------------|--------|---------|---------------------------------------------------------
-#  slirp4netns    | builtin        | Slow           | Fast ✅         | ❌     | ✅      | Default in typical setup
-#  vpnkit         | builtin        | Slow           | Fast ✅         | ❌     | ✅      | Default when slirp4netns is not installed
-#  slirp4netns    | slirp4netns    | Slow           | Slow            | ✅     | ✅      |
-#  pasta          | implicit       | Slow           | Fast ✅         | ✅     | ✅      | Experimental; Needs recent version of pasta (2023_12_04)
-#  lxc-user-nic   | builtin        | Fast ✅        | Fast ✅         | ❌     | ❌      | Experimental
-#  (bypass4netns) | (bypass4netns) | Fast ✅        | Fast ✅         | ✅     | ✅      | (Not integrated to RootlessKit)
+#  Network driver   | Port driver      | Net throughput | Port throughput | Src IP | No SUID | Note
+#  -----------------|------------------|----------------|-----------------|--------|---------|---------------------------------------------------------
+#  gvisor-tap-vsock | builtin          | Slow           | Fast ✅         | ✅ (*) | ✅      | Default when slirp4netns is not installed
+#  slirp4netns      | builtin          | Slow           | Fast ✅         | ✅ (*) | ✅      | Default when slirp4netns is installed
+#  vpnkit           | builtin          | Slow           | Fast ✅         | ✅ (*) | ✅      | Legacy
+#  gvisor-tap-vsock | gvisor-tap-vsock | Slow           | Slow            | ❌     | ✅      | Not recommended. Use `builtin` port driver instead.
+#  slirp4netns      | slirp4netns      | Slow           | Slow            | ✅     | ✅      |
+#  pasta            | implicit         | Slow           | Fast ✅         | ✅     | ✅      | Experimental; Needs recent version of pasta (2023_12_04)
+#  lxc-user-nic     | builtin          | Fast ✅        | Fast ✅         | ✅ (*) | ❌      | Experimental
+#  (bypass4netns)   | (bypass4netns)   | Fast ✅        | Fast ✅         | ✅     | ✅      | (Not integrated to RootlessKit)
+#
+# (*) Applicable since RootlessKit v3.0. Also requires userland-proxy to be disabled.
 
 # See the documentation for the further information: https://docs.docker.com/go/rootless/
 
@@ -134,8 +137,7 @@ if [ -z "$net" ]; then
 		fi
 	fi
 	if [ -z "$net" ]; then
-		echo "One of slirp4netns (>= v0.4.0), pasta (passt >= 2023_12_04), or vpnkit needs to be installed"
-		exit 1
+		net=gvisor-tap-vsock
 	fi
 fi
 if [ "$net" = host ]; then
@@ -143,11 +145,14 @@ if [ "$net" = host ]; then
 	exit 1
 fi
 if [ -z "$mtu" ]; then
-	if [ "$net" = slirp4netns -o "$net" = pasta ]; then
-		mtu=65520
-	else
-		mtu=1500
-	fi
+	case "$net" in
+		slirp4netns | pasta | gvisor-tap-vsock)
+			mtu=65520
+			;;
+		*)
+			mtu=1500
+			;;
+	esac
 fi
 if [ -z "$port_driver" ]; then
 	if [ "$net" = pasta ]; then

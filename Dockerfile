@@ -8,10 +8,6 @@ ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 # It must be a valid tag in the docker.io/tonistiigi/xx image repository.
 ARG XX_VERSION=1.9.0
 
-# VPNKIT_VERSION is the version of the vpnkit binary which is used as a fallback
-# network driver for rootless.
-ARG VPNKIT_VERSION=0.6.0
-
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
 ARG DOCKERCLI_VERSION=v29.2.1
 ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
@@ -328,7 +324,7 @@ FROM tini-${TARGETOS} AS tini
 # rootlesskit
 FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
-ARG ROOTLESSKIT_VERSION=v2.3.6
+ARG ROOTLESSKIT_VERSION=v3.0.0
 ADD https://github.com/rootless-containers/rootlesskit.git?ref=${ROOTLESSKIT_VERSION}&keep-git-dir=1 .
 
 FROM base AS rootlesskit-build
@@ -388,19 +384,6 @@ RUN ./autogen.sh && \
     ./configure --bindir=/build && \
     make -j install
 
-# vpnkit
-# use dummy scratch stage to avoid build to fail for unsupported platforms
-FROM scratch AS vpnkit-windows
-FROM scratch AS vpnkit-linux-386
-FROM scratch AS vpnkit-linux-arm
-FROM scratch AS vpnkit-linux-ppc64le
-FROM scratch AS vpnkit-linux-riscv64
-FROM scratch AS vpnkit-linux-s390x
-FROM moby/vpnkit-bin:${VPNKIT_VERSION} AS vpnkit-linux-amd64
-FROM moby/vpnkit-bin:${VPNKIT_VERSION} AS vpnkit-linux-arm64
-FROM vpnkit-linux-${TARGETARCH} AS vpnkit-linux
-FROM vpnkit-${TARGETOS} AS vpnkit
-
 # containerutility
 FROM base AS containerutil-src
 WORKDIR /usr/src/containerutil
@@ -449,7 +432,6 @@ COPY --link --from=shfmt         /build/ /usr/local/bin/
 COPY --link --from=runc          /build/ /usr/local/bin/
 COPY --link --from=containerd    /build/ /usr/local/bin/
 COPY --link --from=rootlesskit   /build/ /usr/local/bin/
-COPY --link --from=vpnkit        /       /usr/local/bin/
 COPY --link --from=containerutil /build/ /usr/local/bin/
 COPY --link --from=crun          /build/ /usr/local/bin/
 COPY --link hack/dockerfile/etc/docker/  /etc/docker/
@@ -628,7 +610,6 @@ COPY --link --from=runc          /build/ /
 COPY --link --from=containerd    /build/ /
 COPY --link --from=rootlesskit   /build/ /
 COPY --link --from=containerutil /build/ /
-COPY --link --from=vpnkit        /       /
 COPY --link --from=build         /build  /
 
 # smoke tests
