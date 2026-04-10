@@ -47,7 +47,7 @@ func allocatePort(pa *portallocator.OSAllocator, bnd types.PortBinding) (types.P
 	// Try up to maxAllocatePortAttempts times to get a port that's not already allocated.
 	var allocatedPort int
 	var err error
-	for i := 0; i < maxAllocatePortAttempts; i++ {
+	for i := range maxAllocatePortAttempts {
 		allocatedPort, err = pa.AllocateHostPort(bnd.HostIP, bnd.Proto, int(bnd.HostPort), int(bnd.HostPortEnd))
 		if err == nil {
 			break

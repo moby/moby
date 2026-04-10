@@ -11,20 +11,20 @@ import (
 
 // BuilderGCRule represents a GC rule for buildkit cache
 type BuilderGCRule struct {
-	All           bool            `json:",omitempty"`
-	Filter        BuilderGCFilter `json:",omitempty"`
-	ReservedSpace string          `json:",omitempty"`
-	MaxUsedSpace  string          `json:",omitempty"`
-	MinFreeSpace  string          `json:",omitempty"`
+	All           bool `json:",omitempty"`
+	Filter        BuilderGCFilter
+	ReservedSpace string `json:",omitempty"`
+	MaxUsedSpace  string `json:",omitempty"`
+	MinFreeSpace  string `json:",omitempty"`
 }
 
 func (x *BuilderGCRule) UnmarshalJSON(data []byte) error {
 	var xx struct {
-		All           bool            `json:",omitempty"`
-		Filter        BuilderGCFilter `json:",omitempty"`
-		ReservedSpace string          `json:",omitempty"`
-		MaxUsedSpace  string          `json:",omitempty"`
-		MinFreeSpace  string          `json:",omitempty"`
+		All           bool `json:",omitempty"`
+		Filter        BuilderGCFilter
+		ReservedSpace string `json:",omitempty"`
+		MaxUsedSpace  string `json:",omitempty"`
+		MinFreeSpace  string `json:",omitempty"`
 
 		// Deprecated option is now equivalent to ReservedSpace.
 		KeepStorage string `json:",omitempty"`
@@ -127,8 +127,8 @@ func (x *BuilderGCConfig) UnmarshalJSON(data []byte) error {
 
 // BuilderHistoryConfig contains history config for a buildkit builder
 type BuilderHistoryConfig struct {
-	MaxAge     bkconfig.Duration `json:",omitempty"`
-	MaxEntries int64             `json:",omitempty"`
+	MaxAge     bkconfig.Duration
+	MaxEntries int64 `json:",omitempty"`
 }
 
 // BuilderEntitlements contains settings to enable/disable entitlements
@@ -140,7 +140,7 @@ type BuilderEntitlements struct {
 
 // BuilderConfig contains config for the builder
 type BuilderConfig struct {
-	GC           BuilderGCConfig       `json:",omitempty"`
-	Entitlements BuilderEntitlements   `json:",omitempty"`
+	GC           BuilderGCConfig
+	Entitlements BuilderEntitlements
 	History      *BuilderHistoryConfig `json:",omitempty"`
 }

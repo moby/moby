@@ -22,7 +22,6 @@ import (
 	metricpb "go.opentelemetry.io/proto/otlp/metrics/v1"
 	"google.golang.org/protobuf/proto"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal/oconf"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal/retry"
@@ -53,8 +52,14 @@ var ourTransport = &http.Transport{
 	ExpectContinueTimeout: 1 * time.Second,
 }
 
+var errInsecureEndpointWithTLS = errors.New("insecure HTTP endpoint cannot use TLS client configuration")
+
 // newClient creates a new HTTP metric client.
 func newClient(cfg oconf.Config) (*client, error) {
+	if cfg.Metrics.Insecure && cfg.Metrics.TLSCfg != nil {
+		return nil, errInsecureEndpointWithTLS
+	}
+
 	httpClient := cfg.Metrics.HTTPClient
 	if httpClient == nil {
 		httpClient = &http.Client{
@@ -122,7 +127,7 @@ func (c *client) Shutdown(ctx context.Context) error {
 //
 // Retryable errors from the server will be handled according to any
 // RetryConfig the client was created with.
-func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.ResourceMetrics) error {
+func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.ResourceMetrics) (uploadErr error) {
 	// The otlpmetric.Exporter synchronizes access to client methods, and
 	// ensures this is not called after the Exporter is shutdown. Only thing
 	// to do here is send data.
@@ -139,7 +144,7 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.Resou
 		return err
 	}
 
-	return c.requestFunc(ctx, func(iCtx context.Context) error {
+	return errors.Join(uploadErr, c.requestFunc(ctx, func(iCtx context.Context) error {
 		select {
 		case <-iCtx.Done():
 			return iCtx.Err()
@@ -147,6 +152,7 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.Resou
 		}
 
 		request.reset(iCtx)
+		// nolint:gosec // URL is constructed from validated OTLP endpoint configuration
 		resp, err := c.httpClient.Do(request.Request)
 		var urlErr *url.Error
 		if errors.As(err, &urlErr) && urlErr.Temporary() {
@@ -158,7 +164,7 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.Resou
 		if resp != nil && resp.Body != nil {
 			defer func() {
 				if err := resp.Body.Close(); err != nil {
-					otel.Handle(err)
+					uploadErr = errors.Join(uploadErr, err)
 				}
 			}()
 		}
@@ -186,7 +192,7 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.Resou
 					n := respProto.PartialSuccess.GetRejectedDataPoints()
 					if n != 0 || msg != "" {
 						err := internal.MetricPartialSuccessError(n, msg)
-						otel.Handle(err)
+						uploadErr = errors.Join(uploadErr, err)
 					}
 				}
 			}
@@ -219,7 +225,7 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.Resou
 			// Non-retryable failure.
 			return fmt.Errorf("failed to send metrics to %s: %s (%w)", request.URL, resp.Status, bodyErr)
 		}
-	})
+	}))
 }
 
 var gzPool = sync.Pool{
@@ -237,6 +243,7 @@ func (c *client) newRequest(ctx context.Context, body []byte) (request, error) {
 	case NoCompression:
 		r.ContentLength = int64(len(body))
 		req.bodyReader = bodyReader(body)
+		req.GetBody = bodyReaderErr(body)
 	case GzipCompression:
 		// Ensure the content length is not used.
 		r.ContentLength = -1
@@ -257,6 +264,7 @@ func (c *client) newRequest(ctx context.Context, body []byte) (request, error) {
 		}
 
 		req.bodyReader = bodyReader(b.Bytes())
+		req.GetBody = bodyReaderErr(body)
 	}
 
 	return req, nil
@@ -266,6 +274,13 @@ func (c *client) newRequest(ctx context.Context, body []byte) (request, error) {
 func bodyReader(buf []byte) func() io.ReadCloser {
 	return func() io.ReadCloser {
 		return io.NopCloser(bytes.NewReader(buf))
+	}
+}
+
+// bodyReaderErr returns a closure returning a new reader for buf.
+func bodyReaderErr(buf []byte) func() (io.ReadCloser, error) {
+	return func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(buf)), nil
 	}
 }
 

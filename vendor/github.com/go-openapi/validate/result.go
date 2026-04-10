@@ -25,7 +25,7 @@ var emptyResult = &Result{MatchCount: 1}
 // schema validation. Results from the validation branch
 // with most matches get eventually selected.
 //
-// TODO: keep path of key originating the error
+// Proposal for enhancement: keep path of key originating the error.
 type Result struct {
 	Errors     []error
 	Warnings   []error
@@ -66,7 +66,7 @@ func NewFieldKey(obj map[string]any, field string) FieldKey {
 
 // Object returns the underlying object of this key.
 func (fk *FieldKey) Object() map[string]any {
-	return fk.object.Interface().(map[string]any)
+	return fk.object.Interface().(map[string]any) //nolint:forcetypeassert // object is always map[string]any
 }
 
 // Field returns the underlying field of this key.
@@ -81,7 +81,7 @@ func NewItemKey(slice any, i int) ItemKey {
 
 // Slice returns the underlying slice of this key.
 func (ik *ItemKey) Slice() []any {
-	return ik.slice.Interface().([]any)
+	return ik.slice.Interface().([]any) //nolint:forcetypeassert // slice is always []any
 }
 
 // Index returns the underlying index of this key.
@@ -283,14 +283,14 @@ func (r *Result) HasErrorsOrWarnings() bool {
 	return len(r.Errors) > 0 || len(r.Warnings) > 0
 }
 
-// Inc increments the match count
+// Inc increments the match count.
 func (r *Result) Inc() {
 	r.MatchCount++
 }
 
-// AsError renders this result as an error interface
+// AsError renders this result as an error interface.
 //
-// TODO: reporting / pretty print with path ordered and indented
+// Proposal for enhancement: reporting / pretty print with path ordered and indented.
 func (r *Result) AsError() error {
 	if r.IsValid() {
 		return nil
@@ -425,7 +425,7 @@ func stripImportantTag(err error) error {
 }
 
 func (r *Result) keepRelevantErrors() *Result {
-	// TODO: this one is going to disapear...
+	// NOTE: this one is going to disapear...
 	// keepRelevantErrors strips a result from standard errors and keeps
 	// the ones which are supposedly more accurate.
 	//

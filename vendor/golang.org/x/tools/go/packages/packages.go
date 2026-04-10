@@ -403,6 +403,10 @@ func mergeResponses(responses ...*DriverResponse) *DriverResponse {
 	if len(responses) == 0 {
 		return nil
 	}
+	// No dedup needed
+	if len(responses) == 1 {
+		return responses[0]
+	}
 	response := newDeduper()
 	response.dr.NotHandled = false
 	response.dr.Compiler = responses[0].Compiler

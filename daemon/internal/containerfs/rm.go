@@ -25,7 +25,7 @@ import (
 // This should not return a [os.ErrNotExist] kind of error under any circumstances.
 func EnsureRemoveAll(dir string) error {
 	notExistErr := make(map[string]bool)
-
+	notEmptyDir := make(map[string]bool)
 	// track retries
 	exitOnErr := make(map[string]int)
 	maxRetry := 50
@@ -58,6 +58,11 @@ func EnsureRemoveAll(dir string) error {
 			if pe.Path == dir {
 				return nil
 			}
+			continue
+		}
+
+		if errors.Is(pe.Err, syscall.ENOTEMPTY) && !notEmptyDir[pe.Path] {
+			notEmptyDir[pe.Path] = true
 			continue
 		}
 

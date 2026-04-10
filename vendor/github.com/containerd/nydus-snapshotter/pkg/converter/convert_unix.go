@@ -1174,6 +1174,30 @@ func convertManifest(ctx context.Context, cs content.Store, oldDesc ocispec.Desc
 	return newManifestDesc, nil
 }
 
+// mergeManifestBlobDigests combines the per-layer nydus blob tar digests with any
+// additional blobs from the nydus-image merge output that are not already covered.
+//
+// nydusBlobDigests contains one entry per OCI source layer in layer order, including
+// metadata-only layers (e.g. symlink-only layers) whose blob tars have no chunk data.
+// originalBlobDigests comes from the nydus-image merge output blob table, which omits
+// metadata-only layers but may include chunk-dict blobs not present in nydusBlobDigests.
+//
+// The result preserves the OCI layer order from nydusBlobDigests and appends any
+// dict-only blobs from originalBlobDigests at the end.
+func mergeManifestBlobDigests(nydusBlobDigests, originalBlobDigests []digest.Digest) []digest.Digest {
+	nydusSet := make(map[digest.Digest]struct{}, len(nydusBlobDigests))
+	for _, d := range nydusBlobDigests {
+		nydusSet[d] = struct{}{}
+	}
+	result := append([]digest.Digest{}, nydusBlobDigests...)
+	for _, d := range originalBlobDigests {
+		if _, ok := nydusSet[d]; !ok {
+			result = append(result, d)
+		}
+	}
+	return result
+}
+
 // MergeLayers merges a list of nydus blob layer into a nydus bootstrap layer.
 // The media type of the nydus bootstrap layer is "application/vnd.oci.image.layer.v1.tar+gzip".
 func MergeLayers(ctx context.Context, cs content.Store, descs []ocispec.Descriptor, opt MergeOption) (*ocispec.Descriptor, []ocispec.Descriptor, error) {
@@ -1265,7 +1289,7 @@ func MergeLayers(ctx context.Context, cs content.Store, descs []ocispec.Descript
 	if opt.OCIRef {
 		blobDigests = nydusBlobDigests
 	} else {
-		blobDigests = originalBlobDigests
+		blobDigests = mergeManifestBlobDigests(nydusBlobDigests, originalBlobDigests)
 	}
 
 	for idx, blobDigest := range blobDigests {

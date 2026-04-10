@@ -215,11 +215,11 @@ func makeTestImage(ctx context.Context, t *testing.T) (imageID string) {
 	assert.NilError(t, err)
 	defer resp.Body.Close()
 
-	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, io.Discard, 0, false, func(msg jsonstream.Message) {
+	err = jsonmessage.DisplayStream(resp.Body, io.Discard, jsonmessage.WithAuxCallback(func(msg jsonstream.Message) {
 		var r build.Result
 		assert.NilError(t, json.Unmarshal(*msg.Aux, &r))
 		imageID = r.ID
-	})
+	}))
 	assert.NilError(t, err)
 	assert.Assert(t, imageID != "")
 	return imageID
@@ -290,11 +290,11 @@ func TestCopyFromContainer(t *testing.T) {
 	defer resp.Body.Close()
 
 	var imageID string
-	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, io.Discard, 0, false, func(msg jsonstream.Message) {
+	err = jsonmessage.DisplayStream(resp.Body, io.Discard, jsonmessage.WithAuxCallback(func(msg jsonstream.Message) {
 		var r build.Result
 		assert.NilError(t, json.Unmarshal(*msg.Aux, &r))
 		imageID = r.ID
-	})
+	}))
 	assert.NilError(t, err)
 	assert.Assert(t, imageID != "")
 

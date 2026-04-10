@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.25.8
+ARG GO_VERSION=1.26.2
 ARG BASE_DEBIAN_DISTRO="bookworm"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
@@ -110,13 +110,12 @@ RUN /download-frozen-image-v2.sh /build \
 # delve
 FROM base AS delve-src
 WORKDIR /usr/src/delve
-RUN git init . && git remote add origin "https://github.com/go-delve/delve.git"
 # DELVE_VERSION specifies the version of the Delve debugger binary
 # from the https://github.com/go-delve/delve repository.
 # It can be used to run Docker with a possibility of
 # attaching debugger to it.
 ARG DELVE_VERSION=v1.26.0
-RUN git fetch -q --depth 1 origin "${DELVE_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ADD https://github.com/go-delve/delve.git?ref=${DELVE_VERSION}&keep-git-dir=1 .
 
 FROM base AS delve-supported
 WORKDIR /usr/src/delve
@@ -124,7 +123,7 @@ ARG TARGETPLATFORM
 RUN --mount=from=delve-src,src=/usr/src/delve,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=delve-build-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod <<EOT
-  set -e
+  set -ex
   xx-go build -o /build/dlv ./cmd/dlv
   xx-verify /build/dlv
 EOT
@@ -135,21 +134,22 @@ FROM delve-${DELVE_SUPPORTED} AS delve
 FROM base AS gowinres
 # GOWINRES_VERSION defines go-winres tool version
 ARG GOWINRES_VERSION=v0.3.1
+ADD https://github.com/tc-hib/go-winres.git?ref=${GOWINRES_VERSION}&keep-git-dir=1 /go/src/github.com/tc-hib/go-winres
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build CGO_ENABLED=0 go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
+        cd /go/src/github.com/tc-hib/go-winres && \
+        GOBIN=/build CGO_ENABLED=0 go install . \
      && /build/go-winres --help
 
 # containerd
 FROM base AS containerd-src
 WORKDIR /usr/src/containerd
-RUN git init . && git remote add origin "https://github.com/containerd/containerd.git"
 # CONTAINERD_VERSION is used to build containerd binaries, and used for the
 # integration tests. The distributed docker .deb and .rpm packages depend on a
 # separate (containerd.io) package, which may be a different version as is
 # specified here.
 ARG CONTAINERD_VERSION=v2.2.2
-RUN git fetch -q --depth 1 origin "${CONTAINERD_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ADD https://github.com/containerd/containerd.git?ref=${CONTAINERD_VERSION}&keep-git-dir=1 .
 
 FROM base AS containerd-build
 WORKDIR /go/src/github.com/containerd/containerd
@@ -163,13 +163,22 @@ ARG DOCKER_STATIC
 RUN --mount=from=containerd-src,src=/usr/src/containerd,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=containerd-build-$TARGETPLATFORM <<EOT
   set -e
-  export CC=$(xx-info)-gcc
-  export CGO_ENABLED=$([ "$DOCKER_STATIC" = "1" ] && echo "0" || echo "1")
+
+  make_flags=
+  verify_flags=
+  cgo_enabled=1
+  if [ "$DOCKER_STATIC" = "1" ]; then
+      make_flags=STATIC=1
+      verify_flags=--static
+      cgo_enabled=0
+  fi
+
+  set -x
   xx-go --wrap
-  make $([ "$DOCKER_STATIC" = "1" ] && echo "STATIC=1") binaries
-  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") bin/containerd
-  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") bin/containerd-shim-runc-v2
-  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") bin/ctr
+  CC="$(xx-info)-gcc" CGO_ENABLED=$cgo_enabled make $make_flags binaries
+  xx-verify $verify_flags bin/containerd
+  xx-verify $verify_flags bin/containerd-shim-runc-v2
+  xx-verify $verify_flags bin/ctr
   mkdir /build
   mv bin/containerd bin/containerd-shim-runc-v2 bin/ctr /build
 EOT
@@ -180,27 +189,34 @@ FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
 ARG GOLANGCI_LINT_VERSION=v2.8.0
+ADD https://github.com/golangci/golangci-lint.git?ref=${GOLANGCI_LINT_VERSION}&keep-git-dir=1 /go/src/github.com/golangci/golangci-lint
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build CGO_ENABLED=0 go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
+        cd /go/src/github.com/golangci/golangci-lint && \
+        GOBIN=/build CGO_ENABLED=0 go install ./cmd/golangci-lint \
      && /build/golangci-lint --version
 
 FROM base AS gotestsum
 # GOTESTSUM_VERSION is the version of gotest.tools/gotestsum to install.
 ARG GOTESTSUM_VERSION=v1.13.0
+ADD https://github.com/gotestyourself/gotestsum.git?ref=${GOTESTSUM_VERSION}&keep-git-dir=1 /go/src/gotest.tools/gotestsum
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build CGO_ENABLED=0 go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}" \
+        cd /go/src/gotest.tools/gotestsum && \
+        GOBIN=/build CGO_ENABLED=0 go install . \
      && /build/gotestsum --version
 
 FROM base AS shfmt
 ARG SHFMT_VERSION=v3.8.0
+ADD https://github.com/mvdan/sh.git?ref=${SHFMT_VERSION}&keep-git-dir=1 /go/src/mvdan.cc/sh
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build CGO_ENABLED=0 go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
+        cd /go/src/mvdan.cc/sh && \
+        GOBIN=/build CGO_ENABLED=0 go install ./cmd/shfmt \
      && /build/shfmt --version
 
 FROM base AS gopls
+# No ARG GOPLS_VERSION, as gopls is only used for devcontainer
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
         GOBIN=/build CGO_ENABLED=0 go install "golang.org/x/tools/gopls@latest" \
@@ -234,13 +250,12 @@ RUN --mount=source=hack/dockerfile/cli.sh,target=/download-or-build-cli.sh \
 # runc
 FROM base AS runc-src
 WORKDIR /usr/src/runc
-RUN git init . && git remote add origin "https://github.com/opencontainers/runc.git"
 # RUNC_VERSION sets the version of runc to install in the dev-container.
 # This version should usually match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged.
-ARG RUNC_VERSION=v1.3.4
-RUN git fetch -q --depth 1 origin "${RUNC_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ARG RUNC_VERSION=v1.3.5
+ADD https://github.com/opencontainers/runc.git?ref=${RUNC_VERSION}&keep-git-dir=1 .
 
 FROM base AS runc-build
 WORKDIR /go/src/github.com/opencontainers/runc
@@ -257,8 +272,17 @@ RUN --mount=from=runc-src,src=/usr/src/runc,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=runc-build-$TARGETPLATFORM <<EOT
   set -e
   xx-go --wrap
-  CGO_ENABLED=1 make "$([ "$DOCKER_STATIC" = "1" ] && echo "static" || echo "runc")"
-  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") runc
+
+  target=runc
+  verify_flags=
+  if [ "$DOCKER_STATIC" = "1" ]; then
+    target=static
+    verify_flags=--static
+  fi
+
+  set -x
+  CGO_ENABLED=1 make "$target"
+  xx-verify $verify_flags runc
   mkdir /build
   mv runc /build/
 EOT
@@ -270,11 +294,10 @@ FROM runc-${TARGETOS} AS runc
 # tini
 FROM base AS tini-src
 WORKDIR /usr/src/tini
-RUN git init . && git remote add origin "https://github.com/krallin/tini.git"
 # TINI_VERSION specifies the version of tini (docker-init) to build. This
 # binary is used when starting containers with the `--init` option.
 ARG TINI_VERSION=v0.19.0
-RUN git fetch -q --depth 1 origin "${TINI_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ADD https://github.com/krallin/tini.git?ref=${TINI_VERSION}&keep-git-dir=1 .
 
 FROM base AS tini-build
 WORKDIR /go/src/github.com/krallin/tini
@@ -290,7 +313,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-tini-aptlib,target=/var/lib/apt \
             pkg-config
 RUN --mount=from=tini-src,src=/usr/src/tini,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=tini-build-$TARGETPLATFORM <<EOT
-  set -e
+  set -ex
   CC=$(xx-info)-gcc cmake .
   make tini-static
   xx-verify --static tini-static
@@ -305,9 +328,8 @@ FROM tini-${TARGETOS} AS tini
 # rootlesskit
 FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
-RUN git init . && git remote add origin "https://github.com/rootless-containers/rootlesskit.git"
 ARG ROOTLESSKIT_VERSION=v2.3.6
-RUN git fetch -q --depth 1 origin "${ROOTLESSKIT_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ADD https://github.com/rootless-containers/rootlesskit.git?ref=${ROOTLESSKIT_VERSION}&keep-git-dir=1 .
 
 FROM base AS rootlesskit-build
 WORKDIR /go/src/github.com/rootless-containers/rootlesskit
@@ -323,9 +345,18 @@ RUN --mount=from=rootlesskit-src,src=/usr/src/rootlesskit,rw \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build,id=rootlesskit-build-$TARGETPLATFORM <<EOT
   set -e
-  export CGO_ENABLED=$([ "$DOCKER_STATIC" = "1" ] && echo "0" || echo "1")
-  xx-go build -o /build/rootlesskit -ldflags="$([ "$DOCKER_STATIC" != "1" ] && echo "-linkmode=external")" ./cmd/rootlesskit
-  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /build/rootlesskit
+
+  if [ "$DOCKER_STATIC" = "1" ]; then
+      set -x
+      export CGO_ENABLED=0
+      xx-go build -o /build/rootlesskit ./cmd/rootlesskit
+      xx-verify --static /build/rootlesskit
+  else
+      set -x
+      export CGO_ENABLED=1
+      xx-go build -o /build/rootlesskit -ldflags='-linkmode=external' ./cmd/rootlesskit
+      xx-verify /build/rootlesskit
+  fi
 EOT
 COPY --link ./contrib/dockerd-rootless.sh /build/
 COPY --link ./contrib/dockerd-rootless-setuptool.sh /build/
@@ -351,11 +382,9 @@ RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
             libyajl-dev \
             python3 \
             ;
-RUN --mount=type=tmpfs,target=/tmp/crun-build \
-    git clone https://github.com/containers/crun.git /tmp/crun-build && \
-    cd /tmp/crun-build && \
-    git checkout -q "${CRUN_VERSION}" && \
-    ./autogen.sh && \
+WORKDIR /tmp/crun-build
+ADD https://github.com/containers/crun.git?ref=${CRUN_VERSION}&keep-git-dir=1 .
+RUN ./autogen.sh && \
     ./configure --bindir=/build && \
     make -j install
 
@@ -375,9 +404,8 @@ FROM vpnkit-${TARGETOS} AS vpnkit
 # containerutility
 FROM base AS containerutil-src
 WORKDIR /usr/src/containerutil
-RUN git init . && git remote add origin "https://github.com/docker-archive/windows-container-utility.git"
 ARG CONTAINERUTILITY_VERSION=aa1ba87e99b68e0113bd27ec26c60b88f9d4ccd9
-RUN git fetch -q --depth 1 origin "${CONTAINERUTILITY_VERSION}" +refs/tags/*:refs/tags/* && git checkout -q FETCH_HEAD
+ADD https://github.com/docker-archive/windows-container-utility.git?commit=${CONTAINERUTILITY_VERSION}&keep-git-dir=1 .
 
 FROM base AS containerutil-build
 WORKDIR /usr/src/containerutil
@@ -389,7 +417,7 @@ RUN xx-apt-get install -y --no-install-recommends \
         pkg-config
 RUN --mount=from=containerutil-src,src=/usr/src/containerutil,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=containerutil-build-$TARGETPLATFORM <<EOT
-  set -e
+  set -ex
   CC="$(xx-info)-gcc" CXX="$(xx-info)-g++" make
   xx-verify --static containerutility.exe
   mkdir /build
@@ -551,6 +579,7 @@ ARG PACKAGER_NAME
 # read only mount in current work dir
 ENV PREFIX=/tmp
 RUN <<EOT
+  set -ex
   # in bullseye arm64 target does not link with lld so configure it to use ld instead
   if [ "$(xx-info arch)" = "arm64" ]; then
     XX_CC_PREFER_LINKER=ld xx-clang --setup-target-triple
@@ -559,11 +588,25 @@ EOT
 RUN --mount=type=bind,target=.,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=moby-build-$TARGETPLATFORM <<EOT
   set -e
-  target=$([ "$DOCKER_STATIC" = "1" ] && echo "binary" || echo "dynbinary")
+
+  target=dynbinary
+  verify_flags=
+  exe_suffix=
+  if [ "$DOCKER_STATIC" = "1" ]; then
+      target=binary
+      verify_flags=--static
+  fi
+  if [ "$(xx-info os)" = "windows" ]; then
+      exe_suffix=.exe
+  fi
+
+  set -x
   xx-go --wrap
-  PKG_CONFIG=$(xx-go env PKG_CONFIG) ./hack/make.sh $target
-  xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /tmp/bundles/${target}-daemon/dockerd$([ "$(xx-info os)" = "windows" ] && echo ".exe")
-  [ "$(xx-info os)" != "linux" ] || xx-verify $([ "$DOCKER_STATIC" = "1" ] && echo "--static") /tmp/bundles/${target}-daemon/docker-proxy
+  PKG_CONFIG=$(xx-go env PKG_CONFIG) ./hack/make.sh "$target"
+  xx-verify $verify_flags "/tmp/bundles/${target}-daemon/dockerd${exe_suffix}"
+  if [ "$(xx-info os)" = "linux" ]; then
+      xx-verify $verify_flags "/tmp/bundles/${target}-daemon/docker-proxy"
+  fi
   mkdir /build
   mv /tmp/bundles/${target}-daemon/* /build/
 EOT

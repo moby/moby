@@ -348,7 +348,7 @@ func TestWindowsNetworkEndpointManagement(t *testing.T) {
 	const numContainers = 3
 	containerIDs := make([]string, numContainers)
 
-	for i := 0; i < numContainers; i++ {
+	for i := range numContainers {
 		ctrName := fmt.Sprintf("endpoint-ctr-%d", i)
 		id := container.Run(ctx, t, c,
 			container.WithName(ctrName),
@@ -364,7 +364,7 @@ func TestWindowsNetworkEndpointManagement(t *testing.T) {
 		"Expected %d containers, got %d", numContainers, len(netInfo.Network.Containers))
 
 	// Verify each container has network connectivity to others
-	for i := 0; i < numContainers-1; i++ {
+	for i := range numContainers - 1 {
 		targetName := fmt.Sprintf("endpoint-ctr-%d", i)
 		pingCmd := []string{"ping", "-n", "1", "-w", "3000", targetName}
 

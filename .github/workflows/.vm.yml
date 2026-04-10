@@ -25,7 +25,7 @@ on:
         default: ""
 
 env:
-  GO_VERSION: "1.25.8"
+  GO_VERSION: "1.26.2"
   TESTSTAT_VERSION: v0.1.25
   TEMPLATE_NAME: ${{ inputs.template }}
 
@@ -45,7 +45,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Set up Lima
         uses: lima-vm/lima-actions/setup@55627e31b78637bf254a8b2a14da8ea7d12564e5  # v1.1.0
@@ -54,7 +54,7 @@ jobs:
           version: v2.0.2
       -
         name: Cache ~/.cache/lima
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: ~/.cache/lima
           key: lima-${{ steps.lima-actions-setup.outputs.version }}-${{ inputs.template }}
@@ -110,7 +110,7 @@ jobs:
           EOF
           # TODO: use native packages for AlmaLinux: https://github.com/docker/packaging/pull/138
           lima sudo dnf config-manager --add-repo=https://download.docker.com/linux/rhel/docker-ce.repo
-          lima sudo dnf -q -y install --nobest docker-ce make
+          lima sudo dnf -q -y install --nobest docker-ce make git
           lima sudo systemctl enable --now docker
           lima docker info
       -
@@ -196,7 +196,7 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -208,7 +208,7 @@ jobs:
           echo "TESTREPORTS_NAME=${TEMPLATE}*" >> $GITHUB_ENV
       -
         name: Download reports
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: /tmp/reports
           pattern: test-reports-integration-${{ env.TESTREPORTS_NAME }}

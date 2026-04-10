@@ -70,7 +70,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	defer resp.Body.Close()
 
 	buf := bytes.NewBuffer(nil)
-	err = jsonmessage.DisplayJSONMessagesStream(resp.Body, buf, 0, false, nil)
+	err = jsonmessage.DisplayStream(resp.Body, buf)
 	assert.NilError(t, err)
 
 	reader, err := clientUserRemap.ImageSave(ctx, []string{imageTag})
@@ -107,7 +107,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	assert.NilError(t, err, "failed to load image tar file")
 	defer loadResp.Close()
 	var buf2 bytes.Buffer
-	err = jsonmessage.DisplayJSONMessagesStream(loadResp, &buf2, 0, false, nil)
+	err = jsonmessage.DisplayStream(loadResp, &buf2)
 	assert.NilError(t, err)
 
 	cid := container.Run(ctx, t, clientNoUserRemap,

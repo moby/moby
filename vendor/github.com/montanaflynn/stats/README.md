@@ -115,9 +115,12 @@ func NormVar(loc float64, scale float64) float64 {}
 func Pearson(data1, data2 Float64Data) (float64, error) {}
 func Percentile(input Float64Data, percent float64) (percentile float64, err error) {}
 func PercentileNearestRank(input Float64Data, percent float64) (percentile float64, err error) {}
+func PopulationSkewness(input Float64Data) (float64, error) {}
 func PopulationVariance(input Float64Data) (pvar float64, err error) {}
 func Sample(input Float64Data, takenum int, replacement bool) ([]float64, error) {}
+func SampleSkewness(input Float64Data) (float64, error) {}
 func SampleVariance(input Float64Data) (svar float64, err error) {}
+func Skewness(input Float64Data) (float64, error) {}
 func Sigmoid(input Float64Data) ([]float64, error) {}
 func SoftMax(input Float64Data) ([]float64, error) {}
 func StableSample(input Float64Data, takenum int) ([]float64, error) {}
@@ -182,35 +185,16 @@ To make things as seamless as possible please also consider the following steps:
 
 ## Releasing
 
-This is not required by contributors and mostly here as a reminder to myself as the maintainer of this repo. To release a new version we should update the [CHANGELOG.md](/CHANGELOG.md) and [DOCUMENTATION.md](/DOCUMENTATION.md).
-
-First install the tools used to generate the markdown files and release:
+Releases are automated with [GoReleaser](https://goreleaser.com/) via GitHub Actions. To create a new release, push a version tag:
 
 ```
-go install github.com/davecheney/godoc2md@latest
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-brew tap git-chglog/git-chglog
-brew install gnu-sed hub git-chglog
+git tag v0.x.x
+git push origin v0.x.x
 ```
-
-Then you can run these `make` directives:
-
-```
-# Generate DOCUMENTATION.md
-make docs
-```
-
-Then we can create a [CHANGELOG.md](/CHANGELOG.md) a new git tag and a github release:
-
-```
-make release TAG=v0.x.x
-```
-
-To authenticate `hub` for the release you will need to create a personal access token and use it as the password when it's requested.
 
 ## MIT License
 
-Copyright (c) 2014-2023 Montana Flynn (https://montanaflynn.com)
+Copyright (c) 2014-2026 Montana Flynn (https://montanaflynn.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 

@@ -1,1 +1,6 @@
-secrets.yml
+*.out
+*.cov
+.idea
+.env
+.mcp.json
+.claude/

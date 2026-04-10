@@ -11,9 +11,9 @@ import (
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
-	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 )
@@ -37,12 +37,18 @@ func hasStacktrace(err error) bool {
 	return errors.As(err, &stack) || errors.As(err, &pkgStack)
 }
 
+// exceptionStacktraceKey is the OTEL semantic convention key for an exception
+// stacktrace. See [exception.stacktrace],
+//
+// [exception.stacktrace]: https://opentelemetry.io/docs/specs/semconv/registry/attributes/exception/#exception-stacktrace
+const exceptionStacktraceKey = "exception.stacktrace"
+
 // FinishWithError finalizes the span and sets the error if one is passed
 func FinishWithError(span trace.Span, err error) {
 	if err != nil {
 		span.RecordError(err)
 		if hasStacktrace(err) {
-			span.SetAttributes(semconv.ExceptionStacktrace(fmt.Sprintf("%+v", stack.Formatter(err))))
+			span.SetAttributes(attribute.String(exceptionStacktraceKey, fmt.Sprintf("%+v", stack.Formatter(err))))
 		}
 		span.SetStatus(codes.Error, err.Error())
 	}

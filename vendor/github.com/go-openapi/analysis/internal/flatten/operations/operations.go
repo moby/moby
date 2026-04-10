@@ -14,12 +14,12 @@ import (
 	"github.com/go-openapi/swag/mangling"
 )
 
-// AllOpRefsByRef returns an index of sortable operations
+// AllOpRefsByRef returns an index of sortable operations.
 func AllOpRefsByRef(specDoc Provider, operationIDs []string) map[string]OpRef {
 	return OpRefsByRef(GatherOperations(specDoc, operationIDs))
 }
 
-// OpRefsByRef indexes a map of sortable operations
+// OpRefsByRef indexes a map of sortable operations.
 func OpRefsByRef(oprefs map[string]OpRef) map[string]OpRef {
 	result := make(map[string]OpRef, len(oprefs))
 	for _, v := range oprefs {
@@ -29,7 +29,7 @@ func OpRefsByRef(oprefs map[string]OpRef) map[string]OpRef {
 	return result
 }
 
-// OpRef is an indexable, sortable operation
+// OpRef is an indexable, sortable operation.
 type OpRef struct {
 	Method string
 	Path   string
@@ -39,19 +39,19 @@ type OpRef struct {
 	Ref    spec.Ref
 }
 
-// OpRefs is a sortable collection of operations
+// OpRefs is a sortable collection of operations.
 type OpRefs []OpRef
 
 func (o OpRefs) Len() int           { return len(o) }
 func (o OpRefs) Swap(i, j int)      { o[i], o[j] = o[j], o[i] }
 func (o OpRefs) Less(i, j int) bool { return o[i].Key < o[j].Key }
 
-// Provider knows how to collect operations from a spec
+// Provider knows how to collect operations from a spec.
 type Provider interface {
 	Operations() map[string]map[string]*spec.Operation
 }
 
-// GatherOperations builds a map of sorted operations from a spec
+// GatherOperations builds a map of sorted operations from a spec.
 func GatherOperations(specDoc Provider, operationIDs []string) map[string]OpRef {
 	var oprefs OpRefs
 	mangler := mangling.NewNameMangler()

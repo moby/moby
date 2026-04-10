@@ -21,7 +21,7 @@ on:
         default: "graphdriver"
 
 env:
-  GO_VERSION: "1.25.8"
+  GO_VERSION: "1.26.2"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   ITG_CLI_MATRIX_SIZE: 6
@@ -39,7 +39,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -95,7 +95,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -138,7 +138,7 @@ jobs:
               { os: 'ubuntu-22.04', mode: 'rootless' },
               { os: 'ubuntu-22.04', mode: 'systemd' },
               { os: 'ubuntu-24.04', mode: '' },
-              // { os: 'ubuntu-24.04', mode: 'rootless' },  // FIXME: https://github.com/moby/moby/pull/49579#issuecomment-2698622223
+              { os: 'ubuntu-24.04', mode: 'rootless' },
               { os: 'ubuntu-24.04', mode: 'systemd' },
               // { os: 'ubuntu-24.04', mode: 'rootless-systemd' }, // FIXME: https://github.com/moby/moby/issues/44084
             ];
@@ -169,7 +169,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -195,6 +195,19 @@ jobs:
             echo "DOCKER_FIREWALL_BACKEND=nftables" >> $GITHUB_ENV
           fi
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
+      -
+        name: Set up AppArmor for RootlessKit
+        if: contains(matrix.mode, 'rootless') && matrix.os != 'ubuntu-22.04'
+        run: |
+          cat <<EOT | sudo tee "/etc/apparmor.d/usr.local.bin.rootlesskit"
+          abi <abi/4.0>,
+          include <tunables/global>
+
+          /usr/local/bin/rootlesskit flags=(unconfined) {
+            userns,
+          }
+          EOT
+          sudo systemctl restart apparmor.service
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
@@ -236,7 +249,7 @@ jobs:
           tree -nh $reportsPath
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -266,13 +279,13 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: /tmp/reports
           pattern: test-reports-integration-${{ inputs.storage }}-*
@@ -295,10 +308,10 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -393,7 +406,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -452,7 +465,7 @@ jobs:
           tree -nh $reportsPath
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -482,13 +495,13 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: /tmp/reports
           pattern: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-*

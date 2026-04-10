@@ -3,7 +3,7 @@
 
 package validate
 
-// SchemaValidatorOptions defines optional rules for schema validation
+// SchemaValidatorOptions defines optional rules for schema validation.
 type SchemaValidatorOptions struct {
 	EnableObjectArrayTypeCheck    bool
 	EnableArrayMustHaveItemsCheck bool
@@ -12,24 +12,24 @@ type SchemaValidatorOptions struct {
 	skipSchemataResult            bool
 }
 
-// Option sets optional rules for schema validation
+// Option sets optional rules for schema validation.
 type Option func(*SchemaValidatorOptions)
 
-// EnableObjectArrayTypeCheck activates the swagger rule: an items must be in type: array
+// EnableObjectArrayTypeCheck activates the swagger rule: an items must be in type: array.
 func EnableObjectArrayTypeCheck(enable bool) Option {
 	return func(svo *SchemaValidatorOptions) {
 		svo.EnableObjectArrayTypeCheck = enable
 	}
 }
 
-// EnableArrayMustHaveItemsCheck activates the swagger rule: an array must have items defined
+// EnableArrayMustHaveItemsCheck activates the swagger rule: an array must have items defined.
 func EnableArrayMustHaveItemsCheck(enable bool) Option {
 	return func(svo *SchemaValidatorOptions) {
 		svo.EnableArrayMustHaveItemsCheck = enable
 	}
 }
 
-// SwaggerSchema activates swagger schema validation rules
+// SwaggerSchema activates swagger schema validation rules.
 func SwaggerSchema(enable bool) Option {
 	return func(svo *SchemaValidatorOptions) {
 		svo.EnableObjectArrayTypeCheck = enable
@@ -53,14 +53,14 @@ func withRecycleResults(enable bool) Option {
 	}
 }
 
-// WithSkipSchemataResult skips the deep audit payload stored in validation Result
+// WithSkipSchemataResult skips the deep audit payload stored in validation Result.
 func WithSkipSchemataResult(enable bool) Option {
 	return func(svo *SchemaValidatorOptions) {
 		svo.skipSchemataResult = enable
 	}
 }
 
-// Options returns the current set of options
+// Options returns the current set of options.
 func (svo SchemaValidatorOptions) Options() []Option {
 	return []Option{
 		EnableObjectArrayTypeCheck(svo.EnableObjectArrayTypeCheck),

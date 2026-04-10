@@ -139,8 +139,6 @@ func TestPluginInstall(t *testing.T) {
 		assert.NilError(t, err)
 		defer res.Close()
 
-		buf := &strings.Builder{}
-		assert.NilError(t, err)
 		var digest string
 
 		// PushResult contains the tag, manifest digest, and manifest size from the
@@ -153,13 +151,14 @@ func TestPluginInstall(t *testing.T) {
 			Digest string
 			Size   int
 		}
-		assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(res, buf, 0, false, func(j jsonstream.Message) {
+		var buf strings.Builder
+		assert.NilError(t, jsonmessage.DisplayStream(res, &buf, jsonmessage.WithAuxCallback(func(j jsonstream.Message) {
 			if j.Aux != nil {
 				var r pushResult
 				assert.NilError(t, json.Unmarshal(*j.Aux, &r))
 				digest = r.Digest
 			}
-		}), buf)
+		})), buf)
 
 		_, err = apiclient.PluginRemove(ctx, repo, client.PluginRemoveOptions{Force: true})
 		assert.NilError(t, err)
@@ -349,8 +348,8 @@ func TestPluginBackCompatMediaTypes(t *testing.T) {
 	assert.NilError(t, err)
 	defer res.Close()
 
-	buf := &strings.Builder{}
-	assert.NilError(t, jsonmessage.DisplayJSONMessagesStream(res, buf, 0, false, nil), buf)
+	var buf strings.Builder
+	assert.NilError(t, jsonmessage.DisplayStream(res, &buf), buf)
 
 	// Use custom header here because older versions of the registry do not
 	// parse the accept header correctly and does not like the accept header

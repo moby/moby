@@ -53,7 +53,7 @@ type V1Image struct {
 
 	// ContainerConfig is the configuration of the container that was committed
 	// into the image.
-	ContainerConfig container.Config `json:"container_config,omitempty"`
+	ContainerConfig container.Config `json:"container_config"`
 
 	// DockerVersion is the version of Docker that was used to build the image.
 	//

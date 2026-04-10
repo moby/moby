@@ -291,11 +291,11 @@ import (
 // When a policy disables EMF metric creation for a log group, log events in the
 // EMF format are still ingested, but no CloudWatch Metrics are created from them.
 //
-// Creating a policy disables metrics for AWS features that use EMF to create
-// metrics, such as CloudWatch Container Insights and CloudWatch Application
-// Signals. To prevent turning off those features by accident, we recommend that
-// you exclude the underlying log-groups through a selection-criteria such as
-// LogGroupNamePrefix NOT IN ["/aws/containerinsights",
+// Creating a policy disables metrics for Amazon Web Services features that use
+// EMF to create metrics, such as CloudWatch Container Insights and CloudWatch
+// Application Signals. To prevent turning off those features by accident, we
+// recommend that you exclude the underlying log-groups through a
+// selection-criteria such as LogGroupNamePrefix NOT IN ["/aws/containerinsights",
 // "/aws/ecs/containerinsights", "/aws/application-signals/data"] .
 //
 // Each account can have either one account-level metric extraction policy that
@@ -564,7 +564,7 @@ func (c *Client) addOperationPutAccountPolicyMiddlewares(stack *middleware.Stack
 	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetry(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
 	if err = addRawResponseToMetadata(stack); err != nil {
@@ -586,9 +586,6 @@ func (c *Client) addOperationPutAccountPolicyMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addTimeOffsetBuild(stack, c); err != nil {
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {

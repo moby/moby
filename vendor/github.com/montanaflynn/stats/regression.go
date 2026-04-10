@@ -18,7 +18,7 @@ func LinearRegression(s Series) (regressions Series, err error) {
 	}
 
 	// Placeholder for the math to be done
-	var sum [5]float64
+	var sum [4]float64
 
 	// Loop over data keeping index in place
 	i := 0
@@ -27,7 +27,6 @@ func LinearRegression(s Series) (regressions Series, err error) {
 		sum[1] += s[i].Y
 		sum[2] += s[i].X * s[i].X
 		sum[3] += s[i].X * s[i].Y
-		sum[4] += s[i].Y * s[i].Y
 	}
 
 	// Find gradient and intercept

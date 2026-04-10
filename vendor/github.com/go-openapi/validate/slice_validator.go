@@ -27,7 +27,8 @@ type schemaSliceValidator struct {
 func newSliceValidator(path, in string,
 	maxItems, minItems *int64, uniqueItems bool,
 	additionalItems *spec.SchemaOrBool, items *spec.SchemaOrArray,
-	root any, formats strfmt.Registry, opts *SchemaValidatorOptions) *schemaSliceValidator {
+	root any, formats strfmt.Registry, opts *SchemaValidatorOptions,
+) *schemaSliceValidator {
 	if opts == nil {
 		opts = new(SchemaValidatorOptions)
 	}

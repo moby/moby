@@ -15,7 +15,7 @@ import (
 	"go.opentelemetry.io/otel/internal/global"
 	"go.opentelemetry.io/otel/sdk/metric/internal/observ"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
-	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 )
 
 // Default periodic reader timing.
@@ -107,7 +107,9 @@ func WithInterval(d time.Duration) PeriodicReaderOption {
 // exporter. That is left to the user to accomplish.
 func NewPeriodicReader(exporter Exporter, options ...PeriodicReaderOption) *PeriodicReader {
 	conf := newPeriodicReaderConfig(options)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel( //nolint:gosec  // cancel called during PeriodicReader shutdown.
+		context.Background(),
+	)
 	r := &PeriodicReader{
 		interval: conf.interval,
 		timeout:  conf.timeout,

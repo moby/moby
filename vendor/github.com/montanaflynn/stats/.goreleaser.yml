@@ -1,0 +1,14 @@
+version: 2
+
+builds:
+  - skip: true
+
+changelog:
+  sort: asc
+  groups:
+    - title: Fix
+      regexp: '^fix:'
+    - title: Features
+      regexp: '^feat:'
+    - title: Other
+      order: 999

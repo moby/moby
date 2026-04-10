@@ -29,7 +29,7 @@ Example Usage:
 	roundedMedian, _ := stats.Round(median, 0)
 	fmt.Println(roundedMedian) // 4
 
-MIT License Copyright (c) 2014-2020 Montana Flynn (<a href="https://montanaflynn.com">https://montanaflynn.com</a>)
+MIT License Copyright (c) 2014-2026 Montana Flynn (<a href="https://montanaflynn.com">https://montanaflynn.com</a>)
 
 
 
@@ -104,6 +104,10 @@ MIT License Copyright (c) 2014-2020 Montana Flynn (<a href="https://montanaflynn
   * [func ExpReg(s []Coordinate) (regressions []Coordinate, err error)](#ExpReg)
   * [func LinReg(s []Coordinate) (regressions []Coordinate, err error)](#LinReg)
   * [func LogReg(s []Coordinate) (regressions []Coordinate, err error)](#LogReg)
+* [type Description](#Description)
+  * [func Describe(input Float64Data, allowNaN bool, percentiles *[]float64) (*Description, error)](#Describe)
+  * [func DescribePercentileFunc(input Float64Data, allowNaN bool, percentiles *[]float64, percentileFunc func(Float64Data, float64) (float64, error)) (*Description, error)](#DescribePercentileFunc)
+  * [func (d *Description) String(decimals int) string](#Description.String)
 * [type Float64Data](#Float64Data)
   * [func LoadRawData(raw interface{}) (f Float64Data)](#LoadRawData)
   * [func (f Float64Data) AutoCorrelation(lags int) (float64, error)](#Float64Data.AutoCorrelation)
@@ -173,7 +177,7 @@ MIT License Copyright (c) 2014-2020 Montana Flynn (<a href="https://montanaflynn
 * [VarGeom](#example_VarGeom)
 
 #### <a name="pkg-files">Package files</a>
-[correlation.go](/src/github.com/montanaflynn/stats/correlation.go) [cumulative_sum.go](/src/github.com/montanaflynn/stats/cumulative_sum.go) [data.go](/src/github.com/montanaflynn/stats/data.go) [deviation.go](/src/github.com/montanaflynn/stats/deviation.go) [distances.go](/src/github.com/montanaflynn/stats/distances.go) [doc.go](/src/github.com/montanaflynn/stats/doc.go) [entropy.go](/src/github.com/montanaflynn/stats/entropy.go) [errors.go](/src/github.com/montanaflynn/stats/errors.go) [geometric_distribution.go](/src/github.com/montanaflynn/stats/geometric_distribution.go) [legacy.go](/src/github.com/montanaflynn/stats/legacy.go) [load.go](/src/github.com/montanaflynn/stats/load.go) [max.go](/src/github.com/montanaflynn/stats/max.go) [mean.go](/src/github.com/montanaflynn/stats/mean.go) [median.go](/src/github.com/montanaflynn/stats/median.go) [min.go](/src/github.com/montanaflynn/stats/min.go) [mode.go](/src/github.com/montanaflynn/stats/mode.go) [norm.go](/src/github.com/montanaflynn/stats/norm.go) [outlier.go](/src/github.com/montanaflynn/stats/outlier.go) [percentile.go](/src/github.com/montanaflynn/stats/percentile.go) [quartile.go](/src/github.com/montanaflynn/stats/quartile.go) [ranksum.go](/src/github.com/montanaflynn/stats/ranksum.go) [regression.go](/src/github.com/montanaflynn/stats/regression.go) [round.go](/src/github.com/montanaflynn/stats/round.go) [sample.go](/src/github.com/montanaflynn/stats/sample.go) [sigmoid.go](/src/github.com/montanaflynn/stats/sigmoid.go) [softmax.go](/src/github.com/montanaflynn/stats/softmax.go) [sum.go](/src/github.com/montanaflynn/stats/sum.go) [util.go](/src/github.com/montanaflynn/stats/util.go) [variance.go](/src/github.com/montanaflynn/stats/variance.go) 
+[correlation.go](/src/github.com/montanaflynn/stats/correlation.go) [cumulative_sum.go](/src/github.com/montanaflynn/stats/cumulative_sum.go) [data.go](/src/github.com/montanaflynn/stats/data.go) [describe.go](/src/github.com/montanaflynn/stats/describe.go) [deviation.go](/src/github.com/montanaflynn/stats/deviation.go) [distances.go](/src/github.com/montanaflynn/stats/distances.go) [doc.go](/src/github.com/montanaflynn/stats/doc.go) [entropy.go](/src/github.com/montanaflynn/stats/entropy.go) [errors.go](/src/github.com/montanaflynn/stats/errors.go) [geometric_distribution.go](/src/github.com/montanaflynn/stats/geometric_distribution.go) [legacy.go](/src/github.com/montanaflynn/stats/legacy.go) [load.go](/src/github.com/montanaflynn/stats/load.go) [max.go](/src/github.com/montanaflynn/stats/max.go) [mean.go](/src/github.com/montanaflynn/stats/mean.go) [median.go](/src/github.com/montanaflynn/stats/median.go) [min.go](/src/github.com/montanaflynn/stats/min.go) [mode.go](/src/github.com/montanaflynn/stats/mode.go) [norm.go](/src/github.com/montanaflynn/stats/norm.go) [outlier.go](/src/github.com/montanaflynn/stats/outlier.go) [percentile.go](/src/github.com/montanaflynn/stats/percentile.go) [quartile.go](/src/github.com/montanaflynn/stats/quartile.go) [ranksum.go](/src/github.com/montanaflynn/stats/ranksum.go) [regression.go](/src/github.com/montanaflynn/stats/regression.go) [round.go](/src/github.com/montanaflynn/stats/round.go) [sample.go](/src/github.com/montanaflynn/stats/sample.go) [sigmoid.go](/src/github.com/montanaflynn/stats/sigmoid.go) [softmax.go](/src/github.com/montanaflynn/stats/softmax.go) [sum.go](/src/github.com/montanaflynn/stats/sum.go) [util.go](/src/github.com/montanaflynn/stats/util.go) [variance.go](/src/github.com/montanaflynn/stats/variance.go) 
 
 
 
@@ -380,7 +384,7 @@ Min finds the lowest number in a set of data
 
 
 
-## <a name="MinkowskiDistance">func</a> [MinkowskiDistance](/distances.go?s=2152:2256#L75)
+## <a name="MinkowskiDistance">func</a> [MinkowskiDistance](/distances.go?s=2133:2237#L78)
 ``` go
 func MinkowskiDistance(dataPointX, dataPointY Float64Data, lambda float64) (distance float64, err error)
 ```
@@ -593,15 +597,28 @@ Pearson calculates the Pearson product-moment correlation coefficient between tw
 
 
 
-## <a name="Percentile">func</a> [Percentile](/percentile.go?s=98:181#L8)
+## <a name="Percentile">func</a> [Percentile](/percentile.go?s=598:681#L20)
 ``` go
 func Percentile(input Float64Data, percent float64) (percentile float64, err error)
 ```
-Percentile finds the relative standing in a slice of floats
+Percentile finds the relative standing in a slice of floats.
+
+The function uses the Linear Interpolation Between Closest Ranks method
+as recommended by NIST [1] and used by Excel (PERCENTILE), Google Sheets,
+NumPy (default), and other standard tools.
+
+Algorithm (for percent p and sorted data of length n):
+
+
+	1. Compute the rank: rank = (p / 100) * (n - 1)
+	2. Split into integer part k and fractional part f
+	3. Result = data[k] + f * (data[k+1] - data[k])
+
+[1] <a href="https://www.itl.nist.gov/div898/handbook/prc/section2/prc262.htm">https://www.itl.nist.gov/div898/handbook/prc/section2/prc262.htm</a>
 
 
 
-## <a name="PercentileNearestRank">func</a> [PercentileNearestRank](/percentile.go?s=1079:1173#L54)
+## <a name="PercentileNearestRank">func</a> [PercentileNearestRank](/percentile.go?s=1382:1476#L55)
 ``` go
 func PercentileNearestRank(input Float64Data, percent float64) (percentile float64, err error)
 ```
@@ -805,6 +822,65 @@ func LogReg(s []Coordinate) (regressions []Coordinate, err error)
 ```
 LogReg is a shortcut to LogarithmicRegression
 
+
+
+
+
+## <a name="Description">type</a> [Description](/describe.go?s=89:349#L6)
+``` go
+type Description struct {
+    Count                  int
+    Mean                   float64
+    Std                    float64
+    Max                    float64
+    Min                    float64
+    DescriptionPercentiles []descriptionPercentile
+    AllowedNaN             bool
+}
+
+```
+Holds information about the dataset provided to Describe
+
+
+
+
+
+
+
+### <a name="Describe">func</a> [Describe](/describe.go?s=579:672#L23)
+``` go
+func Describe(input Float64Data, allowNaN bool, percentiles *[]float64) (*Description, error)
+```
+Describe generates descriptive statistics about a provided dataset, similar to python's pandas.describe()
+
+
+### <a name="DescribePercentileFunc">func</a> [DescribePercentileFunc](/describe.go?s=917:1084#L29)
+``` go
+func DescribePercentileFunc(input Float64Data, allowNaN bool, percentiles *[]float64, percentileFunc func(Float64Data, float64) (float64, error)) (*Description, error)
+```
+Describe generates descriptive statistics about a provided dataset, similar to python's pandas.describe()
+Takes in a function to use for percentile calculation
+
+
+
+
+
+### <a name="Description.String">func</a> (\*Description) [String](/describe.go?s=2078:2127#L68)
+``` go
+func (d *Description) String(decimals int) string
+```
+Represents the Description instance in a string format with specified number of decimals
+
+
+	count   3
+	mean    2.00
+	std     0.82
+	max     3.00
+	min     1.00
+	25.00%  NaN
+	50.00%  1.50
+	75.00%  2.50
+	NaN OK  true
 
 
 

@@ -7,12 +7,8 @@ import (
 	"fmt"
 	"maps"
 	"math"
-	"net/url"
-	"os"
 	"path"
 	"path/filepath"
-	"regexp"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -24,7 +20,6 @@ import (
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/client/llb/imagemetaresolver"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
-	"github.com/moby/buildkit/frontend/dockerfile/dfgitutil"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/linter"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -34,7 +29,6 @@ import (
 	"github.com/moby/buildkit/frontend/subrequests/lint"
 	"github.com/moby/buildkit/frontend/subrequests/outline"
 	"github.com/moby/buildkit/frontend/subrequests/targets"
-	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
 	"github.com/moby/buildkit/util/suggest"
@@ -42,10 +36,8 @@ import (
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/patternmatcher"
 	"github.com/moby/sys/signal"
-	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	mode "github.com/tonistiigi/dchapes-mode"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -55,12 +47,6 @@ const (
 
 	sbomScanContext = "BUILDKIT_SBOM_SCAN_CONTEXT"
 	sbomScanStage   = "BUILDKIT_SBOM_SCAN_STAGE"
-)
-
-var (
-	secretsRegexpOnce  sync.Once
-	secretsRegexp      *regexp.Regexp
-	secretsAllowRegexp *regexp.Regexp
 )
 
 var nonEnvArgs = map[string]struct{}{
@@ -83,36 +69,50 @@ type ConvertOpt struct {
 type SBOMTargets struct {
 	Core   llb.State
 	Extras map[string]llb.State
-
-	IgnoreCache bool
 }
 
-func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (st *llb.State, img, baseImg *dockerspec.DockerOCIImage, sbom *SBOMTargets, err error) {
+type Result struct {
+	State     llb.State
+	Image     *dockerspec.DockerOCIImage
+	BaseImage *dockerspec.DockerOCIImage
+	SBOM      *SBOMTargets
+	Epoch     *time.Time
+
+	IsIgnoreCache bool
+}
+
+func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*Result, error) {
 	ds, err := toDispatchState(ctx, dt, opt)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, err
 	}
 
-	sbom = &SBOMTargets{
-		Core:   ds.state,
-		Extras: map[string]llb.State{},
+	res := &Result{
+		State:     ds.state,
+		Image:     &ds.image,
+		BaseImage: ds.baseImg,
+		SBOM: &SBOMTargets{
+			Core:   ds.state,
+			Extras: map[string]llb.State{},
+		},
+		Epoch: ds.epoch,
 	}
 	if ds.scanContext {
-		sbom.Extras["context"] = ds.opt.buildContext
+		res.SBOM.Extras["context"] = ds.opt.buildContext
 	}
 	if ds.ignoreCache {
-		sbom.IgnoreCache = true
+		res.IsIgnoreCache = true
 	}
 	for dsi := range allReachableStages(ds) {
 		if ds != dsi && dsi.scanStage {
-			sbom.Extras[dsi.stageName] = dsi.state
+			res.SBOM.Extras[dsi.stageName] = dsi.state
 			if dsi.ignoreCache {
-				sbom.IgnoreCache = true
+				res.IsIgnoreCache = true
 			}
 		}
 	}
 
-	return &ds.state, &ds.image, ds.baseImg, sbom, nil
+	return res, nil
 }
 
 func Dockerfile2Outline(ctx context.Context, dt []byte, opt ConvertOpt) (*outline.Outline, error) {
@@ -204,16 +204,21 @@ func newRuleLinter(dt []byte, opt *ConvertOpt) (*linter.Linter, error) {
 	return linter.New(lintConfig), nil
 }
 
-func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchState, error) {
-	if len(dt) == 0 {
-		return nil, errors.Errorf("the Dockerfile cannot be empty")
-	}
+type dispatchContext struct {
+	opt               ConvertOpt
+	platformOpt       *platformOpt
+	globalArgs        *llb.EnvList
+	shlex             *shell.Lex
+	outline           outlineCapture
+	lint              *linter.Linter
+	metaResolver      llb.ImageMetaResolver
+	allDispatchStates *dispatchStates
+	proxyEnv          *llb.ProxyEnv
+	namedContext      func(string, dockerui.ContextOpt) (*dockerui.NamedContext, error)
+}
 
-	if opt.Client != nil && opt.MainContext != nil {
-		return nil, errors.Errorf("Client and MainContext cannot both be provided")
-	}
-
-	namedContext := func(name string, copt dockerui.ContextOpt) (*dockerui.NamedContext, error) {
+func namedContextFunc(opt ConvertOpt) func(string, dockerui.ContextOpt) (*dockerui.NamedContext, error) {
+	return func(name string, copt dockerui.ContextOpt) (*dockerui.NamedContext, error) {
 		if opt.Client == nil {
 			return nil, nil
 		}
@@ -224,6 +229,16 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			return opt.Client.NamedContext(name, copt)
 		}
 		return nil, nil
+	}
+}
+
+func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchState, error) {
+	if len(dt) == 0 {
+		return nil, errors.Errorf("the Dockerfile cannot be empty")
+	}
+
+	if opt.Client != nil && opt.MainContext != nil {
+		return nil, errors.Errorf("Client and MainContext cannot both be provided")
 	}
 
 	lint, err := newRuleLinter(dt, &opt)
@@ -253,8 +268,6 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			lint.Run(&linter.RuleNoEmptyContinuation, location, msg)
 		}
 	}
-
-	proxyEnv := proxyEnvFromBuildArgs(opt.BuildArgs)
 
 	stages, argCmds, err := instructions.Parse(dockerfile.AST, lint)
 	if err != nil {
@@ -287,19 +300,86 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		return nil, err
 	}
 
+	opt.Epoch, err = resolveSourceDateEpoch(opt.Epoch, globalArgs)
+	if err != nil {
+		return nil, err
+	}
+
 	metaResolver := opt.MetaResolver
 	if metaResolver == nil {
 		metaResolver = imagemetaresolver.Default()
 	}
 
-	allDispatchStates := newDispatchStates()
+	dctx := &dispatchContext{
+		opt:               opt,
+		platformOpt:       platformOpt,
+		globalArgs:        globalArgs,
+		shlex:             shlex,
+		outline:           outline,
+		lint:              lint,
+		metaResolver:      metaResolver,
+		allDispatchStates: newDispatchStates(),
+		proxyEnv:          proxyEnvFromBuildArgs(opt.BuildArgs),
+		namedContext:      namedContextFunc(opt),
+	}
 
-	// set base state for every image
+	if err := dctx.buildDispatchStates(stages); err != nil {
+		return nil, err
+	}
+
+	target, err := dctx.resolveTarget()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := dctx.buildStageDependencyGraph(); err != nil {
+		return nil, err
+	}
+
+	allReachable, err := dctx.resolveStages(ctx, target)
+	if err != nil {
+		return nil, err
+	}
+
+	ctxPaths, buildContext, err := dctx.dispatchStages(ctx, allReachable, target)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := dctx.finalizeResultImage(ctx, target, ctxPaths, buildContext); err != nil {
+		return nil, err
+	}
+
+	return target, nil
+}
+
+func resolveSourceDateEpoch(explicit *time.Time, globalArgs *llb.EnvList) (*time.Time, error) {
+	if explicit != nil {
+		return explicit, nil
+	}
+	if globalArgs == nil {
+		return nil, nil
+	}
+
+	v, ok := globalArgs.Get("SOURCE_DATE_EPOCH")
+	if !ok || v == "" {
+		return nil, nil
+	}
+
+	sde, err := strconv.ParseInt(v, 10, 64)
+	if err != nil {
+		return nil, errors.Wrapf(err, "invalid SOURCE_DATE_EPOCH: %s", v)
+	}
+	tm := time.Unix(sde, 0).UTC()
+	return &tm, nil
+}
+
+func (dctx *dispatchContext) buildDispatchStates(stages []instructions.Stage) error {
 	for i, st := range stages {
-		lint := lint.WithMergedConfigFromComments(st.Comments)
+		lint := dctx.lint.WithMergedConfigFromComments(st.Comments)
 
-		nameMatch, err := shlex.ProcessWordWithMatches(st.BaseName, globalArgs)
-		argKeys := unusedFromArgsCheckKeys(globalArgs, outline.allArgs)
+		nameMatch, err := dctx.shlex.ProcessWordWithMatches(st.BaseName, dctx.globalArgs)
+		argKeys := unusedFromArgsCheckKeys(dctx.globalArgs, dctx.outline.allArgs)
 		reportUnusedFromArgs(argKeys, nameMatch.Unmatched, st.Location, lint)
 		used := nameMatch.Matched
 		if used == nil {
@@ -307,10 +387,10 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		}
 
 		if err != nil {
-			return nil, parser.WithLocation(err, st.Location)
+			return parser.WithLocation(err, st.Location)
 		}
 		if nameMatch.Result == "" {
-			return nil, parser.WithLocation(errors.Errorf("base name (%s) should not be blank", st.BaseName), st.Location)
+			return parser.WithLocation(errors.Errorf("base name (%s) should not be blank", st.BaseName), st.Location)
 		}
 		st.BaseName = nameMatch.Result
 
@@ -320,34 +400,34 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			ctxPaths:       make(map[string]struct{}),
 			paths:          make(map[string]struct{}),
 			stageName:      st.Name,
-			prefixPlatform: opt.MultiPlatformRequested,
-			outline:        outline.clone(),
-			epoch:          opt.Epoch,
+			prefixPlatform: dctx.opt.MultiPlatformRequested,
+			outline:        dctx.outline.clone(),
+			epoch:          dctx.opt.Epoch,
 		}
 
 		if v := st.Platform; v != "" {
-			platMatch, err := shlex.ProcessWordWithMatches(v, globalArgs)
-			argKeys := unusedFromArgsCheckKeys(globalArgs, outline.allArgs)
+			platMatch, err := dctx.shlex.ProcessWordWithMatches(v, dctx.globalArgs)
+			argKeys := unusedFromArgsCheckKeys(dctx.globalArgs, dctx.outline.allArgs)
 			reportUnusedFromArgs(argKeys, platMatch.Unmatched, st.Location, lint)
-			reportRedundantTargetPlatform(st.Platform, platMatch, st.Location, globalArgs, lint)
+			reportRedundantTargetPlatform(st.Platform, platMatch, st.Location, dctx.globalArgs, lint)
 			reportConstPlatformDisallowed(st.Name, platMatch, st.Location, lint)
 
 			if err != nil {
-				return nil, parser.WithLocation(errors.Wrapf(err, "failed to process arguments for platform %s", platMatch.Result), st.Location)
+				return parser.WithLocation(errors.Wrapf(err, "failed to process arguments for platform %s", platMatch.Result), st.Location)
 			}
 
 			if platMatch.Result == "" {
 				err := errors.Errorf("empty platform value from expression %s", v)
 				err = parser.WithLocation(err, st.Location)
-				err = wrapSuggestAny(err, platMatch.Unmatched, globalArgs.Keys())
-				return nil, err
+				err = wrapSuggestAny(err, platMatch.Unmatched, dctx.globalArgs.Keys())
+				return err
 			}
 
 			p, err := platforms.Parse(platMatch.Result)
 			if err != nil {
 				err = parser.WithLocation(err, st.Location)
-				err = wrapSuggestAny(err, platMatch.Unmatched, globalArgs.Keys())
-				return nil, parser.WithLocation(errors.Wrapf(err, "failed to parse platform %s", v), st.Location)
+				err = wrapSuggestAny(err, platMatch.Unmatched, dctx.globalArgs.Keys())
+				return parser.WithLocation(errors.Wrapf(err, "failed to parse platform %s", v), st.Location)
 			}
 
 			for k := range platMatch.Matched {
@@ -358,17 +438,17 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		}
 
 		if st.Name != "" {
-			nc, err := namedContext(st.Name, dockerui.ContextOpt{
+			nc, err := dctx.namedContext(st.Name, dockerui.ContextOpt{
 				Platform:       ds.platform,
-				ResolveMode:    opt.ImageResolveMode.String(),
+				ResolveMode:    dctx.opt.ImageResolveMode.String(),
 				AsyncLocalOpts: ds.asyncLocalOpts,
 			})
 			if err != nil {
-				return nil, err
+				return err
 			}
 			if nc != nil {
 				ds.namedContext = nc
-				allDispatchStates.addState(ds)
+				dctx.allDispatchStates.addState(ds)
 				ds.base = nil // reset base set by addState
 				continue
 			}
@@ -378,7 +458,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			ds.stageName = fmt.Sprintf("stage-%d", i)
 		}
 
-		allDispatchStates.addState(ds)
+		dctx.allDispatchStates.addState(ds)
 
 		for k := range used {
 			ds.outline.usedArgs[k] = struct{}{}
@@ -397,228 +477,59 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			}
 		}
 		ds.cmdTotal = total
-		if opt.Client != nil {
-			ds.ignoreCache = opt.Client.IsNoCache(st.Name)
+		if dctx.opt.Client != nil {
+			ds.ignoreCache = dctx.opt.Client.IsNoCache(st.Name)
 		}
 	}
+	return nil
+}
 
-	var target *dispatchState
-	if opt.Target == "" {
-		target = allDispatchStates.lastTarget()
-	} else {
-		var ok bool
-		target, ok = allDispatchStates.findStateByName(opt.Target)
-		if !ok {
-			return nil, suggest.WrapError(errors.Errorf("target stage %q could not be found", opt.Target), opt.Target, allDispatchStates.names(), true)
-		}
+func (dctx *dispatchContext) resolveTarget() (*dispatchState, error) {
+	if dctx.opt.Target == "" {
+		return dctx.allDispatchStates.lastTarget(), nil
 	}
+	target, ok := dctx.allDispatchStates.findStateByName(dctx.opt.Target)
+	if !ok {
+		return nil, suggest.WrapError(errors.Errorf("target stage %q could not be found", dctx.opt.Target), dctx.opt.Target, dctx.allDispatchStates.names(), true)
+	}
+	return target, nil
+}
 
-	// fill dependencies to stages so unreachable ones can avoid loading image configs
-	for _, d := range allDispatchStates.states {
+func (dctx *dispatchContext) buildStageDependencyGraph() error {
+	for _, d := range dctx.allDispatchStates.states {
 		d.commands = make([]command, len(d.stage.Commands))
 		for i, cmd := range d.stage.Commands {
-			newCmd, err := toCommand(cmd, allDispatchStates, shlex)
+			newCmd, err := toCommand(cmd, dctx.allDispatchStates, dctx.shlex)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			d.commands[i] = newCmd
 			for _, src := range newCmd.sources {
 				if src != nil {
 					d.deps[src] = cmd
 					if src.unregistered {
-						allDispatchStates.addState(src)
+						dctx.allDispatchStates.addState(src)
 					}
 				}
 			}
 		}
 	}
 
-	if err := validateCircularDependency(allDispatchStates.states); err != nil {
-		return nil, err
+	if err := validateCircularDependency(dctx.allDispatchStates.states); err != nil {
+		return err
 	}
 
-	if len(allDispatchStates.states) == 1 {
-		allDispatchStates.states[0].stageName = ""
+	if len(dctx.allDispatchStates.states) == 1 {
+		dctx.allDispatchStates.states[0].stageName = ""
 	}
+	return nil
+}
 
-	resolveReachableStages := func(ctx context.Context, all []*dispatchState, target *dispatchState) (map[*dispatchState]struct{}, error) {
-		allReachable := allReachableStages(target)
-		eg, ctx := errgroup.WithContext(ctx)
-		for i, d := range all {
-			_, reachable := allReachable[d]
-			if opt.AllStages {
-				reachable = true
-			}
-			// resolve image config for every stage
-			if d.base == nil && !d.dispatched && !d.resolved {
-				d.resolved = reachable // avoid re-resolving if called again after onbuild
-				if d.stage.BaseName == emptyImageName && d.namedContext == nil {
-					d.state = llb.Scratch()
-					d.image = emptyImage(platformOpt.targetPlatform)
-					d.platform = &platformOpt.targetPlatform
-					if d.unregistered {
-						d.dispatched = true
-					}
-					continue
-				}
-				func(i int, d *dispatchState) {
-					eg.Go(func() (err error) {
-						defer func() {
-							if err != nil {
-								err = parser.WithLocation(err, d.stage.Location)
-							}
-							if d.unregistered {
-								// implicit stages don't need further dispatch
-								d.dispatched = true
-							}
-						}()
-						origName := d.stage.BaseName
-						ref, err := reference.ParseNormalizedNamed(d.stage.BaseName)
-						if err != nil {
-							return errors.Wrapf(err, "failed to parse stage name %q", d.stage.BaseName)
-						}
-						platform := d.platform
-						if platform == nil {
-							platform = &platformOpt.targetPlatform
-						}
-						d.stage.BaseName = reference.TagNameOnly(ref).String()
-
-						var isScratch bool
-						if reachable {
-							// stage was named context
-							if d.namedContext != nil {
-								st, img, err := d.namedContext.Load(ctx)
-								if err != nil {
-									return err
-								}
-								d.dispatched = true
-								d.state = *st
-								if img != nil {
-									img.Created = nil
-									d.image = *img
-									if img.Architecture != "" && img.OS != "" {
-										d.platform = &ocispecs.Platform{
-											OS:           img.OS,
-											Architecture: img.Architecture,
-											Variant:      img.Variant,
-											OSVersion:    img.OSVersion,
-										}
-										if img.OSFeatures != nil {
-											d.platform.OSFeatures = slices.Clone(img.OSFeatures)
-										}
-									}
-								}
-								return nil
-							}
-
-							// check if base is named context
-							nc, err := namedContext(d.stage.BaseName, dockerui.ContextOpt{
-								ResolveMode:    opt.ImageResolveMode.String(),
-								Platform:       platform,
-								AsyncLocalOpts: d.asyncLocalOpts,
-							})
-							if err != nil {
-								return err
-							}
-							if nc != nil {
-								st, img, err := nc.Load(ctx)
-								if err != nil {
-									return err
-								}
-								if img == nil {
-									imgp := emptyImage(*platform)
-									img = &imgp
-								}
-								d.baseImg = cloneX(img) // immutable
-								img.Created = nil
-								d.image = *img
-								d.state = st.Platform(*platform)
-								d.platform = platform
-								return nil
-							}
-
-							prefix := "["
-							if opt.MultiPlatformRequested && platform != nil {
-								prefix += platforms.FormatAll(*platform) + " "
-							}
-							prefix += "internal]"
-							mutRef, dgst, dt, err := metaResolver.ResolveImageConfig(ctx, d.stage.BaseName, sourceresolver.Opt{
-								LogName: fmt.Sprintf("%s load metadata for %s", prefix, d.stage.BaseName),
-								ImageOpt: &sourceresolver.ResolveImageOpt{
-									Platform:    platform,
-									ResolveMode: opt.ImageResolveMode.String(),
-								},
-							})
-							if err != nil {
-								return suggest.WrapError(errors.Wrap(err, origName), origName, append(allDispatchStates.names(), commonImageNames()...), true)
-							}
-
-							if ref.String() != mutRef {
-								ref, err = reference.ParseNormalizedNamed(mutRef)
-								if err != nil {
-									return errors.Wrapf(err, "failed to parse ref %q", mutRef)
-								}
-							}
-							var img dockerspec.DockerOCIImage
-							if err := json.Unmarshal(dt, &img); err != nil {
-								return errors.Wrap(err, "failed to parse image config")
-							}
-							d.baseImg = cloneX(&img) // immutable
-							img.Created = nil
-							// if there is no explicit target platform, try to match based on image config
-							if d.platform == nil && platformOpt.implicitTarget {
-								p := autoDetectPlatform(img, *platform, platformOpt.buildPlatforms)
-								platform = &p
-							}
-							if dgst != "" {
-								ref, err = reference.WithDigest(ref, dgst)
-								if err != nil {
-									return err
-								}
-							}
-							d.stage.BaseName = ref.String()
-							if len(img.RootFS.DiffIDs) == 0 {
-								isScratch = true
-								// schema1 images can't return diffIDs so double check :(
-								for _, h := range img.History {
-									if !h.EmptyLayer {
-										isScratch = false
-										break
-									}
-								}
-							}
-							d.image = img
-						}
-						if isScratch {
-							d.state = llb.Scratch()
-						} else {
-							d.state = llb.Image(d.stage.BaseName,
-								dfCmd(d.stage.SourceCode),
-								llb.Platform(*platform),
-								opt.ImageResolveMode,
-								llb.WithCustomName(prefixCommand(d, "FROM "+d.stage.BaseName, opt.MultiPlatformRequested, platform, emptyEnvs{})),
-								location(opt.SourceMap, d.stage.Location),
-							)
-							if reachable {
-								validateBaseImagePlatform(origName, *platform, d.image.Platform, d.stage.Location, lint)
-							}
-						}
-						d.platform = platform
-						return nil
-					})
-				}(i, d)
-			}
-		}
-
-		if err := eg.Wait(); err != nil {
-			return nil, err
-		}
-		return allReachable, nil
-	}
-
+func (dctx *dispatchContext) resolveStages(ctx context.Context, target *dispatchState) (map[*dispatchState]struct{}, error) {
 	var allReachable map[*dispatchState]struct{}
 	for {
-		allReachable, err = resolveReachableStages(ctx, allDispatchStates.states, target)
+		var err error
+		allReachable, err = dctx.resolveReachableStages(ctx, dctx.allDispatchStates.states, target)
 		if err != nil {
 			return nil, err
 		}
@@ -639,7 +550,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			}
 
 			if len(onbuilds) > 0 {
-				if b, err := initOnBuildTriggers(d, onbuilds, allDispatchStates, shlex); err != nil {
+				if b, err := initOnBuildTriggers(d, onbuilds, dctx.allDispatchStates, dctx.shlex); err != nil {
 					return nil, parser.SetLocation(err, d.stage.Location)
 				} else if b {
 					newDeps = true
@@ -647,31 +558,205 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 				d.image.Config.OnBuild = nil
 			}
 		}
-		// in case new dependencies were added, we need to re-resolve reachable stages
 		if !newDeps {
 			break
 		}
 	}
+	return allReachable, nil
+}
 
+func (dctx *dispatchContext) resolveReachableStages(ctx context.Context, all []*dispatchState, target *dispatchState) (map[*dispatchState]struct{}, error) {
+	allReachable := allReachableStages(target)
+	eg, ctx := errgroup.WithContext(ctx)
+	for _, d := range all {
+		_, reachable := allReachable[d]
+		if dctx.opt.AllStages {
+			reachable = true
+		}
+		if d.base == nil && !d.dispatched && !d.resolved {
+			d.resolved = reachable // avoid re-resolving if called again after onbuild
+			if d.stage.BaseName == emptyImageName && d.namedContext == nil {
+				d.state = llb.Scratch()
+				d.image = emptyImage(dctx.platformOpt.targetPlatform)
+				d.platform = &dctx.platformOpt.targetPlatform
+				if d.unregistered {
+					d.dispatched = true
+				}
+				continue
+			}
+			eg.Go(func() error {
+				return dctx.resolveBaseImage(ctx, d, reachable)
+			})
+		}
+	}
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
+	return allReachable, nil
+}
+
+func (dctx *dispatchContext) resolveBaseImage(ctx context.Context, d *dispatchState, reachable bool) (err error) {
+	defer func() {
+		if err != nil {
+			err = parser.WithLocation(err, d.stage.Location)
+		}
+		if d.unregistered {
+			d.dispatched = true
+		}
+	}()
+	origName := d.stage.BaseName
+	ref, err := reference.ParseNormalizedNamed(d.stage.BaseName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to parse stage name %q", d.stage.BaseName)
+	}
+	platform := d.platform
+	if platform == nil {
+		platform = &dctx.platformOpt.targetPlatform
+	}
+	d.stage.BaseName = reference.TagNameOnly(ref).String()
+
+	var isScratch bool
+	if reachable {
+		if d.namedContext != nil {
+			st, img, err := d.namedContext.Load(ctx)
+			if err != nil {
+				return err
+			}
+			d.dispatched = true
+			d.state = *st
+			if img != nil {
+				img.Created = nil
+				d.image = *img
+				if img.Architecture != "" && img.OS != "" {
+					d.platform = &ocispecs.Platform{
+						OS:           img.OS,
+						Architecture: img.Architecture,
+						Variant:      img.Variant,
+						OSVersion:    img.OSVersion,
+					}
+					if img.OSFeatures != nil {
+						d.platform.OSFeatures = slices.Clone(img.OSFeatures)
+					}
+				}
+			}
+			return nil
+		}
+
+		nc, err := dctx.namedContext(d.stage.BaseName, dockerui.ContextOpt{
+			ResolveMode:    dctx.opt.ImageResolveMode.String(),
+			Platform:       platform,
+			AsyncLocalOpts: d.asyncLocalOpts,
+		})
+		if err != nil {
+			return err
+		}
+		if nc != nil {
+			st, img, err := nc.Load(ctx)
+			if err != nil {
+				return err
+			}
+			if img == nil {
+				imgp := emptyImage(*platform)
+				img = &imgp
+			}
+			d.baseImg = cloneX(img) // immutable
+			img.Created = nil
+			d.image = *img
+			d.state = st.Platform(*platform)
+			d.platform = platform
+			return nil
+		}
+
+		prefix := "["
+		if dctx.opt.MultiPlatformRequested && platform != nil {
+			prefix += platforms.FormatAll(*platform) + " "
+		}
+		prefix += "internal]"
+		mutRef, dgst, dt, err := dctx.metaResolver.ResolveImageConfig(ctx, d.stage.BaseName, sourceresolver.Opt{
+			LogName: fmt.Sprintf("%s load metadata for %s", prefix, d.stage.BaseName),
+			ImageOpt: &sourceresolver.ResolveImageOpt{
+				Platform:    platform,
+				ResolveMode: dctx.opt.ImageResolveMode.String(),
+			},
+		})
+		if err != nil {
+			return suggest.WrapError(errors.Wrap(err, origName), origName, append(dctx.allDispatchStates.names(), commonImageNames()...), true)
+		}
+
+		if ref.String() != mutRef {
+			ref, err = reference.ParseNormalizedNamed(mutRef)
+			if err != nil {
+				return errors.Wrapf(err, "failed to parse ref %q", mutRef)
+			}
+		}
+		var img dockerspec.DockerOCIImage
+		if err := json.Unmarshal(dt, &img); err != nil {
+			return errors.Wrap(err, "failed to parse image config")
+		}
+		d.baseImg = cloneX(&img) // immutable
+		img.Created = nil
+		if d.platform == nil && dctx.platformOpt.implicitTarget {
+			p := autoDetectPlatform(img, *platform, dctx.platformOpt.buildPlatforms)
+			platform = &p
+		}
+		if dgst != "" {
+			ref, err = reference.WithDigest(ref, dgst)
+			if err != nil {
+				return err
+			}
+		}
+		d.stage.BaseName = ref.String()
+		if len(img.RootFS.DiffIDs) == 0 {
+			isScratch = true
+			// schema1 images can't return diffIDs so double check :(
+			for _, h := range img.History {
+				if !h.EmptyLayer {
+					isScratch = false
+					break
+				}
+			}
+		}
+		d.image = img
+	}
+	if isScratch {
+		d.state = llb.Scratch()
+	} else {
+		d.state = llb.Image(d.stage.BaseName,
+			dfCmd(d.stage.SourceCode),
+			llb.Platform(*platform),
+			dctx.opt.ImageResolveMode,
+			llb.WithCustomName(prefixCommand(d, "FROM "+d.stage.BaseName, dctx.opt.MultiPlatformRequested, platform, emptyEnvs{})),
+			location(dctx.opt.SourceMap, d.stage.Location),
+		)
+		if reachable {
+			validateBaseImagePlatform(origName, *platform, d.image.Platform, d.stage.Location, dctx.lint)
+		}
+	}
+	d.platform = platform
+	return nil
+}
+
+func (dctx *dispatchContext) dispatchStages(ctx context.Context, allReachable map[*dispatchState]struct{}, target *dispatchState) (map[string]struct{}, *mutableOutput, error) {
 	buildContext := &mutableOutput{}
 	ctxPaths := map[string]struct{}{}
 
 	var dockerIgnoreMatcher *patternmatcher.PatternMatcher
-	if opt.Client != nil {
-		dockerIgnorePatterns, err := opt.Client.DockerIgnorePatterns(ctx)
+	if dctx.opt.Client != nil {
+		dockerIgnorePatterns, err := dctx.opt.Client.DockerIgnorePatterns(ctx)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if len(dockerIgnorePatterns) > 0 {
 			dockerIgnoreMatcher, err = patternmatcher.New(dockerIgnorePatterns)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 	}
 
-	for _, d := range allDispatchStates.states {
-		if !opt.AllStages {
+	for _, d := range dctx.allDispatchStates.states {
+		if !dctx.opt.AllStages {
 			if _, ok := allReachable[d]; !ok || d.dispatched {
 				continue
 			}
@@ -701,49 +786,49 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 			k, v := parseKeyValue(env)
 			d.state = d.state.AddEnv(k, v)
 		}
-		if opt.Hostname != "" {
-			d.state = d.state.Hostname(opt.Hostname)
+		if dctx.opt.Hostname != "" {
+			d.state = d.state.Hostname(dctx.opt.Hostname)
 		}
 		if d.image.Config.WorkingDir != "" {
-			if err = dispatchWorkdir(d, &instructions.WorkdirCommand{Path: d.image.Config.WorkingDir}, false, nil); err != nil {
-				return nil, parser.WithLocation(err, d.stage.Location)
+			if err := dispatchWorkdir(d, &instructions.WorkdirCommand{Path: d.image.Config.WorkingDir}, false, nil); err != nil {
+				return nil, nil, parser.WithLocation(err, d.stage.Location)
 			}
 		}
 		if d.image.Config.User != "" {
-			if err = dispatchUser(d, &instructions.UserCommand{User: d.image.Config.User}, false); err != nil {
-				return nil, parser.WithLocation(err, d.stage.Location)
+			if err := dispatchUser(d, &instructions.UserCommand{User: d.image.Config.User}, false); err != nil {
+				return nil, nil, parser.WithLocation(err, d.stage.Location)
 			}
 		}
 
-		d.state = d.state.Network(opt.NetworkMode)
+		d.state = d.state.Network(dctx.opt.NetworkMode)
 
-		opt := dispatchOpt{
-			allDispatchStates:   allDispatchStates,
-			globalArgs:          globalArgs,
-			buildArgValues:      opt.BuildArgs,
-			shlex:               shlex,
+		dopt := dispatchOpt{
+			allDispatchStates:   dctx.allDispatchStates,
+			globalArgs:          dctx.globalArgs,
+			buildArgValues:      dctx.opt.BuildArgs,
+			shlex:               dctx.shlex,
 			buildContext:        llb.NewState(buildContext),
-			proxyEnv:            proxyEnv,
-			cacheIDNamespace:    opt.CacheIDNamespace,
-			buildPlatforms:      platformOpt.buildPlatforms,
-			targetPlatform:      platformOpt.targetPlatform,
-			extraHosts:          opt.ExtraHosts,
-			shmSize:             opt.ShmSize,
-			ulimit:              opt.Ulimits,
-			devices:             opt.Devices,
-			cgroupParent:        opt.CgroupParent,
-			llbCaps:             opt.LLBCaps,
-			sourceMap:           opt.SourceMap,
-			lint:                lint,
+			proxyEnv:            dctx.proxyEnv,
+			cacheIDNamespace:    dctx.opt.CacheIDNamespace,
+			buildPlatforms:      dctx.platformOpt.buildPlatforms,
+			targetPlatform:      dctx.platformOpt.targetPlatform,
+			extraHosts:          dctx.opt.ExtraHosts,
+			shmSize:             dctx.opt.ShmSize,
+			ulimit:              dctx.opt.Ulimits,
+			devices:             dctx.opt.Devices,
+			cgroupParent:        dctx.opt.CgroupParent,
+			llbCaps:             dctx.opt.LLBCaps,
+			sourceMap:           dctx.opt.SourceMap,
+			lint:                dctx.lint,
 			dockerIgnoreMatcher: dockerIgnoreMatcher,
 		}
 
 		for _, cmd := range d.commands {
-			if err := dispatch(d, cmd, opt); err != nil {
-				return nil, parser.WithLocation(err, cmd.Location())
+			if err := dispatch(d, cmd, dopt); err != nil {
+				return nil, nil, parser.WithLocation(err, cmd.Location())
 			}
 		}
-		d.opt = opt
+		d.opt = dopt
 
 		for p := range d.ctxPaths {
 			ctxPaths[p] = struct{}{}
@@ -774,56 +859,62 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 	// the paths attribute is set correctly.
 	target.paths["/"] = struct{}{}
 
-	if len(opt.Labels) != 0 && target.image.Config.Labels == nil {
-		target.image.Config.Labels = make(map[string]string, len(opt.Labels))
+	return ctxPaths, buildContext, nil
+}
+
+func (dctx *dispatchContext) finalizeResultImage(ctx context.Context, target *dispatchState, ctxPaths map[string]struct{}, buildContext *mutableOutput) error {
+	if len(dctx.opt.Labels) != 0 && target.image.Config.Labels == nil {
+		target.image.Config.Labels = make(map[string]string, len(dctx.opt.Labels))
 	}
-	maps.Copy(target.image.Config.Labels, opt.Labels)
+	maps.Copy(target.image.Config.Labels, dctx.opt.Labels)
 
 	// If lint.Error() returns an error, it means that
 	// there were warnings, and that our linter has been
 	// configured to return an error on warnings,
 	// so we appropriately return that error here.
-	if err := lint.Error(); err != nil {
-		return nil, err
+	if err := dctx.lint.Error(); err != nil {
+		return err
 	}
 
 	opts := filterPaths(ctxPaths)
-	bctx := opt.MainContext
-	if opt.Client != nil {
-		bctx, err = opt.Client.MainContext(ctx, opts...)
+	bctx := dctx.opt.MainContext
+	if dctx.opt.Client != nil {
+		var err error
+		bctx, err = dctx.opt.Client.MainContext(ctx, opts...)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	} else if bctx == nil {
 		bctx = dockerui.DefaultMainContext(opts...)
 	}
+
 	buildContext.Output = bctx.Output()
 
 	defaults := []llb.ConstraintsOpt{
-		llb.Platform(platformOpt.targetPlatform),
+		llb.Platform(dctx.platformOpt.targetPlatform),
 	}
-	if opt.LLBCaps != nil {
-		defaults = append(defaults, llb.WithCaps(*opt.LLBCaps))
+	if dctx.opt.LLBCaps != nil {
+		defaults = append(defaults, llb.WithCaps(*dctx.opt.LLBCaps))
 	}
 	target.state = target.state.SetMarshalDefaults(defaults...)
 
-	if !platformOpt.implicitTarget {
-		sameOsArch := platformOpt.targetPlatform.OS == target.image.OS && platformOpt.targetPlatform.Architecture == target.image.Architecture
-		target.image.OS = platformOpt.targetPlatform.OS
-		target.image.Architecture = platformOpt.targetPlatform.Architecture
-		if platformOpt.targetPlatform.Variant != "" || !sameOsArch {
-			target.image.Variant = platformOpt.targetPlatform.Variant
+	if !dctx.platformOpt.implicitTarget {
+		sameOsArch := dctx.platformOpt.targetPlatform.OS == target.image.OS && dctx.platformOpt.targetPlatform.Architecture == target.image.Architecture
+		target.image.OS = dctx.platformOpt.targetPlatform.OS
+		target.image.Architecture = dctx.platformOpt.targetPlatform.Architecture
+		if dctx.platformOpt.targetPlatform.Variant != "" || !sameOsArch {
+			target.image.Variant = dctx.platformOpt.targetPlatform.Variant
 		}
-		if platformOpt.targetPlatform.OSVersion != "" || !sameOsArch {
-			target.image.OSVersion = platformOpt.targetPlatform.OSVersion
+		if dctx.platformOpt.targetPlatform.OSVersion != "" || !sameOsArch {
+			target.image.OSVersion = dctx.platformOpt.targetPlatform.OSVersion
 		}
-		if platformOpt.targetPlatform.OSFeatures != nil {
-			target.image.OSFeatures = slices.Clone(platformOpt.targetPlatform.OSFeatures)
+		if dctx.platformOpt.targetPlatform.OSFeatures != nil {
+			target.image.OSFeatures = slices.Clone(dctx.platformOpt.targetPlatform.OSFeatures)
 		}
 	}
 	target.image.Platform = platforms.Normalize(target.image.Platform)
 
-	return target, nil
+	return nil
 }
 
 func toCommand(ic instructions.Command, allDispatchStates *dispatchStates, shlex *shell.Lex) (command, error) {
@@ -1437,329 +1528,6 @@ func dispatchWorkdir(d *dispatchState, c *instructions.WorkdirCommand, commit bo
 	return nil
 }
 
-func dispatchCopy(d *dispatchState, cfg copyConfig) error {
-	dest, err := pathRelativeToWorkingDir(d.state, cfg.params.DestPath, *d.platform)
-	if err != nil {
-		return err
-	}
-
-	var copyOpt []llb.CopyOption
-
-	if cfg.chown != "" {
-		copyOpt = append(copyOpt, llb.WithUser(cfg.chown))
-	}
-
-	if len(cfg.excludePatterns) > 0 {
-		// in theory we don't need to check whether there are any exclude patterns,
-		// as an empty list is a no-op. However, performing the check makes
-		// the code easier to understand and costs virtually nothing.
-		copyOpt = append(copyOpt, llb.WithExcludePatterns(cfg.excludePatterns))
-	}
-
-	var chopt *llb.ChmodOpt
-	if cfg.chmod != "" {
-		chopt = &llb.ChmodOpt{}
-		p, err := strconv.ParseUint(cfg.chmod, 8, 32)
-		nonOctalErr := errors.Errorf("invalid chmod parameter: '%v'. it should be octal string and between 0 and 07777", cfg.chmod)
-		if err == nil {
-			if p > 0o7777 {
-				return nonOctalErr
-			}
-			chopt.Mode = os.FileMode(p)
-		} else {
-			if _, err := mode.Parse(cfg.chmod); err != nil {
-				var ne *strconv.NumError
-				if errors.As(err, &ne) {
-					return nonOctalErr // return nonOctalErr for compatibility if the value looks numeric
-				}
-				return err
-			}
-			chopt.ModeStr = cfg.chmod
-		}
-	}
-
-	if cfg.checksum != "" {
-		if !cfg.isAddCommand {
-			return errors.New("checksum can't be specified for COPY")
-		}
-		if len(cfg.params.SourcePaths) != 1 {
-			return errors.New("checksum can't be specified for multiple sources")
-		}
-		if !isHTTPSource(cfg.params.SourcePaths[0]) && !isGitSource(cfg.params.SourcePaths[0]) {
-			return errors.New("checksum requires HTTP(S) or Git sources")
-		}
-	}
-
-	commitMessage := bytes.NewBufferString("")
-	if cfg.isAddCommand {
-		commitMessage.WriteString("ADD")
-	} else {
-		commitMessage.WriteString("COPY")
-	}
-
-	if cfg.parents {
-		commitMessage.WriteString(" " + "--parents")
-	}
-	if cfg.chown != "" {
-		commitMessage.WriteString(" " + "--chown=" + cfg.chown)
-	}
-	if cfg.chmod != "" {
-		commitMessage.WriteString(" " + "--chmod=" + cfg.chmod)
-	}
-
-	platform := cfg.opt.targetPlatform
-	if d.platform != nil {
-		platform = *d.platform
-	}
-
-	env := getEnv(d.state)
-	name := uppercaseCmd(processCmdEnv(cfg.opt.shlex, cfg.cmdToPrint.String(), env))
-	pgName := prefixCommand(d, name, d.prefixPlatform, &platform, env)
-
-	var a *llb.FileAction
-
-	for _, src := range cfg.params.SourcePaths {
-		commitMessage.WriteString(" " + src)
-		gitRef, isGit, gitRefErr := dfgitutil.ParseGitRef(src)
-		if gitRefErr != nil && isGit {
-			return gitRefErr
-		}
-		if gitRefErr == nil && !gitRef.IndistinguishableFromLocal {
-			if !cfg.isAddCommand {
-				return errors.New("source can't be a git ref for COPY")
-			}
-			// TODO: print a warning (not an error) if gitRef.UnencryptedTCP is true
-			gitOptions := []llb.GitOption{
-				llb.WithCustomName(pgName),
-				llb.GitRef(gitRef.Ref),
-			}
-			if cfg.keepGitDir != nil && gitRef.KeepGitDir != nil {
-				if *cfg.keepGitDir != *gitRef.KeepGitDir {
-					return errors.New("inconsistent keep-git-dir configuration")
-				}
-			}
-			if gitRef.KeepGitDir != nil {
-				cfg.keepGitDir = gitRef.KeepGitDir
-			}
-			if cfg.keepGitDir != nil && *cfg.keepGitDir {
-				gitOptions = append(gitOptions, llb.KeepGitDir())
-			}
-			if cfg.checksum != "" && gitRef.Checksum != "" {
-				if cfg.checksum != gitRef.Checksum {
-					return errors.Errorf("checksum mismatch %q != %q", cfg.checksum, gitRef.Checksum)
-				}
-			}
-			if gitRef.Checksum != "" {
-				cfg.checksum = gitRef.Checksum
-			}
-			if cfg.checksum != "" {
-				gitOptions = append(gitOptions, llb.GitChecksum(cfg.checksum))
-			}
-			if gitRef.SubDir != "" {
-				gitOptions = append(gitOptions, llb.GitSubDir(gitRef.SubDir))
-			}
-			if gitRef.Submodules != nil && !*gitRef.Submodules {
-				gitOptions = append(gitOptions, llb.GitSkipSubmodules())
-			}
-
-			st := llb.Git(gitRef.Remote, "", gitOptions...)
-			opts := append([]llb.CopyOption{&llb.CopyInfo{
-				Mode:           chopt,
-				CreateDestPath: true,
-			}}, copyOpt...)
-			if a == nil {
-				a = llb.Copy(st, "/", dest, opts...)
-			} else {
-				a = a.Copy(st, "/", dest, opts...)
-			}
-		} else if isHTTPSource(src) {
-			if !cfg.isAddCommand {
-				return errors.New("source can't be a URL for COPY")
-			}
-
-			// Resources from remote URLs are not decompressed.
-			// https://docs.docker.com/engine/reference/builder/#add
-			//
-			// Note: mixing up remote archives and local archives in a single ADD instruction
-			// would result in undefined behavior: https://github.com/moby/buildkit/pull/387#discussion_r189494717
-			u, err := url.Parse(src)
-			f := "__unnamed__"
-			if err == nil {
-				if base := path.Base(u.Path); base != "." && base != "/" {
-					f = base
-				}
-			}
-
-			var checksum digest.Digest
-			if cfg.checksum != "" {
-				checksum, err = digest.Parse(cfg.checksum)
-				if err != nil {
-					return err
-				}
-			}
-
-			st := llb.HTTP(src, llb.Filename(f), llb.WithCustomName(pgName), llb.Checksum(checksum), dfCmd(cfg.params))
-
-			var unpack bool
-			if cfg.unpack != nil {
-				unpack = *cfg.unpack
-			}
-
-			opts := append([]llb.CopyOption{&llb.CopyInfo{
-				Mode:           chopt,
-				CreateDestPath: true,
-				AttemptUnpack:  unpack,
-			}}, copyOpt...)
-
-			if a == nil {
-				a = llb.Copy(st, f, dest, opts...)
-			} else {
-				a = a.Copy(st, f, dest, opts...)
-			}
-		} else {
-			validateCopySourcePath(src, &cfg)
-			var patterns []string
-			var requiredPaths []string
-			if cfg.parents {
-				// detect optional pivot point
-				parent, pattern, ok := strings.Cut(src, "/./")
-				if !ok {
-					pattern = src
-					src = "/"
-				} else {
-					src = parent
-				}
-
-				pattern, err = system.NormalizePath("/", pattern, d.platform.OS, false)
-				if err != nil {
-					return errors.Wrap(err, "removing drive letter")
-				}
-
-				patterns = []string{strings.TrimPrefix(pattern, "/")}
-
-				// determine if we want to require any paths to exist.
-				// we only require a path to exist if wildcards aren't present.
-				if !containsWildcards(src) && !containsWildcards(pattern) {
-					requiredPaths = []string{filepath.Join(src, pattern)}
-				}
-			}
-
-			src, err = system.NormalizePath("/", src, d.platform.OS, false)
-			if err != nil {
-				return errors.Wrap(err, "removing drive letter")
-			}
-
-			for i, requiredPath := range requiredPaths {
-				p, err := system.NormalizePath("/", requiredPath, d.platform.OS, false)
-				if err != nil {
-					return errors.Wrap(err, "removing drive letter")
-				}
-				requiredPaths[i] = p
-			}
-
-			unpack := cfg.isAddCommand
-			if cfg.unpack != nil {
-				unpack = *cfg.unpack
-			}
-
-			opts := append([]llb.CopyOption{&llb.CopyInfo{
-				Mode:                chopt,
-				FollowSymlinks:      true,
-				CopyDirContentsOnly: true,
-				IncludePatterns:     patterns,
-				RequiredPaths:       requiredPaths,
-				AttemptUnpack:       unpack,
-				CreateDestPath:      true,
-				AllowWildcard:       true,
-				AllowEmptyWildcard:  true,
-			}}, copyOpt...)
-
-			if a == nil {
-				a = llb.Copy(cfg.source, src, dest, opts...)
-			} else {
-				a = a.Copy(cfg.source, src, dest, opts...)
-			}
-		}
-	}
-
-	for _, src := range cfg.params.SourceContents {
-		commitMessage.WriteString(" <<" + src.Path)
-
-		data := src.Data
-		f, err := system.CheckSystemDriveAndRemoveDriveLetter(src.Path, d.platform.OS, false)
-		if err != nil {
-			return errors.Wrap(err, "removing drive letter")
-		}
-		st := llb.Scratch().File(
-			llb.Mkfile(f, 0644, []byte(data)),
-			dockerui.WithInternalName("preparing inline document"),
-			llb.Platform(*d.platform),
-		)
-
-		opts := append([]llb.CopyOption{&llb.CopyInfo{
-			Mode:           chopt,
-			CreateDestPath: true,
-		}}, copyOpt...)
-
-		if a == nil {
-			a = llb.Copy(st, system.ToSlash(f, d.platform.OS), dest, opts...)
-		} else {
-			a = a.Copy(st, filepath.ToSlash(f), dest, opts...)
-		}
-	}
-
-	commitMessage.WriteString(" " + cfg.params.DestPath)
-
-	fileOpt := []llb.ConstraintsOpt{
-		llb.WithCustomName(pgName),
-		location(cfg.opt.sourceMap, cfg.location),
-	}
-	if d.ignoreCache {
-		fileOpt = append(fileOpt, llb.IgnoreCache)
-	}
-
-	// cfg.opt.llbCaps can be nil in unit tests
-	if cfg.opt.llbCaps != nil && cfg.opt.llbCaps.Supports(pb.CapMergeOp) == nil && cfg.link && cfg.chmod == "" {
-		pgID := identity.NewID()
-		d.cmdIndex-- // prefixCommand increases it
-		pgName := prefixCommand(d, name, d.prefixPlatform, &platform, env)
-
-		copyOpts := []llb.ConstraintsOpt{
-			llb.Platform(*d.platform),
-		}
-		copyOpts = append(copyOpts, fileOpt...)
-		copyOpts = append(copyOpts, llb.ProgressGroup(pgID, pgName, true))
-
-		mergeOpts := slices.Clone(fileOpt)
-		d.cmdIndex--
-		mergeOpts = append(mergeOpts, llb.ProgressGroup(pgID, pgName, false), llb.WithCustomName(prefixCommand(d, "LINK "+name, d.prefixPlatform, &platform, env)))
-
-		d.state = d.state.WithOutput(llb.Merge([]llb.State{d.state, llb.Scratch().File(a, copyOpts...)}, mergeOpts...).Output())
-	} else {
-		d.state = d.state.File(a, fileOpt...)
-	}
-
-	return commitToHistory(&d.image, commitMessage.String(), true, &d.state, d.epoch)
-}
-
-type copyConfig struct {
-	params          instructions.SourcesAndDest
-	excludePatterns []string
-	source          llb.State
-	isAddCommand    bool
-	cmdToPrint      fmt.Stringer
-	chown           string
-	chmod           string
-	link            bool
-	keepGitDir      *bool
-	checksum        string
-	parents         bool
-	location        []parser.Range
-	ignoreMatcher   *patternmatcher.PatternMatcher
-	opt             dispatchOpt
-	unpack          *bool
-}
-
 func dispatchMaintainer(d *dispatchState, c *instructions.MaintainerCommand) error {
 	d.image.Author = c.Maintainer
 	return commitToHistory(&d.image, fmt.Sprintf("MAINTAINER %v", c.Maintainer), false, nil, d.epoch)
@@ -2040,73 +1808,6 @@ func addReachableStages(s *dispatchState, stages map[*dispatchState]struct{}) {
 	}
 }
 
-func validateCopySourcePath(src string, cfg *copyConfig) error {
-	// Do not validate copy source paths if there is no dockerignore file
-	// or if the dockerignore file contains exclusions.
-	//
-	// Exclusions are too difficult to statically determine if they're proper
-	// because it's ok for a directory to be excluded and a file inside the directory
-	// to be negated.
-	if cfg.ignoreMatcher == nil || cfg.ignoreMatcher.Exclusions() {
-		return nil
-	}
-	cmd := "Copy"
-	if cfg.isAddCommand {
-		cmd = "Add"
-	}
-
-	src = filepath.ToSlash(filepath.Clean(src))
-	ok, err := cfg.ignoreMatcher.MatchesOrParentMatches(src)
-	if err != nil {
-		return err
-	}
-	if ok {
-		msg := linter.RuleCopyIgnoredFile.Format(cmd, src)
-		cfg.opt.lint.Run(&linter.RuleCopyIgnoredFile, cfg.location, msg)
-	}
-
-	return nil
-}
-
-func validateCircularDependency(states []*dispatchState) error {
-	var visit func(*dispatchState, []instructions.Command) []instructions.Command
-	if states == nil {
-		return nil
-	}
-	visited := make(map[*dispatchState]struct{})
-	path := make(map[*dispatchState]struct{})
-
-	visit = func(state *dispatchState, current []instructions.Command) []instructions.Command {
-		_, ok := visited[state]
-		if ok {
-			return nil
-		}
-		visited[state] = struct{}{}
-		path[state] = struct{}{}
-		for dep, c := range state.deps {
-			next := append(current, c)
-			if _, ok := path[dep]; ok {
-				return next
-			}
-			if c := visit(dep, next); c != nil {
-				return c
-			}
-		}
-		delete(path, state)
-		return nil
-	}
-	for _, state := range states {
-		if cmds := visit(state, nil); cmds != nil {
-			err := errors.Errorf("circular dependency detected on stage: %s", state.stageName)
-			for _, c := range cmds {
-				err = parser.WithLocation(err, c.Location())
-			}
-			return err
-		}
-	}
-	return nil
-}
-
 func normalizeContextPaths(paths map[string]struct{}) []string {
 	// Avoid a useless allocation if the set of paths is empty.
 	if len(paths) == 0 {
@@ -2137,7 +1838,10 @@ func filterPaths(paths map[string]struct{}) []llb.LocalOption {
 func proxyEnvFromBuildArgs(args map[string]string) *llb.ProxyEnv {
 	pe := &llb.ProxyEnv{}
 	isNil := true
-	for k, v := range args {
+	keys := slices.Collect(maps.Keys(args))
+	slices.Sort(keys)
+	for _, k := range keys {
+		v := args[k]
 		if strings.EqualFold(k, "http_proxy") {
 			pe.HTTPProxy = v
 			isNil = false
@@ -2320,21 +2024,6 @@ func commonImageNames() []string {
 	return out
 }
 
-func isHTTPSource(src string) bool {
-	if !strings.HasPrefix(src, "http://") && !strings.HasPrefix(src, "https://") {
-		return false
-	}
-	return !isGitSource(src)
-}
-
-func isGitSource(src string) bool {
-	// https://github.com/ORG/REPO.git is a git source, not an http source
-	if gitRef, isGit, _ := dfgitutil.ParseGitRef(src); gitRef != nil && isGit {
-		return true
-	}
-	return false
-}
-
 func isEnabledForStage(stage string, value string) bool {
 	if enabled, err := strconv.ParseBool(value); err == nil {
 		return enabled
@@ -2342,101 +2031,6 @@ func isEnabledForStage(stage string, value string) bool {
 
 	vv := strings.Split(value, ",")
 	return slices.Contains(vv, stage)
-}
-
-func isSelfConsistentCasing(s string) bool {
-	return s == strings.ToLower(s) || s == strings.ToUpper(s)
-}
-
-func validateCaseMatch(name string, isMajorityLower bool, location []parser.Range, lint *linter.Linter) {
-	var correctCasing string
-	if isMajorityLower && strings.ToLower(name) != name {
-		correctCasing = "lowercase"
-	} else if !isMajorityLower && strings.ToUpper(name) != name {
-		correctCasing = "uppercase"
-	}
-	if correctCasing != "" {
-		msg := linter.RuleConsistentInstructionCasing.Format(name, correctCasing)
-		lint.Run(&linter.RuleConsistentInstructionCasing, location, msg)
-	}
-}
-
-func validateCommandCasing(stages []instructions.Stage, lint *linter.Linter) {
-	var lowerCount, upperCount int
-	for _, stage := range stages {
-		if isSelfConsistentCasing(stage.OrigCmd) {
-			if strings.ToLower(stage.OrigCmd) == stage.OrigCmd {
-				lowerCount++
-			} else {
-				upperCount++
-			}
-		}
-		for _, cmd := range stage.Commands {
-			cmdName := cmd.Name()
-			if isSelfConsistentCasing(cmdName) {
-				if strings.ToLower(cmdName) == cmdName {
-					lowerCount++
-				} else {
-					upperCount++
-				}
-			}
-		}
-	}
-
-	isMajorityLower := lowerCount > upperCount
-	for _, stage := range stages {
-		// Here, we check both if the command is consistent per command (ie, "CMD" or "cmd", not "Cmd")
-		// as well as ensuring that the casing is consistent throughout the dockerfile by comparing the
-		// command to the casing of the majority of commands.
-		validateCaseMatch(stage.OrigCmd, isMajorityLower, stage.Location, lint)
-		for _, cmd := range stage.Commands {
-			validateCaseMatch(cmd.Name(), isMajorityLower, cmd.Location(), lint)
-		}
-	}
-}
-
-var reservedStageNames = map[string]struct{}{
-	"context": {},
-	"scratch": {},
-}
-
-func validateStageNames(stages []instructions.Stage, lint *linter.Linter) {
-	stageNames := make(map[string]struct{})
-	for _, stage := range stages {
-		if stage.Name != "" {
-			if _, ok := reservedStageNames[stage.Name]; ok {
-				msg := linter.RuleReservedStageName.Format(stage.Name)
-				lint.Run(&linter.RuleReservedStageName, stage.Location, msg)
-			}
-
-			if _, ok := stageNames[stage.Name]; ok {
-				msg := linter.RuleDuplicateStageName.Format(stage.Name)
-				lint.Run(&linter.RuleDuplicateStageName, stage.Location, msg)
-			}
-			stageNames[stage.Name] = struct{}{}
-		}
-	}
-}
-
-func reportUnmatchedVariables(cmd instructions.Command, buildArgs []instructions.KeyValuePairOptional, env shell.EnvGetter, unmatched map[string]struct{}, opt *dispatchOpt) {
-	if len(unmatched) == 0 {
-		return
-	}
-	for _, buildArg := range buildArgs {
-		delete(unmatched, buildArg.Key)
-	}
-	if len(unmatched) == 0 {
-		return
-	}
-	options := env.Keys()
-	for cmdVar := range unmatched {
-		if _, nonEnvOk := nonEnvArgs[cmdVar]; nonEnvOk {
-			continue
-		}
-		match, _ := suggest.Search(cmdVar, options, runtime.GOOS != "windows")
-		msg := linter.RuleUndefinedVar.Format(cmdVar, match)
-		opt.lint.Run(&linter.RuleUndefinedVar, cmd.Location(), msg)
-	}
 }
 
 func mergeLocations(locations ...[]parser.Range) []parser.Range {
@@ -2500,86 +2094,6 @@ func unusedFromArgsCheckKeys(env shell.EnvGetter, args map[string]argInfo) map[s
 	return matched
 }
 
-func reportUnusedFromArgs(testArgKeys map[string]struct{}, unmatched map[string]struct{}, location []parser.Range, lint *linter.Linter) {
-	var argKeys []string
-	for arg := range testArgKeys {
-		argKeys = append(argKeys, arg)
-	}
-	for arg := range unmatched {
-		if _, ok := testArgKeys[arg]; ok {
-			continue
-		}
-		suggest, _ := suggest.Search(arg, argKeys, true)
-		msg := linter.RuleUndefinedArgInFrom.Format(arg, suggest)
-		lint.Run(&linter.RuleUndefinedArgInFrom, location, msg)
-	}
-}
-
-func reportRedundantTargetPlatform(platformVar string, nameMatch shell.ProcessWordResult, location []parser.Range, env shell.EnvGetter, lint *linter.Linter) {
-	// Only match this rule if there was only one matched name.
-	// It's psosible there were multiple args and that one of them expanded to an empty
-	// string and we don't want to report a warning when that happens.
-	if len(nameMatch.Matched) == 1 && len(nameMatch.Unmatched) == 0 {
-		const targetPlatform = "TARGETPLATFORM"
-		// If target platform is the only environment variable that was substituted and the result
-		// matches the target platform exactly, we can infer that the input was ${TARGETPLATFORM} or
-		// $TARGETPLATFORM.
-		if _, ok := nameMatch.Matched[targetPlatform]; !ok {
-			return
-		}
-
-		if result, _ := env.Get(targetPlatform); nameMatch.Result == result {
-			msg := linter.RuleRedundantTargetPlatform.Format(platformVar)
-			lint.Run(&linter.RuleRedundantTargetPlatform, location, msg)
-		}
-	}
-}
-
-func reportConstPlatformDisallowed(stageName string, nameMatch shell.ProcessWordResult, location []parser.Range, lint *linter.Linter) {
-	if len(nameMatch.Matched) > 0 || len(nameMatch.Unmatched) > 0 {
-		// Some substitution happened so the platform was not a constant.
-		// Disable checking for this warning.
-		return
-	}
-
-	// Attempt to parse the platform result. If this fails, then it will fail
-	// later so just ignore.
-	p, err := platforms.Parse(nameMatch.Result)
-	if err != nil {
-		return
-	}
-
-	// Check if the platform os or architecture is used in the stage name
-	// at all. If it is, then disable this warning.
-	if strings.Contains(stageName, p.OS) || strings.Contains(stageName, p.Architecture) {
-		return
-	}
-
-	// Report the linter warning.
-	msg := linter.RuleFromPlatformFlagConstDisallowed.Format(nameMatch.Result)
-	lint.Run(&linter.RuleFromPlatformFlagConstDisallowed, location, msg)
-}
-
-type instructionTracker struct {
-	Loc   []parser.Range
-	IsSet bool
-}
-
-func (v *instructionTracker) MarkUsed(loc []parser.Range) {
-	v.Loc = loc
-	v.IsSet = true
-}
-
-func validateUsedOnce(c instructions.Command, loc *instructionTracker, lint *linter.Linter) {
-	if loc.IsSet {
-		msg := linter.RuleMultipleInstructionsDisallowed.Format(c.Name())
-		// Report the location of the previous invocation because it is the one
-		// that will be ignored.
-		lint.Run(&linter.RuleMultipleInstructionsDisallowed, loc.Loc, msg)
-	}
-	loc.MarkUsed(c.Location())
-}
-
 func wrapSuggestAny(err error, keys map[string]struct{}, options []string) error {
 	for k := range keys {
 		var ok bool
@@ -2589,79 +2103,6 @@ func wrapSuggestAny(err error, keys map[string]struct{}, options []string) error
 		}
 	}
 	return err
-}
-
-func validateBaseImagePlatform(name string, expected, actual ocispecs.Platform, location []parser.Range, lint *linter.Linter) {
-	if expected.OS != actual.OS || expected.Architecture != actual.Architecture {
-		expectedStr := platforms.FormatAll(platforms.Normalize(expected))
-		actualStr := platforms.FormatAll(platforms.Normalize(actual))
-		msg := linter.RuleInvalidBaseImagePlatform.Format(name, expectedStr, actualStr)
-		lint.Run(&linter.RuleInvalidBaseImagePlatform, location, msg)
-	}
-}
-
-func getSecretsRegex() (*regexp.Regexp, *regexp.Regexp) {
-	// Check for either full value or first/last word.
-	// Examples: api_key, DATABASE_PASSWORD, GITHUB_TOKEN, secret_MESSAGE, AUTH
-	// Case insensitive.
-	secretsRegexpOnce.Do(func() {
-		secretTokens := []string{
-			"apikey",
-			"auth",
-			"credential",
-			"credentials",
-			"key",
-			"password",
-			"pword",
-			"passwd",
-			"secret",
-			"token",
-		}
-		pattern := `(?i)(?:_|^)(?:` + strings.Join(secretTokens, "|") + `)(?:_|$)`
-		secretsRegexp = regexp.MustCompile(pattern)
-
-		allowTokens := []string{
-			"public",
-			"file",
-			"version",
-		}
-		allowPattern := `(?i)(?:_|^)(?:` + strings.Join(allowTokens, "|") + `)(?:_|$)`
-		secretsAllowRegexp = regexp.MustCompile(allowPattern)
-	})
-	return secretsRegexp, secretsAllowRegexp
-}
-
-func validateNoSecretKey(instruction, key string, location []parser.Range, lint *linter.Linter) {
-	deny, allow := getSecretsRegex()
-	if deny.MatchString(key) && !allow.MatchString(key) {
-		msg := linter.RuleSecretsUsedInArgOrEnv.Format(instruction, key)
-		lint.Run(&linter.RuleSecretsUsedInArgOrEnv, location, msg)
-	}
-}
-
-func validateBaseImagesWithDefaultArgs(stages []instructions.Stage, shlex *shell.Lex, env *llb.EnvList, argCmds []instructions.ArgCommand, lint *linter.Linter) {
-	// Build the arguments as if no build options were given
-	// and using only defaults.
-	args, _, err := buildMetaArgs(env, shlex, argCmds, nil)
-	if err != nil {
-		// Abandon running the linter. We'll likely fail after this point
-		// with the same error but we shouldn't error here inside
-		// of the linting check.
-		return
-	}
-
-	for _, st := range stages {
-		nameMatch, err := shlex.ProcessWordWithMatches(st.BaseName, args)
-		if err != nil {
-			return
-		}
-
-		// Verify the image spec is potentially valid.
-		if _, err := reference.ParseNormalizedNamed(nameMatch.Result); err != nil {
-			msg := linter.RuleInvalidDefaultArgInFrom.Format(st.BaseName)
-			lint.Run(&linter.RuleInvalidDefaultArgInFrom, st.Location, msg)
-		}
-	}
 }
 
 func buildMetaArgs(args *llb.EnvList, shlex *shell.Lex, argCommands []instructions.ArgCommand, buildArgs map[string]string) (*llb.EnvList, map[string]argInfo, error) {
@@ -2729,16 +2170,4 @@ func (emptyEnvs) Get(string) (string, bool) {
 
 func (emptyEnvs) Keys() []string {
 	return nil
-}
-
-func containsWildcards(name string) bool {
-	for i := 0; i < len(name); i++ {
-		switch name[i] {
-		case '*', '?', '[':
-			return true
-		case '\\':
-			i++
-		}
-	}
-	return false
 }

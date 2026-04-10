@@ -18,7 +18,7 @@ type defaultValidator struct {
 	schemaOptions  *SchemaValidatorOptions
 }
 
-// Validate validates the default values declared in the swagger spec
+// Validate validates the default values declared in the swagger spec.
 func (d *defaultValidator) Validate() *Result {
 	errs := pools.poolOfResults.BorrowResult() // will redeem when merged
 
@@ -30,7 +30,7 @@ func (d *defaultValidator) Validate() *Result {
 	return errs
 }
 
-// resetVisited resets the internal state of visited schemas
+// resetVisited resets the internal state of visited schemas.
 func (d *defaultValidator) resetVisited() {
 	if d.visitedSchemas == nil {
 		d.visitedSchemas = make(map[string]struct{})
@@ -38,7 +38,7 @@ func (d *defaultValidator) resetVisited() {
 		return
 	}
 
-	// TODO(go1.21): clear(ex.visitedSchemas)
+	// NOTE(go1.21): clear(ex.visitedSchemas)
 	for k := range d.visitedSchemas {
 		delete(d.visitedSchemas, k)
 	}
@@ -73,16 +73,17 @@ func isVisited(path string, visitedSchemas map[string]struct{}) bool {
 	return false
 }
 
-// beingVisited asserts a schema is being visited
+// beingVisited asserts a schema is being visited.
 func (d *defaultValidator) beingVisited(path string) {
 	d.visitedSchemas[path] = struct{}{}
 }
 
-// isVisited tells if a path has already been visited
+// isVisited tells if a path has already been visited.
 func (d *defaultValidator) isVisited(path string) bool {
 	return isVisited(path, d.visitedSchemas)
 }
 
+//nolint:gocognit // refactor in a forthcoming PR
 func (d *defaultValidator) validateDefaultValueValidAgainstSchema() *Result {
 	// every default value that is specified must validate against the schema for that property
 	// headers, items, parameters, schema
@@ -272,7 +273,7 @@ func (d *defaultValidator) validateDefaultValueSchemaAgainstSchema(path, in stri
 	return res
 }
 
-// TODO: Temporary duplicated code. Need to refactor with examples
+// NOTE: Temporary duplicated code. Need to refactor with examples
 
 func (d *defaultValidator) validateDefaultValueItemsAgainstSchema(path, in string, root any, items *spec.Items) *Result {
 	res := pools.poolOfResults.BorrowResult()

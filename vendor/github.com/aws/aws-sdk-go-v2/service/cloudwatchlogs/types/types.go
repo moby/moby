@@ -898,13 +898,13 @@ func (*GetLogObjectResponseStreamMemberFields) isGetLogObjectResponseStream() {}
 // For more information about this processor including examples, see [grok] in the
 // CloudWatch Logs User Guide.
 //
-// [grok]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation-Processors.html#CloudWatch-Logs-Transformation-Grok
+// [grok]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation-Configurable.html#CloudWatch-Logs-Transformation-Grok
 type Grok struct {
 
 	// The grok pattern to match against the log event. For a list of supported grok
 	// patterns, see [Supported grok patterns].
 	//
-	// [Supported grok patterns]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation-Processors.html#Grok-Patterns
+	// [Supported grok patterns]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch-Logs-Transformation-Configurable.html#CloudWatch-Logs-Transformation-Grok
 	//
 	// This member is required.
 	Match *string
@@ -1292,6 +1292,11 @@ type LogGroup struct {
 	// [ListTagsForResource]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_ListTagsForResource.html
 	Arn *string
 
+	// Indicates whether bearer token authentication is enabled for this log group.
+	// When enabled, bearer token authentication is allowed on operations until it is
+	// explicitly disabled.
+	BearerTokenAuthenticationEnabled *bool
+
 	// The creation time of the log group, expressed as the number of milliseconds
 	// after Jan 1, 1970 00:00:00 UTC.
 	CreationTime *int64
@@ -1448,6 +1453,37 @@ type LogStream struct {
 	// are always accepted regardless of receiving an invalid sequence token. You don't
 	// need to obtain uploadSequenceToken to use a PutLogEvents action.
 	UploadSequenceToken *string
+
+	noSmithyDocumentSerde
+}
+
+// Contains metadata about a lookup table returned by DescribeLookupTables .
+type LookupTable struct {
+
+	// The description of the lookup table.
+	Description *string
+
+	// The ARN of the KMS key used to encrypt the lookup table data, if applicable.
+	KmsKeyId *string
+
+	// The time when the lookup table was last updated, expressed as the number of
+	// milliseconds after Jan 1, 1970 00:00:00 UTC .
+	LastUpdatedTime *int64
+
+	// The ARN of the lookup table.
+	LookupTableArn *string
+
+	// The name of the lookup table.
+	LookupTableName *string
+
+	// The number of data rows in the lookup table, excluding the header row.
+	RecordsCount *int64
+
+	// The size of the lookup table in bytes.
+	SizeBytes *int64
+
+	// The column headers from the first row of the CSV file.
+	TableFields []string
 
 	noSmithyDocumentSerde
 }
@@ -2339,6 +2375,10 @@ type QueryDefinition struct {
 	// The name of the query definition.
 	Name *string
 
+	// If this query definition contains a list of query parameters that define
+	// placeholder variables for the query string, that list appears here.
+	Parameters []QueryParameter
+
 	// The unique ID of the query definition.
 	QueryDefinitionId *string
 
@@ -2381,6 +2421,30 @@ type QueryInfo struct {
 	// The status of this query. Possible values are Cancelled , Complete , Failed ,
 	// Running , Scheduled , and Unknown .
 	Status QueryStatus
+
+	noSmithyDocumentSerde
+}
+
+// This structure defines a query parameter for a saved CloudWatch Logs Insights
+// query definition. Query parameters are supported only for Logs Insights QL
+// queries. They are placeholder variables that you can reference in a query string
+// using the {{parameterName}} syntax. Each parameter can include a default value
+// and a description.
+type QueryParameter struct {
+
+	// The name of the query parameter. A query parameter name must start with a
+	// letter or underscore, and contain only letters, digits, and underscores.
+	//
+	// This member is required.
+	Name *string
+
+	// The default value to use for this query parameter if no value is supplied at
+	// execution time.
+	DefaultValue *string
+
+	// A description of the query parameter that explains its purpose or expected
+	// values.
+	Description *string
 
 	noSmithyDocumentSerde
 }
@@ -2596,6 +2660,13 @@ type S3Configuration struct {
 	//
 	// This member is required.
 	RoleArn *string
+
+	// The Amazon Resource Name (ARN) of the KMS encryption key. Must belong to the
+	// same AWS Region as the destination Amazon S3 bucket.
+	KmsKeyId *string
+
+	// The AWS accountId for the bucket owning account.
+	OwnerAccountId *string
 
 	noSmithyDocumentSerde
 }

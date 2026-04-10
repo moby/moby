@@ -77,7 +77,7 @@ type containerInfo struct {
 	ID        string            `json:"id,omitempty"`
 	ImageName string            `json:"imageName,omitempty"`
 	ImageID   string            `json:"imageId,omitempty"`
-	Created   time.Time         `json:"created,omitempty"`
+	Created   time.Time         `json:"created"`
 	Command   string            `json:"command,omitempty"`
 	Metadata  map[string]string `json:"metadata,omitempty"`
 }
