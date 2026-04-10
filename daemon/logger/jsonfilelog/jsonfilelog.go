@@ -85,12 +85,12 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 
-	if v, ok := info.Config["tag"]; ok && v != "" {
+	if v, ok := info.Config[logger.AttrLogTag]; ok && v != "" {
 		// no default template. and only use a tag if the user asked for it.
 		if tag, err := loggerutils.ParseLogTag(info, ""); err != nil {
 			return nil, err
 		} else if tag != "" {
-			extraAttrs["tag"] = tag
+			extraAttrs[logger.AttrLogTag] = tag
 		}
 	}
 
@@ -153,14 +153,12 @@ func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffe
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
+		case logger.AttrEnv, logger.AttrEnvRegex, logger.AttrLabels, logger.AttrLabelsRegex, logger.AttrLogTag:
+			// Common attributes handled through [logger.Info.ExtraAttributes] and [loggerutils.ParseLogTag].
+			continue
 		case "max-file":
 		case "max-size":
 		case "compress":
-		case "labels":
-		case "labels-regex":
-		case "env":
-		case "env-regex":
-		case "tag":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for json-file log driver", key)
 		}

@@ -70,7 +70,7 @@ func TestJSONFileLoggerWithTags(t *testing.T) {
 	filename := filepath.Join(tmp, "container.log")
 	l, err := New(logger.Info{
 		Config: map[string]string{
-			"tag": "{{.ID}}/{{.Name}}", // first 12 characters of ContainerID and full ContainerName
+			logger.AttrLogTag: "{{.ID}}/{{.Name}}", // first 12 characters of ContainerID and full ContainerName
 		},
 		ContainerID:   cid,
 		ContainerName: cname,
@@ -106,10 +106,11 @@ func BenchmarkJSONFileLoggerLog(b *testing.B) {
 		ContainerID: "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",
 		LogPath:     tmp.Join("container.log"),
 		Config: map[string]string{
-			"labels":   "first,second",
 			"max-file": "10",
 			"compress": "true",
 			"max-size": "20m",
+
+			logger.AttrLabels: "first,second",
 		},
 		ContainerLabels: map[string]string{
 			"first":  "label_value",
@@ -275,11 +276,15 @@ func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 	filename := filepath.Join(tmp, "container.log")
-	config := map[string]string{"labels": "rack,dc", "labels-regex": "^loc", "env": "environ,debug,ssl", "env-regex": "^dc"}
 	l, err := New(logger.Info{
-		ContainerID:     cid,
-		LogPath:         filename,
-		Config:          config,
+		ContainerID: cid,
+		LogPath:     filename,
+		Config: map[string]string{
+			logger.AttrLabels:      "rack,dc",
+			logger.AttrLabelsRegex: "^loc",
+			logger.AttrEnv:         "environ,debug,ssl",
+			logger.AttrEnvRegex:    "^dc",
+		},
 		ContainerLabels: map[string]string{"rack": "101", "dc": "lhr", "location": "here"},
 		ContainerEnv:    []string{"environ=production", "debug=false", "port=10001", "ssl=true", "dc_region=west"},
 	})

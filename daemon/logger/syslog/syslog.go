@@ -188,17 +188,15 @@ func parseAddress(address string) (string, string, error) {
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
-		case "env":
-		case "env-regex":
-		case "labels":
-		case "labels-regex":
+		case logger.AttrEnv, logger.AttrEnvRegex, logger.AttrLabels, logger.AttrLabelsRegex, logger.AttrLogTag:
+			// Common attributes handled through [logger.Info.ExtraAttributes] and [loggerutils.ParseLogTag].
+			continue
 		case "syslog-address":
 		case "syslog-facility":
 		case "syslog-tls-ca-cert":
 		case "syslog-tls-cert":
 		case "syslog-tls-key":
 		case "syslog-tls-skip-verify":
-		case "tag":
 		case "syslog-format":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for syslog log driver", key)

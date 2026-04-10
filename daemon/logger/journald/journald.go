@@ -144,11 +144,9 @@ func newJournald(info logger.Info) (*journald, error) {
 func validateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
-		case "labels":
-		case "labels-regex":
-		case "env":
-		case "env-regex":
-		case "tag":
+		case logger.AttrEnv, logger.AttrEnvRegex, logger.AttrLabels, logger.AttrLabelsRegex, logger.AttrLogTag:
+			// Common attributes handled through [logger.Info.ExtraAttributes] and [loggerutils.ParseLogTag].
+			continue
 		default:
 			return fmt.Errorf("unknown log opt '%s' for journald log driver", key)
 		}

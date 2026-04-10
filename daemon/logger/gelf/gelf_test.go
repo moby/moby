@@ -96,13 +96,13 @@ func TestTCPValidateLogOpt(t *testing.T) {
 func TestUDPValidateLogOpt(t *testing.T) {
 	err := ValidateLogOpt(map[string]string{
 		"gelf-address":           "udp://127.0.0.1:12201",
-		"tag":                    "testtag",
-		"labels":                 "testlabel",
-		"labels-regex":           "testlabel-regex",
-		"env":                    "testenv",
-		"env-regex":              "testenv-regex",
 		"gelf-compression-level": "9",
 		"gelf-compression-type":  "gzip",
+		logger.AttrLogTag:        "testtag",
+		logger.AttrLabels:        "testlabel",
+		logger.AttrLabelsRegex:   "testlabel-regex",
+		logger.AttrEnv:           "testenv",
+		logger.AttrEnvRegex:      "testenv-regex",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -157,7 +157,7 @@ func TestNewGELFTCPWriter(t *testing.T) {
 			"gelf-address":             url,
 			"gelf-tcp-max-reconnect":   "0",
 			"gelf-tcp-reconnect-delay": "0",
-			"tag":                      "{{.ID}}",
+			logger.AttrLogTag:          "{{.ID}}",
 		},
 		ContainerID: "12345678901234567890",
 	}
