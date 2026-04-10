@@ -30,11 +30,9 @@ ARG SYSTEMD="false"
 ARG FIREWALLD="false"
 ARG DOCKER_STATIC=1
 
-# REGISTRY_VERSION specifies the version of the registry to download from
-# https://hub.docker.com/r/distribution/distribution. This version of
-# the registry is used to test schema 2 manifests. Generally,  the version
-# specified here should match a current release.
-ARG REGISTRY_VERSION=3.0.0
+# REGISTRY_VERSION is the version of the registry to use for integration tests.
+# It must be a valid tag in the docker.io/library/registry image repository.
+ARG REGISTRY_VERSION=3.1.0
 
 # delve is currently only supported on linux/amd64, linux/arm64, and linux/ppc64le;
 # https://github.com/go-delve/delve/blob/v1.26.0/pkg/proc/native/support_sentinel.go#L1
@@ -81,7 +79,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
         && /build/criu --version
 
 # registry
-FROM distribution/distribution:$REGISTRY_VERSION AS registry
+FROM distribution/distribution:${REGISTRY_VERSION} AS registry
 RUN mkdir /build && mv /bin/registry /build/registry
 
 # frozen-images
