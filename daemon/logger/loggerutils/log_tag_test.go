@@ -109,7 +109,7 @@ func TestParseLogTag(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			attrs := map[string]string{}
 			if tc.customTag != "" {
-				attrs["tag"] = tc.customTag
+				attrs[logger.AttrLogTag] = tc.customTag
 			}
 			tag, err := ParseLogTag(buildContext(attrs), tc.defaultTemplate)
 			assert.NilError(t, err)

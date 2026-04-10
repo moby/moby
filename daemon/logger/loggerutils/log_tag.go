@@ -24,7 +24,7 @@ const (
 // ParseLogTag generates a context aware tag for consistency across different
 // log drivers based on the context of the running container.
 func ParseLogTag(info logger.Info, defaultTemplate string) (string, error) {
-	tagTemplate := info.Config["tag"]
+	tagTemplate := info.Config[logger.AttrLogTag]
 	if tagTemplate == "" {
 		tagTemplate = defaultTemplate
 	}
