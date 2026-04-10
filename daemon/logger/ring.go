@@ -5,10 +5,19 @@ import (
 	"errors"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 const (
 	defaultRingMaxSize = 1e6 // 1MB
+
+	// defaultOrphanedLogTimeout is the maximum time Close() will wait for
+	// an in-flight Log() call to complete before proceeding. If exceeded,
+	// Close() continues, which may result in a concurrent Log()/Close()
+	// on the underlying driver. This is a safety measure to prevent
+	// Close() from blocking indefinitely when the logging backend is
+	// truly unresponsive.
+	defaultOrphanedLogTimeout = 5 * time.Second
 )
 
 // ringLogger is a ring buffer that implements the Logger interface.
@@ -18,7 +27,14 @@ type ringLogger struct {
 	l         Logger
 	logInfo   Info
 	closeFlag atomic.Bool
-	wg        sync.WaitGroup
+	closeCh   chan struct{} // closed when Close() is called, unblocks run()
+	// orphanedLog is set by run() when it exits via closeCh while an
+	// in-flight Log() goroutine is still running. Close() waits on this
+	// channel before accessing the underlying logger, to prevent
+	// concurrent Log()/Close() calls on the underlying driver.
+	orphanedLog        chan struct{}
+	orphanedLogTimeout time.Duration // 0 means defaultOrphanedLogTimeout
+	wg                 sync.WaitGroup
 }
 
 var (
@@ -44,6 +60,7 @@ func newRingLogger(driver Logger, logInfo Info, maxSize int64) *ringLogger {
 		buffer:  newRing(maxSize),
 		l:       driver,
 		logInfo: logInfo,
+		closeCh: make(chan struct{}),
 	}
 	l.wg.Add(1)
 	go l.run()
@@ -89,15 +106,31 @@ func (r *ringLogger) closed() bool {
 	return r.closeFlag.Load()
 }
 
-func (r *ringLogger) setClosed() {
-	r.closeFlag.Store(true)
-}
-
 // Close closes the logger
 func (r *ringLogger) Close() error {
-	r.setClosed()
+	if !r.closeFlag.CompareAndSwap(false, true) {
+		return nil
+	}
+	close(r.closeCh)
 	r.buffer.Close()
 	r.wg.Wait()
+
+	// If run() exited with an in-flight Log() call, wait for it to
+	// complete before touching the underlying logger. This prevents
+	// concurrent Log()/Close() calls that can panic in some drivers
+	// (e.g. fluentd). Use a timeout so Close() doesn't block forever
+	// when the logging backend is truly unresponsive.
+	if r.orphanedLog != nil {
+		timeout := r.orphanedLogTimeout
+		if timeout == 0 {
+			timeout = defaultOrphanedLogTimeout
+		}
+		select {
+		case <-r.orphanedLog:
+		case <-time.After(timeout):
+		}
+	}
+
 	// empty out the queue
 	var logErr bool
 	for _, msg := range r.buffer.Drain() {
@@ -116,9 +149,9 @@ func (r *ringLogger) Close() error {
 	return r.l.Close()
 }
 
-// run consumes messages from the ring buffer and forwards them to the underling
+// run consumes messages from the ring buffer and forwards them to the underlying
 // logger.
-// This is run in a goroutine when the ringLogger is created
+// This is run in a goroutine when the ringLogger is created.
 func (r *ringLogger) run() {
 	defer r.wg.Done()
 	for {
@@ -130,8 +163,27 @@ func (r *ringLogger) run() {
 			// buffer is closed
 			return
 		}
-		if err := r.l.Log(msg); err != nil {
-			logDriverError(r.l.Name(), string(msg.Line), err)
+
+		// Run Log in a separate goroutine so that run() can exit
+		// promptly when Close() is called, even if Log() blocks
+		// (e.g. due to a slow or unresponsive logging backend).
+		logDone := make(chan struct{})
+		go func() {
+			if err := r.l.Log(msg); err != nil {
+				logDriverError(r.l.Name(), string(msg.Line), err)
+			}
+			close(logDone)
+		}()
+
+		select {
+		case <-logDone:
+		case <-r.closeCh:
+			// Close was called while Log() is still in-flight.
+			// Communicate the pending goroutine's channel so that
+			// Close() can wait for it before accessing the
+			// underlying logger (preventing concurrent Log/Close).
+			r.orphanedLog = logDone
+			return
 		}
 	}
 }
