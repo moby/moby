@@ -17,6 +17,7 @@ import (
 	"github.com/containerd/platforms"
 	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	"github.com/opencontainers/go-digest"
@@ -453,6 +454,75 @@ func TestImageList(t *testing.T) {
 			})
 
 			tc.check(t, all)
+		})
+	}
+}
+
+func TestImageListReferenceFilter(t *testing.T) {
+	ctx := namespaces.WithNamespace(t.Context(), "testing")
+
+	blobsDir := t.TempDir()
+
+	toContainerdImage := func(t *testing.T, imageFunc specialimage.SpecialImageFunc) c8dimages.Image {
+		idx, err := imageFunc(blobsDir)
+		assert.NilError(t, err)
+		return imagesFromIndex(idx)[0]
+	}
+
+	multilayer := toContainerdImage(t, specialimage.MultiLayer)
+
+	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
+
+	for _, tc := range []struct {
+		name      string
+		reference string
+		expected  int
+	}{
+		{
+			name:      "familiar short name",
+			reference: "multilayer",
+			expected:  1,
+		},
+		{
+			name:      "familiar name with tag",
+			reference: "multilayer:latest",
+			expected:  1,
+		},
+		{
+			name:      "canonical name without tag",
+			reference: "docker.io/library/multilayer",
+			expected:  1,
+		},
+		{
+			name:      "canonical name with tag",
+			reference: "docker.io/library/multilayer:latest",
+			expected:  1,
+		},
+		{
+			name:      "canonical name with glob tag",
+			reference: "docker.io/library/multilayer:*",
+			expected:  1,
+		},
+		{
+			name:      "no match",
+			reference: "nomatch",
+			expected:  0,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := logtest.WithT(ctx, t)
+			service := fakeImageService(t, ctx, cs)
+
+			_, err := service.images.Create(ctx, multilayer)
+			assert.NilError(t, err)
+
+			opts := imagebackend.ListOptions{
+				Filters: filters.NewArgs(filters.Arg("reference", tc.reference)),
+			}
+			all, err := service.Images(ctx, opts)
+			assert.NilError(t, err)
+
+			assert.Check(t, is.Len(all, tc.expected), "reference filter %q returned %d images, expected %d", tc.reference, len(all), tc.expected)
 		})
 	}
 }

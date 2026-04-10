@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"runtime"
 	"sort"
 	"strings"
@@ -647,7 +648,16 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 					return false
 				}
 				if found {
-					return found
+					return true
+				}
+				// Also match against the full canonical reference,
+				// so that e.g. "docker.io/library/alpine" matches
+				// an image stored as "docker.io/library/alpine:latest".
+				if matched, _ := path.Match(value, reference.TagNameOnly(ref).String()); matched {
+					return true
+				}
+				if matched, _ := path.Match(value, ref.Name()); matched {
+					return true
 				}
 			}
 			return false
