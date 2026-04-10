@@ -5,6 +5,7 @@ import (
 	"io"
 	"reflect"
 	"testing"
+	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -12,6 +13,7 @@ import (
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -92,4 +94,57 @@ func TestStatsContainerNotFound(t *testing.T) {
 			assert.ErrorContains(t, err, "no-such-container")
 		})
 	}
+}
+
+func TestStatsNoStreamGetCPU(t *testing.T) {
+	skip.If(t, testEnv.RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
+	skip.If(t, testEnv.IsRootless() && testEnv.DaemonInfo.CgroupVersion == "1", "Rootless Mode does not support cgroups v1 stats")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, apiClient)
+
+	pollTimeout := 5 * time.Second
+	pollDelay := 250 * time.Millisecond
+
+	var res client.ContainerStatsResult
+
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		var err error
+		res, err = apiClient.ContainerStats(ctx, cID, client.ContainerStatsOptions{Stream: false})
+		if err != nil {
+			return poll.Continue("Waiting for stats: %v", err)
+		}
+
+		return poll.Success()
+	}, poll.WithDelay(pollDelay), poll.WithTimeout(pollTimeout))
+
+	defer res.Body.Close()
+
+	var v containertypes.StatsResponse
+	dec := json.NewDecoder(res.Body)
+	assert.NilError(t, dec.Decode(&v))
+
+	cpuPercent := 0.0
+
+	if testEnv.DaemonInfo.OSType != "windows" {
+		cpuDelta := float64(v.CPUStats.CPUUsage.TotalUsage - v.PreCPUStats.CPUUsage.TotalUsage)
+		systemDelta := float64(v.CPUStats.SystemUsage - v.PreCPUStats.SystemUsage)
+		cpuPercent = (cpuDelta / systemDelta) * float64(v.CPUStats.OnlineCPUs) * 100
+	} else {
+		// Windows measures CPU time in 100-nanosecond intervals
+		// Max number of 100ns intervals between previous time read and now
+		possIntervals := uint64(v.Read.Sub(v.PreRead).Nanoseconds()) // Start with number of ns intervals
+		possIntervals /= 100                                         // Convert to number of 100ns intervals
+		possIntervals *= uint64(v.NumProcs)                          // Multiply by number of processors
+
+		// Intervals used
+		intervalsUsed := v.CPUStats.CPUUsage.TotalUsage - v.PreCPUStats.CPUUsage.TotalUsage
+		if possIntervals > 0 {
+			cpuPercent = float64(intervalsUsed) / float64(possIntervals) * 100.0
+		}
+	}
+
+	assert.Assert(t, cpuPercent != 0.0, "Docker stats with no-stream get cpu usage failed: was %v", cpuPercent)
 }
