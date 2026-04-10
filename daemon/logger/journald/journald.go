@@ -46,6 +46,7 @@ const (
 	fieldLogOrdinal = "CONTAINER_LOG_ORDINAL"
 )
 
+// waitUntilFlushed is set if read support is enabled and a no-op otherwise.
 var waitUntilFlushed func(*journald) error
 
 type journald struct {
@@ -66,15 +67,6 @@ type journald struct {
 	sendToJournal   func(message string, priority journal.Priority, vars map[string]string) error
 	journalReadDir  string        //nolint:unused // Referenced in read.go, which has more restrictive build constraints.
 	readSyncTimeout time.Duration //nolint:unused // Referenced in read.go, which has more restrictive build constraints.
-}
-
-func init() {
-	if err := logger.RegisterLogDriver(name, New); err != nil {
-		panic(err)
-	}
-	if err := logger.RegisterLogOptValidator(name, validateLogOpt); err != nil {
-		panic(err)
-	}
 }
 
 // sanitizeKeyMod returns the sanitized string so that it could be used in journald.

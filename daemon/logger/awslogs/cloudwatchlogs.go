@@ -112,16 +112,6 @@ type wrappedEvent struct {
 }
 type byTimestamp []wrappedEvent
 
-// init registers the awslogs driver
-func init() {
-	if err := logger.RegisterLogDriver(name, New); err != nil {
-		panic(err)
-	}
-	if err := logger.RegisterLogOptValidator(name, ValidateLogOpt); err != nil {
-		panic(err)
-	}
-}
-
 // eventBatch holds the events that are batched for submission and the
 // associated data about it.
 //

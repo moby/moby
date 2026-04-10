@@ -43,16 +43,6 @@ var (
 	instanceID   string
 )
 
-func init() {
-	if err := logger.RegisterLogDriver(name, New); err != nil {
-		panic(err)
-	}
-
-	if err := logger.RegisterLogOptValidator(name, ValidateLogOpts); err != nil {
-		panic(err)
-	}
-}
-
 type gcplogs struct {
 	client    *logging.Client
 	logger    *logging.Logger

@@ -26,15 +26,6 @@ type gelfLogger struct {
 	rawExtra json.RawMessage
 }
 
-func init() {
-	if err := logger.RegisterLogDriver(name, New); err != nil {
-		panic(err)
-	}
-	if err := logger.RegisterLogOptValidator(name, ValidateLogOpt); err != nil {
-		panic(err)
-	}
-}
-
 // New creates a gelf logger using the configuration passed in on the
 // context. The supported context configuration variable is gelf-address.
 func New(info logger.Info) (logger.Logger, error) {

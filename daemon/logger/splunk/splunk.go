@@ -140,15 +140,6 @@ const (
 	splunkFormatInline = "inline"
 )
 
-func init() {
-	if err := logger.RegisterLogDriver(driverName, New); err != nil {
-		panic(err)
-	}
-	if err := logger.RegisterLogOptValidator(driverName, ValidateLogOpt); err != nil {
-		panic(err)
-	}
-}
-
 // New creates splunk logger driver using configuration passed in context
 func New(info logger.Info) (logger.Logger, error) {
 	hostname, err := info.Hostname()

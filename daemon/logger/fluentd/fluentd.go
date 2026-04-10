@@ -68,15 +68,6 @@ const (
 	readTimeoutKey = "fluentd-read-timeout"
 )
 
-func init() {
-	if err := logger.RegisterLogDriver(name, New); err != nil {
-		panic(err)
-	}
-	if err := logger.RegisterLogOptValidator(name, ValidateLogOpt); err != nil {
-		panic(err)
-	}
-}
-
 // New creates a fluentd logger using the configuration passed in on
 // the context. The supported context configuration variable is
 // fluentd-address.
