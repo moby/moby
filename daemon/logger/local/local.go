@@ -190,11 +190,11 @@ func protoToMessage(proto *logdriver.LogEntry) *logger.Message {
 		Timestamp: time.Unix(0, proto.TimeNano).UTC(),
 	}
 	if proto.Partial {
-		var md backend.PartialLogMetaData
-		md.Last = proto.GetPartialLogMetadata().GetLast()
-		md.ID = proto.GetPartialLogMetadata().GetId()
-		md.Ordinal = int(proto.GetPartialLogMetadata().GetOrdinal())
-		msg.PLogMetaData = &md
+		msg.PLogMetaData = &backend.PartialLogMetaData{
+			Last:    proto.GetPartialLogMetadata().GetLast(),
+			ID:      proto.GetPartialLogMetadata().GetId(),
+			Ordinal: int(proto.GetPartialLogMetadata().GetOrdinal()),
+		}
 	}
 	msg.Line = append(msg.Line[:0], proto.Line...)
 	return msg
