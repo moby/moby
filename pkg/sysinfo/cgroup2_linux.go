@@ -26,6 +26,7 @@ func newV2(options ...Opt) *SysInfo {
 		applyAppArmorInfo,
 		applySeccompInfo,
 		applyCgroupNsInfo,
+		applyTimeNsInfo,
 	}
 
 	m, err := cgroupsV2.Load(sysInfo.cg2GroupPath)

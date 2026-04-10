@@ -117,6 +117,7 @@ func DefaultLinuxSpec() specs.Spec {
 			Namespaces: []specs.LinuxNamespace{
 				{Type: specs.MountNamespace},
 				{Type: specs.NetworkNamespace},
+				{Type: specs.TimeNamespace},
 				{Type: specs.UTSNamespace},
 				{Type: specs.PIDNamespace},
 				{Type: specs.IPCNamespace},
