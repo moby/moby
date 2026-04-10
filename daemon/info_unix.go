@@ -78,6 +78,11 @@ func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *system.Info, sysI
 	// Set expected and actual commits to the same value to prevent the client
 	// showing that the version does not match the "expected" version/commit.
 
+	v.UserlandProxy = &cfg.EnableUserlandProxy
+	if cfg.EnableUserlandProxy {
+		v.UserlandProxyPath = cfg.UserlandProxyPath
+	}
+
 	if v.CgroupDriver == cgroupNoneDriver {
 		if v.CgroupVersion == "2" {
 			v.Warnings = append(v.Warnings, "WARNING: Running in rootless-mode without cgroups. Systemd is required to enable cgroups in rootless-mode.")

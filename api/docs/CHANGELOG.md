@@ -13,6 +13,11 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.55 API changes
+
+* `GET /info` now includes `UserlandProxy` and `UserlandProxyPath` fields
+   indicating whether the userland proxy is enabled, and the path to the userland proxy binary if enabled.
+
 ## v1.54 API changes
 
 * `GET /images/json` now supports an `identity` query parameter. When set,

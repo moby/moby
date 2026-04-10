@@ -122,6 +122,11 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 			// Field introduced in API v1.53.
 			info.NRI = nil
 		}
+		if versions.LessThan(version, "1.55") {
+			// UserlandProxy fields introduced in API v1.55.
+			info.UserlandProxy = nil
+			info.UserlandProxyPath = ""
+		}
 		return compat.Wrap(info, legacyOptions...), nil
 	})
 

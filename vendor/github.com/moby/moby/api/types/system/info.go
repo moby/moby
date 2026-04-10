@@ -78,6 +78,9 @@ type Info struct {
 
 	Containerd *ContainerdInfo `json:",omitempty"`
 
+	UserlandProxy     *bool  `json:",omitempty"`
+	UserlandProxyPath string `json:",omitempty"`
+
 	// Warnings contains a slice of warnings that occurred  while collecting
 	// system information. These warnings are intended to be informational
 	// messages for the user, and are not intended to be parsed / used for
