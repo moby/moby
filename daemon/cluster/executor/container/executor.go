@@ -15,6 +15,7 @@ import (
 	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
 	clustertypes "github.com/moby/moby/v2/daemon/cluster/provider"
 	"github.com/moby/moby/v2/daemon/internal/filters"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	networktypes "github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/swarmkit/v2/agent"
@@ -24,6 +25,7 @@ import (
 	swarmlog "github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/template"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 )
 
 type executor struct {
@@ -57,9 +59,12 @@ func NewExecutor(b executorpkg.Backend, p plugin.Backend, i executorpkg.ImageBac
 
 // Describe returns the underlying node description from the docker client.
 func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.cluster.executor.container.executor.Describe")
+	defer span.End()
+
 	info, err := e.backend.SystemInfo(ctx)
 	if err != nil {
-		return nil, err
+		return nil, otelutil.RecordStatus(span, err)
 	}
 
 	plugins := map[api.PluginDescription]struct{}{}
@@ -154,7 +159,13 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 	return description, nil
 }
 
-func (e *executor) Configure(ctx context.Context, node *api.Node) error {
+func (e *executor) Configure(ctx context.Context, node *api.Node) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "daemon.cluster.executor.container.executor.Configure")
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	var ingressNA *api.NetworkAttachment
 	attachments := make(map[string]string)
 
@@ -212,7 +223,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 	}
 
 	if ingressNA == nil {
-		e.backend.ReleaseIngress()
+		e.backend.ReleaseIngress(ctx)
 	} else {
 		networkCreateRequest := network.CreateRequest{
 			Name:   ingressNA.Network.Spec.Annotations.Name,
@@ -232,7 +243,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 			networkCreateRequest.IPAM.Config = append(networkCreateRequest.IPAM.Config, c)
 		}
 
-		_, err := e.backend.SetupIngress(clustertypes.NetworkCreateRequest{
+		_, err := e.backend.SetupIngress(ctx, clustertypes.NetworkCreateRequest{
 			ID:            ingressNA.Network.ID,
 			CreateRequest: networkCreateRequest,
 		}, ingressNA.Addresses[0])
@@ -248,7 +259,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 
 	// now, finally, remove any network LB attachments that we no longer have.
 	for nw, gone := range removeAttachments {
-		err := e.backend.DeleteManagedNetwork(nw)
+		err := e.backend.DeleteManagedNetwork(ctx, nw)
 		switch {
 		case err == nil:
 			continue

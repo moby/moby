@@ -16,8 +16,8 @@ func getPlatformOption() EndpointOption {
 	return nil
 }
 
-func (c *Controller) createGWNetwork() (*Network, error) {
-	ctx := baggage.ContextWithBaggage(context.TODO(), otelutil.MustNewBaggage(
+func (c *Controller) createGWNetwork(ctx context.Context) (*Network, error) {
+	ctx = baggage.ContextWithBaggage(ctx, otelutil.MustNewBaggage(
 		otelutil.MustNewMemberRaw(otelutil.TriggerKey, "libnetwork.Controller.createGWNetwork"),
 	))
 

@@ -16,8 +16,8 @@ type driver struct {
 	sync.Mutex
 }
 
-func Register(r driverapi.Registerer) error {
-	return r.RegisterDriver(NetworkType, &driver{}, driverapi.Capability{
+func Register(ctx context.Context, r driverapi.Registerer) error {
+	return r.RegisterDriver(ctx, NetworkType, &driver{}, driverapi.Capability{
 		DataScope:         scope.Local,
 		ConnectivityScope: scope.Local,
 	})
@@ -58,7 +58,7 @@ func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo 
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid string) error {
+func (d *driver) Leave(_ context.Context, nid, eid string) error {
 	return nil
 }
 

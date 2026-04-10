@@ -298,7 +298,7 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 				if err != nil {
 					return nil, nil, err
 				}
-				rootfs, err := rwlayer.Mount("")
+				rootfs, err := rwlayer.Mount(ctx, "")
 				if err != nil {
 					return nil, nil, err
 				}

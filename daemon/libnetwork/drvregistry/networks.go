@@ -1,6 +1,7 @@
 package drvregistry
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"sync"
@@ -60,7 +61,7 @@ func (nr *Networks) Driver(name string) (driverapi.Driver, driverapi.Capability)
 }
 
 // RegisterDriver registers the network driver with nr.
-func (nr *Networks) RegisterDriver(ntype string, driver driverapi.Driver, capability driverapi.Capability) error {
+func (nr *Networks) RegisterDriver(ctx context.Context, ntype string, driver driverapi.Driver, capability driverapi.Capability) error {
 	if strings.TrimSpace(ntype) == "" {
 		return errors.New("network type string cannot be empty")
 	}
@@ -74,7 +75,7 @@ func (nr *Networks) RegisterDriver(ntype string, driver driverapi.Driver, capabi
 	}
 
 	if nr.Notify != nil {
-		if err := nr.Notify.RegisterDriver(ntype, driver, capability); err != nil {
+		if err := nr.Notify.RegisterDriver(ctx, ntype, driver, capability); err != nil {
 			return err
 		}
 	}

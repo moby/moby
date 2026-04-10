@@ -1,6 +1,7 @@
 package layer
 
 import (
+	"context"
 	"io"
 	"sync"
 
@@ -112,13 +113,13 @@ type referencedRWLayer struct {
 	*mountedLayer
 }
 
-func (rl *referencedRWLayer) Mount(mountLabel string) (string, error) {
+func (rl *referencedRWLayer) Mount(ctx context.Context, mountLabel string) (string, error) {
 	return rl.layerStore.driver.Get(rl.mountedLayer.mountID, mountLabel)
 }
 
 // Unmount decrements the activity count and unmounts the underlying layer
 // Callers should only call `Unmount` once per call to `Mount`, even on error.
-func (rl *referencedRWLayer) Unmount() error {
+func (rl *referencedRWLayer) Unmount(context.Context) error {
 	return rl.layerStore.driver.Put(rl.mountedLayer.mountID)
 }
 

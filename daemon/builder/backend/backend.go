@@ -20,7 +20,7 @@ import (
 
 // ImageComponent provides an interface for working with images
 type ImageComponent interface {
-	SquashImage(from string, to string) (string, error)
+	SquashImage(ctx context.Context, from, to string) (string, error)
 	TagImage(context.Context, image.ID, reference.Named) error
 }
 
@@ -78,7 +78,7 @@ func (b *Backend) Build(ctx context.Context, config buildbackend.BuildConfig) (s
 
 	imageID := buildResult.ImageID
 	if options.Squash {
-		if imageID, err = squashBuild(buildResult, b.imageComponent); err != nil {
+		if imageID, err = squashBuild(ctx, buildResult, b.imageComponent); err != nil {
 			return "", err
 		}
 		if config.ProgressWriter.AuxFormatter != nil {
@@ -115,12 +115,12 @@ func (b *Backend) Cancel(ctx context.Context, id string) error {
 	return b.buildkit.Cancel(ctx, id)
 }
 
-func squashBuild(build *builder.Result, imageComponent ImageComponent) (string, error) {
+func squashBuild(ctx context.Context, build *builder.Result, imageComponent ImageComponent) (string, error) {
 	var fromID string
 	if build.FromImage != nil {
 		fromID = build.FromImage.ImageID()
 	}
-	imageID, err := imageComponent.SquashImage(build.ImageID, fromID)
+	imageID, err := imageComponent.SquashImage(ctx, build.ImageID, fromID)
 	if err != nil {
 		return "", errors.Wrap(err, "error squashing image")
 	}

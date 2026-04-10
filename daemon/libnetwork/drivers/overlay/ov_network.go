@@ -251,7 +251,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return nil
 }
 
-func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
+func (n *network) joinSandbox(ctx context.Context, s *subnet, incJoinCount bool) error {
 	// If there is a race between two go routines here only one will win
 	// the other will wait.
 	networkOnce.Do(populateVNITbl)
@@ -271,7 +271,7 @@ func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
 
 	subnetErr := s.initErr
 	if !s.sboxInit {
-		subnetErr = n.initSubnetSandbox(s)
+		subnetErr = n.initSubnetSandbox(ctx, s)
 		// We can recover from these errors
 		if subnetErr == nil {
 			s.initErr = subnetErr
@@ -287,8 +287,8 @@ func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
 	}
 
 	if initialized {
-		if err := n.initSandboxPeerDB(); err != nil {
-			log.G(context.TODO()).WithFields(log.Fields{
+		if err := n.initSandboxPeerDB(ctx); err != nil {
+			log.G(ctx).WithFields(log.Fields{
 				"nid":   n.id,
 				"error": err,
 			}).Warn("failed to initialize network peer database")
@@ -298,13 +298,13 @@ func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
 	return nil
 }
 
-func (n *network) leaveSandbox() {
+func (n *network) leaveSandbox(ctx context.Context) {
 	n.joinCnt--
 	if n.joinCnt != 0 {
 		return
 	}
 
-	n.destroySandbox()
+	n.destroySandbox(ctx)
 
 	n.sboxInit = false
 	n.initErr = nil
@@ -315,11 +315,11 @@ func (n *network) leaveSandbox() {
 }
 
 // to be called while holding network lock
-func (n *network) destroySandbox() {
+func (n *network) destroySandbox(ctx context.Context) {
 	if n.sbox != nil {
 		for _, iface := range n.sbox.Interfaces() {
 			if err := iface.Remove(); err != nil {
-				log.G(context.TODO()).Debugf("Remove interface %s failed: %v", iface.SrcName(), err)
+				log.G(ctx).Debugf("Remove interface %s failed: %v", iface.SrcName(), err)
 			}
 		}
 
@@ -327,7 +327,7 @@ func (n *network) destroySandbox() {
 			if s.vxlanName != "" {
 				err := deleteInterface(s.vxlanName)
 				if err != nil {
-					log.G(context.TODO()).Warnf("could not cleanup sandbox properly: %v", err)
+					log.G(ctx).Warnf("could not cleanup sandbox properly: %v", err)
 				}
 			}
 		}
@@ -405,7 +405,7 @@ func (n *network) getBridgeNamePrefix(s *subnet) string {
 	return fmt.Sprintf("ov-%06x", s.vni)
 }
 
-func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error {
+func (n *network) setupSubnetSandbox(ctx context.Context, s *subnet, brName, vxlanName string) error {
 	// Try to find this subnet's vni is being used in some
 	// other namespace by looking at vniTbl that we just
 	// populated in the once init. If a hit is found then
@@ -418,7 +418,7 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 	if ok {
 		deleteVxlanByVNI(path, s.vni)
 		if err := unix.Unmount(path, unix.MNT_FORCE); err != nil {
-			log.G(context.TODO()).Errorf("unmount of %s failed: %v", path, err)
+			log.G(ctx).Errorf("unmount of %s failed: %v", path, err)
 		}
 		os.Remove(path)
 
@@ -430,25 +430,25 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 	// create a bridge and vxlan device for this subnet and move it to the sandbox
 	sbox := n.sbox
 
-	if err := sbox.AddInterface(context.TODO(), brName, "br", "", osl.WithIPv4Address(netiputil.ToIPNet(s.gwIP)), osl.WithIsBridge(true)); err != nil {
+	if err := sbox.AddInterface(ctx, brName, "br", "", osl.WithIPv4Address(netiputil.ToIPNet(s.gwIP)), osl.WithIsBridge(true)); err != nil {
 		return fmt.Errorf("bridge creation in sandbox failed for subnet %q: %v", s.subnetIP.String(), err)
 	}
 
 	v6transport, err := n.driver.isIPv6Transport()
 	if err != nil {
-		log.G(context.TODO()).WithError(err).Errorf("Assuming IPv4 transport; overlay network %s will not pass traffic if the Swarm data plane is IPv6.", n.id)
+		log.G(ctx).WithError(err).Errorf("Assuming IPv4 transport; overlay network %s will not pass traffic if the Swarm data plane is IPv6.", n.id)
 	}
 	if err := createVxlan(vxlanName, s.vni, n.maxMTU(), v6transport); err != nil {
 		return err
 	}
 
-	if err := sbox.AddInterface(context.TODO(), vxlanName, "vxlan", "", osl.WithMaster(brName)); err != nil {
+	if err := sbox.AddInterface(ctx, vxlanName, "vxlan", "", osl.WithMaster(brName)); err != nil {
 		// If adding vxlan device to the overlay namespace fails, remove the bridge interface we
 		// already added to the namespace. This allows the caller to try the setup again.
 		for _, iface := range sbox.Interfaces() {
 			if iface.SrcName() == brName {
 				if ierr := iface.Remove(); ierr != nil {
-					log.G(context.TODO()).Errorf("removing bridge failed from ov ns %v failed, %v", n.sbox.Key(), ierr)
+					log.G(ctx).Errorf("removing bridge failed from ov ns %v failed, %v", n.sbox.Key(), ierr)
 				}
 			}
 		}
@@ -458,14 +458,14 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 		// failure of vxlan device creation if the vni is assigned to some other
 		// network.
 		if deleteErr := deleteInterface(vxlanName); deleteErr != nil {
-			log.G(context.TODO()).Warnf("could not delete vxlan interface, %s, error %v, after config error, %v", vxlanName, deleteErr, err)
+			log.G(ctx).Warnf("could not delete vxlan interface, %s, error %v, after config error, %v", vxlanName, deleteErr, err)
 		}
 		return fmt.Errorf("vxlan interface creation failed for subnet %q: %v", s.subnetIP.String(), err)
 	}
 
 	if err := setDefaultVLAN(sbox); err != nil {
 		// not a fatal error
-		log.G(context.TODO()).WithError(err).Error("set bridge default vlan failed")
+		log.G(ctx).WithError(err).Error("set bridge default vlan failed")
 	}
 	return nil
 }
@@ -522,7 +522,7 @@ func setDefaultVLAN(ns *osl.Namespace) error {
 }
 
 // Must be called with the network lock
-func (n *network) initSubnetSandbox(s *subnet) error {
+func (n *network) initSubnetSandbox(ctx context.Context, s *subnet) error {
 	brName := n.generateBridgeName(s)
 	vxlanName := n.generateVxlanName(s)
 
@@ -538,7 +538,7 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 		}
 	}
 
-	if err := n.setupSubnetSandbox(s, brName, vxlanName); err != nil {
+	if err := n.setupSubnetSandbox(ctx, s, brName, vxlanName); err != nil {
 		return err
 	}
 

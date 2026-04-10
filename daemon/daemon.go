@@ -38,6 +38,7 @@ import (
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/internal/nri"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
@@ -292,7 +293,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 			logger := log.G(ctx).WithField("container", c.ID)
 
-			rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
+			rwlayer, err := daemon.imageService.GetLayerByID(context.Background(), c.ID)
 			if err != nil {
 				// A container without a rwlayer is in a bad state, but we must register that container to let users
 				// remove it. So, log the error but do not early-return.
@@ -503,7 +504,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 				}
 
 				// we call Mount and then Unmount to get BaseFs of the container
-				if err := daemon.Mount(c); err != nil {
+				if err := daemon.Mount(ctx, c); err != nil {
 					// The mount is unlikely to fail. However, in case mount fails
 					// the container should be allowed to restore here. Some functionalities
 					// (like docker exec -u user) might be missing but container is able to be
@@ -512,7 +513,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 					// The error is only logged here.
 					logger(c).WithError(err).Warn("failed to mount container to get BaseFs path")
 				} else {
-					if err := daemon.Unmount(c); err != nil {
+					if err := daemon.Unmount(ctx, c); err != nil {
 						logger(c).WithError(err).Warn("failed to umount container to get BaseFs path")
 					}
 				}
@@ -579,7 +580,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	//
 	// Note that we cannot initialize the network controller earlier, as it
 	// needs to know if there's active sandboxes (running containers).
-	if err := daemon.initNetworkController(&cfg.Config, activeSandboxes); err != nil {
+	if err := daemon.initNetworkController(ctx, &cfg.Config, activeSandboxes); err != nil {
 		return fmt.Errorf("Error initializing network controller: %v", err)
 	}
 
@@ -642,7 +643,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 				}
 			}
 
-			if err := daemon.prepareMountPoints(c); err != nil {
+			if err := daemon.prepareMountPoints(context.Background(), c); err != nil {
 				logger.WithError(err).Error("failed to prepare mount points for container")
 			}
 			if err := daemon.containerStart(context.Background(), cfg, c, "", "", true); err != nil {
@@ -664,13 +665,13 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			defer sem.Release(1)
 
 			if c.State.IsDead() {
-				if err := daemon.cleanupContainer(c, backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+				if err := daemon.cleanupContainer(context.WithoutCancel(ctx), c, backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 					log.G(ctx).WithField("container", cid).WithError(err).Error("failed to remove dead container")
 				}
 				return
 			}
 
-			if err := daemon.containerRm(&cfg.Config, cid, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+			if err := daemon.containerRm(context.WithoutCancel(ctx), &cfg.Config, cid, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 				log.G(ctx).WithField("container", cid).WithError(err).Error("failed to remove container")
 			}
 		}(id, c)
@@ -698,7 +699,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 		go func(c *container.Container) {
 			_ = sem.Acquire(context.Background(), 1)
 
-			if err := daemon.prepareMountPoints(c); err != nil {
+			if err := daemon.prepareMountPoints(context.Background(), c); err != nil {
 				log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to prepare mountpoints for container")
 			}
 
@@ -779,10 +780,13 @@ func (daemon *Daemon) DaemonJoinsCluster(clusterProvider cluster.Provider) {
 }
 
 // DaemonLeavesCluster informs the daemon has left the cluster
-func (daemon *Daemon) DaemonLeavesCluster() {
+func (daemon *Daemon) DaemonLeavesCluster(ctx context.Context) {
+	ctx, span := otel.Tracer("").Start(ctx, "Daemon.DaemonLeavesCluster")
+	defer span.End()
+
 	// Daemon is in charge of removing the attachable networks with
 	// connected containers when the node leaves the swarm
-	daemon.clearAttachableNetworks()
+	daemon.clearAttachableNetworks(ctx)
 	// We no longer need the cluster provider, stop it now so that
 	// the network agent will stop listening to cluster events.
 	daemon.setClusterProvider(nil)
@@ -794,17 +798,17 @@ func (daemon *Daemon) DaemonLeavesCluster() {
 	// wait, because the ingress release has to happen before the
 	// network controller is stopped.
 
-	if done, err := daemon.ReleaseIngress(); err == nil {
+	if done, err := daemon.ReleaseIngress(ctx); err == nil {
 		timeout := time.NewTimer(5 * time.Second)
 		defer timeout.Stop()
 
 		select {
 		case <-done:
 		case <-timeout.C:
-			log.G(context.TODO()).Warn("timeout while waiting for ingress network removal")
+			log.G(ctx).Warn("timeout while waiting for ingress network removal")
 		}
 	} else {
-		log.G(context.TODO()).Warnf("failed to initiate ingress network removal: %v", err)
+		log.G(ctx).Warnf("failed to initiate ingress network removal: %v", err)
 	}
 
 	daemon.attachmentStore.ClearAttachments()
@@ -837,6 +841,12 @@ func CheckSystem() error {
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
 func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (_ *Daemon, retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "NewDaemon")
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	registryService, err := registry.NewService(config.ServiceOptions)
 	if err != nil {
 		return nil, err
@@ -1531,7 +1541,7 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	// If we are part of a cluster, clean up cluster's stuff
 	if daemon.clusterProvider != nil {
 		log.G(ctx).Debugf("start clean shutdown of cluster resources...")
-		daemon.DaemonLeavesCluster()
+		daemon.DaemonLeavesCluster(ctx)
 	}
 
 	metrics.CleanupPlugin(daemon.PluginStore)
@@ -1568,13 +1578,11 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 }
 
 // Mount sets container.BaseFS
-func (daemon *Daemon) Mount(container *container.Container) error {
-	ctx := context.TODO()
-
+func (daemon *Daemon) Mount(ctx context.Context, container *container.Container) error {
 	if container.RWLayer == nil {
 		return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
 	}
-	dir, err := container.RWLayer.Mount(container.GetMountLabel())
+	dir, err := container.RWLayer.Mount(ctx, container.GetMountLabel())
 	if err != nil {
 		return err
 	}
@@ -1585,7 +1593,7 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 		// volume path for a given mounted layer may change over time.  This should only be an error
 		// on non-Windows operating systems.
 		if runtime.GOOS != "windows" {
-			daemon.Unmount(container)
+			daemon.Unmount(ctx, container)
 			driver := daemon.ImageService().StorageDriver()
 			return fmt.Errorf("driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
 				driver, container.ID, container.BaseFS, dir)
@@ -1596,12 +1604,11 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 }
 
 // Unmount unsets the container base filesystem
-func (daemon *Daemon) Unmount(container *container.Container) error {
-	ctx := context.TODO()
+func (daemon *Daemon) Unmount(ctx context.Context, container *container.Container) error {
 	if container.RWLayer == nil {
 		return errors.New("RWLayer of container " + container.ID + " is unexpectedly nil")
 	}
-	if err := container.RWLayer.Unmount(); err != nil {
+	if err := container.RWLayer.Unmount(ctx); err != nil {
 		log.G(ctx).WithField("container", container.ID).WithError(err).Error("error unmounting container")
 		return err
 	}

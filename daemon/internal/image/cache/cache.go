@@ -16,13 +16,13 @@ import (
 )
 
 type ImageCacheStore interface {
-	Get(image.ID) (*image.Image, error)
+	Get(context.Context, image.ID) (*image.Image, error)
 	GetByRef(ctx context.Context, refOrId string) (*image.Image, error)
-	SetParent(target, parent image.ID) error
-	GetParent(target image.ID) (image.ID, error)
-	Create(parent *image.Image, image image.Image, extraLayer layer.DiffID) (image.ID, error)
-	IsBuiltLocally(id image.ID) (bool, error)
-	Children(id image.ID) []image.ID
+	SetParent(ctx context.Context, target, parent image.ID) error
+	GetParent(ctx context.Context, target image.ID) (image.ID, error)
+	Create(ctx context.Context, parent *image.Image, image image.Image, extraLayer layer.DiffID) (image.ID, error)
+	IsBuiltLocally(ctx context.Context, id image.ID) (bool, error)
+	Children(ctx context.Context, id image.ID) []image.ID
 }
 
 func New(ctx context.Context, store ImageCacheStore, cacheFrom []string) (builder.ImageCache, error) {
@@ -57,8 +57,8 @@ type LocalImageCache struct {
 }
 
 // GetCache returns the image id found in the cache
-func (lic *LocalImageCache) GetCache(imgID string, config *containertypes.Config, platform ocispec.Platform) (string, error) {
-	return getImageIDAndError(getLocalCachedImage(lic.store, image.ID(imgID), config, platform))
+func (lic *LocalImageCache) GetCache(ctx context.Context, imgID string, config *containertypes.Config, platform ocispec.Platform) (string, error) {
+	return getImageIDAndError(getLocalCachedImage(ctx, lic.store, image.ID(imgID), config, platform))
 }
 
 // ImageCache is cache based on history objects. Requires initial set of images.
@@ -74,14 +74,14 @@ func (ic *ImageCache) Populate(image *image.Image) {
 }
 
 // GetCache returns the image id found in the cache
-func (ic *ImageCache) GetCache(parentID string, cfg *containertypes.Config, platform ocispec.Platform) (string, error) {
-	imgID, err := ic.localImageCache.GetCache(parentID, cfg, platform)
+func (ic *ImageCache) GetCache(ctx context.Context, parentID string, cfg *containertypes.Config, platform ocispec.Platform) (string, error) {
+	imgID, err := ic.localImageCache.GetCache(ctx, parentID, cfg, platform)
 	if err != nil {
 		return "", err
 	}
 	if imgID != "" {
 		for _, s := range ic.sources {
-			if ic.isParent(s.ID(), image.ID(imgID)) {
+			if ic.isParent(ctx, s.ID(), image.ID(imgID)) {
 				return imgID, nil
 			}
 		}
@@ -90,7 +90,7 @@ func (ic *ImageCache) GetCache(parentID string, cfg *containertypes.Config, plat
 	var parent *image.Image
 	lenHistory := 0
 	if parentID != "" {
-		parent, err = ic.store.Get(image.ID(parentID))
+		parent, err = ic.store.Get(ctx, image.ID(parentID))
 		if err != nil {
 			return "", errors.Wrapf(err, "unable to find image %v", parentID)
 		}
@@ -104,14 +104,14 @@ func (ic *ImageCache) GetCache(parentID string, cfg *containertypes.Config, plat
 
 		if len(target.History)-1 == lenHistory { // last
 			if parent != nil {
-				if err := ic.store.SetParent(target.ID(), parent.ID()); err != nil {
+				if err := ic.store.SetParent(ctx, target.ID(), parent.ID()); err != nil {
 					return "", errors.Wrapf(err, "failed to set parent for %v to %v", target.ID(), parent.ID())
 				}
 			}
 			return target.ID().String(), nil
 		}
 
-		imgID, err := ic.restoreCachedImage(parent, target, cfg)
+		imgID, err := ic.restoreCachedImage(ctx, parent, target, cfg)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to restore cached image from %q to %v", parentID, target.ID())
 		}
@@ -123,7 +123,7 @@ func (ic *ImageCache) GetCache(parentID string, cfg *containertypes.Config, plat
 	return "", nil
 }
 
-func (ic *ImageCache) restoreCachedImage(parent, target *image.Image, cfg *containertypes.Config) (image.ID, error) {
+func (ic *ImageCache) restoreCachedImage(ctx context.Context, parent, target *image.Image, cfg *containertypes.Config) (image.ID, error) {
 	var history []image.History
 	rootFS := image.NewRootFS()
 	lenHistory := 0
@@ -152,7 +152,7 @@ func (ic *ImageCache) restoreCachedImage(parent, target *image.Image, cfg *conta
 		OSVersion:  target.OSVersion,
 	}
 
-	imgID, err := ic.store.Create(parent, restoredImg, layerDiffID)
+	imgID, err := ic.store.Create(ctx, parent, restoredImg, layerDiffID)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create cache image")
 	}
@@ -160,15 +160,15 @@ func (ic *ImageCache) restoreCachedImage(parent, target *image.Image, cfg *conta
 	return imgID, nil
 }
 
-func (ic *ImageCache) isParent(imgID, parentID image.ID) bool {
-	nextParent, err := ic.store.GetParent(imgID)
+func (ic *ImageCache) isParent(ctx context.Context, imgID, parentID image.ID) bool {
+	nextParent, err := ic.store.GetParent(ctx, imgID)
 	if err != nil {
 		return false
 	}
 	if nextParent == parentID {
 		return true
 	}
-	return ic.isParent(nextParent, parentID)
+	return ic.isParent(ctx, nextParent, parentID)
 }
 
 func getLayerForHistoryIndex(image *image.Image, index int) layer.DiffID {
@@ -230,21 +230,21 @@ func getImageIDAndError(img *image.Image, err error) (string, error) {
 // of the image with imgID, that had the same config when it was
 // created. nil is returned if a child cannot be found. An error is
 // returned if the parent image cannot be found.
-func getLocalCachedImage(imageStore ImageCacheStore, parentID image.ID, config *containertypes.Config, platform ocispec.Platform) (*image.Image, error) {
+func getLocalCachedImage(ctx context.Context, imageStore ImageCacheStore, parentID image.ID, config *containertypes.Config, platform ocispec.Platform) (*image.Image, error) {
 	if config == nil {
 		return nil, nil
 	}
 
 	var match *image.Image
-	for _, id := range imageStore.Children(parentID) {
-		img, err := imageStore.Get(id)
+	for _, id := range imageStore.Children(ctx, parentID) {
+		img, err := imageStore.Get(ctx, id)
 		if err != nil {
 			return nil, fmt.Errorf("unable to find image %q", id)
 		}
 
-		builtLocally, err := imageStore.IsBuiltLocally(id)
+		builtLocally, err := imageStore.IsBuiltLocally(ctx, id)
 		if err != nil {
-			log.G(context.TODO()).WithFields(log.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"error": err,
 				"id":    id,
 			}).Warn("failed to check if image was built locally")

@@ -36,7 +36,7 @@ func (m *MockBackend) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context
 	return container.CreateResponse{}, nil
 }
 
-func (m *MockBackend) ContainerRm(name string, config *backend.ContainerRmConfig) error {
+func (m *MockBackend) ContainerRm(ctx context.Context, name string, config *backend.ContainerRmConfig) error {
 	return nil
 }
 
@@ -55,7 +55,7 @@ func (m *MockBackend) ContainerWait(ctx context.Context, containerID string, con
 	return nil, nil
 }
 
-func (m *MockBackend) ContainerCreateWorkdir(containerID string) error {
+func (m *MockBackend) ContainerCreateWorkdir(ctx context.Context, containerID string) error {
 	return nil
 }
 
@@ -108,7 +108,7 @@ type mockImageCache struct {
 	getCacheFunc func(parentID string, cfg *container.Config) (string, error)
 }
 
-func (mic *mockImageCache) GetCache(parentID string, cfg *container.Config, _ ocispec.Platform) (string, error) {
+func (mic *mockImageCache) GetCache(ctx context.Context, parentID string, cfg *container.Config, _ ocispec.Platform) (string, error) {
 	if mic.getCacheFunc != nil {
 		return mic.getCacheFunc(parentID, cfg)
 	}
@@ -121,11 +121,11 @@ func (l *mockLayer) ContentStoreDigest() digest.Digest {
 	return ""
 }
 
-func (l *mockLayer) Release() error {
+func (l *mockLayer) Release(context.Context) error {
 	return nil
 }
 
-func (l *mockLayer) NewRWLayer() (builder.RWLayer, error) {
+func (l *mockLayer) NewRWLayer(context.Context) (builder.RWLayer, error) {
 	return &mockRWLayer{}, nil
 }
 
@@ -135,11 +135,11 @@ func (l *mockLayer) DiffID() layer.DiffID {
 
 type mockRWLayer struct{}
 
-func (l *mockRWLayer) Release() error {
+func (l *mockRWLayer) Release(context.Context) error {
 	return nil
 }
 
-func (l *mockRWLayer) Commit() (builder.ROLayer, error) {
+func (l *mockRWLayer) Commit(context.Context) (builder.ROLayer, error) {
 	return nil, nil
 }
 

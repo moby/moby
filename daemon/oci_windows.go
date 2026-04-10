@@ -31,7 +31,7 @@ const (
 )
 
 // setupContainerDirs sets up base container directories (root, ipc, tmpfs and secrets).
-func (daemon *Daemon) setupContainerDirs(c *container.Container) ([]container.Mount, error) {
+func (daemon *Daemon) setupContainerDirs(ctx context.Context, c *container.Container) ([]container.Mount, error) {
 	// Note, unlike Unix, we do NOT call into SetupWorkingDirectory as
 	// this is done in VMCompute. Further, we couldn't do it for Hyper-V
 	// containers anyway.
@@ -53,10 +53,10 @@ func (daemon *Daemon) setupContainerDirs(c *container.Container) ([]container.Mo
 		// The container file system is mounted before this function is called,
 		// except for Hyper-V containers, so mount it here in that case.
 		if daemon.isHyperV(c) {
-			if err := daemon.Mount(c); err != nil {
+			if err := daemon.Mount(ctx, c); err != nil {
 				return nil, err
 			}
-			defer daemon.Unmount(c)
+			defer daemon.Unmount(ctx, c)
 		}
 		if err := c.CreateSecretSymlinks(); err != nil {
 			return nil, err
@@ -140,7 +140,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 		}
 	}
 	s.Process.User.Username = c.Config.User
-	s.Windows.LayerFolders, err = daemon.imageService.GetLayerFolders(img, c.RWLayer, c.ID)
+	s.Windows.LayerFolders, err = daemon.imageService.GetLayerFolders(ctx, img, c.RWLayer, c.ID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "GetLayerFolders failed: container %s", c.ID)
 	}
@@ -151,7 +151,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 	gwHNSID := ""
 	if c.NetworkSettings != nil {
 		for n := range c.NetworkSettings.Networks {
-			sn, err := daemon.FindNetwork(n)
+			sn, err := daemon.FindNetwork(ctx, n)
 			if err != nil {
 				continue
 			}
