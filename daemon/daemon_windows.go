@@ -570,3 +570,5 @@ func setupResolvConf(config *config.Config) {}
 func getSysInfo(*config.Config) *sysinfo.SysInfo {
 	return sysinfo.New()
 }
+
+func createCGroup2Root(_ context.Context, _ *config.Config) {}
