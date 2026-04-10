@@ -27,6 +27,7 @@ import (
 	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/sirupsen/logrus"
 	"github.com/tonistiigi/go-archvariant"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -109,6 +110,13 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 				warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.FormatAll(imgPlat), platforms.FormatAll(p)))
 			}
 		}
+	}
+
+	// de-duplicate the ports
+	filteredPorts, warnMessage, warnFlag := deDuplicatePorts(opts.params.Config.ExposedPorts)
+	if warnFlag {
+		opts.params.Config.ExposedPorts = filteredPorts
+		warnings = append(warnings, warnMessage)
 	}
 
 	err = daemon.validateNetworkingConfig(opts.params.NetworkingConfig)
@@ -395,4 +403,41 @@ func maximumSpec() ocispec.Platform {
 		p.Variant = archvariant.AMD64Variant()
 	}
 	return p
+}
+
+// deduplicate the ports
+func deDuplicatePorts(ExposedPorts networktypes.PortSet) (networktypes.PortSet, string, bool) {
+	filteredPorts := make(networktypes.PortSet)
+	portWarnFlag := false
+	var portWarnMessage string
+	for nport, val := range ExposedPorts {
+		var pstart, pend uint16
+		if strings.Contains(nport.Port(), "-") {
+			portRange, _ := networktypes.ParsePortRange(nport.Port())
+			pstart = portRange.Start()
+			pend = portRange.End()
+			logrus.Debugf("pstart: %d, pend :%d", pstart, pend)
+		} else {
+			pstart = nport.Num()
+			pend = pstart
+		}
+
+		// insert only unique ports
+		for i := pstart; i <= pend; i++ {
+			fport, _ := networktypes.PortFrom(i, nport.Proto())
+			logrus.Debugf("Fport is %s", fport)
+			_, ok := filteredPorts[fport]
+			if ok {
+				portWarnFlag = true
+			} else {
+				filteredPorts[fport] = val
+			}
+		}
+	}
+
+	if portWarnFlag {
+		portWarnMessage = "Ignoring duplicate Port(s)"
+	}
+
+	return filteredPorts, portWarnMessage, portWarnFlag
 }
