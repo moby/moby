@@ -444,7 +444,7 @@ func (daemon *Daemon) remountSecretDir(ctr *container.Container) error {
 	// files, causing the remount to fail. Retrying resolves the race.
 	// See https://github.com/moby/moby/issues/48783
 	var mountErr error
-	for range 5 {
+	for retry := range 5 {
 		mountErr = mount.Mount("tmpfs", dir, "tmpfs", "remount,ro,"+tmpfsOwnership)
 		if mountErr == nil {
 			return nil
@@ -453,7 +453,7 @@ func (daemon *Daemon) remountSecretDir(ctr *container.Container) error {
 			return errors.Wrap(mountErr, "unable to remount dir as readonly")
 		}
 		log.G(context.TODO()).WithError(mountErr).WithField("dir", dir).Debug("Transient EBUSY on secrets remount, retrying")
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10*time.Millisecond + time.Duration(retry)*25*time.Millisecond)
 	}
 	return errors.Wrap(mountErr, "unable to remount dir as readonly")
 }
