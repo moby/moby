@@ -1,6 +1,7 @@
 package container
 
 import (
+	"encoding/json"
 	"os"
 	"time"
 
@@ -148,4 +149,6 @@ type InspectResponse struct {
 	NetworkSettings *NetworkSettings
 	// ImageManifestDescriptor is the descriptor of a platform-specific manifest of the image used to create the container.
 	ImageManifestDescriptor *ocispec.Descriptor `json:"ImageManifestDescriptor,omitempty"`
+
+	Spec map[string]json.RawMessage `json:",omitempty"`
 }
