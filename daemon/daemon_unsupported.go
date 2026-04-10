@@ -17,3 +17,7 @@ func setupResolvConf(_ *any) {}
 func getSysInfo(_ *Daemon) *sysinfo.SysInfo {
 	return sysinfo.New()
 }
+
+func (daemon *Daemon) runInNetNS(f func() error) error {
+	return f()
+}

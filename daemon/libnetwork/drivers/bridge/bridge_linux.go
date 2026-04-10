@@ -15,6 +15,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
@@ -210,10 +211,25 @@ func newDriver(store *datastore.Store, config Configuration, pms *drvregistry.Po
 	return d, nil
 }
 
+func runInNetNS(f func() error) error {
+	if rootless.RunningWithRootlessKit() {
+		if detachedNetNS, err := rootless.DetachedNetNS(); err != nil {
+			return err
+		} else if detachedNetNS != "" {
+			return rootless.RunInNetNS(detachedNetNS, f)
+		}
+	}
+	return f()
+}
+
 // Register registers a new instance of bridge driver.
 func Register(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config Configuration) error {
-	d, err := newDriver(store, config, pms)
-	if err != nil {
+	var d *driver
+	if err := runInNetNS(func() error {
+		var err error
+		d, err = newDriver(store, config, pms)
+		return err
+	}); err != nil {
 		return err
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{

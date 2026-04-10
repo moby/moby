@@ -837,7 +837,9 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 
 	if len(activeSandboxes) > 0 {
 		log.G(ctx).Info("there are running containers, updated network configuration will not take affect")
-	} else if err := configureNetworking(ctx, daemon.netController, cfg); err != nil {
+	} else if err := daemon.runInNetNS(func() error {
+		return configureNetworking(ctx, daemon.netController, cfg)
+	}); err != nil {
 		return err
 	}
 

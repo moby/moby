@@ -453,7 +453,9 @@ func (daemon *Daemon) initializeNetworking(ctx context.Context, cfg *config.Conf
 	}
 
 	// Cleanup any stale sandbox left over due to ungraceful daemon shutdown
-	if err := daemon.netController.SandboxDestroy(ctx, ctr.ID); err != nil {
+	if err := daemon.runInNetNS(func() error {
+		return daemon.netController.SandboxDestroy(ctx, ctr.ID)
+	}); err != nil {
 		log.G(ctx).WithError(err).Errorf("failed to cleanup up stale network sandbox for container %s", ctr.ID)
 	}
 
@@ -497,7 +499,9 @@ func (daemon *Daemon) initializeNetworking(ctx context.Context, cfg *config.Conf
 
 	defer func() {
 		if retErr != nil {
-			if err := sb.Delete(ctx); err != nil {
+			if err := daemon.runInNetNS(func() error {
+				return sb.Delete(ctx)
+			}); err != nil {
 				log.G(ctx).WithFields(log.Fields{
 					"error":     err,
 					"container": ctr.ID,
@@ -1027,7 +1031,9 @@ func (daemon *Daemon) releaseNetwork(ctx context.Context, ctr *container.Contain
 		return
 	}
 
-	if err := sb.Delete(ctx); err != nil {
+	if err := daemon.runInNetNS(func() error {
+		return sb.Delete(ctx)
+	}); err != nil {
 		log.G(ctx).Errorf("Error deleting sandbox id %s for container %s: %v", sid, ctr.ID, err)
 	}
 
@@ -1056,7 +1062,9 @@ func (daemon *Daemon) ConnectToNetwork(ctx context.Context, ctr *container.Conta
 
 		n, err := daemon.FindNetwork(idOrName)
 		if err == nil && n != nil {
-			if err := daemon.updateNetworkConfig(ctr, n, endpointConfig); err != nil {
+			if err := daemon.runInNetNS(func() error {
+				return daemon.updateNetworkConfig(ctr, n, endpointConfig)
+			}); err != nil {
 				return err
 			}
 		} else {
@@ -1070,7 +1078,9 @@ func (daemon *Daemon) ConnectToNetwork(ctx context.Context, ctr *container.Conta
 			EndpointSettings:  endpointConfig,
 			DesiredMacAddress: endpointConfig.MacAddress,
 		}
-		if err := daemon.connectToNetwork(ctx, &daemon.config().Config, ctr, idOrName, epc); err != nil {
+		if err := daemon.runInNetNS(func() error {
+			return daemon.connectToNetwork(ctx, &daemon.config().Config, ctr, idOrName, epc)
+		}); err != nil {
 			return err
 		}
 	}
@@ -1102,7 +1112,9 @@ func (daemon *Daemon) DisconnectFromNetwork(ctx context.Context, ctr *container.
 			return cerrdefs.ErrInvalidArgument.WithMessage("cannot disconnect container from host network - container was created in host network mode")
 		}
 
-		if err := daemon.disconnectFromNetwork(ctx, ctr, n, false); err != nil {
+		if err := daemon.runInNetNS(func() error {
+			return daemon.disconnectFromNetwork(ctx, ctr, n, false)
+		}); err != nil {
 			return err
 		}
 	} else {
