@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/moby/moby/api/types/blkiodev"
@@ -363,4 +364,19 @@ func TestGetBlkioThrottleDevices(t *testing.T) {
 		assert.Check(t, retDevs[0].Minor == MINOR, "get minor device type")
 		assert.Check(t, retDevs[0].Rate == WEIGHT, "get device rate")
 	})
+}
+
+func TestVerifyPlatformContainerSettingsHostname(t *testing.T) {
+	d := &Daemon{}
+	// Valid hostname (exactly 64 bytes).
+	validHostname := strings.Repeat("a", 64)
+	w, err := verifyPlatformContainerSettings(d, nil, nil, &containertypes.Config{Hostname: validHostname}, false)
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(w, 0))
+
+	// Invalid hostname (65 bytes, exceeds limit).
+	invalidHostname := strings.Repeat("a", 65)
+	w, err = verifyPlatformContainerSettings(d, nil, nil, &containertypes.Config{Hostname: invalidHostname}, false)
+	assert.ErrorContains(t, err, "is too long")
+	assert.Check(t, is.Len(w, 0))
 }
