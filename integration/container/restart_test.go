@@ -288,3 +288,44 @@ func TestContainerRestartWithCancelledRequest(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.Container.State.Status, container.StateRunning))
 }
+
+// TestContainerAPIRestart tests that the container restart API endpoint
+// restarts a running container with a specified timeout.
+//
+// Migrated from integration-cli: TestContainerAPIRestart (docker_api_containers_test.go)
+// Related to issue https://github.com/moby/moby/issues/50159
+func TestContainerAPIRestart(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := testContainer.Run(ctx, t, apiClient)
+	poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, cID, container.StateRunning))
+
+	timeout := 1
+	_, err := apiClient.ContainerRestart(ctx, cID, client.ContainerRestartOptions{
+		Timeout: &timeout,
+	})
+	assert.NilError(t, err)
+
+	// After restart, the container should be running and not stuck in "restarting" state.
+	poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, cID, container.StateRunning), poll.WithTimeout(15*time.Second))
+}
+
+// TestContainerAPIRestartNoTimeoutParam tests that the container restart API
+// endpoint works correctly when no timeout parameter is provided (uses server default).
+//
+// Migrated from integration-cli: TestContainerAPIRestartNotimeoutParam (docker_api_containers_test.go)
+// Related to issue https://github.com/moby/moby/issues/50159
+func TestContainerAPIRestartNoTimeoutParam(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := testContainer.Run(ctx, t, apiClient)
+	poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, cID, container.StateRunning))
+
+	_, err := apiClient.ContainerRestart(ctx, cID, client.ContainerRestartOptions{})
+	assert.NilError(t, err)
+
+	// After restart, the container should be running and not stuck in "restarting" state.
+	poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, cID, container.StateRunning), poll.WithTimeout(15*time.Second))
+}
