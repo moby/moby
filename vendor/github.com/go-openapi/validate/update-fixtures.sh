@@ -7,7 +7,7 @@ dir=$(git rev-parse --show-toplevel)
 scratch=$(mktemp -d -t tmp.XXXXXXXXXX)
 
 function finish {
-  rm -rf "$scratch"
+	rm -rf "$scratch"
 }
 trap finish EXIT SIGHUP SIGINT SIGTERM
 
