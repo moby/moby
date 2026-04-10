@@ -13,6 +13,7 @@ type CreateConfig struct {
 	DisableCompression bool
 	MaxFileSize        int64
 	MaxFileCount       int
+	extraAttrs         map[string]string
 }
 
 func newConfig(opts map[string]string) (*CreateConfig, error) {
