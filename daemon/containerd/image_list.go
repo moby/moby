@@ -742,8 +742,13 @@ func setupLabelFilter(ctx context.Context, store content.Store, fltrs filters.Ar
 					}
 					continue
 				} else if !exists {
-					// We are checking value and label doesn't exist.
-					return nil, nil
+					// For a negated check (label!=key=value), a missing label means
+					// the value is certainly not equal to check.value, so the image matches.
+					// For a non-negated check (label=key=value), a missing label means
+					// the image doesn't have the required label, so it doesn't match.
+					if !check.negate {
+						return nil, nil
+					}
 				}
 
 				valueEquals := value == check.value

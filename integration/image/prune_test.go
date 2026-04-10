@@ -11,6 +11,7 @@ import (
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -228,4 +229,50 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 			})
 		}
 	}
+}
+
+// Regression test for https://github.com/moby/moby/issues/52334
+// Verify that 'docker image prune --filter label!=key=value' correctly prunes
+func TestPruneLabelFilterNegative(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start multiple daemons on windows")
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.Start(t)
+	defer d.Stop(t)
+
+	apiClient := d.NewClientT(t)
+
+	// Load an image that has the on_prune=keep label — must NOT be pruned.
+	withLabelID := iimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
+		return specialimage.MultiLayerCustomWithLabels(dir, "withlabel:latest", []specialimage.SingleFileLayer{
+			{Name: "a", Content: []byte("layer-with-label")},
+		}, map[string]string{"on_prune": "keep"})
+	})
+
+	// Load an image without the label — MUST be pruned.
+	noLabelID := iimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
+		return specialimage.MultiLayerCustom(dir, "nolabel:latest", []specialimage.SingleFileLayer{
+			{Name: "b", Content: []byte("layer-no-label")},
+		})
+	})
+
+	filters := make(client.Filters)
+	filters.Add("label!", "on_prune=keep")
+	filters.Add("dangling", "false")
+
+	_, err := apiClient.ImagePrune(ctx, client.ImagePruneOptions{
+		Filters: filters,
+	})
+	assert.NilError(t, err)
+
+	// The image without the label must have been pruned.
+	_, err = apiClient.ImageInspect(ctx, noLabelID)
+	assert.Check(t, err != nil, "nolabel image should no longer exist after prune")
+
+	// The image with on_prune=keep must still exist.
+	_, err = apiClient.ImageInspect(ctx, withLabelID)
+	assert.NilError(t, err, "withlabel image should still exist after prune")
 }
