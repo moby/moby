@@ -484,11 +484,10 @@ func (l *splunkLogger) tryPostMessages(ctx context.Context, messages []*splunkMe
 			return err
 		}
 	}
-	req, err := http.NewRequest(http.MethodPost, l.url, bytes.NewBuffer(buffer.Bytes()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, l.url, bytes.NewBuffer(buffer.Bytes()))
 	if err != nil {
 		return err
 	}
-	req = req.WithContext(ctx)
 	req.Header.Set("Authorization", l.auth)
 	// Tell if we are sending gzip compressed body
 	if l.gzipCompression {
