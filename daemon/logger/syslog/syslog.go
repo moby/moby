@@ -51,15 +51,6 @@ type syslogger struct {
 	writer *syslog.Writer
 }
 
-func init() {
-	if err := logger.RegisterLogDriver(name, New); err != nil {
-		panic(err)
-	}
-	if err := logger.RegisterLogOptValidator(name, ValidateLogOpt); err != nil {
-		panic(err)
-	}
-}
-
 // rsyslog uses appname part of syslog message to fill in an %syslogtag% template
 // attribute in rsyslog.conf. In order to be backward compatible to rfc3164
 // tag will be also used as an appname

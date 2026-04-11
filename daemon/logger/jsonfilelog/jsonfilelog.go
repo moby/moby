@@ -34,15 +34,6 @@ type JSONFileLogger struct {
 	extra  json.RawMessage
 }
 
-func init() {
-	if err := logger.RegisterLogDriver(Name, New); err != nil {
-		panic(err)
-	}
-	if err := logger.RegisterLogOptValidator(Name, ValidateLogOpt); err != nil {
-		panic(err)
-	}
-}
-
 // New creates new JSONFileLogger which writes to filename passed in
 // on given context.
 func New(info logger.Info) (logger.Logger, error) {

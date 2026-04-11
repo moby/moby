@@ -52,15 +52,6 @@ func ValidateLogOpt(cfg map[string]string) error {
 	return nil
 }
 
-func init() {
-	if err := logger.RegisterLogDriver(Name, New); err != nil {
-		panic(err)
-	}
-	if err := logger.RegisterLogOptValidator(Name, ValidateLogOpt); err != nil {
-		panic(err)
-	}
-}
-
 type driver struct {
 	logfile *loggerutils.LogFile
 }
