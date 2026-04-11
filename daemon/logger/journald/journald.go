@@ -139,8 +139,6 @@ func newJournald(info logger.Info) (*journald, error) {
 	}, nil
 }
 
-// We don't actually accept any options, but we have to supply a callback for
-// the factory to pass the (probably empty) configuration map to.
 func validateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
