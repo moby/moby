@@ -22,60 +22,51 @@ import (
 func TestWriteLog(t *testing.T) {
 	t.Parallel()
 
-	dir, err := os.MkdirTemp("", t.Name())
-	assert.NilError(t, err)
-	defer os.RemoveAll(dir)
-
-	logPath := filepath.Join(dir, "test.log")
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "test.log")
 
 	l, err := New(logger.Info{LogPath: logPath})
 	assert.NilError(t, err)
-	defer l.Close()
+	t.Cleanup(func() { assert.NilError(t, l.Close()) })
 
-	m1 := logger.Message{Source: "stdout", Timestamp: time.Now().Add(-1 * 30 * time.Minute), Line: []byte("message 1")}
-	m2 := logger.Message{Source: "stdout", Timestamp: time.Now().Add(-1 * 20 * time.Minute), Line: []byte("message 2"), PLogMetaData: &backend.PartialLogMetaData{Last: true, ID: "0001", Ordinal: 1}}
-	m3 := logger.Message{Source: "stderr", Timestamp: time.Now().Add(-1 * 10 * time.Minute), Line: []byte("message 3")}
+	now := time.Now()
+	messages := []logger.Message{
+		{Source: "stdout", Timestamp: now.Add(-30 * time.Minute), Line: []byte("message 1")},
+		{Source: "stdout", Timestamp: now.Add(-20 * time.Minute), Line: []byte("message 2"), PLogMetaData: &backend.PartialLogMetaData{Last: true, ID: "0001", Ordinal: 1}},
+		{Source: "stderr", Timestamp: now.Add(-10 * time.Minute), Line: []byte("message 3")},
+	}
 
-	// copy the log message because the underlying log writer resets the log message and returns it to a buffer pool
-	err = l.Log(copyLogMessage(&m1))
-	assert.NilError(t, err)
-	err = l.Log(copyLogMessage(&m2))
-	assert.NilError(t, err)
-	err = l.Log(copyLogMessage(&m3))
-	assert.NilError(t, err)
+	for i := range messages {
+		// copy the log message because the underlying log writer resets the log message and returns it to a buffer pool
+		err = l.Log(copyLogMessage(&messages[i]))
+		assert.NilError(t, err)
+	}
 
 	f, err := os.Open(logPath)
 	assert.NilError(t, err)
-	defer f.Close()
+	t.Cleanup(func() { assert.NilError(t, f.Close()) })
 	dec := protoio.NewUint32DelimitedReader(f, binary.BigEndian, 1e6)
-
-	var (
-		proto     logdriver.LogEntry
-		testProto logdriver.LogEntry
-		partial   logdriver.PartialLogEntryMetadata
-	)
 
 	lenBuf := make([]byte, encodeBinaryLen)
 	seekMsgLen := func() {
-		io.ReadFull(f, lenBuf)
+		_, err := io.ReadFull(f, lenBuf)
+		assert.NilError(t, err)
 	}
 
-	err = dec.ReadMsg(&proto)
-	assert.NilError(t, err)
-	messageToProto(&m1, &testProto, &partial)
-	assert.Check(t, is.DeepEqual(testProto, proto), "expected:\n%+v\ngot:\n%+v", testProto, proto)
-	seekMsgLen()
+	for i := range messages {
+		var got logdriver.LogEntry
+		err = dec.ReadMsg(&got)
+		assert.NilError(t, err)
 
-	err = dec.ReadMsg(&proto)
-	assert.NilError(t, err)
-	messageToProto(&m2, &testProto, &partial)
-	assert.Check(t, is.DeepEqual(testProto, proto))
-	seekMsgLen()
+		var want logdriver.LogEntry
+		var partial logdriver.PartialLogEntryMetadata
+		messageToProto(&messages[i], &want, &partial)
+		assert.Check(t, is.DeepEqual(want, got), "msg %d: expected:\n%+v\ngot:\n%+v", i, want, got)
 
-	err = dec.ReadMsg(&proto)
-	assert.NilError(t, err)
-	messageToProto(&m3, &testProto, &partial)
-	assert.Check(t, is.DeepEqual(testProto, proto), "expected:\n%+v\ngot:\n%+v", testProto, proto)
+		if i < len(messages)-1 {
+			seekMsgLen()
+		}
+	}
 }
 
 func TestReadLog(t *testing.T) {
@@ -95,14 +86,10 @@ func TestReadLog(t *testing.T) {
 }
 
 func BenchmarkLogWrite(b *testing.B) {
-	f, err := os.CreateTemp("", b.Name())
-	assert.Assert(b, err)
-	defer os.Remove(f.Name())
-	f.Close()
-
-	local, err := New(logger.Info{LogPath: f.Name()})
-	assert.Assert(b, err)
-	defer local.Close()
+	tmpDir := b.TempDir()
+	l, err := New(logger.Info{LogPath: filepath.Join(tmpDir, "test.log")})
+	assert.NilError(b, err)
+	b.Cleanup(func() { assert.NilError(b, l.Close()) })
 
 	t := time.Now().UTC()
 	for _, data := range [][]byte{
@@ -114,13 +101,12 @@ func BenchmarkLogWrite(b *testing.B) {
 		b.Run(strconv.Itoa(len(data)), func(b *testing.B) {
 			entry := &logdriver.LogEntry{Line: data, Source: "stdout", TimeNano: t.UnixNano()}
 			b.SetBytes(int64(entry.Size() + encodeBinaryLen + encodeBinaryLen))
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				msg := logger.NewMessage()
 				msg.Line = data
 				msg.Timestamp = t
 				msg.Source = "stdout"
-				if err := local.Log(msg); err != nil {
+				if err := l.Log(msg); err != nil {
 					b.Fatal(err)
 				}
 			}

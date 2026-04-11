@@ -50,7 +50,7 @@ func TestDecodeIncompleteRecord(t *testing.T) {
 
 			msg, err := d.Decode()
 			assert.NilError(t, err)
-			assert.Equal(t, "hello\n", string(msg.Line))
+			assert.Equal(t, string(msg.Line), "hello\n")
 		})
 	}
 }
