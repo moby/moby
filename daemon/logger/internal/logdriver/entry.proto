@@ -6,6 +6,7 @@ message LogEntry {
 	bytes line = 3;
 	bool partial = 4;
 	PartialLogEntryMetadata partial_log_metadata = 5;
+    map<string, string> attrs = 6;
 }
 
 message PartialLogEntryMetadata {

@@ -39,7 +39,6 @@ const (
 	logStreamKey           = "awslogs-stream"
 	logCreateGroupKey      = "awslogs-create-group"
 	logCreateStreamKey     = "awslogs-create-stream"
-	tagKey                 = "tag"
 	datetimeFormatKey      = "awslogs-datetime-format"
 	multilinePatternKey    = "awslogs-multiline-pattern"
 	credentialsEndpointKey = "awslogs-credentials-endpoint" //nolint:gosec // G101: Potential hardcoded credentials
@@ -739,13 +738,14 @@ func (l *logStream) putLogEvents(events []types.InputLogEvent, sequenceToken *st
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
+		case logger.AttrLogTag:
+			continue
 		case logGroupKey:
 		case logStreamKey:
 		case logCreateGroupKey:
 		case logCreateStreamKey:
 		case regionKey:
 		case endpointKey:
-		case tagKey:
 		case datetimeFormatKey:
 		case multilinePatternKey:
 		case credentialsEndpointKey:

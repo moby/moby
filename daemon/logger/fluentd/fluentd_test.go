@@ -341,7 +341,6 @@ func TestReadWriteTimeoutsAreEffective(t *testing.T) {
 			// Create a base configuration for fluentd logger, agnostic of the test.
 			cfg := map[string]string{
 				"fluentd-address": "unix://" + socketFile,
-				"tag":             "{{.Name}}/{{.FullID}}",
 				// Disabling async behavior with limited retries and buffer size lets us test this in a more
 				// preditable manner for failures. The "fluentd-read-timeout" flag should be equally effective
 				// regardless of async being enabled/disabled.
@@ -349,6 +348,7 @@ func TestReadWriteTimeoutsAreEffective(t *testing.T) {
 				"fluentd-max-retries":  "1",
 				"fluentd-retry-wait":   "10ms",
 				"fluentd-buffer-limit": "1",
+				logger.AttrLogTag:      "{{.Name}}/{{.FullID}}",
 			}
 			// Update the config with test specific configs.
 			maps.Copy(cfg, tc.cfg)

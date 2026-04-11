@@ -3,12 +3,11 @@ package local
 import (
 	"encoding/binary"
 	"io"
+	"maps"
 	"math/bits"
-	"strconv"
 	"sync"
 	"time"
 
-	"github.com/docker/go-units"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
@@ -40,6 +39,13 @@ var LogOptKeys = map[string]bool{
 	"max-file": true,
 	"max-size": true,
 	"compress": true,
+
+	// Common attributes handled through [logger.Info.ExtraAttributes] and [loggerutils.ParseLogTag].
+	logger.AttrLabels:      true,
+	logger.AttrLabelsRegex: true,
+	logger.AttrEnv:         true,
+	logger.AttrEnvRegex:    true,
+	logger.AttrLogTag:      true,
 }
 
 // ValidateLogOpt looks for log driver specific options.
@@ -63,6 +69,7 @@ func init() {
 
 type driver struct {
 	logfile *loggerutils.LogFile
+	extra   map[string]string
 }
 
 // New creates a new local logger
@@ -72,40 +79,44 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, errdefs.System(errors.New("log path is missing -- this is a bug and should not happen"))
 	}
 
-	cfg := newDefaultConfig()
-	if capacity, ok := info.Config["max-size"]; ok {
-		var err error
-		cfg.MaxFileSize, err = units.FromHumanSize(capacity)
-		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrapf(err, "invalid value for max-size: %s", capacity))
+	cfg, err := newConfig(info.Config)
+	if err != nil {
+		return nil, errdefs.InvalidParameter(err)
+	}
+	extraAttrs, err := info.ExtraAttributes(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if v, ok := info.Config[logger.AttrLogTag]; ok && v != "" {
+		// no default template. and only use a tag if the user asked for it.
+		if tag, err := loggerutils.ParseLogTag(info, ""); err != nil {
+			return nil, err
+		} else if tag != "" {
+			extraAttrs[logger.AttrLogTag] = tag
 		}
 	}
 
-	if userMaxFileCount, ok := info.Config["max-file"]; ok {
-		var err error
-		cfg.MaxFileCount, err = strconv.Atoi(userMaxFileCount)
-		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrapf(err, "invalid value for max-file: %s", userMaxFileCount))
-		}
+	cfg.extraAttrs = extraAttrs
+
+	lf, err := loggerutils.NewLogFile(info.LogPath, cfg.MaxFileSize, cfg.MaxFileCount, !cfg.DisableCompression, decodeFunc, 0o640, getTailReader)
+	if err != nil {
+		return nil, err
 	}
 
-	if userCompress, ok := info.Config["compress"]; ok {
-		compressLogs, err := strconv.ParseBool(userCompress)
-		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrap(err, "error reading compress log option"))
-		}
-		cfg.DisableCompression = !compressLogs
-	}
-	return newDriver(info.LogPath, cfg)
+	return &driver{
+		logfile: lf,
+		extra:   cfg.extraAttrs,
+	}, nil
 }
 
-func marshal(m *logger.Message, buffer *[]byte) error {
+func marshal(m *logger.Message, attrs map[string]string, buffer *[]byte) error {
 	proto := logdriver.LogEntry{}
 	md := logdriver.PartialLogEntryMetadata{}
 
 	resetProto(&proto)
 
-	messageToProto(m, &proto, &md)
+	messageToProto(m, attrs, &proto, &md)
 	protoSize := proto.Size()
 	writeLen := protoSize + (2 * encodeBinaryLen) // + len(messageDelimiter)
 
@@ -133,20 +144,6 @@ func marshal(m *logger.Message, buffer *[]byte) error {
 	return nil
 }
 
-func newDriver(logPath string, cfg *CreateConfig) (logger.Logger, error) {
-	if err := validateConfig(cfg); err != nil {
-		return nil, errdefs.InvalidParameter(err)
-	}
-
-	lf, err := loggerutils.NewLogFile(logPath, cfg.MaxFileSize, cfg.MaxFileCount, !cfg.DisableCompression, decodeFunc, 0o640, getTailReader)
-	if err != nil {
-		return nil, err
-	}
-	return &driver{
-		logfile: lf,
-	}, nil
-}
-
 func (d *driver) Name() string {
 	return Name
 }
@@ -156,7 +153,7 @@ func (d *driver) Log(msg *logger.Message) error {
 	defer buffersPool.Put(buf)
 
 	timestamp := msg.Timestamp
-	err := marshal(msg, buf)
+	err := marshal(msg, d.extra, buf)
 	logger.PutMessage(msg)
 
 	if err != nil {
@@ -169,7 +166,7 @@ func (d *driver) Close() error {
 	return d.logfile.Close()
 }
 
-func messageToProto(msg *logger.Message, proto *logdriver.LogEntry, partial *logdriver.PartialLogEntryMetadata) {
+func messageToProto(msg *logger.Message, extra map[string]string, proto *logdriver.LogEntry, partial *logdriver.PartialLogEntryMetadata) {
 	proto.Source = msg.Source
 	proto.TimeNano = msg.Timestamp.UnixNano()
 	proto.Line = append(proto.Line[:0], msg.Line...)
@@ -182,12 +179,23 @@ func messageToProto(msg *logger.Message, proto *logdriver.LogEntry, partial *log
 	} else {
 		proto.PartialLogMetadata = nil
 	}
+	if len(extra) > 0 {
+		proto.Attrs = maps.Clone(extra)
+	} else {
+		proto.Attrs = nil
+	}
 }
 
 func protoToMessage(proto *logdriver.LogEntry) *logger.Message {
 	msg := &logger.Message{
 		Source:    proto.Source,
 		Timestamp: time.Unix(0, proto.TimeNano).UTC(),
+	}
+	if len(proto.Attrs) > 0 {
+		msg.Attrs = make([]backend.LogAttr, 0, len(proto.Attrs))
+		for k, v := range proto.Attrs {
+			msg.Attrs = append(msg.Attrs, backend.LogAttr{Key: k, Value: v})
+		}
 	}
 	if proto.Partial {
 		var md backend.PartialLogMetaData
@@ -211,4 +219,8 @@ func resetProto(proto *logdriver.LogEntry) {
 		proto.PartialLogMetadata.Ordinal = 0
 	}
 	proto.PartialLogMetadata = nil
+	if proto.Attrs != nil {
+		clear(proto.Attrs)
+	}
+	proto.Attrs = nil
 }

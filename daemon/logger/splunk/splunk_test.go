@@ -29,10 +29,11 @@ func TestValidateLogOpt(t *testing.T) {
 		splunkVerifyConnectionKey:     "true",
 		splunkGzipCompressionKey:      "true",
 		splunkGzipCompressionLevelKey: "1",
-		envKey:                        "a",
-		envRegexKey:                   "^foo",
-		labelsKey:                     "b",
-		tagKey:                        "c",
+		logger.AttrEnv:                "a",
+		logger.AttrEnvRegex:           "^foo",
+		logger.AttrLabels:             "b",
+		logger.AttrLabelsRegex:        "^foo",
+		logger.AttrLogTag:             "c",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -249,9 +250,10 @@ func TestInlineFormatWithNonDefaultOptions(t *testing.T) {
 			splunkIndexKey:           "myindex",
 			splunkFormatKey:          splunkFormatInline,
 			splunkGzipCompressionKey: "true",
-			tagKey:                   "{{.ImageName}}/{{.Name}}",
-			labelsKey:                "a",
-			envRegexKey:              "^foo",
+
+			logger.AttrLogTag:   "{{.ImageName}}/{{.Name}}",
+			logger.AttrLabels:   "a",
+			logger.AttrEnvRegex: "^foo",
 		},
 		ContainerID:        "containeriid",
 		ContainerName:      "/container_name",
@@ -579,7 +581,8 @@ func TestRawFormatWithLabels(t *testing.T) {
 			splunkURLKey:    hec.URL(),
 			splunkTokenKey:  hec.token,
 			splunkFormatKey: splunkFormatRaw,
-			labelsKey:       "a",
+
+			logger.AttrLabels: "a",
 		},
 		ContainerID:        "containeriid",
 		ContainerName:      "/container_name",
@@ -694,7 +697,8 @@ func TestRawFormatWithoutTag(t *testing.T) {
 			splunkURLKey:    hec.URL(),
 			splunkTokenKey:  hec.token,
 			splunkFormatKey: splunkFormatRaw,
-			tagKey:          "",
+
+			logger.AttrLogTag: "",
 		},
 		ContainerID:        "containeriid",
 		ContainerName:      "/container_name",
