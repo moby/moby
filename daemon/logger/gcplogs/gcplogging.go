@@ -19,15 +19,11 @@ import (
 const (
 	name = "gcplogs"
 
-	projectOptKey     = "gcp-project"
-	logLabelsKey      = "labels"
-	logLabelsRegexKey = "labels-regex"
-	logEnvKey         = "env"
-	logEnvRegexKey    = "env-regex"
-	logCmdKey         = "gcp-log-cmd"
-	logZoneKey        = "gcp-meta-zone"
-	logNameKey        = "gcp-meta-name"
-	logIDKey          = "gcp-meta-id"
+	projectOptKey = "gcp-project"
+	logCmdKey     = "gcp-log-cmd"
+	logZoneKey    = "gcp-meta-zone"
+	logNameKey    = "gcp-meta-name"
+	logIDKey      = "gcp-meta-id"
 )
 
 var (
@@ -203,11 +199,15 @@ func New(info logger.Info) (logger.Logger, error) {
 // ValidateLogOpts validates the opts passed to the gcplogs driver. Currently, the gcplogs
 // driver doesn't take any arguments.
 func ValidateLogOpts(cfg map[string]string) error {
-	for k := range cfg {
-		switch k {
-		case projectOptKey, logLabelsKey, logLabelsRegexKey, logEnvKey, logEnvRegexKey, logCmdKey, logZoneKey, logNameKey, logIDKey:
+	for key := range cfg {
+		switch key {
+		// TODO(thaJeztah); add support for "tag" (logger.AttrLogTag)
+		case logger.AttrEnv, logger.AttrEnvRegex, logger.AttrLabels, logger.AttrLabelsRegex:
+			// Common attributes handled through [logger.Info.ExtraAttributes].
+			continue
+		case projectOptKey, logCmdKey, logZoneKey, logNameKey, logIDKey:
 		default:
-			return fmt.Errorf("%q is not a valid option for the gcplogs driver", k)
+			return fmt.Errorf("%q is not a valid option for the gcplogs driver", key)
 		}
 	}
 	return nil

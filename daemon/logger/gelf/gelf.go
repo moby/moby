@@ -209,12 +209,10 @@ func ValidateLogOpt(cfg map[string]string) error {
 
 	for key, val := range cfg {
 		switch key {
+		case logger.AttrEnv, logger.AttrEnvRegex, logger.AttrLabels, logger.AttrLabelsRegex, logger.AttrLogTag:
+			// Common attributes handled through [logger.Info.ExtraAttributes] and [loggerutils.ParseLogTag].
+			continue
 		case "gelf-address":
-		case "tag":
-		case "labels":
-		case "labels-regex":
-		case "env":
-		case "env-regex":
 		case "gelf-compression-level":
 			if address.Scheme != "udp" {
 				return errors.New("compression is only supported on UDP")

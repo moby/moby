@@ -25,7 +25,7 @@ func BenchmarkJSONFileLoggerReadLogs(b *testing.B) {
 		ContainerID: "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",
 		LogPath:     filepath.Join(tmp, "container.log"),
 		Config: map[string]string{
-			"labels": "first,second",
+			logger.AttrLabels: "first,second",
 		},
 		ContainerLabels: map[string]string{
 			"first":  "label_value",
