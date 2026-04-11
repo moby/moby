@@ -96,7 +96,18 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 		cfg.DisableCompression = !compressLogs
 	}
-	return newDriver(info.LogPath, cfg)
+	if err := validateConfig(cfg); err != nil {
+		return nil, errdefs.InvalidParameter(err)
+	}
+
+	lf, err := loggerutils.NewLogFile(info.LogPath, cfg.MaxFileSize, cfg.MaxFileCount, !cfg.DisableCompression, decodeFunc, 0o640, getTailReader)
+	if err != nil {
+		return nil, err
+	}
+
+	return &driver{
+		logfile: lf,
+	}, nil
 }
 
 func marshal(m *logger.Message, buffer *[]byte) error {
@@ -131,20 +142,6 @@ func marshal(m *logger.Message, buffer *[]byte) error {
 	}
 	binary.BigEndian.PutUint32(buf[writeLen-encodeBinaryLen:writeLen], uint32(protoSize))
 	return nil
-}
-
-func newDriver(logPath string, cfg *CreateConfig) (logger.Logger, error) {
-	if err := validateConfig(cfg); err != nil {
-		return nil, errdefs.InvalidParameter(err)
-	}
-
-	lf, err := loggerutils.NewLogFile(logPath, cfg.MaxFileSize, cfg.MaxFileCount, !cfg.DisableCompression, decodeFunc, 0o640, getTailReader)
-	if err != nil {
-		return nil, err
-	}
-	return &driver{
-		logfile: lf,
-	}, nil
 }
 
 func (d *driver) Name() string {
