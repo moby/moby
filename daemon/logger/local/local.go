@@ -4,11 +4,9 @@ import (
 	"encoding/binary"
 	"io"
 	"math/bits"
-	"strconv"
 	"sync"
 	"time"
 
-	"github.com/docker/go-units"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
@@ -72,31 +70,8 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, errdefs.System(errors.New("log path is missing -- this is a bug and should not happen"))
 	}
 
-	cfg := newDefaultConfig()
-	if capacity, ok := info.Config["max-size"]; ok {
-		var err error
-		cfg.MaxFileSize, err = units.FromHumanSize(capacity)
-		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrapf(err, "invalid value for max-size: %s", capacity))
-		}
-	}
-
-	if userMaxFileCount, ok := info.Config["max-file"]; ok {
-		var err error
-		cfg.MaxFileCount, err = strconv.Atoi(userMaxFileCount)
-		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrapf(err, "invalid value for max-file: %s", userMaxFileCount))
-		}
-	}
-
-	if userCompress, ok := info.Config["compress"]; ok {
-		compressLogs, err := strconv.ParseBool(userCompress)
-		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrap(err, "error reading compress log option"))
-		}
-		cfg.DisableCompression = !compressLogs
-	}
-	if err := validateConfig(cfg); err != nil {
+	cfg, err := newConfig(info.Config)
+	if err != nil {
 		return nil, errdefs.InvalidParameter(err)
 	}
 
