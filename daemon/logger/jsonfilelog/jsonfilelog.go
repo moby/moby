@@ -30,7 +30,6 @@ var buffersPool = sync.Pool{New: func() any { return bytes.NewBuffer(make([]byte
 // JSONFileLogger is Logger implementation for default Docker logging.
 type JSONFileLogger struct {
 	writer *loggerutils.LogFile
-	tag    string // tag values requested by the user to log
 	extra  json.RawMessage
 }
 
@@ -111,7 +110,6 @@ func New(info logger.Info) (logger.Logger, error) {
 
 	return &JSONFileLogger{
 		writer: writer,
-		tag:    tag,
 		extra:  extra,
 	}, nil
 }
