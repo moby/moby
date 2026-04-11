@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/moby/moby/v2/daemon/internal/stringid"
 )
 
 // Info provides enough information for a logging driver to do its function.
@@ -118,7 +120,7 @@ func (info *Info) Command() string {
 
 // ID returns the container ID-prefix (truncated ID).
 func (info *Info) ID() string {
-	return info.ContainerID[:12]
+	return stringid.TruncateID(info.ContainerID)
 }
 
 // FullID returns the container ID.
@@ -133,7 +135,7 @@ func (info *Info) Name() string {
 
 // ImageID returns the ID-prefix (truncated ID) of the image the container was created from.
 func (info *Info) ImageID() string {
-	return info.ContainerImageID[:12]
+	return stringid.TruncateID(info.ContainerImageID)
 }
 
 // ImageFullID returns the ID (digest) of the image the container was created from.

@@ -8,6 +8,16 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+func TestParseLogTagZeroValues(t *testing.T) {
+	out, err := ParseLogTag(logger.Info{}, "")
+	assert.NilError(t, err)
+	assert.Assert(t, out == "")
+
+	out, err = ParseLogTag(logger.Info{}, DefaultTemplate)
+	assert.NilError(t, err)
+	assert.Assert(t, out == "")
+}
+
 func TestParseLogTag(t *testing.T) {
 	tests := []struct {
 		doc             string
@@ -54,7 +64,7 @@ func TestParseLogTag(t *testing.T) {
 		{
 			doc:       "short image ID",
 			customTag: imgShortID,
-			expected:  "sha256:582c4", // FIXME(thaJeztah): short-ID should trim algorithm
+			expected:  "582c496ccf79",
 		},
 		{
 			doc:       "full image ID",
