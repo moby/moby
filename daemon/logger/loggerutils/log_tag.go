@@ -29,14 +29,36 @@ func ParseLogTag(info logger.Info, defaultTemplate string) (string, error) {
 		tagTemplate = defaultTemplate
 	}
 
-	tmpl, err := templates.NewParse("log-tag", tagTemplate)
-	if err != nil {
-		return "", err
-	}
-	buf := new(bytes.Buffer)
-	if err := tmpl.Execute(buf, &info); err != nil {
-		return "", err
-	}
+	// Fast-path for common / basic templates.
+	switch tagTemplate {
+	case "":
+		return "", nil
+	case ctrShortID:
+		return info.ID(), nil
+	case ctrFullID:
+		return info.FullID(), nil
+	case ctrName:
+		return info.Name(), nil
+	case ctrCommand:
+		return info.Command(), nil
+	case imgShortID:
+		return info.ImageID(), nil
+	case imgFullID:
+		return info.ImageFullID(), nil
+	case imgName:
+		return info.ImageName(), nil
+	case hostName:
+		return info.Hostname()
+	default:
+		tmpl, err := templates.NewParse("log-tag", tagTemplate)
+		if err != nil {
+			return "", err
+		}
+		var buf bytes.Buffer
+		if err := tmpl.Execute(&buf, &info); err != nil {
+			return "", err
+		}
 
-	return buf.String(), nil
+		return buf.String(), nil
+	}
 }
