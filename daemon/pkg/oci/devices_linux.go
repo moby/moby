@@ -31,29 +31,19 @@ func isDevicePath(path string) bool {
 }
 
 func resolvedDevicePath(path string) string {
-	// Normalise the path before any filesystem operation so that
-	// user-provided values with ".." components cannot traverse to
-	// unexpected locations.
 	path = filepath.Clean(path)
 	if !filepath.IsAbs(path) {
 		return path
 	}
-	src, err := os.Lstat(path)
-	if err != nil || src.Mode()&os.ModeSymlink != os.ModeSymlink {
-		return path
+	// EvalSymlinks resolves the full symlink chain without opening the file.
+	// We only use the result if it lands under /dev, which prevents
+	// user-controlled symlinks from redirecting to arbitrary host paths
+	// (e.g. /etc/passwd) while still supporting directories like
+	// /dev/disk/by-uuid whose entries are symlinks into /dev.
+	if resolved, err := filepath.EvalSymlinks(path); err == nil && isDevicePath(resolved) {
+		return resolved
 	}
-	linkedPath, err := filepath.EvalSymlinks(path)
-	if err != nil {
-		return path
-	}
-	// Only follow symlinks whose target is a device node under /dev.
-	// This prevents user-controlled symlinks from redirecting to arbitrary
-	// host paths (e.g. /etc/passwd) while still supporting real device
-	// directories such as /dev/disk/by-uuid that contain symlinks into /dev.
-	if !isDevicePath(linkedPath) {
-		return path
-	}
-	return linkedPath
+	return path
 }
 
 // DevicesFromPath computes a list of devices and device permissions from paths (pathOnHost and pathInContainer) and cgroup permissions.
