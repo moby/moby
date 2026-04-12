@@ -21,7 +21,23 @@ func deviceCgroup(d *specs.LinuxDevice, permissions string) specs.LinuxDeviceCgr
 	}
 }
 
+// devRoot is the canonical path for device files on Linux.
+const devRoot = "/dev"
+
+// isDevicePath reports whether the given (already-cleaned, absolute) path is
+// within the device filesystem root. Only paths under /dev are eligible for
+// symlink resolution to prevent path-traversal via user-controlled values.
+func isDevicePath(path string) bool {
+	return path == devRoot || strings.HasPrefix(path, devRoot+"/")
+}
+
 func resolvedDevicePath(path string) string {
+	// Clean and validate the path before any filesystem operation so that
+	// user-provided values cannot traverse outside the device root.
+	path = filepath.Clean(path)
+	if !isDevicePath(path) {
+		return path
+	}
 	src, err := os.Lstat(path)
 	if err != nil || src.Mode()&os.ModeSymlink != os.ModeSymlink {
 		return path
@@ -30,10 +46,9 @@ func resolvedDevicePath(path string) string {
 	if err != nil {
 		return path
 	}
-	// Verify the resolved path is a device node to prevent symlink-based
-	// path traversal to non-device files on the host.
-	dst, err := os.Stat(linkedPath)
-	if err != nil || dst.Mode()&(os.ModeDevice|os.ModeCharDevice) == 0 {
+	// Reject symlinks that resolve outside /dev to prevent traversal to
+	// arbitrary host paths.
+	if !isDevicePath(linkedPath) {
 		return path
 	}
 	return linkedPath
