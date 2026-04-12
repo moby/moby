@@ -25,17 +25,17 @@ func deviceCgroup(d *specs.LinuxDevice, permissions string) specs.LinuxDeviceCgr
 const devRoot = "/dev"
 
 // isDevicePath reports whether the given (already-cleaned, absolute) path is
-// within the device filesystem root. Only paths under /dev are eligible for
-// symlink resolution to prevent path-traversal via user-controlled values.
+// within the device filesystem root.
 func isDevicePath(path string) bool {
 	return path == devRoot || strings.HasPrefix(path, devRoot+"/")
 }
 
 func resolvedDevicePath(path string) string {
-	// Clean and validate the path before any filesystem operation so that
-	// user-provided values cannot traverse outside the device root.
+	// Normalise the path before any filesystem operation so that
+	// user-provided values with ".." components cannot traverse to
+	// unexpected locations.
 	path = filepath.Clean(path)
-	if !isDevicePath(path) {
+	if !filepath.IsAbs(path) {
 		return path
 	}
 	src, err := os.Lstat(path)
@@ -46,8 +46,10 @@ func resolvedDevicePath(path string) string {
 	if err != nil {
 		return path
 	}
-	// Reject symlinks that resolve outside /dev to prevent traversal to
-	// arbitrary host paths.
+	// Only follow symlinks whose target is a device node under /dev.
+	// This prevents user-controlled symlinks from redirecting to arbitrary
+	// host paths (e.g. /etc/passwd) while still supporting real device
+	// directories such as /dev/disk/by-uuid that contain symlinks into /dev.
 	if !isDevicePath(linkedPath) {
 		return path
 	}
