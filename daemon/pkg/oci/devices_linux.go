@@ -22,13 +22,21 @@ func deviceCgroup(d *specs.LinuxDevice, permissions string) specs.LinuxDeviceCgr
 }
 
 func resolvedDevicePath(path string) string {
-	if src, err := os.Lstat(path); err == nil && src.Mode()&os.ModeSymlink == os.ModeSymlink {
-		if linkedPathOnHost, err := filepath.EvalSymlinks(path); err == nil {
-			return linkedPathOnHost
-		}
+	src, err := os.Lstat(path)
+	if err != nil || src.Mode()&os.ModeSymlink != os.ModeSymlink {
+		return path
 	}
-
-	return path
+	linkedPath, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return path
+	}
+	// Verify the resolved path is a device node to prevent symlink-based
+	// path traversal to non-device files on the host.
+	dst, err := os.Stat(linkedPath)
+	if err != nil || dst.Mode()&(os.ModeDevice|os.ModeCharDevice) == 0 {
+		return path
+	}
+	return linkedPath
 }
 
 // DevicesFromPath computes a list of devices and device permissions from paths (pathOnHost and pathInContainer) and cgroup permissions.
