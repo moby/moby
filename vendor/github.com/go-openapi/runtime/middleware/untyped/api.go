@@ -23,7 +23,7 @@ const (
 	mediumPreallocatedSlots = 30
 )
 
-// API represents an untyped mux for a swagger spec
+// API represents an untyped mux for a swagger spec.
 type API struct {
 	spec            *loads.Document
 	analyzer        *analysis.Spec
@@ -39,7 +39,7 @@ type API struct {
 	formats         strfmt.Registry
 }
 
-// NewAPI creates the default untyped API
+// NewAPI creates the default untyped API.
 func NewAPI(spec *loads.Document) *API {
 	var an *analysis.Spec
 	if spec != nil && spec.Spec() != nil {
@@ -60,7 +60,7 @@ func NewAPI(spec *loads.Document) *API {
 	return api.WithJSONDefaults()
 }
 
-// WithJSONDefaults loads the json defaults for this api
+// WithJSONDefaults loads the json defaults for this api.
 func (d *API) WithJSONDefaults() *API {
 	d.DefaultConsumes = runtime.JSONMime
 	d.DefaultProduces = runtime.JSONMime
@@ -69,7 +69,7 @@ func (d *API) WithJSONDefaults() *API {
 	return d
 }
 
-// WithoutJSONDefaults clears the json defaults for this api
+// WithoutJSONDefaults clears the json defaults for this api.
 func (d *API) WithoutJSONDefaults() *API {
 	d.DefaultConsumes = ""
 	d.DefaultProduces = ""
@@ -78,7 +78,7 @@ func (d *API) WithoutJSONDefaults() *API {
 	return d
 }
 
-// Formats returns the registered string formats
+// Formats returns the registered string formats.
 func (d *API) Formats() strfmt.Registry {
 	if d.formats == nil {
 		d.formats = strfmt.NewFormats()
@@ -86,7 +86,7 @@ func (d *API) Formats() strfmt.Registry {
 	return d.formats
 }
 
-// RegisterFormat registers a custom format validator
+// RegisterFormat registers a custom format validator.
 func (d *API) RegisterFormat(name string, format strfmt.Format, validator strfmt.Validator) {
 	if d.formats == nil {
 		d.formats = strfmt.NewFormats()
@@ -94,7 +94,7 @@ func (d *API) RegisterFormat(name string, format strfmt.Format, validator strfmt
 	d.formats.Add(name, format, validator)
 }
 
-// RegisterAuth registers an auth handler in this api
+// RegisterAuth registers an auth handler in this api.
 func (d *API) RegisterAuth(scheme string, handler runtime.Authenticator) {
 	if d.authenticators == nil {
 		d.authenticators = make(map[string]runtime.Authenticator)
@@ -102,7 +102,7 @@ func (d *API) RegisterAuth(scheme string, handler runtime.Authenticator) {
 	d.authenticators[scheme] = handler
 }
 
-// RegisterAuthorizer registers an authorizer handler in this api
+// RegisterAuthorizer registers an authorizer handler in this api.
 func (d *API) RegisterAuthorizer(handler runtime.Authorizer) {
 	d.authorizer = handler
 }
@@ -115,7 +115,7 @@ func (d *API) RegisterConsumer(mediaType string, handler runtime.Consumer) {
 	d.consumers[strings.ToLower(mediaType)] = handler
 }
 
-// RegisterProducer registers a producer for a media type
+// RegisterProducer registers a producer for a media type.
 func (d *API) RegisterProducer(mediaType string, handler runtime.Producer) {
 	if d.producers == nil {
 		d.producers = make(map[string]runtime.Producer, smallPreallocatedSlots)
@@ -123,7 +123,7 @@ func (d *API) RegisterProducer(mediaType string, handler runtime.Producer) {
 	d.producers[strings.ToLower(mediaType)] = handler
 }
 
-// RegisterOperation registers an operation handler for an operation name
+// RegisterOperation registers an operation handler for an operation name.
 func (d *API) RegisterOperation(method, path string, handler runtime.OperationHandler) {
 	if d.operations == nil {
 		d.operations = make(map[string]map[string]runtime.OperationHandler, mediumPreallocatedSlots)
@@ -135,7 +135,7 @@ func (d *API) RegisterOperation(method, path string, handler runtime.OperationHa
 	d.operations[um][path] = handler
 }
 
-// OperationHandlerFor returns the operation handler for the specified id if it can be found
+// OperationHandlerFor returns the operation handler for the specified id if it can be found.
 func (d *API) OperationHandlerFor(method, path string) (runtime.OperationHandler, bool) {
 	if d.operations == nil {
 		return nil, false
@@ -147,7 +147,7 @@ func (d *API) OperationHandlerFor(method, path string) (runtime.OperationHandler
 	return nil, false
 }
 
-// ConsumersFor gets the consumers for the specified media types
+// ConsumersFor gets the consumers for the specified media types.
 func (d *API) ConsumersFor(mediaTypes []string) map[string]runtime.Consumer {
 	result := make(map[string]runtime.Consumer)
 	for _, mt := range mediaTypes {
@@ -158,7 +158,7 @@ func (d *API) ConsumersFor(mediaTypes []string) map[string]runtime.Consumer {
 	return result
 }
 
-// ProducersFor gets the producers for the specified media types
+// ProducersFor gets the producers for the specified media types.
 func (d *API) ProducersFor(mediaTypes []string) map[string]runtime.Producer {
 	result := make(map[string]runtime.Producer)
 	for _, mt := range mediaTypes {
@@ -169,7 +169,7 @@ func (d *API) ProducersFor(mediaTypes []string) map[string]runtime.Producer {
 	return result
 }
 
-// AuthenticatorsFor gets the authenticators for the specified security schemes
+// AuthenticatorsFor gets the authenticators for the specified security schemes.
 func (d *API) AuthenticatorsFor(schemes map[string]spec.SecurityScheme) map[string]runtime.Authenticator {
 	result := make(map[string]runtime.Authenticator)
 	for k := range schemes {
@@ -180,17 +180,17 @@ func (d *API) AuthenticatorsFor(schemes map[string]spec.SecurityScheme) map[stri
 	return result
 }
 
-// Authorizer returns the registered authorizer
+// Authorizer returns the registered authorizer.
 func (d *API) Authorizer() runtime.Authorizer {
 	return d.authorizer
 }
 
-// Validate validates this API for any missing items
+// Validate validates this API for any missing items.
 func (d *API) Validate() error {
 	return d.validate()
 }
 
-// validateWith validates the registrations in this API against the provided spec analyzer
+// validateWith validates the registrations in this API against the provided spec analyzer.
 func (d *API) validate() error {
 	consumes := make([]string, 0, len(d.consumers))
 	for k := range d.consumers {

@@ -228,6 +228,7 @@ func dialPoolNewAuth(ctx context.Context, secure bool, poolSize int, ds *interna
 			DefaultMTLSEndpoint:             ds.DefaultMTLSEndpoint,
 			DefaultScopes:                   ds.DefaultScopes,
 			SkipValidation:                  skipValidation,
+			TelemetryAttributes:             ds.TelemetryAttributes,
 		},
 		UniverseDomain: ds.UniverseDomain,
 		Logger:         ds.Logger,

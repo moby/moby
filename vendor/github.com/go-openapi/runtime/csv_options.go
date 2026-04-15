@@ -18,7 +18,7 @@ type csvOpts struct {
 	closeStream  bool
 }
 
-// WithCSVReaderOpts specifies the options to csv.Reader
+// WithCSVReaderOpts specifies the options to [csv.Reader]
 // when reading CSV.
 func WithCSVReaderOpts(reader csv.Reader) CSVOpt {
 	return func(o *csvOpts) {
@@ -26,7 +26,7 @@ func WithCSVReaderOpts(reader csv.Reader) CSVOpt {
 	}
 }
 
-// WithCSVWriterOpts specifies the options to csv.Writer
+// WithCSVWriterOpts specifies the options to [csv.Writer]
 // when writing CSV.
 func WithCSVWriterOpts(writer csv.Writer) CSVOpt {
 	return func(o *csvOpts) {
@@ -94,7 +94,7 @@ var (
 	_ CSVReader = &csvRecordsWriter{}
 )
 
-// csvRecordsWriter is an internal container to move CSV records back and forth
+// csvRecordsWriter is an internal container to move CSV records back and forth.
 type csvRecordsWriter struct {
 	i       int
 	records [][]string

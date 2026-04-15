@@ -25,16 +25,16 @@ import (
 
 // RouteParam is a object to capture route params in a framework agnostic way.
 // implementations of the muxer should use these route params to communicate with the
-// swagger framework
+// swagger framework.
 type RouteParam struct {
 	Name  string
 	Value string
 }
 
-// RouteParams the collection of route params
+// RouteParams the collection of route params.
 type RouteParams []RouteParam
 
-// Get gets the value for the route param for the specified key
+// Get gets the value for the route param for the specified key.
 func (r RouteParams) Get(name string) string {
 	vv, _, _ := r.GetOK(name)
 	if len(vv) > 0 {
@@ -44,9 +44,9 @@ func (r RouteParams) Get(name string) string {
 }
 
 // GetOK gets the value but also returns booleans to indicate if a key or value
-// is present. This aids in validation and satisfies an interface in use there
+// is present. This aids in validation and satisfies an interface in use there.
 //
-// The returned values are: data, has key, has value
+// The returned values are: data, has key, has value.
 func (r RouteParams) GetOK(name string) ([]string, bool, bool) {
 	for _, p := range r {
 		if p.Name == name {
@@ -56,7 +56,7 @@ func (r RouteParams) GetOK(name string) ([]string, bool, bool) {
 	return nil, false, false
 }
 
-// NewRouter creates a new context-aware router middleware
+// NewRouter creates a new context-aware router [middleware].
 func NewRouter(ctx *Context, next http.Handler) http.Handler {
 	if ctx.router == nil {
 		ctx.router = DefaultRouter(ctx.spec, ctx.api, WithDefaultRouterLoggerFunc(ctx.debugLogf))
@@ -68,18 +68,22 @@ func NewRouter(ctx *Context, next http.Handler) http.Handler {
 			return
 		}
 
+		// Always use the default producer Content-Type for Method not
+		// allowed and Not found responses
+		produces := []string{ctx.api.DefaultProduces()}
+
 		// Not found, check if it exists in the other methods first
 		if others := ctx.AllowedMethods(r); len(others) > 0 {
-			ctx.Respond(rw, r, ctx.analyzer.RequiredProduces(), nil, errors.MethodNotAllowed(r.Method, others))
+			ctx.Respond(rw, r, produces, nil, errors.MethodNotAllowed(r.Method, others))
 			return
 		}
 
-		ctx.Respond(rw, r, ctx.analyzer.RequiredProduces(), nil, errors.NotFound("path %s was not found", r.URL.EscapedPath()))
+		ctx.Respond(rw, r, produces, nil, errors.NotFound("path %s was not found", r.URL.EscapedPath()))
 	})
 }
 
 // RoutableAPI represents an interface for things that can serve
-// as a provider of implementations for the swagger router
+// as a provider of implementations for the swagger router.
 type RoutableAPI interface {
 	HandlerFor(string, string) (http.Handler, bool)
 	ServeErrorFor(string) func(http.ResponseWriter, *http.Request, error)
@@ -92,7 +96,7 @@ type RoutableAPI interface {
 	DefaultConsumes() string
 }
 
-// Router represents a swagger-aware router
+// Router represents a swagger-aware router.
 type Router interface {
 	Lookup(method, path string) (*MatchedRoute, bool)
 	OtherMethods(method, path string) []string
@@ -153,7 +157,7 @@ func WithDefaultRouterLoggerFunc(fn func(string, ...any)) DefaultRouterOpt {
 	}
 }
 
-// DefaultRouter creates a default implementation of the router
+// DefaultRouter creates a default implementation of the router.
 func DefaultRouter(spec *loads.Document, api RoutableAPI, opts ...DefaultRouterOpt) Router {
 	builder := newDefaultRouteBuilder(spec, api, opts...)
 	if spec != nil {
@@ -170,7 +174,7 @@ func DefaultRouter(spec *loads.Document, api RoutableAPI, opts ...DefaultRouterO
 
 // RouteAuthenticator is an authenticator that can compose several authenticators together.
 // It also knows when it contains an authenticator that allows for anonymous pass through.
-// Contains a group of 1 or more authenticators that have a logical AND relationship
+// Contains a group of 1 or more authenticators that have a logical AND relationship.
 type RouteAuthenticator struct {
 	Authenticator  map[string]runtime.Authenticator
 	Schemes        []string
@@ -185,18 +189,18 @@ func (ra *RouteAuthenticator) AllowsAnonymous() bool {
 }
 
 // AllScopes returns a list of unique scopes that is the combination
-// of all the scopes in the requirements
+// of all the scopes in the requirements.
 func (ra *RouteAuthenticator) AllScopes() []string {
 	return ra.allScopes
 }
 
 // CommonScopes returns a list of unique scopes that are common in all the
-// scopes in the requirements
+// scopes in the requirements.
 func (ra *RouteAuthenticator) CommonScopes() []string {
 	return ra.commonScopes
 }
 
-// Authenticate Authenticator interface implementation
+// Authenticate Authenticator interface implementation.
 func (ra *RouteAuthenticator) Authenticate(req *http.Request, route *MatchedRoute) (bool, any, error) {
 	if ra.allowAnonymous {
 		route.Authenticator = ra
@@ -262,10 +266,10 @@ func stringSliceIntersection(slices ...[]string) []string {
 	return intersection
 }
 
-// RouteAuthenticators represents a group of authenticators that represent a logical OR
+// RouteAuthenticators represents a group of authenticators that represent a logical OR.
 type RouteAuthenticators []RouteAuthenticator
 
-// AllowsAnonymous returns true when there is an authenticator that means optional auth
+// AllowsAnonymous returns true when there is an authenticator that means optional auth.
 func (ras RouteAuthenticators) AllowsAnonymous() bool {
 	for _, ra := range ras {
 		if ra.AllowsAnonymous() {
@@ -275,7 +279,7 @@ func (ras RouteAuthenticators) AllowsAnonymous() bool {
 	return false
 }
 
-// Authenticate method implemention so this collection can be used as authenticator
+// Authenticate method implementation so this collection can be used as authenticator.
 func (ras RouteAuthenticators) Authenticate(req *http.Request, route *MatchedRoute) (bool, any, error) {
 	var lastError error
 	var allowsAnon bool
@@ -320,7 +324,7 @@ type routeEntry struct {
 	Authorizer     runtime.Authorizer
 }
 
-// MatchedRoute represents the route that was matched in this request
+// MatchedRoute represents the route that was matched in this request.
 type MatchedRoute struct {
 	routeEntry
 
@@ -330,13 +334,13 @@ type MatchedRoute struct {
 	Authenticator *RouteAuthenticator
 }
 
-// HasAuth returns true when the route has a security requirement defined
+// HasAuth returns true when the route has a security requirement defined.
 func (m *MatchedRoute) HasAuth() bool {
 	return len(m.Authenticators) > 0
 }
 
 // NeedsAuth returns true when the request still
-// needs to perform authentication
+// needs to perform authentication.
 func (m *MatchedRoute) NeedsAuth() bool {
 	return m.HasAuth() && m.Authenticator == nil
 }
@@ -407,7 +411,7 @@ func (d *defaultRouter) SetLogger(lg logger.Logger) {
 	d.debugLogf = debugLogfFunc(lg)
 }
 
-// convert swagger parameters per path segment into a denco parameter as multiple parameters per segment are not supported in denco
+// convert swagger parameters per path segment into a denco parameter as multiple parameters per segment are not supported in denco.
 var pathConverter = regexp.MustCompile(`{(.+?)}([^/]*)`)
 
 func decodeCompositParams(name string, value string, pattern string, names []string, values []string) ([]string, []string) {

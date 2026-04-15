@@ -8,7 +8,7 @@ import (
 	"io"
 )
 
-// JSONConsumer creates a new JSON consumer
+// JSONConsumer creates a new JSON consumer.
 func JSONConsumer() Consumer {
 	return ConsumerFunc(func(reader io.Reader, data any) error {
 		dec := json.NewDecoder(reader)
@@ -17,7 +17,7 @@ func JSONConsumer() Consumer {
 	})
 }
 
-// JSONProducer creates a new JSON producer
+// JSONProducer creates a new JSON producer.
 func JSONProducer() Producer {
 	return ProducerFunc(func(writer io.Writer, data any) error {
 		enc := json.NewEncoder(writer)

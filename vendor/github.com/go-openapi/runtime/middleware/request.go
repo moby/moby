@@ -14,7 +14,7 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// UntypedRequestBinder binds and validates the data from a http request
+// UntypedRequestBinder binds and validates the data from a [http] request.
 type UntypedRequestBinder struct {
 	Spec         *spec.Swagger
 	Parameters   map[string]spec.Parameter
@@ -38,7 +38,7 @@ func NewUntypedRequestBinder(parameters map[string]spec.Parameter, spec *spec.Sw
 	}
 }
 
-// Bind perform the databinding and validation
+// Bind perform the databinding and validation.
 func (o *UntypedRequestBinder) Bind(request *http.Request, routeParams RouteParams, consumer runtime.Consumer, data any) error {
 	val := reflect.Indirect(reflect.ValueOf(data))
 	isMap := val.Kind() == reflect.Map

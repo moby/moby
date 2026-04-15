@@ -51,7 +51,7 @@ type request struct {
 	getBody func(r *request) []byte
 }
 
-// NewRequest creates a new swagger http client request
+// NewRequest creates a new swagger http client request.
 func newRequest(method, pathPattern string, writer runtime.ClientRequestWriter) *request {
 	return &request{
 		pathPattern: pathPattern,
@@ -64,7 +64,7 @@ func newRequest(method, pathPattern string, writer runtime.ClientRequestWriter) 
 	}
 }
 
-// BuildHTTP creates a new http request based on the data from the params
+// BuildHTTP creates a new http request based on the data from the params.
 func (r *request) BuildHTTP(mediaType, basePath string, producers map[string]runtime.Producer, registry strfmt.Registry) (*http.Request, error) {
 	return r.buildHTTP(mediaType, basePath, producers, registry, nil)
 }
@@ -87,7 +87,7 @@ func (r *request) GetBody() []byte {
 
 // SetHeaderParam adds a header param to the request
 // when there is only 1 value provided for the varargs, it will set it.
-// when there are several values provided for the varargs it will add it (no overriding)
+// when there are several values provided for the varargs it will add it (no overriding).
 func (r *request) SetHeaderParam(name string, values ...string) error {
 	if r.header == nil {
 		r.header = make(http.Header)
@@ -96,14 +96,14 @@ func (r *request) SetHeaderParam(name string, values ...string) error {
 	return nil
 }
 
-// GetHeaderParams returns the all headers currently set for the request
+// GetHeaderParams returns the all headers currently set for the request.
 func (r *request) GetHeaderParams() http.Header {
 	return r.header
 }
 
 // SetQueryParam adds a query param to the request
 // when there is only 1 value provided for the varargs, it will set it.
-// when there are several values provided for the varargs it will add it (no overriding)
+// when there are several values provided for the varargs it will add it (no overriding).
 func (r *request) SetQueryParam(name string, values ...string) error {
 	if r.query == nil {
 		r.query = make(url.Values)
@@ -112,7 +112,7 @@ func (r *request) SetQueryParam(name string, values ...string) error {
 	return nil
 }
 
-// GetQueryParams returns a copy of all query params currently set for the request
+// GetQueryParams returns a copy of all query params currently set for the request.
 func (r *request) GetQueryParams() url.Values {
 	var result = make(url.Values)
 	for key, value := range r.query {
@@ -123,7 +123,7 @@ func (r *request) GetQueryParams() url.Values {
 
 // SetFormParam adds a forn param to the request
 // when there is only 1 value provided for the varargs, it will set it.
-// when there are several values provided for the varargs it will add it (no overriding)
+// when there are several values provided for the varargs it will add it (no overriding).
 func (r *request) SetFormParam(name string, values ...string) error {
 	if r.formFields == nil {
 		r.formFields = make(url.Values)
@@ -132,7 +132,7 @@ func (r *request) SetFormParam(name string, values ...string) error {
 	return nil
 }
 
-// SetPathParam adds a path param to the request
+// SetPathParam adds a path param to the request.
 func (r *request) SetPathParam(name string, value string) error {
 	if r.pathParams == nil {
 		r.pathParams = make(map[string]string)
@@ -142,7 +142,7 @@ func (r *request) SetPathParam(name string, value string) error {
 	return nil
 }
 
-// SetFileParam adds a file param to the request
+// SetFileParam adds a file param to the request.
 func (r *request) SetFileParam(name string, files ...runtime.NamedReadCloser) error {
 	for _, file := range files {
 		if actualFile, ok := file.(*os.File); ok {
@@ -182,7 +182,7 @@ func (r *request) GetBodyParam() any {
 	return r.payload
 }
 
-// SetTimeout sets the timeout for a request
+// SetTimeout sets the timeout for a request.
 func (r *request) SetTimeout(timeout time.Duration) error {
 	r.timeout = timeout
 	return nil
@@ -298,8 +298,7 @@ func (r *request) buildHTTP(mediaType, basePath string, producers map[string]run
 	// if there is payload, use the producer to write the payload, and then
 	// set the header to the content-type appropriate for the payload produced
 	if r.payload != nil {
-		// TODO: infer most appropriate content type based on the producer used,
-		// and the `consumers` section of the spec/operation
+		// Enhancement proposal: https://github.com/go-openapi/runtime/issues/387
 		r.header.Set(runtime.HeaderContentType, mediaType)
 		if rdr, ok := r.payload.(io.ReadCloser); ok {
 			body = rdr

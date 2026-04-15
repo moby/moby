@@ -24,10 +24,12 @@ import (
 	"github.com/go-openapi/runtime/security"
 )
 
-// Debug when true turns on verbose logging
+// Debug when true turns on verbose logging.
 var Debug = logger.DebugEnabled()
 
-// Logger is the standard libray logger used for printing debug messages
+// Logger is the standard library logger used for printing debug messages.
+//
+// (Note: The correct spelling is "library", not "libra". "Libra" is a zodiac sign/constellation and wouldn't make sense in this context.)
 var Logger logger.Logger = logger.StandardLogger{}
 
 func debugLogfFunc(lg logger.Logger) func(string, ...any) {
@@ -43,35 +45,35 @@ func debugLogfFunc(lg logger.Logger) func(string, ...any) {
 	return func(_ string, _ ...any) {}
 }
 
-// A Builder can create middlewares
+// A Builder can create middlewares.
 type Builder func(http.Handler) http.Handler
 
-// PassthroughBuilder returns the handler, aka the builder identity function
+// PassthroughBuilder returns the handler, aka the builder identity function.
 func PassthroughBuilder(handler http.Handler) http.Handler { return handler }
 
 // RequestBinder is an interface for types to implement
-// when they want to be able to bind from a request
+// when they want to be able to bind from a request.
 type RequestBinder interface {
 	BindRequest(*http.Request, *MatchedRoute) error
 }
 
 // Responder is an interface for types to implement
-// when they want to be considered for writing HTTP responses
+// when they want to be considered for writing HTTP responses.
 type Responder interface {
 	WriteResponse(http.ResponseWriter, runtime.Producer)
 }
 
-// ResponderFunc wraps a func as a Responder interface
+// ResponderFunc wraps a func as a Responder interface.
 type ResponderFunc func(http.ResponseWriter, runtime.Producer)
 
-// WriteResponse writes to the response
+// WriteResponse writes to the response.
 func (fn ResponderFunc) WriteResponse(rw http.ResponseWriter, pr runtime.Producer) {
 	fn(rw, pr)
 }
 
-// Context is a type safe wrapper around an untyped request context
+// Context is a type safe wrapper around an [untyped] request context
 // used throughout to store request context with the standard context attached
-// to the http.Request
+// to the [http.Request].
 type Context struct {
 	spec      *loads.Document
 	analyzer  *analysis.Spec
@@ -192,7 +194,7 @@ func (r *routableUntypedAPI) DefaultConsumes() string {
 
 // NewRoutableContext creates a new context for a routable API.
 //
-// If a nil Router is provided, the DefaultRouter (denco-based) will be used.
+// If a nil Router is provided, the [DefaultRouter] ([denco]-based) will be used.
 func NewRoutableContext(spec *loads.Document, routableAPI RoutableAPI, routes Router) *Context {
 	var an *analysis.Spec
 	if spec != nil {
@@ -202,9 +204,9 @@ func NewRoutableContext(spec *loads.Document, routableAPI RoutableAPI, routes Ro
 	return NewRoutableContextWithAnalyzedSpec(spec, an, routableAPI, routes)
 }
 
-// NewRoutableContextWithAnalyzedSpec is like NewRoutableContext but takes as input an already analysed spec.
+// NewRoutableContextWithAnalyzedSpec is like [NewRoutableContext] but takes as input an already analysed spec.
 //
-// If a nil Router is provided, the DefaultRouter (denco-based) will be used.
+// If a nil Router is provided, the [DefaultRouter] ([denco]-based) will be used.
 func NewRoutableContextWithAnalyzedSpec(spec *loads.Document, an *analysis.Spec, routableAPI RoutableAPI, routes Router) *Context {
 	// Either there are no spec doc and analysis, or both of them.
 	if (spec != nil || an != nil) && (spec == nil || an == nil) {
@@ -222,7 +224,7 @@ func NewRoutableContextWithAnalyzedSpec(spec *loads.Document, an *analysis.Spec,
 
 // NewContext creates a new context wrapper.
 //
-// If a nil Router is provided, the DefaultRouter (denco-based) will be used.
+// If a nil Router is provided, the [DefaultRouter] ([denco]-based) will be used.
 func NewContext(spec *loads.Document, api *untyped.API, routes Router) *Context {
 	var an *analysis.Spec
 	if spec != nil {
@@ -239,13 +241,13 @@ func NewContext(spec *loads.Document, api *untyped.API, routes Router) *Context 
 	return ctx
 }
 
-// Serve serves the specified spec with the specified api registrations as a http.Handler
+// Serve serves the specified spec with the specified api registrations as a [http.Handler].
 func Serve(spec *loads.Document, api *untyped.API) http.Handler {
 	return ServeWithBuilder(spec, api, PassthroughBuilder)
 }
 
-// ServeWithBuilder serves the specified spec with the specified api registrations as a http.Handler that is decorated
-// by the Builder
+// ServeWithBuilder serves the specified spec with the specified api registrations as a [http.Handler] that is decorated
+// by the Builder.
 func ServeWithBuilder(spec *loads.Document, api *untyped.API, builder Builder) http.Handler {
 	context := NewContext(spec, api, nil)
 	return context.APIHandler(builder)
@@ -294,7 +296,7 @@ type contentTypeValue struct {
 	Charset   string
 }
 
-// BasePath returns the base path for this API
+// BasePath returns the base path for this API.
 func (c *Context) BasePath() string {
 	if c.spec == nil {
 		return ""
@@ -309,13 +311,13 @@ func (c *Context) SetLogger(lg logger.Logger) {
 	c.debugLogf = debugLogfFunc(lg)
 }
 
-// RequiredProduces returns the accepted content types for responses
+// RequiredProduces returns the accepted content types for responses.
 func (c *Context) RequiredProduces() []string {
 	return c.analyzer.RequiredProduces()
 }
 
 // BindValidRequest binds a params object to a request but only when the request is valid
-// if the request is not valid an error will be returned
+// if the request is not valid an error will be returned.
 func (c *Context) BindValidRequest(request *http.Request, route *MatchedRoute, binder RequestBinder) error {
 	var res []error
 	var requestContentType string
@@ -374,7 +376,7 @@ func (c *Context) BindValidRequest(request *http.Request, route *MatchedRoute, b
 // Returns the media type, its charset and a shallow copy of the request
 // when its context doesn't contain the content type value, otherwise it returns
 // the same request
-// Returns the error that runtime.ContentType may retunrs.
+// Returns the error that [runtime.ContentType] may returns.
 func (c *Context) ContentType(request *http.Request) (string, string, *http.Request, error) {
 	var rCtx = request.Context()
 
@@ -390,7 +392,7 @@ func (c *Context) ContentType(request *http.Request) (string, string, *http.Requ
 	return mt, cs, request.WithContext(rCtx), nil
 }
 
-// LookupRoute looks a route up and returns true when it is found
+// LookupRoute looks a route up and returns true when it is found.
 func (c *Context) LookupRoute(request *http.Request) (*MatchedRoute, bool) {
 	if route, ok := c.router.Lookup(request.Method, request.URL.EscapedPath()); ok {
 		return route, ok
@@ -402,7 +404,7 @@ func (c *Context) LookupRoute(request *http.Request) (*MatchedRoute, bool) {
 // Returns the matched route, a shallow copy of the request if its context
 // contains the matched router, otherwise the same request, and a bool to
 // indicate if it the request matches one of the routes, if it doesn't
-// then it returns false and nil for the other two return values
+// then it returns false and nil for the other two return values.
 func (c *Context) RouteInfo(request *http.Request) (*MatchedRoute, *http.Request, bool) {
 	var rCtx = request.Context()
 
@@ -420,7 +422,7 @@ func (c *Context) RouteInfo(request *http.Request) (*MatchedRoute, *http.Request
 
 // ResponseFormat negotiates the response content type
 // Returns the response format and a shallow copy of the request if its context
-// doesn't contain the response format, otherwise the same request
+// doesn't contain the response format, otherwise the same request.
 func (c *Context) ResponseFormat(r *http.Request, offers []string) (string, *http.Request) {
 	var rCtx = r.Context()
 
@@ -438,12 +440,12 @@ func (c *Context) ResponseFormat(r *http.Request, offers []string) (string, *htt
 	return format, r
 }
 
-// AllowedMethods gets the allowed methods for the path of this request
+// AllowedMethods gets the allowed methods for the path of this request.
 func (c *Context) AllowedMethods(request *http.Request) []string {
 	return c.router.OtherMethods(request.Method, request.URL.EscapedPath())
 }
 
-// ResetAuth removes the current principal from the request context
+// ResetAuth removes the current principal from the request context.
 func (c *Context) ResetAuth(request *http.Request) *http.Request {
 	rctx := request.Context()
 	rctx = stdContext.WithValue(rctx, ctxSecurityPrincipal, nil)
@@ -454,7 +456,7 @@ func (c *Context) ResetAuth(request *http.Request) *http.Request {
 // Authorize authorizes the request
 // Returns the principal object and a shallow copy of the request when its
 // context doesn't contain the principal, otherwise the same request or an error
-// (the last) if one of the authenticators returns one or an Unauthenticated error
+// (the last) if one of the authenticators returns one or an Unauthenticated error.
 func (c *Context) Authorize(request *http.Request, route *MatchedRoute) (any, *http.Request, error) {
 	if route == nil || !route.HasAuth() {
 		return nil, nil, nil
@@ -492,7 +494,7 @@ func (c *Context) Authorize(request *http.Request, route *MatchedRoute) (any, *h
 // BindAndValidate binds and validates the request
 // Returns the validation map and a shallow copy of the request when its context
 // doesn't contain the validation, otherwise it returns the same request or an
-// CompositeValidationError error
+// CompositeValidationError error.
 func (c *Context) BindAndValidate(request *http.Request, matched *MatchedRoute) (any, *http.Request, error) {
 	var rCtx = request.Context()
 
@@ -513,12 +515,12 @@ func (c *Context) BindAndValidate(request *http.Request, matched *MatchedRoute) 
 	return result.bound, request, nil
 }
 
-// NotFound the default not found responder for when no route has been matched yet
+// NotFound the default not found responder for when no route has been matched yet.
 func (c *Context) NotFound(rw http.ResponseWriter, r *http.Request) {
 	c.Respond(rw, r, []string{c.api.DefaultProduces()}, nil, errors.NotFound("not found"))
 }
 
-// Respond renders the response after doing some content negotiation
+// Respond renders the response after doing some content negotiation.
 func (c *Context) Respond(rw http.ResponseWriter, r *http.Request, produces []string, route *MatchedRoute, data any) {
 	c.debugLogf("responding to %s %s with produces: %v", r.Method, r.URL.Path, produces)
 	offers := []string{}
@@ -616,7 +618,7 @@ func (c *Context) Respond(rw http.ResponseWriter, r *http.Request, produces []st
 //
 // This handler includes a swagger spec, router and the contract defined in the swagger spec.
 //
-// A spec UI (SwaggerUI) is served at {API base path}/docs and the spec document at /swagger.json
+// A spec UI ([SwaggerUI]) is served at {API base path}/docs and the spec document at /swagger.json
 // (these can be modified with uiOptions).
 func (c *Context) APIHandlerSwaggerUI(builder Builder, opts ...UIOption) http.Handler {
 	b := builder
@@ -635,7 +637,7 @@ func (c *Context) APIHandlerSwaggerUI(builder Builder, opts ...UIOption) http.Ha
 //
 // This handler includes a swagger spec, router and the contract defined in the swagger spec.
 //
-// A spec UI (RapiDoc) is served at {API base path}/docs and the spec document at /swagger.json
+// A spec UI ([RapiDoc]) is served at {API base path}/docs and the spec document at /swagger.json
 // (these can be modified with uiOptions).
 func (c *Context) APIHandlerRapiDoc(builder Builder, opts ...UIOption) http.Handler {
 	b := builder
@@ -654,7 +656,7 @@ func (c *Context) APIHandlerRapiDoc(builder Builder, opts ...UIOption) http.Hand
 //
 // This handler includes a swagger spec, router and the contract defined in the swagger spec.
 //
-// A spec UI (Redoc) is served at {API base path}/docs and the spec document at /swagger.json
+// A spec UI ([Redoc]) is served at {API base path}/docs and the spec document at /swagger.json
 // (these can be modified with uiOptions).
 func (c *Context) APIHandler(builder Builder, opts ...UIOption) http.Handler {
 	b := builder
@@ -669,7 +671,7 @@ func (c *Context) APIHandler(builder Builder, opts ...UIOption) http.Handler {
 	return Spec(specPath, c.spec.Raw(), Redoc(redocOpts, c.RoutesHandler(b)), specOpts...)
 }
 
-// RoutesHandler returns a handler to serve the API, just the routes and the contract defined in the swagger spec
+// RoutesHandler returns a handler to serve the API, just the routes and the contract defined in the swagger spec.
 func (c *Context) RoutesHandler(builder Builder) http.Handler {
 	b := builder
 	if b == nil {
@@ -686,10 +688,12 @@ func (c Context) uiOptionsForHandler(opts []UIOption) (string, uiOptions, []Spec
 	}
 
 	// default options (may be overridden)
-	optsForContext := []UIOption{
+	const baseOptions = 2
+	optsForContext := make([]UIOption, 0, len(opts)+baseOptions)
+	optsForContext = append(optsForContext,
 		WithUIBasePath(c.BasePath()),
 		WithUITitle(title),
-	}
+	)
 	optsForContext = append(optsForContext, opts...)
 	uiOpts := uiOptionsWithDefaults(optsForContext)
 

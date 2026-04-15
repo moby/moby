@@ -31,13 +31,13 @@ func (e *errorResp) WriteResponse(rw http.ResponseWriter, producer runtime.Produ
 	}
 }
 
-// NotImplemented the error response when the response is not implemented
+// NotImplemented the error response when the response is not implemented.
 func NotImplemented(message string) Responder {
 	return Error(http.StatusNotImplemented, message)
 }
 
 // Error creates a generic responder for returning errors, the data will be serialized
-// with the matching producer for the request
+// with the matching producer for the request.
 func Error(code int, data any, headers ...http.Header) Responder {
 	var hdr http.Header
 	for _, h := range headers {

@@ -1,5 +1,32 @@
 # Changes
 
+## [2.19.0](https://github.com/googleapis/google-cloud-go/releases/tag/v2.19.0) (2026-03-17)
+
+### Features
+
+* add ClientMetrics initialization core (#473) ([f53618c](https://github.com/googleapis/google-cloud-go/commit/f53618c2a9f19d5e5945395001fdc9b317e71faf))
+* add TransportTelemetryData for dynamic transport attributes (#481) ([8a7caf0](https://github.com/googleapis/google-cloud-go/commit/8a7caf0014c9ee9bcf448f16a2e1ae77407a78b8))
+* add WithClientMetrics CallOption (#479) ([76f0284](https://github.com/googleapis/google-cloud-go/commit/76f0284ef42fb92484531483975b7ccff9c54016))
+* pass logger to downstream via context (#474) ([434fa67](https://github.com/googleapis/google-cloud-go/commit/434fa6768b9ee50ed1050a2b5aa11dbe7dbd33a6))
+* update WithLogger to WithLoggerContext. (#478) ([1cb70ba](https://github.com/googleapis/google-cloud-go/commit/1cb70baf5fda8cbff587206f94b1b08e078bd175))
+
+### Bug Fixes
+
+* lazy initialization and getters for ClientMetrics (#485) ([fb6c5f4](https://github.com/googleapis/google-cloud-go/commit/fb6c5f4d56fc3177a2d0d2b8f9e8df6e4be95505))
+
+## [2.18.0](https://github.com/googleapis/google-cloud-go/releases/tag/v2.18.0) (2026-03-09)
+
+### Features
+
+* add callctx telemetry helpers (#472) ([fa319ff](https://github.com/googleapis/google-cloud-go/commit/fa319ffc309366ab21e41f5d7480f450eedd2be9))
+* move gax-go to use 1.25 as the lower bound of support (#469) ([01594ca](https://github.com/googleapis/google-cloud-go/commit/01594ca54717eebe7229a5168ef41be61191a720))
+
+## [2.17.0](https://github.com/googleapis/google-cloud-go/releases/tag/v2.17.0) (2026-02-03)
+
+### Features
+
+* update Invoke to add retry count to context (#462) ([ea7096d](https://github.com/googleapis/google-cloud-go/commit/ea7096d50d665064dbfeffd7d93fa13d810ad4e4))
+
 ## [2.16.0](https://github.com/googleapis/google-cloud-go/releases/tag/v2.16.0) (2025-12-17)
 
 ### Features

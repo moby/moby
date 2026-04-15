@@ -1,5 +1,18 @@
 # Changes
 
+## [0.18.2](https://github.com/googleapis/google-cloud-go/releases/tag/auth%2Fv0.18.2) (2026-02-13)
+
+### Bug Fixes
+
+* fixes gdch credentials logic (#13741) ([f82cda5](https://github.com/googleapis/google-cloud-go/commit/f82cda58bd9885b7b8a9d8b15126f5a1e0add0dc))
+
+## [0.18.1](https://github.com/googleapis/google-cloud-go/releases/tag/auth%2Fv0.18.1) (2026-01-21)
+
+### Bug Fixes
+
+* add InternalOptions.TelemetryAttributes for internal client use (#13641) ([3876978](https://github.com/googleapis/google-cloud-go/commit/38769789755ed47d85e85dcd56596109de65f780))
+* remove singleton and restore normal usage of otelgrpc.clientHandler (#13522) ([673d4b0](https://github.com/googleapis/google-cloud-go/commit/673d4b05617f833aa433f7f6a350b5cb888ea20d))
+
 ## [0.18.0](https://github.com/googleapis/google-cloud-go/releases/tag/auth%2Fv0.18.0) (2025-12-15)
 
 ### Features

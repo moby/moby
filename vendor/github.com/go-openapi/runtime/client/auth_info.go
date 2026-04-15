@@ -11,14 +11,14 @@ import (
 	"github.com/go-openapi/runtime"
 )
 
-// PassThroughAuth never manipulates the request
+// PassThroughAuth never manipulates the request.
 var PassThroughAuth runtime.ClientAuthInfoWriter
 
 func init() {
 	PassThroughAuth = runtime.ClientAuthInfoWriterFunc(func(_ runtime.ClientRequest, _ strfmt.Registry) error { return nil })
 }
 
-// BasicAuth provides a basic auth info writer
+// BasicAuth provides a basic auth info writer.
 func BasicAuth(username, password string) runtime.ClientAuthInfoWriter {
 	return runtime.ClientAuthInfoWriterFunc(func(r runtime.ClientRequest, _ strfmt.Registry) error {
 		encoded := base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
@@ -26,7 +26,7 @@ func BasicAuth(username, password string) runtime.ClientAuthInfoWriter {
 	})
 }
 
-// APIKeyAuth provides an API key auth info writer
+// APIKeyAuth provides an API key auth info writer.
 func APIKeyAuth(name, in, value string) runtime.ClientAuthInfoWriter {
 	if in == "query" {
 		return runtime.ClientAuthInfoWriterFunc(func(r runtime.ClientRequest, _ strfmt.Registry) error {
@@ -42,7 +42,7 @@ func APIKeyAuth(name, in, value string) runtime.ClientAuthInfoWriter {
 	return nil
 }
 
-// BearerToken provides a header based oauth2 bearer access token auth info writer
+// BearerToken provides a header based oauth2 bearer access token auth info writer.
 func BearerToken(token string) runtime.ClientAuthInfoWriter {
 	return runtime.ClientAuthInfoWriterFunc(func(r runtime.ClientRequest, _ strfmt.Registry) error {
 		return r.SetHeaderParam(runtime.HeaderAuthorization, "Bearer "+token)

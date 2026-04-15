@@ -8,7 +8,7 @@ However, Denco is optimized and some features added.
 ## Features
 
 * Fast (See [go-http-routing-benchmark](https://github.com/naoina/go-http-routing-benchmark))
-* [URL patterns](#url-patterns) (`/foo/:bar` and `/foo/*wildcard`)
+*[URL patterns](#url-patterns) (`/foo/:bar` and `/foo/*wildcard`)
 * Small (but enough) URL router API
 * HTTP request multiplexer like `http.ServeMux`
 

@@ -250,6 +250,22 @@ func WithTimeout(t time.Duration) CallOption {
 	return &timeoutOpt{t: t}
 }
 
+type clientMetricsOpt struct {
+	cm *ClientMetrics
+}
+
+// Resolve applies the ClientMetrics to the CallSettings.
+func (o clientMetricsOpt) Resolve(s *CallSettings) {
+	s.clientMetrics = o.cm
+}
+
+// WithClientMetrics applies metrics instrumentation to the CallSettings.
+//
+// This is for internal use only.
+func WithClientMetrics(cm *ClientMetrics) CallOption {
+	return clientMetricsOpt{cm: cm}
+}
+
 // CallSettings allow fine-grained control over how calls are made.
 type CallSettings struct {
 	// Retry returns a Retryer to be used to control retry logic of a method call.
@@ -265,4 +281,8 @@ type CallSettings struct {
 	// Timeout defines the amount of time that Invoke has to complete.
 	// Unexported so it cannot be changed by the code in an APICall.
 	timeout time.Duration
+
+	// clientMetrics holds the pre-allocated OpenTelemetry metrics instruments
+	// to use for this call.
+	clientMetrics *ClientMetrics
 }

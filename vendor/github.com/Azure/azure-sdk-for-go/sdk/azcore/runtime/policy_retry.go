@@ -1,6 +1,3 @@
-//go:build go1.18
-// +build go1.18
-
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -117,7 +114,10 @@ func (p *retryPolicy) Do(req *policy.Request) (resp *http.Response, err error) {
 		// wrap the body so we control when it's actually closed.
 		// do this outside the for loop so defers don't accumulate.
 		rwbody = &retryableRequestBody{body: req.Body()}
-		defer rwbody.realClose()
+		defer func() {
+			// TODO: https://github.com/Azure/azure-sdk-for-go/issues/25649
+			_ = rwbody.realClose()
+		}()
 	}
 	try := int32(1)
 	for {
@@ -222,6 +222,7 @@ func (p *retryPolicy) Do(req *policy.Request) (resp *http.Response, err error) {
 
 // WithRetryOptions adds the specified RetryOptions to the parent context.
 // Use this to specify custom RetryOptions at the API-call level.
+//
 // Deprecated: use [policy.WithRetryOptions] instead.
 func WithRetryOptions(parent context.Context, options policy.RetryOptions) context.Context {
 	return policy.WithRetryOptions(parent, options)

@@ -21,17 +21,18 @@ import (
 // The consumer consumes CSV records from a provided reader into the data passed by reference.
 //
 // CSVOpts options may be specified to alter the default CSV behavior on the reader and the writer side (e.g. separator, skip header, ...).
-// The defaults are those of the standard library's csv.Reader and csv.Writer.
+// The defaults are those of the standard library's [csv.Reader] and [csv.Writer].
 //
 // Supported output underlying types and interfaces, prioritized in this order:
-// - *csv.Writer
-// - CSVWriter (writer options are ignored)
-// - io.Writer (as raw bytes)
-// - io.ReaderFrom (as raw bytes)
-// - encoding.BinaryUnmarshaler (as raw bytes)
-// - *[][]string (as a collection of records)
-// - *[]byte (as raw bytes)
-// - *string (a raw bytes)
+//
+//   - *[csv.Writer]
+//   - [CSVWriter] (writer options are ignored)
+//   - [io.Writer] (as raw bytes)
+//   - [io.ReaderFrom] (as raw bytes)
+//   - [encoding.BinaryUnmarshaler] (as raw bytes)
+//   - *[][]string (as a collection of records)
+//   - *[]byte (as raw bytes)
+//   - *string (a raw bytes)
 //
 // The consumer prioritizes situations where buffering the input is not required.
 func CSVConsumer(opts ...CSVOpt) Consumer {
@@ -157,11 +158,12 @@ func CSVConsumer(opts ...CSVOpt) Consumer {
 // The producer takes input data then writes as CSV to an output writer (essentially as a pipe).
 //
 // Supported input underlying types and interfaces, prioritized in this order:
-// - *csv.Reader
-// - CSVReader (reader options are ignored)
-// - io.Reader
-// - io.WriterTo
-// - encoding.BinaryMarshaler
+//
+// - *[csv.Reader]
+// - [CSVReader] (reader options are ignored)
+// - [io.Reader]
+// - [io.WriterTo]
+// - [encoding.BinaryMarshaler]
 // - [][]string
 // - []byte
 // - string
@@ -283,7 +285,7 @@ func CSVProducer(opts ...CSVOpt) Producer {
 	})
 }
 
-// pipeCSV copies CSV records from a CSV reader to a CSV writer
+// pipeCSV copies CSV records from a CSV reader to a CSV writer.
 func pipeCSV(csvWriter CSVWriter, csvReader CSVReader, opts csvOpts) error {
 	for ; opts.skippedLines > 0; opts.skippedLines-- {
 		_, err := csvReader.Read()

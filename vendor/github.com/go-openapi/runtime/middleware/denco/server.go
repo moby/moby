@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright (c) 2014 Naoya Inada <naoina@kuune.org>
+// SPDX-License-Identifier: MIT
 
 package denco
 
@@ -10,27 +12,27 @@ import (
 // Mux represents a multiplexer for HTTP request.
 type Mux struct{}
 
-// NewMux returns a new Mux.
+// NewMux returns a new [Mux].
 func NewMux() *Mux {
 	return &Mux{}
 }
 
-// GET is shorthand of Mux.Handler("GET", path, handler).
+// GET is shorthand of [Mux].Handler("GET", path, handler).
 func (m *Mux) GET(path string, handler HandlerFunc) Handler {
 	return m.Handler("GET", path, handler)
 }
 
-// POST is shorthand of Mux.Handler("POST", path, handler).
+// POST is shorthand of [Mux].Handler("POST", path, handler).
 func (m *Mux) POST(path string, handler HandlerFunc) Handler {
 	return m.Handler("POST", path, handler)
 }
 
-// PUT is shorthand of Mux.Handler("PUT", path, handler).
+// PUT is shorthand of [Mux].Handler("PUT", path, handler).
 func (m *Mux) PUT(path string, handler HandlerFunc) Handler {
 	return m.Handler("PUT", path, handler)
 }
 
-// HEAD is shorthand of Mux.Handler("HEAD", path, handler).
+// HEAD is shorthand of [Mux].Handler("HEAD", path, handler).
 func (m *Mux) HEAD(path string, handler HandlerFunc) Handler {
 	return m.Handler("HEAD", path, handler)
 }
@@ -44,7 +46,7 @@ func (m *Mux) Handler(method, path string, handler HandlerFunc) Handler {
 	}
 }
 
-// Build builds a http.Handler.
+// Build builds a [http.Handler].
 func (m *Mux) Build(handlers []Handler) (http.Handler, error) {
 	recordMap := make(map[string][]Record)
 	for _, h := range handlers {
@@ -73,7 +75,7 @@ type Handler struct {
 	Func HandlerFunc
 }
 
-// The HandlerFunc type is aliased to type of handler function.
+// HandlerFunc is aliased to type of handler function.
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, params Params)
 
 type serveMux struct {
