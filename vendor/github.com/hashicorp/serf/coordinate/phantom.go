@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package coordinate
 
 import (
@@ -11,7 +14,7 @@ import (
 // given config.
 func GenerateClients(nodes int, config *Config) ([]*Client, error) {
 	clients := make([]*Client, nodes)
-	for i, _ := range clients {
+	for i := range clients {
 		client, err := NewClient(config)
 		if err != nil {
 			return nil, err
@@ -146,7 +149,7 @@ func Simulate(clients []*Client, truth [][]time.Duration, cycles int) {
 
 	nodes := len(clients)
 	for cycle := 0; cycle < cycles; cycle++ {
-		for i, _ := range clients {
+		for i := range clients {
 			if j := rand.Intn(nodes); j != i {
 				c := clients[j].GetCoordinate()
 				rtt := truth[i][j]
@@ -168,6 +171,9 @@ type Stats struct {
 // distances and compares them with the given truth matrix, returning summary
 // stats.
 func Evaluate(clients []*Client, truth [][]time.Duration) (stats Stats) {
+	if len(clients) <= 1 {
+		return
+	}
 	nodes := len(clients)
 	count := 0
 	for i := 0; i < nodes; i++ {

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package memberlist
 
 import (
@@ -10,14 +13,12 @@ import (
 )
 
 /*
-
 Encrypted messages are prefixed with an encryptionVersion byte
 that is used for us to be able to properly encode/decode. We
 currently support the following versions:
 
- 0 - AES-GCM 128, using PKCS7 padding
- 1 - AES-GCM 128, no padding. Padding not needed, caused bloat.
-
+	0 - AES-GCM 128, using PKCS7 padding
+	1 - AES-GCM 128, no padding. Padding not needed, caused bloat.
 */
 type encryptionVersion uint8
 

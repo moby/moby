@@ -1,11 +1,14 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package serf
 
 import (
 	"bytes"
 	"fmt"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-metrics/compat"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/memberlist"
 )
 
@@ -30,11 +33,16 @@ func (d *delegate) NotifyMsg(buf []byte) {
 	if len(buf) == 0 {
 		return
 	}
-	metrics.AddSample([]string{"serf", "msgs", "received"}, float32(len(buf)))
+	metrics.AddSampleWithLabels([]string{"serf", "msgs", "received"}, float32(len(buf)), d.serf.metricLabels)
 
 	rebroadcast := false
 	rebroadcastQueue := d.serf.broadcasts
 	t := messageType(buf[0])
+
+	if d.serf.config.messageDropper(t) {
+		return
+	}
+
 	switch t {
 	case messageLeaveType:
 		var leave messageLeave
@@ -101,8 +109,14 @@ func (d *delegate) NotifyMsg(buf []byte) {
 		// The remaining contents are the message itself, so forward that
 		raw := make([]byte, reader.Len())
 		reader.Read(raw)
+
+		addr := memberlist.Address{
+			Addr: header.DestAddr.String(),
+			Name: header.DestName,
+		}
+
 		d.serf.logger.Printf("[DEBUG] serf: Relaying response to addr: %s", header.DestAddr.String())
-		if err := d.serf.memberlist.SendTo(&header.DestAddr, raw); err != nil {
+		if err := d.serf.memberlist.SendToAddress(addr, raw); err != nil {
 			d.serf.logger.Printf("[ERR] serf: Error forwarding message to %s: %s", header.DestAddr.String(), err)
 			break
 		}
@@ -131,7 +145,7 @@ func (d *delegate) GetBroadcasts(overhead, limit int) [][]byte {
 	for _, msg := range msgs {
 		lm := len(msg)
 		bytesUsed += lm + overhead
-		metrics.AddSample([]string{"serf", "msgs", "sent"}, float32(lm))
+		metrics.AddSampleWithLabels([]string{"serf", "msgs", "sent"}, float32(lm), d.serf.metricLabels)
 	}
 
 	// Get any additional query broadcasts
@@ -140,7 +154,7 @@ func (d *delegate) GetBroadcasts(overhead, limit int) [][]byte {
 		for _, m := range queryMsgs {
 			lm := len(m)
 			bytesUsed += lm + overhead
-			metrics.AddSample([]string{"serf", "msgs", "sent"}, float32(lm))
+			metrics.AddSampleWithLabels([]string{"serf", "msgs", "sent"}, float32(lm), d.serf.metricLabels)
 		}
 		msgs = append(msgs, queryMsgs...)
 	}
@@ -151,7 +165,7 @@ func (d *delegate) GetBroadcasts(overhead, limit int) [][]byte {
 		for _, m := range eventMsgs {
 			lm := len(m)
 			bytesUsed += lm + overhead
-			metrics.AddSample([]string{"serf", "msgs", "sent"}, float32(lm))
+			metrics.AddSampleWithLabels([]string{"serf", "msgs", "sent"}, float32(lm), d.serf.keyManager.serf.metricLabels)
 		}
 		msgs = append(msgs, eventMsgs...)
 	}
@@ -186,7 +200,7 @@ func (d *delegate) LocalState(join bool) []byte {
 	}
 
 	// Encode the push pull state
-	buf, err := encodeMessage(messagePushPullType, &pp)
+	buf, err := encodeMessage(messagePushPullType, &pp, d.serf.msgpackUseNewTimeFormat)
 	if err != nil {
 		d.serf.logger.Printf("[ERR] serf: Failed to encode local state: %v", err)
 		return nil
@@ -204,6 +218,10 @@ func (d *delegate) MergeRemoteState(buf []byte, isJoin bool) {
 	// Check the message type
 	if messageType(buf[0]) != messagePushPullType {
 		d.serf.logger.Printf("[ERR] serf: Remote state has bad type prefix: %v", buf[0])
+		return
+	}
+
+	if d.serf.config.messageDropper(messagePushPullType) {
 		return
 	}
 
