@@ -1,3 +1,6 @@
+// Copyright IBM Corp. 2013, 2025
+// SPDX-License-Identifier: MPL-2.0
+
 package memberlist
 
 import (
@@ -78,7 +81,7 @@ func (t *MockTransport) FinalAdvertiseAddr(string, int) (net.IP, int, error) {
 
 	ip := net.ParseIP(host)
 	if ip == nil {
-		return nil, 0, fmt.Errorf("Failed to parse IP %q", host)
+		return nil, 0, fmt.Errorf("failed to parse IP %q", host)
 	}
 
 	port, err := strconv.ParseInt(portStr, 10, 16)
@@ -119,7 +122,9 @@ func (t *MockTransport) PacketCh() <-chan *Packet {
 // See NodeAwareTransport.
 func (t *MockTransport) IngestPacket(conn net.Conn, addr net.Addr, now time.Time, shouldClose bool) error {
 	if shouldClose {
-		defer conn.Close()
+		defer func() {
+			_ = conn.Close()
+		}()
 	}
 
 	// Copy everything from the stream into packet buffer.
@@ -189,7 +194,7 @@ func (t *MockTransport) getPeer(a Address) (*MockTransport, error) {
 		dest, ok = t.net.transportsByAddr[a.Addr]
 	}
 	if !ok {
-		return nil, fmt.Errorf("No route to %s", a)
+		return nil, fmt.Errorf("no route to %s", a)
 	}
 	return dest, nil
 }
