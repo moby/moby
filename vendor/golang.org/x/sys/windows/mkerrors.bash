@@ -8,9 +8,15 @@ set -e
 shopt -s nullglob
 
 winerror="$(printf '%s\n' "/mnt/c/Program Files (x86)/Windows Kits/"/*/Include/*/shared/winerror.h | sort -Vr | head -n 1)"
-[[ -n $winerror ]] || { echo "Unable to find winerror.h" >&2; exit 1; }
+[[ -n $winerror ]] || {
+	echo "Unable to find winerror.h" >&2
+	exit 1
+}
 ntstatus="$(printf '%s\n' "/mnt/c/Program Files (x86)/Windows Kits/"/*/Include/*/shared/ntstatus.h | sort -Vr | head -n 1)"
-[[ -n $ntstatus ]] || { echo "Unable to find ntstatus.h" >&2; exit 1; }
+[[ -n $ntstatus ]] || {
+	echo "Unable to find ntstatus.h" >&2
+	exit 1
+}
 
 declare -A errors
 

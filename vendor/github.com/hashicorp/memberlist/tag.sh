@@ -4,8 +4,8 @@ set -e
 # The version must be supplied from the environment. Do not include the
 # leading "v".
 if [ -z $VERSION ]; then
-    echo "Please specify a version."
-    exit 1
+	echo "Please specify a version."
+	exit 1
 fi
 
 # Generate the tag.

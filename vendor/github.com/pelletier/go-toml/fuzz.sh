@@ -5,7 +5,7 @@ go get github.com/dvyukov/go-fuzz/go-fuzz
 go get github.com/dvyukov/go-fuzz/go-fuzz-build
 
 if [ ! -e toml-fuzz.zip ]; then
-    go-fuzz-build github.com/pelletier/go-toml
+	go-fuzz-build github.com/pelletier/go-toml
 fi
 
 rm -fr fuzz
