@@ -133,6 +133,7 @@ func newClientNewAuth(ctx context.Context, base http.RoundTripper, ds *internal.
 			DefaultMTLSEndpoint:     ds.DefaultMTLSEndpoint,
 			DefaultScopes:           ds.DefaultScopes,
 			SkipValidation:          skipValidation,
+			TelemetryAttributes:     ds.TelemetryAttributes,
 		},
 		UniverseDomain: ds.UniverseDomain,
 		Logger:         ds.Logger,

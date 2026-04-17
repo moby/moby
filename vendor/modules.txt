@@ -1,8 +1,8 @@
 # cloud.google.com/go v0.123.0
 ## explicit; go 1.24.0
 cloud.google.com/go
-# cloud.google.com/go/auth v0.18.0
-## explicit; go 1.24.0
+# cloud.google.com/go/auth v0.19.0
+## explicit; go 1.25.0
 cloud.google.com/go/auth
 cloud.google.com/go/auth/credentials
 cloud.google.com/go/auth/credentials/internal/externalaccount
@@ -27,17 +27,18 @@ cloud.google.com/go/auth/oauth2adapt
 # cloud.google.com/go/compute/metadata v0.9.0
 ## explicit; go 1.24.0
 cloud.google.com/go/compute/metadata
-# cloud.google.com/go/logging v1.13.2
-## explicit; go 1.24.0
+# cloud.google.com/go/logging v1.16.0
+## explicit; go 1.25.0
 cloud.google.com/go/logging
 cloud.google.com/go/logging/apiv2
 cloud.google.com/go/logging/apiv2/loggingpb
 cloud.google.com/go/logging/internal
-# cloud.google.com/go/longrunning v0.8.0
-## explicit; go 1.24.0
+# cloud.google.com/go/longrunning v0.9.0
+## explicit; go 1.25.0
 cloud.google.com/go/longrunning
 cloud.google.com/go/longrunning/autogen
 cloud.google.com/go/longrunning/autogen/longrunningpb
+cloud.google.com/go/longrunning/internal
 # code.cloudfoundry.org/clock v1.60.0
 ## explicit; go 1.24.9
 code.cloudfoundry.org/clock
@@ -857,12 +858,12 @@ github.com/google/shlex
 # github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid
-# github.com/googleapis/enterprise-certificate-proxy v0.3.9
-## explicit; go 1.23.0
+# github.com/googleapis/enterprise-certificate-proxy v0.3.14
+## explicit; go 1.24.11
 github.com/googleapis/enterprise-certificate-proxy/client
 github.com/googleapis/enterprise-certificate-proxy/client/util
-# github.com/googleapis/gax-go/v2 v2.16.0
-## explicit; go 1.24.0
+# github.com/googleapis/gax-go/v2 v2.21.0
+## explicit; go 1.25.0
 github.com/googleapis/gax-go/v2
 github.com/googleapis/gax-go/v2/apierror
 github.com/googleapis/gax-go/v2/apierror/internal/proto
@@ -1943,8 +1944,8 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/api v0.260.0
-## explicit; go 1.24.0
+# google.golang.org/api v0.274.0
+## explicit; go 1.25.0
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
 google.golang.org/api/internal

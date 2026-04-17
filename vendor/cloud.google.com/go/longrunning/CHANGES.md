@@ -1,5 +1,7 @@
 # Changes
 
+## [0.9.0](https://github.com/googleapis/google-cloud-go/releases/tag/longrunning%2Fv0.9.0) (2026-04-02)
+
 ## [0.8.0](https://github.com/googleapis/google-cloud-go/releases/tag/longrunning%2Fv0.8.0) (2026-01-08)
 
 ### Bug Fixes

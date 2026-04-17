@@ -168,6 +168,15 @@ type InternalOptions struct {
 	// for the credentials. It should only be used internally for clients that
 	// need more control over their transport. The default is false.
 	SkipUniverseDomainValidation bool
+	// TelemetryAttributes specifies a map of telemetry attributes to be added
+	// to all OpenTelemetry signals, such as tracing and metrics, for purposes
+	// including representing the static identity of the client (e.g., service
+	// name, version). These attributes are expected to be consistent across all
+	// signals to enable cross-signal correlation.
+	//
+	// It should only be used internally by generated clients. Callers should not
+	// modify the map after it is passed in.
+	TelemetryAttributes map[string]string
 }
 
 // AddAuthorizationMiddleware adds a middleware to the provided client's
