@@ -301,7 +301,7 @@ func (i *inserter[N]) addCallback(cback func(context.Context) error) {
 	i.pipeline.callbacks = append(i.pipeline.callbacks, cback)
 }
 
-var aggIDCount uint64
+var aggIDCount atomic.Uint64
 
 // aggVal is the cached value in an aggregators cache.
 type aggVal[N int64 | float64] struct {
@@ -395,9 +395,7 @@ func (i *inserter[N]) cachedAggregator(
 		b.Filter = stream.AttributeFilter
 		// A value less than or equal to zero will disable the aggregation
 		// limits for the builder (an all the created aggregates).
-		// cardinalityLimit will be 0 by default if unset (or
-		// unrecognized input). Use that value directly.
-		b.AggregationLimit = i.pipeline.cardinalityLimit
+		b.AggregationLimit = i.getCardinalityLimit(kind)
 		in, out, err := i.aggregateFunc(b, stream.Aggregation, kind)
 		if err != nil {
 			return aggVal[N]{0, nil, err}
@@ -413,10 +411,22 @@ func (i *inserter[N]) cachedAggregator(
 			unit:        stream.Unit,
 			compAgg:     out,
 		})
-		id := atomic.AddUint64(&aggIDCount, 1)
+		id := aggIDCount.Add(1)
 		return aggVal[N]{id, in, err}
 	})
 	return cv.Measure, cv.ID, cv.Err
+}
+
+// getCardinalityLimit returns the cardinality limit for the given instrument kind.
+// When the reader's selector returns fallback = true, the pipeline's global
+// limit is used, then the default if global is unset. When fallback is false,
+// the selector's limit is used (0 or less means unlimited).
+func (i *inserter[N]) getCardinalityLimit(kind InstrumentKind) int {
+	limit, fallback := i.pipeline.reader.cardinalityLimit(kind)
+	if fallback {
+		return i.pipeline.cardinalityLimit
+	}
+	return limit
 }
 
 // logConflict validates if an instrument with the same case-insensitive name

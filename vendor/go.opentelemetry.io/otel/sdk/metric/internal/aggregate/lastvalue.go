@@ -8,14 +8,16 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/sdk/internal/x"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 // lastValuePoint is timestamped measurement data.
 type lastValuePoint[N int64 | float64] struct {
-	attrs attribute.Set
-	value atomicN[N]
-	res   FilteredExemplarReservoir[N]
+	attrs     attribute.Set
+	value     atomicN[N]
+	res       FilteredExemplarReservoir[N]
+	startTime time.Time
 }
 
 // lastValueMap summarizes a set of measurements as the last one made.
@@ -31,10 +33,13 @@ func (s *lastValueMap[N]) measure(
 	droppedAttr []attribute.KeyValue,
 ) {
 	lv := s.values.LoadOrStoreAttr(fltrAttr, func(attr attribute.Set) any {
-		return &lastValuePoint[N]{
-			res:   s.newRes(attr),
-			attrs: attr,
+		p := &lastValuePoint[N]{
+			res:       s.newRes(attr),
+			attrs:     attr,
+			startTime: now(),
 		}
+		p.value.Store(value)
+		return p
 	}).(*lastValuePoint[N])
 
 	lv.value.Store(value)
@@ -156,12 +161,19 @@ func (s *cumulativeLastValue[N]) collect(
 	// current length for capacity.
 	dPts := reset(gData.DataPoints, 0, s.values.Len())
 
+	perSeriesStartTimeEnabled := x.PerSeriesStartTimestamps.Enabled()
+
 	var i int
 	s.values.Range(func(_, value any) bool {
 		v := value.(*lastValuePoint[N])
+
+		startTime := s.start
+		if perSeriesStartTimeEnabled {
+			startTime = v.startTime
+		}
 		newPt := metricdata.DataPoint[N]{
 			Attributes: v.attrs,
-			StartTime:  s.start,
+			StartTime:  startTime,
 			Time:       t,
 			Value:      v.value.Load(),
 		}
