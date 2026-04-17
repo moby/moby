@@ -510,24 +510,20 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
+	addVirtualSize := versions.LessThan(version, "1.44")
 	noDescriptor := versions.LessThan(version, "1.48")
 	noContainers := versions.LessThan(version, "1.51")
-	for i := range images {
-		if images[i].RepoTags == nil {
-			images[i].RepoTags = []string{}
-		}
-		if images[i].RepoDigests == nil {
-			images[i].RepoDigests = []string{}
-		}
-		if noDescriptor {
-			images[i].Descriptor = nil
-		}
-		if noContainers {
-			images[i].Containers = -1
+	if noDescriptor || noContainers {
+		for i := range images {
+			if noDescriptor {
+				images[i].Descriptor = nil
+			}
+			if noContainers {
+				images[i].Containers = -1
+			}
 		}
 	}
-
-	if versions.LessThan(version, "1.44") {
+	if addVirtualSize {
 		wrapped := make([]*compat.Wrapper, len(images))
 		for i := range images {
 			wrapped[i] = compat.Wrap(&images[i], compat.WithExtraFields(map[string]any{
