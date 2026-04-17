@@ -196,6 +196,20 @@ func (tf TraceFlags) WithSampled(sampled bool) TraceFlags { // nolint:revive  //
 	return tf &^ FlagsSampled
 }
 
+// IsRandom reports whether the random bit is set in the TraceFlags.
+func (tf TraceFlags) IsRandom() bool {
+	return tf&FlagsRandom == FlagsRandom
+}
+
+// WithRandom sets the random bit in a new copy of the TraceFlags.
+func (tf TraceFlags) WithRandom(random bool) TraceFlags { // nolint:revive  // random is not a control flag.
+	if random {
+		return tf | FlagsRandom
+	}
+
+	return tf &^ FlagsRandom
+}
+
 // MarshalJSON implements a custom marshal function to encode TraceFlags
 // as a hex string.
 func (tf TraceFlags) MarshalJSON() ([]byte, error) {
@@ -320,6 +334,11 @@ func (sc SpanContext) TraceFlags() TraceFlags {
 // IsSampled reports whether the sampling bit is set in the SpanContext's TraceFlags.
 func (sc SpanContext) IsSampled() bool {
 	return sc.traceFlags.IsSampled()
+}
+
+// IsRandom reports whether the random bit is set in the SpanContext's TraceFlags.
+func (sc SpanContext) IsRandom() bool {
+	return sc.traceFlags.IsRandom()
 }
 
 // WithTraceFlags returns a new SpanContext with the TraceFlags replaced.
