@@ -123,8 +123,9 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 						msg.Timestamp = partialTS
 					}
 
+					line := string(msg.Line)
 					if logErr := c.dst.Log(msg); logErr != nil {
-						logDriverError(c.dst.Name(), string(msg.Line), logErr)
+						logDriverError(c.dst.Name(), line, logErr)
 					}
 				}
 				p += q + 1
@@ -155,8 +156,9 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 					ordinal++
 					hasMorePartial = true
 
+					line := string(msg.Line)
 					if logErr := c.dst.Log(msg); logErr != nil {
-						logDriverError(c.dst.Name(), string(msg.Line), logErr)
+						logDriverError(c.dst.Name(), line, logErr)
 					}
 					p = 0
 					n = 0

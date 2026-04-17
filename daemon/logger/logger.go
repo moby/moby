@@ -66,6 +66,10 @@ func (m *Message) AsLogMessage() *backend.LogMessage {
 
 // Logger is the interface for docker logging drivers.
 type Logger interface {
+	// It's conventional that loggers will return the message to the message pool
+	// with `PutMessage` inside this function, so the passed message will be reset
+	// and unsafe for use after return due to race conditions. Avoid holding a
+	// reference to the message or its subfields after calling this function.
 	Log(*Message) error
 	Name() string
 	Close() error

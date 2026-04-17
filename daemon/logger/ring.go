@@ -108,8 +108,9 @@ func (r *ringLogger) Close() error {
 			continue
 		}
 
+		line := string(msg.Line)
 		if err := r.l.Log(msg); err != nil {
-			logDriverError(r.l.Name(), string(msg.Line), err)
+			logDriverError(r.l.Name(), line, err)
 			logErr = true
 		}
 	}
@@ -130,8 +131,9 @@ func (r *ringLogger) run() {
 			// buffer is closed
 			return
 		}
+		line := string(msg.Line)
 		if err := r.l.Log(msg); err != nil {
-			logDriverError(r.l.Name(), string(msg.Line), err)
+			logDriverError(r.l.Name(), line, err)
 		}
 	}
 }
