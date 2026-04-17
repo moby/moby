@@ -86,7 +86,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.2
-	github.com/rootless-containers/rootlesskit/v2 v2.3.6
+	github.com/rootless-containers/rootlesskit/v3 v3.0.0
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -105,7 +105,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0
 	golang.org/x/net v0.52.0
 	golang.org/x/sync v0.20.0
-	golang.org/x/sys v0.42.0
+	golang.org/x/sys v0.43.0
 	golang.org/x/text v0.35.0
 	golang.org/x/time v0.15.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9
@@ -116,6 +116,8 @@ require (
 	resenje.org/singleflight v0.4.3
 	tags.cncf.io/container-device-interface v1.1.0
 )
+
+require github.com/rootless-containers/rootlesskit/v2 v2.3.6
 
 require (
 	cloud.google.com/go v0.123.0 // indirect
