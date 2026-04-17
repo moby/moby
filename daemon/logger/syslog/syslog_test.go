@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	syslog "github.com/RackSec/srslog"
 	"github.com/moby/moby/v2/daemon/logger"
@@ -140,6 +141,24 @@ func TestParseAddressDefaultPort(t *testing.T) {
 	_, port, _ := net.SplitHostPort(address)
 	if port != defaultPort {
 		t.Fatalf("Expected to default to port %s. It used port %s", defaultPort, port)
+	}
+}
+
+func TestParseLazyConnect(t *testing.T) {
+	if value, err := parseLazyConnect("true"); err != nil || !value {
+		t.Fatalf("Expected (true, nil), got (%v, %v)", value, err)
+	}
+	if value, err := parseLazyConnect(""); err != nil || value {
+		t.Fatalf("Expected default (false, nil), got (%v, %v)", value, err)
+	}
+}
+
+func TestParseTimeout(t *testing.T) {
+	if value, err := parseTimeout(""); err != nil || value != 0 {
+		t.Fatalf("Expected (0, nil), got (%v, %v)", value, err)
+	}
+	if value, err := parseTimeout("30s"); err != nil || value != 30*time.Second {
+		t.Fatalf("Expected default (30s, nil), got (%v, %v)", value, err)
 	}
 }
 
