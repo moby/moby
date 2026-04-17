@@ -1,4 +1,11 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package coordinate
+
+import (
+	"github.com/hashicorp/go-metrics/compat"
+)
 
 // Config is used to set the parameters of the Vivaldi-based coordinate mapping
 // algorithm.
@@ -7,12 +14,17 @@ package coordinate
 // here:
 //
 // [1] Dabek, Frank, et al. "Vivaldi: A decentralized network coordinate system."
-//     ACM SIGCOMM Computer Communication Review. Vol. 34. No. 4. ACM, 2004.
+//
+//	ACM SIGCOMM Computer Communication Review. Vol. 34. No. 4. ACM, 2004.
+//
 // [2] Ledlie, Jonathan, Paul Gardner, and Margo I. Seltzer. "Network Coordinates
-//     in the Wild." NSDI. Vol. 7. 2007.
+//
+//	in the Wild." NSDI. Vol. 7. 2007.
+//
 // [3] Lee, Sanghwan, et al. "On suitability of Euclidean embedding for
-//     host-based network coordinate systems." Networking, IEEE/ACM Transactions
-//     on 18.1 (2010): 27-40.
+//
+//	host-based network coordinate systems." Networking, IEEE/ACM Transactions
+//	on 18.1 (2010): 27-40.
 type Config struct {
 	// The dimensionality of the coordinate system. As discussed in [2], more
 	// dimensions improves the accuracy of the estimates up to a point. Per [2]
@@ -52,6 +64,9 @@ type Config struct {
 	// GravityRho is a tuning factor that sets how much gravity has an effect
 	// to try to re-center coordinates. See [2] for more details.
 	GravityRho float64
+
+	// metricLabels is the slice of labels to put on all emitted metrics
+	MetricLabels []metrics.Label
 }
 
 // DefaultConfig returns a Config that has some default values suitable for

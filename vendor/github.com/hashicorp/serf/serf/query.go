@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package serf
 
 import (
@@ -9,6 +12,8 @@ import (
 	"regexp"
 	"sync"
 	"time"
+
+	"github.com/hashicorp/memberlist"
 )
 
 // QueryParam is provided to Query() to configure the parameters of the
@@ -183,6 +188,22 @@ func (r *QueryResponse) sendResponse(nr NodeResponse) error {
 	return nil
 }
 
+// sendResponse sends a response on the response channel ensuring the channel is not closed.
+func (r *QueryResponse) sendAck(nr *messageQueryResponse) error {
+	r.closeLock.Lock()
+	defer r.closeLock.Unlock()
+	if r.closed {
+		return nil
+	}
+	select {
+	case r.ackCh <- nr.From:
+		r.acks[nr.From] = struct{}{}
+	default:
+		return errors.New("serf: Failed to deliver query response, dropping")
+	}
+	return nil
+}
+
 // NodeResponse is used to represent a single response from a node
 type NodeResponse struct {
 	From    string
@@ -243,7 +264,12 @@ func (s *Serf) shouldProcessQuery(filters [][]byte) bool {
 
 // relayResponse will relay a copy of the given response to up to relayFactor
 // other members.
-func (s *Serf) relayResponse(relayFactor uint8, addr net.UDPAddr, resp *messageQueryResponse) error {
+func (s *Serf) relayResponse(
+	relayFactor uint8,
+	addr net.UDPAddr,
+	nodeName string,
+	resp *messageQueryResponse,
+) error {
 	if relayFactor == 0 {
 		return nil
 	}
@@ -257,7 +283,7 @@ func (s *Serf) relayResponse(relayFactor uint8, addr net.UDPAddr, resp *messageQ
 	}
 
 	// Prep the relay message, which is a wrapped version of the original.
-	raw, err := encodeRelayMessage(messageQueryResponseType, addr, &resp)
+	raw, err := encodeRelayMessage(messageQueryResponseType, addr, nodeName, &resp)
 	if err != nil {
 		return fmt.Errorf("failed to format relayed response: %v", err)
 	}
@@ -271,8 +297,12 @@ func (s *Serf) relayResponse(relayFactor uint8, addr net.UDPAddr, resp *messageQ
 		return m.Status != StatusAlive || m.ProtocolMax < 5 || m.Name == localName
 	})
 	for _, m := range relayMembers {
-		relayAddr := net.UDPAddr{IP: m.Addr, Port: int(m.Port)}
-		if err := s.memberlist.SendTo(&relayAddr, raw); err != nil {
+		udpAddr := net.UDPAddr{IP: m.Addr, Port: int(m.Port)}
+		relayAddr := memberlist.Address{
+			Addr: udpAddr.String(),
+			Name: m.Name,
+		}
+		if err := s.memberlist.SendToAddress(relayAddr, raw); err != nil {
 			return fmt.Errorf("failed to send relay response: %v", err)
 		}
 	}
