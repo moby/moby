@@ -535,7 +535,7 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	config, hostConfig, networkingConfig := req.Config, req.HostConfig, req.NetworkingConfig
 
 	// The NetworkMode "default" is used as a way to express a container should
-	// be attached to the OS-dependant default network, in an OS-independent
+	// be attached to the OS-dependent default network, in an OS-independent
 	// way. Doing this conversion as soon as possible ensures we have less
 	// NetworkMode to handle down the path (including in the
 	// backward-compatibility layer we have just below).
