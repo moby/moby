@@ -83,6 +83,9 @@ type PutDeliverySourceInput struct {
 	//   - For Amazon Bedrock AgentCore Identity, the valid values are APPLICATION_LOGS
 	//   and TRACES .
 	//
+	//   - For Amazon Bedrock AgentCore Memory, the valid values are APPLICATION_LOGS
+	//   and TRACES .
+	//
 	//   - For Amazon Bedrock AgentCore Gateway, the valid values are APPLICATION_LOGS
 	//   and TRACES .
 	//
@@ -96,6 +99,10 @@ type PutDeliverySourceInput struct {
 	//   - For Elemental MediaTailor, the valid values are AD_DECISION_SERVER_LOGS ,
 	//   MANIFEST_SERVICE_LOGS , and TRANSCODE_LOGS .
 	//
+	//   - For Amazon EKS Auto Mode, the valid values are AUTO_MODE_BLOCK_STORAGE_LOGS
+	//   , AUTO_MODE_COMPUTE_LOGS , AUTO_MODE_IPAM_LOGS , and
+	//   AUTO_MODE_LOAD_BALANCING_LOGS .
+	//
 	//   - For Entity Resolution, the valid value is WORKFLOW_LOGS .
 	//
 	//   - For IAM Identity Center, the valid value is ERROR_LOGS .
@@ -107,7 +114,7 @@ type PutDeliverySourceInput struct {
 	//
 	//   - For PCS, the valid values are PCS_SCHEDULER_LOGS and PCS_JOBCOMP_LOGS .
 	//
-	//   - For Quick Suite, the valid values are CHAT_LOGS and FEEDBACK_LOGS .
+	//   - For Quick, the valid values are CHAT_LOGS and FEEDBACK_LOGS .
 	//
 	//   - For Amazon Web Services RTB Fabric, the valid values is APPLICATION_LOGS .
 	//
@@ -194,7 +201,7 @@ func (c *Client) addOperationPutDeliverySourceMiddlewares(stack *middleware.Stac
 	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetry(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
 	if err = addRawResponseToMetadata(stack); err != nil {
@@ -216,9 +223,6 @@ func (c *Client) addOperationPutDeliverySourceMiddlewares(stack *middleware.Stac
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addTimeOffsetBuild(stack, c); err != nil {
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {

@@ -2,7 +2,7 @@ package mountopts
 
 import (
 	"github.com/containerd/containerd/v2/core/mount"
-	"github.com/moby/buildkit/util/strutil"
+	"github.com/moby/buildkit/util/bkslices"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -59,7 +59,7 @@ func FixUp(mounts []mount.Mount) ([]mount.Mount, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get unprivileged mount flags for %+v", m)
 		}
-		m.Options = strutil.DedupeSlice(append(m.Options, unpriv...))
+		m.Options = bkslices.Dedupe(append(m.Options, unpriv...))
 		mounts[i] = m
 	}
 	return mounts, nil
@@ -81,7 +81,7 @@ func FixUpOCI(mounts []specs.Mount) ([]specs.Mount, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get unprivileged mount flags for %+v", m)
 		}
-		m.Options = strutil.DedupeSlice(append(m.Options, unpriv...))
+		m.Options = bkslices.Dedupe(append(m.Options, unpriv...))
 		mounts[i] = m
 	}
 	return mounts, nil

@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"
@@ -134,6 +135,8 @@ func (gs *Source) Identifier(scheme, ref string, attrs map[string]string, platfo
 				id.VerifySignature = &GitSignatureVerifyOptions{}
 			}
 			id.VerifySignature.IgnoreSignedTag = v == "true"
+		case pb.AttrGitMTime:
+			id.MTime = v
 		}
 	}
 	if err := validateGitRef(id.Ref); err != nil {
@@ -266,6 +269,9 @@ func (gs *gitSourceHandler) shaToCacheKey(sha, ref string) string {
 	}
 	if gs.src.SkipSubmodules {
 		key += "(skip-submodules)"
+	}
+	if gs.src.MTime != "" && gs.src.MTime != "checkout" {
+		key += "(mtime=" + gs.src.MTime + ")"
 	}
 	return key
 }
@@ -881,15 +887,21 @@ func (gs *gitSourceHandler) tryRemoteFetch(ctx context.Context, g session.Group,
 	}
 
 	if doFetch {
+		gitDirRoot, err := os.OpenRoot(gitDir)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to open git dir root")
+		}
+		defer gitDirRoot.Close()
+
 		// make sure no old lock files have leaked
-		os.RemoveAll(filepath.Join(gitDir, "shallow.lock"))
+		gitDirRoot.RemoveAll("shallow.lock")
 
 		args := []string{"fetch"}
 		if !gitutil.IsCommitSHA(ref) { // TODO: find a branch from ls-remote?
 			args = append(args, "--depth=1", "--no-tags")
 		} else {
 			args = append(args, "--tags")
-			if _, err := os.Lstat(filepath.Join(gitDir, "shallow")); err == nil {
+			if _, err := gitDirRoot.Lstat("shallow"); err == nil {
 				args = append(args, "--unshallow")
 			}
 		}
@@ -936,7 +948,7 @@ func (gs *gitSourceHandler) tryRemoteFetch(ctx context.Context, g session.Group,
 			} else {
 				// try to fetch the commit directly
 				args := []string{"fetch", "--tags"}
-				if _, err := os.Lstat(filepath.Join(gitDir, "shallow")); err == nil {
+				if _, err := gitDirRoot.Lstat("shallow"); err == nil {
 					args = append(args, "--unshallow")
 				}
 				args = append(args, "origin", gs.cacheCommit)
@@ -1072,7 +1084,7 @@ func (gs *gitSourceHandler) checkout(ctx context.Context, repo *gitRepo, g sessi
 			}
 		}
 		checkoutGit := git.New(gitutil.WithWorkTree(cd), gitutil.WithGitDir(gitDir))
-		_, err = checkoutGit.Run(ctx, "checkout", ref, "--", ".")
+		_, err = checkoutGit.Run(ctx, "checkout", "--no-overlay", ref, "--", ".")
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to checkout remote %s", urlutil.RedactCredentials(gs.src.Remote))
 		}
@@ -1088,11 +1100,18 @@ func (gs *gitSourceHandler) checkout(ctx context.Context, repo *gitRepo, g sessi
 
 	if subdir != "." {
 		subdir = filepath.FromSlash(subdir)
-		if err := validateDirsOnly(cd, subdir); err != nil {
+		subdir = rootRelativePath(subdir)
+		cdRoot, err := os.OpenRoot(cd)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to open checkout dir root")
+		}
+		defer cdRoot.Close()
+
+		if err := validateDirsOnly(cdRoot, subdir); err != nil {
 			return nil, errors.Wrapf(err, "invalid subdir %v", subdir)
 		}
 
-		d, err := os.Open(filepath.Join(cd, subdir))
+		d, err := cdRoot.Open(subdir)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to open subdir %v", subdir)
 		}
@@ -1116,6 +1135,16 @@ func (gs *gitSourceHandler) checkout(ctx context.Context, repo *gitRepo, g sessi
 		d = nil // reset defer
 		if err := os.RemoveAll(cd); err != nil {
 			return nil, err
+		}
+	}
+
+	if gs.src.MTime == "commit" {
+		commitTime, err := getCommitTime(ctx, git, ref)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get commit time for %s", urlutil.RedactCredentials(gs.src.Remote))
+		}
+		if err := resetSnapshotMtimes(checkoutDir, commitTime); err != nil {
+			return nil, errors.Wrapf(err, "failed to normalize mtimes for %s", urlutil.RedactCredentials(gs.src.Remote))
 		}
 	}
 
@@ -1145,6 +1174,50 @@ func (gs *gitSourceHandler) checkout(ctx context.Context, repo *gitRepo, g sessi
 	}()
 
 	return snap, nil
+}
+
+// getCommitTime returns the committer timestamp of the resolved commit.
+// For annotated tags, it peels to the underlying commit.
+func getCommitTime(ctx context.Context, git *gitutil.GitCLI, ref string) (time.Time, error) {
+	// %ct = committer date, UNIX timestamp; ^{commit} peels tags
+	buf, err := git.Run(ctx, "log", "-1", "--format=%ct", ref+"^{commit}")
+	if err != nil {
+		return time.Time{}, err
+	}
+	ts, err := strconv.ParseInt(strings.TrimSpace(string(buf)), 10, 64)
+	if err != nil {
+		return time.Time{}, errors.Wrapf(err, "failed to parse commit timestamp %q", string(buf))
+	}
+	return time.Unix(ts, 0), nil
+}
+
+// resetSnapshotMtimes walks dir and sets the mtime of every file,
+// symlink, and directory to t. Directories are set bottom-up so that
+// a parent's mtime is not invalidated by a later child write.
+func resetSnapshotMtimes(dir string, t time.Time) error {
+	var dirs []string
+	err := filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			dirs = append(dirs, p)
+			return nil
+		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return lchtimes(p, t)
+		}
+		return os.Chtimes(p, t, t)
+	})
+	if err != nil {
+		return err
+	}
+	for i := len(dirs) - 1; i >= 0; i-- {
+		if err := os.Chtimes(dirs[i], t, t); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type wouldClobberExistingTagError struct {
@@ -1306,18 +1379,11 @@ func gitCLI(opts ...gitutil.Option) *gitutil.GitCLI {
 
 // validateDirsOnly checks that the given subpath in the repository
 // only contains directories without any symlinks or files.
-func validateDirsOnly(root string, subpath string) error {
-	rel := filepath.Clean(subpath)
-	rel = strings.TrimPrefix(rel, string(filepath.Separator))
+func validateDirsOnly(r *os.Root, subpath string) error {
+	rel := rootRelativePath(subpath)
 	if rel == "" || rel == "." {
 		return nil
 	}
-
-	r, err := os.OpenRoot(root)
-	if err != nil {
-		return errors.Wrapf(err, "failed to open root %q", root)
-	}
-	defer r.Close()
 
 	p := ""
 	for part := range strings.SplitSeq(rel, string(filepath.Separator)) {
@@ -1332,4 +1398,8 @@ func validateDirsOnly(root string, subpath string) error {
 		}
 	}
 	return nil
+}
+
+func rootRelativePath(path string) string {
+	return strings.TrimPrefix(filepath.Clean(path), string(filepath.Separator))
 }

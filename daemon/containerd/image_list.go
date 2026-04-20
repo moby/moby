@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"runtime"
 	"sort"
 	"strings"
@@ -37,7 +38,7 @@ type configLabels struct {
 
 	Config struct {
 		Labels map[string]string `json:"Labels,omitempty"`
-	} `json:"config,omitempty"`
+	} `json:"config"`
 }
 
 var acceptedImageFilterTags = map[string]bool{
@@ -600,22 +601,17 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 		return nil, err
 	}
 
+	now := time.Now()
 	err = imageFilters.WalkValues("until", func(value string) error {
-		ts, err := timestamp.GetTimestamp(value, time.Now())
+		until, err := timestamp.Parse(value, now)
 		if err != nil {
-			return err
+			return errdefs.InvalidParameter(fmt.Errorf("invalid value for 'until' filter: %w", err))
 		}
-		seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
-		if err != nil {
-			return err
-		}
-		until := time.Unix(seconds, nanoseconds)
 
 		fltrs = append(fltrs, func(image c8dimages.Image) bool {
-			created := image.CreatedAt
-			return created.Before(until)
+			return image.CreatedAt.Before(until)
 		})
-		return err
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -716,6 +712,14 @@ func setupLabelFilter(ctx context.Context, store content.Store, fltrs filters.Ar
 		errFoundConfig := errors.New("success, found matching config")
 
 		err := c8dimages.Dispatch(ctx, presentChildrenHandler(store, c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) (subdescs []ocispec.Descriptor, _ error) {
+			if c8dimages.IsManifestType(desc.MediaType) {
+				// BuildKit attestation manifests carry a config with no user
+				// labels, which would cause negated label filters
+				// (label!=key=value) to spuriously match. Skip the whole subtree.
+				if _, has := desc.Annotations[attestation.DockerAnnotationReferenceType]; has {
+					return nil, c8dimages.ErrSkipDesc
+				}
+			}
 			if !c8dimages.IsConfigType(desc.MediaType) {
 				return nil, nil
 			}
@@ -747,6 +751,9 @@ func setupLabelFilter(ctx context.Context, store content.Store, fltrs filters.Ar
 					continue
 				} else if !exists {
 					// We are checking value and label doesn't exist.
+					if check.negate {
+						continue
+					}
 					return nil, nil
 				}
 

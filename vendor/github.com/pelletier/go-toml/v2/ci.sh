@@ -147,7 +147,7 @@ bench() {
     pushd "$dir"
 
     if [ "${replace}" != "" ]; then
-        find ./benchmark/ -iname '*.go' -exec sed -i -E "s|github.com/pelletier/go-toml/v2|${replace}|g" {} \;
+        find ./benchmark/ -iname '*.go' -exec sed -i -E "s|github.com/pelletier/go-toml/v2\"|${replace}\"|g" {} \;
         go get "${replace}"
     fi
 
@@ -195,6 +195,11 @@ for line in reversed(lines[2:]):
         "%.1fx" % (float(line[3])/v2),  # v1
         "%.1fx" % (float(line[7])/v2),  # bs
     ])
+
+if not results:
+    print("No benchmark results to display.", file=sys.stderr)
+    sys.exit(1)
+
 # move geomean to the end
 results.append(results[0])
 del results[0]

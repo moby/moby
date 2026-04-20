@@ -4,11 +4,9 @@ import (
 	"encoding/binary"
 	"io"
 	"math/bits"
-	"strconv"
 	"sync"
 	"time"
 
-	"github.com/docker/go-units"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
@@ -52,15 +50,6 @@ func ValidateLogOpt(cfg map[string]string) error {
 	return nil
 }
 
-func init() {
-	if err := logger.RegisterLogDriver(Name, New); err != nil {
-		panic(err)
-	}
-	if err := logger.RegisterLogOptValidator(Name, ValidateLogOpt); err != nil {
-		panic(err)
-	}
-}
-
 type driver struct {
 	logfile *loggerutils.LogFile
 }
@@ -72,39 +61,24 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, errdefs.System(errors.New("log path is missing -- this is a bug and should not happen"))
 	}
 
-	cfg := newDefaultConfig()
-	if capacity, ok := info.Config["max-size"]; ok {
-		var err error
-		cfg.MaxFileSize, err = units.FromHumanSize(capacity)
-		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrapf(err, "invalid value for max-size: %s", capacity))
-		}
+	cfg, err := newConfig(info.Config)
+	if err != nil {
+		return nil, errdefs.InvalidParameter(err)
 	}
 
-	if userMaxFileCount, ok := info.Config["max-file"]; ok {
-		var err error
-		cfg.MaxFileCount, err = strconv.Atoi(userMaxFileCount)
-		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrapf(err, "invalid value for max-file: %s", userMaxFileCount))
-		}
+	lf, err := loggerutils.NewLogFile(info.LogPath, cfg.MaxFileSize, cfg.MaxFileCount, !cfg.DisableCompression, decodeFunc, 0o640, getTailReader)
+	if err != nil {
+		return nil, err
 	}
 
-	if userCompress, ok := info.Config["compress"]; ok {
-		compressLogs, err := strconv.ParseBool(userCompress)
-		if err != nil {
-			return nil, errdefs.InvalidParameter(errors.Wrap(err, "error reading compress log option"))
-		}
-		cfg.DisableCompression = !compressLogs
-	}
-	return newDriver(info.LogPath, cfg)
+	return &driver{
+		logfile: lf,
+	}, nil
 }
 
 func marshal(m *logger.Message, buffer *[]byte) error {
-	proto := logdriver.LogEntry{}
-	md := logdriver.PartialLogEntryMetadata{}
-
-	resetProto(&proto)
-
+	var proto logdriver.LogEntry
+	var md logdriver.PartialLogEntryMetadata
 	messageToProto(m, &proto, &md)
 	protoSize := proto.Size()
 	writeLen := protoSize + (2 * encodeBinaryLen) // + len(messageDelimiter)
@@ -131,20 +105,6 @@ func marshal(m *logger.Message, buffer *[]byte) error {
 	}
 	binary.BigEndian.PutUint32(buf[writeLen-encodeBinaryLen:writeLen], uint32(protoSize))
 	return nil
-}
-
-func newDriver(logPath string, cfg *CreateConfig) (logger.Logger, error) {
-	if err := validateConfig(cfg); err != nil {
-		return nil, errdefs.InvalidParameter(err)
-	}
-
-	lf, err := loggerutils.NewLogFile(logPath, cfg.MaxFileSize, cfg.MaxFileCount, !cfg.DisableCompression, decodeFunc, 0o640, getTailReader)
-	if err != nil {
-		return nil, err
-	}
-	return &driver{
-		logfile: lf,
-	}, nil
 }
 
 func (d *driver) Name() string {
@@ -190,11 +150,11 @@ func protoToMessage(proto *logdriver.LogEntry) *logger.Message {
 		Timestamp: time.Unix(0, proto.TimeNano).UTC(),
 	}
 	if proto.Partial {
-		var md backend.PartialLogMetaData
-		md.Last = proto.GetPartialLogMetadata().GetLast()
-		md.ID = proto.GetPartialLogMetadata().GetId()
-		md.Ordinal = int(proto.GetPartialLogMetadata().GetOrdinal())
-		msg.PLogMetaData = &md
+		msg.PLogMetaData = &backend.PartialLogMetaData{
+			Last:    proto.GetPartialLogMetadata().GetLast(),
+			ID:      proto.GetPartialLogMetadata().GetId(),
+			Ordinal: int(proto.GetPartialLogMetadata().GetOrdinal()),
+		}
 	}
 	msg.Line = append(msg.Line[:0], proto.Line...)
 	return msg

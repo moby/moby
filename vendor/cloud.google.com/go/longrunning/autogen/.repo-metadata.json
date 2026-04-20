@@ -1,0 +1,10 @@
+{
+  "api_shortname": "longrunning",
+  "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/longrunning/latest/autogen",
+  "client_library_type": "generated",
+  "description": "Long Running Operations API",
+  "distribution_name": "cloud.google.com/go/longrunning/autogen",
+  "language": "go",
+  "library_type": "GAPIC_AUTO",
+  "release_level": "stable"
+}

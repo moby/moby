@@ -262,7 +262,7 @@ func (n *Namespace) AddInterface(ctx context.Context, srcName, dstPrefix, dstNam
 		if nerr := n.nlHandle.LinkSetName(iface, i.SrcName()); nerr != nil {
 			log.G(ctx).Errorf("renaming interface (%s->%s) failed, %v after config error %v", i.DstName(), i.SrcName(), nerr, err)
 		}
-		if nerr := n.nlHandle.LinkSetNsFd(iface, ns.ParseHandlerInt()); nerr != nil {
+		if nerr := n.nlHandle.LinkSetNsFd(iface, int(ns.NsHandle())); nerr != nil {
 			log.G(ctx).Errorf("moving interface %s to host ns failed, %v, after config error %v", i.SrcName(), nerr, err)
 		}
 		return err
@@ -845,8 +845,9 @@ func (n *Namespace) RemoveInterface(i *Interface) error {
 		}
 	} else if !n.isDefault {
 		// Move the network interface to caller namespace.
+		//
 		// TODO(aker): What's this really doing? There are no calls to LinkDel in this package: is this code really used? (Interface.Remove() has 3 callers); see https://github.com/moby/moby/pull/46315/commits/108595c2fe852a5264b78e96f9e63cda284990a6#r1331265335
-		if err := n.nlHandle.LinkSetNsFd(iface, ns.ParseHandlerInt()); err != nil {
+		if err := n.nlHandle.LinkSetNsFd(iface, int(ns.NsHandle())); err != nil {
 			log.G(context.TODO()).Debugf("LinkSetNsFd failed for interface %s: %v", i.SrcName(), err)
 			return err
 		}

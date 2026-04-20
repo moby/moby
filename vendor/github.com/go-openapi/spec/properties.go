@@ -10,7 +10,7 @@ import (
 	"sort"
 )
 
-// OrderSchemaItem holds a named schema (e.g. from a property of an object)
+// OrderSchemaItem holds a named schema (e.g. from a property of an object).
 type OrderSchemaItem struct {
 	Schema
 
@@ -53,7 +53,7 @@ func (items OrderSchemaItems) Swap(i, j int) { items[i], items[j] = items[j], it
 func (items OrderSchemaItems) Less(i, j int) (ret bool) {
 	ii, oki := items[i].Extensions.GetInt("x-order")
 	ij, okj := items[j].Extensions.GetInt("x-order")
-	if oki {
+	if oki { //nolint:nestif // nested recover logic for safe type comparison
 		if okj {
 			defer func() {
 				if err := recover(); err != nil {
@@ -94,7 +94,7 @@ func (items OrderSchemaItems) marshalJSONItem(item OrderSchemaItem, output *byte
 // It knows how to transform its keys into an ordered slice.
 type SchemaProperties map[string]Schema
 
-// ToOrderedSchemaItems transforms the map of properties into a sortable slice
+// ToOrderedSchemaItems transforms the map of properties into a sortable slice.
 func (properties SchemaProperties) ToOrderedSchemaItems() OrderSchemaItems {
 	items := make(OrderSchemaItems, 0, len(properties))
 	for k, v := range properties {

@@ -820,9 +820,8 @@ func (c *grpcClient) Inputs(ctx context.Context) (map[string]llb.State, error) {
 // communication channel between the process and the ExecProcess message
 // stream.
 type procMessageForwarder struct {
-	done      chan struct{}
-	closeOnce sync.Once
-	msgs      chan *pb.ExecMessage
+	done chan struct{}
+	msgs chan *pb.ExecMessage
 }
 
 func newProcMessageForwarder() *procMessageForwarder {
@@ -836,9 +835,6 @@ func (b *procMessageForwarder) Send(ctx context.Context, m *pb.ExecMessage) {
 	select {
 	case <-ctx.Done():
 	case <-b.done:
-		b.closeOnce.Do(func() {
-			close(b.msgs)
-		})
 	case b.msgs <- m:
 	}
 }
@@ -856,8 +852,6 @@ func (b *procMessageForwarder) Recv(ctx context.Context) (m *pb.ExecMessage, ok 
 
 func (b *procMessageForwarder) Close() {
 	close(b.done)
-	b.Recv(context.Background())      // flush any messages in queue
-	b.Send(context.Background(), nil) // ensure channel is closed
 }
 
 // messageForwarder manages a single grpc stream for ExecProcess to facilitate

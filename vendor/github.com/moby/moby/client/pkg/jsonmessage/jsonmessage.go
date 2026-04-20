@@ -20,6 +20,25 @@ var timeNow = time.Now // For overriding in tests.
 // ensure the formatted time is always the same number of characters.
 const RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 
+// DisplayOpt configures behavior for [DisplayStream] and [DisplayMessages].
+// Options are applied in order; if an option returns an error, processing
+// stops and the error is returned to the caller.
+type DisplayOpt func(*displayOpts) error
+
+type displayOpts struct {
+	auxCallback func(jsonstream.Message)
+}
+
+// WithAuxCallback registers a callback that is invoked for auxiliary
+// jsonstream messages as they are processed. The callback is optional;
+// if not provided, auxiliary messages are ignored.
+func WithAuxCallback(fn func(jsonstream.Message)) DisplayOpt {
+	return func(opts *displayOpts) error {
+		opts.auxCallback = fn
+		return nil
+	}
+}
+
 func RenderTUIProgress(p jsonstream.Progress, width uint16) string {
 	var (
 		pbBox      string
@@ -37,16 +56,10 @@ func RenderTUIProgress(p jsonstream.Progress, width uint16) string {
 		}
 	}
 
-	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
-	if percentage > 50 {
-		percentage = 50
-	}
+	percentage := min(int(float64(p.Current)/float64(p.Total)*100)/2, 50)
 	if width > 110 {
 		// this number can't be negative gh#7136
-		numSpaces := 0
-		if 50-percentage > 0 {
-			numSpaces = 50 - percentage
-		}
+		numSpaces := max(50-percentage, 0)
 		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", numSpaces))
 	}
 
@@ -146,10 +159,24 @@ func Display(jm jsonstream.Message, out io.Writer, isTerminal bool, width uint16
 
 type JSONMessagesStream = iter.Seq2[jsonstream.Message, error]
 
-// DisplayJSONMessagesStream reads a JSON message stream from in, and writes
-// each [JSONMessage] to out.
-// see DisplayJSONMessages for details
+// DisplayJSONMessagesStream is like [DisplayStream], but allows the caller to
+// explicitly provide the terminal file descriptor and whether out is a terminal.
 func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(jsonstream.Message)) error {
+	var opts []DisplayOpt
+	if auxCallback != nil {
+		opts = append(opts, WithAuxCallback(auxCallback))
+	}
+	return displayJSONMessagesStream(in, out, terminalFd, isTerminal, opts...)
+}
+
+// DisplayStream reads a JSON message stream from in, and writes each
+// [jsonstream.Message] to out. See [DisplayMessages] for details.
+func DisplayStream(in io.Reader, out io.Writer, opts ...DisplayOpt) error {
+	terminalFd, isTerminal := term.GetFdInfo(out)
+	return displayJSONMessagesStream(in, out, terminalFd, isTerminal, opts...)
+}
+
+func displayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, opts ...DisplayOpt) error {
 	dec := json.NewDecoder(in)
 	f := func(yield func(jsonstream.Message, error) bool) {
 		for {
@@ -164,26 +191,48 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 		}
 	}
 
-	return DisplayJSONMessages(f, out, terminalFd, isTerminal, auxCallback)
+	return displayJSONMessages(f, out, terminalFd, isTerminal, opts...)
 }
 
-// DisplayJSONMessages writes each [JSONMessage] from stream to out.
-// It returns an error if an invalid JSONMessage is received, or if
-// a JSONMessage containers a non-zero [JSONMessage.Error].
-//
-// Presentation of the JSONMessage depends on whether a terminal is attached,
-// and on the terminal width. Progress bars ([JSONProgress]) are suppressed
-// on narrower terminals (< 110 characters).
-//
-//   - isTerminal describes if out is a terminal, in which case it prints
-//     a newline ("\n") at the end of each line and moves the cursor while
-//     displaying.
-//   - terminalFd is the fd of the current terminal (if any), and used
-//     to get the terminal width.
-//   - auxCallback allows handling the [JSONMessage.Aux] field. It is
-//     called if a JSONMessage contains an Aux field, in which case
-//     DisplayJSONMessagesStream does not present the JSONMessage.
+// DisplayJSONMessages is like [DisplayMessages], but allows the caller to
+// explicitly provide the terminal file descriptor and whether out is a terminal.
 func DisplayJSONMessages(messages iter.Seq2[jsonstream.Message, error], out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(jsonstream.Message)) error {
+	var opts []DisplayOpt
+	if auxCallback != nil {
+		opts = append(opts, WithAuxCallback(auxCallback))
+	}
+	return displayJSONMessages(messages, out, terminalFd, isTerminal, opts...)
+}
+
+// DisplayMessages writes each [jsonstream.Message] from stream to out.
+// It returns an error if an invalid [jsonstream.Message] is received, or if
+// a message contains a non-zero [jsonstream.Message.Error].
+//
+// Presentation of the message depends on whether out is a terminal, and on the
+// terminal width. Progress bars ([jsonstream.Progress]) are suppressed on
+// narrower terminals (< 110 characters). If out is a terminal, it prints a
+// newline ("\n") at the end of each line and moves the cursor while displaying.
+//
+// auxCallback allows handling the [jsonstream.Message.Aux] field. It is called
+// if a message contains an Aux field, in which case DisplayMessages does not
+// present the message.
+func DisplayMessages(messages iter.Seq2[jsonstream.Message, error], out io.Writer, opts ...DisplayOpt) error {
+	terminalFd, isTerminal := term.GetFdInfo(out)
+	return displayJSONMessages(messages, out, terminalFd, isTerminal, opts...)
+}
+
+func displayJSONMessages(messages iter.Seq2[jsonstream.Message, error], out io.Writer, terminalFd uintptr, isTerminal bool, opts ...DisplayOpt) error {
+	var cfg displayOpts
+	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
+		if err := opt(&cfg); err != nil {
+			return err
+		}
+	}
+	auxCallback := cfg.auxCallback
+
 	ids := make(map[string]uint)
 	var width uint16 = 200
 	if isTerminal {

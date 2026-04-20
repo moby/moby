@@ -2,6 +2,8 @@ package container
 
 import (
 	"net"
+	"os"
+	"strings"
 
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/solver/pb"
@@ -21,4 +23,12 @@ func ParseExtraHosts(ips []*pb.HostIP) ([]executor.HostIP, error) {
 		}
 	}
 	return out, nil
+}
+
+func isPathEscapesRootError(err error) bool {
+	var pe *os.PathError
+	if !errors.As(err, &pe) {
+		return false
+	}
+	return strings.Contains(pe.Err.Error(), "path escapes")
 }

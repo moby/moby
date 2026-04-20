@@ -9,8 +9,8 @@ import (
 	"github.com/go-openapi/runtime"
 )
 
-// Authorized provides a default implementation of the Authorizer interface where all
-// requests are authorized (successful)
+// Authorized provides a default implementation of the [Authorizer] interface where all
+// requests are authorized (successful).
 func Authorized() runtime.Authorizer {
 	return runtime.AuthorizerFunc(func(_ *http.Request, _ any) error { return nil })
 }

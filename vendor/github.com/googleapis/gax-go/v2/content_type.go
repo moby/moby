@@ -31,7 +31,7 @@ package gax
 
 import (
 	"io"
-	"io/ioutil"
+
 	"net/http"
 )
 
@@ -78,7 +78,7 @@ func (cs *contentSniffer) ContentType() (string, bool) {
 	}
 	cs.sniffed = true
 	// If ReadAll hits EOF, it returns err==nil.
-	cs.start, cs.err = ioutil.ReadAll(io.LimitReader(cs.r, sniffBuffSize))
+	cs.start, cs.err = io.ReadAll(io.LimitReader(cs.r, sniffBuffSize))
 
 	// Don't try to detect the content type based on possibly incomplete data.
 	if cs.err != nil {

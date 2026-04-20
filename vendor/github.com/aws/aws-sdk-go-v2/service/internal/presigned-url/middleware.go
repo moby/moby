@@ -14,26 +14,26 @@ import (
 // presigned URL.
 type URLPresigner interface {
 	// PresignURL presigns a URL.
-	PresignURL(ctx context.Context, srcRegion string, params interface{}) (*v4.PresignedHTTPRequest, error)
+	PresignURL(ctx context.Context, srcRegion string, params any) (*v4.PresignedHTTPRequest, error)
 }
 
 // ParameterAccessor provides an collection of accessor to for retrieving and
 // setting the values needed to PresignedURL generation
 type ParameterAccessor struct {
 	// GetPresignedURL accessor points to a function that retrieves a presigned url if present
-	GetPresignedURL func(interface{}) (string, bool, error)
+	GetPresignedURL func(any) (string, bool, error)
 
 	// GetSourceRegion accessor points to a function that retrieves source region for presigned url
-	GetSourceRegion func(interface{}) (string, bool, error)
+	GetSourceRegion func(any) (string, bool, error)
 
 	// CopyInput accessor points to a function that takes in an input, and returns a copy.
-	CopyInput func(interface{}) (interface{}, error)
+	CopyInput func(any) (any, error)
 
 	// SetDestinationRegion accessor points to a function that sets destination region on api input struct
-	SetDestinationRegion func(interface{}, string) error
+	SetDestinationRegion func(any, string) error
 
 	// SetPresignedURL accessor points to a function that sets presigned url on api input struct
-	SetPresignedURL func(interface{}, string) error
+	SetPresignedURL func(any, string) error
 }
 
 // Options provides the set of options needed by the presigned URL middleware.

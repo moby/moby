@@ -25,6 +25,7 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
 	"github.com/moby/buildkit/util/bklog"
+	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
@@ -525,25 +526,32 @@ func parseCacheOptions(ctx context.Context, isGateway bool, opt SolveOpt) (*cach
 				bklog.G(ctx).Warning("local cache import at " + csDir + " not found due to err: " + err.Error())
 				continue
 			}
+			dgst := im.Attrs["digest"]
 			// if digest is not specified, attempt to load from tag
-			if im.Attrs["digest"] == "" {
+			if dgst == "" {
 				tag := "latest"
 				if t, ok := im.Attrs["tag"]; ok {
 					tag = t
+				}
+				if tag == "" {
+					return nil, errors.New("local cache importer requires either explicit digest, \"latest\" tag or custom tag on index.json")
 				}
 
 				idx := ociindex.NewStoreIndex(csDir)
 				desc, err := idx.Get(tag)
 				if err != nil {
-					bklog.G(ctx).Warning("local cache import at " + csDir + " not found due to err: " + err.Error())
+					bklog.G(ctx).Warning("local cache import at " + csDir + " skipped due to err: " + err.Error())
 					continue
 				}
-				if desc != nil {
-					im.Attrs["digest"] = desc.Digest.String()
+				if desc == nil {
+					bklog.G(ctx).Warning("local cache import at " + csDir + " skipped: no digest found for tag " + tag)
+					continue
 				}
+				im.Attrs["digest"] = desc.Digest.String()
 			}
-			if im.Attrs["digest"] == "" {
-				return nil, errors.New("local cache importer requires either explicit digest, \"latest\" tag or custom tag on index.json")
+			if _, err := cs.Info(ctx, digest.Digest(im.Attrs["digest"])); err != nil {
+				bklog.G(ctx).Warning("local cache import at " + csDir + " skipped: digest " + im.Attrs["digest"] + " unavailable: " + err.Error())
+				continue
 			}
 			contentStores["local:"+csDir] = cs
 		}

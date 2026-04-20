@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -267,7 +268,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	log.G(ctx).Info("Restoring containers: start.")
 
 	// parallelLimit is the maximum number of parallel startup jobs that we
-	// allow (this is the limited used for all startup semaphores). The multipler
+	// allow (this is the limited used for all startup semaphores). The multiplier
 	// (128) was chosen after some fairly significant benchmarking -- don't change
 	// it unless you've tested it significantly (this value is adjusted if
 	// RLIMIT_NOFILE is small to avoid EMFILE).
@@ -293,10 +294,12 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 			rwlayer, err := daemon.imageService.GetLayerByID(c.ID)
 			if err != nil {
+				// A container without a rwlayer is in a bad state, but we must register that container to let users
+				// remove it. So, log the error but do not early-return.
 				logger.WithError(err).Error("failed to load container mount")
-				return
+			} else {
+				c.RWLayer = rwlayer
 			}
-			c.RWLayer = rwlayer
 			logger.WithFields(log.Fields{
 				"running": c.State.IsRunning(),
 				"paused":  c.State.IsPaused(),
@@ -379,6 +382,19 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 						c.HostConfig.LogConfig.Config["fluentd-async"] = v
 					}
 					delete(c.HostConfig.LogConfig.Config, "fluentd-async-connect")
+				}
+				if len(c.HostConfig.ExtraHosts) > 0 {
+					// Daemon versions before v29.0.0 were more permissive when handling whitespace in the IP-address:
+					//
+					// See https://github.com/moby/moby/issues/52274
+					// See https://github.com/moby/moby/pull/50956
+					//
+					// TODO(thaJeztah): remove this migration when we no longer need migration for docker < v29.0.0
+					for i, h := range c.HostConfig.ExtraHosts {
+						if host, ip, ok := strings.Cut(h, ":"); ok {
+							c.HostConfig.ExtraHosts[i] = strings.TrimSpace(host) + ":" + strings.TrimSpace(ip)
+						}
+					}
 				}
 			}
 
@@ -863,6 +879,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 		_ = os.Setenv("TEMP", realTmp)
 		_ = os.Setenv("TMP", realTmp)
+		// Set the SystemTemp environment variable, because for system processes
+		// GetTempPath2() uses it rather than TEMP/TMP:
+		// https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-gettemppath2w
+		_ = os.Setenv("SystemTemp", realTmp)
 	} else {
 		_ = os.Setenv("TMPDIR", realTmp)
 	}

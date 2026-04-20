@@ -1,0 +1,10 @@
+{
+  "api_shortname": "logging",
+  "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/logging/latest/apiv2",
+  "client_library_type": "generated",
+  "description": "Cloud Logging API",
+  "distribution_name": "cloud.google.com/go/logging/apiv2",
+  "language": "go",
+  "library_type": "GAPIC_AUTO",
+  "release_level": "stable"
+}

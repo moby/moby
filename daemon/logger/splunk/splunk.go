@@ -27,7 +27,8 @@ import (
 )
 
 const (
-	driverName                    = "splunk"
+	driverName = "splunk"
+
 	splunkURLKey                  = "splunk-url"
 	splunkTokenKey                = "splunk-token"
 	splunkSourceKey               = "splunk-source"
@@ -41,11 +42,6 @@ const (
 	splunkGzipCompressionKey      = "splunk-gzip"
 	splunkGzipCompressionLevelKey = "splunk-gzip-level"
 	splunkIndexAcknowledgment     = "splunk-index-acknowledgment"
-	envKey                        = "env"
-	envRegexKey                   = "env-regex"
-	labelsKey                     = "labels"
-	labelsRegexKey                = "labels-regex"
-	tagKey                        = "tag"
 )
 
 const (
@@ -140,15 +136,6 @@ const (
 	splunkFormatInline = "inline"
 )
 
-func init() {
-	if err := logger.RegisterLogDriver(driverName, New); err != nil {
-		panic(err)
-	}
-	if err := logger.RegisterLogOptValidator(driverName, ValidateLogOpt); err != nil {
-		panic(err)
-	}
-}
-
 // New creates splunk logger driver using configuration passed in context
 func New(info logger.Info) (logger.Logger, error) {
 	hostname, err := info.Hostname()
@@ -229,7 +216,7 @@ func New(info logger.Info) (logger.Logger, error) {
 
 	// Allow user to remove tag from the messages by setting tag to empty string
 	var tag string
-	if tagTemplate, ok := info.Config[tagKey]; !ok || tagTemplate != "" {
+	if tagTemplate, ok := info.Config[logger.AttrLogTag]; !ok || tagTemplate != "" {
 		tag, err = loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
 		if err != nil {
 			return nil, err
@@ -484,11 +471,10 @@ func (l *splunkLogger) tryPostMessages(ctx context.Context, messages []*splunkMe
 			return err
 		}
 	}
-	req, err := http.NewRequest(http.MethodPost, l.url, bytes.NewBuffer(buffer.Bytes()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, l.url, bytes.NewBuffer(buffer.Bytes()))
 	if err != nil {
 		return err
 	}
-	req = req.WithContext(ctx)
 	req.Header.Set("Authorization", l.auth)
 	// Tell if we are sending gzip compressed body
 	if l.gzipCompression {
@@ -550,6 +536,10 @@ func (l *splunkLogger) createSplunkMessage(msg *logger.Message) *splunkMessage {
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
+		case logger.AttrEnv, logger.AttrEnvRegex, logger.AttrLabels, logger.AttrLabelsRegex, logger.AttrLogTag:
+			// Common attributes handled through [logger.Info.ExtraAttributes] and [loggerutils.ParseLogTag].
+			continue
+
 		case splunkURLKey:
 		case splunkTokenKey:
 		case splunkSourceKey:
@@ -563,11 +553,6 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case splunkGzipCompressionKey:
 		case splunkGzipCompressionLevelKey:
 		case splunkIndexAcknowledgment:
-		case envKey:
-		case envRegexKey:
-		case labelsKey:
-		case labelsRegexKey:
-		case tagKey:
 		default:
 			return fmt.Errorf("unknown log opt '%s' for %s log driver", key, driverName)
 		}

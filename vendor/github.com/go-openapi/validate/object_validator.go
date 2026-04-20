@@ -31,7 +31,8 @@ type objectValidator struct {
 func newObjectValidator(path, in string,
 	maxProperties, minProperties *int64, required []string, properties spec.SchemaProperties,
 	additionalProperties *spec.SchemaOrBool, patternProperties spec.SchemaProperties,
-	root any, formats strfmt.Registry, opts *SchemaValidatorOptions) *objectValidator {
+	root any, formats strfmt.Registry, opts *SchemaValidatorOptions,
+) *objectValidator {
 	if opts == nil {
 		opts = new(SchemaValidatorOptions)
 	}
@@ -104,7 +105,7 @@ func (o *objectValidator) Validate(data any) *Result {
 	o.validatePropertiesSchema(val, res)
 
 	// Check patternProperties
-	// TODO: it looks like we have done that twice in many cases
+	// NOTE: it looks like we have done that twice in many cases
 	for key, value := range val {
 		_, regularProperty := o.Properties[key]
 		matched, _, patterns := o.validatePatternProperty(key, value, res) // applies to regular properties as well
@@ -115,7 +116,7 @@ func (o *objectValidator) Validate(data any) *Result {
 		for _, pName := range patterns {
 			if v, ok := o.PatternProperties[pName]; ok {
 				r := newSchemaValidator(&v, o.Root, o.Path+"."+key, o.KnownFormats, o.Options).Validate(value)
-				res.mergeForField(data.(map[string]any), key, r)
+				res.mergeForField(data.(map[string]any), key, r) //nolint:forcetypeassert // data is always map[string]any at this point
 			}
 		}
 	}
@@ -129,7 +130,7 @@ func (o *objectValidator) SetPath(path string) {
 }
 
 func (o *objectValidator) Applies(source any, kind reflect.Kind) bool {
-	// TODO: this should also work for structs
+	// NOTE: this should also work for structs
 	// there is a problem in the type validator where it will be unhappy about null values
 	// so that requires more testing
 	_, isSchema := source.(*spec.Schema)
@@ -285,7 +286,7 @@ func (o *objectValidator) validateNoAdditionalProperties(val map[string]any, res
 			/*
 				case "$ref":
 					if val[k] != nil {
-						// TODO: check context of that ref: warn about siblings, check against invalid context
+						// Proposal for enhancement: check context of that ref: warn about siblings, check against invalid context
 					}
 			*/
 		}
@@ -377,7 +378,7 @@ func (o *objectValidator) validatePropertiesSchema(val map[string]any, res *Resu
 	}
 }
 
-// TODO: succeededOnce is not used anywhere
+// NOTE: succeededOnce is not used anywhere.
 func (o *objectValidator) validatePatternProperty(key string, value any, result *Result) (bool, bool, []string) {
 	if len(o.PatternProperties) == 0 {
 		return false, false, nil

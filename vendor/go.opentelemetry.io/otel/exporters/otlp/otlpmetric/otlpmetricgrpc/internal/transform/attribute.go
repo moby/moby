@@ -87,6 +87,7 @@ func Value(v attribute.Value) *cpb.AnyValue {
 				Values: stringSliceValues(v.AsStringSlice()),
 			},
 		}
+	case attribute.EMPTY:
 	default:
 		av.Value = &cpb.AnyValue_StringValue{
 			StringValue: "INVALID",

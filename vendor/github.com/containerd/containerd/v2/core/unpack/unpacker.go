@@ -524,6 +524,15 @@ func (u *Unpacker) unpack(
 			case <-fetchC[i-fetchOffset]:
 			}
 
+			// In case of parallel unpack, the parent snapshot isn't provided to the snapshotter.
+			// The overlayfs will return bind mounts for all layers, we need to convert them
+			// to overlay mounts for the applier to perform whiteout conversion correctly.
+			// TODO: this is a temporary workaround until #13053 lands.
+			// See: https://github.com/containerd/containerd/issues/13030
+			if i > 0 && parallel && unpack.SnapshotterKey == "overlayfs" {
+				mounts = bindToOverlay(mounts)
+			}
+
 			diff, err := a.Apply(ctx, desc, mounts, unpack.ApplyOpts...)
 			if err != nil {
 				cleanup.Do(ctx, abort)
@@ -746,4 +755,24 @@ func uniquePart() string {
 	// Ignore read failures, just decreases uniqueness
 	rand.Read(b[:])
 	return fmt.Sprintf("%d-%s", t.Nanosecond(), base64.URLEncoding.EncodeToString(b[:]))
+}
+
+// TODO: this is a temporary workaround until #13053 lands.
+func bindToOverlay(mounts []mount.Mount) []mount.Mount {
+	if len(mounts) != 1 || mounts[0].Type != "bind" {
+		return mounts
+	}
+
+	m := mount.Mount{
+		Type:   "overlay",
+		Source: "overlay",
+	}
+	for _, o := range mounts[0].Options {
+		if o != "rbind" {
+			m.Options = append(m.Options, o)
+		}
+	}
+	m.Options = append(m.Options, "upperdir="+mounts[0].Source)
+
+	return []mount.Mount{m}
 }

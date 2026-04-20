@@ -1,17 +1,11 @@
 name: test
 
-# Default to 'contents: read', which grants actions to read commits.
-#
-# If any permission is set, any permission not included in the list is
-# implicitly set to "none".
-#
-# see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
-permissions:
-  contents: read
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 on:
   workflow_dispatch:
@@ -23,7 +17,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.25.8"
+  GO_VERSION: "1.26.2"
   GIT_PAGER: "cat"
   PAGER: "cat"
   SETUP_BUILDX_VERSION: edge
@@ -48,8 +42,10 @@ jobs:
     steps:
       -
         name: Prepare
+        env:
+          MODE: ${{ matrix.mode }}
         run: |
-          if [ "${{ matrix.mode }}" = "systemd" ]; then
+          if [ "$MODE" = "systemd" ]; then
             echo "SYSTEMD=true" >> $GITHUB_ENV
           fi
       -
@@ -61,7 +57,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
+        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           targets: dev
           set: |
@@ -71,7 +67,7 @@ jobs:
       -
         name: Cache dev image
         if: matrix.mode == ''
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           key: dev-image-${{ github.run_id }}
           path: /tmp/dev-image.tar
@@ -82,7 +78,6 @@ jobs:
       - build-dev
       - validate-dco
     uses: ./.github/workflows/.test.yml
-    secrets: inherit
     strategy:
       fail-fast: false
       matrix:
@@ -91,6 +86,8 @@ jobs:
           - snapshotter
     with:
       storage: ${{ matrix.storage }}
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   test-unit:
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
@@ -98,7 +95,8 @@ jobs:
       - build-dev
       - validate-dco
     uses: ./.github/workflows/.test-unit.yml
-    secrets: inherit
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   validate-prepare:
     runs-on: ubuntu-24.04
@@ -110,17 +108,14 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Create matrix
         id: scripts
         run: |
           scripts=$(cd ./hack/validate && jq -nc '$ARGS.positional - ["all", "default", "dco"] | map(select(test("[.]")|not)) + ["generate-files"]' --args *)
           echo "matrix=$scripts" >> $GITHUB_OUTPUT
-      -
-        name: Show matrix
-        run: |
-          echo ${{ steps.scripts.outputs.matrix }}
+          echo "$scripts"
 
   validate:
     runs-on: ubuntu-24.04
@@ -134,7 +129,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       -
@@ -149,7 +144,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Restore dev image
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           key: dev-image-${{ github.run_id }}
           path: /tmp/dev-image.tar
@@ -160,8 +155,10 @@ jobs:
           docker load -i /tmp/dev-image.tar
       -
         name: Validate
+        env:
+          SCRIPT: ${{ matrix.script }}
         run: |
-          make -o build validate-${{ matrix.script }}
+          make -o build "validate-${SCRIPT}"
 
   validate-api-swagger:
     runs-on: ubuntu-24.04
@@ -175,12 +172,8 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - 
-        name: Build api module image
-        run: |
-          make build
-      - 
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      -
         name: Validate swagger
         run: |
           make validate-swagger
@@ -193,21 +186,18 @@ jobs:
     needs:
       - validate-dco
     outputs:
-      matrix: ${{ steps.platforms.outputs.matrix }}
+      includes: ${{ steps.gen.outputs.matrix }}
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Create matrix
-        id: platforms
-        run: |
-          matrix="$(docker buildx bake binary-smoketest --print | jq -cr '.target."binary-smoketest".platforms')"
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
-      -
-        name: Show matrix
-        run: |
-          echo ${{ steps.platforms.outputs.matrix }}
+        id: gen
+        uses: docker/bake-action/subaction/matrix@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
+        with:
+          target: binary-smoketest
+          fields: platforms
 
   smoke:
     runs-on: ubuntu-24.04
@@ -218,13 +208,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJson(needs.smoke-prepare.outputs.matrix) }}
+        include: ${{ fromJson(needs.smoke-prepare.outputs.includes) }}
     steps:
       -
         name: Prepare
+        env:
+          PLATFORM: ${{ matrix.platforms }}
         run: |
-          platform=${{ matrix.platform }}
-          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+          echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> $GITHUB_ENV
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
@@ -237,8 +228,8 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Test
-        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
+        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
-          targets: binary-smoketest
+          targets: ${{ matrix.target }}
           set: |
-            *.platform=${{ matrix.platform }}
+            *.platform=${{ matrix.platforms }}

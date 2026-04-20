@@ -12,7 +12,6 @@ import (
 
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
-	"github.com/moby/term"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -115,8 +114,7 @@ func loadFrozenImages(ctx context.Context, apiClient client.APIClient) error {
 		return errors.Wrap(err, "failed to load frozen images")
 	}
 	defer resp.Close()
-	fd, isTerminal := term.GetFdInfo(os.Stdout)
-	return jsonmessage.DisplayJSONMessagesStream(resp, os.Stdout, fd, isTerminal, nil)
+	return jsonmessage.DisplayStream(resp, os.Stdout)
 }
 
 func pullImages(ctx context.Context, client client.APIClient, images []string) error {
@@ -166,8 +164,7 @@ func pullTagAndRemove(ctx context.Context, apiClient client.APIClient, ref strin
 		return errors.Wrapf(err, "failed to pull %s", ref)
 	}
 	defer resp.Close()
-	fd, isTerminal := term.GetFdInfo(os.Stdout)
-	if err := jsonmessage.DisplayJSONMessagesStream(resp, os.Stdout, fd, isTerminal, nil); err != nil {
+	if err := jsonmessage.DisplayStream(resp, os.Stdout); err != nil {
 		return err
 	}
 

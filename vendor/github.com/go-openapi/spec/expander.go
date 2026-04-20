@@ -38,7 +38,7 @@ func optionsOrDefault(opts *ExpandOptions) *ExpandOptions {
 	return &ExpandOptions{}
 }
 
-// ExpandSpec expands the references in a swagger spec
+// ExpandSpec expands the references in a swagger spec.
 func ExpandSpec(spec *Swagger, options *ExpandOptions) error {
 	options = optionsOrDefault(options)
 	resolver := defaultSchemaLoader(spec, options, nil, nil)
@@ -92,7 +92,7 @@ func ExpandSpec(spec *Swagger, options *ExpandOptions) error {
 const rootBase = ".root"
 
 // baseForRoot loads in the cache the root document and produces a fake ".root" base path entry
-// for further $ref resolution
+// for further $ref resolution.
 func baseForRoot(root any, cache ResolutionCache) string {
 	// cache the root document to resolve $ref's
 	normalizedBase := normalizeBase(rootBase)
@@ -190,6 +190,7 @@ func expandItems(target Schema, parentRefs []string, resolver *schemaLoader, bas
 	return &target, nil
 }
 
+//nolint:gocognit,gocyclo,cyclop // complex but well-tested $ref expansion logic; refactoring deferred to dedicated PR
 func expandSchema(target Schema, parentRefs []string, resolver *schemaLoader, basePath string) (*Schema, error) {
 	if target.Ref.String() == "" && target.Ref.IsRoot() {
 		newRef := normalizeRef(&target.Ref, basePath)
@@ -464,7 +465,7 @@ func ExpandResponseWithRoot(response *Response, root any, cache ResolutionCache)
 
 // ExpandResponse expands a response based on a basepath
 //
-// All refs inside response will be resolved relative to basePath
+// All refs inside response will be resolved relative to basePath.
 func ExpandResponse(response *Response, basePath string) error {
 	opts := optionsOrDefault(&ExpandOptions{
 		RelativeBase: basePath,
@@ -491,7 +492,7 @@ func ExpandParameterWithRoot(parameter *Parameter, root any, cache ResolutionCac
 
 // ExpandParameter expands a parameter based on a basepath.
 // This is the exported version of expandParameter
-// all refs inside parameter will be resolved relative to basePath
+// all refs inside parameter will be resolved relative to basePath.
 func ExpandParameter(parameter *Parameter, basePath string) error {
 	opts := optionsOrDefault(&ExpandOptions{
 		RelativeBase: basePath,
@@ -565,7 +566,7 @@ func expandParameterOrResponse(input any, resolver *schemaLoader, basePath strin
 		return nil
 	}
 
-	if sch.Ref.String() != "" {
+	if sch.Ref.String() != "" { //nolint:nestif // intertwined ref rebasing and circularity check
 		rebasedRef, ern := NewRef(normalizeURI(sch.Ref.String(), basePath))
 		if ern != nil {
 			return ern

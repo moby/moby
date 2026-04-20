@@ -14,6 +14,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/streamformatter"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/pkg/errors"
 )
@@ -40,7 +41,7 @@ func parseRemoteRef(remote string) (reference.Named, string, error) {
 	// Parse remote reference, supporting remotes with name and tag
 	remoteRef, err := reference.ParseNormalizedNamed(remote)
 	if err != nil {
-		return nil, "", err
+		return nil, "", errdefs.InvalidParameter(err)
 	}
 
 	type canonicalWithTag interface {
@@ -205,7 +206,7 @@ func (pr *pluginRouter) enablePlugin(ctx context.Context, w http.ResponseWriter,
 
 	timeout, err := strconv.Atoi(r.Form.Get("timeout"))
 	if err != nil {
-		return err
+		return errdefs.InvalidParameter(err)
 	}
 
 	name := vars["name"]

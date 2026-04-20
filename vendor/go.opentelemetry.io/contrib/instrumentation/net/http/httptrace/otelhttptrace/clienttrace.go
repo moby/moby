@@ -165,7 +165,7 @@ func NewClientTrace(ctx context.Context, opts ...ClientTraceOption) *httptrace.C
 
 	ct.tr = ct.tracerProvider.Tracer(
 		ScopeName,
-		trace.WithInstrumentationVersion(Version()),
+		trace.WithInstrumentationVersion(Version),
 	)
 
 	return &httptrace.ClientTrace{
@@ -298,7 +298,7 @@ func (ct *clientTracer) dnsStart(info httptrace.DNSStartInfo) {
 }
 
 func (ct *clientTracer) dnsDone(info httptrace.DNSDoneInfo) {
-	var addrs []string
+	addrs := make([]string, 0, len(info.Addrs))
 	for _, netAddr := range info.Addrs {
 		addrs = append(addrs, netAddr.String())
 	}

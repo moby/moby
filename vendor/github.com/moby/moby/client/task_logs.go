@@ -32,7 +32,7 @@ type TaskLogsResult interface {
 //
 // The underlying [io.ReadCloser] is automatically closed if the context is canceled,
 func (cli *Client) TaskLogs(ctx context.Context, taskID string, options TaskLogsOptions) (TaskLogsResult, error) {
-	// TODO(thaJeztah): this function needs documentation about the format of ths stream (similar to for container logs)
+	// TODO(thaJeztah): this function needs documentation about the format of the stream (similar to for container logs)
 	// TODO(thaJeztah): migrate CLI utilities to the client where suitable; https://github.com/docker/cli/blob/v29.0.0-rc.1/cli/command/service/logs.go#L73-L348
 
 	query := url.Values{}

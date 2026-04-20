@@ -7,10 +7,11 @@
 package converter
 
 const (
-	ManifestOSFeatureNydus   = "nydus.remoteimage.v1"
-	ManifestConfigNydus      = "application/vnd.nydus.image.config.v1+json"
-	MediaTypeNydusBlob       = "application/vnd.oci.image.layer.nydus.blob.v1"
-	BootstrapFileNameInLayer = "image/image.boot"
+	ManifestOSFeatureNydus    = "nydus.remoteimage.v1"
+	ManifestConfigNydus       = "application/vnd.nydus.image.config.v1+json"
+	ManifestArtifactTypeNydus = "application/vnd.nydus.image.manifest.v1+json"
+	MediaTypeNydusBlob        = "application/vnd.oci.image.layer.nydus.blob.v1"
+	BootstrapFileNameInLayer  = "image/image.boot"
 
 	ManifestNydusCache = "containerd.io/snapshot/nydus-cache"
 

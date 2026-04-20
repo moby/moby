@@ -55,7 +55,7 @@ func GenerateFromModel[T any](options Generic) (T, error) {
 
 	modType := reflect.TypeFor[T]()
 
-	isPtr := modType.Kind() == reflect.Ptr
+	isPtr := modType.Kind() == reflect.Pointer
 
 	// If the model is of pointer type, we need to dereference for New.
 	resType := modType

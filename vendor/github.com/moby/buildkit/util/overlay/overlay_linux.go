@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
 
 	"github.com/containerd/containerd/v2/core/mount"
@@ -18,6 +17,7 @@ import (
 	"github.com/containerd/continuity/devices"
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/continuity/sysx"
+	"github.com/moby/buildkit/util/pools"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
@@ -404,12 +404,10 @@ func compareSymlinkTarget(p1, p2 string) (bool, error) {
 	return t1 == t2, nil
 }
 
-var bufPool = sync.Pool{
-	New: func() any {
-		b := make([]byte, 32*1024)
-		return &b
-	},
-}
+var bufPool = pools.New(func() *[]byte {
+	b := make([]byte, 32*1024)
+	return &b
+})
 
 // Ported from continuity project
 // https://github.com/containerd/continuity/blob/bce1c3f9669b6f3e7f6656ee715b0b4d75fa64a6/fs/path.go#L151
@@ -437,9 +435,9 @@ func compareFileContent(p1, p2 string) (bool, error) {
 		return false, errors.Errorf("%s is not a regular file", p2)
 	}
 
-	b1 := bufPool.Get().(*[]byte)
+	b1 := bufPool.Get()
 	defer bufPool.Put(b1)
-	b2 := bufPool.Get().(*[]byte)
+	b2 := bufPool.Get()
 	defer bufPool.Put(b2)
 	for {
 		n1, err1 := io.ReadFull(f1, *b1)

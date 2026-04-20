@@ -3,12 +3,6 @@ name: .test
 
 # TODO: hide reusable workflow from the UI. Tracked in https://github.com/community/community/discussions/12025
 
-# Default to 'contents: read', which grants actions to read commits.
-#
-# If any permission is set, any permission not included in the list is
-# implicitly set to "none".
-#
-# see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
 permissions:
   contents: read
 
@@ -19,9 +13,12 @@ on:
         required: true
         type: string
         default: "graphdriver"
+    secrets:
+      CODECOV_TOKEN:
+        required: false
 
 env:
-  GO_VERSION: "1.25.8"
+  GO_VERSION: "1.26.2"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   ITG_CLI_MATRIX_SIZE: 6
@@ -39,7 +36,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -55,7 +52,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
+        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           targets: dev
           set: |
@@ -70,7 +67,7 @@ jobs:
         run: |
           docker stop otelcol
           mkdir -p bundles /tmp/reports
-          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          find bundles \( -path '*/root' -o -path '*/root/*' \) -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print0 | sudo tar --null --files-from=- -czf /tmp/reports.tar.gz
           tar -xzf /tmp/reports.tar.gz -C /tmp/reports
           sudo chown -R $(id -u):$(id -g) /tmp/reports
           tree -nh /tmp/reports
@@ -82,7 +79,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-reports-docker-py-${{ inputs.storage }}
           path: /tmp/reports/*
@@ -95,7 +92,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -108,7 +105,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
+        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           targets: dev
           set: |
@@ -130,19 +127,22 @@ jobs:
       -
         name: Create matrix includes
         id: set
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          INPUT_STORAGE: ${{ inputs.storage }}
         with:
           script: |
+            const storage = core.getInput('storage', { required: true });
             let includes = [
               { os: 'ubuntu-22.04', mode: '' },
               { os: 'ubuntu-22.04', mode: 'rootless' },
               { os: 'ubuntu-22.04', mode: 'systemd' },
               { os: 'ubuntu-24.04', mode: '' },
-              // { os: 'ubuntu-24.04', mode: 'rootless' },  // FIXME: https://github.com/moby/moby/pull/49579#issuecomment-2698622223
+              { os: 'ubuntu-24.04', mode: 'rootless' },
               { os: 'ubuntu-24.04', mode: 'systemd' },
               // { os: 'ubuntu-24.04', mode: 'rootless-systemd' }, // FIXME: https://github.com/moby/moby/issues/44084
             ];
-            if ("${{ inputs.storage }}" == "snapshotter") {
+            if (storage == "snapshotter") {
               includes.push({ os: 'ubuntu-24.04', mode: 'iptables+firewalld' });
               includes.push({ os: 'ubuntu-24.04', mode: 'nftables' });
               includes.push({ os: 'ubuntu-24.04', mode: 'nftables+firewalld' });
@@ -151,10 +151,6 @@ jobs:
               core.info(`matrix: ${JSON.stringify(includes)}`);
               core.setOutput('includes', JSON.stringify(includes));
             });
-      -
-        name: Show matrix
-        run: |
-          echo ${{ steps.set.outputs.includes }}
 
   integration:
     runs-on: ${{ matrix.os }}
@@ -169,7 +165,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -178,23 +174,38 @@ jobs:
         uses: ./.github/actions/setup-tracing
       -
         name: Prepare
+        env:
+          MODE: ${{ matrix.mode }}
         run: |
           CACHE_DEV_SCOPE=dev
-          if [[ "${{ matrix.mode }}" == *"rootless"* ]]; then
+          if [[ "$MODE" == *"rootless"* ]]; then
             echo "DOCKER_ROOTLESS=1" >> $GITHUB_ENV
           fi
-          if [[ "${{ matrix.mode }}" == *"systemd"* ]]; then
+          if [[ "$MODE" == *"systemd"* ]]; then
             echo "SYSTEMD=true" >> $GITHUB_ENV
             CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}systemd"
           fi
-          if [[ "${{ matrix.mode }}" == *"firewalld"* ]]; then
+          if [[ "$MODE" == *"firewalld"* ]]; then
             echo "FIREWALLD=true" >> $GITHUB_ENV
             CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
           fi
-          if [[ "${{ matrix.mode }}" == *"nftables"* ]]; then
+          if [[ "$MODE" == *"nftables"* ]]; then
             echo "DOCKER_FIREWALL_BACKEND=nftables" >> $GITHUB_ENV
           fi
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
+      -
+        name: Set up AppArmor for RootlessKit
+        if: contains(matrix.mode, 'rootless') && matrix.os != 'ubuntu-22.04'
+        run: |
+          cat <<EOT | sudo tee "/etc/apparmor.d/usr.local.bin.rootlesskit"
+          abi <abi/4.0>,
+          include <tunables/global>
+
+          /usr/local/bin/rootlesskit flags=(unconfined) {
+            userns,
+          }
+          EOT
+          sudo systemctl restart apparmor.service
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
@@ -204,7 +215,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
+        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           targets: dev
           set: |
@@ -219,24 +230,27 @@ jobs:
       -
         name: Prepare reports
         if: always()
+        env:
+          MATRIX_MODE: ${{ matrix.mode }}
+          MATRIX_OS: ${{ matrix.os }}
         run: |
-          reportsName=${{ matrix.os }}
-          if [ -n "${{ matrix.mode }}" ]; then
-            reportsName="$reportsName-${{ matrix.mode }}"
+          reportsName=$MATRIX_OS
+          if [ -n "$MATRIX_MODE" ]; then
+            reportsName="$reportsName-$MATRIX_MODE"
           fi
           reportsPath="/tmp/reports/$reportsName"
           echo "TESTREPORTS_NAME=$reportsName" >> $GITHUB_ENV
           
           docker stop otelcol
           mkdir -p bundles $reportsPath
-          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          find bundles \( -path '*/root' -o -path '*/root/*' \) -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print0 | sudo tar --null --files-from=- -czf /tmp/reports.tar.gz
           tar -xzf /tmp/reports.tar.gz -C $reportsPath
-          mv /tmp/reports/otel-trace*.jsonl $reportsPath/
+          sudo mv /tmp/reports/otel-trace*.jsonl $reportsPath/ 2>/dev/null || true
           sudo chown -R $(id -u):$(id -g) $reportsPath
           tree -nh $reportsPath
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -250,7 +264,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-reports-integration-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
@@ -266,13 +280,13 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: /tmp/reports
           pattern: test-reports-integration-${{ inputs.storage }}-*
@@ -295,10 +309,10 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -321,11 +335,15 @@ jobs:
       -
         name: Create gha matrix
         id: set
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          INPUT_STORAGE: ${{ inputs.storage }}
+          INPUT_TEST-MATRIX: ${{ steps.tests.outputs.matrix }}
         with:
           script: |
+            const storage = core.getInput('storage', { required: true });
             let matrix = {
-              test: ${{ steps.tests.outputs.matrix }},
+              test: JSON.parse(core.getInput('test-matrix', { required: true })),
               include: [],
             };
             // For some reasons, GHA doesn't combine a dynamically defined
@@ -334,7 +352,7 @@ jobs:
             // Moreover, since the goal is to run only relevant tests with
             // firewalld/nftables enabled to minimize the number of CI jobs, we
             // statically define the list of test suites that we want to run.
-            if ("${{ inputs.storage }}" == "snapshotter") {
+            if (storage == "snapshotter") {
               matrix.include.push({
                 'mode': 'iptables+firewalld',
                 'test': 'DockerCLINetworkSuite|DockerCLIPortSuite|DockerDaemonSuite'
@@ -376,10 +394,6 @@ jobs:
               core.info(`matrix: ${JSON.stringify(matrix)}`);
               core.setOutput('matrix', JSON.stringify(matrix));
             });
-      -
-        name: Show final gha matrix
-        run: |
-          echo ${{ steps.set.outputs.matrix }}
 
   integration-cli:
     runs-on: ubuntu-24.04
@@ -393,7 +407,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -402,13 +416,15 @@ jobs:
         uses: ./.github/actions/setup-tracing
       -
         name: Prepare
+        env:
+          MODE: ${{ matrix.mode }}
         run: |
           CACHE_DEV_SCOPE=dev
-          if [[ "${{ matrix.mode }}" == *"firewalld"* ]]; then
+          if [[ "$MODE" == *"firewalld"* ]]; then
             echo "FIREWALLD=true" >> $GITHUB_ENV
             CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
           fi
-          if [[ "${{ matrix.mode }}" == *"nftables"* ]]; then
+          if [[ "$MODE" == *"nftables"* ]]; then
             echo "DOCKER_FIREWALL_BACKEND=nftables" >> $GITHUB_ENV
           fi
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
@@ -421,7 +437,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
+        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           targets: dev
           set: |
@@ -437,22 +453,24 @@ jobs:
       -
         name: Prepare reports
         if: always()
+        env:
+          MATRIX_TEST: ${{ matrix.test }}
         run: |
-          reportsName=$(echo -n "${{ matrix.test }}" | sha256sum | cut -d " " -f 1)
+          reportsName=$(echo -n "$MATRIX_TEST" | sha256sum | cut -d " " -f 1)
           reportsPath=/tmp/reports/$reportsName
           echo "TESTREPORTS_NAME=$reportsName" >> $GITHUB_ENV
           
           docker stop otelcol
           mkdir -p bundles $reportsPath
-          echo "${{ matrix.test }}" | tr -s '|' '\n' | tee -a "$reportsPath/tests.txt"
-          find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+          echo "$MATRIX_TEST" | tr -s '|' '\n' | tee -a "$reportsPath/tests.txt"
+          find bundles \( -path '*/root' -o -path '*/root/*' \) -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print0 | sudo tar --null --files-from=- -czf /tmp/reports.tar.gz
           tar -xzf /tmp/reports.tar.gz -C $reportsPath
-          mv /tmp/reports/otel-trace*.jsonl $reportsPath/
+          sudo mv /tmp/reports/otel-trace*.jsonl $reportsPath/ 2>/dev/null || true
           sudo chown -R $(id -u):$(id -g) $reportsPath
           tree -nh $reportsPath
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -466,7 +484,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
@@ -482,13 +500,13 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: /tmp/reports
           pattern: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-*

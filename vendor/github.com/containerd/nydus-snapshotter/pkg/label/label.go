@@ -60,6 +60,9 @@ const (
 	// A bool flag to mark it is recommended to run this image with tarfs mode, set by image builders.
 	// runtime can decide whether to rely on this annotation
 	TarfsHint = "containerd.io/snapshot/tarfs-hint"
+
+	// An alternative nydus index manifest exists in the original OCI index manifest for this snapshot
+	NydusIndexAlternative = "containerd.io/snapshot/nydus-index-alternative"
 )
 
 func IsNydusDataLayer(labels map[string]string) bool {

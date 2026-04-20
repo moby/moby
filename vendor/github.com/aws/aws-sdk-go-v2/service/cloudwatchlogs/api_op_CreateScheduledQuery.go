@@ -46,8 +46,8 @@ type CreateScheduledQueryInput struct {
 	// This member is required.
 	Name *string
 
-	// The query language to use for the scheduled query. Valid values are LogsQL , PPL
-	// , and SQL .
+	// The query language to use for the scheduled query. Valid values are CWLI , PPL ,
+	// and SQL .
 	//
 	// This member is required.
 	QueryLanguage types.QueryLanguage
@@ -152,7 +152,7 @@ func (c *Client) addOperationCreateScheduledQueryMiddlewares(stack *middleware.S
 	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetry(stack, options); err != nil {
+	if err = addRetry(stack, options, c); err != nil {
 		return err
 	}
 	if err = addRawResponseToMetadata(stack); err != nil {
@@ -174,9 +174,6 @@ func (c *Client) addOperationCreateScheduledQueryMiddlewares(stack *middleware.S
 		return err
 	}
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addTimeOffsetBuild(stack, c); err != nil {
 		return err
 	}
 	if err = addUserAgentRetryMode(stack, options); err != nil {

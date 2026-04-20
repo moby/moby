@@ -430,18 +430,14 @@ func setResourcesInSpec(c *container.Container, s *specs.Spec, isHyperV bool) {
 			leftoverNanoCPUs := c.HostConfig.NanoCPUs % 1e9
 			if leftoverNanoCPUs != 0 {
 				cpuCount++
-				cpuMaximum = uint16(c.HostConfig.NanoCPUs / int64(cpuCount) / (1e9 / 10000))
-				if cpuMaximum < 1 {
+				cpuMaximum = max(uint16(c.HostConfig.NanoCPUs/int64(cpuCount)/(1e9/10000)),
 					// The requested NanoCPUs is so small that we rounded to 0, use 1 instead
-					cpuMaximum = 1
-				}
+					1)
 			}
 		} else {
-			cpuMaximum = uint16(c.HostConfig.NanoCPUs / int64(runtime.NumCPU()) / (1e9 / 10000))
-			if cpuMaximum < 1 {
+			cpuMaximum = max(uint16(c.HostConfig.NanoCPUs/int64(runtime.NumCPU())/(1e9/10000)),
 				// The requested NanoCPUs is so small that we rounded to 0, use 1 instead
-				cpuMaximum = 1
-			}
+				1)
 		}
 	}
 
@@ -538,9 +534,9 @@ func readCredentialSpecFile(id, root, location string) (string, error) {
 func setupWindowsDevices(devices []containertypes.DeviceMapping) ([]specs.WindowsDevice, error) {
 	var specDevices []specs.WindowsDevice
 	for _, deviceMapping := range devices {
-		if strings.HasPrefix(deviceMapping.PathOnHost, "class/") {
+		if after, ok := strings.CutPrefix(deviceMapping.PathOnHost, "class/"); ok {
 			specDevices = append(specDevices, specs.WindowsDevice{
-				ID:     strings.TrimPrefix(deviceMapping.PathOnHost, "class/"),
+				ID:     after,
 				IDType: "class",
 			})
 		} else {

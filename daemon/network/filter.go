@@ -96,20 +96,16 @@ func newFilter(args filters.Args) (Filter, error) {
 	if err := args.WalkValues("type", validateNetworkTypeFilter); err != nil {
 		return Filter{}, err
 	}
-	until := time.Time{}
+	var until time.Time
 	if untilFilters := args.Get("until"); len(untilFilters) > 0 {
 		if len(untilFilters) > 1 {
 			return Filter{}, errdefs.InvalidParameter(errors.New("more than one until filter specified"))
 		}
-		ts, err := timestamp.GetTimestamp(untilFilters[0], time.Now())
+		var err error
+		until, err = timestamp.Parse(untilFilters[0], time.Now())
 		if err != nil {
 			return Filter{}, errdefs.InvalidParameter(err)
 		}
-		seconds, nanoseconds, err := timestamp.ParseTimestamps(ts, 0)
-		if err != nil {
-			return Filter{}, errdefs.InvalidParameter(err)
-		}
-		until = time.Unix(seconds, nanoseconds)
 	}
 	return Filter{
 		args:         args,

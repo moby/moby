@@ -56,6 +56,9 @@ type GitRef struct {
 
 	// Submodules is true for URL that controls whether to fetch git submodules.
 	Submodules *bool
+
+	// MTime controls file modification time policy: "checkout" (default) or "commit".
+	MTime string
 }
 
 // ParseGitRef parses a git ref.
@@ -182,6 +185,13 @@ func (gf *GitRef) loadQuery(query url.Values) error {
 				}
 			}
 			gf.Submodules = &vv
+		case "mtime":
+			switch v[0] {
+			case "checkout", "commit":
+				gf.MTime = v[0]
+			default:
+				return errors.Errorf("invalid mtime value: %q (must be \"checkout\" or \"commit\")", v[0])
+			}
 		default:
 			return errors.Errorf("unexpected query %q", k)
 		}

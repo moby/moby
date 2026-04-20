@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"path"
 	"time"
@@ -18,8 +18,8 @@ import (
 func addAPIRequestMiddleware(stack *middleware.Stack,
 	options Options,
 	operation string,
-	getPath func(interface{}) (string, error),
-	getOutput func(*smithyhttp.Response) (interface{}, error),
+	getPath func(any) (string, error),
+	getOutput func(*smithyhttp.Response) (any, error),
 ) (err error) {
 	err = addRequestMiddleware(stack, options, "GET", operation, getPath, getOutput)
 	if err != nil {
@@ -46,8 +46,8 @@ func addRequestMiddleware(stack *middleware.Stack,
 	options Options,
 	method string,
 	operation string,
-	getPath func(interface{}) (string, error),
-	getOutput func(*smithyhttp.Response) (interface{}, error),
+	getPath func(any) (string, error),
+	getOutput func(*smithyhttp.Response) (any, error),
 ) (err error) {
 	err = awsmiddleware.AddSDKAgentKey(awsmiddleware.FeatureMetadata, "ec2-imds")(stack)
 	if err != nil {
@@ -120,7 +120,7 @@ func addSetLoggerMiddleware(stack *middleware.Stack, o Options) error {
 }
 
 type serializeRequest struct {
-	GetPath func(interface{}) (string, error)
+	GetPath func(any) (string, error)
 	Method  string
 }
 
@@ -150,7 +150,7 @@ func (m *serializeRequest) HandleSerialize(
 }
 
 type deserializeResponse struct {
-	GetOutput func(*smithyhttp.Response) (interface{}, error)
+	GetOutput func(*smithyhttp.Response) (any, error)
 }
 
 func (*deserializeResponse) ID() string {
@@ -176,11 +176,11 @@ func (m *deserializeResponse) HandleDeserialize(
 
 	// read the full body so that any operation timeouts cleanup will not race
 	// the body being read.
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return out, metadata, fmt.Errorf("read response body failed, %w", err)
 	}
-	resp.Body = ioutil.NopCloser(bytes.NewReader(body))
+	resp.Body = io.NopCloser(bytes.NewReader(body))
 
 	// Anything that's not 200 |< 300 is error
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {

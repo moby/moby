@@ -190,25 +190,18 @@ func (sb *Sandbox) getGatewayEndpoint() (ep4, ep6 *Endpoint) {
 			continue
 		}
 		gw4, gw6 := ep.hasGatewayOrDefaultRoute()
-		if gw4 && gw6 {
-			// The first dual-stack endpoint is the gateway, no need to search further.
-			//
-			// FIXME(robmry) - this means a dual-stack gateway is preferred over single-stack
-			// gateways with higher gateway-priorities. A dual-stack network should probably
-			// be preferred over two single-stack networks, if they all have equal priorities.
-			// It'd probably also be better to use a dual-stack endpoint as the gateway for
-			// a single address family, if there's a higher-priority single-stack gateway for
-			// the other address family. (But, priority is currently a Sandbox property, not
-			// an Endpoint property. So, this function doesn't have access to priorities.)
-			return ep, ep
-		}
 		if gw4 && ep4 == nil {
-			// Found the best IPv4-only gateway, keep searching for an IPv6 or dual-stack gateway.
+			// Endpoints are already sorted according to Endpoint.Less(). The
+			// first endpoint with IPv4 connectivity is the IPv4 gateway.
 			ep4 = ep
 		}
 		if gw6 && ep6 == nil {
-			// Found the best IPv6-only gateway, keep searching for an IPv4 or dual-stack gateway.
+			// The first endpoint with IPv6 connectivity is the IPv6 gateway.
 			ep6 = ep
+		}
+		if ep4 != nil && ep6 != nil {
+			// Found both; we're done.
+			break
 		}
 	}
 	return ep4, ep6

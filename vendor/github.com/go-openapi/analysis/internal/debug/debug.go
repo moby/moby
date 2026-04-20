@@ -11,11 +11,9 @@ import (
 	"runtime"
 )
 
-var (
-	output = os.Stdout
-)
+var output = os.Stdout //nolint:gochecknoglobals // this is on purpose to be overridable during tests
 
-// GetLogger provides a prefix debug logger
+// GetLogger provides a prefix debug logger.
 func GetLogger(prefix string, debug bool) func(string, ...any) {
 	if debug {
 		logger := log.New(output, prefix+":", log.LstdFlags)

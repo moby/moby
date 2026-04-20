@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -42,7 +43,7 @@ type Encoder struct {
 	arraysMultiline    bool
 	indentSymbol       string
 	indentTables       bool
-	marshalJsonNumbers bool
+	marshalJSONNumbers bool
 }
 
 // NewEncoder returns a new Encoder that writes to w.
@@ -89,14 +90,14 @@ func (enc *Encoder) SetIndentTables(indent bool) *Encoder {
 	return enc
 }
 
-// SetMarshalJsonNumbers forces the encoder to serialize `json.Number` as a
+// SetMarshalJSONNumbers forces the encoder to serialize `json.Number` as a
 // float or integer instead of relying on TextMarshaler to emit a string.
 //
 // *Unstable:* This method does not follow the compatibility guarantees of
 // semver. It can be changed or removed without a new major version being
 // issued.
-func (enc *Encoder) SetMarshalJsonNumbers(indent bool) *Encoder {
-	enc.marshalJsonNumbers = indent
+func (enc *Encoder) SetMarshalJSONNumbers(indent bool) *Encoder {
+	enc.marshalJSONNumbers = indent
 	return enc
 }
 
@@ -161,6 +162,8 @@ func (enc *Encoder) SetMarshalJsonNumbers(indent bool) *Encoder {
 //
 // The "omitempty" option prevents empty values or groups from being emitted.
 //
+// The "omitzero" option prevents zero values or groups from being emitted.
+//
 // The "commented" option prefixes the value and all its children with a comment
 // symbol.
 //
@@ -177,7 +180,7 @@ func (enc *Encoder) Encode(v interface{}) error {
 	ctx.inline = enc.tablesInline
 
 	if v == nil {
-		return fmt.Errorf("toml: cannot encode a nil interface")
+		return errors.New("toml: cannot encode a nil interface")
 	}
 
 	b, err := enc.encode(b, ctx, reflect.ValueOf(v))
@@ -196,6 +199,7 @@ func (enc *Encoder) Encode(v interface{}) error {
 type valueOptions struct {
 	multiline bool
 	omitempty bool
+	omitzero  bool
 	commented bool
 	comment   string
 }
@@ -266,16 +270,15 @@ func (enc *Encoder) encode(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, e
 	case LocalDateTime:
 		return append(b, x.String()...), nil
 	case json.Number:
-		if enc.marshalJsonNumbers {
+		if enc.marshalJSONNumbers {
 			if x == "" { /// Useful zero value.
 				return append(b, "0"...), nil
 			} else if v, err := x.Int64(); err == nil {
 				return enc.encode(b, ctx, reflect.ValueOf(v))
 			} else if f, err := x.Float64(); err == nil {
 				return enc.encode(b, ctx, reflect.ValueOf(f))
-			} else {
-				return nil, fmt.Errorf("toml: unable to convert %q to int64 or float64", x)
 			}
+			return nil, fmt.Errorf("toml: unable to convert %q to int64 or float64", x)
 		}
 	}
 
@@ -309,7 +312,7 @@ func (enc *Encoder) encode(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, e
 		return enc.encodeSlice(b, ctx, v)
 	case reflect.Interface:
 		if v.IsNil() {
-			return nil, fmt.Errorf("toml: encoding a nil interface is not supported")
+			return nil, errors.New("toml: encoding a nil interface is not supported")
 		}
 
 		return enc.encode(b, ctx, v.Elem())
@@ -326,28 +329,30 @@ func (enc *Encoder) encode(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, e
 	case reflect.Float32:
 		f := v.Float()
 
-		if math.IsNaN(f) {
+		switch {
+		case math.IsNaN(f):
 			b = append(b, "nan"...)
-		} else if f > math.MaxFloat32 {
+		case f > math.MaxFloat32:
 			b = append(b, "inf"...)
-		} else if f < -math.MaxFloat32 {
+		case f < -math.MaxFloat32:
 			b = append(b, "-inf"...)
-		} else if math.Trunc(f) == f {
+		case math.Trunc(f) == f:
 			b = strconv.AppendFloat(b, f, 'f', 1, 32)
-		} else {
+		default:
 			b = strconv.AppendFloat(b, f, 'f', -1, 32)
 		}
 	case reflect.Float64:
 		f := v.Float()
-		if math.IsNaN(f) {
+		switch {
+		case math.IsNaN(f):
 			b = append(b, "nan"...)
-		} else if f > math.MaxFloat64 {
+		case f > math.MaxFloat64:
 			b = append(b, "inf"...)
-		} else if f < -math.MaxFloat64 {
+		case f < -math.MaxFloat64:
 			b = append(b, "-inf"...)
-		} else if math.Trunc(f) == f {
+		case math.Trunc(f) == f:
 			b = strconv.AppendFloat(b, f, 'f', 1, 64)
-		} else {
+		default:
 			b = strconv.AppendFloat(b, f, 'f', -1, 64)
 		}
 	case reflect.Bool:
@@ -382,6 +387,31 @@ func isNil(v reflect.Value) bool {
 
 func shouldOmitEmpty(options valueOptions, v reflect.Value) bool {
 	return options.omitempty && isEmptyValue(v)
+}
+
+func shouldOmitZero(options valueOptions, v reflect.Value) bool {
+	if !options.omitzero {
+		return false
+	}
+
+	// Check if the type implements isZeroer interface (has a custom IsZero method).
+	if v.Type().Implements(isZeroerType) {
+		return v.Interface().(isZeroer).IsZero()
+	}
+
+	// Check if pointer type implements isZeroer.
+	if reflect.PointerTo(v.Type()).Implements(isZeroerType) {
+		if v.CanAddr() {
+			return v.Addr().Interface().(isZeroer).IsZero()
+		}
+		// Create a temporary addressable copy to call the pointer receiver method.
+		pv := reflect.New(v.Type())
+		pv.Elem().Set(v)
+		return pv.Interface().(isZeroer).IsZero()
+	}
+
+	// Fall back to reflect's IsZero for types without custom IsZero method.
+	return v.IsZero()
 }
 
 func (enc *Encoder) encodeKv(b []byte, ctx encoderCtx, options valueOptions, v reflect.Value) ([]byte, error) {
@@ -434,8 +464,9 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Float() == 0
 	case reflect.Interface, reflect.Ptr:
 		return v.IsNil()
+	default:
+		return false
 	}
-	return false
 }
 
 func isEmptyStruct(v reflect.Value) bool {
@@ -479,7 +510,7 @@ func (enc *Encoder) encodeString(b []byte, v string, options valueOptions) []byt
 func needsQuoting(v string) bool {
 	// TODO: vectorize
 	for _, b := range []byte(v) {
-		if b == '\'' || b == '\r' || b == '\n' || characters.InvalidAscii(b) {
+		if b == '\'' || b == '\r' || b == '\n' || characters.InvalidASCII(b) {
 			return true
 		}
 	}
@@ -517,12 +548,26 @@ func (enc *Encoder) encodeQuotedString(multiline bool, b []byte, v string) []byt
 		del = 0x7f
 	)
 
-	for _, r := range []byte(v) {
+	bv := []byte(v)
+	for i := 0; i < len(bv); i++ {
+		r := bv[i]
 		switch r {
 		case '\\':
 			b = append(b, `\\`...)
 		case '"':
-			b = append(b, `\"`...)
+			if multiline {
+				// Quotation marks do not need to be quoted in multiline strings unless
+				// it contains 3 consecutive. If 3+ quotes appear, quote all of them
+				// because it's visually better
+				if i+2 > len(bv) || bv[i+1] != '"' || bv[i+2] != '"' {
+					b = append(b, r)
+				} else {
+					b = append(b, `\"\"\"`...)
+					i += 2
+				}
+			} else {
+				b = append(b, `\"`...)
+			}
 		case '\b':
 			b = append(b, `\b`...)
 		case '\f':
@@ -559,9 +604,9 @@ func (enc *Encoder) encodeUnquotedKey(b []byte, v string) []byte {
 	return append(b, v...)
 }
 
-func (enc *Encoder) encodeTableHeader(ctx encoderCtx, b []byte) ([]byte, error) {
+func (enc *Encoder) encodeTableHeader(ctx encoderCtx, b []byte) []byte {
 	if len(ctx.parentKey) == 0 {
-		return b, nil
+		return b
 	}
 
 	b = enc.encodeComment(ctx.indent, ctx.options.comment, b)
@@ -581,10 +626,9 @@ func (enc *Encoder) encodeTableHeader(ctx encoderCtx, b []byte) ([]byte, error) 
 
 	b = append(b, "]\n"...)
 
-	return b, nil
+	return b
 }
 
-//nolint:cyclop
 func (enc *Encoder) encodeKey(b []byte, k string) []byte {
 	needsQuotation := false
 	cannotUseLiteral := false
@@ -621,30 +665,33 @@ func (enc *Encoder) encodeKey(b []byte, k string) []byte {
 
 func (enc *Encoder) keyToString(k reflect.Value) (string, error) {
 	keyType := k.Type()
-	switch {
-	case keyType.Kind() == reflect.String:
-		return k.String(), nil
-
-	case keyType.Implements(textMarshalerType):
+	if keyType.Implements(textMarshalerType) {
 		keyB, err := k.Interface().(encoding.TextMarshaler).MarshalText()
 		if err != nil {
 			return "", fmt.Errorf("toml: error marshalling key %v from text: %w", k, err)
 		}
 		return string(keyB), nil
+	}
 
-	case keyType.Kind() == reflect.Int || keyType.Kind() == reflect.Int8 || keyType.Kind() == reflect.Int16 || keyType.Kind() == reflect.Int32 || keyType.Kind() == reflect.Int64:
+	switch keyType.Kind() {
+	case reflect.String:
+		return k.String(), nil
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return strconv.FormatInt(k.Int(), 10), nil
 
-	case keyType.Kind() == reflect.Uint || keyType.Kind() == reflect.Uint8 || keyType.Kind() == reflect.Uint16 || keyType.Kind() == reflect.Uint32 || keyType.Kind() == reflect.Uint64:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return strconv.FormatUint(k.Uint(), 10), nil
 
-	case keyType.Kind() == reflect.Float32:
+	case reflect.Float32:
 		return strconv.FormatFloat(k.Float(), 'f', -1, 32), nil
 
-	case keyType.Kind() == reflect.Float64:
+	case reflect.Float64:
 		return strconv.FormatFloat(k.Float(), 'f', -1, 64), nil
+
+	default:
+		return "", fmt.Errorf("toml: type %s is not supported as a map key", keyType.Kind())
 	}
-	return "", fmt.Errorf("toml: type %s is not supported as a map key", keyType.Kind())
 }
 
 func (enc *Encoder) encodeMap(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, error) {
@@ -657,8 +704,18 @@ func (enc *Encoder) encodeMap(b []byte, ctx encoderCtx, v reflect.Value) ([]byte
 	for iter.Next() {
 		v := iter.Value()
 
-		if isNil(v) {
-			continue
+		// Handle nil values: convert nil pointers to zero value,
+		// skip nil interfaces and nil maps.
+		switch v.Kind() {
+		case reflect.Ptr:
+			if v.IsNil() {
+				v = reflect.Zero(v.Type().Elem())
+			}
+		case reflect.Interface, reflect.Map:
+			if v.IsNil() {
+				continue
+			}
+		default:
 		}
 
 		k, err := enc.keyToString(iter.Key())
@@ -748,9 +805,8 @@ func walkStruct(ctx encoderCtx, t *table, v reflect.Value) {
 					walkStruct(ctx, t, f.Elem())
 				}
 				continue
-			} else {
-				k = fieldType.Name
 			}
+			k = fieldType.Name
 		}
 
 		if isNil(f) {
@@ -760,6 +816,7 @@ func walkStruct(ctx encoderCtx, t *table, v reflect.Value) {
 		options := valueOptions{
 			multiline: opts.multiline,
 			omitempty: opts.omitempty,
+			omitzero:  opts.omitzero,
 			commented: opts.commented,
 			comment:   fieldType.Tag.Get("comment"),
 		}
@@ -820,6 +877,7 @@ type tagOptions struct {
 	multiline bool
 	inline    bool
 	omitempty bool
+	omitzero  bool
 	commented bool
 }
 
@@ -832,7 +890,7 @@ func parseTag(tag string) (string, tagOptions) {
 	}
 
 	raw := tag[idx+1:]
-	tag = string(tag[:idx])
+	tag = tag[:idx]
 	for raw != "" {
 		var o string
 		i := strings.Index(raw, ",")
@@ -848,6 +906,8 @@ func parseTag(tag string) (string, tagOptions) {
 			opts.inline = true
 		case "omitempty":
 			opts.omitempty = true
+		case "omitzero":
+			opts.omitzero = true
 		case "commented":
 			opts.commented = true
 		}
@@ -866,10 +926,7 @@ func (enc *Encoder) encodeTable(b []byte, ctx encoderCtx, t table) ([]byte, erro
 	}
 
 	if !ctx.skipTableHeader {
-		b, err = enc.encodeTableHeader(ctx, b)
-		if err != nil {
-			return nil, err
-		}
+		b = enc.encodeTableHeader(ctx, b)
 
 		if enc.indentTables && len(ctx.parentKey) > 0 {
 			ctx.indent++
@@ -880,6 +937,9 @@ func (enc *Encoder) encodeTable(b []byte, ctx encoderCtx, t table) ([]byte, erro
 	hasNonEmptyKV := false
 	for _, kv := range t.kvs {
 		if shouldOmitEmpty(kv.Options, kv.Value) {
+			continue
+		}
+		if kv.Options.omitzero && shouldOmitZero(kv.Options, kv.Value) {
 			continue
 		}
 		hasNonEmptyKV = true
@@ -899,6 +959,9 @@ func (enc *Encoder) encodeTable(b []byte, ctx encoderCtx, t table) ([]byte, erro
 	first := true
 	for _, table := range t.tables {
 		if shouldOmitEmpty(table.Options, table.Value) {
+			continue
+		}
+		if table.Options.omitzero && shouldOmitZero(table.Options, table.Value) {
 			continue
 		}
 		if first {
@@ -935,6 +998,9 @@ func (enc *Encoder) encodeTableInline(b []byte, ctx encoderCtx, t table) ([]byte
 		if shouldOmitEmpty(kv.Options, kv.Value) {
 			continue
 		}
+		if kv.Options.omitzero && shouldOmitZero(kv.Options, kv.Value) {
+			continue
+		}
 
 		if first {
 			first = false
@@ -963,11 +1029,14 @@ func willConvertToTable(ctx encoderCtx, v reflect.Value) bool {
 	if !v.IsValid() {
 		return false
 	}
-	if v.Type() == timeType || v.Type().Implements(textMarshalerType) || (v.Kind() != reflect.Ptr && v.CanAddr() && reflect.PointerTo(v.Type()).Implements(textMarshalerType)) {
+	t := v.Type()
+	if t == timeType || t.Implements(textMarshalerType) {
+		return false
+	}
+	if v.Kind() != reflect.Ptr && v.CanAddr() && reflect.PointerTo(t).Implements(textMarshalerType) {
 		return false
 	}
 
-	t := v.Type()
 	switch t.Kind() {
 	case reflect.Map, reflect.Struct:
 		return !ctx.inline

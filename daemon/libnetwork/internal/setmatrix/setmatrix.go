@@ -1,17 +1,57 @@
 package setmatrix
 
 import (
+	"fmt"
 	"sync"
-
-	mapset "github.com/deckarep/golang-set/v2"
 )
+
+type set[V comparable] map[V]struct{}
+
+func newSet[V comparable](value V) set[V] {
+	s := make(set[V], 1)
+	s[value] = struct{}{}
+	return s
+}
+
+func (s set[V]) Add(value V) bool {
+	if _, ok := s[value]; ok {
+		return false
+	}
+	s[value] = struct{}{}
+	return true
+}
+
+func (s set[V]) Contains(value V) bool {
+	_, ok := s[value]
+	return ok
+}
+
+func (s set[V]) Remove(value V) {
+	delete(s, value)
+}
+
+func (s set[V]) Cardinality() int {
+	return len(s)
+}
+
+func (s set[V]) ToSlice() []V {
+	values := make([]V, 0, len(s))
+	for value := range s {
+		values = append(values, value)
+	}
+	return values
+}
+
+func (s set[V]) String() string {
+	return fmt.Sprint(s.ToSlice())
+}
 
 // SetMatrix is a map of Sets.
 // The zero value is an empty set matrix ready to use.
 //
 // SetMatrix values are safe for concurrent use.
 type SetMatrix[K, V comparable] struct {
-	matrix map[K]mapset.Set[V]
+	matrix map[K]set[V]
 
 	mu sync.Mutex
 }
@@ -43,16 +83,16 @@ func (s *SetMatrix[K, V]) Contains(key K, value V) (containsElement, setExists b
 func (s *SetMatrix[K, V]) Insert(key K, value V) (inserted bool, cardinality int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	set, ok := s.matrix[key]
+	values, ok := s.matrix[key]
 	if !ok {
 		if s.matrix == nil {
-			s.matrix = make(map[K]mapset.Set[V])
+			s.matrix = make(map[K]set[V])
 		}
-		s.matrix[key] = mapset.NewThreadUnsafeSet(value)
+		s.matrix[key] = newSet(value)
 		return true, 1
 	}
 
-	return set.Add(value), set.Cardinality()
+	return values.Add(value), values.Cardinality()
 }
 
 // Remove removes the value in the set for a specific key.

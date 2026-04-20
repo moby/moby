@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-// ClientOperation represents the context for a swagger operation to be submitted to the transport
+// ClientOperation represents the context for a swagger operation to be submitted to the transport.
 type ClientOperation struct {
 	ID                 string
 	Method             string
@@ -23,7 +23,7 @@ type ClientOperation struct {
 	Client             *http.Client
 }
 
-// A ClientTransport implementor knows how to submit Request objects to some destination
+// A ClientTransport implementor knows how to submit Request objects to some destination.
 type ClientTransport interface {
 	// Submit(string, RequestWriter, ResponseReader, AuthInfoWriter) (interface{}, error)
 	Submit(*ClientOperation) (any, error)

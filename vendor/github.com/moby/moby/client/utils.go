@@ -136,7 +136,7 @@ func newCancelReadCloser(ctx context.Context, rc io.ReadCloser) io.ReadCloser {
 		rc:    rc,
 		close: sync.OnceValue(rc.Close),
 	}
-	crc.stop = context.AfterFunc(ctx, func() { _ = crc.Close() })
+	crc.stop = context.AfterFunc(ctx, func() { _ = crc.close() })
 	return crc
 }
 

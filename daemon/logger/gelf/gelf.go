@@ -26,15 +26,6 @@ type gelfLogger struct {
 	rawExtra json.RawMessage
 }
 
-func init() {
-	if err := logger.RegisterLogDriver(name, New); err != nil {
-		panic(err)
-	}
-	if err := logger.RegisterLogOptValidator(name, ValidateLogOpt); err != nil {
-		panic(err)
-	}
-}
-
 // New creates a gelf logger using the configuration passed in on the
 // context. The supported context configuration variable is gelf-address.
 func New(info logger.Info) (logger.Logger, error) {
@@ -209,12 +200,10 @@ func ValidateLogOpt(cfg map[string]string) error {
 
 	for key, val := range cfg {
 		switch key {
+		case logger.AttrEnv, logger.AttrEnvRegex, logger.AttrLabels, logger.AttrLabelsRegex, logger.AttrLogTag:
+			// Common attributes handled through [logger.Info.ExtraAttributes] and [loggerutils.ParseLogTag].
+			continue
 		case "gelf-address":
-		case "tag":
-		case "labels":
-		case "labels-regex":
-		case "env":
-		case "env-regex":
 		case "gelf-compression-level":
 			if address.Scheme != "udp" {
 				return errors.New("compression is only supported on UDP")

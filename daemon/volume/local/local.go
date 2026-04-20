@@ -29,7 +29,10 @@ const (
 	// It uses a very distinctive name to avoid collisions migrating data between
 	// Docker versions.
 	volumeDataPathName = "_data"
-	volumesPathName    = "volumes"
+
+	// volumeOptsFile is the name of the file where options are stored for the volume.
+	volumeOptsFile  = "opts.json"
+	volumesPathName = "volumes"
 )
 
 var (
@@ -72,8 +75,19 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 		log.G(context.TODO()).Debugf("No quota support for local volumes in %s: %v", r.path, err)
 	}
 
+	// isVolume checks if the given volume is a volume-directory; it either
+	// contains a "_data" directory or a "opts.json".
+	isVolume := func(v *localVolume) bool {
+		if _, err := os.Lstat(v.path); err == nil {
+			return true
+		}
+		if _, err := os.Lstat(v.optsFile); err == nil {
+			return true
+		}
+		return false
+	}
+
 	for _, d := range dirs {
-		// TODO(thaJeztah): this should probably skip non-volume directories (directories without a "_data" directory and no "opts.json" file).
 		if !d.IsDir() {
 			continue
 		}
@@ -84,7 +98,16 @@ func New(scope string, rootIdentity idtools.Identity) (*Root, error) {
 			name:       name,
 			rootPath:   filepath.Join(r.path, name),
 			path:       filepath.Join(r.path, name, volumeDataPathName),
+			optsFile:   filepath.Join(r.path, name, volumeOptsFile),
 			quotaCtl:   r.quotaCtl,
+		}
+
+		if !isVolume(v) {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"volume":    v.name,
+				"root-path": v.rootPath,
+			}).Debug("skipping non-volume directory")
+			continue
 		}
 
 		if err := v.loadOpts(); err != nil {
@@ -157,6 +180,7 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 		name:       name,
 		rootPath:   filepath.Join(r.path, name),
 		path:       filepath.Join(r.path, name, volumeDataPathName),
+		optsFile:   filepath.Join(r.path, name, volumeOptsFile),
 		quotaCtl:   r.quotaCtl,
 	}
 
@@ -277,6 +301,8 @@ type localVolume struct {
 	path string
 	// driverName is the name of the driver that created the volume.
 	driverName string
+	// opts is path of the file where volume options are stored.
+	optsFile string
 	// opts is the parsed list of options used to create the volume
 	opts *optsConfig
 	// active refcounts the active mounts
@@ -368,7 +394,7 @@ func (v *localVolume) Status() map[string]any {
 }
 
 func (v *localVolume) loadOpts() error {
-	b, err := os.ReadFile(filepath.Join(v.rootPath, "opts.json"))
+	b, err := os.ReadFile(v.optsFile)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			log.G(context.TODO()).WithError(err).Warnf("error while loading volume options for volume: %s", v.name)
@@ -393,7 +419,7 @@ func (v *localVolume) saveOpts() error {
 	if err != nil {
 		return err
 	}
-	err = atomicwriter.WriteFile(filepath.Join(v.rootPath, "opts.json"), b, 0o600)
+	err = atomicwriter.WriteFile(v.optsFile, b, 0o600)
 	if err != nil {
 		return errdefs.System(errors.Wrap(err, "error while persisting volume options"))
 	}

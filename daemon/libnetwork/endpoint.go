@@ -841,17 +841,23 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 		}
 	}
 
+	var errs []error
+
 	// Update the store about the sandbox detach only after we
 	// have completed sb.clearNetworkResources above to avoid
 	// spurious logs when cleaning up the sandbox when the daemon
 	// ungracefully exits and restarts before completing sandbox
 	// detach but after store has been updated.
 	if err := n.getController().storeEndpoint(ctx, ep); err != nil {
-		return err
+		errs = append(errs, fmt.Errorf("failed to store endpoint: %w", err))
+		// Do not return early and continue with deleting driver info from the
+		// cluster (NetworkDB) so that remote nodes learn about the endpoint
+		// deletion and don't accumulate stale PERMANENT ARP/FDB entries in
+		// overlay network namespaces.
 	}
 
-	if e := ep.deleteDriverInfoFromCluster(); e != nil {
-		log.G(ctx).WithError(e).Error("Failed to delete endpoint state for endpoint from cluster")
+	if err := ep.deleteDriverInfoFromCluster(); err != nil {
+		log.G(ctx).WithError(err).Error("Failed to delete endpoint state for endpoint from cluster")
 	}
 
 	// When a container is connected to a network, it gets /etc/hosts
@@ -871,7 +877,9 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 	sb.deleteHostsEntries(etcHostsAddrs)
 
 	if !sbInDelete && sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
-		return sb.setupDefaultGW()
+		if err := sb.setupDefaultGW(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to set default gateway: %w", err))
+		}
 	}
 
 	// Disable upstream forwarding if the sandbox lost external connectivity.
@@ -902,7 +910,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 // Delete deletes and detaches this endpoint from the network.

@@ -93,7 +93,7 @@ func Parse(filePath string, objName string) (*ParsedPkg, error) {
 		return nil, fmt.Errorf("could not find object %s in %s", objName, filePath)
 	}
 	if obj.Kind != ast.Typ {
-		return nil, fmt.Errorf("exected type, got %s", obj.Kind)
+		return nil, fmt.Errorf("expected type, got %s", obj.Kind)
 	}
 	spec, ok := obj.Decl.(*ast.TypeSpec)
 	if !ok {
@@ -300,19 +300,14 @@ func extractDocumentation(comments []*ast.Comment) string {
 }
 
 func parseTimeoutType(comments []*ast.Comment) string {
-	var commentText string
+	const marker = "pluginrpc-gen:timeout-type="
 
-	// Concatenate all comment lines into a single string
 	for _, comment := range comments {
-		commentText += strings.TrimSpace(comment.Text) + " "
-	}
-
-	// Look for the timeout annotation
-	if strings.Contains(commentText, "pluginrpc-gen:timeout-type=") {
-		parts := strings.Split(commentText, "pluginrpc-gen:timeout-type=")
-		if len(parts) > 1 {
-			// Extract the timeout value
-			return strings.Fields(parts[1])[0]
+		// Cut around the marker (ast.Comment is the raw comment, including "//", "/*", "*/").
+		if _, after, ok := strings.Cut(strings.TrimSpace(comment.Text), marker); ok {
+			if value, _, _ := strings.Cut(after, " "); value != "" {
+				return value
+			}
 		}
 	}
 

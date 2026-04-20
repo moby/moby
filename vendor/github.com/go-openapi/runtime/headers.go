@@ -10,7 +10,7 @@ import (
 	"github.com/go-openapi/errors"
 )
 
-// ContentType parses a content type header
+// ContentType parses a content type header.
 func ContentType(headers http.Header) (string, string, error) {
 	ct := headers.Get(HeaderContentType)
 	orig := ct

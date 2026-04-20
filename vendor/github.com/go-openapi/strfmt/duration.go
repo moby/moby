@@ -14,9 +14,8 @@ import (
 	"time"
 )
 
-func init() {
+func init() { //nolint:gochecknoinits // registers duration format in the default registry
 	d := Duration(0)
-	// register this format in the default registry
 	Default.Add("duration", &d, IsDuration)
 }
 
@@ -25,6 +24,7 @@ const (
 	daysInWeek = 7
 )
 
+//nolint:gochecknoglobals // package-level lookup tables for duration parsing
 var (
 	timeUnits = [][]string{
 		{"ns", "nano"},
@@ -51,7 +51,7 @@ var (
 	durationMatcher = regexp.MustCompile(`^(((?:-\s?)?\d+)(\.\d+)?\s*([A-Za-zµ]+))`)
 )
 
-// IsDuration returns true if the provided string is a valid duration
+// IsDuration returns true if the provided string is a valid duration.
 func IsDuration(str string) bool {
 	_, err := ParseDuration(str)
 	return err == nil
@@ -60,17 +60,17 @@ func IsDuration(str string) bool {
 // Duration represents a duration
 //
 // Duration stores a period of time as a nanosecond count, with the largest
-// repesentable duration being approximately 290 years.
+// representable duration being approximately 290 years.
 //
-// swagger:strfmt duration
+// swagger:strfmt duration.
 type Duration time.Duration
 
-// MarshalText turns this instance into text
+// MarshalText turns this instance into text.
 func (d Duration) MarshalText() ([]byte, error) {
 	return []byte(time.Duration(d).String()), nil
 }
 
-// UnmarshalText hydrates this instance from text
+// UnmarshalText hydrates this instance from text.
 func (d *Duration) UnmarshalText(data []byte) error { // validation is performed later on
 	dd, err := ParseDuration(string(data))
 	if err != nil {
@@ -80,7 +80,7 @@ func (d *Duration) UnmarshalText(data []byte) error { // validation is performed
 	return nil
 }
 
-// ParseDuration parses a duration from a string, compatible with scala duration syntax
+// ParseDuration parses a duration from a string, compatible with scala duration syntax.
 func ParseDuration(cand string) (time.Duration, error) {
 	if dur, err := time.ParseDuration(cand); err == nil {
 		return dur, nil
@@ -143,7 +143,7 @@ func ParseDuration(cand string) (time.Duration, error) {
 // Scan reads a Duration value from database driver type.
 func (d *Duration) Scan(raw any) error {
 	switch v := raw.(type) {
-	// TODO: case []byte: // ?
+	// Proposal for enhancement: case []byte: // ?
 	case int64:
 		*d = Duration(v)
 	case float64:
@@ -162,17 +162,17 @@ func (d Duration) Value() (driver.Value, error) {
 	return driver.Value(int64(d)), nil
 }
 
-// String converts this duration to a string
+// String converts this duration to a string.
 func (d Duration) String() string {
 	return time.Duration(d).String()
 }
 
-// MarshalJSON returns the Duration as JSON
+// MarshalJSON returns the Duration as JSON.
 func (d Duration) MarshalJSON() ([]byte, error) {
 	return json.Marshal(time.Duration(d).String())
 }
 
-// UnmarshalJSON sets the Duration from JSON
+// UnmarshalJSON sets the Duration from JSON.
 func (d *Duration) UnmarshalJSON(data []byte) error {
 	if string(data) == jsonNull {
 		return nil

@@ -29,8 +29,8 @@ const CosignSignatureType = "cosign container image signature"
 // SimpleContainerImage describes the structure of a basic container image signature payload, as defined at:
 // https://github.com/containers/image/blob/main/docs/containers-signature.5.md#json-data-format
 type SimpleContainerImage struct {
-	Critical Critical               `json:"critical"` // Critical data critical to correctly evaluating the validity of the signature
-	Optional map[string]interface{} `json:"optional"` // Optional optional metadata about the image
+	Critical Critical       `json:"critical"` // Critical data critical to correctly evaluating the validity of the signature
+	Optional map[string]any `json:"optional"` // Optional optional metadata about the image
 }
 
 // Critical data critical to correctly evaluating the validity of a signature
@@ -65,7 +65,7 @@ type Cosign struct {
 	// - Older versions of cosign generate signatures where ClaimedIdentity only contains a registry/…/repo ; signature consumers should allow users
 	//   to determine whether such images should be accepted (and, long-term, the default SHOULD be to reject them)
 	ClaimedIdentity string
-	Annotations     map[string]interface{}
+	Annotations     map[string]any
 }
 
 // SimpleContainerImage returns information about a container image in the github.com/containers/image/signature format

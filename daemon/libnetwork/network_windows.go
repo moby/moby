@@ -67,7 +67,7 @@ func (n *Network) startResolver() {
 
 		for _, subnet := range hnsresponse.Subnets {
 			if subnet.GatewayAddress != "" {
-				for i := 0; i < 3; i++ {
+				for range 3 {
 					resolver := NewResolver(subnet.GatewayAddress, true, n)
 					log.G(context.TODO()).Debugf("Binding a resolver on network %s gateway %s", n.Name(), subnet.GatewayAddress)
 					n.dnsCompartment = hnsresponse.DNSServerCompartment

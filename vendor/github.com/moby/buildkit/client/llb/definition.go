@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/bkmaps"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -24,7 +25,7 @@ type DefinitionOp struct {
 	platforms  map[digest.Digest]*ocispecs.Platform
 	dgst       digest.Digest
 	index      pb.OutputIndex
-	inputCache *sync.Map // shared and written among DefinitionOps so avoid race on this map using sync.Map
+	inputCache *bkmaps.SyncMap[string, []*DefinitionOp] // shared and written among DefinitionOps so avoid race on this map using sync.Map
 }
 
 // NewDefinitionOp returns a new operation from a marshalled definition.
@@ -106,7 +107,7 @@ func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 		platforms:  platforms,
 		dgst:       dgst,
 		index:      index,
-		inputCache: new(sync.Map),
+		inputCache: new(bkmaps.SyncMap[string, []*DefinitionOp]),
 	}, nil
 }
 
@@ -186,11 +187,7 @@ func (d *DefinitionOp) Output() Output {
 }
 
 func (d *DefinitionOp) loadInputCache(dgst digest.Digest) ([]*DefinitionOp, bool) {
-	a, ok := d.inputCache.Load(dgst.String())
-	if ok {
-		return a.([]*DefinitionOp), true
-	}
-	return nil, false
+	return d.inputCache.Load(dgst.String())
 }
 
 func (d *DefinitionOp) storeInputCache(dgst digest.Digest, c []*DefinitionOp) {

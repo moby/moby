@@ -283,8 +283,8 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 				// However, due to a bug of containerd, we are temporarily stuck with this workaround.
 				// https://github.com/containerd/containerd/issues/8322
 				imageClientCtx := ctx
-				if e.opts.Epoch != nil {
-					imageClientCtx = epoch.WithSourceDateEpoch(imageClientCtx, e.opts.Epoch)
+				if e.opts.Epoch != nil && e.opts.Epoch.Value != nil {
+					imageClientCtx = epoch.WithSourceDateEpoch(imageClientCtx, e.opts.Epoch.Value)
 				}
 				img := images.Image{
 					Target: *desc,
@@ -501,17 +501,33 @@ func (e *imageExporterInstance) unpackImage(ctx context.Context, img images.Imag
 	ctrdSnapshotter, release := snapshot.NewContainerdSnapshotter(snapshotter)
 	defer release()
 
-	var chain []digest.Digest
-	for _, layer := range layers {
-		if _, err := rootfs.ApplyLayer(ctx, layer, chain, ctrdSnapshotter, applier); err != nil {
-			return err
+	// Compute top chainID so we can add it to the lease before calling ApplyLayers
+	// as ApplyLayers may directly return after successful Stat call without applying
+	// layer to the lease and causing error if it gets deleted.
+	chainID := layersChainID(layers)
+	if leaseID, ok := leases.FromContext(ctx); ok {
+		r := leases.Resource{
+			ID:   chainID.String(),
+			Type: "snapshots/" + snapshotter.Name(),
 		}
-		chain = append(chain, layer.Diff.Digest)
+		if err := e.opt.LeaseManager.AddResource(ctx, leases.Lease{ID: leaseID}, r); err != nil {
+			return errors.Wrapf(err, "failed to lease snapshot %s", chainID)
+		}
+	}
+
+	// note that calling ApplyLayer in a loop here as alternative is not safe because
+	// single ApplyLayer does not have a safe way to ensure parents are not removed during unpack.
+	appliedChainID, err := rootfs.ApplyLayers(ctx, layers, ctrdSnapshotter, applier)
+	if err != nil {
+		return err
+	}
+	if appliedChainID != chainID {
+		return errors.Errorf("unexpected chain ID mismatch: %s != %s", appliedChainID, chainID)
 	}
 
 	var (
 		keyGCLabel   = fmt.Sprintf("containerd.io/gc.ref.snapshot.%s", snapshotter.Name())
-		valueGCLabel = identity.ChainID(chain).String()
+		valueGCLabel = chainID.String()
 	)
 
 	cinfo := content.Info{
@@ -536,6 +552,14 @@ func getLayers(descs []ocispecs.Descriptor, manifest ocispecs.Manifest) ([]rootf
 		layers[i].Blob = manifest.Layers[i]
 	}
 	return layers, nil
+}
+
+func layersChainID(layers []rootfs.Layer) digest.Digest {
+	chain := make([]digest.Digest, len(layers))
+	for i, l := range layers {
+		chain[i] = l.Diff.Digest
+	}
+	return identity.ChainID(chain)
 }
 
 func addAnnotations(m map[digest.Digest]map[string]string, desc ocispecs.Descriptor) {

@@ -2,10 +2,12 @@ package client
 
 import "context"
 
+// ConfigRemoveOptions holds options for [Client.ConfigRemove].
 type ConfigRemoveOptions struct {
 	// Add future optional parameters here
 }
 
+// ConfigRemoveResult holds the result of [Client.ConfigRemove].
 type ConfigRemoveResult struct {
 	// Add future fields here
 }

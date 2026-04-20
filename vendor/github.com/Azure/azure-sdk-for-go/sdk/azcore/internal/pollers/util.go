@@ -1,6 +1,3 @@
-//go:build go1.18
-// +build go1.18
-
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -165,7 +162,10 @@ func ResultHelper[T any](resp *http.Response, failed bool, jsonPath string, out 
 		return nil
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
 	if !poller.StatusCodeValid(resp) || failed {
 		// the LRO failed.  unmarshall the error and update state
 		return azexported.NewResponseError(resp)

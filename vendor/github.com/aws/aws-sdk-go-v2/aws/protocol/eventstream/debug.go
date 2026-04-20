@@ -82,9 +82,9 @@ type decodedHeaders Headers
 
 func (hs *decodedHeaders) UnmarshalJSON(b []byte) error {
 	var jsonHeaders []struct {
-		Name  string      `json:"name"`
-		Type  valueType   `json:"type"`
-		Value interface{} `json:"value"`
+		Name  string    `json:"name"`
+		Type  valueType `json:"type"`
+		Value any       `json:"value"`
 	}
 
 	decoder := json.NewDecoder(bytes.NewReader(b))
@@ -106,7 +106,7 @@ func (hs *decodedHeaders) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func valueFromType(typ valueType, val interface{}) (Value, error) {
+func valueFromType(typ valueType, val any) (Value, error) {
 	switch typ {
 	case trueValueType:
 		return BoolValue(true), nil
@@ -139,6 +139,6 @@ func valueFromType(typ valueType, val interface{}) (Value, error) {
 		copy(tv[:], v)
 		return tv, err
 	default:
-		panic(fmt.Sprintf("unknown type, %s, %T", typ.String(), val))
+		return nil, fmt.Errorf("unable to decode unknown type, %s, %T", typ.String(), val)
 	}
 }

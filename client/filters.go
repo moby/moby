@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"maps"
 	"net/url"
 )
 
@@ -35,9 +36,7 @@ func (f Filters) Clone() Filters {
 	out := make(Filters, len(f))
 	for term, values := range f {
 		inner := make(map[string]bool, len(values))
-		for v, ok := range values {
-			inner[v] = ok
-		}
+		maps.Copy(inner, values)
 		out[term] = inner
 	}
 	return out

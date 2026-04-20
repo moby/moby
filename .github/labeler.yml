@@ -168,7 +168,7 @@ area/ci:
 platform/windows:
   - all:
     - changed-files:
-      - any-glob-to-any-file:
+      - any-glob-to-all-files:
         - '**/*_windows.go'
         - 'Dockerfile.windows'
       - all-globs-to-all-files: '!vendor/**'

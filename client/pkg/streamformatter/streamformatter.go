@@ -116,15 +116,9 @@ func rawProgressString(p *jsonstream.Progress) string {
 		}
 	}
 
-	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
-	if percentage > 50 {
-		percentage = 50
-	}
+	percentage := min(int(float64(p.Current)/float64(p.Total)*100)/2, 50)
 
-	numSpaces := 0
-	if 50-percentage > 0 {
-		numSpaces = 50 - percentage
-	}
+	numSpaces := max(50-percentage, 0)
 	pbBox := fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", numSpaces))
 
 	var numbersBox string

@@ -68,15 +68,6 @@ const (
 	readTimeoutKey = "fluentd-read-timeout"
 )
 
-func init() {
-	if err := logger.RegisterLogDriver(name, New); err != nil {
-		panic(err)
-	}
-	if err := logger.RegisterLogOptValidator(name, ValidateLogOpt); err != nil {
-		panic(err)
-	}
-}
-
 // New creates a fluentd logger using the configuration passed in on
 // the context. The supported context configuration variable is
 // fluentd-address.
@@ -148,11 +139,9 @@ func (f *fluentd) Name() string {
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
-		case "env":
-		case "env-regex":
-		case "labels":
-		case "labels-regex":
-		case "tag":
+		case logger.AttrEnv, logger.AttrEnvRegex, logger.AttrLabels, logger.AttrLabelsRegex, logger.AttrLogTag:
+			// Common attributes handled through [logger.Info.ExtraAttributes] and [loggerutils.ParseLogTag].
+			continue
 
 		case addressKey:
 		case asyncKey:

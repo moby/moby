@@ -9,10 +9,12 @@ import (
 	"github.com/moby/moby/api/types/system"
 )
 
+// InfoOptions holds options for [Client.Info].
 type InfoOptions struct {
 	// No options currently; placeholder for future use
 }
 
+// SystemInfoResult holds the result of [Client.Info].
 type SystemInfoResult struct {
 	Info system.Info
 }

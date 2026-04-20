@@ -24,7 +24,7 @@ import (
 
 // rotateFileMetadata is a metadata of the gzip header of the compressed log file
 type rotateFileMetadata struct {
-	LastTime time.Time `json:"lastTime,omitempty"`
+	LastTime time.Time `json:"lastTime"`
 }
 
 // LogFile is Logger implementation for default Docker logging.

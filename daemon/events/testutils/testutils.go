@@ -45,12 +45,7 @@ func Scan(text string) (*events.Message, error) {
 		return nil, fmt.Errorf("text is not an event: %s", text)
 	}
 
-	f, err := timestamp.GetTimestamp(md["timestamp"], time.Now())
-	if err != nil {
-		return nil, err
-	}
-
-	t, tn, err := timestamp.ParseTimestamps(f, -1)
+	created, err := timestamp.Parse(md["timestamp"], time.Now())
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +57,8 @@ func Scan(text string) (*events.Message, error) {
 	}
 
 	return &events.Message{
-		Time:     t,
-		TimeNano: time.Unix(t, tn).UnixNano(),
+		Time:     created.Unix(),
+		TimeNano: created.UnixNano(),
 		Type:     events.Type(md["eventType"]),
 		Action:   events.Action(md["action"]),
 		Actor: events.Actor{

@@ -108,6 +108,14 @@ init() {
 		XDG_RUNTIME_DIR_CREATED=1
 	fi
 
+	: "${CONTAINERD_ROOTLESS_ROOTLESSKIT_STATE_DIR:=$XDG_RUNTIME_DIR/containerd-rootless}"
+	if [ -e "$CONTAINERD_ROOTLESS_ROOTLESSKIT_STATE_DIR" ]; then
+		# https://github.com/moby/moby/issues/52171
+		# Hard requirement, not bypassable with --force
+		ERROR "dockerd-rootless.sh conflicts with containerd-rootless.sh. Stop containerd-rootless.sh if it's running, and remove $CONTAINERD_ROOTLESS_ROOTLESSKIT_STATE_DIR if it still exists."
+		exit 1
+	fi
+
 	instructions=""
 	# instruction: uidmap dependency check
 	if ! command -v newuidmap > /dev/null 2>&1; then

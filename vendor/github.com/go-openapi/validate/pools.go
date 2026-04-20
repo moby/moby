@@ -245,7 +245,7 @@ type (
 )
 
 func (p schemaValidatorsPool) BorrowValidator() *SchemaValidator {
-	return p.Get().(*SchemaValidator)
+	return p.Get().(*SchemaValidator) //nolint:forcetypeassert // pool New always returns this type
 }
 
 func (p schemaValidatorsPool) RedeemValidator(s *SchemaValidator) {
@@ -254,7 +254,7 @@ func (p schemaValidatorsPool) RedeemValidator(s *SchemaValidator) {
 }
 
 func (p objectValidatorsPool) BorrowValidator() *objectValidator {
-	return p.Get().(*objectValidator)
+	return p.Get().(*objectValidator) //nolint:forcetypeassert // pool New always returns this type
 }
 
 func (p objectValidatorsPool) RedeemValidator(s *objectValidator) {
@@ -262,7 +262,7 @@ func (p objectValidatorsPool) RedeemValidator(s *objectValidator) {
 }
 
 func (p sliceValidatorsPool) BorrowValidator() *schemaSliceValidator {
-	return p.Get().(*schemaSliceValidator)
+	return p.Get().(*schemaSliceValidator) //nolint:forcetypeassert // pool New always returns this type
 }
 
 func (p sliceValidatorsPool) RedeemValidator(s *schemaSliceValidator) {
@@ -270,7 +270,7 @@ func (p sliceValidatorsPool) RedeemValidator(s *schemaSliceValidator) {
 }
 
 func (p itemsValidatorsPool) BorrowValidator() *itemsValidator {
-	return p.Get().(*itemsValidator)
+	return p.Get().(*itemsValidator) //nolint:forcetypeassert // pool New always returns this type
 }
 
 func (p itemsValidatorsPool) RedeemValidator(s *itemsValidator) {
@@ -278,7 +278,7 @@ func (p itemsValidatorsPool) RedeemValidator(s *itemsValidator) {
 }
 
 func (p basicCommonValidatorsPool) BorrowValidator() *basicCommonValidator {
-	return p.Get().(*basicCommonValidator)
+	return p.Get().(*basicCommonValidator) //nolint:forcetypeassert // pool New always returns this type
 }
 
 func (p basicCommonValidatorsPool) RedeemValidator(s *basicCommonValidator) {
@@ -286,7 +286,7 @@ func (p basicCommonValidatorsPool) RedeemValidator(s *basicCommonValidator) {
 }
 
 func (p headerValidatorsPool) BorrowValidator() *HeaderValidator {
-	return p.Get().(*HeaderValidator)
+	return p.Get().(*HeaderValidator) //nolint:forcetypeassert // pool New always returns this type
 }
 
 func (p headerValidatorsPool) RedeemValidator(s *HeaderValidator) {
@@ -294,7 +294,7 @@ func (p headerValidatorsPool) RedeemValidator(s *HeaderValidator) {
 }
 
 func (p paramValidatorsPool) BorrowValidator() *ParamValidator {
-	return p.Get().(*ParamValidator)
+	return p.Get().(*ParamValidator) //nolint:forcetypeassert // pool New always returns this type
 }
 
 func (p paramValidatorsPool) RedeemValidator(s *ParamValidator) {
@@ -302,7 +302,7 @@ func (p paramValidatorsPool) RedeemValidator(s *ParamValidator) {
 }
 
 func (p basicSliceValidatorsPool) BorrowValidator() *basicSliceValidator {
-	return p.Get().(*basicSliceValidator)
+	return p.Get().(*basicSliceValidator) //nolint:forcetypeassert // pool New always returns this type
 }
 
 func (p basicSliceValidatorsPool) RedeemValidator(s *basicSliceValidator) {
@@ -310,7 +310,7 @@ func (p basicSliceValidatorsPool) RedeemValidator(s *basicSliceValidator) {
 }
 
 func (p numberValidatorsPool) BorrowValidator() *numberValidator {
-	return p.Get().(*numberValidator)
+	return p.Get().(*numberValidator) //nolint:forcetypeassert // pool New always returns this type
 }
 
 func (p numberValidatorsPool) RedeemValidator(s *numberValidator) {
@@ -318,7 +318,7 @@ func (p numberValidatorsPool) RedeemValidator(s *numberValidator) {
 }
 
 func (p stringValidatorsPool) BorrowValidator() *stringValidator {
-	return p.Get().(*stringValidator)
+	return p.Get().(*stringValidator) //nolint:forcetypeassert // pool New always returns this type
 }
 
 func (p stringValidatorsPool) RedeemValidator(s *stringValidator) {
@@ -326,7 +326,7 @@ func (p stringValidatorsPool) RedeemValidator(s *stringValidator) {
 }
 
 func (p schemaPropsValidatorsPool) BorrowValidator() *schemaPropsValidator {
-	return p.Get().(*schemaPropsValidator)
+	return p.Get().(*schemaPropsValidator) //nolint:forcetypeassert // pool New always returns this type
 }
 
 func (p schemaPropsValidatorsPool) RedeemValidator(s *schemaPropsValidator) {
@@ -334,7 +334,7 @@ func (p schemaPropsValidatorsPool) RedeemValidator(s *schemaPropsValidator) {
 }
 
 func (p formatValidatorsPool) BorrowValidator() *formatValidator {
-	return p.Get().(*formatValidator)
+	return p.Get().(*formatValidator) //nolint:forcetypeassert // pool New always returns this type
 }
 
 func (p formatValidatorsPool) RedeemValidator(s *formatValidator) {
@@ -342,7 +342,7 @@ func (p formatValidatorsPool) RedeemValidator(s *formatValidator) {
 }
 
 func (p typeValidatorsPool) BorrowValidator() *typeValidator {
-	return p.Get().(*typeValidator)
+	return p.Get().(*typeValidator) //nolint:forcetypeassert // pool New always returns this type
 }
 
 func (p typeValidatorsPool) RedeemValidator(s *typeValidator) {
@@ -350,7 +350,7 @@ func (p typeValidatorsPool) RedeemValidator(s *typeValidator) {
 }
 
 func (p schemasPool) BorrowSchema() *spec.Schema {
-	return p.Get().(*spec.Schema)
+	return p.Get().(*spec.Schema) //nolint:forcetypeassert // pool New always returns this type
 }
 
 func (p schemasPool) RedeemSchema(s *spec.Schema) {
@@ -358,7 +358,7 @@ func (p schemasPool) RedeemSchema(s *spec.Schema) {
 }
 
 func (p resultsPool) BorrowResult() *Result {
-	return p.Get().(*Result).cleared()
+	return p.Get().(*Result).cleared() //nolint:forcetypeassert // pool New always returns *Result
 }
 
 func (p resultsPool) RedeemResult(s *Result) {

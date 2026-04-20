@@ -8,10 +8,10 @@ import (
 	"sync"
 )
 
-// ResolutionCache a cache for resolving urls
+// ResolutionCache a cache for resolving urls.
 type ResolutionCache interface {
-	Get(string) (any, bool)
-	Set(string, any)
+	Get(uri string) (any, bool)
+	Set(uri string, data any)
 }
 
 type simpleCache struct {
@@ -19,7 +19,7 @@ type simpleCache struct {
 	store map[string]any
 }
 
-func (s *simpleCache) ShallowClone() ResolutionCache {
+func (s *simpleCache) ShallowClone() ResolutionCache { //nolint:ireturn // returns the public interface type by design
 	store := make(map[string]any, len(s.store))
 	s.lock.RLock()
 	maps.Copy(store, s.store)
@@ -30,7 +30,7 @@ func (s *simpleCache) ShallowClone() ResolutionCache {
 	}
 }
 
-// Get retrieves a cached URI
+// Get retrieves a cached URI.
 func (s *simpleCache) Get(uri string) (any, bool) {
 	s.lock.RLock()
 	v, ok := s.store[uri]
@@ -39,7 +39,7 @@ func (s *simpleCache) Get(uri string) (any, bool) {
 	return v, ok
 }
 
-// Set caches a URI
+// Set caches a URI.
 func (s *simpleCache) Set(uri string, data any) {
 	s.lock.Lock()
 	s.store[uri] = data
@@ -56,8 +56,8 @@ var (
 	//
 	// All subsequent utilizations of this cache are produced from a shallow
 	// clone of this initial version.
-	resCache  *simpleCache
-	onceCache sync.Once
+	resCache  *simpleCache //nolint:gochecknoglobals // package-level lazy cache for $ref resolution
+	onceCache sync.Once    //nolint:gochecknoglobals // guards lazy init of resCache
 
 	_ ResolutionCache = &simpleCache{}
 )
@@ -74,7 +74,7 @@ func defaultResolutionCache() *simpleCache {
 	}}
 }
 
-func cacheOrDefault(cache ResolutionCache) ResolutionCache {
+func cacheOrDefault(cache ResolutionCache) ResolutionCache { //nolint:ireturn // returns the public interface type by design
 	onceCache.Do(initResolutionCache)
 
 	if cache != nil {

@@ -8,7 +8,7 @@ import (
 	"io"
 )
 
-// XMLConsumer creates a new XML consumer
+// XMLConsumer creates a new XML consumer.
 func XMLConsumer() Consumer {
 	return ConsumerFunc(func(reader io.Reader, data any) error {
 		dec := xml.NewDecoder(reader)
@@ -16,7 +16,7 @@ func XMLConsumer() Consumer {
 	})
 }
 
-// XMLProducer creates a new XML producer
+// XMLProducer creates a new XML producer.
 func XMLProducer() Producer {
 	return ProducerFunc(func(writer io.Writer, data any) error {
 		enc := xml.NewEncoder(writer)

@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/container"
@@ -42,10 +43,8 @@ func registerDeviceDriver(name string, d *deviceDriver) {
 func getFirstAvailableVendor(vendorList []string) (string, error) {
 	knownVendors := []string{"nvidia.com", "amd.com"}
 	for _, vendor := range knownVendors {
-		for _, available := range vendorList {
-			if vendor == available {
-				return vendor, nil
-			}
+		if slices.Contains(vendorList, vendor) {
+			return vendor, nil
 		}
 	}
 	return "", errors.New("no known GPU vendor found")

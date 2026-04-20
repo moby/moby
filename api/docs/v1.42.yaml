@@ -6391,8 +6391,11 @@ definitions:
       details, see documentation for the Topology object in the CSI
       specification.
     type: "object"
-    additionalProperties:
-      type: "string"
+    properties:
+      Segments:
+        type: "object"
+        additionalProperties:
+          type: "string"
 
 paths:
   /containers/json:

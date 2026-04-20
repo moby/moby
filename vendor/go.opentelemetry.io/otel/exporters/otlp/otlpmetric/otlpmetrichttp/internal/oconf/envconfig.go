@@ -18,7 +18,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal/envconfig"
 	"go.opentelemetry.io/otel/internal/global"
 	"go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 // DefaultEnvOptionsReader is the default environments reader.
@@ -165,11 +164,11 @@ func withEnvTemporalityPreference(n string, fn func(metric.TemporalitySelector))
 		if s, ok := e.GetEnvValue(n); ok {
 			switch strings.ToLower(s) {
 			case "cumulative":
-				fn(cumulativeTemporality)
+				fn(metric.CumulativeTemporalitySelector)
 			case "delta":
-				fn(deltaTemporality)
+				fn(metric.DeltaTemporalitySelector)
 			case "lowmemory":
-				fn(lowMemory)
+				fn(metric.LowMemoryTemporalitySelector)
 			default:
 				global.Warn(
 					"OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE is set to an invalid value, ignoring.",
@@ -178,28 +177,6 @@ func withEnvTemporalityPreference(n string, fn func(metric.TemporalitySelector))
 				)
 			}
 		}
-	}
-}
-
-func cumulativeTemporality(metric.InstrumentKind) metricdata.Temporality {
-	return metricdata.CumulativeTemporality
-}
-
-func deltaTemporality(ik metric.InstrumentKind) metricdata.Temporality {
-	switch ik {
-	case metric.InstrumentKindCounter, metric.InstrumentKindHistogram, metric.InstrumentKindObservableCounter:
-		return metricdata.DeltaTemporality
-	default:
-		return metricdata.CumulativeTemporality
-	}
-}
-
-func lowMemory(ik metric.InstrumentKind) metricdata.Temporality {
-	switch ik {
-	case metric.InstrumentKindCounter, metric.InstrumentKindHistogram:
-		return metricdata.DeltaTemporality
-	default:
-		return metricdata.CumulativeTemporality
 	}
 }
 

@@ -116,6 +116,11 @@ func TestCancelledUpload(t *testing.T) {
 		close(progressDone)
 	}()
 
+	t.Cleanup(func() {
+		close(progressChan)
+		<-progressDone
+	})
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
@@ -128,7 +133,4 @@ func TestCancelledUpload(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatal("expected upload to be cancelled")
 	}
-
-	close(progressChan)
-	<-progressDone
 }

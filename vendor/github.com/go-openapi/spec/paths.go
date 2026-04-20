@@ -23,7 +23,7 @@ type Paths struct {
 	Paths map[string]PathItem `json:"-"` // custom serializer to flatten this, each entry must start with "/"
 }
 
-// JSONLookup look up a value by the json property name
+// JSONLookup look up a value by the json property name.
 func (p Paths) JSONLookup(token string) (any, error) {
 	if pi, ok := p.Paths[token]; ok {
 		return &pi, nil
@@ -34,7 +34,7 @@ func (p Paths) JSONLookup(token string) (any, error) {
 	return nil, fmt.Errorf("object has no field %q: %w", token, ErrSpec)
 }
 
-// UnmarshalJSON hydrates this items instance with the data from JSON
+// UnmarshalJSON hydrates this items instance with the data from JSON.
 func (p *Paths) UnmarshalJSON(data []byte) error {
 	var res map[string]json.RawMessage
 	if err := json.Unmarshal(data, &res); err != nil {
@@ -65,7 +65,7 @@ func (p *Paths) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON converts this items object to JSON
+// MarshalJSON converts this items object to JSON.
 func (p Paths) MarshalJSON() ([]byte, error) {
 	b1, err := json.Marshal(p.VendorExtensible)
 	if err != nil {

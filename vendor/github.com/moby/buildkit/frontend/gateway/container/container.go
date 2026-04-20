@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -454,11 +455,11 @@ func (gwCtr *gatewayContainer) ReadFile(ctx context.Context, req client.ReadCont
 		return nil, err
 	}
 
-	path, err := filepath.Rel("/", req.Filename)
+	fpath, err := relpath(req.Filename)
 	if err != nil {
 		return nil, err
 	}
-	return fs.ReadFile(fsys, path)
+	return fs.ReadFile(fsys, fpath)
 }
 
 func (gwCtr *gatewayContainer) ReadDir(ctx context.Context, req client.ReadDirContainerRequest) ([]*fstypes.Stat, error) {
@@ -467,12 +468,12 @@ func (gwCtr *gatewayContainer) ReadDir(ctx context.Context, req client.ReadDirCo
 		return nil, err
 	}
 
-	path, err := filepath.Rel("/", req.Path)
+	fpath, err := relpath(req.Path)
 	if err != nil {
 		return nil, err
 	}
 
-	entries, err := fs.ReadDir(fsys, path)
+	entries, err := fs.ReadDir(fsys, fpath)
 	if err != nil {
 		return nil, err
 	}
@@ -499,16 +500,28 @@ func (gwCtr *gatewayContainer) StatFile(ctx context.Context, req client.StatCont
 		return nil, err
 	}
 
-	path, err := filepath.Rel("/", req.Path)
+	fpath, err := relpath(req.Path)
 	if err != nil {
 		return nil, err
 	}
 
-	fi, err := fs.Stat(fsys, path)
+	// Attempt to stat the file normally. This may error if the symlink attempts to cross
+	// a filesystem boundary.
+	fi, err := fs.Stat(fsys, fpath)
 	if err != nil {
-		return nil, err
+		// Normal errors should be returned.
+		if !isPathEscapesRootError(err) {
+			return nil, err
+		}
+
+		// Resolving this symlink causes the path to escape.
+		// Attempt to use lstat and allow the client to perform the resolution.
+		fi, err = fs.Lstat(fsys, fpath)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return mkstat(fsys, req.Path, filepath.Base(req.Path), fi)
+	return mkstat(fsys, req.Path, path.Base(req.Path), fi)
 }
 
 func (gwCtr *gatewayContainer) mount(ctx context.Context, index int) (fs.FS, error) {
@@ -675,7 +688,7 @@ func mkstat(fsys fs.FS, path, relpath string, fi os.FileInfo) (*fstypes.Stat, er
 	if !fi.IsDir() {
 		stat.Size = fi.Size()
 		if fi.Mode()&os.ModeSymlink != 0 {
-			link, err := fs.ReadLink(fsys, path)
+			link, err := readlink(fsys, path)
 			if err != nil {
 				return nil, errors.WithStack(err)
 			}
@@ -696,6 +709,29 @@ func mkstat(fsys fs.FS, path, relpath string, fi os.FileInfo) (*fstypes.Stat, er
 	stat.Mode &^= uint32(os.ModeSocket)
 
 	return stat, nil
+}
+
+func readlink(fsys fs.FS, p string) (string, error) {
+	fpath, err := relpath(p)
+	if err != nil {
+		return "", err
+	}
+	return fs.ReadLink(fsys, fpath)
+}
+
+// relpath converts an absolute path to a relative path for
+// consumption by the fs.FS APIs. It errors if the path isn't
+// an absolute path.
+func relpath(p string) (string, error) {
+	p2 := path.Clean(p)
+	if len(p2) == 0 || p2[0] != '/' {
+		return "", errors.Errorf("can't make %s relative to /", p)
+	}
+
+	if len(p2) == 1 {
+		return ".", nil
+	}
+	return p2[1:], nil
 }
 
 type gatewayContainerMount struct {

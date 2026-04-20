@@ -4,13 +4,10 @@
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Skip DCO check here, as it's already checked in a separate stage in the Jenkinsfile
+# Skip DCO check here, as it's already checked in a separate check in ci
 #. "${SCRIPTDIR}"/dco
 . "${SCRIPTDIR}"/default-seccomp
 . "${SCRIPTDIR}"/pkg-imports
-. "${SCRIPTDIR}"/yamllint
-. "${SCRIPTDIR}"/swagger
-. "${SCRIPTDIR}"/swagger-gen
 . "${SCRIPTDIR}"/deprecate-integration-cli
 . "${SCRIPTDIR}"/golangci-lint
 . "${SCRIPTDIR}"/shfmt

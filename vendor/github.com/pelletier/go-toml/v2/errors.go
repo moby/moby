@@ -2,10 +2,10 @@ package toml
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
-	"github.com/pelletier/go-toml/v2/internal/danger"
 	"github.com/pelletier/go-toml/v2/unstable"
 )
 
@@ -54,6 +54,18 @@ func (s *StrictMissingError) String() string {
 	return buf.String()
 }
 
+// Unwrap returns wrapped decode errors
+//
+// Implements errors.Join() interface.
+func (s *StrictMissingError) Unwrap() []error {
+	errs := make([]error, len(s.Errors))
+	for i := range s.Errors {
+		errs[i] = &s.Errors[i]
+	}
+	return errs
+}
+
+// Key represents a TOML key as a sequence of key parts.
 type Key []string
 
 // Error returns the error message contained in the DecodeError.
@@ -78,7 +90,7 @@ func (e *DecodeError) Key() Key {
 	return e.key
 }
 
-// decodeErrorFromHighlight creates a DecodeError referencing a highlighted
+// wrapDecodeError creates a DecodeError referencing a highlighted
 // range of bytes from document.
 //
 // highlight needs to be a sub-slice of document, or this function panics.
@@ -88,7 +100,7 @@ func (e *DecodeError) Key() Key {
 //
 //nolint:funlen
 func wrapDecodeError(document []byte, de *unstable.ParserError) *DecodeError {
-	offset := danger.SubsliceOffset(document, de.Highlight)
+	offset := subsliceOffset(document, de.Highlight)
 
 	errMessage := de.Error()
 	errLine, errColumn := positionAtEnd(document[:offset])
@@ -248,5 +260,24 @@ func positionAtEnd(b []byte) (row int, column int) {
 		}
 	}
 
-	return
+	return row, column
+}
+
+// subsliceOffset returns the byte offset of subslice within data.
+// subslice must share the same backing array as data.
+func subsliceOffset(data []byte, subslice []byte) int {
+	if len(subslice) == 0 {
+		return 0
+	}
+
+	// Use reflect to get the data pointers of both slices.
+	// This is safe because we're only reading the pointer values for comparison.
+	dataPtr := reflect.ValueOf(data).Pointer()
+	subPtr := reflect.ValueOf(subslice).Pointer()
+
+	offset := int(subPtr - dataPtr)
+	if offset < 0 || offset > len(data) {
+		panic("subslice is not within data")
+	}
+	return offset
 }

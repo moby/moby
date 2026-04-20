@@ -15,6 +15,7 @@
 package gdch
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/tls"
@@ -24,9 +25,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"cloud.google.com/go/auth"
@@ -121,27 +120,34 @@ func (g gdchProvider) Token(ctx context.Context) (*auth.Token, error) {
 		Exp: exp.Unix(),
 	}
 	h := jwt.Header{
-		Algorithm: jwt.HeaderAlgRSA256,
+		Algorithm: jwt.HeaderAlgES256,
 		Type:      jwt.HeaderType,
-		KeyID:     string(g.pkID),
+		KeyID:     g.pkID,
 	}
 	payload, err := jwt.EncodeJWS(&h, &claims, g.signer)
 	if err != nil {
 		return nil, err
 	}
-	v := url.Values{}
-	v.Set("grant_type", GrantType)
-	v.Set("audience", g.aud)
-	v.Set("requested_token_type", requestTokenType)
-	v.Set("subject_token", payload)
-	v.Set("subject_token_type", subjectTokenType)
 
-	req, err := http.NewRequestWithContext(ctx, "POST", g.tokenURL, strings.NewReader(v.Encode()))
+	v := map[string]string{
+		"grant_type":           GrantType,
+		"audience":             g.aud,
+		"requested_token_type": requestTokenType,
+		"subject_token":        payload,
+		"subject_token_type":   subjectTokenType,
+	}
+
+	r, err := json.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("credentials: cannot marshal token request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", g.tokenURL, bytes.NewReader(r))
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	g.logger.DebugContext(ctx, "gdch token request", "request", internallog.HTTPRequest(req, []byte(v.Encode())))
+	req.Header.Set("Content-Type", "application/json")
+	g.logger.DebugContext(ctx, "gdch token request", "request", internallog.HTTPRequest(req, r))
 	resp, body, err := internal.DoRequest(g.client, req)
 	if err != nil {
 		return nil, fmt.Errorf("credentials: cannot fetch token: %w", err)
@@ -188,4 +194,5 @@ func addCertToTransport(hc *http.Client, certPool *x509.CertPool) {
 	trans.TLSClientConfig = &tls.Config{
 		RootCAs: certPool,
 	}
+	hc.Transport = trans
 }

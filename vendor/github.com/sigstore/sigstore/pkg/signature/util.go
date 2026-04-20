@@ -28,7 +28,7 @@ import (
 )
 
 // SignImage signs a container manifest using the specified signer object
-func SignImage(signer SignerVerifier, image name.Digest, optionalAnnotations map[string]interface{}) (payload, signature []byte, err error) {
+func SignImage(signer SignerVerifier, image name.Digest, optionalAnnotations map[string]any) (payload, signature []byte, err error) {
 	imgPayload := sigpayload.Cosign{
 		Image:       image,
 		Annotations: optionalAnnotations,
@@ -45,7 +45,7 @@ func SignImage(signer SignerVerifier, image name.Digest, optionalAnnotations map
 }
 
 // VerifyImageSignature verifies a signature over a container manifest
-func VerifyImageSignature(signer SignerVerifier, payload, signature []byte) (image name.Digest, annotations map[string]interface{}, err error) {
+func VerifyImageSignature(signer SignerVerifier, payload, signature []byte) (image name.Digest, annotations map[string]any, err error) {
 	if err := signer.VerifySignature(bytes.NewReader(signature), bytes.NewReader(payload)); err != nil {
 		return name.Digest{}, nil, fmt.Errorf("signature verification failed: %w", err)
 	}

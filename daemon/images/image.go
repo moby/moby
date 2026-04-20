@@ -141,7 +141,7 @@ func (i *ImageService) manifestMatchesPlatform(ctx context.Context, img *image.I
 			}
 
 			if err := json.Unmarshal(data, &m); err != nil {
-				logger.WithError(err).Error("Error desserializing manifest")
+				logger.WithError(err).Error("Error deserializing manifest")
 				continue
 			}
 

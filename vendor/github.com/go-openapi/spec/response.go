@@ -10,7 +10,7 @@ import (
 	"github.com/go-openapi/swag/jsonutils"
 )
 
-// ResponseProps properties specific to a response
+// ResponseProps properties specific to a response.
 type ResponseProps struct {
 	Description string            `json:"description"`
 	Schema      *Schema           `json:"schema,omitempty"`
@@ -27,19 +27,19 @@ type Response struct {
 	VendorExtensible
 }
 
-// NewResponse creates a new response instance
+// NewResponse creates a new response instance.
 func NewResponse() *Response {
 	return new(Response)
 }
 
-// ResponseRef creates a response as a json reference
+// ResponseRef creates a response as a json reference.
 func ResponseRef(url string) *Response {
 	resp := NewResponse()
 	resp.Ref = MustCreateRef(url)
 	return resp
 }
 
-// JSONLookup look up a value by the json property name
+// JSONLookup look up a value by the json property name.
 func (r Response) JSONLookup(token string) (any, error) {
 	if ex, ok := r.Extensions[token]; ok {
 		return &ex, nil
@@ -51,7 +51,7 @@ func (r Response) JSONLookup(token string) (any, error) {
 	return ptr, err
 }
 
-// UnmarshalJSON hydrates this items instance with the data from JSON
+// UnmarshalJSON hydrates this items instance with the data from JSON.
 func (r *Response) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &r.ResponseProps); err != nil {
 		return err
@@ -62,7 +62,7 @@ func (r *Response) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &r.VendorExtensible)
 }
 
-// MarshalJSON converts this items object to JSON
+// MarshalJSON converts this items object to JSON.
 func (r Response) MarshalJSON() ([]byte, error) {
 	var (
 		b1  []byte
@@ -100,20 +100,20 @@ func (r Response) MarshalJSON() ([]byte, error) {
 	return jsonutils.ConcatJSON(b1, b2, b3), nil
 }
 
-// WithDescription sets the description on this response, allows for chaining
+// WithDescription sets the description on this response, allows for chaining.
 func (r *Response) WithDescription(description string) *Response {
 	r.Description = description
 	return r
 }
 
 // WithSchema sets the schema on this response, allows for chaining.
-// Passing a nil argument removes the schema from this response
+// Passing a nil argument removes the schema from this response.
 func (r *Response) WithSchema(schema *Schema) *Response {
 	r.Schema = schema
 	return r
 }
 
-// AddHeader adds a header to this response
+// AddHeader adds a header to this response.
 func (r *Response) AddHeader(name string, header *Header) *Response {
 	if header == nil {
 		return r.RemoveHeader(name)
@@ -125,13 +125,13 @@ func (r *Response) AddHeader(name string, header *Header) *Response {
 	return r
 }
 
-// RemoveHeader removes a header from this response
+// RemoveHeader removes a header from this response.
 func (r *Response) RemoveHeader(name string) *Response {
 	delete(r.Headers, name)
 	return r
 }
 
-// AddExample adds an example to this response
+// AddExample adds an example to this response.
 func (r *Response) AddExample(mediaType string, example any) *Response {
 	if r.Examples == nil {
 		r.Examples = make(map[string]any)

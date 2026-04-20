@@ -21,18 +21,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 )
 
 func isSupportedAlg(alg crypto.Hash, supportedAlgs []crypto.Hash) bool {
 	if supportedAlgs == nil {
 		return true
 	}
-	for _, supportedAlg := range supportedAlgs {
-		if alg == supportedAlg {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(supportedAlgs, alg)
 }
 
 // ComputeDigestForSigning calculates the digest value for the specified message using a hash function selected by the following process:

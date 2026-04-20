@@ -9,7 +9,7 @@ import (
 	"github.com/go-openapi/spec"
 )
 
-// ExampleValidator validates example values defined in a spec
+// ExampleValidator validates example values defined in a spec.
 type exampleValidator struct {
 	SpecValidator  *SpecValidator
 	visitedSchemas map[string]struct{}
@@ -35,7 +35,7 @@ func (ex *exampleValidator) Validate() *Result {
 	return errs
 }
 
-// resetVisited resets the internal state of visited schemas
+// resetVisited resets the internal state of visited schemas.
 func (ex *exampleValidator) resetVisited() {
 	if ex.visitedSchemas == nil {
 		ex.visitedSchemas = make(map[string]struct{})
@@ -43,22 +43,23 @@ func (ex *exampleValidator) resetVisited() {
 		return
 	}
 
-	// TODO(go1.21): clear(ex.visitedSchemas)
+	// NOTE(go1.21): clear(ex.visitedSchemas)
 	for k := range ex.visitedSchemas {
 		delete(ex.visitedSchemas, k)
 	}
 }
 
-// beingVisited asserts a schema is being visited
+// beingVisited asserts a schema is being visited.
 func (ex *exampleValidator) beingVisited(path string) {
 	ex.visitedSchemas[path] = struct{}{}
 }
 
-// isVisited tells if a path has already been visited
+// isVisited tells if a path has already been visited.
 func (ex *exampleValidator) isVisited(path string) bool {
 	return isVisited(path, ex.visitedSchemas)
 }
 
+//nolint:gocognit // refactor in a forthcoming PR
 func (ex *exampleValidator) validateExampleValueValidAgainstSchema() *Result {
 	// every example value that is specified must validate against the schema for that property
 	// in: schemas, properties, object, items
@@ -205,7 +206,7 @@ func (ex *exampleValidator) validateExampleInResponse(resp *spec.Response, respo
 					newSchemaValidator(response.Schema, s.spec.Spec(), path+".examples", s.KnownFormats, s.schemaOptions).Validate(example),
 				)
 			} else {
-				// TODO: validate other media types too
+				// Proposal for enhancement: validate other media types too
 				res.AddWarnings(examplesMimeNotSupportedMsg(operationID, responseName))
 			}
 		} else {
@@ -264,7 +265,7 @@ func (ex *exampleValidator) validateExampleValueSchemaAgainstSchema(path, in str
 	return res
 }
 
-// TODO: Temporary duplicated code. Need to refactor with examples
+// NOTE: Temporary duplicated code. Need to refactor with examples
 //
 
 func (ex *exampleValidator) validateExampleValueItemsAgainstSchema(path, in string, root any, items *spec.Items) *Result {

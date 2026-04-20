@@ -642,8 +642,13 @@ func (hs *httpSourceHandler) verifySignature(ctx context.Context, filename, refI
 	}
 	defer lm.Unmount()
 
-	fp := filepath.Join(dir, filepath.Base(filepath.Join("/", filename)))
-	f, err := os.Open(fp)
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return errors.Wrap(err, "failed to open http source root")
+	}
+	defer root.Close()
+
+	f, err := root.Open(filepath.Base(filepath.Join("/", filename)))
 	if err != nil {
 		return errors.Wrap(err, "failed to open http source payload")
 	}
@@ -678,8 +683,13 @@ func (hs *httpSourceHandler) computeChecksumResponse(ctx context.Context, filena
 	}
 	defer lm.Unmount()
 
-	fp := filepath.Join(dir, filepath.Base(filepath.Join("/", filename)))
-	f, err := os.Open(fp)
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open http source root")
+	}
+	defer root.Close()
+
+	f, err := root.Open(filepath.Base(filepath.Join("/", filename)))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open http source payload")
 	}

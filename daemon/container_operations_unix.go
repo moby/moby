@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/config"
@@ -437,12 +438,24 @@ func (daemon *Daemon) remountSecretDir(ctr *container.Container) error {
 	uid, gid := daemon.idMapping.RootPair()
 	tmpfsOwnership := fmt.Sprintf("uid=%d,gid=%d", uid, gid)
 
-	// remount secrets ro
-	if err := mount.Mount("tmpfs", dir, "tmpfs", "remount,ro,"+tmpfsOwnership); err != nil {
-		return errors.Wrap(err, "unable to remount dir as readonly")
+	// Remount secrets as read-only, retrying on transient EBUSY errors.
+	// On busy hosts the tmpfs mount can momentarily be held by other
+	// processes (e.g. container runtime) right after writing secret/config
+	// files, causing the remount to fail. Retrying resolves the race.
+	// See https://github.com/moby/moby/issues/48783
+	var mountErr error
+	for retry := range 5 {
+		mountErr = mount.Mount("tmpfs", dir, "tmpfs", "remount,ro,"+tmpfsOwnership)
+		if mountErr == nil {
+			return nil
+		}
+		if !errors.Is(mountErr, syscall.EBUSY) {
+			return errors.Wrap(mountErr, "unable to remount dir as readonly")
+		}
+		log.G(context.TODO()).WithError(mountErr).WithField("dir", dir).Debug("Transient EBUSY on secrets remount, retrying")
+		time.Sleep(10*time.Millisecond + time.Duration(retry)*25*time.Millisecond)
 	}
-
-	return nil
+	return errors.Wrap(mountErr, "unable to remount dir as readonly")
 }
 
 func (daemon *Daemon) cleanupSecretDir(ctr *container.Container) {

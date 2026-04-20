@@ -230,8 +230,8 @@ func parseLocalTime(b []byte) (LocalTime, []byte, error) {
 		return t, nil, err
 	}
 
-	if t.Second > 60 {
-		return t, nil, unstable.NewParserError(b[6:8], "seconds cannot be greater 60")
+	if t.Second > 59 {
+		return t, nil, unstable.NewParserError(b[6:8], "seconds cannot be greater than 59")
 	}
 
 	b = b[8:]
@@ -279,7 +279,6 @@ func parseLocalTime(b []byte) (LocalTime, []byte, error) {
 	return t, b, nil
 }
 
-//nolint:cyclop
 func parseFloat(b []byte) (float64, error) {
 	if len(b) == 4 && (b[0] == '+' || b[0] == '-') && b[1] == 'n' && b[2] == 'a' && b[3] == 'n' {
 		return math.NaN(), nil

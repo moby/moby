@@ -8,6 +8,7 @@ package internaloption
 import (
 	"context"
 	"log/slog"
+	"maps"
 
 	"cloud.google.com/go/auth"
 	"github.com/googleapis/gax-go/v2/internallog"
@@ -151,6 +152,23 @@ type withDefaultScopes []string
 func (w withDefaultScopes) Apply(o *internal.DialSettings) {
 	o.DefaultScopes = make([]string, len(w))
 	copy(o.DefaultScopes, w)
+}
+
+// WithTelemetryAttributes returns a ClientOption that specifies a map of
+// telemetry attributes to be added to all telemetry signals, such as tracing
+// and metrics, for purposes including representing the static identity of the
+// client (e.g., service name, version). These attributes are expected to be
+// consistent across all signals to enable cross-signal correlation.
+//
+// It should only be used internally by generated clients.
+func WithTelemetryAttributes(attrs map[string]string) option.ClientOption {
+	return withTelemetryAttributes(attrs)
+}
+
+type withTelemetryAttributes map[string]string
+
+func (w withTelemetryAttributes) Apply(o *internal.DialSettings) {
+	o.TelemetryAttributes = maps.Clone(w)
 }
 
 // WithDefaultUniverseDomain returns a ClientOption that sets the default universe domain.

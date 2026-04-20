@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	containerdcli "github.com/containerd/containerd/v2/client"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -378,20 +379,60 @@ func (daemon *Daemon) shouldIgnoreExitEventWithLock(c *container.Container, e *l
 		return true
 
 	case containertypes.StateRunning:
-		// If the container is running, but the exit event is from
-		// before it was started, ignore it. This can happen when a
-		// duplicate exit arrives while the restart path holds the
-		// container lock; by the time we process it, a new task is
-		// already running, so the exit belongs to the previous task.
-		return !e.ExitedAt.IsZero() && e.ExitedAt.Before(c.State.StartedAt)
+		task, ok := c.State.Task()
+		if !ok {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"container": c.ID,
+			}).Warn("container in running state but no task found while checking for duplicate exit event")
+			return false
+		}
+
+		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+		status, err := task.Status(ctx)
+		cancel()
+		if err != nil {
+			// If containerd-shim crashed, the task will be deleted
+			// automatically by containerd, so treat a NotFound
+			// error as meaning the task is not running.
+			log.G(ctx).WithFields(log.Fields{
+				"error":     err,
+				"container": c.ID,
+			}).Warn("failed to get task status while checking for duplicate exit event")
+			return false
+		}
+
+		// If the container is still running, then this exit event must
+		// be a duplicate from a previous run, so ignore it. If the
+		// container is not running, then we should process the exit
+		// event to transition the container to exited.
+		//
+		// Timestamp is not reliable for determining whether an exit
+		// event is a duplicate, because CLOCK_REALTIME can jump backwards
+		// (e.g., due to NTP adjustments).
+		//
+		// See moby/moby#52153 for more details.
+		if status.Status == containerdcli.Running {
+			return true
+		}
+
+		if status.Status == containerdcli.Stopped {
+			if status.ExitStatus != e.ExitCode {
+				log.G(ctx).WithFields(log.Fields{
+					"container": c.ID,
+					"exitCode":  status.ExitStatus,
+					"eventCode": e.ExitCode,
+				}).Warn("container stopped with different exit code than exit event while checking for duplicate exit event")
+				return true
+			}
+		}
+		return false
 
 	case containertypes.StateRestarting:
 		// The restart path acquires and holds the container lock before
-		// processing; on failure it transitions the container to exited,
-		// and on success it transitions to running. Therefore, any exit
-		// event observed while still restarting is a late duplicate from
-		// the previous task and should be ignored.
-		return !e.ExitedAt.IsZero() && e.ExitedAt.After(c.State.FinishedAt)
+		// processing. So, if we're currently restarting, then we know
+		// for certain that we are still processing the previous exit
+		// event, and any new exit events must be duplicates.
+		return true
 
 	default:
 		return false

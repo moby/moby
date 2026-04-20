@@ -13,7 +13,7 @@ import (
 // Format represents a string format.
 //
 // All implementations of Format provide a string representation and text
-// marshaling/unmarshaling interface to be used by encoders (e.g. encoding/json).
+// marshaling/unmarshaling interface to be used by encoders (e.g. encoding/[json]).
 type Format interface {
 	String() string
 	encoding.TextMarshaler
@@ -22,11 +22,11 @@ type Format interface {
 
 // Registry is a registry of string formats, with a validation method.
 type Registry interface {
-	Add(string, Format, Validator) bool
-	DelByName(string) bool
-	GetType(string) (reflect.Type, bool)
-	ContainsName(string) bool
-	Validates(string, string) bool
-	Parse(string, string) (any, error)
+	Add(name string, strfmt Format, validator Validator) bool
+	DelByName(name string) bool
+	GetType(name string) (reflect.Type, bool)
+	ContainsName(name string) bool
+	Validates(name, data string) bool
+	Parse(name, data string) (any, error)
 	MapStructureHookFunc() mapstructure.DecodeHookFunc
 }

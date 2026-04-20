@@ -2,6 +2,7 @@ package ns
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"syscall"
 	"testing"
@@ -13,64 +14,67 @@ import (
 	"github.com/vishvananda/netns"
 )
 
-var (
-	initNs   = netns.None()
-	initNl   nlwrap.Handle
-	initOnce sync.Once
-	// NetlinkSocketsTimeout represents the default timeout duration for the sockets
-	NetlinkSocketsTimeout = 3 * time.Second
-)
+// NetlinkSocketsTimeout represents the default timeout duration for the sockets.
+const NetlinkSocketsTimeout = 3 * time.Second
+
+// initNamespace initializes a new network namespace.
+var initNamespace = sync.OnceValues(initHandles)
 
 // initHandles initializes a new network namespace
-func initHandles() {
-	var err error
-	initNs, err = netns.Get()
+func initHandles() (netns.NsHandle, nlwrap.Handle) {
+	initNs, err := netns.Get()
 	if err != nil {
-		log.G(context.TODO()).Errorf("could not get initial namespace: %v", err)
+		log.G(context.Background()).WithError(err).Error("could not get initial namespace: falling back to using netns.None")
+		initNs = netns.None()
 	}
-	initNl, err = nlwrap.NewHandle(getSupportedNlFamilies()...)
+	initNl, err := nlwrap.NewHandle(getSupportedNlFamilies()...)
 	if err != nil {
-		log.G(context.TODO()).Errorf("could not create netlink handle on initial namespace: %v", err)
+		// Fail fast to keep the invariant: NlHandle must be a valid handle
+		panic(fmt.Errorf("could not create netlink handle on initial (host) namespace: %w", err))
 	}
 	err = initNl.SetSocketTimeout(NetlinkSocketsTimeout)
 	if err != nil {
-		log.G(context.TODO()).Warnf("Failed to set the timeout on the default netlink handle sockets: %v", err)
+		log.G(context.Background()).WithError(err).Warn("failed to set the timeout on the default netlink handle sockets")
 	}
+
+	return initNs, initNl
 }
 
 // ResetHandles resets the initial namespace and netlink handles.
 // This is useful for testing to ensure a clean state. It will
 // panic if called outside a test.
+//
+// Note: This function is not safe for concurrent use with callers
+// that are using handles obtained from this package. It may close
+// handles while they are still in use.
 func ResetHandles() {
 	if !testing.Testing() {
 		panic("ResetHandles should only be called from tests")
 	}
+	initNs, initNl := initNamespace()
+	// Reset the initNamespace sync.OnceValues. This may race with
+	// concurrent callers still calling the old initNamespace (and
+	// values), but adding a [sync.RWMutex] only for the test-case
+	// is probably too much (unless things are racy).
+	initNamespace = sync.OnceValues(initHandles)
 	if initNs.IsOpen() {
-		initNs.Close()
-		initNs = netns.None()
+		_ = initNs.Close()
 	}
 	if initNl.Handle != nil {
 		initNl.Close()
-		initNl = nlwrap.Handle{}
 	}
-	initOnce = sync.Once{}
 }
 
-// ParseHandlerInt transforms the namespace handler into an integer
-func ParseHandlerInt() int {
-	return int(getHandler())
+// NsHandle returns the network namespace handle for the initial (host) namespace.
+func NsHandle() netns.NsHandle {
+	ns, _ := initNamespace()
+	return ns
 }
 
-// GetHandler returns the namespace handler
-func getHandler() netns.NsHandle {
-	initOnce.Do(initHandles)
-	return initNs
-}
-
-// NlHandle returns the netlink handler
+// NlHandle returns the netlink handle.
 func NlHandle() nlwrap.Handle {
-	initOnce.Do(initHandles)
-	return initNl
+	_, nl := initNamespace()
+	return nl
 }
 
 func getSupportedNlFamilies() []int {
@@ -97,7 +101,7 @@ func checkXfrmSocket() error {
 	if err != nil {
 		return err
 	}
-	syscall.Close(fd)
+	_ = syscall.Close(fd)
 	return nil
 }
 
@@ -107,6 +111,6 @@ func checkNfSocket() error {
 	if err != nil {
 		return err
 	}
-	syscall.Close(fd)
+	_ = syscall.Close(fd)
 	return nil
 }

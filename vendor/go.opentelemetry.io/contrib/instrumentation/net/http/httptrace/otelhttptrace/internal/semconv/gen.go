@@ -6,10 +6,10 @@ package semconv // import "go.opentelemetry.io/contrib/instrumentation/net/http/
 // Generate semconv package:
 //go:generate gotmpl --body=../../../../../../../internal/shared/semconv/bench_test.go.tmpl "--data={ \"pkg\": \"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace\" }" --out=bench_test.go
 //go:generate gotmpl --body=../../../../../../../internal/shared/semconv/common_test.go.tmpl "--data={ \"pkg\": \"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace\" }" --out=common_test.go
-//go:generate gotmpl --body=../../../../../../../internal/shared/semconv/env.go.tmpl "--data={ \"pkg\": \"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace\" }" --out=env.go
-//go:generate gotmpl --body=../../../../../../../internal/shared/semconv/env_test.go.tmpl "--data={ \"pkg\": \"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace\" }" --out=env_test.go
-//go:generate gotmpl --body=../../../../../../../internal/shared/semconv/httpconv.go.tmpl "--data={ \"pkg\": \"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace\" }" --out=httpconv.go
-//go:generate gotmpl --body=../../../../../../../internal/shared/semconv/httpconv_test.go.tmpl "--data={ \"pkg\": \"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace\" }" --out=httpconv_test.go
+//go:generate gotmpl --body=../../../../../../../internal/shared/semconv/server.go.tmpl "--data={ \"pkg\": \"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp\" }" --out=server.go
+//go:generate gotmpl --body=../../../../../../../internal/shared/semconv/server_test.go.tmpl "--data={ \"pkg\": \"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp\" }" --out=server_test.go
+//go:generate gotmpl --body=../../../../../../../internal/shared/semconv/client.go.tmpl "--data={ \"pkg\": \"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp\" }" --out=client.go
+//go:generate gotmpl --body=../../../../../../../internal/shared/semconv/client_test.go.tmpl "--data={ \"pkg\": \"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp\" }" --out=client_test.go
 //go:generate gotmpl --body=../../../../../../../internal/shared/semconv/httpconvtest_test.go.tmpl "--data={ \"pkg\": \"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace\" }" --out=httpconvtest_test.go
 //go:generate gotmpl --body=../../../../../../../internal/shared/semconv/util.go.tmpl "--data={ \"pkg\": \"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace\" }" --out=util.go
 //go:generate gotmpl --body=../../../../../../../internal/shared/semconv/util_test.go.tmpl "--data={ \"pkg\": \"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace\" }" --out=util_test.go

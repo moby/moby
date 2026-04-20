@@ -51,7 +51,7 @@ func addGetRegionMiddleware(stack *middleware.Stack, options Options) error {
 	)
 }
 
-func buildGetRegionOutput(resp *smithyhttp.Response) (interface{}, error) {
+func buildGetRegionOutput(resp *smithyhttp.Response) (any, error) {
 	out, err := buildGetInstanceIdentityDocumentOutput(resp)
 	if err != nil {
 		return nil, err

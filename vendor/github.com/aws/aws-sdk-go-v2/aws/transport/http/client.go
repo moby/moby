@@ -300,6 +300,17 @@ func limitedRedirect(r *http.Request, via []*http.Request) error {
 	switch resp.StatusCode {
 	case 307, 308:
 		// Only allow 307 and 308 redirects as they preserve the method.
+
+		// If redirecting to a different host, remove X-Amz-Security-Token header
+		// to prevent credentials from being sent to a different host, similar to
+		// how Authorization header is handled by the HTTP client.
+		if len(via) > 0 {
+			lastRequest := via[len(via)-1]
+			if lastRequest.URL.Host != r.URL.Host {
+				r.Header.Del("X-Amz-Security-Token")
+			}
+		}
+
 		return nil
 	}
 

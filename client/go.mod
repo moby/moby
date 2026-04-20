@@ -1,16 +1,16 @@
 module github.com/moby/moby/client
 
-go 1.24.0
+go 1.24
 
 require (
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/errdefs/pkg v0.3.0
 	github.com/distribution/reference v0.6.0
-	github.com/docker/go-connections v0.6.0
+	github.com/docker/go-connections v0.7.0
 	github.com/docker/go-units v0.5.0
 	github.com/google/go-cmp v0.7.0
-	github.com/moby/moby/api v1.54.0
+	github.com/moby/moby/api v1.54.2
 	github.com/moby/term v0.5.2
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1

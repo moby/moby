@@ -19,6 +19,7 @@ import (
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/converter/tarconverter"
 	"github.com/moby/buildkit/util/iohelper"
+	"github.com/moby/buildkit/util/pools"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -68,11 +69,9 @@ type conversion struct {
 	immDiffIDs       map[digest.Digest]struct{} // diffIDs of immutable layers
 }
 
-var bufioPool = sync.Pool{
-	New: func() any {
-		return nil
-	},
-}
+var bufioPool = pools.New(func() *bufio.Writer {
+	return nil
+})
 
 func rewriteTimestampInTarHeader(epoch time.Time) tarconverter.HeaderConverter {
 	return func(hdr *tar.Header) {
@@ -104,7 +103,7 @@ func (c *conversion) convert(ctx context.Context, cs content.Store, desc ocispec
 
 	var bufW *bufio.Writer
 	if pooledW := bufioPool.Get(); pooledW != nil {
-		bufW = pooledW.(*bufio.Writer)
+		bufW = pooledW
 		bufW.Reset(w)
 	} else {
 		bufW = bufio.NewWriterSize(w, 128*1024)

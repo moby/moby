@@ -8,6 +8,7 @@ import (
 	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/frontend/gateway"
 	gatewaypb "github.com/moby/buildkit/frontend/gateway/pb"
+	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/sourcepolicy"
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
@@ -15,6 +16,16 @@ import (
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
+
+const (
+	keySourcePolicy        = "llb.sourcepolicy"
+	keySourcePolicySession = "llb.sourcepolicysession"
+)
+
+// SourcePolicyEvaluator evaluates source operations against configured policies.
+type SourcePolicyEvaluator interface {
+	Evaluate(ctx context.Context, op *pb.Op) (bool, error)
+}
 
 type policyEvaluator struct {
 	*llbBridge
@@ -203,4 +214,61 @@ func fromPBHTTPChecksumAlgo(in gatewaypb.ChecksumRequest_ChecksumAlgo) sourceres
 	default:
 		return sourceresolver.ResolveHTTPChecksumAlgo(in)
 	}
+}
+
+func validateSourcePolicy(pol *spb.Policy) error {
+	for _, r := range pol.Rules {
+		if r == nil {
+			return errors.New("invalid nil rule in policy")
+		}
+		if r.Selector == nil {
+			return errors.New("invalid nil selector in policy")
+		}
+		for _, c := range r.Selector.Constraints {
+			if c == nil {
+				return errors.New("invalid nil constraint in policy")
+			}
+		}
+	}
+	return nil
+}
+
+func loadSourcePolicy(b solver.Builder) (*spb.Policy, error) {
+	var srcPol spb.Policy
+	err := b.EachValue(context.TODO(), keySourcePolicy, func(v any) error {
+		x, ok := v.(*spb.Policy)
+		if !ok {
+			return errors.Errorf("invalid source policy %T", v)
+		}
+		for _, f := range x.Rules {
+			if f == nil {
+				return errors.Errorf("invalid nil policy rule")
+			}
+			srcPol.Rules = append(srcPol.Rules, f.CloneVT())
+		}
+		srcPol.Version = x.Version
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &srcPol, nil
+}
+
+func loadSourcePolicySession(b solver.Builder) (string, error) {
+	var session string
+	err := b.EachValue(context.TODO(), keySourcePolicySession, func(v any) error {
+		x, ok := v.(string)
+		if !ok {
+			return errors.Errorf("invalid source policy session %T", v)
+		}
+		if x != "" {
+			session = x
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return session, nil
 }

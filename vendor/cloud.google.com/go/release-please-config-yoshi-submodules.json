@@ -81,6 +81,9 @@
         "binaryauthorization": {
             "component": "binaryauthorization"
         },
+        "capacityplanner": {
+            "component": "capacityplanner"
+        },
         "certificatemanager": {
             "component": "certificatemanager"
         },
@@ -180,9 +183,6 @@
         "discoveryengine": {
             "component": "discoveryengine"
         },
-        "dlp": {
-            "component": "dlp"
-        },
         "documentai": {
             "component": "documentai"
         },
@@ -209,6 +209,9 @@
         },
         "functions": {
             "component": "functions"
+        },
+        "geminidataanalytics": {
+            "component": "geminidataanalytics"
         },
         "gkebackup": {
             "component": "gkebackup"
@@ -254,6 +257,9 @@
         },
         "lifesciences": {
             "component": "lifesciences"
+        },
+        "locationfinder": {
+            "component": "locationfinder"
         },
         "longrunning": {
             "component": "longrunning"

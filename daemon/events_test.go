@@ -4,10 +4,12 @@ import (
 	"testing"
 	"time"
 
+	gogotypes "github.com/gogo/protobuf/types"
 	containertypes "github.com/moby/moby/api/types/container"
 	eventtypes "github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/events"
+	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
 func TestLogContainerEventCopyLabels(t *testing.T) {
@@ -85,5 +87,76 @@ func validateTestAttributes(t *testing.T, l chan any, expectedAttributesToTest m
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("LogEvent test timed out")
+	}
+}
+
+func TestEventTimestamp(t *testing.T) {
+	now := time.Now()
+	createdAt := &gogotypes.Timestamp{Seconds: now.Unix(), Nanos: int32(now.Nanosecond())}
+	updatedAt := &gogotypes.Timestamp{Seconds: now.Add(time.Hour).Unix(), Nanos: int32(now.Add(time.Hour).Nanosecond())}
+
+	tests := []struct {
+		doc    string
+		meta   swarmapi.Meta
+		action swarmapi.WatchActionKind
+		check  func(t *testing.T, result time.Time)
+	}{
+		{
+			doc:    "Create action uses CreatedAt timestamp",
+			meta:   swarmapi.Meta{CreatedAt: createdAt},
+			action: swarmapi.WatchActionKindCreate,
+			check: func(t *testing.T, result time.Time) {
+				if result.Unix() != now.Unix() {
+					t.Errorf("expected CreatedAt timestamp, got %v", result)
+				}
+			},
+		},
+		{
+			doc:    "Update action uses UpdatedAt timestamp",
+			meta:   swarmapi.Meta{UpdatedAt: updatedAt},
+			action: swarmapi.WatchActionKindUpdate,
+			check: func(t *testing.T, result time.Time) {
+				if result.Unix() != now.Add(time.Hour).Unix() {
+					t.Errorf("expected UpdatedAt timestamp, got %v", result)
+				}
+			},
+		},
+		{
+			doc:    "Remove action uses current time",
+			meta:   swarmapi.Meta{},
+			action: swarmapi.WatchActionKindRemove,
+			check: func(t *testing.T, result time.Time) {
+				if result.IsZero() {
+					t.Error("expected non-zero timestamp for Remove action")
+				}
+			},
+		},
+		{
+			doc:    "Unknown action returns valid timestamp",
+			meta:   swarmapi.Meta{},
+			action: swarmapi.WatchActionKindUnknown,
+			check: func(t *testing.T, result time.Time) {
+				if result.IsZero() {
+					t.Error("expected non-zero timestamp for Unknown action")
+				}
+			},
+		},
+		{
+			doc:    "Invalid action falls back to current time",
+			meta:   swarmapi.Meta{},
+			action: swarmapi.WatchActionKind(123456789),
+			check: func(t *testing.T, result time.Time) {
+				if result.IsZero() {
+					t.Error("expected non-zero timestamp for invalid action")
+				}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			result := eventTimestamp(tc.meta, tc.action)
+			tc.check(t, result)
+		})
 	}
 }

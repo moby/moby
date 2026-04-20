@@ -3,7 +3,7 @@
 
 package runtime
 
-// Statuses lists the most common HTTP status codes to default message
+// Statuses lists the most common HTTP status codes to default message.
 // taken from https://httpstatuses.com/
 var Statuses = map[int]string{
 	100: "Continue",

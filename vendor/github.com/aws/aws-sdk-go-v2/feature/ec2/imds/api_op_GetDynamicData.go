@@ -61,7 +61,7 @@ func addGetDynamicDataMiddleware(stack *middleware.Stack, options Options) error
 		buildGetDynamicDataOutput)
 }
 
-func buildGetDynamicDataPath(params interface{}) (string, error) {
+func buildGetDynamicDataPath(params any) (string, error) {
 	p, ok := params.(*GetDynamicDataInput)
 	if !ok {
 		return "", fmt.Errorf("unknown parameter type %T", params)
@@ -70,7 +70,7 @@ func buildGetDynamicDataPath(params interface{}) (string, error) {
 	return appendURIPath(getDynamicDataPath, p.Path), nil
 }
 
-func buildGetDynamicDataOutput(resp *smithyhttp.Response) (interface{}, error) {
+func buildGetDynamicDataOutput(resp *smithyhttp.Response) (any, error) {
 	return &GetDynamicDataOutput{
 		Content: resp.Body,
 	}, nil

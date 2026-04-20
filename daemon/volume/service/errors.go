@@ -59,9 +59,13 @@ func (e *OpErr) Error() string {
 	return s
 }
 
-// Cause returns the error the caused this error
+// Cause returns the error the caused this error.
+//
+// Deprecated: use [OpErr.Unwrap] instead.
+//
+//go:fix inline
 func (e *OpErr) Cause() error {
-	return e.Err
+	return e.Unwrap()
 }
 
 // Unwrap returns the error the caused this error
@@ -87,20 +91,14 @@ func IsNameConflict(err error) bool {
 }
 
 func isErr(err error, expected error) bool {
-	switch pe := err.(type) {
-	case nil:
-		return false
-	case interface{ Cause() error }:
-		return isErr(pe.Cause(), expected)
-	case interface{ Unwrap() error }:
-		return isErr(pe.Unwrap(), expected)
-	case interface{ Unwrap() []error }:
-		for _, ue := range pe.Unwrap() {
-			if isErr(ue, expected) {
-				return true
-			}
-		}
-		return false
+	if errors.Is(err, expected) {
+		return true
 	}
-	return errors.Is(err, expected)
+
+	type causer interface{ Cause() error }
+	if e, ok := err.(causer); ok {
+		return isErr(e.Cause(), expected)
+	}
+
+	return false
 }

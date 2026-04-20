@@ -97,6 +97,13 @@ if [ -z "$rootlesskit" ]; then
 	exit 1
 fi
 
+: "${CONTAINERD_ROOTLESS_ROOTLESSKIT_STATE_DIR:=$XDG_RUNTIME_DIR/containerd-rootless}"
+if [ -e "$CONTAINERD_ROOTLESS_ROOTLESSKIT_STATE_DIR" ]; then
+	# https://github.com/moby/moby/issues/52171
+	echo "dockerd-rootless.sh conflicts with containerd-rootless.sh. Stop containerd-rootless.sh if it's running, and remove $CONTAINERD_ROOTLESS_ROOTLESSKIT_STATE_DIR if it still exists."
+	exit 1
+fi
+
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR:=$XDG_RUNTIME_DIR/dockerd-rootless}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_NET:=}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_MTU:=}"

@@ -193,7 +193,7 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 		return err
 	}
 
-	// wait for container to exit one last time, if it doesn't then kill didnt work, so return error
+	// wait for container to exit one last time, if it doesn't then kill didn't work, so return error
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel2()
 

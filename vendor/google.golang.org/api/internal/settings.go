@@ -73,6 +73,13 @@ type DialSettings struct {
 	QuotaProject  string
 	RequestReason string
 
+	// TelemetryAttributes specifies a map of telemetry attributes to be added
+	// to all OpenTelemetry signals, such as tracing and metrics, for purposes
+	// including representing the static identity of the client (e.g., service
+	// name, version). These attributes are expected to be consistent across all
+	// signals to enable cross-signal correlation.
+	TelemetryAttributes map[string]string
+
 	// New Auth library Options
 	AuthCredentials      *auth.Credentials
 	AuthCredentialsJSON  []byte

@@ -44,10 +44,10 @@ import (
 	"github.com/moby/buildkit/version"
 	imageadapter "github.com/moby/moby/v2/daemon/internal/builder-next/adapters/containerimage"
 	mobyexporter "github.com/moby/moby/v2/daemon/internal/builder-next/exporter"
-	"github.com/moby/moby/v2/daemon/internal/builder-next/worker/mod"
 	distmetadata "github.com/moby/moby/v2/daemon/internal/distribution/metadata"
 	"github.com/moby/moby/v2/daemon/internal/distribution/xfer"
 	"github.com/moby/moby/v2/daemon/internal/layer"
+	"github.com/moby/moby/v2/daemon/internal/mod"
 	pkgprogress "github.com/moby/moby/v2/daemon/internal/progress"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -603,7 +603,7 @@ func (ld *layerDescriptor) DiffID() (layer.DiffID, error) {
 }
 
 func (ld *layerDescriptor) Download(ctx context.Context, progressOutput pkgprogress.Output) (io.ReadCloser, int64, error) {
-	done := oneOffProgress(ld.pctx, fmt.Sprintf("pulling %s", ld.desc.Digest))
+	done := progress.OneOff(ld.pctx, fmt.Sprintf("pulling %s", ld.desc.Digest))
 
 	// TODO should this write output to progressOutput? Or use something similar to loggerFromContext()? see https://github.com/moby/buildkit/commit/aa29e7729464f3c2a773e27795e584023c751cb8
 	discardLogs := func(_ []byte) {}
@@ -651,23 +651,6 @@ func getLayers(ctx context.Context, descs []ocispec.Descriptor) ([]rootfs.Layer,
 		}
 	}
 	return layers, nil
-}
-
-func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.NewFromContext(ctx)
-	s := time.Now()
-	st := progress.Status{
-		Started: &s,
-	}
-	_ = pw.Write(id, st)
-	return func(err error) error {
-		// TODO: set error on status
-		c := time.Now()
-		st.Completed = &c
-		_ = pw.Write(id, st)
-		_ = pw.Close()
-		return err
-	}
 }
 
 type emptyProvider struct{}

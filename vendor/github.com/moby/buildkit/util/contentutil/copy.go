@@ -9,8 +9,10 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/images"
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/buildkit/util/bkmaps"
 	"github.com/moby/buildkit/util/resolver/limited"
 	"github.com/moby/buildkit/util/resolver/retryhandler"
+	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -74,10 +76,10 @@ func (r *rc) Seek(offset int64, whence int) (int64, error) {
 	return r.offset, nil
 }
 func CopyChain(ctx context.Context, ingester content.Ingester, provider content.Provider, desc ocispecs.Descriptor, opts ...CopyOption) error {
-	return copyChain(ctx, ingester, provider, desc, &sync.Map{}, opts...)
+	return copyChain(ctx, ingester, provider, desc, &bkmaps.SyncMap[digest.Digest, struct{}]{}, opts...)
 }
 
-func copyChain(ctx context.Context, ingester content.Ingester, provider content.Provider, desc ocispecs.Descriptor, visited *sync.Map, opts ...CopyOption) error {
+func copyChain(ctx context.Context, ingester content.Ingester, provider content.Provider, desc ocispecs.Descriptor, visited *bkmaps.SyncMap[digest.Digest, struct{}], opts ...CopyOption) error {
 	ci := &CopyInfo{}
 	for _, o := range opts {
 		if err := o(ci); err != nil {

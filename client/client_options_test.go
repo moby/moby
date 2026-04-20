@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -344,7 +345,7 @@ func TestWithUserAgent(t *testing.T) {
 		c, err := New(
 			WithHTTPHeaders(map[string]string{"Other-Header": "hello-world"}),
 			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
-				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), ""))
+				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), defaultUserAgent()))
 				assert.Check(t, is.Equal(req.Header.Get("Other-Header"), "hello-world"))
 				return &http.Response{StatusCode: http.StatusOK}, nil
 			}),
@@ -361,6 +362,38 @@ func TestWithUserAgent(t *testing.T) {
 			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
 				assert.Check(t, is.Equal(req.Header.Get("User-Agent"), ""))
 				assert.Check(t, is.Equal(req.Header.Get("Other-Header"), "hello-world"))
+				return &http.Response{StatusCode: http.StatusOK}, nil
+			}),
+		)
+		assert.NilError(t, err)
+		_, err = c.Ping(t.Context(), PingOptions{})
+		assert.NilError(t, err)
+		assert.NilError(t, c.Close())
+	})
+}
+
+func TestWithHTTPHeaders(t *testing.T) {
+	t.Run("duplicates", func(t *testing.T) {
+		c, err := New(
+			WithHTTPHeaders(map[string]string{
+				"custom-header": "custom-value-A",
+				"Custom-Header": "custom-value-B",
+				"CUSTOM-HEADER": "custom-value-C",
+			}),
+		)
+		assert.Check(t, is.ErrorIs(err, cerrdefs.ErrInvalidArgument))
+		assert.Check(t, is.Error(err, "duplicate custom HTTP header (Custom-Header)"))
+		assert.Check(t, is.Nil(c))
+	})
+	t.Run("multiple", func(t *testing.T) {
+		c, err := New(
+			WithHTTPHeaders(map[string]string{"custom-header-1": "hello"}),
+			WithHTTPHeaders(map[string]string{"custom-header-2": "custom-value-A"}),
+			WithHTTPHeaders(map[string]string{"Custom-Header-2": "custom-value-B"}),
+			WithHTTPHeaders(map[string]string{"CUSTOM-HEADER-2": "custom-value-C"}),
+			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
+				assert.Check(t, is.Equal(req.Header.Get("Custom-Header-1"), ""), "custom-header-1 should've been replaced")
+				assert.Check(t, is.Equal(req.Header.Get("Custom-Header-2"), "custom-value-C"))
 				return &http.Response{StatusCode: http.StatusOK}, nil
 			}),
 		)

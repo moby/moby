@@ -53,11 +53,11 @@ func (processor SpanProcessor) OnStart(ctx context.Context, span trace.ReadWrite
 }
 
 // OnEnd is called when span is finished and is a no-op for this processor.
-func (processor SpanProcessor) OnEnd(s trace.ReadOnlySpan) {}
+func (SpanProcessor) OnEnd(trace.ReadOnlySpan) {}
 
 // Shutdown is called when the SDK shuts down and is a no-op for this processor.
-func (processor SpanProcessor) Shutdown(context.Context) error { return nil }
+func (SpanProcessor) Shutdown(context.Context) error { return nil }
 
 // ForceFlush exports all ended spans to the configured Exporter that have not yet
 // been exported and is a no-op for this processor.
-func (processor SpanProcessor) ForceFlush(context.Context) error { return nil }
+func (SpanProcessor) ForceFlush(context.Context) error { return nil }

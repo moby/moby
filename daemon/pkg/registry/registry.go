@@ -4,6 +4,7 @@ package registry
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"net"
 	"net/http"
 	"os"
@@ -29,9 +30,8 @@ func hostCertsDir(hostnameAndPort string) string {
 	return filepath.Join(CertsDir(), hostnameAndPort)
 }
 
-// newTLSConfig constructs a client TLS configuration based on server defaults
+// newTLSConfig constructs a client TLS configuration based on server defaults.
 func newTLSConfig(ctx context.Context, hostname string, isSecure bool) (*tls.Config, error) {
-	// PreferredServerCipherSuites should have no effect
 	tlsConfig := tlsconfig.ServerDefault()
 	tlsConfig.InsecureSkipVerify = !isSecure
 
@@ -73,7 +73,7 @@ func loadTLSConfig(ctx context.Context, directory string, tlsConfig *tls.Config)
 		switch filepath.Ext(f.Name()) {
 		case ".crt":
 			if tlsConfig.RootCAs == nil {
-				systemPool, err := tlsconfig.SystemCertPool()
+				systemPool, err := x509.SystemCertPool()
 				if err != nil {
 					return invalidParamWrapf(err, "unable to get system cert pool")
 				}
@@ -111,9 +111,9 @@ func loadTLSConfig(ctx context.Context, directory string, tlsConfig *tls.Config)
 	return nil
 }
 
-// Headers returns request modifiers with a User-Agent and metaHeaders
+// Headers returns request modifiers with a User-Agent and metaHeaders.
 func Headers(userAgent string, metaHeaders http.Header) []transport.RequestModifier {
-	modifiers := []transport.RequestModifier{}
+	var modifiers []transport.RequestModifier
 	if userAgent != "" {
 		modifiers = append(modifiers, transport.NewHeaderRequestModifier(http.Header{
 			"User-Agent": []string{userAgent},
@@ -141,8 +141,7 @@ func newTransport(tlsConfig *tls.Config) http.RoundTripper {
 			}).DialContext,
 			TLSHandshakeTimeout: 10 * time.Second,
 			TLSClientConfig:     tlsConfig,
-			// TODO(dmcgowan): Call close idle connections when complete and use keep alive
-			DisableKeepAlives: true,
+			IdleConnTimeout:     30 * time.Second,
 		},
 	)
 }

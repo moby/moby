@@ -15,6 +15,10 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 )
 
+func init() {
+	waitUntilFlushed = waitUntilFlushedImpl
+}
+
 const (
 	closedDrainTimeout = 5 * time.Second
 	waitInterval       = 250 * time.Millisecond
@@ -548,8 +552,4 @@ func waitUntilFlushedImpl(s *journald) error {
 			Warn("journald: deadline exceeded waiting for logs to be committed to journal")
 	}()
 	return <-flushed
-}
-
-func init() {
-	waitUntilFlushed = waitUntilFlushedImpl
 }

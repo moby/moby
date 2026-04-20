@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/identity"
@@ -15,27 +14,27 @@ import (
 
 const defaultHostname = "buildkitsandbox"
 
-func GetHostsFile(ctx context.Context, stateDir string, extraHosts []executor.HostIP, idmap *user.IdentityMapping, hostname string) (string, func(), error) {
+func GetHostsFile(ctx context.Context, root *os.Root, extraHosts []executor.HostIP, idmap *user.IdentityMapping, hostname string) (string, func(), error) {
 	if len(extraHosts) != 0 || hostname != defaultHostname {
-		return makeHostsFile(stateDir, extraHosts, idmap, hostname)
+		return makeHostsFile(root, extraHosts, idmap, hostname)
 	}
 
-	_, err := g.Do(ctx, stateDir, func(ctx context.Context) (struct{}, error) {
-		_, _, err := makeHostsFile(stateDir, nil, idmap, hostname)
+	_, err := g.Do(ctx, root.Name(), func(ctx context.Context) (struct{}, error) {
+		_, _, err := makeHostsFile(root, nil, idmap, hostname)
 		return struct{}{}, err
 	})
 	if err != nil {
 		return "", nil, err
 	}
-	return filepath.Join(stateDir, "hosts"), func() {}, nil
+	return "hosts", func() {}, nil
 }
 
-func makeHostsFile(stateDir string, extraHosts []executor.HostIP, idmap *user.IdentityMapping, hostname string) (string, func(), error) {
-	p := filepath.Join(stateDir, "hosts")
+func makeHostsFile(root *os.Root, extraHosts []executor.HostIP, idmap *user.IdentityMapping, hostname string) (string, func(), error) {
+	name := "hosts"
 	if len(extraHosts) != 0 || hostname != defaultHostname {
-		p += "." + identity.NewID()
+		name += "." + identity.NewID()
 	}
-	_, err := os.Stat(p)
+	_, err := root.Stat(name)
 	if err == nil {
 		return "", func() {}, nil
 	}
@@ -54,23 +53,28 @@ func makeHostsFile(stateDir string, extraHosts []executor.HostIP, idmap *user.Id
 		}
 	}
 
-	tmpPath := p + ".tmp"
-	if err := os.WriteFile(tmpPath, b.Bytes(), 0644); err != nil {
+	tmpName := name + ".tmp"
+	if err := root.WriteFile(tmpName, b.Bytes(), 0644); err != nil {
 		return "", nil, errors.WithStack(err)
 	}
 
 	if idmap != nil {
 		uid, gid := idmap.RootPair()
-		if err := os.Chown(tmpPath, uid, gid); err != nil {
+		if err := root.Chown(tmpName, uid, gid); err != nil {
 			return "", nil, errors.WithStack(err)
 		}
 	}
 
-	if err := os.Rename(tmpPath, p); err != nil {
+	if err := root.Rename(tmpName, name); err != nil {
 		return "", nil, errors.WithStack(err)
 	}
-	return p, func() {
-		os.RemoveAll(p)
+	cleanRoot, err := root.OpenRoot(".")
+	if err != nil {
+		return "", nil, errors.WithStack(err)
+	}
+	return name, func() {
+		cleanRoot.RemoveAll(name)
+		cleanRoot.Close()
 	}, nil
 }
 

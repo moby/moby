@@ -28,7 +28,7 @@ const (
 	typeArray  = "array"
 )
 
-var textUnmarshalType = reflect.TypeOf(new(encoding.TextUnmarshaler)).Elem()
+var textUnmarshalType = reflect.TypeFor[encoding.TextUnmarshaler]()
 
 func newUntypedParamBinder(param spec.Parameter, spec *spec.Swagger, formats strfmt.Registry) *untypedParamBinder {
 	binder := new(untypedParamBinder)

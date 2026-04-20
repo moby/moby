@@ -18,12 +18,13 @@ import (
 // needed.
 //
 // The following parts of primary are subject to merge, filling empty details
+//
 //   - Info
 //   - BasePath
 //   - Host
 //   - ExternalDocs
 //
-// Consider calling FixEmptyResponseDescriptions() on the modified primary
+// Consider calling [FixEmptyResponseDescriptions]() on the modified primary
 // if you read them from storage and they are valid to start with.
 //
 // Entries in "paths", "definitions", "parameters" and "responses" are
@@ -39,7 +40,7 @@ import (
 // etc). Ensure they are canonical if your downstream tools do
 // key normalization of any form.
 //
-// Merging schemes (http, https), and consumers/producers do not account for
+// Merging schemes ([http], https), and consumers/producers do not account for
 // collisions.
 func Mixin(primary *spec.Swagger, mixins ...*spec.Swagger) []string {
 	skipped := make([]string, 0, len(mixins))

@@ -1,3 +1,17 @@
+# v1.19.13 (2026-03-26)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.12 (2026-03-13)
+
+* **Bug Fix**: Replace usages of the old ioutil/ package throughout the SDK.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.11 (2026-03-03)
+
+* **Dependency Update**: Bump minimum Go version to 1.24
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.19.10 (2026-02-23)
 
 * **Dependency Update**: Updated to the latest SDK module versions

@@ -22,6 +22,19 @@ import (
 // when a request is about to be served.
 const versionMatcher = "/v{version:[0-9.]+}"
 
+// statusClientClosedRequest (HTTP 499 Client Closed Request) is a non-standard
+// HTTP status code used by NGINX to indicate that the client closed the connection
+// before the server was able to send a response.
+//
+// It is not part of the IANA HTTP status code registry and is primarily used
+// for logging and telemetry. The client will typically not observe this status,
+// as the connection is already closed.
+//
+// See:
+//   - https://developers.cloudflare.com/support/troubleshooting/http-status-codes/4xx-client-error/error-499/
+//   - https://nginx.org/en/docs/http/ngx_http_log_module.html
+const statusClientClosedRequest = 499
+
 // Server contains instance details for the server
 type Server struct {
 	middlewares []middleware.Middleware
@@ -33,9 +46,9 @@ func (s *Server) UseMiddleware(m middleware.Middleware) {
 	s.middlewares = append(s.middlewares, m)
 }
 
-func (s *Server) makeHTTPHandler(r router.Route) http.HandlerFunc {
-	handler := r.Handler()
-	operation := r.Method() + " " + r.Path()
+func (s *Server) makeHTTPHandler(route router.Route) http.HandlerFunc {
+	handler := route.Handler()
+	operation := route.Method() + " " + route.Path()
 	return otelhttp.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Define the context that we'll pass around to share info
 		// like the docker-request-id.
@@ -61,10 +74,24 @@ func (s *Server) makeHTTPHandler(r router.Route) http.HandlerFunc {
 		}
 
 		if err := handlerFunc(ctx, w, r, vars); err != nil {
-			statusCode := httpstatus.FromError(err)
-			if statusCode >= http.StatusInternalServerError {
-				log.G(ctx).Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
+			if r.Context().Err() != nil {
+				// Request is canceled, and client likely went away. Don't attempt
+				// to write JSON body, but log for debugging. Log the status as
+				// "499 Client Closed Request", which is non-standard, but aligns
+				// with NGINX and CloudFlare.
+				w.WriteHeader(statusClientClosedRequest) // for OTEL/metrics
+				log.G(ctx).WithFields(log.Fields{
+					"module":      "api",
+					"method":      route.Method(),
+					"request-url": r.RequestURI,
+					"vars":        vars,
+					"error":       err,
+					"status":      statusClientClosedRequest,
+				}).Info("request cancelled by client")
+				return
 			}
+
+			statusCode := httpstatus.FromError(err)
 			// While we no longer support API versions older than 1.24 [config.DefaultMinAPIVersion],
 			// a client may try to connect using an older version and expect a plain-text error
 			// instead of a JSON error. This would result in an "API version too old" error
@@ -78,6 +105,16 @@ func (s *Server) makeHTTPHandler(r router.Route) http.HandlerFunc {
 				_ = httputils.WriteJSON(w, statusCode, &common.ErrorResponse{
 					Message: err.Error(),
 				})
+			}
+			if statusCode >= http.StatusInternalServerError {
+				log.G(ctx).WithFields(log.Fields{
+					"module":         "api",
+					"method":         route.Method(),
+					"request-url":    r.RequestURI,
+					"vars":           vars,
+					"error-response": err,
+					"status":         statusCode,
+				}).Errorf("Handler for %s %s returned error", route.Method(), route.Path())
 			}
 		}
 	}), operation).ServeHTTP

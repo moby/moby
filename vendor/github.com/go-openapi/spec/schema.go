@@ -13,86 +13,88 @@ import (
 	"github.com/go-openapi/swag/jsonutils"
 )
 
-// BooleanProperty creates a boolean property
+// BooleanProperty creates a boolean property.
 func BooleanProperty() *Schema {
 	return &Schema{SchemaProps: SchemaProps{Type: []string{"boolean"}}}
 }
 
-// BoolProperty creates a boolean property
+// BoolProperty creates a boolean property.
 func BoolProperty() *Schema { return BooleanProperty() }
 
-// StringProperty creates a string property
+// StringProperty creates a string property.
 func StringProperty() *Schema {
 	return &Schema{SchemaProps: SchemaProps{Type: []string{"string"}}}
 }
 
-// CharProperty creates a string property
+// CharProperty creates a string property.
 func CharProperty() *Schema {
 	return &Schema{SchemaProps: SchemaProps{Type: []string{"string"}}}
 }
 
-// Float64Property creates a float64/double property
+// Float64Property creates a float64/double property.
 func Float64Property() *Schema {
 	return &Schema{SchemaProps: SchemaProps{Type: []string{"number"}, Format: "double"}}
 }
 
-// Float32Property creates a float32/float property
+// Float32Property creates a float32/float property.
 func Float32Property() *Schema {
 	return &Schema{SchemaProps: SchemaProps{Type: []string{"number"}, Format: "float"}}
 }
 
-// Int8Property creates an int8 property
+// Int8Property creates an int8 property.
 func Int8Property() *Schema {
 	return &Schema{SchemaProps: SchemaProps{Type: []string{"integer"}, Format: "int8"}}
 }
 
-// Int16Property creates an int16 property
+// Int16Property creates an int16 property.
 func Int16Property() *Schema {
 	return &Schema{SchemaProps: SchemaProps{Type: []string{"integer"}, Format: "int16"}}
 }
 
-// Int32Property creates an int32 property
+// Int32Property creates an int32 property.
 func Int32Property() *Schema {
 	return &Schema{SchemaProps: SchemaProps{Type: []string{"integer"}, Format: "int32"}}
 }
 
-// Int64Property creates an int64 property
+// Int64Property creates an int64 property.
 func Int64Property() *Schema {
 	return &Schema{SchemaProps: SchemaProps{Type: []string{"integer"}, Format: "int64"}}
 }
 
-// StrFmtProperty creates a property for the named string format
+// StrFmtProperty creates a property for the named string format.
 func StrFmtProperty(format string) *Schema {
 	return &Schema{SchemaProps: SchemaProps{Type: []string{"string"}, Format: format}}
 }
 
-// DateProperty creates a date property
+// DateProperty creates a date property.
 func DateProperty() *Schema {
 	return &Schema{SchemaProps: SchemaProps{Type: []string{"string"}, Format: "date"}}
 }
 
-// DateTimeProperty creates a date time property
+// DateTimeProperty creates a date time property.
 func DateTimeProperty() *Schema {
 	return &Schema{SchemaProps: SchemaProps{Type: []string{"string"}, Format: "date-time"}}
 }
 
-// MapProperty creates a map property
+// MapProperty creates a map property.
 func MapProperty(property *Schema) *Schema {
-	return &Schema{SchemaProps: SchemaProps{Type: []string{"object"},
-		AdditionalProperties: &SchemaOrBool{Allows: true, Schema: property}}}
+	return &Schema{SchemaProps: SchemaProps{
+		Type:                 []string{"object"},
+		AdditionalProperties: &SchemaOrBool{Allows: true, Schema: property},
+	}}
 }
 
-// RefProperty creates a ref property
+// RefProperty creates a ref property.
 func RefProperty(name string) *Schema {
 	return &Schema{SchemaProps: SchemaProps{Ref: MustCreateRef(name)}}
 }
 
-// RefSchema creates a ref property
+// RefSchema creates a ref property.
 func RefSchema(name string) *Schema {
 	return &Schema{SchemaProps: SchemaProps{Ref: MustCreateRef(name)}}
 }
 
-// ArrayProperty creates an array property
+// ArrayProperty creates an array property.
 func ArrayProperty(items *Schema) *Schema {
 	if items == nil {
 		return &Schema{SchemaProps: SchemaProps{Type: []string{"array"}}}
@@ -100,17 +102,17 @@ func ArrayProperty(items *Schema) *Schema {
 	return &Schema{SchemaProps: SchemaProps{Items: &SchemaOrArray{Schema: items}, Type: []string{"array"}}}
 }
 
-// ComposedSchema creates a schema with allOf
+// ComposedSchema creates a schema with allOf.
 func ComposedSchema(schemas ...Schema) *Schema {
 	s := new(Schema)
 	s.AllOf = schemas
 	return s
 }
 
-// SchemaURL represents a schema url
+// SchemaURL represents a schema url.
 type SchemaURL string
 
-// MarshalJSON marshal this to JSON
+// MarshalJSON marshal this to JSON.
 func (r SchemaURL) MarshalJSON() ([]byte, error) {
 	if r == "" {
 		return []byte("{}"), nil
@@ -119,7 +121,7 @@ func (r SchemaURL) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v)
 }
 
-// UnmarshalJSON unmarshal this from JSON
+// UnmarshalJSON unmarshal this from JSON.
 func (r *SchemaURL) UnmarshalJSON(data []byte) error {
 	var v map[string]any
 	if err := json.Unmarshal(data, &v); err != nil {
@@ -145,7 +147,7 @@ func (r *SchemaURL) fromMap(v map[string]any) error {
 	return nil
 }
 
-// SchemaProps describes a JSON schema (draft 4)
+// SchemaProps describes a JSON schema (draft 4).
 type SchemaProps struct {
 	ID                   string           `json:"id,omitempty"`
 	Ref                  Ref              `json:"-"`
@@ -184,7 +186,7 @@ type SchemaProps struct {
 	Definitions          Definitions      `json:"definitions,omitempty"`
 }
 
-// SwaggerSchemaProps are additional properties supported by swagger schemas, but not JSON-schema (draft 4)
+// SwaggerSchemaProps are additional properties supported by swagger schemas, but not JSON-schema (draft 4).
 type SwaggerSchemaProps struct {
 	Discriminator string                 `json:"discriminator,omitempty"`
 	ReadOnly      bool                   `json:"readOnly,omitempty"`
@@ -208,7 +210,7 @@ type Schema struct {
 	ExtraProps map[string]any `json:"-"`
 }
 
-// JSONLookup implements an interface to customize json pointer lookup
+// JSONLookup implements an interface to customize json pointer lookup.
 func (s Schema) JSONLookup(token string) (any, error) {
 	if ex, ok := s.Extensions[token]; ok {
 		return &ex, nil
@@ -226,31 +228,31 @@ func (s Schema) JSONLookup(token string) (any, error) {
 	return r, err
 }
 
-// WithID sets the id for this schema, allows for chaining
+// WithID sets the id for this schema, allows for chaining.
 func (s *Schema) WithID(id string) *Schema {
 	s.ID = id
 	return s
 }
 
-// WithTitle sets the title for this schema, allows for chaining
+// WithTitle sets the title for this schema, allows for chaining.
 func (s *Schema) WithTitle(title string) *Schema {
 	s.Title = title
 	return s
 }
 
-// WithDescription sets the description for this schema, allows for chaining
+// WithDescription sets the description for this schema, allows for chaining.
 func (s *Schema) WithDescription(description string) *Schema {
 	s.Description = description
 	return s
 }
 
-// WithProperties sets the properties for this schema
+// WithProperties sets the properties for this schema.
 func (s *Schema) WithProperties(schemas map[string]Schema) *Schema {
 	s.Properties = schemas
 	return s
 }
 
-// SetProperty sets a property on this schema
+// SetProperty sets a property on this schema.
 func (s *Schema) SetProperty(name string, schema Schema) *Schema {
 	if s.Properties == nil {
 		s.Properties = make(map[string]Schema)
@@ -259,32 +261,32 @@ func (s *Schema) SetProperty(name string, schema Schema) *Schema {
 	return s
 }
 
-// WithAllOf sets the all of property
+// WithAllOf sets the all of property.
 func (s *Schema) WithAllOf(schemas ...Schema) *Schema {
 	s.AllOf = schemas
 	return s
 }
 
-// WithMaxProperties sets the max number of properties an object can have
+// WithMaxProperties sets the max number of properties an object can have.
 func (s *Schema) WithMaxProperties(maximum int64) *Schema {
 	s.MaxProperties = &maximum
 	return s
 }
 
-// WithMinProperties sets the min number of properties an object must have
+// WithMinProperties sets the min number of properties an object must have.
 func (s *Schema) WithMinProperties(minimum int64) *Schema {
 	s.MinProperties = &minimum
 	return s
 }
 
-// Typed sets the type of this schema for a single value item
+// Typed sets the type of this schema for a single value item.
 func (s *Schema) Typed(tpe, format string) *Schema {
 	s.Type = []string{tpe}
 	s.Format = format
 	return s
 }
 
-// AddType adds a type with potential format to the types for this schema
+// AddType adds a type with potential format to the types for this schema.
 func (s *Schema) AddType(tpe, format string) *Schema {
 	s.Type = append(s.Type, tpe)
 	if format != "" {
@@ -299,124 +301,124 @@ func (s *Schema) AsNullable() *Schema {
 	return s
 }
 
-// CollectionOf a fluent builder method for an array parameter
+// CollectionOf a fluent builder method for an array parameter.
 func (s *Schema) CollectionOf(items Schema) *Schema {
 	s.Type = []string{jsonArray}
 	s.Items = &SchemaOrArray{Schema: &items}
 	return s
 }
 
-// WithDefault sets the default value on this parameter
+// WithDefault sets the default value on this parameter.
 func (s *Schema) WithDefault(defaultValue any) *Schema {
 	s.Default = defaultValue
 	return s
 }
 
-// WithRequired flags this parameter as required
+// WithRequired flags this parameter as required.
 func (s *Schema) WithRequired(items ...string) *Schema {
 	s.Required = items
 	return s
 }
 
-// AddRequired  adds field names to the required properties array
+// AddRequired  adds field names to the required properties array.
 func (s *Schema) AddRequired(items ...string) *Schema {
 	s.Required = append(s.Required, items...)
 	return s
 }
 
-// WithMaxLength sets a max length value
+// WithMaxLength sets a max length value.
 func (s *Schema) WithMaxLength(maximum int64) *Schema {
 	s.MaxLength = &maximum
 	return s
 }
 
-// WithMinLength sets a min length value
+// WithMinLength sets a min length value.
 func (s *Schema) WithMinLength(minimum int64) *Schema {
 	s.MinLength = &minimum
 	return s
 }
 
-// WithPattern sets a pattern value
+// WithPattern sets a pattern value.
 func (s *Schema) WithPattern(pattern string) *Schema {
 	s.Pattern = pattern
 	return s
 }
 
-// WithMultipleOf sets a multiple of value
+// WithMultipleOf sets a multiple of value.
 func (s *Schema) WithMultipleOf(number float64) *Schema {
 	s.MultipleOf = &number
 	return s
 }
 
-// WithMaximum sets a maximum number value
+// WithMaximum sets a maximum number value.
 func (s *Schema) WithMaximum(maximum float64, exclusive bool) *Schema {
 	s.Maximum = &maximum
 	s.ExclusiveMaximum = exclusive
 	return s
 }
 
-// WithMinimum sets a minimum number value
+// WithMinimum sets a minimum number value.
 func (s *Schema) WithMinimum(minimum float64, exclusive bool) *Schema {
 	s.Minimum = &minimum
 	s.ExclusiveMinimum = exclusive
 	return s
 }
 
-// WithEnum sets a the enum values (replace)
+// WithEnum sets a the enum values (replace).
 func (s *Schema) WithEnum(values ...any) *Schema {
 	s.Enum = append([]any{}, values...)
 	return s
 }
 
-// WithMaxItems sets the max items
+// WithMaxItems sets the max items.
 func (s *Schema) WithMaxItems(size int64) *Schema {
 	s.MaxItems = &size
 	return s
 }
 
-// WithMinItems sets the min items
+// WithMinItems sets the min items.
 func (s *Schema) WithMinItems(size int64) *Schema {
 	s.MinItems = &size
 	return s
 }
 
-// UniqueValues dictates that this array can only have unique items
+// UniqueValues dictates that this array can only have unique items.
 func (s *Schema) UniqueValues() *Schema {
 	s.UniqueItems = true
 	return s
 }
 
-// AllowDuplicates this array can have duplicates
+// AllowDuplicates this array can have duplicates.
 func (s *Schema) AllowDuplicates() *Schema {
 	s.UniqueItems = false
 	return s
 }
 
-// AddToAllOf adds a schema to the allOf property
+// AddToAllOf adds a schema to the allOf property.
 func (s *Schema) AddToAllOf(schemas ...Schema) *Schema {
 	s.AllOf = append(s.AllOf, schemas...)
 	return s
 }
 
-// WithDiscriminator sets the name of the discriminator field
+// WithDiscriminator sets the name of the discriminator field.
 func (s *Schema) WithDiscriminator(discriminator string) *Schema {
 	s.Discriminator = discriminator
 	return s
 }
 
-// AsReadOnly flags this schema as readonly
+// AsReadOnly flags this schema as readonly.
 func (s *Schema) AsReadOnly() *Schema {
 	s.ReadOnly = true
 	return s
 }
 
-// AsWritable flags this schema as writeable (not read-only)
+// AsWritable flags this schema as writeable (not read-only).
 func (s *Schema) AsWritable() *Schema {
 	s.ReadOnly = false
 	return s
 }
 
-// WithExample sets the example for this schema
+// WithExample sets the example for this schema.
 func (s *Schema) WithExample(example any) *Schema {
 	s.Example = example
 	return s
@@ -440,7 +442,7 @@ func (s *Schema) WithExternalDocs(description, url string) *Schema {
 	return s
 }
 
-// WithXMLName sets the xml name for the object
+// WithXMLName sets the xml name for the object.
 func (s *Schema) WithXMLName(name string) *Schema {
 	if s.XML == nil {
 		s.XML = new(XMLObject)
@@ -449,7 +451,7 @@ func (s *Schema) WithXMLName(name string) *Schema {
 	return s
 }
 
-// WithXMLNamespace sets the xml namespace for the object
+// WithXMLNamespace sets the xml namespace for the object.
 func (s *Schema) WithXMLNamespace(namespace string) *Schema {
 	if s.XML == nil {
 		s.XML = new(XMLObject)
@@ -458,7 +460,7 @@ func (s *Schema) WithXMLNamespace(namespace string) *Schema {
 	return s
 }
 
-// WithXMLPrefix sets the xml prefix for the object
+// WithXMLPrefix sets the xml prefix for the object.
 func (s *Schema) WithXMLPrefix(prefix string) *Schema {
 	if s.XML == nil {
 		s.XML = new(XMLObject)
@@ -467,7 +469,7 @@ func (s *Schema) WithXMLPrefix(prefix string) *Schema {
 	return s
 }
 
-// AsXMLAttribute flags this object as xml attribute
+// AsXMLAttribute flags this object as xml attribute.
 func (s *Schema) AsXMLAttribute() *Schema {
 	if s.XML == nil {
 		s.XML = new(XMLObject)
@@ -476,7 +478,7 @@ func (s *Schema) AsXMLAttribute() *Schema {
 	return s
 }
 
-// AsXMLElement flags this object as an xml node
+// AsXMLElement flags this object as an xml node.
 func (s *Schema) AsXMLElement() *Schema {
 	if s.XML == nil {
 		s.XML = new(XMLObject)
@@ -485,7 +487,7 @@ func (s *Schema) AsXMLElement() *Schema {
 	return s
 }
 
-// AsWrappedXML flags this object as wrapped, this is mostly useful for array types
+// AsWrappedXML flags this object as wrapped, this is mostly useful for array types.
 func (s *Schema) AsWrappedXML() *Schema {
 	if s.XML == nil {
 		s.XML = new(XMLObject)
@@ -494,7 +496,7 @@ func (s *Schema) AsWrappedXML() *Schema {
 	return s
 }
 
-// AsUnwrappedXML flags this object as an xml node
+// AsUnwrappedXML flags this object as an xml node.
 func (s *Schema) AsUnwrappedXML() *Schema {
 	if s.XML == nil {
 		s.XML = new(XMLObject)
@@ -524,13 +526,13 @@ func (s *Schema) SetValidations(val SchemaValidations) {
 	s.PatternProperties = val.PatternProperties
 }
 
-// WithValidations is a fluent method to set schema validations
+// WithValidations is a fluent method to set schema validations.
 func (s *Schema) WithValidations(val SchemaValidations) *Schema {
 	s.SetValidations(val)
 	return s
 }
 
-// Validations returns a clone of the validations for this schema
+// Validations returns a clone of the validations for this schema.
 func (s Schema) Validations() SchemaValidations {
 	return SchemaValidations{
 		CommonValidations: CommonValidations{
@@ -553,40 +555,40 @@ func (s Schema) Validations() SchemaValidations {
 	}
 }
 
-// MarshalJSON marshal this to JSON
+// MarshalJSON marshal this to JSON.
 func (s Schema) MarshalJSON() ([]byte, error) {
 	b1, err := json.Marshal(s.SchemaProps)
 	if err != nil {
-		return nil, fmt.Errorf("schema props %v: %w", err, ErrSpec)
+		return nil, fmt.Errorf("schema props %w: %w", err, ErrSpec)
 	}
 	b2, err := json.Marshal(s.VendorExtensible)
 	if err != nil {
-		return nil, fmt.Errorf("vendor props %v: %w", err, ErrSpec)
+		return nil, fmt.Errorf("vendor props %w: %w", err, ErrSpec)
 	}
 	b3, err := s.Ref.MarshalJSON()
 	if err != nil {
-		return nil, fmt.Errorf("ref prop %v: %w", err, ErrSpec)
+		return nil, fmt.Errorf("ref prop %w: %w", err, ErrSpec)
 	}
 	b4, err := s.Schema.MarshalJSON()
 	if err != nil {
-		return nil, fmt.Errorf("schema prop %v: %w", err, ErrSpec)
+		return nil, fmt.Errorf("schema prop %w: %w", err, ErrSpec)
 	}
 	b5, err := json.Marshal(s.SwaggerSchemaProps)
 	if err != nil {
-		return nil, fmt.Errorf("common validations %v: %w", err, ErrSpec)
+		return nil, fmt.Errorf("common validations %w: %w", err, ErrSpec)
 	}
 	var b6 []byte
 	if s.ExtraProps != nil {
 		jj, err := json.Marshal(s.ExtraProps)
 		if err != nil {
-			return nil, fmt.Errorf("extra props %v: %w", err, ErrSpec)
+			return nil, fmt.Errorf("extra props %w: %w", err, ErrSpec)
 		}
 		b6 = jj
 	}
 	return jsonutils.ConcatJSON(b1, b2, b3, b4, b5, b6), nil
 }
 
-// UnmarshalJSON marshal this from JSON
+// UnmarshalJSON marshal this from JSON.
 func (s *Schema) UnmarshalJSON(data []byte) error {
 	props := struct {
 		SchemaProps

@@ -347,7 +347,7 @@ func (p *puller) resolveLocal() {
 
 func (p *puller) resolve(ctx context.Context, jobCtx solver.JobContext) error {
 	_, err := p.g.Do(ctx, "", func(ctx context.Context) (_ struct{}, retErr error) {
-		resolveProgressDone := oneOffProgress(ctx, "resolve "+p.src.Reference.String())
+		resolveProgressDone := progress.OneOff(ctx, "resolve "+p.src.Reference.String())
 		defer func() {
 			_ = resolveProgressDone(retErr)
 		}()
@@ -899,23 +899,6 @@ type statusInfo struct {
 	Total     int64
 	StartedAt time.Time
 	UpdatedAt time.Time
-}
-
-func oneOffProgress(ctx context.Context, id string) func(err error) error {
-	pw, _, _ := progress.NewFromContext(ctx)
-	s := time.Now()
-	st := progress.Status{
-		Started: &s,
-	}
-	_ = pw.Write(id, st)
-	return func(err error) error {
-		// TODO: set error on status
-		c := time.Now()
-		st.Completed = &c
-		_ = pw.Write(id, st)
-		_ = pw.Close()
-		return err
-	}
 }
 
 // cacheKeyFromConfig returns a stable digest from image config. If image config

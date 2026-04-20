@@ -231,7 +231,7 @@ func getUnprivilegedMountFlags(path string) (int, error) {
 	}
 
 	var flags int
-	for flag := range unprivilegedFlags {
+	for _, flag := range unprivilegedFlags {
 		if int(statfs.Flags)&flag == flag {
 			flags |= flag
 		}

@@ -2,6 +2,10 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
+    // https://docs.renovatebot.com/modules/manager/github-actions/
+    // https://docs.renovatebot.com/presets-helpers/
+    "helpers:pinGitHubActionDigestsToSemver",
+    "helpers:githubDigestChangelogs",
     ":gitSignOff"
   ],
   "postUpdateOptions": ["gomodTidy"],

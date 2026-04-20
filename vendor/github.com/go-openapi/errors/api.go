@@ -146,7 +146,7 @@ func MethodNotAllowed(requested string, allow []string) Error {
 	}
 }
 
-// ServeError implements the http error handler interface.
+// ServeError implements the [http] error handler interface.
 func ServeError(rw http.ResponseWriter, r *http.Request, err error) {
 	rw.Header().Set("Content-Type", "application/json")
 

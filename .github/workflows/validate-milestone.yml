@@ -1,0 +1,35 @@
+name: validate-milestone
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    types: [opened, synchronize, milestoned, demilestoned, edited]
+
+jobs:
+  validate-milestone:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: releases
+
+      - name: Validate milestone matches docker next version
+        run: |
+          expected=$(yq -r '.docker.next' releases/versions.yaml)
+          milestone="${{ github.event.pull_request.milestone.title }}"
+
+          if [[ -z "$milestone" ]]; then
+            echo "::error::PR must have a milestone set (expected: $expected)"
+            exit 1
+          fi
+
+          if [[ "$milestone" != "$expected" ]]; then
+            echo "::error::Milestone '$milestone' does not match docker next version '$expected'"
+            exit 1
+          fi
+
+          echo "Milestone: $milestone ✓"

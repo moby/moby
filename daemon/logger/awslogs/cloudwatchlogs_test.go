@@ -1630,7 +1630,7 @@ func TestCreateTagSuccess(t *testing.T) {
 	info := logger.Info{
 		ContainerName: "/test-container",
 		ContainerID:   "container-abcdefghijklmnopqrstuvwxyz01234567890",
-		Config:        map[string]string{"tag": "{{.Name}}/{{.FullID}}"},
+		Config:        map[string]string{logger.AttrLogTag: "{{.Name}}/{{.FullID}}"},
 	}
 	logStreamName, e := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
 	if e != nil {

@@ -4,4 +4,6 @@
 // Package loads provides document loading methods for swagger (OAI v2) API specifications.
 //
 // It is used by other go-openapi packages to load and run analysis on local or remote spec documents.
+//
+// Loaders support JSON and YAML documents.
 package loads

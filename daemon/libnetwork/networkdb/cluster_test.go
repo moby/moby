@@ -1,6 +1,7 @@
 package networkdb
 
 import (
+	"iter"
 	"maps"
 	"math"
 	"math/bits"
@@ -8,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/montanaflynn/stats"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"pgregory.net/rapid"
@@ -106,11 +106,7 @@ func TestMRandomNodes(t *testing.T) {
 			}
 			// Adding multiple samples together should yield a normal distribution
 			// if the samples are unbiased.
-			countsf := stats.LoadRawData(slices.Collect(maps.Values(counts)))
-			nf := stats.NormFit(countsf)
-			mean, stdev := nf[0], nf[1]
-			minv, _ := countsf.Min()
-			maxv, _ := countsf.Max()
+			mean, stdev, minv, maxv := distributionStats(maps.Values(counts))
 			if minv < mean-4*stdev || maxv > mean+4*stdev {
 				extremes++
 				t.Logf("Mean: %f, StdDev: %f, Min: %f, Max: %f", mean, stdev, minv, maxv)
@@ -150,4 +146,27 @@ func kpermutations(n, k uint64) uint64 {
 		}
 	}
 	return p
+}
+
+// distributionStats computes mean, population standard deviation, min, and max
+// over the values yielded by the iterator.
+func distributionStats(vals iter.Seq[int]) (mean, stdev, minv, maxv float64) {
+	var sum, sumSq float64
+	var n int
+	minv = math.MaxFloat64
+	maxv = -math.MaxFloat64
+	for v := range vals {
+		f := float64(v)
+		sum += f
+		sumSq += f * f
+		minv = min(minv, f)
+		maxv = max(maxv, f)
+		n++
+	}
+	if n == 0 {
+		return 0, 0, 0, 0
+	}
+	mean = sum / float64(n)
+	stdev = math.Sqrt(sumSq/float64(n) - mean*mean)
+	return mean, stdev, minv, maxv
 }

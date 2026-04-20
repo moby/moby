@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/netip"
 	"os"
-	"path/filepath"
 
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/bklog"
@@ -61,18 +60,18 @@ type DNSConfig struct {
 	SearchDomains []string
 }
 
-func GetResolvConf(ctx context.Context, stateDir string, idmap *user.IdentityMapping, dns *DNSConfig, netMode pb.NetMode) (string, error) {
-	p := filepath.Join(stateDir, "resolv.conf")
+func GetResolvConf(ctx context.Context, root *os.Root, idmap *user.IdentityMapping, dns *DNSConfig, netMode pb.NetMode) (string, error) {
+	name := "resolv.conf"
 	if netMode == pb.NetMode_HOST {
-		p = filepath.Join(stateDir, "resolv-host.conf")
+		name = "resolv-host.conf"
 	}
 
-	_, err := g.Do(ctx, p, func(ctx context.Context) (struct{}, error) {
+	_, err := g.Do(ctx, root.Name()+"/"+name, func(ctx context.Context) (struct{}, error) {
 		generate := !notFirstRun
 		notFirstRun = true
 
 		if !generate {
-			fi, err := os.Stat(p)
+			fi, err := root.Stat(name)
 			if err != nil {
 				if !errors.Is(err, os.ErrNotExist) {
 					return struct{}{}, errors.WithStack(err)
@@ -128,26 +127,26 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *user.IdentityMap
 			rc.TransformForLegacyNw(true)
 		}
 
-		tmpPath := p + ".tmp"
-
 		dt, err := rc.Generate(false)
 		if err != nil {
 			return struct{}{}, errors.WithStack(err)
 		}
 
-		if err := os.WriteFile(tmpPath, dt, 0644); err != nil {
+		tmpName := name + ".tmp"
+
+		if err := root.WriteFile(tmpName, dt, 0644); err != nil {
 			return struct{}{}, errors.WithStack(err)
 		}
 
 		if idmap != nil {
 			uid, gid := idmap.RootPair()
-			if err := os.Chown(tmpPath, uid, gid); err != nil {
+			if err := root.Chown(tmpName, uid, gid); err != nil {
 				return struct{}{}, errors.WithStack(err)
 			}
 		}
 
 		// TODO(thaJeztah): can we avoid the write -> chown -> rename?
-		if err := os.Rename(tmpPath, p); err != nil {
+		if err := root.Rename(tmpName, name); err != nil {
 			return struct{}{}, errors.WithStack(err)
 		}
 		return struct{}{}, nil
@@ -155,5 +154,5 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *user.IdentityMap
 	if err != nil {
 		return "", err
 	}
-	return p, nil
+	return name, nil
 }

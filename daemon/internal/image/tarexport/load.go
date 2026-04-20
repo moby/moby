@@ -143,7 +143,7 @@ func (l *tarexporter) Load(ctx context.Context, inTar io.ReadCloser, outStream i
 		if err != nil {
 			return err
 		}
-		imageIDsStr.WriteString(fmt.Sprintf("Loaded image ID: %s\n", imgID))
+		fmt.Fprintf(&imageIDsStr, "Loaded image ID: %s\n", imgID)
 
 		imageRefCount = 0
 		for _, repoTag := range m.RepoTags {

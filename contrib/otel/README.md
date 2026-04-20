@@ -19,7 +19,7 @@ The `contrib/otel` directory contains the compose file with the services configu
 5. Browse Jaeger at `http://localhost:16686` or the Aspire Dashboard at `http://localhost:18888/traces`;
 6. To see some traces from the engine, select `dockerd` in the top left dropdown
 
-> **Note**: The precise steps may vary based on how you're working on the codebase (buiding a binary and executing natively, running/debugging in a devcontainer, etc... )
+> **Note**: The precise steps may vary based on how you're working on the codebase (building a binary and executing natively, running/debugging in a devcontainer, etc... )
 
 ## Cleanup?
 

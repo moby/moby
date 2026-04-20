@@ -161,7 +161,7 @@ FROM ${WINDOWS_BASE_IMAGE}:${WINDOWS_BASE_IMAGE_TAG}
 # Use PowerShell as the default shell
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ARG GO_VERSION=1.25.8
+ARG GO_VERSION=1.26.2
 
 # GOTESTSUM_VERSION is the version of gotest.tools/gotestsum to install.
 ARG GOTESTSUM_VERSION=v1.13.0
@@ -169,9 +169,8 @@ ARG GOTESTSUM_VERSION=v1.13.0
 # GOWINRES_VERSION is the version of go-winres to install.
 ARG GOWINRES_VERSION=v0.3.3
 
-# TODO: Update containerd version to match Linux version once 
-# https://github.com/microsoft/hcsshim/issues/2488 is resolved.
-ARG CONTAINERD_VERSION=v2.0.7
+# CONTAINERD_VERSION is the version of containerd to use for CI.
+ARG CONTAINERD_VERSION=v2.2.3
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.

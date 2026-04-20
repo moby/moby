@@ -1,17 +1,11 @@
 name: ci
 
-# Default to 'contents: read', which grants actions to read commits.
-#
-# If any permission is set, any permission not included in the list is
-# implicitly set to "none".
-#
-# see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
-permissions:
-  contents: read
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 on:
   workflow_dispatch:
@@ -52,7 +46,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build
-        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
+        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           targets: ${{ matrix.target }}
       -
@@ -71,21 +65,18 @@ jobs:
     needs:
       - validate-dco
     outputs:
-      matrix: ${{ steps.platforms.outputs.matrix }}
+      includes: ${{ steps.gen.outputs.matrix }}
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Create matrix
-        id: platforms
-        run: |
-          matrix="$(docker buildx bake binary-cross --print | jq -cr '.target."binary-cross".platforms')"
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
-      -
-        name: Show matrix
-        run: |
-          echo ${{ steps.platforms.outputs.matrix }}
+        id: gen
+        uses: docker/bake-action/subaction/matrix@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
+        with:
+          target: binary-cross
+          fields: platforms
 
   cross:
     runs-on: ubuntu-24.04
@@ -97,13 +88,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJson(needs.prepare-cross.outputs.matrix) }}
+        include: ${{ fromJson(needs.prepare-cross.outputs.includes) }}
     steps:
       -
         name: Prepare
+        env:
+          PLATFORM: ${{ matrix.platforms }}
         run: |
-          platform=${{ matrix.platform }}
-          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+          echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> $GITHUB_ENV
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
@@ -113,11 +105,11 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build
-        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
+        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
-          targets: all
+          targets: ${{ matrix.target }}
           set: |
-            *.platform=${{ matrix.platform }}
+            *.platform=${{ matrix.platforms }}
       -
         name: List artifacts
         run: |
@@ -132,10 +124,8 @@ jobs:
     timeout-minutes: 120 # guardrails timeout for the whole job
     # Always run security checks, even with 'ci/validate-only' label
     permissions:
-      # required to write sarif report
-      security-events: write
-      # required to check out the repository
-      contents: read
+      contents: read # same as global permission
+      security-events: write # required to write sarif report
     steps:
       -
         name: Set up Docker Buildx
@@ -146,7 +136,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Run
-        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
+        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           targets: govulncheck
         env:
@@ -154,7 +144,7 @@ jobs:
       -
         name: Upload SARIF report
         if: ${{ github.event_name != 'pull_request' && github.repository == 'moby/moby' }}
-        uses: github/codeql-action@38697555549f1db7851b81482ff19f1fa5c4fedc # v4
+        uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           sarif_file: ${{ env.DESTDIR }}/govulncheck.out
 
@@ -173,7 +163,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dind image
-        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7
+        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           targets: dind
           set: |

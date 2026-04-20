@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 )
 
-// Cache for compiled regular expressions
+// Cache for compiled regular expressions.
 var (
 	cacheMutex = &sync.Mutex{}
 	reDict     = atomic.Value{} // map[string]*re.Regexp

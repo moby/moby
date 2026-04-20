@@ -18,7 +18,7 @@ func defaultCloser() error { return nil }
 
 type byteStreamOpt func(opts *byteStreamOpts)
 
-// ClosesStream when the bytestream consumer or producer is finished
+// ClosesStream when the bytestream consumer or producer is finished.
 func ClosesStream(opts *byteStreamOpts) {
 	opts.Close = true
 }
@@ -32,11 +32,12 @@ type byteStreamOpts struct {
 // The consumer consumes from a provided reader into the data passed by reference.
 //
 // Supported output underlying types and interfaces, prioritized in this order:
-// - io.ReaderFrom (for maximum control)
-// - io.Writer (performs io.Copy)
-// - encoding.BinaryUnmarshaler
-// - *string
-// - *[]byte
+//
+//   - [io.ReaderFrom] (for maximum control)
+//   - [io.Writer] (performs [io.Copy])
+//   - [encoding.BinaryUnmarshaler]
+//   - *string
+//   - *[]byte
 func ByteStreamConsumer(opts ...byteStreamOpt) Consumer {
 	var vals byteStreamOpts
 	for _, opt := range opts {
@@ -124,13 +125,14 @@ func ByteStreamConsumer(opts ...byteStreamOpt) Consumer {
 // The producer takes input data then writes to an output writer (essentially as a pipe).
 //
 // Supported input underlying types and interfaces, prioritized in this order:
-// - io.WriterTo (for maximum control)
-// - io.Reader (performs io.Copy). A ReadCloser is closed before exiting.
-// - encoding.BinaryMarshaler
+//
+// - [io.WriterTo] (for maximum control)
+// - [io.Reader] (performs [io.Copy]). A ReadCloser is closed before exiting.
+// - [encoding.BinaryMarshaler]
 // - error (writes as a string)
 // - []byte
 // - string
-// - struct, other slices: writes as JSON
+// - struct, other slices: writes as JSON.
 func ByteStreamProducer(opts ...byteStreamOpt) Producer {
 	var vals byteStreamOpts
 	for _, opt := range opts {

@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	// constants that are common to all UI-serving middlewares
+	// constants that are common to all UI-serving middlewares.
 	defaultDocsPath  = "docs"
 	defaultDocsURL   = "/swagger.json"
 	defaultDocsTitle = "API Documentation"
@@ -75,8 +75,8 @@ func fromCommonToAnyOptions[T any](source uiOptions, target *T) {
 	}
 }
 
-// UIOption can be applied to UI serving middleware, such as Context.APIHandler or
-// Context.APIHandlerSwaggerUI to alter the defaut behavior.
+// UIOption can be applied to UI serving [middleware], such as Context.[APIHandler] or
+// Context.[APIHandlerSwaggerUI] to alter the default behavior.
 type UIOption func(*uiOptions)
 
 func uiOptionsWithDefaults(opts []UIOption) uiOptions {
@@ -90,7 +90,7 @@ func uiOptionsWithDefaults(opts []UIOption) uiOptions {
 
 // WithUIBasePath sets the base path from where to serve the UI assets.
 //
-// By default, Context middleware sets this value to the API base path.
+// By default, Context [middleware] sets this value to the API base path.
 func WithUIBasePath(base string) UIOption {
 	return func(o *uiOptions) {
 		if !strings.HasPrefix(base, "/") {
@@ -111,7 +111,7 @@ func WithUIPath(pth string) UIOption {
 //
 // This may be specified as a full URL or a path.
 //
-// By default, this is "/swagger.json"
+// By default, this is "/swagger.json".
 func WithUISpecURL(specURL string) UIOption {
 	return func(o *uiOptions) {
 		o.SpecURL = specURL
@@ -120,7 +120,7 @@ func WithUISpecURL(specURL string) UIOption {
 
 // WithUITitle sets the title of the UI.
 //
-// By default, Context middleware sets this value to the title found in the API spec.
+// By default, Context [middleware] sets this value to the title found in the API spec.
 func WithUITitle(title string) UIOption {
 	return func(o *uiOptions) {
 		o.Title = title
@@ -129,14 +129,14 @@ func WithUITitle(title string) UIOption {
 
 // WithTemplate allows to set a custom template for the UI.
 //
-// UI middleware will panic if the template does not parse or execute properly.
+// UI [middleware] will panic if the template does not parse or execute properly.
 func WithTemplate(tpl string) UIOption {
 	return func(o *uiOptions) {
 		o.Template = tpl
 	}
 }
 
-// EnsureDefaults in case some options are missing
+// EnsureDefaults in case some options are missing.
 func (r *uiOptions) EnsureDefaults() {
 	if r.BasePath == "" {
 		r.BasePath = "/"

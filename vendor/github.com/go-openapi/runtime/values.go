@@ -3,7 +3,7 @@
 
 package runtime
 
-// Values typically represent parameters on a http request.
+// Values typically represent parameters on a [http] request.
 type Values map[string][]string
 
 // GetOK returns the values collection for the given key.

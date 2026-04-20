@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -11,6 +12,7 @@ import (
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -228,4 +230,65 @@ func TestPruneDontDeleteUsedImage(t *testing.T) {
 			})
 		}
 	}
+}
+
+// Regression test for https://github.com/moby/moby/issues/52334
+// Verify that 'docker image prune --filter label!=key=value' correctly prunes
+func TestPruneLabelFilterNegative(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start multiple daemons on windows")
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.Start(t)
+	defer d.Stop(t)
+
+	apiClient := d.NewClientT(t)
+
+	// Load an image that has the on_prune=keep label — must NOT be pruned.
+	withLabelRef := iimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
+		return specialimage.Labeled(dir, "withlabel:latest", map[string]string{"on_prune": "keep"})
+	})
+	inspect, err := apiClient.ImageInspect(ctx, withLabelRef)
+	assert.NilError(t, err)
+	withLabelID := inspect.ID
+
+	// Load an image without the label — MUST be pruned.
+	noLabelRef := iimage.Load(ctx, t, apiClient, func(dir string) (*ocispec.Index, error) {
+		return specialimage.Labeled(dir, "nolabel:latest", nil)
+	})
+	inspect, err = apiClient.ImageInspect(ctx, noLabelRef)
+	assert.NilError(t, err)
+	noLabelID := inspect.ID
+
+	filters := make(client.Filters)
+	filters.Add("label!", "on_prune=keep")
+	filters.Add("dangling", "false")
+
+	report, err := apiClient.ImagePrune(ctx, client.ImagePruneOptions{
+		Filters: filters,
+	})
+	assert.NilError(t, err)
+
+	// The image without the label must have been pruned.
+	_, err = apiClient.ImageInspect(ctx, noLabelID)
+	assert.Check(t, cerrdefs.IsNotFound(err), "nolabel image should no longer exist after prune")
+
+	var deletedIDs []string
+	for _, d := range report.Report.ImagesDeleted {
+		if d.Deleted != "" {
+			deletedIDs = append(deletedIDs, d.Deleted)
+		}
+	}
+	assert.Check(t, is.Contains(deletedIDs, noLabelID), "prune report should include the nolabel image digest")
+
+	for _, d := range report.Report.ImagesDeleted {
+		assert.Check(t, d.Deleted != withLabelID && d.Untagged != withLabelID,
+			"prune report must not mention the withlabel image")
+	}
+
+	// The image with on_prune=keep must still exist.
+	_, err = apiClient.ImageInspect(ctx, withLabelID)
+	assert.NilError(t, err, "withlabel image should still exist after prune")
 }

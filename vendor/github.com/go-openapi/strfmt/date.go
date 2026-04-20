@@ -10,35 +10,34 @@ import (
 	"time"
 )
 
-func init() {
+func init() { //nolint:gochecknoinits // registers date format in the default registry
 	d := Date{}
-	// register this format in the default registry
 	Default.Add("date", &d, IsDate)
 }
 
-// IsDate returns true when the string is a valid date
+// IsDate returns true when the string is a valid date.
 func IsDate(str string) bool {
 	_, err := time.Parse(RFC3339FullDate, str)
 	return err == nil
 }
 
 const (
-	// RFC3339FullDate represents a full-date as specified by RFC3339
+	// RFC3339FullDate represents a full-date as specified by RFC3339.
 	// See: http://goo.gl/xXOvVd
 	RFC3339FullDate = "2006-01-02"
 )
 
-// Date represents a date from the API
+// Date represents a date from the API.
 //
-// swagger:strfmt date
+// swagger:strfmt date.
 type Date time.Time
 
-// String converts this date into a string
+// String converts this date into a string.
 func (d Date) String() string {
 	return time.Time(d).Format(RFC3339FullDate)
 }
 
-// UnmarshalText parses a text representation into a date type
+// UnmarshalText parses a text representation into a date type.
 func (d *Date) UnmarshalText(text []byte) error {
 	if len(text) == 0 {
 		return nil
@@ -51,7 +50,7 @@ func (d *Date) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// MarshalText serializes this date type to string
+// MarshalText serializes this date type to string.
 func (d Date) MarshalText() ([]byte, error) {
 	return []byte(d.String()), nil
 }
@@ -79,12 +78,12 @@ func (d Date) Value() (driver.Value, error) {
 	return driver.Value(d.String()), nil
 }
 
-// MarshalJSON returns the Date as JSON
+// MarshalJSON returns the Date as JSON.
 func (d Date) MarshalJSON() ([]byte, error) {
 	return json.Marshal(time.Time(d).Format(RFC3339FullDate))
 }
 
-// UnmarshalJSON sets the Date from JSON
+// UnmarshalJSON sets the Date from JSON.
 func (d *Date) UnmarshalJSON(data []byte) error {
 	if string(data) == jsonNull {
 		return nil
@@ -126,12 +125,12 @@ func (d *Date) GobDecode(data []byte) error {
 	return d.UnmarshalBinary(data)
 }
 
-// MarshalBinary implements the encoding.BinaryMarshaler interface.
+// MarshalBinary implements the encoding.[encoding.BinaryMarshaler] interface.
 func (d Date) MarshalBinary() ([]byte, error) {
 	return time.Time(d).MarshalBinary()
 }
 
-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+// UnmarshalBinary implements the encoding.[encoding.BinaryUnmarshaler] interface.
 func (d *Date) UnmarshalBinary(data []byte) error {
 	var original time.Time
 
@@ -145,7 +144,7 @@ func (d *Date) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// Equal checks if two Date instances are equal
+// Equal checks if two Date instances are equal.
 func (d Date) Equal(d2 Date) bool {
 	return time.Time(d).Equal(time.Time(d2))
 }

@@ -1,6 +1,3 @@
-//go:build go1.18
-// +build go1.18
-
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -115,7 +112,7 @@ func NewRequest(ctx context.Context, httpMethod string, endpoint string) (*Reque
 	if req.URL.Host == "" {
 		return nil, errors.New("no Host in request URL")
 	}
-	if !(req.URL.Scheme == "http" || req.URL.Scheme == "https") {
+	if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
 		return nil, fmt.Errorf("unsupported protocol scheme %s", req.URL.Scheme)
 	}
 	// populate values so that the same instance is propagated across policies

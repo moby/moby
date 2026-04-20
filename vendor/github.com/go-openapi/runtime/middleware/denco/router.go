@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright (c) 2014 Naoya Inada <naoina@kuune.org>
+// SPDX-License-Identifier: MIT
 
 // Package denco provides fast URL router.
 package denco
@@ -24,7 +26,7 @@ const (
 	// SeparatorCharacter separates path segments.
 	SeparatorCharacter = '/'
 
-	// PathParamCharacter indicates a RESTCONF path param
+	// PathParamCharacter indicates a RESTCONF path param.
 	PathParamCharacter = '='
 
 	// MaxSize is max size of records and internal slice.
@@ -52,7 +54,7 @@ func New() *Router {
 }
 
 // Lookup returns data and path parameters that associated with path.
-// params is a slice of the Param that arranged in the order in which parameters appeared.
+// params is a slice of the [Param] that arranged in the order in which parameters appeared.
 // e.g. when built routing path is "/path/to/:id/:name" and given path is "/path/to/1/alice". params order is [{"id": "1"}, {"name": "alice"}], not [{"name": "alice"}, {"id": "1"}].
 func (rt *Router) Lookup(path string) (data any, params Params, found bool) {
 	if data, found = rt.static[path]; found {
@@ -138,7 +140,7 @@ func newDoubleArray() *doubleArray {
 //	BASE (22bit) | Extra flags (2bit) | CHECK (8bit)
 //
 // |----------------------|--|--------|
-// 32                    10  8         0
+// 32                    10  8         0.
 type baseCheck uint32
 
 const (
@@ -155,7 +157,7 @@ func (bc *baseCheck) SetBase(base int) {
 }
 
 func (bc baseCheck) Check() byte {
-	return byte(bc)
+	return byte(bc) //nolint:gosec // integer conversion is ok
 }
 
 func (bc *baseCheck) SetCheck(check byte) {
@@ -212,7 +214,7 @@ func (da *doubleArray) lookup(path string, params []Param, idx int) (*node, []Pa
 
 BACKTRACKING:
 	for j := len(indices) - 1; j >= 0; j-- {
-		i, idx := int(indices[j]>>indexOffset), int(indices[j]&indexMask) //nolint:gosec // integer conversion is okay
+		i, idx := int(indices[j]>>indexOffset), int(indices[j]&indexMask)
 		if da.bc[idx].IsSingleParam() {
 			nextIdx := nextIndex(da.bc[idx].Base(), ParamCharacter)
 			if nextIdx >= len(da.bc) {

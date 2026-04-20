@@ -138,7 +138,7 @@ func rebase(ref *Ref, v *url.URL, notEqual bool) (Ref, bool) {
 	return MustCreateRef(newBase.String()), true
 }
 
-// normalizeRef canonicalize a Ref, using a canonical relativeBase as its absolute anchor
+// normalizeRef canonicalize a Ref, using a canonical relativeBase as its absolute anchor.
 func normalizeRef(ref *Ref, relativeBase string) *Ref {
 	r := MustCreateRef(normalizeURI(ref.String(), relativeBase))
 	return &r

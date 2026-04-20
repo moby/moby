@@ -14,28 +14,28 @@ import (
 	"github.com/go-openapi/jsonreference"
 )
 
-// Refable is a struct for things that accept a $ref property
+// Refable is a struct for things that accept a $ref property.
 type Refable struct {
 	Ref Ref
 }
 
-// MarshalJSON marshals the ref to json
+// MarshalJSON marshals the ref to json.
 func (r Refable) MarshalJSON() ([]byte, error) {
 	return r.Ref.MarshalJSON()
 }
 
-// UnmarshalJSON unmarshals the ref from json
+// UnmarshalJSON unmarshals the ref from json.
 func (r *Refable) UnmarshalJSON(d []byte) error {
 	return json.Unmarshal(d, &r.Ref)
 }
 
-// Ref represents a json reference that is potentially resolved
+// Ref represents a json reference that is potentially resolved.
 type Ref struct {
 	jsonreference.Ref
 }
 
 // NewRef creates a new instance of a ref object
-// returns an error when the reference uri is an invalid uri
+// returns an error when the reference uri is an invalid uri.
 func NewRef(refURI string) (Ref, error) {
 	ref, err := jsonreference.New(refURI)
 	if err != nil {
@@ -51,7 +51,7 @@ func MustCreateRef(refURI string) Ref {
 	return Ref{Ref: jsonreference.MustCreateRef(refURI)}
 }
 
-// RemoteURI gets the remote uri part of the ref
+// RemoteURI gets the remote uri part of the ref.
 func (r *Ref) RemoteURI() string {
 	if r.String() == "" {
 		return ""
@@ -62,7 +62,7 @@ func (r *Ref) RemoteURI() string {
 	return u.String()
 }
 
-// IsValidURI returns true when the url the ref points to can be found
+// IsValidURI returns true when the url the ref points to can be found.
 func (r *Ref) IsValidURI(basepaths ...string) bool {
 	if r.String() == "" {
 		return true
@@ -112,7 +112,7 @@ func (r *Ref) IsValidURI(basepaths ...string) bool {
 }
 
 // Inherits creates a new reference from a parent and a child
-// If the child cannot inherit from the parent, an error is returned
+// If the child cannot inherit from the parent, an error is returned.
 func (r *Ref) Inherits(child Ref) (*Ref, error) {
 	ref, err := r.Ref.Inherits(child.Ref)
 	if err != nil {
@@ -121,7 +121,7 @@ func (r *Ref) Inherits(child Ref) (*Ref, error) {
 	return &Ref{Ref: *ref}, nil
 }
 
-// MarshalJSON marshals this ref into a JSON object
+// MarshalJSON marshals this ref into a JSON object.
 func (r Ref) MarshalJSON() ([]byte, error) {
 	str := r.String()
 	if str == "" {
@@ -134,7 +134,7 @@ func (r Ref) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v)
 }
 
-// UnmarshalJSON unmarshals this ref from a JSON object
+// UnmarshalJSON unmarshals this ref from a JSON object.
 func (r *Ref) UnmarshalJSON(d []byte) error {
 	var v map[string]any
 	if err := json.Unmarshal(d, &v); err != nil {
@@ -143,7 +143,7 @@ func (r *Ref) UnmarshalJSON(d []byte) error {
 	return r.fromMap(v)
 }
 
-// GobEncode provides a safe gob encoder for Ref
+// GobEncode provides a safe gob encoder for Ref.
 func (r Ref) GobEncode() ([]byte, error) {
 	var b bytes.Buffer
 	raw, err := r.MarshalJSON()
@@ -154,7 +154,7 @@ func (r Ref) GobEncode() ([]byte, error) {
 	return b.Bytes(), err
 }
 
-// GobDecode provides a safe gob decoder for Ref
+// GobDecode provides a safe gob decoder for Ref.
 func (r *Ref) GobDecode(b []byte) error {
 	var raw []byte
 	buf := bytes.NewBuffer(b)

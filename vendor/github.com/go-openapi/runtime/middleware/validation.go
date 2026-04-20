@@ -21,7 +21,7 @@ type validation struct {
 	bound   map[string]any
 }
 
-// ContentType validates the content type of a request
+// ContentType validates the content type of a request.
 func validateContentType(allowed []string, actual string) error {
 	if len(allowed) == 0 {
 		return nil

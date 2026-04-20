@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.25.8
+ARG GO_VERSION=1.26.2
 ARG BASE_DEBIAN_DISTRO="bookworm"
 ARG PROTOC_VERSION=3.11.4
 
@@ -32,6 +32,7 @@ RUN <<EOT
 EOT
 
 FROM base AS tools
+# go install: versions are pinned in go.mod
 RUN --mount=from=src,source=/out,target=.,rw \
     --mount=type=cache,target=/root/.cache/go-build <<EOT
   set -ex

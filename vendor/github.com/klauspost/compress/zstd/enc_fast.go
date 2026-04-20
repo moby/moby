@@ -805,9 +805,11 @@ func (e *fastEncoderDict) Reset(d *dict, singleBlock bool) {
 	}
 
 	// Init or copy dict table
-	if len(e.dictTable) != len(e.table) || d.id != e.lastDictID {
+	if len(e.dictTable) != len(e.table) || d != e.lastDict {
 		if len(e.dictTable) != len(e.table) {
 			e.dictTable = make([]tableEntry, len(e.table))
+		} else {
+			clear(e.dictTable)
 		}
 		if true {
 			end := e.maxMatchOff + int32(len(d.content)) - 8
@@ -827,7 +829,7 @@ func (e *fastEncoderDict) Reset(d *dict, singleBlock bool) {
 				}
 			}
 		}
-		e.lastDictID = d.id
+		e.lastDict = d
 		e.allDirty = true
 	}
 

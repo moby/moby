@@ -64,11 +64,11 @@ func addGetTokenMiddleware(stack *middleware.Stack, options Options) error {
 	return nil
 }
 
-func buildGetTokenPath(interface{}) (string, error) {
+func buildGetTokenPath(any) (string, error) {
 	return getTokenPath, nil
 }
 
-func buildGetTokenOutput(resp *smithyhttp.Response) (v interface{}, err error) {
+func buildGetTokenOutput(resp *smithyhttp.Response) (v any, err error) {
 	defer func() {
 		closeErr := resp.Body.Close()
 		if err == nil {

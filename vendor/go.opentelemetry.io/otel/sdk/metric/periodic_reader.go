@@ -15,7 +15,7 @@ import (
 	"go.opentelemetry.io/otel/internal/global"
 	"go.opentelemetry.io/otel/sdk/metric/internal/observ"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
-	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 )
 
 // Default periodic reader timing.
@@ -26,17 +26,19 @@ const (
 
 // periodicReaderConfig contains configuration options for a PeriodicReader.
 type periodicReaderConfig struct {
-	interval  time.Duration
-	timeout   time.Duration
-	producers []Producer
+	interval                 time.Duration
+	timeout                  time.Duration
+	producers                []Producer
+	cardinalityLimitSelector CardinalityLimitSelector
 }
 
 // newPeriodicReaderConfig returns a periodicReaderConfig configured with
 // options.
 func newPeriodicReaderConfig(options []PeriodicReaderOption) periodicReaderConfig {
 	c := periodicReaderConfig{
-		interval: envDuration(envInterval, defaultInterval),
-		timeout:  envDuration(envTimeout, defaultTimeout),
+		interval:                 envDuration(envInterval, defaultInterval),
+		timeout:                  envDuration(envTimeout, defaultTimeout),
+		cardinalityLimitSelector: defaultCardinalityLimitSelector,
 	}
 	for _, o := range options {
 		c = o.applyPeriodic(c)
@@ -107,14 +109,17 @@ func WithInterval(d time.Duration) PeriodicReaderOption {
 // exporter. That is left to the user to accomplish.
 func NewPeriodicReader(exporter Exporter, options ...PeriodicReaderOption) *PeriodicReader {
 	conf := newPeriodicReaderConfig(options)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel( //nolint:gosec  // cancel called during PeriodicReader shutdown.
+		context.Background(),
+	)
 	r := &PeriodicReader{
-		interval: conf.interval,
-		timeout:  conf.timeout,
-		exporter: exporter,
-		flushCh:  make(chan chan error),
-		cancel:   cancel,
-		done:     make(chan struct{}),
+		interval:                 conf.interval,
+		timeout:                  conf.timeout,
+		exporter:                 exporter,
+		flushCh:                  make(chan chan error),
+		cancel:                   cancel,
+		done:                     make(chan struct{}),
+		cardinalityLimitSelector: conf.cardinalityLimitSelector,
 		rmPool: sync.Pool{
 			New: func() any {
 				return &metricdata.ResourceMetrics{}
@@ -168,6 +173,8 @@ type PeriodicReader struct {
 
 	rmPool sync.Pool
 
+	cardinalityLimitSelector CardinalityLimitSelector
+
 	inst *observ.Instrumentation
 }
 
@@ -218,6 +225,11 @@ func (r *PeriodicReader) aggregation(
 	kind InstrumentKind,
 ) Aggregation { // nolint:revive  // import-shadow for method scoped by type.
 	return r.exporter.Aggregation(kind)
+}
+
+// cardinalityLimit returns the cardinality limit for kind.
+func (r *PeriodicReader) cardinalityLimit(kind InstrumentKind) (int, bool) {
+	return r.cardinalityLimitSelector(kind)
 }
 
 // collectAndExport gather all metric data related to the periodicReader r from

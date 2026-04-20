@@ -25,7 +25,7 @@ type Swagger struct {
 	SwaggerProps
 }
 
-// JSONLookup look up a value by the json property name
+// JSONLookup look up a value by the json property name.
 func (s Swagger) JSONLookup(token string) (any, error) {
 	if ex, ok := s.Extensions[token]; ok {
 		return &ex, nil
@@ -34,7 +34,7 @@ func (s Swagger) JSONLookup(token string) (any, error) {
 	return r, err
 }
 
-// MarshalJSON marshals this swagger structure to json
+// MarshalJSON marshals this swagger structure to json.
 func (s Swagger) MarshalJSON() ([]byte, error) {
 	b1, err := json.Marshal(s.SwaggerProps)
 	if err != nil {
@@ -47,7 +47,7 @@ func (s Swagger) MarshalJSON() ([]byte, error) {
 	return jsonutils.ConcatJSON(b1, b2), nil
 }
 
-// UnmarshalJSON unmarshals a swagger spec from json
+// UnmarshalJSON unmarshals a swagger spec from json.
 func (s *Swagger) UnmarshalJSON(data []byte) error {
 	var sw Swagger
 	if err := json.Unmarshal(data, &sw.SwaggerProps); err != nil {
@@ -60,7 +60,7 @@ func (s *Swagger) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// GobEncode provides a safe gob encoder for Swagger, including extensions
+// GobEncode provides a safe gob encoder for Swagger, including extensions.
 func (s Swagger) GobEncode() ([]byte, error) {
 	var b bytes.Buffer
 	raw := struct {
@@ -74,7 +74,7 @@ func (s Swagger) GobEncode() ([]byte, error) {
 	return b.Bytes(), err
 }
 
-// GobDecode provides a safe gob decoder for Swagger, including extensions
+// GobDecode provides a safe gob decoder for Swagger, including extensions.
 func (s *Swagger) GobDecode(b []byte) error {
 	var raw struct {
 		Props SwaggerProps
@@ -95,7 +95,7 @@ func (s *Swagger) GobDecode(b []byte) error {
 // NOTE: validation rules
 // - the scheme, when present must be from [http, https, ws, wss]
 // - BasePath must start with a leading "/"
-// - Paths is required
+// - Paths is required.
 type SwaggerProps struct {
 	ID                  string                 `json:"id,omitempty"`
 	Consumes            []string               `json:"consumes,omitempty"`
@@ -126,7 +126,7 @@ type gobSwaggerPropsAlias struct {
 	SecurityIsEmpty bool
 }
 
-// GobEncode provides a safe gob encoder for SwaggerProps, including empty security requirements
+// GobEncode provides a safe gob encoder for SwaggerProps, including empty security requirements.
 func (o SwaggerProps) GobEncode() ([]byte, error) {
 	raw := gobSwaggerPropsAlias{
 		Alias: (*swaggerPropsAlias)(&o),
@@ -171,7 +171,7 @@ func (o SwaggerProps) GobEncode() ([]byte, error) {
 	return b.Bytes(), err
 }
 
-// GobDecode provides a safe gob decoder for SwaggerProps, including empty security requirements
+// GobDecode provides a safe gob decoder for SwaggerProps, including empty security requirements.
 func (o *SwaggerProps) GobDecode(b []byte) error {
 	var raw gobSwaggerPropsAlias
 
@@ -207,16 +207,16 @@ func (o *SwaggerProps) GobDecode(b []byte) error {
 	return nil
 }
 
-// Dependencies represent a dependencies property
+// Dependencies represent a dependencies property.
 type Dependencies map[string]SchemaOrStringArray
 
-// SchemaOrBool represents a schema or boolean value, is biased towards true for the boolean property
+// SchemaOrBool represents a schema or boolean value, is biased towards true for the boolean property.
 type SchemaOrBool struct {
 	Allows bool
 	Schema *Schema
 }
 
-// JSONLookup implements an interface to customize json pointer lookup
+// JSONLookup implements an interface to customize json pointer lookup.
 func (s SchemaOrBool) JSONLookup(token string) (any, error) {
 	if token == "allows" {
 		return s.Allows, nil
@@ -225,10 +225,12 @@ func (s SchemaOrBool) JSONLookup(token string) (any, error) {
 	return r, err
 }
 
-var jsTrue = []byte("true")
-var jsFalse = []byte("false")
+var (
+	jsTrue  = []byte("true")  //nolint:gochecknoglobals // constant-like byte slices for JSON marshaling
+	jsFalse = []byte("false") //nolint:gochecknoglobals // constant-like byte slices for JSON marshaling
+)
 
-// MarshalJSON convert this object to JSON
+// MarshalJSON convert this object to JSON.
 func (s SchemaOrBool) MarshalJSON() ([]byte, error) {
 	if s.Schema != nil {
 		return json.Marshal(s.Schema)
@@ -240,7 +242,7 @@ func (s SchemaOrBool) MarshalJSON() ([]byte, error) {
 	return jsTrue, nil
 }
 
-// UnmarshalJSON converts this bool or schema object from a JSON structure
+// UnmarshalJSON converts this bool or schema object from a JSON structure.
 func (s *SchemaOrBool) UnmarshalJSON(data []byte) error {
 	var nw SchemaOrBool
 	if len(data) > 0 {
@@ -257,19 +259,19 @@ func (s *SchemaOrBool) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// SchemaOrStringArray represents a schema or a string array
+// SchemaOrStringArray represents a schema or a string array.
 type SchemaOrStringArray struct {
 	Schema   *Schema
 	Property []string
 }
 
-// JSONLookup implements an interface to customize json pointer lookup
+// JSONLookup implements an interface to customize json pointer lookup.
 func (s SchemaOrStringArray) JSONLookup(token string) (any, error) {
 	r, _, err := jsonpointer.GetForToken(s.Schema, token)
 	return r, err
 }
 
-// MarshalJSON converts this schema object or array into JSON structure
+// MarshalJSON converts this schema object or array into JSON structure.
 func (s SchemaOrStringArray) MarshalJSON() ([]byte, error) {
 	if len(s.Property) > 0 {
 		return json.Marshal(s.Property)
@@ -280,7 +282,7 @@ func (s SchemaOrStringArray) MarshalJSON() ([]byte, error) {
 	return []byte("null"), nil
 }
 
-// UnmarshalJSON converts this schema object or array from a JSON structure
+// UnmarshalJSON converts this schema object or array from a JSON structure.
 func (s *SchemaOrStringArray) UnmarshalJSON(data []byte) error {
 	var first byte
 	if len(data) > 1 {
@@ -318,15 +320,15 @@ type Definitions map[string]Schema
 type SecurityDefinitions map[string]*SecurityScheme
 
 // StringOrArray represents a value that can either be a string
-// or an array of strings. Mainly here for serialization purposes
+// or an array of strings. Mainly here for serialization purposes.
 type StringOrArray []string
 
-// Contains returns true when the value is contained in the slice
+// Contains returns true when the value is contained in the slice.
 func (s StringOrArray) Contains(value string) bool {
 	return slices.Contains(s, value)
 }
 
-// JSONLookup implements an interface to customize json pointer lookup
+// JSONLookup implements an interface to customize json pointer lookup.
 func (s SchemaOrArray) JSONLookup(token string) (any, error) {
 	if _, err := strconv.Atoi(token); err == nil {
 		r, _, err := jsonpointer.GetForToken(s.Schemas, token)
@@ -336,7 +338,7 @@ func (s SchemaOrArray) JSONLookup(token string) (any, error) {
 	return r, err
 }
 
-// UnmarshalJSON unmarshals this string or array object from a JSON array or JSON string
+// UnmarshalJSON unmarshals this string or array object from a JSON array or JSON string.
 func (s *StringOrArray) UnmarshalJSON(data []byte) error {
 	var first byte
 	if len(data) > 1 {
@@ -368,7 +370,7 @@ func (s *StringOrArray) UnmarshalJSON(data []byte) error {
 	}
 }
 
-// MarshalJSON converts this string or array to a JSON array or JSON string
+// MarshalJSON converts this string or array to a JSON array or JSON string.
 func (s StringOrArray) MarshalJSON() ([]byte, error) {
 	if len(s) == 1 {
 		return json.Marshal([]string(s)[0])
@@ -377,13 +379,13 @@ func (s StringOrArray) MarshalJSON() ([]byte, error) {
 }
 
 // SchemaOrArray represents a value that can either be a Schema
-// or an array of Schema. Mainly here for serialization purposes
+// or an array of Schema. Mainly here for serialization purposes.
 type SchemaOrArray struct {
 	Schema  *Schema
 	Schemas []Schema
 }
 
-// Len returns the number of schemas in this property
+// Len returns the number of schemas in this property.
 func (s SchemaOrArray) Len() int {
 	if s.Schema != nil {
 		return 1
@@ -391,7 +393,7 @@ func (s SchemaOrArray) Len() int {
 	return len(s.Schemas)
 }
 
-// ContainsType returns true when one of the schemas is of the specified type
+// ContainsType returns true when one of the schemas is of the specified type.
 func (s *SchemaOrArray) ContainsType(name string) bool {
 	if s.Schema != nil {
 		return s.Schema.Type != nil && s.Schema.Type.Contains(name)
@@ -399,7 +401,7 @@ func (s *SchemaOrArray) ContainsType(name string) bool {
 	return false
 }
 
-// MarshalJSON converts this schema object or array into JSON structure
+// MarshalJSON converts this schema object or array into JSON structure.
 func (s SchemaOrArray) MarshalJSON() ([]byte, error) {
 	if len(s.Schemas) > 0 {
 		return json.Marshal(s.Schemas)
@@ -407,7 +409,7 @@ func (s SchemaOrArray) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.Schema)
 }
 
-// UnmarshalJSON converts this schema object or array from a JSON structure
+// UnmarshalJSON converts this schema object or array from a JSON structure.
 func (s *SchemaOrArray) UnmarshalJSON(data []byte) error {
 	var nw SchemaOrArray
 	var first byte

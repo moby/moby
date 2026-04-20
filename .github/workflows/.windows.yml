@@ -3,12 +3,6 @@ name: .windows
 
 # TODO: hide reusable workflow from the UI. Tracked in https://github.com/community/community/discussions/12025
 
-# Default to 'contents: read', which grants actions to read commits.
-#
-# If any permission is set, any permission not included in the list is
-# implicitly set to "none".
-#
-# see https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions
 permissions:
   contents: read
 
@@ -26,9 +20,12 @@ on:
         required: false
         type: boolean
         default: false
+    secrets:
+      CODECOV_TOKEN:
+        required: false
 
 env:
-  GO_VERSION: "1.25.8"
+  GO_VERSION: "1.26.2"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
@@ -53,7 +50,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
@@ -62,12 +59,14 @@ jobs:
           Get-ChildItem Env: | Out-String
       -
         name: Init
+        env:
+          INPUT_OS: ${{ inputs.os }}
         run: |
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go-build"
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go\pkg\mod"
-          If ("${{ inputs.os }}" -eq "windows-2025") {
+          If ($env:INPUT_OS -eq "windows-2025") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2025 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
+          } ElseIf ($env:INPUT_OS -eq "windows-2022") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
       -
@@ -100,7 +99,7 @@ jobs:
           Get-ChildItem -Path ${{ env.BIN_OUT }}
       -
         name: Upload artifacts
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: build-${{ inputs.storage }}-${{ inputs.os }}
           path: ${{ env.BIN_OUT }}/*
@@ -119,7 +118,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
@@ -128,13 +127,15 @@ jobs:
           Get-ChildItem Env: | Out-String
       -
         name: Init
+        env:
+          INPUT_OS: ${{ inputs.os }}
         run: |
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go-build"
           New-Item -ItemType "directory" -Path "${{ github.workspace }}\go\pkg\mod"
           New-Item -ItemType "directory" -Path "bundles"
-          If ("${{ inputs.os }}" -eq "windows-2025") {
+          If ($env:INPUT_OS -eq "windows-2025") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2025 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
+          } ElseIf ($env:INPUT_OS -eq "windows-2022") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
       -
@@ -158,7 +159,7 @@ jobs:
       -
         name: Send to Codecov
         if: inputs.send_coverage
-        uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
           directory: bundles
@@ -168,7 +169,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
@@ -183,13 +184,13 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
       -
         name: Download artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
           path: /tmp/artifacts
@@ -210,10 +211,10 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       -
         name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -232,10 +233,7 @@ jobs:
           # "Test integration" step exclusively.
           matrix="$(gotestlist -d ${{ env.ITG_CLI_MATRIX_SIZE }} -o "./..." ./...)"
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
-      -
-        name: Show matrix
-        run: |
-          echo ${{ steps.tests.outputs.matrix }}
+          echo "$matrix"
 
   integration-test:
     runs-on: ${{ inputs.os }}
@@ -266,12 +264,12 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
         name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -297,25 +295,28 @@ jobs:
           Get-ChildItem Env: | Out-String
       -
         name: Download artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: build-${{ inputs.storage }}-${{ inputs.os }}
           path: ${{ env.BIN_OUT }}
       -
         name: Init
+        env:
+          INPUT_OS: ${{ inputs.os }}
+          MATRIX_TEST: ${{ matrix.test }}
         run: |
           New-Item -ItemType "directory" -Path "bundles" -ErrorAction SilentlyContinue
           New-Item -ItemType "directory" -Path "${env:ProgramData}\Docker" -ErrorAction SilentlyContinue
           New-Item -ItemType "directory" -Path "${env:ProgramData}\Docker\cli-plugins" -ErrorAction SilentlyContinue
           Move-Item -Path "${{ env.BIN_OUT }}\docker-buildx.exe" -Destination "${env:ProgramData}\Docker\cli-plugins\docker-buildx.exe" -Force -ErrorAction Continue
-          If ("${{ inputs.os }}" -eq "windows-2025") {
+          If ($env:INPUT_OS -eq "windows-2025") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2025 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
-          } ElseIf ("${{ inputs.os }}" -eq "windows-2022") {
+          } ElseIf ($env:INPUT_OS -eq "windows-2022") {
             echo "WINDOWS_BASE_IMAGE_TAG=${{ env.WINDOWS_BASE_TAG_2022 }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
           Write-Output "${{ env.BIN_OUT }}" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           
-          $testName = ([System.BitConverter]::ToString((New-Object System.Security.Cryptography.SHA256Managed).ComputeHash([System.Text.Encoding]::UTF8.GetBytes("${{ matrix.test }}"))) -replace '-').ToLower()
+          $testName = ([System.BitConverter]::ToString((New-Object System.Security.Cryptography.SHA256Managed).ComputeHash([System.Text.Encoding]::UTF8.GetBytes($env:MATRIX_TEST))) -replace '-').ToLower()
           echo "TESTREPORTS_NAME=$testName" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
       -
         # removes docker service that is currently installed on the runner. we
@@ -338,6 +339,9 @@ jobs:
           }
       -
         name: Starting test daemon
+        env:
+          INPUT_STORAGE: ${{ inputs.storage }}
+          MATRIX_RUNTIME: ${{ matrix.runtime }}
         run: |
           Write-Host "Creating service"
           $args = @(
@@ -348,11 +352,11 @@ jobs:
             "--pidfile=$env:TEMP\docker.pid", `
             "--register-service"
           )
-          If ("${{ matrix.runtime }}" -eq "containerd") {
+          If ($env:MATRIX_RUNTIME -eq "containerd") {
             $args += "--default-runtime=io.containerd.runhcs.v1"
             echo "DOCKER_WINDOWS_CONTAINERD_RUNTIME=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
-          if ("${{ inputs.storage }}" -eq "snapshotter") {
+          if ($env:INPUT_STORAGE -eq "snapshotter") {
             $args += "--feature=containerd-snapshotter"
           }
           New-Item -ItemType Directory "$env:TEMP\moby-root" -ErrorAction SilentlyContinue | Out-Null
@@ -361,7 +365,7 @@ jobs:
           # Make the env-var visible to the service-managed dockerd, as there's no CLI flag for this option.
           $dockerEnviron = @("DOCKER_MIN_API_VERSION=1.24")
           $dockerEnviron += @(Get-Item Env:\OTEL_* | ForEach-Object { "$($_.Name)=$($_.Value)" })
-          If ("${{ inputs.storage }}" -eq "graphdriver") {
+          If ($env:INPUT_STORAGE -eq "graphdriver") {
             $dockerEnviron += @("TEST_INTEGRATION_USE_GRAPHDRIVER=1")
             echo "TEST_INTEGRATION_USE_GRAPHDRIVER=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
@@ -371,6 +375,9 @@ jobs:
           Write-Host "Service started successfully!"
       -
         name: Waiting for test daemon to start
+        env:
+          MATRIX_RUNTIME: ${{ matrix.runtime }}
+          DOCKER_HOST: npipe:////./pipe/docker_engine
         run: |
           $tries=20
           Write-Host "Waiting for the test daemon to start..."
@@ -389,7 +396,7 @@ jobs:
             Start-Sleep -Seconds 1
           }
           Write-Host "Test daemon started and replied!"
-          If ("${{ matrix.runtime }}" -eq "containerd") {
+          If ($env:MATRIX_RUNTIME -eq "containerd") {
             $containerdProcesses = Get-Process -Name containerd -ErrorAction:SilentlyContinue
             If (-not $containerdProcesses) {
               Throw "containerd process is not running"
@@ -400,8 +407,6 @@ jobs:
               }
             }
           }
-        env:
-          DOCKER_HOST: npipe:////./pipe/docker_engine
       -
         name: Docker info
         run: |
@@ -443,7 +448,7 @@ jobs:
       -
         name: Send to Codecov
         if: inputs.send_coverage
-        uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
         with:
           working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
           directory: bundles
@@ -482,7 +487,7 @@ jobs:
       -
         name: Upload reports
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-${{ env.TESTREPORTS_NAME }}
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
@@ -509,13 +514,13 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
       -
         name: Download reports
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: /tmp/reports
           pattern: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-*

@@ -1102,10 +1102,13 @@ func (e *betterFastEncoderDict) Reset(d *dict, singleBlock bool) {
 	if d == nil {
 		return
 	}
+	dictChanged := d != e.lastDict
 	// Init or copy dict table
-	if len(e.dictTable) != len(e.table) || d.id != e.lastDictID {
+	if len(e.dictTable) != len(e.table) || dictChanged {
 		if len(e.dictTable) != len(e.table) {
 			e.dictTable = make([]tableEntry, len(e.table))
+		} else {
+			clear(e.dictTable)
 		}
 		end := int32(len(d.content)) - 8 + e.maxMatchOff
 		for i := e.maxMatchOff; i < end; i += 4 {
@@ -1133,14 +1136,15 @@ func (e *betterFastEncoderDict) Reset(d *dict, singleBlock bool) {
 				offset: i + 3,
 			}
 		}
-		e.lastDictID = d.id
 		e.allDirty = true
 	}
 
-	// Init or copy dict table
-	if len(e.dictLongTable) != len(e.longTable) || d.id != e.lastDictID {
+	// Init or copy dict long table
+	if len(e.dictLongTable) != len(e.longTable) || dictChanged {
 		if len(e.dictLongTable) != len(e.longTable) {
 			e.dictLongTable = make([]prevEntry, len(e.longTable))
+		} else {
+			clear(e.dictLongTable)
 		}
 		if len(d.content) >= 8 {
 			cv := load6432(d.content, 0)
@@ -1162,9 +1166,9 @@ func (e *betterFastEncoderDict) Reset(d *dict, singleBlock bool) {
 				off++
 			}
 		}
-		e.lastDictID = d.id
 		e.allDirty = true
 	}
+	e.lastDict = d
 
 	// Reset table to initial state
 	{

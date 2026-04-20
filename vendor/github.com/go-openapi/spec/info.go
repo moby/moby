@@ -12,16 +12,16 @@ import (
 	"github.com/go-openapi/swag/jsonutils"
 )
 
-// Extensions vendor specific extensions
+// Extensions vendor specific extensions.
 type Extensions map[string]any
 
-// Add adds a value to these extensions
+// Add adds a value to these extensions.
 func (e Extensions) Add(key string, value any) {
 	realKey := strings.ToLower(key)
 	e[realKey] = value
 }
 
-// GetString gets a string value from the extensions
+// GetString gets a string value from the extensions.
 func (e Extensions) GetString(key string) (string, bool) {
 	if v, ok := e[strings.ToLower(key)]; ok {
 		str, ok := v.(string)
@@ -30,7 +30,7 @@ func (e Extensions) GetString(key string) (string, bool) {
 	return "", false
 }
 
-// GetInt gets a int value from the extensions
+// GetInt gets a int value from the extensions.
 func (e Extensions) GetInt(key string) (int, bool) {
 	realKey := strings.ToLower(key)
 
@@ -48,7 +48,7 @@ func (e Extensions) GetInt(key string) (int, bool) {
 	return -1, false
 }
 
-// GetBool gets a string value from the extensions
+// GetBool gets a string value from the extensions.
 func (e Extensions) GetBool(key string) (bool, bool) {
 	if v, ok := e[strings.ToLower(key)]; ok {
 		str, ok := v.(bool)
@@ -57,7 +57,7 @@ func (e Extensions) GetBool(key string) (bool, bool) {
 	return false, false
 }
 
-// GetStringSlice gets a string value from the extensions
+// GetStringSlice gets a string value from the extensions.
 func (e Extensions) GetStringSlice(key string) ([]string, bool) {
 	if v, ok := e[strings.ToLower(key)]; ok {
 		arr, isSlice := v.([]any)
@@ -82,7 +82,7 @@ type VendorExtensible struct {
 	Extensions Extensions
 }
 
-// AddExtension adds an extension to this extensible object
+// AddExtension adds an extension to this extensible object.
 func (v *VendorExtensible) AddExtension(key string, value any) {
 	if value == nil {
 		return
@@ -93,7 +93,7 @@ func (v *VendorExtensible) AddExtension(key string, value any) {
 	v.Extensions.Add(key, value)
 }
 
-// MarshalJSON marshals the extensions to json
+// MarshalJSON marshals the extensions to json.
 func (v VendorExtensible) MarshalJSON() ([]byte, error) {
 	toser := make(map[string]any)
 	for k, v := range v.Extensions {
@@ -105,7 +105,7 @@ func (v VendorExtensible) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toser)
 }
 
-// UnmarshalJSON for this extensible object
+// UnmarshalJSON for this extensible object.
 func (v *VendorExtensible) UnmarshalJSON(data []byte) error {
 	var d map[string]any
 	if err := json.Unmarshal(data, &d); err != nil {
@@ -123,7 +123,7 @@ func (v *VendorExtensible) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// InfoProps the properties for an info definition
+// InfoProps the properties for an info definition.
 type InfoProps struct {
 	Description    string       `json:"description,omitempty"`
 	Title          string       `json:"title,omitempty"`
@@ -142,7 +142,7 @@ type Info struct {
 	InfoProps
 }
 
-// JSONLookup look up a value by the json property name
+// JSONLookup look up a value by the json property name.
 func (i Info) JSONLookup(token string) (any, error) {
 	if ex, ok := i.Extensions[token]; ok {
 		return &ex, nil
@@ -151,7 +151,7 @@ func (i Info) JSONLookup(token string) (any, error) {
 	return r, err
 }
 
-// MarshalJSON marshal this to JSON
+// MarshalJSON marshal this to JSON.
 func (i Info) MarshalJSON() ([]byte, error) {
 	b1, err := json.Marshal(i.InfoProps)
 	if err != nil {
@@ -164,7 +164,7 @@ func (i Info) MarshalJSON() ([]byte, error) {
 	return jsonutils.ConcatJSON(b1, b2), nil
 }
 
-// UnmarshalJSON marshal this from JSON
+// UnmarshalJSON marshal this from JSON.
 func (i *Info) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &i.InfoProps); err != nil {
 		return err

@@ -24,7 +24,7 @@ import (
 // NOTE: if you are using the go-openapi/loads package, it will override
 // this value with its own default (a loader to retrieve YAML documents as
 // well as JSON ones).
-var PathLoader = func(pth string) (json.RawMessage, error) {
+var PathLoader = func(pth string) (json.RawMessage, error) { //nolint:gochecknoglobals // package-level default loader, overridable by go-openapi/loads
 	data, err := loading.LoadFromFileOrHTTP(pth)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ type schemaLoader struct {
 //
 // If the schema the ref is referring to holds nested refs, Resolve doesn't resolve them.
 //
-// If basePath is an empty string, ref is resolved against the root schema stored in the schemaLoader struct
+// If basePath is an empty string, ref is resolved against the root schema stored in the schemaLoader struct.
 func (r *schemaLoader) Resolve(ref *Ref, target any, basePath string) error {
 	return r.resolveRef(ref, target, basePath)
 }
@@ -136,7 +136,7 @@ func (r *schemaLoader) resolveRef(ref *Ref, target any, basePath string) error {
 	root := r.root
 	if (ref.IsRoot() || ref.HasFragmentOnly) && root == nil && basePath != "" {
 		if baseRef, erb := NewRef(basePath); erb == nil {
-			root, _, _, _ = r.load(baseRef.GetURL())
+			root, _ = r.load(baseRef.GetURL())
 		}
 	}
 
@@ -144,7 +144,7 @@ func (r *schemaLoader) resolveRef(ref *Ref, target any, basePath string) error {
 		data = root
 	} else {
 		baseRef := normalizeRef(ref, basePath)
-		data, _, _, err = r.load(baseRef.GetURL())
+		data, err = r.load(baseRef.GetURL())
 		if err != nil {
 			return err
 		}
@@ -160,33 +160,32 @@ func (r *schemaLoader) resolveRef(ref *Ref, target any, basePath string) error {
 	return jsonutils.FromDynamicJSON(res, target)
 }
 
-func (r *schemaLoader) load(refURL *url.URL) (any, url.URL, bool, error) {
+func (r *schemaLoader) load(refURL *url.URL) (any, error) {
 	debugLog("loading schema from url: %s", refURL)
 	toFetch := *refURL
 	toFetch.Fragment = ""
 
-	var err error
 	pth := toFetch.String()
 	normalized := normalizeBase(pth)
 	debugLog("loading doc from: %s", normalized)
 
 	data, fromCache := r.cache.Get(normalized)
 	if fromCache {
-		return data, toFetch, fromCache, nil
+		return data, nil
 	}
 
 	b, err := r.context.loadDoc(normalized)
 	if err != nil {
-		return nil, url.URL{}, false, err
+		return nil, err
 	}
 
 	var doc any
 	if err := json.Unmarshal(b, &doc); err != nil {
-		return nil, url.URL{}, false, err
+		return nil, err
 	}
 	r.cache.Set(normalized, doc)
 
-	return doc, toFetch, fromCache, nil
+	return doc, nil
 }
 
 // isCircular detects cycles in sequences of $ref.
@@ -293,8 +292,8 @@ func defaultSchemaLoader(
 	root any,
 	expandOptions *ExpandOptions,
 	cache ResolutionCache,
-	context *resolverContext) *schemaLoader {
-
+	context *resolverContext,
+) *schemaLoader {
 	if expandOptions == nil {
 		expandOptions = &ExpandOptions{}
 	}

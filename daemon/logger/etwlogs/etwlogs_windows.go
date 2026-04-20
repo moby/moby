@@ -44,17 +44,10 @@ var (
 )
 
 var (
-	providerHandle windows.Handle
+	providerHandle = windows.InvalidHandle
 	refCount       int
 	mu             sync.Mutex
 )
-
-func init() {
-	providerHandle = windows.InvalidHandle
-	if err := logger.RegisterLogDriver(name, New); err != nil {
-		panic(err)
-	}
-}
 
 // New creates a new etwLogs logger for the given container and registers the EWT provider.
 func New(info logger.Info) (logger.Logger, error) {

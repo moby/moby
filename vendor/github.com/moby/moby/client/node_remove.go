@@ -9,6 +9,8 @@ import (
 type NodeRemoveOptions struct {
 	Force bool
 }
+
+// NodeRemoveResult holds the result of [Client.NodeRemove].
 type NodeRemoveResult struct{}
 
 // NodeRemove removes a Node.

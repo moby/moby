@@ -10,7 +10,7 @@ import (
 	"github.com/go-openapi/swag/jsonutils"
 )
 
-// PathItemProps the path item specific properties
+// PathItemProps the path item specific properties.
 type PathItemProps struct {
 	Get        *Operation  `json:"get,omitempty"`
 	Put        *Operation  `json:"put,omitempty"`
@@ -34,7 +34,7 @@ type PathItem struct {
 	PathItemProps
 }
 
-// JSONLookup look up a value by the json property name
+// JSONLookup look up a value by the json property name.
 func (p PathItem) JSONLookup(token string) (any, error) {
 	if ex, ok := p.Extensions[token]; ok {
 		return &ex, nil
@@ -46,7 +46,7 @@ func (p PathItem) JSONLookup(token string) (any, error) {
 	return r, err
 }
 
-// UnmarshalJSON hydrates this items instance with the data from JSON
+// UnmarshalJSON hydrates this items instance with the data from JSON.
 func (p *PathItem) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &p.Refable); err != nil {
 		return err
@@ -57,7 +57,7 @@ func (p *PathItem) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &p.PathItemProps)
 }
 
-// MarshalJSON converts this items object to JSON
+// MarshalJSON converts this items object to JSON.
 func (p PathItem) MarshalJSON() ([]byte, error) {
 	b3, err := json.Marshal(p.Refable)
 	if err != nil {

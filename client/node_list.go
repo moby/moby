@@ -13,6 +13,7 @@ type NodeListOptions struct {
 	Filters Filters
 }
 
+// NodeListResult holds the result of [Client.NodeList].
 type NodeListResult struct {
 	Items []swarm.Node
 }

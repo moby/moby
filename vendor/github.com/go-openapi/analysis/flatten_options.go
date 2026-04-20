@@ -35,7 +35,7 @@ type FlattenOpts struct {
 	_ struct{} // require keys
 }
 
-// ExpandOpts creates a spec.ExpandOptions to configure expanding a specification document.
+// ExpandOpts creates a spec.[spec.ExpandOptions] to configure expanding a specification document.
 func (f *FlattenOpts) ExpandOpts(skipSchemas bool) *spec.ExpandOptions {
 	return &spec.ExpandOptions{
 		RelativeBase:    f.BasePath,
@@ -44,13 +44,13 @@ func (f *FlattenOpts) ExpandOpts(skipSchemas bool) *spec.ExpandOptions {
 	}
 }
 
-// Swagger gets the swagger specification for this flatten operation
+// Swagger gets the swagger specification for this flatten operation.
 func (f *FlattenOpts) Swagger() *spec.Swagger {
 	return f.Spec.spec
 }
 
 // croak logs notifications and warnings about valid, but possibly unwanted constructs resulting
-// from flattening a spec
+// from flattening a spec.
 func (f *FlattenOpts) croak() {
 	if !f.Verbose {
 		return

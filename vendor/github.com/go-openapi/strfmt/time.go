@@ -12,14 +12,12 @@ import (
 	"time"
 )
 
-var (
-	// UnixZero sets the zero unix UTC timestamp we want to compare against.
-	//
-	// Unix 0 for an EST timezone is not equivalent to a UTC timezone.
-	UnixZero = time.Unix(0, 0).UTC()
-)
+// UnixZero sets the zero unix UTC timestamp we want to compare against.
+//
+// Unix 0 for an EST timezone is not equivalent to a UTC timezone.
+var UnixZero = time.Unix(0, 0).UTC() //nolint:gochecknoglobals // package-level sentinel value for unix epoch
 
-func init() {
+func init() { //nolint:gochecknoinits // registers datetime format in the default registry
 	dt := DateTime{}
 	Default.Add("datetime", &dt, IsDateTime)
 }
@@ -50,38 +48,48 @@ func IsDateTime(str string) bool {
 }
 
 const (
-	// RFC3339Millis represents a ISO8601 format to millis instead of to nanos
+	// RFC3339Millis represents a ISO8601 format to millis instead of to nanos.
 	RFC3339Millis = "2006-01-02T15:04:05.000Z07:00"
-	// RFC3339MillisNoColon represents a ISO8601 format to millis instead of to nanos
+	// RFC3339MillisNoColon represents a ISO8601 format to millis instead of to nanos.
 	RFC3339MillisNoColon = "2006-01-02T15:04:05.000Z0700"
-	// RFC3339Micro represents a ISO8601 format to micro instead of to nano
+	// RFC3339Micro represents a ISO8601 format to micro instead of to nano.
 	RFC3339Micro = "2006-01-02T15:04:05.000000Z07:00"
-	// RFC3339MicroNoColon represents a ISO8601 format to micro instead of to nano
+	// RFC3339MicroNoColon represents a ISO8601 format to micro instead of to nano.
 	RFC3339MicroNoColon = "2006-01-02T15:04:05.000000Z0700"
-	// ISO8601LocalTime represents a ISO8601 format to ISO8601 in local time (no timezone)
+	// ISO8601LocalTime represents a ISO8601 format to ISO8601 in local time (no timezone).
 	ISO8601LocalTime = "2006-01-02T15:04:05"
-	// ISO8601TimeWithReducedPrecision represents a ISO8601 format with reduced precision (dropped secs)
+	// ISO8601TimeWithReducedPrecision represents a ISO8601 format with reduced precision (dropped secs).
 	ISO8601TimeWithReducedPrecision = "2006-01-02T15:04Z"
-	// ISO8601TimeWithReducedPrecisionLocaltime represents a ISO8601 format with reduced precision and no timezone (dropped seconds + no timezone)
+	// ISO8601TimeWithReducedPrecisionLocaltime represents a ISO8601 format with reduced precision and no timezone (dropped seconds + no timezone).
 	ISO8601TimeWithReducedPrecisionLocaltime = "2006-01-02T15:04"
 	// ISO8601TimeUniversalSortableDateTimePattern represents a ISO8601 universal sortable date time pattern.
 	ISO8601TimeUniversalSortableDateTimePattern = "2006-01-02 15:04:05"
-	// ISO8601TimeUniversalSortableDateTimePatternShortForm is the short form of ISO8601TimeUniversalSortableDateTimePattern
+	// ISO8601TimeUniversalSortableDateTimePatternShortForm is the short form of [ISO8601TimeUniversalSortableDateTimePattern].
 	ISO8601TimeUniversalSortableDateTimePatternShortForm = "2006-01-02"
 	// DateTimePattern pattern to match for the date-time format from http://tools.ietf.org/html/rfc3339#section-5.6
 	DateTimePattern = `^([0-9]{2}):([0-9]{2}):([0-9]{2})(.[0-9]+)?(z|([+-][0-9]{2}:[0-9]{2}))$`
 )
 
+//nolint:gochecknoglobals // package-level configuration for datetime parsing and marshaling
 var (
 	rxDateTime = regexp.MustCompile(DateTimePattern)
 
-	// DateTimeFormats is the collection of formats used by ParseDateTime()
-	DateTimeFormats = []string{RFC3339Micro, RFC3339MicroNoColon, RFC3339Millis, RFC3339MillisNoColon, time.RFC3339, time.RFC3339Nano, ISO8601LocalTime, ISO8601TimeWithReducedPrecision, ISO8601TimeWithReducedPrecisionLocaltime, ISO8601TimeUniversalSortableDateTimePattern, ISO8601TimeUniversalSortableDateTimePatternShortForm}
+	// DateTimeFormats is the collection of formats used by [ParseDateTime]().
+	DateTimeFormats = []string{
+		RFC3339Micro, RFC3339MicroNoColon,
+		RFC3339Millis, RFC3339MillisNoColon,
+		time.RFC3339, time.RFC3339Nano,
+		ISO8601LocalTime,
+		ISO8601TimeWithReducedPrecision,
+		ISO8601TimeWithReducedPrecisionLocaltime,
+		ISO8601TimeUniversalSortableDateTimePattern,
+		ISO8601TimeUniversalSortableDateTimePatternShortForm,
+	}
 
-	// MarshalFormat sets the time resolution format used for marshaling time (set to milliseconds)
+	// MarshalFormat sets the time resolution format used for marshaling time (set to milliseconds).
 	MarshalFormat = RFC3339Millis
 
-	// NormalizeTimeForMarshal provides a normalization function on time before marshalling (e.g. time.UTC).
+	// NormalizeTimeForMarshal provides a normalization function on time before marshaling (e.g. [time.UTC]).
 	// By default, the time value is not changed.
 	NormalizeTimeForMarshal = func(t time.Time) time.Time { return t }
 
@@ -89,7 +97,7 @@ var (
 	DefaultTimeLocation = time.UTC
 )
 
-// ParseDateTime parses a string that represents an ISO8601 time or a unix epoch
+// ParseDateTime parses a string that represents an ISO8601 time or a unix epoch.
 func ParseDateTime(data string) (DateTime, error) {
 	if data == "" {
 		return NewDateTime(), nil
@@ -112,46 +120,46 @@ func ParseDateTime(data string) (DateTime, error) {
 // Most APIs we encounter want either millisecond or second precision times.
 // This just tries to make it worry-free.
 //
-// swagger:strfmt date-time
+// swagger:strfmt date-time.
 type DateTime time.Time
 
 // NewDateTime is a representation of the UNIX epoch (January 1, 1970 00:00:00 UTC) for the [DateTime] type.
 //
 // Notice that this is not the zero value of the [DateTime] type.
 //
-// You may use [DateTime.IsUNIXZero] to check against this value.
+// You may use [DateTime.IsUnixZero] to check against this value.
 func NewDateTime() DateTime {
 	return DateTime(time.Unix(0, 0).UTC())
 }
 
 // MakeDateTime is a representation of the zero value of the [DateTime] type (January 1, year 1, 00:00:00 UTC).
 //
-// You may use [Datetime.IsZero] to check against this value.
+// You may use [DateTime.IsZero] to check against this value.
 func MakeDateTime() DateTime {
 	return DateTime(time.Time{})
 }
 
-// String converts this time to a string
+// String converts this time to a string.
 func (t DateTime) String() string {
 	return NormalizeTimeForMarshal(time.Time(t)).Format(MarshalFormat)
 }
 
-// IsZero returns whether the date time is a zero value
+// IsZero returns whether the date time is a zero value.
 func (t DateTime) IsZero() bool {
 	return time.Time(t).IsZero()
 }
 
-// IsUnixZero returns whether the date time is equivalent to time.Unix(0, 0).UTC().
+// IsUnixZero returns whether the date time is equivalent to [time.Unix](0, 0).UTC().
 func (t DateTime) IsUnixZero() bool {
 	return time.Time(t).Equal(UnixZero)
 }
 
-// MarshalText implements the text marshaller interface
+// MarshalText implements the text marshaler interface.
 func (t DateTime) MarshalText() ([]byte, error) {
 	return []byte(t.String()), nil
 }
 
-// UnmarshalText implements the text unmarshaller interface
+// UnmarshalText implements the text unmarshaler interface.
 func (t *DateTime) UnmarshalText(text []byte) error {
 	tt, err := ParseDateTime(string(text))
 	if err != nil {
@@ -161,9 +169,9 @@ func (t *DateTime) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// Scan scans a DateTime value from database driver type.
+// Scan scans a [DateTime] value from database driver type.
 func (t *DateTime) Scan(raw any) error {
-	// TODO: case int64: and case float64: ?
+	// Proposal for enhancement: case int64: and case float64: ?
 	switch v := raw.(type) {
 	case []byte:
 		return t.UnmarshalText(v)
@@ -180,17 +188,17 @@ func (t *DateTime) Scan(raw any) error {
 	return nil
 }
 
-// Value converts DateTime to a primitive value ready to written to a database.
+// Value converts [DateTime] to a primitive value ready to written to a database.
 func (t DateTime) Value() (driver.Value, error) {
 	return driver.Value(t.String()), nil
 }
 
-// MarshalJSON returns the DateTime as JSON
+// MarshalJSON returns the [DateTime] as JSON.
 func (t DateTime) MarshalJSON() ([]byte, error) {
 	return json.Marshal(NormalizeTimeForMarshal(time.Time(t)).Format(MarshalFormat))
 }
 
-// UnmarshalJSON sets the DateTime from JSON
+// UnmarshalJSON sets the [DateTime] from JSON.
 func (t *DateTime) UnmarshalJSON(data []byte) error {
 	if string(data) == jsonNull {
 		return nil
@@ -213,7 +221,7 @@ func (t *DateTime) DeepCopyInto(out *DateTime) {
 	*out = *t
 }
 
-// DeepCopy copies the receiver into a new DateTime.
+// DeepCopy copies the receiver into a new [DateTime].
 func (t *DateTime) DeepCopy() *DateTime {
 	if t == nil {
 		return nil
@@ -233,12 +241,12 @@ func (t *DateTime) GobDecode(data []byte) error {
 	return t.UnmarshalBinary(data)
 }
 
-// MarshalBinary implements the encoding.BinaryMarshaler interface.
+// MarshalBinary implements the encoding.[encoding.BinaryMarshaler] interface.
 func (t DateTime) MarshalBinary() ([]byte, error) {
 	return NormalizeTimeForMarshal(time.Time(t)).MarshalBinary()
 }
 
-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+// UnmarshalBinary implements the encoding.[encoding.BinaryUnmarshaler] interface.
 func (t *DateTime) UnmarshalBinary(data []byte) error {
 	var original time.Time
 
@@ -252,7 +260,7 @@ func (t *DateTime) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// Equal checks if two DateTime instances are equal using time.Time's Equal method
+// Equal checks if two [DateTime] instances are equal using [time.Time]'s Equal method.
 func (t DateTime) Equal(t2 DateTime) bool {
 	return time.Time(t).Equal(time.Time(t2))
 }

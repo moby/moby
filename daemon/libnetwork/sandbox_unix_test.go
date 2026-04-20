@@ -206,6 +206,51 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 	}
 }
 
+func TestGatewayEndpointRespectsPriorityPerAddressFamily(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+	ctx := t.Context()
+
+	opts := [][]NetworkOption{
+		{
+			NetworkOptionEnableIPv4(true),
+			NetworkOptionEnableIPv6(true),
+			NetworkOptionIpam(defaultipam.DriverName, "",
+				[]*IpamConf{{PreferredPool: "172.30.0.0/24", Gateway: "172.30.0.1"}},
+				[]*IpamConf{{PreferredPool: "fe90::/64", Gateway: "fe90::1"}}, nil),
+		},
+		{
+			NetworkOptionEnableIPv4(true),
+			NetworkOptionIpam(defaultipam.DriverName, "",
+				[]*IpamConf{{PreferredPool: "172.31.0.0/24", Gateway: "172.31.0.1"}},
+				nil, nil),
+		},
+	}
+
+	ctrlr, nws := getTestEnv(t, opts...)
+
+	sbx, err := ctrlr.NewSandbox(ctx, "sandbox-prio-per-family")
+	assert.NilError(t, err)
+
+	epDual, err := nws[0].CreateEndpoint(ctx, "ep-dual")
+	assert.NilError(t, err)
+	epV4, err := nws[1].CreateEndpoint(ctx, "ep-v4")
+	assert.NilError(t, err)
+
+	err = epDual.Join(ctx, sbx)
+	assert.NilError(t, err)
+	err = epV4.Join(ctx, sbx, JoinOptionPriority(1000))
+	assert.NilError(t, err)
+
+	gwep4, gwep6 := sbx.getGatewayEndpoint()
+	assert.Assert(t, gwep4 != nil)
+	assert.Assert(t, gwep6 != nil)
+	assert.Check(t, is.Equal(gwep4.ID(), epV4.ID()))
+	assert.Check(t, is.Equal(gwep6.ID(), epDual.ID()))
+
+	err = sbx.Delete(ctx)
+	assert.NilError(t, err)
+}
+
 func TestSandboxAddSamePrio(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 

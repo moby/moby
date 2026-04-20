@@ -77,8 +77,21 @@ func (p Port) Num() uint16 {
 	return p.num
 }
 
+// Port returns p's port number as a string.
+//
+// It returns an empty string for zero-values.
+func (p Port) Port() string {
+	if p.proto == protoZero {
+		return ""
+	}
+	return strconv.Itoa(int(p.num))
+}
+
 // Proto returns p's network protocol.
 func (p Port) Proto() IPProtocol {
+	if p.proto == protoZero {
+		return ""
+	}
 	return p.proto.Value()
 }
 
@@ -93,7 +106,8 @@ func (p Port) IsValid() bool {
 }
 
 // String returns a string representation of the port in the format "<portnum>/<proto>".
-// If the port is the zero value, it returns "invalid port".
+// If the port is the zero value, it returns "invalid port", and users should
+// check [PortRange.IsValid] or [PortRange.IsZero] before using this method.
 func (p Port) String() string {
 	switch p.proto {
 	case protoZero:
@@ -232,6 +246,9 @@ func (pr PortRange) End() uint16 {
 
 // Proto returns pr's network protocol.
 func (pr PortRange) Proto() IPProtocol {
+	if pr.proto == protoZero {
+		return ""
+	}
 	return pr.proto.Value()
 }
 
@@ -245,8 +262,12 @@ func (pr PortRange) IsValid() bool {
 	return pr.proto != protoZero
 }
 
-// String returns a string representation of the port range in the format "<start>-<end>/<proto>" or "<portnum>/<proto>" if start == end.
-// If the port range is the zero value, it returns "invalid port range".
+// String returns a string representation of the port range in the format
+// "<start>-<end>/<proto>" or "<portnum>/<proto>" (if start == end).
+//
+// If the port range is the zero value, it returns "invalid port range",
+// and users should check [PortRange.IsValid] or [PortRange.IsZero] before
+// using this method.
 func (pr PortRange) String() string {
 	switch pr.proto {
 	case protoZero:
@@ -307,6 +328,11 @@ func (pr PortRange) Range() PortRange {
 //	}
 func (pr PortRange) All() iter.Seq[Port] {
 	return func(yield func(Port) bool) {
+		// Do not skip zero values here, because a zero-value means
+		// "map the port to an ephemeral host port".
+		//
+		// For example, "--port 80" is shorthand for "--port 0:80"
+		// ("--port <ephemeral port>:80").
 		for i := uint32(pr.Start()); i <= uint32(pr.End()); i++ {
 			if !yield(Port{num: uint16(i), proto: pr.proto}) {
 				return

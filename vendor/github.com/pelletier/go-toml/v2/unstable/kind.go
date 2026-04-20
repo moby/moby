@@ -6,28 +6,40 @@ import "fmt"
 type Kind int
 
 const (
-	// Meta
+	// Invalid represents an invalid meta node.
 	Invalid Kind = iota
+	// Comment represents a comment meta node.
 	Comment
+	// Key represents a key meta node.
 	Key
 
-	// Top level structures
+	// Table represents a top-level table.
 	Table
+	// ArrayTable represents a top-level array table.
 	ArrayTable
+	// KeyValue represents a top-level key value.
 	KeyValue
 
-	// Containers values
+	// Array represents an array container value.
 	Array
+	// InlineTable represents an inline table container value.
 	InlineTable
 
-	// Values
+	// String represents a string value.
 	String
+	// Bool represents a boolean value.
 	Bool
+	// Float represents a floating point value.
 	Float
+	// Integer represents an integer value.
 	Integer
+	// LocalDate represents a a local date value.
 	LocalDate
+	// LocalTime represents a local time value.
 	LocalTime
+	// LocalDateTime represents a local date/time value.
 	LocalDateTime
+	// DateTime represents a data/time value.
 	DateTime
 )
 

@@ -5,7 +5,7 @@ package validate
 
 import "sync"
 
-// Opts specifies validation options for a SpecValidator.
+// Opts specifies validation options for a [SpecValidator].
 //
 // NOTE: other options might be needed, for example a go-swagger specific mode.
 type Opts struct {

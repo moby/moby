@@ -218,7 +218,7 @@ func New(t testing.TB, ops ...Option) *Daemon {
 		dest = os.Getenv("DEST")
 	}
 	assert.Assert(t, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
-	dest = filepath.Join(dest, t.Name())
+	dest = filepath.Join(dest, sanitizedTestName(t))
 
 	if os.Getenv("DOCKER_ROOTLESS") != "" {
 		if os.Getenv("DOCKER_REMAP_ROOT") != "" {
@@ -240,6 +240,53 @@ func New(t testing.TB, ops ...Option) *Daemon {
 	}
 
 	return d
+}
+
+// sanitizedTestName removes special characters (like double or single quotes)
+// from name to prevent creating filesystem paths that can cause
+// errors when parsing through scripts.
+//
+// Test-names (t.Name()) for sub-tests allow free-form names to be used,
+// for example:
+//
+//	t.Run("engine restart shouldn't kill alive containers", func(t *testing.T) {
+//
+// Which would result in the quote (') to be included in the filename,
+// which is valid, but can cause issues when processing with shell scripts;
+//
+//	find bundles -path '*/root/*overlay2' -prune -o -type f \( -name '*-report.json' -o -name '*.log' -o -name '*.out' -o -name '*.prof' -o -name '*-report.xml' \) -print | xargs sudo tar -czf /tmp/reports.tar.gz
+//	[...]
+//	xargs: unmatched single quote; by default quotes are special to xargs unless you use the -0 option
+//
+// sanitizedTestName replaces special characters with an underscore to prevent
+// such issues.
+func sanitizedTestName(t testing.TB) string {
+	t.Helper()
+	parts := strings.Split(t.Name(), "/")
+	for i := range parts {
+		parts[i] = sanitizePathComponent(parts[i])
+	}
+	return filepath.Join(parts...)
+}
+
+func sanitizePathComponent(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') ||
+			(r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') ||
+			r == '-' || r == '_' {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('_')
+		}
+	}
+
+	out := strings.TrimLeft(strings.TrimSpace(b.String()), "-")
+	if out == "" {
+		return "_"
+	}
+	return out
 }
 
 // BinaryPath returns the binary and its arguments.

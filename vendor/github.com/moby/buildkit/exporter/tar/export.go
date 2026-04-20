@@ -87,18 +87,18 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 	}()
 
 	if e.opts.Epoch == nil {
-		if tm, ok, err := epoch.ParseSource(inp); err != nil {
+		if tm, err := epoch.ParseSource(inp, nil); err != nil {
 			return nil, nil, nil, err
-		} else if ok {
-			e.opts.Epoch = tm
+		} else if tm != nil {
+			e.opts.Epoch = &epoch.Epoch{Value: tm}
 		}
 	}
 
 	now := time.Now().Truncate(time.Second)
 	isMap := len(inp.Refs) > 0
 
-	getDir := func(ctx context.Context, k string, ref cache.ImmutableRef, attestations []exporter.Attestation) (*fsutil.Dir, error) {
-		outputFS, cleanup, err := local.CreateFS(ctx, buildInfo.SessionID, k, ref, attestations, now, isMap, e.opts)
+	getDir := func(ctx context.Context, k string, ref cache.ImmutableRef, attestations []exporter.Attestation, opt local.CreateFSOpts) (*fsutil.Dir, error) {
+		outputFS, cleanup, err := local.CreateFS(ctx, buildInfo.SessionID, k, ref, attestations, now, isMap, opt)
 		if err != nil {
 			return nil, err
 		}
@@ -110,8 +110,8 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 			Mode: uint32(os.ModeDir | 0755),
 			Path: strings.ReplaceAll(k, "/", "_"),
 		}
-		if e.opts.Epoch != nil {
-			st.ModTime = e.opts.Epoch.UnixNano()
+		if opt.Epoch != nil && opt.Epoch.Value != nil {
+			st.ModTime = opt.Epoch.Value.UnixNano()
 		}
 
 		return &fsutil.Dir{
@@ -140,7 +140,15 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 			if !ok {
 				return nil, nil, nil, errors.Errorf("failed to find ref for ID %s", p.ID)
 			}
-			d, err := getDir(ctx, p.ID, r, inp.Attestations[p.ID])
+			opt := e.opts
+			if e.opts.Epoch == nil {
+				tm, err := epoch.ParseSource(inp, &p)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				opt.Epoch = &epoch.Epoch{Value: tm}
+			}
+			d, err := getDir(ctx, p.ID, r, inp.Attestations[p.ID], opt)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -156,7 +164,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 			fs = dirs[0].FS
 		}
 	} else {
-		d, err := getDir(ctx, "", inp.Ref, nil)
+		d, err := getDir(ctx, "", inp.Ref, nil, e.opts)
 		if err != nil {
 			return nil, nil, nil, err
 		}

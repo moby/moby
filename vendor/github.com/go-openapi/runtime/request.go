@@ -14,25 +14,25 @@ import (
 	"github.com/go-openapi/swag/stringutils"
 )
 
-// CanHaveBody returns true if this method can have a body
+// CanHaveBody returns true if this method can have a body.
 func CanHaveBody(method string) bool {
 	mn := strings.ToUpper(method)
 	return mn == "POST" || mn == "PUT" || mn == "PATCH" || mn == "DELETE"
 }
 
-// IsSafe returns true if this is a request with a safe method
+// IsSafe returns true if this is a request with a safe method.
 func IsSafe(r *http.Request) bool {
 	mn := strings.ToUpper(r.Method)
 	return mn == "GET" || mn == "HEAD"
 }
 
-// AllowsBody returns true if the request allows for a body
+// AllowsBody returns true if the request allows for a body.
 func AllowsBody(r *http.Request) bool {
 	mn := strings.ToUpper(r.Method)
 	return mn != "HEAD"
 }
 
-// HasBody returns true if this method needs a content-type
+// HasBody returns true if this method needs a content-type.
 func HasBody(r *http.Request) bool {
 	// happy case: we have a content length set
 	if r.ContentLength > 0 {
@@ -104,9 +104,9 @@ func (p *peekingReader) Close() error {
 	return nil
 }
 
-// JSONRequest creates a new http request with json headers set.
+// JSONRequest creates a new [http] request with json headers set.
 //
-// It uses context.Background.
+// It uses [context.Background].
 func JSONRequest(method, urlStr string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(context.Background(), method, urlStr, body)
 	if err != nil {
@@ -117,12 +117,12 @@ func JSONRequest(method, urlStr string, body io.Reader) (*http.Request, error) {
 	return req, nil
 }
 
-// Gettable for things with a method GetOK(string) (data string, hasKey bool, hasValue bool)
+// Gettable for things with a method [GetOK](string) (data string, hasKey bool, hasValue bool).
 type Gettable interface {
 	GetOK(string) ([]string, bool, bool)
 }
 
-// ReadSingleValue reads a single value from the source
+// ReadSingleValue reads a single value from the source.
 func ReadSingleValue(values Gettable, name string) string {
 	vv, _, hv := values.GetOK(name)
 	if hv {
@@ -131,7 +131,7 @@ func ReadSingleValue(values Gettable, name string) string {
 	return ""
 }
 
-// ReadCollectionValue reads a collection value from a string data source
+// ReadCollectionValue reads a collection value from a string data source.
 func ReadCollectionValue(values Gettable, name, collectionFormat string) []string {
 	v := ReadSingleValue(values, name)
 	return stringutils.SplitByFormat(v, collectionFormat)
