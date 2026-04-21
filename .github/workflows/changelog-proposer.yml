@@ -111,6 +111,7 @@ jobs:
           } > prompt.md
 
       - name: Run changelog proposer
+        id: agent
         uses: docker/cagent-action@d98096f432f2aea5091c811852c4da804e60623a # v1.4.1
         env:
           OPENAI_BASE_URL: https://models.inference.ai.azure.com
@@ -120,3 +121,7 @@ jobs:
           openai-api-key: ${{ github.token }}
           github-token: ${{ github.token }}
           timeout: "300"
+
+      - name: Print agent output
+        if: always() && steps.agent.outputs.output-file
+        run: cat "${{ steps.agent.outputs.output-file }}"
