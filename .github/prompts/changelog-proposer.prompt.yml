@@ -1,6 +1,8 @@
 name: changelog-proposer
 description: Proposes changelog entries for Moby/Docker Engine pull requests.
 model: openai/gpt-4.1
+modelParameters:
+  maxCompletionTokens: 2000
 messages:
   - role: system
     content: |
@@ -42,5 +44,11 @@ messages:
       ```markdown changelog
       <single line release note entry>
       ```
+
+      ## Reference Changelogs (for style only)
+
+      Use these existing release notes as a style reference:
+
+      {{reference_changelogs}}
   - role: user
-    content: "{{input}}"
+    content: "{{pr_context}}"

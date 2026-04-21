@@ -41,11 +41,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Install gh-models extension
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh extension install github/gh-models
-
       - name: Get PR information
         env:
           GH_TOKEN: ${{ github.token }}
@@ -84,38 +79,42 @@ jobs:
             echo '```diff'
             head -c 50000 pr.diff
             echo '```'
-            echo ""
-            echo "## Reference Changelogs (for style only)"
-            echo ""
-            echo "### Docker Engine 29.x"
-            echo '```markdown'
-            cat changelog-29.md
-            echo '```'
-            echo ""
-            echo "### Docker Engine 28.x"
-            echo '```markdown'
-            cat changelog-28.md
-            echo '```'
           } > prompt-input.md
+
+          {
+            echo "## Docker Engine 29.x Release Notes"
+            cat changelog-29.md
+            echo ""
+            echo "## Docker Engine 28.x Release Notes"
+            cat changelog-28.md
+          } > reference-changelogs.md
+
           echo "Prompt input size: $(wc -c < prompt-input.md) bytes"
+          echo "Reference changelogs size: $(wc -c < reference-changelogs.md) bytes"
 
       - name: Run model
-        env:
-          GH_TOKEN: ${{ github.token }}
+        id: inference
+        uses: actions/ai-inference@v1
+        with:
+          prompt-file: .github/prompts/changelog-proposer.prompt.yml
+          input: |
+            pr_context: ./prompt-input.md
+          file_input: |
+            reference_changelogs: ./reference-changelogs.md
+
+      - name: Print response
         run: |
-          cat prompt-input.md | gh models run \
-            --file .github/prompts/changelog-proposer.prompt.yml \
-            > response.md
           echo "=== Model Response ==="
-          cat response.md
+          cat "${{ steps.inference.outputs.response-file }}"
 
       - name: Post result
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          RESPONSE_FILE: ${{ steps.inference.outputs.response-file }}
         run: |
-          if grep -q '^NO_CHANGELOG:' response.md; then
-            reason=$(sed -n 's/^NO_CHANGELOG: *//p' response.md)
+          if grep -q '^NO_CHANGELOG:' "$RESPONSE_FILE"; then
+            reason=$(sed -n 's/^NO_CHANGELOG: *//p' "$RESPONSE_FILE")
             echo "No changelog needed: $reason"
             gh pr comment "$PR_NUMBER" \
               --repo "${{ github.repository }}" \
@@ -126,5 +125,5 @@ jobs:
           else
             gh pr comment "$PR_NUMBER" \
               --repo "${{ github.repository }}" \
-              --body-file response.md
+              --body-file "$RESPONSE_FILE"
           fi
