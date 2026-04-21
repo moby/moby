@@ -31,7 +31,7 @@ import (
 )
 
 var bufPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buffer := make([]byte, 32<<10)
 		return &buffer
 	},

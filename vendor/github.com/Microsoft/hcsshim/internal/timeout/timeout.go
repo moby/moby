@@ -47,6 +47,11 @@ var (
 
 	// TestDRetryLoop is the timeout for testd retry loop when onlining a SCSI disk in LCOW
 	TestDRetryLoop = defaultTimeoutTestdRetry
+
+	// This timeout is used for GCS connection after uvm boot as well as the entropy
+	// and log connection setup during uvm boot. This is different than the
+	// SystemStart timeout defined above.
+	GCSConnectionTimeout = 2 * time.Minute
 )
 
 func init() {
@@ -60,6 +65,7 @@ func init() {
 	ExternalCommandToStart = durationFromEnvironment("HCSSHIM_TIMEOUT_EXTERNALCOMMANDSTART", ExternalCommandToStart)
 	ExternalCommandToComplete = durationFromEnvironment("HCSSHIM_TIMEOUT_EXTERNALCOMMANDCOMPLETE", ExternalCommandToComplete)
 	TestDRetryLoop = durationFromEnvironment("HCSSHIM_TIMEOUT_TESTDRETRYLOOP", TestDRetryLoop)
+	GCSConnectionTimeout = durationFromEnvironment("HCSSHIM_TIMEOUT_GCSCONNECTION", GCSConnectionTimeout)
 }
 
 func durationFromEnvironment(env string, defaultValue time.Duration) time.Duration {

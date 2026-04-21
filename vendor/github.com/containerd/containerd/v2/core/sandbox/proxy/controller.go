@@ -82,6 +82,7 @@ func (s *remoteSandboxController) Start(ctx context.Context, sandboxID string) (
 		Labels:    resp.GetLabels(),
 		Address:   resp.GetAddress(),
 		Version:   resp.GetVersion(),
+		Spec:      resp.GetSpec(),
 	}, nil
 }
 

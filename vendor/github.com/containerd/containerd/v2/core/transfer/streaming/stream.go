@@ -36,7 +36,7 @@ const maxRead = 32 * 1024
 const windowSize = 2 * maxRead
 
 var bufPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buffer := make([]byte, maxRead)
 		return &buffer
 	},
@@ -111,27 +111,29 @@ func SendStream(ctx context.Context, r io.Reader, stream streaming.Stream) {
 				max = remaining
 			}
 			b := (*buf)[:max]
-			n, err := r.Read(b)
-			if err != nil {
-				if !errors.Is(err, io.EOF) {
-					log.G(ctx).WithError(err).Errorf("failed to read stream source")
+			n, readErr := r.Read(b)
+			if n > 0 {
+				remaining = remaining - int32(n)
+
+				data := &transferapi.Data{
+					Data: b[:n],
+				}
+				anyType, err := typeurl.MarshalAny(data)
+				if err != nil {
+					log.G(ctx).WithError(err).Errorf("failed to marshal data for send")
+					// TODO: Send error message on stream before close to allow remote side to return error
+					return
+				}
+				if err := stream.Send(anyType); err != nil {
+					log.G(ctx).WithError(err).Errorf("send failed")
+					return
+				}
+			}
+			if readErr != nil {
+				if !errors.Is(readErr, io.EOF) {
+					log.G(ctx).WithError(readErr).Errorf("failed to read stream source")
 					// TODO: Send error message on stream before close to allow remote side to return error
 				}
-				return
-			}
-			remaining = remaining - int32(n)
-
-			data := &transferapi.Data{
-				Data: b[:n],
-			}
-			anyType, err := typeurl.MarshalAny(data)
-			if err != nil {
-				log.G(ctx).WithError(err).Errorf("failed to marshal data for send")
-				// TODO: Send error message on stream before close to allow remote side to return error
-				return
-			}
-			if err := stream.Send(anyType); err != nil {
-				log.G(ctx).WithError(err).Errorf("send failed")
 				return
 			}
 		}

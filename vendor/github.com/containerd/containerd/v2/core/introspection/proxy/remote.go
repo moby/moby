@@ -83,7 +83,7 @@ func (i *introspectionRemote) PluginInfo(ctx context.Context, pluginType, id str
 	if options != nil {
 		optionsPB, err = typeurl.MarshalAnyToProto(options)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal runtime requst: %w", err)
+			return nil, fmt.Errorf("failed to marshal runtime request: %w", err)
 		}
 	}
 	resp, err = i.client.PluginInfo(ctx, &api.PluginInfoRequest{
