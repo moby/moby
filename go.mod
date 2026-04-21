@@ -1,6 +1,6 @@
 module github.com/moby/moby/v2
 
-go 1.25.9
+go 1.26.3
 
 tool (
 	github.com/gogo/protobuf/protoc-gen-gogo
@@ -27,7 +27,7 @@ require (
 	github.com/cloudflare/cfssl v1.6.5
 	github.com/containerd/cgroups/v3 v3.1.3
 	github.com/containerd/containerd/api v1.11.1
-	github.com/containerd/containerd/v2 v2.2.6
+	github.com/containerd/containerd/v2 v2.3.3
 	github.com/containerd/continuity v0.5.0
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/fifo v1.1.0

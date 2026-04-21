@@ -35,9 +35,21 @@ var allLevels = []log.Level{
 	log.TraceLevel,
 }
 
+type HookOpt func(*LogrusHook)
+
 // NewLogrusHook creates a new logrus hook
-func NewLogrusHook() *LogrusHook {
-	return &LogrusHook{}
+func NewLogrusHook(opts ...HookOpt) *LogrusHook {
+	hook := &LogrusHook{}
+	for _, opt := range opts {
+		opt(hook)
+	}
+	return hook
+}
+
+func WithTraceIDField(enabled bool) HookOpt {
+	return func(h *LogrusHook) {
+		h.enableTraceIDField = enabled
+	}
 }
 
 // LogrusHook is a [logrus.Hook] which adds logrus events to active spans.
@@ -45,7 +57,9 @@ func NewLogrusHook() *LogrusHook {
 // is a no-op.
 //
 // [logrus.Hook]: https://github.com/sirupsen/logrus/blob/v1.9.3/hooks.go#L3-L11
-type LogrusHook struct{}
+type LogrusHook struct {
+	enableTraceIDField bool
+}
 
 // Levels returns the logrus levels that this hook is interested in.
 func (h *LogrusHook) Levels() []log.Level {
@@ -59,7 +73,15 @@ func (h *LogrusHook) Fire(entry *log.Entry) error {
 		return nil
 	}
 
-	if !span.IsRecording() || !span.SpanContext().IsValid() {
+	if !span.SpanContext().IsValid() {
+		return nil
+	}
+
+	if h.enableTraceIDField {
+		entry.Data["trace_id"] = span.SpanContext().TraceID().String()
+	}
+
+	if !span.IsRecording() {
 		return nil
 	}
 

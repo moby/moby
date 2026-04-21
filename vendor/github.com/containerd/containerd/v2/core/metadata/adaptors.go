@@ -28,7 +28,7 @@ import (
 	"github.com/containerd/containerd/v2/pkg/filters"
 )
 
-func adaptImage(o interface{}) filters.Adaptor {
+func adaptImage(o any) filters.Adaptor {
 	obj := o.(images.Image)
 	return filters.AdapterFunc(func(fieldpath []string) (string, bool) {
 		if len(fieldpath) == 0 {
@@ -60,7 +60,7 @@ func adaptImage(o interface{}) filters.Adaptor {
 		return "", false
 	})
 }
-func adaptContainer(o interface{}) filters.Adaptor {
+func adaptContainer(o any) filters.Adaptor {
 	obj := o.(containers.Container)
 	return filters.AdapterFunc(func(fieldpath []string) (string, bool) {
 		if len(fieldpath) == 0 {

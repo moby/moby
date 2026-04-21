@@ -409,8 +409,8 @@ github.com/containerd/containerd/api/types/runc/options
 github.com/containerd/containerd/api/types/runtimeoptions/v1
 github.com/containerd/containerd/api/types/task
 github.com/containerd/containerd/api/types/transfer
-# github.com/containerd/containerd/v2 v2.2.6
-## explicit; go 1.25.0
+# github.com/containerd/containerd/v2 v2.3.3
+## explicit; go 1.26.3
 github.com/containerd/containerd/v2/client
 github.com/containerd/containerd/v2/cmd/containerd/server/config
 github.com/containerd/containerd/v2/core/containers
@@ -450,6 +450,7 @@ github.com/containerd/containerd/v2/core/unpack
 github.com/containerd/containerd/v2/defaults
 github.com/containerd/containerd/v2/internal/cleanup
 github.com/containerd/containerd/v2/internal/fsverity
+github.com/containerd/containerd/v2/internal/fsview
 github.com/containerd/containerd/v2/internal/kmutex
 github.com/containerd/containerd/v2/internal/lazyregexp
 github.com/containerd/containerd/v2/internal/randutil
