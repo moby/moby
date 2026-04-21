@@ -2,8 +2,8 @@
 models:
   default:
     provider: openai
-    model: gpt-5.2
-    max_tokens: 32000
+    model: gpt-4o
+    max_tokens: 64000
 
 agents:
   root:
