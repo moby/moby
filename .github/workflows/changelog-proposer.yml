@@ -102,7 +102,7 @@ jobs:
           model: openai/gpt-4.1
           system-prompt-file: .github/prompts/changelog-proposer-system.txt
           prompt-file: ./prompt-input.md
-          max-tokens: "2000"
+          max-completion-tokens: "2000"
 
       - name: Print response
         run: |
