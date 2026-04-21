@@ -117,6 +117,7 @@ jobs:
           OPENAI_BASE_URL: https://models.inference.ai.azure.com
         with:
           agent: .github/agents/changelog-proposer.yaml
+          prompt: "Propose a changelog entry for this PR. See the attached prompt file for details."
           add-prompt-files: prompt.md
           openai-api-key: ${{ github.token }}
           github-token: ${{ github.token }}
