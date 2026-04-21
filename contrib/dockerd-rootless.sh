@@ -85,6 +85,31 @@ mount_directory() {
 	mount $MOUNT_OPTIONS "$DIRECTORY_REALPATH" "$DIRECTORY"
 }
 
+resolved_resolvconf_path() {
+	if [ ! -L /etc/resolv.conf ]; then
+		return 1
+	fi
+
+	# slirp4netns only accepts /etc/resolv.conf symlinks whose target path stays
+	# under /etc or /run. Preserve the resolved path when the host uses an
+	# intermediate symlink such as /var/run -> /run.
+	case "$(readlink /etc/resolv.conf)" in
+		/etc/* | /run/*)
+			return 1
+			;;
+	esac
+
+	RESOLVCONF_REALPATH=$(realpath /etc/resolv.conf) || return 1
+	case "$RESOLVCONF_REALPATH" in
+		/etc/* | /run/*)
+			echo "$RESOLVCONF_REALPATH"
+			return 0
+			;;
+	esac
+
+	return 1
+}
+
 rootlesskit=""
 for f in docker-rootlesskit rootlesskit; do
 	if command -v $f > /dev/null 2>&1; then
@@ -177,6 +202,10 @@ if [ -z "$_DOCKERD_ROOTLESS_CHILD" ]; then
 		_DOCKERD_ROOTLESS_SELINUX=1
 		export _DOCKERD_ROOTLESS_SELINUX
 	fi
+	if RESOLVCONF_REALPATH="$(resolved_resolvconf_path)"; then
+		_DOCKERD_ROOTLESS_RESOLVCONF_REALPATH=$RESOLVCONF_REALPATH
+		export _DOCKERD_ROOTLESS_RESOLVCONF_REALPATH
+	fi
 	# Re-exec the script via RootlessKit, so as to create unprivileged {user,mount,network} namespaces.
 	#
 	# --copy-up allows removing/creating files in the directories by creating tmpfs and symlinks
@@ -212,6 +241,14 @@ else
 		# Workaround for "x509: certificate signed by unknown authority" on openSUSE Tumbleweed.
 		# https://github.com/rootless-containers/rootlesskit/issues/225
 		mount_directory /etc/ssl "--rbind"
+	fi
+	if [ -n "$_DOCKERD_ROOTLESS_RESOLVCONF_REALPATH" ] && [ -r "$_DOCKERD_ROOTLESS_RESOLVCONF_REALPATH" ]; then
+		# RootlessKit bind-mounts a generated resolv.conf into /etc/resolv.conf.
+		# If the host's /etc/resolv.conf escaped /etc or /run through an
+		# intermediate symlink such as /var/run, slirp4netns may have populated it
+		# with its fallback resolver instead. Restore the resolved host file before
+		# dockerd reads it.
+		cat "$_DOCKERD_ROOTLESS_RESOLVCONF_REALPATH" >/etc/resolv.conf
 	fi
 
 	# When running with --firewall-backend=nftables, IP forwarding needs to be enabled
