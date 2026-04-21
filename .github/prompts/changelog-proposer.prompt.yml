@@ -44,11 +44,5 @@ messages:
       ```markdown changelog
       <single line release note entry>
       ```
-
-      ## Reference Changelogs (for style only)
-
-      Use these existing release notes as a style reference:
-
-      {{reference_changelogs}}
   - role: user
-    content: "{{pr_context}}"
+    content: "{{input}}"

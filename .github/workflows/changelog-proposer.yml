@@ -79,28 +79,29 @@ jobs:
             echo '```diff'
             head -c 50000 pr.diff
             echo '```'
+            echo ""
+            echo "## Reference Changelogs (for style only)"
+            echo ""
+            echo "### Docker Engine 29.x"
+            echo '```markdown'
+            cat changelog-29.md
+            echo '```'
+            echo ""
+            echo "### Docker Engine 28.x"
+            echo '```markdown'
+            cat changelog-28.md
+            echo '```'
           } > prompt-input.md
 
-          {
-            echo "## Docker Engine 29.x Release Notes"
-            cat changelog-29.md
-            echo ""
-            echo "## Docker Engine 28.x Release Notes"
-            cat changelog-28.md
-          } > reference-changelogs.md
-
           echo "Prompt input size: $(wc -c < prompt-input.md) bytes"
-          echo "Reference changelogs size: $(wc -c < reference-changelogs.md) bytes"
 
       - name: Run model
         id: inference
         uses: actions/ai-inference@v1
         with:
           prompt-file: .github/prompts/changelog-proposer.prompt.yml
-          input: |
-            pr_context: ./prompt-input.md
           file_input: |
-            reference_changelogs: ./reference-changelogs.md
+            input: ./prompt-input.md
 
       - name: Print response
         run: |
