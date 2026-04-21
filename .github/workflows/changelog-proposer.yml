@@ -44,7 +44,6 @@ jobs:
           fetch-depth: 0
 
       - name: Get PR information
-        id: pr-info
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -60,24 +59,18 @@ jobs:
           # Get the diff
           gh pr diff "$PR_URL" > pr.diff
 
-          # Output info
-          echo "files_count=$(wc -l < changed_files.txt | tr -d ' ')" >> $GITHUB_OUTPUT
-          echo "diff_lines=$(wc -l < pr.diff | tr -d ' ')" >> $GITHUB_OUTPUT
-
       - name: Fetch reference changelogs
         run: |
           curl -fsSL https://raw.githubusercontent.com/docker/docs/main/content/manuals/engine/release-notes/29.md -o changelog-29.md
           curl -fsSL https://raw.githubusercontent.com/docker/docs/main/content/manuals/engine/release-notes/28.md -o changelog-28.md
 
-      - name: Build prompt
-        id: prompt
+      - name: Build prompt file
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           {
-            echo "prompt<<PROMPT_EOF"
             echo "# Changelog Entry Request"
             echo ""
             echo "## PR Information"
@@ -114,9 +107,8 @@ jobs:
             echo "---"
             echo ""
             echo "Please propose a changelog entry for this PR based on the diff and"
-            echo " changelogs from the previous versions. Post a comment with your proposed entry."
-            echo "PROMPT_EOF"
-          } >> $GITHUB_OUTPUT
+            echo "changelogs from the previous versions. Post a comment with your proposed entry."
+          } > prompt.md
 
       - name: Run changelog proposer
         uses: docker/cagent-action@d98096f432f2aea5091c811852c4da804e60623a # v1.4.1
@@ -124,7 +116,7 @@ jobs:
           OPENAI_BASE_URL: https://models.inference.ai.azure.com
         with:
           agent: .github/agents/changelog-proposer.yaml
-          prompt: ${{ steps.prompt.outputs.prompt }}
+          add-prompt-files: prompt.md
           openai-api-key: ${{ github.token }}
           github-token: ${{ github.token }}
           timeout: "300"
