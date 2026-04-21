@@ -18,8 +18,10 @@ package local
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -39,7 +41,7 @@ import (
 )
 
 var bufPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buffer := make([]byte, 1<<20)
 		return &buffer
 	},
@@ -84,8 +86,18 @@ func NewStore(root string) (content.Store, error) {
 // require labels and should use `NewStore`. `NewLabeledStore` is primarily
 // useful for tests or standalone implementations.
 func NewLabeledStore(root string, ls LabelStore) (content.Store, error) {
-	supported, _ := fsverity.IsSupported(root)
-
+	if _, err := os.Stat(root); err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("failed to stat %q: %w", root, err)
+		}
+		if err := os.MkdirAll(root, 0755); err != nil {
+			return nil, fmt.Errorf("failed to mkdir %q: %w", root, err)
+		}
+	}
+	supported, err := fsverity.IsSupported(root)
+	if err != nil {
+		log.L.WithError(err).WithField("path", root).Warnf("failed check for fsverity support")
+	}
 	s := &store{
 		root:               root,
 		ls:                 ls,
@@ -533,8 +545,13 @@ func (s *store) writer(ctx context.Context, ref string, total int64, expected di
 
 	path, refp, data := s.ingestPaths(ref)
 
+	// if we get passed an expected digest, we need to use the same algorithm (sha512, etc)
+	digestAlg := digest.Canonical
+	if expected != "" && expected.Algorithm().Available() {
+		digestAlg = expected.Algorithm()
+	}
 	var (
-		digester  = digest.Canonical.Digester()
+		digester  = digestAlg.Digester()
 		offset    int64
 		startedAt time.Time
 		updatedAt time.Time
@@ -582,7 +599,7 @@ func (s *store) writer(ctx context.Context, ref string, total int64, expected di
 		}
 
 		if total > 0 {
-			if err := os.WriteFile(filepath.Join(path, "total"), []byte(fmt.Sprint(total)), 0666); err != nil {
+			if err := os.WriteFile(filepath.Join(path, "total"), fmt.Append(nil, total), 0666); err != nil {
 				return nil, err
 			}
 		}

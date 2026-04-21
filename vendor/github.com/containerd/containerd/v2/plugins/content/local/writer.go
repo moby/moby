@@ -113,6 +113,24 @@ func (w *writer) Commit(ctx context.Context, size int64, expected digest.Digest,
 	}
 
 	dgst := w.digester.Digest()
+	if expected != "" && expected.Algorithm() != dgst.Algorithm() && expected.Algorithm().Available() {
+		// Writer was opened without a descriptor specifying the digest algorithm (but we got a non-canonical one here in commit), so we have to re-hash our now completed and closed content to compare
+		start := time.Now()
+		f, err := os.Open(filepath.Join(w.path, "data"))
+		if err != nil {
+			return fmt.Errorf("failed to open ingest data for re-hashing to %s: %w", expected.Algorithm().String(), err)
+		}
+		w.digester = expected.Algorithm().Digester()
+		_, err = io.Copy(w.digester.Hash(), f)
+		f.Close()
+		if err != nil {
+			return fmt.Errorf("failed to re-hash ingest data to %s: %w", expected.Algorithm().String(), err)
+		}
+		dgst = w.digester.Digest()
+		if duration := time.Since(start); duration > 250*time.Millisecond {
+			log.G(ctx).WithField("digest", dgst).WithField("duration", duration).Warnf("commit for blob required expensive re-hash")
+		}
+	}
 	if expected != "" && expected != dgst {
 		return fmt.Errorf("unexpected commit digest %s, expected %s: %w", dgst, expected, errdefs.ErrFailedPrecondition)
 	}

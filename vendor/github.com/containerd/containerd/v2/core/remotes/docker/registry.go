@@ -264,5 +264,6 @@ func DefaultHTTPTransport(defaultTLSConfig *tls.Config) *http.Transport {
 		TLSHandshakeTimeout:   10 * time.Second,
 		TLSClientConfig:       defaultTLSConfig,
 		ExpectContinueTimeout: 5 * time.Second,
+		ResponseHeaderTimeout: 30 * time.Second,
 	}
 }

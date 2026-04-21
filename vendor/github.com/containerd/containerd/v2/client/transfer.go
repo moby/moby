@@ -25,7 +25,7 @@ import (
 	"github.com/containerd/containerd/v2/core/transfer/proxy"
 )
 
-func (c *Client) Transfer(ctx context.Context, src interface{}, dest interface{}, opts ...transfer.Opt) error {
+func (c *Client) Transfer(ctx context.Context, src any, dest any, opts ...transfer.Opt) error {
 	ctx, done, err := c.WithLease(ctx)
 	if err != nil {
 		return err

@@ -91,12 +91,14 @@ func familiarizeReference(ref string) (string, error) {
 }
 
 func ociReferenceName(name string) string {
-	// OCI defines the reference name as only a tag excluding the
+	// OCI suggests the reference name as only a tag excluding the
 	// repository. The containerd annotation contains the full image name
 	// since the tag is insufficient for correctly naming and referring to an
-	// image
+	// image. In the case of a by-digest image referencing only a SHA hash,
+	// the full image name with hash is preferred to match the required
+	// grammar of the OCI spec.
 	var ociRef string
-	if spec, err := reference.Parse(name); err == nil {
+	if spec, err := reference.Parse(name); err == nil && spec.Object != "" && spec.Object[0] != '@' {
 		ociRef = spec.Object
 	} else {
 		ociRef = name
