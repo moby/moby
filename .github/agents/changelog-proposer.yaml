@@ -22,11 +22,24 @@ agents:
          - The PR code is checked out locally — you can use `git log`, `git diff`,
            and browse the repository to better understand the changes
 
-      2. **Propose the entry**: Based on the PR changes:
+      2. **Decide if a changelog entry is needed**: Not all PRs need one. Skip for:
+         - CI/workflow-only changes (GitHub Actions, Makefiles, Dockerfiles for CI)
+         - Test-only changes with no user-facing impact
+         - Documentation-only changes
+         - Code comments or typo fixes
+         - Refactors with no behavior change
+
+         If no changelog is needed, write a file `NO_CHANGELOG` containing a
+         one-line explanation, post a PR comment explaining why, and stop:
+         ```
+         echo "reason" > NO_CHANGELOG
+         ```
+
+      3. **Propose the entry**: Based on the PR changes:
          - Write a concise, user-focused changelog entry
          - Focus on WHAT changed and WHY it matters to users
 
-      3. **Post as a PR comment**: Use `gh` CLI to post the proposed changelog entry
+      4. **Post as a PR comment**: Use `gh` CLI to post the proposed changelog entry
          as a comment on the PR.
 
       ## Output Format

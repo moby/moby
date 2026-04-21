@@ -125,3 +125,14 @@ jobs:
       - name: Print agent output
         if: always() && steps.agent.outputs.output-file
         run: cat "${{ steps.agent.outputs.output-file }}"
+
+      - name: Remove label if no changelog needed
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -f NO_CHANGELOG ]; then
+            echo "Agent determined no changelog is needed: $(cat NO_CHANGELOG)"
+            gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --remove-label "impact/changelog"
+          fi
