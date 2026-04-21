@@ -110,6 +110,9 @@ jobs:
             echo "changelogs from the previous versions. Post a comment with your proposed entry."
           } > prompt.md
 
+      - name: Print prompt
+        run: cat prompt.md
+
       - name: Run changelog proposer
         id: agent
         uses: docker/cagent-action@d98096f432f2aea5091c811852c4da804e60623a # v1.4.1
