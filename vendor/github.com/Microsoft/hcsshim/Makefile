@@ -1,9 +1,8 @@
 include Makefile.bootfiles
 
-GO:=go
-GO_FLAGS:=-ldflags "-s -w" # strip Go binaries
-CGO_ENABLED:=0
-GOMODVENDOR:=
+# C settings
+
+# enable loading kernel modules in init
 KMOD:=0
 
 CFLAGS:=-O2 -Wall
@@ -11,20 +10,46 @@ LDFLAGS:=-static -s #strip C binaries
 LDLIBS:=
 PREPROCESSORFLAGS:=
 ifeq "$(KMOD)" "1"
-LDFLAGS:= -s
-LDLIBS:= -lkmod
+LDFLAGS:=-s
+LDLIBS:=-lkmod
 PREPROCESSORFLAGS:=-DMODULES=1
 endif
 
-GO_FLAGS_EXTRA:=
-ifeq "$(GOMODVENDOR)" "1"
-GO_FLAGS_EXTRA += -mod=vendor
-endif
+# Go settings
+
+# if Go is from the Microsoft Go fork
+MSGO:=0
+# explicitly use vendored modules when building
+GOMODVENDOR:=
+# Go tags to enable
 GO_BUILD_TAGS:=
-ifneq ($(strip $(GO_BUILD_TAGS)),)
-GO_FLAGS_EXTRA += -tags="$(GO_BUILD_TAGS)"
+# additional Go build flags
+GO_FLAGS_EXTRA:=
+# use CGO
+CGO_ENABLED:=0
+
+GO:=go
+GO_FLAGS:=-ldflags "-s -w" # strip Go binaries
+ifeq "$(GOMODVENDOR)" "1"
+GO_FLAGS+=-mod=vendor
 endif
-GO_BUILD:=CGO_ENABLED=$(CGO_ENABLED) $(GO) build $(GO_FLAGS) $(GO_FLAGS_EXTRA)
+ifneq ($(strip $(GO_BUILD_TAGS)),)
+GO_FLAGS+=-tags="$(GO_BUILD_TAGS)"
+endif
+GO_BUILD_ENV:=CGO_ENABLED=$(CGO_ENABLED)
+# starting with ms-go1.25, systemcrypto (for FIPS compliance) is enabled by default, which
+# requires CGo.
+# disable it for non-CGo builds.
+#
+# https://github.com/microsoft/go/blob/microsoft/main/eng/doc/MigrationGuide.md#cgo-is-not-enabled
+# https://github.com/microsoft/go/blob/microsoft/main/eng/doc/MigrationGuide.md#disabling-systemcrypto
+ifeq "$(MSGO)" "1"
+ifneq "$(CGO_ENABLED)" "1"
+# MS_GO_NOSYSTEMCRYPTO only works for >=ms-go1.25.2
+GO_BUILD_ENV+=MS_GO_NOSYSTEMCRYPTO=1 GOEXPERIMENT=nosystemcrypto
+endif
+endif
+GO_BUILD:= $(GO_BUILD_ENV) $(GO) build $(GO_FLAGS) $(GO_FLAGS_EXTRA)
 
 SRCROOT=$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 # additional directories to search for rule prerequisites and targets
@@ -81,9 +106,16 @@ out/delta.tar.gz: bin/init bin/vsockexec bin/cmd/gcs bin/cmd/gcstools bin/cmd/ho
 	tar -zcf $@ -C rootfs .
 	rm -rf rootfs
 
-bin/cmd/gcs bin/cmd/gcstools bin/cmd/hooks/wait-paths bin/cmd/tar2ext4 bin/internal/tools/snp-report:
+# Use force target to always call `go build` per make invocation and rely on Go's build cache
+# to decide if binaries should be (re)built.
+# Note: don't use `.PHONY` since the targets are actual files.
+#
+# www.gnu.org/software/make/manual/html_node/Force-Targets.html
+bin/cmd/gcs bin/cmd/gcstools bin/cmd/hooks/wait-paths bin/cmd/tar2ext4 bin/internal/tools/snp-report: FORCE
 	@mkdir -p $(dir $@)
 	GOOS=linux $(GO_BUILD) -o $@ $(SRCROOT)/$(@:bin/%=%)
+
+FORCE:
 
 bin/vsockexec: vsockexec/vsockexec.o vsockexec/vsock.o
 	@mkdir -p bin

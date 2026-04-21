@@ -38,6 +38,12 @@ func (job *JobObject) SetResourceLimits(limits *JobLimits) error {
 		}
 	}
 
+	if limits.CPUAffinity != 0 {
+		if err := job.SetCPUAffinity(limits.CPUAffinity); err != nil {
+			return fmt.Errorf("failed to set job object cpu affinity: %w", err)
+		}
+	}
+
 	if limits.MaxBandwidth != 0 || limits.MaxIOPS != 0 {
 		if err := job.SetIOLimit(limits.MaxBandwidth, limits.MaxIOPS); err != nil {
 			return fmt.Errorf("failed to set io limit on job object: %w", err)

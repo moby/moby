@@ -1,5 +1,3 @@
-//go:build !linux
-
 /*
    Copyright The containerd Authors.
 
@@ -16,8 +14,25 @@
    limitations under the License.
 */
 
-package rootfs
+package tracing
 
-const (
-	defaultInitializer = ""
+import (
+	"context"
+
+	"github.com/containerd/containerd/v2/pkg/namespaces"
+	"go.opentelemetry.io/otel/trace"
 )
+
+// WithNamespace adds containerd namespace attribute to spans when available.
+// It is best-effort: if namespace is not present in the context, it does nothing.
+func WithNamespace(ctx context.Context) SpanOpt {
+	return func(config *StartConfig) {
+		ns, err := namespaces.NamespaceRequired(ctx)
+		if err != nil {
+			return
+		}
+		config.spanOpts = append(config.spanOpts,
+			trace.WithAttributes(Attribute("namespace", ns)),
+		)
+	}
+}
