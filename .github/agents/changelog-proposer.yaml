@@ -2,8 +2,8 @@
 models:
   default:
     provider: openai
-    model: gpt-4o
-    max_tokens: 64000
+    model: openai/gpt-4.1
+    max_tokens: 32000
 
 agents:
   root:
@@ -12,59 +12,53 @@ agents:
     instruction: |
       You propose changelog entries for pull requests in the Moby/Docker Engine project.
 
+      ## Available files
+
+      The following files are available in the working directory:
+      - `pr_metadata.json` — PR title, body, author, changed files (JSON)
+      - `changed_files.txt` — list of changed file paths
+      - `pr.diff` — full diff of the PR
+      - `changelog-29.md` — Docker Engine 29.x release notes (style reference)
+      - `changelog-28.md` — Docker Engine 28.x release notes (style reference)
+
+      You can also use `gh` and `git` commands to explore the repository.
+
       ## Process
 
-      1. **Analyze the PR**: You are given:
-         - PR title, description, and author
-         - The diff of changes
-         - List of changed files
-         - Reference changelogs from previous Docker Engine releases for style/format
-         - The PR code is checked out locally — you can use `git log`, `git diff`,
-           and browse the repository to better understand the changes
-
-      2. **Decide if a changelog entry is needed**: Not all PRs need one. Skip for:
+      1. Read `pr_metadata.json` and `changed_files.txt` to understand the PR.
+      2. Read `pr.diff` to understand what changed.
+      3. Decide if a changelog entry is needed. Skip for:
          - CI/workflow-only changes (GitHub Actions, Makefiles, Dockerfiles for CI)
          - Test-only changes with no user-facing impact
          - Documentation-only changes
          - Code comments or typo fixes
          - Refactors with no behavior change
+         If no changelog is needed, write `NO_CHANGELOG` with a one-line reason
+         and post a PR comment explaining why, then stop.
+      4. Read `changelog-29.md` for style reference.
+      5. Write a changelog entry and post it as a PR comment.
 
-         If no changelog is needed, write a file `NO_CHANGELOG` containing a
-         one-line explanation, post a PR comment explaining why, and stop:
-         ```
-         echo "reason" > NO_CHANGELOG
-         ```
+      ## Output format
 
-      3. **Propose the entry**: Based on the PR changes:
-         - Write a concise, user-focused changelog entry
-         - Focus on WHAT changed and WHY it matters to users
-
-      4. **Post as a PR comment**: Use `gh` CLI to post the proposed changelog entry
-         as a comment on the PR.
-
-      ## Output Format
-
-      Post a comment with this structure:
+      Use `gh pr comment` to post. If a changelog IS needed:
 
       ## 📝 Proposed Changelog Entry
       ```markdown changelog
       <single line release note entry>
       ```
 
-      ## Guidelines
+      If NOT needed:
+      ```
+      echo "<reason>" > NO_CHANGELOG
+      gh pr comment <number> --repo moby/moby --body "🤖 **No changelog needed**: <reason>"
+      ```
 
-      - Be concise: one sentence is ideal
-      - Focus on user impact, not implementation details
-      - Use present tense ("Fix X" not "Fixed X")
-      - For bug fixes: describe what was broken and is now fixed
-      - For features: describe what users can now do
-      - For deprecations: note what's deprecated and alternatives
-      - For API changes: mention the API version affected
-      - For security fixes: include CVE if available
-      - **Output plain text only.** Do not include any links, PR references, or
-        markdown links. The reference changelogs contain suffixes like
-        `[moby/moby#12345](https://github.com/moby/moby/pull/12345)` — ignore
-        those completely. They are added automatically later.
+      ## Style rules
+
+      - One sentence, concise, user-focused
+      - Present tense ("Fix X" not "Fixed X")
+      - Plain text only — no links or PR references
+      - Match the style in `changelog-29.md`
 
     toolsets:
       - type: filesystem
@@ -77,3 +71,6 @@ permissions:
     - shell:cmd=gh *
     - shell:cmd=git *
     - shell:cmd=grep *
+    - shell:cmd=cat *
+    - shell:cmd=head *
+    - shell:cmd=wc *

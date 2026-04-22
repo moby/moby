@@ -43,85 +43,27 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get PR information
+      - name: Prepare PR data
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           PR_URL="https://github.com/${{ github.repository }}/pull/${PR_NUMBER}"
-
-          # Get PR metadata
           gh pr view "$PR_URL" --json title,body,author,baseRefName,headRefName,files > pr_metadata.json
-
-          # Get changed files
           gh pr view "$PR_URL" --json files -q '.files[].path' > changed_files.txt
-
-          # Get the diff
           gh pr diff "$PR_URL" > pr.diff
-
-      - name: Fetch reference changelogs
-        run: |
           curl -fsSL https://raw.githubusercontent.com/docker/docs/main/content/manuals/engine/release-notes/29.md -o changelog-29.md
           curl -fsSL https://raw.githubusercontent.com/docker/docs/main/content/manuals/engine/release-notes/28.md -o changelog-28.md
-
-      - name: Build prompt file
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-        run: |
-          {
-            echo "# Changelog Entry Request"
-            echo ""
-            echo "## PR Information"
-            echo "- **PR Number**: ${PR_NUMBER}"
-            echo "- **Title**: ${PR_TITLE}"
-            echo "- **Author**: ${PR_AUTHOR}"
-            echo "- **Repository**: ${{ github.repository }}"
-            echo ""
-            echo "## PR Description"
-            jq -r '.body // "No description provided."' pr_metadata.json
-            echo ""
-            echo "## Changed Files"
-            cat changed_files.txt
-            echo ""
-            echo "## Diff"
-            echo '```diff'
-            head -c 50000 pr.diff
-            echo '```'
-            echo ""
-            echo "## Reference Changelogs"
-            echo ""
-            echo "Use the following real release notes as style/format reference."
-            echo ""
-            echo "### Docker Engine 29.x"
-            echo '```markdown'
-            cat changelog-29.md
-            echo '```'
-            echo ""
-            echo "### Docker Engine 28.x"
-            echo '```markdown'
-            cat changelog-28.md
-            echo '```'
-            echo ""
-            echo "---"
-            echo ""
-            echo "Please propose a changelog entry for this PR based on the diff and"
-            echo "changelogs from the previous versions. Post a comment with your proposed entry."
-          } > prompt.md
-
-      - name: Print prompt
-        run: cat prompt.md
 
       - name: Run changelog proposer
         id: agent
         uses: docker/cagent-action@d98096f432f2aea5091c811852c4da804e60623a # v1.4.1
         env:
           OPENAI_BASE_URL: https://models.inference.ai.azure.com
+          GH_TOKEN: ${{ github.token }}
         with:
           agent: .github/agents/changelog-proposer.yaml
-          prompt: "Propose a changelog entry for this PR. See the attached prompt file for details."
-          add-prompt-files: prompt.md
+          prompt: "Propose a changelog entry for PR #${{ github.event.pull_request.number }} in ${{ github.repository }}. All data files are in the working directory."
           openai-api-key: ${{ github.token }}
           github-token: ${{ github.token }}
           timeout: "300"
