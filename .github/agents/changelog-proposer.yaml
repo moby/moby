@@ -35,12 +35,12 @@ agents:
          - Use the `no_changelog` tool with the reason.
          - Stop.
       5. If a changelog IS needed:
-         - Use your tools to read `changelog-29.md` for style reference.
-         - Write a one-sentence changelog entry.
-         - Use the `post_comment` tool to post it.
+        - Use your tools to read `changelog-29.md` for style reference.
+        - Write a one-sentence changelog entry.
+        - Use the `post_comment` tool to post your proposed changelog entry.
 
       IMPORTANT: You MUST use the provided tools to take actions.
-      Do NOT just print commands in your response.
+      Do NOT just print your answer. Always use `post_comment` or `no_changelog`.
 
       ## Comment format for changelog entries
 
@@ -64,7 +64,7 @@ agents:
       - type: script
         shell:
           post_comment:
-            cmd: gh pr comment "${PR_NUMBER}" --repo "${REPO}" --body ${body}
+            cmd: gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
             description: Post a comment on the pull request under review
             args:
               body:
@@ -72,7 +72,8 @@ agents:
                 description: The comment body (markdown)
             required: [body]
           no_changelog:
-            cmd: echo ${reason} > NO_CHANGELOG && gh pr comment "${PR_NUMBER}" --repo "${REPO}" --body "🤖 **No changelog needed**: ${reason}"
+            cmd: |
+              echo "$reason" > NO_CHANGELOG && gh pr comment "$PR_NUMBER" --repo "$REPO" --body "🤖 **No changelog needed**: $reason"
             description: Mark the PR as not needing a changelog entry and post a comment explaining why
             args:
               reason:
