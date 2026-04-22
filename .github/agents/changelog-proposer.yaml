@@ -32,8 +32,7 @@ agents:
          - Code comments or typo fixes
          - Refactors with no behavior change
       4. If no changelog is needed:
-         - Use the `write_no_changelog` tool with the reason.
-         - Use the `post_comment` tool to explain why.
+         - Use the `no_changelog` tool with the reason.
          - Stop.
       5. If a changelog IS needed:
          - Use your tools to read `changelog-29.md` for style reference.
@@ -45,7 +44,7 @@ agents:
 
       ## Comment format for changelog entries
 
-      The comment body should look like:
+      The post_comment body should look like:
 
       ## 📝 Proposed Changelog Entry
       ```markdown changelog
@@ -65,22 +64,16 @@ agents:
       - type: script
         shell:
           post_comment:
-            cmd: gh pr comment ${pr_number} --repo ${repo} --body ${body}
-            description: Post a comment on a pull request
+            cmd: gh pr comment "${PR_NUMBER}" --repo "${REPO}" --body ${body}
+            description: Post a comment on the pull request under review
             args:
-              pr_number:
-                type: string
-                description: The PR number
-              repo:
-                type: string
-                description: The repository (e.g. moby/moby)
               body:
                 type: string
                 description: The comment body (markdown)
-            required: [pr_number, repo, body]
-          write_no_changelog:
-            cmd: echo ${reason} > NO_CHANGELOG
-            description: Mark the PR as not needing a changelog entry
+            required: [body]
+          no_changelog:
+            cmd: echo ${reason} > NO_CHANGELOG && gh pr comment "${PR_NUMBER}" --repo "${REPO}" --body "🤖 **No changelog needed**: ${reason}"
+            description: Mark the PR as not needing a changelog entry and post a comment explaining why
             args:
               reason:
                 type: string

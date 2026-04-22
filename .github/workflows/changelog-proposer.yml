@@ -61,6 +61,8 @@ jobs:
         env:
           OPENAI_BASE_URL: https://models.inference.ai.azure.com
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: "${{ github.event.pull_request.number }}"
+          REPO: ${{ github.repository }}
         with:
           agent: .github/agents/changelog-proposer.yaml
           prompt: "Propose a changelog entry for PR #${{ github.event.pull_request.number }} in ${{ github.repository }}. All data files are in the working directory."
