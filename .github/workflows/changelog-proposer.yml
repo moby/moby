@@ -69,6 +69,7 @@ jobs:
           openai-api-key: ${{ github.token }}
           github-token: ${{ github.token }}
           timeout: "300"
+          debug: true
 
       - name: Print agent output
         if: always() && steps.agent.outputs.output-file
