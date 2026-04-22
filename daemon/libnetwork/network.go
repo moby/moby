@@ -59,10 +59,11 @@ type svcMapEntry struct {
 }
 
 type svcInfo struct {
-	svcMap     setmatrix.SetMatrix[string, svcMapEntry]
-	svcIPv6Map setmatrix.SetMatrix[string, svcMapEntry]
-	ipMap      setmatrix.SetMatrix[string, ipInfo]
-	service    map[string][]servicePorts
+	svcMap      setmatrix.SetMatrix[string, svcMapEntry]
+	svcIPv6Map  setmatrix.SetMatrix[string, svcMapEntry]
+	ipMap       setmatrix.SetMatrix[string, ipInfo]
+	reservedSvc setmatrix.SetMatrix[string, string]
+	service     map[string][]servicePorts
 }
 
 // backing container or host's info
@@ -1360,22 +1361,35 @@ func delIPToName(ipMap *setmatrix.SetMatrix[string, ipInfo], name, serviceID str
 	})
 }
 
+func normalizeSvcName(name string) string {
+	return strings.ToLower(name)
+}
+
 func addNameToIP(svcMap *setmatrix.SetMatrix[string, svcMapEntry], name, serviceID string, epIP net.IP) {
-	// Since DNS name resolution is case-insensitive, Use the lower-case form
-	// of the name as the key into svcMap
-	lowerCaseName := strings.ToLower(name)
-	svcMap.Insert(lowerCaseName, svcMapEntry{
+	svcMap.Insert(normalizeSvcName(name), svcMapEntry{
 		ip:        epIP.String(),
 		serviceID: serviceID,
 	})
 }
 
 func delNameToIP(svcMap *setmatrix.SetMatrix[string, svcMapEntry], name, serviceID string, epIP net.IP) {
-	lowerCaseName := strings.ToLower(name)
-	svcMap.Remove(lowerCaseName, svcMapEntry{
+	svcMap.Remove(normalizeSvcName(name), svcMapEntry{
 		ip:        epIP.String(),
 		serviceID: serviceID,
 	})
+}
+
+func reserveSvcName(svcMap *setmatrix.SetMatrix[string, string], name, recordID string) {
+	svcMap.Insert(normalizeSvcName(name), recordID)
+}
+
+func releaseSvcName(svcMap *setmatrix.SetMatrix[string, string], name, recordID string) {
+	svcMap.Remove(normalizeSvcName(name), recordID)
+}
+
+func hasReservedSvcName(svcMap *setmatrix.SetMatrix[string, string], name string) bool {
+	_, ok := svcMap.Cardinality(normalizeSvcName(name))
+	return ok
 }
 
 // TODO(aker): remove ipMapUpdate param and add a proper method dedicated to update PTR records.
@@ -1448,6 +1462,45 @@ func (n *Network) deleteSvcRecords(eID, name, serviceID string, epIPv4, epIPv6 n
 	if epIPv6 != nil {
 		delNameToIP(&sr.svcIPv6Map, name, serviceID, epIPv6)
 	}
+}
+
+func (n *Network) reserveSvcRecords(name, recordID, method string) {
+	if n.ingress {
+		return
+	}
+	networkID := n.ID()
+	log.G(context.TODO()).Debugf("%s (%.7s).reserveSvcRecords(%s) %s", recordID, networkID, name, method)
+
+	c := n.getController()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	sr, ok := c.svcRecords[networkID]
+	if !ok {
+		sr = &svcInfo{}
+		c.svcRecords[networkID] = sr
+	}
+
+	reserveSvcName(&sr.reservedSvc, name, recordID)
+}
+
+func (n *Network) releaseSvcRecords(name, recordID, method string) {
+	if n.ingress {
+		return
+	}
+	networkID := n.ID()
+	log.G(context.TODO()).Debugf("%s (%.7s).releaseSvcRecords(%s) %s", recordID, networkID, name, method)
+
+	c := n.getController()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	sr, ok := c.svcRecords[networkID]
+	if !ok {
+		return
+	}
+
+	releaseSvcName(&sr.reservedSvc, name, recordID)
 }
 
 func (n *Network) getController() *Controller {
@@ -1935,8 +1988,9 @@ func (n *Network) ResolveName(ctx context.Context, req string, ipType types.IPFa
 	ipSet, ok4 := sr.svcMap.Get(req)
 	ipSet6, ok6 := sr.svcIPv6Map.Get(req)
 	if !ok4 && !ok6 {
-		// No result for v4 or v6, the name doesn't exist.
-		return nil, false
+		// No result for v4 or v6, unless the name is still reserved by service
+		// discovery while there are temporarily no healthy backends.
+		return nil, hasReservedSvcName(&sr.reservedSvc, req)
 	}
 	if ipType == types.IPv6 {
 		ipSet = ipSet6
