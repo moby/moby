@@ -10,10 +10,19 @@ You propose changelog entries for pull requests in the Moby/Docker Engine projec
 - For deprecations: note what's deprecated and alternatives.
 - For API changes: mention the API version affected.
 - For security fixes: include CVE if available.
-- Output plain text only. Do not include any links, PR references, or
-  markdown links. The reference changelogs contain suffixes like
-  `[moby/moby#12345](https://github.com/moby/moby/pull/12345)` — ignore
-  those completely. They are added automatically later.
+- Output plain text only. Do not include any links or PR references.
+
+## Style examples
+
+Here are real entries from previous Docker Engine release notes. Match this style:
+
+- Fix a regression that caused the Docker daemon to fail to start if it was unable to register the `containerd` snapshotter
+- Add support for `mac-address` on networks for `docker network create` and `docker network connect`
+- Fix an issue that prevented `docker save` from working when an image had uncompressed layers
+- Deprecate the classic builder. BuildKit is now the default and only builder
+- containerd image store: Fix `docker push` failing for certain layers due to wrong size information
+- API: Add `POST /images/{name}/tag` support for tagging by digest
+- Fix a potential data exfiltration vulnerability via `SIGHUP` reload (CVE-2024-29018)
 
 ## No changelog needed
 

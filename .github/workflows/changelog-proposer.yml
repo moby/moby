@@ -50,14 +50,8 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           PR_URL="https://github.com/${{ github.repository }}/pull/${PR_NUMBER}"
-          gh pr view "$PR_URL" --json title,body,author,baseRefName,headRefName,files > pr_metadata.json
-          gh pr view "$PR_URL" --json files -q '.files[].path' > changed_files.txt
+          gh pr view "$PR_URL" --json title,body,files > pr_metadata.json
           gh pr diff "$PR_URL" > pr.diff
-
-      - name: Fetch reference changelogs
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/docker/docs/main/content/manuals/engine/release-notes/29.md -o changelog-29.md
-          curl -fsSL https://raw.githubusercontent.com/docker/docs/main/content/manuals/engine/release-notes/28.md -o changelog-28.md
 
       - name: Build prompt input
         env:
@@ -66,33 +60,18 @@ jobs:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           {
-            echo "## PR Information"
-            echo "- PR Number: ${PR_NUMBER}"
-            echo "- Title: ${PR_TITLE}"
-            echo "- Author: ${PR_AUTHOR}"
-            echo "- Repository: ${{ github.repository }}"
+            echo "## PR #${PR_NUMBER}: ${PR_TITLE}"
+            echo "Author: ${PR_AUTHOR}"
             echo ""
-            echo "## PR Description"
+            echo "## Description"
             jq -r '.body // "No description provided."' pr_metadata.json
             echo ""
             echo "## Changed Files"
-            cat changed_files.txt
+            jq -r '.files[].path' pr_metadata.json
             echo ""
-            echo "## Diff"
+            echo "## Diff (truncated)"
             echo '```diff'
-            head -c 50000 pr.diff
-            echo '```'
-            echo ""
-            echo "## Reference Changelogs (for style only)"
-            echo ""
-            echo "### Docker Engine 29.x"
-            echo '```markdown'
-            cat changelog-29.md
-            echo '```'
-            echo ""
-            echo "### Docker Engine 28.x"
-            echo '```markdown'
-            cat changelog-28.md
+            head -c 20000 pr.diff
             echo '```'
           } > prompt-input.md
 
@@ -102,12 +81,13 @@ jobs:
         id: inference
         uses: actions/ai-inference@e09e65981758de8b2fdab13c2bfb7c7d5493b0b6 # v2.0.7
         with:
-          model: openai/gpt-5-mini
+          model: openai/gpt-4.1
           system-prompt-file: .github/prompts/changelog-proposer-system.txt
           prompt-file: ./prompt-input.md
           max-completion-tokens: "2000"
 
       - name: Print response
+        if: always()
         run: |
           echo "=== Model Response ==="
           cat "${{ steps.inference.outputs.response-file }}"
