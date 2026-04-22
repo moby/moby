@@ -21,8 +21,6 @@ agents:
       - `changelog-29.md` — Docker Engine 29.x release notes (style reference)
       - `changelog-28.md` — Docker Engine 28.x release notes (style reference)
 
-      You can also use `gh` and `git` commands to explore the repository.
-
       ## Process
 
       1. Use your tools to read `pr_metadata.json` and `changed_files.txt`.
@@ -34,16 +32,16 @@ agents:
          - Code comments or typo fixes
          - Refactors with no behavior change
       4. If no changelog is needed:
-         - Use the shell tool to run: echo "<reason>" > NO_CHANGELOG
-         - Use the shell tool to run: gh pr comment <number> --repo moby/moby --body "🤖 **No changelog needed**: <reason>"
+         - Use the `write_no_changelog` tool with the reason.
+         - Use the `post_comment` tool to explain why.
          - Stop.
       5. If a changelog IS needed:
          - Use your tools to read `changelog-29.md` for style reference.
          - Write a one-sentence changelog entry.
-         - Use the shell tool to post it: gh pr comment <number> --repo moby/moby --body "<your comment>"
+         - Use the `post_comment` tool to post it.
 
-      IMPORTANT: You MUST actually execute commands using your shell tool.
-      Do NOT just print commands in your response. Use the tools to run them.
+      IMPORTANT: You MUST use the provided tools to take actions.
+      Do NOT just print commands in your response.
 
       ## Comment format for changelog entries
 
@@ -64,14 +62,32 @@ agents:
     toolsets:
       - type: filesystem
         tools: [read_file, read_multiple_files, list_directory]
-      - type: shell
+      - type: script
+        shell:
+          post_comment:
+            cmd: gh pr comment ${pr_number} --repo ${repo} --body ${body}
+            description: Post a comment on a pull request
+            args:
+              pr_number:
+                type: string
+                description: The PR number
+              repo:
+                type: string
+                description: The repository (e.g. moby/moby)
+              body:
+                type: string
+                description: The comment body (markdown)
+            required: [pr_number, repo, body]
+          write_no_changelog:
+            cmd: echo ${reason} > NO_CHANGELOG
+            description: Mark the PR as not needing a changelog entry
+            args:
+              reason:
+                type: string
+                description: One-line reason why no changelog is needed
+            required: [reason]
 
 permissions:
   allow:
     - shell:cmd=echo *
     - shell:cmd=gh *
-    - shell:cmd=git *
-    - shell:cmd=grep *
-    - shell:cmd=cat *
-    - shell:cmd=head *
-    - shell:cmd=wc *
