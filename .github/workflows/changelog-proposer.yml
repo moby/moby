@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: read
-  models: read
 
 jobs:
   check-changelog:
@@ -42,7 +41,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          sparse-checkout: .github/prompts
+          fetch-depth: 0
 
       - name: Get PR information
         env:
@@ -50,65 +49,94 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           PR_URL="https://github.com/${{ github.repository }}/pull/${PR_NUMBER}"
-          gh pr view "$PR_URL" --json title,body,files > pr_metadata.json
+
+          # Get PR metadata
+          gh pr view "$PR_URL" --json title,body,author,baseRefName,headRefName,files > pr_metadata.json
+
+          # Get changed files
+          gh pr view "$PR_URL" --json files -q '.files[].path' > changed_files.txt
+
+          # Get the diff
           gh pr diff "$PR_URL" > pr.diff
 
-      - name: Build prompt input
+      - name: Fetch reference changelogs
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/docker/docs/main/content/manuals/engine/release-notes/29.md -o changelog-29.md
+          curl -fsSL https://raw.githubusercontent.com/docker/docs/main/content/manuals/engine/release-notes/28.md -o changelog-28.md
+
+      - name: Build prompt file
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           {
-            echo "## PR #${PR_NUMBER}: ${PR_TITLE}"
-            echo "Author: ${PR_AUTHOR}"
+            echo "# Changelog Entry Request"
             echo ""
-            echo "## Description"
+            echo "## PR Information"
+            echo "- **PR Number**: ${PR_NUMBER}"
+            echo "- **Title**: ${PR_TITLE}"
+            echo "- **Author**: ${PR_AUTHOR}"
+            echo "- **Repository**: ${{ github.repository }}"
+            echo ""
+            echo "## PR Description"
             jq -r '.body // "No description provided."' pr_metadata.json
             echo ""
             echo "## Changed Files"
-            jq -r '.files[].path' pr_metadata.json
+            cat changed_files.txt
             echo ""
-            echo "## Diff (truncated)"
+            echo "## Diff"
             echo '```diff'
-            head -c 20000 pr.diff
+            head -c 50000 pr.diff
             echo '```'
-          } > prompt-input.md
+            echo ""
+            echo "## Reference Changelogs"
+            echo ""
+            echo "Use the following real release notes as style/format reference."
+            echo ""
+            echo "### Docker Engine 29.x"
+            echo '```markdown'
+            cat changelog-29.md
+            echo '```'
+            echo ""
+            echo "### Docker Engine 28.x"
+            echo '```markdown'
+            cat changelog-28.md
+            echo '```'
+            echo ""
+            echo "---"
+            echo ""
+            echo "Please propose a changelog entry for this PR based on the diff and"
+            echo "changelogs from the previous versions. Post a comment with your proposed entry."
+          } > prompt.md
 
-          echo "Prompt input size: $(wc -c < prompt-input.md) bytes"
+      - name: Print prompt
+        run: cat prompt.md
 
-      - name: Run model
-        id: inference
-        uses: actions/ai-inference@e09e65981758de8b2fdab13c2bfb7c7d5493b0b6 # v2.0.7
+      - name: Run changelog proposer
+        id: agent
+        uses: docker/cagent-action@d98096f432f2aea5091c811852c4da804e60623a # v1.4.1
+        env:
+          OPENAI_BASE_URL: https://models.inference.ai.azure.com
         with:
-          model: openai/gpt-4.1
-          system-prompt-file: .github/prompts/changelog-proposer-system.txt
-          prompt-file: ./prompt-input.md
-          max-completion-tokens: "2000"
+          agent: .github/agents/changelog-proposer.yaml
+          prompt: "Propose a changelog entry for this PR. See the attached prompt file for details."
+          add-prompt-files: prompt.md
+          openai-api-key: ${{ github.token }}
+          github-token: ${{ github.token }}
+          timeout: "300"
 
-      - name: Print response
-        if: always()
-        run: |
-          echo "=== Model Response ==="
-          cat "${{ steps.inference.outputs.response-file }}"
+      - name: Print agent output
+        if: always() && steps.agent.outputs.output-file
+        run: cat "${{ steps.agent.outputs.output-file }}"
 
-      - name: Post result
+      - name: Remove label if no changelog needed
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          RESPONSE_FILE: ${{ steps.inference.outputs.response-file }}
         run: |
-          if grep -q '^NO_CHANGELOG:' "$RESPONSE_FILE"; then
-            reason=$(sed -n 's/^NO_CHANGELOG: *//p' "$RESPONSE_FILE")
-            echo "No changelog needed: $reason"
-            gh pr comment "$PR_NUMBER" \
-              --repo "${{ github.repository }}" \
-              --body "🤖 **No changelog needed**: $reason"
-            gh pr edit "$PR_NUMBER" \
-              --repo "${{ github.repository }}" \
-              --remove-label "impact/changelog"
-          else
-            gh pr comment "$PR_NUMBER" \
-              --repo "${{ github.repository }}" \
-              --body-file "$RESPONSE_FILE"
+          if [ -f NO_CHANGELOG ]; then
+            echo "Agent determined no changelog is needed: $(cat NO_CHANGELOG)"
+            gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --remove-label "impact/changelog"
           fi
