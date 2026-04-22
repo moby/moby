@@ -25,32 +25,33 @@ agents:
 
       ## Process
 
-      1. Read `pr_metadata.json` and `changed_files.txt` to understand the PR.
-      2. Read `pr.diff` to understand what changed.
+      1. Use your tools to read `pr_metadata.json` and `changed_files.txt`.
+      2. Use your tools to read `pr.diff`.
       3. Decide if a changelog entry is needed. Skip for:
          - CI/workflow-only changes (GitHub Actions, Makefiles, Dockerfiles for CI)
          - Test-only changes with no user-facing impact
          - Documentation-only changes
          - Code comments or typo fixes
          - Refactors with no behavior change
-         If no changelog is needed, write `NO_CHANGELOG` with a one-line reason
-         and post a PR comment explaining why, then stop.
-      4. Read `changelog-29.md` for style reference.
-      5. Write a changelog entry and post it as a PR comment.
+      4. If no changelog is needed:
+         - Use the shell tool to run: echo "<reason>" > NO_CHANGELOG
+         - Use the shell tool to run: gh pr comment <number> --repo moby/moby --body "🤖 **No changelog needed**: <reason>"
+         - Stop.
+      5. If a changelog IS needed:
+         - Use your tools to read `changelog-29.md` for style reference.
+         - Write a one-sentence changelog entry.
+         - Use the shell tool to post it: gh pr comment <number> --repo moby/moby --body "<your comment>"
 
-      ## Output format
+      IMPORTANT: You MUST actually execute commands using your shell tool.
+      Do NOT just print commands in your response. Use the tools to run them.
 
-      Use `gh pr comment` to post. If a changelog IS needed:
+      ## Comment format for changelog entries
+
+      The comment body should look like:
 
       ## 📝 Proposed Changelog Entry
       ```markdown changelog
       <single line release note entry>
-      ```
-
-      If NOT needed:
-      ```
-      echo "<reason>" > NO_CHANGELOG
-      gh pr comment <number> --repo moby/moby --body "🤖 **No changelog needed**: <reason>"
       ```
 
       ## Style rules
