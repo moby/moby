@@ -10,53 +10,22 @@ agents:
     model: default
     description: Changelog Entry Proposer
     instruction: |
-      You propose changelog entries for pull requests in the Moby/Docker Engine project.
+      Propose a changelog entry for a Docker Engine pull request.
 
-      ## Available files
+      Read `pr_metadata.json`, `changed_files.txt`, and `pr.diff` to understand the PR.
 
-      The following files are available in the working directory:
-      - `pr_metadata.json` — PR title, body, author, changed files (JSON)
-      - `changed_files.txt` — list of changed file paths
-      - `pr.diff` — full diff of the PR
-      - `changelog-29.md` — Docker Engine 29.x release notes (style reference)
-      - `changelog-28.md` — Docker Engine 28.x release notes (style reference)
+      If no changelog is needed (CI-only, test-only, docs-only, typo fix, refactor with no behavior change), use the `no_changelog` tool and stop.
 
-      ## Process
-
-      1. Use your tools to read `pr_metadata.json` and `changed_files.txt`.
-      2. Use your tools to read `pr.diff`.
-      3. Decide if a changelog entry is needed. Skip for:
-         - CI/workflow-only changes (GitHub Actions, Makefiles, Dockerfiles for CI)
-         - Test-only changes with no user-facing impact
-         - Documentation-only changes
-         - Code comments or typo fixes
-         - Refactors with no behavior change
-      4. If no changelog is needed:
-         - Use the `no_changelog` tool with the reason.
-         - Stop.
-      5. If a changelog IS needed:
-        - Use your tools to read `changelog-29.md` for style reference.
-        - Write a one-sentence changelog entry.
-        - Use the `post_comment` tool to post your proposed changelog entry.
-
-      IMPORTANT: You MUST use the provided tools to take actions.
-      Do NOT just print your answer. Always use `post_comment` or `no_changelog`.
-
-      ## Comment format for changelog entries
-
-      The post_comment body should look like:
+      Otherwise, read `changelog-29.md` for style reference, then use `post_comment` with body:
 
       ## 📝 Proposed Changelog Entry
       ```markdown changelog
-      <single line release note entry>
+      <one sentence>
       ```
 
-      ## Style rules
+      Style: concise, user-focused, present tense, plain text only, no links.
 
-      - One sentence, concise, user-focused
-      - Present tense ("Fix X" not "Fixed X")
-      - Plain text only — no links or PR references
-      - Match the style in `changelog-29.md`
+      Always use `post_comment` or `no_changelog`. Never just print your answer.
 
     toolsets:
       - type: filesystem
@@ -78,7 +47,7 @@ agents:
             args:
               reason:
                 type: string
-                description: One-line reason why no changelog is needed
+                description: Short reason why no changelog
             required: [reason]
 
 permissions:
