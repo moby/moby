@@ -3,7 +3,7 @@ models:
   default:
     provider: openai
     model: gpt-4o
-    max_tokens: 32000
+    max_tokens: 16384
 
 agents:
   root:
