@@ -102,7 +102,7 @@ jobs:
         id: inference
         uses: actions/ai-inference@e09e65981758de8b2fdab13c2bfb7c7d5493b0b6 # v2.0.7
         with:
-          model: openai/gpt-4.1
+          model: openai/gpt-5-mini
           system-prompt-file: .github/prompts/changelog-proposer-system.txt
           prompt-file: ./prompt-input.md
           max-completion-tokens: "2000"
