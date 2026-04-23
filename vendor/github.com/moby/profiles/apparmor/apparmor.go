@@ -18,6 +18,8 @@ const profileDirectory = "/etc/apparmor.d"
 
 // profileData holds information about the given profile for generation.
 type profileData struct {
+	// Abi is the ABI version to use, if supported by the host.
+	Abi string
 	// Name is profile name.
 	Name string
 	// DaemonProfile is the profile name of our daemon.
@@ -33,6 +35,11 @@ func (p *profileData) generateDefault(out io.Writer) error {
 	compiled, err := template.New("apparmor_profile").Parse(baseTemplate)
 	if err != nil {
 		return err
+	}
+
+	const abi = "abi/3.0"
+	if macroExists(abi) {
+		p.Abi = abi
 	}
 
 	if macroExists("tunables/global") {

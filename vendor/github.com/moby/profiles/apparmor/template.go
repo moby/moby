@@ -9,6 +9,8 @@ package apparmor
 
 // baseTemplate defines the default apparmor profile for containers.
 const baseTemplate = `
+{{if .Abi}}abi <{{.Abi}}>,
+{{end}}
 {{range $value := .Imports}}
 {{$value}}
 {{end}}
