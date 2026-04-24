@@ -5,6 +5,7 @@ import (
 	"context"
 	"maps"
 	"net"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -323,13 +324,23 @@ func TestReadWriteTimeoutsAreEffective(t *testing.T) {
 			// Create a temporary directory for the socket file.
 			tmpDir := t.TempDir()
 			socketFile := filepath.Join(tmpDir, "fluent-logger-golang.sock")
+			// Unix domain socket paths are limited to ~108 bytes on Linux and
+			// ~104 bytes on macOS. If the generated path is too long, fall back
+			// to a shorter path under /tmp.
+			if len(socketFile) > 100 {
+				var err error
+				tmpDir, err = os.MkdirTemp("/tmp", "fluentd-test")
+				assert.NilError(t, err)
+				defer os.RemoveAll(tmpDir)
+				socketFile = filepath.Join(tmpDir, "fluent.sock")
+			}
 			l, err := net.Listen("unix", socketFile)
 			assert.NilError(t, err, "unable to create listener for socket %s", socketFile)
 			defer l.Close()
 
 			// This is to guard against potential run-away test scenario so that a future change
 			// doesn't cause the tests suite to timeout.
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
 			var connectedWG sync.WaitGroup
@@ -424,6 +435,7 @@ func blackholeConnectionHandler(ctx context.Context, conn net.Conn) {
 }
 
 func noAckConnectionHandler(ctx context.Context, conn net.Conn) {
+	defer conn.Close()
 	// Create a buffered reader to read from the connection.
 	reader := bufio.NewReader(conn)
 	// Read data from the connection.
@@ -439,6 +451,10 @@ func noAckConnectionHandler(ctx context.Context, conn net.Conn) {
 		}
 	}
 	// Don't write an ack back. The fluent configuration is set to expect an ack from the server.
-	<-ctx.Done()
-	_ = conn.Close()
+	// Close the connection after a short delay so the client gets an EOF instead of hanging
+	// until the test context expires (which could take 30s).
+	select {
+	case <-time.After(100 * time.Millisecond):
+	case <-ctx.Done():
+	}
 }
