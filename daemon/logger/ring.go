@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 const (
@@ -99,18 +100,10 @@ func (r *ringLogger) Close() error {
 	r.buffer.Close()
 	r.wg.Wait()
 	// empty out the queue
-	var logErr bool
 	for _, msg := range r.buffer.Drain() {
-		if logErr {
-			// some error logging a previous message, so re-insert to message pool
-			// and assume log driver is hosed
-			PutMessage(msg)
-			continue
-		}
-
 		if err := r.l.Log(msg); err != nil {
 			logDriverError(r.l.Name(), string(msg.Line), err)
-			logErr = true
+			PutMessage(msg)
 		}
 	}
 	return r.l.Close()
@@ -132,6 +125,14 @@ func (r *ringLogger) run() {
 		}
 		if err := r.l.Log(msg); err != nil {
 			logDriverError(r.l.Name(), string(msg.Line), err)
+			// Requeue the message at the front of the buffer so it can be
+			// retried later. Only drop if the buffer is full (requeue fails).
+			if !r.buffer.requeue(msg) {
+				PutMessage(msg)
+			}
+			// Brief sleep to avoid busy-looping if the logger is persistently
+			// failing.
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }
@@ -219,6 +220,20 @@ func (r *messageRing) Close() {
 	r.closed = true
 	r.wait.Broadcast()
 	r.mu.Unlock()
+}
+
+// requeue puts a message back at the front of the queue.
+// It returns false if the buffer is closed.
+func (r *messageRing) requeue(m *Message) bool {
+	r.mu.Lock()
+	if r.closed {
+		r.mu.Unlock()
+		return false
+	}
+	r.queue = append([]*Message{m}, r.queue...)
+	r.sizeBytes += int64(len(m.Line))
+	r.mu.Unlock()
+	return true
 }
 
 // Drain drains all messages from the queue.

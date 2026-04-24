@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -150,6 +151,120 @@ type nopLogger struct{}
 func (nopLogger) Name() string       { return "nopLogger" }
 func (nopLogger) Close() error       { return nil }
 func (nopLogger) Log(*Message) error { return nil }
+
+// flakyLogger fails the first N calls to Log, then succeeds.
+type flakyLogger struct {
+	mu        sync.Mutex
+	failCount int
+	logs      []*Message
+}
+
+func (l *flakyLogger) Name() string { return "flaky" }
+func (l *flakyLogger) Close() error { return nil }
+func (l *flakyLogger) Log(msg *Message) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.failCount > 0 {
+		l.failCount--
+		return errors.New("simulated log failure")
+	}
+	l.logs = append(l.logs, msg)
+	return nil
+}
+
+// TestRingLoggerRetryOnError verifies that messages are not dropped when the
+// underlying logger returns transient errors. They should be requeued and
+// delivered once the logger recovers.
+func TestRingLoggerRetryOnError(t *testing.T) {
+	flaky := &flakyLogger{failCount: 3}
+	ring := newRingLogger(flaky, Info{}, 100)
+	defer ring.Close()
+
+	msg := &Message{Line: []byte("hello")}
+	if err := ring.Log(msg); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for the consumer to retry and eventually succeed.
+	time.Sleep(500 * time.Millisecond)
+
+	flaky.mu.Lock()
+	if len(flaky.logs) != 1 {
+		t.Fatalf("expected 1 log message, got %d", len(flaky.logs))
+	}
+	if string(flaky.logs[0].Line) != "hello" {
+		t.Fatalf("expected 'hello', got %q", string(flaky.logs[0].Line))
+	}
+	flaky.mu.Unlock()
+}
+
+// TestRingLoggerDoesNotDropOnError verifies that multiple messages are buffered
+// while the logger is failing and all are eventually delivered.
+func TestRingLoggerDoesNotDropOnError(t *testing.T) {
+	flaky := &flakyLogger{failCount: 5}
+	ring := newRingLogger(flaky, Info{}, 1000)
+	defer ring.Close()
+
+	for i := range 3 {
+		if err := ring.Log(&Message{Line: []byte(strconv.Itoa(i))}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Wait for the consumer to work through the retries.
+	time.Sleep(800 * time.Millisecond)
+
+	flaky.mu.Lock()
+	if len(flaky.logs) != 3 {
+		t.Fatalf("expected 3 log messages, got %d", len(flaky.logs))
+	}
+	for i := range 3 {
+		if string(flaky.logs[i].Line) != strconv.Itoa(i) {
+			t.Fatalf("expected message %d to be %q, got %q", i, strconv.Itoa(i), string(flaky.logs[i].Line))
+		}
+	}
+	flaky.mu.Unlock()
+}
+
+// TestRingLoggerRequeuePreservesOrder verifies that message order is preserved
+// when the logger fails intermittently.
+func TestRingLoggerRequeuePreservesOrder(t *testing.T) {
+	flaky := &flakyLogger{failCount: 2}
+	ring := newRingLogger(flaky, Info{}, 1000)
+	defer ring.Close()
+
+	// Queue three messages. The first will fail twice, then succeed.
+	for i := range 3 {
+		if err := ring.Log(&Message{Line: []byte(strconv.Itoa(i))}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Wait for retries to complete.
+	time.Sleep(500 * time.Millisecond)
+
+	flaky.mu.Lock()
+	if len(flaky.logs) != 3 {
+		t.Fatalf("expected 3 log messages, got %d", len(flaky.logs))
+	}
+	for i := range 3 {
+		if string(flaky.logs[i].Line) != strconv.Itoa(i) {
+			t.Fatalf("expected message %d to be %q, got %q", i, strconv.Itoa(i), string(flaky.logs[i].Line))
+		}
+	}
+	flaky.mu.Unlock()
+}
+
+// TestRingLoggerRequeueClosed verifies that requeue fails gracefully when the
+// ring is closed.
+func TestRingLoggerRequeueClosed(t *testing.T) {
+	r := newRing(100)
+	r.Close()
+	msg := &Message{Line: []byte("test")}
+	if r.requeue(msg) {
+		t.Fatal("expected requeue to fail on closed ring")
+	}
+}
 
 func BenchmarkRingLoggerThroughputNoReceiver(b *testing.B) {
 	mockLog := &mockLogger{make(chan *Message)}
