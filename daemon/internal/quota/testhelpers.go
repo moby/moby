@@ -3,8 +3,10 @@
 package quota
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 
 	"golang.org/x/sys/unix"
@@ -20,7 +22,31 @@ func CanTestQuota() (string, bool) {
 	if err != nil {
 		return "mkfs.xfs not found in PATH", false
 	}
+	if !kernelSupportsXFSQuota() {
+		return "kernel does not support XFS project quotas (CONFIG_XFS_QUOTA)", false
+	}
 	return "", true
+}
+
+// kernelSupportsXFSQuota checks whether the running kernel has XFS quota
+// support compiled in by inspecting known kernel config locations.
+func kernelSupportsXFSQuota() bool {
+	// Check /proc/config.gz (common on many distros).
+	if data, err := os.ReadFile("/proc/config.gz"); err == nil {
+		return bytes.Contains(data, []byte("CONFIG_XFS_QUOTA=y"))
+	}
+
+	// Check /boot/config-$(uname -r).
+	uname, err := exec.Command("uname", "-r").Output()
+	if err == nil {
+		configPath := "/boot/config-" + strings.TrimSpace(string(uname))
+		if data, err := os.ReadFile(configPath); err == nil {
+			return bytes.Contains(data, []byte("CONFIG_XFS_QUOTA=y"))
+		}
+	}
+
+	// Unable to determine kernel config; allow the test to run.
+	return true
 }
 
 // PrepareQuotaTestImage - prepares an xfs prjquota test image
