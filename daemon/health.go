@@ -137,7 +137,11 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 		log.G(ctx).WithContext(ctx).Debugf("Health check for container %s taking too long", cntr.ID)
 		// Wait for probe to exit (it might take some time to call containerd to kill
 		// the process and we don't want dying probes to pile up).
-		<-execErr
+		select {
+		case <-execErr:
+		case <-time.After(30 * time.Second):
+			log.G(ctx).Warnf("Health check for container %s did not exit after cancel", cntr.ID)
+		}
 
 		var msg string
 		if out := output.String(); out != "" {
@@ -314,7 +318,11 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 				cancelProbe()
 				// Wait for probe to exit (it might take a while to respond to the TERM
 				// signal and we don't want dying probes to pile up).
-				<-results
+				select {
+				case <-results:
+				case <-time.After(30 * time.Second):
+					log.G(ctx).Warnf("Health check probe for container %s did not exit after cancel", c.ID)
+				}
 				return
 			case result := <-results:
 				handleProbeResult(d, c, result, stop)
