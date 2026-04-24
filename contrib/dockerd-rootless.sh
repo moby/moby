@@ -214,6 +214,17 @@ else
 		mount_directory /etc/ssl "--rbind"
 	fi
 
+	if [ "$(stat -c %T -f /etc)" = "tmpfs" ] && [ -L "/etc/resolv.conf" ]; then
+		# Workaround for DNS resolution failing when /etc/resolv.conf is a symlink
+		# that points through /var/run -> /run. Resolving the symlink and bind-mounting
+		# the real file ensures dockerd can always read valid DNS configuration.
+		# https://github.com/moby/moby/issues/52035
+		RESOLV_CONF_REALPATH=$(realpath /etc/resolv.conf)
+		rm -f /etc/resolv.conf
+		touch /etc/resolv.conf
+		mount --bind "$RESOLV_CONF_REALPATH" /etc/resolv.conf
+	fi
+
 	# When running with --firewall-backend=nftables, IP forwarding needs to be enabled
 	# because the daemon won't enable it. IP forwarding is harmless in the rootless
 	# netns, there's only a single external interface and only Docker uses the netns.
