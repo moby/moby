@@ -1,3 +1,61 @@
+# 1.9.4
+
+Fixes:
+  * Remove uses of deprecated `ioutil` package
+
+Features:
+  * Add GNU/Hurd support
+  * Add WASI wasip1 support
+
+Code quality:
+  * Update minimum supported Go version to 1.17
+  * Documentation updates
+
+
+# 1.9.3
+
+Fixes:
+  * Re-apply fix for potential denial of service in logrus.Writer() when logging >64KB single-line payloads without newlines (#1376)
+  * Fix panic in Writer
+
+
+# 1.9.2
+
+Fixes:
+  * Revert Writer DoS fix (#1376) due to regression
+
+
+# 1.9.1
+
+Fixes:
+  * Fix potential denial of service in logrus.Writer() when logging >64KB single-line payloads without newlines (#1376)
+
+
+# 1.9.0
+
+Fixes:
+  * Multiple concurrency and race condition fixes
+  * Improve Windows terminal and ANSI handling
+
+Code quality:
+  * Internal cleanups and modernization
+
+
+# 1.8.3
+
+Fixes:
+  * Fix potential denial of service in logrus.Writer() when logging >64KB single-line payloads without newlines (#1376)
+
+
+# 1.8.2
+
+Features:
+  * Add support for the logger private buffer pool (#1253)
+
+Fixes:
+  * Fix race condition for SetFormatter and SetReportCaller
+  * Fix data race in hooks test package
+
 # 1.8.1
 Code quality:
   * move magefile in its own subdir/submodule to remove magefile dependency on logrus consumer
