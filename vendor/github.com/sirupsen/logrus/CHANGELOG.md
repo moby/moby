@@ -1,4 +1,90 @@
-# 1.8.1
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## 1.10.0 (unreleased)
+
+Fixes:
+  * Fix reentrant logging deadlocks in formatter paths.
+  * Fix race conditions in formatter and entry handling.
+  * Improve concurrency safety around formatter and hook access.
+
+Features:
+  * Basic `slog` hook for bridging Logrus entries to `log/slog`.
+  * Add minimal, composable logging interfaces for each log level. This enables
+    consumers to depend on narrower interfaces, making it easier to substitute
+    or adapt logging implementations.
+
+Changed:
+  * Raise minimum supported Go version to 1.23.
+  * Improve TextFormatter performance and reduce allocations.
+  * Optimize Entry hot paths (including WithError and caller reporting).
+  * TextFormatter now renders `[]byte` values as raw/quoted strings instead of slice-of-ints.
+
+Performance:
+  * ~17% geomean runtime improvement and ~26% throughput increase overall.
+  * Significant allocation reductions across TextFormatter and Entry paths (large reductions in colored/text formatter cases).
+
+
+## 1.9.4
+
+Fixes:
+  * Remove uses of deprecated `ioutil` package
+
+Features:
+  * Add GNU/Hurd support
+  * Add WASI wasip1 support
+
+Code quality:
+  * Update minimum supported Go version to 1.17
+  * Documentation updates
+
+
+## 1.9.3
+
+Fixes:
+  * Re-apply fix for potential denial of service in logrus.Writer() when logging >64KB single-line payloads without newlines (#1376)
+  * Fix panic in Writer
+
+
+## 1.9.2
+
+Fixes:
+  * Revert Writer DoS fix (#1376) due to regression
+
+
+## 1.9.1
+
+Fixes:
+  * Fix potential denial of service in logrus.Writer() when logging >64KB single-line payloads without newlines (#1376)
+
+
+## 1.9.0
+
+Fixes:
+  * Multiple concurrency and race condition fixes
+  * Improve Windows terminal and ANSI handling
+
+Code quality:
+  * Internal cleanups and modernization
+
+
+## 1.8.3
+
+Fixes:
+  * Fix potential denial of service in logrus.Writer() when logging >64KB single-line payloads without newlines (#1376)
+
+
+## 1.8.2
+
+Features:
+  * Add support for the logger private buffer pool (#1253)
+
+Fixes:
+  * Fix race condition for SetFormatter and SetReportCaller
+  * Fix data race in hooks test package
+
+## 1.8.1
 Code quality:
   * move magefile in its own subdir/submodule to remove magefile dependency on logrus consumer
   * improve timestamp format documentation
@@ -7,11 +93,11 @@ Fixes:
   * fix race condition on logger hooks
 
 
-# 1.8.0
+## 1.8.0
 
 Correct versioning number replacing v1.7.1.
 
-# 1.7.1
+## 1.7.1
 
 Beware this release has introduced a new public API and its semver is therefore incorrect.
 
@@ -26,7 +112,7 @@ Fixes:
 Features:
   * build support for zos
 
-# 1.7.0
+## 1.7.0
 Fixes:
   * the dependency toward a windows terminal library has been removed
 
@@ -34,7 +120,7 @@ Features:
   * a new buffer pool management API has been added
   * a set of `<LogLevel>Fn()` functions have been added
 
-# 1.6.0
+## 1.6.0
 Fixes:
   * end of line cleanup
   * revert the entry concurrency bug fix which leads to deadlock under some circumstances
@@ -43,7 +129,7 @@ Fixes:
 Features:
   * add an option to the `TextFormatter` to completely disable fields quoting
 
-# 1.5.0
+## 1.5.0
 Code quality:
   * add golangci linter run on travis
 
@@ -57,9 +143,9 @@ Feature:
   * add a `DisableHTMLEscape` option in the `JSONFormatter`
   * add `ForceQuote` and `PadLevelText` options in the `TextFormatter`
 
-# 1.4.2
+## 1.4.2
   * Fixes build break for plan9, nacl, solaris
-# 1.4.1
+## 1.4.1
 This new release introduces:
   * Enhance TextFormatter to not print caller information when they are empty (#944)
   * Remove dependency on golang.org/x/crypto (#932, #943)
@@ -67,7 +153,7 @@ This new release introduces:
 Fixes:
   * Fix Entry.WithContext method to return a copy of the initial entry (#941)
 
-# 1.4.0
+## 1.4.0
 This new release introduces:
   * Add `DeferExitHandler`, similar to `RegisterExitHandler` but prepending the handler to the list of handlers (semantically like `defer`) (#848).
   * Add `CallerPrettyfier` to `JSONFormatter` and `TextFormatter` (#909, #911)
@@ -80,7 +166,7 @@ Fixes:
   * Fix race condition in `getCaller` (#916).
 
 
-# 1.3.0
+## 1.3.0
 This new release introduces:
   * Log, Logf, Logln functions for Logger and Entry that take a Level
 
@@ -92,19 +178,19 @@ Fixes:
   * Pointer to func as field in JSONFormatter (#870)
   * Properly marshal Levels (#873)
 
-# 1.2.0
+## 1.2.0
 This new release introduces:
   * A new method `SetReportCaller` in the `Logger` to enable the file, line and calling function from which the trace has been issued
   * A new trace level named `Trace` whose level is below `Debug`
   * A configurable exit function to be called upon a Fatal trace
   * The `Level` object now implements `encoding.TextUnmarshaler` interface
 
-# 1.1.1
+## 1.1.1
 This is a bug fix release.
   * fix the build break on Solaris
   * don't drop a whole trace in JSONFormatter when a field param is a function pointer which can not be serialized
 
-# 1.1.0
+## 1.1.0
 This new release introduces:
   * several fixes:
     * a fix for a race condition on entry formatting
@@ -122,7 +208,7 @@ This new release introduces:
   * the field sort function is now configurable for text formatter
   * the CLICOLOR and CLICOLOR\_FORCE environment variable support in text formater
 
-# 1.0.6
+## 1.0.6
 
 This new release introduces:
   * a new api WithTime which allows to easily force the time of the log entry
@@ -134,71 +220,71 @@ This new release introduces:
   * a new configuration of the textformatter to configure the name of the default keys
   * a new configuration of the text formatter to disable the level truncation
 
-# 1.0.5
+## 1.0.5
 
 * Fix hooks race (#707)
 * Fix panic deadlock (#695)
 
-# 1.0.4
+## 1.0.4
 
 * Fix race when adding hooks (#612)
 * Fix terminal check in AppEngine (#635)
 
-# 1.0.3
+## 1.0.3
 
 * Replace example files with testable examples
 
-# 1.0.2
+## 1.0.2
 
 * bug: quote non-string values in text formatter (#583)
 * Make (*Logger) SetLevel a public method
 
-# 1.0.1
+## 1.0.1
 
 * bug: fix escaping in text formatter (#575)
 
-# 1.0.0
+## 1.0.0
 
 * Officially changed name to lower-case
 * bug: colors on Windows 10 (#541)
 * bug: fix race in accessing level (#512)
 
-# 0.11.5
+## 0.11.5
 
 * feature: add writer and writerlevel to entry (#372)
 
-# 0.11.4
+## 0.11.4
 
 * bug: fix undefined variable on solaris (#493)
 
-# 0.11.3
+## 0.11.3
 
 * formatter: configure quoting of empty values (#484)
 * formatter: configure quoting character (default is `"`) (#484)
 * bug: fix not importing io correctly in non-linux environments (#481)
 
-# 0.11.2
+## 0.11.2
 
 * bug: fix windows terminal detection (#476)
 
-# 0.11.1
+## 0.11.1
 
 * bug: fix tty detection with custom out (#471)
 
-# 0.11.0
+## 0.11.0
 
 * performance: Use bufferpool to allocate (#370)
 * terminal: terminal detection for app-engine (#343)
 * feature: exit handler (#375)
 
-# 0.10.0
+## 0.10.0
 
 * feature: Add a test hook (#180)
 * feature: `ParseLevel` is now case-insensitive (#326)
 * feature: `FieldLogger` interface that generalizes `Logger` and `Entry` (#308)
 * performance: avoid re-allocations on `WithFields` (#335)
 
-# 0.9.0
+## 0.9.0
 
 * logrus/text_formatter: don't emit empty msg
 * logrus/hooks/airbrake: move out of main repository
@@ -210,25 +296,25 @@ This new release introduces:
 * logrus/core: support `WithError` on logger
 * logrus/core: Solaris support
 
-# 0.8.7
+## 0.8.7
 
 * logrus/core: fix possible race (#216)
 * logrus/doc: small typo fixes and doc improvements
 
 
-# 0.8.6
+## 0.8.6
 
 * hooks/raven: allow passing an initialized client
 
-# 0.8.5
+## 0.8.5
 
 * logrus/core: revert #208
 
-# 0.8.4
+## 0.8.4
 
 * formatter/text: fix data race (#218)
 
-# 0.8.3
+## 0.8.3
 
 * logrus/core: fix entry log level (#208)
 * logrus/core: improve performance of text formatter by 40%
@@ -236,24 +322,24 @@ This new release introduces:
 * logrus/core: add support for DragonflyBSD and NetBSD
 * formatter/text: print structs more verbosely
 
-# 0.8.2
+## 0.8.2
 
 * logrus: fix more Fatal family functions
 
-# 0.8.1
+## 0.8.1
 
 * logrus: fix not exiting on `Fatalf` and `Fatalln`
 
-# 0.8.0
+## 0.8.0
 
 * logrus: defaults to stderr instead of stdout
 * hooks/sentry: add special field for `*http.Request`
 * formatter/text: ignore Windows for colors
 
-# 0.7.3
+## 0.7.3
 
 * formatter/\*: allow configuration of timestamp layout
 
-# 0.7.2
+## 0.7.2
 
 * formatter/text: Add configuration option for time format (#158)
