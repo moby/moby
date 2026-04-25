@@ -1,3 +1,6 @@
+// Copyright The Moby Authors.
+// SPDX-License-Identifier: Apache-2.0
+
 package seccomp
 
 import (
@@ -93,7 +96,7 @@ func (k *KernelVersion) UnmarshalJSON(version []byte) error {
 
 	// make sure we have a string
 	if err = json.Unmarshal(version, &ver); err != nil {
-		return fmt.Errorf(`invalid kernel version: %s, expected "<kernel>.<major>": %v`, string(version), err)
+		return fmt.Errorf(`invalid kernel version: %s, expected "<kernel>.<major>": %w`, string(version), err)
 	}
 	if ver == "" {
 		return nil
@@ -103,10 +106,10 @@ func (k *KernelVersion) UnmarshalJSON(version []byte) error {
 		return fmt.Errorf(`invalid kernel version: %s, expected "<kernel>.<major>"`, string(version))
 	}
 	if k.Kernel, err = strconv.ParseUint(parts[0], 10, 8); err != nil {
-		return fmt.Errorf(`invalid kernel version: %s, expected "<kernel>.<major>": %v`, string(version), err)
+		return fmt.Errorf(`invalid kernel version: %s, expected "<kernel>.<major>": %w`, string(version), err)
 	}
 	if k.Major, err = strconv.ParseUint(parts[1], 10, 8); err != nil {
-		return fmt.Errorf(`invalid kernel version: %s, expected "<kernel>.<major>": %v`, string(version), err)
+		return fmt.Errorf(`invalid kernel version: %s, expected "<kernel>.<major>": %w`, string(version), err)
 	}
 	if k.Kernel == 0 && k.Major == 0 {
 		return fmt.Errorf(`invalid kernel version: %s, expected "<kernel>.<major>": version cannot be 0.0`, string(version))

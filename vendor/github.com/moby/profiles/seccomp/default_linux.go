@@ -1,3 +1,6 @@
+// Copyright The Moby Authors.
+// SPDX-License-Identifier: Apache-2.0
+
 package seccomp
 
 import (
@@ -37,6 +40,10 @@ func arches() []Architecture {
 		},
 		{
 			Arch:      specs.ArchRISCV64,
+			SubArches: nil,
+		},
+		{
+			Arch:      specs.ArchLOONGARCH64,
 			SubArches: nil,
 		},
 	}

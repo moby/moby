@@ -1,3 +1,6 @@
+// Copyright The Moby Authors.
+// SPDX-License-Identifier: Apache-2.0
+
 //go:generate go run -tags 'seccomp' generate.go
 
 package seccomp
@@ -7,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"slices"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -20,7 +24,7 @@ func GetDefaultProfile(rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 func LoadProfile(body string, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 	var config Seccomp
 	if err := json.Unmarshal([]byte(body), &config); err != nil {
-		return nil, fmt.Errorf("Decoding seccomp profile failed: %v", err)
+		return nil, fmt.Errorf("Decoding seccomp profile failed: %w", err)
 	}
 	return setupSeccomp(&config, rs)
 }
@@ -31,6 +35,7 @@ var nativeToSeccomp = map[string]specs.Arch{
 	"amd64":       specs.ArchX86_64,
 	"arm":         specs.ArchARM,
 	"arm64":       specs.ArchAARCH64,
+	"loong64":     specs.ArchLOONGARCH64,
 	"mips64":      specs.ArchMIPS64,
 	"mips64n32":   specs.ArchMIPS64N32,
 	"mipsel64":    specs.ArchMIPSEL64,
@@ -50,6 +55,7 @@ var goToNative = map[string]string{
 	"amd64":       "amd64",
 	"arm":         "arm",
 	"arm64":       "arm64",
+	"loong64":     "loongarch64",
 	"mips64":      "mips64",
 	"mips64p32":   "mips64n32",
 	"mips64le":    "mipsel64",
@@ -61,17 +67,6 @@ var goToNative = map[string]string{
 	"riscv64":     "riscv64",
 	"s390":        "s390",
 	"s390x":       "s390x",
-}
-
-// inSlice tests whether a string is contained in a slice of strings or not.
-// Comparison is case sensitive
-func inSlice(slice []string, s string) bool {
-	for _, ss := range slice {
-		if s == ss {
-			return true
-		}
-	}
-	return false
 }
 
 func setupSeccomp(config *Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
@@ -121,13 +116,13 @@ Loop:
 		}
 		if call.Excludes != nil {
 			if len(call.Excludes.Arches) > 0 {
-				if inSlice(call.Excludes.Arches, arch) {
+				if slices.Contains(call.Excludes.Arches, arch) {
 					continue Loop
 				}
 			}
 			if len(call.Excludes.Caps) > 0 {
 				for _, c := range call.Excludes.Caps {
-					if inSlice(rs.Process.Capabilities.Bounding, c) {
+					if slices.Contains(rs.Process.Capabilities.Bounding, c) {
 						continue Loop
 					}
 				}
@@ -142,13 +137,13 @@ Loop:
 		}
 		if call.Includes != nil {
 			if len(call.Includes.Arches) > 0 {
-				if !inSlice(call.Includes.Arches, arch) {
+				if !slices.Contains(call.Includes.Arches, arch) {
 					continue Loop
 				}
 			}
 			if len(call.Includes.Caps) > 0 {
 				for _, c := range call.Includes.Caps {
-					if !inSlice(rs.Process.Capabilities.Bounding, c) {
+					if !slices.Contains(rs.Process.Capabilities.Bounding, c) {
 						continue Loop
 					}
 				}
