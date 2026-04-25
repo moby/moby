@@ -126,7 +126,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 				defer cancel()
 				s := <-container.State.Wait(ctx, containertypes.WaitConditionNotRunning)
 				if s.Err() != nil {
-					if err := daemon.handleContainerExit(container, nil); err != nil {
+					if err := daemon.handleContainerExit(context.TODO(), container, nil); err != nil {
 						log.G(context.TODO()).WithFields(log.Fields{
 							"error":     err,
 							"container": container.ID,

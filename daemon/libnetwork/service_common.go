@@ -7,6 +7,10 @@ import (
 	"net"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const maxSetStringLen = 350
@@ -184,10 +188,14 @@ func (c *Controller) cleanupServiceDiscovery(cleanupNID string) {
 	delete(c.svcRecords, cleanupNID)
 }
 
-func (c *Controller) cleanupServiceBindings(cleanupNID string) {
-	var cleanupFuncs []func()
+func (c *Controller) cleanupServiceBindings(ctx context.Context, cleanupNID string) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Controller.cleanupServiceBindings", trace.WithAttributes(
+		attribute.String("nid", cleanupNID),
+	))
+	defer span.End()
+	var cleanupFuncs []func(context.Context)
 
-	log.G(context.TODO()).Debugf("cleanupServiceBindings for %s", cleanupNID)
+	log.G(ctx).Debugf("cleanupServiceBindings for %s", cleanupNID)
 	c.mu.Lock()
 	services := make([]*service, 0, len(c.serviceBindings))
 	for _, s := range c.serviceBindings {
@@ -214,22 +222,36 @@ func (c *Controller) cleanupServiceBindings(cleanupNID string) {
 	}
 
 	for _, f := range cleanupFuncs {
-		f()
+		f(ctx)
 	}
 }
 
-func makeServiceCleanupFunc(c *Controller, s *service, nID, eID string, vip net.IP, ip net.IP) func() {
+func makeServiceCleanupFunc(c *Controller, s *service, nID, eID string, vip net.IP, ip net.IP) func(context.Context) {
 	// ContainerName and taskAliases are not available here, this is still fine because the Service discovery
 	// cleanup already happened before. The only thing that rmServiceBinding is still doing here a part from the Load
 	// Balancer bookkeeping, is to keep consistent the mapping of endpoint to IP.
-	return func() {
-		if err := c.rmServiceBinding(s.name, s.id, nID, eID, "", vip, s.ingressPorts, s.aliases, []string{}, ip, "cleanupServiceBindings", false, true); err != nil {
-			log.G(context.TODO()).Errorf("Failed to remove service bindings for service %s network %s endpoint %s while cleanup: %v", s.id, nID, eID, err)
+	return func(ctx context.Context) {
+		if err := c.rmServiceBinding(ctx, s.name, s.id, nID, eID, "", vip, s.ingressPorts, s.aliases, []string{}, ip, "cleanupServiceBindings", false, true); err != nil {
+			log.G(ctx).Errorf("Failed to remove service bindings for service %s network %s endpoint %s while cleanup: %v", s.id, nID, eID, err)
 		}
 	}
 }
 
-func (c *Controller) addServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases, taskAliases []string, ip net.IP, method string) error {
+func (c *Controller) addServiceBinding(ctx context.Context, svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases, taskAliases []string, ip net.IP, method string) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Controller.addServiceBinding", trace.WithAttributes(
+		attribute.String("svcName", svcName),
+		attribute.String("svcID", svcID),
+		attribute.String("nid", nID),
+		attribute.String("eid", eID),
+		attribute.String("container.name", containerName),
+		attribute.String("vip", vip.String()),
+		attribute.String("ip", ip.String()),
+	))
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	var addService bool
 
 	// Failure to lock the network ID on add can result in racing
@@ -268,7 +290,7 @@ func (c *Controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 		}
 		s.Unlock()
 	}
-	log.G(context.TODO()).Debugf("addServiceBinding from %s START for %s %s p:%p nid:%s skey:%v", method, svcName, eID, s, nID, skey)
+	log.G(ctx).Debugf("addServiceBinding from %s START for %s %s p:%p nid:%s skey:%v", method, svcName, eID, s, nID, skey)
 	defer s.Unlock()
 
 	lb, ok := s.loadBalancers[nID]
@@ -300,23 +322,39 @@ func (c *Controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 		if len(setStr) > maxSetStringLen {
 			setStr = setStr[:maxSetStringLen]
 		}
-		log.G(context.TODO()).Warnf("addServiceBinding %s possible transient state ok:%t entries:%d set:%t %s", eID, ok, entries, b, setStr)
+		log.G(ctx).Warnf("addServiceBinding %s possible transient state ok:%t entries:%d set:%t %s", eID, ok, entries, b, setStr)
 	}
 
 	// Add loadbalancer service and backend to the network
-	n.addLBBackend(ip, lb)
+	n.addLBBackend(ctx, ip, lb)
 
 	// Add the appropriate name resolutions
 	if err := c.addEndpointNameResolution(svcName, svcID, nID, eID, containerName, vip, serviceAliases, taskAliases, ip, addService, "addServiceBinding"); err != nil {
 		return err
 	}
 
-	log.G(context.TODO()).Debugf("addServiceBinding from %s END for %s %s", method, svcName, eID)
+	log.G(ctx).Debugf("addServiceBinding from %s END for %s %s", method, svcName, eID)
 
 	return nil
 }
 
-func (c *Controller) rmServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases []string, taskAliases []string, ip net.IP, method string, deleteSvcRecords bool, fullRemove bool) error {
+func (c *Controller) rmServiceBinding(ctx context.Context, svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases []string, taskAliases []string, ip net.IP, method string, deleteSvcRecords bool, fullRemove bool) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Controller.rmServiceBinding", trace.WithAttributes(
+		attribute.String("svcName", svcName),
+		attribute.String("svcID", svcID),
+		attribute.String("nid", nID),
+		attribute.String("eid", eID),
+		attribute.String("container.name", containerName),
+		attribute.String("vip", vip.String()),
+		attribute.String("ip", ip.String()),
+		attribute.Bool("deleteSvcRecords", deleteSvcRecords),
+		attribute.Bool("fullRemove", fullRemove),
+	))
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	var rmService bool
 
 	skey := serviceKey{
@@ -328,22 +366,22 @@ func (c *Controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 	s, ok := c.serviceBindings[skey]
 	c.mu.Unlock()
 	if !ok {
-		log.G(context.TODO()).Warnf("rmServiceBinding %s %s %s aborted c.serviceBindings[skey] !ok", method, svcName, eID)
+		log.G(ctx).Warnf("rmServiceBinding %s %s %s aborted c.serviceBindings[skey] !ok", method, svcName, eID)
 		return nil
 	}
 
 	s.Lock()
 	defer s.Unlock()
-	log.G(context.TODO()).Debugf("rmServiceBinding from %s START for %s %s p:%p nid:%s sKey:%v deleteSvc:%t", method, svcName, eID, s, nID, skey, deleteSvcRecords)
+	log.G(ctx).Debugf("rmServiceBinding from %s START for %s %s p:%p nid:%s sKey:%v deleteSvc:%t", method, svcName, eID, s, nID, skey, deleteSvcRecords)
 	lb, ok := s.loadBalancers[nID]
 	if !ok {
-		log.G(context.TODO()).Warnf("rmServiceBinding %s %s %s aborted s.loadBalancers[nid] !ok", method, svcName, eID)
+		log.G(ctx).Warnf("rmServiceBinding %s %s %s aborted s.loadBalancers[nid] !ok", method, svcName, eID)
 		return nil
 	}
 
 	be, ok := lb.backEnds[eID]
 	if !ok {
-		log.G(context.TODO()).Warnf("rmServiceBinding %s %s %s aborted lb.backEnds[eid] && lb.disabled[eid] !ok", method, svcName, eID)
+		log.G(ctx).Warnf("rmServiceBinding %s %s %s aborted lb.backEnds[eid] && lb.disabled[eid] !ok", method, svcName, eID)
 		return nil
 	}
 
@@ -361,7 +399,7 @@ func (c *Controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 		rmService = true
 
 		delete(s.loadBalancers, nID)
-		log.G(context.TODO()).Debugf("rmServiceBinding %s delete %s, p:%p in loadbalancers len:%d", eID, nID, lb, len(s.loadBalancers))
+		log.G(ctx).Debugf("rmServiceBinding %s delete %s, p:%p in loadbalancers len:%d", eID, nID, lb, len(s.loadBalancers))
 	}
 
 	ok, entries := s.removeIPToEndpoint(ip.String(), eID)
@@ -370,7 +408,7 @@ func (c *Controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 		if len(setStr) > maxSetStringLen {
 			setStr = setStr[:maxSetStringLen]
 		}
-		log.G(context.TODO()).Warnf("rmServiceBinding %s possible transient state ok:%t entries:%d set:%t %s", eID, ok, entries, b, setStr)
+		log.G(ctx).Warnf("rmServiceBinding %s possible transient state ok:%t entries:%d set:%t %s", eID, ok, entries, b, setStr)
 	}
 
 	// Remove loadbalancer service(if needed) and backend in all
@@ -387,7 +425,7 @@ func (c *Controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 		// removing the network from the store or dataplane.
 		n, err := c.NetworkByID(nID)
 		if err == nil {
-			n.rmLBBackend(ip, lb, rmService, fullRemove)
+			n.rmLBBackend(ctx, ip, lb, rmService, fullRemove)
 		}
 	}
 
@@ -411,6 +449,6 @@ func (c *Controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 		c.mu.Unlock()
 	}
 
-	log.G(context.TODO()).Debugf("rmServiceBinding from %s END for %s %s", method, svcName, eID)
+	log.G(ctx).Debugf("rmServiceBinding from %s END for %s %s", method, svcName, eID)
 	return nil
 }

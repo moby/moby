@@ -47,6 +47,7 @@ import (
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/baggage"
 	"golang.org/x/sys/unix"
 )
@@ -821,13 +822,13 @@ func configureKernelSecuritySupport(config *config.Config, driverName string) er
 // initNetworkController initializes the libnetwork controller and configures
 // network settings. If there's active sandboxes, configuration changes will not
 // take effect.
-func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes map[string]any) error {
+func (daemon *Daemon) initNetworkController(ctx context.Context, cfg *config.Config, activeSandboxes map[string]any) error {
 	netOptions, err := daemon.networkOptions(cfg, daemon.PluginStore, daemon.id, activeSandboxes)
 	if err != nil {
 		return err
 	}
 
-	ctx := baggage.ContextWithBaggage(context.TODO(), otelutil.MustNewBaggage(
+	ctx = baggage.ContextWithBaggage(ctx, otelutil.MustNewBaggage(
 		otelutil.MustNewMemberRaw(otelutil.TriggerKey, "daemon.initNetworkController"),
 	))
 	daemon.netController, err = libnetwork.New(ctx, netOptions...)
@@ -846,7 +847,13 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 	return nil
 }
 
-func configureNetworking(ctx context.Context, controller *libnetwork.Controller, conf *config.Config) error {
+func configureNetworking(ctx context.Context, controller *libnetwork.Controller, conf *config.Config) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "configureNetworking")
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	// Create predefined network "none"
 	if n, _ := controller.NetworkByName(network.NetworkNone); n == nil {
 		if _, err := controller.NewNetwork(ctx, "null", network.NetworkNone, "", libnetwork.NetworkOptionPersist(true)); err != nil {
@@ -863,7 +870,7 @@ func configureNetworking(ctx context.Context, controller *libnetwork.Controller,
 
 	// Clear stale bridge network
 	if n, err := controller.NetworkByName(network.NetworkBridge); err == nil {
-		if err = n.Delete(); err != nil {
+		if err = n.Delete(ctx); err != nil {
 			return errors.Wrapf(err, `could not delete the default %q network`, network.NetworkBridge)
 		}
 		if len(conf.NetworkConfig.DefaultAddressPools.Value()) > 0 && !conf.LiveRestoreEnabled {
@@ -1553,14 +1560,14 @@ func (daemon *Daemon) registerLinks(ctr *container.Container) error {
 
 // conditionalMountOnStart is a platform specific helper function during the
 // container start to call mount.
-func (daemon *Daemon) conditionalMountOnStart(container *container.Container) error {
-	return daemon.Mount(container)
+func (daemon *Daemon) conditionalMountOnStart(ctx context.Context, container *container.Container) error {
+	return daemon.Mount(ctx, container)
 }
 
 // conditionalUnmountOnCleanup is a platform specific helper function called
 // during the cleanup of a container to unmount.
-func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) error {
-	return daemon.Unmount(container)
+func (daemon *Daemon) conditionalUnmountOnCleanup(ctx context.Context, container *container.Container) error {
+	return daemon.Unmount(ctx, container)
 }
 
 // setDefaultIsolation determines the default isolation mode for the

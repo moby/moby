@@ -71,12 +71,11 @@ func sortMounts(m []container.Mount) []container.Mount {
 //
 // Do not lock while creating volumes since this could be calling out to external plugins
 // Don't want to block other actions, like `docker ps` because we're waiting on an external plugin
-func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadOnlyNonRecursive bool) (retErr error) {
+func (daemon *Daemon) registerMountPoints(ctx context.Context, ctr *container.Container, defaultReadOnlyNonRecursive bool) (retErr error) {
 	binds := map[string]bool{}
 	mountPoints := map[string]*volumemounts.MountPoint{}
 	parser := volumemounts.NewParser()
 
-	ctx := context.TODO()
 	defer func() {
 		// clean up the container mountpoints once return with error
 		if retErr != nil {
@@ -257,7 +256,7 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 			// We hash it so that the snapshot name is friendly to the underlying filesystem and doesn't exceed path length limits.
 			destHash := sha256.Sum256([]byte(ctr.ID + "-src=" + mp.Source + "-dst=" + mp.Destination))
 			layerName := hex.EncodeToString(destHash[:])
-			imgLayer, err := daemon.imageService.CreateLayerFromImage(img, layerName, &layer.CreateRWLayerOpts{
+			imgLayer, err := daemon.imageService.CreateLayerFromImage(ctx, img, layerName, &layer.CreateRWLayerOpts{
 				StorageOpt: ctr.HostConfig.StorageOpt,
 			})
 			if err != nil {
@@ -268,7 +267,7 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 				return err
 			}
 
-			srcPath, err := imgLayer.Mount("")
+			srcPath, err := imgLayer.Mount(ctx, "")
 			if err != nil {
 				return err
 			}
@@ -310,9 +309,9 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 
 // lazyInitializeVolume initializes a mountpoint's volume if needed.
 // This happens after a daemon restart.
-func (daemon *Daemon) lazyInitializeVolume(containerID string, m *volumemounts.MountPoint) error {
+func (daemon *Daemon) lazyInitializeVolume(ctx context.Context, containerID string, m *volumemounts.MountPoint) error {
 	if m.Driver != "" && m.Volume == nil {
-		v, err := daemon.volumes.Get(context.TODO(), m.Name, volumeopts.WithGetDriver(m.Driver), volumeopts.WithGetReference(containerID))
+		v, err := daemon.volumes.Get(ctx, m.Name, volumeopts.WithGetDriver(m.Driver), volumeopts.WithGetReference(containerID))
 		if err != nil {
 			return err
 		}

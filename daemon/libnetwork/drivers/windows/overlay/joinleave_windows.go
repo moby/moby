@@ -55,9 +55,9 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	return nil
 }
 
-func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
+func (d *driver) EventNotify(ctx context.Context, nid, tableName, key string, prev, value []byte) {
 	if tableName != overlay.OverlayPeerTable {
-		log.G(context.TODO()).Errorf("Unexpected table notification for table %s received", tableName)
+		log.G(ctx).Errorf("Unexpected table notification for table %s received", tableName)
 		return
 	}
 
@@ -73,7 +73,7 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 		var err error
 		prevPeer, err = overlay.UnmarshalPeerRecord(prev)
 		if err != nil {
-			log.G(context.TODO()).WithError(err).Error("Failed to unmarshal previous peer record")
+			log.G(ctx).WithError(err).Error("Failed to unmarshal previous peer record")
 		} else if prevPeer.TunnelEndpointIP.String() == n.providerAddress {
 			// Ignore local peers. We don't add them to the VXLAN
 			// FDB so don't need to remove them.
@@ -84,7 +84,7 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 		var err error
 		newPeer, err = overlay.UnmarshalPeerRecord(value)
 		if err != nil {
-			log.G(context.TODO()).WithError(err).Error("Failed to unmarshal peer record")
+			log.G(ctx).WithError(err).Error("Failed to unmarshal peer record")
 		} else if newPeer.TunnelEndpointIP.String() == n.providerAddress {
 			newPeer = nil
 		}
@@ -102,7 +102,7 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 
 	if prevPeer != nil {
 		if err := d.peerDelete(nid, eid, prevPeer.EndpointIP.Addr().AsSlice(), true); err != nil {
-			log.G(context.TODO()).WithFields(log.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"error": err,
 				"nid":   n.id,
 				"peer":  prevPeer,
@@ -111,7 +111,7 @@ func (d *driver) EventNotify(nid, tableName, key string, prev, value []byte) {
 	}
 	if newPeer != nil {
 		if err := d.peerAdd(nid, eid, newPeer.EndpointIP.Addr().AsSlice(), newPeer.EndpointMAC.AsSlice(), newPeer.TunnelEndpointIP.AsSlice(), true); err != nil {
-			log.G(context.TODO()).WithFields(log.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"error": err,
 				"nid":   n.id,
 				"peer":  newPeer,
@@ -125,7 +125,7 @@ func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (s
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid string) error {
+func (d *driver) Leave(_ context.Context, nid, eid string) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}

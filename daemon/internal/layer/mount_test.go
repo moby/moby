@@ -1,6 +1,7 @@
 package layer
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -40,7 +41,7 @@ func TestMountInit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pathFS, err := m.Mount("")
+	pathFS, err := m.Mount(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +100,7 @@ func TestMountSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pathFS, err := m.Mount("")
+	pathFS, err := m.Mount(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +151,7 @@ func TestMountChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pathFS, err := m.Mount("")
+	pathFS, err := m.Mount(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +241,7 @@ func TestMountApply(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pathFS, err := m.Mount("")
+	pathFS, err := m.Mount(context.Background(), "")
 	if err != nil {
 		t.Fatal(err)
 	}

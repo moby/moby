@@ -19,24 +19,24 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/portmappers/routed"
 )
 
-func registerNetworkDrivers(r driverapi.Registerer, cfg *config.Config, store *datastore.Store, pms *drvregistry.PortMappers) error {
+func registerNetworkDrivers(ctx context.Context, r driverapi.Registerer, cfg *config.Config, store *datastore.Store, pms *drvregistry.PortMappers) error {
 	for _, nr := range []struct {
 		ntype    string
-		register func() error
+		register func(context.Context, driverapi.Registerer) error
 	}{
 		{
 			ntype: bridge.NetworkType,
-			register: func() error {
-				return bridge.Register(r, store, pms, cfg.BridgeConfig)
+			register: func(ctx context.Context, r driverapi.Registerer) error {
+				return bridge.Register(ctx, r, store, pms, cfg.BridgeConfig)
 			},
 		},
-		{ntype: host.NetworkType, register: func() error { return host.Register(r) }},
-		{ntype: ipvlan.NetworkType, register: func() error { return ipvlan.Register(r, store) }},
-		{ntype: macvlan.NetworkType, register: func() error { return macvlan.Register(r, store) }},
-		{ntype: null.NetworkType, register: func() error { return null.Register(r) }},
-		{ntype: overlay.NetworkType, register: func() error { return overlay.Register(r) }},
+		{ntype: host.NetworkType, register: host.Register},
+		{ntype: ipvlan.NetworkType, register: func(ctx context.Context, r driverapi.Registerer) error { return ipvlan.Register(ctx, r, store) }},
+		{ntype: macvlan.NetworkType, register: func(ctx context.Context, r driverapi.Registerer) error { return macvlan.Register(ctx, r, store) }},
+		{ntype: null.NetworkType, register: null.Register},
+		{ntype: overlay.NetworkType, register: overlay.Register},
 	} {
-		if err := nr.register(); err != nil {
+		if err := nr.register(ctx, r); err != nil {
 			return fmt.Errorf("failed to register %q driver: %w", nr.ntype, err)
 		}
 	}

@@ -7,20 +7,29 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/netutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Linux-specific container configuration flags.
 type containerConfigOS struct{} //nolint:nolintlint,unused // only populated on windows
 
-func releaseOSSboxResources(ns *osl.Namespace, ep *Endpoint) {
+func releaseOSSboxResources(ctx context.Context, ns *osl.Namespace, ep *Endpoint) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.releaseOSSboxResources", trace.WithAttributes(
+		attribute.String("eid", ep.ID()),
+	))
+	defer span.End()
 	for _, i := range ns.Interfaces() {
 		// Only remove the interfaces owned by this endpoint from the sandbox.
 		if ep.hasInterface(i.SrcName()) {
 			if err := i.Remove(); err != nil {
-				log.G(context.TODO()).Debugf("Remove interface %s failed: %v", i.SrcName(), err)
+				log.G(ctx).Debugf("Remove interface %s failed: %v", i.SrcName(), err)
+				span.RecordError(err)
 			}
 		}
 	}
@@ -33,8 +42,9 @@ func releaseOSSboxResources(ns *osl.Namespace, ep *Endpoint) {
 
 	if len(vip) > 0 && lbModeIsDSR {
 		ipNet := &net.IPNet{IP: vip, Mask: net.CIDRMask(32, 32)}
-		if err := ns.RemoveAliasIP(ns.GetLoopbackIfaceName(), ipNet); err != nil {
-			log.G(context.TODO()).WithError(err).Debugf("failed to remove virtual ip %v to loopback", ipNet)
+		if err := ns.RemoveAliasIP(ctx, ns.GetLoopbackIfaceName(), ipNet); err != nil {
+			log.G(ctx).WithError(err).Debugf("failed to remove virtual ip %v to loopback", ipNet)
+			span.RecordError(err)
 		}
 	}
 
@@ -45,7 +55,8 @@ func releaseOSSboxResources(ns *osl.Namespace, ep *Endpoint) {
 	// Remove non-interface routes.
 	for _, r := range joinInfo.StaticRoutes {
 		if err := ns.RemoveStaticRoute(r); err != nil {
-			log.G(context.TODO()).Debugf("Remove route failed: %v", err)
+			log.G(ctx).Debugf("Remove route failed: %v", err)
+			span.RecordError(err)
 		}
 	}
 }
@@ -140,7 +151,15 @@ func (sb *Sandbox) ExecFunc(f func()) error {
 }
 
 // SetKey updates the Sandbox Key.
-func (sb *Sandbox) SetKey(ctx context.Context, basePath string) error {
+func (sb *Sandbox) SetKey(ctx context.Context, basePath string) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.SetKey", trace.WithAttributes(
+		attribute.String("container.id", sb.ContainerID()),
+	))
+	defer func() {
+		otelutil.RecordStatus(span, retErr)
+		span.End()
+	}()
+
 	start := time.Now()
 	defer func() {
 		log.G(ctx).Debugf("sandbox set key processing took %s for container %s", time.Since(start), sb.ContainerID())
@@ -172,8 +191,9 @@ func (sb *Sandbox) SetKey(ctx context.Context, basePath string) error {
 		// If we already have an OS sandbox, release the network resources from that
 		// and destroy the OS snab. We are moving into a new home further down. Note that none
 		// of the network resources gets destroyed during the move.
-		if err := sb.releaseOSSbox(); err != nil {
+		if err := sb.releaseOSSbox(ctx); err != nil {
 			log.G(ctx).WithError(err).Error("Error destroying os sandbox")
+			span.RecordError(err)
 		}
 	}
 
@@ -189,9 +209,11 @@ func (sb *Sandbox) SetKey(ctx context.Context, basePath string) error {
 		if err := sb.osSbox.InvokeFunc(sb.resolver.SetupFunc(0)); err == nil {
 			if err := sb.resolver.Start(); err != nil {
 				log.G(ctx).Errorf("Resolver Start failed for container %s, %q", sb.ContainerID(), err)
+				span.RecordError(err)
 			}
 		} else {
 			log.G(ctx).Errorf("Resolver Setup Function failed for container %s, %q", sb.ContainerID(), err)
+			span.RecordError(err)
 		}
 	}
 
@@ -204,7 +226,7 @@ func (sb *Sandbox) SetKey(ctx context.Context, basePath string) error {
 	// them - but configuration of addresses/routes (and so on) didn't complete because
 	// there was nowhere for it to go before the osSbox was set up. So, finish that
 	// configuration now.
-	sb.finishEndpointConfig(ctx)
+	span.RecordError(sb.finishEndpointConfig(ctx))
 
 	return nil
 }
@@ -242,7 +264,9 @@ func (sb *Sandbox) IPv6Enabled() (enabled, ok bool) {
 	return osSbox.IPv6LoEnabled(), true
 }
 
-func (sb *Sandbox) releaseOSSbox() error {
+func (sb *Sandbox) releaseOSSbox(ctx context.Context) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.releaseOSSbox")
+	defer span.End()
 	sb.mu.Lock()
 	osSbox := sb.osSbox
 	sb.osSbox = nil
@@ -253,10 +277,10 @@ func (sb *Sandbox) releaseOSSbox() error {
 	}
 
 	for _, ep := range sb.Endpoints() {
-		releaseOSSboxResources(osSbox, ep)
+		releaseOSSboxResources(ctx, osSbox, ep)
 	}
 
-	return osSbox.Destroy()
+	return otelutil.RecordStatus(span, osSbox.Destroy())
 }
 
 func (sb *Sandbox) restoreOslSandbox(ctx context.Context) error {
@@ -422,7 +446,7 @@ func (sb *Sandbox) populateNetworkResourcesOS(ctx context.Context, ep *Endpoint)
 				}
 			}
 			ipNet := &net.IPNet{IP: ep.virtualIP, Mask: net.CIDRMask(32, 32)}
-			if err := sb.osSbox.AddAliasIP(sb.osSbox.GetLoopbackIfaceName(), ipNet); err != nil {
+			if err := sb.osSbox.AddAliasIP(ctx, sb.osSbox.GetLoopbackIfaceName(), ipNet); err != nil {
 				return fmt.Errorf("failed to add virtual ip %v to loopback: %v", ipNet, err)
 			}
 		}

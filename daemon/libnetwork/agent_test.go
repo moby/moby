@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/netip"
@@ -111,12 +112,12 @@ func (m *mockServiceBinder) delContainerNameResolution(nID, eID, containerName s
 	return nil
 }
 
-func (m *mockServiceBinder) addServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, _ []*PortConfig, _, _ []string, ip net.IP, _ string) error {
+func (m *mockServiceBinder) addServiceBinding(_ context.Context, svcName, svcID, nID, eID, containerName string, vip net.IP, _ []*PortConfig, _, _ []string, ip net.IP, _ string) error {
 	m.actions = append(m.actions, fmt.Sprintf("addServiceBinding(%v, %v, %v, %v, %v, %v, %v)", svcName, svcID, nID, eID, containerName, vip, ip))
 	return nil
 }
 
-func (m *mockServiceBinder) rmServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, _ []*PortConfig, _, _ []string, ip net.IP, _ string, deleteSvcRecords bool, fullRemove bool) error {
+func (m *mockServiceBinder) rmServiceBinding(_ context.Context, svcName, svcID, nID, eID, containerName string, vip net.IP, _ []*PortConfig, _, _ []string, ip net.IP, _ string, deleteSvcRecords bool, fullRemove bool) error {
 	m.actions = append(m.actions, fmt.Sprintf("rmServiceBinding(%v, %v, %v, %v, %v, %v, %v, deleteSvcRecords=%v, fullRemove=%v)", svcName, svcID, nID, eID, containerName, vip, ip, deleteSvcRecords, fullRemove))
 	return nil
 }

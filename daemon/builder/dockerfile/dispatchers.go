@@ -319,7 +319,7 @@ func dispatchWorkdir(ctx context.Context, d dispatchRequest, c *instructions.Wor
 		return err
 	}
 
-	if err := d.builder.docker.ContainerCreateWorkdir(containerID); err != nil {
+	if err := d.builder.docker.ContainerCreateWorkdir(ctx, containerID); err != nil {
 		return err
 	}
 
@@ -365,7 +365,7 @@ func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunComm
 		withCmd(saveCmd),
 		withArgsEscaped(cacheArgsEscaped),
 		withEntrypointOverride(saveCmd, nil))
-	if hit, err := d.builder.probeCache(d.state, runConfigForCacheProbe); err != nil || hit {
+	if hit, err := d.builder.probeCache(ctx, d.state, runConfigForCacheProbe); err != nil || hit {
 		return err
 	}
 

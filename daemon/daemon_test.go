@@ -314,7 +314,7 @@ func TestInvalidContainerPort0(t *testing.T) {
 
 func TestFindNetworkErrorType(t *testing.T) {
 	d := Daemon{}
-	_, err := d.FindNetwork("fakeNet")
+	_, err := d.FindNetwork(t.Context(), "fakeNet")
 	var nsn libnetwork.ErrNoSuchNetwork
 	ok := errors.As(err, &nsn)
 	if !cerrdefs.IsNotFound(err) || !ok {

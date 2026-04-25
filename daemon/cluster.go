@@ -1,6 +1,8 @@
 package daemon
 
 import (
+	"context"
+
 	"github.com/moby/moby/api/types/network"
 	lncluster "github.com/moby/moby/v2/daemon/libnetwork/cluster"
 	dnetwork "github.com/moby/moby/v2/daemon/network"
@@ -21,7 +23,7 @@ type ClusterStatus interface {
 
 // NetworkManager provides methods to manage networks
 type NetworkManager interface {
-	GetNetwork(input string, withStatus bool) (network.Inspect, error)
-	GetNetworks(filter dnetwork.Filter, withStatus bool) ([]network.Inspect, error)
-	RemoveNetwork(input string) error
+	GetNetwork(ctx context.Context, input string, withStatus bool) (network.Inspect, error)
+	GetNetworks(ctx context.Context, filter dnetwork.Filter, withStatus bool) ([]network.Inspect, error)
+	RemoveNetwork(ctx context.Context, input string) error
 }

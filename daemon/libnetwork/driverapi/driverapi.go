@@ -45,7 +45,7 @@ type Driver interface {
 	Join(ctx context.Context, nid, eid string, sboxKey string, jinfo JoinInfo, epOpts, sbOpts map[string]any) error
 
 	// Leave method is invoked when a Sandbox detaches from an endpoint.
-	Leave(nid, eid string) error
+	Leave(ctx context.Context, nid, eid string) error
 
 	// Type returns the type of this driver, the network type this driver manages
 	Type() string
@@ -77,7 +77,7 @@ type TableWatcher interface {
 	// happened on a table of its interest as soon as this node
 	// receives such an event in the gossip layer. This method is
 	// only invoked for the global scope driver.
-	EventNotify(nid string, tableName string, key string, prev, value []byte)
+	EventNotify(ctx context.Context, nid string, tableName string, key string, prev, value []byte)
 
 	// DecodeTableEntry passes the driver a key, value pair from table it registered
 	// with libnetwork. Driver should return {object ID, map[string]string} tuple.
@@ -210,7 +210,7 @@ type JoinInfo interface {
 
 // Registerer provides a way for network drivers to be dynamically registered.
 type Registerer interface {
-	RegisterDriver(name string, driver Driver, capability Capability) error
+	RegisterDriver(ctx context.Context, name string, driver Driver, capability Capability) error
 	RegisterNetworkAllocator(name string, driver NetworkAllocator) error
 }
 

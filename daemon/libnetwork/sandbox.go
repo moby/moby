@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork/etchosts"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
@@ -367,9 +368,9 @@ func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) (
 			if sb.getEndpointInGWNetwork() == nil {
 				// sb.populateNetworkResources() will be called recursively for the new
 				// gateway endpoint. So, it'll set the resolver's forwarding policy.
-				return sb.setupDefaultGW()
+				return sb.setupDefaultGW(ctx)
 			}
-		} else if err := sb.clearDefaultGW(); err != nil {
+		} else if err := sb.clearDefaultGW(ctx); err != nil {
 			log.G(ctx).WithFields(log.Fields{
 				"error": err,
 				"sid":   sb.ID(),
@@ -564,43 +565,51 @@ func (sb *Sandbox) hasExternalAccess() bool {
 
 // EnableService makes a managed container's service available by adding the
 // endpoint to the service load balancer and service discovery.
-func (sb *Sandbox) EnableService() (retErr error) {
-	log.G(context.TODO()).WithField("container", sb.containerID).Debug("EnableService START")
+func (sb *Sandbox) EnableService(ctx context.Context) (retErr error) {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.EnableService", trace.WithAttributes(
+		attribute.String("container.ID", sb.containerID)))
+	defer span.End()
+	log.G(ctx).WithField("container", sb.containerID).Debug("EnableService START")
 	defer func() {
+		otelutil.RecordStatus(span, retErr)
 		if retErr != nil {
-			if err := sb.DisableService(); err != nil {
-				log.G(context.TODO()).WithFields(log.Fields{
+			if err := sb.DisableService(ctx); err != nil {
+				log.G(ctx).WithFields(log.Fields{
 					"error":     err,
 					"origError": retErr,
 					"container": sb.containerID,
 				}).Error("Error while disabling service after original error")
+				span.RecordError(err)
 			}
 		}
 	}()
 	for _, ep := range sb.Endpoints() {
 		if !ep.isServiceEnabled() {
-			if err := ep.addServiceInfoToCluster(sb); err != nil {
+			if err := ep.addServiceInfoToCluster(ctx, sb); err != nil {
 				return fmt.Errorf("could not update state for endpoint %s into cluster: %v", ep.Name(), err)
 			}
 			ep.enableService()
 		}
 	}
-	log.G(context.TODO()).WithField("container", sb.containerID).Debug("EnableService DONE")
+	log.G(ctx).WithField("container", sb.containerID).Debug("EnableService DONE")
 	return nil
 }
 
 // DisableService removes a managed container's endpoints from the load balancer
 // and service discovery.
-func (sb *Sandbox) DisableService() error {
-	log.G(context.TODO()).WithField("container", sb.containerID).Debug("DisableService START")
+func (sb *Sandbox) DisableService(ctx context.Context) error {
+	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Sandbox.DisableService", trace.WithAttributes(
+		attribute.String("container.ID", sb.containerID)))
+	defer span.End()
+	log.G(ctx).WithField("container", sb.containerID).Debug("DisableService START")
 	var failedEps []string
 	for _, ep := range sb.Endpoints() {
 		if !ep.isServiceEnabled() {
 			continue
 		}
-		if err := ep.deleteServiceInfoFromCluster(sb, false, "DisableService"); err != nil {
+		if err := ep.deleteServiceInfoFromCluster(ctx, sb, false, "DisableService"); err != nil {
 			failedEps = append(failedEps, ep.Name())
-			log.G(context.TODO()).WithFields(log.Fields{
+			log.G(ctx).WithFields(log.Fields{
 				"container": sb.containerID,
 				"error":     err,
 				"ep":        ep.Name(),
@@ -608,9 +617,9 @@ func (sb *Sandbox) DisableService() error {
 		}
 		ep.disableService()
 	}
-	log.G(context.TODO()).WithField("container", sb.containerID).Debug("DisableService DONE")
+	log.G(ctx).WithField("container", sb.containerID).Debug("DisableService DONE")
 	if len(failedEps) > 0 {
-		return fmt.Errorf("failed to disable service on sandbox:%s, for endpoints %s", sb.ID(), strings.Join(failedEps, ","))
+		return otelutil.RecordStatus(span, fmt.Errorf("failed to disable service on sandbox:%s, for endpoints %s", sb.ID(), strings.Join(failedEps, ",")))
 	}
 	return nil
 }

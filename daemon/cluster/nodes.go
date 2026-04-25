@@ -12,14 +12,14 @@ import (
 )
 
 // GetNodes returns a list of all nodes known to a cluster.
-func (c *Cluster) GetNodes(options swarmbackend.NodeListOptions) ([]types.Node, error) {
+func (c *Cluster) GetNodes(ctx context.Context, options swarmbackend.NodeListOptions) ([]types.Node, error) {
 	filters, err := newListNodesFilters(options.Filters)
 	if err != nil {
 		return nil, err
 	}
 
 	var r *swarmapi.ListNodesResponse
-	err = c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+	err = c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		var err error
 		r, err = state.controlClient.ListNodes(
 			ctx,
@@ -41,10 +41,10 @@ func (c *Cluster) GetNodes(options swarmbackend.NodeListOptions) ([]types.Node, 
 }
 
 // GetNode returns a node based on an ID.
-func (c *Cluster) GetNode(input string) (types.Node, error) {
+func (c *Cluster) GetNode(ctx context.Context, input string) (types.Node, error) {
 	var node *swarmapi.Node
 
-	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+	if err := c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		n, err := getNode(ctx, state.controlClient, input)
 		if err != nil {
 			return err
@@ -59,14 +59,13 @@ func (c *Cluster) GetNode(input string) (types.Node, error) {
 }
 
 // UpdateNode updates existing nodes properties.
-func (c *Cluster) UpdateNode(input string, version uint64, spec types.NodeSpec) error {
-	return c.lockedManagerAction(context.TODO(), func(_ context.Context, state nodeState) error {
+func (c *Cluster) UpdateNode(ctx context.Context, input string, version uint64, spec types.NodeSpec) error {
+	return c.lockedManagerAction(ctx, func(_ context.Context, state nodeState) error {
 		nodeSpec, err := convert.NodeSpecToGRPC(spec)
 		if err != nil {
 			return errdefs.InvalidParameter(err)
 		}
 
-		ctx := context.TODO()
 		ctx, cancel := context.WithTimeout(ctx, swarmRequestTimeout)
 		defer cancel()
 
@@ -90,8 +89,8 @@ func (c *Cluster) UpdateNode(input string, version uint64, spec types.NodeSpec) 
 }
 
 // RemoveNode removes a node from a cluster
-func (c *Cluster) RemoveNode(input string, force bool) error {
-	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+func (c *Cluster) RemoveNode(ctx context.Context, input string, force bool) error {
+	return c.lockedManagerAction(ctx, func(ctx context.Context, state nodeState) error {
 		node, err := getNode(ctx, state.controlClient, input)
 		if err != nil {
 			return err

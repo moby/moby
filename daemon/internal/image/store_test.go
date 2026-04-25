@@ -96,7 +96,7 @@ func TestAddDelete(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(pid1, id1))
 
-	_, err = imgStore.Delete(id1)
+	_, err = imgStore.Delete(t.Context(), id1)
 	assert.NilError(t, err)
 
 	_, err = imgStore.Get(id1)
@@ -121,7 +121,7 @@ func TestSearchAfterDelete(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(id1, id))
 
-	_, err = imgStore.Delete(id)
+	_, err = imgStore.Delete(t.Context(), id)
 	assert.NilError(t, err)
 
 	_, err = imgStore.Search(string(id)[:15])
@@ -131,7 +131,7 @@ func TestSearchAfterDelete(t *testing.T) {
 
 func TestDeleteNotExisting(t *testing.T) {
 	imgStore := defaultImageStore(t)
-	_, err := imgStore.Delete(ID("i_dont_exists"))
+	_, err := imgStore.Delete(t.Context(), ID("i_dont_exists"))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 }
 

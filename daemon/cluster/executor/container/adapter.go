@@ -214,7 +214,7 @@ func (c *containerAdapter) waitNodeAttachments(ctx context.Context) error {
 func (c *containerAdapter) createNetworks(ctx context.Context) error {
 	for name, nw := range c.container.networks {
 		ncr := networkCreateRequest(name, nw)
-		if err := c.backend.CreateManagedNetwork(ncr); err != nil { // todo name missing
+		if err := c.backend.CreateManagedNetwork(ctx, ncr); err != nil { // todo name missing
 			if _, ok := err.(libnetwork.NetworkNameError); ok {
 				continue
 			}
@@ -237,7 +237,7 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 	)
 
 	for name, nw := range c.container.networks {
-		if err := c.backend.DeleteManagedNetwork(nw.ID); err != nil {
+		if err := c.backend.DeleteManagedNetwork(ctx, nw.ID); err != nil {
 			switch {
 			case errors.As(err, &activeEndpointsError):
 				continue
@@ -254,7 +254,7 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 }
 
 func (c *containerAdapter) networkAttach(ctx context.Context) error {
-	config := c.container.createNetworkingConfig(c.backend)
+	config := c.container.createNetworkingConfig(ctx, c.backend)
 
 	var (
 		networkName string
@@ -269,11 +269,11 @@ func (c *containerAdapter) networkAttach(ctx context.Context) error {
 		}
 	}
 
-	return c.backend.UpdateAttachment(networkName, networkID, c.container.networkAttachmentContainerID(), config)
+	return c.backend.UpdateAttachment(ctx, networkName, networkID, c.container.networkAttachmentContainerID(), config)
 }
 
 func (c *containerAdapter) waitForDetach(ctx context.Context) error {
-	config := c.container.createNetworkingConfig(c.backend)
+	config := c.container.createNetworkingConfig(ctx, c.backend)
 
 	var (
 		networkName string
@@ -293,7 +293,7 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 
 func (c *containerAdapter) create(ctx context.Context) error {
 	hostConfig := c.container.hostConfig(c.dependencies.Volumes())
-	netConfig := c.container.createNetworkingConfig(c.backend)
+	netConfig := c.container.createNetworkingConfig(ctx, c.backend)
 
 	// We need to make sure no empty string or "default" NetworkMode is
 	// provided to the daemon as it doesn't support them.
@@ -440,7 +440,7 @@ func (c *containerAdapter) terminate(ctx context.Context) error {
 }
 
 func (c *containerAdapter) remove(ctx context.Context) error {
-	return c.backend.ContainerRm(c.container.name(), &backend.ContainerRmConfig{
+	return c.backend.ContainerRm(ctx, c.container.name(), &backend.ContainerRmConfig{
 		RemoveVolume: true,
 		ForceRemove:  true,
 	})
@@ -502,12 +502,12 @@ func (c *containerAdapter) waitClusterVolumes(ctx context.Context) error {
 	return nil
 }
 
-func (c *containerAdapter) activateServiceBinding() error {
-	return c.backend.ActivateContainerServiceBinding(c.container.name())
+func (c *containerAdapter) activateServiceBinding(ctx context.Context) error {
+	return c.backend.ActivateContainerServiceBinding(ctx, c.container.name())
 }
 
-func (c *containerAdapter) deactivateServiceBinding() error {
-	return c.backend.DeactivateContainerServiceBinding(c.container.name())
+func (c *containerAdapter) deactivateServiceBinding(ctx context.Context) error {
+	return c.backend.DeactivateContainerServiceBinding(ctx, c.container.name())
 }
 
 func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (<-chan *backend.LogMessage, error) {

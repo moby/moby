@@ -35,7 +35,7 @@ func (c *containerRouter) headContainersArchive(ctx context.Context, w http.Resp
 		return err
 	}
 
-	stat, err := c.backend.ContainerStatPath(v.Name, v.Path)
+	stat, err := c.backend.ContainerStatPath(ctx, v.Name, v.Path)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (c *containerRouter) getContainersArchive(ctx context.Context, w http.Respo
 		return err
 	}
 
-	tarArchive, stat, err := c.backend.ContainerArchivePath(v.Name, v.Path)
+	tarArchive, stat, err := c.backend.ContainerArchivePath(ctx, v.Name, v.Path)
 	if err != nil {
 		return err
 	}
@@ -97,5 +97,5 @@ func (c *containerRouter) putContainersArchive(ctx context.Context, w http.Respo
 
 	copyUIDGID := httputils.BoolValue(r, "copyUIDGID")
 
-	return c.backend.ContainerExtractToDir(v.Name, v.Path, copyUIDGID, allowOverwriteDirWithFile, r.Body)
+	return c.backend.ContainerExtractToDir(ctx, v.Name, v.Path, copyUIDGID, allowOverwriteDirWithFile, r.Body)
 }

@@ -41,7 +41,7 @@ func TestPortMappingConfig(t *testing.T) {
 	err := pms.Register("nat", pm)
 	assert.NilError(t, err)
 
-	d, err := newDriver(storeutils.NewTempStore(t), Configuration{
+	d, err := newDriver(context.Background(), storeutils.NewTempStore(t), Configuration{
 		EnableIPTables: true,
 	}, &pms)
 	assert.NilError(t, err)
@@ -101,7 +101,7 @@ func TestPortMappingConfig(t *testing.T) {
 	}
 
 	// release host mapped ports
-	err = d.Leave("dummy", "ep1")
+	err = d.Leave(context.Background(), "dummy", "ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func TestPortMappingV6Config(t *testing.T) {
 	err := pms.Register("nat", pm)
 	assert.NilError(t, err)
 
-	d, err := newDriver(storeutils.NewTempStore(t), Configuration{
+	d, err := newDriver(context.Background(), storeutils.NewTempStore(t), Configuration{
 		EnableIPTables:  true,
 		EnableIP6Tables: true,
 	}, &pms)
@@ -175,7 +175,7 @@ func TestPortMappingV6Config(t *testing.T) {
 	}
 
 	// release host mapped ports
-	err = d.Leave("dummy", "ep1")
+	err = d.Leave(context.Background(), "dummy", "ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -772,7 +772,7 @@ func TestAddPortMappings(t *testing.T) {
 			err = routed.Register(pms)
 			assert.NilError(t, err)
 
-			driver, err := newDriver(storeutils.NewTempStore(t), Configuration{
+			driver, err := newDriver(context.Background(), storeutils.NewTempStore(t), Configuration{
 				EnableIPTables:  true,
 				EnableIP6Tables: true,
 				EnableProxy:     tc.enableProxy,
