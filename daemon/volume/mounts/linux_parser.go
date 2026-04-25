@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/v2/daemon/volume"
 )
@@ -49,17 +50,8 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 	if err := validateExclusiveOptions(mnt); err != nil {
 		return &errMountConfig{mount: mnt, err: err}
 	}
-
-	if mnt.Target == "" {
-		return &errMountConfig{mnt, errMissingField("Target")}
-	}
-
-	if err := linuxValidateNotRoot(mnt.Target); err != nil {
-		return &errMountConfig{mnt, err}
-	}
-
-	if err := linuxValidateAbsolute(mnt.Target); err != nil {
-		return &errMountConfig{mnt, err}
+	if err := validateMountTarget(mnt); err != nil {
+		return err
 	}
 
 	switch mnt.Type {
@@ -120,8 +112,30 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 				return &errMountConfig{mnt, errInvalidSubpath}
 			}
 		}
+	case mount.TypeAPISocket:
+		if mnt.Source != "" {
+			return &errMountConfig{mnt, errExtraField("Source")}
+		}
 	default:
 		return &errMountConfig{mnt, errors.New("mount type unknown")}
+	}
+	return nil
+}
+
+func validateMountTarget(mnt *mount.Mount) error {
+	if mnt.Target == "" {
+		if mnt.Type == mount.TypeAPISocket {
+			return nil
+		}
+		return &errMountConfig{mnt, errMissingField("Target")}
+	}
+
+	if err := linuxValidateNotRoot(mnt.Target); err != nil {
+		return &errMountConfig{mnt, err}
+	}
+
+	if err := linuxValidateAbsolute(mnt.Target); err != nil {
+		return &errMountConfig{mnt, err}
 	}
 	return nil
 }
@@ -359,6 +373,12 @@ func (p *linuxParser) parseMountSpec(cfg mount.Mount, validateBindSourceExists b
 		// Propagation is currently not configurable for image mounts.
 		// See https://github.com/moby/moby/issues/51980#issuecomment-3848407167
 		mp.Propagation = linuxDefaultPropagationMode
+	case mount.TypeAPISocket:
+		if cfg.Target == "" {
+			mp.Destination = "/var/run/docker.sock"
+		}
+		log.L.Errorf("linuxParser.parseMountSpec: mount api socket: %+v", mp)
+
 	default:
 		// TODO(thaJeztah): make switch exhaustive: anything to do for mount.TypeNamedPipe, mount.TypeCluster ?
 	}

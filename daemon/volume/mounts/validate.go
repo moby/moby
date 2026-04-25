@@ -46,5 +46,8 @@ func validateExclusiveOptions(mnt *mount.Mount) error {
 	if mnt.Type != mount.TypeCluster && mnt.ClusterOptions != nil {
 		return errExtraField("ClusterOptions")
 	}
+	if mnt.Type != mount.TypeAPISocket && mnt.APISocketOptions != nil {
+		return errExtraField("APISocketOptions")
+	}
 	return nil
 }

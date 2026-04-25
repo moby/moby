@@ -12,9 +12,11 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	mounttypes "github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/moby/moby/v2/daemon/libnetwork/resolvconf"
+	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/pkg/errors"
@@ -236,4 +238,24 @@ func supportsRecursivelyReadOnly(cfg *configStore, runtime string) error {
 		return nil
 	}
 	return fmt.Errorf("rro is not supported by runtime %q", runtime)
+}
+
+// apiSocket returns the first Unix socket from the daemon's configured hosts.
+// Returns an error if no Unix socket is configured.
+func (daemon *Daemon) apiSocket(_ string, options *mounttypes.APISocketOptions) (string, error) {
+	var accessType string
+	if options != nil {
+		accessType = options.Access
+	}
+	switch accessType {
+	case mounttypes.AccessUnconfined:
+		// FIXME(thaJeztah): This patch needs to be aware of rootless (XDG) vs non-rootless.
+		return opts.APISocket, nil
+	case "":
+		// FIXME(thaJeztah): CLI needs updating to recognize this option (and to allow empty target).
+		return opts.APISocket, nil
+		// return "", errors.New("API socket access option is not set")
+	default:
+		return "", fmt.Errorf("API socket access %q is not supported", accessType)
+	}
 }
