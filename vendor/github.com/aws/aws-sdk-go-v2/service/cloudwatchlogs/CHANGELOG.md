@@ -1,3 +1,7 @@
+# v1.71.0 (2026-04-27)
+
+* **Feature**: Adds support for selecting all logs sources and types in a single association.
+
 # v1.70.0 (2026-04-24)
 
 * **Feature**: Adding nextToken and maxItems to the GetQueryResults API.

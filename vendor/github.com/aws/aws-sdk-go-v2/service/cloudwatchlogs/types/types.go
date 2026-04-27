@@ -2718,6 +2718,9 @@ type S3TableIntegrationSource struct {
 	// The unique identifier for this data source association.
 	Identifier *string
 
+	// The identifier of the parent data source for this association.
+	ParentSourceIdentifier *string
+
 	// The current status of the data source association.
 	Status S3TableIntegrationSourceStatus
 

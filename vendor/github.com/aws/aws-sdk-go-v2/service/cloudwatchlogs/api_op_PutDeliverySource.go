@@ -114,7 +114,8 @@ type PutDeliverySourceInput struct {
 	//
 	//   - For Network Load Balancer, the valid value is NLB_ACCESS_LOGS .
 	//
-	//   - For PCS, the valid values are PCS_SCHEDULER_LOGS and PCS_JOBCOMP_LOGS .
+	//   - For PCS, the valid values are PCS_SCHEDULER_LOGS , PCS_JOBCOMP_LOGS , and
+	//   PCS_SCHEDULER_AUDIT_LOGS .
 	//
 	//   - For Quick, the valid values are CHAT_LOGS and FEEDBACK_LOGS .
 	//
@@ -123,6 +124,9 @@ type PutDeliverySourceInput struct {
 	//   - For Amazon Q, the valid values are EVENT_LOGS and SYNC_JOB_LOGS .
 	//
 	//   - For Amazon Web Services Security Hub CSPM, the valid value is
+	//   SECURITY_FINDING_LOGS .
+	//
+	//   - For Amazon Web Services Security Hub, the valid value is
 	//   SECURITY_FINDING_LOGS .
 	//
 	//   - For Amazon SES mail manager, the valid values are APPLICATION_LOGS and
@@ -148,7 +152,9 @@ type PutDeliverySourceInput struct {
 	// arn:aws:workmail:us-east-1:123456789012:organization/m-1234EXAMPLEabcd1234abcd1234abcd1234
 	//
 	// For the SECURITY_FINDING_LOGS logType, use a wildcard ARN for the hub resource.
-	// For example, arn:aws:securityhub:us-east-1:111122223333:hub/*
+	// For Amazon Web Services Security Hub CSPM, use
+	// arn:aws:securityhub:us-east-1:111122223333:hub/* and for Amazon Web Services
+	// Security Hub, use arn:aws:securityhub:us-east-1:111122223333:hubv2/*
 	//
 	// This member is required.
 	ResourceArn *string

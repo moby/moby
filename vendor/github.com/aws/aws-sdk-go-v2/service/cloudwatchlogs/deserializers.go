@@ -23041,6 +23041,15 @@ func awsAwsjson11_deserializeDocumentS3TableIntegrationSource(v **types.S3TableI
 				sv.Identifier = ptr.String(jtv)
 			}
 
+		case "parentSourceIdentifier":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected S3TableIntegrationSourceIdentifier to be of type string, got %T instead", value)
+				}
+				sv.ParentSourceIdentifier = ptr.String(jtv)
+			}
+
 		case "status":
 			if value != nil {
 				jtv, ok := value.(string)
