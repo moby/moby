@@ -15,7 +15,7 @@
 [Unit]
 Description=containerd container runtime
 Documentation=https://containerd.io
-After=network.target local-fs.target
+After=network.target local-fs.target dbus.service
 
 [Service]
 #uncomment to enable the experimental sbservice (sandboxed) version of containerd/cri integration

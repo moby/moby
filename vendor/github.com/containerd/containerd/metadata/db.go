@@ -30,10 +30,10 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/gc"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/cleanup"
 	"github.com/containerd/containerd/snapshots"
+	"github.com/containerd/log"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -520,7 +520,7 @@ func (m *DB) cleanupSnapshotter(ctx context.Context, name string) (time.Duration
 	if err != nil {
 		logger.WithError(err).Warn("snapshot garbage collection failed")
 	} else {
-		logger.WithField("d", d).Debugf("snapshot garbage collected")
+		logger.WithField("d", d).Tracef("snapshot garbage collected")
 	}
 	return d, err
 }
@@ -535,7 +535,7 @@ func (m *DB) cleanupContent(ctx context.Context) (time.Duration, error) {
 	if err != nil {
 		log.G(ctx).WithError(err).Warn("content garbage collection failed")
 	} else {
-		log.G(ctx).WithField("d", d).Debugf("content garbage collected")
+		log.G(ctx).WithField("d", d).Tracef("content garbage collected")
 	}
 
 	return d, err

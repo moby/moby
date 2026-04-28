@@ -20,10 +20,9 @@ limitations under the License.
 package k8s
 
 import (
+	"errors"
 	"fmt"
 	"strings"
-
-	"tags.cncf.io/container-device-interface/internal/multierror"
 )
 
 // TotalAnnotationSizeLimitB defines the maximum size of all annotations in characters.
@@ -31,17 +30,17 @@ const TotalAnnotationSizeLimitB int = 256 * (1 << 10) // 256 kB
 
 // ValidateAnnotations validates that a set of annotations are correctly defined.
 func ValidateAnnotations(annotations map[string]string, path string) error {
-	errors := multierror.New()
+	errs := []error{}
 	for k := range annotations {
 		// The rule is QualifiedName except that case doesn't matter, so convert to lowercase before checking.
 		for _, msg := range IsQualifiedName(strings.ToLower(k)) {
-			errors = multierror.Append(errors, fmt.Errorf("%v.%v is invalid: %v", path, k, msg))
+			errs = append(errs, fmt.Errorf("%v.%v is invalid: %v", path, k, msg))
 		}
 	}
 	if err := ValidateAnnotationsSize(annotations); err != nil {
-		errors = multierror.Append(errors, fmt.Errorf("%v is too long: %v", path, err))
+		errs = append(errs, fmt.Errorf("%v is too long: %v", path, err))
 	}
-	return errors
+	return errors.Join(errs...)
 }
 
 // ValidateAnnotationsSize validates that a set of annotations is not too large.

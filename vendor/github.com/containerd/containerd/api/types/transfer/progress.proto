@@ -18,6 +18,8 @@ syntax = "proto3";
 
 package containerd.types.transfer;
 
+import "github.com/containerd/containerd/api/types/descriptor.proto";
+
 option go_package = "github.com/containerd/containerd/api/types/transfer";
 
 message Progress {
@@ -26,4 +28,5 @@ message Progress {
 	repeated string parents = 3;
 	int64 progress = 4;
 	int64 total = 5;
+	containerd.types.Descriptor desc = 6;
 }

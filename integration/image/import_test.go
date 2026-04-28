@@ -147,11 +147,11 @@ func TestImportWithCustomPlatformReject(t *testing.T) {
 	}{
 		{
 			platform:    "       ",
-			expectedErr: "is an invalid component",
+			expectedErr: "is an invalid OS component",
 		},
 		{
 			platform:    "/",
-			expectedErr: "is an invalid component",
+			expectedErr: "is an invalid OS component",
 		},
 		{
 			platform:    "macos",

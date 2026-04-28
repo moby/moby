@@ -23,12 +23,13 @@ import (
 	"sort"
 	"time"
 
-	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/log"
+	"github.com/containerd/platforms"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/errdefs"
 )
 
 // Image provides the model for how containerd views container images.
@@ -268,6 +269,9 @@ func Platforms(ctx context.Context, provider content.Provider, image ocispec.Des
 	var platformSpecs []ocispec.Platform
 	return platformSpecs, Walk(ctx, Handlers(HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		if desc.Platform != nil {
+			if desc.Platform.OS == "unknown" || desc.Platform.Architecture == "unknown" {
+				return nil, ErrSkipDesc
+			}
 			platformSpecs = append(platformSpecs, *desc.Platform)
 			return nil, ErrSkipDesc
 		}
@@ -374,7 +378,7 @@ func Children(ctx context.Context, provider content.Provider, desc ocispec.Descr
 
 		descs = append(descs, index.Manifests...)
 	default:
-		if IsLayerType(desc.MediaType) || IsKnownConfig(desc.MediaType) {
+		if IsLayerType(desc.MediaType) || IsKnownConfig(desc.MediaType) || IsAttestationType(desc.MediaType) {
 			// childless data types.
 			return nil, nil
 		}

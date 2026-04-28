@@ -19,7 +19,6 @@ package cdi
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,7 +61,7 @@ type Spec struct {
 // assigned the given priority. If reading or parsing the Spec
 // data fails ReadSpec returns a nil Spec and an error.
 func ReadSpec(path string, priority int) (*Spec, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	switch {
 	case os.IsNotExist(err):
 		return nil, err
