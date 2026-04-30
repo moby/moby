@@ -26,13 +26,7 @@ func decodeLogLine(dec *json.Decoder, l *jsonlog.JSONLog) (*logger.Message, erro
 		return nil, err
 	}
 
-	var attrs []backend.LogAttr
-	if len(l.Attrs) != 0 {
-		attrs = make([]backend.LogAttr, 0, len(l.Attrs))
-		for k, v := range l.Attrs {
-			attrs = append(attrs, backend.LogAttr{Key: k, Value: v})
-		}
-	}
+	attrs := decodeAttrs(l.Attrs)
 	msg := &logger.Message{
 		Source:    l.Stream,
 		Timestamp: l.Created,
@@ -40,6 +34,17 @@ func decodeLogLine(dec *json.Decoder, l *jsonlog.JSONLog) (*logger.Message, erro
 		Attrs:     attrs,
 	}
 	return msg, nil
+}
+
+func decodeAttrs(m map[string]string) []backend.LogAttr {
+	if len(m) == 0 {
+		return nil
+	}
+	attrs := make([]backend.LogAttr, 0, len(m))
+	for k, v := range m {
+		attrs = append(attrs, backend.LogAttr{Key: k, Value: v})
+	}
+	return attrs
 }
 
 type decoder struct {
