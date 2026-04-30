@@ -567,8 +567,8 @@ github.com/moby/policy-helpers v0.0.0-20260324161837-b7c0b994300b h1:lvBBM2ACrsG
 github.com/moby/policy-helpers v0.0.0-20260324161837-b7c0b994300b/go.mod h1:Cbc1brDwYl1K294MmZB+6WhQR9Tr24hfhgSGND4UlL0=
 github.com/moby/profiles/apparmor v0.2.0 h1:QqmRNCkf8Bq7YA8rY+bwfC1VNhrkCXGveqdLbrjuOfs=
 github.com/moby/profiles/apparmor v0.2.0/go.mod h1:DtaWKVB992B38PG5i6VZU6w71JQatA6qtkaQGiqUsoc=
-github.com/moby/profiles/seccomp v0.2.0 h1:JCLyeOwIcPn83QBZlPD/UAsZfQkbwvUfWD7n0wB6B0E=
-github.com/moby/profiles/seccomp v0.2.0/go.mod h1:8m3qkkWZXrRsMqlUUN2zyccnYmBf3EAdQYPMVJ3NBhk=
+github.com/moby/profiles/seccomp v0.2.1 h1:IlgbbUlIkalddnatSMPurLs63cfLiVILdx3ykMousH0=
+github.com/moby/profiles/seccomp v0.2.1/go.mod h1:8m3qkkWZXrRsMqlUUN2zyccnYmBf3EAdQYPMVJ3NBhk=
 github.com/moby/pubsub v1.0.0 h1:jkp/imWsmJz2f6LyFsk7EkVeN2HxR/HTTOY8kHrsxfA=
 github.com/moby/pubsub v1.0.0/go.mod h1:bXSO+3h5MNXXCaEG+6/NlAIk7MMZbySZlnB+cUQhKKc=
 github.com/moby/swarmkit/v2 v2.1.2 h1:1WDZAI6HVYNKdCG4zlXnTAPyLsLwuhRGWlHoOUf5Z6I=

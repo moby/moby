@@ -65,7 +65,7 @@ require (
 	github.com/moby/patternmatcher v0.6.1
 	github.com/moby/policy-helpers v0.0.0-20260324161837-b7c0b994300b
 	github.com/moby/profiles/apparmor v0.2.0
-	github.com/moby/profiles/seccomp v0.2.0
+	github.com/moby/profiles/seccomp v0.2.1
 	github.com/moby/pubsub v1.0.0
 	github.com/moby/swarmkit/v2 v2.1.2
 	github.com/moby/sys/atomicwriter v0.1.0
