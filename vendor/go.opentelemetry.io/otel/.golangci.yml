@@ -16,6 +16,8 @@ linters:
     - govet
     - ineffassign
     - misspell
+    - modernize
+    - noctx
     - perfsprint
     - revive
     - staticcheck
@@ -87,6 +89,16 @@ linters:
           deny:
             - pkg: go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal
               desc: Do not use cross-module internal packages.
+        semconv:
+          list-mode: lax
+          files:
+            - "!**/semconv/**"
+            - "!**/exporters/zipkin/**"
+          deny:
+            - pkg: go.opentelemetry.io/otel/semconv
+              desc: "Use go.opentelemetry.io/otel/semconv/v1.40.0 instead. If a newer semconv version has been released, update the depguard rule."
+          allow:
+            - go.opentelemetry.io/otel/semconv/v1.40.0
     gocritic:
       disabled-checks:
         - appendAssign
@@ -111,6 +123,9 @@ linters:
       locale: US
       ignore-rules:
         - cancelled
+    modernize:
+      disable:
+        - omitzero
     perfsprint:
       int-conversion: true
       err-error: true
@@ -190,6 +205,7 @@ linters:
           arguments:
             - ["ID"] # AllowList
             - ["Otel", "Aws", "Gcp"] # DenyList
+            - - skip-package-name-collision-with-go-std: true
         - name: waitgroup-by-value
     testifylint:
       enable-all: true

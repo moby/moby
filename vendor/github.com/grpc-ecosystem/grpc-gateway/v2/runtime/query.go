@@ -51,11 +51,13 @@ func (*DefaultQueryParser) Parse(msg proto.Message, values url.Values, filter *u
 			key = match[1]
 			values = append([]string{match[2]}, values...)
 		}
-		fieldPath := strings.Split(key, ".")
+
+		msgValue := msg.ProtoReflect()
+		fieldPath := normalizeFieldPath(msgValue, strings.Split(key, "."))
 		if filter.HasCommonPrefix(fieldPath) {
 			continue
 		}
-		if err := populateFieldValueFromPath(msg.ProtoReflect(), fieldPath, values); err != nil {
+		if err := populateFieldValueFromPath(msgValue, fieldPath, values); err != nil {
 			return err
 		}
 	}
@@ -66,6 +68,38 @@ func (*DefaultQueryParser) Parse(msg proto.Message, values url.Values, filter *u
 func PopulateFieldFromPath(msg proto.Message, fieldPathString string, value string) error {
 	fieldPath := strings.Split(fieldPathString, ".")
 	return populateFieldValueFromPath(msg.ProtoReflect(), fieldPath, []string{value})
+}
+
+func normalizeFieldPath(msgValue protoreflect.Message, fieldPath []string) []string {
+	newFieldPath := make([]string, 0, len(fieldPath))
+	for i, fieldName := range fieldPath {
+		fields := msgValue.Descriptor().Fields()
+		fieldDesc := fields.ByTextName(fieldName)
+		if fieldDesc == nil {
+			fieldDesc = fields.ByJSONName(fieldName)
+		}
+		if fieldDesc == nil {
+			// return initial field path values if no matching  message field was found
+			return fieldPath
+		}
+
+		newFieldPath = append(newFieldPath, string(fieldDesc.Name()))
+
+		// If this is the last element, we're done
+		if i == len(fieldPath)-1 {
+			break
+		}
+
+		// Only singular message fields are allowed
+		if fieldDesc.Message() == nil || fieldDesc.Cardinality() == protoreflect.Repeated {
+			return fieldPath
+		}
+
+		// Get the nested message
+		msgValue = msgValue.Get(fieldDesc).Message()
+	}
+
+	return newFieldPath
 }
 
 func populateFieldValueFromPath(msgValue protoreflect.Message, fieldPath []string, values []string) error {
@@ -92,6 +126,15 @@ func populateFieldValueFromPath(msgValue protoreflect.Message, fieldPath []strin
 			}
 		}
 
+		// Check if oneof already set
+		if of := fieldDescriptor.ContainingOneof(); of != nil && !of.IsSynthetic() {
+			if f := msgValue.WhichOneof(of); f != nil {
+				if fieldDescriptor.Message() == nil || fieldDescriptor.FullName() != f.FullName() {
+					return fmt.Errorf("field already set for oneof %q", of.FullName().Name())
+				}
+			}
+		}
+
 		// If this is the last element, we're done
 		if i == len(fieldPath)-1 {
 			break
@@ -104,13 +147,6 @@ func populateFieldValueFromPath(msgValue protoreflect.Message, fieldPath []strin
 
 		// Get the nested message
 		msgValue = msgValue.Mutable(fieldDescriptor).Message()
-	}
-
-	// Check if oneof already set
-	if of := fieldDescriptor.ContainingOneof(); of != nil {
-		if f := msgValue.WhichOneof(of); f != nil {
-			return fmt.Errorf("field already set for oneof %q", of.FullName().Name())
-		}
 	}
 
 	switch {
@@ -257,7 +293,11 @@ func parseMessage(msgDescriptor protoreflect.MessageDescriptor, value string) (p
 		if err != nil {
 			return protoreflect.Value{}, err
 		}
-		msg = timestamppb.New(t)
+		timestamp := timestamppb.New(t)
+		if ok := timestamp.IsValid(); !ok {
+			return protoreflect.Value{}, fmt.Errorf("%s before 0001-01-01", value)
+		}
+		msg = timestamp
 	case "google.protobuf.Duration":
 		d, err := time.ParseDuration(value)
 		if err != nil {

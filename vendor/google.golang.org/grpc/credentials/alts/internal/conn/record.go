@@ -27,6 +27,7 @@ import (
 	"net"
 
 	core "google.golang.org/grpc/credentials/alts/internal"
+	"google.golang.org/grpc/internal/mem"
 )
 
 // ALTSRecordCrypto is the interface for gRPC ALTS record protocol.
@@ -62,8 +63,6 @@ const (
 	altsRecordDefaultLength = 4 * 1024 // 4KiB
 	// Message type value included in ALTS record framing.
 	altsRecordMsgType = uint32(0x06)
-	// The initial write buffer size.
-	altsWriteBufferInitialSize = 32 * 1024 // 32KiB
 	// The maximum write buffer size. This *must* be multiple of
 	// altsRecordDefaultLength.
 	altsWriteBufferMaxSize = 512 * 1024 // 512KiB
@@ -74,8 +73,25 @@ const (
 )
 
 var (
-	protocols = make(map[string]ALTSRecordFunc)
+	protocols    = make(map[string]ALTSRecordFunc)
+	writeBufPool *mem.BinaryTieredBufferPool
 )
+
+func init() {
+	pool, err := mem.NewDirtyBinaryTieredBufferPool(
+		8,
+		12, // Go page size, 4KB
+		14, // 16KB (max HTTP/2 frame size used by gRPC)
+		15, // 32KB (default buffer size for gRPC)
+		16, // 64KB
+		17, // 128KB
+		19, // 512KB, max write buffer size
+	)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create write buffer pool: %v", err))
+	}
+	writeBufPool = pool
+}
 
 // RegisterProtocol register a ALTS record encryption protocol.
 func RegisterProtocol(protocol string, f ALTSRecordFunc) error {
@@ -97,9 +113,6 @@ type conn struct {
 	// protected holds data read from the network but have not yet been
 	// decrypted. This data might not compose a complete frame.
 	protected []byte
-	// writeBuf is a buffer used to contain encrypted frames before being
-	// written to the network.
-	writeBuf []byte
 	// nextFrame stores the next frame (in protected buffer) info.
 	nextFrame []byte
 	// overhead is the calculated overhead of each frame.
@@ -132,7 +145,6 @@ func NewConn(c net.Conn, side core.Side, recordProtocol string, key []byte, prot
 		crypto:             crypto,
 		payloadLengthLimit: payloadLengthLimit,
 		protected:          protectedBuf,
-		writeBuf:           make([]byte, altsWriteBufferInitialSize),
 		nextFrame:          protectedBuf,
 		overhead:           overhead,
 	}
@@ -233,16 +245,16 @@ func (p *conn) Write(b []byte) (n int, err error) {
 	// Calculate the output buffer size with framing and encryption overhead.
 	numOfFrames := int(math.Ceil(float64(len(b)) / float64(p.payloadLengthLimit)))
 	size := len(b) + numOfFrames*p.overhead
-	// If writeBuf is too small, increase its size up to the maximum size.
 	partialBSize := len(b)
 	if size > altsWriteBufferMaxSize {
 		size = altsWriteBufferMaxSize
 		const numOfFramesInMaxWriteBuf = altsWriteBufferMaxSize / altsRecordDefaultLength
 		partialBSize = numOfFramesInMaxWriteBuf * p.payloadLengthLimit
 	}
-	if len(p.writeBuf) < size {
-		p.writeBuf = make([]byte, size)
-	}
+	// Get a writeBuf of the required length.
+	bufHandle := writeBufPool.Get(size)
+	defer writeBufPool.Put(bufHandle)
+	writeBuf := *bufHandle
 
 	for partialBStart := 0; partialBStart < len(b); partialBStart += partialBSize {
 		partialBEnd := partialBStart + partialBSize
@@ -263,7 +275,7 @@ func (p *conn) Write(b []byte) (n int, err error) {
 			// if any.
 
 			// 1. Fill in type field.
-			msg := p.writeBuf[writeBufIndex+MsgLenFieldSize:]
+			msg := writeBuf[writeBufIndex+MsgLenFieldSize:]
 			binary.LittleEndian.PutUint32(msg, altsRecordMsgType)
 
 			// 2. Encrypt the payload and create a tag if any.
@@ -273,12 +285,12 @@ func (p *conn) Write(b []byte) (n int, err error) {
 			}
 
 			// 3. Fill in the size field.
-			binary.LittleEndian.PutUint32(p.writeBuf[writeBufIndex:], uint32(len(msg)))
+			binary.LittleEndian.PutUint32(writeBuf[writeBufIndex:], uint32(len(msg)))
 
 			// 4. Increase writeBufIndex.
 			writeBufIndex += len(buf) + p.overhead
 		}
-		nn, err := p.Conn.Write(p.writeBuf[:writeBufIndex])
+		nn, err := p.Conn.Write(writeBuf[:writeBufIndex])
 		if err != nil {
 			// We need to calculate the actual data size that was
 			// written. This means we need to remove header,

@@ -27,7 +27,7 @@ func FieldMaskFromRequestBody(r io.Reader, msg proto.Message) (*field_mask.Field
 	var root interface{}
 
 	if err := json.NewDecoder(r).Decode(&root); err != nil {
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return fm, nil
 		}
 		return nil, err
@@ -41,7 +41,7 @@ func FieldMaskFromRequestBody(r io.Reader, msg proto.Message) (*field_mask.Field
 
 		m, ok := item.node.(map[string]interface{})
 		switch {
-		case ok:
+		case ok && len(m) > 0:
 			// if the item is an object, then enqueue all of its children
 			for k, v := range m {
 				if item.msg == nil {
@@ -96,6 +96,8 @@ func FieldMaskFromRequestBody(r io.Reader, msg proto.Message) (*field_mask.Field
 					queue = append(queue, child)
 				}
 			}
+		case ok && len(m) == 0:
+			fallthrough
 		case len(item.path) > 0:
 			// otherwise, it's a leaf node so print its path
 			fm.Paths = append(fm.Paths, item.path)
@@ -153,7 +155,7 @@ func buildPathsBlindly(name string, in interface{}) []string {
 	return paths
 }
 
-// fieldMaskPathItem stores a in-progress deconstruction of a path for a fieldmask
+// fieldMaskPathItem stores an in-progress deconstruction of a path for a fieldmask
 type fieldMaskPathItem struct {
 	// the list of prior fields leading up to node connected by dots
 	path string

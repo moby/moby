@@ -153,6 +153,43 @@ func (params CredentialsParams) deepCopy() CredentialsParams {
 	return paramsCopy
 }
 
+// CredentialsType specifies the type of JSON credentials being provided
+// to a loading function.
+type CredentialsType string
+
+const (
+	// ServiceAccount represents a service account file type.
+	ServiceAccount CredentialsType = "service_account"
+	// AuthorizedUser represents a user credentials file type.
+	AuthorizedUser CredentialsType = "authorized_user"
+	// ExternalAccount represents an external account file type.
+	//
+	// IMPORTANT:
+	// This credential type does not validate the credential configuration. A security
+	// risk occurs when a credential configuration configured with malicious urls
+	// is used.
+	// You should validate credential configurations provided by untrusted sources.
+	// See [Security requirements when using credential configurations from an external
+	// source] https://cloud.google.com/docs/authentication/external/externally-sourced-credentials
+	// for more details.
+	ExternalAccount CredentialsType = "external_account"
+	// ExternalAccountAuthorizedUser represents an external account authorized user file type.
+	ExternalAccountAuthorizedUser CredentialsType = "external_account_authorized_user"
+	// ImpersonatedServiceAccount represents an impersonated service account file type.
+	//
+	// IMPORTANT:
+	// This credential type does not validate the credential configuration. A security
+	// risk occurs when a credential configuration configured with malicious urls
+	// is used.
+	// You should validate credential configurations provided by untrusted sources.
+	// See [Security requirements when using credential configurations from an external
+	// source] https://cloud.google.com/docs/authentication/external/externally-sourced-credentials
+	// for more details.
+	ImpersonatedServiceAccount CredentialsType = "impersonated_service_account"
+	// GDCHServiceAccount represents a GDCH service account credentials.
+	GDCHServiceAccount CredentialsType = "gdch_service_account"
+)
+
 // DefaultClient returns an HTTP Client that uses the
 // DefaultTokenSource to obtain authentication credentials.
 func DefaultClient(ctx context.Context, scope ...string) (*http.Client, error) {
@@ -246,17 +283,71 @@ func FindDefaultCredentials(ctx context.Context, scopes ...string) (*Credentials
 	return FindDefaultCredentialsWithParams(ctx, params)
 }
 
-// CredentialsFromJSONWithParams obtains Google credentials from a JSON value. The JSON can
-// represent either a Google Developers Console client_credentials.json file (as in ConfigFromJSON),
-// a Google Developers service account key file, a gcloud user credentials file (a.k.a. refresh
-// token JSON), or the JSON configuration file for workload identity federation in non-Google cloud
-// platforms (see https://cloud.google.com/iam/docs/how-to#using-workload-identity-federation).
+// CredentialsFromJSONWithType invokes CredentialsFromJSONWithTypeAndParams with the specified scopes.
 //
 // Important: If you accept a credential configuration (credential JSON/File/Stream) from an
 // external source for authentication to Google Cloud Platform, you must validate it before
 // providing it to any Google API or library. Providing an unvalidated credential configuration to
 // Google APIs can compromise the security of your systems and data. For more information, refer to
 // [Validate credential configurations from external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
+func CredentialsFromJSONWithType(ctx context.Context, jsonData []byte, credType CredentialsType, scopes ...string) (*Credentials, error) {
+	var params CredentialsParams
+	params.Scopes = scopes
+	return CredentialsFromJSONWithTypeAndParams(ctx, jsonData, credType, params)
+}
+
+// CredentialsFromJSONWithTypeAndParams obtains Google credentials from a JSON value and
+// validates that the credentials match the specified type.
+//
+// Important: If you accept a credential configuration (credential JSON/File/Stream) from an
+// external source for authentication to Google Cloud Platform, you must validate it before
+// providing it to any Google API or library. Providing an unvalidated credential configuration to
+// Google APIs can compromise the security of your systems and data. For more information, refer to
+// [Validate credential configurations from external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
+func CredentialsFromJSONWithTypeAndParams(ctx context.Context, jsonData []byte, credType CredentialsType, params CredentialsParams) (*Credentials, error) {
+	var f struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(jsonData, &f); err != nil {
+		return nil, err
+	}
+	if CredentialsType(f.Type) != credType {
+		return nil, fmt.Errorf("google: expected credential type %q, found %q", credType, f.Type)
+	}
+	return CredentialsFromJSONWithParams(ctx, jsonData, params)
+}
+
+// CredentialsFromJSONWithParams obtains Google credentials from a JSON value. The JSON can
+// represent either a Google Developers Console client_credentials.json file (as in ConfigFromJSON),
+// a Google Developers service account key file, a gcloud user credentials file (a.k.a. refresh
+// token JSON), or the JSON configuration file for workload identity federation in non-Google cloud
+// platforms (see https://cloud.google.com/iam/docs/how-to#using-workload-identity-federation).
+//
+// Deprecated: This function is deprecated because of a potential security risk.
+// It does not validate the credential configuration. The security risk occurs
+// when a credential configuration is accepted from a source that is not
+// under your control and used without validation on your side.
+//
+// If you know that you will be loading credential configurations of a
+// specific type, it is recommended to use a credential-type-specific
+// CredentialsFromJSONWithTypeAndParams method. This will ensure that an unexpected
+// credential type with potential for malicious intent is not loaded
+// unintentionally. You might still have to do validation for certain
+// credential types. Please follow the recommendation for that method. For
+// example, if you want to load only service accounts, you can use
+//
+//	creds, err := google.CredentialsFromJSONWithTypeAndParams(ctx, jsonData, google.ServiceAccount, params)
+//
+// If you are loading your credential configuration from an untrusted source
+// and have not mitigated the risks (e.g. by validating the configuration
+// yourself), make these changes as soon as possible to prevent security
+// risks to your environment.
+//
+// Regardless of the method used, it is always your responsibility to
+// validate configurations received from external sources.
+//
+// For more details see:
+// https://cloud.google.com/docs/authentication/external/externally-sourced-credentials
 func CredentialsFromJSONWithParams(ctx context.Context, jsonData []byte, params CredentialsParams) (*Credentials, error) {
 	// Make defensive copy of the slices in params.
 	params = params.deepCopy()
@@ -301,11 +392,31 @@ func CredentialsFromJSONWithParams(ctx context.Context, jsonData []byte, params 
 
 // CredentialsFromJSON invokes CredentialsFromJSONWithParams with the specified scopes.
 //
-// Important: If you accept a credential configuration (credential JSON/File/Stream) from an
-// external source for authentication to Google Cloud Platform, you must validate it before
-// providing it to any Google API or library. Providing an unvalidated credential configuration to
-// Google APIs can compromise the security of your systems and data. For more information, refer to
-// [Validate credential configurations from external sources](https://cloud.google.com/docs/authentication/external/externally-sourced-credentials).
+// Deprecated: This function is deprecated because of a potential security risk.
+// It does not validate the credential configuration. The security risk occurs
+// when a credential configuration is accepted from a source that is not
+// under your control and used without validation on your side.
+//
+// If you know that you will be loading credential configurations of a
+// specific type, it is recommended to use a credential-type-specific
+// CredentialsFromJSONWithType method. This will ensure that an unexpected
+// credential type with potential for malicious intent is not loaded
+// unintentionally. You might still have to do validation for certain
+// credential types. Please follow the recommendation for that method. For
+// example, if you want to load only service accounts, you can use
+//
+//	creds, err := google.CredentialsFromJSONWithType(ctx, jsonData, google.ServiceAccount, scopes...)
+//
+// If you are loading your credential configuration from an untrusted source
+// and have not mitigated the risks (e.g. by validating the configuration
+// yourself), make these changes as soon as possible to prevent security
+// risks to your environment.
+//
+// Regardless of the method used, it is always your responsibility to
+// validate configurations received from external sources.
+//
+// For more details see:
+// https://cloud.google.com/docs/authentication/external/externally-sourced-credentials
 func CredentialsFromJSON(ctx context.Context, jsonData []byte, scopes ...string) (*Credentials, error) {
 	var params CredentialsParams
 	params.Scopes = scopes
