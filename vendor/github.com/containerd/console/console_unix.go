@@ -1,4 +1,5 @@
-// +build darwin freebsd linux netbsd openbsd solaris
+//go:build darwin || freebsd || linux || netbsd || openbsd || zos
+// +build darwin freebsd linux netbsd openbsd zos
 
 /*
    Copyright The containerd Authors.
@@ -30,6 +31,15 @@ func NewPty() (Console, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
+	return NewPtyFromFile(f)
+}
+
+// NewPtyFromFile creates a new pty pair, just like [NewPty] except that the
+// provided [os.File] is used as the master rather than automatically creating
+// a new master from /dev/ptmx. The ownership of [os.File] is passed to the
+// returned [Console], so the caller must be careful to not call Close on the
+// underlying file.
+func NewPtyFromFile(f File) (Console, string, error) {
 	slave, err := ptsname(f)
 	if err != nil {
 		return nil, "", err

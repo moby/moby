@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased 0.5.z] ##
 
+## [0.5.2] - 2025-11-19 ##
+
+> "Will you walk into my parlour?" said a spider to a fly.
+
+### Fixed ###
+- Our logic for deciding whether to use `openat2(2)` or fallback to an `O_PATH`
+  resolver would cache the result to avoid doing needless test runs of
+  `openat2(2)`. However, this causes issues when `pathrs-lite` is being used by
+  a program that applies new seccomp-bpf filters onto itself -- if the filter
+  denies `openat2(2)` then we would return that error rather than falling back
+  to the `O_PATH` resolver. To resolve this issue, we no longer cache the
+  result if `openat2(2)` was successful, only if there was an error.
+- A file descriptor leak in our `openat2` wrapper (when doing the necessary
+  `dup` for `RESOLVE_IN_ROOT`) has been removed.
+
 ## [0.5.1] - 2025-10-31 ##
 
 > Spooky scary skeletons send shivers down your spine!
