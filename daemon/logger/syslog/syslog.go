@@ -2,6 +2,7 @@
 package syslog
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	syslog "github.com/RackSec/srslog"
+	cdlog "github.com/containerd/log"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
@@ -48,7 +50,7 @@ var facilities = map[string]syslog.Priority{
 }
 
 type syslogger struct {
-	writer *syslog.Writer
+	lazyWriter lazyWriter
 }
 
 // rsyslog uses appname part of syslog message to fill in an %syslogtag% template
@@ -92,32 +94,63 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 
+	lazy_connect, err := parseLazyConnect(info.Config["syslog-lazy-connect"])
+	if err != nil {
+		return nil, err
+	}
+	if strings.Contains(proto, "tcp") && !lazy_connect {
+		cdlog.G(context.TODO()).Warn("You've configured syslog over TCP without specifying `syslog-lazy-connect`: if syslog is unavailable when your container attempts to start, it will fail.")
+	}
+
 	syslogFormatter, syslogFramer, err := parseLogFormat(info.Config["syslog-format"], proto)
 	if err != nil {
 		return nil, err
 	}
 
-	var log *syslog.Writer
-	if proto == secureProto {
-		tlsConfig, tlsErr := parseTLSConfig(info.Config)
-		if tlsErr != nil {
-			return nil, tlsErr
-		}
-		log, err = syslog.DialWithTLSConfig(proto, address, facility, tag, tlsConfig)
-	} else {
-		log, err = syslog.Dial(proto, address, facility, tag)
-	}
-
+	timeout, err := parseTimeout(info.Config["syslog-timeout"])
 	if err != nil {
 		return nil, err
 	}
 
-	log.SetFormatter(syslogFormatter)
-	log.SetFramer(syslogFramer)
+	var tlsConfig *tls.Config
+	if proto == secureProto {
+		tlsConfig, err = parseTLSConfig(info.Config)
+		if err != nil {
+			return nil, err
+		}
+	}
+	dialFunc := func(network, addr string) (net.Conn, error) {
+		dialer := &net.Dialer{
+			Timeout: timeout,
+		}
+		if tlsConfig != nil {
+			return tls.DialWithDialer(dialer, network, addr, tlsConfig)
+		} else {
+			return dialer.Dial(network, addr)
+		}
+	}
+	lazyWriter := newLazyWriter(
+		func() (*syslog.Writer, error) {
+			log, err := syslog.DialWithCustomDialer(proto, address, facility, tag, dialFunc)
+			if err != nil {
+				cdlog.G(context.TODO()).Warnf("Failed to connect to syslog: %v", err)
+				return nil, err
+			}
+			log.SetFormatter(syslogFormatter)
+			log.SetFramer(syslogFramer)
+			return log, nil
+		},
+	)
 
-	return &syslogger{
-		writer: log,
-	}, nil
+	if !lazy_connect {
+		// Force a connection attempt, fail to create the logger if the connection fails.
+		_, err = lazyWriter.GetOrConnect()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &syslogger{lazyWriter}, nil
 }
 
 func (s *syslogger) Log(msg *logger.Message) error {
@@ -128,18 +161,61 @@ func (s *syslogger) Log(msg *logger.Message) error {
 	line := string(msg.Line)
 	source := msg.Source
 	logger.PutMessage(msg)
-	if source == "stderr" {
-		return s.writer.Err(line)
+
+	writer, err := s.lazyWriter.GetOrConnect()
+	if err != nil {
+		return err
 	}
-	return s.writer.Info(line)
+	if source == "stderr" {
+		return writer.Err(line)
+	}
+	return writer.Info(line)
 }
 
 func (s *syslogger) Close() error {
-	return s.writer.Close()
+	return s.lazyWriter.Close()
 }
 
 func (s *syslogger) Name() string {
 	return name
+}
+
+// ValidateLogOpt looks for syslog specific log options
+func ValidateLogOpt(cfg map[string]string) error {
+	for key := range cfg {
+		switch key {
+		case logger.AttrEnv, logger.AttrEnvRegex, logger.AttrLabels, logger.AttrLabelsRegex, logger.AttrLogTag:
+			// Common attributes handled through [logger.Info.ExtraAttributes] and [loggerutils.ParseLogTag].
+			continue
+		case "syslog-address":
+		case "syslog-facility":
+		case "syslog-format":
+		case "syslog-lazy-connect":
+		case "syslog-timeout":
+		case "syslog-tls-ca-cert":
+		case "syslog-tls-cert":
+		case "syslog-tls-key":
+		case "syslog-tls-skip-verify":
+		default:
+			return fmt.Errorf("unknown log opt '%s' for syslog log driver", key)
+		}
+	}
+	if _, _, err := parseAddress(cfg["syslog-address"]); err != nil {
+		return err
+	}
+	if _, err := parseFacility(cfg["syslog-facility"]); err != nil {
+		return err
+	}
+	if _, err := parseLazyConnect(cfg["syslog-lazy-connect"]); err != nil {
+		return err
+	}
+	if _, _, err := parseLogFormat(cfg["syslog-format"], ""); err != nil {
+		return err
+	}
+	if _, err := parseTimeout(cfg["syslog-timeout"]); err != nil {
+		return err
+	}
+	return nil
 }
 
 func parseAddress(address string) (string, string, error) {
@@ -174,37 +250,6 @@ func parseAddress(address string) (string, string, error) {
 	return addr.Scheme, host, nil
 }
 
-// ValidateLogOpt looks for syslog specific log options
-// syslog-address, syslog-facility.
-func ValidateLogOpt(cfg map[string]string) error {
-	for key := range cfg {
-		switch key {
-		case logger.AttrEnv, logger.AttrEnvRegex, logger.AttrLabels, logger.AttrLabelsRegex, logger.AttrLogTag:
-			// Common attributes handled through [logger.Info.ExtraAttributes] and [loggerutils.ParseLogTag].
-			continue
-		case "syslog-address":
-		case "syslog-facility":
-		case "syslog-tls-ca-cert":
-		case "syslog-tls-cert":
-		case "syslog-tls-key":
-		case "syslog-tls-skip-verify":
-		case "syslog-format":
-		default:
-			return fmt.Errorf("unknown log opt '%s' for syslog log driver", key)
-		}
-	}
-	if _, _, err := parseAddress(cfg["syslog-address"]); err != nil {
-		return err
-	}
-	if _, err := parseFacility(cfg["syslog-facility"]); err != nil {
-		return err
-	}
-	if _, _, err := parseLogFormat(cfg["syslog-format"], ""); err != nil {
-		return err
-	}
-	return nil
-}
-
 func parseFacility(facility string) (syslog.Priority, error) {
 	if facility == "" {
 		return syslog.LOG_DAEMON, nil
@@ -222,6 +267,14 @@ func parseFacility(facility string) (syslog.Priority, error) {
 	return syslog.Priority(0), errors.New("invalid syslog facility")
 }
 
+func parseTimeout(timeout string) (time.Duration, error) {
+	if timeout == "" {
+		// Default is no timeout (i.e. use OS-defined timeout)
+		return 0, nil
+	}
+	return time.ParseDuration(timeout)
+}
+
 func parseTLSConfig(cfg map[string]string) (*tls.Config, error) {
 	_, skipVerify := cfg["syslog-tls-skip-verify"]
 
@@ -233,6 +286,14 @@ func parseTLSConfig(cfg map[string]string) (*tls.Config, error) {
 	}
 
 	return tlsconfig.Client(opts)
+}
+
+func parseLazyConnect(value string) (bool, error) {
+	if value == "" {
+		// Default if not specified
+		return false, nil
+	}
+	return strconv.ParseBool(value)
 }
 
 func parseLogFormat(logFormat, proto string) (syslog.Formatter, syslog.Framer, error) {
