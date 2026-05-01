@@ -108,7 +108,9 @@ func (o FileOptions) New(fd *descriptorpb.FileDescriptorProto, r Resolver) (prot
 	if f.L1.Path == "" {
 		return nil, errors.New("file path must be populated")
 	}
-	if f.L1.Syntax == protoreflect.Editions && (fd.GetEdition() < editionssupport.Minimum || fd.GetEdition() > editionssupport.Maximum) {
+	if f.L1.Syntax == protoreflect.Editions &&
+		(fd.GetEdition() < editionssupport.Minimum || fd.GetEdition() > editionssupport.Maximum) &&
+		fd.GetEdition() != descriptorpb.Edition_EDITION_UNSTABLE {
 		// Allow cmd/protoc-gen-go/testdata to use any edition for easier
 		// testing of upcoming edition features.
 		if !strings.HasPrefix(fd.GetName(), "cmd/protoc-gen-go/testdata/") {
@@ -152,6 +154,7 @@ func (o FileOptions) New(fd *descriptorpb.FileDescriptorProto, r Resolver) (prot
 		imp := &f.L2.Imports[i]
 		imps.importPublic(imp.Imports())
 	}
+	optionImps := importSet{f.Path(): true}
 	if len(fd.GetOptionDependency()) > 0 {
 		optionImports := make(filedesc.FileImports, len(fd.GetOptionDependency()))
 		for i, path := range fd.GetOptionDependency() {
@@ -165,10 +168,12 @@ func (o FileOptions) New(fd *descriptorpb.FileDescriptorProto, r Resolver) (prot
 			}
 			imp.FileDescriptor = f
 
-			if imps[imp.Path()] {
+			if imps[imp.Path()] || optionImps[imp.Path()] {
 				return nil, errors.New("already imported %q", path)
 			}
-			imps[imp.Path()] = true
+			// This needs to be a separate map so that we don't recognize non-options
+			// symbols coming from option imports.
+			optionImps[imp.Path()] = true
 		}
 		f.L2.OptionImports = func() protoreflect.FileImports {
 			return &optionImports

@@ -30,10 +30,6 @@ func (*JSONPb) ContentType(_ interface{}) string {
 
 // Marshal marshals "v" into JSON.
 func (j *JSONPb) Marshal(v interface{}) ([]byte, error) {
-	if _, ok := v.(proto.Message); !ok {
-		return j.marshalNonProtoField(v)
-	}
-
 	var buf bytes.Buffer
 	if err := j.marshalTo(&buf, v); err != nil {
 		return nil, err
@@ -48,9 +44,17 @@ func (j *JSONPb) marshalTo(w io.Writer, v interface{}) error {
 		if err != nil {
 			return err
 		}
+		if j.Indent != "" {
+			b := &bytes.Buffer{}
+			if err := json.Indent(b, buf, "", j.Indent); err != nil {
+				return err
+			}
+			buf = b.Bytes()
+		}
 		_, err = w.Write(buf)
 		return err
 	}
+
 	b, err := j.MarshalOptions.Marshal(p)
 	if err != nil {
 		return err
@@ -62,7 +66,7 @@ func (j *JSONPb) marshalTo(w io.Writer, v interface{}) error {
 
 var (
 	// protoMessageType is stored to prevent constant lookup of the same type at runtime.
-	protoMessageType = reflect.TypeOf((*proto.Message)(nil)).Elem()
+	protoMessageType = reflect.TypeFor[proto.Message]()
 )
 
 // marshalNonProto marshals a non-message field of a protobuf message.
@@ -149,9 +153,6 @@ func (j *JSONPb) marshalNonProtoField(v interface{}) ([]byte, error) {
 				return nil, err
 			}
 			m[fmt.Sprintf("%v", k.Interface())] = (*json.RawMessage)(&buf)
-		}
-		if j.Indent != "" {
-			return json.MarshalIndent(m, "", j.Indent)
 		}
 		return json.Marshal(m)
 	}
@@ -324,9 +325,9 @@ type protoEnum interface {
 	EnumDescriptor() ([]byte, []int)
 }
 
-var typeProtoEnum = reflect.TypeOf((*protoEnum)(nil)).Elem()
+var typeProtoEnum = reflect.TypeFor[protoEnum]()
 
-var typeProtoMessage = reflect.TypeOf((*proto.Message)(nil)).Elem()
+var typeProtoMessage = reflect.TypeFor[proto.Message]()
 
 // Delimiter for newline encoded JSON streams.
 func (j *JSONPb) Delimiter() []byte {
