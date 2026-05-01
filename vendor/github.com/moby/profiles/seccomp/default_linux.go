@@ -8,6 +8,14 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// The socket rules in DefaultProfile rely on AF_ALG and AF_VSOCK being
+// exactly two apart (38 and 40), with a single family (39) between them.
+var (
+	_ [38]byte = [unix.AF_ALG]byte{}
+	_ [40]byte = [unix.AF_VSOCK]byte{}
+	_ [1]byte  = [unix.AF_VSOCK - unix.AF_ALG - 1]byte{}
+)
+
 func arches() []Architecture {
 	return []Architecture{
 		{
@@ -366,7 +374,6 @@ func DefaultProfile() *Seccomp {
 					"signalfd4",
 					"sigprocmask",
 					"sigreturn",
-					"socketcall",
 					"socketpair",
 					"splice",
 					"stat",
@@ -434,6 +441,53 @@ func DefaultProfile() *Seccomp {
 				MinKernel: &KernelVersion{4, 8},
 			},
 		},
+		// socketcall(2) is explicitly denied to prevent bypassing the socket
+		// address family filters above on architectures where socketcall is
+		// supported (i386, s390, MIPS o32).
+		// Seccomp cannot inspect socketcall's pointer argument, so allowing it
+		// would let an attacker open AF_ALG sockets via socketcall(SYS_SOCKET,
+		// ...). Since Linux 4.3 all affected architectures provide direct
+		// socket syscalls, so modern userspace is not impacted.
+		//
+		// ENOSYS (not EPERM) is used because the errno must differ from
+		// DefaultErrnoRet; otherwise both runc and libseccomp treat the rule
+		// as identical to the default action and silently omit it from the
+		// generated BPF, which lets libseccomp's auto-generated
+		// socketcall(SYS_SOCKET) -> ALLOW path survive unchallenged.
+		{
+			LinuxSyscall: specs.LinuxSyscall{
+				Names:    []string{"socketcall"},
+				Action:   specs.ActErrno,
+				ErrnoRet: &nosys,
+			},
+		},
+		// Allow socket(2) for all address families except AF_VSOCK and AF_ALG.
+		{
+			LinuxSyscall: specs.LinuxSyscall{
+				Names:  []string{"socket"},
+				Action: specs.ActAllow,
+				Args: []specs.LinuxSeccompArg{
+					{
+						Index: 0,
+						Value: unix.AF_ALG,
+						Op:    specs.OpLessThan,
+					},
+				},
+			},
+		},
+		{
+			LinuxSyscall: specs.LinuxSyscall{
+				Names:  []string{"socket"},
+				Action: specs.ActAllow,
+				Args: []specs.LinuxSeccompArg{
+					{
+						Index: 0,
+						Value: unix.AF_ALG + 1,
+						Op:    specs.OpEqualTo,
+					},
+				},
+			},
+		},
 		{
 			LinuxSyscall: specs.LinuxSyscall{
 				Names:  []string{"socket"},
@@ -442,7 +496,7 @@ func DefaultProfile() *Seccomp {
 					{
 						Index: 0,
 						Value: unix.AF_VSOCK,
-						Op:    specs.OpNotEqual,
+						Op:    specs.OpGreaterThan,
 					},
 				},
 			},
