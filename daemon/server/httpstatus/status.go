@@ -31,6 +31,16 @@ func FromError(err error) int {
 		return http.StatusBadRequest
 	case cerrdefs.IsConflict(rerr):
 		return http.StatusConflict
+	case cerrdefs.IsAlreadyExists(rerr):
+		return http.StatusConflict
+	case cerrdefs.IsFailedPrecondition(rerr):
+		return http.StatusBadRequest
+	case cerrdefs.IsOutOfRange(rerr):
+		return http.StatusBadRequest
+	case cerrdefs.IsAborted(rerr):
+		return http.StatusConflict
+	case cerrdefs.IsResourceExhausted(rerr):
+		return http.StatusTooManyRequests
 	case cerrdefs.IsUnauthorized(rerr):
 		return http.StatusUnauthorized
 	case cerrdefs.IsUnavailable(rerr):
