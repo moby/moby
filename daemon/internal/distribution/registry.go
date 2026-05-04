@@ -107,10 +107,17 @@ func newRepository(
 		}
 	}
 
-	if authConfig.RegistryToken != "" {
-		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, &passThruTokenHandler{token: authConfig.RegistryToken}))
+	// Do not send upstream registry credentials to mirror endpoints
+	// to prevent credential leakage (see moby/moby#42022).
+	effectiveAuth := authConfig
+	if endpoint.Mirror && authConfig != nil {
+		effectiveAuth = &registrytypes.AuthConfig{}
+	}
+
+	if effectiveAuth.RegistryToken != "" {
+		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, &passThruTokenHandler{token: effectiveAuth.RegistryToken}))
 	} else {
-		creds := registry.NewStaticCredentialStore(authConfig)
+		creds := registry.NewStaticCredentialStore(effectiveAuth)
 		tokenHandler := auth.NewTokenHandlerWithOptions(auth.TokenHandlerOptions{
 			Transport:   authTransport,
 			Credentials: creds,

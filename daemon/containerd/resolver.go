@@ -39,6 +39,7 @@ func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.Aut
 	}
 
 	authorizer := authorizerFromAuthConfig(*optAuthConfig, ref)
+	targetHost := resolveAuthHost(*optAuthConfig, ref)
 
 	return func(n string) ([]docker.RegistryHost, error) {
 		hosts, err := hostsFn(n)
@@ -47,13 +48,23 @@ func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.Aut
 		}
 
 		for i := range hosts {
-			hosts[i].Authorizer = authorizer
+			// Only apply the request's auth credentials to the host
+			// they are scoped to (the target registry). Mirror hosts
+			// keep their existing Authorizer (e.g. from hosts.toml)
+			// so that per-mirror credentials are not clobbered and
+			// upstream registry credentials are not leaked to mirrors.
+			if hosts[i].Host == targetHost {
+				hosts[i].Authorizer = authorizer
+			}
 		}
 		return hosts, nil
 	}
 }
 
-func authorizerFromAuthConfig(authConfig registrytypes.AuthConfig, ref reference.Named) docker.Authorizer {
+// resolveAuthHost returns the normalized hostname that authConfig
+// credentials are scoped to. This is used to match credentials to
+// the correct registry endpoint and avoid sending them to mirrors.
+func resolveAuthHost(authConfig registrytypes.AuthConfig, ref reference.Named) string {
 	cfgHost := registry.ConvertToHostname(authConfig.ServerAddress)
 	if cfgHost == "" {
 		cfgHost = reference.Domain(ref)
@@ -61,6 +72,11 @@ func authorizerFromAuthConfig(authConfig registrytypes.AuthConfig, ref reference
 	if cfgHost == registry.IndexHostname || cfgHost == registry.IndexName {
 		cfgHost = registry.DefaultRegistryHost
 	}
+	return cfgHost
+}
+
+func authorizerFromAuthConfig(authConfig registrytypes.AuthConfig, ref reference.Named) docker.Authorizer {
+	cfgHost := resolveAuthHost(authConfig, ref)
 
 	if authConfig.RegistryToken != "" {
 		return &bearerAuthorizer{
