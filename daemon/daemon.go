@@ -966,9 +966,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		log.G(ctx).Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
-	// ensureDefaultAppArmorProfile does nothing if apparmor is disabled
-	if err := ensureDefaultAppArmorProfile(); err != nil {
-		log.G(ctx).WithError(err).Error("Failed to ensure default apparmor profile is loaded")
+	// Always install the default AppArmor profile at startup to pick up
+	// any changes to the profile template from a daemon upgrade.
+	if err := installDefaultAppArmorProfile(); err != nil {
+		log.G(ctx).WithError(err).Error("Failed to load default apparmor profile")
 	}
 
 	daemonRepo := filepath.Join(cfgStore.Root, "containers")

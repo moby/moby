@@ -2,11 +2,15 @@
 
 package daemon
 
-func ensureDefaultAppArmorProfile() error {
+func loadDefaultAppArmorProfileIfMissing() error {
 	return nil
 }
 
 // DefaultApparmorProfile returns an empty string.
 func DefaultApparmorProfile() string {
 	return ""
+}
+
+func installDefaultAppArmorProfile() error {
+	return nil
 }
