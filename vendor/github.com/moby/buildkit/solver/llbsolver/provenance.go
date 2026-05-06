@@ -38,12 +38,14 @@ type resultWithBridge struct {
 // provenanceBridge provides scoped access to LLBBridge and captures the request it makes for provenance
 type provenanceBridge struct {
 	*llbBridge
-	mu  sync.Mutex
-	req *frontend.SolveRequest
+	mu      sync.Mutex
+	req     *frontend.SolveRequest
+	rootReq *frontend.SolveRequest
 
-	images     []provenancetypes.ImageSource
-	builds     []resultWithBridge
-	subBridges []*provenanceBridge
+	images                 []provenancetypes.ImageSource
+	builds                 []resultWithBridge
+	subBridges             []*provenanceBridge
+	provenanceRefRecordIDs []string
 }
 
 func (b *provenanceBridge) eachRef(f func(r solver.ResultProxy) error) error {
@@ -165,6 +167,7 @@ func (b *provenanceBridge) ResolveSourceMetadata(ctx context.Context, op *pb.Sou
 }
 
 func (b *provenanceBridge) Solve(ctx context.Context, req frontend.SolveRequest, sid string) (res *frontend.Result, err error) {
+	req = req.Clone()
 	if req.Definition != nil && req.Definition.Def != nil && req.Frontend != "" {
 		return nil, errors.New("cannot solve with both Definition and Frontend specified")
 	}
@@ -180,7 +183,11 @@ func (b *provenanceBridge) Solve(ctx context.Context, req frontend.SolveRequest,
 		if !ok {
 			return nil, errors.Errorf("invalid frontend: %s", req.Frontend)
 		}
-		wb := &provenanceBridge{llbBridge: b.llbBridge, req: &req}
+		rootReq := b.rootReq
+		if !hasRequestProvenance(rootReq) {
+			rootReq = b.req
+		}
+		wb := &provenanceBridge{llbBridge: b.llbBridge, req: &req, rootReq: rootReq}
 		res, err = f.Solve(ctx, wb, b.llbBridge, req.FrontendOpt, req.FrontendInputs, sid, b.sm)
 		if err != nil {
 			fe := errdefs.Frontend{
@@ -201,6 +208,9 @@ func (b *provenanceBridge) Solve(ctx context.Context, req frontend.SolveRequest,
 			_, err := ref.Result(ctx)
 			return err
 		})
+	}
+	if err == nil {
+		err = b.registerProvenanceRefs(res)
 	}
 	return
 }
@@ -397,17 +407,9 @@ func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.Prove
 
 	switch mode {
 	case "min":
-		args := make(map[string]string)
-		for k, v := range pr.BuildDefinition.ExternalParameters.Request.Args {
-			if strings.HasPrefix(k, "build-arg:") || strings.HasPrefix(k, "label:") {
-				pr.RunDetails.Metadata.Completeness.Request = false
-				continue
-			}
-			args[k] = v
+		if scrubMinRequest(&pr.BuildDefinition.ExternalParameters.Request) {
+			pr.RunDetails.Metadata.Completeness.Request = false
 		}
-		pr.BuildDefinition.ExternalParameters.Request.Args = args
-		pr.BuildDefinition.ExternalParameters.Request.Secrets = nil
-		pr.BuildDefinition.ExternalParameters.Request.SSH = nil
 	case "max":
 		dgsts, err := provenance.AddBuildConfig(ctx, pr, cp, res, withUsage)
 		if err != nil {
@@ -478,6 +480,41 @@ func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.Prove
 	return pc, nil
 }
 
+func scrubMinRequest(req *provenancetypes.Parameters) bool {
+	if req == nil {
+		return false
+	}
+
+	var incomplete bool
+	if len(req.Args) > 0 {
+		args := make(map[string]string, len(req.Args))
+		for k, v := range req.Args {
+			if strings.HasPrefix(k, "build-arg:") || strings.HasPrefix(k, "label:") {
+				incomplete = true
+				continue
+			}
+			args[k] = v
+		}
+		req.Args = args
+	}
+	if len(req.Secrets) > 0 {
+		req.Secrets = nil
+	}
+	if len(req.SSH) > 0 {
+		req.SSH = nil
+	}
+
+	for _, in := range req.Inputs {
+		if in != nil && scrubMinRequest(in.Request) {
+			incomplete = true
+		}
+	}
+	if req.Root != nil && scrubMinRequest(req.Root.Request) {
+		incomplete = true
+	}
+	return incomplete
+}
+
 func (p *ProvenanceCreator) PredicateType() string {
 	if p.slsaVersion == provenancetypes.ProvenanceSLSA02 {
 		return slsa02.PredicateSLSAProvenance
@@ -505,6 +542,12 @@ func (p *ProvenanceCreator) Predicate(ctx context.Context) (any, error) {
 		}
 		p.pr.RunDetails.Metadata.BuildKitMetadata.SysUsage = sysSamples
 	}
+
+	compatibilityVersion, err := p.j.CompatibilityVersion()
+	if err != nil {
+		return nil, err
+	}
+	p.pr.BuildDefinition.ExternalParameters.Request.CompatibilityVersion = compatibilityVersion
 
 	if p.slsaVersion == provenancetypes.ProvenanceSLSA02 {
 		return p.pr.ConvertToSLSA02(), nil
@@ -665,14 +708,26 @@ func getRefProvenance(ref solver.ResultProxy, br *provenanceBridge) (*provenance
 	if !ok {
 		return nil, errors.Errorf("invalid provenance type %T", p)
 	}
+	pr = pr.Clone()
 
 	if br.req != nil {
 		if pr == nil {
 			return nil, errors.Errorf("missing provenance for %s", ref.ID())
 		}
 
-		pr.Frontend = br.req.Frontend
-		pr.Args = provenance.FilterArgs(br.req.FrontendOpt)
+		pr.Request.Frontend = br.req.Frontend
+		pr.Request.Args = provenance.FilterArgs(br.req.FrontendOpt)
+		pr.Request.Inputs = br.inputProvenance(br.req.FrontendInputs)
+		if root := br.rootRequestProvenance(pr.Sources); root != nil {
+			req := provenance.RequestProvenance(pr.Request.Frontend, pr.Request.Args, pr.Sources)
+			if req.Request == nil {
+				req.Request = &provenancetypes.Parameters{}
+			}
+			req.Request.Inputs = pr.Request.Inputs
+			if !root.Equal(req) {
+				pr.Request.Root = root
+			}
+		}
 		// TODO: should also save some output options like compression
 	}
 

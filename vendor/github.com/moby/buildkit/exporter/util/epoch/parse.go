@@ -21,7 +21,13 @@ type Epoch struct {
 
 func ParseBuildArgs(opt map[string]string) (string, bool) {
 	v, ok := opt[frontendSourceDateEpochArg]
-	return v, ok
+	if !ok {
+		return "", false
+	}
+	if _, err := parseTime(frontendSourceDateEpochArg, v); err != nil {
+		return "", false
+	}
+	return v, true
 }
 
 func ParseExporterAttrs(opt map[string]string) (*Epoch, map[string]string, error) {

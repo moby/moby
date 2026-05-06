@@ -1,7 +1,6 @@
 package progress
 
 import (
-	"maps"
 	"slices"
 	"sync"
 	"time"
@@ -81,18 +80,7 @@ func (ps *MultiWriter) Write(id string, v any) error {
 }
 
 func (ps *MultiWriter) WriteRawProgress(p *Progress) error {
-	meta := p.meta
-	if len(ps.meta) > 0 {
-		meta = map[string]any{}
-		maps.Copy(meta, p.meta)
-		for k, v := range ps.meta {
-			if _, ok := meta[k]; !ok {
-				meta[k] = v
-			}
-		}
-	}
-	p.meta = meta
-	return ps.writeRawProgress(p)
+	return ps.writeRawProgress(p.Decorate(ps.meta))
 }
 
 func (ps *MultiWriter) writeRawProgress(p *Progress) error {

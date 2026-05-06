@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/containerd/v2/core/content"
 	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/pkg/gc"
 	"github.com/containerd/containerd/v2/pkg/rootfs"
 	cerrdefs "github.com/containerd/errdefs"
@@ -84,6 +85,7 @@ type Opt struct {
 
 	DownloadManager   *xfer.LayerDownloadManager
 	V2MetadataService distmetadata.V2MetadataService
+	RegistryHosts     docker.RegistryHosts
 	Transport         nethttp.RoundTripper
 	Exporter          exporter.Exporter
 	Layers            LayerAccess
@@ -116,6 +118,7 @@ func NewWorker(opt Opt) (*Worker, error) {
 
 	gs, err := git.NewSource(git.Opt{
 		CacheAccessor: cm,
+		RegistryHosts: opt.RegistryHosts,
 	})
 	if err == nil {
 		sm.Register(gs)
