@@ -97,6 +97,10 @@ type Config struct {
 	// ResolvConf is the path to the configuration of the host resolver
 	ResolvConf string `json:"resolv-conf,omitempty"`
 	Rootless   bool   `json:"rootless,omitempty"`
+	// AdoptUserCgroups forces containers to inherit their creator's cgroup parent.
+	// When enabled, containers cannot override CgroupParent and will be placed under
+	// the cgroup of the process making the API request (requires Unix socket connection).
+	AdoptUserCgroups bool `json:"adopt-user-cgroups,omitempty"`
 }
 
 // GetExecRoot returns the user configured Exec-root
