@@ -67,6 +67,10 @@ PY_TEST_OPTIONS="${PY_TEST_OPTIONS} --deselect=tests/integration/api_container_t
 			[ -n "${TESTDEBUG}" ] && set -x
 			[ -z "${TESTDEBUG}" ] && build_opts="--quiet"
 			[ -f /.dockerenv ] || build_opts="${build_opts} --network=host"
+
+			# TODO(vvoland): Fix upstream - move off legacy gpg keyring
+			build_opts="${build_opts} --build-arg PYTHON_VERSION=3.12-bookworm"
+
 			# shellcheck disable=SC2086
 			exec docker build ${build_opts} -t "${docker_py_image}" -f tests/Dockerfile "https://github.com/docker/docker-py.git#${DOCKER_PY_COMMIT}"
 		)
