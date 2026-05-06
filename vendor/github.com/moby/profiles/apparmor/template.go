@@ -32,6 +32,8 @@ profile "{{.Name}}" flags=(attach_disconnected,mediate_deleted) {
 {{- end}}{{if .InnerImports}}
 {{end}}
   network,
+  # Disallow AF_ALG (Linux kernel crypto API); see https://copy.fail/
+  deny network alg,
   capability,
   file,
   umount,
