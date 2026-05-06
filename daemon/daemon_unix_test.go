@@ -381,3 +381,21 @@ func TestVerifyPlatformContainerSettingsHostnameLength(t *testing.T) {
 	_, err = verifyPlatformContainerSettings(d, nil, nil, &containertypes.Config{Hostname: tooLong}, false)
 	assert.ErrorContains(t, err, "too long")
 }
+
+// Cgroup adoption tests
+func TestApplyCgroupAdoption_Enabled(t *testing.T) {
+	// Test will be implemented after we add the applyCgroupAdoption method
+	t.Skip("Not yet implemented")
+}
+
+func TestApplyCgroupAdoption_NoPeerCredentials(t *testing.T) {
+	t.Skip("Not yet implemented")
+}
+
+func TestApplyCgroupAdoption_UserOverrideRejected(t *testing.T) {
+	t.Skip("Not yet implemented")
+}
+
+func TestApplyCgroupAdoption_MatchingParentAccepted(t *testing.T) {
+	t.Skip("Not yet implemented")
+}
