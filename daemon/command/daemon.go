@@ -882,6 +882,12 @@ func initMiddlewares(_ context.Context, s *apiserver.Server, cfg *config.Config,
 	}
 	s.UseMiddleware(*vm)
 
+	// Register peer credential middleware for Unix socket connections.
+	// This extracts UID/GID/PID from the connection and adds them to request context.
+	// Required for features like cgroup adoption that need to know the API client's identity.
+	peerCredMiddleware := middleware.NewPeerCredMiddleware()
+	s.UseMiddleware(peerCredMiddleware)
+
 	authzMiddleware := authorization.NewMiddleware(cfg.AuthorizationPlugins, pluginStore)
 	s.UseMiddleware(authzMiddleware)
 	return authzMiddleware, nil
