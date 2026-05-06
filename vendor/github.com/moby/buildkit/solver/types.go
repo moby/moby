@@ -184,6 +184,8 @@ type JobContext interface {
 	// ResolverCache returns object for memorizing/synchronizing remote resolving decisions during the job.
 	// Steps from same build job will share the same resolver cache.
 	ResolverCache() ResolverCache
+	// CompatibilityVersion returns the solve-wide compatibility version for the current job.
+	CompatibilityVersion() (int, error)
 }
 
 type ResolverCache interface {

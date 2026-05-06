@@ -16,9 +16,11 @@ import (
 type callerContentStore struct {
 	store   content.Store
 	storeID string
+	caller  session.Caller
 }
 
 func (cs *callerContentStore) choose(ctx context.Context) context.Context {
+	ctx = cs.caller.Context(ctx)
 	nsheader := metadata.Pairs(GRPCHeaderID, cs.storeID)
 	md, ok := metadata.FromOutgoingContext(ctx) // merge with outgoing context.
 	if !ok {
@@ -87,5 +89,6 @@ func NewCallerStore(c session.Caller, storeID string) content.Store {
 	return &callerContentStore{
 		store:   proxy.NewContentStore(client),
 		storeID: storeID,
+		caller:  c,
 	}
 }

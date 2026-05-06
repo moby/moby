@@ -4,7 +4,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/containerd/platforms"
 	"github.com/docker/go-units"
@@ -111,18 +110,6 @@ func parseNetMode(v string) (pb.NetMode, error) {
 	default:
 		return 0, errors.Errorf("invalid netmode %s", v)
 	}
-}
-
-func parseSourceDateEpoch(v string) (*time.Time, error) {
-	if v == "" {
-		return nil, nil
-	}
-	sde, err := strconv.ParseInt(v, 10, 64)
-	if err != nil {
-		return nil, errors.Wrapf(err, "invalid SOURCE_DATE_EPOCH: %s", v)
-	}
-	tm := time.Unix(sde, 0).UTC()
-	return &tm, nil
 }
 
 func parseLocalSessionIDs(opt map[string]string) map[string]string {

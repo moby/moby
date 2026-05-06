@@ -7,7 +7,10 @@ import (
 
 // Config provides containerd configuration data for the server
 type Config struct {
+	// Deprecated: Use Log.Level with "debug" set instead.
 	Debug bool `toml:"debug"`
+
+	// Deprecated: Use Log.Level with "trace" set instead.
 	Trace bool `toml:"trace"`
 
 	// Root is the path to a directory where buildkit will store persistent data
@@ -63,6 +66,7 @@ type SystemConfig struct {
 
 type LogConfig struct {
 	Format string `toml:"format"`
+	Level  string `toml:"level"`
 }
 
 type GRPCConfig struct {

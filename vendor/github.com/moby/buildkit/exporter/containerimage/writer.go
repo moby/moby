@@ -25,6 +25,8 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver"
+	solvererrdefs "github.com/moby/buildkit/solver/errdefs"
+	"github.com/moby/buildkit/solver/llbsolver/compat"
 	"github.com/moby/buildkit/solver/result"
 	attestationTypes "github.com/moby/buildkit/util/attestation"
 	"github.com/moby/buildkit/util/bklog"
@@ -63,9 +65,13 @@ type ImageWriter struct {
 	opt WriterOpt
 }
 
-func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, sessionID string, inlineCache exptypes.InlineCache, opts *ImageCommitOpts) (*ocispecs.Descriptor, error) {
+func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, sessionID string, inlineCache exptypes.InlineCache, opts *ImageCommitOpts, compatibilityVersion int, exporterType string) (*ocispecs.Descriptor, error) {
 	if _, ok := inp.Metadata[exptypes.ExporterPlatformsKey]; len(inp.Refs) > 0 && !ok {
 		return nil, errors.Errorf("unable to export multiple refs, missing platforms mapping")
+	}
+	if compatibilityVersion == compat.CompatibilityVersion013 && opts.RefCfg.Compression.Type == compression.Zstd {
+		feature := fmt.Sprintf("%s exporter compression=%s", exporterType, opts.RefCfg.Compression.Type.String())
+		return nil, solvererrdefs.NewUnsupportedCompatibilityFeatureError(compatibilityVersion, feature)
 	}
 
 	isMap := len(inp.Refs) > 0

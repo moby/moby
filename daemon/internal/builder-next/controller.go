@@ -440,6 +440,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		ImageSource:       src,
 		DownloadManager:   dist.DownloadManager,
 		V2MetadataService: dist.V2MetadataService,
+		RegistryHosts:     opt.RegistryHosts,
 		Exporter:          exp,
 		Transport:         rt,
 		Layers:            layers,

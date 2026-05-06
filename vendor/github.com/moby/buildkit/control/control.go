@@ -34,6 +34,7 @@ import (
 	"github.com/moby/buildkit/solver/bboltcachestorage"
 	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
+	"github.com/moby/buildkit/solver/llbsolver/compat"
 	"github.com/moby/buildkit/solver/llbsolver/history"
 	"github.com/moby/buildkit/solver/llbsolver/proc"
 	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"
@@ -389,6 +390,14 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 	}
 	translateLegacySolveRequest(req)
 
+	compatibilityVersion := int(req.CompatibilityVersion)
+	if compatibilityVersion == 0 {
+		compatibilityVersion = compat.CompatibilityVersionCurrent
+	}
+	if err := compat.ValidateCompatibilityVersion(compatibilityVersion); err != nil {
+		return nil, err
+	}
+
 	defer func() {
 		time.AfterFunc(time.Second, c.throttledGC)
 	}()
@@ -538,7 +547,7 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 		FrontendOpt:    req.FrontendAttrs,
 		FrontendInputs: req.FrontendInputs,
 		CacheImports:   cacheImports,
-	}, llbsolver.ExporterRequest{
+	}, compatibilityVersion, llbsolver.ExporterRequest{
 		Exporters:             expis,
 		CacheExporters:        cacheExporters,
 		EnableSessionExporter: req.EnableSessionExporter,

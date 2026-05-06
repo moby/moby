@@ -950,7 +950,7 @@ github.com/ishidawataru/sctp
 # github.com/jmoiron/sqlx v1.4.0
 ## explicit; go 1.10
 github.com/jmoiron/sqlx/types
-# github.com/klauspost/compress v1.18.5
+# github.com/klauspost/compress v1.18.6
 ## explicit; go 1.24
 github.com/klauspost/compress
 github.com/klauspost/compress/fse
@@ -978,7 +978,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.29.0
+# github.com/moby/buildkit v0.30.0-rc1
 ## explicit; go 1.25.5
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1065,6 +1065,7 @@ github.com/moby/buildkit/solver/errdefs
 github.com/moby/buildkit/solver/internal/pipe
 github.com/moby/buildkit/solver/llbsolver
 github.com/moby/buildkit/solver/llbsolver/cdidevices
+github.com/moby/buildkit/solver/llbsolver/compat
 github.com/moby/buildkit/solver/llbsolver/errdefs
 github.com/moby/buildkit/solver/llbsolver/file
 github.com/moby/buildkit/solver/llbsolver/history
@@ -1079,6 +1080,7 @@ github.com/moby/buildkit/solver/pb
 github.com/moby/buildkit/solver/result
 github.com/moby/buildkit/source
 github.com/moby/buildkit/source/containerblob
+github.com/moby/buildkit/source/containerblob/blobfetch
 github.com/moby/buildkit/source/containerimage
 github.com/moby/buildkit/source/git
 github.com/moby/buildkit/source/http
@@ -1090,6 +1092,7 @@ github.com/moby/buildkit/sourcepolicy/pb
 github.com/moby/buildkit/sourcepolicy/policysession
 github.com/moby/buildkit/util/apicaps
 github.com/moby/buildkit/util/apicaps/pb
+github.com/moby/buildkit/util/appcontext
 github.com/moby/buildkit/util/appdefaults
 github.com/moby/buildkit/util/archutil
 github.com/moby/buildkit/util/attestation
@@ -1132,6 +1135,7 @@ github.com/moby/buildkit/util/pull
 github.com/moby/buildkit/util/pull/pullprogress
 github.com/moby/buildkit/util/purl
 github.com/moby/buildkit/util/push
+github.com/moby/buildkit/util/registrar
 github.com/moby/buildkit/util/resolvconf
 github.com/moby/buildkit/util/resolver
 github.com/moby/buildkit/util/resolver/config
@@ -1146,8 +1150,8 @@ github.com/moby/buildkit/util/suggest
 github.com/moby/buildkit/util/system
 github.com/moby/buildkit/util/throttle
 github.com/moby/buildkit/util/tracing
+github.com/moby/buildkit/util/tracing/childprocess
 github.com/moby/buildkit/util/tracing/detect
-github.com/moby/buildkit/util/tracing/exec
 github.com/moby/buildkit/util/tracing/otlptracegrpc
 github.com/moby/buildkit/util/tracing/transform
 github.com/moby/buildkit/util/urlutil
@@ -1970,7 +1974,7 @@ google.golang.org/api/transport/http
 # google.golang.org/genproto v0.0.0-20260401024825-9d38bb4040a9
 ## explicit; go 1.25.0
 google.golang.org/genproto/googleapis/logging/type
-# google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9
+# google.golang.org/genproto/googleapis/api v0.0.0-20260406210006-6f92a3bedf2d
 ## explicit; go 1.25.0
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations

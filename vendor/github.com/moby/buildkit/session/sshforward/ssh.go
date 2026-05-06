@@ -37,18 +37,19 @@ func (s *server) run(ctx context.Context, l net.Listener, id string) error {
 			}
 
 			client := NewSSHClient(s.caller.Conn())
+			rpcCtx := s.caller.Context(ctx)
 
 			opts := make(map[string][]string)
 			opts[KeySSHID] = []string{id}
-			ctx := metadata.NewOutgoingContext(ctx, opts)
+			rpcCtx = metadata.NewOutgoingContext(rpcCtx, opts)
 
-			stream, err := client.ForwardAgent(ctx)
+			stream, err := client.ForwardAgent(rpcCtx)
 			if err != nil {
 				conn.Close()
 				return err
 			}
 
-			go Copy(ctx, conn, stream, stream.CloseSend)
+			go Copy(rpcCtx, conn, stream, stream.CloseSend)
 		}
 	})
 
@@ -112,6 +113,7 @@ func MountSSHSocket(ctx context.Context, c session.Caller, opt SocketOpt) (sockP
 }
 
 func CheckSSHID(ctx context.Context, c session.Caller, id string) error {
+	ctx = c.Context(ctx)
 	client := NewSSHClient(c.Conn())
 	_, err := client.CheckAgent(ctx, &CheckAgentRequest{ID: id})
 	return errors.WithStack(err)

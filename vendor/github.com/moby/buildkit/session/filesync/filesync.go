@@ -207,6 +207,7 @@ func FSSync(ctx context.Context, c session.Caller, opt FSSendRequestOpt) error {
 
 	opts[keyDirName] = []string{opt.Name}
 
+	ctx = c.Context(ctx)
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer func() { cancel(errors.WithStack(context.Canceled)) }()
 
@@ -362,6 +363,8 @@ func CopyToCaller(ctx context.Context, fs fsutil.FS, id int, c session.Caller, p
 		return errors.Errorf("method %s not supported by the client", method)
 	}
 
+	ctx = c.Context(ctx)
+
 	client := NewFileSendClient(c.Conn())
 
 	opts, ok := metadata.FromOutgoingContext(ctx)
@@ -388,6 +391,7 @@ func CopyFileWriter(ctx context.Context, md map[string]string, id int, c session
 		return nil, errors.Errorf("method %s not supported by the client", method)
 	}
 
+	ctx = c.Context(ctx)
 	client := NewFileSendClient(c.Conn())
 
 	opts, ok := metadata.FromOutgoingContext(ctx)

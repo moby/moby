@@ -71,6 +71,19 @@ type ImageBlobSource struct {
 type GitSource struct {
 	URL    string
 	Commit string
+	// Bundle, when non-nil, records the bundle blob that the git source
+	// was resolved from. Only present on bundle-backed git sources; nil
+	// for normal remote-backed git sources.
+	Bundle *GitBundle `json:"bundle,omitempty"`
+}
+
+// GitBundle describes the bundle blob a git source was resolved from. URL
+// is the full locator (e.g. "docker-image+blob://example.com/repo@sha256:...")
+// and is the canonical data: scheme, reference body, and digest are all
+// derivable from it and are parsed on demand by consumers (such as the purl
+// emitter in predicate.go).
+type GitBundle struct {
+	URL string `json:"url"`
 }
 
 type HTTPSource struct {
@@ -82,14 +95,38 @@ type LocalSource struct {
 	Name string `json:"name"`
 }
 
+// Equal reports whether the local source matches another local source.
+func (l *LocalSource) Equal(other *LocalSource) bool {
+	if l == nil || other == nil {
+		return l == other
+	}
+	return *l == *other
+}
+
 type Secret struct {
 	ID       string `json:"id"`
 	Optional bool   `json:"optional,omitempty"`
 }
 
+// Equal reports whether the secret matches another secret.
+func (s *Secret) Equal(other *Secret) bool {
+	if s == nil || other == nil {
+		return s == other
+	}
+	return *s == *other
+}
+
 type SSH struct {
 	ID       string `json:"id"`
 	Optional bool   `json:"optional,omitempty"`
+}
+
+// Equal reports whether the SSH mount matches another SSH mount.
+func (s *SSH) Equal(other *SSH) bool {
+	if s == nil || other == nil {
+		return s == other
+	}
+	return *s == *other
 }
 
 type Sources struct {
@@ -157,6 +194,17 @@ type ProvenanceConfigSourceSLSA1 struct {
 	Path   string         `json:"path,omitempty"`
 }
 
+// Clone returns a deep copy of the config source.
+func (c ProvenanceConfigSourceSLSA1) Clone() ProvenanceConfigSourceSLSA1 {
+	c.Digest = maps.Clone(c.Digest)
+	return c
+}
+
+// Equal reports whether the config source matches another config source.
+func (c ProvenanceConfigSourceSLSA1) Equal(other ProvenanceConfigSourceSLSA1) bool {
+	return c.URI == other.URI && c.Path == other.Path && maps.Equal(c.Digest, other.Digest)
+}
+
 type ProvenanceInternalParametersSLSA1 struct {
 	BuildConfig     *BuildConfig `json:"buildConfig,omitempty"`
 	BuilderPlatform string       `json:"builderPlatform"`
@@ -172,13 +220,121 @@ type ProvenanceMetadataSLSA1 struct {
 }
 
 type Parameters struct {
-	Frontend string            `json:"frontend,omitempty"`
-	Args     map[string]string `json:"args,omitempty"`
-	Secrets  []*Secret         `json:"secrets,omitempty"`
-	SSH      []*SSH            `json:"ssh,omitempty"`
-	Locals   []*LocalSource    `json:"locals,omitempty"`
+	Frontend             string                        `json:"frontend,omitempty"`
+	Args                 map[string]string             `json:"args,omitempty"`
+	Secrets              []*Secret                     `json:"secrets,omitempty"`
+	SSH                  []*SSH                        `json:"ssh,omitempty"`
+	Locals               []*LocalSource                `json:"locals,omitempty"`
+	Inputs               map[string]*RequestProvenance `json:"inputs,omitempty"`
+	Root                 *RequestProvenance            `json:"root,omitempty"`
+	CompatibilityVersion int                           `json:"compatibilityVersion,omitempty"`
 	// TODO: select export attributes
-	// TODO: frontend inputs
+}
+
+// Clone returns a deep copy of the request parameters.
+func (p *Parameters) Clone() *Parameters {
+	if p == nil {
+		return nil
+	}
+	out := &Parameters{
+		Frontend:             p.Frontend,
+		Args:                 maps.Clone(p.Args),
+		CompatibilityVersion: p.CompatibilityVersion,
+	}
+	if len(p.Secrets) > 0 {
+		out.Secrets = slices.Clone(p.Secrets)
+		for i, s := range out.Secrets {
+			if s != nil {
+				s2 := *s
+				out.Secrets[i] = &s2
+			}
+		}
+	}
+	if len(p.SSH) > 0 {
+		out.SSH = slices.Clone(p.SSH)
+		for i, s := range out.SSH {
+			if s != nil {
+				s2 := *s
+				out.SSH[i] = &s2
+			}
+		}
+	}
+	if len(p.Locals) > 0 {
+		out.Locals = slices.Clone(p.Locals)
+		for i, l := range out.Locals {
+			if l != nil {
+				l2 := *l
+				out.Locals[i] = &l2
+			}
+		}
+	}
+	if len(p.Inputs) > 0 {
+		out.Inputs = make(map[string]*RequestProvenance, len(p.Inputs))
+		for k, in := range p.Inputs {
+			out.Inputs[k] = in.Clone()
+		}
+	}
+	out.Root = p.Root.Clone()
+	return out
+}
+
+// Equal reports whether the request parameters match another set of parameters.
+func (p *Parameters) Equal(other *Parameters) bool {
+	if p == nil || other == nil {
+		return p == other
+	}
+	if p.Frontend != other.Frontend || p.CompatibilityVersion != other.CompatibilityVersion || !maps.Equal(p.Args, other.Args) {
+		return false
+	}
+	if !slices.EqualFunc(p.Secrets, other.Secrets, func(a, b *Secret) bool {
+		return a.Equal(b)
+	}) {
+		return false
+	}
+	if !slices.EqualFunc(p.SSH, other.SSH, func(a, b *SSH) bool {
+		return a.Equal(b)
+	}) {
+		return false
+	}
+	if !slices.EqualFunc(p.Locals, other.Locals, func(a, b *LocalSource) bool {
+		return a.Equal(b)
+	}) {
+		return false
+	}
+	if len(p.Inputs) != len(other.Inputs) {
+		return false
+	}
+	for k, v := range p.Inputs {
+		v2, ok := other.Inputs[k]
+		if !ok || !v.Equal(v2) {
+			return false
+		}
+	}
+	return p.Root.Equal(other.Root)
+}
+
+type RequestProvenance struct {
+	ConfigSource ProvenanceConfigSourceSLSA1 `json:"configSource"`
+	Request      *Parameters                 `json:"request,omitempty"`
+}
+
+// Clone returns a deep copy of the request provenance.
+func (r *RequestProvenance) Clone() *RequestProvenance {
+	if r == nil {
+		return nil
+	}
+	return &RequestProvenance{
+		ConfigSource: r.ConfigSource.Clone(),
+		Request:      r.Request.Clone(),
+	}
+}
+
+// Equal reports whether the request provenance matches another request provenance.
+func (r *RequestProvenance) Equal(other *RequestProvenance) bool {
+	if r == nil || other == nil {
+		return r == other
+	}
+	return r.ConfigSource.Equal(other.ConfigSource) && r.Request.Equal(other.Request)
 }
 
 type Environment struct {
