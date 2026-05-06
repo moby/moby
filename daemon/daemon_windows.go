@@ -61,7 +61,7 @@ func setupInitLayer(uid int, gid int) func(string) error {
 
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
-func (daemon *Daemon) adaptContainerSettings(daemonCfg *config.Config, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) adaptContainerSettings(ctx context.Context, daemonCfg *config.Config, hostConfig *containertypes.HostConfig) error {
 	return nil
 }
 
