@@ -371,6 +371,7 @@
 				"signalfd4",
 				"sigprocmask",
 				"sigreturn",
+				"socketcall",
 				"socketpair",
 				"splice",
 				"stat",
@@ -434,13 +435,6 @@
 			"includes": {
 				"minKernel": "4.8"
 			}
-		},
-		{
-			"names": [
-				"socketcall"
-			],
-			"action": "SCMP_ACT_ERRNO",
-			"errnoRet": 38
 		},
 		{
 			"names": [
