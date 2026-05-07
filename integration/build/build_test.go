@@ -873,3 +873,72 @@ func getImageIDsFromBuild(output []byte) ([]string, error) {
 	}
 	return ids, nil
 }
+
+// TestBuildPullDefaultPolicy verifies that the default pull policy is
+// "pull only if missing": a FROM image present locally is not pulled
+// unless PullParent is set.
+func TestBuildPullDefaultPolicy(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	// .invalid (RFC 6761) never resolves, so any pull attempt fails fast.
+	const unreachableRef = "nonexistent.invalid/moby-test/build-pull-default:local"
+
+	_, err := apiClient.ImageTag(ctx, client.ImageTagOptions{Source: "busybox", Target: unreachableRef})
+	assert.NilError(t, err)
+	t.Cleanup(func() {
+		_, _ = apiClient.ImageRemove(ctx, unreachableRef, client.ImageRemoveOptions{Force: true})
+	})
+
+	dockerfile := "FROM " + unreachableRef + "\n"
+	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
+	defer source.Close()
+
+	doBuild := func(t *testing.T, builderVersion build.BuilderVersion, pull bool, tag string) string {
+		t.Helper()
+		ctx := testutil.StartSpan(ctx, t)
+		resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
+			Version:     builderVersion,
+			Remove:      true,
+			ForceRemove: true,
+			PullParent:  pull,
+			Tags:        []string{tag},
+		})
+		assert.NilError(t, err)
+		defer resp.Body.Close()
+
+		out := bytes.NewBuffer(nil)
+		_, err = io.Copy(out, resp.Body)
+		assert.NilError(t, err)
+		return out.String()
+	}
+
+	for _, builderVersion := range []build.BuilderVersion{build.BuilderV1, build.BuilderBuildKit} {
+		t.Run("v"+string(builderVersion), func(t *testing.T) {
+			skip.If(t, builderVersion == build.BuilderBuildKit && testEnv.DaemonInfo.OSType == "windows" && !testEnv.UsingSnapshotter(),
+				"Buildkit is not supported on Windows with graphdrivers")
+
+			t.Run("default-no-pull", func(t *testing.T) {
+				tag := "moby-test-build-pull-default-ok-" + strings.ToLower(string(builderVersion))
+				t.Cleanup(func() {
+					_, _ = apiClient.ImageRemove(ctx, tag, client.ImageRemoveOptions{Force: true})
+				})
+				out := doBuild(t, builderVersion, false, tag)
+				_, err := apiClient.ImageInspect(ctx, tag)
+				assert.Check(t, err == nil,
+					"build with default pull policy must succeed without pulling a local image:\n%s", out)
+			})
+
+			t.Run("pull-true-fails", func(t *testing.T) {
+				tag := "moby-test-build-pull-default-fail-" + strings.ToLower(string(builderVersion))
+				t.Cleanup(func() {
+					_, _ = apiClient.ImageRemove(ctx, tag, client.ImageRemoveOptions{Force: true})
+				})
+				out := doBuild(t, builderVersion, true, tag)
+				_, err := apiClient.ImageInspect(ctx, tag)
+				assert.Check(t, err != nil,
+					"build with pull=true should have failed pulling from unreachable registry:\n%s", out)
+			})
+		})
+	}
+}
