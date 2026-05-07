@@ -350,7 +350,9 @@ func (b *Builder) Build(ctx context.Context, opt buildbackend.BuildConfig) (*bui
 	if opt.Options.PullParent {
 		frontendAttrs["image-resolve-mode"] = "pull"
 	} else {
-		frontendAttrs["image-resolve-mode"] = "default"
+		// Docker build uses a local parent image when one is present unless
+		// pulling is explicitly requested.
+		frontendAttrs["image-resolve-mode"] = "local"
 	}
 
 	if opt.Options.Platform != "" {
