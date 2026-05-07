@@ -11,7 +11,9 @@ import (
 	"strings"
 	"time"
 
+	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/log"
+	"github.com/containerd/typeurl/v2"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	networktypes "github.com/moby/moby/api/types/network"
@@ -25,6 +27,7 @@ import (
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/signal"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 )
@@ -68,6 +71,23 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 		return nil, containerNotFound(prefixOrName)
 	}
 	return ctr, nil
+}
+
+func (daemon *Daemon) GetOCISpec(ctx context.Context, id string) (*specs.Spec, error) {
+	ctr, err := daemon.containerdClient.LoadContainer(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	info, err := ctr.Info(ctx, containerd.WithoutRefreshedMetadata)
+	if err != nil {
+		return nil, err
+	}
+	var ociSpec specs.Spec
+	err = typeurl.UnmarshalTo(info.Spec, &ociSpec)
+	if err != nil {
+		return nil, err
+	}
+	return &ociSpec, nil
 }
 
 // Load reads the contents of a container from disk
