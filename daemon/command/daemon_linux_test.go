@@ -93,7 +93,6 @@ func TestC8dSnapshotterWithUsernsRemap(t *testing.T) {
 		name   string
 		cfg    *config.Config
 		expCfg *config.Config
-		expErr string
 	}{
 		{
 			name:   "no remap, no snapshotter",
@@ -108,7 +107,6 @@ func TestC8dSnapshotterWithUsernsRemap(t *testing.T) {
 				CommonConfig: config.CommonConfig{
 					ContainerdNamespace:       "-100000.100000",
 					ContainerdPluginNamespace: "-100000.100000",
-					Features:                  map[string]bool{"containerd-snapshotter": false},
 				},
 			},
 		},
@@ -126,7 +124,6 @@ func TestC8dSnapshotterWithUsernsRemap(t *testing.T) {
 					Features:                  map[string]bool{"containerd-snapshotter": true},
 				},
 			},
-			expErr: "containerd-snapshotter is explicitly enabled, but is not compatible with userns remapping. Please disable userns remapping or containerd-snapshotter",
 		},
 		{
 			name: "no remap, explicit containerd-snapshotter feature",
@@ -142,12 +139,8 @@ func TestC8dSnapshotterWithUsernsRemap(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := setPlatformOptions(tc.cfg)
+			assert.NilError(t, err)
 			assert.DeepEqual(t, tc.expCfg, tc.cfg, cmp.AllowUnexported(config.DefaultBridgeConfig{}))
-			if tc.expErr != "" {
-				assert.Equal(t, tc.expErr, err.Error())
-			} else {
-				assert.NilError(t, err)
-			}
 		})
 	}
 }
