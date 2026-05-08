@@ -27,6 +27,7 @@ import (
 	"github.com/moby/buildkit/exporter/util/epoch"
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/frontend/attestations"
+	dockerfileversion "github.com/moby/buildkit/frontend/dockerfile/version"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/grpchijack"
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
@@ -630,12 +631,16 @@ func (c *Controller) ListWorkers(ctx context.Context, r *controlapi.ListWorkersR
 }
 
 func (c *Controller) Info(ctx context.Context, r *controlapi.InfoRequest) (*controlapi.InfoResponse, error) {
+	buildkitVersion := toPBBuildkitVersion(client.BuildkitVersion{
+		Package:  version.Package,
+		Version:  version.Version,
+		Revision: version.Revision,
+	})
+	if dockerfileVersion := dockerfileversion.Version(); dockerfileVersion != "" {
+		buildkitVersion.DockerfileVersion = dockerfileVersion
+	}
 	return &controlapi.InfoResponse{
-		BuildkitVersion: &apitypes.BuildkitVersion{
-			Package:  version.Package,
-			Version:  version.Version,
-			Revision: version.Revision,
-		},
+		BuildkitVersion: buildkitVersion,
 	}, nil
 }
 
@@ -716,9 +721,10 @@ func toPBGCPolicy(in []client.PruneInfo) []*apitypes.GCPolicy {
 
 func toPBBuildkitVersion(in client.BuildkitVersion) *apitypes.BuildkitVersion {
 	return &apitypes.BuildkitVersion{
-		Package:  in.Package,
-		Version:  in.Version,
-		Revision: in.Revision,
+		Package:           in.Package,
+		Version:           in.Version,
+		Revision:          in.Revision,
+		DockerfileVersion: in.DockerfileVersion,
 	}
 }
 

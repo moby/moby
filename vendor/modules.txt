@@ -978,7 +978,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.30.0-rc1
+# github.com/moby/buildkit v0.30.0-rc1 => github.com/crazy-max/buildkit v0.7.1-0.20260508100722-329cf7237634
 ## explicit; go 1.25.5
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1034,6 +1034,7 @@ github.com/moby/buildkit/frontend/dockerfile/instructions
 github.com/moby/buildkit/frontend/dockerfile/linter
 github.com/moby/buildkit/frontend/dockerfile/parser
 github.com/moby/buildkit/frontend/dockerfile/shell
+github.com/moby/buildkit/frontend/dockerfile/version
 github.com/moby/buildkit/frontend/dockerui
 github.com/moby/buildkit/frontend/gateway
 github.com/moby/buildkit/frontend/gateway/client
@@ -1215,7 +1216,7 @@ github.com/moby/moby/client/pkg/versions
 ## explicit; go 1.19
 github.com/moby/patternmatcher
 github.com/moby/patternmatcher/ignorefile
-# github.com/moby/policy-helpers v0.0.0-20260324161837-b7c0b994300b
+# github.com/moby/policy-helpers v0.0.0-20260507153417-a39d60132186
 ## explicit; go 1.25.5
 github.com/moby/policy-helpers
 github.com/moby/policy-helpers/image
@@ -2157,3 +2158,4 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.1.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
+# github.com/moby/buildkit => github.com/crazy-max/buildkit v0.7.1-0.20260508100722-329cf7237634

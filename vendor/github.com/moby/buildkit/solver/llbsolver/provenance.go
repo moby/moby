@@ -17,6 +17,7 @@ import (
 	"github.com/moby/buildkit/exporter/containerimage"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend"
+	dockerfileversion "github.com/moby/buildkit/frontend/dockerfile/version"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/errdefs"
 	"github.com/moby/buildkit/solver/llbsolver/ops"
@@ -467,6 +468,11 @@ func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.Prove
 	}
 
 	pr.BuildDefinition.InternalParameters.ProvenanceCustomEnv = customEnv
+	if pr.BuildDefinition.ExternalParameters.Request.Frontend == "dockerfile.v0" {
+		if dockerfileVersion := dockerfileversion.Version(); dockerfileVersion != "" {
+			pr.BuildDefinition.InternalParameters.DockerfileVersion = dockerfileVersion
+		}
+	}
 
 	pc := &ProvenanceCreator{
 		pr:          pr,

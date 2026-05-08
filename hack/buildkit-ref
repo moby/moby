@@ -5,7 +5,7 @@
 # The output of this script may be valid shell script, but is intended for use with
 # GitHub Actions' $GITHUB_ENV.
 
-buildkit_pkg=github.com/moby/buildkit
+buildkit_pkg=github.com/crazy-max/buildkit
 
 # get buildkit version from go.mod
 buildkit_ref=$(go list -mod=mod -u -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "$buildkit_pkg")

@@ -13,9 +13,10 @@ type Info struct {
 }
 
 type BuildkitVersion struct {
-	Package  string `json:"package"`
-	Version  string `json:"version"`
-	Revision string `json:"revision"`
+	Package           string `json:"package"`
+	Version           string `json:"version"`
+	Revision          string `json:"revision"`
+	DockerfileVersion string `json:"dockerfileVersion,omitempty"`
 }
 
 type CDIDevice struct {
@@ -40,9 +41,10 @@ func fromAPIBuildkitVersion(in *apitypes.BuildkitVersion) BuildkitVersion {
 		return BuildkitVersion{}
 	}
 	return BuildkitVersion{
-		Package:  in.Package,
-		Version:  in.Version,
-		Revision: in.Revision,
+		Package:           in.Package,
+		Version:           in.Version,
+		Revision:          in.Revision,
+		DockerfileVersion: in.DockerfileVersion,
 	}
 }
 

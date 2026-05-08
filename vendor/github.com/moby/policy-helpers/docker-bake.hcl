@@ -2,7 +2,7 @@ variable "ROOT_SIGNING_VERSION" {
     type    = string
     # default = "8842feefbb65effea46ff4a0f2b6aad91e685fe9" # expired root
     # default = "9d8b5c5e3bed603c80b57fcc316b7a1af688c57e" # expired timestamp
-    default = "975f28e3597a34098a7c0c07edc16f47420b9aa3"
+    default = "e88fa609ddf5a177bb46d0f7c9b43d178b9483a3"
     description = "The git commit hash of sigstore/root-signing to use for embedded roots."
 }
 
