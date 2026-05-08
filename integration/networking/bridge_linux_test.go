@@ -2272,7 +2272,7 @@ func TestPublishAllWithNilPortBindings(t *testing.T) {
 	c := testEnv.APIClient()
 
 	imgWithExpose := container.WithImage(build.Do(ctx, t, c,
-		fakecontext.New(t, "", fakecontext.WithDockerfile("FROM busybox\nEXPOSE 80/tcp\n"))))
+		fakecontext.New(t, "", fakecontext.WithDockerfile("FROM busybox\nEXPOSE 80/tcp\n")), client.ImageBuildOptions{}))
 
 	_ = container.Run(ctx, t, c,
 		container.WithAutoRemove,
