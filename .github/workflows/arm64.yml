@@ -53,6 +53,9 @@ jobs:
         uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           targets: ${{ matrix.target }}
+          set: |
+            *.cache-from=type=gha,scope=${{ matrix.target }}-arm64
+            *.cache-to=type=gha,scope=${{ matrix.target }}-arm64
       -
         name: List artifacts
         run: |
@@ -116,6 +119,7 @@ jobs:
           targets: dev
           set: |
             dev.cache-from=type=gha,scope=dev-arm64
+            dev.cache-to=type=gha,scope=dev-arm64
       -
         name: Test
         run: |
@@ -217,6 +221,7 @@ jobs:
           targets: dev
           set: |
             dev.cache-from=type=gha,scope=dev-arm64
+            dev.cache-to=type=gha,scope=dev-arm64
       -
         name: Test
         run: |

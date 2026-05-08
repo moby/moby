@@ -62,6 +62,7 @@ jobs:
           targets: dev
           set: |
             dev.cache-from=type=gha,scope=${{ env.CACHE_DEV_SCOPE }}
+            dev.cache-to=type=gha,scope=${{ env.CACHE_DEV_SCOPE }}
       -
         name: Test
         run: |

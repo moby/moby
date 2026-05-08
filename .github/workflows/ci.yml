@@ -49,6 +49,9 @@ jobs:
         uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           targets: ${{ matrix.target }}
+          set: |
+            *.cache-from=type=gha,scope=${{ matrix.target }}
+            *.cache-to=type=gha,scope=${{ matrix.target }}
       -
         name: List artifacts
         run: |
@@ -92,10 +95,12 @@ jobs:
     steps:
       -
         name: Prepare
+        id: prepare
         env:
           PLATFORM: ${{ matrix.platforms }}
         run: |
           echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> $GITHUB_ENV
+          echo "platform_pair=${PLATFORM//\//-}" >> $GITHUB_OUTPUT
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
@@ -109,6 +114,8 @@ jobs:
         with:
           targets: ${{ matrix.target }}
           set: |
+            *.cache-from=type=gha,scope=${{ matrix.target }}-${{ steps.prepare.outputs.platform_pair }}
+            *.cache-to=type=gha,scope=${{ matrix.target }}-${{ steps.prepare.outputs.platform_pair }}
             *.platform=${{ matrix.platforms }}
       -
         name: List artifacts
@@ -139,6 +146,9 @@ jobs:
         uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           targets: govulncheck
+          set: |
+            *.cache-from=type=gha,scope=govulncheck
+            *.cache-to=type=gha,scope=govulncheck
         env:
           GOVULNCHECK_FORMAT: sarif
       -
@@ -167,4 +177,6 @@ jobs:
         with:
           targets: dind
           set: |
+            *.cache-from=type=gha,scope=dind
+            *.cache-to=type=gha,scope=dind
             *.output=type=cacheonly
