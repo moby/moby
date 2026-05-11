@@ -409,6 +409,7 @@ type SolveRequest struct {
 	Exporters               []*Exporter               `protobuf:"bytes,13,rep,name=Exporters,proto3" json:"Exporters,omitempty"`
 	EnableSessionExporter   bool                      `protobuf:"varint,14,opt,name=EnableSessionExporter,proto3" json:"EnableSessionExporter,omitempty"`
 	SourcePolicySession     string                    `protobuf:"bytes,15,opt,name=SourcePolicySession,proto3" json:"SourcePolicySession,omitempty"`
+	CompatibilityVersion    int64                     `protobuf:"varint,16,opt,name=CompatibilityVersion,proto3" json:"CompatibilityVersion,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -546,6 +547,13 @@ func (x *SolveRequest) GetSourcePolicySession() string {
 		return x.SourcePolicySession
 	}
 	return ""
+}
+
+func (x *SolveRequest) GetCompatibilityVersion() int64 {
+	if x != nil {
+		return x.CompatibilityVersion
+	}
+	return 0
 }
 
 type CacheOptions struct {
@@ -2058,7 +2066,7 @@ const file_github_com_moby_buildkit_api_services_control_control_proto_rawDesc =
 	" \x01(\tR\n" +
 	"RecordType\x12\x16\n" +
 	"\x06Shared\x18\v \x01(\bR\x06Shared\x12\x18\n" +
-	"\aParents\x18\f \x03(\tR\aParents\"\xa6\b\n" +
+	"\aParents\x18\f \x03(\tR\aParents\"\xda\b\n" +
 	"\fSolveRequest\x12\x10\n" +
 	"\x03Ref\x18\x01 \x01(\tR\x03Ref\x12.\n" +
 	"\n" +
@@ -2077,7 +2085,8 @@ const file_github_com_moby_buildkit_api_services_control_control_proto_rawDesc =
 	"\fSourcePolicy\x18\f \x01(\v2%.moby.buildkit.v1.sourcepolicy.PolicyR\fSourcePolicy\x128\n" +
 	"\tExporters\x18\r \x03(\v2\x1a.moby.buildkit.v1.ExporterR\tExporters\x124\n" +
 	"\x15EnableSessionExporter\x18\x0e \x01(\bR\x15EnableSessionExporter\x120\n" +
-	"\x13SourcePolicySession\x18\x0f \x01(\tR\x13SourcePolicySession\x1aJ\n" +
+	"\x13SourcePolicySession\x18\x0f \x01(\tR\x13SourcePolicySession\x122\n" +
+	"\x14CompatibilityVersion\x18\x10 \x01(\x03R\x14CompatibilityVersion\x1aJ\n" +
 	"\x1cExporterAttrsDeprecatedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +

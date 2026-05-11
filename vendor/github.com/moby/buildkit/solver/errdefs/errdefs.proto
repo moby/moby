@@ -24,6 +24,11 @@ message FrontendCap {
 	string name = 1;
 }
 
+message CompatibilityFeature {
+	int64 version = 1;
+	string feature = 2;
+}
+
 message Subrequest {
 	string name = 1;
 }

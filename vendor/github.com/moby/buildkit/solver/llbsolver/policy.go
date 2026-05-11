@@ -58,6 +58,7 @@ func (p *policyEvaluator) evaluate(ctx context.Context, op *pb.Op, max int) (boo
 	}
 
 	verifier := policysession.NewPolicyVerifierClient(caller.Conn())
+	ctx = caller.Context(ctx)
 	req := &policysession.CheckPolicyRequest{
 		Platform: op.Platform,
 		Source: &gatewaypb.ResolveSourceMetaResponse{

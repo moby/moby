@@ -39,6 +39,7 @@ type llbBridge struct {
 	cms                       map[string]solver.CacheManager
 	cmsMu                     sync.Mutex
 	sm                        *session.Manager
+	provenanceStore           *provenanceStore
 
 	executorOnce sync.Once
 	executorErr  error

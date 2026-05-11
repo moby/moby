@@ -214,6 +214,58 @@ func (x *FrontendCap) GetName() string {
 	return ""
 }
 
+type CompatibilityFeature struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Version       int64                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	Feature       string                 `protobuf:"bytes,2,opt,name=feature,proto3" json:"feature,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompatibilityFeature) Reset() {
+	*x = CompatibilityFeature{}
+	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompatibilityFeature) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompatibilityFeature) ProtoMessage() {}
+
+func (x *CompatibilityFeature) ProtoReflect() protoreflect.Message {
+	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompatibilityFeature.ProtoReflect.Descriptor instead.
+func (*CompatibilityFeature) Descriptor() ([]byte, []int) {
+	return file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CompatibilityFeature) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *CompatibilityFeature) GetFeature() string {
+	if x != nil {
+		return x.Feature
+	}
+	return ""
+}
+
 type Subrequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -223,7 +275,7 @@ type Subrequest struct {
 
 func (x *Subrequest) Reset() {
 	*x = Subrequest{}
-	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[4]
+	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -235,7 +287,7 @@ func (x *Subrequest) String() string {
 func (*Subrequest) ProtoMessage() {}
 
 func (x *Subrequest) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[4]
+	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -248,7 +300,7 @@ func (x *Subrequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Subrequest.ProtoReflect.Descriptor instead.
 func (*Subrequest) Descriptor() ([]byte, []int) {
-	return file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_rawDescGZIP(), []int{4}
+	return file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Subrequest) GetName() string {
@@ -275,7 +327,7 @@ type Solve struct {
 
 func (x *Solve) Reset() {
 	*x = Solve{}
-	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[5]
+	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -287,7 +339,7 @@ func (x *Solve) String() string {
 func (*Solve) ProtoMessage() {}
 
 func (x *Solve) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[5]
+	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -300,7 +352,7 @@ func (x *Solve) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Solve.ProtoReflect.Descriptor instead.
 func (*Solve) Descriptor() ([]byte, []int) {
-	return file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_rawDescGZIP(), []int{5}
+	return file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Solve) GetInputIDs() []string {
@@ -382,7 +434,7 @@ type FileAction struct {
 
 func (x *FileAction) Reset() {
 	*x = FileAction{}
-	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[6]
+	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -394,7 +446,7 @@ func (x *FileAction) String() string {
 func (*FileAction) ProtoMessage() {}
 
 func (x *FileAction) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[6]
+	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -407,7 +459,7 @@ func (x *FileAction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileAction.ProtoReflect.Descriptor instead.
 func (*FileAction) Descriptor() ([]byte, []int) {
-	return file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_rawDescGZIP(), []int{6}
+	return file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *FileAction) GetIndex() int64 {
@@ -427,7 +479,7 @@ type ContentCache struct {
 
 func (x *ContentCache) Reset() {
 	*x = ContentCache{}
-	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[7]
+	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -439,7 +491,7 @@ func (x *ContentCache) String() string {
 func (*ContentCache) ProtoMessage() {}
 
 func (x *ContentCache) ProtoReflect() protoreflect.Message {
-	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[7]
+	mi := &file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -452,7 +504,7 @@ func (x *ContentCache) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContentCache.ProtoReflect.Descriptor instead.
 func (*ContentCache) Descriptor() ([]byte, []int) {
-	return file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_rawDescGZIP(), []int{7}
+	return file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ContentCache) GetIndex() int64 {
@@ -476,7 +528,10 @@ const file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\"!\n" +
 	"\vFrontendCap\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\" \n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"J\n" +
+	"\x14CompatibilityFeature\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\x03R\aversion\x12\x18\n" +
+	"\afeature\x18\x02 \x01(\tR\afeature\" \n" +
 	"\n" +
 	"Subrequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"\xbf\x02\n" +
@@ -509,28 +564,29 @@ func file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_rawDescGZIP() []
 	return file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_rawDescData
 }
 
-var file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_goTypes = []any{
-	(*Vertex)(nil),        // 0: errdefs.Vertex
-	(*Source)(nil),        // 1: errdefs.Source
-	(*Frontend)(nil),      // 2: errdefs.Frontend
-	(*FrontendCap)(nil),   // 3: errdefs.FrontendCap
-	(*Subrequest)(nil),    // 4: errdefs.Subrequest
-	(*Solve)(nil),         // 5: errdefs.Solve
-	(*FileAction)(nil),    // 6: errdefs.FileAction
-	(*ContentCache)(nil),  // 7: errdefs.ContentCache
-	nil,                   // 8: errdefs.Solve.DescriptionEntry
-	(*pb.SourceInfo)(nil), // 9: pb.SourceInfo
-	(*pb.Range)(nil),      // 10: pb.Range
-	(*pb.Op)(nil),         // 11: pb.Op
+	(*Vertex)(nil),               // 0: errdefs.Vertex
+	(*Source)(nil),               // 1: errdefs.Source
+	(*Frontend)(nil),             // 2: errdefs.Frontend
+	(*FrontendCap)(nil),          // 3: errdefs.FrontendCap
+	(*CompatibilityFeature)(nil), // 4: errdefs.CompatibilityFeature
+	(*Subrequest)(nil),           // 5: errdefs.Subrequest
+	(*Solve)(nil),                // 6: errdefs.Solve
+	(*FileAction)(nil),           // 7: errdefs.FileAction
+	(*ContentCache)(nil),         // 8: errdefs.ContentCache
+	nil,                          // 9: errdefs.Solve.DescriptionEntry
+	(*pb.SourceInfo)(nil),        // 10: pb.SourceInfo
+	(*pb.Range)(nil),             // 11: pb.Range
+	(*pb.Op)(nil),                // 12: pb.Op
 }
 var file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_depIdxs = []int32{
-	9,  // 0: errdefs.Source.info:type_name -> pb.SourceInfo
-	10, // 1: errdefs.Source.ranges:type_name -> pb.Range
-	11, // 2: errdefs.Solve.op:type_name -> pb.Op
-	6,  // 3: errdefs.Solve.file:type_name -> errdefs.FileAction
-	7,  // 4: errdefs.Solve.cache:type_name -> errdefs.ContentCache
-	8,  // 5: errdefs.Solve.description:type_name -> errdefs.Solve.DescriptionEntry
+	10, // 0: errdefs.Source.info:type_name -> pb.SourceInfo
+	11, // 1: errdefs.Source.ranges:type_name -> pb.Range
+	12, // 2: errdefs.Solve.op:type_name -> pb.Op
+	7,  // 3: errdefs.Solve.file:type_name -> errdefs.FileAction
+	8,  // 4: errdefs.Solve.cache:type_name -> errdefs.ContentCache
+	9,  // 5: errdefs.Solve.description:type_name -> errdefs.Solve.DescriptionEntry
 	6,  // [6:6] is the sub-list for method output_type
 	6,  // [6:6] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
@@ -543,7 +599,7 @@ func file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_init() {
 	if File_github_com_moby_buildkit_solver_errdefs_errdefs_proto != nil {
 		return
 	}
-	file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[5].OneofWrappers = []any{
+	file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_msgTypes[6].OneofWrappers = []any{
 		(*Solve_File)(nil),
 		(*Solve_Cache)(nil),
 	}
@@ -553,7 +609,7 @@ func file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_rawDesc), len(file_github_com_moby_buildkit_solver_errdefs_errdefs_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

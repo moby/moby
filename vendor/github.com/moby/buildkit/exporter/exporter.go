@@ -50,9 +50,10 @@ type ExporterInstance interface {
 }
 
 type ExportBuildInfo struct {
-	Ref         string
-	InlineCache exptypes.InlineCache
-	SessionID   string
+	Ref                  string
+	InlineCache          exptypes.InlineCache
+	SessionID            string
+	CompatibilityVersion int
 }
 
 type DescriptorReference interface {
