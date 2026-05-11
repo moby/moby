@@ -2,6 +2,7 @@ package provenance
 
 import (
 	"cmp"
+	"maps"
 	"slices"
 
 	distreference "github.com/distribution/reference"
@@ -15,14 +16,34 @@ import (
 type Result = result.Result[*Capture]
 
 type Capture struct {
-	Frontend            string
-	Args                map[string]string
+	Request             provenancetypes.Parameters
 	Sources             provenancetypes.Sources
-	Secrets             []provenancetypes.Secret
-	SSH                 []provenancetypes.SSH
 	NetworkAccess       bool
 	IncompleteMaterials bool
 	Samples             map[digest.Digest]*resourcestypes.Samples
+}
+
+func (c *Capture) Clone() *Capture {
+	if c == nil {
+		return nil
+	}
+	out := &Capture{
+		NetworkAccess:       c.NetworkAccess,
+		IncompleteMaterials: c.IncompleteMaterials,
+	}
+	if req := c.Request.Clone(); req != nil {
+		out.Request = *req
+	}
+	out.Sources.Images = append(out.Sources.Images, c.Sources.Images...)
+	out.Sources.ImageBlobs = append(out.Sources.ImageBlobs, c.Sources.ImageBlobs...)
+	out.Sources.Local = append(out.Sources.Local, c.Sources.Local...)
+	out.Sources.Git = append(out.Sources.Git, c.Sources.Git...)
+	out.Sources.HTTP = append(out.Sources.HTTP, c.Sources.HTTP...)
+	if len(c.Samples) > 0 {
+		out.Samples = make(map[digest.Digest]*resourcestypes.Samples, len(c.Samples))
+		maps.Copy(out.Samples, c.Samples)
+	}
+	return out
 }
 
 func (c *Capture) Merge(c2 *Capture) error {
@@ -44,11 +65,15 @@ func (c *Capture) Merge(c2 *Capture) error {
 	for _, h := range c2.Sources.HTTP {
 		c.AddHTTP(h)
 	}
-	for _, s := range c2.Secrets {
-		c.AddSecret(s)
+	for _, s := range c2.Request.Secrets {
+		if s != nil {
+			c.AddSecret(*s)
+		}
 	}
-	for _, s := range c2.SSH {
-		c.AddSSH(s)
+	for _, s := range c2.Request.SSH {
+		if s != nil {
+			c.AddSSH(*s)
+		}
 	}
 	if c2.NetworkAccess {
 		c.NetworkAccess = true
@@ -75,10 +100,10 @@ func (c *Capture) Sort() {
 	slices.SortFunc(c.Sources.HTTP, func(a, b provenancetypes.HTTPSource) int {
 		return cmp.Compare(a.URL, b.URL)
 	})
-	slices.SortFunc(c.Secrets, func(a, b provenancetypes.Secret) int {
+	slices.SortFunc(c.Request.Secrets, func(a, b *provenancetypes.Secret) int {
 		return cmp.Compare(a.ID, b.ID)
 	})
-	slices.SortFunc(c.SSH, func(a, b provenancetypes.SSH) int {
+	slices.SortFunc(c.Request.SSH, func(a, b *provenancetypes.SSH) int {
 		return cmp.Compare(a.ID, b.ID)
 	})
 }
@@ -152,12 +177,31 @@ func (c *Capture) AddLocal(l provenancetypes.LocalSource) {
 
 func (c *Capture) AddGit(g provenancetypes.GitSource) {
 	g.URL = urlutil.RedactCredentials(g.URL)
+	// Dedupe on the tuple (URL, Bundle.URL). Two records with the same
+	// URL but different bundle identity (e.g. the same repo referenced
+	// once normally and once through a bundle, or through two different
+	// bundle locators) must both be preserved so neither material is
+	// silently dropped from the provenance. Bundle.URL is the canonical
+	// bundle identity: since scheme/ref/digest are derived from it,
+	// different URLs imply different bundle identity.
 	for _, v := range c.Sources.Git {
-		if v.URL == g.URL {
+		if v.URL != g.URL {
+			continue
+		}
+		if bundleKey(v.Bundle) == bundleKey(g.Bundle) {
 			return
 		}
 	}
 	c.Sources.Git = append(c.Sources.Git, g)
+}
+
+// bundleKey returns a comparable identity for dedupe. Nil bundles collapse
+// to the empty key.
+func bundleKey(b *provenancetypes.GitBundle) string {
+	if b == nil {
+		return ""
+	}
+	return b.URL
 }
 
 func (c *Capture) AddHTTP(h provenancetypes.HTTPSource) {
@@ -171,30 +215,30 @@ func (c *Capture) AddHTTP(h provenancetypes.HTTPSource) {
 }
 
 func (c *Capture) AddSecret(s provenancetypes.Secret) {
-	for i, v := range c.Secrets {
+	for i, v := range c.Request.Secrets {
 		if v.ID == s.ID {
 			if !s.Optional {
-				c.Secrets[i].Optional = false
+				c.Request.Secrets[i].Optional = false
 			}
 			return
 		}
 	}
-	c.Secrets = append(c.Secrets, s)
+	c.Request.Secrets = append(c.Request.Secrets, &s)
 }
 
 func (c *Capture) AddSSH(s provenancetypes.SSH) {
 	if s.ID == "" {
 		s.ID = "default"
 	}
-	for i, v := range c.SSH {
+	for i, v := range c.Request.SSH {
 		if v.ID == s.ID {
 			if !s.Optional {
-				c.SSH[i].Optional = false
+				c.Request.SSH[i].Optional = false
 			}
 			return
 		}
 	}
-	c.SSH = append(c.SSH, s)
+	c.Request.SSH = append(c.Request.SSH, &s)
 }
 
 func (c *Capture) AddSamples(dgst digest.Digest, samples *resourcestypes.Samples) {

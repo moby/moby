@@ -11,6 +11,7 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver/errdefs"
+	"github.com/moby/buildkit/solver/llbsolver/compat"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/bkmaps"
 	"github.com/moby/buildkit/util/flightcontrol"
@@ -88,6 +89,34 @@ func (s *state) Cleanup(fn func() error) error {
 
 func (s *state) ResolverCache() ResolverCache {
 	return s
+}
+
+func (s *state) CompatibilityVersion() (int, error) {
+	s.mu.Lock()
+	jobs := make([]*Job, 0, len(s.jobs))
+	for j := range s.jobs {
+		jobs = append(jobs, j)
+	}
+	s.mu.Unlock()
+
+	version := 0
+	for _, j := range jobs {
+		v, err := j.CompatibilityVersion()
+		if err != nil {
+			return 0, err
+		}
+		if version == 0 {
+			version = v
+			continue
+		}
+		if version != v {
+			return 0, errors.Errorf("conflicting compatibility versions in shared solve state: %d != %d", version, v)
+		}
+	}
+	if version == 0 {
+		return compat.CompatibilityVersionCurrent, nil
+	}
+	return version, nil
 }
 
 func (s *state) Lock(key any) (values []any, release func(any) error, err error) {
@@ -863,6 +892,21 @@ func (j *Job) RegisterCompleteTime() time.Time {
 
 func (j *Job) UniqueID() string {
 	return j.uniqueID
+}
+
+func (j *Job) CompatibilityVersion() (int, error) {
+	version := compat.CompatibilityVersionCurrent
+	if err := j.EachValue(context.TODO(), compat.JobValueKey, func(v any) error {
+		parsed, ok := v.(int)
+		if !ok {
+			return errors.Errorf("invalid compatibility version %T", v)
+		}
+		version = parsed
+		return nil
+	}); err != nil {
+		return 0, err
+	}
+	return version, nil
 }
 
 func (j *Job) InContext(ctx context.Context, f func(context.Context, JobContext) error) error {

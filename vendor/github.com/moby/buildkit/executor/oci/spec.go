@@ -20,7 +20,7 @@ import (
 	"github.com/moby/buildkit/util/network"
 	rootlessmountopts "github.com/moby/buildkit/util/rootless/mountopts"
 	"github.com/moby/buildkit/util/system"
-	traceexec "github.com/moby/buildkit/util/tracing/exec"
+	"github.com/moby/buildkit/util/tracing/childprocess"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -120,7 +120,7 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 	if tracingSocket != "" {
 		// https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md
 		meta.Env = append(meta.Env, tracingEnvVars...)
-		meta.Env = append(meta.Env, traceexec.Environ(ctx)...)
+		meta.Env = append(meta.Env, childprocess.Environ(ctx)...)
 	}
 
 	opts = append(opts,

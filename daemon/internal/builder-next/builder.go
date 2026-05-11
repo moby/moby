@@ -110,6 +110,8 @@ type Builder struct {
 	dnsconfig      config.DNSConfig
 	reqBodyHandler *reqBodyHandler
 	diskUsage      singleflight.Group[buildbackend.DiskUsageOptions, *buildbackend.DiskUsage]
+	sessionManager *session.Manager
+	registryHosts  docker.RegistryHosts
 
 	mu             sync.Mutex
 	jobs           map[string]*buildJob
@@ -128,6 +130,8 @@ func New(ctx context.Context, opt Opt) (*Builder, error) {
 		controller:     c,
 		dnsconfig:      opt.DNSConfig,
 		reqBodyHandler: reqHandler,
+		sessionManager: opt.SessionManager,
+		registryHosts:  opt.RegistryHosts,
 		jobs:           map[string]*buildJob{},
 		useSnapshotter: opt.UseSnapshotter,
 	}
@@ -350,7 +354,9 @@ func (b *Builder) Build(ctx context.Context, opt buildbackend.BuildConfig) (*bui
 	if opt.Options.PullParent {
 		frontendAttrs["image-resolve-mode"] = "pull"
 	} else {
-		frontendAttrs["image-resolve-mode"] = "default"
+		// Docker build uses a local parent image when one is present unless
+		// pulling is explicitly requested.
+		frontendAttrs["image-resolve-mode"] = "local"
 	}
 
 	if opt.Options.Platform != "" {
@@ -420,6 +426,17 @@ func (b *Builder) Build(ctx context.Context, opt buildbackend.BuildConfig) (*bui
 		}
 	}
 
+	sessionID := opt.Options.SessionID
+	var authSession *session.Session
+	if sessionID == "" && len(opt.Options.AuthConfigs) > 0 {
+		var err error
+		authSession, err = newBuildkitAuthSession(ctx, opt.Options.AuthConfigs, b.registryHosts)
+		if err != nil {
+			return nil, err
+		}
+		sessionID = authSession.ID()
+	}
+
 	id := identity.NewID()
 	req := &controlapi.SolveRequest{
 		Ref: id,
@@ -428,7 +445,7 @@ func (b *Builder) Build(ctx context.Context, opt buildbackend.BuildConfig) (*bui
 		},
 		Frontend:      "dockerfile.v0",
 		FrontendAttrs: frontendAttrs,
-		Session:       opt.Options.SessionID,
+		Session:       sessionID,
 		Cache:         cache,
 	}
 
@@ -440,7 +457,16 @@ func (b *Builder) Build(ctx context.Context, opt buildbackend.BuildConfig) (*bui
 
 	eg, ctx := errgroup.WithContext(ctx)
 
+	if authSession != nil {
+		eg.Go(func() error {
+			return runBuildkitSession(ctx, b.sessionManager, authSession)
+		})
+	}
+
 	eg.Go(func() error {
+		if authSession != nil {
+			defer authSession.Close()
+		}
 		resp, err := b.controller.Solve(ctx, req)
 		if err != nil {
 			return err

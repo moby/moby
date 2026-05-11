@@ -9,8 +9,10 @@ import (
 	slsa1 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v1"
 	"github.com/moby/buildkit/frontend/dockerfile/dfgitutil"
 	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"
+	srctypes "github.com/moby/buildkit/source/types"
 	"github.com/moby/buildkit/util/purl"
 	"github.com/moby/buildkit/util/urlutil"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/package-url/packageurl-go"
 )
 
@@ -68,9 +70,54 @@ func slsaMaterials(srcs provenancetypes.Sources) ([]slsa.ProvenanceMaterial, err
 	}
 
 	for _, s := range srcs.Git {
+		// Git material URI is always the raw repository URL (same shape
+		// for bundle-backed and normal git sources).
 		out = append(out, slsa.ProvenanceMaterial{
 			URI:    s.URL,
 			Digest: digestSetForCommit(s.Commit),
+		})
+		if s.Bundle == nil {
+			continue
+		}
+
+		// Bundle-backed git source: parse the canonical locator into
+		// its scheme / ref-body / digest components on demand. On parse
+		// failure (shouldn't happen — validateBundleAttrs rejects bad
+		// locators at LLB op construction time) skip bundle material
+		// emission rather than erroring.
+		scheme, refBody, bundleDgst := parseBundleLocatorURL(s.Bundle.URL)
+		if scheme == "" || refBody == "" || bundleDgst == "" {
+			continue
+		}
+
+		bundlePurlType := packageurl.TypeDocker
+		if scheme == srctypes.OCIBlobScheme {
+			bundlePurlType = packageurl.TypeOCI
+		}
+		bundleURI, err := purl.RefToPURL(bundlePurlType, refBody, nil)
+		if err != nil {
+			return nil, err
+		}
+		bundleURI, err = setPURLQualifier(bundleURI, packageurl.Qualifier{
+			Key:   "ref_type",
+			Value: "bundle",
+		})
+		if err != nil {
+			return nil, err
+		}
+		bundleURI, err = setPURLQualifier(bundleURI, packageurl.Qualifier{
+			Key:   "vcs_url",
+			Value: s.URL,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		out = append(out, slsa.ProvenanceMaterial{
+			URI: bundleURI,
+			Digest: slsa.DigestSet{
+				bundleDgst.Algorithm().String(): bundleDgst.Hex(),
+			},
 		})
 	}
 
@@ -84,6 +131,31 @@ func slsaMaterials(srcs provenancetypes.Sources) ([]slsa.ProvenanceMaterial, err
 	}
 
 	return out, nil
+}
+
+// parseBundleLocatorURL parses a "<scheme>://<ref>@<algo>:<hex>" bundle
+// locator into its components. It returns empty values on parse failure; the
+// caller handles that by falling back to the non-bundle emission path.
+//
+// The identifier package has a stricter parseBundleLocator used at LLB op
+// construction time (validateBundleAttrs) that validates the reference and
+// digest algorithm. We intentionally don't import that helper here because
+// the identifier package imports this provenance package. Since the locator
+// has already been validated upstream, the logic here just splits the
+// locator back into its parts for purl emission.
+func parseBundleLocatorURL(raw string) (scheme, refBody string, dgst digest.Digest) {
+	const sep = "://"
+	i := strings.Index(raw, sep)
+	if i <= 0 {
+		return "", "", ""
+	}
+	scheme = raw[:i]
+	body := raw[i+len(sep):]
+	at := strings.LastIndex(body, "@")
+	if at <= 0 {
+		return "", "", ""
+	}
+	return scheme, body[:at], digest.Digest(body[at+1:])
 }
 
 func digestSetForCommit(commit string) slsa.DigestSet {
@@ -112,11 +184,15 @@ func setPURLQualifier(uri string, q packageurl.Qualifier) (string, error) {
 }
 
 func findMaterial(srcs provenancetypes.Sources, uri string) (*slsa.ProvenanceMaterial, bool) {
-	uri, _ = dfgitutil.FragmentFormat(uri)
+	configURI := uri
+	if formatted, ok := dfgitutil.FragmentFormat(uri, true); ok {
+		configURI = formatted
+	}
+	uri, _ = dfgitutil.FragmentFormat(uri, false)
 	for _, s := range srcs.Git {
 		if s.URL == uri {
 			return &slsa.ProvenanceMaterial{
-				URI:    s.URL,
+				URI:    configURI,
 				Digest: digestSetForCommit(s.Commit),
 			}, true
 		}
@@ -147,39 +223,25 @@ func NewPredicate(c *Capture) (*provenancetypes.ProvenancePredicateSLSA1, error)
 		})
 	}
 
-	args := maps.Clone(c.Args)
-
-	contextKey := "context"
-	if v, ok := args["contextkey"]; ok && v != "" {
-		contextKey = v
-	} else if v, ok := c.Args["input:context"]; ok && v != "" {
-		contextKey = "input:context"
-	}
-
 	ext := provenancetypes.ProvenanceExternalParametersSLSA1{}
-	if v, ok := args[contextKey]; ok && v != "" {
-		if m, ok := findMaterial(c.Sources, v); ok {
-			ext.ConfigSource.URI = m.URI
-			ext.ConfigSource.Digest = m.Digest
-		} else {
-			ext.ConfigSource.URI = v
-		}
-		ext.ConfigSource.URI = urlutil.RedactCredentials(ext.ConfigSource.URI)
-		delete(args, contextKey)
-	}
-
-	if v, ok := args["filename"]; ok && v != "" {
-		ext.ConfigSource.Path = v
-		delete(args, "filename")
-	}
+	reqProv := RequestProvenance(c.Request.Frontend, maps.Clone(c.Request.Args), c.Sources)
+	ext.ConfigSource = reqProv.ConfigSource
 
 	vcs := make(map[string]string)
-	for k, v := range args {
+	req := c.Request.Clone()
+	if req == nil {
+		req = &provenancetypes.Parameters{}
+	}
+	if reqProv.Request != nil {
+		req.Frontend = reqProv.Request.Frontend
+		req.Args = reqProv.Request.Args
+	}
+	for k, v := range req.Args {
 		if strings.HasPrefix(k, "vcs:") {
 			if k == "vcs:source" {
 				v = urlutil.RedactCredentials(v)
 			}
-			delete(args, k)
+			delete(req.Args, k)
 			if v != "" {
 				vcs[strings.TrimPrefix(k, "vcs:")] = v
 			}
@@ -189,27 +251,12 @@ func NewPredicate(c *Capture) (*provenancetypes.ProvenancePredicateSLSA1, error)
 	internal := provenancetypes.ProvenanceInternalParametersSLSA1{}
 	internal.BuilderPlatform = platforms.Format(platforms.Normalize(platforms.DefaultSpec()))
 
-	req := provenancetypes.Parameters{}
-	req.Frontend = c.Frontend
-	req.Args = args
-	for _, s := range c.Secrets {
-		req.Secrets = append(req.Secrets, &provenancetypes.Secret{
-			ID:       s.ID,
-			Optional: s.Optional,
-		})
-	}
-	for _, s := range c.SSH {
-		req.SSH = append(req.SSH, &provenancetypes.SSH{
-			ID:       s.ID,
-			Optional: s.Optional,
-		})
-	}
 	for _, s := range c.Sources.Local {
 		req.Locals = append(req.Locals, &provenancetypes.LocalSource{
 			Name: s.Name,
 		})
 	}
-	ext.Request = req
+	ext.Request = *req
 
 	incompleteMaterials := c.IncompleteMaterials
 	if !incompleteMaterials {
@@ -230,7 +277,7 @@ func NewPredicate(c *Capture) (*provenancetypes.ProvenancePredicateSLSA1, error)
 		RunDetails: provenancetypes.ProvenanceRunDetailsSLSA1{
 			Metadata: &provenancetypes.ProvenanceMetadataSLSA1{
 				Completeness: provenancetypes.BuildKitComplete{
-					Request:              c.Frontend != "",
+					Request:              c.Request.Frontend != "",
 					ResolvedDependencies: !incompleteMaterials,
 				},
 				Hermetic: !incompleteMaterials && !c.NetworkAccess,
@@ -243,6 +290,42 @@ func NewPredicate(c *Capture) (*provenancetypes.ProvenancePredicateSLSA1, error)
 	}
 
 	return pr, nil
+}
+
+func RequestProvenance(frontend string, args map[string]string, srcs provenancetypes.Sources) *provenancetypes.RequestProvenance {
+	args = maps.Clone(args)
+	contextKey := "context"
+	if v, ok := args["contextkey"]; ok && v != "" {
+		contextKey = v
+	} else if v, ok := args["input:context"]; ok && v != "" {
+		contextKey = "input:context"
+	}
+
+	ext := provenancetypes.RequestProvenance{
+		Request: &provenancetypes.Parameters{
+			Frontend: frontend,
+			Args:     args,
+		},
+	}
+	if v, ok := args[contextKey]; ok && v != "" {
+		if m, ok := findMaterial(srcs, v); ok {
+			ext.ConfigSource.URI = m.URI
+			ext.ConfigSource.Digest = m.Digest
+		} else {
+			ext.ConfigSource.URI = v
+		}
+		ext.ConfigSource.URI = urlutil.RedactCredentials(ext.ConfigSource.URI)
+		delete(args, contextKey)
+	}
+
+	if v, ok := args["filename"]; ok && v != "" {
+		ext.ConfigSource.Path = v
+		delete(args, "filename")
+	}
+	if len(args) == 0 {
+		ext.Request.Args = nil
+	}
+	return &ext
 }
 
 func FilterArgs(m map[string]string) map[string]string {

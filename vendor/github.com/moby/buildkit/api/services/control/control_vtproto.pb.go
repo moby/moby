@@ -143,6 +143,7 @@ func (m *SolveRequest) CloneVT() *SolveRequest {
 	r.SourcePolicy = m.SourcePolicy.CloneVT()
 	r.EnableSessionExporter = m.EnableSessionExporter
 	r.SourcePolicySession = m.SourcePolicySession
+	r.CompatibilityVersion = m.CompatibilityVersion
 	if rhs := m.ExporterAttrsDeprecated; rhs != nil {
 		tmpContainer := make(map[string]string, len(rhs))
 		for k, v := range rhs {
@@ -1041,6 +1042,9 @@ func (this *SolveRequest) EqualVT(that *SolveRequest) bool {
 		return false
 	}
 	if this.SourcePolicySession != that.SourcePolicySession {
+		return false
+	}
+	if this.CompatibilityVersion != that.CompatibilityVersion {
 		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
@@ -2248,6 +2252,13 @@ func (m *SolveRequest) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m.unknownFields != nil {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.CompatibilityVersion != 0 {
+		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.CompatibilityVersion))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x80
 	}
 	if len(m.SourcePolicySession) > 0 {
 		i -= len(m.SourcePolicySession)
@@ -4173,6 +4184,9 @@ func (m *SolveRequest) SizeVT() (n int) {
 	l = len(m.SourcePolicySession)
 	if l > 0 {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
+	}
+	if m.CompatibilityVersion != 0 {
+		n += 2 + protohelpers.SizeOfVarint(uint64(m.CompatibilityVersion))
 	}
 	n += len(m.unknownFields)
 	return n
@@ -6326,6 +6340,25 @@ func (m *SolveRequest) UnmarshalVT(dAtA []byte) error {
 			}
 			m.SourcePolicySession = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 16:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CompatibilityVersion", wireType)
+			}
+			m.CompatibilityVersion = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return protohelpers.ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.CompatibilityVersion |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := protohelpers.Skip(dAtA[iNdEx:])

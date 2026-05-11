@@ -2,6 +2,7 @@ package llbsolver
 
 import (
 	"context"
+	"maps"
 	"os"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/llbsolver/compat"
 	"github.com/moby/buildkit/solver/llbsolver/history"
 	"github.com/moby/buildkit/solver/result"
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
@@ -73,6 +75,7 @@ type Solver struct {
 	history                   *history.Queue
 	sysSampler                *resources.Sampler[*resourcestypes.SysSample]
 	provenanceEnv             map[string]any
+	provenanceStore           *provenanceStore
 }
 
 // Processor defines a processing function to be applied after solving, but
@@ -103,6 +106,7 @@ func New(opt Opt) (*Solver, error) {
 		entitlements:              opt.Entitlements,
 		history:                   opt.HistoryQueue,
 		provenanceEnv:             opt.ProvenanceEnv,
+		provenanceStore:           newProvenanceStore(),
 	}
 
 	sampler, err := resources.NewSysSampler()
@@ -145,6 +149,7 @@ func (s *Solver) bridge(b solver.Builder) *provenanceBridge {
 		resolveCacheImporterFuncs: s.resolveCacheImporterFuncs,
 		cms:                       map[string]solver.CacheManager{},
 		sm:                        s.sm,
+		provenanceStore:           s.provenanceStore,
 	}}
 }
 
@@ -152,7 +157,21 @@ func (s *Solver) Bridge(b solver.Builder) frontend.FrontendLLBBridge {
 	return s.bridge(b)
 }
 
-func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req frontend.SolveRequest, exp ExporterRequest, ent []entitlements.Entitlement, post []Processor, internal bool, srcPol *spb.Policy, policySession string) (_ *client.SolveResponse, err error) {
+func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req frontend.SolveRequest, compatibilityVersion int, exp ExporterRequest, ent []entitlements.Entitlement, post []Processor, internal bool, srcPol *spb.Policy, policySession string) (_ *client.SolveResponse, err error) {
+	hasNamedDockerfileContext := false
+	for k := range req.FrontendOpt {
+		if k == "context:dockerfile.v0" || strings.HasPrefix(k, "context:dockerfile.v0::") {
+			hasNamedDockerfileContext = true
+			break
+		}
+	}
+	if req.Frontend == "gateway.v0" && req.FrontendOpt[frontend.KeySource] == "dockerfile.v0" && !hasNamedDockerfileContext {
+		frontendOpt := maps.Clone(req.FrontendOpt)
+		delete(frontendOpt, frontend.KeySource)
+		req.Frontend = "dockerfile.v0"
+		req.FrontendOpt = frontendOpt
+	}
+
 	j, err := s.solver.NewJob(id)
 	if err != nil {
 		return nil, err
@@ -201,10 +220,17 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	if policySession != "" {
 		j.SetValue(keySourcePolicySession, policySession)
 	}
+	if compatibilityVersion == 0 {
+		compatibilityVersion = compat.CompatibilityVersionCurrent
+	}
+	j.SetValue(compat.JobValueKey, compatibilityVersion)
 
 	j.SessionID = sessionID
 
 	br := s.bridge(j)
+	defer br.releaseProvenanceRefs()
+	rootReq := req.Clone()
+	br.rootReq = &rootReq
 	var fwd gateway.LLBBridgeForwarder
 	if s.gatewayForwarder != nil && req.Definition == nil && req.Frontend == "" {
 		fwd = gateway.NewBridgeForwarder(ctx, br, br, s.workerController.Infos(), req.FrontendInputs, sessionID, s.sm)
@@ -213,10 +239,8 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 		// s.recordBuildHistory can block for several seconds on
 		// LeaseManager calls, and there is a fixed 3s timeout in
 		// GatewayForwarder on build registration.
-		if err := s.gatewayForwarder.RegisterBuild(ctx, id, fwd); err != nil {
-			return nil, err
-		}
-		defer s.gatewayForwarder.UnregisterBuild(context.WithoutCancel(ctx), id)
+		s.gatewayForwarder.RegisterBuild(ctx, id, fwd)
+		defer s.gatewayForwarder.UnregisterBuild(context.Background(), id)
 	}
 
 	if !internal {

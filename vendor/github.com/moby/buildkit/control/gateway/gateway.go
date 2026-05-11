@@ -2,55 +2,36 @@ package gateway
 
 import (
 	"context"
-	"sync"
-	"time"
 
 	"github.com/moby/buildkit/client/buildid"
 	"github.com/moby/buildkit/frontend/gateway"
 	gwapi "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/solver/errdefs"
+	"github.com/moby/buildkit/util/registrar"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
 
 type GatewayForwarder struct {
-	mu         sync.RWMutex
-	updateCond *sync.Cond
-	builds     map[string]gateway.LLBBridgeForwarder
+	registrar *registrar.Registrar[string, gateway.LLBBridgeForwarder]
 }
 
 func NewGatewayForwarder() *GatewayForwarder {
-	gwf := &GatewayForwarder{
-		builds: map[string]gateway.LLBBridgeForwarder{},
+	return &GatewayForwarder{
+		registrar: registrar.New[string, gateway.LLBBridgeForwarder](),
 	}
-	gwf.updateCond = sync.NewCond(gwf.mu.RLocker())
-	return gwf
 }
 
 func (gwf *GatewayForwarder) Register(server *grpc.Server) {
 	gwapi.RegisterLLBBridgeServer(server, gwf)
 }
 
-func (gwf *GatewayForwarder) RegisterBuild(ctx context.Context, id string, bridge gateway.LLBBridgeForwarder) error {
-	gwf.mu.Lock()
-	defer gwf.mu.Unlock()
-
-	if _, ok := gwf.builds[id]; ok {
-		return errors.Errorf("build ID %s exists", id)
-	}
-
-	gwf.builds[id] = bridge
-	gwf.updateCond.Broadcast()
-
-	return nil
+func (gwf *GatewayForwarder) RegisterBuild(ctx context.Context, id string, bridge gateway.LLBBridgeForwarder) {
+	gwf.registrar.Register(id, bridge)
 }
 
 func (gwf *GatewayForwarder) UnregisterBuild(ctx context.Context, id string) {
-	gwf.mu.Lock()
-	defer gwf.mu.Unlock()
-
-	delete(gwf.builds, id)
-	gwf.updateCond.Broadcast()
+	gwf.registrar.Discard(id)
 }
 
 func (gwf *GatewayForwarder) lookupForwarder(ctx context.Context) (gateway.LLBBridgeForwarder, error) {
@@ -59,32 +40,14 @@ func (gwf *GatewayForwarder) lookupForwarder(ctx context.Context) (gateway.LLBBr
 		return nil, errors.New("no buildid found in context")
 	}
 
-	ctx, cancel := context.WithCancelCause(ctx)
-	ctx, _ = context.WithTimeoutCause(ctx, 3*time.Second, errors.WithStack(context.DeadlineExceeded)) //nolint:govet
-	defer func() { cancel(errors.WithStack(context.Canceled)) }()
-
-	go func() {
-		<-ctx.Done()
-		gwf.mu.Lock()
-		gwf.updateCond.Broadcast()
-		gwf.mu.Unlock()
-	}()
-
-	gwf.mu.RLock()
-	defer gwf.mu.RUnlock()
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, errdefs.NewUnknownJobError(bid)
-		default:
+	fwd, err := gwf.registrar.Get(ctx, bid)
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, errors.WithStack(errdefs.NewUnknownJobError(bid))
 		}
-		fwd, ok := gwf.builds[bid]
-		if !ok {
-			gwf.updateCond.Wait()
-			continue
-		}
-		return fwd, nil
+		return nil, err
 	}
+	return fwd, nil
 }
 
 func (gwf *GatewayForwarder) ResolveImageConfig(ctx context.Context, req *gwapi.ResolveImageConfigRequest) (*gwapi.ResolveImageConfigResponse, error) {
