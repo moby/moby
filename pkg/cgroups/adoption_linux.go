@@ -79,31 +79,15 @@ func deriveParentFromCgroupFile(cgroupPath string) (string, error) {
 		return "", fmt.Errorf("no valid cgroup path found in file")
 	}
 
-	// Extract the deepest .slice component from the path.
-	// For example, "/user.slice/user-1000.slice/session-1.scope" -> "user-1000.slice"
+	// Return the full cgroup path so containers inherit the exact cgroup hierarchy
+	// of their creator. This ensures that SLURM jobs, systemd scopes, and other
+	// cgroup hierarchies are preserved.
 	//
-	// This works for systemd-managed cgroups where the hierarchy is:
-	//   -.slice (root)
-	//   ├── system.slice (system services)
-	//   ├── user.slice (user sessions)
-	//   │   └── user-<uid>.slice (specific user)
-	//   │       └── session-<id>.scope (login session)
-	//   └── machine.slice (VMs/containers)
-	segments := strings.Split(strings.Trim(cgPath, "/"), "/")
-
-	var lastSlice string
-	for _, segment := range segments {
-		if strings.HasSuffix(segment, ".slice") {
-			lastSlice = segment
-		}
-	}
-
-	if lastSlice != "" {
-		return lastSlice, nil
-	}
-
-	// No .slice found - this might be a non-systemd setup or root cgroup
-	// Return the full path as-is, or error if it's just "/"
+	// For example:
+	//   - "/system.slice/slurmstepd.scope/job_123/step_0/user/task_0" -> "system.slice/slurmstepd.scope/job_123/step_0/user/task_0"
+	//   - "/user.slice/user-1000.slice/session-1.scope" -> "user.slice/user-1000.slice/session-1.scope"
+	//
+	// This ensures containers are properly accounted under the creator's resource limits.
 	if cgPath == "/" || cgPath == "" {
 		return "", fmt.Errorf("cannot derive cgroup parent from root cgroup")
 	}
