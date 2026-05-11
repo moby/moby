@@ -20,7 +20,7 @@ func TestDeriveParentFromPid_Cgroupv2(t *testing.T) {
 
 	parent, err := deriveParentFromCgroupFile(cgroupFile)
 	assert.NilError(t, err)
-	assert.Equal(t, parent, "user-1000.slice")
+	assert.Equal(t, parent, "user.slice/user-1000.slice/session-1.scope")
 }
 
 func TestDeriveParentFromPid_Cgroupv1_Systemd(t *testing.T) {
@@ -46,11 +46,11 @@ func TestDeriveParentFromPid_Cgroupv1_Systemd(t *testing.T) {
 
 	parent, err := deriveParentFromCgroupFile(cgroupFile)
 	assert.NilError(t, err)
-	assert.Equal(t, parent, "user-1000.slice")
+	assert.Equal(t, parent, "user.slice/user-1000.slice/session-1.scope")
 }
 
 func TestDeriveParentFromPid_MultipleSlices(t *testing.T) {
-	// Test that we extract the deepest .slice component
+	// Test that we return the full cgroup path
 	tmpdir := t.TempDir()
 	cgroupFile := filepath.Join(tmpdir, "cgroup")
 
@@ -61,12 +61,12 @@ func TestDeriveParentFromPid_MultipleSlices(t *testing.T) {
 
 	parent, err := deriveParentFromCgroupFile(cgroupFile)
 	assert.NilError(t, err)
-	// Should return the deepest .slice
-	assert.Equal(t, parent, "user-1000.slice")
+	// Should return the full path
+	assert.Equal(t, parent, "system.slice/docker.service/user.slice/user-1000.slice/app.scope")
 }
 
 func TestDeriveParentFromPid_NoSlice(t *testing.T) {
-	// Test fallback when no .slice component found
+	// Test that we return full path even without .slice components
 	tmpdir := t.TempDir()
 	cgroupFile := filepath.Join(tmpdir, "cgroup")
 
@@ -76,14 +76,12 @@ func TestDeriveParentFromPid_NoSlice(t *testing.T) {
 	assert.NilError(t, err)
 
 	parent, err := deriveParentFromCgroupFile(cgroupFile)
-	// Should return error or fallback - implementation will determine behavior
-	// For now, just verify it doesn't crash
-	_ = parent
-	_ = err
+	assert.NilError(t, err)
+	assert.Equal(t, parent, "docker/container-id")
 }
 
 func TestDeriveParentFromPid_RootCgroup(t *testing.T) {
-	// Test root cgroup "/"
+	// Test root cgroup "/" - should return error
 	tmpdir := t.TempDir()
 	cgroupFile := filepath.Join(tmpdir, "cgroup")
 
@@ -93,9 +91,8 @@ func TestDeriveParentFromPid_RootCgroup(t *testing.T) {
 	assert.NilError(t, err)
 
 	parent, err := deriveParentFromCgroupFile(cgroupFile)
-	// Root cgroup should fallback or return specific value
-	_ = parent
-	_ = err
+	assert.Assert(t, err != nil, "should return error for root cgroup")
+	assert.Equal(t, parent, "")
 }
 
 func TestDeriveParentFromPid_InvalidFile(t *testing.T) {
@@ -114,4 +111,20 @@ func TestDeriveParentFromPid_EmptyFile(t *testing.T) {
 	parent, err := deriveParentFromCgroupFile(cgroupFile)
 	assert.Assert(t, err != nil, "should return error for empty file")
 	assert.Equal(t, parent, "")
+}
+
+func TestDeriveParentFromPid_SlurmCgroup(t *testing.T) {
+	// Test SLURM job cgroup hierarchy - must preserve full path
+	tmpdir := t.TempDir()
+	cgroupFile := filepath.Join(tmpdir, "cgroup")
+
+	content := `0::/system.slice/slurmstepd.scope/job_298726/step_0/user/task_0
+`
+	err := os.WriteFile(cgroupFile, []byte(content), 0644)
+	assert.NilError(t, err)
+
+	parent, err := deriveParentFromCgroupFile(cgroupFile)
+	assert.NilError(t, err)
+	// Must return the full SLURM hierarchy, not just system.slice
+	assert.Equal(t, parent, "system.slice/slurmstepd.scope/job_298726/step_0/user/task_0")
 }

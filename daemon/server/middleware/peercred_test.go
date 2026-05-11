@@ -59,3 +59,44 @@ func TestPeerCredMiddleware_Structure(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, handlerCalled, "handler should have been called")
 }
+
+func TestPeerCredMiddleware_NoConnection(t *testing.T) {
+	// Test that middleware doesn't fail when no connection is in context
+	middleware := NewPeerCredMiddleware()
+
+	var capturedCtx context.Context
+	testHandler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+		capturedCtx = ctx
+		return nil
+	}
+
+	wrapped := middleware.WrapHandler(testHandler)
+
+	// Create a test request without connection in context
+	req := httptest.NewRequest("GET", "http://example.com/test", nil)
+	w := httptest.NewRecorder()
+
+	err := wrapped(context.Background(), w, req, nil)
+
+	assert.NilError(t, err)
+	// Verify no credentials were added (since no connection was available)
+	creds, ok := capturedCtx.Value(PeerCredKey).(*PeerCredentials)
+	assert.Assert(t, !ok || creds == nil, "should not have credentials when no connection")
+}
+
+func TestPeerConnKey_Uniqueness(t *testing.T) {
+	// Verify that PeerConnKey is distinct from http.LocalAddrContextKey
+	// This is important because http.LocalAddrContextKey gets overwritten by the HTTP stack
+	ctx := context.Background()
+
+	// Simulate what happens in ConnContext and the HTTP stack
+	ctx = context.WithValue(ctx, PeerConnKey, "connection")
+	ctx = context.WithValue(ctx, http.LocalAddrContextKey, "address")
+
+	// Both values should be retrievable independently
+	conn := ctx.Value(PeerConnKey)
+	addr := ctx.Value(http.LocalAddrContextKey)
+
+	assert.Equal(t, conn, "connection")
+	assert.Equal(t, addr, "address")
+}
