@@ -192,12 +192,13 @@ func (x *GCPolicy) GetMinFreeSpace() int64 {
 }
 
 type BuildkitVersion struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Package       string                 `protobuf:"bytes,1,opt,name=package,proto3" json:"package,omitempty"`
-	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
-	Revision      string                 `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Package           string                 `protobuf:"bytes,1,opt,name=package,proto3" json:"package,omitempty"`
+	Version           string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	Revision          string                 `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	DockerfileVersion string                 `protobuf:"bytes,4,opt,name=dockerfileVersion,proto3" json:"dockerfileVersion,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *BuildkitVersion) Reset() {
@@ -247,6 +248,13 @@ func (x *BuildkitVersion) GetVersion() string {
 func (x *BuildkitVersion) GetRevision() string {
 	if x != nil {
 		return x.Revision
+	}
+	return ""
+}
+
+func (x *BuildkitVersion) GetDockerfileVersion() string {
+	if x != nil {
+		return x.DockerfileVersion
 	}
 	return ""
 }
@@ -342,11 +350,12 @@ const file_github_com_moby_buildkit_api_types_worker_proto_rawDesc = "" +
 	"\afilters\x18\x04 \x03(\tR\afilters\x12$\n" +
 	"\rreservedSpace\x18\x03 \x01(\x03R\rreservedSpace\x12\"\n" +
 	"\fmaxUsedSpace\x18\x05 \x01(\x03R\fmaxUsedSpace\x12\"\n" +
-	"\fminFreeSpace\x18\x06 \x01(\x03R\fminFreeSpace\"a\n" +
+	"\fminFreeSpace\x18\x06 \x01(\x03R\fminFreeSpace\"\x8f\x01\n" +
 	"\x0fBuildkitVersion\x12\x18\n" +
 	"\apackage\x18\x01 \x01(\tR\apackage\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1a\n" +
-	"\brevision\x18\x03 \x01(\tR\brevision\"\xef\x01\n" +
+	"\brevision\x18\x03 \x01(\tR\brevision\x12,\n" +
+	"\x11dockerfileVersion\x18\x04 \x01(\tR\x11dockerfileVersion\"\xef\x01\n" +
 	"\tCDIDevice\x12\x12\n" +
 	"\x04Name\x18\x01 \x01(\tR\x04Name\x12\x1c\n" +
 	"\tAutoAllow\x18\x02 \x01(\bR\tAutoAllow\x12T\n" +

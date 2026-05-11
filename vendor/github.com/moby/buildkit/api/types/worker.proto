@@ -30,6 +30,7 @@ message BuildkitVersion {
 	string package = 1;
 	string version = 2;
 	string revision = 3;
+	string dockerfileVersion = 4;
 }
 
 message CDIDevice {

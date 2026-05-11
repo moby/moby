@@ -73,7 +73,7 @@ func (sm *Manager) Any(ctx context.Context, g Group, f func(context.Context, str
 			if lastErr != nil {
 				return lastErr
 			}
-			return ErrNoActiveSessions
+			return errors.WithStack(ErrNoActiveSessions)
 		}
 
 		timeoutCtx, cancel := context.WithCancelCause(ctx)
