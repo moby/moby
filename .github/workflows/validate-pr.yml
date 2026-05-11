@@ -6,6 +6,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
 
 on:
   pull_request:
@@ -16,18 +17,25 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     steps:
-      - name: Missing `area/` label
-        if: always() && contains(join(github.event.pull_request.labels.*.name, ','), 'impact/') && !contains(join(github.event.pull_request.labels.*.name, ','), 'area/')
+      - name: Validate labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
-          echo "::error::Every PR with an 'impact/*' label should also have an 'area/*' label"
-          exit 1
-      - name: Missing `kind/` label
-        if: always() && contains(join(github.event.pull_request.labels.*.name, ','), 'impact/') && !contains(join(github.event.pull_request.labels.*.name, ','), 'kind/')
-        run: |
-          echo "::error::Every PR with an 'impact/*' label should also have a 'kind/*' label"
-          exit 1
-      - name: OK
-        run: exit 0
+          labels="$(gh pr view "$PR" --repo "$REPO" --json labels --jq '.labels[].name')"
+          
+          echo "$labels" | grep -q '^impact/' || exit 0
+          
+          echo "$labels" | grep -q '^area/' || {
+            echo "::error::Every PR with an 'impact/*' label should also have an 'area/*' label"
+            exit 1
+          }
+          
+          echo "$labels" | grep -q '^kind/' || {
+            echo "::error::Every PR with an 'impact/*' label should also have a 'kind/*' label"
+            exit 1
+          }
 
   check-changelog:
     runs-on: ubuntu-24.04
