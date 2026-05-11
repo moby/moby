@@ -165,7 +165,8 @@ func (b *provenanceBridge) releaseProvenanceRefs() {
 	if b == nil || b.provenanceStore == nil {
 		return
 	}
-	for _, sb := range b.subBridges {
+	_, subBridges, _ := b.snapshot()
+	for _, sb := range subBridges {
 		sb.releaseProvenanceRefs()
 	}
 	b.mu.Lock()
