@@ -221,6 +221,10 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 
 	httpServer := &http.Server{
 		ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			// Store the connection in context so middleware can access it for peer credentials
+			return context.WithValue(ctx, http.LocalAddrContextKey, c)
+		},
 	}
 	apiShutdownCtx, apiShutdownCancel := context.WithCancel(context.WithoutCancel(ctx))
 	apiShutdownDone := make(chan struct{})
