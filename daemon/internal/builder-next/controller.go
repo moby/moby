@@ -155,7 +155,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	wo.Labels = getLabels(opt, wo.Labels)
 
 	exec, err := newExecutor(executorOpts{
-		root:                opt.Root,
+		root:                wo.Root,
 		networkController:   opt.NetworkController,
 		dnsConfig:           dnsConfig,
 		cdiManager:          cdiManager,

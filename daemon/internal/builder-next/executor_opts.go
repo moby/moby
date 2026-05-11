@@ -22,8 +22,10 @@ type executorOpts struct {
 	rootless        bool
 	identityMapping user.IdentityMapping
 
-	// windows-only fields
+	// containerd executor fields
 	containerdAddr      string
 	containerdNamespace string
-	hypervIsolation     bool
+
+	// windows-only fields
+	hypervIsolation bool
 }

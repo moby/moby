@@ -6,8 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containerd/containerd/v2/client"
 	"github.com/containerd/log"
 	"github.com/moby/buildkit/executor"
+	"github.com/moby/buildkit/executor/containerdexecutor"
 	"github.com/moby/buildkit/executor/resources"
 	"github.com/moby/buildkit/executor/runcexecutor"
 	"github.com/moby/buildkit/solver/pb"
@@ -18,6 +20,24 @@ import (
 const networkName = "bridge"
 
 func newExecutor(opts executorOpts) (executor.Executor, error) {
+	client, err := client.New(opts.containerdAddr, client.WithDefaultNamespace(opts.containerdNamespace))
+	if err != nil {
+		return nil, err
+	}
+
+	return containerdexecutor.New(containerdexecutor.ExecutorOptions{
+		Client:           client,
+		Root:             opts.root,
+		CgroupParent:     opts.cgroupParent,
+		NetworkProviders: getNetworkProviders(opts),
+		DNSConfig:        opts.dnsConfig,
+		ApparmorProfile:  opts.apparmorProfile,
+		Rootless:         opts.rootless,
+		CDIManager:       opts.cdiManager,
+	}), nil
+}
+
+func getNetworkProviders(opts executorOpts) map[pb.NetMode]network.Provider {
 	netRoot := filepath.Join(opts.root, "net")
 	networkProviders := map[pb.NetMode]network.Provider{
 		pb.NetMode_UNSET: &bridgeProvider{Controller: opts.networkController, Root: netRoot},
@@ -35,6 +55,12 @@ func newExecutor(opts executorOpts) (executor.Executor, error) {
 			}
 		}
 	}
+
+	return networkProviders
+}
+
+func newRuncExecutor(opts executorOpts) (executor.Executor, error) {
+	networkProviders := getNetworkProviders(opts)
 
 	// Returning a non-nil but empty *IdentityMapping breaks BuildKit:
 	// https://github.com/moby/moby/pull/39444
@@ -68,10 +94,10 @@ func newExecutor(opts executorOpts) (executor.Executor, error) {
 	}, networkProviders)
 }
 
-// newExecutorGD calls newExecutor() on Linux. It returns a stubExecutor on
-// other platforms.
+// newExecutorGD uses the runc executor for the graphdriver worker. It returns
+// a stubExecutor on other platforms.
 func newExecutorGD(opts executorOpts) (executor.Executor, error) {
-	return newExecutor(opts)
+	return newRuncExecutor(opts)
 }
 
 func (iface *lnInterface) Set(s *specs.Spec) error {

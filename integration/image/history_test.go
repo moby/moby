@@ -22,7 +22,7 @@ func TestAPIImagesHistory(t *testing.T) {
 
 	dockerfile := "FROM busybox\nENV FOO bar"
 
-	imgID := build.Do(ctx, t, apiClient, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
+	imgID := build.Do(ctx, t, apiClient, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)), client.ImageBuildOptions{})
 
 	res, err := apiClient.ImageHistory(ctx, imgID)
 	assert.NilError(t, err)
