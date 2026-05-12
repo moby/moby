@@ -3,6 +3,7 @@ package llbsolver
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -50,12 +51,13 @@ type provenanceBridge struct {
 }
 
 func (b *provenanceBridge) eachRef(f func(r solver.ResultProxy) error) error {
-	for _, b := range b.builds {
+	builds, subBridges, _ := b.snapshot()
+	for _, b := range builds {
 		if err := b.res.EachRef(f); err != nil {
 			return err
 		}
 	}
-	for _, b := range b.subBridges {
+	for _, b := range subBridges {
 		if err := b.eachRef(f); err != nil {
 			return err
 		}
@@ -64,12 +66,20 @@ func (b *provenanceBridge) eachRef(f func(r solver.ResultProxy) error) error {
 }
 
 func (b *provenanceBridge) allImages() []provenancetypes.ImageSource {
-	res := make([]provenancetypes.ImageSource, 0, len(b.images))
-	res = append(res, b.images...)
-	for _, sb := range b.subBridges {
-		res = append(res, sb.allImages()...)
+	_, subBridges, images := b.snapshot()
+	for _, sb := range subBridges {
+		images = append(images, sb.allImages()...)
 	}
-	return res
+	return images
+}
+
+func (b *provenanceBridge) snapshot() ([]resultWithBridge, []*provenanceBridge, []provenancetypes.ImageSource) {
+	if b == nil {
+		return nil, nil, nil
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return slices.Clone(b.builds), slices.Clone(b.subBridges), slices.Clone(b.images)
 }
 
 func (b *provenanceBridge) requests(r *frontend.Result) (*resultRequests, error) {
@@ -120,12 +130,13 @@ func (b *provenanceBridge) requests(r *frontend.Result) (*resultRequests, error)
 }
 
 func (b *provenanceBridge) findByResult(rp solver.ResultProxy) (*resultWithBridge, bool) {
-	for _, br := range b.subBridges {
+	builds, subBridges, _ := b.snapshot()
+	for _, br := range subBridges {
 		if req, ok := br.findByResult(rp); ok {
 			return req, true
 		}
 	}
-	for _, bld := range b.builds {
+	for _, bld := range builds {
 		found := false
 		bld.res.EachRef(func(r solver.ResultProxy) error {
 			if r.ID() == rp.ID() {
@@ -197,7 +208,9 @@ func (b *provenanceBridge) Solve(ctx context.Context, req frontend.SolveRequest,
 			}
 			return nil, fe.WrapError(err)
 		}
+		wb.mu.Lock()
 		wb.builds = append(wb.builds, resultWithBridge{res: res, bridge: wb})
+		wb.mu.Unlock()
 		b.mu.Lock()
 		b.subBridges = append(b.subBridges, wb)
 		b.mu.Unlock()
