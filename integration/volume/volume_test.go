@@ -10,6 +10,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/build"
@@ -187,6 +188,110 @@ func TestVolumesInspect(t *testing.T) {
 	// Check that CreatedAt didn't change after updating atime and mtime of the "_data" directory
 	// Related issue: #38274
 	assert.Equal(t, createdAt, createdAt2)
+}
+
+// TestVolumeListContainers exercises the `Containers` field on `Volume`
+// added in API v1.55: GET /volumes and GET /volumes/{name} should list the
+// containers that currently reference each volume, with both ID and primary
+// name resolved server-side.
+func TestVolumeListContainers(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "TODO enable on windows")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	// findVolume returns the named volume from the list response, or fails.
+	findVolume := func(t *testing.T, name string) volume.Volume {
+		t.Helper()
+		res, err := apiClient.VolumeList(ctx, client.VolumeListOptions{})
+		assert.NilError(t, err)
+		for _, v := range res.Items {
+			if v.Name == name {
+				return v
+			}
+		}
+		t.Fatalf("volume %q not found in list", name)
+		return volume.Volume{}
+	}
+
+	// Use a unique volume name so concurrent tests don't interfere.
+	volName := strings.ToLower(t.Name())
+	created, err := apiClient.VolumeCreate(ctx, client.VolumeCreateOptions{Name: volName})
+	assert.NilError(t, err)
+	t.Cleanup(func() {
+		_, _ = apiClient.VolumeRemove(ctx, created.Volume.Name, client.VolumeRemoveOptions{Force: true})
+	})
+
+	t.Run("empty when no refs", func(t *testing.T) {
+		v := findVolume(t, volName)
+		assert.Check(t, is.Len(v.Containers, 0))
+
+		ins, err := apiClient.VolumeInspect(ctx, volName, client.VolumeInspectOptions{})
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(ins.Volume.Containers, 0))
+	})
+
+	c1 := container.Create(ctx, t, apiClient,
+		container.WithName("ctr1-"+volName),
+		container.WithMount(mount.Mount{Type: mount.TypeVolume, Source: volName, Target: "/data"}),
+	)
+	t.Cleanup(func() {
+		_, _ = apiClient.ContainerRemove(ctx, c1, client.ContainerRemoveOptions{Force: true})
+	})
+
+	t.Run("single container surfaces in list and inspect", func(t *testing.T) {
+		v := findVolume(t, volName)
+		assert.Assert(t, is.Len(v.Containers, 1))
+		assert.Check(t, is.Equal(v.Containers[0].ID, c1))
+		assert.Check(t, is.Equal(v.Containers[0].Name, "ctr1-"+volName))
+
+		ins, err := apiClient.VolumeInspect(ctx, volName, client.VolumeInspectOptions{})
+		assert.NilError(t, err)
+		assert.Assert(t, is.Len(ins.Volume.Containers, 1))
+		assert.Check(t, is.Equal(ins.Volume.Containers[0].ID, c1))
+		assert.Check(t, is.Equal(ins.Volume.Containers[0].Name, "ctr1-"+volName))
+	})
+
+	c2 := container.Create(ctx, t, apiClient,
+		container.WithName("ctr2-"+volName),
+		container.WithMount(mount.Mount{Type: mount.TypeVolume, Source: volName, Target: "/data"}),
+	)
+	t.Cleanup(func() {
+		_, _ = apiClient.ContainerRemove(ctx, c2, client.ContainerRemoveOptions{Force: true})
+	})
+
+	t.Run("multiple containers per volume", func(t *testing.T) {
+		v := findVolume(t, volName)
+		assert.Assert(t, is.Len(v.Containers, 2))
+		gotIDs := map[string]string{}
+		for _, ref := range v.Containers {
+			gotIDs[ref.ID] = ref.Name
+		}
+		assert.Check(t, is.Equal(gotIDs[c1], "ctr1-"+volName))
+		assert.Check(t, is.Equal(gotIDs[c2], "ctr2-"+volName))
+	})
+
+	t.Run("stopped container still listed", func(t *testing.T) {
+		// Start then stop c1 — the volume ref is held while the container
+		// exists, regardless of running state.
+		_, err := apiClient.ContainerStart(ctx, c1, client.ContainerStartOptions{})
+		assert.NilError(t, err)
+		timeout := 0
+		_, err = apiClient.ContainerStop(ctx, c1, client.ContainerStopOptions{Timeout: &timeout})
+		assert.NilError(t, err)
+
+		v := findVolume(t, volName)
+		assert.Check(t, is.Len(v.Containers, 2))
+	})
+
+	t.Run("removed container drops its ref", func(t *testing.T) {
+		_, err := apiClient.ContainerRemove(ctx, c2, client.ContainerRemoveOptions{Force: true})
+		assert.NilError(t, err)
+
+		v := findVolume(t, volName)
+		assert.Assert(t, is.Len(v.Containers, 1))
+		assert.Check(t, is.Equal(v.Containers[0].ID, c1))
+	})
 }
 
 // TestVolumesInvalidJSON tests that POST endpoints that expect a body return

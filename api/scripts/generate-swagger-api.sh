@@ -100,6 +100,7 @@ generate_model types/swarm <<- 'EOT'
 EOT
 
 generate_model types/volume <<- 'EOT'
+	ContainerRef
 	Volume
 	VolumeCreateRequest
 	VolumeListResponse

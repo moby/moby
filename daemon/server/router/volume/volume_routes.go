@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
@@ -22,7 +23,33 @@ const (
 	// clusterVolumesVersion defines the API version that swarm cluster volume
 	// functionality was introduced. avoids the use of magic numbers.
 	clusterVolumesVersion = "1.42"
+
+	// volumeContainersVersion defines the API version that adds the
+	// `Containers` field on `Volume`, listing the containers that currently
+	// mount the volume.
+	volumeContainersVersion = "1.55"
 )
+
+// resolveContainerRefs returns the ContainerRef list for a volume, joining
+// container IDs from refs against the daemon's container name registry.
+// IDs without a registered name are still returned (Name == ""). Returns nil
+// for volumes with no references.
+func resolveContainerRefs(ids []string, names map[string][]string) []volume.ContainerRef {
+	if len(ids) == 0 {
+		return nil
+	}
+	out := make([]volume.ContainerRef, 0, len(ids))
+	for _, id := range ids {
+		ref := volume.ContainerRef{ID: id}
+		if ns, ok := names[id]; ok && len(ns) > 0 {
+			// Container names are stored with a leading "/"; strip it for
+			// presentation. Use the first registered name as the primary.
+			ref.Name = strings.TrimPrefix(ns[0], "/")
+		}
+		out = append(out, ref)
+	}
+	return out
+}
 
 func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
@@ -39,6 +66,17 @@ func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter
 	}
 
 	version := httputils.VersionFromContext(ctx)
+	if versions.GreaterThanOrEqualTo(version, volumeContainersVersion) {
+		refs := v.backend.AllReferences()
+		names := v.containers.ContainerNames()
+		for i := range volumes {
+			if volumes[i].ClusterVolume != nil {
+				continue
+			}
+			volumes[i].Containers = resolveContainerRefs(refs[volumes[i].Name], names)
+		}
+	}
+
 	if versions.GreaterThanOrEqualTo(version, clusterVolumesVersion) && v.cluster.IsManager() {
 		clusterVolumes, swarmErr := v.cluster.GetVolumes(volumebackend.ListOptions{Filters: f})
 		if swarmErr != nil {
@@ -84,6 +122,12 @@ func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWrite
 		// otherwise, if this isn't NotFound, or this isn't a high enough version,
 		// just return the error by itself.
 		return err
+	}
+
+	if versions.GreaterThanOrEqualTo(version, volumeContainersVersion) && vol.ClusterVolume == nil {
+		refs := v.backend.AllReferences()
+		names := v.containers.ContainerNames()
+		vol.Containers = resolveContainerRefs(refs[vol.Name], names)
 	}
 
 	return httputils.WriteJSON(w, http.StatusOK, vol)
