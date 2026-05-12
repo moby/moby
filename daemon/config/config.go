@@ -208,6 +208,14 @@ type CommonConfig struct {
 	// alive upon daemon shutdown/start
 	LiveRestoreEnabled bool `json:"live-restore,omitempty"`
 
+	// InsecureDisableInitLayer disables the setup of the init layer for containers.
+	// WARNING: This is a security-sensitive option. The init layer protects against
+	// malicious images controlling paths that will be bind-mounted by the runtime,
+	// which could lead to overwriting files on the host. Only disable this in
+	// specialized, trusted environments where you can ensure the runtime will not
+	// follow symlinks on bind mount sources.
+	InsecureDisableInitLayer bool `json:"insecure-disable-init-layer,omitempty"`
+
 	// MaxConcurrentDownloads is the maximum number of downloads that
 	// may take place at a time for each pull.
 	MaxConcurrentDownloads int `json:"max-concurrent-downloads,omitempty"`
