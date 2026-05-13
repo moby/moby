@@ -17,17 +17,17 @@ func TestLoadDaemonConfigWithDaemonFlags(t *testing.T) {
 
 	opts := defaultOptions(t, tempFile.Path())
 	opts.Debug = true
-	opts.daemonConfig.DaemonLogConfig.LogLevel = "info"
+	opts.daemonConfig.DaemonLogConfig.LogLevel = "warn"
 	assert.Check(t, opts.flags.Set("selinux-enabled", "true"))
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
 
-	assert.Check(t, loadedConfig.Debug)
-	assert.Check(t, is.Equal("info", loadedConfig.DaemonLogConfig.LogLevel))
-	assert.Check(t, loadedConfig.EnableSelinuxSupport)
-	assert.Check(t, is.Equal("json-file", loadedConfig.LogConfig.Type))
-	assert.Check(t, is.Equal("1k", loadedConfig.LogConfig.Config["max-size"]))
+	assert.Check(t, is.Equal(loadedConfig.Debug, true))
+	assert.Check(t, is.Equal(loadedConfig.DaemonLogConfig.LogLevel, "warn"))
+	assert.Check(t, is.Equal(loadedConfig.EnableSelinuxSupport, true))
+	assert.Check(t, is.Equal(loadedConfig.LogConfig.Type, "json-file"))
+	assert.Check(t, is.Equal(loadedConfig.LogConfig.Config["max-size"], "1k"))
 }
 
 func TestLoadDaemonConfigWithNetwork(t *testing.T) {
