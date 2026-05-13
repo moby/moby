@@ -811,6 +811,11 @@ func (j *Job) walkProvenance(ctx context.Context, e Edge, f func(ProvenanceProvi
 		return nil
 	}
 	visited[e.Vertex.Digest()] = struct{}{}
+	// Walk via the resolved state's inputs when available, so the recursion
+	// follows the chain that was actually scheduled rather than the caller's
+	// wrapper graph (which can reference orphan states via the
+	// dgstWithoutCache shift in loadUnlocked).
+	inputs := e.Vertex.Inputs()
 	if st, ok := j.list.actives[e.Vertex.Digest()]; ok {
 		st.mu.Lock()
 		if st.op != nil && st.op.op != nil {
@@ -821,9 +826,10 @@ func (j *Job) walkProvenance(ctx context.Context, e Edge, f func(ProvenanceProvi
 				}
 			}
 		}
+		inputs = st.vtx.Inputs()
 		st.mu.Unlock()
 	}
-	for _, inp := range e.Vertex.Inputs() {
+	for _, inp := range inputs {
 		if err := j.walkProvenance(ctx, inp, f, visited); err != nil {
 			return err
 		}
