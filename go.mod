@@ -299,3 +299,5 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.1.0 // indirect
 )
+
+replace github.com/moby/buildkit => github.com/crazy-max/buildkit v0.7.1-0.20260513092414-999e393a014d // fix-test-dockerd
