@@ -97,6 +97,31 @@ func TestMirrorsToHosts(t *testing.T) {
 	}
 }
 
+func TestMirrorsToHosts_DistinctHostFields(t *testing.T) {
+	// Verifies that mirror hosts have distinct Host fields from the primary,
+	// which is critical for hostsWrapper to apply credentials correctly.
+	primaryHost := "registry-1.docker.io"
+	allCaps := docker.HostCapabilityPull | docker.HostCapabilityResolve | docker.HostCapabilityPush | docker.HostCapabilityReferrers
+	dHost := testRegistryHost("https", primaryHost, "/v2", allCaps)
+
+	mirrors := []string{
+		"https://nexus.example.com:5000",
+		"https://harbor.corp.internal",
+	}
+
+	hosts := mirrorsToRegistryHosts(mirrors, dHost)
+	assert.Assert(t, is.Len(hosts, 3)) // 2 mirrors + 1 primary
+
+	// Each mirror must have a Host value different from the primary.
+	for i, h := range hosts[:len(hosts)-1] {
+		assert.Check(t, h.Host != primaryHost,
+			"mirror %d has same Host as primary (%s); hostsWrapper cannot distinguish them", i, primaryHost)
+	}
+
+	// The last entry must be the primary.
+	assert.Check(t, is.Equal(hosts[len(hosts)-1].Host, primaryHost))
+}
+
 func testRegistryHost(scheme, host, path string, caps docker.HostCapabilities) docker.RegistryHost {
 	return docker.RegistryHost{
 		Host:         host,

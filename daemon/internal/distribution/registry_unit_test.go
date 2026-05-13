@@ -74,6 +74,32 @@ func TestTokenPassThru(t *testing.T) {
 	assert.Check(t, handler.gotToken, "Failed to receive registry token")
 }
 
+func TestMirrorEndpointNoCredentialLeak(t *testing.T) {
+	handler := &tokenPassThruHandler{shouldSend401: func(url string) bool { return url == "/v2/" }}
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	uri, err := url.Parse(ts.URL)
+	assert.NilError(t, err)
+
+	repoName, err := reference.ParseNormalizedNamed("testremotename")
+	assert.NilError(t, err)
+
+	// Create an endpoint marked as a mirror with upstream registry credentials.
+	_, err = newRepository(context.Background(), repoName, registrypkg.APIEndpoint{
+		URL:    uri,
+		Mirror: true,
+	}, http.Header{}, &registry.AuthConfig{
+		RegistryToken: secretRegistryToken,
+	}, "pull")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Check(t, handler.reached, "Handler not reached")
+	assert.Check(t, !handler.gotToken, "Mirror endpoint should not receive upstream registry credentials")
+}
+
 func TestTokenPassThruDifferentHost(t *testing.T) {
 	handler := new(tokenPassThruHandler)
 	ts := httptest.NewServer(handler)
