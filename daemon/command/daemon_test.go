@@ -34,7 +34,6 @@ func TestLoadDaemonConfigWithoutOverriding(t *testing.T) {
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 	if !loadedConfig.Debug {
 		t.Fatalf("expected debug to be copied from the common flags, got false")
 	}
@@ -47,7 +46,6 @@ func TestLoadDaemonConfigWithTLS(t *testing.T) {
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 	assert.Check(t, is.Equal("/tmp/ca.pem", loadedConfig.TLSOptions.CAFile))
 }
 
@@ -111,7 +109,6 @@ func TestLoadDaemonConfigWithTLSVerify(t *testing.T) {
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 	assert.Check(t, is.Equal(*loadedConfig.TLS, true))
 }
 
@@ -123,7 +120,6 @@ func TestLoadDaemonConfigWithExplicitTLSVerifyFalse(t *testing.T) {
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 	assert.Check(t, *loadedConfig.TLS)
 }
 
@@ -135,7 +131,6 @@ func TestLoadDaemonConfigWithoutTLSVerify(t *testing.T) {
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 	assert.Check(t, is.Nil(loadedConfig.TLS))
 }
 
@@ -145,7 +140,6 @@ func TestLoadDaemonConfigWithLogLevel(t *testing.T) {
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 	assert.Check(t, is.Equal("warn", loadedConfig.LogLevel))
 }
 
@@ -156,7 +150,6 @@ func TestLoadDaemonConfigWithLogFormat(t *testing.T) {
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 	assert.Check(t, is.Equal(log.JSONFormat, loadedConfig.DaemonLogConfig.LogFormat))
 }
 
@@ -176,7 +169,6 @@ func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 	assert.Check(t, is.Equal("/etc/certs/ca.pem", loadedConfig.TLSOptions.CAFile))
 	assert.Check(t, is.Equal("syslog", loadedConfig.LogConfig.Type))
 }
@@ -191,7 +183,6 @@ func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 
 	assert.Check(t, is.Len(loadedConfig.Mirrors, 1))
 	assert.Check(t, is.Len(loadedConfig.InsecureRegistries, 1))

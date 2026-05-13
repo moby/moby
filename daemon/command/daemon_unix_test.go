@@ -22,7 +22,6 @@ func TestLoadDaemonConfigWithDaemonFlags(t *testing.T) {
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 
 	assert.Check(t, loadedConfig.Debug)
 	assert.Check(t, is.Equal("info", loadedConfig.DaemonLogConfig.LogLevel))
@@ -38,7 +37,6 @@ func TestLoadDaemonConfigWithNetwork(t *testing.T) {
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 
 	assert.Check(t, is.Equal(loadedConfig.IP, "127.0.0.2/8"))
 	assert.Check(t, is.Equal(loadedConfig.IP6, "fd98:e5f2:e637::1/64"))
@@ -52,7 +50,7 @@ func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
+
 	assert.Check(t, loadedConfig.LogConfig.Config != nil)
 	assert.Check(t, is.Equal("test", loadedConfig.LogConfig.Config["tag"]))
 }
@@ -64,7 +62,6 @@ func TestLoadDaemonConfigWithTrueDefaultValues(t *testing.T) {
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 
 	assert.Check(t, !loadedConfig.EnableUserlandProxy)
 
@@ -82,7 +79,6 @@ func TestLoadDaemonConfigWithTrueDefaultValuesLeaveDefaults(t *testing.T) {
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 
 	assert.Check(t, loadedConfig.EnableUserlandProxy)
 }
