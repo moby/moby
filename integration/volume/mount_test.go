@@ -436,6 +436,8 @@ func TestRunMountImageSubpathDaemonRestart(t *testing.T) {
 	skip.If(t, testEnv.IsRootless, "FIXME: https://github.com/moby/moby/issues/50999")
 	skip.If(t, !testEnv.UsingSnapshotter(), "FIXME: https://github.com/moby/moby/issues/50999")
 
+	t.Parallel()
+
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
