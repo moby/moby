@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os/exec"
@@ -10,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/containerd/cgroups/v3"
-	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
@@ -117,6 +115,19 @@ func (conf *Config) LookupInitPath() (string, error) {
 	return lookupBinPath(conf.GetInitPath())
 }
 
+// GetUserlandProxyPath returns the configured userland-proxy path
+func (conf *Config) GetUserlandProxyPath() string {
+	if conf.BridgeConfig.UserlandProxyPath != "" {
+		return conf.BridgeConfig.UserlandProxyPath
+	}
+	return userlandProxyBinary
+}
+
+// LookupUserlandProxyPath returns an absolute path to the "docker-proxy" binary by searching relevant "libexec" directories (per FHS 3.0 & 2.3) followed by PATH
+func (conf *Config) LookupUserlandProxyPath() (string, error) {
+	return lookupBinPath(conf.GetUserlandProxyPath())
+}
+
 // GetResolvConf returns the appropriate resolv.conf
 // Check setupResolvConf on how this is selected
 func (conf *Config) GetResolvConf() string {
@@ -154,21 +165,9 @@ func setPlatformDefaults(cfg *Config) error {
 		cfg.CgroupNamespaceMode = string(DefaultCgroupNamespaceMode)
 	}
 
-	var err error
-	cfg.BridgeConfig.UserlandProxyPath, err = lookupBinPath(userlandProxyBinary)
-	if err != nil {
-		// Log, but don't error here. This allows running a daemon with
-		// userland-proxy disabled (which does not require the binary
-		// to be present).
-		//
-		// An error is still produced by [Config.ValidatePlatformConfig] if
-		// userland-proxy is enabled in the configuration.
-		//
-		// We log this at "debug" level, as this code is also executed
-		// when running "--version", and we don't want to print logs in
-		// that case..
-		log.G(context.TODO()).WithError(err).Debug("failed to lookup default userland-proxy binary")
-	}
+	// UserlandProxyPath is not set here anymore. It will be looked up lazily
+	// when needed, using Config.LookupUserlandProxyPath(). This avoids unnecessary
+	// filesystem lookups when running commands like "dockerd --version".
 
 	if rootless.RunningWithRootlessKit() {
 		cfg.Rootless = true
@@ -270,15 +269,25 @@ func verifyUserlandProxyConfig(conf *Config) error {
 	if !conf.EnableUserlandProxy {
 		return nil
 	}
-	if conf.UserlandProxyPath == "" {
-		return errors.New("invalid userland-proxy-path: userland-proxy is enabled, but userland-proxy-path is not set")
+
+	proxyPath := conf.UserlandProxyPath
+
+	// If the path is empty (default), attempt to look it up.
+	// This supports lazy evaluation while still validating at daemon startup.
+	if proxyPath == "" {
+		var err error
+		proxyPath, err = conf.LookupUserlandProxyPath()
+		if err != nil {
+			return errors.Wrap(err, "invalid userland-proxy-path")
+		}
 	}
-	if !filepath.IsAbs(conf.UserlandProxyPath) {
-		return errors.New("invalid userland-proxy-path: must be an absolute path: " + conf.UserlandProxyPath)
+
+	if !filepath.IsAbs(proxyPath) {
+		return errors.New("invalid userland-proxy-path: must be an absolute path: " + proxyPath)
 	}
 	// Using exec.LookPath here, because it also produces an error if the
 	// given path is not a valid executable or a directory.
-	if _, err := exec.LookPath(conf.UserlandProxyPath); err != nil {
+	if _, err := exec.LookPath(proxyPath); err != nil {
 		return errors.Wrap(err, "invalid userland-proxy-path")
 	}
 
