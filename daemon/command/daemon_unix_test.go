@@ -11,7 +11,7 @@ import (
 	"gotest.tools/v3/fs"
 )
 
-func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {
+func TestLoadDaemonConfigWithDaemonFlags(t *testing.T) {
 	content := `{"log-opts": {"max-size": "1k"}}`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
 
