@@ -900,7 +900,7 @@ func (s *DockerDaemonSuite) TestDaemonWideLogConfig(c *testing.T) {
 
 	out, err = s.d.Cmd("inspect", "-f", "{{ .HostConfig.LogConfig.Type }}", name)
 	assert.NilError(c, err, "Output: %s", out)
-	assert.Equal(c, strings.TrimSpace(out), "json-file")
+	assert.Equal(c, strings.TrimSpace(out), "local")
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithPausedContainer(c *testing.T) {
