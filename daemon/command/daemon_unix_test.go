@@ -56,21 +56,20 @@ func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
 }
 
 func TestLoadDaemonConfigWithTrueDefaultValues(t *testing.T) {
-	content := `{ "userland-proxy": false }`
+	content := `{ "icc": false }`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
 
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
 
-	assert.Check(t, !loadedConfig.EnableUserlandProxy)
+	assert.Check(t, is.Equal(loadedConfig.InterContainerCommunication, false))
 
 	// make sure reloading doesn't generate configuration
 	// conflicts after normalizing boolean values.
-	reload := func(reloadedConfig *config.Config) {
-		assert.Check(t, !reloadedConfig.EnableUserlandProxy)
-	}
-	assert.Check(t, config.Reload(opts.configFile, opts.flags, reload))
+	assert.Check(t, config.Reload(opts.configFile, opts.flags, func(reloadedConfig *config.Config) {
+		assert.Check(t, is.Equal(reloadedConfig.InterContainerCommunication, false))
+	}))
 }
 
 func TestLoadDaemonConfigWithTrueDefaultValuesLeaveDefaults(t *testing.T) {
@@ -80,5 +79,5 @@ func TestLoadDaemonConfigWithTrueDefaultValuesLeaveDefaults(t *testing.T) {
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
 
-	assert.Check(t, loadedConfig.EnableUserlandProxy)
+	assert.Check(t, is.Equal(loadedConfig.InterContainerCommunication, true))
 }

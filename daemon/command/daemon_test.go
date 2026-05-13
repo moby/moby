@@ -17,6 +17,13 @@ import (
 func defaultOptions(t *testing.T, configFile string) *daemonOptions {
 	cfg, err := config.New()
 	assert.NilError(t, err)
+
+	// Disable userland-proxy to prevent unit-tests from failing if the "docker-proxy"
+	// binary was not built, which would leave the "UserlandProxyPath" field empty,
+	// resulting in failures, e.g.:
+	//
+	// 	invalid userland-proxy-path: userland-proxy is enabled, but userland-proxy-path is not set
+	cfg.EnableUserlandProxy = false
 	opts := newDaemonOptions(cfg)
 	opts.flags = &pflag.FlagSet{}
 	opts.installFlags(opts.flags)
