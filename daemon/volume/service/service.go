@@ -284,7 +284,7 @@ func (s *VolumesService) List(ctx context.Context, filter filters.Args) (volumes
 
 // AllReferences returns a snapshot of container references for every volume,
 // keyed by volume name. The value is the list of container IDs that reference
-// the volume. Empty volumes (no refs) are omitted from the map.
+// the volume.
 func (s *VolumesService) AllReferences() map[string][]string {
 	return s.vs.AllReferences()
 }

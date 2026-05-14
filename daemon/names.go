@@ -86,8 +86,7 @@ func (daemon *Daemon) releaseName(name string) {
 }
 
 // ContainerNames returns a snapshot of all reserved container names, keyed
-// by container ID. The returned map is a copy and safe to use without
-// further synchronisation.
+// by container ID.
 func (daemon *Daemon) ContainerNames() map[string][]string {
 	return daemon.containersReplica.Snapshot().GetAllNames()
 }

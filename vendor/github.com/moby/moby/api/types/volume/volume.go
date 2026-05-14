@@ -13,6 +13,15 @@ type Volume struct {
 	// cluster volume
 	ClusterVolume *ClusterVolume `json:"ClusterVolume,omitempty"`
 
+	// Containers that currently reference (mount) this volume. Each
+	// entry includes the container ID and primary name.
+	//
+	// This field is populated by `GET /volumes` and `GET /volumes/{name}`.
+	// It is empty for cluster-scope volumes, which use a different
+	// reference model based on swarm services.
+	//
+	Containers []ContainerRef `json:"Containers,omitempty"`
+
 	// Date/Time the volume was created.
 	// Example: 2016-06-07T20:31:11.853781916Z
 	CreatedAt string `json:"CreatedAt,omitempty"`

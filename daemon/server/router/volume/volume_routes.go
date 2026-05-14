@@ -32,8 +32,6 @@ const (
 
 // resolveContainerRefs returns the ContainerRef list for a volume, joining
 // container IDs from refs against the daemon's container name registry.
-// IDs without a registered name are still returned (Name == ""). Returns nil
-// for volumes with no references.
 func resolveContainerRefs(ids []string, names map[string][]string) []volume.ContainerRef {
 	if len(ids) == 0 {
 		return nil

@@ -24,8 +24,7 @@ type Backend interface {
 }
 
 // ContainerNamer resolves the registered names of containers by ID.
-// Implementations should return a copy of the underlying mapping; the
-// returned map is safe to use without further synchronisation.
+// Implementations should return a copy of the underlying mapping
 type ContainerNamer interface {
 	ContainerNames() map[string][]string
 }

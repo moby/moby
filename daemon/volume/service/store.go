@@ -179,10 +179,7 @@ func (s *VolumeStore) getRefs(name string) []string {
 
 // AllReferences returns a point-in-time snapshot of all volume references,
 // keyed by volume name. The value is the list of container IDs that reference
-// the volume. The returned map is a copy and safe to mutate.
-//
-// Acquires only the global read lock; does not take per-name locks so it
-// cannot be blocked by a slow create/mount on any single volume.
+// the volume.
 func (s *VolumeStore) AllReferences() map[string][]string {
 	s.globalLock.RLock()
 	defer s.globalLock.RUnlock()
