@@ -281,7 +281,9 @@ func (daemon *Daemon) registerMountPoints(ctr *container.Container, defaultReadO
 			mp.Spec.Source = img.ID().String()
 			mp.Source = srcPath
 			mp.Layer = imgLayer
-			mp.RW = false
+			// Image mounts default to read-only. Users opt in to writes
+			// via ImageOptions.Writable; Mount.ReadOnly takes precedence.
+			mp.RW = cfg.ImageOptions != nil && cfg.ImageOptions.Writable && !cfg.ReadOnly
 		case mounttypes.TypeTmpfs, mounttypes.TypeCluster, mounttypes.TypeNamedPipe:
 			// nothing to do
 		}

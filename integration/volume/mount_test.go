@@ -426,6 +426,107 @@ func TestRunMountImageMultipleTimes(t *testing.T) {
 	})
 }
 
+// TestRunMountImageWritable verifies that image mounts are read-only by
+// default, become writable when ImageOptions.Writable is set, and that
+// Mount.ReadOnly overrides Writable to keep the mount read-only.
+func TestRunMountImageWritable(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.48"), "skip test from new feature")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "image mounts not supported on Windows")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	testImage := setupTestImage(t, ctx, apiClient, t.Name())
+	defer func() {
+		_, _ = apiClient.ImageRemove(ctx, testImage, client.ImageRemoveOptions{Force: true})
+	}()
+
+	runWriteAttempt := func(t *testing.T, mnt mount.Mount, cmd []string) (stdout string, exitCode int) {
+		t.Helper()
+		cfg := containertypes.Config{
+			Image: "busybox",
+			Cmd:   cmd,
+		}
+		hostCfg := containertypes.HostConfig{
+			Mounts: []mount.Mount{mnt},
+		}
+
+		ctrName := strings.ReplaceAll(t.Name(), "/", "_")
+		create, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+			Config:           &cfg,
+			HostConfig:       &hostCfg,
+			NetworkingConfig: &network.NetworkingConfig{},
+			Name:             ctrName,
+		})
+		assert.NilError(t, err)
+		t.Cleanup(func() {
+			container.Remove(ctx, t, apiClient, create.ID, client.ContainerRemoveOptions{Force: true})
+		})
+
+		_, err = apiClient.ContainerStart(ctx, create.ID, client.ContainerStartOptions{})
+		assert.NilError(t, err)
+
+		output, err := container.Output(ctx, apiClient, create.ID)
+		assert.NilError(t, err)
+
+		inspect, err := apiClient.ContainerInspect(ctx, create.ID, client.ContainerInspectOptions{})
+		assert.NilError(t, err)
+		return strings.TrimSpace(output.Stdout), inspect.Container.State.ExitCode
+	}
+
+	t.Run("default is read-only", func(t *testing.T) {
+		_, exit := runWriteAttempt(t,
+			mount.Mount{Type: mount.TypeImage, Source: testImage, Target: "/image"},
+			[]string{"sh", "-c", "echo nope > /image/foo"})
+		assert.Check(t, exit != 0, "write to default (read-only) image mount should fail")
+	})
+
+	t.Run("Writable opts in", func(t *testing.T) {
+		stdout, exit := runWriteAttempt(t,
+			mount.Mount{
+				Type:         mount.TypeImage,
+				Source:       testImage,
+				Target:       "/image",
+				ImageOptions: &mount.ImageOptions{Writable: true},
+			},
+			[]string{"sh", "-c",
+				"echo modified > /image/foo && " +
+					"echo created > /image/new-file && " +
+					"cat /image/foo /image/new-file"})
+		assert.Check(t, is.Equal(exit, 0))
+		assert.Check(t, is.Equal(stdout, "modified\ncreated"))
+	})
+
+	t.Run("writes do not persist into the image", func(t *testing.T) {
+		// A fresh container with Writable:true must see the original /foo
+		// content ("bar"), confirming the prior subtest's writes were scoped
+		// to that container's RW snapshot and the image was not mutated.
+		stdout, exit := runWriteAttempt(t,
+			mount.Mount{
+				Type:         mount.TypeImage,
+				Source:       testImage,
+				Target:       "/image",
+				ImageOptions: &mount.ImageOptions{Writable: true},
+			},
+			[]string{"cat", "/image/foo"})
+		assert.Check(t, is.Equal(exit, 0))
+		assert.Check(t, is.Equal(stdout, "bar"))
+	})
+
+	t.Run("ReadOnly overrides Writable", func(t *testing.T) {
+		_, exit := runWriteAttempt(t,
+			mount.Mount{
+				Type:         mount.TypeImage,
+				Source:       testImage,
+				Target:       "/image",
+				ReadOnly:     true,
+				ImageOptions: &mount.ImageOptions{Writable: true},
+			},
+			[]string{"sh", "-c", "echo nope > /image/foo"})
+		assert.Check(t, exit != 0, "ReadOnly:true should force read-only even when Writable:true")
+	})
+}
+
 // TestRunMountImageSubpathDaemonRestart tests that a container with an image mount
 // and subpath can be restarted after a daemon restart.
 // Regression test for: https://github.com/moby/moby/issues/50999

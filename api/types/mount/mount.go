@@ -105,6 +105,11 @@ type VolumeOptions struct {
 
 type ImageOptions struct {
 	Subpath string `json:",omitempty"`
+	// Writable opts in to a read-write image mount. Image mounts default
+	// to read-only; set Writable to true to allow modifications.
+	// Mount.ReadOnly takes precedence: if ReadOnly is true the mount is
+	// read-only regardless of Writable.
+	Writable bool `json:",omitempty"`
 }
 
 // Driver represents a volume driver.
