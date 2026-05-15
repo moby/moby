@@ -8140,6 +8140,25 @@ definitions:
         additionalProperties:
           type: "string"
 
+  AttestationStatement:
+    x-go-name: "AttestationStatement"
+    description: |
+      AttestationStatement is a single in-toto statement attached to an image.
+    type: "object"
+    required: ["Descriptor", "PredicateType"]
+    properties:
+      Descriptor:
+        $ref: "#/definitions/OCIDescriptor"
+      PredicateType:
+        description: The in-toto predicate type URI of this statement.
+        type: "string"
+        example: "https://slsa.dev/provenance/v0.2"
+      Statement:
+        description: |
+          The verbatim in-toto statement JSON. Only included when the caller
+          opts in via the `statement=true` query parameter; otherwise absent.
+        type: "object"
+        x-nullable: true
   ImageManifestSummary:
     x-go-name: "ManifestSummary"
     description: |
@@ -10156,6 +10175,82 @@ paths:
             an error is produced if both are set.
 
             Example: `{"os": "linux", "architecture": "arm", "variant": "v5"}`
+      tags: ["Image"]
+  /images/{name}/attestations:
+    get:
+      summary: "Get attestation statements for an image"
+      description: |
+        Return the in-toto attestation statements attached to the image for the
+        given platform. The daemon locates the attestation manifest(s) that
+        reference the matching platform image manifest, reads their statement
+        layers, and returns the verbatim statement JSON together with layer
+        metadata.
+
+        If the image has no attestations an empty array is returned.
+      operationId: "ImageAttestations"
+      produces:
+        - "application/json"
+      responses:
+        200:
+          description: "No error"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/AttestationStatement"
+        400:
+          description: "Bad parameter (e.g. malformed `platform` value)"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        404:
+          description: "No such image, or no manifest found for the requested platform"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "Server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        501:
+          description: |
+            The daemon's image backend does not support attestations. This
+            is returned by the legacy (graphdriver) image store, which does
+            not preserve OCI image indexes.
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "name"
+          in: "path"
+          description: "Image name or id"
+          type: "string"
+          required: true
+        - name: "platform"
+          type: "string"
+          in: "query"
+          description: |-
+            JSON-encoded OCI platform to select the image variant whose
+            attestations to return.
+            If omitted, the daemon's default (host) platform is used.
+
+            Example: `{"os": "linux", "architecture": "amd64"}`
+          required: false
+        - name: "type"
+          type: "string"
+          in: "query"
+          description: |-
+            Comma-separated list of in-toto predicate type URIs to filter
+            returned statements. If omitted, all statements are returned.
+
+            Example: `https://slsa.dev/provenance/v0.2,https://spdx.dev/Document`
+          required: false
+        - name: "statement"
+          type: "boolean"
+          in: "query"
+          description: |-
+            Include the verbatim in-toto statement body in each returned
+            entry. Defaults to false; when omitted or false, only the
+            descriptor and predicate type are returned and statement blobs
+            are not read.
+          default: false
+          required: false
       tags: ["Image"]
   /images/{name}/history:
     get:

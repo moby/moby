@@ -36,6 +36,7 @@ func (ir *imageRouter) initRoutes() {
 		router.NewGetRoute("/images/{name:.*}/get", ir.getImagesGet),
 		router.NewGetRoute("/images/{name:.*}/history", ir.getImagesHistory),
 		router.NewGetRoute("/images/{name:.*}/json", ir.getImagesByName),
+		router.NewGetRoute("/images/{name:.*}/attestations", ir.getImageAttestations, router.WithMinimumAPIVersion("1.55")),
 		// POST
 		router.NewPostRoute("/images/load", ir.postImagesLoad),
 		router.NewPostRoute("/images/create", ir.postImagesCreate),
