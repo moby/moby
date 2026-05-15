@@ -34,7 +34,7 @@ jobs:
             // a security gate, just a helpful check for maintainers.
             const ref = touchesVersions
               ? context.payload.pull_request.head.sha
-              : context.payload.pull_request.base.sha;
+              : context.payload.pull_request.base.ref;
 
             core.info(`Base ref: ${ref}`);
 
