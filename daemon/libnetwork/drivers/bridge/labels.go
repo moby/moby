@@ -27,4 +27,9 @@ const (
 	// TrustedHostInterfaces can be used to supply a list of host interfaces that are
 	// allowed direct access to published ports on a container's address.
 	TrustedHostInterfaces = "com.docker.network.bridge.trusted_host_interfaces"
+
+	// FirewalldZone sets the firewalld zone for the bridge interface. When firewalld
+	// is running, this overrides the default "docker" zone for this network's bridge
+	// interface.
+	FirewalldZone = "com.docker.network.bridge.firewalld_zone"
 )
