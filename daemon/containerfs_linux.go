@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/internal/mounttree"
 	"github.com/docker/docker/internal/unshare"
-	"github.com/docker/docker/pkg/fileutils"
 )
 
 type future struct {
@@ -83,6 +82,13 @@ func (daemon *Daemon) openContainerFS(container *container.Container) (_ *contai
 			if err := mount.MakeRSlave("/"); err != nil {
 				return err
 			}
+
+			root, err := os.OpenRoot(container.BaseFS)
+			if err != nil {
+				return fmt.Errorf("open container root: %w", err)
+			}
+			defer root.Close()
+
 			for _, m := range mounts {
 				dest, err := container.GetResourcePath(m.Destination)
 				if err != nil {
@@ -94,7 +100,7 @@ func (daemon *Daemon) openContainerFS(container *container.Container) (_ *contai
 				if err != nil {
 					return err
 				}
-				if err := fileutils.CreateIfNotExists(dest, stat.IsDir()); err != nil {
+				if err := createIfNotExists(root, strings.TrimPrefix(m.Destination, "/"), stat.IsDir()); err != nil {
 					return err
 				}
 
@@ -240,6 +246,27 @@ func (vw *containerFSView) Stat(ctx context.Context, path string) (*types.Contai
 		return nil
 	})
 	return stat, err
+}
+
+// createIfNotExists creates a file or a directory only if it does not already exist.
+// The path is scoped to root using [os.Root] to prevent symlink escape attacks.
+func createIfNotExists(root *os.Root, unsafePath string, isDir bool) error {
+	if isDir {
+		return root.MkdirAll(unsafePath, 0o755)
+	}
+
+	parent := filepath.Dir(unsafePath)
+	if parent != "." && parent != "/" {
+		if err := root.MkdirAll(parent, 0o755); err != nil {
+			return err
+		}
+	}
+
+	f, err := root.OpenFile(unsafePath, os.O_CREATE|os.O_WRONLY, 0o755)
+	if err != nil {
+		return err
+	}
+	return f.Close()
 }
 
 // makeMountRRO makes the mount recursively read-only.
