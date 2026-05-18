@@ -1593,7 +1593,7 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 
 	// Clean the connection tracker state of the host for the specific endpoint. This is needed because some flows may
 	// be bound to the local proxy, or to the host (for UDP packets), and won't be redirected to the new endpoints.
-	clearConntrackEntries(d.nlh, endpoint)
+	clearConntrackEntries(ctx, d.nlh, endpoint)
 
 	if err = d.storeUpdate(ctx, endpoint); err != nil {
 		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)
@@ -1677,7 +1677,7 @@ func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork
 // As such, we need to flush all those conntrack entries to make sure NAT rules
 // are correctly applied to all packets.
 // See: #8795, #44688 & #44742.
-func clearConntrackEntries(nlh nlwrap.Handle, ep *bridgeEndpoint) {
+func clearConntrackEntries(ctx context.Context, nlh nlwrap.Handle, ep *bridgeEndpoint) {
 	var ipv4List []net.IP
 	if ep.addr != nil {
 		ipv4List = append(ipv4List, ep.addr.IP)
@@ -1695,8 +1695,8 @@ func clearConntrackEntries(nlh nlwrap.Handle, ep *bridgeEndpoint) {
 		}
 	}
 
-	iptables.DeleteConntrackEntries(nlh, ipv4List, ipv6List)
-	iptables.DeleteConntrackEntriesByPort(nlh, types.UDP, udpPorts)
+	iptables.DeleteConntrackEntries(ctx, nlh, ipv4List, ipv6List)
+	iptables.DeleteConntrackEntriesByPort(ctx, nlh, types.UDP, udpPorts)
 }
 
 func (d *driver) handleFirewalldReload() {
