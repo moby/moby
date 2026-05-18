@@ -101,14 +101,16 @@ func TestPingBuilderHeader(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot spin up additional daemons on windows")
 
-	ctx := setupTest(t)
+	t.Parallel()
+
+	ctx := testutil.StartSpan(baseContext, t)
 	d := daemon.New(t)
 	apiClient := d.NewClientT(t)
 	defer apiClient.Close()
 
 	t.Run("default config", func(t *testing.T) {
 		testutil.StartSpan(ctx, t)
-		d.Start(t)
+		d.Start(t, "--iptables=false", "--ip6tables=false")
 		defer d.Stop(t)
 
 		expected := build.BuilderBuildKit
@@ -126,7 +128,7 @@ func TestPingBuilderHeader(t *testing.T) {
 		cfg := filepath.Join(d.RootDir(), "daemon.json")
 		err := os.WriteFile(cfg, []byte(`{"features": { "buildkit": false }}`), 0o644)
 		assert.NilError(t, err)
-		d.Start(t, "--config-file", cfg)
+		d.Start(t, "--config-file", cfg, "--iptables=false", "--ip6tables=false")
 		defer d.Stop(t)
 
 		expected := build.BuilderV1

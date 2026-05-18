@@ -56,9 +56,11 @@ func TestUsernsCommit(t *testing.T) {
 	skip.If(t, !testEnv.IsUserNamespaceInKernel())
 	skip.If(t, testEnv.IsRootless())
 
+	t.Parallel()
+
 	ctx := context.Background()
 	dUserRemap := daemon.New(t, daemon.WithUserNsRemap("default"))
-	dUserRemap.StartWithBusybox(ctx, t)
+	dUserRemap.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	clientUserRemap := dUserRemap.NewClientT(t)
 	defer clientUserRemap.Close()
 

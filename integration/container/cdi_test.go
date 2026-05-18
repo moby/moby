@@ -26,13 +26,15 @@ func TestCreateWithCDIDevices(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "CDI devices are only supported on Linux")
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run cdi tests with a remote daemon")
 
+	t.Parallel()
+
 	ctx := testutil.StartSpan(baseContext, t)
 
 	cwd, err := os.Getwd()
 	assert.NilError(t, err)
 
 	d := daemon.New(t)
-	d.StartWithBusybox(ctx, t, "--cdi-spec-dir="+filepath.Join(cwd, "testdata", "cdi"))
+	d.StartWithBusybox(ctx, t, "--cdi-spec-dir="+filepath.Join(cwd, "testdata", "cdi"), "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	apiClient := d.NewClientT(t)
@@ -73,6 +75,8 @@ func TestCDISpecDirsAreInSystemInfo(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows") // d.Start fails on Windows with `protocol not available`
 	// TODO: This restriction can be relaxed with https://github.com/moby/moby/pull/46158
 	skip.If(t, testEnv.IsRootless, "the t.TempDir test creates a folder with incorrect permissions for rootless")
+
+	t.Parallel()
 
 	testCases := []struct {
 		description             string
@@ -146,6 +150,7 @@ func TestCDISpecDirsAreInSystemInfo(t *testing.T) {
 
 				args = append(args, "--config-file="+configPath)
 			}
+			args = append(args, "--iptables=false", "--ip6tables=false")
 			d.Start(t, args...)
 			defer d.Stop(t)
 
@@ -159,6 +164,8 @@ func TestCDISpecDirsAreInSystemInfo(t *testing.T) {
 func TestCDIInfoDiscoveredDevices(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "CDI not supported on Windows")
+
+	t.Parallel()
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -185,7 +192,7 @@ func TestCDIInfoDiscoveredDevices(t *testing.T) {
 	assert.NilError(t, err, "Failed to write sample CDI spec file")
 
 	d := daemon.New(t)
-	d.Start(t, "--feature", "cdi", "--cdi-spec-dir="+cdiDir)
+	d.Start(t, "--feature", "cdi", "--cdi-spec-dir="+cdiDir, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	c := d.NewClientT(t)
