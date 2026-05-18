@@ -1338,7 +1338,7 @@ func (s *DockerCLIRunSuite) TestRunDNSOptionsBasedOnHostResolvConf(c *testing.T)
 
 	actualSearch := resolvconf.GetSearchDomains([]byte(out))
 	if len(actualSearch) != len(hostSearch) {
-		c.Fatalf("expected %q search domain(s), but it has: %q", len(hostSearch), len(actualSearch))
+		c.Fatalf("expected %d search domain(s), but it has: %d", len(hostSearch), len(actualSearch))
 	}
 	for i := range actualSearch {
 		if actualSearch[i] != hostSearch[i] {
@@ -1350,7 +1350,7 @@ func (s *DockerCLIRunSuite) TestRunDNSOptionsBasedOnHostResolvConf(c *testing.T)
 
 	actualNameservers := resolvconf.GetNameservers([]byte(out), resolvconf.IP)
 	if len(actualNameservers) != len(hostNameservers) {
-		c.Fatalf("expected %q nameserver(s), but it has: %q", len(hostNameservers), len(actualNameservers))
+		c.Fatalf("expected %d nameserver(s), but it has: %d", len(hostNameservers), len(actualNameservers))
 	}
 	for i := range actualNameservers {
 		if actualNameservers[i] != hostNameservers[i] {
@@ -1388,7 +1388,7 @@ func (s *DockerCLIRunSuite) TestRunDNSOptionsBasedOnHostResolvConf(c *testing.T)
 
 	actualSearch = resolvconf.GetSearchDomains([]byte(out))
 	if len(actualSearch) != len(hostSearch) {
-		c.Fatalf("expected %q search domain(s), but it has: %q", len(hostSearch), len(actualSearch))
+		c.Fatalf("expected %d search domain(s), but it has: %d", len(hostSearch), len(actualSearch))
 	}
 	for i := range actualSearch {
 		if actualSearch[i] != hostSearch[i] {

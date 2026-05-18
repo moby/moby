@@ -117,7 +117,7 @@ type progressOutput struct {
 func (out *progressOutput) WriteProgress(prog progress.Progress) error {
 	var formatted []byte
 	if prog.Message != "" {
-		formatted = out.sf.formatStatus(prog.ID, prog.Message)
+		formatted = out.sf.formatStatus(prog.ID, "%s", prog.Message)
 	} else {
 		jsonProgress := jsonmessage.JSONProgress{Current: prog.Current, Total: prog.Total, HideCounts: prog.HideCounts, Units: prog.Units}
 		formatted = out.sf.formatProgress(prog.ID, prog.Action, &jsonProgress, prog.Aux)

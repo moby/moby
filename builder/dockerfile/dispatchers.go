@@ -469,7 +469,7 @@ func dispatchHealthcheck(ctx context.Context, d dispatchRequest, c *instructions
 		}
 	}
 	runConfig.Healthcheck = c.Health
-	return d.builder.commit(ctx, d.state, fmt.Sprintf("HEALTHCHECK %q", runConfig.Healthcheck))
+	return d.builder.commit(ctx, d.state, fmt.Sprintf("HEALTHCHECK %v", runConfig.Healthcheck))
 }
 
 // ENTRYPOINT /usr/sbin/nginx
