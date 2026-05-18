@@ -101,6 +101,17 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	container.Lock()
 	defer container.Unlock()
 
+	// Decompress the archive before entering the container filesystem.
+	// DecompressStream may invoke external binaries (xz, unpigz) resolved
+	// via PATH. Running it inside RunInFS would resolve those binaries
+	// from the container filesystem, allowing a malicious container to
+	// execute arbitrary code as host root.
+	decompressed, err := archive.DecompressStream(content)
+	if err != nil {
+		return err
+	}
+	defer decompressed.Close()
+
 	cfs, err := daemon.openContainerFS(container)
 	if err != nil {
 		return err
@@ -150,7 +161,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 			}
 		}
 
-		return archive.Untar(content, absPath, options)
+		return archive.UntarUncompressed(decompressed, absPath, options)
 	})
 	if err != nil {
 		return err
