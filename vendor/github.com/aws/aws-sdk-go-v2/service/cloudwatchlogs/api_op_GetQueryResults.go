@@ -29,6 +29,10 @@ import (
 // internally to retrieve query results for processing and delivery to configured
 // destinations.
 //
+// You can retrieve up to 100,000 log event results from a query, if available, by
+// using pagination. Use the nextToken returned in the response to request
+// additional pages of results, with each page returning up to 10,000 log events.
+//
 // If you are using CloudWatch cross-account observability, you can use this
 // operation in a monitoring account to start queries in linked source accounts.
 // For more information, see [CloudWatch cross-account observability].
@@ -60,7 +64,8 @@ type GetQueryResultsInput struct {
 	QueryId *string
 
 	// The maximum number of log events to return in the response. The maximum is
-	// 10,000 log events.
+	// 10,000 log events per request. You can retrieve up to 100,000 log event results
+	// from a query by paginating with the nextToken .
 	MaxItems *int32
 
 	// The token for the next set of items to return. The token expires after 1 hour.
@@ -80,7 +85,8 @@ type GetQueryResultsOutput struct {
 
 	// If there are more log events remaining in the results, the response includes a
 	// nextToken . You can use this token in a subsequent GetQueryResults request to
-	// get the next set of results.
+	// get the next set of results. You can retrieve up to 100,000 log event results
+	// from a query by paginating with this token.
 	NextToken *string
 
 	// The query language used for this query. For more information about the query

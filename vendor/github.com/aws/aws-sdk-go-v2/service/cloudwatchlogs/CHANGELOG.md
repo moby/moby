@@ -1,3 +1,7 @@
+# v1.74.0 (2026-05-15)
+
+* **Feature**: Updating the max limit for start query api parameter.
+
 # v1.73.0 (2026-05-04)
 
 * **Feature**: Adding an additional optional deliverySourceConfiguration field to PutDeliverySource API. This enables customers to pass service-specific configurations through IngestionHub such as tracing enablement or sampling rates that will be propagated to the source resource.
