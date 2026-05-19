@@ -1873,24 +1873,22 @@ func (n *Network) TableEventRegister(tableName string, objType driverapi.ObjectT
 		return fmt.Errorf("invalid object type %v in registering table, %s", objType, tableName)
 	}
 
-	t := networkDBTable{
-		name:    tableName,
-		objType: objType,
-	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	n.driverTables = append(n.driverTables, t)
+	n.driverTables = append(n.driverTables, networkDBTable{
+		name:    tableName,
+		objType: objType,
+	})
 	return nil
 }
 
 func (n *Network) UpdateIpamConfig(ipV4Data []driverapi.IPAMData) {
 	ipamV4Config := make([]*IpamConf, len(ipV4Data))
-
 	for i, data := range ipV4Data {
-		ic := &IpamConf{}
-		ic.PreferredPool = data.Pool.String()
-		ic.Gateway = data.Gateway.IP.String()
-		ipamV4Config[i] = ic
+		ipamV4Config[i] = &IpamConf{
+			PreferredPool: data.Pool.String(),
+			Gateway:       data.Gateway.IP.String(),
+		}
 	}
 
 	n.mu.Lock()
@@ -2046,11 +2044,10 @@ func (n *Network) ResolveService(ctx context.Context, name string) ([]*net.SRV, 
 			continue
 		}
 		for _, t := range svc.target {
-			srv = append(srv,
-				&net.SRV{
-					Target: t.name,
-					Port:   t.port,
-				})
+			srv = append(srv, &net.SRV{
+				Target: t.name,
+				Port:   t.port,
+			})
 
 			ip = append(ip, t.ip)
 		}
