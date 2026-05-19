@@ -100,10 +100,16 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 
 			// TODO(vvoland): Refactor this after security release.
 			for _, m := range mounts {
-				// Destination is an absolute path within container
-				// filesystem. For the os.Root to work, we need to convert it
-				// to a path relative to root fs /
-				relDest, err := filepath.Rel("/", m.Destination)
+				// Walk m.Destination through the container's symlinks before
+				// passing it to os.Root, which refuses absolute symlinks
+				// (e.g. the common /var/run -> /run). The resolution itself
+				// is lexical; subsequent os.Root operations still enforce
+				// the GHSA-vp62-88p7-qqf5 / GHSA-rg2x-37c3-w2rh protections.
+				resolved, err := ctr.GetResourcePath(m.Destination)
+				if err != nil {
+					return fmt.Errorf("resolve mount destination %q: %w", m.Destination, err)
+				}
+				relDest, err := filepath.Rel(ctr.BaseFS, resolved)
 				if err != nil {
 					return fmt.Errorf("make destination relative: %w", err)
 				}
