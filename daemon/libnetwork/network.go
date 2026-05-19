@@ -2005,22 +2005,20 @@ func (n *Network) ResolveIP(_ context.Context, ip string) string {
 func (n *Network) ResolveService(ctx context.Context, name string) ([]*net.SRV, []net.IP) {
 	c := n.getController()
 
-	srv := []*net.SRV{}
-	ip := []net.IP{}
-
 	log.G(ctx).Debugf("Service name To resolve: %v", name)
 
 	// There are DNS implementations that allow SRV queries for names not in
-	// the format defined by RFC 2782. Hence specific validations checks are
-	// not done
-	parts := strings.Split(name, ".")
-	if len(parts) < 3 {
+	// the format defined by RFC 2782. Hence specific validation checks are
+	// not done.
+	portName, protoService, ok := strings.Cut(name, ".")
+	if !ok {
 		return nil, nil
 	}
 
-	portName := parts[0]
-	proto := parts[1]
-	svcName := strings.Join(parts[2:], ".")
+	proto, svcName, ok := strings.Cut(protoService, ".")
+	if !ok {
+		return nil, nil
+	}
 
 	networkID := n.ID()
 	c.mu.Lock()
@@ -2036,6 +2034,8 @@ func (n *Network) ResolveService(ctx context.Context, name string) ([]*net.SRV, 
 		return nil, nil
 	}
 
+	var srv []*net.SRV
+	var ip []net.IP
 	for _, svc := range svcs {
 		if svc.portName != portName {
 			continue
