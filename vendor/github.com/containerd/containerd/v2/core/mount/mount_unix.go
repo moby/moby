@@ -81,7 +81,7 @@ func unmount(target string, flags int) error {
 			return nil
 		}
 	}
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		if err := unix.Unmount(target, flags); err != nil {
 			switch err {
 			case unix.EBUSY:

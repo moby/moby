@@ -1,4 +1,4 @@
-// Copyright 2025 The Prometheus Authors
+// Copyright The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -80,7 +80,7 @@ func (p Proc) Statm() (ProcStatm, error) {
 func parseStatm(data []byte) ([]uint64, error) {
 	var statmSlice []uint64
 	statmItems := strings.Fields(string(data))
-	for i := 0; i < len(statmItems); i++ {
+	for i := range statmItems {
 		statmItem, err := strconv.ParseUint(statmItems[i], 10, 64)
 		if err != nil {
 			return nil, err

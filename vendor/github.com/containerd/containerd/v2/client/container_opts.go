@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 
 	"github.com/containerd/containerd/v2/core/containers"
 	"github.com/containerd/containerd/v2/core/content"
@@ -54,7 +55,7 @@ type InfoConfig struct {
 
 // WithRuntime allows a user to specify the runtime name and additional options that should
 // be used to create tasks for the container
-func WithRuntime(name string, options interface{}) NewContainerOpts {
+func WithRuntime(name string, options any) NewContainerOpts {
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
 		var (
 			opts typeurl.Any
@@ -150,9 +151,7 @@ func WithAdditionalContainerLabels(labels map[string]string) NewContainerOpts {
 			c.Labels = labels
 			return nil
 		}
-		for k, v := range labels {
-			c.Labels[k] = v
-		}
+		maps.Copy(c.Labels, labels)
 		return nil
 	}
 }
@@ -275,7 +274,7 @@ func withNewSnapshot(id string, i Image, readonly bool, opts ...snapshots.Opt) N
 //
 // Make sure to register the type of `extension` in the typeurl package via
 // `typeurl.Register` or container creation may fail.
-func WithContainerExtension(name string, extension interface{}) NewContainerOpts {
+func WithContainerExtension(name string, extension any) NewContainerOpts {
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
 		if name == "" {
 			return fmt.Errorf("extension key must not be zero-length: %w", errdefs.ErrInvalidArgument)
