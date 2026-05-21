@@ -3,11 +3,14 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"archive/tar"
 	"bytes"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/integration/internal/build"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/testutil"
@@ -86,4 +89,50 @@ func TestCopyToContainerDecompressOnHost(t *testing.T) {
 	execRes, err = container.Exec(ctx, apiClient, cID, []string{"test", "-f", "/compromised"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(execRes.ExitCode, 1), "malicious xz binary inside container was executed")
+}
+
+// TestCopyWithAbsoluteSymlinkedMountTarget was introduced as a regression test
+// for https://github.com/moby/moby/issues/52653.
+//
+// The security fix in GHSA-vp62-88p7-qqf5 switched openContainerFS to use
+// os.Root for the mount-destination operations.
+// os.Root refuses to follow absolute symlinks, but distro images commonly ship
+// /var/run as an absolute symlink to /run.
+// As a result, any container with a bind mount whose target traversed such a
+// symlink (e.g. -v /host/sock:/var/run/docker.sock) made `docker cp` fail.
+func TestCopyWithAbsoluteSymlinkedMountTarget(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	// Build an image with an absolute in-container symlink along the mount
+	// target path.
+	// Stock distro images expose this shape via /var/run -> /run, but we set
+	// up our own /sockets -> /root pair so the test does not depend on any
+	// particular base image's layout.
+	buildCtx := fakecontext.New(t, "",
+		fakecontext.WithDockerfile(`FROM busybox
+RUN touch /root/nil && ln -s /root /sockets
+`),
+	)
+	defer buildCtx.Close()
+	imgID := build.Do(ctx, t, apiClient, buildCtx)
+
+	// Use testutil.TempDir so the rootless daemon can access the bind-mount
+	// source: t.TempDir() creates a 0700 parent that the fake-root user
+	// cannot stat.
+	srcDir := testutil.TempDir(t)
+	assert.NilError(t, os.WriteFile(filepath.Join(srcDir, "sock"), nil, 0o644))
+
+	cid := container.Create(ctx, t, apiClient,
+		container.WithImage(imgID),
+		container.WithMount(mounttypes.Mount{
+			Type:   mounttypes.TypeBind,
+			Source: filepath.Join(srcDir, "sock"),
+			Target: "/sockets/docker.sock",
+		}),
+	)
+
+	err := apiClient.CopyToContainer(ctx, cid, "/sockets/", bytes.NewReader(nil), types.CopyToContainerOptions{})
+	assert.NilError(t, err)
 }
