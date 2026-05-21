@@ -48,6 +48,21 @@ var (
 	privContainerMountLabel string
 )
 
+// ProcessKind selects which process domain [SetProcessKind] applies to a label.
+type ProcessKind int
+
+const (
+	ProcessKindRegular ProcessKind = 1
+	ProcessKindInit    ProcessKind = 2
+	ProcessKindKVM     ProcessKind = 3
+)
+
+// SetProcessKind returns label with its type component replaced by the one
+// corresponding to kind. Other label components are kept intact.
+func SetProcessKind(label string, kind ProcessKind) (string, error) {
+	return setProcessKind(label, kind)
+}
+
 // Context is a representation of the SELinux label broken into 4 parts
 type Context map[string]string
 
@@ -292,6 +307,8 @@ func KVMContainerLabels() (string, string) {
 
 // KVMContainerLabel returns the default process label to be used
 // for KVM containers by the calling process.
+//
+// If you only need to change a type of existing label, use [SetProcessKind] instead.
 func KVMContainerLabel() (string, error) {
 	return kvmContainerLabel()
 }
@@ -306,6 +323,8 @@ func InitContainerLabels() (string, string) {
 
 // InitContainerLabel returns the default process label to be used
 // for containers running an init system like systemd by the calling process.
+//
+// If you only need to change a type of existing label, use [SetProcessKind] instead.
 func InitContainerLabel() (string, error) {
 	return initContainerLabel()
 }
