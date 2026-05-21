@@ -57,7 +57,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
+        uses: docker/bake-action@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
         with:
           targets: dev
           set: |
@@ -194,7 +194,7 @@ jobs:
       -
         name: Create matrix
         id: gen
-        uses: docker/bake-action/subaction/matrix@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
+        uses: docker/bake-action/subaction/matrix@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
         with:
           target: binary-smoketest
           fields: platforms
@@ -228,7 +228,7 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Test
-        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
+        uses: docker/bake-action@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
         with:
           targets: ${{ matrix.target }}
           set: |
