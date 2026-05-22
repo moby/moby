@@ -9,6 +9,8 @@
     ":gitSignOff"
   ],
   "postUpdateOptions": ["gomodTidy"],
+  "minimumReleaseAge": "3 days",
+  "internalChecksFilter": "strict",
   "packageRules": [
     {
       "matchManagers": ["gomod"],
