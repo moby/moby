@@ -157,3 +157,7 @@ func getDefaultContextWithLevel(string, string, string) (string, error) {
 func label(_ string) string {
 	return ""
 }
+
+func setProcessKind(string, ProcessKind) (string, error) {
+	return "", nil
+}
