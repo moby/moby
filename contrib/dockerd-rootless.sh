@@ -240,7 +240,7 @@ else
 	netns="/proc/self/ns/net"
 	case "$DOCKERD_ROOTLESS_ROOTLESSKIT_DETACH_NETNS" in
 		1 | true)
-			netns="$ROOTLESSKIT_STATE_DIR/netns"
+			netns="$DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR/netns"
 			;;
 	esac
 	# When running with --firewall-backend=nftables, IP forwarding needs to be enabled
