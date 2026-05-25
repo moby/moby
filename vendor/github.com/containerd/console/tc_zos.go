@@ -17,6 +17,8 @@
 package console
 
 import (
+	"strings"
+
 	"golang.org/x/sys/unix"
 )
 
@@ -24,3 +26,13 @@ const (
 	cmdTcGet = unix.TCGETS
 	cmdTcSet = unix.TCSETS
 )
+
+// unlockpt is a no-op on zos.
+func unlockpt(File) error {
+	return nil
+}
+
+// ptsname retrieves the name of the first available pts for the given master.
+func ptsname(f File) (string, error) {
+	return "/dev/ttyp" + strings.TrimPrefix(f.Name(), "/dev/ptyp"), nil
+}
