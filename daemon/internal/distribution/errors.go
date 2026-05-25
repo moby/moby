@@ -106,6 +106,8 @@ func translatePullError(err error, ref reference.Named) error {
 		switch v.Code {
 		case errcode.ErrorCodeDenied, v2.ErrorCodeManifestUnknown, v2.ErrorCodeNameUnknown:
 			return notFoundError{v, ref}
+		case errcode.ErrorCodeUnauthorized:
+			return errdefs.Unauthorized(v)
 		}
 	case xfer.DoNotRetry:
 		return translatePullError(v.Err, ref)
