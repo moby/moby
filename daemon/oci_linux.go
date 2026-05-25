@@ -73,6 +73,7 @@ func withLibnetwork(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Cont
 					s.Hooks = &specs.Hooks{}
 				}
 				shortNetCtlrID := stringid.TruncateID(daemon.netController.ID())
+				//nolint:staticcheck // Use of deprecated hook.
 				s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{
 					Path: filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe"),
 					Args: []string{"libnetwork-setkey", "-exec-root=" + daemonCfg.GetExecRoot(), c.ID, shortNetCtlrID},
