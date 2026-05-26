@@ -6,18 +6,12 @@ import (
 	"context"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
-	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
 )
 
 func releaseOSSboxResources(*osl.Namespace, *Endpoint) {}
 
 func (sb *Sandbox) updateGateway(_, _ *Endpoint) error { return nil }
-
-// Statistics is a no-op on platforms without a real OS sandbox implementation.
-func (sb *Sandbox) Statistics() (map[string]*types.InterfaceStatistics, error) {
-	return map[string]*types.InterfaceStatistics{}, nil
-}
 
 func (sb *Sandbox) ExecFunc(func()) error { return nil }
 
