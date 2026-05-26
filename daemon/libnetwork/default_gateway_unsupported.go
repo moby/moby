@@ -1,3 +1,5 @@
+//go:build !linux && !windows
+
 package libnetwork
 
 import "github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -9,5 +11,5 @@ func getPlatformOption() EndpointOption {
 }
 
 func (c *Controller) createGWNetwork() (*Network, error) {
-	return nil, types.NotImplementedErrorf("default gateway functionality is not implemented in freebsd")
+	return nil, types.NotImplementedErrorf("default gateway functionality is not implemented on this platform")
 }
