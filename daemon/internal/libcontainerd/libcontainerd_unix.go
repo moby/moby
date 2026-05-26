@@ -1,3 +1,5 @@
+//go:build unix
+
 package libcontainerd
 
 import (
@@ -8,7 +10,7 @@ import (
 	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
 )
 
-// NewClient creates a new libcontainerd client from a containerd client
+// NewClient creates a new libcontainerd client from a containerd client.
 func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string, b libcontainerdtypes.Backend) (libcontainerdtypes.Client, error) {
 	return remote.NewClient(ctx, cli, stateDir, ns, b)
 }

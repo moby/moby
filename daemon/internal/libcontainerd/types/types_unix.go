@@ -1,3 +1,5 @@
+//go:build unix
+
 package types
 
 import (
@@ -6,10 +8,10 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-// Summary is not used on linux
+// Summary is not used on Unix.
 type Summary struct{}
 
-// Stats holds metrics properties as returned by containerd
+// Stats holds metrics properties as returned by containerd.
 type Stats struct {
 	Read time.Time
 	// Metrics is expected to be either one of:
@@ -26,8 +28,8 @@ func InterfaceToStats(read time.Time, v any) *Stats {
 	}
 }
 
-// Resources defines updatable container resource values. TODO: it must match containerd upcoming API
+// Resources defines updatable container resource values.
 type Resources = specs.LinuxResources
 
-// Checkpoints contains the details of a checkpoint
+// Checkpoints contains the details of a checkpoint.
 type Checkpoints struct{}
