@@ -455,6 +455,7 @@ func waitForIfUpped(ctx context.Context, ns netns.NsHandle, ifIndex int) (bool, 
 				}
 			case <-drainTimerC:
 				log.G(ctx).Warn("timeout while waiting for LinkSubscribe to terminate")
+				return
 			}
 		}
 	}()
