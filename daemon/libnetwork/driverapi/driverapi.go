@@ -129,11 +129,6 @@ type NetworkInfo interface {
 	// TableEventRegister registers driver interest in a given
 	// table name.
 	TableEventRegister(tableName string, objType ObjectType) error
-
-	// UpdateIpamConfig updates the networks IPAM configuration
-	// based on information from the driver.  In windows, the OS (HNS) chooses
-	// the IP address space if the user does not specify an address space.
-	UpdateIpamConfig(ipV4Data []IPAMData)
 }
 
 // InterfaceInfo provides a go interface for drivers to retrieve

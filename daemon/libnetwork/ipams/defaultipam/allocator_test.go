@@ -22,6 +22,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 func TestKeyString(t *testing.T) {
@@ -55,6 +56,8 @@ func TestKeyString(t *testing.T) {
 }
 
 func TestAddSubnets(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "Overlaps are allowed in Windows")
+
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	if err != nil {
 		t.Fatal(err)
@@ -131,6 +134,8 @@ func TestDoublePoolRelease(t *testing.T) {
 }
 
 func TestAddReleasePoolID(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "Overlaps are allowed in Windows")
+
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
@@ -395,6 +400,8 @@ func TestGetSameAddress(t *testing.T) {
 // TestRequestFromSamePool verify the allocator implements the validation
 // inconsistencies described in https://github.com/moby/moby/issues/46756.
 func TestRequestFromSamePool(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "Overlaps are allowed in Windows")
+
 	a, err := NewAllocator(ipamutils.GetLocalScopeDefaultNetworks(), ipamutils.GetGlobalScopeDefaultNetworks())
 	assert.NilError(t, err)
 
@@ -800,6 +807,8 @@ func TestRequest(t *testing.T) {
 // Requests for subnets which are supersets or subsets of existing allocations,
 // or which overlap at the beginning or end, should not be permitted.
 func TestOverlappingRequests(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "Overlaps are allowed in Windows")
+
 	input := []struct {
 		environment []string
 		subnet      string

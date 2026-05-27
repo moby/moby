@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/moby/moby/v2/daemon/libnetwork/ipams/defaultipam"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/network"
@@ -22,10 +21,6 @@ func (n *Network) startResolver() {
 
 func deleteEpFromResolver(epName string, epIface *EndpointInterface, resolvers []*Resolver) error {
 	return nil
-}
-
-func defaultIpamForNetworkType(networkType string) string {
-	return defaultipam.DriverName
 }
 
 func (n *Network) validatedAdvertiseAddrNMsgs() (*int, error) {
