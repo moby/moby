@@ -1,0 +1,44 @@
+name: Flaky detector CI
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - 'master'
+      - '[0-9]+.[0-9]+'
+      - '[0-9]+.x'
+    paths:
+      - '.github/workflows/flaky-detector-ci.yml'
+      - '.github/workflows/flaky-test-tracker.yml'
+      - 'internal/ci/analyze-tests/**'
+  pull_request:
+    paths:
+      - '.github/workflows/flaky-detector-ci.yml'
+      - '.github/workflows/flaky-test-tracker.yml'
+      - 'internal/ci/analyze-tests/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: internal/ci/analyze-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: internal/ci/analyze-tests/go.mod
+          cache-dependency-path: internal/ci/analyze-tests/go.sum
+      - name: Test
+        run: go test ./...
+      - name: Lint
+        run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.6.2 run ./...

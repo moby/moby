@@ -1,0 +1,36 @@
+name: Flaky test tracker
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      write_issues:
+        description: 'Create/update GitHub issues. Defaults to dry-run when unchecked.'
+        required: false
+        type: boolean
+        default: false
+      verbose:
+        description: 'Print artifact discovery diagnostics.'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  detect-flaky-tests:
+    permissions:
+      contents: read
+      issues: write
+      actions: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Track flaky tests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WRITE_ISSUES: ${{ inputs.write_issues && '1' || '0' }}
+          VERBOSE: ${{ inputs.verbose && '1' || '0' }}
+        working-directory: internal/ci/analyze-tests
+        run: go run .
