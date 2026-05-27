@@ -90,20 +90,6 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 		return types.InvalidParameterErrorf("ipv4 pool is empty")
 	}
 
-	// Since we perform lazy configuration make sure we try
-	// configuring the driver when we enter CreateNetwork
-	if err := d.configure(); err != nil {
-		return err
-	}
-
-	n := &network{
-		id:        id,
-		driver:    d,
-		endpoints: endpointTable{},
-		subnets:   []*subnet{},
-		fdbCnt:    countmap.Map[hashable.IPMAC]{},
-	}
-
 	vnis := make([]uint32, 0, len(ipV4Data))
 	gval, ok := option[netlabel.GenericData]
 	if !ok {
@@ -120,6 +106,20 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 	vnis, err = overlayutils.AppendVNIList(vnis, vnisOpt)
 	if err != nil {
 		return err
+	}
+
+	// Since we perform lazy configuration make sure we try
+	// configuring the driver when we enter CreateNetwork
+	if err := d.configure(); err != nil {
+		return err
+	}
+
+	n := &network{
+		id:        id,
+		driver:    d,
+		endpoints: endpointTable{},
+		subnets:   []*subnet{},
+		fdbCnt:    countmap.Map[hashable.IPMAC]{},
 	}
 
 	if _, ok := optMap[secureOption]; ok {
@@ -189,6 +189,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 
 	if nInfo != nil {
 		if err := nInfo.TableEventRegister(OverlayPeerTable, driverapi.EndpointObject); err != nil {
+			// FIXME: Undo writeToStore? No method to so. Why? (see https://github.com/moby/libnetwork/commit/bd613df20d10c901b5aaa6992127035dec6ba279)
 			return err
 		}
 	}
