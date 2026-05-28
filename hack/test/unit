@@ -15,6 +15,7 @@ set -eux -o pipefail
 BUILDFLAGS=(-tags 'netgo journald')
 TESTFLAGS+=" -test.timeout=${TIMEOUT:-5m}"
 TESTDIRS="${TESTDIRS:-./...}"
+: "${GOTESTSUM_MAX_FAILS:=50}"
 
 : "${api_pkg_list:=}"
 : "${client_pkg_list:=}"
@@ -102,7 +103,7 @@ case "$TESTDIRS" in
 esac
 
 if [ -n "${pkg_list}" ]; then
-	gotestsum --max-fails=50 --format=standard-quiet --jsonfile=bundles/go-test-report.json --junitfile=bundles/junit-report.xml -- \
+	gotestsum --max-fails="${GOTESTSUM_MAX_FAILS}" --format=standard-quiet --jsonfile=bundles/go-test-report.json --junitfile=bundles/junit-report.xml -- \
 		"${BUILDFLAGS[@]}" \
 		-cover \
 		-coverprofile=bundles/coverage.out \
