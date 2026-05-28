@@ -28,13 +28,16 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   build-dev:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-dco
     strategy:
       fail-fast: false
       matrix:
+        arch:
+          - amd64
+          - arm64
         mode:
           - ""
           - systemd
@@ -61,16 +64,16 @@ jobs:
         with:
           targets: dev
           set: |
-            *.cache-from=type=gha,scope=dev${{ matrix.mode }}
-            *.cache-to=type=gha,scope=dev${{ matrix.mode }}
-            ${{ matrix.mode == '' && '*.output=type=docker,dest=/tmp/dev-image.tar' || '*.output=type=cacheonly' }}
+            *.cache-from=type=gha,scope=${{ matrix.mode == '' && format('dev-{0}', matrix.arch) || format('dev-{0}-{1}', matrix.mode, matrix.arch) }}
+            *.cache-to=type=gha,scope=${{ matrix.mode == '' && format('dev-{0}', matrix.arch) || format('dev-{0}-{1}', matrix.mode, matrix.arch) }}
+            ${{ matrix.mode == '' && format('*.output=type=docker,dest=/tmp/dev-image-{0}.tar', matrix.arch) || '*.output=type=cacheonly' }}
       -
         name: Cache dev image
         if: matrix.mode == ''
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          key: dev-image-${{ github.run_id }}
-          path: /tmp/dev-image.tar
+          key: dev-image-${{ matrix.arch }}-${{ github.run_id }}
+          path: /tmp/dev-image-${{ matrix.arch }}.tar
 
   test:
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
@@ -81,10 +84,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        storage:
-          - graphdriver
-          - snapshotter
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            storage: graphdriver
+          - arch: amd64
+            runner: ubuntu-24.04
+            storage: snapshotter
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            storage: graphdriver
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            storage: snapshotter
     with:
+      arch: ${{ matrix.arch }}
+      runner: ${{ matrix.runner }}
       storage: ${{ matrix.storage }}
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -95,6 +110,17 @@ jobs:
       - build-dev
       - validate-dco
     uses: ./.github/workflows/.test-unit.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    with:
+      arch: ${{ matrix.arch }}
+      runner: ${{ matrix.runner }}
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -146,13 +172,13 @@ jobs:
         name: Restore dev image
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          key: dev-image-${{ github.run_id }}
-          path: /tmp/dev-image.tar
+          key: dev-image-amd64-${{ github.run_id }}
+          path: /tmp/dev-image-amd64.tar
           fail-on-cache-miss: true
       -
         name: Load dev image
         run: |
-          docker load -i /tmp/dev-image.tar
+          docker load -i /tmp/dev-image-amd64.tar
       -
         name: Validate
         env:

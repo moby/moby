@@ -26,16 +26,22 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 20 # guardrails timeout for the whole job
     needs:
       - validate-dco
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - binary
-          - dynbinary
+        include:
+          - runner: ubuntu-24.04
+            target: binary
+          - runner: ubuntu-24.04
+            target: dynbinary
+          - runner: ubuntu-24.04-arm
+            target: binary
+          - runner: ubuntu-24.04-arm
+            target: dynbinary
     steps:
       -
         name: Set up Docker Buildx
