@@ -113,7 +113,10 @@ func TestHealthCheckProcessKilled(t *testing.T) {
 
 func TestHealthStartInterval(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "The shell commands used in the test healthcheck do not work on Windows")
+
 	ctx := setupTest(t)
+	t.Parallel()
+
 	apiClient := testEnv.APIClient()
 
 	id := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
