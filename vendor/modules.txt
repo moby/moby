@@ -626,7 +626,7 @@ github.com/docker/distribution/registry/storage/cache/memory
 ## explicit; go 1.23
 github.com/docker/go-connections/sockets
 github.com/docker/go-connections/tlsconfig
-# github.com/docker/go-events v0.0.0-20250808211157-605354379745
+# github.com/docker/go-events v0.0.0-20260522192827-649f5caa5440
 ## explicit
 github.com/docker/go-events
 # github.com/docker/go-metrics v0.0.1

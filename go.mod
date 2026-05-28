@@ -35,7 +35,7 @@ require (
 	github.com/distribution/reference v0.6.0
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/go-connections v0.7.0
-	github.com/docker/go-events v0.0.0-20250808211157-605354379745
+	github.com/docker/go-events v0.0.0-20260522192827-649f5caa5440
 	github.com/docker/go-metrics v0.0.1
 	github.com/docker/go-units v0.5.0
 	github.com/fluent/fluent-logger-golang v1.10.1
