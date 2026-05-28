@@ -1,0 +1,35 @@
+*raw
+:PREROUTING ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+-A PREROUTING -d fd49:efd7:54aa::1/128 ! -i br-dummy -j DROP
+COMMIT
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:DOCKER - [0:0]
+:DOCKER-BRIDGE - [0:0]
+:DOCKER-CT - [0:0]
+:DOCKER-FORWARD - [0:0]
+:DOCKER-INTERNAL - [0:0]
+-A FORWARD -j DOCKER-FORWARD
+-A DOCKER -d fd49:efd7:54aa::1/128 ! -i br-dummy -o br-dummy -p tcp -m tcp --dport 80 -j ACCEPT
+-A DOCKER ! -i br-dummy -o br-dummy -j DROP
+-A DOCKER-BRIDGE -o br-dummy -j DOCKER
+-A DOCKER-CT -o br-dummy -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A DOCKER-FORWARD -j DOCKER-CT
+-A DOCKER-FORWARD -j DOCKER-INTERNAL
+-A DOCKER-FORWARD -j DOCKER-BRIDGE
+-A DOCKER-FORWARD -i br-dummy -j ACCEPT
+COMMIT
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+:DOCKER - [0:0]
+-A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+-A OUTPUT ! -d ::1/128 -m addrtype --dst-type LOCAL -j DOCKER
+-A POSTROUTING -s fd49:efd7:54aa::/64 ! -o br-dummy -j SNAT --to-source fd34:d0d4:672f::123
+-A DOCKER ! -s fe80::/10 -d ::1/128 ! -i br-dummy -p tcp -m tcp --dport 8080 -j DNAT --to-destination [fd49:efd7:54aa::1]:80
+COMMIT

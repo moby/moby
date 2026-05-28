@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package containerd.runhcs.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options";
+
+// Options are the set of customizations that can be passed at Create time.
+message Options {
+	// Enable debug tracing (sets the logrus log level to debug). This may be deprecated in the future, prefer
+	// log_level as this will override debug if both of them are set.
+	bool debug = 1;
+
+	enum DebugType {
+		NPIPE = 0;
+		FILE = 1;
+		ETW = 2;
+	}
+
+	// debug tracing output type
+	DebugType debug_type = 2;
+
+	// registry key root for storage of the runhcs container state
+	string registry_root = 3;
+
+	// sandbox_image is the image to use for the sandbox that matches the
+	// sandbox_platform.
+	string sandbox_image = 4;
+
+	// sandbox_platform is a CRI setting that specifies the platform
+	// architecture for all sandbox's in this runtime. Values are
+	// 'windows/amd64' and 'linux/amd64'.
+	string sandbox_platform = 5;
+
+	enum SandboxIsolation {
+		PROCESS = 0;
+		HYPERVISOR = 1;
+	}
+
+	// sandbox_isolation is a CRI setting that specifies the isolation level of
+	// the sandbox. For Windows runtime PROCESS and HYPERVISOR are valid. For
+	// LCOW only HYPERVISOR is valid and default if omitted.
+	SandboxIsolation sandbox_isolation = 6;
+
+	// boot_files_root_path is the path to the directory containing the LCOW
+	// kernel and root FS files.
+	string boot_files_root_path = 7;
+
+	// vm_processor_count is the default number of processors to create for the
+	// hypervisor isolated utility vm.
+	//
+	// The platform default if omitted is 2, unless the host only has a single
+	// core in which case it is 1.
+	int32 vm_processor_count = 8;
+
+	// vm_memory_size_in_mb is the default amount of memory to assign to the
+	// hypervisor isolated utility vm.
+	//
+	// The platform default is 1024MB if omitted.
+	int32 vm_memory_size_in_mb = 9;
+
+	// GPUVHDPath is the path to the gpu vhd to add to the uvm
+	// when a container requests a gpu
+	string GPUVHDPath = 10;
+
+	// scale_cpu_limits_to_sandbox indicates that container CPU limits should
+	// be adjusted to account for the difference in number of cores between the
+	// host and UVM.
+	bool scale_cpu_limits_to_sandbox = 11;
+
+	// default_container_scratch_size_in_gb is the default scratch size (sandbox.vhdx)
+	// to be used for containers. Every container will get a sandbox of `size_in_gb` assigned
+	// instead of the default of 20GB.
+	int32 default_container_scratch_size_in_gb = 12;
+
+	// default_vm_scratch_size_in_gb is the default scratch size (sandbox.vhdx)
+	// to be used for the UVM. This only applies to WCOW as LCOW doesn't mount a scratch
+	// specifically for the UVM.
+	int32 default_vm_scratch_size_in_gb = 13;
+
+	// share_scratch specifies if we'd like to reuse scratch space between multiple containers.
+	// This currently only affects LCOW. The sandbox containers scratch space is re-used for all
+	// subsequent containers launched in the pod.
+	bool share_scratch = 14;
+
+	// NCProxyAddr is the address of the network configuration proxy service. If omitted
+	// the network is setup locally.
+	string NCProxyAddr = 15;
+
+	// log_level specifies the logrus log level for the shim. Supported values are a string representation of the
+	// logrus log levels: "trace", "debug", "info", "warn", "error", "fatal", "panic". This setting will override
+	// the `debug` field if both are specified, unless the level specified is also "debug", as these are equivalent.
+	string log_level = 16;
+
+	// io_retry_timeout_in_sec is the timeout in seconds for how long to try and reconnect to an upstream IO provider if a connection is lost.
+	// The typical example is if Containerd has restarted but is expected to come back online. A 0 for this field is interpreted as an infinite
+	// timeout.
+	int32 io_retry_timeout_in_sec = 17;
+
+	// default_container_annotations specifies a set of annotations that should be set for every workload container
+	map<string, string> default_container_annotations = 18;
+
+	// no_inherit_host_timezone specifies to skip inheriting the hosts time zone for WCOW UVMs and instead default to
+	// UTC.
+	bool no_inherit_host_timezone = 19;
+
+	// scrub_logs enables removing environment variables and other potentially sensitive information from logs
+	bool scrub_logs = 20;
+}
+
+// ProcessDetails contains additional information about a process. This is the additional
+// info returned in the Pids query.
+message ProcessDetails {
+	string image_name = 1;
+	google.protobuf.Timestamp created_at = 2;
+	uint64 kernel_time_100_ns = 3;
+	uint64 memory_commit_bytes = 4;
+	uint64 memory_working_set_private_bytes = 5;
+	uint64 memory_working_set_shared_bytes = 6;
+	uint32 process_id = 7;
+	uint64 user_time_100_ns = 8;
+	string exec_id = 9;
+}

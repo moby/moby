@@ -1,0 +1,171 @@
+# When you made a change to this YAML, please validate with https://editor.swagger.io
+openapi: 3.0.3
+info:
+  version: 1.1.1
+  title: RootlessKit API
+servers:
+  - url: 'http://rootlesskit/v1'
+    description: Local UNIX socket server. The host part of the URL is ignored.
+paths:
+# /info: API >= 1.1.0
+  /info:
+    get:
+      responses:
+        '200':
+          description: Info. Available since API 1.1.0.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Info'
+  /ports:
+    get:
+      responses:
+        '200':
+          description: An array of PortStatus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortStatuses'
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortSpec'
+      responses:
+        '201':
+          description: PortStatus with ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortStatus'
+  '/ports/{id}':
+    delete:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Null response
+components:
+  schemas:
+    Proto:
+      type: string
+      description: "protocol for listening. Corresponds to Go's net.Listen. The strings with \"4\" and \"6\" suffixes were introduced in API 1.1.0."
+      enum:
+        - tcp
+        - tcp4
+        - tcp6
+        - udp
+        - udp4
+        - udp6
+        - sctp
+        - sctp4
+        - sctp6
+    PortSpec:
+      required:
+        - proto
+      properties:
+        proto:
+          $ref: '#/components/schemas/Proto'
+        parentIP:
+          type: string
+        parentPort:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 65535
+        childIP:
+          type: string
+# future version may support requests with parentPort<=0 for automatic port assignment
+        childPort:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 65535
+    PortStatus:
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          format: int64
+        spec:
+          $ref: '#/components/schemas/PortSpec'
+    PortStatuses:
+      type: array
+      items:
+        $ref: '#/components/schemas/PortStatus'
+# Info: API >= 1.1.0
+    Info:
+      required:
+        - apiVersion
+        - version
+        - stateDir
+        - childPID
+      properties:
+        apiVersion:
+          type: string
+          description: "API version, without \"v\" prefix"
+          example: "1.1.0"
+        version:
+          type: string
+          description: "Implementation version, without \"v\" prefix"
+          example: "0.42.0-beta.1+dev"
+        stateDir:
+          type: string
+          description: "state dir"
+          example: "/run/user/1000/rootlesskit"
+        childPID:
+          type: integer
+          description: "child PID"
+          example: 10042
+        networkDriver:
+          $ref: '#/components/schemas/NetworkDriverInfo'
+        portDriver:
+          $ref: '#/components/schemas/PortDriverInfo'
+    NetworkDriverInfo:
+      required:
+        - driver
+      properties:
+        driver:
+          type: string
+          description: "network driver. Empty when --net=host."
+          example: "slirp4netns"
+# TODO: return TAP info
+        dns:
+          type: array
+          description: "DNS addresses"
+          items:
+            type: string
+          example: ["10.0.2.3"]
+        childIP:
+          type: string
+          description: "Child IP (v4)"
+          example: "10.0.2.100"
+        dynamicChildIP:
+          type: boolean
+          description: "Child IP may change"
+    PortDriverInfo:
+      required:
+        - driver
+        - supportedProtos
+      properties:
+        driver:
+          type: string
+          description: "port driver"
+          example: "builtin"
+        protos:
+          type: array
+          description: "The supported protocol strings for listening ports"
+          example: ["tcp","udp"]
+          items:
+            $ref: '#/components/schemas/Proto'
+        disallowLoopbackChildIP:
+          type: boolean
+          description: "If this field is set to true, loopback IP such as 127.0.0.1 cannot be specified as a child IP"

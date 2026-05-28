@@ -1,0 +1,24 @@
+name: labeler
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] safe here, this workflow only applies labels and never checks out or executes PR code
+
+jobs:
+  labeler:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Labels
+        uses: actions/labeler@f27b608878404679385c85cfa523b85ccb86e213 # v6.1.0
+        with:
+          sync-labels: false

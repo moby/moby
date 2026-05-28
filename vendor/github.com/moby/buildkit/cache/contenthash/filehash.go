@@ -1,0 +1,123 @@
+package contenthash
+
+import (
+	"archive/tar"
+	"encoding/hex"
+	"hash"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/moby/buildkit/util/cachedigest"
+	"github.com/pkg/errors"
+	fstypes "github.com/tonistiigi/fsutil/types"
+)
+
+// NewFileHash returns new hash that is used for the builder cache keys
+func NewFileHash(path string, fi os.FileInfo) (hash.Hash, error) {
+	var link string
+	if fi.Mode()&os.ModeSymlink != 0 {
+		var err error
+		link, err = os.Readlink(path)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	stat := &fstypes.Stat{
+		Mode:     uint32(fi.Mode()),
+		Size:     fi.Size(),
+		ModTime:  fi.ModTime().UnixNano(),
+		Linkname: link,
+	}
+
+	if fi.Mode()&os.ModeSymlink != 0 {
+		stat.Mode = stat.Mode | 0777
+	}
+
+	if err := setUnixOpt(path, fi, stat); err != nil {
+		return nil, err
+	}
+	return NewFromStat(stat)
+}
+
+func NewFromStat(stat *fstypes.Stat) (hash.Hash, error) {
+	// Clear the socket and irregular bits since archive/tar.FileInfoHeader does not handle them
+	stat.Mode &^= uint32(os.ModeSocket | os.ModeIrregular)
+
+	fi := &statInfo{stat}
+	hdr, err := tar.FileInfoHeader(fi, stat.Linkname)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to checksum file %s", stat.Path)
+	}
+	hdr.Name = "" // note: empty name is different from current has in docker build. Name is added on recursive directory scan instead
+	hdr.Devmajor = stat.Devmajor
+	hdr.Devminor = stat.Devminor
+	hdr.Uid = int(stat.Uid)
+	hdr.Gid = int(stat.Gid)
+
+	if len(stat.Xattrs) > 0 {
+		hdr.PAXRecords = make(map[string]string, len(stat.Xattrs))
+		for k, v := range stat.Xattrs {
+			hdr.PAXRecords["SCHILY.xattr."+k] = string(v)
+		}
+	}
+	// fmt.Printf("hdr: %#v\n", hdr)
+	h := cachedigest.NewHash(cachedigest.TypeFile)
+	tsh := &tarsumHash{hdr: hdr, Hash: h}
+	tsh.Reset() // initialize header
+	return tsh, nil
+}
+
+type tarsumHash struct {
+	*cachedigest.Hash
+	hdr *tar.Header
+}
+
+// Reset resets the Hash to its initial state.
+func (tsh *tarsumHash) Reset() {
+	// comply with hash.Hash and reset to the state hash had before any writes
+	tsh.Hash.Reset()
+	WriteV1TarsumHeaders(tsh.hdr, tsh.Hash)
+}
+
+func (tsh *tarsumHash) Write(p []byte) (n int, err error) {
+	n, err = tsh.WriteNoDebug(p)
+	if n > 0 {
+		tsh.hdr.Size += int64(n)
+	}
+	return n, err
+}
+
+func (tsh *tarsumHash) Sum(_ []byte) []byte {
+	b, _ := hex.DecodeString(tsh.Hash.Sum().Hex())
+	return b
+}
+
+type statInfo struct {
+	*fstypes.Stat
+}
+
+func (s *statInfo) Name() string {
+	return filepath.Base(s.Path)
+}
+
+func (s *statInfo) Size() int64 {
+	return s.Stat.Size
+}
+
+func (s *statInfo) Mode() os.FileMode {
+	return os.FileMode(s.Stat.Mode)
+}
+
+func (s *statInfo) ModTime() time.Time {
+	return time.Unix(s.Stat.ModTime/1e9, s.Stat.ModTime%1e9)
+}
+
+func (s *statInfo) IsDir() bool {
+	return s.Mode().IsDir()
+}
+
+func (s *statInfo) Sys() any {
+	return s.Stat
+}

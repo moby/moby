@@ -1,0 +1,15 @@
+[build]
+  base = "site"
+  publish = "public"
+
+[build.environment]
+  HUGO_VERSION = "0.115.2"
+
+[context.production]
+  command = "git submodule update --init && hugo --gc --minify"
+
+[context.deploy-preview]
+  command = "git submodule update --init && hugo --gc --minify -b $DEPLOY_PRIME_URL"
+
+[context.branch-deploy]
+  command = "git submodule update --init && hugo --gc --minify -b $DEPLOY_PRIME_URL"

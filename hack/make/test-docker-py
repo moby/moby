@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -e
+
+source hack/make/.integration-test-helpers
+
+# The commit or tag to use for testing
+: "${DOCKER_PY_COMMIT:=df3f8e2abc5a03de482e37214dddef9e0cee1bb1}" # master (v7.2.0-dev)
+
+# custom options to pass py.test
+#
+# This option can be used to temporarily skip flaky tests (using the `--deselect`
+# flag) until they are fixed upstream. For example:
+# --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream
+: "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml}"
+
+# build --squash is not supported with containerd integration.
+if [ -z "$TEST_INTEGRATION_USE_GRAPHDRIVER" ]; then
+	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_build_test.py::BuildTest::test_build_squash"
+fi
+
+# TODO re-enable test_attach_no_stream after https://github.com/docker/docker-py/issues/2513 is resolved
+PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream"
+
+# TODO re-enable test_run_container_reading_socket_ws. It's reported in https://github.com/docker/docker-py/issues/1478, and we're getting that error in our tests.
+PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_run_container_reading_socket_ws"
+
+# TODO re-enable test_run_with_networking_config once this issue is fixed: https://github.com/moby/moby/pull/46853#issuecomment-1864679942.
+PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/models_containers_test.py::ContainerCollectionTest::test_run_with_networking_config"
+
+# Legacy links are deprecated since a long time, and starting with v29.0, the Engine won't set legacy links env vars
+# automatically in linking containers. Thus, this test is expected to fail — skip it. See https://github.com/moby/moby/pull/50719
+PY_TEST_OPTIONS="${PY_TEST_OPTIONS} --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_links"
+
+# The NetworkSettings.MacAddress field has been deprecated since Docker 1.9, and starting with v29.0, the Engine won't
+# include it in API respoonses. Thus, this test is expected to fail — skip it.
+# See https://github.com/moby/moby/pull/50846 and https://github.com/moby/moby/pull/50957
+PY_TEST_OPTIONS="${PY_TEST_OPTIONS} --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_mac_address"
+
+(
+	bundle .integration-daemon-start
+
+	docker_host_scheme=$(echo "${DOCKER_HOST}" | cut -d: -f1 -)
+
+	case "${docker_host_scheme}" in
+		unix)
+			# trim the tcp:// scheme, and bind-mount the docker socket into the container
+			run_opts="--mount type=bind,src=${DOCKER_HOST#unix://},dst=/var/run/docker.sock"
+			;;
+
+		tcp)
+			# run container in host-mode networking so that it can connect to the
+			# daemon from the current networking namespace (e.g., to connect to localhost)
+			run_opts="--network=host -e DOCKER_HOST=${DOCKER_HOST}"
+			;;
+
+		*)
+			echo "WARN: Skipping test-docker-py: connecting to docker daemon using ${docker_host_scheme} (${DOCKER_HOST}) not supported"
+			bundle .integration-daemon-stop
+			return 0
+			;;
+	esac
+
+	docker_py_image="docker-sdk-python3:${DOCKER_PY_COMMIT}"
+	if ! docker image inspect "dockerPyImage" &> /dev/null; then
+		echo INFO: Building ${docker_py_image}...
+		(
+			[ -n "${TESTDEBUG}" ] && set -x
+			[ -z "${TESTDEBUG}" ] && build_opts="--quiet"
+			[ -f /.dockerenv ] || build_opts="${build_opts} --network=host"
+			# shellcheck disable=SC2086
+			exec docker build ${build_opts} -t "${docker_py_image}" -f tests/Dockerfile "https://github.com/docker/docker-py.git#${DOCKER_PY_COMMIT}"
+		)
+	fi
+
+	echo INFO: Starting docker-py tests...
+	(
+		[ -n "${TESTDEBUG}" ] && set -x
+		# shellcheck disable=SC2086,SC2140
+		exec docker run --rm ${run_opts} --mount type=bind,"src=${ABS_DEST}","dst=/src/${DEST}" "${docker_py_image}" pytest ${PY_TEST_OPTIONS} tests/integration
+	)
+	bundle .integration-daemon-stop
+) &> >(tee -a "$DEST/test.log")

@@ -1,0 +1,219 @@
+package request
+
+import (
+	"context"
+	"crypto/tls"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/docker/go-connections/sockets"
+	"github.com/docker/go-connections/tlsconfig"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/internal/testutil/environment"
+	"github.com/moby/moby/v2/pkg/ioutils"
+	"github.com/pkg/errors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"gotest.tools/v3/assert"
+)
+
+// NewAPIClient returns a docker API client configured from environment variables
+func NewAPIClient(t testing.TB, ops ...client.Opt) client.APIClient {
+	t.Helper()
+	ops = append([]client.Opt{client.FromEnv}, ops...)
+	clt, err := client.New(ops...)
+	assert.NilError(t, err)
+	return clt
+}
+
+// DaemonTime provides the current time on the daemon host
+func DaemonTime(ctx context.Context, t testing.TB, apiClient client.APIClient, testEnv *environment.Execution) time.Time {
+	t.Helper()
+	if testEnv.IsLocalDaemon() {
+		return time.Now()
+	}
+
+	result, err := apiClient.Info(ctx, client.InfoOptions{})
+	assert.NilError(t, err)
+	info := result.Info
+
+	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
+	assert.NilError(t, err, "invalid time format in GET /info response")
+	return dt
+}
+
+// DaemonUnixTime returns the current time on the daemon host with nanoseconds precision.
+// It return the time formatted how the client sends timestamps to the server.
+func DaemonUnixTime(ctx context.Context, t testing.TB, client client.APIClient, testEnv *environment.Execution) string {
+	t.Helper()
+	dt := DaemonTime(ctx, t, client, testEnv)
+	return fmt.Sprintf("%d.%09d", dt.Unix(), int64(dt.Nanosecond()))
+}
+
+// Post creates and execute a POST request on the specified host and endpoint, with the specified request modifiers
+func Post(ctx context.Context, endpoint string, modifiers ...func(*Options)) (*http.Response, io.ReadCloser, error) {
+	return Do(ctx, endpoint, append(modifiers, Method(http.MethodPost))...)
+}
+
+// Delete creates and execute a DELETE request on the specified host and endpoint, with the specified request modifiers
+func Delete(ctx context.Context, endpoint string, modifiers ...func(*Options)) (*http.Response, io.ReadCloser, error) {
+	return Do(ctx, endpoint, append(modifiers, Method(http.MethodDelete))...)
+}
+
+// Get creates and execute a GET request on the specified host and endpoint, with the specified request modifiers
+func Get(ctx context.Context, endpoint string, modifiers ...func(*Options)) (*http.Response, io.ReadCloser, error) {
+	return Do(ctx, endpoint, modifiers...)
+}
+
+// Head creates and execute a HEAD request on the specified host and endpoint, with the specified request modifiers
+func Head(ctx context.Context, endpoint string, modifiers ...func(*Options)) (*http.Response, io.ReadCloser, error) {
+	return Do(ctx, endpoint, append(modifiers, Method(http.MethodHead))...)
+}
+
+// Do creates and execute a request on the specified endpoint, with the specified request modifiers
+func Do(ctx context.Context, endpoint string, modifiers ...func(*Options)) (*http.Response, io.ReadCloser, error) {
+	opts := &Options{
+		host: DaemonHost(),
+	}
+	for _, mod := range modifiers {
+		mod(opts)
+	}
+	req, err := newRequest(endpoint, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	req = req.WithContext(ctx)
+
+	httpClient, err := newHTTPClient(opts.host)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	resp, err := httpClient.Do(req)
+	var body io.ReadCloser
+	if resp != nil {
+		body = ioutils.NewReadCloserWrapper(resp.Body, func() error {
+			defer resp.Body.Close()
+			return nil
+		})
+	}
+	return resp, body, err
+}
+
+// newRequest creates a new http Request to the specified host and endpoint, with the specified request modifiers
+func newRequest(endpoint string, opts *Options) (*http.Request, error) {
+	hostURL, err := client.ParseHostURL(opts.host)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed parsing url %q", opts.host)
+	}
+	req, err := http.NewRequest(http.MethodGet, endpoint, http.NoBody)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create request")
+	}
+
+	if os.Getenv("DOCKER_TLS_VERIFY") != "" {
+		req.URL.Scheme = "https"
+	} else {
+		req.URL.Scheme = "http"
+	}
+	req.URL.Host = hostURL.Host
+
+	if hostURL.Scheme == "unix" || hostURL.Scheme == "npipe" {
+		// Override host header for non-tcp connections.
+		req.Host = client.DummyHost
+	}
+
+	for _, config := range opts.requestModifiers {
+		if err := config(req); err != nil {
+			return nil, err
+		}
+	}
+
+	return req, nil
+}
+
+// newHTTPClient creates an http client for the specific host
+// TODO: Share more code with client.defaultHTTPClient
+func newHTTPClient(host string) (*http.Client, error) {
+	// FIXME(vdemeester) 10*time.Second timeout of SockRequest… ?
+	hostURL, err := client.ParseHostURL(host)
+	if err != nil {
+		return nil, err
+	}
+	transport := new(http.Transport)
+	if hostURL.Scheme == "tcp" && os.Getenv("DOCKER_TLS_VERIFY") != "" {
+		// Setup the socket TLS configuration.
+		tlsConfig, err := getTLSConfig()
+		if err != nil {
+			return nil, err
+		}
+		transport = &http.Transport{TLSClientConfig: tlsConfig}
+	}
+	transport.DisableKeepAlives = true
+	err = sockets.ConfigureTransport(transport, hostURL.Scheme, hostURL.Host)
+	return &http.Client{Transport: otelhttp.NewTransport(transport)}, err
+}
+
+func getTLSConfig() (*tls.Config, error) {
+	dockerCertPath := os.Getenv("DOCKER_CERT_PATH")
+
+	if dockerCertPath == "" {
+		return nil, errors.New("DOCKER_TLS_VERIFY specified, but no DOCKER_CERT_PATH environment variable")
+	}
+
+	option := &tlsconfig.Options{
+		CAFile:   filepath.Join(dockerCertPath, "ca.pem"),
+		CertFile: filepath.Join(dockerCertPath, "cert.pem"),
+		KeyFile:  filepath.Join(dockerCertPath, "key.pem"),
+	}
+	tlsConfig, err := tlsconfig.Client(*option)
+	if err != nil {
+		return nil, err
+	}
+
+	return tlsConfig, nil
+}
+
+// DaemonHost return the daemon host string for this test execution
+func DaemonHost() string {
+	daemonURLStr := client.DefaultDockerHost
+	if daemonHostVar := os.Getenv("DOCKER_HOST"); daemonHostVar != "" {
+		daemonURLStr = daemonHostVar
+	}
+	return daemonURLStr
+}
+
+// SockConn opens a connection on the specified socket
+func SockConn(timeout time.Duration, daemon string) (net.Conn, error) {
+	daemonURL, err := url.Parse(daemon)
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not parse url %q", daemon)
+	}
+
+	var c net.Conn
+	switch daemonURL.Scheme {
+	case "npipe":
+		return npipeDial(daemonURL.Path, timeout)
+	case "unix":
+		return net.DialTimeout(daemonURL.Scheme, daemonURL.Path, timeout)
+	case "tcp":
+		if os.Getenv("DOCKER_TLS_VERIFY") != "" {
+			// Setup the socket TLS configuration.
+			tlsConfig, err := getTLSConfig()
+			if err != nil {
+				return nil, err
+			}
+			dialer := &net.Dialer{Timeout: timeout}
+			return tls.DialWithDialer(dialer, daemonURL.Scheme, daemonURL.Host, tlsConfig)
+		}
+		return net.DialTimeout(daemonURL.Scheme, daemonURL.Host, timeout)
+	default:
+		return c, errors.Errorf("unknown scheme %v (%s)", daemonURL.Scheme, daemon)
+	}
+}

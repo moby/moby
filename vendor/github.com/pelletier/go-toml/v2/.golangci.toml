@@ -1,0 +1,76 @@
+version = "2"
+
+[linters]
+default = "none"
+enable = [
+    "asciicheck",
+    "bodyclose",
+    "dogsled",
+    "dupl",
+    "durationcheck",
+    "errcheck",
+    "errorlint",
+    "exhaustive",
+    "forbidigo",
+    "gochecknoinits",
+    "goconst",
+    "gocritic",
+    "godoclint",
+    "goheader",
+    "gomodguard",
+    "goprintffuncname",
+    "gosec",
+    "govet",
+    "importas",
+    "ineffassign",
+    "lll",
+    "makezero",
+    "mirror",
+    "misspell",
+    "nakedret",
+    "nilerr",
+    "noctx",
+    "nolintlint",
+    "perfsprint",
+    "prealloc",
+    "predeclared",
+    "revive",
+    "rowserrcheck",
+    "sqlclosecheck",
+    "staticcheck",
+    "thelper",
+    "tparallel",
+    "unconvert",
+    "unparam",
+    "unused",
+    "usetesting",
+    "wastedassign",
+    "whitespace",
+]
+
+[linters.settings.exhaustive]
+default-signifies-exhaustive = true
+
+[linters.settings.lll]
+line-length = 150
+
+[[linters.exclusions.rules]]
+path = ".test.go"
+linters = ["goconst", "gosec"]
+
+[[linters.exclusions.rules]]
+path = "main.go"
+linters = ["forbidigo"]
+
+[[linters.exclusions.rules]]
+path = "internal"
+linters = ["revive"]
+text = "(exported|indent-error-flow): "
+
+[formatters]
+enable = [
+    "gci",
+    "gofmt",
+    "gofumpt",
+    "goimports",
+]

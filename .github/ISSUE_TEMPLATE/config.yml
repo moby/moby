@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security and Vulnerabilities
+    url: https://github.com/moby/moby/blob/master/SECURITY.md
+    about: Please report any security issues or vulnerabilities responsibly to the Docker security team. Please do not use the public issue tracker.
+  - name: Questions and Discussions
+    url: https://github.com/moby/moby/discussions/new
+    about: Use Github Discussions to ask questions and/or open discussion topics.

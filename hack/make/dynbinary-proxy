@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -e
+
+# docker-proxy is Linux only
+[ "$(go env GOOS)" != 'linux' ] || (
+	export LDFLAGS_STATIC=''
+	export BUILDFLAGS=("${BUILDFLAGS[@]/netgo /}")        # disable netgo, since we don't need it for a dynamic binary
+	export BUILDFLAGS=("${BUILDFLAGS[@]/osusergo /}")     # ditto for osusergo
+	export BUILDFLAGS=("${BUILDFLAGS[@]/static_build /}") # we're not building a "static" binary here
+
+	GO_PACKAGE='github.com/moby/moby/v2/cmd/docker-proxy'
+	BINARY_NAME='docker-proxy'
+	source "${MAKEDIR}/.binary"
+)

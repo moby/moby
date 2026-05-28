@@ -1,0 +1,62 @@
+/*
+	Copyright The containerd Authors.
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+		http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+
+syntax = "proto3";
+
+package containerd.services.events.v1;
+
+import "github.com/containerd/containerd/api/types/event.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/containerd/containerd/api/services/events/v1;events";
+
+service Events {
+	// Publish an event to a topic.
+	//
+	// The event will be packed into a timestamp envelope with the namespace
+	// introspected from the context. The envelope will then be dispatched.
+	rpc Publish(PublishRequest) returns (google.protobuf.Empty);
+
+	// Forward sends an event that has already been packaged into an envelope
+	// with a timestamp and namespace.
+	//
+	// This is useful if earlier timestamping is required or when forwarding on
+	// behalf of another component, namespace or publisher.
+	rpc Forward(ForwardRequest) returns (google.protobuf.Empty);
+
+	// Subscribe to a stream of events, possibly returning only that match any
+	// of the provided filters.
+	//
+	// Unlike many other methods in containerd, subscribers will get messages
+	// from all namespaces unless otherwise specified. If this is not desired,
+	// a filter can be provided in the format 'namespace==<namespace>' to
+	// restrict the received events.
+	rpc Subscribe(SubscribeRequest) returns (stream containerd.types.Envelope);
+}
+
+message PublishRequest {
+	string topic = 1;
+	google.protobuf.Any event = 2;
+}
+
+message ForwardRequest {
+	containerd.types.Envelope envelope = 1;
+}
+
+message SubscribeRequest {
+	repeated string filters = 1;
+}

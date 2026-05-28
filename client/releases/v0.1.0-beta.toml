@@ -1,0 +1,17 @@
+# commit to be tagged for new release
+commit = "HEAD"
+
+project_name = "moby"
+github_repo = "moby/moby"
+sub_path = "client"
+ignore_deps = [ "github.com/moby/moby" ]
+
+# previous release
+previous = "v28.2.2"
+
+pre_release = true
+
+preface = """\
+The first dedicated release for the Moby Client. This is a 0.x release
+since changes to the Go interface are still being considered.
+"""

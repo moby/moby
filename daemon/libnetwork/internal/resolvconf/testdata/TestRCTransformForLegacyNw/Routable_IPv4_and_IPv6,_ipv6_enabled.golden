@@ -1,0 +1,5 @@
+nameserver 10.0.0.1
+nameserver fdb6:b8fe:b528::1
+
+# Based on host file: '/etc/resolv.conf' (legacy)
+# Overrides: []

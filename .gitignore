@@ -1,0 +1,27 @@
+# If you want to ignore files created by your editor/tools, please consider a
+# [global .gitignore](https://help.github.com/articles/ignoring-files).
+
+*~
+*.bak
+*.orig
+.*.swp
+.DS_Store
+thumbs.db
+
+# local repository customization
+.envrc
+.bashrc
+.editorconfig
+
+# build artifacts
+/bundles/
+/cmd/dockerd/winresources/winres.json
+/cmd/dockerd/*.syso
+
+# ci artifacts
+*.exe
+*.gz
+go-test-report.json
+junit-report.xml
+profile.out
+test.main

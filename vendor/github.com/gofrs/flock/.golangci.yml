@@ -1,0 +1,116 @@
+version: "2"
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      extra-rules: true
+
+linters:
+  enable:
+    - asasalint
+    - bidichk
+    - dogsled
+    - dupword
+    - durationcheck
+    - err113
+    - errname
+    - errorlint
+    - fatcontext
+    - forbidigo
+    - gocheckcompilerdirectives
+    - gochecknoinits
+    - gocritic
+    - godot
+    - godox
+    - goheader
+    - gomoddirectives
+    - goprintffuncname
+    - gosec
+    - inamedparam
+    - interfacebloat
+    - ireturn
+    - mirror
+    - misspell
+    - nolintlint
+    - revive
+    - staticcheck
+    - testifylint
+    - thelper
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - whitespace
+    - wsl_v5
+  settings:
+    gocritic:
+      disabled-checks:
+        - paramTypeCombine # already handle by gofumpt.extra-rules
+        - whyNoLint # already handle by nonolint
+        - unnamedResult
+        - hugeParam
+        - sloppyReassign
+        - rangeValCopy
+        - octalLiteral
+        - ptrToRefParam
+        - appendAssign
+        - ruleguard
+        - httpNoBody
+        - exposedSyncMutex
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    godox:
+      keywords:
+        - FIXME
+    goheader:
+      template: |-
+        Copyright 2015 Tim Heckman. All rights reserved.
+        Copyright 2018-{{ YEAR }} The Gofrs. All rights reserved.
+        Use of this source code is governed by the BSD 3-Clause
+        license that can be found in the LICENSE file.
+    gosec:
+      excludes:
+        - G115
+    misspell:
+      locale: US
+    revive:
+      rules:
+        - name: struct-tag
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: if-return
+        - name: increment-decrement
+        - name: var-naming
+        - name: var-declaration
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+  exclusions:
+    presets:
+      - comments
+      - common-false-positives
+      - std-error-handling
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+

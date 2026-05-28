@@ -1,0 +1,9 @@
+codecov:
+  notify:
+    after_n_builds: 2
+
+coverage:
+  status:
+    patch:
+      default:
+        target: 80%

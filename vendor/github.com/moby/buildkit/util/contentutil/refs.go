@@ -1,0 +1,136 @@
+package contentutil
+
+import (
+	"context"
+	"net/http"
+	"sync"
+
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/remotes"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/buildkit/version"
+	"github.com/moby/locker"
+	digest "github.com/opencontainers/go-digest"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
+)
+
+type ResolveOpt struct {
+	Credentials func(string) (string, string, error)
+}
+
+type ResolveOptFunc func(*ResolveOpt)
+
+func WithCredentials(c func(string) (string, string, error)) ResolveOptFunc {
+	return func(o *ResolveOpt) {
+		o.Credentials = func(host string) (string, string, error) {
+			if host == "registry-1.docker.io" {
+				host = "https://index.docker.io/v1/"
+			}
+			return c(host)
+		}
+	}
+}
+
+func ProviderFromRef(ref string, opts ...ResolveOptFunc) (ocispecs.Descriptor, content.Provider, error) {
+	headers := http.Header{}
+	headers.Set("User-Agent", version.UserAgent())
+
+	var ro ResolveOpt
+	for _, f := range opts {
+		f(&ro)
+	}
+
+	dro := docker.ResolverOptions{
+		Headers: headers,
+	}
+	if ro.Credentials != nil {
+		dro.Hosts = docker.ConfigureDefaultRegistries(
+			docker.WithAuthorizer(docker.NewDockerAuthorizer(docker.WithAuthCreds(ro.Credentials))),
+		)
+	}
+	remote := docker.NewResolver(dro)
+
+	name, desc, err := remote.Resolve(context.TODO(), ref)
+	if err != nil {
+		return ocispecs.Descriptor{}, nil, err
+	}
+
+	fetcher, err := remote.Fetcher(context.TODO(), name)
+	if err != nil {
+		return ocispecs.Descriptor{}, nil, err
+	}
+	return desc, FromFetcher(fetcher), nil
+}
+
+func IngesterFromRef(ref string) (content.Ingester, error) {
+	headers := http.Header{}
+	headers.Set("User-Agent", version.UserAgent())
+	remote := docker.NewResolver(docker.ResolverOptions{
+		Headers: headers,
+	})
+
+	p, err := remote.Pusher(context.TODO(), ref)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ingester{
+		locker: locker.New(),
+		pusher: &pusher{p},
+	}, nil
+}
+
+type pusher struct {
+	remotes.Pusher
+}
+
+type ingester struct {
+	locker *locker.Locker
+	pusher remotes.Pusher
+}
+
+func (w *ingester) Writer(ctx context.Context, opts ...content.WriterOpt) (content.Writer, error) {
+	var wo content.WriterOpts
+	for _, o := range opts {
+		if err := o(&wo); err != nil {
+			return nil, err
+		}
+	}
+	if wo.Ref == "" {
+		return nil, errors.Wrap(cerrdefs.ErrInvalidArgument, "ref must not be empty")
+	}
+	w.locker.Lock(wo.Ref)
+	var once sync.Once
+	unlock := func() {
+		once.Do(func() {
+			w.locker.Unlock(wo.Ref)
+		})
+	}
+	writer, err := w.pusher.Push(ctx, wo.Desc)
+	if err != nil {
+		unlock()
+		return nil, err
+	}
+	return &lockedWriter{unlock: unlock, Writer: writer}, nil
+}
+
+type lockedWriter struct {
+	unlock func()
+	content.Writer
+}
+
+func (w *lockedWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opts ...content.Opt) error {
+	err := w.Writer.Commit(ctx, size, expected, opts...)
+	if err == nil {
+		w.unlock()
+	}
+	return err
+}
+
+func (w *lockedWriter) Close() error {
+	err := w.Writer.Close()
+	w.unlock()
+	return err
+}

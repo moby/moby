@@ -1,0 +1,4 @@
+table ip this_is_a_table {
+	chain this_is_a_chain {
+	}
+}

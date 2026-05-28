@@ -1,0 +1,7 @@
+cdiVersion: "0.3.0"
+kind: "vendor1.com/device"
+devices:
+- name: foo
+  containerEdits:
+    env:
+    - FOO=injected

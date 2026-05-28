@@ -1,0 +1,33 @@
+name: windows-2022
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+jobs:
+  validate-dco:
+    uses: ./.github/workflows/.dco.yml
+  run:
+    needs: validate-dco
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
+    uses: ./.github/workflows/.windows.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        storage:
+          - graphdriver
+          - snapshotter
+    with:
+      os: windows-2022
+      storage: ${{ matrix.storage }}
+      send_coverage: true
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

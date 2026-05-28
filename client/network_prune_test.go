@@ -1,0 +1,88 @@
+package client
+
+import (
+	"net/http"
+	"testing"
+
+	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/moby/api/types/network"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+)
+
+func TestNetworkPruneError(t *testing.T) {
+	client, err := New(
+		WithMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	)
+	assert.NilError(t, err)
+
+	_, err = client.NetworkPrune(t.Context(), NetworkPruneOptions{})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
+}
+
+func TestNetworkPrune(t *testing.T) {
+	const expectedURL = "/networks/prune"
+
+	listCases := []struct {
+		filters             Filters
+		expectedQueryParams map[string]string
+	}{
+		{
+			filters: Filters{},
+			expectedQueryParams: map[string]string{
+				"until":   "",
+				"filter":  "",
+				"filters": "",
+			},
+		},
+		{
+			filters: make(Filters).Add("dangling", "true"),
+			expectedQueryParams: map[string]string{
+				"until":   "",
+				"filter":  "",
+				"filters": `{"dangling":{"true":true}}`,
+			},
+		},
+		{
+			filters: make(Filters).Add("dangling", "false"),
+			expectedQueryParams: map[string]string{
+				"until":   "",
+				"filter":  "",
+				"filters": `{"dangling":{"false":true}}`,
+			},
+		},
+		{
+			filters: make(Filters).
+				Add("dangling", "true").
+				Add("label", "label1=foo").
+				Add("label", "label2!=bar"),
+			expectedQueryParams: map[string]string{
+				"until":   "",
+				"filter":  "",
+				"filters": `{"dangling":{"true":true},"label":{"label1=foo":true,"label2!=bar":true}}`,
+			},
+		},
+	}
+	for _, listCase := range listCases {
+		client, err := New(
+			WithMockClient(func(req *http.Request) (*http.Response, error) {
+				if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
+					return nil, err
+				}
+				query := req.URL.Query()
+				for key, expected := range listCase.expectedQueryParams {
+					actual := query.Get(key)
+					assert.Check(t, is.Equal(expected, actual))
+				}
+				return mockJSONResponse(http.StatusOK, nil, network.PruneReport{
+					NetworksDeleted: []string{"network_id1", "network_id2"},
+				})(req)
+			}),
+		)
+		assert.NilError(t, err)
+
+		res, err := client.NetworkPrune(t.Context(), NetworkPruneOptions{Filters: listCase.filters})
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(res.Report.NetworksDeleted, 2))
+	}
+}

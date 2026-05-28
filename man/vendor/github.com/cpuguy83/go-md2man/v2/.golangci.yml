@@ -1,0 +1,20 @@
+# For documentation, see https://golangci-lint.run/usage/configuration/
+
+version: "2"
+
+formatters:
+  enable:
+    - gofumpt
+
+linters:
+  enable:
+    - errorlint
+    - nolintlint
+    - unconvert
+    - unparam
+  settings:
+    staticcheck:
+      checks:
+        - all
+        - -QF1008 # https://staticcheck.dev/docs/checks/#QF1008 Omit embedded fields from selector expression.
+

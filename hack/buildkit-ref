@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# This script returns the current BuildKit ref and source repository being used.
+# This script will only work with a BuildKit repository hosted on GitHub.
+#
+# The output of this script may be valid shell script, but is intended for use with
+# GitHub Actions' $GITHUB_ENV.
+
+set -euo pipefail
+
+buildkit_pkg=github.com/moby/buildkit
+
+resolve_github_commit_sha() {
+	local repo=$1
+	local ref=$2
+	local resolved
+
+	if command -v gh > /dev/null 2>&1; then
+		if resolved=$(gh api "repos/${repo}/commits/${ref}" --jq '.sha // empty' 2> /dev/null) && [[ -n "$resolved" ]]; then
+			echo "$resolved"
+			return 0
+		fi
+	fi
+
+	local curl_args=(-fsSL)
+	if [[ -n "${GH_TOKEN:-}" ]]; then
+		curl_args+=(-H "Authorization: Bearer ${GH_TOKEN}")
+	fi
+
+	if resolved=$(curl "${curl_args[@]}" "https://api.github.com/repos/${repo}/commits/${ref}" | jq -er '.sha // empty'); then
+		echo "$resolved"
+		return 0
+	fi
+
+	return 1
+}
+
+# get buildkit version from go.mod
+buildkit_ref=$(go list -mod=mod -u -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "$buildkit_pkg")
+buildkit_repo=$(go list -mod=mod -u -m -f '{{if .Replace}}{{.Replace.Path}}{{else}}{{.Path}}{{end}}' "$buildkit_pkg")
+buildkit_repo=${buildkit_repo#github.com/}
+
+if [[ "${buildkit_ref}" == *-*-* ]]; then
+	# if pseudo-version, figure out just the commit sha
+	commit_ref=$(awk -F"-" '{print $NF}' <<< "$buildkit_ref")
+	# resolve through GitHub to get the full sha for use as a ref.
+	if ! buildkit_ref=$(resolve_github_commit_sha "$buildkit_repo" "$commit_ref"); then
+		echo "failed to resolve BuildKit commit ${buildkit_repo}@${commit_ref}" >&2
+		exit 1
+	fi
+fi
+
+cat << EOF
+BUILDKIT_REPO=$buildkit_repo
+BUILDKIT_REF=$buildkit_ref
+EOF

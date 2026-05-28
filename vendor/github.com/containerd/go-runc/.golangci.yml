@@ -1,0 +1,20 @@
+linters:
+  enable:
+    - gofmt
+    - goimports
+    - ineffassign
+    - misspell
+    - revive
+    - staticcheck
+    - unconvert
+    - unused
+    - vet
+  disable:
+    - errcheck
+
+issues:
+  include:
+    - EXC0002
+
+run:
+  timeout: 2m

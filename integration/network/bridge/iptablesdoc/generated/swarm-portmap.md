@@ -1,0 +1,152 @@
+<!-- This is a generated file; DO NOT EDIT. -->
+
+## Swarm service, with a published port
+
+Equivalent to:
+
+	docker service create -p 8080:80 busybox top
+
+The filter table is:
+
+    Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    
+    Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DOCKER-USER  all  --  any    any     anywhere             anywhere            
+    2        0     0 DOCKER-FORWARD  all  --  any    any     anywhere             anywhere            
+    
+    Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    
+    Chain DOCKER (2 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DROP       all  --  !docker0 docker0  anywhere             anywhere            
+    2        0     0 DROP       all  --  !docker_gwbridge docker_gwbridge  anywhere             anywhere            
+    
+    Chain DOCKER-BRIDGE (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DOCKER     all  --  any    docker0  anywhere             anywhere            
+    2        0     0 DOCKER     all  --  any    docker_gwbridge  anywhere             anywhere            
+    
+    Chain DOCKER-CT (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 ACCEPT     all  --  any    docker0  anywhere             anywhere             ctstate RELATED,ESTABLISHED
+    2        0     0 ACCEPT     all  --  any    docker_gwbridge  anywhere             anywhere             ctstate RELATED,ESTABLISHED
+    
+    Chain DOCKER-FORWARD (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DOCKER-INGRESS  all  --  any    any     anywhere             anywhere            
+    2        0     0 DOCKER-CT  all  --  any    any     anywhere             anywhere            
+    3        0     0 DOCKER-INTERNAL  all  --  any    any     anywhere             anywhere            
+    4        0     0 DOCKER-BRIDGE  all  --  any    any     anywhere             anywhere            
+    5        0     0 ACCEPT     all  --  docker0 any     anywhere             anywhere            
+    6        0     0 DROP       all  --  docker_gwbridge docker_gwbridge  anywhere             anywhere            
+    7        0     0 ACCEPT     all  --  docker_gwbridge !docker_gwbridge  anywhere             anywhere            
+    
+    Chain DOCKER-INGRESS (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 ACCEPT     tcp  --  any    any     anywhere             anywhere             tcp dpt:http-alt
+    2        0     0 ACCEPT     tcp  --  any    any     anywhere             anywhere             tcp spt:http-alt ctstate RELATED,ESTABLISHED
+    3        0     0 RETURN     all  --  any    any     anywhere             anywhere            
+    
+    Chain DOCKER-INTERNAL (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    
+    Chain DOCKER-USER (1 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    
+
+<details>
+<summary>iptables commands</summary>
+
+    -P INPUT ACCEPT
+    -P FORWARD ACCEPT
+    -P OUTPUT ACCEPT
+    -N DOCKER
+    -N DOCKER-BRIDGE
+    -N DOCKER-CT
+    -N DOCKER-FORWARD
+    -N DOCKER-INGRESS
+    -N DOCKER-INTERNAL
+    -N DOCKER-USER
+    -A FORWARD -j DOCKER-USER
+    -A FORWARD -j DOCKER-FORWARD
+    -A DOCKER ! -i docker0 -o docker0 -j DROP
+    -A DOCKER ! -i docker_gwbridge -o docker_gwbridge -j DROP
+    -A DOCKER-BRIDGE -o docker0 -j DOCKER
+    -A DOCKER-BRIDGE -o docker_gwbridge -j DOCKER
+    -A DOCKER-CT -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-CT -o docker_gwbridge -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-FORWARD -j DOCKER-INGRESS
+    -A DOCKER-FORWARD -j DOCKER-CT
+    -A DOCKER-FORWARD -j DOCKER-INTERNAL
+    -A DOCKER-FORWARD -j DOCKER-BRIDGE
+    -A DOCKER-FORWARD -i docker0 -j ACCEPT
+    -A DOCKER-FORWARD -i docker_gwbridge -o docker_gwbridge -j DROP
+    -A DOCKER-FORWARD -i docker_gwbridge ! -o docker_gwbridge -j ACCEPT
+    -A DOCKER-INGRESS -p tcp -m tcp --dport 8080 -j ACCEPT
+    -A DOCKER-INGRESS -p tcp -m tcp --sport 8080 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    -A DOCKER-INGRESS -j RETURN
+    
+
+</details>
+
+Note that:
+
+ - There's a bridge network called `docker_gwbridge` for swarm ingress.
+   - Its rules follow the usual pattern for a network with inter-container communication disabled.
+- There's an additional chain `DOCKER-INGRESS`.
+  - The jump to `DOCKER-INGRESS` is first in the `DOCKER-FORWARD` chain.
+
+And the corresponding nat table:
+
+    Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DOCKER-INGRESS  all  --  any    any     anywhere             anywhere             ADDRTYPE match dst-type LOCAL
+    2        0     0 DOCKER     all  --  any    any     anywhere             anywhere             ADDRTYPE match dst-type LOCAL
+    
+    Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    
+    Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DOCKER-INGRESS  all  --  any    any     anywhere             anywhere             ADDRTYPE match dst-type LOCAL
+    2        0     0 DOCKER     all  --  any    any     anywhere            !loopback/8           ADDRTYPE match dst-type LOCAL
+    
+    Chain POSTROUTING (policy ACCEPT 0 packets, 0 bytes)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 MASQUERADE  all  --  any    docker_gwbridge  anywhere             anywhere             ADDRTYPE match src-type LOCAL
+    2        0     0 MASQUERADE  all  --  any    !docker_gwbridge  172.18.0.0/16        anywhere            
+    3        0     0 MASQUERADE  all  --  any    !docker0  172.17.0.0/16        anywhere            
+    
+    Chain DOCKER (2 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    
+    Chain DOCKER-INGRESS (2 references)
+    num   pkts bytes target     prot opt in     out     source               destination         
+    1        0     0 DNAT       tcp  --  any    any     anywhere             anywhere             tcp dpt:http-alt to:172.18.0.2:8080
+    2        0     0 RETURN     all  --  any    any     anywhere             anywhere            
+    
+
+<details>
+<summary>iptables commands</summary>
+
+    -P PREROUTING ACCEPT
+    -P INPUT ACCEPT
+    -P OUTPUT ACCEPT
+    -P POSTROUTING ACCEPT
+    -N DOCKER
+    -N DOCKER-INGRESS
+    -A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER-INGRESS
+    -A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+    -A OUTPUT -m addrtype --dst-type LOCAL -j DOCKER-INGRESS
+    -A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER
+    -A POSTROUTING -o docker_gwbridge -m addrtype --src-type LOCAL -j MASQUERADE
+    -A POSTROUTING -s 172.18.0.0/16 ! -o docker_gwbridge -j MASQUERADE
+    -A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+    -A DOCKER-INGRESS -p tcp -m tcp --dport 8080 -j DNAT --to-destination 172.18.0.2:8080
+    -A DOCKER-INGRESS -j RETURN
+    
+
+</details>

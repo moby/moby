@@ -1,0 +1,85 @@
+//go:build !windows
+
+package appdefaults
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+const (
+	Root                 = "/var/lib/buildkit"
+	ConfigDir            = "/etc/buildkit"
+	DefaultCNIBinDir     = "/opt/cni/bin"
+	DefaultCNIConfigPath = "/etc/buildkit/cni.json"
+)
+
+var (
+	UserCNIConfigPath = filepath.Join(UserConfigDir(), "cni.json")
+	CDISpecDirs       = []string{"/etc/cdi", "/var/run/cdi", "/etc/buildkit/cdi"}
+)
+
+// UserAddress typically returns /run/user/$UID/buildkit/buildkitd.sock
+func UserAddress() string {
+	//  pam_systemd sets XDG_RUNTIME_DIR but not other dirs.
+	xdgRuntimeDir := os.Getenv("XDG_RUNTIME_DIR")
+	if xdgRuntimeDir != "" {
+		dirs := strings.Split(xdgRuntimeDir, ":")
+		return "unix://" + filepath.Join(dirs[0], "buildkit", "buildkitd.sock")
+	}
+	return Address
+}
+
+// EnsureUserAddressDir sets sticky bit on XDG_RUNTIME_DIR if XDG_RUNTIME_DIR is set.
+// See https://github.com/opencontainers/runc/issues/1694
+func EnsureUserAddressDir() error {
+	xdgRuntimeDir := os.Getenv("XDG_RUNTIME_DIR")
+	if xdgRuntimeDir != "" {
+		dirs := strings.Split(xdgRuntimeDir, ":")
+		dir := filepath.Join(dirs[0], "buildkit")
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			return err
+		}
+		return os.Chmod(dir, 0700|os.ModeSticky)
+	}
+	return nil
+}
+
+// UserRoot typically returns /home/$USER/.local/share/buildkit
+func UserRoot() string {
+	//  pam_systemd sets XDG_RUNTIME_DIR but not other dirs.
+	xdgDataHome := os.Getenv("XDG_DATA_HOME")
+	if xdgDataHome != "" {
+		dirs := strings.Split(xdgDataHome, ":")
+		return filepath.Join(dirs[0], "buildkit")
+	}
+	home := os.Getenv("HOME")
+	if home != "" {
+		return filepath.Join(home, ".local", "share", "buildkit")
+	}
+	return Root
+}
+
+// UserConfigDir returns dir for storing config. /home/$USER/.config/buildkit/
+func UserConfigDir() string {
+	xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
+	if xdgConfigHome != "" {
+		return filepath.Join(xdgConfigHome, "buildkit")
+	}
+	home := os.Getenv("HOME")
+	if home != "" {
+		return filepath.Join(home, ".config", "buildkit")
+	}
+	return ConfigDir
+}
+
+func TraceSocketPath(inUserNS bool) string {
+	if inUserNS {
+		if xrd := os.Getenv("XDG_RUNTIME_DIR"); xrd != "" {
+			dirs := strings.Split(xrd, ":")
+			return filepath.Join(dirs[0], "buildkit", "otel-grpc.sock")
+		}
+	}
+	return traceSocketPath
+}

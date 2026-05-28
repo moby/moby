@@ -1,0 +1,4 @@
+nameserver 10.0.0.1
+
+# Based on host file: '/etc/resolv.conf' (legacy)
+# Overrides: []

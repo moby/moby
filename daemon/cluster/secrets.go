@@ -1,0 +1,116 @@
+package cluster
+
+import (
+	"context"
+
+	types "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/daemon/cluster/convert"
+	"github.com/moby/moby/v2/daemon/server/swarmbackend"
+	swarmapi "github.com/moby/swarmkit/v2/api"
+	"google.golang.org/grpc"
+)
+
+// GetSecret returns a secret from a managed swarm cluster
+func (c *Cluster) GetSecret(input string) (types.Secret, error) {
+	var secret *swarmapi.Secret
+
+	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+		s, err := getSecret(ctx, state.controlClient, input)
+		if err != nil {
+			return err
+		}
+		secret = s
+		return nil
+	}); err != nil {
+		return types.Secret{}, err
+	}
+	return convert.SecretFromGRPC(secret), nil
+}
+
+// GetSecrets returns all secrets of a managed swarm cluster.
+func (c *Cluster) GetSecrets(options swarmbackend.SecretListOptions) ([]types.Secret, error) {
+	filters, err := newListSecretsFilters(options.Filters)
+	if err != nil {
+		return nil, err
+	}
+
+	var r *swarmapi.ListSecretsResponse
+	err = c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+		var err error
+		r, err = state.controlClient.ListSecrets(ctx,
+			&swarmapi.ListSecretsRequest{Filters: filters},
+			grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse),
+		)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	secrets := make([]types.Secret, 0, len(r.Secrets))
+
+	for _, secret := range r.Secrets {
+		secrets = append(secrets, convert.SecretFromGRPC(secret))
+	}
+
+	return secrets, nil
+}
+
+// CreateSecret creates a new secret in a managed swarm cluster.
+func (c *Cluster) CreateSecret(s types.SecretSpec) (string, error) {
+	var resp *swarmapi.CreateSecretResponse
+	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+		secretSpec := convert.SecretSpecToGRPC(s)
+
+		r, err := state.controlClient.CreateSecret(ctx,
+			&swarmapi.CreateSecretRequest{Spec: &secretSpec})
+		if err != nil {
+			return err
+		}
+		resp = r
+		return nil
+	}); err != nil {
+		return "", err
+	}
+	return resp.Secret.ID, nil
+}
+
+// RemoveSecret removes a secret from a managed swarm cluster.
+func (c *Cluster) RemoveSecret(input string) error {
+	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+		secret, err := getSecret(ctx, state.controlClient, input)
+		if err != nil {
+			return err
+		}
+
+		req := &swarmapi.RemoveSecretRequest{
+			SecretID: secret.ID,
+		}
+
+		_, err = state.controlClient.RemoveSecret(ctx, req)
+		return err
+	})
+}
+
+// UpdateSecret updates a secret in a managed swarm cluster.
+// Note: this is not exposed to the CLI but is available from the API only
+func (c *Cluster) UpdateSecret(input string, version uint64, spec types.SecretSpec) error {
+	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+		secret, err := getSecret(ctx, state.controlClient, input)
+		if err != nil {
+			return err
+		}
+
+		secretSpec := convert.SecretSpecToGRPC(spec)
+
+		_, err = state.controlClient.UpdateSecret(ctx,
+			&swarmapi.UpdateSecretRequest{
+				SecretID: secret.ID,
+				SecretVersion: &swarmapi.Version{
+					Index: version,
+				},
+				Spec: &secretSpec,
+			})
+		return err
+	})
+}

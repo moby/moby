@@ -1,0 +1,32 @@
+#!/sbin/openrc-run
+# Copyright 1999-2013 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License v2
+
+command="${DOCKERD_BINARY:-/usr/bin/dockerd}"
+pidfile="${DOCKER_PIDFILE:-/run/${RC_SVCNAME}.pid}"
+command_args="-p \"${pidfile}\" ${DOCKER_OPTS}"
+DOCKER_LOGFILE="${DOCKER_LOGFILE:-/var/log/${RC_SVCNAME}.log}"
+DOCKER_ERRFILE="${DOCKER_ERRFILE:-${DOCKER_LOGFILE}}"
+DOCKER_OUTFILE="${DOCKER_OUTFILE:-${DOCKER_LOGFILE}}"
+start_stop_daemon_args="--background \
+	--stderr \"${DOCKER_ERRFILE}\" --stdout \"${DOCKER_OUTFILE}\""
+
+extra_started_commands="reload"
+
+rc_ulimit="${DOCKER_ULIMIT:--c unlimited -n 524288 -u unlimited}"
+
+retry="${DOCKER_RETRY:-TERM/60/KILL/10}"
+
+depend() {
+	need ${CONTAINERD_SVC:-containerd}
+}
+
+start_pre() {
+	checkpath -f -m 0644 -o root:docker "$DOCKER_LOGFILE"
+}
+
+reload() {
+	ebegin "Reloading ${RC_SVCNAME}"
+	start-stop-daemon --signal HUP --pidfile "${pidfile}"
+	eend $? "Failed to stop ${RC_SVCNAME}"
+}

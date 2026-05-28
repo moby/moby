@@ -1,0 +1,68 @@
+table ip docker-bridges {
+	map filter-forward-in-jumps {
+		type ifname : verdict
+		elements = { "br-dummy" : jump filter-forward-in__br-dummy }
+	}
+
+	map filter-forward-out-jumps {
+		type ifname : verdict
+		elements = { "br-dummy" : jump filter-forward-out__br-dummy }
+	}
+
+	map nat-postrouting-in-jumps {
+		type ifname : verdict
+		elements = { "br-dummy" : jump nat-postrouting-in__br-dummy }
+	}
+
+	map nat-postrouting-out-jumps {
+		type ifname : verdict
+		elements = { "br-dummy" : jump nat-postrouting-out__br-dummy }
+	}
+
+	chain filter-FORWARD {
+		type filter hook forward priority filter; policy accept;
+		oifname vmap @filter-forward-in-jumps
+		iifname vmap @filter-forward-out-jumps
+	}
+
+	chain nat-OUTPUT {
+		type nat hook output priority dstnat; policy accept;
+		ip daddr != 127.0.0.0/8 fib daddr type local counter packets 0 bytes 0 jump nat-prerouting-and-output
+	}
+
+	chain nat-POSTROUTING {
+		type nat hook postrouting priority srcnat; policy accept;
+		iifname vmap @nat-postrouting-out-jumps
+		oifname vmap @nat-postrouting-in-jumps
+	}
+
+	chain nat-PREROUTING {
+		type nat hook prerouting priority dstnat; policy accept;
+		fib daddr type local counter packets 0 bytes 0 jump nat-prerouting-and-output
+	}
+
+	chain nat-prerouting-and-output {
+		iifname != "br-dummy" tcp dport 8080 counter packets 0 bytes 0 dnat to 192.168.0.2:80 comment "DNAT"
+	}
+
+	chain raw-PREROUTING {
+		type filter hook prerouting priority raw; policy accept;
+	}
+
+	chain filter-forward-in__br-dummy {
+		ct state established,related counter packets 0 bytes 0 accept
+		iifname "br-dummy" counter packets 0 bytes 0 accept comment "ICC"
+		counter packets 0 bytes 0 accept comment "UNPROTECTED"
+	}
+
+	chain filter-forward-out__br-dummy {
+		ct state established,related counter packets 0 bytes 0 accept
+		counter packets 0 bytes 0 accept comment "OUTGOING"
+	}
+
+	chain nat-postrouting-in__br-dummy {
+	}
+
+	chain nat-postrouting-out__br-dummy {
+	}
+}
