@@ -109,4 +109,32 @@ type MetricsReporter interface {
 	// Each client will produce different metrics. Please see the client's
 	// documentation for a list of possible metrics events.
 	ReportMetric(metric any)
+
+	// RegisterAsyncReporter registers a reporter to produce metric values for
+	// the set of metrics supported by the client. See the metrics sub-package
+	// for the specific client (e.g. internal/xds/clients/xdsclient/metrics/metrics.go)
+	// for the list of supported metrics. The returned function must be called
+	// when the metrics are no longer needed, which will remove the reporter.
+	// The function is expected to be idempotent.
+	//
+	// Once the returned cancel function is called, the Report method on the
+	// registered reporter is guaranteed not to be called again.
+	RegisterAsyncReporter(reporter AsyncReporter) func()
+}
+
+// AsyncReporter records metrics asynchronously.
+// Implementations must be concurrent-safe.
+// The metric will be recorded once per collection cycle, rather than every time
+// its value changes.
+type AsyncReporter interface {
+	// Report records metric values using the provided recorder.
+	Report(AsyncMetricsRecorder) error
+}
+
+// AsyncMetricsRecorder is a recorder for async metrics (i.e the metric will be
+// recorded once per collection cycle, rather than every time its value changes).
+type AsyncMetricsRecorder interface {
+	// ReportMetric reports a metric. The metric will be one of the predefined
+	// set of types in the internal/xds/clients/xdsclient/metrics/metrics.go file.
+	ReportMetric(metric any)
 }
