@@ -397,11 +397,6 @@ func (r *Resolver) handleSRVQuery(ctx context.Context, query *dns.Msg) (*dns.Msg
 }
 
 func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
-	var (
-		resp *dns.Msg
-		err  error
-	)
-
 	if query == nil || len(query.Question) == 0 {
 		return
 	}
@@ -414,6 +409,11 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 		attribute.String("libnet.resolver.query.type", dns.TypeToString[queryType]),
 	))
 	defer span.End()
+
+	var (
+		resp *dns.Msg
+		err  error
+	)
 
 	switch queryType {
 	case dns.TypeA:
@@ -431,7 +431,7 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 	}
 
 	reply := func(msg *dns.Msg) {
-		if err = w.WriteMsg(msg); err != nil {
+		if err := w.WriteMsg(msg); err != nil {
 			r.log(ctx).WithError(err).Error("[resolver] failed to write response")
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "WriteMsg failed")
