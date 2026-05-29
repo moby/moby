@@ -85,19 +85,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Only amd64 gets the full matrix
           - arch: amd64
-            runner: ubuntu-24.04
+            storage: snapshotter
+            runnerSuffix: ""
+            extraModes: '["rootless", "systemd", "iptables+firewalld", "nftables", "nftables+firewalld"]'
+            # FIXME: add rootless-systemd once https://github.com/moby/moby/issues/44084 is resolved.
+          - arch: amd64
             storage: graphdriver
-          - arch: amd64
-            runner: ubuntu-24.04
-            storage: snapshotter
+            runnerSuffix: ""
+            extraModes: '["rootless", "systemd"]'
+            # FIXME: add rootless-systemd once https://github.com/moby/moby/issues/44084 is resolved.
           - arch: arm64
-            runner: ubuntu-24.04-arm
             storage: snapshotter
+            runnerSuffix: "-arm"
+            extraModes: '[]'
     with:
       arch: ${{ matrix.arch }}
-      runner: ${{ matrix.runner }}
       storage: ${{ matrix.storage }}
+      runnerSuffix: ${{ matrix.runnerSuffix }}
+      extraModes: ${{ matrix.extraModes }}
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -112,12 +119,12 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: ubuntu-24.04
+            runnerSuffix: ""
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runnerSuffix: "-arm"
     with:
       arch: ${{ matrix.arch }}
-      runner: ${{ matrix.runner }}
+      runnerSuffix: ${{ matrix.runnerSuffix }}
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
