@@ -1,5 +1,4 @@
-//go:build !darwin && !windows
-// +build !darwin,!windows
+//go:build !windows
 
 package mount
 
