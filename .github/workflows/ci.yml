@@ -174,3 +174,23 @@ jobs:
           targets: dind
           set: |
             *.output=type=cacheonly
+
+  success:
+    name: CI Build Success
+    runs-on: ubuntu-24.04
+    if: ${{ always() }}
+    needs:
+      - validate-dco
+      - build
+      - prepare-cross
+      - cross
+      - govulncheck
+      - build-dind
+    steps:
+      -
+        name: Check CI result
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1
+      -
+        name: Report success
+        run: echo "All CI jobs completed successfully"
