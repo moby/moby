@@ -3,6 +3,7 @@ package image
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/moby/moby/client"
@@ -268,4 +269,21 @@ func TestImageInspectWithPlatform(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestImageInspectRepoTags verifies that ImageInspect returns the correct
+// RepoTags after an image has been tagged.
+func TestImageInspectRepoTags(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	tag := "busybox:" + strings.ReplaceAll(t.Name(), "/", "-")
+	_, err := apiClient.ImageTag(ctx, client.ImageTagOptions{Source: "busybox:latest", Target: tag})
+	assert.NilError(t, err)
+
+	imageJSON, err := apiClient.ImageInspect(ctx, "busybox")
+	assert.NilError(t, err)
+
+	assert.Check(t, is.Contains(imageJSON.RepoTags, "busybox:latest"))
+	assert.Check(t, is.Contains(imageJSON.RepoTags, tag))
 }
