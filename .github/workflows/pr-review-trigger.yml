@@ -1,0 +1,39 @@
+name: PR Review - Trigger
+on:
+  pull_request:
+    types: [ready_for_review, opened, review_requested]
+  pull_request_review_comment:
+    types: [created]
+
+permissions: {}
+
+jobs:
+  save-context:
+    if: >
+      github.event.comment.user.login != 'docker-agent' &&
+      github.event.comment.user.login != 'docker-agent[bot]' &&
+      github.event.comment.user.type != 'Bot' &&
+      !contains(github.event.comment.body, '<!-- cagent-review -->') &&
+      !contains(github.event.comment.body, '<!-- cagent-review-reply -->')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Save event context
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          COMMENT_JSON: ${{ toJSON(github.event.comment) }}
+        run: |
+          mkdir -p context
+          printf '%s' "${{ github.event_name }}" > context/event_name.txt
+          printf '%s' "$PR_NUMBER" > context/pr_number.txt
+          printf '%s' "$PR_HEAD_SHA" > context/pr_head_sha.txt
+          if [ "${{ github.event_name }}" = "pull_request_review_comment" ]; then
+            printf '%s' "$COMMENT_JSON" > context/comment.json
+          fi
+
+      - name: Upload context
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-review-context
+          path: context/
+          retention-days: 1

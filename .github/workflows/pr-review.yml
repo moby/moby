@@ -1,0 +1,32 @@
+name: PR Review
+on:
+  issue_comment:
+    types: [created]
+  workflow_run:
+    workflows: ["PR Review - Trigger"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    if: |
+      (github.event_name == 'issue_comment' &&
+       github.event.comment.user.login != 'docker-agent' &&
+       github.event.comment.user.login != 'docker-agent[bot]' &&
+       github.event.comment.user.type != 'Bot' &&
+       !contains(github.event.comment.body, '<!-- cagent-review -->') &&
+       !contains(github.event.comment.body, '<!-- cagent-review-reply -->')) ||
+      github.event.workflow_run.conclusion == 'success'
+    uses: docker/cagent-action/.github/workflows/review-pr.yml@3f5dc9969f307d3c76acb7e9ccaefdd96bd62f4b  # v1.5.4
+    permissions:
+      contents: read # Read repository files and PR diffs
+      pull-requests: write # Post review comments
+      issues: write # Create security incident issues if secrets detected
+      checks: write # (Optional) Show review progress as a check run
+      #id-token: write # Required for OIDC authentication to AWS Secrets Manager
+      actions: read # Download artifacts from trigger workflow
+    with:
+      trigger-run-id: ${{ github.event_name == 'workflow_run' && format('{0}', github.event.workflow_run.id) || '' }}
+      anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
