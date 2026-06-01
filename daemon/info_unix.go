@@ -150,7 +150,7 @@ func (daemon *Daemon) fillPlatformInfo(ctx context.Context, v *system.Info, sysI
 	if v.CgroupVersion == "1" {
 		v.Warnings = append(v.Warnings, "WARNING: Support for cgroup v1 is deprecated and planned to be removed by no later than May 2029 (https://github.com/moby/moby/issues/51111)")
 	}
-	if !v.IPv4Forwarding {
+	if !v.IPv4Forwarding && !cfg.Config.Rootless {
 		v.Warnings = append(v.Warnings, "WARNING: IPv4 forwarding is disabled")
 	}
 	// Env-var belonging to the bridge driver, disables use of the iptables "raw" table.
