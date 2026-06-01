@@ -96,8 +96,10 @@ func containerConfigToDockerOCIImageConfig(cfg *container.Config) dockerspec.Doc
 func dockerOCIImageConfigToContainerConfig(cfg dockerspec.DockerOCIImageConfig) *container.Config {
 	exposedPorts := make(network.PortSet, len(cfg.ExposedPorts))
 	for k := range cfg.ExposedPorts {
-		if p, err := network.ParsePort(k); err == nil {
-			exposedPorts[p] = struct{}{}
+		if pr, err := network.ParsePortRange(k); err == nil {
+			for p := range pr.All() {
+				exposedPorts[p] = struct{}{}
+			}
 		}
 	}
 
