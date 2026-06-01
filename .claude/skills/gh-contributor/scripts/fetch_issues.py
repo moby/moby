@@ -89,7 +89,7 @@ def fetch_issue(repo: str, issue_number: int) -> dict:
         "number": data["number"],
         "title": data["title"],
         "body": data.get("body", ""),
-        "labels": [l["name"] for l in data.get("labels", [])],
+        "labels": [lbl["name"] for lbl in data.get("labels", [])],
         "created_at": data["created_at"],
         "url": data["html_url"],
         "state": data["state"],
@@ -98,7 +98,7 @@ def fetch_issue(repo: str, issue_number: int) -> dict:
 
 def fetch_issues(repo: str, label: str | None = None, limit: int = 10) -> list[dict]:
     """Fetch open issues from repo."""
-    params = [f"state=open", f"per_page={limit}", "sort=created", "direction=desc"]
+    params = ["state=open", f"per_page={limit}", "sort=created", "direction=desc"]
     if label:
         params.append(f"labels={label}")
 
@@ -113,7 +113,7 @@ def fetch_issues(repo: str, label: str | None = None, limit: int = 10) -> list[d
             "number": item["number"],
             "title": item["title"],
             "body": item.get("body", ""),
-            "labels": [l["name"] for l in item.get("labels", [])],
+            "labels": [lbl["name"] for lbl in item.get("labels", [])],
             "created_at": item["created_at"],
             "url": item["html_url"],
             "state": item["state"],
@@ -139,6 +139,7 @@ def main():
             origin_repo, is_fork, upstream_repo = get_repo_info()
 
         target_repo = upstream_repo if (is_fork and args.fork_mode) else origin_repo
+        assert target_repo is not None, "Could not determine target repository"
 
         if args.issue:
             issue = fetch_issue(target_repo, args.issue)
