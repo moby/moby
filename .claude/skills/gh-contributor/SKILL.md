@@ -9,7 +9,6 @@ description: |
   wanting to contribute to a GitHub project. Also use when the user mentions
   "good first issue", "help wanted", or wants to automate their open source
   contributions.
-tools: Read, Glob, Grep, Bash, Edit, Write
 ---
 
 # gh-contributor
