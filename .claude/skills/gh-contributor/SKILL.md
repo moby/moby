@@ -175,3 +175,4 @@ Automate GitHub contributions from issue selection to CI pass.
 - Do not commit secrets, `.env`, or IDE configs
 - Confirm branch name before creating
 - On abort, restore stashed changes if any
+- Do not commit the `.claude` folder or any claude related files
