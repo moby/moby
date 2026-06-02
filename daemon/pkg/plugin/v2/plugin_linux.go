@@ -7,7 +7,9 @@ import (
 	"strings"
 
 	"github.com/moby/moby/api/types/plugin"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/internal/rootless/mountopts"
+	"github.com/moby/moby/v2/daemon/internal/rootless/specconv"
 	"github.com/moby/moby/v2/daemon/pkg/oci"
 	"github.com/moby/moby/v2/internal/sliceutil"
 	"github.com/moby/sys/userns"
@@ -139,7 +141,7 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 		p.modifyRuntimeSpec(&s)
 	}
 
-	// Rootless mode requires modifying the mount flags
+	// When the daemon is running inside a user namesapce, it requires modifying the mount flags
 	// https://github.com/moby/moby/issues/47248#issuecomment-1927776700
 	// https://github.com/moby/moby/pull/47558
 	if userns.RunningInUserNS() {
@@ -165,6 +167,14 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 					}
 					m.Options = sliceutil.Dedup(append(m.Options, unpriv...))
 				}
+			}
+		}
+
+		// Even when RunningInUserNS returns true, RunningWithRootlessKit may return false.
+		// e.g., rootful daemon running in an "unprivileged" LXD/Incus.
+		if rootless.RunningWithRootlessKit() {
+			if err := specconv.ToRootless(&s, nil); err != nil {
+				return nil, errors.Wrap(err, "failed to convert plugin spec for rootless")
 			}
 		}
 	}
