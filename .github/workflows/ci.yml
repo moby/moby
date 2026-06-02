@@ -194,3 +194,20 @@ jobs:
       -
         name: Report success
         run: echo "All CI jobs completed successfully"
+
+  # Compatibility for the previous required check name.
+  # TODO(vvoland): Remove once most PRs have rebased
+  build-binary:
+    name: build (binary)
+    runs-on: ubuntu-24.04
+    if: ${{ always() }}
+    needs:
+      - success
+    steps:
+      -
+        name: Check CI result
+        if: ${{ needs.success.result != 'success' }}
+        run: exit 1
+      -
+        name: Report success
+        run: echo "CI build completed successfully"
