@@ -8,7 +8,7 @@
 #
 # To build: docker build -t busybox .
 # To publish: Needs someone with publishing rights
-ARG WINDOWS_BASE_IMAGE=mcr.microsoft.com/windows/servercore
+ARG WINDOWS_BASE_IMAGE=mcr.microsoft.com/windows/nanoserver
 ARG WINDOWS_BASE_IMAGE_TAG=ltsc2022
 ARG BUSYBOX_VERSION=FRP-5007-g82accfc19
 
