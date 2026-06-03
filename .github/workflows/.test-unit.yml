@@ -13,7 +13,7 @@ on:
         required: false
 
 env:
-  GO_VERSION: "1.26.3"
+  GO_VERSION: "1.26.4"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   SETUP_BUILDX_VERSION: edge
