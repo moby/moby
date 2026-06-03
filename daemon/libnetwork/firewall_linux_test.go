@@ -33,8 +33,10 @@ func TestUserChain(t *testing.T) {
 	res := icmd.RunCommand("iptables", "--version")
 	assert.NilError(t, res.Error)
 	noChainErr := "No chain/target/match by that name"
-	if strings.Contains(res.Combined(), "nf_tables") && versionLt(t, res.Combined(), 1, 8, 10) {
-		// Prior to v1.8.10, iptables-nft "-S <chain>" reports the following for a non-existent chain:
+	iptVerLt := versionLt(t, res.Combined(), 1, 8, 10)
+	t.Logf("iptables version < v1.8.11: %t", iptVerLt)
+	if strings.Contains(res.Combined(), "nf_tables") && iptVerLt {
+		// Prior to v1.8.11, iptables-nft "-S <chain>" reports the following for a non-existent chain:
 		//
 		//   ip6tables v1.8.9 (nf_tables): chain `<chain>' in table `filter' is incompatible, use 'nft' tool.
 		//
@@ -162,5 +164,5 @@ func versionLt(t *testing.T, ver string, major, minor, patch int) bool {
 	parsedPatch, err := strconv.Atoi(matches[3])
 	assert.NilError(t, err)
 
-	return parsedMajor < major || (parsedMajor == major && parsedMinor < minor) || (parsedMajor == major && parsedMinor == minor && parsedPatch < patch)
+	return parsedMajor <= major && parsedMinor <= minor && parsedPatch < patch
 }
