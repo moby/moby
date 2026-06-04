@@ -45,6 +45,9 @@ jobs:
         uses: docker/bake-action@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
         with:
           targets: binary
+          set: |
+            *.cache-from=type=gha,scope=buildkit-binary
+            *.cache-to=type=gha,scope=buildkit-binary
       -
         name: Upload artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -80,12 +83,19 @@ jobs:
     steps:
       -
         name: Prepare
+        id: prepare
+        env:
+          MATRIX_WORKER: ${{ matrix.worker }}
+          MATRIX_PKG: ${{ matrix.pkg }}
         run: |
           disabledFeatures="cache_backend_azblob,cache_backend_s3"
-          if [ "${{ matrix.worker }}" = "dockerd" ]; then
+          if [ "$MATRIX_WORKER" = "dockerd" ]; then
             disabledFeatures="${disabledFeatures},merge_diff"
           fi
+          cacheScope="buildkit-integration-tests-${MATRIX_WORKER}-${MATRIX_PKG//\//-}"
           echo "BUILDKIT_TEST_DISABLE_FEATURES=${disabledFeatures}" >> $GITHUB_ENV
+          echo "TEST_IMAGE_CACHE_SCOPE=${cacheScope}" >> $GITHUB_ENV
+          echo "test_image_cache_scope=${cacheScope}" >> $GITHUB_OUTPUT
       # Expose `ACTIONS_RUNTIME_TOKEN` and `ACTIONS_CACHE_URL`, which is used
       # in BuildKit's test suite to skip/unskip cache exporters:
       # https://github.com/moby/buildkit/blob/567a99433ca23402d5e9b9f9124005d2e59b8861/client/client_test.go#L5407-L5411
@@ -149,6 +159,8 @@ jobs:
           source: ./buildkit
           targets: integration-tests
           set: |
+            *.cache-from=type=gha,scope=${{ steps.prepare.outputs.test_image_cache_scope }}
+            *.cache-to=type=gha,scope=${{ steps.prepare.outputs.test_image_cache_scope }}
             *.output=type=docker,name=${{ env.TEST_IMAGE_ID }}
       -
         name: Test

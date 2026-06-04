@@ -212,10 +212,12 @@ jobs:
     steps:
       -
         name: Prepare
+        id: prepare
         env:
           PLATFORM: ${{ matrix.platforms }}
         run: |
           echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> $GITHUB_ENV
+          echo "platform_pair=${PLATFORM//\//-}" >> $GITHUB_OUTPUT
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
@@ -232,4 +234,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
           set: |
+            *.cache-from=type=gha,scope=${{ matrix.target }}-${{ steps.prepare.outputs.platform_pair }}
+            *.cache-to=type=gha,scope=${{ matrix.target }}-${{ steps.prepare.outputs.platform_pair }}
             *.platform=${{ matrix.platforms }}
