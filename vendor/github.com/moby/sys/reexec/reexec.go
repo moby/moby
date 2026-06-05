@@ -7,6 +7,7 @@
 package reexec
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -19,6 +20,9 @@ var registeredInitializers = make(map[string]func())
 // Register adds an initialization func under the specified name. It panics
 // if the given name is already registered.
 func Register(name string, initializer func()) {
+	if filepath.Base(name) != name {
+		panic(fmt.Sprintf("reexec func does not expect a path component: %q", name))
+	}
 	if _, exists := registeredInitializers[name]; exists {
 		panic(fmt.Sprintf("reexec func already registered under name %q", name))
 	}
@@ -29,7 +33,7 @@ func Register(name string, initializer func()) {
 // Init is called as the first part of the exec process and returns true if an
 // initialization function was called.
 func Init() bool {
-	if initializer, ok := registeredInitializers[os.Args[0]]; ok {
+	if initializer, ok := registeredInitializers[filepath.Base(os.Args[0])]; ok {
 		initializer()
 		return true
 	}
@@ -47,6 +51,20 @@ func Init() bool {
 // not terminated prematurely. See https://go.dev/issue/27505 for more details.
 func Command(args ...string) *exec.Cmd {
 	return command(args...)
+}
+
+// CommandContext is like [Command] but includes a context. It uses
+// [exec.CommandContext] under the hood.
+//
+// The provided context is used to interrupt the process
+// (by calling cmd.Cancel or [os.Process.Kill])
+// if the context becomes done before the command completes on its own.
+//
+// CommandContext sets the command's Cancel function to invoke the Kill method
+// on its Process, and leaves its WaitDelay unset. The caller may change the
+// cancellation behavior by modifying those fields before starting the command.
+func CommandContext(ctx context.Context, args ...string) *exec.Cmd {
+	return commandContext(ctx, args...)
 }
 
 // Self returns the path to the current process's binary.
