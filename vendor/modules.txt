@@ -1497,8 +1497,8 @@ github.com/sigstore/sigstore-go/pkg/verify
 # github.com/sigstore/timestamp-authority/v2 v2.0.6
 ## explicit; go 1.25.0
 github.com/sigstore/timestamp-authority/v2/pkg/verification
-# github.com/sirupsen/logrus v1.9.4
-## explicit; go 1.17
+# github.com/sirupsen/logrus v1.9.5-0.20260426203557-6878cb36b029
+## explicit; go 1.23
 github.com/sirupsen/logrus
 # github.com/spdx/tools-golang v0.5.7
 ## explicit; go 1.22
