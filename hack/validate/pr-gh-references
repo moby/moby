@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+set -Ee -o pipefail
+
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPTDIR}/.validate"
+
+ghShorthandRegex='(^|[^[:alnum:]_])#[0-9]+'
+ghRefPrefixRegex='(^|[^[:alnum:]_./-])'
+ghRepoNameRegex='[[:alnum:]_.-]+'
+ghRepoRefRegex="${ghRefPrefixRegex}${ghRepoNameRegex}#[0-9]+"
+ghOwnerRepoRefRegex="${ghRefPrefixRegex}${ghRepoNameRegex}/${ghRepoNameRegex}#[0-9]+"
+ghURLRegex='https?://(www\.)?github\.com/[^[:space:]/]+/[^[:space:]/]+/(issues|pull)/[0-9]+'
+badReferences=()
+
+check_references() {
+	local source="$1"
+	local content="$2"
+	local matches
+
+	matches=$(grep -En -e "$ghShorthandRegex" -e "$ghRepoRefRegex" -e "$ghOwnerRepoRefRegex" -e "$ghURLRegex" <<< "$content" || true)
+	if [ -n "$matches" ]; then
+		badReferences+=("$source")
+		echo "::error::${source} contains a GitHub issue or PR reference. Reference commit hashes instead."
+	fi
+}
+
+for commit in $(validate_log --format='format:%H%n'); do
+	if [ -z "$(git log -1 --format='format:' --name-status "$commit")" ]; then
+		# no content (ie, Merge commit, etc)
+		continue
+	fi
+	check_references "Commit $commit" "$(git log -1 --format='format:%B' "$commit")"
+done
+
+if [ "${#badReferences[@]}" -ne 0 ]; then
+	printf "\nPlease remove GitHub issue or PR references from commit messages.\n"
+	printf "Reference commit hashes instead.\n"
+	printf "Keep GitHub issue or PR references in GitHub-visible text, such as PR descriptions or comments.\n"
+	exit 1
+fi
