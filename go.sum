@@ -52,8 +52,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0 h1:cOjLyhBhe91glgZZNbQUg9BJC57l6BiSKov0Ivv7k0U=
 github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0/go.mod h1:fBaQWrftOD5CrVCUfoYGHs4X4VViTuGOXA8WloCjTY0=
-github.com/Masterminds/semver/v3 v3.4.0 h1:Zog+i5UMtVoCU8oKka5P7i9q9HgrJeGzI9SA1Xbatp0=
-github.com/Masterminds/semver/v3 v3.4.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
+github.com/Masterminds/semver/v3 v3.5.0 h1:kQceYJfbupGfZOKZQg0kou0DgAKhzDg2NZPAwZ/2OOE=
+github.com/Masterminds/semver/v3 v3.5.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/Microsoft/hcsshim v0.14.1 h1:CMuB3fqQVfPdhyXhUqYdUmPUIOhJkmghCx3dJet8Cqs=
@@ -692,8 +692,8 @@ github.com/prometheus/procfs v0.17.0 h1:FuLQ+05u4ZI+SS/w9+BWEM2TXiHKsUQ9TADiRH7D
 github.com/prometheus/procfs v0.17.0/go.mod h1:oPQLaDAMRbA+u8H5Pbfq+dl3VDAvHxMUOVhe0wYB2zw=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
-github.com/rootless-containers/rootlesskit/v3 v3.0.0 h1:esRHLVDYPWcqiPBTDR8gYeJB0kxVturOFYUP7kT2HgA=
-github.com/rootless-containers/rootlesskit/v3 v3.0.0/go.mod h1:cAJ5ACtY9npaRpdeT6x1sJgt4gAbYB3/At7qX2LwpII=
+github.com/rootless-containers/rootlesskit/v3 v3.0.1 h1:AbYUo1O3b8YFL9X8YuEaaWkVFTwdU551CKyuOt0nJok=
+github.com/rootless-containers/rootlesskit/v3 v3.0.1/go.mod h1:7HrjR+SnuEMVvGexEinuuTmhvVW+kxj+6+pkQ/O4ja4=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ryanuber/go-glob v1.0.0 h1:iQh3xXAumdQ+4Ufa5b25cRpC5TYKlno6hsv6Cb3pkBk=
 github.com/ryanuber/go-glob v1.0.0/go.mod h1:807d1WSdnB0XRJzKNil9Om6lcp/3a0v4qIHxIXzX/Yc=
