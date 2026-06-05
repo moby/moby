@@ -84,7 +84,7 @@ func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, daemonCfg *config.
 			// telling the system to keep our profile loaded, in order to make
 			// sure that we keep the default profile enabled we load it again
 			// if it is missing.
-			if err := loadDefaultAppArmorProfileIfMissing(); err != nil {
+			if err := daemon.loadDefaultAppArmorProfileIfMissing(); err != nil {
 				return err
 			}
 		}
