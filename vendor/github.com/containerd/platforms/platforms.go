@@ -111,9 +111,11 @@ package platforms
 
 import (
 	"fmt"
+	"net/url"
 	"path"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -121,11 +123,9 @@ import (
 )
 
 var (
-	specifierRe    = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
-	osAndVersionRe = regexp.MustCompile(`^([A-Za-z0-9_-]+)(?:\(([A-Za-z0-9_.-]*)\))?$`)
+	specifierRe = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
+	osRe        = regexp.MustCompile(`^([A-Za-z0-9_-]+)(?:\(([A-Za-z0-9_.%-]*)((?:\+[A-Za-z0-9_.%-]+)*)\))?$`)
 )
-
-const osAndVersionFormat = "%s(%s)"
 
 // Platform is a type alias for convenience, so there is no need to import image-spec package everywhere.
 type Platform = specs.Platform
@@ -143,6 +143,10 @@ type Matcher interface {
 // functionality.
 //
 // Applications should opt to use `Match` over directly parsing specifiers.
+//
+// For OSFeatures, this matcher will match if the platform to match has
+// OSFeatures which are a subset of the OSFeatures of the platform
+// provided to NewMatcher.
 func NewMatcher(platform specs.Platform) Matcher {
 	m := &matcher{
 		Platform: Normalize(platform),
@@ -152,6 +156,11 @@ func NewMatcher(platform specs.Platform) Matcher {
 		m.osvM = &windowsVersionMatcher{
 			windowsOSVersion: getWindowsOSVersion(platform.OSVersion),
 		}
+
+		// In prior versions, the win32k os feature was not considered for matching,
+		// strip out the win32k feature for comparison
+		var stripped Matcher = windowsStripFeaturesMatcher{m}
+
 		// In prior versions, on windows, the returned matcher implements a
 		// MatchComprarer interface.
 		// This preserves that behavior for backwards compatibility.
@@ -161,8 +170,9 @@ func NewMatcher(platform specs.Platform) Matcher {
 		// It was likely intended to be used in `Ordered` but it is not since
 		// `Less` that is implemented here ends up getting masked due to wrapping.
 		if runtime.GOOS == "windows" {
-			return &windowsMatchComparer{m}
+			return &windowsMatchComparer{stripped}
 		}
+		return stripped
 	}
 	return m
 }
@@ -178,10 +188,39 @@ type matcher struct {
 
 func (m *matcher) Match(platform specs.Platform) bool {
 	normalized := Normalize(platform)
-	return m.OS == normalized.OS &&
+	if m.OS == normalized.OS &&
 		m.Architecture == normalized.Architecture &&
 		m.Variant == normalized.Variant &&
-		m.matchOSVersion(platform)
+		m.matchOSVersion(platform) {
+		if len(normalized.OSFeatures) == 0 {
+			return true
+		}
+		if len(m.OSFeatures) >= len(normalized.OSFeatures) {
+			// Ensure that normalized.OSFeatures is a subset of
+			// m.OSFeatures
+			j := 0
+			for _, feature := range normalized.OSFeatures {
+				found := false
+				for ; j < len(m.OSFeatures); j++ {
+					if feature == m.OSFeatures[j] {
+						found = true
+						j++
+						break
+					}
+					// Since both lists are ordered, if the feature is less
+					// than what is seen, it is not in the list
+					if feature < m.OSFeatures[j] {
+						return false
+					}
+				}
+				if !found {
+					return false
+				}
+			}
+			return true
+		}
+	}
+	return false
 }
 
 func (m *matcher) matchOSVersion(platform specs.Platform) bool {
@@ -210,11 +249,14 @@ func ParseAll(specifiers []string) ([]specs.Platform, error) {
 
 // Parse parses the platform specifier syntax into a platform declaration.
 //
-// Platform specifiers are in the format `<os>[(<OSVersion>)]|<arch>|<os>[(<OSVersion>)]/<arch>[/<variant>]`.
+// Platform specifiers are in the format `<os>[(<os options>)]|<arch>|<os>[(<os options>)]/<arch>[/<variant>]`.
 // The minimum required information for a platform specifier is the operating
-// system or architecture. The OSVersion can be part of the OS like `windows(10.0.17763)`
-// When an OSVersion is specified, then specs.Platform.OSVersion is populated with that value,
-// and an empty string otherwise.
+// system or architecture. The "os options" may be OSVersion which can be part of the OS
+// like `windows(10.0.17763)`. When an OSVersion is specified, then specs.Platform.OSVersion is
+// populated with that value, and an empty string otherwise. The "os options" may also include an
+// array of OSFeatures, each feature prefixed with '+', without any other separator, and provided
+// after the OSVersion when the OSVersion is specified. An "os options" with version and features
+// is like `windows(10.0.17763+win32k)`.
 // If there is only a single string (no slashes), the
 // value will be matched against the known set of operating systems, then fall
 // back to the known set of architectures. The missing component will be
@@ -231,14 +273,24 @@ func Parse(specifier string) (specs.Platform, error) {
 	var p specs.Platform
 	for i, part := range parts {
 		if i == 0 {
-			// First element is <os>[(<OSVersion>)]
-			osVer := osAndVersionRe.FindStringSubmatch(part)
-			if osVer == nil {
-				return specs.Platform{}, fmt.Errorf("%q is an invalid OS component of %q: OSAndVersion specifier component must match %q: %w", part, specifier, osAndVersionRe.String(), errInvalidArgument)
+			// First element is <os>[(<OSVersion>[+<OSFeature>]*)]
+			osOptions := osRe.FindStringSubmatch(part)
+			if osOptions == nil {
+				return specs.Platform{}, fmt.Errorf("%q is an invalid OS component of %q: OSAndVersion specifier component must match %q: %w", part, specifier, osRe.String(), errInvalidArgument)
 			}
 
-			p.OS = normalizeOS(osVer[1])
-			p.OSVersion = osVer[2]
+			p.OS = normalizeOS(osOptions[1])
+			osVersion, err := decodeOSOption(osOptions[2])
+			if err != nil {
+				return specs.Platform{}, fmt.Errorf("%q has an invalid OS version %q: %w", specifier, osOptions[2], err)
+			}
+			p.OSVersion = osVersion
+			if osOptions[3] != "" {
+				p.OSFeatures, err = parseOSFeatures(osOptions[3][1:])
+				if err != nil {
+					return specs.Platform{}, fmt.Errorf("%q has invalid OS features: %w", specifier, err)
+				}
+			}
 		} else {
 			if !specifierRe.MatchString(part) {
 				return specs.Platform{}, fmt.Errorf("%q is an invalid component of %q: platform specifier component must match %q: %w", part, specifier, specifierRe.String(), errInvalidArgument)
@@ -296,6 +348,30 @@ func Parse(specifier string) (specs.Platform, error) {
 	return specs.Platform{}, fmt.Errorf("%q: cannot parse platform specifier: %w", specifier, errInvalidArgument)
 }
 
+func parseOSFeatures(s string) ([]string, error) {
+	if s == "" {
+		return nil, nil
+	}
+
+	var features []string
+	for raw := range strings.SplitSeq(s, "+") {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			return nil, fmt.Errorf("empty os feature: %w", errInvalidArgument)
+		}
+		feature, err := decodeOSOption(raw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid os feature %q: %w", raw, err)
+		}
+		if feature == "" {
+			continue
+		}
+		features = append(features, feature)
+	}
+
+	return features, nil
+}
+
 // MustParse is like Parses but panics if the specifier cannot be parsed.
 // Simplifies initialization of global variables.
 func MustParse(specifier string) specs.Platform {
@@ -321,12 +397,77 @@ func FormatAll(platform specs.Platform) string {
 	if platform.OS == "" {
 		return "unknown"
 	}
-
-	if platform.OSVersion != "" {
-		OSAndVersion := fmt.Sprintf(osAndVersionFormat, platform.OS, platform.OSVersion)
-		return path.Join(OSAndVersion, platform.Architecture, platform.Variant)
+	if platform.OSVersion == "" && len(platform.OSFeatures) == 0 {
+		return path.Join(platform.OS, platform.Architecture, platform.Variant)
 	}
-	return path.Join(platform.OS, platform.Architecture, platform.Variant)
+
+	var b strings.Builder
+	b.WriteString(platform.OS)
+	osv := encodeOSOption(platform.OSVersion)
+	formatted := formatOSFeatures(platform.OSFeatures)
+	if osv != "" || formatted != "" {
+		b.Grow(len(osv) + len(formatted) + 3) // parens + maybe '+'
+		b.WriteByte('(')
+		if osv != "" {
+			b.WriteString(osv)
+		}
+		if formatted != "" {
+			b.WriteByte('+')
+			b.WriteString(formatted)
+		}
+		b.WriteByte(')')
+	}
+
+	return path.Join(b.String(), platform.Architecture, platform.Variant)
+}
+
+func formatOSFeatures(features []string) string {
+	if len(features) == 0 {
+		return ""
+	}
+
+	if !slices.IsSorted(features) {
+		features = slices.Clone(features)
+		slices.Sort(features)
+	}
+	var b strings.Builder
+	var wrote bool
+	var prev string
+	for _, f := range features {
+		if f == "" || f == prev {
+			// skip empty and duplicate values
+			continue
+		}
+		prev = f
+		if wrote {
+			b.WriteByte('+')
+		}
+		b.WriteString(encodeOSOption(f))
+		wrote = true
+	}
+	return b.String()
+}
+
+// osOptionReplacer encodes characters in OS option values (version and
+// features) that are ambiguous with the format syntax. The percent sign
+// must be replaced first to avoid double-encoding.
+var osOptionReplacer = strings.NewReplacer(
+	"%", "%25",
+	"+", "%2B",
+	"(", "%28",
+	")", "%29",
+	"/", "%2F",
+)
+
+func encodeOSOption(v string) string {
+	return osOptionReplacer.Replace(v)
+}
+
+func decodeOSOption(v string) (string, error) {
+	if strings.Contains(v, "%") {
+		return url.PathUnescape(v)
+	}
+	return v, nil
 }
 
 // Normalize validates and translate the platform to the canonical value.
@@ -336,6 +477,11 @@ func FormatAll(platform specs.Platform) string {
 func Normalize(platform specs.Platform) specs.Platform {
 	platform.OS = normalizeOS(platform.OS)
 	platform.Architecture, platform.Variant = normalizeArch(platform.Architecture, platform.Variant)
+	if len(platform.OSFeatures) > 0 {
+		platform.OSFeatures = slices.Clone(platform.OSFeatures)
+		slices.Sort(platform.OSFeatures)
+		platform.OSFeatures = slices.Compact(platform.OSFeatures)
+	}
 
 	return platform
 }
