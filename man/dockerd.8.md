@@ -6,6 +6,7 @@ dockerd - Enable daemon mode
 # SYNOPSIS
 **dockerd**
 [**--add-runtime**[=*[]*]]
+[**--apparmor-profile**[=*APPARMOR-PROFILE-PATH*]]
 [**--authorization-plugin**[=*[]*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
 [**--bip**[=*BIP*]]
@@ -126,6 +127,9 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 ```
 
   **Note**: defining runtime arguments via the command line is not supported.
+
+**--apparmor-profile**=""
+  Path to AppArmor profile template for the default container profile.
 
 **--authorization-plugin**=""
   Set authorization plugins to load
