@@ -9,6 +9,14 @@ permissions:
 on:
   workflow_call:
     inputs:
+      arch:
+        required: false
+        type: string
+        default: amd64
+      runner:
+        required: false
+        type: string
+        default: ubuntu-24.04
       storage:
         required: true
         type: string
@@ -30,7 +38,7 @@ env:
 
 jobs:
   docker-py:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     steps:
@@ -56,7 +64,7 @@ jobs:
         with:
           targets: dev
           set: |
-            dev.cache-from=type=gha,scope=dev
+            dev.cache-from=type=gha,scope=dev-${{ inputs.arch }}
       -
         name: Test
         run: |
@@ -81,12 +89,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-reports-docker-py-${{ inputs.storage }}
+          name: test-reports-docker-py-${{ inputs.arch }}-${{ inputs.storage }}
           path: /tmp/reports/*
           retention-days: 1
 
   integration-flaky:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     steps:
@@ -112,7 +120,7 @@ jobs:
         with:
           targets: dev
           set: |
-            dev.cache-from=type=gha,scope=dev
+            dev.cache-from=type=gha,scope=dev-${{ inputs.arch }}
       -
         name: Test
         run: |
@@ -132,9 +140,13 @@ jobs:
         id: set
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          INPUT_ARCH: ${{ inputs.arch }}
+          INPUT_RUNNER: ${{ inputs.runner }}
           INPUT_STORAGE: ${{ inputs.storage }}
         with:
           script: |
+            const arch = core.getInput('arch', { required: true });
+            const runner = core.getInput('runner', { required: true });
             const storage = core.getInput('storage', { required: true });
             let includes = [
               { os: 'ubuntu-22.04', mode: '' },
@@ -145,10 +157,13 @@ jobs:
               { os: 'ubuntu-24.04', mode: 'systemd' },
               // { os: 'ubuntu-24.04', mode: 'rootless-systemd' }, // FIXME: https://github.com/moby/moby/issues/44084
             ];
+            if (arch != "amd64") {
+              includes = includes.filter(item => item.os == 'ubuntu-24.04').map(item => ({ ...item, os: runner }));
+            }
             if (storage == "snapshotter") {
-              includes.push({ os: 'ubuntu-24.04', mode: 'iptables+firewalld' });
-              includes.push({ os: 'ubuntu-24.04', mode: 'nftables' });
-              includes.push({ os: 'ubuntu-24.04', mode: 'nftables+firewalld' });
+              includes.push({ os: arch == "amd64" ? 'ubuntu-24.04' : runner, mode: 'iptables+firewalld' });
+              includes.push({ os: arch == "amd64" ? 'ubuntu-24.04' : runner, mode: 'nftables' });
+              includes.push({ os: arch == "amd64" ? 'ubuntu-24.04' : runner, mode: 'nftables+firewalld' });
             }
             await core.group(`Set matrix`, async () => {
               core.info(`matrix: ${JSON.stringify(includes)}`);
@@ -178,19 +193,20 @@ jobs:
       -
         name: Prepare
         env:
+          ARCH: ${{ inputs.arch }}
           MODE: ${{ matrix.mode }}
         run: |
-          CACHE_DEV_SCOPE=dev
+          CACHE_DEV_SCOPE=dev-${ARCH}
           if [[ "$MODE" == *"rootless"* ]]; then
             echo "DOCKER_ROOTLESS=1" >> $GITHUB_ENV
           fi
           if [[ "$MODE" == *"systemd"* ]]; then
             echo "SYSTEMD=true" >> $GITHUB_ENV
-            CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}systemd"
+            CACHE_DEV_SCOPE="dev-systemd-${ARCH}"
           fi
           if [[ "$MODE" == *"firewalld"* ]]; then
             echo "FIREWALLD=true" >> $GITHUB_ENV
-            CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
+            CACHE_DEV_SCOPE="dev-firewalld-${ARCH}"
           fi
           if [[ "$MODE" == *"nftables"* ]]; then
             echo "DOCKER_FIREWALL_BACKEND=nftables" >> $GITHUB_ENV
@@ -257,7 +273,7 @@ jobs:
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
-          flags: integration,${{ matrix.mode }}
+          flags: integration,${{ inputs.arch }},${{ matrix.mode }}
           token: ${{ secrets.CODECOV_TOKEN }}  # used to upload coverage reports: https://github.com/moby/buildkit/pull/4660#issue-2142122533
       -
         name: Test daemon logs
@@ -269,7 +285,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-reports-integration-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
+          name: test-reports-integration-${{ inputs.arch }}-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
           retention-days: 1
       -
@@ -277,7 +293,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-results-integration-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
+          name: test-results-integration-${{ inputs.arch }}-${{ inputs.storage }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/**/*go-test-report*.json
           retention-days: 7
 
@@ -300,7 +316,7 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: /tmp/reports
-          pattern: test-reports-integration-${{ inputs.storage }}-*
+          pattern: test-reports-integration-${{ inputs.arch }}-${{ inputs.storage }}-*
           merge-multiple: true
       -
         name: Install teststat
@@ -314,7 +330,7 @@ jobs:
           fi
 
   integration-cli-prepare:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     outputs:
@@ -409,7 +425,7 @@ jobs:
             });
 
   integration-cli:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     needs:
@@ -430,12 +446,13 @@ jobs:
       -
         name: Prepare
         env:
+          ARCH: ${{ inputs.arch }}
           MODE: ${{ matrix.mode }}
         run: |
-          CACHE_DEV_SCOPE=dev
+          CACHE_DEV_SCOPE=dev-${ARCH}
           if [[ "$MODE" == *"firewalld"* ]]; then
             echo "FIREWALLD=true" >> $GITHUB_ENV
-            CACHE_DEV_SCOPE="${CACHE_DEV_SCOPE}firewalld"
+            CACHE_DEV_SCOPE="dev-firewalld-${ARCH}"
           fi
           if [[ "$MODE" == *"nftables"* ]]; then
             echo "DOCKER_FIREWALL_BACKEND=nftables" >> $GITHUB_ENV
@@ -454,7 +471,7 @@ jobs:
         with:
           targets: dev
           set: |
-            dev.cache-from=type=gha,scope=dev
+            dev.cache-from=type=gha,scope=${{ env.CACHE_DEV_SCOPE }}
       -
         name: Test
         run: |
@@ -487,7 +504,7 @@ jobs:
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
-          flags: integration-cli
+          flags: integration-cli,${{ inputs.arch }}
           token: ${{ secrets.CODECOV_TOKEN }}  # used to upload coverage reports: https://github.com/moby/buildkit/pull/4660#issue-2142122533
       -
         name: Test daemon logs
@@ -499,7 +516,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-${{ env.TESTREPORTS_NAME }}
+          name: test-reports-integration-cli-${{ inputs.arch }}-${{ inputs.storage }}-${{ matrix.mode }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/*
           retention-days: 1
       -
@@ -507,7 +524,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-results-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-${{ env.TESTREPORTS_NAME }}
+          name: test-results-integration-cli-${{ inputs.arch }}-${{ inputs.storage }}-${{ matrix.mode }}-${{ env.TESTREPORTS_NAME }}
           path: /tmp/reports/**/*go-test-report*.json
           retention-days: 7
 
@@ -530,7 +547,7 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: /tmp/reports
-          pattern: test-reports-integration-cli-${{ inputs.storage }}-${{ matrix.mode }}-*
+          pattern: test-reports-integration-cli-${{ inputs.arch }}-${{ inputs.storage }}-*
           merge-multiple: true
       -
         name: Install teststat
