@@ -26,7 +26,7 @@ func (s *DockerCLIInfoSuite) TestInfoSecurityOptions(c *testing.T) {
 	info := result.Info
 
 	if Apparmor() {
-		assert.Check(c, is.Contains(info.SecurityOptions, "name=apparmor"))
+		assert.Check(c, is.Contains(info.SecurityOptions, "name=apparmor,profile=default"))
 	}
 	if seccompEnabled() {
 		assert.Check(c, is.Contains(info.SecurityOptions, "name=seccomp,profile="+config.SeccompProfileDefault))
