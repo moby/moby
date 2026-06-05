@@ -152,6 +152,88 @@ func Only(platform specs.Platform) MatchComparer {
 	return Ordered(platformVector(Normalize(platform))...)
 }
 
+// OnlyOS returns a match comparer that matches only platforms with the same
+// OS, OS version, and OS features, regardless of architecture. When comparing,
+// it always ranks the best architecture match highest using the default
+// platform resolution logic.
+func OnlyOS(platform specs.Platform) MatchComparer {
+	normalized := Normalize(platform)
+	return onlyOSComparer{
+		platform: normalized,
+		osvM:     newOSVersionMatcher(normalized),
+		archOrder: orderedPlatformComparer{
+			matchers: []Matcher{NewMatcher(normalized)},
+		},
+	}
+}
+
+func newOSVersionMatcher(platform specs.Platform) osVerMatcher {
+	if platform.OS == "windows" {
+		return &windowsVersionMatcher{
+			windowsOSVersion: getWindowsOSVersion(platform.OSVersion),
+		}
+	}
+	return nil
+}
+
+type onlyOSComparer struct {
+	platform  specs.Platform
+	osvM      osVerMatcher
+	archOrder orderedPlatformComparer
+}
+
+func (c onlyOSComparer) matchOS(platform specs.Platform) bool {
+	normalized := Normalize(platform)
+	if c.platform.OS != normalized.OS {
+		return false
+	}
+	if c.osvM != nil {
+		if !c.osvM.Match(platform.OSVersion) {
+			return false
+		}
+	}
+	if len(normalized.OSFeatures) > 0 {
+		if len(c.platform.OSFeatures) < len(normalized.OSFeatures) {
+			return false
+		}
+		j := 0
+		for _, feature := range normalized.OSFeatures {
+			found := false
+			for ; j < len(c.platform.OSFeatures); j++ {
+				if feature == c.platform.OSFeatures[j] {
+					found = true
+					j++
+					break
+				}
+				if feature < c.platform.OSFeatures[j] {
+					return false
+				}
+			}
+			if !found {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (c onlyOSComparer) Match(platform specs.Platform) bool {
+	return c.matchOS(platform)
+}
+
+func (c onlyOSComparer) Less(p1, p2 specs.Platform) bool {
+	p1m := c.matchOS(p1)
+	p2m := c.matchOS(p2)
+	if p1m && !p2m {
+		return true
+	}
+	if !p1m {
+		return false
+	}
+	// Both match — rank by architecture preference
+	return c.archOrder.Less(p1, p2)
+}
+
 // OnlyStrict returns a match comparer for a single platform.
 //
 // Unlike Only, OnlyStrict does not match sub platforms.
@@ -213,8 +295,19 @@ func (c orderedPlatformComparer) Less(p1 specs.Platform, p2 specs.Platform) bool
 			return true
 		}
 		if p1m || p2m {
+			if p1m && p2m {
+				// Prefer one with most matching features
+				if len(p1.OSFeatures) != len(p2.OSFeatures) {
+					return len(p1.OSFeatures) > len(p2.OSFeatures)
+				}
+			}
 			return false
 		}
+	}
+	if len(p1.OSFeatures) > 0 || len(p2.OSFeatures) > 0 {
+		p1.OSFeatures = nil
+		p2.OSFeatures = nil
+		return c.Less(p1, p2)
 	}
 	return false
 }
@@ -242,9 +335,20 @@ func (c anyPlatformComparer) Less(p1, p2 specs.Platform) bool {
 			p2m = true
 		}
 		if p1m && p2m {
-			return false
+			if len(p1.OSFeatures) != len(p2.OSFeatures) {
+				return len(p1.OSFeatures) > len(p2.OSFeatures)
+			}
+			break
 		}
 	}
+
+	// If neither match and has features, strip features and compare
+	if !p1m && !p2m && (len(p1.OSFeatures) > 0 || len(p2.OSFeatures) > 0) {
+		p1.OSFeatures = nil
+		p2.OSFeatures = nil
+		return c.Less(p1, p2)
+	}
+
 	// If one matches, and the other does, sort match first
 	return p1m && !p2m
 }
