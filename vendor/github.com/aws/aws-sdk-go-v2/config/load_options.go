@@ -240,6 +240,10 @@ type LoadOptions struct {
 	// when constructing clients for specific services. Each callback function receives the service ID
 	// and the service's Options struct, allowing for dynamic configuration based on the service.
 	ServiceOptions []func(string, any)
+
+	// Controls whether the SDK restricts file permissions on credential
+	// cache files it creates.
+	RestrictFilePermissions aws.RestrictFilePermissions
 }
 
 func (o LoadOptions) getDefaultsMode(ctx context.Context) (aws.DefaultsMode, bool, error) {
@@ -1352,4 +1356,16 @@ func (o LoadOptions) getAuthSchemePreference() ([]string, bool) {
 		return o.AuthSchemePreference, true
 	}
 	return nil, false
+}
+
+func (o LoadOptions) getRestrictFilePermissions(context.Context) (aws.RestrictFilePermissions, bool, error) {
+	return o.RestrictFilePermissions, len(o.RestrictFilePermissions) > 0, nil
+}
+
+// WithRestrictFilePermissions sets the RestrictFilePermissions mode on config.
+func WithRestrictFilePermissions(m aws.RestrictFilePermissions) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		o.RestrictFilePermissions = m
+		return nil
+	}
 }

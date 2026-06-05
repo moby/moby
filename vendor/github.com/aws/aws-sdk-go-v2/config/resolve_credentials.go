@@ -640,6 +640,7 @@ func resolveLoginCredentials(ctx context.Context, cfg *aws.Config, sharedCfg *Sh
 	svc := signin.NewFromConfig(*cfg)
 	provider := logincreds.New(svc, tokenPath, func(o *logincreds.Options) {
 		o.CredentialSources = getCredentialSources(ctx)
+		o.RestrictPermissions = cfg.RestrictFilePermissions != aws.RestrictFilePermissionsUnrestricted
 	})
 	cfg.Credentials, err = wrapWithCredentialsCache(ctx, configs, provider)
 	if err != nil {
