@@ -62,7 +62,7 @@ for _ in $(seq 1 30); do
 	partition_devno="/sys/class/block/${partition_device##*/}/dev"
 	if [ -r "$partition_devno" ]; then
 		IFS=: read -r major minor < "$partition_devno"
-		mknod "$partition_device" b "$major" "$minor" 2>/dev/null || true
+		mknod "$partition_device" b "$major" "$minor" 2> /dev/null || true
 		if [ -b "$partition_device" ]; then
 			break
 		fi
