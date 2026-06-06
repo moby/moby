@@ -42,6 +42,10 @@ type Options struct {
 	// The path to the cached login token.
 	CachedTokenFilepath string
 
+	// Whether to restrict file permissions on newly-written cache files.
+	// When true, files are created with 0600 on Unix.
+	RestrictPermissions bool
+
 	// The chain of providers that was used to create this provider.
 	//
 	// These values are for reporting purposes and are not meant to be set up
@@ -145,7 +149,15 @@ func (p *Provider) saveToken(token *loginToken) error {
 		return err
 	}
 
-	f, err := createFile(p.options.CachedTokenFilepath)
+	mode := os.FileMode(0666) // matches that used by os.Create
+	if p.options.RestrictPermissions {
+		mode = 0600
+	}
+
+	// createFile DOES NOT re-create the file with new permissions if it
+	// already exists, so in that scenario any existing permissions are
+	// preserved
+	f, err := createFile(p.options.CachedTokenFilepath, mode)
 	if err != nil {
 		return err
 	}

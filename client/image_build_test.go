@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"reflect"
+	"slices"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -150,6 +150,14 @@ func TestImageBuild(t *testing.T) {
 			expectedTags:           []string{},
 			expectedRegistryConfig: "eyJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOnsiYXV0aCI6ImRHOTBid289In19",
 		},
+		{
+			buildOptions: ImageBuildOptions{
+				Tags: []string{"myname/one:latest", "myname/two"},
+			},
+			expectedQueryParams:    map[string]string{},
+			expectedTags:           []string{"myname/one:latest", "myname/two"},
+			expectedRegistryConfig: emptyRegistryConfig,
+		},
 	}
 	const expectedURL = "/build"
 	for _, buildCase := range buildCases {
@@ -179,8 +187,8 @@ func TestImageBuild(t *testing.T) {
 			// Check tags
 			if len(buildCase.expectedTags) > 0 {
 				tags := query["t"]
-				if !reflect.DeepEqual(tags, buildCase.expectedTags) {
-					return nil, fmt.Errorf("t (tags) not set in URL query properly. Expected '%s', got %s", buildCase.expectedTags, tags)
+				if !slices.Equal(tags, buildCase.expectedTags) {
+					return nil, fmt.Errorf("t (tags) not set in URL query properly. Expected '%+v', got %+v", buildCase.expectedTags, tags)
 				}
 			}
 

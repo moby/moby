@@ -21,6 +21,7 @@ package nri
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/containerd/log"
@@ -37,10 +38,11 @@ type builtinPluginConfig struct {
 }
 
 type builtinPlugin struct {
-	stub         stub.Stub
-	logG         func(context.Context) *log.Entry
-	config       builtinPluginConfig
-	synchronized chan struct{}
+	stub            stub.Stub
+	logG            func(context.Context) *log.Entry
+	config          builtinPluginConfig
+	synchronized    chan struct{}
+	synchronizeOnce sync.Once
 }
 
 // startBuiltinPlugin turns the test binary into an NRI plugin, or fails the test.
@@ -83,11 +85,9 @@ func (p *builtinPlugin) Configure(ctx context.Context, config, runtime, version 
 func (p *builtinPlugin) Synchronize(ctx context.Context, pods []*api.PodSandbox, containers []*api.Container) ([]*api.ContainerUpdate, error) {
 	p.logG(ctx).Infof("Synchronized state with the runtime (%d pods, %d containers)...",
 		len(pods), len(containers))
-	select {
-	case <-p.synchronized:
-	default:
+	p.synchronizeOnce.Do(func() {
 		close(p.synchronized)
-	}
+	})
 	return nil, nil
 }
 

@@ -25,7 +25,7 @@ on:
         required: false
 
 env:
-  GO_VERSION: "1.26.3"
+  GO_VERSION: "1.26.4"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
@@ -253,7 +253,9 @@ jobs:
       -
         name: Create summary
         run: |
-          find /tmp/artifacts -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> $GITHUB_STEP_SUMMARY
+          if [ -d /tmp/artifacts ]; then
+            find /tmp/artifacts -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   integration-test-prepare:
     runs-on: ubuntu-24.04
@@ -605,4 +607,6 @@ jobs:
       -
         name: Create summary
         run: |
-          find /tmp/reports -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> $GITHUB_STEP_SUMMARY
+          if [ -d /tmp/reports ]; then
+            find /tmp/reports -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> "$GITHUB_STEP_SUMMARY"
+          fi

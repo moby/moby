@@ -17,6 +17,7 @@
 package platforms
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -161,4 +162,15 @@ func (c *windowsMatchComparer) Less(p1, p2 specs.Platform) bool {
 		return p1.OSVersion > p2.OSVersion
 	}
 	return m1 && !m2
+}
+
+type windowsStripFeaturesMatcher struct {
+	Matcher
+}
+
+func (m windowsStripFeaturesMatcher) Match(p specs.Platform) bool {
+	if i := slices.Index(p.OSFeatures, "win32k"); i >= 0 {
+		p.OSFeatures = slices.Delete(slices.Clone(p.OSFeatures), i, i+1)
+	}
+	return m.Matcher.Match(p)
 }

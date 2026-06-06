@@ -1,3 +1,12 @@
+# Release (2026-05-27)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.26.0
+  * **Feature**: Add StringSlice to endpoint rulesfn.
+
 # Release (2026-04-23)
 
 ## General Highlights

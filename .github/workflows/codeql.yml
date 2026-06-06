@@ -32,7 +32,7 @@ on:
     - cron: '0 9 * * 4'
 
 env:
-  GO_VERSION: "1.26.3"
+  GO_VERSION: "1.26.4"
 
 jobs:
   codeql:

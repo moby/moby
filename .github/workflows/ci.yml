@@ -26,20 +26,26 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 20 # guardrails timeout for the whole job
     needs:
       - validate-dco
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - binary
-          - dynbinary
+        include:
+          - runner: ubuntu-24.04
+            target: binary
+          - runner: ubuntu-24.04
+            target: dynbinary
+          - runner: ubuntu-24.04-arm
+            target: binary
+          - runner: ubuntu-24.04-arm
+            target: dynbinary
     steps:
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
@@ -98,7 +104,7 @@ jobs:
           echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> $GITHUB_ENV
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
@@ -129,7 +135,7 @@ jobs:
     steps:
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
@@ -156,7 +162,7 @@ jobs:
     steps:
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
@@ -168,3 +174,40 @@ jobs:
           targets: dind
           set: |
             *.output=type=cacheonly
+
+  success:
+    name: CI Build Success
+    runs-on: ubuntu-24.04
+    if: ${{ always() }}
+    needs:
+      - validate-dco
+      - build
+      - prepare-cross
+      - cross
+      - govulncheck
+      - build-dind
+    steps:
+      -
+        name: Check CI result
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1
+      -
+        name: Report success
+        run: echo "All CI jobs completed successfully"
+
+  # Compatibility for the previous required check name.
+  # TODO(vvoland): Remove once most PRs have rebased
+  build-binary:
+    name: build (binary)
+    runs-on: ubuntu-24.04
+    if: ${{ always() }}
+    needs:
+      - success
+    steps:
+      -
+        name: Check CI result
+        if: ${{ needs.success.result != 'success' }}
+        run: exit 1
+      -
+        name: Report success
+        run: echo "CI build completed successfully"

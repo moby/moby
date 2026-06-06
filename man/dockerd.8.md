@@ -32,6 +32,7 @@ dockerd - Enable daemon mode
 [**--exec-root**[=*/var/run/docker*]]
 [**--experimental**[=**false**]]
 [**--feature**[=*NAME*[=**true**|**false**]]
+[**--firewall-backend**[=*BACKEND*]]
 [**--fixed-cidr**[=*FIXED-CIDR*]]
 [**--fixed-cidr-v6**[=*FIXED-CIDR-V6*]]
 [**-G**|**--group**[=*docker*]]
@@ -222,6 +223,9 @@ Bridge networks will accept packets with this firewall mark/mask.
   file produces an error. The feature option can be specified multiple times
   to configure multiple features.
   Usage example: `--feature containerd-snapshotter` or `--feature containerd-snapshotter=true`.
+
+**--firewall-backend**=""
+  Firewall backend to use, iptables or nftables.
 
 **--fixed-cidr**=""
   IPv4 subnet for the default bridge network (e.g., 10.20.0.0/16); this

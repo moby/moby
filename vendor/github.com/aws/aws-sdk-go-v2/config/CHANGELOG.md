@@ -1,3 +1,17 @@
+# v1.32.20 (2026-05-29)
+
+* **Dependency Update**: Update to smithy-go v1.26.0.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.19 (2026-05-28)
+
+* **Bug Fix**: Adds support for AWS_RESTRICT_FILE_PERMISSIONS for env and in-code config.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.18 (2026-05-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.32.17 (2026-04-29)
 
 * **Dependency Update**: Update to smithy-go v1.25.1.

@@ -9,6 +9,6 @@ var openFile func(string) (io.ReadCloser, error) = func(name string) (io.ReadClo
 	return os.Open(name)
 }
 
-var createFile func(string) (io.WriteCloser, error) = func(name string) (io.WriteCloser, error) {
-	return os.Create(name)
+var createFile func(string, os.FileMode) (io.WriteCloser, error) = func(name string, mode os.FileMode) (io.WriteCloser, error) {
+	return os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, mode)
 }

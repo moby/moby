@@ -1,3 +1,17 @@
+# v1.19.19 (2026-05-29)
+
+* **Dependency Update**: Update to smithy-go v1.26.0.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.18 (2026-05-28)
+
+* **Bug Fix**: Create new login cache files with 0600 on Unix platforms.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.17 (2026-05-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.19.16 (2026-04-29)
 
 * **Dependency Update**: Update to smithy-go v1.25.1.

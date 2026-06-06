@@ -784,3 +784,19 @@ func getServiceOptions(ctx context.Context, configs configs) (v []func(string, a
 	}
 	return v, found, err
 }
+
+type restrictFilePermissionsProvider interface {
+	getRestrictFilePermissions(context.Context) (aws.RestrictFilePermissions, bool, error)
+}
+
+func getRestrictFilePermissions(ctx context.Context, configs configs) (value aws.RestrictFilePermissions, found bool, err error) {
+	for _, cfg := range configs {
+		if p, ok := cfg.(restrictFilePermissionsProvider); ok {
+			value, found, err = p.getRestrictFilePermissions(ctx)
+			if err != nil || found {
+				break
+			}
+		}
+	}
+	return
+}

@@ -12,12 +12,12 @@ require (
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/Microsoft/hcsshim v0.14.1
 	github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
-	github.com/aws/aws-sdk-go-v2 v1.41.7
-	github.com/aws/aws-sdk-go-v2/config v1.32.17
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.16
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.23
-	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.74.0
-	github.com/aws/smithy-go v1.25.1
+	github.com/aws/aws-sdk-go-v2 v1.41.9
+	github.com/aws/aws-sdk-go-v2/config v1.32.20
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.19
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.25
+	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.74.2
+	github.com/aws/smithy-go v1.26.0
 	github.com/cloudflare/cfssl v1.6.5
 	github.com/containerd/cgroups/v3 v3.1.3
 	github.com/containerd/containerd/api v1.10.0
@@ -27,15 +27,15 @@ require (
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/nri v0.12.0
-	github.com/containerd/platforms v1.0.0-rc.2
-	github.com/containerd/typeurl/v2 v2.2.3
+	github.com/containerd/platforms v1.0.0-rc.4
+	github.com/containerd/typeurl/v2 v2.3.0
 	github.com/coreos/go-systemd/v22 v22.7.0
 	github.com/cpuguy83/tar2go v0.3.1
 	github.com/creack/pty v1.1.24
 	github.com/distribution/reference v0.6.0
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/go-connections v0.7.0
-	github.com/docker/go-events v0.0.0-20250808211157-605354379745
+	github.com/docker/go-events v0.0.0-20260522192827-649f5caa5440
 	github.com/docker/go-metrics v0.0.1
 	github.com/docker/go-units v0.5.0
 	github.com/fluent/fluent-logger-golang v1.10.1
@@ -69,7 +69,7 @@ require (
 	github.com/moby/pubsub v1.0.0
 	github.com/moby/swarmkit/v2 v2.1.2
 	github.com/moby/sys/atomicwriter v0.1.0
-	github.com/moby/sys/mount v0.3.4
+	github.com/moby/sys/mount v0.3.5-0.20260529155943-fc52b7222d0b
 	github.com/moby/sys/mountinfo v0.7.2
 	github.com/moby/sys/reexec v0.1.0
 	github.com/moby/sys/sequential v0.6.0
@@ -86,7 +86,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.2
-	github.com/rootless-containers/rootlesskit/v3 v3.0.0
+	github.com/rootless-containers/rootlesskit/v3 v3.0.1
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -109,7 +109,7 @@ require (
 	golang.org/x/text v0.37.0
 	golang.org/x/time v0.15.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260406210006-6f92a3bedf2d
-	google.golang.org/grpc v1.80.0
+	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
 	gotest.tools/v3 v3.5.2
 	pgregory.net/rapid v1.3.0
@@ -133,16 +133,16 @@ require (
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
-	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.10 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.23 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.23 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.24 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.9 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.23 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.0.11 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.30.17 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.21 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.42.1 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.11 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.25 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.25 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.26 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.10 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.25 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.1.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.30.19 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.42.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.13.0 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
