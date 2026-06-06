@@ -18,18 +18,21 @@ if [ -z "$TEST_INTEGRATION_USE_GRAPHDRIVER" ]; then
 	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_build_test.py::BuildTest::test_build_squash"
 fi
 
-# TODO re-enable test_attach_no_stream after https://github.com/docker/docker-py/issues/2513 is resolved
+# TODO re-enable test_attach_no_stream after https://github.com/docker/docker-py/issues/2513 is resolved.
+# This test is flaky in moby CI (returns empty output instead of 'hello\n').
 PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream"
 
-# TODO re-enable test_run_container_reading_socket_ws. It's reported in https://github.com/docker/docker-py/issues/1478, and we're getting that error in our tests.
+# TODO re-enable test_run_container_reading_socket_ws after https://github.com/docker/docker-py/issues/1478 is resolved.
+# This test fails due to a websocket-client compatibility issue with the docker+http scheme.
 PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_run_container_reading_socket_ws"
 
 # Legacy links are deprecated since a long time, and starting with v29.0, the Engine won't set legacy links env vars
-# automatically in linking containers. Thus, this test is expected to fail — skip it. See https://github.com/moby/moby/pull/50719
+# automatically in linking containers. This test is permanently skipped because it asserts those env vars.
+# See https://github.com/moby/moby/pull/50719
 PY_TEST_OPTIONS="${PY_TEST_OPTIONS} --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_links"
 
 # The NetworkSettings.MacAddress field has been deprecated since Docker 1.9, and starting with v29.0, the Engine won't
-# include it in API respoonses. Thus, this test is expected to fail — skip it.
+# include it in API responses. This test is permanently skipped because it asserts that field.
 # See https://github.com/moby/moby/pull/50846 and https://github.com/moby/moby/pull/50957
 PY_TEST_OPTIONS="${PY_TEST_OPTIONS} --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_mac_address"
 
