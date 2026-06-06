@@ -44,9 +44,25 @@ trap cleanup EXIT
 
 # Mount disk image
 modprobe nbd max_part=63
-qemu-nbd -rc ${block_device} -P 1 "$disk_image_file"
+# qemu-nbd 10.0+ removed the -P option for selecting a partition.
+# When unavailable, connect the whole device and use the kernel-generated
+# partition device (e.g. /dev/nbd0p1).
+if qemu-nbd --help 2>&1 | grep -q -- '-P'; then
+	qemu-nbd -rc "${block_device}" -P 1 "$disk_image_file"
+	partition_device=${block_device}
+else
+	qemu-nbd -rc "${block_device}" "$disk_image_file"
+	partition_device=${block_device}p1
+	# Wait for the kernel to create the partition device.
+	for _ in $(seq 1 30); do
+		if [ -b "$partition_device" ]; then
+			break
+		fi
+		sleep 0.1
+	done
+fi
 mkdir "$builddir/disk_image"
-mount -o ro ${block_device} "$builddir/disk_image"
+mount -o ro "${partition_device}" "$builddir/disk_image"
 
 mkdir "$builddir/workdir"
 mkdir "$builddir/diff"

@@ -12,6 +12,7 @@ thumbs.db
 .envrc
 .bashrc
 .editorconfig
+.claude
 
 # build artifacts
 /bundles/
