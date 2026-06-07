@@ -244,6 +244,9 @@ fi
 
 echo
 
+optional_features_exit=${EXITCODE}
+EXITCODE=0
+
 echo 'Optional Features:'
 {
 	check_flags USER_NS
@@ -352,6 +355,8 @@ if ! is_set EXT4_FS || ! is_set EXT4_FS_POSIX_ACL || ! is_set EXT4_FS_SECURITY; 
 		echo "    $(wrap_color 'enable these ext4 configs if you are using ext4 as backing filesystem' bold black)"
 	fi
 fi
+
+EXITCODE=${optional_features_exit}
 
 echo '- Network Drivers:'
 echo "  - \"$(wrap_color 'bridge' blue)\":"
