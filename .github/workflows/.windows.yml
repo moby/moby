@@ -44,15 +44,10 @@ jobs:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
       BIN_OUT: ${{ github.workspace }}\out
-    defaults:
-      run:
-        working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
     steps:
       -
         name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
         name: Env
         run: |
@@ -112,9 +107,9 @@ jobs:
         name: Copy artifacts
         run: |
           New-Item -ItemType "directory" -Path "${{ env.BIN_OUT }}"
-          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\src\github.com\docker\docker\bundles\docker.exe" ${{ env.BIN_OUT }}\
-          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\src\github.com\docker\docker\bundles\dockerd.exe" ${{ env.BIN_OUT }}\
-          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\src\github.com\docker\docker\bundles\docker-buildx.exe" ${{ env.BIN_OUT }}\
+          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\usr\src\moby\bundles\docker.exe" ${{ env.BIN_OUT }}\
+          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\usr\src\moby\bundles\dockerd.exe" ${{ env.BIN_OUT }}\
+          docker cp "${{ env.TEST_CTN_NAME }}`:c`:\usr\src\moby\bundles\docker-buildx.exe" ${{ env.BIN_OUT }}\
           docker cp "${{ env.TEST_CTN_NAME }}`:c`:\gopath\bin\gotestsum.exe" ${{ env.BIN_OUT }}\
           docker cp "${{ env.TEST_CTN_NAME }}`:c`:\containerd\bin\containerd.exe" ${{ env.BIN_OUT }}\
           docker cp "${{ env.TEST_CTN_NAME }}`:c`:\containerd\bin\containerd-shim-runhcs-v1.exe" ${{ env.BIN_OUT }}\
@@ -134,15 +129,10 @@ jobs:
     env:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
-    defaults:
-      run:
-        working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
     steps:
       -
         name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
         name: Env
         run: |
@@ -198,14 +188,13 @@ jobs:
         name: Test
         run: |
           & docker run --name ${{ env.TEST_CTN_NAME }} -e "DOCKER_GITCOMMIT=${{ github.sha }}" `
-            -v "${{ env.GOPATH }}\src\github.com\docker\docker\bundles:C:\gopath\src\github.com\docker\docker\bundles" `
+            -v ".\bundles:C:\usr\src\moby\bundles" `
             ${{ env.TEST_IMAGE_NAME }} hack\make.ps1 -TestUnit
       -
         name: Send to Codecov
         if: inputs.send_coverage
         uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
         with:
-          working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
           directory: bundles
           env_vars: RUNNER_OS
           flags: unit
@@ -216,7 +205,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
-          path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
+          path: bundles/*
           retention-days: 1
       -
         name: Upload test results (gotestsum JSON)
@@ -312,15 +301,10 @@ jobs:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
       BIN_OUT: ${{ github.workspace }}\out
-    defaults:
-      run:
-        working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
     steps:
       -
         name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          path: ${{ env.GOPATH }}/src/github.com/docker/docker
       -
         name: Set up Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
@@ -517,7 +501,6 @@ jobs:
         if: inputs.send_coverage
         uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
         with:
-          working-directory: ${{ env.GOPATH }}\src\github.com\docker\docker
           directory: bundles
           env_vars: RUNNER_OS
           flags: integration,${{ matrix.runtime }}
@@ -557,7 +540,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-${{ env.TESTREPORTS_NAME }}
-          path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
+          path: bundles/*
           retention-days: 1
       -
         name: Upload test results (gotestsum JSON)
