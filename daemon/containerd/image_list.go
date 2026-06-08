@@ -107,7 +107,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 	}
 
 	// TODO: Allow platform override?
-	platformMatcher := matchAnyWithPreference(platforms.Default(), nil)
+	platformMatcher := matchAnyWithPreference(i.hostPlatformMatcher(), nil)
 
 	for _, img := range imgs {
 		isDangling := isDanglingImage(img)

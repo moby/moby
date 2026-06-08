@@ -138,7 +138,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 		}()
 	}
 
-	p := platforms.Default()
+	p := i.hostPlatformMatcher()
 	if platform != nil {
 		p = platforms.Only(*platform)
 	}
@@ -252,7 +252,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 			// the same message as the graphdrivers backend.
 			// The one returned by containerd doesn't contain the platform and is much less informative.
 			if strings.Contains(err.Error(), "platform") {
-				platformStr := platforms.DefaultString()
+				platformStr := platforms.FormatAll(i.hostPlatformSpec())
 				if platform != nil {
 					platformStr = platforms.FormatAll(*platform)
 				}

@@ -65,9 +65,14 @@ func (i *ImageService) matchRequestedOrDefault(
 
 // hostPlatformMatcher returns a platform match comparer that matches the host platform.
 func (i *ImageService) hostPlatformMatcher() platforms.MatchComparer {
-	// Allow to override the host platform for testing purposes.
+	return platforms.Only(i.hostPlatformSpec())
+}
+
+// hostPlatformSpec returns the host platform specification.
+func (i *ImageService) hostPlatformSpec() ocispec.Platform {
+	// Allow tests to override the host platform before constructing matchers.
 	if i.defaultPlatformOverride != nil {
-		return platforms.Only(*i.defaultPlatformOverride)
+		return *i.defaultPlatformOverride
 	}
-	return platforms.Default()
+	return platforms.DefaultSpec()
 }
