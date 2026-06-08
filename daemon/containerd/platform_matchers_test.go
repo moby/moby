@@ -3,6 +3,7 @@ package containerd
 import (
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/containerd/platforms"
@@ -16,6 +17,24 @@ var (
 	pLinuxAmd64 = ocispec.Platform{
 		OS:           "linux",
 		Architecture: "amd64",
+	}
+
+	pLinuxAmd64v2 = ocispec.Platform{
+		OS:           "linux",
+		Architecture: "amd64",
+		Variant:      "v2",
+	}
+
+	pLinuxAmd64v3 = ocispec.Platform{
+		OS:           "linux",
+		Architecture: "amd64",
+		Variant:      "v3",
+	}
+
+	pLinuxAmd64v4 = ocispec.Platform{
+		OS:           "linux",
+		Architecture: "amd64",
+		Variant:      "v4",
 	}
 
 	pLinuxArmv5 = ocispec.Platform{
@@ -42,6 +61,55 @@ var (
 		OSVersion:    "10.0.14393",
 	}
 )
+
+func TestHostPlatformSpecSetsAMD64Variant(t *testing.T) {
+	imgSvc := ImageService{defaultPlatformOverride: &pLinuxAmd64}
+	p := imgSvc.hostPlatformSpec()
+	assert.Check(t, is.DeepEqual(p, pLinuxAmd64))
+
+	imgSvc = ImageService{}
+	p = imgSvc.hostPlatformSpec()
+	if p.Architecture == "amd64" {
+		assert.Assert(t, strings.HasPrefix(p.Variant, "v"))
+	}
+}
+
+func TestMatcherOnLinuxAmd64v4(t *testing.T) {
+	yes := true
+	no := false
+
+	for _, indexTc := range []indexTestCase{
+		{
+			name:  "linux_amd64_linux_amd64_v3",
+			index: []ocispec.Platform{pLinuxAmd64, pLinuxAmd64v3},
+			tc: []requestedAndFirst{
+				{requested: nil, first: &pLinuxAmd64v3},
+				{requested: &ocispec.Platform{OS: "linux", Architecture: "amd64"}, first: &pLinuxAmd64},
+				{requested: &ocispec.Platform{OS: "linux", Architecture: "amd64", Variant: "v3"}, first: &pLinuxAmd64v3},
+			},
+		},
+		{
+			name:  "linux_amd64_v3_only",
+			index: []ocispec.Platform{pLinuxAmd64v3},
+			tc: []requestedAndFirst{
+				{requested: nil, first: &pLinuxAmd64v3},
+				{strict: &yes, requested: &ocispec.Platform{OS: "linux", Architecture: "amd64"}, first: nil},
+				{strict: &no, requested: &ocispec.Platform{OS: "linux", Architecture: "amd64"}, first: nil},
+			},
+		},
+		{
+			name:  "linux_amd64_v2_v3",
+			index: []ocispec.Platform{pLinuxAmd64v2, pLinuxAmd64v3},
+			tc: []requestedAndFirst{
+				{requested: nil, first: &pLinuxAmd64v3},
+				{strict: &yes, requested: &ocispec.Platform{OS: "linux", Architecture: "amd64", Variant: "v4"}, first: nil},
+				{strict: &no, requested: &ocispec.Platform{OS: "linux", Architecture: "amd64", Variant: "v4"}, first: &pLinuxAmd64v3},
+			},
+		},
+	} {
+		testOnlyAndOnlyStrict(t, pLinuxAmd64v4, indexTc)
+	}
+}
 
 type requestedAndFirst struct {
 	// Whether platforms.Only or OnlyStrict should be used
