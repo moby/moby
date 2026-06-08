@@ -83,7 +83,7 @@ func (s *Weighted) Acquire(ctx context.Context, n int64) error {
 		default:
 			isFront := s.waiters.Front() == elem
 			s.waiters.Remove(elem)
-			// If we're at the front and there're extra tokens left, notify other waiters.
+			// If we're at the front and there are extra tokens left, notify other waiters.
 			if isFront && s.size > s.cur {
 				s.notifyWaiters()
 			}
@@ -139,15 +139,15 @@ func (s *Weighted) notifyWaiters() {
 
 		w := next.Value.(waiter)
 		if s.size-s.cur < w.n {
-			// Not enough tokens for the next waiter.  We could keep going (to try to
+			// Not enough tokens for the next waiter. We could keep going (to try to
 			// find a waiter with a smaller request), but under load that could cause
 			// starvation for large requests; instead, we leave all remaining waiters
 			// blocked.
 			//
 			// Consider a semaphore used as a read-write lock, with N tokens, N
-			// readers, and one writer.  Each reader can Acquire(1) to obtain a read
-			// lock.  The writer can Acquire(N) to obtain a write lock, excluding all
-			// of the readers.  If we allow the readers to jump ahead in the queue,
+			// readers, and one writer. Each reader can Acquire(1) to obtain a read
+			// lock. The writer can Acquire(N) to obtain a write lock, excluding all
+			// of the readers. If we allow the readers to jump ahead in the queue,
 			// the writer will starve — there is always one token available for every
 			// reader.
 			break
