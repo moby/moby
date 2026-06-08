@@ -424,7 +424,7 @@ func (i *ImageService) refreshImageIdentityCacheKey(ctx context.Context, cacheKe
 		return nil
 	}
 
-	platformMatcher, err := imageIdentityPlatformMatcher(bestPlatform)
+	platformMatcher, err := i.imageIdentityPlatformMatcher(bestPlatform)
 	if err != nil {
 		return err
 	}
@@ -448,9 +448,9 @@ func (i *ImageService) refreshImageIdentityCacheKey(ctx context.Context, cacheKe
 	return nil
 }
 
-func imageIdentityPlatformMatcher(platform string) (platforms.MatchComparer, error) {
+func (i *ImageService) imageIdentityPlatformMatcher(platform string) (platforms.MatchComparer, error) {
 	if platform == "" {
-		return matchAnyWithPreference(platforms.Default(), nil), nil
+		return matchAnyWithPreference(i.hostPlatformMatcher(), nil), nil
 	}
 	parsed, err := platforms.Parse(platform)
 	if err != nil {
@@ -541,7 +541,7 @@ func (i *ImageService) warmImageIdentityCache(ctx context.Context, img c8dimages
 	go func() {
 		warmCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), imageIdentityWarmupTimeout)
 		defer cancel()
-		multi, err := i.multiPlatformSummary(warmCtx, img, matchAnyWithPreference(platforms.Default(), nil))
+		multi, err := i.multiPlatformSummary(warmCtx, img, matchAnyWithPreference(i.hostPlatformMatcher(), nil))
 		if err != nil {
 			log.G(warmCtx).WithError(err).WithField("image", img.Name).Debug("failed to build image identity cache in background")
 			return
