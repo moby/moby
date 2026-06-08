@@ -26,7 +26,7 @@ jobs:
 
   build:
     if: ${{ !failure() && !cancelled() && (github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only')) }}
-    uses: docker/github-builder/.github/workflows/bake.yml@17bd7d64200cae4ba58ffc099934e8012ae320f2 # v1.10.0
+    uses: docker/github-builder/.github/workflows/bake.yml@70ac3fc303efa83d2b94905e6ab78bb83cbdc2ae # v1.11.0
     needs:
       - validate-dco
     permissions:
