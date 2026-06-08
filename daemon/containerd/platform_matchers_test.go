@@ -58,11 +58,11 @@ type indexTestCase struct {
 }
 
 func TestMatcherOnLinuxArm64v8(t *testing.T) {
-	daemonPlatform := platforms.Only(ocispec.Platform{
+	daemonPlatform := ocispec.Platform{
 		OS:           "linux",
 		Architecture: "arm64",
 		Variant:      "v8",
-	})
+	}
 
 	yes := true
 	no := false
@@ -96,11 +96,11 @@ func TestMatcherOnLinuxArm64v8(t *testing.T) {
 
 func TestMatcherOnWindowsAmd64(t *testing.T) {
 	skip.If(t, runtime.GOOS != "windows", "TODO: containerd matcher only matches OSVersion when on Windows")
-	daemonPlatform := platforms.Only(ocispec.Platform{
+	daemonPlatform := ocispec.Platform{
 		OS:           "windows",
 		Architecture: "amd64",
 		OSVersion:    "10.0.18362",
-	})
+	}
 
 	for _, indexTc := range []indexTestCase{
 		{
@@ -121,9 +121,9 @@ func TestMatcherOnWindowsAmd64(t *testing.T) {
 	}
 }
 
-func testOnlyAndOnlyStrict(t *testing.T, daemonPlatform platforms.MatchComparer, indexTc indexTestCase) {
+func testOnlyAndOnlyStrict(t *testing.T, daemonPlatform ocispec.Platform, indexTc indexTestCase) {
 	imgSvc := ImageService{}
-	imgSvc.defaultPlatformOverride = daemonPlatform
+	imgSvc.defaultPlatformOverride = &daemonPlatform
 
 	t.Run(indexTc.name, func(t *testing.T) {
 		indexTc := indexTc
