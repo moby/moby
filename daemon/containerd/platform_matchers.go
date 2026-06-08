@@ -3,6 +3,7 @@ package containerd
 import (
 	"github.com/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	archvariant "github.com/tonistiigi/go-archvariant"
 )
 
 // platformsWithPreferenceMatcher is a platform matcher that matches any of the
@@ -74,5 +75,9 @@ func (i *ImageService) hostPlatformSpec() ocispec.Platform {
 	if i.defaultPlatformOverride != nil {
 		return *i.defaultPlatformOverride
 	}
-	return platforms.DefaultSpec()
+	p := platforms.DefaultSpec()
+	if p.Architecture == "amd64" {
+		p.Variant = archvariant.AMD64Variant()
+	}
+	return p
 }
