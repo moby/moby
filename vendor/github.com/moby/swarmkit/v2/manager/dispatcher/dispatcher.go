@@ -1174,6 +1174,9 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 				case api.EventUpdateVolume:
 					d.store.View(func(readTx store.ReadTx) {
 						vol := store.GetVolume(readTx, v.Volume.ID)
+						if vol == nil {
+							return
+						}
 						// check through the PublishStatus to see if there is
 						// one for this node.
 						for _, status := range vol.PublishStatus {
