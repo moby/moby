@@ -67,7 +67,7 @@ func (i *ImageService) matchRequestedOrDefault(
 func (i *ImageService) hostPlatformMatcher() platforms.MatchComparer {
 	// Allow to override the host platform for testing purposes.
 	if i.defaultPlatformOverride != nil {
-		return i.defaultPlatformOverride
+		return platforms.Only(*i.defaultPlatformOverride)
 	}
 	return platforms.Default()
 }
