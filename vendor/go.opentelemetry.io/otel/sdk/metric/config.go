@@ -25,7 +25,7 @@ type config struct {
 	cardinalityLimit int
 }
 
-const defaultCardinalityLimit = 0
+const defaultCardinalityLimit = 2000
 
 // readerSignals returns a force-flush and shutdown function for a
 // MeterProvider to call in their respective options. All Readers c contains
@@ -70,6 +70,10 @@ func unifyShutdown(funcs []func(context.Context) error) func(context.Context) er
 	}
 }
 
+type experimentalOption interface {
+	Experimental()
+}
+
 // newConfig returns a config configured with options.
 func newConfig(options []Option) config {
 	conf := config{
@@ -81,6 +85,9 @@ func newConfig(options []Option) config {
 		conf = o.apply(conf)
 	}
 	for _, o := range options {
+		if _, ok := o.(experimentalOption); ok {
+			continue
+		}
 		conf = o.apply(conf)
 	}
 	return conf
@@ -150,7 +157,7 @@ func WithView(views ...View) Option {
 // exemplar reservoir, but the exemplar reservoir makes the final decision of
 // whether to store an exemplar.
 //
-// By default, the [exemplar.SampledFilter]
+// By default, the [exemplar.TraceBasedFilter]
 // is used. Exemplars can be entirely disabled by providing the
 // [exemplar.AlwaysOffFilter].
 func WithExemplarFilter(filter exemplar.Filter) Option {
@@ -165,7 +172,10 @@ func WithExemplarFilter(filter exemplar.Filter) Option {
 // The cardinality limit is the hard limit on the number of metric datapoints
 // that can be collected for a single instrument in a single collect cycle.
 //
-// Setting this to a zero or negative value means no limit is applied.
+// By default, if this option is not used, a limit of
+// 2000 is applied.
+//
+// Setting this to a zero or negative means no limit is applied.
 // This value applies to all instrument kinds, but can be overridden per kind by
 // the reader's cardinality limit selector (see [WithCardinalityLimitSelector]).
 func WithCardinalityLimit(limit int) Option {
