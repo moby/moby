@@ -9,7 +9,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	oldsemconv "go.opentelemetry.io/otel/semconv/v1.37.0" //nolint:depguard // Use of v1.37.0 is required for backward compatibility stability opt-in.
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 )
 
 // ParseFullMethod returns a span name following the OpenTelemetry semantic

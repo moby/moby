@@ -169,17 +169,17 @@ func (mr *ManualReader) Collect(ctx context.Context, rm *metricdata.ResourceMetr
 }
 
 // MarshalLog returns logging data about the ManualReader.
-func (r *ManualReader) MarshalLog() any {
-	r.mu.Lock()
-	down := r.isShutdown
-	r.mu.Unlock()
+func (mr *ManualReader) MarshalLog() any {
+	mr.mu.Lock()
+	down := mr.isShutdown
+	mr.mu.Unlock()
 	return struct {
 		Type       string
 		Registered bool
 		Shutdown   bool
 	}{
 		Type:       "ManualReader",
-		Registered: r.sdkProducer.Load() != nil,
+		Registered: mr.sdkProducer.Load() != nil,
 		Shutdown:   down,
 	}
 }

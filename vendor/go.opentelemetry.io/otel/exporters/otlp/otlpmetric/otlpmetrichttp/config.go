@@ -185,6 +185,16 @@ func WithTimeout(duration time.Duration) Option {
 	return wrappedOption{oconf.WithTimeout(duration)}
 }
 
+// WithMaxRequestSize sets the maximum size, in bytes, of a serialized export
+// request, before compression, that the exporter will send.
+//
+// If size is less than or equal to zero, no request-size limit is applied.
+// Disabling the limit is not recommended because it can lead to excessive
+// resource consumption or abuse.
+func WithMaxRequestSize(size int) Option {
+	return wrappedOption{oconf.WithMaxRequestSize(size)}
+}
+
 // WithRetry sets the retry policy for transient retryable errors that are
 // returned by the target endpoint.
 //

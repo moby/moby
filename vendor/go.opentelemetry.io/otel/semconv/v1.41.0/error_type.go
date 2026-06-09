@@ -1,10 +1,13 @@
+// Code generated from semantic convention specification. DO NOT EDIT.
+
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package semconv // import "go.opentelemetry.io/otel/semconv/v1.40.0"
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.41.0"
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -22,7 +25,8 @@ import (
 // the returned attribute has that method's return value. If multiple errors in
 // the chain implement this method, the value from the first match found by
 // [errors.As] is used. Otherwise, the returned attribute has a value derived
-// from the concrete type of err.
+// from the concrete type of err after unwrapping any wrappers created with
+// [fmt.Errorf].
 //
 // The key of the returned attribute is [ErrorTypeKey].
 func ErrorType(err error) attribute.KeyValue {
@@ -50,7 +54,7 @@ func errorType(err error) string {
 		// Fallback to reflection if the ErrorType method is not supported or
 		// returns an empty value.
 
-		t := reflect.TypeOf(err)
+		t := reflect.TypeOf(unwrapFmtWrapped(err))
 		pkg, name := t.PkgPath(), t.Name()
 		if pkg != "" && name != "" {
 			s = pkg + "." + name
@@ -63,4 +67,17 @@ func errorType(err error) string {
 		}
 	}
 	return s
+}
+
+var fmtWrapErrorType = reflect.TypeOf(fmt.Errorf("wrapped: %w", errors.New("err")))
+
+func unwrapFmtWrapped(err error) error {
+	for reflect.TypeOf(err) == fmtWrapErrorType {
+		u := errors.Unwrap(err)
+		if u == nil {
+			return err // When the wrapped error is nil, use the concrete type of the wrapper.
+		}
+		err = u
+	}
+	return err
 }
