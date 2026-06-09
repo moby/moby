@@ -118,6 +118,12 @@ loop:
 		if t.DesiredState < api.TaskStateAssigned || t.DesiredState > api.TaskStateCompleted {
 			continue
 		}
+		// Completed tasks should not consume node reservations. This is
+		// particularly important for replicated-job services, where tasks may
+		// remain with DesiredState=Completed after they finished.
+		if t.Status.State >= api.TaskStateCompleted {
+			continue
+		}
 
 		// Ensure that the node still satisfies placement constraints.
 		// NOTE: If the task is associacted with a service then we must use the
