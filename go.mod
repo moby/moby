@@ -2,6 +2,13 @@ module github.com/moby/moby/v2
 
 go 1.25.5
 
+tool (
+	github.com/gogo/protobuf/protoc-gen-gogo
+	github.com/gogo/protobuf/protoc-gen-gogofaster
+	github.com/gogo/protobuf/protoc-gen-gogoslick
+	github.com/golang/protobuf/protoc-gen-go
+)
+
 require (
 	cloud.google.com/go/compute/metadata v0.9.0
 	cloud.google.com/go/logging v1.18.0
@@ -42,7 +49,6 @@ require (
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f
-	github.com/golang/protobuf v1.5.4
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -201,6 +207,7 @@ require (
 	github.com/gofrs/flock v0.13.0 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/certificate-transparency-go v1.3.2 // indirect
 	github.com/google/go-containerregistry v0.20.7 // indirect
