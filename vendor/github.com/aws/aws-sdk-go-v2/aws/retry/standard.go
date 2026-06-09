@@ -3,6 +3,7 @@ package retry
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws/ratelimit"
@@ -35,8 +36,16 @@ const (
 const (
 	DefaultRetryRateTokens  uint = 500
 	DefaultRetryCost        uint = 5
-	DefaultRetryTimeoutCost uint = 10
 	DefaultNoRetryIncrement uint = 1
+
+	// DefaultRetryTimeoutCost is the cost to deduct from the RateLimiter's
+	// token bucket per retry caused by timeout error.
+	//
+	// When AWS_NEW_RETRIES_2026 is set to "true", timeouts are no longer
+	// treated differently than other transient errors. The discounted cost
+	// is instead applied to throttling errors via DefaultThrottlingRetryCost.
+	DefaultRetryTimeoutCost    uint = 10
+	DefaultThrottlingRetryCost uint = 5
 )
 
 // DefaultRetryableHTTPStatusCodes is the default set of HTTP status codes the SDK
@@ -121,6 +130,12 @@ type StandardOptions struct {
 	// It is safe to append to this list in NewStandard's functional options.
 	Timeouts []IsErrorTimeout
 
+	// Set of strategies to determine if the attempt failed due to a throttle
+	// error. Used to determine the retry token cost.
+	//
+	// It is safe to append to this list in NewStandard's functional options.
+	Throttles []IsErrorThrottle
+
 	// Provides the rate limiting strategy for rate limiting attempt retries
 	// across all attempts the retryer is being used with.
 	//
@@ -129,9 +144,13 @@ type StandardOptions struct {
 	// consume more tokens than what's available results in operation failure.
 	// The default implementation is parameterized as follows:
 	//   - a capacity of 500 (DefaultRetryRateTokens)
-	//   - a retry caused by a timeout costs 10 tokens (DefaultRetryCost)
-	//   - a retry caused by other errors costs 5 tokens (DefaultRetryTimeoutCost)
+	//   - a retry caused by a timeout costs 10 tokens (DefaultRetryTimeoutCost)
+	//   - a retry caused by other errors costs 5 tokens (DefaultRetryCost)
 	//   - an operation that succeeds on the 1st attempt adds 1 token (DefaultNoRetryIncrement)
+	//
+	// When AWS_NEW_RETRIES_2026 is set to "true", the costs change:
+	//   - a retry costs 14 tokens
+	//   - a retry caused by a throttling error costs 5 tokens (DefaultThrottlingRetryCost)
 	//
 	// You can disable rate limiting by setting this field to ratelimit.None.
 	RateLimiter RateLimiter
@@ -141,11 +160,23 @@ type StandardOptions struct {
 
 	// The cost to deduct from the RateLimiter's token bucket per retry caused
 	// by timeout error.
+	//
+	// When AWS_NEW_RETRIES_2026 is set to "true", this field is unused.
+	// Throttling errors use ThrottlingRetryCost instead.
 	RetryTimeoutCost uint
+
+	// The cost to deduct from the RateLimiter's token bucket per retry caused
+	// by a throttling error. Only used when AWS_NEW_RETRIES_2026 is "true".
+	ThrottlingRetryCost uint
 
 	// The cost to payback to the RateLimiter's token bucket for successful
 	// attempts.
 	NoRetryIncrement uint
+
+	// BaseDelay is the base backoff delay for non-throttle retryable errors.
+	// Throttling errors always use 1s. Defaults to 50ms if zero.
+	// Only used when AWS_NEW_RETRIES_2026 is "true"; ignored in legacy mode.
+	BaseDelay time.Duration
 }
 
 // RateLimiter provides the interface for limiting the rate of attempt retries
@@ -161,6 +192,7 @@ type RateLimiter interface {
 type Standard struct {
 	options StandardOptions
 
+	throttle  IsErrorThrottle
 	timeout   IsErrorTimeout
 	retryable IsErrorRetryable
 	backoff   BackoffDelayer
@@ -169,17 +201,7 @@ type Standard struct {
 // NewStandard initializes a standard retry behavior with defaults that can be
 // overridden via functional options.
 func NewStandard(fnOpts ...func(*StandardOptions)) *Standard {
-	o := StandardOptions{
-		MaxAttempts: DefaultMaxAttempts,
-		MaxBackoff:  DefaultMaxBackoff,
-		Retryables:  append([]IsErrorRetryable{}, DefaultRetryables...),
-		Timeouts:    append([]IsErrorTimeout{}, DefaultTimeouts...),
-
-		RateLimiter:      ratelimit.NewTokenRateLimit(DefaultRetryRateTokens),
-		RetryCost:        DefaultRetryCost,
-		RetryTimeoutCost: DefaultRetryTimeoutCost,
-		NoRetryIncrement: DefaultNoRetryIncrement,
-	}
+	o := standardDefaults()
 	for _, fn := range fnOpts {
 		fn(&o)
 	}
@@ -189,13 +211,25 @@ func NewStandard(fnOpts ...func(*StandardOptions)) *Standard {
 
 	backoff := o.Backoff
 	if backoff == nil {
-		backoff = NewExponentialJitterBackoff(o.MaxBackoff)
+		if newRetries2026() {
+			baseDelay := o.BaseDelay
+			if baseDelay == 0 {
+				baseDelay = 50 * time.Millisecond
+			}
+			backoff = newExponentialJitterBackoffWithOptions(o.MaxBackoff,
+				withBaseDelay(baseDelay),
+				withThrottleCheck(IsErrorThrottles(o.Throttles)),
+			)
+		} else {
+			backoff = NewExponentialJitterBackoff(o.MaxBackoff)
+		}
 	}
 
 	return &Standard{
 		options:   o,
 		backoff:   backoff,
 		retryable: IsErrorRetryables(o.Retryables),
+		throttle:  IsErrorThrottles(o.Throttles),
 		timeout:   IsErrorTimeouts(o.Timeouts),
 	}
 }
@@ -244,8 +278,14 @@ func (s *Standard) noRetryIncrement() error {
 func (s *Standard) GetRetryToken(ctx context.Context, opErr error) (func(error) error, error) {
 	cost := s.options.RetryCost
 
-	if s.timeout.IsErrorTimeout(opErr).Bool() {
-		cost = s.options.RetryTimeoutCost
+	if newRetries2026() {
+		if s.throttle.IsErrorThrottle(opErr).Bool() {
+			cost = s.options.ThrottlingRetryCost
+		}
+	} else {
+		if s.timeout.IsErrorTimeout(opErr).Bool() {
+			cost = s.options.RetryTimeoutCost
+		}
 	}
 
 	fn, err := s.options.RateLimiter.GetToken(ctx, cost)
@@ -266,4 +306,38 @@ func (f releaseToken) release(err error) error {
 	}
 
 	return f()
+}
+
+func newRetries2026() bool {
+	return os.Getenv("AWS_NEW_RETRIES_2026") == "true"
+}
+
+func standardDefaults() StandardOptions {
+	if newRetries2026() {
+		return StandardOptions{
+			MaxAttempts: DefaultMaxAttempts,
+			MaxBackoff:  DefaultMaxBackoff,
+			Retryables:  append([]IsErrorRetryable{}, DefaultRetryables...),
+			Timeouts:    append([]IsErrorTimeout{}, DefaultTimeouts...),
+			Throttles:   append([]IsErrorThrottle{}, DefaultThrottles...),
+
+			RateLimiter:         ratelimit.NewTokenRateLimit(DefaultRetryRateTokens),
+			RetryCost:           14,
+			RetryTimeoutCost:    DefaultRetryTimeoutCost,
+			ThrottlingRetryCost: DefaultThrottlingRetryCost,
+			NoRetryIncrement:    DefaultNoRetryIncrement,
+		}
+	}
+	return StandardOptions{
+		MaxAttempts: DefaultMaxAttempts,
+		MaxBackoff:  DefaultMaxBackoff,
+		Retryables:  append([]IsErrorRetryable{}, DefaultRetryables...),
+		Timeouts:    append([]IsErrorTimeout{}, DefaultTimeouts...),
+		Throttles:   append([]IsErrorThrottle{}, DefaultThrottles...),
+
+		RateLimiter:      ratelimit.NewTokenRateLimit(DefaultRetryRateTokens),
+		RetryCost:        DefaultRetryCost,
+		RetryTimeoutCost: DefaultRetryTimeoutCost,
+		NoRetryIncrement: DefaultNoRetryIncrement,
+	}
 }

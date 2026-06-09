@@ -233,9 +233,11 @@ func (r *Attempt) handleAttempt(
 			"failed to release retry token after request error, %w", err)
 	}
 	// Release the attempt token based on the state of the attempt's error (if any).
-	if releaseError := releaseAttemptToken(err); releaseError != nil && err != nil {
-		return out, attemptResult, nopRelease, fmt.Errorf(
-			"failed to release initial token after request error, %w", err)
+	if !newRetries2026() || attemptNum == 1 {
+		if releaseError := releaseAttemptToken(err); releaseError != nil && err != nil {
+			return out, attemptResult, nopRelease, fmt.Errorf(
+				"failed to release initial token after request error, %w", err)
+		}
 	}
 	// If there was no error making the attempt, nothing further to do. There
 	// will be nothing to retry.
@@ -276,6 +278,13 @@ func (r *Attempt) handleAttempt(
 	// Get a retry token that will be released after the
 	releaseRetryToken, retryTokenErr := r.retryer.GetRetryToken(ctx, err)
 	if retryTokenErr != nil {
+		// Long-polling operations must still back off when quota is exceeded.
+		if newRetries2026() && internalcontext.GetIsLongPolling(ctx) {
+			if retryDelay, delayErr := r.retryer.RetryDelay(attemptNum-1, err); delayErr == nil {
+				retryDelay = adjustForRetryAfterHeader(retryDelay, err, logger, r.LogAttempts)
+				_ = sdk.SleepWithContext(ctx, retryDelay)
+			}
+		}
 		return out, attemptResult, nopRelease, errors.Join(err, retryTokenErr)
 	}
 
@@ -285,9 +294,16 @@ func (r *Attempt) handleAttempt(
 	// Get the retry delay before another attempt can be made, and sleep for
 	// that time. Potentially early exist if the sleep is canceled via the
 	// context.
-	retryDelay, reqErr := r.retryer.RetryDelay(attemptNum, err)
+	attempt := attemptNum
+	if newRetries2026() {
+		attempt = attemptNum - 1
+	}
+	retryDelay, reqErr := r.retryer.RetryDelay(attempt, err)
 	if reqErr != nil {
 		return out, attemptResult, releaseRetryToken, reqErr
+	}
+	if newRetries2026() {
+		retryDelay = adjustForRetryAfterHeader(retryDelay, err, logger, r.LogAttempts)
 	}
 	if reqErr = sdk.SleepWithContext(ctx, retryDelay); reqErr != nil {
 		err = &aws.RequestCanceledError{Err: reqErr}
@@ -421,6 +437,43 @@ func AddRetryMiddlewares(stack *smithymiddle.Stack, options AddRetryMiddlewaresO
 		return err
 	}
 	return nil
+}
+
+// adjustForRetryAfterHeader checks for the x-amz-retry-after response header
+// and clamps the backoff duration accordingly. The header value is an integer
+// representing milliseconds. The result is clamped to [t_i, 5s + t_i] where
+// t_i is the jittered exponential backoff duration. Invalid header values are
+// ignored.
+func adjustForRetryAfterHeader(backoff time.Duration, err error, logger logging.Logger, logAttempts bool) time.Duration {
+	var re *http.ResponseError
+	if !errors.As(err, &re) || re.Response == nil || re.Response.Response == nil {
+		return backoff
+	}
+
+	headerVal := re.Response.Header.Get("X-Amz-Retry-After")
+	if headerVal == "" {
+		return backoff
+	}
+
+	ms, parseErr := strconv.ParseInt(headerVal, 10, 64)
+	if parseErr != nil || ms < 0 {
+		if logAttempts {
+			logger.Logf(logging.Debug, "ignoring invalid x-amz-retry-after header value %q", headerVal)
+		}
+		return backoff
+	}
+
+	retryAfter := time.Duration(ms) * time.Millisecond
+	minDuration := backoff
+	maxDuration := 5*time.Second + backoff
+
+	if retryAfter < minDuration {
+		return minDuration
+	}
+	if retryAfter > maxDuration {
+		return maxDuration
+	}
+	return retryAfter
 }
 
 // Determines the value of exception.type for metrics purposes. We prefer an
