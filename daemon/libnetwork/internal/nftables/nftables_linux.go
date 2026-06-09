@@ -14,7 +14,7 @@
 //	// Apply the updates with ...
 //	err := tm.Apply(ctx)
 //
-// The objects are any of: [BaseChain], [Chain], [Rule], [VMap], [VMapElement],
+// The objects are any of: [BaseChain], [Chain], [Rule], [Map], [MapElement],
 // [Set], [SetElement]
 //
 // The modifier can be reused to apply the same set of commands again or, more
@@ -128,18 +128,85 @@ const (
 	IPv6 Family = "ip6"
 )
 
-// NftType enumerates nft types that can be used to define maps/sets etc.
-type NftType string
+type SetTyper interface {
+	setType() string
+}
+
+type MapTyper interface {
+	mapType() string
+}
+
+// SetType represents named nft types that can be used to define sets or
+// construct map types.
+type SetType string
 
 const (
-	NftTypeIPv4Addr    NftType = "ipv4_addr"
-	NftTypeIPv6Addr    NftType = "ipv6_addr"
-	NftTypeEtherAddr   NftType = "ether_addr"
-	NftTypeInetProto   NftType = "inet_proto"
-	NftTypeInetService NftType = "inet_service"
-	NftTypeMark        NftType = "mark"
-	NftTypeIfname      NftType = "ifname"
+	IPv4Addr    SetType = "ipv4_addr"
+	IPv6Addr    SetType = "ipv6_addr"
+	EtherAddr   SetType = "ether_addr"
+	InetProto   SetType = "inet_proto"
+	InetService SetType = "inet_service"
+	Mark        SetType = "mark"
+	Ifname      SetType = "ifname"
 )
+
+func (t SetType) setType() string {
+	return "type " + string(t)
+}
+
+// Concat returns the tuple type formed by concatenating t and u.
+func (t SetType) Concat(u SetType) SetType {
+	return SetType(string(t) + " . " + string(u))
+}
+
+// MapType represents the named type of a map element, which is a compound type
+// with a key and a value.
+type MapType string
+
+func (t MapType) mapType() string {
+	return "type " + string(t)
+}
+
+// MapTo returns the map type where t is the key type and v is the value type.
+func (t SetType) MapTo(v SetType) MapType {
+	return MapType(string(t) + " : " + string(v))
+}
+
+// VMap returns the map type whose elements have t as the key type and contain
+// a verdict as the value.
+func (t SetType) VMap() MapType {
+	return MapType(string(t) + " : verdict")
+}
+
+// Typeof represents an nft "typeof" expression.
+type Typeof string
+
+func (t Typeof) setType() string {
+	return "typeof " + string(t)
+}
+
+func (t Typeof) Concat(u Typeof) Typeof {
+	return Typeof(string(t) + " . " + string(u))
+}
+
+// MapTypeof represents the type of a map element defined by a "typeof"
+// expression.
+type MapTypeof string
+
+func (t MapTypeof) mapType() string {
+	return "typeof " + string(t)
+}
+
+// MapTo returns the map type where t is the key type and v is the value type.
+func (t Typeof) MapTo(v Typeof) MapTypeof {
+	return MapTypeof(string(t) + " : " + string(v))
+}
+
+// VMap returns the map type whose elements have t as the key type and contain
+// a verdict as the value.
+func (t Typeof) VMap() MapTypeof {
+	return MapTypeof(string(t) + " : verdict")
+}
 
 // Enable tries once to initialise nftables.
 func Enable() error {
@@ -183,7 +250,7 @@ type table struct {
 	Name   string
 	Family Family
 
-	VMaps  map[string]*vMap
+	Maps   map[string]*nftMap
 	Sets   map[string]*set
 	Chains map[string]*chain
 
@@ -225,7 +292,7 @@ func NewTable(family Family, name string) (Table, error) {
 		t: &table{
 			Name:      name,
 			Family:    family,
-			VMaps:     map[string]*vMap{},
+			Maps:      map[string]*nftMap{},
 			Sets:      map[string]*set{},
 			Chains:    map[string]*chain{},
 			MustFlush: true,
@@ -277,13 +344,13 @@ func (t Table) Family() Family {
 //   - add new map/set elements
 const incrementalUpdateTemplText = `{{$family := .Family}}{{$tableName := .Name}}
 table {{$family}} {{$tableName}} {
-	{{range .VMaps}}map {{.Name}} {
-		type {{.ElementType}} : verdict
+	{{range .Maps}}map {{.Name}} {
+		{{.ElementTypeExpr}}
 		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
 	}
 	{{end}}
 	{{range .Sets}}set {{.Name}} {
-		type {{.ElementType}}
+		{{.ElementTypeExpr}}
 		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
 	}
 	{{end}}
@@ -292,13 +359,13 @@ table {{$family}} {{$tableName}} {
 	} ; {{end}}{{end}}
 }
 {{if .MustFlush}}flush table {{$family}} {{$tableName}}{{end}}
-{{range .VMaps}}{{if .MustFlush}}flush map {{$family}} {{$tableName}} {{.Name}}
+{{range .Maps}}{{if .MustFlush}}flush map {{$family}} {{$tableName}} {{.Name}}
 {{end}}{{end}}
 {{range .Sets}}{{if .MustFlush}}flush set {{$family}} {{$tableName}} {{.Name}}
 {{end}}{{end}}
 {{range .Chains}}{{if .MustFlush}}flush chain {{$family}} {{$tableName}} {{.Name}}
 {{end}}{{end}}
-{{range .VMaps}}{{if .DeletedElements}}delete element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .DeletedElements}}{{$k}}, {{end}} }
+{{range .Maps}}{{if .DeletedElements}}delete element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .DeletedElements}}{{$k}}, {{end}} }
 {{end}}{{end}}
 {{range .Sets}}{{if .DeletedElements}}delete element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .DeletedElements}}{{$k}}, {{end}} }
 {{end}}{{end}}
@@ -312,7 +379,7 @@ table {{$family}} {{$tableName}} {
 	}
 	{{end}}{{end}}
 }
-{{range .VMaps}}{{if .AddedElements}}add element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .AddedElements}}{{$k}} : {{$v}}, {{end}} }
+{{range .Maps}}{{if .AddedElements}}add element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .AddedElements}}{{$k}} : {{$v}}, {{end}} }
 {{end}}{{end}}
 {{range .Sets}}{{if .AddedElements}}add element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .AddedElements}}{{$k}}, {{end}} }
 {{end}}{{end}}
@@ -327,8 +394,8 @@ const reloadTemplText = `{{$family := .Family}}{{$tableName := .Name}}
 table {{$family}} {{$tableName}} {}
 delete table {{$family}} {{$tableName}}
 table {{$family}} {{$tableName}} {
-	{{range .VMaps}}map {{.Name}} {
-		type {{.ElementType}} : verdict
+	{{range .Maps}}map {{.Name}} {
+		{{.ElementTypeExpr}}
 		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
         {{if .Elements}}elements = {
 			{{range $k,$v := .Elements}}{{$k}} : {{$v}},
@@ -337,7 +404,7 @@ table {{$family}} {{$tableName}} {
 	}
 	{{end}}
 	{{range .Sets}}set {{.Name}} {
-		type {{.ElementType}}
+		{{.ElementTypeExpr}}
 		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
         {{if .Elements}}elements = {
 			{{range $k,$v := .Elements}}{{$k}},
@@ -736,15 +803,15 @@ func (ru Rule) delete(ctx context.Context, t *table) (bool, error) {
 }
 
 // ////////////////////////////
-// VMaps
+// Maps
 
-// vMap is the internal representation of an nftables verdict map.
+// nftMap is the internal representation of an nftables map (including verdict maps).
 // Its elements need to be exported for use by text/template, but they should only be
 // manipulated via exported methods.
-type vMap struct {
+type nftMap struct {
 	table           *table
 	Name            string
-	ElementType     NftType
+	ElementTypeExpr string
 	Flags           []string
 	Elements        map[string]string
 	AddedElements   map[string]string
@@ -752,120 +819,120 @@ type vMap struct {
 	MustFlush       bool
 }
 
-// VMap implements the [Obj] interface, it can be passed to a
-// [Modifier] to create or delete a verdict map.
-type VMap struct {
+// Map implements the [Obj] interface, it can be passed to a
+// [Modifier] to create or delete a map.
+type Map struct {
 	Name        string
-	ElementType NftType
+	ElementType MapTyper
 	Flags       []string
 }
 
-func (vm VMap) create(ctx context.Context, t *table) (bool, error) {
-	if vm.Name == "" {
-		return false, errors.New("vmap must have a name")
+func (m Map) create(ctx context.Context, t *table) (bool, error) {
+	if m.Name == "" {
+		return false, errors.New("map must have a name")
 	}
-	if _, ok := t.VMaps[vm.Name]; ok {
-		return false, fmt.Errorf("vmap '%s' already exists", vm.Name)
+	if _, ok := t.Maps[m.Name]; ok {
+		return false, fmt.Errorf("map '%s' already exists", m.Name)
 	}
-	if vm.ElementType == "" {
-		return false, fmt.Errorf("vmap '%s' has no element type", vm.Name)
+	if m.ElementType == nil {
+		return false, fmt.Errorf("map '%s' has no element type", m.Name)
 	}
-	v := &vMap{
+	nm := &nftMap{
 		table:           t,
-		Name:            vm.Name,
-		ElementType:     vm.ElementType,
-		Flags:           slices.Clone(vm.Flags),
+		Name:            m.Name,
+		ElementTypeExpr: m.ElementType.mapType(),
+		Flags:           slices.Clone(m.Flags),
 		Elements:        map[string]string{},
 		AddedElements:   map[string]string{},
 		DeletedElements: map[string]string{},
 		MustFlush:       true,
 	}
-	t.VMaps[v.Name] = v
+	t.Maps[nm.Name] = nm
 	log.G(ctx).WithFields(log.Fields{
 		"family": t.Family,
 		"table":  t.Name,
-		"vmap":   v.Name,
-	}).Debug("nftables: created interface vmap")
+		"map":    nm.Name,
+	}).Debug("nftables: created map")
 	return true, nil
 }
 
-func (vm VMap) delete(ctx context.Context, t *table) (bool, error) {
-	v := t.VMaps[vm.Name]
-	if v == nil {
-		return false, fmt.Errorf("cannot delete vmap '%s', it does not exist", vm.Name)
+func (m Map) delete(ctx context.Context, t *table) (bool, error) {
+	nm := t.Maps[m.Name]
+	if nm == nil {
+		return false, fmt.Errorf("cannot delete map '%s', it does not exist", m.Name)
 	}
-	if len(v.Elements) != 0 {
-		return false, fmt.Errorf("cannot delete vmap '%s', it contains %d elements", v.Name, len(v.Elements))
+	if len(nm.Elements) != 0 {
+		return false, fmt.Errorf("cannot delete map '%s', it contains %d elements", nm.Name, len(nm.Elements))
 	}
-	delete(t.VMaps, v.Name)
+	delete(t.Maps, nm.Name)
 	t.DeleteCommands = append(t.DeleteCommands,
-		fmt.Sprintf("delete map %s %s %s", t.Family, t.Name, v.Name))
+		fmt.Sprintf("delete map %s %s %s", t.Family, t.Name, nm.Name))
 	log.G(ctx).WithFields(log.Fields{
 		"family": t.Family,
 		"table":  t.Name,
-		"vmap":   v.Name,
-	}).Debug("nftables: deleted vmap")
+		"map":    nm.Name,
+	}).Debug("nftables: deleted map")
 	return true, nil
 }
 
-// VMapElement implements the [Obj] interface, it can be passed to a
-// [Modifier] to create or delete an entry in a verdict map.
-type VMapElement struct {
-	VmapName string
-	Key      string
-	Verdict  string
+// MapElement implements the [Obj] interface, it can be passed to a
+// [Modifier] to create or delete an entry in a map.
+type MapElement struct {
+	MapName string
+	Key     string
+	Value   string
 }
 
-func (ve VMapElement) create(ctx context.Context, t *table) (bool, error) {
-	if ve.VmapName == "" {
-		return false, errors.New("cannot add element to unnamed vmap")
+func (me MapElement) create(ctx context.Context, t *table) (bool, error) {
+	if me.MapName == "" {
+		return false, errors.New("cannot add element to unnamed map")
 	}
-	v := t.VMaps[ve.VmapName]
-	if v == nil {
-		return false, fmt.Errorf("cannot add to vmap '%s', it does not exist", ve.VmapName)
+	nm := t.Maps[me.MapName]
+	if nm == nil {
+		return false, fmt.Errorf("cannot add to map '%s', it does not exist", me.MapName)
 	}
-	if ve.Key == "" || ve.Verdict == "" {
-		return false, fmt.Errorf("cannot add to vmap '%s', element must have key and verdict", ve.VmapName)
+	if me.Key == "" || me.Value == "" {
+		return false, fmt.Errorf("cannot add to map '%s', element must have key and value", me.MapName)
 	}
-	if _, ok := v.Elements[ve.Key]; ok {
-		return false, fmt.Errorf("verdict map '%s' already contains element '%s'", ve.VmapName, ve.Key)
+	if _, ok := nm.Elements[me.Key]; ok {
+		return false, fmt.Errorf("map '%s' already contains element '%s'", me.MapName, me.Key)
 	}
-	v.Elements[ve.Key] = ve.Verdict
-	v.AddedElements[ve.Key] = ve.Verdict
-	delete(v.DeletedElements, ve.Key)
+	nm.Elements[me.Key] = me.Value
+	nm.AddedElements[me.Key] = me.Value
+	delete(nm.DeletedElements, me.Key)
 	log.G(ctx).WithFields(log.Fields{
-		"family":  t.Family,
-		"table":   t.Name,
-		"vmap":    ve.VmapName,
-		"key":     ve.Key,
-		"verdict": ve.Verdict,
-	}).Debug("nftables: added vmap element")
+		"family": t.Family,
+		"table":  t.Name,
+		"map":    me.MapName,
+		"key":    me.Key,
+		"value":  me.Value,
+	}).Debug("nftables: added map element")
 	return true, nil
 }
 
-func (ve VMapElement) delete(ctx context.Context, t *table) (bool, error) {
-	v := t.VMaps[ve.VmapName]
-	if v == nil {
-		return false, fmt.Errorf("cannot delete from vmap '%s', it does not exist", ve.VmapName)
+func (me MapElement) delete(ctx context.Context, t *table) (bool, error) {
+	nm := t.Maps[me.MapName]
+	if nm == nil {
+		return false, fmt.Errorf("cannot delete from map '%s', it does not exist", me.MapName)
 	}
-	oldVerdict, ok := v.Elements[ve.Key]
+	oldValue, ok := nm.Elements[me.Key]
 	if !ok {
-		return false, fmt.Errorf("verdict map '%s' does not contain element '%s'", ve.VmapName, ve.Key)
+		return false, fmt.Errorf("map '%s' does not contain element '%s'", me.MapName, me.Key)
 	}
-	if oldVerdict != ve.Verdict {
-		return false, fmt.Errorf("cannot delete verdict map '%s' element '%s', verdict was '%s', not '%s'",
-			ve.VmapName, ve.Key, oldVerdict, ve.Verdict)
+	if oldValue != me.Value {
+		return false, fmt.Errorf("cannot delete map '%s' element '%s', value was '%s', not '%s'",
+			me.MapName, me.Key, oldValue, me.Value)
 	}
-	delete(v.Elements, ve.Key)
-	delete(v.AddedElements, ve.Key)
-	v.DeletedElements[ve.Key] = ve.Verdict
+	delete(nm.Elements, me.Key)
+	delete(nm.AddedElements, me.Key)
+	nm.DeletedElements[me.Key] = me.Value
 	log.G(ctx).WithFields(log.Fields{
-		"family":  t.Family,
-		"table":   t.Name,
-		"vmap":    ve.VmapName,
-		"key":     ve.Key,
-		"verdict": ve.Verdict,
-	}).Debug("nftables: deleted vmap element")
+		"family": t.Family,
+		"table":  t.Name,
+		"map":    me.MapName,
+		"key":    me.Key,
+		"value":  me.Value,
+	}).Debug("nftables: deleted map element")
 	return true, nil
 }
 
@@ -878,7 +945,7 @@ func (ve VMapElement) delete(ctx context.Context, t *table) (bool, error) {
 type set struct {
 	table           *table
 	Name            string
-	ElementType     NftType
+	ElementTypeExpr string
 	Flags           []string
 	Elements        map[string]struct{}
 	AddedElements   map[string]struct{}
@@ -890,7 +957,7 @@ type set struct {
 // [Modifier] to create or delete a set.
 type Set struct {
 	Name        string
-	ElementType NftType
+	ElementType SetTyper
 	Flags       []string
 }
 
@@ -902,14 +969,14 @@ func (sd Set) create(ctx context.Context, t *table) (bool, error) {
 	if _, ok := t.Sets[sd.Name]; ok {
 		return false, fmt.Errorf("set '%s' already exists", sd.Name)
 	}
-	if sd.ElementType == "" {
+	if sd.ElementType == nil {
 		return false, fmt.Errorf("set '%s' must have a type", sd.Name)
 	}
 	s := &set{
 		table:           t,
 		Name:            sd.Name,
 		Elements:        map[string]struct{}{},
-		ElementType:     sd.ElementType,
+		ElementTypeExpr: sd.ElementType.setType(),
 		Flags:           slices.Clone(sd.Flags),
 		AddedElements:   map[string]struct{}{},
 		DeletedElements: map[string]struct{}{},
@@ -1041,7 +1108,7 @@ func (t *table) updatesApplied() {
 	for _, c := range t.Chains {
 		c.MustFlush = false
 	}
-	for _, m := range t.VMaps {
+	for _, m := range t.Maps {
 		m.AddedElements = map[string]string{}
 		m.DeletedElements = map[string]string{}
 		m.MustFlush = false
