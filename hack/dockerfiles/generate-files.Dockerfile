@@ -36,7 +36,7 @@ FROM base AS tools
 RUN --mount=from=src,source=/out,target=.,rw \
     --mount=type=cache,target=/root/.cache/go-build <<EOT
   set -ex
-  go install -v \
+  go install -v tool \
     github.com/gogo/protobuf/protoc-gen-gogo \
     github.com/gogo/protobuf/protoc-gen-gogofaster \
     github.com/gogo/protobuf/protoc-gen-gogoslick \
