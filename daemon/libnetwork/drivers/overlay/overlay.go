@@ -13,6 +13,7 @@ import (
 
 	"github.com/moby/moby/v2/daemon/libnetwork/discoverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 )
 
@@ -42,6 +43,9 @@ type driver struct {
 	encrMu sync.Mutex
 	secMap encrMap
 	keys   []*key
+
+	overlayEncNftInitMu sync.Mutex
+	overlayEncNftTable  nftables.Table
 
 	// mu must be held when accessing the fields which follow it
 	// in the struct definition.

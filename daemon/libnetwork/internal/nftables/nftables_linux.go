@@ -1015,6 +1015,9 @@ func (sd Set) delete(ctx context.Context, t *table) (bool, error) {
 type SetElement struct {
 	SetName string
 	Element string
+	// If true, deleting an element that does not exist or creating an
+	// element that already exists will succeed.
+	Idempotent bool
 }
 
 func (se SetElement) create(ctx context.Context, t *table) (bool, error) {
@@ -1026,6 +1029,9 @@ func (se SetElement) create(ctx context.Context, t *table) (bool, error) {
 		return false, fmt.Errorf("cannot add to set '%s', element not specified", se.SetName)
 	}
 	if _, ok := s.Elements[se.Element]; ok {
+		if se.Idempotent {
+			return false, nil
+		}
 		return false, fmt.Errorf("set '%s' already contains element '%s'", s.Name, se.Element)
 	}
 	s.Elements[se.Element] = struct{}{}
@@ -1046,6 +1052,9 @@ func (se SetElement) delete(ctx context.Context, t *table) (bool, error) {
 		return false, fmt.Errorf("cannot delete from set '%s', it does not exist", se.SetName)
 	}
 	if _, ok := s.Elements[se.Element]; !ok {
+		if se.Idempotent {
+			return false, nil
+		}
 		return false, fmt.Errorf("cannot delete '%s' from set '%s', it does not exist", se.Element, s.Name)
 	}
 	delete(s.Elements, se.Element)

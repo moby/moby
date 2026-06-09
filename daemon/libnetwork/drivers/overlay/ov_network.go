@@ -182,8 +182,7 @@ func (d *driver) CreateNetwork(ctx context.Context, id string, option map[string
 	// Make sure no rule is on the way from any stale secure network
 	if !n.secure {
 		for _, vni := range vnis {
-			d.programMangle(vni, false)
-			d.programInput(vni, false)
+			_ = d.programOverlayEncryptionFirewall(ctx, vni, false)
 		}
 	}
 
@@ -227,19 +226,12 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 	if n.secure {
 		for _, s := range n.subnets {
-			if err := d.programMangle(s.vni, false); err != nil {
+			if err := d.programOverlayEncryptionFirewall(context.TODO(), s.vni, false); err != nil {
 				log.G(context.TODO()).WithFields(log.Fields{
 					"error":      err,
 					"network_id": n.id,
 					"subnet":     s.subnetIP,
-				}).Warn("Failed to clean up iptables rules during overlay network deletion")
-			}
-			if err := d.programInput(s.vni, false); err != nil {
-				log.G(context.TODO()).WithFields(log.Fields{
-					"error":      err,
-					"network_id": n.id,
-					"subnet":     s.subnetIP,
-				}).Warn("Failed to clean up iptables rules during overlay network deletion")
+				}).Warn("Failed to clean up overlay encryption firewall rules during overlay network deletion")
 			}
 		}
 	}
@@ -529,13 +521,8 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 	// Program iptables rules for mandatory encryption of the secure
 	// network, or clean up leftover rules for a stale secure network which
 	// was previously assigned the same VNI.
-	if err := n.driver.programMangle(s.vni, n.secure); err != nil {
+	if err := n.driver.programOverlayEncryptionFirewall(context.TODO(), s.vni, n.secure); err != nil {
 		return err
-	}
-	if err := n.driver.programInput(s.vni, n.secure); err != nil {
-		if n.secure {
-			return errors.Join(err, n.driver.programMangle(s.vni, false))
-		}
 	}
 
 	if err := n.setupSubnetSandbox(s, brName, vxlanName); err != nil {

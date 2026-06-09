@@ -18,6 +18,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/discoverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay/overlayutils"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -275,6 +276,22 @@ func (d *driver) programInput(vni uint32, add bool) error {
 	}
 
 	return nil
+}
+
+func (d *driver) programOverlayEncryptionFirewall(ctx context.Context, vni uint32, encrypted bool) error {
+	if nftables.Enabled() {
+		return d.programOverlayEncVNINft(ctx, vni, encrypted)
+	}
+
+	mangleErr := d.programMangle(vni, encrypted)
+	if mangleErr != nil && encrypted {
+		return mangleErr
+	}
+	err := d.programInput(vni, encrypted)
+	if err != nil && encrypted {
+		return errors.Join(err, d.programMangle(vni, false))
+	}
+	return errors.Join(mangleErr, err)
 }
 
 func programSA(localIP, remoteIP net.IP, spi spi, k *key, dir int, add bool) (fSA *netlink.XfrmState, rSA *netlink.XfrmState, lastErr error) {
