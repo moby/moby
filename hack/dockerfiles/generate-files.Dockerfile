@@ -40,7 +40,7 @@ RUN --mount=from=src,source=/out,target=.,rw \
     github.com/gogo/protobuf/protoc-gen-gogo \
     github.com/gogo/protobuf/protoc-gen-gogofaster \
     github.com/gogo/protobuf/protoc-gen-gogoslick \
-    github.com/golang/protobuf/protoc-gen-go
+    google.golang.org/protobuf/cmd/protoc-gen-go
   go build -v \
     -o /usr/bin/pluginrpc-gen \
     ./pkg/plugins/pluginrpc-gen
