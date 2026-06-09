@@ -63,8 +63,20 @@ func (fn clientTraceOptionFunc) apply(c *clientTracer) {
 }
 
 // WithoutSubSpans will modify the httptrace.ClientTrace to only collect data
-// as Events and Attributes on a span found in the context.  By default
+// as Events and Attributes on a span found in the context. By default
 // sub-spans will be generated.
+//
+// This option is recommended for services that make a large number of
+// outbound HTTP requests per incoming request (e.g., API gateways,
+// fan-out proxies, or GraphQL servers). Each outbound request creates
+// up to 7 sub-spans (http.getconn, http.dns, http.connect, http.tls,
+// http.headers, http.send, http.receive) as separate heap-allocated
+// trace.Span objects. In high fan-out services this multiplied span
+// volume can overwhelm the span processor queue and increase GC
+// pressure, resulting in elevated and continuously growing memory usage.
+// Using WithoutSubSpans replaces those spans with lightweight events on
+// the parent span, preserving the diagnostic information at a fraction
+// of the cost.
 func WithoutSubSpans() ClientTraceOption {
 	return clientTraceOptionFunc(func(ct *clientTracer) {
 		ct.useSpans = false
@@ -189,10 +201,11 @@ func NewClientTrace(ctx context.Context, opts ...ClientTraceOption) *httptrace.C
 }
 
 func (ct *clientTracer) start(hook, spanName string, attrs ...attribute.KeyValue) {
+	if ct.root == nil {
+		ct.root = trace.SpanFromContext(ct.Context)
+	}
+
 	if !ct.useSpans {
-		if ct.root == nil {
-			ct.root = trace.SpanFromContext(ct.Context)
-		}
 		ct.root.AddEvent(hook+".start", trace.WithAttributes(attrs...))
 		return
 	}
@@ -201,11 +214,7 @@ func (ct *clientTracer) start(hook, spanName string, attrs ...attribute.KeyValue
 	defer ct.mtx.Unlock()
 
 	if hookCtx, found := ct.activeHooks[hook]; !found {
-		var sp trace.Span
-		ct.activeHooks[hook], sp = ct.tr.Start(ct.getParentContext(hook), spanName, trace.WithAttributes(attrs...), trace.WithSpanKind(trace.SpanKindClient))
-		if ct.root == nil {
-			ct.root = sp
-		}
+		ct.activeHooks[hook], _ = ct.tr.Start(ct.getParentContext(hook), spanName, trace.WithAttributes(attrs...), trace.WithSpanKind(trace.SpanKindClient))
 	} else {
 		// end was called before start finished, add the start attributes and end the span here
 		span := trace.SpanFromContext(hookCtx)
@@ -306,14 +315,16 @@ func (ct *clientTracer) dnsDone(info httptrace.DNSDoneInfo) {
 }
 
 func (ct *clientTracer) connectStart(network, addr string) {
-	ct.start("http.connect."+addr, "http.connect",
+	ct.start(
+		"http.connect."+addr, "http.connect",
 		HTTPRemoteAddr.String(addr),
 		HTTPConnectionStartNetwork.String(network),
 	)
 }
 
 func (ct *clientTracer) connectDone(network, addr string, err error) {
-	ct.end("http.connect."+addr, err,
+	ct.end(
+		"http.connect."+addr, err,
 		HTTPConnectionDoneAddr.String(addr),
 		HTTPConnectionDoneNetwork.String(network),
 	)

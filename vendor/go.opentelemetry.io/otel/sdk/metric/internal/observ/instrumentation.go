@@ -16,8 +16,8 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk"
 	"go.opentelemetry.io/otel/sdk/internal/x"
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
-	"go.opentelemetry.io/otel/semconv/v1.40.0/otelconv"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
+	"go.opentelemetry.io/otel/semconv/v1.41.0/otelconv"
 )
 
 const (
@@ -54,6 +54,7 @@ var (
 func get[T any](p *sync.Pool) *[]T { return p.Get().(*[]T) }
 
 func put[T any](p *sync.Pool, s *[]T) {
+	clear(*s)
 	*s = (*s)[:0] // Reset.
 	p.Put(s)
 }

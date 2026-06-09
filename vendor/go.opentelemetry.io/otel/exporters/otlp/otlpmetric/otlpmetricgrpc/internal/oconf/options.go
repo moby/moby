@@ -35,6 +35,9 @@ const (
 	// DefaultMetricsPath is a default URL path for endpoint that
 	// receives metrics.
 	DefaultMetricsPath string = "/v1/metrics"
+	// DefaultMaxRequestSize is the default maximum size of a serialized export
+	// request, before compression.
+	DefaultMaxRequestSize int = 64 * 1024 * 1024
 	// DefaultBackoff is a default base backoff time used in the
 	// exponential backoff strategy.
 	DefaultBackoff time.Duration = 300 * time.Millisecond
@@ -49,13 +52,14 @@ type (
 	HTTPTransportProxyFunc func(*http.Request) (*url.URL, error)
 
 	SignalConfig struct {
-		Endpoint    string
-		Insecure    bool
-		TLSCfg      *tls.Config
-		Headers     map[string]string
-		Compression Compression
-		Timeout     time.Duration
-		URLPath     string
+		Endpoint       string
+		Insecure       bool
+		TLSCfg         *tls.Config
+		Headers        map[string]string
+		Compression    Compression
+		MaxRequestSize int
+		Timeout        time.Duration
+		URLPath        string
 
 		TemporalitySelector metric.TemporalitySelector
 		AggregationSelector metric.AggregationSelector
@@ -87,10 +91,11 @@ type (
 func NewHTTPConfig(opts ...HTTPOption) Config {
 	cfg := Config{
 		Metrics: SignalConfig{
-			Endpoint:    fmt.Sprintf("%s:%d", DefaultCollectorHost, DefaultCollectorHTTPPort),
-			URLPath:     DefaultMetricsPath,
-			Compression: NoCompression,
-			Timeout:     DefaultTimeout,
+			Endpoint:       fmt.Sprintf("%s:%d", DefaultCollectorHost, DefaultCollectorHTTPPort),
+			URLPath:        DefaultMetricsPath,
+			Compression:    NoCompression,
+			MaxRequestSize: DefaultMaxRequestSize,
+			Timeout:        DefaultTimeout,
 
 			TemporalitySelector: metric.DefaultTemporalitySelector,
 			AggregationSelector: metric.DefaultAggregationSelector,
@@ -123,10 +128,11 @@ func cleanPath(urlPath string, defaultPath string) string {
 func NewGRPCConfig(opts ...GRPCOption) Config {
 	cfg := Config{
 		Metrics: SignalConfig{
-			Endpoint:    fmt.Sprintf("%s:%d", DefaultCollectorHost, DefaultCollectorGRPCPort),
-			URLPath:     DefaultMetricsPath,
-			Compression: NoCompression,
-			Timeout:     DefaultTimeout,
+			Endpoint:       fmt.Sprintf("%s:%d", DefaultCollectorHost, DefaultCollectorGRPCPort),
+			URLPath:        DefaultMetricsPath,
+			Compression:    NoCompression,
+			MaxRequestSize: DefaultMaxRequestSize,
+			Timeout:        DefaultTimeout,
 
 			TemporalitySelector: metric.DefaultTemporalitySelector,
 			AggregationSelector: metric.DefaultAggregationSelector,
@@ -350,6 +356,13 @@ func WithHeaders(headers map[string]string) GenericOption {
 func WithTimeout(duration time.Duration) GenericOption {
 	return newGenericOption(func(cfg Config) Config {
 		cfg.Metrics.Timeout = duration
+		return cfg
+	})
+}
+
+func WithMaxRequestSize(size int) GenericOption {
+	return newGenericOption(func(cfg Config) Config {
+		cfg.Metrics.MaxRequestSize = size
 		return cfg
 	})
 }

@@ -4,4 +4,4 @@
 package baggagecopy // import "go.opentelemetry.io/contrib/processors/baggagecopy"
 
 // Version is the current release version of the baggagecopy processor.
-const Version = "0.16.0"
+const Version = "0.16.1"

@@ -5,6 +5,8 @@ package log // import "go.opentelemetry.io/otel/sdk/log"
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -12,7 +14,7 @@ import (
 	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/log/embedded"
 	"go.opentelemetry.io/otel/sdk/instrumentation"
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -164,7 +166,7 @@ func errorType(err error) string {
 		}
 	}
 
-	t := reflect.TypeOf(err)
+	t := reflect.TypeOf(unwrapFmtWrapped(err))
 	if t == nil {
 		return ""
 	}
@@ -182,4 +184,17 @@ func errorType(err error) string {
 	//
 	// This is not guaranteed to be unique, but is a best effort.
 	return t.String()
+}
+
+var fmtWrapErrorType = reflect.TypeOf(fmt.Errorf("wrapped: %w", errors.New("err")))
+
+func unwrapFmtWrapped(err error) error {
+	for reflect.TypeOf(err) == fmtWrapErrorType {
+		u := errors.Unwrap(err)
+		if u == nil {
+			return err // When the wrapped error is nil, use the concrete type of the wrapper.
+		}
+		err = u
+	}
+	return err
 }
