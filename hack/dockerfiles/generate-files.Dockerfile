@@ -32,15 +32,11 @@ RUN <<EOT
 EOT
 
 FROM base AS tools
-# go install: versions are pinned in go.mod
 RUN --mount=from=src,source=/out,target=.,rw \
     --mount=type=cache,target=/root/.cache/go-build <<EOT
   set -ex
-  go install -v tool \
-    github.com/gogo/protobuf/protoc-gen-gogo \
-    github.com/gogo/protobuf/protoc-gen-gogofaster \
-    github.com/gogo/protobuf/protoc-gen-gogoslick \
-    google.golang.org/protobuf/cmd/protoc-gen-go
+  # install all tools defined in go.mod
+  go install -v tool
   go build -v \
     -o /usr/bin/pluginrpc-gen \
     ./pkg/plugins/pluginrpc-gen
