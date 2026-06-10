@@ -110,6 +110,13 @@ func (c *PortDriverClient) ChildHostIP(proto string, hostIP netip.Addr) netip.Ad
 	if c.childIP.IsValid() {
 		return c.childIP
 	}
+	// Preserve IPv4 loopback addresses, the child namespace's lo covers all
+	// of 127.0.0.0/8. Mapping them all to 127.0.0.1 makes bindings on the
+	// same port but distinct loopback addresses collide in the child
+	// namespace.
+	if hostIP.Is4() && hostIP.IsLoopback() {
+		return hostIP
+	}
 	if hostIP.Is6() {
 		return netip.IPv6Loopback()
 	}
