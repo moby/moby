@@ -20,17 +20,37 @@ type nftCtx struct{}
 var lookPathNSEnter = sync.OnceValues(func() (string, error) {
 	return exec.LookPath("nsenter")
 })
+var lookPathNft = sync.OnceValues(func() (string, error) {
+	p, err := exec.LookPath("nft")
+	if err != nil {
+		log.G(context.Background()).WithError(err).Warnf("Failed to find nft tool")
+		return "", fmt.Errorf("failed to find nft tool: %w", err)
+	}
+	return p, nil
+})
+
+func preflight() error {
+	_, err := lookPathNft()
+	return err
+}
 
 func newNftCtx() (*nftCtx, error) {
-	return *nftCtx{}, nil
+	_, err := lookPathNft()
+	if err != nil {
+		return nil, err
+	}
+	return &nftCtx{}, nil
 }
 
 func (*nftCtx) Apply(ctx context.Context, nftCmd []byte) error {
 	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".nftApply.exec")
 	defer span.End()
 
-	cmdPath := nftPath
-	cmdArgs := []string{nftPath, "-f", "-"}
+	cmdPath, err := lookPathNft()
+	if err != nil {
+		return err
+	}
+	cmdArgs := []string{cmdPath, "-f", "-"}
 	detachedNetNS, err := rootless.DetachedNetNS()
 	if err != nil {
 		return fmt.Errorf("could not check for detached netns: %w", err)

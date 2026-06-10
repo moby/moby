@@ -20,6 +20,10 @@ import (
 // #include <nftables/libnftables.h>
 import "C"
 
+func preflight() error {
+	return nil
+}
+
 type nftCtx C.struct_nft_ctx
 
 // Apply calls libnftables to execute the nftables commands in nftCmd.
