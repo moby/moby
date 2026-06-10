@@ -75,7 +75,7 @@ require (
 	github.com/moby/pubsub v1.0.0
 	github.com/moby/swarmkit/v2 v2.1.3-0.20260609123145-f80b112cff7d
 	github.com/moby/sys/atomicwriter v0.1.0
-	github.com/moby/sys/mount v0.3.5-0.20260529155943-fc52b7222d0b
+	github.com/moby/sys/mount v0.3.5
 	github.com/moby/sys/mountinfo v0.7.2
 	github.com/moby/sys/reexec v0.1.0
 	github.com/moby/sys/sequential v0.7.0
