@@ -4,9 +4,11 @@ package overlay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
+	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay/overlayutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 )
@@ -93,6 +95,13 @@ func (d *driver) ensureOverlayEncNftTable(ctx context.Context) (nftables.Table, 
 }
 
 func (d *driver) programOverlayEncVNINft(ctx context.Context, vni uint32, encrypted bool) error {
+	// Attempt to clean up stale iptables rules from an old incarnation of
+	// the daemon which could clash with the nftables ruleset.
+	cleanupErr := errors.Join(d.programInput(vni, false), d.programMangle(vni, false))
+	if cleanupErr != nil {
+		log.G(ctx).WithError(cleanupErr).Infof("Failed to clean up stale iptables rules for VNI %d", vni)
+	}
+
 	t, err := d.ensureOverlayEncNftTable(ctx)
 	if err != nil {
 		return err
@@ -110,4 +119,24 @@ func (d *driver) programOverlayEncVNINft(ctx context.Context, vni uint32, encryp
 		tm.Delete(se)
 	}
 	return t.Apply(ctx, tm)
+}
+
+// cleanupNft deletes all nftables rules created by the driver. It's intended to
+// be used during startup, to clean up rules created by an old incarnation of
+// the daemon after switching to a different firewall backend.
+func (d *driver) cleanupNft(ctx context.Context) {
+	v6, err := d.isIPv6Transport()
+	if err != nil {
+		log.G(ctx).WithError(err).Error("Deleting overlay encryption nftables rules")
+		return
+	}
+	fam := nftables.IPv4
+	if v6 {
+		fam = nftables.IPv6
+	}
+	if err := nftables.RunCmd(ctx, fmt.Appendf(nil, "delete table %s %s", fam, nftOverlayTable)); err != nil {
+		log.G(ctx).WithError(err).Info("Deleting overlay encryption nftables rules")
+		return
+	}
+	log.G(ctx).Info("Deleted overlay encryption nftables rules")
 }

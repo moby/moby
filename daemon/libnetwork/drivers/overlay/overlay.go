@@ -72,7 +72,12 @@ func Register(r driverapi.Registerer) error {
 
 func (d *driver) configure() error {
 	// Apply OS specific kernel configs if needed
-	d.initOS.Do(applyOStweaks)
+	d.initOS.Do(func() {
+		applyOStweaks()
+		if !nftables.Enabled() {
+			d.cleanupNft(context.TODO())
+		}
+	})
 
 	return nil
 }
