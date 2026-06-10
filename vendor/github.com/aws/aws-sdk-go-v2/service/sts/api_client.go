@@ -224,6 +224,8 @@ func New(options Options, optFns ...func(*Options)) *Client {
 
 	ignoreAnonymousAuth(&options)
 
+	finalizeSTSRetryableErrors(&options)
+
 	wrapWithAnonymousAuth(&options)
 
 	resolveAuthSchemes(&options)
@@ -834,6 +836,10 @@ func addCredentialSource(stack *middleware.Stack, options Options) error {
 
 	mw := setCredentialSourceMiddleware{ua: ua, options: options}
 	return stack.Build.Insert(&mw, "UserAgent", middleware.Before)
+}
+
+func finalizeSTSRetryableErrors(o *Options) {
+	o.Retryer = retry.AddWithErrorCodes(o.Retryer, "IDPCommunicationError")
 }
 
 func resolveTracerProvider(options *Options) {
