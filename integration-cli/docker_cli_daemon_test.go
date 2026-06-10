@@ -1238,9 +1238,10 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithNames(c *testing.T) {
 	assert.NilError(c, err, out)
 	test2ID := strings.TrimSpace(out)
 
-	out, err = s.d.Cmd("run", "-d", "--name=test3", "--link", "test2:abc", "busybox", "top")
-	assert.NilError(c, err)
-	test3ID := strings.TrimSpace(out)
+	res := s.d.RunCmd("run", "-d", "--name=test3", "--link", "test2:abc", "busybox", "top")
+	assert.NilError(c, res.Error)
+	// Discard any warnings about legacy links, which are emitted on stderr.
+	test3ID := strings.TrimSpace(res.Stdout())
 
 	s.d.Restart(c)
 

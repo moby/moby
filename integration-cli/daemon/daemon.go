@@ -37,8 +37,14 @@ func New(t testing.TB, dockerBinary string, dockerdBinary string, ops ...daemon.
 // Cmd executes a docker CLI command against this daemon.
 // Example: d.Cmd("version") will run docker -H unix://path/to/unix.sock version
 func (d *Daemon) Cmd(args ...string) (string, error) {
-	result := icmd.RunCmd(d.Command(args...))
+	result := d.RunCmd(args...)
 	return result.Combined(), result.Error
+}
+
+// RunCmd executes a docker CLI command against this daemon and returns the result.
+// Example: d.RunCmd("version") will run docker -H unix://path/to/unix.sock version
+func (d *Daemon) RunCmd(args ...string) *icmd.Result {
+	return icmd.RunCmd(d.Command(args...))
 }
 
 // Command creates a docker CLI command against this daemon, to be executed later.
