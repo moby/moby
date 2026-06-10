@@ -78,6 +78,13 @@ func TestChildHostIP(t *testing.T) {
 			want:   netip.MustParseAddr("127.0.1.2"),
 		},
 		{
+			name:   "v6 loopback",
+			pdc:    builtin,
+			proto:  "tcp",
+			hostIP: netip.MustParseAddr("::1"),
+			want:   netip.IPv6Loopback(),
+		},
+		{
 			name:   "v6 non-loopback",
 			pdc:    builtin,
 			proto:  "tcp",
