@@ -19,7 +19,9 @@ type Capture struct {
 	Request             provenancetypes.Parameters
 	Sources             provenancetypes.Sources
 	NetworkAccess       bool
+	ProxyNetwork        bool
 	IncompleteMaterials bool
+	ProxyIncomplete     []provenancetypes.ProxyCaptureIncomplete
 	Samples             map[digest.Digest]*resourcestypes.Samples
 }
 
@@ -29,7 +31,9 @@ func (c *Capture) Clone() *Capture {
 	}
 	out := &Capture{
 		NetworkAccess:       c.NetworkAccess,
+		ProxyNetwork:        c.ProxyNetwork,
 		IncompleteMaterials: c.IncompleteMaterials,
+		ProxyIncomplete:     slices.Clone(c.ProxyIncomplete),
 	}
 	if req := c.Request.Clone(); req != nil {
 		out.Request = *req
@@ -78,9 +82,13 @@ func (c *Capture) Merge(c2 *Capture) error {
 	if c2.NetworkAccess {
 		c.NetworkAccess = true
 	}
+	if c2.ProxyNetwork {
+		c.ProxyNetwork = true
+	}
 	if c2.IncompleteMaterials {
 		c.IncompleteMaterials = true
 	}
+	c.ProxyIncomplete = append(c.ProxyIncomplete, c2.ProxyIncomplete...)
 	return nil
 }
 
@@ -105,6 +113,18 @@ func (c *Capture) Sort() {
 	})
 	slices.SortFunc(c.Request.SSH, func(a, b *provenancetypes.SSH) int {
 		return cmp.Compare(a.ID, b.ID)
+	})
+	slices.SortFunc(c.ProxyIncomplete, func(a, b provenancetypes.ProxyCaptureIncomplete) int {
+		if c := cmp.Compare(a.Op, b.Op); c != 0 {
+			return c
+		}
+		if c := cmp.Compare(a.URI, b.URI); c != 0 {
+			return c
+		}
+		if c := cmp.Compare(a.Method, b.Method); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Reason, b.Reason)
 	})
 }
 

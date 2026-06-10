@@ -253,9 +253,10 @@ type FSSyncTarget interface {
 }
 
 type fsSyncTarget struct {
-	id     int
-	outdir string
-	f      FileOutputFunc
+	id         int
+	outdir     string
+	deleteMode bool
+	f          FileOutputFunc
 }
 
 func (target *fsSyncTarget) target() *fsSyncTarget {
@@ -276,10 +277,23 @@ func WithFSSyncDir(id int, outdir string) FSSyncTarget {
 	}
 }
 
+func WithFSSyncDirDelete(id int, outdir string) FSSyncTarget {
+	return &fsSyncTarget{
+		id:         id,
+		outdir:     outdir,
+		deleteMode: true,
+	}
+}
+
+type fsSyncDirTarget struct {
+	outdir     string
+	deleteMode bool
+}
+
 func NewFSSyncTarget(targets ...FSSyncTarget) *SyncTarget {
 	st := &SyncTarget{
 		fs:      make(map[int]FileOutputFunc),
-		outdirs: make(map[int]string),
+		outdirs: make(map[int]fsSyncDirTarget),
 	}
 	st.Add(targets...)
 	return st
@@ -287,7 +301,7 @@ func NewFSSyncTarget(targets ...FSSyncTarget) *SyncTarget {
 
 type SyncTarget struct {
 	fs      map[int]FileOutputFunc
-	outdirs map[int]string
+	outdirs map[int]fsSyncDirTarget
 }
 
 var _ session.Attachable = &SyncTarget{}
@@ -299,7 +313,7 @@ func (sp *SyncTarget) Add(targets ...FSSyncTarget) {
 			sp.fs[t.id] = t.f
 		}
 		if t.outdir != "" {
-			sp.outdirs[t.id] = t.outdir
+			sp.outdirs[t.id] = fsSyncDirTarget{outdir: t.outdir, deleteMode: t.deleteMode}
 		}
 	}
 }
@@ -326,8 +340,8 @@ func (sp *SyncTarget) chooser(ctx context.Context) int {
 
 func (sp *SyncTarget) DiffCopy(stream FileSend_DiffCopyServer) (err error) {
 	id := sp.chooser(stream.Context())
-	if outdir, ok := sp.outdirs[id]; ok {
-		return syncTargetDiffCopy(stream, outdir)
+	if target, ok := sp.outdirs[id]; ok {
+		return syncTargetDiffCopy(stream, target.outdir, target.deleteMode)
 	}
 	f, ok := sp.fs[id]
 	if !ok {

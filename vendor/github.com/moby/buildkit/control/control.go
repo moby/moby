@@ -46,11 +46,13 @@ import (
 	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/throttle"
+	"github.com/moby/buildkit/util/tracing/forwarder"
 	"github.com/moby/buildkit/util/tracing/transform"
 	"github.com/moby/buildkit/version"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	tracev1 "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	"golang.org/x/sync/errgroup"
@@ -61,6 +63,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+const traceShutdownTimeout = 5 * time.Second
+
 type Opt struct {
 	SessionManager            *session.Manager
 	WorkerController          *worker.Controller
@@ -70,24 +74,26 @@ type Opt struct {
 	ResolveCacheImporterFuncs map[string]remotecache.ResolveCacheImporterFunc
 	Entitlements              []string
 	TraceCollector            sdktrace.SpanExporter
+	MeterProvider             metric.MeterProvider
 	HistoryDB                 db.DB
 	CacheStore                *bboltcachestorage.Store
 	LeaseManager              *leaseutil.Manager
 	ContentStore              *containerdsnapshot.Store
 	HistoryConfig             *config.HistoryConfig
+	ProxyNetwork              bool
 	GarbageCollect            func(context.Context) error
 	GracefulStop              <-chan struct{}
 	ProvenanceEnv             map[string]any
 }
 
 type Controller struct { // TODO: ControlService
-	// buildCount needs to be 64bit aligned
-	buildCount                   int64
+	buildCount                   atomic.Int64
 	opt                          Opt
 	solver                       *llbsolver.Solver
 	history                      *history.Queue
 	cache                        solver.CacheManager
 	gatewayForwarder             *controlgateway.GatewayForwarder
+	traceForwarder               *forwarder.Exporter
 	throttledGC                  func()
 	throttledReleaseUnreferenced func()
 	gcmu                         sync.Mutex
@@ -118,7 +124,9 @@ func NewController(opt Opt) (*Controller, error) {
 		SessionManager:   opt.SessionManager,
 		Entitlements:     opt.Entitlements,
 		HistoryQueue:     hq,
+		ProxyNetwork:     opt.ProxyNetwork,
 		ProvenanceEnv:    opt.ProvenanceEnv,
+		MeterProvider:    opt.MeterProvider,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create solver")
@@ -135,6 +143,14 @@ func NewController(opt Opt) (*Controller, error) {
 	// use longer interval for releaseUnreferencedCache deleting links quickly is less important
 	c.throttledReleaseUnreferenced = throttle.After(5*time.Minute, func() { c.releaseUnreferencedCache(context.TODO()) })
 
+	if opt.TraceCollector != nil {
+		fwd, err := forwarder.New(context.Background(), opt.TraceCollector)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to start trace forwarder")
+		}
+		c.traceForwarder = fwd
+	}
+
 	defer func() {
 		time.AfterFunc(time.Second, c.throttledGC)
 	}()
@@ -146,6 +162,15 @@ func (c *Controller) Close() error {
 	var errs []error
 	if err := c.opt.HistoryDB.Close(); err != nil {
 		errs = append(errs, err)
+	}
+	if c.traceForwarder != nil {
+		func() {
+			ctx, cancel := context.WithTimeoutCause(context.Background(), traceShutdownTimeout, errors.WithStack(context.DeadlineExceeded))
+			defer cancel()
+			if err := c.traceForwarder.Shutdown(ctx); err != nil {
+				errs = append(errs, err)
+			}
+		}()
 	}
 	if err := c.opt.WorkerController.Close(); err != nil {
 		errs = append(errs, err)
@@ -213,7 +238,7 @@ func (c *Controller) releaseUnreferencedCache(ctx context.Context) error {
 }
 
 func (c *Controller) Prune(req *controlapi.PruneRequest, stream controlapi.Control_PruneServer) error {
-	if atomic.LoadInt64(&c.buildCount) == 0 {
+	if c.buildCount.Load() == 0 {
 		imageutil.CancelCacheLeases()
 	}
 
@@ -297,11 +322,11 @@ func (c *Controller) Prune(req *controlapi.PruneRequest, stream controlapi.Contr
 }
 
 func (c *Controller) Export(ctx context.Context, req *tracev1.ExportTraceServiceRequest) (*tracev1.ExportTraceServiceResponse, error) {
-	if c.opt.TraceCollector == nil {
+	if c.traceForwarder == nil {
 		return nil, status.Errorf(codes.Unavailable, "trace collector not configured")
 	}
-	err := c.opt.TraceCollector.ExportSpans(ctx, transform.Spans(req.GetResourceSpans()))
-	if err != nil {
+
+	if err := c.traceForwarder.ExportSpans(ctx, transform.Spans(req.GetResourceSpans())); err != nil {
 		return nil, err
 	}
 	return &tracev1.ExportTraceServiceResponse{}, nil
@@ -383,8 +408,8 @@ func translateLegacySolveRequest(req *controlapi.SolveRequest) {
 func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*controlapi.SolveResponse, error) {
 	defer trace.StartRegion(ctx, "Solve").End()
 	trace.Logf(ctx, "Request", "solve request: %v", req.Ref)
-	atomic.AddInt64(&c.buildCount, 1)
-	defer atomic.AddInt64(&c.buildCount, -1)
+	c.buildCount.Add(1)
+	defer c.buildCount.Add(-1)
 
 	if req.Cache == nil {
 		req.Cache = &controlapi.CacheOptions{} // make sure cache options are initialized
@@ -552,7 +577,7 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 		Exporters:             expis,
 		CacheExporters:        cacheExporters,
 		EnableSessionExporter: req.EnableSessionExporter,
-	}, entitlementsFromPB(req.Entitlements), procs, req.Internal, req.SourcePolicy, req.SourcePolicySession)
+	}, entitlementsFromPB(req.Entitlements), procs, req.Internal, req.SourcePolicy, req.SourcePolicySession, req.ProxyNetwork)
 	if err != nil {
 		return nil, err
 	}

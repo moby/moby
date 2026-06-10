@@ -5,8 +5,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"sync"
-	"time"
 
 	cni "github.com/containerd/go-cni"
 	"github.com/gofrs/flock"
@@ -14,12 +12,11 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/network"
+	"github.com/moby/buildkit/util/network/netpool"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/trace"
 )
-
-const aboveTargetGracePeriod = 5 * time.Minute
 
 type Opt struct {
 	Root         string
@@ -68,18 +65,18 @@ func New(opt Opt) (network.Provider, error) {
 	}
 	cleanOldNamespaces(cp)
 
-	cp.nsPool = &cniPool{targetSize: opt.PoolSize, provider: cp}
+	cp.nsPool = newCNIPool(cp, opt.PoolSize)
 	if err := cp.initNetwork(true); err != nil {
 		return nil, err
 	}
-	go cp.nsPool.fillPool(context.TODO())
+	go cp.nsPool.Fill(context.TODO())
 	return cp, nil
 }
 
 type cniProvider struct {
 	cni.CNI
 	root    string
-	nsPool  *cniPool
+	nsPool  *netpool.Pool[*cniNS]
 	release func() error
 }
 
@@ -91,7 +88,7 @@ func (c *cniProvider) initNetwork(lock bool) error {
 		}
 		defer unlock()
 	}
-	ns, err := c.New(context.TODO(), "")
+	ns, err := c.New(context.TODO(), "", network.NamespaceOptions{})
 	if err != nil {
 		return err
 	}
@@ -99,11 +96,16 @@ func (c *cniProvider) initNetwork(lock bool) error {
 }
 
 func (c *cniProvider) Close() error {
-	c.nsPool.close()
-	if c.release != nil {
-		return c.release()
+	var err error
+	if e := c.nsPool.Close(); e != nil {
+		err = e
 	}
-	return nil
+	if c.release != nil {
+		if e := c.release(); e != nil && err == nil {
+			err = e
+		}
+	}
+	return err
 }
 
 func initLock() (func() error, error) {
@@ -117,133 +119,37 @@ func initLock() (func() error, error) {
 	return func() error { return nil }, nil
 }
 
-type cniPool struct {
-	provider   *cniProvider
-	mu         sync.Mutex
-	targetSize int
-	actualSize int
-	// LIFO: Ordered least recently used to most recently used
-	available []*cniNS
-	closed    bool
+func newCNIPool(c *cniProvider, targetSize int) *netpool.Pool[*cniNS] {
+	var pool *netpool.Pool[*cniNS]
+	pool = netpool.New(netpool.Opt[*cniNS]{
+		Name:       "cni network namespace",
+		TargetSize: targetSize,
+		New: func(ctx context.Context) (*cniNS, error) {
+			var ns *cniNS
+			fn := func(ctx context.Context) error {
+				var err error
+				ns, err = c.newNS(ctx, "")
+				return err
+			}
+			if err := withDetachedNetNSIfAny(ctx, fn); err != nil {
+				return nil, err
+			}
+			ns.pool = pool
+			return ns, nil
+		},
+		Release: func(ns *cniNS) error {
+			return ns.release()
+		},
+	})
+	return pool
 }
 
-func (pool *cniPool) close() {
-	bklog.L.Debugf("cleaning up cni pool")
-
-	pool.mu.Lock()
-	pool.closed = true
-	defer pool.mu.Unlock()
-	for len(pool.available) > 0 {
-		_ = pool.available[0].release()
-		pool.available = pool.available[1:]
-		pool.actualSize--
-	}
-}
-
-func (pool *cniPool) fillPool(ctx context.Context) {
-	for {
-		pool.mu.Lock()
-		if pool.closed {
-			pool.mu.Unlock()
-			return
-		}
-		actualSize := pool.actualSize
-		pool.mu.Unlock()
-		if actualSize >= pool.targetSize {
-			return
-		}
-		ns, err := pool.getNew(ctx)
-		if err != nil {
-			bklog.G(ctx).Errorf("failed to create new network namespace while prefilling pool: %s", err)
-			return
-		}
-		pool.put(ns)
-	}
-}
-
-func (pool *cniPool) get(ctx context.Context) (*cniNS, error) {
-	pool.mu.Lock()
-	if len(pool.available) > 0 {
-		ns := pool.available[len(pool.available)-1]
-		pool.available = pool.available[:len(pool.available)-1]
-		pool.mu.Unlock()
-		trace.SpanFromContext(ctx).AddEvent("returning network namespace from pool")
-		bklog.G(ctx).Debugf("returning network namespace %s from pool", ns.id)
-		return ns, nil
-	}
-	pool.mu.Unlock()
-
-	return pool.getNew(ctx)
-}
-
-func (pool *cniPool) getNew(ctx context.Context) (*cniNS, error) {
-	var ns *cniNS
-	fn := func(ctx context.Context) error {
-		var err error
-		ns, err = pool.provider.newNS(ctx, "")
-		return err
-	}
-	err := withDetachedNetNSIfAny(ctx, fn)
-	if err != nil {
-		return nil, err
-	}
-	ns.pool = pool
-
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-	if pool.closed {
-		return nil, errors.New("cni pool is closed")
-	}
-	pool.actualSize++
-	return ns, nil
-}
-
-func (pool *cniPool) put(ns *cniNS) {
-	putTime := time.Now()
-	ns.lastUsed = putTime
-
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-	if pool.closed {
-		_ = ns.release()
-		return
-	}
-	pool.available = append(pool.available, ns)
-	actualSize := pool.actualSize
-
-	if actualSize > pool.targetSize {
-		// We have more network namespaces than our target number, so
-		// schedule a shrinking pass.
-		time.AfterFunc(aboveTargetGracePeriod, pool.cleanupToTargetSize)
-	}
-}
-
-func (pool *cniPool) cleanupToTargetSize() {
-	var toRelease []*cniNS
-	defer func() {
-		for _, poolNS := range toRelease {
-			_ = poolNS.release()
-		}
-	}()
-
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-	for pool.actualSize > pool.targetSize &&
-		len(pool.available) > 0 &&
-		time.Since(pool.available[0].lastUsed) >= aboveTargetGracePeriod {
-		bklog.L.Debugf("releasing network namespace %s since it was last used at %s", pool.available[0].id, pool.available[0].lastUsed)
-		toRelease = append(toRelease, pool.available[0])
-		pool.available = pool.available[1:]
-		pool.actualSize--
-	}
-}
-
-func (c *cniProvider) New(ctx context.Context, hostname string) (network.Namespace, error) {
+func (c *cniProvider) New(ctx context.Context, hostname string, _ network.NamespaceOptions) (network.Namespace, error) {
 	// We can't use the pool for namespaces that need a custom hostname.
 	// We also avoid using it on windows because we don't have a cleanup
 	// mechanism for Windows yet.
 	if hostname == "" || runtime.GOOS == "windows" {
-		return c.nsPool.get(ctx)
+		return c.nsPool.Get(ctx)
 	}
 	var res network.Namespace
 	fn := func(ctx context.Context) error {
@@ -326,12 +232,11 @@ func (c *cniProvider) newNS(ctx context.Context, hostname string) (*cniNS, error
 }
 
 type cniNS struct {
-	pool         *cniPool
+	pool         *netpool.Pool[*cniNS]
 	handle       cni.CNI
 	id           string
 	nativeID     string
 	opts         []cni.NamespaceOpts
-	lastUsed     time.Time
 	vethName     string
 	canSample    bool
 	offsetSample *resourcestypes.NetworkSample
@@ -349,7 +254,7 @@ func (ns *cniNS) Close() error {
 	if ns.pool == nil {
 		return ns.release()
 	}
-	ns.pool.put(ns)
+	ns.pool.Put(ns)
 	return nil
 }
 

@@ -349,6 +349,25 @@ type BuildKitMetadata struct {
 	Source   *Source                            `json:"source,omitempty"`
 	Layers   map[string][][]ocispecs.Descriptor `json:"layers,omitempty"`
 	SysUsage []*resourcestypes.SysSample        `json:"sysUsage,omitempty"`
+	Network  *NetworkMetadata                   `json:"network,omitempty"`
+}
+
+type NetworkMetadata struct {
+	Mode  string                `json:"mode,omitempty"`
+	Proxy *ProxyNetworkMetadata `json:"proxy,omitempty"`
+}
+
+type ProxyNetworkMetadata struct {
+	Incomplete []ProxyCaptureIncomplete `json:"incomplete,omitempty"`
+}
+
+type ProxyCaptureIncomplete struct {
+	Op       string `json:"op,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Method   string `json:"method,omitempty"`
+	URI      string `json:"uri,omitempty"`
+	FinalURI string `json:"finalUri,omitempty"`
+	Reason   string `json:"reason,omitempty"`
 }
 
 type BuildKitComplete struct {

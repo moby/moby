@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+var UmaskIsZero = false
+
 // MkdirAll is forked os.MkdirAll
 func MkdirAll(path string, perm os.FileMode, user Chowner, tm *time.Time) ([]string, error) {
 	// Fast path: if we can tell whether path is a directory or file, stop with success or error.
@@ -53,6 +55,16 @@ func MkdirAll(path string, perm os.FileMode, user Chowner, tm *time.Time) ([]str
 			return createdDirs, nil
 		}
 		return nil, err
+	}
+
+	// In general, this code should run with umask unset.
+	// At the same time, there are certain environments where we rely
+	// on this behavior and the umask causes the directory to be created
+	// with the wrong mode.
+	if !UmaskIsZero {
+		if err := os.Chmod(path, perm); err != nil {
+			return nil, err
+		}
 	}
 	createdDirs = append(createdDirs, path)
 

@@ -51,6 +51,7 @@ var (
 	OptKeyOCITypes ImageExporterOptKey = "oci-mediatypes"
 
 	// Use OCI artifact format for the attestation manifest.
+	// Value: bool <true|false>
 	OptKeyOCIArtifact ImageExporterOptKey = "oci-artifact"
 
 	// Force attestation to be attached.

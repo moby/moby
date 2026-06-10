@@ -189,7 +189,18 @@ func (is *Source) ResolveImageMetadata(ctx context.Context, id *ImageIdentifier,
 		res, err := is.gImageRes.Do(ctx, key, func(ctx context.Context) (*resolveImageResult, error) {
 			dgst, dt, err := imageutil.Config(ctx, ref, rslvr, is.ContentStore, is.LeaseManager, opt.Platform)
 			if err != nil {
-				return nil, err
+				if rm != resolver.ResolveModeDefault || is.ImageStore == nil {
+					return nil, err
+				}
+				localRslvr := rslvr.WithImageStore(is.ImageStore, resolver.ResolveModePreferLocal)
+				if _, _, localErr := localRslvr.ResolveLocal(ctx, ref); localErr != nil {
+					return nil, err
+				}
+				localDgst, localDt, localErr := imageutil.Config(ctx, ref, localRslvr, is.ContentStore, is.LeaseManager, opt.Platform)
+				if localErr != nil {
+					return nil, err
+				}
+				dgst, dt = localDgst, localDt
 			}
 			return &resolveImageResult{dgst: dgst, dt: dt}, nil
 		})

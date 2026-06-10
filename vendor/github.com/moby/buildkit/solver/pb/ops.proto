@@ -18,6 +18,7 @@ message Op {
 		BuildOp build = 5;
 		MergeOp merge = 6;
 		DiffOp diff = 7;
+		PassthroughOp passthrough = 8;
 	}
 	Platform platform = 10;
 	WorkerConstraints constraints = 11;
@@ -228,6 +229,8 @@ message OpMetadata {
 	map<string, bool> caps = 5;
 
 	ProgressGroup progress_group = 6;
+
+	LinuxResources linux_resources = 7;
 }
 
 // Source is a source mapping description for a file
@@ -275,6 +278,19 @@ message ProgressGroup {
 	string id = 1;
 	string name = 2;
 	bool weak = 3;
+}
+
+// LinuxResources specifies cgroup resource limits for containers.
+// Used in OpMetadata to set per-step resource constraints without
+// affecting the cache key.
+message LinuxResources {
+	int64 memory = 1;          // memory limit in bytes
+	int64 memorySwap = 2;      // memory+swap limit in bytes
+	uint64 cpuShares = 3;      // relative CPU weight
+	uint64 cpuPeriod = 4;      // CFS period in microseconds
+	int64 cpuQuota = 5;        // CFS quota in microseconds
+	string cpusetCpus = 6;     // CPU affinity (e.g., "0-3")
+	string cpusetMems = 7;     // memory node affinity (e.g., "0,1")
 }
 
 message ProxyEnv {
@@ -443,4 +459,9 @@ message UpperDiffInput {
 message DiffOp {
 	LowerDiffInput lower = 1;
 	UpperDiffInput upper = 2;
+}
+
+message PassthroughOp {
+	string id = 1;
+	repeated int64 outputs = 2;
 }

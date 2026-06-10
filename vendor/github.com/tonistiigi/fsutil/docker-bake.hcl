@@ -6,6 +6,10 @@ variable "DESTDIR" {
   default = "./bin"
 }
 
+variable "BENCH_FILE_SIZE" {
+  default = null
+}
+
 target "_platforms" {
   platforms = [
     "darwin/amd64",
@@ -58,6 +62,24 @@ target "test-noroot" {
   inherits = ["build"]
   target = "test-noroot-coverage"
   output = ["${DESTDIR}/coverage"]
+}
+
+target "bench-root" {
+  inherits = ["build"]
+  target = "bench-root-results"
+  output = ["${DESTDIR}/bench"]
+  args = {
+    BENCH_FILE_SIZE = BENCH_FILE_SIZE
+  }
+}
+
+target "bench-noroot" {
+  inherits = ["build"]
+  target = "bench-noroot-results"
+  output = ["${DESTDIR}/bench"]
+  args = {
+    BENCH_FILE_SIZE = BENCH_FILE_SIZE
+  }
 }
 
 group "lint" {

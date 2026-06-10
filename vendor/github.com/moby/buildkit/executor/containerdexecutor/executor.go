@@ -33,6 +33,7 @@ type containerdExecutor struct {
 	client           *ctd.Client
 	root             string
 	networkProviders map[pb.NetMode]network.Provider
+	proxyProvider    network.ProxyProvider
 	cgroupParent     string
 	dnsConfig        *oci.DNSConfig
 	running          map[string]*containerState
@@ -70,6 +71,7 @@ type ExecutorOptions struct {
 	Root             string
 	CgroupParent     string
 	NetworkProviders map[pb.NetMode]network.Provider
+	ProxyProvider    network.ProxyProvider
 	DNSConfig        *oci.DNSConfig
 	ApparmorProfile  string
 	Selinux          bool
@@ -90,6 +92,7 @@ func New(executorOpts ExecutorOptions) executor.Executor {
 		client:           executorOpts.Client,
 		root:             executorOpts.Root,
 		networkProviders: executorOpts.NetworkProviders,
+		proxyProvider:    executorOpts.ProxyProvider,
 		cgroupParent:     executorOpts.CgroupParent,
 		dnsConfig:        executorOpts.DNSConfig,
 		running:          make(map[string]*containerState),
@@ -147,9 +150,22 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 		bklog.G(ctx).Info("enabling HostNetworking")
 	}
 
-	provider, ok := w.networkProviders[meta.NetMode]
-	if !ok {
-		return nil, errors.Errorf("unknown network mode %s", meta.NetMode)
+	proxyConfig := meta.Proxy
+	var provider network.Provider
+	if proxyConfig == nil {
+		var ok bool
+		provider, ok = w.networkProviders[meta.NetMode]
+		if !ok {
+			return nil, errors.Errorf("unknown network mode %s", meta.NetMode)
+		}
+	} else if w.proxyProvider == nil {
+		return nil, errors.New("proxy network provider is not available")
+	} else {
+		proxyConfig = &network.ProxyConfig{
+			Policy:     proxyConfig.Policy,
+			Capture:    proxyConfig.Capture,
+			EgressMode: meta.NetMode,
+		}
 	}
 
 	resolvConf, hostsFile, releasers, err := w.prepareExecutionEnv(ctx, root, mounts, meta, details, meta.NetMode)
@@ -165,11 +181,24 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 		return nil, err
 	}
 
-	namespace, err := provider.New(ctx, meta.Hostname)
+	var namespace network.Namespace
+	if proxyConfig != nil {
+		namespace, err = w.proxyProvider.NewProxy(ctx, proxyConfig)
+	} else {
+		namespace, err = provider.New(ctx, meta.Hostname, network.NamespaceOptions{})
+	}
 	if err != nil {
 		return nil, err
 	}
 	defer namespace.Close()
+	if proxyNS, ok := namespace.(network.ProxyNamespace); ok {
+		meta.Env = append(meta.Env, proxyNS.ProxyEnv()...)
+		cleanProxyCA, err := executor.InjectProxyCA(details.rootfsPath, proxyNS.ProxyCACert())
+		if err != nil {
+			return nil, err
+		}
+		defer cleanProxyCA()
+	}
 
 	spec, releaseSpec, err := w.createOCISpec(ctx, id, resolvConf, hostsFile, namespace, mounts, meta, details)
 	if err != nil {
@@ -196,6 +225,7 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 		}
 	}()
 
+	stdinDone := trackStdinEOF(&process)
 	fixProcessOutput(&process)
 	cioOpts := []cio.Opt{cio.WithStreams(process.Stdin, process.Stdout, process.Stderr)}
 	if meta.Tty {
@@ -227,7 +257,7 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 	}
 
 	trace.SpanFromContext(ctx).AddEvent("Container created")
-	err = w.runProcess(ctx, task, process.Resize, process.Signal, process.Meta.ValidExitCodes, func() {
+	err = w.runProcess(ctx, task, process.Resize, process.Signal, stdinDone, process.Meta.ValidExitCodes, func() {
 		startedOnce.Do(func() {
 			trace.SpanFromContext(ctx).AddEvent("Container started")
 			if started != nil {
@@ -307,6 +337,7 @@ func (w *containerdExecutor) Exec(ctx context.Context, id string, process execut
 		spec.Process.Env = process.Meta.Env
 	}
 
+	stdinDone := trackStdinEOF(&process)
 	fixProcessOutput(&process)
 	cioOpts := []cio.Opt{cio.WithStreams(process.Stdin, process.Stdout, process.Stderr)}
 	if meta.Tty {
@@ -318,8 +349,51 @@ func (w *containerdExecutor) Exec(ctx context.Context, id string, process execut
 		return errors.WithStack(err)
 	}
 
-	err = w.runProcess(ctx, taskProcess, process.Resize, process.Signal, process.Meta.ValidExitCodes, nil)
+	err = w.runProcess(ctx, taskProcess, process.Resize, process.Signal, stdinDone, process.Meta.ValidExitCodes, nil)
 	return err
+}
+
+type stdinEOFTracker struct {
+	io.ReadCloser
+	once sync.Once
+	done chan struct{}
+	err  error
+}
+
+func trackStdinEOF(process *executor.ProcessInfo) <-chan struct{} {
+	if process.Stdin == nil {
+		return nil
+	}
+	tracker := &stdinEOFTracker{
+		ReadCloser: process.Stdin,
+		done:       make(chan struct{}),
+	}
+	process.Stdin = tracker
+	return tracker.done
+}
+
+func (r *stdinEOFTracker) Read(p []byte) (int, error) {
+	if r.err != nil {
+		err := r.err
+		r.err = nil
+		r.close()
+		return 0, err
+	}
+	n, err := r.ReadCloser.Read(p)
+	if err != nil {
+		if n > 0 {
+			r.err = err
+			return n, nil
+		}
+		r.close()
+	}
+	return n, err
+}
+
+func (r *stdinEOFTracker) close() {
+	r.once.Do(func() {
+		close(r.done)
+	})
 }
 
 func fixProcessOutput(process *executor.ProcessInfo) {
@@ -335,7 +409,7 @@ func fixProcessOutput(process *executor.ProcessInfo) {
 	}
 }
 
-func (w *containerdExecutor) runProcess(ctx context.Context, p ctd.Process, resize <-chan executor.WinSize, signal <-chan syscall.Signal, validExitCodes []int, started func()) error {
+func (w *containerdExecutor) runProcess(ctx context.Context, p ctd.Process, resize <-chan executor.WinSize, signal <-chan syscall.Signal, stdinDone <-chan struct{}, validExitCodes []int, started func()) error {
 	// Not using `ctx` here because the context passed only affects the statusCh which we
 	// don't want cancelled when ctx.Done is sent.  We want to process statusCh on cancel.
 	statusCh, err := p.Wait(context.Background())
@@ -358,12 +432,25 @@ func (w *containerdExecutor) runProcess(ctx context.Context, p ctd.Process, resi
 		started()
 	}
 
-	p.CloseIO(ctx, ctd.WithStdinCloser)
-
 	// handle signals (and resize) in separate go loop so it does not
 	// potentially block the container cancel/exit status loop below.
 	eventCtx, eventCancel := context.WithCancelCause(ctx)
 	defer eventCancel(errors.WithStack(context.Canceled))
+	if stdinDone == nil {
+		p.CloseIO(ctx, ctd.WithStdinCloser)
+	} else {
+		go func() {
+			select {
+			case <-eventCtx.Done():
+			case <-stdinDone:
+				if err := p.CloseIO(eventCtx, ctd.WithStdinCloser); err != nil {
+					if !errors.Is(err, context.Canceled) && !errors.Is(context.Cause(eventCtx), context.Canceled) {
+						bklog.G(eventCtx).Warnf("Failed to close stdin for %s: %s", p.ID(), err)
+					}
+				}
+			}
+		}()
+	}
 	go func() {
 		for {
 			select {
