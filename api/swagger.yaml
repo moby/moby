@@ -12508,6 +12508,14 @@ paths:
                   from the default subnet pool.
                 type: "integer"
                 format: "uint32"
+              Availability:
+                description: |
+                  Availability of the node.
+                type: "string"
+                enum:
+                  - "active"
+                  - "pause"
+                  - "drain"
               Spec:
                 $ref: "#/definitions/SwarmSpec"
             example:
@@ -12517,6 +12525,7 @@ paths:
               DefaultAddrPool: ["10.10.0.0/8", "20.20.0.0/8"]
               SubnetSize: 24
               ForceNewCluster: false
+              Availability: "active"
               Spec:
                 Orchestration: {}
                 Raft: {}
@@ -12590,6 +12599,14 @@ paths:
               JoinToken:
                 description: "Secret token for joining this swarm."
                 type: "string"
+              Availability:
+                description: |
+                  Availability of the node.
+                type: "string"
+                enum:
+                  - "active"
+                  - "pause"
+                  - "drain"
             example:
               ListenAddr: "0.0.0.0:2377"
               AdvertiseAddr: "192.168.1.1:2377"
@@ -12597,6 +12614,7 @@ paths:
               RemoteAddrs:
                 - "node1:2377"
               JoinToken: "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2"
+              Availability: "active"
       tags: ["Swarm"]
   /swarm/leave:
     post:
