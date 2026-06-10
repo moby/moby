@@ -1,4 +1,4 @@
-//go:build linux || freebsd
+//go:build unix
 
 package containerd
 

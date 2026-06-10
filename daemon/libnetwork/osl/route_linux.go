@@ -1,5 +1,3 @@
-//go:build linux || freebsd
-
 package osl
 
 import (

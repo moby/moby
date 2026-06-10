@@ -2,6 +2,7 @@ package errdefs
 
 import (
 	"context"
+	"runtime"
 
 	cerrdefs "github.com/containerd/errdefs"
 )
@@ -203,6 +204,21 @@ func NotImplemented(err error) error {
 	}
 	return errNotImplemented{err}
 }
+
+// PlatformNotImplemented signals that a feature has no implementation on the
+// current runtime platform (typically returned from `_unsupported.go` build
+// fallbacks). It satisfies [ErrNotImplemented].
+type PlatformNotImplemented struct {
+	// Feature names the operation that has no platform implementation, e.g.
+	// "safepath.Join" or "openContainerFS".
+	Feature string
+}
+
+func (e PlatformNotImplemented) Error() string {
+	return e.Feature + " is not implemented on " + runtime.GOOS
+}
+
+func (PlatformNotImplemented) NotImplemented() {}
 
 type errUnknown struct{ error }
 

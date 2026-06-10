@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build unix
 
 package daemon
 
@@ -16,6 +16,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/cleanups"
 	"github.com/moby/moby/v2/daemon/internal/idtools"
 	volumemounts "github.com/moby/moby/v2/daemon/volume/mounts"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -129,4 +130,31 @@ func setBindModeIfNull(bind *volumemounts.MountPoint) {
 	if bind.Mode == "" {
 		bind.Mode = "z"
 	}
+}
+
+// validateBindDaemonRoot ensures that if a given mountpoint's source is within
+// the daemon root path, that the propagation is setup to prevent a container
+// from holding private references to a mount within the daemon root, which
+// can cause issues when the daemon attempts to remove the mountpoint.
+func (daemon *Daemon) validateBindDaemonRoot(m mounttypes.Mount) (bool, error) {
+	if m.Type != mounttypes.TypeBind {
+		return false, nil
+	}
+
+	// check if the source is within the daemon root, or if the daemon root is within the source
+	if !strings.HasPrefix(m.Source, daemon.root) && !strings.HasPrefix(daemon.root, m.Source) {
+		return false, nil
+	}
+
+	if m.BindOptions == nil {
+		return true, nil
+	}
+
+	switch m.BindOptions.Propagation {
+	case mounttypes.PropagationRSlave, mounttypes.PropagationRShared, "":
+		return m.BindOptions.Propagation == "", nil
+	default:
+	}
+
+	return false, errdefs.InvalidParameter(errors.Errorf(`invalid mount config: must use either propagation mode "rslave" or "rshared" when mount source is within the daemon root, daemon root: %q, bind mount source: %q, propagation: %q`, daemon.root, m.Source, m.BindOptions.Propagation))
 }

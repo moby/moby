@@ -2,6 +2,19 @@
 
 package libnetwork
 
-func registerNetworkDrivers(cfg *config.Config, r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers) error {
+import (
+	"context"
+
+	"github.com/moby/moby/v2/daemon/libnetwork/config"
+	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
+	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
+)
+
+func registerPortMappers(context.Context, *drvregistry.PortMappers, *config.Config) error {
+	return nil
+}
+
+func registerNetworkDrivers(r driverapi.Registerer, _ *config.Config, store *datastore.Store, pms *drvregistry.PortMappers) error {
 	return nil
 }
