@@ -15,13 +15,17 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-type nftHandle = struct{}
+type nftCtx struct{}
 
 var lookPathNSEnter = sync.OnceValues(func() (string, error) {
 	return exec.LookPath("nsenter")
 })
 
-func (t *table) nftApply(ctx context.Context, nftCmd []byte) error {
+func newNftCtx() (*nftCtx, error) {
+	return *nftCtx{}, nil
+}
+
+func (*nftCtx) Apply(ctx context.Context, nftCmd []byte) error {
 	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".nftApply.exec")
 	defer span.End()
 
@@ -82,5 +86,5 @@ func (t *table) nftApply(ctx context.Context, nftCmd []byte) error {
 	return nil
 }
 
-func (t *table) closeNftHandle() {
+func (*nftCtx) Close() {
 }

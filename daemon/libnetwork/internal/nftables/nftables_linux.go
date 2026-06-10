@@ -258,7 +258,20 @@ type table struct {
 	MustFlush      bool
 
 	applyLock sync.Mutex
-	nftHandle nftHandle // applyLock must be held to access
+	nftHandle *nftCtx // applyLock must be held to access
+}
+
+// nftApply executes the nftables commands in nftCmd.
+// Acquire t.applyLock before calling this function.
+func (t *table) nftApply(ctx context.Context, nftCmd []byte) error {
+	if t.nftHandle == nil {
+		h, err := newNftCtx()
+		if err != nil {
+			return err
+		}
+		t.nftHandle = h
+	}
+	return t.nftHandle.Apply(ctx, nftCmd)
 }
 
 // Table is a handle for an nftables table.
@@ -305,7 +318,12 @@ func NewTable(family Family, name string) (Table, error) {
 // the underlying nftables table.
 func (t Table) Close() error {
 	if t.IsValid() {
-		t.t.closeNftHandle()
+		t.t.applyLock.Lock()
+		defer t.t.applyLock.Unlock()
+		if t.t.nftHandle != nil {
+			t.t.nftHandle.Close()
+			t.t.nftHandle = nil
+		}
 		t.t = nil
 	}
 	return nil
