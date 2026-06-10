@@ -76,7 +76,7 @@ func parsePubKey(in []byte, algo string) (pubKey PublicKey, rest []byte, err err
 	case InsecureKeyAlgoDSA:
 		return parseDSA(in)
 	case KeyAlgoECDSA256, KeyAlgoECDSA384, KeyAlgoECDSA521:
-		return parseECDSA(in)
+		return parseECDSA(in, algo)
 	case KeyAlgoSKECDSA256:
 		return parseSKECDSA(in)
 	case KeyAlgoED25519:
@@ -806,7 +806,7 @@ func supportedEllipticCurve(curve elliptic.Curve) bool {
 }
 
 // parseECDSA parses an ECDSA key according to RFC 5656, section 3.1.
-func parseECDSA(in []byte) (out PublicKey, rest []byte, err error) {
+func parseECDSA(in []byte, expectedType string) (out PublicKey, rest []byte, err error) {
 	var w struct {
 		Curve    string
 		KeyBytes []byte
@@ -815,6 +815,12 @@ func parseECDSA(in []byte) (out PublicKey, rest []byte, err error) {
 
 	if err := Unmarshal(in, &w); err != nil {
 		return nil, nil, err
+	}
+
+	actualType := "ecdsa-sha2-" + w.Curve
+	if expectedType != actualType {
+		return nil, nil, fmt.Errorf("ssh: algorithm type mismatch: expected %q, found curve %q (type %q)",
+			expectedType, w.Curve, actualType)
 	}
 
 	key := new(ecdsa.PublicKey)
@@ -1466,6 +1472,17 @@ func passphraseProtectedOpenSSHKey(passphrase []byte) openSSHDecryptFunc {
 			return nil, err
 		}
 
+		// OpenSSH does not impose an upper bound on the bcrypt round count
+		// stored in the key file, but bcrypt_pbkdf cost is linear in rounds:
+		// the default is 16, ssh-keygen lets users pick anything up to
+		// INT_MAX. Cap at 2048 (128x the default, a few seconds of CPU) so
+		// that an oversized value in the file cannot tie up the caller for
+		// months.
+		const maxRounds = 1 << 11
+		if opts.Rounds > maxRounds {
+			return nil, fmt.Errorf("ssh: bcrypt KDF rounds %d exceed maximum %d", opts.Rounds, maxRounds)
+		}
+
 		k, err := bcrypt_pbkdf.Key(passphrase, []byte(opts.Salt), int(opts.Rounds), 32+16)
 		if err != nil {
 			return nil, err
@@ -1635,10 +1652,28 @@ func parseOpenSSHPrivateKey(key []byte, decrypt openSSHDecryptFunc) (crypto.Priv
 			return nil, err
 		}
 
+		// Mirror the validation done in parseRSA for public keys: cap the
+		// modulus at the same limit enforced by crypto/tls, reject oversized
+		// or invalid exponents, and additionally bound the prime factors to
+		// avoid the expensive CRT coefficient recomputation in pk.Precompute.
+		if key.N.BitLen() > 8192 {
+			return nil, errors.New("ssh: rsa modulus too large")
+		}
+		if key.P.BitLen() > 4096 || key.Q.BitLen() > 4096 {
+			return nil, errors.New("ssh: rsa prime too large")
+		}
+		if key.E.BitLen() > 24 {
+			return nil, errors.New("ssh: exponent too large")
+		}
+		e := key.E.Int64()
+		if e < 3 || e&1 == 0 {
+			return nil, errors.New("ssh: incorrect exponent")
+		}
+
 		pk := &rsa.PrivateKey{
 			PublicKey: rsa.PublicKey{
 				N: key.N,
-				E: int(key.E.Int64()),
+				E: int(e),
 			},
 			D:      key.D,
 			Primes: []*big.Int{key.P, key.Q},

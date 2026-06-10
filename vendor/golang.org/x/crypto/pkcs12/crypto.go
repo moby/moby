@@ -80,6 +80,10 @@ func pbDecrypterFor(algorithm pkix.AlgorithmIdentifier, password []byte) (cipher
 		return nil, 0, err
 	}
 
+	if params.Iterations < 0 || params.Iterations > maxIterations {
+		return nil, 0, NotImplementedError("iteration count is invalid or too high")
+	}
+
 	key := cipherType.deriveKey(params.Salt, password, params.Iterations)
 	iv := cipherType.deriveIV(params.Salt, password, params.Iterations)
 
