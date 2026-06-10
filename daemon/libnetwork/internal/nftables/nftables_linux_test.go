@@ -189,9 +189,9 @@ func TestVMap(t *testing.T) {
 
 	// Create a verdict map.
 	const mapName = "this_is_a_vmap"
-	tm.Create(VMap{Name: mapName, ElementType: NftTypeIfname})
-	tm.Create(VMapElement{VmapName: mapName, Key: "eth0", Verdict: "return"})
-	tm.Create(VMapElement{VmapName: mapName, Key: "eth1", Verdict: "drop"})
+	tm.Create(Map{Name: mapName, ElementType: Ifname.VMap()})
+	tm.Create(MapElement{MapName: mapName, Key: "eth0", Value: "return"})
+	tm.Create(MapElement{MapName: mapName, Key: "eth1", Value: "drop"})
 
 	// Update nftables and check what happened.
 	applyAndCheck(t, tbl, tm, t.Name()+"/created.golden")
@@ -217,10 +217,10 @@ func TestSet(t *testing.T) {
 	// Create a set in each table.
 	const set4Name = "set4"
 	tm4 := Modifier{}
-	tm4.Create(Set{Name: set4Name, ElementType: NftTypeIPv4Addr, Flags: []string{"interval"}})
+	tm4.Create(Set{Name: set4Name, ElementType: IPv4Addr, Flags: []string{"interval"}})
 	const set6Name = "set6"
 	tm6 := Modifier{}
-	tm6.Create(Set{Name: set6Name, ElementType: NftTypeIPv6Addr, Flags: []string{"interval"}})
+	tm6.Create(Set{Name: set6Name, ElementType: IPv6Addr, Flags: []string{"interval"}})
 
 	// Add elements to each set.
 	tm4.Create(SetElement{SetName: set4Name, Element: "192.0.2.0/24"})
@@ -256,12 +256,12 @@ func TestReload(t *testing.T) {
 	tm.Create(Rule{Chain: bcName, Group: 0, Rule: []string{"counter"}})
 
 	const vmapName = "this_is_a_vmap"
-	tm.Create(VMap{Name: vmapName, ElementType: NftTypeIfname})
-	tm.Create(VMapElement{VmapName: vmapName, Key: "eth0", Verdict: "return"})
-	tm.Create(VMapElement{VmapName: vmapName, Key: "eth1", Verdict: "return"})
+	tm.Create(Map{Name: vmapName, ElementType: Ifname.VMap()})
+	tm.Create(MapElement{MapName: vmapName, Key: "eth0", Value: "return"})
+	tm.Create(MapElement{MapName: vmapName, Key: "eth1", Value: "return"})
 
 	const setName = "this_is_a_set"
-	tm.Create(Set{Name: setName, ElementType: NftTypeIPv4Addr, Flags: []string{"interval"}})
+	tm.Create(Set{Name: setName, ElementType: IPv4Addr, Flags: []string{"interval"}})
 	tm.Create(SetElement{SetName: setName, Element: "192.0.2.0/24"})
 
 	applyAndCheck(t, tbl, tm, t.Name()+"/created.golden")
@@ -463,110 +463,110 @@ func TestValidation(t *testing.T) {
 			},
 			expErr: "chain 'achain', cannot add empty rule",
 		},
-		// VMap
+		// Map (verdict)
 		{
-			name: "duplicate vmap",
+			name: "duplicate map",
 			cmds: []command{
-				{obj: VMap{Name: "avmap", ElementType: NftTypeIfname}},
-				{obj: VMap{Name: "avmap", ElementType: NftTypeIfname}},
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
 			},
-			expErr: "vmap 'avmap' already exists",
+			expErr: "map 'avmap' already exists",
 		},
 		{
-			name: "delete nonexistent vmap",
+			name: "delete nonexistent map",
 			cmds: []command{
-				{obj: VMap{Name: "avmap", ElementType: NftTypeIfname}, delete: true},
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}, delete: true},
 			},
-			expErr: "cannot delete vmap 'avmap', it does not exist",
+			expErr: "cannot delete map 'avmap', it does not exist",
 		},
 		{
-			name:   "missing vmap name",
-			cmds:   []command{{obj: VMap{ElementType: NftTypeIfname}}},
-			expErr: "vmap must have a name",
+			name:   "missing map name",
+			cmds:   []command{{obj: Map{ElementType: Ifname.VMap()}}},
+			expErr: "map must have a name",
 		},
 		{
-			name:   "missing vmap element type",
-			cmds:   []command{{obj: VMap{Name: "avmap"}}},
-			expErr: "vmap 'avmap' has no element type",
+			name:   "missing map element type",
+			cmds:   []command{{obj: Map{Name: "avmap"}}},
+			expErr: "map 'avmap' has no element type",
 		},
 		{
-			name: "delete non-empty vmap",
+			name: "delete non-empty map",
 			cmds: []command{
-				{obj: VMap{Name: "avmap", ElementType: NftTypeIfname}},
-				{obj: VMapElement{VmapName: "avmap", Key: "eth0", Verdict: "drop"}},
-				{obj: VMap{Name: "avmap", ElementType: NftTypeIfname}, delete: true},
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
+				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop"}},
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}, delete: true},
 			},
-			expErr: "cannot delete vmap 'avmap', it contains 1 elements",
+			expErr: "cannot delete map 'avmap', it contains 1 elements",
 		},
-		// VMapElement
+		// MapElement
 		{
-			name: "duplicate vmap element",
+			name: "duplicate map element",
 			cmds: []command{
-				{obj: VMap{Name: "avmap", ElementType: NftTypeIfname}},
-				{obj: VMapElement{VmapName: "avmap", Key: "eth0", Verdict: "drop"}},
-				{obj: VMapElement{VmapName: "avmap", Key: "eth0", Verdict: "drop"}},
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
+				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop"}},
+				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop"}},
 			},
-			expErr: "verdict map 'avmap' already contains element 'eth0'",
-		},
-		{
-			name: "add to vmap that does not exist",
-			cmds: []command{
-				{obj: VMapElement{VmapName: "avmap", Key: "eth0", Verdict: "drop"}},
-			},
-			expErr: "cannot add to vmap 'avmap', it does not exist",
+			expErr: "map 'avmap' already contains element 'eth0'",
 		},
 		{
-			name: "delete nonexistent vmap element",
+			name: "add to map that does not exist",
 			cmds: []command{
-				{obj: VMap{Name: "avmap", ElementType: NftTypeIfname}},
-				{obj: VMapElement{VmapName: "avmap", Key: "eth0", Verdict: "drop"}, delete: true},
+				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop"}},
 			},
-			expErr: "verdict map 'avmap' does not contain element 'eth0'",
+			expErr: "cannot add to map 'avmap', it does not exist",
 		},
 		{
-			name: "vmap element with no named vmap",
+			name: "delete nonexistent map element",
 			cmds: []command{
-				{obj: VMap{Name: "avmap", ElementType: NftTypeIfname}},
-				{obj: VMapElement{Key: "eth0", Verdict: "drop"}},
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
+				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop"}, delete: true},
 			},
-			expErr: "cannot add element to unnamed vmap",
+			expErr: "map 'avmap' does not contain element 'eth0'",
 		},
 		{
-			name: "vmap element with no key",
+			name: "map element with no named map",
 			cmds: []command{
-				{obj: VMap{Name: "avmap", ElementType: NftTypeIfname}},
-				{obj: VMapElement{VmapName: "avmap", Verdict: "drop"}},
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
+				{obj: MapElement{Key: "eth0", Value: "drop"}},
 			},
-			expErr: "cannot add to vmap 'avmap', element must have key and verdict",
+			expErr: "cannot add element to unnamed map",
 		},
 		{
-			name: "vmap element with no verdict",
+			name: "map element with no key",
 			cmds: []command{
-				{obj: VMap{Name: "avmap", ElementType: NftTypeIfname}},
-				{obj: VMapElement{VmapName: "avmap", Key: "eth0"}},
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
+				{obj: MapElement{MapName: "avmap", Value: "drop"}},
 			},
-			expErr: "cannot add to vmap 'avmap', element must have key and verdict",
+			expErr: "cannot add to map 'avmap', element must have key and value",
+		},
+		{
+			name: "map element with no value",
+			cmds: []command{
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
+				{obj: MapElement{MapName: "avmap", Key: "eth0"}},
+			},
+			expErr: "cannot add to map 'avmap', element must have key and value",
 		},
 		// Set
 		{
 			name: "duplicate set",
 			cmds: []command{
-				{obj: Set{Name: "aset", ElementType: NftTypeIPv4Addr, Flags: []string{"interval"}}},
-				{obj: Set{Name: "aset", ElementType: NftTypeIPv4Addr, Flags: []string{"interval"}}},
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 			},
 			expErr: "set 'aset' already exists",
 		},
 		{
 			name: "delete nonexistent set",
 			cmds: []command{
-				{obj: Set{Name: "aset", ElementType: NftTypeIPv4Addr, Flags: []string{"interval"}}, delete: true},
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}, delete: true},
 			},
 			expErr: "cannot delete set 'aset', it does not exist",
 		},
 		{
 			name: "missing set name",
 			cmds: []command{
-				{obj: Set{ElementType: NftTypeIPv4Addr, Flags: []string{"interval"}}},
+				{obj: Set{ElementType: IPv4Addr, Flags: []string{"interval"}}},
 			},
 			expErr: "set must have a name",
 		},
@@ -580,9 +580,9 @@ func TestValidation(t *testing.T) {
 		{
 			name: "delete non-empty set",
 			cmds: []command{
-				{obj: Set{Name: "aset", ElementType: NftTypeIPv4Addr, Flags: []string{"interval"}}},
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24"}},
-				{obj: Set{Name: "aset", ElementType: NftTypeIPv4Addr, Flags: []string{"interval"}}, delete: true},
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}, delete: true},
 			},
 			expErr: "cannot delete set 'aset', it contains 1 elements",
 		},
@@ -590,7 +590,7 @@ func TestValidation(t *testing.T) {
 		{
 			name: "duplicate set element",
 			cmds: []command{
-				{obj: Set{Name: "aset", ElementType: NftTypeIPv4Addr, Flags: []string{"interval"}}},
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24"}},
 				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24"}},
 			},
@@ -599,7 +599,7 @@ func TestValidation(t *testing.T) {
 		{
 			name: "delete nonexistent set element",
 			cmds: []command{
-				{obj: Set{Name: "aset", ElementType: NftTypeIPv4Addr, Flags: []string{"interval"}}},
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24"}, delete: true},
 			},
 			expErr: "cannot delete '192.0.2.0/24' from set 'aset', it does not exist",
@@ -607,7 +607,7 @@ func TestValidation(t *testing.T) {
 		{
 			name: "add set element to unnamed set",
 			cmds: []command{
-				{obj: Set{Name: "aset", ElementType: NftTypeIPv4Addr, Flags: []string{"interval"}}},
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: SetElement{Element: "192.0.2.0/24"}},
 			},
 			expErr: "cannot add to set '', it does not exist",
@@ -615,7 +615,7 @@ func TestValidation(t *testing.T) {
 		{
 			name: "add set element with no element",
 			cmds: []command{
-				{obj: Set{Name: "aset", ElementType: NftTypeIPv4Addr, Flags: []string{"interval"}}},
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: SetElement{SetName: "aset"}},
 			},
 			expErr: "cannot add to set 'aset', element not specified",
@@ -623,7 +623,7 @@ func TestValidation(t *testing.T) {
 		{
 			name: "mismatched set element type",
 			cmds: []command{
-				{obj: Set{Name: "aset", ElementType: NftTypeIPv4Addr, Flags: []string{"interval"}}},
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: SetElement{SetName: "aset", Element: "2001:db8::/64"}},
 			},
 			expErr: "Address family for hostname not supported",
