@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/netip"
@@ -1599,5 +1600,65 @@ func TestMixAnyWithSpecificHostAddrs(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestPortMappingOnDistinctLoopbackAddrs checks that two containers can
+// publish the same port on distinct host loopback addresses, and that each
+// address is routed to its own container. In rootless mode, loopback host
+// addresses used to be collapsed to 127.0.0.1 in the daemon's network
+// namespace, making the second binding fail with "port is already allocated".
+// Regression test for https://github.com/moby/moby/issues/52783
+func TestPortMappingOnDistinctLoopbackAddrs(t *testing.T) {
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const hostPort = "1716"
+	hostAddrs := []string{"127.0.1.2", "127.0.1.3"}
+	for i, hostAddr := range hostAddrs {
+		ctrID := container.Run(ctx, t, c,
+			container.WithName(sanitizeCtrName(fmt.Sprintf("%s-server%d", t.Name(), i))),
+			container.WithExposedPorts("80/tcp"),
+			container.WithPortMap(networktypes.PortMap{
+				networktypes.MustParsePort("80/tcp"): {{
+					HostIP:   netip.MustParseAddr(hostAddr),
+					HostPort: hostPort,
+				}},
+			}),
+			// Serve the index of the host address the container is published
+			// on, so the response identifies which container handled it.
+			container.WithCmd("sh", "-c",
+				fmt.Sprintf("mkdir -p /www && echo -n %d > /www/index.html && exec httpd -f -h /www", i)),
+		)
+		defer c.ContainerRemove(ctx, ctrID, client.ContainerRemoveOptions{Force: true})
+	}
+
+	for i, hostAddr := range hostAddrs {
+		httpClient := &http.Client{Timeout: 3 * time.Second}
+		url := "http://" + net.JoinHostPort(hostAddr, hostPort)
+		var resp *http.Response
+		var err error
+		// The userland proxy or RootlessKit forwarder may need a moment to
+		// start accepting connections after container start.
+		for attempt := 0; attempt < 5; attempt++ {
+			resp, err = httpClient.Get(url)
+			if err == nil {
+				break
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+		assert.NilError(t, err)
+		defer resp.Body.Close()
+		assert.Check(t, is.Equal(resp.StatusCode, http.StatusOK))
+		body, err := io.ReadAll(resp.Body)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(string(body), strconv.Itoa(i)),
+			"%s answered by the wrong container", url)
 	}
 }
