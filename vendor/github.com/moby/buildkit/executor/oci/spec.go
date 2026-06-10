@@ -112,6 +112,12 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		return nil, nil, err
 	}
 
+	if linuxResOpts, err := generateLinuxResourceOpts(meta.LinuxResources); err == nil {
+		opts = append(opts, linuxResOpts...)
+	} else {
+		return nil, nil, err
+	}
+
 	hostname := defaultHostname
 	if meta.Hostname != "" {
 		hostname = meta.Hostname

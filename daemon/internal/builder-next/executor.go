@@ -2,6 +2,7 @@ package buildkit
 
 import (
 	"context"
+	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -30,7 +31,7 @@ type lnInterface struct {
 	provider *bridgeProvider
 }
 
-func (p *bridgeProvider) New(_ context.Context, _ string) (network.Namespace, error) {
+func (p *bridgeProvider) New(_ context.Context, _ string, _ network.NamespaceOptions) (network.Namespace, error) {
 	n, err := p.NetworkByName(networkName)
 	if err != nil {
 		return nil, err
@@ -97,6 +98,22 @@ func (iface *lnInterface) Close() error {
 		}()
 	}
 	return iface.err
+}
+
+func (iface *lnInterface) DialContext(ctx context.Context, networkName, address string) (net.Conn, error) {
+	<-iface.ready
+	if iface.err != nil {
+		return nil, iface.err
+	}
+
+	var conn net.Conn
+	var dialErr error
+	if err := iface.sbx.ExecFunc(func() {
+		conn, dialErr = (&net.Dialer{}).DialContext(ctx, networkName, address)
+	}); err != nil {
+		return nil, err
+	}
+	return conn, dialErr
 }
 
 func getDNSConfig(cfg config.DNSConfig) *oci.DNSConfig {

@@ -124,10 +124,9 @@ func makeInTotoStatement(content []byte, attestation exporter.Attestation, defau
 			return nil, errors.Errorf("unknown attestation subject type %T", subject)
 		}
 	}
-
 	stmt := intoto.Statement{
 		StatementHeader: intoto.StatementHeader{
-			Type:          intoto.StatementInTotoV01,
+			Type:          intoto.StatementInTotoV1,
 			PredicateType: attestation.InToto.PredicateType,
 			Subject:       subjects,
 		},

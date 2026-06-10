@@ -235,7 +235,7 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor,
 	snapshotID := chainID.String()
 	if link != nil {
 		snapshotID = link.getSnapshotID()
-		go link.Release(context.TODO())
+		go link.Release(context.WithoutCancel(ctx))
 	}
 
 	l, err := cm.LeaseManager.Create(ctx, func(l *leases.Lease) error {

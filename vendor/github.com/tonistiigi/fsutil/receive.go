@@ -64,13 +64,32 @@ type ReceiveOpt struct {
 	MetadataOnly  FilterFunc
 }
 
+type receiveDiskWriter interface {
+	HandleChange(ChangeKind, string, os.FileInfo, error) error
+	Wait(context.Context) error
+}
+
 func Receive(ctx context.Context, conn Stream, dest string, opt ReceiveOpt) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	r := &receiver{
+	r := newReceiver(conn, opt)
+	r.dest = dest
+	return r.run(ctx)
+}
+
+func ReceiveRoot(ctx context.Context, conn Stream, dest Root, opt ReceiveOpt) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	r := newReceiver(conn, opt)
+	r.root = dest
+	return r.run(ctx)
+}
+
+func newReceiver(conn Stream, opt ReceiveOpt) *receiver {
+	return &receiver{
 		conn:          &syncStream{Stream: conn},
-		dest:          dest,
 		files:         make(map[string]uint32),
 		pipes:         make(map[uint32]io.WriteCloser),
 		notifyHashed:  opt.NotifyHashed,
@@ -81,11 +100,11 @@ func Receive(ctx context.Context, conn Stream, dest string, opt ReceiveOpt) erro
 		differ:        opt.Differ,
 		metadataOnly:  opt.MetadataOnly,
 	}
-	return r.run(ctx)
 }
 
 type receiver struct {
 	dest         string
+	root         Root
 	conn         Stream
 	files        map[string]uint32
 	pipes        map[uint32]io.WriteCloser
@@ -159,7 +178,7 @@ func (w *dynamicWalker) fill(ctx context.Context, pathC chan<- *currentPath) err
 func (r *receiver) run(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 
-	dw, err := NewDiskWriter(ctx, r.dest, DiskWriterOpt{
+	dw, err := r.newDiskWriter(ctx, DiskWriterOpt{
 		AsyncDataCb:   r.asyncDataFunc,
 		NotifyCb:      r.notifyHashed,
 		ContentHasher: r.contentHasher,
@@ -179,12 +198,21 @@ func (r *receiver) run(ctx context.Context) error {
 	g.Go(func() (retErr error) {
 		defer func() {
 			if retErr != nil {
+				// If we're unwinding because the errgroup context was
+				// cancelled by another goroutine's failure, report that root
+				// cause instead of the bare "context canceled", which would
+				// otherwise overwrite the real error on the sender side.
+				if errors.Is(retErr, context.Canceled) {
+					if cause := context.Cause(ctx); cause != nil {
+						retErr = cause
+					}
+				}
 				r.conn.SendMsg(&types.Packet{Type: types.PACKET_ERR, Data: []byte(retErr.Error())})
 			}
 		}()
 		destWalker := emptyWalker
 		if !r.merge {
-			destWalker = getWalkerFn(r.dest)
+			destWalker = r.destWalker()
 		}
 		err := doubleWalkDiff(ctx, dw.HandleChange, destWalker, w.fill, r.filter, r.differ)
 		if err != nil {
@@ -333,12 +361,45 @@ func (r *receiver) run(ctx context.Context) error {
 		return nil
 	}
 
+	return r.writeMetadata(metadataBuffer)
+}
+
+func (r *receiver) newDiskWriter(ctx context.Context, opt DiskWriterOpt) (receiveDiskWriter, error) {
+	if r.root != nil {
+		return NewRootDiskWriter(ctx, r.root, opt)
+	}
+	return NewDiskWriter(ctx, r.dest, opt)
+}
+
+func (r *receiver) destWalker() walkerFn {
+	if r.root != nil {
+		return getRootWalkerFn(r.root)
+	}
+	return getWalkerFn(r.dest)
+}
+
+func (r *receiver) writeMetadata(metadataBuffer *buffer) error {
+	if r.root != nil {
+		// although we don't allow tranferring metadataPath, make sure there was no preexisting file/symlink
+		_ = r.root.Remove(metadataPath)
+
+		f, err := r.root.OpenFile(metadataPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		if _, err := metadataBuffer.WriteTo(f); err != nil {
+			f.Close()
+			return err
+		}
+		return f.Close()
+	}
+
 	// although we don't allow tranferring metadataPath, make sure there was no preexisting file/symlink
 	os.Remove(filepath.Join(r.dest, metadataPath))
 
 	f, err := os.OpenFile(filepath.Join(r.dest, metadataPath), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	if _, err := metadataBuffer.WriteTo(f); err != nil {
 		f.Close()

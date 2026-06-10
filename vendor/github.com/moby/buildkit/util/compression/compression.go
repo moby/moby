@@ -75,10 +75,6 @@ func (c Config) SetLevel(l int) Config {
 	return c
 }
 
-const (
-	mediaTypeDockerSchema2LayerZstd = images.MediaTypeDockerSchema2Layer + ".zstd"
-)
-
 var Default = Gzip
 
 func parse(t string) (Type, error) {
@@ -191,8 +187,8 @@ var toDockerLayerType = map[string]string{
 	images.MediaTypeDockerSchema2LayerForeignGzip:    images.MediaTypeDockerSchema2LayerForeignGzip,
 	ocispecs.MediaTypeImageLayerNonDistributable:     images.MediaTypeDockerSchema2LayerForeign,     //nolint:staticcheck // ignore SA1019: Non-distributable layers are deprecated, and not recommended for future use.
 	ocispecs.MediaTypeImageLayerNonDistributableGzip: images.MediaTypeDockerSchema2LayerForeignGzip, //nolint:staticcheck // ignore SA1019: Non-distributable layers are deprecated, and not recommended for future use.
-	ocispecs.MediaTypeImageLayerZstd:                 mediaTypeDockerSchema2LayerZstd,
-	mediaTypeDockerSchema2LayerZstd:                  mediaTypeDockerSchema2LayerZstd,
+	ocispecs.MediaTypeImageLayerZstd:                 images.MediaTypeDockerSchema2LayerZstd,
+	images.MediaTypeDockerSchema2LayerZstd:           images.MediaTypeDockerSchema2LayerZstd,
 }
 
 var toOCILayerType = map[string]string{
@@ -206,7 +202,7 @@ var toOCILayerType = map[string]string{
 	images.MediaTypeDockerSchema2LayerForeign:        ocispecs.MediaTypeImageLayerNonDistributable,     //nolint:staticcheck // ignore SA1019: Non-distributable layers are deprecated, and not recommended for future use.
 	images.MediaTypeDockerSchema2LayerForeignGzip:    ocispecs.MediaTypeImageLayerNonDistributableGzip, //nolint:staticcheck // ignore SA1019: Non-distributable layers are deprecated, and not recommended for future use.
 	ocispecs.MediaTypeImageLayerZstd:                 ocispecs.MediaTypeImageLayerZstd,
-	mediaTypeDockerSchema2LayerZstd:                  ocispecs.MediaTypeImageLayerZstd,
+	images.MediaTypeDockerSchema2LayerZstd:           ocispecs.MediaTypeImageLayerZstd,
 }
 
 func convertLayerMediaType(ctx context.Context, mediaType string, oci bool) string {

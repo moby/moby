@@ -3,6 +3,7 @@ package buildkit
 import (
 	"github.com/moby/buildkit/executor/oci"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
+	"github.com/moby/buildkit/util/network"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/sys/user"
 )
@@ -15,6 +16,7 @@ type executorOpts struct {
 	networkController *libnetwork.Controller
 	dnsConfig         *oci.DNSConfig
 	cdiManager        *cdidevices.Manager
+	proxyProvider     network.ProxyProvider
 
 	// linux-only fields
 	cgroupParent    string

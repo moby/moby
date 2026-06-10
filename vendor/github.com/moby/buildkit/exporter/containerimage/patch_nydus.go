@@ -19,7 +19,7 @@ import (
 // metadata of filesystem view for the entire image.
 func patchImageLayers(ctx context.Context, remote *solver.Remote, history []ocispecs.History, ref cache.ImmutableRef, opts *ImageCommitOpts, sg session.Group) (*solver.Remote, []ocispecs.History, error) {
 	if opts.RefCfg.Compression.Type != compression.Nydus {
-		remote, history = normalizeLayersAndHistory(ctx, remote, history, ref, opts.OCITypes)
+		remote, history = normalizeLayersAndHistory(ctx, remote, history, ref, opts.OCITypesEnabled())
 		return remote, history, nil
 	}
 
@@ -29,6 +29,6 @@ func patchImageLayers(ctx context.Context, remote *solver.Remote, history []ocis
 	}
 	remote.Descriptors = append(remote.Descriptors, *desc)
 
-	remote, history = normalizeLayersAndHistory(ctx, remote, history, ref, opts.OCITypes)
+	remote, history = normalizeLayersAndHistory(ctx, remote, history, ref, opts.OCITypesEnabled())
 	return remote, history, nil
 }

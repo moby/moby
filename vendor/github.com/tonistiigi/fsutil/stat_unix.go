@@ -43,10 +43,7 @@ func loadXattr(origpath string, stat *types.Stat) error {
 }
 
 func skipXattr(key string) bool {
-	if strings.HasPrefix(key, xattrApplePrefix) {
-		return true
-	}
-	return false
+	return strings.HasPrefix(key, xattrApplePrefix)
 }
 
 func setUnixOpt(fi os.FileInfo, stat *types.Stat, path string, seenFiles map[uint64]string) {

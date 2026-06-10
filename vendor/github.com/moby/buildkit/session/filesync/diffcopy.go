@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/moby/buildkit/util/bklog"
-
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
 	fstypes "github.com/tonistiigi/fsutil/types"
@@ -111,11 +110,12 @@ func recvDiffCopy(ds grpc.ClientStream, dest string, cu CacheUpdater, progress p
 	}))
 }
 
-func syncTargetDiffCopy(ds grpc.ServerStream, dest string) error {
+func syncTargetDiffCopy(ds grpc.ServerStream, dest string, deleteMode bool) error {
 	if err := os.MkdirAll(dest, 0700); err != nil {
 		return errors.Wrapf(err, "failed to create synctarget dest dir %s", dest)
 	}
-	return errors.WithStack(fsutil.Receive(ds.Context(), ds, dest, fsutil.ReceiveOpt{
+
+	opt := fsutil.ReceiveOpt{
 		Merge: true,
 		Filter: func() func(string, *fstypes.Stat) bool {
 			uid := os.Getuid()
@@ -126,7 +126,23 @@ func syncTargetDiffCopy(ds grpc.ServerStream, dest string) error {
 				return true
 			}
 		}(),
-	}))
+	}
+
+	osRoot, err := os.OpenRoot(dest)
+	if err != nil {
+		return errors.Wrapf(err, "failed to open synctarget dest root %s", dest)
+	}
+	root := fsutil.NewRoot(osRoot)
+	defer root.Close()
+
+	if deleteMode {
+		opt.Merge = false
+		// Request every source file so delete mode mirrors file contents without
+		// relying on fsutil's path-based content comparison.
+		opt.Differ = fsutil.DiffNone
+	}
+
+	return errors.WithStack(fsutil.ReceiveRoot(ds.Context(), ds, root, opt))
 }
 
 func writeTargetFile(ds grpc.ServerStream, wc io.WriteCloser) error {

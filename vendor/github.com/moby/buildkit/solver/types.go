@@ -56,6 +56,13 @@ type VertexOptions struct {
 	ExportCache  *bool
 	// WorkerConstraint
 	ProgressGroup *pb.ProgressGroup
+	Metadata      VertexMetadata
+}
+
+// VertexMetadata is opaque per-vertex metadata that gets merged when the same
+// vertex is shared by multiple jobs.
+type VertexMetadata interface {
+	Merge(other VertexMetadata) VertexMetadata
 }
 
 // Result is an abstract return value for a solve

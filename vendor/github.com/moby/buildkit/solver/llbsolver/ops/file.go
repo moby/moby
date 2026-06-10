@@ -449,7 +449,9 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 				ctx := context.WithoutCancel(ctx)
 				inputRes := make([]solver.Result, len(inputs))
 				for i, input := range inputs {
-					inputRes[i] = worker.NewWorkerRefResult(input.(cache.ImmutableRef), s.w)
+					// Clone so ExecError owns its own counted ref,
+					// independent of the caller's input.
+					inputRes[i] = worker.NewWorkerRefResult(input.(cache.ImmutableRef).Clone(), s.w)
 				}
 
 				outputRes := make([]solver.Result, len(actions))

@@ -1,32 +1,35 @@
-run:
-  timeout: 30m
+version: "2"
 
 linters:
+  default: none
   enable:
-    - gofmt
+    - depguard
     - govet
-    - goimports
     - ineffassign
     - misspell
-    - unused
     - staticcheck
-    - typecheck
-  disable-all: true
+    - unused
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: io/ioutil
+              desc: The io/ioutil package has been deprecated.
+  exclusions:
+    generated: lax
+    paths:
+      - .*\.pb\.go$
 
-linters-settings:
-  depguard:
-    rules:
-      main:
-        deny:
-          # The io/ioutil package has been deprecated.
-          # https://go.dev/doc/go1.16#ioutil
-          - pkg: "io/ioutil"
-            desc: The io/ioutil package has been deprecated.
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - .*\.pb\.go$
 
 issues:
-  exclude-files:
-    - ".*\\.pb\\.go$"
-
-  # show all
   max-issues-per-linter: 0
   max-same-issues: 0

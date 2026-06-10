@@ -252,7 +252,7 @@ func (e *imageExporterInstance) newTempReference(ctx context.Context, config []b
 
 	desc := ocispec.Descriptor{
 		Digest:    dgst,
-		MediaType: "application/vnd.docker.container.image.v1+json",
+		MediaType: ocispec.MediaTypeImageConfig,
 		Size:      int64(len(config)),
 	}
 

@@ -69,6 +69,9 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 	if _, ok := inp.Metadata[exptypes.ExporterPlatformsKey]; len(inp.Refs) > 0 && !ok {
 		return nil, errors.Errorf("unable to export multiple refs, missing platforms mapping")
 	}
+	if err := opts.Validate(); err != nil {
+		return nil, err
+	}
 	if compatibilityVersion == compat.CompatibilityVersion013 && opts.RefCfg.Compression.Type == compression.Zstd {
 		feature := fmt.Sprintf("%s exporter compression=%s", exporterType, opts.RefCfg.Compression.Type.String())
 		return nil, solvererrdefs.NewUnsupportedCompatibilityFeatureError(compatibilityVersion, feature)
@@ -113,14 +116,14 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 				return nil, errors.Errorf("invalid annotation: no platform %s found in source", pk)
 			}
 		}
-		if len(a.Index)+len(a.IndexDescriptor)+len(a.ManifestDescriptor) > 0 {
-			opts.EnableOCITypes(ctx, "annotations")
+		if !opts.OCITypesEnabled() && len(a.Index)+len(a.IndexDescriptor)+len(a.ManifestDescriptor) > 0 {
+			return nil, errors.New("cannot export annotations with \"oci-mediatypes=false\"")
 		}
 	}
 
 	if !isMap {
 		if len(ps.Platforms) > 1 {
-			return nil, errors.Errorf("cannot export multiple platforms without multi-platform enabled")
+			return nil, errors.New("cannot export multiple platforms without multi-platform enabled")
 		}
 
 		var ref cache.ImmutableRef
@@ -201,8 +204,8 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 		return mfstDesc, nil
 	}
 
-	if len(inp.Attestations) > 0 {
-		opts.EnableOCITypes(ctx, "attestations")
+	if !opts.OCITypesEnabled() && len(inp.Attestations) > 0 {
+		return nil, errors.New("cannot export attestations with \"oci-mediatypes=false\"")
 	}
 
 	refs := make([]cache.ImmutableRef, 0, len(inp.Refs))
@@ -237,7 +240,7 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 		},
 	}
 
-	if !opts.OCITypes {
+	if !opts.OCITypesEnabled() {
 		idx.MediaType = images.MediaTypeDockerSchema2ManifestList
 	}
 
@@ -514,7 +517,7 @@ func (ic *ImageWriter) commitDistributionManifest(ctx context.Context, opts *Ima
 	)
 
 	// Use docker media types for older Docker versions and registries
-	if !opts.OCITypes {
+	if !opts.OCITypesEnabled() {
 		manifestType = images.MediaTypeDockerSchema2Manifest
 		configType = images.MediaTypeDockerSchema2Config
 	}
@@ -537,7 +540,7 @@ func (ic *ImageWriter) commitDistributionManifest(ctx context.Context, opts *Ima
 	}
 
 	for i, desc := range remote.Descriptors {
-		desc.Annotations = RemoveInternalLayerAnnotations(desc.Annotations, opts.OCITypes)
+		desc.Annotations = RemoveInternalLayerAnnotations(desc.Annotations, opts.OCITypesEnabled())
 		mfst.Layers = append(mfst.Layers, desc)
 		labels[fmt.Sprintf("containerd.io/gc.ref.content.%d", i+1)] = desc.Digest.String()
 	}
@@ -584,7 +587,7 @@ func (ic *ImageWriter) commitAttestationsManifest(ctx context.Context, opts *Ima
 		manifestType = ocispecs.MediaTypeImageManifest
 		configType   = ocispecs.MediaTypeImageConfig
 	)
-	if !opts.OCITypes {
+	if !opts.OCITypesEnabled() {
 		manifestType = images.MediaTypeDockerSchema2Manifest
 		configType = images.MediaTypeDockerSchema2Config
 	}
@@ -650,7 +653,7 @@ func (ic *ImageWriter) commitAttestationsManifest(ctx context.Context, opts *Ima
 		"containerd.io/gc.ref.content.0": configDesc.Digest.String(),
 	}
 	for i, desc := range layers {
-		desc.Annotations = RemoveInternalLayerAnnotations(desc.Annotations, opts.OCITypes)
+		desc.Annotations = RemoveInternalLayerAnnotations(desc.Annotations, opts.OCITypesEnabled())
 		mfst.Layers = append(mfst.Layers, desc)
 		labels[fmt.Sprintf("containerd.io/gc.ref.content.%d", i+1)] = desc.Digest.String()
 	}
