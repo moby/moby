@@ -516,8 +516,16 @@ func (c *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	if err := httputils.ReadJSON(r, &updateConfig); err != nil {
 		return err
 	}
-	if versions.LessThan(httputils.VersionFromContext(ctx), "1.40") {
+	version := httputils.VersionFromContext(ctx)
+	if versions.LessThan(version, "1.40") {
 		updateConfig.PidsLimit = nil
+	}
+	if versions.LessThan(version, "1.55") {
+		updateConfig.BlkioWeightDevice = nil
+		updateConfig.BlkioDeviceReadBps = nil
+		updateConfig.BlkioDeviceWriteBps = nil
+		updateConfig.BlkioDeviceReadIOps = nil
+		updateConfig.BlkioDeviceWriteIOps = nil
 	}
 
 	if updateConfig.PidsLimit != nil && *updateConfig.PidsLimit <= 0 {
