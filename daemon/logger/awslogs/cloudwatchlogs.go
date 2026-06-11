@@ -76,6 +76,7 @@ type logStream struct {
 	forceFlushInterval time.Duration
 	multilinePattern   *regexp.Regexp
 	client             api
+	info               logger.Info
 
 	messages *loggerutils.MessageQueue
 	closed   atomic.Bool
@@ -149,6 +150,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		forceFlushInterval: containerStreamConfig.forceFlushInterval,
 		multilinePattern:   containerStreamConfig.multilinePattern,
 		client:             client,
+		info:               info,
 		messages:           loggerutils.NewMessageQueue(containerStreamConfig.maxBufferedEvents),
 	}
 
@@ -320,7 +322,14 @@ var newSDKEndpoint = credentialsEndpoint
 // Customizations to the default client from the SDK include a Docker-specific
 // User-Agent string and automatic region detection using the EC2 Instance
 // Metadata Service when region is otherwise unspecified.
-func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) error) (*cloudwatchlogs.Client, error) {
+//
+// newAWSLogsClient is a variable such that the implementation can be swapped
+// out for unit tests.
+var newAWSLogsClient = func(info logger.Info, configOpts ...func(*config.LoadOptions) error) (api, error) {
+	return createAWSLogsClient(info, configOpts...)
+}
+
+func createAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) error) (*cloudwatchlogs.Client, error) {
 	ctx := context.TODO()
 	var region, endpoint *string
 	if os.Getenv(regionEnvKey) != "" {
@@ -689,6 +698,18 @@ func (l *logStream) publishBatch(batch *eventBatch) {
 			err = nil
 		} else if apiErr := (*types.InvalidSequenceTokenException)(nil); errors.As(err, &apiErr) {
 			nextSequenceToken, err = l.putLogEvents(cwEvents, apiErr.ExpectedSequenceToken)
+		} else if apiErr := (smithy.APIError)(nil); errors.As(err, &apiErr) && apiErr.ErrorCode() == "ExpiredTokenException" {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"errorCode":     apiErr.ErrorCode(),
+				"message":       apiErr.ErrorMessage(),
+				"logGroupName":  l.logGroupName,
+				"logStreamName": l.logStreamName,
+			}).Info("AWS credentials expired, refreshing")
+			newClient, clientErr := newAWSLogsClient(l.info)
+			if clientErr == nil {
+				l.client = newClient
+				nextSequenceToken, err = l.putLogEvents(cwEvents, l.sequenceToken)
+			}
 		}
 	}
 	if err != nil {
