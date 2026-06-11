@@ -394,6 +394,7 @@ jobs:
           }
       -
         name: Starting test daemon
+        id: start-daemon
         env:
           INPUT_STORAGE: ${{ inputs.storage }}
           MATRIX_RUNTIME: ${{ matrix.runtime }}
@@ -540,8 +541,9 @@ jobs:
         # as the daemon is registered as a service we have to check the event
         # logs against the docker provider.
         name: Daemon event logs
-        if: always()
+        if: ${{ always() && steps.start-daemon.outcome != 'skipped' }}
         run: |
+          New-Item -ItemType Directory -Force -Path ".\bundles" | Out-Null
           Get-WinEvent -ea SilentlyContinue `
             -FilterHashtable @{ProviderName= "docker"; LogName = "application"} |
               Sort-Object @{Expression="TimeCreated";Descending=$false} |
