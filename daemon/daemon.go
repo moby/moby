@@ -1872,7 +1872,7 @@ func (daemon *Daemon) BuilderBackend() builder.Backend {
 }
 
 // RawSysInfo returns *sysinfo.SysInfo .
-func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
+func (daemon *Daemon) RawSysInfo() (*sysinfo.SysInfo, error) {
 	daemon.sysInfoOnce.Do(func() {
 		// We check if sysInfo is not set here, to allow some test to
 		// override the actual sysInfo.
@@ -1881,7 +1881,7 @@ func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
 		}
 	})
 
-	return daemon.sysInfo
+	return daemon.sysInfo, nil
 }
 
 // imageBackend is used to satisfy the [executorpkg.ImageBackend] and

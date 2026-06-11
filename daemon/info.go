@@ -44,7 +44,10 @@ func doWithTrace[T any](ctx context.Context, name string, f func() T) T {
 func (daemon *Daemon) SystemInfo(ctx context.Context) (*system.Info, error) {
 	defer metrics.StartTimer(metrics.HostInfoFunctions.WithValues("system_info"))()
 
-	sysInfo := daemon.RawSysInfo()
+	sysInfo, err := daemon.RawSysInfo()
+	if err != nil {
+		return nil, err
+	}
 	cfg := daemon.config()
 
 	v := &system.Info{

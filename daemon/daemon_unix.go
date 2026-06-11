@@ -631,7 +631,10 @@ func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *configStore, hos
 	if hostConfig == nil {
 		return nil, nil
 	}
-	sysInfo := daemon.RawSysInfo()
+	sysInfo, err := daemon.RawSysInfo()
+	if err != nil {
+		return nil, err
+	}
 
 	w, err := verifyPlatformContainerResources(&hostConfig.Resources, sysInfo, update)
 

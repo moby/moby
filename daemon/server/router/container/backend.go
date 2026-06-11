@@ -71,7 +71,7 @@ type commitBackend interface {
 }
 
 type sysInfoProvider interface {
-	RawSysInfo() *sysinfo.SysInfo
+	RawSysInfo() (*sysinfo.SysInfo, error)
 }
 
 // Backend is all the methods that need to be implemented to provide container specific functionality.
