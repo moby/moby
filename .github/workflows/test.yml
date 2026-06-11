@@ -76,6 +76,7 @@ jobs:
           path: /tmp/dev-image-${{ matrix.arch }}.tar
 
   test:
+    name: test (${{ matrix.arch }}, ${{ matrix.storage }})
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - build-dev
