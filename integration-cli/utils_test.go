@@ -20,6 +20,15 @@ func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
 	return "", "/"
 }
 
+// dPath converts linux absolute paths to Windows absolute paths if the daemon
+// is running on Windows
+func dPath(path string) string {
+	if testEnv.DaemonInfo.OSType == "windows" {
+		return `c:` + strings.ReplaceAll(path, "/", `\`)
+	}
+	return path
+}
+
 // ParseCgroupPaths parses 'procCgroupData', which is output of '/proc/<pid>/cgroup', and returns
 // a map which cgroup name as key and path as value.
 func ParseCgroupPaths(procCgroupData string) map[string]string {
