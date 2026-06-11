@@ -3,9 +3,8 @@
 package nftabler
 
 import (
-	"bytes"
 	"context"
-	"os/exec"
+	"fmt"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
@@ -25,14 +24,10 @@ func Cleanup(ctx context.Context, config firewaller.Config) {
 }
 
 func tryCleanup(ctx context.Context, family nftables.Family, label string) {
-	cmd := exec.CommandContext(ctx, "nft", "delete", "table", string(family), dockerTable)
-	out, err := cmd.CombinedOutput()
+	err := nftables.RunCmd(ctx, fmt.Appendf(nil, "delete table %s %s", family, dockerTable))
 	if err != nil {
 		// May not exist ("Error: Could not process rule: No such file or directory")
-		log.G(ctx).WithFields(log.Fields{
-			"error":  err,
-			"output": string(bytes.TrimRight(out, "\n ^")), // remove "^^^^^" added in nft's error message.
-		}).Info("Deleting nftables " + label + " rules")
+		log.G(ctx).WithError(err).Info("Deleting nftables " + label + " rules")
 		return
 	}
 

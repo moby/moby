@@ -49,7 +49,6 @@ import (
 	"errors"
 	"fmt"
 	"iter"
-	"os/exec"
 	"runtime"
 	"slices"
 	"strconv"
@@ -64,16 +63,15 @@ import (
 const spanPrefix = "libnetwork.internal.nftables"
 
 var (
-	// nftPath is the path of the "nft" tool, set by [Enable] and left empty if the tool
-	// is not present - in which case, nftables is disabled.
-	nftPath string
+	// enabled is set by [Enable].
+	enabled bool
 	// Error returned by Enable if nftables could not be initialised.
 	nftEnableError error
 	// incrementalUpdateTempl is a parsed text/template, used to apply incremental updates.
 	incrementalUpdateTempl *template.Template
 	// reloadTempl is a parsed text/template, used to apply a whole table.
 	reloadTempl *template.Template
-	// enableOnce is used by [Enable] to avoid checking the path for "nft" more than once.
+	// enableOnce is used by [Enable] to avoid parsing the templates more than once.
 	enableOnce sync.Once
 )
 
@@ -211,10 +209,10 @@ func (t Typeof) VMap() MapTypeof {
 // Enable tries once to initialise nftables.
 func Enable() error {
 	enableOnce.Do(func() {
-		path, err := exec.LookPath("nft")
+		err := preflight()
 		if err != nil {
-			log.G(context.Background()).WithError(err).Warnf("Failed to find nft tool")
-			nftEnableError = fmt.Errorf("failed to find nft tool: %w", err)
+			log.G(context.Background()).WithError(err).Warnf("Failed to initialize nftables")
+			nftEnableError = err
 			return
 		}
 		if err := parseTemplate(); err != nil {
@@ -222,22 +220,36 @@ func Enable() error {
 			nftEnableError = fmt.Errorf("internal error while initialising nftables: %w", err)
 			return
 		}
-		nftPath = path
+		enabled = true
 	})
 	return nftEnableError
 }
 
-// Enabled returns true if the "nft" tool is available and [Enable] has been called.
+// Enabled returns true if [Enable] has been called and nftables was initialized successfully.
 func Enabled() bool {
-	return nftPath != ""
+	return enabled
 }
 
 // Disable undoes Enable. Intended for unit testing.
 func Disable() {
-	nftPath = ""
+	enabled = false
 	incrementalUpdateTempl = nil
 	reloadTempl = nil
 	enableOnce = sync.Once{}
+}
+
+// RunCmd runs arbitrary nftables ruleset commands, like `nft -f`, irrespective
+// of whether nftables is [Enabled].
+//
+// Most users of this package should use [Table] and [Modifier] to manage their
+// nftables ruleset.
+func RunCmd(ctx context.Context, nftCmd []byte) error {
+	h, err := newNftCtx()
+	if err != nil {
+		return err
+	}
+	defer h.Close()
+	return h.Apply(ctx, nftCmd)
 }
 
 //////////////////////////////
@@ -258,7 +270,20 @@ type table struct {
 	MustFlush      bool
 
 	applyLock sync.Mutex
-	nftHandle nftHandle // applyLock must be held to access
+	nftHandle *nftCtx // applyLock must be held to access
+}
+
+// nftApply executes the nftables commands in nftCmd.
+// Acquire t.applyLock before calling this function.
+func (t *table) nftApply(ctx context.Context, nftCmd []byte) error {
+	if t.nftHandle == nil {
+		h, err := newNftCtx()
+		if err != nil {
+			return err
+		}
+		t.nftHandle = h
+	}
+	return t.nftHandle.Apply(ctx, nftCmd)
 }
 
 // Table is a handle for an nftables table.
@@ -305,7 +330,12 @@ func NewTable(family Family, name string) (Table, error) {
 // the underlying nftables table.
 func (t Table) Close() error {
 	if t.IsValid() {
-		t.t.closeNftHandle()
+		t.t.applyLock.Lock()
+		defer t.t.applyLock.Unlock()
+		if t.t.nftHandle != nil {
+			t.t.nftHandle.Close()
+			t.t.nftHandle = nil
+		}
 		t.t = nil
 	}
 	return nil
