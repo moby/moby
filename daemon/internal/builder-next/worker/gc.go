@@ -44,7 +44,7 @@ func DefaultGCPolicy(p string, reservedSpace, maxUsedSpace, minFreeSpace int64) 
 	return []client.PruneInfo{
 		// if build cache uses more than 512MB delete the most easily reproducible data after it has not been used for 2 days
 		{
-			Filter:       []string{"type==source.local,type==exec.cachemount,type==source.git.checkout"},
+			Filter:       []string{"type==source.local", "type==exec.cachemount", "type==source.git.checkout"},
 			KeepDuration: 48 * time.Hour,
 			MaxUsedSpace: tempCacheReservedSpace,
 		},
