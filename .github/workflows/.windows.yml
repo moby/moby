@@ -329,6 +329,7 @@ jobs:
           cache: false
       -
         name: Set up OpenTelemetry Collector
+        id: setup-otel
         run: |
           New-Item -ItemType Directory -Force -Path bundles -ErrorAction Continue
           Start-Process "msiexec" -ArgumentList "/i",
@@ -548,9 +549,12 @@ jobs:
               Tee-Object -file ".\bundles\daemon.log"
       -
         name: Stop OpenTelemetry Collector
-        if: always()
+        if: ${{ always() && steps.setup-otel.outcome != 'skipped' }}
         run: |
-          (Stop-Service -DisplayName "OpenTelemetry Collector" -PassThru).WaitForStatus('Stopped', (New-TimeSpan -Seconds 30))
+          $svc = Get-Service -DisplayName "OpenTelemetry Collector" -ErrorAction SilentlyContinue
+          if ($svc -and $svc.Status -ne "Stopped") {
+              ($svc | Stop-Service -PassThru).WaitForStatus("Stopped", (New-TimeSpan -Seconds 30))
+          }
       -
         name: Upload reports
         if: always()
