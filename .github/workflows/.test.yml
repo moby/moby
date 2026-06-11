@@ -13,10 +13,14 @@ on:
         required: false
         type: string
         default: amd64
-      runner:
+      runnerSuffix:
         required: false
         type: string
-        default: ubuntu-24.04
+        default: ""
+      extraModes:
+        required: false
+        type: string
+        default: '[]'
       storage:
         required: true
         type: string
@@ -38,7 +42,7 @@ env:
 
 jobs:
   docker-py:
-    runs-on: ${{ inputs.runner }}
+    runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     steps:
@@ -94,7 +98,7 @@ jobs:
           retention-days: 1
 
   integration-flaky:
-    runs-on: ${{ inputs.runner }}
+    runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     steps:
@@ -140,30 +144,23 @@ jobs:
         id: set
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          INPUT_ARCH: ${{ inputs.arch }}
-          INPUT_RUNNER: ${{ inputs.runner }}
-          INPUT_STORAGE: ${{ inputs.storage }}
+          MATRIX_ARCH: ${{ inputs.arch }}
+          MATRIX_EXTRA_MODES: ${{ inputs.extraModes }}
+          MATRIX_RUNNER_SUFFIX: ${{ inputs.runnerSuffix }}
         with:
           script: |
-            const arch = core.getInput('arch', { required: true });
-            const runner = core.getInput('runner', { required: true });
-            const storage = core.getInput('storage', { required: true });
+            const arch = `${{ env.MATRIX_ARCH }}`;
+            const extraModes = JSON.parse(`${{ env.MATRIX_EXTRA_MODES }}`);
+            const runnerSuffix = `${{ env.MATRIX_RUNNER_SUFFIX }}`;
             let includes = [
-              { os: 'ubuntu-22.04', mode: '' },
-              { os: 'ubuntu-22.04', mode: 'rootless' },
-              { os: 'ubuntu-22.04', mode: 'systemd' },
-              { os: 'ubuntu-24.04', mode: '' },
-              { os: 'ubuntu-24.04', mode: 'rootless' },
-              { os: 'ubuntu-24.04', mode: 'systemd' },
-              // { os: 'ubuntu-24.04', mode: 'rootless-systemd' }, // FIXME: https://github.com/moby/moby/issues/44084
+              { arch: arch, runner: `ubuntu-24.04${runnerSuffix}`, mode: '' },
             ];
-            if (arch != "amd64") {
-              includes = includes.filter(item => item.os == 'ubuntu-24.04').map(item => ({ ...item, os: runner }));
-            }
-            if (storage == "snapshotter") {
-              includes.push({ os: arch == "amd64" ? 'ubuntu-24.04' : runner, mode: 'iptables+firewalld' });
-              includes.push({ os: arch == "amd64" ? 'ubuntu-24.04' : runner, mode: 'nftables' });
-              includes.push({ os: arch == "amd64" ? 'ubuntu-24.04' : runner, mode: 'nftables+firewalld' });
+            includes.push(...extraModes.map(mode => ({ arch: arch, runner: `ubuntu-24.04${runnerSuffix}`, mode: mode })));
+
+            if (arch == "amd64") {
+              includes.push({ arch: arch, runner: 'ubuntu-22.04', mode: '' });
+              includes.push({ arch: arch, runner: 'ubuntu-22.04', mode: 'rootless' });
+              includes.push({ arch: arch, runner: 'ubuntu-22.04', mode: 'systemd' });
             }
             await core.group(`Set matrix`, async () => {
               core.info(`matrix: ${JSON.stringify(includes)}`);
@@ -171,7 +168,7 @@ jobs:
             });
 
   integration:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     needs:
@@ -214,7 +211,7 @@ jobs:
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
         name: Set up AppArmor for RootlessKit
-        if: contains(matrix.mode, 'rootless') && matrix.os != 'ubuntu-22.04'
+        if: contains(matrix.mode, 'rootless') && matrix.runner != 'ubuntu-22.04'
         run: |
           cat <<EOT | sudo tee "/etc/apparmor.d/usr.local.bin.rootlesskit"
           abi <abi/4.0>,
@@ -251,9 +248,9 @@ jobs:
         if: always()
         env:
           MATRIX_MODE: ${{ matrix.mode }}
-          MATRIX_OS: ${{ matrix.os }}
+          MATRIX_RUNNER: ${{ matrix.runner }}
         run: |
-          reportsName=$MATRIX_OS
+          reportsName=$MATRIX_RUNNER
           if [ -n "$MATRIX_MODE" ]; then
             reportsName="$reportsName-$MATRIX_MODE"
           fi
@@ -330,7 +327,7 @@ jobs:
           fi
 
   integration-cli-prepare:
-    runs-on: ${{ inputs.runner }}
+    runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     outputs:
@@ -425,7 +422,7 @@ jobs:
             });
 
   integration-cli:
-    runs-on: ${{ inputs.runner }}
+    runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     needs:

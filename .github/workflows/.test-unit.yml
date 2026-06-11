@@ -13,10 +13,10 @@ on:
         required: false
         type: string
         default: amd64
-      runner:
+      runnerSuffix:
         required: false
         type: string
-        default: ubuntu-24.04
+        default: ""
     secrets:
       CODECOV_TOKEN:
         required: false
@@ -30,7 +30,7 @@ env:
 
 jobs:
   unit:
-    runs-on: ${{ inputs.runner }}
+    runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     strategy:
