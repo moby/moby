@@ -262,6 +262,12 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 
 		ready, done := s.history.AcquireFinalizer(rec.Ref)
 
+		// Emit build observability metrics before the history record is
+		// finalized. rec is fully populated at this point — Frontend,
+		// Error, NumCompletedSteps, CreatedAt, and CompletedAt are set
+		// regardless of whether the build succeeded or failed.
+		s.metrics.recordBuildCompletion(ctx, rec)
+
 		if err1 := s.history.Update(ctx, &controlapi.BuildHistoryEvent{
 			Type:   controlapi.BuildHistoryEventType_COMPLETE,
 			Record: rec,

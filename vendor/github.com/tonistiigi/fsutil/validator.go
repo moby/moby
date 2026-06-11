@@ -67,8 +67,8 @@ func (v *Validator) HandleChange(kind ChangeKind, p string, fi os.FileInfo, err 
 
 func ComparePath(p1, p2 string) int {
 	// byte-by-byte comparison to be compatible with str<>str
-	min := min(len(p1), len(p2))
-	for i := 0; i < min; i++ {
+	n := min(len(p1), len(p2))
+	for i := range n {
 		switch {
 		case p1[i] == p2[i]:
 			continue
@@ -79,11 +79,4 @@ func ComparePath(p1, p2 string) int {
 		}
 	}
 	return len(p1) - len(p2)
-}
-
-func min(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
 }

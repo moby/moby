@@ -27,6 +27,7 @@ import (
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
+	"github.com/moby/buildkit/solver/llbsolver/compat"
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/errutil"
@@ -232,6 +233,10 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 		return nil, nil, nil, err
 	}
 	opts.Annotations = opts.Annotations.Merge(as)
+	opts.SetOCITypesDefault(DefaultOCITypes(buildInfo.CompatibilityVersion, src))
+	if err := opts.Validate(); err != nil {
+		return nil, nil, nil, err
+	}
 
 	ctx, done, err := leaseutil.WithLease(ctx, e.opt.LeaseManager, leaseutil.MakeTemporary)
 	if err != nil {
@@ -575,6 +580,14 @@ func addAnnotations(m map[digest.Digest]map[string]string, desc ocispecs.Descrip
 		a = make(map[string]string)
 	}
 	maps.Copy(a, desc.Annotations)
+}
+
+// DefaultOCITypes returns the default media type behavior for image exports.
+func DefaultOCITypes(compatibilityVersion int, src *exporter.Source) bool {
+	if compatibilityVersion >= compat.CompatibilityVersion031 {
+		return true
+	}
+	return len(src.Attestations) > 0
 }
 
 func NewDescriptorReference(desc ocispecs.Descriptor, release func(context.Context) error) exporter.DescriptorReference {

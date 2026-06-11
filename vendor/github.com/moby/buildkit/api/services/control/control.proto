@@ -78,6 +78,7 @@ message SolveRequest {
 	bool EnableSessionExporter = 14;
 	string SourcePolicySession = 15;
 	int64 CompatibilityVersion = 16;
+	bool ProxyNetwork = 17;
 }
 
 message CacheOptions {

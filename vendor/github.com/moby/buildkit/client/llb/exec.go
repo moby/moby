@@ -255,6 +255,10 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		meta.Ulimit = ul
 	}
 
+	if e.constraints.Metadata.LinuxResources != nil {
+		addCap(&e.constraints, pb.CapExecMetaLinuxResources)
+	}
+
 	network, err := getNetwork(e.base)(ctx, c)
 	if err != nil {
 		return "", nil, nil, nil, err

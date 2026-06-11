@@ -16,7 +16,7 @@ import (
 
 const networkName = "nat"
 
-func newExecutor(opts executorOpts) (executor.Executor, error) {
+func newExecutor(opts executorOpts) (executor.Executor, network.ProxyProvider, error) {
 	netRoot := filepath.Join(opts.root, "net")
 	np := map[pb.NetMode]network.Provider{
 		pb.NetMode_UNSET: &bridgeProvider{Controller: opts.networkController, Root: netRoot},
@@ -26,7 +26,7 @@ func newExecutor(opts executorOpts) (executor.Executor, error) {
 	opt := ctd.WithDefaultNamespace(opts.containerdNamespace)
 	client, err := ctd.New(opts.containerdAddr, opt)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return containerdexecutor.New(containerdexecutor.ExecutorOptions{
@@ -35,8 +35,9 @@ func newExecutor(opts executorOpts) (executor.Executor, error) {
 		DNSConfig:        opts.dnsConfig,
 		CDIManager:       opts.cdiManager,
 		NetworkProviders: np,
+		ProxyProvider:    opts.proxyProvider,
 		HyperVIsolation:  opts.hypervIsolation,
-	}), nil
+	}), opts.proxyProvider, nil
 }
 
 func (iface *lnInterface) Set(s *specs.Spec) error {

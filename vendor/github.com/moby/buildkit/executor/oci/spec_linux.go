@@ -150,6 +150,45 @@ func generateRlimitOpts(ulimits []*pb.Ulimit) ([]oci.SpecOpts, error) {
 	}, nil
 }
 
+func generateLinuxResourceOpts(res *pb.LinuxResources) ([]oci.SpecOpts, error) {
+	if res == nil {
+		return nil, nil
+	}
+	var opts []oci.SpecOpts
+	if res.Memory != 0 {
+		opts = append(opts, oci.WithMemoryLimit(uint64(res.Memory)))
+	}
+	if res.MemorySwap != 0 {
+		swap := res.MemorySwap
+		opts = append(opts, func(_ context.Context, _ oci.Client, _ *containers.Container, s *specs.Spec) error {
+			if s.Linux == nil {
+				return nil
+			}
+			if s.Linux.Resources == nil {
+				s.Linux.Resources = &specs.LinuxResources{}
+			}
+			if s.Linux.Resources.Memory == nil {
+				s.Linux.Resources.Memory = &specs.LinuxMemory{}
+			}
+			s.Linux.Resources.Memory.Swap = &swap
+			return nil
+		})
+	}
+	if res.CpuShares != 0 {
+		opts = append(opts, oci.WithCPUShares(res.CpuShares))
+	}
+	if res.CpuQuota != 0 || res.CpuPeriod != 0 {
+		opts = append(opts, oci.WithCPUCFS(res.CpuQuota, res.CpuPeriod))
+	}
+	if res.CpusetCpus != "" {
+		opts = append(opts, oci.WithCPUs(res.CpusetCpus))
+	}
+	if res.CpusetMems != "" {
+		opts = append(opts, oci.WithCPUsMems(res.CpusetMems))
+	}
+	return opts, nil
+}
+
 // genereateCDIOptions creates the OCI runtime spec options for injecting CDI
 // devices.
 func generateCDIOpts(manager *cdidevices.Manager, devs []*pb.CDIDevice) ([]oci.SpecOpts, error) {

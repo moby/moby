@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	"github.com/containerd/typeurl/v2"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/moby/buildkit/errdefs"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/stack"
@@ -14,6 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type TypedError interface {
@@ -102,7 +102,7 @@ func withDetails(ctx context.Context, s *status.Status, details ...proto.Message
 		if err != nil {
 			return nil, err
 		}
-		p.Details = append(p.Details, &any.Any{TypeUrl: url, Value: dt})
+		p.Details = append(p.Details, &anypb.Any{TypeUrl: url, Value: dt})
 	}
 	return status.FromProto(p), nil
 }

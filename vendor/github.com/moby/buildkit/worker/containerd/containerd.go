@@ -79,7 +79,7 @@ func newContainerd(client *ctd.Client, workerOpts WorkerOptions) (base.WorkerOpt
 		return base.WorkerOpt{}, err
 	}
 
-	np, npResolvedMode, err := netproviders.Providers(workerOpts.NetworkOpt)
+	np, proxyProvider, npResolvedMode, err := netproviders.Providers(workerOpts.NetworkOpt)
 	if err != nil {
 		return base.WorkerOpt{}, err
 	}
@@ -151,6 +151,7 @@ func newContainerd(client *ctd.Client, workerOpts WorkerOptions) (base.WorkerOpt
 		Runtime:          workerOpts.Runtime,
 		CDIManager:       workerOpts.CDIManager,
 		NetworkProviders: np,
+		ProxyProvider:    proxyProvider,
 	}
 
 	opt := base.WorkerOpt{
@@ -159,6 +160,7 @@ func newContainerd(client *ctd.Client, workerOpts WorkerOptions) (base.WorkerOpt
 		Labels:           xlabels,
 		MetadataStore:    md,
 		NetworkProviders: np,
+		ProxyProvider:    proxyProvider,
 		Executor:         containerdexecutor.New(executorOpts),
 		Snapshotter:      containerdsnapshot.NewSnapshotter(workerOpts.SnapshotterName, client.SnapshotService(workerOpts.SnapshotterName), workerOpts.Namespace, nil),
 		ContentStore:     cs,

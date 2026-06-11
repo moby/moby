@@ -30,6 +30,7 @@ import (
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/metric"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -59,7 +60,9 @@ type Opt struct {
 	WorkerController *worker.Controller
 	HistoryQueue     *history.Queue
 	ResourceMonitor  *resources.Monitor
+	ProxyNetwork     bool
 	ProvenanceEnv    map[string]any
+	MeterProvider    metric.MeterProvider
 }
 
 type Solver struct {
@@ -74,8 +77,10 @@ type Solver struct {
 	entitlements              []string
 	history                   *history.Queue
 	sysSampler                *resources.Sampler[*resourcestypes.SysSample]
+	proxyNetwork              bool
 	provenanceEnv             map[string]any
 	provenanceStore           *provenanceStore
+	metrics                   *buildMetrics
 }
 
 // Processor defines a processing function to be applied after solving, but
@@ -95,6 +100,11 @@ func New(opt Opt) (*Solver, error) {
 		}
 	}
 
+	bm, err := newBuildMetrics(opt.MeterProvider)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to register build metrics")
+	}
+
 	s := &Solver{
 		workerController:          opt.WorkerController,
 		resolveWorker:             defaultResolver(opt.WorkerController),
@@ -105,8 +115,10 @@ func New(opt Opt) (*Solver, error) {
 		sm:                        opt.SessionManager,
 		entitlements:              opt.Entitlements,
 		history:                   opt.HistoryQueue,
+		proxyNetwork:              opt.ProxyNetwork,
 		provenanceEnv:             opt.ProvenanceEnv,
 		provenanceStore:           newProvenanceStore(),
+		metrics:                   bm,
 	}
 
 	sampler, err := resources.NewSysSampler()
@@ -136,11 +148,21 @@ func (s *Solver) resolver() solver.ResolveOpFunc {
 		if err != nil {
 			return nil, err
 		}
-		return w.ResolveOp(v, s.Bridge(b), s.sm)
+		br := s.bridge(b)
+		return w.ResolveOp(v, br, s.sm, worker.ProxyOpt{
+			Network: br.ProxyNetwork(),
+			Policy:  br.ProxyPolicy,
+		})
 	}
 }
 
-func (s *Solver) bridge(b solver.Builder) *provenanceBridge {
+func (s *Solver) bridge(b solver.Builder, opts ...bridgeOpt) *provenanceBridge {
+	cfg := bridgeConfig{
+		proxyNetwork: s.proxyNetwork,
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
 	return &provenanceBridge{llbBridge: &llbBridge{
 		builder:                   b,
 		frontends:                 s.frontends,
@@ -150,14 +172,27 @@ func (s *Solver) bridge(b solver.Builder) *provenanceBridge {
 		cms:                       map[string]solver.CacheManager{},
 		sm:                        s.sm,
 		provenanceStore:           s.provenanceStore,
+		proxyNetwork:              cfg.proxyNetwork,
 	}}
+}
+
+type bridgeConfig struct {
+	proxyNetwork bool
+}
+
+type bridgeOpt func(*bridgeConfig)
+
+func withBridgeProxyNetwork(proxyNetwork bool) bridgeOpt {
+	return func(cfg *bridgeConfig) {
+		cfg.proxyNetwork = proxyNetwork
+	}
 }
 
 func (s *Solver) Bridge(b solver.Builder) frontend.FrontendLLBBridge {
 	return s.bridge(b)
 }
 
-func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req frontend.SolveRequest, compatibilityVersion int, exp ExporterRequest, ent []entitlements.Entitlement, post []Processor, internal bool, srcPol *spb.Policy, policySession string) (_ *client.SolveResponse, err error) {
+func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req frontend.SolveRequest, compatibilityVersion int, exp ExporterRequest, ent []entitlements.Entitlement, post []Processor, internal bool, srcPol *spb.Policy, policySession string, proxyNetwork bool) (_ *client.SolveResponse, err error) {
 	hasNamedDockerfileContext := false
 	for k := range req.FrontendOpt {
 		if k == "context:dockerfile.v0" || strings.HasPrefix(k, "context:dockerfile.v0::") {
@@ -210,6 +245,9 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 		return nil, err
 	}
 	j.SetValue(keyEntitlements, set)
+	if proxyNetwork {
+		j.SetValue(keyProxyNetwork, true)
+	}
 
 	if srcPol != nil {
 		if err := validateSourcePolicy(srcPol); err != nil {
@@ -227,7 +265,7 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 
 	j.SessionID = sessionID
 
-	br := s.bridge(j)
+	br := s.bridge(j, withBridgeProxyNetwork(proxyNetwork || s.proxyNetwork))
 	defer br.releaseProvenanceRefs()
 	rootReq := req.Clone()
 	br.rootReq = &rootReq

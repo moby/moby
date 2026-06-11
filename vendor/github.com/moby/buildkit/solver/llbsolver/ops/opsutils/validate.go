@@ -10,6 +10,7 @@ func Validate(op *pb.Op) error {
 		return errors.Errorf("invalid nil op")
 	}
 
+	inputCount := len(op.Inputs)
 	switch op := op.Op.(type) {
 	case *pb.Op_Source:
 		if op.Source == nil {
@@ -57,6 +58,21 @@ func Validate(op *pb.Op) error {
 	case *pb.Op_Diff:
 		if op.Diff == nil {
 			return errors.Errorf("invalid nil diff op")
+		}
+	case *pb.Op_Passthrough:
+		if op.Passthrough == nil {
+			return errors.Errorf("invalid nil passthrough op")
+		}
+		if op.Passthrough.Id == "" {
+			return errors.Errorf("invalid passthrough op with no id")
+		}
+		if len(op.Passthrough.Outputs) == 0 {
+			return errors.Errorf("invalid passthrough op with no outputs")
+		}
+		for _, input := range op.Passthrough.Outputs {
+			if input < 0 || inputCount > 0 && input >= int64(inputCount) {
+				return errors.Errorf("invalid passthrough output input index %d", input)
+			}
 		}
 	}
 	return nil

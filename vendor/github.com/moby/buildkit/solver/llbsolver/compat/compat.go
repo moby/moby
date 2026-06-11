@@ -9,7 +9,8 @@ import (
 const (
 	CompatibilityVersion013     = 10
 	CompatibilityVersion015     = 20
-	CompatibilityVersionCurrent = CompatibilityVersion015
+	CompatibilityVersion031     = 30
+	CompatibilityVersionCurrent = CompatibilityVersion031
 )
 
 // JobValueKey is the key used to store the compatibility version on a solver
@@ -19,6 +20,7 @@ const JobValueKey = "llb.compatibilityversion"
 var supportedCompatibilityVersions = []int{
 	CompatibilityVersion013,
 	CompatibilityVersion015,
+	CompatibilityVersion031,
 }
 
 func SupportedCompatibilityVersions() []int {

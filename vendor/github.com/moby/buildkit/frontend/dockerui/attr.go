@@ -9,6 +9,7 @@ import (
 	"github.com/docker/go-units"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/cpuset"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/go-csvvalue"
@@ -94,6 +95,79 @@ func parseUlimits(v string) ([]*pb.Ulimit, error) {
 		})
 	}
 	return out, nil
+}
+
+func parseLinuxResources(opts map[string]string) (*pb.LinuxResources, error) {
+	var res pb.LinuxResources
+
+	if v, ok := opts[keyMemory]; ok && v != "" {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid %s value: %s", keyMemory, v)
+		}
+		if n <= 0 {
+			return nil, errors.Errorf("invalid %s value: %s: must be > 0", keyMemory, v)
+		}
+		res.Memory = n
+	}
+	if v, ok := opts[keyMemorySwap]; ok && v != "" {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid %s value: %s", keyMemorySwap, v)
+		}
+		if n < -1 || n == 0 {
+			return nil, errors.Errorf("invalid %s value: %s: must be -1 (unlimited) or > 0", keyMemorySwap, v)
+		}
+		res.MemorySwap = n
+	}
+	if v, ok := opts[keyCPUShares]; ok && v != "" {
+		n, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid %s value: %s", keyCPUShares, v)
+		}
+		if n == 0 {
+			return nil, errors.Errorf("invalid %s value: %s: must be > 0", keyCPUShares, v)
+		}
+		res.CpuShares = n
+	}
+	if v, ok := opts[keyCPUPeriod]; ok && v != "" {
+		n, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid %s value: %s", keyCPUPeriod, v)
+		}
+		if n == 0 {
+			return nil, errors.Errorf("invalid %s value: %s: must be > 0", keyCPUPeriod, v)
+		}
+		res.CpuPeriod = n
+	}
+	if v, ok := opts[keyCPUQuota]; ok && v != "" {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid %s value: %s", keyCPUQuota, v)
+		}
+		if n <= 0 {
+			return nil, errors.Errorf("invalid %s value: %s: must be > 0", keyCPUQuota, v)
+		}
+		res.CpuQuota = n
+	}
+	if v, ok := opts[keyCpusetCpus]; ok && v != "" {
+		if err := cpuset.Validate(v); err != nil {
+			return nil, errors.Wrapf(err, "invalid %s value: %s", keyCpusetCpus, v)
+		}
+		res.CpusetCpus = v
+	}
+	if v, ok := opts[keyCpusetMems]; ok && v != "" {
+		if err := cpuset.Validate(v); err != nil {
+			return nil, errors.Wrapf(err, "invalid %s value: %s", keyCpusetMems, v)
+		}
+		res.CpusetMems = v
+	}
+
+	if res.Memory == 0 && res.MemorySwap == 0 && res.CpuShares == 0 &&
+		res.CpuPeriod == 0 && res.CpuQuota == 0 && res.CpusetCpus == "" && res.CpusetMems == "" {
+		return nil, nil
+	}
+	return &res, nil
 }
 
 func parseNetMode(v string) (pb.NetMode, error) {

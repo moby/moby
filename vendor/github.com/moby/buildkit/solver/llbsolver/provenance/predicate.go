@@ -2,6 +2,7 @@ package provenance
 
 import (
 	"maps"
+	"slices"
 	"strings"
 
 	"github.com/containerd/platforms"
@@ -287,6 +288,16 @@ func NewPredicate(c *Capture) (*provenancetypes.ProvenancePredicateSLSA1, error)
 
 	if len(vcs) > 0 {
 		pr.RunDetails.Metadata.BuildKitMetadata.VCS = vcs
+	}
+	if c.ProxyNetwork {
+		pr.RunDetails.Metadata.BuildKitMetadata.Network = &provenancetypes.NetworkMetadata{
+			Mode: "proxy",
+		}
+		if len(c.ProxyIncomplete) > 0 {
+			pr.RunDetails.Metadata.BuildKitMetadata.Network.Proxy = &provenancetypes.ProxyNetworkMetadata{
+				Incomplete: slices.Clone(c.ProxyIncomplete),
+			}
+		}
 	}
 
 	return pr, nil
