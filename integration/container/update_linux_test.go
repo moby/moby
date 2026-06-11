@@ -2,16 +2,20 @@ package container
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/moby/moby/api/types/blkiodev"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/request"
+	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -212,4 +216,121 @@ func TestUpdatePidsLimit(t *testing.T) {
 			assert.Equal(t, out, test.expectCg)
 		})
 	}
+}
+
+// blkioTestDevice finds a usable block device on the host by examining the
+// device backing the root filesystem.  The returned path (e.g. "/dev/sda")
+// and the decimal major:minor string are suitable for docker update flags and
+// cgroup file lookups respectively.
+func blkioTestDevice(t *testing.T) (devPath, majMin string) {
+	t.Helper()
+
+	var st unix.Stat_t
+	assert.NilError(t, unix.Stat("/", &st), "stat /")
+
+	major := unix.Major(st.Dev)
+	minor := unix.Minor(st.Dev)
+
+	// Resolve the device name via sysfs so we get a real /dev/… path.
+	uevent, err := os.ReadFile(fmt.Sprintf("/sys/dev/block/%d:%d/uevent", major, minor))
+	if err != nil {
+		t.Skipf("cannot resolve block device for / from sysfs: %v", err)
+	}
+	var name string
+	for _, line := range strings.Split(string(uevent), "\n") {
+		if after, ok := strings.CutPrefix(line, "DEVNAME="); ok {
+			name = strings.TrimSpace(after)
+			break
+		}
+	}
+	if name == "" {
+		t.Skip("DEVNAME not found in sysfs uevent for / block device")
+	}
+	return "/dev/" + name, fmt.Sprintf("%d:%d", major, minor)
+}
+
+// parseIOMax returns the value of field (rbps/wbps/riops/wiops) for the given
+// major:minor device from a cgroup v2 io.max file content.
+func parseIOMax(content, majMin, field string) string {
+	for _, line := range strings.Split(content, "\n") {
+		if !strings.HasPrefix(line, majMin+" ") {
+			continue
+		}
+		for _, part := range strings.Fields(line[len(majMin)+1:]) {
+			if k, v, ok := strings.Cut(part, "="); ok && k == field {
+				return v
+			}
+		}
+	}
+	return ""
+}
+
+// TestUpdateBlkioThrottleDevices verifies that docker update correctly applies
+// per-device blkio throttle limits to the container's cgroup.
+//
+// On cgroup v2 the limits are reflected in /sys/fs/cgroup/io.max inside the
+// container.  On cgroup v1 only the API-level values are verified (the blkio
+// throttle files are not bind-mounted into the container namespace).
+func TestUpdateBlkioThrottleDevices(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
+
+	devPath, majMin := blkioTestDevice(t)
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, apiClient)
+
+	const (
+		readBps   uint64 = 5 * 1024 * 1024 // 5 MiB/s
+		writeBps  uint64 = 2 * 1024 * 1024 // 2 MiB/s
+		readIops  uint64 = 100
+		writeIops uint64 = 50
+	)
+
+	_, err := apiClient.ContainerUpdate(ctx, cID, client.ContainerUpdateOptions{
+		Resources: &containertypes.Resources{
+			BlkioDeviceReadBps:   []*blkiodev.ThrottleDevice{{Path: devPath, Rate: readBps}},
+			BlkioDeviceWriteBps:  []*blkiodev.ThrottleDevice{{Path: devPath, Rate: writeBps}},
+			BlkioDeviceReadIOps:  []*blkiodev.ThrottleDevice{{Path: devPath, Rate: readIops}},
+			BlkioDeviceWriteIOps: []*blkiodev.ThrottleDevice{{Path: devPath, Rate: writeIops}},
+		},
+	})
+	assert.NilError(t, err)
+
+	// Verify API-level values are persisted.
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(inspect.Container.HostConfig.BlkioDeviceReadBps, 1))
+	assert.Check(t, is.Equal(inspect.Container.HostConfig.BlkioDeviceReadBps[0].Rate, readBps))
+	assert.Assert(t, is.Len(inspect.Container.HostConfig.BlkioDeviceWriteBps, 1))
+	assert.Check(t, is.Equal(inspect.Container.HostConfig.BlkioDeviceWriteBps[0].Rate, writeBps))
+	assert.Assert(t, is.Len(inspect.Container.HostConfig.BlkioDeviceReadIOps, 1))
+	assert.Check(t, is.Equal(inspect.Container.HostConfig.BlkioDeviceReadIOps[0].Rate, readIops))
+	assert.Assert(t, is.Len(inspect.Container.HostConfig.BlkioDeviceWriteIOps, 1))
+	assert.Check(t, is.Equal(inspect.Container.HostConfig.BlkioDeviceWriteIOps[0].Rate, writeIops))
+
+	// On cgroup v2 verify the limits landed in io.max inside the container.
+	if testEnv.DaemonInfo.CgroupVersion != "2" {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	res, err := container.Exec(ctx, apiClient, cID, []string{"cat", "/sys/fs/cgroup/io.max"})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(res.Stderr(), 0))
+	assert.Equal(t, 0, res.ExitCode)
+
+	ioMax := res.Stdout()
+	assert.Check(t, is.Equal(parseIOMax(ioMax, majMin, "rbps"), strconv.FormatUint(readBps, 10)),
+		"io.max rbps for %s (io.max content: %q)", majMin, ioMax)
+	assert.Check(t, is.Equal(parseIOMax(ioMax, majMin, "wbps"), strconv.FormatUint(writeBps, 10)),
+		"io.max wbps for %s (io.max content: %q)", majMin, ioMax)
+	assert.Check(t, is.Equal(parseIOMax(ioMax, majMin, "riops"), strconv.FormatUint(readIops, 10)),
+		"io.max riops for %s (io.max content: %q)", majMin, ioMax)
+	assert.Check(t, is.Equal(parseIOMax(ioMax, majMin, "wiops"), strconv.FormatUint(writeIops, 10)),
+		"io.max wiops for %s (io.max content: %q)", majMin, ioMax)
 }

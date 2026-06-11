@@ -7,5 +7,9 @@ import (
 )
 
 func TestToContainerdResources_Defaults(t *testing.T) {
-	checkResourcesAreUnset(t, toContainerdResources(container.Resources{}))
+	r, err := toContainerdResources(container.Resources{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkResourcesAreUnset(t, r)
 }

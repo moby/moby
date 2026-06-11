@@ -5,7 +5,7 @@ import (
 	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
 )
 
-func toContainerdResources(resources container.Resources) *libcontainerdtypes.Resources {
+func toContainerdResources(resources container.Resources) (*libcontainerdtypes.Resources, error) {
 	// We don't support update, so do nothing
-	return nil
+	return nil, nil
 }
