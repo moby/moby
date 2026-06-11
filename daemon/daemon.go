@@ -115,6 +115,7 @@ type Daemon struct {
 	root              string
 	sysInfoOnce       sync.Once
 	sysInfo           *sysinfo.SysInfo
+	sysInfoErr        error
 	shutdown          bool
 	idMapping         user.IdentityMapping
 	PluginStore       *plugin.Store // TODO: remove
@@ -1877,11 +1878,14 @@ func (daemon *Daemon) RawSysInfo() (*sysinfo.SysInfo, error) {
 		// We check if sysInfo is not set here, to allow some test to
 		// override the actual sysInfo.
 		if daemon.sysInfo == nil {
-			daemon.sysInfo = getSysInfo(&daemon.config().Config)
+			daemon.sysInfoErr = daemon.runInNetNS(func() error {
+				daemon.sysInfo = getSysInfo(&daemon.config().Config)
+				return nil
+			})
 		}
 	})
 
-	return daemon.sysInfo, nil
+	return daemon.sysInfo, daemon.sysInfoErr
 }
 
 // imageBackend is used to satisfy the [executorpkg.ImageBackend] and
