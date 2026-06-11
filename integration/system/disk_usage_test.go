@@ -6,10 +6,13 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	containertypes "github.com/moby/moby/api/types/container"
+	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -299,4 +302,55 @@ func TestDiskUsage(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDiskUsageImageSharedUsage(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows") // d.Start fails on Windows with `protocol not available`
+
+	t.Parallel()
+
+	ctx := testutil.StartSpan(baseContext, t)
+
+	d := daemon.New(t)
+	defer d.Cleanup(t)
+	d.Start(t, "--iptables=false", "--ip6tables=false")
+	defer d.Stop(t)
+	apiClient := d.NewClientT(t)
+
+	d.LoadBusybox(ctx, t)
+
+	imageRefs := []string{
+		"shared-usage-a:latest",
+		"shared-usage-b:latest",
+	}
+	for _, imageRef := range imageRefs {
+		build.Do(ctx, t, apiClient,
+			fakecontext.New(t, "", fakecontext.WithDockerfile("FROM busybox\nRUN echo "+imageRef+" > /shared-usage\n")),
+			client.ImageBuildOptions{Tags: []string{imageRef}},
+		)
+	}
+
+	du, err := apiClient.DiskUsage(ctx, client.DiskUsageOptions{
+		Images:  true,
+		Verbose: true,
+	})
+	assert.NilError(t, err)
+
+	summariesByTag := imageSummariesByTag(du.Images.Items)
+	for _, imageRef := range imageRefs {
+		summary, ok := summariesByTag[imageRef]
+		assert.Assert(t, ok, "expected disk usage output to include %s", imageRef)
+		assert.Check(t, summary.SharedSize > 0, "expected %s to report shared image size, got %d", imageRef, summary.SharedSize)
+		assert.Check(t, summary.Size > summary.SharedSize, "expected %s to have unique image size, got size=%d shared=%d", imageRef, summary.Size, summary.SharedSize)
+	}
+}
+
+func imageSummariesByTag(items []imagetypes.Summary) map[string]imagetypes.Summary {
+	summariesByTag := make(map[string]imagetypes.Summary)
+	for _, item := range items {
+		for _, tag := range item.RepoTags {
+			summariesByTag[tag] = item
+		}
+	}
+	return summariesByTag
 }
