@@ -33,17 +33,17 @@ jobs:
               'validate-dco / run': {
                 id: 'validate-no-dco',
                 title: 'DCO sign-off',
-                summary: 'Add a valid `Signed-off-by:` line with your real name to each commit. For the latest commit, run `git commit --amend --signoff`.',
+                summary: 'Add a valid `Signed-off-by:` line with your real name to each commit. For the latest commit, run `git commit --amend --signoff`; for multiple commits, use `git rebase -i` and amend each affected commit.',
               },
               'check-commit-references': {
                 id: 'validate-no-gh-references',
                 title: 'Commit message references',
-                summary: 'Remove GitHub issue or PR references such as `Closes #1234` from commit messages and move them to the PR description or a PR comment.',
+                summary: 'Remove GitHub issue or PR references such as `Closes #1234` from commit messages, move them to the PR description or a PR comment, and use `git commit --amend` or `git rebase -i` to rewrite affected commit messages.',
               },
               'validate (pr-gh-references)': {
                 id: 'validate-no-gh-references',
                 title: 'Commit message references',
-                summary: 'Remove GitHub issue or PR references such as `Closes #1234` from commit messages and move them to the PR description or a PR comment.',
+                summary: 'Remove GitHub issue or PR references such as `Closes #1234` from commit messages, move them to the PR description or a PR comment, and use `git commit --amend` or `git rebase -i` to rewrite affected commit messages.',
               },
               'validate (module-replace)': {
                 id: 'validate-module-replace',
@@ -53,7 +53,7 @@ jobs:
               'validate (vendor)': {
                 id: 'validate-vendor',
                 title: 'Vendoring',
-                summary: 'Run `./hack/vendor.sh` and commit the resulting `go.mod`, `go.sum`, and `vendor/` updates.',
+                summary: 'Run `./hack/vendor.sh`, commit the resulting `go.mod`, `go.sum`, and `vendor/` updates, and if CI still fails inspect the regenerated files and push again.',
               },
             };
             const failureConclusions = new Set(['action_required', 'failure', 'startup_failure', 'timed_out']);
