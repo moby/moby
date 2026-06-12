@@ -10,3 +10,7 @@ const (
 func getDynamicPortRange() (start int, end int, _ error) {
 	return defaultPortRangeStart, defaultPortRangeEnd, nil
 }
+
+func getReservedPorts(_, _ int) (map[uint16]struct{}, error) {
+	return nil, nil
+}
