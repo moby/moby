@@ -30,7 +30,10 @@ func cleanupNetworkNamespace(t testing.TB, d *Daemon) {
 
 // CgroupNamespace returns the cgroup namespace the daemon is running in
 func (d *Daemon) CgroupNamespace(t testing.TB) string {
-	link, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/cgroup", d.Pid()))
+	pidBytes, err := os.ReadFile(d.pidFile)
+	assert.NilError(t, err)
+
+	link, err := os.Readlink(fmt.Sprintf("/proc/%s/ns/cgroup", strings.TrimSpace(string(pidBytes))))
 	assert.NilError(t, err)
 
 	return strings.TrimSpace(link)
