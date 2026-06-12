@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containerd/log"
@@ -598,6 +599,15 @@ func (nDB *NetworkDB) bulkSync(nodes []string, all bool) ([]string, error) {
 // single peer node. It can be unsolicited or can be in response to an
 // unsolicited bulk sync
 func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited bool) error {
+	// Only one bulkSyncNode call per target node at a time. Without
+	// this, concurrent calls race to write bulkSyncAckTbl[node] and
+	// the losers' channels never get closed, so they sit around for
+	// 30s waiting for an ack that won't come.
+	// https://github.com/moby/moby/issues/51701
+	mu, _ := nDB.bulkSyncNodeMu.LoadOrStore(node, &sync.Mutex{})
+	mu.(*sync.Mutex).Lock()
+	defer mu.(*sync.Mutex).Unlock()
+
 	var msgs [][]byte
 
 	var unsolMsg string
