@@ -174,6 +174,14 @@ func (r *controller) Prepare(ctx context.Context) error {
 				// If you don't want this behavior, lock down your image to an
 				// immutable tag or digest.
 				log.G(ctx).WithError(r.pullErr).Error("pulling image failed")
+
+				// If the pull failed with an authentication error, return it
+				// so the actual cause is propagated instead of the misleading
+				// "No such image" error that would otherwise result from the
+				// container create below.
+				if cerrdefs.IsUnauthorized(r.pullErr) {
+					return r.pullErr
+				}
 			}
 		}
 	}
