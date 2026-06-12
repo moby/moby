@@ -40,8 +40,25 @@ func NewUntypedRequestBinder(parameters map[string]spec.Parameter, spec *spec.Sw
 
 // Bind perform the databinding and validation.
 func (o *UntypedRequestBinder) Bind(request *http.Request, routeParams RouteParams, consumer runtime.Consumer, data any) error {
+	err := o.bind(request, routeParams, consumer, data)
+	if err == nil {
+		return nil // avoids returning a nil-interface
+	}
+
+	return err
+}
+
+// SetLogger allows for injecting a logger to catch debug entries.
+//
+// The logger is enabled in DEBUG mode only.
+func (o *UntypedRequestBinder) SetLogger(lg logger.Logger) {
+	o.debugLogf = debugLogfFunc(lg)
+}
+
+func (o *UntypedRequestBinder) bind(request *http.Request, routeParams RouteParams, consumer runtime.Consumer, data any) *errors.CompositeError {
 	val := reflect.Indirect(reflect.ValueOf(data))
 	isMap := val.Kind() == reflect.Map
+
 	var result []error
 	o.debugLogf("binding %d parameters for %s %s", len(o.Parameters), request.Method, request.URL.EscapedPath())
 	for fieldName, param := range o.Parameters {
@@ -92,13 +109,6 @@ func (o *UntypedRequestBinder) Bind(request *http.Request, routeParams RoutePara
 	}
 
 	return nil
-}
-
-// SetLogger allows for injecting a logger to catch debug entries.
-//
-// The logger is enabled in DEBUG mode only.
-func (o *UntypedRequestBinder) SetLogger(lg logger.Logger) {
-	o.debugLogf = debugLogfFunc(lg)
 }
 
 func (o *UntypedRequestBinder) setDebugLogf(fn func(string, ...any)) {

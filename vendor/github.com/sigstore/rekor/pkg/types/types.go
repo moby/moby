@@ -73,11 +73,21 @@ func (rt *RekorType) IsSupportedVersion(proposedVersion string) bool {
 	return slices.Contains(rt.SupportedVersions(), proposedVersion)
 }
 
+// ListSupportedKinds returns all loaded entry kinds
+func ListSupportedKinds() []string {
+	var l []string
+	TypeMap.Range(func(k, _ any) bool {
+		l = append(l, k.(string))
+		return true
+	})
+	return l
+}
+
 // ListImplementedTypes returns a list of all type strings currently known to
 // be implemented
 func ListImplementedTypes() []string {
 	retVal := []string{}
-	TypeMap.Range(func(k interface{}, v interface{}) bool {
+	TypeMap.Range(func(k, v any) bool {
 		tf := v.(func() TypeImpl)
 		for _, verStr := range tf().SupportedVersions() {
 			retVal = append(retVal, fmt.Sprintf("%v:%v", k.(string), verStr))

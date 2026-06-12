@@ -21,8 +21,12 @@ const (
 	DefaultMime = "application/octet-stream"
 	// JSONMime the json mime type.
 	JSONMime = "application/json"
-	// YAMLMime the [yaml] mime type.
-	YAMLMime = "application/x-yaml"
+	// YAMLMime the [yaml] mime type. Set to the canonical RFC 9512
+	// name (application/yaml). Legacy forms application/x-yaml,
+	// text/yaml, and text/x-yaml — per RFC 9512 §2.1 "Deprecated
+	// alias names for this type" — resolve to the same codec via
+	// the mediatype alias bridge.
+	YAMLMime = "application/yaml"
 	// XMLMime the [xml] mime type.
 	XMLMime = "application/xml"
 	// TextMime the text mime type.

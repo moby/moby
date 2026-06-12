@@ -4,24 +4,72 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/go-openapi/runtime"
-	"github.com/go-openapi/strfmt"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
 )
 
 const (
 	instrumentationVersion = "1.0.0"
 	tracerName             = "go-openapi"
 )
+
+// WithOpenTelemetry adds opentelemetry support to the provided runtime.
+// A new client span is created for each request.
+// The provided opts are applied to each spans - for example to add global tags.
+//
+// The returned transport satisfies [runtime.ContextualTransport]: callers
+// should prefer [openTelemetryTransport.SubmitContext] over the
+// legacy [runtime.ClientOperation.Context] field. Setting that
+// field is still honored on the [openTelemetryTransport.Submit]
+// compatibility path.
+func (r *Runtime) WithOpenTelemetry(opts ...OpenTelemetryOpt) runtime.ContextualTransport {
+	return newOpenTelemetryTransport(r, r.Host, opts)
+}
+
+// WithOpenTracing adds opentracing support to the provided runtime.
+// A new client span is created for each request.
+// If the context of the client operation does not contain an active span, no span is created.
+// The provided opts are applied to each spans - for example to add global tags.
+//
+// Deprecated: use [WithOpenTelemetry] instead, as opentracing is now archived and superseded by opentelemetry.
+//
+// # Deprecation notice
+//
+// The [Runtime.WithOpenTracing] method has been deprecated in favor of [Runtime.WithOpenTelemetry].
+//
+// The method is still around so programs calling it will still build. However, it will return
+// an opentelemetry transport.
+//
+// If you have a strict requirement on using opentracing, you may still do so by importing
+// module [github.com/go-openapi/runtime/client-[middleware]/opentracing] and using
+// [github.com/go-openapi/runtime/client-[middleware]/opentracing.WithOpenTracing] with your
+// usual opentracing options and opentracing-enabled transport.
+//
+// Passed options are ignored unless they are of type [OpenTelemetryOpt].
+func (r *Runtime) WithOpenTracing(opts ...any) runtime.ContextualTransport {
+	otelOpts := make([]OpenTelemetryOpt, 0, len(opts))
+	for _, o := range opts {
+		otelOpt, ok := o.(OpenTelemetryOpt)
+		if !ok {
+			continue
+		}
+		otelOpts = append(otelOpts, otelOpt)
+	}
+
+	return r.WithOpenTelemetry(otelOpts...)
+}
 
 type config struct {
 	Tracer            trace.Tracer
@@ -113,11 +161,31 @@ func newOpenTelemetryTransport(transport runtime.ClientTransport, host string, o
 	return tr
 }
 
+// Submit implements [runtime.ClientTransport]. It honors the legacy
+// [runtime.ClientOperation.Context] field for backward compatibility
+// — that field is being phased out; new code should call
+// [openTelemetryTransport.SubmitContext] directly with an explicit
+// context.
 func (t *openTelemetryTransport) Submit(op *runtime.ClientOperation) (any, error) {
-	if op.Context == nil {
-		return t.transport.Submit(op)
+	ctx := op.Context
+	if ctx == nil {
+		ctx = context.Background()
 	}
+	return t.SubmitContext(ctx, op)
+}
 
+// SubmitContext submits an operation with an explicit context that
+// drives both the tracing span and (when supported) the wrapped
+// transport's SubmitContext call. The legacy
+// [runtime.ClientOperation.Context] field is not consulted.
+//
+// When the wrapped transport implements [runtime.ContextualTransport], ctx is
+// forwarded directly via its SubmitContext. Otherwise, the legacy
+// Submit path is used: ctx is stamped onto op.Context for the
+// duration of that call and restored afterwards, so the wrapped
+// transport still receives a usable context. The legacy fallback
+// disappears once SubmitContext is universal (v2).
+func (t *openTelemetryTransport) SubmitContext(ctx context.Context, op *runtime.ClientOperation) (any, error) {
 	params := op.Params
 	reader := op.Reader
 
@@ -129,7 +197,7 @@ func (t *openTelemetryTransport) Submit(op *runtime.ClientOperation) (any, error
 	}()
 
 	op.Params = runtime.ClientRequestWriterFunc(func(req runtime.ClientRequest, reg strfmt.Registry) error {
-		span = t.newOpenTelemetrySpan(op, req.GetHeaderParams())
+		span = t.newOpenTelemetrySpan(ctx, op, req.GetHeaderParams())
 		return params.WriteToRequest(req, reg)
 	})
 
@@ -149,7 +217,7 @@ func (t *openTelemetryTransport) Submit(op *runtime.ClientOperation) (any, error
 		return reader.ReadResponse(response, consumer)
 	})
 
-	submit, err := t.transport.Submit(op)
+	submit, err := t.submitWrapped(ctx, op)
 	if err != nil && span != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -158,9 +226,18 @@ func (t *openTelemetryTransport) Submit(op *runtime.ClientOperation) (any, error
 	return submit, err
 }
 
-func (t *openTelemetryTransport) newOpenTelemetrySpan(op *runtime.ClientOperation, header http.Header) trace.Span {
-	ctx := op.Context
+//nolint:contextcheck // ctx is forwarded verbatim; the legacy Submit branch only stamps it onto op.Context for the wrapped transport.
+func (t *openTelemetryTransport) submitWrapped(ctx context.Context, op *runtime.ClientOperation) (any, error) {
+	if sc, ok := t.transport.(runtime.ContextualTransport); ok {
+		return sc.SubmitContext(ctx, op)
+	}
+	prev := op.Context
+	op.Context = ctx
+	defer func() { op.Context = prev }()
+	return t.transport.Submit(op)
+}
 
+func (t *openTelemetryTransport) newOpenTelemetrySpan(ctx context.Context, op *runtime.ClientOperation, header http.Header) trace.Span {
 	tracer := t.tracer
 	if tracer == nil {
 		if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {

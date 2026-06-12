@@ -145,7 +145,10 @@ func VerifyInclusion(ctx context.Context, e *models.LogEntryAnon) error {
 
 	hashes := [][]byte{}
 	for _, h := range e.Verification.InclusionProof.Hashes {
-		hb, _ := hex.DecodeString(h)
+		hb, err := hex.DecodeString(h)
+		if err != nil {
+			return err
+		}
 		hashes = append(hashes, hb)
 	}
 
@@ -155,7 +158,11 @@ func VerifyInclusion(ctx context.Context, e *models.LogEntryAnon) error {
 	}
 
 	// Verify the inclusion proof.
-	entryBytes, err := base64.StdEncoding.DecodeString(e.Body.(string))
+	b, ok := e.Body.(string)
+	if !ok {
+		return fmt.Errorf("entry body must be a string, was %T", e.Body)
+	}
+	entryBytes, err := base64.StdEncoding.DecodeString(b)
 	if err != nil {
 		return err
 	}

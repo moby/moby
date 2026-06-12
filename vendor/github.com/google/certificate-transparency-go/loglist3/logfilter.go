@@ -15,17 +15,25 @@
 package loglist3
 
 import (
+	"fmt"
+
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509util"
+	"k8s.io/klog/v2"
 )
 
-// LogRoots maps Log-URLs (stated at LogList) to the pools of their accepted
-// root-certificates.
+// LogRoots maps Log-URLs and TiledLog-SubmissionURLs (stated at LogList)
+// to the pools of their accepted root-certificates.
 type LogRoots map[string]*x509util.PEMCertPool
 
 // Compatible creates a new LogList containing only Logs matching the temporal,
 // root-acceptance and Log-status conditions.
 func (ll *LogList) Compatible(cert *x509.Certificate, certRoot *x509.Certificate, roots LogRoots) LogList {
+	urls := make([]string, 0, len(roots))
+	for url := range roots {
+		urls = append(urls, url)
+	}
+	klog.V(1).Info(urls)
 	active := ll.TemporallyCompatible(cert)
 	// Do not check root compatbility if roots are not being provided.
 	if certRoot == nil {
@@ -49,7 +57,16 @@ func (ll *LogList) SelectByStatus(lstats []LogStatus) LogList {
 				}
 			}
 		}
-		if len(activeOp.Logs) > 0 {
+		activeOp.TiledLogs = []*TiledLog{}
+		for _, l := range op.TiledLogs {
+			for _, lstat := range lstats {
+				if l.State.LogStatus() == lstat {
+					activeOp.TiledLogs = append(activeOp.TiledLogs, l)
+					break
+				}
+			}
+		}
+		if len(activeOp.Logs) > 0 || len(activeOp.TiledLogs) > 0 {
 			active.Operators = append(active.Operators, &activeOp)
 		}
 	}
@@ -92,10 +109,39 @@ func (ll *LogList) RootCompatible(certRoot *x509.Certificate, roots LogRoots) Lo
 				compatibleOp.Logs = append(compatibleOp.Logs, l)
 			}
 		}
-		if len(compatibleOp.Logs) > 0 {
+		compatibleOp.TiledLogs = []*TiledLog{}
+		for _, l := range op.TiledLogs {
+			// If root set is not defined, we treat Log as compatible assuming no
+			// knowledge of its roots.
+			if _, ok := roots[l.SubmissionURL]; !ok {
+				compatibleOp.TiledLogs = append(compatibleOp.TiledLogs, l)
+				continue
+			}
+
+			if certRoot == nil {
+				continue
+			}
+
+			// Check root is accepted.
+			if roots[l.SubmissionURL].Included(certRoot) {
+				compatibleOp.TiledLogs = append(compatibleOp.TiledLogs, l)
+			}
+		}
+		if len(compatibleOp.Logs) > 0 || len(compatibleOp.TiledLogs) > 0 {
 			compatible.Operators = append(compatible.Operators, &compatibleOp)
 		}
 	}
+	logMessage := "Root compatible operators: \n"
+	for _, operator := range ll.Operators {
+		logMessage += fmt.Sprintf("Operator: %s\n", operator.Name)
+		for _, l := range operator.Logs {
+			logMessage += fmt.Sprintf("\t%s\n", l.URL)
+		}
+		for _, l := range operator.TiledLogs {
+			logMessage += fmt.Sprintf("\t%s\n", l.SubmissionURL)
+		}
+	}
+	klog.V(1).Info(logMessage)
 	return compatible
 }
 
@@ -121,9 +167,30 @@ func (ll *LogList) TemporallyCompatible(cert *x509.Certificate) LogList {
 				compatibleOp.Logs = append(compatibleOp.Logs, l)
 			}
 		}
-		if len(compatibleOp.Logs) > 0 {
+		compatibleOp.TiledLogs = []*TiledLog{}
+		for _, l := range op.TiledLogs {
+			if l.TemporalInterval == nil {
+				compatibleOp.TiledLogs = append(compatibleOp.TiledLogs, l)
+				continue
+			}
+			if cert.NotAfter.Before(l.TemporalInterval.EndExclusive) && (cert.NotAfter.After(l.TemporalInterval.StartInclusive) || cert.NotAfter.Equal(l.TemporalInterval.StartInclusive)) {
+				compatibleOp.TiledLogs = append(compatibleOp.TiledLogs, l)
+			}
+		}
+		if len(compatibleOp.Logs) > 0 || len(compatibleOp.TiledLogs) > 0 {
 			compatible.Operators = append(compatible.Operators, &compatibleOp)
 		}
 	}
+	logMessage := "Temporal compatible logs: \n"
+	for _, operator := range ll.Operators {
+		logMessage += fmt.Sprintf("Operator: %s\n", operator.Name)
+		for _, l := range operator.Logs {
+			logMessage += fmt.Sprintf("\t%s\n", l.URL)
+		}
+		for _, l := range operator.TiledLogs {
+			logMessage += fmt.Sprintf("\t%s\n", l.SubmissionURL)
+		}
+	}
+	klog.V(1).Info(logMessage)
 	return compatible
 }

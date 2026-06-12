@@ -158,6 +158,27 @@ func getSanitizedURL(u url.URL, allowedQueryParams map[string]struct{}) string {
 	return u.String()
 }
 
+// getSanitizedURLString returns s with the query params of u redacted.
+// if s doesn't contain u, then s is returned unchanged.
+func getSanitizedURLString(s string, u *url.URL, allowedQueryParams map[string]struct{}) string {
+	if u.RawQuery == "" {
+		// the URL doesn't have any query params, so nothing to redact
+		return s
+	}
+
+	urlIndex := strings.Index(strings.ToLower(s), strings.ToLower(u.String()))
+	if urlIndex < 0 {
+		// the URL isn't in the string, so nothing to redact
+		return s
+	}
+
+	// replace the unsanitized URL in the error message with the sanitized version
+	sanitizedURL := getSanitizedURL(*u, allowedQueryParams)
+	s = s[:urlIndex] + sanitizedURL + s[urlIndex+len(u.String()):]
+
+	return s
+}
+
 // writeRequestWithResponse appends a formatted HTTP request into a Buffer. If request and/or err are
 // not nil, then these are also written into the Buffer.
 func (p *logPolicy) writeRequestWithResponse(b *bytes.Buffer, req *policy.Request, resp *http.Response, err error) {
@@ -171,7 +192,7 @@ func (p *logPolicy) writeRequestWithResponse(b *bytes.Buffer, req *policy.Reques
 	}
 	if err != nil {
 		fmt.Fprintln(b, "   --------------------------------------------------------------------------------")
-		fmt.Fprint(b, "   ERROR:\n"+err.Error()+"\n")
+		fmt.Fprint(b, "   ERROR:\n"+getSanitizedURLString(err.Error(), req.Raw().URL, p.allowedQP)+"\n")
 	}
 }
 

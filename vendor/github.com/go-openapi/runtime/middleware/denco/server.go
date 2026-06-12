@@ -9,7 +9,7 @@ import (
 	"net/http"
 )
 
-// Mux represents a multiplexer for HTTP request.
+// Mux represents a multiplexer for HTTP requests.
 type Mux struct{}
 
 // NewMux returns a new [Mux].
@@ -17,27 +17,27 @@ func NewMux() *Mux {
 	return &Mux{}
 }
 
-// GET is shorthand of [Mux].Handler("GET", path, handler).
+// GET is shorthand for [Mux.Handler] ("GET", path, handler).
 func (m *Mux) GET(path string, handler HandlerFunc) Handler {
 	return m.Handler("GET", path, handler)
 }
 
-// POST is shorthand of [Mux].Handler("POST", path, handler).
+// POST is shorthand for [Mux.Handler] ("POST", path, handler).
 func (m *Mux) POST(path string, handler HandlerFunc) Handler {
 	return m.Handler("POST", path, handler)
 }
 
-// PUT is shorthand of [Mux].Handler("PUT", path, handler).
+// PUT is shorthand for [Mux.Handler] ("PUT", path, handler).
 func (m *Mux) PUT(path string, handler HandlerFunc) Handler {
 	return m.Handler("PUT", path, handler)
 }
 
-// HEAD is shorthand of [Mux].Handler("HEAD", path, handler).
+// HEAD is shorthand for [Mux.Handler]("HEAD", path, handler).
 func (m *Mux) HEAD(path string, handler HandlerFunc) Handler {
 	return m.Handler("HEAD", path, handler)
 }
 
-// Handler returns a handler for HTTP method.
+// Handler returns a [Handler] for a HTTP method.
 func (m *Mux) Handler(method, path string, handler HandlerFunc) Handler {
 	return Handler{
 		Method: method,
@@ -63,7 +63,7 @@ func (m *Mux) Build(handlers []Handler) (http.Handler, error) {
 	return mux, nil
 }
 
-// Handler represents a handler of HTTP request.
+// Handler represents a handler of HTTP requests.
 type Handler struct {
 	// Method is an HTTP method.
 	Method string
@@ -75,7 +75,7 @@ type Handler struct {
 	Func HandlerFunc
 }
 
-// HandlerFunc is aliased to type of handler function.
+// HandlerFunc is an alias to the handler function, similar to [http.HandlerFunc].
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, params Params)
 
 type serveMux struct {
@@ -88,7 +88,7 @@ func newServeMux() *serveMux {
 	}
 }
 
-// ServeHTTP implements http.Handler interface.
+// ServeHTTP implements the [http.Handler] interface.
 func (mux *serveMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handler, params := mux.handler(r.Method, r.URL.Path)
 	handler(w, r, params)
@@ -97,15 +97,17 @@ func (mux *serveMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (mux *serveMux) handler(method, path string) (HandlerFunc, []Param) {
 	if router, found := mux.routers[method]; found {
 		if handler, params, found := router.Lookup(path); found {
-			return handler.(HandlerFunc), params
+			return handler.(HandlerFunc), params //nolint:forcetypeassert // type is guaranteed when the path is found
 		}
 	}
 	return NotFound, nil
 }
 
 // NotFound replies to the request with an HTTP 404 not found error.
-// NotFound is called when unknown HTTP method or a handler not found.
-// If you want to use the your own NotFound handler, please overwrite this variable.
+//
+// NotFound is called when unknown HTTP methods are being user or a handler not found.
+//
+// If you want to use your own NotFound handler, please overwrite this variable.
 var NotFound = func(w http.ResponseWriter, r *http.Request, _ Params) {
 	http.NotFound(w, r)
 }

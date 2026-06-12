@@ -25,6 +25,8 @@ import (
 var ErrWeakHashAlg = errors.New("weak hash algorithm: must be SHA-256, SHA-384, or SHA-512")
 var ErrUnsupportedHashAlg = errors.New("unsupported hash algorithm")
 var ErrInconsistentDigestLength = errors.New("digest length inconsistent with specified hash algorithm")
+var ErrUnacceptedPolicy = errors.New("unaccepted policy: requested TSA policy is not supported by the TSA")
+var ErrUnacceptedExtension = errors.New("unaccepted extension: requested extensions are not supported by the TSA")
 
 func VerifyRequest(ts *timestamp.Request) error {
 	// only SHA-1, SHA-256, SHA-384, and SHA-512 are supported by the underlying library

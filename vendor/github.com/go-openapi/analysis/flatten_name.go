@@ -273,9 +273,9 @@ func mangler(o *FlattenOpts) func(string) string {
 	if o.KeepNames {
 		return func(in string) string { return in }
 	}
-	mangler := mangling.NewNameMangler()
+	m := mangling.NewNameMangler(o.ManglerOpts...)
 
-	return mangler.ToJSONName
+	return m.ToJSONName
 }
 
 func nameFromRef(ref spec.Ref, o *FlattenOpts) string {

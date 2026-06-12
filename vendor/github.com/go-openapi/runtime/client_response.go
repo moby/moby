@@ -59,7 +59,7 @@ func (o *APIError) Error() string {
 	if err, ok := o.Response.(error); ok {
 		resp = []byte("'" + sanitizer.Replace(err.Error()) + "'")
 	} else {
-		resp, _ = json.Marshal(o.Response)
+		resp, _ = json.Marshal(o.Response) //nolint:errchkjson // error swallowed as this is our last best effort attempt
 	}
 
 	return fmt.Sprintf("%s (status %d): %s", o.OperationName, o.Code, resp)

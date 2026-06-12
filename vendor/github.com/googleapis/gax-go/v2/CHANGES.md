@@ -1,5 +1,7 @@
 # Changes
 
+## [2.22.0](https://github.com/googleapis/google-cloud-go/releases/tag/v2.22.0) (2026-04-14)
+
 ## [2.21.0](https://github.com/googleapis/google-cloud-go/releases/tag/v2.21.0) (2026-04-01)
 
 ### Features

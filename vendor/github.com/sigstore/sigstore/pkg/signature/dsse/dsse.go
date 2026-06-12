@@ -21,6 +21,7 @@ import (
 	"crypto"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 
 	"github.com/secure-systems-lab/go-securesystemslib/dsse"
@@ -70,14 +71,17 @@ func (w *wrappedSigner) SignMessage(r io.Reader, opts ...signature.SignOption) (
 }
 
 // WrapVerifier returns a signature.Verifier that uses the DSSE encoding format
-func WrapVerifier(v signature.Verifier) signature.Verifier {
+func WrapVerifier(v signature.Verifier, opts ...Option) signature.Verifier {
+	cfg := applyWrapOpts(opts)
 	return &wrappedVerifier{
-		v: v,
+		v:   v,
+		cfg: cfg,
 	}
 }
 
 type wrappedVerifier struct {
-	v signature.Verifier
+	v   signature.Verifier
+	cfg wrapConfig
 }
 
 // PublicKey returns the public key associated with the verifier
@@ -97,6 +101,10 @@ func (w *wrappedVerifier) VerifySignature(s, _ io.Reader, _ ...signature.VerifyO
 		return err
 	}
 
+	if w.cfg.expectedPayloadType != "" && env.PayloadType != w.cfg.expectedPayloadType {
+		return fmt.Errorf("dsse: unexpected payload type: got %q, want %q", env.PayloadType, w.cfg.expectedPayloadType)
+	}
+
 	pub, err := w.PublicKey()
 	if err != nil {
 		return err
@@ -111,18 +119,30 @@ func (w *wrappedVerifier) VerifySignature(s, _ io.Reader, _ ...signature.VerifyO
 		return err
 	}
 
-	_, err = verifier.Verify(context.Background(), &env)
-	return err
+	_, payload, err := verifier.VerifyAndDecode(context.Background(), &env)
+	if err != nil {
+		return err
+	}
+	if w.cfg.decodedPayload != nil {
+		*w.cfg.decodedPayload = payload
+	}
+	return nil
 }
 
-// WrapSignerVerifier returns a signature.SignerVerifier that uses the DSSE encoding format
-func WrapSignerVerifier(sv signature.SignerVerifier, payloadType string) signature.SignerVerifier {
+// WrapSignerVerifier returns a signature.SignerVerifier that uses the DSSE encoding format.
+// The payloadType is automatically enforced during verification via
+// WithExpectedPayloadType; callers may supply additional Option values
+// which are applied after the implicit payload-type option.
+func WrapSignerVerifier(sv signature.SignerVerifier, payloadType string, opts ...Option) signature.SignerVerifier {
+	opts = append([]Option{WithExpectedPayloadType(payloadType)}, opts...)
+	cfg := applyWrapOpts(opts)
 	signer := &wrappedSigner{
 		payloadType: payloadType,
 		s:           sv,
 	}
 	verifier := &wrappedVerifier{
-		v: sv,
+		v:   sv,
+		cfg: cfg,
 	}
 
 	return &wrappedSignerVerifier{

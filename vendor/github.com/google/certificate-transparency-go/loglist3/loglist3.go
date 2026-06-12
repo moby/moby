@@ -301,7 +301,7 @@ func NewFromSignedJSON(llData, rawSig []byte, pubKey crypto.PublicKey) (*LogList
 	return NewFromJSON(llData)
 }
 
-// FindLogByName returns all logs whose names contain the given string.
+// FindLogByName returns all RFC 6962 logs whose names contain the given string.
 func (ll *LogList) FindLogByName(name string) []*Log {
 	name = strings.ToLower(name)
 	var results []*Log
@@ -315,7 +315,7 @@ func (ll *LogList) FindLogByName(name string) []*Log {
 	return results
 }
 
-// FindLogByURL finds the log with the given URL.
+// FindLogByURL finds the RFC 6962 log with the given URL.
 func (ll *LogList) FindLogByURL(url string) *Log {
 	for _, op := range ll.Operators {
 		for _, log := range op.Logs {
@@ -328,7 +328,7 @@ func (ll *LogList) FindLogByURL(url string) *Log {
 	return nil
 }
 
-// FindLogByKeyHash finds the log with the given key hash.
+// FindLogByKeyHash finds the RFC 6962 log with the given key hash.
 func (ll *LogList) FindLogByKeyHash(keyhash [sha256.Size]byte) *Log {
 	for _, op := range ll.Operators {
 		for _, log := range op.Logs {
@@ -340,7 +340,8 @@ func (ll *LogList) FindLogByKeyHash(keyhash [sha256.Size]byte) *Log {
 	return nil
 }
 
-// FindLogByKeyHashPrefix finds all logs whose key hash starts with the prefix.
+// FindLogByKeyHashPrefix finds all RFC 6962 logs whose key hash starts with
+// the prefix.
 func (ll *LogList) FindLogByKeyHashPrefix(prefix string) []*Log {
 	var results []*Log
 	for _, op := range ll.Operators {
@@ -354,7 +355,7 @@ func (ll *LogList) FindLogByKeyHashPrefix(prefix string) []*Log {
 	return results
 }
 
-// FindLogByKey finds the log with the given DER-encoded key.
+// FindLogByKey finds the RFC 6962 log with the given DER-encoded key.
 func (ll *LogList) FindLogByKey(key []byte) *Log {
 	for _, op := range ll.Operators {
 		for _, log := range op.Logs {
@@ -368,10 +369,10 @@ func (ll *LogList) FindLogByKey(key []byte) *Log {
 
 var hexDigits = regexp.MustCompile("^[0-9a-fA-F]+$")
 
-// FuzzyFindLog tries to find logs that match the given unspecified input,
-// whose format is unspecified.  This generally returns a single log, but
-// if text input that matches multiple log descriptions is provided, then
-// multiple logs may be returned.
+// FuzzyFindLog tries to find RFC 6962 logs that match the given unspecified
+// input, whose format is unspecified.  This generally returns a single RFC 6962
+// log, but if text input that matches multiple RFC 6962 log descriptions is
+// provided, then multiple RFC 6962 logs may be returned.
 func (ll *LogList) FuzzyFindLog(input string) []*Log {
 	input = strings.Trim(input, " \t")
 	if logs := ll.FindLogByName(input); len(logs) > 0 {
@@ -410,6 +411,124 @@ func (ll *LogList) FuzzyFindLog(input string) []*Log {
 	// Finally, allow hex strings with an odd number of digits.
 	if hexDigits.MatchString(input) {
 		if logs := ll.FindLogByKeyHashPrefix(input); len(logs) > 0 {
+			return logs
+		}
+	}
+
+	return nil
+}
+
+// FindTiledLogByName returns all tiled logs whose names contain the given
+// string.
+func (ll *LogList) FindTiledLogByName(name string) []*TiledLog {
+	name = strings.ToLower(name)
+	var results []*TiledLog
+	for _, op := range ll.Operators {
+		for _, log := range op.TiledLogs {
+			if strings.Contains(strings.ToLower(log.Description), name) {
+				results = append(results, log)
+			}
+		}
+	}
+	return results
+}
+
+// FindTiledLogByURL finds the tiled log with the given URL.
+func (ll *LogList) FindTiledLogByURL(url string) *TiledLog {
+	for _, op := range ll.Operators {
+		for _, log := range op.TiledLogs {
+			// Don't count trailing slashes
+			if strings.TrimRight(log.SubmissionURL, "/") == strings.TrimRight(url, "/") {
+				return log
+			} else if strings.TrimRight(log.MonitoringURL, "/") == strings.TrimRight(url, "/") {
+				return log
+			}
+		}
+	}
+	return nil
+}
+
+// FindTiledLogByKeyHash finds the tiled log with the given key hash.
+func (ll *LogList) FindTiledLogByKeyHash(keyhash [sha256.Size]byte) *TiledLog {
+	for _, op := range ll.Operators {
+		for _, log := range op.TiledLogs {
+			if bytes.Equal(log.LogID, keyhash[:]) {
+				return log
+			}
+		}
+	}
+	return nil
+}
+
+// FindTiledLogByKeyHashPrefix finds all tiled logs whose key hash starts with
+// the prefix.
+func (ll *LogList) FindTiledLogByKeyHashPrefix(prefix string) []*TiledLog {
+	var results []*TiledLog
+	for _, op := range ll.Operators {
+		for _, log := range op.TiledLogs {
+			hh := hex.EncodeToString(log.LogID[:])
+			if strings.HasPrefix(hh, prefix) {
+				results = append(results, log)
+			}
+		}
+	}
+	return results
+}
+
+// FindTiledLogByKey finds the tiled log with the given DER-encoded key.
+func (ll *LogList) FindTiledLogByKey(key []byte) *TiledLog {
+	for _, op := range ll.Operators {
+		for _, log := range op.TiledLogs {
+			if bytes.Equal(log.Key[:], key) {
+				return log
+			}
+		}
+	}
+	return nil
+}
+
+// FuzzyFindTiledLog tries to find tiled logs that match the given unspecified
+// input, whose format is unspecified.  This generally returns a single tiled
+// log, but if text input that matches multiple tiled log descriptions is
+// provided, then multiple tiled logs may be returned.
+func (ll *LogList) FuzzyFindTiledLog(input string) []*TiledLog {
+	input = strings.Trim(input, " \t")
+	if logs := ll.FindTiledLogByName(input); len(logs) > 0 {
+		return logs
+	}
+	if log := ll.FindTiledLogByURL(input); log != nil {
+		return []*TiledLog{log}
+	}
+	// Try assuming the input is binary data of some form.  First base64:
+	if data, err := base64.StdEncoding.DecodeString(input); err == nil {
+		if len(data) == sha256.Size {
+			var hash [sha256.Size]byte
+			copy(hash[:], data)
+			if log := ll.FindTiledLogByKeyHash(hash); log != nil {
+				return []*TiledLog{log}
+			}
+		}
+		if log := ll.FindTiledLogByKey(data); log != nil {
+			return []*TiledLog{log}
+		}
+	}
+	// Now hex, but strip all internal whitespace first.
+	input = stripInternalSpace(input)
+	if data, err := hex.DecodeString(input); err == nil {
+		if len(data) == sha256.Size {
+			var hash [sha256.Size]byte
+			copy(hash[:], data)
+			if log := ll.FindTiledLogByKeyHash(hash); log != nil {
+				return []*TiledLog{log}
+			}
+		}
+		if log := ll.FindTiledLogByKey(data); log != nil {
+			return []*TiledLog{log}
+		}
+	}
+	// Finally, allow hex strings with an odd number of digits.
+	if hexDigits.MatchString(input) {
+		if logs := ll.FindTiledLogByKeyHashPrefix(input); len(logs) > 0 {
 			return logs
 		}
 	}

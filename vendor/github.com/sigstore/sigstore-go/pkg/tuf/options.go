@@ -15,6 +15,7 @@
 package tuf
 
 import (
+	"context"
 	"embed"
 	"math"
 	"os"
@@ -68,6 +69,14 @@ type Options struct {
 	DisableConsistentSnapshot bool
 	// Fetcher is the metadata fetcher
 	Fetcher fetcher.Fetcher
+	// Context is the context for TUF background tasks
+	Context context.Context
+}
+
+// WithContext sets the context for TUF background tasks
+func (o *Options) WithContext(ctx context.Context) *Options {
+	o.Context = ctx
+	return o
 }
 
 // WithCacheValidity sets the cache validity period in days

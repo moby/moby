@@ -270,7 +270,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 
 			progress, closeProgress := NewProgressHandler(ctx, "copying files")
 			defer closeProgress()
-			return filesync.CopyToCaller(ctx, outputFS, e.id, caller, progress)
+			return filesync.CopyToCaller(ctx, outputFS, e.id, caller, progress, filesync.WithExporterMultiPlatformTransfer())
 		})
 	} else if len(platforms.Platforms) > 0 {
 		for _, p := range platforms.Platforms {

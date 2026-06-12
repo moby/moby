@@ -131,7 +131,7 @@ func (e *ResponseError) Error() string {
 	msg := &bytes.Buffer{}
 	if e.RawResponse != nil {
 		if e.RawResponse.Request != nil {
-			fmt.Fprintf(msg, "%s %s://%s%s\n", e.RawResponse.Request.Method, e.RawResponse.Request.URL.Scheme, e.RawResponse.Request.URL.Host, e.RawResponse.Request.URL.Path)
+			fmt.Fprintf(msg, "%s %s://%s%s\n", e.RawResponse.Request.Method, e.RawResponse.Request.URL.Scheme, e.RawResponse.Request.URL.Host, e.RawResponse.Request.URL.EscapedPath())
 		} else {
 			fmt.Fprintln(msg, "Request information not available")
 		}
