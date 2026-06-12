@@ -65,8 +65,14 @@ func notifyStopping() {
 }
 
 // notifyShutdown is called after the daemon shuts down but before the process exits.
-func notifyShutdown(err error) {
+func notifyShutdown(ctx context.Context, err error) {
 	if service != nil {
+		// log the error, so that it's sent to the event-log.
+		if err != nil {
+			log.G(ctx).WithError(err).Error("Stopping service")
+		} else {
+			log.G(ctx).Info("Stopping service")
+		}
 		service.stopped(err)
 	}
 }
