@@ -80,7 +80,7 @@ jobs:
             }
 
             async function getPullRequestForRun() {
-              const pullNumbers = new Set((run.pull_requests ?? []).map((pullRequest) => pullRequest.number));
+              const candidatePullNumbers = new Set((run.pull_requests ?? []).map((pullRequest) => pullRequest.number));
               const headOwner = run.head_repository?.owner?.login;
 
               if (headOwner && run.head_branch) {
@@ -93,12 +93,12 @@ jobs:
                 });
 
                 for (const pullRequest of matchingPulls) {
-                  pullNumbers.add(pullRequest.number);
+                  candidatePullNumbers.add(pullRequest.number);
                 }
               }
 
               let candidatePullRequest = null;
-              for (const pull_number of pullNumbers) {
+              for (const pull_number of candidatePullNumbers) {
                 const { data: pullRequest } = await github.rest.pulls.get({
                   owner,
                   repo,
@@ -109,22 +109,23 @@ jobs:
                   candidatePullRequest = pullRequest;
                 }
                 if (pullRequest.head.sha === run.head_sha) {
-                  return pullRequest;
+                  return { pullRequest, matchesHeadSha: true };
                 }
               }
 
-              return candidatePullRequest;
+              return { pullRequest: candidatePullRequest, matchesHeadSha: false };
             }
 
-            const pullRequest = await getPullRequestForRun();
-            if (!pullRequest) {
+            const pullRequestMatch = await getPullRequestForRun();
+            if (!pullRequestMatch?.pullRequest) {
               core.info('No pull request is associated with this workflow run.');
               return;
             }
 
+            const { pullRequest, matchesHeadSha } = pullRequestMatch;
             const pull_number = pullRequest.number;
 
-            if (pullRequest.head.sha !== run.head_sha) {
+            if (!matchesHeadSha) {
               core.info(`Ignoring stale workflow run for ${run.head_sha}; current head is ${pullRequest.head.sha}.`);
               return;
             }
