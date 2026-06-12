@@ -26,7 +26,6 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const run = context.payload.workflow_run;
-            const prRef = run.pull_requests?.[0];
             const marker = '<!-- moby:validation-failures -->';
             const trackedWorkflows = new Set(['test', 'validate-pr']);
             const trackedFailures = {
@@ -80,17 +79,48 @@ jobs:
               });
             }
 
-            if (!prRef) {
+            async function getPullRequestForRun() {
+              const pullNumbers = new Set((run.pull_requests ?? []).map((pullRequest) => pullRequest.number));
+              const headOwner = run.head_repository?.owner?.login;
+
+              if (headOwner && run.head_branch) {
+                const { data: matchingPulls } = await github.rest.pulls.list({
+                  owner,
+                  repo,
+                  state: 'open',
+                  head: `${headOwner}:${run.head_branch}`,
+                  per_page: 10,
+                });
+
+                for (const pullRequest of matchingPulls) {
+                  pullNumbers.add(pullRequest.number);
+                }
+              }
+
+              let fallbackPullRequest = null;
+              for (const pull_number of pullNumbers) {
+                const { data: pullRequest } = await github.rest.pulls.get({
+                  owner,
+                  repo,
+                  pull_number,
+                });
+
+                fallbackPullRequest ??= pullRequest;
+                if (pullRequest.head.sha === run.head_sha) {
+                  return pullRequest;
+                }
+              }
+
+              return fallbackPullRequest;
+            }
+
+            const pullRequest = await getPullRequestForRun();
+            if (!pullRequest) {
               core.info('No pull request is associated with this workflow run.');
               return;
             }
 
-            const pull_number = prRef.number;
-            const { data: pullRequest } = await github.rest.pulls.get({
-              owner,
-              repo,
-              pull_number,
-            });
+            const pull_number = pullRequest.number;
 
             if (pullRequest.head.sha !== run.head_sha) {
               core.info(`Ignoring stale workflow run for ${run.head_sha}; current head is ${pullRequest.head.sha}.`);
