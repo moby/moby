@@ -1,12 +1,14 @@
 package daemon
 
 import (
+	"context"
 	"net/netip"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -17,6 +19,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	volumesservice "github.com/moby/moby/v2/daemon/volume/service"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/semaphore"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -121,6 +124,34 @@ func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 		return nil, err
 	}
 	return daemon, nil
+}
+
+func TestStartParallelStartupTaskAcquiresBeforeStartingGoroutine(t *testing.T) {
+	sem := semaphore.NewWeighted(1)
+	var group sync.WaitGroup
+
+	assert.NilError(t, sem.Acquire(context.Background(), 1))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	taskStarted := make(chan struct{})
+	assert.Check(t, is.ErrorIs(startParallelStartupTask(ctx, sem, &group, func() {
+		close(taskStarted)
+	}), context.Canceled))
+	group.Wait()
+
+	select {
+	case <-taskStarted:
+		t.Fatal("startup task ran even though semaphore acquisition failed")
+	default:
+	}
+	sem.Release(1)
+
+	assert.NilError(t, startParallelStartupTask(context.Background(), sem, &group, func() {
+		close(taskStarted)
+	}))
+	group.Wait()
+	<-taskStarted
 }
 
 func TestValidContainerNames(t *testing.T) {
