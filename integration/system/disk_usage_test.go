@@ -45,14 +45,7 @@ func TestDiskUsage(t *testing.T) {
 				})
 				assert.NilError(t, err)
 
-				expectedLayersSize := int64(0)
-				// TODO: Investigate https://github.com/moby/moby/issues/47119
-				// Make 4096 (block size) also a valid value for zero usage.
-				if testEnv.UsingSnapshotter() && testEnv.IsRootless() {
-					if du.Images.TotalSize == 4096 {
-						expectedLayersSize = 4096
-					}
-				}
+				expectedLayersSize := adjustedExpectedUsage(du.Images.TotalSize, 0)
 
 				assert.DeepEqual(t, du, client.DiskUsageResult{
 					Containers: client.ContainersDiskUsage{},
@@ -81,14 +74,17 @@ func TestDiskUsage(t *testing.T) {
 
 				assert.Equal(t, du.Images.ActiveCount, int64(0))
 				assert.Equal(t, du.Images.TotalCount, int64(1))
-				assert.Equal(t, du.Images.Reclaimable, du.Images.TotalSize)
+
+				expectedTotalSize := adjustedExpectedUsage(du.Images.TotalSize, du.Images.Reclaimable)
+				assert.Equal(t, du.Images.TotalSize, expectedTotalSize)
 				assert.Assert(t, du.Images.TotalSize > 0)
 				assert.Equal(t, len(du.Images.Items), 1)
 				assert.Equal(t, len(du.Images.Items[0].RepoTags), 1)
 				assert.Check(t, is.Equal(du.Images.Items[0].RepoTags[0], "busybox:latest"))
 
 				// Image size is layer size + content size. Content size is included in layers size.
-				assert.Equal(t, du.Images.Items[0].Size, du.Images.TotalSize)
+				expectedTotalSize = adjustedExpectedUsage(du.Images.TotalSize, du.Images.Items[0].Size)
+				assert.Equal(t, du.Images.TotalSize, expectedTotalSize)
 
 				return du
 			},
@@ -299,4 +295,15 @@ func TestDiskUsage(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Rootless snapshotter disk usage can drift by one filesystem block.
+// TODO: Investigate why https://github.com/moby/moby/issues/52845
+func adjustedExpectedUsage(actual, expected int64) int64 {
+	if testEnv.UsingSnapshotter() && testEnv.IsRootless() {
+		if actual == expected+4096 {
+			return actual
+		}
+	}
+	return expected
 }
