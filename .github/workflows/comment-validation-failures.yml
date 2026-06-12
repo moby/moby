@@ -21,8 +21,6 @@ jobs:
     steps:
       - name: Update validation guidance comment
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          DOCS_URL: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.event.repository.default_branch }}/docs/contributing/validation-failures.md
         with:
           script: |
             const owner = context.repo.owner;
@@ -35,27 +33,27 @@ jobs:
               'validate-dco / run': {
                 id: 'validate-no-dco',
                 title: 'DCO sign-off',
-                summary: 'Add a valid `Signed-off-by:` line with your real name to each commit.',
+                summary: 'Add a valid `Signed-off-by:` line with your real name to each commit. For the latest commit, run `git commit --amend --signoff`.',
               },
               'check-commit-references': {
                 id: 'validate-no-gh-references',
                 title: 'Commit message references',
-                summary: 'Remove GitHub issue or PR references such as `Closes #1234` from commit messages.',
+                summary: 'Remove GitHub issue or PR references such as `Closes #1234` from commit messages and move them to the PR description or a PR comment.',
               },
               'validate (pr-gh-references)': {
                 id: 'validate-no-gh-references',
                 title: 'Commit message references',
-                summary: 'Remove GitHub issue or PR references such as `Closes #1234` from commit messages.',
+                summary: 'Remove GitHub issue or PR references such as `Closes #1234` from commit messages and move them to the PR description or a PR comment.',
               },
               'validate (module-replace)': {
                 id: 'validate-module-replace',
                 title: 'Module replace rules',
-                summary: 'If you changed `api/` or `client/`, re-add the temporary `replace` rules before sending the PR.',
+                summary: 'If you changed `api/` or `client/`, run `./hack/vendor.sh replace` and commit the resulting `go.mod` / `go.sum` updates.',
               },
               'validate (vendor)': {
                 id: 'validate-vendor',
                 title: 'Vendoring',
-                summary: 'Re-run the vendoring workflow so `go.mod`, `go.sum`, and `vendor/` stay in sync.',
+                summary: 'Run `./hack/vendor.sh` and commit the resulting `go.mod`, `go.sum`, and `vendor/` updates.',
               },
             };
             const failureConclusions = new Set(['action_required', 'failure', 'startup_failure', 'timed_out']);
@@ -163,7 +161,7 @@ jobs:
 
             const items = [...failures.values()]
               .sort((a, b) => a.id.localeCompare(b.id))
-              .map((failure) => `- [${failure.title}](${process.env.DOCS_URL}#${failure.id}) — ${failure.summary} ([failing job](${failure.url}))`);
+              .map((failure) => `- **${failure.title}** — ${failure.summary} ([failing job](${failure.url}))`);
 
             const body = [
               marker,
