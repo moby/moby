@@ -1213,7 +1213,7 @@ github.com/moby/moby/api/types/storage
 github.com/moby/moby/api/types/swarm
 github.com/moby/moby/api/types/system
 github.com/moby/moby/api/types/volume
-# github.com/moby/moby/client v0.4.1 => ./client
+# github.com/moby/moby/client v0.5.0-rc.1
 ## explicit; go 1.24
 github.com/moby/moby/client
 github.com/moby/moby/client/internal
@@ -2196,4 +2196,3 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.1.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
-# github.com/moby/moby/client => ./client
