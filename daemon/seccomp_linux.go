@@ -28,7 +28,11 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			}
 			return err
 		}
-		if !daemon.RawSysInfo().Seccomp {
+		sysInfo, err := daemon.RawSysInfo()
+		if err != nil {
+			return err
+		}
+		if !sysInfo.Seccomp {
 			if c.SeccompProfile != "" && c.SeccompProfile != dconfig.SeccompProfileDefault {
 				return errors.New("seccomp is not enabled in your kernel, cannot run a custom seccomp profile")
 			}
@@ -39,7 +43,6 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		if s.Linux == nil {
 			s.Linux = &specs.Linux{}
 		}
-		var err error
 		switch {
 		case c.SeccompProfile == dconfig.SeccompProfileDefault:
 			s.Linux.Seccomp, err = seccomp.GetDefaultProfile(s)
