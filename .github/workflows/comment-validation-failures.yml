@@ -80,7 +80,7 @@ jobs:
             }
 
             async function getPullRequestForRun() {
-              const candidatePullNumbers = new Set((run.pull_requests ?? []).map((pullRequest) => pullRequest.number));
+              const candidatePullNumbers = new Set((run.pull_requests ?? []).map((prRef) => prRef.number));
               const headOwner = run.head_repository?.owner?.login;
 
               if (headOwner && run.head_branch) {
@@ -98,11 +98,11 @@ jobs:
               }
 
               let candidatePullRequest = null;
-              for (const pull_number of candidatePullNumbers) {
+              for (const pullNumber of candidatePullNumbers) {
                 const { data: pullRequest } = await github.rest.pulls.get({
                   owner,
                   repo,
-                  pull_number,
+                  pull_number: pullNumber,
                 });
 
                 if (!candidatePullRequest) {
@@ -123,7 +123,7 @@ jobs:
             }
 
             const { pullRequest, matchesHeadSha } = pullRequestMatch;
-            const pull_number = pullRequest.number;
+            const pullNumber = pullRequest.number;
 
             if (!matchesHeadSha) {
               core.info(`Ignoring stale workflow run for ${run.head_sha}; current head is ${pullRequest.head.sha}.`);
@@ -132,7 +132,7 @@ jobs:
 
             if (['COLLABORATOR', 'MEMBER', 'OWNER'].includes(pullRequest.author_association)) {
               core.info(`Skipping guidance comment for ${pullRequest.author_association.toLowerCase()} contributor.`);
-              await deleteExistingComment(pull_number);
+              await deleteExistingComment(pullNumber);
               return;
             }
 
@@ -179,7 +179,7 @@ jobs:
               }
             }
 
-            const existingComment = await findExistingComment(pull_number);
+            const existingComment = await findExistingComment(pullNumber);
             if (failures.size === 0) {
               if (existingComment) {
                 await github.rest.issues.deleteComment({
@@ -222,6 +222,6 @@ jobs:
             await github.rest.issues.createComment({
               owner,
               repo,
-              issue_number: pull_number,
+              issue_number: pullNumber,
               body,
             });
