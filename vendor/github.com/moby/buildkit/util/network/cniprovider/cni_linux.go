@@ -106,10 +106,62 @@ func withDetachedNetNSIfAny(ctx context.Context, fn func(context.Context) error)
 }
 
 func (ns *cniNS) DialContext(ctx context.Context, networkName, address string) (net.Conn, error) {
+	// WithNetNSPath only pins the calling thread to the namespace, while
+	// net.Dialer runs happy-eyeballs connect attempts and cgo DNS lookups on
+	// separate goroutines that would create their sockets in the host
+	// namespace. A negative FallbackDelay keeps connects serial on the pinned
+	// thread, and the Go resolver with a custom Dial re-enters the namespace
+	// for DNS sockets created on resolver goroutines.
+	resolverNS, err := netns.GetCurrentNS()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	defer resolverNS.Close()
+	return ns.dialInNS(ctx, networkName, address, ns.dialer(resolverNS))
+}
+
+func (ns *cniNS) dialer(resolverNS netns.NetNS) *net.Dialer {
+	return &net.Dialer{
+		FallbackDelay: -1,
+		Resolver: &net.Resolver{
+			PreferGo: true,
+			Dial: func(ctx context.Context, networkName, address string) (net.Conn, error) {
+				d := &net.Dialer{FallbackDelay: -1}
+				if isLoopbackHost(address) {
+					// loopback resolvers (systemd-resolved, Docker embedded
+					// DNS) are only reachable in the namespace that called
+					// DialContext.
+					return dialInNetNS(ctx, resolverNS, networkName, address, d)
+				}
+				return ns.dialInNS(ctx, networkName, address, d)
+			},
+		},
+	}
+}
+
+func isLoopbackHost(address string) bool {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		host = address
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+func (ns *cniNS) dialInNS(ctx context.Context, networkName, address string, dialer *net.Dialer) (net.Conn, error) {
+	targetNS, err := netns.GetNS(ns.nativeID)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	defer targetNS.Close()
+	return dialInNetNS(ctx, targetNS, networkName, address, dialer)
+}
+
+func dialInNetNS(ctx context.Context, targetNS netns.NetNS, networkName, address string, dialer *net.Dialer) (net.Conn, error) {
 	var conn net.Conn
-	err := netns.WithNetNSPath(ns.nativeID, func(_ netns.NetNS) error {
+	err := targetNS.Do(func(_ netns.NetNS) error {
 		var err error
-		conn, err = (&net.Dialer{}).DialContext(ctx, networkName, address)
+		conn, err = dialer.DialContext(ctx, networkName, address)
 		return err
 	})
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/containerd/containerd/v2/core/content"
@@ -103,6 +104,7 @@ type Worker struct {
 	OCILayoutSource *containerimage.Source
 	GitSource       *git.Source
 	HTTPSource      *http.Source
+	platformsMu     sync.Mutex
 }
 
 // NewWorker instantiates a local worker
@@ -288,6 +290,8 @@ func (w *Worker) Labels() map[string]string {
 }
 
 func (w *Worker) Platforms(noCache bool) []ocispecs.Platform {
+	w.platformsMu.Lock()
+	defer w.platformsMu.Unlock()
 	if noCache {
 		matchers := make([]platforms.MatchComparer, len(w.WorkerOpt.Platforms))
 		for i, p := range w.WorkerOpt.Platforms {

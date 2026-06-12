@@ -39,7 +39,7 @@ func newSelectorCache(sel *spb.Selector) *selectorCache {
 func (s *selectorCache) Format(match, format string) (string, error) {
 	switch s.MatchType {
 	case spb.MatchType_EXACT:
-		return s.Identifier, nil
+		return format, nil
 	case spb.MatchType_REGEX:
 		re, err := s.regex()
 		if err != nil {

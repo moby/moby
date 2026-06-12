@@ -1,8 +1,10 @@
 package dsse
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 )
 
 /*
@@ -42,9 +44,27 @@ PAE implements the DSSE Pre-Authentic Encoding
 https://github.com/secure-systems-lab/dsse/blob/master/protocol.md#signature-definition
 */
 func PAE(payloadType string, payload []byte) []byte {
-	return []byte(fmt.Sprintf("DSSEv1 %d %s %d %s",
-		len(payloadType), payloadType,
-		len(payload), payload))
+	// Pre-size to avoid reallocation. Previously fmt.Sprintf copied payload
+	// into a string and []byte(...) copied it again.
+	const prefix = "DSSEv1 "
+	const sep = " "
+	// Max decimal digits for a non-negative int (len() result) on any
+	// platform: len("9223372036854775807") == 19. Grow is a hint, so a
+	// slight overestimate is harmless.
+	const maxDecimalLen = 19
+	var b bytes.Buffer
+	b.Grow(len(prefix) +
+		maxDecimalLen + len(sep) + len(payloadType) + len(sep) +
+		maxDecimalLen + len(sep) + len(payload))
+	b.WriteString(prefix)
+	b.WriteString(strconv.Itoa(len(payloadType)))
+	b.WriteByte(' ')
+	b.WriteString(payloadType)
+	b.WriteByte(' ')
+	b.WriteString(strconv.Itoa(len(payload)))
+	b.WriteByte(' ')
+	b.Write(payload)
+	return b.Bytes()
 }
 
 /*

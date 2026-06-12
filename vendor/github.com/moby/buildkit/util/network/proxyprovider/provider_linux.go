@@ -81,10 +81,7 @@ func New(opt Opt) (network.ProxyProvider, error) {
 		lru:                  list.New(),
 		egressProviders:      maps.Clone(opt.EgressProviders),
 		ownedEgressProviders: slices.Clone(opt.OwnedEgressProviders),
-		transport: &http.Transport{
-			Proxy:              nil,
-			DisableCompression: true,
-		},
+		transport:            newProxyTransport(),
 	}
 	p.pool = netpool.New(netpool.Opt[*proxyNS]{
 		Name:       "proxy network namespace",
@@ -96,6 +93,14 @@ func New(opt Opt) (network.ProxyProvider, error) {
 	})
 	go p.pool.Fill(context.TODO())
 	return p, nil
+}
+
+func newProxyTransport() *http.Transport {
+	return &http.Transport{
+		Proxy:              nil,
+		DisableCompression: true,
+		ForceAttemptHTTP2:  true,
+	}
 }
 
 type provider struct {
@@ -586,13 +591,7 @@ func (h *proxyHandler) handleConnect(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.recordRequest(req, resp.StatusCode, finalURL(req, resp))
-		// Response.Write uses resp.Proto for the status line. In the MITM
-		// path, resp describes the upstream fetch, so align it to the
-		// client-facing request we intercepted.
-		resp.Proto = req.Proto
-		resp.ProtoMajor = req.ProtoMajor
-		resp.ProtoMinor = req.ProtoMinor
-		resp.Close = resp.Close || req.Close || !req.ProtoAtLeast(1, 1)
+		prepareMITMResponse(req, resp)
 		tracker := newProxyBodyTracker(resp.Body)
 		resp.Body = tracker
 		if err := resp.Write(tlsConn); err != nil {
@@ -605,6 +604,23 @@ func (h *proxyHandler) handleConnect(w http.ResponseWriter, r *http.Request) {
 		if resp.Close || req.Close {
 			return
 		}
+	}
+}
+
+func prepareMITMResponse(req *http.Request, resp *http.Response) {
+	// Response.Write uses resp.Proto for the status line. In the MITM
+	// path, resp describes the upstream fetch, so align it to the
+	// client-facing request we intercepted.
+	resp.Proto = req.Proto
+	resp.ProtoMajor = req.ProtoMajor
+	resp.ProtoMinor = req.ProtoMinor
+	resp.Close = resp.Close || req.Close || !req.ProtoAtLeast(1, 1)
+	if resp.ContentLength < 0 && len(resp.TransferEncoding) == 0 {
+		// Response.Write marks its internal response clone as close-delimited
+		// for this case, but it does not update resp.Close. Mirror that here
+		// so handleConnect closes the client-facing TLS connection after the
+		// upstream body is copied.
+		resp.Close = true
 	}
 }
 

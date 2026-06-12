@@ -22,8 +22,9 @@ const _LogStatus_name = "UndefinedLogStatusPendingLogStatusQualifiedLogStatusUsa
 var _LogStatus_index = [...]uint8{0, 18, 34, 52, 67, 84, 100, 117}
 
 func (i LogStatus) String() string {
-	if i < 0 || i >= LogStatus(len(_LogStatus_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_LogStatus_index)-1 {
 		return "LogStatus(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _LogStatus_name[_LogStatus_index[i]:_LogStatus_index[i+1]]
+	return _LogStatus_name[_LogStatus_index[idx]:_LogStatus_index[idx+1]]
 }

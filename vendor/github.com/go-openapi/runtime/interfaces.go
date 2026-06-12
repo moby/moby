@@ -99,3 +99,25 @@ type Validatable interface {
 type ContextValidatable interface {
 	ContextValidate(context.Context, strfmt.Registry) error
 }
+
+// ContentTyper is implemented by values that declare their own MIME
+// content type. The client runtime consults it in two places:
+//
+//   - on a body payload set via [SetBodyParam]: when the payload is a
+//     stream (io.Reader, io.ReadCloser) and ContentType returns a
+//     non-empty value, that value becomes the wire Content-Type
+//     header instead of the operation's picked consumes entry.
+//
+//   - on individual file values inside a multipart upload: their per-
+//     part Content-Type header is taken from ContentType() rather
+//     than sniffed via http.DetectContentType.
+//
+// An empty string return is treated as "no opinion" and the runtime
+// falls back to its default selection. Values that have no content
+// type to declare may simply not implement the interface.
+//
+// See docs/MEDIA_TYPES.md for the full client-side selection
+// algorithm.
+type ContentTyper interface {
+	ContentType() string
+}

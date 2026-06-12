@@ -97,7 +97,7 @@ func ByteStreamConsumer(opts ...byteStreamOpt) Consumer {
 			}
 		default:
 			// check for the underlying type to be pointer to []byte or string,
-			if ptr := reflect.TypeOf(data); ptr.Kind() != reflect.Ptr {
+			if ptr := reflect.TypeOf(data); ptr.Kind() != reflect.Pointer {
 				return errors.New("destination must be a pointer")
 			}
 
@@ -126,13 +126,13 @@ func ByteStreamConsumer(opts ...byteStreamOpt) Consumer {
 //
 // Supported input underlying types and interfaces, prioritized in this order:
 //
-// - [io.WriterTo] (for maximum control)
-// - [io.Reader] (performs [io.Copy]). A ReadCloser is closed before exiting.
-// - [encoding.BinaryMarshaler]
-// - error (writes as a string)
-// - []byte
-// - string
-// - struct, other slices: writes as JSON.
+//   - [io.WriterTo] (for maximum control)
+//   - [io.Reader] (performs [io.Copy]). A ReadCloser is closed before exiting.
+//   - [encoding.BinaryMarshaler]
+//   - error (writes as a string)
+//   - []byte
+//   - string
+//   - struct, other slices: writes as JSON.
 func ByteStreamProducer(opts ...byteStreamOpt) Producer {
 	var vals byteStreamOpts
 	for _, opt := range opts {

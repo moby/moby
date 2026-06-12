@@ -170,6 +170,9 @@ func WithTransparencyLog(threshold int) VerifierOption {
 // or live log lookups.
 func WithIntegratedTimestamps(threshold int) VerifierOption {
 	return func(c *VerifierConfig) error {
+		if threshold < 1 {
+			return errors.New("integrated timestamp threshold must be at least 1")
+		}
 		c.requireIntegratedTimestamps = true
 		c.integratedTimeThreshold = threshold
 		return nil
@@ -676,6 +679,13 @@ func (v *Verifier) Verify(entity SignedEntity, pb PolicyBuilder) (*VerificationR
 			err = VerifySignedCertificateTimestamp(chains, v.config.ctlogEntriesThreshold, v.trustedMaterial)
 			if err != nil {
 				return nil, fmt.Errorf("failed to verify signed certificate timestamp: %w", err)
+			}
+		}
+	} else if verificationContent.PublicKey() != nil {
+		// If the bundle was signed by a long-lived key, we need to check the signature time against the key's validity window.
+		for _, verifiedTs := range verifiedTimestamps {
+			if !verificationContent.ValidAtTime(verifiedTs.Timestamp, v.trustedMaterial) {
+				return nil, errors.New("signature time outside of public key validity window")
 			}
 		}
 	}

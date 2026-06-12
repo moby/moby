@@ -18,10 +18,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/sigstore/sigstore-go/internal/limits"
 	"github.com/sigstore/sigstore-go/pkg/root"
 )
-
-const maxAllowedTimestamps = 32
 
 // VerifySignedTimestamp verifies that the given entity has been timestamped
 // by a trusted timestamp authority and that the timestamp is valid.
@@ -32,8 +31,8 @@ func VerifySignedTimestamp(entity SignedEntity, trustedMaterial root.TrustedMate
 	}
 
 	// limit the number of timestamps to prevent DoS
-	if len(signedTimestamps) > maxAllowedTimestamps {
-		return nil, nil, fmt.Errorf("too many signed timestamps: %d > %d", len(signedTimestamps), maxAllowedTimestamps)
+	if len(signedTimestamps) > limits.MaxAllowedTimestamps {
+		return nil, nil, fmt.Errorf("too many signed timestamps: %d > %d", len(signedTimestamps), limits.MaxAllowedTimestamps)
 	}
 	sigContent, err := entity.SignatureContent()
 	if err != nil {

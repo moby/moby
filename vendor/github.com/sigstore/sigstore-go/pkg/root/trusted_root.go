@@ -498,28 +498,41 @@ func NewLiveTrustedRootFromTargetWithPeriod(opts *tuf.Options, target string, rf
 		mu:          sync.RWMutex{},
 	}
 
+	var done <-chan struct{}
+	if opts != nil && opts.Context != nil {
+		done = opts.Context.Done()
+	}
+
 	ticker := time.NewTicker(rfPeriod)
 	go func() {
-		for range ticker.C {
-			client, err = tuf.New(opts)
-			if err != nil {
-				log.Printf("error creating TUF client: %v", err)
-			}
+		for {
+			select {
+			case <-done:
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				client, err = tuf.New(opts)
+				if err != nil {
+					log.Printf("error creating TUF client: %v", err)
+					continue
+				}
 
-			b, err := client.GetTarget(target)
-			if err != nil {
-				log.Printf("error fetching trusted root: %v", err)
-			}
+				b, err := client.GetTarget(target)
+				if err != nil {
+					log.Printf("error fetching trusted root: %v", err)
+					continue
+				}
 
-			newTr, err := NewTrustedRootFromJSON(b)
-			if err != nil {
-				log.Printf("error fetching trusted root: %v", err)
-				continue
+				newTr, err := NewTrustedRootFromJSON(b)
+				if err != nil {
+					log.Printf("error fetching trusted root: %v", err)
+					continue
+				}
+				ltr.mu.Lock()
+				ltr.TrustedRoot = newTr
+				ltr.mu.Unlock()
+				log.Printf("successfully refreshed the TUF root")
 			}
-			ltr.mu.Lock()
-			ltr.TrustedRoot = newTr
-			ltr.mu.Unlock()
-			log.Printf("successfully refreshed the TUF root")
 		}
 	}()
 	return ltr, nil

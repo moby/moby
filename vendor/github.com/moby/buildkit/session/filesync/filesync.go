@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -28,7 +29,8 @@ const (
 	keyDirName            = "dir-name"
 	keyExporterMetaPrefix = "exporter-md-"
 
-	keyExporterID = "buildkit-attachable-exporter-id"
+	keyExporterID                    = "buildkit-attachable-exporter-id"
+	keyExporterMultiPlatformTransfer = "buildkit-exporter-multi-platform"
 )
 
 type fsSyncProvider struct {
@@ -341,6 +343,9 @@ func (sp *SyncTarget) chooser(ctx context.Context) int {
 func (sp *SyncTarget) DiffCopy(stream FileSend_DiffCopyServer) (err error) {
 	id := sp.chooser(stream.Context())
 	if target, ok := sp.outdirs[id]; ok {
+		if target.deleteMode && !supportsExporterMultiPlatformTransfer(stream.Context()) {
+			return errors.New("local exporter mode=delete requires a BuildKit daemon with multi-platform local export support")
+		}
 		return syncTargetDiffCopy(stream, target.outdir, target.deleteMode)
 	}
 	f, ok := sp.fs[id]
@@ -371,7 +376,23 @@ func (sp *SyncTarget) DiffCopy(stream FileSend_DiffCopyServer) (err error) {
 	return writeTargetFile(stream, wc)
 }
 
-func CopyToCaller(ctx context.Context, fs fsutil.FS, id int, c session.Caller, progress func(int, bool)) error {
+type CopyToCallerOpt func(metadata.MD)
+
+func WithExporterMultiPlatformTransfer() CopyToCallerOpt {
+	return func(opts metadata.MD) {
+		opts.Set(keyExporterMultiPlatformTransfer, "1")
+	}
+}
+
+func supportsExporterMultiPlatformTransfer(ctx context.Context) bool {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return false
+	}
+	return slices.Contains(md.Get(keyExporterMultiPlatformTransfer), "1")
+}
+
+func CopyToCaller(ctx context.Context, fs fsutil.FS, id int, c session.Caller, progress func(int, bool), copyOpts ...CopyToCallerOpt) error {
 	method := session.MethodURL(FileSend_ServiceDesc.ServiceName, "diffcopy")
 	if !c.Supports(method) {
 		return errors.Errorf("method %s not supported by the client", method)
@@ -384,6 +405,9 @@ func CopyToCaller(ctx context.Context, fs fsutil.FS, id int, c session.Caller, p
 	opts, ok := metadata.FromOutgoingContext(ctx)
 	if !ok {
 		opts = make(map[string][]string)
+	}
+	for _, opt := range copyOpts {
+		opt(opts)
 	}
 	if existingVal, ok := opts[keyExporterID]; ok {
 		bklog.G(ctx).Warnf("overwriting grpc metadata key %q from value %+v to %+v", keyExporterID, existingVal, id)
