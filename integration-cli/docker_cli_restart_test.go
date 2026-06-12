@@ -41,7 +41,10 @@ func (s *DockerCLIRestartSuite) TestRestartStoppedContainer(c *testing.T) {
 	poll.WaitOn(c, pollCheck(c, getLogs, checker.Equals("foobar\n")), poll.WithTimeout(10*time.Second))
 
 	// Make sure the container has stopped before we restart it.
-	cli.WaitExited(c, cID, 20*time.Second)
+	// A long timeout is used as Windows with the containerd snapshotter needs
+	// to delete the container and release network resources before the state
+	// transitions to "exited", which can be slow.
+	cli.WaitExited(c, cID, 60*time.Second)
 	cli.DockerCmd(c, "restart", cID)
 
 	poll.WaitOn(c, pollCheck(c, getLogs, checker.Equals("foobar\nfoobar\n")), poll.WithTimeout(10*time.Second))
