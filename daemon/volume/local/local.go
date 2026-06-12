@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/containerfs"
 	"github.com/moby/moby/v2/daemon/internal/idtools"
 	"github.com/moby/moby/v2/daemon/internal/quota"
 	"github.com/moby/moby/v2/daemon/names"
@@ -254,7 +255,7 @@ func (r *Root) Remove(v volume.Volume) error {
 }
 
 func removePath(path string) error {
-	if err := os.RemoveAll(path); err != nil {
+	if err := containerfs.EnsureRemoveAll(path); err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
