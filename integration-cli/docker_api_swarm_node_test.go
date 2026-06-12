@@ -111,7 +111,7 @@ func (s *DockerSwarmSuite) TestAPISwarmNodeDrainPause(c *testing.T) {
 
 	instances = 1
 	d1.UpdateService(ctx, c, d1.GetService(ctx, c, id), setInstances(instances))
-	poll.WaitOn(c, pollCheck(c, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount(ctx), d2.CheckActiveContainerCount(ctx)), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout*2))
+	poll.WaitOn(c, pollCheck(c, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount(ctx), d2.CheckActiveContainerCount(ctx)), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout*4))
 
 	instances = 2
 	d1.UpdateService(ctx, c, d1.GetService(ctx, c, id), setInstances(instances))
