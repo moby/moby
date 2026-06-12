@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/netip"
 	"sync"
@@ -41,6 +42,7 @@ type (
 		ipMap     ipMapping
 		begin     int
 		end       int
+		reserved  map[uint16]struct{}
 	}
 	portRange struct {
 		begin int
@@ -80,6 +82,7 @@ func newInstance() *PortAllocator {
 		defaultIP: net.IPv4zero,
 		begin:     begin,
 		end:       end,
+		reserved:  reservedPorts(begin, end),
 	}
 }
 
@@ -90,6 +93,15 @@ func dynamicPortRange() (start, end int) {
 		return defaultPortRangeStart, defaultPortRangeEnd
 	}
 	return begin, end
+}
+
+func reservedPorts(begin, end int) map[uint16]struct{} {
+	reserved, err := getReservedPorts(begin, end)
+	if err != nil {
+		log.G(context.TODO()).WithError(err).Info("ignoring system reserved ports")
+		return nil
+	}
+	return reserved
 }
 
 func makeIpMapping(begin, end int) ipMapping {
@@ -224,6 +236,12 @@ func (p *PortAllocator) RequestPortsInRange(ips []net.IP, proto string, portStar
 		pRanges[addr] = pMap.portMap.getPortRange(portStart, portEnd)
 	}
 
+	// Requests for the default ephemeral range are automatic assignments, so
+	// the ports the kernel excludes from its own automatic assignments must
+	// be skipped. Requests for a specific range are honored as-is, like
+	// requests for a specific port.
+	skipReserved := portStart == 0 && portEnd == 0
+
 	// Arbitrarily starting after the last port allocated for the first address, search
 	// for a port that's available in all ranges.
 	firstAddr, _ := netip.AddrFromSlice(ips[0])
@@ -233,6 +251,12 @@ func (p *PortAllocator) RequestPortsInRange(ips []net.IP, proto string, portStar
 		port++
 		if port > firstRange.end {
 			port = firstRange.begin
+		}
+
+		if skipReserved && port >= 0 && port <= math.MaxUint16 {
+			if _, ok := p.reserved[uint16(port)]; ok {
+				continue
+			}
 		}
 
 		portAlreadyAllocated := func() bool {

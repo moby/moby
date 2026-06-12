@@ -39,3 +39,7 @@ func getDynamicPortRange() (start int, end int, _ error) {
 	}
 	return start, end, nil
 }
+
+func getReservedPorts(_, _ int) (map[uint16]struct{}, error) {
+	return nil, nil
+}
