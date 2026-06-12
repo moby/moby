@@ -26,7 +26,3 @@ func chtimes(name string, atime time.Time, mtime time.Time) error {
 	c := windows.NsecToFiletime(mtime.UnixNano())
 	return windows.SetFileTime(h, &c, nil, nil)
 }
-
-func lchtimes(name string, atime time.Time, mtime time.Time) error {
-	return nil
-}
