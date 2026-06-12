@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
-	"strings"
 )
 
 // ImageAttestations returns the in-toto attestation statements attached to an
@@ -33,8 +32,8 @@ func (cli *Client) ImageAttestations(ctx context.Context, imageID string, opts .
 		}
 		query.Set("platform", p)
 	}
-	if len(o.predicateTypes) > 0 {
-		query.Set("type", strings.Join(o.predicateTypes, ","))
+	for _, pt := range o.predicateTypes {
+		query.Add("type", pt)
 	}
 	if o.includeStatement {
 		query.Set("statement", "1")

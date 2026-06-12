@@ -663,21 +663,27 @@ func (ir *imageRouter) getImageAttestations(ctx context.Context, w http.Response
 		return err
 	}
 
+	// The platform parameter is declared as a multi-value array in the
+	// swagger so the wire shape stays forward-compatible, but only a single
+	// value is currently accepted. Reject requests that pass more than one.
 	var platform *ocispec.Platform
-	if p := r.Form.Get("platform"); p != "" {
-		decoded, err := httputils.DecodePlatform(p)
-		if err != nil {
-			return errdefs.InvalidParameter(err)
+	if ps := r.Form["platform"]; len(ps) > 0 {
+		if len(ps) > 1 {
+			return errdefs.InvalidParameter(errors.New("only one platform value is currently supported"))
 		}
-		platform = decoded
+		if ps[0] != "" {
+			decoded, err := httputils.DecodePlatform(ps[0])
+			if err != nil {
+				return errdefs.InvalidParameter(err)
+			}
+			platform = decoded
+		}
 	}
 
 	var predicateTypes []string
-	if t := r.Form.Get("type"); t != "" {
-		for _, pt := range strings.Split(t, ",") {
-			if pt = strings.TrimSpace(pt); pt != "" {
-				predicateTypes = append(predicateTypes, pt)
-			}
+	for _, pt := range r.Form["type"] {
+		if pt = strings.TrimSpace(pt); pt != "" {
+			predicateTypes = append(predicateTypes, pt)
 		}
 	}
 

@@ -2,8 +2,11 @@ package image
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -12,6 +15,7 @@ import (
 	"github.com/moby/buildkit/util/attestation"
 	"github.com/moby/moby/client"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
+	"github.com/moby/moby/v2/internal/testutil/request"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -131,6 +135,28 @@ func TestImageAttestations(t *testing.T) {
 		_, err := apiClient.ImageAttestations(ctx, imageRef,
 			client.ImageAttestationsWithPlatform(ocispec.Platform{OS: "linux", Architecture: "riscv64"}))
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
+	})
+
+	t.Run("multiple_platforms_returns_invalid_parameter", func(t *testing.T) {
+		// The high-level client only sends a single platform, so build the
+		// request by hand to exercise the multi-value rejection path.
+		p1, err := json.Marshal(ocispec.Platform{OS: "linux", Architecture: "amd64"})
+		assert.NilError(t, err)
+		p2, err := json.Marshal(ocispec.Platform{OS: "linux", Architecture: "arm64"})
+		assert.NilError(t, err)
+
+		q := url.Values{}
+		q.Add("platform", string(p1))
+		q.Add("platform", string(p2))
+
+		endpoint := "/v" + testEnv.DaemonAPIVersion() + "/images/" + imageRef + "/attestations?" + q.Encode()
+		resp, body, err := request.Get(ctx, endpoint, request.JSON)
+		assert.NilError(t, err)
+		assert.Equal(t, resp.StatusCode, http.StatusBadRequest)
+
+		buf, err := request.ReadBody(body)
+		assert.NilError(t, err)
+		assert.Check(t, strings.Contains(string(buf), "only one platform value is currently supported"), string(buf))
 	})
 
 	t.Run("unknown_image_returns_not_found", func(t *testing.T) {

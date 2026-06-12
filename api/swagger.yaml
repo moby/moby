@@ -10223,23 +10223,35 @@ paths:
           type: "string"
           required: true
         - name: "platform"
-          type: "string"
+          type: "array"
+          items:
+            type: "string"
+          collectionFormat: "multi"
           in: "query"
           description: |-
             JSON-encoded OCI platform to select the image variant whose
             attestations to return.
             If omitted, the daemon's default (host) platform is used.
 
+            Only one platform value is currently accepted; passing more than
+            one returns an error. The parameter is declared as an array so the
+            wire shape can accept multiple values in the future without an
+            API version bump.
+
             Example: `{"os": "linux", "architecture": "amd64"}`
           required: false
         - name: "type"
-          type: "string"
+          type: "array"
+          items:
+            type: "string"
+          collectionFormat: "multi"
           in: "query"
           description: |-
-            Comma-separated list of in-toto predicate type URIs to filter
-            returned statements. If omitted, all statements are returned.
+            In-toto predicate type URI to filter returned statements. May be
+            repeated to accept any of several predicate types. If omitted, all
+            statements are returned.
 
-            Example: `https://slsa.dev/provenance/v0.2,https://spdx.dev/Document`
+            Example: `type=https://slsa.dev/provenance/v0.2&type=https://spdx.dev/Document`
           required: false
         - name: "statement"
           type: "boolean"
