@@ -63,6 +63,11 @@ const (
 
 	credentialsEndpoint = "http://169.254.170.2" //nolint:gosec // G101: Potential hardcoded credentials
 
+	// expiredTokenCode is the API error code the service returns when the
+	// request was signed with credentials that have expired. The error is
+	// not modeled in the SDK, so it is matched by code.
+	expiredTokenCode = "ExpiredTokenException"
+
 	// See: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html
 	logsFormatHeader = "x-amzn-logs-format"
 	jsonEmfLogFormat = "json/emf"
@@ -76,6 +81,7 @@ type logStream struct {
 	forceFlushInterval time.Duration
 	multilinePattern   *regexp.Regexp
 	client             api
+	credentials        credentialsInvalidator
 
 	messages *loggerutils.MessageQueue
 	closed   atomic.Bool
@@ -99,6 +105,12 @@ type api interface {
 	CreateLogGroup(context.Context, *cloudwatchlogs.CreateLogGroupInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogGroupOutput, error)
 	CreateLogStream(context.Context, *cloudwatchlogs.CreateLogStreamInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error)
 	PutLogEvents(context.Context, *cloudwatchlogs.PutLogEventsInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error)
+}
+
+// credentialsInvalidator drops cached AWS credentials so that the next
+// request re-resolves them. *aws.CredentialsCache implements it.
+type credentialsInvalidator interface {
+	Invalidate()
 }
 
 type regionFinder interface {
@@ -138,6 +150,10 @@ func New(info logger.Info) (logger.Logger, error) {
 	if err != nil {
 		return nil, err
 	}
+	var credentials credentialsInvalidator
+	if credCache, ok := client.Options().Credentials.(*aws.CredentialsCache); ok {
+		credentials = credCache
+	}
 
 	logNonBlocking := info.Config["mode"] == "non-blocking"
 
@@ -149,6 +165,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		forceFlushInterval: containerStreamConfig.forceFlushInterval,
 		multilinePattern:   containerStreamConfig.multilinePattern,
 		client:             client,
+		credentials:        credentials,
 		messages:           loggerutils.NewMessageQueue(containerStreamConfig.maxBufferedEvents),
 	}
 
@@ -689,6 +706,19 @@ func (l *logStream) publishBatch(batch *eventBatch) {
 			err = nil
 		} else if apiErr := (*types.InvalidSequenceTokenException)(nil); errors.As(err, &apiErr) {
 			nextSequenceToken, err = l.putLogEvents(cwEvents, apiErr.ExpectedSequenceToken)
+		} else if apiErr := smithy.APIError(nil); errors.As(err, &apiErr) && apiErr.ErrorCode() == expiredTokenCode && l.credentials != nil {
+			// The service rejected cached credentials that have expired, for
+			// example temporary credentials in the shared credentials file
+			// that an external process rotates (the SDK never re-reads the
+			// file because file credentials carry no expiry). Drop the cached
+			// credentials so the next request re-resolves them, and retry the
+			// batch once.
+			log.G(context.TODO()).WithFields(log.Fields{
+				"logGroupName":  l.logGroupName,
+				"logStreamName": l.logStreamName,
+			}).Info("Security token expired, refreshing credentials and retrying")
+			l.credentials.Invalidate()
+			nextSequenceToken, err = l.putLogEvents(cwEvents, l.sequenceToken)
 		}
 	}
 	if err != nil {
