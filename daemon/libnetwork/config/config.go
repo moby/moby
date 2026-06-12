@@ -36,13 +36,18 @@ type Config struct {
 	ClusterProvider        cluster.Provider
 	NetworkControlPlaneMTU int
 	DefaultAddressPool     []*ipamutils.NetworkToSplit
-	DatastoreBucket        string
-	ActiveSandboxes        map[string]any
-	PluginGetter           plugingetter.PluginGetter
-	FirewallBackend        string
-	Rootless               bool
-	EnableUserlandProxy    bool
-	UserlandProxyPath      string
+	// TrustDefaultAddressPools disables the reserved-network heuristics
+	// when dynamically selecting a subnet for a local-scope network, so
+	// subnets are picked from the configured default address pools even
+	// when they overlap routes that look like they are in use.
+	TrustDefaultAddressPools bool
+	DatastoreBucket          string
+	ActiveSandboxes          map[string]any
+	PluginGetter             plugingetter.PluginGetter
+	FirewallBackend          string
+	Rootless                 bool
+	EnableUserlandProxy      bool
+	UserlandProxyPath        string
 }
 
 // New creates a new Config and initializes it with the given Options.
@@ -84,6 +89,15 @@ func OptionDefaultDriver(dd string) Option {
 func OptionDefaultAddressPoolConfig(addressPool []*ipamutils.NetworkToSplit) Option {
 	return func(c *Config) {
 		c.DefaultAddressPool = addressPool
+	}
+}
+
+// OptionTrustDefaultAddressPools function returns an option setter to disable
+// the reserved-network heuristics when selecting subnets from the default
+// address pools.
+func OptionTrustDefaultAddressPools(trust bool) Option {
+	return func(c *Config) {
+		c.TrustDefaultAddressPools = trust
 	}
 }
 

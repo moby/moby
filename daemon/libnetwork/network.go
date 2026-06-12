@@ -1517,7 +1517,7 @@ func (n *Network) ipamAllocateVersion(ipam ipamapi.Ipam, v6 bool, ipamConf []*Ip
 		}
 
 		var reserved []netip.Prefix
-		if n.Scope() != scope.Global {
+		if n.Scope() != scope.Global && !n.getController().Config().TrustDefaultAddressPools {
 			reserved = netutils.InferReservedNetworks(v6)
 		}
 
@@ -1548,6 +1548,9 @@ func (n *Network) ipamAllocateVersion(ipam ipamapi.Ipam, v6 bool, ipamConf []*Ip
 			V6:           v6,
 		})
 		if err != nil {
+			if len(reserved) > 0 && errors.Is(err, ipamapi.ErrNoMoreSubnets) {
+				return nil, fmt.Errorf("%w: pools overlapping routes that appear to be in use are excluded; if the configured default-address-pools are known to be safe, this exclusion can be disabled with trust-default-address-pools", err)
+			}
 			return nil, err
 		}
 		defer func() {
