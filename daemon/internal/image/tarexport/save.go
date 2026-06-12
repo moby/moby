@@ -68,7 +68,7 @@ func (l *tarexporter) parseNames(ctx context.Context, names []string) (desc map[
 		}
 	}()
 
-	addAssoc := func(id image.ID, ref reference.Named) error {
+	addAssoc := func(id image.ID, refs []reference.Named) error {
 		if _, ok := imgDescr[id]; !ok {
 			descr := &imageDescriptor{}
 			if err := l.takeLayerReference(id, descr); err != nil {
@@ -77,13 +77,13 @@ func (l *tarexporter) parseNames(ctx context.Context, names []string) (desc map[
 			imgDescr[id] = descr
 		}
 
-		if ref != nil {
+		for _, ref := range refs {
 			if _, ok := ref.(reference.Canonical); ok {
-				return nil
+				continue
 			}
 			tagged, ok := reference.TagNameOnly(ref).(reference.NamedTagged)
 			if !ok {
-				return nil
+				continue
 			}
 
 			for _, t := range imgDescr[id].refs {
@@ -132,7 +132,7 @@ func (l *tarexporter) parseNames(ctx context.Context, names []string) (desc map[
 		if reference.IsNameOnly(namedRef) {
 			assocs := l.rs.ReferencesByName(namedRef)
 			for _, assoc := range assocs {
-				if err := addAssoc(image.ID(assoc.ID), assoc.Ref); err != nil {
+				if err := addAssoc(image.ID(assoc.ID), []reference.Named{assoc.Ref}); err != nil {
 					return nil, err
 				}
 			}
@@ -141,7 +141,8 @@ func (l *tarexporter) parseNames(ctx context.Context, names []string) (desc map[
 				if err != nil {
 					return nil, err
 				}
-				if err := addAssoc(imgID, nil); err != nil {
+				refs := l.rs.References(imgID.Digest())
+				if err := addAssoc(imgID, refs); err != nil {
 					return nil, err
 				}
 			}
@@ -151,7 +152,7 @@ func (l *tarexporter) parseNames(ctx context.Context, names []string) (desc map[
 		if err != nil {
 			return nil, err
 		}
-		if err := addAssoc(image.ID(id), namedRef); err != nil {
+		if err := addAssoc(image.ID(id), []reference.Named{namedRef}); err != nil {
 			return nil, err
 		}
 	}
