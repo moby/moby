@@ -171,6 +171,8 @@ jobs:
               '',
               ...items,
               '',
+              'The bullet points above are the complete remediation steps for these known validation failures.',
+              '',
               'This comment updates in place and is removed automatically once these known validation failures are resolved.',
             ].join('\n');
 
