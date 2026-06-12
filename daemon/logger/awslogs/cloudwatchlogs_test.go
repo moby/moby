@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	"github.com/aws/smithy-go"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
 	"github.com/moby/moby/v2/dockerversion"
@@ -464,6 +465,88 @@ func TestPublishBatchError(t *testing.T) {
 	}
 
 	stream.publishBatch(testEventBatch(events))
+	assert.Equal(t, sequenceToken, aws.ToString(stream.sequenceToken))
+}
+
+type fakeCredentialsInvalidator struct {
+	invalidated int
+}
+
+func (f *fakeCredentialsInvalidator) Invalidate() { f.invalidated++ }
+
+func TestPublishBatchExpiredTokenRefreshesCredentials(t *testing.T) {
+	mockClient := &mockClient{}
+	creds := &fakeCredentialsInvalidator{}
+	stream := &logStream{
+		client:        mockClient,
+		credentials:   creds,
+		logGroupName:  groupName,
+		logStreamName: streamName,
+		sequenceToken: aws.String(sequenceToken),
+	}
+	calls := 0
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls++
+		if calls == 1 {
+			// The credentials cache held credentials that have expired,
+			// for example rotated temporary credentials from the shared
+			// credentials file. The error is not modeled in the SDK.
+			return nil, &smithy.GenericAPIError{
+				Code:    "ExpiredTokenException",
+				Message: "The security token included in the request is expired",
+			}
+		}
+		// After the credentials are invalidated and re-resolved, the
+		// retried request succeeds.
+		assert.Assert(t, creds.invalidated == 1, "credentials must be invalidated before the retry")
+		return &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		}, nil
+	}
+
+	events := []wrappedEvent{
+		{
+			inputLogEvent: types.InputLogEvent{
+				Message: aws.String(logline),
+			},
+		},
+	}
+
+	stream.publishBatch(testEventBatch(events))
+	assert.Equal(t, 2, calls)
+	assert.Equal(t, 1, creds.invalidated)
+	assert.Equal(t, nextSequenceToken, aws.ToString(stream.sequenceToken))
+}
+
+func TestPublishBatchExpiredTokenNoInvalidatorKeepsError(t *testing.T) {
+	mockClient := &mockClient{}
+	stream := &logStream{
+		client:        mockClient,
+		logGroupName:  groupName,
+		logStreamName: streamName,
+		sequenceToken: aws.String(sequenceToken),
+	}
+	calls := 0
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls++
+		return nil, &smithy.GenericAPIError{
+			Code:    "ExpiredTokenException",
+			Message: "The security token included in the request is expired",
+		}
+	}
+
+	events := []wrappedEvent{
+		{
+			inputLogEvent: types.InputLogEvent{
+				Message: aws.String(logline),
+			},
+		},
+	}
+
+	stream.publishBatch(testEventBatch(events))
+	// Without a credentials invalidator there is nothing to refresh, so
+	// the batch is not retried.
+	assert.Equal(t, 1, calls)
 	assert.Equal(t, sequenceToken, aws.ToString(stream.sequenceToken))
 }
 
