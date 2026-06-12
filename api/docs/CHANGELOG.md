@@ -26,6 +26,13 @@ keywords: "API, Docker, rcli, REST, documentation"
   omitted or `false`, each entry contains only the descriptor and predicate
   type, and statement blobs are not read. The response is a JSON array of
   `AttestationStatement` objects.
+* `POST /containers/{id}/update` now supports per-device blkio resource
+  settings through the `BlkioWeightDevice`, `BlkioDeviceReadBps`,
+  `BlkioDeviceWriteBps`, `BlkioDeviceReadIOps`, and `BlkioDeviceWriteIOps`
+  fields. These fields were previously present in the request schema but were
+  ignored by the daemon. Omit a field or set it to `null` to leave the current
+  per-device rules unchanged. Set it to an empty array to clear the current
+  per-device rules for that resource type.
 
 ## v1.54 API changes
 
