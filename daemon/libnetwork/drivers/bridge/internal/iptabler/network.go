@@ -270,10 +270,23 @@ func (n *network) setupNonInternalNetworkRules(ctx context.Context, ipVer iptabl
 		if err != nil {
 			return err
 		}
-		if err := programChainRule(iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{
+		fwRule := iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{
 			"-m", "mark", "--mark", fwm, "-j", "ACCEPT",
-		}}, "ALLOW FW MARK", enable); err != nil {
-			return err
+		}}
+		if enable {
+			// Delete the rule if it exists, then insert at the top. This ensures the
+			// rule stays above the DOCKER-BRIDGE jump rule, which may be re-inserted at
+			// the top of the chain during firewall reload (via EnsureJumpRule).
+			if err := fwRule.Delete(); err != nil {
+				return fmt.Errorf("Unable to delete ALLOW FW MARK rule: %w", err)
+			}
+			if err := fwRule.Insert(); err != nil {
+				return fmt.Errorf("Unable to enable ALLOW FW MARK rule: %w", err)
+			}
+		} else {
+			if err := fwRule.Delete(); err != nil {
+				return fmt.Errorf("Unable to disable ALLOW FW MARK rule: %w", err)
+			}
 		}
 	}
 
