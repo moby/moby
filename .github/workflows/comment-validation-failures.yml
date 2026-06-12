@@ -105,7 +105,9 @@ jobs:
                   pull_number,
                 });
 
-                candidatePullRequest ??= pullRequest;
+                if (!candidatePullRequest) {
+                  candidatePullRequest = pullRequest;
+                }
                 if (pullRequest.head.sha === run.head_sha) {
                   return pullRequest;
                 }
