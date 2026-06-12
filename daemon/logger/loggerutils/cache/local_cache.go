@@ -41,13 +41,20 @@ func WithLocalCache(l logger.Logger, info logger.Info) (logger.Logger, error) {
 
 	if container.LogMode(info.Config["mode"]) == container.LogModeUnset || container.LogMode(info.Config["mode"]) == container.LogModeNonBlock {
 		var size int64 = -1
+		var maxRetries int64
 		if s, exists := info.Config["max-buffer-size"]; exists {
 			size, err = units.RAMInBytes(s)
 			if err != nil {
 				return nil, err
 			}
 		}
-		cacher = logger.NewRingLogger(cacher, info, size)
+		if s, exists := info.Config["max-non-blocking-retries"]; exists {
+			maxRetries, err = strconv.ParseInt(s, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+		}
+		cacher = logger.NewRingLogger(cacher, info, size, maxRetries)
 	}
 
 	return &loggerWithCache{
