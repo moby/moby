@@ -11,24 +11,23 @@ import (
 	"gotest.tools/v3/fs"
 )
 
-func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {
+func TestLoadDaemonConfigWithDaemonFlags(t *testing.T) {
 	content := `{"log-opts": {"max-size": "1k"}}`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
 
 	opts := defaultOptions(t, tempFile.Path())
 	opts.Debug = true
-	opts.daemonConfig.DaemonLogConfig.LogLevel = "info"
+	opts.daemonConfig.DaemonLogConfig.LogLevel = "warn"
 	assert.Check(t, opts.flags.Set("selinux-enabled", "true"))
 
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 
-	assert.Check(t, loadedConfig.Debug)
-	assert.Check(t, is.Equal("info", loadedConfig.DaemonLogConfig.LogLevel))
-	assert.Check(t, loadedConfig.EnableSelinuxSupport)
-	assert.Check(t, is.Equal("json-file", loadedConfig.LogConfig.Type))
-	assert.Check(t, is.Equal("1k", loadedConfig.LogConfig.Config["max-size"]))
+	assert.Check(t, is.Equal(loadedConfig.Debug, true))
+	assert.Check(t, is.Equal(loadedConfig.DaemonLogConfig.LogLevel, "warn"))
+	assert.Check(t, is.Equal(loadedConfig.EnableSelinuxSupport, true))
+	assert.Check(t, is.Equal(loadedConfig.LogConfig.Type, "json-file"))
+	assert.Check(t, is.Equal(loadedConfig.LogConfig.Config["max-size"], "1k"))
 }
 
 func TestLoadDaemonConfigWithNetwork(t *testing.T) {
@@ -38,7 +37,6 @@ func TestLoadDaemonConfigWithNetwork(t *testing.T) {
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 
 	assert.Check(t, is.Equal(loadedConfig.IP, "127.0.0.2/8"))
 	assert.Check(t, is.Equal(loadedConfig.IP6, "fd98:e5f2:e637::1/64"))
@@ -52,28 +50,26 @@ func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
+
 	assert.Check(t, loadedConfig.LogConfig.Config != nil)
 	assert.Check(t, is.Equal("test", loadedConfig.LogConfig.Config["tag"]))
 }
 
 func TestLoadDaemonConfigWithTrueDefaultValues(t *testing.T) {
-	content := `{ "userland-proxy": false }`
+	content := `{ "icc": false }`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
 
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 
-	assert.Check(t, !loadedConfig.EnableUserlandProxy)
+	assert.Check(t, is.Equal(loadedConfig.InterContainerCommunication, false))
 
 	// make sure reloading doesn't generate configuration
 	// conflicts after normalizing boolean values.
-	reload := func(reloadedConfig *config.Config) {
-		assert.Check(t, !reloadedConfig.EnableUserlandProxy)
-	}
-	assert.Check(t, config.Reload(opts.configFile, opts.flags, reload))
+	assert.Check(t, config.Reload(opts.configFile, opts.flags, func(reloadedConfig *config.Config) {
+		assert.Check(t, is.Equal(reloadedConfig.InterContainerCommunication, false))
+	}))
 }
 
 func TestLoadDaemonConfigWithTrueDefaultValuesLeaveDefaults(t *testing.T) {
@@ -82,7 +78,6 @@ func TestLoadDaemonConfigWithTrueDefaultValuesLeaveDefaults(t *testing.T) {
 	opts := defaultOptions(t, tempFile.Path())
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
 
-	assert.Check(t, loadedConfig.EnableUserlandProxy)
+	assert.Check(t, is.Equal(loadedConfig.InterContainerCommunication, true))
 }
