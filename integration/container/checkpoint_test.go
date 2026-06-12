@@ -18,7 +18,6 @@ import (
 )
 
 func TestCheckpoint(t *testing.T) {
-	t.Skip("TestCheckpoint is broken; see https://github.com/moby/moby/issues/38963")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, !testEnv.DaemonInfo.ExperimentalBuild)
 
