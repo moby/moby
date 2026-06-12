@@ -91,7 +91,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*buildbackend.B
 	if s := r.Form.Get("shmsize"); s != "" {
 		shmSize, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
-			return nil, err
+			return nil, invalidParam{err}
 		}
 		options.ShmSize = shmSize
 	}
