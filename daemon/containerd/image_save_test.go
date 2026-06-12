@@ -37,7 +37,7 @@ func TestImageMultiplatformSaveShallowWithNative(t *testing.T) {
 
 	imgSvc := fakeImageService(t, ctx, store)
 	// Mock the native platform.
-	imgSvc.defaultPlatformOverride = platforms.Only(native)
+	imgSvc.defaultPlatformOverride = &native
 
 	idx, _, err := specialimage.PartialMultiPlatform(contentDir, "partial-with-native:latest", specialimage.PartialOpts{
 		Stored:  []ocispec.Platform{native, riscv64},
@@ -98,7 +98,7 @@ func TestImageMultiplatformSaveShallowWithoutNative(t *testing.T) {
 
 	imgSvc := fakeImageService(t, ctx, store)
 	// Mock the native platform.
-	imgSvc.defaultPlatformOverride = platforms.Only(native)
+	imgSvc.defaultPlatformOverride = &native
 
 	idx, _, err := specialimage.PartialMultiPlatform(contentDir, "partial-without-native:latest", specialimage.PartialOpts{
 		Stored:  []ocispec.Platform{arm64, riscv64},
