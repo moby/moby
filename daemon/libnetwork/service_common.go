@@ -52,6 +52,15 @@ func (c *Controller) addEndpointNameResolution(svcName, svcID, nID, eID, contain
 		// where aliases can change between tasks.
 	}
 
+	n.releaseSvcRecords("tasks."+svcName, eID, method)
+	for _, alias := range serviceAliases {
+		n.releaseSvcRecords("tasks."+alias, eID, method)
+	}
+	n.releaseSvcRecords(svcName, eID, method)
+	for _, alias := range serviceAliases {
+		n.releaseSvcRecords(alias, eID, method)
+	}
+
 	return nil
 }
 
@@ -73,7 +82,7 @@ func (c *Controller) addContainerNameResolution(nID, eID, containerName string, 
 	return nil
 }
 
-func (c *Controller) deleteEndpointNameResolution(svcName, svcID, nID, eID, containerName string, vip net.IP, serviceAliases, taskAliases []string, ip net.IP, rmService, multipleEntries bool, method string) error {
+func (c *Controller) deleteEndpointNameResolution(svcName, svcID, nID, eID, containerName string, vip net.IP, serviceAliases, taskAliases []string, ip net.IP, rmService, multipleEntries, fullRemove bool, method string) error {
 	n, err := c.NetworkByID(nID)
 	if err != nil {
 		return err
@@ -90,6 +99,19 @@ func (c *Controller) deleteEndpointNameResolution(svcName, svcID, nID, eID, cont
 	if serviceID == "" {
 		// This is the case of a normal container not part of a service
 		serviceID = eID
+	}
+
+	if !multipleEntries && !fullRemove {
+		n.reserveSvcRecords("tasks."+svcName, eID, method)
+		for _, alias := range serviceAliases {
+			n.reserveSvcRecords("tasks."+alias, eID, method)
+		}
+		if len(vip) == 0 {
+			n.reserveSvcRecords(svcName, eID, method)
+			for _, alias := range serviceAliases {
+				n.reserveSvcRecords(alias, eID, method)
+			}
+		}
 	}
 
 	// Delete the special "tasks.svc_name" backend record.
@@ -113,6 +135,17 @@ func (c *Controller) deleteEndpointNameResolution(svcName, svcID, nID, eID, cont
 		n.deleteSvcRecords(eID, svcName, serviceID, vip, nil, false, method)
 		// VIP records for service aliases are managed by rmServiceBinding
 		// via service.aliasRefs, not here.
+	}
+
+	if fullRemove {
+		n.releaseSvcRecords("tasks."+svcName, eID, method)
+		for _, alias := range serviceAliases {
+			n.releaseSvcRecords("tasks."+alias, eID, method)
+		}
+		n.releaseSvcRecords(svcName, eID, method)
+		for _, alias := range serviceAliases {
+			n.releaseSvcRecords(alias, eID, method)
+		}
 	}
 
 	return nil
@@ -442,7 +475,7 @@ func (c *Controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 
 	// Delete the name resolutions
 	if deleteSvcRecords {
-		if err := c.deleteEndpointNameResolution(svcName, svcID, nID, eID, containerName, vip, serviceAliases, taskAliases, ip, rmService, entries > 0, "rmServiceBinding"); err != nil {
+		if err := c.deleteEndpointNameResolution(svcName, svcID, nID, eID, containerName, vip, serviceAliases, taskAliases, ip, rmService, entries > 0, fullRemove, "rmServiceBinding"); err != nil {
 			return err
 		}
 	}

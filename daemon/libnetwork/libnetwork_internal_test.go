@@ -723,6 +723,58 @@ func TestServiceVIPReuse(t *testing.T) {
 	}
 }
 
+func TestServiceDNSRRDisabledNameStaysReserved(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
+
+	defer netnsutils.SetupTestOSContext(t)()
+
+	ctrlr, err := New(context.Background(), config.OptionDataDir(t.TempDir()),
+		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
+	assert.NilError(t, err)
+	defer ctrlr.Stop()
+
+	n, err := ctrlr.NewNetwork(t.Context(), "bridge", "net1", "", nil,
+		NetworkOptionEnableIPv4(true),
+	)
+	assert.NilError(t, err)
+	defer func() {
+		assert.NilError(t, n.Delete())
+	}()
+
+	svcName := "service_test"
+	svcID := "serviceID1"
+	eID := "ep1"
+	containerName := "task1"
+	serviceIP := net.ParseIP("192.168.0.2")
+	serviceAliases := []string{"service-alias"}
+
+	err = ctrlr.addServiceBinding(svcName, svcID, n.ID(), eID, containerName, nil, nil, serviceAliases, nil, serviceIP, "test")
+	assert.NilError(t, err)
+
+	ipList, ok := n.ResolveName(t.Context(), svcName, types.IPv4)
+	assert.Check(t, ok)
+	assert.Check(t, is.Len(ipList, 1))
+	assert.Check(t, is.Equal(ipList[0].String(), serviceIP.String()))
+
+	err = ctrlr.rmServiceBinding(svcName, svcID, n.ID(), eID, containerName, nil, nil, serviceAliases, nil, serviceIP, "test", true, false)
+	assert.NilError(t, err)
+
+	ipList, ok = n.ResolveName(t.Context(), svcName, types.IPv4)
+	assert.Check(t, ok)
+	assert.Check(t, is.Len(ipList, 0))
+
+	ipList, ok = n.ResolveName(t.Context(), "tasks."+svcName, types.IPv4)
+	assert.Check(t, ok)
+	assert.Check(t, is.Len(ipList, 0))
+
+	err = ctrlr.rmServiceBinding(svcName, svcID, n.ID(), eID, containerName, nil, nil, serviceAliases, nil, serviceIP, "test", true, true)
+	assert.NilError(t, err)
+
+	ipList, ok = n.ResolveName(t.Context(), svcName, types.IPv4)
+	assert.Check(t, !ok)
+	assert.Check(t, is.Len(ipList, 0))
+}
+
 func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
