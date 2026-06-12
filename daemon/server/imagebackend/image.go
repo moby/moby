@@ -63,6 +63,23 @@ type ImageInspectOpts struct {
 	Platform  *ocispec.Platform
 }
 
+// AttestationOpts holds parameters for retrieving image attestations.
+type AttestationOpts struct {
+	// Platform selects the image variant whose attestations to return.
+	// If nil, the daemon's default platform is used.
+	Platform *ocispec.Platform
+
+	// PredicateTypes filters returned statements to those with a matching
+	// in-toto predicate type. An empty slice returns all statements.
+	PredicateTypes []string
+
+	// IncludeStatement controls whether the verbatim in-toto statement
+	// body is read from the content store and returned. When false, only
+	// the descriptor and predicate type are populated and statement blobs
+	// are never read.
+	IncludeStatement bool
+}
+
 type InspectData struct {
 	imagetypes.InspectResponse
 

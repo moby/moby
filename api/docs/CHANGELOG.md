@@ -13,6 +13,20 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.55 API changes
+
+* `GET /images/{name}/attestations` is a new endpoint that returns the in-toto
+  attestation statements attached to an image. The `platform` query parameter
+  selects the image variant (defaults to the daemon's host platform); it is
+  declared as a repeatable parameter for forward compatibility, but only one
+  value is currently accepted. The `type` query parameter may be repeated to
+  filter the returned statements by in-toto predicate type URI; if omitted,
+  all statements are returned. The `statement` query parameter (default
+  `false`) controls whether the verbatim statement body is included; when
+  omitted or `false`, each entry contains only the descriptor and predicate
+  type, and statement blobs are not read. The response is a JSON array of
+  `AttestationStatement` objects.
+
 ## v1.54 API changes
 
 * `GET /images/json` now supports an `identity` query parameter. When set,
