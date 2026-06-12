@@ -97,7 +97,7 @@ jobs:
                 }
               }
 
-              let fallbackPullRequest = null;
+              let candidatePullRequest = null;
               for (const pull_number of pullNumbers) {
                 const { data: pullRequest } = await github.rest.pulls.get({
                   owner,
@@ -105,13 +105,13 @@ jobs:
                   pull_number,
                 });
 
-                fallbackPullRequest ??= pullRequest;
+                candidatePullRequest ??= pullRequest;
                 if (pullRequest.head.sha === run.head_sha) {
                   return pullRequest;
                 }
               }
 
-              return fallbackPullRequest;
+              return candidatePullRequest;
             }
 
             const pullRequest = await getPullRequestForRun();
