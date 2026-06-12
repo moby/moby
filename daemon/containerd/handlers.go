@@ -6,6 +6,7 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	cerrdefs "github.com/containerd/errdefs"
+	errgrpc "github.com/containerd/errdefs/pkg/errgrpc"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -37,7 +38,13 @@ func presentChildrenHandler(store content.Store, h c8dimages.HandlerFunc) c8dima
 
 		c, err := c8dimages.Children(ctx, store, desc)
 		if err != nil {
-			if cerrdefs.IsNotFound(err) {
+			// errgrpc.ToNative is needed here because c8dimages.Children calls
+			// content.ReadBlob which may call remoteReaderAt.ReadAt. Unlike
+			// proxyContentStore.Info, remoteReaderAt.ReadAt does not convert gRPC
+			// errors to native errdefs errors, so cerrdefs.IsNotFound won't
+			// recognize them without explicit conversion. This can happen when
+			// content is deleted concurrently (race between Info check and ReadAt).
+			if cerrdefs.IsNotFound(errgrpc.ToNative(err)) {
 				return nil, c8dimages.ErrSkipDesc
 			}
 			return nil, err

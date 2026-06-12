@@ -81,14 +81,33 @@ func TestDiskUsage(t *testing.T) {
 
 				assert.Equal(t, du.Images.ActiveCount, int64(0))
 				assert.Equal(t, du.Images.TotalCount, int64(1))
-				assert.Equal(t, du.Images.Reclaimable, du.Images.TotalSize)
+				// In rootless snapshotter mode, TotalSize may exceed Reclaimable by up to 4096 bytes
+				// due to a ghost init snapshot in the overlayfs snapshotter.
+				// See https://github.com/moby/moby/issues/47119
+				if testEnv.UsingSnapshotter() && testEnv.IsRootless() {
+					assert.Check(t, du.Images.TotalSize >= du.Images.Reclaimable,
+						"expected TotalSize (%d) >= Reclaimable (%d)", du.Images.TotalSize, du.Images.Reclaimable)
+					assert.Check(t, du.Images.TotalSize-du.Images.Reclaimable <= 4096,
+						"expected TotalSize (%d) to be within 4096 of Reclaimable (%d)", du.Images.TotalSize, du.Images.Reclaimable)
+				} else {
+					assert.Equal(t, du.Images.Reclaimable, du.Images.TotalSize)
+				}
 				assert.Assert(t, du.Images.TotalSize > 0)
 				assert.Equal(t, len(du.Images.Items), 1)
 				assert.Equal(t, len(du.Images.Items[0].RepoTags), 1)
 				assert.Check(t, is.Equal(du.Images.Items[0].RepoTags[0], "busybox:latest"))
 
 				// Image size is layer size + content size. Content size is included in layers size.
-				assert.Equal(t, du.Images.Items[0].Size, du.Images.TotalSize)
+				// In rootless snapshotter mode, TotalSize may be up to 4096 bytes more than Items[0].Size
+				// due to a ghost init snapshot, see https://github.com/moby/moby/issues/47119
+				if testEnv.UsingSnapshotter() && testEnv.IsRootless() {
+					assert.Check(t, du.Images.TotalSize >= du.Images.Items[0].Size,
+						"expected TotalSize (%d) >= Items[0].Size (%d)", du.Images.TotalSize, du.Images.Items[0].Size)
+					assert.Check(t, du.Images.TotalSize-du.Images.Items[0].Size <= 4096,
+						"expected TotalSize (%d) to be within 4096 of Items[0].Size (%d)", du.Images.TotalSize, du.Images.Items[0].Size)
+				} else {
+					assert.Equal(t, du.Images.Items[0].Size, du.Images.TotalSize)
+				}
 
 				return du
 			},
