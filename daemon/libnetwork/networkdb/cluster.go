@@ -597,7 +597,7 @@ func (nDB *NetworkDB) bulkSync(nodes []string, all bool) ([]string, error) {
 // Bulk sync all the table entries belonging to a set of networks to a
 // single peer node. It can be unsolicited or can be in response to an
 // unsolicited bulk sync
-func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited bool) error {
+func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited bool) (retErr error) {
 	var msgs [][]byte
 
 	var unsolMsg string
@@ -651,7 +651,7 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	compound := makeCompoundMessage(msgs)
 
 	bsm := BulkSyncMessage{
-		LTime:       nDB.tableClock.Time(),
+		LTime:       nDB.tableClock.Increment(),
 		Unsolicited: unsolicited,
 		NodeName:    nDB.config.NodeID,
 		Networks:    networks,
@@ -663,33 +663,58 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 		return fmt.Errorf("failed to encode bulk sync message: %v", err)
 	}
 
-	nDB.Lock()
-	ch := make(chan struct{})
-	nDB.bulkSyncAckTbl[node] = ch
-	nDB.Unlock()
+	// Wait on a response only if we are sending an unsolicited bulk sync,
+	// as only unsolicited bulk syncs trigger a response.
+	if unsolicited {
+		nDB.Lock()
+		ch := make(chan struct{})
+		nDB.bulkSyncAckTbl[node] = append(nDB.bulkSyncAckTbl[node], bulkSyncSubscription{
+			LTime: bsm.LTime,
+			Done:  ch,
+		})
+		nDB.Unlock()
+
+		unsubscribe := func() {
+			nDB.Lock()
+			defer nDB.Unlock()
+			subscriptions := nDB.bulkSyncAckTbl[node]
+			for i, sub := range subscriptions {
+				if sub.Done == ch {
+					subscriptions = slices.Delete(subscriptions, i, i+1)
+					break
+				}
+			}
+			if len(subscriptions) > 0 {
+				nDB.bulkSyncAckTbl[node] = subscriptions
+			} else {
+				delete(nDB.bulkSyncAckTbl, node)
+			}
+		}
+
+		defer func() {
+			if retErr != nil {
+				unsubscribe()
+				return
+			}
+
+			startTime := time.Now()
+			t := time.NewTimer(30 * time.Second)
+			select {
+			case <-t.C:
+				log.G(context.TODO()).Errorf("Bulk sync to node %s timed out", node)
+				nDB.bulkSyncAckTimeouts.Add(1)
+				unsubscribe()
+			case <-ch:
+				log.G(context.TODO()).Debugf("%v(%v): Bulk sync to node %s took %s", nDB.config.Hostname, nDB.config.NodeID, node, time.Since(startTime))
+			}
+			t.Stop()
+		}()
+	}
 
 	err = nDB.memberlist.SendReliable(&mnode.Node, buf)
 	if err != nil {
-		nDB.Lock()
-		delete(nDB.bulkSyncAckTbl, node)
-		nDB.Unlock()
-
 		return fmt.Errorf("failed to send a TCP message during bulk sync: %v", err)
 	}
-
-	// Wait on a response only if it is unsolicited.
-	if unsolicited {
-		startTime := time.Now()
-		t := time.NewTimer(30 * time.Second)
-		select {
-		case <-t.C:
-			log.G(context.TODO()).Errorf("Bulk sync to node %s timed out", node)
-		case <-ch:
-			log.G(context.TODO()).Debugf("%v(%v): Bulk sync to node %s took %s", nDB.config.Hostname, nDB.config.NodeID, node, time.Since(startTime))
-		}
-		t.Stop()
-	}
-
 	return nil
 }
 
