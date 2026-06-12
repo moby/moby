@@ -99,7 +99,7 @@ func (i *IDMap) Unmarshal(uidMap, gidMap string) error {
 		if len(str) == 0 {
 			return nil
 		}
-		for _, mapping := range strings.Split(str, ",") {
+		for mapping := range strings.SplitSeq(str, ",") {
 			m, err := deserializeLinuxIDMapping(mapping)
 			if err != nil {
 				return err

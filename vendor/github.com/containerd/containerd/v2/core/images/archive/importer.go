@@ -241,7 +241,7 @@ const (
 	jsonLimit = 20 * mib
 )
 
-func onUntarJSON(r io.Reader, j interface{}) error {
+func onUntarJSON(r io.Reader, j any) error {
 	return json.NewDecoder(io.LimitReader(r, jsonLimit)).Decode(j)
 }
 
@@ -376,7 +376,7 @@ func compressBlob(ctx context.Context, cs content.Store, r io.Reader, ref string
 	return desc, nil
 }
 
-func writeManifest(ctx context.Context, cs content.Ingester, manifest interface{}, mediaType string) (ocispec.Descriptor, error) {
+func writeManifest(ctx context.Context, cs content.Ingester, manifest any, mediaType string) (ocispec.Descriptor, error) {
 	manifestBytes, err := json.Marshal(manifest)
 	if err != nil {
 		return ocispec.Descriptor{}, err

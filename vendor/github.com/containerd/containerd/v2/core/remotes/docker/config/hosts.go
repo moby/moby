@@ -20,6 +20,7 @@ package config
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
@@ -245,7 +246,7 @@ func updateTLSConfigFromHost(tlsConfig *tls.Config, host *hostConfig) error {
 
 	if host.caCerts != nil {
 		if tlsConfig.RootCAs == nil {
-			rootPool, err := rootSystemPool()
+			rootPool, err := x509.SystemCertPool()
 			if err != nil {
 				return fmt.Errorf("unable to initialize cert pool: %w", err)
 			}
@@ -346,14 +347,14 @@ type hostFileConfig struct {
 	// Accepted types
 	// - string - Single file with certificate(s)
 	// - []string - Multiple files with certificates
-	CACert interface{} `toml:"ca"`
+	CACert any `toml:"ca"`
 
 	// Client keypair(s) for TLS with client authentication
 	// Accepted types
 	// - string - Single file with public and private keys
 	// - []string - Multiple files with public and private keys
 	// - [][2]string - Multiple keypairs with public and private keys in separate files
-	Client interface{} `toml:"client"`
+	Client any `toml:"client"`
 
 	// SkipVerify skips verification of the server's certificate chain
 	// and host name. This should only be used for testing or in
@@ -361,7 +362,7 @@ type hostFileConfig struct {
 	SkipVerify *bool `toml:"skip_verify"`
 
 	// Header are additional header files to send to the server
-	Header map[string]interface{} `toml:"header"`
+	Header map[string]any `toml:"header"`
 
 	// OverridePath indicates the API root endpoint is defined in the URL
 	// path rather than by the API specification.
@@ -472,7 +473,7 @@ func parseHostConfig(server string, baseDir string, config hostFileConfig) (host
 		switch cert := config.CACert.(type) {
 		case string:
 			result.caCerts = []string{makeAbsPath(cert, baseDir)}
-		case []interface{}:
+		case []any:
 			result.caCerts, err = makeStringSlice(cert, func(p string) string {
 				return makeAbsPath(p, baseDir)
 			})
@@ -488,13 +489,13 @@ func parseHostConfig(server string, baseDir string, config hostFileConfig) (host
 		switch client := config.Client.(type) {
 		case string:
 			result.clientPairs = [][2]string{{makeAbsPath(client, baseDir), ""}}
-		case []interface{}:
+		case []any:
 			// []string or [][2]string
 			for _, pairs := range client {
 				switch p := pairs.(type) {
 				case string:
 					result.clientPairs = append(result.clientPairs, [2]string{makeAbsPath(p, baseDir), ""})
-				case []interface{}:
+				case []any:
 					slice, err := makeStringSlice(p, func(s string) string {
 						return makeAbsPath(s, baseDir)
 					})
@@ -523,7 +524,7 @@ func parseHostConfig(server string, baseDir string, config hostFileConfig) (host
 			switch value := ty.(type) {
 			case string:
 				header[key] = []string{value}
-			case []interface{}:
+			case []any:
 				header[key], err = makeStringSlice(value, nil)
 				if err != nil {
 					return hostConfig{}, err
@@ -583,9 +584,9 @@ func getSortedHosts(b []byte) ([]string, error) {
 	return hostsInOrder, nil
 }
 
-// makeStringSlice is a helper func to convert from []interface{} to []string.
+// makeStringSlice is a helper func to convert from []any to []string.
 // Additionally an optional cb func may be passed to perform string mapping.
-func makeStringSlice(slice []interface{}, cb func(string) string) ([]string, error) {
+func makeStringSlice(slice []any, cb func(string) string) ([]string, error) {
 	out := make([]string, len(slice))
 	for i, value := range slice {
 		str, ok := value.(string)
