@@ -97,6 +97,7 @@ type networkConfiguration struct {
 	HostIPv4              net.IP
 	HostIPv6              net.IP
 	ContainerIfacePrefix  string
+	FirewalldZone         string
 	// Internal fields set after ipam data parsing
 	AddressIPv4        *net.IPNet
 	AddressIPv6        *net.IPNet
@@ -397,6 +398,8 @@ func (ncfg *networkConfiguration) fromLabels(labels map[string]string) error {
 			}
 		case netlabel.ContainerIfacePrefix:
 			ncfg.ContainerIfacePrefix = value
+		case FirewalldZone:
+			ncfg.FirewalldZone = value
 		case netlabel.HostIPv4:
 			if ncfg.HostIPv4 = net.ParseIP(value); ncfg.HostIPv4 == nil {
 				return parseErr(label, value, "nil ip")
@@ -451,12 +454,12 @@ func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (_ firewaller.
 		return nil, err
 	}
 
-	if err := iptables.AddInterfaceFirewalld(n.config.BridgeName); err != nil {
+	if err := iptables.AddInterfaceFirewalld(n.config.BridgeName, n.config.FirewalldZone); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if retErr != nil {
-			if err := iptables.DelInterfaceFirewalld(n.config.BridgeName); err != nil {
+			if err := iptables.DelInterfaceFirewalld(n.config.BridgeName, n.config.FirewalldZone); err != nil {
 				log.G(ctx).WithError(err).Errorf("failed to delete network level rules following error")
 			}
 		}
@@ -1014,7 +1017,7 @@ func (d *driver) deleteNetwork(nid string) error {
 			log.G(context.TODO()).WithError(err).Warnf("Failed to clean iptables rules for bridge network")
 		}
 	}
-	if err := iptables.DelInterfaceFirewalld(n.config.BridgeName); err != nil {
+	if err := iptables.DelInterfaceFirewalld(n.config.BridgeName, n.config.FirewalldZone); err != nil {
 		log.G(context.TODO()).WithError(err).Warnf("Failed to clean firewalld rules for bridge network")
 	}
 
@@ -1764,7 +1767,7 @@ func (d *driver) handleFirewalldReloadNw(nid string) {
 	// with the gateway.
 	nw.reapplyPerPortIptables()
 
-	if err := iptables.AddInterfaceFirewalld(nw.config.BridgeName); err != nil {
+	if err := iptables.AddInterfaceFirewalld(nw.config.BridgeName, nw.config.FirewalldZone); err != nil {
 		log.G(context.Background()).WithFields(log.Fields{
 			"error":  err,
 			"nid":    nw.id,

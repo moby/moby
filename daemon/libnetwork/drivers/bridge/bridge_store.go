@@ -160,6 +160,7 @@ func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
 	nMap["DefaultGatewayIPv6"] = ncfg.DefaultGatewayIPv6.String()
 	nMap["ContainerIfacePrefix"] = ncfg.ContainerIfacePrefix
 	nMap["BridgeIfaceCreator"] = ncfg.BridgeIfaceCreator
+	nMap["FirewalldZone"] = ncfg.FirewalldZone
 
 	if ncfg.AddressIPv4 != nil {
 		nMap["AddressIPv4"] = ncfg.AddressIPv4.String()
@@ -241,6 +242,10 @@ func (ncfg *networkConfiguration) UnmarshalJSON(b []byte) error {
 
 	if v, ok := nMap["BridgeIfaceCreator"]; ok {
 		ncfg.BridgeIfaceCreator = ifaceCreator(v.(float64))
+	}
+
+	if v, ok := nMap["FirewalldZone"]; ok {
+		ncfg.FirewalldZone = v.(string)
 	}
 
 	return nil
