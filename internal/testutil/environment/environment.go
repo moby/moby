@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -206,6 +207,21 @@ func (e *Execution) HasExistingImage(t testing.TB, reference string) bool {
 	assert.NilError(t, err, "failed to list images")
 
 	return len(imageList.Items) > 0
+}
+
+// IsSELinuxEnforcing returns true if SELinux is enabled and running in enforcing mode.
+// Returns false on non-Linux systems or if SELinux is not available or not enabled.
+func (e *Execution) IsSELinuxEnforcing() bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+
+	data, err := os.ReadFile("/sys/fs/selinux/enforce")
+	if err != nil {
+		return false
+	}
+
+	return strings.TrimSpace(string(data)) == "1"
 }
 
 // EnsureFrozenImagesLinux loads frozen test images into the daemon

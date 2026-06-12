@@ -16,7 +16,14 @@ import (
 )
 
 func TestMigrateOverlaySnapshotter(t *testing.T) {
-	testMigrateSnapshotter(t, "overlay2", "overlayfs")
+	graphdriver := "overlay2"
+	snapshotter := "overlayfs"
+	// overlay2 doesn't work rootless with SELinux enforcing; use fuse-overlayfs instead.
+	if testEnv.IsRootless() && testEnv.IsSELinuxEnforcing() {
+		graphdriver = "fuse-overlayfs"
+		snapshotter = "fuse-overlayfs"
+	}
+	testMigrateSnapshotter(t, graphdriver, snapshotter)
 }
 
 func TestMigrateNativeSnapshotter(t *testing.T) {
@@ -100,6 +107,12 @@ func TestMigrateSaveLoad(t *testing.T) {
 		snapshotter = "overlayfs"
 	)
 	defer d.Stop(t)
+
+	// overlay2 doesn't work rootless with SELinux enforcing; use fuse-overlayfs instead.
+	if testEnv.IsRootless() && testEnv.IsSELinuxEnforcing() {
+		graphdriver = "fuse-overlayfs"
+		snapshotter = "fuse-overlayfs"
+	}
 
 	d.Start(t, "--iptables=false", "--ip6tables=false", "-s", graphdriver)
 	info := d.Info(t)
