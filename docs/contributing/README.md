@@ -8,4 +8,5 @@
  * [Work with a development container](set-up-dev-env.md)
  * [Containerized build and cross compilation](ctn-build.md)
  * [Run tests and test documentation](test.md)
+ * [Resolve known validation failures](validation-failures.md)
  * [Debugging the daemon](debug.md)
