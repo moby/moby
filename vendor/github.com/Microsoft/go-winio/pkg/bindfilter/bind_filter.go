@@ -1,5 +1,4 @@
 //go:build windows
-// +build windows
 
 package bindfilter
 
@@ -109,7 +108,7 @@ func GetBindMappings(volumePath string) ([]BindMapping, error) {
 	}
 
 	if outBuffSize < 12 {
-		return nil, fmt.Errorf("invalid buffer returned")
+		return nil, errors.New("invalid buffer returned")
 	}
 
 	result := buf[:outBuffSize]
@@ -185,7 +184,7 @@ func decodeEntry(buffer []byte) (string, error) {
 
 func getTargetsFromBuffer(buffer []byte, offset, count int) ([]string, error) {
 	if len(buffer) < offset+count*6 {
-		return nil, fmt.Errorf("invalid buffer")
+		return nil, errors.New("invalid buffer")
 	}
 
 	targets := make([]string, count)
@@ -193,7 +192,7 @@ func getTargetsFromBuffer(buffer []byte, offset, count int) ([]string, error) {
 		entryBuf := buffer[offset+i*8 : offset+i*8+8]
 		tgt := *(*mappingTargetEntry)(unsafe.Pointer(&entryBuf[0]))
 		if len(buffer) < int(tgt.TargetRootOffset)+int(tgt.TargetRootLength) {
-			return nil, fmt.Errorf("invalid buffer")
+			return nil, errors.New("invalid buffer")
 		}
 		decoded, err := decodeEntry(buffer[tgt.TargetRootOffset : tgt.TargetRootOffset+tgt.TargetRootLength])
 		if err != nil {
@@ -259,7 +258,7 @@ func getFinalPath(pth string) (string, error) {
 
 func getBindMappingFromBuffer(buffer []byte, entry mappingEntry) (BindMapping, error) {
 	if len(buffer) < int(entry.VirtRootOffset)+int(entry.VirtRootLength) {
-		return BindMapping{}, fmt.Errorf("invalid buffer")
+		return BindMapping{}, errors.New("invalid buffer")
 	}
 
 	src, err := decodeEntry(buffer[entry.VirtRootOffset : entry.VirtRootOffset+entry.VirtRootLength])

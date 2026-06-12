@@ -19,6 +19,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 	"time"
@@ -250,9 +251,7 @@ func overlayInfo(info, overlay snapshots.Info) snapshots.Info {
 	if info.Labels == nil {
 		info.Labels = overlay.Labels
 	} else {
-		for k, v := range overlay.Labels {
-			info.Labels[k] = v
-		}
+		maps.Copy(info.Labels, overlay.Labels)
 	}
 	return info
 }

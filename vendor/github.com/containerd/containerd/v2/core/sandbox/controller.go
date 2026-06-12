@@ -123,6 +123,7 @@ type ControllerInstance struct {
 	Address   string
 	Version   uint32
 	Labels    map[string]string
+	Spec      typeurl.Any
 }
 
 type ExitStatus struct {
