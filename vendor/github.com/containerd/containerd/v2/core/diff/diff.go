@@ -138,7 +138,7 @@ func WithSyncFs(sync bool) ApplyOpt {
 }
 
 // WithProgress is used to indicate process of the apply operation, should
-// atleast expect a progress of 0 and of the final size. It is up to the applier
+// at least expect a progress of 0 and of the final size. It is up to the applier
 // how much progress it reports in between.
 func WithProgress(f func(ocispec.Descriptor, int64)) ApplyOpt {
 	return func(_ context.Context, desc ocispec.Descriptor, c *ApplyConfig) error {

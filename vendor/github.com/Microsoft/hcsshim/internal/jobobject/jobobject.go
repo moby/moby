@@ -32,6 +32,7 @@ type JobObject struct {
 type JobLimits struct {
 	CPULimit           uint32
 	CPUWeight          uint32
+	CPUAffinity        uint64
 	MemoryLimitInBytes uint64
 	MaxIOPS            int64
 	MaxBandwidth       int64
