@@ -85,6 +85,12 @@ func (daemon *Daemon) releaseName(name string) {
 	daemon.containersReplica.ReleaseName(name)
 }
 
+// ContainerNames returns a snapshot of all reserved container names, keyed
+// by container ID.
+func (daemon *Daemon) ContainerNames() map[string][]string {
+	return daemon.containersReplica.Snapshot().GetAllNames()
+}
+
 func (daemon *Daemon) generateAndReserveName(id string) (string, error) {
 	var name string
 	for i := range 6 {

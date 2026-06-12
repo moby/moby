@@ -2424,6 +2424,26 @@ definitions:
         items:
           type: "string"
 
+  ContainerRef:
+    type: "object"
+    description: |
+      Reference to a container that mounts a volume. Used in the `Containers`
+      field of a `Volume` to identify containers that are currently using
+      the volume.
+    x-nullable: false
+    required: [Id, Name]
+    properties:
+      Id:
+        type: "string"
+        description: "ID of the container."
+        x-nullable: false
+        example: "abc123def4567890..."
+      Name:
+        type: "string"
+        description: "Primary name of the container (without the leading slash)."
+        x-nullable: false
+        example: "web"
+
   Volume:
     type: "object"
     required: [Name, Driver, Mountpoint, Labels, Scope, Options]
@@ -2492,6 +2512,19 @@ definitions:
           device: "tmpfs"
           o: "size=100m,uid=1000"
           type: "tmpfs"
+      Containers:
+        description: |
+          Containers that currently reference (mount) this volume. Each
+          entry includes the container ID and primary name.
+
+          This field is populated by `GET /volumes` and `GET /volumes/{name}`.
+          It is empty for cluster-scope volumes, which use a different
+          reference model based on swarm services.
+        type: "array"
+        x-nullable: true
+        x-omitempty: true
+        items:
+          $ref: "#/definitions/ContainerRef"
       UsageData:
         type: "object"
         x-nullable: true

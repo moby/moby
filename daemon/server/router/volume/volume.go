@@ -4,16 +4,21 @@ import "github.com/moby/moby/v2/daemon/server/router"
 
 // volumeRouter is a router to talk with the volumes controller
 type volumeRouter struct {
-	backend Backend
-	cluster ClusterBackend
-	routes  []router.Route
+	backend    Backend
+	cluster    ClusterBackend
+	containers ContainerNamer
+	routes     []router.Route
 }
 
-// NewRouter initializes a new volume router
-func NewRouter(b Backend, cb ClusterBackend) router.Router {
+// NewRouter initializes a new volume router.
+//
+// containers provides container ID -> name resolution used to populate the
+// `Containers` field on volume list/inspect responses.
+func NewRouter(b Backend, cb ClusterBackend, containers ContainerNamer) router.Router {
 	r := &volumeRouter{
-		backend: b,
-		cluster: cb,
+		backend:    b,
+		cluster:    cb,
+		containers: containers,
 	}
 	r.initRoutes()
 	return r

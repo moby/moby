@@ -177,6 +177,24 @@ func (s *VolumeStore) getRefs(name string) []string {
 	return refs
 }
 
+// AllReferences returns a point-in-time snapshot of all volume references,
+// keyed by volume name. The value is the list of container IDs that reference
+// the volume.
+func (s *VolumeStore) AllReferences() map[string][]string {
+	s.globalLock.RLock()
+	defer s.globalLock.RUnlock()
+
+	out := make(map[string][]string, len(s.refs))
+	for name, m := range s.refs {
+		refs := make([]string, 0, len(m))
+		for r := range m {
+			refs = append(refs, r)
+		}
+		out[name] = refs
+	}
+	return out
+}
+
 // purge allows the cleanup of internal data on docker in case
 // the internal data is out of sync with volumes driver plugins.
 func (s *VolumeStore) purge(ctx context.Context, name string) error {

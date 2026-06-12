@@ -17,6 +17,16 @@ type Backend interface {
 	Create(ctx context.Context, name, driverName string, opts ...opts.CreateOption) (*volume.Volume, error)
 	Remove(ctx context.Context, name string, opts ...opts.RemoveOption) error
 	Prune(ctx context.Context, pruneFilters filters.Args) (*volume.PruneReport, error)
+
+	// AllReferences returns a snapshot of container references for every
+	// volume, keyed by volume name; values are container IDs.
+	AllReferences() map[string][]string
+}
+
+// ContainerNamer resolves the registered names of containers by ID.
+// Implementations should return a copy of the underlying mapping
+type ContainerNamer interface {
+	ContainerNames() map[string][]string
 }
 
 // ClusterBackend is the backend used for Swarm Cluster Volumes. Regular

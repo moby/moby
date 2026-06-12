@@ -648,6 +648,10 @@ func (b *fakeVolumeBackend) Prune(_ context.Context, _ filters.Args) (*volume.Pr
 	return nil, nil
 }
 
+func (b *fakeVolumeBackend) AllReferences() map[string][]string {
+	return nil
+}
+
 type fakeClusterBackend struct {
 	swarm   bool
 	manager bool

@@ -282,6 +282,13 @@ func (s *VolumesService) List(ctx context.Context, filter filters.Args) (volumes
 	return s.volumesToAPI(ctx, vols, useCachedPath(true)), warns, nil
 }
 
+// AllReferences returns a snapshot of container references for every volume,
+// keyed by volume name. The value is the list of container IDs that reference
+// the volume.
+func (s *VolumesService) AllReferences() map[string][]string {
+	return s.vs.AllReferences()
+}
+
 // Shutdown shuts down the image service and dependencies
 func (s *VolumesService) Shutdown() error {
 	return s.vs.Shutdown()

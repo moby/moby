@@ -13,6 +13,14 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.55 API changes
+
+* `GET /volumes` and `GET /volumes/{name}` responses now include a `Containers`
+  field on each `Volume`, listing the containers that currently mount the
+  volume. Each entry contains the container `Id` and primary `Name`. The
+  field is omitted for cluster-scope volumes (which use a different
+  reference model based on swarm services).
+
 ## v1.54 API changes
 
 * `GET /images/json` now supports an `identity` query parameter. When set,
