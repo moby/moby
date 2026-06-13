@@ -17,6 +17,7 @@ import (
 
 	"github.com/moby/moby/v2/daemon/libnetwork/discoverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -502,6 +503,83 @@ func TestRemoteDriver(t *testing.T) {
 	}
 	if err = d.DiscoverDelete(discoverapi.NodeDiscovery, data); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestRemoteDriverJoinInterfaceName verifies that a custom interface
+// name reaches the endpoint for remote (plugin) drivers: a DstName the
+// plugin returns in its Join response is applied, and absent that the
+// engine falls back to the com.docker.network.endpoint.ifname endpoint
+// option (Compose interface_name) — mirroring the built-in drivers.
+// Before the fix the remote proxy passed an empty name to SetNames,
+// dropping both sources and leaving plugin endpoints named ethN.
+func TestRemoteDriverJoinInterfaceName(t *testing.T) {
+	const ifname = "myiface0"
+	testcases := []struct {
+		name        string
+		respDstName string         // DstName returned by the plugin's Join
+		epOpts      map[string]any // endpoint options passed to Join
+		wantDstName string         // name SetNames must receive
+	}{
+		{
+			name:        "plugin-returned DstName is applied",
+			respDstName: ifname,
+			wantDstName: ifname,
+		},
+		{
+			name:        "falls back to endpoint ifname option",
+			epOpts:      map[string]any{netlabel.Ifname: ifname},
+			wantDstName: ifname,
+		},
+		{
+			name:        "plugin DstName takes precedence over the option",
+			respDstName: ifname,
+			epOpts:      map[string]any{netlabel.Ifname: "other0"},
+			wantDstName: ifname,
+		},
+		{
+			name:        "neither source set leaves the name empty",
+			wantDstName: "",
+		},
+	}
+
+	for i, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Unique plugin name per subtest: plugins.Get caches by name,
+			// and each subtest stands up its own short-lived HTTP server.
+			plugin := fmt.Sprintf("test-ifname-driver-%d", i)
+			ep := &testEndpoint{
+				t:         t,
+				srcName:   "vethsrc",
+				dstPrefix: "vethdst",
+				dstName:   tc.wantDstName, // SetNames asserts it receives this
+			}
+
+			mux := http.NewServeMux()
+			defer setupPlugin(t, plugin, mux)()
+
+			handle(t, mux, "Join", func(msg map[string]any) any {
+				return map[string]any{
+					"InterfaceName": map[string]any{
+						"SrcName":   ep.srcName,
+						"DstPrefix": ep.dstPrefix,
+						"DstName":   tc.respDstName,
+					},
+				}
+			})
+			handle(t, mux, "Leave", func(msg map[string]any) any {
+				return map[string]string{}
+			})
+
+			p, err := plugins.Get(plugin, driverapi.NetworkPluginEndpointType)
+			assert.NilError(t, err)
+			client, err := getPluginClient(p)
+			assert.NilError(t, err)
+			d := newDriver(plugin, client)
+
+			err = d.Join(context.Background(), "dummy-network", "dummy-endpoint", "sandbox-key", ep, tc.epOpts, map[string]any{})
+			assert.NilError(t, err)
+		})
 	}
 }
 
