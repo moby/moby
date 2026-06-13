@@ -64,6 +64,10 @@ type Options struct {
 	// Signature Version 4 (SigV4) Signer
 	HTTPSignerV4 HTTPSignerV4
 
+	// Provides idempotency tokens values that will be automatically populated into
+	// idempotent API operations.
+	IdempotencyTokenProvider IdempotencyTokenProvider
+
 	// The logger writer interface to write logging messages to.
 	Logger logging.Logger
 
