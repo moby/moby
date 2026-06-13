@@ -287,7 +287,7 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]any, error) {
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, _, options map[string]any) (retErr error) {
+func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, epOpts, options map[string]any) (retErr error) {
 	join := &api.JoinRequest{
 		NetworkID:  nid,
 		EndpointID: eid,
@@ -314,8 +314,18 @@ func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo 
 
 	ifaceName := res.InterfaceName
 	if iface := jinfo.InterfaceName(); iface != nil && ifaceName != nil {
-		if err := iface.SetNames(ifaceName.SrcName, ifaceName.DstPrefix, ""); err != nil {
-			return fmt.Errorf("failed to set interface name: %s", err)
+		// Honor a custom interface name (com.docker.network.endpoint.ifname,
+		// Compose interface_name) for remote drivers too: prefer a DstName
+		// returned by the plugin, otherwise fall back to the endpoint
+		// option, mirroring how the built-in drivers apply it in their Join
+		// paths (netlabel.GetIfname). This previously passed "", silently
+		// dropping both and leaving plugin endpoints named ethN.
+		dstName := ifaceName.DstName
+		if dstName == "" {
+			dstName = netlabel.GetIfname(epOpts)
+		}
+		if err := iface.SetNames(ifaceName.SrcName, ifaceName.DstPrefix, dstName); err != nil {
+			return fmt.Errorf("failed to set interface name: %w", err)
 		}
 	}
 
