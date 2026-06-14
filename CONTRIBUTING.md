@@ -217,7 +217,7 @@ required. They should tell the story of the change and provide readers
 understanding of what led to it.
 
 If you're lost about what this even means, please see [How to Write a Git
-Commit Message](http://chris.beams.io/posts/git-commit/) for a start.
+Commit Message](https://chris.beams.io/posts/git-commit/) for a start.
 
 In practice, the best approach to maintaining a nice commit message is to
 leverage a `git add -p` and `git commit --amend` to formulate a solid
@@ -282,7 +282,7 @@ For an explanation of the review and approval process see the
 The sign-off is a simple line at the end of the explanation for the patch. Your
 signature certifies that you wrote the patch or otherwise have the right to pass
 it on as an open-source patch. The rules are pretty simple: if you can certify
-the below (from [developercertificate.org](http://developercertificate.org/)):
+the below (from [developercertificate.org](https://developercertificate.org/)):
 
 ```
 Developer Certificate of Origin
@@ -432,7 +432,7 @@ The rules:
 2. All code should pass the default levels of
    [`golint`](https://github.com/golang/lint).
 3. All code should follow the guidelines covered in [Effective
-   Go](http://golang.org/doc/effective_go.html) and [Go Code Review
+   Go](https://golang.org/doc/effective_go.html) and [Go Code Review
    Comments](https://github.com/golang/go/wiki/CodeReviewComments).
 4. Comment the code. Tell us the why, the history and the context.
 5. Document _all_ declarations and methods, even private ones. Declare
