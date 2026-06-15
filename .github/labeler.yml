@@ -36,6 +36,7 @@ area/networking:
       - 'api/types/network/**'
       - 'daemon/network*'
       - 'daemon/network/**'
+      - 'daemon/libnetwork/**'
       - 'integration/network/**'
       - 'integration/networking/**'
 
