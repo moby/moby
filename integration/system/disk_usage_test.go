@@ -300,10 +300,5 @@ func TestDiskUsage(t *testing.T) {
 // Rootless snapshotter disk usage can drift by one filesystem block.
 // TODO: Investigate why https://github.com/moby/moby/issues/52845
 func adjustedExpectedUsage(actual, expected int64) int64 {
-	if testEnv.UsingSnapshotter() && testEnv.IsRootless() {
-		if actual == expected+4096 {
-			return actual
-		}
-	}
 	return expected
 }
