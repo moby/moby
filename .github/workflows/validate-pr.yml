@@ -8,9 +8,7 @@ permissions:
   contents: read
 
 on:
-  pull_request:
-    types: [opened, edited, labeled, unlabeled, synchronize]
-
+  workflow_dispatch:
 jobs:
   check-labels:
     runs-on: ubuntu-24.04

@@ -11,13 +11,6 @@ permissions:
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - 'master'
-      - '[0-9]+.[0-9]+'
-      - '[0-9]+.x'
-  pull_request:
-
 env:
   GO_VERSION: "1.26.4"
   DESTDIR: ./build

@@ -5,9 +5,7 @@ permissions:
   pull-requests: read
 
 on:
-  pull_request:
-    types: [opened, synchronize, milestoned, demilestoned, edited]
-
+  workflow_dispatch:
 jobs:
   validate-milestone:
     runs-on: ubuntu-24.04

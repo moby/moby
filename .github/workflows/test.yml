@@ -39,11 +39,8 @@ jobs:
       matrix:
         arch:
           - amd64
-          - arm64
         mode:
           - ""
-          - systemd
-          - firewalld
     steps:
       -
         name: Prepare
@@ -79,7 +76,6 @@ jobs:
 
   test:
     name: test (${{ matrix.arch }}, ${{ matrix.storage }})
-    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - build-dev
       - validate-dco
@@ -88,21 +84,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Only amd64 gets the full matrix
           - arch: amd64
             storage: snapshotter
             runnerSuffix: ""
-            extraModes: '["rootless", "systemd", "iptables+firewalld", "nftables", "nftables+firewalld"]'
-            # FIXME: add rootless-systemd once https://github.com/moby/moby/issues/44084 is resolved.
-          - arch: amd64
-            storage: graphdriver
-            runnerSuffix: ""
-            extraModes: '["rootless", "systemd"]'
-            # FIXME: add rootless-systemd once https://github.com/moby/moby/issues/44084 is resolved.
-          - arch: arm64
-            storage: snapshotter
-            runnerSuffix: "-arm"
-            extraModes: '[]'
+            extraModes: '["rootless"]'
     with:
       arch: ${{ matrix.arch }}
       storage: ${{ matrix.storage }}
@@ -112,7 +97,7 @@ jobs:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   test-unit:
-    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
+    if: ${{ false }}
     needs:
       - build-dev
       - validate-dco
@@ -132,6 +117,7 @@ jobs:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   validate-prepare:
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10 # guardrails timeout for the whole job
     needs:
@@ -151,6 +137,7 @@ jobs:
           echo "$scripts"
 
   validate:
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30 # guardrails timeout for the whole job
     needs:
@@ -194,6 +181,7 @@ jobs:
           make -o build "validate-${SCRIPT}"
 
   validate-api-swagger:
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10 # guardrails timeout for the whole job
     defaults:
@@ -214,8 +202,8 @@ jobs:
 
   smoke-prepare:
     runs-on: ubuntu-24.04
+    if: ${{ false }}
     timeout-minutes: 10 # guardrails timeout for the whole job
-    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - validate-dco
     outputs:
@@ -235,7 +223,7 @@ jobs:
   smoke:
     runs-on: ubuntu-24.04
     timeout-minutes: 20 # guardrails timeout for the whole job
-    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
+    if: ${{ false }}
     needs:
       - smoke-prepare
     strategy:

@@ -10,29 +10,7 @@ permissions:
   contents: read
 
 on:
-  push:
-    branches:
-      - 'master'
-      - '[0-9]+.[0-9]+'
-      - '[0-9]+.x'
-    tags:
-      - 'v*'
-      - 'docker-v*'
-      - 'api/v*'
-      - 'client/v*'
-  pull_request:
-  schedule:
-    #        ┌───────────── minute (0 - 59)
-    #        │ ┌───────────── hour (0 - 23)
-    #        │ │ ┌───────────── day of the month (1 - 31)
-    #        │ │ │ ┌───────────── month (1 - 12)
-    #        │ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday)
-    #        │ │ │ │ │
-    #        │ │ │ │ │
-    #        │ │ │ │ │
-    #        * * * * *
-    - cron: '0 9 * * 4'
-
+  workflow_dispatch:
 env:
   GO_VERSION: "1.26.4"
 

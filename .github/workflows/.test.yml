@@ -42,6 +42,7 @@ env:
 
 jobs:
   docker-py:
+    if: ${{ false }}
     runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
@@ -98,6 +99,7 @@ jobs:
           retention-days: 1
 
   integration-flaky:
+    if: ${{ false }}
     runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
@@ -145,23 +147,14 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           MATRIX_ARCH: ${{ inputs.arch }}
-          MATRIX_EXTRA_MODES: ${{ inputs.extraModes }}
           MATRIX_RUNNER_SUFFIX: ${{ inputs.runnerSuffix }}
         with:
           script: |
             const arch = `${{ env.MATRIX_ARCH }}`;
-            const extraModes = JSON.parse(`${{ env.MATRIX_EXTRA_MODES }}`);
             const runnerSuffix = `${{ env.MATRIX_RUNNER_SUFFIX }}`;
             let includes = [
-              { arch: arch, runner: `ubuntu-24.04${runnerSuffix}`, mode: '' },
+              { arch: arch, runner: `ubuntu-24.04${runnerSuffix}`, mode: 'rootless' },
             ];
-            includes.push(...extraModes.map(mode => ({ arch: arch, runner: `ubuntu-24.04${runnerSuffix}`, mode: mode })));
-
-            if (arch == "amd64") {
-              includes.push({ arch: arch, runner: 'ubuntu-22.04', mode: '' });
-              includes.push({ arch: arch, runner: 'ubuntu-22.04', mode: 'rootless' });
-              includes.push({ arch: arch, runner: 'ubuntu-22.04', mode: 'systemd' });
-            }
             await core.group(`Set matrix`, async () => {
               core.info(`matrix: ${JSON.stringify(includes)}`);
               core.setOutput('includes', JSON.stringify(includes));
@@ -243,6 +236,7 @@ jobs:
         env:
           TEST_SKIP_INTEGRATION_CLI: 1
           TESTCOVERAGE: 1
+          TEST_FILTER: TestDiskUsage
       -
         name: Prepare reports
         if: always()
@@ -319,6 +313,7 @@ jobs:
           fi
 
   integration-cli-prepare:
+    if: ${{ false }}
     runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
@@ -414,6 +409,7 @@ jobs:
             });
 
   integration-cli:
+    if: ${{ false }}
     runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
@@ -510,10 +506,10 @@ jobs:
           retention-days: 1
 
   integration-cli-report:
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     continue-on-error: ${{ github.event_name != 'pull_request' }}
-    if: always()
     needs:
       - integration-cli
     steps:

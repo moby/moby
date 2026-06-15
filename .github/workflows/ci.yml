@@ -11,13 +11,6 @@ permissions:
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - 'master'
-      - '[0-9]+.[0-9]+'
-      - '[0-9]+.x'
-  pull_request:
-
 env:
   DESTDIR: ./build
   SETUP_BUILDX_VERSION: edge

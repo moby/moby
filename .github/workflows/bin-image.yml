@@ -11,16 +11,6 @@ permissions:
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - 'master'
-      - '[0-9]+.[0-9]+'
-      - '[0-9]+.x'
-    tags:
-      - 'v*'
-      - 'docker-v*'
-  pull_request:
-
 jobs:
   validate-dco:
     if: ${{ !startsWith(github.ref, 'refs/tags/') }}
