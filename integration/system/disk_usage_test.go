@@ -2,6 +2,7 @@ package system
 
 import (
 	"net/netip"
+	"strconv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -19,6 +20,13 @@ func TestDiskUsage(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows") // d.Start fails on Windows with `protocol not available`
 
 	t.Parallel()
+
+	for i := 0; i < 100; i++ {
+		t.Run(strconv.Itoa(i), testDiskUsage)
+	}
+}
+
+func testDiskUsage(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
