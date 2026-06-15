@@ -357,28 +357,35 @@ func (nDB *NetworkDB) handleBulkSync(buf []byte) {
 
 	nDB.handleMessage(bsm.Payload, true)
 
-	// Don't respond to a bulk sync which was not unsolicited
-	if !bsm.Unsolicited {
-		nDB.Lock()
-		ch, ok := nDB.bulkSyncAckTbl[bsm.NodeName]
-		if ok {
-			close(ch)
-			delete(nDB.bulkSyncAckTbl, bsm.NodeName)
+	nDB.Lock()
+	acks := nDB.bulkSyncAckTbl[bsm.NodeName]
+	var pendingAcks []bulkSyncSubscription
+	for _, ack := range acks {
+		if bsm.LTime > ack.LTime {
+			close(ack.Done)
+		} else {
+			pendingAcks = append(pendingAcks, ack)
 		}
-		nDB.Unlock()
-
-		return
 	}
-
-	var nodeAddr net.IP
-	nDB.RLock()
-	if node, ok := nDB.nodes[bsm.NodeName]; ok {
-		nodeAddr = node.Addr
+	if len(pendingAcks) > 0 {
+		nDB.bulkSyncAckTbl[bsm.NodeName] = pendingAcks
+	} else {
+		delete(nDB.bulkSyncAckTbl, bsm.NodeName)
 	}
-	nDB.RUnlock()
+	nDB.Unlock()
 
-	if err := nDB.bulkSyncNode(bsm.Networks, bsm.NodeName, false); err != nil {
-		log.G(context.TODO()).Errorf("Error in responding to bulk sync from node %s: %v", nodeAddr, err)
+	// Only respond to an unsolicited bulk sync.
+	if bsm.Unsolicited {
+		var nodeAddr net.IP
+		nDB.RLock()
+		if node, ok := nDB.nodes[bsm.NodeName]; ok {
+			nodeAddr = node.Addr
+		}
+		nDB.RUnlock()
+
+		if err := nDB.bulkSyncNode(bsm.Networks, bsm.NodeName, false); err != nil {
+			log.G(context.TODO()).Errorf("Error in responding to bulk sync from node %s: %v", nodeAddr, err)
+		}
 	}
 }
 
