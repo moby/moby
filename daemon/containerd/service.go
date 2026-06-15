@@ -204,6 +204,13 @@ func (i *ImageService) layerDiskUsage(ctx context.Context) (allLayersSize int64,
 			}
 			return err
 		}
+		log.G(ctx).WithFields(log.Fields{
+			"name":   info.Name,
+			"parent": info.Parent,
+			"kind":   info.Kind,
+			"labels": info.Labels,
+			"size":   usage.Size,
+		}).Debug("counting snapshot in image disk usage")
 		allLayersSize += usage.Size
 		return nil
 	})
