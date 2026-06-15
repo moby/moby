@@ -86,6 +86,7 @@ func setNvidiaGPUs(s *specs.Spec, dev *deviceInstance) error {
 	if s.Hooks == nil {
 		s.Hooks = &specs.Hooks{}
 	}
+	//nolint:staticcheck // Use of deprecated hook.
 	s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{
 		Path: path,
 		Args: []string{
