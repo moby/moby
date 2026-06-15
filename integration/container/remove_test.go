@@ -36,7 +36,11 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	tempDir := fs.NewDir(t, "test-rm-container-with-removed-volume", fs.WithMode(0o755))
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithBind(tempDir.Path(), dPath("/test")))
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited))
+	var pollOps []poll.SettingOp
+	if testEnv.DaemonInfo.OSType == "windows" {
+		pollOps = append(pollOps, poll.WithTimeout(StopContainerWindowsPollTimeout))
+	}
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited), pollOps...)
 
 	err := os.RemoveAll(tempDir.Path())
 	assert.NilError(t, err)
