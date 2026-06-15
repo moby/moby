@@ -205,11 +205,16 @@ func (i *ImageService) layerDiskUsage(ctx context.Context) (allLayersSize int64,
 			return err
 		}
 		log.G(ctx).WithFields(log.Fields{
-			"name":   info.Name,
-			"parent": info.Parent,
-			"kind":   info.Kind,
-			"labels": info.Labels,
-			"size":   usage.Size,
+			"snapshot_info":  info,
+			"snapshot_usage": usage,
+			"name":           info.Name,
+			"parent":         info.Parent,
+			"kind":           info.Kind,
+			"labels":         info.Labels,
+			"created":        info.Created,
+			"updated":        info.Updated,
+			"size":           usage.Size,
+			"inodes":         usage.Inodes,
 		}).Debug("counting snapshot in image disk usage")
 		allLayersSize += usage.Size
 		return nil
@@ -249,6 +254,8 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 		}
 	}
 	log.G(ctx).WithFields(log.Fields{
+		"container":    containerID,
+		"snapshotter":  ctr.Driver,
 		"rwLayerUsage": rwLayerUsage.Size,
 		"unpacked":     unpackedUsage.Size,
 	}).Debug("GetContainerLayerSize")

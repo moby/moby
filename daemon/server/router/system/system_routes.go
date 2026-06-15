@@ -181,6 +181,17 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		// FIXME(thaJeztah): remove legacy fields entirely for API 1.53
 		legacyFields = !verbose
 	}
+	log.G(ctx).WithFields(log.Fields{
+		"version":        version,
+		"types":          typeStrs,
+		"containers":     getContainers,
+		"images":         getImages,
+		"volumes":        getVolumes,
+		"build_cache":    getBuildCache,
+		"verbose":        verbose,
+		"legacy_fields":  legacyFields,
+		"legacy_version": versions.LessThan(version, "1.52"),
+	}).Debug("system disk usage request")
 
 	eg, ctx := errgroup.WithContext(ctx)
 
@@ -219,6 +230,41 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 	diskUsage.BuildCache = buildCacheUsage
+
+	fields := log.Fields{
+		"version":       version,
+		"verbose":       verbose,
+		"legacy_fields": legacyFields,
+	}
+	if diskUsage.Containers != nil {
+		fields["container_active_count"] = diskUsage.Containers.ActiveCount
+		fields["container_total_count"] = diskUsage.Containers.TotalCount
+		fields["container_total_size"] = diskUsage.Containers.TotalSize
+		fields["container_reclaimable"] = diskUsage.Containers.Reclaimable
+		fields["container_items"] = len(diskUsage.Containers.Items)
+	}
+	if diskUsage.Images != nil {
+		fields["image_active_count"] = diskUsage.Images.ActiveCount
+		fields["image_total_count"] = diskUsage.Images.TotalCount
+		fields["image_total_size"] = diskUsage.Images.TotalSize
+		fields["image_reclaimable"] = diskUsage.Images.Reclaimable
+		fields["image_items"] = len(diskUsage.Images.Items)
+	}
+	if diskUsage.Volumes != nil {
+		fields["volume_active_count"] = diskUsage.Volumes.ActiveCount
+		fields["volume_total_count"] = diskUsage.Volumes.TotalCount
+		fields["volume_total_size"] = diskUsage.Volumes.TotalSize
+		fields["volume_reclaimable"] = diskUsage.Volumes.Reclaimable
+		fields["volume_items"] = len(diskUsage.Volumes.Items)
+	}
+	if diskUsage.BuildCache != nil {
+		fields["build_cache_active_count"] = diskUsage.BuildCache.ActiveCount
+		fields["build_cache_total_count"] = diskUsage.BuildCache.TotalCount
+		fields["build_cache_total_size"] = diskUsage.BuildCache.TotalSize
+		fields["build_cache_reclaimable"] = diskUsage.BuildCache.Reclaimable
+		fields["build_cache_items"] = len(diskUsage.BuildCache.Items)
+	}
+	log.G(ctx).WithFields(fields).Debug("system disk usage response")
 
 	var legacy legacyDiskUsage
 	if legacyFields {

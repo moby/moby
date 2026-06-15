@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/server/backend"
@@ -46,7 +47,26 @@ func (daemon *Daemon) containerDiskUsage(ctx context.Context, verbose bool) (*ba
 
 		if verbose {
 			du.Items = containers
+			for _, c := range containers {
+				log.G(ctx).WithFields(log.Fields{
+					"container":   c.ID,
+					"image":       c.Image,
+					"image_id":    c.ImageID,
+					"names":       c.Names,
+					"rw_size":     c.SizeRw,
+					"rootfs_size": c.SizeRootFs,
+					"state":       c.State,
+				}).Debug("container disk usage item")
+			}
 		}
+
+		log.G(ctx).WithFields(log.Fields{
+			"active_count": du.ActiveCount,
+			"total_count":  du.TotalCount,
+			"total_size":   du.TotalSize,
+			"reclaimable":  du.Reclaimable,
+			"verbose":      verbose,
+		}).Debug("container disk usage summary")
 
 		return du, nil
 	})
@@ -92,7 +112,24 @@ func (daemon *Daemon) imageDiskUsage(ctx context.Context, verbose bool) (*backen
 
 		if verbose {
 			du.Items = images
+			for _, img := range images {
+				log.G(ctx).WithFields(log.Fields{
+					"image":       img.ID,
+					"repo_tags":   img.RepoTags,
+					"size":        img.Size,
+					"shared_size": img.SharedSize,
+					"containers":  img.Containers,
+				}).Debug("image disk usage item")
+			}
 		}
+
+		log.G(ctx).WithFields(log.Fields{
+			"active_count": du.ActiveCount,
+			"total_count":  du.TotalCount,
+			"total_size":   du.TotalSize,
+			"reclaimable":  du.Reclaimable,
+			"verbose":      verbose,
+		}).Debug("image disk usage summary")
 
 		return du, nil
 	})
@@ -162,6 +199,32 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context, opts backend.DiskUsag
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
+
+	fields := log.Fields{
+		"containers_requested": opts.Containers,
+		"images_requested":     opts.Images,
+		"volumes_requested":    opts.Volumes,
+		"verbose":              opts.Verbose,
+	}
+	if du.Containers != nil {
+		fields["container_active_count"] = du.Containers.ActiveCount
+		fields["container_total_count"] = du.Containers.TotalCount
+		fields["container_total_size"] = du.Containers.TotalSize
+		fields["container_reclaimable"] = du.Containers.Reclaimable
+	}
+	if du.Images != nil {
+		fields["image_active_count"] = du.Images.ActiveCount
+		fields["image_total_count"] = du.Images.TotalCount
+		fields["image_total_size"] = du.Images.TotalSize
+		fields["image_reclaimable"] = du.Images.Reclaimable
+	}
+	if du.Volumes != nil {
+		fields["volume_active_count"] = du.Volumes.ActiveCount
+		fields["volume_total_count"] = du.Volumes.TotalCount
+		fields["volume_total_size"] = du.Volumes.TotalSize
+		fields["volume_reclaimable"] = du.Volumes.Reclaimable
+	}
+	log.G(ctx).WithFields(fields).Debug("system disk usage backend result")
 
 	return du, nil
 }
