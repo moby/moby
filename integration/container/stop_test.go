@@ -41,8 +41,13 @@ func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 		assert.NilError(t, err)
 	}
 
+	var pollOpts []poll.SettingOp
+	if testEnv.DaemonInfo.OSType == "windows" {
+		pollOpts = append(pollOpts, poll.WithTimeout(StopContainerWindowsPollTimeout))
+	}
+
 	for _, name := range names {
-		poll.WaitOn(t, container.IsStopped(ctx, apiClient, name))
+		poll.WaitOn(t, container.IsStopped(ctx, apiClient, name), pollOpts...)
 	}
 }
 
