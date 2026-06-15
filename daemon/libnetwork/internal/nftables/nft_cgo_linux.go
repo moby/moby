@@ -1,4 +1,4 @@
-//go:build cgo && !static_build && !no_libnftables
+//go:build cgo && !static_build && libnftables
 
 package nftables
 
