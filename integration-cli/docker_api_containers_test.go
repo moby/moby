@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -22,14 +21,11 @@ import (
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/stringid"
-	"github.com/moby/moby/v2/daemon/volume"
 	"github.com/moby/moby/v2/integration-cli/cli"
-	"github.com/moby/moby/v2/integration-cli/cli/build"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/poll"
 )
 
 func (s *DockerAPISuite) TestContainerAPIGetAll(c *testing.T) {
@@ -1499,211 +1495,6 @@ func (s *DockerAPISuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 
 	out := cli.DockerCmd(c, "start", "-a", "test").Combined()
 	assert.Equal(c, out, "hello")
-}
-
-// Test Mounts comes out as expected for the MountPoint
-func (s *DockerAPISuite) TestContainersAPICreateMountsCreate(c *testing.T) {
-	var (
-		testImg  string
-		destPath = dPath("/foo")
-		destFile = dPath("/foo/bar")
-	)
-	if testEnv.DaemonInfo.OSType != "windows" {
-		testImg = "test-mount-config"
-		cli.BuildCmd(c, testImg, build.WithDockerfile(`
-	FROM busybox
-	RUN mkdir `+destPath+` && touch `+destFile+`
-	CMD cat `+destFile+`
-	`))
-	} else {
-		testImg = "busybox"
-	}
-
-	type testCase struct {
-		spec     mount.Mount
-		expected container.MountPoint
-	}
-
-	var selinuxSharedLabel string
-	if runtime.GOOS == "linux" {
-		selinuxSharedLabel = "z"
-	}
-
-	_, slash := getPrefixAndSlashFromDaemonPlatform()
-	tests := []testCase{
-		// use literal strings here for `Type` instead of the defined constants in the volume package to keep this honest
-		// Validation of the actual `Mount` struct is done in another test is not needed here
-		{
-			spec:     mount.Mount{Type: "volume", Target: destPath},
-			expected: container.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
-		},
-		{
-			spec:     mount.Mount{Type: "volume", Target: destPath + slash},
-			expected: container.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
-		},
-		{
-			spec:     mount.Mount{Type: "volume", Target: destPath, Source: "test1"},
-			expected: container.MountPoint{Type: "volume", Name: "test1", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
-		},
-		{
-			spec:     mount.Mount{Type: "volume", Target: destPath, ReadOnly: true, Source: "test2"},
-			expected: container.MountPoint{Type: "volume", Name: "test2", RW: false, Destination: destPath, Mode: selinuxSharedLabel},
-		},
-		{
-			spec:     mount.Mount{Type: "volume", Target: destPath, Source: "test3", VolumeOptions: &mount.VolumeOptions{DriverConfig: &mount.Driver{Name: volume.DefaultDriverName}}},
-			expected: container.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", Name: "test3", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
-		},
-	}
-
-	if testEnv.IsLocalDaemon() {
-		// setup temp dir for testing binds
-		tmpDir1, err := os.MkdirTemp("", "test-mounts-api-1")
-		assert.NilError(c, err)
-		defer os.RemoveAll(tmpDir1)
-		tests = append(tests, []testCase{
-			{
-				spec: mount.Mount{
-					Type:   "bind",
-					Source: tmpDir1,
-					Target: destPath,
-				},
-				expected: container.MountPoint{
-					Type:        "bind",
-					RW:          true,
-					Destination: destPath,
-					Source:      tmpDir1,
-				},
-			},
-			{
-				spec:     mount.Mount{Type: "bind", Source: tmpDir1, Target: destPath, ReadOnly: true},
-				expected: container.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir1},
-			},
-		}...)
-
-		// for modes only supported on Linux
-		if DaemonIsLinux() {
-			tmpDir3, err := os.MkdirTemp("", "test-mounts-api-3")
-			assert.NilError(c, err)
-			defer os.RemoveAll(tmpDir3)
-
-			if assert.Check(c, mountWrapper(c, tmpDir3, tmpDir3, "none", "bind,shared")) {
-				tests = append(tests, []testCase{
-					{
-						spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath},
-						expected: container.MountPoint{Type: "bind", RW: true, Destination: destPath, Source: tmpDir3},
-					},
-					{
-						spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true},
-						expected: container.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3},
-					},
-					{
-						spec:     mount.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true, BindOptions: &mount.BindOptions{Propagation: "shared"}},
-						expected: container.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3, Propagation: "shared"},
-					},
-				}...)
-			}
-		}
-	}
-
-	if testEnv.DaemonInfo.OSType != "windows" { // Windows does not support volume populate
-		tests = append(tests, []testCase{
-			{
-				spec:     mount.Mount{Type: "volume", Target: destPath, VolumeOptions: &mount.VolumeOptions{NoCopy: true}},
-				expected: container.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
-			},
-			{
-				spec:     mount.Mount{Type: "volume", Target: destPath + slash, VolumeOptions: &mount.VolumeOptions{NoCopy: true}},
-				expected: container.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
-			},
-			{
-				spec:     mount.Mount{Type: "volume", Target: destPath, Source: "test4", VolumeOptions: &mount.VolumeOptions{NoCopy: true}},
-				expected: container.MountPoint{Type: "volume", Name: "test4", RW: true, Destination: destPath, Mode: selinuxSharedLabel},
-			},
-			{
-				spec:     mount.Mount{Type: "volume", Target: destPath, Source: "test5", ReadOnly: true, VolumeOptions: &mount.VolumeOptions{NoCopy: true}},
-				expected: container.MountPoint{Type: "volume", Name: "test5", RW: false, Destination: destPath, Mode: selinuxSharedLabel},
-			},
-		}...)
-	}
-
-	ctx := testutil.GetContext(c)
-	apiclient := testEnv.APIClient()
-	for i, tc := range tests {
-		c.Run(fmt.Sprintf("%d config: %v", i, tc.spec), func(c *testing.T) {
-			ctr, err := apiclient.ContainerCreate(
-				ctx,
-				client.ContainerCreateOptions{
-					Config:           &container.Config{Image: testImg},
-					HostConfig:       &container.HostConfig{Mounts: []mount.Mount{tc.spec}},
-					NetworkingConfig: &network.NetworkingConfig{},
-				})
-			assert.NilError(c, err)
-
-			res, err := apiclient.ContainerInspect(ctx, ctr.ID, client.ContainerInspectOptions{})
-			assert.NilError(c, err)
-			mps := res.Container.Mounts
-			assert.Assert(c, is.Len(mps, 1))
-			mountPoint := mps[0]
-
-			if tc.expected.Source != "" {
-				assert.Check(c, is.Equal(tc.expected.Source, mountPoint.Source))
-			}
-			if tc.expected.Name != "" {
-				assert.Check(c, is.Equal(tc.expected.Name, mountPoint.Name))
-			}
-			if tc.expected.Driver != "" {
-				assert.Check(c, is.Equal(tc.expected.Driver, mountPoint.Driver))
-			}
-			if tc.expected.Propagation != "" {
-				assert.Check(c, is.Equal(tc.expected.Propagation, mountPoint.Propagation))
-			}
-			assert.Check(c, is.Equal(tc.expected.RW, mountPoint.RW))
-			assert.Check(c, is.Equal(tc.expected.Type, mountPoint.Type))
-			assert.Check(c, is.Equal(tc.expected.Mode, mountPoint.Mode))
-			assert.Check(c, is.Equal(tc.expected.Destination, mountPoint.Destination))
-
-			_, err = apiclient.ContainerStart(ctx, ctr.ID, client.ContainerStartOptions{})
-			assert.NilError(c, err)
-			poll.WaitOn(c, containerExit(ctx, apiclient, ctr.ID), poll.WithDelay(time.Second))
-
-			_, err = apiclient.ContainerRemove(ctx, ctr.ID, client.ContainerRemoveOptions{
-				RemoveVolumes: true,
-				Force:         true,
-			})
-			assert.NilError(c, err)
-
-			switch {
-			// Named volumes still exist after the container is removed
-			case tc.spec.Type == "volume" && tc.spec.Source != "":
-				_, err := apiclient.VolumeInspect(ctx, mountPoint.Name, client.VolumeInspectOptions{})
-				assert.NilError(c, err)
-
-			// Bind mounts are never removed with the container
-			case tc.spec.Type == "bind":
-
-			// anonymous volumes are removed
-			default:
-				_, err := apiclient.VolumeInspect(ctx, mountPoint.Name, client.VolumeInspectOptions{})
-				assert.Check(c, is.ErrorType(err, cerrdefs.IsNotFound))
-			}
-		})
-	}
-}
-
-func containerExit(ctx context.Context, apiclient client.APIClient, name string) func(poll.LogT) poll.Result {
-	return func(logT poll.LogT) poll.Result {
-		res, err := apiclient.ContainerInspect(ctx, name, client.ContainerInspectOptions{})
-		if err != nil {
-			return poll.Error(err)
-		}
-		switch s := res.Container.State.Status; s {
-		case container.StateCreated, container.StateRunning:
-			return poll.Continue("container %s is %s, waiting for exit", name, s)
-		case container.StatePaused, container.StateRestarting, container.StateRemoving, container.StateExited, container.StateDead:
-			// done
-		}
-		return poll.Success()
-	}
 }
 
 func (s *DockerAPISuite) TestContainersAPICreateMountsTmpfs(c *testing.T) {

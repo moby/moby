@@ -15,7 +15,6 @@ import (
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
-	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -78,9 +77,4 @@ func (s *DockerAPISuite) TestContainersAPICreateMountsBindNamedPipe(c *testing.T
 	err = <-ch
 	assert.NilError(c, err)
 	assert.Check(c, is.Equal(text, strings.TrimSpace(string(b))))
-}
-
-func mountWrapper(t *testing.T, device, target, mType, options string) error {
-	// This should never be called.
-	return errors.Errorf("there is no implementation of Mount on this platform")
 }
