@@ -24,6 +24,7 @@ import (
 	policyverifier "github.com/moby/policy-helpers"
 	"github.com/moby/sys/user"
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -162,19 +163,64 @@ func (i *ImageService) StorageDriver() string {
 // ImageDiskUsage returns the number of bytes used by content and layer stores
 // called from disk_usage.go
 func (i *ImageService) ImageDiskUsage(ctx context.Context) (int64, error) {
-	diskUsage, err := i.layerDiskUsage(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	// Include the size of content size from the images.
 	imgs, err := i.images.List(ctx)
 	if err != nil {
 		return 0, err
 	}
 
+	var diskUsage int64
+	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
+	snapshotter := i.client.SnapshotService(i.snapshotter)
+	visitedSnapshots := make(map[string]struct{})
 	visitedImages := make(map[digest.Digest]struct{})
 	for _, img := range imgs {
+		platformImg, err := i.NewImageManifest(ctx, img, img.Target)
+		if err != nil {
+			return 0, err
+		}
+		unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
+		if err != nil {
+			return 0, err
+		}
+		if unpacked {
+			diffIDs, err := platformImg.RootFS(ctx)
+			if err != nil {
+				return 0, err
+			}
+
+			for snapshot := identity.ChainID(diffIDs).String(); snapshot != ""; {
+				if _, ok := visitedSnapshots[snapshot]; ok {
+					break
+				}
+				visitedSnapshots[snapshot] = struct{}{}
+
+				usage, err := snapshotter.Usage(ctx, snapshot)
+				if err != nil {
+					if cerrdefs.IsNotFound(err) {
+						break
+					}
+					return 0, err
+				}
+				diskUsage += usage.Size
+
+				info, err := snapshotter.Stat(ctx, snapshot)
+				if err != nil {
+					if cerrdefs.IsNotFound(err) {
+						break
+					}
+					return 0, err
+				}
+				log.G(ctx).WithFields(log.Fields{
+					"image":    img.Name,
+					"snapshot": snapshot,
+					"size":     usage.Size,
+					"inodes":   usage.Inodes,
+				}).Debug("counting snapshot in image disk usage")
+				snapshot = info.Parent
+			}
+		}
+
+		// Include the size of content size from the images.
 		if err := i.walkPresentChildren(ctx, img.Target, func(ctx context.Context, desc ocispec.Descriptor) error {
 			if _, ok := visitedImages[desc.Digest]; ok {
 				return nil
@@ -188,38 +234,6 @@ func (i *ImageService) ImageDiskUsage(ctx context.Context) (int64, error) {
 		}
 	}
 	return diskUsage, nil
-}
-
-// LayerDiskUsage returns the number of bytes used by layer stores
-// called from disk_usage.go
-func (i *ImageService) layerDiskUsage(ctx context.Context) (allLayersSize int64, err error) {
-	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
-	snapshotter := i.client.SnapshotService(i.snapshotter)
-	err = snapshotter.Walk(ctx, func(ctx context.Context, info snapshots.Info) error {
-		usage, err := snapshotter.Usage(ctx, info.Name)
-		if err != nil {
-			// Snapshot may have been deleted already.
-			if cerrdefs.IsNotFound(err) {
-				return nil
-			}
-			return err
-		}
-		log.G(ctx).WithFields(log.Fields{
-			"snapshot_info":  info,
-			"snapshot_usage": usage,
-			"name":           info.Name,
-			"parent":         info.Parent,
-			"kind":           info.Kind,
-			"labels":         info.Labels,
-			"created":        info.Created,
-			"updated":        info.Updated,
-			"size":           usage.Size,
-			"inodes":         usage.Inodes,
-		}).Debug("counting snapshot in image disk usage")
-		allLayersSize += usage.Size
-		return nil
-	})
-	return allLayersSize, err
 }
 
 // UpdateConfig values
