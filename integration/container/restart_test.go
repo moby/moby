@@ -269,13 +269,14 @@ func testContainerRestartWithCancelledRequest(ctx context.Context, t *testing.T,
 	// the container. We're trying to create the scenario where the "stop" is
 	// handled, but the request was cancelled and therefore the "start" not
 	// taking place.
-	cID := testContainer.Run(ctx, t, apiClient, testContainer.WithCmd("sh", "-c", "trap 'echo received TERM' TERM; while true; do usleep 10; done"))
+	cID := testContainer.Run(ctx, t, apiClient, testContainer.WithCmd("sh", "-c", "trap 'echo received TERM' TERM; echo ready; while true; do usleep 10; done"))
 	defer func() {
 		_, err := apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{Force: true})
 		if t.Failed() && err != nil {
 			t.Logf("Cleaning up test container failed with error: %v", err)
 		}
 	}()
+	poll.WaitOn(t, logsContains(ctx, apiClient, cID, "ready"))
 
 	// Start listening for events.
 	result := apiClient.Events(ctx, client.EventsListOptions{
