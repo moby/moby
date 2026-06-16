@@ -202,6 +202,40 @@ func TestImageListCheckTotalSize(t *testing.T) {
 	})
 }
 
+func TestImageDiskUsageWithIndexTarget(t *testing.T) {
+	ctx := namespaces.WithNamespace(t.Context(), "testing-"+t.Name())
+
+	blobsDir := t.TempDir()
+	idx, _, err := specialimage.MultiPlatform(blobsDir, "test:latest", []ocispec.Platform{
+		{OS: "linux", Architecture: "arm64"},
+		{OS: "linux", Architecture: "amd64"},
+	})
+	assert.NilError(t, err)
+
+	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
+	service := fakeImageService(t, ctx, cs)
+
+	img, err := service.images.Create(ctx, imagesFromIndex(idx)[0])
+	assert.NilError(t, err)
+
+	var expected int64
+	visited := map[digest.Digest]struct{}{}
+	err = service.walkPresentChildren(ctx, img.Target, func(_ context.Context, desc ocispec.Descriptor) error {
+		if _, ok := visited[desc.Digest]; ok {
+			return nil
+		}
+		visited[desc.Digest] = struct{}{}
+
+		expected += desc.Size
+		return nil
+	})
+	assert.NilError(t, err)
+
+	usage, err := service.ImageDiskUsage(ctx)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(usage, expected))
+}
+
 func blobSize(t *testing.T, ctx context.Context, cs content.Store, dgst digest.Digest) int64 {
 	info, err := cs.Info(ctx, dgst)
 	assert.NilError(t, err)
