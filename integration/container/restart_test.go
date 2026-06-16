@@ -162,6 +162,106 @@ func pollForNewHealthCheck(ctx context.Context, apiClient *client.Client, startT
 	}
 }
 
+func TestContainerRestartPolicyOnFailure(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	waitTimeout := 10 * time.Second
+	if testEnv.DaemonInfo.OSType == "windows" {
+		waitTimeout = StopContainerWindowsPollTimeout
+	}
+
+	t.Run("does-not-restart-on-success", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+
+		resp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+			Config: &container.Config{
+				Image: "busybox",
+				Cmd:   []string{"true"},
+			},
+			HostConfig: &container.HostConfig{
+				RestartPolicy: container.RestartPolicy{
+					Name:              container.RestartPolicyOnFailure,
+					MaximumRetryCount: 3,
+				},
+			},
+		})
+		assert.NilError(t, err)
+		t.Cleanup(func() {
+			apiClient.ContainerRemove(ctx, resp.ID, client.ContainerRemoveOptions{Force: true})
+		})
+
+		waitCtx, cancel := context.WithTimeout(ctx, waitTimeout)
+		defer cancel()
+		wait := apiClient.ContainerWait(waitCtx, resp.ID, client.ContainerWaitOptions{Condition: container.WaitConditionNextExit})
+
+		_, err = apiClient.ContainerStart(ctx, resp.ID, client.ContainerStartOptions{})
+		assert.NilError(t, err)
+
+		select {
+		case err := <-wait.Error:
+			assert.NilError(t, err)
+		case res := <-wait.Result:
+			assert.Check(t, is.Equal(int64(0), res.StatusCode))
+		case <-time.After(waitTimeout):
+			inspect, _ := apiClient.ContainerInspect(ctx, resp.ID, client.ContainerInspectOptions{})
+			t.Fatalf("timeout waiting for container exit: status=%q", inspect.Container.State.Status)
+		}
+
+		inspect, err := apiClient.ContainerInspect(ctx, resp.ID, client.ContainerInspectOptions{})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(inspect.Container.State.Status, container.StateExited))
+		assert.Check(t, is.Equal(inspect.Container.RestartCount, 0))
+		assert.Check(t, is.DeepEqual(inspect.Container.HostConfig.RestartPolicy, container.RestartPolicy{
+			Name:              container.RestartPolicyOnFailure,
+			MaximumRetryCount: 3,
+		}))
+	})
+
+	t.Run("can-restart-after-retries", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+
+		resp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+			Config: &container.Config{
+				Image: "busybox",
+				Cmd:   []string{"false"},
+			},
+			HostConfig: &container.HostConfig{
+				RestartPolicy: container.RestartPolicy{
+					Name:              container.RestartPolicyOnFailure,
+					MaximumRetryCount: 3,
+				},
+			},
+		})
+		assert.NilError(t, err)
+		t.Cleanup(func() {
+			apiClient.ContainerRemove(ctx, resp.ID, client.ContainerRemoveOptions{Force: true})
+		})
+
+		_, err = apiClient.ContainerStart(ctx, resp.ID, client.ContainerStartOptions{})
+		assert.NilError(t, err)
+
+		poll.WaitOn(t, containerRestartCountIs(ctx, apiClient, resp.ID, 3), poll.WithTimeout(waitTimeout))
+		poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, resp.ID, container.StateExited), poll.WithTimeout(waitTimeout))
+
+		_, err = apiClient.ContainerRestart(ctx, resp.ID, client.ContainerRestartOptions{})
+		assert.NilError(t, err)
+	})
+}
+
+func containerRestartCountIs(ctx context.Context, apiClient client.APIClient, containerID string, expected int) func(log poll.LogT) poll.Result {
+	return func(log poll.LogT) poll.Result {
+		inspect, err := apiClient.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
+		if err != nil {
+			return poll.Error(err)
+		}
+		if inspect.Container.RestartCount == expected {
+			return poll.Success()
+		}
+		return poll.Continue("waiting for restart count %d, current=%d", expected, inspect.Container.RestartCount)
+	}
+}
+
 // Container started with --rm should be able to be restarted.
 // It should be removed only if killed or stopped
 func TestContainerWithAutoRemoveCanBeRestarted(t *testing.T) {

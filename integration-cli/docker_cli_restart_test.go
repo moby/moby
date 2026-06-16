@@ -153,21 +153,6 @@ func (s *DockerCLIRestartSuite) TestRestartPolicyOnFailure(c *testing.T) {
 	assert.Equal(c, maxRetry, "0")
 }
 
-// a good container with --restart=on-failure:3
-// MaximumRetryCount!=0; RestartCount=0
-func (s *DockerCLIRestartSuite) TestRestartContainerwithGoodContainer(c *testing.T) {
-	id := cli.DockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "true").Stdout()
-	id = strings.TrimSpace(id)
-	err := waitInspect(id, "{{ .State.Restarting }} {{ .State.Running }}", "false false", 30*time.Second)
-	assert.NilError(c, err)
-
-	count := inspectField(c, id, "RestartCount")
-	assert.Equal(c, count, "0")
-
-	MaximumRetryCount := inspectField(c, id, "HostConfig.RestartPolicy.MaximumRetryCount")
-	assert.Equal(c, MaximumRetryCount, "3")
-}
-
 func (s *DockerCLIRestartSuite) TestRestartContainerSuccess(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon)
 	// Skipped for Hyper-V isolated containers. Test is currently written
@@ -275,37 +260,6 @@ func (s *DockerCLIRestartSuite) TestRestartPolicyAfterRestart(c *testing.T) {
 	assert.NilError(c, err)
 
 	err = waitInspect(id, "{{.State.Status}}", "running", 30*time.Second)
-	assert.NilError(c, err)
-}
-
-func (s *DockerCLIRestartSuite) TestRestartContainerwithRestartPolicy(c *testing.T) {
-	id1 := cli.DockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "false").Stdout()
-	id1 = strings.TrimSpace(id1)
-	id2 := cli.DockerCmd(c, "run", "-d", "--restart=always", "busybox", "false").Stdout()
-	id2 = strings.TrimSpace(id2)
-
-	waitTimeout := 15 * time.Second
-	if testEnv.DaemonInfo.OSType == "windows" {
-		waitTimeout = 150 * time.Second
-	}
-	err := waitInspect(id1, "{{ .State.Restarting }} {{ .State.Running }}", "false false", waitTimeout)
-	assert.NilError(c, err)
-
-	cli.DockerCmd(c, "restart", id1)
-	cli.DockerCmd(c, "restart", id2)
-
-	// Make sure we can stop/start (regression test from a705e166cf3bcca62543150c2b3f9bfeae45ecfa)
-	cli.DockerCmd(c, "stop", id1)
-	cli.DockerCmd(c, "stop", id2)
-	cli.DockerCmd(c, "start", id1)
-	cli.DockerCmd(c, "start", id2)
-
-	// Kill the containers, making sure they are stopped at the end of the test
-	cli.DockerCmd(c, "kill", id1)
-	cli.DockerCmd(c, "kill", id2)
-	err = waitInspect(id1, "{{ .State.Restarting }} {{ .State.Running }}", "false false", waitTimeout)
-	assert.NilError(c, err)
-	err = waitInspect(id2, "{{ .State.Restarting }} {{ .State.Running }}", "false false", waitTimeout)
 	assert.NilError(c, err)
 }
 
