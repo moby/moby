@@ -3,26 +3,40 @@ set -e -o pipefail
 
 source hack/validate/.validate
 
+added_tests() {
+	validate_diff --diff-filter=ACMR --unified=0 -- 'integration/*_test.go' \
+		| grep -E '^(\+func Test)(.*)(\*testing\.T\))' \
+		| sed -E 's/^\+func (Test[A-Za-z0-9_]*).*/\1/' \
+		|| true
+}
+
+changed_tests() {
+	validate_diff --diff-filter=ACMR --function-context -- 'integration/*_test.go' \
+		| grep -E '^ func Test[A-Za-z0-9_]*\(.*\*testing\.T\)' \
+		| sed -E 's/^ func (Test[A-Za-z0-9_]*).*/\1/' \
+		|| true
+}
+
 run_integration_flaky() {
-	diff=$(
-		validate_diff --diff-filter=ACMR --unified=0 -- 'integration/*_test.go'
-	)
-	new_tests=$(
-		printf '%s\n' "$diff" | grep -E '^(\+func Test)(.*)(\*testing\.T\))' || true
+	tests=$(
+		{
+			added_tests
+			changed_tests
+		} | sort -u
 	)
 
-	if [ -z "$new_tests" ]; then
-		echo 'No new tests added to integration.'
+	if [ -z "$tests" ]; then
+		echo 'No new or modified tests found in integration.'
 		return
 	fi
 
 	echo
-	echo "Found new integrations tests:"
-	echo "$new_tests"
+	echo "Found new or modified integration tests:"
+	echo "$tests"
 	echo "Running stress test for them."
 
 	(
-		TESTARRAY=$(echo "$new_tests" | sed 's/+func //' | awk -F'\\(' '{print $1}' | tr '\n' '|')
+		TESTARRAY=$(echo "$tests" | tr '\n' '|')
 		# Note: TEST_REPEAT will make the test suite run 5 times, restarting the daemon
 		# and each test will run 5 times in a row under the same daemon.
 		# This will make a total of 25 runs for each test in TESTARRAY.
