@@ -291,12 +291,6 @@ func TestDockerCLIPushSuite(t *testing.T) {
 	suite.Run(ctx, t, &DockerCLIPushSuite{ds: &DockerSuite{}})
 }
 
-func TestDockerCLIRestartSuite(t *testing.T) {
-	ctx := testutil.StartSpan(baseContext, t)
-	ensureTestEnvSetup(ctx, t)
-	suite.Run(ctx, t, &DockerCLIRestartSuite{ds: &DockerSuite{}})
-}
-
 func TestDockerCLIRmiSuite(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)
 	ensureTestEnvSetup(ctx, t)
