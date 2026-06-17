@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/events"
@@ -184,6 +185,39 @@ var acceptedPruneFilters = map[string]bool{
 	"all": true,
 }
 
+// pruneLeaseTimeout is the maximum duration a prune operation may hold the
+// lease before it is considered stale and may be overridden by a new prune.
+const pruneLeaseTimeout = 5 * time.Minute
+
+// acquirePruneLease attempts to acquire the prune lease. It returns true if the
+// lease was acquired (either because no prune is running or the previous lease
+// has expired). If another prune is actively running within the lease timeout,
+// it returns false.
+func (s *VolumesService) acquirePruneLease() bool {
+	now := time.Now().UnixNano()
+	for {
+		current := s.pruneRunning.Load()
+		if current != 0 {
+			// A prune is running. Check if the lease has expired.
+			elapsed := time.Duration(now - current)
+			if elapsed < pruneLeaseTimeout {
+				return false
+			}
+			// Lease expired, try to take over.
+		}
+		if s.pruneRunning.CompareAndSwap(current, now) {
+			return true
+		}
+		// CAS failed, loop and retry.
+	}
+}
+
+// releasePruneLease releases the prune lease so that future prune operations
+// may proceed.
+func (s *VolumesService) releasePruneLease() {
+	s.pruneRunning.Store(0)
+}
+
 var acceptedListFilters = map[string]bool{
 	"dangling": true,
 	"name":     true,
@@ -210,10 +244,10 @@ func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]volumetypes.Vo
 // Note that this intentionally skips volumes with mount options as there would
 // be no space reclaimed in this case.
 func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*volumetypes.PruneReport, error) {
-	if !s.pruneRunning.CompareAndSwap(false, true) {
+	if !s.acquirePruneLease() {
 		return nil, errdefs.Conflict(errors.New("a prune operation is already running"))
 	}
-	defer s.pruneRunning.Store(false)
+	defer s.releasePruneLease()
 
 	if err := withPrune(filter); err != nil {
 		return nil, err

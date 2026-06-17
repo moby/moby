@@ -29,14 +29,47 @@ var (
 		"label!": true,
 		"until":  true,
 	}
+
+	// pruneLeaseTimeout is the maximum duration a prune operation may hold the
+	// lease before it is considered stale and may be overridden by a new prune.
+	pruneLeaseTimeout = 5 * time.Minute
 )
+
+// acquirePruneLease attempts to acquire the prune lease. It returns true if the
+// lease was acquired (either because no prune is running or the previous lease
+// has expired). If another prune is actively running within the lease timeout,
+// it returns false.
+func (daemon *Daemon) acquirePruneLease() bool {
+	now := time.Now().UnixNano()
+	for {
+		current := daemon.pruneRunning.Load()
+		if current != 0 {
+			// A prune is running. Check if the lease has expired.
+			elapsed := time.Duration(now - current)
+			if elapsed < pruneLeaseTimeout {
+				return false
+			}
+			// Lease expired, try to take over.
+		}
+		if daemon.pruneRunning.CompareAndSwap(current, now) {
+			return true
+		}
+		// CAS failed, loop and retry.
+	}
+}
+
+// releasePruneLease releases the prune lease so that future prune operations
+// may proceed.
+func (daemon *Daemon) releasePruneLease() {
+	daemon.pruneRunning.Store(0)
+}
 
 // ContainerPrune removes unused containers
 func (daemon *Daemon) ContainerPrune(ctx context.Context, pruneFilters filters.Args) (*container.PruneReport, error) {
-	if !daemon.pruneRunning.CompareAndSwap(false, true) {
+	if !daemon.acquirePruneLease() {
 		return nil, errPruneRunning
 	}
-	defer daemon.pruneRunning.Store(false)
+	defer daemon.releasePruneLease()
 
 	rep := &container.PruneReport{}
 
@@ -174,10 +207,10 @@ func (daemon *Daemon) clusterNetworkPrune(ctx context.Context, pruneFilters dnet
 
 // NetworkPrune removes unused networks
 func (daemon *Daemon) NetworkPrune(ctx context.Context, filterArgs filters.Args) (*network.PruneReport, error) {
-	if !daemon.pruneRunning.CompareAndSwap(false, true) {
+	if !daemon.acquirePruneLease() {
 		return nil, errPruneRunning
 	}
-	defer daemon.pruneRunning.Store(false)
+	defer daemon.releasePruneLease()
 
 	pruneFilters, err := dnetwork.NewPruneFilter(filterArgs)
 	if err != nil {

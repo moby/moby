@@ -78,7 +78,7 @@ type ImageService struct {
 	eventsService             *daemonevents.Events
 	imageStore                image.Store
 	layerStore                layer.Store
-	pruneRunning              atomic.Bool
+	pruneRunning              atomic.Int64
 	referenceStore            refstore.Store
 	registryService           distribution.RegistryResolver
 	uploadManager             *xfer.LayerUploadManager

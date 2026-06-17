@@ -39,7 +39,7 @@ type ImageService struct {
 	registryHosts       docker.RegistryHosts
 	registryService     distribution.RegistryResolver
 	eventsService       *daemonevents.Events
-	pruneRunning        atomic.Bool
+	pruneRunning        atomic.Int64
 	refCountMounter     snapshotter.Mounter
 	idMapping           user.IdentityMapping
 	policyVerifier      func() (*policyverifier.Verifier, error)

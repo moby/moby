@@ -32,12 +32,45 @@ var imagesAcceptedFilters = map[string]bool{
 // one is in progress
 var errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already running"))
 
+// pruneLeaseTimeout is the maximum duration a prune operation may hold the
+// lease before it is considered stale and may be overridden by a new prune.
+const pruneLeaseTimeout = 5 * time.Minute
+
+// acquirePruneLease attempts to acquire the prune lease. It returns true if the
+// lease was acquired (either because no prune is running or the previous lease
+// has expired). If another prune is actively running within the lease timeout,
+// it returns false.
+func (i *ImageService) acquirePruneLease() bool {
+	now := time.Now().UnixNano()
+	for {
+		current := i.pruneRunning.Load()
+		if current != 0 {
+			// A prune is running. Check if the lease has expired.
+			elapsed := time.Duration(now - current)
+			if elapsed < pruneLeaseTimeout {
+				return false
+			}
+			// Lease expired, try to take over.
+		}
+		if i.pruneRunning.CompareAndSwap(current, now) {
+			return true
+		}
+		// CAS failed, loop and retry.
+	}
+}
+
+// releasePruneLease releases the prune lease so that future prune operations
+// may proceed.
+func (i *ImageService) releasePruneLease() {
+	i.pruneRunning.Store(0)
+}
+
 // ImagePrune removes unused images
 func (i *ImageService) ImagePrune(ctx context.Context, pruneFilters filters.Args) (*imagetypes.PruneReport, error) {
-	if !i.pruneRunning.CompareAndSwap(false, true) {
+	if !i.acquirePruneLease() {
 		return nil, errPruneRunning
 	}
-	defer i.pruneRunning.Store(false)
+	defer i.releasePruneLease()
 
 	// make sure that only accepted filters have been received
 	err := pruneFilters.Validate(imagesAcceptedFilters)
