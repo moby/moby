@@ -30,7 +30,7 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	buildkit "github.com/moby/moby/v2/daemon/internal/builder-next"
 	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter"
-	"github.com/moby/moby/v2/daemon/internal/libcontainerd/supervisor"
+	"github.com/moby/moby/v2/daemon/internal/containerd/server/supervisor"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/listeners"
