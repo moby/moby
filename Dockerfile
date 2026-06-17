@@ -108,7 +108,7 @@ WORKDIR /usr/src/delve
 # from the https://github.com/go-delve/delve repository.
 # It can be used to run Docker with a possibility of
 # attaching debugger to it.
-ARG DELVE_VERSION=v1.26.1
+ARG DELVE_VERSION=v1.26.3
 ADD https://github.com/go-delve/delve.git?ref=${DELVE_VERSION}&keep-git-dir=1 .
 
 FROM base AS delve-supported
