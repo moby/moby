@@ -76,6 +76,10 @@ type daemonCLI struct {
 	d               *daemon.Daemon
 	authzMiddleware *authorization.Middleware // authzMiddleware enables to dynamically reload the authorization plugins
 
+	// containerdDialer is the in-memory dialer for the embedded containerd. It
+	// is set in embedded mode and nil otherwise. See [daemon.ContainerdDialer].
+	containerdDialer daemon.ContainerdDialer
+
 	stopOnce     sync.Once
 	apiShutdown  chan struct{}
 	apiTLSConfig *tls.Config
@@ -294,7 +298,7 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	}
 	cli.authzMiddleware = authz
 
-	d, err := daemon.NewDaemon(ctx, cli.Config, pluginStore, cli.authzMiddleware)
+	d, err := daemon.NewDaemon(ctx, cli.Config, pluginStore, cli.authzMiddleware, cli.containerdDialer)
 	if err != nil {
 		return errors.Wrap(err, "failed to start daemon")
 	}

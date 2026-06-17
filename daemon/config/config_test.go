@@ -235,6 +235,16 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			expectedErr: "bad attribute format: one",
 		},
 		{
+			name: "embedded-containerd with cri-containerd",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					Features:      map[string]bool{"embedded-containerd": true},
+					CriContainerd: true,
+				},
+			},
+			expectedErr: errEmbeddedContainerdWithCRI.Error(),
+		},
+		{
 			name: "multiple label without value",
 			config: &Config{
 				CommonConfig: CommonConfig{
@@ -457,6 +467,17 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateEmbeddedContainerdAllowsExplicitAddr(t *testing.T) {
+	cfg := &Config{
+		CommonConfig: CommonConfig{
+			Features:       map[string]bool{"embedded-containerd": true},
+			ContainerdAddr: "/run/containerd/containerd.sock",
+		},
+	}
+
+	assert.NilError(t, Validate(cfg))
 }
 
 func withForceOverwrite(fieldName string) func(config *mergo.Config) {

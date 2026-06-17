@@ -96,6 +96,13 @@ type configStore struct {
 	Runtimes runtimes
 }
 
+// ContainerdDialer dials the in-process containerd over an in-memory pipe.
+//
+// It is set in embedded mode, so the daemon's own client can skip socket
+// syscalls, and is nil otherwise. The signature matches grpc.WithContextDialer,
+// and the address argument is ignored.
+type ContainerdDialer = func(ctx context.Context, addr string) (net.Conn, error)
+
 // Daemon holds information about the Docker daemon.
 type Daemon struct {
 	id                string
@@ -846,7 +853,7 @@ func CheckSystem() error {
 
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
-func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (_ *Daemon, retErr error) {
+func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware, containerdDialer ContainerdDialer) (_ *Daemon, retErr error) {
 	registryService, err := registry.NewService(config.ServiceOptions)
 	if err != nil {
 		return nil, err
@@ -1008,6 +1015,12 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		grpc.WithStatsHandler(tracing.ClientStatsHandler(otelgrpc.WithTracerProvider(otel.GetTracerProvider()))),
 		grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
 		grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
+	}
+	if containerdDialer != nil {
+		// Keep ContainerdAddr as the gRPC target (so containerd.New still
+		// installs its namespace interceptors) but override the connection to
+		// use the in-memory pipe.
+		gopts = append(gopts, grpc.WithContextDialer(containerdDialer))
 	}
 
 	if cfgStore.ContainerdAddr != "" {
