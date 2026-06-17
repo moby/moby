@@ -1,1 +1,1 @@
-Usage: docker run -v /var/run:/var/run  --network host --privileged dockereng/network-diagnostic:support.sh
+Usage: docker run --rm -v /var/run:/var/run --network host --privileged dockereng/network-diagnostic:support.sh
