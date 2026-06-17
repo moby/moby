@@ -19,6 +19,12 @@ const (
 	// The request is missing a required parameter, includes an invalid parameter
 	// value, or is otherwise malformed
 	OAuth2ErrorCodeInvalidRequest OAuth2ErrorCode = "INVALID_REQUEST"
+	// Requested resource was not found
+	OAuth2ErrorCodeResourceNotFound OAuth2ErrorCode = "RESOURCE_NOT_FOUND"
+	// Request conflicts with current state of the resource
+	OAuth2ErrorCodeConflict OAuth2ErrorCode = "CONFLICT"
+	// Request would cause a service quota to be exceeded
+	OAuth2ErrorCodeServiceQuotaExceeded OAuth2ErrorCode = "SERVICE_QUOTA_EXCEEDED"
 )
 
 // Values returns all known values for OAuth2ErrorCode. Note that this can be
@@ -33,5 +39,8 @@ func (OAuth2ErrorCode) Values() []OAuth2ErrorCode {
 		"AUTHCODE_EXPIRED",
 		"server_error",
 		"INVALID_REQUEST",
+		"RESOURCE_NOT_FOUND",
+		"CONFLICT",
+		"SERVICE_QUOTA_EXCEEDED",
 	}
 }

@@ -30,8 +30,32 @@ func (m *validateOpCreateOAuth2Token) HandleInitialize(ctx context.Context, in m
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpDeleteResourcePermissionStatement struct {
+}
+
+func (*validateOpDeleteResourcePermissionStatement) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpDeleteResourcePermissionStatement) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*DeleteResourcePermissionStatementInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpDeleteResourcePermissionStatementInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 func addOpCreateOAuth2TokenValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpCreateOAuth2Token{}, middleware.After)
+}
+
+func addOpDeleteResourcePermissionStatementValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpDeleteResourcePermissionStatement{}, middleware.After)
 }
 
 func validateCreateOAuth2TokenRequestBody(v *types.CreateOAuth2TokenRequestBody) error {
@@ -63,6 +87,21 @@ func validateOpCreateOAuth2TokenInput(v *CreateOAuth2TokenInput) error {
 		if err := validateCreateOAuth2TokenRequestBody(v.TokenInput); err != nil {
 			invalidParams.AddNested("TokenInput", err.(smithy.InvalidParamsError))
 		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpDeleteResourcePermissionStatementInput(v *DeleteResourcePermissionStatementInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "DeleteResourcePermissionStatementInput"}
+	if v.StatementId == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("StatementId"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams
