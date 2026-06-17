@@ -96,7 +96,7 @@ require (
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
-	github.com/tonistiigi/fsutil v0.0.0-20260609091201-0257b3308df4
+	github.com/tonistiigi/fsutil v0.0.0-20260609174605-b61e79c0c046
 	github.com/tonistiigi/go-archvariant v1.0.0
 	github.com/vbatts/tar-split v0.12.3
 	github.com/vishvananda/netlink v1.3.1
