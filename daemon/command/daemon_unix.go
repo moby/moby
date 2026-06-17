@@ -16,6 +16,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
 	"github.com/moby/moby/v2/pkg/homedir"
 	"github.com/pkg/errors"
+	fsutilcopy "github.com/tonistiigi/fsutil/copy" //nolint:depguard // Needed to keep fsutil copy behavior aligned with the daemon umask.
 	"golang.org/x/sys/unix"
 )
 
@@ -41,14 +42,15 @@ func getDefaultDaemonConfigFile() string {
 	return filepath.Join(dir, "daemon.json")
 }
 
-// setDefaultUmask sets the umask to 0022 to avoid problems
+// setDefaultUmask sets the umask to 0 to avoid problems
 // caused by custom umask
 func setDefaultUmask() error {
-	desiredUmask := 0o022
+	desiredUmask := 0
 	unix.Umask(desiredUmask)
 	if umask := unix.Umask(desiredUmask); umask != desiredUmask {
 		return errors.Errorf("failed to set umask: expected %#o, got %#o", desiredUmask, umask)
 	}
+	fsutilcopy.UmaskIsZero = true
 
 	return nil
 }

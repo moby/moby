@@ -223,7 +223,8 @@ func createNamespaceFile(path string) error {
 	// If the path is there unmount it first
 	unmountNamespaceFile(path)
 
-	f, err := os.Create(path)
+	// lgtm[go/path-injection] Ignore CodeQL "path depends on a user-provided value".
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		return err
 	}
