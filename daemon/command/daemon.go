@@ -326,7 +326,7 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	// initialized the cluster.
 	d.RestartSwarmContainers()
 
-	b, shutdownBuildKit, err := initBuildkit(ctx, d, cdiCache)
+	b, shutdownBuildKit, err := initBuildkit(ctx, d, cdiCache, cli.containerdDialer)
 	if err != nil {
 		return fmt.Errorf("error initializing buildkit: %w", err)
 	}
@@ -448,7 +448,7 @@ func setOTLPProtoDefault() {
 	}
 }
 
-func initBuildkit(ctx context.Context, d *daemon.Daemon, cdiCache *cdi.Cache) (_ builderOptions, closeFn func(), _ error) {
+func initBuildkit(ctx context.Context, d *daemon.Daemon, cdiCache *cdi.Cache, containerdDialer daemon.ContainerdDialer) (_ builderOptions, closeFn func(), _ error) {
 	log.G(ctx).Info("Initializing buildkit")
 	closeFn = func() {}
 
@@ -481,6 +481,7 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon, cdiCache *cdi.Cache) (_
 		UseSnapshotter:      d.UsesSnapshotter(),
 		Snapshotter:         d.ImageService().StorageDriver(),
 		ContainerdAddress:   cfg.ContainerdAddr,
+		ContainerdDialer:    containerdDialer,
 		ContainerdNamespace: cfg.ContainerdNamespace,
 		HyperVIsolation:     d.DefaultIsolation().IsHyperV(),
 		Callbacks: exporter.BuildkitCallbacks{
