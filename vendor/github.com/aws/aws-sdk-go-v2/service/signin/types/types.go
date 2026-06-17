@@ -112,4 +112,51 @@ type CreateOAuth2TokenResponseBody struct {
 	noSmithyDocumentSerde
 }
 
+// Summary of a permission statement
+type PermissionStatementSummary struct {
+
+	// Unique identifier for the permission statement
+	//
+	// This member is required.
+	Sid *string
+
+	// Condition block for the permission statement
+	Condition map[string]map[string][]string
+
+	noSmithyDocumentSerde
+}
+
+// Individual policy statement within a resource-based policy
+type PolicyStatement struct {
+
+	// Actions the statement controls
+	Action []string
+
+	// Condition block for the statement
+	Condition map[string]map[string][]string
+
+	// Effect of the policy statement (Allow/Deny)
+	Effect *string
+
+	// Principal the statement applies to
+	Principal map[string]string
+
+	// Resource the statement applies to
+	Resource *string
+
+	noSmithyDocumentSerde
+}
+
+// SignIn resource-based policy document
+type SigninResourceBasedPolicy struct {
+
+	// Policy statements
+	Statement []PolicyStatement
+
+	// Policy version
+	Version *string
+
+	noSmithyDocumentSerde
+}
+
 type noSmithyDocumentSerde = smithydocument.NoSerde
