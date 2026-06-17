@@ -1,6 +1,9 @@
 package buildkit
 
 import (
+	"context"
+	"net"
+
 	"github.com/moby/buildkit/executor/oci"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/util/network"
@@ -26,6 +29,7 @@ type executorOpts struct {
 
 	// windows-only fields
 	containerdAddr      string
+	containerdDialer    func(ctx context.Context, address string) (net.Conn, error)
 	containerdNamespace string
 	hypervIsolation     bool
 }
