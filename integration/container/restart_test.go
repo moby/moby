@@ -10,10 +10,12 @@ import (
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
+	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	testContainer "github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/moby/moby/v2/pkg/process"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -159,6 +161,151 @@ func pollForNewHealthCheck(ctx context.Context, apiClient *client.Client, startT
 			}
 		}
 		return poll.Continue("waiting for a new container healthcheck")
+	}
+}
+
+func TestContainerRestartStoppedContainer(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := testContainer.Create(ctx, t, apiClient, testContainer.WithCmd("sh", "-c", "echo foobar && exit 0"))
+
+	waitTimeout := 10 * time.Second
+	if testEnv.DaemonInfo.OSType == "windows" {
+		waitTimeout = StopContainerWindowsPollTimeout
+	}
+
+	waitCtx, cancel := context.WithTimeout(ctx, waitTimeout)
+	defer cancel()
+	wait := apiClient.ContainerWait(waitCtx, cID, client.ContainerWaitOptions{Condition: container.WaitConditionNextExit})
+
+	_, err := apiClient.ContainerStart(ctx, cID, client.ContainerStartOptions{})
+	assert.NilError(t, err)
+	assertContainerExitCode(t, wait, 0, waitTimeout)
+	poll.WaitOn(t, logsContains(ctx, apiClient, cID, "foobar\n"), poll.WithTimeout(waitTimeout))
+
+	waitCtx, cancel = context.WithTimeout(ctx, waitTimeout)
+	defer cancel()
+	wait = apiClient.ContainerWait(waitCtx, cID, client.ContainerWaitOptions{Condition: container.WaitConditionNextExit})
+
+	_, err = apiClient.ContainerRestart(ctx, cID, client.ContainerRestartOptions{})
+	assert.NilError(t, err)
+	assertContainerExitCode(t, wait, 0, waitTimeout)
+	poll.WaitOn(t, logsContains(ctx, apiClient, cID, "foobar\nfoobar\n"), poll.WithTimeout(waitTimeout))
+}
+
+func TestContainerRestartWithVolumes(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := testContainer.Run(ctx, t, apiClient, testContainer.WithVolume(dPath("/test")))
+
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(inspect.Container.Mounts, 1))
+	mountSource := inspect.Container.Mounts[0].Source
+
+	_, err = apiClient.ContainerRestart(ctx, cID, client.ContainerRestartOptions{})
+	assert.NilError(t, err)
+
+	inspect, err = apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(inspect.Container.Mounts, 1))
+	assert.Check(t, is.Equal(inspect.Container.Mounts[0].Source, mountSource))
+}
+
+func TestContainerRestartPolicyAfterProcessExit(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "test requires daemon on the same host")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows" && testEnv.GitHubActions(),
+		`Windows GitHub-hosted runners consistently failed with "DuplicateHandle: Access is denied". See https://github.com/moby/moby/pull/43479`)
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows" && testEnv.DaemonInfo.Isolation != "process")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	for _, tc := range []struct {
+		name          string
+		manualRestart bool
+	}{
+		{name: "direct-process-exit"},
+		{name: "after-manual-restart", manualRestart: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+
+			cID := testContainer.Run(ctx, t, apiClient, testContainer.WithRestartPolicy(container.RestartPolicyAlways))
+
+			if tc.manualRestart {
+				_, err := apiClient.ContainerRestart(ctx, cID, client.ContainerRestartOptions{})
+				assert.NilError(t, err)
+				poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, cID, container.StateRunning), poll.WithTimeout(30*time.Second))
+			}
+
+			killContainerProcess(ctx, t, apiClient, cID)
+			poll.WaitOn(t, containerRestartCountIs(ctx, apiClient, cID, 1), poll.WithTimeout(30*time.Second))
+			poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, cID, container.StateRunning), poll.WithTimeout(30*time.Second))
+		})
+	}
+}
+
+func TestContainerRestartPolicyUserDefinedNetwork(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsRemoteDaemon, "test requires daemon on the same host")
+	skip.If(t, testEnv.IsUserNamespace)
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
+	networkName := "restart-policy-network-" + suffix
+	firstName := "restart-first-" + suffix
+	secondName := "restart-second-" + suffix
+
+	_, err := apiClient.NetworkCreate(ctx, networkName, client.NetworkCreateOptions{Driver: "bridge"})
+	assert.NilError(t, err)
+
+	testContainer.Run(ctx, t, apiClient,
+		testContainer.WithName(firstName),
+		testContainer.WithNetworkMode(networkName),
+		testContainer.WithEndpointSettings(networkName, &networktypes.EndpointSettings{Aliases: []string{"foo"}}),
+	)
+
+	secondID := testContainer.Run(ctx, t, apiClient,
+		testContainer.WithName(secondName),
+		testContainer.WithNetworkMode(networkName),
+		testContainer.WithRestartPolicy(container.RestartPolicyAlways),
+	)
+
+	testContainer.ExecT(ctx, t, apiClient, secondID, []string{"ping", "-c", "1", firstName}).AssertSuccess(t)
+	testContainer.ExecT(ctx, t, apiClient, secondID, []string{"ping", "-c", "1", "foo"}).AssertSuccess(t)
+
+	killContainerProcess(ctx, t, apiClient, secondID)
+	poll.WaitOn(t, containerRestartCountIs(ctx, apiClient, secondID, 1), poll.WithTimeout(30*time.Second))
+	poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, secondID, container.StateRunning), poll.WithTimeout(30*time.Second))
+
+	testContainer.ExecT(ctx, t, apiClient, secondID, []string{"ping", "-c", "1", firstName}).AssertSuccess(t)
+	testContainer.ExecT(ctx, t, apiClient, secondID, []string{"ping", "-c", "1", "foo"}).AssertSuccess(t)
+}
+
+func killContainerProcess(ctx context.Context, t *testing.T, apiClient client.APIClient, containerID string) {
+	t.Helper()
+
+	inspect, err := apiClient.ContainerInspect(ctx, containerID, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+
+	assert.NilError(t, process.Kill(inspect.Container.State.Pid))
+}
+
+func assertContainerExitCode(t *testing.T, wait client.ContainerWaitResult, expected int64, timeout time.Duration) {
+	t.Helper()
+
+	select {
+	case err := <-wait.Error:
+		assert.NilError(t, err)
+	case res := <-wait.Result:
+		assert.Check(t, is.Equal(res.StatusCode, expected))
+	case <-time.After(timeout):
+		t.Fatal("timeout waiting for container exit")
 	}
 }
 
