@@ -12,10 +12,12 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
+	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"github.com/moby/moby/v2/daemon/container"
@@ -223,10 +225,39 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8
 	for _, img := range imagesToPrune {
 		log.G(ctx).WithField("image", img).Debug("pruning image")
 
+		snapshotter := i.snapshotterService(i.snapshotter)
+		snapshotSizes := map[string]int64{}
 		blobs := []ocispec.Descriptor{}
 
-		err := i.walkPresentChildren(ctx, img.Target, func(_ context.Context, desc ocispec.Descriptor) error {
+		err := i.walkPresentChildren(ctx, img.Target, func(ctx context.Context, desc ocispec.Descriptor) error {
 			blobs = append(blobs, desc)
+			if !c8dimages.IsConfigType(desc.MediaType) {
+				return nil
+			}
+
+			var cfg dockerspec.DockerOCIImage
+			if err := readJSON(ctx, i.content, desc, &cfg); err != nil {
+				if cerrdefs.IsNotFound(err) {
+					return nil
+				}
+				return err
+			}
+
+			for _, chainID := range identity.ChainIDs(cfg.RootFS.DiffIDs) {
+				id := chainID.String()
+				if _, ok := snapshotSizes[id]; ok {
+					continue
+				}
+				usage, err := snapshotter.Usage(ctx, id)
+				if err != nil {
+					if cerrdefs.IsNotFound(err) {
+						snapshotSizes[id] = 0
+						continue
+					}
+					return err
+				}
+				snapshotSizes[id] = usage.Size
+			}
 			return nil
 		})
 		if err != nil {
@@ -236,6 +267,7 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8
 			}
 			continue
 		}
+
 		err = i.images.Delete(ctx, img.Name, c8dimages.SynchronousDelete())
 		if err != nil && !cerrdefs.IsNotFound(err) {
 			errs = append(errs, err)
@@ -268,6 +300,12 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8
 					)
 				}
 				report.SpaceReclaimed += uint64(blob.Size)
+			}
+		}
+		for id, size := range snapshotSizes {
+			_, err := snapshotter.Usage(ctx, id)
+			if cerrdefs.IsNotFound(err) {
+				report.SpaceReclaimed += uint64(size)
 			}
 		}
 		if deleted {
