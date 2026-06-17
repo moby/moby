@@ -216,6 +216,8 @@ func TestContainerRestartWithVolumes(t *testing.T) {
 
 func TestContainerRestartPolicyAfterProcessExit(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "test requires daemon on the same host")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows" && testEnv.GitHubActions(),
+		`Windows GitHub-hosted runners consistently failed with "DuplicateHandle: Access is denied". See https://github.com/moby/moby/pull/43479`)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows" && testEnv.DaemonInfo.Isolation != "process")
 
 	ctx := setupTest(t)
