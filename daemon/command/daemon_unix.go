@@ -117,6 +117,9 @@ func newCgroupParent(cfg *config.Config) string {
 }
 
 func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) error, error) {
+	if cli.Config.Features["embedded-containerd"] {
+		return cli.initEmbeddedContainerd(ctx)
+	}
 	if cli.Config.ContainerdAddr != "" {
 		// use system containerd at the given address.
 		return nil, nil

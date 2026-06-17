@@ -235,6 +235,16 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			expectedErr: "bad attribute format: one",
 		},
 		{
+			name: "embedded-containerd with explicit containerd address",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					Features:       map[string]bool{"embedded-containerd": true},
+					ContainerdAddr: "/run/containerd/containerd.sock",
+				},
+			},
+			expectedErr: errEmbeddedContainerdWithExplicitAddr.Error(),
+		},
+		{
 			name: "multiple label without value",
 			config: &Config{
 				CommonConfig: CommonConfig{
