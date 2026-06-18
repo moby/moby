@@ -79,7 +79,7 @@ func TestDiskUsage(t *testing.T) {
 				assert.Equal(t, len(du.Images.Items[0].RepoTags), 1)
 				assert.Check(t, is.Equal(du.Images.Items[0].RepoTags[0], "busybox:latest"))
 
-				// Image size is layer size + content size. Content size is included in layers size.
+				// With a single image, the aggregate image size matches the image item size.
 				assert.Equal(t, du.Images.TotalSize, du.Images.Items[0].Size)
 
 				return du
