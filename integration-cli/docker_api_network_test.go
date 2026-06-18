@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/network"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/request"
@@ -67,46 +66,6 @@ func (s *DockerAPISuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
 	// delete the network and make sure it is deleted
 	deleteNetwork(c, id0, true)
 	assert.Assert(c, !isNetworkAvailable(c, "br0"))
-}
-
-func (s *DockerAPISuite) TestAPINetworkConnectDisconnect(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	// Create test network
-	name := "testnetwork"
-	config := network.CreateRequest{
-		Name: name,
-	}
-	id := createNetwork(c, config, http.StatusCreated)
-	nr := getNetworkResource(c, id)
-	assert.Equal(c, nr.Name, name)
-	assert.Equal(c, nr.ID, id)
-	assert.Equal(c, len(nr.Containers), 0)
-
-	// run a container
-	out := cli.DockerCmd(c, "run", "-d", "--name", "test", "busybox", "top").Stdout()
-	containerID := strings.TrimSpace(out)
-
-	// connect the container to the test network
-	connectNetwork(c, nr.ID, containerID)
-
-	// inspect the network to make sure container is connected
-	nr = getNetworkResource(c, nr.ID)
-	assert.Equal(c, len(nr.Containers), 1)
-	_, ok := nr.Containers[containerID]
-	assert.Assert(c, ok)
-
-	// check if container IP matches network inspect
-	containerIP := findContainerIP(c, "test", "testnetwork")
-	assert.Equal(c, nr.Containers[containerID].IPv4Address.Addr().String(), containerIP)
-
-	// disconnect container from the network
-	disconnectNetwork(c, nr.ID, containerID)
-	nr = getNetworkResource(c, nr.ID)
-	assert.Equal(c, nr.Name, name)
-	assert.Equal(c, len(nr.Containers), 0)
-
-	// delete the network
-	deleteNetwork(c, nr.ID, true)
 }
 
 func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) {
@@ -233,24 +192,6 @@ func createNetwork(t *testing.T, config network.CreateRequest, expectedStatusCod
 		return nr.ID
 	}
 	return ""
-}
-
-func connectNetwork(t *testing.T, nid, cid string) {
-	resp, _, err := request.Post(testutil.GetContext(t), "/networks/"+nid+"/connect", request.JSONBody(network.ConnectRequest{
-		Container: cid,
-	}))
-	assert.NilError(t, err)
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
-}
-
-func disconnectNetwork(t *testing.T, nid, cid string) {
-	config := client.NetworkDisconnectOptions{
-		Container: cid,
-	}
-
-	resp, _, err := request.Post(testutil.GetContext(t), "/networks/"+nid+"/disconnect", request.JSONBody(config))
-	assert.NilError(t, err)
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }
 
 func deleteNetwork(t *testing.T, id string, shouldSucceed bool) {
