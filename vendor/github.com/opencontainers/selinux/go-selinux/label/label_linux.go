@@ -10,7 +10,6 @@ import (
 
 // Valid Label Options
 var validOptions = map[string]bool{
-	"disable":  true,
 	"type":     true,
 	"filetype": true,
 	"user":     true,
@@ -35,9 +34,13 @@ func InitLabels(options []string) (plabel string, mlabel string, retErr error) {
 	if !selinux.GetEnabled() {
 		return "", "", nil
 	}
+	if len(options) > 0 && options[0] == "disable" {
+		return "", selinux.PrivContainerMountLabel(), nil
+	}
 	processLabel, mountLabel := selinux.ContainerLabels() //nolint:staticcheck // ContainerLabels will be moved to an internal package.
-	if processLabel == "" {
-		// processLabel is required; if empty, do nothing.
+	if processLabel == "" || len(options) == 0 {
+		// 1. processLabel is required; if empty, do nothing.
+		// 2. If there are no options to process, we're done.
 		return processLabel, mountLabel, nil
 	}
 	defer func() {
@@ -55,6 +58,8 @@ func InitLabels(options []string) (plabel string, mlabel string, retErr error) {
 		return "", "", err
 	}
 	for _, opt := range options {
+		// For backward compatibility, process "disable"
+		// even if it's not the only option.
 		if opt == "disable" {
 			selinux.ReleaseLabel(mountLabel)
 			return "", selinux.PrivContainerMountLabel(), nil

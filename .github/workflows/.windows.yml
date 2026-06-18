@@ -25,7 +25,7 @@ on:
         required: false
 
 env:
-  GO_VERSION: "1.26.3"
+  GO_VERSION: "1.26.4"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
@@ -76,10 +76,20 @@ jobs:
           Write-Host "Waiting for Docker daemon..."
           while ($true) {
             $ErrorActionPreference = "SilentlyContinue"
-            docker version | Out-Null
+            docker version 2>&1 | Out-Null
             $ok = ($LastExitCode -eq 0)
             $ErrorActionPreference = "Stop"
             if ($ok) { break }
+            # Check if Docker service exists and try to start it if stopped
+            $svc = Get-Service docker -ErrorAction SilentlyContinue
+            if ($svc) {
+              if ($svc.Status -ne 'Running') {
+                Write-Host "Docker service status: $($svc.Status) - attempting to start..."
+                Start-Service docker -ErrorAction SilentlyContinue
+              }
+            } else {
+              Write-Host "Docker service not found!"
+            }
             $tries--
             if ($tries -le 0) { throw "Docker daemon did not become ready" }
             Start-Sleep -Seconds 2
@@ -157,10 +167,20 @@ jobs:
           Write-Host "Waiting for Docker daemon..."
           while ($true) {
             $ErrorActionPreference = "SilentlyContinue"
-            docker version | Out-Null
+            docker version 2>&1 | Out-Null
             $ok = ($LastExitCode -eq 0)
             $ErrorActionPreference = "Stop"
             if ($ok) { break }
+            # Check if Docker service exists and try to start it if stopped
+            $svc = Get-Service docker -ErrorAction SilentlyContinue
+            if ($svc) {
+              if ($svc.Status -ne 'Running') {
+                Write-Host "Docker service status: $($svc.Status) - attempting to start..."
+                Start-Service docker -ErrorAction SilentlyContinue
+              }
+            } else {
+              Write-Host "Docker service not found!"
+            }
             $tries--
             if ($tries -le 0) { throw "Docker daemon did not become ready" }
             Start-Sleep -Seconds 2
@@ -233,7 +253,9 @@ jobs:
       -
         name: Create summary
         run: |
-          find /tmp/artifacts -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> $GITHUB_STEP_SUMMARY
+          if [ -d /tmp/artifacts ]; then
+            find /tmp/artifacts -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   integration-test-prepare:
     runs-on: ubuntu-24.04
@@ -585,4 +607,6 @@ jobs:
       -
         name: Create summary
         run: |
-          find /tmp/reports -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> $GITHUB_STEP_SUMMARY
+          if [ -d /tmp/reports ]; then
+            find /tmp/reports -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> "$GITHUB_STEP_SUMMARY"
+          fi

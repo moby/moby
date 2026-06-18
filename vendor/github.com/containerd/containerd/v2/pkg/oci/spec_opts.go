@@ -626,13 +626,24 @@ func WithUser(userstr string) SpecOpts {
 			return nil
 		}
 
+		isErrRange := func(err error) bool {
+			var numErr *strconv.NumError
+			return errors.As(err, &numErr) && numErr.Err == strconv.ErrRange
+		}
+
 		parts := strings.Split(userstr, ":")
 		switch len(parts) {
 		case 1:
 			v, err := strconv.Atoi(parts[0])
-			if err != nil || v < minUserID || v > maxUserID {
-				// if we cannot parse as an int32 then try to see if it is a username
+			if err != nil {
+				if isErrRange(err) {
+					return fmt.Errorf("invalid USER value %q: uid out of range", userstr)
+				}
+				// Non-numeric user value; treat it as a username.
 				return WithUsername(userstr)(ctx, client, c, s)
+			}
+			if v < minUserID || v > maxUserID {
+				return fmt.Errorf("invalid USER value %q: uid out of range", userstr)
 			}
 			return WithUserID(uint32(v))(ctx, client, c, s)
 		case 2:
@@ -642,14 +653,24 @@ func WithUser(userstr string) SpecOpts {
 			)
 			var uid, gid uint32
 			v, err := strconv.Atoi(parts[0])
-			if err != nil || v < minUserID || v > maxUserID {
+			if err != nil {
+				if isErrRange(err) {
+					return fmt.Errorf("invalid USER value %q: uid out of range", userstr)
+				}
 				username = parts[0]
+			} else if v < minUserID || v > maxUserID {
+				return fmt.Errorf("invalid USER value %q: uid out of range", userstr)
 			} else {
 				uid = uint32(v)
 			}
 			v, err = strconv.Atoi(parts[1])
-			if err != nil || v < minGroupID || v > maxGroupID {
+			if err != nil {
+				if isErrRange(err) {
+					return fmt.Errorf("invalid USER value %q: gid out of range", userstr)
+				}
 				groupname = parts[1]
+			} else if v < minGroupID || v > maxGroupID {
+				return fmt.Errorf("invalid USER value %q: gid out of range", userstr)
 			} else {
 				gid = uint32(v)
 			}

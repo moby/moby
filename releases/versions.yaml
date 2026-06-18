@@ -1,4 +1,4 @@
 ---
 docker:
-  current: "29.5.1"
-  next: "29.5.2"
+  last: "29.5.2"
+  next: "29.5.3"

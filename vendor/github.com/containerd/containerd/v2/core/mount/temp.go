@@ -88,7 +88,7 @@ func RemoveVolatileOption(mounts []Mount) []Mount {
 			continue
 		}
 		for j, opt := range m.Options {
-			if opt == "volatile" {
+			if opt == "volatile" || opt == "fsync=volatile" {
 				if out == nil {
 					out = copyMounts(mounts)
 				}
