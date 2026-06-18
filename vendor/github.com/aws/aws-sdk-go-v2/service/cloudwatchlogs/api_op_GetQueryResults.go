@@ -32,6 +32,8 @@ import (
 // You can retrieve up to 100,000 log event results from a query, if available, by
 // using pagination. Use the nextToken returned in the response to request
 // additional pages of results, with each page returning up to 10,000 log events.
+// This is only supported for Logs Insights QL and is currently not supported for
+// PPL and SQL query languages.
 //
 // If you are using CloudWatch cross-account observability, you can use this
 // operation in a monitoring account to start queries in linked source accounts.
@@ -86,7 +88,8 @@ type GetQueryResultsOutput struct {
 	// If there are more log events remaining in the results, the response includes a
 	// nextToken . You can use this token in a subsequent GetQueryResults request to
 	// get the next set of results. You can retrieve up to 100,000 log event results
-	// from a query by paginating with this token.
+	// from a query by paginating with this token. This is only supported for Logs
+	// Insights QL and is currently not supported for PPL and SQL query languages.
 	NextToken *string
 
 	// The query language used for this query. For more information about the query

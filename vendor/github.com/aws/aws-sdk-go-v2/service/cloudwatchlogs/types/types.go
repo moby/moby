@@ -2851,6 +2851,10 @@ type ScheduledQuerySummary struct {
 	// The cron expression that defines when the scheduled query runs.
 	ScheduleExpression *string
 
+	// The schedule type of the scheduled query. Valid values are CUSTOMER_MANAGED and
+	// AWS_MANAGED .
+	ScheduleType ScheduleType
+
 	// The ARN of the scheduled query.
 	ScheduledQueryArn *string
 
