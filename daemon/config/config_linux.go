@@ -130,7 +130,7 @@ func (conf *Config) IsSwarmCompatible() error {
 	}
 	// Swarm has not yet been updated to use nftables. But, if "iptables" is disabled, it
 	// doesn't add rules anyway.
-	if conf.FirewallBackend == "nftables" && conf.EnableIPTables {
+	if conf.FirewallBackend == "nftables" && conf.EnableIPTables && !conf.Features["swarm-nftables"] {
 		return errors.New("--firewall-backend=nftables is incompatible with swarm mode")
 	}
 	return nil
@@ -155,6 +155,7 @@ func setPlatformDefaults(cfg *Config) error {
 	}
 
 	var err error
+	cfg.BridgeConfig.EnableUserlandProxy = true
 	cfg.BridgeConfig.UserlandProxyPath, err = lookupBinPath(userlandProxyBinary)
 	if err != nil {
 		// Log, but don't error here. This allows running a daemon with

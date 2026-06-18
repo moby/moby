@@ -71,7 +71,6 @@ func ProvenanceProcessor(slsaVersion provenancetypes.ProvenanceSLSA, attrs map[s
 					if err != nil {
 						return nil, err
 					}
-
 					return json.MarshalIndent(pr, "", "  ")
 				},
 			})

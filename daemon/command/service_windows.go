@@ -293,7 +293,6 @@ func (h *handler) started() error {
 }
 
 func (h *handler) stopped(err error) {
-	log.G(context.TODO()).Debugf("Stopping service: %v", err)
 	h.tosvc <- err != nil
 	<-h.fromsvc
 }

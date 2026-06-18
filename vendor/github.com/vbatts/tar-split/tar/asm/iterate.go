@@ -11,7 +11,7 @@ import (
 
 // IterateHeaders calls handler for each tar header provided by Unpacker
 func IterateHeaders(unpacker storage.Unpacker, handler func(hdr *tar.Header) error) error {
-	// We assume about NewInputTarStream:
+	// We assume about NewInputTarStreamWithDone:
 	// - There is a separate SegmentType entry for every tar header, but only one SegmentType entry for the full header incl. any extensions
 	// - (There is a FileType entry for every tar header, we ignore it)
 	// - Trailing padding of a file, if any, is included in the next SegmentType entry

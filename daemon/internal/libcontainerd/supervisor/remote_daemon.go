@@ -161,6 +161,16 @@ func (r *remote) startContainerd() error {
 	}
 
 	r.logger.WithField("binary", r.daemonPath).Debug("starting containerd binary")
+	// Docker clears its umask on startup.
+	// Managed containerd inherits that umask, so paths it creates use the
+	// literal modes requested by containerd instead of being masked by the
+	// historical 0o022 process umask.
+	//
+	// This can make internal containerd paths more permissive than older
+	// installs.
+	// Under the default layout those paths remain below daemon-managed root
+	// and state directories that deny access to "other", so they are reachable
+	// only by root and the docker group, which is already equivalent to root.
 	cmd := exec.Command(r.daemonPath, "--config", cfgFile)
 	// redirect containerd logs to docker logs
 	cmd.Stdout = os.Stdout

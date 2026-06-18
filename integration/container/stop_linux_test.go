@@ -1,15 +1,11 @@
 package container
 
 import (
-	"bytes"
 	"context"
-	"io"
-	"strings"
 	"testing"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
@@ -28,8 +24,9 @@ func TestStopContainerWithTimeoutCancel(t *testing.T) {
 	t.Parallel()
 
 	id := container.Run(ctx, t, apiClient,
-		container.WithCmd("sh", "-c", "trap 'echo received TERM' TERM; while true; do usleep 10; done"),
+		container.WithCmd("sh", "-c", "trap 'echo received TERM' TERM; echo ready; while true; do usleep 10; done"),
 	)
+	poll.WaitOn(t, logsContains(ctx, apiClient, id, "ready"))
 
 	ctxCancel, cancel := context.WithCancel(ctx)
 	t.Cleanup(cancel)
@@ -66,27 +63,4 @@ func TestStopContainerWithTimeoutCancel(t *testing.T) {
 	// Adding 3 seconds to the specified stopTimeout to take this into account,
 	// and add another second margin to try to avoid flakiness.
 	poll.WaitOn(t, container.IsStopped(ctx, apiClient, id), poll.WithTimeout((3+stopTimeout)*time.Second))
-}
-
-// logsContains verifies the container contains the given text in the log's stdout.
-func logsContains(ctx context.Context, apiClient client.APIClient, containerID string, logString string) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		logs, err := apiClient.ContainerLogs(ctx, containerID, client.ContainerLogsOptions{
-			ShowStdout: true,
-		})
-		if err != nil {
-			return poll.Error(err)
-		}
-		defer logs.Close()
-
-		var stdout bytes.Buffer
-		_, err = stdcopy.StdCopy(&stdout, io.Discard, logs)
-		if err != nil {
-			return poll.Error(err)
-		}
-		if strings.Contains(stdout.String(), logString) {
-			return poll.Success()
-		}
-		return poll.Continue("waiting for logstring '%s' in container", logString)
-	}
 }

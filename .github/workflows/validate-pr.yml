@@ -67,6 +67,21 @@ jobs:
           echo "This PR will be included in the release notes with the following note:"
           echo "$desc"
 
+  check-commit-references:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Check GitHub references
+        env:
+          VALIDATE_REPO: ${{ github.server_url }}/${{ github.repository }}.git
+          VALIDATE_BRANCH: ${{ github.event.pull_request.base.ref }}
+        run: bash hack/validate/pr-gh-references
+
   check-pr-branch:
     runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job

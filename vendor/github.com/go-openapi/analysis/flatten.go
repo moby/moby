@@ -554,6 +554,7 @@ func updateRefParents(allRefs map[string]spec.Ref, r *newRef) {
 	}
 }
 
+//nolint:gocognit,gocyclo,cyclop // legacy from a lot of design choices that led to concentrate the complexity just here.
 func stripOAIGenForRef(opts *FlattenOpts, k string, r *newRef) (bool, error) {
 	replacedWithComplex := false
 

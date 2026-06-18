@@ -198,7 +198,7 @@ func (m *endpointPrefix_opGetLogObjectMiddleware) HandleFinalize(ctx context.Con
 		return out, metadata, fmt.Errorf("unknown transport type %T", in.Request)
 	}
 
-	req.URL.Host = "streaming-" + req.URL.Host
+	req.URL.Host = "stream-" + req.URL.Host
 
 	return next.HandleFinalize(ctx, in)
 }

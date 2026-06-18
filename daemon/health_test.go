@@ -1,6 +1,8 @@
 package daemon
 
 import (
+	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -150,5 +152,24 @@ func TestHealthStates(t *testing.T) {
 	expect(eventtypes.ActionHealthStatusHealthy)
 	if c.State.Health.Health.FailingStreak != 0 {
 		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.Health.FailingStreak)
+	}
+}
+
+func TestCmdProbeEmptyCommand(t *testing.T) {
+	c := &container.Container{
+		ID: "container_id",
+		Config: &containertypes.Config{
+			Healthcheck: &containertypes.HealthConfig{
+				Test: []string{"CMD"},
+			},
+		},
+	}
+	p := &cmdProbe{shell: false}
+	_, err := p.run(context.Background(), nil, c)
+	if err == nil {
+		t.Fatal("expected error for empty healthcheck command, got nil")
+	}
+	if !strings.Contains(err.Error(), "has no command") {
+		t.Fatalf("expected 'has no command' error, got: %v", err)
 	}
 }

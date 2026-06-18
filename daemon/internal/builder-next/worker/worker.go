@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/containerd/v2/core/content"
 	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"github.com/containerd/containerd/v2/pkg/gc"
 	"github.com/containerd/containerd/v2/pkg/rootfs"
 	cerrdefs "github.com/containerd/errdefs"
@@ -20,6 +21,7 @@ import (
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/executor"
+	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/exporter"
 	localexporter "github.com/moby/buildkit/exporter/local"
 	tarexporter "github.com/moby/buildkit/exporter/tar"
@@ -29,6 +31,7 @@ import (
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
+	"github.com/moby/buildkit/solver/llbsolver/linuxresources"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
 	"github.com/moby/buildkit/solver/llbsolver/ops"
 	"github.com/moby/buildkit/solver/pb"
@@ -40,8 +43,10 @@ import (
 	"github.com/moby/buildkit/util/archutil"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/leaseutil"
+	"github.com/moby/buildkit/util/network"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/version"
+	bkworker "github.com/moby/buildkit/worker"
 	imageadapter "github.com/moby/moby/v2/daemon/internal/builder-next/adapters/containerimage"
 	mobyexporter "github.com/moby/moby/v2/daemon/internal/builder-next/exporter"
 	distmetadata "github.com/moby/moby/v2/daemon/internal/distribution/metadata"
@@ -84,11 +89,13 @@ type Opt struct {
 
 	DownloadManager   *xfer.LayerDownloadManager
 	V2MetadataService distmetadata.V2MetadataService
+	RegistryHosts     docker.RegistryHosts
 	Transport         nethttp.RoundTripper
 	Exporter          exporter.Exporter
 	Layers            LayerAccess
 	Platforms         []ocispec.Platform
 	CDIManager        *cdidevices.Manager
+	ProxyProvider     network.ProxyProvider
 }
 
 // Worker is a local worker instance with dedicated snapshotter, cache, and so on.
@@ -116,6 +123,7 @@ func NewWorker(opt Opt) (*Worker, error) {
 
 	gs, err := git.NewSource(git.Opt{
 		CacheAccessor: cm,
+		RegistryHosts: opt.RegistryHosts,
 	})
 	if err == nil {
 		sm.Register(gs)
@@ -219,6 +227,9 @@ func (w *Worker) GarbageCollect(ctx context.Context) error {
 
 // Close closes the worker and releases all resources
 func (w *Worker) Close() error {
+	if w.Opt.ProxyProvider != nil {
+		return w.Opt.ProxyProvider.Close()
+	}
 	return nil
 }
 
@@ -358,8 +369,43 @@ func (w *Worker) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, opt
 	}, nil
 }
 
+type proxyPolicyExecutor struct {
+	executor.Executor
+	getProxyPolicy func() (network.ProxyPolicy, error)
+}
+
+func (e *proxyPolicyExecutor) Run(ctx context.Context, id string, rootfs executor.Mount, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (resourcestypes.Recorder, error) {
+	if process.Meta.Proxy != nil {
+		policy, err := e.proxyPolicy()
+		if err != nil {
+			return nil, err
+		}
+		process.Meta.Proxy.Policy = policy
+	}
+	return e.Executor.Run(ctx, id, rootfs, mounts, process, started)
+}
+
+func (e *proxyPolicyExecutor) Exec(ctx context.Context, id string, process executor.ProcessInfo) error {
+	if process.Meta.Proxy != nil {
+		policy, err := e.proxyPolicy()
+		if err != nil {
+			return err
+		}
+		process.Meta.Proxy.Policy = policy
+	}
+	return e.Executor.Exec(ctx, id, process)
+}
+
+func (e *proxyPolicyExecutor) proxyPolicy() (network.ProxyPolicy, error) {
+	policy, err := e.getProxyPolicy()
+	if err != nil {
+		return nil, err
+	}
+	return policy, nil
+}
+
 // ResolveOp converts a LLB vertex into a LLB operation
-func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *session.Manager) (solver.Op, error) {
+func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *session.Manager, proxyOpt bkworker.ProxyOpt) (solver.Op, error) {
 	if baseOp, ok := v.Sys().(*pb.Op); ok {
 		// TODO do we need to pass a value here? Where should it come from? https://github.com/moby/buildkit/commit/b3cf7c43cfefdfd7a945002c0e76b54e346ab6cf
 		var parallelism *semaphore.Weighted
@@ -367,7 +413,16 @@ func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *se
 		case *pb.Op_Source:
 			return ops.NewSourceOp(v, op, baseOp.Platform, w.SourceManager, parallelism, sm, w)
 		case *pb.Op_Exec:
-			return ops.NewExecOp(v, op, baseOp.Platform, w.CacheManager(), parallelism, sm, w.Executor(), w)
+			var linuxResources *pb.LinuxResources
+			if m, ok := v.Options().Metadata.(*linuxresources.Metadata); ok && m != nil {
+				linuxResources = m.LinuxResources
+			}
+			exec := w.Executor()
+			proxyNetwork := proxyOpt.Network && op.Exec.Network != pb.NetMode_NONE
+			if proxyNetwork && proxyOpt.Policy != nil {
+				exec = &proxyPolicyExecutor{Executor: exec, getProxyPolicy: proxyOpt.Policy}
+			}
+			return ops.NewExecOp(v, op, baseOp.Platform, w.CacheManager(), parallelism, sm, exec, w, linuxResources, proxyNetwork)
 		case *pb.Op_File:
 			return ops.NewFileOp(v, op, w.CacheManager(), parallelism, w)
 		case *pb.Op_Build:
@@ -376,6 +431,8 @@ func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *se
 			return ops.NewMergeOp(v, op, w)
 		case *pb.Op_Diff:
 			return ops.NewDiffOp(v, op, w)
+		case *pb.Op_Passthrough:
+			return ops.NewPassthroughOp(v, op)
 		}
 	}
 	return nil, errors.Errorf("could not resolve %v", v)

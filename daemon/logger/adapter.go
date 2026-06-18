@@ -33,7 +33,12 @@ type pluginAdapter struct {
 	buf logdriver.LogEntry
 }
 
-func (a *pluginAdapter) Log(msg *Message) error {
+func (a *pluginAdapter) Log(msg *Message) (err error) {
+	defer func() {
+		if err == nil {
+			PutMessage(msg)
+		}
+	}()
 	a.mu.Lock()
 
 	a.buf.Line = msg.Line
@@ -48,12 +53,11 @@ func (a *pluginAdapter) Log(msg *Message) error {
 		}
 	}
 
-	err := a.enc.Encode(&a.buf)
+	err = a.enc.Encode(&a.buf)
 	a.buf.Reset()
 
 	a.mu.Unlock()
 
-	PutMessage(msg)
 	return err
 }
 

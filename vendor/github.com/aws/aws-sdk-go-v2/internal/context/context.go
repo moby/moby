@@ -50,3 +50,16 @@ func GetAttemptSkewContext(ctx context.Context) time.Duration {
 	x, _ := middleware.GetStackValue(ctx, clockSkew{}).(time.Duration)
 	return x
 }
+
+type longPollingKey struct{}
+
+// SetIsLongPolling marks the operation as long-polling on the context.
+func SetIsLongPolling(ctx context.Context, v bool) context.Context {
+	return middleware.WithStackValue(ctx, longPollingKey{}, v)
+}
+
+// GetIsLongPolling returns whether the operation is long-polling.
+func GetIsLongPolling(ctx context.Context) bool {
+	v, _ := middleware.GetStackValue(ctx, longPollingKey{}).(bool)
+	return v
+}

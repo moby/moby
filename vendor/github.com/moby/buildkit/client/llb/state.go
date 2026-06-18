@@ -385,6 +385,18 @@ func (s State) Reset(s2 State) State {
 	return Reset(s2)(s)
 }
 
+func (s State) Requires(id string, deps ...State) State {
+	if len(deps) == 0 {
+		return s
+	}
+	inputs := make([]PassthroughInput, 0, len(deps)+1)
+	inputs = append(inputs, PassthroughInput{State: s, Output: true})
+	for _, dep := range deps {
+		inputs = append(inputs, PassthroughInput{State: dep})
+	}
+	return s.WithOutput(NewPassthroughOp(id, inputs).Output())
+}
+
 // User sets the user for this state.
 // See [User] for more details.
 func (s State) User(v string) State {
@@ -591,6 +603,10 @@ func mergeMetadata(m1, m2 OpMetadata) OpMetadata {
 		m1.ProgressGroup = m2.ProgressGroup
 	}
 
+	if m2.LinuxResources != nil {
+		m1.LinuxResources = m2.LinuxResources
+	}
+
 	return m1
 }
 
@@ -668,11 +684,12 @@ type Constraints struct {
 
 // OpMetadata has a more friendly interface for pb.OpMetadata.
 type OpMetadata struct {
-	IgnoreCache   bool                   `json:"ignore_cache,omitempty"`
-	Description   map[string]string      `json:"description,omitempty"`
-	ExportCache   *pb.ExportCache        `json:"export_cache,omitempty"`
-	Caps          map[apicaps.CapID]bool `json:"caps,omitempty"`
-	ProgressGroup *pb.ProgressGroup      `json:"progress_group,omitempty"`
+	IgnoreCache    bool                   `json:"ignore_cache,omitempty"`
+	Description    map[string]string      `json:"description,omitempty"`
+	ExportCache    *pb.ExportCache        `json:"export_cache,omitempty"`
+	Caps           map[apicaps.CapID]bool `json:"caps,omitempty"`
+	ProgressGroup  *pb.ProgressGroup      `json:"progress_group,omitempty"`
+	LinuxResources *pb.LinuxResources     `json:"linux_resources,omitempty"`
 }
 
 func NewOpMetadata(mpb *pb.OpMetadata) OpMetadata {
@@ -687,11 +704,12 @@ func (m OpMetadata) ToPB() *pb.OpMetadata {
 		caps[string(k)] = v
 	}
 	return &pb.OpMetadata{
-		IgnoreCache:   m.IgnoreCache,
-		Description:   m.Description,
-		ExportCache:   m.ExportCache,
-		Caps:          caps,
-		ProgressGroup: m.ProgressGroup,
+		IgnoreCache:    m.IgnoreCache,
+		Description:    m.Description,
+		ExportCache:    m.ExportCache,
+		Caps:           caps,
+		ProgressGroup:  m.ProgressGroup,
+		LinuxResources: m.LinuxResources,
 	}
 }
 
@@ -712,6 +730,7 @@ func (m *OpMetadata) FromPB(mpb *pb.OpMetadata) {
 		m.Caps = nil
 	}
 	m.ProgressGroup = mpb.ProgressGroup
+	m.LinuxResources = mpb.LinuxResources
 }
 
 func Platform(p ocispecs.Platform) ConstraintsOpt {
@@ -729,6 +748,71 @@ func LocalUniqueID(v string) ConstraintsOpt {
 func ProgressGroup(id, name string, weak bool) ConstraintsOpt {
 	return constraintsOptFunc(func(c *Constraints) {
 		c.Metadata.ProgressGroup = &pb.ProgressGroup{Id: id, Name: name, Weak: weak}
+	})
+}
+
+// WithLinuxResources sets all CPU/memory resource limits at once.
+// Resource limits are applied via OpMetadata and do not affect the cache key.
+func WithLinuxResources(res LinuxResources) ConstraintsOpt {
+	return constraintsOptFunc(func(c *Constraints) {
+		c.Metadata.LinuxResources = &pb.LinuxResources{
+			Memory:     res.Memory,
+			MemorySwap: res.MemorySwap,
+			CpuShares:  res.CPUShares,
+			CpuPeriod:  res.CPUPeriod,
+			CpuQuota:   res.CPUQuota,
+			CpusetCpus: res.CpusetCpus,
+			CpusetMems: res.CpusetMems,
+		}
+	})
+}
+
+func ensureLinuxResources(c *Constraints) *pb.LinuxResources {
+	if c.Metadata.LinuxResources == nil {
+		c.Metadata.LinuxResources = &pb.LinuxResources{}
+	}
+	return c.Metadata.LinuxResources
+}
+
+func MemoryLimit(limit int64) ConstraintsOpt {
+	return constraintsOptFunc(func(c *Constraints) {
+		ensureLinuxResources(c).Memory = limit
+	})
+}
+
+func MemorySwapLimit(limit int64) ConstraintsOpt {
+	return constraintsOptFunc(func(c *Constraints) {
+		ensureLinuxResources(c).MemorySwap = limit
+	})
+}
+
+func CPUShares(shares uint64) ConstraintsOpt {
+	return constraintsOptFunc(func(c *Constraints) {
+		ensureLinuxResources(c).CpuShares = shares
+	})
+}
+
+func CPUPeriod(period uint64) ConstraintsOpt {
+	return constraintsOptFunc(func(c *Constraints) {
+		ensureLinuxResources(c).CpuPeriod = period
+	})
+}
+
+func CPUQuota(quota int64) ConstraintsOpt {
+	return constraintsOptFunc(func(c *Constraints) {
+		ensureLinuxResources(c).CpuQuota = quota
+	})
+}
+
+func CpusetCpus(cpus string) ConstraintsOpt {
+	return constraintsOptFunc(func(c *Constraints) {
+		ensureLinuxResources(c).CpusetCpus = cpus
+	})
+}
+
+func CpusetMems(mems string) ConstraintsOpt {
+	return constraintsOptFunc(func(c *Constraints) {
+		ensureLinuxResources(c).CpusetMems = mems
 	})
 }
 

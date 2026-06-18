@@ -457,7 +457,8 @@ const (
 	GetRootsPath          = "/ct/v1/get-roots"
 	GetEntryAndProofPath  = "/ct/v1/get-entry-and-proof"
 
-	AddJSONPath = "/ct/v1/add-json" // Experimental addition
+	AddJSONPath   = "/ct/v1/add-json" // Experimental addition
+	LogV3JSONPath = "/log.v3.json"    // Metadata for the log, to help satisfy a requirement of the Chrome CT Log Policy
 )
 
 // AddChainRequest represents the JSON request body sent to the add-chain and

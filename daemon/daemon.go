@@ -40,6 +40,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/nri"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
+	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -114,6 +115,7 @@ type Daemon struct {
 	root              string
 	sysInfoOnce       sync.Once
 	sysInfo           *sysinfo.SysInfo
+	sysInfoErr        error
 	shutdown          bool
 	idMapping         user.IdentityMapping
 	PluginStore       *plugin.Store // TODO: remove
@@ -244,6 +246,14 @@ func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string
 			if err != nil {
 				log.G(ctx).WithFields(log.Fields{"error": err, "container": id}).Error("Failed to load container")
 				return
+			}
+			if c.ProcessLabel != "" {
+				if err := selinux.ReserveLabelV2(c.ProcessLabel); err != nil {
+					// Don't treat this as a fatal error to preserve existing
+					// behavior, and because this is restoring existing state,
+					// so there's no practical way to resolve this.
+					log.G(ctx).WithFields(log.Fields{"error": err, "container": id}).Error("Failed to reserve SELinux label during load")
+				}
 			}
 
 			mapLock.Lock()
@@ -1863,16 +1873,19 @@ func (daemon *Daemon) BuilderBackend() builder.Backend {
 }
 
 // RawSysInfo returns *sysinfo.SysInfo .
-func (daemon *Daemon) RawSysInfo() *sysinfo.SysInfo {
+func (daemon *Daemon) RawSysInfo() (*sysinfo.SysInfo, error) {
 	daemon.sysInfoOnce.Do(func() {
 		// We check if sysInfo is not set here, to allow some test to
 		// override the actual sysInfo.
 		if daemon.sysInfo == nil {
-			daemon.sysInfo = getSysInfo(&daemon.config().Config)
+			daemon.sysInfoErr = daemon.runInNetNS(func() error {
+				daemon.sysInfo = getSysInfo(&daemon.config().Config)
+				return nil
+			})
 		}
 	})
 
-	return daemon.sysInfo
+	return daemon.sysInfo, daemon.sysInfoErr
 }
 
 // imageBackend is used to satisfy the [executorpkg.ImageBackend] and

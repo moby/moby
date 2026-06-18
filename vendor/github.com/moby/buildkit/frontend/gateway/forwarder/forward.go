@@ -181,8 +181,17 @@ func (c *BridgeClient) registerResultIDs(results ...solver.Result) (ids []string
 		if !ok {
 			return ids, errors.Errorf("unexpected type for result, got %T", res.Sys())
 		}
-		ids[i] = workerRef.ID()
-		c.workerRefByID[workerRef.ID()] = workerRef
+		id := workerRef.ID()
+		ids[i] = id
+		if existing, ok := c.workerRefByID[id]; ok {
+			if existing != workerRef {
+				if err := workerRef.Release(context.TODO()); err != nil {
+					return ids, errors.WithStack(err)
+				}
+			}
+			continue
+		}
+		c.workerRefByID[id] = workerRef
 	}
 	return ids, nil
 }
@@ -220,7 +229,7 @@ func (c *BridgeClient) discard(err error) {
 	c.discardMounts()
 
 	for id, workerRef := range c.workerRefByID {
-		workerRef.ImmutableRef.Release(context.TODO())
+		workerRef.Release(context.TODO())
 		delete(c.workerRefByID, id)
 	}
 	for _, r := range c.refs {

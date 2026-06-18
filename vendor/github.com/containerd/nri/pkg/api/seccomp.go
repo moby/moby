@@ -93,6 +93,7 @@ func ToOCILinuxSyscalls(o []*LinuxSyscall) []rspec.LinuxSyscall {
 		var errnoRet *uint
 
 		if syscall.ErrnoRet != nil {
+			errnoRet = new(uint)
 			*errnoRet = uint(syscall.ErrnoRet.Value)
 		}
 

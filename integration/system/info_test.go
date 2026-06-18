@@ -45,12 +45,14 @@ func TestInfoAPIWarnings(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 
+	t.Parallel()
+
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
 	c := d.NewClientT(t)
 
-	d.Start(t, "-H=0.0.0.0:23756", "-H="+d.Sock())
+	d.Start(t, "-H=0.0.0.0:23756", "-H="+d.Sock(), "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	result, err := c.Info(ctx, client.InfoOptions{})
@@ -73,10 +75,12 @@ func TestInfoDebug(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME: test starts daemon with -H unix://.....")
 
+	t.Parallel()
+
 	_ = testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
-	d.Start(t, "--debug")
+	d.Start(t, "--debug", "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	info := d.Info(t)
@@ -95,13 +99,15 @@ func TestInfoInsecureRegistries(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME: test starts daemon with -H unix://.....")
 
+	t.Parallel()
+
 	const (
 		registryCIDR = "192.168.1.0/24"
 		registryHost = "insecurehost.com:5000"
 	)
 
 	d := daemon.New(t)
-	d.Start(t, "--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost)
+	d.Start(t, "--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	info := d.Info(t)
@@ -122,13 +128,15 @@ func TestInfoRegistryMirrors(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME: test starts daemon with -H unix://.....")
 
+	t.Parallel()
+
 	const (
 		registryMirror1 = "https://192.168.1.2"
 		registryMirror2 = "http://registry-mirror.example.com:5000"
 	)
 
 	d := daemon.New(t)
-	d.Start(t, "--registry-mirror="+registryMirror1, "--registry-mirror="+registryMirror2)
+	d.Start(t, "--registry-mirror="+registryMirror1, "--registry-mirror="+registryMirror2, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	info := d.Info(t)

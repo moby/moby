@@ -136,7 +136,10 @@ func makeTestContainer(t *testing.T, options testContainerOptions) (containerID 
 		options.command = "#(nop)"
 	}
 
-	args := []string{"run", "-d"}
+	cidDir := t.TempDir()
+	cidFile := filepath.Join(cidDir, "cid")
+
+	args := []string{"run", "--cidfile", cidFile}
 
 	for _, volume := range options.volumes {
 		args = append(args, "-v", volume)
@@ -152,17 +155,12 @@ func makeTestContainer(t *testing.T, options testContainerOptions) (containerID 
 
 	args = append(args, "busybox", "/bin/sh", "-c", options.command)
 
-	out := cli.DockerCmd(t, args...).Combined()
+	cli.DockerCmd(t, args...)
 
-	containerID = strings.TrimSpace(out)
-
-	out = cli.DockerCmd(t, "wait", containerID).Combined()
-
-	exitCode := strings.TrimSpace(out)
-	if exitCode != "0" {
-		out = cli.DockerCmd(t, "logs", containerID).Combined()
-	}
-	assert.Equal(t, exitCode, "0", "failed to make test container: %s", out)
+	containerIDBytes, err := os.ReadFile(cidFile)
+	assert.NilError(t, err)
+	containerID = strings.TrimSpace(string(containerIDBytes))
+	assert.Assert(t, containerID != "", "failed to read container ID from %s", cidFile)
 
 	return containerID
 }

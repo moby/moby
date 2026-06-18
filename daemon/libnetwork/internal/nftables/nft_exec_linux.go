@@ -1,4 +1,4 @@
-//go:build !cgo || static_build || no_libnftables
+//go:build !cgo || static_build || !libnftables
 
 package nftables
 
@@ -8,18 +8,62 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"go.opentelemetry.io/otel"
 )
 
-type nftHandle = struct{}
+type nftCtx struct{}
 
-func (t *table) nftApply(ctx context.Context, nftCmd []byte) error {
+var lookPathNSEnter = sync.OnceValues(func() (string, error) {
+	return exec.LookPath("nsenter")
+})
+var lookPathNft = sync.OnceValues(func() (string, error) {
+	p, err := exec.LookPath("nft")
+	if err != nil {
+		log.G(context.Background()).WithError(err).Warnf("Failed to find nft tool")
+		return "", fmt.Errorf("failed to find nft tool: %w", err)
+	}
+	return p, nil
+})
+
+func preflight() error {
+	_, err := lookPathNft()
+	return err
+}
+
+func newNftCtx() (*nftCtx, error) {
+	_, err := lookPathNft()
+	if err != nil {
+		return nil, err
+	}
+	return &nftCtx{}, nil
+}
+
+func (*nftCtx) Apply(ctx context.Context, nftCmd []byte) error {
 	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".nftApply.exec")
 	defer span.End()
 
-	cmd := exec.Command(nftPath, "-f", "-")
+	cmdPath, err := lookPathNft()
+	if err != nil {
+		return err
+	}
+	cmdArgs := []string{cmdPath, "-f", "-"}
+	detachedNetNS, err := rootless.DetachedNetNS()
+	if err != nil {
+		return fmt.Errorf("could not check for detached netns: %w", err)
+	}
+	if detachedNetNS != "" && !rootless.InSandboxNS() {
+		nsenterPath, err := lookPathNSEnter()
+		if err != nil {
+			return fmt.Errorf("nsenter not found: %w", err)
+		}
+		cmdPath = nsenterPath
+		cmdArgs = append([]string{nsenterPath, "-n" + detachedNetNS, "-F", "--"}, cmdArgs...)
+	}
+	cmd := exec.CommandContext(ctx, cmdPath, cmdArgs[1:]...)
 	stdinPipe, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("getting stdin pipe for nft: %w", err)
@@ -62,5 +106,5 @@ func (t *table) nftApply(ctx context.Context, nftCmd []byte) error {
 	return nil
 }
 
-func (t *table) closeNftHandle() {
+func (*nftCtx) Close() {
 }

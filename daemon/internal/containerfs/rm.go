@@ -1,14 +1,8 @@
-//go:build !darwin && !windows
-
 package containerfs
 
 import (
 	"os"
-	"syscall"
 	"time"
-
-	"github.com/moby/sys/mount"
-	"github.com/pkg/errors"
 )
 
 // EnsureRemoveAll wraps [os.RemoveAll] to check for specific errors that can
@@ -30,8 +24,8 @@ func EnsureRemoveAll(dir string) error {
 	exitOnErr := make(map[string]int)
 	maxRetry := 50
 
-	// Attempt to unmount anything beneath this dir first
-	mount.RecursiveUnmount(dir)
+	// Allow the platform to prepare for removal before os.RemoveAll.
+	prepareRemoveAll(dir)
 
 	for {
 		err := os.RemoveAll(dir)
@@ -61,17 +55,17 @@ func EnsureRemoveAll(dir string) error {
 			continue
 		}
 
-		if errors.Is(pe.Err, syscall.ENOTEMPTY) && !notEmptyDir[pe.Path] {
+		if isNotEmptyDirError(pe.Err) && !notEmptyDir[pe.Path] {
 			notEmptyDir[pe.Path] = true
 			continue
 		}
 
-		if !errors.Is(pe.Err, syscall.EBUSY) {
-			return err
+		retry, removeErr := retryRemoveAllError(dir, pe)
+		if removeErr != nil {
+			return removeErr
 		}
-
-		if e := mount.Unmount(pe.Path); e != nil {
-			return errors.Wrapf(e, "error while removing %s", dir)
+		if !retry {
+			return err
 		}
 
 		if exitOnErr[pe.Path] == maxRetry {

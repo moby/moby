@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -81,8 +82,8 @@ func (e *localExporterInstance) Export(ctx context.Context, inp *exporter.Source
 	var defers []func() error
 
 	defer func() {
-		for i := len(defers) - 1; i >= 0; i-- {
-			defers[i]()
+		for _, f := range slices.Backward(defers) {
+			f()
 		}
 	}()
 

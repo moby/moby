@@ -68,6 +68,9 @@ type cmdProbe struct {
 func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container) (*containertypes.HealthcheckResult, error) {
 	startTime := time.Now()
 	cmd := cntr.Config.Healthcheck.Test[1:]
+	if len(cmd) == 0 {
+		return nil, fmt.Errorf("healthcheck for container %s has no command", cntr.ID)
+	}
 	if p.shell {
 		cmd = append(getShell(cntr), cmd...)
 	}
@@ -410,7 +413,7 @@ func (b *limitedBuffer) Write(data []byte) (int, error) {
 
 	bufLen := b.buf.Len()
 	dataLen := len(data)
-	keep := minInt(maxOutputLen-bufLen, dataLen)
+	keep := min(maxOutputLen-bufLen, dataLen)
 	if keep > 0 {
 		b.buf.Write(data[:keep])
 	}
@@ -438,13 +441,6 @@ func timeoutWithDefault(configuredValue time.Duration, defaultValue time.Duratio
 		return defaultValue
 	}
 	return configuredValue
-}
-
-func minInt(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
 }
 
 func getShell(cntr *container.Container) []string {

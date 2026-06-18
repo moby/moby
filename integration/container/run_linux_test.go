@@ -105,7 +105,7 @@ func TestHostnameDnsResolution(t *testing.T) {
 
 func TestUnprivilegedPortsAndPing(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support setting net.ipv4.ping_group_range and net.ipv4.ip_unprivileged_port_start")
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support setting net.ipv4.ping_group_range")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()

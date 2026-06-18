@@ -125,6 +125,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 
 					if logErr := c.dst.Log(msg); logErr != nil {
 						logDriverError(c.dst.Name(), string(msg.Line), logErr)
+						PutMessage(msg)
 					}
 				}
 				p += q + 1
@@ -157,6 +158,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 
 					if logErr := c.dst.Log(msg); logErr != nil {
 						logDriverError(c.dst.Name(), string(msg.Line), logErr)
+						PutMessage(msg)
 					}
 					p = 0
 					n = 0

@@ -5,10 +5,8 @@ package runtime
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/exported"
@@ -73,14 +71,7 @@ func (h *httpTracePolicy) Do(req *policy.Request) (resp *http.Response, err erro
 					span.SetAttributes(tracing.Attribute{Key: attrAZServiceReqID, Value: reqID})
 				}
 			} else if err != nil {
-				var urlErr *url.Error
-				if errors.As(err, &urlErr) {
-					// calling *url.Error.Error() will include the unsanitized URL
-					// which we don't want. in addition, we already have the HTTP verb
-					// and sanitized URL in the trace so we aren't losing any info
-					err = urlErr.Err
-				}
-				span.SetStatus(tracing.SpanStatusError, err.Error())
+				span.SetStatus(tracing.SpanStatusError, getSanitizedURLString(err.Error(), req.Raw().URL, h.allowedQP))
 			}
 			span.End()
 		}()

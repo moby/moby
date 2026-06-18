@@ -17,11 +17,15 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// attributesInlineCount is the number of attributes that are efficiently
-// stored in an array within a Record. This value is borrowed from slog which
-// performed a quantitative survey of log library use and found this value to
-// cover 95% of all use-cases (https://go.dev/blog/slog#performance).
-const attributesInlineCount = 5
+const (
+	// attributesInlineCount is the number of attributes that are efficiently
+	// stored in an array within a Record. This value is borrowed from slog which
+	// performed a quantitative survey of log library use and found this value to
+	// cover 95% of all use-cases (https://go.dev/blog/slog#performance).
+	attributesInlineCount = 5
+	// maxUniqueSize helps reduce peak allocation.
+	maxUniqueSize = 1028
+)
 
 var logAttrDropped = sync.OnceFunc(func() {
 	global.Warn("limit reached: dropping log Record attributes")
@@ -41,9 +45,8 @@ func getUnique() *[]log.KeyValue {
 }
 
 func putUnique(v *[]log.KeyValue) {
-	// To reduce peak allocation.
-	const maxUniqueSize = 1028
 	if cap(*v) <= maxUniqueSize {
+		clear(*v)
 		*v = (*v)[:0]
 		uniquePool.Put(v)
 	}
@@ -503,7 +506,11 @@ func (r *Record) applyValueLimitsAndDedup(val log.Value) log.Value {
 			}
 			val = log.SliceValue(newSl...)
 		}
-
+	case log.KindBytes:
+		bs := val.AsBytes()
+		if r.attributeValueLengthLimit >= 0 && len(bs) > r.attributeValueLengthLimit {
+			val = log.BytesValue(bs[:r.attributeValueLengthLimit])
+		}
 	case log.KindMap:
 		kvs := val.AsMap()
 		var newKvs []log.KeyValue
@@ -557,6 +564,11 @@ func (r *Record) needsValueLimitsOrDedup(val log.Value) bool {
 		return r.attributeValueLengthLimit >= 0 && len(val.AsString()) > r.attributeValueLengthLimit
 	case log.KindSlice:
 		if slices.ContainsFunc(val.AsSlice(), r.needsValueLimitsOrDedup) {
+			return true
+		}
+	case log.KindBytes:
+		bs := val.AsBytes()
+		if r.attributeValueLengthLimit >= 0 && len(bs) > r.attributeValueLengthLimit {
 			return true
 		}
 	case log.KindMap:

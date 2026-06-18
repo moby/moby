@@ -3,6 +3,7 @@ package llbsolver
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ import (
 	"github.com/moby/buildkit/exporter/containerimage"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend"
+	dockerfileversion "github.com/moby/buildkit/frontend/dockerfile/version"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/errdefs"
 	"github.com/moby/buildkit/solver/llbsolver/ops"
@@ -38,21 +40,24 @@ type resultWithBridge struct {
 // provenanceBridge provides scoped access to LLBBridge and captures the request it makes for provenance
 type provenanceBridge struct {
 	*llbBridge
-	mu  sync.Mutex
-	req *frontend.SolveRequest
+	mu      sync.Mutex
+	req     *frontend.SolveRequest
+	rootReq *frontend.SolveRequest
 
-	images     []provenancetypes.ImageSource
-	builds     []resultWithBridge
-	subBridges []*provenanceBridge
+	images                 []provenancetypes.ImageSource
+	builds                 []resultWithBridge
+	subBridges             []*provenanceBridge
+	provenanceRefRecordIDs []string
 }
 
 func (b *provenanceBridge) eachRef(f func(r solver.ResultProxy) error) error {
-	for _, b := range b.builds {
+	builds, subBridges, _ := b.snapshot()
+	for _, b := range builds {
 		if err := b.res.EachRef(f); err != nil {
 			return err
 		}
 	}
-	for _, b := range b.subBridges {
+	for _, b := range subBridges {
 		if err := b.eachRef(f); err != nil {
 			return err
 		}
@@ -61,12 +66,20 @@ func (b *provenanceBridge) eachRef(f func(r solver.ResultProxy) error) error {
 }
 
 func (b *provenanceBridge) allImages() []provenancetypes.ImageSource {
-	res := make([]provenancetypes.ImageSource, 0, len(b.images))
-	res = append(res, b.images...)
-	for _, sb := range b.subBridges {
-		res = append(res, sb.allImages()...)
+	_, subBridges, images := b.snapshot()
+	for _, sb := range subBridges {
+		images = append(images, sb.allImages()...)
 	}
-	return res
+	return images
+}
+
+func (b *provenanceBridge) snapshot() ([]resultWithBridge, []*provenanceBridge, []provenancetypes.ImageSource) {
+	if b == nil {
+		return nil, nil, nil
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return slices.Clone(b.builds), slices.Clone(b.subBridges), slices.Clone(b.images)
 }
 
 func (b *provenanceBridge) requests(r *frontend.Result) (*resultRequests, error) {
@@ -117,12 +130,13 @@ func (b *provenanceBridge) requests(r *frontend.Result) (*resultRequests, error)
 }
 
 func (b *provenanceBridge) findByResult(rp solver.ResultProxy) (*resultWithBridge, bool) {
-	for _, br := range b.subBridges {
+	builds, subBridges, _ := b.snapshot()
+	for _, br := range subBridges {
 		if req, ok := br.findByResult(rp); ok {
 			return req, true
 		}
 	}
-	for _, bld := range b.builds {
+	for _, bld := range builds {
 		found := false
 		bld.res.EachRef(func(r solver.ResultProxy) error {
 			if r.ID() == rp.ID() {
@@ -165,6 +179,7 @@ func (b *provenanceBridge) ResolveSourceMetadata(ctx context.Context, op *pb.Sou
 }
 
 func (b *provenanceBridge) Solve(ctx context.Context, req frontend.SolveRequest, sid string) (res *frontend.Result, err error) {
+	req = req.Clone()
 	if req.Definition != nil && req.Definition.Def != nil && req.Frontend != "" {
 		return nil, errors.New("cannot solve with both Definition and Frontend specified")
 	}
@@ -180,7 +195,11 @@ func (b *provenanceBridge) Solve(ctx context.Context, req frontend.SolveRequest,
 		if !ok {
 			return nil, errors.Errorf("invalid frontend: %s", req.Frontend)
 		}
-		wb := &provenanceBridge{llbBridge: b.llbBridge, req: &req}
+		rootReq := b.rootReq
+		if !hasRequestProvenance(rootReq) {
+			rootReq = b.req
+		}
+		wb := &provenanceBridge{llbBridge: b.llbBridge, req: &req, rootReq: rootReq}
 		res, err = f.Solve(ctx, wb, b.llbBridge, req.FrontendOpt, req.FrontendInputs, sid, b.sm)
 		if err != nil {
 			fe := errdefs.Frontend{
@@ -189,7 +208,9 @@ func (b *provenanceBridge) Solve(ctx context.Context, req frontend.SolveRequest,
 			}
 			return nil, fe.WrapError(err)
 		}
+		wb.mu.Lock()
 		wb.builds = append(wb.builds, resultWithBridge{res: res, bridge: wb})
+		wb.mu.Unlock()
 		b.mu.Lock()
 		b.subBridges = append(b.subBridges, wb)
 		b.mu.Unlock()
@@ -201,6 +222,9 @@ func (b *provenanceBridge) Solve(ctx context.Context, req frontend.SolveRequest,
 			_, err := ref.Result(ctx)
 			return err
 		})
+	}
+	if err == nil {
+		err = b.registerProvenanceRefs(res)
 	}
 	return
 }
@@ -319,6 +343,28 @@ func captureProvenance(ctx context.Context, res solver.CachedResultWithProvenanc
 			if pr.Network != pb.NetMode_NONE {
 				c.NetworkAccess = true
 			}
+			if op.ProxyNetwork() {
+				c.ProxyNetwork = true
+				proxyCap := op.ProxyCapture()
+				if proxyCap != nil {
+					for _, m := range proxyCap.Materials() {
+						c.AddHTTP(provenancetypes.HTTPSource{
+							URL:    m.URL,
+							Digest: m.Digest,
+						})
+					}
+					for _, in := range proxyCap.Incomplete() {
+						c.IncompleteMaterials = true
+						c.ProxyIncomplete = append(c.ProxyIncomplete, provenancetypes.ProxyCaptureIncomplete{
+							Op:     op.Digest().String(),
+							Name:   strings.Join(pr.Meta.Args, " "),
+							Method: in.Method,
+							URI:    in.URL,
+							Reason: in.Reason,
+						})
+					}
+				}
+			}
 			samples, err := op.Samples()
 			if err != nil {
 				return err
@@ -376,6 +422,14 @@ func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.Prove
 		b, err := strconv.ParseBool(v)
 		withUsage = err == nil && b
 	}
+	completeMaterials := false
+	if v, ok := attrs["complete-materials"]; ok {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse complete-materials flag %q", v)
+		}
+		completeMaterials = b
+	}
 
 	pr, err := provenance.NewPredicate(cp)
 	if err != nil {
@@ -383,6 +437,9 @@ func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.Prove
 	}
 	if pr.RunDetails.Metadata == nil {
 		pr.RunDetails.Metadata = &provenancetypes.ProvenanceMetadataSLSA1{}
+	}
+	if completeMaterials && !pr.RunDetails.Metadata.Completeness.ResolvedDependencies {
+		return nil, incompleteMaterialsError(cp)
 	}
 
 	st := j.StartedTime()
@@ -397,17 +454,9 @@ func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.Prove
 
 	switch mode {
 	case "min":
-		args := make(map[string]string)
-		for k, v := range pr.BuildDefinition.ExternalParameters.Request.Args {
-			if strings.HasPrefix(k, "build-arg:") || strings.HasPrefix(k, "label:") {
-				pr.RunDetails.Metadata.Completeness.Request = false
-				continue
-			}
-			args[k] = v
+		if scrubMinRequest(&pr.BuildDefinition.ExternalParameters.Request) {
+			pr.RunDetails.Metadata.Completeness.Request = false
 		}
-		pr.BuildDefinition.ExternalParameters.Request.Args = args
-		pr.BuildDefinition.ExternalParameters.Request.Secrets = nil
-		pr.BuildDefinition.ExternalParameters.Request.SSH = nil
 	case "max":
 		dgsts, err := provenance.AddBuildConfig(ctx, pr, cp, res, withUsage)
 		if err != nil {
@@ -465,6 +514,11 @@ func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.Prove
 	}
 
 	pr.BuildDefinition.InternalParameters.ProvenanceCustomEnv = customEnv
+	if pr.BuildDefinition.ExternalParameters.Request.Frontend == "dockerfile.v0" {
+		if dockerfileVersion := dockerfileversion.Version(); dockerfileVersion != "" {
+			pr.BuildDefinition.InternalParameters.DockerfileVersion = dockerfileVersion
+		}
+	}
 
 	pc := &ProvenanceCreator{
 		pr:          pr,
@@ -476,6 +530,110 @@ func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.Prove
 		pc.sampler = usage
 	}
 	return pc, nil
+}
+
+func scrubMinRequest(req *provenancetypes.Parameters) bool {
+	if req == nil {
+		return false
+	}
+
+	var incomplete bool
+	if len(req.Args) > 0 {
+		args := make(map[string]string, len(req.Args))
+		for k, v := range req.Args {
+			if strings.HasPrefix(k, "build-arg:") || strings.HasPrefix(k, "label:") {
+				incomplete = true
+				continue
+			}
+			args[k] = v
+		}
+		req.Args = args
+	}
+	if len(req.Secrets) > 0 {
+		req.Secrets = nil
+	}
+	if len(req.SSH) > 0 {
+		req.SSH = nil
+	}
+
+	for _, in := range req.Inputs {
+		if in != nil && scrubMinRequest(in.Request) {
+			incomplete = true
+		}
+	}
+	if req.Root != nil && scrubMinRequest(req.Root.Request) {
+		incomplete = true
+	}
+	return incomplete
+}
+
+func incompleteMaterialsError(c *provenance.Capture) error {
+	var b strings.Builder
+	b.WriteString("provenance materials are incomplete\n\n")
+	b.WriteString("The build requested complete provenance materials, but not all dependencies could be captured.\n\n")
+	details := make([]*errdefs.ProvenanceMaterialIncomplete, 0, len(c.ProxyIncomplete)+len(c.Sources.Local))
+	if len(c.ProxyIncomplete) == 0 && len(c.Sources.Local) == 0 {
+		return errdefs.WithProvenanceMaterialsIncomplete(errors.New(strings.TrimSpace(b.String())), details)
+	}
+
+	if len(c.Sources.Local) > 0 {
+		b.WriteString("Uncaptured local sources:")
+		for _, l := range c.Sources.Local {
+			details = append(details, &errdefs.ProvenanceMaterialIncomplete{
+				Name:   l.Name,
+				Reason: "local_source",
+			})
+			b.WriteString("\n  - ")
+			if l.Name != "" {
+				b.WriteString(l.Name)
+			} else {
+				b.WriteString("<unnamed>")
+			}
+			b.WriteString("\n    reason: local_source")
+		}
+	}
+
+	if len(c.ProxyIncomplete) > 0 {
+		if len(c.Sources.Local) > 0 {
+			b.WriteString("\n\n")
+		}
+		b.WriteString("Uncaptured requests:")
+	}
+	for _, in := range c.ProxyIncomplete {
+		details = append(details, &errdefs.ProvenanceMaterialIncomplete{
+			Op:       in.Op,
+			Name:     in.Name,
+			Method:   in.Method,
+			Uri:      in.URI,
+			FinalUri: in.FinalURI,
+			Reason:   in.Reason,
+		})
+		b.WriteString("\n  - ")
+		if in.Name != "" {
+			b.WriteString(in.Name)
+		} else if in.Op != "" {
+			b.WriteString(in.Op)
+		} else {
+			b.WriteString(in.URI)
+		}
+		if in.Method != "" {
+			b.WriteString("\n    method: ")
+			b.WriteString(in.Method)
+		}
+		if in.URI != "" {
+			b.WriteString("\n    url: ")
+			b.WriteString(in.URI)
+		}
+		if in.FinalURI != "" {
+			b.WriteString("\n    finalUrl: ")
+			b.WriteString(in.FinalURI)
+		}
+		if in.Reason != "" {
+			b.WriteString("\n    reason: ")
+			b.WriteString(in.Reason)
+		}
+	}
+	return errdefs.WithProvenanceMaterialsIncomplete(errors.New(b.String()), details)
 }
 
 func (p *ProvenanceCreator) PredicateType() string {
@@ -505,6 +663,12 @@ func (p *ProvenanceCreator) Predicate(ctx context.Context) (any, error) {
 		}
 		p.pr.RunDetails.Metadata.BuildKitMetadata.SysUsage = sysSamples
 	}
+
+	compatibilityVersion, err := p.j.CompatibilityVersion()
+	if err != nil {
+		return nil, err
+	}
+	p.pr.BuildDefinition.ExternalParameters.Request.CompatibilityVersion = compatibilityVersion
 
 	if p.slsaVersion == provenancetypes.ProvenanceSLSA02 {
 		return p.pr.ConvertToSLSA02(), nil
@@ -665,14 +829,26 @@ func getRefProvenance(ref solver.ResultProxy, br *provenanceBridge) (*provenance
 	if !ok {
 		return nil, errors.Errorf("invalid provenance type %T", p)
 	}
+	pr = pr.Clone()
 
 	if br.req != nil {
 		if pr == nil {
 			return nil, errors.Errorf("missing provenance for %s", ref.ID())
 		}
 
-		pr.Frontend = br.req.Frontend
-		pr.Args = provenance.FilterArgs(br.req.FrontendOpt)
+		pr.Request.Frontend = br.req.Frontend
+		pr.Request.Args = provenance.FilterArgs(br.req.FrontendOpt)
+		pr.Request.Inputs = br.inputProvenance(br.req.FrontendInputs)
+		if root := br.rootRequestProvenance(pr.Sources); root != nil {
+			req := provenance.RequestProvenance(pr.Request.Frontend, pr.Request.Args, pr.Sources)
+			if req.Request == nil {
+				req.Request = &provenancetypes.Parameters{}
+			}
+			req.Request.Inputs = pr.Request.Inputs
+			if !root.Equal(req) {
+				pr.Request.Root = root
+			}
+		}
 		// TODO: should also save some output options like compression
 	}
 

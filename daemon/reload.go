@@ -131,8 +131,9 @@ func (daemon *Daemon) Reload(conf *config.Config) error {
 	}
 
 	daemon.configStore.Store(newCfg)
+	err = txn.Commit()
 	daemon.LogDaemonEventWithAttributes(events.ActionReload, attributes)
-	return txn.Commit()
+	return err
 }
 
 func marshalAttributeSlice(v []string) string {

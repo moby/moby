@@ -11,6 +11,7 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver/errdefs"
+	"github.com/moby/buildkit/solver/llbsolver/compat"
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/bkmaps"
 	"github.com/moby/buildkit/util/flightcontrol"
@@ -72,6 +73,7 @@ type state struct {
 
 	cache     map[string]CacheManager
 	mainCache CacheManager
+	metadata  VertexMetadata
 	solver    *Solver
 }
 
@@ -88,6 +90,34 @@ func (s *state) Cleanup(fn func() error) error {
 
 func (s *state) ResolverCache() ResolverCache {
 	return s
+}
+
+func (s *state) CompatibilityVersion() (int, error) {
+	s.mu.Lock()
+	jobs := make([]*Job, 0, len(s.jobs))
+	for j := range s.jobs {
+		jobs = append(jobs, j)
+	}
+	s.mu.Unlock()
+
+	version := 0
+	for _, j := range jobs {
+		v, err := j.CompatibilityVersion()
+		if err != nil {
+			return 0, err
+		}
+		if version == 0 {
+			version = v
+			continue
+		}
+		if version != v {
+			return 0, errors.Errorf("conflicting compatibility versions in shared solve state: %d != %d", version, v)
+		}
+	}
+	if version == 0 {
+		return compat.CompatibilityVersionCurrent, nil
+	}
+	return version, nil
 }
 
 func (s *state) Lock(key any) (values []any, release func(any) error, err error) {
@@ -593,6 +623,13 @@ func (jl *Solver) loadUnlocked(ctx context.Context, v, parent Vertex, j *Job, ca
 			}
 		}
 	}
+	if md := v.Options().Metadata; md != nil {
+		if st.metadata == nil {
+			st.metadata = md
+		} else {
+			st.metadata = st.metadata.Merge(md)
+		}
+	}
 
 	if j != nil {
 		if _, ok := st.jobs[j]; !ok {
@@ -782,6 +819,11 @@ func (j *Job) walkProvenance(ctx context.Context, e Edge, f func(ProvenanceProvi
 		return nil
 	}
 	visited[e.Vertex.Digest()] = struct{}{}
+	// Walk via the resolved state's inputs when available, so the recursion
+	// follows the chain that was actually scheduled rather than the caller's
+	// wrapper graph (which can reference orphan states via the
+	// dgstWithoutCache shift in loadUnlocked).
+	inputs := e.Vertex.Inputs()
 	if st, ok := j.list.actives[e.Vertex.Digest()]; ok {
 		st.mu.Lock()
 		if st.op != nil && st.op.op != nil {
@@ -792,9 +834,10 @@ func (j *Job) walkProvenance(ctx context.Context, e Edge, f func(ProvenanceProvi
 				}
 			}
 		}
+		inputs = st.vtx.Inputs()
 		st.mu.Unlock()
 	}
-	for _, inp := range e.Vertex.Inputs() {
+	for _, inp := range inputs {
 		if err := j.walkProvenance(ctx, inp, f, visited); err != nil {
 			return err
 		}
@@ -863,6 +906,21 @@ func (j *Job) RegisterCompleteTime() time.Time {
 
 func (j *Job) UniqueID() string {
 	return j.uniqueID
+}
+
+func (j *Job) CompatibilityVersion() (int, error) {
+	version := compat.CompatibilityVersionCurrent
+	if err := j.EachValue(context.TODO(), compat.JobValueKey, func(v any) error {
+		parsed, ok := v.(int)
+		if !ok {
+			return errors.Errorf("invalid compatibility version %T", v)
+		}
+		version = parsed
+		return nil
+	}); err != nil {
+		return 0, err
+	}
+	return version, nil
 }
 
 func (j *Job) InContext(ctx context.Context, f func(context.Context, JobContext) error) error {
@@ -990,7 +1048,9 @@ func (s *sharedOp) LoadCache(ctx context.Context, rec *CacheRecord) (Result, fun
 // evaluated, hence "slow" cache.
 func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, p PreprocessFunc, f ResultBasedCacheFunc, res Result) (dgst digest.Digest, err error) {
 	defer func() {
-		err = WrapSlowCache(err, index, NewSharedResult(res).Clone())
+		if err != nil {
+			err = WrapSlowCache(err, index, res.Clone())
+		}
 		err = errdefs.WithOp(err, s.st.vtx.Sys(), s.st.vtx.Options().Description)
 		err = errdefs.WrapVertex(err, s.st.origDigest)
 	}()
@@ -1222,12 +1282,30 @@ func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result,
 func (s *sharedOp) getOp() (Op, error) {
 	s.opOnce.Do(func() {
 		s.subBuilder = s.st.builder()
-		s.op, s.err = s.resolver(s.st.vtx, s.subBuilder)
+		s.st.mu.Lock()
+		metadata := s.st.metadata
+		s.st.mu.Unlock()
+		v := s.st.vtx
+		if metadata != nil {
+			v = &vertexWithMetadata{Vertex: v, metadata: metadata}
+		}
+		s.op, s.err = s.resolver(v, s.subBuilder)
 	})
 	if s.err != nil {
 		return nil, s.err
 	}
 	return s.op, nil
+}
+
+type vertexWithMetadata struct {
+	Vertex
+	metadata VertexMetadata
+}
+
+func (v *vertexWithMetadata) Options() VertexOptions {
+	opts := v.Vertex.Options()
+	opts.Metadata = v.metadata
+	return opts
 }
 
 func (s *sharedOp) release() {

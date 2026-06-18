@@ -7293,17 +7293,32 @@ paths:
             type: "object"
             properties:
               ListenAddr:
-                description: "Listen address used for inter-manager communication if the node gets promoted to manager, as well as determining the networking interface used for the VXLAN Tunnel Endpoint (VTEP)."
+                description: |
+                  Listen address used for inter-manager communication if the node
+                  gets promoted to manager, as well as determining the networking
+                  interface used for the VXLAN Tunnel Endpoint (VTEP). This is
+                  required for joining a swarm. If the port number is omitted,
+                  the default swarm listening port is used.
                 type: "string"
               AdvertiseAddr:
-                description: "Externally reachable address advertised to other nodes. This can either be an address/port combination in the form `192.168.1.1:4567`, or an interface followed by a port number, like `eth0:4567`. If the port number is omitted, the port number from the listen address is used. If `AdvertiseAddr` is not specified, it will be automatically detected when possible."
+                description: |
+                  Externally reachable address advertised to other nodes. This
+                  can either be an address/port combination in the form
+                  `192.168.1.1:4567`, or an interface followed by a port number,
+                  like `eth0:4567`. If the port number is omitted, the port
+                  number from the listen address is used. If `AdvertiseAddr` is
+                  not specified, it will be automatically detected when possible.
                 type: "string"
               RemoteAddrs:
-                description: "Addresses of manager nodes already participating in the swarm."
-                type: "string"
+                description: |
+                  Addresses of manager nodes already participating in the swarm.
+                type: "array"
+                items:
+                  type: "string"
               JoinToken:
                 description: "Secret token for joining this swarm."
                 type: "string"
+            required: [ListenAddr, RemoteAddrs, JoinToken]
             example:
               ListenAddr: "0.0.0.0:2377"
               AdvertiseAddr: "192.168.1.1:2377"

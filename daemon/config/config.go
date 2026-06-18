@@ -44,6 +44,8 @@ const (
 	DefaultNetworkMtu = 1500
 	// DisableNetworkBridge is the default value of the option to disable network bridge
 	DisableNetworkBridge = "none"
+	// DefaultLogDriver is the default log-driver.
+	DefaultLogDriver = "json-file"
 	// DefaultShutdownTimeout is the default shutdown timeout (in seconds) for
 	// the daemon for containers to stop when it is shutting down.
 	DefaultShutdownTimeout = 15
@@ -59,7 +61,7 @@ const (
 	// MaxAPIVersion is the highest REST API version supported by the daemon.
 	//
 	// This version may be lower than the version of the api library module used.
-	MaxAPIVersion = "1.54"
+	MaxAPIVersion = "1.55"
 	// defaultMinAPIVersion is the minimum API version supported by the API.
 	// This version can be overridden through the "DOCKER_MIN_API_VERSION"
 	// environment variable. The minimum allowed version is determined
@@ -336,6 +338,7 @@ func New() (*Config, error) {
 		CommonConfig: CommonConfig{
 			ShutdownTimeout: DefaultShutdownTimeout,
 			LogConfig: LogConfig{
+				Type:   DefaultLogDriver,
 				Config: make(map[string]string),
 			},
 			DaemonLogConfig: DaemonLogConfig{

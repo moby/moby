@@ -98,6 +98,68 @@ func (DeliveryDestinationType) Values() []DeliveryDestinationType {
 	}
 }
 
+type DeliverySourceConfigurationSchemaValueType string
+
+// Enum values for DeliverySourceConfigurationSchemaValueType
+const (
+	DeliverySourceConfigurationSchemaValueTypeString  DeliverySourceConfigurationSchemaValueType = "string"
+	DeliverySourceConfigurationSchemaValueTypeBoolean DeliverySourceConfigurationSchemaValueType = "boolean"
+	DeliverySourceConfigurationSchemaValueTypeInt     DeliverySourceConfigurationSchemaValueType = "int"
+	DeliverySourceConfigurationSchemaValueTypeDouble  DeliverySourceConfigurationSchemaValueType = "double"
+	DeliverySourceConfigurationSchemaValueTypeLong    DeliverySourceConfigurationSchemaValueType = "long"
+)
+
+// Values returns all known values for DeliverySourceConfigurationSchemaValueType.
+// Note that this can be expanded in the future, and so it is only as up to date as
+// the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (DeliverySourceConfigurationSchemaValueType) Values() []DeliverySourceConfigurationSchemaValueType {
+	return []DeliverySourceConfigurationSchemaValueType{
+		"string",
+		"boolean",
+		"int",
+		"double",
+		"long",
+	}
+}
+
+type DeliverySourceStatus string
+
+// Enum values for DeliverySourceStatus
+const (
+	DeliverySourceStatusActive   DeliverySourceStatus = "ACTIVE"
+	DeliverySourceStatusInactive DeliverySourceStatus = "INACTIVE"
+)
+
+// Values returns all known values for DeliverySourceStatus. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (DeliverySourceStatus) Values() []DeliverySourceStatus {
+	return []DeliverySourceStatus{
+		"ACTIVE",
+		"INACTIVE",
+	}
+}
+
+type DeliverySourceStatusReason string
+
+// Enum values for DeliverySourceStatusReason
+const (
+	DeliverySourceStatusReasonResourceDeleted DeliverySourceStatusReason = "RESOURCE_DELETED"
+)
+
+// Values returns all known values for DeliverySourceStatusReason. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (DeliverySourceStatusReason) Values() []DeliverySourceStatusReason {
+	return []DeliverySourceStatusReason{
+		"RESOURCE_DELETED",
+	}
+}
+
 type Distribution string
 
 // Enum values for Distribution

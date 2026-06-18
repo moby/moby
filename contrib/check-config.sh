@@ -244,6 +244,10 @@ fi
 
 echo
 
+# Save the results of the required features while running optional feature checks.
+required_features_result=${EXITCODE}
+EXITCODE=0
+
 echo 'Optional Features:'
 {
 	check_flags USER_NS
@@ -352,6 +356,9 @@ if ! is_set EXT4_FS || ! is_set EXT4_FS_POSIX_ACL || ! is_set EXT4_FS_SECURITY; 
 		echo "    $(wrap_color 'enable these ext4 configs if you are using ext4 as backing filesystem' bold black)"
 	fi
 fi
+
+# Restore results of the required features check.
+EXITCODE=${required_features_result}
 
 echo '- Network Drivers:'
 echo "  - \"$(wrap_color 'bridge' blue)\":"

@@ -269,6 +269,21 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	if resources.BlkioWeight != 0 {
 		cResources.BlkioWeight = resources.BlkioWeight
 	}
+	if resources.BlkioWeightDevice != nil {
+		cResources.BlkioWeightDevice = resources.BlkioWeightDevice
+	}
+	if resources.BlkioDeviceReadBps != nil {
+		cResources.BlkioDeviceReadBps = resources.BlkioDeviceReadBps
+	}
+	if resources.BlkioDeviceWriteBps != nil {
+		cResources.BlkioDeviceWriteBps = resources.BlkioDeviceWriteBps
+	}
+	if resources.BlkioDeviceReadIOps != nil {
+		cResources.BlkioDeviceReadIOps = resources.BlkioDeviceReadIOps
+	}
+	if resources.BlkioDeviceWriteIOps != nil {
+		cResources.BlkioDeviceWriteIOps = resources.BlkioDeviceWriteIOps
+	}
 	if resources.CPUShares != 0 {
 		cResources.CPUShares = resources.CPUShares
 	}

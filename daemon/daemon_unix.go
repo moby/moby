@@ -631,7 +631,10 @@ func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *configStore, hos
 	if hostConfig == nil {
 		return nil, nil
 	}
-	sysInfo := daemon.RawSysInfo()
+	sysInfo, err := daemon.RawSysInfo()
+	if err != nil {
+		return nil, err
+	}
 
 	w, err := verifyPlatformContainerResources(&hostConfig.Resources, sysInfo, update)
 
@@ -837,7 +840,9 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 
 	if len(activeSandboxes) > 0 {
 		log.G(ctx).Info("there are running containers, updated network configuration will not take affect")
-	} else if err := configureNetworking(ctx, daemon.netController, cfg); err != nil {
+	} else if err := daemon.runInNetNS(func() error {
+		return configureNetworking(ctx, daemon.netController, cfg)
+	}); err != nil {
 		return err
 	}
 
@@ -1621,7 +1626,20 @@ func getSysInfo(cfg *config.Config) *sysinfo.SysInfo {
 			siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath("/user.slice/user-"+euid+".slice"))
 		}
 	}
-	return sysinfo.New(siOpts...)
+	si := sysinfo.New(siOpts...)
+
+	// The "time-namespaces" feature-flag is a (temporary) escape-hatch to disable
+	// the use of time-namespaces for containers. This allows users to return to the
+	// previous default, which unconditionally used the host's time-namespace.
+	//
+	// We can consider removing this flag if there's no regressions; see https://github.com/moby/moby/pull/52326#issuecomment-4401495854
+	if enabled, ok := cfg.Features["time-namespaces"]; ok && !enabled {
+		if si.TimeNamespaces {
+			si.TimeNamespaces = false
+			log.G(context.TODO()).Info("time-namespaces disabled through feature-override")
+		}
+	}
+	return si
 }
 
 func recursiveUnmount(target string) error {

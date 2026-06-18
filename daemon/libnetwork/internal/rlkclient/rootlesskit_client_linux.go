@@ -16,8 +16,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rootless-containers/rootlesskit/v2/pkg/api/client"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/port"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/api/client"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/port"
 )
 
 type PortDriverClient struct {
@@ -109,6 +109,14 @@ func (c *PortDriverClient) ChildHostIP(proto string, hostIP netip.Addr) netip.Ad
 	}
 	if c.childIP.IsValid() {
 		return c.childIP
+	}
+	// Child namespaces only listen on loopback addresses. Preserve requested
+	// loopback addresses (the child namespace's lo covers all of 127.0.0.0/8,
+	// and collapsing them makes bindings on the same port but distinct
+	// loopback addresses collide); otherwise use the canonical loopback
+	// address for the family.
+	if hostIP.IsLoopback() {
+		return hostIP
 	}
 	if hostIP.Is6() {
 		return netip.IPv6Loopback()

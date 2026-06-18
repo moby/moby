@@ -35,6 +35,9 @@ const (
 	CapSourceGitSkipSubmodules  apicaps.CapID = "source.git.skipsubmodules"
 	CapSourceGitSignatureVerify apicaps.CapID = "source.git.signatureverify"
 	CapSourceGitMTime           apicaps.CapID = "source.git.mtime"
+	CapSourceGitFetchByCommit   apicaps.CapID = "source.git.fetchbycommit"
+	CapSourceGitBundle          apicaps.CapID = "source.git.bundle"
+	CapSourceGitCheckoutBundle  apicaps.CapID = "source.git.checkoutbundle"
 
 	CapSourceHTTP         apicaps.CapID = "source.http"
 	CapSourceHTTPAuth     apicaps.CapID = "source.http.auth"
@@ -54,6 +57,7 @@ const (
 	CapExecMetaBase                      apicaps.CapID = "exec.meta.base"
 	CapExecMetaCgroupParent              apicaps.CapID = "exec.meta.cgroup.parent"
 	CapExecMetaNetwork                   apicaps.CapID = "exec.meta.network"
+	CapExecMetaNetworkProxy              apicaps.CapID = "exec.meta.network.proxy"
 	CapExecMetaProxy                     apicaps.CapID = "exec.meta.proxyenv"
 	CapExecMetaSecurity                  apicaps.CapID = "exec.meta.security"
 	CapExecMetaSecurityDeviceWhitelistV1 apicaps.CapID = "exec.meta.security.devices.v1"
@@ -61,6 +65,7 @@ const (
 	CapExecMetaUlimit                    apicaps.CapID = "exec.meta.ulimit"
 	CapExecMetaCDI                       apicaps.CapID = "exec.meta.cdi"
 	CapExecMetaRemoveMountStubsRecursive apicaps.CapID = "exec.meta.removemountstubs.recursive"
+	CapExecMetaLinuxResources            apicaps.CapID = "exec.meta.linux.resources"
 	CapExecMountBind                     apicaps.CapID = "exec.mount.bind"
 	CapExecMountBindReadWriteNoOutput    apicaps.CapID = "exec.mount.bind.readwrite-nooutput"
 	CapExecMountCache                    apicaps.CapID = "exec.mount.cache"
@@ -95,8 +100,9 @@ const (
 	CapRemoteCacheS3     apicaps.CapID = "cache.s3"
 	CapRemoteCacheAzBlob apicaps.CapID = "cache.azblob"
 
-	CapMergeOp apicaps.CapID = "mergeop"
-	CapDiffOp  apicaps.CapID = "diffop"
+	CapMergeOp       apicaps.CapID = "mergeop"
+	CapDiffOp        apicaps.CapID = "diffop"
+	CapPassthroughOp apicaps.CapID = "passthroughop"
 
 	CapAnnotations  apicaps.CapID = "exporter.image.annotations"
 	CapAttestations apicaps.CapID = "exporter.image.attestations"
@@ -263,6 +269,24 @@ func init() {
 	})
 
 	Caps.Init(apicaps.Cap{
+		ID:      CapSourceGitFetchByCommit,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapSourceGitBundle,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapSourceGitCheckoutBundle,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
 		ID:      CapSourceHTTP,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
@@ -347,6 +371,12 @@ func init() {
 	})
 
 	Caps.Init(apicaps.Cap{
+		ID:      CapExecMetaNetworkProxy,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
 		ID:      CapExecMetaSetsDefaultPath,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
@@ -372,6 +402,12 @@ func init() {
 
 	Caps.Init(apicaps.Cap{
 		ID:      CapExecMetaCDI,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapExecMetaLinuxResources,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})
@@ -556,6 +592,12 @@ func init() {
 
 	Caps.Init(apicaps.Cap{
 		ID:      CapDiffOp,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapPassthroughOp,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

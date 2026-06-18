@@ -14,6 +14,12 @@ import (
 func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listener, error) {
 	ls := []net.Listener{}
 
+	// Windows allows a comma-separated list of groups and/or users to be set.
+	var additionalUsersAndGroups []string
+	if socketGroup != "" {
+		additionalUsersAndGroups = strings.Split(socketGroup, ",")
+	}
+
 	switch proto {
 	case "tcp":
 		l, err := sockets.NewTCPSocket(addr, tlsConfig)
@@ -23,11 +29,6 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listene
 		ls = append(ls, l)
 
 	case "npipe":
-		// Windows allows a comma-separated list of groups and/or users to be set.
-		var additionalUsersAndGroups []string
-		if socketGroup != "" {
-			additionalUsersAndGroups = strings.Split(socketGroup, ",")
-		}
 		sddl, err := getSecurityDescriptor(additionalUsersAndGroups)
 		if err != nil {
 			return nil, err
@@ -43,8 +44,14 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listene
 		}
 		ls = append(ls, l)
 
+	case "unix":
+		l, err := sockets.NewUnixSocket(addr, additionalUsersAndGroups)
+		if err != nil {
+			return nil, err
+		}
+		ls = append(ls, l)
 	default:
-		return nil, fmt.Errorf("invalid protocol format: windows only supports tcp and npipe")
+		return nil, fmt.Errorf("invalid protocol format: windows only supports tcp, unix and npipe")
 	}
 
 	return ls, nil

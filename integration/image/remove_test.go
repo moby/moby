@@ -191,7 +191,7 @@ func TestAPIImagesDelete(t *testing.T) {
 ENV FOO=bar`))
 	defer buildCtx.Close()
 
-	imgID := build.Do(ctx, t, apiClient, buildCtx)
+	imgID := build.Do(ctx, t, apiClient, buildCtx, client.ImageBuildOptions{})
 
 	// Cleanup always runs
 	defer func() {

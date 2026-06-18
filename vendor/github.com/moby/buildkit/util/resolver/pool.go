@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/containerd/containerd/v2/core/images"
@@ -231,9 +230,21 @@ func (r *Resolver) WithImageStore(is images.Store, mode ResolveMode) *Resolver {
 	return &r2
 }
 
+// ResolveLocal attempts to resolve the reference from the local image store.
+func (r *Resolver) ResolveLocal(ctx context.Context, ref string) (string, ocispecs.Descriptor, error) {
+	if r.is == nil {
+		return "", ocispecs.Descriptor{}, errors.WithStack(cerrdefs.ErrNotFound)
+	}
+	img, err := getImageByRef(ctx, r.is, ref)
+	if err != nil {
+		return "", ocispecs.Descriptor{}, err
+	}
+	return ref, img.Target, nil
+}
+
 // Fetcher returns a new fetcher for the provided reference.
 func (r *Resolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher, error) {
-	if atomic.LoadInt64(&r.handler.counter) == 0 {
+	if r.handler.counter.Load() == 0 {
 		r.Resolve(ctx, ref)
 	}
 	return r.Resolver.Fetcher(ctx, ref)
@@ -242,20 +253,20 @@ func (r *Resolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher, er
 // Resolve attempts to resolve the reference into a name and descriptor.
 func (r *Resolver) Resolve(ctx context.Context, ref string) (string, ocispecs.Descriptor, error) {
 	if r.mode == ResolveModePreferLocal && r.is != nil {
-		if img, err := getImageByRef(ctx, r.is, ref); err == nil {
-			return ref, img.Target, nil
+		if ref, desc, err := r.ResolveLocal(ctx, ref); err == nil {
+			return ref, desc, nil
 		}
 	}
 
 	n, desc, err := r.Resolver.Resolve(ctx, ref)
 	if err == nil {
-		atomic.AddInt64(&r.handler.counter, 1)
+		r.handler.counter.Add(1)
 		return n, desc, nil
 	}
 
 	if r.mode == ResolveModeDefault && r.is != nil {
-		if img, err := getImageByRef(ctx, r.is, ref); err == nil {
-			return ref, img.Target, nil
+		if ref, desc, err := r.ResolveLocal(ctx, ref); err == nil {
+			return ref, desc, nil
 		}
 	}
 

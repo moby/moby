@@ -144,7 +144,11 @@ func TestRenameAnonymousContainer(t *testing.T) {
 		}
 		c.HostConfig.NetworkMode = containertypes.NetworkMode(networkName)
 	}, container.WithCmd("ping", count, "1", container1Name))
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited))
+	var pollOps []poll.SettingOp
+	if testEnv.DaemonInfo.OSType == "windows" {
+		pollOps = append(pollOps, poll.WithTimeout(StopContainerWindowsPollTimeout))
+	}
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited), pollOps...)
 
 	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)

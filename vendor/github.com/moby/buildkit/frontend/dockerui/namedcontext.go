@@ -151,14 +151,14 @@ func (nc *NamedContext) load(ctx context.Context, count int) (*llb.State, *docke
 		return st, nil, nil
 	case "http", "https":
 		st, ok, err := DetectGitContext(nc.input, nil)
-		if !ok {
-			httpst := llb.HTTP(nc.input, llb.WithCustomName("[context "+nc.nameWithPlatform+"] "+nc.input))
-			st = &httpst
+		if ok {
+			if err != nil {
+				return nil, nil, err
+			}
+			return st, nil, nil
 		}
-		if err != nil {
-			return nil, nil, err
-		}
-		return st, nil, nil
+		httpst := llb.HTTP(nc.input, llb.Filename("context"), llb.WithCustomName("[context "+nc.nameWithPlatform+"] "+nc.input))
+		return &httpst, nil, nil
 	case "oci-layout":
 		refSpec := strings.TrimPrefix(vv[1], "//")
 		ref, err := reference.Parse(refSpec)

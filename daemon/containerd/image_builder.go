@@ -200,7 +200,7 @@ func newROLayerForImage(ctx context.Context, imgDesc *ocispec.Descriptor, i *Ima
 		return nil, errors.New("can't make an RO layer for a nil image :'(")
 	}
 
-	platMatcher := platforms.Default()
+	platMatcher := i.hostPlatformMatcher()
 	if platform != nil {
 		platMatcher = platforms.Only(*platform)
 	}
@@ -449,7 +449,7 @@ func (i *ImageService) CreateImage(ctx context.Context, config []byte, parent st
 		if err != nil {
 			return nil, err
 		}
-		parentImageManifest, err := c8dimages.Manifest(ctx, i.content, parentDesc, platforms.Default())
+		parentImageManifest, err := c8dimages.Manifest(ctx, i.content, parentDesc, i.hostPlatformMatcher())
 		if err != nil {
 			return nil, err
 		}

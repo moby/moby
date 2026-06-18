@@ -120,18 +120,20 @@ func New(info logger.Info) (logger.Logger, error) {
 	}, nil
 }
 
-func (s *syslogger) Log(msg *logger.Message) error {
+func (s *syslogger) Log(msg *logger.Message) (err error) {
+	defer func() {
+		if err == nil {
+			logger.PutMessage(msg)
+		}
+	}()
 	if len(msg.Line) == 0 {
 		return nil
 	}
 
-	line := string(msg.Line)
-	source := msg.Source
-	logger.PutMessage(msg)
-	if source == "stderr" {
-		return s.writer.Err(line)
+	if msg.Source == "stderr" {
+		return s.writer.Err(string(msg.Line))
 	}
-	return s.writer.Info(line)
+	return s.writer.Info(string(msg.Line))
 }
 
 func (s *syslogger) Close() error {

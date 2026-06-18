@@ -39,40 +39,46 @@ func (pm *peerMap) Walk(f func(netip.Prefix, peerEntry)) {
 }
 
 func (pm *peerMap) Get(peerIP netip.Prefix) (peerEntry, bool) {
-	c, _ := pm.mp.Get(peerIP)
-	if len(c) == 0 {
+	c, ok := pm.mp.Get(peerIP)
+	if !ok || len(c) == 0 {
 		return peerEntry{}, false
 	}
 	return c[0], true
 }
 
 func (pm *peerMap) Add(eid string, peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) (bool, int) {
-	pEntry := peerEntry{
+	b, i := pm.mp.Insert(peerIP, peerEntry{
 		eid:  eid,
 		mac:  peerMac,
 		vtep: vtep,
-	}
-	b, i := pm.mp.Insert(peerIP, pEntry)
+	})
 	if i != 1 {
 		// Transient case, there is more than one endpoint that is using the same IP
 		s, _ := pm.mp.String(peerIP)
-		log.G(context.TODO()).Warnf("peerDbAdd transient condition - Key:%s cardinality:%d db state:%s", peerIP, i, s)
+		log.G(context.TODO()).WithFields(log.Fields{
+			"peerIP":      peerIP.String(),
+			"cardinality": i,
+			"db-state":    s,
+		}).Warn("peerDbAdd transient condition: there is more than one endpoint using the same IP")
+
 	}
 	return b, i
 }
 
 func (pm *peerMap) Delete(eid string, peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) (bool, int) {
-	pEntry := peerEntry{
+	b, i := pm.mp.Remove(peerIP, peerEntry{
 		eid:  eid,
 		mac:  peerMac,
 		vtep: vtep,
-	}
-
-	b, i := pm.mp.Remove(peerIP, pEntry)
+	})
 	if i != 0 {
 		// Transient case, there is more than one endpoint that is using the same IP
 		s, _ := pm.mp.String(peerIP)
-		log.G(context.TODO()).Warnf("peerDbDelete transient condition - Key:%s cardinality:%d db state:%s", peerIP, i, s)
+		log.G(context.TODO()).WithFields(log.Fields{
+			"peerIP":      peerIP.String(),
+			"cardinality": i,
+			"db-state":    s,
+		}).Warn("peerDbDelete transient condition: there is more than one endpoint using the same IP")
 	}
 	return b, i
 }
@@ -109,12 +115,16 @@ func (n *network) peerAdd(eid string, peerIP netip.Prefix, peerMac hashable.MACA
 
 	inserted, dbEntries := n.peerdb.Add(eid, peerIP, peerMac, vtep)
 	if !inserted {
-		log.G(context.TODO()).Warnf("Entry already present in db: nid:%s eid:%s peerIP:%v peerMac:%v vtep:%v",
-			n.id, eid, peerIP, peerMac, vtep)
+		log.G(context.TODO()).WithFields(log.Fields{
+			"nid":     n.id,
+			"eid":     eid,
+			"peerIP":  peerIP,
+			"peerMac": peerMac,
+			"vtep":    vtep,
+		}).Warn("peerAdd: entry already present in db")
 	}
 	if vtep.IsValid() {
-		err := n.addNeighbor(peerIP, peerMac, vtep)
-		if err != nil {
+		if err := n.addNeighbor(peerIP, peerMac, vtep); err != nil {
 			if dbEntries > 1 && errors.As(err, &osl.NeighborSearchError{}) {
 				// Conflicting neighbor entries are already programmed into the kernel and we are in the transient case.
 				// Upon deletion if the active configuration is deleted the next one from the database will be restored.
@@ -200,12 +210,11 @@ func (n *network) peerDelete(eid string, peerIP netip.Prefix, peerMac hashable.M
 		// If there is still an entry into the database and the deletion went through without errors means that there is now no
 		// configuration active in the kernel.
 		// Restore one configuration for the ip directly from the database, note that is guaranteed that there is one
-		peerEntry, ok := n.peerdb.Get(peerIP)
+		peer, ok := n.peerdb.Get(peerIP)
 		if !ok {
 			return fmt.Errorf("peerDelete: unable to restore a configuration: no entry for %v found in the database", peerIP)
 		}
-		err := n.addNeighbor(peerIP, peerEntry.mac, peerEntry.vtep)
-		if err != nil {
+		if err := n.addNeighbor(peerIP, peer.mac, peer.vtep); err != nil {
 			return fmt.Errorf("peer delete operation failed: %w", err)
 		}
 	}

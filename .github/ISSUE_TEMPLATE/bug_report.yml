@@ -1,8 +1,8 @@
 name: Bug report
 description: Create a report to help us improve
+type: "bug"
 labels:
   - kind/bug
-  - status/0-triage
 body:
   - type: markdown
     attributes:

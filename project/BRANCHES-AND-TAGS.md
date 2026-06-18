@@ -35,7 +35,7 @@ Currently (and previously) maintained release branches are documented in the tab
 | Branch Name                 | Sponsoring Maintainer(s)                       | Contribution Status   | Expected End of Maintenance | Known Distributors                        |
 |-----------------------------|------------------------------------------------|-----------------------|-----------------------------|-------------------------------------------|
 | docker-29.x                 | The Moby Project [MAINTAINERS](../MAINTAINERS) | Maintained            | After docker-30.x           | [Docker, Inc.][docker], [Microsoft][msft] |
-| docker-28.x                 | @cpuguy83                                      | Maintained            | TBD                         | [Microsoft][msft]                         |
+| docker-28.x                 |                                                | Unmaintained          |                             |                                           |
 | 27.x                        |                                                | Unmaintained          |                             |                                           |
 | 26.1                        |                                                | Unmaintained          |                             |                                           |
 | 26.0                        |                                                | Unmaintained          |                             |                                           |

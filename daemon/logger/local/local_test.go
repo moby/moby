@@ -25,7 +25,16 @@ func TestWriteLog(t *testing.T) {
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "test.log")
 
-	l, err := New(logger.Info{LogPath: logPath})
+	l, err := New(logger.Info{
+		LogPath: logPath,
+		Config: map[string]string{
+			logger.AttrLabels: "label1",
+			logger.AttrLogTag: "custom-tag",
+		},
+		ContainerLabels: map[string]string{
+			"label1": "value1",
+		},
+	})
 	assert.NilError(t, err)
 	t.Cleanup(func() { assert.NilError(t, l.Close()) })
 
@@ -60,7 +69,11 @@ func TestWriteLog(t *testing.T) {
 
 		var want logdriver.LogEntry
 		var partial logdriver.PartialLogEntryMetadata
-		messageToProto(&messages[i], &want, &partial)
+		extraAttrs := []*logdriver.LogAttr{
+			{Key: "label1", Value: "value1"},
+			{Key: "tag", Value: "custom-tag"},
+		}
+		messageToProto(&messages[i], extraAttrs, &want, &partial)
 		assert.Check(t, is.DeepEqual(want, got), "msg %d: expected:\n%+v\ngot:\n%+v", i, want, got)
 
 		if i < len(messages)-1 {

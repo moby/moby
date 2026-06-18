@@ -128,6 +128,6 @@ func (d *driver) LSetxattr(path string, attrMap map[string][]byte) error {
 	return nil
 }
 
-func (d *driver) DeviceInfo(fi os.FileInfo) (maj uint64, min uint64, err error) {
+func (d *driver) DeviceInfo(fi os.FileInfo) (major uint64, minor uint64, err error) {
 	return devices.DeviceInfo(fi)
 }

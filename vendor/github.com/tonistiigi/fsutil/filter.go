@@ -326,10 +326,10 @@ func (fs *filterFS) Walk(ctx context.Context, target string, fn gofs.WalkDirFunc
 			return ctx.Err()
 		default:
 			if fs.mapFn != nil {
-				result := fs.mapFn(stat.Path, stat)
-				if result == MapResultSkipDir {
+				switch result := fs.mapFn(stat.Path, stat); result {
+				case MapResultSkipDir:
 					return filepath.SkipDir
-				} else if result == MapResultExclude {
+				case MapResultExclude:
 					return nil
 				}
 			}
@@ -355,10 +355,10 @@ func (fs *filterFS) Walk(ctx context.Context, target string, fn gofs.WalkDirFunc
 				default:
 				}
 				if fs.mapFn != nil {
-					result := fs.mapFn(parentStat.Path, parentStat)
-					if result == MapResultExclude {
+					switch result := fs.mapFn(parentStat.Path, parentStat); result {
+					case MapResultExclude:
 						continue
-					} else if result == MapResultSkipDir {
+					case MapResultSkipDir:
 						parentDirs[i].skipFn = true
 						return filepath.SkipDir
 					}

@@ -71,7 +71,6 @@ func TestMain(m *testing.M) {
 func setupTest(t *testing.T) context.Context {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, testEnv.IsRootless, "rootless mode has different view of localhost")
 
 	ctx := testutil.StartSpan(baseContext, t)
 	environment.ProtectAll(ctx, t, testEnv)

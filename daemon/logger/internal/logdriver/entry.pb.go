@@ -22,19 +22,72 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+type LogAttr struct {
+	Key   string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Value string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+}
+
+func (m *LogAttr) Reset()         { *m = LogAttr{} }
+func (m *LogAttr) String() string { return proto.CompactTextString(m) }
+func (*LogAttr) ProtoMessage()    {}
+func (*LogAttr) Descriptor() ([]byte, []int) {
+	return fileDescriptor_daa6c5b6c627940f, []int{0}
+}
+func (m *LogAttr) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *LogAttr) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_LogAttr.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *LogAttr) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LogAttr.Merge(m, src)
+}
+func (m *LogAttr) XXX_Size() int {
+	return m.Size()
+}
+func (m *LogAttr) XXX_DiscardUnknown() {
+	xxx_messageInfo_LogAttr.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LogAttr proto.InternalMessageInfo
+
+func (m *LogAttr) GetKey() string {
+	if m != nil {
+		return m.Key
+	}
+	return ""
+}
+
+func (m *LogAttr) GetValue() string {
+	if m != nil {
+		return m.Value
+	}
+	return ""
+}
+
 type LogEntry struct {
 	Source             string                   `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
 	TimeNano           int64                    `protobuf:"varint,2,opt,name=time_nano,json=timeNano,proto3" json:"time_nano,omitempty"`
 	Line               []byte                   `protobuf:"bytes,3,opt,name=line,proto3" json:"line,omitempty"`
 	Partial            bool                     `protobuf:"varint,4,opt,name=partial,proto3" json:"partial,omitempty"`
 	PartialLogMetadata *PartialLogEntryMetadata `protobuf:"bytes,5,opt,name=partial_log_metadata,json=partialLogMetadata,proto3" json:"partial_log_metadata,omitempty"`
+	Attrs              []*LogAttr               `protobuf:"bytes,6,rep,name=attrs,proto3" json:"attrs,omitempty"`
 }
 
 func (m *LogEntry) Reset()         { *m = LogEntry{} }
 func (m *LogEntry) String() string { return proto.CompactTextString(m) }
 func (*LogEntry) ProtoMessage()    {}
 func (*LogEntry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_daa6c5b6c627940f, []int{0}
+	return fileDescriptor_daa6c5b6c627940f, []int{1}
 }
 func (m *LogEntry) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -98,6 +151,13 @@ func (m *LogEntry) GetPartialLogMetadata() *PartialLogEntryMetadata {
 	return nil
 }
 
+func (m *LogEntry) GetAttrs() []*LogAttr {
+	if m != nil {
+		return m.Attrs
+	}
+	return nil
+}
+
 type PartialLogEntryMetadata struct {
 	Last    bool   `protobuf:"varint,1,opt,name=last,proto3" json:"last,omitempty"`
 	Id      string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
@@ -108,7 +168,7 @@ func (m *PartialLogEntryMetadata) Reset()         { *m = PartialLogEntryMetadata
 func (m *PartialLogEntryMetadata) String() string { return proto.CompactTextString(m) }
 func (*PartialLogEntryMetadata) ProtoMessage()    {}
 func (*PartialLogEntryMetadata) Descriptor() ([]byte, []int) {
-	return fileDescriptor_daa6c5b6c627940f, []int{1}
+	return fileDescriptor_daa6c5b6c627940f, []int{2}
 }
 func (m *PartialLogEntryMetadata) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -159,6 +219,7 @@ func (m *PartialLogEntryMetadata) GetOrdinal() int32 {
 }
 
 func init() {
+	proto.RegisterType((*LogAttr)(nil), "LogAttr")
 	proto.RegisterType((*LogEntry)(nil), "LogEntry")
 	proto.RegisterType((*PartialLogEntryMetadata)(nil), "PartialLogEntryMetadata")
 }
@@ -166,23 +227,63 @@ func init() {
 func init() { proto.RegisterFile("entry.proto", fileDescriptor_daa6c5b6c627940f) }
 
 var fileDescriptor_daa6c5b6c627940f = []byte{
-	// 250 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x90, 0xbd, 0x4a, 0x04, 0x31,
-	0x14, 0x85, 0xe7, 0xce, 0xfe, 0x38, 0x73, 0x57, 0x2c, 0x82, 0x68, 0x40, 0x08, 0x61, 0xab, 0x54,
-	0x5b, 0xe8, 0x1b, 0x08, 0x36, 0xa2, 0x22, 0x69, 0x2c, 0x87, 0xab, 0x13, 0x96, 0xc0, 0x6c, 0x32,
-	0x64, 0x63, 0xe1, 0x5b, 0xf8, 0x3a, 0xbe, 0x81, 0xe5, 0x96, 0x96, 0x32, 0xf3, 0x22, 0x32, 0x71,
-	0xc6, 0xce, 0xee, 0x9c, 0xf3, 0xa5, 0xf8, 0x72, 0x71, 0x65, 0x5c, 0x0c, 0x6f, 0x9b, 0x36, 0xf8,
-	0xe8, 0xd7, 0x1f, 0x80, 0xc5, 0x9d, 0xdf, 0xde, 0x0c, 0x13, 0x3b, 0xc3, 0xe5, 0xde, 0xbf, 0x86,
-	0x17, 0xc3, 0x41, 0x82, 0x2a, 0xf5, 0xd8, 0xd8, 0x05, 0x96, 0xd1, 0xee, 0x4c, 0xe5, 0xc8, 0x79,
-	0x9e, 0x4b, 0x50, 0x33, 0x5d, 0x0c, 0xc3, 0x03, 0x39, 0xcf, 0x18, 0xce, 0x1b, 0xeb, 0x0c, 0x9f,
-	0x49, 0x50, 0xc7, 0x3a, 0x65, 0xc6, 0xf1, 0xa8, 0xa5, 0x10, 0x2d, 0x35, 0x7c, 0x2e, 0x41, 0x15,
-	0x7a, 0xaa, 0xec, 0x16, 0x4f, 0xc7, 0x58, 0x35, 0x7e, 0x5b, 0xed, 0x4c, 0xa4, 0x9a, 0x22, 0xf1,
-	0x85, 0x04, 0xb5, 0xba, 0xe4, 0x9b, 0xc7, 0x5f, 0x38, 0x29, 0xdd, 0x8f, 0x5c, 0xb3, 0xf6, 0x0f,
-	0x4c, 0xdb, 0xfa, 0x09, 0xcf, 0xff, 0x79, 0x9e, 0xa4, 0x68, 0x1f, 0xd3, 0x3f, 0x0a, 0x9d, 0x32,
-	0x3b, 0xc1, 0xdc, 0xd6, 0x49, 0xbf, 0xd4, 0xb9, 0xad, 0x07, 0x49, 0x1f, 0x6a, 0xeb, 0xa8, 0x49,
-	0xee, 0x0b, 0x3d, 0xd5, 0x6b, 0xfe, 0xd9, 0x09, 0x38, 0x74, 0x02, 0xbe, 0x3b, 0x01, 0xef, 0xbd,
-	0xc8, 0x0e, 0xbd, 0xc8, 0xbe, 0x7a, 0x91, 0x3d, 0x2f, 0xd3, 0xd5, 0xae, 0x7e, 0x02, 0x00, 0x00,
-	0xff, 0xff, 0xbb, 0x82, 0x62, 0xd5, 0x44, 0x01, 0x00, 0x00,
+	// 293 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x91, 0x4d, 0x4b, 0xc3, 0x30,
+	0x18, 0xc7, 0x97, 0x75, 0xdd, 0xba, 0x67, 0x22, 0x12, 0x86, 0x06, 0x84, 0x50, 0x7a, 0xea, 0xa9,
+	0xe0, 0xfc, 0x04, 0x0a, 0x5e, 0x64, 0x8a, 0xe4, 0xe2, 0xb1, 0x44, 0x1b, 0x4a, 0xb0, 0x4b, 0x4a,
+	0x9a, 0x09, 0xfb, 0x16, 0x7e, 0x2c, 0x8f, 0x3b, 0xea, 0x4d, 0xda, 0x2f, 0x22, 0x4d, 0x53, 0x6f,
+	0xde, 0xfe, 0x2f, 0x3c, 0x0f, 0xcf, 0x2f, 0x81, 0x95, 0x50, 0xd6, 0x1c, 0xb2, 0xda, 0x68, 0xab,
+	0x93, 0x2b, 0x58, 0x6c, 0x75, 0x79, 0x63, 0xad, 0xc1, 0x67, 0x10, 0xbc, 0x89, 0x03, 0x41, 0x31,
+	0x4a, 0x97, 0xac, 0x97, 0x78, 0x0d, 0xe1, 0x3b, 0xaf, 0xf6, 0x82, 0x4c, 0x5d, 0x36, 0x98, 0xe4,
+	0x1b, 0x41, 0xb4, 0xd5, 0xe5, 0x5d, 0xbf, 0x05, 0x9f, 0xc3, 0xbc, 0xd1, 0x7b, 0xf3, 0x2a, 0xfc,
+	0x9c, 0x77, 0xf8, 0x12, 0x96, 0x56, 0xee, 0x44, 0xae, 0xb8, 0xd2, 0x6e, 0x3c, 0x60, 0x51, 0x1f,
+	0x3c, 0x72, 0xa5, 0x31, 0x86, 0x59, 0x25, 0x95, 0x20, 0x41, 0x8c, 0xd2, 0x13, 0xe6, 0x34, 0x26,
+	0xb0, 0xa8, 0xb9, 0xb1, 0x92, 0x57, 0x64, 0x16, 0xa3, 0x34, 0x62, 0xa3, 0xc5, 0xf7, 0xb0, 0xf6,
+	0x32, 0xaf, 0x74, 0x99, 0xef, 0x84, 0xe5, 0x05, 0xb7, 0x9c, 0x84, 0x31, 0x4a, 0x57, 0x1b, 0x92,
+	0x3d, 0x0d, 0xe5, 0x78, 0xd2, 0x83, 0xef, 0x19, 0xae, 0xff, 0x8a, 0x31, 0xc3, 0x14, 0x42, 0x6e,
+	0xad, 0x69, 0xc8, 0x3c, 0x0e, 0xd2, 0xd5, 0x26, 0xca, 0x3c, 0x3c, 0x1b, 0xe2, 0xe4, 0x19, 0x2e,
+	0xfe, 0x59, 0xe7, 0x8e, 0xe6, 0x8d, 0x75, 0x9c, 0x11, 0x73, 0x1a, 0x9f, 0xc2, 0x54, 0x16, 0xfe,
+	0x75, 0xa6, 0xb2, 0xe8, 0x21, 0xb4, 0x29, 0xa4, 0xe2, 0x95, 0x63, 0x0b, 0xd9, 0x68, 0x6f, 0xc9,
+	0x67, 0x4b, 0xd1, 0xb1, 0xa5, 0xe8, 0xa7, 0xa5, 0xe8, 0xa3, 0xa3, 0x93, 0x63, 0x47, 0x27, 0x5f,
+	0x1d, 0x9d, 0xbc, 0xcc, 0xdd, 0x47, 0x5c, 0xff, 0x06, 0x00, 0x00, 0xff, 0xff, 0xde, 0xf1, 0xc7,
+	0x73, 0x97, 0x01, 0x00, 0x00,
+}
+
+func (m *LogAttr) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *LogAttr) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *LogAttr) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Value) > 0 {
+		i -= len(m.Value)
+		copy(dAtA[i:], m.Value)
+		i = encodeVarintEntry(dAtA, i, uint64(len(m.Value)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Key) > 0 {
+		i -= len(m.Key)
+		copy(dAtA[i:], m.Key)
+		i = encodeVarintEntry(dAtA, i, uint64(len(m.Key)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *LogEntry) Marshal() (dAtA []byte, err error) {
@@ -205,6 +306,20 @@ func (m *LogEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Attrs) > 0 {
+		for iNdEx := len(m.Attrs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Attrs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintEntry(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x32
+		}
+	}
 	if m.PartialLogMetadata != nil {
 		{
 			size, err := m.PartialLogMetadata.MarshalToSizedBuffer(dAtA[:i])
@@ -305,6 +420,23 @@ func encodeVarintEntry(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
+func (m *LogAttr) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Key)
+	if l > 0 {
+		n += 1 + l + sovEntry(uint64(l))
+	}
+	l = len(m.Value)
+	if l > 0 {
+		n += 1 + l + sovEntry(uint64(l))
+	}
+	return n
+}
+
 func (m *LogEntry) Size() (n int) {
 	if m == nil {
 		return 0
@@ -328,6 +460,12 @@ func (m *LogEntry) Size() (n int) {
 	if m.PartialLogMetadata != nil {
 		l = m.PartialLogMetadata.Size()
 		n += 1 + l + sovEntry(uint64(l))
+	}
+	if len(m.Attrs) > 0 {
+		for _, e := range m.Attrs {
+			l = e.Size()
+			n += 1 + l + sovEntry(uint64(l))
+		}
 	}
 	return n
 }
@@ -356,6 +494,120 @@ func sovEntry(x uint64) (n int) {
 }
 func sozEntry(x uint64) (n int) {
 	return sovEntry(uint64((x << 1) ^ uint64((int64(x) >> 63))))
+}
+func (m *LogAttr) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowEntry
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: LogAttr: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: LogAttr: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Key", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEntry
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthEntry
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEntry
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Key = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEntry
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthEntry
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEntry
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Value = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipEntry(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthEntry
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
 }
 func (m *LogEntry) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
@@ -524,6 +776,40 @@ func (m *LogEntry) Unmarshal(dAtA []byte) error {
 				m.PartialLogMetadata = &PartialLogEntryMetadata{}
 			}
 			if err := m.PartialLogMetadata.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Attrs", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEntry
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEntry
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEntry
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Attrs = append(m.Attrs, &LogAttr{})
+			if err := m.Attrs[len(m.Attrs)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

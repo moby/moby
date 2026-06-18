@@ -290,7 +290,7 @@ func (h *Queue) addResource(ctx context.Context, l leases.Lease, desc *controlap
 			if err != nil {
 				return err
 			}
-			defer lr.Discard()
+			defer lr.Discard(ctx)
 			ok, err := h.migrateBlobV2(ctx, desc.Digest, detectSkipLayers)
 			if err != nil {
 				return err

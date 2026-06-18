@@ -24,6 +24,8 @@ func TestDiskUsageConcurrentPrune(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, !testEnv.UsingSnapshotter(), "only happens with containerd image store")
 
+	t.Parallel()
+
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)

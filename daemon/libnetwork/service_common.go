@@ -5,6 +5,7 @@ package libnetwork
 import (
 	"context"
 	"net"
+	"slices"
 
 	"github.com/containerd/log"
 )
@@ -46,9 +47,9 @@ func (c *Controller) addEndpointNameResolution(svcName, svcID, nID, eID, contain
 
 	if addService && len(vip) != 0 {
 		n.addSvcRecords(eID, svcName, serviceID, vip, nil, false, method)
-		for _, alias := range serviceAliases {
-			n.addSvcRecords(eID, alias, serviceID, vip, nil, false, method)
-		}
+		// VIP records for service aliases are managed by addServiceBinding
+		// via service.aliasRefs, not here, so they survive rolling updates
+		// where aliases can change between tasks.
 	}
 
 	return nil
@@ -110,9 +111,8 @@ func (c *Controller) deleteEndpointNameResolution(svcName, svcID, nID, eID, cont
 	// Remove the DNS record for VIP only if we are removing the service
 	if rmService && len(vip) != 0 && !multipleEntries {
 		n.deleteSvcRecords(eID, svcName, serviceID, vip, nil, false, method)
-		for _, alias := range serviceAliases {
-			n.deleteSvcRecords(eID, alias, serviceID, vip, nil, false, method)
-		}
+		// VIP records for service aliases are managed by rmServiceBinding
+		// via service.aliasRefs, not here.
 	}
 
 	return nil
@@ -136,13 +136,12 @@ func (c *Controller) delContainerNameResolution(nID, eID, containerName string, 
 	return nil
 }
 
-func newService(name string, id string, ingressPorts []*PortConfig, serviceAliases []string) *service {
+func newService(name string, id string, ingressPorts []*PortConfig) *service {
 	return &service{
 		name:          name,
 		id:            id,
 		ingressPorts:  ingressPorts,
 		loadBalancers: make(map[string]*loadBalancer),
-		aliases:       serviceAliases,
 	}
 }
 
@@ -207,7 +206,7 @@ func (c *Controller) cleanupServiceBindings(cleanupNID string) {
 				continue
 			}
 			for eid, be := range lb.backEnds {
-				cleanupFuncs = append(cleanupFuncs, makeServiceCleanupFunc(c, s, nid, eid, lb.vip, be.ip))
+				cleanupFuncs = append(cleanupFuncs, makeServiceCleanupFunc(c, s, nid, eid, lb.vip, be.ip, be.aliases))
 			}
 		}
 		s.Unlock()
@@ -218,12 +217,12 @@ func (c *Controller) cleanupServiceBindings(cleanupNID string) {
 	}
 }
 
-func makeServiceCleanupFunc(c *Controller, s *service, nID, eID string, vip net.IP, ip net.IP) func() {
+func makeServiceCleanupFunc(c *Controller, s *service, nID, eID string, vip net.IP, ip net.IP, aliases []string) func() {
 	// ContainerName and taskAliases are not available here, this is still fine because the Service discovery
 	// cleanup already happened before. The only thing that rmServiceBinding is still doing here a part from the Load
 	// Balancer bookkeeping, is to keep consistent the mapping of endpoint to IP.
 	return func() {
-		if err := c.rmServiceBinding(s.name, s.id, nID, eID, "", vip, s.ingressPorts, s.aliases, []string{}, ip, "cleanupServiceBindings", false, true); err != nil {
+		if err := c.rmServiceBinding(s.name, s.id, nID, eID, "", vip, s.ingressPorts, aliases, []string{}, ip, "cleanupServiceBindings", false, true); err != nil {
 			log.G(context.TODO()).Errorf("Failed to remove service bindings for service %s network %s endpoint %s while cleanup: %v", s.id, nID, eID, err)
 		}
 	}
@@ -257,7 +256,7 @@ func (c *Controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 		if !ok {
 			// Create a new service if we are seeing this service
 			// for the first time.
-			s = newService(svcName, svcID, ingressPorts, serviceAliases)
+			s = newService(svcName, svcID, ingressPorts)
 			c.serviceBindings[skey] = s
 		}
 		c.mu.Unlock()
@@ -279,10 +278,11 @@ func (c *Controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 		fwMarkCtrMu.Lock()
 
 		lb = &loadBalancer{
-			vip:      vip,
-			fwMark:   fwMarkCtr,
-			backEnds: make(map[string]*lbBackend),
-			service:  s,
+			vip:       vip,
+			fwMark:    fwMarkCtr,
+			backEnds:  make(map[string]*lbBackend),
+			aliasRefs: make(map[string]int),
+			service:   s,
 		}
 
 		fwMarkCtr++
@@ -292,7 +292,38 @@ func (c *Controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 		addService = true
 	}
 
-	lb.backEnds[eID] = &lbBackend{ip, false}
+	// Diff the task's aliases against the ones previously recorded for
+	// this endpoint. addServiceBinding can be re-invoked for the same eID
+	// (re-enabling a disabled backend, or a remote endpoint event whose
+	// alias set has changed); only the delta should adjust ref counts.
+	// On a 0→1 transition, a VIP DNS record is added on this network's LB;
+	// on a 1→0 transition it is removed. This keeps aliases registered for
+	// as long as any task — old or new — still claims them on this network.
+	var prevAliases []string
+	if existing, ok := lb.backEnds[eID]; ok {
+		prevAliases = existing.aliases
+	}
+	if len(lb.vip) != 0 {
+		for _, alias := range serviceAliases {
+			if !slices.Contains(prevAliases, alias) {
+				lb.aliasRefs[alias]++
+				if lb.aliasRefs[alias] == 1 {
+					n.addSvcRecords(eID, alias, svcID, lb.vip, nil, false, "addServiceBinding")
+				}
+			}
+		}
+		for _, alias := range prevAliases {
+			if !slices.Contains(serviceAliases, alias) {
+				lb.aliasRefs[alias]--
+				if lb.aliasRefs[alias] == 0 {
+					delete(lb.aliasRefs, alias)
+					n.deleteSvcRecords(eID, alias, svcID, lb.vip, nil, false, "addServiceBinding")
+				}
+			}
+		}
+	}
+
+	lb.backEnds[eID] = &lbBackend{ip: ip, aliases: slices.Clone(serviceAliases)}
 
 	ok, entries := s.assignIPToEndpoint(ip.String(), eID)
 	if !ok || entries > 1 {
@@ -350,6 +381,24 @@ func (c *Controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 	if fullRemove {
 		// delete regardless
 		delete(lb.backEnds, eID)
+		// Drop this backend's contribution from the per-alias ref counts.
+		// On a 1→0 transition, remove the VIP DNS record on this network's
+		// LB. The network handle may be gone (e.g. when the network has
+		// already been deleted from the controller); in that case the
+		// resolver state is torn down with the network and there is
+		// nothing to do here.
+		if len(lb.vip) != 0 && len(be.aliases) > 0 {
+			n, err := c.NetworkByID(nID)
+			for _, alias := range be.aliases {
+				lb.aliasRefs[alias]--
+				if lb.aliasRefs[alias] == 0 {
+					delete(lb.aliasRefs, alias)
+					if err == nil {
+						n.deleteSvcRecords(eID, alias, svcID, lb.vip, nil, false, "rmServiceBinding")
+					}
+				}
+			}
+		}
 	} else {
 		be.disabled = true
 	}

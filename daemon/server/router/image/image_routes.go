@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/pkg/authconfig"
+	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
 	"github.com/moby/moby/v2/daemon/internal/compat"
@@ -655,6 +656,51 @@ func (ir *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+}
+
+func (ir *imageRouter) getImageAttestations(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	// The platform parameter is declared as a multi-value array in the
+	// swagger so the wire shape stays forward-compatible, but only a single
+	// value is currently accepted. Reject requests that pass more than one.
+	var platform *ocispec.Platform
+	if ps := r.Form["platform"]; len(ps) > 0 {
+		if len(ps) > 1 {
+			return errdefs.InvalidParameter(errors.New("only one platform value is currently supported"))
+		}
+		if ps[0] != "" {
+			decoded, err := httputils.DecodePlatform(ps[0])
+			if err != nil {
+				return errdefs.InvalidParameter(err)
+			}
+			platform = decoded
+		}
+	}
+
+	var predicateTypes []string
+	for _, pt := range r.Form["type"] {
+		if pt = strings.TrimSpace(pt); pt != "" {
+			predicateTypes = append(predicateTypes, pt)
+		}
+	}
+
+	statements, err := ir.backend.ImageAttestations(ctx, vars["name"], imagebackend.AttestationOpts{
+		Platform:         platform,
+		PredicateTypes:   predicateTypes,
+		IncludeStatement: httputils.BoolValue(r, "statement"),
+	})
+	if err != nil {
+		return err
+	}
+
+	if statements == nil {
+		statements = []imagetypes.AttestationStatement{}
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, statements)
 }
 
 // noBaseImageSpecifier is the symbol used by the FROM

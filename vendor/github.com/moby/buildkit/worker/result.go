@@ -65,8 +65,12 @@ func (r *workerRefResult) Sys() any {
 
 func (r *workerRefResult) Clone() solver.Result {
 	r2 := *r
-	if r.ImmutableRef != nil {
-		r.ImmutableRef = r.ImmutableRef.Clone()
+	if r.WorkerRef != nil {
+		wr := *r.WorkerRef
+		if wr.ImmutableRef != nil {
+			wr.ImmutableRef = wr.ImmutableRef.Clone()
+		}
+		r2.WorkerRef = &wr
 	}
 	return &r2
 }

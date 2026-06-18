@@ -101,6 +101,44 @@ func TestPruneLexographicalOrder(t *testing.T) {
 	}
 }
 
+// When the only image in the daemon is unused, pruning it should report at
+// least that image's TotalSize as reclaimed space.
+func TestPruneReportsUnusedImageTotalSizeReclaimed(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start multiple daemons on windows")
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+
+	ctx := testutil.StartSpan(t.Context(), t)
+	t.Parallel()
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	apiClient := d.NewClientT(t)
+
+	// Create a container to make sure snapshots were created.
+	// (they _should_ exist on load anyway, but let's make this explicit)
+	cid := container.Create(ctx, t, apiClient, container.WithImage("busybox:latest"))
+	// Remove it before pruning so the image is unused.
+	container.Remove(ctx, t, apiClient, cid, client.ContainerRemoveOptions{Force: true})
+
+	du, err := apiClient.DiskUsage(ctx, client.DiskUsageOptions{Images: true})
+	assert.NilError(t, err)
+	totalSize := uint64(du.Images.TotalSize)
+	assert.Assert(t, totalSize > 0)
+
+	res, err := apiClient.ImagePrune(ctx, client.ImagePruneOptions{
+		Filters: make(client.Filters).Add("dangling", "false"),
+	})
+	assert.NilError(t, err)
+
+	assert.Check(t, is.Equal(res.Report.SpaceReclaimed, totalSize))
+
+	du, err = apiClient.DiskUsage(ctx, client.DiskUsageOptions{Images: true})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(du.Images.TotalSize, int64(0)))
+}
+
 // Regression test for https://github.com/moby/moby/issues/48063
 func TestPruneDontDeleteUsedImage(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start multiple daemons on windows")

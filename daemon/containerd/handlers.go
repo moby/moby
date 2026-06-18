@@ -25,7 +25,7 @@ func presentChildrenHandler(store content.Store, h c8dimages.HandlerFunc) c8dima
 		_, err := store.Info(ctx, desc.Digest)
 		if err != nil {
 			if cerrdefs.IsNotFound(err) {
-				return nil, nil
+				return nil, c8dimages.ErrSkipDesc
 			}
 			return nil, err
 		}
@@ -37,6 +37,9 @@ func presentChildrenHandler(store content.Store, h c8dimages.HandlerFunc) c8dima
 
 		c, err := c8dimages.Children(ctx, store, desc)
 		if err != nil {
+			if cerrdefs.IsNotFound(err) {
+				return nil, c8dimages.ErrSkipDesc
+			}
 			return nil, err
 		}
 		children = append(children, c...)

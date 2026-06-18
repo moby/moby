@@ -61,7 +61,7 @@ func (s *Server) makeHTTPHandler(route router.Route) http.HandlerFunc {
 		// use intermediate variable to prevent "should not use basic type
 		// string as key in context.WithValue" golint errors
 		ua := r.Header.Get("User-Agent")
-		ctx := baggage.ContextWithBaggage(context.WithValue(r.Context(), dockerversion.UAStringKey{}, ua), otelutil.MustNewBaggage(
+		ctx := baggage.ContextWithBaggage(dockerversion.WithUpstreamUserAgent(r.Context(), ua), otelutil.MustNewBaggage(
 			otelutil.MustNewMemberRaw(otelutil.TriggerKey, "api"),
 		))
 

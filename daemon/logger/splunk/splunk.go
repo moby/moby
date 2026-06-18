@@ -321,7 +321,13 @@ func New(info logger.Info) (logger.Logger, error) {
 	return loggerWrapper, nil
 }
 
-func (l *splunkLoggerInline) Log(msg *logger.Message) error {
+func (l *splunkLoggerInline) Log(msg *logger.Message) (err error) {
+	defer func() {
+		if err == nil {
+			logger.PutMessage(msg)
+		}
+	}()
+
 	message := l.createSplunkMessage(msg)
 
 	event := *l.nullEvent
@@ -329,11 +335,16 @@ func (l *splunkLoggerInline) Log(msg *logger.Message) error {
 	event.Source = msg.Source
 
 	message.Event = &event
-	logger.PutMessage(msg)
 	return l.queueMessageAsync(message)
 }
 
-func (l *splunkLoggerJSON) Log(msg *logger.Message) error {
+func (l *splunkLoggerJSON) Log(msg *logger.Message) (err error) {
+	defer func() {
+		if err == nil {
+			logger.PutMessage(msg)
+		}
+	}()
+
 	message := l.createSplunkMessage(msg)
 	event := *l.nullEvent
 
@@ -347,11 +358,16 @@ func (l *splunkLoggerJSON) Log(msg *logger.Message) error {
 	event.Source = msg.Source
 
 	message.Event = &event
-	logger.PutMessage(msg)
 	return l.queueMessageAsync(message)
 }
 
-func (l *splunkLoggerRaw) Log(msg *logger.Message) error {
+func (l *splunkLoggerRaw) Log(msg *logger.Message) (err error) {
+	defer func() {
+		if err == nil {
+			logger.PutMessage(msg)
+		}
+	}()
+
 	// empty or whitespace-only messages are not accepted by HEC
 	if strings.TrimSpace(string(msg.Line)) == "" {
 		return nil
@@ -360,7 +376,6 @@ func (l *splunkLoggerRaw) Log(msg *logger.Message) error {
 	message := l.createSplunkMessage(msg)
 
 	message.Event = string(append(l.prefix, msg.Line...))
-	logger.PutMessage(msg)
 	return l.queueMessageAsync(message)
 }
 

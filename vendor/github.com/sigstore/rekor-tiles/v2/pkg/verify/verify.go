@@ -68,6 +68,24 @@ func VerifyLogEntry(entry *pbs.TransparencyLogEntry, verifier sumdb_note.Verifie
 	return VerifyInclusionProof(entry, cp)
 }
 
+// VerifyLogEntryWithHash verifies a log entry's checkpoint signature and
+// inclusion proof using a caller-provided entry hash instead of hashing
+// entry.CanonicalizedBody.
+func VerifyLogEntryWithHash(entry *pbs.TransparencyLogEntry, verifier sumdb_note.Verifier, entryHash []byte) error { //nolint: revive
+	cp, err := VerifyCheckpoint(entry.GetInclusionProof().GetCheckpoint().GetEnvelope(), verifier)
+	if err != nil {
+		return err
+	}
+	index, err := safeint.NewSafeInt64(entry.LogIndex)
+	if err != nil {
+		return fmt.Errorf("invalid index: %w", err)
+	}
+	if err := proof.VerifyInclusion(rfc6962.DefaultHasher, index.U(), cp.Size, entryHash, entry.InclusionProof.Hashes, cp.Hash); err != nil {
+		return fmt.Errorf("verifying inclusion: %w", err)
+	}
+	return nil
+}
+
 // VerifyConsistencyProof verifies the latest checkpoint signature and the consistency proof between a previous log size
 // and root hash and the latest checkpoint's size and root hash. This may be used by a C2SP witness.
 func VerifyConsistencyProof(consistencyProof [][]byte, oldSize uint64, oldRootHash []byte, newUnverifiedCp string, verifier sumdb_note.Verifier) error { //nolint: revive

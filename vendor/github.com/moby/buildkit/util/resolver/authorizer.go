@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/containerd/containerd/v2/core/remotes/docker"
@@ -28,7 +29,7 @@ import (
 const defaultExpiration = 60
 
 type authHandlerNS struct {
-	counter int64 // needs to be 64bit aligned for 32bit systems
+	counter atomic.Int64
 
 	fetchers   map[string]*authFetcher
 	muHandlers sync.Mutex
@@ -47,6 +48,7 @@ func newAuthHandlerNS(sm *session.Manager) *authHandlerNS {
 }
 
 func (a *authHandlerNS) get(ctx context.Context, host string, sm *session.Manager, g session.Group) *authFetcher {
+	hasSession := false
 	if g != nil {
 		if iter := g.SessionIterator(); iter != nil {
 			for {
@@ -54,12 +56,21 @@ func (a *authHandlerNS) get(ctx context.Context, host string, sm *session.Manage
 				if id == "" {
 					break
 				}
+				hasSession = true
 				h, ok := a.fetchers[host+"/"+id]
 				if ok {
 					h.lastUsed = time.Now()
 					return h
 				}
 			}
+		}
+	}
+
+	if !hasSession {
+		h, ok := a.fetchers[host+"/"]
+		if ok {
+			h.lastUsed = time.Now()
+			return h
 		}
 	}
 
@@ -78,7 +89,7 @@ func (a *authHandlerNS) get(ctx context.Context, host string, sm *session.Manage
 					return h
 				}
 			} else {
-				sessionID, username, password, err := sessionauth.CredentialsFunc(sm, g)(host)
+				sessionID, username, password, err := sessionauth.CredentialsFunc(ctx, sm, g)(host)
 				if err == nil {
 					if username == h.common.Username && password == h.common.Secret {
 						a.fetchers[host+"/"+sessionID] = h
@@ -140,8 +151,8 @@ func (a *dockerAuthorizer) Authorize(ctx context.Context, req *http.Request) err
 	return nil
 }
 
-func (a *dockerAuthorizer) getCredentials(host string) (sessionID, username, secret string, err error) {
-	return sessionauth.CredentialsFunc(a.sm, a.session)(host)
+func (a *dockerAuthorizer) getCredentials(ctx context.Context, host string) (sessionID, username, secret string, err error) {
+	return sessionauth.CredentialsFunc(ctx, a.sm, a.session)(host)
 }
 
 func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.Response) error {
@@ -185,12 +196,12 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 
 			var username, secret string
 			sessionID, pubKey, err := sessionauth.GetTokenAuthority(ctx, host, a.sm, a.session)
-			if err != nil {
+			if err != nil && !errors.Is(err, session.ErrNoActiveSessions) {
 				return err
 			}
 			if pubKey == nil {
-				sessionID, username, secret, err = a.getCredentials(host)
-				if err != nil {
+				sessionID, username, secret, err = a.getCredentials(ctx, host)
+				if err != nil && !errors.Is(err, session.ErrNoActiveSessions) {
 					return err
 				}
 			}
@@ -205,7 +216,7 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 
 			return nil
 		case auth.BasicAuth:
-			sessionID, username, secret, err := a.getCredentials(host)
+			sessionID, username, secret, err := a.getCredentials(ctx, host)
 			if err != nil {
 				return err
 			}

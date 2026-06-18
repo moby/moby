@@ -12,7 +12,7 @@
 
 ---
 
-A foundational library to analyze an OAI specification document for easier reasoning about the content.
+A foundational library to analyze, diff, flatten, merge, and fix OAI specification documents for easier reasoning about the content.
 
 ## Announcements
 
@@ -38,6 +38,7 @@ go get github.com/go-openapi/analysis
 
 * An analyzer providing methods to walk the functional content of a specification
 * A spec flattener producing a self-contained document bundle, while preserving `$ref`s
+* A spec differ ("diff") to compare two specs and report structural and compatibility changes
 * A spec merger ("mixin") to merge several spec documents into a primary spec
 * A spec "fixer" ensuring that response descriptions are non empty
 
@@ -115,7 +116,7 @@ Maintainers can cut a new release by either:
 [slack-badge]: https://img.shields.io/badge/slack-blue?link=https%3A%2F%2Fgoswagger.slack.com%2Farchives%2FC04R30YM
 [slack-url]: https://goswagger.slack.com/archives/C04R30YMU
 [discord-badge]: https://img.shields.io/discord/1446918742398341256?logo=discord&label=discord&color=blue
-[discord-url]: https://discord.gg/twZ9BwT3
+[discord-url]: https://discord.gg/FfnFYaC3k5
 
 <!-- Badges: license & compliance -->
 [license-badge]: http://img.shields.io/badge/license-Apache%20v2-orange.svg

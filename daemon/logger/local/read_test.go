@@ -8,7 +8,9 @@ import (
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/logger"
+	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 // TestDecodeIncompleteRecord verifies that Decode returns io.EOF when the
@@ -17,7 +19,8 @@ import (
 func TestDecodeIncompleteRecord(t *testing.T) {
 	buf := make([]byte, 0)
 
-	err := marshal(&logger.Message{Line: []byte("hello")}, &buf)
+	extraAttrs := []*logdriver.LogAttr{{Key: "a", Value: "b"}}
+	err := marshal(&logger.Message{Line: []byte("hello")}, extraAttrs, &buf)
 	assert.NilError(t, err)
 
 	tmpDir := t.TempDir()
@@ -50,7 +53,10 @@ func TestDecodeIncompleteRecord(t *testing.T) {
 
 			msg, err := d.Decode()
 			assert.NilError(t, err)
-			assert.Equal(t, string(msg.Line), "hello\n")
+			assert.Check(t, is.Equal(string(msg.Line), "hello\n"))
+			assert.Check(t, is.Len(msg.Attrs, 1))
+			assert.Check(t, is.Equal(msg.Attrs[0].Key, "a"))
+			assert.Check(t, is.Equal(msg.Attrs[0].Value, "b"))
 		})
 	}
 }

@@ -157,7 +157,13 @@ func newGELFUDPWriter(address string, info logger.Info) (gelf.Writer, error) {
 	return gelfWriter, nil
 }
 
-func (s *gelfLogger) Log(msg *logger.Message) error {
+func (s *gelfLogger) Log(msg *logger.Message) (err error) {
+	defer func() {
+		if err == nil {
+			logger.PutMessage(msg)
+		}
+	}()
+
 	if len(msg.Line) == 0 {
 		return nil
 	}
@@ -175,7 +181,6 @@ func (s *gelfLogger) Log(msg *logger.Message) error {
 		Level:    int32(level),
 		RawExtra: s.rawExtra,
 	}
-	logger.PutMessage(msg)
 
 	if err := s.writer.WriteMessage(&m); err != nil {
 		return fmt.Errorf("gelf: cannot send GELF message: %v", err)

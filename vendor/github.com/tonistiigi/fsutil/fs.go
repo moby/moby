@@ -40,6 +40,11 @@ func NewFS(root string) (FS, error) {
 	}, nil
 }
 
+// NewRootFS creates a new FS from a filesystem root.
+func NewRootFS(root Root) FS {
+	return &rootFS{root: root}
+}
+
 type fs struct {
 	root string
 }
@@ -88,6 +93,67 @@ func (fs *fs) Walk(ctx context.Context, target string, fn gofs.WalkDirFunc) erro
 func (fs *fs) Open(p string) (io.ReadCloser, error) {
 	rc, err := os.Open(filepath.Join(fs.root, p))
 	return rc, errors.WithStack(err)
+}
+
+type rootFS struct {
+	root Root
+}
+
+func (fs *rootFS) Walk(ctx context.Context, target string, fn gofs.WalkDirFunc) error {
+	seenFiles := make(map[uint64]string)
+	target = cleanRootFSTarget(target)
+
+	return gofs.WalkDir(fs.root.FS(), target, func(path string, dirEntry gofs.DirEntry, walkErr error) (retErr error) {
+		defer func() {
+			if retErr != nil && isNotExist(retErr) {
+				retErr = filepath.SkipDir
+			}
+		}()
+
+		path = filepath.FromSlash(path)
+		if path == "." {
+			return nil
+		}
+
+		var entry gofs.DirEntry
+		if dirEntry != nil {
+			fi, err := fs.root.Lstat(path)
+			if err != nil {
+				return errors.WithStack(err)
+			}
+			stat, err := mkrootstat(fs.root, path, fi, seenFiles)
+			if err != nil {
+				return err
+			}
+			entry = &DirEntryInfo{Stat: stat}
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			if err := fn(path, entry, walkErr); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (fs *rootFS) Open(p string) (io.ReadCloser, error) {
+	rc, err := fs.root.OpenFile(cleanRootPath(p), os.O_RDONLY, 0)
+	return rc, errors.WithStack(err)
+}
+
+func cleanRootFSTarget(target string) string {
+	target = cleanRootPath(target)
+	for strings.HasPrefix(target, string(filepath.Separator)) {
+		target = strings.TrimPrefix(target, string(filepath.Separator))
+	}
+	if target == "" || target == "." {
+		return "."
+	}
+	return filepath.ToSlash(target)
 }
 
 type Dir struct {
@@ -187,7 +253,7 @@ type StatInfo struct {
 }
 
 func (s *StatInfo) Name() string {
-	return filepath.Base(s.Stat.Path)
+	return filepath.Base(s.Path)
 }
 
 func (s *StatInfo) Size() int64 {
@@ -206,7 +272,7 @@ func (s *StatInfo) IsDir() bool {
 	return s.Mode().IsDir()
 }
 
-func (s *StatInfo) Sys() interface{} {
+func (s *StatInfo) Sys() any {
 	return s.Stat
 }
 
@@ -221,7 +287,7 @@ type DirEntryInfo struct {
 
 func (s *DirEntryInfo) Name() string {
 	if s.Stat != nil {
-		return filepath.Base(s.Stat.Path)
+		return filepath.Base(s.Path)
 	}
 	return s.entry.Name()
 }
@@ -235,7 +301,7 @@ func (s *DirEntryInfo) IsDir() bool {
 
 func (s *DirEntryInfo) Type() gofs.FileMode {
 	if s.Stat != nil {
-		return gofs.FileMode(s.Stat.Mode)
+		return gofs.FileMode(s.Mode)
 	}
 	return s.entry.Type()
 }
@@ -253,6 +319,6 @@ func (s *DirEntryInfo) Info() (gofs.FileInfo, error) {
 		s.Stat = stat
 	}
 
-	st := s.Stat.Clone()
+	st := s.Clone()
 	return &StatInfo{st}, nil
 }

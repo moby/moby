@@ -1,14 +1,14 @@
 package testutil
 
-import "math/rand"
+import "math/rand/v2"
 
-// GenerateRandomAlphaOnlyString generates an alphabetical random string with length n.
-func GenerateRandomAlphaOnlyString(n int) string {
-	// make a really long string
-	letters := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+const letters = "abcdefghijklmnopqrstuvwxyz"
+
+// RandomAlpha generates a lowercase alphabetical random string with length n.
+func RandomAlpha(n int) string {
 	b := make([]byte, n)
 	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))] //nolint: gosec // G404: Use of weak random number generator (math/rand instead of crypto/rand)
+		b[i] = letters[rand.IntN(len(letters))] // #nosec G404 -- ignore "Use of weak random number generator (math/rand or math/rand/v2 instead of crypto/rand)"
 	}
 	return string(b)
 }

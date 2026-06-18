@@ -1,10 +1,15 @@
 package container
 
 import (
+	"context"
 	"encoding/json"
 	"io"
+	"os/exec"
 	"reflect"
+	"runtime"
+	"strconv"
 	"testing"
+	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -12,6 +17,7 @@ import (
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -92,4 +98,88 @@ func TestStatsContainerNotFound(t *testing.T) {
 			assert.ErrorContains(t, err, "no-such-container")
 		})
 	}
+}
+
+func TestStatsNetworkStats(t *testing.T) {
+	// FIXME(thaJeztah): Broken on Windows + containerd combination, see https://github.com/moby/moby/pull/41479
+	skip.If(t, testEnv.RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
+	skip.If(t, testEnv.IsRootless() && testEnv.DaemonInfo.CgroupVersion == "1", "Rootless Mode does not support cgroups v1 stats")
+	skip.If(t, testEnv.IsRemoteDaemon(), "Test requires a local daemon")
+
+	ctx := setupTest(t)
+
+	apiClient := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, apiClient)
+
+	net := "bridge"
+	if testEnv.DaemonInfo.OSType == "windows" {
+		net = "nat"
+	}
+
+	res, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+	containerIP := res.Container.NetworkSettings.Networks[net].IPAddress.String()
+
+	// Get the container networking stats before pinging the container
+	var preRxPackets, preTxPackets uint64
+	for _, v := range getNetworkStats(ctx, t, apiClient, cID) {
+		preRxPackets += v.RxPackets
+		preTxPackets += v.TxPackets
+	}
+
+	countParam := "-c"
+	if runtime.GOOS == "windows" {
+		countParam = "-n" // Ping count parameter is -n on Windows
+	}
+
+	numPings := 1
+	out, err := exec.Command("ping", containerIP, countParam, strconv.Itoa(numPings)).CombinedOutput()
+	if err != nil && runtime.GOOS == "linux" {
+		// If it fails then try a work-around, but just for linux.
+		// If this fails too then go back to the old error for reporting.
+		//
+		// The ping will sometimes fail due to an apparmor issue where it
+		// denies access to the libc.so.6 shared library - running it
+		// via /lib64/ld-linux-x86-64.so.2 seems to work around it.
+		out, err = exec.Command("/lib64/ld-linux-x86-64.so.2", "/bin/ping", containerIP, countParam, strconv.Itoa(numPings)).CombinedOutput()
+	}
+	pingOutput := string(out)
+	assert.NilError(t, err, pingOutput)
+
+	// Verify the stats contain at least the expected number of packets
+	expRxPkts := preRxPackets + uint64(numPings)
+	expTxPkts := preTxPackets + uint64(numPings)
+
+	// Poll for both PostTxPackets and PostRxPackets until they have the expected quantity
+	poll.WaitOn(t, func(l poll.LogT) poll.Result {
+		var postRxPackets, postTxPackets uint64
+		for _, v := range getNetworkStats(ctx, t, apiClient, cID) {
+			postTxPackets += v.TxPackets
+			postRxPackets += v.RxPackets
+		}
+
+		if postTxPackets < expTxPkts {
+			return poll.Continue("Reported less Tx packets than expected. Expected >= %d. Found %d. %s", expTxPkts, postTxPackets, pingOutput)
+		}
+
+		if postRxPackets < expRxPkts {
+			return poll.Continue("Reported less Rx packets than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingOutput)
+		}
+
+		return poll.Success()
+	}, poll.WithDelay(100*time.Millisecond), poll.WithTimeout(2*time.Second))
+}
+
+func getNetworkStats(ctx context.Context, t *testing.T, apiClient client.APIClient, id string) map[string]containertypes.NetworkStats {
+	res, err := apiClient.ContainerStats(ctx, id, client.ContainerStatsOptions{Stream: false})
+	assert.NilError(t, err)
+
+	var st containertypes.StatsResponse
+	err = json.NewDecoder(res.Body).Decode(&st)
+
+	assert.NilError(t, err)
+	_ = res.Body.Close()
+
+	return st.Networks
 }

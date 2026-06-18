@@ -248,6 +248,17 @@ func (a *APIError) Error() string {
 	return strings.TrimSpace(fmt.Sprintf("%s\n%s", msg, a.details))
 }
 
+// Message returns the original, unformatted error message from the underlying
+// googleapi.Error or gRPC Status, without additional details or context.
+func (a *APIError) Message() string {
+	if a.httpErr != nil {
+		return a.httpErr.Message
+	} else if a.status != nil {
+		return a.status.Message()
+	}
+	return ""
+}
+
 // GRPCStatus extracts the underlying gRPC Status error.
 // This method is necessary to fulfill the interface
 // described in https://pkg.go.dev/google.golang.org/grpc/status#FromError.

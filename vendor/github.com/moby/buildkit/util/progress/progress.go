@@ -235,18 +235,7 @@ func (pw *progressWriter) Write(id string, v any) error {
 }
 
 func (pw *progressWriter) WriteRawProgress(p *Progress) error {
-	meta := p.meta
-	if len(pw.meta) > 0 {
-		meta = map[string]any{}
-		maps.Copy(meta, p.meta)
-		for k, v := range pw.meta {
-			if _, ok := meta[k]; !ok {
-				meta[k] = v
-			}
-		}
-	}
-	p.meta = meta
-	return pw.writeRawProgress(p)
+	return pw.writeRawProgress(p.Decorate(pw.meta))
 }
 
 func (pw *progressWriter) writeRawProgress(p *Progress) error {
@@ -269,6 +258,21 @@ func (pw *progressWriter) Close() error {
 func (p *Progress) Meta(key string) (any, bool) {
 	v, ok := p.meta[key]
 	return v, ok
+}
+
+// Decorate merges in missing metadata without overwriting existing keys.
+func (p *Progress) Decorate(meta map[string]any) *Progress {
+	if len(meta) == 0 {
+		return p
+	}
+
+	merged := make(map[string]any, len(p.meta)+len(meta))
+	maps.Copy(merged, meta)
+	maps.Copy(merged, p.meta)
+
+	newP := *p
+	newP.meta = merged
+	return &newP
 }
 
 type noOpWriter struct{}

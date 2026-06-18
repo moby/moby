@@ -2,6 +2,7 @@ package llbsolver
 
 import (
 	"context"
+	"maps"
 	"os"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/llbsolver/compat"
 	"github.com/moby/buildkit/solver/llbsolver/history"
 	"github.com/moby/buildkit/solver/result"
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
@@ -28,6 +30,7 @@ import (
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/metric"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -57,7 +60,9 @@ type Opt struct {
 	WorkerController *worker.Controller
 	HistoryQueue     *history.Queue
 	ResourceMonitor  *resources.Monitor
+	ProxyNetwork     bool
 	ProvenanceEnv    map[string]any
+	MeterProvider    metric.MeterProvider
 }
 
 type Solver struct {
@@ -72,7 +77,10 @@ type Solver struct {
 	entitlements              []string
 	history                   *history.Queue
 	sysSampler                *resources.Sampler[*resourcestypes.SysSample]
+	proxyNetwork              bool
 	provenanceEnv             map[string]any
+	provenanceStore           *provenanceStore
+	metrics                   *buildMetrics
 }
 
 // Processor defines a processing function to be applied after solving, but
@@ -92,6 +100,11 @@ func New(opt Opt) (*Solver, error) {
 		}
 	}
 
+	bm, err := newBuildMetrics(opt.MeterProvider)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to register build metrics")
+	}
+
 	s := &Solver{
 		workerController:          opt.WorkerController,
 		resolveWorker:             defaultResolver(opt.WorkerController),
@@ -102,7 +115,10 @@ func New(opt Opt) (*Solver, error) {
 		sm:                        opt.SessionManager,
 		entitlements:              opt.Entitlements,
 		history:                   opt.HistoryQueue,
+		proxyNetwork:              opt.ProxyNetwork,
 		provenanceEnv:             opt.ProvenanceEnv,
+		provenanceStore:           newProvenanceStore(),
+		metrics:                   bm,
 	}
 
 	sampler, err := resources.NewSysSampler()
@@ -132,11 +148,21 @@ func (s *Solver) resolver() solver.ResolveOpFunc {
 		if err != nil {
 			return nil, err
 		}
-		return w.ResolveOp(v, s.Bridge(b), s.sm)
+		br := s.bridge(b)
+		return w.ResolveOp(v, br, s.sm, worker.ProxyOpt{
+			Network: br.ProxyNetwork(),
+			Policy:  br.ProxyPolicy,
+		})
 	}
 }
 
-func (s *Solver) bridge(b solver.Builder) *provenanceBridge {
+func (s *Solver) bridge(b solver.Builder, opts ...bridgeOpt) *provenanceBridge {
+	cfg := bridgeConfig{
+		proxyNetwork: s.proxyNetwork,
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
 	return &provenanceBridge{llbBridge: &llbBridge{
 		builder:                   b,
 		frontends:                 s.frontends,
@@ -145,14 +171,42 @@ func (s *Solver) bridge(b solver.Builder) *provenanceBridge {
 		resolveCacheImporterFuncs: s.resolveCacheImporterFuncs,
 		cms:                       map[string]solver.CacheManager{},
 		sm:                        s.sm,
+		provenanceStore:           s.provenanceStore,
+		proxyNetwork:              cfg.proxyNetwork,
 	}}
+}
+
+type bridgeConfig struct {
+	proxyNetwork bool
+}
+
+type bridgeOpt func(*bridgeConfig)
+
+func withBridgeProxyNetwork(proxyNetwork bool) bridgeOpt {
+	return func(cfg *bridgeConfig) {
+		cfg.proxyNetwork = proxyNetwork
+	}
 }
 
 func (s *Solver) Bridge(b solver.Builder) frontend.FrontendLLBBridge {
 	return s.bridge(b)
 }
 
-func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req frontend.SolveRequest, exp ExporterRequest, ent []entitlements.Entitlement, post []Processor, internal bool, srcPol *spb.Policy, policySession string) (_ *client.SolveResponse, err error) {
+func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req frontend.SolveRequest, compatibilityVersion int, exp ExporterRequest, ent []entitlements.Entitlement, post []Processor, internal bool, srcPol *spb.Policy, policySession string, proxyNetwork bool) (_ *client.SolveResponse, err error) {
+	hasNamedDockerfileContext := false
+	for k := range req.FrontendOpt {
+		if k == "context:dockerfile.v0" || strings.HasPrefix(k, "context:dockerfile.v0::") {
+			hasNamedDockerfileContext = true
+			break
+		}
+	}
+	if req.Frontend == "gateway.v0" && req.FrontendOpt[frontend.KeySource] == "dockerfile.v0" && !hasNamedDockerfileContext {
+		frontendOpt := maps.Clone(req.FrontendOpt)
+		delete(frontendOpt, frontend.KeySource)
+		req.Frontend = "dockerfile.v0"
+		req.FrontendOpt = frontendOpt
+	}
+
 	j, err := s.solver.NewJob(id)
 	if err != nil {
 		return nil, err
@@ -191,6 +245,9 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 		return nil, err
 	}
 	j.SetValue(keyEntitlements, set)
+	if proxyNetwork {
+		j.SetValue(keyProxyNetwork, true)
+	}
 
 	if srcPol != nil {
 		if err := validateSourcePolicy(srcPol); err != nil {
@@ -201,10 +258,17 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 	if policySession != "" {
 		j.SetValue(keySourcePolicySession, policySession)
 	}
+	if compatibilityVersion == 0 {
+		compatibilityVersion = compat.CompatibilityVersionCurrent
+	}
+	j.SetValue(compat.JobValueKey, compatibilityVersion)
 
 	j.SessionID = sessionID
 
-	br := s.bridge(j)
+	br := s.bridge(j, withBridgeProxyNetwork(proxyNetwork || s.proxyNetwork))
+	defer br.releaseProvenanceRefs()
+	rootReq := req.Clone()
+	br.rootReq = &rootReq
 	var fwd gateway.LLBBridgeForwarder
 	if s.gatewayForwarder != nil && req.Definition == nil && req.Frontend == "" {
 		fwd = gateway.NewBridgeForwarder(ctx, br, br, s.workerController.Infos(), req.FrontendInputs, sessionID, s.sm)
@@ -213,10 +277,8 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 		// s.recordBuildHistory can block for several seconds on
 		// LeaseManager calls, and there is a fixed 3s timeout in
 		// GatewayForwarder on build registration.
-		if err := s.gatewayForwarder.RegisterBuild(ctx, id, fwd); err != nil {
-			return nil, err
-		}
-		defer s.gatewayForwarder.UnregisterBuild(context.WithoutCancel(ctx), id)
+		s.gatewayForwarder.RegisterBuild(ctx, id, fwd)
+		defer s.gatewayForwarder.UnregisterBuild(context.Background(), id)
 	}
 
 	if !internal {

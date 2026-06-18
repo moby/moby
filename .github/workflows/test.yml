@@ -2,7 +2,9 @@ name: test
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel stale PR runs without interrupting push, tag, scheduled, or
+  # manually dispatched validation.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -17,7 +19,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.26.2"
+  GO_VERSION: "1.26.4"
   GIT_PAGER: "cat"
   PAGER: "cat"
   SETUP_BUILDX_VERSION: edge
@@ -28,13 +30,16 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   build-dev:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-dco
     strategy:
       fail-fast: false
       matrix:
+        arch:
+          - amd64
+          - arm64
         mode:
           - ""
           - systemd
@@ -50,29 +55,30 @@ jobs:
           fi
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
+        uses: docker/bake-action@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
         with:
           targets: dev
           set: |
-            *.cache-from=type=gha,scope=dev${{ matrix.mode }}
-            *.cache-to=type=gha,scope=dev${{ matrix.mode }}
-            ${{ matrix.mode == '' && '*.output=type=docker,dest=/tmp/dev-image.tar' || '*.output=type=cacheonly' }}
+            *.cache-from=type=gha,scope=${{ matrix.mode == '' && format('dev-{0}', matrix.arch) || format('dev-{0}-{1}', matrix.mode, matrix.arch) }}
+            *.cache-to=type=gha,scope=${{ matrix.mode == '' && format('dev-{0}', matrix.arch) || format('dev-{0}-{1}', matrix.mode, matrix.arch) }}
+            ${{ matrix.mode == '' && format('*.output=type=docker,dest=/tmp/dev-image-{0}.tar', matrix.arch) || '*.output=type=cacheonly' }}
       -
         name: Cache dev image
         if: matrix.mode == ''
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          key: dev-image-${{ github.run_id }}
-          path: /tmp/dev-image.tar
+          key: dev-image-${{ matrix.arch }}-${{ github.run_id }}
+          path: /tmp/dev-image-${{ matrix.arch }}.tar
 
   test:
+    name: test (${{ matrix.arch }}, ${{ matrix.storage }})
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - build-dev
@@ -81,11 +87,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        storage:
-          - graphdriver
-          - snapshotter
+        include:
+          # Only amd64 gets the full matrix
+          - arch: amd64
+            storage: snapshotter
+            runnerSuffix: ""
+            extraModes: '["rootless", "systemd", "iptables+firewalld", "nftables", "nftables+firewalld"]'
+            # FIXME: add rootless-systemd once https://github.com/moby/moby/issues/44084 is resolved.
+          - arch: amd64
+            storage: graphdriver
+            runnerSuffix: ""
+            extraModes: '["rootless", "systemd"]'
+            # FIXME: add rootless-systemd once https://github.com/moby/moby/issues/44084 is resolved.
+          - arch: arm64
+            storage: snapshotter
+            runnerSuffix: "-arm"
+            extraModes: '[]'
     with:
+      arch: ${{ matrix.arch }}
       storage: ${{ matrix.storage }}
+      runnerSuffix: ${{ matrix.runnerSuffix }}
+      extraModes: ${{ matrix.extraModes }}
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -95,6 +117,17 @@ jobs:
       - build-dev
       - validate-dco
     uses: ./.github/workflows/.test-unit.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runnerSuffix: ""
+          - arch: arm64
+            runnerSuffix: "-arm"
+    with:
+      arch: ${{ matrix.arch }}
+      runnerSuffix: ${{ matrix.runnerSuffix }}
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -108,7 +141,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       -
         name: Create matrix
         id: scripts
@@ -129,7 +162,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
       -
@@ -137,7 +170,7 @@ jobs:
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver: docker
@@ -146,13 +179,13 @@ jobs:
         name: Restore dev image
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          key: dev-image-${{ github.run_id }}
-          path: /tmp/dev-image.tar
+          key: dev-image-amd64-${{ github.run_id }}
+          path: /tmp/dev-image-amd64.tar
           fail-on-cache-miss: true
       -
         name: Load dev image
         run: |
-          docker load -i /tmp/dev-image.tar
+          docker load -i /tmp/dev-image-amd64.tar
       -
         name: Validate
         env:
@@ -172,7 +205,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       -
         name: Validate swagger
         run: |
@@ -190,11 +223,11 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       -
         name: Create matrix
         id: gen
-        uses: docker/bake-action/subaction/matrix@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
+        uses: docker/bake-action/subaction/matrix@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
         with:
           target: binary-smoketest
           fields: platforms
@@ -218,17 +251,17 @@ jobs:
           echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> $GITHUB_ENV
       -
         name: Set up QEMU
-        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
       -
         name: Test
-        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
+        uses: docker/bake-action@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
         with:
           targets: ${{ matrix.target }}
           set: |

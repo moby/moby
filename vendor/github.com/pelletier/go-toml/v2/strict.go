@@ -68,7 +68,7 @@ func (s *strict) MissingField(node *unstable.Node) {
 
 	s.missing = append(s.missing, unstable.ParserError{
 		Highlight: s.keyLocation(node),
-		Message:   "missing field",
+		Message:   "unknown field",
 		Key:       s.key.Key(),
 	})
 }

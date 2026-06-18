@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
@@ -41,6 +40,13 @@ const (
 	keyShmSize          = "shm-size"
 	keyTargetPlatform   = "platform"
 	keyUlimit           = "ulimit"
+	keyMemory           = "memory"
+	keyMemorySwap       = "memswap"
+	keyCPUShares        = "cpushares"
+	keyCPUPeriod        = "cpuperiod"
+	keyCPUQuota         = "cpuquota"
+	keyCpusetCpus       = "cpusetcpus"
+	keyCpusetMems       = "cpusetmems"
 	keyCacheFrom        = "cache-from"    // for registry only. deprecated in favor of keyCacheImports
 	keyCacheImports     = "cache-imports" // JSON representation of []CacheOptionsEntry
 
@@ -51,14 +57,12 @@ const (
 	keyHostnameArg          = "build-arg:BUILDKIT_SANDBOX_HOSTNAME"
 	keyDockerfileLintArg    = "build-arg:BUILDKIT_DOCKERFILE_CHECK"
 	keyContextKeepGitDirArg = "build-arg:BUILDKIT_CONTEXT_KEEP_GIT_DIR"
-	keySourceDateEpoch      = "build-arg:SOURCE_DATE_EPOCH"
 )
 
 type Config struct {
 	BuildArgs        map[string]string
 	CacheIDNamespace string
 	CgroupParent     string
-	Epoch            *time.Time
 	ExtraHosts       []llb.HostIP
 	Hostname         string
 	ImageResolveMode llb.ResolveMode
@@ -67,6 +71,7 @@ type Config struct {
 	ShmSize          int64
 	Target           string
 	Ulimits          []*pb.Ulimit
+	LinuxResources   *pb.LinuxResources
 	Devices          []*pb.CDIDevice
 	LinterConfig     *linter.Config
 
@@ -147,6 +152,10 @@ func (bc *Client) BuildOpts() client.BuildOpts {
 	return bc.bopts
 }
 
+func (bc *Client) GatewayClient() client.Client {
+	return bc.client
+}
+
 func (bc *Client) init() error {
 	opts := bc.bopts.Opts
 
@@ -191,6 +200,12 @@ func (bc *Client) init() error {
 		return errors.Wrap(err, "failed to parse ulimit")
 	}
 	bc.Ulimits = ulimits
+
+	linuxRes, err := parseLinuxResources(opts)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse resource limits")
+	}
+	bc.LinuxResources = linuxRes
 
 	defaultNetMode, err := parseNetMode(opts[keyForceNetwork])
 	if err != nil {
@@ -250,12 +265,6 @@ func (bc *Client) init() error {
 		}
 	}
 	bc.CacheImports = cacheImports
-
-	epoch, err := parseSourceDateEpoch(opts[keySourceDateEpoch])
-	if err != nil {
-		return err
-	}
-	bc.Epoch = epoch
 
 	attests, err := attestations.Parse(opts)
 	if err != nil {

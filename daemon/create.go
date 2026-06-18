@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -124,6 +125,10 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
+	if runtime.GOOS == "linux" && (opts.params.HostConfig.NetworkMode.IsDefault() || opts.params.HostConfig.NetworkMode.IsBridge()) && len(opts.params.HostConfig.Links) > 0 {
+		warnings = append(warnings, "Links on the default bridge network are deprecated and will be removed in a future release. Use a custom network instead.")
+	}
+
 	ctr, err := daemon.create(ctx, &daemonCfg.Config, opts)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, err
@@ -227,22 +232,6 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 
 	ctr.ImageManifest = imgManifest
 
-	// Set RWLayer for container after mount labels have been set
-	rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping.RootPair()))
-	if err != nil {
-		return nil, errdefs.System(err)
-	}
-	ctr.RWLayer = rwLayer
-
-	cuid := os.Getuid()
-	_, gid := daemon.IdentityMapping().RootPair()
-	if err := user.MkdirAndChown(ctr.Root, 0o710, cuid, gid); err != nil {
-		return nil, err
-	}
-	if err := user.MkdirAndChown(ctr.CheckpointDir(), 0o700, cuid, os.Getegid()); err != nil {
-		return nil, err
-	}
-
 	if err := daemon.registerLinks(ctr); err != nil {
 		return nil, err
 	}
@@ -268,6 +257,23 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	if err := daemon.registerMountPoints(ctr, opts.params.DefaultReadOnlyNonRecursive); err != nil {
 		return nil, err
 	}
+
+	// Set RWLayer for container after mount labels have been set
+	rwLayer, err := daemon.imageService.CreateLayer(ctr, setupInitLayer(daemon.idMapping.RootPair()))
+	if err != nil {
+		return nil, errdefs.System(err)
+	}
+	ctr.RWLayer = rwLayer
+
+	cuid := os.Getuid()
+	_, gid := daemon.IdentityMapping().RootPair()
+	if err := user.MkdirAndChown(ctr.Root, 0o710, cuid, gid); err != nil {
+		return nil, err
+	}
+	if err := user.MkdirAndChown(ctr.CheckpointDir(), 0o700, cuid, os.Getegid()); err != nil {
+		return nil, err
+	}
+
 	if err := daemon.createContainerVolumesOS(ctx, ctr, opts.params.Config); err != nil {
 		return nil, err
 	}

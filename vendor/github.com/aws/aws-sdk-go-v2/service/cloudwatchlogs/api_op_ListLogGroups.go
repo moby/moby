@@ -17,12 +17,10 @@ import (
 // more information about using cross-account observability to set up monitoring
 // accounts and source accounts, see [CloudWatch cross-account observability].
 //
-// You can optionally filter the list by log group class, by using regular
-// expressions in your request to match strings in the log group names, by using
-// the fieldIndexes parameter to filter log groups based on which field indexes are
-// configured, by using the dataSources parameter to filter log groups by data
-// source types, and by using the fieldIndexNames parameter to filter by specific
-// field index names.
+// You can optionally filter the results by log group class, log group name
+// pattern, field indexes, data sources, field index names, or log group tags. If
+// you specify more than one filter type, the results include log groups that
+// satisfy all filters.
 //
 // This operation is paginated. By default, your first use of this operation
 // returns 50 results, and includes a token to use in a subsequent operation to
@@ -98,6 +96,10 @@ type ListLogGroupsInput struct {
 	// field, each of which must be between 3 and 24 characters. You can include the ^
 	// symbol as many as five times, and include the | symbol as many as four times.
 	LogGroupNamePattern *string
+
+	// An array of tag filters to return only log groups that have specific tags.
+	// Multiple filters are combined with AND logic.
+	LogGroupTags []types.TagFilter
 
 	// The token for the next set of items to return. The token expires after 24 hours.
 	NextToken *string

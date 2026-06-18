@@ -1,6 +1,7 @@
 package dockerfile2llb
 
 import (
+	"maps"
 	"slices"
 
 	"github.com/moby/buildkit/util/system"
@@ -15,6 +16,16 @@ func clone(src dockerspec.DockerOCIImage) dockerspec.DockerOCIImage {
 	img.Config.Cmd = slices.Clone(src.Config.Cmd)
 	img.Config.Entrypoint = slices.Clone(src.Config.Entrypoint)
 	img.Config.OnBuild = slices.Clone(src.Config.OnBuild)
+	img.Config.ExposedPorts = maps.Clone(src.Config.ExposedPorts)
+	img.Config.Volumes = maps.Clone(src.Config.Volumes)
+	img.Config.Labels = maps.Clone(src.Config.Labels)
+	img.Config.Shell = slices.Clone(src.Config.Shell)
+	if src.Config.Healthcheck != nil {
+		hc := *src.Config.Healthcheck
+		hc.Test = slices.Clone(src.Config.Healthcheck.Test)
+		img.Config.Healthcheck = &hc
+	}
+	img.History = slices.Clone(src.History)
 	return img
 }
 

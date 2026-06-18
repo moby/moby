@@ -19,7 +19,7 @@ on:
         default: ""
 
 env:
-  GO_VERSION: "1.26.2"
+  GO_VERSION: "1.26.4"
   TESTSTAT_VERSION: v0.1.25
   TEMPLATE_NAME: ${{ inputs.template }}
 
@@ -39,7 +39,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       -
         name: Set up Lima
         uses: lima-vm/lima-actions/setup@55627e31b78637bf254a8b2a14da8ea7d12564e5  # v1.1.0
@@ -214,4 +214,6 @@ jobs:
       -
         name: Create summary
         run: |
-          find /tmp/reports -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> $GITHUB_STEP_SUMMARY
+          if [ -d /tmp/reports ]; then
+            find /tmp/reports -type f -name '*-go-test-report.json' -exec teststat -markdown {} \+ >> "$GITHUB_STEP_SUMMARY"
+          fi

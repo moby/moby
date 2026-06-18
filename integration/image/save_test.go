@@ -489,7 +489,7 @@ func TestSaveDirectoryPermissions(t *testing.T) {
 RUN adduser -D user && mkdir -p /opt/a/b && chown -R user:user /opt/a
 RUN touch /opt/a/b/c && chown user:user /opt/a/b/c`
 
-	imgID := build.Do(ctx, t, apiClient, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
+	imgID := build.Do(ctx, t, apiClient, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)), client.ImageBuildOptions{})
 
 	rdr, err := apiClient.ImageSave(ctx, []string{imgID})
 	assert.NilError(t, err)

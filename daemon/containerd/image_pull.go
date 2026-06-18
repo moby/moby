@@ -104,10 +104,11 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	ctx = remotes.WithMediaTypeKeyPrefix(ctx, policyimage.ArtifactTypeCosignSignature, "cosign-signature")
 	ctx = remotes.WithMediaTypeKeyPrefix(ctx, policyimage.ArtifactTypeSigstoreBundle, "sigstore-bundle")
 
-	var opts []containerd.RemoteOpt
+	pullPlatform := i.hostPlatformSpec()
 	if platform != nil {
-		opts = append(opts, containerd.WithPlatform(platforms.FormatAll(*platform)))
+		pullPlatform = *platform
 	}
+	opts := []containerd.RemoteOpt{containerd.WithPlatform(platforms.FormatAll(pullPlatform))}
 
 	resolver, _ := i.newResolverFromAuthConfig(ctx, authConfig, ref, metaHeaders)
 	opts = append(opts, containerd.WithResolver(resolver))
@@ -138,10 +139,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 		}()
 	}
 
-	p := platforms.Default()
-	if platform != nil {
-		p = platforms.Only(*platform)
-	}
+	p := platforms.Only(pullPlatform)
 
 	pullJobs := newJobs()
 	opts = append(opts, containerd.WithImageHandler(c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
@@ -252,10 +250,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 			// the same message as the graphdrivers backend.
 			// The one returned by containerd doesn't contain the platform and is much less informative.
 			if strings.Contains(err.Error(), "platform") {
-				platformStr := platforms.DefaultString()
-				if platform != nil {
-					platformStr = platforms.FormatAll(*platform)
-				}
+				platformStr := platforms.FormatAll(pullPlatform)
 				return errdefs.NotFound(fmt.Errorf("no matching manifest for %s in the manifest list entries: %w", platformStr, err))
 			}
 		}

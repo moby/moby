@@ -7,7 +7,10 @@ import (
 
 // Config provides containerd configuration data for the server
 type Config struct {
+	// Deprecated: Use Log.Level with "debug" set instead.
 	Debug bool `toml:"debug"`
+
+	// Deprecated: Use Log.Level with "trace" set instead.
 	Trace bool `toml:"trace"`
 
 	// Root is the path to a directory where buildkit will store persistent data
@@ -15,6 +18,9 @@ type Config struct {
 
 	// Entitlements e.g. security.insecure, network.host, device
 	Entitlements []string `toml:"insecure-entitlements"`
+
+	// ProxyNetwork enables proxy network enforcement for all builds.
+	ProxyNetwork bool `toml:"proxyNetwork"`
 
 	// LogFormat is the format of the logs. It can be "json" or "text".
 	Log LogConfig `toml:"log"`
@@ -59,10 +65,15 @@ type SystemConfig struct {
 	// PlatformCacheMaxAge controls how often supported platforms
 	// are refreshed by rescanning the system.
 	PlatformsCacheMaxAge *Duration `toml:"platformsCacheMaxAge"`
+
+	// MaxRegistryConcurrency sets the maximum number of concurrent
+	// connections per registry.
+	MaxRegistryConcurrency *int `toml:"maxRegistryConcurrency"`
 }
 
 type LogConfig struct {
 	Format string `toml:"format"`
+	Level  string `toml:"level"`
 }
 
 type GRPCConfig struct {

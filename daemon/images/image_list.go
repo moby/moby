@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"sort"
 	"time"
 
@@ -156,12 +157,28 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 
 		for _, ref := range i.referenceStore.References(id.Digest()) {
 			if opts.Filters.Contains("reference") {
+				// Match the filter pattern against both the familiar
+				// and canonical forms of the image reference (with
+				// and without tag), so that e.g. "alpine" and
+				// "docker.io/library/alpine" (and their glob
+				// variants) both match.
+				targets := []string{
+					reference.FamiliarString(ref),
+					reference.FamiliarName(ref),
+					reference.TagNameOnly(ref).String(),
+					ref.Name(),
+				}
 				var found bool
-				var matchErr error
 				for _, pattern := range opts.Filters.Get("reference") {
-					found, matchErr = reference.FamiliarMatch(pattern, ref)
-					if matchErr != nil {
-						return nil, matchErr
+					for _, target := range targets {
+						matched, err := path.Match(pattern, target)
+						if err != nil {
+							return nil, err
+						}
+						if matched {
+							found = true
+							break
+						}
 					}
 					if found {
 						break

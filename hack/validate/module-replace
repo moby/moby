@@ -12,6 +12,8 @@ filter_diff() {
 api_diff=$(
 	validate_diff --diff-filter=ACMR -U0 -- \
 		'api/' \
+		':(exclude)api/*_test.go' \
+		':(exclude)api/**/*_test.go' \
 		':(exclude)api/Dockerfile' \
 		':(exclude)api/README.md' \
 		':(exclude)api/swagger.yaml' \
@@ -20,7 +22,14 @@ api_diff=$(
 		|| true
 )
 
-client_diff=$(validate_diff --diff-filter=ACMR -U0 -- 'client/' | filter_diff || true)
+client_diff=$(
+	validate_diff --diff-filter=ACMR -U0 -- \
+		'client/' \
+		':(exclude)client/*_test.go' \
+		':(exclude)client/**/*_test.go' \
+		| filter_diff \
+		|| true
+)
 
 has_errors=0
 

@@ -3161,7 +3161,7 @@ func (s *DockerCLIBuildSuite) TestBuildOnBuildOutput(c *testing.T) {
 
 // FIXME(vdemeester) should be a unit test
 func (s *DockerCLIBuildSuite) TestBuildInvalidTag(c *testing.T) {
-	name := "abcd:" + testutil.GenerateRandomAlphaOnlyString(200)
+	name := "abcd:" + testutil.RandomAlpha(200)
 	cli.Docker(cli.Args("build", "-t", name), build.WithDockerfile("FROM "+minimalBaseImage()+"\nMAINTAINER quux\n")).Assert(c, icmd.Expected{
 		ExitCode: 125,
 		Err:      "invalid reference format",
@@ -6216,10 +6216,10 @@ func (s *DockerCLIBuildSuite) TestBuildEmitsEvents(t *testing.T) {
 				skip.If(t, builder.buildkit && DaemonIsWindows() && !containerdSnapshotterEnabled(),
 					"Buildkit is not supported on Windows with graphdrivers")
 
-				time.Sleep(time.Second)
-				before := time.Now()
+				since := daemonUnixTime(t)
 
-				args := []string{"build"}
+				iidFile := filepath.Join(t.TempDir(), "iid")
+				args := []string{"build", "--iidfile", iidFile}
 				args = append(args, tc.args...)
 
 				b := cli.Docker(cli.Args(args...),
@@ -6229,12 +6229,18 @@ func (s *DockerCLIBuildSuite) TestBuildEmitsEvents(t *testing.T) {
 				)
 				assert.NilError(t, b.Compare(icmd.Success), b.Combined())
 
+				imageID, err := os.ReadFile(iidFile)
+				assert.NilError(t, err)
+
+				until := daemonUnixTime(t)
+
 				cmd := cli.Docker(
 					cli.Args("events",
 						"--filter", "type=image",
-						"--since", before.Format(time.RFC3339),
+						"--filter", "image="+strings.TrimSpace(string(imageID)),
+						"--since", since,
+						"--until", until,
 					),
-					cli.WithTimeout(time.Millisecond*300),
 					cli.WithEnvironmentVariables("DOCKER_API_VERSION=v1.46"), // FIXME(thaJeztah): integration-cli runs docker CLI 25.0; we're "upgrading" the API version to a version it doesn't support here ;)
 				)
 

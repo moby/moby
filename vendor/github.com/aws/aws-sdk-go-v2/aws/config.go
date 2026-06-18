@@ -204,6 +204,10 @@ type Config struct {
 	// when constructing clients for specific services. Each callback function receives the service ID
 	// and the service's Options struct, allowing for dynamic configuration based on the service.
 	ServiceOptions []func(string, any)
+
+	// Controls whether the SDK restricts file permissions on credential
+	// cache files it creates.
+	RestrictFilePermissions RestrictFilePermissions
 }
 
 // NewConfig returns a new Config pointer that can be chained with builder

@@ -2,6 +2,7 @@ package builder
 
 import (
 	"context"
+	"maps"
 	"strings"
 
 	"github.com/containerd/platforms"
@@ -131,6 +132,7 @@ func Build(ctx context.Context, c client.Client) (_ *client.Result, err error) {
 
 	rb, err := bc.Build(ctx, func(ctx context.Context, platform *ocispecs.Platform, idx int) (*dockerui.BuildResult, error) {
 		opt := convertOpt
+		opt.BuildArgs = maps.Clone(opt.BuildArgs)
 		opt.TargetPlatform = platform
 		if idx != 0 {
 			opt.Warn = nil

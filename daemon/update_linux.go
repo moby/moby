@@ -8,13 +8,59 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func toContainerdResources(resources container.Resources) *libcontainerdtypes.Resources {
+func toContainerdResources(resources container.Resources) (*libcontainerdtypes.Resources, error) {
 	var r libcontainerdtypes.Resources
 
-	if resources.BlkioWeight != 0 {
-		r.BlockIO = &specs.LinuxBlockIO{
-			Weight: &resources.BlkioWeight,
+	// little helper to lazily initialize the BlockIO struct only if needed
+	blockIO := func() *specs.LinuxBlockIO {
+		if r.BlockIO == nil {
+			r.BlockIO = &specs.LinuxBlockIO{}
 		}
+		return r.BlockIO
+	}
+
+	weightDevices, err := getBlkioWeightDevices(resources)
+	if err != nil {
+		return nil, err
+	}
+	if resources.BlkioWeightDevice != nil {
+		blockIO().WeightDevice = weightDevices
+	}
+
+	readBpsDevices, err := getBlkioThrottleDevices(resources.BlkioDeviceReadBps)
+	if err != nil {
+		return nil, err
+	}
+	if resources.BlkioDeviceReadBps != nil {
+		blockIO().ThrottleReadBpsDevice = readBpsDevices
+	}
+
+	writeBpsDevices, err := getBlkioThrottleDevices(resources.BlkioDeviceWriteBps)
+	if err != nil {
+		return nil, err
+	}
+	if resources.BlkioDeviceWriteBps != nil {
+		blockIO().ThrottleWriteBpsDevice = writeBpsDevices
+	}
+
+	readIOpsDevices, err := getBlkioThrottleDevices(resources.BlkioDeviceReadIOps)
+	if err != nil {
+		return nil, err
+	}
+	if resources.BlkioDeviceReadIOps != nil {
+		blockIO().ThrottleReadIOPSDevice = readIOpsDevices
+	}
+
+	writeIOpsDevices, err := getBlkioThrottleDevices(resources.BlkioDeviceWriteIOps)
+	if err != nil {
+		return nil, err
+	}
+	if resources.BlkioDeviceWriteIOps != nil {
+		blockIO().ThrottleWriteIOPSDevice = writeIOpsDevices
+	}
+
+	if resources.BlkioWeight != 0 {
+		blockIO().Weight = &resources.BlkioWeight
 	}
 
 	cpu := specs.LinuxCPU{
@@ -68,5 +114,5 @@ func toContainerdResources(resources container.Resources) *libcontainerdtypes.Re
 	}
 
 	r.Pids = getPidsLimit(resources)
-	return &r
+	return &r, nil
 }

@@ -16,6 +16,7 @@ type SecretStore interface {
 var ErrNotFound = errors.Errorf("not found")
 
 func GetSecret(ctx context.Context, c session.Caller, id string) ([]byte, error) {
+	ctx = c.Context(ctx)
 	client := NewSecretsClient(c.Conn())
 	resp, err := client.GetSecret(ctx, &GetSecretRequest{
 		ID: id,

@@ -294,8 +294,8 @@ func TestExecUser(t *testing.T) {
 		container.WithTty(true),
 		container.WithUser("1:1"),
 	}
-	withoutEtcGroups := container.WithImage(build.Do(ctx, t, apiClient, fakecontext.New(t, "", fakecontext.WithDockerfile("FROM busybox\nRUN rm /etc/group"))))
-	withoutEtcPasswd := container.WithImage(build.Do(ctx, t, apiClient, fakecontext.New(t, "", fakecontext.WithDockerfile("FROM busybox\nRUN rm /etc/passwd"))))
+	withoutEtcGroups := container.WithImage(build.Do(ctx, t, apiClient, fakecontext.New(t, "", fakecontext.WithDockerfile("FROM busybox\nRUN rm /etc/group")), client.ImageBuildOptions{}))
+	withoutEtcPasswd := container.WithImage(build.Do(ctx, t, apiClient, fakecontext.New(t, "", fakecontext.WithDockerfile("FROM busybox\nRUN rm /etc/passwd")), client.ImageBuildOptions{}))
 
 	withUser := func(user string) func(options *client.ExecCreateOptions) {
 		return func(options *client.ExecCreateOptions) { options.User = user }

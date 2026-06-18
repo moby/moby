@@ -338,7 +338,7 @@ func TestVolumePruneAnonFromImage(t *testing.T) {
 	dockerfile := `FROM busybox
 VOLUME ` + volDest
 
-	img := build.Do(ctx, t, apiClient, fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile)))
+	img := build.Do(ctx, t, apiClient, fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile)), client.ImageBuildOptions{})
 
 	id := container.Create(ctx, t, apiClient, container.WithImage(img))
 	defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{})

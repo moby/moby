@@ -12,6 +12,7 @@ import (
 	mounttypes "github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/stringid"
 	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/volume"
@@ -131,6 +132,86 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 	assert.NilError(t, err)
 	fi := info.Sys().(*syscall.Stat_t)
 	assert.Check(t, is.Equal(fi.Uid, uint32(0)), "bind mounted network file should not change ownership from root")
+}
+
+func assertContainerMountPoint(t *testing.T, mountPoint, expected containertypes.MountPoint) {
+	t.Helper()
+
+	if expected.Source != "" {
+		assert.Check(t, is.Equal(mountPoint.Source, expected.Source))
+	}
+	if expected.Name != "" {
+		assert.Check(t, is.Equal(mountPoint.Name, expected.Name))
+	}
+	if expected.Driver != "" {
+		assert.Check(t, is.Equal(mountPoint.Driver, expected.Driver))
+	}
+	if expected.Propagation != "" {
+		assert.Check(t, is.Equal(mountPoint.Propagation, expected.Propagation))
+	}
+	assert.Check(t, is.Equal(mountPoint.RW, expected.RW))
+	assert.Check(t, is.Equal(mountPoint.Type, expected.Type))
+	assert.Check(t, is.Equal(mountPoint.Mode, expected.Mode))
+	assert.Check(t, is.Equal(mountPoint.Destination, expected.Destination))
+}
+
+func TestContainerBindMountInspect(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	type testCase struct {
+		desc     string
+		spec     mounttypes.Mount
+		expected containertypes.MountPoint
+	}
+
+	const destPath = "/foo"
+	tmpDir1 := fs.NewDir(t, "test-mounts-api-1", fs.WithMode(0o755))
+	tests := []testCase{{
+		desc:     "readonly bind",
+		spec:     mounttypes.Mount{Type: "bind", Source: tmpDir1.Path(), Target: destPath, ReadOnly: true},
+		expected: containertypes.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir1.Path()},
+	}}
+
+	tmpDir3 := fs.NewDir(t, "test-mounts-api-3", fs.WithMode(0o755))
+	if err := mount.Mount(tmpDir3.Path(), tmpDir3.Path(), "none", "bind,shared"); err == nil {
+		t.Cleanup(func() {
+			assert.NilError(t, mount.Unmount(tmpDir3.Path()))
+		})
+		tests = append(tests, testCase{
+			desc:     "readonly bind shared propagation",
+			spec:     mounttypes.Mount{Type: "bind", Source: tmpDir3.Path(), Target: destPath, ReadOnly: true, BindOptions: &mounttypes.BindOptions{Propagation: "shared"}},
+			expected: containertypes.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3.Path(), Propagation: "shared"},
+		})
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+			ctr, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+				Config: &containertypes.Config{
+					Image: "busybox",
+					Cmd:   []string{"true"},
+				},
+				HostConfig:       &containertypes.HostConfig{Mounts: []mounttypes.Mount{tc.spec}},
+				NetworkingConfig: &network.NetworkingConfig{},
+			})
+			assert.NilError(t, err)
+
+			inspect, err := apiClient.ContainerInspect(ctx, ctr.ID, client.ContainerInspectOptions{})
+			assert.NilError(t, err)
+			assert.Assert(t, is.Len(inspect.Container.Mounts, 1))
+			assertContainerMountPoint(t, inspect.Container.Mounts[0], tc.expected)
+
+			_, err = apiClient.ContainerRemove(ctx, ctr.ID, client.ContainerRemoveOptions{
+				RemoveVolumes: true,
+				Force:         true,
+			})
+			assert.NilError(t, err)
+		})
+	}
 }
 
 func TestMountDaemonRoot(t *testing.T) {
@@ -465,6 +546,73 @@ func TestContainerVolumeAnonymous(t *testing.T) {
 		const expectedAnonymousLabel = "com.docker.volume.anonymous"
 		assert.Check(t, is.Contains(res.Volume.Labels, expectedAnonymousLabel))
 		assert.Check(t, is.Equal(res.Volume.Driver, volume.DefaultDriverName))
+	})
+
+	t.Run("inspect mount point fields", func(t *testing.T) {
+		const destPath = "/foo"
+		selinuxSharedLabel := "z"
+
+		tests := []struct {
+			desc     string
+			spec     mounttypes.Mount
+			expected containertypes.MountPoint
+		}{
+			{
+				desc:     "anonymous volume with trailing slash",
+				spec:     mounttypes.Mount{Type: mounttypes.TypeVolume, Target: destPath + "/"},
+				expected: containertypes.MountPoint{Driver: volume.DefaultDriverName, Type: mounttypes.TypeVolume, RW: true, Destination: destPath, Mode: selinuxSharedLabel},
+			},
+			{
+				desc:     "readonly named volume",
+				spec:     mounttypes.Mount{Type: mounttypes.TypeVolume, Target: destPath, ReadOnly: true, Source: stringid.GenerateRandomID()},
+				expected: containertypes.MountPoint{Type: mounttypes.TypeVolume, RW: false, Destination: destPath, Mode: selinuxSharedLabel},
+			},
+			{
+				desc:     "named volume with driver",
+				spec:     mounttypes.Mount{Type: mounttypes.TypeVolume, Target: destPath, Source: stringid.GenerateRandomID(), VolumeOptions: &mounttypes.VolumeOptions{DriverConfig: &mounttypes.Driver{Name: volume.DefaultDriverName}}},
+				expected: containertypes.MountPoint{Driver: volume.DefaultDriverName, Type: mounttypes.TypeVolume, RW: true, Destination: destPath, Mode: selinuxSharedLabel},
+			},
+			{
+				desc:     "anonymous volume no copy",
+				spec:     mounttypes.Mount{Type: mounttypes.TypeVolume, Target: destPath, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}},
+				expected: containertypes.MountPoint{Driver: volume.DefaultDriverName, Type: mounttypes.TypeVolume, RW: true, Destination: destPath, Mode: selinuxSharedLabel},
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.desc, func(t *testing.T) {
+				ctx := testutil.StartSpan(ctx, t)
+				ctr, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+					Config: &containertypes.Config{
+						Image: "busybox",
+						Cmd:   []string{"true"},
+					},
+					HostConfig:       &containertypes.HostConfig{Mounts: []mounttypes.Mount{tc.spec}},
+					NetworkingConfig: &network.NetworkingConfig{},
+				})
+				assert.NilError(t, err)
+
+				inspect, err := apiClient.ContainerInspect(ctx, ctr.ID, client.ContainerInspectOptions{})
+				assert.NilError(t, err)
+				assert.Assert(t, is.Len(inspect.Container.Mounts, 1))
+				mountPoint := inspect.Container.Mounts[0]
+				if tc.spec.Source != "" {
+					tc.expected.Name = tc.spec.Source
+				}
+				assertContainerMountPoint(t, mountPoint, tc.expected)
+
+				_, err = apiClient.ContainerRemove(ctx, ctr.ID, client.ContainerRemoveOptions{
+					RemoveVolumes: true,
+					Force:         true,
+				})
+				assert.NilError(t, err)
+
+				if tc.spec.Source != "" {
+					_, err = apiClient.VolumeRemove(ctx, tc.spec.Source, client.VolumeRemoveOptions{Force: true})
+					assert.NilError(t, err)
+				}
+			})
+		}
 	})
 
 	// Verify that specifying a custom driver is still taken into account.

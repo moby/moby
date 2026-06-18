@@ -152,11 +152,11 @@ func NewBridge(opt Opt) (network.Provider, error) {
 
 	cleanOldNamespaces(cp)
 
-	cp.nsPool = &cniPool{targetSize: opt.PoolSize, provider: cp}
+	cp.nsPool = newCNIPool(cp, opt.PoolSize)
 	if err := cp.initNetwork(false); err != nil {
 		return nil, err
 	}
-	go cp.nsPool.fillPool(context.TODO())
+	go cp.nsPool.Fill(context.TODO())
 	return cp, nil
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
@@ -210,10 +211,25 @@ func newDriver(store *datastore.Store, config Configuration, pms *drvregistry.Po
 	return d, nil
 }
 
+func runInNetNS(f func() error) error {
+	if rootless.RunningWithRootlessKit() {
+		if detachedNetNS, err := rootless.DetachedNetNS(); err != nil {
+			return err
+		} else if detachedNetNS != "" {
+			return rootless.RunInNetNS(detachedNetNS, f)
+		}
+	}
+	return f()
+}
+
 // Register registers a new instance of bridge driver.
 func Register(r driverapi.Registerer, store *datastore.Store, pms *drvregistry.PortMappers, config Configuration) error {
-	d, err := newDriver(store, config, pms)
-	if err != nil {
+	var d *driver
+	if err := runInNetNS(func() error {
+		var err error
+		d, err = newDriver(store, config, pms)
+		return err
+	}); err != nil {
 		return err
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
@@ -1663,18 +1679,19 @@ func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork
 // See: #8795, #44688 & #44742.
 func clearConntrackEntries(nlh nlwrap.Handle, ep *bridgeEndpoint) {
 	var ipv4List []net.IP
-	var ipv6List []net.IP
-	var udpPorts []uint16
-
 	if ep.addr != nil {
 		ipv4List = append(ipv4List, ep.addr.IP)
 	}
+
+	var ipv6List []net.IP
 	if ep.addrv6 != nil {
 		ipv6List = append(ipv6List, ep.addrv6.IP)
 	}
+
+	var udpPorts []types.PortBinding
 	for _, pb := range ep.portMapping {
 		if pb.Proto == types.UDP {
-			udpPorts = append(udpPorts, pb.HostPort)
+			udpPorts = append(udpPorts, pb.PortBinding)
 		}
 	}
 

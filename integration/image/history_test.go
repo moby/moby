@@ -22,7 +22,7 @@ func TestAPIImagesHistory(t *testing.T) {
 
 	dockerfile := "FROM busybox\nENV FOO bar"
 
-	imgID := build.Do(ctx, t, apiClient, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)))
+	imgID := build.Do(ctx, t, apiClient, fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile)), client.ImageBuildOptions{})
 
 	res, err := apiClient.ImageHistory(ctx, imgID)
 	assert.NilError(t, err)
@@ -61,9 +61,12 @@ func TestAPIImageHistoryCrossPlatform(t *testing.T) {
 	// TODO: Make sure we have a multi-platform frozen image we could use
 	pullImageForPlatform(t, ctx, apiClient, "alpine", nonNativePlatform)
 
-	dockerfile := "FROM alpine\nRUN true"
+	dockerfile := "FROM alpine\nCOPY file /file"
 
-	buildCtx := fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(dockerfile))
+	buildCtx := fakecontext.New(t, t.TempDir(),
+		fakecontext.WithDockerfile(dockerfile),
+		fakecontext.WithFile("file", "content"),
+	)
 	defer buildCtx.Close()
 
 	// Build the image for a non-native platform

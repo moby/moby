@@ -6,7 +6,7 @@ package middleware
 import (
 	"encoding"
 	"encoding/base64"
-	"fmt"
+	stderrors "errors"
 	"io"
 	"net/http"
 	"reflect"
@@ -56,126 +56,153 @@ func (p *untypedParamBinder) Type() reflect.Type {
 }
 
 func (p *untypedParamBinder) Bind(request *http.Request, routeParams RouteParams, consumer runtime.Consumer, target reflect.Value) error {
-	// fmt.Println("binding", p.name, "as", p.Type())
 	switch p.parameter.In {
 	case "query":
-		data, custom, hasKey, err := p.readValue(runtime.Values(request.URL.Query()), target)
-		if err != nil {
-			return err
-		}
-		if custom {
-			return nil
-		}
-
-		return p.bindValue(data, hasKey, target)
+		return p.bindQuery(request, routeParams, consumer, target)
 
 	case "header":
-		data, custom, hasKey, err := p.readValue(runtime.Values(request.Header), target)
-		if err != nil {
-			return err
-		}
-		if custom {
-			return nil
-		}
-		return p.bindValue(data, hasKey, target)
+		return p.bindHeader(request, routeParams, consumer, target)
 
 	case "path":
-		data, custom, hasKey, err := p.readValue(routeParams, target)
-		if err != nil {
-			return err
-		}
-		if custom {
-			return nil
-		}
-		return p.bindValue(data, hasKey, target)
+		return p.bindPath(request, routeParams, consumer, target)
 
 	case "formData":
-		var err error
-		var mt string
+		return p.bindFormData(request, routeParams, consumer, target)
 
-		mt, _, e := runtime.ContentType(request.Header)
-		if e != nil {
-			// because of the interface conversion go thinks the error is not nil
-			// so we first check for nil and then set the err var if it's not nil
-			err = e
-		}
+	case "body":
+		return p.bindBody(request, routeParams, consumer, target)
+	default:
+		return errors.New(http.StatusInternalServerError, "invalid parameter location: %q", p.parameter.In)
+	}
+}
 
-		if err != nil {
-			return errors.InvalidContentType("", []string{"multipart/form-data", "application/x-www-form-urlencoded"})
-		}
+func (p *untypedParamBinder) bindQuery(request *http.Request, _ RouteParams, _ runtime.Consumer, target reflect.Value) error {
+	data, custom, hasKey, err := p.readValue(runtime.Values(request.URL.Query()), target)
+	if err != nil {
+		return err
+	}
+	if custom {
+		return nil
+	}
 
-		if mt != "multipart/form-data" && mt != "application/x-www-form-urlencoded" {
-			return errors.InvalidContentType(mt, []string{"multipart/form-data", "application/x-www-form-urlencoded"})
-		}
+	return p.bindValue(data, hasKey, target)
+}
 
-		if mt == "multipart/form-data" {
-			if err = request.ParseMultipartForm(defaultMaxMemory); err != nil {
-				return errors.NewParseError(p.Name, p.parameter.In, "", err)
-			}
-		}
+func (p *untypedParamBinder) bindHeader(request *http.Request, _ RouteParams, _ runtime.Consumer, target reflect.Value) error {
+	data, custom, hasKey, err := p.readValue(runtime.Values(request.Header), target)
+	if err != nil {
+		return err
+	}
+	if custom {
+		return nil
+	}
+	return p.bindValue(data, hasKey, target)
+}
 
-		if err = request.ParseForm(); err != nil {
-			return errors.NewParseError(p.Name, p.parameter.In, "", err)
-		}
+func (p *untypedParamBinder) bindPath(_ *http.Request, routeParams RouteParams, _ runtime.Consumer, target reflect.Value) error {
+	data, custom, hasKey, err := p.readValue(routeParams, target)
+	if err != nil {
+		return err
+	}
+	if custom {
+		return nil
+	}
+	return p.bindValue(data, hasKey, target)
+}
 
-		if p.parameter.Type == "file" {
-			file, header, ffErr := request.FormFile(p.parameter.Name)
-			if ffErr != nil {
+func (p *untypedParamBinder) bindFormData(request *http.Request, _ RouteParams, _ runtime.Consumer, target reflect.Value) error {
+	mt, _, ctErr := runtime.ContentType(request.Header)
+	if ctErr != nil {
+		return errors.InvalidContentType("", []string{runtime.MultipartFormMime, runtime.URLencodedFormMime})
+	}
+
+	if mt != runtime.MultipartFormMime && mt != runtime.URLencodedFormMime {
+		return errors.InvalidContentType(mt, []string{runtime.MultipartFormMime, runtime.URLencodedFormMime})
+	}
+
+	// Parse via the shared helper. The helper routes on Content-Type
+	// (multipart/form-data → ParseMultipartForm; all non-multipart types,
+	// including application/x-www-form-urlencoded, → ParseForm)
+	// and applies the default 32 MiB body cap via http.MaxBytesReader.
+	// Idempotent across the per-parameter loop: stdlib short-circuits
+	// when r.MultipartForm / r.PostForm are already populated.
+	if _, perr := runtime.BindForm(request, runtime.BindFormMaxParseMemory(defaultMaxMemory)); perr != nil {
+		return perr
+	}
+
+	if p.parameter.Type == "file" {
+		// runtime.FormFile handles both multipart/form-data and
+		// application/x-www-form-urlencoded (OpenAPI 2.0 permits
+		// either consumes for `type: file`), and surfaces a
+		// missing field as http.ErrMissingFile under both.
+		file, header, ffErr := runtime.FormFile(request, p.parameter.Name)
+		if ffErr != nil {
+			if stderrors.Is(ffErr, http.ErrMissingFile) {
 				if p.parameter.Required {
-					return errors.NewParseError(p.Name, p.parameter.In, "", ffErr)
+					return errors.NewParseError(p.Name, p.parameter.In, "", http.ErrMissingFile)
 				}
-
 				return nil
 			}
-
-			target.Set(reflect.ValueOf(runtime.File{Data: file, Header: header}))
-			return nil
+			return errors.NewParseError(p.Name, p.parameter.In, "", ffErr)
 		}
 
-		if request.MultipartForm != nil {
-			data, custom, hasKey, rvErr := p.readValue(runtime.Values(request.MultipartForm.Value), target)
-			if rvErr != nil {
-				return rvErr
-			}
-			if custom {
-				return nil
-			}
-			return p.bindValue(data, hasKey, target)
-		}
-		data, custom, hasKey, err := p.readValue(runtime.Values(request.PostForm), target)
-		if err != nil {
+		// Mirror the FileHeader.Filename length cap that BindForm
+		// applies to typed (codegen) paths through BindFormFile, so
+		// untyped formData bindings get the same protection.
+		if err := runtime.ValidateFilenameLength(p.Name, p.parameter.In, header.Filename,
+			runtime.DefaultMaxUploadFilenameLength); err != nil {
 			return err
+		}
+
+		target.Set(reflect.ValueOf(runtime.File{Data: file, Header: header}))
+		return nil
+	}
+
+	if request.MultipartForm != nil {
+		data, custom, hasKey, rvErr := p.readValue(runtime.Values(request.MultipartForm.Value), target)
+		if rvErr != nil {
+			return rvErr
 		}
 		if custom {
 			return nil
 		}
 		return p.bindValue(data, hasKey, target)
+	}
+	data, custom, hasKey, err := p.readValue(runtime.Values(request.PostForm), target)
+	if err != nil {
+		return err
+	}
+	if custom {
+		return nil
+	}
+	return p.bindValue(data, hasKey, target)
+}
 
-	case "body":
-		newValue := reflect.New(target.Type())
-		if !runtime.HasBody(request) {
-			if p.parameter.Default != nil {
-				target.Set(reflect.ValueOf(p.parameter.Default))
-			}
+func (p *untypedParamBinder) bindBody(request *http.Request, _ RouteParams, consumer runtime.Consumer, target reflect.Value) error {
+	newValue := reflect.New(target.Type())
+	if !runtime.HasBody(request) {
+		if p.parameter.Default != nil {
+			target.Set(reflect.ValueOf(p.parameter.Default))
+		}
 
+		return nil
+	}
+
+	if err := consumer.Consume(request.Body, newValue.Interface()); err != nil {
+		if stderrors.Is(err, io.EOF) && p.parameter.Default != nil {
+			target.Set(reflect.ValueOf(p.parameter.Default))
 			return nil
 		}
-		if err := consumer.Consume(request.Body, newValue.Interface()); err != nil {
-			if err == io.EOF && p.parameter.Default != nil {
-				target.Set(reflect.ValueOf(p.parameter.Default))
-				return nil
-			}
-			tpe := p.parameter.Type
-			if p.parameter.Format != "" {
-				tpe = p.parameter.Format
-			}
-			return errors.InvalidType(p.Name, p.parameter.In, tpe, nil)
+		tpe := p.parameter.Type
+		if p.parameter.Format != "" {
+			tpe = p.parameter.Format
 		}
-		target.Set(reflect.Indirect(newValue))
-		return nil
-	default:
-		return fmt.Errorf("%d: invalid parameter location %q", http.StatusInternalServerError, p.parameter.In)
+		return errors.InvalidType(p.Name, p.parameter.In, tpe, nil)
 	}
+
+	target.Set(reflect.Indirect(newValue))
+
+	return nil
 }
 
 func (p *untypedParamBinder) typeForSchema(tpe, format string, items *spec.Items) reflect.Type {
@@ -261,20 +288,51 @@ func (p *untypedParamBinder) bindValue(data []string, hasKey bool, target reflec
 	if p.parameter.Type == typeArray {
 		return p.setSliceFieldValue(target, p.parameter.Default, data, hasKey)
 	}
+
 	var d string
 	if len(data) > 0 {
 		d = data[len(data)-1]
 	}
+
 	return p.setFieldValue(target, p.parameter.Default, d, hasKey)
 }
 
-func (p *untypedParamBinder) setFieldValue(target reflect.Value, defaultValue any, data string, hasKey bool) error { //nolint:gocyclo
+func (p *untypedParamBinder) isMissingAndRequired(hasKey bool, data string) bool {
+	return p.parameter.Required &&
+		p.parameter.Default == nil &&
+		(!hasKey || (!p.parameter.AllowEmptyValue && data == ""))
+}
+
+func (p *untypedParamBinder) setByte(target, defVal reflect.Value, tpe, data string) error {
+	if data == "" {
+		if target.CanSet() {
+			target.SetBytes(defVal.Bytes())
+		}
+
+		return nil
+	}
+
+	b, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		b, err = base64.URLEncoding.DecodeString(data)
+		if err != nil {
+			return errors.InvalidType(p.Name, p.parameter.In, tpe, data)
+		}
+	}
+	if target.CanSet() {
+		target.SetBytes(b)
+	}
+
+	return nil
+}
+
+func (p *untypedParamBinder) setFieldValue(target reflect.Value, defaultValue any, data string, hasKey bool) error {
 	tpe := p.parameter.Type
 	if p.parameter.Format != "" {
 		tpe = p.parameter.Format
 	}
 
-	if (!hasKey || (!p.parameter.AllowEmptyValue && data == "")) && p.parameter.Required && p.parameter.Default == nil {
+	if p.isMissingAndRequired(hasKey, data) {
 		return errors.Required(p.Name, p.parameter.In, data)
 	}
 
@@ -292,27 +350,15 @@ func (p *untypedParamBinder) setFieldValue(target reflect.Value, defaultValue an
 	}
 
 	if tpe == "byte" {
-		if data == "" {
-			if target.CanSet() {
-				target.SetBytes(defVal.Bytes())
-			}
-			return nil
-		}
-
-		b, err := base64.StdEncoding.DecodeString(data)
-		if err != nil {
-			b, err = base64.URLEncoding.DecodeString(data)
-			if err != nil {
-				return errors.InvalidType(p.Name, p.parameter.In, tpe, data)
-			}
-		}
-		if target.CanSet() {
-			target.SetBytes(b)
-		}
-		return nil
+		return p.setByte(target, defVal, tpe, data)
 	}
 
-	switch target.Kind() { //nolint:exhaustive // we want to check only types that map from a swagger parameter
+	return p.setReflectFieldValue(target, defVal, tpe, data, hasKey)
+}
+
+//nolint:gocyclo,cyclop // not much we can simplify further significantly: the big case with all types is unavoidable.
+func (p *untypedParamBinder) setReflectFieldValue(target, defVal reflect.Value, tpe, data string, hasKey bool) error {
+	switch target.Kind() { // we want to check only types that map from a swagger parameter
 	case reflect.Bool:
 		if data == "" {
 			if target.CanSet() {
@@ -327,6 +373,7 @@ func (p *untypedParamBinder) setFieldValue(target reflect.Value, defaultValue an
 		if target.CanSet() {
 			target.SetBool(b)
 		}
+
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if data == "" {
 			if target.CanSet() {
@@ -394,8 +441,8 @@ func (p *untypedParamBinder) setFieldValue(target reflect.Value, defaultValue an
 			target.SetString(value)
 		}
 
-	case reflect.Ptr:
-		if data == "" && defVal.Kind() == reflect.Ptr {
+	case reflect.Pointer:
+		if data == "" && defVal.Kind() == reflect.Pointer {
 			if target.CanSet() {
 				target.Set(defVal)
 			}
@@ -412,6 +459,7 @@ func (p *untypedParamBinder) setFieldValue(target reflect.Value, defaultValue an
 	default:
 		return errors.InvalidType(p.Name, p.parameter.In, tpe, data)
 	}
+
 	return nil
 }
 
@@ -419,20 +467,30 @@ func (p *untypedParamBinder) tryUnmarshaler(target reflect.Value, defaultValue a
 	if !target.CanSet() {
 		return false, nil
 	}
+
 	// When a type implements encoding.TextUnmarshaler we'll use that instead of reflecting some more
-	if reflect.PointerTo(target.Type()).Implements(textUnmarshalType) {
-		if defaultValue != nil && len(data) == 0 {
-			target.Set(reflect.ValueOf(defaultValue))
-			return true, nil
-		}
-		value := reflect.New(target.Type())
-		if err := value.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(data)); err != nil {
-			return true, err
-		}
-		target.Set(reflect.Indirect(value))
+	ttyp := target.Type()
+	if !reflect.PointerTo(ttyp).Implements(textUnmarshalType) {
+		return false, nil
+	}
+
+	if defaultValue != nil && len(data) == 0 {
+		target.Set(reflect.ValueOf(defaultValue))
 		return true, nil
 	}
-	return false, nil
+
+	value := reflect.New(ttyp)
+	if !value.CanInterface() {
+		return false, nil
+	}
+
+	if err := value.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(data)); err != nil { //nolint:forcetypeassert // this is guaranteed by the reflect check above
+		return true, err
+	}
+
+	target.Set(reflect.Indirect(value))
+
+	return true, nil
 }
 
 func (p *untypedParamBinder) readFormattedSliceFieldValue(data string, target reflect.Value) ([]string, bool, error) {

@@ -228,18 +228,23 @@ func (ls *layerStore) applyTar(tx *fileMetadataTransaction, ts io.Reader, parent
 
 	// we're passing nil here for the file putter, because the ApplyDiff will
 	// handle the extraction of the archive
-	rdr, err := asm.NewInputTarStream(tr, metaPacker, nil)
+	rdr, done, err := asm.NewInputTarStreamWithDone(tr, metaPacker, nil)
 	if err != nil {
 		return err
 	}
 
-	applySize, err := ls.driver.ApplyDiff(layer.cacheID, parent, rdr)
-	// discard trailing data but ensure metadata is picked up to reconstruct stream
-	// unconditionally call io.Copy here before checking err to ensure the resources
-	// allocated by NewInputTarStream above are always released
-	io.Copy(io.Discard, rdr) // ignore error as reader may be closed
-	if err != nil {
-		return err
+	applySize, applyErr := ls.driver.ApplyDiff(layer.cacheID, parent, rdr)
+
+	// Discard trailing data but ensure metadata is picked up to reconstruct
+	// stream unconditionally call io.Copy here before checking applyErr to
+	// ensure the goroutine behind NewInputTarStreamWithDone finishes.
+	_, _ = io.Copy(io.Discard, rdr) // ignore error as reader may be closed
+
+	if doneErr := <-done; applyErr == nil {
+		applyErr = doneErr
+	}
+	if applyErr != nil {
+		return applyErr
 	}
 
 	layer.size = applySize

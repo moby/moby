@@ -80,7 +80,7 @@ func (c *client) UploadTraces(ctx context.Context, protoSpans []*tracepb.Resourc
 		c.lock.Lock()
 		defer c.lock.Unlock()
 		if c.tracesClient == nil {
-			return errNoClient
+			return errors.New("no client")
 		}
 
 		_, err := c.tracesClient.Export(ctx, &coltracepb.ExportTraceServiceRequest{

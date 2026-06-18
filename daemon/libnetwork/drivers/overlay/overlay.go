@@ -13,6 +13,7 @@ import (
 
 	"github.com/moby/moby/v2/daemon/libnetwork/discoverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 )
 
@@ -43,6 +44,9 @@ type driver struct {
 	secMap encrMap
 	keys   []*key
 
+	overlayEncNftInitMu sync.Mutex
+	overlayEncNftTable  nftables.Table
+
 	// mu must be held when accessing the fields which follow it
 	// in the struct definition.
 	//
@@ -68,7 +72,12 @@ func Register(r driverapi.Registerer) error {
 
 func (d *driver) configure() error {
 	// Apply OS specific kernel configs if needed
-	d.initOS.Do(applyOStweaks)
+	d.initOS.Do(func() {
+		applyOStweaks()
+		if !nftables.Enabled() {
+			d.cleanupNft(context.TODO())
+		}
+	})
 
 	return nil
 }

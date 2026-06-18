@@ -27,6 +27,7 @@ import (
 	"fmt"
 
 	"github.com/secure-systems-lab/go-securesystemslib/encrypted"
+	"github.com/youmark/pkcs8"
 )
 
 const (
@@ -107,6 +108,26 @@ func UnmarshalPEMToPrivateKey(pemBytes []byte, pf PassFunc) (crypto.PrivateKey, 
 	if derBlock == nil {
 		return nil, errors.New("PEM decoding failed")
 	}
+
+	// Handle legacy encrypted PEM blocks
+	if x509.IsEncryptedPEMBlock(derBlock) { //nolint:staticcheck
+		if pf == nil {
+			return nil, errors.New("private key is encrypted, but no password function was provided")
+		}
+		password, err := pf(false)
+		if err != nil {
+			return nil, err
+		}
+		decryptedBytes, err := x509.DecryptPEMBlock(derBlock, password) //nolint:staticcheck
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt legacy PEM block: %w", err)
+		}
+		derBlock = &pem.Block{
+			Type:  derBlock.Type,
+			Bytes: decryptedBytes,
+		}
+	}
+
 	switch derBlock.Type {
 	case string(PrivateKeyPEMType):
 		return x509.ParsePKCS8PrivateKey(derBlock.Bytes)
@@ -114,6 +135,19 @@ func UnmarshalPEMToPrivateKey(pemBytes []byte, pf PassFunc) (crypto.PrivateKey, 
 		return x509.ParsePKCS1PrivateKey(derBlock.Bytes)
 	case string(ECPrivateKeyPEMType):
 		return x509.ParseECPrivateKey(derBlock.Bytes)
+	case "ENCRYPTED PRIVATE KEY":
+		if pf == nil {
+			return nil, errors.New("private key is encrypted, but no password function was provided")
+		}
+		password, err := pf(false)
+		if err != nil {
+			return nil, err
+		}
+		decryptedKey, err := pkcs8.ParsePKCS8PrivateKey(derBlock.Bytes, password)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt and parse encrypted private key: %w", err)
+		}
+		return decryptedKey, nil
 	case string(EncryptedSigstorePrivateKeyPEMType), string(encryptedCosignPrivateKeyPEMType):
 		derBytes := derBlock.Bytes
 		if pf != nil {

@@ -24,6 +24,11 @@ message FrontendCap {
 	string name = 1;
 }
 
+message CompatibilityFeature {
+	int64 version = 1;
+	string feature = 2;
+}
+
 message Subrequest {
 	string name = 1;
 }
@@ -49,4 +54,17 @@ message FileAction {
 message ContentCache {
 	// Original index of result that failed the slow cache calculation.
 	int64 index = 1;
+}
+
+message ProvenanceMaterialsIncomplete {
+	repeated ProvenanceMaterialIncomplete incomplete = 1;
+}
+
+message ProvenanceMaterialIncomplete {
+	string op = 1;
+	string name = 2;
+	string method = 3;
+	string uri = 4;
+	string final_uri = 5;
+	string reason = 6;
 }

@@ -21,6 +21,9 @@ type SysInfo struct {
 	// Whether the kernel supports cgroup namespaces or not
 	CgroupNamespaces bool
 
+	// TimeNamespaces indicates whether the kernel supports time namespaces.
+	TimeNamespaces bool
+
 	// Whether IPv4 forwarding is supported or not, if this was disabled, networking will not work
 	IPv4ForwardingDisabled bool
 

@@ -78,7 +78,8 @@ func (b *Broadcaster) configure(ch chan configureRequest, sink Sink) error {
 		select {
 		case ch <- configureRequest{
 			sink:     sink,
-			response: response}:
+			response: response,
+		}:
 			ch = nil
 		case err := <-response:
 			return err

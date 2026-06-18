@@ -77,10 +77,13 @@ func (l *loggerWithCache) Log(msg *logger.Message) error {
 	dup := logger.NewMessage()
 	dumbCopyMessage(dup, msg)
 
-	if err := l.l.Log(msg); err != nil {
+	// Log the duplicate first so the caller retains ownership of the
+	// original message if either logger returns an error.
+	if err := l.l.Log(dup); err != nil {
+		logger.PutMessage(dup)
 		return err
 	}
-	return l.cache.Log(dup)
+	return l.cache.Log(msg)
 }
 
 func (l *loggerWithCache) Name() string {

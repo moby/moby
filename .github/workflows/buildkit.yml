@@ -2,7 +2,9 @@ name: buildkit
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel stale PR runs without interrupting push, tag, scheduled, or
+  # manually dispatched validation.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -17,7 +19,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.26.2"
+  GO_VERSION: "1.26.4"
   DESTDIR: ./build
   SETUP_BUILDX_VERSION: edge
   SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
@@ -28,21 +30,21 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120 # guardrails timeout for the whole job
+    timeout-minutes: 60 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - validate-dco
     steps:
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
       -
         name: Build
-        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
+        uses: docker/bake-action@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
         with:
           targets: binary
       -
@@ -56,7 +58,7 @@ jobs:
 
   test-linux:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120 # guardrails timeout for the whole job
+    timeout-minutes: 60 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - build-linux
@@ -94,7 +96,7 @@ jobs:
         uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
       -
         name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           path: moby
       -
@@ -105,22 +107,24 @@ jobs:
           cache: false
       -
         name: BuildKit ref
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "$(./hack/buildkit-ref)" >> $GITHUB_ENV
+          ./hack/buildkit-ref >> "$GITHUB_ENV"
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: ${{ env.BUILDKIT_REPO }}
           ref: ${{ env.BUILDKIT_REF }}
           path: buildkit
       -
         name: Set up QEMU
-        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
@@ -140,7 +144,7 @@ jobs:
           docker info
       -
         name: Build test image
-        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
+        uses: docker/bake-action@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
         env:
           GO_VERSION: ${{ env.GO_VERSION }}
         with:
@@ -162,7 +166,7 @@ jobs:
 
   build-windows:
     runs-on: windows-2022
-    timeout-minutes: 120
+    timeout-minutes: 60 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - validate-dco
@@ -179,7 +183,7 @@ jobs:
         working-directory: ${{ env.GOPATH }}/src/github.com/docker/docker
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           path: ${{ env.GOPATH }}/src/github.com/docker/docker
 
@@ -201,6 +205,18 @@ jobs:
 
       - name: Docker info
         run: |
+          $tries = 30
+          Write-Host "Waiting for Docker daemon..."
+          while ($true) {
+            $ErrorActionPreference = "SilentlyContinue"
+            docker version | Out-Null
+            $ok = ($LastExitCode -eq 0)
+            $ErrorActionPreference = "Stop"
+            if ($ok) { break }
+            $tries--
+            if ($tries -le 0) { throw "Docker daemon did not become ready" }
+            Start-Sleep -Seconds 2
+          }
           docker info
 
       - name: Build base image
@@ -222,7 +238,7 @@ jobs:
           REGISTRY_VERSION: "v3.0.0"
 
       - name: Checkout BuildKit
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: moby/buildkit
           ref: master
@@ -254,7 +270,7 @@ jobs:
 
   test-windows:
     runs-on: windows-2022
-    timeout-minutes: 120 # guardrails timeout for the whole job
+    timeout-minutes: 60 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - build-windows
@@ -264,7 +280,7 @@ jobs:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
       BIN_OUT: ${{ github.workspace }}\out
-      TESTFLAGS: "-v --timeout=90m"
+      TESTFLAGS: "-v --timeout=40m"
       TEST_DOCKERD: "1"
     strategy:
       fail-fast: false
@@ -304,7 +320,7 @@ jobs:
         uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
 
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           path: moby
 
@@ -316,12 +332,14 @@ jobs:
 
       - name: BuildKit ref
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "$(./hack/buildkit-ref)" >> $GITHUB_ENV
+          ./hack/buildkit-ref >> "$GITHUB_ENV"
         working-directory: moby
 
       - name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: ${{ env.BUILDKIT_REPO }}
           ref: ${{ env.BUILDKIT_REF }}

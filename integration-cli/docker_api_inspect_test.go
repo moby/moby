@@ -6,11 +6,8 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
-	"github.com/moby/moby/v2/internal/testutil"
 	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func (s *DockerAPISuite) TestInspectAPIContainerResponse(c *testing.T) {
@@ -68,20 +65,6 @@ func (s *DockerAPISuite) TestInspectAPIContainerVolumeDriver(c *testing.T) {
 	cfg = config.(map[string]any)
 	_, ok = cfg["VolumeDriver"]
 	assert.Assert(c, ok, "API version 1.25 expected to include VolumeDriver in 'HostConfig'")
-}
-
-func (s *DockerAPISuite) TestInspectAPIImageResponse(c *testing.T) {
-	cli.DockerCmd(c, "tag", "busybox:latest", "busybox:mytag")
-	apiClient, err := client.New(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	imageJSON, err := apiClient.ImageInspect(testutil.GetContext(c), "busybox")
-	assert.NilError(c, err)
-
-	assert.Check(c, len(imageJSON.RepoTags) == 2)
-	assert.Check(c, is.Contains(imageJSON.RepoTags, "busybox:latest"))
-	assert.Check(c, is.Contains(imageJSON.RepoTags, "busybox:mytag"))
 }
 
 // Inspect for API v1.21 and up; see

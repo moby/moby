@@ -40,7 +40,7 @@ func (s *Solver) getSessionExporters(ctx context.Context, sessionID string, id i
 	}
 
 	client := sessionexporter.NewExporterClient(caller.Conn())
-
+	ctx = caller.Context(ctx)
 	var ids []string
 	if err := inp.EachRef(func(ref cache.ImmutableRef) error {
 		ids = append(ids, ref.ID())
@@ -188,11 +188,16 @@ func (s *Solver) runExporters(ctx context.Context, ref string, exporters []expor
 					defer inlineCacheMu.Unlock()
 					return runInlineCacheExporter(ctx, exp, inlineCacheExporter, job, cached)
 				})
+				compatibilityVersion, err := job.CompatibilityVersion()
+				if err != nil {
+					return err
+				}
 
 				resp, finalize, desc, expErr := exp.Export(ctx, inp, exporter.ExportBuildInfo{
-					Ref:         ref,
-					SessionID:   job.SessionID,
-					InlineCache: inlineCache,
+					Ref:                  ref,
+					SessionID:            job.SessionID,
+					InlineCache:          inlineCache,
+					CompatibilityVersion: compatibilityVersion,
 				})
 				resps[i], finalizeFuncs[i], descs[i] = resp, finalize, desc
 				if expErr != nil {

@@ -105,9 +105,9 @@ func (nft *Nftabler) init(ctx context.Context, family nftables.Family) (nftables
 		Priority:  nftables.BaseChainPriorityFilter,
 	})
 	// Instantiate the verdict maps and add the jumps.
-	tm.Create(nftables.VMap{
+	tm.Create(nftables.Map{
 		Name:        filtFwdInVMap,
-		ElementType: nftables.NftTypeIfname,
+		ElementType: nftables.Ifname.VMap(),
 	})
 	tm.Create(nftables.Rule{
 		Chain: forwardChain,
@@ -115,9 +115,9 @@ func (nft *Nftabler) init(ctx context.Context, family nftables.Family) (nftables
 		Rule:  []string{"oifname vmap @", filtFwdInVMap},
 	})
 
-	tm.Create(nftables.VMap{
+	tm.Create(nftables.Map{
 		Name:        filtFwdOutVMap,
-		ElementType: nftables.NftTypeIfname,
+		ElementType: nftables.Ifname.VMap(),
 	})
 	tm.Create(nftables.Rule{
 		Chain: forwardChain,
@@ -135,9 +135,9 @@ func (nft *Nftabler) init(ctx context.Context, family nftables.Family) (nftables
 		Priority:  nftables.BaseChainPrioritySrcNAT,
 	})
 
-	tm.Create(nftables.VMap{
+	tm.Create(nftables.Map{
 		Name:        natPostroutingOutVMap,
-		ElementType: nftables.NftTypeIfname,
+		ElementType: nftables.Ifname.VMap(),
 	})
 	tm.Create(nftables.Rule{
 		Chain: postroutingChain,
@@ -145,9 +145,9 @@ func (nft *Nftabler) init(ctx context.Context, family nftables.Family) (nftables
 		Rule:  []string{"iifname vmap @", natPostroutingOutVMap},
 	})
 
-	tm.Create(nftables.VMap{
+	tm.Create(nftables.Map{
 		Name:        natPostroutingInVMap,
-		ElementType: nftables.NftTypeIfname,
+		ElementType: nftables.Ifname.VMap(),
 	})
 	tm.Create(nftables.Rule{
 		Chain: postroutingChain,

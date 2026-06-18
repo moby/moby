@@ -66,6 +66,8 @@ func (m *Message) AsLogMessage() *backend.LogMessage {
 
 // Logger is the interface for docker logging drivers.
 type Logger interface {
+	// The logger takes ownership of the Message on success. The caller
+	// retains ownership of the Message if an error is returned.
 	Log(*Message) error
 	Name() string
 	Close() error

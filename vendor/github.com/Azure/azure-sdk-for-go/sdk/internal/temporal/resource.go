@@ -1,6 +1,3 @@
-//go:build go1.18
-// +build go1.18
-
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -93,7 +90,7 @@ func (er *Resource[TResource, TState]) Get(state TState) (TResource, error) {
 			}
 			// Getting here means that this thread/goroutine will wait for the updated resource
 		} else if er.shouldRefresh(resource, state) {
-			if !(er.acquiring || backoff(now, er.lastAttempt)) {
+			if !er.acquiring && !backoff(now, er.lastAttempt) {
 				// If another thread/goroutine is not acquiring/renewing the resource, and none has attempted
 				// to do so within the last 30 seconds, this thread/goroutine will do it
 				er.acquiring, acquire = true, true

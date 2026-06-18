@@ -57,6 +57,24 @@ func init() {
 type V001Entry struct {
 	DSSEObj models.DSSEV001Schema
 	env     *dsse.Envelope
+
+	// memory optimization: extract and store these during Unmarshal
+	// so we can clear the huge payload from memory
+	extractedIndexKeys []string
+	isInsertable       bool
+}
+
+type indexKeyExtract struct {
+	Subject []struct {
+		Digest map[string]string `json:"digest"`
+	} `json:"subject"`
+	Predicate json.RawMessage `json:"predicate"`
+}
+
+type materialsExtract struct {
+	Materials []struct {
+		Digest map[string]string `json:"digest"`
+	} `json:"materials"`
 }
 
 func (v V001Entry) APIVersion() string {
@@ -108,58 +126,13 @@ func (v V001Entry) IndexKeys() ([]string, error) {
 		return result, nil
 	}
 
-	switch v.env.PayloadType {
-	case in_toto.PayloadType:
-
-		if v.env.Payload == "" {
-			log.Logger.Info("DSSEObj DSSE payload is empty")
-			return result, nil
-		}
-		decodedPayload, err := v.env.DecodeB64Payload()
-		if err != nil {
-			return result, fmt.Errorf("could not decode envelope payload: %w", err)
-		}
-		statement, err := parseStatement(decodedPayload)
-		if err != nil {
-			return result, err
-		}
-		for _, s := range statement.Subject {
-			for alg, ds := range s.Digest {
-				result = append(result, alg+":"+ds)
-			}
-		}
-		// Not all in-toto statements will contain a SLSA provenance predicate.
-		// See https://github.com/in-toto/attestation/blob/main/spec/README.md#predicate
-		// for other predicates.
-		if predicate, err := parseSlsaPredicate(decodedPayload); err == nil {
-			if predicate.Predicate.Materials != nil {
-				for _, s := range predicate.Predicate.Materials {
-					for alg, ds := range s.Digest {
-						result = append(result, alg+":"+ds)
-					}
-				}
-			}
-		}
-	default:
+	if v.env.PayloadType == in_toto.PayloadType {
+		result = append(result, v.extractedIndexKeys...)
+	} else {
 		log.Logger.Infof("Unknown DSSE envelope payloadType: %s", v.env.PayloadType)
 	}
+
 	return result, nil
-}
-
-func parseStatement(p []byte) (*in_toto.Statement, error) {
-	ps := in_toto.Statement{}
-	if err := json.Unmarshal(p, &ps); err != nil {
-		return nil, err
-	}
-	return &ps, nil
-}
-
-func parseSlsaPredicate(p []byte) (*in_toto.ProvenanceStatement, error) {
-	predicate := in_toto.ProvenanceStatement{}
-	if err := json.Unmarshal(p, &predicate); err != nil {
-		return nil, err
-	}
-	return &predicate, nil
 }
 
 // DecodeEntry performs direct decode into the provided output pointer
@@ -344,6 +317,28 @@ func (v *V001Entry) Unmarshal(pe models.ProposedEntry) error {
 		return err
 	}
 
+	// extraction of index keys - done here so we can clear the huge strings from memory
+	if env.PayloadType == in_toto.PayloadType {
+		var extract indexKeyExtract
+		if err := json.Unmarshal(decodedPayload, &extract); err == nil {
+			for _, s := range extract.Subject {
+				for alg, ds := range s.Digest {
+					v.extractedIndexKeys = append(v.extractedIndexKeys, alg+":"+ds)
+				}
+			}
+			if extract.Predicate != nil {
+				var materials materialsExtract
+				if err := json.Unmarshal(extract.Predicate, &materials); err == nil {
+					for _, m := range materials.Materials {
+						for alg, ds := range m.Digest {
+							v.extractedIndexKeys = append(v.extractedIndexKeys, alg+":"+ds)
+						}
+					}
+				}
+			}
+		}
+	}
+
 	payloadHash := sha256.Sum256(decodedPayload)
 	dsseObj.PayloadHash = &models.DSSEV001SchemaPayloadHash{
 		Algorithm: conv.Pointer(models.DSSEV001SchemaPayloadHashAlgorithmSha256),
@@ -359,6 +354,11 @@ func (v *V001Entry) Unmarshal(pe models.ProposedEntry) error {
 	// we've gotten through all processing without error, now update the object we're unmarshalling into
 	v.DSSEObj = *dsseObj
 	v.env = env
+	v.isInsertable = true
+
+	// memory optimization: clear huge strings/buffers
+	v.env.Payload = ""
+	v.DSSEObj.ProposedContent = nil
 
 	return nil
 }
@@ -533,6 +533,9 @@ func (v V001Entry) ArtifactHash() (string, error) {
 }
 
 func (v V001Entry) Insertable() (bool, error) {
+	if v.isInsertable {
+		return true, nil
+	}
 	if v.DSSEObj.ProposedContent == nil {
 		return false, errors.New("missing proposed content")
 	}
