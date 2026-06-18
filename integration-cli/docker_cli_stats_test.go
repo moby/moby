@@ -12,6 +12,7 @@ import (
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 type DockerCLIStatsSuite struct {
@@ -27,13 +28,10 @@ func (s *DockerCLIStatsSuite) OnTimeout(t *testing.T) {
 }
 
 func (s *DockerCLIStatsSuite) TestStatsNoStream(c *testing.T) {
-	// Windows does not support stats
-	testRequires(c, DaemonIsLinux)
-	id := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
-	id = strings.TrimSpace(id)
-	cli.WaitRun(c, id)
+	cID := runSleepingContainer(c)
+	cli.WaitRun(c, cID)
 
-	statsCmd := exec.Command(dockerBinary, "stats", "--no-stream", id)
+	statsCmd := exec.Command(dockerBinary, "stats", "--no-stream", cID)
 	type output struct {
 		out []byte
 		err error
@@ -48,7 +46,7 @@ func (s *DockerCLIStatsSuite) TestStatsNoStream(c *testing.T) {
 	select {
 	case outerr := <-ch:
 		assert.NilError(c, outerr.err, "Error running stats: %v", outerr.err)
-		assert.Assert(c, is.Contains(string(outerr.out), id[:12]), "running container wasn't present in output")
+		assert.Assert(c, is.Contains(string(outerr.out), cID[:12]), "running container wasn't present in output")
 	case <-time.After(3 * time.Second):
 		statsCmd.Process.Kill()
 		c.Fatalf("stats did not return immediately when not streaming")
@@ -56,9 +54,6 @@ func (s *DockerCLIStatsSuite) TestStatsNoStream(c *testing.T) {
 }
 
 func (s *DockerCLIStatsSuite) TestStatsContainerNotFound(c *testing.T) {
-	// Windows does not support stats
-	testRequires(c, DaemonIsLinux)
-
 	out, _, err := dockerCmdWithError("stats", "notfound")
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, is.Contains(out, "No such container: notfound"), "Expected to fail on not found container stats, got %q instead", out)
@@ -69,17 +64,14 @@ func (s *DockerCLIStatsSuite) TestStatsContainerNotFound(c *testing.T) {
 }
 
 func (s *DockerCLIStatsSuite) TestStatsAllRunningNoStream(c *testing.T) {
-	// Windows does not support stats
-	testRequires(c, DaemonIsLinux)
+	// FIXME(thaJeztah): stats doesn't work on Windows with containerd; see https://github.com/moby/moby/pull/52913#issuecomment-4741507027
+	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
 
-	id1 := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
-	id1 = strings.TrimSpace(id1)[:12]
+	id1 := runSleepingContainer(c)[:12]
 	cli.WaitRun(c, id1)
-	id2 := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
-	id2 = strings.TrimSpace(id2)[:12]
+	id2 := runSleepingContainer(c)[:12]
 	cli.WaitRun(c, id2)
-	id3 := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
-	id3 = strings.TrimSpace(id3)[:12]
+	id3 := runSleepingContainer(c)[:12]
 	cli.WaitRun(c, id3)
 	cli.DockerCmd(c, "stop", id3)
 
@@ -105,15 +97,13 @@ func (s *DockerCLIStatsSuite) TestStatsAllRunningNoStream(c *testing.T) {
 }
 
 func (s *DockerCLIStatsSuite) TestStatsAllNoStream(c *testing.T) {
-	// Windows does not support stats
-	testRequires(c, DaemonIsLinux)
+	// FIXME(thaJeztah): stats doesn't work on Windows with containerd; see https://github.com/moby/moby/pull/52913#issuecomment-4741507027
+	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
 
-	id1 := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
-	id1 = strings.TrimSpace(id1)[:12]
+	id1 := runSleepingContainer(c)[:12]
 	cli.WaitRun(c, id1)
 	cli.DockerCmd(c, "stop", id1)
-	id2 := cli.DockerCmd(c, "run", "-d", "busybox", "top").Stdout()
-	id2 = strings.TrimSpace(id2)[:12]
+	id2 := runSleepingContainer(c)[:12]
 	cli.WaitRun(c, id2)
 
 	out := cli.DockerCmd(c, "stats", "--all", "--no-stream").Combined()
@@ -135,9 +125,6 @@ func (s *DockerCLIStatsSuite) TestStatsAllNoStream(c *testing.T) {
 }
 
 func (s *DockerCLIStatsSuite) TestStatsAllNewContainersAdded(c *testing.T) {
-	// Windows does not support stats
-	testRequires(c, DaemonIsLinux)
-
 	id := make(chan string)
 	addedChan := make(chan struct{})
 
@@ -176,13 +163,10 @@ func (s *DockerCLIStatsSuite) TestStatsAllNewContainersAdded(c *testing.T) {
 }
 
 func (s *DockerCLIStatsSuite) TestStatsFormatAll(c *testing.T) {
-	// Windows does not support stats
-	testRequires(c, DaemonIsLinux)
-
-	cli.DockerCmd(c, "run", "-d", "--name=RunningOne", "busybox", "top")
+	runSleepingContainer(c, "--name=RunningOne")
 	cli.WaitRun(c, "RunningOne")
-	cli.DockerCmd(c, "run", "-d", "--name=ExitedOne", "busybox", "top")
-	cli.DockerCmd(c, "stop", "ExitedOne")
+	runSleepingContainer(c, "--name=ExitedOne")
+	cli.DockerCmd(c, "kill", "ExitedOne")
 	cli.WaitExited(c, "ExitedOne", 5*time.Second)
 
 	out := cli.DockerCmd(c, "stats", "--no-stream", "--format", "{{.Name}}").Combined()
