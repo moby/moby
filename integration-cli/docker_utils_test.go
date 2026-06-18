@@ -278,7 +278,7 @@ func runSleepingContainerInImage(t *testing.T, image string, extraArgs ...string
 	args = append(args, extraArgs...)
 	args = append(args, image)
 	args = append(args, sleepCommandForDaemonPlatform()...)
-	return strings.TrimSpace(cli.DockerCmd(t, args...).Combined())
+	return strings.TrimSpace(cli.DockerCmd(t, args...).Stdout())
 }
 
 // minimalBaseImage returns the name of the minimal base image for the current
