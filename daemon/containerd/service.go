@@ -13,7 +13,6 @@ import (
 	"github.com/containerd/containerd/v2/plugins"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
-	"github.com/containerd/platforms"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/containerd/identitycache"
 	daemonevents "github.com/moby/moby/v2/daemon/events"
@@ -47,7 +46,7 @@ type ImageService struct {
 	identity            imageIdentityState
 
 	// defaultPlatformOverride is used in tests to override the host platform.
-	defaultPlatformOverride platforms.MatchComparer
+	defaultPlatformOverride *ocispec.Platform
 }
 
 type ImageServiceConfig struct {

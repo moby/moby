@@ -195,11 +195,11 @@ func TestImagePushIndex(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			imgSvc := fakeImageService(t, ctx, store)
 			// Mock the daemon platform.
+			daemonPlatform := defaultDaemonPlatform
 			if tc.daemonPlatform != nil {
-				imgSvc.defaultPlatformOverride = platforms.Only(*tc.daemonPlatform)
-			} else {
-				imgSvc.defaultPlatformOverride = platforms.Only(defaultDaemonPlatform)
+				daemonPlatform = *tc.daemonPlatform
 			}
+			imgSvc.defaultPlatformOverride = &daemonPlatform
 
 			idx, _, err := specialimage.MultiPlatform(csDir, "multiplatform:latest", tc.indexPlatforms)
 			assert.NilError(t, err)

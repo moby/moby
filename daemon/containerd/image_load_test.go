@@ -37,7 +37,7 @@ func TestImageLoad(t *testing.T) {
 
 	imgSvc := fakeImageService(t, ctx, store)
 	// Mock the daemon platform.
-	imgSvc.defaultPlatformOverride = platforms.Only(linuxAmd64)
+	imgSvc.defaultPlatformOverride = &linuxAmd64
 
 	tryLoad := func(ctx context.Context, t *testing.T, dir string, platformList []ocispec.Platform) error {
 		tarRc, err := archive.Tar(dir, compression.None)
