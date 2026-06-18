@@ -416,7 +416,7 @@ func TestImageAttestations(t *testing.T) {
 			Platform:         &linuxAMD64,
 			IncludeStatement: true,
 		})
-		assert.ErrorContains(t, err, "not found")
+		assert.ErrorContains(t, err, "not available locally")
 	})
 
 	t.Run("no_attestations_returns_nil", func(t *testing.T) {

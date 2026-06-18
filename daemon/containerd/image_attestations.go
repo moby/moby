@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"slices"
 
 	"github.com/containerd/containerd/v2/core/content"
@@ -110,7 +111,10 @@ func (i *ImageService) ImageAttestations(ctx context.Context, refOrID string, op
 		if opts.IncludeStatement {
 			data, err := content.ReadBlob(ctx, i.content, layer)
 			if err != nil {
-				return nil, err
+				if cerrdefs.IsNotFound(err) {
+					return nil, fmt.Errorf("attestation statement %s is not available locally: %w", layer.Digest, err)
+				}
+				return nil, fmt.Errorf("failed to read attestation statement %s: %w", layer.Digest, err)
 			}
 			raw := json.RawMessage(data)
 			stmt.Statement = &raw
