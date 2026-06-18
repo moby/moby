@@ -3161,7 +3161,7 @@ func (s *DockerCLIBuildSuite) TestBuildOnBuildOutput(c *testing.T) {
 
 // FIXME(vdemeester) should be a unit test
 func (s *DockerCLIBuildSuite) TestBuildInvalidTag(c *testing.T) {
-	name := "abcd:" + testutil.GenerateRandomAlphaOnlyString(200)
+	name := "abcd:" + testutil.RandomAlpha(200)
 	cli.Docker(cli.Args("build", "-t", name), build.WithDockerfile("FROM "+minimalBaseImage()+"\nMAINTAINER quux\n")).Assert(c, icmd.Expected{
 		ExitCode: 125,
 		Err:      "invalid reference format",

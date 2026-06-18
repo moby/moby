@@ -1754,7 +1754,7 @@ func testRunWriteSpecialFilesAndNotCommit(t *testing.T, name, path string) {
 }
 
 func eqToBaseDiff(out string, t *testing.T) bool {
-	name := "eqToBaseDiff" + testutil.GenerateRandomAlphaOnlyString(32)
+	name := "eqToBaseDiff" + testutil.RandomAlpha(32)
 	cli.DockerCmd(t, "run", "--name", name, "busybox", "echo", "hello")
 	cID := getIDByName(t, name)
 	baseDiff := cli.DockerCmd(t, "diff", cID).Combined()
