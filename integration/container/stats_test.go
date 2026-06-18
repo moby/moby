@@ -104,6 +104,7 @@ func TestStatsNetworkStats(t *testing.T) {
 	// FIXME(thaJeztah): Broken on Windows + containerd combination, see https://github.com/moby/moby/pull/41479
 	skip.If(t, testEnv.RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
 	skip.If(t, testEnv.IsRootless() && testEnv.DaemonInfo.CgroupVersion == "1", "Rootless Mode does not support cgroups v1 stats")
+	skip.If(t, testEnv.IsRemoteDaemon(), "Test requires a local daemon")
 
 	ctx := setupTest(t)
 
