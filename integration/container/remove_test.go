@@ -2,6 +2,7 @@ package container
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -16,11 +17,13 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
+// dPath converts linux absolute paths to Windows absolute paths if the daemon
+// is running on Windows
+func dPath(path string) string {
 	if testEnv.DaemonInfo.OSType == "windows" {
-		return "c:", `\`
+		return `c:` + strings.ReplaceAll(path, "/", `\`)
 	}
-	return "", "/"
+	return path
 }
 
 // Test case for #5244: `docker rm` fails if bind dir doesn't exist anymore
@@ -30,12 +33,14 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-
 	tempDir := fs.NewDir(t, "test-rm-container-with-removed-volume", fs.WithMode(0o755))
 
-	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithBind(tempDir.Path(), prefix+slash+"test"))
-	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited))
+	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithBind(tempDir.Path(), dPath("/test")))
+	var pollOps []poll.SettingOp
+	if testEnv.DaemonInfo.OSType == "windows" {
+		pollOps = append(pollOps, poll.WithTimeout(StopContainerWindowsPollTimeout))
+	}
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited), pollOps...)
 
 	err := os.RemoveAll(tempDir.Path())
 	assert.NilError(t, err)
@@ -55,9 +60,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-
-	cID := container.Run(ctx, t, apiClient, container.WithVolume(prefix+slash+"srv"))
+	cID := container.Run(ctx, t, apiClient, container.WithVolume(dPath("/srv")))
 
 	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)

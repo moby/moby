@@ -2,13 +2,9 @@ version: "2"
 linters:
   default: all
   disable:
-    - cyclop
     - depguard
     - err113 # disabled temporarily: there are just too many issues to address
-    - errchkjson
-    - errorlint
     - exhaustruct
-    - forcetypeassert
     - funlen
     - gochecknoglobals
     - gochecknoinits
@@ -16,12 +12,12 @@ linters:
     - godot
     - godox
     - gomoddirectives # moved to mono-repo, multi-modules, so replace directives are needed
+    - gomodguard
+    - gomodguard_v2
     - gosmopolitan
     - inamedparam
-    - ireturn
-    - lll
+    - ireturn # this repo adopted a pattern where there are quite many returned interfaces. To be challenged with v2
     - musttag
-    - nestif
     - nilerr # nilerr crashes on this repo
     - nlreturn
     - noinlineerr
@@ -31,7 +27,6 @@ linters:
     - testpackage
     - thelper
     - tparallel
-    - unparam
     - varnamelen
     - whitespace
     - wrapcheck
@@ -43,8 +38,17 @@ linters:
     goconst:
       min-len: 2
       min-occurrences: 3
+    cyclop:
+      max-complexity: 25
     gocyclo:
-      min-complexity: 45
+      min-complexity: 25
+    gocognit:
+      min-complexity: 35
+    exhaustive:
+      default-signifies-exhaustive: true
+      default-case-required: true
+    lll:
+      line-length: 180
   exclusions:
     generated: lax
     presets:
@@ -53,6 +57,7 @@ linters:
       - legacy
       - std-error-handling
     paths:
+      - .worktrees
       - third_party$
       - builtin$
       - examples$
@@ -60,12 +65,17 @@ formatters:
   enable:
     - gofmt
     - goimports
+  settings:
+    # local prefixes regroup imports from these packages
+    goimports:
+      local-prefixes:
+        - github.com/go-openapi
   exclusions:
     generated: lax
     paths:
+      - .worktrees
       - third_party$
       - builtin$
-      - examples$
 issues:
   # Maximum issues count per one linter.
   # Set to 0 to disable.

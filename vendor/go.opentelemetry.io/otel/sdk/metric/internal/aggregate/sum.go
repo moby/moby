@@ -13,10 +13,11 @@ import (
 )
 
 type sumValue[N int64 | float64] struct {
-	n         atomicCounter[N]
-	res       FilteredExemplarReservoir[N]
-	attrs     attribute.Set
-	startTime time.Time
+	n             atomicCounter[N]
+	res           FilteredExemplarReservoir[N]
+	attrs         attribute.Set
+	startTime     time.Time
+	dropExemplars bool
 }
 
 type sumValueMap[N int64 | float64] struct {
@@ -31,17 +32,22 @@ func (s *sumValueMap[N]) measure(
 	droppedAttr []attribute.KeyValue,
 ) {
 	sv := s.values.LoadOrStoreAttr(fltrAttr, func(attr attribute.Set) any {
+		r := s.newRes(attr)
+		_, isDrop := r.(*dropRes[N])
 		return &sumValue[N]{
-			res:       s.newRes(attr),
-			attrs:     attr,
-			startTime: now(),
+			res:           r,
+			attrs:         attr,
+			startTime:     now(),
+			dropExemplars: isDrop,
 		}
 	}).(*sumValue[N])
 	sv.n.add(value)
 	// It is possible for collection to race with measurement and observe the
 	// exemplar in the batch of metrics after the add() for cumulative sums.
 	// This is an accepted tradeoff to avoid locking during measurement.
-	sv.res.Offer(ctx, value, droppedAttr)
+	if !sv.dropExemplars {
+		sv.res.Offer(ctx, value, droppedAttr)
+	}
 }
 
 // newDeltaSum returns an aggregator that summarizes a set of measurements as

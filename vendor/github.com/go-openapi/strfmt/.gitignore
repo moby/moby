@@ -3,4 +3,4 @@
 .idea
 .env
 .mcp.json
-.claude/
+go.work.sum

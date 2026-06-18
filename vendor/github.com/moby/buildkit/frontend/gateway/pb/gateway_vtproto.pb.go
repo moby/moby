@@ -6,17 +6,17 @@ package moby_buildkit_v1_frontend
 
 import (
 	fmt "fmt"
-	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	types1 "github.com/moby/buildkit/api/types"
 	pb "github.com/moby/buildkit/solver/pb"
 	pb1 "github.com/moby/buildkit/sourcepolicy/pb"
 	pb2 "github.com/moby/buildkit/util/apicaps/pb"
 	protohelpers "github.com/planetscale/vtprotobuf/protohelpers"
-	timestamppb "github.com/planetscale/vtprotobuf/types/known/timestamppb"
+	timestamppb1 "github.com/planetscale/vtprotobuf/types/known/timestamppb"
 	types "github.com/tonistiigi/fsutil/types"
 	status "google.golang.org/genproto/googleapis/rpc/status"
 	proto "google.golang.org/protobuf/proto"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	io "io"
 )
 
@@ -556,7 +556,7 @@ func (m *ResolveSourceHTTPResponse) CloneVT() *ResolveSourceHTTPResponse {
 	r := new(ResolveSourceHTTPResponse)
 	r.Checksum = m.Checksum
 	r.Filename = m.Filename
-	r.LastModified = (*timestamp.Timestamp)((*timestamppb.Timestamp)(m.LastModified).CloneVT())
+	r.LastModified = (*timestamppb.Timestamp)((*timestamppb1.Timestamp)(m.LastModified).CloneVT())
 	r.ChecksumResponse = m.ChecksumResponse.CloneVT()
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = make([]byte, len(m.unknownFields))
@@ -2163,7 +2163,7 @@ func (this *ResolveSourceHTTPResponse) EqualVT(that *ResolveSourceHTTPResponse) 
 	if this.Filename != that.Filename {
 		return false
 	}
-	if !(*timestamppb.Timestamp)(this.LastModified).EqualVT((*timestamppb.Timestamp)(that.LastModified)) {
+	if !(*timestamppb1.Timestamp)(this.LastModified).EqualVT((*timestamppb1.Timestamp)(that.LastModified)) {
 		return false
 	}
 	if !this.ChecksumResponse.EqualVT(that.ChecksumResponse) {
@@ -4718,7 +4718,7 @@ func (m *ResolveSourceHTTPResponse) MarshalToSizedBufferVT(dAtA []byte) (int, er
 		dAtA[i] = 0x22
 	}
 	if m.LastModified != nil {
-		size, err := (*timestamppb.Timestamp)(m.LastModified).MarshalToSizedBufferVT(dAtA[:i])
+		size, err := (*timestamppb1.Timestamp)(m.LastModified).MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -7280,7 +7280,7 @@ func (m *ResolveSourceHTTPResponse) SizeVT() (n int) {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if m.LastModified != nil {
-		l = (*timestamppb.Timestamp)(m.LastModified).SizeVT()
+		l = (*timestamppb1.Timestamp)(m.LastModified).SizeVT()
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if m.ChecksumResponse != nil {
@@ -11940,9 +11940,9 @@ func (m *ResolveSourceHTTPResponse) UnmarshalVT(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.LastModified == nil {
-				m.LastModified = &timestamp.Timestamp{}
+				m.LastModified = &timestamppb.Timestamp{}
 			}
-			if err := (*timestamppb.Timestamp)(m.LastModified).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := (*timestamppb1.Timestamp)(m.LastModified).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

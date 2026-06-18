@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/url"
 	"os"
 	"os/exec"
@@ -12,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1326,8 +1328,14 @@ func (gs *gitSourceHandler) checkout(ctx context.Context, repo *gitRepo, g sessi
 		}
 	}
 
+	checkoutRoot, err := os.OpenRoot(checkoutDir)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open git checkout root")
+	}
+	defer checkoutRoot.Close()
+
 	if compatibilityVersion == compat.CompatibilityVersion013 {
-		if err := resetCompatibility014FileModes(checkoutDir); err != nil {
+		if err := resetCompatibility014FileModes(checkoutRoot); err != nil {
 			return nil, errors.Wrapf(err, "failed to normalize compatibility file modes for %s", urlutil.RedactCredentials(gs.src.Remote))
 		}
 	}
@@ -1337,16 +1345,23 @@ func (gs *gitSourceHandler) checkout(ctx context.Context, repo *gitRepo, g sessi
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get commit time for %s", urlutil.RedactCredentials(gs.src.Remote))
 		}
-		if err := resetSnapshotMtimes(checkoutDir, commitTime); err != nil {
+		if err := resetSnapshotMtimes(checkoutRoot, commitTime); err != nil {
 			return nil, errors.Wrapf(err, "failed to normalize mtimes for %s", urlutil.RedactCredentials(gs.src.Remote))
 		}
 	}
 
 	if idmap := mount.IdentityMapping(); idmap != nil {
 		uid, gid := idmap.RootPair()
-		err := filepath.WalkDir(gitDir, func(p string, _ os.DirEntry, _ error) error {
-			return os.Lchown(p, uid, gid)
+		root, err := os.OpenRoot(gitDir)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to open git checkout root")
+		}
+		err = fs.WalkDir(root.FS(), ".", func(p string, _ os.DirEntry, _ error) error {
+			return root.Lchown(p, uid, gid)
 		})
+		if closeErr := root.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to remap git checkout")
 		}
@@ -1388,9 +1403,9 @@ func getCommitTime(ctx context.Context, git *gitutil.GitCLI, ref string) (time.T
 // resetSnapshotMtimes walks dir and sets the mtime of every file,
 // symlink, and directory to t. Directories are set bottom-up so that
 // a parent's mtime is not invalidated by a later child write.
-func resetSnapshotMtimes(dir string, t time.Time) error {
+func resetSnapshotMtimes(root *os.Root, t time.Time) error {
 	var dirs []string
-	err := filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+	err := fs.WalkDir(root.FS(), ".", func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -1399,15 +1414,15 @@ func resetSnapshotMtimes(dir string, t time.Time) error {
 			return nil
 		}
 		if d.Type()&os.ModeSymlink != 0 {
-			return lchtimes(p, t)
+			return lchtimes(filepath.Join(root.Name(), p), t)
 		}
-		return os.Chtimes(p, t, t)
+		return root.Chtimes(p, t, t)
 	})
 	if err != nil {
 		return err
 	}
-	for i := len(dirs) - 1; i >= 0; i-- {
-		if err := os.Chtimes(dirs[i], t, t); err != nil {
+	for _, dir := range slices.Backward(dirs) {
+		if err := root.Chtimes(dir, t, t); err != nil {
 			return err
 		}
 	}
@@ -1420,8 +1435,8 @@ func resetSnapshotMtimes(dir string, t time.Time) error {
 // left untouched: their pre-v0.15 behavior is not covered by the current
 // compatibility matrix, and blindly adding write bits to 0o755 would be a
 // guess.
-func resetCompatibility014FileModes(dir string) error {
-	return filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+func resetCompatibility014FileModes(root *os.Root) error {
+	return fs.WalkDir(root.FS(), ".", func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -1437,7 +1452,7 @@ func resetCompatibility014FileModes(dir string) error {
 		if !mode.IsRegular() || mode&0o111 != 0 {
 			return nil
 		}
-		return os.Chmod(p, mode|0o222)
+		return root.Chmod(p, mode|0o222)
 	})
 }
 

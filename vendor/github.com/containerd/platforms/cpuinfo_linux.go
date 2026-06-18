@@ -45,7 +45,6 @@ func getMachineArch() (string, error) {
 // So we don't need to access the ARM registers to detect platform information
 // by ourselves. We can just parse these information from /proc/cpuinfo
 func getCPUInfo(pattern string) (info string, err error) {
-
 	cpuinfo, err := os.Open("/proc/cpuinfo")
 	if err != nil {
 		return "", err
@@ -75,7 +74,6 @@ func getCPUInfo(pattern string) (info string, err error) {
 
 // getCPUVariantFromArch get CPU variant from arch through a system call
 func getCPUVariantFromArch(arch string) (string, error) {
-
 	var variant string
 
 	arch = strings.ToLower(arch)

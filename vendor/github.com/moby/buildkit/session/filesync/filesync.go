@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -28,7 +29,8 @@ const (
 	keyDirName            = "dir-name"
 	keyExporterMetaPrefix = "exporter-md-"
 
-	keyExporterID = "buildkit-attachable-exporter-id"
+	keyExporterID                    = "buildkit-attachable-exporter-id"
+	keyExporterMultiPlatformTransfer = "buildkit-exporter-multi-platform"
 )
 
 type fsSyncProvider struct {
@@ -253,9 +255,10 @@ type FSSyncTarget interface {
 }
 
 type fsSyncTarget struct {
-	id     int
-	outdir string
-	f      FileOutputFunc
+	id         int
+	outdir     string
+	deleteMode bool
+	f          FileOutputFunc
 }
 
 func (target *fsSyncTarget) target() *fsSyncTarget {
@@ -276,10 +279,23 @@ func WithFSSyncDir(id int, outdir string) FSSyncTarget {
 	}
 }
 
+func WithFSSyncDirDelete(id int, outdir string) FSSyncTarget {
+	return &fsSyncTarget{
+		id:         id,
+		outdir:     outdir,
+		deleteMode: true,
+	}
+}
+
+type fsSyncDirTarget struct {
+	outdir     string
+	deleteMode bool
+}
+
 func NewFSSyncTarget(targets ...FSSyncTarget) *SyncTarget {
 	st := &SyncTarget{
 		fs:      make(map[int]FileOutputFunc),
-		outdirs: make(map[int]string),
+		outdirs: make(map[int]fsSyncDirTarget),
 	}
 	st.Add(targets...)
 	return st
@@ -287,7 +303,7 @@ func NewFSSyncTarget(targets ...FSSyncTarget) *SyncTarget {
 
 type SyncTarget struct {
 	fs      map[int]FileOutputFunc
-	outdirs map[int]string
+	outdirs map[int]fsSyncDirTarget
 }
 
 var _ session.Attachable = &SyncTarget{}
@@ -299,7 +315,7 @@ func (sp *SyncTarget) Add(targets ...FSSyncTarget) {
 			sp.fs[t.id] = t.f
 		}
 		if t.outdir != "" {
-			sp.outdirs[t.id] = t.outdir
+			sp.outdirs[t.id] = fsSyncDirTarget{outdir: t.outdir, deleteMode: t.deleteMode}
 		}
 	}
 }
@@ -326,8 +342,11 @@ func (sp *SyncTarget) chooser(ctx context.Context) int {
 
 func (sp *SyncTarget) DiffCopy(stream FileSend_DiffCopyServer) (err error) {
 	id := sp.chooser(stream.Context())
-	if outdir, ok := sp.outdirs[id]; ok {
-		return syncTargetDiffCopy(stream, outdir)
+	if target, ok := sp.outdirs[id]; ok {
+		if target.deleteMode && !supportsExporterMultiPlatformTransfer(stream.Context()) {
+			return errors.New("local exporter mode=delete requires a BuildKit daemon with multi-platform local export support")
+		}
+		return syncTargetDiffCopy(stream, target.outdir, target.deleteMode)
 	}
 	f, ok := sp.fs[id]
 	if !ok {
@@ -357,7 +376,23 @@ func (sp *SyncTarget) DiffCopy(stream FileSend_DiffCopyServer) (err error) {
 	return writeTargetFile(stream, wc)
 }
 
-func CopyToCaller(ctx context.Context, fs fsutil.FS, id int, c session.Caller, progress func(int, bool)) error {
+type CopyToCallerOpt func(metadata.MD)
+
+func WithExporterMultiPlatformTransfer() CopyToCallerOpt {
+	return func(opts metadata.MD) {
+		opts.Set(keyExporterMultiPlatformTransfer, "1")
+	}
+}
+
+func supportsExporterMultiPlatformTransfer(ctx context.Context) bool {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return false
+	}
+	return slices.Contains(md.Get(keyExporterMultiPlatformTransfer), "1")
+}
+
+func CopyToCaller(ctx context.Context, fs fsutil.FS, id int, c session.Caller, progress func(int, bool), copyOpts ...CopyToCallerOpt) error {
 	method := session.MethodURL(FileSend_ServiceDesc.ServiceName, "diffcopy")
 	if !c.Supports(method) {
 		return errors.Errorf("method %s not supported by the client", method)
@@ -370,6 +405,9 @@ func CopyToCaller(ctx context.Context, fs fsutil.FS, id int, c session.Caller, p
 	opts, ok := metadata.FromOutgoingContext(ctx)
 	if !ok {
 		opts = make(map[string][]string)
+	}
+	for _, opt := range copyOpts {
+		opt(opts)
 	}
 	if existingVal, ok := opts[keyExporterID]; ok {
 		bklog.G(ctx).Warnf("overwriting grpc metadata key %q from value %+v to %+v", keyExporterID, existingVal, id)

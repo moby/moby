@@ -97,8 +97,8 @@ func NewContainer(ctx context.Context, cm cache.Manager, exec executor.Executor,
 		return cm.New(ctx, ref, g)
 	}, platform.OS)
 	if err != nil {
-		for i := len(p.Actives) - 1; i >= 0; i-- { // call in LIFO order
-			p.Actives[i].Ref.Release(context.TODO())
+		for _, active := range slices.Backward(p.Actives) { // call in LIFO order
+			active.Ref.Release(context.TODO())
 		}
 		for _, o := range p.OutputRefs {
 			o.Ref.Release(context.TODO())
@@ -435,8 +435,8 @@ func (gwCtr *gatewayContainer) Release(ctx context.Context) error {
 	err1 := gwCtr.errGroup.Wait()
 
 	var err2 error
-	for i := len(gwCtr.cleanup) - 1; i >= 0; i-- { // call in LIFO order
-		err := gwCtr.cleanup[i]()
+	for _, cleanup := range slices.Backward(gwCtr.cleanup) { // call in LIFO order
+		err := cleanup()
 		if err2 == nil {
 			err2 = err
 		}

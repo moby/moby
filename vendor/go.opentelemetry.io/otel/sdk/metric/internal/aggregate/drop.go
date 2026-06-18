@@ -10,8 +10,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/exemplar"
 )
 
-// dropReservoir returns a [FilteredReservoir] that drops all measurements it is offered.
-func dropReservoir[N int64 | float64](attribute.Set) FilteredExemplarReservoir[N] {
+// DropReservoir returns a [FilteredExemplarReservoir] that drops all measurements it is offered.
+func DropReservoir[N int64 | float64](attribute.Set) FilteredExemplarReservoir[N] {
 	return &dropRes[N]{}
 }
 

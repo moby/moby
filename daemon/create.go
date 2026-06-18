@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -122,6 +123,10 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	err = daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig)
 	if err != nil {
 		return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
+	}
+
+	if runtime.GOOS == "linux" && (opts.params.HostConfig.NetworkMode.IsDefault() || opts.params.HostConfig.NetworkMode.IsBridge()) && len(opts.params.HostConfig.Links) > 0 {
+		warnings = append(warnings, "Links on the default bridge network are deprecated and will be removed in a future release. Use a custom network instead.")
 	}
 
 	ctr, err := daemon.create(ctx, &daemonCfg.Config, opts)

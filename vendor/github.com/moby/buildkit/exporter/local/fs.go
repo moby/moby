@@ -14,6 +14,7 @@ import (
 
 	intoto "github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/moby/buildkit/cache"
+	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/exporter/attestation"
 	"github.com/moby/buildkit/exporter/util/epoch"
@@ -33,6 +34,7 @@ const (
 	// keyPlatformSplit is an exporter option which can be used to split result
 	// in subfolders when multiple platform references are exported.
 	keyPlatformSplit = "platform-split"
+	keyMode          = "mode"
 )
 
 type CreateFSOpts struct {
@@ -67,6 +69,10 @@ func (c *CreateFSOpts) Load(opt map[string]string) (map[string]string, error) {
 				return nil, errors.Wrapf(err, "non-bool value for %s: %s", keyPlatformSplit, v)
 			}
 			c.PlatformSplit = &b
+		case keyMode:
+			if _, err := client.ParseLocalExporterMode(v); err != nil {
+				return nil, err
+			}
 		default:
 			rest[k] = v
 		}

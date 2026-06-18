@@ -5,12 +5,13 @@ import "encoding/json"
 type jsonOp struct {
 	Inputs []*Input `json:"inputs,omitempty"`
 	Op     struct {
-		Exec   *ExecOp   `json:"exec,omitempty"`
-		Source *SourceOp `json:"source,omitempty"`
-		File   *FileOp   `json:"file,omitempty"`
-		Build  *BuildOp  `json:"build,omitempty"`
-		Merge  *MergeOp  `json:"merge,omitempty"`
-		Diff   *DiffOp   `json:"diff,omitempty"`
+		Exec   *ExecOp        `json:"exec,omitempty"`
+		Source *SourceOp      `json:"source,omitempty"`
+		File   *FileOp        `json:"file,omitempty"`
+		Build  *BuildOp       `json:"build,omitempty"`
+		Merge  *MergeOp       `json:"merge,omitempty"`
+		Diff   *DiffOp        `json:"diff,omitempty"`
+		Pass   *PassthroughOp `json:"passthrough,omitempty"`
 	}
 	Platform    *Platform          `json:"platform,omitempty"`
 	Constraints *WorkerConstraints `json:"constraints,omitempty"`
@@ -32,6 +33,8 @@ func (m *Op) MarshalJSON() ([]byte, error) {
 		v.Op.Merge = op.Merge
 	case *Op_Diff:
 		v.Op.Diff = op.Diff
+	case *Op_Passthrough:
+		v.Op.Pass = op.Passthrough
 	}
 	v.Platform = m.Platform
 	v.Constraints = m.Constraints
@@ -58,6 +61,8 @@ func (m *Op) UnmarshalJSON(data []byte) error {
 		m.Op = &Op_Merge{v.Op.Merge}
 	case v.Op.Diff != nil:
 		m.Op = &Op_Diff{v.Op.Diff}
+	case v.Op.Pass != nil:
+		m.Op = &Op_Passthrough{v.Op.Pass}
 	}
 	m.Platform = v.Platform
 	m.Constraints = v.Constraints

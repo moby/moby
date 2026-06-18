@@ -39,7 +39,7 @@ type winApplier struct {
 func (s *winApplier) Apply(ctx context.Context, desc ocispecs.Descriptor, mounts []mount.Mount, opts ...diff.ApplyOpt) (d ocispecs.Descriptor, err error) {
 	// HACK:, containerd doesn't know about vnd.docker.image.rootfs.diff.tar.zstd, but that
 	// media type is compatible w/ the oci type, so just lie and say it's the oci type
-	if desc.MediaType == images.MediaTypeDockerSchema2Layer+".zstd" {
+	if desc.MediaType == images.MediaTypeDockerSchema2LayerZstd {
 		desc.MediaType = ocispecs.MediaTypeImageLayerZstd
 	}
 

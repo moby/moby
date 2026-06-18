@@ -343,6 +343,28 @@ func captureProvenance(ctx context.Context, res solver.CachedResultWithProvenanc
 			if pr.Network != pb.NetMode_NONE {
 				c.NetworkAccess = true
 			}
+			if op.ProxyNetwork() {
+				c.ProxyNetwork = true
+				proxyCap := op.ProxyCapture()
+				if proxyCap != nil {
+					for _, m := range proxyCap.Materials() {
+						c.AddHTTP(provenancetypes.HTTPSource{
+							URL:    m.URL,
+							Digest: m.Digest,
+						})
+					}
+					for _, in := range proxyCap.Incomplete() {
+						c.IncompleteMaterials = true
+						c.ProxyIncomplete = append(c.ProxyIncomplete, provenancetypes.ProxyCaptureIncomplete{
+							Op:     op.Digest().String(),
+							Name:   strings.Join(pr.Meta.Args, " "),
+							Method: in.Method,
+							URI:    in.URL,
+							Reason: in.Reason,
+						})
+					}
+				}
+			}
 			samples, err := op.Samples()
 			if err != nil {
 				return err
@@ -400,6 +422,14 @@ func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.Prove
 		b, err := strconv.ParseBool(v)
 		withUsage = err == nil && b
 	}
+	completeMaterials := false
+	if v, ok := attrs["complete-materials"]; ok {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse complete-materials flag %q", v)
+		}
+		completeMaterials = b
+	}
 
 	pr, err := provenance.NewPredicate(cp)
 	if err != nil {
@@ -407,6 +437,9 @@ func NewProvenanceCreator(ctx context.Context, slsaVersion provenancetypes.Prove
 	}
 	if pr.RunDetails.Metadata == nil {
 		pr.RunDetails.Metadata = &provenancetypes.ProvenanceMetadataSLSA1{}
+	}
+	if completeMaterials && !pr.RunDetails.Metadata.Completeness.ResolvedDependencies {
+		return nil, incompleteMaterialsError(cp)
 	}
 
 	st := j.StartedTime()
@@ -532,6 +565,75 @@ func scrubMinRequest(req *provenancetypes.Parameters) bool {
 		incomplete = true
 	}
 	return incomplete
+}
+
+func incompleteMaterialsError(c *provenance.Capture) error {
+	var b strings.Builder
+	b.WriteString("provenance materials are incomplete\n\n")
+	b.WriteString("The build requested complete provenance materials, but not all dependencies could be captured.\n\n")
+	details := make([]*errdefs.ProvenanceMaterialIncomplete, 0, len(c.ProxyIncomplete)+len(c.Sources.Local))
+	if len(c.ProxyIncomplete) == 0 && len(c.Sources.Local) == 0 {
+		return errdefs.WithProvenanceMaterialsIncomplete(errors.New(strings.TrimSpace(b.String())), details)
+	}
+
+	if len(c.Sources.Local) > 0 {
+		b.WriteString("Uncaptured local sources:")
+		for _, l := range c.Sources.Local {
+			details = append(details, &errdefs.ProvenanceMaterialIncomplete{
+				Name:   l.Name,
+				Reason: "local_source",
+			})
+			b.WriteString("\n  - ")
+			if l.Name != "" {
+				b.WriteString(l.Name)
+			} else {
+				b.WriteString("<unnamed>")
+			}
+			b.WriteString("\n    reason: local_source")
+		}
+	}
+
+	if len(c.ProxyIncomplete) > 0 {
+		if len(c.Sources.Local) > 0 {
+			b.WriteString("\n\n")
+		}
+		b.WriteString("Uncaptured requests:")
+	}
+	for _, in := range c.ProxyIncomplete {
+		details = append(details, &errdefs.ProvenanceMaterialIncomplete{
+			Op:       in.Op,
+			Name:     in.Name,
+			Method:   in.Method,
+			Uri:      in.URI,
+			FinalUri: in.FinalURI,
+			Reason:   in.Reason,
+		})
+		b.WriteString("\n  - ")
+		if in.Name != "" {
+			b.WriteString(in.Name)
+		} else if in.Op != "" {
+			b.WriteString(in.Op)
+		} else {
+			b.WriteString(in.URI)
+		}
+		if in.Method != "" {
+			b.WriteString("\n    method: ")
+			b.WriteString(in.Method)
+		}
+		if in.URI != "" {
+			b.WriteString("\n    url: ")
+			b.WriteString(in.URI)
+		}
+		if in.FinalURI != "" {
+			b.WriteString("\n    finalUrl: ")
+			b.WriteString(in.FinalURI)
+		}
+		if in.Reason != "" {
+			b.WriteString("\n    reason: ")
+			b.WriteString(in.Reason)
+		}
+	}
+	return errdefs.WithProvenanceMaterialsIncomplete(errors.New(b.String()), details)
 }
 
 func (p *ProvenanceCreator) PredicateType() string {

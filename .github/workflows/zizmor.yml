@@ -2,7 +2,9 @@ name: zizmor
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel stale PR runs without interrupting push, tag, scheduled, or
+  # manually dispatched validation.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -23,7 +25,7 @@ on:
 
 jobs:
   run:
-    uses: crazy-max/.github/.github/workflows/zizmor.yml@9ba6e6f9450baf3b1237f8035c1fdc45932510bd # v1.8.0
+    uses: crazy-max/.github/.github/workflows/zizmor.yml@46267a6e61cd56aac2fc79943df180152f4c89d6 # v1.10.1
     permissions:
       contents: read
       security-events: write

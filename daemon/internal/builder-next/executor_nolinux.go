@@ -9,6 +9,7 @@ import (
 
 	"github.com/moby/buildkit/executor"
 	resourcetypes "github.com/moby/buildkit/executor/resources/types"
+	"github.com/moby/buildkit/util/network"
 )
 
 type stubExecutor struct{}
@@ -22,6 +23,6 @@ func (w *stubExecutor) Exec(ctx context.Context, id string, process executor.Pro
 }
 
 // function stub created for GraphDriver
-func newExecutorGD(executorOpts) (executor.Executor, error) {
-	return &stubExecutor{}, nil
+func newExecutorGD(executorOpts) (executor.Executor, network.ProxyProvider, error) {
+	return &stubExecutor{}, nil, nil
 }

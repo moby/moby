@@ -79,9 +79,13 @@ type NetworkDB struct {
 	// network. The key is a network ID.
 	networkNodes map[string][]string
 
-	// A table of ack channels for every node from which we are
-	// waiting for an ack.
-	bulkSyncAckTbl map[string]chan struct{}
+	// A table of subscriptions for every node from which we are waiting for
+	// a bulk-sync ack.
+	bulkSyncAckTbl map[string][]bulkSyncSubscription
+
+	// A count of the number of times we have timed out waiting for a bulk
+	// sync ack from any peer node.
+	bulkSyncAckTimeouts atomic.Uint64
 
 	// Broadcast queue for network event gossip.
 	networkBroadcasts *memberlist.TransmitLimitedQueue
@@ -261,6 +265,14 @@ type entry struct {
 	reapTime time.Duration
 }
 
+// bulkSyncSubscription is a subscription to the bulk-sync progress for a peer node.
+// Done is closed when a bulk sync from the node is received with an LTime
+// greater than the subscription's LTime.
+type bulkSyncSubscription struct {
+	LTime serf.LamportTime
+	Done  chan<- struct{}
+}
+
 // DefaultConfig returns a NetworkDB config with default values
 func DefaultConfig() *Config {
 	hostname, _ := os.Hostname()
@@ -310,7 +322,7 @@ func newNetworkDB(c *Config) *NetworkDB {
 		failedNodes:      make(map[string]*node),
 		leftNodes:        make(map[string]*node),
 		networkNodes:     make(map[string][]string),
-		bulkSyncAckTbl:   make(map[string]chan struct{}),
+		bulkSyncAckTbl:   make(map[string][]bulkSyncSubscription),
 		broadcaster:      events.NewBroadcaster(),
 		rng:              rand.New(rand.NewChaCha8(rngSeed)), //gosec:disable G404 -- not used in a security sensitive context
 	}

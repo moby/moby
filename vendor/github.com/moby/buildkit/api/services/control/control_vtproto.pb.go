@@ -6,15 +6,15 @@ package moby_buildkit_v1
 
 import (
 	fmt "fmt"
-	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	types "github.com/moby/buildkit/api/types"
 	pb "github.com/moby/buildkit/solver/pb"
 	pb1 "github.com/moby/buildkit/sourcepolicy/pb"
 	protohelpers "github.com/planetscale/vtprotobuf/protohelpers"
-	timestamppb "github.com/planetscale/vtprotobuf/types/known/timestamppb"
+	timestamppb1 "github.com/planetscale/vtprotobuf/types/known/timestamppb"
 	status "google.golang.org/genproto/googleapis/rpc/status"
 	proto "google.golang.org/protobuf/proto"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	io "io"
 )
 
@@ -106,8 +106,8 @@ func (m *UsageRecord) CloneVT() *UsageRecord {
 	r.InUse = m.InUse
 	r.Size = m.Size
 	r.Parent = m.Parent
-	r.CreatedAt = (*timestamp.Timestamp)((*timestamppb.Timestamp)(m.CreatedAt).CloneVT())
-	r.LastUsedAt = (*timestamp.Timestamp)((*timestamppb.Timestamp)(m.LastUsedAt).CloneVT())
+	r.CreatedAt = (*timestamppb.Timestamp)((*timestamppb1.Timestamp)(m.CreatedAt).CloneVT())
+	r.LastUsedAt = (*timestamppb.Timestamp)((*timestamppb1.Timestamp)(m.LastUsedAt).CloneVT())
 	r.UsageCount = m.UsageCount
 	r.Description = m.Description
 	r.RecordType = m.RecordType
@@ -144,6 +144,7 @@ func (m *SolveRequest) CloneVT() *SolveRequest {
 	r.EnableSessionExporter = m.EnableSessionExporter
 	r.SourcePolicySession = m.SourcePolicySession
 	r.CompatibilityVersion = m.CompatibilityVersion
+	r.ProxyNetwork = m.ProxyNetwork
 	if rhs := m.ExporterAttrsDeprecated; rhs != nil {
 		tmpContainer := make(map[string]string, len(rhs))
 		for k, v := range rhs {
@@ -347,8 +348,8 @@ func (m *Vertex) CloneVT() *Vertex {
 	r.Digest = m.Digest
 	r.Name = m.Name
 	r.Cached = m.Cached
-	r.Started = (*timestamp.Timestamp)((*timestamppb.Timestamp)(m.Started).CloneVT())
-	r.Completed = (*timestamp.Timestamp)((*timestamppb.Timestamp)(m.Completed).CloneVT())
+	r.Started = (*timestamppb.Timestamp)((*timestamppb1.Timestamp)(m.Started).CloneVT())
+	r.Completed = (*timestamppb.Timestamp)((*timestamppb1.Timestamp)(m.Completed).CloneVT())
 	r.Error = m.Error
 	r.ProgressGroup = m.ProgressGroup.CloneVT()
 	if rhs := m.Inputs; rhs != nil {
@@ -377,9 +378,9 @@ func (m *VertexStatus) CloneVT() *VertexStatus {
 	r.Name = m.Name
 	r.Current = m.Current
 	r.Total = m.Total
-	r.Timestamp = (*timestamp.Timestamp)((*timestamppb.Timestamp)(m.Timestamp).CloneVT())
-	r.Started = (*timestamp.Timestamp)((*timestamppb.Timestamp)(m.Started).CloneVT())
-	r.Completed = (*timestamp.Timestamp)((*timestamppb.Timestamp)(m.Completed).CloneVT())
+	r.Timestamp = (*timestamppb.Timestamp)((*timestamppb1.Timestamp)(m.Timestamp).CloneVT())
+	r.Started = (*timestamppb.Timestamp)((*timestamppb1.Timestamp)(m.Started).CloneVT())
+	r.Completed = (*timestamppb.Timestamp)((*timestamppb1.Timestamp)(m.Completed).CloneVT())
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = make([]byte, len(m.unknownFields))
 		copy(r.unknownFields, m.unknownFields)
@@ -397,7 +398,7 @@ func (m *VertexLog) CloneVT() *VertexLog {
 	}
 	r := new(VertexLog)
 	r.Vertex = m.Vertex
-	r.Timestamp = (*timestamp.Timestamp)((*timestamppb.Timestamp)(m.Timestamp).CloneVT())
+	r.Timestamp = (*timestamppb.Timestamp)((*timestamppb1.Timestamp)(m.Timestamp).CloneVT())
 	r.Stream = m.Stream
 	if rhs := m.Msg; rhs != nil {
 		tmpBytes := make([]byte, len(rhs))
@@ -604,8 +605,8 @@ func (m *BuildHistoryRecord) CloneVT() *BuildHistoryRecord {
 	r := new(BuildHistoryRecord)
 	r.Ref = m.Ref
 	r.Frontend = m.Frontend
-	r.CreatedAt = (*timestamp.Timestamp)((*timestamppb.Timestamp)(m.CreatedAt).CloneVT())
-	r.CompletedAt = (*timestamp.Timestamp)((*timestamppb.Timestamp)(m.CompletedAt).CloneVT())
+	r.CreatedAt = (*timestamppb.Timestamp)((*timestamppb1.Timestamp)(m.CreatedAt).CloneVT())
+	r.CompletedAt = (*timestamppb.Timestamp)((*timestamppb1.Timestamp)(m.CompletedAt).CloneVT())
 	r.Logs = m.Logs.CloneVT()
 	r.Result = m.Result.CloneVT()
 	r.Generation = m.Generation
@@ -901,10 +902,10 @@ func (this *UsageRecord) EqualVT(that *UsageRecord) bool {
 	if this.Parent != that.Parent {
 		return false
 	}
-	if !(*timestamppb.Timestamp)(this.CreatedAt).EqualVT((*timestamppb.Timestamp)(that.CreatedAt)) {
+	if !(*timestamppb1.Timestamp)(this.CreatedAt).EqualVT((*timestamppb1.Timestamp)(that.CreatedAt)) {
 		return false
 	}
-	if !(*timestamppb.Timestamp)(this.LastUsedAt).EqualVT((*timestamppb.Timestamp)(that.LastUsedAt)) {
+	if !(*timestamppb1.Timestamp)(this.LastUsedAt).EqualVT((*timestamppb1.Timestamp)(that.LastUsedAt)) {
 		return false
 	}
 	if this.UsageCount != that.UsageCount {
@@ -1045,6 +1046,9 @@ func (this *SolveRequest) EqualVT(that *SolveRequest) bool {
 		return false
 	}
 	if this.CompatibilityVersion != that.CompatibilityVersion {
+		return false
+	}
+	if this.ProxyNetwork != that.ProxyNetwork {
 		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
@@ -1317,10 +1321,10 @@ func (this *Vertex) EqualVT(that *Vertex) bool {
 	if this.Cached != that.Cached {
 		return false
 	}
-	if !(*timestamppb.Timestamp)(this.Started).EqualVT((*timestamppb.Timestamp)(that.Started)) {
+	if !(*timestamppb1.Timestamp)(this.Started).EqualVT((*timestamppb1.Timestamp)(that.Started)) {
 		return false
 	}
-	if !(*timestamppb.Timestamp)(this.Completed).EqualVT((*timestamppb.Timestamp)(that.Completed)) {
+	if !(*timestamppb1.Timestamp)(this.Completed).EqualVT((*timestamppb1.Timestamp)(that.Completed)) {
 		return false
 	}
 	if this.Error != that.Error {
@@ -1360,13 +1364,13 @@ func (this *VertexStatus) EqualVT(that *VertexStatus) bool {
 	if this.Total != that.Total {
 		return false
 	}
-	if !(*timestamppb.Timestamp)(this.Timestamp).EqualVT((*timestamppb.Timestamp)(that.Timestamp)) {
+	if !(*timestamppb1.Timestamp)(this.Timestamp).EqualVT((*timestamppb1.Timestamp)(that.Timestamp)) {
 		return false
 	}
-	if !(*timestamppb.Timestamp)(this.Started).EqualVT((*timestamppb.Timestamp)(that.Started)) {
+	if !(*timestamppb1.Timestamp)(this.Started).EqualVT((*timestamppb1.Timestamp)(that.Started)) {
 		return false
 	}
-	if !(*timestamppb.Timestamp)(this.Completed).EqualVT((*timestamppb.Timestamp)(that.Completed)) {
+	if !(*timestamppb1.Timestamp)(this.Completed).EqualVT((*timestamppb1.Timestamp)(that.Completed)) {
 		return false
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
@@ -1388,7 +1392,7 @@ func (this *VertexLog) EqualVT(that *VertexLog) bool {
 	if this.Vertex != that.Vertex {
 		return false
 	}
-	if !(*timestamppb.Timestamp)(this.Timestamp).EqualVT((*timestamppb.Timestamp)(that.Timestamp)) {
+	if !(*timestamppb1.Timestamp)(this.Timestamp).EqualVT((*timestamppb1.Timestamp)(that.Timestamp)) {
 		return false
 	}
 	if this.Stream != that.Stream {
@@ -1683,10 +1687,10 @@ func (this *BuildHistoryRecord) EqualVT(that *BuildHistoryRecord) bool {
 	} else if !proto.Equal(this.Error, that.Error) {
 		return false
 	}
-	if !(*timestamppb.Timestamp)(this.CreatedAt).EqualVT((*timestamppb.Timestamp)(that.CreatedAt)) {
+	if !(*timestamppb1.Timestamp)(this.CreatedAt).EqualVT((*timestamppb1.Timestamp)(that.CreatedAt)) {
 		return false
 	}
-	if !(*timestamppb.Timestamp)(this.CompletedAt).EqualVT((*timestamppb.Timestamp)(that.CompletedAt)) {
+	if !(*timestamppb1.Timestamp)(this.CompletedAt).EqualVT((*timestamppb1.Timestamp)(that.CompletedAt)) {
 		return false
 	}
 	if !this.Logs.EqualVT(that.Logs) {
@@ -2162,7 +2166,7 @@ func (m *UsageRecord) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		dAtA[i] = 0x40
 	}
 	if m.LastUsedAt != nil {
-		size, err := (*timestamppb.Timestamp)(m.LastUsedAt).MarshalToSizedBufferVT(dAtA[:i])
+		size, err := (*timestamppb1.Timestamp)(m.LastUsedAt).MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -2172,7 +2176,7 @@ func (m *UsageRecord) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		dAtA[i] = 0x3a
 	}
 	if m.CreatedAt != nil {
-		size, err := (*timestamppb.Timestamp)(m.CreatedAt).MarshalToSizedBufferVT(dAtA[:i])
+		size, err := (*timestamppb1.Timestamp)(m.CreatedAt).MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -2252,6 +2256,18 @@ func (m *SolveRequest) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m.unknownFields != nil {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
+	}
+	if m.ProxyNetwork {
+		i--
+		if m.ProxyNetwork {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x88
 	}
 	if m.CompatibilityVersion != 0 {
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.CompatibilityVersion))
@@ -2801,7 +2817,7 @@ func (m *Vertex) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		dAtA[i] = 0x3a
 	}
 	if m.Completed != nil {
-		size, err := (*timestamppb.Timestamp)(m.Completed).MarshalToSizedBufferVT(dAtA[:i])
+		size, err := (*timestamppb1.Timestamp)(m.Completed).MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -2811,7 +2827,7 @@ func (m *Vertex) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		dAtA[i] = 0x32
 	}
 	if m.Started != nil {
-		size, err := (*timestamppb.Timestamp)(m.Started).MarshalToSizedBufferVT(dAtA[:i])
+		size, err := (*timestamppb1.Timestamp)(m.Started).MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -2887,7 +2903,7 @@ func (m *VertexStatus) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		copy(dAtA[i:], m.unknownFields)
 	}
 	if m.Completed != nil {
-		size, err := (*timestamppb.Timestamp)(m.Completed).MarshalToSizedBufferVT(dAtA[:i])
+		size, err := (*timestamppb1.Timestamp)(m.Completed).MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -2897,7 +2913,7 @@ func (m *VertexStatus) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		dAtA[i] = 0x42
 	}
 	if m.Started != nil {
-		size, err := (*timestamppb.Timestamp)(m.Started).MarshalToSizedBufferVT(dAtA[:i])
+		size, err := (*timestamppb1.Timestamp)(m.Started).MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -2907,7 +2923,7 @@ func (m *VertexStatus) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		dAtA[i] = 0x3a
 	}
 	if m.Timestamp != nil {
-		size, err := (*timestamppb.Timestamp)(m.Timestamp).MarshalToSizedBufferVT(dAtA[:i])
+		size, err := (*timestamppb1.Timestamp)(m.Timestamp).MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -2993,7 +3009,7 @@ func (m *VertexLog) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		dAtA[i] = 0x18
 	}
 	if m.Timestamp != nil {
-		size, err := (*timestamppb.Timestamp)(m.Timestamp).MarshalToSizedBufferVT(dAtA[:i])
+		size, err := (*timestamppb1.Timestamp)(m.Timestamp).MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -3582,7 +3598,7 @@ func (m *BuildHistoryRecord) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		dAtA[i] = 0x42
 	}
 	if m.CompletedAt != nil {
-		size, err := (*timestamppb.Timestamp)(m.CompletedAt).MarshalToSizedBufferVT(dAtA[:i])
+		size, err := (*timestamppb1.Timestamp)(m.CompletedAt).MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -3592,7 +3608,7 @@ func (m *BuildHistoryRecord) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		dAtA[i] = 0x3a
 	}
 	if m.CreatedAt != nil {
-		size, err := (*timestamppb.Timestamp)(m.CreatedAt).MarshalToSizedBufferVT(dAtA[:i])
+		size, err := (*timestamppb1.Timestamp)(m.CreatedAt).MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -4069,11 +4085,11 @@ func (m *UsageRecord) SizeVT() (n int) {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if m.CreatedAt != nil {
-		l = (*timestamppb.Timestamp)(m.CreatedAt).SizeVT()
+		l = (*timestamppb1.Timestamp)(m.CreatedAt).SizeVT()
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if m.LastUsedAt != nil {
-		l = (*timestamppb.Timestamp)(m.LastUsedAt).SizeVT()
+		l = (*timestamppb1.Timestamp)(m.LastUsedAt).SizeVT()
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if m.UsageCount != 0 {
@@ -4187,6 +4203,9 @@ func (m *SolveRequest) SizeVT() (n int) {
 	}
 	if m.CompatibilityVersion != 0 {
 		n += 2 + protohelpers.SizeOfVarint(uint64(m.CompatibilityVersion))
+	}
+	if m.ProxyNetwork {
+		n += 3
 	}
 	n += len(m.unknownFields)
 	return n
@@ -4344,11 +4363,11 @@ func (m *Vertex) SizeVT() (n int) {
 		n += 2
 	}
 	if m.Started != nil {
-		l = (*timestamppb.Timestamp)(m.Started).SizeVT()
+		l = (*timestamppb1.Timestamp)(m.Started).SizeVT()
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if m.Completed != nil {
-		l = (*timestamppb.Timestamp)(m.Completed).SizeVT()
+		l = (*timestamppb1.Timestamp)(m.Completed).SizeVT()
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	l = len(m.Error)
@@ -4388,15 +4407,15 @@ func (m *VertexStatus) SizeVT() (n int) {
 		n += 1 + protohelpers.SizeOfVarint(uint64(m.Total))
 	}
 	if m.Timestamp != nil {
-		l = (*timestamppb.Timestamp)(m.Timestamp).SizeVT()
+		l = (*timestamppb1.Timestamp)(m.Timestamp).SizeVT()
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if m.Started != nil {
-		l = (*timestamppb.Timestamp)(m.Started).SizeVT()
+		l = (*timestamppb1.Timestamp)(m.Started).SizeVT()
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if m.Completed != nil {
-		l = (*timestamppb.Timestamp)(m.Completed).SizeVT()
+		l = (*timestamppb1.Timestamp)(m.Completed).SizeVT()
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	n += len(m.unknownFields)
@@ -4414,7 +4433,7 @@ func (m *VertexLog) SizeVT() (n int) {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if m.Timestamp != nil {
-		l = (*timestamppb.Timestamp)(m.Timestamp).SizeVT()
+		l = (*timestamppb1.Timestamp)(m.Timestamp).SizeVT()
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if m.Stream != 0 {
@@ -4624,11 +4643,11 @@ func (m *BuildHistoryRecord) SizeVT() (n int) {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if m.CreatedAt != nil {
-		l = (*timestamppb.Timestamp)(m.CreatedAt).SizeVT()
+		l = (*timestamppb1.Timestamp)(m.CreatedAt).SizeVT()
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if m.CompletedAt != nil {
-		l = (*timestamppb.Timestamp)(m.CompletedAt).SizeVT()
+		l = (*timestamppb1.Timestamp)(m.CompletedAt).SizeVT()
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if m.Logs != nil {
@@ -5355,9 +5374,9 @@ func (m *UsageRecord) UnmarshalVT(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.CreatedAt == nil {
-				m.CreatedAt = &timestamp.Timestamp{}
+				m.CreatedAt = &timestamppb.Timestamp{}
 			}
-			if err := (*timestamppb.Timestamp)(m.CreatedAt).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := (*timestamppb1.Timestamp)(m.CreatedAt).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -5391,9 +5410,9 @@ func (m *UsageRecord) UnmarshalVT(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.LastUsedAt == nil {
-				m.LastUsedAt = &timestamp.Timestamp{}
+				m.LastUsedAt = &timestamppb.Timestamp{}
 			}
-			if err := (*timestamppb.Timestamp)(m.LastUsedAt).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := (*timestamppb1.Timestamp)(m.LastUsedAt).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -6359,6 +6378,26 @@ func (m *SolveRequest) UnmarshalVT(dAtA []byte) error {
 					break
 				}
 			}
+		case 17:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ProxyNetwork", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return protohelpers.ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.ProxyNetwork = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := protohelpers.Skip(dAtA[iNdEx:])
@@ -7524,9 +7563,9 @@ func (m *Vertex) UnmarshalVT(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Started == nil {
-				m.Started = &timestamp.Timestamp{}
+				m.Started = &timestamppb.Timestamp{}
 			}
-			if err := (*timestamppb.Timestamp)(m.Started).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := (*timestamppb1.Timestamp)(m.Started).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -7560,9 +7599,9 @@ func (m *Vertex) UnmarshalVT(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Completed == nil {
-				m.Completed = &timestamp.Timestamp{}
+				m.Completed = &timestamppb.Timestamp{}
 			}
-			if err := (*timestamppb.Timestamp)(m.Completed).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := (*timestamppb1.Timestamp)(m.Completed).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -7849,9 +7888,9 @@ func (m *VertexStatus) UnmarshalVT(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Timestamp == nil {
-				m.Timestamp = &timestamp.Timestamp{}
+				m.Timestamp = &timestamppb.Timestamp{}
 			}
-			if err := (*timestamppb.Timestamp)(m.Timestamp).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := (*timestamppb1.Timestamp)(m.Timestamp).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -7885,9 +7924,9 @@ func (m *VertexStatus) UnmarshalVT(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Started == nil {
-				m.Started = &timestamp.Timestamp{}
+				m.Started = &timestamppb.Timestamp{}
 			}
-			if err := (*timestamppb.Timestamp)(m.Started).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := (*timestamppb1.Timestamp)(m.Started).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -7921,9 +7960,9 @@ func (m *VertexStatus) UnmarshalVT(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Completed == nil {
-				m.Completed = &timestamp.Timestamp{}
+				m.Completed = &timestamppb.Timestamp{}
 			}
-			if err := (*timestamppb.Timestamp)(m.Completed).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := (*timestamppb1.Timestamp)(m.Completed).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -8040,9 +8079,9 @@ func (m *VertexLog) UnmarshalVT(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Timestamp == nil {
-				m.Timestamp = &timestamp.Timestamp{}
+				m.Timestamp = &timestamppb.Timestamp{}
 			}
-			if err := (*timestamppb.Timestamp)(m.Timestamp).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := (*timestamppb1.Timestamp)(m.Timestamp).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -9390,9 +9429,9 @@ func (m *BuildHistoryRecord) UnmarshalVT(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.CreatedAt == nil {
-				m.CreatedAt = &timestamp.Timestamp{}
+				m.CreatedAt = &timestamppb.Timestamp{}
 			}
-			if err := (*timestamppb.Timestamp)(m.CreatedAt).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := (*timestamppb1.Timestamp)(m.CreatedAt).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -9426,9 +9465,9 @@ func (m *BuildHistoryRecord) UnmarshalVT(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.CompletedAt == nil {
-				m.CompletedAt = &timestamp.Timestamp{}
+				m.CompletedAt = &timestamppb.Timestamp{}
 			}
-			if err := (*timestamppb.Timestamp)(m.CompletedAt).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := (*timestamppb1.Timestamp)(m.CompletedAt).UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

@@ -516,8 +516,16 @@ func (c *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	if err := httputils.ReadJSON(r, &updateConfig); err != nil {
 		return err
 	}
-	if versions.LessThan(httputils.VersionFromContext(ctx), "1.40") {
+	version := httputils.VersionFromContext(ctx)
+	if versions.LessThan(version, "1.40") {
 		updateConfig.PidsLimit = nil
+	}
+	if versions.LessThan(version, "1.55") {
+		updateConfig.BlkioWeightDevice = nil
+		updateConfig.BlkioDeviceReadBps = nil
+		updateConfig.BlkioDeviceWriteBps = nil
+		updateConfig.BlkioDeviceReadIOps = nil
+		updateConfig.BlkioDeviceWriteIOps = nil
 	}
 
 	if updateConfig.PidsLimit != nil && *updateConfig.PidsLimit <= 0 {
@@ -557,7 +565,11 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	rdr := io.TeeReader(r.Body, &requestBody)
 
 	// TODO(thaJeztah): do we prefer [backend.ContainerCreateConfig] here?
-	req, err := runconfig.DecodeCreateRequest(rdr, c.backend.RawSysInfo())
+	sysInfo, err := c.backend.RawSysInfo()
+	if err != nil {
+		return err
+	}
+	req, err := runconfig.DecodeCreateRequest(rdr, sysInfo)
 	if err != nil {
 		return err
 	}
@@ -598,7 +610,7 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 
 	if versions.LessThan(version, "1.41") {
 		// Older clients expect the default to be "host" on cgroup v1 hosts
-		if hostConfig.CgroupnsMode.IsEmpty() && !c.backend.RawSysInfo().CgroupUnified {
+		if hostConfig.CgroupnsMode.IsEmpty() && !sysInfo.CgroupUnified {
 			hostConfig.CgroupnsMode = container.CgroupnsModeHost
 		}
 	}

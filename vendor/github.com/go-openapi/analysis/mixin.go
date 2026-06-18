@@ -11,37 +11,66 @@ import (
 	"github.com/go-openapi/spec"
 )
 
-// Mixin modifies the primary swagger spec by adding the paths and
-// definitions from the mixin specs. Top level parameters and
-// responses from the mixins are also carried over. Operation id
-// collisions are avoided by appending "Mixin<N>" but only if
-// needed.
+// Mixin merges one or more Swagger 2.0 documents into a primary document.
 //
-// The following parts of primary are subject to merge, filling empty details
+// # Argument order and precedence
 //
-//   - Info
+// The first argument is the primary spec, which Mixin modifies in place.
+// Subsequent arguments are mixins, listed in decreasing order of priority.
+// On any collision, the primary always wins; among mixins, the earliest one
+// wins.
+//
+// Example: given a primary spec with host "a.example.com" and a mixin with
+// host "b.example.com", the merged result keeps "a.example.com" (primary
+// wins, the mixin value is dropped). Given a primary without a host and a
+// mixin with host "b.example.com", the merged result uses "b.example.com"
+// (the mixin fills in the empty field on the primary).
+//
+// # What gets merged
+//
+// Top-level scalar fields on the primary are filled from the first mixin
+// that provides them, but only if the primary's value is the zero value:
+//
+//   - Info (including the nested Contact and License)
 //   - BasePath
 //   - Host
 //   - ExternalDocs
 //
-// Consider calling [FixEmptyResponseDescriptions]() on the modified primary
-// if you read them from storage and they are valid to start with.
+// Map and slice fields are merged entry by entry. This covers:
 //
-// Entries in "paths", "definitions", "parameters" and "responses" are
-// added to the primary in the order of the given mixins. If the entry
-// already exists in primary it is skipped with a warning message.
+//   - paths, definitions, parameters, responses
+//   - securityDefinitions, security, tags
+//   - top-level and Info extensions
 //
-// The count of skipped entries (from collisions) is returned so any
-// deviation from the number expected can flag a warning in your build
-// scripts. Carefully review the collisions before accepting them;
-// consider renaming things if possible.
+// Duplicate keys (or equal security requirements, or equal tag names) are
+// skipped with a warning; warnings are returned as a slice and intended to
+// be inspected by the caller (e.g. compared to an expected collision count
+// in build scripts).
 //
-// No key normalization takes place (paths, type defs,
-// etc). Ensure they are canonical if your downstream tools do
-// key normalization of any form.
+// Schemes, consumes and produces are merged as the union of distinct
+// values. Duplicates there are silently dropped, no warning is emitted.
 //
-// Merging schemes ([http], https), and consumers/producers do not account for
-// collisions.
+// Operation id collisions are auto-resolved by appending "Mixin<N>" to the
+// mixin operation id (N is the mixin index), so the merged spec keeps
+// unique operation ids.
+//
+// # Notes and limitations
+//
+// Consider calling [FixEmptyResponseDescriptions] on the modified primary
+// if you read responses from storage and they are valid to start with.
+//
+// No key normalization takes place. Ensure paths, type names, etc. are
+// canonical if your downstream tools rely on normalized forms.
+//
+// YAML anchors (& / *) are resolved by the YAML parser before Mixin sees
+// the document, so they are not preserved in the merged output, and they
+// cannot be shared across input files. Use $ref for cross-file reuse. See
+// https://goswagger.io/go-swagger/faq/faq_swagger/#does-swagger-mixin-preserve-yaml-anchors
+//
+// The order of paths and definitions in the merged output is alphabetical:
+// the underlying spec model stores them as Go maps, which serialize with
+// sorted keys. Source-file order is not preserved. See
+// https://goswagger.io/go-swagger/faq/faq_swagger/#can-i-control-the-path-or-operation-order-in-swagger-mixin-output
 func Mixin(primary *spec.Swagger, mixins ...*spec.Swagger) []string {
 	skipped := make([]string, 0, len(mixins))
 	opIDs := getOpIDs(primary)

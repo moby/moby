@@ -428,6 +428,16 @@ func ValueFromAttribute(value attribute.Value) Value {
 			res = append(res, StringValue(v))
 		}
 		return SliceValue(res...)
+	case attribute.BYTESLICE:
+		val := value.AsByteSlice()
+		return BytesValue(val)
+	case attribute.SLICE:
+		val := value.AsSlice()
+		res := make([]Value, 0, len(val))
+		for _, v := range val {
+			res = append(res, ValueFromAttribute(v))
+		}
+		return SliceValue(res...)
 	}
 	// This code should never be reached
 	// as log attributes are a superset of standard attributes.

@@ -21,7 +21,7 @@ func (ls *layerStore) ChecksumForGraphID(id, parent, newTarDataPath string) (dif
 	}
 	defer rawArchive.Close()
 
-	f, err := os.Create(newTarDataPath)
+	f, err := os.OpenFile(newTarDataPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		return "", 0, err
 	}

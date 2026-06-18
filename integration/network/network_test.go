@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -166,4 +167,47 @@ func TestNetworkInspectWithScope(t *testing.T) {
 
 	_, err = cli.NetworkInspect(ctx, name, client.NetworkInspectOptions{Scope: "local"})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
+}
+
+func TestCreateDeletePredefinedNetworks(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	// Predefined networks differ per OS.
+	predefined := []string{"bridge", "host", "none"}
+	if testEnv.DaemonInfo.OSType == "windows" {
+		predefined = []string{"nat", "none"}
+	}
+
+	// Verify the daemon actually has those networks.
+	res, err := apiClient.NetworkList(ctx, client.NetworkListOptions{})
+	assert.NilError(t, err)
+
+	var actual []string
+	for _, nw := range res.Items {
+		if slices.Contains(predefined, nw.Name) {
+			actual = append(actual, nw.Name)
+		}
+	}
+	slices.Sort(actual)
+	slices.Sort(predefined)
+	assert.Check(t, is.DeepEqual(actual, predefined))
+
+	for _, name := range predefined {
+		t.Run(name, func(t *testing.T) {
+			// Creating a predefined network must fail.
+			_, err := apiClient.NetworkCreate(ctx, name, client.NetworkCreateOptions{})
+			assert.Check(t, is.ErrorContains(err, "operation is not permitted on predefined"))
+			assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
+
+			// Deleting a predefined network must fail.
+			_, err = apiClient.NetworkRemove(ctx, name, client.NetworkRemoveOptions{})
+			assert.Check(t, is.ErrorContains(err, "is a pre-defined network and cannot be removed"))
+			assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
+
+			// Sanity: it should still exist.
+			_, err = apiClient.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+			assert.NilError(t, err)
+		})
+	}
 }

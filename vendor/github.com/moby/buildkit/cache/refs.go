@@ -151,8 +151,9 @@ func (p parentRefs) release(ctx context.Context) error {
 	switch {
 	case p.layerParent != nil:
 		p.layerParent.mu.Lock()
-		defer p.layerParent.mu.Unlock()
-		if err := p.layerParent.release(ctx); err != nil {
+		err := p.layerParent.release(ctx)
+		p.layerParent.mu.Unlock()
+		if err != nil {
 			errs = append(errs, err)
 		}
 	case len(p.mergeParents) > 0:
@@ -171,8 +172,9 @@ func (p parentRefs) release(ctx context.Context) error {
 	case p.diffParents != nil:
 		if p.diffParents.lower != nil {
 			p.diffParents.lower.mu.Lock()
-			defer p.diffParents.lower.mu.Unlock()
-			if err := p.diffParents.lower.release(ctx); err != nil {
+			err := p.diffParents.lower.release(ctx)
+			p.diffParents.lower.mu.Unlock()
+			if err != nil {
 				errs = append(errs, err)
 			} else {
 				p.diffParents.lower = nil
@@ -180,8 +182,9 @@ func (p parentRefs) release(ctx context.Context) error {
 		}
 		if p.diffParents.upper != nil {
 			p.diffParents.upper.mu.Lock()
-			defer p.diffParents.upper.mu.Unlock()
-			if err := p.diffParents.upper.release(ctx); err != nil {
+			err := p.diffParents.upper.release(ctx)
+			p.diffParents.upper.mu.Unlock()
+			if err != nil {
 				errs = append(errs, err)
 			} else {
 				p.diffParents.upper = nil
@@ -1519,8 +1522,9 @@ func (cr *cacheRecord) finalize(ctx context.Context) error {
 	go func() {
 		cr.cm.mu.Lock()
 		defer cr.cm.mu.Unlock()
-		if err := mutable.remove(context.TODO(), true); err != nil {
-			bklog.G(ctx).Error(err)
+		cleanupCtx := context.WithoutCancel(ctx)
+		if err := mutable.remove(cleanupCtx, true); err != nil {
+			bklog.G(cleanupCtx).Error(err)
 		}
 	}()
 

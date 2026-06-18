@@ -9,6 +9,7 @@ import (
 	"github.com/containerd/containerd/v2/core/mount"
 	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/network"
 	"github.com/moby/sys/user"
 )
 
@@ -24,9 +25,11 @@ type Meta struct {
 	Ulimit         []*pb.Ulimit
 	CDIDevices     []*pb.CDIDevice
 	CgroupParent   string
+	LinuxResources *pb.LinuxResources
 	NetMode        pb.NetMode
 	SecurityMode   pb.SecurityMode
 	ValidExitCodes []int
+	Proxy          *network.ProxyConfig
 
 	RemoveMountStubsRecursive bool
 }

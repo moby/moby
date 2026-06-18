@@ -130,7 +130,7 @@ func (conf *Config) IsSwarmCompatible() error {
 	}
 	// Swarm has not yet been updated to use nftables. But, if "iptables" is disabled, it
 	// doesn't add rules anyway.
-	if conf.FirewallBackend == "nftables" && conf.EnableIPTables {
+	if conf.FirewallBackend == "nftables" && conf.EnableIPTables && !conf.Features["swarm-nftables"] {
 		return errors.New("--firewall-backend=nftables is incompatible with swarm mode")
 	}
 	return nil

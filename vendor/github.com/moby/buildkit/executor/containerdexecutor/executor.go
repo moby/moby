@@ -33,6 +33,7 @@ type containerdExecutor struct {
 	client           *ctd.Client
 	root             string
 	networkProviders map[pb.NetMode]network.Provider
+	proxyProvider    network.ProxyProvider
 	cgroupParent     string
 	dnsConfig        *oci.DNSConfig
 	running          map[string]*containerState
@@ -70,6 +71,7 @@ type ExecutorOptions struct {
 	Root             string
 	CgroupParent     string
 	NetworkProviders map[pb.NetMode]network.Provider
+	ProxyProvider    network.ProxyProvider
 	DNSConfig        *oci.DNSConfig
 	ApparmorProfile  string
 	Selinux          bool
@@ -90,6 +92,7 @@ func New(executorOpts ExecutorOptions) executor.Executor {
 		client:           executorOpts.Client,
 		root:             executorOpts.Root,
 		networkProviders: executorOpts.NetworkProviders,
+		proxyProvider:    executorOpts.ProxyProvider,
 		cgroupParent:     executorOpts.CgroupParent,
 		dnsConfig:        executorOpts.DNSConfig,
 		running:          make(map[string]*containerState),
@@ -147,9 +150,22 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 		bklog.G(ctx).Info("enabling HostNetworking")
 	}
 
-	provider, ok := w.networkProviders[meta.NetMode]
-	if !ok {
-		return nil, errors.Errorf("unknown network mode %s", meta.NetMode)
+	proxyConfig := meta.Proxy
+	var provider network.Provider
+	if proxyConfig == nil {
+		var ok bool
+		provider, ok = w.networkProviders[meta.NetMode]
+		if !ok {
+			return nil, errors.Errorf("unknown network mode %s", meta.NetMode)
+		}
+	} else if w.proxyProvider == nil {
+		return nil, errors.New("proxy network provider is not available")
+	} else {
+		proxyConfig = &network.ProxyConfig{
+			Policy:     proxyConfig.Policy,
+			Capture:    proxyConfig.Capture,
+			EgressMode: meta.NetMode,
+		}
 	}
 
 	resolvConf, hostsFile, releasers, err := w.prepareExecutionEnv(ctx, root, mounts, meta, details, meta.NetMode)
@@ -165,11 +181,24 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 		return nil, err
 	}
 
-	namespace, err := provider.New(ctx, meta.Hostname)
+	var namespace network.Namespace
+	if proxyConfig != nil {
+		namespace, err = w.proxyProvider.NewProxy(ctx, proxyConfig)
+	} else {
+		namespace, err = provider.New(ctx, meta.Hostname, network.NamespaceOptions{})
+	}
 	if err != nil {
 		return nil, err
 	}
 	defer namespace.Close()
+	if proxyNS, ok := namespace.(network.ProxyNamespace); ok {
+		meta.Env = append(meta.Env, proxyNS.ProxyEnv()...)
+		cleanProxyCA, err := executor.InjectProxyCA(details.rootfsPath, proxyNS.ProxyCACert())
+		if err != nil {
+			return nil, err
+		}
+		defer cleanProxyCA()
+	}
 
 	spec, releaseSpec, err := w.createOCISpec(ctx, id, resolvConf, hostsFile, namespace, mounts, meta, details)
 	if err != nil {

@@ -14,15 +14,15 @@ import (
 )
 
 var bufPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buf := make([]byte, 32*1<<10)
 		return &buf
 	},
 }
 
 type Stream interface {
-	RecvMsg(interface{}) error
-	SendMsg(m interface{}) error
+	RecvMsg(any) error
+	SendMsg(m any) error
 	Context() context.Context
 }
 
@@ -66,7 +66,7 @@ func (s *sender) run(ctx context.Context) error {
 		return err
 	})
 
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		g.Go(func() error {
 			for h := range s.sendpipeline {
 				select {
@@ -210,7 +210,7 @@ type syncStream struct {
 	mu sync.Mutex
 }
 
-func (ss *syncStream) SendMsg(m interface{}) error {
+func (ss *syncStream) SendMsg(m any) error {
 	ss.mu.Lock()
 	err := ss.Stream.SendMsg(m)
 	ss.mu.Unlock()

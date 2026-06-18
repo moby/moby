@@ -21,7 +21,7 @@ import (
 const defaultDirectoryMode = 0755
 
 var bufferPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buffer := make([]byte, 32*1024)
 		return &buffer
 	},
@@ -738,8 +738,7 @@ func rel(basepath, targpath string) (string, error) {
 	// filepath.Rel can't handle UUID paths in windows
 	if runtime.GOOS == "windows" {
 		pfx := basepath + `\`
-		if strings.HasPrefix(targpath, pfx) {
-			p := strings.TrimPrefix(targpath, pfx)
+		if p, ok := strings.CutPrefix(targpath, pfx); ok {
 			if p == "" {
 				p = "."
 			}

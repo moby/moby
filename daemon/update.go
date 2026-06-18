@@ -93,7 +93,12 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		return err
 	}
 
-	if err := tsk.UpdateResources(context.TODO(), toContainerdResources(hostConfig.Resources)); err != nil {
+	resources, err := toContainerdResources(hostConfig.Resources)
+	if err != nil {
+		restoreConfig = true
+		return errCannotUpdate(ctr.ID, err)
+	}
+	if err := tsk.UpdateResources(context.TODO(), resources); err != nil {
 		restoreConfig = true
 		// TODO: it would be nice if containerd responded with better errors here so we can classify this better.
 		return errCannotUpdate(ctr.ID, errdefs.System(err))

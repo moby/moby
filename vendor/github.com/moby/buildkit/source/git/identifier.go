@@ -146,11 +146,11 @@ func validateBundleAttrs(id *GitIdentifier) error {
 // a colon after '@' (the digest) and confuses url.Parse.
 func splitBundleLocator(raw string) (string, string) {
 	const sep = "://"
-	i := strings.Index(raw, sep)
-	if i < 0 {
+	scheme, body, ok := strings.Cut(raw, sep)
+	if !ok {
 		return "", ""
 	}
-	return raw[:i], raw[i+len(sep):]
+	return scheme, body
 }
 
 // parseBundleLocator extracts the scheme, normalized reference string, the

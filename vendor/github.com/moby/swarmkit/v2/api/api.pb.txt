@@ -22,7 +22,7 @@ file {
     java_package: "com.google.protobuf"
     java_outer_classname: "TimestampProto"
     java_multiple_files: true
-    go_package: "github.com/golang/protobuf/ptypes/timestamp"
+    go_package: "google.golang.org/protobuf/types/known/timestamppb"
     cc_enable_arenas: true
     objc_class_prefix: "GPB"
     csharp_namespace: "Google.Protobuf.WellKnownTypes"
@@ -53,7 +53,7 @@ file {
     java_package: "com.google.protobuf"
     java_outer_classname: "DurationProto"
     java_multiple_files: true
-    go_package: "github.com/golang/protobuf/ptypes/duration"
+    go_package: "google.golang.org/protobuf/types/known/durationpb"
     cc_enable_arenas: true
     objc_class_prefix: "GPB"
     csharp_namespace: "Google.Protobuf.WellKnownTypes"
@@ -157,7 +157,7 @@ file {
     java_package: "com.google.protobuf"
     java_outer_classname: "WrappersProto"
     java_multiple_files: true
-    go_package: "github.com/golang/protobuf/ptypes/wrappers"
+    go_package: "google.golang.org/protobuf/types/known/wrapperspb"
     cc_enable_arenas: true
     objc_class_prefix: "GPB"
     csharp_namespace: "Google.Protobuf.WellKnownTypes"
@@ -483,6 +483,13 @@ file {
       type: TYPE_MESSAGE
       type_name: ".google.protobuf.FieldOptions"
       json_name: "options"
+    }
+    field {
+      name: "proto3_optional"
+      number: 17
+      label: LABEL_OPTIONAL
+      type: TYPE_BOOL
+      json_name: "proto3Optional"
     }
     enum_type {
       name: "Type"
@@ -853,7 +860,7 @@ file {
       number: 31
       label: LABEL_OPTIONAL
       type: TYPE_BOOL
-      default_value: "false"
+      default_value: "true"
       json_name: "ccEnableArenas"
     }
     field {
@@ -1405,7 +1412,7 @@ file {
     java_package: "com.google.protobuf"
     java_outer_classname: "DescriptorProtos"
     optimize_for: SPEED
-    go_package: "github.com/golang/protobuf/protoc-gen-go/descriptor;descriptor"
+    go_package: "google.golang.org/protobuf/types/descriptorpb"
     cc_enable_arenas: true
     objc_class_prefix: "GPB"
     csharp_namespace: "Google.Protobuf.Reflection"
@@ -5208,7 +5215,7 @@ file {
     java_package: "com.google.protobuf"
     java_outer_classname: "AnyProto"
     java_multiple_files: true
-    go_package: "github.com/golang/protobuf/ptypes/any"
+    go_package: "google.golang.org/protobuf/types/known/anypb"
     objc_class_prefix: "GPB"
     csharp_namespace: "Google.Protobuf.WellKnownTypes"
   }
@@ -10590,7 +10597,7 @@ file {
   syntax: "proto3"
 }
 file {
-  name: "go.etcd.io/etcd/raft/v3/raftpb/raft.proto"
+  name: "go.etcd.io/raft/v3/raftpb/raft.proto"
   package: "raftpb"
   dependency: "gogoproto/gogo.proto"
   message_type {
@@ -10774,13 +10781,23 @@ file {
       json_name: "commit"
     }
     field {
+      name: "vote"
+      number: 13
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      options {
+        65001: 0
+      }
+      json_name: "vote"
+    }
+    field {
       name: "snapshot"
       number: 9
       label: LABEL_OPTIONAL
       type: TYPE_MESSAGE
       type_name: ".raftpb.Snapshot"
       options {
-        65001: 0
+        65001: 1
       }
       json_name: "snapshot"
     }
@@ -10809,7 +10826,21 @@ file {
       number: 12
       label: LABEL_OPTIONAL
       type: TYPE_BYTES
+      options {
+        65001: 1
+      }
       json_name: "context"
+    }
+    field {
+      name: "responses"
+      number: 14
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".raftpb.Message"
+      options {
+        65001: 0
+      }
+      json_name: "responses"
     }
   }
   message_type {
@@ -11079,6 +11110,26 @@ file {
       name: "MsgPreVoteResp"
       number: 18
     }
+    value {
+      name: "MsgStorageAppend"
+      number: 19
+    }
+    value {
+      name: "MsgStorageAppendResp"
+      number: 20
+    }
+    value {
+      name: "MsgStorageApply"
+      number: 21
+    }
+    value {
+      name: "MsgStorageApplyResp"
+      number: 22
+    }
+    value {
+      name: "MsgForgetLeader"
+      number: 23
+    }
   }
   enum_type {
     name: "ConfChangeTransition"
@@ -11130,7 +11181,7 @@ file {
   package: "docker.swarmkit.v1"
   dependency: "github.com/docker/swarmkit/api/objects.proto"
   dependency: "github.com/docker/swarmkit/api/types.proto"
-  dependency: "go.etcd.io/etcd/raft/v3/raftpb/raft.proto"
+  dependency: "go.etcd.io/raft/v3/raftpb/raft.proto"
   dependency: "gogoproto/gogo.proto"
   dependency: "github.com/docker/swarmkit/protobuf/plugin/plugin.proto"
   message_type {

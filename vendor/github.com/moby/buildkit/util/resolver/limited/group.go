@@ -46,16 +46,7 @@ func (r *req) acquire(ctx context.Context, desc ocispecs.Descriptor) (context.Co
 	// json request get one additional connection
 	highPriority := strings.HasSuffix(desc.MediaType, "+json")
 
-	r.g.mu.Lock()
-	s, ok := r.g.sem[r.ref]
-	if !ok {
-		s = [2]*semaphore.Weighted{
-			semaphore.NewWeighted(int64(r.g.size)),
-			semaphore.NewWeighted(int64(r.g.size + 1)),
-		}
-		r.g.sem[r.ref] = s
-	}
-	r.g.mu.Unlock()
+	s := r.g.getOrInit(r.ref)
 	if !highPriority {
 		if err := s[0].Acquire(ctx, 1); err != nil {
 			return ctx, nil, err
@@ -84,6 +75,26 @@ func New(size int) *Group {
 
 func (g *Group) req(ref string) *req {
 	return &req{g: g, ref: domain(ref)}
+}
+
+func (g *Group) getOrInit(domain string) [2]*semaphore.Weighted {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	s, ok := g.sem[domain]
+	if !ok {
+		s = [2]*semaphore.Weighted{
+			semaphore.NewWeighted(int64(g.size)),
+			semaphore.NewWeighted(int64(g.size + 1)),
+		}
+		g.sem[domain] = s
+	}
+	return s
+}
+
+// SetMaxConcurrency sets the default maximum concurrency for the default group.
+func SetMaxConcurrency(size int) {
+	Default = New(size)
 }
 
 func (g *Group) WrapFetcher(f remotes.Fetcher, ref string) remotes.Fetcher {

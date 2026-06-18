@@ -49,7 +49,7 @@ func NewFileOp(s State, action *FileAction, c Constraints) *FileOp {
 }
 
 // CopyInput is either llb.State or *FileActionWithState
-// It is used by [Copy] to to specify the source of the copy operation.
+// It is used by [Copy] to specify the source of the copy operation.
 type CopyInput interface {
 	isFileOpCopyInput()
 }

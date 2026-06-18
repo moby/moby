@@ -230,6 +230,10 @@ func (signed *TargetFiles) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &s); err != nil {
 		return err
 	}
+	// Per TUF spec, hashes are mandatory for target files
+	if len(s.Hashes) == 0 {
+		return fmt.Errorf("hashes must not be empty for target files")
+	}
 	*signed = TargetFiles(s)
 
 	var dict map[string]any

@@ -70,12 +70,12 @@ func TestWaitBlocked(t *testing.T) {
 	}{
 		{
 			doc:          "test-wait-blocked-exit-zero",
-			cmd:          "trap 'exit 0' TERM; while true; do usleep 10; done",
+			cmd:          "trap 'exit 0' TERM; echo ready; while true; do usleep 10; done",
 			expectedCode: 0,
 		},
 		{
 			doc:          "test-wait-blocked-exit-random",
-			cmd:          "trap 'exit 99' TERM; while true; do usleep 10; done",
+			cmd:          "trap 'exit 99' TERM; echo ready; while true; do usleep 10; done",
 			expectedCode: 99,
 		},
 	}
@@ -85,6 +85,7 @@ func TestWaitBlocked(t *testing.T) {
 			// t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
 			containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
+			poll.WaitOn(t, logsContains(ctx, cli, containerID, "ready"))
 			wait := cli.ContainerWait(ctx, containerID, client.ContainerWaitOptions{})
 
 			_, err := cli.ContainerStop(ctx, containerID, client.ContainerStopOptions{})
@@ -208,9 +209,10 @@ func TestWaitRestartedContainer(t *testing.T) {
 			// t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
 			containerID := container.Run(ctx, t, cli,
-				container.WithCmd("sh", "-c", "trap 'exit 5' SIGTERM; while true; do sleep 0.1; done"),
+				container.WithCmd("sh", "-c", "trap 'exit 5' SIGTERM; echo ready; while true; do sleep 0.1; done"),
 			)
 			defer cli.ContainerRemove(ctx, containerID, client.ContainerRemoveOptions{Force: true})
+			poll.WaitOn(t, logsContains(ctx, cli, containerID, "ready"))
 
 			// Container is running now, wait for exit
 			wait := cli.ContainerWait(ctx, containerID, client.ContainerWaitOptions{Condition: tc.waitCond})

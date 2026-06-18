@@ -17,6 +17,7 @@ import (
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -462,6 +463,55 @@ func TestNetworkDBBulkSync(t *testing.T) {
 	}
 
 	closeNetworkDBInstances(t, dbs)
+}
+
+// Regression test for https://github.com/moby/moby/issues/51701
+func TestNetworkDBBulkSyncNodeConcurrent(t *testing.T) {
+	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
+
+	err := dbs[0].JoinNetwork("network1")
+	assert.NilError(t, err)
+
+	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
+
+	err = dbs[1].JoinNetwork("network1")
+	assert.NilError(t, err)
+
+	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
+
+	for i := range 50 {
+		err = dbs[0].CreateEntry("test_table", "network1",
+			fmt.Sprintf("key%d", i),
+			fmt.Appendf(nil, "val%d", i))
+		assert.NilError(t, err)
+	}
+
+	const N = 4
+	start := make(chan struct{})
+	var eg errgroup.Group
+	for i := range N {
+		eg.Go(func() error {
+			<-start
+			err := dbs[1].bulkSyncNode(
+				[]string{"network1"}, dbs[0].config.NodeID, true)
+			if err != nil {
+				return fmt.Errorf("[%d] %w", i, err)
+			}
+			return nil
+		})
+	}
+	close(start)
+	assert.NilError(t, eg.Wait())
+
+	// No bulk sync should have timed out. On broken code this is N-1.
+	assert.Equal(t, dbs[1].bulkSyncAckTimeouts.Load(), uint64(0),
+		"expected 0 bulk sync timeouts, but some ack channels were orphaned")
+
+	dbs[1].RLock()
+	defer dbs[1].RUnlock()
+	assert.Assert(t, is.Len(dbs[1].bulkSyncAckTbl, 0),
+		"bulkSyncAckTbl should be empty after all syncs complete")
 }
 
 func TestNetworkDBCRUDMediumCluster(t *testing.T) {

@@ -3,6 +3,7 @@ package contentutil
 import (
 	"context"
 	"io"
+	"slices"
 	"strings"
 	"sync"
 
@@ -117,8 +118,7 @@ func copyChain(ctx context.Context, ingester content.Ingester, provider content.
 		return errors.WithStack(err)
 	}
 
-	for i := len(manifestStack) - 1; i >= 0; i-- {
-		desc := manifestStack[i]
+	for _, desc := range slices.Backward(manifestStack) {
 		if err := Copy(ctx, ingester, provider, desc, "", nil); err != nil {
 			return errors.WithStack(err)
 		}

@@ -112,6 +112,13 @@ func sub(m mount.Mount, subPath string) (mount.Mount, func() error, error) {
 	return m, func() error { return nil }, nil
 }
 
+func generateLinuxResourceOpts(res *pb.LinuxResources) ([]oci.SpecOpts, error) {
+	if res == nil {
+		return nil, nil
+	}
+	return nil, errors.New("no support for Linux resource limits on Windows")
+}
+
 func generateCDIOpts(_ *cdidevices.Manager, devices []*pb.CDIDevice) ([]oci.SpecOpts, error) {
 	if len(devices) == 0 {
 		return nil, nil

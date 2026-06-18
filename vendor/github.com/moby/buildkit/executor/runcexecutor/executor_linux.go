@@ -83,7 +83,34 @@ func (w *runcExecutor) callWithIO(ctx context.Context, process executor.ProcessI
 	})
 
 	if !process.Meta.Tty {
-		return call(ctx, startedCh, &forwardIO{stdin: process.Stdin, stdout: process.Stdout, stderr: process.Stderr}, killer.pidfile)
+		runcIO := &forwardIO{stdout: process.Stdout, stderr: process.Stderr}
+		if process.Stdin != nil {
+			// Forward stdin through an os.Pipe rather than handing the
+			// caller's io.ReadCloser to runc directly. When cmd.Stdin is
+			// an *os.File, exec.Cmd dup2s it into the child and cmd.Wait
+			// returns as soon as the runc subprocess exits. Otherwise
+			// exec.Cmd spawns an internal goroutine that blocks on the
+			// caller's Reader and prevents cmd.Wait from returning after
+			// the in-container process is killed. Stdin is closed in a
+			// defer after call() returns, matching the tty path and the
+			// natural-exit cleanup.
+			pr, pw, err := os.Pipe()
+			if err != nil {
+				return errors.Wrap(err, "failed to create stdin pipe")
+			}
+			runcIO.stdin = pr
+			defer pr.Close()
+			defer process.Stdin.Close()
+			eg.Go(func() error {
+				defer pw.Close()
+				_, err := io.Copy(pw, process.Stdin)
+				if errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrClosed) {
+					return nil
+				}
+				return err
+			})
+		}
+		return call(ctx, startedCh, runcIO, killer.pidfile)
 	}
 
 	ptm, ptsName, err := console.NewPty()

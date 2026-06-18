@@ -72,6 +72,19 @@ func (r *withMaxBackoffDelay) RetryDelay(attempt int, err error) (time.Duration,
 	return r.backoff.BackoffDelay(attempt, err)
 }
 
+// AddWithLongPolling returns a retryer that is marked as long-polling.
+// Long-polling operations will back off even when the retry quota is
+// exhausted.
+func AddWithLongPolling(r aws.Retryer) aws.Retryer {
+	return &withLongPolling{RetryerV2: wrapAsRetryerV2(r)}
+}
+
+type withLongPolling struct {
+	aws.RetryerV2
+}
+
+func (w *withLongPolling) IsLongPolling() bool { return true }
+
 type wrappedAsRetryerV2 struct {
 	aws.Retryer
 }

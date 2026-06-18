@@ -83,7 +83,7 @@ func verifySignatureWithVerifierAndArtifacts(verifier signature.Verifier, sigCon
 		if len(artifacts) != 1 {
 			return fmt.Errorf("only one artifact can be verified with a message signature")
 		}
-		return verifyMessageSignature(verifier, msg, artifacts[0])
+		return verifyMessageSignatureContent(verifier, msg, artifacts[0])
 	}
 
 	// Otherwise, verify the envelope with the provided artifacts
@@ -248,6 +248,9 @@ func verifyEnvelope(verifier signature.Verifier, envelope EnvelopeContent) error
 }
 
 func verifyEnvelopeWithArtifacts(verifier signature.Verifier, envelope EnvelopeContent, artifacts []io.Reader) error {
+	if len(artifacts) == 0 {
+		return fmt.Errorf("no artifacts provided for verification")
+	}
 	if err := verifyEnvelope(verifier, envelope); err != nil {
 		return err
 	}
@@ -327,6 +330,9 @@ func verifyEnvelopeWithArtifacts(verifier signature.Verifier, envelope EnvelopeC
 }
 
 func verifyEnvelopeWithArtifactDigests(verifier signature.Verifier, envelope EnvelopeContent, digests []ArtifactDigest) error {
+	if len(digests) == 0 {
+		return fmt.Errorf("no artifact digests provided for verification")
+	}
 	if err := verifyEnvelope(verifier, envelope); err != nil {
 		return err
 	}
@@ -379,10 +385,26 @@ func isDigestInSlice(digest []byte, digestSlice [][]byte) bool {
 	return false
 }
 
-func verifyMessageSignature(verifier signature.Verifier, msg MessageSignatureContent, artifact io.Reader) error {
-	err := verifier.VerifySignature(bytes.NewReader(msg.Signature()), artifact)
+func verifyMessageSignatureContent(verifier signature.Verifier, msg MessageSignatureContent, artifact io.Reader) error {
+	// Message digest is an unauthenticated hint and MUST NOT be used to verify the signature
+	if msg.Digest() == nil {
+		return errors.New("message is missing artifact digest")
+	}
+	hashFunc, err := algStringToHashFunc(msg.DigestAlgorithm())
+	if err != nil {
+		return fmt.Errorf("could not verify message digest algorithm: %w", err)
+	}
+	hasher := hashFunc.New()
+	reader := io.TeeReader(artifact, hasher)
+
+	err = verifier.VerifySignature(bytes.NewReader(msg.Signature()), reader)
 	if err != nil {
 		return fmt.Errorf("could not verify message: %w", err)
+	}
+
+	// Message digest is also checked against actually digest after signature verification as a sanity check
+	if !bytes.Equal(hasher.Sum(nil), msg.Digest()) {
+		return errors.New("artifact digest does not match message digest")
 	}
 
 	return nil
@@ -449,12 +471,14 @@ func (m *multihasher) Sum(b []byte) map[crypto.Hash][]byte {
 
 func algStringToHashFunc(alg string) (crypto.Hash, error) {
 	switch alg {
-	case "sha256":
+	case "sha256", v1.HashAlgorithm_SHA2_256.String():
 		return crypto.SHA256, nil
-	case "sha384":
+	case "sha384", v1.HashAlgorithm_SHA2_384.String():
 		return crypto.SHA384, nil
-	case "sha512":
+	case "sha512", v1.HashAlgorithm_SHA2_512.String():
 		return crypto.SHA512, nil
+	case "":
+		return 0, errors.New("empty digest algorithm")
 	default:
 		return 0, errors.New("unsupported digest algorithm")
 	}

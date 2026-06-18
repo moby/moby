@@ -324,6 +324,17 @@ func getCgroupParent(s State) func(context.Context, *Constraints) (string, error
 	}
 }
 
+// LinuxResources holds CPU and memory resource limits for containers.
+type LinuxResources struct {
+	Memory     int64
+	MemorySwap int64
+	CPUShares  uint64
+	CPUPeriod  uint64
+	CPUQuota   int64
+	CpusetCpus string
+	CpusetMems string
+}
+
 // Network returns a [StateOption] which sets the network mode used for containers created by [State.Run].
 // This is the equivalent of [State.Network]
 // See [State.With] for where to use this.

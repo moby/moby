@@ -1,8 +1,7 @@
-FROM docker:18-dind
+# syntax=docker/dockerfile:1
 
-RUN set -ex \
-    && echo "http://nl.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories \
-    && echo "http://nl.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+FROM docker:29-cli
+
 RUN apk add --no-cache \
     util-linux \
     bridge-utils \
@@ -17,4 +16,4 @@ RUN apk add --no-cache \
 WORKDIR /bin
 COPY *.sh /bin/
 
-CMD /bin/run.sh
+CMD ["/bin/run.sh"]

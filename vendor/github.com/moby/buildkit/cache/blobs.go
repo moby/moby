@@ -109,7 +109,7 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 				}
 				defer func() {
 					if err != nil {
-						l.Discard()
+						l.Discard(ctx)
 					}
 				}()
 
@@ -461,7 +461,7 @@ func ensureCompression(ctx context.Context, ref *immutableRef, comp compression.
 		}
 		defer func() {
 			if err != nil {
-				l.Discard()
+				l.Discard(ctx)
 			}
 		}()
 

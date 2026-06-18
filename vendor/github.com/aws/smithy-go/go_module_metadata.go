@@ -3,4 +3,4 @@
 package smithy
 
 // goModuleVersion is the tagged release for this module
-const goModuleVersion = "1.25.1"
+const goModuleVersion = "1.27.2"

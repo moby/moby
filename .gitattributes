@@ -1,1 +1,8 @@
 Dockerfile* linguist-language=Dockerfile
+
+*.c    diff=cpp
+*.h    diff=cpp
+*.go   diff=golang
+*.md   diff=markdown
+*.py   diff=python
+*.sh   diff=bash

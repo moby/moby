@@ -29,6 +29,7 @@ import (
 	"golang.org/x/mod/semver"
 	"google.golang.org/protobuf/encoding/protojson"
 
+	"github.com/sigstore/sigstore-go/internal/limits"
 	"github.com/sigstore/sigstore-go/pkg/tlog"
 	"github.com/sigstore/sigstore-go/pkg/verify"
 )
@@ -299,6 +300,11 @@ func (b *Bundle) HasInclusionProof() bool {
 func (b *Bundle) TlogEntries() ([]*tlog.Entry, error) {
 	if b.VerificationMaterial == nil {
 		return nil, nil
+	}
+
+	if n := len(b.VerificationMaterial.TlogEntries); n > limits.MaxAllowedTlogEntries {
+		return nil, ErrValidationError(fmt.Errorf(
+			"too many tlog entries: %d > %d", n, limits.MaxAllowedTlogEntries))
 	}
 
 	tlogEntries := make([]*tlog.Entry, len(b.VerificationMaterial.TlogEntries))

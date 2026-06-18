@@ -23,16 +23,21 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal/counter"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal/observ"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal/oconf"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp/internal/retry"
 )
 
 type client struct {
 	// req is cloned for every upload the client makes.
-	req         *http.Request
-	compression Compression
-	requestFunc retry.RequestFunc
-	httpClient  *http.Client
+	req            *http.Request
+	compression    Compression
+	maxRequestSize int
+	requestFunc    retry.RequestFunc
+	httpClient     *http.Client
+
+	inst *observ.Instrumentation
 }
 
 // Keep it in sync with golang's DefaultTransport from net/http! We
@@ -111,12 +116,17 @@ func newClient(cfg oconf.Config) (*client, error) {
 	}
 	req.Header.Set("Content-Type", "application/x-protobuf")
 
+	// Initialize the instrumentation.
+	inst, err := observ.NewInstrumentation(counter.NextExporterID(), cfg.Metrics.Endpoint)
+
 	return &client{
-		compression: Compression(cfg.Metrics.Compression),
-		req:         req,
-		requestFunc: cfg.RetryConfig.RequestFunc(evaluate),
-		httpClient:  httpClient,
-	}, nil
+		compression:    Compression(cfg.Metrics.Compression),
+		maxRequestSize: cfg.Metrics.MaxRequestSize,
+		req:            req,
+		requestFunc:    cfg.RetryConfig.RequestFunc(evaluate),
+		httpClient:     httpClient,
+		inst:           inst,
+	}, err
 }
 
 // Shutdown shuts down the client, freeing all resources.
@@ -146,9 +156,18 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.Resou
 	if err != nil {
 		return err
 	}
+	if maxSize := c.maxRequestSize; maxSize > 0 && len(body) > maxSize {
+		return fmt.Errorf("request body too large: exceeded %d bytes", maxSize)
+	}
 	request, err := c.newRequest(ctx, body)
 	if err != nil {
 		return err
+	}
+
+	var statusCode int
+	if c.inst != nil {
+		op := c.inst.ExportMetrics(ctx, protoMetrics)
+		defer func() { op.End(uploadErr, statusCode) }()
 	}
 
 	return errors.Join(uploadErr, c.requestFunc(ctx, func(iCtx context.Context) error {
@@ -158,6 +177,7 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.Resou
 		default:
 		}
 
+		statusCode = 0
 		request.reset(iCtx)
 		// nolint:gosec // URL is constructed from validated OTLP endpoint configuration
 		resp, err := c.httpClient.Do(request.Request)
@@ -168,15 +188,18 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.Resou
 		if err != nil {
 			return err
 		}
-		if resp != nil && resp.Body != nil {
-			defer func() {
-				if err := resp.Body.Close(); err != nil {
-					uploadErr = errors.Join(uploadErr, err)
-				}
-			}()
+		if resp != nil {
+			statusCode = resp.StatusCode
+			if resp.Body != nil {
+				defer func() {
+					if err := resp.Body.Close(); err != nil {
+						uploadErr = errors.Join(uploadErr, err)
+					}
+				}()
+			}
 		}
 
-		if sc := resp.StatusCode; sc >= 200 && sc <= 299 {
+		if statusCode >= 200 && statusCode <= 299 {
 			// Success, do not retry.
 
 			// Read the partial success message, if any.
@@ -265,7 +288,10 @@ func (c *client) newRequest(ctx context.Context, body []byte) (request, error) {
 		r.Header.Set("Content-Encoding", "gzip")
 
 		gz := gzPool.Get().(*gzip.Writer)
-		defer gzPool.Put(gz)
+		defer func() {
+			gz.Reset(io.Discard)
+			gzPool.Put(gz)
+		}()
 
 		var b bytes.Buffer
 		gz.Reset(&b)
@@ -279,7 +305,7 @@ func (c *client) newRequest(ctx context.Context, body []byte) (request, error) {
 		}
 
 		req.bodyReader = bodyReader(b.Bytes())
-		req.GetBody = bodyReaderErr(body)
+		req.GetBody = bodyReaderErr(b.Bytes())
 	}
 
 	return req, nil

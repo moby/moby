@@ -7,7 +7,6 @@ import (
 	cacheconfig "github.com/moby/buildkit/cache/config"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/exporter/util/epoch"
-	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
 	"github.com/pkg/errors"
 )
@@ -15,7 +14,7 @@ import (
 type ImageCommitOpts struct {
 	ImageName   string
 	RefCfg      cacheconfig.RefConfig
-	OCITypes    bool
+	OCITypes    *bool
 	OCIArtifact bool
 	Annotations AnnotationsGroup
 	Epoch       *epoch.Epoch
@@ -48,7 +47,9 @@ func (c *ImageCommitOpts) Load(ctx context.Context, opt map[string]string) (map[
 		case exptypes.OptKeyName:
 			c.ImageName = v
 		case exptypes.OptKeyOCITypes:
-			err = parseBoolWithDefault(&c.OCITypes, k, v, true)
+			var b bool
+			err = parseBool(&b, k, v)
+			c.OCITypes = &b
 		case exptypes.OptKeyOCIArtifact:
 			err = parseBool(&c.OCIArtifact, k, v)
 		case exptypes.OptKeyForceInlineAttestations:
@@ -66,11 +67,8 @@ func (c *ImageCommitOpts) Load(ctx context.Context, opt map[string]string) (map[
 		}
 	}
 
-	if c.RefCfg.Compression.Type.OnlySupportOCITypes() {
-		c.EnableOCITypes(ctx, c.RefCfg.Compression.Type.String())
-	}
-	if c.OCIArtifact && !c.OCITypes {
-		c.EnableOCITypes(ctx, "oci-artifact")
+	if err := c.Validate(); err != nil {
+		return nil, err
 	}
 
 	c.Annotations = c.Annotations.Merge(as)
@@ -78,28 +76,27 @@ func (c *ImageCommitOpts) Load(ctx context.Context, opt map[string]string) (map[
 	return rest, nil
 }
 
-func (c *ImageCommitOpts) EnableOCITypes(ctx context.Context, reason string) {
-	if !c.OCITypes {
-		message := "forcibly turning on oci-mediatype mode"
-		if reason != "" {
-			message += " for " + reason
-		}
-		bklog.G(ctx).Warn(message)
+func (c *ImageCommitOpts) Validate() error {
+	if c.OCITypes == nil {
+		return nil
+	}
+	if c.RefCfg.Compression.Type.OnlySupportOCITypes() && !c.OCITypesEnabled() {
+		return errors.Errorf("exporter option \"compression=%s\" conflicts with \"oci-mediatypes=false\"", c.RefCfg.Compression.Type)
+	}
+	if c.OCIArtifact && !c.OCITypesEnabled() {
+		return errors.New("exporter option \"oci-artifact=true\" conflicts with \"oci-mediatypes=false\"")
+	}
+	return nil
+}
 
-		c.OCITypes = true
+func (c *ImageCommitOpts) SetOCITypesDefault(v bool) {
+	if c.OCITypes == nil {
+		c.OCITypes = &v
 	}
 }
 
-func (c *ImageCommitOpts) EnableForceCompression(ctx context.Context, reason string) {
-	if !c.RefCfg.Compression.Force {
-		message := "forcibly turning on force-compression mode"
-		if reason != "" {
-			message += " for " + reason
-		}
-		bklog.G(ctx).Warn(message)
-
-		c.RefCfg.Compression.Force = true
-	}
+func (c *ImageCommitOpts) OCITypesEnabled() bool {
+	return c.OCITypes != nil && *c.OCITypes
 }
 
 func parseBool(dest *bool, key string, value string) error {
@@ -109,14 +106,6 @@ func parseBool(dest *bool, key string, value string) error {
 	}
 	*dest = b
 	return nil
-}
-
-func parseBoolWithDefault(dest *bool, key string, value string, defaultValue bool) error {
-	if value == "" {
-		*dest = defaultValue
-		return nil
-	}
-	return parseBool(dest, key, value)
 }
 
 func toBytesMap(m map[string]string) map[string][]byte {

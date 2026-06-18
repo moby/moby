@@ -9,6 +9,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
+	"github.com/moby/buildkit/solver/llbsolver/linuxresources"
 	"github.com/moby/buildkit/solver/llbsolver/ops/opsutils"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
@@ -69,6 +70,19 @@ func WithValidateCaps() LoadOpt {
 func WithCacheSources(cms []solver.CacheManager) LoadOpt {
 	return func(_ *pb.Op, _ *pb.OpMetadata, opt *solver.VertexOptions) error {
 		opt.CacheSources = cms
+		return nil
+	}
+}
+
+func WithLinuxResourcesMetadata() LoadOpt {
+	return func(op *pb.Op, md *pb.OpMetadata, opt *solver.VertexOptions) error {
+		if _, ok := op.Op.(*pb.Op_Exec); !ok {
+			return nil
+		}
+		if md == nil || md.LinuxResources == nil {
+			return nil
+		}
+		opt.Metadata = &linuxresources.Metadata{LinuxResources: md.LinuxResources}
 		return nil
 	}
 }
@@ -232,8 +246,8 @@ func (dpc *detectPrunedCacheID) Load(op *pb.Op, md *pb.OpMetadata, opt *solver.V
 }
 
 func Load(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEvaluator, opts ...LoadOpt) (solver.Edge, error) {
-	return loadLLB(ctx, def, polEngine, func(dgst digest.Digest, op *op, load func(digest.Digest) (solver.Vertex, error)) (solver.Vertex, error) {
-		vtx, err := newVertex(dgst, op.Op, op.Metadata, load, opts...)
+	return loadLLB(ctx, def, polEngine, nil, func(dgst digest.Digest, op *op, load func(digest.Digest) (solver.Vertex, error)) (solver.Vertex, error) {
+		vtx, err := newVertex(dgst, op, load, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -241,7 +255,17 @@ func Load(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEvaluat
 	})
 }
 
-func newVertex(dgst digest.Digest, op *pb.Op, opMeta *pb.OpMetadata, load func(digest.Digest) (solver.Vertex, error), opts ...LoadOpt) (*vertex, error) {
+func loadWithProxyNetwork(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEvaluator, proxyNetwork bool, opts ...LoadOpt) (solver.Edge, error) {
+	return loadLLB(ctx, def, polEngine, &proxyNetwork, func(dgst digest.Digest, op *op, load func(digest.Digest) (solver.Vertex, error)) (solver.Vertex, error) {
+		vtx, err := newVertex(dgst, op, load, opts...)
+		if err != nil {
+			return nil, err
+		}
+		return vtx, nil
+	})
+}
+
+func vertexOptions(opMeta *pb.OpMetadata) solver.VertexOptions {
 	opt := solver.VertexOptions{}
 	if opMeta != nil {
 		opt.IgnoreCache = opMeta.IgnoreCache
@@ -251,19 +275,24 @@ func newVertex(dgst digest.Digest, op *pb.Op, opMeta *pb.OpMetadata, load func(d
 		}
 		opt.ProgressGroup = opMeta.ProgressGroup
 	}
+	return opt
+}
+
+func newVertex(dgst digest.Digest, op *op, load func(digest.Digest) (solver.Vertex, error), opts ...LoadOpt) (*vertex, error) {
+	opt := vertexOptions(op.Metadata)
 	for _, fn := range opts {
-		if err := fn(op, opMeta, &opt); err != nil {
+		if err := fn(op.Op, op.Metadata, &opt); err != nil {
 			return nil, err
 		}
 	}
 
-	name, err := llbOpName(op, func(dgst string) (solver.Vertex, error) {
+	name, err := llbOpName(op.Op, func(dgst string) (solver.Vertex, error) {
 		return load(digest.Digest(dgst))
 	})
 	if err != nil {
 		return nil, err
 	}
-	vtx := &vertex{sys: op, options: opt, digest: dgst, name: name}
+	vtx := &vertex{sys: op.Op, options: opt, digest: dgst, name: name}
 	for _, in := range op.Inputs {
 		sub, err := load(digest.Digest(in.Digest))
 		if err != nil {
@@ -301,6 +330,9 @@ func recomputeDigests(ctx context.Context, all map[digest.Digest]*op, visited ma
 	if err != nil {
 		return "", err
 	}
+	if op.ProxyNetwork {
+		dt = append(dt, []byte("\x00buildkit.proxy-network.v0")...)
+	}
 
 	newDgst := digest.FromBytes(dt)
 	if newDgst != dgst {
@@ -314,12 +346,13 @@ func recomputeDigests(ctx context.Context, all map[digest.Digest]*op, visited ma
 // op is a private wrapper around pb.Op that includes its metadata.
 type op struct {
 	*pb.Op
-	Metadata *pb.OpMetadata
+	Metadata     *pb.OpMetadata
+	ProxyNetwork bool
 }
 
 // loadLLB loads LLB.
 // fn is executed sequentially.
-func loadLLB(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEvaluator, fn func(digest.Digest, *op, func(digest.Digest) (solver.Vertex, error)) (solver.Vertex, error)) (solver.Edge, error) {
+func loadLLB(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEvaluator, proxyNetwork *bool, fn func(digest.Digest, *op, func(digest.Digest) (solver.Vertex, error)) (solver.Vertex, error)) (solver.Edge, error) {
 	if len(def.Def) == 0 {
 		return solver.Edge{}, errors.New("invalid empty definition")
 	}
@@ -343,6 +376,16 @@ func loadLLB(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEval
 			Metadata: def.Metadata[string(dgst)],
 		}
 		lastDgst = dgst
+	}
+
+	if proxyNetwork != nil {
+		for _, op := range allOps {
+			var err error
+			op.ProxyNetwork, err = proxyNetworkForOp(op.Op, *proxyNetwork)
+			if err != nil {
+				return solver.Edge{}, err
+			}
+		}
 	}
 
 	if polEngine != nil && len(sources) > 0 {
@@ -460,6 +503,8 @@ func llbOpName(pbOp *pb.Op, load func(string) (solver.Vertex, error)) (string, e
 			upperName = fmt.Sprintf("(%s)", upperVtx.Name())
 		}
 		return "diff " + lowerName + " -> " + upperName, nil
+	case *pb.Op_Passthrough:
+		return "passthrough " + op.Passthrough.Id, nil
 	default:
 		return "unknown", nil
 	}

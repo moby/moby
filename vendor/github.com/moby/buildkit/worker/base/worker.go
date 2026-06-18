@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/containerd/containerd/v2/core/content"
@@ -21,6 +22,7 @@ import (
 	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/resources"
+	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/exporter"
 	imageexporter "github.com/moby/buildkit/exporter/containerimage"
 	localexporter "github.com/moby/buildkit/exporter/local"
@@ -34,6 +36,7 @@ import (
 	"github.com/moby/buildkit/snapshot/imagerefchecker"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
+	"github.com/moby/buildkit/solver/llbsolver/linuxresources"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
 	"github.com/moby/buildkit/solver/llbsolver/ops"
 	"github.com/moby/buildkit/solver/pb"
@@ -49,6 +52,7 @@ import (
 	"github.com/moby/buildkit/util/network"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/progress/controller"
+	"github.com/moby/buildkit/worker"
 	"github.com/moby/sys/user"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -71,6 +75,7 @@ type WorkerOpt struct {
 	GCPolicy         []client.PruneInfo
 	BuildkitVersion  client.BuildkitVersion
 	NetworkProviders map[pb.NetMode]network.Provider
+	ProxyProvider    network.ProxyProvider
 	Executor         executor.Executor
 	Snapshotter      snapshot.Snapshotter
 	ContentStore     *containerdsnapshot.Store
@@ -99,6 +104,7 @@ type Worker struct {
 	OCILayoutSource *containerimage.Source
 	GitSource       *git.Source
 	HTTPSource      *http.Source
+	platformsMu     sync.Mutex
 }
 
 // NewWorker instantiates a local worker
@@ -245,6 +251,11 @@ func (w *Worker) Close() error {
 	if err := w.MetadataStore.Close(); err != nil {
 		errs = append(errs, err)
 	}
+	if w.ProxyProvider != nil {
+		if err := w.ProxyProvider.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
 	for _, provider := range w.NetworkProviders {
 		if err := provider.Close(); err != nil {
 			errs = append(errs, err)
@@ -279,6 +290,8 @@ func (w *Worker) Labels() map[string]string {
 }
 
 func (w *Worker) Platforms(noCache bool) []ocispecs.Platform {
+	w.platformsMu.Lock()
+	defer w.platformsMu.Unlock()
 	if noCache {
 		matchers := make([]platforms.MatchComparer, len(w.WorkerOpt.Platforms))
 		for i, p := range w.WorkerOpt.Platforms {
@@ -354,13 +367,59 @@ func (w *Worker) CacheManager() cache.Manager {
 	return w.CacheMgr
 }
 
-func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *session.Manager) (solver.Op, error) {
+type proxyPolicyExecutor struct {
+	executor.Executor
+	getProxyPolicy func() (network.ProxyPolicy, error)
+}
+
+func (e *proxyPolicyExecutor) Run(ctx context.Context, id string, rootfs executor.Mount, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (resourcestypes.Recorder, error) {
+	if process.Meta.Proxy != nil {
+		policy, err := e.proxyPolicy()
+		if err != nil {
+			return nil, err
+		}
+		process.Meta.Proxy.Policy = policy
+	}
+	return e.Executor.Run(ctx, id, rootfs, mounts, process, started)
+}
+
+func (e *proxyPolicyExecutor) Exec(ctx context.Context, id string, process executor.ProcessInfo) error {
+	if process.Meta.Proxy != nil {
+		policy, err := e.proxyPolicy()
+		if err != nil {
+			return err
+		}
+		process.Meta.Proxy.Policy = policy
+	}
+	return e.Executor.Exec(ctx, id, process)
+}
+
+func (e *proxyPolicyExecutor) proxyPolicy() (network.ProxyPolicy, error) {
+	policy, err := e.getProxyPolicy()
+	if err != nil {
+		return nil, err
+	}
+	return policy, nil
+}
+
+func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *session.Manager, proxyOpt worker.ProxyOpt) (solver.Op, error) {
 	if baseOp, ok := v.Sys().(*pb.Op); ok {
 		switch op := baseOp.Op.(type) {
 		case *pb.Op_Source:
 			return ops.NewSourceOp(v, op, baseOp.Platform, w.SourceManager, w.ParallelismSem, sm, w)
 		case *pb.Op_Exec:
-			return ops.NewExecOp(v, op, baseOp.Platform, w.CacheMgr, w.ParallelismSem, sm, w.WorkerOpt.Executor, w)
+			var linuxResources *pb.LinuxResources
+			if m, ok := v.Options().Metadata.(*linuxresources.Metadata); ok && m != nil {
+				linuxResources = m.LinuxResources
+			}
+			exec := w.WorkerOpt.Executor
+			proxyNetwork := proxyOpt.Network && op.Exec.Network != pb.NetMode_NONE
+			if proxyNetwork {
+				if proxyOpt.Policy != nil {
+					exec = &proxyPolicyExecutor{Executor: exec, getProxyPolicy: proxyOpt.Policy}
+				}
+			}
+			return ops.NewExecOp(v, op, baseOp.Platform, w.CacheMgr, w.ParallelismSem, sm, exec, w, linuxResources, proxyNetwork)
 		case *pb.Op_File:
 			return ops.NewFileOp(v, op, w.CacheMgr, w.ParallelismSem, w)
 		case *pb.Op_Build:
@@ -369,6 +428,8 @@ func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *se
 			return ops.NewMergeOp(v, op, w)
 		case *pb.Op_Diff:
 			return ops.NewDiffOp(v, op, w)
+		case *pb.Op_Passthrough:
+			return ops.NewPassthroughOp(v, op)
 		default:
 			return nil, errors.Errorf("no support for %T", op)
 		}
@@ -395,7 +456,7 @@ func (w *Worker) PruneCacheMounts(ctx context.Context, ids map[string]bool) erro
 			}
 			// if ref is unused try to clean it up right away by releasing it
 			if mref, err := w.CacheMgr.GetMutable(ctx, md.ID()); err == nil {
-				go mref.Release(context.TODO())
+				go mref.Release(context.WithoutCancel(ctx))
 			}
 		}
 	}

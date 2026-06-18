@@ -50,12 +50,16 @@ func VerifySignedCertificateTimestamp(chains [][]*x509.Certificate, threshold in
 		return err
 	}
 
-	verified := 0
+	verifiedLogs := make(map[string]bool)
 	for _, sct := range scts {
 		encodedKeyID := hex.EncodeToString(sct.LogID.KeyID[:])
+		if verifiedLogs[encodedKeyID] {
+			// Skip verification of SCTs from the same log after one successful verification.
+			continue
+		}
 		key, ok := ctlogs[encodedKeyID]
 		if !ok {
-			// skip entries the trust root cannot verify
+			// Skip entries the trust root cannot verify
 			continue
 		}
 
@@ -87,13 +91,14 @@ func VerifySignedCertificateTimestamp(chains [][]*x509.Certificate, threshold in
 
 			err = ctutil.VerifySCT(key.PublicKey, fulcioChain, sct, true)
 			if err == nil {
-				verified++
+				verifiedLogs[encodedKeyID] = true
+				break
 			}
 		}
 	}
 
-	if verified < threshold {
-		return fmt.Errorf("only able to verify %d SCT entries; unable to meet threshold of %d", verified, threshold)
+	if len(verifiedLogs) < threshold {
+		return fmt.Errorf("only able to verify %d SCT entries; unable to meet threshold of %d", len(verifiedLogs), threshold)
 	}
 
 	return nil

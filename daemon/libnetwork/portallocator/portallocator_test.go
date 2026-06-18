@@ -356,3 +356,43 @@ func TestMixUnspecAndSpecificAddrs(t *testing.T) {
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(port, p.begin+1))
 }
+
+func TestRequestNewPortSkipsReservedPorts(t *testing.T) {
+	p := newInstance()
+	p.reserved = map[uint16]struct{}{uint16(p.begin): {}, uint16(p.begin + 1): {}}
+
+	port, err := p.RequestPort(net.IPv4zero, "tcp", 0)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(port, p.begin+2))
+}
+
+func TestRequestSpecificReservedPort(t *testing.T) {
+	p := newInstance()
+	p.reserved = map[uint16]struct{}{10000: {}}
+
+	// Explicit port allocation is unchanged by reserved ports.
+	port, err := p.RequestPort(net.IPv4zero, "tcp", 10000)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(port, 10000))
+}
+
+func TestRequestPortInRangeWithReservedPort(t *testing.T) {
+	p := newInstance()
+	p.reserved = map[uint16]struct{}{20000: {}}
+
+	// Explicit range allocation is unchanged by reserved ports.
+	port, err := p.RequestPortInRange(net.IPv4zero, "tcp", 20000, 20004)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(port, 20000))
+}
+
+func TestRequestNewPortAllReserved(t *testing.T) {
+	p := newInstance()
+	p.reserved = map[uint16]struct{}{}
+	for i := p.begin; i <= p.end; i++ {
+		p.reserved[uint16(i)] = struct{}{}
+	}
+
+	_, err := p.RequestPort(net.IPv4zero, "tcp", 0)
+	assert.Check(t, is.ErrorIs(err, errAllPortsAllocated))
+}

@@ -1,6 +1,3 @@
-//go:build go1.18
-// +build go1.18
-
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -10,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"slices"
 )
 
 // HasStatusCode returns true if the Response's status code is one of the specified values.
@@ -18,12 +16,7 @@ func HasStatusCode(resp *http.Response, statusCodes ...int) bool {
 	if resp == nil {
 		return false
 	}
-	for _, sc := range statusCodes {
-		if resp.StatusCode == sc {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(statusCodes, resp.StatusCode)
 }
 
 // PayloadOptions contains the optional values for the Payload func.
@@ -57,7 +50,7 @@ func Payload(resp *http.Response, opts *PayloadOptions) ([]byte, error) {
 	}
 
 	bytesBody, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if err != nil {
 		return nil, err
 	}

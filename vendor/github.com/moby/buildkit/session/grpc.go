@@ -67,9 +67,9 @@ func serve(ctx context.Context, grpcServer *grpc.Server, conn net.Conn) {
 }
 
 func grpcClientConn(ctx context.Context, conn net.Conn, opts map[string][]string) (context.Context, *grpc.ClientConn, error) {
-	var dialCount int64
+	var dialCount atomic.Int64
 	dialer := grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-		if c := atomic.AddInt64(&dialCount, 1); c > 1 {
+		if c := dialCount.Add(1); c > 1 {
 			return nil, errors.Errorf("only one connection allowed")
 		}
 		return conn, nil

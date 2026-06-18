@@ -11,8 +11,11 @@ import (
 
 	metricpb "go.opentelemetry.io/proto/otlp/metrics/v1"
 
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc/internal/counter"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc/internal/observ"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc/internal/oconf"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc/internal/transform"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc/internal/x"
 	"go.opentelemetry.io/otel/internal/global"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
@@ -31,6 +34,9 @@ type Exporter struct {
 	aggregationSelector metric.AggregationSelector
 
 	shutdownOnce sync.Once
+
+	// Self-observability metrics
+	inst *observ.Instrumentation
 }
 
 func newExporter(c *client, cfg oconf.Config) (*Exporter, error) {
@@ -46,12 +52,27 @@ func newExporter(c *client, cfg oconf.Config) (*Exporter, error) {
 		as = metric.DefaultAggregationSelector
 	}
 
+	var inst *observ.Instrumentation
+	var initErr error
+	if x.Observability.Enabled() {
+		var err error
+		inst, err = observ.NewInstrumentation(
+			counter.NextExporterID(),
+			c.conn.CanonicalTarget(),
+		)
+		if err != nil {
+			initErr = err
+		}
+	}
+
 	return &Exporter{
 		client: c,
 
 		temporalitySelector: ts,
 		aggregationSelector: as,
-	}, nil
+
+		inst: inst,
+	}, initErr
 }
 
 // Temporality returns the Temporality to use for an instrument kind.
@@ -72,10 +93,18 @@ func (e *Exporter) Export(ctx context.Context, rm *metricdata.ResourceMetrics) e
 	defer global.Debug("OTLP/gRPC exporter export", "Data", rm)
 
 	otlpRm, err := transform.ResourceMetrics(rm)
+
+	// Track export operation for self-observability
+	op := e.inst.TrackExport(ctx, otlpRm)
+
+	var upErr error
+	defer func() { op.End(upErr) }()
+
 	// Best effort upload of transformable metrics.
 	e.clientMu.Lock()
-	upErr := e.client.UploadMetrics(ctx, otlpRm)
+	upErr = e.client.UploadMetrics(ctx, otlpRm)
 	e.clientMu.Unlock()
+
 	if upErr != nil {
 		if err == nil {
 			return fmt.Errorf("failed to upload metrics: %w", upErr)

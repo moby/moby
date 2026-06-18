@@ -1,13 +1,12 @@
 package errdefs
 
 import (
-	"bytes"
 	"errors"
 
 	"github.com/containerd/typeurl/v2"
-	"github.com/golang/protobuf/jsonpb" //nolint:staticcheck
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/grpcerrors"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func init() {
@@ -66,12 +65,9 @@ func (v *Solve) WrapError(err error) error {
 }
 
 func (v *Solve) MarshalJSON() ([]byte, error) {
-	m := jsonpb.Marshaler{}
-	buf := new(bytes.Buffer)
-	err := m.Marshal(buf, v)
-	return buf.Bytes(), err
+	return protojson.Marshal(v)
 }
 
 func (v *Solve) UnmarshalJSON(b []byte) error {
-	return jsonpb.Unmarshal(bytes.NewReader(b), v)
+	return protojson.Unmarshal(b, v)
 }
