@@ -51,7 +51,7 @@ func RandomTmpDirPath(s string, platform string) string {
 	if platform == "windows" {
 		tmp = os.Getenv("TEMP")
 	}
-	path := filepath.Join(tmp, fmt.Sprintf("%s.%s", s, testutil.GenerateRandomAlphaOnlyString(10)))
+	path := filepath.Join(tmp, fmt.Sprintf("%s.%s", s, testutil.RandomAlpha(10)))
 	if platform == "windows" {
 		return filepath.FromSlash(path) // Using \
 	}
