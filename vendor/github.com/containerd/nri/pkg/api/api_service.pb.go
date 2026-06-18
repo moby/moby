@@ -62,6 +62,16 @@ type Plugin interface {
 	Synchronize(context.Context, *SynchronizeRequest) (*SynchronizeResponse, error)
 	// Shutdown a plugin (let it know the runtime is going down).
 	Shutdown(context.Context, *Empty) (*Empty, error)
+	// RunPodSandbox relays the corresponding request to the plugin.
+	RunPodSandbox(context.Context, *RunPodSandboxRequest) (*RunPodSandboxResponse, error)
+	// UpdatePodSandbox relays the corresponding request to the plugin.
+	UpdatePodSandbox(context.Context, *UpdatePodSandboxRequest) (*UpdatePodSandboxResponse, error)
+	// PostUpdatePodSandbox relays the corresponding request to the plugin.
+	PostUpdatePodSandbox(context.Context, *PostUpdatePodSandboxRequest) (*PostUpdatePodSandboxResponse, error)
+	// StopPodSandbox relays the corresponding request to the plugin.
+	StopPodSandbox(context.Context, *StopPodSandboxRequest) (*StopPodSandboxResponse, error)
+	// RemovePodSandbox relays the corresponding request to the plugin.
+	RemovePodSandbox(context.Context, *RemovePodSandboxRequest) (*RemovePodSandboxResponse, error)
 	// CreateContainer relays the corresponding request to the plugin. In
 	// response, the plugin can adjust the container being created, and
 	// update other containers in the runtime. Container adjustment can
@@ -69,15 +79,23 @@ type Plugin interface {
 	// OCI hooks, and assigned container resources. Updates can alter
 	// assigned container resources.
 	CreateContainer(context.Context, *CreateContainerRequest) (*CreateContainerResponse, error)
+	// PostCreateContainer relays the corresponding container request to the plugin.
+	PostCreateContainer(context.Context, *PostCreateContainerRequest) (*PostCreateContainerResponse, error)
+	// StartContainer relays the corresponding container request to the plugin.
+	StartContainer(context.Context, *StartContainerRequest) (*StartContainerResponse, error)
+	// PostStartContainer relays the corresponding container request to the plugin.
+	PostStartContainer(context.Context, *PostStartContainerRequest) (*PostStartContainerResponse, error)
 	// UpdateContainer relays the corresponding request to the plugin.
 	// The plugin can alter how the container is updated and request updates
 	// to additional containers in the runtime.
 	UpdateContainer(context.Context, *UpdateContainerRequest) (*UpdateContainerResponse, error)
+	// PostUpdateContainer relays the corresponding container request to the plugin.
+	PostUpdateContainer(context.Context, *PostUpdateContainerRequest) (*PostUpdateContainerResponse, error)
 	// StopContainer relays the corresponding request to the plugin. The plugin
 	// can update any of the remaining containers in the runtime in response.
 	StopContainer(context.Context, *StopContainerRequest) (*StopContainerResponse, error)
-	// UpdatePodSandbox relays the corresponding request to the plugin.
-	UpdatePodSandbox(context.Context, *UpdatePodSandboxRequest) (*UpdatePodSandboxResponse, error)
+	// RemoveContainer relays the corresponding container request to the plugin.
+	RemoveContainer(context.Context, *RemoveContainerRequest) (*RemoveContainerResponse, error)
 	// StateChange relays any remaining pod or container lifecycle/state change
 	// events the plugin has subscribed for. These can be used to trigger any
 	// plugin-specific processing which needs to occur in connection with any of

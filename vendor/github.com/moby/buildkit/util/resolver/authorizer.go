@@ -78,7 +78,7 @@ func (a *authHandlerNS) get(ctx context.Context, host string, sm *session.Manage
 					return h
 				}
 			} else {
-				sessionID, username, password, err := sessionauth.CredentialsFunc(sm, g)(host)
+				sessionID, username, password, err := sessionauth.CredentialsFunc(ctx, sm, g)(host)
 				if err == nil {
 					if username == h.common.Username && password == h.common.Secret {
 						a.fetchers[host+"/"+sessionID] = h
@@ -140,8 +140,8 @@ func (a *dockerAuthorizer) Authorize(ctx context.Context, req *http.Request) err
 	return nil
 }
 
-func (a *dockerAuthorizer) getCredentials(host string) (sessionID, username, secret string, err error) {
-	return sessionauth.CredentialsFunc(a.sm, a.session)(host)
+func (a *dockerAuthorizer) getCredentials(ctx context.Context, host string) (sessionID, username, secret string, err error) {
+	return sessionauth.CredentialsFunc(ctx, a.sm, a.session)(host)
 }
 
 func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.Response) error {
@@ -189,7 +189,7 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 				return err
 			}
 			if pubKey == nil {
-				sessionID, username, secret, err = a.getCredentials(host)
+				sessionID, username, secret, err = a.getCredentials(ctx, host)
 				if err != nil {
 					return err
 				}
@@ -205,7 +205,7 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 
 			return nil
 		case auth.BasicAuth:
-			sessionID, username, secret, err := a.getCredentials(host)
+			sessionID, username, secret, err := a.getCredentials(ctx, host)
 			if err != nil {
 				return err
 			}

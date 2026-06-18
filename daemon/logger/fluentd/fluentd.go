@@ -105,7 +105,13 @@ func New(info logger.Info) (logger.Logger, error) {
 	}, nil
 }
 
-func (f *fluentd) Log(msg *logger.Message) error {
+func (f *fluentd) Log(msg *logger.Message) (err error) {
+	defer func() {
+		if err == nil {
+			logger.PutMessage(msg)
+		}
+	}()
+
 	data := map[string]string{
 		"container_id":   f.containerID,
 		"container_name": f.containerName,
@@ -120,11 +126,9 @@ func (f *fluentd) Log(msg *logger.Message) error {
 		data["partial_last"] = strconv.FormatBool(msg.PLogMetaData.Last)
 	}
 
-	ts := msg.Timestamp
-	logger.PutMessage(msg)
 	// fluent-logger-golang buffers logs from failures and disconnections,
 	// and these are transferred again automatically.
-	return f.writer.PostWithTime(f.tag, ts, data)
+	return f.writer.PostWithTime(f.tag, msg.Timestamp, data)
 }
 
 func (f *fluentd) Close() error {

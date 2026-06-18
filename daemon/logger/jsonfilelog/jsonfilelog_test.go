@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -16,25 +15,18 @@ import (
 	"github.com/moby/moby/v2/daemon/logger/jsonfilelog/jsonlog"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
 )
 
 func TestJSONFileLogger(t *testing.T) {
-	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
-	tmp, err := os.MkdirTemp("", "docker-logger-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
-	filename := filepath.Join(tmp, "container.log")
+	const cid = "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
+	tmpDir := t.TempDir()
+	filename := filepath.Join(tmpDir, "container.log")
 	l, err := New(logger.Info{
 		ContainerID: cid,
 		LogPath:     filename,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = l.Close() })
 
 	if err := l.Log(&logger.Message{Line: []byte("line1"), Source: "src1"}); err != nil {
 		t.Fatal(err)
@@ -60,14 +52,10 @@ func TestJSONFileLogger(t *testing.T) {
 }
 
 func TestJSONFileLoggerWithTags(t *testing.T) {
-	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
-	cname := "test-container"
-	tmp, err := os.MkdirTemp("", "docker-logger-")
-
-	assert.NilError(t, err)
-
-	defer os.RemoveAll(tmp)
-	filename := filepath.Join(tmp, "container.log")
+	const cid = "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
+	const cname = "test-container"
+	tmpDir := t.TempDir()
+	filename := filepath.Join(tmpDir, "container.log")
 	l, err := New(logger.Info{
 		Config: map[string]string{
 			logger.AttrLogTag: "{{.ID}}/{{.Name}}", // first 12 characters of ContainerID and full ContainerName
@@ -78,7 +66,7 @@ func TestJSONFileLoggerWithTags(t *testing.T) {
 	})
 
 	assert.NilError(t, err)
-	defer l.Close()
+	t.Cleanup(func() { _ = l.Close() })
 
 	err = l.Log(&logger.Message{Line: []byte("line1"), Source: "src1"})
 	assert.NilError(t, err)
@@ -100,11 +88,11 @@ func TestJSONFileLoggerWithTags(t *testing.T) {
 }
 
 func BenchmarkJSONFileLoggerLog(b *testing.B) {
-	tmp := fs.NewDir(b, "bench-jsonfilelog")
+	tmpDir := b.TempDir()
 
 	jsonlogger, err := New(logger.Info{
 		ContainerID: "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",
-		LogPath:     tmp.Join("container.log"),
+		LogPath:     filepath.Join(tmpDir, "container.log"),
 		Config: map[string]string{
 			"max-file": "10",
 			"compress": "true",
@@ -118,7 +106,7 @@ func BenchmarkJSONFileLoggerLog(b *testing.B) {
 		},
 	})
 	assert.NilError(b, err)
-	defer jsonlogger.Close()
+	b.Cleanup(func() { _ = jsonlogger.Close() })
 
 	t := time.Now().UTC()
 	for _, data := range [][]byte{
@@ -138,7 +126,7 @@ func BenchmarkJSONFileLoggerLog(b *testing.B) {
 			assert.NilError(b, marshalMessage(testMsg, nil, buf))
 			b.SetBytes(int64(buf.Len()))
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				msg := logger.NewMessage()
 				msg.Line = testMsg.Line
 				msg.Timestamp = testMsg.Timestamp
@@ -152,23 +140,19 @@ func BenchmarkJSONFileLoggerLog(b *testing.B) {
 }
 
 func TestJSONFileLoggerWithOpts(t *testing.T) {
-	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
-	tmp, err := os.MkdirTemp("", "docker-logger-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
-	filename := filepath.Join(tmp, "container.log")
+	const cid = "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
+
+	tmpDir := t.TempDir()
+	filename := filepath.Join(tmpDir, "container.log")
 	config := map[string]string{"max-file": "3", "max-size": "1k", "compress": "true"}
 	l, err := New(logger.Info{
 		ContainerID: cid,
 		LogPath:     filename,
 		Config:      config,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = l.Close() })
+
 	for i := range 36 {
 		if err := l.Log(&logger.Message{Line: []byte("line" + strconv.Itoa(i)), Source: "src1"}); err != nil {
 			t.Fatal(err)
@@ -176,9 +160,7 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 	}
 
 	res, err := os.ReadFile(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	penUlt, err := os.ReadFile(filename + ".1")
 	if err != nil {
@@ -186,36 +168,10 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		file, err := os.Open(filename + ".1.gz")
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer file.Close()
-		zipReader, err := gzip.NewReader(file)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer zipReader.Close()
-		penUlt, err = io.ReadAll(zipReader)
-		if err != nil {
-			t.Fatal(err)
-		}
+		penUlt = readGzipFile(t, filename+".1.gz")
 	}
 
-	file, err := os.Open(filename + ".2.gz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-	zipReader, err := gzip.NewReader(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer zipReader.Close()
-	antepenult, err := io.ReadAll(zipReader)
-	if err != nil {
-		t.Fatal(err)
-	}
+	antepenult := readGzipFile(t, filename+".2.gz")
 
 	expectedAntepenultimate := `{"log":"line0\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
 {"log":"line1\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
@@ -257,25 +213,33 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 {"log":"line35\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
 `
 
-	if string(res) != expected {
-		t.Fatalf("Wrong log content: %q, expected %q", res, expected)
-	}
-	if string(penUlt) != expectedPenultimate {
-		t.Fatalf("Wrong log content: %q, expected %q", penUlt, expectedPenultimate)
-	}
-	if string(antepenult) != expectedAntepenultimate {
-		t.Fatalf("Wrong log content: %q, expected %q", antepenult, expectedAntepenultimate)
-	}
+	assert.Check(t, is.Equal(string(res), expected), "Wrong log content")
+	assert.Check(t, is.Equal(string(penUlt), expectedPenultimate), "Wrong log content")
+	assert.Check(t, is.Equal(string(antepenult), expectedAntepenultimate), "Wrong log content")
+}
+
+func readGzipFile(t *testing.T, name string) []byte {
+	t.Helper()
+
+	file, err := os.Open(name)
+	assert.NilError(t, err)
+
+	gz, err := gzip.NewReader(file)
+	assert.NilError(t, err)
+
+	b, err := io.ReadAll(gz)
+	assert.NilError(t, err)
+
+	assert.NilError(t, gz.Close())
+	assert.NilError(t, file.Close())
+
+	return b
 }
 
 func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
 	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
-	tmp, err := os.MkdirTemp("", "docker-logger-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
-	filename := filepath.Join(tmp, "container.log")
+	tmpDir := t.TempDir()
+	filename := filepath.Join(tmpDir, "container.log")
 	l, err := New(logger.Info{
 		ContainerID: cid,
 		LogPath:     filename,
@@ -288,26 +252,23 @@ func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
 		ContainerLabels: map[string]string{"rack": "101", "dc": "lhr", "location": "here"},
 		ContainerEnv:    []string{"environ=production", "debug=false", "port=10001", "ssl=true", "dc_region=west"},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-	if err := l.Log(&logger.Message{Line: []byte("line"), Source: "src1"}); err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = l.Close() })
+
+	err = l.Log(&logger.Message{Line: []byte("line"), Source: "src1"})
+	assert.NilError(t, err)
+
 	res, err := os.ReadFile(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	var jsonLog jsonlog.JSONLogs
-	if err := json.Unmarshal(res, &jsonLog); err != nil {
-		t.Fatal(err)
-	}
+	err = json.Unmarshal(res, &jsonLog)
+	assert.NilError(t, err)
+
 	extra := make(map[string]string)
-	if err := json.Unmarshal(jsonLog.RawAttrs, &extra); err != nil {
-		t.Fatal(err)
-	}
+	err = json.Unmarshal(jsonLog.RawAttrs, &extra)
+	assert.NilError(t, err)
+
 	expected := map[string]string{
 		"rack":      "101",
 		"dc":        "lhr",
@@ -317,7 +278,5 @@ func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
 		"ssl":       "true",
 		"dc_region": "west",
 	}
-	if !reflect.DeepEqual(extra, expected) {
-		t.Fatalf("Wrong log attrs: %q, expected %q", extra, expected)
-	}
+	assert.Check(t, is.DeepEqual(extra, expected))
 }

@@ -38,14 +38,14 @@ func DeviceInfo(fi os.FileInfo) (uint64, uint64, error) {
 }
 
 // mknod provides a shortcut for syscall.Mknod
-func Mknod(p string, mode os.FileMode, maj, min int) error {
+func Mknod(p string, mode os.FileMode, major, minor int) error {
 	var (
 		m   = syscallMode(mode.Perm())
 		dev uint64
 	)
 
 	if mode&os.ModeDevice != 0 {
-		dev = unix.Mkdev(uint32(maj), uint32(min))
+		dev = unix.Mkdev(uint32(major), uint32(minor))
 
 		if mode&os.ModeCharDevice != 0 {
 			m |= unix.S_IFCHR

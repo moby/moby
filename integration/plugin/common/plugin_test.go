@@ -98,7 +98,6 @@ func TestPluginInvalidJSON(t *testing.T) {
 func TestPluginInstall(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, testEnv.IsRootless, "rootless mode has different view of localhost")
 
 	ctx := testutil.StartSpan(baseContext, t)
 	apiclient := testEnv.APIClient()
@@ -330,7 +329,6 @@ func TestPluginsWithRuntimes(t *testing.T) {
 func TestPluginBackCompatMediaTypes(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, testEnv.IsRootless, "Rootless has a different view of localhost (needed for test registry access)")
 
 	ctx := setupTest(t)
 

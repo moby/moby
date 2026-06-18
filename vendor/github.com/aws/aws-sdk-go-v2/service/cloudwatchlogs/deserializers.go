@@ -15452,6 +15452,11 @@ func awsAwsjson11_deserializeDocumentConfigurationTemplate(v **types.Configurati
 				sv.DeliveryDestinationType = types.DeliveryDestinationType(jtv)
 			}
 
+		case "deliverySourceConfiguration":
+			if err := awsAwsjson11_deserializeDocumentDeliverySourceConfigurationSchemas(&sv.DeliverySourceConfiguration, value); err != nil {
+				return err
+			}
+
 		case "logType":
 			if value != nil {
 				jtv, ok := value.(string)
@@ -15468,6 +15473,11 @@ func awsAwsjson11_deserializeDocumentConfigurationTemplate(v **types.Configurati
 					return fmt.Errorf("expected ResourceType to be of type string, got %T instead", value)
 				}
 				sv.ResourceType = ptr.String(jtv)
+			}
+
+		case "s3TablesIntegration":
+			if err := awsAwsjson11_deserializeDocumentS3TablesIntegration(&sv.S3TablesIntegration, value); err != nil {
+				return err
 			}
 
 		case "service":
@@ -15774,6 +15784,15 @@ func awsAwsjson11_deserializeDocumentCSV(v **types.CSV, value interface{}) error
 					return fmt.Errorf("expected Delimiter to be of type string, got %T instead", value)
 				}
 				sv.Delimiter = ptr.String(jtv)
+			}
+
+		case "destination":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected DestinationField to be of type string, got %T instead", value)
+				}
+				sv.Destination = ptr.String(jtv)
 			}
 
 		case "quoteCharacter":
@@ -16379,6 +16398,11 @@ func awsAwsjson11_deserializeDocumentDeliverySource(v **types.DeliverySource, va
 				sv.Arn = ptr.String(jtv)
 			}
 
+		case "deliverySourceConfiguration":
+			if err := awsAwsjson11_deserializeDocumentDeliverySourceConfiguration(&sv.DeliverySourceConfiguration, value); err != nil {
+				return err
+			}
+
 		case "logType":
 			if value != nil {
 				jtv, ok := value.(string)
@@ -16411,6 +16435,24 @@ func awsAwsjson11_deserializeDocumentDeliverySource(v **types.DeliverySource, va
 				sv.Service = ptr.String(jtv)
 			}
 
+		case "status":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected DeliverySourceStatus to be of type string, got %T instead", value)
+				}
+				sv.Status = types.DeliverySourceStatus(jtv)
+			}
+
+		case "statusReason":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected DeliverySourceStatusReason to be of type string, got %T instead", value)
+				}
+				sv.StatusReason = types.DeliverySourceStatusReason(jtv)
+			}
+
 		case "tags":
 			if err := awsAwsjson11_deserializeDocumentTags(&sv.Tags, value); err != nil {
 				return err
@@ -16422,6 +16464,243 @@ func awsAwsjson11_deserializeDocumentDeliverySource(v **types.DeliverySource, va
 		}
 	}
 	*v = sv
+	return nil
+}
+
+func awsAwsjson11_deserializeDocumentDeliverySourceConfiguration(v *map[string]string, value interface{}) error {
+	if v == nil {
+		return fmt.Errorf("unexpected nil of type %T", v)
+	}
+	if value == nil {
+		return nil
+	}
+
+	shape, ok := value.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("unexpected JSON type %v", value)
+	}
+
+	var mv map[string]string
+	if *v == nil {
+		mv = map[string]string{}
+	} else {
+		mv = *v
+	}
+
+	for key, value := range shape {
+		var parsedVal string
+		if value != nil {
+			jtv, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected DeliverySourceConfigurationValue to be of type string, got %T instead", value)
+			}
+			parsedVal = jtv
+		}
+		mv[key] = parsedVal
+
+	}
+	*v = mv
+	return nil
+}
+
+func awsAwsjson11_deserializeDocumentDeliverySourceConfigurationSchema(v **types.DeliverySourceConfigurationSchema, value interface{}) error {
+	if v == nil {
+		return fmt.Errorf("unexpected nil of type %T", v)
+	}
+	if value == nil {
+		return nil
+	}
+
+	shape, ok := value.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("unexpected JSON type %v", value)
+	}
+
+	var sv *types.DeliverySourceConfigurationSchema
+	if *v == nil {
+		sv = &types.DeliverySourceConfigurationSchema{}
+	} else {
+		sv = *v
+	}
+
+	for key, value := range shape {
+		switch key {
+		case "defaultValue":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected DeliverySourceConfigurationSchemaField to be of type string, got %T instead", value)
+				}
+				sv.DefaultValue = ptr.String(jtv)
+			}
+
+		case "keyName":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected DeliverySourceConfigurationSchemaField to be of type string, got %T instead", value)
+				}
+				sv.KeyName = ptr.String(jtv)
+			}
+
+		case "maxValue":
+			if value != nil {
+				switch jtv := value.(type) {
+				case json.Number:
+					f64, err := jtv.Float64()
+					if err != nil {
+						return err
+					}
+					sv.MaxValue = ptr.Float64(f64)
+
+				case string:
+					var f64 float64
+					switch {
+					case strings.EqualFold(jtv, "NaN"):
+						f64 = math.NaN()
+
+					case strings.EqualFold(jtv, "Infinity"):
+						f64 = math.Inf(1)
+
+					case strings.EqualFold(jtv, "-Infinity"):
+						f64 = math.Inf(-1)
+
+					default:
+						return fmt.Errorf("unknown JSON number value: %s", jtv)
+
+					}
+					sv.MaxValue = ptr.Float64(f64)
+
+				default:
+					return fmt.Errorf("expected DeliverySourceConfigurationNumericValue to be a JSON Number, got %T instead", value)
+
+				}
+			}
+
+		case "minValue":
+			if value != nil {
+				switch jtv := value.(type) {
+				case json.Number:
+					f64, err := jtv.Float64()
+					if err != nil {
+						return err
+					}
+					sv.MinValue = ptr.Float64(f64)
+
+				case string:
+					var f64 float64
+					switch {
+					case strings.EqualFold(jtv, "NaN"):
+						f64 = math.NaN()
+
+					case strings.EqualFold(jtv, "Infinity"):
+						f64 = math.Inf(1)
+
+					case strings.EqualFold(jtv, "-Infinity"):
+						f64 = math.Inf(-1)
+
+					default:
+						return fmt.Errorf("unknown JSON number value: %s", jtv)
+
+					}
+					sv.MinValue = ptr.Float64(f64)
+
+				default:
+					return fmt.Errorf("expected DeliverySourceConfigurationNumericValue to be a JSON Number, got %T instead", value)
+
+				}
+			}
+
+		case "supportedValues":
+			if err := awsAwsjson11_deserializeDocumentDeliverySourceConfigurationSupportedValues(&sv.SupportedValues, value); err != nil {
+				return err
+			}
+
+		case "valueType":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected DeliverySourceConfigurationSchemaValueType to be of type string, got %T instead", value)
+				}
+				sv.ValueType = types.DeliverySourceConfigurationSchemaValueType(jtv)
+			}
+
+		default:
+			_, _ = key, value
+
+		}
+	}
+	*v = sv
+	return nil
+}
+
+func awsAwsjson11_deserializeDocumentDeliverySourceConfigurationSchemas(v *[]types.DeliverySourceConfigurationSchema, value interface{}) error {
+	if v == nil {
+		return fmt.Errorf("unexpected nil of type %T", v)
+	}
+	if value == nil {
+		return nil
+	}
+
+	shape, ok := value.([]interface{})
+	if !ok {
+		return fmt.Errorf("unexpected JSON type %v", value)
+	}
+
+	var cv []types.DeliverySourceConfigurationSchema
+	if *v == nil {
+		cv = []types.DeliverySourceConfigurationSchema{}
+	} else {
+		cv = *v
+	}
+
+	for _, value := range shape {
+		var col types.DeliverySourceConfigurationSchema
+		destAddr := &col
+		if err := awsAwsjson11_deserializeDocumentDeliverySourceConfigurationSchema(&destAddr, value); err != nil {
+			return err
+		}
+		col = *destAddr
+		cv = append(cv, col)
+
+	}
+	*v = cv
+	return nil
+}
+
+func awsAwsjson11_deserializeDocumentDeliverySourceConfigurationSupportedValues(v *[]string, value interface{}) error {
+	if v == nil {
+		return fmt.Errorf("unexpected nil of type %T", v)
+	}
+	if value == nil {
+		return nil
+	}
+
+	shape, ok := value.([]interface{})
+	if !ok {
+		return fmt.Errorf("unexpected JSON type %v", value)
+	}
+
+	var cv []string
+	if *v == nil {
+		cv = []string{}
+	} else {
+		cv = *v
+	}
+
+	for _, value := range shape {
+		var col string
+		if value != nil {
+			jtv, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected DeliverySourceConfigurationSchemaField to be of type string, got %T instead", value)
+			}
+			col = jtv
+		}
+		cv = append(cv, col)
+
+	}
+	*v = cv
 	return nil
 }
 
@@ -21706,6 +21985,40 @@ func awsAwsjson11_deserializeDocumentQueryInfo(v **types.QueryInfo, value interf
 
 	for key, value := range shape {
 		switch key {
+		case "bytesScanned":
+			if value != nil {
+				switch jtv := value.(type) {
+				case json.Number:
+					f64, err := jtv.Float64()
+					if err != nil {
+						return err
+					}
+					sv.BytesScanned = ptr.Float64(f64)
+
+				case string:
+					var f64 float64
+					switch {
+					case strings.EqualFold(jtv, "NaN"):
+						f64 = math.NaN()
+
+					case strings.EqualFold(jtv, "Infinity"):
+						f64 = math.Inf(1)
+
+					case strings.EqualFold(jtv, "-Infinity"):
+						f64 = math.Inf(-1)
+
+					default:
+						return fmt.Errorf("unknown JSON number value: %s", jtv)
+
+					}
+					sv.BytesScanned = ptr.Float64(f64)
+
+				default:
+					return fmt.Errorf("expected BytesScannedValue to be a JSON Number, got %T instead", value)
+
+				}
+			}
+
 		case "createTime":
 			if value != nil {
 				jtv, ok := value.(json.Number)
@@ -21726,6 +22039,19 @@ func awsAwsjson11_deserializeDocumentQueryInfo(v **types.QueryInfo, value interf
 					return fmt.Errorf("expected LogGroupName to be of type string, got %T instead", value)
 				}
 				sv.LogGroupName = ptr.String(jtv)
+			}
+
+		case "queryDuration":
+			if value != nil {
+				jtv, ok := value.(json.Number)
+				if !ok {
+					return fmt.Errorf("expected QueryDuration to be json.Number, got %T instead", value)
+				}
+				i64, err := jtv.Int64()
+				if err != nil {
+					return err
+				}
+				sv.QueryDuration = ptr.Int64(i64)
 			}
 
 		case "queryId":
@@ -21762,6 +22088,15 @@ func awsAwsjson11_deserializeDocumentQueryInfo(v **types.QueryInfo, value interf
 					return fmt.Errorf("expected QueryStatus to be of type string, got %T instead", value)
 				}
 				sv.Status = types.QueryStatus(jtv)
+			}
+
+		case "userIdentity":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected UserIdentity to be of type string, got %T instead", value)
+				}
+				sv.UserIdentity = ptr.String(jtv)
 			}
 
 		default:
@@ -22976,6 +23311,15 @@ func awsAwsjson11_deserializeDocumentS3TableIntegrationSource(v **types.S3TableI
 				sv.Identifier = ptr.String(jtv)
 			}
 
+		case "parentSourceIdentifier":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected S3TableIntegrationSourceIdentifier to be of type string, got %T instead", value)
+				}
+				sv.ParentSourceIdentifier = ptr.String(jtv)
+			}
+
 		case "status":
 			if value != nil {
 				jtv, ok := value.(string)
@@ -23034,6 +23378,55 @@ func awsAwsjson11_deserializeDocumentS3TableIntegrationSources(v *[]types.S3Tabl
 
 	}
 	*v = cv
+	return nil
+}
+
+func awsAwsjson11_deserializeDocumentS3TablesIntegration(v **types.S3TablesIntegration, value interface{}) error {
+	if v == nil {
+		return fmt.Errorf("unexpected nil of type %T", v)
+	}
+	if value == nil {
+		return nil
+	}
+
+	shape, ok := value.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("unexpected JSON type %v", value)
+	}
+
+	var sv *types.S3TablesIntegration
+	if *v == nil {
+		sv = &types.S3TablesIntegration{}
+	} else {
+		sv = *v
+	}
+
+	for key, value := range shape {
+		switch key {
+		case "datasourceName":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected S3TablesDatasourceName to be of type string, got %T instead", value)
+				}
+				sv.DatasourceName = ptr.String(jtv)
+			}
+
+		case "datasourceType":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected S3TablesDatasourceType to be of type string, got %T instead", value)
+				}
+				sv.DatasourceType = ptr.String(jtv)
+			}
+
+		default:
+			_, _ = key, value
+
+		}
+	}
+	*v = sv
 	return nil
 }
 
@@ -26799,6 +27192,15 @@ func awsAwsjson11_deserializeOpDocumentGetQueryResultsOutput(v **GetQueryResults
 					return fmt.Errorf("expected EncryptionKey to be of type string, got %T instead", value)
 				}
 				sv.EncryptionKey = ptr.String(jtv)
+			}
+
+		case "nextToken":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected GetQueryResultsNextToken to be of type string, got %T instead", value)
+				}
+				sv.NextToken = ptr.String(jtv)
 			}
 
 		case "queryLanguage":

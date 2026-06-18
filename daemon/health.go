@@ -68,6 +68,9 @@ type cmdProbe struct {
 func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container) (*containertypes.HealthcheckResult, error) {
 	startTime := time.Now()
 	cmd := cntr.Config.Healthcheck.Test[1:]
+	if len(cmd) == 0 {
+		return nil, fmt.Errorf("healthcheck for container %s has no command", cntr.ID)
+	}
 	if p.shell {
 		cmd = append(getShell(cntr), cmd...)
 	}

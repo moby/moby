@@ -21,6 +21,34 @@ import (
 	"strings"
 )
 
+var (
+	// EventPrettyNames are human-friendly names for Events.
+	EventPrettyNames = map[Event]string{
+		Event_RUN_POD_SANDBOX:               "RunPodSandbox",
+		Event_UPDATE_POD_SANDBOX:            "UpdatePodSandbox",
+		Event_POST_UPDATE_POD_SANDBOX:       "PostUpdatePodSandbox",
+		Event_STOP_POD_SANDBOX:              "StopPodSandbox",
+		Event_REMOVE_POD_SANDBOX:            "RemovePodSandbox",
+		Event_CREATE_CONTAINER:              "CreateContainer",
+		Event_POST_CREATE_CONTAINER:         "PostCreateContainer",
+		Event_START_CONTAINER:               "StartContainer",
+		Event_POST_START_CONTAINER:          "PostStartContainer",
+		Event_UPDATE_CONTAINER:              "UpdateContainer",
+		Event_POST_UPDATE_CONTAINER:         "PostUpdateContainer",
+		Event_STOP_CONTAINER:                "StopContainer",
+		Event_REMOVE_CONTAINER:              "RemoveContainer",
+		Event_VALIDATE_CONTAINER_ADJUSTMENT: "ValidateContainerAdjustment",
+	}
+)
+
+// PrettyName returns a human-friendly name for the Event.
+func (e Event) PrettyName() string {
+	if name, ok := EventPrettyNames[e]; ok {
+		return name
+	}
+	return fmt.Sprintf("unknown(%d)", e)
+}
+
 const (
 	// ValidEvents is the event mask of all valid events.
 	ValidEvents = EventMask((1 << (Event_LAST - 1)) - 1)
@@ -30,25 +58,7 @@ const (
 type (
 	// Define *Request/*Response type aliases for *Event/Empty pairs.
 
-	StateChangeResponse          = Empty
-	RunPodSandboxRequest         = StateChangeEvent
-	RunPodSandboxResponse        = Empty
-	StopPodSandboxRequest        = StateChangeEvent
-	StopPodSandboxResponse       = Empty
-	RemovePodSandboxRequest      = StateChangeEvent
-	RemovePodSandboxResponse     = Empty
-	PostUpdatePodSandboxRequest  = StateChangeEvent
-	PostUpdatePodSandboxResponse = Empty
-	StartContainerRequest        = StateChangeEvent
-	StartContainerResponse       = Empty
-	RemoveContainerRequest       = StateChangeEvent
-	RemoveContainerResponse      = Empty
-	PostCreateContainerRequest   = StateChangeEvent
-	PostCreateContainerResponse  = Empty
-	PostStartContainerRequest    = StateChangeEvent
-	PostStartContainerResponse   = Empty
-	PostUpdateContainerRequest   = StateChangeEvent
-	PostUpdateContainerResponse  = Empty
+	StateChangeResponse = Empty
 
 	ShutdownRequest  = Empty
 	ShutdownResponse = Empty
@@ -123,31 +133,14 @@ func MustParseEventMask(events ...string) EventMask {
 
 // PrettyString returns a human-readable string representation of an EventMask.
 func (m *EventMask) PrettyString() string {
-	names := map[Event]string{
-		Event_RUN_POD_SANDBOX:               "RunPodSandbox",
-		Event_UPDATE_POD_SANDBOX:            "UpdatePodSandbox",
-		Event_POST_UPDATE_POD_SANDBOX:       "PostUpdatePodSandbox",
-		Event_STOP_POD_SANDBOX:              "StopPodSandbox",
-		Event_REMOVE_POD_SANDBOX:            "RemovePodSandbox",
-		Event_CREATE_CONTAINER:              "CreateContainer",
-		Event_POST_CREATE_CONTAINER:         "PostCreateContainer",
-		Event_START_CONTAINER:               "StartContainer",
-		Event_POST_START_CONTAINER:          "PostStartContainer",
-		Event_UPDATE_CONTAINER:              "UpdateContainer",
-		Event_POST_UPDATE_CONTAINER:         "PostUpdateContainer",
-		Event_STOP_CONTAINER:                "StopContainer",
-		Event_REMOVE_CONTAINER:              "RemoveContainer",
-		Event_VALIDATE_CONTAINER_ADJUSTMENT: "ValidateContainerAdjustment",
-	}
-
 	mask := *m
 	events, sep := "", ""
 
-	for bit := Event_UNKNOWN + 1; bit <= Event_LAST; bit++ {
-		if mask.IsSet(bit) {
-			events += sep + names[bit]
+	for evt := Event_UNKNOWN + 1; evt <= Event_LAST; evt++ {
+		if mask.IsSet(evt) {
+			events += sep + evt.PrettyName()
 			sep = ","
-			mask.Clear(bit)
+			mask.Clear(evt)
 		}
 	}
 

@@ -13,6 +13,7 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/moby/moby/v2/daemon/libnetwork/resolvconf"
 	"github.com/moby/sys/mount"
@@ -236,4 +237,15 @@ func supportsRecursivelyReadOnly(cfg *configStore, runtime string) error {
 		return nil
 	}
 	return fmt.Errorf("rro is not supported by runtime %q", runtime)
+}
+
+func (daemon *Daemon) runInNetNS(f func() error) error {
+	if rootless.RunningWithRootlessKit() {
+		if detachedNetNS, err := rootless.DetachedNetNS(); err != nil {
+			return err
+		} else if detachedNetNS != "" {
+			return rootless.RunInNetNS(detachedNetNS, f)
+		}
+	}
+	return f()
 }

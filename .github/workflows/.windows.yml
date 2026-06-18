@@ -25,7 +25,7 @@ on:
         required: false
 
 env:
-  GO_VERSION: "1.26.2"
+  GO_VERSION: "1.26.3"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
@@ -72,6 +72,18 @@ jobs:
       -
         name: Docker info
         run: |
+          $tries = 30
+          Write-Host "Waiting for Docker daemon..."
+          while ($true) {
+            $ErrorActionPreference = "SilentlyContinue"
+            docker version | Out-Null
+            $ok = ($LastExitCode -eq 0)
+            $ErrorActionPreference = "Stop"
+            if ($ok) { break }
+            $tries--
+            if ($tries -le 0) { throw "Docker daemon did not become ready" }
+            Start-Sleep -Seconds 2
+          }
           docker info
       -
         name: Build base image
@@ -141,6 +153,18 @@ jobs:
       -
         name: Docker info
         run: |
+          $tries = 30
+          Write-Host "Waiting for Docker daemon..."
+          while ($true) {
+            $ErrorActionPreference = "SilentlyContinue"
+            docker version | Out-Null
+            $ok = ($LastExitCode -eq 0)
+            $ErrorActionPreference = "Stop"
+            if ($ok) { break }
+            $tries--
+            if ($tries -le 0) { throw "Docker daemon did not become ready" }
+            Start-Sleep -Seconds 2
+          }
           docker info
       -
         name: Build base image
@@ -174,6 +198,14 @@ jobs:
           name: ${{ inputs.os }}-${{ inputs.storage }}-unit-reports
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
           retention-days: 1
+      -
+        name: Upload test results (gotestsum JSON)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-results-unit-${{ inputs.os }}-${{ inputs.storage }}
+          path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\**\*go-test-report*.json
+          retention-days: 7
 
   unit-test-report:
     runs-on: ubuntu-24.04
@@ -416,10 +448,23 @@ jobs:
       -
         name: Building contrib/busybox
         run: |
-          & "${{ env.BIN_OUT }}\docker" build -t busybox `
-            --build-arg WINDOWS_BASE_IMAGE `
-            --build-arg WINDOWS_BASE_IMAGE_TAG `
-            .\contrib\busybox\
+          $maxRetries = 5
+          for ($i = 1; $i -le $maxRetries; $i++) {
+            & "${{ env.BIN_OUT }}\docker" build -t busybox `
+              --build-arg WINDOWS_BASE_IMAGE `
+              --build-arg WINDOWS_BASE_IMAGE_TAG `
+              .\contrib\busybox\
+            if ($LASTEXITCODE -eq 0) {
+              break
+            }
+            if ($i -eq $maxRetries) {
+              Write-Error "Failed to build contrib/busybox after $maxRetries attempts"
+              exit 1
+            }
+            $delay = 15 * $i
+            Write-Warning "Build attempt $i failed (exit code: $LASTEXITCODE). Retrying in $delay seconds..."
+            Start-Sleep -Seconds $delay
+          }
         env:
           DOCKER_HOST: npipe:////./pipe/docker_engine
       -
@@ -492,6 +537,14 @@ jobs:
           name: ${{ inputs.os }}-${{ inputs.storage }}-integration-reports-${{ matrix.runtime }}-${{ env.TESTREPORTS_NAME }}
           path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\*
           retention-days: 1
+      -
+        name: Upload test results (gotestsum JSON)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-results-integration-${{ inputs.os }}-${{ inputs.storage }}-${{ matrix.runtime }}-${{ env.TESTREPORTS_NAME }}
+          path: ${{ env.GOPATH }}\src\github.com\docker\docker\bundles\**\*go-test-report*.json
+          retention-days: 7
 
   integration-test-report:
     runs-on: ubuntu-24.04

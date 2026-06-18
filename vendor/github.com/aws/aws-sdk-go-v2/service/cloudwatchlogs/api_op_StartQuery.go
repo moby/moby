@@ -35,7 +35,8 @@ import (
 //   - Or the queryString must include a SOURCE command to select log groups for
 //     the query. The SOURCE command can select log groups based on log group name
 //     prefix, account ID, and log class, or select data sources using dataSource
-//     syntax in LogsQL, PPL, and SQL.
+//     syntax in LogsQL, PPL, and SQL. In LogsQL, the SOURCE command also supports
+//     filtering by log group tags.
 //
 // For more information about the SOURCE command, see [SOURCE].
 //

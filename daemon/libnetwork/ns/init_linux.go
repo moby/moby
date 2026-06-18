@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/modprobe"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/vishvananda/netns"
@@ -22,12 +23,30 @@ var initNamespace = sync.OnceValues(initHandles)
 
 // initHandles initializes a new network namespace
 func initHandles() (netns.NsHandle, nlwrap.Handle) {
-	initNs, err := netns.Get()
+	var (
+		initNs netns.NsHandle
+		initNl nlwrap.Handle
+		err    error
+	)
+	detachedNetNS, err := rootless.DetachedNetNS()
 	if err != nil {
-		log.G(context.Background()).WithError(err).Error("could not get initial namespace: falling back to using netns.None")
-		initNs = netns.None()
+		log.G(context.Background()).WithError(err).Error("could not check for detached netns")
 	}
-	initNl, err := nlwrap.NewHandle(getSupportedNlFamilies()...)
+	if detachedNetNS != "" {
+		initNs, err = netns.GetFromPath(detachedNetNS)
+		if err != nil {
+			log.G(context.Background()).WithError(err).Errorf("could not get detached network namespace %s", detachedNetNS)
+			return initNs, initNl
+		}
+		initNl, err = nlwrap.NewHandleAt(initNs, getSupportedNlFamilies()...)
+	} else {
+		initNs, err = netns.Get()
+		if err != nil {
+			log.G(context.Background()).WithError(err).Error("could not get initial namespace: falling back to using netns.None")
+			initNs = netns.None()
+		}
+		initNl, err = nlwrap.NewHandle(getSupportedNlFamilies()...)
+	}
 	if err != nil {
 		// Fail fast to keep the invariant: NlHandle must be a valid handle
 		panic(fmt.Errorf("could not create netlink handle on initial (host) namespace: %w", err))

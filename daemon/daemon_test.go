@@ -288,7 +288,7 @@ func TestMerge(t *testing.T) {
 	}
 	for portSpecs := range configUser.ExposedPorts {
 		if portSpecs.Num() != 0 && portSpecs.Num() != 1111 && portSpecs.Num() != 2222 && portSpecs.Num() != 3333 {
-			t.Fatalf("Expected %q or %q or %q or %q, found %s", 0, 1111, 2222, 3333, portSpecs)
+			t.Fatalf("Expected %d or %d or %d or %d, found %d", 0, 1111, 2222, 3333, portSpecs)
 		}
 	}
 }

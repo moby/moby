@@ -1,7 +1,6 @@
 package build
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -114,10 +113,10 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*buildbackend.B
 
 	// Note that there are two ways a --build-arg might appear in the
 	// json of the query param:
-	//     "foo":"bar"
+	// "foo":"bar"
 	// and "foo":nil
 	// The first is the normal case, ie. --build-arg foo=bar
-	// or  --build-arg foo
+	// or --build-arg foo
 	// where foo's value was picked up from an env var.
 	// The second ("foo":nil) is where they put --build-arg foo
 	// but "foo" isn't set as an env var. In that case we can't just drop
@@ -256,19 +255,17 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 
 	w.Header().Set("Content-Type", "application/json")
 
-	body := r.Body
-	var ww io.Writer = w
-	if body != nil {
-		// there is a possibility that output is written before request body
-		// has been fully read so we need to protect against it.
-		// this can be removed when
-		// https://github.com/golang/go/issues/15527
-		// https://github.com/golang/go/issues/22209
-		// has been fixed
-		body, ww = wrapOutputBufferedUntilRequestRead(body, ww)
+	// Enable full-duplex so the server can write the response while still
+	// reading the request body (build context tar). This replaces the old
+	// wrapOutputBufferedUntilRequestRead workaround that buffered all output
+	// until the first byte of the body was consumed; full-duplex support
+	// landed in Go 1.21 (see https://go.dev/cl/472636).
+	rc := http.NewResponseController(w)
+	if err := rc.EnableFullDuplex(); err != nil {
+		log.G(ctx).WithError(err).Warn("failed to enable full-duplex HTTP; falling back to default behavior")
 	}
 
-	output := ioutils.NewWriteFlusher(ww)
+	output := ioutils.NewWriteFlusher(w)
 	defer func() { _ = output.Close() }()
 
 	errf := func(err error) error {
@@ -314,7 +311,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	wantAux := versions.GreaterThanOrEqualTo(version, "1.30")
 
 	imgID, err := br.backend.Build(ctx, buildbackend.BuildConfig{
-		Source:         body,
+		Source:         r.Body,
 		Options:        buildOptions,
 		ProgressWriter: buildProgressWriter(out, wantAux, createProgressReader),
 	})
@@ -375,107 +372,4 @@ func buildProgressWriter(out io.Writer, wantAux bool, createProgressReader func(
 		AuxFormatter:       aux,
 		ProgressReaderFunc: createProgressReader,
 	}
-}
-
-type flusher interface {
-	Flush()
-}
-
-type nopFlusher struct{}
-
-func (f *nopFlusher) Flush() {}
-
-func wrapOutputBufferedUntilRequestRead(rc io.ReadCloser, out io.Writer) (io.ReadCloser, io.Writer) {
-	var fl flusher = &nopFlusher{}
-	if f, ok := out.(flusher); ok {
-		fl = f
-	}
-
-	w := &wcf{
-		buf:     bytes.NewBuffer(nil),
-		Writer:  out,
-		flusher: fl,
-	}
-	r := bufio.NewReader(rc)
-	_, err := r.Peek(1)
-	if err != nil {
-		return rc, out
-	}
-	rc = &rcNotifier{
-		Reader: r,
-		Closer: rc,
-		notify: w.notify,
-	}
-	return rc, w
-}
-
-type rcNotifier struct {
-	io.Reader
-	io.Closer
-	notify func()
-}
-
-func (r *rcNotifier) Read(b []byte) (int, error) {
-	n, err := r.Reader.Read(b)
-	if err != nil {
-		r.notify()
-	}
-	return n, err
-}
-
-func (r *rcNotifier) Close() error {
-	r.notify()
-	return r.Closer.Close()
-}
-
-type wcf struct {
-	io.Writer
-	flusher
-	mu      sync.Mutex
-	ready   bool
-	buf     *bytes.Buffer
-	flushed bool
-}
-
-func (w *wcf) Flush() {
-	w.mu.Lock()
-	w.flushed = true
-	if !w.ready {
-		w.mu.Unlock()
-		return
-	}
-	w.mu.Unlock()
-	w.flusher.Flush()
-}
-
-func (w *wcf) Flushed() bool {
-	w.mu.Lock()
-	b := w.flushed
-	w.mu.Unlock()
-	return b
-}
-
-func (w *wcf) Write(b []byte) (int, error) {
-	w.mu.Lock()
-	if !w.ready {
-		n, err := w.buf.Write(b)
-		w.mu.Unlock()
-		return n, err
-	}
-	w.mu.Unlock()
-	return w.Writer.Write(b)
-}
-
-func (w *wcf) notify() {
-	w.mu.Lock()
-	if !w.ready {
-		if w.buf.Len() > 0 {
-			_, _ = io.Copy(w.Writer, w.buf)
-		}
-		if w.flushed {
-			w.flusher.Flush()
-		}
-		w.ready = true
-	}
-	w.mu.Unlock()
 }

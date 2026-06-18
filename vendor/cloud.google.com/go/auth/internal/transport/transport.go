@@ -24,7 +24,37 @@ import (
 	"time"
 
 	"cloud.google.com/go/auth/credentials"
+	"go.opentelemetry.io/otel/attribute"
 )
+
+// knownKeys provides keys for reading telemetry attributes from Context.
+// It provides an implicit contract with generated client library code
+// using the same keys. The keys in this collection should not be removed
+// or modified. New keys may be added, but they will need to be explicitly
+// used in code referencing this collection in order to appear in telemetry.
+var knownKeys = []string{
+	"gcp.client.service",
+	"gcp.client.version",
+	"gcp.client.repo",
+	"gcp.client.artifact",
+	"gcp.client.language",
+	"url.domain",
+}
+
+// StaticTelemetryAttributes selectively converts known keys from a map of
+// strings to Open Telemetry attributes.
+func StaticTelemetryAttributes(m map[string]string) []attribute.KeyValue {
+	var staticAttrs []attribute.KeyValue
+	if m == nil {
+		return staticAttrs
+	}
+	for _, k := range knownKeys {
+		if v, ok := m[k]; ok {
+			staticAttrs = append(staticAttrs, attribute.String(k, v))
+		}
+	}
+	return staticAttrs
+}
 
 // CloneDetectOptions clones a user set detect option into some new memory that
 // we can internally manipulate before sending onto the detect package.

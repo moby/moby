@@ -28,6 +28,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/httpstatus"
 	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/daemon/server/httputils/contenttype"
 	"github.com/moby/moby/v2/daemon/server/httputils/logstream"
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/ioutils"
@@ -182,6 +183,12 @@ func (c *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 	})
 }
 
+var jsonTypes = []string{
+	types.MediaTypeJSONLines,
+	types.MediaTypeNDJSON,
+	types.MediaTypeJSONSequence,
+}
+
 func (c *containerRouter) getContainersLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
@@ -215,6 +222,23 @@ func (c *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 		}
 	}
 
+	var logFormat string
+	// TODO(thaJeztah): this is currently experimental; there is no implementation
+	// for this feature yet in the client, and the response struct is not yet part
+	// of the API type definitions. Change this to API 1.55 once the remaining parts
+	// are completed.
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.54") {
+		// Opt-in through "format" query-arg or JSON stream "Accept" header if
+		// set; wildcards ("*/*", "application/*") are not considered.
+		logFormat = r.Form.Get("format")
+		if logFormat != "" && logFormat != "json" {
+			return errdefs.InvalidParameter(errors.New("unsupported log format"))
+		}
+		if logFormat == "" && contenttype.MatchAcceptStrict(r.Header, jsonTypes) != "" {
+			logFormat = "json"
+		}
+	}
+
 	containerName := vars["name"]
 	logsConfig := &backend.ContainerLogsOptions{
 		Follow:     httputils.BoolValue(r, "follow"),
@@ -230,6 +254,12 @@ func (c *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	msgs, tty, err := c.backend.ContainerLogs(ctx, containerName, logsConfig)
 	if err != nil {
 		return err
+	}
+
+	if logFormat == "json" {
+		w.Header().Set("Content-Type", contenttype.Negotiate(r.Header, jsonTypes, types.MediaTypeNDJSON))
+		logstream.WriteJSON(ctx, w, msgs, logsConfig)
+		return nil
 	}
 
 	contentType := types.MediaTypeRawStream

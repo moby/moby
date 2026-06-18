@@ -85,6 +85,9 @@ func collectCreateContainerResult(request *CreateContainerRequest) *result {
 	if request.Container.Linux.NetDevices == nil {
 		request.Container.Linux.NetDevices = map[string]*LinuxNetDevice{}
 	}
+	if request.Container.Linux.Sysctl == nil {
+		request.Container.Linux.Sysctl = map[string]string{}
+	}
 
 	return &result{
 		request: resultRequest{
@@ -108,6 +111,7 @@ func collectCreateContainerResult(request *CreateContainerRequest) *result {
 					},
 					Namespaces: []*LinuxNamespace{},
 					NetDevices: map[string]*LinuxNetDevice{},
+					Sysctl:     map[string]string{},
 				},
 			},
 		},
@@ -249,6 +253,9 @@ func (r *result) adjust(rpl *ContainerAdjustment, plugin string) error {
 			return err
 		}
 		if err := r.adjustRdt(rpl.Linux.Rdt, plugin); err != nil {
+			return err
+		}
+		if err := r.adjustMemoryPolicy(rpl.Linux.MemoryPolicy, plugin); err != nil {
 			return err
 		}
 	}
@@ -1016,6 +1023,22 @@ func (r *result) adjustLinuxScheduler(sch *LinuxScheduler, plugin string) error 
 
 	create.Container.Linux.Scheduler = sch
 	r.reply.adjust.Linux.Scheduler = sch
+
+	return nil
+}
+
+func (r *result) adjustMemoryPolicy(memoryPolicy *LinuxMemoryPolicy, plugin string) error {
+	if memoryPolicy == nil {
+		return nil
+	}
+
+	id := r.request.create.Container.Id
+
+	if err := r.owners.ClaimMemoryPolicy(id, plugin); err != nil {
+		return err
+	}
+
+	r.reply.adjust.Linux.MemoryPolicy = memoryPolicy
 
 	return nil
 }

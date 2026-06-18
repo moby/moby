@@ -22,8 +22,12 @@ var errBadPattern = errors.New("syntax error in pattern")
 //	term:
 //		'*'         matches any sequence of non-/ characters
 //		'?'         matches any single non-/ character
-//		'[' [ '^' ] { character-range } ']'
+//		'[' [ '!' ] { character-range } ']'
 //		            character class (must be non-empty)
+//
+// NOTE: Only '!' is supported for character class negation, not '^'. This is to
+// ensure compatibility with in-toto-python.
+//
 //		c           matches character c (c != '*', '?', '\\', '[')
 //		'\\' c      matches character c
 //
@@ -141,7 +145,7 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 			chunk = chunk[1:]
 			// possibly negated
 			negated := false
-			if len(chunk) > 0 && chunk[0] == '^' {
+			if len(chunk) > 0 && chunk[0] == '!' {
 				negated = true
 				chunk = chunk[1:]
 			}

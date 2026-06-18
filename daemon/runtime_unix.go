@@ -249,7 +249,7 @@ func (r *runtimes) Features(name string) *features.Features {
 // available for use with Docker by installing them onto PATH following the
 // [binary naming convention] for containerd Runtime v2.
 //
-// [binary naming convention]: https://github.com/containerd/containerd/blob/main/runtime/v2/README.md#binary-naming
+// [binary naming convention]: https://github.com/containerd/containerd/blob/v2.3.0/docs/runtime-v2.md#invoking-runtimes
 func isPermissibleC8dRuntimeName(name string) bool {
 	// containerd uses a rather permissive test to validate runtime names:
 	//

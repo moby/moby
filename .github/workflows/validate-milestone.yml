@@ -2,6 +2,7 @@ name: validate-milestone
 
 permissions:
   contents: read
+  pull-requests: read
 
 on:
   pull_request:
@@ -18,11 +19,25 @@ jobs:
           MILESTONE: ${{ github.event.pull_request.milestone.title }}
         with:
           script: |
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+            });
+            const touchesVersions = files.some(f => f.filename === 'releases/versions.yaml');
+
+            // Use the PR's version when it bumps the file, base branch otherwise.
+            // It's fine to trust the author in this case, it's not meant to be
+            // a security gate, just a helpful check for maintainers.
+            const ref = touchesVersions
+              ? context.payload.pull_request.head.sha
+              : context.payload.pull_request.base.sha;
+
             const resp = await github.rest.repos.getContent({
               owner: context.repo.owner,
               repo: context.repo.repo,
               path: 'releases/versions.yaml',
-              ref: context.payload.pull_request.base.sha,
+              ref,
             });
             const content = Buffer.from(resp.data.content, resp.data.encoding).toString('utf8');
             const line = content.split('\n').find(l => l.includes('next:'));

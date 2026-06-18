@@ -1,16 +1,12 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.26.2
+ARG GO_VERSION=1.26.3
 ARG BASE_DEBIAN_DISTRO="bookworm"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
 # XX_VERSION specifies the version of the xx utility to use.
 # It must be a valid tag in the docker.io/tonistiigi/xx image repository.
 ARG XX_VERSION=1.9.0
-
-# VPNKIT_VERSION is the version of the vpnkit binary which is used as a fallback
-# network driver for rootless.
-ARG VPNKIT_VERSION=0.6.0
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
 ARG DOCKERCLI_VERSION=v29.4.0
@@ -21,7 +17,7 @@ ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
 ARG DOCKERCLI_INTEGRATION_VERSION=v25.0.5
 
 # BUILDX_VERSION is the version of buildx to install in the dev container.
-ARG BUILDX_VERSION=0.33.0
+ARG BUILDX_VERSION=0.34.0
 
 # COMPOSE_VERSION is the version of compose to install in the dev container.
 ARG COMPOSE_VERSION=v5.1.3
@@ -30,11 +26,9 @@ ARG SYSTEMD="false"
 ARG FIREWALLD="false"
 ARG DOCKER_STATIC=1
 
-# REGISTRY_VERSION specifies the version of the registry to download from
-# https://hub.docker.com/r/distribution/distribution. This version of
-# the registry is used to test schema 2 manifests. Generally,  the version
-# specified here should match a current release.
-ARG REGISTRY_VERSION=3.0.0
+# REGISTRY_VERSION is the version of the registry to use for integration tests.
+# It must be a valid tag in the docker.io/library/registry image repository.
+ARG REGISTRY_VERSION=3.1.1
 
 # delve is currently only supported on linux/amd64, linux/arm64, and linux/ppc64le;
 # https://github.com/go-delve/delve/blob/v1.26.0/pkg/proc/native/support_sentinel.go#L1
@@ -81,7 +75,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
         && /build/criu --version
 
 # registry
-FROM distribution/distribution:$REGISTRY_VERSION AS registry
+FROM distribution/distribution:${REGISTRY_VERSION} AS registry
 RUN mkdir /build && mv /bin/registry /build/registry
 
 # frozen-images
@@ -328,7 +322,7 @@ FROM tini-${TARGETOS} AS tini
 # rootlesskit
 FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
-ARG ROOTLESSKIT_VERSION=v2.3.6
+ARG ROOTLESSKIT_VERSION=v3.0.0
 ADD https://github.com/rootless-containers/rootlesskit.git?ref=${ROOTLESSKIT_VERSION}&keep-git-dir=1 .
 
 FROM base AS rootlesskit-build
@@ -388,19 +382,6 @@ RUN ./autogen.sh && \
     ./configure --bindir=/build && \
     make -j install
 
-# vpnkit
-# use dummy scratch stage to avoid build to fail for unsupported platforms
-FROM scratch AS vpnkit-windows
-FROM scratch AS vpnkit-linux-386
-FROM scratch AS vpnkit-linux-arm
-FROM scratch AS vpnkit-linux-ppc64le
-FROM scratch AS vpnkit-linux-riscv64
-FROM scratch AS vpnkit-linux-s390x
-FROM moby/vpnkit-bin:${VPNKIT_VERSION} AS vpnkit-linux-amd64
-FROM moby/vpnkit-bin:${VPNKIT_VERSION} AS vpnkit-linux-arm64
-FROM vpnkit-linux-${TARGETARCH} AS vpnkit-linux
-FROM vpnkit-${TARGETOS} AS vpnkit
-
 # containerutility
 FROM base AS containerutil-src
 WORKDIR /usr/src/containerutil
@@ -449,7 +430,6 @@ COPY --link --from=shfmt         /build/ /usr/local/bin/
 COPY --link --from=runc          /build/ /usr/local/bin/
 COPY --link --from=containerd    /build/ /usr/local/bin/
 COPY --link --from=rootlesskit   /build/ /usr/local/bin/
-COPY --link --from=vpnkit        /       /usr/local/bin/
 COPY --link --from=containerutil /build/ /usr/local/bin/
 COPY --link --from=crun          /build/ /usr/local/bin/
 COPY --link hack/dockerfile/etc/docker/  /etc/docker/
@@ -628,7 +608,6 @@ COPY --link --from=runc          /build/ /
 COPY --link --from=containerd    /build/ /
 COPY --link --from=rootlesskit   /build/ /
 COPY --link --from=containerutil /build/ /
-COPY --link --from=vpnkit        /       /
 COPY --link --from=build         /build  /
 
 # smoke tests

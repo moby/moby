@@ -2947,6 +2947,38 @@ func validateSubstituteStringEntry(v *types.SubstituteStringEntry) error {
 	}
 }
 
+func validateTagFilter(v *types.TagFilter) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "TagFilter"}
+	if v.Key == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Key"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateTagFilters(v []types.TagFilter) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "TagFilters"}
+	for i := range v {
+		if err := validateTagFilter(&v[i]); err != nil {
+			invalidParams.AddNested(fmt.Sprintf("[%d]", i), err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
 func validateTrimString(v *types.TrimString) error {
 	if v == nil {
 		return nil
@@ -3935,6 +3967,11 @@ func validateOpListLogGroupsInput(v *ListLogGroupsInput) error {
 	if v.DataSources != nil {
 		if err := validateDataSourceFilters(v.DataSources); err != nil {
 			invalidParams.AddNested("DataSources", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.LogGroupTags != nil {
+		if err := validateTagFilters(v.LogGroupTags); err != nil {
+			invalidParams.AddNested("LogGroupTags", err.(smithy.InvalidParamsError))
 		}
 	}
 	if invalidParams.Len() > 0 {

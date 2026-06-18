@@ -27,6 +27,7 @@ import (
 	"github.com/moby/buildkit/exporter/util/epoch"
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/frontend/attestations"
+	dockerfileversion "github.com/moby/buildkit/frontend/dockerfile/version"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/grpchijack"
 	containerdsnapshot "github.com/moby/buildkit/snapshot/containerd"
@@ -34,6 +35,7 @@ import (
 	"github.com/moby/buildkit/solver/bboltcachestorage"
 	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
+	"github.com/moby/buildkit/solver/llbsolver/compat"
 	"github.com/moby/buildkit/solver/llbsolver/history"
 	"github.com/moby/buildkit/solver/llbsolver/proc"
 	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"
@@ -389,6 +391,14 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 	}
 	translateLegacySolveRequest(req)
 
+	compatibilityVersion := int(req.CompatibilityVersion)
+	if compatibilityVersion == 0 {
+		compatibilityVersion = compat.CompatibilityVersionCurrent
+	}
+	if err := compat.ValidateCompatibilityVersion(compatibilityVersion); err != nil {
+		return nil, err
+	}
+
 	defer func() {
 		time.AfterFunc(time.Second, c.throttledGC)
 	}()
@@ -538,7 +548,7 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 		FrontendOpt:    req.FrontendAttrs,
 		FrontendInputs: req.FrontendInputs,
 		CacheImports:   cacheImports,
-	}, llbsolver.ExporterRequest{
+	}, compatibilityVersion, llbsolver.ExporterRequest{
 		Exporters:             expis,
 		CacheExporters:        cacheExporters,
 		EnableSessionExporter: req.EnableSessionExporter,
@@ -621,12 +631,16 @@ func (c *Controller) ListWorkers(ctx context.Context, r *controlapi.ListWorkersR
 }
 
 func (c *Controller) Info(ctx context.Context, r *controlapi.InfoRequest) (*controlapi.InfoResponse, error) {
+	buildkitVersion := toPBBuildkitVersion(client.BuildkitVersion{
+		Package:  version.Package,
+		Version:  version.Version,
+		Revision: version.Revision,
+	})
+	if dockerfileVersion := dockerfileversion.Version(); dockerfileVersion != "" {
+		buildkitVersion.DockerfileVersion = dockerfileVersion
+	}
 	return &controlapi.InfoResponse{
-		BuildkitVersion: &apitypes.BuildkitVersion{
-			Package:  version.Package,
-			Version:  version.Version,
-			Revision: version.Revision,
-		},
+		BuildkitVersion: buildkitVersion,
 	}, nil
 }
 
@@ -707,9 +721,10 @@ func toPBGCPolicy(in []client.PruneInfo) []*apitypes.GCPolicy {
 
 func toPBBuildkitVersion(in client.BuildkitVersion) *apitypes.BuildkitVersion {
 	return &apitypes.BuildkitVersion{
-		Package:  in.Package,
-		Version:  in.Version,
-		Revision: in.Revision,
+		Package:           in.Package,
+		Version:           in.Version,
+		Revision:          in.Revision,
+		DockerfileVersion: in.DockerfileVersion,
 	}
 }
 

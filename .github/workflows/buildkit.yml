@@ -17,7 +17,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.26.2"
+  GO_VERSION: "1.26.3"
   DESTDIR: ./build
   SETUP_BUILDX_VERSION: edge
   SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
@@ -28,7 +28,7 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120 # guardrails timeout for the whole job
+    timeout-minutes: 60 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - validate-dco
@@ -56,7 +56,7 @@ jobs:
 
   test-linux:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120 # guardrails timeout for the whole job
+    timeout-minutes: 60 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - build-linux
@@ -105,8 +105,10 @@ jobs:
           cache: false
       -
         name: BuildKit ref
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "$(./hack/buildkit-ref)" >> $GITHUB_ENV
+          ./hack/buildkit-ref >> "$GITHUB_ENV"
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
@@ -162,7 +164,7 @@ jobs:
 
   build-windows:
     runs-on: windows-2022
-    timeout-minutes: 120
+    timeout-minutes: 60 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - validate-dco
@@ -201,6 +203,18 @@ jobs:
 
       - name: Docker info
         run: |
+          $tries = 30
+          Write-Host "Waiting for Docker daemon..."
+          while ($true) {
+            $ErrorActionPreference = "SilentlyContinue"
+            docker version | Out-Null
+            $ok = ($LastExitCode -eq 0)
+            $ErrorActionPreference = "Stop"
+            if ($ok) { break }
+            $tries--
+            if ($tries -le 0) { throw "Docker daemon did not become ready" }
+            Start-Sleep -Seconds 2
+          }
           docker info
 
       - name: Build base image
@@ -254,7 +268,7 @@ jobs:
 
   test-windows:
     runs-on: windows-2022
-    timeout-minutes: 120 # guardrails timeout for the whole job
+    timeout-minutes: 60 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - build-windows
@@ -264,7 +278,7 @@ jobs:
       GOPATH: ${{ github.workspace }}\go
       GOBIN: ${{ github.workspace }}\go\bin
       BIN_OUT: ${{ github.workspace }}\out
-      TESTFLAGS: "-v --timeout=90m"
+      TESTFLAGS: "-v --timeout=40m"
       TEST_DOCKERD: "1"
     strategy:
       fail-fast: false
@@ -316,8 +330,10 @@ jobs:
 
       - name: BuildKit ref
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "$(./hack/buildkit-ref)" >> $GITHUB_ENV
+          ./hack/buildkit-ref >> "$GITHUB_ENV"
         working-directory: moby
 
       - name: Checkout BuildKit ${{ env.BUILDKIT_REF }}

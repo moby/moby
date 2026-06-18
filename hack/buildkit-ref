@@ -5,7 +5,34 @@
 # The output of this script may be valid shell script, but is intended for use with
 # GitHub Actions' $GITHUB_ENV.
 
+set -euo pipefail
+
 buildkit_pkg=github.com/moby/buildkit
+
+resolve_github_commit_sha() {
+	local repo=$1
+	local ref=$2
+	local resolved
+
+	if command -v gh > /dev/null 2>&1; then
+		if resolved=$(gh api "repos/${repo}/commits/${ref}" --jq '.sha // empty' 2> /dev/null) && [[ -n "$resolved" ]]; then
+			echo "$resolved"
+			return 0
+		fi
+	fi
+
+	local curl_args=(-fsSL)
+	if [[ -n "${GH_TOKEN:-}" ]]; then
+		curl_args+=(-H "Authorization: Bearer ${GH_TOKEN}")
+	fi
+
+	if resolved=$(curl "${curl_args[@]}" "https://api.github.com/repos/${repo}/commits/${ref}" | jq -er '.sha // empty'); then
+		echo "$resolved"
+		return 0
+	fi
+
+	return 1
+}
 
 # get buildkit version from go.mod
 buildkit_ref=$(go list -mod=mod -u -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' "$buildkit_pkg")
@@ -13,10 +40,13 @@ buildkit_repo=$(go list -mod=mod -u -m -f '{{if .Replace}}{{.Replace.Path}}{{els
 buildkit_repo=${buildkit_repo#github.com/}
 
 if [[ "${buildkit_ref}" == *-*-* ]]; then
-	# if pseudo-version, figure out just the uncommon sha (https://github.com/golang/go/issues/34745)
-	buildkit_ref=$(awk -F"-" '{print $NF}' <<< "$buildkit_ref" | awk 'BEGIN{FIELDWIDTHS="7"} {print $1}')
-	# use github api to return full sha to be able to use it as ref
-	buildkit_ref=$(curl -s "https://api.github.com/repos/${buildkit_repo}/commits/${buildkit_ref}" | jq -r .sha)
+	# if pseudo-version, figure out just the commit sha
+	commit_ref=$(awk -F"-" '{print $NF}' <<< "$buildkit_ref")
+	# resolve through GitHub to get the full sha for use as a ref.
+	if ! buildkit_ref=$(resolve_github_commit_sha "$buildkit_repo" "$commit_ref"); then
+		echo "failed to resolve BuildKit commit ${buildkit_repo}@${commit_ref}" >&2
+		exit 1
+	fi
 fi
 
 cat << EOF

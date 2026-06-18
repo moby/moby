@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -74,6 +75,45 @@ type fakeImageService struct {
 
 func (i *fakeImageService) StorageDriver() string {
 	return "overlay"
+}
+
+func TestCreateSpecPreservesCDIAdditionalGIDs(t *testing.T) {
+	cdiDir := t.TempDir()
+	err := os.WriteFile(filepath.Join(cdiDir, "test-device.yaml"), []byte(`
+cdiVersion: "0.7.0"
+kind: "example.com/device"
+devices:
+- name: foo
+  containerEdits:
+    additionalGids:
+    - 1234
+`), 0o644)
+	assert.NilError(t, err)
+
+	origDeviceDrivers := maps.Clone(deviceDrivers)
+	t.Cleanup(func() {
+		deviceDrivers = origDeviceDrivers
+	})
+	RegisterCDIDriver(cdiDir)
+
+	c := &container.Container{
+		Config: &containertypes.Config{},
+		HostConfig: &containertypes.HostConfig{
+			Resources: containertypes.Resources{
+				DeviceRequests: []containertypes.DeviceRequest{
+					{
+						Driver:    "cdi",
+						DeviceIDs: []string{"example.com/device=foo"},
+					},
+				},
+			},
+		},
+	}
+	d := setupFakeDaemon(t, c)
+
+	s, err := d.createSpec(t.Context(), &configStore{}, c, nil)
+	assert.NilError(t, err)
+	assert.Assert(t, slices.Contains(s.Process.User.AdditionalGids, uint32(1234)), "CDI additional GID not present in OCI spec")
 }
 
 // TestTmpfsDevShmNoDupMount checks that a user-specified /dev/shm tmpfs

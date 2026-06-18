@@ -38,8 +38,6 @@ func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.Aut
 		return hostsFn
 	}
 
-	authorizer := authorizerFromAuthConfig(*optAuthConfig, ref)
-
 	return func(n string) ([]docker.RegistryHost, error) {
 		hosts, err := hostsFn(n)
 		if err != nil {
@@ -47,13 +45,13 @@ func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.Aut
 		}
 
 		for i := range hosts {
-			hosts[i].Authorizer = authorizer
+			hosts[i].Authorizer = authorizerFromAuthConfig(*optAuthConfig, ref, hosts[i].Client)
 		}
 		return hosts, nil
 	}
 }
 
-func authorizerFromAuthConfig(authConfig registrytypes.AuthConfig, ref reference.Named) docker.Authorizer {
+func authorizerFromAuthConfig(authConfig registrytypes.AuthConfig, ref reference.Named, client *http.Client) docker.Authorizer {
 	cfgHost := registry.ConvertToHostname(authConfig.ServerAddress)
 	if cfgHost == "" {
 		cfgHost = reference.Domain(ref)
@@ -69,19 +67,25 @@ func authorizerFromAuthConfig(authConfig registrytypes.AuthConfig, ref reference
 		}
 	}
 
-	return docker.NewDockerAuthorizer(docker.WithAuthCreds(func(host string) (string, string, error) {
-		if cfgHost != host {
-			log.G(context.TODO()).WithFields(log.Fields{
-				"host":    host,
-				"cfgHost": cfgHost,
-			}).Warn("Host doesn't match")
-			return "", "", nil
-		}
-		if authConfig.IdentityToken != "" {
-			return "", authConfig.IdentityToken, nil
-		}
-		return authConfig.Username, authConfig.Password, nil
-	}))
+	opts := []docker.AuthorizerOpt{
+		docker.WithAuthCreds(func(host string) (string, string, error) {
+			if cfgHost != host {
+				log.G(context.TODO()).WithFields(log.Fields{
+					"host":    host,
+					"cfgHost": cfgHost,
+				}).Warn("Host doesn't match")
+				return "", "", nil
+			}
+			if authConfig.IdentityToken != "" {
+				return "", authConfig.IdentityToken, nil
+			}
+			return authConfig.Username, authConfig.Password, nil
+		}),
+	}
+	if client != nil {
+		opts = append(opts, docker.WithAuthClient(client))
+	}
+	return docker.NewDockerAuthorizer(opts...)
 }
 
 type bearerAuthorizer struct {

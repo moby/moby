@@ -6,7 +6,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/containerd/containerd/v2/pkg/apparmor"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -14,7 +13,7 @@ import (
 )
 
 func TestExecSetPlatformOptAppArmor(t *testing.T) {
-	appArmorEnabled := apparmor.HostSupports()
+	appArmorEnabled := appArmorSupported()
 
 	tests := []struct {
 		doc             string

@@ -80,7 +80,7 @@ func (sm *Manager) Any(ctx context.Context, g Group, f func(context.Context, str
 			lastErr = err
 			continue
 		}
-		if err := f(ctx, id, c); err != nil {
+		if err := f(c.Context(ctx), id, c); err != nil {
 			lastErr = err
 			continue
 		}

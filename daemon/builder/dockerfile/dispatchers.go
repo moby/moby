@@ -471,11 +471,11 @@ func dispatchHealthcheck(ctx context.Context, d dispatchRequest, c *instructions
 	if runConfig.Healthcheck != nil {
 		oldCmd := runConfig.Healthcheck.Test
 		if len(oldCmd) > 0 && oldCmd[0] != "NONE" {
-			fmt.Fprintf(d.builder.Stdout, "Note: overriding previous HEALTHCHECK: %v\n", oldCmd)
+			fmt.Fprintf(d.builder.Stdout, "Note: overriding previous HEALTHCHECK: %+v\n", oldCmd)
 		}
 	}
 	runConfig.Healthcheck = c.Health
-	return d.builder.commit(ctx, d.state, fmt.Sprintf("HEALTHCHECK %q", runConfig.Healthcheck))
+	return d.builder.commit(ctx, d.state, fmt.Sprintf("HEALTHCHECK %+v", runConfig.Healthcheck))
 }
 
 // ENTRYPOINT /usr/sbin/nginx

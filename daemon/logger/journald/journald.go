@@ -144,7 +144,13 @@ func validateLogOpt(cfg map[string]string) error {
 	return nil
 }
 
-func (s *journald) Log(msg *logger.Message) error {
+func (s *journald) Log(msg *logger.Message) (err error) {
+	defer func() {
+		if err == nil {
+			logger.PutMessage(msg)
+		}
+	}()
+
 	vars := map[string]string{}
 	maps.Copy(vars, s.vars)
 	if !msg.Timestamp.IsZero() {
@@ -159,17 +165,13 @@ func (s *journald) Log(msg *logger.Message) error {
 		}
 	}
 
-	line := string(msg.Line)
-	source := msg.Source
-	logger.PutMessage(msg)
-
 	seq := s.ordinal.Add(1)
 	vars[fieldLogOrdinal] = strconv.FormatUint(seq, 10)
 
-	if source == "stderr" {
-		return s.sendToJournal(line, journal.PriErr, vars)
+	if msg.Source == "stderr" {
+		return s.sendToJournal(string(msg.Line), journal.PriErr, vars)
 	}
-	return s.sendToJournal(line, journal.PriInfo, vars)
+	return s.sendToJournal(string(msg.Line), journal.PriInfo, vars)
 }
 
 func (s *journald) Name() string {

@@ -51,11 +51,11 @@ func overlayFSWhiteoutConvert(diffDir, path string, f os.FileInfo, changeFn Chan
 			return false, nil
 		}
 
-		maj, min, err := devices.DeviceInfo(f)
+		major, minor, err := devices.DeviceInfo(f)
 		if err != nil {
 			return false, err
 		}
-		return (maj == 0 && min == 0), nil
+		return (major == 0 && minor == 0), nil
 	}
 
 	if f.IsDir() {

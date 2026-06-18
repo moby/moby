@@ -1,3 +1,12 @@
+# Release (2026-04-23)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.25.1
+  * **Bug Fix**: Fixed a memory leak in the LRU cache implementation used by some AWS services.
+
 # Release (2026-04-15)
 
 ## General Highlights

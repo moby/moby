@@ -200,7 +200,7 @@ func TestNslookupWindows(t *testing.T) {
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
-	attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	attachCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	res := container.RunAttach(attachCtx, t, c,
 		container.WithCmd("nslookup", "docker.com"),

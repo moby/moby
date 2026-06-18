@@ -159,6 +159,7 @@ func NewWorker(ctx context.Context, opt WorkerOpt) (*Worker, error) {
 	if err := git.Supported(); err == nil {
 		gs, err := git.NewSource(git.Opt{
 			CacheAccessor: cm,
+			RegistryHosts: opt.RegistryHosts,
 		})
 		if err != nil {
 			return nil, err

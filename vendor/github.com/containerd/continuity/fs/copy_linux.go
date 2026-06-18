@@ -26,6 +26,122 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// maxCopyChunk is the maximum size passed to copy_file_range per call,
+// avoiding int overflow on 32-bit architectures.
+const maxCopyChunk = 1 << 30 // 1 GiB
+
+// copyFile copies a file from source to target preserving sparse file holes.
+//
+// If the filesystem does not support SEEK_DATA/SEEK_HOLE, it falls back
+// to a plain io.Copy.
+func copyFile(target, source string) error {
+	src, err := os.Open(source)
+	if err != nil {
+		return fmt.Errorf("failed to open source %s: %w", source, err)
+	}
+	defer src.Close()
+
+	fi, err := src.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat source %s: %w", source, err)
+	}
+	size := fi.Size()
+
+	tgt, err := os.Create(target)
+	if err != nil {
+		return fmt.Errorf("failed to open target %s: %w", target, err)
+	}
+	defer tgt.Close()
+
+	if err := tgt.Truncate(size); err != nil {
+		return fmt.Errorf("failed to truncate target %s: %w", target, err)
+	}
+
+	srcFd := int(src.Fd())
+
+	// Try a SEEK_DATA to check if the filesystem supports it.
+	// If not, fall back to a plain copy.
+	if _, err := unix.Seek(srcFd, 0, unix.SEEK_DATA); err != nil {
+		// ENXIO means no data in the file at all. In other words it's entirely sparse.
+		// The truncated target is already correct.
+		if errors.Is(err, syscall.ENXIO) {
+			return nil
+		}
+
+		if errors.Is(err, syscall.EOPNOTSUPP) || errors.Is(err, syscall.ENOTSUP) || errors.Is(err, syscall.EINVAL) {
+			// Filesystem doesn't support SEEK_DATA/SEEK_HOLE. Fall back to a plain copy.
+			src.Close()
+			tgt.Close()
+			return openAndCopyFile(target, source)
+		}
+
+		return fmt.Errorf("failed to seek data in source %s: %w", source, err)
+	}
+
+	// Copy data regions from source to target, skipping holes.
+	var offset int64
+	tgtFd := int(tgt.Fd())
+
+	for offset < size {
+		dataStart, err := unix.Seek(srcFd, offset, unix.SEEK_DATA)
+		if err != nil {
+			// No more data past offset. Remainder of file is a hole.
+			if errors.Is(err, syscall.ENXIO) {
+				break
+			}
+			return fmt.Errorf("SEEK_DATA failed at offset %d: %w", offset, err)
+		}
+
+		// Find the end of this data region (start of next hole).
+		holeStart, err := unix.Seek(srcFd, dataStart, unix.SEEK_HOLE)
+		if err != nil {
+			// ENXIO shouldn't happen after a successful SEEK_DATA, but
+			// treat it as data extending to end of file.
+			if errors.Is(err, syscall.ENXIO) {
+				holeStart = size
+			} else {
+				return fmt.Errorf("SEEK_HOLE failed at offset %d: %w", dataStart, err)
+			}
+		}
+
+		// Copy the data region [dataStart, holeStart).
+		srcOff := dataStart
+		tgtOff := dataStart
+		remain := holeStart - dataStart
+
+		for remain > 0 {
+			chunk := remain
+			if chunk > maxCopyChunk {
+				chunk = maxCopyChunk
+			}
+
+			n, err := unix.CopyFileRange(srcFd, &srcOff, tgtFd, &tgtOff, int(chunk), 0)
+			if err != nil {
+				// Fall back to a plain copy if copy_file_range is not supported
+				// across the source and target filesystems.
+				if errors.Is(err, syscall.EXDEV) || errors.Is(err, syscall.ENOSYS) || errors.Is(err, syscall.EOPNOTSUPP) {
+					src.Close()
+					tgt.Close()
+					return openAndCopyFile(target, source)
+				}
+				return fmt.Errorf("copy_file_range failed: %w", err)
+			}
+			if n == 0 {
+				return fmt.Errorf("copy_file_range returned 0 with %d bytes remaining", remain)
+			}
+			remain -= int64(n)
+		}
+
+		offset = holeStart
+	}
+
+	if err := tgt.Sync(); err != nil {
+		return fmt.Errorf("failed to sync target %s: %w", target, err)
+	}
+
+	return nil
+}
+
 func copyFileInfo(fi os.FileInfo, src, name string) error {
 	st := fi.Sys().(*syscall.Stat_t)
 	if err := os.Lchown(name, int(st.Uid), int(st.Gid)); err != nil {

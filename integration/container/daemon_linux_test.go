@@ -136,7 +136,6 @@ func TestDaemonRestartIpcMode(t *testing.T) {
 func TestDaemonHostGatewayIP(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, testEnv.IsRootless, "rootless mode has different view of network")
 	t.Parallel()
 
 	ctx := testutil.StartSpan(baseContext, t)

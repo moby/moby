@@ -6,16 +6,15 @@
 # External dependencies:
 # * newuidmap and newgidmap needs to be installed.
 # * /etc/subuid and /etc/subgid needs to be configured for the current user.
-# * Either one of slirp4netns (>= v0.4.0), VPNKit, lxc-user-nic needs to be installed.
 #
 # Recognized environment variables:
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR=DIR: the rootlesskit state dir.
 #   * Defaults to "$XDG_RUNTIME_DIR/dockerd-rootless".
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_NET=(slirp4netns|vpnkit|pasta|lxc-user-nic): the rootlesskit network driver.
-#   * Defaults to "slirp4netns" if slirp4netns (>= v0.4.0) is installed, else "pasta", else "vpnkit".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_NET=(slirp4netns|vpnkit|pasta|gvisor-tap-vsock|lxc-user-nic): the rootlesskit network driver.
+#   * Defaults to "slirp4netns" if slirp4netns (>= v0.4.0) is installed, else "pasta", else "vpnkit", else "gvisor-tap-vsock".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_MTU=NUM: the MTU value for the rootlesskit network driver.
-#   * Defaults to 65520 for slirp4netns and pasta, 1500 for other rootlesskit network drivers.
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=(builtin|slirp4netns|implicit): the rootlesskit port driver.
+#   * Defaults to 65520 for slirp4netns, pasta, and gvisor-tap-vsock. Defaults to 1500 for other rootlesskit network drivers.
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=(builtin|slirp4netns|implicit|gvisor-tap-vsock): the rootlesskit port driver.
 #   * Defaults to "implicit" for "pasta", "builtin" for other rootlesskit network drivers.
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX=(auto|true|false): whether to protect slirp4netns with a dedicated mount namespace.
 #   * Defaults to "auto".
@@ -23,6 +22,9 @@
 #   * Defaults to "auto".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_DISABLE_HOST_LOOPBACK=(true|false): prohibit connections to 127.0.0.1 on the host (including via 10.0.2.2, in the case of slirp4netns).
 #   * Defaults to "true".
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_DETACH_NETNS=(true|false): whether to launch rootlesskit with the "detach-netns" mode.
+#   The "detached-netns" mode accelerates `docker (pull|push|build)` and enables `docker run --net=host`
+#   Defaults to "true". Set this to false only when facing a compatibility issue.
 
 # To apply an environment variable via systemd, create ~/.config/systemd/user/docker.service.d/override.conf as follows,
 # and run `systemctl --user daemon-reload && systemctl --user restart docker`:
@@ -34,14 +36,18 @@
 
 # Guide to choose the network driver and the port driver:
 #
-#  Network driver | Port driver    | Net throughput | Port throughput | Src IP | No SUID | Note
-#  ---------------|----------------|----------------|-----------------|--------|---------|---------------------------------------------------------
-#  slirp4netns    | builtin        | Slow           | Fast ✅         | ❌     | ✅      | Default in typical setup
-#  vpnkit         | builtin        | Slow           | Fast ✅         | ❌     | ✅      | Default when slirp4netns is not installed
-#  slirp4netns    | slirp4netns    | Slow           | Slow            | ✅     | ✅      |
-#  pasta          | implicit       | Slow           | Fast ✅         | ✅     | ✅      | Experimental; Needs recent version of pasta (2023_12_04)
-#  lxc-user-nic   | builtin        | Fast ✅        | Fast ✅         | ❌     | ❌      | Experimental
-#  (bypass4netns) | (bypass4netns) | Fast ✅        | Fast ✅         | ✅     | ✅      | (Not integrated to RootlessKit)
+#  Network driver   | Port driver      | Net throughput | Port throughput | Src IP | No SUID | Note
+#  -----------------|------------------|----------------|-----------------|--------|---------|---------------------------------------------------------
+#  gvisor-tap-vsock | builtin          | Slow           | Fast ✅         | ✅ (*) | ✅      | Default when slirp4netns is not installed
+#  slirp4netns      | builtin          | Slow           | Fast ✅         | ✅ (*) | ✅      | Default when slirp4netns is installed
+#  vpnkit           | builtin          | Slow           | Fast ✅         | ✅ (*) | ✅      | Legacy
+#  gvisor-tap-vsock | gvisor-tap-vsock | Slow           | Slow            | ❌     | ✅      | Not recommended. Use `builtin` port driver instead.
+#  slirp4netns      | slirp4netns      | Slow           | Slow            | ✅     | ✅      |
+#  pasta            | implicit         | Slow           | Fast ✅         | ✅     | ✅      | Experimental; Needs recent version of pasta (2023_12_04)
+#  lxc-user-nic     | builtin          | Fast ✅        | Fast ✅         | ✅ (*) | ❌      | Experimental
+#  (bypass4netns)   | (bypass4netns)   | Fast ✅        | Fast ✅         | ✅     | ✅      | (Not integrated to RootlessKit)
+#
+# (*) Applicable since RootlessKit v3.0. Also requires userland-proxy to be disabled.
 
 # See the documentation for the further information: https://docs.docker.com/go/rootless/
 
@@ -111,6 +117,7 @@ fi
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX:=auto}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SECCOMP:=auto}"
 : "${DOCKERD_ROOTLESS_ROOTLESSKIT_DISABLE_HOST_LOOPBACK:=}"
+: "${DOCKERD_ROOTLESS_ROOTLESSKIT_DETACH_NETNS:=true}"
 net=$DOCKERD_ROOTLESS_ROOTLESSKIT_NET
 port_driver=$DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER
 mtu=$DOCKERD_ROOTLESS_ROOTLESSKIT_MTU
@@ -134,8 +141,7 @@ if [ -z "$net" ]; then
 		fi
 	fi
 	if [ -z "$net" ]; then
-		echo "One of slirp4netns (>= v0.4.0), pasta (passt >= 2023_12_04), or vpnkit needs to be installed"
-		exit 1
+		net=gvisor-tap-vsock
 	fi
 fi
 if [ "$net" = host ]; then
@@ -143,11 +149,14 @@ if [ "$net" = host ]; then
 	exit 1
 fi
 if [ -z "$mtu" ]; then
-	if [ "$net" = slirp4netns -o "$net" = pasta ]; then
-		mtu=65520
-	else
-		mtu=1500
-	fi
+	case "$net" in
+		slirp4netns | pasta | gvisor-tap-vsock)
+			mtu=65520
+			;;
+		*)
+			mtu=1500
+			;;
+	esac
 fi
 if [ -z "$port_driver" ]; then
 	if [ "$net" = pasta ]; then
@@ -177,6 +186,20 @@ if [ -z "$_DOCKERD_ROOTLESS_CHILD" ]; then
 		_DOCKERD_ROOTLESS_SELINUX=1
 		export _DOCKERD_ROOTLESS_SELINUX
 	fi
+
+	case "$DOCKERD_ROOTLESS_ROOTLESSKIT_DETACH_NETNS" in
+		1 | true)
+			DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS="--detach-netns $DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS"
+			;;
+		0 | false)
+			# NOP
+			;;
+		*)
+			echo "Unknown DOCKERD_ROOTLESS_ROOTLESSKIT_DETACH_NETNS value: $DOCKERD_ROOTLESS_ROOTLESSKIT_DETACH_NETNS"
+			exit 1
+			;;
+	esac
+
 	# Re-exec the script via RootlessKit, so as to create unprivileged {user,mount,network} namespaces.
 	#
 	# --copy-up allows removing/creating files in the directories by creating tmpfs and symlinks
@@ -214,13 +237,19 @@ else
 		mount_directory /etc/ssl "--rbind"
 	fi
 
+	netns="/proc/self/ns/net"
+	case "$DOCKERD_ROOTLESS_ROOTLESSKIT_DETACH_NETNS" in
+		1 | true)
+			netns="$ROOTLESSKIT_STATE_DIR/netns"
+			;;
+	esac
 	# When running with --firewall-backend=nftables, IP forwarding needs to be enabled
 	# because the daemon won't enable it. IP forwarding is harmless in the rootless
 	# netns, there's only a single external interface and only Docker uses the netns.
 	# So, always enable IPv4 and IPv6 forwarding. But ignore failure to enable IPv6
 	# forwarding, for hosts with IPv6 disabled.
-	sysctl -w net.ipv4.ip_forward=1
-	sysctl -w net.ipv6.conf.all.forwarding=1 || true
+	nsenter -n"$netns" sysctl -w net.ipv4.ip_forward=1
+	nsenter -n"$netns" sysctl -w net.ipv6.conf.all.forwarding=1 || true
 
 	exec "$dockerd" "$@"
 fi

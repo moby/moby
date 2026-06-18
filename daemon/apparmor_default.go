@@ -5,7 +5,7 @@ package daemon
 import (
 	"fmt"
 
-	"github.com/containerd/containerd/v2/pkg/apparmor"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	aaprofile "github.com/moby/profiles/apparmor"
 )
 
@@ -17,7 +17,7 @@ const (
 
 // DefaultApparmorProfile returns the name of the default apparmor profile
 func DefaultApparmorProfile() string {
-	if apparmor.HostSupports() {
+	if appArmorSupported() {
 		return defaultAppArmorProfile
 	}
 	return ""
@@ -50,5 +50,14 @@ func installDefaultAppArmorProfile() error {
 }
 
 func defaultAppArmorProfileSupported() bool {
-	return apparmor.HostSupports()
+	hostSupports := appArmorSupported()
+	if hostSupports {
+		if detachedNetNS, _ := rootless.DetachedNetNS(); detachedNetNS != "" {
+			// "open /sys/kernel/security/apparmor/profiles: permission denied"
+			// (because sysfs is netns-scoped)
+			hostSupports = false
+		}
+	}
+
+	return hostSupports
 }

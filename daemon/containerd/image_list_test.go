@@ -456,3 +456,52 @@ func TestImageList(t *testing.T) {
 		})
 	}
 }
+
+func TestComputeSharedSizeIncludesSharedContentBlobs(t *testing.T) {
+	sharedChainID := digest.FromString("shared-chain")
+	uniqueChainID := digest.FromString("unique-chain")
+
+	sharedBlob := ocispec.Descriptor{
+		Digest: digest.FromString("shared-blob"),
+		Size:   20,
+	}
+	uniqueBlob := ocispec.Descriptor{
+		Digest: digest.FromString("unique-blob"),
+		Size:   30,
+	}
+
+	sizeFn := func(d digest.Digest) (int64, error) {
+		switch d {
+		case sharedChainID:
+			return 100, nil
+		case uniqueChainID:
+			return 200, nil
+		default:
+			t.Fatalf("unexpected chainID: %s", d)
+			return 0, nil
+		}
+	}
+
+	sharedSize, err := computeSharedSize(
+		sharedSizeData{
+			chainIDs: []digest.Digest{sharedChainID, uniqueChainID},
+			content: []ocispec.Descriptor{
+				sharedBlob,
+				sharedBlob, // duplicate reference within the same image should not double count.
+				uniqueBlob,
+			},
+		},
+		map[digest.Digest]int{
+			sharedChainID: 2,
+			uniqueChainID: 1,
+		},
+		map[digest.Digest]int{
+			sharedBlob.Digest: 2,
+			uniqueBlob.Digest: 1,
+		},
+		sizeFn,
+	)
+
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(sharedSize, int64(120)))
+}

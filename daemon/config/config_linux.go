@@ -155,6 +155,7 @@ func setPlatformDefaults(cfg *Config) error {
 	}
 
 	var err error
+	cfg.BridgeConfig.EnableUserlandProxy = true
 	cfg.BridgeConfig.UserlandProxyPath, err = lookupBinPath(userlandProxyBinary)
 	if err != nil {
 		// Log, but don't error here. This allows running a daemon with

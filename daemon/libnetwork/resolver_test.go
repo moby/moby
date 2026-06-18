@@ -124,15 +124,12 @@ func waitForLocalDNSServer(t *testing.T) {
 		tconn, err := net.DialTimeout("tcp", "127.0.0.1:53", 10*time.Second)
 		retries = retries + 1
 		if err != nil {
-			if oerr, ok := err.(*net.OpError); ok {
+			if errors.Is(err, syscall.ECONNREFUSED) {
 				// server is probably initializing
-				if errors.Is(oerr.Err, syscall.ECONNREFUSED) {
-					continue
-				}
-			} else {
-				// something is wrong: we should stop for analysis
-				t.Fatal(err)
+				continue
 			}
+			// something is wrong: we should stop for analysis
+			t.Fatal(err)
 		}
 		if tconn != nil {
 			tconn.Close()

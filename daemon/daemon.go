@@ -40,6 +40,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/nri"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
+	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -244,6 +245,14 @@ func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string
 			if err != nil {
 				log.G(ctx).WithFields(log.Fields{"error": err, "container": id}).Error("Failed to load container")
 				return
+			}
+			if c.ProcessLabel != "" {
+				if err := selinux.ReserveLabelV2(c.ProcessLabel); err != nil {
+					// Don't treat this as a fatal error to preserve existing
+					// behavior, and because this is restoring existing state,
+					// so there's no practical way to resolve this.
+					log.G(ctx).WithFields(log.Fields{"error": err, "container": id}).Error("Failed to reserve SELinux label during load")
+				}
 			}
 
 			mapLock.Lock()

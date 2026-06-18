@@ -13,7 +13,8 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 )
 
-// FirewallBackend returns the name of the firewall backend for "docker info".
+// FirewallBackend returns FirewallInfo for "docker info".
+// Despite the name, FirewallInfo may include information about the userland proxy as well.
 func (c *Controller) FirewallBackend() *system.FirewallInfo {
 	var info system.FirewallInfo
 	info.Driver = "iptables"
@@ -24,6 +25,15 @@ func (c *Controller) FirewallBackend() *system.FirewallInfo {
 		info.Driver += "+firewalld"
 		if reloadedAt := iptables.FirewalldReloadedAt(); !reloadedAt.IsZero() {
 			info.Info = [][2]string{{"ReloadedAt", reloadedAt.Format(time.RFC3339)}}
+		}
+	}
+	if c.cfg.EnableUserlandProxy {
+		// EnableUserlandProxy is exposed in FirewallInfo since Docker v29.5.
+		// In older versions, EnableUserlandProxy is not included in FirewallInfo,
+		// but it is still used in most cases as it is enabled by default.
+		info.Info = append(info.Info, [2]string{"EnableUserlandProxy", "true"})
+		if c.cfg.UserlandProxyPath != "" {
+			info.Info = append(info.Info, [2]string{"UserlandProxyPath", c.cfg.UserlandProxyPath})
 		}
 	}
 	return &info

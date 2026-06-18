@@ -195,8 +195,6 @@ func TestImageImportBadSrc(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	skip.If(t, testEnv.IsRootless, "rootless daemon cannot access the test's HTTP server in the host's netns")
-
 	server := httptest.NewServer(nil)
 	defer server.Close()
 

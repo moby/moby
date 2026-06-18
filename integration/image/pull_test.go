@@ -121,7 +121,6 @@ func createTestImage(ctx context.Context, t testing.TB, store content.Store) oci
 func TestImagePullStoredDigestForOtherRepo(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "We don't run a test registry on Windows")
-	skip.If(t, testEnv.IsRootless, "Rootless has a different view of localhost (needed for test registry access)")
 	ctx := setupTest(t)
 
 	reg := registry.NewV2(t, registry.WithStdout(os.Stdout), registry.WithStderr(os.Stderr))

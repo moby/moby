@@ -25,38 +25,12 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 	if err != nil {
 		return nil, nil, err
 	}
-
-	ctr.Lock()
-
-	base, desiredMACAddress, err := daemon.getInspectData(&daemon.config().Config, ctr)
+	base, desiredMACAddress, err := daemon.containerInspect(&daemon.config().Config, ctr)
 	if err != nil {
-		ctr.Unlock()
-		return nil, nil, err
+		return base, desiredMACAddress, err
 	}
-
-	// TODO(thaJeztah): do we need a deep copy here? Otherwise we could use maps.Clone (see https://github.com/moby/moby/commit/7917a36cc787ada58987320e67cc6d96858f3b55)
-	ports := make(networktypes.PortMap, len(ctr.NetworkSettings.Ports))
-	maps.Copy(ports, ctr.NetworkSettings.Ports)
-
-	apiNetworks := make(map[string]*networktypes.EndpointSettings)
-	for nwName, epConf := range ctr.NetworkSettings.Networks {
-		if epConf.EndpointSettings != nil {
-			// We must make a copy of this pointer object otherwise it can race with other operations
-			apiNetworks[nwName] = epConf.EndpointSettings.Copy()
-		}
-	}
-
-	networkSettings := &containertypes.NetworkSettings{
-		SandboxID:  ctr.NetworkSettings.SandboxID,
-		SandboxKey: ctr.NetworkSettings.SandboxKey,
-		Ports:      ports,
-		Networks:   apiNetworks,
-	}
-
-	mountPoints := ctr.GetMountPoints()
 
 	// Don’t hold container lock for size calculation (see https://github.com/moby/moby/issues/31158)
-	ctr.Unlock()
 	if options.Size {
 		sizeRw, sizeRootFs, err := daemon.imageService.GetContainerLayerSize(ctx, base.ID)
 		if err != nil {
@@ -65,19 +39,38 @@ func (daemon *Daemon) ContainerInspect(ctx context.Context, name string, options
 		base.SizeRw = &sizeRw
 		base.SizeRootFs = &sizeRootFs
 	}
+	return base, desiredMACAddress, nil
+}
 
-	imageManifest := ctr.ImageManifest
-	if imageManifest != nil && imageManifest.Platform == nil {
-		// Copy the image manifest to avoid mutating the original
-		c := *imageManifest
-		imageManifest = &c
+func (daemon *Daemon) containerInspect(daemonCfg *config.Config, ctr *container.Container) (_ *containertypes.InspectResponse, desiredMACAddress networktypes.HardwareAddr, _ error) {
+	ctr.Lock()
+	defer ctr.Unlock()
 
-		imageManifest.Platform = &ctr.ImagePlatform
+	base, desiredMACAddress, err := daemon.getInspectData(daemonCfg, ctr)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	base.Mounts = mountPoints
-	base.NetworkSettings = networkSettings
-	base.ImageManifestDescriptor = imageManifest
+	if !daemon.UsesSnapshotter() {
+		if ctr.RWLayer == nil {
+			if ctr.State.Dead {
+				return base, desiredMACAddress, nil
+			}
+			return nil, nil, errdefs.System(errors.New("RWLayer of container " + ctr.ID + " is unexpectedly nil"))
+		}
+
+		graphDriverData, err := ctr.RWLayer.Metadata()
+		if err != nil {
+			if ctr.State.Dead {
+				// container is marked as Dead, and its graphDriver metadata may
+				// have been removed; we can ignore errors.
+				return base, desiredMACAddress, nil
+			}
+			return nil, nil, errdefs.System(err)
+		}
+
+		base.GraphDriver.Data = graphDriverData
+	}
 
 	return base, desiredMACAddress, nil
 }
@@ -154,6 +147,37 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 		Config:          ctr.Config,
 	}
 
+	// TODO(thaJeztah): do we need a deep copy here? Otherwise we could use maps.Clone (see https://github.com/moby/moby/commit/7917a36cc787ada58987320e67cc6d96858f3b55)
+	ports := make(networktypes.PortMap, len(ctr.NetworkSettings.Ports))
+	maps.Copy(ports, ctr.NetworkSettings.Ports)
+
+	apiNetworks := make(map[string]*networktypes.EndpointSettings)
+	for nwName, epConf := range ctr.NetworkSettings.Networks {
+		if epConf.EndpointSettings != nil {
+			// We must make a copy of this pointer object otherwise it can race with other operations
+			apiNetworks[nwName] = epConf.EndpointSettings.Copy()
+		}
+	}
+
+	inspectResponse.NetworkSettings = &containertypes.NetworkSettings{
+		SandboxID:  ctr.NetworkSettings.SandboxID,
+		SandboxKey: ctr.NetworkSettings.SandboxKey,
+		Ports:      ports,
+		Networks:   apiNetworks,
+	}
+	inspectResponse.Mounts = ctr.GetMountPoints()
+
+	imageManifest := ctr.ImageManifest
+	if imageManifest != nil && imageManifest.Platform == nil {
+		// Copy the image manifest to avoid mutating the original
+		c := *imageManifest
+		imageManifest = &c
+
+		imageManifest.Platform = &ctr.ImagePlatform
+	}
+
+	inspectResponse.ImageManifestDescriptor = imageManifest
+
 	if daemon.UsesSnapshotter() {
 		inspectResponse.Storage = &storage.Storage{
 			RootFS: &storage.RootFSStorage{
@@ -162,32 +186,11 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 				},
 			},
 		}
-
-		// Additional information only applies to graphDrivers, so we're done.
-		return inspectResponse, macAddress, nil
-	}
-
-	inspectResponse.GraphDriver = &storage.DriverData{
-		Name: ctr.Driver,
-	}
-	if ctr.RWLayer == nil {
-		if ctr.State.Dead {
-			return inspectResponse, macAddress, nil
+	} else {
+		inspectResponse.GraphDriver = &storage.DriverData{
+			Name: ctr.Driver,
 		}
-		return nil, nil, errdefs.System(errors.New("RWLayer of container " + ctr.ID + " is unexpectedly nil"))
 	}
-
-	graphDriverData, err := ctr.RWLayer.Metadata()
-	if err != nil {
-		if ctr.State.Dead {
-			// container is marked as Dead, and its graphDriver metadata may
-			// have been removed; we can ignore errors.
-			return inspectResponse, macAddress, nil
-		}
-		return nil, nil, errdefs.System(err)
-	}
-
-	inspectResponse.GraphDriver.Data = graphDriverData
 	return inspectResponse, macAddress, nil
 }
 

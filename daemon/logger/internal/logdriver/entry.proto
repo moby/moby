@@ -1,11 +1,17 @@
 syntax = "proto3";
 
+message LogAttr {
+	string key = 1;
+	string value = 2;
+}
+
 message LogEntry {
 	string source = 1;
 	int64 time_nano = 2;
 	bytes line = 3;
 	bool partial = 4;
 	PartialLogEntryMetadata partial_log_metadata = 5;
+	repeated LogAttr attrs = 6;
 }
 
 message PartialLogEntryMetadata {
@@ -13,4 +19,3 @@ message PartialLogEntryMetadata {
 	string id = 2;
 	int32 ordinal = 3;
 }
-

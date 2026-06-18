@@ -811,7 +811,7 @@ out2:
 				d.log.Logf("[%s] tried to interrupt daemon for %d times, now try to kill it", d.id, i)
 				break out2
 			}
-			d.log.Logf("[%d] attempt #%d/5: daemon is still running with pid %d", i, d.cmd.Process.Pid)
+			d.log.Logf("[%s] attempt #%d/5: daemon is still running with pid %d", d.id, i, d.cmd.Process.Pid)
 			if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
 				return errors.Wrapf(err, "[%s] attempt #%d/5 could not send signal", d.id, i)
 			}

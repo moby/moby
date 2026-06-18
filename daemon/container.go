@@ -25,7 +25,6 @@ import (
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/sys/signal"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 )
 
@@ -77,8 +76,6 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 	if err := ctr.FromDisk(); err != nil {
 		return nil, err
 	}
-	selinux.ReserveLabel(ctr.ProcessLabel)
-
 	if ctr.ID != id {
 		return ctr, fmt.Errorf("Container %s is stored at %s", ctr.ID, id)
 	}

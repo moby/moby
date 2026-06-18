@@ -4,7 +4,6 @@ import (
 	"context"
 
 	containerd "github.com/containerd/containerd/v2/client"
-	"github.com/containerd/containerd/v2/pkg/apparmor"
 	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
@@ -66,7 +65,7 @@ func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, daemonCfg *config.
 		}
 	}
 
-	if apparmor.HostSupports() {
+	if appArmorSupported() {
 		var appArmorProfile string
 		if ec.Container.AppArmorProfile != "" {
 			appArmorProfile = ec.Container.AppArmorProfile

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"runtime"
 	"sort"
 	"strings"
@@ -59,6 +60,12 @@ func (r byCreated) Len() int           { return len(r) }
 func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
+// sharedSizeData groups chainIDs and content descriptors for a single image.
+type sharedSizeData struct {
+	chainIDs []digest.Digest
+	content  []ocispec.Descriptor
+}
+
 // Images returns a filtered list of images.
 //
 // TODO(thaJeztah): verify behavior of `RepoDigests` and `RepoTags` for images without (untagged) or multiple tags; see https://github.com/moby/moby/issues/43861
@@ -76,21 +83,6 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 	imgs, err := i.images.List(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
-	snapshotter := i.snapshotterService(i.snapshotter)
-	sizeCache := make(map[digest.Digest]int64)
-	snapshotSizeFn := func(d digest.Digest) (int64, error) {
-		if s, ok := sizeCache[d]; ok {
-			return s, nil
-		}
-		usage, err := snapshotter.Usage(ctx, d.String())
-		if err != nil {
-			return 0, err
-		}
-		sizeCache[d] = usage.Size
-		return usage.Size, nil
 	}
 
 	uniqueImages := map[digest.Digest]c8dimages.Image{}
@@ -151,13 +143,15 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 	eg.SetLimit(runtime.NumCPU() * 2)
 
 	var (
-		summaries = make([]imagetypes.Summary, 0, len(imgs))
-		root      []*[]digest.Digest
-		layers    map[digest.Digest]int
+		summaries  = make([]imagetypes.Summary, 0, len(imgs))
+		sharedData []sharedSizeData
+		layers     map[digest.Digest]int
+		blobs      map[digest.Digest]int
 	)
 	if opts.SharedSize {
-		root = make([]*[]digest.Digest, 0, len(imgs))
+		sharedData = make([]sharedSizeData, 0, len(imgs))
 		layers = make(map[digest.Digest]int)
+		blobs = make(map[digest.Digest]int)
 	}
 
 	for _, img := range uniqueImages {
@@ -178,9 +172,21 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 			summaries = append(summaries, *image)
 
 			if opts.SharedSize {
-				root = append(root, &multiSummary.AllChainIDs)
+				sharedData = append(sharedData, sharedSizeData{
+					chainIDs: multiSummary.AllChainIDs,
+					content:  multiSummary.content,
+				})
 				for _, id := range multiSummary.AllChainIDs {
 					layers[id] = layers[id] + 1
+				}
+
+				seen := map[digest.Digest]struct{}{}
+				for _, desc := range multiSummary.content {
+					if _, ok := seen[desc.Digest]; ok {
+						continue
+					}
+					seen[desc.Digest] = struct{}{}
+					blobs[desc.Digest]++
 				}
 			}
 			resultsMut.Unlock()
@@ -193,8 +199,24 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 	}
 
 	if opts.SharedSize {
-		for n, chainIDs := range root {
-			sharedSize, err := computeSharedSize(*chainIDs, layers, snapshotSizeFn)
+		// TODO(thaJeztah): do we need to take multiple snapshotters into account? See https://github.com/moby/moby/issues/45273
+		snapshotter := i.snapshotterService(i.snapshotter)
+		sizeCache := make(map[digest.Digest]int64)
+		for n, data := range sharedData {
+			sharedSize, err := computeSharedSize(data, layers, blobs, func(d digest.Digest) (int64, error) {
+				if s, ok := sizeCache[d]; ok {
+					return s, nil
+				}
+				usage, err := snapshotter.Usage(ctx, d.String())
+				if err != nil {
+					if cerrdefs.IsNotFound(err) {
+						return 0, nil
+					}
+					return 0, err
+				}
+				sizeCache[d] = usage.Size
+				return usage.Size, nil
+			})
 			if err != nil {
 				return nil, err
 			}
@@ -230,6 +252,8 @@ type multiPlatformSummary struct {
 	BestPlatform ocispec.Platform
 
 	manifestIdentityRefs map[digest.Digest]manifestIdentityRef
+
+	content []ocispec.Descriptor
 }
 
 type manifestIdentityRef struct {
@@ -268,6 +292,7 @@ func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.I
 		var contentSize int64
 		if err := i.walkPresentChildren(ctx, target, func(ctx context.Context, desc ocispec.Descriptor) error {
 			contentSize += desc.Size
+			summary.content = append(summary.content, desc)
 			return nil
 		}); err == nil {
 			mfstSummary.Size.Content = contentSize
@@ -641,13 +666,26 @@ func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Ar
 			if err != nil {
 				return false
 			}
+			// Match the filter pattern against both the familiar and
+			// canonical forms of the image reference (with and
+			// without tag), so that e.g. "alpine" and
+			// "docker.io/library/alpine" (and their glob variants)
+			// both match.
+			targets := []string{
+				reference.FamiliarString(ref),
+				reference.FamiliarName(ref),
+				reference.TagNameOnly(ref).String(),
+				ref.Name(),
+			}
 			for _, value := range refs {
-				found, err := reference.FamiliarMatch(value, ref)
-				if err != nil {
-					return false
-				}
-				if found {
-					return found
+				for _, target := range targets {
+					matched, err := path.Match(value, target)
+					if err != nil {
+						return false
+					}
+					if matched {
+						return true
+					}
 				}
 			}
 			return false
@@ -782,9 +820,9 @@ func setupLabelFilter(ctx context.Context, store content.Store, fltrs filters.Ar
 	}, nil
 }
 
-func computeSharedSize(chainIDs []digest.Digest, layers map[digest.Digest]int, sizeFn func(d digest.Digest) (int64, error)) (int64, error) {
+func computeSharedSize(data sharedSizeData, layers map[digest.Digest]int, blobs map[digest.Digest]int, sizeFn func(d digest.Digest) (int64, error)) (int64, error) {
 	var sharedSize int64
-	for _, chainID := range chainIDs {
+	for _, chainID := range data.chainIDs {
 		if layers[chainID] == 1 {
 			continue
 		}
@@ -799,6 +837,21 @@ func computeSharedSize(chainIDs []digest.Digest, layers map[digest.Digest]int, s
 		}
 		sharedSize += size
 	}
+
+	seen := map[digest.Digest]struct{}{}
+	for _, desc := range data.content {
+		if blobs[desc.Digest] == 1 {
+			continue
+		}
+
+		if _, ok := seen[desc.Digest]; ok {
+			continue
+		}
+
+		seen[desc.Digest] = struct{}{}
+		sharedSize += desc.Size
+	}
+
 	return sharedSize, nil
 }
 

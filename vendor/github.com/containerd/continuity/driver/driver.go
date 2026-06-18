@@ -109,7 +109,7 @@ type LXAttrDriver interface {
 }
 
 type DeviceInfoDriver interface {
-	DeviceInfo(fi os.FileInfo) (maj uint64, min uint64, err error)
+	DeviceInfo(fi os.FileInfo) (major uint64, minor uint64, err error)
 }
 
 // driver is a simple default implementation that sends calls out to the "os"

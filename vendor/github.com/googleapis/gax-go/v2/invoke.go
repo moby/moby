@@ -77,7 +77,7 @@ func Sleep(ctx context.Context, d time.Duration) error {
 type sleeper func(ctx context.Context, d time.Duration) error
 
 // invoke implements Invoke, taking an additional sleeper argument for testing.
-func invoke(ctx context.Context, call APICall, settings CallSettings, sp sleeper) error {
+func invoke(ctx context.Context, call APICall, settings CallSettings, sp sleeper) (err error) {
 	var retryer Retryer
 
 	// Only use the value provided via WithTimeout if the context doesn't
@@ -89,6 +89,14 @@ func invoke(ctx context.Context, call APICall, settings CallSettings, sp sleeper
 		ctx = c
 	}
 
+	if IsFeatureEnabled("METRICS") {
+		start := time.Now()
+		ctx = InjectTransportTelemetry(ctx, &TransportTelemetryData{})
+		defer func() {
+			recordMetric(ctx, settings, time.Since(start), err)
+		}()
+	}
+
 	retryCount := 0
 	// Feature gate: GOOGLE_SDK_GO_EXPERIMENTAL_TRACING=true
 	tracingEnabled := IsFeatureEnabled("TRACING")
@@ -97,7 +105,7 @@ func invoke(ctx context.Context, call APICall, settings CallSettings, sp sleeper
 		if tracingEnabled {
 			ctxToUse = withRetryCount(ctx, retryCount)
 		}
-		err := call(ctxToUse, settings)
+		err = call(ctxToUse, settings)
 		if err == nil {
 			return nil
 		}

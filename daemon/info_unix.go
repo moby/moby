@@ -19,7 +19,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/pkg/sysinfo"
 	"github.com/pkg/errors"
-	rkclient "github.com/rootless-containers/rootlesskit/v2/pkg/api/client"
+	rkclient "github.com/rootless-containers/rootlesskit/v3/pkg/api/client"
 )
 
 // fillPlatformInfo fills the platform related info.

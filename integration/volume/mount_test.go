@@ -46,6 +46,7 @@ func TestRunMountVolumeSubdir(t *testing.T) {
 		{name: "subdir link", opts: mount.VolumeOptions{Subpath: "hack/good"}, cmd: []string{"ls", "/volume"}, expected: "hello.txt"},
 		{name: "subdir with copy data", opts: mount.VolumeOptions{Subpath: "bin"}, volumeTarget: "/bin", cmd: []string{"ls", "/bin/busybox"}, expected: "/bin/busybox", skipPlatform: "windows:copy not supported on Windows"},
 		{name: "file", opts: mount.VolumeOptions{Subpath: "bar.txt"}, cmd: []string{"cat", "/volume"}, expected: "foo", skipPlatform: "windows:file bind mounts not supported on Windows"},
+		{name: "file over existing target", opts: mount.VolumeOptions{Subpath: "file"}, volumeTarget: "/etc/localtime", cmd: []string{"cat", "/etc/localtime"}, expected: "from-volume", skipPlatform: "windows:file bind mounts not supported on Windows"},
 		{name: "relative with backtracks", opts: mount.VolumeOptions{Subpath: "../../../../../../etc/passwd"}, cmd: []string{"cat", "/volume"}, createErr: "subpath must be a relative path within the volume"},
 		{name: "not existing", opts: mount.VolumeOptions{Subpath: "not-existing-path"}, cmd: []string{"cat", "/volume"}, startErr: (&safepath.ErrNotAccessible{}).Error()},
 
@@ -131,6 +132,7 @@ func TestRunMountImage(t *testing.T) {
 		name         string
 		opts         mount.ImageOptions
 		cmd          []string
+		target       string
 		createErr    string
 		startErr     string
 		expected     string
@@ -143,6 +145,7 @@ func TestRunMountImage(t *testing.T) {
 		{name: "subdir link", opts: mount.ImageOptions{Subpath: "hack/good"}, cmd: []string{"ls", "/image"}, expected: "hello"},
 		{name: "subdir link outside context", opts: mount.ImageOptions{Subpath: "hack/bad"}, cmd: []string{"ls", "/image"}, startErr: (&safepath.ErrEscapesBase{}).Error()},
 		{name: "file", opts: mount.ImageOptions{Subpath: "subdir/hello"}, cmd: []string{"cat", "/image"}, expected: "world"},
+		{name: "file_over_existing_target", opts: mount.ImageOptions{Subpath: "subdir/hello"}, cmd: []string{"cat", "/etc/localtime"}, target: "/etc/localtime", expected: "world"},
 		{name: "relative with backtracks", opts: mount.ImageOptions{Subpath: "../../../../../../etc/passwd"}, cmd: []string{"cat", "/image"}, createErr: "subpath must be a relative path within the volume"},
 		{name: "not existing", opts: mount.ImageOptions{Subpath: "not-existing-path"}, cmd: []string{"cat", "/image"}, startErr: (&safepath.ErrNotAccessible{}).Error()},
 
@@ -163,12 +166,17 @@ func TestRunMountImage(t *testing.T) {
 				Cmd:   tc.cmd,
 			}
 
+			target := tc.target
+			if target == "" {
+				target = "/image"
+			}
+
 			hostCfg := containertypes.HostConfig{
 				Mounts: []mount.Mount{
 					{
 						Type:         mount.TypeImage,
 						Source:       testImage,
-						Target:       "/image",
+						Target:       target,
 						ImageOptions: &tc.opts,
 					},
 				},
@@ -239,6 +247,7 @@ func TestRunMountImage(t *testing.T) {
 // .
 // |-- bar.txt                        (file with "foo")
 // |-- bin                            (directory)
+// |-- file                           (file with "from-volume")
 // |-- subdir                         (directory)
 // |   |-- hello.txt                  (file with "world")
 // |-- hack                           (directory)
@@ -267,6 +276,7 @@ func setupTestVolume(t *testing.T, apiClient client.APIClient) string {
 	}
 
 	initCmd := "echo foo > /volume/bar.txt && " +
+		"echo from-volume > /volume/file && " +
 		"mkdir /volume/bin && " +
 		"mkdir /volume/subdir && " +
 		"echo world > /volume/subdir/hello.txt && " +

@@ -1,5 +1,11 @@
 # Changes
 
+## [0.19.0](https://github.com/googleapis/google-cloud-go/releases/tag/auth%2Fv0.19.0) (2026-03-23)
+
+### Features
+
+* add OpenTelemetry gRPC and HTTP wrappers for T4 tracing (#14133) ([d38abf9](https://github.com/googleapis/google-cloud-go/commit/d38abf988d4017b4832434abae9a90874bec5ce9))
+
 ## [0.18.2](https://github.com/googleapis/google-cloud-go/releases/tag/auth%2Fv0.18.2) (2026-02-13)
 
 ### Bug Fixes

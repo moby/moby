@@ -172,6 +172,10 @@ func splitSnapshotData(_ context.Context, m *raftpb.Message) []api.StreamRaftMes
 		}
 
 		raftMsg := *m
+		// Clone Snapshot so that re-slicing Snapshot.Data below
+		// does not mutate m.Snapshot.Data through the shared pointer.
+		snap := *m.Snapshot
+		raftMsg.Snapshot = &snap
 
 		// sub-slice for this snapshot chunk.
 		raftMsg.Snapshot.Data = m.Snapshot.Data[snapDataIndex : snapDataIndex+chunkSize]

@@ -483,6 +483,26 @@ func Git(url, fragment string, opts ...GitOption) State {
 		addCap(&gi.Constraints, pb.CapSourceGitMTime)
 	}
 
+	if gi.FetchByCommit {
+		attrs[pb.AttrGitFetchByCommit] = "true"
+		addCap(&gi.Constraints, pb.CapSourceGitFetchByCommit)
+	}
+	if gi.Bundle != "" {
+		attrs[pb.AttrGitBundle] = gi.Bundle
+		addCap(&gi.Constraints, pb.CapSourceGitBundle)
+	}
+	if gi.BundleOCISessionID != "" {
+		attrs[pb.AttrOCILayoutSessionID] = gi.BundleOCISessionID
+	}
+	if gi.BundleOCIStoreID != "" {
+		attrs[pb.AttrOCILayoutStoreID] = gi.BundleOCIStoreID
+	}
+
+	if gi.CheckoutBundle {
+		attrs[pb.AttrGitCheckoutBundle] = "true"
+		addCap(&gi.Constraints, pb.CapSourceGitCheckoutBundle)
+	}
+
 	addCap(&gi.Constraints, pb.CapSourceGit)
 
 	source := NewSource("git://"+id, attrs, gi.Constraints)
@@ -500,17 +520,22 @@ func (fn gitOptionFunc) SetGitOption(gi *GitInfo) {
 
 type GitInfo struct {
 	constraintsWrapper
-	KeepGitDir       bool
-	AuthTokenSecret  string
-	AuthHeaderSecret string
-	addAuthCap       bool
-	KnownSSHHosts    string
-	MountSSHSock     string
-	Checksum         string
-	Ref              string
-	SubDir           string
-	SkipSubmodules   bool
-	MTime            string
+	KeepGitDir         bool
+	AuthTokenSecret    string
+	AuthHeaderSecret   string
+	addAuthCap         bool
+	KnownSSHHosts      string
+	MountSSHSock       string
+	Checksum           string
+	Ref                string
+	SubDir             string
+	SkipSubmodules     bool
+	MTime              string
+	Bundle             string
+	BundleOCISessionID string
+	BundleOCIStoreID   string
+	CheckoutBundle     bool
+	FetchByCommit      bool
 }
 
 func GitRef(v string) GitOption {
@@ -574,6 +599,99 @@ func MountSSHSock(sshID string) GitOption {
 func GitChecksum(v string) GitOption {
 	return gitOptionFunc(func(gi *GitInfo) {
 		gi.Checksum = v
+	})
+}
+
+// GitFetchByCommit makes the git source trust the provided checksum as the
+// commit to fetch, without resolving the ref against the remote. The ref, if
+// set, is applied locally after the commit is fetched so that cache keys
+// still depend on it. This is useful when the remote ref may have moved
+// since the original resolution.
+//
+// Unqualified ref names are canonicalized to "refs/heads/<name>" to match
+// the normal path's cache keys for branches. Tags must be passed fully
+// qualified ("refs/tags/<name>").
+func GitFetchByCommit() GitOption {
+	return gitOptionFunc(func(gi *GitInfo) {
+		gi.FetchByCommit = true
+	})
+}
+
+// GitBundleInfo carries scheme-specific configuration for [GitBundleURL].
+// It is populated by [GitBundleOption] values and consumed by GitBundleURL.
+type GitBundleInfo struct {
+	// OCISessionID pins the OCI-layout bundle fetch to a specific client
+	// session. Only meaningful when the locator uses the
+	// "oci-layout+blob://" scheme.
+	OCISessionID string
+	// OCIStoreID overrides the OCI-layout store name derived from the
+	// bundle locator body. Only meaningful when the locator uses the
+	// "oci-layout+blob://" scheme.
+	OCIStoreID string
+}
+
+// GitBundleOption configures bundle-specific behavior for [GitBundleURL].
+type GitBundleOption interface {
+	SetGitBundleOption(*GitBundleInfo)
+}
+
+type gitBundleOptionFunc func(*GitBundleInfo)
+
+func (fn gitBundleOptionFunc) SetGitBundleOption(bi *GitBundleInfo) {
+	fn(bi)
+}
+
+// GitBundleURL configures the git source to import the commit history from a
+// pre-built git bundle instead of fetching from the upstream Git remote. The
+// locator must use one of the following schemes:
+//
+//	docker-image+blob://<registry-ref>@sha256:<digest>
+//	oci-layout+blob://<ref>@sha256:<digest>
+//
+// [GitChecksum] is required when GitBundleURL is used and the commit it
+// identifies must be reachable from a ref inside the bundle (i.e. the bundle
+// must contain that commit; BuildKit validates this after import). Auth and
+// SSH options are ignored in bundle mode. Submodules, if present, still fetch
+// from their own remotes. See [GitCheckoutBundle] for the checkout side; it
+// is mutually exclusive with [KeepGitDir] and [GitSubDir].
+//
+// Scheme-specific behavior can be tuned via [GitBundleOption] values, e.g.
+// [GitBundleOCIStore] for the "oci-layout+blob://" scheme.
+func GitBundleURL(locator string, opts ...GitBundleOption) GitOption {
+	bi := &GitBundleInfo{}
+	for _, o := range opts {
+		o.SetGitBundleOption(bi)
+	}
+	return gitOptionFunc(func(gi *GitInfo) {
+		gi.Bundle = locator
+		gi.BundleOCISessionID = bi.OCISessionID
+		gi.BundleOCIStoreID = bi.OCIStoreID
+	})
+}
+
+// GitBundleOCIStore configures the OCI-layout session and store id used to
+// resolve a bundle locator with the "oci-layout+blob://" scheme. When unset,
+// the locator body (the part before "@digest") is used as the store id and no
+// session is pinned. This mirrors [ImageBlobOCIStore] for regular OCI-layout
+// blobs.
+//
+// Only meaningful when passed to [GitBundleURL] together with a locator that
+// uses the "oci-layout+blob://" scheme.
+func GitBundleOCIStore(sessionID, storeID string) GitBundleOption {
+	return gitBundleOptionFunc(func(bi *GitBundleInfo) {
+		bi.OCISessionID = sessionID
+		bi.OCIStoreID = storeID
+	})
+}
+
+// GitCheckoutBundle produces a single-file git bundle at the checkout mount
+// root (filename "bundle") containing the resolved commit, instead of a
+// worktree. Mutually exclusive with [KeepGitDir] and [GitSubDir]. Submodules
+// are not included in the bundle. Pair with [GitBundleURL] to re-import the
+// bundle back into a later build.
+func GitCheckoutBundle() GitOption {
+	return gitOptionFunc(func(gi *GitInfo) {
+		gi.CheckoutBundle = true
 	})
 }
 

@@ -175,6 +175,24 @@ func TestAPIImagesFilters(t *testing.T) {
 			expectedImages:   1,
 			expectedRepoTags: 1,
 		},
+		{
+			name:             "canonical name without a tag",
+			filters:          make(client.Filters).Add("reference", "docker.io/library/utest"),
+			expectedImages:   1,
+			expectedRepoTags: 1,
+		},
+		{
+			name:             "canonical name with glob tag",
+			filters:          make(client.Filters).Add("reference", "docker.io/library/utest:*"),
+			expectedImages:   1,
+			expectedRepoTags: 1,
+		},
+		{
+			name:             "canonical namespaced name",
+			filters:          make(client.Filters).Add("reference", "docker.io/utest/docker"),
+			expectedImages:   1,
+			expectedRepoTags: 1,
+		},
 	}
 
 	for _, tc := range testcases {

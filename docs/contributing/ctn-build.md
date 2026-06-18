@@ -30,7 +30,7 @@ docker buildx bake binary-cross
 # build binaries for a specific platform
 docker buildx bake --set *.platform=linux/arm64
 
-# build "complete" binaries (including containerd, runc, vpnkit, etc.)
+# build "complete" binaries (including containerd, runc, etc.)
 docker buildx bake all
 
 # build "complete" binaries for all supported platforms

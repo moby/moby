@@ -37,9 +37,10 @@ type builtinPluginConfig struct {
 }
 
 type builtinPlugin struct {
-	stub   stub.Stub
-	logG   func(context.Context) *log.Entry
-	config builtinPluginConfig
+	stub         stub.Stub
+	logG         func(context.Context) *log.Entry
+	config       builtinPluginConfig
+	synchronized chan struct{}
 }
 
 // startBuiltinPlugin turns the test binary into an NRI plugin, or fails the test.
@@ -49,7 +50,8 @@ func startBuiltinPlugin(ctx context.Context, t *testing.T, cfg builtinPluginConf
 		logG: func(ctx context.Context) *log.Entry {
 			return log.G(ctx).WithField("nri-plugin", cfg.pluginIdx+"-"+cfg.pluginName)
 		},
-		config: cfg,
+		config:       cfg,
+		synchronized: make(chan struct{}),
 	}
 	stub, err := stub.New(p,
 		stub.WithOnClose(p.onClose),
@@ -61,6 +63,11 @@ func startBuiltinPlugin(ctx context.Context, t *testing.T, cfg builtinPluginConf
 	p.stub = stub
 	err = p.stub.Start(ctx)
 	assert.Assert(t, err)
+	select {
+	case <-p.synchronized:
+	case <-ctx.Done():
+		t.Fatalf("%v", ctx.Err())
+	}
 	return p.stub.Stop
 }
 
@@ -76,6 +83,11 @@ func (p *builtinPlugin) Configure(ctx context.Context, config, runtime, version 
 func (p *builtinPlugin) Synchronize(ctx context.Context, pods []*api.PodSandbox, containers []*api.Container) ([]*api.ContainerUpdate, error) {
 	p.logG(ctx).Infof("Synchronized state with the runtime (%d pods, %d containers)...",
 		len(pods), len(containers))
+	select {
+	case <-p.synchronized:
+	default:
+		close(p.synchronized)
+	}
 	return nil, nil
 }
 

@@ -105,6 +105,7 @@ func newV1() *SysInfo {
 		applyAppArmorInfo,
 		applySeccompInfo,
 		applyCgroupNsInfo,
+		applyTimeNsInfo,
 	}
 
 	sysInfo.cgMounts, err = findCgroupV1Mountpoints()
@@ -283,6 +284,11 @@ func applyCgroupNsInfo(info *SysInfo) {
 	info.CgroupNamespaces = cgroupnsSupported()
 }
 
+// applyTimeNsInfo adds whether time namespaces are supported to the info.
+func applyTimeNsInfo(info *SysInfo) {
+	info.TimeNamespaces = timeNsSupported()
+}
+
 // applySeccompInfo checks if Seccomp is supported, via CONFIG_SECCOMP.
 func applySeccompInfo(info *SysInfo) {
 	info.Seccomp = seccomp.IsEnabled()
@@ -301,6 +307,14 @@ func apparmorSupported() bool {
 // cgroupnsSupported adds whether cgroup namespaces are supported.
 func cgroupnsSupported() bool {
 	if _, err := os.Stat("/proc/self/ns/cgroup"); !os.IsNotExist(err) {
+		return true
+	}
+	return false
+}
+
+// timeNsSupported checks whether time namespaces are supported.
+func timeNsSupported() bool {
+	if _, err := os.Stat("/proc/self/ns/time"); !os.IsNotExist(err) {
 		return true
 	}
 	return false

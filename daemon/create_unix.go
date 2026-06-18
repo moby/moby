@@ -103,12 +103,20 @@ func (daemon *Daemon) populateVolume(ctx context.Context, c *container.Container
 		return err
 	}
 
-	if _, err := os.Stat(ctrDestPath); err != nil {
+	stat, err := os.Stat(ctrDestPath)
+	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
 		return err
 	}
+
+	// Volume population copies directory contents from the container image
+	// into the volume. This only applies when the source is a directory.
+	if !stat.IsDir() {
+		return nil
+	}
+
 	uid, gid := daemon.idMapping.RootPair()
 	volumePath, cleanup, err := mnt.Setup(ctx, c.MountLabel, idtools.Identity{UID: uid, GID: gid}, nil)
 	if err != nil {

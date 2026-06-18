@@ -1,3 +1,11 @@
+# v1.7.10 (2026-04-29)
+
+* **Dependency Update**: Update to smithy-go v1.25.1.
+
+# v1.7.9 (2026-04-17)
+
+* **Dependency Update**: Bump smithy-go to 1.25.0 to support endpointBdd trait
+
 # v1.7.8 (2026-03-23)
 
 * No change notes available for this release.

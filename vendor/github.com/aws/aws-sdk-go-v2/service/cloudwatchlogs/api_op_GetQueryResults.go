@@ -59,6 +59,13 @@ type GetQueryResultsInput struct {
 	// This member is required.
 	QueryId *string
 
+	// The maximum number of log events to return in the response. The maximum is
+	// 10,000 log events.
+	MaxItems *int32
+
+	// The token for the next set of items to return. The token expires after 1 hour.
+	NextToken *string
+
 	noSmithyDocumentSerde
 }
 
@@ -70,6 +77,11 @@ type GetQueryResultsOutput struct {
 	//
 	// [StartQuery]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_StartQuery.html
 	EncryptionKey *string
+
+	// If there are more log events remaining in the results, the response includes a
+	// nextToken . You can use this token in a subsequent GetQueryResults request to
+	// get the next set of results.
+	NextToken *string
 
 	// The query language used for this query. For more information about the query
 	// languages that CloudWatch Logs supports, see [Supported query languages].

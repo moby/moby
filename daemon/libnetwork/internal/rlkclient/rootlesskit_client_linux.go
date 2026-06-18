@@ -16,8 +16,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rootless-containers/rootlesskit/v2/pkg/api/client"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/port"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/api/client"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/port"
 )
 
 type PortDriverClient struct {
