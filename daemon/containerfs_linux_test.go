@@ -10,30 +10,36 @@ import (
 
 func TestCreateIfNotExists(t *testing.T) {
 	t.Run("directory", func(t *testing.T) {
-		toCreate := filepath.Join(t.TempDir(), "tocreate")
+		dir := t.TempDir()
+		root, err := os.OpenRoot(dir)
+		assert.NilError(t, err)
+		defer root.Close()
 
-		err := createIfNotExists(toCreate, true)
+		err = createIfNotExists(root, "tocreate", true)
 		assert.NilError(t, err)
 
-		fileinfo, err := os.Stat(toCreate)
+		fileinfo, err := os.Stat(filepath.Join(dir, "tocreate"))
 		assert.NilError(t, err, "Did not create destination")
 		assert.Assert(t, fileinfo.IsDir(), "Should have been a dir, seems it's not")
 
-		err = createIfNotExists(toCreate, true)
+		err = createIfNotExists(root, "tocreate", true)
 		assert.NilError(t, err, "Should not fail if already exists")
 	})
 	t.Run("file", func(t *testing.T) {
-		toCreate := filepath.Join(t.TempDir(), "file/to/create")
+		dir := t.TempDir()
+		root, err := os.OpenRoot(dir)
+		assert.NilError(t, err)
+		defer root.Close()
 
-		err := createIfNotExists(toCreate, false)
+		err = createIfNotExists(root, "file/to/create", false)
 		assert.NilError(t, err)
 
-		fileinfo, err := os.Stat(toCreate)
+		fileinfo, err := os.Stat(filepath.Join(dir, "file/to/create"))
 		assert.NilError(t, err, "Did not create destination")
 
 		assert.Assert(t, !fileinfo.IsDir(), "Should have been a file, but created a directory")
 
-		err = createIfNotExists(toCreate, true)
+		err = createIfNotExists(root, "file/to/create", false)
 		assert.NilError(t, err, "Should not fail if already exists")
 	})
 }

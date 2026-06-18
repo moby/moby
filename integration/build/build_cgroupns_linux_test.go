@@ -41,7 +41,7 @@ func getCgroupFromBuildOutput(buildOutput io.Reader) (string, error) {
 // Returns the container cgroup and daemon cgroup.
 func testBuildWithCgroupNs(ctx context.Context, t *testing.T, daemonNsMode string) (string, string) {
 	d := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode(daemonNsMode))
-	d.StartWithBusybox(ctx, t)
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	dockerfile := `
@@ -72,6 +72,8 @@ func TestCgroupNamespacesBuild(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
 
+	t.Parallel()
+
 	ctx := testutil.StartSpan(baseContext, t)
 
 	// When the daemon defaults to private cgroup namespaces, containers launched
@@ -84,6 +86,8 @@ func TestCgroupNamespacesBuildDaemonHostMode(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+
+	t.Parallel()
 
 	ctx := testutil.StartSpan(baseContext, t)
 

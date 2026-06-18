@@ -23,6 +23,8 @@ func TestNRIContainerCreateEnvVarMod(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start a separate daemon with NRI enabled on Windows")
 	skip.If(t, testEnv.IsRootless)
 
+	t.Parallel()
+
 	ctx := testutil.StartSpan(baseContext, t)
 
 	sockPath := filepath.Join(t.TempDir(), "nri.sock")
@@ -77,6 +79,8 @@ func TestNRIContainerCreateUnsupportedAdj(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start a separate daemon with NRI enabled on Windows")
 	skip.If(t, testEnv.IsRootless)
+
+	t.Parallel()
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -137,6 +141,8 @@ func TestNRIContainerCreateAddMount(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start a separate daemon with NRI enabled on Windows")
 	skip.If(t, testEnv.IsRootless)
+
+	t.Parallel()
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -257,6 +263,8 @@ func TestNRIReload(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start a separate daemon with NRI enabled on Windows")
 	skip.If(t, testEnv.IsRootless)
+
+	t.Parallel()
 
 	ctx := testutil.StartSpan(baseContext, t)
 

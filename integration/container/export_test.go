@@ -59,17 +59,19 @@ func TestExportContainerAfterDaemonRestart(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 
+	t.Parallel()
+
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t)
 	c := d.NewClientT(t)
 
-	d.StartWithBusybox(ctx, t)
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	ctrID := container.Create(ctx, t, c)
 
-	d.Restart(t)
+	d.Restart(t, "--iptables=false", "--ip6tables=false")
 
 	res, err := c.ContainerExport(ctx, ctrID, client.ContainerExportOptions{})
 	assert.NilError(t, err)

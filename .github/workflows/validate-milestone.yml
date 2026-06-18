@@ -24,14 +24,19 @@ jobs:
               repo: context.repo.repo,
               pull_number: context.payload.pull_request.number,
             });
+            core.info(`Modified files: ${files.map(f => f.filename).join(', ')}`);
+
             const touchesVersions = files.some(f => f.filename === 'releases/versions.yaml');
+            core.info(`Touches version: ${touchesVersions}`);
 
             // Use the PR's version when it bumps the file, base branch otherwise.
             // It's fine to trust the author in this case, it's not meant to be
             // a security gate, just a helpful check for maintainers.
             const ref = touchesVersions
               ? context.payload.pull_request.head.sha
-              : context.payload.pull_request.base.sha;
+              : context.payload.pull_request.base.ref;
+
+            core.info(`Base ref: ${ref}`);
 
             const resp = await github.rest.repos.getContent({
               owner: context.repo.owner,

@@ -98,14 +98,20 @@ func DeleteConntrackEntriesByPort(nlh nlwrap.Handle, proto types.Protocol, ports
 			}).Warn("Failed to delete conntrack state for port")
 			continue
 		}
-		if err := filter.AddIP(netlink.ConntrackOrigDstIP, port.HostIP); err != nil {
-			log.G(context.TODO()).WithFields(log.Fields{
-				"error":  err,
-				"hostIP": port.HostIP.String(),
-				"proto":  port.Proto.String(),
-				"port":   port.Port,
-			}).Warn("Failed to delete conntrack state for port")
-			continue
+		// Only filter by destination IP when the host IP is specified. When
+		// HostIP is 0.0.0.0 or ::, the binding applies to all interfaces, but
+		// conntrack entries record the actual interface IP, so filtering by the
+		// unspecified address would never match.
+		if !port.HostIP.IsUnspecified() {
+			if err := filter.AddIP(netlink.ConntrackOrigDstIP, port.HostIP); err != nil {
+				log.G(context.TODO()).WithFields(log.Fields{
+					"error":  err,
+					"hostIP": port.HostIP.String(),
+					"proto":  port.Proto.String(),
+					"port":   port.Port,
+				}).Warn("Failed to delete conntrack state for port")
+				continue
+			}
 		}
 
 		v4FlowPurged, err := nlh.ConntrackDeleteFilters(netlink.ConntrackTable, syscall.AF_INET, filter)

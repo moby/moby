@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
+	"strconv"
 
 	"github.com/containerd/log"
 	"github.com/moby/sys/mount"
@@ -91,10 +91,21 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 			if err := mount.MakeRSlave("/"); err != nil {
 				return err
 			}
+
+			root, err := os.OpenRoot(ctr.BaseFS)
+			if err != nil {
+				return fmt.Errorf("open container root: %w", err)
+			}
+			defer root.Close()
+
+			// TODO(vvoland): Refactor this after security release.
 			for _, m := range mounts {
-				dest, err := ctr.GetResourcePath(m.Destination)
+				// Destination is an absolute path within container
+				// filesystem. For the os.Root to work, we need to convert it
+				// to a path relative to root fs /
+				relDest, err := filepath.Rel("/", m.Destination)
 				if err != nil {
-					return err
+					return fmt.Errorf("make destination relative: %w", err)
 				}
 
 				var stat os.FileInfo
@@ -102,7 +113,7 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 				if err != nil {
 					return err
 				}
-				if err := createIfNotExists(dest, stat.IsDir()); err != nil {
+				if err := createIfNotExists(root, relDest, stat.IsDir()); err != nil {
 					return err
 				}
 
@@ -110,9 +121,7 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 				if m.NonRecursive {
 					bindMode = "bind"
 				}
-				writeMode := "ro"
 				if m.Writable {
-					writeMode = "rw"
 					if m.ReadOnlyNonRecursive {
 						return errors.New("options conflict: Writable && ReadOnlyNonRecursive")
 					}
@@ -122,6 +131,37 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 				}
 				if m.ReadOnlyNonRecursive && m.ReadOnlyForceRecursive {
 					return errors.New("options conflict: ReadOnlyNonRecursive && ReadOnlyForceRecursive")
+				}
+
+				// Open the mount target through os.Root so we have a
+				// file descriptor pinning the resolved inode. Using
+				// /proc/self/fd/<fd> as the mount target prevents any
+				// subsequent symlink swap from redirecting the mount.
+				targetFile, err := root.Open(relDest)
+				if err != nil {
+					return fmt.Errorf("open mount target %q: %w", m.Destination, err)
+				}
+				targetPath := "/proc/self/fd/" + strconv.FormatUint(uint64(targetFile.Fd()), 10)
+
+				// The kernel rejects remount and propagation-change syscalls
+				// when the target is a /proc/self/fd path. Only the initial
+				// bind mount works on such paths, so we perform that via the
+				// fd path for TOCTOU safety and then resolve the real path for
+				// the read-only remount and propagation change.
+				if err := mount.Mount(m.Source, targetPath, "", bindMode); err != nil {
+					targetFile.Close()
+					return err
+				}
+				realPath, err := os.Readlink(targetPath)
+				if err != nil {
+					targetFile.Close()
+					return fmt.Errorf("readlink %s: %w", targetPath, err)
+				}
+				if !m.Writable {
+					if err := mount.Mount("", realPath, "", "ro,remount,bind"); err != nil {
+						targetFile.Close()
+						return err
+					}
 				}
 
 				// openContainerFS() is called for temporary mounts
@@ -134,20 +174,21 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 				// all these mounts rprivate.  Do not use propagation
 				// property of volume as that should apply only when
 				// mounting happens inside the container.
-				opts := strings.Join([]string{bindMode, writeMode, "rprivate"}, ",")
-				if err := mount.Mount(m.Source, dest, "", opts); err != nil {
+				if err := mount.MakeRPrivate(realPath); err != nil {
+					targetFile.Close()
 					return err
 				}
 
 				if !m.Writable && !m.ReadOnlyNonRecursive {
-					if err := makeMountRRO(dest); err != nil {
+					if err := makeMountRRO(realPath); err != nil {
+						targetFile.Close()
 						if m.ReadOnlyForceRecursive {
 							return err
-						} else {
-							log.G(context.TODO()).WithError(err).Debugf("Failed to make %q recursively read-only", dest)
 						}
+						log.G(context.TODO()).WithError(err).Debugf("Failed to make %q recursively read-only", m.Destination)
 					}
 				}
+				targetFile.Close()
 			}
 
 			return mounttree.SwitchRoot(ctr.BaseFS)
@@ -254,24 +295,24 @@ func (vw *containerFSView) Stat(ctx context.Context, path string) (*containertyp
 }
 
 // createIfNotExists creates a file or a directory only if it does not already exist.
-func createIfNotExists(dest string, isDir bool) error {
-	if _, err := os.Stat(dest); err != nil {
-		// FIXME(thaJeztah): this ignores any other error (which may include "dest" is of the wrong type, or permission errors).
-		if os.IsNotExist(err) {
-			if isDir {
-				return os.MkdirAll(dest, 0o755)
-			}
-			if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-				return err
-			}
-			f, err := os.OpenFile(dest, os.O_CREATE, 0o755)
-			if err != nil {
-				return err
-			}
-			_ = f.Close()
+// The path is scoped to root using [os.Root] to prevent symlink escape attacks.
+func createIfNotExists(root *os.Root, unsafePath string, isDir bool) error {
+	if isDir {
+		return root.MkdirAll(unsafePath, 0o755)
+	}
+
+	parent := filepath.Dir(unsafePath)
+	if parent != "." && parent != "/" {
+		if err := root.MkdirAll(parent, 0o755); err != nil {
+			return err
 		}
 	}
-	return nil
+
+	f, err := root.OpenFile(unsafePath, os.O_CREATE|os.O_WRONLY, 0o755)
+	if err != nil {
+		return err
+	}
+	return f.Close()
 }
 
 // makeMountRRO makes the mount recursively read-only.

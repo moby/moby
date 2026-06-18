@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/moby/go-archive"
+	"github.com/moby/go-archive/compression"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
@@ -101,6 +102,15 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	container.Lock()
 	defer container.Unlock()
 
+	// Decompress the archive before switching into the container's
+	// filesystem to avoid executing decompression binaries (xz, unpigz)
+	// that may have been placed inside the container image.
+	decompressed, err := compression.DecompressStream(content)
+	if err != nil {
+		return err
+	}
+	defer decompressed.Close()
+
 	cfs, err := daemon.openContainerFS(container)
 	if err != nil {
 		return err
@@ -143,7 +153,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 			}
 		}
 
-		return archive.Untar(content, absPath, options)
+		return archive.UntarUncompressed(decompressed, absPath, options)
 	})
 	if err != nil {
 		return err

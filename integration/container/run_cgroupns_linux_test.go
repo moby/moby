@@ -18,7 +18,7 @@ func testRunWithCgroupNs(ctx context.Context, t *testing.T, daemonNsMode string,
 	d := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode(daemonNsMode))
 	apiClient := d.NewClientT(t)
 
-	d.StartWithBusybox(ctx, t)
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	cID := container.Run(ctx, t, apiClient, containerOpts...)
@@ -34,7 +34,7 @@ func testCreateFailureWithCgroupNs(ctx context.Context, t *testing.T, daemonNsMo
 	d := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode(daemonNsMode))
 	apiClient := d.NewClientT(t)
 
-	d.StartWithBusybox(ctx, t)
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 	_, err := container.CreateFromConfig(ctx, apiClient, container.NewTestConfig(containerOpts...))
 	assert.ErrorContains(t, err, errStr)
@@ -44,6 +44,8 @@ func TestCgroupNamespacesRun(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+
+	t.Parallel()
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -59,6 +61,8 @@ func TestCgroupNamespacesRunPrivileged(t *testing.T) {
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
 	skip.If(t, testEnv.DaemonInfo.CgroupVersion == "2", "on cgroup v2, privileged containers use private cgroupns")
 
+	t.Parallel()
+
 	ctx := testutil.StartSpan(baseContext, t)
 
 	// When the daemon defaults to private cgroup namespaces, privileged containers
@@ -71,6 +75,8 @@ func TestCgroupNamespacesRunDaemonHostMode(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+
+	t.Parallel()
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -85,6 +91,8 @@ func TestCgroupNamespacesRunHostMode(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
 
+	t.Parallel()
+
 	ctx := testutil.StartSpan(baseContext, t)
 
 	// When the daemon defaults to private cgroup namespaces, containers launched
@@ -97,6 +105,8 @@ func TestCgroupNamespacesRunPrivateMode(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+
+	t.Parallel()
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -111,6 +121,8 @@ func TestCgroupNamespacesRunPrivilegedAndPrivate(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
 
+	t.Parallel()
+
 	ctx := testutil.StartSpan(baseContext, t)
 
 	containerCgroup, daemonCgroup := testRunWithCgroupNs(ctx, t, "private", container.WithPrivileged(true), container.WithCgroupnsMode("private"))
@@ -121,6 +133,8 @@ func TestCgroupNamespacesRunInvalidMode(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+
+	t.Parallel()
 
 	ctx := testutil.StartSpan(baseContext, t)
 
@@ -136,12 +150,14 @@ func TestCgroupNamespacesRunOlderClient(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
 
+	t.Parallel()
+
 	ctx := testutil.StartSpan(baseContext, t)
 
 	d := daemon.New(t, daemon.WithEnvVars("DOCKER_MIN_API_VERSION=1.39"), daemon.WithDefaultCgroupNamespaceMode("private"))
 	apiClient := d.NewClientT(t, client.WithAPIVersion("1.39"))
 
-	d.StartWithBusybox(ctx, t)
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
 	defer d.Stop(t)
 
 	cID := container.Run(ctx, t, apiClient)
