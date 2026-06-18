@@ -12832,6 +12832,9 @@ func awsAwsjson11_deserializeOpErrorUpdateScheduledQuery(response *smithyhttp.Re
 	case strings.EqualFold("AccessDeniedException", errorCode):
 		return awsAwsjson11_deserializeErrorAccessDeniedException(response, errorBody)
 
+	case strings.EqualFold("ConflictException", errorCode):
+		return awsAwsjson11_deserializeErrorConflictException(response, errorBody)
+
 	case strings.EqualFold("InternalServerException", errorCode):
 		return awsAwsjson11_deserializeErrorInternalServerException(response, errorBody)
 
@@ -23677,6 +23680,15 @@ func awsAwsjson11_deserializeDocumentScheduledQuerySummary(v **types.ScheduledQu
 				sv.ScheduleExpression = ptr.String(jtv)
 			}
 
+		case "scheduleType":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected ScheduleType to be of type string, got %T instead", value)
+				}
+				sv.ScheduleType = types.ScheduleType(jtv)
+			}
+
 		case "state":
 			if value != nil {
 				jtv, ok := value.(string)
@@ -27351,6 +27363,19 @@ func awsAwsjson11_deserializeOpDocumentGetScheduledQueryOutput(v **GetScheduledQ
 				return err
 			}
 
+		case "endTimeOffset":
+			if value != nil {
+				jtv, ok := value.(json.Number)
+				if !ok {
+					return fmt.Errorf("expected EndTimeOffset to be json.Number, got %T instead", value)
+				}
+				i64, err := jtv.Int64()
+				if err != nil {
+					return err
+				}
+				sv.EndTimeOffset = ptr.Int64(i64)
+			}
+
 		case "executionRoleArn":
 			if value != nil {
 				jtv, ok := value.(string)
@@ -27469,6 +27494,15 @@ func awsAwsjson11_deserializeOpDocumentGetScheduledQueryOutput(v **GetScheduledQ
 					return err
 				}
 				sv.ScheduleStartTime = ptr.Int64(i64)
+			}
+
+		case "scheduleType":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected ScheduleType to be of type string, got %T instead", value)
+				}
+				sv.ScheduleType = types.ScheduleType(jtv)
 			}
 
 		case "startTimeOffset":
@@ -28752,6 +28786,19 @@ func awsAwsjson11_deserializeOpDocumentUpdateScheduledQueryOutput(v **UpdateSche
 				return err
 			}
 
+		case "endTimeOffset":
+			if value != nil {
+				jtv, ok := value.(json.Number)
+				if !ok {
+					return fmt.Errorf("expected EndTimeOffset to be json.Number, got %T instead", value)
+				}
+				i64, err := jtv.Int64()
+				if err != nil {
+					return err
+				}
+				sv.EndTimeOffset = ptr.Int64(i64)
+			}
+
 		case "executionRoleArn":
 			if value != nil {
 				jtv, ok := value.(string)
@@ -28870,6 +28917,15 @@ func awsAwsjson11_deserializeOpDocumentUpdateScheduledQueryOutput(v **UpdateSche
 					return err
 				}
 				sv.ScheduleStartTime = ptr.Int64(i64)
+			}
+
+		case "scheduleType":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected ScheduleType to be of type string, got %T instead", value)
+				}
+				sv.ScheduleType = types.ScheduleType(jtv)
 			}
 
 		case "startTimeOffset":

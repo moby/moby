@@ -36,6 +36,11 @@ type ListScheduledQueriesInput struct {
 	// The token for the next set of items to return. The token expires after 24 hours.
 	NextToken *string
 
+	// Filter scheduled queries by schedule type. Valid values are CUSTOMER_MANAGED
+	// and AWS_MANAGED . If not specified, scheduled queries of all schedule types are
+	// returned.
+	ScheduleType types.ScheduleType
+
 	// Filter scheduled queries by state. Valid values are ENABLED and DISABLED . If
 	// not specified, all scheduled queries are returned.
 	State types.ScheduledQueryState

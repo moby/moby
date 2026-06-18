@@ -8838,6 +8838,11 @@ func awsAwsjson11_serializeOpDocumentCreateScheduledQueryInput(v *CreateSchedule
 		}
 	}
 
+	if v.EndTimeOffset != nil {
+		ok := object.Key("endTimeOffset")
+		ok.Long(*v.EndTimeOffset)
+	}
+
 	if v.ExecutionRoleArn != nil {
 		ok := object.Key("executionRoleArn")
 		ok.String(*v.ExecutionRoleArn)
@@ -10333,6 +10338,11 @@ func awsAwsjson11_serializeOpDocumentListScheduledQueriesInput(v *ListScheduledQ
 		ok.String(*v.NextToken)
 	}
 
+	if len(v.ScheduleType) > 0 {
+		ok := object.Key("scheduleType")
+		ok.String(string(v.ScheduleType))
+	}
+
 	if len(v.State) > 0 {
 		ok := object.Key("state")
 		ok.String(string(v.State))
@@ -11251,6 +11261,11 @@ func awsAwsjson11_serializeOpDocumentUpdateScheduledQueryInput(v *UpdateSchedule
 		if err := awsAwsjson11_serializeDocumentDestinationConfiguration(v.DestinationConfiguration, ok); err != nil {
 			return err
 		}
+	}
+
+	if v.EndTimeOffset != nil {
+		ok := object.Key("endTimeOffset")
+		ok.Long(*v.EndTimeOffset)
 	}
 
 	if v.ExecutionRoleArn != nil {

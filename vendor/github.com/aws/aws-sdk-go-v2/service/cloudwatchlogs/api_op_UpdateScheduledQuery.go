@@ -63,6 +63,10 @@ type UpdateScheduledQueryInput struct {
 	// The updated configuration for where to deliver query results.
 	DestinationConfiguration *types.DestinationConfiguration
 
+	// The updated time offset in seconds that defines the end of the lookback period
+	// for the query.
+	EndTimeOffset *int64
+
 	// The updated array of log group names or ARNs to query.
 	LogGroupIdentifiers []string
 
@@ -96,6 +100,9 @@ type UpdateScheduledQueryOutput struct {
 	// The destination configuration of the updated scheduled query.
 	DestinationConfiguration *types.DestinationConfiguration
 
+	// The end time offset in seconds of the updated scheduled query.
+	EndTimeOffset *int64
+
 	// The execution role ARN of the updated scheduled query.
 	ExecutionRoleArn *string
 
@@ -128,6 +135,9 @@ type UpdateScheduledQueryOutput struct {
 
 	// The start time of the updated scheduled query.
 	ScheduleStartTime *int64
+
+	// The schedule type of the updated scheduled query.
+	ScheduleType types.ScheduleType
 
 	// The ARN of the updated scheduled query.
 	ScheduledQueryArn *string
