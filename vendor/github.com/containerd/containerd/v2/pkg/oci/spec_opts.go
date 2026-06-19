@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"math"
 	"os"
@@ -1821,10 +1822,13 @@ type readLinker interface {
 // openUserFile attempts to open a file within the root fs.
 // It handles cases where the file is an absolute symlink (e.g., NixOS /etc/passwd -> /nix/store/...),
 // which triggers "path escapes from parent" errors in Go 1.24+ due to stricter os.DirFS validation.
+//
+// The returned file rejects non-regular sources and returns an error if more
+// than maxUserFileBytes are read from it.
 func openUserFile(root fs.FS, name string) (fs.File, error) {
 	f, err := root.Open(name)
 	if err == nil {
-		return f, nil
+		return wrapUserFile(f, name)
 	}
 
 	// Check if the FS implements our local ReadLink interface.
@@ -1841,7 +1845,11 @@ func openUserFile(root fs.FS, name string) (fs.File, error) {
 				if rerr == nil {
 					// filepath.Rel might return OS-specific separators (backslashes on Windows).
 					// fs.Open strictly expects forward slashes, so we convert it.
-					return root.Open(filepath.ToSlash(rel))
+					f, oerr := root.Open(filepath.ToSlash(rel))
+					if oerr != nil {
+						return nil, oerr
+					}
+					return wrapUserFile(f, name)
 				}
 			}
 		}
@@ -1849,4 +1857,48 @@ func openUserFile(root fs.FS, name string) (fs.File, error) {
 
 	// Return the original error if we couldn't resolve it
 	return nil, err
+}
+
+// maxUserFileBytes caps how much data is read from any user-database file
+// opened via openUserFile. Real systems keep these files well under 1 MiB;
+// 10 MiB is generous headroom while keeping peak memory during
+// user.ParsePasswd/ParseGroup bounded to single-digit MiB.
+const maxUserFileBytes = 10 << 20
+
+// wrapUserFile rejects non-regular sources and returns an fs.File that
+// errors out if more than maxUserFileBytes are read from it.
+func wrapUserFile(f fs.File, name string) (fs.File, error) {
+	info, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return nil, fmt.Errorf("stat %s: %w", name, err)
+	}
+	if !info.Mode().IsRegular() {
+		f.Close()
+		return nil, fmt.Errorf("%s is not a regular file", name)
+	}
+	return &limitedFile{
+		File: f,
+		// Allow one byte past the cap so an overflow surfaces as an
+		// error rather than a silent EOF that the parser would treat as
+		// a clean end-of-file (and miss any entries past the cap).
+		r:    &io.LimitedReader{R: f, N: maxUserFileBytes + 1},
+		name: name,
+	}, nil
+}
+
+// limitedFile is an fs.File whose Read returns an error once more than
+// maxUserFileBytes have been read.
+type limitedFile struct {
+	fs.File
+	r    *io.LimitedReader
+	name string
+}
+
+func (l *limitedFile) Read(p []byte) (int, error) {
+	n, err := l.r.Read(p)
+	if l.r.N == 0 {
+		return n, fmt.Errorf("%q exceeds %d bytes", l.name, maxUserFileBytes)
+	}
+	return n, err
 }
