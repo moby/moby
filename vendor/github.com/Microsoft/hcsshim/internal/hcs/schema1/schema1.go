@@ -221,6 +221,7 @@ type GuestDefinedCapabilities struct {
 	DumpStacksSupported           bool `json:",omitempty"`
 	DeleteContainerStateSupported bool `json:",omitempty"`
 	UpdateContainerSupported      bool `json:",omitempty"`
+	LogForwardingSupported        bool `json:",omitempty"`
 }
 
 // GuestConnectionInfo is the structure of an iterm return by a GuestConnection call on a utility VM

@@ -1,0 +1,39 @@
+/*
+	Copyright The containerd Authors.
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+		http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+syntax = "proto3";
+
+
+package containerd.types.transfer;
+
+option go_package = "github.com/containerd/containerd/api/types/transfer";
+
+// ContainerPath represents a path within an active container's
+// filesystem. It acts as either a source or destination in a transfer
+// operation, identifying the container and path for archive operations.
+message ContainerPath {
+	string container_id = 1;
+	string path = 2;
+
+	// When true and path is a directory, return only the directory entry
+	// itself without walking into its contents. This is useful for
+	// stat-like operations where only the directory's metadata is needed.
+	bool no_walk = 3;
+
+	// When true, preserve the UID/GID from tar headers when extracting
+	// files. When false, extracted files are owned by the extracting
+	// process.
+	bool preserve_ownership = 4;
+}

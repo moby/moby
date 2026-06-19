@@ -180,7 +180,7 @@ func (c *Client) LoadSandbox(ctx context.Context, id string) (Sandbox, error) {
 type NewSandboxOpts func(ctx context.Context, client *Client, sandbox *api.Sandbox) error
 
 // WithSandboxRuntime allows a user to specify the runtime to be used to run a sandbox
-func WithSandboxRuntime(name string, options interface{}) NewSandboxOpts {
+func WithSandboxRuntime(name string, options any) NewSandboxOpts {
 	return func(ctx context.Context, client *Client, s *api.Sandbox) error {
 		if options == nil {
 			options = &types.Empty{}
@@ -220,7 +220,7 @@ func WithSandboxSpec(s *oci.Spec, opts ...oci.SpecOpts) NewSandboxOpts {
 }
 
 // WithSandboxExtension attaches an extension to sandbox
-func WithSandboxExtension(name string, extension interface{}) NewSandboxOpts {
+func WithSandboxExtension(name string, extension any) NewSandboxOpts {
 	return func(ctx context.Context, client *Client, s *api.Sandbox) error {
 		if s.Extensions == nil {
 			s.Extensions = make(map[string]typeurl.Any)

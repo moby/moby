@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/containerd/containerd/api/types"
@@ -89,12 +90,7 @@ func CanonicalizePath(path string) (string, error) {
 // ReadOnly returns a boolean value indicating whether this mount has the "ro"
 // option set.
 func (m *Mount) ReadOnly() bool {
-	for _, option := range m.Options {
-		if option == "ro" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(m.Options, "ro")
 }
 
 // Mount to the provided target path.
@@ -129,24 +125,35 @@ func readonlyMounts(mounts []Mount) []Mount {
 // readonlyOverlay takes mount options for overlay mounts and makes them readonly by
 // removing workdir and upperdir (and appending the upperdir layer to lowerdir) - see:
 // https://www.kernel.org/doc/html/latest/filesystems/overlayfs.html#multiple-lower-layers
+// It also strips the uidmap/gidmap options to avoid needlessly doing an idmap of this
+// temporary mount
 func readonlyOverlay(opt []string) []string {
 	out := make([]string, 0, len(opt))
 	upper := ""
 	for _, o := range opt {
-		if strings.HasPrefix(o, "upperdir=") {
-			upper = strings.TrimPrefix(o, "upperdir=")
-		} else if !strings.HasPrefix(o, "workdir=") {
+		if after, ok := strings.CutPrefix(o, "upperdir="); ok {
+			upper = after
+		} else if !isSkippedReadonlyOption(o) {
 			out = append(out, o)
 		}
 	}
 	if upper != "" {
 		for i, o := range out {
-			if strings.HasPrefix(o, "lowerdir=") {
-				out[i] = "lowerdir=" + upper + ":" + strings.TrimPrefix(o, "lowerdir=")
+			if after, ok := strings.CutPrefix(o, "lowerdir="); ok {
+				out[i] = "lowerdir=" + upper + ":" + after
 			}
 		}
 	}
 	return out
+}
+
+// isSkippedReadonlyOption takes an overlayfs option string and returns
+// true if such an option should be skipped when converting the mount
+// to a readonly mount
+func isSkippedReadonlyOption(o string) bool {
+	return strings.HasPrefix(o, "workdir=") ||
+		strings.HasPrefix(o, "uidmap=") ||
+		strings.HasPrefix(o, "gidmap=")
 }
 
 // ToProto converts from [Mount] to the containerd

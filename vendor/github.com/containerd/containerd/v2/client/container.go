@@ -34,7 +34,6 @@ import (
 	"github.com/containerd/typeurl/v2"
 	ver "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/opencontainers/selinux/go-selinux/label"
 
 	"github.com/containerd/containerd/v2/core/containers"
 	"github.com/containerd/containerd/v2/core/images"
@@ -271,6 +270,8 @@ func (c *container) NewTask(ctx context.Context, ioCreate cio.Creator, opts ...N
 		})
 	}
 	request.RuntimePath = info.RuntimePath
+	request.TaskApiAddress = info.taskAPIAddress
+	request.TaskApiVersion = info.taskAPIVersion
 	if info.Options != nil {
 		o, err := typeurl.MarshalAny(info.Options)
 		if err != nil {
@@ -350,9 +351,8 @@ func (c *container) handleMounts(ctx context.Context, request *tasks.CreateTaskR
 		}
 		for _, m := range mounts {
 			if spec.Linux != nil && spec.Linux.MountLabel != "" {
-				if ml := label.FormatMountLabel("", spec.Linux.MountLabel); ml != "" {
-					m.Options = append(m.Options, ml)
-				}
+				ml := fmt.Sprintf("context=%q", spec.Linux.MountLabel)
+				m.Options = append(m.Options, ml)
 			}
 			request.Rootfs = append(request.Rootfs, &types.Mount{
 				Type:    m.Type,

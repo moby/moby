@@ -8,6 +8,7 @@ package winapi
 
 //sys NtOpenDirectoryObject(handle *uintptr, accessMask uint32, oa *ObjectAttributes) (status uint32) = ntdll.NtOpenDirectoryObject
 //sys NtQueryDirectoryObject(handle uintptr, buffer *byte, length uint32, singleEntry bool, restartScan bool, context *uint32, returnLength *uint32)(status uint32) = ntdll.NtQueryDirectoryObject
+//sys NtFsControlFile(file windows.Handle, event windows.Handle, apcRoutine uintptr, apcCtx uintptr, iosb *IOStatusBlock, fsControlCode uint32, in []byte, out []byte) (status uint32) = ntdll.NtFsControlFile
 
 const (
 	FileLinkInformationClass          = 11

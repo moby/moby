@@ -92,7 +92,10 @@ func (m *Mount) mount(target string) (err error) {
 		options   = m.Options
 	)
 
-	opt := parseMountOptions(options)
+	opt, err := parseMountOptions(options)
+	if err != nil {
+		return err
+	}
 	// The only remapping of both GID and UID is supported
 	if opt.uidmap != "" && opt.gidmap != "" {
 		if usernsFd, err = GetUsernsFD(opt.uidmap, opt.gidmap); err != nil {
@@ -116,7 +119,10 @@ func (m *Mount) mount(target string) (err error) {
 			if optionsSize(options) >= pagesize-512 {
 				recalcOpt = true
 			} else {
-				opt = parseMountOptions(options)
+				opt, err = parseMountOptions(options)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -129,7 +135,10 @@ func (m *Mount) mount(target string) (err error) {
 		// recalculate opt in case of lowerdirs have been replaced
 		// by idmapped ones OR idmapped mounts' not used/supported.
 		if recalcOpt || (opt.uidmap == "" || opt.gidmap == "") {
-			opt = parseMountOptions(options)
+			opt, err = parseMountOptions(options)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -265,11 +274,12 @@ func doPrepareIDMappedOverlay(tmpDir string, lowerDirs []string, usernsFd int) (
 	if err := IDMapMountWithAttrs(commonDir, tempRemountsLocation, usernsFd, unix.MOUNT_ATTR_RDONLY, 0); err != nil {
 		return nil, nil, err
 	}
+
 	cleanMount := func() {
 		// Use the Unmount helper that does retries because there can be easily an open fd
 		// to the idmapped directory and when containerd forks to create a userns fd (maybe
 		// for another container), it will make the mount busy for a few ms.
-		err := Unmount(tempRemountsLocation, 0)
+		err := UnmountRecursive(tempRemountsLocation, 0)
 		if err != nil {
 			log.L.WithError(err).Warnf("failed to unmount idmapped directory %s: %v", tempRemountsLocation, err)
 		}
@@ -324,7 +334,7 @@ func buildIDMappedPaths(lowerDirs []string, commonDir, idMappedDir string) []str
 
 // parseMountOptions takes fstab style mount options and parses them for
 // use with a standard mount() syscall
-func parseMountOptions(options []string) (opt mountOpt) {
+func parseMountOptions(options []string) (opt mountOpt, err error) {
 	loopOpt := "loop"
 	flagsMap := map[string]struct {
 		clear bool
@@ -357,6 +367,11 @@ func parseMountOptions(options []string) (opt mountOpt) {
 		"sync":          {false, unix.MS_SYNCHRONOUS},
 	}
 	for _, o := range options {
+		// X-containerd.* options are internal mount options that should be processed
+		// by the mount manager before reaching this layer.
+		if strings.HasPrefix(o, "X-containerd.") {
+			return opt, fmt.Errorf("internal mount option %q was not consumed by the mount manager", o)
+		}
 		// If the option does not exist in the flags table or the flag
 		// is not supported on the platform,
 		// then it is a data value for a specific fs type
@@ -368,10 +383,10 @@ func parseMountOptions(options []string) (opt mountOpt) {
 			}
 		} else if o == loopOpt {
 			opt.losetup = true
-		} else if strings.HasPrefix(o, "uidmap=") {
-			opt.uidmap = strings.TrimPrefix(o, "uidmap=")
-		} else if strings.HasPrefix(o, "gidmap=") {
-			opt.gidmap = strings.TrimPrefix(o, "gidmap=")
+		} else if after, ok := strings.CutPrefix(o, "uidmap="); ok {
+			opt.uidmap = after
+		} else if after, ok := strings.CutPrefix(o, "gidmap="); ok {
+			opt.gidmap = after
 		} else {
 			opt.data = append(opt.data, o)
 		}
@@ -551,7 +566,7 @@ func (m *Mount) mountWithHelper(helperBinary, typePrefix, target string) error {
 	// cmd.CombinedOutput() may intermittently return ECHILD because of our signal handling in shim.
 	// See #4387 and wait(2).
 	const retriesOnECHILD = 10
-	for i := 0; i < retriesOnECHILD; i++ {
+	for range retriesOnECHILD {
 		cmd := exec.Command(helperBinary, args...)
 		out, err := cmd.CombinedOutput()
 		if err == nil {
