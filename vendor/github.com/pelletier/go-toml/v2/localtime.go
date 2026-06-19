@@ -62,7 +62,7 @@ func (d LocalTime) String() string {
 	} else if d.Nanosecond > 0 {
 		// Nanoseconds are specified, but precision is not provided. Use the
 		// minimum.
-		s += strings.Trim(fmt.Sprintf(".%09d", d.Nanosecond), "0")
+		s += strings.TrimRight(fmt.Sprintf(".%09d", d.Nanosecond), "0")
 	}
 
 	return s
@@ -77,7 +77,7 @@ func (d LocalTime) MarshalText() ([]byte, error) {
 func (d *LocalTime) UnmarshalText(b []byte) error {
 	res, left, err := parseLocalTime(b)
 	if err == nil && len(left) != 0 {
-		err = unstable.NewParserError(left, "extra characters")
+		err = unstable.NewParserError(left, "extra characters at the end of a local time")
 	}
 	if err != nil {
 		return err
@@ -111,12 +111,11 @@ func (d LocalDateTime) MarshalText() ([]byte, error) {
 func (d *LocalDateTime) UnmarshalText(data []byte) error {
 	res, left, err := parseLocalDateTime(data)
 	if err == nil && len(left) != 0 {
-		err = unstable.NewParserError(left, "extra characters")
+		err = unstable.NewParserError(left, "extra characters at the end of a local date time")
 	}
 	if err != nil {
 		return err
 	}
-
 	*d = res
 	return nil
 }

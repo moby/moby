@@ -79,5 +79,5 @@ func (k Kind) String() string {
 	case DateTime:
 		return "DateTime"
 	}
-	panic(fmt.Errorf("Kind.String() not implemented for '%d'", k))
+	panic(fmt.Errorf("Kind.String() not implemented for kind %d", int(k)))
 }

@@ -12,25 +12,33 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
-	"unicode"
-
-	"github.com/pelletier/go-toml/v2/internal/characters"
+	"unicode/utf8"
 )
 
 // Marshal serializes a Go value as a TOML document.
 //
 // It is a shortcut for Encoder.Encode() with the default options.
 func Marshal(v interface{}) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := NewEncoder(&buf)
+	enc := Encoder{indentSymbol: "  "}
 
-	err := enc.Encode(v)
+	e := encoderStatePool.Get().(*encoderState)
+	e.Encoder = &enc
+	e.buf = e.buf[:0]
+	e.keyStack = e.keyStack[:0]
+	e.lastWasHeader = false
+
+	err := e.encodeRoot(v)
 	if err != nil {
+		encoderStatePool.Put(e)
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	out := make([]byte, len(e.buf))
+	copy(out, e.buf)
+	encoderStatePool.Put(e)
+	return out, nil
 }
 
 // Encoder writes a TOML document to an output stream.
@@ -56,8 +64,8 @@ func NewEncoder(w io.Writer) *Encoder {
 
 // SetTablesInline forces the encoder to emit all tables inline.
 //
-// This behavior can be controlled on an individual struct field basis with the
-// inline tag:
+// This behavior can be controlled on an individual struct field basis with
+// the inline tag:
 //
 //	MyField `toml:",inline"`
 func (enc *Encoder) SetTablesInline(inline bool) *Encoder {
@@ -65,10 +73,11 @@ func (enc *Encoder) SetTablesInline(inline bool) *Encoder {
 	return enc
 }
 
-// SetArraysMultiline forces the encoder to emit all arrays with one element per
-// line.
+// SetArraysMultiline forces the encoder to emit all arrays with one element
+// per line.
 //
-// This behavior can be controlled on an individual struct field basis with the multiline tag:
+// This behavior can be controlled on an individual struct field basis with
+// the multiline tag:
 //
 //	MyField `multiline:"true"`
 func (enc *Encoder) SetArraysMultiline(multiline bool) *Encoder {
@@ -119,9 +128,9 @@ func (enc *Encoder) SetMarshalJSONNumbers(indent bool) *Encoder {
 //
 // Intermediate tables are always printed.
 //
-// By default, strings are encoded as literal string, unless they contain either
-// a newline character or a single quote. In that case they are emitted as
-// quoted strings.
+// By default, strings are encoded as literal string, unless they contain
+// either a newline character or a single quote. In that case they are emitted
+// as quoted strings.
 //
 // Unsigned integers larger than math.MaxInt64 cannot be encoded. Doing so
 // results in an error. This rule exists because the TOML specification only
@@ -130,8 +139,8 @@ func (enc *Encoder) SetMarshalJSONNumbers(indent bool) *Encoder {
 // readable (at best) by other implementations. To encode such numbers, a
 // solution is a custom type that implements encoding.TextMarshaler.
 //
-// When encoding structs, fields are encoded in order of definition, with their
-// exact name.
+// When encoding structs, fields are encoded in order of definition, with
+// their exact name.
 //
 // Tables and array tables are separated by empty lines. However, consecutive
 // subtables definitions are not. For example:
@@ -151,308 +160,688 @@ func (enc *Encoder) SetMarshalJSONNumbers(indent bool) *Encoder {
 // The encoding of each public struct field can be customized by the format
 // string in the "toml" key of the struct field's tag. This follows
 // encoding/json's convention. The format string starts with the name of the
-// field, optionally followed by a comma-separated list of options. The name may
-// be empty in order to provide options without overriding the default name.
+// field, optionally followed by a comma-separated list of options. The name
+// may be empty in order to provide options without overriding the default
+// name.
 //
 // The "multiline" option emits strings as quoted multi-line TOML strings. It
 // has no effect on fields that would not be encoded as strings.
 //
-// The "inline" option turns fields that would be emitted as tables into inline
-// tables instead. It has no effect on other fields.
+// The "inline" option turns fields that would be emitted as tables into
+// inline tables instead. It has no effect on other fields.
 //
 // The "omitempty" option prevents empty values or groups from being emitted.
 //
 // The "omitzero" option prevents zero values or groups from being emitted.
 //
-// The "commented" option prefixes the value and all its children with a comment
-// symbol.
+// The "commented" option prefixes the value and all its children with a
+// comment symbol.
 //
-// In addition to the "toml" tag struct tag, a "comment" tag can be used to emit
-// a TOML comment before the value being annotated. Comments are ignored inside
-// inline tables. For array tables, the comment is only present before the first
-// element of the array.
+// In addition to the "toml" tag struct tag, a "comment" tag can be used to
+// emit a TOML comment before the value being annotated. Comments are ignored
+// inside inline tables. For array tables, the comment is only present before
+// the first element of the array.
 func (enc *Encoder) Encode(v interface{}) error {
-	var (
-		b   []byte
-		ctx encoderCtx
-	)
+	e := encoderStatePool.Get().(*encoderState)
+	e.Encoder = enc
+	e.buf = e.buf[:0]
+	e.keyStack = e.keyStack[:0]
+	e.lastWasHeader = false
 
-	ctx.inline = enc.tablesInline
-
-	if v == nil {
-		return errors.New("toml: cannot encode a nil interface")
-	}
-
-	b, err := enc.encode(b, ctx, reflect.ValueOf(v))
+	err := e.encodeRoot(v)
 	if err != nil {
+		encoderStatePool.Put(e)
 		return err
 	}
 
-	_, err = enc.w.Write(b)
+	_, err = enc.w.Write(e.buf)
+	encoderStatePool.Put(e)
 	if err != nil {
 		return fmt.Errorf("toml: cannot write: %w", err)
 	}
-
 	return nil
 }
 
+var encoderStatePool = sync.Pool{
+	New: func() interface{} { return &encoderState{} },
+}
+
+type encoderState struct {
+	*Encoder
+
+	buf []byte
+
+	// keyStack is the dotted key of the table being encoded, shared by the
+	// whole encode as a stack.
+	keyStack []string
+
+	// entriesPool recycles entry slices across tables of the same encode.
+	entriesPool [][]entry
+
+	// lastWasHeader is true when the last line written was a table header,
+	// used to avoid empty lines between consecutive table definitions.
+	lastWasHeader bool
+
+	// stringKeyBuf is a reusable buffer to read string map keys without
+	// allocating one per map.
+	stringKeyBuf reflect.Value
+}
+
+// valueOptions are the encoding options attached to one entry of a table.
 type valueOptions struct {
 	multiline bool
+	inline    bool
 	omitempty bool
 	omitzero  bool
 	commented bool
 	comment   string
 }
 
-type encoderCtx struct {
-	// Current top-level key.
-	parentKey []string
-
-	// Key that should be used for a KV.
-	key string
-	// Extra flag to account for the empty string
-	hasKey bool
-
-	// Set to true to indicate that the encoder is inside a KV, so that all
-	// tables need to be inlined.
-	insideKv bool
-
-	// Set to true to skip the first table header in an array table.
-	skipTableHeader bool
-
-	// Should the next table be encoded as inline
-	inline bool
-
-	// Indentation level
-	indent int
-
-	// Prefix the current value with a comment.
-	commented bool
-
-	// Options coming from struct tags
+// entry is a deferred key-value of a table being encoded.
+type entry struct {
+	key     string
+	value   reflect.Value
 	options valueOptions
 }
 
-func (ctx *encoderCtx) shiftKey() {
-	if ctx.hasKey {
-		ctx.parentKey = append(ctx.parentKey, ctx.key)
-		ctx.clearKey()
+func (e *encoderState) encodeRoot(v interface{}) error {
+	if v == nil {
+		return errors.New("toml: cannot encode a nil interface")
+	}
+
+	rv := reflect.ValueOf(v)
+	rv, ok := resolve(rv)
+	if !ok {
+		return errors.New("toml: cannot encode a nil pointer")
+	}
+
+	switch rv.Kind() {
+	case reflect.Map, reflect.Struct:
+		if isValueKind(rv) {
+			return fmt.Errorf("toml: cannot encode a %s as a document root", rv.Type())
+		}
+		return e.encodeTable(rv, false, 0)
+	default:
+		return fmt.Errorf("toml: cannot encode a %s as a document root", rv.Type())
 	}
 }
 
-func (ctx *encoderCtx) setKey(k string) {
-	ctx.key = k
-	ctx.hasKey = true
-}
-
-func (ctx *encoderCtx) clearKey() {
-	ctx.key = ""
-	ctx.hasKey = false
-}
-
-func (ctx *encoderCtx) isRoot() bool {
-	return len(ctx.parentKey) == 0 && !ctx.hasKey
-}
-
-func (enc *Encoder) encode(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, error) {
-	i := v.Interface()
-
-	switch x := i.(type) {
-	case time.Time:
-		if x.Nanosecond() > 0 {
-			return x.AppendFormat(b, time.RFC3339Nano), nil
-		}
-		return x.AppendFormat(b, time.RFC3339), nil
-	case LocalTime:
-		return append(b, x.String()...), nil
-	case LocalDate:
-		return append(b, x.String()...), nil
-	case LocalDateTime:
-		return append(b, x.String()...), nil
-	case json.Number:
-		if enc.marshalJSONNumbers {
-			if x == "" { /// Useful zero value.
-				return append(b, "0"...), nil
-			} else if v, err := x.Int64(); err == nil {
-				return enc.encode(b, ctx, reflect.ValueOf(v))
-			} else if f, err := x.Float64(); err == nil {
-				return enc.encode(b, ctx, reflect.ValueOf(f))
+// resolve unwraps pointers and interfaces until a concrete value is found.
+// Returns false if it resolves to nil.
+func resolve(v reflect.Value) (reflect.Value, bool) {
+	for {
+		switch v.Kind() {
+		case reflect.Ptr:
+			if v.IsNil() {
+				return v, false
 			}
-			return nil, fmt.Errorf("toml: unable to convert %q to int64 or float64", x)
+			v = v.Elem()
+		case reflect.Interface:
+			if v.IsNil() {
+				return v, false
+			}
+			v = v.Elem()
+		default:
+			return v, true
+		}
+	}
+}
+
+// typeEncProps caches the per-type facts used on every value encode.
+type typeEncProps struct {
+	// 0: not a TextMarshaler, 1: the type implements it, 2: its pointer does
+	text uint8
+	// encoded as a TOML value (as opposed to a table)
+	isValue bool
+}
+
+var typeEncPropsCache sync.Map // reflect.Type -> typeEncProps
+
+func encPropsForType(t reflect.Type) typeEncProps {
+	if p, ok := typeEncPropsCache.Load(t); ok {
+		return p.(typeEncProps)
+	}
+	var p typeEncProps
+	switch {
+	case t.Implements(textMarshalerType):
+		p.text = 1
+	case reflect.PtrTo(t).Implements(textMarshalerType):
+		p.text = 2
+	}
+	switch t {
+	case timeType, localDateType, localTimeType, localDateTimeType:
+		p.isValue = true
+	default:
+		if p.text != 0 {
+			p.isValue = true
+		} else {
+			switch t.Kind() {
+			case reflect.Map, reflect.Struct:
+				p.isValue = false
+			default:
+				p.isValue = true
+			}
+		}
+	}
+	typeEncPropsCache.Store(t, p)
+	return p
+}
+
+// isValueKind returns true when the resolved value is encoded as a TOML
+// value (as opposed to a table).
+func isValueKind(v reflect.Value) bool {
+	return encPropsForType(v.Type()).isValue
+}
+
+// isTableLike returns true when the value should be encoded as a table (or
+// an array of tables for slices).
+func (e *encoderState) isTableLike(v reflect.Value) bool {
+	v, ok := resolve(v)
+	if !ok {
+		// Unresolvable values (interface-held nil pointers) are encoded as
+		// the zero value of their element type by the value path.
+		return false
+	}
+	return !isValueKind(v)
+}
+
+// isArrayOfTables returns true when the value is a non-empty slice or array
+// containing only table-like values.
+func (e *encoderState) isArrayOfTables(v reflect.Value) bool {
+	v, ok := resolve(v)
+	if !ok {
+		return false
+	}
+	if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
+		return false
+	}
+	if v.Len() == 0 {
+		return false
+	}
+	for i := 0; i < v.Len(); i++ {
+		elem, ok := resolve(v.Index(i))
+		if !ok || isValueKind(elem) {
+			return false
+		}
+	}
+	return true
+}
+
+// encodeTable writes the content of a table at the given key path.
+func (e *encoderState) encodeTable(v reflect.Value, commented bool, indent int) error {
+	entries, err := e.collectEntries(v)
+	if err != nil {
+		return err
+	}
+
+	// First pass: emit all key-values; tables are handled by the second
+	// pass.
+	for i := range entries {
+		ent := &entries[i]
+		if e.entryIsTable(ent) {
+			continue
+		}
+		err := e.encodeKeyValue(*ent, commented, indent)
+		if err != nil {
+			return err
 		}
 	}
 
-	hasTextMarshaler := v.Type().Implements(textMarshalerType)
-	if hasTextMarshaler || (v.CanAddr() && reflect.PointerTo(v.Type()).Implements(textMarshalerType)) {
-		if !hasTextMarshaler {
-			v = v.Addr()
+	// Second pass: emit the sub-tables, extending the shared key stack.
+	for i := range entries {
+		ent := entries[i]
+		if !e.entryIsTable(&ent) {
+			continue
+		}
+		entCommented := commented || ent.options.commented
+		e.keyStack = append(e.keyStack, ent.key)
+
+		if e.isArrayOfTables(ent.value) {
+			err := e.encodeArrayTable(ent, entCommented, indent)
+			if err != nil {
+				return err
+			}
+			e.keyStack = e.keyStack[:len(e.keyStack)-1]
+			continue
 		}
 
-		if ctx.isRoot() {
-			return nil, fmt.Errorf("toml: type %s implementing the TextMarshaler interface cannot be a root element", v.Type())
-		}
+		// The value is resolvable: entryIsTable already resolved it.
+		tv, _ := resolve(ent.value)
 
-		text, err := v.Interface().(encoding.TextMarshaler).MarshalText()
+		e.writeTableHeader(ent.options.comment, entCommented, false, indent)
+
+		err := e.encodeTable(tv, entCommented, indent+1)
+		if err != nil {
+			return err
+		}
+		e.keyStack = e.keyStack[:len(e.keyStack)-1]
+	}
+
+	e.putEntries(entries)
+	return nil
+}
+
+// entryIsTable reports whether the entry is emitted as a (sub-)table rather
+// than a key-value.
+func (e *encoderState) entryIsTable(ent *entry) bool {
+	return !e.tablesInline && !ent.options.inline && (e.isTableLike(ent.value) || e.isArrayOfTables(ent.value))
+}
+
+// getEntries returns a reusable entry slice.
+func (e *encoderState) getEntries() []entry {
+	if n := len(e.entriesPool); n > 0 {
+		s := e.entriesPool[n-1]
+		e.entriesPool = e.entriesPool[:n-1]
+		return s[:0]
+	}
+	return nil
+}
+
+// putEntries returns an entry slice to the pool.
+func (e *encoderState) putEntries(s []entry) {
+	if cap(s) > 0 {
+		e.entriesPool = append(e.entriesPool, s)
+	}
+}
+
+// encodeArrayTable writes all the elements of an array of tables.
+func (e *encoderState) encodeArrayTable(ent entry, commented bool, indent int) error {
+	v, _ := resolve(ent.value)
+	comment := ent.options.comment
+	for i := 0; i < v.Len(); i++ {
+		// Elements are resolvable: isArrayOfTables already resolved them.
+		elem, _ := resolve(v.Index(i))
+
+		e.writeTableHeader(comment, commented, true, indent)
+		// The comment is only present before the first element.
+		comment = ""
+
+		err := e.encodeTable(elem, commented, indent+1)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// writeTableHeader emits a [table] or [[array table]] header line, preceded
+// by an empty line and comments as needed.
+func (e *encoderState) writeTableHeader(comment string, commented bool, array bool, indent int) {
+	key := e.keyStack
+	if len(e.buf) > 0 && !e.lastWasHeader {
+		e.buf = append(e.buf, '\n')
+	}
+
+	headerIndent := indent
+
+	e.writeComment(comment, headerIndent)
+
+	e.writeIndent(headerIndent)
+	if commented {
+		e.buf = append(e.buf, "# "...)
+	}
+	e.buf = append(e.buf, '[')
+	if array {
+		e.buf = append(e.buf, '[')
+	}
+	for i, part := range key {
+		if i > 0 {
+			e.buf = append(e.buf, '.')
+		}
+		e.buf = e.appendKey(e.buf, part)
+	}
+	e.buf = append(e.buf, ']')
+	if array {
+		e.buf = append(e.buf, ']')
+	}
+	e.buf = append(e.buf, '\n')
+	e.lastWasHeader = true
+}
+
+func (e *encoderState) writeIndent(indent int) {
+	if !e.indentTables {
+		return
+	}
+	for i := 0; i < indent; i++ {
+		e.buf = append(e.buf, e.indentSymbol...)
+	}
+}
+
+// writeComment emits the comment lines attached to an entry.
+func (e *encoderState) writeComment(comment string, indent int) {
+	if comment == "" {
+		return
+	}
+	for _, line := range strings.Split(comment, "\n") {
+		e.writeIndent(indent)
+		e.buf = append(e.buf, "# "...)
+		e.buf = append(e.buf, line...)
+		e.buf = append(e.buf, '\n')
+	}
+}
+
+// encodeKeyValue writes one `key = value` line of a table.
+func (e *encoderState) encodeKeyValue(ent entry, commented bool, indent int) error {
+	commented = commented || ent.options.commented
+
+	e.writeComment(ent.options.comment, indent)
+
+	e.writeIndent(indent)
+	if commented {
+		e.buf = append(e.buf, "# "...)
+	}
+	e.buf = e.appendKey(e.buf, ent.key)
+	e.buf = append(e.buf, " = "...)
+
+	var err error
+	e.buf, err = e.appendValue(e.buf, ent.value, ent.options, indent)
+	if err != nil {
+		return err
+	}
+	e.buf = append(e.buf, '\n')
+	e.lastWasHeader = false
+	return nil
+}
+
+// collectEntries builds the ordered list of the entries of a table,
+// applying tags and omission rules.
+func (e *encoderState) collectEntries(v reflect.Value) ([]entry, error) {
+	switch v.Kind() {
+	case reflect.Map:
+		return e.collectMapEntries(v)
+	case reflect.Struct:
+		entries := e.getEntries()
+		e.collectStructEntries(&entries, v)
+		return entries, nil
+	default:
+		return nil, fmt.Errorf("toml: cannot encode a %s as a table", v.Type())
+	}
+}
+
+func (e *encoderState) collectMapEntries(v reflect.Value) ([]entry, error) {
+	entries := e.getEntries()
+
+	// Keys are converted to strings right away: read them into a reusable
+	// buffer to avoid one allocation per key.
+	var kbuf reflect.Value
+	if v.Type().Key() == stringType {
+		if !e.stringKeyBuf.IsValid() {
+			e.stringKeyBuf = reflect.New(stringType).Elem()
+		}
+		kbuf = e.stringKeyBuf
+	} else {
+		kbuf = reflect.New(v.Type().Key()).Elem()
+	}
+
+	iter := v.MapRange()
+	for iter.Next() {
+		kbuf.SetIterKey(iter)
+		key, err := mapKeyString(kbuf)
 		if err != nil {
 			return nil, err
 		}
-
-		b = enc.encodeString(b, string(text), ctx.options)
-
-		return b, nil
+		value := iter.Value()
+		if value.Kind() == reflect.Interface && value.IsNil() {
+			// nil interface values are skipped
+			continue
+		}
+		if value.Kind() == reflect.Ptr && value.IsNil() {
+			// nil pointers in maps are encoded as their zero value
+			value = reflect.New(value.Type().Elem()).Elem()
+		}
+		entries = append(entries, entry{key: key, value: value})
 	}
 
-	switch v.Kind() {
-	// containers
-	case reflect.Map:
-		return enc.encodeMap(b, ctx, v)
-	case reflect.Struct:
-		return enc.encodeStruct(b, ctx, v)
-	case reflect.Slice, reflect.Array:
-		return enc.encodeSlice(b, ctx, v)
-	case reflect.Interface:
-		if v.IsNil() {
-			return nil, errors.New("toml: encoding a nil interface is not supported")
+	if len(entries) > 1 {
+		// slices.SortFunc avoids boxing the slice into a sort.Interface (an
+		// allocation that sort.Sort incurs for every table).
+		slices.SortFunc(entries, func(a, b entry) int {
+			return strings.Compare(a.key, b.key)
+		})
+	}
+
+	return entries, nil
+}
+
+// mapKeyString converts a map key to its string representation.
+func mapKeyString(k reflect.Value) (string, error) {
+	kr, ok := resolve(k)
+	if !ok {
+		return "", errors.New("toml: cannot encode a nil map key")
+	}
+	if kr.Type().Implements(textMarshalerType) {
+		b, err := kr.Interface().(encoding.TextMarshaler).MarshalText()
+		if err != nil {
+			return "", fmt.Errorf("toml: cannot marshal map key: %w", err)
 		}
-
-		return enc.encode(b, ctx, v.Elem())
-	case reflect.Ptr:
-		if v.IsNil() {
-			return enc.encode(b, ctx, reflect.Zero(v.Type().Elem()))
+		return string(b), nil
+	}
+	if kr.CanAddr() && reflect.PtrTo(kr.Type()).Implements(textMarshalerType) {
+		b, err := kr.Addr().Interface().(encoding.TextMarshaler).MarshalText()
+		if err != nil {
+			return "", fmt.Errorf("toml: cannot marshal map key: %w", err)
 		}
-
-		return enc.encode(b, ctx, v.Elem())
-
-	// values
+		return string(b), nil
+	}
+	switch kr.Kind() {
 	case reflect.String:
-		b = enc.encodeString(b, v.String(), ctx.options)
+		return kr.String(), nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(kr.Int(), 10), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return strconv.FormatUint(kr.Uint(), 10), nil
 	case reflect.Float32:
-		f := v.Float()
-
-		switch {
-		case math.IsNaN(f):
-			b = append(b, "nan"...)
-		case f > math.MaxFloat32:
-			b = append(b, "inf"...)
-		case f < -math.MaxFloat32:
-			b = append(b, "-inf"...)
-		case math.Trunc(f) == f:
-			b = strconv.AppendFloat(b, f, 'f', 1, 32)
-		default:
-			b = strconv.AppendFloat(b, f, 'f', -1, 32)
-		}
+		return strconv.FormatFloat(kr.Float(), 'f', -1, 32), nil
 	case reflect.Float64:
-		f := v.Float()
-		switch {
-		case math.IsNaN(f):
-			b = append(b, "nan"...)
-		case f > math.MaxFloat64:
-			b = append(b, "inf"...)
-		case f < -math.MaxFloat64:
-			b = append(b, "-inf"...)
-		case math.Trunc(f) == f:
-			b = strconv.AppendFloat(b, f, 'f', 1, 64)
-		default:
-			b = strconv.AppendFloat(b, f, 'f', -1, 64)
+		return strconv.FormatFloat(kr.Float(), 'f', -1, 64), nil
+	default:
+		return "", fmt.Errorf("toml: cannot encode a map with key type %s", k.Type())
+	}
+}
+
+// encPlanField is the static encoding information of one field of a struct.
+type encPlanField struct {
+	name    string
+	index   []int
+	depth   int
+	options valueOptions
+}
+
+// encPlan caches the per-type information needed to encode a struct:
+// flattened fields with parsed tags, in order of definition, with shadowed
+// duplicates already removed.
+type encPlan struct {
+	fields []encPlanField
+}
+
+var encPlans sync.Map // reflect.Type -> *encPlan
+
+func encPlanForType(t reflect.Type) *encPlan {
+	if plan, ok := encPlans.Load(t); ok {
+		return plan.(*encPlan)
+	}
+	plan := &encPlan{}
+	visited := map[reflect.Type]bool{}
+	buildEncPlan(plan, t, nil, 0, visited)
+	dedupEncPlan(plan)
+	encPlans.Store(t, plan)
+	return plan
+}
+
+func buildEncPlan(plan *encPlan, t reflect.Type, prefix []int, depth int, visited map[reflect.Type]bool) {
+	if visited[t] {
+		return
+	}
+	visited[t] = true
+	defer delete(visited, t)
+
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+
+		tag, tagged := f.Tag.Lookup("toml")
+		if tag == "-" {
+			continue
 		}
-	case reflect.Bool:
-		if v.Bool() {
-			b = append(b, "true"...)
+
+		name := f.Name
+		var opts valueOptions
+		if tagged {
+			parts := strings.Split(tag, ",")
+			if parts[0] != "" {
+				name = parts[0]
+			}
+			for _, opt := range parts[1:] {
+				switch opt {
+				case "multiline":
+					opts.multiline = true
+				case "inline":
+					opts.inline = true
+				case "omitempty":
+					opts.omitempty = true
+				case "omitzero":
+					opts.omitzero = true
+				case "commented":
+					opts.commented = true
+				}
+			}
+		}
+		// Standalone boolean tags, e.g. multiline:"true".
+		const tagTrue = "true"
+		if f.Tag.Get("multiline") == tagTrue {
+			opts.multiline = true
+		}
+		if f.Tag.Get("inline") == tagTrue {
+			opts.inline = true
+		}
+		if f.Tag.Get("commented") == tagTrue {
+			opts.commented = true
+		}
+		opts.comment = f.Tag.Get("comment")
+
+		index := make([]int, 0, len(prefix)+1)
+		index = append(index, prefix...)
+		index = append(index, i)
+
+		if f.Anonymous {
+			ft := f.Type
+			if ft.Kind() == reflect.Ptr {
+				ft = ft.Elem()
+			}
+			if ft.Kind() == reflect.Struct && (!tagged || tagName(tag) == "") {
+				buildEncPlan(plan, ft, index, depth+1, visited)
+				continue
+			}
+			if f.PkgPath != "" && ft.Kind() != reflect.Interface {
+				continue
+			}
+		} else if f.PkgPath != "" {
+			// unexported
+			continue
+		}
+
+		plan.fields = append(plan.fields, encPlanField{
+			name:    name,
+			index:   index,
+			depth:   depth,
+			options: opts,
+		})
+	}
+}
+
+// dedupEncPlan removes the fields shadowed by another one with the same
+// name (the shallowest wins), keeping the order of first appearance.
+func dedupEncPlan(plan *encPlan) {
+	byName := make(map[string]int, len(plan.fields))
+	drop := false
+	for i := range plan.fields {
+		f := &plan.fields[i]
+		j, seen := byName[f.name]
+		if !seen {
+			byName[f.name] = i
+			continue
+		}
+		drop = true
+		// Shallowest wins; on equal depth, the first in order wins.
+		if f.depth < plan.fields[j].depth {
+			plan.fields[j].name = ""
+			byName[f.name] = i
 		} else {
-			b = append(b, "false"...)
+			f.name = ""
 		}
-	case reflect.Uint64, reflect.Uint32, reflect.Uint16, reflect.Uint8, reflect.Uint:
-		x := v.Uint()
-		if x > uint64(math.MaxInt64) {
-			return nil, fmt.Errorf("toml: not encoding uint (%d) greater than max int64 (%d)", x, int64(math.MaxInt64))
+	}
+	if !drop {
+		return
+	}
+	out := plan.fields[:0]
+	for _, f := range plan.fields {
+		if f.name != "" {
+			out = append(out, f)
 		}
-		b = strconv.AppendUint(b, x, 10)
-	case reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8, reflect.Int:
-		b = strconv.AppendInt(b, v.Int(), 10)
-	default:
-		return nil, fmt.Errorf("toml: cannot encode value of type %s", v.Kind())
 	}
-
-	return b, nil
+	plan.fields = out
 }
 
-func isNil(v reflect.Value) bool {
-	switch v.Kind() {
-	case reflect.Ptr, reflect.Interface, reflect.Map:
-		return v.IsNil()
-	default:
-		return false
-	}
-}
+// collectStructEntries appends the entries of a struct, flattening embedded
+// structs in place.
+func (e *encoderState) collectStructEntries(entries *[]entry, v reflect.Value) {
+	plan := encPlanForType(v.Type())
 
-func shouldOmitEmpty(options valueOptions, v reflect.Value) bool {
-	return options.omitempty && isEmptyValue(v)
-}
-
-func shouldOmitZero(options valueOptions, v reflect.Value) bool {
-	if !options.omitzero {
-		return false
-	}
-
-	// Check if the type implements isZeroer interface (has a custom IsZero method).
-	if v.Type().Implements(isZeroerType) {
-		return v.Interface().(isZeroer).IsZero()
-	}
-
-	// Check if pointer type implements isZeroer.
-	if reflect.PointerTo(v.Type()).Implements(isZeroerType) {
-		if v.CanAddr() {
-			return v.Addr().Interface().(isZeroer).IsZero()
+	for i := range plan.fields {
+		f := &plan.fields[i]
+		fv, ok := fieldByIndexSkipNil(v, f.index)
+		if !ok {
+			// nil embedded pointer on the way: skipped
+			continue
 		}
-		// Create a temporary addressable copy to call the pointer receiver method.
-		pv := reflect.New(v.Type())
-		pv.Elem().Set(v)
-		return pv.Interface().(isZeroer).IsZero()
-	}
 
-	// Fall back to reflect's IsZero for types without custom IsZero method.
-	return v.IsZero()
+		// Anonymous interface fields that are nil are skipped.
+		if fv.Kind() == reflect.Interface && fv.IsNil() {
+			continue
+		}
+		// nil values in struct fields are skipped
+		if (fv.Kind() == reflect.Ptr || fv.Kind() == reflect.Map) && fv.IsNil() {
+			continue
+		}
+
+		if f.options.omitempty && isEmptyValue(fv) {
+			continue
+		}
+		if f.options.omitzero && isZeroValue(fv) {
+			continue
+		}
+
+		*entries = append(*entries, entry{key: f.name, value: fv, options: f.options})
+	}
 }
 
-func (enc *Encoder) encodeKv(b []byte, ctx encoderCtx, options valueOptions, v reflect.Value) ([]byte, error) {
-	var err error
-
-	if !ctx.inline {
-		b = enc.encodeComment(ctx.indent, options.comment, b)
-		b = enc.commented(ctx.commented, b)
-		b = enc.indent(ctx.indent, b)
+// fieldByIndexSkipNil returns the field at the given index path, reporting
+// false if a nil embedded pointer is found on the way.
+func fieldByIndexSkipNil(v reflect.Value, index []int) (reflect.Value, bool) {
+	for i, x := range index {
+		if i > 0 {
+			for v.Kind() == reflect.Ptr {
+				if v.IsNil() {
+					return v, false
+				}
+				v = v.Elem()
+			}
+		}
+		v = v.Field(x)
 	}
-
-	b = enc.encodeKey(b, ctx.key)
-	b = append(b, " = "...)
-
-	// create a copy of the context because the value of a KV shouldn't
-	// modify the global context.
-	subctx := ctx
-	subctx.insideKv = true
-	subctx.shiftKey()
-	subctx.options = options
-
-	b, err = enc.encode(b, subctx, v)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
+	return v, true
 }
 
-func (enc *Encoder) commented(commented bool, b []byte) []byte {
-	if commented {
-		return append(b, "# "...)
+func tagName(tag string) string {
+	if idx := strings.IndexByte(tag, ','); idx >= 0 {
+		return tag[:idx]
 	}
-	return b
+	return tag
 }
 
+// isEmptyValue implements the omitempty rules.
 func isEmptyValue(v reflect.Value) bool {
 	switch v.Kind() {
-	case reflect.Struct:
-		return isEmptyStruct(v)
-	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+	case reflect.String:
 		return v.Len() == 0
 	case reflect.Bool:
 		return !v.Bool()
@@ -462,741 +851,370 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Uint() == 0
 	case reflect.Float32, reflect.Float64:
 		return v.Float() == 0
-	case reflect.Interface, reflect.Ptr:
+	case reflect.Map, reflect.Slice, reflect.Array:
+		return v.Len() == 0
+	case reflect.Ptr, reflect.Interface:
 		return v.IsNil()
+	case reflect.Struct:
+		return v.IsZero()
 	default:
 		return false
 	}
 }
 
-func isEmptyStruct(v reflect.Value) bool {
-	// TODO: merge with walkStruct and cache.
-	typ := v.Type()
-	for i := 0; i < typ.NumField(); i++ {
-		fieldType := typ.Field(i)
-
-		// only consider exported fields
-		if fieldType.PkgPath != "" {
-			continue
-		}
-
-		tag := fieldType.Tag.Get("toml")
-
-		// special field name to skip field
-		if tag == "-" {
-			continue
-		}
-
-		f := v.Field(i)
-
-		if !isEmptyValue(f) {
-			return false
-		}
+// isZeroValue implements the omitzero rules: the type's own IsZero() when
+// implemented, the reflect zero value otherwise.
+func isZeroValue(v reflect.Value) bool {
+	if v.Type().Implements(isZeroerType) {
+		return v.Interface().(isZeroer).IsZero()
 	}
-
-	return true
+	if v.CanAddr() && reflect.PtrTo(v.Type()).Implements(isZeroerType) {
+		return v.Addr().Interface().(isZeroer).IsZero()
+	}
+	if !v.CanAddr() && reflect.PtrTo(v.Type()).Implements(isZeroerType) {
+		tmp := reflect.New(v.Type())
+		tmp.Elem().Set(v)
+		return tmp.Interface().(isZeroer).IsZero()
+	}
+	return v.IsZero()
 }
 
-const literalQuote = '\''
-
-func (enc *Encoder) encodeString(b []byte, v string, options valueOptions) []byte {
-	if needsQuoting(v) {
-		return enc.encodeQuotedString(options.multiline, b, v)
+// appendKey emits a key, quoted only if necessary.
+func (e *encoderState) appendKey(b []byte, key string) []byte {
+	if isBareKey(key) {
+		return append(b, key...)
 	}
-
-	return enc.encodeLiteralString(b, v)
+	return e.appendString(b, key)
 }
 
-func needsQuoting(v string) bool {
-	// TODO: vectorize
-	for _, b := range []byte(v) {
-		if b == '\'' || b == '\r' || b == '\n' || characters.InvalidASCII(b) {
-			return true
-		}
-	}
-	return false
-}
-
-// caller should have checked that the string does not contain new lines or ' .
-func (enc *Encoder) encodeLiteralString(b []byte, v string) []byte {
-	b = append(b, literalQuote)
-	b = append(b, v...)
-	b = append(b, literalQuote)
-
-	return b
-}
-
-func (enc *Encoder) encodeQuotedString(multiline bool, b []byte, v string) []byte {
-	stringQuote := `"`
-
-	if multiline {
-		stringQuote = `"""`
-	}
-
-	b = append(b, stringQuote...)
-	if multiline {
-		b = append(b, '\n')
-	}
-
-	const (
-		hextable = "0123456789ABCDEF"
-		// U+0000 to U+0008, U+000A to U+001F, U+007F
-		nul = 0x0
-		bs  = 0x8
-		lf  = 0xa
-		us  = 0x1f
-		del = 0x7f
-	)
-
-	bv := []byte(v)
-	for i := 0; i < len(bv); i++ {
-		r := bv[i]
-		switch r {
-		case '\\':
-			b = append(b, `\\`...)
-		case '"':
-			if multiline {
-				// Quotation marks do not need to be quoted in multiline strings unless
-				// it contains 3 consecutive. If 3+ quotes appear, quote all of them
-				// because it's visually better
-				if i+2 > len(bv) || bv[i+1] != '"' || bv[i+2] != '"' {
-					b = append(b, r)
-				} else {
-					b = append(b, `\"\"\"`...)
-					i += 2
-				}
-			} else {
-				b = append(b, `\"`...)
-			}
-		case '\b':
-			b = append(b, `\b`...)
-		case '\f':
-			b = append(b, `\f`...)
-		case '\n':
-			if multiline {
-				b = append(b, r)
-			} else {
-				b = append(b, `\n`...)
-			}
-		case '\r':
-			b = append(b, `\r`...)
-		case '\t':
-			b = append(b, `\t`...)
-		default:
-			switch {
-			case r >= nul && r <= bs, r >= lf && r <= us, r == del:
-				b = append(b, `\u00`...)
-				b = append(b, hextable[r>>4])
-				b = append(b, hextable[r&0x0f])
-			default:
-				b = append(b, r)
-			}
-		}
-	}
-
-	b = append(b, stringQuote...)
-
-	return b
-}
-
-// caller should have checked that the string is in A-Z / a-z / 0-9 / - / _ .
-func (enc *Encoder) encodeUnquotedKey(b []byte, v string) []byte {
-	return append(b, v...)
-}
-
-func (enc *Encoder) encodeTableHeader(ctx encoderCtx, b []byte) []byte {
-	if len(ctx.parentKey) == 0 {
-		return b
-	}
-
-	b = enc.encodeComment(ctx.indent, ctx.options.comment, b)
-
-	b = enc.commented(ctx.commented, b)
-
-	b = enc.indent(ctx.indent, b)
-
-	b = append(b, '[')
-
-	b = enc.encodeKey(b, ctx.parentKey[0])
-
-	for _, k := range ctx.parentKey[1:] {
-		b = append(b, '.')
-		b = enc.encodeKey(b, k)
-	}
-
-	b = append(b, "]\n"...)
-
-	return b
-}
-
-func (enc *Encoder) encodeKey(b []byte, k string) []byte {
-	needsQuotation := false
-	cannotUseLiteral := false
-
-	if len(k) == 0 {
-		return append(b, "''"...)
-	}
-
-	for _, c := range k {
-		if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_' {
-			continue
-		}
-
-		if c == literalQuote {
-			cannotUseLiteral = true
-		}
-
-		needsQuotation = true
-	}
-
-	if needsQuotation && needsQuoting(k) {
-		cannotUseLiteral = true
-	}
-
-	switch {
-	case cannotUseLiteral:
-		return enc.encodeQuotedString(false, b, k)
-	case needsQuotation:
-		return enc.encodeLiteralString(b, k)
-	default:
-		return enc.encodeUnquotedKey(b, k)
-	}
-}
-
-func (enc *Encoder) keyToString(k reflect.Value) (string, error) {
-	keyType := k.Type()
-	if keyType.Implements(textMarshalerType) {
-		keyB, err := k.Interface().(encoding.TextMarshaler).MarshalText()
-		if err != nil {
-			return "", fmt.Errorf("toml: error marshalling key %v from text: %w", k, err)
-		}
-		return string(keyB), nil
-	}
-
-	switch keyType.Kind() {
-	case reflect.String:
-		return k.String(), nil
-
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return strconv.FormatInt(k.Int(), 10), nil
-
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return strconv.FormatUint(k.Uint(), 10), nil
-
-	case reflect.Float32:
-		return strconv.FormatFloat(k.Float(), 'f', -1, 32), nil
-
-	case reflect.Float64:
-		return strconv.FormatFloat(k.Float(), 'f', -1, 64), nil
-
-	default:
-		return "", fmt.Errorf("toml: type %s is not supported as a map key", keyType.Kind())
-	}
-}
-
-func (enc *Encoder) encodeMap(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, error) {
-	var (
-		t                 table
-		emptyValueOptions valueOptions
-	)
-
-	iter := v.MapRange()
-	for iter.Next() {
-		v := iter.Value()
-
-		// Handle nil values: convert nil pointers to zero value,
-		// skip nil interfaces and nil maps.
-		switch v.Kind() {
-		case reflect.Ptr:
-			if v.IsNil() {
-				v = reflect.Zero(v.Type().Elem())
-			}
-		case reflect.Interface, reflect.Map:
-			if v.IsNil() {
-				continue
-			}
-		default:
-		}
-
-		k, err := enc.keyToString(iter.Key())
-		if err != nil {
-			return nil, err
-		}
-
-		if willConvertToTableOrArrayTable(ctx, v) {
-			t.pushTable(k, v, emptyValueOptions)
-		} else {
-			t.pushKV(k, v, emptyValueOptions)
-		}
-	}
-
-	sortEntriesByKey(t.kvs)
-	sortEntriesByKey(t.tables)
-
-	return enc.encodeTable(b, ctx, t)
-}
-
-func sortEntriesByKey(e []entry) {
-	slices.SortFunc(e, func(a, b entry) int {
-		return strings.Compare(a.Key, b.Key)
-	})
-}
-
-type entry struct {
-	Key     string
-	Value   reflect.Value
-	Options valueOptions
-}
-
-type table struct {
-	kvs    []entry
-	tables []entry
-}
-
-func (t *table) pushKV(k string, v reflect.Value, options valueOptions) {
-	for _, e := range t.kvs {
-		if e.Key == k {
-			return
-		}
-	}
-
-	t.kvs = append(t.kvs, entry{Key: k, Value: v, Options: options})
-}
-
-func (t *table) pushTable(k string, v reflect.Value, options valueOptions) {
-	for _, e := range t.tables {
-		if e.Key == k {
-			return
-		}
-	}
-	t.tables = append(t.tables, entry{Key: k, Value: v, Options: options})
-}
-
-func walkStruct(ctx encoderCtx, t *table, v reflect.Value) {
-	// TODO: cache this
-	typ := v.Type()
-	for i := 0; i < typ.NumField(); i++ {
-		fieldType := typ.Field(i)
-
-		// only consider exported fields
-		if fieldType.PkgPath != "" {
-			continue
-		}
-
-		tag := fieldType.Tag.Get("toml")
-
-		// special field name to skip field
-		if tag == "-" {
-			continue
-		}
-
-		k, opts := parseTag(tag)
-		if !isValidName(k) {
-			k = ""
-		}
-
-		f := v.Field(i)
-
-		if k == "" {
-			if fieldType.Anonymous {
-				if fieldType.Type.Kind() == reflect.Struct {
-					walkStruct(ctx, t, f)
-				} else if fieldType.Type.Kind() == reflect.Ptr && !f.IsNil() && f.Elem().Kind() == reflect.Struct {
-					walkStruct(ctx, t, f.Elem())
-				}
-				continue
-			}
-			k = fieldType.Name
-		}
-
-		if isNil(f) {
-			continue
-		}
-
-		options := valueOptions{
-			multiline: opts.multiline,
-			omitempty: opts.omitempty,
-			omitzero:  opts.omitzero,
-			commented: opts.commented,
-			comment:   fieldType.Tag.Get("comment"),
-		}
-
-		if opts.inline || !willConvertToTableOrArrayTable(ctx, f) {
-			t.pushKV(k, f, options)
-		} else {
-			t.pushTable(k, f, options)
-		}
-	}
-}
-
-func (enc *Encoder) encodeStruct(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, error) {
-	var t table
-
-	walkStruct(ctx, &t, v)
-
-	return enc.encodeTable(b, ctx, t)
-}
-
-func (enc *Encoder) encodeComment(indent int, comment string, b []byte) []byte {
-	for len(comment) > 0 {
-		var line string
-		idx := strings.IndexByte(comment, '\n')
-		if idx >= 0 {
-			line = comment[:idx]
-			comment = comment[idx+1:]
-		} else {
-			line = comment
-			comment = ""
-		}
-		b = enc.indent(indent, b)
-		b = append(b, "# "...)
-		b = append(b, line...)
-		b = append(b, '\n')
-	}
-	return b
-}
-
-func isValidName(s string) bool {
-	if s == "" {
+func isBareKey(key string) bool {
+	if len(key) == 0 {
 		return false
 	}
-	for _, c := range s {
-		switch {
-		case strings.ContainsRune("!#$%&()*+-./:;<=>?@[]^_{|}~ ", c):
-			// Backslash and quote chars are reserved, but
-			// otherwise any punctuation chars are allowed
-			// in a tag name.
-		case !unicode.IsLetter(c) && !unicode.IsDigit(c):
+	for _, c := range []byte(key) {
+		if !isUnquotedKeyByte(c) {
 			return false
 		}
 	}
 	return true
 }
 
-type tagOptions struct {
-	multiline bool
-	inline    bool
-	omitempty bool
-	omitzero  bool
-	commented bool
+func isUnquotedKeyByte(c byte) bool {
+	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_'
 }
 
-func parseTag(tag string) (string, tagOptions) {
-	opts := tagOptions{}
-
-	idx := strings.Index(tag, ",")
-	if idx == -1 {
-		return tag, opts
-	}
-
-	raw := tag[idx+1:]
-	tag = tag[:idx]
-	for raw != "" {
-		var o string
-		i := strings.Index(raw, ",")
-		if i >= 0 {
-			o, raw = raw[:i], raw[i+1:]
-		} else {
-			o, raw = raw, ""
-		}
-		switch o {
-		case "multiline":
-			opts.multiline = true
-		case "inline":
-			opts.inline = true
-		case "omitempty":
-			opts.omitempty = true
-		case "omitzero":
-			opts.omitzero = true
-		case "commented":
-			opts.commented = true
-		}
-	}
-
-	return tag, opts
-}
-
-func (enc *Encoder) encodeTable(b []byte, ctx encoderCtx, t table) ([]byte, error) {
-	var err error
-
-	ctx.shiftKey()
-
-	if ctx.insideKv || (ctx.inline && !ctx.isRoot()) {
-		return enc.encodeTableInline(b, ctx, t)
-	}
-
-	if !ctx.skipTableHeader {
-		b = enc.encodeTableHeader(ctx, b)
-
-		if enc.indentTables && len(ctx.parentKey) > 0 {
-			ctx.indent++
-		}
-	}
-	ctx.skipTableHeader = false
-
-	hasNonEmptyKV := false
-	for _, kv := range t.kvs {
-		if shouldOmitEmpty(kv.Options, kv.Value) {
-			continue
-		}
-		if kv.Options.omitzero && shouldOmitZero(kv.Options, kv.Value) {
-			continue
-		}
-		hasNonEmptyKV = true
-
-		ctx.setKey(kv.Key)
-		ctx2 := ctx
-		ctx2.commented = kv.Options.commented || ctx2.commented
-
-		b, err = enc.encodeKv(b, ctx2, kv.Options, kv.Value)
-		if err != nil {
-			return nil, err
-		}
-
-		b = append(b, '\n')
-	}
-
-	first := true
-	for _, table := range t.tables {
-		if shouldOmitEmpty(table.Options, table.Value) {
-			continue
-		}
-		if table.Options.omitzero && shouldOmitZero(table.Options, table.Value) {
-			continue
-		}
-		if first {
-			first = false
-			if hasNonEmptyKV {
-				b = append(b, '\n')
-			}
-		} else {
-			b = append(b, "\n"...)
-		}
-
-		ctx.setKey(table.Key)
-
-		ctx.options = table.Options
-		ctx2 := ctx
-		ctx2.commented = ctx2.commented || ctx.options.commented
-
-		b, err = enc.encode(b, ctx2, table.Value)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return b, nil
-}
-
-func (enc *Encoder) encodeTableInline(b []byte, ctx encoderCtx, t table) ([]byte, error) {
-	var err error
-
-	b = append(b, '{')
-
-	first := true
-	for _, kv := range t.kvs {
-		if shouldOmitEmpty(kv.Options, kv.Value) {
-			continue
-		}
-		if kv.Options.omitzero && shouldOmitZero(kv.Options, kv.Value) {
-			continue
-		}
-
-		if first {
-			first = false
-		} else {
-			b = append(b, `, `...)
-		}
-
-		ctx.setKey(kv.Key)
-
-		b, err = enc.encodeKv(b, ctx, kv.Options, kv.Value)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(t.tables) > 0 {
-		panic("inline table cannot contain nested tables, only key-values")
-	}
-
-	b = append(b, "}"...)
-
-	return b, nil
-}
-
-func willConvertToTable(ctx encoderCtx, v reflect.Value) bool {
-	if !v.IsValid() {
-		return false
-	}
+// appendValue emits a TOML value.
+func (e *encoderState) appendValue(b []byte, v reflect.Value, opts valueOptions, indent int) ([]byte, error) {
 	t := v.Type()
-	if t == timeType || t.Implements(textMarshalerType) {
-		return false
-	}
-	if v.Kind() != reflect.Ptr && v.CanAddr() && reflect.PointerTo(t).Implements(textMarshalerType) {
-		return false
+
+	// Special types take precedence over their kind.
+	switch t {
+	case timeType:
+		return v.Interface().(time.Time).AppendFormat(b, "2006-01-02T15:04:05.999999999Z07:00"), nil
+	case localDateType:
+		return append(b, v.Interface().(LocalDate).String()...), nil
+	case localTimeType:
+		return append(b, v.Interface().(LocalTime).String()...), nil
+	case localDateTimeType:
+		return append(b, v.Interface().(LocalDateTime).String()...), nil
+	case jsonNumberType:
+		if e.marshalJSONNumbers {
+			return appendJSONNumber(b, v.Interface().(json.Number))
+		}
 	}
 
-	switch t.Kind() {
-	case reflect.Map, reflect.Struct:
-		return !ctx.inline
-	case reflect.Interface:
-		return willConvertToTable(ctx, v.Elem())
+	switch encPropsForType(t).text {
+	case 1:
+		if t.Kind() != reflect.String {
+			return e.appendTextMarshaler(b, v.Interface().(encoding.TextMarshaler))
+		}
+	case 2:
+		if v.CanAddr() {
+			return e.appendTextMarshaler(b, v.Addr().Interface().(encoding.TextMarshaler))
+		}
+		tmp := reflect.New(t)
+		tmp.Elem().Set(v)
+		return e.appendTextMarshaler(b, tmp.Interface().(encoding.TextMarshaler))
+	}
+
+	switch v.Kind() {
 	case reflect.Ptr:
 		if v.IsNil() {
-			return false
+			// nil pointers are encoded as the zero value of their element
+			// type.
+			return e.appendValue(b, reflect.Zero(t.Elem()), opts, indent)
 		}
-
-		return willConvertToTable(ctx, v.Elem())
+		return e.appendValue(b, v.Elem(), opts, indent)
+	case reflect.Interface:
+		if v.IsNil() {
+			return nil, errors.New("toml: cannot encode a nil interface")
+		}
+		return e.appendValue(b, v.Elem(), opts, indent)
+	case reflect.String:
+		if opts.multiline {
+			return e.appendMultilineString(b, v.String()), nil
+		}
+		return e.appendString(b, v.String()), nil
+	case reflect.Bool:
+		if v.Bool() {
+			return append(b, "true"...), nil
+		}
+		return append(b, "false"...), nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.AppendInt(b, v.Int(), 10), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		u := v.Uint()
+		if u > math.MaxInt64 {
+			return nil, fmt.Errorf("toml: cannot encode an unsigned integer above math.MaxInt64: %d", u)
+		}
+		return strconv.AppendUint(b, u, 10), nil
+	case reflect.Float32:
+		return appendFloat(b, v.Float(), 32), nil
+	case reflect.Float64:
+		return appendFloat(b, v.Float(), 64), nil
+	case reflect.Slice, reflect.Array:
+		return e.appendArray(b, v, opts, indent)
+	case reflect.Map:
+		return e.appendInlineTable(b, v, indent)
+	case reflect.Struct:
+		return e.appendInlineTable(b, v, indent)
 	default:
-		return false
+		return nil, fmt.Errorf("toml: cannot encode value of type %s", v.Type())
 	}
 }
 
-func willConvertToTableOrArrayTable(ctx encoderCtx, v reflect.Value) bool {
-	if ctx.insideKv {
-		return false
+var jsonNumberType = reflect.TypeOf(json.Number(""))
+
+func appendJSONNumber(b []byte, n json.Number) ([]byte, error) {
+	if n == "" {
+		return append(b, '0'), nil
 	}
-	t := v.Type()
-
-	if t.Kind() == reflect.Interface {
-		return willConvertToTableOrArrayTable(ctx, v.Elem())
+	if i, err := n.Int64(); err == nil {
+		return strconv.AppendInt(b, i, 10), nil
 	}
-
-	if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
-		if v.Len() == 0 {
-			// An empty slice should be a kv = [].
-			return false
-		}
-
-		for i := 0; i < v.Len(); i++ {
-			t := willConvertToTable(ctx, v.Index(i))
-
-			if !t {
-				return false
-			}
-		}
-
-		return true
+	f, err := n.Float64()
+	if err != nil {
+		return nil, fmt.Errorf("toml: cannot encode json.Number %q: %w", string(n), err)
 	}
-
-	return willConvertToTable(ctx, v)
+	return appendFloat(b, f, 64), nil
 }
 
-func (enc *Encoder) encodeSlice(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, error) {
-	if v.Len() == 0 {
-		b = append(b, "[]"...)
-
-		return b, nil
+func appendFloat(b []byte, f float64, bitSize int) []byte {
+	switch {
+	case math.IsNaN(f):
+		return append(b, "nan"...)
+	case math.IsInf(f, 1):
+		return append(b, "inf"...)
+	case math.IsInf(f, -1):
+		return append(b, "-inf"...)
 	}
-
-	if willConvertToTableOrArrayTable(ctx, v) {
-		return enc.encodeSliceAsArrayTable(b, ctx, v)
+	start := len(b)
+	b = strconv.AppendFloat(b, f, 'f', -1, bitSize)
+	// TOML floats must have a fractional part or an exponent.
+	if !bytes.ContainsAny(b[start:], ".eE") {
+		b = append(b, ".0"...)
 	}
-
-	return enc.encodeSliceAsArray(b, ctx, v)
+	return b
 }
 
-// caller should have checked that v is a slice that only contains values that
-// encode into tables.
-func (enc *Encoder) encodeSliceAsArrayTable(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, error) {
-	ctx.shiftKey()
-
-	scratch := make([]byte, 0, 64)
-
-	scratch = enc.commented(ctx.commented, scratch)
-
-	if enc.indentTables {
-		scratch = enc.indent(ctx.indent, scratch)
+func (e *encoderState) appendTextMarshaler(b []byte, m encoding.TextMarshaler) ([]byte, error) {
+	text, err := m.MarshalText()
+	if err != nil {
+		return nil, fmt.Errorf("toml: error calling MarshalText: %w", err)
 	}
-
-	scratch = append(scratch, "[["...)
-
-	for i, k := range ctx.parentKey {
-		if i > 0 {
-			scratch = append(scratch, '.')
-		}
-
-		scratch = enc.encodeKey(scratch, k)
-	}
-
-	scratch = append(scratch, "]]\n"...)
-	ctx.skipTableHeader = true
-
-	b = enc.encodeComment(ctx.indent, ctx.options.comment, b)
-
-	if enc.indentTables {
-		ctx.indent++
-	}
-
-	for i := 0; i < v.Len(); i++ {
-		if i != 0 {
-			b = append(b, "\n"...)
-		}
-
-		b = append(b, scratch...)
-
-		var err error
-		b, err = enc.encode(b, ctx, v.Index(i))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return b, nil
+	return e.appendString(b, string(text)), nil
 }
 
-func (enc *Encoder) encodeSliceAsArray(b []byte, ctx encoderCtx, v reflect.Value) ([]byte, error) {
-	multiline := ctx.options.multiline || enc.arraysMultiline
-	separator := ", "
+// appendArray encodes a slice or array value.
+func (e *encoderState) appendArray(b []byte, v reflect.Value, opts valueOptions, indent int) ([]byte, error) {
+	multiline := opts.multiline || e.arraysMultiline
 
 	b = append(b, '[')
-
-	subCtx := ctx
-	subCtx.options = valueOptions{}
-
-	if multiline {
-		separator = ",\n"
-
+	if multiline && v.Len() > 0 {
+		for i := 0; i < v.Len(); i++ {
+			if i > 0 {
+				b = append(b, ',')
+			}
+			b = append(b, '\n')
+			for j := 0; j <= indent; j++ {
+				b = append(b, e.indentSymbol...)
+			}
+			var err error
+			b, err = e.appendValue(b, v.Index(i), valueOptions{}, indent+1)
+			if err != nil {
+				return nil, err
+			}
+		}
 		b = append(b, '\n')
+		for j := 0; j < indent; j++ {
+			b = append(b, e.indentSymbol...)
+		}
+	} else {
+		for i := 0; i < v.Len(); i++ {
+			if i > 0 {
+				b = append(b, ", "...)
+			}
+			var err error
+			b, err = e.appendValue(b, v.Index(i), valueOptions{}, indent)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return append(b, ']'), nil
+}
 
-		subCtx.indent++
+// appendInlineTable encodes a map or a struct as an inline table.
+func (e *encoderState) appendInlineTable(b []byte, v reflect.Value, indent int) ([]byte, error) {
+	entries, err := e.collectEntries(v)
+	if err != nil {
+		return nil, err
 	}
 
-	var err error
-	first := true
-
-	for i := 0; i < v.Len(); i++ {
-		if first {
-			first = false
-		} else {
-			b = append(b, separator...)
+	b = append(b, '{')
+	for i, ent := range entries {
+		if i > 0 {
+			b = append(b, ", "...)
 		}
-
-		if multiline {
-			b = enc.indent(subCtx.indent, b)
-		}
-
-		b, err = enc.encode(b, subCtx, v.Index(i))
+		b = e.appendKey(b, ent.key)
+		b = append(b, " = "...)
+		// multiline strings are not allowed inside inline tables: they
+		// would break the single-line requirement.
+		opts := ent.options
+		opts.multiline = false
+		b, err = e.appendValue(b, ent.value, opts, indent)
 		if err != nil {
 			return nil, err
 		}
 	}
-
-	if multiline {
-		b = append(b, '\n')
-		b = enc.indent(ctx.indent, b)
-	}
-
-	b = append(b, ']')
-
-	return b, nil
+	e.putEntries(entries)
+	return append(b, '}'), nil
 }
 
-func (enc *Encoder) indent(level int, b []byte) []byte {
-	for i := 0; i < level; i++ {
-		b = append(b, enc.indentSymbol...)
+// appendString encodes a string, using a literal string when possible and a
+// basic string otherwise.
+func (e *encoderState) appendString(b []byte, s string) []byte {
+	if canBeLiteral(s) {
+		b = append(b, '\'')
+		b = append(b, s...)
+		return append(b, '\'')
 	}
+	return appendBasicString(b, s)
+}
 
-	return b
+// canBeLiteral returns true when the string can be represented as a TOML
+// literal string: no control characters, no single quote, no newline.
+func canBeLiteral(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == '\'' || c == 0x7f || c < 0x20 {
+			return false
+		}
+	}
+	return utf8.ValidString(s)
+}
+
+// appendBasicString encodes a string as a TOML basic (double-quoted) string.
+func appendBasicString(b []byte, s string) []byte {
+	b = append(b, '"')
+	for i := 0; i < len(s); {
+		c := s[i]
+		switch {
+		case c == '"':
+			b = append(b, '\\', '"')
+			i++
+		case c == '\\':
+			b = append(b, '\\', '\\')
+			i++
+		case c == '\b':
+			b = append(b, '\\', 'b')
+			i++
+		case c == '\f':
+			b = append(b, '\\', 'f')
+			i++
+		case c == '\n':
+			b = append(b, '\\', 'n')
+			i++
+		case c == '\r':
+			b = append(b, '\\', 'r')
+			i++
+		case c == '\t':
+			b = append(b, '\\', 't')
+			i++
+		case c < 0x20 || c == 0x7f:
+			b = append(b, fmt.Sprintf("\\u%04X", c)...)
+			i++
+		default:
+			r, size := utf8.DecodeRuneInString(s[i:])
+			if r == utf8.RuneError && size == 1 {
+				// Replace invalid bytes by the replacement character.
+				b = append(b, fmt.Sprintf("\\u%04X", c)...)
+				i++
+				continue
+			}
+			b = append(b, s[i:i+size]...)
+			i += size
+		}
+	}
+	return append(b, '"')
+}
+
+// appendMultilineString encodes a string as a TOML multi-line basic string.
+func appendMultilineString(b []byte, s string) []byte {
+	b = append(b, `"""`...)
+	b = append(b, '\n')
+	for i := 0; i < len(s); {
+		c := s[i]
+		switch {
+		case c == '"':
+			// Runs of three or more quotes must be escaped.
+			j := i
+			for j < len(s) && s[j] == '"' {
+				j++
+			}
+			if j-i >= 3 {
+				for ; i < j; i++ {
+					b = append(b, '\\', '"')
+				}
+			} else {
+				b = append(b, s[i:j]...)
+				i = j
+			}
+		case c == '\\':
+			b = append(b, '\\', '\\')
+			i++
+		case c == '\n':
+			b = append(b, '\n')
+			i++
+		case c == '\b':
+			b = append(b, '\\', 'b')
+			i++
+		case c == '\f':
+			b = append(b, '\\', 'f')
+			i++
+		case c == '\r':
+			b = append(b, '\\', 'r')
+			i++
+		case c == '\t':
+			b = append(b, '\t')
+			i++
+		case c < 0x20 || c == 0x7f:
+			b = append(b, fmt.Sprintf("\\u%04X", c)...)
+			i++
+		default:
+			r, size := utf8.DecodeRuneInString(s[i:])
+			if r == utf8.RuneError && size == 1 {
+				b = append(b, fmt.Sprintf("\\u%04X", c)...)
+				i++
+				continue
+			}
+			b = append(b, s[i:i+size]...)
+			i += size
+		}
+	}
+	return append(b, `"""`...)
+}
+
+func (e *encoderState) appendMultilineString(b []byte, s string) []byte {
+	return appendMultilineString(b, s)
 }
