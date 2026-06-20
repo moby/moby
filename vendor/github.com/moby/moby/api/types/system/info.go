@@ -1,6 +1,7 @@
 package system
 
 import (
+	"encoding/json"
 	"net/netip"
 
 	"github.com/moby/moby/api/types/container"
@@ -146,6 +147,40 @@ type Commit struct {
 type NetworkAddressPool struct {
 	Base netip.Prefix
 	Size int
+}
+
+// UnmarshalJSON decodes a NetworkAddressPool as returned by the daemon.
+func (n *NetworkAddressPool) UnmarshalJSON(data []byte) error {
+	type networkAddressPool struct {
+		Base *string
+		Size *int
+	}
+	var pool networkAddressPool
+	if err := json.Unmarshal(data, &pool); err != nil {
+		return err
+	}
+	if pool.Base != nil {
+		if *pool.Base == (netip.Prefix{}).String() && pool.Size != nil && *pool.Size != 0 {
+			_, err := netip.ParsePrefix(*pool.Base)
+			return err
+		}
+		if *pool.Base == "" || *pool.Base == (netip.Prefix{}).String() {
+			n.Base = netip.Prefix{}
+			if pool.Size == nil {
+				n.Size = 0
+			}
+		} else {
+			base, err := netip.ParsePrefix(*pool.Base)
+			if err != nil {
+				return err
+			}
+			n.Base = base
+		}
+	}
+	if pool.Size != nil {
+		n.Size = *pool.Size
+	}
+	return nil
 }
 
 // FirewallInfo describes the firewall backend.
