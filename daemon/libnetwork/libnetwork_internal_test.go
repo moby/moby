@@ -736,7 +736,9 @@ func TestSandboxResolveCrossNetworkInternal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Stop()
+	// Register controller shutdown first so subsequent t.Cleanup registrations
+	// for per-network deletion run before it (Cleanup is LIFO).
+	t.Cleanup(func() { c.Stop() })
 
 	mustNewNetwork := func(name string, opts ...NetworkOption) *Network {
 		opts = append([]NetworkOption{NetworkOptionEnableIPv4(true)}, opts...)
@@ -746,7 +748,7 @@ func TestSandboxResolveCrossNetworkInternal(t *testing.T) {
 		}
 		t.Cleanup(func() {
 			if err := n.Delete(); err != nil {
-				t.Fatal(err)
+				t.Errorf("delete network %s: %v", name, err)
 			}
 		})
 		return n
