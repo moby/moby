@@ -380,15 +380,8 @@ func removeIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
 }
 
 func addIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
-	// TODO IPv6 support
-	iptable := iptables.GetIptable(iptables.IPv4)
-
 	ingressMu.Lock()
 	defer ingressMu.Unlock()
-
-	if err := initIngressConfiguration(gwIP, iptable); err != nil {
-		return err
-	}
 
 	// Filter the ingress ports until port rules start to be added/deleted
 	filteredPorts := filterPortConfigs(ingressPorts, false)
@@ -404,15 +397,8 @@ func addIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
 }
 
 func restoreIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
-	// TODO IPv6 support
-	iptable := iptables.GetIptable(iptables.IPv4)
-
 	ingressMu.Lock()
 	defer ingressMu.Unlock()
-
-	if err := initIngressConfiguration(gwIP, iptable); err != nil {
-		return err
-	}
 
 	if err := programIngressPortsRules(gwIP, ingressPorts); err != nil {
 		return fmt.Errorf("failed to program ingress ports: %v", err)
@@ -450,6 +436,13 @@ func generateIngressRules(port *PortConfig, destIP net.IP) []iptables.Rule {
 }
 
 func programIngressPortsRules(gwIP net.IP, filteredPorts []*PortConfig) (portErr error) {
+	// TODO IPv6 support
+	iptable := iptables.GetIptable(iptables.IPv4)
+
+	if err := initIngressConfiguration(gwIP, iptable); err != nil {
+		return err
+	}
+
 	rollbackRules := make([]iptables.Rule, 0, len(filteredPorts)*3)
 	defer func() {
 		if portErr != nil {
