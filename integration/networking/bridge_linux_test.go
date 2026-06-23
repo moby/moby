@@ -33,6 +33,7 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -206,20 +207,37 @@ func TestBridgeICC(t *testing.T) {
 			pingCmd := []string{"ping", "-c1", "-W3", ipv, pingHost}
 
 			ctr2Name := fmt.Sprintf("ctr-icc-%d-2", tcID)
-			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-			res := container.RunAttach(attachCtx, t, c,
+			id2 := container.Run(ctx, t, c,
 				container.WithName(ctr2Name),
 				container.WithImage("busybox:latest"),
-				container.WithCmd(pingCmd...),
+				container.WithCmd("top"),
 				container.WithNetworkMode(bridgeName))
-			defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{
+			defer c.ContainerRemove(ctx, id2, client.ContainerRemoveOptions{
 				Force: true,
 			})
 
+			var res container.ExecResult
+			poll.WaitOn(t, func(_ poll.LogT) poll.Result {
+				execCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+				defer cancel()
+
+				var err error
+				res, err = container.Exec(execCtx, c, id2, pingCmd)
+				if err != nil {
+					return poll.Error(err)
+				}
+				if res.ExitCode != 0 {
+					return poll.Continue(
+						"ping failed with exit code %d, stdout: %s, stderr: %s",
+						res.ExitCode, res.Stdout(), res.Stderr(),
+					)
+				}
+				return poll.Success()
+			}, poll.WithTimeout(15*time.Second))
+
 			assert.Check(t, is.Equal(res.ExitCode, 0))
-			assert.Check(t, is.Equal(res.Stderr.Len(), 0))
-			assert.Check(t, is.Contains(res.Stdout.String(), "1 packets transmitted, 1 packets received"))
+			assert.Check(t, is.Equal(res.Stderr(), ""))
+			assert.Check(t, is.Contains(res.Stdout(), "1 packets transmitted, 1 packets received"))
 		})
 	}
 }
