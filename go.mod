@@ -81,7 +81,7 @@ require (
 	github.com/moby/sys/sequential v0.7.0
 	github.com/moby/sys/signal v0.7.1
 	github.com/moby/sys/symlink v0.3.0
-	github.com/moby/sys/user v0.4.0
+	github.com/moby/sys/user v0.4.1
 	github.com/moby/sys/userns v0.1.0
 	github.com/moby/term v0.5.2
 	github.com/opencontainers/cgroups v0.0.7
