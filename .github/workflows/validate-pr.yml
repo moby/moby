@@ -9,10 +9,11 @@ permissions:
 
 on:
   pull_request:
-    types: [opened, edited, labeled, unlabeled, synchronize]
+    types: [opened, reopened, edited, synchronize, labeled, unlabeled]
 
 jobs:
   check-labels:
+    if: ${{ github.event.pull_request.state == 'open' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     steps:
@@ -30,6 +31,7 @@ jobs:
         run: exit 0
 
   check-changelog:
+    if: ${{ github.event.pull_request.state == 'open' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     env:
@@ -68,6 +70,7 @@ jobs:
           echo "$desc"
 
   check-commit-references:
+    if: ${{ github.event.pull_request.state == 'open' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -83,6 +86,7 @@ jobs:
         run: bash hack/validate/pr-gh-references
 
   check-pr-branch:
+    if: ${{ github.event.pull_request.state == 'open' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     env:
