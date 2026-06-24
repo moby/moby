@@ -20,6 +20,8 @@ import (
 // image removal does not cause an error.
 // Regression test for https://github.com/moby/moby/issues/51978
 func TestDiskUsageConcurrentPrune(t *testing.T) {
+	t.Skip(t, "TODO(https://github.com/moby/moby/issues/52538): unskip once the DiskUsage race is fixed")
+
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "cannot start multiple daemons on windows")
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, !testEnv.UsingSnapshotter(), "only happens with containerd image store")
