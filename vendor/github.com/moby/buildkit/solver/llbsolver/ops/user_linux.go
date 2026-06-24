@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"io"
 	"os"
 	"syscall"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/pkg/errors"
 	copy "github.com/tonistiigi/fsutil/copy"
 )
+
+const maxUserFileBytes = 10 << 20
 
 func getReadUserFn(_ worker.Worker) func(chopt *pb.ChownOpt, mu, mg snapshot.Mountable) (*copy.User, error) {
 	return readUser
@@ -41,12 +44,7 @@ func readUser(chopt *pb.ChownOpt, mu, mg snapshot.Mountable) (*copy.User, error)
 				return nil, err
 			}
 
-			passwdPath, err = fs.RootPath(dir, passwdPath)
-			if err != nil {
-				return nil, err
-			}
-
-			ufile, err := os.Open(passwdPath)
+			ufile, err := openUserFile(dir, passwdPath)
 			if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) {
 				// Couldn't open the file. Considering this case as not finding the user in the file.
 				break
@@ -92,12 +90,7 @@ func readUser(chopt *pb.ChownOpt, mu, mg snapshot.Mountable) (*copy.User, error)
 				return nil, err
 			}
 
-			groupPath, err = fs.RootPath(dir, groupPath)
-			if err != nil {
-				return nil, err
-			}
-
-			gfile, err := os.Open(groupPath)
+			gfile, err := openUserFile(dir, groupPath)
 			if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) {
 				// Couldn't open the file. Considering this case as not finding the group in the file.
 				break
@@ -123,4 +116,46 @@ func readUser(chopt *pb.ChownOpt, mu, mg snapshot.Mountable) (*copy.User, error)
 	}
 
 	return &us, nil
+}
+
+func openUserFile(root, p string) (io.ReadCloser, error) {
+	p, err := fs.RootPath(root, p)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	f, err := os.Open(p)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	info, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return nil, errors.WithStack(err)
+	}
+	if !info.Mode().IsRegular() {
+		f.Close()
+		return nil, errors.Errorf("%s is not a regular file", p)
+	}
+
+	return &limitedReadCloser{
+		ReadCloser: f,
+		r:          &io.LimitedReader{R: f, N: maxUserFileBytes + 1},
+		name:       p,
+	}, nil
+}
+
+type limitedReadCloser struct {
+	io.ReadCloser
+	r    *io.LimitedReader
+	name string
+}
+
+func (l *limitedReadCloser) Read(p []byte) (int, error) {
+	n, err := l.r.Read(p)
+	if l.r.N == 0 {
+		return n, errors.Errorf("%q exceeds %d bytes", l.name, maxUserFileBytes)
+	}
+	return n, err
 }
