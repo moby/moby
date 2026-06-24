@@ -6,10 +6,11 @@ permissions:
 
 on:
   pull_request:
-    types: [opened, synchronize, milestoned, demilestoned, edited]
+    types: [opened, reopened, edited, synchronize, milestoned, demilestoned]
 
 jobs:
   validate-milestone:
+    if: ${{ github.event.pull_request.state == 'open' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
