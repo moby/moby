@@ -279,8 +279,12 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		addCap(&e.constraints, pb.CapExecMetaNetwork)
 	}
 
-	if security != SecurityModeSandbox {
+	switch security {
+	case SecurityModeSandbox:
+	case SecurityModeInsecure:
 		addCap(&e.constraints, pb.CapExecMetaSecurity)
+	default:
+		return "", nil, nil, nil, pb.ValidateSecurityMode(security)
 	}
 
 	if p := e.proxyEnv; p != nil {

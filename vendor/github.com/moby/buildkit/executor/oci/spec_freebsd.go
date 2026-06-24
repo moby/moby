@@ -21,6 +21,9 @@ func generateMountOpts(_, _ string) []oci.SpecOpts {
 
 // generateSecurityOpts may affect mounts, so must be called after generateMountOpts
 func generateSecurityOpts(mode pb.SecurityMode, _ string, _ bool) ([]oci.SpecOpts, error) {
+	if err := pb.ValidateSecurityMode(mode); err != nil {
+		return nil, err
+	}
 	if mode == pb.SecurityMode_INSECURE {
 		return nil, errors.New("no support for running in insecure mode on FreeBSD")
 	}

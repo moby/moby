@@ -53,11 +53,14 @@ func generateMountOpts(resolvConf, hostsFile string) []oci.SpecOpts {
 
 // generateSecurityOpts may affect mounts, so must be called after generateMountOpts
 func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string, selinuxB bool) (opts []oci.SpecOpts, _ error) {
+	if err := pb.ValidateSecurityMode(mode); err != nil {
+		return nil, err
+	}
 	if selinuxB && !selinux.GetEnabled() {
 		return nil, errors.New("selinux is not available")
 	}
-	switch mode {
-	case pb.SecurityMode_INSECURE:
+
+	if mode == pb.SecurityMode_INSECURE {
 		return []oci.SpecOpts{
 			security.WithInsecureSpec(),
 			oci.WithWriteableCgroupfs,
@@ -70,28 +73,27 @@ func generateSecurityOpts(mode pb.SecurityMode, apparmorProfile string, selinuxB
 				return err
 			},
 		}, nil
-	case pb.SecurityMode_SANDBOX:
-		if cdseccomp.IsEnabled() {
-			opts = append(opts, withDefaultProfile())
-		}
-		if apparmorProfile != "" {
-			// If AppArmor is not supported but a profile was specified, return an error
-			if !apparmor.HostSupports() {
-				return nil, errors.New("AppArmor is not supported on this host, but the profile '" + apparmorProfile + "' was specified")
-			}
-
-			opts = append(opts, oci.WithApparmorProfile(apparmorProfile))
-		}
-		opts = append(opts, func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
-			var err error
-			if selinuxB {
-				s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels(nil)
-			}
-			return err
-		})
-		return opts, nil
 	}
-	return nil, nil
+
+	if cdseccomp.IsEnabled() {
+		opts = append(opts, withDefaultProfile())
+	}
+	if apparmorProfile != "" {
+		// If AppArmor is not supported but a profile was specified, return an error
+		if !apparmor.HostSupports() {
+			return nil, errors.New("AppArmor is not supported on this host, but the profile '" + apparmorProfile + "' was specified")
+		}
+
+		opts = append(opts, oci.WithApparmorProfile(apparmorProfile))
+	}
+	opts = append(opts, func(_ context.Context, _ oci.Client, _ *containers.Container, s *oci.Spec) error {
+		var err error
+		if selinuxB {
+			s.Process.SelinuxLabel, s.Linux.MountLabel, err = label.InitLabels(nil)
+		}
+		return err
+	})
+	return opts, nil
 }
 
 // generateProcessModeOpts may affect mounts, so must be called after generateMountOpts
