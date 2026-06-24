@@ -20,6 +20,9 @@ func generateMountOpts(_, _ string) []oci.SpecOpts {
 }
 
 func generateSecurityOpts(mode pb.SecurityMode, _ string, _ bool) ([]oci.SpecOpts, error) {
+	if err := pb.ValidateSecurityMode(mode); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 

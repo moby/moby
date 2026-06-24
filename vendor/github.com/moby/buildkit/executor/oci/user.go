@@ -2,6 +2,7 @@ package oci
 
 import (
 	"context"
+	"io"
 	"os"
 	"slices"
 	"strconv"
@@ -14,6 +15,8 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
+
+const maxUserFileBytes = 10 << 20
 
 func GetUser(root, username string) (uint32, uint32, []uint32, error) {
 	var isDefault bool
@@ -68,12 +71,46 @@ func ParseUIDGID(str string) (uid uint32, gid uint32, err error) {
 	return
 }
 
-func openUserFile(root, p string) (*os.File, error) {
+func openUserFile(root, p string) (io.ReadCloser, error) {
 	p, err := fs.RootPath(root, p)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
-	return os.Open(p)
+
+	f, err := os.Open(p)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	info, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return nil, errors.WithStack(err)
+	}
+	if !info.Mode().IsRegular() {
+		f.Close()
+		return nil, errors.Errorf("%s is not a regular file", p)
+	}
+
+	return &limitedReadCloser{
+		ReadCloser: f,
+		r:          &io.LimitedReader{R: f, N: maxUserFileBytes + 1},
+		name:       p,
+	}, nil
+}
+
+type limitedReadCloser struct {
+	io.ReadCloser
+	r    *io.LimitedReader
+	name string
+}
+
+func (l *limitedReadCloser) Read(p []byte) (int, error) {
+	n, err := l.r.Read(p)
+	if l.r.N == 0 {
+		return n, errors.Errorf("%q exceeds %d bytes", l.name, maxUserFileBytes)
+	}
+	return n, err
 }
 
 func parseUID(str string) (uint32, error) {
