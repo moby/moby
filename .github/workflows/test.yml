@@ -146,7 +146,9 @@ jobs:
         name: Create matrix
         id: scripts
         run: |
-          scripts=$(cd ./hack/validate && jq -nc '$ARGS.positional - ["all", "default", "dco"] | map(select(test("[.]")|not)) + ["generate-files"]' --args *)
+          # Select all validate scripts, excluding checks that are already run
+          # elsewhere and/or require pull-request metadata (dco, pr-gh-references).
+          scripts=$(cd ./hack/validate && jq -nc '$ARGS.positional - ["all", "default", "dco", "pr-gh-references"] | map(select(test("[.]")|not)) + ["generate-files"]' --args *)
           echo "matrix=$scripts" >> $GITHUB_OUTPUT
           echo "$scripts"
 
