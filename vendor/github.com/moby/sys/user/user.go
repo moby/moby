@@ -56,11 +56,11 @@ type IDMap struct {
 	Count    int64
 }
 
-func parseLine(line []byte, v ...interface{}) {
+func parseLine(line []byte, v ...any) {
 	parseParts(bytes.Split(line, []byte(":")), v...)
 }
 
-func parseParts(parts [][]byte, v ...interface{}) {
+func parseParts(parts [][]byte, v ...any) {
 	if len(parts) == 0 {
 		return
 	}
@@ -97,12 +97,7 @@ func parseParts(parts [][]byte, v ...interface{}) {
 }
 
 func ParsePasswdFile(path string) ([]User, error) {
-	passwd, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer passwd.Close()
-	return ParsePasswd(passwd)
+	return ParsePasswdFileFilter(path, nil)
 }
 
 func ParsePasswd(passwd io.Reader) ([]User, error) {
@@ -154,13 +149,7 @@ func ParsePasswdFilter(r io.Reader, filter func(User) bool) ([]User, error) {
 }
 
 func ParseGroupFile(path string) ([]Group, error) {
-	group, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	defer group.Close()
-	return ParseGroup(group)
+	return ParseGroupFileFilter(path, nil)
 }
 
 func ParseGroup(group io.Reader) ([]Group, error) {
@@ -168,7 +157,7 @@ func ParseGroup(group io.Reader) ([]Group, error) {
 }
 
 func ParseGroupFileFilter(path string, filter func(Group) bool) ([]Group, error) {
-	group, err := os.Open(path)
+	group, err := openUserFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -180,52 +169,22 @@ func ParseGroupFilter(r io.Reader, filter func(Group) bool) ([]Group, error) {
 	if r == nil {
 		return nil, errors.New("nil source for group-formatted data")
 	}
-	rd := bufio.NewReader(r)
-	out := []Group{}
 
-	// Read the file line-by-line.
-	for {
-		var (
-			isPrefix  bool
-			wholeLine []byte
-			err       error
-		)
+	var (
+		s   = bufio.NewScanner(r)
+		out = []Group{}
+	)
 
-		// Read the next line. We do so in chunks (as much as reader's
-		// buffer is able to keep), check if we read enough columns
-		// already on each step and store final result in wholeLine.
-		for {
-			var line []byte
-			line, isPrefix, err = rd.ReadLine()
-			if err != nil {
-				// We should return no error if EOF is reached
-				// without a match.
-				if err == io.EOF {
-					err = nil
-				}
-				return out, err
-			}
+	// A group's user_list may be arbitrarily long, so allow lines that are
+	// much larger than bufio.Scanner's default maximum token size (64 KiB).
+	s.Buffer(nil, 1024*1024)
 
-			// Simple common case: line is short enough to fit in a
-			// single reader's buffer.
-			if !isPrefix && len(wholeLine) == 0 {
-				wholeLine = line
-				break
-			}
-
-			wholeLine = append(wholeLine, line...)
-
-			// Check if we read the whole line already.
-			if !isPrefix {
-				break
-			}
-		}
-
+	for s.Scan() {
 		// There's no spec for /etc/passwd or /etc/group, but we try to follow
 		// the same rules as the glibc parser, which allows comments and blank
 		// space at the beginning of a line.
-		wholeLine = bytes.TrimSpace(wholeLine)
-		if len(wholeLine) == 0 || wholeLine[0] == '#' {
+		line := bytes.TrimSpace(s.Bytes())
+		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
 
@@ -235,12 +194,17 @@ func ParseGroupFilter(r io.Reader, filter func(Group) bool) ([]Group, error) {
 		//  root:x:0:root
 		//  adm:x:4:root,adm,daemon
 		p := Group{}
-		parseLine(wholeLine, &p.Name, &p.Pass, &p.Gid, &p.List)
+		parseLine(line, &p.Name, &p.Pass, &p.Gid, &p.List)
 
 		if filter == nil || filter(p) {
 			out = append(out, p)
 		}
 	}
+	if err := s.Err(); err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 type ExecUser struct {
@@ -257,17 +221,49 @@ type ExecUser struct {
 func GetExecUserPath(userSpec string, defaults *ExecUser, passwdPath, groupPath string) (*ExecUser, error) {
 	var passwd, group io.Reader
 
-	if passwdFile, err := os.Open(passwdPath); err == nil {
+	if passwdFile, err := openUserFile(passwdPath); err == nil {
 		passwd = passwdFile
 		defer passwdFile.Close()
 	}
 
-	if groupFile, err := os.Open(groupPath); err == nil {
+	if groupFile, err := openUserFile(groupPath); err == nil {
 		group = groupFile
 		defer groupFile.Close()
 	}
 
 	return GetExecUser(userSpec, defaults, passwd, group)
+}
+
+// parseNumeric parses the given UID or GID value to an integer and within
+// the minID - maxID range.
+//
+// While the Linux kernel allows the max UID to be MaxUint32 - 2,
+// and the OCI Runtime Spec has no definition about the max UID, we require
+// the UID to be <= MaxInt32.
+//
+// See https://github.com/containerd/containerd/commit/de1341c201ffb0effebbf51d00376181968c8779
+func parseNumeric(val string) (int, bool, error) {
+	if val == "" {
+		return 0, false, nil
+	}
+	id, err := strconv.Atoi(val)
+	if err != nil {
+		if errors.Is(err, strconv.ErrSyntax) {
+			// Discard the error, because non-numeric values are expected
+			// when passing a username or group-name.
+			return 0, false, nil
+		}
+		if errors.Is(err, strconv.ErrRange) {
+			return 0, true, ErrRange
+		}
+		// Other errors ("invalid base", "invalid bit size"); should never
+		// happen with strconv.Atoi.
+		return 0, false, err
+	}
+	if id < minID || id > maxID {
+		return 0, true, ErrRange
+	}
+	return id, true, nil
 }
 
 // GetExecUser parses a user specification string (using the passwd and group
@@ -315,8 +311,14 @@ func GetExecUser(userSpec string, defaults *ExecUser, passwd, group io.Reader) (
 
 	// Convert userArg and groupArg to be numeric, so we don't have to execute
 	// Atoi *twice* for each iteration over lines.
-	uidArg, uidErr := strconv.Atoi(userArg)
-	gidArg, gidErr := strconv.Atoi(groupArg)
+	uidArg, isUID, err := parseNumeric(userArg)
+	if err != nil {
+		return nil, err
+	}
+	gidArg, isGID, err := parseNumeric(groupArg)
+	if err != nil {
+		return nil, err
+	}
 
 	// Find the matching user.
 	users, err := ParsePasswdFilter(passwd, func(u User) bool {
@@ -325,8 +327,8 @@ func GetExecUser(userSpec string, defaults *ExecUser, passwd, group io.Reader) (
 			return u.Uid == user.Uid
 		}
 
-		if uidErr == nil {
-			// If the userArg is numeric, always treat it as a UID.
+		if isUID {
+			// If the userArg is a valid numeric value, always treat it as a UID.
 			return uidArg == u.Uid
 		}
 
@@ -352,18 +354,11 @@ func GetExecUser(userSpec string, defaults *ExecUser, passwd, group io.Reader) (
 		// If we can't find a user with the given username, the only other valid
 		// option is if it's a numeric username with no associated entry in passwd.
 
-		if uidErr != nil {
+		if !isUID {
 			// Not numeric.
 			return nil, fmt.Errorf("unable to find user %s: %w", userArg, ErrNoPasswdEntries)
 		}
 		user.Uid = uidArg
-
-		// Must be inside valid uid range.
-		if user.Uid < minID || user.Uid > maxID {
-			return nil, ErrRange
-		}
-
-		// Okay, so it's numeric. We can just roll with this.
 	}
 
 	// On to the groups. If we matched a username, we need to do this because of
@@ -381,7 +376,7 @@ func GetExecUser(userSpec string, defaults *ExecUser, passwd, group io.Reader) (
 				return false
 			}
 
-			if gidErr == nil {
+			if isGID {
 				// If the groupArg is numeric, always treat it as a GID.
 				return gidArg == g.Gid
 			}
@@ -401,18 +396,11 @@ func GetExecUser(userSpec string, defaults *ExecUser, passwd, group io.Reader) (
 				// If we can't find a group with the given name, the only other valid
 				// option is if it's a numeric group name with no associated entry in group.
 
-				if gidErr != nil {
+				if !isGID {
 					// Not numeric.
 					return nil, fmt.Errorf("unable to find group %s: %w", groupArg, ErrNoGroupEntries)
 				}
 				user.Gid = gidArg
-
-				// Must be inside valid gid range.
-				if user.Gid < minID || user.Gid > maxID {
-					return nil, ErrRange
-				}
-
-				// Okay, so it's numeric. We can just roll with this.
 			}
 		} else if len(groups) > 0 {
 			// Supplementary group ids only make sense if in the implicit form.
@@ -426,55 +414,80 @@ func GetExecUser(userSpec string, defaults *ExecUser, passwd, group io.Reader) (
 	return user, nil
 }
 
+// groupArg is a parsed group argument for [GetAdditionalGroups].
+type groupArg struct {
+	name      string
+	gid       int
+	isNumeric bool
+}
+
+// matches reports whether group g satisfies the argument. Numeric arguments
+// are matched by GID only, others by name.
+func (ag groupArg) matches(g Group) bool {
+	if ag.isNumeric {
+		return g.Gid == ag.gid
+	}
+	return g.Name == ag.name
+}
+
 // GetAdditionalGroups looks up a list of groups by name or group id
 // against the given /etc/group formatted data. If a group name cannot
 // be found, an error will be returned. If a group id cannot be found,
 // or the given group data is nil, the id will be returned as-is
 // provided it is in the legal range.
 func GetAdditionalGroups(additionalGroups []string, group io.Reader) ([]int, error) {
+	addtlGroups := make([]groupArg, len(additionalGroups))
+	for i, ag := range additionalGroups {
+		gid, ok, err := parseNumeric(ag)
+		if err != nil {
+			return nil, err
+		}
+		addtlGroups[i] = groupArg{
+			name:      ag,
+			gid:       gid,
+			isNumeric: ok,
+		}
+	}
+
 	groups := []Group{}
 	if group != nil {
 		var err error
 		groups, err = ParseGroupFilter(group, func(g Group) bool {
-			for _, ag := range additionalGroups {
-				if g.Name == ag || strconv.Itoa(g.Gid) == ag {
+			for _, ag := range addtlGroups {
+				if ag.matches(g) {
 					return true
 				}
 			}
 			return false
 		})
 		if err != nil {
-			return nil, fmt.Errorf("Unable to find additional groups %v: %w", additionalGroups, err)
+			return nil, fmt.Errorf("unable to find additional groups %v: %w", additionalGroups, err)
 		}
 	}
 
 	gidMap := make(map[int]struct{})
-	for _, ag := range additionalGroups {
+	for _, ag := range addtlGroups {
 		var found bool
 		for _, g := range groups {
-			// if we found a matched group either by name or gid, take the
-			// first matched as correct
-			if g.Name == ag || strconv.Itoa(g.Gid) == ag {
-				if _, ok := gidMap[g.Gid]; !ok {
-					gidMap[g.Gid] = struct{}{}
-					found = true
-					break
+			if ag.matches(g) {
+				// take the first matched group as correct
+				if g.Gid < minID || g.Gid > maxID {
+					return nil, ErrRange
 				}
+				gidMap[g.Gid] = struct{}{}
+				found = true
+				break
 			}
 		}
-		// we asked for a group but didn't find it. let's check to see
-		// if we wanted a numeric group
+		// We asked for a group but didn't find it. Numeric group IDs may be
+		// used as-is even when they are not present in /etc/group; non-numeric
+		// group names must be found.
 		if !found {
-			gid, err := strconv.ParseInt(ag, 10, 64)
-			if err != nil {
+			if !ag.isNumeric {
 				// Not a numeric ID either.
-				return nil, fmt.Errorf("Unable to find group %s: %w", ag, ErrNoGroupEntries)
+				return nil, fmt.Errorf("unable to find group %s: %w", ag.name, ErrNoGroupEntries)
 			}
-			// Ensure gid is inside gid range.
-			if gid < minID || gid > maxID {
-				return nil, ErrRange
-			}
-			gidMap[int(gid)] = struct{}{}
+			gidMap[ag.gid] = struct{}{}
 		}
 	}
 	gids := []int{}
@@ -498,12 +511,7 @@ func GetAdditionalGroupsPath(additionalGroups []string, groupPath string) ([]int
 }
 
 func ParseSubIDFile(path string) ([]SubID, error) {
-	subid, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer subid.Close()
-	return ParseSubID(subid)
+	return ParseSubIDFileFilter(path, nil)
 }
 
 func ParseSubID(subid io.Reader) ([]SubID, error) {
@@ -551,12 +559,7 @@ func ParseSubIDFilter(r io.Reader, filter func(SubID) bool) ([]SubID, error) {
 }
 
 func ParseIDMapFile(path string) ([]IDMap, error) {
-	r, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-	return ParseIDMap(r)
+	return ParseIDMapFileFilter(path, nil)
 }
 
 func ParseIDMap(r io.Reader) ([]IDMap, error) {
