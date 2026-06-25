@@ -46,6 +46,7 @@ package nftables
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"iter"
@@ -356,100 +357,6 @@ func (t Table) Family() Family {
 	}
 	return t.t.Family
 }
-
-// incrementalUpdateTemplText is used with text/template to generate an nftables command file
-// (which will be applied atomically). Updates using this template are always incremental.
-// Steps are:
-//   - declare the table and its sets/maps with empty versions of modified chains, so that
-//     they can be flushed/deleted if they don't yet exist. (They need to be flushed in case
-//     a version of them was left behind by an old incarnation of the daemon. But, it's an
-//     error to flush or delete something that doesn't exist. So, avoid having to parse nft's
-//     stderr to work out what happened by making sure they do exist before flushing.)
-//   - if the table is newly declared, flush rules from its chains
-//   - flush each newly declared map/set
-//   - delete deleted map/set elements
-//   - flush modified chains
-//   - delete deleted chains
-//   - re-populate modified chains
-//   - add new map/set elements
-const incrementalUpdateTemplText = `{{$family := .Family}}{{$tableName := .Name}}
-table {{$family}} {{$tableName}} {
-	{{range .Maps}}map {{.Name}} {
-		{{.ElementTypeExpr}}
-		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
-	}
-	{{end}}
-	{{range .Sets}}set {{.Name}} {
-		{{.ElementTypeExpr}}
-		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
-	}
-	{{end}}
-	{{range .Chains}}{{if .MustFlush}}chain {{.Name}} {
-		{{if .ChainType}}type {{.ChainType}} hook {{.Hook}} priority {{.Priority}}; policy {{.Policy}}{{end}}
-	} ; {{end}}{{end}}
-}
-{{if .MustFlush}}flush table {{$family}} {{$tableName}}{{end}}
-{{range .Maps}}{{if .MustFlush}}flush map {{$family}} {{$tableName}} {{.Name}}
-{{end}}{{end}}
-{{range .Sets}}{{if .MustFlush}}flush set {{$family}} {{$tableName}} {{.Name}}
-{{end}}{{end}}
-{{range .Chains}}{{if .MustFlush}}flush chain {{$family}} {{$tableName}} {{.Name}}
-{{end}}{{end}}
-{{range .Maps}}{{if .DeletedElements}}delete element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .DeletedElements}}{{$k}}, {{end}} }
-{{end}}{{end}}
-{{range .Sets}}{{if .DeletedElements}}delete element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .DeletedElements}}{{$k}}, {{end}} }
-{{end}}{{end}}
-{{range .DeleteCommands}}{{.}}
-{{end}}
-table {{$family}} {{$tableName}} {
-	{{range .Chains}}{{if .MustFlush}}chain {{.Name}} {
-		{{if .ChainType}}type {{.ChainType}} hook {{.Hook}} priority {{.Priority}}; policy {{.Policy}}{{end}}
-		{{range .Rules}}{{.}}
-		{{end}}
-	}
-	{{end}}{{end}}
-}
-{{range .Maps}}{{if .AddedElements}}add element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .AddedElements}}{{$k}} : {{$v}}, {{end}} }
-{{end}}{{end}}
-{{range .Sets}}{{if .AddedElements}}add element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .AddedElements}}{{$k}}, {{end}} }
-{{end}}{{end}}
-`
-
-// reloadTemplText is used with text/template to generate an nftables command file
-// (which will be applied atomically), to fully re-create a table.
-//
-// It first declares the table so if it doesn't already exist, it can be deleted.
-// Then it deletes the table and re-creates it.
-const reloadTemplText = `{{$family := .Family}}{{$tableName := .Name}}
-table {{$family}} {{$tableName}} {}
-delete table {{$family}} {{$tableName}}
-table {{$family}} {{$tableName}} {
-	{{range .Maps}}map {{.Name}} {
-		{{.ElementTypeExpr}}
-		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
-        {{if .Elements}}elements = {
-			{{range $k,$v := .Elements}}{{$k}} : {{$v}},
-            {{end -}}
-		}{{end}}
-	}
-	{{end}}
-	{{range .Sets}}set {{.Name}} {
-		{{.ElementTypeExpr}}
-		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
-        {{if .Elements}}elements = {
-			{{range $k,$v := .Elements}}{{$k}},
-            {{end -}}
-		}{{end}}
-	}
-	{{end}}
-	{{range .Chains}}chain {{.Name}} {
-		{{if .ChainType}}type {{.ChainType}} hook {{.Hook}} priority {{.Priority}}; policy {{.Policy}}{{end}}
-		{{range .Rules}}{{.}}
-		{{end}}
-	}
-	{{end}}
-}
-`
 
 // SetBaseChainPolicy sets the default policy for a base chain. The update
 // is applied immediately, unlike creation/deletion of objects via a [Modifier]
@@ -1184,15 +1091,37 @@ func (c *chain) Rules() iter.Seq[string] {
 	}
 }
 
+// incrementalUpdateTemplText is used with text/template to generate an nftables command file
+// (which will be applied atomically). Updates using this template are always incremental.
+// Steps are:
+//   - declare the table and its sets/maps with empty versions of modified chains, so that
+//     they can be flushed/deleted if they don't yet exist. (They need to be flushed in case
+//     a version of them was left behind by an old incarnation of the daemon. But, it's an
+//     error to flush or delete something that doesn't exist. So, avoid having to parse nft's
+//     stderr to work out what happened by making sure they do exist before flushing.)
+//   - if the table is newly declared, flush rules from its chains
+//   - flush each newly declared map/set
+//   - delete deleted map/set elements
+//   - flush modified chains
+//   - delete deleted chains
+//   - re-populate modified chains
+//   - add new map/set elements
+//
+//go:embed incremental_update.nft.gotmpl
+var incrementalUpdateTemplText string
+
+// reloadTemplText is used with text/template to generate an nftables command file
+// (which will be applied atomically), to fully re-create a table.
+//
+// It first declares the table so if it doesn't already exist, it can be deleted.
+// Then it deletes the table and re-creates it.
+//
+//go:embed reload.nft.gotmpl
+var reloadTemplText string
+
 func parseTemplate() error {
-	var err error
-	incrementalUpdateTempl, err = template.New("ruleset").Parse(incrementalUpdateTemplText)
-	if err != nil {
-		return fmt.Errorf("parsing 'incrementalUpdateTemplText': %w", err)
-	}
-	reloadTempl, err = template.New("ruleset").Parse(reloadTemplText)
-	if err != nil {
-		return fmt.Errorf("parsing 'reloadTemplText': %w", err)
-	}
-	return nil
+	var errs [2]error
+	incrementalUpdateTempl, errs[0] = template.New("incremental_update.nft.gotmpl").Parse(incrementalUpdateTemplText)
+	reloadTempl, errs[1] = template.New("reload.nft.gotmpl").Parse(reloadTemplText)
+	return errors.Join(errs[:]...)
 }
