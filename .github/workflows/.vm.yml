@@ -55,11 +55,21 @@ jobs:
       -
         name: Start the guest VM
         run: |
+          set -eux -o pipefail
+          host_memory_gib=$(awk '/MemTotal/ { print int($2 / 1024 / 1024) }' /proc/meminfo)
+          lima_memory=$((host_memory_gib - 2))
+
+          echo "Lima memory: ${lima_memory} GiB (${host_memory_gib} GiB detected)" >>"${GITHUB_STEP_SUMMARY}"
+
+          if [ $lima_memory -lt 1 ]; then
+            echo "::error::Too little memory!"
+            exit 2
+          fi
+
           # --plain is set because the built-in containerd support conflicts with Docker
           limactl start \
             --name=default \
-            --cpus=4 \
-            --memory=12 \
+            --memory=${lima_memory} \
             --plain \
             ${INPUTS_TEMPLATE}
         env:
