@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"gotest.tools/v3/assert"
@@ -263,6 +264,9 @@ func TestReload(t *testing.T) {
 	const setName = "this_is_a_set"
 	tm.Create(Set{Name: setName, ElementType: IPv4Addr, Flags: []string{"interval"}})
 	tm.Create(SetElement{SetName: setName, Element: "192.0.2.0/24", Comment: "}bar{"})
+
+	tm.Create(Map{Name: "dynamic_map", ElementType: IPv4Addr.MapTo(EtherAddr), Flags: []string{"dynamic"}, Size: 1024, Timeout: 2*time.Minute + 30*time.Second + 500*time.Millisecond + 654*time.Microsecond})
+	tm.Create(Set{Name: "dynamic_set", ElementType: IPv4Addr, Flags: []string{"dynamic"}, Size: 4096, Timeout: 5*time.Minute + 10*time.Second + 250*time.Millisecond + 123*time.Microsecond})
 
 	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
 

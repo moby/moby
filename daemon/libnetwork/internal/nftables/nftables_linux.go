@@ -56,6 +56,7 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+	"time"
 
 	"github.com/containerd/log"
 )
@@ -761,6 +762,8 @@ type nftMap struct {
 	Name            string
 	ElementTypeExpr string
 	Flags           []string
+	Size            int
+	Timeout         time.Duration
 	Elements        map[string]mapValue
 	AddedElements   map[string]mapValue
 	DeletedElements map[string]string
@@ -773,6 +776,8 @@ type Map struct {
 	Name        string
 	ElementType MapTyper
 	Flags       []string
+	Size        int
+	Timeout     time.Duration
 }
 
 func (m Map) create(ctx context.Context, t *table) (bool, error) {
@@ -790,6 +795,8 @@ func (m Map) create(ctx context.Context, t *table) (bool, error) {
 		Name:            m.Name,
 		ElementTypeExpr: m.ElementType.mapType(),
 		Flags:           slices.Clone(m.Flags),
+		Size:            m.Size,
+		Timeout:         m.Timeout,
 		Elements:        map[string]mapValue{},
 		AddedElements:   map[string]mapValue{},
 		DeletedElements: map[string]string{},
@@ -910,6 +917,8 @@ type set struct {
 	Name            string
 	ElementTypeExpr string
 	Flags           []string
+	Size            int
+	Timeout         time.Duration
 	Elements        map[string]setElementOptions
 	AddedElements   map[string]setElementOptions
 	DeletedElements map[string]struct{}
@@ -922,6 +931,8 @@ type Set struct {
 	Name        string
 	ElementType SetTyper
 	Flags       []string
+	Size        int
+	Timeout     time.Duration
 }
 
 // See https://wiki.nftables.org/wiki-nftables/index.php/Sets#Named_sets
@@ -941,6 +952,8 @@ func (sd Set) create(ctx context.Context, t *table) (bool, error) {
 		Elements:        map[string]setElementOptions{},
 		ElementTypeExpr: sd.ElementType.setType(),
 		Flags:           slices.Clone(sd.Flags),
+		Size:            sd.Size,
+		Timeout:         sd.Timeout,
 		AddedElements:   map[string]setElementOptions{},
 		DeletedElements: map[string]struct{}{},
 		MustFlush:       true,

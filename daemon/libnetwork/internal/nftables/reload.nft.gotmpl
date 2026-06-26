@@ -13,6 +13,8 @@ table {{$family}} {{$tableName}} {
 	{{range .Maps}}map {{.Name}} {
 		{{.ElementTypeExpr}}
 		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
+		{{if .Size}}size {{.Size}}{{end}}
+		{{if .Timeout}}timeout {{.Timeout.Milliseconds}}ms{{end}}
         {{if .Elements}}elements = {
 			{{range $k,$v := .Elements}}{{$k}}{{if $v.Comment}} comment "{{$v.Comment}}"{{end}} : {{$v.Value}},
             {{end -}}
@@ -22,6 +24,8 @@ table {{$family}} {{$tableName}} {
 	{{range .Sets}}set {{.Name}} {
 		{{.ElementTypeExpr}}
 		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
+		{{if .Size}}size {{.Size}}{{end}}
+		{{if .Timeout}}timeout {{.Timeout.Milliseconds}}ms{{end}}
         {{if .Elements}}elements = {
 			{{range $k,$v := .Elements}}{{$k}}{{if $v.Comment}} comment "{{$v.Comment}}"{{end}},
             {{end -}}
