@@ -18,16 +18,7 @@ import (
 
 // addLBBackendIPTables adds a loadbalancer backend to the loadbalancer sandbox
 // for the network.  If needed add the service as well.
-func (n *Network) addLBBackendIPTables(ip net.IP, lb *loadBalancer) bool {
-	ep, sb, err := n.findLBEndpointSandbox()
-	if err != nil {
-		log.G(context.TODO()).Errorf("addLBBackend %s/%s: %v", n.ID(), n.Name(), err)
-		return false
-	}
-	if sb.osSbox == nil {
-		return false
-	}
-
+func (n *Network) addLBBackendIPTables(ip net.IP, ep *Endpoint, sb *Sandbox, lb *loadBalancer) bool {
 	eIP := ep.Iface().Address()
 
 	i, err := ipvs.New(sb.Key())
@@ -99,16 +90,7 @@ func (n *Network) addLBBackendIPTables(ip net.IP, lb *loadBalancer) bool {
 // endpoint for this network. If 'rmService' is true, then remove the service
 // entry as well. If 'fullRemove' is true then completely remove the entry,
 // otherwise just deweight it for now.
-func (n *Network) rmLBBackendIPTables(ip net.IP, lb *loadBalancer, rmService bool, fullRemove bool) {
-	ep, sb, err := n.findLBEndpointSandbox()
-	if err != nil {
-		log.G(context.TODO()).Debugf("rmLBBackend for %s/%s: %v -- probably transient state", n.ID(), n.Name(), err)
-		return
-	}
-	if sb.osSbox == nil {
-		return
-	}
-
+func (n *Network) rmLBBackendIPTables(ip net.IP, ep *Endpoint, sb *Sandbox, lb *loadBalancer, rmService bool, fullRemove bool) {
 	eIP := ep.Iface().Address()
 
 	i, err := ipvs.New(sb.Key())

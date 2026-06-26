@@ -8,8 +8,19 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
+
+type osLoadBalancer struct {
+	nftClearNAT, nftClearDSR nftables.Modifier
+	// nftServiceProgrammed records whether the service's VIP is currently
+	// programmed (alias added, NAT map populated). It's the source of truth for
+	// the once-per-lifetime add/remove of the VIP alias and ingress ports, so it
+	// must not be derived from the live backend count (which can transiently drop
+	// to zero and recover without the service being added or removed).
+	nftServiceProgrammed bool
+}
 
 // Populate all loadbalancers on the network that the passed endpoint
 // belongs to, into this sandbox.
@@ -74,14 +85,23 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	if len(lb.vip) == 0 {
 		return
 	}
-	newService := n.addLBBackendIPTables(ip, lb)
+	ep, sb, err := n.findLBEndpointSandbox()
+	if err != nil {
+		log.G(context.TODO()).Errorf("addLBBackend %s/%s: %v", n.ID(), n.Name(), err)
+		return
+	}
+	if sb.osSbox == nil {
+		return
+	}
+
+	var newService bool
+	if nftables.Enabled() {
+		newService = n.syncLBBackendsNftables(context.TODO(), ep, sb, lb, false)
+	} else {
+		newService = n.addLBBackendIPTables(ip, ep, sb, lb)
+	}
 
 	if newService && n.ingress {
-		_, sb, err := n.findLBEndpointSandbox()
-		if err != nil {
-			log.G(context.TODO()).Errorf("Failed to find load balancer endpoint sandbox: %v", err)
-			return
-		}
 		gwEP, _ := sb.getGatewayEndpoint()
 		if gwEP == nil {
 			log.G(context.TODO()).Errorf("Failed to add ingress ports: no gateway endpoint for sandbox %.7s", sb.ID())
@@ -101,14 +121,22 @@ func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 	if len(lb.vip) == 0 {
 		return
 	}
-	n.rmLBBackendIPTables(ip, lb, rmService, fullRemove)
+	ep, sb, err := n.findLBEndpointSandbox()
+	if err != nil {
+		log.G(context.TODO()).Debugf("rmLBBackend for %s/%s: %v -- probably transient state", n.ID(), n.Name(), err)
+		return
+	}
+	if sb.osSbox == nil {
+		return
+	}
+
+	if nftables.Enabled() {
+		n.syncLBBackendsNftables(context.TODO(), ep, sb, lb, rmService)
+	} else {
+		n.rmLBBackendIPTables(ip, ep, sb, lb, rmService, fullRemove)
+	}
 
 	if rmService && n.ingress {
-		_, sb, err := n.findLBEndpointSandbox()
-		if err != nil {
-			log.G(context.TODO()).Errorf("Failed to find load balancer endpoint sandbox: %v", err)
-			return
-		}
 		if gwEP, _ := sb.getGatewayEndpoint(); gwEP == nil {
 			log.G(context.TODO()).Errorf("Failed to remove ingress ports: no gateway endpoint for sandbox %.7s", sb.ID())
 		} else if err := removeIngressPorts(gwEP, lb.service.ingressPorts); err != nil {
@@ -221,5 +249,9 @@ func addIngressPorts(gwEP *Endpoint, ingressPorts []*PortConfig) error {
 }
 
 func (sb *Sandbox) addRedirectRules(eIP *net.IPNet, ingressPorts []*PortConfig) error {
-	return sb.addRedirectRulesIPTables(eIP, ingressPorts)
+	if nftables.Enabled() {
+		return sb.addRedirectRulesNftables(context.TODO(), eIP, ingressPorts)
+	} else {
+		return sb.addRedirectRulesIPTables(eIP, ingressPorts)
+	}
 }
