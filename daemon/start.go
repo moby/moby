@@ -183,6 +183,9 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 	}
 
 	if checkpoint != "" {
+		if err := validateCheckpointID(checkpoint); err != nil {
+			return err
+		}
 		checkpointDir, err = getCheckpointDir(checkpointDir, checkpoint, container.Name, container.ID, container.CheckpointDir(), false)
 		if err != nil {
 			return err
