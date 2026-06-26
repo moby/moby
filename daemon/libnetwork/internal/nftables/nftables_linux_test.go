@@ -331,6 +331,34 @@ func TestApplyMultipleModifiers(t *testing.T) {
 	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm1, tm3)
 }
 
+func TestNetdevChain(t *testing.T) {
+	defer testSetup(t)()
+
+	tbl, err := NewTable(Netdev, "testtable")
+	assert.NilError(t, err)
+	defer tbl.Close()
+	tm := Modifier{}
+
+	const bcName = "this_is_a_netdev_chain"
+	tm.Create(BaseChain{
+		Name:      bcName,
+		ChainType: BaseChainTypeFilter,
+		Hook:      BaseChainHookIngress,
+		Device:    "lo",
+		Priority:  -123,
+		Policy:    BaseChainPolicyAccept,
+	})
+	tm.Create(Rule{Chain: bcName, Rule: []string{"accept"}})
+	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
+
+	icmd.RunCommand("nft", "flush", "ruleset").Assert(t, icmd.Success)
+	err = tbl.Reload(context.Background())
+	assert.Check(t, err)
+	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
+	res.Assert(t, icmd.Success)
+	golden.Assert(t, res.Combined(), t.Name()+"/created.golden")
+}
+
 func TestValidation(t *testing.T) {
 	testcases := []struct {
 		name   string

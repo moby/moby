@@ -93,6 +93,7 @@ type BaseChainHook string
 
 const (
 	BaseChainHookIngress     BaseChainHook = "ingress"
+	BaseChainHookEgress      BaseChainHook = "egress"
 	BaseChainHookPrerouting  BaseChainHook = "prerouting"
 	BaseChainHookInput       BaseChainHook = "input"
 	BaseChainHookForward     BaseChainHook = "forward"
@@ -124,8 +125,9 @@ const (
 type Family string
 
 const (
-	IPv4 Family = "ip"
-	IPv6 Family = "ip6"
+	IPv4   Family = "ip"
+	IPv6   Family = "ip6"
+	Netdev Family = "netdev"
 )
 
 type SetTyper interface {
@@ -573,6 +575,7 @@ type chain struct {
 	Name       string
 	ChainType  BaseChainType
 	Hook       BaseChainHook
+	Device     string
 	Priority   int
 	Policy     BaseChainPolicy
 	MustFlush  bool
@@ -590,6 +593,7 @@ type BaseChain struct {
 	Name      string
 	ChainType BaseChainType
 	Hook      BaseChainHook
+	Device    string
 	Priority  int
 	Policy    BaseChainPolicy // Defaults to BaseChainPolicyAccept
 }
@@ -614,6 +618,7 @@ func (cd BaseChain) create(ctx context.Context, t *table) (bool, error) {
 		Name:       cd.Name,
 		ChainType:  cd.ChainType,
 		Hook:       cd.Hook,
+		Device:     cd.Device,
 		Priority:   cd.Priority,
 		Policy:     cd.Policy,
 		MustFlush:  true,
@@ -626,6 +631,7 @@ func (cd BaseChain) create(ctx context.Context, t *table) (bool, error) {
 		"chain":  c.Name,
 		"type":   c.ChainType,
 		"hook":   c.Hook,
+		"device": c.Device,
 		"prio":   c.Priority,
 	}).Debug("nftables: created base chain")
 	return true, nil
