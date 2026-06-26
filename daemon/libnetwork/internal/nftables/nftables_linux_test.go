@@ -31,20 +31,20 @@ func testSetup(t *testing.T) func() {
 	}
 }
 
-func applyAndCheck(t *testing.T, tbl Table, tm Modifier, goldenFilename string) {
+func applyAndCheck(t *testing.T, goldenFilename string, tbl Table, tm ...Modifier) {
 	t.Helper()
-	err := tbl.Apply(context.Background(), tm)
+	err := tbl.Apply(context.Background(), tm...)
 	assert.Check(t, err)
 	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
 	res.Assert(t, icmd.Success)
 	golden.Assert(t, res.Combined(), goldenFilename)
 }
 
-func reloadAndCheck(t *testing.T, tbl Table, ipv Family, goldenFilename string) {
+func reloadAndCheck(t *testing.T, goldenFilename string, tbl Table) {
 	t.Helper()
 	err := tbl.Reload(context.Background())
 	assert.Check(t, err)
-	res := icmd.RunCommand("nft", "list", "table", string(ipv), tbl.t.Name)
+	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
 	res.Assert(t, icmd.Success)
 	golden.Assert(t, res.Combined(), goldenFilename)
 }
@@ -60,8 +60,8 @@ func TestTable(t *testing.T) {
 	defer tbl6.Close()
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl4, Modifier{}, t.Name()+"/created4.golden")
-	applyAndCheck(t, tbl6, Modifier{}, t.Name()+"/created6.golden")
+	applyAndCheck(t, t.Name()+"/created4.golden", tbl4, Modifier{})
+	applyAndCheck(t, t.Name()+"/created6.golden", tbl6, Modifier{})
 }
 
 func TestChain(t *testing.T) {
@@ -100,14 +100,14 @@ func TestChain(t *testing.T) {
 	tm.Create(bcJumpRule)
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, tm, t.Name()+"/created.golden")
+	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
 
 	// Delete a rule from the base chain.
 	tm = Modifier{}
 	tm.Delete(bcCounterRule)
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, tm, t.Name()+"/modified.golden")
+	applyAndCheck(t, t.Name()+"/modified.golden", tbl, tm)
 
 	// Delete the base chain.
 	tm = Modifier{}
@@ -117,7 +117,7 @@ func TestChain(t *testing.T) {
 	tm.Delete(cDesc)
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, tm, t.Name()+"/deleted.golden")
+	applyAndCheck(t, t.Name()+"/deleted.golden", tbl, tm)
 }
 
 func TestChainRuleGroups(t *testing.T) {
@@ -134,7 +134,7 @@ func TestChainRuleGroups(t *testing.T) {
 	tm.Create(Rule{Chain: chainName, Group: 100, Rule: []string{"iifname hello101 counter"}})
 	tm.Create(Rule{Chain: chainName, Group: 200, Rule: []string{"iifname hello201 counter"}})
 	tm.Create(Rule{Chain: chainName, Group: 100, Rule: []string{"iifname hello102 counter"}})
-	applyAndCheck(t, tbl, tm, t.Name()+".golden")
+	applyAndCheck(t, t.Name()+".golden", tbl, tm)
 }
 
 func TestIgnoreExist(t *testing.T) {
@@ -149,7 +149,7 @@ func TestIgnoreExist(t *testing.T) {
 	tm.Create(Chain{Name: chainName})
 	tm.Create(Rule{Chain: chainName, Rule: []string{"counter"}})
 	tm.Create(Rule{Chain: chainName, Rule: []string{"counter"}, IgnoreExist: true})
-	applyAndCheck(t, tbl, tm, t.Name()+"/created.golden")
+	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
 
 	// Add the rule again, ignoring the duplicate, but in a modifier that has an
 	// error - check that the existing rule isn't removed by rollback of this modifier.
@@ -160,12 +160,12 @@ func TestIgnoreExist(t *testing.T) {
 	assert.Check(t, err != nil, "Expected an error")
 
 	// Reload, to flush table state.
-	reloadAndCheck(t, tbl, IPv4, t.Name()+"/created.golden")
+	reloadAndCheck(t, t.Name()+"/created.golden", tbl)
 
 	// Delete the rule.
 	tmDel := Modifier{}
 	tmDel.Delete(Rule{Chain: chainName, Rule: []string{"counter"}})
-	applyAndCheck(t, tbl, tmDel, t.Name()+"/deleted.golden")
+	applyAndCheck(t, t.Name()+"/deleted.golden", tbl, tmDel)
 
 	// Delete it again, in another chain that will roll back, to check it's not resurrected.
 	tmReDel := Modifier{}
@@ -175,7 +175,7 @@ func TestIgnoreExist(t *testing.T) {
 	assert.Check(t, err != nil, "Expected an error")
 
 	// Reload, to flush table state.
-	reloadAndCheck(t, tbl, IPv4, t.Name()+"/deleted.golden")
+	reloadAndCheck(t, t.Name()+"/deleted.golden", tbl)
 }
 
 func TestVMap(t *testing.T) {
@@ -194,13 +194,13 @@ func TestVMap(t *testing.T) {
 	tm.Create(MapElement{MapName: mapName, Key: "eth1", Value: "drop"})
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, tm, t.Name()+"/created.golden")
+	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
 
 	// Undo those changes by reversing the commands.
 	tmRev := tm.Reverse()
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, tmRev, t.Name()+"/deleted.golden")
+	applyAndCheck(t, t.Name()+"/deleted.golden", tbl, tmRev)
 }
 
 func TestSet(t *testing.T) {
@@ -227,12 +227,12 @@ func TestSet(t *testing.T) {
 	tm6.Create(SetElement{SetName: set6Name, Element: "2001:db8::/64"})
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl4, tm4, t.Name()+"/created4.golden")
-	applyAndCheck(t, tbl6, tm6, t.Name()+"/created6.golden")
+	applyAndCheck(t, t.Name()+"/created4.golden", tbl4, tm4)
+	applyAndCheck(t, t.Name()+"/created6.golden", tbl6, tm6)
 
 	// Delete elements.
-	applyAndCheck(t, tbl4, tm4.Reverse(), t.Name()+"/deleted4.golden")
-	applyAndCheck(t, tbl6, tm6.Reverse(), t.Name()+"/deleted6.golden")
+	applyAndCheck(t, t.Name()+"/deleted4.golden", tbl4, tm4.Reverse())
+	applyAndCheck(t, t.Name()+"/deleted6.golden", tbl6, tm6.Reverse())
 }
 
 func TestReload(t *testing.T) {
@@ -264,7 +264,7 @@ func TestReload(t *testing.T) {
 	tm.Create(Set{Name: setName, ElementType: IPv4Addr, Flags: []string{"interval"}})
 	tm.Create(SetElement{SetName: setName, Element: "192.0.2.0/24"})
 
-	applyAndCheck(t, tbl, tm, t.Name()+"/created.golden")
+	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
 
 	// Delete the underlying nftables table.
 	deleteTable := func() {
@@ -291,7 +291,40 @@ func TestReload(t *testing.T) {
 	// from a vmap/set will trigger this.
 	tm = Modifier{}
 	tm.Delete(SetElement{SetName: setName, Element: "192.0.2.0/24"})
-	applyAndCheck(t, tbl, tm, t.Name()+"/recovered.golden")
+	applyAndCheck(t, t.Name()+"/recovered.golden", tbl, tm)
+}
+
+func TestApplyMultipleModifiers(t *testing.T) {
+	defer testSetup(t)()
+
+	tbl, err := NewTable(IPv4, "this_is_a_table")
+	assert.NilError(t, err)
+	defer tbl.Close()
+
+	const chainName = "this_is_a_chain"
+	var tm1, tm2 Modifier
+	tm1.Create(Chain{Name: chainName})
+	tm1.Create(Rule{Chain: chainName, Rule: []string{"counter"}})
+
+	tm2.Create(Rule{Chain: chainName, Rule: []string{"drop"}})
+	// This rule should fail validation and trigger rollback.
+	tm2.Create(Rule{Chain: "bogus", Rule: []string{"counter"}})
+	tm2.Create(Rule{Chain: chainName, Rule: []string{"reject"}})
+
+	err = tbl.Apply(context.Background(), tm1, tm2)
+	assert.Check(t, err != nil, "Expected an error")
+
+	// Verify the apply was a no-op: the table should not exist yet.
+	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
+	res.Assert(t, icmd.Expected{ExitCode: 1})
+
+	// Verify no traces of the failed apply remain in memory.
+	reloadAndCheck(t, t.Name()+"/empty.golden", tbl)
+
+	// A subsequent valid apply should still succeed.
+	var tm3 Modifier
+	tm3.Create(Rule{Chain: chainName, Rule: []string{"accept"}})
+	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm1, tm3)
 }
 
 func TestValidation(t *testing.T) {
@@ -645,7 +678,7 @@ func TestValidation(t *testing.T) {
 			res := icmd.RunCommand("nft", "list", "table", string(IPv4), "tablename")
 			res.Assert(t, icmd.Expected{ExitCode: 1})
 			// Check the empty table can be created (the Table structure is still healthy).
-			applyAndCheck(t, tbl, Modifier{}, testName+"/empty.golden")
+			applyAndCheck(t, testName+"/empty.golden", tbl, Modifier{})
 		})
 	}
 }

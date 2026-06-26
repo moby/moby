@@ -536,7 +536,7 @@ func (tm *Modifier) Reverse() Modifier {
 // Apply makes incremental updates to nftables. If there's a validation
 // error in any of the enqueued objects, or an error applying the updates
 // to the underlying nftables, the [Table] will be unmodified.
-func (t *Table) Apply(ctx context.Context, tm Modifier) (retErr error) {
+func (t *Table) Apply(ctx context.Context, tm ...Modifier) (retErr error) {
 	if !Enabled() {
 		return errors.New("nftables is not enabled")
 	}
@@ -557,13 +557,15 @@ func (t *Table) Apply(ctx context.Context, tm Modifier) (retErr error) {
 	}()
 
 	// Apply tm's updates to the Table.
-	for _, cmd := range tm.cmds {
-		applied, err := cmd.apply(ctx, t.t)
-		if err != nil {
-			return fmt.Errorf("rule from %s:%d: %w", cmd.callerFile, cmd.callerLine, err)
-		}
-		if applied {
-			rollback = append(rollback, cmd)
+	for _, tmm := range tm {
+		for _, cmd := range tmm.cmds {
+			applied, err := cmd.apply(ctx, t.t)
+			if err != nil {
+				return fmt.Errorf("rule from %s:%d: %w", cmd.callerFile, cmd.callerLine, err)
+			}
+			if applied {
+				rollback = append(rollback, cmd)
+			}
 		}
 	}
 
