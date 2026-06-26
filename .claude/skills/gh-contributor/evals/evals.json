@@ -1,0 +1,44 @@
+{
+  "skill_name": "gh-contributor",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Find a bug to fix in this repo. Pick an open issue labeled 'bug' or 'help wanted', implement a fix, and open a PR.",
+      "expected_output": "Branch created, fix implemented, tests pass, PR opened with proper description linking the issue",
+      "files": [],
+      "expectations": [
+        "The skill fetched issues from the upstream repo",
+        "A feature branch was created with conventional naming",
+        "Changes were committed with a conventional commit message",
+        "A PR was opened with the issue linked in the description",
+        "The PR title follows the pattern 'fix: description (fixes #N)'"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Fix issue #52422 in this repo - it's about a formatting string bug. Create a PR for it.",
+      "expected_output": "Issue #52422 fetched, fix implemented for formatting strings, PR created",
+      "files": [],
+      "expectations": [
+        "The skill fetched the specific issue #52422",
+        "The branch name includes the issue number",
+        "The commit message references the issue",
+        "The PR description links to issue #52422",
+        "The PR title references the issue number"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I want to contribute to moby/moby. Find a 'good first issue' and help me fix it.",
+      "expected_output": "Issues filtered by 'good first issue' label, one selected, fix implemented, PR opened",
+      "files": [],
+      "expectations": [
+        "The skill filtered issues by the 'good first issue' label",
+        "An issue was presented to the user for confirmation",
+        "The fix was implemented in a focused branch",
+        "Tests were run before creating the PR",
+        "The PR includes a proper description with checklist"
+      ]
+    }
+  ]
+}
