@@ -21,14 +21,14 @@ import (
 
 // addLBBackendIPTables adds a loadbalancer backend to the loadbalancer sandbox for the network.
 // If needed add the service as well.
-func (n *Network) addLBBackendIPTables(ip net.IP, lb *loadBalancer) {
+func (n *Network) addLBBackendIPTables(ip net.IP, lb *loadBalancer) bool {
 	ep, sb, err := n.findLBEndpointSandbox()
 	if err != nil {
 		log.G(context.TODO()).Errorf("addLBBackendIPTables %s/%s: %v", n.ID(), n.Name(), err)
-		return
+		return false
 	}
 	if sb.osSbox == nil {
-		return
+		return false
 	}
 
 	eIP := ep.Iface().Address()
@@ -36,7 +36,7 @@ func (n *Network) addLBBackendIPTables(ip net.IP, lb *loadBalancer) {
 	i, err := ipvs.New(sb.Key())
 	if err != nil {
 		log.G(context.TODO()).Errorf("Failed to create an ipvs handle for sbox %.7s (%.7s,%s) for lb addition: %v", sb.ID(), sb.ContainerID(), sb.Key(), err)
-		return
+		return false
 	}
 	defer i.Close()
 
@@ -46,39 +46,30 @@ func (n *Network) addLBBackendIPTables(ip net.IP, lb *loadBalancer) {
 		SchedName:     ipvs.RoundRobin,
 	}
 
+	var newService bool
 	if !i.IsServicePresent(s) {
+		newService = true
 		// Add IP alias for the VIP to the endpoint
 		ifName := findIfaceDstName(sb, ep)
 		if ifName == "" {
 			log.G(context.TODO()).Errorf("Failed find interface name for endpoint %s(%s) to create LB alias", ep.ID(), ep.Name())
-			return
+			return false
 		}
 		err := sb.osSbox.AddAliasIP(ifName, &net.IPNet{IP: lb.vip, Mask: net.CIDRMask(32, 32)})
 		if err != nil {
 			log.G(context.TODO()).Errorf("Failed add IP alias %s to network %s LB endpoint interface %s: %v", lb.vip, n.ID(), ifName, err)
-			return
-		}
-
-		if sb.ingress {
-			var gwIP net.IP
-			if gwEP, _ := sb.getGatewayEndpoint(); gwEP != nil {
-				gwIP = gwEP.Iface().Address().IP
-			}
-			if err := addIngressPorts(gwIP, lb.service.ingressPorts); err != nil {
-				log.G(context.TODO()).Errorf("Failed to add ingress: %v", err)
-				return
-			}
+			return false
 		}
 
 		log.G(context.TODO()).Debugf("Creating service for vip %s fwMark %d ingressPorts %#v in sbox %.7s (%.7s)", lb.vip, lb.fwMark, lb.service.ingressPorts, sb.ID(), sb.ContainerID())
 		if err := sb.configureFWMarkIPTables(lb.vip, lb.fwMark, lb.service.ingressPorts, eIP, false, n.loadBalancerMode); err != nil {
 			log.G(context.TODO()).Errorf("Failed to add firewall mark rule in sbox %.7s (%.7s): %v", sb.ID(), sb.ContainerID(), err)
-			return
+			return false
 		}
 
 		if err := i.NewService(s); err != nil && !errors.Is(err, syscall.EEXIST) {
 			log.G(context.TODO()).Errorf("Failed to create a new service for vip %s fwmark %d in sbox %.7s (%.7s): %v", lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
-			return
+			return false
 		}
 	}
 
@@ -103,6 +94,8 @@ func (n *Network) addLBBackendIPTables(ip net.IP, lb *loadBalancer) {
 	// Ensure that kernel tweaks are applied in case this is the first time
 	// we've initialized ip_vs
 	sb.osSbox.ApplyOSTweaks(sb.oslTypes)
+
+	return newService
 }
 
 // rmLBBackendIPTables removes loadbalancer backend the load balancing endpoint for this
@@ -157,16 +150,6 @@ func (n *Network) rmLBBackendIPTables(ip net.IP, lb *loadBalancer, rmService boo
 		s.SchedName = ipvs.RoundRobin
 		if err := i.DelService(s); err != nil && !errors.Is(err, syscall.ENOENT) {
 			log.G(context.TODO()).Errorf("Failed to delete service for vip %s fwmark %d in sbox %.7s (%.7s): %v", lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
-		}
-
-		if sb.ingress {
-			var gwIP net.IP
-			if gwEP, _ := sb.getGatewayEndpoint(); gwEP != nil {
-				gwIP = gwEP.Iface().Address().IP
-			}
-			if err := removeIngressPorts(gwIP, lb.service.ingressPorts); err != nil {
-				log.G(context.TODO()).Errorf("Failed to delete ingress: %v", err)
-			}
 		}
 
 		if err := sb.configureFWMarkIPTables(lb.vip, lb.fwMark, lb.service.ingressPorts, eIP, true, n.loadBalancerMode); err != nil {

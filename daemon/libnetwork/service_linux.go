@@ -76,7 +76,23 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	if len(lb.vip) == 0 {
 		return
 	}
-	n.addLBBackendIPTables(ip, lb)
+	newService := n.addLBBackendIPTables(ip, lb)
+
+	if newService && n.ingress {
+		_, sb, err := n.findLBEndpointSandbox()
+		if err != nil {
+			log.G(context.TODO()).Errorf("Failed to find load balancer endpoint sandbox: %v", err)
+			return
+		}
+		var gwIP net.IP
+		if gwEP, _ := sb.getGatewayEndpoint(); gwEP != nil {
+			gwIP = gwEP.Iface().Address().IP
+		}
+		if err := addIngressPorts(gwIP, lb.service.ingressPorts); err != nil {
+			log.G(context.TODO()).Errorf("Failed to add ingress: %v", err)
+			return
+		}
+	}
 }
 
 // Remove loadbalancer backend the load balancing endpoint for this
@@ -88,6 +104,22 @@ func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 		return
 	}
 	n.rmLBBackendIPTables(ip, lb, rmService, fullRemove)
+
+	if rmService && n.ingress {
+		_, sb, err := n.findLBEndpointSandbox()
+		if err != nil {
+			log.G(context.TODO()).Errorf("Failed to find load balancer endpoint sandbox: %v", err)
+			return
+		}
+		var gwIP net.IP
+		if gwEP, _ := sb.getGatewayEndpoint(); gwEP != nil {
+			gwIP = gwEP.Iface().Address().IP
+		}
+		if err := removeIngressPorts(gwIP, lb.service.ingressPorts); err != nil {
+			log.G(context.TODO()).Errorf("Failed to remove ingress: %v", err)
+			return
+		}
+	}
 }
 
 var (
