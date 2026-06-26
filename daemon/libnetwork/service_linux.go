@@ -10,8 +10,14 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/ishidawataru/sctp"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 )
+
+type osLoadBalancer struct {
+	nftClearNAT, nftClearDSR nftables.Modifier
+	nftBackendsProgrammed    int
+}
 
 // Populate all loadbalancers on the network that the passed endpoint
 // belongs to, into this sandbox.
@@ -76,7 +82,12 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	if len(lb.vip) == 0 {
 		return
 	}
-	newService := n.addLBBackendIPTables(ip, lb)
+	var newService bool
+	if nftables.Enabled() {
+		newService = n.syncLBBackendsNftables(context.TODO(), lb, false)
+	} else {
+		newService = n.addLBBackendIPTables(ip, lb)
+	}
 
 	if newService && n.ingress {
 		_, sb, err := n.findLBEndpointSandbox()
@@ -103,7 +114,11 @@ func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 	if len(lb.vip) == 0 {
 		return
 	}
-	n.rmLBBackendIPTables(ip, lb, rmService, fullRemove)
+	if nftables.Enabled() {
+		n.syncLBBackendsNftables(context.TODO(), lb, rmService)
+	} else {
+		n.rmLBBackendIPTables(ip, lb, rmService, fullRemove)
+	}
 
 	if rmService && n.ingress {
 		_, sb, err := n.findLBEndpointSandbox()
@@ -175,7 +190,13 @@ func removeIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
 	// Filter the ingress ports until port rules start to be added/deleted
 	filteredPorts := filterPortConfigs(ingressPorts, true)
 
-	if err := deleteIngressPortsRulesIPTables(gwIP, filteredPorts); err != nil {
+	var err error
+	if nftables.Enabled() {
+		err = deleteIngressPortsNftables(context.TODO(), filteredPorts)
+	} else {
+		err = deleteIngressPortsRulesIPTables(gwIP, filteredPorts)
+	}
+	if err != nil {
 		filterPortConfigs(ingressPorts, false)
 		return fmt.Errorf("failed to program ingress ports: %v", err)
 	}
@@ -192,7 +213,13 @@ func addIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
 	// Filter the ingress ports until port rules start to be added/deleted
 	filteredPorts := filterPortConfigs(ingressPorts, false)
 
-	if err := programIngressPortsRulesIPTables(gwIP, filteredPorts); err != nil {
+	var err error
+	if nftables.Enabled() {
+		err = addIngressPortsNftables(context.TODO(), gwIP, filteredPorts)
+	} else {
+		err = programIngressPortsRulesIPTables(gwIP, filteredPorts)
+	}
+	if err != nil {
 		filterPortConfigs(filteredPorts, true)
 		return fmt.Errorf("failed to program ingress ports: %v", err)
 	}
@@ -203,6 +230,12 @@ func addIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
 }
 
 func restoreIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
+	if nftables.Enabled() {
+		// No-op in nftables world as firewalld doesn't touch our tables
+		// and we don't touch theirs.
+		return nil
+	}
+
 	ingressMu.Lock()
 	defer ingressMu.Unlock()
 
@@ -283,5 +316,9 @@ func plumbIngressPortsProxy(ingressPorts []*PortConfig) {
 }
 
 func (sb *Sandbox) addRedirectRules(eIP *net.IPNet, ingressPorts []*PortConfig) error {
-	return sb.addRedirectRulesIPTables(eIP, ingressPorts)
+	if nftables.Enabled() {
+		return sb.addRedirectRulesNftables(context.TODO(), eIP, ingressPorts)
+	} else {
+		return sb.addRedirectRulesIPTables(eIP, ingressPorts)
+	}
 }

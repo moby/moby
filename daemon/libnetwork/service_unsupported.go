@@ -7,6 +7,8 @@ import (
 	"net"
 )
 
+type osLoadBalancer struct{}
+
 func (c *Controller) cleanupServiceDiscovery(cleanupNID string) {}
 
 func (c *Controller) cleanupServiceBindings(nid string) {}

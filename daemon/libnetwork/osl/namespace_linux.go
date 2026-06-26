@@ -16,6 +16,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/internal/unshare"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl/kernel"
@@ -249,6 +250,14 @@ type Namespace struct {
 	ipv6LoEnabledCached bool
 	nlHandle            nlwrap.Handle // nlHandle is the netlink handle for the network namespace. It is safe to access it concurrently.
 	mu                  sync.Mutex
+
+	nftMu    sync.Mutex
+	nftables map[nftables.Family]map[string]*nftable
+}
+
+type nftable struct {
+	InitMu sync.Mutex
+	Table  nftables.Table
 }
 
 // Interfaces returns the collection of Interface previously added with the AddInterface
@@ -398,6 +407,17 @@ func (n *Namespace) Key() string {
 // Destroy destroys the sandbox.
 func (n *Namespace) Destroy() error {
 	n.nlHandle.Handle.Close()
+
+	n.nftMu.Lock()
+	nftables := n.nftables
+	n.nftables = nil
+	n.nftMu.Unlock()
+	for _, family := range nftables {
+		for _, table := range family {
+			_ = table.Table.Close()
+		}
+	}
+
 	// Assuming no running process is executing in this network namespace,
 	// unmounting is sufficient to destroy it.
 	if err := syscall.Unmount(n.path, syscall.MNT_DETACH); err != nil {
@@ -567,6 +587,9 @@ func (n *Namespace) RefreshIPv6LoEnabled() {
 
 // ApplyOSTweaks applies operating system specific knobs on the sandbox.
 func (n *Namespace) ApplyOSTweaks(types []SandboxType) {
+	if nftables.Enabled() {
+		return
+	}
 	for _, t := range types {
 		switch t {
 		case SandboxTypeLoadBalancer, SandboxTypeIngress:
@@ -662,4 +685,56 @@ func setIPv6(nspath, iface string, enable bool) error {
 		}
 	}()
 	return <-errCh
+}
+
+// ApplyNFTable applies tm to the specified nftables table in the namespace,
+// creating and initializing the table if it does not already exist.
+// The table is initialized by calling the initialize function and applying the
+// resulting modifier to the table before tm.
+//
+// This function is safe for concurrent use.
+func (n *Namespace) ApplyNFTable(ctx context.Context, family nftables.Family, name string, initialize func(*nftables.Modifier) error, tm ...nftables.Modifier) (retErr error) {
+	n.nftMu.Lock()
+	if n.nftables == nil {
+		n.nftables = make(map[nftables.Family]map[string]*nftable)
+	}
+	if _, ok := n.nftables[family]; !ok {
+		n.nftables[family] = make(map[string]*nftable)
+	}
+	table, ok := n.nftables[family][name]
+	if !ok {
+		table = &nftable{}
+		n.nftables[family][name] = table
+	}
+	n.nftMu.Unlock()
+
+	var tbl nftables.Table
+	table.InitMu.Lock()
+	if table.Table.IsValid() {
+		tbl = table.Table
+		table.InitMu.Unlock()
+	} else {
+		defer func() {
+			if retErr == nil {
+				table.Table = tbl
+			}
+			table.InitMu.Unlock()
+		}()
+		var initTM = nftables.Modifier{}
+		if err := initialize(&initTM); err != nil {
+			return err
+		}
+		var err error
+		tbl, err = nftables.NewTable(family, name)
+		if err != nil {
+			return err
+		}
+		tm = append([]nftables.Modifier{initTM}, tm...)
+	}
+
+	var err error
+	invokeErr := n.InvokeFunc(func() {
+		err = tbl.Apply(ctx, tm...)
+	})
+	return errors.Join(invokeErr, err)
 }
