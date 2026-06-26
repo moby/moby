@@ -191,7 +191,7 @@ func TestVMap(t *testing.T) {
 	const mapName = "this_is_a_vmap"
 	tm.Create(Map{Name: mapName, ElementType: Ifname.VMap()})
 	tm.Create(MapElement{MapName: mapName, Key: "eth0", Value: "return"})
-	tm.Create(MapElement{MapName: mapName, Key: "eth1", Value: "drop"})
+	tm.Create(MapElement{MapName: mapName, Key: "eth1", Value: "drop", Comment: `/// this is a comment on a map element \\\`})
 
 	// Update nftables and check what happened.
 	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
@@ -224,7 +224,7 @@ func TestSet(t *testing.T) {
 
 	// Add elements to each set.
 	tm4.Create(SetElement{SetName: set4Name, Element: "192.0.2.0/24"})
-	tm6.Create(SetElement{SetName: set6Name, Element: "2001:db8::/64"})
+	tm6.Create(SetElement{SetName: set6Name, Element: "2001:db8::/64", Comment: `/// this is a comment on a set element \\\`})
 
 	// Update nftables and check what happened.
 	applyAndCheck(t, t.Name()+"/created4.golden", tbl4, tm4)
@@ -258,11 +258,11 @@ func TestReload(t *testing.T) {
 	const vmapName = "this_is_a_vmap"
 	tm.Create(Map{Name: vmapName, ElementType: Ifname.VMap()})
 	tm.Create(MapElement{MapName: vmapName, Key: "eth0", Value: "return"})
-	tm.Create(MapElement{MapName: vmapName, Key: "eth1", Value: "return"})
+	tm.Create(MapElement{MapName: vmapName, Key: "eth1", Value: "return", Comment: "{foo}"})
 
 	const setName = "this_is_a_set"
 	tm.Create(Set{Name: setName, ElementType: IPv4Addr, Flags: []string{"interval"}})
-	tm.Create(SetElement{SetName: setName, Element: "192.0.2.0/24"})
+	tm.Create(SetElement{SetName: setName, Element: "192.0.2.0/24", Comment: "}bar{"})
 
 	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
 
@@ -580,6 +580,22 @@ func TestValidation(t *testing.T) {
 			},
 			expErr: "cannot add to map 'avmap', element must have key and value",
 		},
+		{
+			name: "map element with newline in comment",
+			cmds: []command{
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
+				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop", Comment: "new\nline"}},
+			},
+			expErr: `map 'avmap' element 'eth0' comment contains "\n"`,
+		},
+		{
+			name: "map element with quote char in comment",
+			cmds: []command{
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
+				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop", Comment: `"quoted"`}},
+			},
+			expErr: `map 'avmap' element 'eth0' comment contains "\""`,
+		},
 		// Set
 		{
 			name: "duplicate set",
@@ -660,6 +676,22 @@ func TestValidation(t *testing.T) {
 				{obj: SetElement{SetName: "aset", Element: "2001:db8::/64"}},
 			},
 			expErr: "Address family for hostname not supported",
+		},
+		{
+			name: "set element with newline in comment",
+			cmds: []command{
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
+				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24", Comment: "new\nline"}},
+			},
+			expErr: `set 'aset' element '192.0.2.0/24' comment contains "\n"`,
+		},
+		{
+			name: "set element with quote char in comment",
+			cmds: []command{
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
+				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24", Comment: `"quoted"`}},
+			},
+			expErr: `set 'aset' element '192.0.2.0/24' comment contains "\""`,
 		},
 	}
 

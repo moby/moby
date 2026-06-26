@@ -14,7 +14,7 @@ table {{$family}} {{$tableName}} {
 		{{.ElementTypeExpr}}
 		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
         {{if .Elements}}elements = {
-			{{range $k,$v := .Elements}}{{$k}} : {{$v}},
+			{{range $k,$v := .Elements}}{{$k}}{{if $v.Comment}} comment "{{$v.Comment}}"{{end}} : {{$v.Value}},
             {{end -}}
 		}{{end}}
 	}
@@ -23,7 +23,7 @@ table {{$family}} {{$tableName}} {
 		{{.ElementTypeExpr}}
 		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
         {{if .Elements}}elements = {
-			{{range $k,$v := .Elements}}{{$k}},
+			{{range $k,$v := .Elements}}{{$k}}{{if $v.Comment}} comment "{{$v.Comment}}"{{end}},
             {{end -}}
 		}{{end}}
 	}

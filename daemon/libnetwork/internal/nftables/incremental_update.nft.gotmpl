@@ -54,7 +54,7 @@ table {{$family}} {{$tableName}} {
 	}
 	{{end}}{{end}}
 }
-{{range .Maps}}{{if .AddedElements}}add element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .AddedElements}}{{$k}} : {{$v}}, {{end}} }
+{{range .Maps}}{{if .AddedElements}}add element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .AddedElements}}{{$k}}{{if $v.Comment}} comment "{{$v.Comment}}"{{end}} : {{$v.Value}}, {{end}} }
 {{end}}{{end}}
-{{range .Sets}}{{if .AddedElements}}add element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .AddedElements}}{{$k}}, {{end}} }
+{{range .Sets}}{{if .AddedElements}}add element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .AddedElements}}{{$k}}{{if $v.Comment}} comment "{{$v.Comment}}"{{end}}, {{end}} }
 {{end}}{{end}}
