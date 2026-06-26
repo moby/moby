@@ -490,7 +490,11 @@ type Modifier struct {
 
 // Create enqueues creation of object o, to be applied by tm.Apply.
 func (tm *Modifier) Create(o Obj) {
-	_, f, l, _ := runtime.Caller(1)
+	tm.create(o, 1)
+}
+
+func (tm *Modifier) create(o Obj, skipFrames int) {
+	_, f, l, _ := runtime.Caller(skipFrames + 1)
 	tm.cmds = append(tm.cmds, command{
 		obj:        o,
 		callerFile: f,
