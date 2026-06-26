@@ -179,15 +179,26 @@ jobs:
           buildkitd-flags: --debug
       -
         name: Restore dev image
+        id: restore-dev-image
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           key: dev-image-amd64-${{ github.run_id }}
           path: /tmp/dev-image-amd64.tar
-          fail-on-cache-miss: true
       -
         name: Load dev image
+        if: steps.restore-dev-image.outputs.cache-hit == 'true'
         run: |
           docker load -i /tmp/dev-image-amd64.tar
+      -
+        # Fall back to building the dev image if the cache could not be
+        # restored (e.g. cache miss or a rate-limited download).
+        name: Build dev image
+        if: steps.restore-dev-image.outputs.cache-hit != 'true'
+        uses: docker/bake-action@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
+        with:
+          targets: dev
+          set: |
+            dev.cache-from=type=gha,scope=dev-amd64
       -
         name: Validate
         env:
