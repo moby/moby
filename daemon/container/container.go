@@ -368,8 +368,8 @@ func (container *Container) SetupWorkingDirectory(uid int, gid int) error {
 // skipped on platforms that do not support it (e.g. Windows), matching the
 // behaviour of the user.MkdirAllAndChown call this replaces.
 func scopedMkdirAllAndChown(root *os.Root, path string, perm os.FileMode, uid, gid int) error {
-	dir := "."
-	for _, part := range strings.Split(filepath.ToSlash(path), "/") {
+	dir := ""
+	for _, part := range strings.Split(filepath.ToSlash(filepath.Clean(path)), "/") {
 		if part == "" || part == "." {
 			continue
 		}

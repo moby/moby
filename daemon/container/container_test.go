@@ -134,6 +134,18 @@ func TestScopedMkdirAllAndChown(t *testing.T) {
 		_, statErr := os.Stat(filepath.Join(outside, "evil"))
 		assert.Assert(t, os.IsNotExist(statErr), "creation escaped the container root")
 	})
+
+	t.Run("supports relative paths with dots and windows separators", func(t *testing.T) {
+		base := t.TempDir()
+		root, err := os.OpenRoot(base)
+		assert.NilError(t, err)
+		defer root.Close()
+		assert.NilError(t, scopedMkdirAllAndChown(root, filepath.FromSlash("./a/b"), 0o755, uid, gid))
+		assert.NilError(t, scopedMkdirAllAndChown(root, filepath.FromSlash("a\\b/c"), 0o755, uid, gid))
+		fi, err := os.Stat(filepath.Join(base, "a", "b"))
+		assert.NilError(t, err)
+		assert.Assert(t, fi.IsDir())
+	})
 }
 
 func TestContainerSecretReferenceDestTarget(t *testing.T) {
