@@ -1,0 +1,25 @@
+name: PR Review
+on:
+  issue_comment:
+    types: [created]
+  workflow_run:
+    workflows: ["PR Review - Trigger"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    uses: docker/docker-agent-action/.github/workflows/review-pr.yml@e96a4bb40cac114f64358621e1d08346c8eadc8c # v2.0.1
+    permissions:
+      contents: read       # Read repository files and PR diffs
+      pull-requests: write # Post review comments
+      issues: write        # Create security incident issues if secrets detected
+      checks: write        # (Optional) Show review progress as a check run
+      #id-token: write     # Required for OIDC authentication to AWS Secrets Manager
+      actions: read        # Download artifacts from trigger workflow
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    with:
+      trigger-run-id: ${{ github.event_name == 'workflow_run' && format('{0}', github.event.workflow_run.id) || '' }}
