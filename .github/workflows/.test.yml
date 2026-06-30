@@ -230,6 +230,9 @@ jobs:
           if [[ "$MODE" == *"nftables"* ]]; then
             echo "DOCKER_FIREWALL_BACKEND=nftables" >> $GITHUB_ENV
           fi
+          if [[ "$MODE" == *"embedded"* ]]; then
+            echo "TEST_INTEGRATION_CONTAINERD_EMBEDDED=1" >> $GITHUB_ENV
+          fi
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
         name: Set up AppArmor for RootlessKit
