@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Merge the given release tags.
+set -Eeuo pipefail
+
+if [[ $# -lt 1 ]]; then
+	echo "usage: $0 [--dry-run] TAG..." >&2
+	exit 1
+fi
+
+tags_to_sync=("$@")
+
+for tag_to_sync in "${tags_to_sync[@]}"; do
+	if git merge --no-ff "$tag_to_sync"; then
+		continue
+	fi
+
+	if ! git rev-parse --verify --quiet MERGE_HEAD > /dev/null || git diff --quiet --diff-filter=U; then
+		exit 1
+	fi
+
+	git checkout "$tag_to_sync" -- '*'
+	git add --all
+	git merge --continue
+done
+
+# Check that every tag is in the branch.
+# This catches cases where a merge did not actually incorporate one of the
+# requested release tags.
+for tag_to_sync in "${tags_to_sync[@]}"; do
+	if ! git merge-base --is-ancestor "$tag_to_sync" HEAD; then
+		echo "tag $tag_to_sync is not contained in $(git rev-parse --abbrev-ref HEAD)" >&2
+		exit 1
+	fi
+done
