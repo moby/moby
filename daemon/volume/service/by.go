@@ -1,7 +1,7 @@
 package service
 
 import (
-        "strings"
+	"strings"
 
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/volume"
@@ -81,7 +81,7 @@ func byLabelFilter(filter filters.Args) By {
 		if !filter.MatchKVList("label", labels) {
 			return false
 		}
-		if filter.Contains("label!") && matchesAnyLabel(filter.Get("label!"), labels){
+		if filter.Contains("label!") && matchesAnyLabel(filter.Get("label!"), labels) {
 			return false
 		}
 		return true
