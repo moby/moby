@@ -17,11 +17,21 @@ changed_tests() {
 		|| true
 }
 
+# explicit_tests emits extra test names appended via the /flaky-check=TestA,TestB
+# directive in the PR body.  The workflow extracts that directive and passes it
+# here as the FLAKY_EXTRA_TESTS variable.
+explicit_tests() {
+	if [ -n "${FLAKY_EXTRA_TESTS-}" ]; then
+		echo "$FLAKY_EXTRA_TESTS" | tr ',' '\n'
+	fi
+}
+
 run_integration_flaky() {
 	tests=$(
 		{
 			added_tests
 			changed_tests
+			explicit_tests
 		} | sort -u
 	)
 
