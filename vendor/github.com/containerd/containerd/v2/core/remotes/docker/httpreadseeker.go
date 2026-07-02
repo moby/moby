@@ -105,7 +105,7 @@ func (hrs *httpReadSeeker) Close() error {
 
 func (hrs *httpReadSeeker) Seek(offset int64, whence int) (int64, error) {
 	if hrs.closed {
-		return 0, fmt.Errorf("Fetcher.Seek: closed: %w", errdefs.ErrUnavailable)
+		return 0, fmt.Errorf("httpReadSeeker.Seek: closed: %w", errdefs.ErrUnavailable)
 	}
 
 	abs := hrs.offset
@@ -116,21 +116,21 @@ func (hrs *httpReadSeeker) Seek(offset int64, whence int) (int64, error) {
 		abs += offset
 	case io.SeekEnd:
 		if hrs.size == -1 {
-			return 0, fmt.Errorf("Fetcher.Seek: unknown size, cannot seek from end: %w", errdefs.ErrUnavailable)
+			return 0, fmt.Errorf("httpReadSeeker.Seek: unknown size, cannot seek from end: %w", errdefs.ErrUnavailable)
 		}
 		abs = hrs.size + offset
 	default:
-		return 0, fmt.Errorf("Fetcher.Seek: invalid whence: %w", errdefs.ErrInvalidArgument)
+		return 0, fmt.Errorf("httpReadSeeker.Seek: invalid whence: %w", errdefs.ErrInvalidArgument)
 	}
 
 	if abs < 0 {
-		return 0, fmt.Errorf("Fetcher.Seek: negative offset: %w", errdefs.ErrInvalidArgument)
+		return 0, fmt.Errorf("httpReadSeeker.Seek: negative offset: %w", errdefs.ErrInvalidArgument)
 	}
 
 	if abs != hrs.offset {
 		if hrs.rc != nil {
 			if err := hrs.rc.Close(); err != nil {
-				log.L.WithError(err).Error("Fetcher.Seek: failed to close ReadCloser")
+				log.L.WithError(err).Error("httpReadSeeker.Seek: failed to close ReadCloser")
 			}
 
 			hrs.rc = nil

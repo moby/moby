@@ -29,6 +29,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
@@ -292,9 +293,15 @@ func (r *dockerResolver) Resolve(ctx context.Context, ref string) (string, ocisp
 	}
 
 	for _, u := range paths {
+		// falling back to /blobs endpoint should happen in extreme cases - those to
+		// support legacy registries. we want to limit the fallback to when /manifests endpoint
+		// returned 404. Falling back on transient errors could do more harm, like polluting
+		// the local content store with incorrectly typed descriptors as /blobs endpoint tends
+		// always return with application/octet-stream.
+		if firstErrPriority > 2 {
+			break
+		}
 		for i, host := range hosts {
-			ctx := log.WithLogger(ctx, log.G(ctx).WithField("host", host.Host))
-
 			req := base.request(host, http.MethodHead, u...)
 			if err := req.addNamespace(base.refspec.Hostname()); err != nil {
 				return "", ocispec.Descriptor{}, err
@@ -304,6 +311,11 @@ func (r *dockerResolver) Resolve(ctx context.Context, ref string) (string, ocisp
 				req.header[key] = append(req.header[key], value...)
 			}
 
+			ctx := log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
+				"host":   req.host.Host,
+				"method": req.method,
+				"url":    req.sanitizedURL(),
+			}))
 			log.G(ctx).Debug("resolving")
 			resp, err := req.doWithRetries(ctx, i == len(hosts)-1)
 			if err != nil {
@@ -372,6 +384,12 @@ func (r *dockerResolver) Resolve(ctx context.Context, ref string) (string, ocisp
 				resp, err := req.doWithRetries(ctx, true)
 				if err != nil {
 					return "", ocispec.Descriptor{}, err
+				}
+
+				// Check for error status code
+				if resp.StatusCode >= http.StatusBadRequest {
+					defer resp.Body.Close()
+					return "", ocispec.Descriptor{}, unexpectedResponseErr(resp)
 				}
 
 				bodyReader := countingReader{reader: resp.Body}
@@ -571,11 +589,13 @@ func (r *request) addQuery(key, value string) (err error) {
 	return
 }
 
+const namespaceQueryArg = "ns"
+
 func (r *request) addNamespace(ns string) error {
 	if !r.host.isProxy(ns) {
 		return nil
 	}
-	return r.addQuery("ns", ns)
+	return r.addQuery(namespaceQueryArg, ns)
 }
 
 type request struct {
@@ -594,8 +614,7 @@ func (r *request) clone() *request {
 }
 
 func (r *request) do(ctx context.Context) (*http.Response, error) {
-	u := r.host.Scheme + "://" + r.host.Host + r.path
-	req, err := http.NewRequestWithContext(ctx, r.method, u, nil)
+	req, err := http.NewRequestWithContext(ctx, r.method, r.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -616,7 +635,7 @@ func (r *request) do(ctx context.Context) (*http.Response, error) {
 		}
 	}
 
-	ctx = log.WithLogger(ctx, log.G(ctx).WithField("url", u))
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("url", r.sanitizedURL()))
 	log.G(ctx).WithFields(requestFields(req)).Debug("do request")
 	if err := r.authorize(ctx, req); err != nil {
 		return nil, fmt.Errorf("failed to authorize: %w", err)
@@ -653,7 +672,7 @@ type doChecks func(r *request, resp *http.Response) error
 func withErrorCheck(r *request, resp *http.Response) error {
 	if resp.StatusCode > 299 {
 		if resp.StatusCode == http.StatusNotFound {
-			return fmt.Errorf("content at %v not found: %w", r.String(), errdefs.ErrNotFound)
+			return fmt.Errorf("content at %v not found: %w", r.sanitizedURL(), errdefs.ErrNotFound)
 		}
 
 		return unexpectedResponseErr(resp)
@@ -694,8 +713,11 @@ func withOffsetCheck(offset, parallelism int64) doChecks {
 	}
 }
 
+const maxAttempts = 5
+
 func (r *request) doWithRetries(ctx context.Context, lastHost bool, checks ...doChecks) (resp *http.Response, err error) {
-	resp, err = r.doWithRetriesInner(ctx, nil, lastHost)
+	attempts := maxAttempts
+	resp, err = r.doWithRetriesInner(ctx, nil, &attempts, lastHost)
 	if err != nil {
 		return nil, err
 	}
@@ -713,8 +735,8 @@ func (r *request) doWithRetries(ctx context.Context, lastHost bool, checks ...do
 	return resp, nil
 }
 
-func (r *request) doWithRetriesInner(ctx context.Context, responses []*http.Response, lastHost bool) (*http.Response, error) {
-	resp, err := r.do(ctx)
+func (r *request) doWithRetriesInner(ctx context.Context, responses []*http.Response, attempts *int, lastHost bool) (*http.Response, error) {
+	resp, err := r.doWithTransportRetries(ctx, attempts, lastHost)
 	if err != nil {
 		return nil, err
 	}
@@ -725,17 +747,61 @@ func (r *request) doWithRetriesInner(ctx context.Context, responses []*http.Resp
 		resp.Body.Close()
 		return nil, err
 	}
-	if retry {
+	if retry && *attempts > 0 {
 		resp.Body.Close()
-		return r.doWithRetriesInner(ctx, responses, lastHost)
+		return r.doWithRetriesInner(ctx, responses, attempts, lastHost)
 	}
 	return resp, err
 }
 
-func (r *request) retryRequest(ctx context.Context, responses []*http.Response, lastHost bool) (bool, error) {
-	if len(responses) > 5 {
-		return false, nil
+// doWithTransportRetries calls r.do, retrying on transient transport errors
+// (e.g. response header timeouts). Retries are only attempted on the last host
+// to match the response-status retry policy for 5xx errors and preserve mirror
+// fallback semantics. Context cancellation stops retries immediately.
+func (r *request) doWithTransportRetries(ctx context.Context, attempts *int, lastHost bool) (*http.Response, error) {
+	for *attempts > 0 {
+		resp, err := r.do(ctx)
+		*attempts--
+		if err == nil {
+			return resp, nil
+		}
+		if !lastHost || !isTransientTransportErr(err) {
+			return nil, err
+		}
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		if *attempts == 0 {
+			return nil, err
+		}
+		log.G(ctx).WithError(err).WithField("attempt", maxAttempts-*attempts).Debug("transient transport error, retrying")
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(50 * time.Millisecond):
+		}
 	}
+	return nil, nil
+}
+
+// isTransientTransportErr reports whether err is a transport-level error worth
+// retrying. context.Canceled and context.DeadlineExceeded are not considered
+// transient.
+func isTransientTransportErr(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
+	}
+	return false
+}
+
+func (r *request) retryRequest(ctx context.Context, responses []*http.Response, lastHost bool) (bool, error) {
 	last := responses[len(responses)-1]
 	switch last.StatusCode {
 	case http.StatusUnauthorized:
@@ -776,6 +842,40 @@ func (r *request) String() string {
 	return r.host.Scheme + "://" + r.host.Host + r.path
 }
 
+// sanitizedURL returns the request URL with query parameters and auth (if any)
+// sanitized. It is intended for errors and logging, and similar to [internal/cri/util.sanitizeURL].
+//
+// [internal/cri/util.sanitizeURL]: https://github.com/containerd/containerd/blob/v2.2.1/internal/cri/util/sanitize.go#L53-L75
+func (r *request) sanitizedURL() string {
+	rawURL := r.String()
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		// URL parsing failed; return original (malformed URLs shouldn't leak tokens)
+		return rawURL
+	}
+
+	if parsed.RawQuery == "" {
+		// Fast path: no query arguments to sanitize.
+		return parsed.Redacted()
+	}
+
+	query := parsed.Query()
+	for k := range query {
+		if k == namespaceQueryArg {
+			// preserve namespace query arguments
+			continue
+		}
+		for i := range query[k] {
+			if query[k][i] != "" {
+				query[k][i] = "REDACTED"
+			}
+		}
+	}
+
+	parsed.RawQuery = query.Encode()
+	return parsed.Redacted()
+}
+
 func (r *request) setMediaType(mediatype string) {
 	if mediatype == "" {
 		r.header.Set("Accept", "*/*")
@@ -789,7 +889,7 @@ func (r *request) setOffset(offset int64) {
 }
 
 func requestFields(req *http.Request) log.Fields {
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"request.method": req.Method,
 	}
 	for k, vals := range req.Header {
@@ -810,7 +910,7 @@ func requestFields(req *http.Request) log.Fields {
 }
 
 func responseFields(resp *http.Response) log.Fields {
-	fields := map[string]interface{}{
+	fields := map[string]any{
 		"response.status": resp.Status,
 	}
 	for k, vals := range resp.Header {

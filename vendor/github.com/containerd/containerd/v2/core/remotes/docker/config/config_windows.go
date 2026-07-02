@@ -17,7 +17,6 @@
 package config
 
 import (
-	"crypto/x509"
 	"path/filepath"
 	"strings"
 )
@@ -34,8 +33,4 @@ func hostPaths(root, host string) (hosts []string) {
 	)
 
 	return
-}
-
-func rootSystemPool() (*x509.CertPool, error) {
-	return x509.NewCertPool(), nil
 }

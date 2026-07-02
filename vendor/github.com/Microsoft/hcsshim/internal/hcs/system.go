@@ -37,6 +37,7 @@ type System struct {
 	exitError      error
 	os, typ, owner string
 	startTime      time.Time
+	stopTime       time.Time
 }
 
 var _ cow.Container = &System{}
@@ -292,6 +293,7 @@ func (computeSystem *System) waitBackground() {
 	}
 	computeSystem.closedWaitOnce.Do(func() {
 		computeSystem.waitError = err
+		computeSystem.stopTime = time.Now()
 		close(computeSystem.waitBlock)
 	})
 	oc.SetSpanStatus(span, err)
@@ -870,4 +872,12 @@ func (computeSystem *System) Modify(ctx context.Context, config interface{}) err
 	}
 
 	return nil
+}
+
+func (computeSystem *System) StoppedTime() time.Time {
+	return computeSystem.stopTime
+}
+
+func (computeSystem *System) StartedTime() time.Time {
+	return computeSystem.startTime
 }

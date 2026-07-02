@@ -59,6 +59,9 @@ const (
 	MediaTypeImageLayerEncrypted     = ocispec.MediaTypeImageLayer + "+encrypted"
 	MediaTypeImageLayerGzipEncrypted = ocispec.MediaTypeImageLayerGzip + "+encrypted"
 
+	// EROFS media type
+	MediaTypeErofsLayer = "application/vnd.erofs.layer.v1"
+
 	// In-toto attestation
 	MediaTypeInToto = "application/vnd.in-toto+json"
 )
@@ -139,10 +142,13 @@ func IsLayerType(mt string) bool {
 		return true
 	}
 
-	// Parse Docker media types, strip off any + suffixes first
 	switch base, _ := parseMediaTypes(mt); base {
+	// Parse Docker media types, strip off any + suffixes first
 	case MediaTypeDockerSchema2Layer, MediaTypeDockerSchema2LayerGzip,
 		MediaTypeDockerSchema2LayerForeign, MediaTypeDockerSchema2LayerForeignGzip, MediaTypeDockerSchema2LayerZstd:
+		return true
+	// Allow EROFS native layers for efficient container image distribution.
+	case MediaTypeErofsLayer:
 		return true
 	}
 	return false

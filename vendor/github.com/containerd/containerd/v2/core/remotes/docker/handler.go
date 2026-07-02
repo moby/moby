@@ -123,7 +123,7 @@ func selectRepositoryMountCandidate(refspec reference.Spec, sources map[string]s
 
 	n, match := 0, ""
 	components := strings.Split(target, "/")
-	for _, repo := range strings.Split(repoLabel, ",") {
+	for repo := range strings.SplitSeq(repoLabel, ",") {
 		// the target repo is not a candidate
 		if repo == target {
 			continue

@@ -65,16 +65,26 @@ type DaemonOpt func(c *remote) error
 func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
 	r := &remote{
 		Config: config.Config{
-			Version: 2,
+			Version: 2, // FIXME(thaJeztah): what version to use to remain compatible with containerd < 2.3?
 			Root:    filepath.Join(rootDir, "daemon"),
 			State:   filepath.Join(stateDir, "daemon"),
-			GRPC: config.GRPCConfig{
-				Address:        defaultGRPCAddress(stateDir),
-				MaxRecvMsgSize: defaults.DefaultMaxRecvMsgSize,
-				MaxSendMsgSize: defaults.DefaultMaxSendMsgSize,
+			Plugins: map[string]any{
+				"io.containerd.server.v1.grpc": map[string]any{
+					"address":               defaultGRPCAddress(stateDir),
+					"max_recv_message_size": defaults.DefaultMaxRecvMsgSize,
+					"max_send_message_size": defaults.DefaultMaxSendMsgSize,
+				},
+				"io.containerd.server.v1.debug": map[string]any{
+					"address": defaultDebugAddress(stateDir),
+				},
+			},
+			GRPC: config.GRPCConfig{ //nolint:staticcheck // field is deprecated, but may be used by older containerd daemons
+				Address:        defaultGRPCAddress(stateDir),   //nolint:staticcheck // field is deprecated, but may be used by older containerd daemons
+				MaxRecvMsgSize: defaults.DefaultMaxRecvMsgSize, //nolint:staticcheck // field is deprecated, but may be used by older containerd daemons
+				MaxSendMsgSize: defaults.DefaultMaxSendMsgSize, //nolint:staticcheck // field is deprecated, but may be used by older containerd daemons
 			},
 			Debug: config.Debug{
-				Address: defaultDebugAddress(stateDir),
+				Address: defaultDebugAddress(stateDir), //nolint:staticcheck // field is deprecated, but may be used by older containerd daemons
 			},
 		},
 		configFile:    filepath.Join(stateDir, configFile),
@@ -127,7 +137,16 @@ func (r *remote) WaitTimeout(d time.Duration) error {
 }
 
 func (r *remote) Address() string {
-	return r.GRPC.Address
+	// FIXME(thaJeztah): is this really how this should be used? Have we given up on strong-typed?
+	if c := r.Plugins["io.containerd.server.v1.grpc"]; c != nil {
+		if gc, ok := c.(map[string]any); ok && gc != nil {
+			if address, ok := gc["address"].(string); ok {
+				return address
+			}
+		}
+	}
+
+	return ""
 }
 
 func (r *remote) getContainerdConfig() (string, error) {
@@ -277,7 +296,8 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				}
 			}
 
-			if err := os.RemoveAll(r.GRPC.Address); err != nil {
+			grpcAddress := r.Address()
+			if err := os.RemoveAll(grpcAddress); err != nil {
 				r.logger.WithError(err).Error("failed to remove old gRPC address")
 			}
 			if err := r.startContainerd(); err != nil {
@@ -291,7 +311,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 			}
 
 			client, err = containerd.New(
-				r.GRPC.Address,
+				grpcAddress,
 				containerd.WithTimeout(60*time.Second),
 				containerd.WithDialOpts([]grpc.DialOption{
 					grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -305,7 +325,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				delay = 100 * time.Millisecond
 				continue
 			}
-			r.logger.WithField("address", r.GRPC.Address).Debug("created containerd monitoring client")
+			r.logger.WithField("address", grpcAddress).Debug("created containerd monitoring client")
 		}
 
 		if client != nil {

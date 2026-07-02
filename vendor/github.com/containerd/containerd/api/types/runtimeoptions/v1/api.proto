@@ -6,12 +6,12 @@ package runtimeoptions.v1;
 option go_package = "github.com/containerd/containerd/api/types/runtimeoptions/v1;runtimeoptions";
 
 message Options {
-	// TypeUrl specifies the type of the content inside the config file.
-	string type_url = 1;
-	// ConfigPath specifies the filesystem location of the config file
-	// used by the runtime.
-	string config_path = 2;
-	// Blob specifies an in-memory TOML blob passed from containerd's configuration section
-	// for this runtime. This will be used if config_path is not specified.
-	bytes config_body = 3;
+  // TypeUrl specifies the type of the content inside the config file.
+  string type_url = 1;
+  // ConfigPath specifies the filesystem location of the config file
+  // used by the runtime.
+  string config_path = 2;
+  // Blob specifies an in-memory TOML blob passed from containerd's configuration section
+  // for this runtime. This will be used if config_path is not specified.
+  bytes config_body = 3;
 }
