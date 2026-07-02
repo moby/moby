@@ -122,7 +122,7 @@ func WithSelinux(c *container.Container) coci.SpecOpts {
 }
 
 // WithApparmor sets the apparmor profile
-func WithApparmor(c *container.Container) coci.SpecOpts {
+func WithApparmor(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		if appArmorSupported() {
 			var appArmorProfile string
@@ -141,7 +141,7 @@ func WithApparmor(c *container.Container) coci.SpecOpts {
 				// telling the system to keep our profile loaded, in order to make
 				// sure that we keep the default profile enabled we load it again
 				// if it is missing.
-				if err := loadDefaultAppArmorProfileIfMissing(); err != nil {
+				if err := daemon.loadDefaultAppArmorProfileIfMissing(); err != nil {
 					return err
 				}
 			}
@@ -1021,7 +1021,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 		WithCapabilities(c),
 		WithSeccomp(daemon, c),
 		withMounts(daemon, daemonCfg, c, mounts),
-		WithApparmor(c),
+		WithApparmor(daemon, c),
 		WithSelinux(c),
 		WithOOMScore(&c.HostConfig.OomScoreAdj),
 		coci.WithAnnotations(c.HostConfig.Annotations),

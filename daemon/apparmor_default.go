@@ -3,8 +3,15 @@
 package daemon
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 
+	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	aaprofile "github.com/moby/profiles/apparmor"
 )
@@ -23,7 +30,15 @@ func DefaultApparmorProfile() string {
 	return ""
 }
 
-func loadDefaultAppArmorProfileIfMissing() error {
+type appArmorProfileData struct {
+	Abi           string
+	Name          string
+	DaemonProfile string
+	Imports       []string
+	InnerImports  []string
+}
+
+func (daemon *Daemon) loadDefaultAppArmorProfileIfMissing() error {
 	if !defaultAppArmorProfileSupported() {
 		return nil
 	}
@@ -36,17 +51,83 @@ func loadDefaultAppArmorProfileIfMissing() error {
 		return nil
 	}
 
-	return installDefaultAppArmorProfile()
+	return daemon.installDefaultAppArmorProfile()
 }
 
-func installDefaultAppArmorProfile() error {
-	if defaultAppArmorProfileSupported() {
+func (daemon *Daemon) installDefaultAppArmorProfile() error {
+	if !defaultAppArmorProfileSupported() {
+		return nil
+	}
+
+	if daemon.appArmorProfile == nil {
 		if err := aaprofile.InstallDefault(defaultAppArmorProfile); err != nil {
 			return fmt.Errorf("AppArmor enabled on system but the %s profile could not be loaded: %s", defaultAppArmorProfile, err)
 		}
+		return nil
 	}
 
+	if err := daemon.installCustomAppArmorProfile(); err != nil {
+		return fmt.Errorf("AppArmor enabled on system but the %s profile could not be loaded from %s: %s", defaultAppArmorProfile, daemon.appArmorProfilePath, err)
+	}
 	return nil
+}
+
+func (daemon *Daemon) installCustomAppArmorProfile() error {
+	profile, err := daemon.generateCustomAppArmorProfile()
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.CommandContext(context.Background(), "apparmor_parser", "-Kr")
+	cmd.Stdin = profile
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("running '%s' failed with output: %s\nerror: %w", cmd, out, err)
+	}
+	return nil
+}
+
+func (daemon *Daemon) generateCustomAppArmorProfile() (*bytes.Buffer, error) {
+	data := appArmorProfileData{
+		Name:          defaultAppArmorProfile,
+		DaemonProfile: daemonAppArmorProfile(),
+	}
+
+	const abi = "abi/3.0"
+	if appArmorMacroExists(abi) {
+		data.Abi = abi
+	}
+	if appArmorMacroExists("tunables/global") {
+		data.Imports = append(data.Imports, "#include <tunables/global>")
+	} else {
+		data.Imports = append(data.Imports, "@{PROC}=/proc/")
+	}
+	if appArmorMacroExists("abstractions/base") {
+		data.InnerImports = append(data.InnerImports, "#include <abstractions/base>")
+	}
+
+	var profile bytes.Buffer
+	if err := daemon.appArmorProfile.Execute(&profile, data); err != nil {
+		return nil, err
+	}
+	return &profile, nil
+}
+
+func daemonAppArmorProfile() string {
+	currentProfile, err := os.ReadFile("/proc/self/attr/current")
+	if err != nil {
+		log.G(context.TODO()).Warnf("Could not get daemon AppArmor profile: %s", err)
+		return "unconfined"
+	}
+	profile, _, _ := strings.Cut(strings.TrimSpace(string(currentProfile)), " (")
+	if profile == "" {
+		return "unconfined"
+	}
+	return profile
+}
+
+func appArmorMacroExists(m string) bool {
+	_, err := os.Stat(filepath.Join("/etc/apparmor.d", m))
+	return err == nil
 }
 
 func defaultAppArmorProfileSupported() bool {
