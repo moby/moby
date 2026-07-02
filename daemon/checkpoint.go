@@ -17,6 +17,16 @@ var (
 	validCheckpointNamePattern = names.RestrictedNamePattern
 )
 
+// validateCheckpointID returns an error if id is not a plain checkpoint name.
+// A checkpoint ID is joined onto the checkpoint directory to build a filesystem
+// path, so it must not be able to traverse outside of it.
+func validateCheckpointID(id string) error {
+	if !validCheckpointNamePattern.MatchString(id) {
+		return fmt.Errorf("Invalid checkpoint ID (%s), only %s are allowed", id, validCheckpointNameChars)
+	}
+	return nil
+}
+
 // getCheckpointDir verifies checkpoint directory for create,remove, list options and checks if checkpoint already exists
 func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir string, create bool) (string, error) {
 	var checkpointDir string
@@ -66,8 +76,8 @@ func (daemon *Daemon) CheckpointCreate(name string, config checkpoint.CreateRequ
 		return err
 	}
 
-	if !validCheckpointNamePattern.MatchString(config.CheckpointID) {
-		return fmt.Errorf("Invalid checkpoint ID (%s), only %s are allowed", config.CheckpointID, validCheckpointNameChars)
+	if err := validateCheckpointID(config.CheckpointID); err != nil {
+		return err
 	}
 
 	checkpointDir, err := getCheckpointDir(config.CheckpointDir, config.CheckpointID, name, container.ID, container.CheckpointDir(), true)
@@ -90,6 +100,9 @@ func (daemon *Daemon) CheckpointCreate(name string, config checkpoint.CreateRequ
 func (daemon *Daemon) CheckpointDelete(name string, config backend.CheckpointDeleteOptions) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
+		return err
+	}
+	if err := validateCheckpointID(config.CheckpointID); err != nil {
 		return err
 	}
 	checkpointDir, err := getCheckpointDir(config.CheckpointDir, config.CheckpointID, name, container.ID, container.CheckpointDir(), false)
