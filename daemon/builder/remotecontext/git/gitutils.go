@@ -79,9 +79,10 @@ func (repo gitRepo) clone() (checkoutDir string, retErr error) {
 		return "", err
 	}
 
-	cmd := exec.Command("git", "submodule", "update", "--init", "--recursive", "--depth=1")
-	cmd.Dir = root
-	output, err := cmd.CombinedOutput()
+	// Update submodules through gitWithinDir so they use the same protocol
+	// restrictions as the rest of the clone (notably protocol.file.allow=never),
+	// keeping submodule fetching independent of the host's git configuration.
+	output, err := repo.gitWithinDir(root, "submodule", "update", "--init", "--recursive", "--depth=1")
 	if err != nil {
 		return "", errors.Wrapf(err, "error initializing submodules: %s", output)
 	}
