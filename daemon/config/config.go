@@ -119,6 +119,10 @@ var skipDuplicates = map[string]bool{
 	"runtimes": true,
 }
 
+// errEmbeddedContainerdWithExplicitAddr is returned when both the
+// "embedded-containerd" feature and an explicit containerd address are set.
+var errEmbeddedContainerdWithExplicitAddr = errors.New(`conflicting options: cannot use the "embedded-containerd" feature and an explicit containerd address (--containerd) at the same time`)
+
 // migratedNamedConfig describes legacy configuration file keys that have been migrated
 // from simple entries equivalent to command line flags, to a named option.
 //
@@ -708,6 +712,13 @@ func ValidateMinAPIVersion(ver string) error {
 func Validate(config *Config) error {
 	if err := validateDaemonLogConfig(config.DaemonLogConfig); err != nil {
 		return err
+	}
+
+	// The "embedded-containerd" feature starts containerd inside the daemon
+	// process; it is incompatible with an explicit containerd address, which
+	// points at an external instance.
+	if config.Features["embedded-containerd"] && config.ContainerdAddr != "" {
+		return errEmbeddedContainerdWithExplicitAddr
 	}
 
 	// validate DNSSearch
