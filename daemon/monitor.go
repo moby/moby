@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	containerdcli "github.com/containerd/containerd/v2/client"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -379,53 +378,31 @@ func (daemon *Daemon) shouldIgnoreExitEventWithLock(c *container.Container, e *l
 		return true
 
 	case containertypes.StateRunning:
-		task, ok := c.State.Task()
-		if !ok {
-			log.G(context.TODO()).WithFields(log.Fields{
-				"container": c.ID,
-			}).Warn("container in running state but no task found while checking for duplicate exit event")
-			return false
-		}
-
-		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-		status, err := task.Status(ctx)
-		cancel()
-		if err != nil {
-			// If containerd-shim crashed, the task will be deleted
-			// automatically by containerd, so treat a NotFound
-			// error as meaning the task is not running.
-			log.G(ctx).WithFields(log.Fields{
-				"error":     err,
-				"container": c.ID,
-			}).Warn("failed to get task status while checking for duplicate exit event")
-			return false
-		}
-
-		// If the container is still running, then this exit event must
-		// be a duplicate from a previous run, so ignore it. If the
-		// container is not running, then we should process the exit
-		// event to transition the container to exited.
+		// An exit event for a running container is a duplicate only when
+		// it belongs to a previous run that ended before the current
+		// restart. In that case the exiting process's PID will differ
+		// from the PID stored in the container state for the new run.
 		//
-		// Timestamp is not reliable for determining whether an exit
-		// event is a duplicate, because CLOCK_REALTIME can jump backwards
-		// (e.g., due to NTP adjustments).
+		// Using task.Status() for this check would require a potentially
+		// blocking RPC while holding the container lock, delaying the
+		// exit transition by up to the RPC timeout. A PID comparison is
+		// instantaneous and sidesteps the NTP-clock concerns that made a
+		// timestamp comparison unreliable.
 		//
 		// See moby/moby#52153 for more details.
-		if status.Status == containerdcli.Running {
-			return true
+		if e.Pid == 0 {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"container": c.ID,
+			}).Warn("exit event has no PID; processing conservatively to avoid dropping a valid exit")
+			return false
 		}
-
-		if status.Status == containerdcli.Stopped {
-			if status.ExitStatus != e.ExitCode {
-				log.G(ctx).WithFields(log.Fields{
-					"container": c.ID,
-					"exitCode":  status.ExitStatus,
-					"eventCode": e.ExitCode,
-				}).Warn("container stopped with different exit code than exit event while checking for duplicate exit event")
-				return true
-			}
+		if uint32(c.State.Pid) == 0 {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"container": c.ID,
+			}).Warn("container in running state has no recorded PID; processing exit event conservatively")
+			return false
 		}
-		return false
+		return uint32(c.State.Pid) != e.Pid
 
 	case containertypes.StateRestarting:
 		// The restart path acquires and holds the container lock before
