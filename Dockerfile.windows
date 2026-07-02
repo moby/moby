@@ -266,7 +266,6 @@ RUN `
   tar -xzf C:\containerd.tar.gz -C C:\containerd; `
   Remove-Item C:\containerd.tar.gz; `
   `
-  # Ensure all directories exist that we will require below....
   $srcDir = """C:\usr\src\moby\bundles"""; `
   Write-Host INFO: Ensuring existence of directory $srcDir...; `
   New-Item -Force -ItemType Directory -Path $srcDir | Out-Null; `
