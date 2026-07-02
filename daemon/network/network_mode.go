@@ -1,5 +1,7 @@
 package network
 
+import "github.com/moby/moby/api/types/container"
+
 // DefaultNetwork is the name of the default network driver to use for containers
 // on the daemon platform. The default for Linux containers is "bridge"
 // ([network.NetworkBridge]), and "nat" ([network.NetworkNat]) for Windows
@@ -10,4 +12,13 @@ const DefaultNetwork = defaultNetwork
 func IsPredefined(network string) bool {
 	// TODO(thaJeztah): check if we can align the check for both platforms
 	return isPreDefined(network)
+}
+
+// IsReserved indicates if a network name is reserved and cannot be created by users.
+// Reserved network names are names that conflict with network mode syntax but are not
+// predefined networks (e.g., "container" and "container:" which conflict with container
+// network mode syntax).
+func IsReserved(networkName string) bool {
+	n := container.NetworkMode(networkName)
+	return n.IsContainer()
 }
