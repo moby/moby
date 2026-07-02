@@ -62,6 +62,7 @@ import (
 	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/distribution"
 	dmetadata "github.com/moby/moby/v2/daemon/internal/distribution/metadata"
+	"github.com/moby/moby/v2/daemon/internal/distribution/xfer"
 	"github.com/moby/moby/v2/daemon/internal/idtools"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
@@ -918,6 +919,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	imgStoreChoice, err := determineImageStoreChoice(config, determineImageStoreChoiceOptions{})
 	if err != nil {
 		return nil, err
+	}
+
+	if config.Features["fast-gzip-decompression"] {
+		xfer.EnableFastGzipDecompression(ctx)
 	}
 
 	migrationThreshold := int64(-1)
