@@ -1672,6 +1672,289 @@ func BenchmarkUnwrapEvents(b *testing.B) {
 	}
 }
 
+func TestNewStreamConfigEntity(t *testing.T) {
+	tests := []struct {
+		testName      string
+		containerName string
+		config        map[string]string
+		shouldErr     bool
+		wantNil       bool
+		wantKeyAttr   map[string]string
+		wantAttr      map[string]string
+	}{
+		{
+			testName: "no entity options",
+			config:   map[string]string{logGroupKey: groupName},
+			wantNil:  true,
+		},
+		{
+			testName: "service name and environment",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "my-service",
+				entityEnvironmentKey: "prod",
+			},
+			wantKeyAttr: map[string]string{"Type": "Service", "Name": "my-service", "Environment": "prod"},
+		},
+		{
+			testName:      "templated service name",
+			containerName: "/test-container",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "{{.Name}}",
+				entityEnvironmentKey: "prod",
+			},
+			wantKeyAttr: map[string]string{"Type": "Service", "Name": "test-container", "Environment": "prod"},
+		},
+		{
+			testName: "with attributes",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "my-service",
+				entityEnvironmentKey: "prod",
+				entityAttributesKey:  "PlatformType=Generic, Host=worker-7 ,K8s.Cluster=foo=bar",
+			},
+			wantKeyAttr: map[string]string{"Type": "Service", "Name": "my-service", "Environment": "prod"},
+			wantAttr:    map[string]string{"PlatformType": "Generic", "Host": "worker-7", "K8s.Cluster": "foo=bar"},
+		},
+		{
+			testName: "trailing comma in attributes is tolerated",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "my-service",
+				entityEnvironmentKey: "prod",
+				entityAttributesKey:  "Host=worker-7,",
+			},
+			wantKeyAttr: map[string]string{"Type": "Service", "Name": "my-service", "Environment": "prod"},
+			wantAttr:    map[string]string{"Host": "worker-7"},
+		},
+		{
+			testName: "service name without environment",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "my-service",
+			},
+			shouldErr: true,
+		},
+		{
+			testName: "malformed attribute pair",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "my-service",
+				entityEnvironmentKey: "prod",
+				entityAttributesKey:  "PlatformType",
+			},
+			shouldErr: true,
+		},
+		{
+			testName: "invalid template field in service name",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "{{.Nope}}",
+				entityEnvironmentKey: "prod",
+			},
+			shouldErr: true,
+		},
+		{
+			testName: "invalid template field in environment",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "my-service",
+				entityEnvironmentKey: "{{.Nope}}",
+			},
+			shouldErr: true,
+		},
+		{
+			testName: "malformed template syntax",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "{{.Name",
+				entityEnvironmentKey: "prod",
+			},
+			shouldErr: true,
+		},
+		{
+			testName: "service name resolves to empty value",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "{{.Name}}",
+				entityEnvironmentKey: "prod",
+			},
+			// containerName is left empty, so {{.Name}} resolves to ""
+			shouldErr: true,
+		},
+		{
+			testName: "service name exceeds length limit",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: strings.Repeat("x", maxEntityValue+1),
+				entityEnvironmentKey: "prod",
+			},
+			shouldErr: true,
+		},
+		{
+			testName: "environment exceeds length limit",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "my-service",
+				entityEnvironmentKey: strings.Repeat("x", maxEntityValue+1),
+			},
+			shouldErr: true,
+		},
+		{
+			testName: "blank-only attributes resolve to no attributes",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "my-service",
+				entityEnvironmentKey: "prod",
+				entityAttributesKey:  ", ,",
+			},
+			wantKeyAttr: map[string]string{"Type": "Service", "Name": "my-service", "Environment": "prod"},
+			wantAttr:    nil,
+		},
+		{
+			testName: "duplicate attribute key",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "my-service",
+				entityEnvironmentKey: "prod",
+				entityAttributesKey:  "Host=a,Host=b",
+			},
+			shouldErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.testName, func(t *testing.T) {
+			info := logger.Info{
+				ContainerName: tc.containerName,
+				Config:        tc.config,
+			}
+			streamConfig, err := newStreamConfig(info)
+			if tc.shouldErr {
+				assert.Check(t, err != nil, "Expected an error")
+				return
+			}
+			assert.NilError(t, err)
+			if tc.wantNil {
+				assert.Check(t, is.Nil(streamConfig.entity))
+				return
+			}
+			assert.Assert(t, streamConfig.entity != nil)
+			assert.DeepEqual(t, tc.wantKeyAttr, streamConfig.entity.KeyAttributes)
+			assert.DeepEqual(t, tc.wantAttr, streamConfig.entity.Attributes)
+		})
+	}
+}
+
+func TestValidateLogOptEntity(t *testing.T) {
+	tests := []struct {
+		testName  string
+		config    map[string]string
+		shouldErr bool
+	}{
+		{
+			testName: "both key attributes set",
+			config:   map[string]string{logGroupKey: groupName, entityServiceNameKey: "svc", entityEnvironmentKey: "prod"},
+		},
+		{
+			testName:  "only service name set",
+			config:    map[string]string{logGroupKey: groupName, entityServiceNameKey: "svc"},
+			shouldErr: true,
+		},
+		{
+			testName:  "only environment set",
+			config:    map[string]string{logGroupKey: groupName, entityEnvironmentKey: "prod"},
+			shouldErr: true,
+		},
+		{
+			testName: "valid attributes",
+			config:   map[string]string{logGroupKey: groupName, entityServiceNameKey: "svc", entityEnvironmentKey: "prod", entityAttributesKey: "a=1,b=2"},
+		},
+		{
+			testName:  "malformed attributes",
+			config:    map[string]string{logGroupKey: groupName, entityServiceNameKey: "svc", entityEnvironmentKey: "prod", entityAttributesKey: "a"},
+			shouldErr: true,
+		},
+		{
+			testName:  "too many attributes",
+			config:    map[string]string{logGroupKey: groupName, entityServiceNameKey: "svc", entityEnvironmentKey: "prod", entityAttributesKey: "a=1,b=2,c=3,d=4,e=5,f=6,g=7,h=8,i=9,j=10,k=11"},
+			shouldErr: true,
+		},
+		{
+			testName:  "attribute value too long",
+			config:    map[string]string{logGroupKey: groupName, entityServiceNameKey: "svc", entityEnvironmentKey: "prod", entityAttributesKey: "a=" + strings.Repeat("x", maxEntityValue+1)},
+			shouldErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.testName, func(t *testing.T) {
+			err := ValidateLogOpt(tc.config)
+			if tc.shouldErr {
+				assert.Check(t, err != nil, "Expected an error")
+			} else {
+				assert.NilError(t, err)
+			}
+		})
+	}
+}
+
+func TestPublishBatchEntity(t *testing.T) {
+	mockClient := &mockClient{}
+	entity := &types.Entity{
+		KeyAttributes: map[string]string{"Type": "Service", "Name": "my-service", "Environment": "prod"},
+		Attributes:    map[string]string{"PlatformType": "Generic"},
+	}
+	stream := &logStream{
+		client:        mockClient,
+		logGroupName:  groupName,
+		logStreamName: streamName,
+		sequenceToken: aws.String(sequenceToken),
+		entity:        entity,
+	}
+	var input *cloudwatchlogs.PutLogEventsInput
+	mockClient.putLogEventsFunc = func(ctx context.Context, i *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		input = i
+		return &cloudwatchlogs.PutLogEventsOutput{NextSequenceToken: aws.String(nextSequenceToken)}, nil
+	}
+	events := []wrappedEvent{
+		{inputLogEvent: types.InputLogEvent{Message: aws.String(logline)}},
+	}
+
+	stream.publishBatch(testEventBatch(events))
+	assert.Assert(t, input != nil)
+	assert.Assert(t, input.Entity != nil)
+	assert.DeepEqual(t, entity.KeyAttributes, input.Entity.KeyAttributes)
+	assert.DeepEqual(t, entity.Attributes, input.Entity.Attributes)
+}
+
+func TestPublishBatchEntityRejected(t *testing.T) {
+	mockClient := &mockClient{}
+	stream := &logStream{
+		client:        mockClient,
+		logGroupName:  groupName,
+		logStreamName: streamName,
+		sequenceToken: aws.String(sequenceToken),
+		entity: &types.Entity{
+			KeyAttributes: map[string]string{"Type": "Service", "Name": "my-service", "Environment": "prod"},
+		},
+	}
+	mockClient.putLogEventsFunc = func(ctx context.Context, i *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		return &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken:  aws.String(nextSequenceToken),
+			RejectedEntityInfo: &types.RejectedEntityInfo{ErrorType: types.EntityRejectionErrorTypeInvalidEntity},
+		}, nil
+	}
+	events := []wrappedEvent{
+		{inputLogEvent: types.InputLogEvent{Message: aws.String(logline)}},
+	}
+
+	// A rejected entity must not block the log events from being accepted.
+	stream.publishBatch(testEventBatch(events))
+	assert.Equal(t, nextSequenceToken, aws.ToString(stream.sequenceToken), "sequenceToken")
+}
+
 func TestNewAWSLogsClientCredentialEndpointDetect(t *testing.T) {
 	// required for the cloudwatchlogs client
 	t.Setenv("AWS_REGION", "us-west-2")
