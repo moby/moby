@@ -27,15 +27,3 @@ func timeToTimespec(time time.Time) unix.Timespec {
 	}
 	return unix.NsecToTimespec(time.UnixNano())
 }
-
-func lchtimes(name string, atime time.Time, mtime time.Time) error {
-	utimes := [2]unix.Timespec{
-		timeToTimespec(atime),
-		timeToTimespec(mtime),
-	}
-	err := unix.UtimesNanoAt(unix.AT_FDCWD, name, utimes[0:], unix.AT_SYMLINK_NOFOLLOW)
-	if err != nil && err != unix.ENOSYS {
-		return err
-	}
-	return err
-}
