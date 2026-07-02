@@ -116,6 +116,47 @@ devices:
 	assert.Assert(t, slices.Contains(s.Process.User.AdditionalGids, uint32(1234)), "CDI additional GID not present in OCI spec")
 }
 
+func TestCreateSpecWithCapAddForNonRootUserSetsAmbientCapabilities(t *testing.T) {
+	c := &container.Container{
+		Config: &containertypes.Config{
+			User: "2400:2400",
+		},
+		HostConfig: &containertypes.HostConfig{
+			CapAdd: []string{"SYS_NICE"},
+		},
+	}
+	d := setupFakeDaemon(t, c)
+
+	s, err := d.createSpec(t.Context(), &configStore{}, c, nil)
+	assert.NilError(t, err)
+
+	assert.Check(t, is.DeepEqual(s.Process.Capabilities.Ambient, []string{"CAP_SYS_NICE"}))
+	assert.Check(t, is.DeepEqual(s.Process.Capabilities.Inheritable, []string{"CAP_SYS_NICE"}))
+	assert.Assert(t, slices.Contains(s.Process.Capabilities.Effective, "CAP_SYS_NICE"))
+	assert.Assert(t, slices.Contains(s.Process.Capabilities.Permitted, "CAP_SYS_NICE"))
+	assert.Assert(t, !slices.Contains(s.Process.Capabilities.Ambient, "CAP_NET_RAW"))
+}
+
+func TestCreateSpecWithCapAddForRootUserLeavesAmbientCapabilitiesUnset(t *testing.T) {
+	c := &container.Container{
+		Config: &containertypes.Config{
+			User: "0:0",
+		},
+		HostConfig: &containertypes.HostConfig{
+			CapAdd: []string{"SYS_NICE"},
+		},
+	}
+	d := setupFakeDaemon(t, c)
+
+	s, err := d.createSpec(t.Context(), &configStore{}, c, nil)
+	assert.NilError(t, err)
+
+	assert.Check(t, is.Len(s.Process.Capabilities.Ambient, 0))
+	assert.Check(t, is.Len(s.Process.Capabilities.Inheritable, 0))
+	assert.Assert(t, slices.Contains(s.Process.Capabilities.Effective, "CAP_SYS_NICE"))
+	assert.Assert(t, slices.Contains(s.Process.Capabilities.Permitted, "CAP_SYS_NICE"))
+}
+
 // TestTmpfsDevShmNoDupMount checks that a user-specified /dev/shm tmpfs
 // mount (as in "docker run --tmpfs /dev/shm:rw,size=NNN") does not result
 // in "Duplicate mount point" error from the engine.
