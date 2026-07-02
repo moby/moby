@@ -337,10 +337,10 @@ func (i *image) Unpack(ctx context.Context, snapshotterName string, opts ...Unpa
 	if err != nil {
 		return err
 	}
-	if config.CheckPlatformSupported {
-		if err := i.checkSnapshotterSupport(ctx, snapshotterName, manifest); err != nil {
-			return err
-		}
+
+	if err := i.checkSnapshotterSupport(ctx, snapshotterName, manifest,
+		config.CheckPlatformSupported); err != nil {
+		return err
 	}
 
 	for _, layer := range layers {
@@ -421,13 +421,18 @@ func (i *image) getLayers(ctx context.Context, manifest ocispec.Manifest) ([]roo
 	return layers, nil
 }
 
-func (i *image) checkSnapshotterSupport(ctx context.Context, snapshotterName string, manifest ocispec.Manifest) error {
-	snapshotterPlatformMatcher, err := i.client.GetSnapshotterSupportedPlatforms(ctx, snapshotterName)
+func (i *image) checkSnapshotterSupport(ctx context.Context, snapshotterName string,
+	manifest ocispec.Manifest, checkSnapshotterSupport bool) error {
+	manifestPlatform, err := images.ConfigPlatform(ctx, i.ContentStore(), manifest.Config)
 	if err != nil {
 		return err
 	}
 
-	manifestPlatform, err := images.ConfigPlatform(ctx, i.ContentStore(), manifest.Config)
+	if len(manifestPlatform.OSFeatures) == 0 && !checkSnapshotterSupport {
+		return nil
+	}
+
+	snapshotterPlatformMatcher, err := i.client.GetSnapshotterSupportedPlatforms(ctx, snapshotterName)
 	if err != nil {
 		return err
 	}

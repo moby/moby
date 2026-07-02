@@ -70,7 +70,7 @@ type Store interface {
 }
 
 // AddExtension is a helper function to add sandbox metadata extension.
-func (s *Sandbox) AddExtension(name string, obj interface{}) error {
+func (s *Sandbox) AddExtension(name string, obj any) error {
 	if s.Extensions == nil {
 		s.Extensions = map[string]typeurl.Any{}
 	}
@@ -94,7 +94,7 @@ func (s *Sandbox) AddLabel(name string, value string) {
 }
 
 // GetExtension retrieves a sandbox extension by name.
-func (s *Sandbox) GetExtension(name string, obj interface{}) error {
+func (s *Sandbox) GetExtension(name string, obj any) error {
 	out, ok := s.Extensions[name]
 	if !ok {
 		return errdefs.ErrNotFound

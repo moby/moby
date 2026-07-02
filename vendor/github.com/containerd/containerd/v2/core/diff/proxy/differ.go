@@ -34,7 +34,7 @@ import (
 
 // NewDiffApplier returns a new comparer and applier which communicates
 // over a GRPC connection.
-func NewDiffApplier(client diffapi.DiffClient) interface{} {
+func NewDiffApplier(client diffapi.DiffClient) any {
 	return &diffRemote{
 		client: client,
 	}

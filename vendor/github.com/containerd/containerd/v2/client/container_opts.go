@@ -27,11 +27,9 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/snapshots"
-	"github.com/containerd/containerd/v2/pkg/labels"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/errdefs"
-	"github.com/containerd/log"
 	"github.com/containerd/typeurl/v2"
 	"github.com/opencontainers/image-spec/identity"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -57,7 +55,7 @@ type InfoConfig struct {
 
 // WithRuntime allows a user to specify the runtime name and additional options that should
 // be used to create tasks for the container
-func WithRuntime(name string, options interface{}) NewContainerOpts {
+func WithRuntime(name string, options any) NewContainerOpts {
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
 		var (
 			opts typeurl.Any
@@ -116,10 +114,6 @@ func WithContainerLabels(labels map[string]string) NewContainerOpts {
 // The existing labels are cleared as this is expected to be the first
 // operation in setting up a container's labels. Use WithAdditionalContainerLabels
 // to add/overwrite the existing image config labels.
-//
-// Image config labels in the namespaces reserved for containerd
-// (containerd.io/) and the CRI plugin (io.cri-containerd) are not copied
-// to the container.
 func WithImageConfigLabels(image Image) NewContainerOpts {
 	return func(ctx context.Context, _ *Client, c *containers.Container) error {
 		ic, err := image.Config(ctx)
@@ -145,16 +139,6 @@ func WithImageConfigLabels(image Image) NewContainerOpts {
 		config = ociimage.Config
 
 		c.Labels = config.Labels
-		// Labels in the containerd.io/* namespace are interpreted by containerd
-		// itself, and labels in the io.cri-containerd.* namespace are interpreted
-		// by the CRI plugin, so they are not copied from untrusted image configs.
-		maps.DeleteFunc(c.Labels, func(k, _ string) bool {
-			if labels.IsReserved(k) {
-				log.G(ctx).Warnf("skipping image label %q: the label namespace is reserved for containerd; possible malicious image attempting to alter containerd behavior", k)
-				return true
-			}
-			return false
-		})
 		return nil
 	}
 }
@@ -167,9 +151,7 @@ func WithAdditionalContainerLabels(labels map[string]string) NewContainerOpts {
 			c.Labels = labels
 			return nil
 		}
-		for k, v := range labels {
-			c.Labels[k] = v
-		}
+		maps.Copy(c.Labels, labels)
 		return nil
 	}
 }
@@ -292,7 +274,7 @@ func withNewSnapshot(id string, i Image, readonly bool, opts ...snapshots.Opt) N
 //
 // Make sure to register the type of `extension` in the typeurl package via
 // `typeurl.Register` or container creation may fail.
-func WithContainerExtension(name string, extension interface{}) NewContainerOpts {
+func WithContainerExtension(name string, extension any) NewContainerOpts {
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
 		if name == "" {
 			return fmt.Errorf("extension key must not be zero-length: %w", errdefs.ErrInvalidArgument)
