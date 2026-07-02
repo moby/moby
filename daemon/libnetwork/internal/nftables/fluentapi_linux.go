@@ -5,16 +5,16 @@ type chainBuilder struct {
 	tm    *Modifier
 }
 
-func (b BaseChain) Builder() chainBuilder {
+func (cd BaseChain) Builder() chainBuilder {
 	tm := &Modifier{}
-	tm.create(b, 1)
-	return chainBuilder{chain: b.Name, tm: tm}
+	tm.create(cd, 1)
+	return chainBuilder{chain: cd.Name, tm: tm}
 }
 
-func (c Chain) Builder() chainBuilder {
+func (cd Chain) Builder() chainBuilder {
 	tm := &Modifier{}
-	tm.create(c, 1)
-	return chainBuilder{chain: c.Name, tm: tm}
+	tm.create(cd, 1)
+	return chainBuilder{chain: cd.Name, tm: tm}
 }
 
 func (b chainBuilder) Rule(rule ...string) chainBuilder {
