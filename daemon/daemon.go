@@ -1419,9 +1419,9 @@ func verifierProvider(root string) func() (*policyverifier.Verifier, error) {
 			return verifier, nil
 		}
 
-		confDir := filepath.Join(root, "policy")
-		if err := os.MkdirAll(filepath.Join(confDir, "tuf"), 0o644); err != nil {
-			return nil, errors.Wrapf(err, "failed to create policy verifier config dir")
+		confDir, err := policyStateDir(root)
+		if err != nil {
+			return nil, err
 		}
 
 		v, err := policyverifier.NewVerifier(policyverifier.Config{
@@ -1433,6 +1433,17 @@ func verifierProvider(root string) func() (*policyverifier.Verifier, error) {
 		verifier = v
 		return verifier, nil
 	}
+}
+
+// policyStateDir returns the policy verifier's state directory, created 0o700
+// so the daemon's private TUF trust cache stays owner-only, consistent with the
+// daemon's other state directories.
+func policyStateDir(root string) (string, error) {
+	confDir := filepath.Join(root, "policy")
+	if err := os.MkdirAll(filepath.Join(confDir, "tuf"), 0o700); err != nil {
+		return "", errors.Wrap(err, "failed to create policy verifier config dir")
+	}
+	return confDir, nil
 }
 
 // DistributionServices returns services controlling daemon storage
