@@ -41,7 +41,6 @@ import (
 	"github.com/moby/sys/atomicwriter"
 	"github.com/moby/sys/signal"
 	"github.com/moby/sys/symlink"
-	"github.com/moby/sys/user"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
@@ -335,15 +334,59 @@ func (container *Container) SetupWorkingDirectory(uid int, gid int) error {
 		return err
 	}
 
-	if err := user.MkdirAllAndChown(pth, 0o755, uid, gid, user.WithOnlyNew); err != nil {
-		pthInfo, err2 := os.Stat(pth)
-		if err2 == nil && pthInfo != nil && !pthInfo.IsDir() {
-			return errors.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
-		}
-
+	// GetResourcePath only guarantees that pth stays inside the container while
+	// none of its components is swapped for a symlink between resolution and use
+	// (see its doc comment). Re-rooting the creation in the container's BaseFS
+	// with [os.Root] makes that guarantee hold for every component on every
+	// operation, the same hardening applied to mount-destination creation in
+	// commit 64a22d80b9.
+	root, err := os.OpenRoot(container.BaseFS)
+	if err != nil {
 		return err
 	}
+	defer root.Close()
 
+	rel, err := filepath.Rel(container.BaseFS, pth)
+	if err != nil {
+		return err
+	}
+	if err := scopedMkdirAllAndChown(root, rel, 0o755, uid, gid); err != nil {
+		if errors.Is(err, syscall.ENOTDIR) {
+			return errors.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
+		}
+		return err
+	}
+	return nil
+}
+
+// scopedMkdirAllAndChown creates path and any missing parent directories inside
+// root, setting ownership of the newly-created directories to uid:gid. It is the
+// [os.Root]-scoped equivalent of user.MkdirAllAndChown(..., user.WithOnlyNew):
+// performing every operation through root ensures that a path component which is
+// (or is swapped for) a symlink cannot redirect the mkdir or chown to a location
+// outside of root. Pre-existing directories are left untouched, and chown is
+// skipped on platforms that do not support it (e.g. Windows), matching the
+// behaviour of the user.MkdirAllAndChown call this replaces.
+func scopedMkdirAllAndChown(root *os.Root, path string, perm os.FileMode, uid, gid int) error {
+	dir := ""
+	for _, part := range strings.Split(filepath.ToSlash(filepath.Clean(path)), "/") {
+		if part == "" || part == "." {
+			continue
+		}
+		dir = filepath.Join(dir, part)
+		if fi, err := root.Stat(dir); err == nil {
+			if !fi.IsDir() {
+				return &os.PathError{Op: "mkdir", Path: dir, Err: syscall.ENOTDIR}
+			}
+			continue
+		}
+		if err := root.Mkdir(dir, perm); err != nil {
+			return err
+		}
+		if err := root.Chown(dir, uid, gid); err != nil && runtime.GOOS != "windows" {
+			return err
+		}
+	}
 	return nil
 }
 
