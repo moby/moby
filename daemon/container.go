@@ -13,7 +13,6 @@ import (
 
 	"github.com/containerd/log"
 	containertypes "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/mount"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
@@ -262,10 +261,6 @@ func validateHostConfig(hostConfig *containertypes.HostConfig) (warnings []strin
 	parser := volumemounts.NewParser()
 	for _, c := range hostConfig.Mounts {
 		cfg := c
-
-		if cfg.Type == mount.TypeImage {
-			warnings = append(warnings, "Image mount is an experimental feature")
-		}
 
 		if err := parser.ValidateMountConfig(&cfg); err != nil {
 			return warnings, err
