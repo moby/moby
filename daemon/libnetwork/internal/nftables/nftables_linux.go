@@ -46,6 +46,7 @@ package nftables
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"iter"
@@ -55,6 +56,7 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+	"time"
 
 	"github.com/containerd/log"
 )
@@ -91,6 +93,7 @@ type BaseChainHook string
 
 const (
 	BaseChainHookIngress     BaseChainHook = "ingress"
+	BaseChainHookEgress      BaseChainHook = "egress"
 	BaseChainHookPrerouting  BaseChainHook = "prerouting"
 	BaseChainHookInput       BaseChainHook = "input"
 	BaseChainHookForward     BaseChainHook = "forward"
@@ -122,8 +125,9 @@ const (
 type Family string
 
 const (
-	IPv4 Family = "ip"
-	IPv6 Family = "ip6"
+	IPv4   Family = "ip"
+	IPv6   Family = "ip6"
+	Netdev Family = "netdev"
 )
 
 type SetTyper interface {
@@ -357,100 +361,6 @@ func (t Table) Family() Family {
 	return t.t.Family
 }
 
-// incrementalUpdateTemplText is used with text/template to generate an nftables command file
-// (which will be applied atomically). Updates using this template are always incremental.
-// Steps are:
-//   - declare the table and its sets/maps with empty versions of modified chains, so that
-//     they can be flushed/deleted if they don't yet exist. (They need to be flushed in case
-//     a version of them was left behind by an old incarnation of the daemon. But, it's an
-//     error to flush or delete something that doesn't exist. So, avoid having to parse nft's
-//     stderr to work out what happened by making sure they do exist before flushing.)
-//   - if the table is newly declared, flush rules from its chains
-//   - flush each newly declared map/set
-//   - delete deleted map/set elements
-//   - flush modified chains
-//   - delete deleted chains
-//   - re-populate modified chains
-//   - add new map/set elements
-const incrementalUpdateTemplText = `{{$family := .Family}}{{$tableName := .Name}}
-table {{$family}} {{$tableName}} {
-	{{range .Maps}}map {{.Name}} {
-		{{.ElementTypeExpr}}
-		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
-	}
-	{{end}}
-	{{range .Sets}}set {{.Name}} {
-		{{.ElementTypeExpr}}
-		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
-	}
-	{{end}}
-	{{range .Chains}}{{if .MustFlush}}chain {{.Name}} {
-		{{if .ChainType}}type {{.ChainType}} hook {{.Hook}} priority {{.Priority}}; policy {{.Policy}}{{end}}
-	} ; {{end}}{{end}}
-}
-{{if .MustFlush}}flush table {{$family}} {{$tableName}}{{end}}
-{{range .Maps}}{{if .MustFlush}}flush map {{$family}} {{$tableName}} {{.Name}}
-{{end}}{{end}}
-{{range .Sets}}{{if .MustFlush}}flush set {{$family}} {{$tableName}} {{.Name}}
-{{end}}{{end}}
-{{range .Chains}}{{if .MustFlush}}flush chain {{$family}} {{$tableName}} {{.Name}}
-{{end}}{{end}}
-{{range .Maps}}{{if .DeletedElements}}delete element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .DeletedElements}}{{$k}}, {{end}} }
-{{end}}{{end}}
-{{range .Sets}}{{if .DeletedElements}}delete element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .DeletedElements}}{{$k}}, {{end}} }
-{{end}}{{end}}
-{{range .DeleteCommands}}{{.}}
-{{end}}
-table {{$family}} {{$tableName}} {
-	{{range .Chains}}{{if .MustFlush}}chain {{.Name}} {
-		{{if .ChainType}}type {{.ChainType}} hook {{.Hook}} priority {{.Priority}}; policy {{.Policy}}{{end}}
-		{{range .Rules}}{{.}}
-		{{end}}
-	}
-	{{end}}{{end}}
-}
-{{range .Maps}}{{if .AddedElements}}add element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .AddedElements}}{{$k}} : {{$v}}, {{end}} }
-{{end}}{{end}}
-{{range .Sets}}{{if .AddedElements}}add element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .AddedElements}}{{$k}}, {{end}} }
-{{end}}{{end}}
-`
-
-// reloadTemplText is used with text/template to generate an nftables command file
-// (which will be applied atomically), to fully re-create a table.
-//
-// It first declares the table so if it doesn't already exist, it can be deleted.
-// Then it deletes the table and re-creates it.
-const reloadTemplText = `{{$family := .Family}}{{$tableName := .Name}}
-table {{$family}} {{$tableName}} {}
-delete table {{$family}} {{$tableName}}
-table {{$family}} {{$tableName}} {
-	{{range .Maps}}map {{.Name}} {
-		{{.ElementTypeExpr}}
-		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
-        {{if .Elements}}elements = {
-			{{range $k,$v := .Elements}}{{$k}} : {{$v}},
-            {{end -}}
-		}{{end}}
-	}
-	{{end}}
-	{{range .Sets}}set {{.Name}} {
-		{{.ElementTypeExpr}}
-		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
-        {{if .Elements}}elements = {
-			{{range $k,$v := .Elements}}{{$k}},
-            {{end -}}
-		}{{end}}
-	}
-	{{end}}
-	{{range .Chains}}chain {{.Name}} {
-		{{if .ChainType}}type {{.ChainType}} hook {{.Hook}} priority {{.Priority}}; policy {{.Policy}}{{end}}
-		{{range .Rules}}{{.}}
-		{{end}}
-	}
-	{{end}}
-}
-`
-
 // SetBaseChainPolicy sets the default policy for a base chain. The update
 // is applied immediately, unlike creation/deletion of objects via a [Modifier]
 // which are not applied until [Modifier.Apply] is called.
@@ -665,6 +575,7 @@ type chain struct {
 	Name       string
 	ChainType  BaseChainType
 	Hook       BaseChainHook
+	Device     string
 	Priority   int
 	Policy     BaseChainPolicy
 	MustFlush  bool
@@ -682,6 +593,7 @@ type BaseChain struct {
 	Name      string
 	ChainType BaseChainType
 	Hook      BaseChainHook
+	Device    string
 	Priority  int
 	Policy    BaseChainPolicy // Defaults to BaseChainPolicyAccept
 }
@@ -706,6 +618,7 @@ func (cd BaseChain) create(ctx context.Context, t *table) (bool, error) {
 		Name:       cd.Name,
 		ChainType:  cd.ChainType,
 		Hook:       cd.Hook,
+		Device:     cd.Device,
 		Priority:   cd.Priority,
 		Policy:     cd.Policy,
 		MustFlush:  true,
@@ -718,6 +631,7 @@ func (cd BaseChain) create(ctx context.Context, t *table) (bool, error) {
 		"chain":  c.Name,
 		"type":   c.ChainType,
 		"hook":   c.Hook,
+		"device": c.Device,
 		"prio":   c.Priority,
 	}).Debug("nftables: created base chain")
 	return true, nil
@@ -841,6 +755,11 @@ func (ru Rule) delete(ctx context.Context, t *table) (bool, error) {
 // ////////////////////////////
 // Maps
 
+type mapValue struct {
+	Value   string
+	Comment string
+}
+
 // nftMap is the internal representation of an nftables map (including verdict maps).
 // Its elements need to be exported for use by text/template, but they should only be
 // manipulated via exported methods.
@@ -849,8 +768,10 @@ type nftMap struct {
 	Name            string
 	ElementTypeExpr string
 	Flags           []string
-	Elements        map[string]string
-	AddedElements   map[string]string
+	Size            int
+	Timeout         time.Duration
+	Elements        map[string]mapValue
+	AddedElements   map[string]mapValue
 	DeletedElements map[string]string
 	MustFlush       bool
 }
@@ -861,6 +782,8 @@ type Map struct {
 	Name        string
 	ElementType MapTyper
 	Flags       []string
+	Size        int
+	Timeout     time.Duration
 }
 
 func (m Map) create(ctx context.Context, t *table) (bool, error) {
@@ -878,8 +801,10 @@ func (m Map) create(ctx context.Context, t *table) (bool, error) {
 		Name:            m.Name,
 		ElementTypeExpr: m.ElementType.mapType(),
 		Flags:           slices.Clone(m.Flags),
-		Elements:        map[string]string{},
-		AddedElements:   map[string]string{},
+		Size:            m.Size,
+		Timeout:         m.Timeout,
+		Elements:        map[string]mapValue{},
+		AddedElements:   map[string]mapValue{},
 		DeletedElements: map[string]string{},
 		MustFlush:       true,
 	}
@@ -917,11 +842,17 @@ type MapElement struct {
 	MapName string
 	Key     string
 	Value   string
+	Comment string
 }
 
 func (me MapElement) create(ctx context.Context, t *table) (bool, error) {
 	if me.MapName == "" {
 		return false, errors.New("cannot add element to unnamed map")
+	}
+	if bad := validateComment(me.Comment); bad != nil {
+		bad.kind = fmt.Sprintf("map '%s' element", me.MapName)
+		bad.name = me.Key
+		return false, bad
 	}
 	nm := t.Maps[me.MapName]
 	if nm == nil {
@@ -933,15 +864,19 @@ func (me MapElement) create(ctx context.Context, t *table) (bool, error) {
 	if _, ok := nm.Elements[me.Key]; ok {
 		return false, fmt.Errorf("map '%s' already contains element '%s'", me.MapName, me.Key)
 	}
-	nm.Elements[me.Key] = me.Value
-	nm.AddedElements[me.Key] = me.Value
+	nm.Elements[me.Key] = mapValue{
+		Value:   me.Value,
+		Comment: me.Comment,
+	}
+	nm.AddedElements[me.Key] = nm.Elements[me.Key]
 	delete(nm.DeletedElements, me.Key)
 	log.G(ctx).WithFields(log.Fields{
-		"family": t.Family,
-		"table":  t.Name,
-		"map":    me.MapName,
-		"key":    me.Key,
-		"value":  me.Value,
+		"family":  t.Family,
+		"table":   t.Name,
+		"map":     me.MapName,
+		"key":     me.Key,
+		"value":   me.Value,
+		"comment": me.Comment,
 	}).Debug("nftables: added map element")
 	return true, nil
 }
@@ -955,25 +890,30 @@ func (me MapElement) delete(ctx context.Context, t *table) (bool, error) {
 	if !ok {
 		return false, fmt.Errorf("map '%s' does not contain element '%s'", me.MapName, me.Key)
 	}
-	if oldValue != me.Value {
+	if oldValue.Value != me.Value {
 		return false, fmt.Errorf("cannot delete map '%s' element '%s', value was '%s', not '%s'",
-			me.MapName, me.Key, oldValue, me.Value)
+			me.MapName, me.Key, oldValue.Value, me.Value)
 	}
 	delete(nm.Elements, me.Key)
 	delete(nm.AddedElements, me.Key)
 	nm.DeletedElements[me.Key] = me.Value
 	log.G(ctx).WithFields(log.Fields{
-		"family": t.Family,
-		"table":  t.Name,
-		"map":    me.MapName,
-		"key":    me.Key,
-		"value":  me.Value,
+		"family":  t.Family,
+		"table":   t.Name,
+		"map":     me.MapName,
+		"key":     me.Key,
+		"value":   me.Value,
+		"comment": oldValue.Comment,
 	}).Debug("nftables: deleted map element")
 	return true, nil
 }
 
 // ////////////////////////////
 // Sets
+
+type setElementOptions struct {
+	Comment string
+}
 
 // set is the internal representation of an nftables set.
 // Its elements need to be exported for use by text/template, but they should only be
@@ -983,8 +923,10 @@ type set struct {
 	Name            string
 	ElementTypeExpr string
 	Flags           []string
-	Elements        map[string]struct{}
-	AddedElements   map[string]struct{}
+	Size            int
+	Timeout         time.Duration
+	Elements        map[string]setElementOptions
+	AddedElements   map[string]setElementOptions
 	DeletedElements map[string]struct{}
 	MustFlush       bool
 }
@@ -995,6 +937,8 @@ type Set struct {
 	Name        string
 	ElementType SetTyper
 	Flags       []string
+	Size        int
+	Timeout     time.Duration
 }
 
 // See https://wiki.nftables.org/wiki-nftables/index.php/Sets#Named_sets
@@ -1011,10 +955,12 @@ func (sd Set) create(ctx context.Context, t *table) (bool, error) {
 	s := &set{
 		table:           t,
 		Name:            sd.Name,
-		Elements:        map[string]struct{}{},
+		Elements:        map[string]setElementOptions{},
 		ElementTypeExpr: sd.ElementType.setType(),
 		Flags:           slices.Clone(sd.Flags),
-		AddedElements:   map[string]struct{}{},
+		Size:            sd.Size,
+		Timeout:         sd.Timeout,
+		AddedElements:   map[string]setElementOptions{},
 		DeletedElements: map[string]struct{}{},
 		MustFlush:       true,
 	}
@@ -1051,6 +997,7 @@ func (sd Set) delete(ctx context.Context, t *table) (bool, error) {
 type SetElement struct {
 	SetName string
 	Element string
+	Comment string
 	// If true, deleting an element that does not exist or creating an
 	// element that already exists will succeed.
 	Idempotent bool
@@ -1064,20 +1011,28 @@ func (se SetElement) create(ctx context.Context, t *table) (bool, error) {
 	if se.Element == "" {
 		return false, fmt.Errorf("cannot add to set '%s', element not specified", se.SetName)
 	}
+	if bad := validateComment(se.Comment); bad != nil {
+		bad.kind = fmt.Sprintf("set '%s' element", se.SetName)
+		bad.name = se.Element
+		return false, bad
+	}
 	if _, ok := s.Elements[se.Element]; ok {
 		if se.Idempotent {
 			return false, nil
 		}
 		return false, fmt.Errorf("set '%s' already contains element '%s'", s.Name, se.Element)
 	}
-	s.Elements[se.Element] = struct{}{}
-	s.AddedElements[se.Element] = struct{}{}
+	s.Elements[se.Element] = setElementOptions{
+		Comment: se.Comment,
+	}
+	s.AddedElements[se.Element] = s.Elements[se.Element]
 	delete(s.DeletedElements, se.Element)
 	log.G(ctx).WithFields(log.Fields{
 		"family":  t.Family,
 		"table":   t.Name,
 		"set":     s.Name,
 		"element": se.Element,
+		"comment": se.Comment,
 	}).Debug("nftables: added set element")
 	return true, nil
 }
@@ -1087,7 +1042,8 @@ func (se SetElement) delete(ctx context.Context, t *table) (bool, error) {
 	if s == nil {
 		return false, fmt.Errorf("cannot delete from set '%s', it does not exist", se.SetName)
 	}
-	if _, ok := s.Elements[se.Element]; !ok {
+	oldValue, ok := s.Elements[se.Element]
+	if !ok {
 		if se.Idempotent {
 			return false, nil
 		}
@@ -1101,6 +1057,7 @@ func (se SetElement) delete(ctx context.Context, t *table) (bool, error) {
 		"table":   t.Name,
 		"set":     s.Name,
 		"element": se.Element,
+		"comment": oldValue.Comment,
 	}).Debug("nftables: deleted set element")
 	return true, nil
 }
@@ -1154,12 +1111,12 @@ func (t *table) updatesApplied() {
 		c.MustFlush = false
 	}
 	for _, m := range t.Maps {
-		m.AddedElements = map[string]string{}
+		m.AddedElements = map[string]mapValue{}
 		m.DeletedElements = map[string]string{}
 		m.MustFlush = false
 	}
 	for _, s := range t.Sets {
-		s.AddedElements = map[string]struct{}{}
+		s.AddedElements = map[string]setElementOptions{}
 		s.DeletedElements = map[string]struct{}{}
 		s.MustFlush = false
 	}
@@ -1184,15 +1141,62 @@ func (c *chain) Rules() iter.Seq[string] {
 	}
 }
 
+type badCommentError struct {
+	kind, name, disallowed string
+}
+
+func (e badCommentError) Error() string {
+	return fmt.Sprintf("%s '%s' comment contains %q which is not permitted in nftables comments",
+		e.kind, e.name, e.disallowed)
+}
+
+// validateComment checks whether s would break the rendered nftables templates
+// if interpolated as a comment.
+//
+// The nftables ruleset syntax does not support
+// escaping of characters in quoted strings; comments simply cannot contain
+// double-quote or newline characters.
+func validateComment(s string) *badCommentError {
+	i := strings.IndexAny(s, "\r\n\"")
+	if i == -1 {
+		return nil
+	}
+	return &badCommentError{
+		disallowed: strings.Clone(s[i : i+1]),
+	}
+}
+
+// incrementalUpdateTemplText is used with text/template to generate an nftables command file
+// (which will be applied atomically). Updates using this template are always incremental.
+// Steps are:
+//   - declare the table and its sets/maps with empty versions of modified chains, so that
+//     they can be flushed/deleted if they don't yet exist. (They need to be flushed in case
+//     a version of them was left behind by an old incarnation of the daemon. But, it's an
+//     error to flush or delete something that doesn't exist. So, avoid having to parse nft's
+//     stderr to work out what happened by making sure they do exist before flushing.)
+//   - if the table is newly declared, flush rules from its chains
+//   - flush each newly declared map/set
+//   - delete deleted map/set elements
+//   - flush modified chains
+//   - delete deleted chains
+//   - re-populate modified chains
+//   - add new map/set elements
+//
+//go:embed incremental_update.nft.gotmpl
+var incrementalUpdateTemplText string
+
+// reloadTemplText is used with text/template to generate an nftables command file
+// (which will be applied atomically), to fully re-create a table.
+//
+// It first declares the table so if it doesn't already exist, it can be deleted.
+// Then it deletes the table and re-creates it.
+//
+//go:embed reload.nft.gotmpl
+var reloadTemplText string
+
 func parseTemplate() error {
-	var err error
-	incrementalUpdateTempl, err = template.New("ruleset").Parse(incrementalUpdateTemplText)
-	if err != nil {
-		return fmt.Errorf("parsing 'incrementalUpdateTemplText': %w", err)
-	}
-	reloadTempl, err = template.New("ruleset").Parse(reloadTemplText)
-	if err != nil {
-		return fmt.Errorf("parsing 'reloadTemplText': %w", err)
-	}
-	return nil
+	var errs [2]error
+	incrementalUpdateTempl, errs[0] = template.New("incremental_update.nft.gotmpl").Parse(incrementalUpdateTemplText)
+	reloadTempl, errs[1] = template.New("reload.nft.gotmpl").Parse(reloadTemplText)
+	return errors.Join(errs[:]...)
 }

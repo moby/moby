@@ -1,0 +1,6 @@
+table netdev testtable {
+	chain this_is_a_netdev_chain {
+		type filter hook ingress device "lo" priority -123; policy accept;
+		accept
+	}
+}

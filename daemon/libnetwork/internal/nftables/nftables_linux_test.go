@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"gotest.tools/v3/assert"
@@ -191,7 +192,7 @@ func TestVMap(t *testing.T) {
 	const mapName = "this_is_a_vmap"
 	tm.Create(Map{Name: mapName, ElementType: Ifname.VMap()})
 	tm.Create(MapElement{MapName: mapName, Key: "eth0", Value: "return"})
-	tm.Create(MapElement{MapName: mapName, Key: "eth1", Value: "drop"})
+	tm.Create(MapElement{MapName: mapName, Key: "eth1", Value: "drop", Comment: `/// this is a comment on a map element \\\`})
 
 	// Update nftables and check what happened.
 	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
@@ -224,7 +225,7 @@ func TestSet(t *testing.T) {
 
 	// Add elements to each set.
 	tm4.Create(SetElement{SetName: set4Name, Element: "192.0.2.0/24"})
-	tm6.Create(SetElement{SetName: set6Name, Element: "2001:db8::/64"})
+	tm6.Create(SetElement{SetName: set6Name, Element: "2001:db8::/64", Comment: `/// this is a comment on a set element \\\`})
 
 	// Update nftables and check what happened.
 	applyAndCheck(t, t.Name()+"/created4.golden", tbl4, tm4)
@@ -258,11 +259,14 @@ func TestReload(t *testing.T) {
 	const vmapName = "this_is_a_vmap"
 	tm.Create(Map{Name: vmapName, ElementType: Ifname.VMap()})
 	tm.Create(MapElement{MapName: vmapName, Key: "eth0", Value: "return"})
-	tm.Create(MapElement{MapName: vmapName, Key: "eth1", Value: "return"})
+	tm.Create(MapElement{MapName: vmapName, Key: "eth1", Value: "return", Comment: "{foo}"})
 
 	const setName = "this_is_a_set"
 	tm.Create(Set{Name: setName, ElementType: IPv4Addr, Flags: []string{"interval"}})
-	tm.Create(SetElement{SetName: setName, Element: "192.0.2.0/24"})
+	tm.Create(SetElement{SetName: setName, Element: "192.0.2.0/24", Comment: "}bar{"})
+
+	tm.Create(Map{Name: "dynamic_map", ElementType: IPv4Addr.MapTo(EtherAddr), Flags: []string{"dynamic"}, Size: 1024, Timeout: 2*time.Minute + 30*time.Second + 500*time.Millisecond + 654*time.Microsecond})
+	tm.Create(Set{Name: "dynamic_set", ElementType: IPv4Addr, Flags: []string{"dynamic"}, Size: 4096, Timeout: 5*time.Minute + 10*time.Second + 250*time.Millisecond + 123*time.Microsecond})
 
 	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
 
@@ -325,6 +329,34 @@ func TestApplyMultipleModifiers(t *testing.T) {
 	var tm3 Modifier
 	tm3.Create(Rule{Chain: chainName, Rule: []string{"accept"}})
 	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm1, tm3)
+}
+
+func TestNetdevChain(t *testing.T) {
+	defer testSetup(t)()
+
+	tbl, err := NewTable(Netdev, "testtable")
+	assert.NilError(t, err)
+	defer tbl.Close()
+	tm := Modifier{}
+
+	const bcName = "this_is_a_netdev_chain"
+	tm.Create(BaseChain{
+		Name:      bcName,
+		ChainType: BaseChainTypeFilter,
+		Hook:      BaseChainHookIngress,
+		Device:    "lo",
+		Priority:  -123,
+		Policy:    BaseChainPolicyAccept,
+	})
+	tm.Create(Rule{Chain: bcName, Rule: []string{"accept"}})
+	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
+
+	icmd.RunCommand("nft", "flush", "ruleset").Assert(t, icmd.Success)
+	err = tbl.Reload(context.Background())
+	assert.Check(t, err)
+	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
+	res.Assert(t, icmd.Success)
+	golden.Assert(t, res.Combined(), t.Name()+"/created.golden")
 }
 
 func TestValidation(t *testing.T) {
@@ -580,6 +612,22 @@ func TestValidation(t *testing.T) {
 			},
 			expErr: "cannot add to map 'avmap', element must have key and value",
 		},
+		{
+			name: "map element with newline in comment",
+			cmds: []command{
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
+				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop", Comment: "new\nline"}},
+			},
+			expErr: `map 'avmap' element 'eth0' comment contains "\n"`,
+		},
+		{
+			name: "map element with quote char in comment",
+			cmds: []command{
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
+				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop", Comment: `"quoted"`}},
+			},
+			expErr: `map 'avmap' element 'eth0' comment contains "\""`,
+		},
 		// Set
 		{
 			name: "duplicate set",
@@ -660,6 +708,22 @@ func TestValidation(t *testing.T) {
 				{obj: SetElement{SetName: "aset", Element: "2001:db8::/64"}},
 			},
 			expErr: "Address family for hostname not supported",
+		},
+		{
+			name: "set element with newline in comment",
+			cmds: []command{
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
+				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24", Comment: "new\nline"}},
+			},
+			expErr: `set 'aset' element '192.0.2.0/24' comment contains "\n"`,
+		},
+		{
+			name: "set element with quote char in comment",
+			cmds: []command{
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
+				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24", Comment: `"quoted"`}},
+			},
+			expErr: `set 'aset' element '192.0.2.0/24' comment contains "\""`,
 		},
 	}
 
