@@ -38,6 +38,7 @@ import (
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/internal/nri"
+	"github.com/moby/moby/v2/daemon/names"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
 	"github.com/opencontainers/selinux/go-selinux"
@@ -770,6 +771,9 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 }
 
 func (daemon *Daemon) registerLink(parent, child *container.Container, alias string) error {
+	if len(strings.Fields(alias)) > 1 {
+		return cerrdefs.ErrInvalidArgument.WithMessage(fmt.Sprintf("Invalid link alias name (%s), can't contain white spaces", alias))
+	}
 	fullName := path.Join(parent.Name, alias)
 	if err := daemon.containersReplica.ReserveName(fullName, child.ID); err != nil {
 		if cerrdefs.IsConflict(err) {
