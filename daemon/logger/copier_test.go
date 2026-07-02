@@ -228,7 +228,7 @@ func TestCopierWithSized(t *testing.T) {
 	})
 	t.Run("With RingLogger", func(t *testing.T) {
 		testCopierWithSized(t, func(l SizedLogger) SizedLogger {
-			return newRingLogger(l, Info{}, defaultRingMaxSize)
+			return newRingLogger(l, Info{}, defaultRingMaxSize, -1)
 		})
 	})
 }
