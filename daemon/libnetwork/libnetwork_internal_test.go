@@ -723,6 +723,125 @@ func TestServiceVIPReuse(t *testing.T) {
 	}
 }
 
+// TestSandboxResolveCrossNetworkInternal exercises the "<container>.<network>.internal"
+// resolution path added for https://github.com/moby/moby/issues/49572.
+func TestSandboxResolveCrossNetworkInternal(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
+
+	defer netnsutils.SetupTestOSContext(t)()
+
+	ctx := context.Background()
+	c, err := New(ctx, config.OptionDataDir(t.TempDir()),
+		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Register controller shutdown first so subsequent t.Cleanup registrations
+	// for per-network deletion run before it (Cleanup is LIFO).
+	t.Cleanup(func() { c.Stop() })
+
+	mustNewNetwork := func(name string, opts ...NetworkOption) *Network {
+		opts = append([]NetworkOption{NetworkOptionEnableIPv4(true)}, opts...)
+		n, err := c.NewNetwork(ctx, "bridge", name, "", opts...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := n.Delete(); err != nil {
+				t.Errorf("delete network %s: %v", name, err)
+			}
+		})
+		return n
+	}
+
+	netA := mustNewNetwork("netA")
+	netB := mustNewNetwork("netB")
+	netInt := mustNewNetwork("netInt", NetworkOptionInternalNetwork())
+	netDotted := mustNewNetwork("my.net")
+	netNamedInternal := mustNewNetwork("internal")
+	netFooInternal := mustNewNetwork("foo.internal")
+	netFoo := mustNewNetwork("foo")
+
+	netA.addSvcRecords("epA", "c1", "svcA", net.ParseIP("10.0.1.10"), nil, true, "test")
+	netB.addSvcRecords("epB", "c2", "svcB", net.ParseIP("10.0.2.20"), net.ParseIP("fd00:b::2"), true, "test")
+	netInt.addSvcRecords("epI", "ci", "svcI", net.ParseIP("10.0.3.30"), nil, true, "test")
+	netDotted.addSvcRecords("epD", "c3", "svcD", net.ParseIP("10.0.4.40"), nil, true, "test")
+	netNamedInternal.addSvcRecords("epN", "db", "svcN", net.ParseIP("10.0.5.50"), net.ParseIP("fd00:5::1"), true, "test")
+	netFoo.addSvcRecords("epFoo", "shadowed", "svcFoo", net.ParseIP("10.0.6.60"), nil, true, "test")
+	netFooInternal.addSvcRecords("epFI", "shadowed", "svcFI", net.ParseIP("10.0.7.70"), net.ParseIP("fd00:7::1"), true, "test")
+
+	epA, err := netA.CreateEndpoint(ctx, "ep-c1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	epN, err := netNamedInternal.CreateEndpoint(ctx, "ep-c1-internal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	epFI, err := netFooInternal.CreateEndpoint(ctx, "ep-c1-foo-internal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sb, err := c.NewSandbox(ctx, "c1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := sb.Delete(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	if err := epA.Join(ctx, sb); err != nil {
+		t.Fatal(err)
+	}
+	if err := epN.Join(ctx, sb); err != nil {
+		t.Fatal(err)
+	}
+	if err := epFI.Join(ctx, sb); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name   string
+		query  string
+		family types.IPFamily
+		want   string // empty -> expect NXDOMAIN
+	}{
+		{"cross-network", "c2.netB.internal", types.IPv4, "10.0.2.20"},
+		{"cross-network IPv6", "c2.netB.internal", types.IPv6, "fd00:b::2"},
+		{"same-network via .internal", "c1.netA.internal", types.IPv4, "10.0.1.10"},
+		{"internal network is excluded", "ci.netInt.internal", types.IPv4, ""},
+		{"unknown network", "c1.nope.internal", types.IPv4, ""},
+		{"unknown container", "ghost.netB.internal", types.IPv4, ""},
+		{"missing network segment", "noworld.internal", types.IPv4, ""},
+		{"trailing dot before .internal", "name..internal", types.IPv4, ""},
+		{"dotted network name", "c3.my.net.internal", types.IPv4, "10.0.4.40"},
+		{"legacy first: internal-named network", "db.internal", types.IPv4, "10.0.5.50"},
+		{"legacy first: *.internal vs foo", "shadowed.foo.internal", types.IPv4, "10.0.7.70"},
+		{"legacy first IPv6: *.internal vs foo", "shadowed.foo.internal", types.IPv6, "fd00:7::1"},
+		{"legacy first IPv6: internal-named network", "db.internal", types.IPv6, "fd00:5::1"},
+		{"bare name", "c1", types.IPv4, "10.0.1.10"},
+		{"container.network shorthand", "c1.netA", types.IPv4, "10.0.1.10"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := sb.ResolveName(ctx, tc.query, tc.family)
+			if tc.want == "" {
+				if ok || len(got) != 0 {
+					t.Fatalf("expected NXDOMAIN for %q, got %v", tc.query, got)
+				}
+				return
+			}
+			if !ok || len(got) == 0 {
+				t.Fatalf("expected %q to resolve to %s, got NXDOMAIN", tc.query, tc.want)
+			}
+			if got[0].String() != tc.want {
+				t.Fatalf("expected %q -> %s, got %s", tc.query, tc.want, got[0])
+			}
+		})
+	}
+}
+
 func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
 
