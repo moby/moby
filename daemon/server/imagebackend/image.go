@@ -20,10 +20,11 @@ type PullOptions struct {
 }
 
 type PushOptions struct {
-	Platforms   []ocispec.Platform
-	MetaHeaders http.Header
-	AuthConfig  *registry.AuthConfig
-	OutStream   io.Writer
+	Platforms            []ocispec.Platform
+	ForceCheckLayerExist bool
+	MetaHeaders          http.Header
+	AuthConfig           *registry.AuthConfig
+	OutStream            io.Writer
 }
 
 type RemoveOptions struct {
