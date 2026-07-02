@@ -521,6 +521,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 			"--preserve-env=PATH", // Pass through PATH, overriding secure_path.
 			"XDG_RUNTIME_DIR="+d.rootlessXDGRuntimeDir,
 			"HOME="+d.rootlessUser.HomeDir,
+			"DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR="+filepath.Join(d.rootlessXDGRuntimeDir, "rootless"),
 			"--",
 			defaultDockerdRootlessBinary,
 		)
