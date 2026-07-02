@@ -20,12 +20,14 @@ type Summary struct {
 
 	// ID is the content-addressable ID of an image.
 	//
-	// This identifier is a content-addressable digest calculated from the
-	// image's configuration (which includes the digests of layers used by
-	// the image).
+	// This identifier is usually a digest calculated from the image's
+	// configuration. When the daemon uses a multi-platform image store, and the
+	// image record targets a manifest list or OCI index, this identifier may be
+	// the digest of the image target instead.
 	//
-	// Note that this digest differs from the `RepoDigests` below, which
-	// holds digests of image manifests that reference the image.
+	// `Descriptor` describes the image target, and `Manifests` provides details
+	// about the platform-specific image manifests and other image-attached data,
+	// such as attestations.
 	//
 	// Required: true
 	ID string `json:"Id"`
