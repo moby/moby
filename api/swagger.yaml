@@ -7294,6 +7294,10 @@ definitions:
           $ref: "#/definitions/DeviceInfo"
       NRI:
         $ref: "#/definitions/NRIInfo"
+      Listeners:
+        type: "array"
+        items:
+          $ref: "#/definitions/ListenerInfo"
       Warnings:
         description: |
           List of warnings / informational messages about missing features, or
@@ -7622,6 +7626,24 @@ definitions:
         description: "Actual commit ID of external tool."
         type: "string"
         example: "cfb82a876ecc11b5ca0977d1733adbe58599088a"
+
+  ListenerInfo:
+    description: |
+      ListenerInfo provides information about an address that the API is listening on.
+    type: "object"
+    properties:
+      Address:
+        description: |
+          Address is the address that the daemon API is listening on.
+        type: "string"
+        example: "unix:///var/run/docker.sock"
+      Insecure:
+        description: |
+          Insecure indicates if the address is insecure, which could be either
+          if the daemon is configured without TLS client verification, or if
+          TLS verify is disabled.
+        type: "boolean"
+        example: false
 
   SwarmInfo:
     description: |
