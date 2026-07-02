@@ -118,8 +118,12 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 		}
 		err := sb.osSbox.AddAliasIP(ifName, &net.IPNet{IP: lb.vip, Mask: net.CIDRMask(32, 32)})
 		if err != nil {
-			log.G(context.TODO()).Errorf("Failed add IP alias %s to network %s LB endpoint interface %s: %v", lb.vip, n.ID(), ifName, err)
-			return
+			if errors.Is(err, syscall.EEXIST) {
+				log.G(context.TODO()).Debugf("IP alias %s already exists on network %s LB endpoint interface %s", lb.vip, n.ID(), ifName)
+			} else {
+				log.G(context.TODO()).Errorf("Failed add IP alias %s to network %s LB endpoint interface %s: %v", lb.vip, n.ID(), ifName, err)
+				return
+			}
 		}
 
 		if sb.ingress {
