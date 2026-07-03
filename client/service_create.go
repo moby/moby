@@ -137,21 +137,37 @@ func imageDigestAndPlatforms(ctx context.Context, cli DistributionAPIClient, ima
 
 	if len(distributionInspect.Platforms) > 0 {
 		platforms = make([]swarm.Platform, 0, len(distributionInspect.Platforms))
+		seen := make(map[swarm.Platform]struct{}, len(distributionInspect.Platforms))
 		for _, p := range distributionInspect.Platforms {
+			// skip attestations and other data included in the manifest index.
+			if p.OS == "unknown" || p.Architecture == "unknown" {
+				continue
+			}
 			// clear architecture field for arm. This is a temporary patch to address
-			// https://github.com/docker/swarmkit/issues/2294. The issue is that while
+			// https://github.com/moby/swarmkit/issues/2294. The issue is that while
 			// image manifests report "arm" as the architecture, the node reports
 			// something like "armv7l" (includes the variant), which causes arm images
 			// to stop working with swarm mode. This patch removes the architecture
 			// constraint for arm images to ensure tasks get scheduled.
 			arch := p.Architecture
-			if strings.ToLower(arch) == "arm" {
+			if strings.EqualFold(arch, "arm") {
 				arch = ""
 			}
-			platforms = append(platforms, swarm.Platform{
+			platform := swarm.Platform{
 				Architecture: arch,
 				OS:           p.OS,
-			})
+			}
+
+			// Skip duplicates. Swarm currently only uses os/arch, and doesn't
+			// support other fields (Variant, OSVersion, OSFeatures), which
+			// usually results in duplicate "os/arch" combinations coming from
+			// the image.
+			if _, ok := seen[platform]; ok {
+				continue
+			}
+			seen[platform] = struct{}{}
+
+			platforms = append(platforms, platform)
 		}
 	}
 	return imageWithDigest, platforms, err
