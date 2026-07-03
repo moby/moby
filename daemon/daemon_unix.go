@@ -1341,35 +1341,30 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 	return username, groupname, nil
 }
 
-func setupRemappedRoot(config *config.Config) (user.IdentityMapping, error) {
-	if runtime.GOOS != "linux" && config.RemappedRoot != "" {
-		return user.IdentityMapping{}, errors.New("User namespaces are only supported on Linux")
+func setupRemappedRoot(cfg *config.Config) (user.IdentityMapping, error) {
+	if cfg.RemappedRoot == "" {
+		return user.IdentityMapping{}, nil
 	}
 
-	// if the daemon was started with remapped root option, parse
-	// the config option to the int uid,gid values
-	if config.RemappedRoot != "" {
-		username, groupname, err := parseRemappedRoot(config.RemappedRoot)
-		if err != nil {
-			return user.IdentityMapping{}, err
-		}
-		if username == "root" {
-			// Cannot setup user namespaces with a 1-to-1 mapping; "--root=0:0" is a no-op
-			// effectively
-			log.G(context.TODO()).Warn("User namespaces: root cannot be remapped with itself; user namespaces are OFF")
-			return user.IdentityMapping{}, nil
-		}
-		log.G(context.TODO()).Infof("User namespaces: ID ranges will be mapped to subuid/subgid ranges of: %s", username)
-		// update remapped root setting now that we have resolved them to actual names
-		config.RemappedRoot = fmt.Sprintf("%s:%s", username, groupname)
-
-		mappings, err := usergroup.LoadIdentityMapping(username)
-		if err != nil {
-			return user.IdentityMapping{}, errors.Wrap(err, "Can't create ID mappings")
-		}
-		return mappings, nil
+	// parse the config option to the int uid,gid values
+	username, groupname, err := parseRemappedRoot(cfg.RemappedRoot)
+	if err != nil {
+		return user.IdentityMapping{}, err
 	}
-	return user.IdentityMapping{}, nil
+	if username == "root" {
+		// Cannot set up user namespaces with a 1-to-1 mapping; "--root=0:0" is a no-op effectively
+		log.G(context.TODO()).Warn("User namespaces: root cannot be remapped with itself; user namespaces are OFF")
+		return user.IdentityMapping{}, nil
+	}
+	log.G(context.TODO()).Infof("User namespaces: ID ranges will be mapped to subuid/subgid ranges of: %s", username)
+	// update remapped root setting now that we have resolved them to actual names
+	cfg.RemappedRoot = fmt.Sprintf("%s:%s", username, groupname)
+
+	mappings, err := usergroup.LoadIdentityMapping(username)
+	if err != nil {
+		return user.IdentityMapping{}, fmt.Errorf("error creating ID mappings: %w", err)
+	}
+	return mappings, nil
 }
 
 func setupDaemonRoot(config *config.Config, rootDir string, uid, gid int) error {
