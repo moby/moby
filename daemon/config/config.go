@@ -556,7 +556,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 			}
 
 			if _, ok := f.Value.(boolValue); ok {
-				f.Value.Set(fmt.Sprintf("%v", value))
+				_ = f.Value.Set(fmt.Sprint(value))
 			}
 		}
 		if len(namedOptions) > 0 {
@@ -566,7 +566,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 					v, set := namedOptions[opt.Name()]
 					_, boolean := f.Value.(boolValue)
 					if set && boolean {
-						f.Value.Set(fmt.Sprintf("%v", v))
+						_ = f.Value.Set(fmt.Sprint(v))
 					}
 				}
 			})
