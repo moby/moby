@@ -47,7 +47,7 @@ func (s *DockerCLIEventSuite) TestEventsTimestampFormats(c *testing.T) {
 	end := daemonTime(c)
 
 	// List of available time formats to --since
-	unixTs := func(t time.Time) string { return fmt.Sprintf("%v", t.Unix()) }
+	unixTs := func(t time.Time) string { return fmt.Sprint(t.Unix()) }
 	rfc3339 := func(t time.Time) string { return t.Format(time.RFC3339) }
 	duration := func(t time.Time) string { return time.Since(t).String() }
 

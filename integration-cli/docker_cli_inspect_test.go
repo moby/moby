@@ -263,7 +263,7 @@ func (s *DockerCLIInspectSuite) TestInspectLogConfigNoType(c *testing.T) {
 	assert.Assert(c, err == nil, "%v", out)
 
 	assert.Equal(c, logConfig.Type, "json-file")
-	assert.Equal(c, logConfig.Config["max-file"], "42", fmt.Sprintf("%v", logConfig))
+	assert.Equal(c, logConfig.Config["max-file"], "42", fmt.Sprint(logConfig))
 }
 
 func (s *DockerCLIInspectSuite) TestInspectNoSizeFlagContainer(c *testing.T) {
