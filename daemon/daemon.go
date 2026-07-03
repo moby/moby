@@ -1420,7 +1420,7 @@ func verifierProvider(root string) func() (*policyverifier.Verifier, error) {
 		}
 
 		confDir := filepath.Join(root, "policy")
-		if err := os.MkdirAll(filepath.Join(confDir, "tuf"), 0o644); err != nil {
+		if err := os.MkdirAll(confDir, 0o700); err != nil {
 			return nil, errors.Wrapf(err, "failed to create policy verifier config dir")
 		}
 
