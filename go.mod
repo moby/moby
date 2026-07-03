@@ -309,3 +309,5 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.1.0 // indirect
 )
+
+replace github.com/moby/go-archive => github.com/ctalledo/go-archive v0.2.1-0.20260608184626-9c0f90651199

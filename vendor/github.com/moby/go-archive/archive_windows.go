@@ -52,7 +52,8 @@ func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
 	return nil
 }
 
-func handleLChmod(hdr *tar.Header, path string, hdrInfo os.FileInfo) error {
+// handleLChmod is a no-op on Windows because chmod is not supported.
+func handleLChmod(dc *dirCache, root *os.Root, path string, hdr *tar.Header, hdrInfo os.FileInfo) error {
 	return nil
 }
 

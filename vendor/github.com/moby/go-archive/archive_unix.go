@@ -70,15 +70,18 @@ func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
 	return mknod(path, mode, unix.Mkdev(uint32(hdr.Devmajor), uint32(hdr.Devminor)))
 }
 
-func handleLChmod(hdr *tar.Header, path string, hdrInfo os.FileInfo) error {
+// handleLChmod applies the mode from hdrInfo to path within root using dc,
+// skipping symlinks (there is no lchmod). For hardlinks, the mode is applied
+// only when the link target is itself not a symlink.
+func handleLChmod(dc *dirCache, root *os.Root, path string, hdr *tar.Header, hdrInfo os.FileInfo) error {
 	if hdr.Typeflag == tar.TypeLink {
-		if fi, err := os.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
-			if err := os.Chmod(path, hdrInfo.Mode()); err != nil {
+		if fi, err := root.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
+			if err := dc.chmod(root, path, hdrInfo.Mode()); err != nil {
 				return err
 			}
 		}
 	} else if hdr.Typeflag != tar.TypeSymlink {
-		if err := os.Chmod(path, hdrInfo.Mode()); err != nil {
+		if err := dc.chmod(root, path, hdrInfo.Mode()); err != nil {
 			return err
 		}
 	}
