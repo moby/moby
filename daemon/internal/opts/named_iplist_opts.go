@@ -24,7 +24,7 @@ func (o *NamedIPListOpts) String() string {
 	if len(*o.ips) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("%v", *o.ips)
+	return fmt.Sprint(*o.ips)
 }
 
 // Set converts value to a netip.Addr and appends it to the underlying []netip.Addr.
