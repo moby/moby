@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/moby/go-archive"
@@ -214,21 +215,21 @@ func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
 	return tar, errors.Wrap(err, "error making plugin archive")
 }
 
-func ensureBasicPluginBin() (string, error) {
-	name := "docker-basic-plugin"
-	p, err := exec.LookPath(name)
-	if err == nil {
-		return p, nil
-	}
+var ensureBasicPluginBin = sync.OnceValues(buildBasicPluginBin)
 
+func buildBasicPluginBin() (string, error) {
 	goBin, err := exec.LookPath("go")
 	if err != nil {
 		return "", err
 	}
-	installPath := filepath.Join(os.Getenv("GOPATH"), "bin", name)
-	sourcePath := filepath.Join("github.com", "docker", "docker", "internal", "testutil", "fixtures", "plugin", "basic")
-	cmd := exec.Command(goBin, "build", "-o", installPath, sourcePath)
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GO111MODULE=off")
+
+	tmpDir := filepath.Join(os.TempDir(), "moby-plugin-fixtures")
+	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
+		return "", errors.Wrap(err, "error creating plugin fixtures dir")
+	}
+	installPath := filepath.Join(tmpDir, "docker-basic-plugin")
+	cmd := exec.Command(goBin, "build", "-buildvcs=false", "-o", installPath, "github.com/moby/moby/v2/internal/testutil/fixtures/plugin/basic")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GO111MODULE=auto")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return "", errors.Wrapf(err, "error building basic plugin bin: %s", string(out))
 	}
