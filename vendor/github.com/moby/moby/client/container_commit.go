@@ -31,8 +31,9 @@ func (cli *Client) ContainerCommit(ctx context.Context, containerID string, opti
 	if err != nil {
 		return ContainerCommitResult{}, err
 	}
+	query := url.Values{}
+	query.Set("container", containerID)
 
-	var repository, tag string
 	if options.Reference != "" {
 		ref, err := reference.ParseNormalizedNamed(options.Reference)
 		if err != nil {
@@ -44,18 +45,18 @@ func (cli *Client) ContainerCommit(ctx context.Context, containerID string, opti
 		}
 		ref = reference.TagNameOnly(ref)
 
+		query.Set("repo", ref.Name())
 		if tagged, ok := ref.(reference.Tagged); ok {
-			tag = tagged.Tag()
+			query.Set("tag", tagged.Tag())
 		}
-		repository = ref.Name()
 	}
 
-	query := url.Values{}
-	query.Set("container", containerID)
-	query.Set("repo", repository)
-	query.Set("tag", tag)
-	query.Set("comment", options.Comment)
-	query.Set("author", options.Author)
+	if options.Comment != "" {
+		query.Set("comment", options.Comment)
+	}
+	if options.Author != "" {
+		query.Set("author", options.Author)
+	}
 	for _, change := range options.Changes {
 		query.Add("changes", change)
 	}
