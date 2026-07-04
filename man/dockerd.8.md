@@ -467,6 +467,13 @@ is located.
 
 Example use: `dockerd -s zfs --storage-opt zfs.fsname=zroot/docker`
 
+#### zfs.mountlabeloverride
+
+Set the label on zfs volume mountpoints where the existing label is missing or unlabeled_t.  
+By default zfs mountpoints have no labels.
+
+Example use: `dockerd -s zfs --storage-opt zfs.mountlabeloverride=system_u:object_r:container_var_lib_t:s0`
+
 ## Btrfs options
 
 #### btrfs.min\_space

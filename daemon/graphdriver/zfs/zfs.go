@@ -21,14 +21,16 @@ import (
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
 	"github.com/moby/sys/user"
+	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
 type zfsOptions struct {
-	fsName    string
-	mountPath string
+	fsName             string
+	mountLabelOverride string
+	mountPath          string
 }
 
 func init() {
@@ -131,6 +133,7 @@ func isMounted(path string) bool {
 func parseOptions(opt []string) (zfsOptions, error) {
 	var options zfsOptions
 	options.fsName = ""
+	options.mountLabelOverride = ""
 	for _, option := range opt {
 		key, val, err := graphdriver.ParseStorageOptKeyValue(option)
 		if err != nil {
@@ -140,6 +143,8 @@ func parseOptions(opt []string) (zfsOptions, error) {
 		switch key {
 		case "zfs.fsname":
 			options.fsName = val
+		case "zfs.mountlabeloverride":
+			options.mountLabelOverride = val
 		default:
 			return options, fmt.Errorf("Unknown option %s", key)
 		}
@@ -399,7 +404,7 @@ func (d *Driver) Get(id, mountLabel string) (_ string, retErr error) {
 
 	filesystem := d.zfsPath(id)
 	options := label.FormatMountLabel("", mountLabel)
-	log.G(context.TODO()).WithField("storage-driver", "zfs").Debugf(`mount("%s", "%s", "%s")`, filesystem, mountpoint, options)
+	log.G(context.TODO()).WithField("storage-driver", "zfs").Debugf(`mount("%s", "%s", "%s", "zfs.mountLabelOverride=%s")`, filesystem, mountpoint, options, d.options.mountLabelOverride)
 
 	uid, gid := d.idMap.RootPair()
 	// Create the target directories if they don't exist
@@ -411,6 +416,12 @@ func (d *Driver) Get(id, mountLabel string) (_ string, retErr error) {
 		return "", errors.Wrap(err, "error creating zfs mount")
 	}
 
+	if d.options.mountLabelOverride != "" {
+		if err := relabelUnlabeledPath(mountpoint, d.options.mountLabelOverride); err != nil {
+			return "", fmt.Errorf("error modifying zfs mountpoint (%s) directory label: %v", mountpoint, err)
+		}
+	}
+
 	// this could be our first mount after creation of the filesystem, and the root dir may still have root
 	// permissions instead of the remapped root uid:gid (if user namespaces are enabled):
 	if err := os.Chown(mountpoint, uid, gid); err != nil {
@@ -418,6 +429,25 @@ func (d *Driver) Get(id, mountLabel string) (_ string, retErr error) {
 	}
 
 	return mountpoint, nil
+}
+
+func relabelUnlabeledPath(path string, label string) error {
+	labelStr, labelErr := selinux.FileLabel(path)
+
+	// assume if we fail to get a label it is unlabeled.
+	// if this fails to get a label we will likely fail later anyways attempting to use the path, so fail early here.
+	if labelErr == nil {
+		ctx, ctxErr := selinux.NewContext(labelStr)
+		if ctxErr != nil {
+			return ctxErr
+		}
+
+		if ctx["type"] != "unlabeled_t" {
+			return nil
+		}
+	}
+
+	return selinux.Chcon(path, label, false)
 }
 
 // Put removes the existing mountpoint for the given id if it exists.
