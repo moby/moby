@@ -28,8 +28,10 @@ func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
 			config.Layer = layer
 		}
 
+		if config.Type != mounttypes.TypeVolume && config.Type != mounttypes.TypeCluster {
+			continue
+		}
 		if config.Volume == nil {
-			// FIXME(thaJeztah): should we check for config.Type here as well? (i.e., skip bind-mounts etc)
 			continue
 		}
 		if alive {
