@@ -466,7 +466,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverList(c *testing.T) {
 	assert.Equal(c, len(ls), 2, fmt.Sprintf("\n%s", out))
 
 	vol := strings.Fields(ls[len(ls)-1])
-	assert.Equal(c, len(vol), 2, fmt.Sprintf("%v", vol))
+	assert.Equal(c, len(vol), 2, fmt.Sprint(vol))
 	assert.Equal(c, vol[0], volumePluginName)
 	assert.Equal(c, vol[1], "abc3")
 
@@ -489,8 +489,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *testing.T) {
 
 	assert.NilError(c, json.Unmarshal([]byte(out), &st))
 	assert.Equal(c, len(st), 1)
-	assert.Equal(c, len(st[0].Status), 1, fmt.Sprintf("%v", st[0]))
-	assert.Equal(c, st[0].Status["Hello"], "world", fmt.Sprintf("%v", st[0].Status))
+	assert.Equal(c, len(st[0].Status), 1, fmt.Sprint(st[0]))
+	assert.Equal(c, st[0].Status["Hello"], "world", fmt.Sprint(st[0].Status))
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c *testing.T) {

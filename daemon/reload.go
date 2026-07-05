@@ -291,7 +291,7 @@ func (daemon *Daemon) reloadFeatures(_ *reloadTxn, newCfg *configStore, conf *co
 	newCfg.Features = conf.Features
 
 	// prepare reload event attributes with updatable configurations
-	attributes["features"] = fmt.Sprintf("%v", newCfg.Features)
+	attributes["features"] = fmt.Sprint(newCfg.Features)
 	return nil
 }
 
@@ -315,6 +315,6 @@ func (daemon *Daemon) reloadNRI(txn *reloadTxn, newCfg *configStore, conf *confi
 		txn.OnCommit(commit)
 	}
 
-	attributes["nri-opts"] = fmt.Sprintf("%v", newCfg.NRIOpts)
+	attributes["nri-opts"] = fmt.Sprint(newCfg.NRIOpts)
 	return nil
 }
