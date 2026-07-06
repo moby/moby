@@ -658,7 +658,7 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 	// which are expecting this layer with this special name. If all
 	// graph drivers can be updated to not rely on knowing about this layer
 	// then the initID should be randomly generated.
-	initID := fmt.Sprintf("%s-init", graphID)
+	initID := graphID + "-init"
 
 	createOpts := &graphdriver.CreateOpts{
 		MountLabel: mountLabel,
