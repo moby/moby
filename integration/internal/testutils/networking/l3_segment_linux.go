@@ -149,11 +149,16 @@ func (h Host) Do(t *testing.T, fn func()) {
 	t.Helper()
 
 	if h.ns != CurrentNetns {
-		targetNs, err := netns.GetFromName(h.ns)
-		if err != nil {
-			t.Fatalf("failed to get netns handle: %v", err)
-		}
-		defer targetNs.Close()
+		runtime.LockOSThread()
+		// If restore fails, keep the goroutine locked to the thread so the
+		// runtime can retire the contaminated thread instead of returning it
+		// to the scheduler.
+		unlockThread := true
+		defer func() {
+			if unlockThread {
+				runtime.UnlockOSThread()
+			}
+		}()
 
 		origNs, err := netns.Get()
 		if err != nil {
@@ -161,13 +166,21 @@ func (h Host) Do(t *testing.T, fn func()) {
 		}
 		defer origNs.Close()
 
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
+		targetNs, err := netns.GetFromName(h.ns)
+		if err != nil {
+			t.Fatalf("failed to get netns handle: %v", err)
+		}
+		defer targetNs.Close()
 
 		if err := netns.Set(targetNs); err != nil {
 			t.Fatalf("failed to enter netns: %v", err)
 		}
-		defer netns.Set(origNs)
+		defer func() {
+			if err := netns.Set(origNs); err != nil {
+				unlockThread = false
+				t.Errorf("failed to restore netns: %v", err)
+			}
+		}()
 	}
 
 	fn()
