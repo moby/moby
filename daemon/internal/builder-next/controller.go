@@ -2,7 +2,6 @@ package buildkit
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -553,7 +552,7 @@ func parseGCPolicy(p config.BuilderGCRule, prefix string) (reservedSpace, maxUse
 		if prefix != "" {
 			key = prefix + strings.ToTitle(key)
 		}
-		return fmt.Sprintf("failed to parse %s", key)
+		return "failed to parse " + key
 	}
 
 	if p.ReservedSpace != "" {
