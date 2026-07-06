@@ -3,50 +3,44 @@
 package daemon
 
 import (
+	"bytes"
 	"os"
 	"strconv"
-	"strings"
 )
 
 const (
 	rootKeyFile   = "/proc/sys/kernel/keys/root_maxkeys"
 	rootBytesFile = "/proc/sys/kernel/keys/root_maxbytes"
-	rootKeyLimit  = 1000000
-	// it is standard configuration to allocate 25 bytes per key
-	rootKeyByteMultiplier = 25
+
+	// These match the upstream Linux defaults for key_quota_root_maxkeys
+	// and key_quota_root_maxbytes since kernel 3.17.
+	//
+	// https://github.com/torvalds/linux/commit/738c5d190f6540539a04baf36ce21d46b5da04bd
+	// https://github.com/torvalds/linux/blob/738c5d190f6540539a04baf36ce21d46b5da04bd/security/keys/key.c#L30-L33
+	rootMaxKeys  = 1000000
+	rootMaxBytes = 25 * rootMaxKeys
 )
 
-// modifyRootKeyLimit checks to see if the root key limit is set to
-// at least 1000000 and changes it to that limit along with the maxbytes
-// allocated to the keys at a 25 to 1 multiplier.
+// modifyRootKeyLimit raises the root user's key quota to the upstream
+// Linux defaults introduced in kernel 3.17 if the configured limit is
+// lower. This avoids exhausting the root key quota on older kernels or
+// systems configured with legacy limits.
+//
+// see https://github.com/moby/moby/issues/22865
 func modifyRootKeyLimit() error {
 	value, err := readRootKeyLimit(rootKeyFile)
 	if err != nil {
 		return err
 	}
-	if value < rootKeyLimit {
-		return setRootKeyLimit(rootKeyLimit)
+	if value < rootMaxKeys {
+		if err := os.WriteFile(rootKeyFile, []byte(strconv.Itoa(rootMaxKeys)), 0); err != nil {
+			return err
+		}
+		if err := os.WriteFile(rootBytesFile, []byte(strconv.Itoa(rootMaxBytes)), 0); err != nil {
+			return err
+		}
 	}
 	return nil
-}
-
-func setRootKeyLimit(limit int) error {
-	keys, err := os.OpenFile(rootKeyFile, os.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	defer keys.Close()
-	_, err = keys.WriteString(strconv.Itoa(limit))
-	if err != nil {
-		return err
-	}
-	bytes, err := os.OpenFile(rootBytesFile, os.O_WRONLY, 0)
-	if err != nil {
-		return err
-	}
-	defer bytes.Close()
-	_, err = bytes.WriteString(strconv.Itoa(limit * rootKeyByteMultiplier))
-	return err
 }
 
 func readRootKeyLimit(path string) (int, error) {
@@ -54,5 +48,5 @@ func readRootKeyLimit(path string) (int, error) {
 	if err != nil {
 		return -1, err
 	}
-	return strconv.Atoi(strings.Trim(string(data), "\n"))
+	return strconv.Atoi(string(bytes.TrimSuffix(data, []byte{'\n'})))
 }
