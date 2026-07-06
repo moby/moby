@@ -129,7 +129,7 @@ func parseOptions(opt []string) (btrfsOptions, bool, error) {
 			userDiskQuota = true
 			options.minSpace = uint64(minSpace)
 		default:
-			return options, userDiskQuota, fmt.Errorf("Unknown option %s", key)
+			return options, userDiskQuota, errors.New("unknown option " + key)
 		}
 	}
 	return options, userDiskQuota, nil
@@ -498,7 +498,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 			return err
 		}
 		if !st.IsDir() {
-			return fmt.Errorf("%s: not a directory", parentDir)
+			return errors.New(parentDir + ": not a directory")
 		}
 		if err := subvolSnapshot(parentDir, subvolumes, id); err != nil {
 			return err
@@ -522,7 +522,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 		if err := user.MkdirAllAndChown(quotas, 0o700, os.Getuid(), os.Getegid()); err != nil {
 			return err
 		}
-		if err := os.WriteFile(path.Join(quotas, id), []byte(fmt.Sprint(driver.options.size)), 0o644); err != nil {
+		if err := os.WriteFile(path.Join(quotas, id), []byte(strconv.FormatUint(driver.options.size, 10)), 0o644); err != nil {
 			return err
 		}
 	}
@@ -556,7 +556,7 @@ func (d *Driver) parseStorageOpt(storageOpt map[string]string, driver *Driver) e
 			}
 			driver.options.size = uint64(size)
 		default:
-			return fmt.Errorf("Unknown option %s", key)
+			return errors.New("unknown option " + key)
 		}
 	}
 
@@ -624,7 +624,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	}
 
 	if !st.IsDir() {
-		return "", fmt.Errorf("%s: not a directory", dir)
+		return "", errors.New(dir + ": not a directory")
 	}
 
 	if quota, err := os.ReadFile(d.quotasDirID(id)); err == nil {
