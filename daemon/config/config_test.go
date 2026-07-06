@@ -44,6 +44,27 @@ func TestDaemonBrokenConfiguration(t *testing.T) {
 	assert.ErrorContains(t, err, `invalid character ' ' in literal true`)
 }
 
+// TestDaemonConfigurationExtensionConfig checks that per-extension config, keyed
+// by extension id, parses from daemon.json. A non-nil flag set runs the
+// unknown-key and value-flattening checks, so this also guards the
+// extension-config registration in flatOptions/skipValidateOptions.
+func TestDaemonConfigurationExtensionConfig(t *testing.T) {
+	configFile := makeConfigFile(t, `{
+		"extension-config": {
+			"org.example.foo": {"plugin_path": "/opt/foo", "enabled": true},
+			"com.docker.compose.v1": {"workers": 4}
+		}
+	}`)
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	cfg, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, cfg.ExtensionConfig["org.example.foo"], map[string]any{
+		"plugin_path": "/opt/foo",
+		"enabled":     true,
+	})
+	assert.Equal(t, cfg.ExtensionConfig["com.docker.compose.v1"]["workers"], float64(4))
+}
+
 // TestDaemonConfigurationUnicodeVariations feeds various variations of Unicode into the JSON parser, ensuring that we
 // respect a BOM and otherwise default to UTF-8.
 func TestDaemonConfigurationUnicodeVariations(t *testing.T) {

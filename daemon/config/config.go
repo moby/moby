@@ -92,6 +92,7 @@ var flatOptions = map[string]bool{
 	"features":             true,
 	"builder":              true,
 	"nri-opts":             true,
+	"extension-config":     true,
 }
 
 // skipValidateOptions contains configuration keys
@@ -102,7 +103,8 @@ var skipValidateOptions = map[string]bool{
 	"builder":  true,
 
 	// Only available in daemon.json, no flags
-	"min-api-version": true,
+	"min-api-version":  true,
+	"extension-config": true,
 
 	// Deprecated options that are safe to ignore if present.
 	"deprecated-key-path":              true,
@@ -201,7 +203,11 @@ type CommonConfig struct {
 	Pidfile               string   `json:"pidfile,omitempty"`
 	Root                  string   `json:"data-root,omitempty"`
 	ExecRoot              string   `json:"exec-root,omitempty"`
-	SocketGroup           string   `json:"group,omitempty"`
+	// ExtensionConfig is each extension's own configuration, keyed by extension
+	// id. It is delivered to the extension at init, so an extension is configured
+	// by id.
+	ExtensionConfig map[string]map[string]any `json:"extension-config,omitempty"`
+	SocketGroup     string                    `json:"group,omitempty"`
 
 	// Proxies holds the proxies that are configured for the daemon.
 	Proxies `json:"proxies"`
