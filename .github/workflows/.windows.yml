@@ -72,7 +72,7 @@ jobs:
       -
         name: Docker info
         run: |
-          $tries = 30
+          $tries = 90
           Write-Host "Waiting for Docker daemon..."
           while ($true) {
             $ErrorActionPreference = "SilentlyContinue"
@@ -163,7 +163,7 @@ jobs:
       -
         name: Docker info
         run: |
-          $tries = 30
+          $tries = 90
           Write-Host "Waiting for Docker daemon..."
           while ($true) {
             $ErrorActionPreference = "SilentlyContinue"
