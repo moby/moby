@@ -278,6 +278,25 @@ generate-files:
 	cp -R "$($@_TMP_OUT)"/. .
 	rm -rf "$($@_TMP_OUT)"/*
 
+.PHONY: validate-generate-extensions
+validate-generate-extensions:
+	$(BUILD_CMD) --target "validate" \
+		--output "type=cacheonly" \
+		--file "./hack/dockerfiles/generate-extensions.Dockerfile" .
+
+.PHONY: generate-extensions
+generate-extensions: ## regenerate the extension framework's .proto, protobuf/gRPC, and wiring
+	$(eval $@_TMP_OUT := $(shell mktemp -d -t moby-output.XXXXXXXXXX))
+	@if [ -z "$($@_TMP_OUT)" ]; then \
+		echo "Temp dir is not set"; \
+		exit 1; \
+	fi
+	$(BUILD_CMD) --target "update" \
+		--output "type=local,dest=$($@_TMP_OUT)" \
+		--file "./hack/dockerfiles/generate-extensions.Dockerfile" .
+	cp -R "$($@_TMP_OUT)"/. .
+	rm -rf "$($@_TMP_OUT)"/*
+
 .PHONY: validate-bind-dir
 validate-bind-dir:
 	@case "$(BIND_DIR)" in \
