@@ -24,7 +24,7 @@ import (
 func callGetVolume(v *volumeRouter, name string) (*httptest.ResponseRecorder, error) {
 	ctx := context.WithValue(context.Background(), httputils.APIVersionKey{}, clusterVolumesVersion)
 	vars := map[string]string{"name": name}
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/volumes/%s", name), http.NoBody)
+	req := httptest.NewRequest(http.MethodGet, "/volumes/"+name, http.NoBody)
 	resp := httptest.NewRecorder()
 
 	err := v.getVolumeByName(ctx, resp, req, vars)
