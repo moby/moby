@@ -351,7 +351,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkLsFilter(c *testing.T) {
 
 	out = cli.DockerCmd(c, "network", "ls", "-f", "label=nonexistent").Stdout()
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	assert.Equal(c, len(outArr), 1, fmt.Sprintf("%s\n", out))
+	assert.Equal(c, len(outArr), 1, out+"\n")
 
 	out = cli.DockerCmd(c, "network", "ls", "-f", "driver=null").Stdout()
 	assertNwList(c, out, []string{"none"})
@@ -1232,7 +1232,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnectToStoppedContaine
 	cli.WaitRun(c, "foo")
 	ip := inspectField(c, "foo", "NetworkSettings.Networks.test.IPAddress")
 	ip = strings.TrimSpace(ip)
-	cli.DockerCmd(c, "run", "--net=test", "busybox", "sh", "-c", fmt.Sprintf("ping -c 1 %s", ip))
+	cli.DockerCmd(c, "run", "--net=test", "busybox", "sh", "-c", "ping -c 1 "+ip)
 
 	cli.DockerCmd(c, "stop", "foo")
 

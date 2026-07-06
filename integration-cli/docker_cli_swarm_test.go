@@ -89,7 +89,7 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {
 	tempFile := fs.NewFile(c, "testfile", fs.WithContent("fakecert"))
 
 	result := cli.Docker(cli.Args("swarm", "update",
-		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://something.org,cacert=%s", tempFile.Path())),
+		"--external-ca", "protocol=cfssl,url=https://something.org,cacert="+tempFile.Path()),
 		cli.Daemon(d))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 125,
@@ -110,7 +110,7 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *testing.T) {
 	tempFile := fs.NewFile(c, "testfile", fs.WithContent("fakecert"))
 
 	result := cli.Docker(cli.Args("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s",
-		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://somethingelse.org,cacert=%s", tempFile.Path())),
+		"--external-ca", "protocol=cfssl,url=https://somethingelse.org,cacert="+tempFile.Path()),
 		cli.Daemon(d))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 125,

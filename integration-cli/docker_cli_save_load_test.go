@@ -202,7 +202,7 @@ func (s *DockerCLISaveLoadSuite) TestSaveWithNoExistImage(c *testing.T) {
 
 	out, _, err := dockerCmdWithError("save", "-o", "test-img.tar", imgName)
 	assert.ErrorContains(c, err, "", "save image should fail for non-existing image")
-	assert.Assert(c, is.Contains(out, fmt.Sprintf("No such image: %s", imgName)))
+	assert.Assert(c, is.Contains(out, "No such image: "+imgName))
 }
 
 func (s *DockerCLISaveLoadSuite) TestSaveMultipleNames(c *testing.T) {

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -68,7 +67,7 @@ func Network() bool {
 
 	resp, err := c.Get(url)
 	if err != nil && !errors.Is(err, net.ErrClosed) {
-		panic(fmt.Sprintf("Timeout for GET request on %s", url))
+		panic("Timeout for GET request on " + url)
 	}
 	if resp != nil {
 		resp.Body.Close()

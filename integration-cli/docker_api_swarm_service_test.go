@@ -463,7 +463,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *testing.T) {
 	// multiple constraints
 	constraints = []string{
 		"node.labels.security==high",
-		fmt.Sprintf("node.id==%s", nodes[1].ID),
+		"node.id==" + nodes[1].ID,
 	}
 	id = daemons[0].CreateService(ctx, c, simpleTestService, setConstraints(constraints), setInstances(instances))
 	// wait for tasks created
