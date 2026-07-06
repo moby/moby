@@ -24,12 +24,14 @@ func TestInspectNetwork(t *testing.T) {
 
 	var mgr [3]*daemon.Daemon
 	mgr[0] = swarm.NewSwarm(ctx, t, testEnv, daemon.WithSwarmListenAddr("127.0.0.2"))
+	defer mgr[0].Cleanup(t)
 	defer mgr[0].Stop(t)
 
 	for i := range mgr {
 		if i != 0 {
 			mgr[i] = daemon.New(t, daemon.WithSwarmListenAddr("127.0.0."+strconv.Itoa(i+2)))
 			mgr[i].StartAndSwarmJoin(ctx, t, mgr[0], true)
+			defer mgr[i].Cleanup(t)
 			defer mgr[i].Stop(t)
 		}
 		t.Logf("Daemon %s is Swarm Node %s", mgr[i].ID(), mgr[i].NodeID())
@@ -40,6 +42,7 @@ func TestInspectNetwork(t *testing.T) {
 
 	worker1 := daemon.New(t, daemon.WithSwarmListenAddr("127.0.0."+strconv.Itoa(len(mgr)+2)))
 	worker1.StartAndSwarmJoin(ctx, t, mgr[0], false)
+	defer worker1.Cleanup(t)
 	defer worker1.Stop(t)
 	t.Logf("Daemon %s is Swarm Node %s", worker1.ID(), worker1.NodeID())
 
