@@ -55,7 +55,6 @@ else
 fi
 
 run_test_integration() {
-	set_repeat_timeout
 	local failed=0
 	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
 		if ! run_test_integration_suites "${integration_api_dirs}"; then

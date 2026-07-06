@@ -109,6 +109,25 @@ jobs:
           # Full history needed to diff against target branch and detect new tests (test-integration-flaky).
           fetch-depth: 0
       -
+        # Extract a /flaky-check=TestA,TestB directive from the PR body and
+        # expose it as FLAKY_EXTRA_TESTS so that hack/make/test-integration-flaky
+        # appends those tests to the ones detected from the diff.
+        name: Extract flaky-check extra tests
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          flaky_tests=$(
+            printf '%s\n' "$PR_BODY" |
+            tr -d '\r' |
+            grep -oEm1 '^/flaky-check=Test[A-Za-z0-9_]+(,Test[A-Za-z0-9_]+)*$' |
+            sed 's|^/flaky-check=||'
+          )
+          if [ -n "$flaky_tests" ]; then
+            echo "Appending /flaky-check tests: $flaky_tests"
+            echo "FLAKY_EXTRA_TESTS=$flaky_tests" >> "$GITHUB_ENV"
+          fi
+      -
         name: Set up runner
         uses: ./.github/actions/setup-runner
       -
