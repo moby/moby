@@ -1154,7 +1154,7 @@ func TestBufferMaximum(t *testing.T) {
 		if event, err := message.EventAsMap(); err != nil {
 			t.Fatal(err)
 		} else {
-			if event["line"] != fmt.Sprintf("%d", i+2) {
+			if event["line"] != strconv.Itoa(i+2) {
 				t.Fatalf("Unexpected event in message %v", event)
 			}
 		}
