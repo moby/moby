@@ -36,7 +36,7 @@ func watchTable(nDB *networkdb.NetworkDB) func(w http.ResponseWriter, r *http.Re
 		r.ParseForm() //nolint:errcheck
 		diagnostic.DebugHTTPForm(r)
 		if len(r.Form["tname"]) < 1 {
-			rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name", r.URL.Path))
+			rsp := diagnostic.WrongCommand(missingParameter, r.URL.Path+"?tname=table_name")
 			diagnostic.HTTPReply(w, rsp, &diagnostic.JSONOutput{}) //nolint:errcheck
 			return
 		}
@@ -59,7 +59,7 @@ func watchTableEntries(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm() //nolint:errcheck
 	diagnostic.DebugHTTPForm(r)
 	if len(r.Form["tname"]) < 1 {
-		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name", r.URL.Path))
+		rsp := diagnostic.WrongCommand(missingParameter, r.URL.Path+"?tname=table_name")
 		diagnostic.HTTPReply(w, rsp, &diagnostic.JSONOutput{}) //nolint:errcheck
 		return
 	}
