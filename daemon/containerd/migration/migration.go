@@ -221,7 +221,7 @@ func (lm *LayerMigrator) MigrateTocontainerd(ctx context.Context, snKey string, 
 		}
 
 		configLabels := map[string]string{
-			fmt.Sprintf("containerd.io/gc.ref.snapshot.%s", snKey): parent,
+			"containerd.io/gc.ref.snapshot." + snKey: parent,
 		}
 		if err = content.WriteBlob(ctx, lm.content, "config"+manifest.Config.Digest.String(), bytes.NewReader(configBytes), manifest.Config, content.WithLabels(configLabels)); err != nil && !cerrdefs.IsAlreadyExists(err) {
 			return err
