@@ -203,9 +203,11 @@ type CommonConfig struct {
 	Pidfile               string   `json:"pidfile,omitempty"`
 	Root                  string   `json:"data-root,omitempty"`
 	ExecRoot              string   `json:"exec-root,omitempty"`
+	Extensions            []string `json:"extensions,omitempty"`
 	// ExtensionConfig is each extension's own configuration, keyed by extension
-	// id. It is delivered to the extension at init, so an extension is configured
-	// by id.
+	// id. It is delivered to the extension at init -- in-process directly, or to
+	// a launched binary over the startup handshake -- so an extension is
+	// configured the same way by id wherever it runs.
 	ExtensionConfig map[string]map[string]any `json:"extension-config,omitempty"`
 	SocketGroup     string                    `json:"group,omitempty"`
 
