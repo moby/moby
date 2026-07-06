@@ -181,23 +181,36 @@ func TestInspectNetwork(t *testing.T) {
 
 	t.Run("AfterLeaderChange", func(t *testing.T) {
 		oldLeader := leaderID()
-		var leader *daemon.Daemon
+		var leader, standby *daemon.Daemon
 		for _, d := range mgr {
 			if d.NodeID() == oldLeader {
 				leader = d
-				break
+			} else if standby == nil {
+				standby = d
 			}
 		}
 		assert.Assert(t, leader != nil)
-		// Force a leader change
-		for range 3 {
-			leader.RestartNode(t)
-			poll.WaitOn(t, swarm.HasLeader(ctx, c1), swarm.NetworkPoll)
-			if leaderID() != oldLeader {
-				break
-			}
-			t.Log("Restarting the node did not trigger a leader change")
-		}
+		assert.Assert(t, standby != nil)
+
+		// standbyCli connects to a non-leader manager so NodeList queries keep
+		// working while the stopped leader's API is unavailable.
+		standbyCli := standby.NewClientT(t)
+		defer standbyCli.Close()
+
+		// SwarmKit's Raft election timeout is 10 s (ElectionTick=10 ×
+		// TickInterval=1 s). RestartNode (Stop+Start together) completes in
+		// under 10 s on fast machines, so followers may never detect a gap and
+		// the original node resumes leadership. Instead, stop the
+		// leader and leave it stopped until a new leader is confirmed. The
+		// new leader advances the Raft term, so the restarted node is forced
+		// to rejoin as a follower.
+		leader.Stop(t)
+		poll.WaitOn(t, swarm.HasLeaderOtherThan(ctx, standbyCli, oldLeader), swarm.NetworkPoll)
+		leader.StartNode(t)
+		// Wait for c1 to be responsive and the cluster to be fully settled
+		// before asserting and running the inspect checks.
+		poll.WaitOn(t, swarm.HasLeader(ctx, c1), swarm.NetworkPoll)
+
 		assert.Assert(t, leaderID() != oldLeader, "leader did not change")
 
 		checkNetworkInspect(t)

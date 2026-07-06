@@ -157,6 +157,7 @@ func JobComplete(ctx context.Context, apiClient client.TaskAPIClient, service sw
 	}
 }
 
+// HasLeader polls until any manager node reports itself as the leader.
 func HasLeader(ctx context.Context, apiClient client.NodeAPIClient) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		result, err := apiClient.NodeList(ctx, client.NodeListOptions{
@@ -171,5 +172,31 @@ func HasLeader(ctx context.Context, apiClient client.NodeAPIClient) func(log pol
 			}
 		}
 		return poll.Continue("no leader elected yet")
+	}
+}
+
+// HasLeaderOtherThan polls until a manager node other than excludedNodeID
+// reports itself as the leader.
+// Pass a client connected to a node that is NOT excludedNodeID, so that
+// the poll keeps working while excludedNodeID's API is unavailable.
+// Errors from NodeList are treated as poll.Continue rather than poll.Error
+// so a brief period of cluster unavailability during the election does not
+// abort the wait.
+func HasLeaderOtherThan(ctx context.Context, apiClient client.NodeAPIClient, excludedNodeID string) func(log poll.LogT) poll.Result {
+	return func(log poll.LogT) poll.Result {
+		result, err := apiClient.NodeList(ctx, client.NodeListOptions{
+			Filters: make(client.Filters).Add("role", "manager"),
+		})
+		if err != nil {
+			// The standby manager itself may be briefly unavailable during
+			// the election; keep retrying rather than failing the poll.
+			return poll.Continue("waiting for node list: %v", err)
+		}
+		for _, node := range result.Items {
+			if node.ManagerStatus != nil && node.ManagerStatus.Leader && node.ID != excludedNodeID {
+				return poll.Success()
+			}
+		}
+		return poll.Continue("no leader other than %s elected yet", excludedNodeID)
 	}
 }
