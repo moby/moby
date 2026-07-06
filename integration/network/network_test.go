@@ -2,7 +2,6 @@ package network
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"slices"
 	"testing"
@@ -146,7 +145,7 @@ func TestAPINetworkFilter(t *testing.T) {
 			found = true
 		}
 	}
-	assert.Assert(t, found, fmt.Sprintf("%s is not found", networkName))
+	assert.Assert(t, found, networkName+" is not found")
 }
 
 func TestNetworkInspectWithScope(t *testing.T) {

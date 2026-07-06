@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -144,7 +145,7 @@ func TestDefaultNetworkOpts(t *testing.T) {
 				network.CreateNoError(ctx, t, c, "from-net", func(create *client.NetworkCreateOptions) {
 					create.ConfigOnly = true
 					create.Options = map[string]string{
-						"com.docker.network.driver.mtu": fmt.Sprint(tc.mtu),
+						"com.docker.network.driver.mtu": strconv.Itoa(tc.mtu),
 					}
 				})
 				defer c.NetworkRemove(ctx, "from-net", client.NetworkRemoveOptions{})
