@@ -12,6 +12,12 @@ The current interfaces are shaped so these features can be added later without c
 - **Dependency-scoped resolvers.**
   Resolution works today, but an extension's `Init` receives the whole broker as its resolver.
   It is not yet limited to the dependencies the extension declared.
+  Cross-process dependencies also resolve to one provider today.
+  `All` and by-id selection across that boundary are future work.
+- **Health check, reconnect, and restart.**
+  A launched extension is connected once.
+  If the process dies, callers get gRPC errors until the daemon restarts.
+  There is no watchdog, reconnect loop, or restart policy yet.
 - **Public importable packages.**
   The framework lives under `internal/`, so another module cannot import a point or its generated client.
   Publishing a package such as `github.com/moby/extensions` would allow out-of-tree points and Go clients for exposed points.

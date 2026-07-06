@@ -9,6 +9,7 @@ For example: `org.mobyproject.extension.volume.driver.v1`.
 
 A point is defined by the engine or by an extension.
 Its source is a Go interface and Go message types.
+The `.proto` file used across the process boundary is generated from that Go contract.
 
 A breaking change creates a new point version.
 
@@ -22,6 +23,7 @@ From `.v1` on, breaking changes must use a new version instead of changing the p
 ### Extension
 
 An **extension** is the deployable unit that extends the engine.
+It can be built into the daemon or run as a separate binary.
 It registers one or more providers and declares its dependencies.
 It is registered at daemon startup and shut down when the daemon stops.
 
@@ -56,10 +58,16 @@ The dependent may call it through the points it provides, or only require that i
 The **broker** is the engine component that manages extensions.
 It registers extensions, resolves dependencies, initializes them, and shuts them down.
 
+### Adapter
+
+An **adapter** makes an out-of-process provider reached over gRPC look like the same in-process Go interface.
+Consumers do not need to handle transport details.
+
 ### Engine
 
 The **engine** is the host daemon being extended.
-It can be a consumer of points, and a provider of points other extensions depend on.
+It can be a consumer, a provider for callbacks, and the gateway that routes calls to providers.
+It also publishes opted-in extension gRPC services on its socket.
 
 > **A note on "plugin".**
 > These docs avoid using *plugin* for the new model.

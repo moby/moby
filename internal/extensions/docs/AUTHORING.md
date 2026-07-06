@@ -3,8 +3,8 @@
 This guide explains how to add extension points and write extensions in Moby.
 It covers two tasks:
 
-- **[Adding a new extension point](#adding-a-new-extension-point)** — define a Go contract, generate the wire code, and call the point from the engine.
-- **[Writing an extension](#writing-an-extension)** — implement a point as a built-in extension.
+- **[Adding a new extension point](#adding-a-new-extension-point)** — define a Go contract, generate the wire code, call the point from the engine, and allow separate-binary providers.
+- **[Writing an extension](#writing-an-extension)** — implement a point as a built-in extension or as a separate binary.
 
 For the model, read [GLOSSARY.md](./GLOSSARY.md), [PRINCIPLES.md](./PRINCIPLES.md), and [DESIGN.md](./DESIGN.md).
 For examples, read [EXAMPLES.md](./EXAMPLES.md).
@@ -12,6 +12,8 @@ For examples, read [EXAMPLES.md](./EXAMPLES.md).
 Use the real points in `extpoints/` as references.
 `createspec/v0` is a real engine hook.
 `containercreate/v0` is another engine point.
+`internal/extensions/servicegrpc/v0` is the standard socket-exposure point used by the SDK and host.
+`internal/extensions/example/greeter/v0` is a small service point used by tests.
 
 ## The shape of a point on disk
 
@@ -114,10 +116,11 @@ Make these decisions for the point:
   Security and veto points usually need fail-closed behavior.
   For fail-closed points, give each provider call its own deadline.
   Create the timeout around the call and cancel it before moving to the next provider.
+  Out-of-process providers receive the deadline through gRPC, which enforces it.
+  In-process providers receive the same context but are only trusted to honor it — the deadline is not forced on them.
   Do not run an in-process provider in a goroutine just to abandon it on timeout.
   That can leave a goroutine mutating shared engine state after the caller continues.
-  An in-process provider is trusted to honor its context; the deadline is passed to it but not forced.
-  So state a security veto's guarantee accordingly, and do not claim the timeout protects against an in-process provider that hangs.
+  So the timeout only bounds out-of-process providers; state a security veto's guarantee accordingly, and do not claim it protects against an in-process provider that hangs.
 - **Messages.**
   Use plain structs with `pb:"N"` tags.
   Field numbers are the wire contract.
@@ -136,6 +139,10 @@ Supported message fields are intentionally limited:
 Use a pointer for a single nested message.
 A value field for a nested message is rejected.
 The generator errors on unsupported shapes instead of generating ambiguous wire code.
+
+For points that the engine offers to extensions, such as socket exposure or info, the interface shape is the same.
+Only the caller direction changes.
+See the standard points in [EXAMPLES.md](./EXAMPLES.md#standard-points).
 
 ### 2. Add the generate directive
 
@@ -198,6 +205,77 @@ func (daemon *Daemon) runCreateSpecHooks(ctx context.Context, c *container.Conta
 If no extension implements a fan-out point, the helper resolves zero providers and the engine flow is a no-op.
 Calling such a point is safe.
 
+### 5. Let separate-binary extensions implement it
+
+Steps 1 through 4 are enough for in-process providers.
+To allow out-of-process providers, add the generated `ClientPoint` to `clientProviders()` in `daemon/extensions.go`.
+
+```go
+func clientProviders() []clientpoint.Registration {
+	return []clientpoint.Registration{
+		containercreatepb.ClientPoint,
+		createspecpb.ClientPoint,
+		<name>pb.ClientPoint, // add this
+	}
+}
+```
+
+No other host-side change is needed.
+The host uses `ClientPoint` to build an in-process caller from the gRPC connection to the launched extension.
+
+This list is the boundary for what a launched extension may provide.
+If an extension declares a point that is not listed, the daemon rejects it because it has no client wiring for that point.
+Any installed extension may provide any listed point.
+The operator controls that by controlling what is installed.
+See the [discovery security model](./DESIGN.md#security-model-for-discovery).
+
+A gRPC service published for external clients is not a point in this list.
+That case uses socket exposure.
+
+#### Socket-exposed services are not points
+
+An extension can publish its own gRPC API on `docker.sock`.
+For example, Docker Compose could expose an API for external clients.
+That service is not an extension point called by the daemon.
+The daemon only forwards bytes by service name and does not import the proto.
+
+The extension opts in by implementing `service.grpc` and registering its gRPC services:
+
+```go
+type expose struct{}
+
+func (expose) RegisterServices(r grpc.ServiceRegistrar) {
+	mypb.RegisterMyServiceServer(r, impl) // or mypb.ServerPoint.Register(r, impl)
+}
+
+var Extension = extensions.New(extensions.Declaration{
+	ID:        "com.example.myext",
+	Providers: []extensions.Provider{servicegrpcv0.Point.Provide(expose{})},
+})
+```
+
+The framework supplies the registrar.
+The same code works in-process and out-of-process:
+
+- **In-process:** the daemon registers the service on its own gRPC server, so it is served on the socket directly.
+- **Out-of-process:** the SDK registers the service on the extension server and reports service names to the daemon.
+  The daemon proxies matching calls to the extension.
+
+A binary registers the extension and the `ServerPoint` for every point the extension provides:
+
+```go
+srv := sdk.NewServer()
+srv.Register(ext,
+	servicegrpcv0.ServerPoint,
+	mypointpb.ServerPoint, // include every other point this extension provides
+)
+srv.Listen(ctx)
+```
+
+Service names are captured from registration, so do not list them by hand.
+Point id, proto package, gRPC service name, and CLI route are different identifiers.
+See [DESIGN.md](./DESIGN.md#identifiers).
+
 ## Wire compatibility and current limits
 
 Messages use proto3 on the wire.
@@ -251,7 +329,7 @@ The `pb:"N"` tags must be handled carefully.
 
 An extension is an ordinary `extensions.Extension` value.
 There is no `func init()` and no global registry.
-Something constructs the extension and passes it to a host.
+Something constructs the extension and passes it to a host or SDK server.
 Importing the package does nothing by itself.
 
 ### Stateless: wrap a Declaration
@@ -292,6 +370,20 @@ The resolver gives access to declared dependencies.
 Declare dependencies and conflicts in the `Declaration`.
 The broker initializes dependencies before dependents.
 
+For out-of-process extensions, the resolver calls dependencies through the daemon over a callback channel.
+The binary must declare the client wiring for dependency points:
+
+```go
+srv := sdk.NewServer()
+srv.Register(ext)
+srv.Depends(volumedriverpb.ClientPoint) // one per dependency point it will call
+srv.Listen(ctx)
+```
+
+The host must also offer those points as dependencies.
+The daemon lists a point's `ServerPoint` in `dependencyProviders()` in `daemon/extensions.go`.
+A dependency on an extension-defined point works only if the daemon supports the generated wiring.
+
 The operator configures extensions under `extension-config` in `daemon.json`:
 
 ```json
@@ -302,7 +394,7 @@ The operator configures extensions under `extension-config` in `daemon.json`:
 }
 ```
 
-The config reaches the extension in-process during `Init`.
+The same config reaches the extension in-process during `Init` or out-of-process through the startup handshake.
 
 ### Run it in-process (built-in)
 
@@ -319,7 +411,54 @@ func builtinExtensions(cfg *config.Config) []extensions.Extension {
 }
 ```
 
+A built-in uses the same registration path as a launched binary.
 Its config reaches it by id through `host.Options.ExtensionConfig`.
+
+### Run it out-of-process (separate binary)
+
+Write a `main` that builds an SDK server, registers the same extension value, and listens.
+The binary also passes the generated `ServerPoint` for each point it provides.
+The in-process host gets the implementation directly, but the binary needs the gRPC server side.
+
+```go
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	srv := sdk.NewServer()
+	if err := srv.Register(myext.Extension, createspecpb.ServerPoint); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := srv.Listen(ctx); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+```
+
+Pass one `ServerPoint` for each point the extension provides.
+The SDK runs the same `Init` and `Shutdown` lifecycle as the in-process host.
+Only packaging differs.
+
+**`stdout` is reserved for the runtime handshake.**
+Log to `stderr`.
+At launch, the daemon writes startup config to the binary's stdin and waits for one readiness line on stdout.
+The SDK writes that line once it is listening.
+Any other stdout output before then corrupts the handshake and launch fails.
+The daemon captures stderr and includes it in its own logs.
+
+Deploy the binary with the extension id as its name.
+Put it in the extensions directory, which defaults to `/usr/libexec/docker/moby-extensions/`.
+`--extension-dir` overrides the directory.
+Rootless mode uses the user's libexec home.
+On Windows, the binary can use `<id>.exe`.
+
+The daemon discovers and launches extension binaries at startup.
+The point must be listed in [`clientProviders()`](#5-let-separate-binary-extensions-implement-it), or the daemon rejects it.
+There is no watchdog yet.
+If an extension process dies, callers get gRPC errors until the daemon restarts.
+Health checks, reconnect, and restart are future work in [ROADMAP.md](./ROADMAP.md).
 
 ## Quick reference
 
@@ -329,5 +468,7 @@ Its config reaches it by id through `host.Options.ExtensionConfig`.
 | Wire the point | `extpoints/<area>/<name>/v0/gen.go` | package doc and `//go:generate` |
 | Generate | `make generate-extensions` | regenerate `protogen/`; CI validates the result |
 | Invoke the point | the relevant engine flow | call the contract helper with the host as `Resolver` |
+| Support out-of-process | `daemon/extensions.go` → `clientProviders()` | add `<name>pb.ClientPoint` |
 | Write an extension | anywhere | use `extensions.New(Declaration{…})` or implement `Extension` |
 | Run it built-in | `daemon/extensions.go` → `builtinExtensions()` | append the extension value |
+| Run it as a binary | a `cmd/<name>/main.go` | `sdk.NewServer()`, `Register(ext, <name>pb.ServerPoint)`, then `Listen` |
