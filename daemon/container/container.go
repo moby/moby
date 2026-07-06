@@ -461,7 +461,7 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 	// TODO(@cpuguy83): Setup here based on log driver is a little weird.
 	switch cfg.Type {
 	case jsonfilelog.Name:
-		info.LogPath, err = container.GetRootResourcePath(fmt.Sprintf("%s-json.log", container.ID))
+		info.LogPath, err = container.GetRootResourcePath(container.ID + "-json.log")
 		if err != nil {
 			return nil, err
 		}

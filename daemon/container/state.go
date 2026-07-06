@@ -92,7 +92,7 @@ func (s *State) String() string {
 			return fmt.Sprintf("Up %s (%s)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)), h.String())
 		}
 
-		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+		return "Up " + units.HumanDuration(time.Now().UTC().Sub(s.StartedAt))
 	}
 
 	if s.RemovalInProgress {
