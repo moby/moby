@@ -340,13 +340,18 @@ func (c *client) createWindows(id string, spec *specs.Spec) (*container, error) 
 	logger.Debug("starting container")
 	if err := ctr.hcsContainer.Start(); err != nil {
 		logger.WithError(err).Error("failed to start container")
-		ctr.mu.Lock()
-		if err := ctr.terminateContainer(); err != nil {
-			logger.WithError(err).Error("failed to cleanup after a failed Start")
-		} else {
-			logger.Debug("cleaned up after failed Start by calling Terminate")
-		}
-		ctr.mu.Unlock()
+		
+		// Wrap in an anonymous function to guarantee deferred unlock on panic
+		func() {
+			ctr.mu.Lock()
+			defer ctr.mu.Unlock()
+			if err := ctr.terminateContainer(); err != nil {
+				logger.WithError(err).Error("failed to cleanup after a failed Start")
+			} else {
+				logger.Debug("cleaned up after failed Start by calling Terminate")
+			}
+		}()
+		
 		return nil, err
 	}
 
@@ -730,9 +735,11 @@ func (t *task) Kill(_ context.Context, signal syscall.Signal) error {
 	var op string
 	if signal == syscall.SIGKILL {
 		// Terminate the compute system
-		t.ctr.mu.Lock()
-		t.ctr.terminateInvoked = true
-		t.ctr.mu.Unlock()
+		func() {
+			t.ctr.mu.Lock()
+			defer t.ctr.mu.Unlock()
+			t.ctr.terminateInvoked = true
+		}()
 		op, err = "terminate", hcsContainer.Terminate()
 	} else {
 		// Shut down the container
