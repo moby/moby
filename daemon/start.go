@@ -84,6 +84,16 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		span.End()
 	}()
 
+	if checkpointDir != "" {
+		// TODO(mlaventure): how would we support that?
+		return errdefs.Forbidden(errors.New("custom checkpointdir is not supported"))
+	}
+	if checkpoint != "" {
+		if err := validateCheckpointID(checkpoint); err != nil {
+			return err
+		}
+	}
+
 	start := time.Now()
 	container.Lock()
 	defer container.Unlock()
@@ -94,11 +104,6 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 
 	if container.State.RemovalInProgress || container.State.Dead {
 		return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
-	}
-
-	if checkpointDir != "" {
-		// TODO(mlaventure): how would we support that?
-		return errdefs.Forbidden(errors.New("custom checkpointdir is not supported"))
 	}
 
 	// if we encounter an error during start we need to ensure that any other

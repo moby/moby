@@ -2,20 +2,33 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/moby/moby/api/types/checkpoint"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/names"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/errdefs"
 )
 
-var (
-	validCheckpointNameChars   = names.RestrictedNameChars
-	validCheckpointNamePattern = names.RestrictedNamePattern
-)
+// validateCheckpointID returns an error if id is not a plain checkpoint name.
+// A checkpoint ID is joined onto the checkpoint directory to build a filesystem
+// path, so it must not be able to traverse outside of it.
+func validateCheckpointID(id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return errdefs.InvalidParameter(errors.New("invalid checkpoint ID: value is empty"))
+	}
+
+	if !names.RestrictedNamePattern.MatchString(id) {
+		return errdefs.InvalidParameter(fmt.Errorf("invalid checkpoint ID (%s): only %s are allowed", id, names.RestrictedNameChars))
+	}
+	return nil
+}
 
 // getCheckpointDir verifies checkpoint directory for create,remove, list options and checks if checkpoint already exists
 func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir string, create bool) (string, error) {
@@ -54,6 +67,10 @@ func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir s
 
 // CheckpointCreate checkpoints the process running in a container with CRIU
 func (daemon *Daemon) CheckpointCreate(name string, config checkpoint.CreateRequest) error {
+	if err := validateCheckpointID(config.CheckpointID); err != nil {
+		return err
+	}
+
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -64,10 +81,6 @@ func (daemon *Daemon) CheckpointCreate(name string, config checkpoint.CreateRequ
 	container.Unlock()
 	if err != nil {
 		return err
-	}
-
-	if !validCheckpointNamePattern.MatchString(config.CheckpointID) {
-		return fmt.Errorf("Invalid checkpoint ID (%s), only %s are allowed", config.CheckpointID, validCheckpointNameChars)
 	}
 
 	checkpointDir, err := getCheckpointDir(config.CheckpointDir, config.CheckpointID, name, container.ID, container.CheckpointDir(), true)
@@ -88,6 +101,10 @@ func (daemon *Daemon) CheckpointCreate(name string, config checkpoint.CreateRequ
 
 // CheckpointDelete deletes the specified checkpoint
 func (daemon *Daemon) CheckpointDelete(name string, config backend.CheckpointDeleteOptions) error {
+	if err := validateCheckpointID(config.CheckpointID); err != nil {
+		return err
+	}
+
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
