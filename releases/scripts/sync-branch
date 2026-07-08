@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 
 if [[ $# -lt 1 ]]; then
-	echo "usage: $0 [--dry-run] TAG..." >&2
+	echo "usage: $0 TAG..." >&2
 	exit 1
 fi
 
