@@ -77,7 +77,7 @@ jobs:
           echo >> "$GITHUB_STEP_SUMMARY"
           sed 's/^/- /' "$tags_file" >> "$GITHUB_STEP_SUMMARY"
 
-          xargs releases/scripts/sync-branch < "$tags_file" | tee -a "$GITHUB_STEP_SUMMARY"
+          xargs -r releases/scripts/sync-branch < "$tags_file" | tee -a "$GITHUB_STEP_SUMMARY"
 
           if [[ "$DRY_RUN" == "true" ]]; then
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
