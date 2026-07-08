@@ -29,7 +29,21 @@
 // the vast majority of CDI consumers need. The API should be usable both
 // by OCI runtime clients and runtime implementations.
 //
+// # Default CDI Cache
+//
+// There is a default CDI cache instance which is always implicitly
+// available and instantiated the first time it is referenced directly
+// or indirectly. The most frequently used cache functions are available
+// as identically named package level functions which operate on the
+// default cache instance. Moreover, the registry also operates on the
+// same default cache. We plan to deprecate the registry and eventually
+// remove it in a future release.
+//
 // # CDI Registry
+//
+// Note: the Registry and its related interfaces are deprecated and will
+// be removed in a future version. Please use the default cache and its
+// related package-level function instead.
 //
 // The primary interface to interact with CDI devices is the Registry. It
 // is essentially a cache of all Specs and devices discovered in standard

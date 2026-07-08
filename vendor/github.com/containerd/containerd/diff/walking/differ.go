@@ -25,17 +25,18 @@ import (
 	"io"
 	"time"
 
+	"github.com/containerd/log"
+	digest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/labels"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/pkg/epoch"
-	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type walkingDiff struct {
@@ -74,12 +75,12 @@ func (s *walkingDiff) Compare(ctx context.Context, lower, upper []mount.Mount, o
 		writeDiffOpts = append(writeDiffOpts, archive.WithSourceDateEpoch(config.SourceDateEpoch))
 	}
 
-	var isCompressed bool
+	compressionType := compression.Uncompressed
 	if config.Compressor != nil {
 		if config.MediaType == "" {
 			return emptyDesc, errors.New("media type must be explicitly specified when using custom compressor")
 		}
-		isCompressed = true
+		compressionType = compression.Unknown
 	} else {
 		if config.MediaType == "" {
 			config.MediaType = ocispec.MediaTypeImageLayerGzip
@@ -88,7 +89,9 @@ func (s *walkingDiff) Compare(ctx context.Context, lower, upper []mount.Mount, o
 		switch config.MediaType {
 		case ocispec.MediaTypeImageLayer:
 		case ocispec.MediaTypeImageLayerGzip:
-			isCompressed = true
+			compressionType = compression.Gzip
+		case ocispec.MediaTypeImageLayerZstd:
+			compressionType = compression.Zstd
 		default:
 			return emptyDesc, fmt.Errorf("unsupported diff media type: %v: %w", config.MediaType, errdefs.ErrNotImplemented)
 		}
@@ -131,7 +134,7 @@ func (s *walkingDiff) Compare(ctx context.Context, lower, upper []mount.Mount, o
 				}
 			}
 
-			if isCompressed {
+			if compressionType != compression.Uncompressed {
 				dgstr := digest.SHA256.Digester()
 				var compressed io.WriteCloser
 				if config.Compressor != nil {
@@ -140,7 +143,7 @@ func (s *walkingDiff) Compare(ctx context.Context, lower, upper []mount.Mount, o
 						return fmt.Errorf("failed to get compressed stream: %w", errOpen)
 					}
 				} else {
-					compressed, errOpen = compression.CompressStream(cw, compression.Gzip)
+					compressed, errOpen = compression.CompressStream(cw, compressionType)
 					if errOpen != nil {
 						return fmt.Errorf("failed to get compressed stream: %w", errOpen)
 					}

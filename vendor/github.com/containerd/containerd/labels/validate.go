@@ -18,6 +18,7 @@ package labels
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/containerd/containerd/errdefs"
 )
@@ -38,4 +39,12 @@ func Validate(k, v string) error {
 		return fmt.Errorf("label key and value length (%d bytes) greater than maximum size (%d bytes), key: %s: %w", total, maxSize, k, errdefs.ErrInvalidArgument)
 	}
 	return nil
+}
+
+// IsReserved returns true if the label key is in a namespace reserved for
+// containerd (ReservedPrefix) or its CRI plugin (CRIContainerdPrefix).
+// Reserved labels are interpreted by containerd and must not be copied from
+// untrusted sources such as image config labels.
+func IsReserved(k string) bool {
+	return strings.HasPrefix(k, ReservedPrefix) || strings.HasPrefix(k, CRIContainerdPrefix)
 }

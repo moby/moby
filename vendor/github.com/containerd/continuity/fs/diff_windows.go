@@ -22,10 +22,6 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func detectDirDiff(upper, lower string) *diffDirOptions {
-	return nil
-}
-
 func compareSysStat(s1, s2 interface{}) (bool, error) {
 	f1, ok := s1.(windows.Win32FileAttributeData)
 	if !ok {

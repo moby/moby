@@ -24,15 +24,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/pkg/randutil"
+	"github.com/containerd/log"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-)
 
-// maxResets is the no.of times the Copy() method can tolerate a reset of the body
-const maxResets = 5
+	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/pkg/randutil"
+)
 
 var ErrReset = errors.New("writer has been reset")
 
@@ -160,7 +158,7 @@ func Copy(ctx context.Context, cw Writer, or io.Reader, size int64, expected dig
 		}
 	}
 
-	for i := 0; i < maxResets; i++ {
+	for i := 0; ; i++ {
 		if i >= 1 {
 			log.G(ctx).WithField("digest", expected).Debugf("retrying copy due to reset")
 		}
@@ -201,9 +199,6 @@ func Copy(ctx context.Context, cw Writer, or io.Reader, size int64, expected dig
 		}
 		return nil
 	}
-
-	log.G(ctx).WithField("digest", expected).Errorf("failed to copy after %d retries", maxResets)
-	return fmt.Errorf("failed to copy after %d retries", maxResets)
 }
 
 // CopyReaderAt copies to a writer from a given reader at for the given

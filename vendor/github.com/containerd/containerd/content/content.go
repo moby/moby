@@ -108,6 +108,12 @@ type Status struct {
 // WalkFunc defines the callback for a blob walk.
 type WalkFunc func(Info) error
 
+// InfoReaderProvider provides both info and reader for the specific content.
+type InfoReaderProvider interface {
+	InfoProvider
+	Provider
+}
+
 // InfoProvider provides info for content inspection.
 type InfoProvider interface {
 	// Info will return metadata about content available in the content store.

@@ -27,10 +27,11 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/containerd/containerd/pkg/userns"
+	"github.com/moby/sys/userns"
+	"golang.org/x/sys/unix"
+
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/continuity/sysx"
-	"golang.org/x/sys/unix"
 )
 
 func chmodTarEntry(perm os.FileMode) os.FileMode {
@@ -79,7 +80,7 @@ func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
 		return nil, err
 	}
 	// Call chmod to avoid permission mask
-	if err := os.Chmod(name, perm); err != nil {
+	if err := f.Chmod(perm); err != nil {
 		f.Close()
 		return nil, err
 	}

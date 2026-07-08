@@ -1,0 +1,13 @@
+# The release/1.7 branch has transitioned to an extended LTS with two volunteer
+# containerd maintainers as release owners. Release owners should be aware of
+# all pull requests targeting the branch, and ideally should cover at least one
+# of the approvals. Other containerd maintainers are still encouraged to review
+# and approve pull requests at their preference.
+#
+# Sam and Chris are primarily focused on supporting containerd 1.7 for use with
+# Google Kubernetes Engine 1.32, 1.31, and 1.30. Contributors are welcome to
+# submit cherrypicks targeted to other use-cases, but they may or may not be
+# included at the discretion of the release owners and other containerd
+# maintainers.
+
+* @samuelkarp @chrishenzie
