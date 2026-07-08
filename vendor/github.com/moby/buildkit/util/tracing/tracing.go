@@ -14,13 +14,14 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // StartSpan starts a new span as a child of the span in context.
 // If there is no span in context then this is a no-op.
 func StartSpan(ctx context.Context, operationName string, opts ...trace.SpanStartOption) (trace.Span, context.Context) {
 	parent := trace.SpanFromContext(ctx)
-	tracer := trace.NewNoopTracerProvider().Tracer("")
+	tracer := noop.NewTracerProvider().Tracer("")
 	if parent != nil && parent.SpanContext().IsValid() {
 		tracer = parent.TracerProvider().Tracer("")
 	}

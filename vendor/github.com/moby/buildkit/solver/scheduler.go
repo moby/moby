@@ -385,11 +385,12 @@ func debugSchedulerPreUnpark(e *edge, inc []pipe.Sender, updates, allPipes []pip
 	}
 
 	for i, up := range updates {
-		if up == e.cacheMapReq {
+		switch up {
+		case e.cacheMapReq:
 			log.Debugf("> update-%d: %p cacheMapReq complete=%v", i, up, up.Status().Completed)
-		} else if up == e.execReq {
+		case e.execReq:
 			log.Debugf("> update-%d: %p execReq complete=%v", i, up, up.Status().Completed)
-		} else {
+		default:
 			st, ok := up.Status().Value.(*edgeState)
 			if ok {
 				index := -1

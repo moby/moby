@@ -97,7 +97,7 @@ func (mr *MultiReader) Reader(ctx context.Context) Reader {
 	}()
 
 	if !mr.initialized {
-		go mr.handle()
+		go mr.handle() //nolint:gosec
 		mr.initialized = true
 	}
 

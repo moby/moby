@@ -1,4 +1,4 @@
-package moby_buildkit_v1_sourcepolicy //nolint:revive
+package moby_buildkit_v1_sourcepolicy
 
 import (
 	"github.com/gogo/protobuf/proto"

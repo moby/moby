@@ -1,4 +1,4 @@
-go 1.20
+go 1.23.0
 
 use (
 	.
@@ -12,8 +12,11 @@ use (
 	./apigateway
 	./apigeeconnect
 	./apigeeregistry
+	./apihub
 	./apikeys
 	./appengine
+	./apphub
+	./apps
 	./area120
 	./artifactregistry
 	./asset
@@ -21,6 +24,7 @@ use (
 	./auth
 	./auth/oauth2adapt
 	./automl
+	./backupdr
 	./baremetalsolution
 	./batch
 	./beyondcorp
@@ -30,8 +34,12 @@ use (
 	./binaryauthorization
 	./certificatemanager
 	./channel
+	./chat
 	./cloudbuild
+	./cloudcontrolspartner
 	./clouddms
+	./cloudprofiler
+	./cloudquotas
 	./cloudtasks
 	./commerce
 	./compute
@@ -52,16 +60,19 @@ use (
 	./datastore
 	./datastream
 	./deploy
+	./developerconnect
 	./dialogflow
 	./discoveryengine
 	./dlp
 	./documentai
 	./domains
 	./edgecontainer
+	./edgenetwork
 	./errorreporting
 	./essentialcontacts
 	./eventarc
 	./filestore
+	./financialservices
 	./firestore
 	./functions
 	./gkebackup
@@ -72,6 +83,7 @@ use (
 	./gsuiteaddons
 	./iam
 	./iap
+	./identitytoolkit
 	./ids
 	./internal/actions
 	./internal/aliasfix
@@ -83,6 +95,7 @@ use (
 	./internal/generated/snippets
 	./internal/godocfx
 	./internal/postprocessor
+	./internal/protoveneer
 	./iot
 	./kms
 	./language
@@ -90,26 +103,34 @@ use (
 	./logging
 	./longrunning
 	./managedidentities
+	./managedkafka
 	./maps
 	./mediatranslation
 	./memcache
+	./memorystore
 	./metastore
 	./migrationcenter
+	./modelarmor
 	./monitoring
 	./netapp
 	./networkconnectivity
 	./networkmanagement
 	./networksecurity
+	./networkservices
 	./notebooks
 	./optimization
+	./oracledatabase
 	./orchestration
 	./orgpolicy
 	./osconfig
 	./oslogin
+	./parallelstore
+	./parametermanager
 	./phishingprotection
 	./policysimulator
 	./policytroubleshooter
 	./privatecatalog
+	./privilegedaccessmanager
 	./profiler
 	./pubsub
 	./pubsublite
@@ -119,7 +140,6 @@ use (
 	./recommender
 	./redis
 	./resourcemanager
-	./resourcesettings
 	./retail
 	./run
 	./scheduler
@@ -127,27 +147,35 @@ use (
 	./securesourcemanager
 	./security
 	./securitycenter
+	./securitycentermanagement
+	./securityposture
 	./servicecontrol
 	./servicedirectory
+	./servicehealth
 	./servicemanagement
 	./serviceusage
 	./shell
 	./shopping
 	./spanner
+	./spanner/test/opentelemetry/test
 	./speech
 	./storage
 	./storage/internal/benchmarks
 	./storageinsights
 	./storagetransfer
+	./streetview
 	./support
 	./talent
+	./telcoautomation
 	./texttospeech
 	./tpu
 	./trace
 	./translate
+	./vertexai
 	./video
 	./videointelligence
 	./vision
+	./visionai
 	./vmmigration
 	./vmwareengine
 	./vpcaccess

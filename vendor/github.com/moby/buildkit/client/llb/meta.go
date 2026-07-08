@@ -6,7 +6,7 @@ import (
 	"net"
 	"path"
 
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/google/shlex"
 	"github.com/moby/buildkit/solver/pb"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -197,7 +197,7 @@ func shlexf(str string, replace bool, v ...interface{}) StateOption {
 	}
 	return func(s State) State {
 		arg, err := shlex.Split(str)
-		if err != nil { //nolint
+		if err != nil { //nolint:staticcheck
 			// TODO: handle error
 		}
 		return args(arg...)(s)

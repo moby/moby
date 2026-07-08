@@ -10,6 +10,7 @@ import (
 	"github.com/aws/smithy-go/encoding/httpbinding"
 	smithyjson "github.com/aws/smithy-go/encoding/json"
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/tracing"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
@@ -23,6 +24,10 @@ func (*awsRestjson1_serializeOpCreateToken) ID() string {
 func (m *awsRestjson1_serializeOpCreateToken) HandleSerialize(ctx context.Context, in middleware.SerializeInput, next middleware.SerializeHandler) (
 	out middleware.SerializeOutput, metadata middleware.Metadata, err error,
 ) {
+	_, span := tracing.StartSpan(ctx, "OperationSerializer")
+	endTimer := startMetricTimer(ctx, "client.call.serialization_duration")
+	defer endTimer()
+	defer span.End()
 	request, ok := in.Request.(*smithyhttp.Request)
 	if !ok {
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown transport type %T", in.Request)}
@@ -66,6 +71,8 @@ func (m *awsRestjson1_serializeOpCreateToken) HandleSerialize(ctx context.Contex
 	}
 	in.Request = request
 
+	endTimer()
+	span.End()
 	return next.HandleSerialize(ctx, in)
 }
 func awsRestjson1_serializeOpHttpBindingsCreateTokenInput(v *CreateTokenInput, encoder *httpbinding.Encoder) error {
@@ -93,6 +100,11 @@ func awsRestjson1_serializeOpDocumentCreateTokenInput(v *CreateTokenInput, value
 	if v.Code != nil {
 		ok := object.Key("code")
 		ok.String(*v.Code)
+	}
+
+	if v.CodeVerifier != nil {
+		ok := object.Key("codeVerifier")
+		ok.String(*v.CodeVerifier)
 	}
 
 	if v.DeviceCode != nil {
@@ -135,6 +147,10 @@ func (*awsRestjson1_serializeOpCreateTokenWithIAM) ID() string {
 func (m *awsRestjson1_serializeOpCreateTokenWithIAM) HandleSerialize(ctx context.Context, in middleware.SerializeInput, next middleware.SerializeHandler) (
 	out middleware.SerializeOutput, metadata middleware.Metadata, err error,
 ) {
+	_, span := tracing.StartSpan(ctx, "OperationSerializer")
+	endTimer := startMetricTimer(ctx, "client.call.serialization_duration")
+	defer endTimer()
+	defer span.End()
 	request, ok := in.Request.(*smithyhttp.Request)
 	if !ok {
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown transport type %T", in.Request)}
@@ -178,6 +194,8 @@ func (m *awsRestjson1_serializeOpCreateTokenWithIAM) HandleSerialize(ctx context
 	}
 	in.Request = request
 
+	endTimer()
+	span.End()
 	return next.HandleSerialize(ctx, in)
 }
 func awsRestjson1_serializeOpHttpBindingsCreateTokenWithIAMInput(v *CreateTokenWithIAMInput, encoder *httpbinding.Encoder) error {
@@ -205,6 +223,11 @@ func awsRestjson1_serializeOpDocumentCreateTokenWithIAMInput(v *CreateTokenWithI
 	if v.Code != nil {
 		ok := object.Key("code")
 		ok.String(*v.Code)
+	}
+
+	if v.CodeVerifier != nil {
+		ok := object.Key("codeVerifier")
+		ok.String(*v.CodeVerifier)
 	}
 
 	if v.GrantType != nil {
@@ -257,6 +280,10 @@ func (*awsRestjson1_serializeOpRegisterClient) ID() string {
 func (m *awsRestjson1_serializeOpRegisterClient) HandleSerialize(ctx context.Context, in middleware.SerializeInput, next middleware.SerializeHandler) (
 	out middleware.SerializeOutput, metadata middleware.Metadata, err error,
 ) {
+	_, span := tracing.StartSpan(ctx, "OperationSerializer")
+	endTimer := startMetricTimer(ctx, "client.call.serialization_duration")
+	defer endTimer()
+	defer span.End()
 	request, ok := in.Request.(*smithyhttp.Request)
 	if !ok {
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown transport type %T", in.Request)}
@@ -300,6 +327,8 @@ func (m *awsRestjson1_serializeOpRegisterClient) HandleSerialize(ctx context.Con
 	}
 	in.Request = request
 
+	endTimer()
+	span.End()
 	return next.HandleSerialize(ctx, in)
 }
 func awsRestjson1_serializeOpHttpBindingsRegisterClientInput(v *RegisterClientInput, encoder *httpbinding.Encoder) error {
@@ -324,6 +353,30 @@ func awsRestjson1_serializeOpDocumentRegisterClientInput(v *RegisterClientInput,
 		ok.String(*v.ClientType)
 	}
 
+	if v.EntitledApplicationArn != nil {
+		ok := object.Key("entitledApplicationArn")
+		ok.String(*v.EntitledApplicationArn)
+	}
+
+	if v.GrantTypes != nil {
+		ok := object.Key("grantTypes")
+		if err := awsRestjson1_serializeDocumentGrantTypes(v.GrantTypes, ok); err != nil {
+			return err
+		}
+	}
+
+	if v.IssuerUrl != nil {
+		ok := object.Key("issuerUrl")
+		ok.String(*v.IssuerUrl)
+	}
+
+	if v.RedirectUris != nil {
+		ok := object.Key("redirectUris")
+		if err := awsRestjson1_serializeDocumentRedirectUris(v.RedirectUris, ok); err != nil {
+			return err
+		}
+	}
+
 	if v.Scopes != nil {
 		ok := object.Key("scopes")
 		if err := awsRestjson1_serializeDocumentScopes(v.Scopes, ok); err != nil {
@@ -344,6 +397,10 @@ func (*awsRestjson1_serializeOpStartDeviceAuthorization) ID() string {
 func (m *awsRestjson1_serializeOpStartDeviceAuthorization) HandleSerialize(ctx context.Context, in middleware.SerializeInput, next middleware.SerializeHandler) (
 	out middleware.SerializeOutput, metadata middleware.Metadata, err error,
 ) {
+	_, span := tracing.StartSpan(ctx, "OperationSerializer")
+	endTimer := startMetricTimer(ctx, "client.call.serialization_duration")
+	defer endTimer()
+	defer span.End()
 	request, ok := in.Request.(*smithyhttp.Request)
 	if !ok {
 		return out, metadata, &smithy.SerializationError{Err: fmt.Errorf("unknown transport type %T", in.Request)}
@@ -387,6 +444,8 @@ func (m *awsRestjson1_serializeOpStartDeviceAuthorization) HandleSerialize(ctx c
 	}
 	in.Request = request
 
+	endTimer()
+	span.End()
 	return next.HandleSerialize(ctx, in)
 }
 func awsRestjson1_serializeOpHttpBindingsStartDeviceAuthorizationInput(v *StartDeviceAuthorizationInput, encoder *httpbinding.Encoder) error {
@@ -416,6 +475,28 @@ func awsRestjson1_serializeOpDocumentStartDeviceAuthorizationInput(v *StartDevic
 		ok.String(*v.StartUrl)
 	}
 
+	return nil
+}
+
+func awsRestjson1_serializeDocumentGrantTypes(v []string, value smithyjson.Value) error {
+	array := value.Array()
+	defer array.Close()
+
+	for i := range v {
+		av := array.Value()
+		av.String(v[i])
+	}
+	return nil
+}
+
+func awsRestjson1_serializeDocumentRedirectUris(v []string, value smithyjson.Value) error {
+	array := value.Array()
+	defer array.Close()
+
+	for i := range v {
+		av := array.Value()
+		av.String(v[i])
+	}
 	return nil
 }
 

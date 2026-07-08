@@ -47,6 +47,10 @@ type Options struct {
 	//
 	// If nil, the provider will default to the EC2 IMDS client.
 	Client GetMetadataAPIClient
+
+	// The chain of providers that was used to create this provider
+	// These values are for reporting purposes and are not meant to be set up directly
+	CredentialSources []aws.CredentialSource
 }
 
 // New returns an initialized Provider value configured to retrieve
@@ -226,4 +230,12 @@ func requestCred(ctx context.Context, client GetMetadataAPIClient, credsName str
 	}
 
 	return respCreds, nil
+}
+
+// ProviderSources returns the credential chain that was used to construct this provider
+func (p *Provider) ProviderSources() []aws.CredentialSource {
+	if p.options.CredentialSources == nil {
+		return []aws.CredentialSource{aws.CredentialSourceIMDS}
+	} // If no source has been set, assume this is used directly which means just call to assume role
+	return p.options.CredentialSources
 }

@@ -314,16 +314,17 @@ func (r *Registry) Register(c Collector) error {
 			if dimHash != desc.dimHash {
 				return fmt.Errorf("a previously registered descriptor with the same fully-qualified name as %s has different label names or a different help string", desc)
 			}
-		} else {
-			// ...then check the new descriptors already seen.
-			if dimHash, exists := newDimHashesByName[desc.fqName]; exists {
-				if dimHash != desc.dimHash {
-					return fmt.Errorf("descriptors reported by collector have inconsistent label names or help strings for the same fully-qualified name, offender is %s", desc)
-				}
-			} else {
-				newDimHashesByName[desc.fqName] = desc.dimHash
-			}
+			continue
 		}
+
+		// ...then check the new descriptors already seen.
+		if dimHash, exists := newDimHashesByName[desc.fqName]; exists {
+			if dimHash != desc.dimHash {
+				return fmt.Errorf("descriptors reported by collector have inconsistent label names or help strings for the same fully-qualified name, offender is %s", desc)
+			}
+			continue
+		}
+		newDimHashesByName[desc.fqName] = desc.dimHash
 	}
 	// A Collector yielding no Desc at all is considered unchecked.
 	if len(newDescIDs) == 0 {
@@ -548,7 +549,7 @@ func (r *Registry) Gather() ([]*dto.MetricFamily, error) {
 			goroutineBudget--
 			runtime.Gosched()
 		}
-		// Once both checkedMetricChan and uncheckdMetricChan are closed
+		// Once both checkedMetricChan and uncheckedMetricChan are closed
 		// and drained, the contraption above will nil out cmc and umc,
 		// and then we can leave the collect loop here.
 		if cmc == nil && umc == nil {
@@ -963,9 +964,9 @@ func checkDescConsistency(
 	// Is the desc consistent with the content of the metric?
 	lpsFromDesc := make([]*dto.LabelPair, len(desc.constLabelPairs), len(dtoMetric.Label))
 	copy(lpsFromDesc, desc.constLabelPairs)
-	for _, l := range desc.variableLabels {
+	for _, l := range desc.variableLabels.names {
 		lpsFromDesc = append(lpsFromDesc, &dto.LabelPair{
-			Name: proto.String(l.Name),
+			Name: proto.String(l),
 		})
 	}
 	if len(lpsFromDesc) != len(dtoMetric.Label) {

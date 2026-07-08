@@ -227,7 +227,7 @@ func (e *grpcStatusError) GRPCStatus() *status.Status {
 	return e.st
 }
 
-type withCode struct {
+type withCode struct { //nolint:errname // error helper
 	code codes.Code
 	error
 }

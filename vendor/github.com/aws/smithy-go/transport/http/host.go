@@ -69,7 +69,7 @@ func ValidPortNumber(port string) bool {
 	return true
 }
 
-// ValidHostLabel returns whether the label is a valid RFC 3986 host abel.
+// ValidHostLabel returns whether the label is a valid RFC 3986 host label.
 func ValidHostLabel(label string) bool {
 	if l := len(label); l == 0 || l > 63 {
 		return false

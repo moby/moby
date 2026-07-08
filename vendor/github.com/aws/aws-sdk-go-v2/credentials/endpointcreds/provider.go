@@ -98,6 +98,10 @@ type Options struct {
 	//
 	// Will override AuthorizationToken if configured
 	AuthorizationTokenProvider AuthTokenProvider
+
+	// The chain of providers that was used to create this provider
+	// These values are for reporting purposes and are not meant to be set up directly
+	CredentialSources []aws.CredentialSource
 }
 
 // AuthTokenProvider defines an interface to dynamically load a value to be passed
@@ -152,6 +156,7 @@ func (p *Provider) Retrieve(ctx context.Context) (aws.Credentials, error) {
 		SecretAccessKey: resp.SecretAccessKey,
 		SessionToken:    resp.Token,
 		Source:          ProviderName,
+		AccountID:       resp.AccountID,
 	}
 
 	if resp.Expiration != nil {
@@ -189,4 +194,14 @@ func (p *Provider) resolveAuthToken() (string, error) {
 	}
 
 	return authToken, nil
+}
+
+var _ aws.CredentialProviderSource = (*Provider)(nil)
+
+// ProviderSources returns the credential chain that was used to construct this provider
+func (p *Provider) ProviderSources() []aws.CredentialSource {
+	if p.options.CredentialSources == nil {
+		return []aws.CredentialSource{aws.CredentialSourceHTTP}
+	}
+	return p.options.CredentialSources
 }

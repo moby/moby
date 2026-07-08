@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -167,7 +166,7 @@ func (r *Request) Build(ctx context.Context) *http.Request {
 
 	switch stream := r.stream.(type) {
 	case *io.PipeReader:
-		req.Body = ioutil.NopCloser(stream)
+		req.Body = io.NopCloser(stream)
 		req.ContentLength = -1
 	default:
 		// HTTP Client Request must only have a non-nil body if the
@@ -175,7 +174,7 @@ func (r *Request) Build(ctx context.Context) *http.Request {
 		// Client will interpret a non-nil body and ContentLength 0 as
 		// "unknown". This is unwanted behavior.
 		if req.ContentLength != 0 && r.stream != nil {
-			req.Body = iointernal.NewSafeReadCloser(ioutil.NopCloser(stream))
+			req.Body = iointernal.NewSafeReadCloser(io.NopCloser(stream))
 		}
 	}
 

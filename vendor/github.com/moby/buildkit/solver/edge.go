@@ -915,7 +915,7 @@ func (e *edge) execOp(ctx context.Context) (interface{}, error) {
 
 	for i := range results {
 		if i != int(index) {
-			go results[i].Release(context.TODO())
+			go results[i].Release(context.TODO()) //nolint:gosec
 		}
 	}
 

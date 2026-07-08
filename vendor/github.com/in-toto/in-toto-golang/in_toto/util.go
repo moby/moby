@@ -1,8 +1,14 @@
 package in_toto
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"reflect"
+	"strings"
 )
+
+var ErrUnknownMetadataType = errors.New("unknown metadata type encountered: not link or layout")
 
 /*
 Set represents a data structure for set operations. See `NewSet` for how to
@@ -115,10 +121,10 @@ func (s Set) Slice() []string {
 }
 
 /*
-InterfaceKeyStrings returns string keys of passed interface{} map in an
+artifactsDictKeyStrings returns string keys of passed HashObj map in an
 unordered string slice.
 */
-func InterfaceKeyStrings(m map[string]interface{}) []string {
+func artifactsDictKeyStrings(m map[string]HashObj) []string {
 	res := make([]string, len(m))
 	i := 0
 	for k := range m {
@@ -144,4 +150,41 @@ func (s Set) IsSubSet(subset Set) bool {
 		}
 	}
 	return true
+}
+
+func loadPayload(payloadBytes []byte) (any, error) {
+	var payload map[string]any
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return nil, fmt.Errorf("error decoding payload: %w", err)
+	}
+
+	if payload["_type"] == "link" {
+		var link Link
+		if err := checkRequiredJSONFields(payload, reflect.TypeOf(link)); err != nil {
+			return nil, fmt.Errorf("error decoding payload: %w", err)
+		}
+
+		decoder := json.NewDecoder(strings.NewReader(string(payloadBytes)))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&link); err != nil {
+			return nil, fmt.Errorf("error decoding payload: %w", err)
+		}
+
+		return link, nil
+	} else if payload["_type"] == "layout" {
+		var layout Layout
+		if err := checkRequiredJSONFields(payload, reflect.TypeOf(layout)); err != nil {
+			return nil, fmt.Errorf("error decoding payload: %w", err)
+		}
+
+		decoder := json.NewDecoder(strings.NewReader(string(payloadBytes)))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&layout); err != nil {
+			return nil, fmt.Errorf("error decoding payload: %w", err)
+		}
+
+		return layout, nil
+	}
+
+	return nil, ErrUnknownMetadataType
 }

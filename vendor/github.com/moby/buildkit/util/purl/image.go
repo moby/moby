@@ -3,8 +3,8 @@ package purl
 import (
 	"strings"
 
-	"github.com/containerd/containerd/platforms"
-	"github.com/docker/distribution/reference"
+	"github.com/containerd/platforms"
+	"github.com/distribution/reference"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	packageurl "github.com/package-url/packageurl-go"

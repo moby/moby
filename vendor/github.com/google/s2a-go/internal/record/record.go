@@ -378,11 +378,6 @@ func (p *conn) Read(b []byte) (n int, err error) {
 			if len(p.handshakeBuf) > 0 {
 				return 0, errors.New("application data received while processing fragmented handshake messages")
 			}
-			if p.ticketState == receivingTickets {
-				p.ticketState = notReceivingTickets
-				grpclog.Infof("Sending session tickets to S2A.")
-				p.ticketSender.sendTicketsToS2A(p.sessionTickets, p.callComplete)
-			}
 		case alert:
 			return 0, p.handleAlertMessage()
 		case handshake:
@@ -500,17 +495,7 @@ func (p *conn) buildRecord(plaintext []byte, recordType byte, recordStartIndex i
 }
 
 func (p *conn) Close() error {
-	p.readMutex.Lock()
-	defer p.readMutex.Unlock()
-	p.writeMutex.Lock()
-	defer p.writeMutex.Unlock()
-	// If p.ticketState is equal to notReceivingTickets, then S2A has
-	// been sent a flight of session tickets, and we must wait for the
-	// call to S2A to complete before closing the record protocol.
-	if p.ticketState == notReceivingTickets {
-		<-p.callComplete
-		grpclog.Infof("Safe to close the connection because sending tickets to S2A is (already) complete.")
-	}
+	// Close the connection immediately.
 	return p.Conn.Close()
 }
 
@@ -663,7 +648,7 @@ func (p *conn) handleHandshakeMessage() error {
 	// Several handshake messages may be coalesced into a single record.
 	// Continue reading them until the handshake buffer is empty.
 	for len(p.handshakeBuf) > 0 {
-		handshakeMsgType, msgLen, msg, rawMsg, ok := p.parseHandshakeMsg()
+		handshakeMsgType, msgLen, msg, _, ok := p.parseHandshakeMsg()
 		if !ok {
 			// The handshake could not be fully parsed, so read in another
 			// record and try again later.
@@ -681,20 +666,7 @@ func (p *conn) handleHandshakeMessage() error {
 				return err
 			}
 		case tlsHandshakeNewSessionTicketType:
-			// Ignore tickets that are received after a batch of tickets has
-			// been sent to S2A.
-			if p.ticketState == notReceivingTickets {
-				continue
-			}
-			if p.ticketState == ticketsNotYetReceived {
-				p.ticketState = receivingTickets
-			}
-			p.sessionTickets = append(p.sessionTickets, rawMsg)
-			if len(p.sessionTickets) == maxAllowedTickets {
-				p.ticketState = notReceivingTickets
-				grpclog.Infof("Sending session tickets to S2A.")
-				p.ticketSender.sendTicketsToS2A(p.sessionTickets, p.callComplete)
-			}
+			// Do nothing for session ticket.
 		default:
 			return errors.New("unknown handshake message type")
 		}

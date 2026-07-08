@@ -11,10 +11,11 @@ import (
 // returns.
 type AssumedRoleUser struct {
 
-	// The ARN of the temporary security credentials that are returned from the
-	// AssumeRole action. For more information about ARNs and how to use them in
-	// policies, see IAM Identifiers (https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html)
-	// in the IAM User Guide.
+	// The ARN of the temporary security credentials that are returned from the AssumeRole
+	// action. For more information about ARNs and how to use them in policies, see [IAM Identifiers]in
+	// the IAM User Guide.
+	//
+	// [IAM Identifiers]: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html
 	//
 	// This member is required.
 	Arn *string
@@ -61,8 +62,9 @@ type FederatedUser struct {
 
 	// The ARN that specifies the federated user that is associated with the
 	// credentials. For more information about ARNs and how to use them in policies,
-	// see IAM Identifiers (https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html)
-	// in the IAM User Guide.
+	// see [IAM Identifiers]in the IAM User Guide.
+	//
+	// [IAM Identifiers]: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html
 	//
 	// This member is required.
 	Arn *string
@@ -81,9 +83,10 @@ type FederatedUser struct {
 type PolicyDescriptorType struct {
 
 	// The Amazon Resource Name (ARN) of the IAM managed policy to use as a session
-	// policy for the role. For more information about ARNs, see Amazon Resource Names
-	// (ARNs) and Amazon Web Services Service Namespaces (https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html)
-	// in the Amazon Web Services General Reference.
+	// policy for the role. For more information about ARNs, see [Amazon Resource Names (ARNs) and Amazon Web Services Service Namespaces]in the Amazon Web
+	// Services General Reference.
+	//
+	// [Amazon Resource Names (ARNs) and Amazon Web Services Service Namespaces]: https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html
 	Arn *string
 
 	noSmithyDocumentSerde
@@ -107,23 +110,30 @@ type ProvidedContext struct {
 
 // You can pass custom key-value pair attributes when you assume a role or
 // federate a user. These are called session tags. You can then use the session
-// tags to control access to resources. For more information, see Tagging Amazon
-// Web Services STS Sessions (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html)
-// in the IAM User Guide.
+// tags to control access to resources. For more information, see [Tagging Amazon Web Services STS Sessions]in the IAM User
+// Guide.
+//
+// [Tagging Amazon Web Services STS Sessions]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html
 type Tag struct {
 
-	// The key for a session tag. You can pass up to 50 session tags. The plain text
-	// session tag keys can’t exceed 128 characters. For these and additional limits,
-	// see IAM and STS Character Limits (https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-limits.html#reference_iam-limits-entity-length)
-	// in the IAM User Guide.
+	// The key for a session tag.
+	//
+	// You can pass up to 50 session tags. The plain text session tag keys can’t
+	// exceed 128 characters. For these and additional limits, see [IAM and STS Character Limits]in the IAM User
+	// Guide.
+	//
+	// [IAM and STS Character Limits]: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-limits.html#reference_iam-limits-entity-length
 	//
 	// This member is required.
 	Key *string
 
-	// The value for a session tag. You can pass up to 50 session tags. The plain text
-	// session tag values can’t exceed 256 characters. For these and additional limits,
-	// see IAM and STS Character Limits (https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-limits.html#reference_iam-limits-entity-length)
-	// in the IAM User Guide.
+	// The value for a session tag.
+	//
+	// You can pass up to 50 session tags. The plain text session tag values can’t
+	// exceed 256 characters. For these and additional limits, see [IAM and STS Character Limits]in the IAM User
+	// Guide.
+	//
+	// [IAM and STS Character Limits]: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-limits.html#reference_iam-limits-entity-length
 	//
 	// This member is required.
 	Value *string

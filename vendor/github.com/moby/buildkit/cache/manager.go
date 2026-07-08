@@ -223,7 +223,7 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor,
 	snapshotID := chainID.String()
 	if link != nil {
 		snapshotID = link.getSnapshotID()
-		go link.Release(context.TODO())
+		go link.Release(context.TODO()) //nolint:gosec
 	}
 
 	l, err := cm.LeaseManager.Create(ctx, func(l *leases.Lease) error {
@@ -1369,10 +1369,7 @@ func (cm *cacheManager) DiskUsage(ctx context.Context, opt client.DiskUsageInfo)
 	}
 	cm.mu.Unlock()
 
-	for {
-		if len(rescan) == 0 {
-			break
-		}
+	for len(rescan) != 0 {
 		for id := range rescan {
 			v := m[id]
 			if v.refs == 0 {

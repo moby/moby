@@ -33,7 +33,7 @@ func (p *ProviderWithProgress) ReaderAt(ctx context.Context, desc ocispecs.Descr
 
 	ctx, cancel := context.WithCancel(ctx)
 	doneCh := make(chan struct{})
-	go trackProgress(ctx, desc, p.Manager, doneCh)
+	go trackProgress(ctx, desc, p.Manager, doneCh) //nolint:gosec // G118 false positive
 	return readerAtWithCancel{ReaderAt: ra, cancel: cancel, doneCh: doneCh, logger: bklog.G(ctx)}, nil
 }
 
@@ -67,7 +67,7 @@ func (f *FetcherWithProgress) Fetch(ctx context.Context, desc ocispecs.Descripto
 
 	ctx, cancel := context.WithCancel(ctx)
 	doneCh := make(chan struct{})
-	go trackProgress(ctx, desc, f.Manager, doneCh)
+	go trackProgress(ctx, desc, f.Manager, doneCh) //nolint:gosec // G118 false positive
 	return readerWithCancel{ReadCloser: rc, cancel: cancel, doneCh: doneCh, logger: bklog.G(ctx)}, nil
 }
 

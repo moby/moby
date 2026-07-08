@@ -47,6 +47,22 @@
 
    Commits will be squashed when they're merged.
 
+## Policy on new dependencies
+
+While the Go ecosystem is rich with useful modules, in this project we try to
+minimize the number of direct dependencies we have on modules that are not
+Google-owned.
+
+Adding new third party dependencies can have the following effects:
+* broadens the vulnerability surface
+* increases so called "vanity" import routing infrastructure failure points
+* increases complexity of our own [`third_party`][] imports 
+
+So if you are contributing, please either contribute the full implementation
+directly, or find a Google-owned project that provides the functionality. Of
+course, there may be exceptions to this rule, but those should be well defined
+and agreed upon by the maintainers ahead of time.
+
 ## Testing
 
 We test code against two versions of Go, the minimum and maximum versions
@@ -62,10 +78,14 @@ intend only to run integration tests on a single package.
 
 #### GCP Setup
 
-To run the integrations tests, creation and configuration of two projects in
+To run the integrations tests, creation and configuration of three projects in
 the Google Developers Console is required: one specifically for Firestore
-integration tests, and another for all other integration tests. We'll refer to
-these projects as "general project" and "Firestore project".
+integration tests, one specifically for Bigtable integration tests, and another 
+for all other integration tests. We'll refer to these projects as 
+"Firestore project", "Bigtable project" and "general project".
+
+Note: You can skip setting up Bigtable project if you do not plan working on or running a few Bigtable
+tests that require a secondary project
 
 After creating each project, you must [create a service account](https://developers.google.com/identity/protocols/OAuth2ServiceAccount#creatinganaccount)
 for each project. Ensure the project-level **Owner**
@@ -118,7 +138,7 @@ Finally, in the general project, create an API key for the translate API:
 
 #### Local Setup
 
-Once the two projects are created and configured, set the following environment
+Once the three projects are created and configured, set the following environment
 variables:
 
 - `GCLOUD_TESTS_GOLANG_PROJECT_ID`: Developers Console project's ID (e.g.
@@ -132,6 +152,9 @@ project's service account.
 - `GCLOUD_TESTS_GOLANG_FIRESTORE_KEY`: The path to the JSON key file of the
 Firestore project's service account.
 - `GCLOUD_TESTS_API_KEY`: API key for using the Translate API created above.
+- `GCLOUD_TESTS_GOLANG_SECONDARY_BIGTABLE_PROJECT_ID`: Developers Console project's ID (e.g. doorway-cliff-677) for Bigtable optional secondary project. This can be same as Firestore project or any project other than the general project.
+- `GCLOUD_TESTS_BIGTABLE_CLUSTER`: Cluster ID of Bigtable cluster in general project
+- `GCLOUD_TESTS_BIGTABLE_PRI_PROJ_SEC_CLUSTER`: Optional. Cluster ID of Bigtable secondary cluster in general project
 
 As part of the setup that follows, the following variables will be configured:
 
@@ -218,6 +241,9 @@ For instance, in `.zshrc`:
 #### START GO SDK Test Variables
 # Developers Console project's ID (e.g. bamboo-shift-455) for the general project.
 export GCLOUD_TESTS_GOLANG_PROJECT_ID=your-project
+
+# Developers Console project's ID (e.g. bamboo-shift-455) for the Bigtable project.
+export GCLOUD_TESTS_GOLANG_SECONDARY_BIGTABLE_PROJECT_ID=your-bigtable-optional-secondary-project
 
 # The path to the JSON key file of the general project's service account.
 export GCLOUD_TESTS_GOLANG_KEY=~/directory/your-project-abcd1234.json
@@ -335,3 +361,4 @@ available at [https://contributor-covenant.org/version/1/2/0/](https://contribut
 [gcloudcli]: https://developers.google.com/cloud/sdk/gcloud/
 [indvcla]: https://developers.google.com/open-source/cla/individual
 [corpcla]: https://developers.google.com/open-source/cla/corporate
+[`third_party`]: https://opensource.google/documentation/reference/thirdparty

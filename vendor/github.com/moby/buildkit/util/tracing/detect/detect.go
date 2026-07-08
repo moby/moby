@@ -14,6 +14,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 type ExporterDetector func() (sdktrace.SpanExporter, error)
@@ -89,7 +90,7 @@ func getExporter() (sdktrace.SpanExporter, error) {
 }
 
 func detect() error {
-	tp = trace.NewNoopTracerProvider()
+	tp = noop.NewTracerProvider()
 
 	exp, err := getExporter()
 	if err != nil || exp == nil {
@@ -100,15 +101,7 @@ func detect() error {
 	bklog.EnableLogWithTraceID(true)
 
 	if Resource == nil {
-		res, err := resource.Detect(context.Background(), serviceNameDetector{})
-		if err != nil {
-			return err
-		}
-		res, err = resource.Merge(resource.Default(), res)
-		if err != nil {
-			return err
-		}
-		Resource = res
+		Resource = detectResource()
 	}
 
 	sp := sdktrace.NewBatchSpanProcessor(exp)

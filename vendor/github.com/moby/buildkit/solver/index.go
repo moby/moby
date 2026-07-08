@@ -97,7 +97,7 @@ func (ei *edgeIndex) LoadOrStore(k *CacheKey, e *edge) *edge {
 		}
 	}
 
-	if old != nil && !(!isIgnoreCache(old) && isIgnoreCache(e)) {
+	if old != nil && (isIgnoreCache(old) || !isIgnoreCache(e)) {
 		ei.enforceLinked(oldID, k)
 		return old
 	}

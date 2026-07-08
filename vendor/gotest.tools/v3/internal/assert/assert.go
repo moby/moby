@@ -87,19 +87,18 @@ func logFailureFromBool(t LogT, msgAndArgs ...interface{}) {
 	args, err := source.CallExprArgs(stackIndex)
 	if err != nil {
 		t.Log(err.Error())
-		return
 	}
 
+	var msg string
 	const comparisonArgIndex = 1 // Assert(t, comparison)
 	if len(args) <= comparisonArgIndex {
-		t.Log(failureMessage + "but assert failed to find the expression to print")
-		return
-	}
-
-	msg, err := boolFailureMessage(args[comparisonArgIndex])
-	if err != nil {
-		t.Log(err.Error())
-		msg = "expression is false"
+		msg = "but assert failed to find the expression to print"
+	} else {
+		msg, err = boolFailureMessage(args[comparisonArgIndex])
+		if err != nil {
+			t.Log(err.Error())
+			msg = "expression is false"
+		}
 	}
 
 	t.Log(format.WithCustomMessage(failureMessage+msg, msgAndArgs...))

@@ -6,4 +6,17 @@ import (
 	smithydocument "github.com/aws/smithy-go/document"
 )
 
+// This structure contains Amazon Web Services-specific parameter extensions for
+// the token endpoint responses and includes the identity context.
+type AwsAdditionalDetails struct {
+
+	// STS context assertion that carries a user identifier to the Amazon Web Services
+	// service that it calls and can be used to obtain an identity-enhanced IAM role
+	// session. This value corresponds to the sts:identity_context claim in the ID
+	// token.
+	IdentityContext *string
+
+	noSmithyDocumentSerde
+}
+
 type noSmithyDocumentSerde = smithydocument.NoSerde

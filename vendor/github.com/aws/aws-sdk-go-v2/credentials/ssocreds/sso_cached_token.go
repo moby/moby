@@ -225,7 +225,7 @@ func (r *rfc3339) UnmarshalJSON(bytes []byte) (err error) {
 }
 
 func (r *rfc3339) MarshalJSON() ([]byte, error) {
-	value := time.Time(*r).Format(time.RFC3339)
+	value := time.Time(*r).UTC().Format(time.RFC3339)
 
 	// Use JSON unmarshal to unescape the quoted value making use of JSON's
 	// quoting rules.

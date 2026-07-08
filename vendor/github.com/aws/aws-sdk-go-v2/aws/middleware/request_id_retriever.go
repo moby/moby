@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/aws/smithy-go/middleware"
+	"github.com/aws/smithy-go/tracing"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
@@ -11,18 +12,22 @@ import (
 func AddRequestIDRetrieverMiddleware(stack *middleware.Stack) error {
 	// add error wrapper middleware before operation deserializers so that it can wrap the error response
 	// returned by operation deserializers
-	return stack.Deserialize.Insert(&requestIDRetriever{}, "OperationDeserializer", middleware.Before)
+	return stack.Deserialize.Insert(&RequestIDRetriever{}, "OperationDeserializer", middleware.Before)
 }
 
-type requestIDRetriever struct {
+// RequestIDRetriever middleware captures the AWS service request ID from the
+// raw response.
+type RequestIDRetriever struct {
 }
 
 // ID returns the middleware identifier
-func (m *requestIDRetriever) ID() string {
+func (m *RequestIDRetriever) ID() string {
 	return "RequestIDRetriever"
 }
 
-func (m *requestIDRetriever) HandleDeserialize(ctx context.Context, in middleware.DeserializeInput, next middleware.DeserializeHandler) (
+// HandleDeserialize pulls the AWS request ID from the response, storing it in
+// operation metadata.
+func (m *RequestIDRetriever) HandleDeserialize(ctx context.Context, in middleware.DeserializeInput, next middleware.DeserializeHandler) (
 	out middleware.DeserializeOutput, metadata middleware.Metadata, err error,
 ) {
 	out, metadata, err = next.HandleDeserialize(ctx, in)
@@ -41,6 +46,9 @@ func (m *requestIDRetriever) HandleDeserialize(ctx context.Context, in middlewar
 		if v := resp.Header.Get(h); len(v) != 0 {
 			// set reqID on metadata for successful responses.
 			SetRequestIDMetadata(&metadata, v)
+
+			span, _ := tracing.GetSpan(ctx)
+			span.SetProperty("aws.request_id", v)
 			break
 		}
 	}

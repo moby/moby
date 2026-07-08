@@ -209,7 +209,7 @@ func (r *Reader) fill() error {
 			if !r.readFull(r.buf[:len(magicBody)], false) {
 				return r.err
 			}
-			for i := 0; i < len(magicBody); i++ {
+			for i := range len(magicBody) {
 				if r.buf[i] != magicBody[i] {
 					r.err = ErrCorrupt
 					return r.err

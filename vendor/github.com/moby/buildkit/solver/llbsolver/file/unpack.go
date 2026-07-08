@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/containerd/continuity/fs"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/moby/go-archive/chrootarchive"
+	"github.com/moby/go-archive/compression"
 	copy "github.com/tonistiigi/fsutil/copy"
 )
 
@@ -51,7 +51,7 @@ func isArchivePath(path string) bool {
 		return false
 	}
 	defer file.Close()
-	rdr, err := archive.DecompressStream(file)
+	rdr, err := compression.DecompressStream(file)
 	if err != nil {
 		return false
 	}

@@ -70,10 +70,7 @@ func (mfs *MergeFS) Walk(ctx context.Context, fn filepath.WalkFunc) error {
 		next2, ok2 := <-ch2
 		key2 := next2.key()
 
-		for {
-			if !ok1 && !ok2 {
-				break
-			}
+		for ok1 || ok2 {
 			if !ok2 || ok1 && key1 < key2 {
 				if err := fn(next1.path, next1.fi, next1.err); err != nil {
 					return err

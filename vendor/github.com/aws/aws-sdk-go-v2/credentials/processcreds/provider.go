@@ -57,6 +57,9 @@ type Provider struct {
 type Options struct {
 	// Timeout limits the time a process can run.
 	Timeout time.Duration
+	// The chain of providers that was used to create this provider
+	// These values are for reporting purposes and are not meant to be set up directly
+	CredentialSources []aws.CredentialSource
 }
 
 // NewCommandBuilder provides the interface for specifying how command will be
@@ -167,6 +170,9 @@ type CredentialProcessResponse struct {
 
 	// The date on which the current credentials expire.
 	Expiration *time.Time
+
+	// The ID of the account for credentials
+	AccountID string `json:"AccountId"`
 }
 
 // Retrieve executes the credential process command and returns the
@@ -208,6 +214,7 @@ func (p *Provider) Retrieve(ctx context.Context) (aws.Credentials, error) {
 		AccessKeyID:     resp.AccessKeyID,
 		SecretAccessKey: resp.SecretAccessKey,
 		SessionToken:    resp.SessionToken,
+		AccountID:       resp.AccountID,
 	}
 
 	// Handle expiration
@@ -268,6 +275,14 @@ func (p *Provider) executeCredentialProcess(ctx context.Context) ([]byte, error)
 	}
 
 	return out, nil
+}
+
+// ProviderSources returns the credential chain that was used to construct this provider
+func (p *Provider) ProviderSources() []aws.CredentialSource {
+	if p.options.CredentialSources == nil {
+		return []aws.CredentialSource{aws.CredentialSourceProcess}
+	}
+	return p.options.CredentialSources
 }
 
 func executeCommand(cmd *exec.Cmd, exec chan error) {

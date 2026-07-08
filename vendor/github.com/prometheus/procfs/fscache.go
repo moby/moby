@@ -162,7 +162,7 @@ type Fscacheinfo struct {
 	ReleaseRequestsAgainstPagesStoredByTimeLockGranted uint64
 	// Number of release reqs ignored due to in-progress store
 	ReleaseRequestsIgnoredDueToInProgressStore uint64
-	// Number of page stores cancelled due to release req
+	// Number of page stores canceled due to release req
 	PageStoresCancelledByReleaseRequests uint64
 	VmscanWaiting                        uint64
 	// Number of times async ops added to pending queues
@@ -171,11 +171,11 @@ type Fscacheinfo struct {
 	OpsRunning uint64
 	// Number of times async ops queued for processing
 	OpsEnqueued uint64
-	// Number of async ops cancelled
+	// Number of async ops canceled
 	OpsCancelled uint64
 	// Number of async ops rejected due to object lookup/create failure
 	OpsRejected uint64
-	// Number of async ops initialised
+	// Number of async ops initialized
 	OpsInitialised uint64
 	// Number of async ops queued for deferred release
 	OpsDeferred uint64
@@ -236,7 +236,7 @@ func (fs FS) Fscacheinfo() (Fscacheinfo, error) {
 
 	m, err := parseFscacheinfo(bytes.NewReader(b))
 	if err != nil {
-		return Fscacheinfo{}, fmt.Errorf("failed to parse Fscacheinfo: %w", err)
+		return Fscacheinfo{}, fmt.Errorf("%w: Cannot parse %v: %w", ErrFileParse, m, err)
 	}
 
 	return *m, nil
@@ -245,7 +245,7 @@ func (fs FS) Fscacheinfo() (Fscacheinfo, error) {
 func setFSCacheFields(fields []string, setFields ...*uint64) error {
 	var err error
 	if len(fields) < len(setFields) {
-		return fmt.Errorf("Insufficient number of fields, expected %v, got %v", len(setFields), len(fields))
+		return fmt.Errorf("%w: Expected %d, but got %d: %w", ErrFileParse, len(setFields), len(fields), err)
 	}
 
 	for i := range setFields {
@@ -263,7 +263,7 @@ func parseFscacheinfo(r io.Reader) (*Fscacheinfo, error) {
 	for s.Scan() {
 		fields := strings.Fields(s.Text())
 		if len(fields) < 2 {
-			return nil, fmt.Errorf("malformed Fscacheinfo line: %q", s.Text())
+			return nil, fmt.Errorf("%w: malformed Fscacheinfo line: %q", ErrFileParse, s.Text())
 		}
 
 		switch fields[0] {

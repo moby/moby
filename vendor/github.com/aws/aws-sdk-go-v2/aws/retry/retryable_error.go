@@ -2,6 +2,7 @@ package retry
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/url"
 	"strings"
@@ -115,7 +116,13 @@ func (r RetryableConnectionError) IsErrorRetryable(err error) aws.Ternary {
 	case errors.As(err, &conErr) && conErr.ConnectionError():
 		retryable = true
 
+	case strings.Contains(err.Error(), "use of closed network connection"):
+		fallthrough
 	case strings.Contains(err.Error(), "connection reset"):
+		// The errors "connection reset" and "use of closed network connection"
+		// are effectively the same. It appears to be the difference between
+		// sync and async read of TCP RST in the stdlib's net.Conn read loop.
+		// see #2737
 		retryable = true
 
 	case errors.As(err, &urlErr):
@@ -198,4 +205,24 @@ func (r RetryableErrorCode) IsErrorRetryable(err error) aws.Ternary {
 	}
 
 	return aws.TrueTernary
+}
+
+// retryableClockSkewError marks errors that can be caused by clock skew
+// (difference between server time and client time).
+// This is returned when there's certain confidence that adjusting the client time
+// could allow a retry to succeed
+type retryableClockSkewError struct{ Err error }
+
+func (e *retryableClockSkewError) Error() string {
+	return fmt.Sprintf("Probable clock skew error: %v", e.Err)
+}
+
+// Unwrap returns the wrapped error.
+func (e *retryableClockSkewError) Unwrap() error {
+	return e.Err
+}
+
+// RetryableError allows the retryer to retry this request
+func (e *retryableClockSkewError) RetryableError() bool {
+	return true
 }

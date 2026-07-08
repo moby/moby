@@ -1,4 +1,5 @@
-/*Package difflib is a partial port of Python difflib module.
+/*
+Package difflib is a partial port of Python difflib module.
 
 Original source: https://github.com/pmezard/go-difflib
 
@@ -6,14 +7,14 @@ This file is trimmed to only the parts used by this repository.
 */
 package difflib // import "gotest.tools/v3/internal/difflib"
 
-func min(a, b int) int {
+func minInt(a, b int) int {
 	if a < b {
 		return a
 	}
 	return b
 }
 
-func max(a, b int) int {
+func maxInt(a, b int) int {
 	if a > b {
 		return a
 	}
@@ -170,12 +171,15 @@ func (m *SequenceMatcher) isBJunk(s string) bool {
 // If IsJunk is not defined:
 //
 // Return (i,j,k) such that a[i:i+k] is equal to b[j:j+k], where
-//     alo <= i <= i+k <= ahi
-//     blo <= j <= j+k <= bhi
+//
+//	alo <= i <= i+k <= ahi
+//	blo <= j <= j+k <= bhi
+//
 // and for all (i',j',k') meeting those conditions,
-//     k >= k'
-//     i <= i'
-//     and if i == i', j <= j'
+//
+//	k >= k'
+//	i <= i'
+//	and if i == i', j <= j'
 //
 // In other words, of all maximal matching blocks, return one that
 // starts earliest in a, and of all those maximal matching blocks that
@@ -393,12 +397,12 @@ func (m *SequenceMatcher) GetGroupedOpCodes(n int) [][]OpCode {
 	if codes[0].Tag == 'e' {
 		c := codes[0]
 		i1, i2, j1, j2 := c.I1, c.I2, c.J1, c.J2
-		codes[0] = OpCode{c.Tag, max(i1, i2-n), i2, max(j1, j2-n), j2}
+		codes[0] = OpCode{c.Tag, maxInt(i1, i2-n), i2, maxInt(j1, j2-n), j2}
 	}
 	if codes[len(codes)-1].Tag == 'e' {
 		c := codes[len(codes)-1]
 		i1, i2, j1, j2 := c.I1, c.I2, c.J1, c.J2
-		codes[len(codes)-1] = OpCode{c.Tag, i1, min(i2, i1+n), j1, min(j2, j1+n)}
+		codes[len(codes)-1] = OpCode{c.Tag, i1, minInt(i2, i1+n), j1, minInt(j2, j1+n)}
 	}
 	nn := n + n
 	groups := [][]OpCode{}
@@ -408,11 +412,11 @@ func (m *SequenceMatcher) GetGroupedOpCodes(n int) [][]OpCode {
 		// End the current group and start a new one whenever
 		// there is a large range with no changes.
 		if c.Tag == 'e' && i2-i1 > nn {
-			group = append(group, OpCode{c.Tag, i1, min(i2, i1+n),
-				j1, min(j2, j1+n)})
+			group = append(group, OpCode{c.Tag, i1, minInt(i2, i1+n),
+				j1, minInt(j2, j1+n)})
 			groups = append(groups, group)
 			group = []OpCode{}
-			i1, j1 = max(i1, i2-n), max(j1, j2-n)
+			i1, j1 = maxInt(i1, i2-n), maxInt(j1, j2-n)
 		}
 		group = append(group, OpCode{c.Tag, i1, i2, j1, j2})
 	}

@@ -6,7 +6,7 @@ import (
 )
 
 // ErrorLocation gives a location in source code that caused the error
-type ErrorLocation struct {
+type ErrorLocation struct { //nolint:errname // error helper
 	Location []Range
 	error
 }

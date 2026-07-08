@@ -405,10 +405,7 @@ func (t *trace) triggerVertexEvent(v *client.Vertex) {
 		old = *v
 	}
 
-	changed := false
-	if v.Digest != old.Digest {
-		changed = true
-	}
+	changed := v.Digest != old.Digest
 	if v.Name != old.Name {
 		changed = true
 	}
@@ -491,7 +488,7 @@ func (t *trace) update(s *client.SolveStatus, termWidth int) {
 			t.vertexes = append(t.vertexes, t.byDigest[v.Digest])
 		}
 		// allow a duplicate initial vertex that shouldn't reset state
-		if !(prev != nil && prev.isStarted() && v.Started == nil) {
+		if prev == nil || !prev.isStarted() || v.Started != nil {
 			t.byDigest[v.Digest].Vertex = v
 		}
 		if v.Started != nil {
@@ -640,7 +637,7 @@ func (t *trace) displayInfo() (d displayInfo) {
 		}
 		var jobs []*job
 		j := &job{
-			name:        strings.Replace(v.Name, "\t", " ", -1),
+			name:        strings.ReplaceAll(v.Name, "\t", " "),
 			vertex:      v,
 			isCompleted: true,
 		}

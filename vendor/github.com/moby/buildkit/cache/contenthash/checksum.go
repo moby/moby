@@ -807,9 +807,10 @@ func splitWildcards(p string) (d1, d2 string) {
 func containsWildcards(name string) bool {
 	for i := 0; i < len(name); i++ {
 		ch := name[i]
-		if ch == '\\' {
+		switch ch {
+		case '\\':
 			i++
-		} else if ch == '*' || ch == '?' || ch == '[' {
+		case '*', '?', '[':
 			return true
 		}
 	}
@@ -912,10 +913,7 @@ func (cc *cacheContext) checksum(ctx context.Context, root *iradix.Node, txn *ir
 		iter.SeekLowerBound(append(append([]byte{}, next...), 0))
 		subk := next
 		ok := true
-		for {
-			if !ok || !bytes.HasPrefix(subk, next) {
-				break
-			}
+		for ok && bytes.HasPrefix(subk, next) {
 			h.Write(bytes.TrimPrefix(subk, k))
 
 			subcr, _, err := cc.checksum(ctx, root, txn, m, subk, true)
@@ -1177,20 +1175,17 @@ func poolsCopy(dst io.Writer, src io.Reader) (written int64, err error) {
 }
 
 func convertPathToKey(p []byte) []byte {
-	return bytes.Replace([]byte(p), []byte("/"), []byte{0}, -1)
+	return bytes.ReplaceAll([]byte(p), []byte("/"), []byte{0})
 }
 
 func convertKeyToPath(p []byte) []byte {
-	return bytes.Replace([]byte(p), []byte{0}, []byte("/"), -1)
+	return bytes.ReplaceAll([]byte(p), []byte{0}, []byte("/"))
 }
 
 func splitKey(k []byte) ([]byte, []byte) {
 	foundBytes := false
 	i := len(k) - 1
-	for {
-		if i <= 0 || foundBytes && k[i] == 0 {
-			break
-		}
+	for i > 0 && (!foundBytes || k[i] != 0) {
 		if k[i] != 0 {
 			foundBytes = true
 		}

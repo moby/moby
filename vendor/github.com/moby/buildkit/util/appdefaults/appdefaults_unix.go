@@ -35,10 +35,10 @@ func EnsureUserAddressDir() error {
 	if xdgRuntimeDir != "" {
 		dirs := strings.Split(xdgRuntimeDir, ":")
 		dir := filepath.Join(dirs[0], "buildkit")
-		if err := os.MkdirAll(dir, 0700); err != nil {
+		if err := os.MkdirAll(dir, 0700); err != nil { //nolint:gosec // path is user-controlled by design
 			return err
 		}
-		return os.Chmod(dir, 0700|os.ModeSticky)
+		return os.Chmod(dir, 0700|os.ModeSticky) //nolint:gosec // path is user-controlled by design
 	}
 	return nil
 }

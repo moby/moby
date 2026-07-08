@@ -20,10 +20,8 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/llbsolver/mounts"
-	"github.com/moby/buildkit/solver/pb"
 	opspb "github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/stack"
-	utilsystem "github.com/moby/buildkit/util/system"
 	"github.com/moby/buildkit/worker"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -327,7 +325,7 @@ func (gwCtr *gatewayContainer) Start(ctx context.Context, req client.StartReques
 	if procInfo.Meta.Cwd == "" {
 		procInfo.Meta.Cwd = "/"
 	}
-	procInfo.Meta.Env = addDefaultEnvvar(procInfo.Meta.Env, "PATH", utilsystem.DefaultPathEnv(gwCtr.platform.OS))
+	procInfo.Meta.Env = addDefaultEnvvar(procInfo.Meta.Env, "PATH", system.DefaultPathEnv(gwCtr.platform.OS))
 	if req.Tty {
 		procInfo.Meta.Env = addDefaultEnvvar(procInfo.Meta.Env, "TERM", "xterm")
 	}
@@ -377,7 +375,7 @@ func (gwCtr *gatewayContainer) Start(ctx context.Context, req client.StartReques
 	return gwProc, nil
 }
 
-func (gwCtr *gatewayContainer) loadSecretEnv(ctx context.Context, secretEnv []*pb.SecretEnv) ([]string, error) {
+func (gwCtr *gatewayContainer) loadSecretEnv(ctx context.Context, secretEnv []*opspb.SecretEnv) ([]string, error) {
 	out := make([]string, 0, len(secretEnv))
 	for _, sopt := range secretEnv {
 		id := sopt.ID

@@ -231,10 +231,7 @@ func (s *sequenceDecs) decodeSync(hist []byte) error {
 	llTable, mlTable, ofTable := s.litLengths.fse.dt[:maxTablesize], s.matchLengths.fse.dt[:maxTablesize], s.offsets.fse.dt[:maxTablesize]
 	llState, mlState, ofState := s.litLengths.state.state, s.matchLengths.state.state, s.offsets.state.state
 	out := s.out
-	maxBlockSize := maxCompressedBlockSize
-	if s.windowSize < maxBlockSize {
-		maxBlockSize = s.windowSize
-	}
+	maxBlockSize := min(s.windowSize, maxCompressedBlockSize)
 
 	if debugDecoder {
 		println("decodeSync: decoding", seqs, "sequences", br.remain(), "bits remain on stream")
@@ -245,7 +242,7 @@ func (s *sequenceDecs) decodeSync(hist []byte) error {
 			return io.ErrUnexpectedEOF
 		}
 		var ll, mo, ml int
-		if len(br.in) > 4+((maxOffsetBits+16+16)>>3) {
+		if br.cursor > 4+((maxOffsetBits+16+16)>>3) {
 			// inlined function:
 			// ll, mo, ml = s.nextFast(br, llState, mlState, ofState)
 

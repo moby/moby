@@ -20,6 +20,8 @@
 package stream
 
 import (
+	"context"
+
 	s2av2pb "github.com/google/s2a-go/internal/proto/v2/s2a_go_proto"
 )
 
@@ -32,3 +34,6 @@ type S2AStream interface {
 	// Closes the channel to the S2A server.
 	CloseSend() error
 }
+
+// GetS2AStream type is for generating an S2AStream interface for talking to the S2A server.
+type GetS2AStream func(ctx context.Context, s2av2Address string, opts ...string) (S2AStream, error)

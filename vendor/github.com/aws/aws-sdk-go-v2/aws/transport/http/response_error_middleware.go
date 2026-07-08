@@ -12,18 +12,20 @@ import (
 func AddResponseErrorMiddleware(stack *middleware.Stack) error {
 	// add error wrapper middleware before request id retriever middleware so that it can wrap the error response
 	// returned by operation deserializers
-	return stack.Deserialize.Insert(&responseErrorWrapper{}, "RequestIDRetriever", middleware.Before)
+	return stack.Deserialize.Insert(&ResponseErrorWrapper{}, "RequestIDRetriever", middleware.Before)
 }
 
-type responseErrorWrapper struct {
+// ResponseErrorWrapper wraps operation errors with ResponseError.
+type ResponseErrorWrapper struct {
 }
 
 // ID returns the middleware identifier
-func (m *responseErrorWrapper) ID() string {
+func (m *ResponseErrorWrapper) ID() string {
 	return "ResponseErrorWrapper"
 }
 
-func (m *responseErrorWrapper) HandleDeserialize(ctx context.Context, in middleware.DeserializeInput, next middleware.DeserializeHandler) (
+// HandleDeserialize wraps the stack error with smithyhttp.ResponseError.
+func (m *ResponseErrorWrapper) HandleDeserialize(ctx context.Context, in middleware.DeserializeInput, next middleware.DeserializeHandler) (
 	out middleware.DeserializeOutput, metadata middleware.Metadata, err error,
 ) {
 	out, metadata, err = next.HandleDeserialize(ctx, in)
