@@ -25,4 +25,4 @@ git tag --merged "$master" --no-merged "$release_branch" \
 	| grep '^docker-v' \
 	| grep -v -- "-rc." \
 	| sort \
-	| sed "/$tag/q"
+	| awk -v tag="$tag" '{print} $0==tag{exit}'
