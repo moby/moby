@@ -18,7 +18,7 @@ for tag_to_sync in "${tags_to_sync[@]}"; do
 		exit 1
 	fi
 
-	git checkout "$tag_to_sync" -- '*'
+	git checkout "$tag_to_sync" -- '.'
 	git add --all
 	git merge --continue
 done
