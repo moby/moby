@@ -157,8 +157,12 @@ func TestStateTimeoutWait(t *testing.T) {
 	}
 }
 
-// Related issue: #39352
-func TestCorrectStateWaitResultAfterRestart(t *testing.T) {
+// TestStateWaitReturnsExitStatusAfterRestart verifies that Wait returns the
+// correct exit status when a container is restarted immediately after exiting,
+// covering a race where Wait could observe the restarted state instead.
+//
+// Related issue: https://github.com/moby/moby/issues/39352
+func TestStateWaitReturnsExitStatusAfterRestart(t *testing.T) {
 	s := &State{}
 
 	s.Lock()
