@@ -41,7 +41,7 @@ jobs:
         env:
           BRANCH: ${{ github.ref_name }}
         run: |
-          if [ "$branch" = "master " ]; then
+          if [ "$BRANCH" = "master" ]; then
             echo "::error::This workflow is expected to be run on a release branch, not master"
             exit 1
           fi
