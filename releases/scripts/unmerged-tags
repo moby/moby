@@ -9,6 +9,11 @@ fi
 release_branch="$1"
 tag="$2"
 
+if ! git rev-parse --verify --quiet "refs/tags/$tag" > /dev/null; then
+	echo "error: Tag $tag does not exist" >&2
+	exit 1
+fi
+
 # Return early the requested tag is already merged into release branch.
 if git merge-base --is-ancestor "$tag" "$release_branch"; then
 	exit 0
