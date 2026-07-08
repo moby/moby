@@ -25,6 +25,11 @@ else
 	master="origin/master"
 fi
 
+if ! git merge-base --is-ancestor "$tag" "$master"; then
+	echo "error: Tag $tag is not in $master" >&2
+	exit 1
+fi
+
 # Get all docker release tags merged into master but not into release branch
 git tag --merged "$master" --no-merged "$release_branch" \
 	| grep '^docker-v' \
