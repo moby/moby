@@ -44,8 +44,8 @@ type State struct {
 	StartedAt         time.Time
 	FinishedAt        time.Time
 	Health            *Health
-	Removed           bool `json:"-"`
 
+	removed           bool // used internally for container.WaitConditionRemoved
 	stopWaiters       []chan<- StateStatus
 	removeOnlyWaiters []chan<- StateStatus
 
@@ -204,7 +204,7 @@ func (s *State) conditionAlreadyMet(condition container.WaitCondition) bool {
 	case container.WaitConditionNotRunning:
 		return !s.Running
 	case container.WaitConditionRemoved:
-		return s.Removed
+		return s.removed
 	default:
 		// TODO(thaJeztah): how do we want to handle "WaitConditionNextExit"?
 		return false
@@ -403,7 +403,7 @@ func (s *State) SetRemoved() {
 func (s *State) SetRemovalError(err error) {
 	s.SetError(err)
 	s.Lock()
-	s.Removed = true
+	s.removed = true
 	s.notifyAndClear(&s.removeOnlyWaiters)
 	s.notifyAndClear(&s.stopWaiters)
 	s.Unlock()
