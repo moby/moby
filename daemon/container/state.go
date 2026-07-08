@@ -92,16 +92,16 @@ func (s *State) String() string {
 		if s.Restarting {
 			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 		}
-
+		out := "Up " + units.HumanDuration(time.Now().UTC().Sub(s.StartedAt))
 		if s.Paused {
-			return fmt.Sprintf("Up %s (Paused)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+			return out + " (Paused)"
 		}
 
 		if h := s.Health; h != nil {
-			return fmt.Sprintf("Up %s (%s)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)), h.String())
+			return out + " (" + h.String() + ")"
 		}
 
-		return "Up " + units.HumanDuration(time.Now().UTC().Sub(s.StartedAt))
+		return out
 	}
 
 	if s.StartedAt.IsZero() {
