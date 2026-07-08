@@ -47,7 +47,6 @@ jobs:
           fi
 
       - name: Configure git author
-        if: ${{ !inputs.dry_run }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
