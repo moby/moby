@@ -83,6 +83,9 @@ func (s *State) String() string {
 	if s.RemovalInProgress {
 		return "Removal In Progress"
 	}
+	if s.Dead {
+		return "Dead"
+	}
 	if s.Running {
 		out := "Up " + units.HumanDuration(time.Now().UTC().Sub(s.StartedAt))
 		if s.Paused {
@@ -97,10 +100,6 @@ func (s *State) String() string {
 		}
 
 		return out
-	}
-
-	if s.Dead {
-		return "Dead"
 	}
 
 	if s.StartedAt.IsZero() {
@@ -121,6 +120,9 @@ func (s *State) State() container.ContainerState {
 	if s.RemovalInProgress {
 		return container.StateRemoving
 	}
+	if s.Dead {
+		return container.StateDead
+	}
 	if s.Running {
 		if s.Paused {
 			return container.StatePaused
@@ -133,10 +135,6 @@ func (s *State) State() container.ContainerState {
 
 	// TODO(thaJeztah): should [State.Removed] also have an corresponding string?
 	// TODO(thaJeztah): should [State.OOMKilled] be taken into account anywhere?
-
-	if s.Dead {
-		return container.StateDead
-	}
 
 	if s.StartedAt.IsZero() {
 		return container.StateCreated
