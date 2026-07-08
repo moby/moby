@@ -480,7 +480,7 @@ func (p *puller) Snapshot(ctx context.Context, jobCtx solver.JobContext) (cache.
 			l, err := p.is.LayerStore.Get(img.RootFS.ChainID())
 			if err == nil {
 				layer.ReleaseAndLog(p.is.LayerStore, l)
-				ref, err := p.getRef(ctx, img.RootFS.DiffIDs, cache.WithDescription(fmt.Sprintf("from local %s", p.ref)))
+				ref, err := p.getRef(ctx, img.RootFS.DiffIDs, cache.WithDescription("from local "+p.ref))
 				if err != nil {
 					return nil, err
 				}
@@ -664,7 +664,7 @@ func (p *puller) Snapshot(ctx context.Context, jobCtx solver.JobContext) (cache.
 		return nil, err
 	}
 
-	ref, err := p.getRef(ctx, rootFS.DiffIDs, cache.WithDescription(fmt.Sprintf("pulled from %s", p.ref)))
+	ref, err := p.getRef(ctx, rootFS.DiffIDs, cache.WithDescription("pulled from "+p.ref))
 	release()
 	if err != nil {
 		return nil, err

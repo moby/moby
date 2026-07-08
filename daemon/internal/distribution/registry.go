@@ -2,7 +2,6 @@ package distribution
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -155,6 +154,6 @@ func (th *passThruTokenHandler) Scheme() string {
 }
 
 func (th *passThruTokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", th.token))
+	req.Header.Set("Authorization", "Bearer "+th.token)
 	return nil
 }

@@ -3,7 +3,6 @@
 package plugins
 
 import (
-	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -53,7 +52,7 @@ func TestLocalSocket(t *testing.T) {
 			t.Fatalf("Expected plugin `echo`, got %s\n", p.name)
 		}
 
-		addr := fmt.Sprintf("unix://%s", c)
+		addr := "unix://" + c
 		if p.Addr != addr {
 			t.Fatalf("Expected plugin addr `%s`, got %s\n", addr, p.Addr)
 		}

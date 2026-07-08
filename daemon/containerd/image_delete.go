@@ -501,7 +501,7 @@ func (i *ImageService) checkImageDeleteConflict(ctx context.Context, imgID image
 				reference: stringid.TruncateID(imgID.String()),
 				hard:      true,
 				used:      true,
-				message:   fmt.Sprintf("image is being used by running container %s", stringid.TruncateID(ctr.ID)),
+				message:   "image is being used by running container " + stringid.TruncateID(ctr.ID),
 			}
 		}
 	}
@@ -514,7 +514,7 @@ func (i *ImageService) checkImageDeleteConflict(ctx context.Context, imgID image
 			return &imageDeleteConflict{
 				reference: stringid.TruncateID(imgID.String()),
 				used:      true,
-				message:   fmt.Sprintf("image is being used by stopped container %s", stringid.TruncateID(ctr.ID)),
+				message:   "image is being used by stopped container " + stringid.TruncateID(ctr.ID),
 			}
 		}
 	}

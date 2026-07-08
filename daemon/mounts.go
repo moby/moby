@@ -89,7 +89,7 @@ func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool)
 					continue
 				}
 			} else {
-				rmErrors = append(rmErrors, fmt.Sprintf("layer not found for image %s", m.Name))
+				rmErrors = append(rmErrors, "layer not found for image "+m.Name)
 			}
 		}
 	}

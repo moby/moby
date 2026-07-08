@@ -502,7 +502,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 		return warnings, errors.New("CPU cfs quota can not be less than 1ms (i.e. 1000)")
 	}
 	if resources.CPUPercent > 0 {
-		warnings = append(warnings, fmt.Sprintf("%s does not support CPU percent. Percent discarded.", runtime.GOOS))
+		warnings = append(warnings, runtime.GOOS+" does not support CPU percent. Percent discarded.")
 		resources.CPUPercent = 0
 	}
 

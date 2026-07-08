@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -531,7 +532,7 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 
 	if options.Tail < 0 {
 		// See protobuf documentation for details of how this works.
-		apiOptions.Tail = fmt.Sprint(-options.Tail - 1)
+		apiOptions.Tail = strconv.FormatInt(-options.Tail-1, 10)
 	} else if options.Tail > 0 {
 		return nil, errors.New("tail relative to start of logs not supported via docker API")
 	}

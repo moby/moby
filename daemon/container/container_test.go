@@ -1,7 +1,6 @@
 package container
 
 import (
-	"fmt"
 	"path/filepath"
 	"syscall"
 	"testing"
@@ -82,7 +81,7 @@ func TestContainerLogPathSetForJSONFileLogger(t *testing.T) {
 		assert.NilError(t, logger.Close())
 	}()
 
-	expectedLogPath, err := filepath.Abs(filepath.Join(containerRoot, fmt.Sprintf("%s-json.log", c.ID)))
+	expectedLogPath, err := filepath.Abs(filepath.Join(containerRoot, c.ID+"-json.log"))
 	assert.NilError(t, err)
 	assert.Equal(t, c.LogPath, expectedLogPath)
 }
@@ -110,7 +109,7 @@ func TestContainerLogPathSetForRingLogger(t *testing.T) {
 		assert.NilError(t, logger.Close())
 	}()
 
-	expectedLogPath, err := filepath.Abs(filepath.Join(containerRoot, fmt.Sprintf("%s-json.log", c.ID)))
+	expectedLogPath, err := filepath.Abs(filepath.Join(containerRoot, c.ID+"-json.log"))
 	assert.NilError(t, err)
 	assert.Equal(t, c.LogPath, expectedLogPath)
 }

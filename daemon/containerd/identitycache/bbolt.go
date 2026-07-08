@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -184,7 +185,7 @@ func openDB(dbPath string, mode os.FileMode, opts *bolt.Options) (*bolt.DB, erro
 }
 
 func fallbackOpen(dbPath string, mode os.FileMode, opts *bolt.Options, openErr error) (*bolt.DB, error) {
-	backupPath := dbPath + "." + fmt.Sprintf("%d", time.Now().UnixNano()) + ".bak"
+	backupPath := dbPath + "." + strconv.FormatInt(time.Now().UnixNano(), 10) + ".bak"
 	log.L.Errorf("failed to open moby image identity cache database %s, resetting to empty. "+
 		"Old database is backed up to %s. This usually means dockerd crashed or was terminated abruptly, leaving the cache DB corrupted. "+
 		"If this keeps happening, please report at https://github.com/moby/moby/issues. original error: %v",

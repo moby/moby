@@ -1,7 +1,7 @@
 package timestamp
 
 import (
-	"fmt"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -45,9 +45,9 @@ func TestGetTimestamp(t *testing.T) {
 		{"1136073600", "1136073600", false},
 		{"1136073600.000000001", "1136073600.000000001", false},
 		// Durations
-		{"1m", fmt.Sprintf("%d", now.Add(-1*time.Minute).Unix()), false},
-		{"1.5h", fmt.Sprintf("%d", now.Add(-90*time.Minute).Unix()), false},
-		{"1h30m", fmt.Sprintf("%d", now.Add(-90*time.Minute).Unix()), false},
+		{"1m", strconv.FormatInt(now.Add(-1*time.Minute).Unix(), 10), false},
+		{"1.5h", strconv.FormatInt(now.Add(-90*time.Minute).Unix(), 10), false},
+		{"1h30m", strconv.FormatInt(now.Add(-90*time.Minute).Unix(), 10), false},
 
 		{"invalid", "", true},
 		{"", "", true},

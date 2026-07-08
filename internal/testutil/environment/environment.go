@@ -94,7 +94,7 @@ func getPlatformDefaults(info system.Info) PlatformDefaults {
 			ContainerStoragePath: filepath.FromSlash(containersPath),
 		}
 	default:
-		panic(fmt.Sprintf("unknown OSType for daemon: %s", info.OSType))
+		panic("unknown OSType for daemon: " + info.OSType)
 	}
 }
 

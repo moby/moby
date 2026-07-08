@@ -224,7 +224,7 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLIInspectTmplError(c *testing.T) {
 
 	out, exitCode, err := dockerCmdWithError("volume", "inspect", "--format='{{ .FooBar }}'", name)
 	assert.Assert(c, err != nil, "Output: %s", out)
-	assert.Equal(c, exitCode, 1, fmt.Sprintf("Output: %s", out))
+	assert.Equal(c, exitCode, 1, "Output: "+out)
 	assert.Assert(c, is.Contains(out, "parsing error"))
 }
 
@@ -312,11 +312,11 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLILsFilterLabels(c *testing.T) {
 
 	out = cli.DockerCmd(c, "volume", "ls", "--filter", "label=non-exist").Stdout()
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	assert.Equal(c, len(outArr), 1, fmt.Sprintf("\n%s", out))
+	assert.Equal(c, len(outArr), 1, "\n"+out)
 
 	out = cli.DockerCmd(c, "volume", "ls", "--filter", "label=foo=non-exist").Stdout()
 	outArr = strings.Split(strings.TrimSpace(out), "\n")
-	assert.Equal(c, len(outArr), 1, fmt.Sprintf("\n%s", out))
+	assert.Equal(c, len(outArr), 1, "\n"+out)
 }
 
 func (s *DockerCLIVolumeSuite) TestVolumeCLILsFilterDrivers(c *testing.T) {
@@ -337,17 +337,17 @@ func (s *DockerCLIVolumeSuite) TestVolumeCLILsFilterDrivers(c *testing.T) {
 	// filter with driver=invaliddriver
 	out = cli.DockerCmd(c, "volume", "ls", "--filter", "driver=invaliddriver").Stdout()
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	assert.Equal(c, len(outArr), 1, fmt.Sprintf("\n%s", out))
+	assert.Equal(c, len(outArr), 1, "\n"+out)
 
 	// filter with driver=loca
 	out = cli.DockerCmd(c, "volume", "ls", "--filter", "driver=loca").Stdout()
 	outArr = strings.Split(strings.TrimSpace(out), "\n")
-	assert.Equal(c, len(outArr), 1, fmt.Sprintf("\n%s", out))
+	assert.Equal(c, len(outArr), 1, "\n"+out)
 
 	// filter with driver=
 	out = cli.DockerCmd(c, "volume", "ls", "--filter", "driver=").Stdout()
 	outArr = strings.Split(strings.TrimSpace(out), "\n")
-	assert.Equal(c, len(outArr), 1, fmt.Sprintf("\n%s", out))
+	assert.Equal(c, len(outArr), 1, "\n"+out)
 }
 
 func (s *DockerCLIVolumeSuite) TestVolumeCLIRmForceUsage(c *testing.T) {

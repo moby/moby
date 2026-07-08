@@ -77,7 +77,7 @@ func (s *DockerCLIRunSuite) TestRunWithVolumesIsRecursive(c *testing.T) {
 	assert.NilError(c, err)
 	defer f.Close()
 
-	out := cli.DockerCmd(c, "run", "--name", "test-data", "--volume", fmt.Sprintf("%s:/tmp:ro", tmpDir), "busybox:latest", "ls", "/tmp/tmpfs").Combined()
+	out := cli.DockerCmd(c, "run", "--name", "test-data", "--volume", tmpDir+":/tmp:ro", "busybox:latest", "ls", "/tmp/tmpfs").Combined()
 	assert.Assert(c, strings.Contains(out, filepath.Base(f.Name())), "Recursive bind mount test failed. Expected file not found")
 }
 

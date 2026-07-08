@@ -39,10 +39,10 @@ func validateIsolation(hc *container.HostConfig) error {
 // validateQoS performs platform specific validation of the QoS settings
 func validateQoS(hc *container.HostConfig) error {
 	if hc.IOMaximumBandwidth != 0 {
-		return validationError(fmt.Sprintf("invalid option: QoS maximum bandwidth configuration is not supported on %s", runtime.GOOS))
+		return validationError("invalid option: QoS maximum bandwidth configuration is not supported on " + runtime.GOOS)
 	}
 	if hc.IOMaximumIOps != 0 {
-		return validationError(fmt.Sprintf("invalid option: QoS maximum IOPs configuration is not supported on %s", runtime.GOOS))
+		return validationError("invalid option: QoS maximum IOPs configuration is not supported on " + runtime.GOOS)
 	}
 	return nil
 }

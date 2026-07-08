@@ -47,7 +47,7 @@ func (s *DockerCLIEventSuite) TestEventsTimestampFormats(c *testing.T) {
 	end := daemonTime(c)
 
 	// List of available time formats to --since
-	unixTs := func(t time.Time) string { return fmt.Sprint(t.Unix()) }
+	unixTs := func(t time.Time) string { return strconv.FormatInt(t.Unix(), 10) }
 	rfc3339 := func(t time.Time) string { return t.Format(time.RFC3339) }
 	duration := func(t time.Time) string { return time.Since(t).String() }
 
@@ -279,7 +279,7 @@ func (s *DockerCLIEventSuite) TestEventsFilterImageName(c *testing.T) {
 	container2 := strings.TrimSpace(out)
 
 	name := "busybox"
-	out = cli.DockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c), "--filter", fmt.Sprintf("image=%s", name)).Stdout()
+	out = cli.DockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c), "--filter", "image="+name).Stdout()
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
 	assert.Assert(c, len(events) != 0, "Expected events but found none for the image busybox:latest")
@@ -349,7 +349,7 @@ func (s *DockerCLIEventSuite) TestEventsFilterImageLabels(c *testing.T) {
 		"events",
 		"--since", since,
 		"--until", daemonUnixTime(c),
-		"--filter", fmt.Sprintf("label=%s", label),
+		"--filter", "label="+label,
 		"--filter", "type="+string(eventtypes.ImageEventType),
 
 		// Depending on the API version, 3 or 4 events are produced; 2 events from

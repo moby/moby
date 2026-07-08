@@ -62,7 +62,7 @@ func IsNetworkAvailable(ctx context.Context, c client.NetworkAPIClient, name str
 				return is.ResultSuccess
 			}
 		}
-		return is.ResultFailure(fmt.Sprintf("could not find network %s", name))
+		return is.ResultFailure("could not find network " + name)
 	}
 }
 
