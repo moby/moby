@@ -81,18 +81,19 @@ func (s StateStatus) Err() error {
 // String returns a human-readable description of the state
 func (s *State) String() string {
 	if s.Running {
+		out := "Up " + units.HumanDuration(time.Now().UTC().Sub(s.StartedAt))
 		if s.Paused {
-			return fmt.Sprintf("Up %s (Paused)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+			return out + " (Paused)"
 		}
 		if s.Restarting {
 			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 		}
 
 		if h := s.Health; h != nil {
-			return fmt.Sprintf("Up %s (%s)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)), h.String())
+			return out + " (" + h.String() + ")"
 		}
 
-		return "Up " + units.HumanDuration(time.Now().UTC().Sub(s.StartedAt))
+		return out
 	}
 
 	if s.RemovalInProgress {
