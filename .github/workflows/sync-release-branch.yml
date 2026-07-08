@@ -15,7 +15,7 @@ on:
         required: true
         type: string
       dry_run:
-        description: Print the tag range without merging or pushing
+        description: Merge but don't push
         required: true
         default: false
         type: boolean
