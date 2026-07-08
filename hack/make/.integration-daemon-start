@@ -84,14 +84,41 @@ if [ -n "$DOCKER_ROOTLESS" ]; then
 	fi
 	user="unprivilegeduser"
 	uid=$(id -u $user)
-	# shellcheck disable=SC2174
-	mkdir -p -m 700 "/tmp/docker-${uid}"
-	chown "$user" "/tmp/docker-${uid}"
+	if [ -d "/run/systemd/system" ]; then
+		# Set up a systemd user session for the user, with cgroup delegation
+		# (see hack/dind-systemd), so that the daemon and the tests can use
+		# the systemd cgroup driver. This mimics the setup documented for
+		# production ("loginctl enable-linger"), where dockerd-rootless.sh
+		# runs inside user@${uid}.service.
+		# https://github.com/moby/moby/issues/44084
+		xdg_runtime_dir="/run/user/${uid}"
+		tries=0
+		# Retried in a loop: this may race with systemd-logind/dbus startup,
+		# as docker-entrypoint.service has no ordering dependency on them.
+		until loginctl enable-linger "$user" && [ -S "${xdg_runtime_dir}/bus" ]; do
+			tries=$((tries + 1))
+			if [ $tries -gt 30 ]; then
+				echo >&2 "# failed to set up a systemd user session for $user (no ${xdg_runtime_dir}/bus)"
+				exit 1
+			fi
+			sleep 1
+		done
+		# Propagated to the daemon started below, and to the test suite, which
+		# passes it on to the daemons it spawns (sudo --preserve-env in
+		# internal/testutil/daemon). runc needs it to find the systemd user
+		# manager when $XDG_RUNTIME_DIR points to a non-standard location.
+		export DBUS_SESSION_BUS_ADDRESS="unix:path=${xdg_runtime_dir}/bus"
+	else
+		xdg_runtime_dir="/tmp/docker-${uid}"
+		# shellcheck disable=SC2174
+		mkdir -p -m 700 "${xdg_runtime_dir}"
+		chown "$user" "${xdg_runtime_dir}"
+	fi
 	chmod -R o+w "$DEST"
 	# The rootless daemon won't be able to load modules for tests that need them, so do it here.
 	# There's no modprobe in the dev container, so https://x.com/lucabruno/status/902934379835662336
 	ip link show br_netfilter || true
-	dockerd="sudo -u $user -E -E XDG_RUNTIME_DIR=/tmp/docker-${uid} -E HOME=/home/${user} -E PATH=$PATH -- dockerd-rootless.sh"
+	dockerd="sudo -u $user -E -E XDG_RUNTIME_DIR=${xdg_runtime_dir} -E HOME=/home/${user} -E PATH=$PATH -- dockerd-rootless.sh"
 fi
 
 if [ -z "$DOCKER_TEST_HOST" ]; then
