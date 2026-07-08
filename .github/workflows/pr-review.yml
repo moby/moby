@@ -1,0 +1,74 @@
+name: PR Review
+
+on: # zizmor: ignore[dangerous-triggers]
+  workflow_run:
+    workflows: ["PR Review - Trigger"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  publish-review-request:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download trigger context
+        id: download
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          TRIGGER_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          artifact_count=$(gh api "repos/$REPOSITORY/actions/runs/$TRIGGER_RUN_ID/artifacts" \
+            --jq '[.artifacts[] | select(.name == "pr-review-context" and .expired == false)] | length')
+          if [ "$artifact_count" = "0" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          gh run download "$TRIGGER_RUN_ID" \
+            --repo "$REPOSITORY" \
+            --name pr-review-context \
+            --dir context
+          echo "found=true" >> "$GITHUB_OUTPUT"
+
+      - name: Read trigger context
+        if: steps.download.outputs.found == 'true'
+        id: context
+        run: |
+          PR_NUMBER=$(cat context/pr_number.txt)
+          if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid PR number: $PR_NUMBER"
+            exit 1
+          fi
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Check requester permission
+        if: steps.download.outputs.found == 'true'
+        id: permission
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          REQUESTER: ${{ github.event.workflow_run.actor.login }}
+        run: |
+          PERMISSION=$(gh api "repos/$REPOSITORY/collaborators/$REQUESTER/permission" \
+            --jq '.permission')
+          case "$PERMISSION" in
+            triage|write|maintain|admin) echo "allowed=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "allowed=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Publish to AI review channel
+        if: steps.download.outputs.found == 'true' && steps.permission.outputs.allowed == 'true'
+        env:
+          DOCKER_AP_REVIEWER_TOKEN: ${{ secrets.DOCKER_AP_REVIEWER_TOKEN }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: Bearer $DOCKER_AP_REVIEWER_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"repo_full_name": "moby/moby", "number": '"$PR_NUMBER"'}' \
+            https://api.agentic-platform.docker.com/v1/channels/b3285ff4-fd33-4ee4-b198-71cde811dd79/publish
