@@ -31,7 +31,9 @@ func NewBoltDBBackend(root string) (Backend, error) {
 	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
 		return nil, err
 	}
-	db, err := safeOpen(filepath.Join(cacheDir, "identity-cache.db"), 0o600, nil)
+	db, err := safeOpen(filepath.Join(cacheDir, "identity-cache.db"), 0o600, &bolt.Options{
+		FreelistType: bolt.FreelistMapType,
+	})
 	if err != nil {
 		return nil, err
 	}
