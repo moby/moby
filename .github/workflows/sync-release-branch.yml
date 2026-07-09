@@ -1,0 +1,137 @@
+name: Sync Docker release branch
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to sync from, for example docker-v29.6.0
+        required: true
+        type: string
+      dry_run:
+        description: Merge but don't push
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  sync-release-branch:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      base_sha: ${{ steps.sync.outputs.base_sha }}
+      has_changes: ${{ steps.sync.outputs.has_changes }}
+      temporary_branch: ${{ steps.sync.outputs.temporary_branch }}
+      temporary_sha: ${{ steps.sync.outputs.temporary_sha }}
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Validate
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          if [ "$BRANCH" = "master" ]; then
+            echo "::error::This workflow is expected to be run on a release branch, not master"
+            exit 1
+          fi
+
+      - name: Configure git author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync release branch to tag range
+        id: sync
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          RELEASE_BRANCH: ${{ github.ref_name }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_ID: ${{ github.run_id }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -o pipefail
+          base_sha=$(git rev-parse "origin/$RELEASE_BRANCH")
+          temporary_branch="process/sync-release-branch/$RUN_ID-$RUN_ATTEMPT"
+          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+          echo "temporary_branch=$temporary_branch" >> "$GITHUB_OUTPUT"
+
+          tags_file=$(mktemp)
+          releases/scripts/unmerged-tags \
+            "$RELEASE_BRANCH" \
+            "$TAG" \
+            > "$tags_file"
+
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo "## Tags to sync" >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          sed 's/^/- /' "$tags_file" >> "$GITHUB_STEP_SUMMARY"
+
+          xargs -r releases/scripts/sync-branch < "$tags_file" | tee -a "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$DRY_RUN" == "true" ]]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ $(git rev-parse HEAD) == $(git rev-parse "origin/$RELEASE_BRANCH") ]]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No changes to push"
+            exit 0
+          fi
+
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          git push origin "HEAD:refs/heads/$temporary_branch"
+          echo "temporary_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  push-release-branch:
+    needs: sync-release-branch
+    if: ${{ !inputs.dry_run && needs.sync-release-branch.outputs.has_changes == 'true' }}
+    runs-on: ubuntu-24.04
+    environment: docker-releases
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    steps:
+      - name: Checkout release
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Push release branch
+        env:
+          BASE_SHA: ${{ needs.sync-release-branch.outputs.base_sha }}
+          RELEASE_BRANCH: ${{ github.ref_name }}
+          TEMPORARY_BRANCH: ${{ needs.sync-release-branch.outputs.temporary_branch }}
+          TEMPORARY_SHA: ${{ needs.sync-release-branch.outputs.temporary_sha }}
+        run: |
+          git fetch origin "$RELEASE_BRANCH"
+          current_sha=$(git rev-parse "origin/$RELEASE_BRANCH")
+          if [[ "$current_sha" != "$BASE_SHA" ]]; then
+            echo "$RELEASE_BRANCH changed from $BASE_SHA to $current_sha"
+            exit 1
+          fi
+
+          git fetch origin "$TEMPORARY_BRANCH"
+          current_temporary_sha=$(git rev-parse FETCH_HEAD)
+          if [[ "$current_temporary_sha" != "$TEMPORARY_SHA" ]]; then
+            echo "$TEMPORARY_BRANCH changed from $TEMPORARY_SHA to $current_temporary_sha"
+            exit 1
+          fi
+
+          git push origin "FETCH_HEAD:$RELEASE_BRANCH"
+
+      - name: Delete temporary branch
+        env:
+          TEMPORARY_BRANCH: ${{ needs.sync-release-branch.outputs.temporary_branch }}
+        run: git push origin --delete "$TEMPORARY_BRANCH"
