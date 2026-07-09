@@ -24,6 +24,7 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/client/pkg/stringid"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/internal/testutil/request"
@@ -933,8 +934,9 @@ func (d *Daemon) LoadImage(ctx context.Context, t testing.TB, img string) {
 
 	resp, err := c.ImageLoad(ctx, reader, client.ImageLoadWithQuiet(true))
 	assert.NilError(t, err, "[%s] failed to load %s", d.id, img)
-	_, _ = io.Copy(io.Discard, resp)
-	_ = resp.Close()
+	defer func() { _ = resp.Close() }()
+
+	assert.NilError(t, jsonmessage.DisplayStream(resp, io.Discard), "[%s] failed to read load response for %s", d.id, img)
 }
 
 func (d *Daemon) getClientConfig() (*clientConfig, error) {
