@@ -33,27 +33,27 @@ func TestLookup(t *testing.T) {
 
 	ubuntuLatest := c8dimages.Image{
 		Name:   "docker.io/library/ubuntu:latest",
-		Target: desc(10),
+		Target: newDescriptor(10),
 	}
 	ubuntuLatestWithDigest := c8dimages.Image{
 		Name:   "docker.io/library/ubuntu:latest@" + digestFor(10).String(),
-		Target: desc(10),
+		Target: newDescriptor(10),
 	}
 	ubuntuLatestWithOldDigest := c8dimages.Image{
 		Name:   "docker.io/library/ubuntu:latest@" + digestFor(11).String(),
-		Target: desc(11),
+		Target: newDescriptor(11),
 	}
 	ambiguousShortName := c8dimages.Image{
 		Name:   "docker.io/library/abcdef:latest",
-		Target: desc(12),
+		Target: newDescriptor(12),
 	}
 	ambiguousShortNameWithDigest := c8dimages.Image{
 		Name:   "docker.io/library/abcdef:latest@" + digestFor(12).String(),
-		Target: desc(12),
+		Target: newDescriptor(12),
 	}
 	shortNameIsHashAlgorithm := c8dimages.Image{
 		Name:   "docker.io/library/sha256:defcab",
-		Target: desc(13),
+		Target: newDescriptor(13),
 	}
 
 	testImages := []c8dimages.Image{
@@ -65,11 +65,11 @@ func TestLookup(t *testing.T) {
 		shortNameIsHashAlgorithm,
 		{
 			Name:   "docker.io/test/volatile:retried",
-			Target: desc(14),
+			Target: newDescriptor(14),
 		},
 		{
 			Name:   "docker.io/test/volatile:inconsistent",
-			Target: desc(15),
+			Target: newDescriptor(15),
 		},
 	}
 	for _, img := range testImages {
@@ -175,23 +175,23 @@ func TestLookup(t *testing.T) {
 				getMutations: []c8dimages.Image{
 					{
 						Name:   "docker.io/test/volatile:inconsistent",
-						Target: desc(18),
+						Target: newDescriptor(18),
 					},
 					{
 						Name:   "docker.io/test/volatile:inconsistent",
-						Target: desc(19),
+						Target: newDescriptor(19),
 					},
 					{
 						Name:   "docker.io/test/volatile:inconsistent",
-						Target: desc(20),
+						Target: newDescriptor(20),
 					},
 					{
 						Name:   "docker.io/test/volatile:inconsistent",
-						Target: desc(21),
+						Target: newDescriptor(21),
 					},
 					{
 						Name:   "docker.io/test/volatile:inconsistent",
-						Target: desc(22),
+						Target: newDescriptor(22),
 					},
 				},
 				t: t,
@@ -209,11 +209,11 @@ func TestLookup(t *testing.T) {
 				getMutations: []c8dimages.Image{
 					{
 						Name:   "docker.io/test/volatile:retried",
-						Target: desc(16),
+						Target: newDescriptor(16),
 					},
 					{
 						Name:   "docker.io/test/volatile:retried",
-						Target: desc(17),
+						Target: newDescriptor(17),
 					},
 				},
 				t: t,
@@ -260,7 +260,7 @@ func nameTag(name, tag string) reference.Reference {
 	return tagged
 }
 
-func desc(size int64) ocispec.Descriptor {
+func newDescriptor(size int64) ocispec.Descriptor {
 	return ocispec.Descriptor{
 		Digest:    digestFor(size),
 		Size:      size,

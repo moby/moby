@@ -36,7 +36,7 @@ func TestImageDelete(t *testing.T) {
 			starting: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/justoneimage:latest",
-					Target: desc(10),
+					Target: newDescriptor(10),
 				},
 			},
 		},
@@ -45,17 +45,17 @@ func TestImageDelete(t *testing.T) {
 			starting: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/justoneref:latest",
-					Target: desc(10),
+					Target: newDescriptor(10),
 				},
 				{
 					Name:   "docker.io/library/differentrepo:latest",
-					Target: desc(10),
+					Target: newDescriptor(10),
 				},
 			},
 			remaining: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/differentrepo:latest",
-					Target: desc(10),
+					Target: newDescriptor(10),
 				},
 			},
 		},
@@ -64,11 +64,11 @@ func TestImageDelete(t *testing.T) {
 			starting: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/hasdigest:latest",
-					Target: desc(10),
+					Target: newDescriptor(10),
 				},
 				{
 					Name:   "docker.io/library/hasdigest@" + digestFor(10).String(),
-					Target: desc(10),
+					Target: newDescriptor(10),
 				},
 			},
 		},
@@ -77,11 +77,11 @@ func TestImageDelete(t *testing.T) {
 			starting: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/byid:latest",
-					Target: desc(11),
+					Target: newDescriptor(11),
 				},
 				{
 					Name:   "docker.io/library/byid@" + digestFor(11).String(),
-					Target: desc(11),
+					Target: newDescriptor(11),
 				},
 			},
 		},
@@ -90,11 +90,11 @@ func TestImageDelete(t *testing.T) {
 			starting: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/bydigest:latest",
-					Target: desc(12),
+					Target: newDescriptor(12),
 				},
 				{
 					Name:   "docker.io/library/bydigest@" + digestFor(12).String(),
-					Target: desc(12),
+					Target: newDescriptor(12),
 				},
 			},
 		},
@@ -103,25 +103,25 @@ func TestImageDelete(t *testing.T) {
 			starting: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/onerefoftwo:latest",
-					Target: desc(12),
+					Target: newDescriptor(12),
 				},
 				{
 					Name:   "docker.io/library/onerefoftwo:other",
-					Target: desc(12),
+					Target: newDescriptor(12),
 				},
 				{
 					Name:   "docker.io/library/onerefoftwo@" + digestFor(12).String(),
-					Target: desc(12),
+					Target: newDescriptor(12),
 				},
 			},
 			remaining: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/onerefoftwo:other",
-					Target: desc(12),
+					Target: newDescriptor(12),
 				},
 				{
 					Name:   "docker.io/library/onerefoftwo@" + digestFor(12).String(),
-					Target: desc(12),
+					Target: newDescriptor(12),
 				},
 			},
 		},
@@ -130,21 +130,21 @@ func TestImageDelete(t *testing.T) {
 			starting: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/otherreporemaining:latest",
-					Target: desc(12),
+					Target: newDescriptor(12),
 				},
 				{
 					Name:   "docker.io/library/otherreporemaining@" + digestFor(12).String(),
-					Target: desc(12),
+					Target: newDescriptor(12),
 				},
 				{
 					Name:   "docker.io/library/someotherrepo:latest",
-					Target: desc(12),
+					Target: newDescriptor(12),
 				},
 			},
 			remaining: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/someotherrepo:latest",
-					Target: desc(12),
+					Target: newDescriptor(12),
 				},
 			},
 		},
@@ -153,21 +153,21 @@ func TestImageDelete(t *testing.T) {
 			starting: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/repoanddigest:latest",
-					Target: desc(15),
+					Target: newDescriptor(15),
 				},
 				{
 					Name:   "docker.io/library/repoanddigest:latest@" + digestFor(15).String(),
-					Target: desc(15),
+					Target: newDescriptor(15),
 				},
 				{
 					Name:   "docker.io/library/someotherrepo:latest",
-					Target: desc(15),
+					Target: newDescriptor(15),
 				},
 			},
 			remaining: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/someotherrepo:latest",
-					Target: desc(15),
+					Target: newDescriptor(15),
 				},
 			},
 		},
@@ -176,29 +176,29 @@ func TestImageDelete(t *testing.T) {
 			starting: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/repoanddigestothertags:v1",
-					Target: desc(15),
+					Target: newDescriptor(15),
 				},
 				{
 					Name:   "docker.io/library/repoanddigestothertags:v1@" + digestFor(15).String(),
-					Target: desc(15),
+					Target: newDescriptor(15),
 				},
 				{
 					Name:   "docker.io/library/repoanddigestothertags:v2",
-					Target: desc(15),
+					Target: newDescriptor(15),
 				},
 				{
 					Name:   "docker.io/library/repoanddigestothertags:v2@" + digestFor(15).String(),
-					Target: desc(15),
+					Target: newDescriptor(15),
 				},
 				{
 					Name:   "docker.io/library/someotherrepo:latest",
-					Target: desc(15),
+					Target: newDescriptor(15),
 				},
 			},
 			remaining: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/someotherrepo:latest",
-					Target: desc(15),
+					Target: newDescriptor(15),
 				},
 			},
 		},
@@ -207,13 +207,13 @@ func TestImageDelete(t *testing.T) {
 			starting: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/someotherrepo:latest",
-					Target: desc(16),
+					Target: newDescriptor(16),
 				},
 			},
 			remaining: []c8dimages.Image{
 				{
 					Name:   "docker.io/library/someotherrepo:latest",
-					Target: desc(16),
+					Target: newDescriptor(16),
 				},
 			},
 			err: dimages.ErrImageDoesNotExist{Ref: nameDigest("repoanddigestzerocase", digestFor(16))},
