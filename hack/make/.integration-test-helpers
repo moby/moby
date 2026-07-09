@@ -123,7 +123,7 @@ run_test_integration_suites() {
 			else
 				# shellcheck disable=SC2086
 				test_env gotestsum \
-					--format=standard-verbose \
+					--format=testname \
 					--jsonfile="${ABS_DEST}/${pkgname//./-}-go-test-report.json" \
 					--junitfile="${ABS_DEST}/${pkgname//./-}-junit-report.xml" \
 					--raw-command \
