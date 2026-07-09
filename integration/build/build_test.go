@@ -135,8 +135,8 @@ func buildContainerIdsFilter(buildOutput io.Reader) (client.Filters, error) {
 		if err != nil {
 			return filter, err
 		}
-		if ix := strings.Index(m.Stream, intermediateContainerPrefix); ix != -1 {
-			filter.Add("id", strings.TrimSpace(m.Stream[ix+len(intermediateContainerPrefix):]))
+		if _, id, ok := strings.Cut(m.Stream, intermediateContainerPrefix); ok {
+			filter.Add("id", strings.TrimSpace(id))
 		}
 	}
 }
