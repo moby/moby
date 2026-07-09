@@ -207,6 +207,11 @@ func TestRunConsoleSize(t *testing.T) {
 func TestRunWithAlternativeContainerdShim(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	// The daemon only passes the SystemdCgroup option to the stock runc
+	// runtime; with an ad-hoc shim name, runc falls back to the cgroupfs
+	// driver and treats the systemd-style cgroupsPath ("user.slice:docker:ID")
+	// as a literal path, which cannot be created by a rootless daemon.
+	skip.If(t, testEnv.IsRootless() && testEnv.DaemonInfo.CgroupDriver == "systemd", "alternative shims do not support the systemd cgroup driver in rootless mode")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
