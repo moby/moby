@@ -9,14 +9,33 @@ fi
 release_branch="$1"
 tag="$2"
 
+if ! git rev-parse --verify --quiet "refs/tags/$tag" > /dev/null; then
+	echo "error: Tag $tag does not exist" >&2
+	exit 1
+fi
+
 # Return early the requested tag is already merged into release branch.
 if git merge-base --is-ancestor "$tag" "$release_branch"; then
 	exit 0
 fi
 
+if git rev-parse --verify --quiet upstream/master > /dev/null 2>&1; then
+	master="upstream/master"
+else
+	master="origin/master"
+fi
+
+if ! git merge-base --is-ancestor "$tag" "$master"; then
+	echo "error: Tag $tag is not in $master" >&2
+	exit 1
+fi
+
 # Get all docker release tags merged into master but not into release branch
-git tag --merged upstream/master --no-merged "$release_branch" \
-	| grep '^docker-v' \
-	| grep -v -- "-rc." \
-	| sort \
-	| sed "/$tag/q"
+git -c versionsort.suffix=-alpha. \
+	-c versionsort.suffix=-beta. \
+	-c versionsort.suffix=-rc. \
+	tag --merged "$master" --no-merged "$release_branch" \
+	--sort=v:refname \
+	--format='%(refname:short)' \
+	'docker-v*' \
+	| awk -v tag="$tag" '{print} $0==tag{exit}'
