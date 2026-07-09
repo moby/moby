@@ -31,8 +31,11 @@ if ! git merge-base --is-ancestor "$tag" "$master"; then
 fi
 
 # Get all docker release tags merged into master but not into release branch
-git tag --merged "$master" --no-merged "$release_branch" \
-	| grep '^docker-v' \
-	| grep -v -- "-rc." \
-	| sort \
+git -c versionsort.suffix=-alpha. \
+	-c versionsort.suffix=-beta. \
+	-c versionsort.suffix=-rc. \
+	tag --merged "$master" --no-merged "$release_branch" \
+	--sort=v:refname \
+	--format='%(refname:short)' \
+	'docker-v*' \
 	| awk -v tag="$tag" '{print} $0==tag{exit}'
