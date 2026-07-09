@@ -44,8 +44,8 @@ type State struct {
 	StartedAt         time.Time
 	FinishedAt        time.Time
 	Health            *Health
-	Removed           bool `json:"-"`
 
+	removed           bool // used internally for container.WaitConditionRemoved
 	stopWaiters       []chan<- StateStatus
 	removeOnlyWaiters []chan<- StateStatus
 
@@ -81,18 +81,19 @@ func (s StateStatus) Err() error {
 // String returns a human-readable description of the state
 func (s *State) String() string {
 	if s.Running {
+		out := "Up " + units.HumanDuration(time.Now().UTC().Sub(s.StartedAt))
 		if s.Paused {
-			return fmt.Sprintf("Up %s (Paused)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+			return out + " (Paused)"
 		}
 		if s.Restarting {
 			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 		}
 
 		if h := s.Health; h != nil {
-			return fmt.Sprintf("Up %s (%s)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)), h.String())
+			return out + " (" + h.String() + ")"
 		}
 
-		return "Up " + units.HumanDuration(time.Now().UTC().Sub(s.StartedAt))
+		return out
 	}
 
 	if s.RemovalInProgress {
@@ -202,7 +203,7 @@ func (s *State) conditionAlreadyMet(condition container.WaitCondition) bool {
 	case container.WaitConditionNotRunning:
 		return !s.Running
 	case container.WaitConditionRemoved:
-		return s.Removed
+		return s.removed
 	default:
 		// TODO(thaJeztah): how do we want to handle "WaitConditionNextExit"?
 		return false
@@ -401,7 +402,7 @@ func (s *State) SetRemoved() {
 func (s *State) SetRemovalError(err error) {
 	s.SetError(err)
 	s.Lock()
-	s.Removed = true
+	s.removed = true
 	s.notifyAndClear(&s.removeOnlyWaiters)
 	s.notifyAndClear(&s.stopWaiters)
 	s.Unlock()
