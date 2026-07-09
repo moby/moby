@@ -500,10 +500,12 @@ func fusermountU(mountpoint string) (unmounted bool) {
 	// Attempt to unmount the FUSE mount using either fusermount or fusermount3.
 	// If they fail, fallback to unix.Unmount
 	for _, v := range []string{"fusermount3", "fusermount"} {
-		if err := exec.Command(v, "-u", mountpoint).Run(); err != nil {
-			if !os.IsNotExist(err) {
-				log.G(context.TODO()).WithError(err).Debugf("Error unmounting %s with %s", mountpoint, v)
-			}
+		bin, err := exec.LookPath(v)
+		if err != nil {
+			continue
+		}
+		if err := exec.Command(bin, "-u", mountpoint).Run(); err != nil {
+			log.G(context.TODO()).WithError(err).Debugf("Error unmounting %s with %s", mountpoint, v)
 			continue
 		}
 		return true
