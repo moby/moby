@@ -30,17 +30,34 @@ def check_iptables(name, plist):
             port = port.replace(r, ' ')
 
         p = port.split()
+        # Validate port values are strictly numeric to prevent injection
+        if not p[1].isdigit() or not p[3].isdigit():
+            raise ValueError("Invalid port value: expected numeric, got %s/%s" % (p[1], p[3]))
+        if not (0 < int(p[1]) <= 65535) or not (0 < int(p[3]) <= 65535):
+            raise ValueError("Port number out of valid range: %s/%s" % (p[1], p[3]))
         ports.append((p[1], p[3]))
 
     # get the ingress sandbox's docker_gwbridge network IP.
     # published ports get DNAT'ed to this IP.
-    ip = subprocess.check_output([ which("nsenter","/usr/bin/nsenter"), '--net=/var/run/docker/netns/ingress_sbox', which("bash", "/bin/bash"), '-c', 'ifconfig eth1 | grep \"inet\\ addr\" | cut -d: -f2 | cut -d\" \" -f1'])
-    ip = ip.rstrip()
+    ifconfig_out = subprocess.check_output([which("nsenter", "/usr/bin/nsenter"),
+        '--net=/var/run/docker/netns/ingress_sbox',
+        which("ifconfig", "/sbin/ifconfig"), 'eth1'])
+    if isinstance(ifconfig_out, bytes):
+        ifconfig_out = ifconfig_out.decode('utf-8')
+    ip = ''
+    for line in ifconfig_out.splitlines():
+        if 'inet addr:' in line:
+            ip = line.strip().split('inet addr:')[1].split()[0]
+            break
+    if not ipv4match.match(ip):
+        raise ValueError("Invalid IP address returned from ifconfig: %s" % ip)
 
     for p in ports:
-        rule = which("iptables", "/sbin/iptables") + '-t nat -C DOCKER-INGRESS -p tcp --dport {0} -j DNAT --to {1}:{2}'.format(p[1], ip, p[1])
         try:
-            subprocess.check_output([which("bash", "/bin/bash"), "-c", rule])
+            subprocess.check_output([which("iptables", "/sbin/iptables"),
+                '-t', 'nat', '-C', 'DOCKER-INGRESS',
+                '-p', 'tcp', '--dport', p[1],
+                '-j', 'DNAT', '--to', ip + ':' + p[1]])
         except subprocess.CalledProcessError as e:
             print "Service {0}: host iptables DNAT rule for port {1} -> ingress sandbox {2}:{3} missing".format(name, p[1], ip, p[1])
 
@@ -91,7 +108,15 @@ def check_network(nw_name, ingress=False):
     containers = get_namespaces(data, ingress)
     for container, namespace in containers.items():
         print "Verifying container %s..." % container
-        ipvs = subprocess.check_output([which("nsenter","/usr/bin/nsenter"), '--net=%s' % namespace, which("ipvsadm","/usr/sbin/ipvsadm"), '-ln'])
+        # Strictly validate namespace is a legitimate Docker netns path
+        # Resolve symlinks/traversal before checking to prevent path injection
+        real_namespace = os.path.realpath(namespace)
+        if not re.match(r'^/var/run/(docker/netns|netns)/[a-zA-Z0-9_\-]+$', real_namespace):
+            raise ValueError("Namespace path is outside expected directory or has invalid format: %s" % namespace)
+        if not os.path.exists(real_namespace):
+            raise ValueError("Invalid or non-existent namespace path: %s" % namespace)
+        net_arg = '--net=' + real_namespace
+        ipvs = subprocess.check_output([which("nsenter","/usr/bin/nsenter"), net_arg, which("ipvsadm","/usr/sbin/ipvsadm"), '-ln'])
 
         mark = ""
         realmark = {}
