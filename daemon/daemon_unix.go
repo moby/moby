@@ -97,6 +97,7 @@ func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
 	}
 
 	if config.KernelMemory != 0 {
+		//nolint:staticcheck // Setting a deprecated field.
 		memory.Kernel = &config.KernelMemory
 	}
 

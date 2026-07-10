@@ -82,7 +82,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/opencontainers/runc v1.1.14
-	github.com/opencontainers/runtime-spec v1.1.0
+	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/opencontainers/selinux v1.13.1
 	github.com/pelletier/go-toml v1.9.5
 	github.com/pkg/errors v0.9.1
@@ -117,6 +117,8 @@ require (
 	resenje.org/singleflight v0.4.1
 	tags.cncf.io/container-device-interface v0.8.1
 )
+
+require github.com/moby/profiles/seccomp v0.2.2
 
 require (
 	cloud.google.com/go v0.120.0 // indirect

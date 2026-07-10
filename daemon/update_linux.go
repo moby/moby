@@ -60,6 +60,7 @@ func toContainerdResources(resources container.Resources) *libcontainerdtypes.Re
 		memory.Reservation = &resources.MemoryReservation
 	}
 	if resources.KernelMemory != 0 {
+		//nolint:staticcheck // Setting a deprecated field.
 		memory.Kernel = &resources.KernelMemory
 	}
 	if resources.MemorySwap > 0 {
