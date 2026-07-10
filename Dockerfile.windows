@@ -170,7 +170,7 @@ ARG GOTESTSUM_VERSION=v1.13.0
 ARG GOWINRES_VERSION=v0.3.3
 
 # CONTAINERD_VERSION is the version of containerd to use for CI.
-ARG CONTAINERD_VERSION=v2.2.5
+ARG CONTAINERD_VERSION=v2.2.6
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
