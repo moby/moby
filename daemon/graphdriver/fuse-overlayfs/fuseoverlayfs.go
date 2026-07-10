@@ -5,6 +5,7 @@ package fuseoverlayfs
 import (
 	"bytes"
 	"context"
+	stderrors "errors"
 	"io"
 	"os"
 	"os/exec"
@@ -500,9 +501,10 @@ func fusermountU(mountpoint string) (unmounted bool) {
 	// Attempt to unmount the FUSE mount using either fusermount or fusermount3.
 	// If they fail, fallback to unix.Unmount
 	for _, v := range []string{"fusermount3", "fusermount"} {
-		if err := exec.Command(v, "-u", mountpoint).Run(); err != nil {
-			if !os.IsNotExist(err) {
-				log.G(context.TODO()).WithError(err).Debugf("Error unmounting %s with %s", mountpoint, v)
+		out, err := exec.Command(v, "-u", mountpoint).CombinedOutput()
+		if err != nil {
+			if !stderrors.Is(err, exec.ErrNotFound) {
+				log.G(context.TODO()).WithError(err).Debugf("Error unmounting %s with %s: %s", mountpoint, v, string(out))
 			}
 			continue
 		}
