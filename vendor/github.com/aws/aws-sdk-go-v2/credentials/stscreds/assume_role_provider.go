@@ -247,6 +247,10 @@ type AssumeRoleOptions struct {
 	// (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html#id_session-tags_role-chaining)
 	// in the IAM User Guide. This parameter is optional.
 	TransitiveTagKeys []string
+
+	// The chain of providers that was used to create this provider
+	// These values are for reporting purposes and are not meant to be set up directly
+	CredentialSources []aws.CredentialSource
 }
 
 // NewAssumeRoleProvider constructs and returns a credentials provider that
@@ -308,6 +312,11 @@ func (p *AssumeRoleProvider) Retrieve(ctx context.Context) (aws.Credentials, err
 		return aws.Credentials{Source: ProviderName}, err
 	}
 
+	var accountID string
+	if resp.AssumedRoleUser != nil {
+		accountID = getAccountID(resp.AssumedRoleUser)
+	}
+
 	return aws.Credentials{
 		AccessKeyID:     *resp.Credentials.AccessKeyId,
 		SecretAccessKey: *resp.Credentials.SecretAccessKey,
@@ -316,5 +325,14 @@ func (p *AssumeRoleProvider) Retrieve(ctx context.Context) (aws.Credentials, err
 
 		CanExpire: true,
 		Expires:   *resp.Credentials.Expiration,
+		AccountID: accountID,
 	}, nil
+}
+
+// ProviderSources returns the credential chain that was used to construct this provider
+func (p *AssumeRoleProvider) ProviderSources() []aws.CredentialSource {
+	if p.options.CredentialSources == nil {
+		return []aws.CredentialSource{aws.CredentialSourceSTSAssumeRole}
+	} // If no source has been set, assume this is used directly which means just call to assume role
+	return append(p.options.CredentialSources, aws.CredentialSourceSTSAssumeRole)
 }

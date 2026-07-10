@@ -157,10 +157,7 @@ func (c *item) LinkFrom(rec solver.CacheExporterRecord, index int, selector stri
 		return
 	}
 
-	for {
-		if index < len(c.links) {
-			break
-		}
+	for index >= len(c.links) {
 		c.links = append(c.links, map[link]struct{}{})
 	}
 

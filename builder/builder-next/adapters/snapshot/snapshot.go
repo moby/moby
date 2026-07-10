@@ -7,10 +7,10 @@ import (
 	"strings"
 	"sync"
 
-	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"

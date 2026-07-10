@@ -41,12 +41,11 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"go.opentelemetry.io/otel/trace"
+
 	vkit "cloud.google.com/go/logging/apiv2"
 	logpb "cloud.google.com/go/logging/apiv2/loggingpb"
 	"cloud.google.com/go/logging/internal"
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
-	structpb "github.com/golang/protobuf/ptypes/struct"
 	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/option"
 	"google.golang.org/api/support/bundler"
@@ -54,7 +53,11 @@ import (
 	logtypepb "google.golang.org/genproto/googleapis/logging/type"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -83,6 +86,9 @@ const (
 	// DefaultEntryByteThreshold is the default value for the EntryByteThreshold LoggerOption.
 	DefaultEntryByteThreshold = 1 << 23 // 8MiB
 
+	// DefaultBundleByteLimit is the default value for the BundleByteLimit LoggerOption.
+	DefaultBundleByteLimit = 9437184 // 9.5 MiB
+
 	// DefaultBufferedByteLimit is the default value for the BufferedByteLimit LoggerOption.
 	DefaultBufferedByteLimit = 1 << 30 // 1GiB
 
@@ -94,6 +100,15 @@ const (
 
 	// Part of the error message when the payload contains invalid UTF-8 characters.
 	utfErrorString = "string field contains invalid UTF-8"
+
+	// DetectProjectID is a sentinel value that instructs NewClient to detect the
+	// project ID. It is given in place of the projectID argument. NewClient will
+	// use the project ID from the given credentials or the default credentials
+	// (https://developers.google.com/accounts/docs/application-default-credentials)
+	// if no credentials were provided. When providing credentials, not all
+	// options will allow NewClient to extract the project ID. Specifically a JWT
+	// does not have the project ID encoded.
+	DetectProjectID = "*detect-project-id*"
 )
 
 var (
@@ -102,8 +117,9 @@ var (
 	ErrRedirectProtoPayloadNotSupported = errors.New("printEntryToStdout: cannot find valid payload")
 
 	// For testing:
-	now                = time.Now
-	toLogEntryInternal = toLogEntryInternalImpl
+	now                    = time.Now
+	toLogEntryInternal     = toLogEntryInternalImpl
+	detectResourceInternal = detectResource
 
 	// ErrOverflow signals that the number of buffered entries for a Logger
 	// exceeds its BufferLimit.
@@ -147,8 +163,11 @@ type Client struct {
 //	billingAccounts/ACCOUNT_ID
 //	organizations/ORG_ID
 //
-// for backwards compatibility, a string with no '/' is also allowed and is interpreted
+// For backwards compatibility, a string with no '/' is also allowed and is interpreted
 // as a project ID.
+//
+// If logging.DetectProjectId is provided as the parent, the parent will be interpreted as a project
+// ID, and its value will be inferred from the environment.
 //
 // By default NewClient uses WriteScope. To use a different scope, call
 // NewClient using a WithScopes option (see https://godoc.org/google.golang.org/api/option#WithScopes).
@@ -191,6 +210,13 @@ func NewClient(ctx context.Context, parent string, opts ...option.ClientOption) 
 
 func makeParent(parent string) (string, error) {
 	if !strings.ContainsRune(parent, '/') {
+		if parent == DetectProjectID {
+			resource := detectResourceInternal()
+			if resource == nil {
+				return parent, fmt.Errorf("could not determine project ID from environment")
+			}
+			parent = resource.Labels["project_id"]
+		}
 		return "projects/" + parent, nil
 	}
 	prefix := strings.Split(parent, "/")[0]
@@ -204,16 +230,13 @@ func makeParent(parent string) (string, error) {
 // authentication configuration are valid. To accomplish this, Ping writes a
 // log entry "ping" to a log named "ping".
 func (c *Client) Ping(ctx context.Context) error {
-	unixZeroTimestamp, err := ptypes.TimestampProto(time.Unix(0, 0))
-	if err != nil {
-		return err
-	}
+	unixZeroTimestamp := timestamppb.New(time.Unix(0, 0))
 	ent := &logpb.LogEntry{
 		Payload:   &logpb.LogEntry_TextPayload{TextPayload: "ping"},
 		Timestamp: unixZeroTimestamp, // Identical timestamps and insert IDs are both
 		InsertId:  "ping",            // necessary for the service to dedup these entries.
 	}
-	_, err = c.client.WriteLogEntries(ctx, &logpb.WriteLogEntriesRequest{
+	_, err := c.client.WriteLogEntries(ctx, &logpb.WriteLogEntriesRequest{
 		LogName:  internal.LogPath(c.parent, "ping"),
 		Resource: monitoredResource(c.parent),
 		Entries:  []*logpb.LogEntry{ent},
@@ -256,6 +279,7 @@ type Logger struct {
 
 	// Options
 	commonResource         *mrpb.MonitoredResource
+	commonResourceSet      bool
 	commonLabels           map[string]string
 	ctxFunc                func() (context.Context, func())
 	populateSourceLocation int
@@ -300,14 +324,11 @@ func (r *loggerRetryer) Retry(err error) (pause time.Duration, shouldRetry bool)
 // characters: [A-Za-z0-9]; and punctuation characters: forward-slash,
 // underscore, hyphen, and period.
 func (c *Client) Logger(logID string, opts ...LoggerOption) *Logger {
-	r := detectResource()
-	if r == nil {
-		r = monitoredResource(c.parent)
-	}
 	l := &Logger{
 		client:                 c,
 		logName:                internal.LogPath(c.parent, logID),
-		commonResource:         r,
+		commonResource:         nil,
+		commonResourceSet:      false,
 		ctxFunc:                func() (context.Context, func()) { return context.Background(), nil },
 		populateSourceLocation: DoNotPopulateSourceLocation,
 		partialSuccess:         false,
@@ -319,10 +340,22 @@ func (c *Client) Logger(logID string, opts ...LoggerOption) *Logger {
 	l.bundler.DelayThreshold = DefaultDelayThreshold
 	l.bundler.BundleCountThreshold = DefaultEntryCountThreshold
 	l.bundler.BundleByteThreshold = DefaultEntryByteThreshold
+	l.bundler.BundleByteLimit = DefaultBundleByteLimit
 	l.bundler.BufferedByteLimit = DefaultBufferedByteLimit
+
 	for _, opt := range opts {
 		opt.set(l)
 	}
+
+	// Set common resource here so that we skip automatic resource detection
+	// if a user has provided a common resource.
+	if !l.commonResourceSet {
+		l.commonResource = detectResourceInternal()
+		if l.commonResource == nil {
+			l.commonResource = monitoredResource(c.parent)
+		}
+	}
+
 	l.stdLoggers = map[Severity]*log.Logger{}
 	for s := range severityName {
 		e := Entry{Severity: s}
@@ -583,7 +616,7 @@ func fromHTTPRequest(r *HTTPRequest) (*logtypepb.HttpRequest, error) {
 		CacheLookup:                    r.CacheLookup,
 	}
 	if r.Latency != 0 {
-		pb.Latency = ptypes.DurationProto(r.Latency)
+		pb.Latency = durationpb.New(r.Latency)
 	}
 	return pb, nil
 }
@@ -791,6 +824,13 @@ func populateTraceInfo(e *Entry, req *http.Request) bool {
 			return false
 		}
 	}
+	otelSpanContext := trace.SpanContextFromContext(req.Context())
+	if otelSpanContext.IsValid() {
+		e.Trace = otelSpanContext.TraceID().String()
+		e.SpanID = otelSpanContext.SpanID().String()
+		e.TraceSampled = otelSpanContext.IsSampled()
+		return true
+	}
 	header := req.Header.Get("Traceparent")
 	if header != "" {
 		// do not use traceSampled flag defined by traceparent because
@@ -844,25 +884,35 @@ var validXCloudTraceContext = regexp.MustCompile(
 		`(?:;o=(\d))?`)
 
 func deconstructXCloudTraceContext(s string) (traceID, spanID string, traceSampled bool) {
-	// As per the format described at https://cloud.google.com/trace/docs/setup#force-trace
-	//    "X-Cloud-Trace-Context: TRACE_ID/SPAN_ID;o=TRACE_TRUE"
+	// As per the format described at https://cloud.google.com/trace/docs/trace-context#legacy-http-header
+	//    "X-Cloud-Trace-Context: TRACE_ID[/SPAN_ID][;o=TRACE_TRUE]"
 	// for example:
-	//    "X-Cloud-Trace-Context: 105445aa7843bc8bf206b120001000/1;o=1"
+	//    "X-Cloud-Trace-Context: 105445aa7843bc8bf206b12000100000/1;o=1"
 	//
 	// We expect:
-	//   * traceID (optional): 			"105445aa7843bc8bf206b120001000"
-	//   * spanID (optional):       	"1"
-	//   * traceSampled (optional): 	true
+	//   * traceID (optional, 128-bit hex string):  "105445aa7843bc8bf206b12000100000"
+	//   * spanID (optional, 16-bit hex string):   "0000000000000001" (needs to be converted into 16 bit hex string)
+	//   * traceSampled (optional, bool): 	       true
 	matches := validXCloudTraceContext.FindStringSubmatch(s)
 
 	if matches != nil {
 		traceID, spanID, traceSampled = matches[1], matches[2], matches[3] == "1"
 	}
 
-	if spanID == "0" {
-		spanID = ""
+	// Pad trace ID with 0s if too short
+	if traceID != "" {
+		traceID = fmt.Sprintf("%032s", traceID)
 	}
 
+	if spanID != "" {
+		// Convert to 16 byte unsigned hex string
+		intSpanID, err := strconv.ParseUint(spanID, 10, 64)
+		if err != nil || intSpanID == 0 {
+			spanID = ""
+		} else {
+			spanID = fmt.Sprintf("%016x", intSpanID)
+		}
+	}
 	return
 }
 
@@ -967,65 +1017,70 @@ func toLogEntryInternalImpl(e Entry, l *Logger, parent string, skipLevels int) (
 // entry represents the fields of a logging.Entry that can be parsed by Logging agent.
 // See the mappings at https://cloud.google.com/logging/docs/structured-logging#special-payload-fields
 type structuredLogEntry struct {
-	// JsonMessage    map[string]interface{}        `json:"message,omitempty"`
-	// TextMessage    string                        `json:"message,omitempty"`
-	Message        json.RawMessage               `json:"message"`
-	Severity       string                        `json:"severity,omitempty"`
-	HTTPRequest    *logtypepb.HttpRequest        `json:"httpRequest,omitempty"`
-	Timestamp      string                        `json:"timestamp,omitempty"`
-	Labels         map[string]string             `json:"logging.googleapis.com/labels,omitempty"`
-	InsertID       string                        `json:"logging.googleapis.com/insertId,omitempty"`
-	Operation      *logpb.LogEntryOperation      `json:"logging.googleapis.com/operation,omitempty"`
-	SourceLocation *logpb.LogEntrySourceLocation `json:"logging.googleapis.com/sourceLocation,omitempty"`
-	SpanID         string                        `json:"logging.googleapis.com/spanId,omitempty"`
-	Trace          string                        `json:"logging.googleapis.com/trace,omitempty"`
-	TraceSampled   bool                          `json:"logging.googleapis.com/trace_sampled,omitempty"`
+	Message        json.RawMessage                   `json:"message"`
+	Severity       string                            `json:"severity,omitempty"`
+	HTTPRequest    *structuredLogEntryHTTPRequest    `json:"httpRequest,omitempty"`
+	Timestamp      string                            `json:"timestamp,omitempty"`
+	Labels         map[string]string                 `json:"logging.googleapis.com/labels,omitempty"`
+	InsertID       string                            `json:"logging.googleapis.com/insertId,omitempty"`
+	Operation      *structuredLogEntryOperation      `json:"logging.googleapis.com/operation,omitempty"`
+	SourceLocation *structuredLogEntrySourceLocation `json:"logging.googleapis.com/sourceLocation,omitempty"`
+	SpanID         string                            `json:"logging.googleapis.com/spanId,omitempty"`
+	Trace          string                            `json:"logging.googleapis.com/trace,omitempty"`
+	TraceSampled   bool                              `json:"logging.googleapis.com/trace_sampled,omitempty"`
 }
 
-func convertSnakeToMixedCase(snakeStr string) string {
-	words := strings.Split(snakeStr, "_")
-	mixedStr := words[0]
-	for _, word := range words[1:] {
-		mixedStr += strings.Title(word)
-	}
-	return mixedStr
+// structuredLogEntryHTTPRequest wraps the HTTPRequest proto field in structuredLogEntry for easier JSON marshalling.
+type structuredLogEntryHTTPRequest struct {
+	request *logtypepb.HttpRequest
 }
 
-func (s structuredLogEntry) MarshalJSON() ([]byte, error) {
-	// extract structuredLogEntry into json map
-	type Alias structuredLogEntry
-	var mapData map[string]interface{}
-	data, err := json.Marshal(Alias(s))
-	if err == nil {
-		err = json.Unmarshal(data, &mapData)
-	}
-	if err == nil {
-		// ensure all inner dicts use mixed case instead of snake case
-		innerDicts := [3]string{"httpRequest", "logging.googleapis.com/operation", "logging.googleapis.com/sourceLocation"}
-		for _, field := range innerDicts {
-			if fieldData, ok := mapData[field]; ok {
-				formattedFieldData := make(map[string]interface{})
-				for k, v := range fieldData.(map[string]interface{}) {
-					formattedFieldData[convertSnakeToMixedCase(k)] = v
-				}
-				mapData[field] = formattedFieldData
-			}
-		}
-		// serialize json map into raw bytes
-		return json.Marshal(mapData)
-	}
-	return data, err
+func (s structuredLogEntryHTTPRequest) MarshalJSON() ([]byte, error) {
+	return protojson.Marshal(s.request)
+}
+
+// structuredLogEntryOperation wraps the Operation proto field in structuredLogEntry for easier JSON marshalling.
+type structuredLogEntryOperation struct {
+	operation *logpb.LogEntryOperation
+}
+
+func (s structuredLogEntryOperation) MarshalJSON() ([]byte, error) {
+	return protojson.Marshal(s.operation)
+}
+
+// structuredLogEntrySourceLocation wraps the SourceLocation proto field in structuredLogEntry for easier JSON marshalling.
+type structuredLogEntrySourceLocation struct {
+	sourceLocation *logpb.LogEntrySourceLocation
+}
+
+func (s structuredLogEntrySourceLocation) MarshalJSON() ([]byte, error) {
+	return protojson.Marshal(s.sourceLocation)
 }
 
 func serializeEntryToWriter(entry *logpb.LogEntry, w io.Writer) error {
+	var httpRequest *structuredLogEntryHTTPRequest
+	if entry.HttpRequest != nil {
+		httpRequest = &structuredLogEntryHTTPRequest{entry.HttpRequest}
+	}
+
+	var operation *structuredLogEntryOperation
+	if entry.Operation != nil {
+		operation = &structuredLogEntryOperation{entry.Operation}
+	}
+
+	var sourceLocation *structuredLogEntrySourceLocation
+	if entry.SourceLocation != nil {
+		sourceLocation = &structuredLogEntrySourceLocation{entry.SourceLocation}
+	}
+
 	jsonifiedEntry := structuredLogEntry{
 		Severity:       entry.Severity.String(),
-		HTTPRequest:    entry.HttpRequest,
+		HTTPRequest:    httpRequest,
 		Timestamp:      entry.Timestamp.String(),
 		Labels:         entry.Labels,
 		InsertID:       entry.InsertId,
-		Operation:      entry.Operation,
-		SourceLocation: entry.SourceLocation,
+		Operation:      operation,
+		SourceLocation: sourceLocation,
 		SpanID:         entry.SpanId,
 		Trace:          entry.Trace,
 		TraceSampled:   entry.TraceSampled,

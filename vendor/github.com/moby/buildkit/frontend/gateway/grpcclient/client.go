@@ -1140,12 +1140,12 @@ func grpcClientConn(ctx context.Context) (context.Context, *grpc.ClientConn, err
 		return stdioConn(), nil
 	})
 
-	cc, err := grpc.DialContext(ctx, "localhost", dialOpt, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor), grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor))
+	cc, err := grpc.DialContext(ctx, "localhost", dialOpt, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor), grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor)) //nolint:staticcheck
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to create grpc client")
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx) //nolint:gosec
 	_ = cancel
 	// go monitorHealth(ctx, cc, cancel)
 

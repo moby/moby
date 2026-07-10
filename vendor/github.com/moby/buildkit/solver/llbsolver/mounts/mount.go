@@ -11,7 +11,6 @@ import (
 	"github.com/moby/buildkit/util/bklog"
 
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/client"
@@ -23,6 +22,7 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/grpcerrors"
 	"github.com/moby/locker"
+	"github.com/moby/sys/userns"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 )

@@ -39,6 +39,37 @@ To send us a pull request, please:
 GitHub provides additional document on [forking a repository](https://help.github.com/articles/fork-a-repo/) and
 [creating a pull request](https://help.github.com/articles/creating-a-pull-request/).
 
+### Changelog Documents
+
+(You can SKIP this step if you are only changing the code generator, and not the runtime).
+
+When submitting a pull request please include a changelog file on a folder named `.changelog`.
+These are used to generate the content `CHANGELOG.md` and Release Notes. The format of the file is as follows:
+
+```
+{
+    "id": "12345678-1234-1234-1234-123456789012"
+    "type": "bugfix"
+    "collapse": true
+    "description": "Fix improper use of printf-style functions.",
+    "modules": [
+        "."
+    ]
+}
+```
+
+* id: a UUID. This should also be used for the name of the file, so if your id is `12345678-1234-1234-1234-123456789012` the file should be named `12345678-1234-1234-1234-123456789012.json/`
+* type: one of the following:
+ * bugfix: Fixing an existing bug
+ * Feature: Adding a new feature to an existing service
+ * Release: Releasing a new module
+ * Dependency: Updating dependencies
+ * Announcement: Making an announcement, like deprecation of a module
+* collapse: whether this change should appear separately on the release notes on every module listed on `modules` (`"collapse": false`), or if it should show up as a single entry (`"collapse": true`)
+ * For the smithy-go repository this should always be `false`
+* description: Description of this change. Most of the times is the same as the title of the PR
+* modules: which Go modules does this change impact. The root module is expressed as "."
+
 
 ## Finding contributions to work on
 Looking at the existing issues is a great way to find something to contribute on. As our projects, by default, use the default GitHub issue labels (enhancement/bug/duplicate/help wanted/invalid/question/wontfix), looking at any 'help wanted' issues is a great place to start.

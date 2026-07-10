@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/url"
 	"os"
 	"os/exec"
@@ -395,6 +396,10 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 		return nil, err
 	}
 	defer unmountGitDir()
+	gitDirRoot, err := os.OpenRoot(gitDir)
+	if err != nil {
+		return nil, err
+	}
 
 	var sock string
 	if gs.src.MountSSHSock != "" {
@@ -595,8 +600,8 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context, g session.Group) (out 
 
 	if idmap := mount.IdentityMapping(); idmap != nil {
 		u := idmap.RootPair()
-		err := filepath.WalkDir(gitDir, func(p string, _ os.DirEntry, _ error) error {
-			return os.Lchown(p, u.UID, u.GID)
+		err := fs.WalkDir(gitDirRoot.FS(), ".", func(p string, _ fs.DirEntry, _ error) error {
+			return gitDirRoot.Lchown(p, u.UID, u.GID)
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to remap git checkout")

@@ -49,7 +49,7 @@ func makeHostsFile(stateDir string, extraHosts []executor.HostIP, idmap *idtools
 	}
 
 	for _, h := range extraHosts {
-		if _, err := b.Write([]byte(fmt.Sprintf("%s\t%s\n", h.IP.String(), h.Host))); err != nil {
+		if _, err := fmt.Fprintf(b, "%s\t%s\n", h.IP.String(), h.Host); err != nil {
 			return "", nil, err
 		}
 	}

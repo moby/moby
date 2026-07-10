@@ -18,11 +18,12 @@ package fs
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -100,14 +101,11 @@ type ChangeFunc func(ChangeKind, string, os.FileInfo, error) error
 // is to account for timestamp truncation during archiving.
 func Changes(ctx context.Context, a, b string, changeFn ChangeFunc) error {
 	if a == "" {
-		logrus.Debugf("Using single walk diff for %s", b)
+		log.G(ctx).Debugf("Using single walk diff for %s", b)
 		return addDirChanges(ctx, changeFn, b)
-	} else if diffOptions := detectDirDiff(b, a); diffOptions != nil {
-		logrus.Debugf("Using single walk diff for %s from %s", diffOptions.diffDir, a)
-		return diffDirChanges(ctx, changeFn, a, diffOptions)
 	}
 
-	logrus.Debugf("Using double walk diff for %s from %s", b, a)
+	log.G(ctx).Debugf("Using double walk diff for %s from %s", b, a)
 	return doubleWalkDiff(ctx, changeFn, a, b)
 }
 
@@ -134,24 +132,53 @@ func addDirChanges(ctx context.Context, changeFn ChangeFunc, root string) error 
 	})
 }
 
+// DiffChangeSource is the source of diff directory.
+type DiffSource int
+
+const (
+	// DiffSourceOverlayFS indicates that a diff directory is from
+	// OverlayFS.
+	DiffSourceOverlayFS DiffSource = iota
+)
+
 // diffDirOptions is used when the diff can be directly calculated from
 // a diff directory to its base, without walking both trees.
 type diffDirOptions struct {
-	diffDir      string
-	skipChange   func(string) (bool, error)
-	deleteChange func(string, string, os.FileInfo) (string, error)
+	skipChange   func(string, os.FileInfo) (bool, error)
+	deleteChange func(string, string, os.FileInfo, ChangeFunc) (bool, error)
 }
 
-// diffDirChanges walks the diff directory and compares changes against the base.
-func diffDirChanges(ctx context.Context, changeFn ChangeFunc, base string, o *diffDirOptions) error {
+// DiffDirChanges walks the diff directory and compares changes against the base.
+//
+// NOTE: If all the children of a dir are removed, or that dir are recreated
+// after remove, we will mark non-existing `.wh..opq` file as deleted. It's
+// unlikely to create explicit whiteout files for all the children and all
+// descendants. And based on OCI spec, it's not possible to create a file or
+// dir with a name beginning with `.wh.`. So, after `.wh..opq` file has been
+// deleted, the ChangeFunc, the receiver will add whiteout prefix to create a
+// opaque whiteout `.wh..wh..opq`.
+//
+// REF: https://github.com/opencontainers/image-spec/blob/v1.0/layer.md#whiteouts
+func DiffDirChanges(ctx context.Context, baseDir, diffDir string, source DiffSource, changeFn ChangeFunc) error {
+	var o *diffDirOptions
+
+	switch source {
+	case DiffSourceOverlayFS:
+		o = &diffDirOptions{
+			deleteChange: overlayFSWhiteoutConvert,
+		}
+	default:
+		return errors.New("unknown diff change source")
+	}
+
 	changedDirs := make(map[string]struct{})
-	return filepath.Walk(o.diffDir, func(path string, f os.FileInfo, err error) error {
+	return filepath.Walk(diffDir, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		// Rebase path
-		path, err = filepath.Rel(o.diffDir, path)
+		path, err = filepath.Rel(diffDir, path)
 		if err != nil {
 			return err
 		}
@@ -163,38 +190,45 @@ func diffDirChanges(ctx context.Context, changeFn ChangeFunc, base string, o *di
 			return nil
 		}
 
-		// TODO: handle opaqueness, start new double walker at this
-		// location to get deletes, and skip tree in single walker
-
 		if o.skipChange != nil {
-			if skip, err := o.skipChange(path); skip {
+			if skip, err := o.skipChange(path, f); skip {
 				return err
 			}
 		}
 
 		var kind ChangeKind
 
-		deletedFile, err := o.deleteChange(o.diffDir, path, f)
-		if err != nil {
-			return err
+		deletedFile := false
+
+		if o.deleteChange != nil {
+			deletedFile, err = o.deleteChange(diffDir, path, f, changeFn)
+			if err != nil {
+				return err
+			}
+
+			_, err = os.Stat(filepath.Join(baseDir, path))
+			if err != nil {
+				if !os.IsNotExist(err) {
+					return err
+				}
+				deletedFile = false
+			}
 		}
 
 		// Find out what kind of modification happened
-		if deletedFile != "" {
-			path = deletedFile
+		if deletedFile {
 			kind = ChangeKindDelete
-			f = nil
 		} else {
 			// Otherwise, the file was added
 			kind = ChangeKindAdd
 
-			// ...Unless it already existed in a base, in which case, it's a modification
-			stat, err := os.Stat(filepath.Join(base, path))
+			// ...Unless it already existed in a baseDir, in which case, it's a modification
+			stat, err := os.Stat(filepath.Join(baseDir, path))
 			if err != nil && !os.IsNotExist(err) {
 				return err
 			}
 			if err == nil {
-				// The file existed in the base, so that's a modification
+				// The file existed in the baseDir, so that's a modification
 
 				// However, if it's a directory, maybe it wasn't actually modified.
 				// If you modify /foo/bar/baz, then /foo will be part of the changed files only because it's the parent of bar
@@ -215,10 +249,12 @@ func diffDirChanges(ctx context.Context, changeFn ChangeFunc, base string, o *di
 		if f.IsDir() {
 			changedDirs[path] = struct{}{}
 		}
+
 		if kind == ChangeKindAdd || kind == ChangeKindDelete {
 			parent := filepath.Dir(path)
+
 			if _, ok := changedDirs[parent]; !ok && parent != "/" {
-				pi, err := os.Stat(filepath.Join(o.diffDir, parent))
+				pi, err := os.Stat(filepath.Join(diffDir, parent))
 				if err := changeFn(ChangeKindModify, parent, pi, err); err != nil {
 					return err
 				}
@@ -226,6 +262,9 @@ func diffDirChanges(ctx context.Context, changeFn ChangeFunc, base string, o *di
 			}
 		}
 
+		if kind == ChangeKindDelete {
+			f = nil
+		}
 		return changeFn(kind, path, f, nil)
 	})
 }

@@ -33,9 +33,6 @@ func errnoErr(e syscall.Errno) error {
 	case errnoERROR_IO_PENDING:
 		return errERROR_IO_PENDING
 	}
-	// TODO: add more here, after collecting data on the common
-	// error values see on Windows. (perhaps when running
-	// all.bat?)
 	return e
 }
 
@@ -88,7 +85,7 @@ func hcnCloseEndpoint(endpoint hcnEndpoint) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnCloseEndpoint.Addr(), 1, uintptr(endpoint), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHcnCloseEndpoint.Addr(), uintptr(endpoint))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -103,7 +100,7 @@ func hcnCloseLoadBalancer(loadBalancer hcnLoadBalancer) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnCloseLoadBalancer.Addr(), 1, uintptr(loadBalancer), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHcnCloseLoadBalancer.Addr(), uintptr(loadBalancer))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -118,7 +115,7 @@ func hcnCloseNamespace(namespace hcnNamespace) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnCloseNamespace.Addr(), 1, uintptr(namespace), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHcnCloseNamespace.Addr(), uintptr(namespace))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -133,7 +130,7 @@ func hcnCloseNetwork(network hcnNetwork) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnCloseNetwork.Addr(), 1, uintptr(network), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHcnCloseNetwork.Addr(), uintptr(network))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -148,7 +145,7 @@ func hcnCloseRoute(route hcnRoute) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnCloseSdnRoute.Addr(), 1, uintptr(route), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHcnCloseSdnRoute.Addr(), uintptr(route))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -172,7 +169,7 @@ func _hcnCreateEndpoint(network hcnNetwork, id *_guid, settings *uint16, endpoin
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall6(procHcnCreateEndpoint.Addr(), 5, uintptr(network), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(endpoint)), uintptr(unsafe.Pointer(result)), 0)
+	r0, _, _ := syscall.SyscallN(procHcnCreateEndpoint.Addr(), uintptr(network), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(endpoint)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -196,7 +193,7 @@ func _hcnCreateLoadBalancer(id *_guid, settings *uint16, loadBalancer *hcnLoadBa
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall6(procHcnCreateLoadBalancer.Addr(), 4, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(loadBalancer)), uintptr(unsafe.Pointer(result)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHcnCreateLoadBalancer.Addr(), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(loadBalancer)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -220,7 +217,7 @@ func _hcnCreateNamespace(id *_guid, settings *uint16, namespace *hcnNamespace, r
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall6(procHcnCreateNamespace.Addr(), 4, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(namespace)), uintptr(unsafe.Pointer(result)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHcnCreateNamespace.Addr(), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(namespace)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -244,7 +241,7 @@ func _hcnCreateNetwork(id *_guid, settings *uint16, network *hcnNetwork, result 
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall6(procHcnCreateNetwork.Addr(), 4, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(network)), uintptr(unsafe.Pointer(result)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHcnCreateNetwork.Addr(), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(network)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -268,7 +265,7 @@ func _hcnCreateRoute(id *_guid, settings *uint16, route *hcnRoute, result **uint
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall6(procHcnCreateSdnRoute.Addr(), 4, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(route)), uintptr(unsafe.Pointer(result)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHcnCreateSdnRoute.Addr(), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(route)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -283,7 +280,7 @@ func hcnDeleteEndpoint(id *_guid, result **uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnDeleteEndpoint.Addr(), 2, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(result)), 0)
+	r0, _, _ := syscall.SyscallN(procHcnDeleteEndpoint.Addr(), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -298,7 +295,7 @@ func hcnDeleteLoadBalancer(id *_guid, result **uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnDeleteLoadBalancer.Addr(), 2, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(result)), 0)
+	r0, _, _ := syscall.SyscallN(procHcnDeleteLoadBalancer.Addr(), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -313,7 +310,7 @@ func hcnDeleteNamespace(id *_guid, result **uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnDeleteNamespace.Addr(), 2, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(result)), 0)
+	r0, _, _ := syscall.SyscallN(procHcnDeleteNamespace.Addr(), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -328,7 +325,7 @@ func hcnDeleteNetwork(id *_guid, result **uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnDeleteNetwork.Addr(), 2, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(result)), 0)
+	r0, _, _ := syscall.SyscallN(procHcnDeleteNetwork.Addr(), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -343,7 +340,7 @@ func hcnDeleteRoute(id *_guid, result **uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnDeleteSdnRoute.Addr(), 2, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(result)), 0)
+	r0, _, _ := syscall.SyscallN(procHcnDeleteSdnRoute.Addr(), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -367,7 +364,7 @@ func _hcnEnumerateEndpoints(query *uint16, endpoints **uint16, result **uint16) 
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnEnumerateEndpoints.Addr(), 3, uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(endpoints)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnEnumerateEndpoints.Addr(), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(endpoints)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -391,7 +388,7 @@ func _hcnEnumerateLoadBalancers(query *uint16, loadBalancers **uint16, result **
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnEnumerateLoadBalancers.Addr(), 3, uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(loadBalancers)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnEnumerateLoadBalancers.Addr(), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(loadBalancers)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -415,7 +412,7 @@ func _hcnEnumerateNamespaces(query *uint16, namespaces **uint16, result **uint16
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnEnumerateNamespaces.Addr(), 3, uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(namespaces)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnEnumerateNamespaces.Addr(), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(namespaces)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -439,7 +436,7 @@ func _hcnEnumerateNetworks(query *uint16, networks **uint16, result **uint16) (h
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnEnumerateNetworks.Addr(), 3, uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(networks)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnEnumerateNetworks.Addr(), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(networks)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -463,7 +460,7 @@ func _hcnEnumerateRoutes(query *uint16, routes **uint16, result **uint16) (hr er
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnEnumerateSdnRoutes.Addr(), 3, uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(routes)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnEnumerateSdnRoutes.Addr(), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(routes)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -487,7 +484,7 @@ func _hcnModifyEndpoint(endpoint hcnEndpoint, settings *uint16, result **uint16)
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnModifyEndpoint.Addr(), 3, uintptr(endpoint), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnModifyEndpoint.Addr(), uintptr(endpoint), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -511,7 +508,7 @@ func _hcnModifyLoadBalancer(loadBalancer hcnLoadBalancer, settings *uint16, resu
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnModifyLoadBalancer.Addr(), 3, uintptr(loadBalancer), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnModifyLoadBalancer.Addr(), uintptr(loadBalancer), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -535,7 +532,7 @@ func _hcnModifyNamespace(namespace hcnNamespace, settings *uint16, result **uint
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnModifyNamespace.Addr(), 3, uintptr(namespace), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnModifyNamespace.Addr(), uintptr(namespace), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -559,7 +556,7 @@ func _hcnModifyNetwork(network hcnNetwork, settings *uint16, result **uint16) (h
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnModifyNetwork.Addr(), 3, uintptr(network), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnModifyNetwork.Addr(), uintptr(network), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -583,7 +580,7 @@ func _hcnModifyRoute(route hcnRoute, settings *uint16, result **uint16) (hr erro
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnModifySdnRoute.Addr(), 3, uintptr(route), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnModifySdnRoute.Addr(), uintptr(route), uintptr(unsafe.Pointer(settings)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -598,7 +595,7 @@ func hcnOpenEndpoint(id *_guid, endpoint *hcnEndpoint, result **uint16) (hr erro
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnOpenEndpoint.Addr(), 3, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(endpoint)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnOpenEndpoint.Addr(), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(endpoint)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -613,7 +610,7 @@ func hcnOpenLoadBalancer(id *_guid, loadBalancer *hcnLoadBalancer, result **uint
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnOpenLoadBalancer.Addr(), 3, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(loadBalancer)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnOpenLoadBalancer.Addr(), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(loadBalancer)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -628,7 +625,7 @@ func hcnOpenNamespace(id *_guid, namespace *hcnNamespace, result **uint16) (hr e
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnOpenNamespace.Addr(), 3, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(namespace)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnOpenNamespace.Addr(), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(namespace)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -643,7 +640,7 @@ func hcnOpenNetwork(id *_guid, network *hcnNetwork, result **uint16) (hr error) 
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnOpenNetwork.Addr(), 3, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(network)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnOpenNetwork.Addr(), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(network)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -658,7 +655,7 @@ func hcnOpenRoute(id *_guid, route *hcnRoute, result **uint16) (hr error) {
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall(procHcnOpenSdnRoute.Addr(), 3, uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(route)), uintptr(unsafe.Pointer(result)))
+	r0, _, _ := syscall.SyscallN(procHcnOpenSdnRoute.Addr(), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(route)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -682,7 +679,7 @@ func _hcnQueryEndpointProperties(endpoint hcnEndpoint, query *uint16, properties
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall6(procHcnQueryEndpointProperties.Addr(), 4, uintptr(endpoint), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(properties)), uintptr(unsafe.Pointer(result)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHcnQueryEndpointProperties.Addr(), uintptr(endpoint), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(properties)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -706,7 +703,7 @@ func _hcnQueryLoadBalancerProperties(loadBalancer hcnLoadBalancer, query *uint16
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall6(procHcnQueryLoadBalancerProperties.Addr(), 4, uintptr(loadBalancer), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(properties)), uintptr(unsafe.Pointer(result)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHcnQueryLoadBalancerProperties.Addr(), uintptr(loadBalancer), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(properties)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -730,7 +727,7 @@ func _hcnQueryNamespaceProperties(namespace hcnNamespace, query *uint16, propert
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall6(procHcnQueryNamespaceProperties.Addr(), 4, uintptr(namespace), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(properties)), uintptr(unsafe.Pointer(result)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHcnQueryNamespaceProperties.Addr(), uintptr(namespace), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(properties)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -754,7 +751,7 @@ func _hcnQueryNetworkProperties(network hcnNetwork, query *uint16, properties **
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall6(procHcnQueryNetworkProperties.Addr(), 4, uintptr(network), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(properties)), uintptr(unsafe.Pointer(result)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHcnQueryNetworkProperties.Addr(), uintptr(network), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(properties)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -778,7 +775,7 @@ func _hcnQueryRouteProperties(route hcnRoute, query *uint16, properties **uint16
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall6(procHcnQuerySdnRouteProperties.Addr(), 4, uintptr(route), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(properties)), uintptr(unsafe.Pointer(result)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHcnQuerySdnRouteProperties.Addr(), uintptr(route), uintptr(unsafe.Pointer(query)), uintptr(unsafe.Pointer(properties)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -789,7 +786,7 @@ func _hcnQueryRouteProperties(route hcnRoute, query *uint16, properties **uint16
 }
 
 func SetCurrentThreadCompartmentId(compartmentId uint32) (hr error) {
-	r0, _, _ := syscall.Syscall(procSetCurrentThreadCompartmentId.Addr(), 1, uintptr(compartmentId), 0, 0)
+	r0, _, _ := syscall.SyscallN(procSetCurrentThreadCompartmentId.Addr(), uintptr(compartmentId))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff
@@ -823,7 +820,7 @@ func __hnsCall(method *uint16, path *uint16, object *uint16, response **uint16) 
 	if hr != nil {
 		return
 	}
-	r0, _, _ := syscall.Syscall6(procHNSCall.Addr(), 4, uintptr(unsafe.Pointer(method)), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(object)), uintptr(unsafe.Pointer(response)), 0, 0)
+	r0, _, _ := syscall.SyscallN(procHNSCall.Addr(), uintptr(unsafe.Pointer(method)), uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(object)), uintptr(unsafe.Pointer(response)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff

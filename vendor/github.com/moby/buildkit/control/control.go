@@ -11,7 +11,7 @@ import (
 	contentapi "github.com/containerd/containerd/api/services/content/v1"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/services/content/contentserver"
-	"github.com/docker/distribution/reference"
+	"github.com/distribution/reference"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/hashstructure/v2"
 	controlapi "github.com/moby/buildkit/api/services/control"

@@ -11,8 +11,8 @@ import (
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/gc"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/platforms"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/hashicorp/go-multierror"
 	"github.com/moby/buildkit/cache"
@@ -356,7 +356,7 @@ func (w *Worker) PruneCacheMounts(ctx context.Context, ids []string) error {
 			}
 			// if ref is unused try to clean it up right away by releasing it
 			if mref, err := w.CacheMgr.GetMutable(ctx, md.ID()); err == nil {
-				go mref.Release(context.TODO())
+				go mref.Release(context.TODO()) //nolint:gosec
 			}
 		}
 	}

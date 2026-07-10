@@ -6,7 +6,7 @@ generators = ["go"]
 [includes]
   # Include paths that will be added before all others. Typically, you want to
   # treat the root of the project as an include, but this may not be necessary.
-  before = ["./protobuf"]
+  before = ["./protobuf", "./vendor"]
 
   # Paths that will be added untouched to the end of the includes. We use
   # `/usr/local/include` to pickup the common install location of protobuf.
@@ -32,13 +32,6 @@ generators = ["go", "go-grpc"]
 [[descriptors]]
 prefix = "github.com/containerd/containerd/runtime/linux/runctypes"
 target = "runtime/linux/runctypes/next.pb.txt"
-ignore_files = [
-	"google/protobuf/descriptor.proto",
-]
-
-[[descriptors]]
-prefix = "github.com/containerd/containerd/runtime/v2/runc/options"
-target = "runtime/v2/runc/options/next.pb.txt"
 ignore_files = [
 	"google/protobuf/descriptor.proto",
 ]

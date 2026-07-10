@@ -1,68 +1,120 @@
+version: "2"
 linters:
   enable:
-    - exportloopref # Checks for pointers to enclosing loop variables
-    - gofmt
-    - goimports
+    - depguard # Checks for dependencies that should not be (re)introduced. See "settings" for further details.
+    - dupword # Checks for duplicate words in the source code
     - gosec
-    - ineffassign
+    - revive
     - misspell
     - nolintlint
-    - revive
-    - staticcheck
-    - tenv # Detects using os.Setenv instead of t.Setenv since Go 1.17
     - unconvert
-    - unused
-    - vet
-    - dupword # Checks for duplicate words in the source code
   disable:
     - errcheck
-
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: github.com/opencontainers/runc
+              desc: We don't want to depend on runc (libcontainer), unless there is no other option; see https://github.com/opencontainers/runc/issues/3028.
+    forbidigo:
+      forbid:
+        - pkg: ^regexp$
+          msg: Use internal/lazyregexp.New instead.
+    gosec:
+      # The following issues surfaced when `gosec` linter
+      # was enabled. They are temporarily excluded to unblock
+      # the existing workflow, but still to be addressed by
+      # future works.
+      excludes:
+        - G204
+        - G305
+        - G306
+        - G402
+        - G404
+        - G115
+        - G103
+        - G104
+        - G301
+        - G302
+        - G304
+    staticcheck:
+      checks:
+        - all
+        - -QF1001
+        - -QF1002
+        - -QF1003
+        - -QF1004
+        - -QF1008 # Excludes QF1008 from staticcheck
+        - -ST1000
+        - -ST1003
+        - -ST1005
+        - -ST1019
+        - -ST1020
+        - -ST1021
+        - -ST1022
+    revive:
+      rules:
+        - name: package-comments
+          severity: warning
+          disabled: true
+          exclude: [ "" ]
+    nolintlint:
+      allow-unused: true
+  exclusions:
+    generated: lax
+    rules:
+      - path: cmd[\\/]containerd[\\/]builtins[\\/]
+        text: 'blank-imports:'
+      - path: contrib[\\/]fuzz[\\/]
+        text: 'exported: func name will be used as fuzz.Fuzz'
+      - path: archive[\\/]tarheader[\\/]
+        # conversion is necessary on Linux, unnecessary on macOS
+        text: unnecessary conversion
+      - path: integration[\\/]client
+        text: 'dot-imports:'
+      - linters:
+          - revive
+        text: if-return
+      - linters:
+          - revive
+        text: empty-block
+      - linters:
+          - revive
+        text: superfluous-else
+      - linters:
+          - revive
+        text: unused-parameter
+      - linters:
+          - revive
+        text: unreachable-code
+      - linters:
+          - revive
+        text: redefines-builtin-id
+      - linters:
+          - forbidigo
+        text: 'use of `regexp.MustCompile` forbidden'
+        path: _test\.go
+    paths:
+      - api
+      - cluster
+      - docs
+      - docs/man
+      - releases
+      - test
 issues:
-  include:
-    - EXC0002
   max-issues-per-linter: 0
   max-same-issues: 0
-
-  # Only using / doesn't work due to https://github.com/golangci/golangci-lint/issues/1398.
-  exclude-rules:
-    - path: 'cmd[\\/]containerd[\\/]builtins[\\/]'
-      text: "blank-imports:"
-    - path: 'contrib[\\/]fuzz[\\/]'
-      text: "exported: func name will be used as fuzz.Fuzz"
-    - path: 'archive[\\/]tarheader[\\/]'
-      # conversion is necessary on Linux, unnecessary on macOS
-      text: "unnecessary conversion"
-
-    # FIXME temporarily suppress deprecation warnings for the logs package. See https://github.com/containerd/containerd/pull/9086
-    - text: "SA1019: log\\.(G|L|Fields|Entry|RFC3339NanoFixed|Level|TraceLevel|DebugLevel|InfoLevel|WarnLevel|ErrorLevel|FatalLevel|PanicLevel|SetLevel|GetLevel|OutputFormat|TextFormat|JSONFormat|SetFormat|WithLogger|GetLogger)"
-      linters:
-        - staticcheck
-    - text: "SA1019: logtest\\.WithT"
-      linters:
-        - staticcheck
-
-
-linters-settings:
-  gosec:
-    # The following issues surfaced when `gosec` linter
-    # was enabled. They are temporarily excluded to unblock
-    # the existing workflow, but still to be addressed by
-    # future works.
-    excludes:
-      - G204
-      - G305
-      - G306
-      - G402
-      - G404
-
-run:
-  timeout: 8m
-  skip-dirs:
-    - api
-    - cluster
-    - design
-    - docs
-    - docs/man
-    - releases
-    - reports
-    - test # e2e scripts
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: strict
+    paths:
+      - api
+      - cluster
+      - docs
+      - docs/man
+      - releases
+      - test

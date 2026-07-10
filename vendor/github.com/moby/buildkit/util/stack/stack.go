@@ -168,7 +168,7 @@ func convertStack(s errors.StackTrace) *Stack {
 	return &out
 }
 
-type withStack struct {
+type withStack struct { //nolint:errname // error helper
 	stack *Stack
 	error
 }

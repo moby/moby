@@ -20,11 +20,18 @@ import (
 // FS represents the pseudo-filesystem sys, which provides an interface to
 // kernel data structures.
 type FS struct {
-	proc fs.FS
+	proc   fs.FS
+	isReal bool
 }
 
-// DefaultMountPoint is the common mount point of the proc filesystem.
-const DefaultMountPoint = fs.DefaultProcMountPoint
+const (
+	// DefaultMountPoint is the common mount point of the proc filesystem.
+	DefaultMountPoint = fs.DefaultProcMountPoint
+
+	// SectorSize represents the size of a sector in bytes.
+	// It is specific to Linux block I/O operations.
+	SectorSize = 512
+)
 
 // NewDefaultFS returns a new proc FS mounted under the default proc mountPoint.
 // It will error if the mount point directory can't be read or is a file.
@@ -39,5 +46,11 @@ func NewFS(mountPoint string) (FS, error) {
 	if err != nil {
 		return FS{}, err
 	}
-	return FS{fs}, nil
+
+	isReal, err := isRealProc(mountPoint)
+	if err != nil {
+		return FS{}, err
+	}
+
+	return FS{fs, isReal}, nil
 }

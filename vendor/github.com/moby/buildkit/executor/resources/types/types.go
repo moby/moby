@@ -22,8 +22,7 @@ type Samples struct {
 
 // Sample represents a wrapper for sampled data of cgroupv2 controllers
 type Sample struct {
-	//nolint
-	Timestamp_ time.Time       `json:"timestamp"`
+	Timestamp_ time.Time       `json:"timestamp"` //nolint:revive
 	CPUStat    *CPUStat        `json:"cpuStat,omitempty"`
 	MemoryStat *MemoryStat     `json:"memoryStat,omitempty"`
 	IOStat     *IOStat         `json:"ioStat,omitempty"`

@@ -9,7 +9,7 @@
       "supportsDualStack" : true,
       "supportsFIPS" : true
     },
-    "regionRegex" : "^(us|eu|ap|sa|ca|me|af|il)\\-\\w+\\-\\d+$",
+    "regionRegex" : "^(us|eu|ap|sa|ca|me|af|il|mx)\\-\\w+\\-\\d+$",
     "regions" : {
       "af-south-1" : {
         "description" : "Africa (Cape Town)"
@@ -43,6 +43,12 @@
       },
       "ap-southeast-4" : {
         "description" : "Asia Pacific (Melbourne)"
+      },
+      "ap-southeast-5" : {
+        "description" : "Asia Pacific (Malaysia)"
+      },
+      "ap-southeast-7" : {
+        "description" : "Asia Pacific (Thailand)"
       },
       "aws-global" : {
         "description" : "AWS Standard global region"
@@ -85,6 +91,9 @@
       },
       "me-south-1" : {
         "description" : "Middle East (Bahrain)"
+      },
+      "mx-central-1" : {
+        "description" : "Mexico (Central)"
       },
       "sa-east-1" : {
         "description" : "South America (Sao Paulo)"
@@ -198,7 +207,11 @@
       "supportsFIPS" : true
     },
     "regionRegex" : "^eu\\-isoe\\-\\w+\\-\\d+$",
-    "regions" : { }
+    "regions" : {
+      "eu-isoe-west-1" : {
+        "description" : "EU ISOE West"
+      }
+    }
   }, {
     "id" : "aws-iso-f",
     "outputs" : {
@@ -210,7 +223,17 @@
       "supportsFIPS" : true
     },
     "regionRegex" : "^us\\-isof\\-\\w+\\-\\d+$",
-    "regions" : { }
+    "regions" : {
+      "aws-iso-f-global" : {
+        "description" : "AWS ISOF global region"
+      },
+      "us-isof-east-1" : {
+        "description" : "US ISOF EAST"
+      },
+      "us-isof-south-1" : {
+        "description" : "US ISOF SOUTH"
+      }
+    }
   } ],
   "version" : "1.1"
 }

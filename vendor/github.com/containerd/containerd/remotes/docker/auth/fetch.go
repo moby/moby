@@ -26,9 +26,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/log"
 	remoteserrors "github.com/containerd/containerd/remotes/errors"
 	"github.com/containerd/containerd/version"
+	"github.com/containerd/log"
 )
 
 var (
@@ -86,11 +86,11 @@ type TokenOptions struct {
 
 // OAuthTokenResponse is response from fetching token with a OAuth POST request
 type OAuthTokenResponse struct {
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	ExpiresIn    int       `json:"expires_in"`
-	IssuedAt     time.Time `json:"issued_at"`
-	Scope        string    `json:"scope"`
+	AccessToken      string    `json:"access_token"`
+	RefreshToken     string    `json:"refresh_token"`
+	ExpiresInSeconds int       `json:"expires_in"`
+	IssuedAt         time.Time `json:"issued_at"`
+	Scope            string    `json:"scope"`
 }
 
 // FetchTokenWithOAuth fetches a token using a POST request
@@ -152,11 +152,11 @@ func FetchTokenWithOAuth(ctx context.Context, client *http.Client, headers http.
 
 // FetchTokenResponse is response from fetching token with GET request
 type FetchTokenResponse struct {
-	Token        string    `json:"token"`
-	AccessToken  string    `json:"access_token"`
-	ExpiresIn    int       `json:"expires_in"`
-	IssuedAt     time.Time `json:"issued_at"`
-	RefreshToken string    `json:"refresh_token"`
+	Token            string    `json:"token"`
+	AccessToken      string    `json:"access_token"`
+	ExpiresInSeconds int       `json:"expires_in"`
+	IssuedAt         time.Time `json:"issued_at"`
+	RefreshToken     string    `json:"refresh_token"`
 }
 
 // FetchToken fetches a token using a GET request

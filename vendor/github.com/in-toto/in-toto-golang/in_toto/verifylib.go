@@ -12,7 +12,6 @@ import (
 	"io"
 	"os"
 	"path"
-	osPath "path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -22,6 +21,8 @@ import (
 
 // ErrInspectionRunDirIsSymlink gets thrown if the runDir is a symlink
 var ErrInspectionRunDirIsSymlink = errors.New("runDir is a symlink. This is a security risk")
+
+var ErrNotLayout = errors.New("verification workflow passed a non-layout")
 
 /*
 RunInspections iteratively executes the command in the Run field of all
@@ -41,8 +42,8 @@ If executing the inspection command fails, or if the executed command has a
 non-zero exit code, the first return value is an empty Metablock map and the
 second return value is the error.
 */
-func RunInspections(layout Layout, runDir string, lineNormalization bool) (map[string]Metablock, error) {
-	inspectionMetadata := make(map[string]Metablock)
+func RunInspections(layout Layout, runDir string, lineNormalization bool, useDSSE bool) (map[string]Metadata, error) {
+	inspectionMetadata := make(map[string]Metadata)
 
 	for _, inspection := range layout.Inspect {
 
@@ -51,14 +52,18 @@ func RunInspections(layout Layout, runDir string, lineNormalization bool) (map[s
 			paths = []string{runDir}
 		}
 
-		linkMb, err := InTotoRun(inspection.Name, runDir, paths, paths,
-			inspection.Run, Key{}, []string{"sha256"}, nil, nil, lineNormalization)
+		linkEnv, err := InTotoRun(inspection.Name, runDir, paths, paths,
+			inspection.Run, Key{}, []string{"sha256"}, nil, nil, lineNormalization, false, useDSSE)
 
 		if err != nil {
 			return nil, err
 		}
 
-		retVal := linkMb.Signed.(Link).ByProducts["return-value"]
+		link, ok := linkEnv.GetPayload().(Link)
+		if !ok {
+			return nil, fmt.Errorf("invalid metadata")
+		}
+		retVal := link.ByProducts["return-value"]
 		if retVal != float64(0) {
 			return nil, fmt.Errorf("inspection command '%s' of inspection '%s'"+
 				" returned a non-zero value: %d", inspection.Run, inspection.Name,
@@ -67,11 +72,11 @@ func RunInspections(layout Layout, runDir string, lineNormalization bool) (map[s
 
 		// Dump inspection link to cwd using the short link name format
 		linkName := fmt.Sprintf(LinkNameFormatShort, inspection.Name)
-		if err := linkMb.Dump(linkName); err != nil {
+		if err := linkEnv.Dump(linkName); err != nil {
 			fmt.Printf("JSON serialization or writing failed: %s", err)
 		}
 
-		inspectionMetadata[inspection.Name] = linkMb
+		inspectionMetadata[inspection.Name] = linkEnv
 	}
 	return inspectionMetadata, nil
 }
@@ -79,24 +84,30 @@ func RunInspections(layout Layout, runDir string, lineNormalization bool) (map[s
 // verifyMatchRule is a helper function to process artifact rules of
 // type MATCH. See VerifyArtifacts for more details.
 func verifyMatchRule(ruleData map[string]string,
-	srcArtifacts map[string]interface{}, srcArtifactQueue Set,
-	itemsMetadata map[string]Metablock) Set {
+	srcArtifacts map[string]HashObj, srcArtifactQueue Set,
+	itemsMetadata map[string]Metadata) Set {
 	consumed := NewSet()
 	// Get destination link metadata
-	dstLinkMb, exists := itemsMetadata[ruleData["dstName"]]
+	dstLinkEnv, exists := itemsMetadata[ruleData["dstName"]]
 	if !exists {
 		// Destination link does not exist, rule can't consume any
 		// artifacts
 		return consumed
 	}
 
+	dstLink, ok := dstLinkEnv.GetPayload().(Link)
+	if !ok {
+		fmt.Printf("invalid metadata")
+		return consumed
+	}
+
 	// Get artifacts from destination link metadata
-	var dstArtifacts map[string]interface{}
+	var dstArtifacts map[string]HashObj
 	switch ruleData["dstType"] {
 	case "materials":
-		dstArtifacts = dstLinkMb.Signed.(Link).Materials
+		dstArtifacts = dstLink.Materials
 	case "products":
-		dstArtifacts = dstLinkMb.Signed.(Link).Products
+		dstArtifacts = dstLink.Products
 	}
 
 	// cleanup paths in pattern and artifact maps
@@ -140,7 +151,7 @@ func verifyMatchRule(ruleData map[string]string,
 
 		// Construct corresponding destination artifact path, i.e.
 		// an optional destination prefix plus the source base path
-		dstPath := path.Clean(osPath.Join(ruleData["dstPrefix"], srcBasePath))
+		dstPath := path.Clean(path.Join(ruleData["dstPrefix"], srcBasePath))
 
 		// Try to find the corresponding destination artifact
 		dstArtifact, exists := dstArtifacts[dstPath]
@@ -180,7 +191,7 @@ DISALLOW rule to fail overall verification, if artifacts are left in the queue
 that should have been consumed by preceding rules.
 */
 func VerifyArtifacts(items []interface{},
-	itemsMetadata map[string]Metablock) error {
+	itemsMetadata map[string]Metadata) error {
 	// Verify artifact rules for each item in the layout
 	for _, itemI := range items {
 		// The layout item (interface) must be a Link or an Inspection we are only
@@ -207,7 +218,7 @@ func VerifyArtifacts(items []interface{},
 		}
 
 		// Use the item's name to extract the corresponding link
-		srcLinkMb, exists := itemsMetadata[itemName]
+		srcLinkEnv, exists := itemsMetadata[itemName]
 		if !exists {
 			return fmt.Errorf("VerifyArtifacts could not find metadata"+
 				" for item '%s', got: '%s'", itemName, itemsMetadata)
@@ -215,18 +226,22 @@ func VerifyArtifacts(items []interface{},
 
 		// Create shortcuts to materials and products (including hashes) reported
 		// by the item's link, required to verify "match" rules
-		materials := srcLinkMb.Signed.(Link).Materials
-		products := srcLinkMb.Signed.(Link).Products
+		link, ok := srcLinkEnv.GetPayload().(Link)
+		if !ok {
+			return fmt.Errorf("invalid metadata")
+		}
+		materials := link.Materials
+		products := link.Products
 
 		// All other rules only require the material or product paths (without
 		// hashes). We extract them from the corresponding maps and store them as
 		// sets for convenience in further processing
 		materialPaths := NewSet()
-		for _, p := range InterfaceKeyStrings(materials) {
+		for _, p := range artifactsDictKeyStrings(materials) {
 			materialPaths.Add(path.Clean(p))
 		}
 		productPaths := NewSet()
-		for _, p := range InterfaceKeyStrings(products) {
+		for _, p := range artifactsDictKeyStrings(products) {
 			productPaths.Add(path.Clean(p))
 		}
 
@@ -268,17 +283,24 @@ func VerifyArtifacts(items []interface{},
 			// TODO: Add logging library (see in-toto/in-toto-golang#4)
 			// fmt.Printf("%s...\n", verificationData["srcType"])
 
-			rules := verificationData["rules"].([][]string)
-			artifacts := verificationData["artifacts"].(map[string]interface{})
-
+			rules, ok := verificationData["rules"].([][]string)
+			if !ok {
+				return fmt.Errorf(`rules must be of type [][]string`)
+			}
+			artifacts, ok := verificationData["artifacts"].(map[string]HashObj)
+			if !ok {
+				return fmt.Errorf(`artifacts must be of type map[string]HashObj`)
+			}
 			// Use artifacts (without hashes) as base queue. Each rule only operates
 			// on artifacts in that queue.  If a rule consumes an artifact (i.e. can
 			// be applied successfully), the artifact is removed from the queue. By
 			// applying a DISALLOW rule eventually, verification may return an error,
 			// if the rule matches any artifacts in the queue that should have been
 			// consumed earlier.
-			queue := verificationData["artifactPaths"].(Set)
-
+			queue, ok := verificationData["artifactPaths"].(Set)
+			if !ok {
+				return fmt.Errorf(`queue must be of type Set`)
+			}
 			// TODO: Add logging library (see in-toto/in-toto-golang#4)
 			// fmt.Printf("Initial state\nMaterials: %s\nProducts: %s\nQueue: %s\n\n",
 			// 	materialPaths.Slice(), productPaths.Slice(), queue.Slice())
@@ -364,9 +386,9 @@ Products, the first return value is an empty Metablock map and the second
 return value is the error.
 */
 func ReduceStepsMetadata(layout Layout,
-	stepsMetadata map[string]map[string]Metablock) (map[string]Metablock,
+	stepsMetadata map[string]map[string]Metadata) (map[string]Metadata,
 	error) {
-	stepsMetadataReduced := make(map[string]Metablock)
+	stepsMetadataReduced := make(map[string]Metadata)
 
 	for _, step := range layout.Steps {
 		linksPerStep, ok := stepsMetadata[step.Name]
@@ -379,16 +401,16 @@ func ReduceStepsMetadata(layout Layout,
 		// Get the first link (could be any link) for the current step, which will
 		// serve as reference link for below comparisons
 		var referenceKeyID string
-		var referenceLinkMb Metablock
-		for keyID, linkMb := range linksPerStep {
-			referenceLinkMb = linkMb
+		var referenceLinkEnv Metadata
+		for keyID, linkEnv := range linksPerStep {
+			referenceLinkEnv = linkEnv
 			referenceKeyID = keyID
 			break
 		}
 
 		// Only one link, nothing to reduce, take the reference link
 		if len(linksPerStep) == 1 {
-			stepsMetadataReduced[step.Name] = referenceLinkMb
+			stepsMetadataReduced[step.Name] = referenceLinkEnv
 
 			// Multiple links, reduce but first check
 		} else {
@@ -396,11 +418,17 @@ func ReduceStepsMetadata(layout Layout,
 			// TODO: What should we do if there are more links, than the
 			// threshold requires, but not all of them are equal? Right now we would
 			// also error.
-			for keyID, linkMb := range linksPerStep {
-				if !reflect.DeepEqual(linkMb.Signed.(Link).Materials,
-					referenceLinkMb.Signed.(Link).Materials) ||
-					!reflect.DeepEqual(linkMb.Signed.(Link).Products,
-						referenceLinkMb.Signed.(Link).Products) {
+			for keyID, linkEnv := range linksPerStep {
+				link, ok := linkEnv.GetPayload().(Link)
+				if !ok {
+					return nil, fmt.Errorf("invalid metadata")
+				}
+				refLink, ok := referenceLinkEnv.GetPayload().(Link)
+				if !ok {
+					return nil, fmt.Errorf("invalid metadata")
+				}
+				if !reflect.DeepEqual(link.Materials, refLink.Materials) ||
+					!reflect.DeepEqual(link.Products, refLink.Products) {
 					return nil, fmt.Errorf("link '%s' and '%s' have different"+
 						" artifacts",
 						fmt.Sprintf(LinkNameFormat, step.Name, referenceKeyID),
@@ -408,7 +436,7 @@ func ReduceStepsMetadata(layout Layout,
 				}
 			}
 			// We haven't errored out, so we can reduce (i.e take the reference link)
-			stepsMetadataReduced[step.Name] = referenceLinkMb
+			stepsMetadataReduced[step.Name] = referenceLinkEnv
 		}
 	}
 	return stepsMetadataReduced, nil
@@ -421,7 +449,7 @@ command, as per the layout.  Soft verification means that, in case a command
 does not align, a warning is issued.
 */
 func VerifyStepCommandAlignment(layout Layout,
-	stepsMetadata map[string]map[string]Metablock) {
+	stepsMetadata map[string]map[string]Metadata) {
 	for _, step := range layout.Steps {
 		linksPerStep, ok := stepsMetadata[step.Name]
 		// We should never get here, layout verification must fail earlier
@@ -430,9 +458,14 @@ func VerifyStepCommandAlignment(layout Layout,
 				"', no link metadata found.")
 		}
 
-		for signerKeyID, linkMb := range linksPerStep {
+		for signerKeyID, linkEnv := range linksPerStep {
+			link, ok := linkEnv.GetPayload().(Link)
+			if !ok {
+				fmt.Printf("invalid metadata")
+				return
+			}
 			expectedCommandS := strings.Join(step.ExpectedCommand, " ")
-			executedCommandS := strings.Join(linkMb.Signed.(Link).Command, " ")
+			executedCommandS := strings.Join(link.Command, " ")
 
 			if expectedCommandS != executedCommandS {
 				linkName := fmt.Sprintf(LinkNameFormat, step.Name, signerKeyID)
@@ -502,11 +535,11 @@ return value is an empty map of Metablock maps and the second return value is
 the error.
 */
 func VerifyLinkSignatureThesholds(layout Layout,
-	stepsMetadata map[string]map[string]Metablock, rootCertPool, intermediateCertPool *x509.CertPool) (
-	map[string]map[string]Metablock, error) {
+	stepsMetadata map[string]map[string]Metadata, rootCertPool, intermediateCertPool *x509.CertPool) (
+	map[string]map[string]Metadata, error) {
 	// This will stores links with valid signature from an authorized functionary
 	// for all steps
-	stepsMetadataVerified := make(map[string]map[string]Metablock)
+	stepsMetadataVerified := make(map[string]map[string]Metadata)
 
 	// Try to find enough (>= threshold) links each with a valid signature from
 	// distinct authorized functionaries for each step
@@ -515,7 +548,7 @@ func VerifyLinkSignatureThesholds(layout Layout,
 
 		// This will store links with valid signature from an authorized
 		// functionary for the given step
-		linksPerStepVerified := make(map[string]Metablock)
+		linksPerStepVerified := make(map[string]Metadata)
 
 		// Check if there are any links at all for the given step
 		linksPerStep, ok := stepsMetadata[step.Name]
@@ -528,12 +561,12 @@ func VerifyLinkSignatureThesholds(layout Layout,
 		// verification passes.  Only good links are stored, to verify thresholds
 		// below.
 		isAuthorizedSignature := false
-		for signerKeyID, linkMb := range linksPerStep {
+		for signerKeyID, linkEnv := range linksPerStep {
 			for _, authorizedKeyID := range step.PubKeys {
 				if signerKeyID == authorizedKeyID {
 					if verifierKey, ok := layout.Keys[authorizedKeyID]; ok {
-						if err := linkMb.VerifySignature(verifierKey); err == nil {
-							linksPerStepVerified[signerKeyID] = linkMb
+						if err := linkEnv.VerifySignature(verifierKey); err == nil {
+							linksPerStepVerified[signerKeyID] = linkEnv
 							isAuthorizedSignature = true
 							break
 						}
@@ -544,7 +577,7 @@ func VerifyLinkSignatureThesholds(layout Layout,
 			// If the signer's key wasn't in our step's pubkeys array, check the cert pool to
 			// see if the key is known to us.
 			if !isAuthorizedSignature {
-				sig, err := linkMb.GetSignatureForKeyID(signerKeyID)
+				sig, err := linkEnv.GetSignatureForKeyID(signerKeyID)
 				if err != nil {
 					stepErr = err
 					continue
@@ -563,13 +596,13 @@ func VerifyLinkSignatureThesholds(layout Layout,
 					continue
 				}
 
-				err = linkMb.VerifySignature(cert)
+				err = linkEnv.VerifySignature(cert)
 				if err != nil {
 					stepErr = err
 					continue
 				}
 
-				linksPerStepVerified[signerKeyID] = linkMb
+				linksPerStepVerified[signerKeyID] = linkEnv
 			}
 		}
 
@@ -614,30 +647,30 @@ ignored. Only a preliminary threshold check is performed, that is, if there
 aren't at least Threshold links for any given step, the first return value
 is an empty map of Metablock maps and the second return value is the error.
 */
-func LoadLinksForLayout(layout Layout, linkDir string) (map[string]map[string]Metablock, error) {
-	stepsMetadata := make(map[string]map[string]Metablock)
+func LoadLinksForLayout(layout Layout, linkDir string) (map[string]map[string]Metadata, error) {
+	stepsMetadata := make(map[string]map[string]Metadata)
 
 	for _, step := range layout.Steps {
-		linksPerStep := make(map[string]Metablock)
+		linksPerStep := make(map[string]Metadata)
 		// Since we can verify against certificates belonging to a CA, we need to
 		// load any possible links
-		linkFiles, err := filepath.Glob(osPath.Join(linkDir, fmt.Sprintf(LinkGlobFormat, step.Name)))
+		linkFiles, err := filepath.Glob(path.Join(linkDir, fmt.Sprintf(LinkGlobFormat, step.Name)))
 		if err != nil {
 			return nil, err
 		}
 
 		for _, linkPath := range linkFiles {
-			var linkMb Metablock
-			if err := linkMb.Load(linkPath); err != nil {
+			linkEnv, err := LoadMetadata(linkPath)
+			if err != nil {
 				continue
 			}
 
 			// To get the full key from the metadata's signatures, we have to check
 			// for one with the same short id...
 			signerShortKeyID := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(linkPath), step.Name+"."), ".link")
-			for _, sig := range linkMb.Signatures {
+			for _, sig := range linkEnv.Sigs() {
 				if strings.HasPrefix(sig.KeyID, signerShortKeyID) {
-					linksPerStep[sig.KeyID] = linkMb
+					linksPerStep[sig.KeyID] = linkEnv
 					break
 				}
 			}
@@ -677,14 +710,14 @@ Signatures and keys are associated by key id.  If the key map is empty, or the
 Metablock's Signature field does not have a signature for one or more of the
 passed keys, or a matching signature is invalid, an error is returned.
 */
-func VerifyLayoutSignatures(layoutMb Metablock,
+func VerifyLayoutSignatures(layoutEnv Metadata,
 	layoutKeys map[string]Key) error {
 	if len(layoutKeys) < 1 {
 		return fmt.Errorf("layout verification requires at least one key")
 	}
 
 	for _, key := range layoutKeys {
-		if err := layoutMb.VerifySignature(key); err != nil {
+		if err := layoutEnv.VerifySignature(key); err != nil {
 			return err
 		}
 	}
@@ -700,29 +733,43 @@ NOTE: The assumption is that the steps mentioned in the layout are to be
 performed sequentially. So, the first step mentioned in the layout denotes what
 comes into the supply chain and the last step denotes what goes out.
 */
-func GetSummaryLink(layout Layout, stepsMetadataReduced map[string]Metablock,
-	stepName string) (Metablock, error) {
+func GetSummaryLink(layout Layout, stepsMetadataReduced map[string]Metadata,
+	stepName string, useDSSE bool) (Metadata, error) {
 	var summaryLink Link
-	var result Metablock
 	if len(layout.Steps) > 0 {
 		firstStepLink := stepsMetadataReduced[layout.Steps[0].Name]
 		lastStepLink := stepsMetadataReduced[layout.Steps[len(layout.Steps)-1].Name]
 
-		summaryLink.Materials = firstStepLink.Signed.(Link).Materials
+		firstStepPayloadLink, ok := firstStepLink.GetPayload().(Link)
+		if !ok {
+			return nil, fmt.Errorf("invalid metadata")
+		}
+		summaryLink.Materials = firstStepPayloadLink.Materials
 		summaryLink.Name = stepName
-		summaryLink.Type = firstStepLink.Signed.(Link).Type
+		summaryLink.Type = firstStepPayloadLink.Type
 
-		summaryLink.Products = lastStepLink.Signed.(Link).Products
-		summaryLink.ByProducts = lastStepLink.Signed.(Link).ByProducts
+		lastStepPayloadLink, ok := lastStepLink.GetPayload().(Link)
+		if !ok {
+			return nil, fmt.Errorf("invalid metadata")
+		}
+		summaryLink.Products = lastStepPayloadLink.Products
+		summaryLink.ByProducts = lastStepPayloadLink.ByProducts
 		// Using the last command of the sublayout as the command
 		// of the summary link can be misleading. Is it necessary to
 		// include all the commands executed as part of sublayout?
-		summaryLink.Command = lastStepLink.Signed.(Link).Command
+		summaryLink.Command = lastStepPayloadLink.Command
 	}
 
-	result.Signed = summaryLink
+	if useDSSE {
+		env := &Envelope{}
+		if err := env.SetPayload(summaryLink); err != nil {
+			return nil, err
+		}
 
-	return result, nil
+		return env, nil
+	}
+
+	return &Metablock{Signed: summaryLink}, nil
 }
 
 /*
@@ -731,11 +778,11 @@ so, recursively resolves it and replaces it with a summary link summarizing the
 steps carried out in the sublayout.
 */
 func VerifySublayouts(layout Layout,
-	stepsMetadataVerified map[string]map[string]Metablock,
-	superLayoutLinkPath string, intermediatePems [][]byte, lineNormalization bool) (map[string]map[string]Metablock, error) {
+	stepsMetadataVerified map[string]map[string]Metadata,
+	superLayoutLinkPath string, intermediatePems [][]byte, lineNormalization bool) (map[string]map[string]Metadata, error) {
 	for stepName, linkData := range stepsMetadataVerified {
 		for keyID, metadata := range linkData {
-			if _, ok := metadata.Signed.(Layout); ok {
+			if _, ok := metadata.GetPayload().(Layout); ok {
 				layoutKeys := make(map[string]Key)
 				layoutKeys[keyID] = layout.Keys[keyID]
 
@@ -838,7 +885,7 @@ the in-toto specification.  It requires the metadata of the root layout, a map
 that contains public keys to verify the root layout signatures, a path to a
 directory from where it can load link metadata files, which are treated as
 signed evidence for the steps defined in the layout, a step name, and a
-paramater dictionary used for parameter substitution. The step name only
+parameter dictionary used for parameter substitution. The step name only
 matters for sublayouts, where it's important to associate the summary of that
 step with a unique name. The verification routine is as follows:
 
@@ -861,55 +908,60 @@ Metablock object.
 NOTE: Artifact rules of type "create", "modify"
 and "delete" are currently not supported.
 */
-func InTotoVerify(layoutMb Metablock, layoutKeys map[string]Key,
+func InTotoVerify(layoutEnv Metadata, layoutKeys map[string]Key,
 	linkDir string, stepName string, parameterDictionary map[string]string, intermediatePems [][]byte, lineNormalization bool) (
-	Metablock, error) {
-
-	var summaryLink Metablock
-	var err error
+	Metadata, error) {
 
 	// Verify root signatures
-	if err := VerifyLayoutSignatures(layoutMb, layoutKeys); err != nil {
-		return summaryLink, err
+	if err := VerifyLayoutSignatures(layoutEnv, layoutKeys); err != nil {
+		return nil, err
 	}
 
-	// Extract the layout from its Metablock container (for further processing)
-	layout := layoutMb.Signed.(Layout)
+	useDSSE := false
+	if _, ok := layoutEnv.(*Envelope); ok {
+		useDSSE = true
+	}
+
+	// Extract the layout from its Metadata container (for further processing)
+	layout, ok := layoutEnv.GetPayload().(Layout)
+	if !ok {
+		return nil, ErrNotLayout
+	}
 
 	// Verify layout expiration
 	if err := VerifyLayoutExpiration(layout); err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	// Substitute parameters in layout
-	layout, err = SubstituteParameters(layout, parameterDictionary)
+	layout, err := SubstituteParameters(layout, parameterDictionary)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	rootCertPool, intermediateCertPool, err := LoadLayoutCertificates(layout, intermediatePems)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	// Load links for layout
 	stepsMetadata, err := LoadLinksForLayout(layout, linkDir)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	// Verify link signatures
 	stepsMetadataVerified, err := VerifyLinkSignatureThesholds(layout,
 		stepsMetadata, rootCertPool, intermediateCertPool)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	// Verify and resolve sublayouts
 	stepsSublayoutVerified, err := VerifySublayouts(layout,
 		stepsMetadataVerified, linkDir, intermediatePems, lineNormalization)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	// Verify command alignment (WARNING only)
@@ -922,18 +974,18 @@ func InTotoVerify(layoutMb Metablock, layoutKeys map[string]Key,
 	stepsMetadataReduced, err := ReduceStepsMetadata(layout,
 		stepsSublayoutVerified)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	// Verify artifact rules
 	if err = VerifyArtifacts(layout.stepsAsInterfaceSlice(),
 		stepsMetadataReduced); err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
-	inspectionMetadata, err := RunInspections(layout, "", lineNormalization)
+	inspectionMetadata, err := RunInspections(layout, "", lineNormalization, useDSSE)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	// Add steps metadata to inspection metadata, because inspection artifact
@@ -944,51 +996,48 @@ func InTotoVerify(layoutMb Metablock, layoutKeys map[string]Key,
 
 	if err = VerifyArtifacts(layout.inspectAsInterfaceSlice(),
 		inspectionMetadata); err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
-	summaryLink, err = GetSummaryLink(layout, stepsMetadataReduced, stepName)
+	summaryLink, err := GetSummaryLink(layout, stepsMetadataReduced, stepName, useDSSE)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	return summaryLink, nil
 }
 
 /*
-InTotoVerifyWithDirectory provides the same functionality as IntotoVerify, but
+InTotoVerifyWithDirectory provides the same functionality as InTotoVerify, but
 adds the possibility to select a local directory from where the inspections are run.
 */
-func InTotoVerifyWithDirectory(layoutMb Metablock, layoutKeys map[string]Key,
+func InTotoVerifyWithDirectory(layoutEnv Metadata, layoutKeys map[string]Key,
 	linkDir string, runDir string, stepName string, parameterDictionary map[string]string, intermediatePems [][]byte, lineNormalization bool) (
-	Metablock, error) {
-
-	var summaryLink Metablock
-	var err error
+	Metadata, error) {
 
 	// runDir sanity checks
 	// check if path exists
 	info, err := os.Stat(runDir)
 	if err != nil {
-		return Metablock{}, err
+		return nil, err
 	}
 
 	// check if runDir is a symlink
 	if info.Mode()&os.ModeSymlink == os.ModeSymlink {
-		return Metablock{}, ErrInspectionRunDirIsSymlink
+		return nil, ErrInspectionRunDirIsSymlink
 	}
 
 	// check if runDir is writable and a directory
 	err = isWritable(runDir)
 	if err != nil {
-		return Metablock{}, err
+		return nil, err
 	}
 
 	// check if runDir is empty (we do not want to overwrite files)
 	// We abuse File.Readdirnames for this action.
 	f, err := os.Open(runDir)
 	if err != nil {
-		return Metablock{}, err
+		return nil, err
 	}
 	defer f.Close()
 	// We use Readdirnames(1) for performance reasons, one child node
@@ -996,55 +1045,63 @@ func InTotoVerifyWithDirectory(layoutMb Metablock, layoutKeys map[string]Key,
 	_, err = f.Readdirnames(1)
 	// if io.EOF gets returned as error the directory is empty
 	if err == io.EOF {
-		return Metablock{}, err
+		return nil, err
 	}
 	err = f.Close()
 	if err != nil {
-		return Metablock{}, err
+		return nil, err
 	}
 
 	// Verify root signatures
-	if err := VerifyLayoutSignatures(layoutMb, layoutKeys); err != nil {
-		return summaryLink, err
+	if err := VerifyLayoutSignatures(layoutEnv, layoutKeys); err != nil {
+		return nil, err
 	}
 
-	// Extract the layout from its Metablock container (for further processing)
-	layout := layoutMb.Signed.(Layout)
+	useDSSE := false
+	if _, ok := layoutEnv.(*Envelope); ok {
+		useDSSE = true
+	}
+
+	// Extract the layout from its Metadata container (for further processing)
+	layout, ok := layoutEnv.GetPayload().(Layout)
+	if !ok {
+		return nil, ErrNotLayout
+	}
 
 	// Verify layout expiration
 	if err := VerifyLayoutExpiration(layout); err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	// Substitute parameters in layout
 	layout, err = SubstituteParameters(layout, parameterDictionary)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	rootCertPool, intermediateCertPool, err := LoadLayoutCertificates(layout, intermediatePems)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	// Load links for layout
 	stepsMetadata, err := LoadLinksForLayout(layout, linkDir)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	// Verify link signatures
 	stepsMetadataVerified, err := VerifyLinkSignatureThesholds(layout,
 		stepsMetadata, rootCertPool, intermediateCertPool)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	// Verify and resolve sublayouts
 	stepsSublayoutVerified, err := VerifySublayouts(layout,
 		stepsMetadataVerified, linkDir, intermediatePems, lineNormalization)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	// Verify command alignment (WARNING only)
@@ -1057,18 +1114,18 @@ func InTotoVerifyWithDirectory(layoutMb Metablock, layoutKeys map[string]Key,
 	stepsMetadataReduced, err := ReduceStepsMetadata(layout,
 		stepsSublayoutVerified)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	// Verify artifact rules
 	if err = VerifyArtifacts(layout.stepsAsInterfaceSlice(),
 		stepsMetadataReduced); err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
-	inspectionMetadata, err := RunInspections(layout, runDir, lineNormalization)
+	inspectionMetadata, err := RunInspections(layout, runDir, lineNormalization, useDSSE)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	// Add steps metadata to inspection metadata, because inspection artifact
@@ -1079,12 +1136,12 @@ func InTotoVerifyWithDirectory(layoutMb Metablock, layoutKeys map[string]Key,
 
 	if err = VerifyArtifacts(layout.inspectAsInterfaceSlice(),
 		inspectionMetadata); err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
-	summaryLink, err = GetSummaryLink(layout, stepsMetadataReduced, stepName)
+	summaryLink, err := GetSummaryLink(layout, stepsMetadataReduced, stepName, useDSSE)
 	if err != nil {
-		return summaryLink, err
+		return nil, err
 	}
 
 	return summaryLink, nil

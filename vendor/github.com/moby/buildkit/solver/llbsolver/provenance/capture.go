@@ -3,7 +3,7 @@ package provenance
 import (
 	"sort"
 
-	distreference "github.com/docker/distribution/reference"
+	distreference "github.com/distribution/reference"
 	resourcestypes "github.com/moby/buildkit/executor/resources/types"
 	"github.com/moby/buildkit/solver/result"
 	"github.com/moby/buildkit/util/urlutil"

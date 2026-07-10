@@ -18,6 +18,8 @@ syntax = "proto3";
 
 package containerd.services.introspection.v1;
 
+import "google/protobuf/any.proto";
+import "github.com/containerd/containerd/api/types/introspection.proto";
 import "github.com/containerd/containerd/api/types/platform.proto";
 import "google/rpc/status.proto";
 import "google/protobuf/empty.proto";
@@ -33,6 +35,8 @@ service Introspection {
 	rpc Plugins(PluginsRequest) returns (PluginsResponse);
 	// Server returns information about the containerd server
 	rpc Server(google.protobuf.Empty) returns (ServerResponse);
+	// PluginInfo returns information directly from a plugin if the plugin supports it
+	rpc PluginInfo(PluginInfoRequest) returns (PluginInfoResponse);
 }
 
 message Plugin {
@@ -110,4 +114,20 @@ message DeprecationWarning {
 	string id = 1;
 	string message = 2;
 	google.protobuf.Timestamp last_occurrence = 3;
+}
+
+message PluginInfoRequest {
+	string type = 1;
+	string id = 2;
+
+	// Options may be used to request extra dynamic information from
+	// a plugin.
+	// This object is determined by the plugin and the plugin may return
+	// NotImplemented or InvalidArgument if it is not supported
+	google.protobuf.Any options = 3;
+}
+
+message PluginInfoResponse {
+	Plugin plugin = 1;
+	google.protobuf.Any extra = 2;
 }

@@ -29,9 +29,10 @@ func (c *Client) ListAccountRoles(ctx context.Context, params *ListAccountRolesI
 
 type ListAccountRolesInput struct {
 
-	// The token issued by the CreateToken API call. For more information, see
-	// CreateToken (https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/API_CreateToken.html)
-	// in the IAM Identity Center OIDC API Reference Guide.
+	// The token issued by the CreateToken API call. For more information, see [CreateToken] in the
+	// IAM Identity Center OIDC API Reference Guide.
+	//
+	// [CreateToken]: https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/API_CreateToken.html
 	//
 	// This member is required.
 	AccessToken *string
@@ -88,22 +89,25 @@ func (c *Client) addOperationListAccountRolesMiddlewares(stack *middleware.Stack
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -118,13 +122,22 @@ func (c *Client) addOperationListAccountRolesMiddlewares(stack *middleware.Stack
 	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpListAccountRolesValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListAccountRoles(options.Region), middleware.Before); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -139,16 +152,20 @@ func (c *Client) addOperationListAccountRolesMiddlewares(stack *middleware.Stack
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
+		return err
+	}
 	return nil
 }
-
-// ListAccountRolesAPIClient is a client that implements the ListAccountRoles
-// operation.
-type ListAccountRolesAPIClient interface {
-	ListAccountRoles(context.Context, *ListAccountRolesInput, ...func(*Options)) (*ListAccountRolesOutput, error)
-}
-
-var _ ListAccountRolesAPIClient = (*Client)(nil)
 
 // ListAccountRolesPaginatorOptions is the paginator options for ListAccountRoles
 type ListAccountRolesPaginatorOptions struct {
@@ -213,6 +230,9 @@ func (p *ListAccountRolesPaginator) NextPage(ctx context.Context, optFns ...func
 	}
 	params.MaxResults = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListAccountRoles(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -231,6 +251,14 @@ func (p *ListAccountRolesPaginator) NextPage(ctx context.Context, optFns ...func
 
 	return result, nil
 }
+
+// ListAccountRolesAPIClient is a client that implements the ListAccountRoles
+// operation.
+type ListAccountRolesAPIClient interface {
+	ListAccountRoles(context.Context, *ListAccountRolesInput, ...func(*Options)) (*ListAccountRolesOutput, error)
+}
+
+var _ ListAccountRolesAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opListAccountRoles(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

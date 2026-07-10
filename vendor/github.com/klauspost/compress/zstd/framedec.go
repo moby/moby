@@ -146,7 +146,9 @@ func (d *frameDec) reset(br byteBuffer) error {
 			}
 			return err
 		}
-		printf("raw: %x, mantissa: %d, exponent: %d\n", wd, wd&7, wd>>3)
+		if debugDecoder {
+			printf("raw: %x, mantissa: %d, exponent: %d\n", wd, wd&7, wd>>3)
+		}
 		windowLog := 10 + (wd >> 3)
 		windowBase := uint64(1) << windowLog
 		windowAdd := (windowBase / 8) * uint64(wd&0x7)
@@ -236,10 +238,7 @@ func (d *frameDec) reset(br byteBuffer) error {
 
 	if d.WindowSize == 0 && d.SingleSegment {
 		// We may not need window in this case.
-		d.WindowSize = d.FrameContentSize
-		if d.WindowSize < MinWindowSize {
-			d.WindowSize = MinWindowSize
-		}
+		d.WindowSize = max(d.FrameContentSize, MinWindowSize)
 		if d.WindowSize > d.o.maxDecodedSize {
 			if debugDecoder {
 				printf("window size %d > max %d\n", d.WindowSize, d.o.maxWindowSize)

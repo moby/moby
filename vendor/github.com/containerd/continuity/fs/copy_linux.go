@@ -17,6 +17,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"syscall"
@@ -64,6 +65,9 @@ func copyFileInfo(fi os.FileInfo, src, name string) error {
 func copyXAttrs(dst, src string, excludes map[string]struct{}, errorHandler XAttrErrorHandler) error {
 	xattrKeys, err := sysx.LListxattr(src)
 	if err != nil {
+		if errors.Is(err, unix.ENOTSUP) {
+			return nil
+		}
 		e := fmt.Errorf("failed to list xattrs on %s: %w", src, err)
 		if errorHandler != nil {
 			e = errorHandler(dst, src, "", e)

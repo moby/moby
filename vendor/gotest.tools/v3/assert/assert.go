@@ -284,8 +284,6 @@ func ErrorContains(t TestingT, err error, substring string, msgAndArgs ...interf
 // must be called from the goroutine running the test function, not from other
 // goroutines created during the test. Use [Check] with [cmp.ErrorType] from other
 // goroutines.
-//
-// Deprecated: Use [ErrorIs]
 func ErrorType(t TestingT, err error, expected interface{}, msgAndArgs ...interface{}) {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()

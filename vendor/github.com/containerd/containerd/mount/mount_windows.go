@@ -27,7 +27,7 @@ import (
 
 	"github.com/Microsoft/go-winio/pkg/bindfilter"
 	"github.com/Microsoft/hcsshim"
-	"github.com/containerd/containerd/log"
+	"github.com/containerd/log"
 	"golang.org/x/sys/windows"
 )
 

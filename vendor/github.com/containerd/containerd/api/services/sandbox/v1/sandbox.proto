@@ -31,6 +31,7 @@ import "google/protobuf/timestamp.proto";
 import "github.com/containerd/containerd/api/types/sandbox.proto";
 import "github.com/containerd/containerd/api/types/mount.proto";
 import "github.com/containerd/containerd/api/types/platform.proto";
+import "github.com/containerd/containerd/api/types/metrics.proto";
 
 option go_package = "github.com/containerd/containerd/api/services/sandbox/v1;sandbox";
 
@@ -93,6 +94,8 @@ service Controller {
 	rpc Wait(ControllerWaitRequest) returns (ControllerWaitResponse);
 	rpc Status(ControllerStatusRequest) returns (ControllerStatusResponse);
 	rpc Shutdown(ControllerShutdownRequest) returns (ControllerShutdownResponse);
+	rpc Metrics(ControllerMetricsRequest) returns (ControllerMetricsResponse);
+	rpc Update(ControllerUpdateRequest) returns (ControllerUpdateResponse);
 }
 
 message ControllerCreateRequest {
@@ -100,6 +103,9 @@ message ControllerCreateRequest {
 	repeated containerd.types.Mount rootfs = 2;
 	google.protobuf.Any options = 3;
 	string netns_path = 4;
+	map<string, string> annotations = 5;
+	containerd.types.Sandbox sandbox = 6;
+	string sandboxer = 10;
 }
 
 message ControllerCreateResponse {
@@ -108,6 +114,7 @@ message ControllerCreateResponse {
 
 message ControllerStartRequest {
 	string sandbox_id = 1;
+	string sandboxer = 10;
 }
 
 message ControllerStartResponse {
@@ -115,10 +122,16 @@ message ControllerStartResponse {
 	uint32 pid = 2;
 	google.protobuf.Timestamp created_at = 3;
 	map<string, string> labels = 4;
+	// Address of the sandbox for containerd to connect,
+	// for calling Task or other APIs serving in the sandbox.
+	// it is in the form of ttrpc+unix://path/to/uds or grpc+vsock://<vsock cid>:<port>.
+	string address = 5;
+	uint32 version = 6;
 }
 
 message ControllerPlatformRequest {
 	string sandbox_id = 1;
+	string sandboxer = 10;
 }
 
 message ControllerPlatformResponse {
@@ -128,12 +141,14 @@ message ControllerPlatformResponse {
 message ControllerStopRequest {
 	string sandbox_id = 1;
 	uint32 timeout_secs = 2;
+	string sandboxer = 10;
 }
 
 message ControllerStopResponse {}
 
 message ControllerWaitRequest {
 	string sandbox_id = 1;
+	string sandboxer = 10;
 }
 
 message ControllerWaitResponse {
@@ -144,6 +159,7 @@ message ControllerWaitResponse {
 message ControllerStatusRequest {
 	string sandbox_id = 1;
 	bool verbose = 2;
+	string sandboxer = 10;
 }
 
 message ControllerStatusResponse {
@@ -154,10 +170,35 @@ message ControllerStatusResponse {
 	google.protobuf.Timestamp created_at = 5;
 	google.protobuf.Timestamp exited_at = 6;
 	google.protobuf.Any extra = 7;
+	// Address of the sandbox for containerd to connect,
+	// for calling Task or other APIs serving in the sandbox.
+	// it is in the form of ttrpc+unix://path/to/uds or grpc+vsock://<vsock cid>:<port>.
+	string address = 8;
+	uint32 version = 9;
 }
 
 message ControllerShutdownRequest {
 	string sandbox_id = 1;
+	string sandboxer = 10;
 }
 
 message ControllerShutdownResponse {}
+
+message ControllerMetricsRequest {
+	string sandbox_id = 1;
+	string sandboxer = 10;
+}
+
+message ControllerMetricsResponse {
+	types.Metric metrics = 1;
+}
+
+message ControllerUpdateRequest {
+	string sandbox_id = 1;
+	string sandboxer = 2;
+	containerd.types.Sandbox sandbox = 3;
+	repeated string fields = 4;
+}
+
+message ControllerUpdateResponse {
+}

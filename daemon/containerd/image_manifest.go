@@ -7,7 +7,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
 	containerdimages "github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/platforms"
 	"github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/util/attestation"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"

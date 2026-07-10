@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	// AlertNameLabel is the name of the label containing the an alert's name.
+	// AlertNameLabel is the name of the label containing the alert's name.
 	AlertNameLabel = "alertname"
 
 	// ExportedLabelPrefix is the prefix to prepend to the label names present in
@@ -97,10 +97,27 @@ var LabelNameRE = regexp.MustCompile("^[a-zA-Z_][a-zA-Z0-9_]*$")
 // therewith.
 type LabelName string
 
-// IsValid is true iff the label name matches the pattern of LabelNameRE. This
-// method, however, does not use LabelNameRE for the check but a much faster
-// hardcoded implementation.
+// IsValid returns true iff the name matches the pattern of LabelNameRE when
+// NameValidationScheme is set to LegacyValidation, or valid UTF-8 if
+// NameValidationScheme is set to UTF8Validation.
 func (ln LabelName) IsValid() bool {
+	if len(ln) == 0 {
+		return false
+	}
+	switch NameValidationScheme {
+	case LegacyValidation:
+		return ln.IsValidLegacy()
+	case UTF8Validation:
+		return utf8.ValidString(string(ln))
+	default:
+		panic(fmt.Sprintf("Invalid name validation scheme requested: %d", NameValidationScheme))
+	}
+}
+
+// IsValidLegacy returns true iff name matches the pattern of LabelNameRE for
+// legacy names. It does not use LabelNameRE for the check but a much faster
+// hardcoded implementation.
+func (ln LabelName) IsValidLegacy() bool {
 	if len(ln) == 0 {
 		return false
 	}
@@ -164,7 +181,7 @@ func (l LabelNames) String() string {
 // A LabelValue is an associated value for a LabelName.
 type LabelValue string
 
-// IsValid returns true iff the string is a valid UTF8.
+// IsValid returns true iff the string is a valid UTF-8.
 func (lv LabelValue) IsValid() bool {
 	return utf8.ValidString(string(lv))
 }

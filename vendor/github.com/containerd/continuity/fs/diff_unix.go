@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 /*
    Copyright The containerd Authors.
@@ -27,16 +26,6 @@ import (
 
 	"github.com/containerd/continuity/sysx"
 )
-
-// detectDirDiff returns diff dir options if a directory could
-// be found in the mount info for upper which is the direct
-// diff with the provided lower directory
-func detectDirDiff(upper, lower string) *diffDirOptions {
-	// TODO: get mount options for upper
-	// TODO: detect AUFS
-	// TODO: detect overlay
-	return nil
-}
 
 // compareSysStat returns whether the stats are equivalent,
 // whether the files are considered the same file, and

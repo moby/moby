@@ -40,7 +40,7 @@ func setUserDefinedTermColors(colorsEnv string) {
 	for _, field := range fields {
 		k, v, ok := strings.Cut(field, "=")
 		if !ok || strings.Contains(v, "=") {
-			err := errors.New("A valid entry must have exactly two fields")
+			err := errors.New("A valid entry must have exactly two fields") //nolint:staticcheck
 			bklog.L.WithError(err).Warnf("Could not parse BUILDKIT_COLORS component: %s", field)
 			continue
 		}
@@ -52,7 +52,7 @@ func setUserDefinedTermColors(colorsEnv string) {
 				parseKeys(k, c)
 			}
 		} else {
-			err := errors.New("Colors must be a name from the pre-defined list or a valid 3-part RGB value")
+			err := errors.New("Colors must be a name from the pre-defined list or a valid 3-part RGB value") //nolint:staticcheck
 			bklog.L.WithError(err).Warnf("Unknown color value found in BUILDKIT_COLORS: %s=%s", k, v)
 		}
 	}
@@ -77,7 +77,7 @@ func readRGB(v string) aec.ANSI {
 		return nil
 	}
 	if len(fields) != 3 {
-		err = errors.New("A valid RGB color must have three fields")
+		err = errors.New("A valid RGB color must have three fields") //nolint:staticcheck
 		bklog.L.WithError(err).Warnf("Could not parse value %s as valid RGB color. Ignoring.", v)
 		return nil
 	}

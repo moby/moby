@@ -17,7 +17,7 @@ func WithSource(err error, src Source) error {
 	return &ErrorSource{Source: src, error: err}
 }
 
-type ErrorSource struct {
+type ErrorSource struct { //nolint:errname // error helper
 	Source
 	error
 }
@@ -69,10 +69,7 @@ func (s *Source) Print(w io.Writer) error {
 	var p int
 
 	prepadStart := start
-	for {
-		if p >= pad {
-			break
-		}
+	for p < pad {
 		if start > 1 {
 			start--
 			p++

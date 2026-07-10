@@ -201,7 +201,7 @@ func (c cTable) write(s *Scratch) error {
 	for i := range hist[:16] {
 		hist[i] = 0
 	}
-	for n := uint8(0); n < maxSymbolValue; n++ {
+	for n := range maxSymbolValue {
 		v := bitsToWeight[c[n].nBits] & 15
 		huffWeight[n] = v
 		hist[v]++
@@ -271,7 +271,7 @@ func (c cTable) estTableSize(s *Scratch) (sz int, err error) {
 	for i := range hist[:16] {
 		hist[i] = 0
 	}
-	for n := uint8(0); n < maxSymbolValue; n++ {
+	for n := range maxSymbolValue {
 		v := bitsToWeight[c[n].nBits] & 15
 		huffWeight[n] = v
 		hist[v]++

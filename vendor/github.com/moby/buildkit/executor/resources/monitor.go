@@ -278,6 +278,7 @@ func prepareCgroupControllers() error {
 		if c == "" {
 			continue
 		}
+		//nolint:gosec // both strings are constants; no path traversal is possible (G703)
 		if err := os.WriteFile(filepath.Join(defaultMountpoint, cgroupSubtreeFile), []byte("+"+c), 0); err != nil {
 			// ignore error
 			logrus.Warnf("failed to enable cgroup controller %q: %+v", c, err)

@@ -95,7 +95,7 @@ func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.Identity
 			return struct{}{}, err
 		}
 
-		if err := os.WriteFile(tmpPath, f.Content, 0644); err != nil {
+		if err := os.WriteFile(tmpPath, f.Content, 0644); err != nil { //nolint:gosec
 			return struct{}{}, err
 		}
 

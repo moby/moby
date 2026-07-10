@@ -11,6 +11,13 @@ const (
 	PredicateSLSAProvenance = "https://slsa.dev/provenance/v0.2"
 )
 
+// These are type aliases to common to avoid backwards incompatible changes.
+type (
+	DigestSet          = common.DigestSet
+	ProvenanceBuilder  = common.ProvenanceBuilder
+	ProvenanceMaterial = common.ProvenanceMaterial
+)
+
 // ProvenancePredicate is the provenance predicate definition.
 type ProvenancePredicate struct {
 	// Builder identifies the entity that executed the invocation, which is trusted to have
@@ -120,8 +127,8 @@ type ProvenanceMetadata struct {
 	Reproducible bool `json:"reproducible"`
 }
 
-// ProvenanceComplete indicates wheter the claims in build/recipe are complete.
-// For in depth information refer to the specifictaion:
+// ProvenanceComplete indicates whether the claims in build/recipe are complete.
+// For in depth information refer to the specification:
 // https://github.com/in-toto/attestation/blob/v0.1.0/spec/predicates/provenance.md
 type ProvenanceComplete struct {
 	// Parameters if true, means the builder claims that [ProvenanceInvocation.Parameters] is

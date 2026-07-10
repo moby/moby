@@ -17,8 +17,11 @@ import (
 	"sync"
 	"time"
 
+	"cloud.google.com/go/auth"
+	"cloud.google.com/go/auth/credentials"
+	"cloud.google.com/go/auth/grpctransport"
+	"cloud.google.com/go/auth/oauth2adapt"
 	"cloud.google.com/go/compute/metadata"
-	"go.opencensus.io/plugin/ocgrpc"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/oauth2"
 	"golang.org/x/time/rate"
@@ -48,6 +51,9 @@ var logRateLimiter = rate.Sometimes{Interval: 1 * time.Second}
 
 // Assign to var for unit test replacement
 var dialContext = grpc.DialContext
+
+// Assign to var for unit test replacement
+var dialContextNewAuth = grpctransport.Dial
 
 // otelStatsHandler is a singleton otelgrpc.clientHandler to be used across
 // all dial connections to avoid the memory leak documented in
@@ -79,6 +85,13 @@ func Dial(ctx context.Context, opts ...option.ClientOption) (*grpc.ClientConn, e
 	if o.GRPCConnPool != nil {
 		return o.GRPCConnPool.Conn(), nil
 	}
+	if o.IsNewAuthLibraryEnabled() {
+		pool, err := dialPoolNewAuth(ctx, true, 1, o)
+		if err != nil {
+			return nil, err
+		}
+		return pool.Connection(), nil
+	}
 	// NOTE(cbro): We removed support for option.WithGRPCConnPool (GRPCConnPoolSize)
 	// on 2020-02-12 because RoundRobin and WithBalancer are deprecated and we need to remove usages of it.
 	//
@@ -93,6 +106,13 @@ func DialInsecure(ctx context.Context, opts ...option.ClientOption) (*grpc.Clien
 	o, err := processAndValidateOpts(opts)
 	if err != nil {
 		return nil, err
+	}
+	if o.IsNewAuthLibraryEnabled() {
+		pool, err := dialPoolNewAuth(ctx, false, 1, o)
+		if err != nil {
+			return nil, err
+		}
+		return pool.Connection(), nil
 	}
 	return dial(ctx, true, o)
 }
@@ -112,6 +132,18 @@ func DialPool(ctx context.Context, opts ...option.ClientOption) (ConnPool, error
 	if o.GRPCConnPool != nil {
 		return o.GRPCConnPool, nil
 	}
+
+	if o.IsNewAuthLibraryEnabled() {
+		if o.GRPCConn != nil {
+			return &singleConnPool{o.GRPCConn}, nil
+		}
+		pool, err := dialPoolNewAuth(ctx, true, o.GRPCConnPoolSize, o)
+		if err != nil {
+			return nil, err
+		}
+		return &poolAdapter{pool}, nil
+	}
+
 	poolSize := o.GRPCConnPoolSize
 	if o.GRPCConn != nil {
 		// WithGRPCConn is technically incompatible with WithGRPCConnectionPool.
@@ -139,6 +171,131 @@ func DialPool(ctx context.Context, opts ...option.ClientOption) (ConnPool, error
 		pool.conns = append(pool.conns, conn)
 	}
 	return pool, nil
+}
+
+// dialPoolNewAuth is an adapter to call new auth library.
+func dialPoolNewAuth(ctx context.Context, secure bool, poolSize int, ds *internal.DialSettings) (grpctransport.GRPCClientConnPool, error) {
+	// honor options if set
+	var creds *auth.Credentials
+	if ds.InternalCredentials != nil {
+		creds = oauth2adapt.AuthCredentialsFromOauth2Credentials(ds.InternalCredentials)
+	} else if ds.Credentials != nil {
+		creds = oauth2adapt.AuthCredentialsFromOauth2Credentials(ds.Credentials)
+	} else if ds.AuthCredentials != nil {
+		creds = ds.AuthCredentials
+	} else if ds.TokenSource != nil {
+		credOpts := &auth.CredentialsOptions{
+			TokenProvider: oauth2adapt.TokenProviderFromTokenSource(ds.TokenSource),
+		}
+		if ds.QuotaProject != "" {
+			credOpts.QuotaProjectIDProvider = auth.CredentialsPropertyFunc(func(ctx context.Context) (string, error) {
+				return ds.QuotaProject, nil
+			})
+		}
+		creds = auth.NewCredentials(credOpts)
+	}
+
+	var skipValidation bool
+	// If our clients explicitly setup the credential skip validation as it is
+	// assumed correct
+	if ds.SkipValidation || ds.InternalCredentials != nil {
+		skipValidation = true
+	}
+
+	var aud string
+	if len(ds.Audiences) > 0 {
+		aud = ds.Audiences[0]
+	}
+	metadata := map[string]string{}
+	if ds.QuotaProject != "" {
+		metadata["X-goog-user-project"] = ds.QuotaProject
+	}
+	if ds.RequestReason != "" {
+		metadata["X-goog-request-reason"] = ds.RequestReason
+	}
+
+	// Defaults for older clients that don't set this value yet
+	defaultEndpointTemplate := ds.DefaultEndpointTemplate
+	if defaultEndpointTemplate == "" {
+		defaultEndpointTemplate = ds.DefaultEndpoint
+	}
+
+	pool, err := dialContextNewAuth(ctx, secure, &grpctransport.Options{
+		DisableTelemetry:      ds.TelemetryDisabled,
+		DisableAuthentication: ds.NoAuth,
+		Endpoint:              ds.Endpoint,
+		Metadata:              metadata,
+		GRPCDialOpts:          prepareDialOptsNewAuth(ds),
+		PoolSize:              poolSize,
+		Credentials:           creds,
+		ClientCertProvider:    ds.ClientCertSource,
+		APIKey:                ds.APIKey,
+		DetectOpts: &credentials.DetectOptions{
+			Scopes:          ds.Scopes,
+			Audience:        aud,
+			CredentialsFile: ds.CredentialsFile,
+			CredentialsJSON: ds.CredentialsJSON,
+			Logger:          ds.Logger,
+		},
+		InternalOptions: &grpctransport.InternalOptions{
+			EnableNonDefaultSAForDirectPath: ds.AllowNonDefaultServiceAccount,
+			EnableDirectPath:                ds.EnableDirectPath,
+			EnableDirectPathXds:             ds.EnableDirectPathXds,
+			EnableJWTWithScope:              ds.EnableJwtWithScope,
+			AllowHardBoundTokens:            ds.AllowHardBoundTokens,
+			DefaultAudience:                 ds.DefaultAudience,
+			DefaultEndpointTemplate:         defaultEndpointTemplate,
+			DefaultMTLSEndpoint:             ds.DefaultMTLSEndpoint,
+			DefaultScopes:                   ds.DefaultScopes,
+			SkipValidation:                  skipValidation,
+		},
+		UniverseDomain: ds.UniverseDomain,
+		Logger:         ds.Logger,
+	})
+	return pool, err
+}
+
+func prepareDialOptsNewAuth(ds *internal.DialSettings) []grpc.DialOption {
+	var opts []grpc.DialOption
+	if ds.UserAgent != "" {
+		opts = append(opts, grpc.WithUserAgent(ds.UserAgent))
+	}
+
+	return append(opts, ds.GRPCDialOpts...)
+}
+
+// dryRunAsync is a wrapper for oauth2.TokenSource that performs a sync refresh
+// after an async refresh. Token generated by async refresh is not used.
+//
+// This is an EXPERIMENTAL feature and may be removed or changed in the future.
+// It is a temporary struct to determine if the async refresh
+// is working properly.
+// TODO(b/372244283): Remove after b/358175516 has been fixed
+type dryRunAsync struct {
+	asyncTokenSource oauth2.TokenSource
+	syncTokenSource  oauth2.TokenSource
+	errHandler       func()
+}
+
+// TODO(b/372244283): Remove after b/358175516 has been fixed
+func newDryRunAsync(ts oauth2.TokenSource, errHandler func()) dryRunAsync {
+	tp := auth.NewCachedTokenProvider(oauth2adapt.TokenProviderFromTokenSource(ts), nil)
+	asyncTs := oauth2adapt.TokenSourceFromTokenProvider(tp)
+	return dryRunAsync{
+		syncTokenSource:  ts,
+		asyncTokenSource: asyncTs,
+		errHandler:       errHandler,
+	}
+}
+
+// Token returns a token or an error.
+// TODO(b/372244283): Remove after b/358175516 has been fixed
+func (async dryRunAsync) Token() (*oauth2.Token, error) {
+	_, err := async.asyncTokenSource.Token()
+	if err != nil {
+		async.errHandler()
+	}
+	return async.syncTokenSource.Token()
 }
 
 func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.ClientConn, error) {
@@ -177,8 +334,14 @@ func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.C
 			if err != nil {
 				return nil, err
 			}
+
+			ts := creds.TokenSource
+			// TODO(b/372244283): Remove after b/358175516 has been fixed
+			if o.EnableAsyncRefreshDryRun != nil {
+				ts = newDryRunAsync(ts, o.EnableAsyncRefreshDryRun)
+			}
 			grpcOpts = append(grpcOpts, grpc.WithPerRPCCredentials(grpcTokenSource{
-				TokenSource:   oauth.TokenSource{TokenSource: creds.TokenSource},
+				TokenSource:   oauth.TokenSource{TokenSource: ts},
 				quotaProject:  internal.GetQuotaProject(creds, o.QuotaProject),
 				requestReason: o.RequestReason,
 			}))
@@ -224,7 +387,6 @@ func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.C
 	// Add tracing, but before the other options, so that clients can override the
 	// gRPC stats handler.
 	// This assumes that gRPC options are processed in order, left to right.
-	grpcOpts = addOCStatsHandler(grpcOpts, o)
 	grpcOpts = addOpenTelemetryStatsHandler(grpcOpts, o)
 	grpcOpts = append(grpcOpts, o.GRPCDialOpts...)
 	if o.UserAgent != "" {
@@ -232,13 +394,6 @@ func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.C
 	}
 
 	return dialContext(ctx, endpoint, grpcOpts...)
-}
-
-func addOCStatsHandler(opts []grpc.DialOption, settings *internal.DialSettings) []grpc.DialOption {
-	if settings.TelemetryDisabled {
-		return opts
-	}
-	return append(opts, grpc.WithStatsHandler(&ocgrpc.ClientHandler{}))
 }
 
 func addOpenTelemetryStatsHandler(opts []grpc.DialOption, settings *internal.DialSettings) []grpc.DialOption {

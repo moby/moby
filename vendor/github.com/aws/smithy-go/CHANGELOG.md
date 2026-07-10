@@ -1,3 +1,89 @@
+# Release (2025-02-17)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.22.3
+  * **Bug Fix**: Fix HTTP metrics data race.
+  * **Bug Fix**: Replace usages of deprecated ioutil package.
+
+# Release (2025-01-21)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.22.2
+  * **Bug Fix**: Fix HTTP metrics data race.
+  * **Bug Fix**: Replace usages of deprecated ioutil package.
+
+# Release (2024-11-15)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.22.1
+  * **Bug Fix**: Fix failure to replace URI path segments when their names overlap.
+
+# Release (2024-10-03)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.22.0
+  * **Feature**: Add HTTP client metrics.
+
+# Release (2024-09-25)
+
+## Module Highlights
+* `github.com/aws/smithy-go/aws-http-auth`: [v1.0.0](aws-http-auth/CHANGELOG.md#v100-2024-09-25)
+  * **Release**: Initial release of module aws-http-auth, which implements generically consumable SigV4 and SigV4a request signing.
+
+# Release (2024-09-19)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.21.0
+  * **Feature**: Add tracing and metrics APIs, and builtin instrumentation for both, in generated clients.
+* `github.com/aws/smithy-go/metrics/smithyotelmetrics`: [v1.0.0](metrics/smithyotelmetrics/CHANGELOG.md#v100-2024-09-19)
+  * **Release**: Initial release of `smithyotelmetrics` module, which is used to adapt an OpenTelemetry SDK meter provider to be used with Smithy clients.
+* `github.com/aws/smithy-go/tracing/smithyoteltracing`: [v1.0.0](tracing/smithyoteltracing/CHANGELOG.md#v100-2024-09-19)
+  * **Release**: Initial release of `smithyoteltracing` module, which is used to adapt an OpenTelemetry SDK tracer provider to be used with Smithy clients.
+
+# Release (2024-08-14)
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.20.4
+  * **Dependency Update**: Bump minimum Go version to 1.21.
+
+# Release (2024-06-27)
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.20.3
+  * **Bug Fix**: Fix encoding/cbor test overflow on x86.
+
+# Release (2024-03-29)
+
+* No change notes available for this release.
+
+# Release (2024-02-21)
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.20.1
+  * **Bug Fix**: Remove runtime dependency on go-cmp.
+
+# Release (2024-02-13)
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.20.0
+  * **Feature**: Add codegen definition for sigv4a trait.
+  * **Feature**: Bump minimum Go version to 1.20 per our language support policy.
+
 # Release (2023-12-07)
 
 ## Module Highlights

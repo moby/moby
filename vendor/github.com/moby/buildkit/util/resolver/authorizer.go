@@ -154,7 +154,8 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 	handler := a.handlers.get(ctx, host, a.sm, a.session)
 
 	for _, c := range auth.ParseAuthHeader(last.Header) {
-		if c.Scheme == auth.BearerAuth {
+		switch c.Scheme {
+		case auth.BearerAuth:
 			var oldScopes []string
 			if err := invalidAuthorization(c, responses); err != nil {
 				a.handlers.delete(handler)
@@ -201,7 +202,7 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 			a.handlers.set(host, session, newAuthHandler(host, a.client, c.Scheme, pubKey, common))
 
 			return nil
-		} else if c.Scheme == auth.BasicAuth {
+		case auth.BasicAuth:
 			session, username, secret, err := a.getCredentials(host)
 			if err != nil {
 				return err
@@ -386,10 +387,10 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 					if err != nil {
 						return nil, err
 					}
-					if resp.ExpiresIn == 0 {
-						resp.ExpiresIn = defaultExpiration
+					if resp.ExpiresInSeconds == 0 {
+						resp.ExpiresInSeconds = defaultExpiration
 					}
-					issuedAt, expires = resp.IssuedAt, resp.ExpiresIn
+					issuedAt, expires = resp.IssuedAt, resp.ExpiresInSeconds
 					token = resp.AccessToken
 					return nil, nil
 				}
@@ -400,10 +401,10 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 			}
 			return nil, err
 		}
-		if resp.ExpiresIn == 0 {
-			resp.ExpiresIn = defaultExpiration
+		if resp.ExpiresInSeconds == 0 {
+			resp.ExpiresInSeconds = defaultExpiration
 		}
-		issuedAt, expires = resp.IssuedAt, resp.ExpiresIn
+		issuedAt, expires = resp.IssuedAt, resp.ExpiresInSeconds
 		token = resp.Token
 		return nil, nil
 	}
@@ -412,10 +413,10 @@ func (ah *authHandler) fetchToken(ctx context.Context, sm *session.Manager, g se
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to fetch anonymous token")
 	}
-	if resp.ExpiresIn == 0 {
-		resp.ExpiresIn = defaultExpiration
+	if resp.ExpiresInSeconds == 0 {
+		resp.ExpiresInSeconds = defaultExpiration
 	}
-	issuedAt, expires = resp.IssuedAt, resp.ExpiresIn
+	issuedAt, expires = resp.IssuedAt, resp.ExpiresInSeconds
 
 	token = resp.Token
 	return nil, nil

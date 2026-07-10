@@ -128,6 +128,8 @@ type Mount struct {
 	GID          *uint64
 }
 
+var hasVariableExpansion = regexp.MustCompile(`\$.`)
+
 func parseMount(val string, expander SingleWordExpander) (*Mount, error) {
 	csvReader := csv.NewReader(strings.NewReader(val))
 	fields, err := csvReader.Read()
@@ -176,9 +178,7 @@ func parseMount(val string, expander SingleWordExpander) (*Mount, error) {
 				return nil, err
 			}
 		} else if key == "from" {
-			if matched, err := regexp.MatchString(`\$.`, value); err != nil { //nolint
-				return nil, err
-			} else if matched {
+			if matched := hasVariableExpansion.MatchString(value); matched {
 				return nil, errors.Errorf("'%s' doesn't support variable expansion, define alias stage instead", key)
 			}
 		} else {

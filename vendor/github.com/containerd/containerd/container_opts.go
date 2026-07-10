@@ -26,10 +26,12 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/protobuf"
 	"github.com/containerd/containerd/snapshots"
+	"github.com/containerd/log"
 	"github.com/containerd/typeurl/v2"
 	"github.com/opencontainers/image-spec/identity"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -114,6 +116,10 @@ func WithContainerLabels(labels map[string]string) NewContainerOpts {
 // The existing labels are cleared as this is expected to be the first
 // operation in setting up a container's labels. Use WithAdditionalContainerLabels
 // to add/overwrite the existing image config labels.
+//
+// Image config labels in the namespaces reserved for containerd
+// (containerd.io/) and the CRI plugin (io.cri-containerd) are not copied
+// to the container.
 func WithImageConfigLabels(image Image) NewContainerOpts {
 	return func(ctx context.Context, _ *Client, c *containers.Container) error {
 		ic, err := image.Config(ctx)
@@ -139,6 +145,15 @@ func WithImageConfigLabels(image Image) NewContainerOpts {
 			return fmt.Errorf("unknown image config media type %s", ic.MediaType)
 		}
 		c.Labels = config.Labels
+		// Labels in the containerd.io/* namespace are interpreted by containerd
+		// itself, and labels in the io.cri-containerd.* namespace are interpreted
+		// by the CRI plugin, so they are not copied from untrusted image configs.
+		for k := range c.Labels {
+			if labels.IsReserved(k) {
+				log.G(ctx).Warnf("skipping image label %q: the label namespace is reserved for containerd; possible malicious image attempting to alter containerd behavior", k)
+				delete(c.Labels, k)
+			}
+		}
 		return nil
 	}
 }

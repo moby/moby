@@ -70,7 +70,7 @@ func (c *Connection) StartConnection(ctx context.Context) error {
 	} else {
 		c.SetStateDisconnected(err)
 	}
-	go c.indefiniteBackgroundConnection()
+	go c.indefiniteBackgroundConnection() //nolint:gosec
 
 	// TODO: proper error handling when initializing connections.
 	// We can report permanent errors, e.g., invalid settings.

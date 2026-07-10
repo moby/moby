@@ -14,7 +14,6 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/pkg/userns"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/hashicorp/go-multierror"
@@ -32,6 +31,7 @@ import (
 	rootlessmountopts "github.com/moby/buildkit/util/rootless/mountopts"
 	"github.com/moby/buildkit/util/winlayers"
 	"github.com/moby/sys/mountinfo"
+	"github.com/moby/sys/userns"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -1413,7 +1413,7 @@ func (cr *cacheRecord) finalize(ctx context.Context) error {
 	cr.mountCache = nil
 
 	mutable.dead = true
-	go func() {
+	go func() { //nolint:gosec
 		cr.cm.mu.Lock()
 		defer cr.cm.mu.Unlock()
 		if err := mutable.remove(context.TODO(), true); err != nil {

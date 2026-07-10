@@ -626,7 +626,7 @@ func (d *Decoder) decompress4X8bit(dst, src []byte) ([]byte, error) {
 
 	var br [4]bitReaderBytes
 	start := 6
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		length := int(src[i*2]) | (int(src[i*2+1]) << 8)
 		if start+length >= len(src) {
 			return nil, errors.New("truncated input (or invalid offset)")
@@ -798,10 +798,7 @@ func (d *Decoder) decompress4X8bit(dst, src []byte) ([]byte, error) {
 	remainBytes := dstEvery - (decoded / 4)
 	for i := range br {
 		offset := dstEvery * i
-		endsAt := offset + remainBytes
-		if endsAt > len(out) {
-			endsAt = len(out)
-		}
+		endsAt := min(offset+remainBytes, len(out))
 		br := &br[i]
 		bitsLeft := br.remaining()
 		for bitsLeft > 0 {
@@ -864,7 +861,7 @@ func (d *Decoder) decompress4X8bit(dst, src []byte) ([]byte, error) {
 func (d *Decoder) decompress4X8bitExactly(dst, src []byte) ([]byte, error) {
 	var br [4]bitReaderBytes
 	start := 6
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		length := int(src[i*2]) | (int(src[i*2+1]) << 8)
 		if start+length >= len(src) {
 			return nil, errors.New("truncated input (or invalid offset)")
@@ -1035,10 +1032,7 @@ func (d *Decoder) decompress4X8bitExactly(dst, src []byte) ([]byte, error) {
 	remainBytes := dstEvery - (decoded / 4)
 	for i := range br {
 		offset := dstEvery * i
-		endsAt := offset + remainBytes
-		if endsAt > len(out) {
-			endsAt = len(out)
-		}
+		endsAt := min(offset+remainBytes, len(out))
 		br := &br[i]
 		bitsLeft := br.remaining()
 		for bitsLeft > 0 {
@@ -1136,7 +1130,7 @@ func (s *Scratch) matches(ct cTable, w io.Writer) {
 			errs++
 		}
 		if errs > 0 {
-			fmt.Fprintf(w, "%d errros in base, stopping\n", errs)
+			fmt.Fprintf(w, "%d errors in base, stopping\n", errs)
 			continue
 		}
 		// Ensure that all combinations are covered.
@@ -1152,7 +1146,7 @@ func (s *Scratch) matches(ct cTable, w io.Writer) {
 				errs++
 			}
 			if errs > 20 {
-				fmt.Fprintf(w, "%d errros, stopping\n", errs)
+				fmt.Fprintf(w, "%d errors, stopping\n", errs)
 				break
 			}
 		}

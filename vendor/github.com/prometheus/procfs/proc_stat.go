@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/prometheus/procfs/internal/fs"
 	"github.com/prometheus/procfs/internal/util"
 )
 
@@ -111,8 +110,13 @@ type ProcStat struct {
 	Policy uint
 	// Aggregated block I/O delays, measured in clock ticks (centiseconds).
 	DelayAcctBlkIOTicks uint64
+	// Guest time of the process (time spent running a virtual CPU for a guest
+	// operating system), measured in clock ticks.
+	GuestTime int
+	// Guest time of the process's children, measured in clock ticks.
+	CGuestTime int
 
-	proc fs.FS
+	proc FS
 }
 
 // NewStat returns the current status information of the process.
@@ -139,7 +143,7 @@ func (p Proc) Stat() (ProcStat, error) {
 	)
 
 	if l < 0 || r < 0 {
-		return ProcStat{}, fmt.Errorf("unexpected format, couldn't extract comm %q", data)
+		return ProcStat{}, fmt.Errorf("%w: unexpected format, couldn't extract comm %q", ErrFileParse, data)
 	}
 
 	s.Comm = string(data[l+1 : r])
@@ -190,6 +194,8 @@ func (p Proc) Stat() (ProcStat, error) {
 		&s.RTPriority,
 		&s.Policy,
 		&s.DelayAcctBlkIOTicks,
+		&s.GuestTime,
+		&s.CGuestTime,
 	)
 	if err != nil {
 		return ProcStat{}, err
@@ -210,8 +216,7 @@ func (s ProcStat) ResidentMemory() int {
 
 // StartTime returns the unix timestamp of the process in seconds.
 func (s ProcStat) StartTime() (float64, error) {
-	fs := FS{proc: s.proc}
-	stat, err := fs.Stat()
+	stat, err := s.proc.Stat()
 	if err != nil {
 		return 0, err
 	}

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/log"
+	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"

@@ -53,6 +53,10 @@ const (
 	RuntimeRuncV1 Warning = Prefix + "runtime-runc-v1"
 	// CRICRIUPath is a warning for the use of the `CriuPath` property
 	CRICRIUPath Warning = Prefix + "cri-criu-path"
+	// OTLPTracingConfig is a warning for the use of the `otlp` property
+	TracingOTLPConfig Warning = Prefix + "tracing-processor-config"
+	// TracingServiceConfig is a warning for the use of the `tracing` property
+	TracingServiceConfig Warning = Prefix + "tracing-service-config"
 )
 
 var messages = map[Warning]string{
@@ -69,11 +73,11 @@ var messages = map[Warning]string{
 		"Use a v2 runtime and `options` instead.",
 	CRIRuntimeRoot: "The `runtime_root` property of [plugins.\"io.containerd.grpc.v1.cri\".containerd.runtimes.*] is deprecated since containerd v1.3 and will be removed in containerd v2.0. " +
 		"Use a v2 runtime and `options.Root` instead.",
-	CRIRegistryMirrors: "The `mirrors` property of `[plugins.\"io.containerd.grpc.v1.cri\".registry]` is deprecated since containerd v1.5 and will be removed in containerd v2.0. " +
+	CRIRegistryMirrors: "The `mirrors` property of `[plugins.\"io.containerd.grpc.v1.cri\".registry]` is deprecated since containerd v1.5 and will be removed in containerd v2.1. " +
 		"Use `config_path` instead.",
-	CRIRegistryAuths: "The `auths` property of `[plugins.\"io.containerd.grpc.v1.cri\".registry]` is deprecated since containerd v1.3 and will be removed in containerd v2.0. " +
+	CRIRegistryAuths: "The `auths` property of `[plugins.\"io.containerd.grpc.v1.cri\".registry]` is deprecated since containerd v1.3 and will be removed in containerd v2.1. " +
 		"Use `ImagePullSecrets` instead.",
-	CRIRegistryConfigs: "The `configs` property of `[plugins.\"io.containerd.grpc.v1.cri\".registry]` is deprecated since containerd v1.5 and will be removed in containerd v2.0. " +
+	CRIRegistryConfigs: "The `configs` property of `[plugins.\"io.containerd.grpc.v1.cri\".registry]` is deprecated since containerd v1.5 and will be removed in containerd v2.1. " +
 		"Use `config_path` instead.",
 	CRIAPIV1Alpha2:  "CRI API v1alpha2 is deprecated since containerd v1.7 and removed in containerd v2.0. Use CRI API v1 instead.",
 	AUFSSnapshotter: "The aufs snapshotter is deprecated since containerd v1.5 and removed in containerd v2.0. Use the overlay snapshotter instead.",
@@ -82,6 +86,10 @@ var messages = map[Warning]string{
 	RuntimeRuncV1:   "The `io.containerd.runc.v1` runtime is deprecated since containerd v1.4 and removed in containerd v2.0. Use the `io.containerd.runc.v2` runtime instead.",
 	CRICRIUPath: "The `CriuPath` property of `[plugins.\"io.containerd.grpc.v1.cri\".containerd.runtimes.*.options]` is deprecated since containerd v1.7 and will be removed in containerd v2.0. " +
 		"Use a criu binary in $PATH instead.",
+	TracingOTLPConfig: "The `otlp` property of `[plugins.\"io.containerd.tracing.processor.v1\".otlp]` is deprecated since containerd v1.6 and will be removed in containerd v2.0." +
+		"Use OTLP environment variables instead: https://opentelemetry.io/docs/specs/otel/protocol/exporter/",
+	TracingServiceConfig: "The `tracing` property of `[plugins.\"io.containerd.internal.v1\".tracing]` is deprecated since containerd v1.6 and will be removed in containerd v2.0." +
+		"Use OTEL environment variables instead: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/",
 }
 
 // Valid checks whether a given Warning is valid

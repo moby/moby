@@ -20,11 +20,9 @@ import (
 	"strings"
 	"time"
 
-	//nolint:staticcheck // Ignore SA1019. Need to keep deprecated package for compatibility.
-	"github.com/golang/protobuf/proto"
-	"github.com/prometheus/common/model"
-
 	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/model"
+	"google.golang.org/protobuf/proto"
 )
 
 var separatorByteSlice = []byte{model.SeparatorByte} // For convenient use with xxhash.
@@ -94,6 +92,9 @@ type Opts struct {
 	// machine_role metric). See also
 	// https://prometheus.io/docs/instrumenting/writing_exporters/#target-labels-not-static-scraped-labels
 	ConstLabels Labels
+
+	// now is for testing purposes, by default it's time.Now.
+	now func() time.Time
 }
 
 // BuildFQName joins the given three name components by "_". Empty name
@@ -107,15 +108,23 @@ func BuildFQName(namespace, subsystem, name string) string {
 	if name == "" {
 		return ""
 	}
-	switch {
-	case namespace != "" && subsystem != "":
-		return strings.Join([]string{namespace, subsystem, name}, "_")
-	case namespace != "":
-		return strings.Join([]string{namespace, name}, "_")
-	case subsystem != "":
-		return strings.Join([]string{subsystem, name}, "_")
+
+	sb := strings.Builder{}
+	sb.Grow(len(namespace) + len(subsystem) + len(name) + 2)
+
+	if namespace != "" {
+		sb.WriteString(namespace)
+		sb.WriteString("_")
 	}
-	return name
+
+	if subsystem != "" {
+		sb.WriteString(subsystem)
+		sb.WriteString("_")
+	}
+
+	sb.WriteString(name)
+
+	return sb.String()
 }
 
 type invalidMetric struct {
@@ -233,7 +242,7 @@ func NewMetricWithExemplars(m Metric, exemplars ...Exemplar) (Metric, error) {
 	)
 	for i, e := range exemplars {
 		ts := e.Timestamp
-		if ts == (time.Time{}) {
+		if ts.IsZero() {
 			ts = now
 		}
 		exs[i], err = newExemplar(e.Value, ts, e.Labels)

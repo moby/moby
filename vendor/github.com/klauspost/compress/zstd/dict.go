@@ -194,17 +194,17 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 	hist := o.History
 	contents := o.Contents
 	debug := o.DebugOut != nil
-	println := func(args ...interface{}) {
+	println := func(args ...any) {
 		if o.DebugOut != nil {
 			fmt.Fprintln(o.DebugOut, args...)
 		}
 	}
-	printf := func(s string, args ...interface{}) {
+	printf := func(s string, args ...any) {
 		if o.DebugOut != nil {
 			fmt.Fprintf(o.DebugOut, s, args...)
 		}
 	}
-	print := func(args ...interface{}) {
+	print := func(args ...any) {
 		if o.DebugOut != nil {
 			fmt.Fprint(o.DebugOut, args...)
 		}
@@ -273,6 +273,9 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 		enc.Encode(&block, b)
 		addValues(&remain, block.literals)
 		litTotal += len(block.literals)
+		if len(block.sequences) == 0 {
+			continue
+		}
 		seqs += len(block.sequences)
 		block.genCodes()
 		addHist(&ll, block.coders.llEnc.Histogram())
@@ -284,6 +287,9 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 			}
 			offset := seq.offset
 			if offset == 0 {
+				continue
+			}
+			if int(offset) >= len(o.History) {
 				continue
 			}
 			if offset > 3 {
@@ -336,6 +342,9 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 	if seqs/nUsed < 512 {
 		// Use 512 as minimum.
 		nUsed = seqs / 512
+		if nUsed == 0 {
+			nUsed = 1
+		}
 	}
 	copyHist := func(dst *fseEncoder, src *[256]int) ([]byte, error) {
 		hist := dst.Histogram()
@@ -358,6 +367,28 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 			fakeLength += v
 			hist[i] = uint32(v)
 		}
+
+		// Ensure we aren't trying to represent RLE.
+		if maxCount == fakeLength {
+			for i := range hist {
+				if uint8(i) == maxSym {
+					fakeLength++
+					maxSym++
+					hist[i+1] = 1
+					if maxSym > 1 {
+						break
+					}
+				}
+				if hist[0] == 0 {
+					fakeLength++
+					hist[i] = 1
+					if maxSym > 1 {
+						break
+					}
+				}
+			}
+		}
+
 		dst.HistogramFinished(maxSym, maxCount)
 		dst.reUsed = false
 		dst.useRLE = false
@@ -393,16 +424,10 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 	}
 
 	// Literal table
-	avgSize := litTotal
-	if avgSize > huff0.BlockSizeMax/2 {
-		avgSize = huff0.BlockSizeMax / 2
-	}
+	avgSize := min(litTotal, huff0.BlockSizeMax/2)
 	huffBuff := make([]byte, 0, avgSize)
 	// Target size
-	div := litTotal / avgSize
-	if div < 1 {
-		div = 1
-	}
+	div := max(litTotal/avgSize, 1)
 	if debug {
 		println("Huffman weights:")
 	}
@@ -423,7 +448,7 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 		huffBuff = append(huffBuff, 255)
 	}
 	scratch := &huff0.Scratch{TableLog: 11}
-	for tries := 0; tries < 255; tries++ {
+	for tries := range 255 {
 		scratch = &huff0.Scratch{TableLog: 11}
 		_, _, err = huff0.Compress1X(huffBuff, scratch)
 		if err == nil {
@@ -440,7 +465,7 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 
 			// Bail out.... Just generate something
 			huffBuff = append(huffBuff, bytes.Repeat([]byte{255}, 10000)...)
-			for i := 0; i < 128; i++ {
+			for i := range 128 {
 				huffBuff = append(huffBuff, byte(i))
 			}
 			continue

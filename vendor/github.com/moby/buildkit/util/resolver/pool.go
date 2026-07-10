@@ -12,7 +12,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	distreference "github.com/docker/distribution/reference"
+	distreference "github.com/distribution/reference"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/version"

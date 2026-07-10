@@ -6,10 +6,10 @@ import (
 	"errors"
 	"net/http"
 
-	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/version"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"

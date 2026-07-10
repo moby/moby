@@ -139,16 +139,16 @@ func AddRecordResponseTiming(stack *middleware.Stack) error {
 // raw response within the response metadata.
 type rawResponseKey struct{}
 
-// addRawResponse middleware adds raw response on to the metadata
-type addRawResponse struct{}
+// AddRawResponse middleware adds raw response on to the metadata
+type AddRawResponse struct{}
 
 // ID the identifier for the ClientRequestID
-func (m *addRawResponse) ID() string {
+func (m *AddRawResponse) ID() string {
 	return "AddRawResponseToMetadata"
 }
 
 // HandleDeserialize adds raw response on the middleware metadata
-func (m addRawResponse) HandleDeserialize(ctx context.Context, in middleware.DeserializeInput, next middleware.DeserializeHandler) (
+func (m AddRawResponse) HandleDeserialize(ctx context.Context, in middleware.DeserializeInput, next middleware.DeserializeHandler) (
 	out middleware.DeserializeOutput, metadata middleware.Metadata, err error,
 ) {
 	out, metadata, err = next.HandleDeserialize(ctx, in)
@@ -159,7 +159,7 @@ func (m addRawResponse) HandleDeserialize(ctx context.Context, in middleware.Des
 // AddRawResponseToMetadata adds middleware to the middleware stack that
 // store raw response on to the metadata.
 func AddRawResponseToMetadata(stack *middleware.Stack) error {
-	return stack.Deserialize.Add(&addRawResponse{}, middleware.Before)
+	return stack.Deserialize.Add(&AddRawResponse{}, middleware.Before)
 }
 
 // GetRawResponse returns raw response set on metadata

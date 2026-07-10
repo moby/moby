@@ -21,12 +21,20 @@ const (
 	// MediaTypeLayoutHeader specifies the media type for the oci-layout.
 	MediaTypeLayoutHeader = "application/vnd.oci.layout.header.v1+json"
 
-	// MediaTypeImageManifest specifies the media type for an image manifest.
-	MediaTypeImageManifest = "application/vnd.oci.image.manifest.v1+json"
-
 	// MediaTypeImageIndex specifies the media type for an image index.
 	MediaTypeImageIndex = "application/vnd.oci.image.index.v1+json"
 
+	// MediaTypeImageManifest specifies the media type for an image manifest.
+	MediaTypeImageManifest = "application/vnd.oci.image.manifest.v1+json"
+
+	// MediaTypeImageConfig specifies the media type for the image configuration.
+	MediaTypeImageConfig = "application/vnd.oci.image.config.v1+json"
+
+	// MediaTypeEmptyJSON specifies the media type for an unused blob containing the value "{}".
+	MediaTypeEmptyJSON = "application/vnd.oci.empty.v1+json"
+)
+
+const (
 	// MediaTypeImageLayer is the media type used for layers referenced by the manifest.
 	MediaTypeImageLayer = "application/vnd.oci.image.layer.v1.tar"
 
@@ -37,7 +45,15 @@ const (
 	// MediaTypeImageLayerZstd is the media type used for zstd compressed
 	// layers referenced by the manifest.
 	MediaTypeImageLayerZstd = "application/vnd.oci.image.layer.v1.tar+zstd"
+)
 
+// Non-distributable layer media-types.
+//
+// Deprecated: Non-distributable layers are deprecated, and not recommended
+// for future use. Implementations SHOULD NOT produce new non-distributable
+// layers.
+// https://github.com/opencontainers/image-spec/pull/965
+const (
 	// MediaTypeImageLayerNonDistributable is the media type for layers referenced by
 	// the manifest but with distribution restrictions.
 	//
@@ -66,10 +82,4 @@ const (
 	// layers.
 	// https://github.com/opencontainers/image-spec/pull/965
 	MediaTypeImageLayerNonDistributableZstd = "application/vnd.oci.image.layer.nondistributable.v1.tar+zstd"
-
-	// MediaTypeImageConfig specifies the media type for the image configuration.
-	MediaTypeImageConfig = "application/vnd.oci.image.config.v1+json"
-
-	// MediaTypeEmptyJSON specifies the media type for an unused blob containing the value `{}`
-	MediaTypeEmptyJSON = "application/vnd.oci.empty.v1+json"
 )
