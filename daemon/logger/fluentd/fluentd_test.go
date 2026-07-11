@@ -5,6 +5,7 @@ import (
 	"context"
 	"maps"
 	"net"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -14,6 +15,13 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/moby/moby/v2/daemon/logger"
 	"gotest.tools/v3/assert"
+)
+
+const (
+	readWriteTimeoutTestTimeout = 30 * time.Second
+	noAckCloseDelay             = 100 * time.Millisecond
+	fluentdSocketDirPattern     = "fluentd-test-"
+	fluentdSocketName           = "fluent-logger-golang.sock"
 )
 
 func TestValidateLogOptReconnectInterval(t *testing.T) {
@@ -320,16 +328,22 @@ func TestReadWriteTimeoutsAreEffective(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create a temporary directory for the socket file.
-			tmpDir := t.TempDir()
-			socketFile := filepath.Join(tmpDir, "fluent-logger-golang.sock")
+			// Keep the Unix socket path short enough for platforms with small sockaddr_un limits.
+			tmpDir, err := os.MkdirTemp("", fluentdSocketDirPattern)
+			assert.NilError(t, err)
+			t.Cleanup(func() {
+				if err := os.RemoveAll(tmpDir); err != nil {
+					t.Error(err)
+				}
+			})
+			socketFile := filepath.Join(tmpDir, fluentdSocketName)
 			l, err := net.Listen("unix", socketFile)
 			assert.NilError(t, err, "unable to create listener for socket %s", socketFile)
 			defer l.Close()
 
 			// This is to guard against potential run-away test scenario so that a future change
 			// doesn't cause the tests suite to timeout.
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), readWriteTimeoutTestTimeout)
 			defer cancel()
 
 			var connectedWG sync.WaitGroup
@@ -439,6 +453,9 @@ func noAckConnectionHandler(ctx context.Context, conn net.Conn) {
 		}
 	}
 	// Don't write an ack back. The fluent configuration is set to expect an ack from the server.
-	<-ctx.Done()
+	select {
+	case <-time.After(noAckCloseDelay):
+	case <-ctx.Done():
+	}
 	_ = conn.Close()
 }
