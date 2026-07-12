@@ -85,6 +85,7 @@ import (
 	volumesservice "github.com/moby/moby/v2/daemon/volume/service"
 	"github.com/moby/moby/v2/dockerversion"
 	"github.com/moby/moby/v2/pkg/authorization"
+	"github.com/moby/moby/v2/pkg/meminfo"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/moby/v2/pkg/sysinfo"
 	policyverifier "github.com/moby/policy-helpers"
@@ -1103,6 +1104,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 	d.execCommands = container.NewExecStore()
+	if runtime.GOOS == "linux" {
+		if mi, err := meminfo.Read(); err == nil && mi.MemTotal > 0 {
+			d.machineMemory = uint64(mi.MemTotal)
+		}
+	}
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
 
 	d.EventsService = events.New()
