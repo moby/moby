@@ -194,6 +194,7 @@ func TestVMap(t *testing.T) {
 		Name:        mapName,
 		ElementType: Ifname.VMap(),
 		Flags:       []string{"dynamic", "timeout"},
+		Counter:     true,
 	})
 	tm.Create(MapElement{MapName: mapName, Key: "eth0", Value: "return"})
 	tm.Create(MapElement{MapName: mapName, Key: "eth1", Value: "drop", Comment: `/// this is a comment on a map element \\\`})
@@ -222,7 +223,7 @@ func TestSet(t *testing.T) {
 	// Create a set in each table.
 	const set4Name = "set4"
 	tm4 := Modifier{}
-	tm4.Create(Set{Name: set4Name, ElementType: IPv4Addr, Flags: []string{"interval"}})
+	tm4.Create(Set{Name: set4Name, ElementType: IPv4Addr, Flags: []string{"interval"}, Counter: true})
 	const set6Name = "set6"
 	tm6 := Modifier{}
 	tm6.Create(Set{Name: set6Name, ElementType: IPv6Addr, Flags: []string{"interval", "timeout"}})
