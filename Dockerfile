@@ -322,7 +322,7 @@ FROM tini-${TARGETOS} AS tini
 # rootlesskit
 FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
-ARG ROOTLESSKIT_VERSION=v3.0.1
+ARG ROOTLESSKIT_VERSION=v3.0.2
 ADD https://github.com/rootless-containers/rootlesskit.git?ref=${ROOTLESSKIT_VERSION}&keep-git-dir=1 .
 
 FROM base AS rootlesskit-build
