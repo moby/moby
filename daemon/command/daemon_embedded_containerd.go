@@ -17,18 +17,10 @@ import (
 // feature.
 func (cli *daemonCLI) initEmbeddedContainerd(ctx context.Context) (func(time.Duration) error, error) {
 	log.G(ctx).Warn("Running with experimental embedded-containerd mode")
-	opts := []embedded.DaemonOpt{embedded.WithCRIDisabled()}
-	if cli.Config.Debug {
-		opts = append(opts, embedded.WithLogLevel("debug"))
-	} else if lvl := cli.Config.DaemonLogConfig.LogLevel; lvl != "" {
-		opts = append(opts, embedded.WithLogLevel(lvl))
-	}
-
 	d, err := embedded.Start(
 		ctx,
 		filepath.Join(cli.Config.Root, "containerd"),
 		filepath.Join(cli.Config.ExecRoot, "containerd"),
-		opts...,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start embedded containerd")

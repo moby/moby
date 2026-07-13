@@ -18,30 +18,6 @@ import (
 	"time"
 )
 
-// Config holds parameters for the embedded containerd daemon.
-type Config struct {
-	// DisabledPlugins lists containerd plugin URIs to disable (e.g. CRI).
-	DisabledPlugins []string
-	// LogLevel overrides the containerd log level (default: inherit from dockerd).
-	LogLevel string
-}
-
-// DaemonOpt configures the embedded daemon.
-type DaemonOpt func(*Config)
-
-// WithCRIDisabled disables the CRI plugin, which would otherwise start a
-// Kubernetes-facing gRPC server.
-func WithCRIDisabled() DaemonOpt {
-	return func(c *Config) {
-		c.DisabledPlugins = append(c.DisabledPlugins, "io.containerd.grpc.v1.cri")
-	}
-}
-
-// WithLogLevel sets the containerd log level for the embedded daemon.
-func WithLogLevel(level string) DaemonOpt {
-	return func(c *Config) { c.LogLevel = level }
-}
-
 // Daemon is an in-process containerd server.
 type Daemon interface {
 	// Address returns the containerd gRPC address (unix socket path, or named

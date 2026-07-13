@@ -12,15 +12,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/containerd/containerd/v2/cmd/containerd/server"
-	srvconfig "github.com/containerd/containerd/v2/cmd/containerd/server/config"
 	"github.com/containerd/containerd/v2/defaults"
 	"github.com/containerd/containerd/v2/version"
 	"github.com/containerd/log"
-	"github.com/prometheus/client_golang/prometheus"
 
 	// Cross-platform plugin registrations. Each blank import registers one or
-	// more containerd plugins that server.New then loads. Platform-specific
+	// more containerd plugins that the local bootstrap then loads. Platform-specific
 	// snapshotters and differs are registered in embedded_linux.go /
 	// embedded_windows.go.
 	//
@@ -54,39 +51,34 @@ import (
 // the daemon subdirectory under stateDir for runtime state. See the package doc
 // for the transport layout. Plugins self-register via the blank imports above
 // and in the platform-specific files.
-func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
-	cfg := &Config{}
-	for _, opt := range opts {
-		opt(cfg)
-	}
-
+func Start(ctx context.Context, rootDir, stateDir string) (Daemon, error) {
 	setContainerdVersion()
 
 	address := defaultAddress(stateDir)
-	srvCfg := buildSrvConfig(cfg, rootDir, stateDir, address)
+	cfg := buildServerConfig(rootDir, stateDir, address)
 
 	// Create the root and state directories with the permissions containerd
 	// expects (e.g. the state dir at 0o711 for userns-remapped containers),
-	// matching what containerd's own command does before server.New.
-	if err := server.CreateTopLevelDirectories(srvCfg); err != nil {
+	// matching what containerd's own command does before initializing plugins.
+	if err := createTopLevelDirectories(cfg); err != nil {
 		return nil, err
 	}
 
 	log.G(ctx).WithField("address", address).Info("starting embedded containerd server")
-	srv, err := newServer(ctx, srvCfg)
+	srv, err := newServer(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	socket, err := listen(srvCfg.GRPC.Address)
+	socket, err := listen(cfg.grpcAddress)
 	if err != nil {
 		srv.Stop()
 		return nil, err
 	}
 	// Shims (separate processes) publish task events back to containerd over
 	// ttrpc, so it must be a real socket. The runtime plugin hands its address
-	// (config.TTRPC.Address) to each shim.
-	ttrpcL, err := listen(srvCfg.TTRPC.Address)
+	// (PropertyTTRPCAddress) to each shim.
+	ttrpcL, err := listen(cfg.ttrpcAddress)
 	if err != nil {
 		srv.Stop()
 		_ = socket.Close()
@@ -126,6 +118,9 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 		}
 	}()
 
+	// Do not report successful startup until asynchronous plugin initialization
+	// has completed.
+	srv.Wait()
 	return e, nil
 }
 
@@ -147,46 +142,19 @@ func setContainerdVersion() {
 	}
 }
 
-// newServer initializes the embedded containerd server.
-//
-// containerd's server.New adds gRPC metrics to the global Prometheus registry
-// with MustRegister, which panics if they are already there. BuildKit adds the
-// same metrics in dockerd, so point containerd's registration at a temporary
-// registry just for this call. The embedded server's gRPC metrics do not need
-// to be exposed anyway.
-//
-// This is safe because Start runs early in startup, before anything else
-// registers metrics.
-func newServer(ctx context.Context, cfg *srvconfig.Config) (*server.Server, error) {
-	saved := prometheus.DefaultRegisterer
-	prometheus.DefaultRegisterer = prometheus.NewRegistry()
-	defer func() { prometheus.DefaultRegisterer = saved }()
-	return server.New(ctx, cfg)
-}
-
-func buildSrvConfig(cfg *Config, rootDir, stateDir, address string) *srvconfig.Config {
-	srvCfg := &srvconfig.Config{
-		Version: 2,
-		Root:    filepath.Join(rootDir, "daemon"),
-		State:   filepath.Join(stateDir, "daemon"),
-		GRPC: srvconfig.GRPCConfig{
-			Address:        address,
-			MaxRecvMsgSize: defaults.DefaultMaxRecvMsgSize,
-			MaxSendMsgSize: defaults.DefaultMaxSendMsgSize,
-		},
-		TTRPC: srvconfig.TTRPCConfig{
-			Address: address + ".ttrpc",
-		},
-		DisabledPlugins: cfg.DisabledPlugins,
+func buildServerConfig(rootDir, stateDir, address string) *serverConfig {
+	return &serverConfig{
+		root:               filepath.Join(rootDir, "daemon"),
+		state:              filepath.Join(stateDir, "daemon"),
+		grpcAddress:        address,
+		ttrpcAddress:       address + ".ttrpc",
+		maxRecvMessageSize: defaults.DefaultMaxRecvMsgSize,
+		maxSendMessageSize: defaults.DefaultMaxSendMsgSize,
 	}
-	if cfg.LogLevel != "" {
-		srvCfg.Debug.Level = cfg.LogLevel
-	}
-	return srvCfg
 }
 
 type embeddedDaemon struct {
-	srv      *server.Server
+	srv      *containerdServer
 	address  string
 	inMemory *inMemoryListener
 	ttrpcL   net.Listener
@@ -229,11 +197,9 @@ func (e *embeddedDaemon) WaitTimeout(d time.Duration) error {
 
 func (e *embeddedDaemon) Shutdown(ctx context.Context) error {
 	e.stopping.Store(true)
-	// Stop closes the gRPC server and its listeners (socket + pipe). The ttrpc
-	// server is independent, so close its listener to make ServeTTRPC return.
+	// Stop closes both RPC servers and their listeners.
 	e.srv.Stop()
 	e.inMemory.Close()
-	_ = e.ttrpcL.Close()
 	select {
 	case <-e.stopCh:
 	case <-ctx.Done():

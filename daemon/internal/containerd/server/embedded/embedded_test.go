@@ -18,7 +18,7 @@ import (
 // the test is safe to run unprivileged.
 func TestPluginGraphResolves(t *testing.T) {
 	ctx := t.Context()
-	d, err := Start(ctx, t.TempDir(), t.TempDir(), WithCRIDisabled())
+	d, err := Start(ctx, t.TempDir(), t.TempDir())
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "no plugins registered") {
 			t.Fatalf("embedded containerd plugin graph is incomplete: %v", err)
@@ -28,15 +28,15 @@ func TestPluginGraphResolves(t *testing.T) {
 	t.Cleanup(func() { _ = d.Shutdown(ctx) })
 }
 
-func TestBuildSrvConfigUsesSupervisedLayout(t *testing.T) {
+func TestBuildServerConfigUsesSupervisedLayout(t *testing.T) {
 	rootDir := filepath.Join(t.TempDir(), "root")
 	stateDir := filepath.Join(t.TempDir(), "state")
 	address := defaultAddress(stateDir)
 
-	cfg := buildSrvConfig(&Config{}, rootDir, stateDir, address)
+	cfg := buildServerConfig(rootDir, stateDir, address)
 
-	assert.Check(t, is.Equal(cfg.Root, filepath.Join(rootDir, "daemon")))
-	assert.Check(t, is.Equal(cfg.State, filepath.Join(stateDir, "daemon")))
-	assert.Check(t, is.Equal(cfg.GRPC.Address, address))
-	assert.Check(t, is.Equal(cfg.TTRPC.Address, address+".ttrpc"))
+	assert.Check(t, is.Equal(cfg.root, filepath.Join(rootDir, "daemon")))
+	assert.Check(t, is.Equal(cfg.state, filepath.Join(stateDir, "daemon")))
+	assert.Check(t, is.Equal(cfg.grpcAddress, address))
+	assert.Check(t, is.Equal(cfg.ttrpcAddress, address+".ttrpc"))
 }

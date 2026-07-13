@@ -429,7 +429,6 @@ github.com/containerd/containerd/api/types/transfer
 # github.com/containerd/containerd/v2 v2.3.3
 ## explicit; go 1.26.3
 github.com/containerd/containerd/v2/client
-github.com/containerd/containerd/v2/cmd/containerd/server
 github.com/containerd/containerd/v2/cmd/containerd/server/config
 github.com/containerd/containerd/v2/core/containers
 github.com/containerd/containerd/v2/core/content
@@ -582,7 +581,7 @@ github.com/containerd/go-runc
 ## explicit; go 1.20
 github.com/containerd/log
 github.com/containerd/log/logtest
-# github.com/containerd/nri v0.12.1
+# github.com/containerd/nri v0.12.0
 ## explicit; go 1.24.0
 github.com/containerd/nri/pkg/adaptation
 github.com/containerd/nri/pkg/adaptation/builtin

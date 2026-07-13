@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/Microsoft/go-winio"
+	"github.com/containerd/ttrpc"
 
 	// Windows-specific containerd plugin registrations. Cross-platform plugins
 	// are registered in server.go.
@@ -35,4 +36,8 @@ func listen(address string) (net.Listener, error) {
 	return winio.ListenPipe(address, &winio.PipeConfig{
 		SecurityDescriptor: namedPipePermissions,
 	})
+}
+
+func newTTRPCServer() (*ttrpc.Server, error) {
+	return ttrpc.NewServer()
 }

@@ -479,6 +479,9 @@ func (r *Adaptation) RemoveContainer(ctx context.Context, req *RemoveContainerRe
 
 // Perform a set of unsolicited container updates requested by a plugin.
 func (r *Adaptation) updateContainers(ctx context.Context, req []*ContainerUpdate) ([]*ContainerUpdate, error) {
+	r.Lock()
+	defer r.Unlock()
+
 	return r.updateFn(ctx, req)
 }
 

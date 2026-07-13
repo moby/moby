@@ -32,8 +32,10 @@ require (
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
-	github.com/containerd/nri v0.12.1
+	github.com/containerd/nri v0.12.0
 	github.com/containerd/platforms v1.0.0-rc.4
+	github.com/containerd/plugin v1.1.0
+	github.com/containerd/ttrpc v1.2.9
 	github.com/containerd/typeurl/v2 v2.3.0
 	github.com/coreos/go-systemd/v22 v22.7.0
 	github.com/cpuguy83/tar2go v0.3.1
@@ -165,9 +167,7 @@ require (
 	github.com/containerd/go-runc v1.1.0 // indirect
 	github.com/containerd/nydus-snapshotter v0.15.15 // indirect
 	github.com/containerd/otelttrpc v0.1.0 // indirect
-	github.com/containerd/plugin v1.1.0 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.18.2 // indirect
-	github.com/containerd/ttrpc v1.2.9 // indirect
 	github.com/containernetworking/cni v1.3.0 // indirect
 	github.com/containernetworking/plugins v1.9.1 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect

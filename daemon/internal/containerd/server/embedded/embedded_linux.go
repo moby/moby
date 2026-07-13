@@ -6,6 +6,7 @@ import (
 	"net"
 	"path/filepath"
 
+	"github.com/containerd/ttrpc"
 	"github.com/docker/go-connections/sockets"
 
 	// Linux-specific containerd plugin registrations: the overlayfs
@@ -25,4 +26,10 @@ func defaultAddress(stateDir string) string {
 
 func listen(address string) (net.Listener, error) {
 	return sockets.NewUnixSocketWithOpts(address, sockets.WithChmod(0o660))
+}
+
+func newTTRPCServer() (*ttrpc.Server, error) {
+	return ttrpc.NewServer(
+		ttrpc.WithServerHandshaker(ttrpc.UnixSocketRequireSameUser()),
+	)
 }
