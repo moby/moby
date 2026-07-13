@@ -16,7 +16,6 @@ import (
 	"github.com/cilium/ebpf/btf"
 	"github.com/cilium/ebpf/internal"
 	"github.com/cilium/ebpf/internal/sys"
-	"github.com/cilium/ebpf/internal/unix"
 )
 
 type kconfigMetaKey struct{}
@@ -33,6 +32,13 @@ type kfuncMeta struct {
 	Func    *btf.Func
 }
 
+type ksymMetaKey struct{}
+
+type ksymMeta struct {
+	Binding elf.SymBind
+	Name    string
+}
+
 // elfCode is a convenience to reduce the amount of arguments that have to
 // be passed around explicitly. You should treat its contents as immutable.
 type elfCode struct {
@@ -43,7 +49,9 @@ type elfCode struct {
 	btf      *btf.Spec
 	extInfo  *btf.ExtInfos
 	maps     map[string]*MapSpec
+	vars     map[string]*VariableSpec
 	kfuncs   map[string]*btf.Func
+	ksyms    map[string]struct{}
 	kconfig  *MapSpec
 }
 
@@ -71,7 +79,7 @@ func LoadCollectionSpecFromReader(rd io.ReaderAt) (*CollectionSpec, error) {
 
 	// Checks if the ELF file is for BPF data.
 	// Old LLVM versions set e_machine to EM_NONE.
-	if f.File.Machine != unix.EM_NONE && f.File.Machine != elf.EM_BPF {
+	if f.File.Machine != elf.EM_NONE && f.File.Machine != elf.EM_BPF {
 		return nil, fmt.Errorf("unexpected machine type for BPF ELF: %s", f.File.Machine)
 	}
 
@@ -101,7 +109,7 @@ func LoadCollectionSpecFromReader(rd io.ReaderAt) (*CollectionSpec, error) {
 			sections[idx] = newElfSection(sec, mapSection)
 		case sec.Name == ".maps":
 			sections[idx] = newElfSection(sec, btfMapSection)
-		case sec.Name == ".bss" || sec.Name == ".data" || strings.HasPrefix(sec.Name, ".rodata"):
+		case isDataSection(sec.Name):
 			sections[idx] = newElfSection(sec, dataSection)
 		case sec.Type == elf.SHT_REL:
 			// Store relocations under the section index of the target
@@ -134,7 +142,9 @@ func LoadCollectionSpecFromReader(rd io.ReaderAt) (*CollectionSpec, error) {
 		btf:         btfSpec,
 		extInfo:     btfExtInfo,
 		maps:        make(map[string]*MapSpec),
+		vars:        make(map[string]*VariableSpec),
 		kfuncs:      make(map[string]*btf.Func),
+		ksyms:       make(map[string]struct{}),
 	}
 
 	symbols, err := f.Symbols()
@@ -174,7 +184,7 @@ func LoadCollectionSpecFromReader(rd io.ReaderAt) (*CollectionSpec, error) {
 		return nil, fmt.Errorf("load programs: %w", err)
 	}
 
-	return &CollectionSpec{ec.maps, progs, btfSpec, ec.ByteOrder}, nil
+	return &CollectionSpec{ec.maps, progs, ec.vars, btfSpec, ec.ByteOrder}, nil
 }
 
 func loadLicense(sec *elf.Section) (string, error) {
@@ -199,6 +209,18 @@ func loadVersion(sec *elf.Section, bo binary.ByteOrder) (uint32, error) {
 		return 0, fmt.Errorf("section %s: %v", sec.Name, err)
 	}
 	return version, nil
+}
+
+func isDataSection(name string) bool {
+	return name == ".bss" || strings.HasPrefix(name, ".data") || strings.HasPrefix(name, ".rodata")
+}
+
+func isConstantDataSection(name string) bool {
+	return strings.HasPrefix(name, ".rodata")
+}
+
+func isKconfigSection(name string) bool {
+	return name == ".kconfig"
 }
 
 type elfSectionKind int
@@ -506,7 +528,7 @@ func (ec *elfCode) relocateInstruction(ins *asm.Instruction, rel elf.Symbol) err
 
 		case elf.STT_OBJECT:
 			// LLVM 9 emits OBJECT-LOCAL symbols for anonymous constants.
-			if bind != elf.STB_GLOBAL && bind != elf.STB_LOCAL {
+			if bind != elf.STB_GLOBAL && bind != elf.STB_LOCAL && bind != elf.STB_WEAK {
 				return fmt.Errorf("direct load: %s: %w: %s", name, errUnsupportedBinding, bind)
 			}
 
@@ -614,6 +636,8 @@ func (ec *elfCode) relocateInstruction(ins *asm.Instruction, rel elf.Symbol) err
 		}
 
 		kf := ec.kfuncs[name]
+		_, ks := ec.ksyms[name]
+
 		switch {
 		// If a Call / DWordLoad instruction is found and the datasec has a btf.Func with a Name
 		// that matches the symbol name we mark the instruction as a referencing a kfunc.
@@ -633,6 +657,15 @@ func (ec *elfCode) relocateInstruction(ins *asm.Instruction, rel elf.Symbol) err
 			})
 
 			ins.Constant = 0
+
+		case ks && ins.OpCode.IsDWordLoad():
+			if bind != elf.STB_GLOBAL && bind != elf.STB_WEAK {
+				return fmt.Errorf("asm relocation: %s: %w: %s", name, errUnsupportedBinding, bind)
+			}
+			ins.Metadata.Set(ksymMetaKey{}, &ksymMeta{
+				Binding: bind,
+				Name:    name,
+			})
 
 		// If no kconfig map is found, this must be a symbol reference from inline
 		// asm (see testdata/loader.c:asm_relocation()) or a call to a forward
@@ -980,6 +1013,13 @@ func mapSpecFromBTF(es *elfSection, vs *btf.VarSecinfo, def *btf.Struct, spec *b
 		}
 	}
 
+	// Some maps don't support value sizes, but annotating their map definitions
+	// with __type macros can still be useful, especially to let bpf2go generate
+	// type definitions for them.
+	if value != nil && !mapType.canHaveValueSize() {
+		valueSize = 0
+	}
+
 	return &MapSpec{
 		Name:       SanitizeName(name, -1),
 		Type:       MapType(mapType),
@@ -1092,10 +1132,19 @@ func (ec *elfCode) loadDataSections() error {
 			continue
 		}
 
-		if sec.references == 0 {
-			// Prune data sections which are not referenced by any
-			// instructions.
+		// If a section has no references, it will be freed as soon as the
+		// Collection closes, so creating and populating it is wasteful. If it has
+		// no symbols, it is likely an ephemeral section used during compilation
+		// that wasn't sanitized by the bpf linker. (like .rodata.str1.1)
+		//
+		// No symbols means no VariableSpecs can be generated from it, making it
+		// pointless to emit a data section for.
+		if sec.references == 0 && len(sec.symbols) == 0 {
 			continue
+		}
+
+		if sec.Size > math.MaxUint32 {
+			return fmt.Errorf("data section %s: contents exceed maximum size", sec.Name)
 		}
 
 		mapSpec := &MapSpec{
@@ -1106,6 +1155,10 @@ func (ec *elfCode) loadDataSections() error {
 			MaxEntries: 1,
 		}
 
+		if isConstantDataSection(sec.Name) {
+			mapSpec.Flags = sys.BPF_F_RDONLY_PROG
+		}
+
 		switch sec.Type {
 		// Only open the section if we know there's actual data to be read.
 		case elf.SHT_PROGBITS:
@@ -1113,18 +1166,54 @@ func (ec *elfCode) loadDataSections() error {
 			if err != nil {
 				return fmt.Errorf("data section %s: can't get contents: %w", sec.Name, err)
 			}
-
-			if uint64(len(data)) > math.MaxUint32 {
-				return fmt.Errorf("data section %s: contents exceed maximum size", sec.Name)
-			}
 			mapSpec.Contents = []MapKV{{uint32(0), data}}
 
 		case elf.SHT_NOBITS:
-			// NOBITS sections like .bss contain only zeroes, and since data sections
-			// are Arrays, the kernel already preallocates them. Skip reading zeroes
-			// from the ELF.
+			// NOBITS sections like .bss contain only zeroes and are not allocated in
+			// the ELF. Since data sections are Arrays, the kernel can preallocate
+			// them. Don't attempt reading zeroes from the ELF, instead allocate the
+			// zeroed memory to support getting and setting VariableSpecs for sections
+			// like .bss.
+			mapSpec.Contents = []MapKV{{uint32(0), make([]byte, sec.Size)}}
+
 		default:
 			return fmt.Errorf("data section %s: unknown section type %s", sec.Name, sec.Type)
+		}
+
+		for off, sym := range sec.symbols {
+			// Skip symbols marked with the 'hidden' attribute.
+			if elf.ST_VISIBILITY(sym.Other) == elf.STV_HIDDEN ||
+				elf.ST_VISIBILITY(sym.Other) == elf.STV_INTERNAL {
+				continue
+			}
+
+			// Only accept symbols with global or weak bindings. The common
+			// alternative is STB_LOCAL, which are either function-scoped or declared
+			// 'static'.
+			if elf.ST_BIND(sym.Info) != elf.STB_GLOBAL &&
+				elf.ST_BIND(sym.Info) != elf.STB_WEAK {
+				continue
+			}
+
+			if ec.vars[sym.Name] != nil {
+				return fmt.Errorf("data section %s: duplicate variable %s", sec.Name, sym.Name)
+			}
+
+			// Skip symbols starting with a dot, they are compiler-internal symbols
+			// emitted by clang 11 and earlier and are not cleaned up by the bpf
+			// compiler backend (e.g. symbols named .Lconstinit.1 in sections like
+			// .rodata.cst32). Variables in C cannot start with a dot, so filter these
+			// out.
+			if strings.HasPrefix(sym.Name, ".") {
+				continue
+			}
+
+			ec.vars[sym.Name] = &VariableSpec{
+				name:   sym.Name,
+				offset: off,
+				size:   sym.Size,
+				m:      mapSpec,
+			}
 		}
 
 		// It is possible for a data section to exist without a corresponding BTF Datasec
@@ -1135,12 +1224,38 @@ func (ec *elfCode) loadDataSections() error {
 				// Assign the spec's key and BTF only if the Datasec lookup was successful.
 				mapSpec.Key = &btf.Void{}
 				mapSpec.Value = ds
-			}
-		}
 
-		if strings.HasPrefix(sec.Name, ".rodata") {
-			mapSpec.Flags = unix.BPF_F_RDONLY_PROG
-			mapSpec.Freeze = true
+				// Populate VariableSpecs with type information, if available.
+				for _, v := range ds.Vars {
+					name := v.Type.TypeName()
+					if name == "" {
+						return fmt.Errorf("data section %s: anonymous variable %v", sec.Name, v)
+					}
+
+					vt, ok := v.Type.(*btf.Var)
+					if !ok {
+						return fmt.Errorf("data section %s: unexpected type %T for variable %s", sec.Name, v.Type, name)
+					}
+
+					ev := ec.vars[name]
+					if ev == nil {
+						// Hidden symbols appear in the BTF Datasec but don't receive a VariableSpec.
+						continue
+					}
+
+					if uint64(v.Offset) != ev.offset {
+						return fmt.Errorf("data section %s: variable %s datasec offset (%d) doesn't match ELF symbol offset (%d)", sec.Name, name, v.Offset, ev.offset)
+					}
+
+					if uint64(v.Size) != ev.size {
+						return fmt.Errorf("data section %s: variable %s size in datasec (%d) doesn't match ELF symbol size (%d)", sec.Name, name, v.Size, ev.size)
+					}
+
+					// Decouple the Var in the VariableSpec from the underlying DataSec in
+					// the MapSpec to avoid modifications from affecting map loads later on.
+					ev.t = btf.Copy(vt).(*btf.Var)
+				}
+			}
 		}
 
 		ec.maps[sec.Name] = mapSpec
@@ -1175,8 +1290,7 @@ func (ec *elfCode) loadKconfigSection() error {
 		KeySize:    uint32(4),
 		ValueSize:  ds.Size,
 		MaxEntries: 1,
-		Flags:      unix.BPF_F_RDONLY_PROG,
-		Freeze:     true,
+		Flags:      sys.BPF_F_RDONLY_PROG,
 		Key:        &btf.Int{Size: 4},
 		Value:      ds,
 	}
@@ -1201,8 +1315,14 @@ func (ec *elfCode) loadKsymsSection() error {
 	}
 
 	for _, v := range ds.Vars {
-		// we have already checked the .ksyms Datasec to only contain Func Vars.
-		ec.kfuncs[v.Type.TypeName()] = v.Type.(*btf.Func)
+		switch t := v.Type.(type) {
+		case *btf.Func:
+			ec.kfuncs[t.TypeName()] = t
+		case *btf.Var:
+			ec.ksyms[t.TypeName()] = struct{}{}
+		default:
+			return fmt.Errorf("unexpected variable type in .ksyms: %T", v)
+		}
 	}
 
 	return nil
@@ -1266,10 +1386,10 @@ func getProgType(sectionName string) (ProgramType, AttachType, uint32, string) {
 
 		var flags uint32
 		if t.flags&_SEC_SLEEPABLE > 0 {
-			flags |= unix.BPF_F_SLEEPABLE
+			flags |= sys.BPF_F_SLEEPABLE
 		}
 		if t.flags&_SEC_XDP_FRAGS > 0 {
-			flags |= unix.BPF_F_XDP_HAS_FRAGS
+			flags |= sys.BPF_F_XDP_HAS_FRAGS
 		}
 		if t.flags&_SEC_EXP_ATTACH_OPT > 0 {
 			if programType == XDP {

@@ -6,6 +6,176 @@ import (
 	"unsafe"
 )
 
+const (
+	BPF_ADJ_ROOM_ENCAP_L2_MASK                 = 255
+	BPF_ADJ_ROOM_ENCAP_L2_SHIFT                = 56
+	BPF_ANY                                    = 0
+	BPF_CSUM_LEVEL_DEC                         = 2
+	BPF_CSUM_LEVEL_INC                         = 1
+	BPF_CSUM_LEVEL_QUERY                       = 0
+	BPF_CSUM_LEVEL_RESET                       = 3
+	BPF_EXIST                                  = 2
+	BPF_FIB_LKUP_RET_BLACKHOLE                 = 1
+	BPF_FIB_LKUP_RET_FRAG_NEEDED               = 8
+	BPF_FIB_LKUP_RET_FWD_DISABLED              = 5
+	BPF_FIB_LKUP_RET_NOT_FWDED                 = 4
+	BPF_FIB_LKUP_RET_NO_NEIGH                  = 7
+	BPF_FIB_LKUP_RET_NO_SRC_ADDR               = 9
+	BPF_FIB_LKUP_RET_PROHIBIT                  = 3
+	BPF_FIB_LKUP_RET_SUCCESS                   = 0
+	BPF_FIB_LKUP_RET_UNREACHABLE               = 2
+	BPF_FIB_LKUP_RET_UNSUPP_LWT                = 6
+	BPF_FIB_LOOKUP_DIRECT                      = 1
+	BPF_FIB_LOOKUP_MARK                        = 32
+	BPF_FIB_LOOKUP_OUTPUT                      = 2
+	BPF_FIB_LOOKUP_SKIP_NEIGH                  = 4
+	BPF_FIB_LOOKUP_SRC                         = 16
+	BPF_FIB_LOOKUP_TBID                        = 8
+	BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG        = 1
+	BPF_FLOW_DISSECTOR_F_STOP_AT_ENCAP         = 4
+	BPF_FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL    = 2
+	BPF_F_ADJ_ROOM_DECAP_L3_IPV4               = 128
+	BPF_F_ADJ_ROOM_DECAP_L3_IPV6               = 256
+	BPF_F_ADJ_ROOM_ENCAP_L2_ETH                = 64
+	BPF_F_ADJ_ROOM_ENCAP_L3_IPV4               = 2
+	BPF_F_ADJ_ROOM_ENCAP_L3_IPV6               = 4
+	BPF_F_ADJ_ROOM_ENCAP_L4_GRE                = 8
+	BPF_F_ADJ_ROOM_ENCAP_L4_UDP                = 16
+	BPF_F_ADJ_ROOM_FIXED_GSO                   = 1
+	BPF_F_ADJ_ROOM_NO_CSUM_RESET               = 32
+	BPF_F_BPRM_SECUREEXEC                      = 1
+	BPF_F_BROADCAST                            = 8
+	BPF_F_CLONE                                = 512
+	BPF_F_CTXLEN_MASK                          = 4503595332403200
+	BPF_F_CURRENT_CPU                          = 4294967295
+	BPF_F_CURRENT_NETNS                        = 18446744073709551615
+	BPF_F_DONT_FRAGMENT                        = 4
+	BPF_F_EXCLUDE_INGRESS                      = 16
+	BPF_F_FAST_STACK_CMP                       = 512
+	BPF_F_GET_BRANCH_RECORDS_SIZE              = 1
+	BPF_F_HDR_FIELD_MASK                       = 15
+	BPF_F_INDEX_MASK                           = 4294967295
+	BPF_F_INGRESS                              = 1
+	BPF_F_INNER_MAP                            = 4096
+	BPF_F_INVALIDATE_HASH                      = 2
+	BPF_F_KPROBE_MULTI_RETURN                  = 1
+	BPF_F_LINK                                 = 8192
+	BPF_F_LOCK                                 = 4
+	BPF_F_MARK_ENFORCE                         = 64
+	BPF_F_MARK_MANGLED_0                       = 32
+	BPF_F_MMAPABLE                             = 1024
+	BPF_F_NEIGH                                = 2
+	BPF_F_NEXTHOP                              = 8
+	BPF_F_NO_COMMON_LRU                        = 2
+	BPF_F_NO_PREALLOC                          = 1
+	BPF_F_NO_TUNNEL_KEY                        = 16
+	BPF_F_NO_USER_CONV                         = 262144
+	BPF_F_NUMA_NODE                            = 4
+	BPF_F_PATH_FD                              = 16384
+	BPF_F_PEER                                 = 4
+	BPF_F_PRESERVE_ELEMS                       = 2048
+	BPF_F_PSEUDO_HDR                           = 16
+	BPF_F_RDONLY                               = 8
+	BPF_F_RDONLY_PROG                          = 128
+	BPF_F_RECOMPUTE_CSUM                       = 1
+	BPF_F_REUSE_STACKID                        = 1024
+	BPF_F_SEGV_ON_FAULT                        = 131072
+	BPF_F_SEQ_NUMBER                           = 8
+	BPF_F_SKIP_FIELD_MASK                      = 255
+	BPF_F_STACK_BUILD_ID                       = 32
+	BPF_F_SYSCTL_BASE_NAME                     = 1
+	BPF_F_TIMER_ABS                            = 1
+	BPF_F_TIMER_CPU_PIN                        = 2
+	BPF_F_TOKEN_FD                             = 65536
+	BPF_F_TUNINFO_FLAGS                        = 16
+	BPF_F_TUNINFO_IPV6                         = 1
+	BPF_F_UPROBE_MULTI_RETURN                  = 1
+	BPF_F_USER_BUILD_ID                        = 2048
+	BPF_F_USER_STACK                           = 256
+	BPF_F_VTYPE_BTF_OBJ_FD                     = 32768
+	BPF_F_WRONLY                               = 16
+	BPF_F_WRONLY_PROG                          = 256
+	BPF_F_ZERO_CSUM_TX                         = 2
+	BPF_F_ZERO_SEED                            = 64
+	BPF_LOAD_HDR_OPT_TCP_SYN                   = 1
+	BPF_LOCAL_STORAGE_GET_F_CREATE             = 1
+	BPF_MAX_LOOPS                              = 8388608
+	BPF_MAX_TRAMP_LINKS                        = 38
+	BPF_NOEXIST                                = 1
+	BPF_RB_AVAIL_DATA                          = 0
+	BPF_RB_CONS_POS                            = 2
+	BPF_RB_FORCE_WAKEUP                        = 2
+	BPF_RB_NO_WAKEUP                           = 1
+	BPF_RB_PROD_POS                            = 3
+	BPF_RB_RING_SIZE                           = 1
+	BPF_REG_0                                  = 0
+	BPF_REG_1                                  = 1
+	BPF_REG_10                                 = 10
+	BPF_REG_2                                  = 2
+	BPF_REG_3                                  = 3
+	BPF_REG_4                                  = 4
+	BPF_REG_5                                  = 5
+	BPF_REG_6                                  = 6
+	BPF_REG_7                                  = 7
+	BPF_REG_8                                  = 8
+	BPF_REG_9                                  = 9
+	BPF_RINGBUF_BUSY_BIT                       = 2147483648
+	BPF_RINGBUF_DISCARD_BIT                    = 1073741824
+	BPF_RINGBUF_HDR_SZ                         = 8
+	BPF_SKB_CLOCK_MONOTONIC                    = 1
+	BPF_SKB_CLOCK_REALTIME                     = 0
+	BPF_SKB_CLOCK_TAI                          = 2
+	BPF_SKB_TSTAMP_DELIVERY_MONO               = 1
+	BPF_SKB_TSTAMP_UNSPEC                      = 0
+	BPF_SK_LOOKUP_F_NO_REUSEPORT               = 2
+	BPF_SK_LOOKUP_F_REPLACE                    = 1
+	BPF_SK_STORAGE_GET_F_CREATE                = 1
+	BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB         = 4
+	BPF_SOCK_OPS_ALL_CB_FLAGS                  = 127
+	BPF_SOCK_OPS_BASE_RTT                      = 7
+	BPF_SOCK_OPS_HDR_OPT_LEN_CB                = 14
+	BPF_SOCK_OPS_NEEDS_ECN                     = 6
+	BPF_SOCK_OPS_PARSE_ALL_HDR_OPT_CB_FLAG     = 16
+	BPF_SOCK_OPS_PARSE_HDR_OPT_CB              = 13
+	BPF_SOCK_OPS_PARSE_UNKNOWN_HDR_OPT_CB_FLAG = 32
+	BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB        = 5
+	BPF_SOCK_OPS_RETRANS_CB                    = 9
+	BPF_SOCK_OPS_RETRANS_CB_FLAG               = 2
+	BPF_SOCK_OPS_RTO_CB                        = 8
+	BPF_SOCK_OPS_RTO_CB_FLAG                   = 1
+	BPF_SOCK_OPS_RTT_CB                        = 12
+	BPF_SOCK_OPS_RTT_CB_FLAG                   = 8
+	BPF_SOCK_OPS_RWND_INIT                     = 2
+	BPF_SOCK_OPS_STATE_CB                      = 10
+	BPF_SOCK_OPS_STATE_CB_FLAG                 = 4
+	BPF_SOCK_OPS_TCP_CONNECT_CB                = 3
+	BPF_SOCK_OPS_TCP_LISTEN_CB                 = 11
+	BPF_SOCK_OPS_TIMEOUT_INIT                  = 1
+	BPF_SOCK_OPS_VOID                          = 0
+	BPF_SOCK_OPS_WRITE_HDR_OPT_CB              = 15
+	BPF_SOCK_OPS_WRITE_HDR_OPT_CB_FLAG         = 64
+	BPF_TASK_ITER_ALL_PROCS                    = 0
+	BPF_TASK_ITER_ALL_THREADS                  = 1
+	BPF_TASK_ITER_PROC_THREADS                 = 2
+	BPF_TCP_BOUND_INACTIVE                     = 13
+	BPF_TCP_CLOSE                              = 7
+	BPF_TCP_CLOSE_WAIT                         = 8
+	BPF_TCP_CLOSING                            = 11
+	BPF_TCP_ESTABLISHED                        = 1
+	BPF_TCP_FIN_WAIT1                          = 4
+	BPF_TCP_FIN_WAIT2                          = 5
+	BPF_TCP_LAST_ACK                           = 9
+	BPF_TCP_LISTEN                             = 10
+	BPF_TCP_MAX_STATES                         = 14
+	BPF_TCP_NEW_SYN_RECV                       = 12
+	BPF_TCP_SYN_RECV                           = 3
+	BPF_TCP_SYN_SENT                           = 2
+	BPF_TCP_TIME_WAIT                          = 6
+	BPF_WRITE_HDR_TCP_CURRENT_MSS              = 1
+	BPF_WRITE_HDR_TCP_SYNACK_COOKIE            = 2
+	BPF_XFRM_STATE_OPTS_SZ                     = 36
+)
+
 type AdjRoomMode uint32
 
 const (
@@ -72,7 +242,8 @@ const (
 	BPF_CGROUP_UNIX_GETSOCKNAME        AttachType = 53
 	BPF_NETKIT_PRIMARY                 AttachType = 54
 	BPF_NETKIT_PEER                    AttachType = 55
-	__MAX_BPF_ATTACH_TYPE              AttachType = 56
+	BPF_TRACE_KPROBE_SESSION           AttachType = 56
+	__MAX_BPF_ATTACH_TYPE              AttachType = 57
 )
 
 type Cmd uint32
@@ -115,6 +286,8 @@ const (
 	BPF_ITER_CREATE                 Cmd = 33
 	BPF_LINK_DETACH                 Cmd = 34
 	BPF_PROG_BIND_MAP               Cmd = 35
+	BPF_TOKEN_CREATE                Cmd = 36
+	__MAX_BPF_CMD                   Cmd = 37
 )
 
 type FunctionId uint32
@@ -359,7 +532,8 @@ const (
 	BPF_LINK_TYPE_TCX            LinkType = 11
 	BPF_LINK_TYPE_UPROBE_MULTI   LinkType = 12
 	BPF_LINK_TYPE_NETKIT         LinkType = 13
-	__MAX_BPF_LINK_TYPE          LinkType = 14
+	BPF_LINK_TYPE_SOCKMAP        LinkType = 14
+	__MAX_BPF_LINK_TYPE          LinkType = 15
 )
 
 type MapType uint32
@@ -400,6 +574,17 @@ const (
 	BPF_MAP_TYPE_BLOOM_FILTER                     MapType = 30
 	BPF_MAP_TYPE_USER_RINGBUF                     MapType = 31
 	BPF_MAP_TYPE_CGRP_STORAGE                     MapType = 32
+	BPF_MAP_TYPE_ARENA                            MapType = 33
+	__MAX_BPF_MAP_TYPE                            MapType = 34
+)
+
+type ObjType uint32
+
+const (
+	BPF_TYPE_UNSPEC ObjType = 0
+	BPF_TYPE_PROG   ObjType = 1
+	BPF_TYPE_MAP    ObjType = 2
+	BPF_TYPE_LINK   ObjType = 3
 )
 
 type PerfEventType uint32
@@ -450,6 +635,7 @@ const (
 	BPF_PROG_TYPE_SK_LOOKUP               ProgType = 30
 	BPF_PROG_TYPE_SYSCALL                 ProgType = 31
 	BPF_PROG_TYPE_NETFILTER               ProgType = 32
+	__MAX_BPF_PROG_TYPE                   ProgType = 33
 )
 
 type RetCode uint32
@@ -537,7 +723,7 @@ type MapInfo struct {
 	KeySize               uint32
 	ValueSize             uint32
 	MaxEntries            uint32
-	MapFlags              MapFlags
+	MapFlags              uint32
 	Name                  ObjName
 	Ifindex               uint32
 	BtfVmlinuxValueTypeId TypeID
@@ -546,7 +732,7 @@ type MapInfo struct {
 	BtfId                 uint32
 	BtfKeyTypeId          TypeID
 	BtfValueTypeId        TypeID
-	_                     [4]byte
+	BtfVmlinuxId          uint32
 	MapExtra              uint64
 }
 
@@ -556,7 +742,7 @@ type ProgInfo struct {
 	Tag                  [8]uint8
 	JitedProgLen         uint32
 	XlatedProgLen        uint32
-	JitedProgInsns       uint64
+	JitedProgInsns       Pointer
 	XlatedProgInsns      Pointer
 	LoadTime             uint64
 	CreatedByUid         uint32
@@ -569,15 +755,15 @@ type ProgInfo struct {
 	NetnsIno             uint64
 	NrJitedKsyms         uint32
 	NrJitedFuncLens      uint32
-	JitedKsyms           uint64
-	JitedFuncLens        uint64
+	JitedKsyms           Pointer
+	JitedFuncLens        Pointer
 	BtfId                BTFID
 	FuncInfoRecSize      uint32
 	FuncInfo             Pointer
 	NrFuncInfo           uint32
 	NrLineInfo           uint32
 	LineInfo             Pointer
-	JitedLineInfo        uint64
+	JitedLineInfo        Pointer
 	NrJitedLineInfo      uint32
 	LineInfoRecSize      uint32
 	JitedLineInfoRecSize uint32
@@ -643,6 +829,8 @@ type BtfLoadAttr struct {
 	BtfLogSize     uint32
 	BtfLogLevel    uint32
 	BtfLogTrueSize uint32
+	BtfFlags       uint32
+	BtfTokenFd     int32
 }
 
 func BtfLoad(attr *BtfLoadAttr) (*FD, error) {
@@ -886,7 +1074,7 @@ type MapCreateAttr struct {
 	KeySize               uint32
 	ValueSize             uint32
 	MaxEntries            uint32
-	MapFlags              MapFlags
+	MapFlags              uint32
 	InnerMapFd            uint32
 	NumaNode              uint32
 	MapName               ObjName
@@ -896,6 +1084,8 @@ type MapCreateAttr struct {
 	BtfValueTypeId        TypeID
 	BtfVmlinuxValueTypeId TypeID
 	MapExtra              uint64
+	ValueTypeBtfObjFd     int32
+	MapTokenFd            int32
 }
 
 func MapCreate(attr *MapCreateAttr) (*FD, error) {
@@ -1189,6 +1379,8 @@ type ProgLoadAttr struct {
 	CoreRelos          Pointer
 	CoreReloRecSize    uint32
 	LogTrueSize        uint32
+	ProgTokenFd        int32
+	_                  [4]byte
 }
 
 func ProgLoad(attr *ProgLoadAttr) (*FD, error) {
@@ -1246,6 +1438,7 @@ type RawTracepointOpenAttr struct {
 	Name   Pointer
 	ProgFd uint32
 	_      [4]byte
+	Cookie uint64
 }
 
 func RawTracepointOpen(attr *RawTracepointOpenAttr) (*FD, error) {
@@ -1287,19 +1480,20 @@ type KprobeLinkInfo struct {
 	Offset        uint32
 	Addr          uint64
 	Missed        uint64
-	_             [8]byte
+	Cookie        uint64
 }
 
 type KprobeMultiLinkInfo struct {
-	Type   LinkType
-	Id     LinkID
-	ProgId uint32
-	_      [4]byte
-	Addrs  Pointer
-	Count  uint32
-	Flags  uint32
-	Missed uint64
-	_      [24]byte
+	Type    LinkType
+	Id      LinkID
+	ProgId  uint32
+	_       [4]byte
+	Addrs   Pointer
+	Count   uint32
+	Flags   uint32
+	Missed  uint64
+	Cookies uint64
+	_       [16]byte
 }
 
 type NetNsLinkInfo struct {

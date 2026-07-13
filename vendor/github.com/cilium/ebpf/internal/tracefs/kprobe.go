@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/cilium/ebpf/internal"
+	"github.com/cilium/ebpf/internal/linux"
 	"github.com/cilium/ebpf/internal/unix"
 )
 
@@ -112,6 +113,10 @@ func sanitizeTracefsPath(path ...string) (string, error) {
 // but may be also be available at /sys/kernel/debug/tracing if debugfs is mounted.
 // The available tracefs paths will depends on distribution choices.
 var getTracefsPath = sync.OnceValues(func() (string, error) {
+	if !internal.OnLinux {
+		return "", fmt.Errorf("tracefs: %w", internal.ErrNotSupportedOnOS)
+	}
+
 	for _, p := range []struct {
 		path   string
 		fsType int64
@@ -121,7 +126,7 @@ var getTracefsPath = sync.OnceValues(func() (string, error) {
 		// RHEL/CentOS
 		{"/sys/kernel/debug/tracing", unix.DEBUGFS_MAGIC},
 	} {
-		if fsType, err := internal.FSType(p.path); err == nil && fsType == p.fsType {
+		if fsType, err := linux.FSType(p.path); err == nil && fsType == p.fsType {
 			return p.path, nil
 		}
 	}
@@ -213,7 +218,10 @@ func NewEvent(args ProbeArgs) (*Event, error) {
 	if err == nil {
 		return nil, fmt.Errorf("trace event %s/%s: %w", args.Group, eventName, os.ErrExist)
 	}
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	if errors.Is(err, unix.EINVAL) {
+		return nil, fmt.Errorf("trace event %s/%s: %w (unknown symbol?)", args.Group, eventName, err)
+	}
+	if !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("checking trace event %s/%s: %w", args.Group, eventName, err)
 	}
 

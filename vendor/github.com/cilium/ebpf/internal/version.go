@@ -2,9 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"sync"
-
-	"github.com/cilium/ebpf/internal/unix"
 )
 
 const (
@@ -77,31 +74,4 @@ func (v Version) Kernel() uint32 {
 	// Truncate members to uint8 to prevent them from spilling over into
 	// each other when overflowing 8 bits.
 	return uint32(uint8(v[0]))<<16 | uint32(uint8(v[1]))<<8 | uint32(uint8(s))
-}
-
-// KernelVersion returns the version of the currently running kernel.
-var KernelVersion = sync.OnceValues(func() (Version, error) {
-	return detectKernelVersion()
-})
-
-// detectKernelVersion returns the version of the running kernel.
-func detectKernelVersion() (Version, error) {
-	vc, err := vdsoVersion()
-	if err != nil {
-		return Version{}, err
-	}
-	return NewVersionFromCode(vc), nil
-}
-
-// KernelRelease returns the release string of the running kernel.
-// Its format depends on the Linux distribution and corresponds to directory
-// names in /lib/modules by convention. Some examples are 5.15.17-1-lts and
-// 4.19.0-16-amd64.
-func KernelRelease() (string, error) {
-	var uname unix.Utsname
-	if err := unix.Uname(&uname); err != nil {
-		return "", fmt.Errorf("uname failed: %w", err)
-	}
-
-	return unix.ByteSliceToString(uname.Release[:]), nil
 }

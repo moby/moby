@@ -3,31 +3,7 @@
 package unix
 
 import (
-	"fmt"
-	"runtime"
 	"syscall"
-)
-
-var errNonLinux = fmt.Errorf("unsupported platform %s/%s", runtime.GOOS, runtime.GOARCH)
-
-// Errnos are distinct and non-zero.
-const (
-	ENOENT syscall.Errno = iota + 1
-	EEXIST
-	EAGAIN
-	ENOSPC
-	EINVAL
-	EINTR
-	EPERM
-	ESRCH
-	ENODEV
-	EBADF
-	E2BIG
-	EFAULT
-	EACCES
-	EILSEQ
-	EOPNOTSUPP
-	ESTALE
 )
 
 // Constants are distinct to avoid breaking switch statements.
@@ -84,16 +60,17 @@ const (
 	SO_DETACH_BPF
 	SOL_SOCKET
 	SIGPROF
+	SIGUSR1
 	SIG_BLOCK
 	SIG_UNBLOCK
-	EM_NONE
-	EM_BPF
 	BPF_FS_MAGIC
 	TRACEFS_MAGIC
 	DEBUGFS_MAGIC
 	BPF_RB_NO_WAKEUP
 	BPF_RB_FORCE_WAKEUP
 	BPF_F_LOCK
+	AF_UNSPEC
+	IFF_UP
 )
 
 type Statfs_t struct {
@@ -136,28 +113,28 @@ type Sigset_t struct {
 	Val [4]uint64
 }
 
-func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno) {
-	return 0, 0, syscall.ENOTSUP
+func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
+	return 0, 0, ENOTSUP
 }
 
 func PthreadSigmask(how int, set, oldset *Sigset_t) error {
-	return errNonLinux
+	return errNonLinux()
 }
 
 func FcntlInt(fd uintptr, cmd, arg int) (int, error) {
-	return -1, errNonLinux
+	return -1, errNonLinux()
 }
 
 func IoctlSetInt(fd int, req uint, value int) error {
-	return errNonLinux
+	return errNonLinux()
 }
 
 func Statfs(path string, buf *Statfs_t) error {
-	return errNonLinux
+	return errNonLinux()
 }
 
 func Close(fd int) (err error) {
-	return errNonLinux
+	return errNonLinux()
 }
 
 type EpollEvent struct {
@@ -167,23 +144,23 @@ type EpollEvent struct {
 }
 
 func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
-	return 0, errNonLinux
+	return 0, errNonLinux()
 }
 
 func EpollCtl(epfd int, op int, fd int, event *EpollEvent) (err error) {
-	return errNonLinux
+	return errNonLinux()
 }
 
 func Eventfd(initval uint, flags int) (fd int, err error) {
-	return 0, errNonLinux
+	return 0, errNonLinux()
 }
 
 func Write(fd int, p []byte) (n int, err error) {
-	return 0, errNonLinux
+	return 0, errNonLinux()
 }
 
 func EpollCreate1(flag int) (fd int, err error) {
-	return 0, errNonLinux
+	return 0, errNonLinux()
 }
 
 type PerfEventMmapPage struct {
@@ -213,15 +190,15 @@ type PerfEventMmapPage struct {
 }
 
 func SetNonblock(fd int, nonblocking bool) (err error) {
-	return errNonLinux
+	return errNonLinux()
 }
 
 func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
-	return []byte{}, errNonLinux
+	return []byte{}, errNonLinux()
 }
 
 func Munmap(b []byte) (err error) {
-	return errNonLinux
+	return errNonLinux()
 }
 
 type PerfEventAttr struct {
@@ -246,7 +223,7 @@ type PerfEventAttr struct {
 }
 
 func PerfEventOpen(attr *PerfEventAttr, pid int, cpu int, groupFd int, flags int) (fd int, err error) {
-	return 0, errNonLinux
+	return 0, errNonLinux()
 }
 
 type Utsname struct {
@@ -255,7 +232,7 @@ type Utsname struct {
 }
 
 func Uname(buf *Utsname) (err error) {
-	return errNonLinux
+	return errNonLinux()
 }
 
 func Getpid() int {
@@ -267,35 +244,27 @@ func Gettid() int {
 }
 
 func Tgkill(tgid int, tid int, sig syscall.Signal) (err error) {
-	return errNonLinux
-}
-
-func BytePtrFromString(s string) (*byte, error) {
-	return nil, errNonLinux
-}
-
-func ByteSliceToString(s []byte) string {
-	return ""
+	return errNonLinux()
 }
 
 func Renameat2(olddirfd int, oldpath string, newdirfd int, newpath string, flags uint) error {
-	return errNonLinux
+	return errNonLinux()
 }
 
 func Prlimit(pid, resource int, new, old *Rlimit) error {
-	return errNonLinux
+	return errNonLinux()
 }
 
 func Open(path string, mode int, perm uint32) (int, error) {
-	return -1, errNonLinux
+	return -1, errNonLinux()
 }
 
 func Fstat(fd int, stat *Stat_t) error {
-	return errNonLinux
+	return errNonLinux()
 }
 
 func SetsockoptInt(fd, level, opt, value int) error {
-	return errNonLinux
+	return errNonLinux()
 }
 
 type CPUSet struct{}
@@ -303,9 +272,13 @@ type CPUSet struct{}
 func (*CPUSet) Set(int) {}
 
 func SchedSetaffinity(pid int, set *CPUSet) error {
-	return errNonLinux
+	return errNonLinux()
 }
 
 func SchedGetaffinity(pid int, set *CPUSet) error {
-	return errNonLinux
+	return errNonLinux()
+}
+
+func Auxv() ([][2]uintptr, error) {
+	return nil, errNonLinux()
 }

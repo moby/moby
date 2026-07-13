@@ -11,19 +11,19 @@ import (
 
 // haveBTF attempts to load a BTF blob containing an Int. It should pass on any
 // kernel that supports BPF_BTF_LOAD.
-var haveBTF = internal.NewFeatureTest("BTF", "4.18", func() error {
+var haveBTF = internal.NewFeatureTest("BTF", func() error {
 	// 0-length anonymous integer
 	err := probeBTF(&Int{})
 	if errors.Is(err, unix.EINVAL) || errors.Is(err, unix.EPERM) {
 		return internal.ErrNotSupported
 	}
 	return err
-})
+}, "4.18")
 
 // haveMapBTF attempts to load a minimal BTF blob containing a Var. It is
 // used as a proxy for .bss, .data and .rodata map support, which generally
 // come with a Var and Datasec. These were introduced in Linux 5.2.
-var haveMapBTF = internal.NewFeatureTest("Map BTF (Var/Datasec)", "5.2", func() error {
+var haveMapBTF = internal.NewFeatureTest("Map BTF (Var/Datasec)", func() error {
 	if err := haveBTF(); err != nil {
 		return err
 	}
@@ -40,12 +40,12 @@ var haveMapBTF = internal.NewFeatureTest("Map BTF (Var/Datasec)", "5.2", func() 
 		return internal.ErrNotSupported
 	}
 	return err
-})
+}, "5.2")
 
 // haveProgBTF attempts to load a BTF blob containing a Func and FuncProto. It
 // is used as a proxy for ext_info (func_info) support, which depends on
 // Func(Proto) by definition.
-var haveProgBTF = internal.NewFeatureTest("Program BTF (func/line_info)", "5.0", func() error {
+var haveProgBTF = internal.NewFeatureTest("Program BTF (func/line_info)", func() error {
 	if err := haveBTF(); err != nil {
 		return err
 	}
@@ -60,9 +60,9 @@ var haveProgBTF = internal.NewFeatureTest("Program BTF (func/line_info)", "5.0",
 		return internal.ErrNotSupported
 	}
 	return err
-})
+}, "5.0")
 
-var haveFuncLinkage = internal.NewFeatureTest("BTF func linkage", "5.6", func() error {
+var haveFuncLinkage = internal.NewFeatureTest("BTF func linkage", func() error {
 	if err := haveProgBTF(); err != nil {
 		return err
 	}
@@ -78,9 +78,44 @@ var haveFuncLinkage = internal.NewFeatureTest("BTF func linkage", "5.6", func() 
 		return internal.ErrNotSupported
 	}
 	return err
-})
+}, "5.6")
 
-var haveEnum64 = internal.NewFeatureTest("ENUM64", "6.0", func() error {
+var haveDeclTags = internal.NewFeatureTest("BTF decl tags", func() error {
+	if err := haveBTF(); err != nil {
+		return err
+	}
+
+	t := &Typedef{
+		Name: "a",
+		Type: &Int{},
+		Tags: []string{"a"},
+	}
+
+	err := probeBTF(t)
+	if errors.Is(err, unix.EINVAL) {
+		return internal.ErrNotSupported
+	}
+	return err
+}, "5.16")
+
+var haveTypeTags = internal.NewFeatureTest("BTF type tags", func() error {
+	if err := haveBTF(); err != nil {
+		return err
+	}
+
+	t := &TypeTag{
+		Type:  &Int{},
+		Value: "a",
+	}
+
+	err := probeBTF(t)
+	if errors.Is(err, unix.EINVAL) {
+		return internal.ErrNotSupported
+	}
+	return err
+}, "5.17")
+
+var haveEnum64 = internal.NewFeatureTest("ENUM64", func() error {
 	if err := haveBTF(); err != nil {
 		return err
 	}
@@ -97,7 +132,7 @@ var haveEnum64 = internal.NewFeatureTest("ENUM64", "6.0", func() error {
 		return internal.ErrNotSupported
 	}
 	return err
-})
+}, "6.0")
 
 func probeBTF(typ Type) error {
 	b, err := NewBuilder([]Type{typ})
