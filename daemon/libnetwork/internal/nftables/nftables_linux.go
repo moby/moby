@@ -769,6 +769,7 @@ type nftMap struct {
 	ElementTypeExpr string
 	Flags           []string
 	Size            int
+	Counter         bool
 	Timeout         time.Duration
 	Elements        map[string]mapValue
 	AddedElements   map[string]mapValue
@@ -783,6 +784,7 @@ type Map struct {
 	ElementType MapTyper
 	Flags       []string
 	Size        int
+	Counter     bool
 	Timeout     time.Duration
 }
 
@@ -802,6 +804,7 @@ func (m Map) create(ctx context.Context, t *table) (bool, error) {
 		ElementTypeExpr: m.ElementType.mapType(),
 		Flags:           slices.Clone(m.Flags),
 		Size:            m.Size,
+		Counter:         m.Counter,
 		Timeout:         m.Timeout,
 		Elements:        map[string]mapValue{},
 		AddedElements:   map[string]mapValue{},
@@ -924,6 +927,7 @@ type set struct {
 	ElementTypeExpr string
 	Flags           []string
 	Size            int
+	Counter         bool
 	Timeout         time.Duration
 	Elements        map[string]setElementOptions
 	AddedElements   map[string]setElementOptions
@@ -938,6 +942,7 @@ type Set struct {
 	ElementType SetTyper
 	Flags       []string
 	Size        int
+	Counter     bool
 	Timeout     time.Duration
 }
 
@@ -959,6 +964,7 @@ func (sd Set) create(ctx context.Context, t *table) (bool, error) {
 		ElementTypeExpr: sd.ElementType.setType(),
 		Flags:           slices.Clone(sd.Flags),
 		Size:            sd.Size,
+		Counter:         sd.Counter,
 		Timeout:         sd.Timeout,
 		AddedElements:   map[string]setElementOptions{},
 		DeletedElements: map[string]struct{}{},
