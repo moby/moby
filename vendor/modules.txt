@@ -52,9 +52,6 @@ cyphar.com/go-pathrs/procfs
 # dario.cat/mergo v1.0.2
 ## explicit; go 1.13
 dario.cat/mergo
-# github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
-## explicit; go 1.20
-github.com/AdaLogics/go-fuzz-headers
 # github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.1
 ## explicit; go 1.25.0
 github.com/Azure/azure-sdk-for-go/sdk/azcore
