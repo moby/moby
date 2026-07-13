@@ -1,8 +1,0 @@
-table ip this_is_a_table {
-	chain aBaseChain {
-		type filter hook forward priority filter; policy accept;
-	}
-
-	chain aChain {
-	}
-}

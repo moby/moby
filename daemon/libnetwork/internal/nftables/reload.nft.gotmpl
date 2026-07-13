@@ -1,0 +1,41 @@
+{{- /*
+This reload template is used with text/template to generate an nftables command
+file (which will be applied atomically), to fully re-create a table.
+
+It first declares the table so if it doesn't already exist, it can be deleted.
+Then it deletes the table and re-creates it.
+*/ -}}
+
+{{$family := .Family}}{{$tableName := .Name}}
+table {{$family}} {{$tableName}} {}
+delete table {{$family}} {{$tableName}}
+table {{$family}} {{$tableName}} {
+	{{range .Maps}}map {{.Name}} {
+		{{.ElementTypeExpr}}
+		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
+		{{if .Size}}size {{.Size}}{{end}}
+		{{if .Timeout}}timeout {{.Timeout.Milliseconds}}ms{{end}}
+        {{if .Elements}}elements = {
+			{{range $k,$v := .Elements}}{{$k}}{{if $v.Comment}} comment "{{$v.Comment}}"{{end}} : {{$v.Value}},
+            {{end -}}
+		}{{end}}
+	}
+	{{end}}
+	{{range .Sets}}set {{.Name}} {
+		{{.ElementTypeExpr}}
+		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
+		{{if .Size}}size {{.Size}}{{end}}
+		{{if .Timeout}}timeout {{.Timeout.Milliseconds}}ms{{end}}
+        {{if .Elements}}elements = {
+			{{range $k,$v := .Elements}}{{$k}}{{if $v.Comment}} comment "{{$v.Comment}}"{{end}},
+            {{end -}}
+		}{{end}}
+	}
+	{{end}}
+	{{range .Chains}}chain {{.Name}} {
+		{{if .ChainType}}type {{.ChainType}} hook {{.Hook}}{{if .Device}} device "{{.Device}}"{{end}} priority {{.Priority}}; policy {{.Policy}}{{end}}
+		{{range .Rules}}{{.}}
+		{{end}}
+	}
+	{{end}}
+}

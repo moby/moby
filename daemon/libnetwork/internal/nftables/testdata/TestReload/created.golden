@@ -1,14 +1,28 @@
 table ip this_is_a_table {
+	map dynamic_map {
+		type ipv4_addr : ether_addr
+		size 1024
+		flags dynamic,timeout
+		timeout 2m30s500ms
+	}
+
 	map this_is_a_vmap {
 		type ifname : verdict
 		elements = { "eth0" : return,
-			     "eth1" : return }
+			     "eth1" comment "{foo}" : return }
+	}
+
+	set dynamic_set {
+		type ipv4_addr
+		size 4096
+		flags dynamic,timeout
+		timeout 5m10s250ms
 	}
 
 	set this_is_a_set {
 		type ipv4_addr
 		flags interval
-		elements = { 192.0.2.0/24 }
+		elements = { 192.0.2.0/24 comment "}bar{" }
 	}
 
 	chain a_base_chain {

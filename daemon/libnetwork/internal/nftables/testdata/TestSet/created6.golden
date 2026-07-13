@@ -2,6 +2,6 @@ table ip6 table6 {
 	set set6 {
 		type ipv6_addr
 		flags interval
-		elements = { 2001:db8::/64 }
+		elements = { 2001:db8::/64 comment "/// this is a comment on a set element \\\" }
 	}
 }

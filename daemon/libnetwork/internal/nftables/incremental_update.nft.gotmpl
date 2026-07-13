@@ -1,0 +1,64 @@
+{{- /*
+This template is used with text/template to generate an nftables command file
+(which will be applied atomically). Updates using this template are always
+incremental.
+Steps are:
+  - declare the table and its sets/maps with empty versions of modified chains, so that
+    they can be flushed/deleted if they don't yet exist. (They need to be flushed in case
+    a version of them was left behind by an old incarnation of the daemon. But, it's an
+    error to flush or delete something that doesn't exist. So, avoid having to parse nft's
+    stderr to work out what happened by making sure they do exist before flushing.)
+  - if the table is newly declared, flush rules from its chains
+  - flush each newly declared map/set
+  - delete deleted map/set elements
+  - flush modified chains
+  - delete deleted chains
+  - re-populate modified chains
+  - add new map/set elements
+*/ -}}
+
+{{$family := .Family}}{{$tableName := .Name}}
+table {{$family}} {{$tableName}} {
+	{{range .Maps}}map {{.Name}} {
+		{{.ElementTypeExpr}}
+		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
+		{{if .Size}}size {{.Size}}{{end}}
+		{{if .Timeout}}timeout {{.Timeout.Milliseconds}}ms{{end}}
+	}
+	{{end}}
+	{{range .Sets}}set {{.Name}} {
+		{{.ElementTypeExpr}}
+		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
+		{{if .Size}}size {{.Size}}{{end}}
+		{{if .Timeout}}timeout {{.Timeout.Milliseconds}}ms{{end}}
+	}
+	{{end}}
+	{{range .Chains}}{{if .MustFlush}}chain {{.Name}} {
+		{{if .ChainType}}type {{.ChainType}} hook {{.Hook}}{{if .Device}} device "{{.Device}}"{{end}} priority {{.Priority}}; policy {{.Policy}}{{end}}
+	} ; {{end}}{{end}}
+}
+{{if .MustFlush}}flush table {{$family}} {{$tableName}}{{end}}
+{{range .Maps}}{{if .MustFlush}}flush map {{$family}} {{$tableName}} {{.Name}}
+{{end}}{{end}}
+{{range .Sets}}{{if .MustFlush}}flush set {{$family}} {{$tableName}} {{.Name}}
+{{end}}{{end}}
+{{range .Chains}}{{if .MustFlush}}flush chain {{$family}} {{$tableName}} {{.Name}}
+{{end}}{{end}}
+{{range .Maps}}{{if .DeletedElements}}delete element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .DeletedElements}}{{$k}}, {{end}} }
+{{end}}{{end}}
+{{range .Sets}}{{if .DeletedElements}}delete element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .DeletedElements}}{{$k}}, {{end}} }
+{{end}}{{end}}
+{{range .DeleteCommands}}{{.}}
+{{end}}
+table {{$family}} {{$tableName}} {
+	{{range .Chains}}{{if .MustFlush}}chain {{.Name}} {
+		{{if .ChainType}}type {{.ChainType}} hook {{.Hook}}{{if .Device}} device "{{.Device}}"{{end}} priority {{.Priority}}; policy {{.Policy}}{{end}}
+		{{range .Rules}}{{.}}
+		{{end}}
+	}
+	{{end}}{{end}}
+}
+{{range .Maps}}{{if .AddedElements}}add element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .AddedElements}}{{$k}}{{if $v.Comment}} comment "{{$v.Comment}}"{{end}} : {{$v.Value}}, {{end}} }
+{{end}}{{end}}
+{{range .Sets}}{{if .AddedElements}}add element {{$family}} {{$tableName}} {{.Name}} { {{range $k,$v := .AddedElements}}{{$k}}{{if $v.Comment}} comment "{{$v.Comment}}"{{end}}, {{end}} }
+{{end}}{{end}}
