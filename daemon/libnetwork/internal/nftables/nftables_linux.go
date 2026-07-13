@@ -1196,7 +1196,11 @@ var reloadTemplText string
 
 func parseTemplate() error {
 	var errs [2]error
-	incrementalUpdateTempl, errs[0] = template.New("incremental_update.nft.gotmpl").Parse(incrementalUpdateTemplText)
-	reloadTempl, errs[1] = template.New("reload.nft.gotmpl").Parse(reloadTemplText)
+	incrementalUpdateTempl, errs[0] = template.New("incremental_update.nft.gotmpl").Funcs(templateFuncs).Parse(incrementalUpdateTemplText)
+	reloadTempl, errs[1] = template.New("reload.nft.gotmpl").Funcs(templateFuncs).Parse(reloadTemplText)
 	return errors.Join(errs[:]...)
+}
+
+var templateFuncs = template.FuncMap{
+	"join": strings.Join,
 }
