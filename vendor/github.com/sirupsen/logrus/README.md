@@ -3,13 +3,10 @@
 Logrus is a structured logger for Go (golang), completely API compatible with
 the standard library logger.
 
-**Logrus is in maintenance-mode.** We will not be introducing new features. It's
-simply too hard to do in a way that won't break many people's projects, which is
-the last thing you want from your Logging library (again...).
-
-This does not mean Logrus is dead. Logrus will continue to be maintained for
-security, (backwards compatible) bug fixes, and performance (where we are
-limited by the interface).
+**Logrus is in maintenance mode.** The project focuses on security, bug fixes,
+and performance improvements. New features are not planned, aside from changes
+required to provide interoperability with other logging ecosystems (e.g., Go's
+[log/slog](https://pkg.go.dev/log/slog)).
 
 I believe Logrus' biggest contribution is to have played a part in today's
 widespread use of structured logging in Golang. There doesn't seem to be a
@@ -22,18 +19,6 @@ about structured logging in Go today. Check out, for example,
 [zerolog]: https://github.com/rs/zerolog
 [zap]: https://github.com/uber-go/zap
 [apex]: https://github.com/apex/log
-
-**Seeing weird case-sensitive problems?** It's in the past been possible to
-import Logrus as both upper- and lower-case. Due to the Go package environment,
-this caused issues in the community and we needed a standard. Some environments
-experienced problems with the upper-case variant, so the lower-case was decided.
-Everything using `logrus` will need to use the lower-case:
-`github.com/sirupsen/logrus`. Any package that isn't, should be changed.
-
-To fix Glide, see [these
-comments](https://github.com/sirupsen/logrus/issues/553#issuecomment-306591437).
-For an in-depth explanation of the casing issue, see [this
-comment](https://github.com/sirupsen/logrus/issues/570#issuecomment-313933276).
 
 Nicely color-coded in development (when a TTY is attached, otherwise just
 plain text):
@@ -103,14 +88,16 @@ between 20 and 40% in recent tests with 1.6 and 1.7.  You can validate this in y
 environment via benchmarks:
 
 ```bash
-go test -bench=.*CallerTracing
+go test -bench=ReportCaller
 ```
 
 #### Case-sensitivity
 
-The organization's name was changed to lower-case--and this will not be changed
-back. If you are getting import conflicts due to case sensitivity, please use
-the lower-case import: `github.com/sirupsen/logrus`.
+The organization's name was [changed to lower-case][1]. If you are getting import
+conflicts due to case sensitivity, please use the lower-case import:
+`github.com/sirupsen/logrus`.
+
+[1]: https://github.com/sirupsen/logrus/issues/570#issuecomment-313933276
 
 #### Example
 
@@ -390,10 +377,12 @@ Third-party logging formatters:
 * [`nested-logrus-formatter`](https://github.com/antonfisher/nested-logrus-formatter). Converts logrus fields to a nested structure.
 * [`powerful-logrus-formatter`](https://github.com/zput/zxcTool). get fileName, log's line number and the latest function's name when print log; Save log to files.
 * [`caption-json-formatter`](https://github.com/nolleh/caption_json_formatter). logrus's message json formatter with human-readable caption added.
+* [`easy-logrus-formatter`](https://github.com/WeiZhixiong/easy-logrus-formatter). Provide a user-friendly formatter for logrus.
+* [`redactrus`](https://github.com/ibreakthecloud/redactrus). Redacts sensitive information like password, apikeys, email, etc. from logs.
 
 You can define your formatter by implementing the `Formatter` interface,
 requiring a `Format` method. `Format` takes an `*Entry`. `entry.Data` is a
-`Fields` type (`map[string]interface{}`) with all your fields as well as the
+`Fields` type (`map[string]any`) with all your fields as well as the
 default ones (see Entries section above):
 
 ```go

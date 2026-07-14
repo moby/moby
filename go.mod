@@ -92,7 +92,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rootless-containers/rootlesskit/v3 v3.0.1
-	github.com/sirupsen/logrus v1.9.4
+	github.com/sirupsen/logrus v1.9.5-0.20260626163630-86fcec785443 // master (v1.10.0-dev)
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/tonistiigi/fsutil v0.0.0-20260609174605-b61e79c0c046
