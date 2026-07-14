@@ -35,7 +35,7 @@ table {{$family}} {{$tableName}} {
 	}
 	{{end}}
 	{{range .Chains}}chain {{.Name}} {
-		{{if .ChainType}}type {{.ChainType}} hook {{.Hook}}{{if .Device}} device "{{.Device}}"{{end}} priority {{.Priority}}; policy {{.Policy}}{{end}}
+		{{if .ChainType}}type {{.ChainType}} hook {{.Hook}}{{if .Device}} device "{{.Device}}"{{end}} priority {{.Priority}}; policy {{.Policy}};{{end}}
 		{{range .Rules}}{{.}}
 		{{end}}
 	}
