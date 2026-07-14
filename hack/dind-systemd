@@ -104,6 +104,16 @@ EOF
 	systemctl enable collect-firewalld-logs.service
 fi
 
+# Delegate cgroup v2 controllers to unprivileged users, so that the rootless
+# daemon can use the systemd cgroup driver and set resource limits. This is
+# the setup documented for production rootless installations:
+# https://docs.docker.com/engine/security/rootless/#limiting-resources
+mkdir -p /etc/systemd/system/user@.service.d
+cat > /etc/systemd/system/user@.service.d/delegate.conf << EOF
+[Service]
+Delegate=cpu cpuset io memory pids
+EOF
+
 env > /etc/docker-entrypoint-env
 
 cat > /etc/systemd/system/docker-entrypoint.target << EOF

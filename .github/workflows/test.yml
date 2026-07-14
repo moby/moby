@@ -92,13 +92,11 @@ jobs:
           - arch: amd64
             storage: snapshotter
             runnerSuffix: ""
-            extraModes: '["rootless", "systemd", "iptables+firewalld", "nftables", "nftables+firewalld"]'
-            # FIXME: add rootless-systemd once https://github.com/moby/moby/issues/44084 is resolved.
+            extraModes: '["rootless", "systemd", "rootless-systemd", "iptables+firewalld", "nftables", "nftables+firewalld"]'
           - arch: amd64
             storage: graphdriver
             runnerSuffix: ""
             extraModes: '["rootless", "systemd"]'
-            # FIXME: add rootless-systemd once https://github.com/moby/moby/issues/44084 is resolved.
           - arch: arm64
             storage: snapshotter
             runnerSuffix: "-arm"
