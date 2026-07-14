@@ -1429,7 +1429,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rootless-containers/rootlesskit/v3 v3.0.1
+# github.com/rootless-containers/rootlesskit/v3 v3.0.2
 ## explicit; go 1.25.0
 github.com/rootless-containers/rootlesskit/v3/pkg/api
 github.com/rootless-containers/rootlesskit/v3/pkg/api/client

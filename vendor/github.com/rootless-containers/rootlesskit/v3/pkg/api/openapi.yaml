@@ -1,7 +1,7 @@
 # When you made a change to this YAML, please validate with https://editor.swagger.io
 openapi: 3.0.3
 info:
-  version: 1.1.1
+  version: 1.1.2
   title: RootlessKit API
 servers:
   - url: 'http://rootlesskit/v1'
@@ -151,6 +151,9 @@ components:
         dynamicChildIP:
           type: boolean
           description: "Child IP may change"
+        ipv6:
+          type: boolean
+          description: "Whether the network driver has IPv6 enabled"
     PortDriverInfo:
       required:
         - driver
