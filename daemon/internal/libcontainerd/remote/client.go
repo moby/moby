@@ -449,7 +449,7 @@ func (t *task) CreateCheckpoint(ctx context.Context, checkpointDir string, exit 
 	var cpDesc *ocispec.Descriptor
 	for _, m := range index.Manifests {
 		if m.MediaType == c8dimages.MediaTypeContainerd1Checkpoint {
-			cpDesc = &m //nolint:gosec
+			cpDesc = &m
 			break
 		}
 	}
