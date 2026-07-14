@@ -16,10 +16,14 @@ import (
 // the containerd clients at it. It is selected by the "embedded-containerd"
 // feature.
 func (cli *daemonCLI) initEmbeddedContainerd(ctx context.Context) (func(time.Duration) error, error) {
+	rootDir, err := containerdRootDir(ctx, cli.Config)
+	if err != nil {
+		return nil, err
+	}
 	log.G(ctx).Warn("Running with experimental embedded-containerd mode")
 	d, err := embedded.Start(
 		ctx,
-		filepath.Join(cli.Config.Root, "containerd"),
+		rootDir,
 		filepath.Join(cli.Config.ExecRoot, "containerd"),
 	)
 	if err != nil {

@@ -1164,7 +1164,11 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 		return nil, errors.Wrap(err, "failed to generate containerd options")
 	}
 
-	r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
+	rootDir, err := containerdRootDir(ctx, cli.Config)
+	if err != nil {
+		return nil, err
+	}
+	r, err := supervisor.Start(ctx, rootDir, filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start containerd")
 	}
@@ -1172,6 +1176,24 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 
 	// Try to wait for containerd to shutdown
 	return r.WaitTimeout, nil
+}
+
+// containerdRootEnv is a temporary testing override for reusing a standalone
+// containerd data root with embedded or supervised containerd.
+const containerdRootEnv = "DOCKER_CONTAINERD_ROOT"
+
+func containerdRootDir(ctx context.Context, cfg *config.Config) (string, error) {
+	if root := os.Getenv(containerdRootEnv); root != "" {
+		if !filepath.IsAbs(root) {
+			return "", fmt.Errorf("%s must be an absolute path: %q", containerdRootEnv, root)
+		}
+		log.G(ctx).WithFields(log.Fields{
+			"environment-variable": containerdRootEnv,
+			"root":                 root,
+		}).Warn("overriding containerd root from environment")
+		return root, nil
+	}
+	return filepath.Join(cfg.Root, "containerd", "daemon"), nil
 }
 
 // cdiEnabled returns true if CDI feature wasn't explicitly disabled via

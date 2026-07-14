@@ -35,7 +35,7 @@ func TestBuildServerConfigUsesSupervisedLayout(t *testing.T) {
 
 	cfg := buildServerConfig(rootDir, stateDir, address)
 
-	assert.Check(t, is.Equal(cfg.root, filepath.Join(rootDir, "daemon")))
+	assert.Check(t, is.Equal(cfg.root, rootDir))
 	assert.Check(t, is.Equal(cfg.state, filepath.Join(stateDir, "daemon")))
 	assert.Check(t, is.Equal(cfg.grpcAddress, address))
 	assert.Check(t, is.Equal(cfg.ttrpcAddress, address+".ttrpc"))

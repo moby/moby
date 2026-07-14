@@ -46,11 +46,12 @@ import (
 	_ "github.com/containerd/containerd/v2/plugins/services/warning"
 )
 
-// Start initializes and runs the embedded containerd server, using the daemon
-// subdirectory under rootDir for persistent state (bolt DB, content store) and
-// the daemon subdirectory under stateDir for runtime state. See the package doc
-// for the transport layout. Plugins self-register via the blank imports above
-// and in the platform-specific files.
+// Start initializes and runs the embedded containerd server, using rootDir for
+// persistent state (bolt DB, content store) and the daemon subdirectory under
+// stateDir for runtime state.
+// See the package doc for the transport layout.
+// Plugins self-register via the blank imports above and in the platform-specific
+// files.
 func Start(ctx context.Context, rootDir, stateDir string) (Daemon, error) {
 	setContainerdVersion()
 
@@ -144,7 +145,7 @@ func setContainerdVersion() {
 
 func buildServerConfig(rootDir, stateDir, address string) *serverConfig {
 	return &serverConfig{
-		root:               filepath.Join(rootDir, "daemon"),
+		root:               rootDir,
 		state:              filepath.Join(stateDir, "daemon"),
 		grpcAddress:        address,
 		ttrpcAddress:       address + ".ttrpc",
