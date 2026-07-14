@@ -128,7 +128,7 @@ func cursorDown(out io.Writer, l uint) {
 
 // Display prints the JSONMessage to out. If isTerminal is true, it erases
 // the entire current line when displaying the progressbar. It returns an
-// error if the [JSONMessage.Error] field is non-nil.
+// error if [jsonstream.Message.Error] is non-nil.
 func Display(jm jsonstream.Message, out io.Writer, isTerminal bool, width uint16) error {
 	if jm.Error != nil {
 		return jm.Error
