@@ -447,6 +447,8 @@ func (tm *Modifier) Reverse() Modifier {
 	return rtm
 }
 
+var incrementalUpdateFailedHook func(applied string, err error)
+
 // Apply makes incremental updates to nftables. If there's a validation
 // error in any of the enqueued objects, or an error applying the updates
 // to the underlying nftables, the [Table] will be unmodified.
@@ -499,6 +501,9 @@ func (t *Table) Apply(ctx context.Context, tm ...Modifier) (retErr error) {
 			sb.Write(line)
 		}
 		log.G(ctx).Error("nftables: failed to update nftables:\n", sb.String(), "\n", err)
+		if incrementalUpdateFailedHook != nil {
+			incrementalUpdateFailedHook(sb.String(), err)
+		}
 
 		// It's possible something destructive has happened to nftables. For example, in
 		// integration-cli tests, tests start daemons in the same netns as the integration
@@ -872,7 +877,6 @@ func (me MapElement) create(ctx context.Context, t *table) (bool, error) {
 		Comment: me.Comment,
 	}
 	nm.AddedElements[me.Key] = nm.Elements[me.Key]
-	delete(nm.DeletedElements, me.Key)
 	log.G(ctx).WithFields(log.Fields{
 		"family":  t.Family,
 		"table":   t.Name,
@@ -898,7 +902,6 @@ func (me MapElement) delete(ctx context.Context, t *table) (bool, error) {
 			me.MapName, me.Key, oldValue.Value, me.Value)
 	}
 	delete(nm.Elements, me.Key)
-	delete(nm.AddedElements, me.Key)
 	nm.DeletedElements[me.Key] = me.Value
 	log.G(ctx).WithFields(log.Fields{
 		"family":  t.Family,
