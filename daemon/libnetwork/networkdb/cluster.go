@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	golog "log"
-	rnd "math/rand"
+	"math/rand/v2"
 	"net"
 	"net/netip"
 	"slices"
@@ -234,12 +234,14 @@ func (nDB *NetworkDB) clusterLeave() error {
 }
 
 func (nDB *NetworkDB) triggerFunc(stagger time.Duration, C <-chan time.Time, f func()) {
-	// Use a random stagger to avoid synchronizing
-	randStagger := time.Duration(uint64(rnd.Int63()) % uint64(stagger)) //nolint:gosec // gosec complains about the use of rand here. It should be fine.
-	select {
-	case <-time.After(randStagger):
-	case <-nDB.ctx.Done():
-		return
+	if stagger > 0 {
+		// Use a random stagger to avoid synchronizing.
+		randStagger := time.Duration(rand.Int64N(int64(stagger))) // #nosec G404 -- use of math/rand/v2 is fine for this purpose.
+		select {
+		case <-time.After(randStagger):
+		case <-nDB.ctx.Done():
+			return
+		}
 	}
 	for {
 		select {
