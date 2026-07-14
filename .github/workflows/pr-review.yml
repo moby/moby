@@ -71,4 +71,4 @@ jobs:
             -H "Authorization: Bearer $DOCKER_AP_REVIEWER_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{"repo_full_name": "moby/moby", "number": '"$PR_NUMBER"'}' \
-            https://api.agentic-platform.docker.com/v1/channels/b3285ff4-fd33-4ee4-b198-71cde811dd79/publish
+            https://agentic-platform.docker.com/api/v1/channels/publish
