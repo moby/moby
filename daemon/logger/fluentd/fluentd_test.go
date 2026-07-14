@@ -17,13 +17,6 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-const (
-	readWriteTimeoutTestTimeout = 30 * time.Second
-	noAckCloseDelay             = 100 * time.Millisecond
-	fluentdSocketDirPattern     = "fluentd-test-"
-	fluentdSocketName           = "fluent-logger-golang.sock"
-)
-
 func TestValidateLogOptReconnectInterval(t *testing.T) {
 	invalidIntervals := []string{"-1", "1", "-1s", "99ms", "11s"}
 	for _, v := range invalidIntervals {
@@ -329,21 +322,21 @@ func TestReadWriteTimeoutsAreEffective(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// Keep the Unix socket path short enough for platforms with small sockaddr_un limits.
-			tmpDir, err := os.MkdirTemp("", fluentdSocketDirPattern)
+			tmpDir, err := os.MkdirTemp("", "fluentd-test-")
 			assert.NilError(t, err)
 			t.Cleanup(func() {
 				if err := os.RemoveAll(tmpDir); err != nil {
 					t.Error(err)
 				}
 			})
-			socketFile := filepath.Join(tmpDir, fluentdSocketName)
+			socketFile := filepath.Join(tmpDir, "fluentd.sock")
 			l, err := net.Listen("unix", socketFile)
 			assert.NilError(t, err, "unable to create listener for socket %s", socketFile)
 			defer l.Close()
 
 			// This is to guard against potential run-away test scenario so that a future change
 			// doesn't cause the tests suite to timeout.
-			ctx, cancel := context.WithTimeout(context.Background(), readWriteTimeoutTestTimeout)
+			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 			defer cancel()
 
 			var connectedWG sync.WaitGroup
@@ -373,7 +366,10 @@ func TestReadWriteTimeoutsAreEffective(t *testing.T) {
 				Config:        cfg,
 			})
 			assert.NilError(t, err)
-			defer closeLoggerWithContext(ctx, f)
+			defer func() {
+				cancel()
+				closeLoggerWithContext(ctx, f)
+			}()
 
 			// Ensure that the server is ready to accept connections since we have disabled async mode
 			// in fluentd options.
@@ -453,9 +449,6 @@ func noAckConnectionHandler(ctx context.Context, conn net.Conn) {
 		}
 	}
 	// Don't write an ack back. The fluent configuration is set to expect an ack from the server.
-	select {
-	case <-time.After(noAckCloseDelay):
-	case <-ctx.Done():
-	}
+	<-ctx.Done()
 	_ = conn.Close()
 }
