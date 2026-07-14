@@ -23,7 +23,7 @@ func ErrorWithLog(source string, err error, log []byte) *VerifierError {
 
 	log = bytes.Trim(log, whitespace)
 	if len(log) == 0 {
-		return &VerifierError{source, err, nil, false}
+		return &VerifierError{source, err, nil}
 	}
 
 	logLines := bytes.Split(log, []byte{'\n'})
@@ -34,7 +34,7 @@ func ErrorWithLog(source string, err error, log []byte) *VerifierError {
 		lines = append(lines, string(bytes.TrimRight(line, whitespace)))
 	}
 
-	return &VerifierError{source, err, lines, false}
+	return &VerifierError{source, err, lines}
 }
 
 // VerifierError includes information from the eBPF verifier.
@@ -46,8 +46,6 @@ type VerifierError struct {
 	Cause error
 	// The verifier output split into lines.
 	Log []string
-	// Deprecated: the log is never truncated anymore.
-	Truncated bool
 }
 
 func (le *VerifierError) Unwrap() error {

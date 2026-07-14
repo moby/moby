@@ -37,6 +37,14 @@ type KprobeMultiOptions struct {
 	// Each Cookie is assigned to the Symbol or Address specified at the
 	// corresponding slice index.
 	Cookies []uint64
+
+	// Session must be true when attaching Programs with the
+	// [ebpf.AttachTraceKprobeSession] attach type.
+	//
+	// This makes a Kprobe execute on both function entry and return. The entry
+	// program can share a cookie value with the return program and can decide
+	// whether the return program gets executed.
+	Session bool
 }
 
 // KprobeMulti attaches the given eBPF program to the entry point of a given set
@@ -60,7 +68,7 @@ func KprobeMulti(prog *ebpf.Program, opts KprobeMultiOptions) (Link, error) {
 //
 // Requires at least Linux 5.18.
 func KretprobeMulti(prog *ebpf.Program, opts KprobeMultiOptions) (Link, error) {
-	return kprobeMulti(prog, opts, unix.BPF_F_KPROBE_MULTI_RETURN)
+	return kprobeMulti(prog, opts, sys.BPF_F_KPROBE_MULTI_RETURN)
 }
 
 func kprobeMulti(prog *ebpf.Program, opts KprobeMultiOptions, flags uint32) (Link, error) {
@@ -82,9 +90,14 @@ func kprobeMulti(prog *ebpf.Program, opts KprobeMultiOptions, flags uint32) (Lin
 		return nil, fmt.Errorf("Cookies must be exactly Symbols or Addresses in length: %w", errInvalidInput)
 	}
 
+	attachType := sys.BPF_TRACE_KPROBE_MULTI
+	if opts.Session {
+		attachType = sys.BPF_TRACE_KPROBE_SESSION
+	}
+
 	attr := &sys.LinkCreateKprobeMultiAttr{
 		ProgFd:           uint32(prog.FD()),
-		AttachType:       sys.BPF_TRACE_KPROBE_MULTI,
+		AttachType:       attachType,
 		KprobeMultiFlags: flags,
 	}
 
@@ -103,21 +116,31 @@ func kprobeMulti(prog *ebpf.Program, opts KprobeMultiOptions, flags uint32) (Lin
 	}
 
 	fd, err := sys.LinkCreateKprobeMulti(attr)
+	if err == nil {
+		return &kprobeMultiLink{RawLink{fd, ""}}, nil
+	}
+
 	if errors.Is(err, unix.ESRCH) {
 		return nil, fmt.Errorf("couldn't find one or more symbols: %w", os.ErrNotExist)
 	}
-	if errors.Is(err, unix.EINVAL) {
-		return nil, fmt.Errorf("%w (missing kernel symbol or prog's AttachType not AttachTraceKprobeMulti?)", err)
-	}
 
-	if err != nil {
+	if opts.Session {
+		if haveFeatErr := haveBPFLinkKprobeSession(); haveFeatErr != nil {
+			return nil, haveFeatErr
+		}
+	} else {
 		if haveFeatErr := haveBPFLinkKprobeMulti(); haveFeatErr != nil {
 			return nil, haveFeatErr
 		}
-		return nil, err
 	}
 
-	return &kprobeMultiLink{RawLink{fd, ""}}, nil
+	// Check EINVAL after running feature probes, since it's also returned when
+	// the kernel doesn't support the multi/session attach types.
+	if errors.Is(err, unix.EINVAL) {
+		return nil, fmt.Errorf("%w (missing kernel symbol or prog's AttachType not %s?)", err, ebpf.AttachType(attachType))
+	}
+
+	return nil, err
 }
 
 type kprobeMultiLink struct {
@@ -126,7 +149,7 @@ type kprobeMultiLink struct {
 
 var _ Link = (*kprobeMultiLink)(nil)
 
-func (kml *kprobeMultiLink) Update(prog *ebpf.Program) error {
+func (kml *kprobeMultiLink) Update(_ *ebpf.Program) error {
 	return fmt.Errorf("update kprobe_multi: %w", ErrNotSupported)
 }
 
@@ -149,7 +172,7 @@ func (kml *kprobeMultiLink) Info() (*Info, error) {
 	}, nil
 }
 
-var haveBPFLinkKprobeMulti = internal.NewFeatureTest("bpf_link_kprobe_multi", "5.18", func() error {
+var haveBPFLinkKprobeMulti = internal.NewFeatureTest("bpf_link_kprobe_multi", func() error {
 	prog, err := ebpf.NewProgram(&ebpf.ProgramSpec{
 		Name: "probe_kpm_link",
 		Type: ebpf.Kprobe,
@@ -188,4 +211,45 @@ var haveBPFLinkKprobeMulti = internal.NewFeatureTest("bpf_link_kprobe_multi", "5
 	fd.Close()
 
 	return nil
-})
+}, "5.18")
+
+var haveBPFLinkKprobeSession = internal.NewFeatureTest("bpf_link_kprobe_session", func() error {
+	prog, err := ebpf.NewProgram(&ebpf.ProgramSpec{
+		Name: "probe_kps_link",
+		Type: ebpf.Kprobe,
+		Instructions: asm.Instructions{
+			asm.Mov.Imm(asm.R0, 0),
+			asm.Return(),
+		},
+		AttachType: ebpf.AttachTraceKprobeSession,
+		License:    "MIT",
+	})
+	if errors.Is(err, unix.E2BIG) {
+		// Kernel doesn't support AttachType field.
+		return internal.ErrNotSupported
+	}
+	if err != nil {
+		return err
+	}
+	defer prog.Close()
+
+	fd, err := sys.LinkCreateKprobeMulti(&sys.LinkCreateKprobeMultiAttr{
+		ProgFd:     uint32(prog.FD()),
+		AttachType: sys.BPF_TRACE_KPROBE_SESSION,
+		Count:      1,
+		Syms:       sys.NewStringSlicePointer([]string{"vprintk"}),
+	})
+	switch {
+	case errors.Is(err, unix.EINVAL):
+		return internal.ErrNotSupported
+	// If CONFIG_FPROBE isn't set.
+	case errors.Is(err, unix.EOPNOTSUPP):
+		return internal.ErrNotSupported
+	case err != nil:
+		return err
+	}
+
+	fd.Close()
+
+	return nil
+}, "6.10")

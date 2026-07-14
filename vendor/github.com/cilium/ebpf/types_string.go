@@ -38,11 +38,15 @@ func _() {
 	_ = x[RingBuf-27]
 	_ = x[InodeStorage-28]
 	_ = x[TaskStorage-29]
+	_ = x[BloomFilter-30]
+	_ = x[UserRingbuf-31]
+	_ = x[CgroupStorage-32]
+	_ = x[Arena-33]
 }
 
-const _MapType_name = "UnspecifiedMapHashArrayProgramArrayPerfEventArrayPerCPUHashPerCPUArrayStackTraceCGroupArrayLRUHashLRUCPUHashLPMTrieArrayOfMapsHashOfMapsDevMapSockMapCPUMapXSKMapSockHashCGroupStorageReusePortSockArrayPerCPUCGroupStorageQueueStackSkStorageDevMapHashStructOpsMapRingBufInodeStorageTaskStorage"
+const _MapType_name = "UnspecifiedMapHashArrayProgramArrayPerfEventArrayPerCPUHashPerCPUArrayStackTraceCGroupArrayLRUHashLRUCPUHashLPMTrieArrayOfMapsHashOfMapsDevMapSockMapCPUMapXSKMapSockHashCGroupStorageReusePortSockArrayPerCPUCGroupStorageQueueStackSkStorageDevMapHashStructOpsMapRingBufInodeStorageTaskStorageBloomFilterUserRingbufCgroupStorageArena"
 
-var _MapType_index = [...]uint16{0, 14, 18, 23, 35, 49, 59, 70, 80, 91, 98, 108, 115, 126, 136, 142, 149, 155, 161, 169, 182, 200, 219, 224, 229, 238, 248, 260, 267, 279, 290}
+var _MapType_index = [...]uint16{0, 14, 18, 23, 35, 49, 59, 70, 80, 91, 98, 108, 115, 126, 136, 142, 149, 155, 161, 169, 182, 200, 219, 224, 229, 238, 248, 260, 267, 279, 290, 301, 312, 325, 330}
 
 func (i MapType) String() string {
 	if i >= MapType(len(_MapType_index)-1) {

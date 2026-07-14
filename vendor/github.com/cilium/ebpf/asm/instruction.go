@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/cilium/ebpf/internal/sys"
-	"github.com/cilium/ebpf/internal/unix"
 )
 
 // InstructionSize is the size of a BPF instruction in bytes
@@ -804,7 +803,7 @@ func (insns Instructions) Tag(bo binary.ByteOrder) (string, error) {
 			return "", fmt.Errorf("instruction %d: %w", i, err)
 		}
 	}
-	return hex.EncodeToString(h.Sum(nil)[:unix.BPF_TAG_SIZE]), nil
+	return hex.EncodeToString(h.Sum(nil)[:sys.BPF_TAG_SIZE]), nil
 }
 
 // encodeFunctionReferences populates the Offset (or Constant, depending on

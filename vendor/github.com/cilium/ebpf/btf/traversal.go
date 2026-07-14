@@ -40,9 +40,12 @@ func children(typ Type, yield func(child *Type) bool) bool {
 	// Explicitly type switch on the most common types to allow the inliner to
 	// do its work. This avoids allocating intermediate slices from walk() on
 	// the heap.
+	var tags []string
 	switch v := typ.(type) {
-	case *Void, *Int, *Enum, *Fwd, *Float:
+	case *Void, *Int, *Enum, *Fwd, *Float, *declTag:
 		// No children to traverse.
+		// declTags is declared as a leaf type since it's parsed into .Tags fields of other types
+		// during unmarshaling.
 	case *Pointer:
 		if !yield(&v.Target) {
 			return false
@@ -59,17 +62,32 @@ func children(typ Type, yield func(child *Type) bool) bool {
 			if !yield(&v.Members[i].Type) {
 				return false
 			}
+			for _, t := range v.Members[i].Tags {
+				var tag Type = &declTag{v, t, i}
+				if !yield(&tag) {
+					return false
+				}
+			}
 		}
+		tags = v.Tags
 	case *Union:
 		for i := range v.Members {
 			if !yield(&v.Members[i].Type) {
 				return false
 			}
+			for _, t := range v.Members[i].Tags {
+				var tag Type = &declTag{v, t, i}
+				if !yield(&tag) {
+					return false
+				}
+			}
 		}
+		tags = v.Tags
 	case *Typedef:
 		if !yield(&v.Type) {
 			return false
 		}
+		tags = v.Tags
 	case *Volatile:
 		if !yield(&v.Type) {
 			return false
@@ -86,6 +104,20 @@ func children(typ Type, yield func(child *Type) bool) bool {
 		if !yield(&v.Type) {
 			return false
 		}
+		if fp, ok := v.Type.(*FuncProto); ok {
+			for i := range fp.Params {
+				if len(v.ParamTags) <= i {
+					continue
+				}
+				for _, t := range v.ParamTags[i] {
+					var tag Type = &declTag{v, t, i}
+					if !yield(&tag) {
+						return false
+					}
+				}
+			}
+		}
+		tags = v.Tags
 	case *FuncProto:
 		if !yield(&v.Return) {
 			return false
@@ -99,17 +131,14 @@ func children(typ Type, yield func(child *Type) bool) bool {
 		if !yield(&v.Type) {
 			return false
 		}
+		tags = v.Tags
 	case *Datasec:
 		for i := range v.Vars {
 			if !yield(&v.Vars[i].Type) {
 				return false
 			}
 		}
-	case *declTag:
-		if !yield(&v.Type) {
-			return false
-		}
-	case *typeTag:
+	case *TypeTag:
 		if !yield(&v.Type) {
 			return false
 		}
@@ -117,6 +146,13 @@ func children(typ Type, yield func(child *Type) bool) bool {
 		// cycle has children, but we ignore them deliberately.
 	default:
 		panic(fmt.Sprintf("don't know how to walk Type %T", v))
+	}
+
+	for _, t := range tags {
+		var tag Type = &declTag{typ, t, -1}
+		if !yield(&tag) {
+			return false
+		}
 	}
 
 	return true
