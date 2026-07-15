@@ -226,6 +226,7 @@ func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 func TestServiceWithPredefinedNetwork(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
+	skip.If(t, testEnv.IsUserNamespace, "host network mode is incompatible with user namespaces")
 	ctx := setupTest(t)
 
 	d := swarm.NewSwarm(ctx, t, testEnv)

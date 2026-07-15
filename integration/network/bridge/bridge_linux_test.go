@@ -1231,6 +1231,8 @@ func TestBridgeIPAMStatus(t *testing.T) {
 // rolled back properly - the failed connection should not show up in container
 // or network inspect, and the container should not gain a network interface.
 func TestJoinError(t *testing.T) {
+	skip.If(t, testEnv.IsUserNamespace, "privileged mode is incompatible with user namespaces")
+
 	ctx := setupTest(t)
 	d := daemon.New(t)
 	d.StartWithBusybox(ctx, t)

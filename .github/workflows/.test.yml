@@ -216,6 +216,9 @@ jobs:
           if [[ "$MODE" == *"rootless"* ]]; then
             echo "DOCKER_ROOTLESS=1" >> $GITHUB_ENV
           fi
+          if [[ "$MODE" == *"userns"* ]]; then
+            echo "DOCKER_REMAP_ROOT=default" >> $GITHUB_ENV
+          fi
           if [[ "$MODE" == *"systemd"* ]]; then
             echo "SYSTEMD=true" >> $GITHUB_ENV
             CACHE_DEV_SCOPE="dev-systemd-${ARCH}"

@@ -186,8 +186,12 @@ func TestUpdatePidsLimit(t *testing.T) {
 
 		t.Run(test.desc, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
+			opts := []func(*container.TestContainerConfig){container.WithPidsLimit(test.initial)}
 			// Using "network=host" to speed up creation (13.96s vs 6.54s)
-			cID := container.Run(ctx, t, apiClient, container.WithPidsLimit(test.initial), container.WithNetworkMode("host"))
+			if !testEnv.IsUserNamespace() {
+				opts = append(opts, container.WithNetworkMode("host"))
+			}
+			cID := container.Run(ctx, t, apiClient, opts...)
 
 			_, err := c.ContainerUpdate(ctx, cID, client.ContainerUpdateOptions{
 				Resources: &containertypes.Resources{

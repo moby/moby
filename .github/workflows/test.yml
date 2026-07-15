@@ -96,7 +96,7 @@ jobs:
           - arch: amd64
             storage: graphdriver
             runnerSuffix: ""
-            extraModes: '["rootless", "systemd"]'
+            extraModes: '["rootless", "systemd", "userns"]'
           - arch: arm64
             storage: snapshotter
             runnerSuffix: "-arm"

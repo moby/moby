@@ -33,6 +33,7 @@ import (
 
 func TestNISDomainname(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsUserNamespace, "user namespaces cannot write the kernel domainname sysctl")
 
 	// Rootless supports custom Hostname but doesn't support custom Domainname
 	//  OCI runtime create failed: container_linux.go:349: starting container process caused "process_linux.go:449: container init caused \
@@ -136,6 +137,7 @@ func TestPrivilegedHostDevices(t *testing.T) {
 	// so needs to be same host.
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsUserNamespace, "privileged mode is incompatible with user namespaces")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
@@ -375,6 +377,7 @@ func TestWorkingDirNormalization(t *testing.T) {
 
 func TestSeccomp(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsUserNamespace, "privileged test cases are incompatible with user namespaces")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
