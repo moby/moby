@@ -41,7 +41,6 @@ func TestCopyFromContainerPathDoesNotExist(t *testing.T) {
 // TestCopyFromContainerPathIsNotDir tests that an error is returned when
 // trying to create a directory on a path that's a file.
 func TestCopyFromContainerPathIsNotDir(t *testing.T) {
-	skip.If(t, testEnv.UsingSnapshotter(), "FIXME: https://github.com/moby/moby/issues/47107")
 	ctx := setupTest(t)
 
 	apiClient := testEnv.APIClient()
@@ -54,9 +53,14 @@ func TestCopyFromContainerPathIsNotDir(t *testing.T) {
 	if testEnv.DaemonInfo.OSType == "windows" {
 		existingFile = "c:/windows/system32/drivers/etc/hosts/"
 
-		// Depending on the version of Windows, this produces a "ERROR_INVALID_NAME" (Windows < 2025),
-		// or a "ERROR_DIRECTORY" (Windows 2025); https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-
+		// With the graphdriver (windowsfilter) storage driver, this surfaces the
+		// raw Windows error from os.Lstat on the \\?\Volume{GUID}\ mount, which is
+		// a "ERROR_INVALID_NAME" (Windows < 2025) or "ERROR_DIRECTORY" (Windows 2025).
+		// With the containerd snapshotter the rootfs is mounted at a regular path
+		// where os.Lstat does not reject the trailing separator, so the daemon
+		// enforces the "not a directory" invariant explicitly (moby/moby#47107).
 		expected = []string{
+			"not a directory",
 			"The directory name is invalid.",                                     // ERROR_DIRECTORY
 			"The filename, directory name, or volume label syntax is incorrect.", // ERROR_INVALID_NAME
 		}
