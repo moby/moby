@@ -349,7 +349,7 @@ func initIngressConfiguration(gwIP net.IP, iptable *iptables.IPTable) error {
 	}
 	// Enable local routing for the gateway bridge interface by writing to /proc/sys/net/ipv4/conf/<oifName>/route_localnet.
 	path := filepath.Join("/proc/sys/net/ipv4/conf", oifName, "route_localnet")
-	if err := os.WriteFile(path, []byte{'1', '\n'}, 0o644); err != nil { //nolint:gosec // gosec complains about perms here, which must be 0644 in this case
+	if err := os.WriteFile(path, []byte{'1', '\n'}, 0o644); err != nil {
 		return fmt.Errorf("could not write to %s: %v", path, err)
 	}
 	// Add a POSTROUTING rule to the NAT table to masquerade traffic
