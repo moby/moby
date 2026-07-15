@@ -3,11 +3,8 @@
 #
 # KEEP THIS FILE SORTED. Order is important. Last match takes precedence.
 
-builder/**                              @tonistiigi
-contrib/mkimage/**                      @tianon
 daemon/graphdriver/overlay2/**          @dmcgowan
 daemon/graphdriver/windows/**           @johnstep
 daemon/logger/awslogs/**                @samuelkarp  
 hack/**                                 @tianon
-plugin/**                               @cpuguy83
 project/**                              @thaJeztah
