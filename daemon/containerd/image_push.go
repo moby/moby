@@ -140,7 +140,9 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 		}
 	}()
 
-	var limiter *semaphore.Weighted // TODO: Respect max concurrent downloads/uploads
+	i.transferLimitMu.Lock()
+	limiter := i.uploadLimiter
+	i.transferLimitMu.Unlock()
 
 	mountableBlobs, err := findMissingMountable(ctx, store, jobsQueue, target, targetRef, limiter)
 	if err != nil {
