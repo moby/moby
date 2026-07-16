@@ -52,6 +52,7 @@ func TestNetworkAliasesAreEmpty(t *testing.T) {
 
 	for _, nwMode := range netModes {
 		t.Run(nwMode, func(t *testing.T) {
+			skip.If(t, nwMode == "host" && testEnv.IsUserNamespace(), "host network mode is incompatible with user namespaces")
 			ctr := container.Create(ctx, t, apiClient,
 				container.WithName("ctr-"+nwMode),
 				container.WithImage("busybox:latest"),

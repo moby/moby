@@ -114,15 +114,17 @@ func TestUnprivilegedPortsAndPing(t *testing.T) {
 		c.Config.User = "1000:1000"
 	})
 
-	// Check net.ipv4.ping_group_range.
-	res, err := container.Exec(ctx, apiClient, cID, []string{"cat", "/proc/sys/net/ipv4/ping_group_range"})
-	assert.NilError(t, err)
-	assert.Assert(t, is.Len(res.Stderr(), 0))
-	assert.Equal(t, 0, res.ExitCode)
-	assert.Equal(t, `0	2147483647`, strings.TrimSpace(res.Stdout()))
+	if !testEnv.IsUserNamespace() {
+		// Check net.ipv4.ping_group_range.
+		res, err := container.Exec(ctx, apiClient, cID, []string{"cat", "/proc/sys/net/ipv4/ping_group_range"})
+		assert.NilError(t, err)
+		assert.Assert(t, is.Len(res.Stderr(), 0))
+		assert.Equal(t, 0, res.ExitCode)
+		assert.Equal(t, `0	2147483647`, strings.TrimSpace(res.Stdout()))
+	}
 
 	// Check net.ipv4.ip_unprivileged_port_start.
-	res, err = container.Exec(ctx, apiClient, cID, []string{"cat", "/proc/sys/net/ipv4/ip_unprivileged_port_start"})
+	res, err := container.Exec(ctx, apiClient, cID, []string{"cat", "/proc/sys/net/ipv4/ip_unprivileged_port_start"})
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(res.Stderr(), 0))
 	assert.Equal(t, 0, res.ExitCode)
