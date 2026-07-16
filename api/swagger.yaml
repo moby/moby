@@ -4969,6 +4969,28 @@ definitions:
       PortStatus:
         $ref: "#/definitions/PortStatus"
 
+  NetworkAttachment:
+    description: |
+      Specifies how a task is attached to a network, and the addresses the
+      task was assigned on that network.
+    type: "object"
+    properties:
+      Network:
+        $ref: "#/definitions/Network"
+      Addresses:
+        description: |
+          The IP addresses (in CIDR notation) assigned to the task on this
+          network. To maintain backward compatibility this field accepts CIDR
+          notation, but only the IP address is used.
+        type: "array"
+        items:
+          type: "string"
+    example:
+      Network:
+        ID: "4qvuz4ko70xaltuqbt8956gd1"
+      Addresses:
+        - "10.255.0.10/16"
+
   Task:
     type: "object"
     properties:
@@ -5013,6 +5035,13 @@ definitions:
           the JobIteration of the Service this Task was created for. Absent if
           the Task was created for a Replicated or Global Service.
         $ref: "#/definitions/ObjectVersion"
+      NetworksAttachments:
+        description: |
+          The networks that this task is attached to, and the addresses the
+          task was assigned on each of them.
+        type: "array"
+        items:
+          $ref: "#/definitions/NetworkAttachment"
     example:
       ID: "0kzzo1i0y4jz6027t0k7aezc7"
       Version:
