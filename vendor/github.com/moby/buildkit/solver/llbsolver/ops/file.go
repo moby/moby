@@ -149,6 +149,9 @@ func (f *fileOp) CacheMap(ctx context.Context, jobCtx solver.JobContext, index i
 	}
 
 	for idx, m := range selectors {
+		if idx < 0 || idx >= len(cm.Deps) {
+			return nil, false, errors.Errorf("invalid input index %d in file op with %d inputs", idx, len(cm.Deps))
+		}
 		if _, ok := invalidSelectors[idx]; ok {
 			continue
 		}

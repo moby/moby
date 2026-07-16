@@ -38,7 +38,7 @@ func (v *Validator) HandleChange(kind ChangeKind, p string, fi os.FileInfo, err 
 	if dir == "." {
 		dir = ""
 	}
-	if dir == ".." || strings.HasPrefix(p, filepath.FromSlash("../")) {
+	if p == ".." || dir == ".." || strings.HasPrefix(p, filepath.FromSlash("../")) {
 		return errors.WithStack(&os.PathError{Path: p, Err: syscall.EINVAL, Op: "escape check"})
 	}
 

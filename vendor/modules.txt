@@ -980,7 +980,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.31.1
+# github.com/moby/buildkit v0.31.2
 ## explicit; go 1.25.9
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1587,7 +1587,7 @@ github.com/tinylib/msgp/msgp
 # github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323
 ## explicit; go 1.21
 github.com/tonistiigi/dchapes-mode
-# github.com/tonistiigi/fsutil v0.0.0-20260609174605-b61e79c0c046
+# github.com/tonistiigi/fsutil v0.0.0-20260716115106-30cd4fc5d911
 ## explicit; go 1.25.0
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy

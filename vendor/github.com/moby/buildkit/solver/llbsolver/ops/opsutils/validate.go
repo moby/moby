@@ -59,6 +59,9 @@ func Validate(op *pb.Op) error {
 		if op.Diff == nil {
 			return errors.Errorf("invalid nil diff op")
 		}
+		if op.Diff.Lower == nil || op.Diff.Upper == nil {
+			return errors.Errorf("invalid diff op with nil lower or upper input")
+		}
 	case *pb.Op_Passthrough:
 		if op.Passthrough == nil {
 			return errors.Errorf("invalid nil passthrough op")
