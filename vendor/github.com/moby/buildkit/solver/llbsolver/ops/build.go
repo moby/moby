@@ -77,7 +77,7 @@ func (b *BuildOp) Exec(ctx context.Context, job solver.JobContext, inputs []solv
 	}
 
 	i := int(llbDef.Input)
-	if i >= len(inputs) {
+	if i < 0 || i >= len(inputs) {
 		return nil, errors.Errorf("invalid index %v", i) // TODO: this should be validated before
 	}
 	inp := inputs[i]
