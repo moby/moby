@@ -542,8 +542,8 @@ github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyua
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/mitchellh/reflectwalk v1.0.2 h1:G2LzWKi524PWgd3mLHV8Y5k7s6XUvT0Gef6zxSIeXaQ=
 github.com/mitchellh/reflectwalk v1.0.2/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
-github.com/moby/buildkit v0.31.1 h1:j3p55abBl4kiXXPZgYX+6zWgB2aefqHXoPown12fIzU=
-github.com/moby/buildkit v0.31.1/go.mod h1:YM5iNEbNCc6L1Zt3YWFB/aXNLufvf4Rcu0DPlc9HwQg=
+github.com/moby/buildkit v0.31.2 h1:UsaoSa0z45ycj+8DqWwmiXKnszDSNvv3wYPGLVtcEKE=
+github.com/moby/buildkit v0.31.2/go.mod h1:q1QO35x5YryiXLONScL2IybwMIziz6Rq3FBznz8fmGc=
 github.com/moby/docker-image-spec v1.3.1 h1:jMKff3w6PgbfSa69GfNg+zN/XLhfXJGnEx3Nl2EsFP0=
 github.com/moby/docker-image-spec v1.3.1/go.mod h1:eKmb5VW8vQEh/BAr2yvVNvuiJuY6UIocYsFu/DxxRpo=
 github.com/moby/go-archive v0.2.0 h1:zg5QDUM2mi0JIM9fdQZWC7U8+2ZfixfTYoHL7rWUcP8=
@@ -777,8 +777,8 @@ github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 h1:e/5i7d4oYZ+C
 github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399/go.mod h1:LdwHTNJT99C5fTAzDz0ud328OgXz+gierycbcIx2fRs=
 github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323 h1:r0p7fK56l8WPequOaR3i9LBqfPtEdXIQbUTzT55iqT4=
 github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323/go.mod h1:3Iuxbr0P7D3zUzBMAZB+ois3h/et0shEz0qApgHYGpY=
-github.com/tonistiigi/fsutil v0.0.0-20260609174605-b61e79c0c046 h1:j29MScUISj0S98EHdM6/pzKgqppfswl9OZ7OVpnQdzE=
-github.com/tonistiigi/fsutil v0.0.0-20260609174605-b61e79c0c046/go.mod h1:K5zrLch9UaSGNiek5XHZeqZUf1zPWJHqDfLIcnpquQ4=
+github.com/tonistiigi/fsutil v0.0.0-20260716115106-30cd4fc5d911 h1:xJZz1fhsRSrGTzQ6wvh1gX6d5jQaYjbIuGXT2s0AWuM=
+github.com/tonistiigi/fsutil v0.0.0-20260716115106-30cd4fc5d911/go.mod h1:K5zrLch9UaSGNiek5XHZeqZUf1zPWJHqDfLIcnpquQ4=
 github.com/tonistiigi/go-actions-cache v0.0.0-20260120203934-54bc28c26fd2 h1:5p6hffZeB25G4rhBc3HU6x1aIlyDELfib+/Omq+ZfQA=
 github.com/tonistiigi/go-actions-cache v0.0.0-20260120203934-54bc28c26fd2/go.mod h1:cD0SB2270BYw6HYKriFn4H6NRLhGj6ytf48YTpsm8LY=
 github.com/tonistiigi/go-archvariant v1.0.0 h1:5LC1eDWiBNflnTF1prCiX09yfNHIxDC/aukdhCdTyb0=

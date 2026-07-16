@@ -1557,7 +1557,11 @@ func getDefaultBranch(ctx context.Context, git *gitutil.GitCLI, remoteURL string
 	if len(ss) == 0 || len(ss[0]) != 2 {
 		return "", errors.Errorf("could not find default branch for repository: %s", urlutil.RedactCredentials(remoteURL))
 	}
-	return ss[0][1], nil
+	ref := ss[0][1]
+	if err := validateGitRef(ref); err != nil {
+		return "", err
+	}
+	return ref, nil
 }
 
 const (

@@ -354,9 +354,14 @@ func (sb *subBuilder) InContext(ctx context.Context, f func(context.Context, Job
 }
 
 func (sb *subBuilder) EachValue(ctx context.Context, key string, fn func(any) error) error {
-	sb.mu.Lock()
-	defer sb.mu.Unlock()
+	sb.state.mu.Lock()
+	jobs := make([]*Job, 0, len(sb.jobs))
 	for j := range sb.jobs {
+		jobs = append(jobs, j)
+	}
+	sb.state.mu.Unlock()
+
+	for _, j := range jobs {
 		if err := j.EachValue(ctx, key, fn); err != nil {
 			return err
 		}

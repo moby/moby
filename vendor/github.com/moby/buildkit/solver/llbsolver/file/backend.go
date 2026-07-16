@@ -162,12 +162,12 @@ func rm(d string, action *pb.FileActionRm) (err error) {
 }
 
 func rmPath(root, src string, allowNotFound bool) error {
-	src = filepath.Clean(src)
+	src = filepath.Join("/", src)
 	dir, base := filepath.Split(src)
 	if base == "" {
 		return errors.New("rmPath: invalid empty path")
 	}
-	dir, err := fs.RootPath(root, filepath.Join("/", dir))
+	dir, err := fs.RootPath(root, dir)
 	if err != nil {
 		return errors.WithStack(err)
 	}

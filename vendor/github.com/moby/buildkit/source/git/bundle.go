@@ -398,8 +398,8 @@ func (gs *gitSourceHandler) checkoutAsBundle(ctx context.Context, repo *gitRepo,
 	// natural-name ref to pull; update-ref alone places the tip against
 	// the pinned commit under the target name.
 	sharedURL := "file://" + repo.dir
-	if _, err := tmpGit.Run(ctx, "fetch", sharedURL, commit); err != nil {
-		return nil, errors.Wrapf(err, "failed to fetch commit %s from shared repo for bundle creation", commit)
+	if err := fetchCommitForBundle(ctx, tmpGit, sharedURL, commit); err != nil {
+		return nil, err
 	}
 
 	if _, err := tmpGit.Run(ctx, "update-ref", targetRef, commit); err != nil {
@@ -439,6 +439,13 @@ func (gs *gitSourceHandler) checkoutAsBundle(ctx context.Context, repo *gitRepo,
 	}
 	checkoutRef = nil
 	return snap, nil
+}
+
+func fetchCommitForBundle(ctx context.Context, git *gitutil.GitCLI, sharedURL, commit string) error {
+	if _, err := git.Run(ctx, "fetch", sharedURL, "--", commit); err != nil {
+		return errors.Wrapf(err, "failed to fetch commit %s from shared repo for bundle creation", commit)
+	}
+	return nil
 }
 
 // writeBundleToMount copies the bytes at stagePath into
