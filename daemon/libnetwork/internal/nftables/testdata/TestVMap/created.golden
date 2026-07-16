@@ -1,6 +1,7 @@
 table ip6 this_is_a_table {
 	map this_is_a_vmap {
 		type ifname : verdict
+		flags dynamic,timeout
 		elements = { "eth0" : return,
 			     "eth1" comment "/// this is a comment on a map element \\\" : drop }
 	}

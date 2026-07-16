@@ -12,7 +12,7 @@ delete table {{$family}} {{$tableName}}
 table {{$family}} {{$tableName}} {
 	{{range .Maps}}map {{.Name}} {
 		{{.ElementTypeExpr}}
-		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
+		{{if len .Flags}}flags {{join .Flags ", "}}{{end}}
 		{{if .Size}}size {{.Size}}{{end}}
 		{{if .Timeout}}timeout {{.Timeout.Milliseconds}}ms{{end}}
         {{if .Elements}}elements = {
@@ -23,7 +23,7 @@ table {{$family}} {{$tableName}} {
 	{{end}}
 	{{range .Sets}}set {{.Name}} {
 		{{.ElementTypeExpr}}
-		{{if len .Flags}}flags{{range .Flags}} {{.}}{{end}}{{end}}
+		{{if len .Flags}}flags {{join .Flags ", "}}{{end}}
 		{{if .Size}}size {{.Size}}{{end}}
 		{{if .Timeout}}timeout {{.Timeout.Milliseconds}}ms{{end}}
         {{if .Elements}}elements = {
