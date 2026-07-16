@@ -18,6 +18,7 @@ import (
 	"github.com/moby/sys/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+	"golang.org/x/sys/windows"
 )
 
 const (
@@ -111,8 +112,129 @@ func sub(m mount.Mount, subPath string) (mount.Mount, func() error, error) {
 	if err != nil {
 		return mount.Mount{}, nil, err
 	}
-	m.Source = src
-	return m, func() error { return nil }, nil
+
+	realSrc, release, err := resolveAndPinPath(src)
+	if err != nil {
+		return mount.Mount{}, nil, errors.Wrapf(err, "resolving and pinning mount source subpath %q", subPath)
+	}
+	if err := verifySubpathWithinRoot(m.Source, realSrc, subPath); err != nil {
+		_ = release()
+		return mount.Mount{}, nil, err
+	}
+
+	// Use the path of the object represented by the pinned handle. HCS can then
+	// realize the mount without traversing attacker-controlled reparse points in
+	// the original source path again.
+	m.Source = mountSourcePath(realSrc)
+	return m, release, nil
+}
+
+// resolveAndPinPath opens src while following reparse points and returns the
+// normalized path of the object represented by that handle. GENERIC_READ makes
+// the handle participate in share-access checks without requiring delete access
+// to the source. Omitting delete sharing prevents the resolved directory from
+// being renamed or deleted before HCS realizes the mount. Write sharing is still
+// allowed so a writable cache mount can modify contents while the handle is alive.
+func resolveAndPinPath(src string) (string, func() error, error) {
+	pathPtr, err := windows.UTF16PtrFromString(src)
+	if err != nil {
+		return "", nil, err
+	}
+	h, err := windows.CreateFile(
+		pathPtr,
+		windows.GENERIC_READ,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE,
+		nil,
+		windows.OPEN_EXISTING,
+		windows.FILE_FLAG_BACKUP_SEMANTICS,
+		0,
+	)
+	if err != nil {
+		return "", nil, err
+	}
+
+	realSrc, err := finalPathNameByHandle(h)
+	if err != nil {
+		_ = windows.CloseHandle(h)
+		return "", nil, err
+	}
+	return realSrc, func() error { return windows.CloseHandle(h) }, nil
+}
+
+func verifySubpathWithinRoot(root, realSrc, subPath string) error {
+	realRoot, err := resolveFinalPath(root)
+	if err != nil {
+		return errors.Wrapf(err, "resolving mount root %q", root)
+	}
+	if !pathWithinRoot(realRoot, realSrc) {
+		return errors.Errorf("mount source subpath %q resolves to %q which escapes the mount root %q", subPath, realSrc, realRoot)
+	}
+	return nil
+}
+
+// resolveFinalPath returns the real path of p with all reparse points followed.
+func resolveFinalPath(p string) (string, error) {
+	pathPtr, err := windows.UTF16PtrFromString(p)
+	if err != nil {
+		return "", err
+	}
+	// FILE_FLAG_BACKUP_SEMANTICS allows opening a directory; omitting
+	// FILE_FLAG_OPEN_REPARSE_POINT makes GetFinalPathNameByHandle follow links.
+	h, err := windows.CreateFile(
+		pathPtr,
+		0,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
+		nil,
+		windows.OPEN_EXISTING,
+		windows.FILE_FLAG_BACKUP_SEMANTICS,
+		0,
+	)
+	if err != nil {
+		return "", err
+	}
+	defer windows.CloseHandle(h)
+	return finalPathNameByHandle(h)
+}
+
+func finalPathNameByHandle(h windows.Handle) (string, error) {
+	// flags 0 == FILE_NAME_NORMALIZED | VOLUME_NAME_DOS.
+	n := uint32(windows.MAX_PATH)
+	for {
+		buf := make([]uint16, n)
+		got, err := windows.GetFinalPathNameByHandle(h, &buf[0], n, 0)
+		if err != nil {
+			return "", err
+		}
+		if got <= n {
+			return windows.UTF16ToString(buf[:got]), nil
+		}
+		n = got
+	}
+}
+
+func mountSourcePath(p string) string {
+	if strings.HasPrefix(p, `\\?\UNC\`) {
+		return `\\` + p[len(`\\?\UNC\`):]
+	}
+	if len(p) >= len(`\\?\C:\`) && p[:4] == `\\?\` && isDriveLetter(p[4]) && p[5:7] == `:\` {
+		return p[4:]
+	}
+	return p
+}
+
+func isDriveLetter(c byte) bool {
+	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+}
+
+// pathWithinRoot reports whether p is root or a descendant of root. Inputs are
+// already-resolved real paths; filepath.Rel handles case-insensitivity and
+// cross-volume paths on Windows.
+func pathWithinRoot(root, p string) bool {
+	rel, err := filepath.Rel(root, p)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
 func generateLinuxResourceOpts(res *pb.LinuxResources) ([]oci.SpecOpts, error) {

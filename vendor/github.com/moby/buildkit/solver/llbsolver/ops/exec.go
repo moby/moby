@@ -302,7 +302,7 @@ func (e *ExecOp) getMountDeps() ([]dep, error) {
 		if m.Input == int64(pb.Empty) {
 			continue
 		}
-		if int(m.Input) >= len(deps) {
+		if m.Input < 0 || int(m.Input) >= len(deps) {
 			return nil, errors.Errorf("invalid mountinput %v", m)
 		}
 
@@ -394,7 +394,7 @@ func (e *ExecOp) Exec(ctx context.Context, jobCtx solver.JobContext, inputs []so
 		if err != nil {
 			execInputs := make([]solver.Result, len(e.op.Mounts))
 			for i, m := range e.op.Mounts {
-				if m.Input == -1 {
+				if m.Input < 0 || int(m.Input) >= len(inputs) {
 					continue
 				}
 				execInputs[i] = inputs[m.Input].Clone()

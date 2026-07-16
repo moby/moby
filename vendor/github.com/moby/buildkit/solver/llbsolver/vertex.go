@@ -367,6 +367,11 @@ func loadLLB(ctx context.Context, def *pb.Definition, polEngine SourcePolicyEval
 		if err := pbop.Unmarshal(dt); err != nil {
 			return solver.Edge{}, errors.Wrap(err, "failed to parse llb proto op")
 		}
+		for i, input := range pbop.Inputs {
+			if input.Index < 0 {
+				return solver.Edge{}, errors.Errorf("invalid input %d output index %d", i, input.Index)
+			}
+		}
 		dgst := digest.FromBytes(dt)
 		if pbop.GetSource() != nil {
 			sources[dgst] = struct{}{}
@@ -482,25 +487,16 @@ func llbOpName(pbOp *pb.Op, load func(string) (solver.Vertex, error)) (string, e
 		}
 		return "merge " + fmt.Sprintf("(%s)", strings.Join(subnames, ", ")), nil
 	case *pb.Op_Diff:
-		var lowerName string
-		if op.Diff.Lower.Input == -1 {
-			lowerName = "scratch"
-		} else {
-			lowerVtx, err := load(pbOp.Inputs[op.Diff.Lower.Input].Digest)
-			if err != nil {
-				return "", err
-			}
-			lowerName = fmt.Sprintf("(%s)", lowerVtx.Name())
+		if op.Diff.Lower == nil || op.Diff.Upper == nil {
+			return "", errors.Errorf("invalid diff op with nil lower or upper input")
 		}
-		var upperName string
-		if op.Diff.Upper.Input == -1 {
-			upperName = "scratch"
-		} else {
-			upperVtx, err := load(pbOp.Inputs[op.Diff.Upper.Input].Digest)
-			if err != nil {
-				return "", err
-			}
-			upperName = fmt.Sprintf("(%s)", upperVtx.Name())
+		lowerName, err := diffSideName(pbOp, op.Diff.Lower.Input, load)
+		if err != nil {
+			return "", err
+		}
+		upperName, err := diffSideName(pbOp, op.Diff.Upper.Input, load)
+		if err != nil {
+			return "", err
 		}
 		return "diff " + lowerName + " -> " + upperName, nil
 	case *pb.Op_Passthrough:
@@ -508,6 +504,20 @@ func llbOpName(pbOp *pb.Op, load func(string) (solver.Vertex, error)) (string, e
 	default:
 		return "unknown", nil
 	}
+}
+
+func diffSideName(pbOp *pb.Op, input int64, load func(string) (solver.Vertex, error)) (string, error) {
+	if input == int64(pb.Empty) {
+		return "scratch", nil
+	}
+	if input < 0 || int(input) >= len(pbOp.Inputs) {
+		return "", errors.Errorf("invalid diff input index %d", input)
+	}
+	vtx, err := load(pbOp.Inputs[input].Digest)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("(%s)", vtx.Name()), nil
 }
 
 func fileOpName(actions []*pb.FileAction) string {
