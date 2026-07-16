@@ -1321,6 +1321,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			IDMapping:              idMapping,
 			RefCountMounter:        snapshotter.NewMounter(config.Root, driverName, idMapping),
 			PolicyVerifierProvider: verifierProvider(cfgStore.Root),
+			MaxConcurrentDownloads: config.MaxConcurrentDownloads,
+			MaxConcurrentUploads:   config.MaxConcurrentUploads,
 		})
 
 		if migrationConfig.ImageCount > 0 {

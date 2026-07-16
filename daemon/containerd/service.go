@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	containerd "github.com/containerd/containerd/v2/client"
@@ -26,6 +27,7 @@ import (
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/semaphore"
 )
 
 // ImageService implements daemon.ImageService
@@ -45,8 +47,22 @@ type ImageService struct {
 	policyVerifier      func() (*policyverifier.Verifier, error)
 	identity            imageIdentityState
 
+	// transferLimitMu keeps limiter pointers and their settings consistent while
+	// configuration reload replaces them.
+	transferLimitMu        sync.Mutex
+	maxConcurrentDownloads int
+	downloadLimiter        *semaphore.Weighted
+	uploadLimiter          *semaphore.Weighted
+
 	// defaultPlatformOverride is used in tests to override the host platform.
 	defaultPlatformOverride *ocispec.Platform
+}
+
+func newTransferLimiter(maxConcurrent int) *semaphore.Weighted {
+	if maxConcurrent <= 0 {
+		return nil
+	}
+	return semaphore.NewWeighted(int64(maxConcurrent))
 }
 
 type ImageServiceConfig struct {
@@ -60,10 +76,15 @@ type ImageServiceConfig struct {
 	RefCountMounter        snapshotter.Mounter
 	IDMapping              user.IdentityMapping
 	PolicyVerifierProvider func() (*policyverifier.Verifier, error)
+	MaxConcurrentDownloads int
+	MaxConcurrentUploads   int
 }
 
 // NewService creates a new ImageService.
 func NewService(config ImageServiceConfig) *ImageService {
+	log.G(context.TODO()).Debugf("Max Concurrent Downloads: %d", config.MaxConcurrentDownloads)
+	log.G(context.TODO()).Debugf("Max Concurrent Uploads: %d", config.MaxConcurrentUploads)
+
 	service := &ImageService{
 		client:  config.Client,
 		images:  config.Client.ImageService(),
@@ -89,8 +110,15 @@ func NewService(config ImageServiceConfig) *ImageService {
 			}(),
 		},
 	}
+	service.setTransferLimits(config.MaxConcurrentDownloads, config.MaxConcurrentUploads)
 	service.startImageIdentityCacheRefresh()
 	return service
+}
+
+func (i *ImageService) setTransferLimits(maxDownloads, maxUploads int) {
+	i.maxConcurrentDownloads = maxDownloads
+	i.downloadLimiter = newTransferLimiter(maxDownloads)
+	i.uploadLimiter = newTransferLimiter(maxUploads)
 }
 
 func (i *ImageService) snapshotterService(snapshotter string) snapshots.Snapshotter {
@@ -289,7 +317,10 @@ func (i *ImageService) ImageDiskUsage(ctx context.Context) (int64, error) {
 //
 // called from reload.go
 func (i *ImageService) UpdateConfig(maxDownloads, maxUploads int) {
-	log.G(context.TODO()).Warn("max downloads and uploads is not yet implemented with the containerd store")
+	i.transferLimitMu.Lock()
+	defer i.transferLimitMu.Unlock()
+
+	i.setTransferLimits(maxDownloads, maxUploads)
 }
 
 // GetContainerLayerSize returns the real size & virtual size of the container.
