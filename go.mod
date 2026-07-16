@@ -116,7 +116,7 @@ require (
 	golang.org/x/time v0.15.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa
 	google.golang.org/grpc v1.81.1
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af // see https://github.com/golang/protobuf/issues/1711
 	gotest.tools/v3 v3.5.2
 	pgregory.net/rapid v1.3.0
 	resenje.org/singleflight v0.4.3
