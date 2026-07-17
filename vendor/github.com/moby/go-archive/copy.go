@@ -22,7 +22,7 @@ var (
 )
 
 var copyPool = sync.Pool{
-	New: func() interface{} { s := make([]byte, 32*1024); return &s },
+	New: func() any { s := make([]byte, 32*1024); return &s },
 }
 
 func copyWithBuffer(dst io.Writer, src io.Reader) error {
@@ -319,7 +319,10 @@ func PrepareArchiveCopy(srcContent io.Reader, srcInfo, dstInfo CopyInfo) (dstDir
 // RebaseArchiveEntries rewrites the given srcContent archive replacing
 // an occurrence of oldBase with newBase at the beginning of entry names.
 func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.ReadCloser {
-	if oldBase == string(os.PathSeparator) {
+	oldBase = filepath.ToSlash(oldBase)
+	newBase = filepath.ToSlash(newBase)
+
+	if oldBase == "/" {
 		// If oldBase specifies the root directory, use an empty string as
 		// oldBase instead so that newBase doesn't replace the path separator
 		// that all paths will start with.
@@ -336,12 +339,12 @@ func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.Read
 			hdr, err := srcTar.Next()
 			if errors.Is(err, io.EOF) {
 				// Signals end of archive.
-				rebasedTar.Close()
-				w.Close()
+				_ = rebasedTar.Close()
+				_ = w.Close()
 				return
 			}
 			if err != nil {
-				w.CloseWithError(err)
+				_ = w.CloseWithError(err)
 				return
 			}
 
@@ -359,7 +362,7 @@ func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.Read
 			}
 
 			if err = rebasedTar.WriteHeader(hdr); err != nil {
-				w.CloseWithError(err)
+				_ = w.CloseWithError(err)
 				return
 			}
 
@@ -374,7 +377,7 @@ func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.Read
 			// not be vulnerable to this code consuming memory.
 			//nolint:gosec // G110: Potential DoS vulnerability via decompression bomb (gosec)
 			if _, err = io.Copy(rebasedTar, srcTar); err != nil {
-				w.CloseWithError(err)
+				_ = w.CloseWithError(err)
 				return
 			}
 		}
@@ -408,7 +411,7 @@ func CopyResource(srcPath, dstPath string, followLink bool) error {
 	if err != nil {
 		return err
 	}
-	defer content.Close()
+	defer func() { _ = content.Close() }()
 
 	return CopyTo(content, srcInfo, dstPath)
 }
@@ -427,14 +430,12 @@ func CopyTo(content io.Reader, srcInfo CopyInfo, dstPath string) error {
 	if err != nil {
 		return err
 	}
-	defer copyArchive.Close()
+	defer func() { _ = copyArchive.Close() }()
 
-	options := &TarOptions{
+	return Untar(copyArchive, dstDir, &TarOptions{
 		NoLchown:             true,
 		NoOverwriteDirNonDir: true,
-	}
-
-	return Untar(copyArchive, dstDir, options)
+	})
 }
 
 // ResolveHostSourcePath decides real path need to be copied with parameters such as

@@ -5,6 +5,8 @@ package archive
 import (
 	"archive/tar"
 	"errors"
+	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +14,8 @@ import (
 
 	"golang.org/x/sys/unix"
 )
+
+var errInvalidArchive = errors.New("invalid archive")
 
 // addLongPathPrefix adds the Windows long path prefix to the path provided if
 // it does not already have it. It is a no-op on platforms other than Windows.
@@ -29,20 +33,19 @@ func getWalkRoot(srcPath string, include string) string {
 
 // chmodTarEntry is used to adjust the file permissions used in tar header based
 // on the platform the archival is done.
-func chmodTarEntry(perm os.FileMode) os.FileMode {
-	return perm // noop for unix as golang APIs provide perm bits correctly
+func chmodTarEntry(mode int64) int64 {
+	return mode // noop for unix as golang APIs provide perm bits correctly
 }
 
-func getInodeFromStat(stat interface{}) (uint64, error) {
+func getInodeFromStat(stat any) (uint64, error) {
 	s, ok := stat.(*syscall.Stat_t)
 	if !ok {
-		// FIXME(thaJeztah): this should likely return an error; see https://github.com/moby/moby/pull/49493#discussion_r1979152897
-		return 0, nil
+		return 0, fmt.Errorf("unexpected stat type %T", stat)
 	}
 	return s.Ino, nil
 }
 
-func getFileUIDGID(stat interface{}) (int, int, error) {
+func getFileUIDGID(stat any) (int, int, error) {
 	s, ok := stat.(*syscall.Stat_t)
 
 	if !ok {
@@ -56,7 +59,7 @@ func getFileUIDGID(stat interface{}) (int, int, error) {
 //
 // Creating device nodes is not supported when running in a user namespace,
 // produces a [syscall.EPERM] in most cases.
-func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
+func handleTarTypeBlockCharFifo(hdr *tar.Header, dstPath string) error {
 	mode := uint32(hdr.Mode & 0o7777)
 	switch hdr.Typeflag {
 	case tar.TypeBlock:
@@ -67,18 +70,28 @@ func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
 		mode |= unix.S_IFIFO
 	}
 
-	return mknod(path, mode, unix.Mkdev(uint32(hdr.Devmajor), uint32(hdr.Devminor)))
+	// Devmajor and Devminor come straight from the (untrusted) tar header as
+	// int64, but Mkdev only takes uint32. Casting a value that does not fit
+	// silently truncates it, so the node created on disk would carry a
+	// different major/minor than the header declares. Reject those instead of
+	// creating a mismatched device.
+	if hdr.Devmajor < 0 || hdr.Devmajor > math.MaxUint32 ||
+		hdr.Devminor < 0 || hdr.Devminor > math.MaxUint32 {
+		return fmt.Errorf("device number %d:%d for %q out of range: %w", hdr.Devmajor, hdr.Devminor, hdr.Name, errInvalidArchive)
+	}
+
+	return mknod(dstPath, mode, unix.Mkdev(uint32(hdr.Devmajor), uint32(hdr.Devminor)))
 }
 
-func handleLChmod(hdr *tar.Header, path string, hdrInfo os.FileInfo) error {
+func handleLChmod(hdr *tar.Header, dstPath string, hdrInfo os.FileInfo) error {
 	if hdr.Typeflag == tar.TypeLink {
 		if fi, err := os.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
-			if err := os.Chmod(path, hdrInfo.Mode()); err != nil {
+			if err := os.Chmod(dstPath, hdrInfo.Mode()); err != nil {
 				return err
 			}
 		}
 	} else if hdr.Typeflag != tar.TypeSymlink {
-		if err := os.Chmod(path, hdrInfo.Mode()); err != nil {
+		if err := os.Chmod(dstPath, hdrInfo.Mode()); err != nil {
 			return err
 		}
 	}

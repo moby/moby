@@ -36,10 +36,11 @@ func sysStat(fi os.FileInfo, hdr *tar.Header) error {
 	hdr.Uid = int(s.Uid)
 	hdr.Gid = int(s.Gid)
 
-	if s.Mode&unix.S_IFBLK != 0 ||
-		s.Mode&unix.S_IFCHR != 0 {
-		hdr.Devmajor = int64(unix.Major(uint64(s.Rdev))) //nolint: unconvert
-		hdr.Devminor = int64(unix.Minor(uint64(s.Rdev))) //nolint: unconvert
+	if s.Mode&unix.S_IFBLK != 0 || s.Mode&unix.S_IFCHR != 0 {
+		// #nosec G115 -- Rdev type varies by platform.
+		rdev := uint64(s.Rdev) //nolint:unconvert // Rdev type varies by platform.
+		hdr.Devmajor = int64(unix.Major(rdev))
+		hdr.Devminor = int64(unix.Minor(rdev))
 	}
 
 	return nil

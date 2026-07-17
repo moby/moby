@@ -32,7 +32,7 @@ func (fi nosysFileInfo) Gname() (string, error) {
 	return "", nil
 }
 
-func (fi nosysFileInfo) Sys() interface{} {
+func (fi nosysFileInfo) Sys() any {
 	// A Sys value of type *tar.Header is safe as it is system-independent.
 	// The tar.FileInfoHeader function copies the fields into the returned
 	// header without performing any OS lookups.

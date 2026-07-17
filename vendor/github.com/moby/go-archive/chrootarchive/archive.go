@@ -59,9 +59,6 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 	if options == nil {
 		options = &archive.TarOptions{}
 	}
-	if options.ExcludePatterns == nil {
-		options.ExcludePatterns = []string{}
-	}
 
 	// If dest is inside a root then directory is created within chroot by extractor.
 	// This case is only currently used by cp.

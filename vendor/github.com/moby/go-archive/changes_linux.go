@@ -265,7 +265,7 @@ func parseDirent(buf []byte, names []nameIno) (consumed int, newnames []nameIno)
 }
 
 func clen(n []byte) int {
-	for i := 0; i < len(n); i++ {
+	for i := range n {
 		if n[i] == 0 {
 			return i
 		}
