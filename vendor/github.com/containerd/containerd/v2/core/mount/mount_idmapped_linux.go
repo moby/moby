@@ -90,16 +90,16 @@ func IDMapMountWithAttrs(source, target string, usernsFd int, attrSet uint64, at
 
 	attr.Attr_set = unix.MOUNT_ATTR_IDMAP | attrSet
 	attr.Attr_clr = attrClr
-	attr.Propagation = 0
+	attr.Propagation = unix.MS_PRIVATE
 	attr.Userns_fd = uint64(usernsFd)
 
-	dFd, err := unix.OpenTree(-int(unix.EBADF), source, uint(unix.OPEN_TREE_CLONE|unix.OPEN_TREE_CLOEXEC|unix.AT_EMPTY_PATH))
+	dFd, err := unix.OpenTree(-int(unix.EBADF), source, uint(unix.OPEN_TREE_CLONE|unix.OPEN_TREE_CLOEXEC|unix.AT_EMPTY_PATH|unix.AT_RECURSIVE))
 	if err != nil {
 		return fmt.Errorf("unable to open tree for %s: %w", target, err)
 	}
 
 	defer unix.Close(dFd)
-	if err = unix.MountSetattr(dFd, "", unix.AT_EMPTY_PATH, &attr); err != nil {
+	if err = unix.MountSetattr(dFd, "", unix.AT_EMPTY_PATH|unix.AT_RECURSIVE, &attr); err != nil {
 		return fmt.Errorf("unable to shift GID/UID or set mount attrs for %s: %w", target, err)
 	}
 

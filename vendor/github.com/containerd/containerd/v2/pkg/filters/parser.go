@@ -281,7 +281,7 @@ func (pe parseError) Error() string {
 	return fmt.Sprintf("[%s]: %v", pe.input, pe.msg)
 }
 
-func (p *parser) mkerr(pos int, format string, args ...interface{}) error {
+func (p *parser) mkerr(pos int, format string, args ...any) error {
 	return fmt.Errorf("parse error: %w", parseError{
 		input: p.input,
 		pos:   pos,

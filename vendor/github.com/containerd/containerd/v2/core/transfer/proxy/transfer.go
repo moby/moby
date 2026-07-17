@@ -85,7 +85,7 @@ func (c convertClient) Transfer(ctx context.Context, r *transferapi.TransferRequ
 	return c.TransferClient.Transfer(ctx, r)
 }
 
-func (p *proxyTransferrer) Transfer(ctx context.Context, src interface{}, dst interface{}, opts ...transfer.Opt) error {
+func (p *proxyTransferrer) Transfer(ctx context.Context, src any, dst any, opts ...transfer.Opt) error {
 	o := &transfer.Config{}
 	for _, opt := range opts {
 		opt(o)
@@ -154,7 +154,7 @@ func (p *proxyTransferrer) Transfer(ctx context.Context, src interface{}, dst in
 	_, err = p.client.Transfer(ctx, req)
 	return errgrpc.ToNative(err)
 }
-func (p *proxyTransferrer) marshalAny(ctx context.Context, i interface{}) (typeurl.Any, error) {
+func (p *proxyTransferrer) marshalAny(ctx context.Context, i any) (typeurl.Any, error) {
 	switch m := i.(type) {
 	case streamMarshaler:
 		return m.MarshalAny(ctx, p.streamCreator)

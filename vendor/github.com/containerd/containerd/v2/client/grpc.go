@@ -27,7 +27,7 @@ type namespaceInterceptor struct {
 	namespace string
 }
 
-func (ni namespaceInterceptor) unary(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+func (ni namespaceInterceptor) unary(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 	_, ok := namespaces.Namespace(ctx)
 	if !ok {
 		ctx = namespaces.WithNamespace(ctx, ni.namespace)

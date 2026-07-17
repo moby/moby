@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -48,34 +49,13 @@ func UnshareAfterEnterUserns(uidMap, gidMap string, unshareFlags uintptr, f func
 		return err
 	}
 
-	var pidfd int
-	proc, err := os.StartProcess("/proc/self/exe", []string{"UnshareAfterEnterUserns"}, &os.ProcAttr{
-		Sys: &syscall.SysProcAttr{
-			// clone new user namespace first and then unshare
-			Cloneflags:                 unix.CLONE_NEWUSER,
-			Unshareflags:               unshareFlags,
-			UidMappings:                uidMaps,
-			GidMappings:                gidMaps,
-			GidMappingsEnableSetgroups: true,
-			// NOTE: It's reexec but it's not heavy because subprocess
-			// be in PTRACE_TRACEME mode before performing execve.
-			Ptrace:    true,
-			Pdeathsig: syscall.SIGKILL,
-			PidFD:     &pidfd,
-		},
-	})
+	targetUID := uidMaps[0].HostID
+	pid, pidfd, err := startProcessWithUserNamespace(targetUID, unshareFlags, uidMaps, gidMaps)
 	if err != nil {
-		return fmt.Errorf("failed to start noop process for unshare: %w", err)
-	}
-
-	if pidfd == -1 {
-		proc.Kill()
-		proc.Wait()
-		return fmt.Errorf("kernel doesn't support CLONE_PIDFD")
+		return err
 	}
 
 	defer unix.Close(pidfd)
-
 	defer func() {
 		derr := unix.PidfdSendSignal(pidfd, unix.SIGKILL, nil, 0)
 		if derr != nil {
@@ -88,7 +68,7 @@ func UnshareAfterEnterUserns(uidMap, gidMap string, unshareFlags uintptr, f func
 	}()
 
 	if f != nil {
-		if err := f(proc.Pid); err != nil {
+		if err := f(pid); err != nil {
 			return err
 		}
 	}
@@ -137,8 +117,120 @@ func parseIDMapping(mapping string) ([]syscall.SysProcIDMap, error) {
 	}, nil
 }
 
+// startProcessWithUserNamespace starts a ptraced dummy process to create
+// a user namespace. It runs a goroutine on a single thread as targetHostUID
+// when creating the process and user namespace, ensuring that the kernel
+// attributes user limits to targetHostUID and not containerd's user. On success
+// it returns the pid, pidfd and no error.
+func startProcessWithUserNamespace(targetHostUID int, unshareFlags uintptr, uidMaps, gidMaps []syscall.SysProcIDMap) (int, int, error) {
+	type result struct {
+		pid   int
+		pidfd int
+		err   error
+	}
+	resultChan := make(chan result)
+
+	go func() {
+		runtime.LockOSThread()
+		pid, pidfd, err := startProcessWithUsernsLocked(targetHostUID, unshareFlags, uidMaps, gidMaps)
+
+		// If this errored out let the go runtime reap the thread by not unlocking
+		if err == nil {
+			runtime.UnlockOSThread()
+		}
+		resultChan <- result{pid, pidfd, err}
+	}()
+
+	res := <-resultChan
+	return res.pid, res.pidfd, res.err
+}
+
+// startProcessWithUsernsLocked expects the os thread to be locked already. It does
+//  1. setresuid() to the targetHostUID user to attribute further user namespace creations to it
+//  2. sets the thread's effective capabilities back to the original user's to allow writing
+//     to /proc/uid_map as well as to create the user namespace as a "privileged" process in
+//     some distro's eyes,
+//  3. spawns a new ptraced process in a new user namespace
+//  4. unshares into unshareFlags within that user namespace
+//
+// returns the pid, pidfd, and error information of that process. On error the process is already
+// killed, and the thread is *not* setresuid()'ed back to the original user. In this case the
+// thread should be killed off by the caller to avoid using a thread in a bad state
+func startProcessWithUsernsLocked(targetHostUID int, unshareFlags uintptr, uidMaps, gidMaps []syscall.SysProcIDMap) (int, int, error) {
+	originalEUID := os.Geteuid()
+
+	originalCaps, err := getCurrentCaps()
+	if err != nil {
+		return -1, -1, fmt.Errorf("failed to read current capabilities: %w", err)
+	}
+
+	if _, _, errno := syscall.RawSyscall(unix.SYS_SETRESUID, ^uintptr(0), uintptr(targetHostUID), ^uintptr(0)); errno != 0 {
+		return -1, -1, fmt.Errorf("failed to set effective UID: %w", errno)
+	}
+
+	err = setCurrentCaps(originalCaps)
+	if err != nil {
+		return -1, -1, fmt.Errorf("failed to restore capabilities: %w", err)
+	}
+
+	var pidfd int
+	proc, err := os.StartProcess("/proc/self/exe", []string{"UnshareAfterEnterUserns"}, &os.ProcAttr{
+		Sys: &syscall.SysProcAttr{
+			// clone new user namespace first and then unshare
+			Cloneflags:                 unix.CLONE_NEWUSER,
+			Unshareflags:               unshareFlags,
+			UidMappings:                uidMaps,
+			GidMappings:                gidMaps,
+			GidMappingsEnableSetgroups: true,
+			// NOTE: It's reexec but it's not heavy because subprocess
+			// be in PTRACE_TRACEME mode before performing execve.
+			Ptrace:    true,
+			Pdeathsig: syscall.SIGKILL,
+			PidFD:     &pidfd,
+		},
+	})
+	if err != nil {
+		return -1, -1, fmt.Errorf("failed to start noop process for unshare: %w", err)
+	}
+
+	if pidfd == -1 {
+		proc.Kill()
+		proc.Wait()
+		return -1, -1, fmt.Errorf("kernel doesn't support CLONE_PIDFD")
+	}
+
+	if _, _, errno := syscall.RawSyscall(unix.SYS_SETRESUID, ^uintptr(0), uintptr(originalEUID), ^uintptr(0)); errno != 0 {
+		proc.Kill()
+		proc.Wait()
+		unix.Close(pidfd)
+		return -1, -1, fmt.Errorf("failed to restore UID: %w", errno)
+	}
+
+	return proc.Pid, pidfd, nil
+}
+
 func pidfdWaitid(pidfd int) error {
 	return IgnoringEINTR(func() error {
 		return unix.Waitid(unix.P_PIDFD, pidfd, nil, unix.WEXITED, nil)
 	})
+}
+
+type capSnapshot struct {
+	hdr  unix.CapUserHeader
+	data [2]unix.CapUserData
+}
+
+func getCurrentCaps() (*capSnapshot, error) {
+	caps := &capSnapshot{}
+	caps.hdr.Version = unix.LINUX_CAPABILITY_VERSION_3
+
+	err := unix.Capget(&caps.hdr, &caps.data[0])
+	if err != nil {
+		return nil, err
+	}
+	return caps, nil
+}
+
+func setCurrentCaps(caps *capSnapshot) error {
+	return unix.Capset(&caps.hdr, &caps.data[0])
 }
