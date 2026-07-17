@@ -552,6 +552,7 @@ func plumbIngressPortsProxy(ingressPorts []*PortConfig) {
 
 		if err != nil {
 			log.G(context.TODO()).Warnf("failed to create proxy for port %s: %v", iPort, err)
+			continue
 		}
 
 		ingressProxyTbl[portSpec] = l
