@@ -3,7 +3,12 @@
 package archive
 
 import (
+	"errors"
 	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -28,14 +33,33 @@ func timeToTimespec(time time.Time) unix.Timespec {
 	return unix.NsecToTimespec(time.UnixNano())
 }
 
-func lchtimes(name string, atime time.Time, mtime time.Time) error {
+func lchtimes(root *os.Root, name string, atime, mtime time.Time) error {
+	dir, base := path.Split(filepath.ToSlash(name))
+	if base == "" {
+		return &os.PathError{Op: "lchtimes", Path: name, Err: syscall.EINVAL}
+	}
+
+	dir = strings.TrimSuffix(dir, "/")
+	if dir == "" {
+		dir = "."
+	}
+
+	parent, err := root.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer parent.Close()
+
 	utimes := [2]unix.Timespec{
 		timeToTimespec(atime),
 		timeToTimespec(mtime),
 	}
-	err := unix.UtimesNanoAt(unix.AT_FDCWD, name, utimes[0:], unix.AT_SYMLINK_NOFOLLOW)
-	if err != nil && err != unix.ENOSYS {
-		return err
+	// #nosec G115 -- ignore integer overflow conversion for parent.Fd
+	if err := unix.UtimesNanoAt(int(parent.Fd()), base, utimes[:], unix.AT_SYMLINK_NOFOLLOW); err != nil {
+		if errors.Is(err, unix.ENOSYS) {
+			return nil
+		}
+		return &os.PathError{Op: "lchtimes", Path: name, Err: err}
 	}
-	return err
+	return nil
 }

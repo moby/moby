@@ -76,7 +76,7 @@ func (c overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, filePath string,
 	}, nil
 }
 
-func (c overlayWhiteoutConverter) ConvertRead(hdr *tar.Header, filePath string) (bool, error) {
+func (c overlayWhiteoutConverter) ConvertRead(root *os.Root, hdr *tar.Header, filePath string) (bool, error) {
 	base := filepath.Base(filePath)
 	dir := filepath.Dir(filePath)
 
@@ -85,9 +85,15 @@ func (c overlayWhiteoutConverter) ConvertRead(hdr *tar.Header, filePath string) 
 		return false, fmt.Errorf("invalid whiteout entry %q", hdr.Name)
 
 	case WhiteoutOpaqueDir:
+		parent, err := root.Open(dir)
+		if err != nil {
+			return false, err
+		}
+		defer parent.Close()
+
 		// If a directory is marked as opaque by the AUFS special file, we need to translate that to overlay.
-		if err := unix.Setxattr(dir, c.opaqueXattr, []byte{'y'}, 0); err != nil {
-			return false, fmt.Errorf("setxattr('%s', %s=y): %w", dir, c.opaqueXattr, err)
+		if err := unix.Fsetxattr(int(parent.Fd()), c.opaqueXattr, []byte{'y'}, 0); err != nil {
+			return false, fmt.Errorf("fsetxattr('%s', %s=y): %w", dir, c.opaqueXattr, err)
 		}
 		// Don't write the whiteout file itself.
 		return false, nil
@@ -98,9 +104,16 @@ func (c overlayWhiteoutConverter) ConvertRead(hdr *tar.Header, filePath string) 
 			// Regular file.
 			return true, nil
 		}
+
+		parent, err := root.Open(dir)
+		if err != nil {
+			return false, err
+		}
+		defer parent.Close()
+
 		// If a file was deleted, and we are using overlay, we need to create a character device.
 		originalPath := filepath.Join(dir, originalBase)
-		if err := unix.Mknod(originalPath, unix.S_IFCHR, 0); err != nil {
+		if err := unix.Mknodat(int(parent.Fd()), originalBase, unix.S_IFCHR, 0); err != nil {
 			return false, fmt.Errorf("failed to mknod('%s', S_IFCHR, 0): %w", originalPath, err)
 		}
 
@@ -117,9 +130,9 @@ func (c overlayWhiteoutConverter) ConvertRead(hdr *tar.Header, filePath string) 
 			// OverlayFS documents whiteouts in terms of a character device with device
 			// number 0:0, not ownership: https://docs.kernel.org/filesystems/overlayfs.html#whiteouts-and-opaque-directories
 			//
-			// If ownership is not required, this Lchown can be removed to avoid the remaining TOCTOU window.
-			if err := os.Lchown(originalPath, hdr.Uid, hdr.Gid); err != nil {
-				return false, err
+			// If ownership is not required, this Fchownat can be removed to avoid the remaining TOCTOU window.
+			if err := unix.Fchownat(int(parent.Fd()), originalBase, hdr.Uid, hdr.Gid, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+				return false, &os.PathError{Op: "lchown", Path: originalPath, Err: err}
 			}
 		}
 

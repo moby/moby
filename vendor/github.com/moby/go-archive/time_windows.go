@@ -27,6 +27,6 @@ func chtimes(name string, atime time.Time, mtime time.Time) error {
 	return windows.SetFileTime(h, &c, nil, nil)
 }
 
-func lchtimes(name string, atime time.Time, mtime time.Time) error {
+func lchtimes(root *os.Root, name string, atime time.Time, mtime time.Time) error {
 	return nil
 }
