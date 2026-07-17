@@ -259,6 +259,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-runc-aptlib,target=/var/lib/apt \
         apt-get update && xx-apt-get install -y --no-install-recommends \
             gcc \
             libc6-dev \
+            linux-libc-dev \
             libseccomp-dev \
             pkg-config
 ARG DOCKER_STATIC
@@ -304,6 +305,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-tini-aptlib,target=/var/lib/apt \
         xx-apt-get install -y --no-install-recommends \
             gcc \
             libc6-dev \
+            linux-libc-dev \
             pkg-config
 RUN --mount=from=tini-src,src=/usr/src/tini,rw \
     --mount=type=cache,target=/root/.cache/go-build,id=tini-build-$TARGETPLATFORM <<EOT
@@ -333,6 +335,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-rootlesskit-aptlib,target=/var/lib
         apt-get update && xx-apt-get install -y --no-install-recommends \
             gcc \
             libc6-dev \
+            linux-libc-dev \
             pkg-config
 ARG DOCKER_STATIC
 RUN --mount=from=rootlesskit-src,src=/usr/src/rootlesskit,rw \
@@ -541,6 +544,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
         xx-apt-get install --no-install-recommends -y \
             gcc \
             libc6-dev \
+            linux-libc-dev \
             libnftables-dev \
             libseccomp-dev \
             libsystemd-dev \
