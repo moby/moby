@@ -60,6 +60,7 @@ func TestCgroupNamespacesRunPrivileged(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
 	skip.If(t, testEnv.DaemonInfo.CgroupVersion == "2", "on cgroup v2, privileged containers use private cgroupns")
+	skip.If(t, testEnv.IsUserNamespace, "privileged mode is incompatible with user namespaces")
 
 	t.Parallel()
 
@@ -120,6 +121,7 @@ func TestCgroupNamespacesRunPrivilegedAndPrivate(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+	skip.If(t, testEnv.IsUserNamespace, "privileged mode is incompatible with user namespaces")
 
 	t.Parallel()
 

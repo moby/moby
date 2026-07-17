@@ -33,6 +33,7 @@ import (
 
 func TestNISDomainname(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsUserNamespace, "user namespaces cannot write the kernel domainname sysctl")
 
 	// Rootless supports custom Hostname but doesn't support custom Domainname
 	//  OCI runtime create failed: container_linux.go:349: starting container process caused "process_linux.go:449: container init caused \
@@ -114,15 +115,17 @@ func TestUnprivilegedPortsAndPing(t *testing.T) {
 		c.Config.User = "1000:1000"
 	})
 
-	// Check net.ipv4.ping_group_range.
-	res, err := container.Exec(ctx, apiClient, cID, []string{"cat", "/proc/sys/net/ipv4/ping_group_range"})
-	assert.NilError(t, err)
-	assert.Assert(t, is.Len(res.Stderr(), 0))
-	assert.Equal(t, 0, res.ExitCode)
-	assert.Equal(t, `0	2147483647`, strings.TrimSpace(res.Stdout()))
+	if !testEnv.IsUserNamespace() {
+		// Check net.ipv4.ping_group_range.
+		res, err := container.Exec(ctx, apiClient, cID, []string{"cat", "/proc/sys/net/ipv4/ping_group_range"})
+		assert.NilError(t, err)
+		assert.Assert(t, is.Len(res.Stderr(), 0))
+		assert.Equal(t, 0, res.ExitCode)
+		assert.Equal(t, `0	2147483647`, strings.TrimSpace(res.Stdout()))
+	}
 
 	// Check net.ipv4.ip_unprivileged_port_start.
-	res, err = container.Exec(ctx, apiClient, cID, []string{"cat", "/proc/sys/net/ipv4/ip_unprivileged_port_start"})
+	res, err := container.Exec(ctx, apiClient, cID, []string{"cat", "/proc/sys/net/ipv4/ip_unprivileged_port_start"})
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(res.Stderr(), 0))
 	assert.Equal(t, 0, res.ExitCode)
@@ -134,6 +137,7 @@ func TestPrivilegedHostDevices(t *testing.T) {
 	// so needs to be same host.
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsUserNamespace, "privileged mode is incompatible with user namespaces")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
@@ -373,6 +377,7 @@ func TestWorkingDirNormalization(t *testing.T) {
 
 func TestSeccomp(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsUserNamespace, "privileged test cases are incompatible with user namespaces")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()

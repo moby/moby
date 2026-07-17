@@ -325,7 +325,7 @@ func setupTestImage(t *testing.T, ctx context.Context, apiClient client.APIClien
 		FROM busybox as symlink
 		RUN mkdir /hack \
 			&& ln -s "../subdir" /hack/good \
-			&& ln -s "../../../../../docker" /hack/bad
+			&& ln -s ../../../../../ /hack/bad
 		#--
 		FROM scratch
 		COPY foo /

@@ -279,6 +279,7 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(tc.doc, func(t *testing.T) {
+			skip.If(t, tc.privileged && testEnv.IsUserNamespace(), "privileged mode is incompatible with user namespaces")
 			t.Parallel()
 
 			// Create the container.
@@ -352,6 +353,7 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(tc.doc, func(t *testing.T) {
+			skip.If(t, tc.privileged && testEnv.IsUserNamespace(), "privileged mode is incompatible with user namespaces")
 			t.Parallel()
 			ctr, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
 				Config: &container.Config{
