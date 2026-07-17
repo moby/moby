@@ -49,8 +49,10 @@ import (
 )
 
 const (
-	labelSnapshotRef = "containerd.io/snapshot.ref"
-	unpackSpanPrefix = "pkg.unpack.unpacker"
+	labelSnapshotRef    = "containerd.io/snapshot.ref"
+	labelSnapshotParent = "containerd.io/snapshot/parent-chain-id"
+	labelSnapshotDiffID = "containerd.io/snapshot/diff-id"
+	unpackSpanPrefix    = "pkg.unpack.unpacker"
 )
 
 // Result returns information about the unpacks which were completed.
@@ -65,8 +67,7 @@ type unpackerConfig struct {
 
 	limiter               Limiter
 	duplicationSuppressor KeyedLocker
-
-	unpackLimiter Limiter
+	unpackLimiter         Limiter
 }
 
 // Platform represents a platform-specific unpack configuration which includes
@@ -397,6 +398,10 @@ func (u *Unpacker) unpack(
 			snapshotLabels = make(map[string]string)
 		}
 		snapshotLabels[labelSnapshotRef] = chainID
+		snapshotLabels[labelSnapshotDiffID] = diffIDs[i].String()
+		if i > 0 {
+			snapshotLabels[labelSnapshotParent] = chainIDs[i-1].String()
+		}
 
 		var (
 			key    string
@@ -410,13 +415,14 @@ func (u *Unpacker) unpack(
 			mounts, err = sn.Prepare(ctx, key, parent, opts...)
 			if err != nil {
 				if errdefs.IsAlreadyExists(err) {
-					if _, err := sn.Stat(ctx, chainID); err != nil {
+					if snInfo, err := sn.Stat(ctx, chainID); err != nil {
 						if !errdefs.IsNotFound(err) {
 							return nil, fmt.Errorf("failed to stat snapshot %s: %w", chainID, err)
 						}
 						// Try again, this should be rare, log it
 						log.G(ctx).WithField("key", key).WithField("chainid", chainID).Debug("extraction snapshot already exists, chain id not found")
 					} else {
+						log.G(ctx).Debugf("snapshot %s with chainID %s already exists skip fetch blob %q ", snInfo.Name, chainID, desc.Digest)
 						// no need to handle, snapshot now found with chain id
 						return nil, nil
 					}

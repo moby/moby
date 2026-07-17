@@ -11,7 +11,7 @@ import (
 
 // This package scrubs objects of potentially sensitive information to pass to logging
 
-type genMap = map[string]interface{}
+type genMap = map[string]any
 type scrubberFunc func(genMap) error
 
 const _scrubbedReplacement = "<scrubbed>"
@@ -20,7 +20,11 @@ var (
 	ErrUnknownType = errors.New("encoded object is of unknown type")
 
 	// case sensitive keywords, so "env" is not a substring on "Environment"
-	_scrubKeywords = [][]byte{[]byte("env"), []byte("Environment")}
+	_scrubKeywords = [][]byte{
+		[]byte("env"),
+		[]byte("Environment"),
+		[]byte("annotations"),
+	}
 
 	_scrub atomic.Bool
 )
@@ -32,7 +36,7 @@ func SetScrubbing(enable bool) { _scrub.Store(enable) }
 func IsScrubbingEnabled() bool { return _scrub.Load() }
 
 // ScrubProcessParameters scrubs HCS Create Process requests with config parameters of
-// type internal/hcs/schema2.ScrubProcessParameters (aka hcsshema.ScrubProcessParameters)
+// type [hcsschema.ProcessParameters].
 func ScrubProcessParameters(s string) (string, error) {
 	// todo: deal with v1 ProcessConfig
 	b := []byte(s)
@@ -81,17 +85,32 @@ func scrubBridgeCreate(m genMap) error {
 
 func scrubLinuxHostedSystem(m genMap) error {
 	if m, ok := index(m, "OciSpecification"); ok { //nolint:govet // shadow
-		if _, ok := m["annotations"]; ok {
-			m["annotations"] = map[string]string{_scrubbedReplacement: _scrubbedReplacement}
-		}
-		if m, ok := index(m, "process"); ok { //nolint:govet // shadow
-			if _, ok := m["env"]; ok {
-				m["env"] = []string{_scrubbedReplacement}
-				return nil
-			}
-		}
+		return scrubOCISpec(m)
 	}
 	return ErrUnknownType
+}
+
+// ScrubOCISpec scrubs a JSON encoded [github.com/opencontainers/runtime-spec/specs-go.Spec].
+//
+// Ideally the spec struct would be scrubbed directly, but that would need a deep clone to
+// prevent modifying the original, and, absent one implemented on the Spec
+// (e.g., [google.golang.org/protobuf/proto.CloneOf]), unmarshalling a marshalled struct
+// functions as a deep clone.
+func ScrubOCISpec(b []byte) ([]byte, error) {
+	return scrubBytes(b, scrubOCISpec)
+}
+
+func scrubOCISpec(m genMap) error {
+	if _, ok := m["annotations"]; ok {
+		m["annotations"] = map[string]string{_scrubbedReplacement: _scrubbedReplacement}
+	}
+	if m, ok := index(m, "process"); ok { //nolint:govet // shadow
+		if _, ok := m["env"]; ok {
+			m["env"] = []string{_scrubbedReplacement}
+		}
+	}
+
+	return nil
 }
 
 // ScrubBridgeExecProcess scrubs requests sent over the bridge of type
