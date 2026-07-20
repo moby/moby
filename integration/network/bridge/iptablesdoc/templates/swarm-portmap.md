@@ -19,8 +19,12 @@ Note that:
 
  - There's a bridge network called `docker_gwbridge` for swarm ingress.
    - Its rules follow the usual pattern for a network with inter-container communication disabled.
-- There's an additional chain `DOCKER-INGRESS`.
-  - The jump to `DOCKER-INGRESS` is first in the `DOCKER-FORWARD` chain.
+ - The published port is set up as an ordinary port mapping on the ingress
+   load-balancer sandbox's `docker_gwbridge` gateway endpoint (`172.18.0.2`),
+   using the same rules as any other published container port:
+   - a DNAT rule in the nat `DOCKER` chain, and
+   - an ACCEPT rule in the filter `DOCKER` chain.
+   - So, there's no separate `DOCKER-INGRESS` chain.
 
 And the corresponding nat table:
 
