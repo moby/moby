@@ -129,7 +129,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 		return nil, err
 	}
 	daemonRoot := filepath.Join(daemonFolder, "root")
-	if err := os.MkdirAll(daemonRoot, 0o755); err != nil {
+	if err := os.MkdirAll(daemonRoot, 0o755); err != nil { // #nosec G703 -- ignore "path traversal" for test code.
 		return nil, errors.Wrapf(err, "failed to create daemon root %q", daemonRoot)
 	}
 
@@ -163,7 +163,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 
 	if d.resolvConfContent != "" {
 		path := filepath.Join(d.Folder, "resolv.conf")
-		if err := os.WriteFile(path, []byte(d.resolvConfContent), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(d.resolvConfContent), 0o644); err != nil { // #nosec G703 -- ignore "path traversal" for test code.
 			return nil, fmt.Errorf("failed to write docker resolv.conf to %q: %v", path, err)
 		}
 		d.extraEnv = append(d.extraEnv, "DOCKER_TEST_RESOLV_CONF_PATH="+path)
@@ -182,10 +182,10 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := os.Chown(d.Folder, uid, gid); err != nil {
+		if err := os.Chown(d.Folder, uid, gid); err != nil { // #nosec G703 -- ignore "path traversal" for test code.
 			return nil, err
 		}
-		if err := os.Chown(d.Root, uid, gid); err != nil {
+		if err := os.Chown(d.Root, uid, gid); err != nil { // #nosec G703 -- ignore "path traversal" for test code.
 			return nil, err
 		}
 		if err := os.MkdirAll(filepath.Dir(d.execRoot), 0o700); err != nil {
