@@ -375,7 +375,12 @@ RUN cat somefile`
 	assert.Check(t, is.Contains(img.Config.Env, "bar=baz"))
 }
 
-// #35403 #36122
+// TestBuildUncleanTarFilenames is a regression test for cache invalidation
+// with non-canonical, in-context archive paths.
+//
+// See:
+// - https://github.com/moby/moby/issues/35403
+// - https://github.com/moby/moby/issues/36122
 func TestBuildUncleanTarFilenames(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 
@@ -391,7 +396,7 @@ COPY bar /
 	buf := bytes.NewBuffer(nil)
 	w := tar.NewWriter(buf)
 	writeTarRecord(t, w, "Dockerfile", dockerfile)
-	writeTarRecord(t, w, "../foo", "foocontents0")
+	writeTarRecord(t, w, "dir/../foo", "foocontents0")
 	writeTarRecord(t, w, "/bar", "barcontents0")
 	err := w.Close()
 	assert.NilError(t, err)
@@ -413,7 +418,7 @@ COPY bar /
 	buf = bytes.NewBuffer(nil)
 	w = tar.NewWriter(buf)
 	writeTarRecord(t, w, "Dockerfile", dockerfile)
-	writeTarRecord(t, w, "../foo", "foocontents1")
+	writeTarRecord(t, w, "dir/../foo", "foocontents1")
 	writeTarRecord(t, w, "/bar", "barcontents1")
 	err = w.Close()
 	assert.NilError(t, err)
