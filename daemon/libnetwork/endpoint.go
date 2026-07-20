@@ -665,6 +665,66 @@ func (ep *Endpoint) programExternalConnectivity(ctx context.Context, gwep4, gwep
 	return nil
 }
 
+// AddEphemeralPorts publishes additional ports on this endpoint without
+// recreating it. The endpoint must be joined to a sandbox. It's only supported
+// by drivers that implement [driverapi.PortManager] (currently the bridge
+// driver); other drivers return a not-implemented error.
+//
+// The added ports are not persisted; they do not survive a daemon restart.
+// Because they aren't persisted, the driver also can't reconstruct them if the
+// endpoint's gateway modes change (e.g. it gains or loses an IPv6 gateway):
+// unlike [Endpoint.AddPorts], there's no stored configuration to re-derive them
+// from, so they aren't re-applied for a newly-active mode. The caller therefore
+// owns re-applying them, and this is intended for endpoints whose gateway modes
+// are stable for their lifetime - such as the Swarm ingress load balancer's
+// docker_gwbridge gateway endpoint.
+func (ep *Endpoint) AddEphemeralPorts(ctx context.Context, pbs []types.PortBinding) error {
+	return ep.modifyPorts(ctx, pbs, true, false)
+}
+
+// AddPorts publishes additional ports on this endpoint without recreating it.
+// The endpoint must be joined to a sandbox. It's only supported by drivers that
+// implement [driverapi.PortManager] (currently the bridge driver); other drivers
+// return a not-implemented error.
+//
+// The added ports survive a daemon restart with the endpoint still live; see
+// [driverapi.PortManager.AddPorts].
+func (ep *Endpoint) AddPorts(ctx context.Context, pbs []types.PortBinding) error {
+	return ep.modifyPorts(ctx, pbs, true, true)
+}
+
+// DelPorts unpublishes ports previously published on this endpoint, at join time
+// or via [Endpoint.AddPorts] or [Endpoint.AddEphemeralPorts]. The endpoint must
+// be joined to a sandbox. Bindings that aren't currently published are ignored.
+func (ep *Endpoint) DelPorts(ctx context.Context, pbs []types.PortBinding) error {
+	return ep.modifyPorts(ctx, pbs, false, false)
+}
+
+func (ep *Endpoint) modifyPorts(ctx context.Context, pbs []types.PortBinding, add, persist bool) error {
+	if len(pbs) == 0 {
+		return nil
+	}
+	if _, ok := ep.getSandbox(); !ok {
+		return types.InvalidParameterErrorf("endpoint %s (%.7s) is not attached to a sandbox", ep.Name(), ep.ID())
+	}
+	n, err := ep.getNetworkFromStore()
+	if err != nil {
+		return types.InternalErrorf("failed to get network from store for changing published ports: %v", err)
+	}
+	d, err := n.driver(true)
+	if err != nil {
+		return types.InternalErrorf("failed to get driver for changing published ports: %v", err)
+	}
+	pm, ok := d.(driverapi.PortManager)
+	if !ok {
+		return types.NotImplementedErrorf("network driver %q does not support changing published ports on a running endpoint", n.Type())
+	}
+	if add {
+		return pm.AddPorts(context.WithoutCancel(ctx), n.ID(), ep.ID(), pbs, persist)
+	}
+	return pm.DelPorts(context.WithoutCancel(ctx), n.ID(), ep.ID(), pbs)
+}
+
 func (ep *Endpoint) rename(name string) error {
 	ep.mu.Lock()
 	ep.name = name
