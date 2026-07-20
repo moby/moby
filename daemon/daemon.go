@@ -239,7 +239,10 @@ func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string
 	for _, v := range dir {
 		id := v.Name()
 		group.Go(func() {
-			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
+				return
+			}
 			defer sem.Release(1)
 
 			c, err := daemon.load(id)
@@ -294,8 +297,8 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 	for _, c := range containers {
 		group.Go(func() {
-			if err := sem.Acquire(context.WithoutCancel(ctx), 1); err != nil {
-				// ctx is done; should never happen.
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
 				return
 			}
 			defer sem.Release(1)
@@ -335,7 +338,10 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 	for _, c := range containers {
 		group.Go(func() {
-			_ = sem.Acquire(context.Background(), 1)
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
+				return
+			}
 			defer sem.Release(1)
 
 			baseLogger := log.G(ctx).WithField("container", c.ID)
@@ -612,20 +618,26 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	// Now that all the containers are registered, register the links
 	for _, c := range containers {
 		group.Go(func() {
-			_ = sem.Acquire(context.Background(), 1)
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
+				return
+			}
+			defer sem.Release(1)
 
 			if err := daemon.registerLinks(c); err != nil {
 				log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to register link for container")
 			}
-
-			sem.Release(1)
 		})
 	}
 	group.Wait()
 
 	for c, notifyChan := range restartContainers {
 		group.Go(func() {
-			_ = sem.Acquire(context.Background(), 1)
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
+				return
+			}
+			defer sem.Release(1)
 
 			logger := log.G(ctx).WithField("container", c.ID)
 
@@ -654,15 +666,16 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 				logger.WithError(err).Error("failed to start container")
 			}
 			close(notifyChan)
-
-			sem.Release(1)
 		})
 	}
 	group.Wait()
 
 	for cid, c := range removeContainers {
 		group.Go(func() {
-			_ = sem.Acquire(context.Background(), 1)
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
+				return
+			}
 			defer sem.Release(1)
 
 			if c.State.IsDead() {
@@ -697,13 +710,15 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 		}
 
 		group.Go(func() {
-			_ = sem.Acquire(context.Background(), 1)
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
+				return
+			}
+			defer sem.Release(1)
 
 			if err := daemon.prepareMountPoints(c); err != nil {
 				log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to prepare mountpoints for container")
 			}
-
-			sem.Release(1)
 		})
 	}
 	group.Wait()
@@ -744,12 +759,11 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 					// ctx is done.
 					return
 				}
+				defer sem.Release(1)
 
 				if err := daemon.containerStart(ctx, cfg, c, "", "", true); err != nil {
 					log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
 				}
-
-				sem.Release(1)
 			})
 		}
 	}
