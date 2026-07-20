@@ -155,8 +155,12 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 	// Check if the owner of the event is still part of the network
 	nodes := nDB.networkNodes[tEvent.NetworkID]
 	nodePresent := slices.Contains(nodes, tEvent.NodeName)
+	// A failed node cannot reach us directly, so an event owned by one can
+	// only be stale state relayed by another node. Accepting it would revive
+	// entries which nothing would delete if the owner never comes back.
+	_, ownerFailed := nDB.failedNodes[tEvent.NodeName]
 
-	if !ok || network.leaving || !nodePresent {
+	if !ok || network.leaving || !nodePresent || ownerFailed {
 		// I'm out of the network OR the event owner is not anymore part of the network so do not propagate
 		return false
 	}

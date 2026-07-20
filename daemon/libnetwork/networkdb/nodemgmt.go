@@ -86,11 +86,19 @@ func (nDB *NetworkDB) changeNodeState(nodeName string, newState nodeState) (bool
 		if n.reapTime == 0 {
 			n.reapTime = nodeReapInterval
 		}
-		// The node leave or fails, delete all the entries created by it.
-		// If the node was temporary down, deleting the entries will guarantee that the CREATE events will be accepted
-		// If the node instead left because was going down, then it makes sense to just delete all its state
-		nDB.deleteNodeFromNetworks(n.Name)
+		// The node left or failed, delete all the entries created by it.
+		// If the node was temporary down, deleting the entries will guarantee
+		// that the CREATE events will be accepted when it comes back.
 		nDB.deleteNodeTableEntries(n.Name)
+
+		// Only forget which networks the node was attached to on a graceful
+		// leave. Doing it on failure as well would make handleTableEvent
+		// reject the entries the node re-sends when it comes back, as it is
+		// no longer part of the network. The membership is reclaimed by
+		// reapDeadNode if the node never returns.
+		if newState == nodeLeftState {
+			nDB.deleteNodeFromNetworks(n.Name)
+		}
 	}
 
 	return true, nil

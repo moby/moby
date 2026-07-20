@@ -256,18 +256,27 @@ func (nDB *NetworkDB) triggerFunc(stagger time.Duration, C <-chan time.Time, f f
 func (nDB *NetworkDB) reapDeadNode() {
 	nDB.Lock()
 	defer nDB.Unlock()
-	for _, nodeMap := range []map[string]*node{
-		nDB.failedNodes,
-		nDB.leftNodes,
-	} {
-		for id, n := range nodeMap {
-			if n.reapTime > nodeReapPeriod {
-				n.reapTime -= nodeReapPeriod
-				continue
-			}
-			log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
-			delete(nodeMap, id)
+	for id, n := range nDB.failedNodes {
+		if n.reapTime > nodeReapPeriod {
+			n.reapTime -= nodeReapPeriod
+			continue
 		}
+		log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
+		// The node is not coming back, so drop the network membership which
+		// changeNodeState kept for it. Leaving it behind would keep the node
+		// in networkNodes forever, wasting gossip and bulk-sync rounds on a
+		// peer which no longer exists.
+		nDB.deleteNodeFromNetworks(n.Name)
+		nDB.deleteNodeTableEntries(n.Name)
+		delete(nDB.failedNodes, id)
+	}
+	for id, n := range nDB.leftNodes {
+		if n.reapTime > nodeReapPeriod {
+			n.reapTime -= nodeReapPeriod
+			continue
+		}
+		log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
+		delete(nDB.leftNodes, id)
 	}
 }
 
