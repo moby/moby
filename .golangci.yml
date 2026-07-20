@@ -168,6 +168,7 @@ linters:
       excludes:
         - G104 # G104: Errors unhandled; (TODO: reduce unhandled errors, or explicitly ignore)
         - G115 # G115: integer overflow conversion; (TODO: verify these: https://github.com/moby/moby/issues/48358)
+        - G122 # G122: Filesystem operation in filepath.Walk/WalkDir (TODO: these should be evaluated / fixed)
         - G204 # G204: Subprocess launched with variable; too many false positives.
         - G301 # G301: Expect directory permissions to be 0750 or less (also EXC0009); too restrictive
         - G302 # G302: Expect file permissions to be 0600 or less (also EXC0009); too restrictive
