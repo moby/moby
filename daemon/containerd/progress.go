@@ -77,12 +77,15 @@ func (j *jobs) showProgress(ctx context.Context, out progress.Output, updater pr
 	}
 }
 
-// Add adds a descriptor to be tracked
+// Add adds descriptors with valid digests to be tracked.
 func (j *jobs) Add(desc ...ocispec.Descriptor) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
 	for _, d := range desc {
+		if d.Digest.Validate() != nil {
+			continue
+		}
 		if _, ok := j.descs[d.Digest]; ok {
 			continue
 		}
