@@ -256,18 +256,25 @@ func (nDB *NetworkDB) triggerFunc(stagger time.Duration, C <-chan time.Time, f f
 func (nDB *NetworkDB) reapDeadNode() {
 	nDB.Lock()
 	defer nDB.Unlock()
-	for _, nodeMap := range []map[string]*node{
-		nDB.failedNodes,
-		nDB.leftNodes,
-	} {
-		for id, n := range nodeMap {
-			if n.reapTime > nodeReapPeriod {
-				n.reapTime -= nodeReapPeriod
-				continue
-			}
-			log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
-			delete(nodeMap, id)
+	for id, n := range nDB.failedNodes {
+		if n.reapTime > nodeReapPeriod {
+			n.reapTime -= nodeReapPeriod
+			continue
 		}
+		log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
+		// The node is not coming back: drop the attachments remembered for
+		// it along with any entries reapTableEntries has not aged out yet.
+		nDB.deleteNodeFromNetworks(n.Name)
+		nDB.deleteNodeTableEntries(n.Name)
+		delete(nDB.failedNodes, id)
+	}
+	for id, n := range nDB.leftNodes {
+		if n.reapTime > nodeReapPeriod {
+			n.reapTime -= nodeReapPeriod
+			continue
+		}
+		log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
+		delete(nDB.leftNodes, id)
 	}
 }
 
@@ -361,8 +368,9 @@ func (nDB *NetworkDB) reconnectNode() {
 // For timing the entry deletion in the reaper APIs that doesn't use monotonic clock
 // source (time.Now, Sub etc.) should be avoided. Hence we use reapTime in every
 // entry which is set initially to reapInterval and decremented by reapPeriod every time
-// the reaper runs. NOTE nDB.reapTableEntries updates the reapTime with a readlock. This
-// is safe as long as no other concurrent path touches the reapTime field.
+// the reaper runs. NOTE reapTime is only written while holding the NetworkDB write
+// lock — by the reapers and by the paths which suspend and restore the entries of a
+// failed node — and only read while holding at least the read lock.
 func (nDB *NetworkDB) reapState() {
 	// The reapTableEntries leverage the presence of the network so garbage collect entries first
 	nDB.reapTableEntries()
@@ -411,7 +419,10 @@ func (nDB *NetworkDB) reapTableEntries() {
 		nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid), func(path []byte, v *entry) bool {
 			// timeCompensation compensate in case the lock took some time to be released
 			timeCompensation := time.Since(cycleStart)
-			if !v.deleting {
+			// Entries remembered for a failed owner age out like tombstones,
+			// so that they cannot be restored after whatever would delete
+			// them expired.
+			if !v.deleting && !nDB.isNodeFailed(v.node) {
 				return false
 			}
 
@@ -496,7 +507,9 @@ func (nDB *NetworkDB) gossip() {
 			nDB.RUnlock()
 
 			if mnode == nil {
-				break
+				// The node stopped being an active peer since it was
+				// picked, therefore skip it.
+				continue
 			}
 
 			// Send the compound message
@@ -613,8 +626,18 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	nDB.RLock()
 	mnode := nDB.nodes[node]
 	if mnode == nil {
+		// The node is not an active peer: it either failed since it was
+		// picked from a peer list, or it sent us a bulk sync while
+		// memberlist considers it failed. Sync at the address last known
+		// for it anyway: it evidently could reach us, and it is waiting for
+		// our reply if the bulk sync we are answering was unsolicited.
+		mnode = nDB.failedNodes[node]
+	}
+	if mnode == nil {
 		nDB.RUnlock()
-		return nil
+		// Nothing is known about the node, so it cannot be reached. Report
+		// it so that the caller does not count this as a completed sync.
+		return fmt.Errorf("cannot bulk sync with unknown node %s", node)
 	}
 
 	for _, nid := range networks {

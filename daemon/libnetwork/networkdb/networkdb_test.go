@@ -295,6 +295,72 @@ func TestNetworkDBCRUDTableEntry(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
+// TestCreateEntryOverTombstone checks that a key can be created again while
+// the tombstone of its previous incarnation is still lingering in the store,
+// and that a live entry still holds its key against a create.
+func TestCreateEntryOverTombstone(t *testing.T) {
+	nDB := newNetworkDB(DefaultConfig())
+	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{}
+	nDB.nodeBroadcasts = &memberlist.TransmitLimitedQueue{}
+	assert.NilError(t, nDB.JoinNetwork("network1"))
+
+	assert.NilError(t, nDB.CreateEntry("test_table", "network1", "test_key", []byte("v1")))
+	assert.NilError(t, nDB.DeleteEntry("test_table", "network1", "test_key"))
+
+	nDB.RLock()
+	tombstone, err := nDB.getEntry("test_table", "network1", "test_key")
+	nDB.RUnlock()
+	assert.NilError(t, err)
+	assert.Assert(t, tombstone.deleting, "the deleted entry should still be lingering as a tombstone")
+
+	assert.NilError(t, nDB.CreateEntry("test_table", "network1", "test_key", []byte("v2")))
+	v, err := nDB.GetEntry("test_table", "network1", "test_key")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("v2", string(v)))
+
+	// The entry is live again, so it holds its key.
+	assert.Check(t, is.ErrorContains(
+		nDB.CreateEntry("test_table", "network1", "test_key", []byte("v3")), "already exists"))
+}
+
+// TestUpdateAndDeleteEntryOnTombstone checks that a tombstone counts as a
+// non-existent entry for the write API, matching what a read of it reports:
+// neither an update nor a delete of one succeeds, and a refused update does
+// not resurrect it. TestCreateEntryOverTombstone covers the create side, where
+// the key is instead free to be taken over.
+func TestUpdateAndDeleteEntryOnTombstone(t *testing.T) {
+	nDB := newNetworkDB(DefaultConfig())
+	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{}
+	nDB.nodeBroadcasts = &memberlist.TransmitLimitedQueue{}
+	assert.NilError(t, nDB.JoinNetwork("network1"))
+
+	assert.NilError(t, nDB.CreateEntry("test_table", "network1", "test_key", []byte("v1")))
+	assert.NilError(t, nDB.DeleteEntry("test_table", "network1", "test_key"))
+
+	nDB.RLock()
+	tombstone, err := nDB.getEntry("test_table", "network1", "test_key")
+	nDB.RUnlock()
+	assert.NilError(t, err)
+	assert.Assert(t, tombstone.deleting, "the deleted entry should still be lingering as a tombstone")
+
+	// A read already reports the key as gone, so the writes must agree.
+	_, err = nDB.GetEntry("test_table", "network1", "test_key")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
+	assert.Check(t, is.ErrorContains(
+		nDB.UpdateEntry("test_table", "network1", "test_key", []byte("v2")), "does not exist"))
+	assert.Check(t, is.ErrorContains(
+		nDB.DeleteEntry("test_table", "network1", "test_key"), "does not exist"))
+
+	// The refused update must not have resurrected the entry nor taken its key.
+	nDB.RLock()
+	after, err := nDB.getEntry("test_table", "network1", "test_key")
+	nDB.RUnlock()
+	assert.NilError(t, err)
+	assert.Check(t, after.deleting, "the tombstone should still be a tombstone")
+	assert.Check(t, is.Equal("v1", string(after.value)), "the tombstone's value should be untouched")
+	assert.Check(t, is.Equal(nDB.config.NodeID, after.node), "the tombstone's owner should be untouched")
+}
+
 func (nDB *NetworkDB) dumpTable(t *testing.T, tname string) {
 	t.Helper()
 	var b strings.Builder
@@ -463,6 +529,34 @@ func TestNetworkDBBulkSync(t *testing.T) {
 	}
 
 	closeNetworkDBInstances(t, dbs)
+}
+
+// TestBulkSyncWithFailedPeer checks that a bulk sync is still sent to a peer
+// which memberlist has declared failed: such a peer can well be reachable, and
+// waiting for a reply, before we learn that it is back. Only a peer nothing is
+// known about is reported as unreachable, so that the caller does not count the
+// sync as completed.
+func TestBulkSyncWithFailedPeer(t *testing.T) {
+	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
+
+	assert.NilError(t, dbs[0].JoinNetwork("network1"))
+	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
+	assert.NilError(t, dbs[1].JoinNetwork("network1"))
+	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
+
+	// Make node0 consider node1 failed while node1 is still very much alive.
+	// Nothing moves it back to active: a node event for a peer which is not in
+	// the memberlist node list is ignored, and memberlist only notifies a join
+	// for a node it sees coming back.
+	dbs[0].Lock()
+	_, err := dbs[0].changeNodeState(dbs[1].config.NodeID, nodeFailedState)
+	dbs[0].Unlock()
+	assert.NilError(t, err)
+
+	assert.NilError(t, dbs[0].bulkSyncNode([]string{"network1"}, dbs[1].config.NodeID, false))
+	assert.Check(t, is.ErrorContains(
+		dbs[0].bulkSyncNode([]string{"network1"}, "nosuchnode", false), "unknown node"))
 }
 
 // Regression test for https://github.com/moby/moby/issues/51701
