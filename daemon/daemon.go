@@ -357,6 +357,12 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	}
 	group.Wait()
 
+	// Stop restoring before starting the next phase if startup was canceled.
+	if err := ctx.Err(); err != nil {
+		log.G(ctx).WithError(err).Debug("container restore interrupted")
+		return err
+	}
+
 	for _, c := range containers {
 		group.Go(func() {
 			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
@@ -610,6 +616,11 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	}
 	group.Wait()
 
+	if err := ctx.Err(); err != nil {
+		log.G(ctx).WithError(err).Debug("container restore interrupted")
+		return err
+	}
+
 	// Initialize the network controller and configure network settings.
 	//
 	// Note that we cannot initialize the network controller earlier, as it
@@ -649,6 +660,11 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	}
 	group.Wait()
 
+	if err := ctx.Err(); err != nil {
+		log.G(ctx).WithError(err).Debug("container restore interrupted")
+		return err
+	}
+
 	for c, notifyChan := range restartContainers {
 		group.Go(func() {
 			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
@@ -685,6 +701,11 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	}
 	group.Wait()
 
+	if err := ctx.Err(); err != nil {
+		log.G(ctx).WithError(err).Debug("container restore interrupted")
+		return err
+	}
+
 	for cid, c := range removeContainers {
 		group.Go(func() {
 			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
@@ -703,6 +724,11 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 		})
 	}
 	group.Wait()
+
+	if err := ctx.Err(); err != nil {
+		log.G(ctx).WithError(err).Debug("container restore interrupted")
+		return err
+	}
 
 	// any containers that were started above would already have had this done,
 	// however we need to now prepare the mountpoints for the rest of the containers as well.
@@ -731,6 +757,11 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 		})
 	}
 	group.Wait()
+
+	if err := ctx.Err(); err != nil {
+		log.G(ctx).WithError(err).Debug("container restore interrupted")
+		return err
+	}
 
 	log.G(ctx).Info("Loading containers: done.")
 
