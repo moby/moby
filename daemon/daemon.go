@@ -742,11 +742,11 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 // RestartSwarmContainers restarts any autostart container which has a
 // swarm endpoint.
-func (daemon *Daemon) RestartSwarmContainers() {
-	daemon.restartSwarmContainers(context.Background(), daemon.config())
+func (daemon *Daemon) RestartSwarmContainers(ctx context.Context) error {
+	return daemon.restartSwarmContainers(ctx, daemon.config())
 }
 
-func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configStore) {
+func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configStore) error {
 	// parallelLimit is the maximum number of parallel startup jobs that we
 	// allow (this is the limited used for all startup semaphores). The multiplier
 	// (128) was chosen after some fairly significant benchmarking -- don't change
@@ -758,6 +758,11 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 	sem := semaphore.NewWeighted(int64(parallelLimit))
 
 	for _, c := range daemon.List() {
+		if err := ctx.Err(); err != nil {
+			group.Wait()
+			return err
+		}
+
 		if c.State.IsRunning() || c.State.IsPaused() {
 			continue
 		}
@@ -768,19 +773,24 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 		if cfg.AutoRestart && c.ShouldRestart() && c.NetworkSettings.HasSwarmEndpoint && c.HasBeenStartedBefore {
 			group.Go(func() {
 				if err := sem.Acquire(ctx, 1); err != nil {
-					// ctx is done.
 					return
 				}
+				defer sem.Release(1)
 
 				if err := daemon.containerStart(ctx, cfg, c, "", "", true); err != nil {
 					log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
 				}
-
-				sem.Release(1)
 			})
 		}
 	}
 	group.Wait()
+
+	// A canceled acquire may have skipped one or more container starts.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (daemon *Daemon) registerLink(parent, child *container.Container, alias string) error {
