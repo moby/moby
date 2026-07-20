@@ -22,7 +22,7 @@ func TestProgramIPTable(t *testing.T) {
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
 	defer netnsutils.SetupTestOSContext(t)()
 
-	_, err := iptables.GetIptable(iptables.IPv4).NewChain(DockerForwardChain, iptables.Filter)
+	_, err := iptables.GetIptable(iptables.IPv4).NewChain(dockerForwardChain, iptables.Filter)
 	assert.NilError(t, err)
 
 	// Store various iptables chain rules we care for.
@@ -31,12 +31,12 @@ func TestProgramIPTable(t *testing.T) {
 		rule  iptables.Rule
 		descr string
 	}{
-		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{"-d", "127.1.2.3", "-i", "lo", "-o", "lo", "-j", "DROP"}}, "Test Loopback"},
+		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: dockerForwardChain, Args: []string{"-d", "127.1.2.3", "-i", "lo", "-o", "lo", "-j", "DROP"}}, "Test Loopback"},
 		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Nat, Chain: "POSTROUTING", Args: []string{"-s", iptablesTestBridgeIP, "!", "-o", defaultBridgeName, "-j", "MASQUERADE"}}, "NAT Test"},
-		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{"-o", defaultBridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}}, "Test ACCEPT INCOMING"},
-		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{"-i", defaultBridgeName, "!", "-o", defaultBridgeName, "-j", "ACCEPT"}}, "Test ACCEPT NON_ICC OUTGOING"},
-		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{"-i", defaultBridgeName, "-o", defaultBridgeName, "-j", "ACCEPT"}}, "Test enable ICC"},
-		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{"-i", defaultBridgeName, "-o", defaultBridgeName, "-j", "DROP"}}, "Test disable ICC"},
+		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: dockerForwardChain, Args: []string{"-o", defaultBridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}}, "Test ACCEPT INCOMING"},
+		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: dockerForwardChain, Args: []string{"-i", defaultBridgeName, "!", "-o", defaultBridgeName, "-j", "ACCEPT"}}, "Test ACCEPT NON_ICC OUTGOING"},
+		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: dockerForwardChain, Args: []string{"-i", defaultBridgeName, "-o", defaultBridgeName, "-j", "ACCEPT"}}, "Test enable ICC"},
+		{iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Filter, Chain: dockerForwardChain, Args: []string{"-i", defaultBridgeName, "-o", defaultBridgeName, "-j", "DROP"}}, "Test disable ICC"},
 	}
 
 	// Assert the chain rules' insertion and removal.
