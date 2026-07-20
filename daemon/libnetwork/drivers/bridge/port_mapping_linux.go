@@ -30,12 +30,22 @@ var startProxy = portmapper.StartProxy
 // 'any' host address, it's expanded into mappings for IPv4 and IPv6, because
 // that's how the mapping is presented in 'inspect'). HostPort and HostPortEnd in
 // each returned PortBinding are set to the selected and reserved port.
+//
+// pbmAdd selects which binding modes (IPv4/IPv6 NAT, and/or routed) to program
+// for in this call. The bindings are always added to the endpoint's existing
+// set - the endpoint's current mode is not consulted - so callers use this both
+// to apply a full config for newly-active modes (see
+// [driver.ProgramExternalConnectivity]) and to publish additional ports on an
+// already-joined endpoint (see [driver.AddEphemeralPorts]). pbmHave describes the modes
+// the endpoint provides once the new bindings are in place; it's usually equal
+// to pbmAdd (see [bridgeNetwork.sortAndNormPBs]).
 func (n *bridgeNetwork) addPortMappings(
 	ctx context.Context,
 	ep *bridgeEndpoint,
 	cfg []portmapperapi.PortBindingReq,
 	defHostIP net.IP,
-	pbmReq portBindingMode,
+	pbmAdd portBindingMode,
+	pbmHave portBindingMode,
 ) (_ []portmapperapi.PortBinding, retErr error) {
 	if len(defHostIP) == 0 {
 		defHostIP = net.IPv4zero
@@ -59,7 +69,7 @@ func (n *bridgeNetwork) addPortMappings(
 		}
 	}()
 
-	bindingReqs := n.sortAndNormPBs(ctx, ep, cfg, defHostIP, pbmReq)
+	bindingReqs := n.sortAndNormPBs(ctx, ep, cfg, defHostIP, pbmAdd, pbmHave)
 
 	// toBind accumulates port bindings that should be allocated the same host port
 	// (if required by NAT config). If the host address is unspecified, and defHostIP
@@ -197,12 +207,24 @@ func (n *bridgeNetwork) mapPorts(ctx context.Context, pms *drvregistry.PortMappe
 // Finally, port bindings are sorted into the ordering defined by
 // [PortBindingReqs.Compare] in order to form groups of port bindings that
 // should be processed in one go.
+//
+// pbmAdd selects which port binding modes to generate bindings for in this
+// call: IPv4 and/or IPv6 NATed bindings, and/or routed bindings. The function
+// does not consult the endpoint's current binding state, so it can be used both
+// to (re)apply a full config and to add bindings incrementally.
+//
+// pbmHave describes the modes the endpoint provides once these bindings are in
+// place. It's only used to decide whether host-IPv6 traffic can be proxied to an
+// IPv4-only container (which needs the endpoint to be an IPv4 gateway), so it's
+// usually the same as pbmAdd - it differs only when adding one mode's bindings
+// while another is already active.
 func (n *bridgeNetwork) sortAndNormPBs(
 	ctx context.Context,
 	ep *bridgeEndpoint,
 	cfg []portmapperapi.PortBindingReq,
 	defHostIP net.IP,
-	pbmReq portBindingMode,
+	pbmAdd portBindingMode,
+	pbmHave portBindingMode,
 ) []portmapperapi.PortBindingReq {
 	var containerIPv4, containerIPv6 net.IP
 	if ep.addr != nil {
@@ -214,8 +236,8 @@ func (n *bridgeNetwork) sortAndNormPBs(
 
 	disableNAT4, disableNAT6 := n.getNATDisabled()
 
-	add4 := !ep.portBindingState.ipv4 && pbmReq.ipv4 || (disableNAT4 && !ep.portBindingState.routed && pbmReq.routed)
-	add6 := !ep.portBindingState.ipv6 && pbmReq.ipv6 || (disableNAT6 && !ep.portBindingState.routed && pbmReq.routed)
+	add4 := pbmAdd.ipv4 || (disableNAT4 && pbmAdd.routed)
+	add6 := pbmAdd.ipv6 || (disableNAT6 && pbmAdd.routed)
 
 	reqs := make([]portmapperapi.PortBindingReq, 0, len(cfg))
 	for _, c := range cfg {
@@ -233,7 +255,7 @@ func (n *bridgeNetwork) sortAndNormPBs(
 		// by setting up the binding with the IPv4 interface if the userland proxy is enabled
 		// This change was added to keep backward compatibility
 		containerIP := containerIPv6
-		if containerIPv6 == nil && pbmReq.ipv4 && add6 {
+		if containerIPv6 == nil && pbmHave.ipv4 && add6 {
 			if !n.driver.config.EnableProxy {
 				// There's no way to map from host-IPv6 to container-IPv4 with the userland proxy
 				// disabled.
@@ -394,8 +416,9 @@ func configurePortBindingIPv6(
 // releasePorts attempts to release all port bindings, does not stop on failure
 func (n *bridgeNetwork) releasePorts(ep *bridgeEndpoint) error {
 	n.Lock()
-	pbs := ep.portMapping
+	pbs := slices.Collect(ep.allPortBindings())
 	ep.portMapping = nil
+	ep.ephemeralPortMapping = nil
 	ep.portBindingState = portBindingMode{}
 	n.Unlock()
 
@@ -435,7 +458,7 @@ func (n *bridgeNetwork) reapplyPerPortIptables() {
 	var allPBs []portmapperapi.PortBinding
 	var allEPs []*bridgeEndpoint
 	for _, ep := range n.endpoints {
-		allPBs = append(allPBs, ep.portMapping...)
+		allPBs = slices.AppendSeq(allPBs, ep.allPortBindings())
 		allEPs = append(allEPs, ep)
 	}
 	n.Unlock()
