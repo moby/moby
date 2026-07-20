@@ -259,20 +259,6 @@ func (daemon *Daemon) statsV2(s *containertypes.StatsResponse, stats *statsV2.Me
 	return s, nil
 }
 
-// Resolve Network SandboxID in case the container reuse another container's network stack
-func (daemon *Daemon) getNetworkSandboxID(c *container.Container) (string, error) {
-	curr := c
-	for curr.HostConfig.NetworkMode.IsContainer() {
-		containerID := curr.HostConfig.NetworkMode.ConnectedContainer()
-		connected, err := daemon.GetContainer(containerID)
-		if err != nil {
-			return "", errors.Wrapf(err, "Could not get container for %s", containerID)
-		}
-		curr = connected
-	}
-	return curr.NetworkSettings.SandboxID, nil
-}
-
 func (daemon *Daemon) getNetworkStats(c *container.Container) (map[string]containertypes.NetworkStats, error) {
 	sandboxID, err := daemon.getNetworkSandboxID(c)
 	if err != nil {
