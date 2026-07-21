@@ -402,8 +402,11 @@ func setIcc(ctx context.Context, version iptables.IPVersion, bridgeIface string,
 	return nil
 }
 
-// Obsolete chain from previous docker versions
-const oldIsolationChain = "DOCKER-ISOLATION"
+// Obsolete chains from previous docker versions
+const (
+	oldIsolationChain = "DOCKER-ISOLATION"
+	oldIngressChain   = "DOCKER-INGRESS"
+)
 
 func removeIPChains(ctx context.Context, version iptables.IPVersion) {
 	ipt := iptables.GetIptable(version)
@@ -422,6 +425,8 @@ func removeIPChains(ctx context.Context, version iptables.IPVersion) {
 		{Name: isolationChain1, Table: iptables.Filter, IPVersion: version},
 		{Name: isolationChain2, Table: iptables.Filter, IPVersion: version},
 		{Name: oldIsolationChain, Table: iptables.Filter, IPVersion: version},
+		{Name: oldIngressChain, Table: iptables.Filter, IPVersion: version},
+		{Name: oldIngressChain, Table: iptables.Nat, IPVersion: version},
 	} {
 		if err := chainInfo.Remove(); err != nil {
 			log.G(ctx).Warnf("Failed to remove existing iptables entries in table %s chain %s : %v", chainInfo.Table, chainInfo.Name, err)
