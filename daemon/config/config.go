@@ -226,6 +226,11 @@ type CommonConfig struct {
 	// to stop when daemon is being shutdown
 	ShutdownTimeout int `json:"shutdown-timeout,omitempty"`
 
+	// MaxShutdownTimeout is the maximum stop timeout (in seconds) that the
+	// daemon applies to each container during daemon shutdown.
+	// A value of zero disables the limit.
+	MaxShutdownTimeout int `json:"max-shutdown-timeout,omitempty"`
+
 	Debug     bool     `json:"debug,omitempty"`
 	Hosts     []string `json:"hosts,omitempty"`
 	TLS       *bool    `json:"tls,omitempty"`
@@ -741,6 +746,9 @@ func Validate(config *Config) error {
 	}
 	if config.MaxDownloadAttempts < 0 {
 		return errors.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
+	}
+	if config.MaxShutdownTimeout < 0 {
+		return errors.Errorf("invalid max-shutdown-timeout (%d): value must be greater than or equal to 0", config.MaxShutdownTimeout)
 	}
 	if config.NetworkDiagnosticPort < 0 || config.NetworkDiagnosticPort > 65535 {
 		return errors.Errorf("invalid network-diagnostic-port (%d): value must be between 0 and 65535", config.NetworkDiagnosticPort)

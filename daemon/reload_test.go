@@ -74,6 +74,32 @@ func TestDaemonReloadLabels(t *testing.T) {
 	}
 }
 
+func TestDaemonReloadMaxShutdownTimeout(t *testing.T) {
+	daemon := newDaemonForReloadT(t, &config.Config{
+		CommonConfig: config.CommonConfig{
+			MaxShutdownTimeout: 10,
+		},
+	})
+	muteLogs(t)
+
+	newConfig := &config.Config{
+		CommonConfig: config.CommonConfig{
+			MaxShutdownTimeout: 5,
+			ValuesSet: map[string]any{
+				"max-shutdown-timeout": 5,
+			},
+		},
+	}
+
+	assert.NilError(t, daemon.Reload(newConfig))
+	assert.Equal(t, daemon.config().MaxShutdownTimeout, 5)
+
+	newConfig.MaxShutdownTimeout = 0
+	newConfig.ValuesSet["max-shutdown-timeout"] = 0
+	assert.NilError(t, daemon.Reload(newConfig))
+	assert.Equal(t, daemon.config().MaxShutdownTimeout, 0)
+}
+
 func TestDaemonReloadMirrors(t *testing.T) {
 	daemon := &Daemon{
 		imageService: images.NewImageService(t.Context(), images.ImageServiceConfig{}),
