@@ -222,7 +222,7 @@ func (daemon *Daemon) verifyContainerSettings(daemonCfg *configStore, hostConfig
 	}
 
 	// Now do platform-specific verification
-	warns, err = verifyPlatformContainerSettings(daemon, daemonCfg, hostConfig, update)
+	warns, err = verifyPlatformContainerSettings(daemon, daemonCfg, hostConfig, config, update)
 	warnings = append(warnings, warns...)
 
 	return warnings, err
