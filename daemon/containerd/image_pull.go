@@ -20,6 +20,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
+	"github.com/docker/distribution/manifest/schema2"
 	slsa02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
 	slsa1 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v1"
 	"github.com/moby/buildkit/util/attestation"
@@ -36,6 +37,12 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+)
+
+const (
+	pluginConfigMediaTypePrefix = "application/vnd.docker.plugin."
+	pluginConfigMediaTypeClass  = "plugin"
+	unknownMediaTypeClass       = "unknown"
 )
 
 // PullImage initiates a pull operation. baseRef is the image to pull.
@@ -178,6 +185,9 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 
 	var sentPullingFrom, sentModelNotSupported atomic.Bool
 	ah := c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		if err := checkPullDescriptorMediaType(desc); err != nil {
+			return nil, err
+		}
 		if desc.MediaType == c8dimages.MediaTypeDockerSchema1Manifest {
 			return nil, distribution.DeprecatedSchema1ImageError(ref)
 		}
@@ -284,6 +294,20 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	outNewImg = img
 
 	return nil
+}
+
+func checkPullDescriptorMediaType(desc ocispec.Descriptor) error {
+	lowerMediaType := strings.ToLower(desc.MediaType)
+	if !strings.HasPrefix(lowerMediaType, pluginConfigMediaTypePrefix) {
+		return nil
+	}
+
+	configClass := unknownMediaTypeClass
+	if lowerMediaType == schema2.MediaTypePluginConfig {
+		configClass = pluginConfigMediaTypeClass
+	}
+
+	return errdefs.InvalidParameter(fmt.Errorf("Encountered remote %q(%s) when fetching", desc.MediaType, configClass))
 }
 
 func joinHandlerWrappers(funcs ...func(c8dimages.Handler) c8dimages.Handler) func(c8dimages.Handler) c8dimages.Handler {
