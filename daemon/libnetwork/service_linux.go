@@ -394,7 +394,10 @@ func addIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
 	filteredPorts := filterPortConfigs(ingressPorts, false)
 
 	if err := programIngressPortsRules(gwIP, filteredPorts); err != nil {
-		filterPortConfigs(filteredPorts, true)
+		// filterPortConfigs(_, false) above bumped the refcount of every port in
+		// ingressPorts, not just the newly-referenced filteredPorts, so roll back
+		// the whole set to keep the counts balanced.
+		filterPortConfigs(ingressPorts, true)
 		return fmt.Errorf("failed to program ingress ports: %v", err)
 	}
 
