@@ -214,6 +214,9 @@ type LoadOptions struct {
 	// The inclusive min bytes of a request body that could be compressed
 	RequestMinCompressSizeBytes *int64
 
+	// Specifies whether SDK clock skew correction is disabled
+	DisableClockSkewCorrection *bool
+
 	// Whether S3 Express auth is disabled.
 	S3DisableExpressAuth *bool
 
@@ -299,6 +302,14 @@ func (o LoadOptions) getDisableRequestCompression(ctx context.Context) (bool, bo
 	return *o.DisableRequestCompression, true, nil
 }
 
+// getDisableClockSkewCorrection returns DisableClockSkewCorrection from config's LoadOptions
+func (o LoadOptions) getDisableClockSkewCorrection(ctx context.Context) (bool, bool, error) {
+	if o.DisableClockSkewCorrection == nil {
+		return false, false, nil
+	}
+	return *o.DisableClockSkewCorrection, true, nil
+}
+
 // getRequestMinCompressSizeBytes returns RequestMinCompressSizeBytes from config's LoadOptions
 func (o LoadOptions) getRequestMinCompressSizeBytes(ctx context.Context) (int64, bool, error) {
 	if o.RequestMinCompressSizeBytes == nil {
@@ -365,6 +376,18 @@ func WithDisableRequestCompression(DisableRequestCompression *bool) LoadOptionsF
 			return nil
 		}
 		o.DisableRequestCompression = DisableRequestCompression
+		return nil
+	}
+}
+
+// WithDisableClockSkewCorrection is a helper function to construct functional
+// options that sets DisableClockSkewCorrection on config's LoadOptions.
+func WithDisableClockSkewCorrection(DisableClockSkewCorrection *bool) LoadOptionsFunc {
+	return func(o *LoadOptions) error {
+		if DisableClockSkewCorrection == nil {
+			return nil
+		}
+		o.DisableClockSkewCorrection = DisableClockSkewCorrection
 		return nil
 	}
 }

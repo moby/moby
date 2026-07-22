@@ -78,6 +78,8 @@ const (
 	awsDisableRequestCompressionEnv      = "AWS_DISABLE_REQUEST_COMPRESSION"
 	awsRequestMinCompressionSizeBytesEnv = "AWS_REQUEST_MIN_COMPRESSION_SIZE_BYTES"
 
+	awsDisableClockSkewCorrectionEnv = "AWS_DISABLE_CLOCK_SKEW_CORRECTION"
+
 	awsS3DisableExpressSessionAuthEnv = "AWS_S3_DISABLE_EXPRESS_SESSION_AUTH"
 
 	awsAccountIDEnv             = "AWS_ACCOUNT_ID"
@@ -293,6 +295,10 @@ type EnvConfig struct {
 	// retrieved from env var AWS_REQUEST_MIN_COMPRESSION_SIZE_BYTES
 	RequestMinCompressSizeBytes *int64
 
+	// determine if clock skew correction is disabled, default to false
+	// retrieved from env var AWS_DISABLE_CLOCK_SKEW_CORRECTION
+	DisableClockSkewCorrection *bool
+
 	// Whether S3Express auth is disabled.
 	//
 	// This will NOT prevent requests from being made to S3Express buckets, it
@@ -362,6 +368,9 @@ func NewEnvConfig() (EnvConfig, error) {
 		return cfg, err
 	}
 	if err := setInt64PtrFromEnvVal(&cfg.RequestMinCompressSizeBytes, []string{awsRequestMinCompressionSizeBytesEnv}, smithyrequestcompression.MaxRequestMinCompressSizeBytes); err != nil {
+		return cfg, err
+	}
+	if err := setBoolPtrFromEnvVal(&cfg.DisableClockSkewCorrection, []string{awsDisableClockSkewCorrectionEnv}); err != nil {
 		return cfg, err
 	}
 
@@ -451,6 +460,13 @@ func (c EnvConfig) getDisableRequestCompression(context.Context) (bool, bool, er
 		return false, false, nil
 	}
 	return *c.DisableRequestCompression, true, nil
+}
+
+func (c EnvConfig) getDisableClockSkewCorrection(context.Context) (bool, bool, error) {
+	if c.DisableClockSkewCorrection == nil {
+		return false, false, nil
+	}
+	return *c.DisableClockSkewCorrection, true, nil
 }
 
 func (c EnvConfig) getRequestMinCompressSizeBytes(context.Context) (int64, bool, error) {

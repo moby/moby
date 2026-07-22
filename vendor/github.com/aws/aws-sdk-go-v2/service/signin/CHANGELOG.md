@@ -1,3 +1,29 @@
+# v1.5.0 (2026-07-21)
+
+* **Feature**: Add an option to clients to disable clock skew
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.4.1 (2026-07-13)
+
+* No change notes available for this release.
+
+# v1.4.0 (2026-07-08.2)
+
+* **Feature**: Adds support for OAuth 2.0 token operations in AWS Sign-In, CreateOAuth2TokenWithIAM (client credentials flow), IntrospectOAuth2TokenWithIAM (token inspection), and RevokeOAuth2TokenWithIAM (token revocation).
+
+# v1.3.0 (2026-07-06)
+
+* **Feature**: Add request serialization snapshot tests.
+
+# v1.2.2 (2026-07-01)
+
+* **Bug Fix**: Bump smithy-go to 1.27.3, fix JSON encorder for document.Number, endpoint host label format validation and CBOR union serialization on new serde
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.2.1 (2026-06-29)
+
+* No change notes available for this release.
+
 # v1.2.0 (2026-06-10)
 
 * **Feature**: AWS Sign-In now allows customers to control access to the AWS Management Console using resource-based policies. With this release customers can restrict console access based on network perimeters such as VPC IDs, VPC endpoints, and IP addresses.
