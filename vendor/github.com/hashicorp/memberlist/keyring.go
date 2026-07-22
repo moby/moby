@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2013, 2025
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package memberlist
@@ -83,6 +83,9 @@ func (k *Keyring) AddKey(key []byte) error {
 		return err
 	}
 
+	k.l.Lock()
+	defer k.l.Unlock()
+
 	// No-op if key is already installed
 	for _, installedKey := range k.keys {
 		if bytes.Equal(installedKey, key) {
@@ -91,20 +94,22 @@ func (k *Keyring) AddKey(key []byte) error {
 	}
 
 	keys := append(k.keys, key)
-	primaryKey := k.GetPrimaryKey()
+	primaryKey := k.getPrimaryKeyLocked()
 	if primaryKey == nil {
 		primaryKey = key
 	}
-	k.installKeys(keys, primaryKey)
+	k.installKeysLocked(keys, primaryKey)
 	return nil
 }
 
 // UseKey changes the key used to encrypt messages. This is the only key used to
 // encrypt messages, so peers should know this key before this method is called.
 func (k *Keyring) UseKey(key []byte) error {
+	k.l.Lock()
+	defer k.l.Unlock()
 	for _, installedKey := range k.keys {
 		if bytes.Equal(key, installedKey) {
-			k.installKeys(k.keys, key)
+			k.installKeysLocked(k.keys, key)
 			return nil
 		}
 	}
@@ -114,25 +119,25 @@ func (k *Keyring) UseKey(key []byte) error {
 // RemoveKey drops a key from the keyring. This will return an error if the key
 // requested for removal is currently at position 0 (primary key).
 func (k *Keyring) RemoveKey(key []byte) error {
+	k.l.Lock()
+	defer k.l.Unlock()
+
 	if bytes.Equal(key, k.keys[0]) {
 		return fmt.Errorf("removing the primary key is not allowed")
 	}
 	for i, installedKey := range k.keys {
 		if bytes.Equal(key, installedKey) {
 			keys := append(k.keys[:i], k.keys[i+1:]...)
-			k.installKeys(keys, k.keys[0])
+			k.installKeysLocked(keys, k.keys[0])
 		}
 	}
 	return nil
 }
 
-// installKeys will take out a lock on the keyring, and replace the keys with a
+// installKeysLocked will take out a lock on the keyring, and replace the keys with a
 // new set of keys. The key indicated by primaryKey will be installed as the new
-// primary key.
-func (k *Keyring) installKeys(keys [][]byte, primaryKey []byte) {
-	k.l.Lock()
-	defer k.l.Unlock()
-
+// primary key. The caller must be holding the lock.
+func (k *Keyring) installKeysLocked(keys [][]byte, primaryKey []byte) {
 	newKeys := [][]byte{primaryKey}
 	for _, key := range keys {
 		if !bytes.Equal(key, primaryKey) {
@@ -155,7 +160,11 @@ func (k *Keyring) GetKeys() [][]byte {
 func (k *Keyring) GetPrimaryKey() (key []byte) {
 	k.l.Lock()
 	defer k.l.Unlock()
+	return k.getPrimaryKeyLocked()
+}
 
+// getPrimaryKeyLocked must be called while holding the mutex
+func (k *Keyring) getPrimaryKeyLocked() (key []byte) {
 	if len(k.keys) > 0 {
 		key = k.keys[0]
 	}

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package serf
@@ -8,18 +8,18 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/coordinate"
@@ -44,13 +44,8 @@ const MaxNodeNameLength int = 128
 var (
 	// FeatureNotSupported is returned if a feature cannot be used
 	// due to an older protocol version being used.
-	FeatureNotSupported = fmt.Errorf("Feature not supported")
+	FeatureNotSupported = fmt.Errorf("Feature not supported") //nolint:staticcheck
 )
-
-func init() {
-	// Seed the random number generator
-	rand.Seed(time.Now().UnixNano())
-}
 
 // ReconnectTimeoutOverrider is an interface that can be implemented to allow overriding
 // the reconnect timeout for individual members.
@@ -219,10 +214,7 @@ func (ue *userEvent) Equals(other *userEvent) bool {
 	if ue.Name != other.Name {
 		return false
 	}
-	if bytes.Compare(ue.Payload, other.Payload) != 0 {
-		return false
-	}
-	return true
+	return bytes.Equal(ue.Payload, other.Payload)
 }
 
 // userEvents stores all the user events at a specific time
@@ -702,16 +694,19 @@ func (s *Serf) broadcastJoin(ltime LamportTime) error {
 func (s *Serf) Leave() error {
 	// Check the current state
 	s.stateLock.Lock()
-	if s.state == SerfLeft {
+
+	switch s.state {
+	case SerfLeft:
 		s.stateLock.Unlock()
 		return nil
-	} else if s.state == SerfLeaving {
+	case SerfLeaving:
 		s.stateLock.Unlock()
 		return fmt.Errorf("Leave already in progress")
-	} else if s.state == SerfShutdown {
+	case SerfShutdown:
 		s.stateLock.Unlock()
 		return fmt.Errorf("Leave called after Shutdown")
 	}
+
 	s.state = SerfLeaving
 	s.stateLock.Unlock()
 
@@ -914,7 +909,7 @@ func (s *Serf) State() SerfState {
 // broadcast takes a Serf message type, encodes it for the wire, and queues
 // the broadcast. If a notify channel is given, this channel will be closed
 // when the broadcast is sent.
-func (s *Serf) broadcast(t messageType, msg interface{}, notify chan<- struct{}) error {
+func (s *Serf) broadcast(t messageType, msg any, notify chan<- struct{}) error {
 	raw, err := encodeMessage(t, msg, s.msgpackUseNewTimeFormat)
 	if err != nil {
 		return err
@@ -965,7 +960,7 @@ func (s *Serf) handleNodeJoin(n *memberlist.Node) {
 		s.members[n.Name] = member
 	} else {
 		oldStatus = member.Status
-		deadTime := time.Now().Sub(member.leaveTime)
+		deadTime := time.Since(member.leaveTime)
 		if oldStatus == StatusFailed && deadTime < s.config.FlapTimeout {
 			metrics.IncrCounterWithLabels([]string{"serf", "member", "flap"}, 1, s.metricLabels)
 		}
@@ -998,7 +993,7 @@ func (s *Serf) handleNodeJoin(n *memberlist.Node) {
 
 	// Send an event along
 	s.logger.Printf("[INFO] serf: EventMemberJoin: %s %s",
-		member.Member.Name, member.Member.Addr)
+		member.Name, member.Addr)
 	if s.config.EventCh != nil {
 		s.config.EventCh <- MemberEvent{
 			Type:    EventMemberJoin,
@@ -1047,7 +1042,7 @@ func (s *Serf) handleNodeLeave(n *memberlist.Node) {
 	metrics.IncrCounterWithLabels([]string{"serf", "member", member.Status.String()}, 1, s.metricLabels)
 
 	s.logger.Printf("[INFO] serf: %s: %s %s",
-		eventStr, member.Member.Name, member.Member.Addr)
+		eventStr, member.Name, member.Addr)
 	if s.config.EventCh != nil {
 		s.config.EventCh <- MemberEvent{
 			Type:    event,
@@ -1091,7 +1086,7 @@ func (s *Serf) handleNodeUpdate(n *memberlist.Node) {
 	metrics.IncrCounterWithLabels([]string{"serf", "member", "update"}, 1, s.metricLabels)
 
 	// Send an event along
-	s.logger.Printf("[INFO] serf: EventMemberUpdate: %s", member.Member.Name)
+	s.logger.Printf("[INFO] serf: EventMemberUpdate: %s", member.Name)
 	if s.config.EventCh != nil {
 		s.config.EventCh <- MemberEvent{
 			Type:    EventMemberUpdate,
@@ -1125,7 +1120,7 @@ func (s *Serf) handleNodeLeaveIntent(leaveMsg *messageLeave) bool {
 	// Must be done in another goroutine since we have the memberLock
 	if leaveMsg.Node == s.config.NodeName && state == SerfAlive {
 		s.logger.Printf("[DEBUG] serf: Refuting an older leave intent")
-		go s.broadcastJoin(s.clock.Time())
+		go s.broadcastJoin(s.clock.Time()) //nolint:errcheck
 		return false
 	}
 
@@ -1169,7 +1164,7 @@ func (s *Serf) handleNodeLeaveIntent(leaveMsg *messageLeave) bool {
 		// left to allow higher-level applications to handle the
 		// graceful leave.
 		s.logger.Printf("[INFO] serf: EventMemberLeave (forced): %s %s",
-			member.Member.Name, member.Member.Addr)
+			member.Name, member.Addr)
 		if s.config.EventCh != nil {
 			s.config.EventCh <- MemberEvent{
 				Type:    EventMemberLeave,
@@ -1200,7 +1195,7 @@ func (s *Serf) handlePrune(member *memberState) {
 		time.Sleep(s.config.BroadcastTimeout + s.config.LeavePropagateDelay)
 	}
 
-	s.logger.Printf("[INFO] serf: EventMemberReap (forced): %s %s", member.Name, member.Member.Addr)
+	s.logger.Printf("[INFO] serf: EventMemberReap (forced): %s %s", member.Name, member.Addr)
 
 	//If we are leaving or left we may be in that list of members
 	if member.Status == StatusLeaving || member.Status == StatusLeft {
@@ -1330,11 +1325,9 @@ func (s *Serf) handleQuery(query *messageQuery) bool {
 	idx := query.LTime % LamportTime(len(s.queryBuffer))
 	seen := s.queryBuffer[idx]
 	if seen != nil && seen.LTime == query.LTime {
-		for _, previous := range seen.QueryIDs {
-			if previous == query.ID {
-				// Seen this ID already
-				return false
-			}
+		if slices.Contains(seen.QueryIDs, query.ID) {
+			// Seen this ID already
+			return false
 		}
 	} else {
 		seen = &queries{LTime: query.LTime}
@@ -1349,10 +1342,7 @@ func (s *Serf) handleQuery(query *messageQuery) bool {
 	metrics.IncrCounterWithLabels([]string{"serf", "queries", query.Name}, 1, s.metricLabels)
 
 	// Check if we should rebroadcast, this may be disabled by a flag
-	rebroadcast := true
-	if query.NoBroadcast() {
-		rebroadcast = false
-	}
+	rebroadcast := !query.NoBroadcast()
 
 	// Filter the query
 	if !s.shouldProcessQuery(query.Filters) {
@@ -1664,7 +1654,7 @@ func (s *Serf) reconnect() {
 	s.memberLock.RUnlock()
 
 	// Attempt to join at the memberlist level
-	s.memberlist.Join([]string{joinAddr})
+	_, _ = s.memberlist.Join([]string{joinAddr})
 }
 
 // getQueueMax will get the maximum queue depth, which might be dynamic depending
@@ -1872,7 +1862,7 @@ func (s *Serf) writeKeyringFile() error {
 	}
 
 	// Use 0600 for permissions because key data is sensitive
-	if err = ioutil.WriteFile(s.config.KeyringFile, encodedKeys, 0600); err != nil {
+	if err = os.WriteFile(s.config.KeyringFile, encodedKeys, 0600); err != nil {
 		return fmt.Errorf("Failed to write keyring file: %s", err)
 	}
 

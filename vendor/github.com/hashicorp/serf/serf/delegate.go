@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package serf
@@ -108,7 +108,7 @@ func (d *delegate) NotifyMsg(buf []byte) {
 
 		// The remaining contents are the message itself, so forward that
 		raw := make([]byte, reader.Len())
-		reader.Read(raw)
+		_, _ = reader.Read(raw)
 
 		addr := memberlist.Address{
 			Addr: header.DestAddr.String(),

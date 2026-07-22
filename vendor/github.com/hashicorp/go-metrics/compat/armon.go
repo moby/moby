@@ -1,5 +1,7 @@
+// Copyright IBM Corp. 2013, 2025
+// SPDX-License-Identifier: MIT
+
 //go:build armonmetrics || ignore || !hashicorpmetrics
-// +build armonmetrics ignore !hashicorpmetrics
 
 package metrics
 
