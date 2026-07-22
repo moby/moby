@@ -164,6 +164,14 @@ type Config struct {
 	// the shared config profile attribute request_min_compression_size_bytes
 	RequestMinCompressSizeBytes int64
 
+	// DisableClockSkewCorrection turns off SDK clock skew correction. When set
+	// the SDK will not adjust request signing timestamps to compensate for
+	// drift between the client and service clocks. Set to false (enabled) by
+	// default. This variable is sourced from the environment variable
+	// AWS_DISABLE_CLOCK_SKEW_CORRECTION or the shared config profile attribute
+	// disable_clock_skew_correction.
+	DisableClockSkewCorrection bool
+
 	// Controls how a resolved AWS account ID is handled for endpoint routing.
 	AccountIDEndpointMode AccountIDEndpointMode
 

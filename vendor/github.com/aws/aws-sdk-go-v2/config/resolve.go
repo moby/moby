@@ -151,6 +151,18 @@ func resolveDisableRequestCompression(ctx context.Context, cfg *aws.Config, conf
 	return nil
 }
 
+// resolveDisableClockSkewCorrection extracts the DisableClockSkewCorrection from
+// the configs slice's SharedConfig or EnvConfig
+func resolveDisableClockSkewCorrection(ctx context.Context, cfg *aws.Config, configs configs) error {
+	disable, _, err := getDisableClockSkewCorrection(ctx, configs)
+	if err != nil {
+		return err
+	}
+
+	cfg.DisableClockSkewCorrection = disable
+	return nil
+}
+
 // resolveRequestMinCompressSizeBytes extracts the RequestMinCompressSizeBytes from the configs slice's
 // SharedConfig or EnvConfig
 func resolveRequestMinCompressSizeBytes(ctx context.Context, cfg *aws.Config, configs configs) error {

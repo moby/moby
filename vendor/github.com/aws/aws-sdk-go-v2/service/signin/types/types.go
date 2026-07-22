@@ -8,9 +8,7 @@ import (
 
 // AWS credentials structure containing temporary access credentials
 //
-// The scoped-down, 15 minute duration AWS credentials. Scoping down will be based
-// on CLI policy (CLI team needs to create it). Similar to cloud shell
-// implementation.
+// Scoped, temporary AWS credentials with a 15-minute duration.
 type AccessToken struct {
 
 	// AWS access key ID for temporary credentials
