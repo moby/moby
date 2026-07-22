@@ -8,48 +8,49 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Deletes a delivery destination policy. For more information about these
-// policies, see [PutDeliveryDestinationPolicy].
-//
-// [PutDeliveryDestinationPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliveryDestinationPolicy.html
-func (c *Client) DeleteDeliveryDestinationPolicy(ctx context.Context, params *DeleteDeliveryDestinationPolicyInput, optFns ...func(*Options)) (*DeleteDeliveryDestinationPolicyOutput, error) {
+// Deletes a syslog configuration for a log group. After deletion, syslog data is
+// no longer ingested through the specified VPC endpoint.
+func (c *Client) DeleteSyslogConfiguration(ctx context.Context, params *DeleteSyslogConfigurationInput, optFns ...func(*Options)) (*DeleteSyslogConfigurationOutput, error) {
 	if params == nil {
-		params = &DeleteDeliveryDestinationPolicyInput{}
+		params = &DeleteSyslogConfigurationInput{}
 	}
 
-	result, metadata, err := c.invokeOperation(ctx, "DeleteDeliveryDestinationPolicy", params, optFns, c.addOperationDeleteDeliveryDestinationPolicyMiddlewares)
+	result, metadata, err := c.invokeOperation(ctx, "DeleteSyslogConfiguration", params, optFns, c.addOperationDeleteSyslogConfigurationMiddlewares)
 	if err != nil {
 		return nil, err
 	}
 
-	out := result.(*DeleteDeliveryDestinationPolicyOutput)
+	out := result.(*DeleteSyslogConfigurationOutput)
 	out.ResultMetadata = metadata
 	return out, nil
 }
 
-type DeleteDeliveryDestinationPolicyInput struct {
+type DeleteSyslogConfigurationInput struct {
 
-	// The name of the delivery destination that you want to delete the policy for.
+	// The name or ARN of the log group to remove the syslog configuration from.
 	//
 	// This member is required.
-	DeliveryDestinationName *string
+	LogGroupIdentifier *string
+
+	// The ID of the VPC endpoint associated with the syslog configuration to delete.
+	VpcEndpointId *string
 
 	noSmithyDocumentSerde
 }
 
-type DeleteDeliveryDestinationPolicyOutput struct {
+type DeleteSyslogConfigurationOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
 
 	noSmithyDocumentSerde
 }
 
-func (c *Client) addOperationDeleteDeliveryDestinationPolicyMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDeleteDeliveryDestinationPolicy{}, middleware.After)
+func (c *Client) addOperationDeleteSyslogConfigurationMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDeleteSyslogConfiguration{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDeleteDeliveryDestinationPolicy{}, middleware.After)
+	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDeleteSyslogConfiguration{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -78,10 +79,10 @@ func (c *Client) addOperationDeleteDeliveryDestinationPolicyMiddlewares(stack *m
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
-	if err = addOpDeleteDeliveryDestinationPolicyValidationMiddleware(stack); err != nil {
+	if err = addOpDeleteSyslogConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "DeleteDeliveryDestinationPolicy"), middleware.Before); err != nil {
+	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "DeleteSyslogConfiguration"), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {

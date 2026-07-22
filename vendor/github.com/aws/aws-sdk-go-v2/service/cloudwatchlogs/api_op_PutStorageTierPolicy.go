@@ -9,36 +9,43 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Retrieves complete information about one delivery destination.
-func (c *Client) GetDeliveryDestination(ctx context.Context, params *GetDeliveryDestinationInput, optFns ...func(*Options)) (*GetDeliveryDestinationOutput, error) {
+// Sets the storage tier policy for your account. When you set the storage tier to
+// INTELLIGENT_TIERING , CloudWatch Logs automatically moves your log data between
+// storage tiers based on access patterns to optimize costs.
+func (c *Client) PutStorageTierPolicy(ctx context.Context, params *PutStorageTierPolicyInput, optFns ...func(*Options)) (*PutStorageTierPolicyOutput, error) {
 	if params == nil {
-		params = &GetDeliveryDestinationInput{}
+		params = &PutStorageTierPolicyInput{}
 	}
 
-	result, metadata, err := c.invokeOperation(ctx, "GetDeliveryDestination", params, optFns, c.addOperationGetDeliveryDestinationMiddlewares)
+	result, metadata, err := c.invokeOperation(ctx, "PutStorageTierPolicy", params, optFns, c.addOperationPutStorageTierPolicyMiddlewares)
 	if err != nil {
 		return nil, err
 	}
 
-	out := result.(*GetDeliveryDestinationOutput)
+	out := result.(*PutStorageTierPolicyOutput)
 	out.ResultMetadata = metadata
 	return out, nil
 }
 
-type GetDeliveryDestinationInput struct {
+type PutStorageTierPolicyInput struct {
 
-	// The name of the delivery destination that you want to retrieve.
+	// The storage tier to set for the account. Valid values are STANDARD and
+	// INTELLIGENT_TIERING .
 	//
 	// This member is required.
-	Name *string
+	StorageTier types.StorageTier
 
 	noSmithyDocumentSerde
 }
 
-type GetDeliveryDestinationOutput struct {
+type PutStorageTierPolicyOutput struct {
 
-	// A structure containing information about the delivery destination.
-	DeliveryDestination *types.DeliveryDestination
+	// The time when the storage tier policy was last updated, expressed as the number
+	// of milliseconds after Jan 1, 1970 00:00:00 UTC .
+	LastUpdatedTime *int64
+
+	// The storage tier that was set.
+	StorageTier types.StorageTier
 
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -46,12 +53,12 @@ type GetDeliveryDestinationOutput struct {
 	noSmithyDocumentSerde
 }
 
-func (c *Client) addOperationGetDeliveryDestinationMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpGetDeliveryDestination{}, middleware.After)
+func (c *Client) addOperationPutStorageTierPolicyMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutStorageTierPolicy{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpGetDeliveryDestination{}, middleware.After)
+	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutStorageTierPolicy{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -80,10 +87,10 @@ func (c *Client) addOperationGetDeliveryDestinationMiddlewares(stack *middleware
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
-	if err = addOpGetDeliveryDestinationValidationMiddleware(stack); err != nil {
+	if err = addOpPutStorageTierPolicyValidationMiddleware(stack); err != nil {
 		return err
 	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "GetDeliveryDestination"), middleware.Before); err != nil {
+	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "PutStorageTierPolicy"), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {

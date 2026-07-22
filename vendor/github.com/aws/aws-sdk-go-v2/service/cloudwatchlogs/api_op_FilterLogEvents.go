@@ -5,7 +5,6 @@ package cloudwatchlogs
 import (
 	"context"
 	"fmt"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -45,6 +44,9 @@ import (
 //
 // The returned log events are sorted by event timestamp, the timestamp when the
 // event was ingested by CloudWatch Logs, and the ID of the PutLogEvents request.
+// By default, the events are returned in ascending timestamp order (oldest first).
+// To return events in descending timestamp order (newest first), set the
+// startFromHead parameter to false .
 //
 // If you are using CloudWatch cross-account observability, you can use this
 // operation in a monitoring account and view data from the linked source accounts.
@@ -132,6 +134,20 @@ type FilterLogEventsInput struct {
 	// previous call.)
 	NextToken *string
 
+	// If the value is true, the earliest log events are returned first. If the value
+	// is false, the latest log events are returned first. The default value is true.
+	//
+	// The startFromHead parameter sets the sort direction on the first request. On
+	// subsequent requests, the nextToken determines the sort direction. To continue
+	// paginating in the same direction, provide the returned nextToken . If you
+	// provide both nextToken and startFromHead , the direction of the nextToken is
+	// used.
+	//
+	// Setting startFromHead to false is supported only when startTime is on or after
+	// Jan 1, 2024 00:00:00 UTC . A request with startFromHead set to false and a
+	// startTime before this date returns an InvalidParameterException .
+	StartFromHead *bool
+
 	// The start of the time range, expressed as the number of milliseconds after Jan
 	// 1, 1970 00:00:00 UTC . Events with a timestamp before this time are not returned.
 	StartTime *int64
@@ -151,8 +167,8 @@ type FilterLogEventsOutput struct {
 	// The matched events.
 	Events []types.FilteredLogEvent
 
-	// The token to use when requesting the next set of items. The token expires after
-	// 24 hours.
+	// The token for the next set of items in the sorting direction specified by the
+	// startFromHead parameter in the first request. The token expires after 24 hours.
 	//
 	// If the results don't include a nextToken , then pagination is finished.
 	NextToken *string
@@ -171,9 +187,6 @@ type FilterLogEventsOutput struct {
 }
 
 func (c *Client) addOperationFilterLogEventsMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
-		return err
-	}
 	err = stack.Serialize.Add(&awsAwsjson11_serializeOpFilterLogEvents{}, middleware.After)
 	if err != nil {
 		return err
@@ -182,17 +195,8 @@ func (c *Client) addOperationFilterLogEventsMiddlewares(stack *middleware.Stack,
 	if err != nil {
 		return err
 	}
-	if err := addProtocolFinalizerMiddlewares(stack, options, "FilterLogEvents"); err != nil {
-		return fmt.Errorf("add protocol finalizers: %v", err)
-	}
 
 	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addSetLoggerMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
 	if err = addComputeContentLength(stack); err != nil {
@@ -204,19 +208,7 @@ func (c *Client) addOperationFilterLogEventsMiddlewares(stack *middleware.Stack,
 	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetry(stack, options, c); err != nil {
-		return err
-	}
-	if err = addRawResponseToMetadata(stack); err != nil {
-		return err
-	}
 	if err = addRecordResponseTiming(stack); err != nil {
-		return err
-	}
-	if err = addSpanRetryLoop(stack, options); err != nil {
-		return err
-	}
-	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -225,19 +217,10 @@ func (c *Client) addOperationFilterLogEventsMiddlewares(stack *middleware.Stack,
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
-	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
-		return err
-	}
-	if err = addUserAgentRetryMode(stack, options); err != nil {
-		return err
-	}
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opFilterLogEvents(options.Region), middleware.Before); err != nil {
-		return err
-	}
-	if err = addRecursionDetection(stack); err != nil {
+	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "FilterLogEvents"), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -250,12 +233,6 @@ func (c *Client) addOperationFilterLogEventsMiddlewares(stack *middleware.Stack,
 		return err
 	}
 	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
 	if err = addInterceptors(stack, options); err != nil {
@@ -356,11 +333,3 @@ type FilterLogEventsAPIClient interface {
 }
 
 var _ FilterLogEventsAPIClient = (*Client)(nil)
-
-func newServiceMetadataMiddleware_opFilterLogEvents(region string) *awsmiddleware.RegisterServiceMetadata {
-	return &awsmiddleware.RegisterServiceMetadata{
-		Region:        region,
-		ServiceID:     ServiceID,
-		OperationName: "FilterLogEvents",
-	}
-}
