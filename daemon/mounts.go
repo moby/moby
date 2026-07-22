@@ -11,13 +11,13 @@ import (
 	volumesservice "github.com/moby/moby/v2/daemon/volume/service"
 )
 
-func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
-	container.Lock()
-	defer container.Unlock()
+func (daemon *Daemon) prepareMountPoints(ctr *container.Container) error {
+	ctr.Lock()
+	defer ctr.Unlock()
 
-	alive := container.State.Running
-	for _, config := range container.MountPoints {
-		if err := daemon.lazyInitializeVolume(container.ID, config); err != nil {
+	alive := ctr.State.Running
+	for _, config := range ctr.MountPoints {
+		if err := daemon.lazyInitializeVolume(ctr.ID, config); err != nil {
 			return err
 		}
 
@@ -37,7 +37,7 @@ func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
 		}
 		if alive {
 			log.G(context.TODO()).WithFields(log.Fields{
-				"container": container.ID,
+				"container": ctr.ID,
 				"volume":    config.Volume.Name(),
 			}).Debug("Live-restoring volume for alive container")
 			if err := config.LiveRestore(context.TODO()); err != nil {
@@ -48,15 +48,15 @@ func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool) error {
+func (daemon *Daemon) removeMountPoints(ctr *container.Container, rm bool) error {
 	var rmErrors []string
 	ctx := context.TODO()
-	for _, m := range container.MountPoints {
+	for _, m := range ctr.MountPoints {
 		if m.Type == mounttypes.TypeVolume {
 			if m.Volume == nil {
 				continue
 			}
-			daemon.volumes.Release(ctx, m.Volume.Name(), container.ID)
+			daemon.volumes.Release(ctx, m.Volume.Name(), ctr.ID)
 			if !rm {
 				continue
 			}
