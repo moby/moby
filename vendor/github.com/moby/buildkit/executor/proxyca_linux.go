@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
+	"io"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -29,6 +30,8 @@ var (
 	proxyCAEnd   = []byte("# buildkit proxy CA end\n")
 )
 
+const maxCertBundleBytes = 10 << 20
+
 // InjectProxyCA appends caPEM to the rootfs trust bundle used by common Linux
 // TLS stacks and returns a cleanup that removes only the injected CA.
 func InjectProxyCA(rootfsPath string, caPEM []byte) (func() error, error) {
@@ -47,7 +50,7 @@ func InjectProxyCA(rootfsPath string, caPEM []byte) (func() error, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to resolve certificate bundle %s", name)
 		}
-		if st, err := os.Stat(p); err == nil && !st.IsDir() {
+		if st, err := os.Stat(p); err == nil && st.Mode().IsRegular() {
 			bundle = p
 			break
 		}
@@ -56,16 +59,12 @@ func InjectProxyCA(rootfsPath string, caPEM []byte) (func() error, error) {
 		return func() error { return nil }, nil
 	}
 
-	original, err := os.ReadFile(bundle)
+	original, st, err := readCertBundle(bundle)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 	if containsCertificate(original, certSum) {
 		return func() error { return nil }, nil
-	}
-	st, err := os.Stat(bundle)
-	if err != nil {
-		return nil, errors.WithStack(err)
 	}
 	next := append([]byte{}, original...)
 	if len(next) > 0 && next[len(next)-1] != '\n' {
@@ -82,23 +81,45 @@ func InjectProxyCA(rootfsPath string, caPEM []byte) (func() error, error) {
 	}
 
 	return func() error {
-		current, err := os.ReadFile(bundle)
+		current, st, err := readCertBundle(bundle)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				return nil
 			}
-			return errors.WithStack(err)
+			return err
 		}
 		cleaned := removeInjectedCA(current, certSum)
 		if bytes.Equal(current, cleaned) {
 			return nil
 		}
-		st, err := os.Stat(bundle)
-		if err != nil {
-			return errors.WithStack(err)
-		}
 		return writeCertBundle(bundle, cleaned, st)
 	}, nil
+}
+
+func readCertBundle(path string) ([]byte, os.FileInfo, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, nil, errors.WithStack(err)
+	}
+	defer f.Close()
+
+	st, err := f.Stat()
+	if err != nil {
+		return nil, nil, errors.WithStack(err)
+	}
+	if !st.Mode().IsRegular() {
+		return nil, nil, errors.Errorf("%s is not a regular file", path)
+	}
+
+	limited := &io.LimitedReader{R: f, N: maxCertBundleBytes + 1}
+	dt, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, nil, errors.WithStack(err)
+	}
+	if limited.N == 0 {
+		return nil, nil, errors.Errorf("%s exceeds %d bytes", path, maxCertBundleBytes)
+	}
+	return dt, st, nil
 }
 
 func firstCertificate(dt []byte) (*x509.Certificate, error) {

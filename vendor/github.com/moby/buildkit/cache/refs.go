@@ -1508,12 +1508,12 @@ func (cr *cacheRecord) finalize(ctx context.Context) error {
 		ID:   cr.getSnapshotID(),
 		Type: "snapshots/" + cr.cm.Snapshotter.Name(),
 	}); err != nil {
-		cr.cm.LeaseManager.Delete(context.TODO(), leases.Lease{ID: cr.ID()})
+		_ = cr.cm.LeaseManager.Delete(context.WithoutCancel(ctx), leases.Lease{ID: cr.ID()})
 		return errors.Wrapf(err, "failed to add snapshot %s to lease", cr.getSnapshotID())
 	}
 
 	if err := cr.cm.Snapshotter.Commit(ctx, cr.getSnapshotID(), mutable.getSnapshotID()); err != nil {
-		cr.cm.LeaseManager.Delete(context.TODO(), leases.Lease{ID: cr.ID()})
+		_ = cr.cm.LeaseManager.Delete(context.WithoutCancel(ctx), leases.Lease{ID: cr.ID()})
 		return errors.Wrapf(err, "failed to commit %s to %s during finalize", mutable.getSnapshotID(), cr.getSnapshotID())
 	}
 	cr.mountCache = nil

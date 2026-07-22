@@ -34,7 +34,7 @@ const (
 // attestation.
 type Scanner func(ctx context.Context, name string, ref llb.State, extras map[string]llb.State, opts ...llb.ConstraintsOpt) (result.Attestation[*llb.State], error)
 
-func CreateSBOMScanner(ctx context.Context, resolver sourceresolver.MetaResolver, scanner string, resolveOpt sourceresolver.Opt, params map[string]string) (Scanner, error) {
+func CreateSBOMScanner(ctx context.Context, resolver sourceresolver.MetaResolver, scanner string, scannerPlatform ocispecs.Platform, resolveOpt sourceresolver.Opt, params map[string]string) (Scanner, error) {
 	if scanner == "" {
 		return nil, nil
 	}
@@ -83,8 +83,10 @@ func CreateSBOMScanner(ctx context.Context, resolver sourceresolver.MetaResolver
 			runOpts = append(runOpts, llb.AddEnv(k, v))
 		}
 
-		runscan := llb.Image(scanner).Run(runOpts...)
-		runscan.AddMount("/tmp", llb.Scratch(), llb.Tmpfs())
+		scannerImage := llb.Image(scanner, llb.Platform(scannerPlatform))
+		runscan := scannerImage.Run(runOpts...)
+		tmpState, tmpMountOpt := scannerTmpMount(scannerImage, scannerPlatform)
+		runscan.AddMount("/tmp", tmpState, tmpMountOpt...)
 
 		runscan.AddMount(path.Join(srcDir, "core", CoreSBOMName), ref, llb.Readonly)
 		for k, extra := range extras {
@@ -104,6 +106,16 @@ func CreateSBOMScanner(ctx context.Context, resolver sourceresolver.MetaResolver
 			},
 		}, nil
 	}, nil
+}
+
+func scannerTmpMount(scannerImage llb.State, platform ocispecs.Platform) (llb.State, []llb.MountOption) {
+	if platform.OS == "windows" {
+		return scannerImage.File(llb.Mkdir("/tmp", 0777, llb.WithParents(true))), []llb.MountOption{
+			llb.SourcePath("/tmp"),
+			llb.ForceNoOutput,
+		}
+	}
+	return llb.Scratch(), []llb.MountOption{llb.Tmpfs()}
 }
 
 func HasSBOM[T comparable](res *result.Result[T]) bool {

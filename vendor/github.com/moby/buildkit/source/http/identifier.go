@@ -42,6 +42,10 @@ type HeaderField struct {
 
 var _ source.Identifier = (*HTTPIdentifier)(nil)
 
+func (id *HTTPIdentifier) String() string {
+	return id.URL
+}
+
 func (id *HTTPIdentifier) Scheme() string {
 	if id.TLS {
 		return srctypes.HTTPSScheme

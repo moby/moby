@@ -24,6 +24,10 @@ func NewLocalIdentifier(str string) (*LocalIdentifier, error) {
 	return &LocalIdentifier{Name: str}, nil
 }
 
+func (id *LocalIdentifier) String() string {
+	return srctypes.LocalScheme + "://" + id.Name
+}
+
 func (*LocalIdentifier) Scheme() string {
 	return srctypes.LocalScheme
 }

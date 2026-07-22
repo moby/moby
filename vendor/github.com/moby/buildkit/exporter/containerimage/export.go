@@ -234,6 +234,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 	}
 	opts.Annotations = opts.Annotations.Merge(as)
 	opts.SetOCITypesDefault(DefaultOCITypes(buildInfo.CompatibilityVersion, src))
+	opts.SetOCIArtifactDefault(DefaultOCIArtifact(buildInfo.CompatibilityVersion, &opts))
 	if err := opts.Validate(); err != nil {
 		return nil, nil, nil, err
 	}
@@ -588,6 +589,11 @@ func DefaultOCITypes(compatibilityVersion int, src *exporter.Source) bool {
 		return true
 	}
 	return len(src.Attestations) > 0
+}
+
+// DefaultOCIArtifact returns the default attestation manifest format.
+func DefaultOCIArtifact(compatibilityVersion int, opts *ImageCommitOpts) bool {
+	return compatibilityVersion >= compat.CompatibilityVersion031 && opts.OCITypesEnabled()
 }
 
 func NewDescriptorReference(desc ocispecs.Descriptor, release func(context.Context) error) exporter.DescriptorReference {

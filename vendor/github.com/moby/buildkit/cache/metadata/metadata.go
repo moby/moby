@@ -41,7 +41,9 @@ func NewStore(dbPath string) (*Store, error) {
 			)
 		}
 	}
-	db, err := boltutil.Open(dbPath, 0600, nil)
+	db, err := boltutil.Open(dbPath, 0600, &bolt.Options{
+		FreelistType: bolt.FreelistMapType,
+	})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to open database file %s", dbPath)
 	}

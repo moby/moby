@@ -42,6 +42,10 @@ func NewImageBlobIdentifier(str string, scheme string) (*ImageBlobIdentifier, er
 
 var _ source.Identifier = (*ImageBlobIdentifier)(nil)
 
+func (id *ImageBlobIdentifier) String() string {
+	return id.Scheme() + "://" + id.Reference.String()
+}
+
 func (id *ImageBlobIdentifier) Scheme() string {
 	if id.SchemeName == "" {
 		return srctypes.DockerImageBlobScheme

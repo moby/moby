@@ -131,6 +131,12 @@ func (is *Source) registryIdentifier(ref string, attrs map[string]string, platfo
 				return nil, errors.Errorf("invalid layer limit %s", v)
 			}
 			id.LayerLimit = &l
+		case pb.AttrImageChecksum:
+			dgst, err := digest.Parse(v)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid image checksum %s", v)
+			}
+			id.Checksum = dgst
 		}
 	}
 
@@ -328,7 +334,7 @@ func (p *puller) resolveLocal() {
 			}
 		}
 
-		if p.src.ResolveMode == resolver.ResolveModeDefault || p.src.ResolveMode == resolver.ResolveModePreferLocal {
+		if p.src.Checksum == "" && (p.src.ResolveMode == resolver.ResolveModeDefault || p.src.ResolveMode == resolver.ResolveModePreferLocal) {
 			ref := p.src.Reference.String()
 			img, err := p.is.resolveLocal(ref)
 			if err == nil {
@@ -369,6 +375,10 @@ func (p *puller) resolve(ctx context.Context, jobCtx solver.JobContext) error {
 
 			p.desc = desc
 			p.ref = origRef
+		}
+
+		if p.src.Checksum != "" && p.desc.Digest != p.src.Checksum {
+			return struct{}{}, errors.Errorf("image digest %s for %s does not match expected checksum %s", p.desc.Digest, p.src.Reference.String(), p.src.Checksum)
 		}
 
 		// Schema 1 manifests cannot be resolved to an image config
