@@ -12,8 +12,10 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/idtools"
+	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	volumesservice "github.com/moby/moby/v2/daemon/volume/service"
 	"github.com/pkg/errors"
@@ -110,6 +112,123 @@ func TestGetContainer(t *testing.T) {
 	}
 }
 
+func TestMergeAndVerifyConfigSetsDefaultStopTimeout(t *testing.T) {
+	explicitStopTimeout := 7
+	testCases := []struct {
+		name     string
+		config   *containertypes.Config
+		expected int
+	}{
+		{
+			name:     "daemon default",
+			config:   &containertypes.Config{Cmd: []string{"true"}},
+			expected: 42,
+		},
+		{
+			name: "container override",
+			config: &containertypes.Config{
+				Cmd:         []string{"true"},
+				StopTimeout: &explicitStopTimeout,
+			},
+			expected: explicitStopTimeout,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			daemon := &Daemon{}
+			defaults := config.ContainerDefaults{DefaultStopTimeout: 42}
+			mergedConfig, err := daemon.mergeAndVerifyConfig(tc.config, nil, defaults)
+			assert.NilError(t, err)
+			assert.Assert(t, mergedConfig != tc.config)
+			assert.Assert(t, mergedConfig.StopTimeout != nil)
+			assert.Equal(t, *mergedConfig.StopTimeout, tc.expected)
+		})
+	}
+}
+
+func TestMergeAndVerifyConfigDoesNotMutateSource(t *testing.T) {
+	stopTimeout := 7
+	env := make([]string, 1, 2)
+	env[0] = "USER_ENV=1"
+	sourceConfig := &containertypes.Config{
+		ExposedPorts: network.PortSet{
+			network.MustParsePort("80/tcp"): {},
+		},
+		Env: env,
+		Cmd: []string{"true"},
+		Healthcheck: &containertypes.HealthConfig{
+			Retries: 1,
+		},
+		Volumes: map[string]struct{}{
+			"/user": {},
+		},
+		Labels: map[string]string{
+			"user": "label",
+		},
+		StopTimeout: &stopTimeout,
+	}
+	img := &image.Image{
+		V1Image: image.V1Image{
+			Config: &containertypes.Config{
+				ExposedPorts: network.PortSet{
+					network.MustParsePort("443/tcp"): {},
+				},
+				Env: []string{"IMAGE_ENV=1"},
+				Healthcheck: &containertypes.HealthConfig{
+					Test: []string{"CMD", "true"},
+				},
+				Volumes: map[string]struct{}{
+					"/image": {},
+				},
+				Labels: map[string]string{
+					"image": "label",
+				},
+			},
+		},
+	}
+
+	daemon := &Daemon{}
+	mergedConfig, err := daemon.mergeAndVerifyConfig(sourceConfig, img, config.ContainerDefaults{})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, sourceConfig, &containertypes.Config{
+		ExposedPorts: network.PortSet{
+			network.MustParsePort("80/tcp"): {},
+		},
+		Env: []string{"USER_ENV=1"},
+		Cmd: []string{"true"},
+		Healthcheck: &containertypes.HealthConfig{
+			Retries: 1,
+		},
+		Volumes: map[string]struct{}{
+			"/user": {},
+		},
+		Labels: map[string]string{
+			"user": "label",
+		},
+		StopTimeout: &stopTimeout,
+	})
+	assert.Equal(t, sourceConfig.Env[:2][1], "")
+	assert.DeepEqual(t, mergedConfig.ExposedPorts, network.PortSet{
+		network.MustParsePort("80/tcp"):  {},
+		network.MustParsePort("443/tcp"): {},
+	})
+	assert.DeepEqual(t, mergedConfig.Env, []string{"USER_ENV=1", "IMAGE_ENV=1"})
+	assert.DeepEqual(t, mergedConfig.Healthcheck, &containertypes.HealthConfig{
+		Test:    []string{"CMD", "true"},
+		Retries: 1,
+	})
+	assert.DeepEqual(t, mergedConfig.Volumes, map[string]struct{}{
+		"/user":  {},
+		"/image": {},
+	})
+	assert.DeepEqual(t, mergedConfig.Labels, map[string]string{
+		"user":  "label",
+		"image": "label",
+	})
+	assert.Assert(t, mergedConfig.StopTimeout != sourceConfig.StopTimeout)
+}
+
 func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 	var err error
 	daemon := &Daemon{
@@ -157,7 +276,7 @@ func TestContainerInitDNS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config := `{"State":{"Running":true,"Paused":false,"Restarting":false,"OOMKilled":false,"Dead":false,"Pid":2464,"ExitCode":0,
+	containerConfig := `{"State":{"Running":true,"Paused":false,"Restarting":false,"OOMKilled":false,"Dead":false,"Pid":2464,"ExitCode":0,
 "Error":"","StartedAt":"2015-05-26T16:48:53.869308965Z","FinishedAt":"0001-01-01T00:00:00Z"},
 "ID":"d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e","Created":"2015-05-26T16:48:53.7987917Z","Path":"top",
 "Args":[],"Config":{"Hostname":"d59df5276e7b","Domainname":"","User":"","Memory":0,"MemorySwap":0,"CpuShares":0,"Cpuset":"",
@@ -179,7 +298,7 @@ func TestContainerInitDNS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(configPath, []byte(config), 0o644); err != nil {
+	if err = os.WriteFile(configPath, []byte(containerConfig), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -201,10 +320,12 @@ func TestContainerInitDNS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c, err := daemon.load(containerID)
+	defaults := config.ContainerDefaults{DefaultStopTimeout: 42}
+	c, err := daemon.load(containerID, defaults)
 	if err != nil {
 		t.Fatal(err)
 	}
+	assert.Equal(t, *c.Config.StopTimeout, 42)
 
 	if c.HostConfig.DNS == nil {
 		t.Fatal("Expected container DNS to not be nil")

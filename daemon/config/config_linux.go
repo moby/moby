@@ -36,6 +36,8 @@ const (
 
 	// userlandProxyBinary is the name of the userland-proxy binary.
 	userlandProxyBinary = "docker-proxy"
+
+	defaultStopTimeout = 10
 )
 
 // BridgeConfig stores all the parameters for both the bridge driver and the default bridge network.

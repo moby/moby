@@ -184,6 +184,13 @@ type DNSConfig struct {
 	HostGatewayIPs []netip.Addr `json:"host-gateway-ips,omitempty"`
 }
 
+// ContainerDefaults defines default values assigned to new containers.
+type ContainerDefaults struct {
+	// DefaultStopTimeout is the timeout, in seconds, assigned to newly created
+	// containers that do not have a container-specific timeout set.
+	DefaultStopTimeout int `json:"default-stop-timeout,omitempty"`
+}
+
 // CommonConfig defines the configuration of a docker daemon which is
 // common across platforms.
 // It includes json tags to deserialize configuration from a file
@@ -254,6 +261,7 @@ type CommonConfig struct {
 	DaemonLogConfig         // DaemonLogConfig holds options for configuring the daemon's logging.
 	TLSOptions              // TLSOptions defines TLS configuration for the API server.
 	DNSConfig               // DNSConfig defines default DNS options for containers.
+	ContainerDefaults       // ContainerDefaults defines default values assigned to new containers.
 	LogConfig               // LogConfig defines default log configuration for containers.
 	BridgeConfig            // BridgeConfig holds bridge network specific configuration.
 	NetworkConfig           // NetworkConfig stores the daemon-wide networking configurations.
@@ -337,6 +345,9 @@ func New() (*Config, error) {
 	cfg := &Config{
 		CommonConfig: CommonConfig{
 			ShutdownTimeout: DefaultShutdownTimeout,
+			ContainerDefaults: ContainerDefaults{
+				DefaultStopTimeout: defaultStopTimeout,
+			},
 			LogConfig: LogConfig{
 				Type:   DefaultLogDriver,
 				Config: make(map[string]string),
@@ -471,9 +482,15 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 		return nil, err
 	}
 
+	defaultStopTimeout := fileConfig.DefaultStopTimeout
+	defaultStopTimeoutSet := fileConfig.IsValueSet("default-stop-timeout")
+
 	// merge flags configuration on top of the file configuration
 	if err := mergo.Merge(fileConfig, flagsConfig); err != nil {
 		return nil, err
+	}
+	if defaultStopTimeoutSet {
+		fileConfig.DefaultStopTimeout = defaultStopTimeout
 	}
 
 	// validate the merged fileConfig and flagsConfig
@@ -530,14 +547,13 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		return &config, nil // early return on empty config
 	}
 
+	var jsonConfig map[string]any
+	if err := json.Unmarshal(b, &jsonConfig); err != nil {
+		return nil, err
+	}
+	configSet := configValuesSet(jsonConfig)
+
 	if flags != nil {
-		var jsonConfig map[string]any
-		if err := json.Unmarshal(b, &jsonConfig); err != nil {
-			return nil, err
-		}
-
-		configSet := configValuesSet(jsonConfig)
-
 		if err := findConfigurationConflicts(configSet, flags); err != nil {
 			return nil, err
 		}
@@ -571,9 +587,8 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 				}
 			})
 		}
-
-		config.ValuesSet = configSet
 	}
+	config.ValuesSet = configSet
 
 	if err := json.Unmarshal(b, &config); err != nil {
 		return nil, err
@@ -741,6 +756,9 @@ func Validate(config *Config) error {
 	}
 	if config.MaxDownloadAttempts < 0 {
 		return errors.Errorf("invalid max download attempts: %d", config.MaxDownloadAttempts)
+	}
+	if config.DefaultStopTimeout < 0 {
+		return errors.Errorf("invalid default stop timeout: %d", config.DefaultStopTimeout)
 	}
 	if config.NetworkDiagnosticPort < 0 || config.NetworkDiagnosticPort > 65535 {
 		return errors.Errorf("invalid network-diagnostic-port (%d): value must be between 0 and 65535", config.NetworkDiagnosticPort)

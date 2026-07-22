@@ -306,5 +306,9 @@ func (s *DockerCLICreateSuite) TestCreateStopTimeout(c *testing.T) {
 	cli.DockerCmd(c, "create", "--name", name2, "busybox")
 
 	res = inspectFieldJSON(c, name2, "Config.StopTimeout")
-	assert.Assert(c, is.Contains(res, "null"))
+	expected := "10"
+	if testEnv.DaemonInfo.OSType == "windows" {
+		expected = "30"
+	}
+	assert.Equal(c, res, expected)
 }

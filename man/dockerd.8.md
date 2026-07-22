@@ -24,6 +24,7 @@ dockerd - Enable daemon mode
 [**--default-runtime**[=*runc*]]
 [**--default-ipc-mode**=*MODE*]
 [**--default-shm-size**[=*64MiB*]]
+[**--default-stop-timeout**[=*seconds*]]
 [**--default-ulimit**[=*[]*]]
 [**--dns**[=*[]*]]
 [**--dns-opt**[=*[]*]]
@@ -193,6 +194,12 @@ Bridge networks will accept packets with this firewall mark/mask.
 
 **--default-shm-size**=*size*
   Set the daemon-wide default shm *size* for containers. Default is `64MiB`.
+
+**--default-stop-timeout**=*seconds*
+  Set the timeout, in seconds, assigned to newly created containers without a
+  container-specific timeout. Default is **10** on non-Windows platforms and
+  **30** on Windows. A value of **0** does not wait before forcefully
+  terminating the container. Negative values are invalid.
 
 **--default-ulimit**=[]
   Default ulimits for containers.
