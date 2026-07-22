@@ -26,6 +26,8 @@ const (
 )
 
 func TestUserChain(t *testing.T) {
+	skip.If(t, iptables.UsingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")
+
 	const testName = "TestUserChain"
 	iptable4 := iptables.GetIptable(iptables.IPv4)
 	iptable6 := iptables.GetIptable(iptables.IPv6)
@@ -87,7 +89,7 @@ func TestUserChain(t *testing.T) {
 				golden.Assert(t, getRules(t, iptable6, bridge.DockerForwardChain),
 					fmt.Sprintf("%s/iptables-%v_append-%v_dockerfwdinit6.golden", testName, tc.iptables, tc.append))
 			} else {
-				assert.Check(t, !iptables.GetIptable(iptables.IPv4).ExistChain(bridge.DockerForwardChain, fwdChainName),
+				assert.Check(t, !iptables.GetIptable(iptables.IPv4).ExistChain(bridge.DockerForwardChain, iptables.Filter),
 					"Chain %s should not exist", bridge.DockerForwardChain)
 			}
 
@@ -109,7 +111,7 @@ func TestUserChain(t *testing.T) {
 				golden.Assert(t, getRules(t, iptable6, bridge.DockerForwardChain),
 					fmt.Sprintf("%s/iptables-%v_append-%v_dockerfwdafter6.golden", testName, tc.iptables, tc.append))
 			} else {
-				assert.Check(t, !iptables.GetIptable(iptables.IPv4).ExistChain(bridge.DockerForwardChain, fwdChainName),
+				assert.Check(t, !iptables.GetIptable(iptables.IPv4).ExistChain(bridge.DockerForwardChain, iptables.Filter),
 					"Chain %s should not exist", bridge.DockerForwardChain)
 			}
 
