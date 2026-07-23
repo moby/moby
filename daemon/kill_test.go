@@ -20,6 +20,22 @@ type notFoundKillTask struct {
 	deleteCalled chan struct{}
 }
 
+type killContextKey struct{}
+
+type contextKillTask struct {
+	libcontainerdtypes.Task
+	killContext chan context.Context
+}
+
+func (t *contextKillTask) Pid() uint32 {
+	return 1
+}
+
+func (t *contextKillTask) Kill(ctx context.Context, _ syscall.Signal) error {
+	t.killContext <- ctx
+	return nil
+}
+
 func (t *notFoundKillTask) Pid() uint32 {
 	return 1
 }
@@ -49,7 +65,7 @@ func TestKillWithSignalWaitsIndefinitelyForDelayedExit(t *testing.T) {
 		shutdown:      true,
 	}
 
-	err := daemon.killWithSignal(ctr, syscall.SIGKILL)
+	err := daemon.killWithSignal(t.Context(), ctr, syscall.SIGKILL)
 	assert.NilError(t, err)
 
 	select {
@@ -61,4 +77,31 @@ func TestKillWithSignalWaitsIndefinitelyForDelayedExit(t *testing.T) {
 	ctr.Lock()
 	ctr.State.SetStopped(&container.ExitStatus{})
 	ctr.Unlock()
+}
+
+func TestKillWithSignalDetachesContext(t *testing.T) {
+	task := &contextKillTask{killContext: make(chan context.Context, 1)}
+	ctr := container.NewBaseContainer(t.Name(), t.TempDir())
+	ctr.Config = &containertypes.Config{}
+	ctr.HostConfig = &containertypes.HostConfig{}
+	ctr.Lock()
+	ctr.State.SetRunning(nil, task, time.Now())
+	ctr.Unlock()
+
+	daemon := &Daemon{
+		EventsService: events.New(),
+		shutdown:      true,
+	}
+
+	const contextValue = "value"
+	ctx := context.WithValue(t.Context(), killContextKey{}, contextValue)
+	ctx, cancel := context.WithCancel(ctx)
+	cancel()
+
+	err := daemon.killWithSignal(ctx, ctr, syscall.SIGKILL)
+	assert.NilError(t, err)
+
+	killCtx := <-task.killContext
+	assert.NilError(t, killCtx.Err())
+	assert.Equal(t, killCtx.Value(killContextKey{}), contextValue)
 }

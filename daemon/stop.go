@@ -82,7 +82,7 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 	}()
 
 	// 1. Send a stop signal
-	err := daemon.killPossiblyDeadProcess(ctr, stopSignal)
+	err := daemon.killPossiblyDeadProcess(ctx, ctr, stopSignal)
 	if err != nil {
 		wait = 2 * time.Second
 	}
@@ -114,7 +114,7 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 	log.G(ctx).WithField("container", ctr.ID).Infof("Container failed to exit within %s of signal %d - using the force", wait, stopSignal)
 
 	// Stop either failed or container didn't exit, so fallback to kill.
-	if err := daemon.Kill(ctr); err != nil {
+	if err := daemon.kill(ctx, ctr); err != nil {
 		// got a kill error, but give container 2 more seconds to exit just in case
 		subCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
