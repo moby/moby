@@ -122,8 +122,8 @@ func (a *Allocator) Run(ctx context.Context) error {
 			wg.Add(1)
 			go func(watch <-chan events.Event, watchCancel func()) {
 				defer func() {
-					wg.Done()
 					watchCancel()
+					wg.Done()
 				}()
 				a.run(ctx, *aaPtr, watch)
 			}(watch, watchCancel)
