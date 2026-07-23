@@ -69,6 +69,8 @@ func (l *lineReader) Read(p []byte) (n int, err error) {
 	if isPrefix {
 		return 0, ArmorCorrupt
 	}
+	// Trim the line to remove any whitespace
+	line = bytes.TrimSpace(line)
 
 	if bytes.HasPrefix(line, armorEnd) {
 		l.eof = true

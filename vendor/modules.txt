@@ -146,8 +146,8 @@ github.com/Microsoft/hcsshim/internal/winapi/cimwriter
 github.com/Microsoft/hcsshim/internal/winapi/types
 github.com/Microsoft/hcsshim/osversion
 github.com/Microsoft/hcsshim/pkg/ociwclayer
-# github.com/ProtonMail/go-crypto v1.3.0
-## explicit; go 1.22.0
+# github.com/ProtonMail/go-crypto v1.4.1
+## explicit; go 1.23.0
 github.com/ProtonMail/go-crypto/bitcurves
 github.com/ProtonMail/go-crypto/brainpool
 github.com/ProtonMail/go-crypto/eax
