@@ -1,3 +1,29 @@
+# v1.79.1 (2026-07-13)
+
+* No change notes available for this release.
+
+# v1.79.0 (2026-07-06)
+
+* **Feature**: Add request serialization snapshot tests.
+* **Feature**: Added PutStorageTierPolicy and GetStorageTierPolicy APIs to Amazon CloudWatch Logs. Customers can now configure account-level Intelligent Tiering to automatically optimize log storage costs by moving infrequently accessed data to lower-cost storage tiers.
+
+# v1.78.2 (2026-07-01)
+
+* **Bug Fix**: Bump smithy-go to 1.27.3, fix JSON encorder for document.Number, endpoint host label format validation and CBOR union serialization on new serde
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.78.1 (2026-06-29)
+
+* No change notes available for this release.
+
+# v1.78.0 (2026-06-22)
+
+* **Feature**: CloudWatch Logs Updates - New APIs introduced to support syslog ingestion to a log group. For more information, see CloudWatch Logs API documentation.
+
+# v1.77.0 (2026-06-18)
+
+* **Feature**: Added optional startFromHead parameter to FilterLogEvents enabling descending timestamp order (newest first) when set to false. Default true preserves existing ascending order. Reverse sorting requires a startTime on or after Jan 1, 2024.
+
 # v1.76.0 (2026-06-15)
 
 * **Feature**: Added endTimeOffset parameter to Scheduled Queries APIs (Create, Update, Get) enabling bounded time window configuration. Introduced scheduleType filter (CUSTOMER MANAGED, AWS MANAGED) for ListScheduledQueries and exposed it in Get and Update responses.

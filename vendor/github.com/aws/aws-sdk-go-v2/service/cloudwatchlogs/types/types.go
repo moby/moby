@@ -3057,6 +3057,25 @@ type SuppressionPeriod struct {
 	noSmithyDocumentSerde
 }
 
+// Contains information about a syslog configuration associated with a log group.
+type SyslogConfiguration struct {
+
+	// The time when the syslog configuration was created, expressed as the number of
+	// milliseconds after Jan 1, 1970 00:00:00 UTC .
+	CreatedAt *int64
+
+	// The ARN of the log group associated with this syslog configuration.
+	LogGroupArn *string
+
+	// The source type for the syslog configuration.
+	SourceType SyslogSourceType
+
+	// The ID of the VPC endpoint used for syslog ingestion.
+	VpcEndpointId *string
+
+	noSmithyDocumentSerde
+}
+
 // A tag filter that specifies a tag key and optional tag values for filtering log
 // groups by tags.
 type TagFilter struct {

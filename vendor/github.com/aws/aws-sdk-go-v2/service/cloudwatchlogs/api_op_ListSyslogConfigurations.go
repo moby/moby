@@ -9,52 +9,48 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Lists and describes import tasks, with optional filtering by import status and
-// source ARN.
-func (c *Client) DescribeImportTasks(ctx context.Context, params *DescribeImportTasksInput, optFns ...func(*Options)) (*DescribeImportTasksOutput, error) {
+// Returns a list of syslog configurations. You can optionally filter the results
+// by log group or VPC endpoint.
+func (c *Client) ListSyslogConfigurations(ctx context.Context, params *ListSyslogConfigurationsInput, optFns ...func(*Options)) (*ListSyslogConfigurationsOutput, error) {
 	if params == nil {
-		params = &DescribeImportTasksInput{}
+		params = &ListSyslogConfigurationsInput{}
 	}
 
-	result, metadata, err := c.invokeOperation(ctx, "DescribeImportTasks", params, optFns, c.addOperationDescribeImportTasksMiddlewares)
+	result, metadata, err := c.invokeOperation(ctx, "ListSyslogConfigurations", params, optFns, c.addOperationListSyslogConfigurationsMiddlewares)
 	if err != nil {
 		return nil, err
 	}
 
-	out := result.(*DescribeImportTasksOutput)
+	out := result.(*ListSyslogConfigurationsOutput)
 	out.ResultMetadata = metadata
 	return out, nil
 }
 
-type DescribeImportTasksInput struct {
+type ListSyslogConfigurationsInput struct {
 
-	// Optional filter to describe a specific import task by its ID.
-	ImportId *string
+	// The name or ARN of the log group to filter syslog configurations for.
+	LogGroupIdentifier *string
 
-	// Optional filter to list imports from a specific source
-	ImportSourceArn *string
+	// The maximum number of syslog configurations to return in the response.
+	MaxResults int32
 
-	// Optional filter to list imports by their status. Valid values are IN_PROGRESS,
-	// CANCELLED, COMPLETED and FAILED.
-	ImportStatus types.ImportStatus
-
-	// The maximum number of import tasks to return in the response. Default: 50
-	Limit *int32
-
-	// The pagination token for the next set of results.
+	// The token for the next set of items to return. You received this token from a
+	// previous call.
 	NextToken *string
+
+	// The ID of the VPC endpoint to filter syslog configurations for.
+	VpcEndpointId *string
 
 	noSmithyDocumentSerde
 }
 
-type DescribeImportTasksOutput struct {
+type ListSyslogConfigurationsOutput struct {
 
-	// The list of import tasks that match the request filters.
-	Imports []types.Import
-
-	// The token to use when requesting the next set of results. Not present if there
-	// are no additional results to retrieve.
+	// The token for the next set of items to return. The token expires after 24 hours.
 	NextToken *string
+
+	// The list of syslog configurations.
+	SyslogConfigurations []types.SyslogConfiguration
 
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -62,12 +58,12 @@ type DescribeImportTasksOutput struct {
 	noSmithyDocumentSerde
 }
 
-func (c *Client) addOperationDescribeImportTasksMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeImportTasks{}, middleware.After)
+func (c *Client) addOperationListSyslogConfigurationsMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	err = stack.Serialize.Add(&awsAwsjson11_serializeOpListSyslogConfigurations{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeImportTasks{}, middleware.After)
+	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpListSyslogConfigurations{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -96,7 +92,7 @@ func (c *Client) addOperationDescribeImportTasksMiddlewares(stack *middleware.St
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "DescribeImportTasks"), middleware.Before); err != nil {
+	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "ListSyslogConfigurations"), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {

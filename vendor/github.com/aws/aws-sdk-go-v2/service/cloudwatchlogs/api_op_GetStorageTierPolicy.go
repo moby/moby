@@ -4,52 +4,52 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Deletes a delivery destination policy. For more information about these
-// policies, see [PutDeliveryDestinationPolicy].
-//
-// [PutDeliveryDestinationPolicy]: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutDeliveryDestinationPolicy.html
-func (c *Client) DeleteDeliveryDestinationPolicy(ctx context.Context, params *DeleteDeliveryDestinationPolicyInput, optFns ...func(*Options)) (*DeleteDeliveryDestinationPolicyOutput, error) {
+// Returns the storage tier policy for your account.
+func (c *Client) GetStorageTierPolicy(ctx context.Context, params *GetStorageTierPolicyInput, optFns ...func(*Options)) (*GetStorageTierPolicyOutput, error) {
 	if params == nil {
-		params = &DeleteDeliveryDestinationPolicyInput{}
+		params = &GetStorageTierPolicyInput{}
 	}
 
-	result, metadata, err := c.invokeOperation(ctx, "DeleteDeliveryDestinationPolicy", params, optFns, c.addOperationDeleteDeliveryDestinationPolicyMiddlewares)
+	result, metadata, err := c.invokeOperation(ctx, "GetStorageTierPolicy", params, optFns, c.addOperationGetStorageTierPolicyMiddlewares)
 	if err != nil {
 		return nil, err
 	}
 
-	out := result.(*DeleteDeliveryDestinationPolicyOutput)
+	out := result.(*GetStorageTierPolicyOutput)
 	out.ResultMetadata = metadata
 	return out, nil
 }
 
-type DeleteDeliveryDestinationPolicyInput struct {
-
-	// The name of the delivery destination that you want to delete the policy for.
-	//
-	// This member is required.
-	DeliveryDestinationName *string
-
+type GetStorageTierPolicyInput struct {
 	noSmithyDocumentSerde
 }
 
-type DeleteDeliveryDestinationPolicyOutput struct {
+type GetStorageTierPolicyOutput struct {
+
+	// The time when the storage tier policy was last updated, expressed as the number
+	// of milliseconds after Jan 1, 1970 00:00:00 UTC .
+	LastUpdatedTime *int64
+
+	// The current storage tier for the account.
+	StorageTier types.StorageTier
+
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
 
 	noSmithyDocumentSerde
 }
 
-func (c *Client) addOperationDeleteDeliveryDestinationPolicyMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDeleteDeliveryDestinationPolicy{}, middleware.After)
+func (c *Client) addOperationGetStorageTierPolicyMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	err = stack.Serialize.Add(&awsAwsjson11_serializeOpGetStorageTierPolicy{}, middleware.After)
 	if err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDeleteDeliveryDestinationPolicy{}, middleware.After)
+	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpGetStorageTierPolicy{}, middleware.After)
 	if err != nil {
 		return err
 	}
@@ -78,10 +78,7 @@ func (c *Client) addOperationDeleteDeliveryDestinationPolicyMiddlewares(stack *m
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
-	if err = addOpDeleteDeliveryDestinationPolicyValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "DeleteDeliveryDestinationPolicy"), middleware.Before); err != nil {
+	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "GetStorageTierPolicy"), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
