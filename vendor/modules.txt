@@ -1357,7 +1357,7 @@ github.com/munnerz/goautoneg
 # github.com/oklog/ulid/v2 v2.1.1
 ## explicit; go 1.15
 github.com/oklog/ulid/v2
-# github.com/opencontainers/cgroups v0.0.7
+# github.com/opencontainers/cgroups v0.0.8
 ## explicit; go 1.24.0
 github.com/opencontainers/cgroups
 github.com/opencontainers/cgroups/devices/config
