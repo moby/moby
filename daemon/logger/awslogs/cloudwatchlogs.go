@@ -79,6 +79,7 @@ type logStream struct {
 
 	messages *loggerutils.MessageQueue
 	closed   atomic.Bool
+	closedCh chan struct{}
 
 	sequenceToken *string
 }
@@ -150,6 +151,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		multilinePattern:   containerStreamConfig.multilinePattern,
 		client:             client,
 		messages:           loggerutils.NewMessageQueue(containerStreamConfig.maxBufferedEvents),
+		closedCh:           make(chan struct{}),
 	}
 
 	creationDone := make(chan bool)
@@ -157,21 +159,30 @@ func New(info logger.Info) (logger.Logger, error) {
 		const maxBackoff = 32
 		go func() {
 			backoff := 1
-			// We're done when the logger is closed
-			for !containerStream.closed.Load() {
+			for {
 				if err := containerStream.create(); err == nil {
 					break
 				}
 
-				time.Sleep(time.Duration(backoff) * time.Second)
-				if backoff < maxBackoff {
-					backoff *= 2
-				}
 				log.G(context.TODO()).WithFields(log.Fields{
 					"error":          err,
 					"container-id":   info.ContainerID,
 					"container-name": info.ContainerName,
 				}).Error("Error while trying to initialize awslogs. Retrying in: ", backoff, " seconds")
+
+				// Wait for backoff duration or shutdown signal.
+				timer := time.NewTimer(time.Duration(backoff) * time.Second)
+				select {
+				case <-timer.C:
+				case <-containerStream.closedCh:
+					timer.Stop()
+					close(creationDone)
+					return
+				}
+
+				if backoff < maxBackoff {
+					backoff *= 2
+				}
 			}
 			close(creationDone)
 		}()
@@ -432,6 +443,7 @@ func (l *logStream) Log(msg *logger.Message) error {
 func (l *logStream) Close() error {
 	l.closed.Store(true)
 	l.messages.Close()
+	close(l.closedCh)
 	return nil
 }
 
@@ -538,8 +550,15 @@ var newTicker = func(freq time.Duration) *time.Ticker {
 // Logs, the processEvents method is called.  If a multiline pattern is not
 // configured, log events are submitted to the processEvents method immediately.
 func (l *logStream) collectBatch(created chan bool) {
-	// Wait for the logstream/group to be created
-	<-created
+	// Start draining the queue before init completes to avoid deadlock.
+	var ready bool
+	select {
+	case <-created:
+		ready = true
+		created = nil
+	default:
+	}
+
 	flushInterval := l.forceFlushInterval
 	if flushInterval <= 0 {
 		flushInterval = defaultForceFlushInterval
@@ -552,6 +571,9 @@ func (l *logStream) collectBatch(created chan bool) {
 	chLogs := l.messages.Receiver()
 	for {
 		select {
+		case <-created:
+			ready = true
+			created = nil
 		case t := <-ticker.C:
 			// If event buffer is older than batch publish frequency flush the event buffer
 			if eventBufferTimestamp > 0 && len(eventBuffer) > 0 {
@@ -563,13 +585,17 @@ func (l *logStream) collectBatch(created chan bool) {
 					eventBuffer = eventBuffer[:0]
 				}
 			}
-			l.publishBatch(batch)
-			batch.reset()
+			if ready {
+				l.publishBatch(batch)
+				batch.reset()
+			}
 		case msg, more := <-chLogs:
 			if !more {
 				// Flush event buffer and release resources
 				l.processEvent(batch, eventBuffer, eventBufferTimestamp)
-				l.publishBatch(batch)
+				if ready {
+					l.publishBatch(batch)
+				}
 				batch.reset()
 				return
 			}
