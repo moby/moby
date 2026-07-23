@@ -12,7 +12,7 @@
 package hcsschema
 
 type Topology struct {
-	Memory        *VirtualMachineMemory                `json:"Memory,omitempty"`
-	Processor     *VirtualMachineProcessor             `json:"Processor,omitempty"`
-	Numa          *Numa                                `json:"Numa,omitempty"`
+	Memory    *VirtualMachineMemory    `json:"Memory,omitempty"`
+	Processor *VirtualMachineProcessor `json:"Processor,omitempty"`
+	Numa      *Numa                    `json:"Numa,omitempty"`
 }

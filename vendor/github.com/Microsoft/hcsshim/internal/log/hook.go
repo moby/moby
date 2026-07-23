@@ -107,8 +107,8 @@ func (h *Hook) encode(e *logrus.Entry) {
 
 		switch vv := v.(type) {
 		// built in types
-		// "json" marshals errors as "{}", so leave alone here
-		case bool, string, error, uintptr,
+		case bool, string, uintptr,
+			error, // "json" marshals errors as "{}", so leave alone here
 			int8, int16, int32, int64, int,
 			uint8, uint32, uint64, uint,
 			float32, float64:

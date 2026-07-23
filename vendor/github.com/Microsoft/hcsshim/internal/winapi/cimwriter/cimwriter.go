@@ -3,7 +3,9 @@
 package cimwriter
 
 import (
+	"fmt"
 	"sync"
+	"unsafe"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
@@ -53,7 +55,12 @@ var load = sync.OnceValue(func() error {
 	var buf [windows.MAX_PATH]uint16
 	n, _ := windows.GetModuleFileName(windows.Handle(modcimwriter.Handle()), &buf[0], uint32(len(buf)))
 	if n > 0 {
-		logrus.WithField("path", windows.UTF16ToString(buf[:n])).Info("loaded cimwriter.dll")
+		path := windows.UTF16ToString(buf[:n])
+		fields := logrus.Fields{"path": path}
+		if ver, err := getFileVersion(path); err == nil {
+			fields["version"] = ver
+		}
+		logrus.WithFields(fields).Info("loaded cimwriter.dll")
 	}
 	return nil
 })
@@ -61,4 +68,32 @@ var load = sync.OnceValue(func() error {
 // Supported checks if cimwriter.dll is present on the system.
 func Supported() bool {
 	return load() == nil
+}
+
+// getFileVersion returns the file version string (e.g. "10.0.26100.1") for the given path.
+func getFileVersion(path string) (string, error) {
+	size, err := windows.GetFileVersionInfoSize(path, nil)
+	if err != nil {
+		return "", err
+	}
+	data := make([]byte, size)
+	if err := windows.GetFileVersionInfo(path, 0, size, unsafe.Pointer(&data[0])); err != nil {
+		return "", err
+	}
+	var info *windows.VS_FIXEDFILEINFO
+	var infoLen uint32
+	if err := windows.VerQueryValue(unsafe.Pointer(&data[0]), `\`, unsafe.Pointer(&info), &infoLen); err != nil {
+		return "", err
+	}
+	return formatFileVersion(info), nil
+}
+
+// formatFileVersion formats the file version from a VS_FIXEDFILEINFO as "major.minor.build.revision".
+// See https://learn.microsoft.com/en-us/windows/win32/api/verrsrc/ns-verrsrc-vs_fixedfileinfo
+func formatFileVersion(info *windows.VS_FIXEDFILEINFO) string {
+	major := info.FileVersionMS >> 16
+	minor := info.FileVersionMS & 0xffff
+	build := info.FileVersionLS >> 16
+	revision := info.FileVersionLS & 0xffff
+	return fmt.Sprintf("%d.%d.%d.%d", major, minor, build, revision)
 }

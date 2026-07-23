@@ -28,11 +28,22 @@ type JobObject struct {
 	handleLock sync.RWMutex
 }
 
+// GroupAffinity specifies a processor group and an affinity mask within that group.
+// It corresponds to the Win32 GROUP_AFFINITY structure and is used for multi-group
+// CPU affinity on machines with more than 64 logical processors (WS2022+).
+type GroupAffinity struct {
+	// Mask is the bitmask of processors within Group.
+	Mask uint64
+	// Group is the processor group number (0-based).
+	Group uint16
+}
+
 // JobLimits represents the resource constraints that can be applied to a job object.
 type JobLimits struct {
 	CPULimit           uint32
 	CPUWeight          uint32
-	CPUAffinity        uint64
+	CPUAffinity        uint64          // legacy single-group (group 0) affinity mask; use GroupAffinities when non-empty
+	GroupAffinities    []GroupAffinity // multi-processor-group affinity (WS2022+); takes precedence over CPUAffinity
 	MemoryLimitInBytes uint64
 	MaxIOPS            int64
 	MaxBandwidth       int64

@@ -4,6 +4,11 @@
 *.so
 *.dylib
 
+# manifest related generated files
+*.syso
+manifest.xml
+*.exe.manifest
+
 # Ignore vscode setting files
 .vscode/
 .idea/
@@ -51,3 +56,5 @@ go.work.sum
 # keys and related artifacts
 *.pem
 *.cose
+
+rust/target/

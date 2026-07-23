@@ -15,15 +15,18 @@ package hcsschema
 type VirtualMachine struct {
 	Version *Version `json:"Version,omitempty"`
 	// When set to true, the virtual machine will treat a reset as a stop, releasing resources and cleaning up state.
-	StopOnReset     bool             `json:"StopOnReset,omitempty"`
-	Chipset         *Chipset         `json:"Chipset,omitempty"`
-	ComputeTopology *Topology        `json:"ComputeTopology,omitempty"`
-	Devices         *Devices         `json:"Devices,omitempty"`
-	GuestState      *GuestState      `json:"GuestState,omitempty"`
-	RestoreState    *RestoreState    `json:"RestoreState,omitempty"`
-	RegistryChanges *RegistryChanges `json:"RegistryChanges,omitempty"`
-	StorageQoS      *StorageQoS      `json:"StorageQoS,omitempty"`
-	DebugOptions    *DebugOptions    `json:"DebugOptions,omitempty"`
-	GuestConnection *GuestConnection `json:"GuestConnection,omitempty"`
-	SecuritySettings  *SecuritySettings `json:"SecuritySettings,omitempty"`
+	StopOnReset      bool              `json:"StopOnReset,omitempty"`
+	Chipset          *Chipset          `json:"Chipset,omitempty"`
+	ComputeTopology  *Topology         `json:"ComputeTopology,omitempty"`
+	Devices          *Devices          `json:"Devices,omitempty"`
+	GuestState       *GuestState       `json:"GuestState,omitempty"`
+	RestoreState     *RestoreState     `json:"RestoreState,omitempty"`
+	RegistryChanges  *RegistryChanges  `json:"RegistryChanges,omitempty"`
+	StorageQoS       *StorageQoS       `json:"StorageQoS,omitempty"`
+	DebugOptions     *DebugOptions     `json:"DebugOptions,omitempty"`
+	GuestConnection  *GuestConnection  `json:"GuestConnection,omitempty"`
+	SecuritySettings  *SecuritySettings  `json:"SecuritySettings,omitempty"`
+	ResourcePartitionId string            `json:"ResourcePartitionId,omitempty"`
+	// Live migration options to be used on destination.
+	MigrationOptions *MigrationInitializeOptions `json:"MigrationOptions,omitempty"`
 }

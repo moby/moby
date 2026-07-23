@@ -9,7 +9,7 @@
 
 package hcsschema
 
-//  Memory runtime statistics
+// Memory runtime statistics
 type MemoryStats struct {
 	MemoryUsageCommitBytes uint64 `json:"MemoryUsageCommitBytes,omitempty"`
 

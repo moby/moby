@@ -191,7 +191,7 @@ func GetComputeSystems(ctx context.Context, q schema1.ComputeSystemQuery) ([]sch
 	return computeSystems, nil
 }
 
-// Start synchronously starts the computeSystem.
+// Start synchronously starts the computeSystem using HCS V1 API.
 func (computeSystem *System) Start(ctx context.Context) (err error) {
 	operation := "hcs::System::Start"
 
@@ -379,6 +379,20 @@ func (computeSystem *System) Properties(ctx context.Context, types ...schema1.Pr
 	return properties, nil
 }
 
+// openSilo opens the container's server silo job object by its well-known name
+// (`\Container_<id>`). HCS owns the silo; the only way to open it from the shim is
+// by name, and only while running as SYSTEM. The caller owns the returned handle and
+// must Close it.
+//
+// In the future we can make use of some new functionality in HCS that allows you to
+// pass a job object for HCS to use for the container.
+func (computeSystem *System) openSilo(ctx context.Context) (*jobobject.JobObject, error) {
+	return jobobject.Open(ctx, &jobobject.Options{
+		UseNTVariant: true,
+		Name:         siloNameFmt(computeSystem.id),
+	})
+}
+
 // queryInProc handles querying for container properties without reaching out to HCS. `props`
 // will be updated to contain any data returned from the queries present in `types`. If any properties
 // failed to be queried they will be tallied up and returned in as the first return value. Failures on
@@ -389,14 +403,7 @@ func (computeSystem *System) queryInProc(
 	props *hcsschema.Properties,
 	types []hcsschema.PropertyType,
 ) ([]hcsschema.PropertyType, error) {
-	// In the future we can make use of some new functionality in the HCS that allows you
-	// to pass a job object for HCS to use for the container. Currently, the only way we'll
-	// be able to open the job/silo is if we're running as SYSTEM.
-	jobOptions := &jobobject.Options{
-		UseNTVariant: true,
-		Name:         siloNameFmt(computeSystem.id),
-	}
-	job, err := jobobject.Open(ctx, jobOptions)
+	job, err := computeSystem.openSilo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -490,6 +497,48 @@ func (computeSystem *System) statisticsInProc(job *jobobject.JobObject) (*hcssch
 	}, nil
 }
 
+// SetCPUGroupAffinities pins the container's server silo to the given processor
+// group affinities. HCS does not expose a CPU-affinity field on the container Processor
+// schema, so for process-isolated (Argon) containers we set the affinity directly on the
+// silo's job object via SetInformationJobObject(JobObjectGroupInformationEx).
+//
+// HCS owns the silo; we only open a transient handle (by the silo's well-known job name,
+// the same handle queryInProc opens) to record the affinity property. The kernel enforces
+// it on every process that joins the silo via AssignProcessToJobObject — including the init
+// process at Start and any descendants it spawns.
+//
+// This must be called after the compute system is created but before it is started, so the
+// affinity is already recorded on the job when HCS assigns the init process. Applying it to
+// an already-running silo is also safe: the kernel re-applies the mask to current members and
+// migrates threads at the next scheduling dispatch.
+//
+// It implements the cow.Container interface.
+func (computeSystem *System) SetCPUGroupAffinities(ctx context.Context, affinities []jobobject.GroupAffinity) error {
+	computeSystem.handleLock.RLock()
+	defer computeSystem.handleLock.RUnlock()
+
+	// Guard the compute system's lifecycle while we touch its silo: the RLock blocks
+	// a concurrent Close(), and handle == 0 means it is already torn down.
+	if computeSystem.handle == 0 {
+		return fmt.Errorf("set cpu group affinities on %s silo: %w", computeSystem.ID(), ErrAlreadyClosed)
+	}
+	// The silo job object only exists for containers, not VM-based compute systems.
+	if computeSystem.typ != "container" {
+		return fmt.Errorf("cpu group affinities are only supported on container compute systems, got %q", computeSystem.typ)
+	}
+
+	job, err := computeSystem.openSilo(ctx)
+	if err != nil {
+		return fmt.Errorf("open %s silo: %w", computeSystem.ID(), err)
+	}
+	defer job.Close()
+
+	if err := job.SetCPUGroupAffinities(affinities); err != nil {
+		return fmt.Errorf("set cpu group affinities on %s silo: %w", computeSystem.ID(), err)
+	}
+	return nil
+}
+
 // hcsPropertiesV2Query is a helper to make a HcsGetComputeSystemProperties call using the V2 schema property types.
 func (computeSystem *System) hcsPropertiesV2Query(ctx context.Context, types []hcsschema.PropertyType) (*hcsschema.Properties, error) {
 	operation := "hcs::System::PropertiesV2"
@@ -572,6 +621,54 @@ func (computeSystem *System) PropertiesV2(ctx context.Context, types ...hcsschem
 	}
 
 	return hcsProperties, nil
+}
+
+// PropertiesV3 returns the requested compute system properties using a V2 schema property query.
+// Unlike [System.PropertiesV2], this method accepts a full [hcsschema.PropertyQuery] directly,
+// giving the caller more control over the query structure. The query is forwarded to HCS as-is
+// without any in-proc optimisations such as that is V2.
+func (computeSystem *System) PropertiesV3(ctx context.Context, query *hcsschema.PropertyQuery) (_ *hcsschema.Properties, err error) {
+	operation := "hcs::System::PropertiesV3"
+
+	ctx, span := oc.StartSpan(ctx, operation)
+	defer span.End()
+	defer func() { oc.SetSpanStatus(span, err) }()
+	span.AddAttributes(trace.StringAttribute("cid", computeSystem.id))
+
+	computeSystem.handleLock.RLock()
+	defer computeSystem.handleLock.RUnlock()
+
+	if computeSystem.handle == 0 {
+		return nil, makeSystemError(computeSystem, operation, ErrAlreadyClosed, nil)
+	}
+
+	log.G(ctx).WithFields(logrus.Fields{
+		logfields.ContainerID: computeSystem.id,
+		"propertyTypes":       query.PropertyTypes,
+		"propertyQueries":     query.Queries,
+	}).Debug("querying compute system properties via PropertiesV3")
+
+	queryBytes, err := json.Marshal(query)
+	if err != nil {
+		return nil, makeSystemError(computeSystem, operation, err, nil)
+	}
+
+	propertiesJSON, resultJSON, err := vmcompute.HcsGetComputeSystemProperties(ctx, computeSystem.handle, string(queryBytes))
+	events := processHcsResult(ctx, resultJSON)
+	if err != nil {
+		return nil, makeSystemError(computeSystem, operation, err, events)
+	}
+
+	if propertiesJSON == "" {
+		return nil, ErrUnexpectedValue
+	}
+
+	props := &hcsschema.Properties{}
+	if err := json.Unmarshal([]byte(propertiesJSON), props); err != nil {
+		return nil, makeSystemError(computeSystem, operation, err, nil)
+	}
+
+	return props, nil
 }
 
 // Pause pauses the execution of the computeSystem. This feature is not enabled in TP5.
