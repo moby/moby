@@ -1,5 +1,4 @@
 //go:build openbsd || netbsd
-// +build openbsd netbsd
 
 package fs
 
