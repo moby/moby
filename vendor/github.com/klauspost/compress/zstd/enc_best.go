@@ -551,3 +551,18 @@ func (e *bestFastEncoder) Reset(d *dict, singleBlock bool) {
 	// Reset table to initial state
 	copy(e.table[:], e.dictTable)
 }
+
+func (e *bestFastEncoder) ResetPrefix(prefix []byte) {
+	e.resetBasePrefix(prefix)
+	if len(prefix) < 8 {
+		return
+	}
+	end := e.cur + int32(len(prefix)) - 8
+	for i := e.cur; i < end; i++ {
+		cv := load6432(prefix, i-e.cur)
+		h := hashLen(cv, bestLongTableBits, bestLongLen)
+		e.longTable[h] = prevEntry{offset: i, prev: e.longTable[h].offset}
+		h0 := hashLen(cv, bestShortTableBits, bestShortLen)
+		e.table[h0] = prevEntry{offset: i, prev: e.table[h0].offset}
+	}
+}

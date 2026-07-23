@@ -14,22 +14,23 @@ type EOption func(*encoderOptions) error
 
 // options retains accumulated state of multiple options.
 type encoderOptions struct {
-	resetOpt        bool
-	concurrent      int
-	level           EncoderLevel
-	single          *bool
-	pad             int
-	blockSize       int
-	windowSize      int
-	crc             bool
-	fullZero        bool
-	noEntropy       bool
-	allLitEntropy   bool
-	customWindow    bool
-	customALEntropy bool
-	customBlockSize bool
-	lowMem          bool
-	dict            *dict
+	resetOpt         bool
+	concurrent       int
+	level            EncoderLevel
+	single           *bool
+	pad              int
+	blockSize        int
+	windowSize       int
+	crc              bool
+	fullZero         bool
+	noEntropy        bool
+	allLitEntropy    bool
+	customWindow     bool
+	customALEntropy  bool
+	customBlockSize  bool
+	lowMem           bool
+	dict             *dict
+	concurrentBlocks bool
 }
 
 func (o *encoderOptions) setDefault() {
@@ -330,6 +331,42 @@ func WithLowerEncoderMem(b bool) EOption {
 		}
 		o.lowMem = b
 		return nil
+	}
+}
+
+// WithConcurrentBlocks enables job-based parallel compression for streams.
+// When enabled and concurrent > 1, input is split into large sections (jobs)
+// that are compressed simultaneously by multiple goroutines.
+// Each non-first job receives an overlap prefix from the previous job for match context.
+// Output is flushed in order, producing a valid single-frame zstd stream.
+//
+// Currently disabled when used with dictionary encoding.
+// Cannot be changed with ResetWithOptions.
+func WithConcurrentBlocks(b bool) EOption {
+	return func(o *encoderOptions) error {
+		if o.resetOpt && b != o.concurrentBlocks {
+			return errors.New("WithConcurrentBlocks cannot be changed on Reset")
+		}
+		o.concurrentBlocks = b
+		return nil
+	}
+}
+
+// jobSize returns the input section size per parallel job.
+func (o *encoderOptions) jobSize() int {
+	s := max(o.windowSize*4, 512<<10)
+	return s
+}
+
+// overlapSize returns the overlap prefix size for parallel jobs.
+func (o *encoderOptions) overlapSize() int {
+	switch o.level {
+	case SpeedBestCompression:
+		return o.windowSize / 2
+	case SpeedBetterCompression:
+		return o.windowSize / 4
+	default:
+		return o.windowSize / 8
 	}
 }
 
