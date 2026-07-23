@@ -181,16 +181,9 @@ func (g *altsTC) ClientHandshake(ctx context.Context, addr string, rawConn net.C
 	}
 	// Do not close hsConn since it is shared with other handshakes.
 
-	// Possible context leak:
-	// The cancel function for the child context we create will only be
-	// called a non-nil error is returned.
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
-	defer func() {
-		if err != nil {
-			cancel()
-		}
-	}()
+	defer cancel()
 
 	opts := handshaker.DefaultClientHandshakerOptions()
 	opts.TargetName = addr
@@ -204,11 +197,8 @@ func (g *altsTC) ClientHandshake(ctx context.Context, addr string, rawConn net.C
 	if err != nil {
 		return nil, nil, err
 	}
-	defer func() {
-		if err != nil {
-			chs.Close()
-		}
-	}()
+	// Close the handshaker since we have obtained a connection.
+	defer chs.Close()
 	secConn, authInfo, err := chs.ClientHandshake(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -247,15 +237,12 @@ func (g *altsTC) ServerHandshake(rawConn net.Conn) (_ net.Conn, _ credentials.Au
 	if err != nil {
 		return nil, nil, err
 	}
-	defer func() {
-		if err != nil {
-			shs.Close()
-		}
-	}()
 	secConn, authInfo, err := shs.ServerHandshake(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
+	// Close the handshaker since we have obtained a connection.
+	defer shs.Close()
 	altsAuthInfo, ok := authInfo.(AuthInfo)
 	if !ok {
 		return nil, nil, errors.New("server-side auth info is not of type alts.AuthInfo")
