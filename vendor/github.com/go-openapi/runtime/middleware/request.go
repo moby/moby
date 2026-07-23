@@ -73,7 +73,7 @@ func (o *UntypedRequestBinder) bind(request *http.Request, routeParams RoutePara
 		if isMap {
 			tpe := binder.Type()
 			if tpe == nil {
-				if param.Schema.Type.Contains(typeArray) {
+				if param.Schema != nil && param.Schema.Type.Contains(typeArray) {
 					tpe = reflect.TypeFor[[]any]()
 				} else {
 					tpe = reflect.TypeFor[map[string]any]()

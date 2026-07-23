@@ -65,7 +65,7 @@ type state struct {
 	clientVertex client.Vertex
 	origDigest   digest.Digest // original LLB digest. TODO: probably better to use string ID so this isn't needed
 
-	mu    sync.Mutex
+	mu    sync.RWMutex
 	op    *sharedOp
 	edges map[Index]*edge
 	opts  SolverOpt
@@ -93,12 +93,12 @@ func (s *state) ResolverCache() ResolverCache {
 }
 
 func (s *state) CompatibilityVersion() (int, error) {
-	s.mu.Lock()
+	s.mu.RLock()
 	jobs := make([]*Job, 0, len(s.jobs))
 	for j := range s.jobs {
 		jobs = append(jobs, j)
 	}
-	s.mu.Unlock()
+	s.mu.RUnlock()
 
 	version := 0
 	for _, j := range jobs {
@@ -122,11 +122,11 @@ func (s *state) CompatibilityVersion() (int, error) {
 
 func (s *state) Lock(key any) (values []any, release func(any) error, err error) {
 	var rcs []ResolverCache
-	s.mu.Lock()
+	s.mu.RLock()
 	for j := range s.jobs {
 		rcs = append(rcs, j.resolverCache)
 	}
-	s.mu.Unlock()
+	s.mu.RUnlock()
 
 	return combinedResolverCache(rcs).Lock(key)
 }
@@ -296,19 +296,20 @@ func (s *state) addJobs(srcState *state, memo map[*state]struct{}) {
 }
 
 func (s *state) combinedCacheManager() CacheManager {
-	s.mu.Lock()
+	s.mu.RLock()
 	cms := make([]CacheManager, 0, len(s.cache)+1)
-	cms = append(cms, s.mainCache)
+	mainCache := s.mainCache
+	cms = append(cms, mainCache)
 	for _, cm := range s.cache {
 		cms = append(cms, cm)
 	}
-	s.mu.Unlock()
+	s.mu.RUnlock()
 
 	if len(cms) == 1 {
-		return s.mainCache
+		return mainCache
 	}
 
-	return NewCombinedCacheManager(cms, s.mainCache)
+	return NewCombinedCacheManager(cms, mainCache)
 }
 
 func (s *state) Release() {
@@ -354,12 +355,12 @@ func (sb *subBuilder) InContext(ctx context.Context, f func(context.Context, Job
 }
 
 func (sb *subBuilder) EachValue(ctx context.Context, key string, fn func(any) error) error {
-	sb.state.mu.Lock()
+	sb.state.mu.RLock()
 	jobs := make([]*Job, 0, len(sb.jobs))
 	for j := range sb.jobs {
 		jobs = append(jobs, j)
 	}
-	sb.state.mu.Unlock()
+	sb.state.mu.RUnlock()
 
 	for _, j := range jobs {
 		if err := j.EachValue(ctx, key, fn); err != nil {
@@ -1287,9 +1288,9 @@ func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result,
 func (s *sharedOp) getOp() (Op, error) {
 	s.opOnce.Do(func() {
 		s.subBuilder = s.st.builder()
-		s.st.mu.Lock()
+		s.st.mu.RLock()
 		metadata := s.st.metadata
-		s.st.mu.Unlock()
+		s.st.mu.RUnlock()
 		v := s.st.vtx
 		if metadata != nil {
 			v = &vertexWithMetadata{Vertex: v, metadata: metadata}

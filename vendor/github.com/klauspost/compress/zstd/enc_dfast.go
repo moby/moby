@@ -1037,6 +1037,18 @@ func (e *doubleFastEncoder) Reset(d *dict, singleBlock bool) {
 	}
 }
 
+func (e *doubleFastEncoder) ResetPrefix(prefix []byte) {
+	e.fastEncoder.ResetPrefix(prefix)
+	if len(prefix) < 8 {
+		return
+	}
+	end := e.cur + int32(len(prefix)) - 8
+	for i := e.cur + 1; i < end; i += 2 {
+		cv := load6432(prefix, i-e.cur)
+		e.longTable[hashLen(cv, dFastLongTableBits, dFastLongLen)] = tableEntry{val: uint32(cv), offset: i}
+	}
+}
+
 // ResetDict will reset and set a dictionary if not nil
 func (e *doubleFastEncoderDict) Reset(d *dict, singleBlock bool) {
 	allDirty := e.allDirty
@@ -1100,6 +1112,10 @@ func (e *doubleFastEncoderDict) Reset(d *dict, singleBlock bool) {
 
 		e.longTableShardDirty[i] = false
 	}
+}
+
+func (e *doubleFastEncoderDict) ResetPrefix([]byte) {
+	panic("ResetPrefix not supported for dict encoders")
 }
 
 func (e *doubleFastEncoderDict) markLongShardDirty(entryNum uint32) {

@@ -212,6 +212,13 @@ func (cli *GitCLI) Run(ctx context.Context, args ...string) (_ []byte, err error
 				"HOMEPATH",
 				"GIT_CONFIG_GLOBAL",
 				"GIT_CONFIG_SYSTEM",
+				// When git runs as root under sudo it consults SUDO_UID to trust
+				// repositories owned by the user who invoked sudo, so client-side
+				// callers such as `sudo docker build` don't trip git's "detected
+				// dubious ownership" check and silently lose commit provenance.
+				// This mirrors git's own default behavior and does not disable
+				// safe.directory checks. See docker/buildx#3855.
+				"SUDO_UID",
 			} {
 				if v, ok := os.LookupEnv(ev); ok {
 					cmd.Env = append(cmd.Env, ev+"="+v)

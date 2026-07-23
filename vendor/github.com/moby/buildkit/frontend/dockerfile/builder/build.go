@@ -118,9 +118,11 @@ func Build(ctx context.Context, c client.Client) (_ *client.Result, err error) {
 	var scanner sbom.Scanner
 	if bc.SBOM != nil {
 		// TODO: scanner should pass policy
-		scanner, err = sbom.CreateSBOMScanner(ctx, c, bc.SBOM.Generator, sourceresolver.Opt{
+		scannerPlatform := bc.BuildPlatforms[0]
+		scanner, err = sbom.CreateSBOMScanner(ctx, c, bc.SBOM.Generator, scannerPlatform, sourceresolver.Opt{
 			ImageOpt: &sourceresolver.ResolveImageOpt{
 				ResolveMode: opts["image-resolve-mode"],
+				Platform:    &scannerPlatform,
 			},
 		}, bc.SBOM.Parameters)
 		if err != nil {

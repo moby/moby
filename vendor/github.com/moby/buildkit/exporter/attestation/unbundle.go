@@ -132,17 +132,15 @@ func unbundle(root string, bundle exporter.Attestation) ([]exporter.Attestation,
 		if err != nil {
 			return nil, err
 		}
-		f, err := os.Open(p)
+		f, err := openRegularFile(p)
 		if err != nil {
 			return nil, err
 		}
-		dec := json.NewDecoder(f)
 		var stmt intoto.Statement
-		if err := dec.Decode(&stmt); err != nil {
-			return nil, errors.Wrap(err, "cannot decode in-toto statement")
-		}
-		if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-			return nil, errors.New("in-toto statement is not a single JSON object")
+		stmt, err = decodeStatement(f, p)
+		f.Close()
+		if err != nil {
+			return nil, err
 		}
 		if bundle.InToto.PredicateType != "" && stmt.PredicateType != bundle.InToto.PredicateType {
 			return nil, errors.Errorf("bundle entry %s does not match required predicate type %s", stmt.PredicateType, bundle.InToto.PredicateType)
@@ -173,6 +171,29 @@ func unbundle(root string, bundle exporter.Attestation) ([]exporter.Attestation,
 		})
 	}
 	return unbundled, nil
+}
+
+func decodeStatement(r io.Reader, name string) (intoto.Statement, error) {
+	limited := &io.LimitedReader{R: r, N: maxAttestationBytes + 1}
+	dec := json.NewDecoder(limited)
+
+	var stmt intoto.Statement
+	if err := dec.Decode(&stmt); err != nil {
+		if limited.N == 0 {
+			return stmt, errors.Errorf("%s exceeds %d bytes", name, maxAttestationBytes)
+		}
+		return stmt, errors.Wrap(err, "cannot decode in-toto statement")
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		if limited.N == 0 {
+			return stmt, errors.Errorf("%s exceeds %d bytes", name, maxAttestationBytes)
+		}
+		return stmt, errors.New("in-toto statement is not a single JSON object")
+	}
+	if limited.N == 0 {
+		return stmt, errors.Errorf("%s exceeds %d bytes", name, maxAttestationBytes)
+	}
+	return stmt, nil
 }
 
 func Validate(atts []exporter.Attestation) error {

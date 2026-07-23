@@ -118,6 +118,9 @@ func (s *SubjectAlternativeNameMatcher) MarshalJSON() ([]byte, error) {
 // Verify checks if the actualCert matches the SANMatcher's Value and
 // Regexp – if those values have been provided.
 func (s SubjectAlternativeNameMatcher) Verify(actualCert certificate.Summary) error {
+	if s.SubjectAlternativeName == "" && s.Regexp.String() == "" {
+		return errors.New("when verifying a certificate identity, there must be subject alternative name criteria")
+	}
 	if s.SubjectAlternativeName != "" &&
 		actualCert.SubjectAlternativeName != s.SubjectAlternativeName {
 		return &ErrValueMismatch{"SAN", string(s.SubjectAlternativeName), string(actualCert.SubjectAlternativeName)}
@@ -150,6 +153,9 @@ func (i *IssuerMatcher) MarshalJSON() ([]byte, error) {
 }
 
 func (i IssuerMatcher) Verify(actualCert certificate.Summary) error {
+	if i.Issuer == "" && i.Regexp.String() == "" {
+		return errors.New("when verifying a certificate identity, must specify Issuer criteria")
+	}
 	if i.Issuer != "" &&
 		actualCert.Issuer != i.Issuer {
 		return &ErrValueMismatch{"issuer", string(i.Issuer), string(actualCert.Issuer)}

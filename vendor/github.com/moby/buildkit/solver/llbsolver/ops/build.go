@@ -120,6 +120,15 @@ func (b *BuildOp) Exec(ctx context.Context, job solver.JobContext, inputs []solv
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to open %s", newfn)
 	}
+	st, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return nil, errors.WithStack(err)
+	}
+	if !st.Mode().IsRegular() {
+		f.Close()
+		return nil, errors.Errorf("%s is not a regular file", newfn)
+	}
 
 	def, err := llb.ReadFrom(f)
 	if err != nil {

@@ -465,6 +465,10 @@ func (w *Worker) PruneCacheMounts(ctx context.Context, ids map[string]bool) erro
 	return nil
 }
 
+func (w *Worker) ParseSource(op *pb.SourceOp, platform *pb.Platform) (source.Identifier, error) {
+	return w.SourceManager.Identifier(&pb.Op_Source{Source: op}, platform)
+}
+
 func (w *Worker) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, opt sourceresolver.Opt, sm *session.Manager, jobCtx solver.JobContext) (*sourceresolver.MetaResponse, error) {
 	if opt.SourcePolicies != nil {
 		return nil, errors.New("source policies can not be set for worker")
@@ -487,7 +491,7 @@ func (w *Worker) ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, opt
 		}
 	}
 
-	id, err := w.SourceManager.Identifier(&pb.Op_Source{Source: op}, platform)
+	id, err := w.ParseSource(op, platform)
 	if err != nil {
 		return nil, err
 	}

@@ -24,7 +24,8 @@ import (
 )
 
 type Certificate struct {
-	certificate *x509.Certificate
+	certificate   *x509.Certificate
+	intermediates []*x509.Certificate
 }
 
 func NewCertificate(cert *x509.Certificate) *Certificate {
@@ -56,6 +57,10 @@ func (c *Certificate) Certificate() *x509.Certificate {
 	return c.certificate
 }
 
+func (c *Certificate) Intermediates() []*x509.Certificate {
+	return c.intermediates
+}
+
 func (c *Certificate) PublicKey() verify.PublicKeyProvider {
 	return nil
 }
@@ -84,6 +89,10 @@ func (pk *PublicKey) ValidAtTime(t time.Time, tm root.TrustedMaterial) bool {
 }
 
 func (pk *PublicKey) Certificate() *x509.Certificate {
+	return nil
+}
+
+func (pk *PublicKey) Intermediates() []*x509.Certificate {
 	return nil
 }
 

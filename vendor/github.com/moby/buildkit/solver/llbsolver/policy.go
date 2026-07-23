@@ -13,6 +13,7 @@ import (
 	"github.com/moby/buildkit/sourcepolicy"
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
 	"github.com/moby/buildkit/sourcepolicy/policysession"
+	"github.com/moby/buildkit/worker"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -32,6 +33,17 @@ type policyEvaluator struct {
 	engine *sourcepolicy.Engine
 }
 
+func normalizedSourceIdentifier(w worker.Worker, op *pb.SourceOp) string {
+	if w == nil {
+		return op.GetIdentifier()
+	}
+	id, err := w.ParseSource(op, nil)
+	if err != nil {
+		return op.GetIdentifier()
+	}
+	return id.String()
+}
+
 func (p *policyEvaluator) Evaluate(ctx context.Context, op *pb.Op) (bool, error) {
 	return p.evaluate(ctx, op, 10)
 }
@@ -41,6 +53,11 @@ func (p *policyEvaluator) evaluate(ctx context.Context, op *pb.Op, max int) (boo
 	if source == nil {
 		return false, nil
 	}
+	w, err := p.resolveWorker()
+	if err != nil {
+		return false, err
+	}
+	source.Identifier = normalizedSourceIdentifier(w, source)
 	ok, err := p.engine.Evaluate(ctx, source)
 	if err != nil {
 		return false, err

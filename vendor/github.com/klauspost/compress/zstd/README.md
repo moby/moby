@@ -75,13 +75,46 @@ The above is fine for big encodes. However, whenever possible try to *reuse* the
 To reuse the encoder, you can use the `Reset(io.Writer)` function to change to another output. 
 This will allow the encoder to reuse all resources and avoid wasteful allocations. 
 
-Currently stream encoding has 'light' concurrency, meaning up to 2 goroutines can be working on part 
-of a stream. This is independent of the `WithEncoderConcurrency(n)`, but that is likely to change 
+By default, stream encoding has 'light' concurrency, meaning up to 2 goroutines can be working on part
+of a stream. This is independent of the `WithEncoderConcurrency(n)`, but that is likely to change
 in the future. So if you want to limit concurrency for future updates, specify the concurrency
 you would like.
 
 If you would like stream encoding to be done without spawning async goroutines, use `WithEncoderConcurrency(1)`
 which will compress input as each block is completed, blocking on writes until each has completed.
+
+#### Parallel Stream Compression
+
+For maximum throughput on large streams, use `WithConcurrentBlocks(true)` together with
+`WithEncoderConcurrency(n)` where n is the number of CPU cores you want to use.
+This splits the input into large sections (jobs) that are compressed simultaneously by multiple goroutines,
+similar to how the C zstd library does multithreaded compression.
+
+```Go
+enc, err := zstd.NewWriter(out,
+    zstd.WithEncoderLevel(zstd.SpeedDefault),
+    zstd.WithEncoderConcurrency(runtime.GOMAXPROCS(0)),
+    zstd.WithConcurrentBlocks(true),
+)
+```
+
+Each non-first job receives an overlap prefix from the previous job for match context,
+so compression ratio is only marginally affected. Output is flushed in order,
+producing a valid single-frame zstd stream.
+
+Benchmark on 1.8GB GOB stream (AMD Ryzen 9 9950X):
+
+| Level   |  1 thread  |     4 threads      |     16 threads      | 1T ratio | 16T ratio |
+|---------|:----------:|:------------------:|:-------------------:|:--------:|:---------:|
+| fastest | 783 MB/s   | 2950 MB/s (3.8×)   | 6939 MB/s (8.9×)    | 12.24%   | 12.26%    |
+| default | 728 MB/s   | 2533 MB/s (3.5×)   | 5340 MB/s (7.3×)    | 10.67%   | 10.68%    |
+| better  | 434 MB/s   | 1105 MB/s (2.5×)   | 2206 MB/s (5.1×)    | 9.14%    | 9.21%     |
+| best    | 129 MB/s   | 367 MB/s (2.8×)    | 884 MB/s (6.8×)     | 8.48%    | 8.63%     |
+
+Notes:
+* Not compatible with dictionary encoding.
+* `Flush()` dispatches the current partial job, so latency-sensitive callers can force output.
+* `EncodeAll` is unaffected — it uses its own concurrency via the encoder pool.
 
 You can specify your desired compression level using `WithEncoderLevel()` option. Currently only pre-defined 
 compression settings can be specified.

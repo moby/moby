@@ -118,7 +118,7 @@ func (k *Key) Public() crypto.PublicKey {
 // Sign signs a message digest, using the specified signer opts. Implements crypto.Signer interface.
 func (k *Key) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) (signed []byte, err error) {
 	if opts != nil && opts.HashFunc() != 0 && len(digest) != opts.HashFunc().Size() {
-		return nil, fmt.Errorf("Digest length of %v bytes does not match Hash function size of %v bytes", len(digest), opts.HashFunc().Size())
+		return nil, fmt.Errorf("digest length of %v bytes does not match Hash function size of %v bytes", len(digest), opts.HashFunc().Size())
 	}
 	err = k.client.Call(signAPI, SignArgs{Digest: digest, Opts: opts}, &signed)
 	return
@@ -138,7 +138,7 @@ func (k *Key) Decrypt(_ io.Reader, msg []byte, opts crypto.DecrypterOpts) (plain
 
 // ErrCredUnavailable is a sentinel error that indicates ECP Cred is unavailable,
 // possibly due to missing config or missing binary path.
-var ErrCredUnavailable = errors.New("Cred is unavailable")
+var ErrCredUnavailable = errors.New("cred is unavailable")
 
 // Cred spawns a signer subprocess that listens on stdin/stdout to perform certificate
 // related operations, including signing messages with the private key.

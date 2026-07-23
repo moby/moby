@@ -162,12 +162,12 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor,
 		p = p2.(*immutableRef)
 
 		if err := p.Finalize(ctx); err != nil {
-			p.Release(context.TODO())
+			_ = p.Release(context.WithoutCancel(ctx))
 			return nil, err
 		}
 
 		if p.getChainID() == "" || p.getBlobChainID() == "" {
-			p.Release(context.TODO())
+			_ = p.Release(context.WithoutCancel(ctx))
 			return nil, errors.Errorf("failed to get ref by blob on non-addressable parent")
 		}
 		chainID = imagespecidentity.ChainID([]digest.Digest{p.getChainID(), chainID})
@@ -177,7 +177,7 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor,
 	releaseParent := false
 	defer func() {
 		if releaseParent || rerr != nil && p != nil {
-			p.Release(context.WithoutCancel(ctx))
+			_ = p.Release(context.WithoutCancel(ctx))
 		}
 	}()
 

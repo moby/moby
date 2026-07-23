@@ -220,6 +220,7 @@ func (e *edge) checkDepMatchPossible(dep *dep) {
 	depHasSlowCache := e.cacheMap.Deps[dep.index].ComputeDigestFunc != nil
 	if !e.noCacheMatchPossible && (((!dep.slowCacheFoundKey && dep.slowCacheComplete && depHasSlowCache) || (!depHasSlowCache && dep.state >= edgeStatusCacheSlow)) && len(dep.keyMap) == 0) {
 		e.noCacheMatchPossible = true
+		debugSchedulerNoCacheMatchPossible(e, dep, depHasSlowCache)
 	}
 }
 
@@ -633,6 +634,17 @@ func (e *edge) processExecReq() {
 
 	e.result = NewSharedCachedResult(upt.Status().Value.(CachedResult))
 	e.state = edgeStatusComplete
+
+	// The keys committed by the execution have so far only existed on the
+	// result. Add them to e.keys so that a consumer subscribing after this
+	// edge has completed (a shared edge kept alive by a concurrent build)
+	// still receives them and can probe the cache. Skipped on cache load
+	// where the loaded record's key is in e.keys already, and for
+	// ignore-cache so that consumers cannot match cache records through a
+	// dependency that was itself forced to re-run.
+	if !e.execCacheLoad && !e.op.IgnoreCache() {
+		e.keys = append(e.keys, e.result.CacheKeys()...)
+	}
 }
 
 func (e *edge) processDepReq(dep *dep) (depChanged bool) {
@@ -652,6 +664,10 @@ func (e *edge) processDepReq(dep *dep) (depChanged bool) {
 	if !isEdgeState {
 		bklog.G(context.TODO()).Warnf("invalid edgeState value for update: %T", state)
 		return false
+	}
+
+	if state.state >= edgeStatusCacheSlow {
+		debugSchedulerDepDelivery(e, dep, state)
 	}
 
 	if len(dep.keys) < len(state.keys) {

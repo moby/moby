@@ -1,6 +1,7 @@
 package git
 
 import (
+	"path"
 	"strings"
 
 	"github.com/containerd/containerd/v2/pkg/reference"
@@ -69,6 +70,22 @@ func NewGitIdentifier(remoteURL string) (*GitIdentifier, error) {
 		repo.Subdir = u.Opts.Subdir
 	}
 	return &repo, nil
+}
+
+func (id *GitIdentifier) String() string {
+	remote := id.Remote
+	if u, err := gitutil.ParseURL(remote); err == nil {
+		remote = u.Host + path.Join("/", u.Path)
+	}
+
+	ref := srctypes.GitScheme + "://" + remote
+	if id.Ref != "" || id.Subdir != "" {
+		ref += "#" + id.Ref
+		if id.Subdir != "" {
+			ref += ":" + id.Subdir
+		}
+	}
+	return ref
 }
 
 func (GitIdentifier) Scheme() string {

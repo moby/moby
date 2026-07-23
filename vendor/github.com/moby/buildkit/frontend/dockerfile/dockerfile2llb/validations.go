@@ -15,6 +15,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
 	"github.com/moby/buildkit/util/suggest"
+	"github.com/moby/patternmatcher"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -46,6 +47,13 @@ func validateCopySourcePath(src string, cfg *copyConfig) error {
 	}
 
 	src = filepath.ToSlash(filepath.Clean(src))
+	if src == "." || src == "/" {
+		// "." and "/" are context roots, not real paths that can be excluded.
+		// Only keep the warning for patterns that exclude all root entries.
+		if !copySourceRootIgnored(cfg.ignoreMatcher) {
+			return nil
+		}
+	}
 	ok, err := cfg.ignoreMatcher.MatchesOrParentMatches(src)
 	if err != nil {
 		return err
@@ -56,6 +64,19 @@ func validateCopySourcePath(src string, cfg *copyConfig) error {
 	}
 
 	return nil
+}
+
+func copySourceRootIgnored(matcher *patternmatcher.PatternMatcher) bool {
+	for _, pattern := range matcher.Patterns() {
+		if pattern.Exclusion() {
+			continue
+		}
+		switch pattern.String() {
+		case "*", "**", "**/*":
+			return true
+		}
+	}
+	return false
 }
 
 func validateCircularDependency(states []*dispatchState) error {

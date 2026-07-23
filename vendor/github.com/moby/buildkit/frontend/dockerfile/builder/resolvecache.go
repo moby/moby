@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mitchellh/hashstructure/v2"
+	"github.com/gohugoio/hashstructure"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/util/flightcontrol"
@@ -28,7 +28,7 @@ var _ client.Client = &withResolveCache{}
 
 func (c *withResolveCache) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt) (string, digest.Digest, []byte, error) {
 	c.g.CacheError = true
-	optHash, err := hashstructure.Hash(opt, hashstructure.FormatV2, nil)
+	optHash, err := hashstructure.Hash(opt, nil)
 	if err != nil {
 		return "", "", nil, err
 	}

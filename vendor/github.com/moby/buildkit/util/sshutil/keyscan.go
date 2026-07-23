@@ -14,6 +14,17 @@ const defaultPort = 22
 
 var errCallbackDone = errors.New("callback failed on purpose")
 
+// knownHostsServerID formats a host identifier for a known_hosts entry. A
+// non-standard port must be rendered as "[host]:port" so that ssh matches the
+// entry when connecting (see the SSH_KNOWN_HOSTS format in sshd(8)); the
+// default port is rendered as a bare hostname.
+func knownHostsServerID(hostname, port string) string {
+	if port == "" || port == strconv.Itoa(defaultPort) {
+		return hostname
+	}
+	return fmt.Sprintf("[%s]:%s", hostname, port)
+}
+
 // addDefaultPort appends a default port if hostport doesn't contain one
 func addDefaultPort(hostport string, defaultPort int) string {
 	_, _, err := net.SplitHostPort(hostport)
@@ -28,11 +39,12 @@ func addDefaultPort(hostport string, defaultPort int) string {
 func SSHKeyScan(server string) (string, error) {
 	var key string
 	KeyScanCallback := func(hostport string, remote net.Addr, pubKey ssh.PublicKey) error {
-		hostname, _, err := net.SplitHostPort(hostport)
+		hostname, port, err := net.SplitHostPort(hostport)
 		if err != nil {
 			return err
 		}
-		key = strings.TrimSpace(fmt.Sprintf("%s %s", hostname, string(ssh.MarshalAuthorizedKey(pubKey))))
+		serverID := knownHostsServerID(hostname, port)
+		key = strings.TrimSpace(fmt.Sprintf("%s %s", serverID, string(ssh.MarshalAuthorizedKey(pubKey))))
 		return errCallbackDone
 	}
 	config := &ssh.ClientConfig{

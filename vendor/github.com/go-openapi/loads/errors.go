@@ -15,4 +15,8 @@ const (
 
 	// ErrNoLoader indicates that no configured loader matched the input.
 	ErrNoLoader loaderError = "no loader matched"
+
+	// ErrForbiddenAddress is returned by [RestrictedHTTPClient] when a connection is attempted
+	// to a non-public address (loopback, private, link-local, or unspecified).
+	ErrForbiddenAddress loaderError = "blocked dial to a non-public address"
 )
