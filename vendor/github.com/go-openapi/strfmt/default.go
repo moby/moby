@@ -1978,6 +1978,14 @@ func (r *Password) DeepCopy() *Password {
 }
 
 func isRequestURI(rawurl string) bool {
+	// url.ParseRequestURI assumes the input contains no "#fragment"
+	// (RFC 3986 §3.5). A URI with a fragment and an empty path, such as
+	// "https://host#@frag", is therefore misread as userinfo and rejected
+	// as "invalid userinfo". Strip the fragment first so the absolute
+	// request URI validates, matching url.Parse's RFC 3986 handling.
+	if i := strings.IndexByte(rawurl, '#'); i >= 0 {
+		rawurl = rawurl[:i]
+	}
 	_, err := url.ParseRequestURI(rawurl)
 	return err == nil
 }

@@ -673,8 +673,8 @@ github.com/go-openapi/analysis/internal/flatten/operations
 github.com/go-openapi/analysis/internal/flatten/replace
 github.com/go-openapi/analysis/internal/flatten/schutils
 github.com/go-openapi/analysis/internal/flatten/sortref
-# github.com/go-openapi/errors v0.22.7
-## explicit; go 1.24.0
+# github.com/go-openapi/errors v0.22.8
+## explicit; go 1.25.0
 github.com/go-openapi/errors
 # github.com/go-openapi/jsonpointer v0.23.1
 ## explicit; go 1.25.0
@@ -683,10 +683,10 @@ github.com/go-openapi/jsonpointer
 ## explicit; go 1.25.0
 github.com/go-openapi/jsonreference
 github.com/go-openapi/jsonreference/internal
-# github.com/go-openapi/loads v0.23.3
-## explicit; go 1.24.0
+# github.com/go-openapi/loads v0.24.0
+## explicit; go 1.25.0
 github.com/go-openapi/loads
-# github.com/go-openapi/runtime v0.32.3
+# github.com/go-openapi/runtime v0.32.4
 ## explicit; go 1.25.0
 github.com/go-openapi/runtime
 github.com/go-openapi/runtime/client
@@ -703,53 +703,53 @@ github.com/go-openapi/runtime/server-middleware/docui
 github.com/go-openapi/runtime/server-middleware/mediatype
 github.com/go-openapi/runtime/server-middleware/negotiate
 github.com/go-openapi/runtime/server-middleware/negotiate/header
-# github.com/go-openapi/spec v0.22.5
+# github.com/go-openapi/spec v0.22.6
 ## explicit; go 1.25.0
 github.com/go-openapi/spec
-# github.com/go-openapi/strfmt v0.26.3
+# github.com/go-openapi/strfmt v0.26.4
 ## explicit; go 1.25.0
 github.com/go-openapi/strfmt
 github.com/go-openapi/strfmt/internal/bsonlite
-# github.com/go-openapi/swag v0.26.0
+# github.com/go-openapi/swag v0.26.1
 ## explicit; go 1.25.0
 github.com/go-openapi/swag
-# github.com/go-openapi/swag/cmdutils v0.26.0
+# github.com/go-openapi/swag/cmdutils v0.26.1
 ## explicit; go 1.25.0
 github.com/go-openapi/swag/cmdutils
-# github.com/go-openapi/swag/conv v0.26.0
+# github.com/go-openapi/swag/conv v0.27.0
 ## explicit; go 1.25.0
 github.com/go-openapi/swag/conv
-# github.com/go-openapi/swag/fileutils v0.26.0
+# github.com/go-openapi/swag/fileutils v0.26.1
 ## explicit; go 1.25.0
 github.com/go-openapi/swag/fileutils
-# github.com/go-openapi/swag/jsonname v0.26.0
+# github.com/go-openapi/swag/jsonname v0.26.1
 ## explicit; go 1.25.0
 github.com/go-openapi/swag/jsonname
-# github.com/go-openapi/swag/jsonutils v0.26.0
+# github.com/go-openapi/swag/jsonutils v0.26.1
 ## explicit; go 1.25.0
 github.com/go-openapi/swag/jsonutils
 github.com/go-openapi/swag/jsonutils/adapters
 github.com/go-openapi/swag/jsonutils/adapters/ifaces
 github.com/go-openapi/swag/jsonutils/adapters/stdlib/json
-# github.com/go-openapi/swag/loading v0.26.0
+# github.com/go-openapi/swag/loading v0.26.1
 ## explicit; go 1.25.0
 github.com/go-openapi/swag/loading
-# github.com/go-openapi/swag/mangling v0.26.0
+# github.com/go-openapi/swag/mangling v0.26.1
 ## explicit; go 1.25.0
 github.com/go-openapi/swag/mangling
-# github.com/go-openapi/swag/netutils v0.26.0
+# github.com/go-openapi/swag/netutils v0.26.1
 ## explicit; go 1.25.0
 github.com/go-openapi/swag/netutils
-# github.com/go-openapi/swag/stringutils v0.26.0
+# github.com/go-openapi/swag/stringutils v0.26.1
 ## explicit; go 1.25.0
 github.com/go-openapi/swag/stringutils
-# github.com/go-openapi/swag/typeutils v0.26.0
+# github.com/go-openapi/swag/typeutils v0.27.0
 ## explicit; go 1.25.0
 github.com/go-openapi/swag/typeutils
-# github.com/go-openapi/swag/yamlutils v0.26.0
+# github.com/go-openapi/swag/yamlutils v0.26.1
 ## explicit; go 1.25.0
 github.com/go-openapi/swag/yamlutils
-# github.com/go-openapi/validate v0.25.3
+# github.com/go-openapi/validate v0.26.0
 ## explicit; go 1.25.0
 github.com/go-openapi/validate
 # github.com/go-viper/mapstructure/v2 v2.5.0
