@@ -29,6 +29,7 @@ import (
 	"golang.org/x/mod/semver"
 	"google.golang.org/protobuf/encoding/protojson"
 
+	"github.com/sigstore/sigstore-go/internal/certificate"
 	"github.com/sigstore/sigstore-go/internal/limits"
 	"github.com/sigstore/sigstore-go/pkg/tlog"
 	"github.com/sigstore/sigstore-go/pkg/verify"
@@ -53,15 +54,20 @@ func ErrValidationError(err error) error {
 
 type Bundle struct {
 	*protobundle.Bundle
-	hasInclusionPromise bool
-	hasInclusionProof   bool
+	hasInclusionPromise   bool
+	hasInclusionProof     bool
+	allowCertificateChain bool
 }
 
-func NewBundle(pbundle *protobundle.Bundle) (*Bundle, error) {
+func NewBundle(pbundle *protobundle.Bundle, opts ...Option) (*Bundle, error) {
 	bundle := &Bundle{
 		Bundle:              pbundle,
 		hasInclusionPromise: false,
 		hasInclusionProof:   false,
+	}
+
+	for _, opt := range opts {
+		opt(bundle)
 	}
 
 	err := bundle.validate()
@@ -109,13 +115,17 @@ func (b *Bundle) validate() error {
 		}
 	}
 
-	// if bundle version >= v0.3, require verification material to not be X.509 certificate chain (only single certificate is allowed)
+	// if bundle version >= v0.3, only allow certificate chain if option is set
 	if semver.Compare(bundleVersion, "v0.3") >= 0 {
-		certs := b.VerificationMaterial.GetX509CertificateChain()
+		if !b.allowCertificateChain {
+			certs := b.VerificationMaterial.GetX509CertificateChain()
 
-		if certs != nil {
-			return errors.New("verification material cannot be X.509 certificate chain (for bundle v0.3)")
+			if certs != nil {
+				return errors.New("verification material cannot be X.509 certificate chain (for bundle v0.3)")
+			}
 		}
+	} else if b.allowCertificateChain {
+		return errors.New("certificate chain verification is only supported for bundle v0.3 and later")
 	}
 
 	// if bundle version is >= v0.4, return error as this version is not supported
@@ -205,9 +215,13 @@ func validateBundle(b *protobundle.Bundle) error {
 	return nil
 }
 
-func LoadJSONFromPath(path string) (*Bundle, error) {
+func LoadJSONFromPath(path string, opts ...Option) (*Bundle, error) {
 	var bundle Bundle
 	bundle.Bundle = new(protobundle.Bundle)
+
+	for _, opt := range opts {
+		opt(&bundle)
+	}
 
 	contents, err := os.ReadFile(path)
 	if err != nil {
@@ -259,8 +273,25 @@ func (b *Bundle) VerificationContent() (verify.VerificationContent, error) {
 		if err != nil {
 			return nil, ErrValidationError(err)
 		}
+		var intermediates []*x509.Certificate
+		if b.allowCertificateChain {
+			for _, cert := range certs[1:] {
+				intermediate, err := x509.ParseCertificate(cert.RawBytes)
+				if err != nil {
+					return nil, ErrValidationError(err)
+				}
+				if certificate.IsSelfSigned(intermediate) {
+					return nil, ErrValidationError(errors.New("self-signed certificate found in certificate chain"))
+				}
+				if !intermediate.IsCA {
+					return nil, ErrValidationError(errors.New("non-CA certificate found in certificate chain"))
+				}
+				intermediates = append(intermediates, intermediate)
+			}
+		}
 		cert := &Certificate{
-			certificate: parsedCert,
+			certificate:   parsedCert,
+			intermediates: intermediates,
 		}
 		return cert, nil
 	case *protobundle.VerificationMaterial_Certificate:
