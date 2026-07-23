@@ -96,7 +96,7 @@ jobs:
         uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
       -
         name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: moby
       -
@@ -114,7 +114,7 @@ jobs:
         working-directory: moby
       -
         name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ env.BUILDKIT_REPO }}
           ref: ${{ env.BUILDKIT_REF }}
@@ -180,7 +180,7 @@ jobs:
       TEST_CTN_NAME: moby
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Env
         run: |
@@ -233,7 +233,7 @@ jobs:
           REGISTRY_VERSION: "v3.0.0"
 
       - name: Checkout BuildKit
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: moby/buildkit
           ref: master
@@ -315,7 +315,7 @@ jobs:
         uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
 
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: moby
 
@@ -334,7 +334,7 @@ jobs:
         working-directory: moby
 
       - name: Checkout BuildKit ${{ env.BUILDKIT_REF }}
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ env.BUILDKIT_REPO }}
           ref: ${{ env.BUILDKIT_REF }}
