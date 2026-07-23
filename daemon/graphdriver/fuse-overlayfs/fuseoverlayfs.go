@@ -172,9 +172,6 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 	dir := d.dir(id)
 	uid, gid := d.idMap.RootPair()
 
-	if err := user.MkdirAllAndChown(path.Dir(dir), 0o710, uid, gid); err != nil {
-		return err
-	}
 	if err := user.MkdirAndChown(dir, 0o710, uid, gid); err != nil {
 		return err
 	}
