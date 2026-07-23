@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MIT
 
 package metrics
@@ -66,15 +66,15 @@ func (source *SampledValue) deepCopy() SampledValue {
 }
 
 // DisplayMetrics returns a summary of the metrics from the most recent finished interval.
-func (i *InmemSink) DisplayMetrics(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (i *InmemSink) DisplayMetrics(resp http.ResponseWriter, req *http.Request) (any, error) {
 	data := i.Data()
 
 	var interval *IntervalMetrics
 	n := len(data)
-	switch {
-	case n == 0:
+	switch n {
+	case 0:
 		return nil, fmt.Errorf("no metric intervals have been initialized yet")
-	case n == 1:
+	case 1:
 		// Show the current interval if it's all we have
 		interval = data[0]
 	default:
@@ -164,7 +164,7 @@ func formatSamples(source map[string]SampledValue) []SampledValue {
 }
 
 type Encoder interface {
-	Encode(interface{}) error
+	Encode(any) error
 }
 
 // Stream writes metrics using encoder.Encode each time an interval ends. Runs

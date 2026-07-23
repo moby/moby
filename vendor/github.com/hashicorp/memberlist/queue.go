@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2013, 2025
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package memberlist
@@ -62,20 +62,6 @@ func (b *limitedBroadcast) Less(than btree.Item) bool {
 		return false
 	}
 	return b.id > o.id
-}
-
-// for testing; emits in transmit order if reverse=false
-func (q *TransmitLimitedQueue) orderedView(reverse bool) []*limitedBroadcast {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-
-	out := make([]*limitedBroadcast, 0, q.lenLocked())
-	q.walkReadOnlyLocked(reverse, func(cur *limitedBroadcast) bool {
-		out = append(out, cur)
-		return true
-	})
-
-	return out
 }
 
 // walkReadOnlyLocked calls f for each item in the queue traversing it in

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2013, 2025
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package memberlist
@@ -579,7 +579,7 @@ func (m *Memberlist) resetNodes() {
 	m.nodes = m.nodes[0:deadIdx]
 
 	// Update numNodes after we've trimmed the dead nodes
-	atomic.StoreUint32(&m.numNodes, uint32(deadIdx))
+	m.numNodes.Store(uint32(deadIdx))
 
 	// Shuffle live nodes
 	shuffleNodes(m.nodes)
@@ -808,17 +808,17 @@ func (m *Memberlist) nextSeqNo() uint32 {
 
 // nextIncarnation returns the next incarnation number in a thread safe way
 func (m *Memberlist) nextIncarnation() uint32 {
-	return atomic.AddUint32(&m.incarnation, 1)
+	return m.incarnation.Add(1)
 }
 
 // skipIncarnation adds the positive offset to the incarnation number.
 func (m *Memberlist) skipIncarnation(offset uint32) uint32 {
-	return atomic.AddUint32(&m.incarnation, offset)
+	return m.incarnation.Add(offset)
 }
 
 // estNumNodes is used to get the current estimate of the number of nodes
 func (m *Memberlist) estNumNodes() int {
-	return int(atomic.LoadUint32(&m.numNodes))
+	return int(m.numNodes.Load())
 }
 
 type ackMessage struct {
@@ -846,14 +846,8 @@ func (m *Memberlist) setProbeChannels(seqNo uint32, ackCh chan ackMessage, nackC
 		}
 	}
 
-	// Add the handlers
-	ah := &ackHandler{ackFn, nackFn, nil}
-	m.ackLock.Lock()
-	m.ackHandlers[seqNo] = ah
-	m.ackLock.Unlock()
-
-	// Setup a reaping routing
-	ah.timer = time.AfterFunc(timeout, func() {
+	// Add the handler, with a reaping routine
+	ah := &ackHandler{ackFn, nackFn, time.AfterFunc(timeout, func() {
 		m.ackLock.Lock()
 		delete(m.ackHandlers, seqNo)
 		m.ackLock.Unlock()
@@ -861,7 +855,11 @@ func (m *Memberlist) setProbeChannels(seqNo uint32, ackCh chan ackMessage, nackC
 		case ackCh <- ackMessage{false, nil, time.Now()}:
 		default:
 		}
-	})
+	})}
+
+	m.ackLock.Lock()
+	m.ackHandlers[seqNo] = ah
+	m.ackLock.Unlock()
 }
 
 // setAckHandler is used to attach a handler to be invoked when an ack with a
@@ -1034,7 +1032,7 @@ func (m *Memberlist) aliveNode(a *alive, notify chan struct{}, bootstrap bool) {
 		m.nodes[offset], m.nodes[n] = m.nodes[n], m.nodes[offset]
 
 		// Update numNodes after we've added a new node
-		atomic.AddUint32(&m.numNodes, 1)
+		m.numNodes.Add(1)
 	} else {
 		// Check if this address is different than the existing node unless the old node is dead.
 		if !bytes.Equal([]byte(state.Addr), a.Addr) || state.Port != a.Port {

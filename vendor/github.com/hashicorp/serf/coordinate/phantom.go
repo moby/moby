@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package coordinate
@@ -33,7 +33,7 @@ func GenerateLine(nodes int, spacing time.Duration) [][]time.Duration {
 		truth[i] = make([]time.Duration, nodes)
 	}
 
-	for i := 0; i < nodes; i++ {
+	for i := range nodes {
 		for j := i + 1; j < nodes; j++ {
 			rtt := time.Duration(j-i) * spacing
 			truth[i][j], truth[j][i] = rtt, rtt
@@ -51,7 +51,7 @@ func GenerateGrid(nodes int, spacing time.Duration) [][]time.Duration {
 	}
 
 	n := int(math.Sqrt(float64(nodes)))
-	for i := 0; i < nodes; i++ {
+	for i := range nodes {
 		for j := i + 1; j < nodes; j++ {
 			x1, y1 := float64(i%n), float64(i/n)
 			x2, y2 := float64(j%n), float64(j/n)
@@ -75,7 +75,7 @@ func GenerateSplit(nodes int, lan time.Duration, wan time.Duration) [][]time.Dur
 	}
 
 	split := nodes / 2
-	for i := 0; i < nodes; i++ {
+	for i := range nodes {
 		for j := i + 1; j < nodes; j++ {
 			rtt := lan
 			if (i <= split && j > split) || (i > split && j <= split) {
@@ -97,7 +97,7 @@ func GenerateCircle(nodes int, radius time.Duration) [][]time.Duration {
 		truth[i] = make([]time.Duration, nodes)
 	}
 
-	for i := 0; i < nodes; i++ {
+	for i := range nodes {
 		for j := i + 1; j < nodes; j++ {
 			var rtt time.Duration
 			if i == 0 {
@@ -121,16 +121,16 @@ func GenerateCircle(nodes int, radius time.Duration) [][]time.Duration {
 // distributed delays, with the given mean and deviation. The RNG is re-seeded
 // so you always get the same matrix for a given size.
 func GenerateRandom(nodes int, mean time.Duration, deviation time.Duration) [][]time.Duration {
-	rand.Seed(1)
+	rng := rand.New(rand.NewSource(1))
 
 	truth := make([][]time.Duration, nodes)
 	for i := range truth {
 		truth[i] = make([]time.Duration, nodes)
 	}
 
-	for i := 0; i < nodes; i++ {
+	for i := range nodes {
 		for j := i + 1; j < nodes; j++ {
-			rttSeconds := rand.NormFloat64()*deviation.Seconds() + mean.Seconds()
+			rttSeconds := rng.NormFloat64()*deviation.Seconds() + mean.Seconds()
 			rtt := time.Duration(rttSeconds * secondsToNanoseconds)
 			truth[i][j], truth[j][i] = rtt, rtt
 		}
@@ -145,16 +145,16 @@ func GenerateRandom(nodes int, mean time.Duration, deviation time.Duration) [][]
 // underlying algorithm which will use random numbers for position vectors when
 // starting out with everything at the origin).
 func Simulate(clients []*Client, truth [][]time.Duration, cycles int) {
-	rand.Seed(1)
+	rng := rand.New(rand.NewSource(1))
 
 	nodes := len(clients)
-	for cycle := 0; cycle < cycles; cycle++ {
+	for range cycles {
 		for i := range clients {
-			if j := rand.Intn(nodes); j != i {
+			if j := rng.Intn(nodes); j != i {
 				c := clients[j].GetCoordinate()
 				rtt := truth[i][j]
 				node := fmt.Sprintf("node_%d", j)
-				clients[i].Update(node, c, rtt)
+				_, _ = clients[i].Update(node, c, rtt)
 			}
 		}
 	}
@@ -176,7 +176,7 @@ func Evaluate(clients []*Client, truth [][]time.Duration) (stats Stats) {
 	}
 	nodes := len(clients)
 	count := 0
-	for i := 0; i < nodes; i++ {
+	for i := range nodes {
 		for j := i + 1; j < nodes; j++ {
 			est := clients[i].DistanceTo(clients[j].GetCoordinate()).Seconds()
 			actual := truth[i][j].Seconds()

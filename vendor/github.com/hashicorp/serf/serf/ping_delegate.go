@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package serf
@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"time"
 
-	"github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/coordinate"
@@ -51,7 +51,7 @@ func (p *pingDelegate) AckPayload() []byte {
 // NotifyPingComplete is called when this node successfully completes a direct ping
 // of a peer node.
 func (p *pingDelegate) NotifyPingComplete(other *memberlist.Node, rtt time.Duration, payload []byte) {
-	if payload == nil || len(payload) == 0 {
+	if len(payload) == 0 {
 		return
 	}
 

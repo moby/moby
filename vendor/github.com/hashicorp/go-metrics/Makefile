@@ -3,20 +3,11 @@ SHELL := /bin/bash
 .SHELLFLAGS := -o pipefail -euc
 .DEFAULT_GOAL := test
 
-.PHONY: test subnet cov testrace check lint copywriteheaders tidy integ
+.PHONY: test cov testrace check lint copywriteheaders tidy
 
 # test runs the test suite
-test: subnet
-	go test -count ./...
-
-# runs integration tests
-integ: subnet
-	INTEG_TESTS=yes go test ./...
-
-# subnet sets up the require subnet for testing on darwin (osx) - you must run
-# this before running other tests if you are on osx.
-subnet:
-	@sh -c "'$(CURDIR)/test/setup_subnet.sh'"
+test:
+	go test -count=1 ./...
 
 # cov runs tests with a coverage profile
 cov:
@@ -24,7 +15,7 @@ cov:
 	go tool cover -html=coverage.out
 
 # testrace runs the race checker
-testrace: subnet
+testrace:
 	go test -count=1 -race ./... $(TESTARGS)
 
 # check runs all the linters and custom checks

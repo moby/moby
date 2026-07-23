@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package coordinate
@@ -110,7 +110,7 @@ func (c *Coordinate) ApplyForce(config *Config, force float64, other *Coordinate
 	}
 
 	ret := c.Clone()
-	unit, mag := unitVectorAt(c.Vec, other.Vec)
+	unit, mag := unitVectorAt(config.rand, c.Vec, other.Vec)
 	ret.Vec = add(ret.Vec, mul(unit, force))
 	if mag > zeroThreshold {
 		ret.Height = (ret.Height+other.Height)*force/mag + ret.Height
@@ -182,7 +182,7 @@ func magnitude(vec []float64) float64 {
 // unitVectorAt returns a unit vector pointing at vec1 from vec2. If the two
 // positions are the same then a random unit vector is returned. We also return
 // the distance between the points for use in the later height calculation.
-func unitVectorAt(vec1 []float64, vec2 []float64) ([]float64, float64) {
+func unitVectorAt(rng *rand.Rand, vec1 []float64, vec2 []float64) ([]float64, float64) {
 	ret := diff(vec1, vec2)
 
 	// If the coordinates aren't on top of each other we can normalize.
@@ -192,7 +192,11 @@ func unitVectorAt(vec1 []float64, vec2 []float64) ([]float64, float64) {
 
 	// Otherwise, just return a random unit vector.
 	for i := range ret {
-		ret[i] = rand.Float64() - 0.5
+		if rng != nil {
+			ret[i] = rng.Float64() - 0.5
+		} else {
+			ret[i] = rand.Float64() - 0.5
+		}
 	}
 	if mag := magnitude(ret); mag > zeroThreshold {
 		return mul(ret, 1.0/mag), 0.0

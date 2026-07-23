@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2013, 2025
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package memberlist
@@ -50,14 +50,14 @@ func (b *memberlistBroadcast) Finished() {
 
 // encodeAndBroadcast encodes a message and enqueues it for broadcast. Fails
 // silently if there is an encoding error.
-func (m *Memberlist) encodeAndBroadcast(node string, msgType messageType, msg interface{}) {
+func (m *Memberlist) encodeAndBroadcast(node string, msgType messageType, msg any) {
 	m.encodeBroadcastNotify(node, msgType, msg, nil)
 }
 
 // encodeBroadcastNotify encodes a message and enqueues it for broadcast
 // and notifies the given channel when transmission is finished. Fails
 // silently if there is an encoding error.
-func (m *Memberlist) encodeBroadcastNotify(node string, msgType messageType, msg interface{}, notify chan struct{}) {
+func (m *Memberlist) encodeBroadcastNotify(node string, msgType messageType, msg any, notify chan struct{}) {
 	buf, err := encode(msgType, msg, m.config.MsgpackUseNewTimeFormat)
 	if err != nil {
 		m.logger.Printf("[ERR] memberlist: Failed to encode message for broadcast: %s", err)

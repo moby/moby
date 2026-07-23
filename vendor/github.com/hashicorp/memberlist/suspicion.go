@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2013, 2025
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package memberlist
@@ -16,7 +16,7 @@ type suspicion struct {
 	// n is the number of independent confirmations we've seen. This must
 	// be updated using atomic instructions to prevent contention with the
 	// timer callback.
-	n int32
+	n atomic.Int32
 
 	// k is the number of independent confirmations we'd like to see in
 	// order to drive the timer to its minimum value.
@@ -64,7 +64,7 @@ func newSuspicion(from string, k int, min time.Duration, max time.Duration, fn f
 	// Pass the number of confirmations into the timeout function for
 	// easy telemetry.
 	s.timeoutFn = func() {
-		fn(int(atomic.LoadInt32(&s.n)))
+		fn(int(s.n.Load()))
 	}
 
 	// If there aren't any confirmations to be made then take the min
@@ -105,7 +105,7 @@ func remainingSuspicionTime(n, k int32, elapsed time.Duration, min, max time.Dur
 // hit the minimum.
 func (s *suspicion) Confirm(from string) bool {
 	// If we've got enough confirmations then stop accepting them.
-	if atomic.LoadInt32(&s.n) >= s.k {
+	if s.n.Load() >= s.k {
 		return false
 	}
 
@@ -119,7 +119,7 @@ func (s *suspicion) Confirm(from string) bool {
 	// adjust the timer. If the timeout becomes negative *and* we can cleanly
 	// stop the timer then we will call the timeout function directly from
 	// here.
-	n := atomic.AddInt32(&s.n, 1)
+	n := s.n.Add(1)
 	elapsed := time.Since(s.start)
 	remaining := remainingSuspicionTime(n, s.k, elapsed, s.min, s.max)
 	if s.timer.Stop() {

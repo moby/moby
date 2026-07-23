@@ -1,22 +1,25 @@
 # Copyright IBM Corp. 2013, 2026
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: MIT
 
 version: "2"
-
 run:
-  timeout: 10m
   concurrency: 4
-
 linters:
   default: none
   enable:
     - errcheck
+    - forbidigo
     - govet
     - ineffassign
     - modernize
     - staticcheck
     - unparam
     - unused
+
+  settings:
+    errcheck:
+      disable-default-exclusions: false
+      verbose: true
 
 formatters:
   settings:
