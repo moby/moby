@@ -78,7 +78,7 @@ func Init(home string, options []string, idMap user.IdentityMapping) (graphdrive
 	}
 
 	_, gid := idMap.RootPair()
-	if err := user.MkdirAllAndChown(home, 0o710, os.Getuid(), gid); err != nil {
+	if err := user.MkdirAndChown(home, 0o710, os.Getuid(), gid); err != nil {
 		return nil, err
 	}
 
