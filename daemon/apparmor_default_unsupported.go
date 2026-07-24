@@ -2,7 +2,9 @@
 
 package daemon
 
-func loadDefaultAppArmorProfileIfMissing() error {
+import "github.com/moby/moby/v2/daemon/config"
+
+func (daemon *Daemon) loadDefaultAppArmorProfileIfMissing() error {
 	return nil
 }
 
@@ -11,6 +13,10 @@ func DefaultApparmorProfile() string {
 	return ""
 }
 
-func installDefaultAppArmorProfile() error {
+func (daemon *Daemon) installDefaultAppArmorProfile() error {
+	return nil
+}
+
+func (daemon *Daemon) setupAppArmorProfile(*config.Config) error {
 	return nil
 }

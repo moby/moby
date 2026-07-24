@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"text/template"
 	"time"
 
 	containerd "github.com/containerd/containerd/v2/client"
@@ -132,8 +133,10 @@ type Daemon struct {
 
 	machineMemory uint64
 
-	seccompProfile     []byte
-	seccompProfilePath string
+	seccompProfile      []byte
+	seccompProfilePath  string
+	appArmorProfile     *template.Template
+	appArmorProfilePath string
 
 	usageContainers singleflight.Group[bool, *backend.ContainerDiskUsage]
 	usageImages     singleflight.Group[bool, *backend.ImageDiskUsage]
@@ -965,6 +968,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err := d.setupSeccompProfile(&cfgStore.Config); err != nil {
 		return nil, err
 	}
+	if err := d.setupAppArmorProfile(&cfgStore.Config); err != nil {
+		return nil, err
+	}
 
 	// Set the default isolation mode (only applicable on Windows)
 	if err := d.setDefaultIsolation(&cfgStore.Config); err != nil {
@@ -977,7 +983,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	// Always install the default AppArmor profile at startup to pick up
 	// any changes to the profile template from a daemon upgrade.
-	if err := installDefaultAppArmorProfile(); err != nil {
+	if err := d.installDefaultAppArmorProfile(); err != nil {
 		log.G(ctx).WithError(err).Error("Failed to load default apparmor profile")
 	}
 

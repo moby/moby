@@ -6,6 +6,7 @@ dockerd - Enable daemon mode
 # SYNOPSIS
 **dockerd**
 [**--add-runtime**[=*[]*]]
+[**--apparmor-profile**[=*APPARMOR-PROFILE-PATH*]]
 [**--authorization-plugin**[=*[]*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
 [**--bip**[=*BIP*]]
@@ -126,6 +127,51 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 ```
 
   **Note**: defining runtime arguments via the command line is not supported.
+
+**--apparmor-profile**=""
+  Path to an AppArmor profile definition for Docker's default
+  `docker-default` container profile. This option is only supported on Linux
+  hosts.
+
+  The file may be either a static AppArmor profile or a Go template. A file
+  without Go template actions renders unchanged, so an existing static profile
+  can be used without converting it to a template. A static profile must
+  declare `docker-default` and provide declarations and includes that are valid
+  on the host.
+
+  The equivalent `daemon.json` configuration is:
+
+```json
+{
+	"apparmor-profile": "/etc/docker/apparmor/docker-default"
+}
+```
+
+  Go templates can use the following values to adapt a profile to the host:
+
+  - `.Name` is the required profile name, `docker-default`.
+  - `.Abi` is `abi/3.0` when that AppArmor ABI is available, or an empty string
+    otherwise.
+  - `.Imports` contains global-scope host declarations. It contains
+    `#include <tunables/global>` when available, or `@{PROC}=/proc/` otherwise.
+  - `.InnerImports` contains `#include <abstractions/base>` when that
+    profile-scope abstraction is available.
+  - `.DaemonProfile` is the AppArmor profile applied to the daemon, or
+    `unconfined`.
+
+  Use the [built-in profile template](https://github.com/moby/profiles/blob/main/apparmor/template.go)
+  as the starting point for a portable custom policy.
+
+  The daemon reads and parses the file at startup. If AppArmor is enabled, the
+  daemon renders the file and loads the result with `apparmor_parser`, replacing
+  the loaded `docker-default` profile. Restart the daemon to apply changes to
+  the file. If the file cannot be read or parsed, the daemon fails to start. If
+  `apparmor_parser` rejects the rendered profile, the daemon logs an error and
+  does not update the loaded profile.
+
+  This option changes only Docker's default AppArmor profile. Containers
+  configured with another profile or with `unconfined` continue to use that
+  setting.
 
 **--authorization-plugin**=""
   Set authorization plugins to load
