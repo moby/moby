@@ -1003,6 +1003,16 @@ func WithUser(c *container.Container) coci.SpecOpts {
 	}
 }
 
+// WithUmask sets the container's umask.
+func WithUmask(c *container.Container) coci.SpecOpts {
+	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		if c.HostConfig.Umask == nil {
+			return nil
+		}
+		return coci.WithUmask(*c.HostConfig.Umask)(ctx, nil, nil, s)
+	}
+}
+
 func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c *container.Container, mounts []container.Mount) (retSpec *specs.Spec, _ error) {
 	var (
 		opts []coci.SpecOpts
@@ -1015,6 +1025,7 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 		WithSysctls(c),
 		// Set the user before CDI device injection, which may append supplementary groups.
 		WithUser(c),
+		WithUmask(c),
 		WithDevices(daemon, c),
 		withRlimits(daemon, &daemonCfg.Config, c),
 		WithNamespaces(daemon, c),
