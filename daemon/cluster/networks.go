@@ -298,6 +298,11 @@ func (c *Cluster) CreateNetwork(s network.CreateRequest) (string, error) {
 		return "", errors.WithStack(err)
 	}
 
+	if networkSettings.IsReserved(s.Name) {
+		err := notAllowedError(fmt.Sprintf("%s is a reserved network name and cannot be created", s.Name))
+		return "", errors.WithStack(err)
+	}
+
 	var resp *swarmapi.CreateNetworkResponse
 	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		networkSpec := convert.BasicNetworkCreateToGRPC(s)
