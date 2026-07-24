@@ -417,7 +417,7 @@ func runNftables(t *testing.T, host networking.Host) map[string]string {
 	var sb strings.Builder
 	for line := range lines(out) {
 		if line == "\n" || (line != "" && line[0] == '}') {
-			block := sb.String()
+			block := strings.ReplaceAll(sb.String(), "type nat hook output priority -100", "type nat hook output priority dstnat")
 			sb.Reset()
 			if keyEnd := strings.Index(block, " {"); keyEnd > 0 {
 				res[strings.TrimSpace(block[:keyEnd])] = block
