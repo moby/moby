@@ -15,8 +15,9 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	nwconfig "github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/network"
+	"github.com/moby/moby/v2/daemon/pkg/plugin"
+	"github.com/moby/sys/mount"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -24,9 +25,9 @@ import (
 
 func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	t.Helper()
-	root := t.TempDir()
-
-	rootfs := filepath.Join(root, "rootfs")
+	rootDir := t.TempDir()
+	cRoot := filepath.Join(rootDir, "containers", "fakecontainer")
+	rootfs := filepath.Join(rootDir, "rootfs")
 	err := os.MkdirAll(rootfs, 0o755)
 	assert.NilError(t, err)
 
@@ -34,14 +35,16 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	assert.NilError(t, err)
 
 	d := &Daemon{
+		root: rootDir,
 		// some empty structs to avoid getting a panic
 		// caused by a null pointer dereference
 		linkIndex:     newLinkIndex(),
 		netController: netController,
 		imageService:  &fakeImageService{},
+		PluginStore:   plugin.NewStore(),
 	}
 
-	c.Root = root
+	c.Root = cRoot
 	c.BaseFS = rootfs
 
 	if c.Config == nil {
@@ -58,11 +61,19 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	// offending tests would fail due to the mounts blocking the temporary
 	// directory from being cleaned up.
 	t.Cleanup(func() {
+		err := d.Shutdown(context.TODO())
+		if err != nil {
+			t.Log(err)
+		}
 		if c.ShmPath != "" {
 			var err error
 			for err == nil { // Some tests over-mount over the same path multiple times.
-				err = unix.Unmount(c.ShmPath, unix.MNT_DETACH)
+				err = mount.Unmount(c.ShmPath)
 			}
+		}
+		err = os.RemoveAll(c.Root)
+		if err != nil {
+			t.Log(err)
 		}
 	})
 
@@ -72,6 +83,8 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 type fakeImageService struct {
 	ImageService
 }
+
+func (i *fakeImageService) Cleanup() error { return nil }
 
 func (i *fakeImageService) StorageDriver() string {
 	return "overlay"
