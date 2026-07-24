@@ -107,6 +107,32 @@ type ExtConner interface {
 	ProgramExternalConnectivity(ctx context.Context, nid, eid string, gw4Id, gw6Id string) error
 }
 
+// PortManager is an optional interface for a network driver. It allows the set
+// of published ports for an endpoint that's already joined to a sandbox to be
+// changed dynamically, without recreating the endpoint.
+//
+// Both methods act on the endpoint identified by eid on network nid. The
+// endpoint must be joined to a sandbox. Whether host port-mappings (DNAT) are
+// programmed depends on whether the endpoint is currently acting as a gateway,
+// exactly as for the port bindings supplied at Join time.
+//
+// Ports are published as [types.PublishedPort], which can't express a host-port
+// range: this API only ever publishes single host ports (each derived from a
+// single source of truth the caller re-applies across restarts), so a range
+// would have no allocation semantics here.
+type PortManager interface {
+	// AddEphemeralPorts publishes additional ports on an already-joined
+	// endpoint. The ports are not saved to the driver's datastore: callers own
+	// the published-port set from another source of truth and re-apply it on
+	// restart - such as Swarm ingress, which re-derives it from the cluster - so
+	// persisting them would restore-then-double-publish.
+	AddEphemeralPorts(ctx context.Context, nid, eid string, ports []types.PublishedPort) error
+	// DelEphemeralPorts unpublishes ports previously published via
+	// AddEphemeralPorts on an already-joined endpoint. Ports that aren't
+	// currently published are ignored.
+	DelEphemeralPorts(ctx context.Context, nid, eid string, ports []types.PublishedPort) error
+}
+
 // IPv6Releaser is an optional interface for a network driver.
 type IPv6Releaser interface {
 	// ReleaseIPv6 tells the driver that an endpoint has no IPv6 address, even

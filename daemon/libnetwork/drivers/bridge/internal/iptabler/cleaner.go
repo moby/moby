@@ -38,12 +38,12 @@ func NewCleaner(ctx context.Context, config firewaller.Config) firewaller.Firewa
 		t := iptables.GetIptable(ipv)
 		// Since 28.0, the jump in the filter-FORWARD chain is DOCKER-FORWARD.
 		// In earlier releases, there was a jump to DOCKER-ISOLATION-STAGE-1.
-		if !t.Exists("filter", "FORWARD", "-j", DockerForwardChain) &&
+		if !t.Exists("filter", "FORWARD", "-j", dockerForwardChain) &&
 			!t.Exists("filter", "FORWARD", "-j", isolationChain1) {
 			return false
 		}
 		log.G(ctx).WithField("ipv", ipv).Info("Cleaning iptables")
-		_ = t.DeleteJumpRule(iptables.Filter, "FORWARD", DockerForwardChain)
+		_ = t.DeleteJumpRule(iptables.Filter, "FORWARD", dockerForwardChain)
 		_ = deleteLegacyTopLevelRules(ctx, t, ipv)
 		removeIPChains(ctx, ipv)
 		// The iptables chains will no longer have Docker's ACCEPT rules. So, if the
