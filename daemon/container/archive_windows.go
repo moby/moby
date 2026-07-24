@@ -6,6 +6,7 @@ import (
 
 	"github.com/moby/go-archive"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -41,6 +42,18 @@ func (container *Container) ResolvePath(path string) (resolvedPath, absPath stri
 	return resolvedPath, absPath, nil
 }
 
+// assertsDirectory reports whether the given path explicitly asserts that it is
+// a directory (i.e. it ends with a path separator or a "." path component).
+func assertsDirectory(path string) bool {
+	if len(path) == 0 {
+		return false
+	}
+	if path[len(path)-1] == filepath.Separator {
+		return true
+	}
+	return filepath.Base(path) == "."
+}
+
 // StatPath is the unexported version of StatPath. Locks and mounts should
 // be acquired before calling this method and the given path should be fully
 // resolved to a path on the host corresponding to the given absolute path
@@ -53,6 +66,17 @@ func (container *Container) StatPath(resolvedPath, absPath string) (*containerty
 	lstat, err := os.Lstat(resolvedPath)
 	if err != nil {
 		return nil, err
+	}
+
+	// A path that asserts a directory (trailing separator or "." component)
+	// must resolve to a directory. os.Lstat does not reliably enforce this
+	// across Windows storage drivers: a windowsfilter volume mount
+	// (\\?\Volume{GUID}\) rejects a trailing separator on a file, but a
+	// containerd snapshotter directory mount does not, so the trailing
+	// separator is silently ignored and a file is returned. Enforce the
+	// invariant explicitly for consistent behavior. (moby/moby#47107)
+	if assertsDirectory(absPath) && !lstat.IsDir() {
+		return nil, errdefs.InvalidParameter(errors.Errorf("%s: not a directory", absPath))
 	}
 
 	var linkTarget string
