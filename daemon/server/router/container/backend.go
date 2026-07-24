@@ -33,7 +33,7 @@ type copyBackend interface {
 // stateBackend includes functions to implement to provide container state lifecycle functionality.
 type stateBackend interface {
 	ContainerCreate(ctx context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error)
-	ContainerKill(name string, signal string) error
+	ContainerKill(ctx context.Context, name string, signal string) error
 	ContainerPause(name string) error
 	ContainerRename(oldName, newName string) error
 	ContainerResize(ctx context.Context, name string, height, width uint32) error

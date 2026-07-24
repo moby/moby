@@ -437,7 +437,7 @@ func (c *containerAdapter) shutdown(ctx context.Context) error {
 }
 
 func (c *containerAdapter) terminate(ctx context.Context) error {
-	return c.backend.ContainerKill(c.container.name(), syscall.SIGKILL.String())
+	return c.backend.ContainerKill(ctx, c.container.name(), syscall.SIGKILL.String())
 }
 
 func (c *containerAdapter) remove(ctx context.Context) error {
