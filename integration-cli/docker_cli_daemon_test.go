@@ -1111,10 +1111,37 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 	)
 	defer s.d.Stop(c)
 
-	// pull a repository large enough to overfill the mounted filesystem
-	pullOut, err := s.d.Cmd("pull", "debian:trixie-slim")
-	assert.Check(c, err != nil)
+	// Pull a repository large enough to overfill the mounted filesystem.
+	//
+	// The pull is expected to fail with "no space left on device" once the
+	// tiny data-root fills up. On CI a transient network error (EOF,
+	// connection reset, timeout, TLS handshake failure, …) can surface
+	// before the filesystem fills, producing a different error. Retry a
+	// few times on such errors instead of failing the test spuriously.
+	const maxAttempts = 3
+	var pullOut string
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		var pullErr error
+		pullOut, pullErr = s.d.Cmd("pull", "debian:trixie-slim")
+		assert.Check(c, pullErr != nil)
+		if strings.Contains(pullOut, "no space left on device") || !isTransientNetworkError(pullOut) {
+			break
+		}
+		c.Logf("attempt %d/%d: transient network error before ENOSPC, retrying: %s", attempt, maxAttempts, pullOut)
+		time.Sleep(time.Duration(attempt) * time.Second)
+	}
 	assert.Check(c, is.Contains(pullOut, "no space left on device"))
+}
+
+// isTransientNetworkError reports whether out contains a known transient
+// network error pattern that can occur while pulling an image on CI.
+func isTransientNetworkError(out string) bool {
+	for _, netErr := range []string{"EOF", "connection reset", "i/o timeout", "TLS handshake", "no such host", "dial tcp"} {
+		if strings.Contains(out, netErr) {
+			return true
+		}
+	}
+	return false
 }
 
 // Test daemon restart with container links + auto restart
