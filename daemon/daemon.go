@@ -239,7 +239,10 @@ func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string
 	for _, v := range dir {
 		id := v.Name()
 		group.Go(func() {
-			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
+				return
+			}
 			defer sem.Release(1)
 
 			c, err := daemon.load(id)
@@ -294,8 +297,8 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 	for _, c := range containers {
 		group.Go(func() {
-			if err := sem.Acquire(context.WithoutCancel(ctx), 1); err != nil {
-				// ctx is done; should never happen.
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
 				return
 			}
 			defer sem.Release(1)
@@ -334,10 +337,11 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	group.Wait()
 
 	for _, c := range containers {
-		group.Add(1)
-		go func(c *container.Container) {
-			defer group.Done()
-			_ = sem.Acquire(context.Background(), 1)
+		group.Go(func() {
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
+				return
+			}
 			defer sem.Release(1)
 
 			baseLogger := log.G(ctx).WithField("container", c.ID)
@@ -581,7 +585,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			}
 			c.Unlock()
 			logger(c).Debug("done restoring container")
-		}(c)
+		})
 	}
 	group.Wait()
 
@@ -613,24 +617,27 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 	// Now that all the containers are registered, register the links
 	for _, c := range containers {
-		group.Add(1)
-		go func(c *container.Container) {
-			_ = sem.Acquire(context.Background(), 1)
+		group.Go(func() {
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
+				return
+			}
+			defer sem.Release(1)
 
 			if err := daemon.registerLinks(c); err != nil {
 				log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to register link for container")
 			}
-
-			sem.Release(1)
-			group.Done()
-		}(c)
+		})
 	}
 	group.Wait()
 
 	for c, notifyChan := range restartContainers {
-		group.Add(1)
-		go func(c *container.Container, chNotify chan struct{}) {
-			_ = sem.Acquire(context.Background(), 1)
+		group.Go(func() {
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
+				return
+			}
+			defer sem.Release(1)
 
 			logger := log.G(ctx).WithField("container", c.ID)
 
@@ -658,19 +665,17 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			if err := daemon.containerStart(context.Background(), cfg, c, "", "", true); err != nil {
 				logger.WithError(err).Error("failed to start container")
 			}
-			close(chNotify)
-
-			sem.Release(1)
-			group.Done()
-		}(c, notifyChan)
+			close(notifyChan)
+		})
 	}
 	group.Wait()
 
-	for id, c := range removeContainers {
-		group.Add(1)
-		go func(cid string, c *container.Container) {
-			_ = sem.Acquire(context.Background(), 1)
-			defer group.Done()
+	for cid, c := range removeContainers {
+		group.Go(func() {
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
+				return
+			}
 			defer sem.Release(1)
 
 			if c.State.IsDead() {
@@ -683,7 +688,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			if err := daemon.containerRm(&cfg.Config, cid, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 				log.G(ctx).WithField("container", cid).WithError(err).Error("failed to remove container")
 			}
-		}(id, c)
+		})
 	}
 	group.Wait()
 
@@ -704,17 +709,17 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			continue
 		}
 
-		group.Add(1)
-		go func(c *container.Container) {
-			_ = sem.Acquire(context.Background(), 1)
+		group.Go(func() {
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
+				return
+			}
+			defer sem.Release(1)
 
 			if err := daemon.prepareMountPoints(c); err != nil {
 				log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to prepare mountpoints for container")
 			}
-
-			sem.Release(1)
-			group.Done()
-		}(c)
+		})
 	}
 	group.Wait()
 
@@ -749,21 +754,17 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 		// swarm endpoint now that the cluster is
 		// initialized.
 		if cfg.AutoRestart && c.ShouldRestart() && c.NetworkSettings.HasSwarmEndpoint && c.HasBeenStartedBefore {
-			group.Add(1)
-			go func(c *container.Container) {
+			group.Go(func() {
 				if err := sem.Acquire(ctx, 1); err != nil {
 					// ctx is done.
-					group.Done()
 					return
 				}
+				defer sem.Release(1)
 
 				if err := daemon.containerStart(ctx, cfg, c, "", "", true); err != nil {
 					log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
 				}
-
-				sem.Release(1)
-				group.Done()
-			}(c)
+			})
 		}
 	}
 	group.Wait()
@@ -1343,7 +1344,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 	}
 
-	go d.execCommandGC()
+	go d.execCommandGC(ctx)
 
 	d.containerd, err = libcontainerd.NewClient(ctx, d.containerdClient, filepath.Join(config.ExecRoot, "containerd"), config.ContainerdNamespace, d)
 	if err != nil {
