@@ -106,7 +106,7 @@ func Init(base string, opt []string, idMap user.IdentityMapping) (graphdriver.Dr
 	}
 
 	_, gid := idMap.RootPair()
-	if err := user.MkdirAllAndChown(base, 0o710, os.Getuid(), gid); err != nil {
+	if err := user.MkdirAndChown(base, 0o710, os.Getuid(), gid); err != nil {
 		return nil, fmt.Errorf("Failed to create '%s': %v", base, err)
 	}
 
