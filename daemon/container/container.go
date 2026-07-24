@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -488,13 +489,20 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 
 	if containertypes.LogMode(cfg.Config["mode"]) == containertypes.LogModeNonBlock {
 		bufferSize := int64(-1)
+		maxRetries := int64(0)
 		if s, exists := cfg.Config["max-buffer-size"]; exists {
 			bufferSize, err = units.RAMInBytes(s)
 			if err != nil {
 				return nil, err
 			}
 		}
-		l = logger.NewRingLogger(l, info, bufferSize)
+		if s, exists := cfg.Config["max-non-blocking-retries"]; exists {
+			maxRetries, err = strconv.ParseInt(s, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+		}
+		l = logger.NewRingLogger(l, info, bufferSize, maxRetries)
 	}
 
 	if _, ok := l.(logger.LogReader); !ok {
