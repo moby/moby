@@ -537,8 +537,8 @@ github.com/moby/buildkit v0.32.0-rc1 h1:gYtsqXOSA43i9zTf2w+0KzTxpZYao0ZYr/AaGx0R
 github.com/moby/buildkit v0.32.0-rc1/go.mod h1:0GB/EJ1d+4VIVqIAgy3asaoGkVXy7IrDfVy7mPhOvg8=
 github.com/moby/docker-image-spec v1.3.1 h1:jMKff3w6PgbfSa69GfNg+zN/XLhfXJGnEx3Nl2EsFP0=
 github.com/moby/docker-image-spec v1.3.1/go.mod h1:eKmb5VW8vQEh/BAr2yvVNvuiJuY6UIocYsFu/DxxRpo=
-github.com/moby/go-archive v0.2.0 h1:zg5QDUM2mi0JIM9fdQZWC7U8+2ZfixfTYoHL7rWUcP8=
-github.com/moby/go-archive v0.2.0/go.mod h1:mNeivT14o8xU+5q1YnNrkQVpK+dnNe/K6fHqnTg4qPU=
+github.com/moby/go-archive v0.2.1 h1:fAa0wUS/ikZKyx7o/1fhUYmhZ7RgpthdeoDhJvunTLc=
+github.com/moby/go-archive v0.2.1/go.mod h1:Npdv43fFqlhZW7Xo8fbm3ZMYFvAGNviUPqX21VERbcE=
 github.com/moby/ipvs v1.1.0 h1:ONN4pGaZQgAx+1Scz5RvWV4Q7Gb+mvfRh3NsPS+1XQQ=
 github.com/moby/ipvs v1.1.0/go.mod h1:4VJMWuf098bsUMmZEiD4Tjk/O7mOn3l1PTD3s4OoYAs=
 github.com/moby/locker v1.0.1 h1:fOXqR41zeveg4fFODix+1Ch4mj/gT0NE1XJbp/epuBg=

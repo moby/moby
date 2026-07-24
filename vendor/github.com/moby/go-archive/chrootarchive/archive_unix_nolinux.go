@@ -119,9 +119,9 @@ func doPack(relSrc, root string, options *archive.TarOptions) (io.ReadCloser, er
 		_, _ = io.Copy(w, stdout)
 		// Cleanup once stdout pipe is closed.
 		if err = cmd.Wait(); err != nil {
-			r.CloseWithError(fmt.Errorf("%s: %w", stderr.String(), err))
+			_ = r.CloseWithError(fmt.Errorf("%s: %w", stderr.String(), err))
 		} else {
-			r.Close()
+			_ = r.Close()
 		}
 	}()
 

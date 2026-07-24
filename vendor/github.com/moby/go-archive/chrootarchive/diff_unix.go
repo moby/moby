@@ -31,9 +31,6 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 	if userns.RunningInUserNS() {
 		options.InUserNS = true
 	}
-	if options.ExcludePatterns == nil {
-		options.ExcludePatterns = []string{}
-	}
 	dest = filepath.Clean(dest)
 	return doUnpackLayer(dest, layer, options)
 }
