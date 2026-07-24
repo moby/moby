@@ -120,7 +120,7 @@ func NewStore(rootPath string, drivers *drivers.Store, opts ...StoreOpt) (*Volum
 		}
 	}
 
-	vs.restore()
+	vs.restore(rootPath)
 
 	return vs, nil
 }
