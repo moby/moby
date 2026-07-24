@@ -61,12 +61,14 @@ type Daemon interface {
 // DaemonOpt allows to configure parameters of container daemons
 type DaemonOpt func(c *remote) error
 
-// Start starts a containerd daemon and monitors it
+// Start starts a containerd daemon and monitors it.
+// It uses rootDir for persistent state and the daemon subdirectory under
+// stateDir for runtime state.
 func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
 	r := &remote{
 		Config: config.Config{
 			Version: 2, // FIXME(thaJeztah): update to v3 when we drop support for containerd v1.
-			Root:    filepath.Join(rootDir, "daemon"),
+			Root:    rootDir,
 			State:   filepath.Join(stateDir, "daemon"),
 			GRPC: config.GRPCConfig{ //nolint:staticcheck // Deprecated in config v4, but required for config v3.
 				Address:        defaultGRPCAddress(stateDir),   //nolint:staticcheck // Deprecated in config v4, but required for config v3.

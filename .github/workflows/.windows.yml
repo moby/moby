@@ -20,6 +20,10 @@ on:
         required: false
         type: boolean
         default: false
+      containerd:
+        required: false
+        type: string
+        default: "socket"
     secrets:
       CODECOV_TOKEN:
         required: false
@@ -373,6 +377,7 @@ jobs:
         id: start-daemon
         env:
           INPUT_STORAGE: ${{ inputs.storage }}
+          INPUT_CONTAINERD: ${{ inputs.containerd }}
           MATRIX_RUNTIME: ${{ matrix.runtime }}
         run: |
           Write-Host "Creating service"
@@ -384,7 +389,9 @@ jobs:
             "--pidfile=$env:TEMP\docker.pid", `
             "--register-service"
           )
-          If ($env:MATRIX_RUNTIME -eq "containerd") {
+          If ($env:INPUT_CONTAINERD -eq "embedded") {
+            $args += "--feature=embedded-containerd"
+          } ElseIf ($env:MATRIX_RUNTIME -eq "containerd") {
             $args += "--default-runtime=io.containerd.runhcs.v1"
             echo "DOCKER_WINDOWS_CONTAINERD_RUNTIME=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
@@ -401,6 +408,10 @@ jobs:
             $dockerEnviron += @("TEST_INTEGRATION_USE_GRAPHDRIVER=1")
             echo "TEST_INTEGRATION_USE_GRAPHDRIVER=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
           }
+          If ($env:INPUT_CONTAINERD -eq "embedded") {
+            $dockerEnviron += @("TEST_INTEGRATION_CONTAINERD_EMBEDDED=1")
+            echo "TEST_INTEGRATION_CONTAINERD_EMBEDDED=1" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
+          }
           New-ItemProperty -Name "Environment" -Path "HKLM:\SYSTEM\CurrentControlSet\Services\docker" -PropertyType MultiString -Value $dockerEnviron
           Write-Host "Starting service"
           Start-Service -Name docker
@@ -408,6 +419,7 @@ jobs:
       -
         name: Waiting for test daemon to start
         env:
+          INPUT_CONTAINERD: ${{ inputs.containerd }}
           MATRIX_RUNTIME: ${{ matrix.runtime }}
           DOCKER_HOST: npipe:////./pipe/docker_engine
         run: |
@@ -428,7 +440,7 @@ jobs:
             Start-Sleep -Seconds 1
           }
           Write-Host "Test daemon started and replied!"
-          If ($env:MATRIX_RUNTIME -eq "containerd") {
+          If ($env:INPUT_CONTAINERD -ne "embedded" -and $env:MATRIX_RUNTIME -eq "containerd") {
             $containerdProcesses = Get-Process -Name containerd -ErrorAction:SilentlyContinue
             If (-not $containerdProcesses) {
               Throw "containerd process is not running"

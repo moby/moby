@@ -119,6 +119,10 @@ var skipDuplicates = map[string]bool{
 	"runtimes": true,
 }
 
+// errEmbeddedContainerdWithCRI is returned when both the "embedded-containerd"
+// feature and CRI support are enabled.
+var errEmbeddedContainerdWithCRI = errors.New(`conflicting options: cannot use the "embedded-containerd" feature and CRI support (--cri-containerd) at the same time`)
+
 // migratedNamedConfig describes legacy configuration file keys that have been migrated
 // from simple entries equivalent to command line flags, to a named option.
 //
@@ -708,6 +712,10 @@ func ValidateMinAPIVersion(ver string) error {
 func Validate(config *Config) error {
 	if err := validateDaemonLogConfig(config.DaemonLogConfig); err != nil {
 		return err
+	}
+
+	if config.Features["embedded-containerd"] && config.CriContainerd {
+		return errEmbeddedContainerdWithCRI
 	}
 
 	// validate DNSSearch

@@ -29,12 +29,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        storage:
-          - graphdriver
-          - snapshotter
+        include:
+          - storage: graphdriver
+            containerd: socket
+          - storage: snapshotter
+            containerd: socket
+          - storage: snapshotter
+            containerd: embedded
     with:
       os: windows-2025
       storage: ${{ matrix.storage }}
+      containerd: ${{ matrix.containerd }}
       send_coverage: false
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
