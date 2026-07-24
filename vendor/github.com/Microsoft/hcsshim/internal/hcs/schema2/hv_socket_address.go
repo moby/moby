@@ -9,8 +9,8 @@
 
 package hcsschema
 
-//  This class defines address settings applied to a VM
-//  by the GCS every time a VM starts or restores.
+// This class defines address settings applied to a VM
+// by the GCS every time a VM starts or restores.
 type HvSocketAddress struct {
 	LocalAddress  string `json:"LocalAddress,omitempty"`
 	ParentAddress string `json:"ParentAddress,omitempty"`

@@ -18,12 +18,12 @@ import (
 
 // NamespaceResourceEndpoint represents an Endpoint attached to a Namespace.
 type NamespaceResourceEndpoint struct {
-	Id string `json:"ID,"`
+	Id string `json:"ID"`
 }
 
 // NamespaceResourceContainer represents a Container attached to a Namespace.
 type NamespaceResourceContainer struct {
-	Id string `json:"ID,"`
+	Id string `json:"ID"`
 }
 
 // NamespaceResourceType determines whether the Namespace resource is a Container or Endpoint.
@@ -38,8 +38,8 @@ var (
 
 // NamespaceResource is associated with a namespace
 type NamespaceResource struct {
-	Type NamespaceResourceType `json:","` // Container, Endpoint
-	Data json.RawMessage       `json:","`
+	Type NamespaceResourceType `json:""` // Container, Endpoint
+	Data json.RawMessage       `json:""`
 }
 
 // NamespaceType determines whether the Namespace is for a Host or Guest

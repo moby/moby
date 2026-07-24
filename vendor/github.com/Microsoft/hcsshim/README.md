@@ -44,7 +44,7 @@ delta.tar.gz  initrd.img  rootfs.tar.gz
 
 ### Containerd Shim
 
-For info on the [Runtime V2 API](https://github.com/containerd/containerd/blob/main/core/runtime/v2/README.md).
+For info on the [Runtime V2 API](https://github.com/containerd/containerd/blob/main/docs/runtime-v2.md).
 
 Contrary to the typical Linux architecture of shim -> runc, the runhcs shim is used both to launch and manage the lifetime of containers.
 
@@ -66,6 +66,105 @@ To trial using the shim out with ctr.exe:
 
 ```powershell
 C:\> ctr.exe run --runtime io.containerd.runhcs.v1 --rm mcr.microsoft.com/windows/nanoserver:2004 windows-test cmd /c "echo Hello World!"
+```
+
+### Containerd Shim V2
+
+The V2 shims are the rewrite of the Windows containerd shim. The V1 shim
+([`containerd-shim-runhcs-v1`](./cmd/containerd-shim-runhcs-v1)) is a single, monolithic
+binary that handles LCOW (Linux Containers on Windows), Hyper-V WCOW (Windows Containers on Windows), process-isolated
+WCOW and host-process containers. In the V2 model that monolith is split into focused,
+per-platform shims, each backed 1:1 by a sandbox.
+
+V2 shims are used with containerd in the same way as the V1 shim, but the
+API surface they expose is different. The V1 shim implemented only the containerd
+[Task API](https://github.com/containerd/containerd/blob/main/docs/runtime-v2.md),
+and used it to manage both the sandbox lifecycle and the container/process (task)
+lifecycle through a single service. Each V2 shim instead splits these responsibilities
+across the two APIs that containerd now provides for this purpose: the
+[Sandbox API](https://github.com/containerd/containerd/blob/main/docs/sandbox-api.md)
+is used to manage the sandbox, while the
+[Task API](https://github.com/containerd/containerd/blob/main/docs/runtime-v2.md)
+is used to manage containers and processes running inside it. Internally each V2 shim
+implements these as separate sandbox and task services, alongside an auxiliary
+`shimdiag` service used for diagnostics.
+
+All three shims honor the same CRI pod model. A task annotated with
+`"io.kubernetes.cri.container-type": "sandbox"` is treated as the pause/infra container
+that creates the pod; sibling workload tasks set `"io.kubernetes.cri.container-type":
+"container"` and reference their pause via `"io.kubernetes.cri.sandbox-id"`. What a
+"sandbox" *physically* corresponds to depends on the shim, and is described in each
+subsection below.
+
+#### containerd-shim-lcow-v2
+
+- **Purpose:** Runs Linux Containers on Windows (LCOW) — a Linux utility VM hosting Linux
+  containers.
+- **Sandbox:** The Linux UVM. Each shim instance is backed 1:1 by a single UVM. This shim supports running
+  *multiple pods in the same UVM*, so a single shim instance may host more than one
+  CRI pods.
+- **Tasks:** Linux containers and processes running inside the UVM, identified via the
+  same CRI annotations described above.
+- **Implementation:** [`./cmd/containerd-shim-lcow-v2`](./cmd/containerd-shim-lcow-v2).
+- **Build Tag:** lcow
+- **Platform requirement:** Windows Server 2025 (build 26100) or later.
+
+#### containerd-shim-wcow-v2
+
+- **Purpose:** Runs Hyper-V isolated Windows containers (WCOW) — a Windows utility VM hosting
+  Process and/or Host Process Containers inside it.
+- **Sandbox:** The Windows utility VM (UVM). Each shim instance is backed 1:1 by a single UVM.
+- **Tasks:** the Windows containers and processes running inside the UVM, identified
+  via the standard CRI annotations described above.
+- **Implementation:** coming soon.
+- **Build Tag:** wcow
+
+#### containerd-shim-process-v2
+
+- **Purpose:** Runs Process-isolated Windows Server containers and Host
+  Process Containers — workloads that execute directly on the host with no utility VM.
+- **Sandbox:** A *pause container*. The pause container is a minimal, long-lived
+  container that owns the pod's shared resources (such as the network namespace) and
+  keeps them alive while sibling workload containers are started, stopped or replaced.
+  This is the standard Kubernetes pod model: the pause container is the sandbox that
+  the rest of the pod attaches to.
+- **Tasks:** the actual workload containers belonging to the pod, linked back to the
+  pause via the `io.kubernetes.cri.sandbox-id` annotation.
+- **Implementation:** coming soon.
+- **Build Tag:** process
+
+##### Building
+
+The V2 shim sources are guarded by the build tags as mentioned above, so the tag must be passed
+to `go build`. For example the `LCOW` shim has `lcow` tag-
+
+```powershell
+C:\> $env:GOOS="windows"
+C:\> go build -tags lcow .\cmd\containerd-shim-lcow-v2
+```
+
+Place the resulting `containerd-shim-lcow-v2.exe` in the same directory as `containerd.exe`,
+the same as for the V1 shim.
+
+##### Running unit tests
+
+The shim's unit tests (and the rest of the tagged packages) are run with the
+shim specific build tag:
+
+```powershell
+C:\> go test -tags lcow ./...
+```
+
+##### Running parity tests
+
+The repository ships parity tests under [`./test/parity`](./test/parity) that feed
+identical inputs through the legacy V1 and the new V2 pipelines and assert that the
+resulting HCS ComputeSystem documents are equivalent. They live in the `test` Go
+module and are also built with the build tag:
+
+```powershell
+C:\> cd test
+C:\> go test -tags lcow ./parity/...
 ```
 
 ## Contributing

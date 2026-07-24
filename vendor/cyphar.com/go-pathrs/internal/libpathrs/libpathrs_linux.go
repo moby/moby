@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MPL-2.0
 /*
  * libpathrs: safe path resolution on Linux
- * Copyright (C) 2019-2025 Aleksa Sarai <cyphar@cyphar.com>
  * Copyright (C) 2019-2025 SUSE LLC
+ * Copyright (C) 2026 Aleksa Sarai <cyphar@cyphar.com>
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -100,7 +100,7 @@ func InRootReadlink(rootFd uintptr, path string) (string, error) {
 	size := 128
 	for {
 		linkBuf := make([]byte, size)
-		n := C.pathrs_inroot_readlink(C.int(rootFd), cPath, C.cast_ptr(unsafe.Pointer(&linkBuf[0])), C.ulong(len(linkBuf)))
+		n := C.pathrs_inroot_readlink(C.int(rootFd), cPath, C.cast_ptr(unsafe.Pointer(&linkBuf[0])), C.size_t(len(linkBuf)))
 		switch {
 		case int(n) < C.__PATHRS_MAX_ERR_VALUE:
 			return "", fetchError(n)
@@ -301,7 +301,7 @@ func ProcReadlinkat(procRootFd int, base ProcBase, path string) (string, error) 
 		linkBuf := make([]byte, size)
 		n := C.pathrs_proc_readlinkat(
 			C.int(procRootFd), cBase, cPath,
-			C.cast_ptr(unsafe.Pointer(&linkBuf[0])), C.ulong(len(linkBuf)))
+			C.cast_ptr(unsafe.Pointer(&linkBuf[0])), C.size_t(len(linkBuf)))
 		switch {
 		case int(n) < C.__PATHRS_MAX_ERR_VALUE:
 			return "", fetchError(n)

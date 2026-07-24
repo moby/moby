@@ -155,6 +155,10 @@ func NewLayerWriter(ctx context.Context, path string, parentLayerPaths []string)
 	}
 	w, err := newLegacyLayerWriter(importPath, parentLayerPaths, path)
 	if err != nil {
+		// Clean up the temporary import directory so it is not leaked when
+		// the writer fails to initialize (matches NewLayerReader's handling
+		// of exportPath).
+		os.RemoveAll(importPath)
 		return nil, err
 	}
 	return &legacyLayerWriterWrapper{

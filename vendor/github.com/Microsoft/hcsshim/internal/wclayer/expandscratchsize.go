@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/Microsoft/go-winio/vhd"
 	"github.com/Microsoft/hcsshim/internal/hcserror"
 	"github.com/Microsoft/hcsshim/internal/oc"
 	"go.opencensus.io/trace"
@@ -75,7 +76,7 @@ func attachVhd(path string) (syscall.Handle, error) {
 	if err != nil {
 		return 0, &os.PathError{Op: "OpenVirtualDisk", Path: path, Err: err}
 	}
-	err = attachVirtualDisk(handle, 0, 0, 0, 0, 0)
+	err = vhd.AttachVirtualDisk(handle, vhd.AttachVirtualDiskFlagBypassDefaultEncryptionPolicy, nil)
 	if err != nil {
 		syscall.Close(handle)
 		return 0, &os.PathError{Op: "AttachVirtualDisk", Path: path, Err: err}

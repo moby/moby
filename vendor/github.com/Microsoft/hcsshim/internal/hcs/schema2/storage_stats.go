@@ -9,7 +9,7 @@
 
 package hcsschema
 
-//  Storage runtime statistics
+// Storage runtime statistics
 type StorageStats struct {
 	ReadCountNormalized uint64 `json:"ReadCountNormalized,omitempty"`
 

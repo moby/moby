@@ -57,6 +57,12 @@ func (process *Process) Pid() int {
 	return process.processID
 }
 
+// MigrationState returns the zero value: HCS processes route stdio over
+// named pipes and don't use a GCS bridge.
+func (process *Process) MigrationState() cow.MigrationState {
+	return cow.MigrationState{}
+}
+
 // SystemID returns the ID of the process's compute system.
 func (process *Process) SystemID() string {
 	return process.system.ID()

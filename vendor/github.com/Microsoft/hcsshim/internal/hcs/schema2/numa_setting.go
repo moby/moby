@@ -12,10 +12,10 @@
 package hcsschema
 
 type NumaSetting struct {
-	VirtualNodeNumber        uint32            `json:"VirtualNodeNumber,omitempty"`
-	PhysicalNodeNumber       uint32            `json:"PhysicalNodeNumber,omitempty"`
-	VirtualSocketNumber      uint32            `json:"VirtualSocketNumber,omitempty"`
-	CountOfProcessors        uint32            `json:"CountOfProcessors,omitempty"`
-	CountOfMemoryBlocks      uint64            `json:"CountOfMemoryBlocks,omitempty"`
-	MemoryBackingType        MemoryBackingType `json:"MemoryBackingType,omitempty"`
+	VirtualNodeNumber   uint32            `json:"VirtualNodeNumber,omitempty"`
+	PhysicalNodeNumber  uint32            `json:"PhysicalNodeNumber,omitempty"`
+	VirtualSocketNumber uint32            `json:"VirtualSocketNumber,omitempty"`
+	CountOfProcessors   uint32            `json:"CountOfProcessors,omitempty"`
+	CountOfMemoryBlocks uint64            `json:"CountOfMemoryBlocks,omitempty"`
+	MemoryBackingType   MemoryBackingType `json:"MemoryBackingType,omitempty"`
 }
