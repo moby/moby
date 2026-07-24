@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -380,7 +381,7 @@ func (n *nodeRunner) enableReconnectWatcher() {
 
 	go func() {
 		<-delayCtx.Done()
-		if delayCtx.Err() != context.DeadlineExceeded {
+		if errors.Is(delayCtx.Err(), context.DeadlineExceeded) || os.IsTimeout(delayCtx.Err()) {
 			return
 		}
 		n.mu.Lock()
