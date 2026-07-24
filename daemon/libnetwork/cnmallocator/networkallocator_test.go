@@ -789,3 +789,36 @@ func TestCorrectlyPassIPAMOptions(t *testing.T) {
 	assert.Check(t, is.DeepEqual(expectedIpamOptions, ipamDriver.actualIpamOptions))
 	assert.Check(t, err)
 }
+
+func TestAllocateIPv6Subnet(t *testing.T) {
+	na := newNetworkAllocator(t)
+	n := &api.Network{
+		ID: "testIPv6",
+		Spec: api.NetworkSpec{
+			Annotations: api.Annotations{
+				Name: "testIPv6",
+			},
+			DriverConfig: &api.Driver{},
+			IPAM: &api.IPAMOptions{
+				Driver: &api.Driver{},
+				Configs: []*api.IPAMConfig{
+					{
+						Subnet: "10.0.0.0/24",
+						Family: api.IPAMConfig_IPV4,
+					},
+					{
+						Subnet: "fd42:1234:5678:1::/64",
+						Family: api.IPAMConfig_IPV6,
+					},
+				},
+			},
+		},
+	}
+
+	err := na.Allocate(n)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(len(n.IPAM.Configs), 2))
+	assert.Check(t, is.Equal(n.IPAM.Configs[0].Subnet, "10.0.0.0/24"))
+	assert.Check(t, is.Equal(n.IPAM.Configs[1].Subnet, "fd42:1234:5678:1::/64"))
+}
+

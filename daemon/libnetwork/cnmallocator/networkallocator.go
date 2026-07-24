@@ -905,6 +905,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[netip.Prefix]s
 			Pool:         ic.Subnet,
 			SubPool:      ic.Range,
 			Options:      dOptions,
+			V6:           ic.Family == api.IPAMConfig_IPV6,
 		})
 		if err != nil {
 			// Rollback by releasing all the resources allocated so far.
