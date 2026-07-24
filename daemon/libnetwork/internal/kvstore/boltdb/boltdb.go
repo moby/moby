@@ -45,7 +45,8 @@ func New(path, bucket string) (store.Store, error) {
 		// bbolt package returns an ErrTimeout straight away. That way, the
 		// daemon, and unit tests, will fail fast and loudly instead of
 		// silently introducing delays.
-		Timeout: time.Nanosecond,
+		Timeout:      time.Nanosecond,
+		FreelistType: bolt.FreelistMapType,
 	})
 	if err != nil {
 		if errors.Is(err, berrors.ErrTimeout) {
