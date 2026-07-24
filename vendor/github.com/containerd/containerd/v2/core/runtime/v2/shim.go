@@ -17,6 +17,7 @@
 package v2
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -33,7 +34,6 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
-	crmetadata "github.com/checkpoint-restore/checkpointctl/lib"
 	eventstypes "github.com/containerd/containerd/api/events"
 	bootapi "github.com/containerd/containerd/api/runtime/bootstrap/v1"
 	task "github.com/containerd/containerd/api/runtime/task/v3"
@@ -63,6 +63,11 @@ const (
 	loadTimeout     = "io.containerd.timeout.shim.load"
 	cleanupTimeout  = "io.containerd.timeout.shim.cleanup"
 	shutdownTimeout = "io.containerd.timeout.shim.shutdown"
+
+	// rootFsDiffTar is the name of the rootfs diff archive written next to a
+	// checkpoint. It is part of the checkpoint layout produced by CRIU tooling,
+	// so it must stay in sync with github.com/checkpoint-restore/checkpointctl/lib.RootFsDiffTar.
+	rootFsDiffTar = "rootfs-diff.tar"
 )
 
 func init() {
@@ -229,6 +234,7 @@ func parseStartResponse(response []byte) (*bootapi.BootstrapResult, error) {
 	}
 
 	// Fallback to legacy parsing for backward compatibility with legacy shims that return the address as a plain string or JSON.
+	response = bytes.TrimSpace(response)
 
 	var params client.BootstrapParams //nolint:staticcheck // Used for backward compatibility with legacy shims
 	if err := json.Unmarshal(response, &params); err != nil || params.Version < 2 {
@@ -640,7 +646,7 @@ func (s *shimTask) Create(ctx context.Context, opts runtime.CreateOpts) (runtime
 	if opts.RestoreFromPath {
 		// Unpack rootfs-diff.tar if it exists.
 		// This needs to happen between the 'Create()' from above and before the 'Start()' from below.
-		rootfsDiff := filepath.Join(opts.Checkpoint, "..", crmetadata.RootFsDiffTar)
+		rootfsDiff := filepath.Join(opts.Checkpoint, "..", rootFsDiffTar)
 
 		_, err = os.Stat(rootfsDiff)
 		if err == nil {

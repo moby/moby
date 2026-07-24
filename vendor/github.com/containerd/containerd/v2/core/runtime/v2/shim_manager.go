@@ -194,6 +194,16 @@ func (m *ShimManager) ID() string {
 	return plugins.ShimPlugin.String() + ".manager"
 }
 
+// Env returns the environment configured for the shim manager.
+func (m *ShimManager) Env() []string {
+	if m.env == nil {
+		return nil
+	}
+	cp := make([]string, len(m.env))
+	copy(cp, m.env)
+	return cp
+}
+
 // Start launches a new shim instance
 func (m *ShimManager) Start(ctx context.Context, id string, bundle *Bundle, opts runtime.CreateOpts) (_ ShimInstance, retErr error) {
 	shouldInvokeShimBinary := false
