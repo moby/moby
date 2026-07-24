@@ -15,6 +15,7 @@ import (
 	"github.com/containerd/containerd/v2/defaults"
 	"github.com/containerd/containerd/v2/version"
 	"github.com/containerd/log"
+	"github.com/docker/go-connections/sockets"
 
 	// Cross-platform plugin registrations. Each blank import registers one or
 	// more containerd plugins that the local bootstrap then loads. Platform-specific
@@ -85,21 +86,28 @@ func Start(ctx context.Context, rootDir, stateDir string) (Daemon, error) {
 		_ = socket.Close()
 		return nil, err
 	}
-	inMemory := newInMemoryListener()
+	// A single pending connection is typically sufficient, as gRPC reuses
+	// transports. Use a small backlog to tolerate brief bursts of concurrent
+	// dials during startup or reconnects.
+	inMemory := sockets.NewInmemSocket("embedded-containerd", 16)
 
-	e := &embeddedDaemon{srv: srv, address: address, inMemory: inMemory, ttrpcL: ttrpcL, stopCh: make(chan struct{})}
+	e := &embeddedDaemon{
+		srv:      srv,
+		address:  address,
+		inMemory: inMemory,
+		ttrpcL:   ttrpcL,
+		stopCh:   make(chan struct{}),
+	}
 
 	var wg sync.WaitGroup
 	serve := func(name string, l net.Listener, fn func(net.Listener) error) {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			// Serve returns an error once the server is stopped, which is
 			// expected during Shutdown, so only log unexpected failures.
 			if err := fn(l); err != nil && !e.stopping.Load() {
 				log.G(ctx).WithError(err).Errorf("embedded containerd %s server exited", name)
 			}
-		}()
+		})
 	}
 	serve("gRPC socket", socket, srv.ServeGRPC)
 	serve("gRPC in-memory", inMemory, srv.ServeGRPC)
@@ -157,7 +165,7 @@ func buildServerConfig(rootDir, stateDir, address string) *serverConfig {
 type embeddedDaemon struct {
 	srv      *containerdServer
 	address  string
-	inMemory *inMemoryListener
+	inMemory *sockets.InmemSocket
 	ttrpcL   net.Listener
 	stopCh   chan struct{}
 	stopping atomic.Bool
@@ -169,20 +177,8 @@ func (e *embeddedDaemon) Address() string {
 
 // Dial returns one end of an in-memory pipe connected to the gRPC server. The
 // addr argument is ignored, and only present to satisfy grpc.WithContextDialer.
-func (e *embeddedDaemon) Dial(ctx context.Context, _ string) (net.Conn, error) {
-	serverConn, clientConn := net.Pipe()
-	select {
-	case e.inMemory.ch <- serverConn:
-		return clientConn, nil
-	case <-ctx.Done():
-		_ = serverConn.Close()
-		_ = clientConn.Close()
-		return nil, ctx.Err()
-	case <-e.inMemory.done:
-		_ = serverConn.Close()
-		_ = clientConn.Close()
-		return nil, errors.New("embedded containerd server is stopped")
-	}
+func (e *embeddedDaemon) Dial(ctx context.Context, addr string) (net.Conn, error) {
+	return e.inMemory.DialContext(ctx, "inmem", addr)
 }
 
 func (e *embeddedDaemon) WaitTimeout(d time.Duration) error {
@@ -200,44 +196,11 @@ func (e *embeddedDaemon) Shutdown(ctx context.Context) error {
 	e.stopping.Store(true)
 	// Stop closes both RPC servers and their listeners.
 	e.srv.Stop()
-	e.inMemory.Close()
+	_ = e.inMemory.Close()
 	select {
 	case <-e.stopCh:
 	case <-ctx.Done():
 		return ctx.Err()
 	}
 	return nil
-}
-
-// inMemoryListener is a net.Listener whose connections are supplied by
-// Dial rather than accepted from the kernel.
-type inMemoryListener struct {
-	ch   chan net.Conn
-	done chan struct{}
-	once sync.Once
-}
-
-func newInMemoryListener() *inMemoryListener {
-	return &inMemoryListener{
-		ch:   make(chan net.Conn, 16),
-		done: make(chan struct{}),
-	}
-}
-
-func (l *inMemoryListener) Accept() (net.Conn, error) {
-	select {
-	case conn := <-l.ch:
-		return conn, nil
-	case <-l.done:
-		return nil, net.ErrClosed
-	}
-}
-
-func (l *inMemoryListener) Close() error {
-	l.once.Do(func() { close(l.done) })
-	return nil
-}
-
-func (l *inMemoryListener) Addr() net.Addr {
-	return &net.UnixAddr{Name: "embedded-containerd", Net: "inmem"}
 }
