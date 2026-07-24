@@ -607,10 +607,7 @@ func (container *Container) StopSignal() syscall.Signal {
 
 // StopTimeout returns the timeout (in seconds) used to stop the container.
 func (container *Container) StopTimeout() int {
-	if container.Config.StopTimeout != nil {
-		return *container.Config.StopTimeout
-	}
-	return defaultStopTimeout
+	return *container.Config.StopTimeout
 }
 
 // InitDNSHostConfig ensures that the dns fields are never nil.

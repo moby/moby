@@ -235,6 +235,7 @@ func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string
 	// Re-used for all parallel startup jobs.
 	var group sync.WaitGroup
 	sem := semaphore.NewWeighted(int64(parallelLimit))
+	containerDefaults := daemon.config().ContainerDefaults
 
 	for _, v := range dir {
 		id := v.Name()
@@ -242,7 +243,7 @@ func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string
 			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
 			defer sem.Release(1)
 
-			c, err := daemon.load(id)
+			c, err := daemon.load(id, containerDefaults)
 			if err != nil {
 				log.G(ctx).WithFields(log.Fields{"error": err, "container": id}).Error("Failed to load container")
 				return

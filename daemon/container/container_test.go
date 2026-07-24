@@ -34,18 +34,11 @@ func TestContainerStopSignal(t *testing.T) {
 }
 
 func TestContainerStopTimeout(t *testing.T) {
-	c := &Container{
-		Config: &container.Config{},
-	}
-
-	s := c.StopTimeout()
-	assert.Equal(t, s, defaultStopTimeout)
-
 	stopTimeout := 15
-	c = &Container{
+	c := &Container{
 		Config: &container.Config{StopTimeout: &stopTimeout},
 	}
-	s = c.StopTimeout()
+	s := c.StopTimeout()
 	assert.Equal(t, s, stopTimeout)
 }
 

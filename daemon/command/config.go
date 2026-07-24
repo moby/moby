@@ -63,6 +63,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.IntVar(&conf.MaxConcurrentUploads, "max-concurrent-uploads", conf.MaxConcurrentUploads, "Set the max concurrent uploads")
 	flags.IntVar(&conf.MaxDownloadAttempts, "max-download-attempts", conf.MaxDownloadAttempts, "Set the max download attempts for each pull")
 	flags.IntVar(&conf.ShutdownTimeout, "shutdown-timeout", conf.ShutdownTimeout, "Set the default shutdown timeout")
+	flags.IntVar(&conf.DefaultStopTimeout, "default-stop-timeout", conf.DefaultStopTimeout, "Set the stop timeout (in seconds) for newly created containers (0 to terminate immediately)")
 
 	flags.StringVar(&conf.SwarmDefaultAdvertiseAddr, "swarm-default-advertise-addr", "", "Set default address or interface for swarm advertised address")
 	flags.BoolVar(&conf.Experimental, "experimental", false, "Enable experimental features")

@@ -70,10 +70,18 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 
 // Load reads the contents of a container from disk
 // This is typically done at startup.
-func (daemon *Daemon) load(id string) (*container.Container, error) {
+func (daemon *Daemon) load(id string, defaults config.ContainerDefaults) (*container.Container, error) {
 	ctr := container.NewBaseContainer(id, filepath.Join(daemon.repository, id))
 	if err := ctr.FromDisk(); err != nil {
 		return nil, err
+	}
+	if ctr.Config == nil {
+		ctr.Config = &containertypes.Config{}
+	}
+	// Backfill containers created before the default was stored in their config.
+	if ctr.Config.StopTimeout == nil {
+		stopTimeout := defaults.DefaultStopTimeout
+		ctr.Config.StopTimeout = &stopTimeout
 	}
 	if ctr.ID != id {
 		return ctr, fmt.Errorf("Container %s is stored at %s", ctr.ID, id)

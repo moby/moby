@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -192,23 +194,24 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 		platform.OS = "linux" // 'scratch' case.
 	}
 
+	containerConfig, err := daemon.mergeAndVerifyConfig(opts.params.Config, img, daemonCfg.ContainerDefaults)
+	if err != nil {
+		return nil, errdefs.InvalidParameter(err)
+	}
+
 	// On WCOW, if are not being invoked by the builder to create this container (where
 	// ignoreImagesArgEscaped will be true) - if the image already has its arguments escaped,
 	// ensure that this is replicated across to the created container to avoid double-escaping
 	// of the arguments/command line when the runtime attempts to run the container.
 	if platform.OS == "windows" && !opts.ignoreImagesArgsEscaped && img != nil && img.RunConfig().ArgsEscaped {
-		opts.params.Config.ArgsEscaped = true
-	}
-
-	if err := daemon.mergeAndVerifyConfig(opts.params.Config, img); err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		containerConfig.ArgsEscaped = true
 	}
 
 	if err := daemon.mergeAndVerifyLogConfig(&opts.params.HostConfig.LogConfig); err != nil {
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	if ctr, err = daemon.newContainer(opts.params.Name, platform, opts.params.Config, opts.params.HostConfig, imgID, opts.managed); err != nil {
+	if ctr, err = daemon.newContainer(opts.params.Name, platform, containerConfig, opts.params.HostConfig, imgID, opts.managed); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -274,7 +277,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 		return nil, err
 	}
 
-	if err := daemon.createContainerVolumesOS(ctx, ctr, opts.params.Config); err != nil {
+	if err := daemon.createContainerVolumesOS(ctx, ctr, containerConfig); err != nil {
 		return nil, err
 	}
 
@@ -351,20 +354,47 @@ func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig)
 	return nil, nil
 }
 
-func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *image.Image) error {
+func cloneContainerConfig(containerConfig *containertypes.Config) *containertypes.Config {
+	clonedConfig := *containerConfig
+	clonedConfig.ExposedPorts = maps.Clone(containerConfig.ExposedPorts)
+	clonedConfig.Env = slices.Clone(containerConfig.Env)
+	clonedConfig.Cmd = slices.Clone(containerConfig.Cmd)
+	clonedConfig.Volumes = maps.Clone(containerConfig.Volumes)
+	clonedConfig.Entrypoint = slices.Clone(containerConfig.Entrypoint)
+	clonedConfig.OnBuild = slices.Clone(containerConfig.OnBuild)
+	clonedConfig.Labels = maps.Clone(containerConfig.Labels)
+	clonedConfig.Shell = slices.Clone(containerConfig.Shell)
+	if containerConfig.Healthcheck != nil {
+		healthcheck := *containerConfig.Healthcheck
+		healthcheck.Test = slices.Clone(containerConfig.Healthcheck.Test)
+		clonedConfig.Healthcheck = &healthcheck
+	}
+	if containerConfig.StopTimeout != nil {
+		stopTimeout := *containerConfig.StopTimeout
+		clonedConfig.StopTimeout = &stopTimeout
+	}
+	return &clonedConfig
+}
+
+func (daemon *Daemon) mergeAndVerifyConfig(sourceConfig *containertypes.Config, img *image.Image, defaults config.ContainerDefaults) (*containertypes.Config, error) {
+	containerConfig := cloneContainerConfig(sourceConfig)
 	if img != nil && img.Config != nil {
-		if err := merge(config, img.Config); err != nil {
-			return err
+		if err := merge(containerConfig, img.Config); err != nil {
+			return nil, err
 		}
 	}
 	// Reset the Entrypoint if it is [""]
-	if len(config.Entrypoint) == 1 && config.Entrypoint[0] == "" {
-		config.Entrypoint = nil
+	if len(containerConfig.Entrypoint) == 1 && containerConfig.Entrypoint[0] == "" {
+		containerConfig.Entrypoint = nil
 	}
-	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
-		return errors.New("no command specified")
+	if len(containerConfig.Entrypoint) == 0 && len(containerConfig.Cmd) == 0 {
+		return nil, errors.New("no command specified")
 	}
-	return nil
+	if containerConfig.StopTimeout == nil {
+		stopTimeout := defaults.DefaultStopTimeout
+		containerConfig.StopTimeout = &stopTimeout
+	}
+	return containerConfig, nil
 }
 
 // validateNetworkingConfig checks whether a container's NetworkingConfig is valid.
