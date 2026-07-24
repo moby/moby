@@ -165,6 +165,10 @@ func (sb *Sandbox) storeDelete() error {
 	})
 }
 
+// ActiveSandboxOptionBuilder builds options for restoring an active sandbox.
+// Persisted networks are available through controller when the builder is called.
+type ActiveSandboxOptionBuilder func(controller *Controller) []SandboxOption
+
 // sandboxRestore restores Sandbox objects from the store, deleting them if they're not active.
 func (c *Controller) sandboxRestore(activeSandboxes map[string]any) error {
 	sandboxStates, err := c.store.List(&sbState{c: c})
@@ -196,7 +200,7 @@ func (c *Controller) sandboxRestore(activeSandboxes map[string]any) error {
 		if val, ok := activeSandboxes[sb.ID()]; ok {
 			sb.isStub = false
 			isRestore = true
-			opts := val.([]SandboxOption)
+			opts := val.(ActiveSandboxOptionBuilder)(c)
 			sb.processOptions(opts...)
 			sb.restoreHostsPath()
 			sb.restoreResolvConfPath()
