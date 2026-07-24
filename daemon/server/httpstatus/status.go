@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/errdefs/pkg/errhttp"
 	"github.com/containerd/log"
 	"github.com/docker/distribution/registry/api/errcode"
 	"google.golang.org/grpc/codes"
@@ -22,55 +23,62 @@ func FromError(err error) int {
 	// Resolve the error to ensure status is chosen from the first outermost error
 	rerr := cerrdefs.Resolve(err)
 
-	// Note that the below functions are already checking the error causal chain for matches.
-	// Only check errors from the errdefs package, no new error type checking may be added
+	// Handle moby-specific cases that differ from containerd's mapping
+	// or that containerd doesn't handle
 	switch {
-	case cerrdefs.IsNotFound(rerr):
-		return http.StatusNotFound
-	case cerrdefs.IsInvalidArgument(rerr):
-		return http.StatusBadRequest
-	case cerrdefs.IsConflict(rerr):
+	case cerrdefs.IsAlreadyExists(rerr):
+		// Not handled by containerd's errhttp.ToHTTP, but needed for moby
 		return http.StatusConflict
-	case cerrdefs.IsUnauthorized(rerr):
-		return http.StatusUnauthorized
-	case cerrdefs.IsUnavailable(rerr):
-		return http.StatusServiceUnavailable
-	case cerrdefs.IsPermissionDenied(rerr):
-		return http.StatusForbidden
-	case cerrdefs.IsNotModified(rerr):
-		return http.StatusNotModified
-	case cerrdefs.IsNotImplemented(rerr):
-		return http.StatusNotImplemented
-	case cerrdefs.IsInternal(rerr) || cerrdefs.IsDataLoss(rerr) || cerrdefs.IsDeadlineExceeded(rerr) || cerrdefs.IsCanceled(rerr):
-		return http.StatusInternalServerError
-	default:
-		if statusCode := statusCodeFromGRPCError(err); statusCode != http.StatusInternalServerError {
-			return statusCode
-		}
-		if statusCode := statusCodeFromDistributionError(err); statusCode != http.StatusInternalServerError {
-			return statusCode
-		}
-		switch e := err.(type) {
-		case interface{ Unwrap() error }:
-			return FromError(e.Unwrap())
-		case interface{ Unwrap() []error }:
-			for _, ue := range e.Unwrap() {
-				if statusCode := FromError(ue); statusCode != http.StatusInternalServerError {
-					return statusCode
-				}
-			}
-		}
-
-		if !cerrdefs.IsUnknown(err) {
-			log.G(context.TODO()).WithFields(log.Fields{
-				"module":     "api",
-				"error":      err,
-				"error_type": fmt.Sprintf("%T", err),
-			}).Debug("FIXME: Got an API for which error does not match any expected type!!!")
-		}
-
+	case cerrdefs.IsFailedPrecondition(rerr):
+		// containerd uses 412, but moby API keeps it simple with 400
+		return http.StatusBadRequest
+	case cerrdefs.IsOutOfRange(rerr):
+		// Not handled by containerd's errhttp.ToHTTP, but needed for moby
+		return http.StatusBadRequest
+	case cerrdefs.IsAborted(rerr):
+		// Not handled by containerd's errhttp.ToHTTP, but needed for moby
+		return http.StatusConflict
+	case cerrdefs.IsDataLoss(rerr), cerrdefs.IsDeadlineExceeded(rerr), cerrdefs.IsCanceled(rerr):
+		// Not handled by containerd's errhttp.ToHTTP, but needed for moby
 		return http.StatusInternalServerError
 	}
+
+	// Try containerd's standard mapping for other errdefs types
+	if statusCode := errhttp.ToHTTP(rerr); statusCode != http.StatusInternalServerError {
+		return statusCode
+	}
+
+	// Handle gRPC errors
+	if statusCode := statusCodeFromGRPCError(err); statusCode != http.StatusInternalServerError {
+		return statusCode
+	}
+
+	// Handle Distribution errors
+	if statusCode := statusCodeFromDistributionError(err); statusCode != http.StatusInternalServerError {
+		return statusCode
+	}
+
+	// Unwrap and try again
+	switch e := err.(type) {
+	case interface{ Unwrap() error }:
+		return FromError(e.Unwrap())
+	case interface{ Unwrap() []error }:
+		for _, ue := range e.Unwrap() {
+			if statusCode := FromError(ue); statusCode != http.StatusInternalServerError {
+				return statusCode
+			}
+		}
+	}
+
+	if !cerrdefs.IsUnknown(err) {
+		log.G(context.TODO()).WithFields(log.Fields{
+			"module":     "api",
+			"error":      err,
+			"error_type": fmt.Sprintf("%T", err),
+		}).Debug("FIXME: Got an API for which error does not match any expected type!!!")
+	}
+
+	return http.StatusInternalServerError
 }
 
 // statusCodeFromGRPCError returns status code according to gRPC error
