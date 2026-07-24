@@ -184,9 +184,8 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	i.PoolID = m["PoolID"].(string)
-	if v, ok := m["Meta"]; ok {
-		b, _ := json.Marshal(v) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors
-		if err = json.Unmarshal(b, &i.Meta); err != nil {
+	if _, ok := m["Meta"]; ok {
+		if err = unmarshalJSONField(m, "Meta", &i.Meta); err != nil {
 			return err
 		}
 	}
