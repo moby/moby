@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path"
 	"sync"
 )
 
@@ -16,10 +17,12 @@ var (
 
 // Index is a tar index that can be used to read files from a tar.
 type Index struct {
-	rdr *io.SectionReader
-	tar *tar.Reader
-	mu  sync.Mutex
-	idx map[string]*indexReader
+	rdr      *io.SectionReader
+	tar      *tar.Reader
+	mu       sync.Mutex
+	idx      map[string]*indexReader
+	tree     *treeNode
+	complete bool
 }
 
 // NewIndex creates a new Index from the passed in io.ReaderAt.
@@ -56,11 +59,23 @@ func filterFSPrefix(name string) string {
 	return name
 }
 
+// headerBase returns the base name of a tar entry as it should appear in an
+// fs.FileInfo, stripping any FS prefix and trailing slash.
+func headerBase(h *tar.Header) string {
+	return path.Base(path.Clean(filterFSPrefix(h.Name)))
+}
+
 // This function must be called with the lock held.
 func (i *Index) index(name string) (*indexReader, error) {
 	name = filterFSPrefix(name)
 	if rdr, ok := i.idx[name]; ok {
 		return rdr, nil
+	}
+
+	// The shared tar.Reader is exhausted and every entry is cached, so a cache
+	// miss is definitively a missing file.
+	if i.complete {
+		return nil, fs.ErrNotExist
 	}
 
 	if i.tar == nil {
@@ -71,6 +86,7 @@ func (i *Index) index(name string) (*indexReader, error) {
 		hdr, err := i.tar.Next()
 		if err != nil {
 			if err == io.EOF {
+				i.complete = true
 				return nil, fs.ErrNotExist
 			}
 			return nil, fmt.Errorf("error indexing tar: %w", err)
@@ -117,6 +133,10 @@ type UpdaterFn func(string, ReaderAtSized) (ReaderAtSized, bool, error)
 func (i *Index) Replace(name string, rdr ReaderAtSized) error {
 	i.mu.Lock()
 	defer i.mu.Unlock()
+
+	// The directory tree caches a snapshot of the index; drop it so a later
+	// traversal reflects this change.
+	i.tree = nil
 
 	// index may overwrite it this replacement.
 	i.index(name)

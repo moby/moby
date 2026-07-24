@@ -36,7 +36,7 @@ require (
 	github.com/containerd/platforms v1.0.0-rc.4
 	github.com/containerd/typeurl/v2 v2.3.0
 	github.com/coreos/go-systemd/v22 v22.7.0
-	github.com/cpuguy83/tar2go v0.3.1
+	github.com/cpuguy83/tar2go v0.4.0
 	github.com/creack/pty v1.1.24
 	github.com/distribution/reference v0.6.0
 	github.com/docker/distribution v2.8.3+incompatible
