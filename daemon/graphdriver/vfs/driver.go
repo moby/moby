@@ -172,9 +172,6 @@ func (d *Driver) create(id, parent string, size uint64) error {
 	dir := d.dir(id)
 	uid, gid := d.idMapping.RootPair()
 
-	if err := user.MkdirAllAndChown(filepath.Dir(dir), 0o710, os.Getuid(), gid); err != nil {
-		return err
-	}
 	if err := user.MkdirAndChown(dir, 0o755, uid, gid); err != nil {
 		return err
 	}
