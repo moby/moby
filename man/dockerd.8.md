@@ -70,6 +70,7 @@ dockerd - Enable daemon mode
 [**-s**|**--storage-driver**[=*STORAGE-DRIVER*]]
 [**--seccomp-profile**[=*SECCOMP-PROFILE-PATH*]]
 [**--selinux-enabled**]
+[**--max-shutdown-timeout**[=*0*]]
 [**--shutdown-timeout**[=*15*]]
 [**--storage-opt**[=*[]*]]
 [**--swarm-default-advertise-addr**[=*IP|INTERFACE*]]
@@ -394,6 +395,12 @@ unix://[/path/to/socket] to use.
 
 **--selinux-enabled**=**true**|**false**
   Enable selinux support. Default is **false**.
+
+**--max-shutdown-timeout**=*seconds*
+  Set the maximum stop timeout in seconds that the daemon applies to each
+  container during daemon shutdown before forcing termination. If a container
+  has a shorter stop timeout, its configured timeout is used. The default is
+  **0**, which disables the limit.
 
 **--shutdown-timeout**=*seconds*
   Set the shutdown timeout value in seconds. Default is **15**.

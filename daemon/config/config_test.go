@@ -337,6 +337,15 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			expectedErr: "invalid network-diagnostic-port (65536): value must be between 0 and 65535",
 		},
 		{
+			name: "negative max shutdown timeout",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					MaxShutdownTimeout: -1,
+				},
+			},
+			expectedErr: "invalid max-shutdown-timeout (-1): value must be greater than or equal to 0",
+		},
+		{
 			name: "generic resource without =",
 			config: &Config{
 				CommonConfig: CommonConfig{

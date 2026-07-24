@@ -449,7 +449,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 						}
 					} else if !cfg.LiveRestoreEnabled {
 						logger(c).Debug("shutting down container considered alive by containerd")
-						if err := daemon.shutdownContainer(c); err != nil && !cerrdefs.IsNotFound(err) {
+						if err := daemon.shutdownContainer(c, nil); err != nil && !cerrdefs.IsNotFound(err) {
 							baseLogger.WithError(err).Error("error shutting down container")
 							return
 						}
@@ -1445,11 +1445,11 @@ func (daemon *Daemon) waitForStartupDone() {
 	<-daemon.startupDone
 }
 
-func (daemon *Daemon) shutdownContainer(c *container.Container) error {
+func (daemon *Daemon) shutdownContainer(c *container.Container, timeout *int) error {
 	ctx := context.WithoutCancel(context.TODO())
 
-	// If container failed to exit in stopTimeout seconds of SIGTERM, then using the force
-	if err := daemon.containerStop(ctx, c, backend.ContainerStopOptions{}); err != nil {
+	// Force the container to exit if it does not handle its stop signal in time.
+	if err := daemon.containerStop(ctx, c, backend.ContainerStopOptions{Timeout: timeout}); err != nil {
 		return fmt.Errorf("Failed to stop container %s with error: %v", c.ID, err)
 	}
 
@@ -1459,13 +1459,14 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 	return nil
 }
 
-// ShutdownTimeout returns the timeout (in seconds) before containers are forcibly
-// killed during shutdown. The default timeout can be configured both on the daemon
-// and per container, and the longest timeout will be used. A grace-period of
-// 5 seconds is added to the configured timeout.
+// ShutdownTimeout returns the timeout in seconds for daemon shutdown.
+// The configured daemon timeout is used as a minimum.
+// Otherwise, the longest effective container stop timeout plus five seconds is
+// used.
+// If MaxShutdownTimeout is positive, it caps each container stop timeout.
 //
-// A negative (-1) timeout means "indefinitely", which means that containers
-// are not forcibly killed, and the daemon shuts down after all containers exit.
+// A negative (-1) daemon timeout disables the outer shutdown deadline.
+// Container stop timeouts still determine when containers are forcibly killed.
 func (daemon *Daemon) ShutdownTimeout() int {
 	return daemon.shutdownTimeout(&daemon.config().Config)
 }
@@ -1481,7 +1482,7 @@ func (daemon *Daemon) shutdownTimeout(cfg *config.Config) int {
 
 	graceTimeout := 5
 	for _, c := range daemon.containers.List() {
-		stopTimeout := c.StopTimeout()
+		stopTimeout := containerShutdownTimeout(cfg, c)
 		if stopTimeout < 0 {
 			return -1
 		}
@@ -1490,6 +1491,14 @@ func (daemon *Daemon) shutdownTimeout(cfg *config.Config) int {
 		}
 	}
 	return shutdownTimeout
+}
+
+func containerShutdownTimeout(cfg *config.Config, c *container.Container) int {
+	stopTimeout := c.StopTimeout()
+	if cfg.MaxShutdownTimeout > 0 && (stopTimeout < 0 || stopTimeout > cfg.MaxShutdownTimeout) {
+		return cfg.MaxShutdownTimeout
+	}
+	return stopTimeout
 }
 
 // Shutdown stops the daemon.
@@ -1517,7 +1526,8 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 			}
 			logger := log.G(ctx).WithField("container", c.ID)
 			logger.Debug("shutting down container")
-			if err := daemon.shutdownContainer(c); err != nil {
+			stopTimeout := containerShutdownTimeout(cfg, c)
+			if err := daemon.shutdownContainer(c, &stopTimeout); err != nil {
 				logger.WithError(err).Error("failed to shut down container")
 				return
 			}

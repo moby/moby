@@ -118,6 +118,7 @@ func (daemon *Daemon) Reload(conf *config.Config) error {
 		daemon.reloadMaxConcurrentDownloadsAndUploads,
 		daemon.reloadMaxDownloadAttempts,
 		daemon.reloadShutdownTimeout,
+		daemon.reloadMaxShutdownTimeout,
 		daemon.reloadFeatures,
 		daemon.reloadLabels,
 		daemon.reloadRegistryConfig,
@@ -216,6 +217,18 @@ func (daemon *Daemon) reloadShutdownTimeout(_ *reloadTxn, newCfg *configStore, c
 
 	// prepare reload event attributes with updatable configurations
 	attributes["shutdown-timeout"] = strconv.Itoa(newCfg.ShutdownTimeout)
+	return nil
+}
+
+// reloadMaxShutdownTimeout updates the maximum container shutdown timeout
+// and updates the passed attributes.
+func (daemon *Daemon) reloadMaxShutdownTimeout(_ *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
+	if conf.IsValueSet("max-shutdown-timeout") {
+		newCfg.MaxShutdownTimeout = conf.MaxShutdownTimeout
+		log.G(context.TODO()).Debugf("Reset maximum shutdown timeout: %d", newCfg.MaxShutdownTimeout)
+	}
+
+	attributes["max-shutdown-timeout"] = strconv.Itoa(newCfg.MaxShutdownTimeout)
 	return nil
 }
 
