@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/moby/moby/api/types/blkiodev"
@@ -363,4 +364,20 @@ func TestGetBlkioThrottleDevices(t *testing.T) {
 		assert.Check(t, retDevs[0].Minor == MINOR, "get minor device type")
 		assert.Check(t, retDevs[0].Rate == WEIGHT, "get device rate")
 	})
+}
+
+func TestVerifyPlatformContainerSettingsHostnameLength(t *testing.T) {
+	d := &Daemon{}
+
+	// A 64-byte hostname is the longest one Linux allows (HOST_NAME_MAX);
+	// it must still be accepted.
+	okHostname := strings.Repeat("a", maxHostnameLen)
+	_, err := verifyPlatformContainerSettings(d, nil, nil, &containertypes.Config{Hostname: okHostname}, false)
+	assert.NilError(t, err)
+
+	// One byte over the limit must be rejected with a clear error, instead
+	// of being passed through to fail later with an opaque OCI runtime error.
+	tooLong := strings.Repeat("a", maxHostnameLen+1)
+	_, err = verifyPlatformContainerSettings(d, nil, nil, &containertypes.Config{Hostname: tooLong}, false)
+	assert.ErrorContains(t, err, "too long")
 }

@@ -625,9 +625,17 @@ func isRunningSystemd() bool {
 	return runningSystemd
 }
 
+// maxHostnameLen is the maximum length (in bytes) of a container hostname on
+// Linux, as defined by HOST_NAME_MAX (include/uapi/linux/limits.h).
+const maxHostnameLen = 64
+
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *configStore, hostConfig *containertypes.HostConfig, update bool) (warnings []string, _ error) {
+func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *configStore, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, _ error) {
+	if runtime.GOOS == "linux" && config != nil && len(config.Hostname) > maxHostnameLen {
+		return warnings, errors.Errorf("hostname %q is too long (maximum %d bytes)", config.Hostname, maxHostnameLen)
+	}
+
 	if hostConfig == nil {
 		return nil, nil
 	}
