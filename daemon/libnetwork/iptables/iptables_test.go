@@ -293,10 +293,27 @@ func TestRule(t *testing.T) {
 -A TESTCHAIN -j ACCEPT
 `)
 
+	rule = Rule{IPVer: IPv4, Table: Filter, Chain: "TESTCHAIN", Args: []string{"-j", "DROP"}}
+	assert.NilError(t, rule.Insert())
+	assert.Equal(t, mustDumpChain(t, Filter, "TESTCHAIN"), `-N TESTCHAIN
+-A TESTCHAIN -j DROP
+-A TESTCHAIN -j RETURN
+-A TESTCHAIN -j ACCEPT
+`)
+
+	rule = Rule{IPVer: IPv4, Table: Filter, Chain: "TESTCHAIN", Args: []string{"-j", "RETURN"}}
+	assert.NilError(t, rule.Insert())
+	assert.Equal(t, mustDumpChain(t, Filter, "TESTCHAIN"), `-N TESTCHAIN
+-A TESTCHAIN -j RETURN
+-A TESTCHAIN -j DROP
+-A TESTCHAIN -j ACCEPT
+`)
+
 	assert.NilError(t, rule.Delete())
 	assert.Equal(t, rule.Exists(), false)
 	assert.Equal(t, mustDumpChain(t, Filter, "TESTCHAIN"), `-N TESTCHAIN
--A TESTCHAIN -j RETURN
+-A TESTCHAIN -j DROP
+-A TESTCHAIN -j ACCEPT
 `)
 
 	// Test that Delete is idempotent
