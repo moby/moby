@@ -36,7 +36,7 @@ newline =/ %x0D.0A  ; CRLF
 
 comment-start-symbol = %x23 ; #
 non-ascii = %x80-D7FF / %xE000-10FFFF
-non-eol = %x09 / %x20-7F / non-ascii
+non-eol = %x09 / %x20-7E / non-ascii
 
 comment = comment-start-symbol *non-eol
 
@@ -74,12 +74,14 @@ escape = %x5C                   ; \
 escape-seq-char =  %x22         ; "    quotation mark  U+0022
 escape-seq-char =/ %x5C         ; \    reverse solidus U+005C
 escape-seq-char =/ %x62         ; b    backspace       U+0008
+escape-seq-char =/ %x65         ; e    escape          U+001B
 escape-seq-char =/ %x66         ; f    form feed       U+000C
 escape-seq-char =/ %x6E         ; n    line feed       U+000A
 escape-seq-char =/ %x72         ; r    carriage return U+000D
 escape-seq-char =/ %x74         ; t    tab             U+0009
-escape-seq-char =/ %x75 4HEXDIG ; uXXXX                U+XXXX
-escape-seq-char =/ %x55 8HEXDIG ; UXXXXXXXX            U+XXXXXXXX
+escape-seq-char =/ %x78 2HEXDIG ; xHH                  U+00HH
+escape-seq-char =/ %x75 4HEXDIG ; uHHHH                U+HHHH
+escape-seq-char =/ %x55 8HEXDIG ; UHHHHHHHH            U+HHHHHHHH
 
 ;; Multiline Basic String
 
@@ -174,7 +176,7 @@ time-secfrac   = "." 1*DIGIT
 time-numoffset = ( "+" / "-" ) time-hour ":" time-minute
 time-offset    = "Z" / time-numoffset
 
-partial-time   = time-hour ":" time-minute ":" time-second [ time-secfrac ]
+partial-time   = time-hour ":" time-minute [ ":" time-second [ time-secfrac ] ]
 full-date      = date-fullyear "-" date-month "-" date-mday
 full-time      = partial-time time-offset
 
@@ -221,13 +223,14 @@ std-table-close = ws %x5D     ; ] Right square bracket
 
 ;; Inline Table
 
-inline-table = inline-table-open [ inline-table-keyvals ] inline-table-close
+inline-table = inline-table-open [ inline-table-keyvals ] ws-comment-newline inline-table-close
 
-inline-table-open  = %x7B ws     ; {
-inline-table-close = ws %x7D     ; }
-inline-table-sep   = ws %x2C ws  ; , Comma
+inline-table-open  = %x7B  ; {
+inline-table-close = %x7D  ; }
+inline-table-sep   = %x2C  ; , Comma
 
-inline-table-keyvals = keyval [ inline-table-sep inline-table-keyvals ]
+inline-table-keyvals =  ws-comment-newline keyval ws-comment-newline inline-table-sep inline-table-keyvals
+inline-table-keyvals =/ ws-comment-newline keyval ws-comment-newline [ inline-table-sep ]
 
 ;; Array Table
 

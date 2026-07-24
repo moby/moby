@@ -1,8 +1,7 @@
 package toml
 
 import (
-	"fmt"
-	"reflect"
+	"errors"
 	"strconv"
 	"strings"
 
@@ -47,7 +46,6 @@ func (s *StrictMissingError) String() string {
 		if i > 0 {
 			buf.WriteString("\n---\n")
 		}
-
 		buf.WriteString(e.String())
 	}
 
@@ -73,7 +71,8 @@ func (e *DecodeError) Error() string {
 	return "toml: " + e.message
 }
 
-// String returns the human-readable contextualized error. This string is multi-line.
+// String returns the human-readable contextualized error. This string is
+// multi-line.
 func (e *DecodeError) String() string {
 	return e.human
 }
@@ -84,200 +83,151 @@ func (e *DecodeError) Position() (row int, column int) {
 	return e.line, e.column
 }
 
-// Key that was being processed when the error occurred. The key is present only
-// if this DecodeError is part of a StrictMissingError.
+// Key that was being processed when the error occurred.
 func (e *DecodeError) Key() Key {
 	return e.key
 }
 
-// wrapDecodeError creates a DecodeError referencing a highlighted
-// range of bytes from document.
-//
-// highlight needs to be a sub-slice of document, or this function panics.
-//
-// The function copies all bytes used in DecodeError, so that document and
-// highlight can be freely deallocated.
-//
-//nolint:funlen
+// wrapDecodeError creates a DecodeError from a ParserError. The highlight of
+// the ParserError needs to be a subslice of the document.
 func wrapDecodeError(document []byte, de *unstable.ParserError) *DecodeError {
-	offset := subsliceOffset(document, de.Highlight)
+	if de == nil {
+		return nil
+	}
+	return newDecodeError(document, de.Highlight, de.Key, de.Message)
+}
 
-	errMessage := de.Error()
-	errLine, errColumn := positionAtEnd(document[:offset])
-	before, after := linesOfContext(document, de.Highlight, offset, 3)
+// newDecodeError creates a DecodeError pointing at the given highlight, which
+// needs to be a subslice of the document.
+func newDecodeError(document []byte, highlight []byte, key Key, message string) *DecodeError {
+	offset := subsliceOffset(document, highlight)
+
+	errLineIdx, errColumn := positionAt(document, offset)
+
+	human := buildHumanContext(document, errLineIdx, errColumn, len(highlight), message)
+
+	return &DecodeError{
+		message: message,
+		line:    errLineIdx + 1,
+		column:  errColumn,
+		key:     key,
+		human:   human,
+	}
+}
+
+// subsliceOffset returns the offset of the subslice b within the document.
+func subsliceOffset(document, b []byte) int {
+	// Highlights are subslices of the document, which means they share the
+	// same backing array, and their capacity counts the bytes between their
+	// start and the end of the backing array.
+	offset := cap(document) - cap(b)
+	if offset < 0 || offset+len(b) > len(document) {
+		panic(errors.New("highlight is not a subslice of the document"))
+	}
+	return offset
+}
+
+// positionAt returns the 0-indexed line and the 1-indexed column of the given
+// offset in the document.
+func positionAt(document []byte, offset int) (lineIdx int, column int) {
+	lineStart := 0
+	for i := 0; i < offset; i++ {
+		if document[i] == '\n' {
+			lineIdx++
+			lineStart = i + 1
+		}
+	}
+	return lineIdx, offset - lineStart + 1
+}
+
+// docLines splits the document into lines, removing the trailing newline
+// characters.
+func docLines(document []byte) []string {
+	s := string(document)
+	lines := strings.Split(s, "\n")
+	for i, l := range lines {
+		lines[i] = strings.TrimSuffix(l, "\r")
+	}
+	return lines
+}
+
+// buildHumanContext renders the human-readable multi-line context of an
+// error: a window of up to 3 lines before and after the error line, with
+// the error position underlined.
+func buildHumanContext(document []byte, errLineIdx, errColumn, highlightLen int, message string) string {
+	lines := docLines(document)
+
+	const window = 3
+	firstIdx := errLineIdx - window
+	if firstIdx < 0 {
+		firstIdx = 0
+	}
+	lastIdx := errLineIdx + window
+	if lastIdx > len(lines)-1 {
+		lastIdx = len(lines) - 1
+	}
+	// Empty lines at the edges of the window are dropped, unless the error
+	// is about that very position.
+	for firstIdx < errLineIdx && lines[firstIdx] == "" {
+		firstIdx++
+	}
+	for lastIdx > errLineIdx && lines[lastIdx] == "" {
+		lastIdx--
+	}
+
+	// Width of the column of line numbers.
+	width := len(strconv.Itoa(lastIdx + 1))
 
 	var buf strings.Builder
 
-	maxLine := errLine + len(after) - 1
-	lineColumnWidth := len(strconv.Itoa(maxLine))
-
-	// Write the lines of context strictly before the error.
-	for i := len(before) - 1; i > 0; i-- {
-		line := errLine - i
-		buf.WriteString(formatLineNumber(line, lineColumnWidth))
-		buf.WriteString("|")
-
-		if len(before[i]) > 0 {
-			buf.WriteString(" ")
-			buf.Write(before[i])
+	writeLine := func(idx int) {
+		number := strconv.Itoa(idx + 1)
+		for i := len(number); i < width; i++ {
+			buf.WriteByte(' ')
 		}
-
-		buf.WriteRune('\n')
+		buf.WriteString(number)
+		buf.WriteByte('|')
+		if len(lines[idx]) > 0 {
+			buf.WriteByte(' ')
+			buf.WriteString(lines[idx])
+		}
+		buf.WriteByte('\n')
 	}
 
-	// Write the document line that contains the error.
+	for idx := firstIdx; idx <= errLineIdx; idx++ {
+		writeLine(idx)
+	}
 
-	buf.WriteString(formatLineNumber(errLine, lineColumnWidth))
+	// Underline the error.
+	for i := 0; i < width; i++ {
+		buf.WriteByte(' ')
+	}
 	buf.WriteString("| ")
-
-	if len(before) > 0 {
-		buf.Write(before[0])
+	for i := 1; i < errColumn; i++ {
+		buf.WriteByte(' ')
 	}
-
-	buf.Write(de.Highlight)
-
-	if len(after) > 0 {
-		buf.Write(after[0])
-	}
-
-	buf.WriteRune('\n')
-
-	// Write the line with the error message itself (so it does not have a line
-	// number).
-
-	buf.WriteString(strings.Repeat(" ", lineColumnWidth))
-	buf.WriteString("| ")
-
-	if len(before) > 0 {
-		buf.WriteString(strings.Repeat(" ", len(before[0])))
-	}
-
-	buf.WriteString(strings.Repeat("~", len(de.Highlight)))
-
-	if len(errMessage) > 0 {
-		buf.WriteString(" ")
-		buf.WriteString(errMessage)
-	}
-
-	// Write the lines of context strictly after the error.
-
-	for i := 1; i < len(after); i++ {
-		buf.WriteRune('\n')
-		line := errLine + i
-		buf.WriteString(formatLineNumber(line, lineColumnWidth))
-		buf.WriteString("|")
-
-		if len(after[i]) > 0 {
-			buf.WriteString(" ")
-			buf.Write(after[i])
+	// The highlight cannot extend past the end of its line.
+	tildes := highlightLen
+	if errLineIdx < len(lines) {
+		if avail := len(lines[errLineIdx]) - errColumn + 1; tildes > avail {
+			tildes = avail
 		}
 	}
-
-	return &DecodeError{
-		message: errMessage,
-		line:    errLine,
-		column:  errColumn,
-		key:     de.Key,
-		human:   buf.String(),
+	if tildes < 1 {
+		tildes = 1
 	}
-}
+	for i := 0; i < tildes; i++ {
+		buf.WriteByte('~')
+	}
+	if message != "" {
+		buf.WriteByte(' ')
+		buf.WriteString(message)
+	}
+	buf.WriteByte('\n')
 
-func formatLineNumber(line int, width int) string {
-	format := "%" + strconv.Itoa(width) + "d"
-
-	return fmt.Sprintf(format, line)
-}
-
-func linesOfContext(document []byte, highlight []byte, offset int, linesAround int) ([][]byte, [][]byte) {
-	return beforeLines(document, offset, linesAround), afterLines(document, highlight, offset, linesAround)
-}
-
-func beforeLines(document []byte, offset int, linesAround int) [][]byte {
-	var beforeLines [][]byte
-
-	// Walk the document backward from the highlight to find previous lines
-	// of context.
-	rest := document[:offset]
-backward:
-	for o := len(rest) - 1; o >= 0 && len(beforeLines) <= linesAround && len(rest) > 0; {
-		switch {
-		case rest[o] == '\n':
-			// handle individual lines
-			beforeLines = append(beforeLines, rest[o+1:])
-			rest = rest[:o]
-			o = len(rest) - 1
-		case o == 0:
-			// add the first line only if it's non-empty
-			beforeLines = append(beforeLines, rest)
-
-			break backward
-		default:
-			o--
-		}
+	for idx := errLineIdx + 1; idx <= lastIdx; idx++ {
+		writeLine(idx)
 	}
 
-	return beforeLines
-}
-
-func afterLines(document []byte, highlight []byte, offset int, linesAround int) [][]byte {
-	var afterLines [][]byte
-
-	// Walk the document forward from the highlight to find the following
-	// lines of context.
-	rest := document[offset+len(highlight):]
-forward:
-	for o := 0; o < len(rest) && len(afterLines) <= linesAround; {
-		switch {
-		case rest[o] == '\n':
-			// handle individual lines
-			afterLines = append(afterLines, rest[:o])
-			rest = rest[o+1:]
-			o = 0
-
-		case o == len(rest)-1:
-			// add last line only if it's non-empty
-			afterLines = append(afterLines, rest)
-
-			break forward
-		default:
-			o++
-		}
-	}
-
-	return afterLines
-}
-
-func positionAtEnd(b []byte) (row int, column int) {
-	row = 1
-	column = 1
-
-	for _, c := range b {
-		if c == '\n' {
-			row++
-			column = 1
-		} else {
-			column++
-		}
-	}
-
-	return row, column
-}
-
-// subsliceOffset returns the byte offset of subslice within data.
-// subslice must share the same backing array as data.
-func subsliceOffset(data []byte, subslice []byte) int {
-	if len(subslice) == 0 {
-		return 0
-	}
-
-	// Use reflect to get the data pointers of both slices.
-	// This is safe because we're only reading the pointer values for comparison.
-	dataPtr := reflect.ValueOf(data).Pointer()
-	subPtr := reflect.ValueOf(subslice).Pointer()
-
-	offset := int(subPtr - dataPtr)
-	if offset < 0 || offset > len(data) {
-		panic("subslice is not within data")
-	}
-	return offset
+	return strings.TrimSuffix(buf.String(), "\n")
 }

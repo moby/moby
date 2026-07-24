@@ -74,39 +74,43 @@ universal_binaries:
     name_template: jsontoml
 archives:
 - id: jsontoml
-  format: tar.xz
-  builds:
+  formats:
+    - tar.xz
+  ids:
     - jsontoml
   files:
   - none*
   name_template: "{{ .Binary }}_{{.Version}}_{{ .Os }}_{{ .Arch }}"
 - id: tomljson
-  format: tar.xz
-  builds:
+  formats:
+    - tar.xz
+  ids:
     - tomljson
   files:
   - none*
   name_template: "{{ .Binary }}_{{.Version}}_{{ .Os }}_{{ .Arch }}"
 - id: tomll
-  format: tar.xz
-  builds:
+  formats:
+    - tar.xz
+  ids:
     - tomll
   files:
   - none*
   name_template: "{{ .Binary }}_{{.Version}}_{{ .Os }}_{{ .Arch }}"
-dockers:
+dockers_v2:
   - id: tools
-    goos: linux
-    goarch: amd64
     ids:
       - jsontoml
       - tomljson
       - tomll
-    image_templates:
-      - "ghcr.io/pelletier/go-toml:latest"
-      - "ghcr.io/pelletier/go-toml:{{ .Tag }}"
-      - "ghcr.io/pelletier/go-toml:v{{ .Major }}"
-    skip_push: false
+    images:
+      - "ghcr.io/pelletier/go-toml"
+    tags:
+      - "latest"
+      - "{{ .Tag }}"
+      - "v{{ .Major }}"
+    platforms:
+      - linux/amd64
 checksum:
   name_template: 'sha256sums.txt'
 snapshot:
