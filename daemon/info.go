@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"runtime"
 	"strconv"
@@ -269,21 +270,32 @@ func (daemon *Daemon) fillAPIInfo(v *system.Info, cfg *config.Config) {
          to the 'Docker daemon attack surface' section in the documentation for
          more information: https://docs.docker.com/go/attack-surface/`
 
+	v.Listeners = make([]system.ListenerInfo, 0, len(cfg.Hosts))
 	for _, host := range cfg.Hosts {
 		// cnf.Hosts is normalized during startup, so should always have a scheme/proto
-		proto, addr, _ := strings.Cut(host, "://")
-		if proto != "tcp" {
+		addr, err := url.Parse(host)
+		if err != nil {
+			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: Unable to parse host: %s", host))
+			continue
+		}
+		if addr.Scheme != "tcp" {
+			v.Listeners = append(v.Listeners, system.ListenerInfo{Address: addr.String()})
 			continue
 		}
 		const removal = "In future versions this will be a hard failure preventing the daemon from starting! Learn more at: https://docs.docker.com/go/api-security/"
 		if cfg.TLS == nil || !*cfg.TLS {
+			addr.Scheme = "http"
 			v.Warnings = append(v.Warnings, fmt.Sprintf("[DEPRECATION NOTICE]: API is accessible on http://%s without encryption.%s\n%s", addr, warn, removal))
+			v.Listeners = append(v.Listeners, system.ListenerInfo{Address: addr.String(), Insecure: true})
 			continue
 		}
+		addr.Scheme = "https"
 		if cfg.TLSVerify == nil || !*cfg.TLSVerify {
 			v.Warnings = append(v.Warnings, fmt.Sprintf("[DEPRECATION NOTICE]: API is accessible on https://%s without TLS client verification.%s\n%s", addr, warn, removal))
+			v.Listeners = append(v.Listeners, system.ListenerInfo{Address: addr.String(), Insecure: true})
 			continue
 		}
+		v.Listeners = append(v.Listeners, system.ListenerInfo{Address: addr.String()})
 	}
 }
 
