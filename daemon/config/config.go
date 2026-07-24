@@ -156,6 +156,11 @@ type commonBridgeConfig struct {
 type NetworkConfig struct {
 	// Default address pools for docker networks
 	DefaultAddressPools opts.PoolsOpt `json:"default-address-pools"`
+	// TrustDefaultAddressPools disables the heuristics that exclude
+	// subnets overlapping routes that appear to be in use when picking a
+	// subnet from DefaultAddressPools. It is an error to set this option
+	// without configuring DefaultAddressPools explicitly.
+	TrustDefaultAddressPools bool `json:"trust-default-address-pools,omitempty"`
 	// NetworkControlPlaneMTU allows to specify the control plane MTU, this will allow to optimize the network use in some components
 	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
 	// Default options for newly created networks
@@ -720,6 +725,12 @@ func Validate(config *Config) error {
 	// validate HostGatewayIPs
 	if err := dopts.ValidateHostGatewayIPs(config.HostGatewayIPs); err != nil {
 		return err
+	}
+
+	// trust-default-address-pools opts out of the safety heuristics, so it
+	// must not apply to the built-in default pools.
+	if config.TrustDefaultAddressPools && len(config.DefaultAddressPools.Value()) == 0 {
+		return errors.Errorf("trust-default-address-pools requires default-address-pools to be configured")
 	}
 
 	// validate Labels

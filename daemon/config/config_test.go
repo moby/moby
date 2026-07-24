@@ -235,6 +235,17 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			expectedErr: "bad attribute format: one",
 		},
 		{
+			name: "trust-default-address-pools without default-address-pools",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					NetworkConfig: NetworkConfig{
+						TrustDefaultAddressPools: true,
+					},
+				},
+			},
+			expectedErr: "trust-default-address-pools requires default-address-pools to be configured",
+		},
+		{
 			name: "multiple label without value",
 			config: &Config{
 				CommonConfig: CommonConfig{
@@ -593,6 +604,14 @@ func TestValidateConfiguration(t *testing.T) {
 			assert.NilError(t, err)
 		})
 	}
+}
+
+func TestValidateTrustDefaultAddressPools(t *testing.T) {
+	cfg, err := New()
+	assert.NilError(t, err)
+	assert.NilError(t, cfg.DefaultAddressPools.Set("base=10.123.0.0/16,size=24"))
+	cfg.TrustDefaultAddressPools = true
+	assert.NilError(t, Validate(cfg))
 }
 
 func TestValidateMinAPIVersion(t *testing.T) {
