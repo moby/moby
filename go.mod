@@ -2,6 +2,9 @@ module github.com/moby/moby/v2
 
 go 1.26.3
 
+// FIXME(thaJeztah): testing https://github.com/containerd/containerd/pull/13840
+replace github.com/containerd/containerd/v2 => github.com/k8s-infra-cherrypick-robot/containerd/v2 v2.0.0-beta.0.0.20260724195659-796f07dc853d
+
 tool (
 	github.com/gogo/protobuf/protoc-gen-gogo
 	github.com/gogo/protobuf/protoc-gen-gogofaster
@@ -156,7 +159,6 @@ require (
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/checkpoint-restore/checkpointctl v1.5.0 // indirect
 	github.com/cilium/ebpf v0.17.3 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/container-storage-interface/spec v1.5.0 // indirect
@@ -312,7 +314,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apimachinery v0.36.0 // indirect
+	k8s.io/apimachinery v0.36.3 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect

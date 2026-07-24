@@ -331,9 +331,6 @@ github.com/cenkalti/backoff/v5
 # github.com/cespare/xxhash/v2 v2.3.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
-# github.com/checkpoint-restore/checkpointctl v1.5.0
-## explicit; go 1.24.6
-github.com/checkpoint-restore/checkpointctl/lib
 # github.com/cilium/ebpf v0.17.3
 ## explicit; go 1.22
 github.com/cilium/ebpf
@@ -426,7 +423,7 @@ github.com/containerd/containerd/api/types/runc/options
 github.com/containerd/containerd/api/types/runtimeoptions/v1
 github.com/containerd/containerd/api/types/task
 github.com/containerd/containerd/api/types/transfer
-# github.com/containerd/containerd/v2 v2.3.3
+# github.com/containerd/containerd/v2 v2.3.3 => github.com/k8s-infra-cherrypick-robot/containerd/v2 v2.0.0-beta.0.0.20260724195659-796f07dc853d
 ## explicit; go 1.26.3
 github.com/containerd/containerd/v2/client
 github.com/containerd/containerd/v2/cmd/containerd/server/config
@@ -2267,7 +2264,7 @@ gotest.tools/v3/internal/format
 gotest.tools/v3/internal/source
 gotest.tools/v3/poll
 gotest.tools/v3/skip
-# k8s.io/apimachinery v0.36.0
+# k8s.io/apimachinery v0.36.3
 ## explicit; go 1.26.0
 k8s.io/apimachinery/pkg/api/resource
 k8s.io/apimachinery/pkg/runtime/serializer/cbor/direct
@@ -2303,5 +2300,6 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.1.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
+# github.com/containerd/containerd/v2 => github.com/k8s-infra-cherrypick-robot/containerd/v2 v2.0.0-beta.0.0.20260724195659-796f07dc853d
 # github.com/moby/moby/api => ./api
 # github.com/moby/moby/client => ./client
