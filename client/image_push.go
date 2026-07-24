@@ -63,10 +63,18 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePus
 		query.Set("platform", string(pJson))
 	}
 
-	resp, err := cli.tryImagePush(ctx, ref.Name(), query, staticAuth(options.RegistryAuth))
-	if cerrdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
-		resp, err = cli.tryImagePush(ctx, ref.Name(), query, options.PrivilegeFunc)
-	}
+	// PrivilegeFunc was added in [18472] as an alternative to passing static
+	// authentication. The default was still to try the static authentication
+	// before calling the PrivilegeFunc (if present).
+	//
+	// For now, we need to keep this behavior, as PrivilegeFunc may be an
+	// interactive prompt, however, we should change this to only use static
+	// auth if not empty. Ultimately, we should deprecate its use in favor of
+	// callers providing a PrivilegeFunc (which can be chained), or a list of
+	// PrivilegeFuncs.
+	//
+	// [18472]: https://github.com/moby/moby/commit/e78f02c4dbc3cada909c114fef6b6643969ab912
+	resp, err := cli.tryImagePush(ctx, ref.Name(), query, ChainPrivilegeFuncs(staticAuth(options.RegistryAuth), options.PrivilegeFunc))
 	if err != nil {
 		return nil, err
 	}
@@ -75,24 +83,48 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePus
 
 func (cli *Client) tryImagePush(ctx context.Context, imageID string, query url.Values, resolveAuth registry.RequestAuthConfig) (*http.Response, error) {
 	hdr := http.Header{}
-	if resolveAuth != nil {
-		registryAuth, err := resolveAuth(ctx)
+	var lastErr error
+	for {
+		registryAuth, tryNext, err := getAuth(ctx, resolveAuth)
 		if err != nil {
+			// TODO(thaJeztah): should we return an "unauthorised error" here to allow the caller to try other options?
+			if errors.Is(err, errNoMorePrivilegeFuncs) && lastErr != nil {
+				return nil, lastErr
+			}
 			return nil, err
 		}
 		if registryAuth != "" {
 			hdr.Set(registry.AuthHeader, registryAuth)
 		}
-	}
 
-	// Always send a body (which may be an empty JSON document ("{}")) to prevent
-	// EOF errors on older daemons which had faulty fallback code for handling
-	// authentication in the body when no auth-header was set, resulting in;
-	//
-	//	Error response from daemon: bad parameters and missing X-Registry-Auth: invalid X-Registry-Auth header: EOF
-	//
-	// We use [http.NoBody], which gets marshaled to an empty JSON document.
-	//
-	// see: https://github.com/moby/moby/commit/ea29dffaa541289591aa44fa85d2a596ce860e16
-	return cli.post(ctx, "/images/"+imageID+"/push", query, http.NoBody, hdr)
+		// Always send a body (which may be an empty JSON document ("{}")) to prevent
+		// EOF errors on older daemons which had faulty fallback code for handling
+		// authentication in the body when no auth-header was set, resulting in;
+		//
+		//	Error response from daemon: bad parameters and missing X-Registry-Auth: invalid X-Registry-Auth header: EOF
+		//
+		// We use [http.NoBody], which gets marshaled to an empty JSON document.
+		//
+		// see: https://github.com/moby/moby/commit/ea29dffaa541289591aa44fa85d2a596ce860e16
+		resp, err := cli.post(ctx, "/images/"+imageID+"/push", query, http.NoBody, hdr)
+		if err == nil {
+			// Discard previous errors
+			return resp, nil
+		} else {
+			if IsErrConnectionFailed(err) {
+				// Don't retry if we failed to connect to the API.
+				return nil, err
+			}
+
+			// TODO(thaJeztah); only retry with "IsUnauthorized" and/or "rate limit (StatusTooManyRequests)" errors?
+			if !cerrdefs.IsUnauthorized(err) {
+				return nil, err
+			}
+
+			lastErr = err
+		}
+		if !tryNext {
+			return nil, lastErr
+		}
+	}
 }
