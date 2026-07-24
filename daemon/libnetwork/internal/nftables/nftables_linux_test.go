@@ -26,7 +26,12 @@ func testSetup(t *testing.T) func() {
 		t.Fatalf("Failed to enable nftables: %s", err)
 	}
 	cleanupContext := netnsutils.SetupTestOSContext(t)
+
+	incrementalUpdateFailedHook = func(applied string, err error) {
+		t.Errorf("Incremental update failed\n%s\n---\n%s", applied, err)
+	}
 	return func() {
+		incrementalUpdateFailedHook = nil
 		cleanupContext()
 		Disable()
 	}
@@ -194,6 +199,7 @@ func TestVMap(t *testing.T) {
 		Name:        mapName,
 		ElementType: Ifname.VMap(),
 		Flags:       []string{"dynamic", "timeout"},
+		Counter:     true,
 	})
 	tm.Create(MapElement{MapName: mapName, Key: "eth0", Value: "return"})
 	tm.Create(MapElement{MapName: mapName, Key: "eth1", Value: "drop", Comment: `/// this is a comment on a map element \\\`})
@@ -222,7 +228,7 @@ func TestSet(t *testing.T) {
 	// Create a set in each table.
 	const set4Name = "set4"
 	tm4 := Modifier{}
-	tm4.Create(Set{Name: set4Name, ElementType: IPv4Addr, Flags: []string{"interval"}})
+	tm4.Create(Set{Name: set4Name, ElementType: IPv4Addr, Flags: []string{"interval"}, Counter: true})
 	const set6Name = "set6"
 	tm6 := Modifier{}
 	tm6.Create(Set{Name: set6Name, ElementType: IPv6Addr, Flags: []string{"interval", "timeout"}})
@@ -238,6 +244,32 @@ func TestSet(t *testing.T) {
 	// Delete elements.
 	applyAndCheck(t, t.Name()+"/deleted4.golden", tbl4, tm4.Reverse())
 	applyAndCheck(t, t.Name()+"/deleted6.golden", tbl6, tm6.Reverse())
+}
+
+func TestMapElementAtomicReplace(t *testing.T) {
+	defer testSetup(t)()
+
+	tbl, err := NewTable(IPv4, "x")
+	assert.NilError(t, err)
+	defer tbl.Close()
+
+	const mapName = "a_map"
+	init := Modifier{}
+	init.Create(Map{
+		Name:        mapName,
+		ElementType: Typeof("numgen random mod 1024").MapTo("ip daddr"),
+		Flags:       []string{"interval"},
+	})
+
+	gen1 := Modifier{}
+	gen1.Create(MapElement{MapName: mapName, Key: "0-511", Value: "127.0.0.1"})
+	gen1.Create(MapElement{MapName: mapName, Key: "512-1023", Value: "192.168.0.1"})
+	applyAndCheck(t, t.Name()+"/init.golden", tbl, init, gen1)
+
+	gen2 := Modifier{}
+	gen2.Create(MapElement{MapName: mapName, Key: "0-511", Value: "169.254.169.254"})
+	gen2.Create(MapElement{MapName: mapName, Key: "512-1023", Value: "1.1.1.1"})
+	applyAndCheck(t, t.Name()+"/updated.golden", tbl, gen1.Reverse(), gen2)
 }
 
 func TestReload(t *testing.T) {
@@ -297,6 +329,7 @@ func TestReload(t *testing.T) {
 
 	// Check implicit/recovery reload - only deleting something that's gone missing
 	// from a vmap/set will trigger this.
+	incrementalUpdateFailedHook = nil
 	tm = Modifier{}
 	tm.Delete(SetElement{SetName: setName, Element: "192.0.2.0/24"})
 	applyAndCheck(t, t.Name()+"/recovered.golden", tbl, tm)
@@ -735,6 +768,9 @@ func TestValidation(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			defer testSetup(t)()
+			if tc.expErr != "" {
+				incrementalUpdateFailedHook = nil
+			}
 			tbl, err := NewTable(IPv4, "tablename")
 			assert.NilError(t, err)
 			defer tbl.Close()

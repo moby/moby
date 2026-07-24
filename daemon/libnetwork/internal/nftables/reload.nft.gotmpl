@@ -14,6 +14,7 @@ table {{$family}} {{$tableName}} {
 		{{.ElementTypeExpr}}
 		{{if len .Flags}}flags {{join .Flags ", "}}{{end}}
 		{{if .Size}}size {{.Size}}{{end}}
+		{{if .Counter}}counter{{end}}
 		{{if .Timeout}}timeout {{.Timeout.Milliseconds}}ms{{end}}
         {{if .Elements}}elements = {
 			{{range $k,$v := .Elements}}{{$k}}{{if $v.Comment}} comment "{{$v.Comment}}"{{end}} : {{$v.Value}},
@@ -25,6 +26,7 @@ table {{$family}} {{$tableName}} {
 		{{.ElementTypeExpr}}
 		{{if len .Flags}}flags {{join .Flags ", "}}{{end}}
 		{{if .Size}}size {{.Size}}{{end}}
+		{{if .Counter}}counter{{end}}
 		{{if .Timeout}}timeout {{.Timeout.Milliseconds}}ms{{end}}
         {{if .Elements}}elements = {
 			{{range $k,$v := .Elements}}{{$k}}{{if $v.Comment}} comment "{{$v.Comment}}"{{end}},
@@ -33,7 +35,7 @@ table {{$family}} {{$tableName}} {
 	}
 	{{end}}
 	{{range .Chains}}chain {{.Name}} {
-		{{if .ChainType}}type {{.ChainType}} hook {{.Hook}}{{if .Device}} device "{{.Device}}"{{end}} priority {{.Priority}}; policy {{.Policy}}{{end}}
+		{{if .ChainType}}type {{.ChainType}} hook {{.Hook}}{{if .Device}} device "{{.Device}}"{{end}} priority {{.Priority}}; policy {{.Policy}};{{end}}
 		{{range .Rules}}{{.}}
 		{{end}}
 	}

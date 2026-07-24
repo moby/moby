@@ -19,7 +19,6 @@ import (
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/golden"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
@@ -190,13 +189,14 @@ func TestSwarmScopedNetFromConfig(t *testing.T) {
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, serviceID, 1), swarm.ServicePoll)
 }
 
-// Check that, when swarm has ports mapped to the host, the iptables jump to
-// DOCKER-INGRESS remains in place after a daemon restart.
+// Check that a swarm service's published (ingress) port remains accessible
+// after a daemon restart. Ingress ports are published as ordinary port mappings
+// on the load-balancer sandbox's docker_gwbridge gateway endpoint, so they're
+// restored along with every other port mapping when the daemon restarts.
 // Regression test for https://github.com/moby/moby/pull/49538
-func TestDockerIngressChainPosition(t *testing.T) {
+func TestDockerIngressPortAfterRestart(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-	skip.If(t, testEnv.FirewallBackendDriver() == "nftables")
 	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
 	ctx := setupTest(t)
 
@@ -221,20 +221,6 @@ func TestDockerIngressChainPosition(t *testing.T) {
 			return poll.Continue("404 Not Found not found in: %s", res.Stderr())
 		}
 		return poll.Success()
-	}
-
-	// Check the jump to DOCKER-INGRESS is at the top of the DOCKER-FORWARD chain.
-	checkChain := func() {
-		t.Helper()
-		res := icmd.RunCommand("iptables", "-S", "DOCKER-FORWARD")
-		assert.NilError(t, res.Error, "stderr: %s", res.Stderr())
-		// Only compare the first (fixed) part of the chain - per-bridge rules may be
-		// re-ordered when the daemon restarts.
-		out := strings.SplitAfter(res.Stdout(), "\n")
-		if len(out) > 5 {
-			out = out[:5]
-		}
-		golden.Assert(t, strings.Join(out, ""), t.Name()+"_docker_forward.golden")
 	}
 
 	l3.Hosts[l3SegHost].Do(t, func() {
@@ -266,7 +252,6 @@ func TestDockerIngressChainPosition(t *testing.T) {
 		poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, serviceID, 1), swarm.ServicePoll)
 		t.Log("Checking http access to the service")
 		poll.WaitOn(t, checkHTTP, poll.WithTimeout(30*time.Second))
-		checkChain()
 
 		t.Log("Restarting the daemon")
 		d.Restart(t)
@@ -276,7 +261,6 @@ func TestDockerIngressChainPosition(t *testing.T) {
 		t.Log("Checking http access to the service")
 		// It takes a while before this works ...
 		poll.WaitOn(t, checkHTTP, poll.WithTimeout(30*time.Second))
-		checkChain()
 	})
 }
 

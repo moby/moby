@@ -107,6 +107,29 @@ type ExtConner interface {
 	ProgramExternalConnectivity(ctx context.Context, nid, eid string, gw4Id, gw6Id string) error
 }
 
+// PortManager is an optional interface for a network driver. It allows the set
+// of published ports for an endpoint that's already joined to a sandbox to be
+// changed dynamically, without recreating the endpoint.
+//
+// Both methods act on the endpoint identified by eid on network nid. The
+// endpoint must be joined to a sandbox. Whether host port-mappings (DNAT) are
+// programmed depends on whether the endpoint is currently acting as a gateway,
+// exactly as for the port bindings supplied at Join time.
+type PortManager interface {
+	// AddPorts publishes additional ports on an already-joined endpoint.
+	//
+	// persist controls whether the added ports are saved to the driver's
+	// datastore, so that they're restored when the daemon restarts with the
+	// endpoint still live. Callers that own the published-port set from another
+	// source of truth and re-apply it on restart - such as Swarm ingress, which
+	// re-derives it from the cluster - pass false, so the ports don't linger in
+	// the store and get re-created twice.
+	AddPorts(ctx context.Context, nid, eid string, pbs []types.PortBinding, persist bool) error
+	// DelPorts unpublishes ports previously published (at Join time or via
+	// AddPorts) on an already-joined endpoint.
+	DelPorts(ctx context.Context, nid, eid string, pbs []types.PortBinding) error
+}
+
 // IPv6Releaser is an optional interface for a network driver.
 type IPv6Releaser interface {
 	// ReleaseIPv6 tells the driver that an endpoint has no IPv6 address, even

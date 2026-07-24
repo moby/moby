@@ -8,6 +8,8 @@ import (
 	"github.com/containerd/log"
 )
 
+type osLoadBalancer struct{}
+
 type policyLists struct {
 	ilb *hcsshim.PolicyList
 	elb *hcsshim.PolicyList
