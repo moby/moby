@@ -348,8 +348,18 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	})
 	gs := newGRPCServer(ctx)
 	b.backend.RegisterGRPC(gs)
+	// Publish the gRPC services extensions opted to expose on the API socket, so
+	// external clients reach them over docker.sock alongside the REST API and the
+	// buildkit gRPC services: in-process extensions' services go straight onto gs,
+	// out-of-process ones are proxied. A service name that collides with a daemon
+	// service (or another extension) is rejected, so the proxy's routes stay
+	// disjoint from gs and the dispatch order in newHTTPHandler cannot shadow one.
+	extProxy, err := d.ExposeExtensionServices(gs)
+	if err != nil {
+		return err
+	}
 	httpServer.Protocols = &p
-	httpServer.Handler = newHTTPHandler(ctx, gs, apiServer.CreateMux(ctx, routers...))
+	httpServer.Handler = newHTTPHandler(ctx, gs, extProxy, apiServer.CreateMux(ctx, routers...))
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 
