@@ -53,6 +53,14 @@ go-toml is a TOML library for Go. The goal is to provide an easy-to-use and effi
 - Commit messages must explain **why** the change is needed
 - Keep messages clear and informative even if details are in the PR description
 
+### Capabilities
+
+go-toml tracks system-level capabilities using [capslock](https://github.com/google/capslock). The baseline is in `capability_baseline.txt` and CI enforces that it does not grow.
+
+- **Do not introduce new capabilities.** PRs that increase the capability set (e.g., adding network access, subprocess execution, syscalls) are unlikely to be accepted.
+- If a change causes the capabilities check to fail, do not update the baseline to make it pass. Instead, rethink the approach to avoid requiring new capabilities.
+- To check locally: `./caps.sh check` (requires `capslock` installed via `go install github.com/google/capslock/cmd/capslock@latest`)
+
 ## Pull Request Checklist
 
 Before submitting:
@@ -61,4 +69,5 @@ Before submitting:
 2. No backward-incompatible changes (unless discussed)
 3. Relevant documentation added/updated
 4. No performance regression (verify with benchmarks)
-5. Title is clear and understandable for changelog
+5. Capabilities are not increasing (`./caps.sh check`)
+6. Title is clear and understandable for changelog

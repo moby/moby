@@ -17,43 +17,30 @@ import (
 //		// do something with n
 //	}
 type Iterator struct {
-	nodes   *[]Node
-	idx     int32
 	started bool
+	node    *Node
 }
 
-// Next moves the iterator forward and returns true if points to a
-// node, false otherwise.
+// Next moves the iterator forward and returns true if points to a node, false
+// otherwise.
 func (c *Iterator) Next() bool {
-	if c.nodes == nil {
-		return false
-	}
-	nodes := *c.nodes
 	if !c.started {
 		c.started = true
-	} else {
-		idx := c.idx
-		if idx >= 0 && int(idx) < len(nodes) {
-			c.idx = nodes[idx].next
-		}
+	} else if c.node.Valid() {
+		c.node = c.node.Next()
 	}
-	return c.idx >= 0 && int(c.idx) < len(nodes)
+	return c.node.Valid()
 }
 
 // IsLast returns true if the current node of the iterator is the last
-// one.  Subsequent calls to Next() will return false.
+// one. Subsequent calls to Next() will return false.
 func (c *Iterator) IsLast() bool {
-	return c.nodes == nil || c.idx < 0 || (*c.nodes)[c.idx].next < 0
+	return c.node.next == 0
 }
 
 // Node returns a pointer to the node pointed at by the iterator.
 func (c *Iterator) Node() *Node {
-	if c.nodes == nil || c.idx < 0 {
-		return nil
-	}
-	n := &(*c.nodes)[c.idx]
-	n.nodes = c.nodes
-	return n
+	return c.node
 }
 
 // Node in a TOML expression AST.
@@ -64,8 +51,8 @@ func (c *Iterator) Node() *Node {
 //   - Array have one child per element in the array.
 //   - InlineTable have one child per key-value in the table (each of kind
 //     InlineTable).
-//   - KeyValue have at least two children. The first one is the value. The rest
-//     make a potentially dotted key.
+//   - KeyValue have at least two children. The first one is the value. The
+//     rest make a potentially dotted key.
 //   - Table and ArrayTable's children represent a dotted key (same as
 //     KeyValue, but without the first node being the value).
 //
@@ -76,68 +63,56 @@ type Node struct {
 	Raw  Range  // Raw bytes from the input.
 	Data []byte // Node value (either allocated or referencing the input).
 
-	// Absolute indices into the backing nodes slice. -1 means none.
-	next  int32
-	child int32
-
-	// Reference to the backing nodes slice for navigation.
-	nodes *[]Node
-}
-
-// Range of bytes in the document.
-type Range struct {
-	Offset uint32
-	Length uint32
+	// References to other nodes, as 1-based indexes into the parser's arena.
+	// 0 means no node.
+	parser *Parser
+	next   int32
+	child  int32
 }
 
 // Next returns a pointer to the next node, or nil if there is no next node.
 func (n *Node) Next() *Node {
-	if n.next < 0 {
+	if n.next == 0 {
 		return nil
 	}
-	next := &(*n.nodes)[n.next]
-	next.nodes = n.nodes
-	return next
+	return &n.parser.nodes[n.next-1]
 }
 
 // Child returns a pointer to the first child node of this node. Other children
-// can be accessed calling Next on the first child.  Returns nil if this Node
-// has no child.
+// can be accessed calling Next on the first child. Returns nil if there is no
+// child node.
 func (n *Node) Child() *Node {
-	if n.child < 0 {
+	if n.child == 0 {
 		return nil
 	}
-	child := &(*n.nodes)[n.child]
-	child.nodes = n.nodes
-	return child
+	return &n.parser.nodes[n.child-1]
 }
 
 // Valid returns true if the node's kind is set (not to Invalid).
 func (n *Node) Valid() bool {
-	return n != nil
+	return n != nil && n.Kind != Invalid
 }
 
 // Key returns the children nodes making the Key on a supported node. Panics
-// otherwise.  They are guaranteed to be all be of the Kind Key. A simple key
+// otherwise. They are guaranteed to be all be of the Kind Key. A simple key
 // would return just one element.
 func (n *Node) Key() Iterator {
 	switch n.Kind {
 	case KeyValue:
-		child := n.child
-		if child < 0 {
+		value := n.Child()
+		if !value.Valid() {
 			panic(errors.New("KeyValue should have at least two children"))
 		}
-		valueNode := &(*n.nodes)[child]
-		return Iterator{nodes: n.nodes, idx: valueNode.next}
+		return Iterator{node: value.Next()}
 	case Table, ArrayTable:
-		return Iterator{nodes: n.nodes, idx: n.child}
+		return Iterator{node: n.Child()}
 	default:
 		panic(fmt.Errorf("Key() is not supported on a %s", n.Kind))
 	}
 }
 
 // Value returns a pointer to the value node of a KeyValue.
-// Guaranteed to be non-nil.  Panics if not called on a KeyValue node,
+// Guaranteed to be non-nil. Panics if not called on a KeyValue node,
 // or if the Children are malformed.
 func (n *Node) Value() *Node {
 	return n.Child()
@@ -145,5 +120,5 @@ func (n *Node) Value() *Node {
 
 // Children returns an iterator over a node's children.
 func (n *Node) Children() Iterator {
-	return Iterator{nodes: n.nodes, idx: n.child}
+	return Iterator{node: n.Child()}
 }

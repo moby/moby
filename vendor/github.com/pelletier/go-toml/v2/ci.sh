@@ -146,13 +146,17 @@ bench() {
 
     pushd "$dir"
 
+    tags=""
     if [ "${replace}" != "" ]; then
         find ./benchmark/ -iname '*.go' -exec sed -i -E "s|github.com/pelletier/go-toml/v2\"|${replace}\"|g" {} \;
         go get "${replace}"
+        # The realworld benchmarks use v2-only API and cannot compile against
+        # the other libraries; exclude them from cross-library comparisons.
+        tags="-tags cross_library_benchmark"
     fi
 
     export GOMAXPROCS=2
-    go test '-bench=^Benchmark(Un)?[mM]arshal' -count=10 -run=Nothing ./... | tee "${out}"
+    go test ${tags} '-bench=^Benchmark(Un)?[mM]arshal' -count=10 -run=Nothing ./... | tee "${out}"
     popd
 
     if [ "${branch}" != "HEAD" ]; then

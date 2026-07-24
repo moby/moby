@@ -180,6 +180,25 @@ description. Pull requests that lower performance will receive more scrutiny.
 
 [benchstat]: https://pkg.go.dev/golang.org/x/perf/cmd/benchstat
 
+### Capabilities
+
+We use [capslock](https://github.com/google/capslock) to track what
+system-level capabilities (file access, network, syscalls, etc.) each package
+requires. The current baseline is in `capability_baseline.txt`. CI will fail if
+a change introduces a new capability.
+
+**Pull requests that increase the set of capabilities are unlikely to be
+accepted.** go-toml is a parsing library and should not need network access,
+subprocess execution, or other capabilities beyond what it already uses.
+
+If you believe a new capability is genuinely needed, discuss it in an issue
+first. To update the baseline after approval:
+
+```bash
+go install github.com/google/capslock/cmd/capslock@latest
+./caps.sh generate
+```
+
 ### Style
 
 Try to look around and follow the same format and structure as the rest of the
