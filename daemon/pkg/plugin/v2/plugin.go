@@ -48,11 +48,16 @@ func (e ErrInadequateCapability) Error() string {
 
 // ScopedPath returns the path scoped to the plugin rootfs
 func (p *Plugin) ScopedPath(s string) string {
-	if p.PluginObj.Config.PropagatedMount != "" && strings.HasPrefix(s, p.PluginObj.Config.PropagatedMount) {
+	// Clean the path first to resolve any ".." components before the prefix
+	// check. Without this, a plugin can craft a path such as
+	// "/propagated/../../../escape" that passes the HasPrefix check but,
+	// after filepath.Join normalises it, escapes the PropagatedMount root.
+	cleaned := filepath.Clean(s)
+	if p.PluginObj.Config.PropagatedMount != "" && strings.HasPrefix(cleaned, p.PluginObj.Config.PropagatedMount) {
 		// re-scope to the propagated mount path on the host
-		return filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount", strings.TrimPrefix(s, p.PluginObj.Config.PropagatedMount))
+		return filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount", strings.TrimPrefix(cleaned, p.PluginObj.Config.PropagatedMount))
 	}
-	return filepath.Join(p.Rootfs, s)
+	return filepath.Join(p.Rootfs, cleaned)
 }
 
 // Client returns the plugin client.
