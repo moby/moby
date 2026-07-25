@@ -43,7 +43,7 @@ cloud.google.com/go/longrunning/internal
 ## explicit; go 1.24.9
 code.cloudfoundry.org/clock
 code.cloudfoundry.org/clock/fakeclock
-# cyphar.com/go-pathrs v0.2.1
+# cyphar.com/go-pathrs v0.2.5
 ## explicit; go 1.18
 cyphar.com/go-pathrs
 cyphar.com/go-pathrs/internal/fdutils
