@@ -1,5 +1,17 @@
 # Changes
 
+## [2.23.0](https://github.com/googleapis/gax-go/compare/v2.22.0...v2.23.0) (2026-07-07)
+
+
+### Features
+
+* **v2:** add http.response.status_code to TransportTelemetryData ([#513](https://github.com/googleapis/gax-go/issues/513)) ([7d5554f](https://github.com/googleapis/gax-go/commit/7d5554f433f669fba3db5c5b64ed67a30813c568))
+
+
+### Bug Fixes
+
+* correct min go version ([#517](https://github.com/googleapis/gax-go/issues/517)) ([fc62896](https://github.com/googleapis/gax-go/commit/fc62896b04d04db85c48585b9311ec4bbee1d9bc))
+
 ## [2.22.0](https://github.com/googleapis/google-cloud-go/releases/tag/v2.22.0) (2026-04-14)
 
 ## [2.21.0](https://github.com/googleapis/google-cloud-go/releases/tag/v2.21.0) (2026-04-01)
