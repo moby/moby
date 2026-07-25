@@ -1,5 +1,25 @@
 # Changes
 
+## [1.2.0](https://github.com/googleapis/google-cloud-go/compare/longrunning/v1.1.0...longrunning/v1.2.0) (2026-07-08)
+
+
+### Features
+
+* **o11y:** Instrument LRO loop with poll attempt and sleep child spans ([#20089](https://github.com/googleapis/google-cloud-go/issues/20089)) ([1c513de](https://github.com/googleapis/google-cloud-go/commit/1c513decf2bdadf29dacf2049934500aae4165c5))
+* **o11y:** Wrap wait loop in T2 LRO Wait span with feature gating ([#20055](https://github.com/googleapis/google-cloud-go/issues/20055)) ([05f3d64](https://github.com/googleapis/google-cloud-go/commit/05f3d6498b3564141bdeb3f54c0d068f1291243a))
+
+
+### Bug Fixes
+
+* **longrunning:** Correct go min version ([#20101](https://github.com/googleapis/google-cloud-go/issues/20101)) ([7e21cfb](https://github.com/googleapis/google-cloud-go/commit/7e21cfb2d91eb425a7d7a3f39ab706b4e8363bad))
+
+## [1.1.0](https://github.com/googleapis/google-cloud-go/compare/longrunning/v1.0.0...longrunning/v1.1.0) (2026-06-26)
+
+
+### Features
+
+* **o11y:** Add experimental trace fields and construction API ([#19968](https://github.com/googleapis/google-cloud-go/issues/19968)) ([c71dd55](https://github.com/googleapis/google-cloud-go/commit/c71dd55685bf2437011b580973a7c28d7ade93b0)), closes [#19969](https://github.com/googleapis/google-cloud-go/issues/19969)
+
 ## [1.0.0](https://github.com/googleapis/google-cloud-go/releases/tag/longrunning%2Fv1.0.0) (2026-05-08)
 
 ## [0.13.0](https://github.com/googleapis/google-cloud-go/releases/tag/longrunning%2Fv0.13.0) (2026-05-07)
@@ -205,4 +225,3 @@
 ## v0.1.0
 
 Initial release.
-

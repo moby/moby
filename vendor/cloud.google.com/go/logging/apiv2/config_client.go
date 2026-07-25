@@ -32,6 +32,7 @@ import (
 	longrunningpb "cloud.google.com/go/longrunning/autogen/longrunningpb"
 	gax "github.com/googleapis/gax-go/v2"
 	"github.com/googleapis/gax-go/v2/callctx"
+	trace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
@@ -433,7 +434,7 @@ type ConfigClient struct {
 
 // Wrapper methods routed to the internal client.
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *ConfigClient) Close() error {
 	return c.internalClient.Close()
@@ -444,6 +445,16 @@ func (c *ConfigClient) Close() error {
 // use by Google-written clients.
 func (c *ConfigClient) setGoogleClientInfo(keyval ...string) {
 	c.internalClient.setGoogleClientInfo(keyval...)
+}
+
+// SetGoogleClientInfo sets the name and version of the application in
+// the `x-goog-api-client` header passed on each request. Intended for
+// use by Google-written clients.
+//
+// SetGoogleClientInfo is not concurrency-safe and should only be invoked
+// sequentially before concurrent operations begin.
+func (c *ConfigClient) SetGoogleClientInfo(keyval ...string) {
+	c.setGoogleClientInfo(keyval...)
 }
 
 // Connection returns a connection to the API service.
@@ -894,7 +905,7 @@ func (c *configGRPCClient) setGoogleClientInfo(keyval ...string) {
 	}
 }
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *configGRPCClient) Close() error {
 	return c.connPool.Close()
@@ -1036,7 +1047,7 @@ func (c *configRESTClient) setGoogleClientInfo(keyval ...string) {
 	}
 }
 
-// Close closes the connection to the API service. The user should invoke this when
+// Close closes the connection to the API service. **Always** call Close() when
 // the client is no longer required.
 func (c *configRESTClient) Close() error {
 	// Replace httpClient with nil to force cleanup.
@@ -1147,8 +1158,12 @@ func (c *configGRPCClient) CreateBucketAsync(ctx context.Context, req *loggingpb
 	if err != nil {
 		return nil, err
 	}
+	lro := longrunning.InternalNewOperationWithMetadata(*c.LROClient, resp, "*logging.CreateBucketAsyncOperation")
+	if gax.IsFeatureEnabled("TRACING") {
+		lro.SetParentSpanContext(trace.SpanContextFromContext(ctx))
+	}
 	return &CreateBucketAsyncOperation{
-		lro: longrunning.InternalNewOperation(*c.LROClient, resp),
+		lro: lro,
 	}, nil
 }
 
@@ -1173,8 +1188,12 @@ func (c *configGRPCClient) UpdateBucketAsync(ctx context.Context, req *loggingpb
 	if err != nil {
 		return nil, err
 	}
+	lro := longrunning.InternalNewOperationWithMetadata(*c.LROClient, resp, "*logging.UpdateBucketAsyncOperation")
+	if gax.IsFeatureEnabled("TRACING") {
+		lro.SetParentSpanContext(trace.SpanContextFromContext(ctx))
+	}
 	return &UpdateBucketAsyncOperation{
-		lro: longrunning.InternalNewOperation(*c.LROClient, resp),
+		lro: lro,
 	}, nil
 }
 
@@ -1566,8 +1585,12 @@ func (c *configGRPCClient) CreateLink(ctx context.Context, req *loggingpb.Create
 	if err != nil {
 		return nil, err
 	}
+	lro := longrunning.InternalNewOperationWithMetadata(*c.LROClient, resp, "*logging.CreateLinkOperation")
+	if gax.IsFeatureEnabled("TRACING") {
+		lro.SetParentSpanContext(trace.SpanContextFromContext(ctx))
+	}
 	return &CreateLinkOperation{
-		lro: longrunning.InternalNewOperation(*c.LROClient, resp),
+		lro: lro,
 	}, nil
 }
 
@@ -1592,8 +1615,12 @@ func (c *configGRPCClient) DeleteLink(ctx context.Context, req *loggingpb.Delete
 	if err != nil {
 		return nil, err
 	}
+	lro := longrunning.InternalNewOperationWithMetadata(*c.LROClient, resp, "*logging.DeleteLinkOperation")
+	if gax.IsFeatureEnabled("TRACING") {
+		lro.SetParentSpanContext(trace.SpanContextFromContext(ctx))
+	}
 	return &DeleteLinkOperation{
-		lro: longrunning.InternalNewOperation(*c.LROClient, resp),
+		lro: lro,
 	}, nil
 }
 
@@ -1922,8 +1949,12 @@ func (c *configGRPCClient) CopyLogEntries(ctx context.Context, req *loggingpb.Co
 	if err != nil {
 		return nil, err
 	}
+	lro := longrunning.InternalNewOperationWithMetadata(*c.LROClient, resp, "*logging.CopyLogEntriesOperation")
+	if gax.IsFeatureEnabled("TRACING") {
+		lro.SetParentSpanContext(trace.SpanContextFromContext(ctx))
+	}
 	return &CopyLogEntriesOperation{
-		lro: longrunning.InternalNewOperation(*c.LROClient, resp),
+		lro: lro,
 	}, nil
 }
 
@@ -2213,8 +2244,12 @@ func (c *configRESTClient) CreateBucketAsync(ctx context.Context, req *loggingpb
 	}
 
 	override := fmt.Sprintf("/v2/%s", resp.GetName())
+	lro := longrunning.InternalNewOperationWithMetadata(*c.LROClient, resp, "*logging.CreateBucketAsyncOperation")
+	if gax.IsFeatureEnabled("TRACING") {
+		lro.SetParentSpanContext(trace.SpanContextFromContext(ctx))
+	}
 	return &CreateBucketAsyncOperation{
-		lro:      longrunning.InternalNewOperation(*c.LROClient, resp),
+		lro:      lro,
 		pollPath: override,
 	}, nil
 }
@@ -2292,8 +2327,12 @@ func (c *configRESTClient) UpdateBucketAsync(ctx context.Context, req *loggingpb
 	}
 
 	override := fmt.Sprintf("/v2/%s", resp.GetName())
+	lro := longrunning.InternalNewOperationWithMetadata(*c.LROClient, resp, "*logging.UpdateBucketAsyncOperation")
+	if gax.IsFeatureEnabled("TRACING") {
+		lro.SetParentSpanContext(trace.SpanContextFromContext(ctx))
+	}
 	return &UpdateBucketAsyncOperation{
-		lro:      longrunning.InternalNewOperation(*c.LROClient, resp),
+		lro:      lro,
 		pollPath: override,
 	}, nil
 }
@@ -3240,8 +3279,12 @@ func (c *configRESTClient) CreateLink(ctx context.Context, req *loggingpb.Create
 	}
 
 	override := fmt.Sprintf("/v2/%s", resp.GetName())
+	lro := longrunning.InternalNewOperationWithMetadata(*c.LROClient, resp, "*logging.CreateLinkOperation")
+	if gax.IsFeatureEnabled("TRACING") {
+		lro.SetParentSpanContext(trace.SpanContextFromContext(ctx))
+	}
 	return &CreateLinkOperation{
-		lro:      longrunning.InternalNewOperation(*c.LROClient, resp),
+		lro:      lro,
 		pollPath: override,
 	}, nil
 }
@@ -3301,8 +3344,12 @@ func (c *configRESTClient) DeleteLink(ctx context.Context, req *loggingpb.Delete
 	}
 
 	override := fmt.Sprintf("/v2/%s", resp.GetName())
+	lro := longrunning.InternalNewOperationWithMetadata(*c.LROClient, resp, "*logging.DeleteLinkOperation")
+	if gax.IsFeatureEnabled("TRACING") {
+		lro.SetParentSpanContext(trace.SpanContextFromContext(ctx))
+	}
 	return &DeleteLinkOperation{
-		lro:      longrunning.InternalNewOperation(*c.LROClient, resp),
+		lro:      lro,
 		pollPath: override,
 	}, nil
 }
@@ -4108,8 +4155,12 @@ func (c *configRESTClient) CopyLogEntries(ctx context.Context, req *loggingpb.Co
 	}
 
 	override := fmt.Sprintf("/v2/%s", resp.GetName())
+	lro := longrunning.InternalNewOperationWithMetadata(*c.LROClient, resp, "*logging.CopyLogEntriesOperation")
+	if gax.IsFeatureEnabled("TRACING") {
+		lro.SetParentSpanContext(trace.SpanContextFromContext(ctx))
+	}
 	return &CopyLogEntriesOperation{
-		lro:      longrunning.InternalNewOperation(*c.LROClient, resp),
+		lro:      lro,
 		pollPath: override,
 	}, nil
 }
@@ -4301,7 +4352,7 @@ func (c *configRESTClient) ListOperations(ctx context.Context, req *longrunningp
 // The name must be that of a previously created CopyLogEntriesOperation, possibly from a different process.
 func (c *configGRPCClient) CopyLogEntriesOperation(name string) *CopyLogEntriesOperation {
 	return &CopyLogEntriesOperation{
-		lro: longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+		lro: longrunning.InternalNewOperationWithMetadata(*c.LROClient, &longrunningpb.Operation{Name: name}, "*logging.CopyLogEntriesOperation"),
 	}
 }
 
@@ -4310,7 +4361,7 @@ func (c *configGRPCClient) CopyLogEntriesOperation(name string) *CopyLogEntriesO
 func (c *configRESTClient) CopyLogEntriesOperation(name string) *CopyLogEntriesOperation {
 	override := fmt.Sprintf("/v2/%s", name)
 	return &CopyLogEntriesOperation{
-		lro:      longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+		lro:      longrunning.InternalNewOperationWithMetadata(*c.LROClient, &longrunningpb.Operation{Name: name}, "*logging.CopyLogEntriesOperation"),
 		pollPath: override,
 	}
 }
@@ -4319,7 +4370,7 @@ func (c *configRESTClient) CopyLogEntriesOperation(name string) *CopyLogEntriesO
 // The name must be that of a previously created CreateBucketAsyncOperation, possibly from a different process.
 func (c *configGRPCClient) CreateBucketAsyncOperation(name string) *CreateBucketAsyncOperation {
 	return &CreateBucketAsyncOperation{
-		lro: longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+		lro: longrunning.InternalNewOperationWithMetadata(*c.LROClient, &longrunningpb.Operation{Name: name}, "*logging.CreateBucketAsyncOperation"),
 	}
 }
 
@@ -4328,7 +4379,7 @@ func (c *configGRPCClient) CreateBucketAsyncOperation(name string) *CreateBucket
 func (c *configRESTClient) CreateBucketAsyncOperation(name string) *CreateBucketAsyncOperation {
 	override := fmt.Sprintf("/v2/%s", name)
 	return &CreateBucketAsyncOperation{
-		lro:      longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+		lro:      longrunning.InternalNewOperationWithMetadata(*c.LROClient, &longrunningpb.Operation{Name: name}, "*logging.CreateBucketAsyncOperation"),
 		pollPath: override,
 	}
 }
@@ -4337,7 +4388,7 @@ func (c *configRESTClient) CreateBucketAsyncOperation(name string) *CreateBucket
 // The name must be that of a previously created CreateLinkOperation, possibly from a different process.
 func (c *configGRPCClient) CreateLinkOperation(name string) *CreateLinkOperation {
 	return &CreateLinkOperation{
-		lro: longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+		lro: longrunning.InternalNewOperationWithMetadata(*c.LROClient, &longrunningpb.Operation{Name: name}, "*logging.CreateLinkOperation"),
 	}
 }
 
@@ -4346,7 +4397,7 @@ func (c *configGRPCClient) CreateLinkOperation(name string) *CreateLinkOperation
 func (c *configRESTClient) CreateLinkOperation(name string) *CreateLinkOperation {
 	override := fmt.Sprintf("/v2/%s", name)
 	return &CreateLinkOperation{
-		lro:      longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+		lro:      longrunning.InternalNewOperationWithMetadata(*c.LROClient, &longrunningpb.Operation{Name: name}, "*logging.CreateLinkOperation"),
 		pollPath: override,
 	}
 }
@@ -4355,7 +4406,7 @@ func (c *configRESTClient) CreateLinkOperation(name string) *CreateLinkOperation
 // The name must be that of a previously created DeleteLinkOperation, possibly from a different process.
 func (c *configGRPCClient) DeleteLinkOperation(name string) *DeleteLinkOperation {
 	return &DeleteLinkOperation{
-		lro: longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+		lro: longrunning.InternalNewOperationWithMetadata(*c.LROClient, &longrunningpb.Operation{Name: name}, "*logging.DeleteLinkOperation"),
 	}
 }
 
@@ -4364,7 +4415,7 @@ func (c *configGRPCClient) DeleteLinkOperation(name string) *DeleteLinkOperation
 func (c *configRESTClient) DeleteLinkOperation(name string) *DeleteLinkOperation {
 	override := fmt.Sprintf("/v2/%s", name)
 	return &DeleteLinkOperation{
-		lro:      longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+		lro:      longrunning.InternalNewOperationWithMetadata(*c.LROClient, &longrunningpb.Operation{Name: name}, "*logging.DeleteLinkOperation"),
 		pollPath: override,
 	}
 }
@@ -4373,7 +4424,7 @@ func (c *configRESTClient) DeleteLinkOperation(name string) *DeleteLinkOperation
 // The name must be that of a previously created UpdateBucketAsyncOperation, possibly from a different process.
 func (c *configGRPCClient) UpdateBucketAsyncOperation(name string) *UpdateBucketAsyncOperation {
 	return &UpdateBucketAsyncOperation{
-		lro: longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+		lro: longrunning.InternalNewOperationWithMetadata(*c.LROClient, &longrunningpb.Operation{Name: name}, "*logging.UpdateBucketAsyncOperation"),
 	}
 }
 
@@ -4382,7 +4433,7 @@ func (c *configGRPCClient) UpdateBucketAsyncOperation(name string) *UpdateBucket
 func (c *configRESTClient) UpdateBucketAsyncOperation(name string) *UpdateBucketAsyncOperation {
 	override := fmt.Sprintf("/v2/%s", name)
 	return &UpdateBucketAsyncOperation{
-		lro:      longrunning.InternalNewOperation(*c.LROClient, &longrunningpb.Operation{Name: name}),
+		lro:      longrunning.InternalNewOperationWithMetadata(*c.LROClient, &longrunningpb.Operation{Name: name}, "*logging.UpdateBucketAsyncOperation"),
 		pollPath: override,
 	}
 }
