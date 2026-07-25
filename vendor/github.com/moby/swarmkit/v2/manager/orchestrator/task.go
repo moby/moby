@@ -8,6 +8,7 @@ import (
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/defaults"
 	"github.com/moby/swarmkit/v2/identity"
+	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/constraint"
 	"github.com/moby/swarmkit/v2/protobuf/ptypes"
 )
@@ -119,7 +120,18 @@ func nodeMatches(s *api.Service, n *api.Node) bool {
 		return false
 	}
 
-	constraints, _ := constraint.Parse(s.Spec.Task.Placement.Constraints)
+	var pc []string
+	if s.Spec.Task.Placement != nil {
+		pc = s.Spec.Task.Placement.Constraints
+	}
+
+	constraints, err := constraint.Parse(pc)
+	if err != nil {
+		log.L.WithFields(map[string]any{
+			"error":       err,
+			"constraints": pc,
+		}).Debug("IsTaskDirty: nodeMatches: failed to parse placement constraints")
+	}
 	return constraint.NodeMatches(constraints, n)
 }
 
