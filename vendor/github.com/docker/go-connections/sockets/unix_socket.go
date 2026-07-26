@@ -47,38 +47,69 @@ For example:
 package sockets
 
 import (
+	"errors"
+	"fmt"
 	"net"
 	"os"
+	"runtime"
 	"syscall"
 )
+
+const supportsAbstractSockets = runtime.GOOS == "linux"
 
 // SockOption sets up socket file's creating option
 type SockOption func(string) error
 
-// NewUnixSocketWithOpts creates a unix socket with the specified options.
-// By default, socket permissions are 0000 (i.e.: no access for anyone); pass
-// WithChmod() and WithChown() to set the desired ownership and permissions.
+// NewUnixSocketWithOpts creates a Unix socket with the specified options.
 //
-// This function temporarily changes the system's "umask" to 0777 to work around
-// a race condition between creating the socket and setting its permissions. While
-// this should only be for a short duration, it may affect other processes that
-// create files/directories during that period.
+// On Unix platforms, socket permissions are 0000 by default, i.e. no access
+// for anyone. Pass WithChmod() and WithChown() to set the desired permissions
+// and ownership.
+//
+// On Windows, the socket uses Windows ACLs. Pass WithBasePermissions() to allow
+// Administrators and LocalSystem full access, or WithAdditionalUsersAndGroups()
+// to also grant generic read and write access to additional users or groups.
+//
+// Abstract Unix sockets (Go's Linux-specific "@" shorthand and the native
+// leading-NUL representation) are supported only on Linux. On other platforms,
+// attempts to use abstract socket addresses return an error. Because abstract
+// sockets have no filesystem representation, filesystem-specific socket
+// options are not supported.
+//
+// On platforms without abstract Unix socket support, attempts to use abstract
+// socket addresses return an error wrapping [errors.ErrUnsupported].
 func NewUnixSocketWithOpts(path string, opts ...SockOption) (net.Listener, error) {
+	if isAbstractSocket(path) {
+		if !supportsAbstractSockets {
+			return nil, fmt.Errorf("abstract Unix socket %q is not supported on %s: %w", path, runtime.GOOS, errors.ErrUnsupported)
+		}
+		for _, opt := range opts {
+			if err := opt(path); err != nil {
+				return nil, err
+			}
+		}
+		return net.Listen("unix", path)
+	}
 	if err := syscall.Unlink(path); err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 
-	l, err := listenUnix(path)
-	if err != nil {
-		return nil, err
-	}
+	return listenUnix(path, opts...)
+}
 
-	for _, op := range opts {
-		if err := op(path); err != nil {
-			_ = l.Close()
-			return nil, err
-		}
-	}
-
-	return l, nil
+// isAbstractSocket reports whether path is an abstract Unix socket address.
+//
+// Go recognizes two representations of abstract socket addresses:
+//
+//   - On Linux, a path beginning with '@' is translated by the standard library
+//     to the kernel's native leading-NUL representation.
+//     See https://pkg.go.dev/net@go1.27rc2#UnixAddr.
+//
+//   - A path beginning with a NUL byte uses the kernel's native representation
+//     directly. See https://github.com/golang/go/issues/78615.
+//
+// The interpretation of these addresses is platform-dependent; this helper only
+// recognizes the syntax.
+func isAbstractSocket(path string) bool {
+	return len(path) > 0 && (path[0] == '@' || path[0] == 0)
 }
