@@ -20,6 +20,7 @@ import (
 	"github.com/moby/moby/v2/daemon/pkg/oci"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/buildbackend"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -114,6 +115,14 @@ func TestLabel(t *testing.T) {
 
 func TestFromScratch(t *testing.T) {
 	b := newBuilderWithMockBackend(t)
+	expectedPlatform := ocispec.Platform{
+		OS:           runtime.GOOS,
+		Architecture: "foreign-architecture",
+		OSVersion:    "test-version",
+		OSFeatures:   []string{"feature-a", "feature-b"},
+		Variant:      "v1",
+	}
+	b.platform = &expectedPlatform
 	sb := newDispatchRequest(b, '\\', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
 	cmd := &instructions.Stage{
 		BaseName: "scratch",
@@ -128,9 +137,42 @@ func TestFromScratch(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, sb.state.hasFromImage())
 	assert.Check(t, is.Equal(sb.state.imageID, ""))
+	assert.DeepEqual(t, sb.state.platform, expectedPlatform)
+	assert.DeepEqual(t, b.getPlatform(sb.state), expectedPlatform)
 	// TODO(thaJeztah): use github.com/moby/buildkit/util/system.DefaultPathEnv() once https://github.com/moby/buildkit/pull/3158 is resolved.
 	expected := []string{"PATH=" + oci.DefaultPathEnv(runtime.GOOS)}
 	assert.Check(t, is.DeepEqual(sb.state.runConfig.Env, expected))
+}
+
+func TestCacheProbeUsesBaseImagePlatform(t *testing.T) {
+	expected := ocispec.Platform{
+		OS:           runtime.GOOS,
+		Architecture: "foreign-architecture",
+		Variant:      "v1",
+	}
+	b := newBuilderWithMockBackend(t)
+	mockBackend := b.docker.(*MockBackend)
+	mockBackend.getImageFunc = func(string) (builder.Image, builder.ROLayer, error) {
+		return &mockImage{id: "base", platform: expected}, nil, nil
+	}
+	mockBackend.makeImageCacheFunc = func([]string) builder.ImageCache {
+		return &mockImageCache{
+			getCacheFunc: func(_ string, _ *container.Config, platform ocispec.Platform) (string, error) {
+				assert.DeepEqual(t, platform, expected)
+				return "", nil
+			},
+		}
+	}
+	sb := newDispatchRequest(b, '\\', nil, NewBuildArgs(nil), newStagesBuildResults())
+
+	err := initializeStage(t.Context(), sb, &instructions.Stage{
+		BaseName: "base",
+		Platform: runtime.GOOS + "/foreign-architecture/v1",
+	})
+	assert.NilError(t, err)
+	hit, err := b.probeCache(sb.state, &container.Config{})
+	assert.NilError(t, err)
+	assert.Assert(t, !hit)
 }
 
 func TestFromWithArg(t *testing.T) {
@@ -449,7 +491,7 @@ func TestRunWithBuildArgs(t *testing.T) {
 	cachedCmd := append(envVars, cmdWithShell...)
 
 	imageCache := &mockImageCache{
-		getCacheFunc: func(parentID string, cfg *container.Config) (string, error) {
+		getCacheFunc: func(parentID string, cfg *container.Config, _ ocispec.Platform) (string, error) {
 			// Check the runConfig.Cmd sent to probeCache()
 			assert.Check(t, is.DeepEqual(cfg.Cmd, cachedCmd))
 			assert.Check(t, is.Nil(cfg.Entrypoint))
@@ -522,7 +564,7 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 	origCmd := []string{"cmd", "in", "from", "image"}
 
 	imageCache := &mockImageCache{
-		getCacheFunc: func(parentID string, cfg *container.Config) (string, error) {
+		getCacheFunc: func(parentID string, cfg *container.Config, _ ocispec.Platform) (string, error) {
 			return "", nil
 		},
 	}

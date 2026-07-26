@@ -81,6 +81,8 @@ func (b *Builder) exportImage(ctx context.Context, state *dispatchState, layer b
 	platform := &ocispec.Platform{
 		OS:           parentImage.OS,
 		Architecture: parentImage.Architecture,
+		OSVersion:    parentImage.OSVersion,
+		OSFeatures:   parentImage.OSFeatures,
 		Variant:      parentImage.Variant,
 	}
 
@@ -380,6 +382,9 @@ func (b *Builder) getPlatform(state *dispatchState) ocispec.Platform {
 	out := platforms.DefaultSpec()
 	if b.platform != nil {
 		out = *b.platform
+	}
+	if state.platform.Architecture != "" {
+		out = state.platform
 	}
 
 	if state.operatingSystem != "" {

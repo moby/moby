@@ -83,8 +83,9 @@ func (m *MockBackend) CreateImage(ctx context.Context, config []byte, parent str
 }
 
 type mockImage struct {
-	id     string
-	config *container.Config
+	id       string
+	config   *container.Config
+	platform ocispec.Platform
 }
 
 func (i *mockImage) ImageID() string {
@@ -96,7 +97,20 @@ func (i *mockImage) RunConfig() *container.Config {
 }
 
 func (i *mockImage) OperatingSystem() string {
+	if i.platform.OS != "" {
+		return i.platform.OS
+	}
 	return runtime.GOOS
+}
+
+func (i *mockImage) Platform() ocispec.Platform {
+	if i.platform.OS == "" {
+		i.platform.OS = runtime.GOOS
+	}
+	if i.platform.Architecture == "" {
+		i.platform.Architecture = runtime.GOARCH
+	}
+	return i.platform
 }
 
 func (i *mockImage) MarshalJSON() ([]byte, error) {
@@ -105,12 +119,12 @@ func (i *mockImage) MarshalJSON() ([]byte, error) {
 }
 
 type mockImageCache struct {
-	getCacheFunc func(parentID string, cfg *container.Config) (string, error)
+	getCacheFunc func(parentID string, cfg *container.Config, platform ocispec.Platform) (string, error)
 }
 
-func (mic *mockImageCache) GetCache(parentID string, cfg *container.Config, _ ocispec.Platform) (string, error) {
+func (mic *mockImageCache) GetCache(parentID string, cfg *container.Config, platform ocispec.Platform) (string, error) {
 	if mic.getCacheFunc != nil {
-		return mic.getCacheFunc(parentID, cfg)
+		return mic.getCacheFunc(parentID, cfg, platform)
 	}
 	return "", nil
 }
