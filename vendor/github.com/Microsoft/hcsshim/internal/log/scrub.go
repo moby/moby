@@ -29,7 +29,13 @@ var (
 	_scrub atomic.Bool
 )
 
-// SetScrubbing enables scrubbing
+func init() {
+	// Scrubbing is enabled by default to prevent sensitive information
+	// (such as environment variables containing secrets) from leaking to logs.
+	_scrub.Store(true)
+}
+
+// SetScrubbing enables or disables scrubbing of potentially sensitive information from logging.
 func SetScrubbing(enable bool) { _scrub.Store(enable) }
 
 // IsScrubbingEnabled checks if scrubbing is enabled
@@ -172,6 +178,19 @@ func isRequestBase(m genMap) bool {
 	_, a := m["ActivityId"]
 	_, c := m["ContainerId"]
 	return a && c
+}
+
+// ScrubCreateOptions scrubs a JSON-encoded CreateOptions struct,
+// removing sensitive fields (env vars, annotations) from the embedded OCI Spec.
+func ScrubCreateOptions(b []byte) ([]byte, error) {
+	return scrubBytes(b, scrubCreateOptions)
+}
+
+func scrubCreateOptions(m genMap) error {
+	if spec, ok := index(m, "Spec"); ok {
+		return scrubOCISpec(spec)
+	}
+	return nil
 }
 
 // combination `m, ok := m[s]` and `m, ok := m.(genMap)`

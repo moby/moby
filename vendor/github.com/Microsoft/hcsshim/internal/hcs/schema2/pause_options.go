@@ -9,7 +9,7 @@
 
 package hcsschema
 
-//  Options for HcsPauseComputeSystem
+// Options for HcsPauseComputeSystem
 type PauseOptions struct {
 	SuspensionLevel string `json:"SuspensionLevel,omitempty"`
 

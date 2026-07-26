@@ -9,7 +9,11 @@
 
 package hcsschema
 
-//   By default the basic properties will be returned. This query provides a way to  request specific properties.
+// By default the basic properties will be returned. This query provides a way to  request specific properties.
 type PropertyQuery struct {
 	PropertyTypes []PropertyType `json:"PropertyTypes,omitempty"`
+
+	// Queries is a new property request object, introduced in version 2.5, which takes the
+	// names of the properties and their associated query objects if needed.
+	Queries map[string]interface{} `json:"Queries,omitempty"`
 }

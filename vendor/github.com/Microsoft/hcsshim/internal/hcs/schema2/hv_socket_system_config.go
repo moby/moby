@@ -9,7 +9,7 @@
 
 package hcsschema
 
-//  This is the HCS Schema version of the HvSocket configuration. The VMWP version is  located in Config.Devices.IC in V1.
+// This is the HCS Schema version of the HvSocket configuration. The VMWP version is  located in Config.Devices.IC in V1.
 type HvSocketSystemConfig struct {
 
 	//  SDDL string that HvSocket will check before allowing a host process to bind  to an unlisted service for this specific container/VM (not wildcard binds).

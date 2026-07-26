@@ -7,13 +7,17 @@ const (
 	Namespace = "namespace"
 	Operation = "operation"
 
-	ID          = "id"
-	ContainerID = "cid"
-	ExecID      = "eid"
-	ProcessID   = "pid"
-	TaskID      = "tid"
-	UVMID       = "uvm-id"
-	SandboxID   = "sandbox-id"
+	ID               = "id"
+	ContainerID      = "cid"
+	GCSContainerID   = "gcs_container_id"
+	ExecID           = "eid"
+	NamespaceID      = "namespace-id"
+	PodID            = "pod-id"
+	ProcessID        = "pid"
+	SandboxID        = "sandbox-id"
+	TaskID           = "tid"
+	UVMID            = "uvm-id"
+	VirtualSandboxID = "virtual-sandbox-id"
 
 	// networking and IO
 
@@ -21,6 +25,13 @@ const (
 	Path  = "path"
 	Bytes = "bytes"
 	Pipe  = "pipe"
+
+	// SCSI Constants
+
+	Controller = "controller"
+	LUN        = "lun"
+	DiskType   = "disk-type"
+	Partition  = "partition"
 
 	// Common Misc
 
@@ -70,6 +81,12 @@ const (
 	ShimPid          = "shim-pid"
 	TaskPid          = "task-pid"
 
+	// vpci device
+
+	VMBusGUID = "vmBusGUID"
+	DeviceID  = "deviceInstanceID"
+	VFIndex   = "virtualFunctionIndex"
+
 	// sandbox
 
 	NetNsPath = "net-ns-path"
@@ -87,6 +104,11 @@ const (
 	// runhcs
 
 	VMShimOperation = "vmshim-op"
+
+	// migration
+
+	SessionID = "session-id"
+	Action    = "action"
 
 	// logging and tracing
 

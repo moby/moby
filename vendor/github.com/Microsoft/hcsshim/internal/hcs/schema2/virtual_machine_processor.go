@@ -12,10 +12,10 @@
 package hcsschema
 
 type VirtualMachineProcessor struct {
-	Count       uint32 `json:"Count,omitempty"`
-	Limit       uint64 `json:"Limit,omitempty"`
-	Weight      uint64 `json:"Weight,omitempty"`
-	Reservation uint64 `json:"Reservation,omitempty"`
-	CpuGroup                   *CpuGroup            `json:"CpuGroup,omitempty"`
-	NumaProcessorsSettings     *NumaProcessors      `json:"NumaProcessorsSettings,omitempty"`
+	Count                  uint32          `json:"Count,omitempty"`
+	Limit                  uint64          `json:"Limit,omitempty"`
+	Weight                 uint64          `json:"Weight,omitempty"`
+	Reservation            uint64          `json:"Reservation,omitempty"`
+	CpuGroup               *CpuGroup       `json:"CpuGroup,omitempty"`
+	NumaProcessorsSettings *NumaProcessors `json:"NumaProcessorsSettings,omitempty"`
 }
