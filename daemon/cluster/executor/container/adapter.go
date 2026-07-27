@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	gogotypes "github.com/gogo/protobuf/types"
@@ -63,6 +64,15 @@ func newContainerAdapter(b executorpkg.Backend, i executorpkg.ImageBackend, v ex
 		volumeBackend: v,
 		dependencies:  dependencies,
 	}, nil
+}
+
+// imageExists reports whether the image the container is configured with is
+// present in the local image store. An error other than "not found" is not
+// conclusive, so the image is reported as present and the container create
+// is left to surface the error.
+func (c *containerAdapter) imageExists(ctx context.Context) bool {
+	_, err := c.imageBackend.GetImage(ctx, c.container.image(), imagebackend.GetImageOpts{})
+	return !cerrdefs.IsNotFound(err)
 }
 
 func (c *containerAdapter) pullImage(ctx context.Context) error {
