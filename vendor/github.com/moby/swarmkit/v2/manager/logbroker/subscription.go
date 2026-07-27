@@ -15,6 +15,10 @@ import (
 )
 
 type subscription struct {
+	id string
+
+	follow bool
+
 	mu sync.RWMutex
 	wg sync.WaitGroup
 
@@ -32,6 +36,8 @@ type subscription struct {
 
 func newSubscription(store *store.MemoryStore, message *api.SubscriptionMessage, changed *watch.Queue) *subscription {
 	return &subscription{
+		id:           message.ID,
+		follow:       message.Options != nil && message.Options.Follow,
 		store:        store,
 		message:      message,
 		changed:      changed,
@@ -40,8 +46,8 @@ func newSubscription(store *store.MemoryStore, message *api.SubscriptionMessage,
 	}
 }
 
-func (s *subscription) follow() bool {
-	return s.message.Options != nil && s.message.Options.Follow
+func (s *subscription) ID() string {
+	return s.id
 }
 
 func (s *subscription) Contains(nodeID string) bool {
@@ -66,12 +72,12 @@ func (s *subscription) Nodes() []string {
 func (s *subscription) Run(ctx context.Context) {
 	s.ctx, s.cancel = context.WithCancel(ctx)
 
-	if s.follow() {
+	if s.follow {
 		wq := s.store.WatchQueue()
 		ch, cancel := state.Watch(wq, api.EventCreateTask{}, api.EventUpdateTask{})
 		go func() {
 			defer cancel()
-			s.watch(ch)
+			_ = s.watch(ch)
 		}()
 	}
 
@@ -86,7 +92,7 @@ func (s *subscription) Stop() {
 
 func (s *subscription) Wait(_ context.Context) <-chan struct{} {
 	// Follow subscriptions never end
-	if s.follow() {
+	if s.follow {
 		return nil
 	}
 
@@ -106,7 +112,7 @@ func (s *subscription) Done(nodeID string, err error) {
 		s.errors = append(s.errors, err)
 	}
 
-	if s.follow() {
+	if s.follow {
 		return
 	}
 
@@ -152,6 +158,7 @@ func (s *subscription) Closed() bool {
 func (s *subscription) match() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	selector := s.message.Selector
 
 	add := func(t *api.Task) {
 		if t.NodeID == "" {
@@ -165,17 +172,17 @@ func (s *subscription) match() {
 	}
 
 	s.store.View(func(tx store.ReadTx) {
-		for _, nid := range s.message.Selector.NodeIDs {
+		for _, nid := range selector.NodeIDs {
 			s.nodes[nid] = struct{}{}
 		}
 
-		for _, tid := range s.message.Selector.TaskIDs {
+		for _, tid := range selector.TaskIDs {
 			if task := store.GetTask(tx, tid); task != nil {
 				add(task)
 			}
 		}
 
-		for _, sid := range s.message.Selector.ServiceIDs {
+		for _, sid := range selector.ServiceIDs {
 			tasks, err := store.FindTasks(tx, store.ByServiceID(sid))
 			if err != nil {
 				log.L.Warning(err)
@@ -183,7 +190,7 @@ func (s *subscription) match() {
 			}
 			for _, task := range tasks {
 				// if we're not following, don't add tasks that aren't running yet
-				if !s.follow() && task.Status.State < api.TaskStateRunning {
+				if !s.follow && task.Status.State < api.TaskStateRunning {
 					continue
 				}
 				add(task)
@@ -193,13 +200,15 @@ func (s *subscription) match() {
 }
 
 func (s *subscription) watch(ch <-chan events.Event) error {
+	selector := s.message.Selector
+
 	matchTasks := map[string]struct{}{}
-	for _, tid := range s.message.Selector.TaskIDs {
+	for _, tid := range selector.TaskIDs {
 		matchTasks[tid] = struct{}{}
 	}
 
 	matchServices := map[string]struct{}{}
-	for _, sid := range s.message.Selector.ServiceIDs {
+	for _, sid := range selector.ServiceIDs {
 		matchServices[sid] = struct{}{}
 	}
 
@@ -256,4 +265,19 @@ func (s *subscription) watch(ch <-chan events.Event) error {
 			add(t)
 		}
 	}
+}
+
+// Message returns a snapshot of the current subscription message.
+//
+// The underlying message is owned by the subscription and may be updated
+// as part of its lifecycle. Callers should use this accessor rather than
+// accessing the underlying message directly.
+func (s *subscription) Message() *api.SubscriptionMessage {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// Return a snapshot of the message to avoid races while it is being
+	// marshaled. See https://github.com/moby/moby/issues/47322.
+	msg := *s.message
+	return &msg
 }
