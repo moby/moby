@@ -1,6 +1,8 @@
 package container
 
 import (
+	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	systemutil "github.com/moby/moby/v2/integration/internal/system"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -61,6 +64,40 @@ func TestAttach(t *testing.T) {
 			assert.Check(t, is.Equal(mediaType, tc.expectedMediaType))
 		})
 	}
+}
+
+func TestAttachRejectsInvalidDetachKeys(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	resp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config: &container.Config{
+			Image: "busybox",
+			Cmd:   []string{"top"},
+			Tty:   true,
+		},
+		HostConfig:       &container.HostConfig{},
+		NetworkingConfig: &network.NetworkingConfig{},
+	})
+	assert.NilError(t, err)
+
+	query := url.Values{"detachKeys": {"ctrl-A,a"}}
+	res, body, err := request.Post(ctx, "/containers/"+resp.ID+"/attach?"+query.Encode(),
+		request.With(func(req *http.Request) error {
+			req.Header.Set("Connection", "Upgrade")
+			req.Header.Set("Upgrade", "tcp")
+			return nil
+		}),
+	)
+	if body != nil {
+		defer func() { _ = body.Close() }()
+	}
+	assert.NilError(t, err)
+	assert.Equal(t, res.StatusCode, http.StatusBadRequest)
+
+	out, err := request.ReadBody(body)
+	assert.NilError(t, err)
+	assert.Check(t, is.Contains(string(out), "Invalid detach keys"))
 }
 
 // Regression test for #37182
