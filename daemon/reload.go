@@ -81,6 +81,7 @@ func (tx *reloadTxn) Rollback() error {
 // - Daemon max concurrent uploads
 // - Daemon max download attempts
 // - Daemon shutdown timeout (in seconds)
+// - Daemon default container stop timeout (in seconds)
 // - Cluster discovery (reconfigure and restart)
 // - Daemon labels
 // - Insecure registries
@@ -118,6 +119,7 @@ func (daemon *Daemon) Reload(conf *config.Config) error {
 		daemon.reloadMaxConcurrentDownloadsAndUploads,
 		daemon.reloadMaxDownloadAttempts,
 		daemon.reloadShutdownTimeout,
+		daemon.reloadDefaultStopTimeout,
 		daemon.reloadFeatures,
 		daemon.reloadLabels,
 		daemon.reloadRegistryConfig,
@@ -216,6 +218,18 @@ func (daemon *Daemon) reloadShutdownTimeout(_ *reloadTxn, newCfg *configStore, c
 
 	// prepare reload event attributes with updatable configurations
 	attributes["shutdown-timeout"] = strconv.Itoa(newCfg.ShutdownTimeout)
+	return nil
+}
+
+// reloadDefaultStopTimeout updates the default container stop timeout
+// and updates the passed attributes.
+func (daemon *Daemon) reloadDefaultStopTimeout(_ *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
+	if conf.IsValueSet("default-stop-timeout") {
+		newCfg.DefaultStopTimeout = conf.DefaultStopTimeout
+		log.G(context.TODO()).Debugf("Reset Default Stop Timeout: %d", newCfg.DefaultStopTimeout)
+	}
+
+	attributes["default-stop-timeout"] = strconv.Itoa(newCfg.DefaultStopTimeout)
 	return nil
 }
 

@@ -1494,7 +1494,10 @@ func (daemon *Daemon) shutdownTimeout(cfg *config.Config) int {
 
 	graceTimeout := 5
 	for _, c := range daemon.containers.List() {
-		stopTimeout := c.StopTimeout()
+		stopTimeout := cfg.DefaultStopTimeout
+		if c.Config.StopTimeout != nil {
+			stopTimeout = *c.Config.StopTimeout
+		}
 		if stopTimeout < 0 {
 			return -1
 		}

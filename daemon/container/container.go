@@ -605,14 +605,6 @@ func (container *Container) StopSignal() syscall.Signal {
 	return stopSignal
 }
 
-// StopTimeout returns the timeout (in seconds) used to stop the container.
-func (container *Container) StopTimeout() int {
-	if container.Config.StopTimeout != nil {
-		return *container.Config.StopTimeout
-	}
-	return defaultStopTimeout
-}
-
 // InitDNSHostConfig ensures that the dns fields are never nil.
 // New containers don't ever have those fields nil,
 // but pre created containers can still have those nil values.

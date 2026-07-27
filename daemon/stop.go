@@ -53,10 +53,11 @@ func (daemon *Daemon) containerStop(ctx context.Context, ctr *container.Containe
 		return nil
 	}
 
-	var (
-		stopSignal  = ctr.StopSignal()
-		stopTimeout = ctr.StopTimeout()
-	)
+	stopSignal := ctr.StopSignal()
+	stopTimeout := daemon.config().DefaultStopTimeout
+	if ctr.Config.StopTimeout != nil {
+		stopTimeout = *ctr.Config.StopTimeout
+	}
 	if options.Signal != "" {
 		sig, err := signal.ParseSignal(options.Signal)
 		if err != nil {
