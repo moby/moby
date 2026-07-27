@@ -82,6 +82,29 @@ func (s *Solver) getSessionExporters(ctx context.Context, sessionID string, id i
 	return out, nil
 }
 
+func (s *Solver) finalizeSessionExport(ctx context.Context, sessionID string, exporterResponse map[string]string) error {
+	timeoutCtx, cancel := context.WithCancelCause(ctx)
+	timeoutCtx, _ = context.WithTimeoutCause(timeoutCtx, 5*time.Second, errors.WithStack(context.DeadlineExceeded)) //nolint:govet
+	defer func() { cancel(errors.WithStack(context.Canceled)) }()
+
+	caller, err := s.sm.Get(timeoutCtx, sessionID, false)
+	if err != nil {
+		return err
+	}
+
+	client := sessionexporter.NewExporterClient(caller.Conn())
+	_, err = client.FinalizeExport(caller.Context(ctx), &sessionexporter.FinalizeExportRequest{
+		ExporterResponse: exporterResponse,
+	})
+	if err != nil {
+		switch grpcerrors.Code(err) {
+		case codes.Unavailable, codes.Unimplemented:
+			return nil
+		}
+	}
+	return err
+}
+
 func runCacheExporters(ctx context.Context, exporters []RemoteCacheExporter, j *solver.Job, cached *result.Result[solver.CachedResult], inp *result.Result[cache.ImmutableRef]) (map[string]string, error) {
 	eg, ctx := errgroup.WithContext(ctx)
 	g := session.NewGroup(j.SessionID)
