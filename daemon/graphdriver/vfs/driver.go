@@ -40,7 +40,10 @@ func Init(home string, options []string, idMap user.IdentityMapping) (graphdrive
 	}
 
 	_, gid := d.idMapping.RootPair()
-	if err := user.MkdirAllAndChown(home, 0o710, os.Getuid(), gid); err != nil {
+	if err := user.MkdirAndChown(home, 0o710, os.Getuid(), gid); err != nil {
+		return nil, err
+	}
+	if err := user.MkdirAndChown(filepath.Join(home, "dir"), 0o710, os.Getuid(), gid); err != nil {
 		return nil, err
 	}
 
@@ -169,9 +172,6 @@ func (d *Driver) create(id, parent string, size uint64) error {
 	dir := d.dir(id)
 	uid, gid := d.idMapping.RootPair()
 
-	if err := user.MkdirAllAndChown(filepath.Dir(dir), 0o710, os.Getuid(), gid); err != nil {
-		return err
-	}
 	if err := user.MkdirAndChown(dir, 0o755, uid, gid); err != nil {
 		return err
 	}
