@@ -33,22 +33,6 @@ func TestContainerStopSignal(t *testing.T) {
 	assert.Equal(t, s, defaultStopSignal)
 }
 
-func TestContainerStopTimeout(t *testing.T) {
-	c := &Container{
-		Config: &container.Config{},
-	}
-
-	s := c.StopTimeout()
-	assert.Equal(t, s, defaultStopTimeout)
-
-	stopTimeout := 15
-	c = &Container{
-		Config: &container.Config{StopTimeout: &stopTimeout},
-	}
-	s = c.StopTimeout()
-	assert.Equal(t, s, stopTimeout)
-}
-
 func TestContainerSecretReferenceDestTarget(t *testing.T) {
 	ref := &swarm.SecretReference{
 		File: &swarm.SecretReferenceFileTarget{

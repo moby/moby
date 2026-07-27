@@ -122,11 +122,14 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 				// So let's wait the container's stop timeout amount of time to see if the event is eventually processed.
 				// Doing this has the side effect that if no event was ever going to come we are waiting a longer period of time unnecessarily.
 				// But this prevents race conditions in processing the container.
-				stopTimeout := time.Duration(container.StopTimeout()) * time.Second
+				stopTimeout := daemon.config().DefaultStopTimeout
+				if container.Config.StopTimeout != nil {
+					stopTimeout = *container.Config.StopTimeout
+				}
 				var ctx context.Context
 				var cancel context.CancelFunc
 				if stopTimeout >= 0 {
-					ctx, cancel = context.WithTimeout(context.TODO(), stopTimeout)
+					ctx, cancel = context.WithTimeout(context.TODO(), time.Duration(stopTimeout)*time.Second)
 				} else {
 					ctx, cancel = context.WithCancel(context.TODO())
 				}

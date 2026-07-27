@@ -1470,9 +1470,10 @@ definitions:
         example: "SIGTERM"
         x-nullable: true
       StopTimeout:
-        description: "Timeout to stop a container in seconds."
+        description: |
+          Timeout to stop a container in seconds. If omitted, the daemon-wide
+          default (`default-stop-timeout`) is used.
         type: "integer"
-        default: 10
         x-nullable: true
       Shell:
         description: |
