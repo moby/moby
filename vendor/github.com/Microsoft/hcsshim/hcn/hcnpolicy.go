@@ -127,8 +127,8 @@ const (
 // AclPolicySetting creates firewall rules on an endpoint
 type AclPolicySetting struct {
 	Protocols       string        `json:",omitempty"` // EX: 6 (TCP), 17 (UDP), 1 (ICMPv4), 58 (ICMPv6), 2 (IGMP)
-	Action          ActionType    `json:","`
-	Direction       DirectionType `json:","`
+	Action          ActionType    `json:""`
+	Direction       DirectionType `json:""`
 	LocalAddresses  string        `json:",omitempty"`
 	RemoteAddresses string        `json:",omitempty"`
 	LocalPorts      string        `json:",omitempty"`
@@ -161,8 +161,8 @@ type SDNRoutePolicySetting struct {
 // NetworkACLPolicySetting creates ACL rules on a network
 type NetworkACLPolicySetting struct {
 	Protocols       string        `json:",omitempty"` // EX: 6 (TCP), 17 (UDP), 1 (ICMPv4), 58 (ICMPv6), 2 (IGMP)
-	Action          ActionType    `json:","`
-	Direction       DirectionType `json:","`
+	Action          ActionType    `json:""`
+	Direction       DirectionType `json:""`
 	LocalAddresses  string        `json:",omitempty"`
 	RemoteAddresses string        `json:",omitempty"`
 	LocalPorts      string        `json:",omitempty"`
@@ -267,12 +267,12 @@ type LayerConstraintNetworkPolicySetting struct {
 
 // VlanPolicySetting isolates a subnet with VLAN tagging.
 type VlanPolicySetting struct {
-	IsolationId uint32 `json:","`
+	IsolationId uint32 `json:""`
 }
 
 // VsidPolicySetting isolates a subnet with VSID tagging.
 type VsidPolicySetting struct {
-	IsolationId uint32 `json:","`
+	IsolationId uint32 `json:""`
 }
 
 // RemoteSubnetRoutePolicySetting creates remote subnet route rules on a network
@@ -330,7 +330,7 @@ type L4ProxyPolicySetting struct {
 type TierAclRule struct {
 	Id                string     `json:",omitempty"`
 	Protocols         string     `json:",omitempty"`
-	TierAclRuleAction ActionType `json:","`
+	TierAclRuleAction ActionType `json:""`
 	LocalAddresses    string     `json:",omitempty"`
 	RemoteAddresses   string     `json:",omitempty"`
 	LocalPorts        string     `json:",omitempty"`
@@ -340,8 +340,8 @@ type TierAclRule struct {
 
 // TierAclPolicySetting represents a Tier containing ACLs
 type TierAclPolicySetting struct {
-	Name         string        `json:","`
-	Direction    DirectionType `json:","`
+	Name         string        `json:""`
+	Direction    DirectionType `json:""`
 	Order        uint16        `json:""`
 	TierAclRules []TierAclRule `json:",omitempty"`
 }

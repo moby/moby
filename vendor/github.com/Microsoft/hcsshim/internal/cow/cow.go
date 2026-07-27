@@ -8,7 +8,16 @@ import (
 
 	"github.com/Microsoft/hcsshim/internal/hcs/schema1"
 	hcsschema "github.com/Microsoft/hcsshim/internal/hcs/schema2"
+	"github.com/Microsoft/hcsshim/internal/jobobject"
 )
+
+// MigrationState captures the host-side identifiers needed to rebind a
+// process during live migration. Zero fields mean the host doesn't use the
+// corresponding facility (e.g. vsock or a GCS bridge).
+type MigrationState struct {
+	StdinPort, StdoutPort, StderrPort uint32
+	WaitCallID                        int64
+}
 
 // Process is the interface for an OS process running in a container or utility VM.
 type Process interface {
@@ -27,6 +36,10 @@ type Process interface {
 	CloseStderr(ctx context.Context) error
 	// Pid returns the process ID.
 	Pid() int
+	// MigrationState returns the host-side identifiers (vsock stdio ports
+	// and GCS bridge wait-call id) needed by the live-migration save path.
+	// Zero fields indicate the host doesn't use those facilities.
+	MigrationState() MigrationState
 	// Stdio returns the stdio streams for a process. These may be nil if a stream
 	// was not requested during CreateProcess.
 	Stdio() (_ io.Writer, _ io.Reader, _ io.Reader)
@@ -96,4 +109,10 @@ type Container interface {
 	WaitError() error
 	// Modify sends a request to modify container resources
 	Modify(ctx context.Context, config interface{}) error
+	// SetCPUGroupAffinities pins the container's processes to the given CPU
+	// group affinities. It exists because CPU affinity is not part of the HCS
+	// container Processor schema and must be applied out of band (on the silo's
+	// job object for process-isolated Windows containers). Implementations that
+	// do not support setting CPU affinity return errdefs.ErrNotImplemented.
+	SetCPUGroupAffinities(ctx context.Context, affinities []jobobject.GroupAffinity) error
 }

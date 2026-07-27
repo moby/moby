@@ -63,6 +63,9 @@ var (
 	procCreatePseudoConsole                    = modkernel32.NewProc("CreatePseudoConsole")
 	procCreateRemoteThread                     = modkernel32.NewProc("CreateRemoteThread")
 	procGetActiveProcessorCount                = modkernel32.NewProc("GetActiveProcessorCount")
+	procGetActiveProcessorGroupCount           = modkernel32.NewProc("GetActiveProcessorGroupCount")
+	procGetProcessAffinityMask                 = modkernel32.NewProc("GetProcessAffinityMask")
+	procGetProcessGroupAffinity                = modkernel32.NewProc("GetProcessGroupAffinity")
 	procIsProcessInJob                         = modkernel32.NewProc("IsProcessInJob")
 	procLocalAlloc                             = modkernel32.NewProc("LocalAlloc")
 	procLocalFree                              = modkernel32.NewProc("LocalFree")
@@ -267,6 +270,28 @@ func CreateRemoteThread(process windows.Handle, sa *windows.SecurityAttributes, 
 func GetActiveProcessorCount(groupNumber uint16) (amount uint32) {
 	r0, _, _ := syscall.SyscallN(procGetActiveProcessorCount.Addr(), uintptr(groupNumber))
 	amount = uint32(r0)
+	return
+}
+
+func GetActiveProcessorGroupCount() (amount uint16) {
+	r0, _, _ := syscall.SyscallN(procGetActiveProcessorGroupCount.Addr())
+	amount = uint16(r0)
+	return
+}
+
+func GetProcessAffinityMask(process windows.Handle, processAffinityMask *uintptr, systemAffinityMask *uintptr) (err error) {
+	r1, _, e1 := syscall.SyscallN(procGetProcessAffinityMask.Addr(), uintptr(process), uintptr(unsafe.Pointer(processAffinityMask)), uintptr(unsafe.Pointer(systemAffinityMask)))
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func GetProcessGroupAffinity(process windows.Handle, groupCount *uint16, groupArray *uint16) (err error) {
+	r1, _, e1 := syscall.SyscallN(procGetProcessGroupAffinity.Addr(), uintptr(process), uintptr(unsafe.Pointer(groupCount)), uintptr(unsafe.Pointer(groupArray)))
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
 	return
 }
 
