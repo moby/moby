@@ -443,6 +443,11 @@ func (s *Solver) Solve(ctx context.Context, id string, sessionID string, req fro
 			exporterResponse[k] = v
 		}
 	}
+	if exp.EnableSessionExporter {
+		if err := s.finalizeSessionExport(ctx, j.SessionID, exporterResponse); err != nil {
+			return nil, err
+		}
+	}
 
 	return &client.SolveResponse{
 		ExporterResponse: exporterResponse,

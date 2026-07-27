@@ -169,6 +169,86 @@ func (x *ExporterRequest) GetAttrs() map[string]string {
 	return nil
 }
 
+type FinalizeExportRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ExporterResponse map[string]string      `protobuf:"bytes,1,rep,name=exporter_response,json=exporterResponse,proto3" json:"exporter_response,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *FinalizeExportRequest) Reset() {
+	*x = FinalizeExportRequest{}
+	mi := &file_github_com_moby_buildkit_session_exporter_exporter_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FinalizeExportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FinalizeExportRequest) ProtoMessage() {}
+
+func (x *FinalizeExportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_github_com_moby_buildkit_session_exporter_exporter_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FinalizeExportRequest.ProtoReflect.Descriptor instead.
+func (*FinalizeExportRequest) Descriptor() ([]byte, []int) {
+	return file_github_com_moby_buildkit_session_exporter_exporter_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *FinalizeExportRequest) GetExporterResponse() map[string]string {
+	if x != nil {
+		return x.ExporterResponse
+	}
+	return nil
+}
+
+type FinalizeExportResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FinalizeExportResponse) Reset() {
+	*x = FinalizeExportResponse{}
+	mi := &file_github_com_moby_buildkit_session_exporter_exporter_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FinalizeExportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FinalizeExportResponse) ProtoMessage() {}
+
+func (x *FinalizeExportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_github_com_moby_buildkit_session_exporter_exporter_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FinalizeExportResponse.ProtoReflect.Descriptor instead.
+func (*FinalizeExportResponse) Descriptor() ([]byte, []int) {
+	return file_github_com_moby_buildkit_session_exporter_exporter_proto_rawDescGZIP(), []int{4}
+}
+
 var File_github_com_moby_buildkit_session_exporter_exporter_proto protoreflect.FileDescriptor
 
 const file_github_com_moby_buildkit_session_exporter_exporter_proto_rawDesc = "" +
@@ -188,9 +268,16 @@ const file_github_com_moby_buildkit_session_exporter_exporter_proto_rawDesc = ""
 	"\n" +
 	"AttrsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012l\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc8\x01\n" +
+	"\x15FinalizeExportRequest\x12j\n" +
+	"\x11exporter_response\x18\x01 \x03(\v2=.moby.exporter.v1.FinalizeExportRequest.ExporterResponseEntryR\x10exporterResponse\x1aC\n" +
+	"\x15ExporterResponseEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x18\n" +
+	"\x16FinalizeExportResponse2\xd1\x01\n" +
 	"\bExporter\x12`\n" +
-	"\rFindExporters\x12&.moby.exporter.v1.FindExportersRequest\x1a'.moby.exporter.v1.FindExportersResponseB+Z)github.com/moby/buildkit/session/exporterb\x06proto3"
+	"\rFindExporters\x12&.moby.exporter.v1.FindExportersRequest\x1a'.moby.exporter.v1.FindExportersResponse\x12c\n" +
+	"\x0eFinalizeExport\x12'.moby.exporter.v1.FinalizeExportRequest\x1a(.moby.exporter.v1.FinalizeExportResponseB+Z)github.com/moby/buildkit/session/exporterb\x06proto3"
 
 var (
 	file_github_com_moby_buildkit_session_exporter_exporter_proto_rawDescOnce sync.Once
@@ -204,25 +291,31 @@ func file_github_com_moby_buildkit_session_exporter_exporter_proto_rawDescGZIP()
 	return file_github_com_moby_buildkit_session_exporter_exporter_proto_rawDescData
 }
 
-var file_github_com_moby_buildkit_session_exporter_exporter_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_github_com_moby_buildkit_session_exporter_exporter_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_github_com_moby_buildkit_session_exporter_exporter_proto_goTypes = []any{
-	(*FindExportersRequest)(nil),  // 0: moby.exporter.v1.FindExportersRequest
-	(*FindExportersResponse)(nil), // 1: moby.exporter.v1.FindExportersResponse
-	(*ExporterRequest)(nil),       // 2: moby.exporter.v1.ExporterRequest
-	nil,                           // 3: moby.exporter.v1.FindExportersRequest.MetadataEntry
-	nil,                           // 4: moby.exporter.v1.ExporterRequest.AttrsEntry
+	(*FindExportersRequest)(nil),   // 0: moby.exporter.v1.FindExportersRequest
+	(*FindExportersResponse)(nil),  // 1: moby.exporter.v1.FindExportersResponse
+	(*ExporterRequest)(nil),        // 2: moby.exporter.v1.ExporterRequest
+	(*FinalizeExportRequest)(nil),  // 3: moby.exporter.v1.FinalizeExportRequest
+	(*FinalizeExportResponse)(nil), // 4: moby.exporter.v1.FinalizeExportResponse
+	nil,                            // 5: moby.exporter.v1.FindExportersRequest.MetadataEntry
+	nil,                            // 6: moby.exporter.v1.ExporterRequest.AttrsEntry
+	nil,                            // 7: moby.exporter.v1.FinalizeExportRequest.ExporterResponseEntry
 }
 var file_github_com_moby_buildkit_session_exporter_exporter_proto_depIdxs = []int32{
-	3, // 0: moby.exporter.v1.FindExportersRequest.metadata:type_name -> moby.exporter.v1.FindExportersRequest.MetadataEntry
+	5, // 0: moby.exporter.v1.FindExportersRequest.metadata:type_name -> moby.exporter.v1.FindExportersRequest.MetadataEntry
 	2, // 1: moby.exporter.v1.FindExportersResponse.exporters:type_name -> moby.exporter.v1.ExporterRequest
-	4, // 2: moby.exporter.v1.ExporterRequest.Attrs:type_name -> moby.exporter.v1.ExporterRequest.AttrsEntry
-	0, // 3: moby.exporter.v1.Exporter.FindExporters:input_type -> moby.exporter.v1.FindExportersRequest
-	1, // 4: moby.exporter.v1.Exporter.FindExporters:output_type -> moby.exporter.v1.FindExportersResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	6, // 2: moby.exporter.v1.ExporterRequest.Attrs:type_name -> moby.exporter.v1.ExporterRequest.AttrsEntry
+	7, // 3: moby.exporter.v1.FinalizeExportRequest.exporter_response:type_name -> moby.exporter.v1.FinalizeExportRequest.ExporterResponseEntry
+	0, // 4: moby.exporter.v1.Exporter.FindExporters:input_type -> moby.exporter.v1.FindExportersRequest
+	3, // 5: moby.exporter.v1.Exporter.FinalizeExport:input_type -> moby.exporter.v1.FinalizeExportRequest
+	1, // 6: moby.exporter.v1.Exporter.FindExporters:output_type -> moby.exporter.v1.FindExportersResponse
+	4, // 7: moby.exporter.v1.Exporter.FinalizeExport:output_type -> moby.exporter.v1.FinalizeExportResponse
+	6, // [6:8] is the sub-list for method output_type
+	4, // [4:6] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_github_com_moby_buildkit_session_exporter_exporter_proto_init() }
@@ -236,7 +329,7 @@ func file_github_com_moby_buildkit_session_exporter_exporter_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_github_com_moby_buildkit_session_exporter_exporter_proto_rawDesc), len(file_github_com_moby_buildkit_session_exporter_exporter_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

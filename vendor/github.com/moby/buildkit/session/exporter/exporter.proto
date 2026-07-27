@@ -6,6 +6,7 @@ option go_package = "github.com/moby/buildkit/session/exporter";
 
 service Exporter {
 	rpc FindExporters(FindExportersRequest) returns (FindExportersResponse);
+	rpc FinalizeExport(FinalizeExportRequest) returns (FinalizeExportResponse);
 }
 
 message FindExportersRequest{
@@ -21,3 +22,9 @@ message ExporterRequest {
 	string Type = 1;
 	map<string, string> Attrs = 2;
 }
+
+message FinalizeExportRequest {
+	map<string, string> exporter_response = 1;
+}
+
+message FinalizeExportResponse {}
