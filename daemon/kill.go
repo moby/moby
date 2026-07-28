@@ -108,7 +108,9 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 		return nil
 	}
 
-	if err := task.Kill(context.Background(), stopSignal); err != nil {
+	killCtx, killCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer killCancel()
+	if err := task.Kill(killCtx, stopSignal); err != nil {
 		if cerrdefs.IsNotFound(err) {
 			unpause = false
 			log.G(context.TODO()).WithFields(log.Fields{
@@ -153,7 +155,9 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, stopSign
 
 	if unpause {
 		// above kill signal will be sent once resume is finished
-		if err := task.Resume(context.Background()); err != nil {
+		resumeCtx, resumeCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer resumeCancel()
+		if err := task.Resume(resumeCtx); err != nil {
 			log.G(context.TODO()).WithFields(log.Fields{
 				"error":     err,
 				"container": container.ID,
