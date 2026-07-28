@@ -175,11 +175,14 @@ func (r *controller) Prepare(ctx context.Context) error {
 				// immutable tag or digest.
 				log.G(ctx).WithError(r.pullErr).Error("pulling image failed")
 
-				// If the pull failed with an authentication error, return it
-				// so the actual cause is propagated instead of the misleading
+				// If the image is not available locally, the pull error is the
+				// actual cause, so return it instead of the misleading
 				// "No such image" error that would otherwise result from the
-				// container create below.
-				if cerrdefs.IsUnauthorized(r.pullErr) {
+				// container create below. If the image _is_ available, keep
+				// going: a task whose image is already on the node must not be
+				// failed just because the registry could not be reached, for
+				// example when the task carries no registry credentials.
+				if !r.adapter.imageExists(ctx) {
 					return r.pullErr
 				}
 			}
