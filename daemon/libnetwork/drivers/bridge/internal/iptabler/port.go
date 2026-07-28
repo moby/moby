@@ -193,7 +193,7 @@ func filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP
 // then, all packets addressed directly to the container's ports were dropped
 // by the filter-FORWARD rules.
 //
-// Since 28.0.2, direct routed packets sent to a container's address are all
+// Since 28.2.0, direct routed packets sent to a container's address are all
 // dropped in a raw-PREROUTING rule - it doesn't need to be per-port (so, fewer
 // rules), and it can be created along with the endpoint (so directly-routed
 // packets are dropped at the same point whether or not the endpoint is currently
@@ -203,7 +203,7 @@ func filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP
 // It still is. but now always deletes the rule if it might have been created
 // by an older version of the daemon.
 //
-// TODO(robmry) - remove this once there's no upgrade path from 28.0.x or 28.1.x.
+// TODO(robmry) - remove this in v30 or once we expect no upgrade paths from 28.0.x or 28.1.x to 28.2.0 or newer.
 func (n *network) dropLegacyFilterDirectAccess(ctx context.Context, b types.PortBinding) error {
 	if rawRulesDisabled(ctx) {
 		return nil
