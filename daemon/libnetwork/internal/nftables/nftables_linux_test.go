@@ -1,7 +1,6 @@
 package nftables
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
@@ -112,12 +111,16 @@ func TestTableUseAfterClose(t *testing.T) {
 	// opening a new handle to the underlying nftables table.
 	var tm2 Modifier
 	tm2.Create(Rule{Chain: chainName, Rule: []string{"counter"}})
-	assert.Check(t, is.ErrorIs(tbl.Apply(context.Background(), tm2), errTableClosed))
-	assert.Check(t, is.ErrorIs(ref.Apply(context.Background(), tm2), errTableClosed))
-	assert.Check(t, is.Error(tbl.Reload(context.Background()), "invalid table"))
-	assert.Check(t, is.Error(tbl.SetBaseChainPolicy(context.Background(), chainName, BaseChainPolicyDrop),
-		"invalid table"))
-	assert.Check(t, is.Nil(tbl.t.nftHandle), "no nftables handle should have been opened")
+	assert.Check(t, is.ErrorIs(tbl.Apply(t.Context(), tm2), errTableClosed))
+	assert.Check(t, is.ErrorIs(ref.Apply(t.Context(), tm2), errTableClosed))
+	assert.Check(t, is.ErrorIs(tbl.Reload(t.Context()), errTableClosed))
+	assert.Check(t, is.ErrorIs(tbl.SetBaseChainPolicy(t.Context(), chainName, BaseChainPolicyDrop),
+		errTableClosed))
+	// applyLock must be held to read nftHandle.
+	tbl.t.applyLock.Lock()
+	handle := tbl.t.nftHandle
+	tbl.t.applyLock.Unlock()
+	assert.Check(t, is.Nil(handle), "no nftables handle should have been opened")
 
 	// The table itself is left alone by Close, but the rejected update must not
 	// have reached it. (The table's name and family can't be read from the closed
@@ -129,11 +132,49 @@ func TestTableUseAfterClose(t *testing.T) {
 	// A nil *Table, and a Table that didn't come from NewTable, must be refused
 	// rather than panicking on their unusable innards.
 	var nilTbl *Table
-	assert.Check(t, is.ErrorIs(nilTbl.Apply(context.Background(), tm2), errInvalidTable))
-	assert.Check(t, is.Error(nilTbl.Reload(context.Background()), "invalid table"))
+	assert.Check(t, is.ErrorIs(nilTbl.Apply(t.Context(), tm2), errInvalidTable))
+	assert.Check(t, is.ErrorIs(nilTbl.Reload(t.Context()), errInvalidTable))
+	assert.Check(t, is.ErrorIs(nilTbl.SetBaseChainPolicy(t.Context(), chainName, BaseChainPolicyDrop),
+		errInvalidTable))
 
 	unusable := &Table{}
-	assert.Check(t, is.ErrorIs(unusable.Apply(context.Background(), tm2), errInvalidTable))
+	assert.Check(t, is.ErrorIs(unusable.Apply(t.Context(), tm2), errInvalidTable))
+	assert.Check(t, is.ErrorIs(unusable.Reload(t.Context()), errInvalidTable))
+	assert.Check(t, is.ErrorIs(unusable.SetBaseChainPolicy(t.Context(), chainName, BaseChainPolicyDrop),
+		errInvalidTable))
+}
+
+func TestSetBaseChainPolicy(t *testing.T) {
+	defer testSetup(t)()
+
+	tbl, err := NewTable(IPv4, "this_is_a_table")
+	assert.NilError(t, err)
+	defer tbl.Close()
+
+	const bcName = "this_is_a_base_chain"
+	var tm Modifier
+	tm.Create(BaseChain{
+		Name:      bcName,
+		ChainType: BaseChainTypeFilter,
+		Hook:      BaseChainHookForward,
+		Priority:  BaseChainPriorityFilter,
+		Policy:    BaseChainPolicyAccept,
+	})
+	const cName = "this_is_a_regular_chain"
+	tm.Create(Chain{Name: cName})
+	assert.NilError(t, tbl.Apply(t.Context(), tm))
+
+	// The new policy is applied immediately. (Which must not deadlock - the table
+	// is applied with applyLock held.)
+	assert.NilError(t, tbl.SetBaseChainPolicy(t.Context(), bcName, BaseChainPolicyDrop))
+	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
+	res.Assert(t, icmd.Success)
+	golden.Assert(t, res.Combined(), t.Name()+".golden")
+
+	assert.Check(t, is.ErrorContains(
+		tbl.SetBaseChainPolicy(t.Context(), cName, BaseChainPolicyDrop), "it is not a base chain"))
+	assert.Check(t, is.ErrorContains(
+		tbl.SetBaseChainPolicy(t.Context(), "no_such_chain", BaseChainPolicyDrop), "it does not exist"))
 }
 
 func TestChain(t *testing.T) {

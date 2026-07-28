@@ -402,11 +402,22 @@ func (t *Table) Family() Family {
 
 // SetBaseChainPolicy sets the default policy for a base chain. The update
 // is applied immediately, unlike creation/deletion of objects via a [Modifier]
-// which are not applied until [Modifier.Apply] is called.
+// which are not applied until [Table.Apply] is called.
 func (t *Table) SetBaseChainPolicy(ctx context.Context, chainName string, policy BaseChainPolicy) error {
-	if !t.IsValid() {
-		return errors.New("invalid table")
+	if !Enabled() {
+		return errors.New("nftables is not enabled")
 	}
+	if t == nil {
+		return errInvalidTable
+	}
+	// Hold applyLock for the whole update, the chain must not be modified by a
+	// concurrent [Table.Apply] between here and the update.
+	t.t.applyLock.Lock()
+	defer t.t.applyLock.Unlock()
+	if err := t.t.checkUsable(); err != nil {
+		return err
+	}
+
 	c := t.t.Chains[chainName]
 	if c == nil {
 		return fmt.Errorf("cannot set base chain policy for '%s', it does not exist", chainName)
@@ -418,7 +429,7 @@ func (t *Table) SetBaseChainPolicy(ctx context.Context, chainName string, policy
 	c.Policy = policy
 	c.MustFlush = true
 
-	if err := t.Apply(ctx, Modifier{}); err != nil {
+	if err := t.t.apply(ctx); err != nil {
 		c.Policy = oldPolicy
 		return err
 	}
@@ -489,7 +500,7 @@ func (tm *Modifier) Reverse() Modifier {
 // Apply makes incremental updates to nftables. If there's a validation
 // error in any of the enqueued objects, or an error applying the updates
 // to the underlying nftables, the [Table] will be unmodified.
-func (t *Table) Apply(ctx context.Context, tm ...Modifier) (retErr error) {
+func (t *Table) Apply(ctx context.Context, tm ...Modifier) error {
 	if !Enabled() {
 		return errors.New("nftables is not enabled")
 	}
@@ -504,24 +515,29 @@ func (t *Table) Apply(ctx context.Context, tm ...Modifier) (retErr error) {
 	if err := t.t.checkUsable(); err != nil {
 		return err
 	}
+	return t.t.apply(ctx, tm...)
+}
 
+// apply makes the incremental updates described by tm.
+// Acquire t.applyLock before calling this function.
+func (t *table) apply(ctx context.Context, tm ...Modifier) (retErr error) {
 	var rollback []command
 	defer func() {
 		if retErr == nil {
 			return
 		}
 		for _, c := range slices.Backward(rollback) {
-			if _, err := c.rollback(ctx, &t.t); err != nil {
+			if _, err := c.rollback(ctx, t); err != nil {
 				log.G(ctx).WithError(err).Error("Failed to roll back nftables updates")
 			}
 		}
-		t.t.updatesApplied()
+		t.updatesApplied()
 	}()
 
 	// Apply tm's updates to the Table.
 	for _, tmm := range tm {
 		for _, cmd := range tmm.cmds {
-			applied, err := cmd.apply(ctx, &t.t)
+			applied, err := cmd.apply(ctx, t)
 			if err != nil {
 				return fmt.Errorf("rule from %s:%d: %w", cmd.callerFile, cmd.callerLine, err)
 			}
@@ -533,11 +549,11 @@ func (t *Table) Apply(ctx context.Context, tm ...Modifier) (retErr error) {
 
 	// Update nftables.
 	var buf bytes.Buffer
-	if err := incrementalUpdateTempl.Execute(&buf, &t.t); err != nil {
+	if err := incrementalUpdateTempl.Execute(&buf, t); err != nil {
 		return fmt.Errorf("failed to execute template nft ruleset: %w", err)
 	}
 
-	if err := t.t.nftApply(ctx, buf.Bytes()); err != nil {
+	if err := t.nftApply(ctx, buf.Bytes()); err != nil {
 		// On error, log a line-numbered version of the generated "nft" input (because
 		// nft error messages refer to line numbers).
 		var sb strings.Builder
@@ -554,11 +570,11 @@ func (t *Table) Apply(ctx context.Context, tm ...Modifier) (retErr error) {
 		// behind networks for the test infrastructure to clean up between tests. Starting
 		// a daemon flushes the "docker-bridges" table, so the cleanup fails to delete a
 		// rule that's been flushed. So, try reloading the whole table to get back in-sync.
-		return t.t.reload(ctx)
+		return t.reload(ctx)
 	}
 
 	// Note that updates have been applied.
-	t.t.updatesApplied()
+	t.updatesApplied()
 	return nil
 }
 
@@ -567,11 +583,14 @@ func (t *Table) Reload(ctx context.Context) error {
 	if !Enabled() {
 		return errors.New("nftables is not enabled")
 	}
-	if !t.IsValid() {
-		return errors.New("invalid table")
+	if t == nil {
+		return errInvalidTable
 	}
 	t.t.applyLock.Lock()
 	defer t.t.applyLock.Unlock()
+	if err := t.t.checkUsable(); err != nil {
+		return err
+	}
 	return t.t.reload(ctx)
 }
 
