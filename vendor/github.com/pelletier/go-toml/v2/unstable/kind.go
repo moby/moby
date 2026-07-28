@@ -33,7 +33,7 @@ const (
 	Float
 	// Integer represents an integer value.
 	Integer
-	// LocalDate represents a a local date value.
+	// LocalDate represents a local date value.
 	LocalDate
 	// LocalTime represents a local time value.
 	LocalTime
@@ -79,5 +79,5 @@ func (k Kind) String() string {
 	case DateTime:
 		return "DateTime"
 	}
-	panic(fmt.Errorf("Kind.String() not implemented for '%d'", k))
+	panic(fmt.Errorf("Kind.String() not implemented for kind %d", int(k)))
 }
