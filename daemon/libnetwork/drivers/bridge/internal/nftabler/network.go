@@ -49,7 +49,7 @@ func (nft *Nftabler) NewNetwork(ctx context.Context, nc firewaller.NetworkConfig
 	return n, nil
 }
 
-func (n *network) configure(ctx context.Context, table nftables.Table, conf firewaller.NetworkConfigFam) (*nftables.Modifier, error) {
+func (n *network) configure(ctx context.Context, table *nftables.Table, conf firewaller.NetworkConfigFam) (*nftables.Modifier, error) {
 	if !conf.Prefix.IsValid() {
 		return nil, nil
 	}
@@ -233,7 +233,7 @@ func (n *network) ReapplyNetworkLevelRules(ctx context.Context) error {
 }
 
 func (n *network) DelNetworkLevelRules(ctx context.Context) error {
-	remove := func(t nftables.Table, remover *nftables.Modifier) {
+	remove := func(t *nftables.Table, remover *nftables.Modifier) {
 		if remover != nil {
 			ctx := log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{"bridge": n.config.IfName}))
 			if err := t.Apply(ctx, *remover); err != nil {

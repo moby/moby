@@ -55,6 +55,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"text/template"
 	"time"
 
@@ -259,9 +260,9 @@ func RunCmd(ctx context.Context, nftCmd []byte) error {
 //////////////////////////////
 // Tables
 
-// table is the internal representation of an nftables table.
-// Its elements need to be exported for use by text/template, but they should only be
-// manipulated via exported methods.
+// table is the internal representation of an nftables table, embedded in a
+// [Table]. Its elements need to be exported for use by text/template, but they
+// should only be manipulated via [Table]'s methods.
 type table struct {
 	Name   string
 	Family Family
@@ -275,11 +276,29 @@ type table struct {
 
 	applyLock sync.Mutex
 	nftHandle *nftCtx // applyLock must be held to access
+	// created is set by [NewTable] and never modified afterwards. It tells a
+	// real table apart from the zero value of a [Table], which is not usable.
+	created bool
+	// closed is set by [Table.Close] with applyLock held. It may be read without
+	// the lock, but a check that must not race with Close needs to hold it.
+	closed atomic.Bool
 }
+
+var (
+	// errInvalidTable is returned by operations on a [Table] that didn't come
+	// from [NewTable].
+	errInvalidTable = errors.New("invalid table")
+	// errTableClosed is returned by operations on a [Table] that has been closed.
+	errTableClosed = errors.New("nftables table is closed")
+)
 
 // nftApply executes the nftables commands in nftCmd.
 // Acquire t.applyLock before calling this function.
 func (t *table) nftApply(ctx context.Context, nftCmd []byte) error {
+	// Don't open a new handle for a table that's been closed.
+	if t.closed.Load() {
+		return errTableClosed
+	}
 	if t.nftHandle == nil {
 		h, err := newNftCtx()
 		if err != nil {
@@ -290,17 +309,35 @@ func (t *table) nftApply(ctx context.Context, nftCmd []byte) error {
 	return t.nftHandle.Apply(ctx, nftCmd)
 }
 
-// Table is a handle for an nftables table.
+// checkUsable returns an error describing why t can't be used - it didn't come
+// from [NewTable], or it has been closed.
+//
+// Acquire t.applyLock before calling, unless a stale answer will do: without the
+// lock, the table may be closed by the time the caller acts on a nil return.
+func (t *table) checkUsable() error {
+	if !t.created {
+		return errInvalidTable
+	}
+	if t.closed.Load() {
+		return errTableClosed
+	}
+	return nil
+}
+
+// Table is a handle for an nftables table. Create one using [NewTable], and
+// release it using [Table.Close].
 type Table struct {
-	t *table
+	t table
 }
 
-// IsValid returns true if t is a valid reference to a table.
-func (t Table) IsValid() bool {
-	return t.t != nil
+// IsValid returns true if t refers to a usable table, that is, if it was
+// returned by [NewTable] and has not been closed.
+func (t *Table) IsValid() bool {
+	return t != nil && t.t.checkUsable() == nil
 }
 
-// NewTable creates a new nftables table and returns a [Table]
+// NewTable creates a new nftables table and returns a [Table]. Close it to
+// release the resources it holds.
 //
 // See https://wiki.nftables.org/wiki-nftables/index.php/Configuring_tables
 //
@@ -316,45 +353,47 @@ func (t Table) IsValid() bool {
 //
 // To fully delete an underlying nftables table, if one already exists,
 // use [Table.Reload] after creating the table.
-func NewTable(family Family, name string) (Table, error) {
-	t := Table{
-		t: &table{
+func NewTable(family Family, name string) (*Table, error) {
+	return &Table{
+		t: table{
 			Name:      name,
 			Family:    family,
 			Maps:      map[string]*nftMap{},
 			Sets:      map[string]*set{},
 			Chains:    map[string]*chain{},
 			MustFlush: true,
+			created:   true,
 		},
-	}
-	return t, nil
+	}, nil
 }
 
 // Close releases resources associated with the table. It does not modify or delete
 // the underlying nftables table.
-func (t Table) Close() error {
-	if t.IsValid() {
-		t.t.applyLock.Lock()
-		defer t.t.applyLock.Unlock()
-		if t.t.nftHandle != nil {
-			t.t.nftHandle.Close()
-			t.t.nftHandle = nil
-		}
-		t.t = nil
+func (t *Table) Close() error {
+	if !t.IsValid() {
+		return nil
 	}
+	t.t.applyLock.Lock()
+	defer t.t.applyLock.Unlock()
+	if t.t.nftHandle != nil {
+		t.t.nftHandle.Close()
+		t.t.nftHandle = nil
+	}
+	t.t.closed.Store(true)
 	return nil
 }
 
 // Name returns the name of the table, or an empty string if t is not valid.
-func (t Table) Name() string {
+func (t *Table) Name() string {
 	if !t.IsValid() {
 		return ""
 	}
 	return t.t.Name
 }
 
-// Family returns the address family of the nftables table described by [TableRef].
-func (t Table) Family() Family {
+// Family returns the address family of the nftables table, or an empty string if
+// t is not valid.
+func (t *Table) Family() Family {
 	if !t.IsValid() {
 		return ""
 	}
@@ -364,7 +403,7 @@ func (t Table) Family() Family {
 // SetBaseChainPolicy sets the default policy for a base chain. The update
 // is applied immediately, unlike creation/deletion of objects via a [Modifier]
 // which are not applied until [Modifier.Apply] is called.
-func (t Table) SetBaseChainPolicy(ctx context.Context, chainName string, policy BaseChainPolicy) error {
+func (t *Table) SetBaseChainPolicy(ctx context.Context, chainName string, policy BaseChainPolicy) error {
 	if !t.IsValid() {
 		return errors.New("invalid table")
 	}
@@ -454,8 +493,17 @@ func (t *Table) Apply(ctx context.Context, tm ...Modifier) (retErr error) {
 	if !Enabled() {
 		return errors.New("nftables is not enabled")
 	}
+	if t == nil {
+		return errInvalidTable
+	}
 	t.t.applyLock.Lock()
 	defer t.t.applyLock.Unlock()
+	// Check under the lock, so that the table can't be closed between here and
+	// the update. Bail out before touching the in-memory table, an update that
+	// can't be applied to nftables must not be recorded as applied.
+	if err := t.t.checkUsable(); err != nil {
+		return err
+	}
 
 	var rollback []command
 	defer func() {
@@ -463,7 +511,7 @@ func (t *Table) Apply(ctx context.Context, tm ...Modifier) (retErr error) {
 			return
 		}
 		for _, c := range slices.Backward(rollback) {
-			if _, err := c.rollback(ctx, t.t); err != nil {
+			if _, err := c.rollback(ctx, &t.t); err != nil {
 				log.G(ctx).WithError(err).Error("Failed to roll back nftables updates")
 			}
 		}
@@ -473,7 +521,7 @@ func (t *Table) Apply(ctx context.Context, tm ...Modifier) (retErr error) {
 	// Apply tm's updates to the Table.
 	for _, tmm := range tm {
 		for _, cmd := range tmm.cmds {
-			applied, err := cmd.apply(ctx, t.t)
+			applied, err := cmd.apply(ctx, &t.t)
 			if err != nil {
 				return fmt.Errorf("rule from %s:%d: %w", cmd.callerFile, cmd.callerLine, err)
 			}
@@ -485,7 +533,7 @@ func (t *Table) Apply(ctx context.Context, tm ...Modifier) (retErr error) {
 
 	// Update nftables.
 	var buf bytes.Buffer
-	if err := incrementalUpdateTempl.Execute(&buf, t.t); err != nil {
+	if err := incrementalUpdateTempl.Execute(&buf, &t.t); err != nil {
 		return fmt.Errorf("failed to execute template nft ruleset: %w", err)
 	}
 
@@ -515,7 +563,7 @@ func (t *Table) Apply(ctx context.Context, tm ...Modifier) (retErr error) {
 }
 
 // Reload deletes the table, then re-creates it, atomically.
-func (t Table) Reload(ctx context.Context) error {
+func (t *Table) Reload(ctx context.Context) error {
 	if !Enabled() {
 		return errors.New("nftables is not enabled")
 	}

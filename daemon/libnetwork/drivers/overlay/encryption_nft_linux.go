@@ -22,7 +22,7 @@ const (
 )
 
 // ensureOverlayEncNftTable returns the overlay encryption nft table, running one-time setup on first use.
-func (d *driver) ensureOverlayEncNftTable(ctx context.Context) (nftables.Table, error) {
+func (d *driver) ensureOverlayEncNftTable(ctx context.Context) (*nftables.Table, error) {
 	d.overlayEncNftInitMu.Lock()
 	defer d.overlayEncNftInitMu.Unlock()
 	if d.overlayEncNftTable.IsValid() {
@@ -31,7 +31,7 @@ func (d *driver) ensureOverlayEncNftTable(ctx context.Context) (nftables.Table, 
 
 	v6, err := d.isIPv6Transport()
 	if err != nil {
-		return nftables.Table{}, err
+		return nil, err
 	}
 	fam := nftables.IPv4
 	if v6 {
@@ -39,7 +39,7 @@ func (d *driver) ensureOverlayEncNftTable(ctx context.Context) (nftables.Table, 
 	}
 	t, err := nftables.NewTable(fam, nftOverlayTable)
 	if err != nil {
-		return nftables.Table{}, err
+		return nil, err
 	}
 
 	tm := nftables.Modifier{}
@@ -87,7 +87,7 @@ func (d *driver) ensureOverlayEncNftTable(ctx context.Context) (nftables.Table, 
 
 	if err := t.Apply(ctx, tm); err != nil {
 		_ = t.Close()
-		return nftables.Table{}, err
+		return nil, err
 	}
 
 	d.overlayEncNftTable = t
