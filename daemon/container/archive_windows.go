@@ -6,6 +6,7 @@ import (
 
 	"github.com/moby/go-archive"
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -41,6 +42,18 @@ func (container *Container) ResolvePath(path string) (resolvedPath, absPath stri
 	return resolvedPath, absPath, nil
 }
 
+// assertsDirectory reports whether path asserts a directory, i.e. it ends with
+// a path separator or a "." component.
+func assertsDirectory(path string) bool {
+	if len(path) == 0 {
+		return false
+	}
+	if path[len(path)-1] == filepath.Separator {
+		return true
+	}
+	return filepath.Base(path) == "."
+}
+
 // StatPath is the unexported version of StatPath. Locks and mounts should
 // be acquired before calling this method and the given path should be fully
 // resolved to a path on the host corresponding to the given absolute path
@@ -53,6 +66,13 @@ func (container *Container) StatPath(resolvedPath, absPath string) (*containerty
 	lstat, err := os.Lstat(resolvedPath)
 	if err != nil {
 		return nil, err
+	}
+
+	// A path that asserts a directory must resolve to one. os.Lstat does not
+	// enforce this consistently across Windows storage drivers, so enforce it
+	// explicitly. (moby/moby#47107)
+	if assertsDirectory(absPath) && !lstat.IsDir() {
+		return nil, errdefs.InvalidParameter(errors.Errorf("%s: not a directory", absPath))
 	}
 
 	var linkTarget string
