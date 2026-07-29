@@ -52,25 +52,20 @@ func (e *Events) Subscribe() ([]eventtypes.Message, chan any, func()) {
 // last events, a channel in which you can expect new events (in form
 // of interface{}, so you need type assertion).
 func (e *Events) SubscribeTopic(since, until time.Time, ef *Filter) ([]eventtypes.Message, chan any) {
-	metrics.EventSubscribers.Inc()
-	e.mu.Lock()
-
 	var topic func(m any) bool
 	if ef != nil && ef.filter.Len() > 0 {
 		topic = func(m any) bool { return ef.Include(m.(eventtypes.Message)) }
 	}
 
+	// Hold e.mu while loading buffered events and registering the subscriber so
+	// that an event cannot fall between the buffered snapshot and the live stream.
+	e.mu.Lock()
+	defer metrics.EventSubscribers.Inc()
+	defer e.mu.Unlock()
+
 	buffered := e.loadBufferedEvents(since, until, topic)
-
-	var ch chan any
-	if topic != nil {
-		ch = e.pub.SubscribeTopic(topic)
-	} else {
-		// Subscribe to all events if there are no filters
-		ch = e.pub.Subscribe()
-	}
-
-	e.mu.Unlock()
+	// Subscribe to all events if there are no filters (topic=nil).
+	ch := e.pub.SubscribeTopic(topic)
 	return buffered, ch
 }
 
