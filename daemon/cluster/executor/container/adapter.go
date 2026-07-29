@@ -400,12 +400,10 @@ func (c *containerAdapter) inspect(ctx context.Context) (containertypes.InspectR
 // events. The stream of events can be shutdown by cancelling the context.
 func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
 	swarmlog.G(ctx).Debugf("waiting on events")
-	buffer, l := c.backend.SubscribeToEvents(time.Time{}, time.Time{}, c.container.eventFilter())
-	eventsq := make(chan events.Message, len(buffer))
 
-	for _, event := range buffer {
-		eventsq <- event
-	}
+	// Discard buffered events; we don't provide since/until filters and use live events only.
+	_, l := c.backend.SubscribeToEvents(time.Time{}, time.Time{}, c.container.eventFilter())
+	eventsq := make(chan events.Message)
 
 	go func() {
 		defer c.backend.UnsubscribeFromEvents(l)
