@@ -7,6 +7,11 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// chtimes changes the access and modification time of a file at the given
+// path.
+//
+// Callers must use boundTime to ensure timestamps are within the range
+// supported by os.Chtimes.
 func chtimes(name string, atime time.Time, mtime time.Time) error {
 	if err := os.Chtimes(name, atime, mtime); err != nil {
 		return err

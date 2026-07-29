@@ -123,6 +123,8 @@ func breakoutError(err error) error {
 	return &breakoutErr{error: err}
 }
 
+func (e *breakoutErr) Unwrap() error { return e.error }
+
 const (
 	AUFSWhiteoutFormat    WhiteoutFormat = 0 // AUFSWhiteoutFormat is the default format for whiteouts
 	OverlayWhiteoutFormat WhiteoutFormat = 1 // OverlayWhiteoutFormat formats whiteout according to the overlay standard.
