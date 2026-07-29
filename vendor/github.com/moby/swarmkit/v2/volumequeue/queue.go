@@ -41,10 +41,7 @@ func (timerSource) NewTimer(attempt uint) vqTimer {
 		// bit-shifting the base retry interval will raise it by 2 to the power
 		// of attempt. this is an easy way to do an exponent solely with
 		// integers
-		waitFor = baseRetryInterval << attempt
-		if waitFor > maxRetryInterval {
-			waitFor = maxRetryInterval
-		}
+		waitFor = min(baseRetryInterval<<attempt, maxRetryInterval)
 	}
 	return timer{Timer: time.NewTimer(waitFor)}
 }

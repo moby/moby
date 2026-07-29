@@ -171,12 +171,8 @@ func (r *Reconciler) ReconcileService(id string) error {
 	allowedNewTasks := rj.TotalCompletions - completeTasks - runningTasks
 
 	// the lower number of allowedNewTasks and possibleNewTasks is how many we
-	// can create. we'll just use an if statement instead of some fancy floor
-	// function.
-	actualNewTasks := allowedNewTasks
-	if possibleNewTasks < allowedNewTasks {
-		actualNewTasks = possibleNewTasks
-	}
+	// can create.
+	actualNewTasks := min(possibleNewTasks, allowedNewTasks)
 
 	// this check might seem odd, but it protects us from an underflow of the
 	// above subtractions, which, again, is a totally impossible thing that can
@@ -191,7 +187,7 @@ func (r *Reconciler) ReconcileService(id string) error {
 	// finally, we can create these tasks. do this in a batch operation, to
 	// avoid exceeding transaction size limits
 	err := r.store.Batch(func(batch *store.Batch) error {
-		for i := uint64(0); i < actualNewTasks; i++ {
+		for range actualNewTasks {
 			if err := batch.Update(func(tx store.Tx) error {
 				var slot uint64
 				// each task will go into a unique slot, and at the end, there

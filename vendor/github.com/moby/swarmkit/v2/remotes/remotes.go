@@ -2,6 +2,7 @@ package remotes
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"math/rand"
 	"sort"
@@ -69,13 +70,7 @@ type remotesWeightedRandom struct {
 func (mwr *remotesWeightedRandom) Weights() map[api.Peer]int {
 	mwr.mu.Lock()
 	defer mwr.mu.Unlock()
-
-	ms := make(map[api.Peer]int, len(mwr.remotes))
-	for addr, weight := range mwr.remotes {
-		ms[addr] = weight
-	}
-
-	return ms
+	return maps.Clone(mwr.remotes)
 }
 
 func (mwr *remotesWeightedRandom) Select(excludes ...string) (api.Peer, error) {

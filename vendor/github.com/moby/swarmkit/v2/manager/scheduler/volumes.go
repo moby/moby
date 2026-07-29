@@ -226,7 +226,7 @@ func (vs *volumeSet) isVolumeAvailableOnNode(mount *api.Mount, node *NodeInfo) s
 	// try trimming off the "group:" prefix. if the resulting string is
 	// different from the input string (meaning something has been trimmed),
 	// then this volume is actually a volume group.
-	if group := strings.TrimPrefix(source, "group:"); group != source {
+	if group, ok := strings.CutPrefix(source, "group:"); ok {
 		ids, ok := vs.byGroup[group]
 		// if there are no volumes of this group specified, then no volume
 		// meets the moutn criteria.

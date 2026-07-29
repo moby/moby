@@ -9,7 +9,7 @@ import (
 	"github.com/moby/swarmkit/v2/api"
 )
 
-func newParseError(format string, args ...interface{}) error {
+func newParseError(format string, args ...any) error {
 	return fmt.Errorf("could not parse GenericResource: "+format, args...)
 }
 

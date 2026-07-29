@@ -2,6 +2,7 @@ package controlapi
 
 import (
 	"context"
+	"slices"
 
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/naming"
@@ -136,15 +137,8 @@ func (s *Server) ListTasks(_ context.Context, request *api.ListTasksRequest) (*a
 				return filterContains(r, request.Filters.Runtimes)
 			},
 			func(e *api.Task) bool {
-				if len(request.Filters.DesiredStates) == 0 {
-					return true
-				}
-				for _, c := range request.Filters.DesiredStates {
-					if c == e.DesiredState {
-						return true
-					}
-				}
-				return false
+				ds := request.Filters.DesiredStates
+				return len(ds) == 0 || slices.Contains(ds, e.DesiredState)
 			},
 			func(e *api.Task) bool {
 				if !request.Filters.UpToDate {

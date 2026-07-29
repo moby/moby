@@ -411,11 +411,7 @@ func (s *session) sendTaskStatuses(ctx context.Context, updates ...*api.UpdateTa
 	}
 
 	client := api.NewDispatcherClient(s.conn.ClientConn)
-	n := batchSize
-
-	if len(updates) < n {
-		n = len(updates)
-	}
+	n := min(len(updates), batchSize)
 
 	if _, err := client.UpdateTaskStatus(ctx, &api.UpdateTaskStatusRequest{
 		SessionID: s.sessionID,

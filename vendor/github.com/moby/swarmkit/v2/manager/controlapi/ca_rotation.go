@@ -21,7 +21,7 @@ import (
 var minRootExpiration = 1 * helpers.OneYear
 
 // determines whether an api.RootCA, api.RootRotation, or api.CAConfig has a signing key (local signer)
-func hasSigningKey(a interface{}) bool {
+func hasSigningKey(a any) bool {
 	switch b := a.(type) {
 	case *api.RootCA:
 		return len(b.CAKey) > 0

@@ -19,12 +19,12 @@ func (h nodeMaxHeap) Less(i, j int) bool {
 	return h.lessFunc(&h.nodes[j], &h.nodes[i])
 }
 
-func (h *nodeMaxHeap) Push(x interface{}) {
+func (h *nodeMaxHeap) Push(x any) {
 	h.nodes = append(h.nodes, x.(NodeInfo))
 	h.length++
 }
 
-func (h *nodeMaxHeap) Pop() interface{} {
+func (h *nodeMaxHeap) Pop() any {
 	h.length--
 	// return value is never used
 	return nil

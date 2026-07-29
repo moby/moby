@@ -12,7 +12,7 @@ type CopierFrom interface {
 	// Copy takes the fields from src and copies them into the target object.
 	//
 	// Calling this method with a nil receiver or a nil src may panic.
-	CopyFrom(src interface{})
+	CopyFrom(src any)
 }
 
 // Copy copies src into dst. dst and src must have the same type.
@@ -24,7 +24,7 @@ type CopierFrom interface {
 //
 // If the copy cannot be performed, this function will panic. Make sure to test
 // types that use this function.
-func Copy(dst, src interface{}) {
+func Copy(dst, src any) {
 	switch dst := dst.(type) {
 	case *types.Any:
 		src := src.(*types.Any)

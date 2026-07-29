@@ -144,11 +144,11 @@ func FindServices(tx ReadTx, by By) ([]*api.Service, error) {
 
 type serviceIndexerByRuntime struct{}
 
-func (si serviceIndexerByRuntime) FromArgs(args ...interface{}) ([]byte, error) {
+func (si serviceIndexerByRuntime) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (si serviceIndexerByRuntime) FromObject(obj interface{}) (bool, []byte, error) {
+func (si serviceIndexerByRuntime) FromObject(obj any) (bool, []byte, error) {
 	s := obj.(*api.Service)
 	r, err := naming.Runtime(s.Spec.Task)
 	if err != nil {
@@ -157,17 +157,17 @@ func (si serviceIndexerByRuntime) FromObject(obj interface{}) (bool, []byte, err
 	return true, []byte(r + "\x00"), nil
 }
 
-func (si serviceIndexerByRuntime) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+func (si serviceIndexerByRuntime) PrefixFromArgs(args ...any) ([]byte, error) {
 	return prefixFromArgs(args...)
 }
 
 type serviceIndexerByNetwork struct{}
 
-func (si serviceIndexerByNetwork) FromArgs(args ...interface{}) ([]byte, error) {
+func (si serviceIndexerByNetwork) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (si serviceIndexerByNetwork) FromObject(obj interface{}) (bool, [][]byte, error) {
+func (si serviceIndexerByNetwork) FromObject(obj any) (bool, [][]byte, error) {
 	s := obj.(*api.Service)
 
 	var networkIDs [][]byte
@@ -188,11 +188,11 @@ func (si serviceIndexerByNetwork) FromObject(obj interface{}) (bool, [][]byte, e
 
 type serviceIndexerBySecret struct{}
 
-func (si serviceIndexerBySecret) FromArgs(args ...interface{}) ([]byte, error) {
+func (si serviceIndexerBySecret) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (si serviceIndexerBySecret) FromObject(obj interface{}) (bool, [][]byte, error) {
+func (si serviceIndexerBySecret) FromObject(obj any) (bool, [][]byte, error) {
 	s := obj.(*api.Service)
 
 	container := s.Spec.Task.GetContainer()
@@ -212,11 +212,11 @@ func (si serviceIndexerBySecret) FromObject(obj interface{}) (bool, [][]byte, er
 
 type serviceIndexerByConfig struct{}
 
-func (si serviceIndexerByConfig) FromArgs(args ...interface{}) ([]byte, error) {
+func (si serviceIndexerByConfig) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (si serviceIndexerByConfig) FromObject(obj interface{}) (bool, [][]byte, error) {
+func (si serviceIndexerByConfig) FromObject(obj any) (bool, [][]byte, error) {
 	s, ok := obj.(*api.Service)
 	if !ok {
 		panic("unexpected type passed to FromObject")
