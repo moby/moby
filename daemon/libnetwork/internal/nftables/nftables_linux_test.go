@@ -1,7 +1,6 @@
 package nftables
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
@@ -32,18 +31,18 @@ func testSetup(t *testing.T) func() {
 	}
 }
 
-func applyAndCheck(t *testing.T, goldenFilename string, tbl Table, tm ...Modifier) {
+func applyAndCheck(t *testing.T, goldenFilename string, tbl *Table, tm ...Modifier) {
 	t.Helper()
-	err := tbl.Apply(context.Background(), tm...)
+	err := tbl.Apply(t.Context(), tm...)
 	assert.Check(t, err)
 	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
 	res.Assert(t, icmd.Success)
 	golden.Assert(t, res.Combined(), goldenFilename)
 }
 
-func reloadAndCheck(t *testing.T, goldenFilename string, tbl Table) {
+func reloadAndCheck(t *testing.T, goldenFilename string, tbl *Table) {
 	t.Helper()
-	err := tbl.Reload(context.Background())
+	err := tbl.Reload(t.Context())
 	assert.Check(t, err)
 	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
 	res.Assert(t, icmd.Success)
@@ -63,6 +62,119 @@ func TestTable(t *testing.T) {
 	// Update nftables and check what happened.
 	applyAndCheck(t, t.Name()+"/created4.golden", tbl4, Modifier{})
 	applyAndCheck(t, t.Name()+"/created6.golden", tbl6, Modifier{})
+}
+
+func TestTableClose(t *testing.T) {
+	// No nftables setup needed, closing a table that's never been applied doesn't
+	// run any "nft" commands.
+	tbl, err := NewTable(IPv4, "this_is_a_table")
+	assert.NilError(t, err)
+	assert.Assert(t, tbl.IsValid())
+
+	// Consumers hold references to the table, closing it must invalidate them all.
+	ref := tbl
+
+	assert.NilError(t, tbl.Close())
+	assert.Check(t, !tbl.IsValid(), "closed table should not be valid")
+	assert.Check(t, !ref.IsValid(), "reference to a closed table should not be valid")
+
+	// Close is idempotent, and a nil *Table can be closed.
+	assert.NilError(t, tbl.Close())
+	var nilTbl *Table
+	assert.NilError(t, nilTbl.Close())
+	assert.Check(t, !nilTbl.IsValid())
+
+	// A Table that didn't come from NewTable is not usable either.
+	var zeroVal Table
+	assert.Check(t, !zeroVal.IsValid())
+	assert.NilError(t, zeroVal.Close())
+
+	assert.Check(t, is.Equal(tbl.Name(), ""))
+	assert.Check(t, is.Equal(tbl.Family(), Family("")))
+}
+
+func TestTableUseAfterClose(t *testing.T) {
+	defer testSetup(t)()
+
+	tbl, err := NewTable(IPv4, "this_is_a_table")
+	assert.NilError(t, err)
+
+	const chainName = "this_is_a_chain"
+	var tm Modifier
+	tm.Create(Chain{Name: chainName})
+	assert.NilError(t, tbl.Apply(t.Context(), tm))
+
+	ref := tbl
+	assert.NilError(t, tbl.Close())
+
+	// Operations on a closed table must be refused, rather than transparently
+	// opening a new handle to the underlying nftables table.
+	var tm2 Modifier
+	tm2.Create(Rule{Chain: chainName, Rule: []string{"counter"}})
+	assert.Check(t, is.ErrorIs(tbl.Apply(t.Context(), tm2), errTableClosed))
+	assert.Check(t, is.ErrorIs(ref.Apply(t.Context(), tm2), errTableClosed))
+	assert.Check(t, is.ErrorIs(tbl.Reload(t.Context()), errTableClosed))
+	assert.Check(t, is.ErrorIs(tbl.SetBaseChainPolicy(t.Context(), chainName, BaseChainPolicyDrop),
+		errTableClosed))
+	// applyLock must be held to read nftHandle.
+	tbl.t.applyLock.Lock()
+	handle := tbl.t.nftHandle
+	tbl.t.applyLock.Unlock()
+	assert.Check(t, is.Nil(handle), "no nftables handle should have been opened")
+
+	// The table itself is left alone by Close, but the rejected update must not
+	// have reached it. (The table's name and family can't be read from the closed
+	// handle.)
+	res := icmd.RunCommand("nft", "list", "table", string(IPv4), "this_is_a_table")
+	res.Assert(t, icmd.Success)
+	golden.Assert(t, res.Combined(), t.Name()+".golden")
+
+	// A nil *Table, and a Table that didn't come from NewTable, must be refused
+	// rather than panicking on their unusable innards.
+	var nilTbl *Table
+	assert.Check(t, is.ErrorIs(nilTbl.Apply(t.Context(), tm2), errInvalidTable))
+	assert.Check(t, is.ErrorIs(nilTbl.Reload(t.Context()), errInvalidTable))
+	assert.Check(t, is.ErrorIs(nilTbl.SetBaseChainPolicy(t.Context(), chainName, BaseChainPolicyDrop),
+		errInvalidTable))
+
+	unusable := &Table{}
+	assert.Check(t, is.ErrorIs(unusable.Apply(t.Context(), tm2), errInvalidTable))
+	assert.Check(t, is.ErrorIs(unusable.Reload(t.Context()), errInvalidTable))
+	assert.Check(t, is.ErrorIs(unusable.SetBaseChainPolicy(t.Context(), chainName, BaseChainPolicyDrop),
+		errInvalidTable))
+}
+
+func TestSetBaseChainPolicy(t *testing.T) {
+	defer testSetup(t)()
+
+	tbl, err := NewTable(IPv4, "this_is_a_table")
+	assert.NilError(t, err)
+	defer tbl.Close()
+
+	const bcName = "this_is_a_base_chain"
+	var tm Modifier
+	tm.Create(BaseChain{
+		Name:      bcName,
+		ChainType: BaseChainTypeFilter,
+		Hook:      BaseChainHookForward,
+		Priority:  BaseChainPriorityFilter,
+		Policy:    BaseChainPolicyAccept,
+	})
+	const cName = "this_is_a_regular_chain"
+	tm.Create(Chain{Name: cName})
+	assert.NilError(t, tbl.Apply(t.Context(), tm))
+
+	// The new policy is applied immediately. (Which must not deadlock - the table
+	// is applied with applyLock held.)
+	assert.NilError(t, tbl.SetBaseChainPolicy(t.Context(), bcName, BaseChainPolicyDrop))
+	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
+	res.Assert(t, icmd.Success)
+	golden.Assert(t, res.Combined(), t.Name()+".golden")
+
+	assert.Check(t, is.ErrorContains(
+		tbl.SetBaseChainPolicy(t.Context(), cName, BaseChainPolicyDrop), "it is not a base chain"))
+	assert.Check(t, is.ErrorContains(
+		tbl.SetBaseChainPolicy(t.Context(), "no_such_chain", BaseChainPolicyDrop), "it does not exist"))
 }
 
 func TestChain(t *testing.T) {
@@ -157,7 +269,7 @@ func TestIgnoreExist(t *testing.T) {
 	tmErr := Modifier{}
 	tmErr.Create(Rule{Chain: chainName, Rule: []string{"counter"}, IgnoreExist: true})
 	tmErr.Create(Rule{Chain: chainName})
-	err = tbl.Apply(context.Background(), tm)
+	err = tbl.Apply(t.Context(), tm)
 	assert.Check(t, err != nil, "Expected an error")
 
 	// Reload, to flush table state.
@@ -172,7 +284,7 @@ func TestIgnoreExist(t *testing.T) {
 	tmReDel := Modifier{}
 	tmReDel.Delete(Rule{Chain: chainName, Rule: []string{"counter"}, IgnoreExist: true})
 	tmReDel.Create(Rule{Chain: chainName})
-	err = tbl.Apply(context.Background(), tmReDel)
+	err = tbl.Apply(t.Context(), tmReDel)
 	assert.Check(t, err != nil, "Expected an error")
 
 	// Reload, to flush table state.
@@ -286,7 +398,7 @@ func TestReload(t *testing.T) {
 	deleteTable()
 
 	// Reconstruct the nftables table.
-	err = tbl.Reload(context.Background())
+	err = tbl.Reload(t.Context())
 	assert.Check(t, err)
 	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
 	res.Assert(t, icmd.Success)
@@ -319,7 +431,7 @@ func TestApplyMultipleModifiers(t *testing.T) {
 	tm2.Create(Rule{Chain: "bogus", Rule: []string{"counter"}})
 	tm2.Create(Rule{Chain: chainName, Rule: []string{"reject"}})
 
-	err = tbl.Apply(context.Background(), tm1, tm2)
+	err = tbl.Apply(t.Context(), tm1, tm2)
 	assert.Check(t, err != nil, "Expected an error")
 
 	// Verify the apply was a no-op: the table should not exist yet.
@@ -356,7 +468,7 @@ func TestNetdevChain(t *testing.T) {
 	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
 
 	icmd.RunCommand("nft", "flush", "ruleset").Assert(t, icmd.Success)
-	err = tbl.Reload(context.Background())
+	err = tbl.Reload(t.Context())
 	assert.Check(t, err)
 	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
 	res.Assert(t, icmd.Success)
@@ -739,7 +851,7 @@ func TestValidation(t *testing.T) {
 			assert.NilError(t, err)
 			defer tbl.Close()
 			tm := Modifier{cmds: tc.cmds}
-			err = tbl.Apply(context.Background(), tm)
+			err = tbl.Apply(t.Context(), tm)
 			assert.Check(t, err != nil, "expected error containing '%s'", tc.expErr)
 			assert.Check(t, is.ErrorContains(err, tc.expErr))
 			// Check the table wasn't created.

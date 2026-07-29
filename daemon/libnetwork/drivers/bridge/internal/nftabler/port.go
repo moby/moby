@@ -58,7 +58,7 @@ func splitByContainerFam(pbs []types.PortBinding) ([]types.PortBinding, []types.
 	return pbs4, pbs6
 }
 
-func (n *network) setPerPortRules(ctx context.Context, pbs []types.PortBinding, table nftables.Table, ipv nftables.Family, unprotected, enable bool) error {
+func (n *network) setPerPortRules(ctx context.Context, pbs []types.PortBinding, table *nftables.Table, ipv nftables.Family, unprotected, enable bool) error {
 	tm := nftables.Modifier{}
 	updater := tm.Create
 	if !enable {

@@ -45,7 +45,7 @@ type driver struct {
 	keys   []*key
 
 	overlayEncNftInitMu sync.Mutex
-	overlayEncNftTable  nftables.Table
+	overlayEncNftTable  *nftables.Table
 
 	// mu must be held when accessing the fields which follow it
 	// in the struct definition.
