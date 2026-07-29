@@ -199,20 +199,7 @@ jobs:
           cache: false
 
       - name: Docker info
-        run: |
-          $tries = 30
-          Write-Host "Waiting for Docker daemon..."
-          while ($true) {
-            $ErrorActionPreference = "SilentlyContinue"
-            docker version | Out-Null
-            $ok = ($LastExitCode -eq 0)
-            $ErrorActionPreference = "Stop"
-            if ($ok) { break }
-            $tries--
-            if ($tries -le 0) { throw "Docker daemon did not become ready" }
-            Start-Sleep -Seconds 2
-          }
-          docker info
+        uses: ./.github/actions/ensure-windows-docker
 
       - name: Build base image
         run: |
