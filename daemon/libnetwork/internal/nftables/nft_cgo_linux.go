@@ -35,6 +35,10 @@ type nftCtx struct {
 
 // Apply calls libnftables to execute the nftables commands in nftCmd.
 func (h *nftCtx) Apply(ctx context.Context, nftCmd []byte) error {
+	if h.handle == nil {
+		return errors.New("libnftables: context is closed")
+	}
+
 	ctx, span := otel.Tracer("").Start(ctx, spanPrefix+".nftApply.cgo")
 	defer span.End()
 
