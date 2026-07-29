@@ -266,11 +266,10 @@ func (r *controller) Start(ctx context.Context) error {
 
 			switch event.Action {
 			case events.ActionDie: // exit on terminal events
-				ctnr, err := r.adapter.inspect(ctx)
-				if err != nil {
+				if ctr, err := r.adapter.inspect(ctx); err != nil {
 					return errors.Wrap(err, "die event received")
-				} else if ctnr.State.ExitCode != 0 {
-					return &exitError{code: ctnr.State.ExitCode, cause: healthErr}
+				} else if ctr.State.ExitCode != 0 {
+					return &exitError{code: ctr.State.ExitCode, cause: healthErr}
 				}
 
 				return nil
