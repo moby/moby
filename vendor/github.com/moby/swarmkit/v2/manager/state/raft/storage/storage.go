@@ -301,7 +301,7 @@ func (e *EncryptedRaftLogger) GC(index uint64, term uint64, keepOldSnapshots uin
 		deleteUntil = len(wals) - 1
 	}
 
-	for i := 0; i < deleteUntil; i++ {
+	for i := range deleteUntil {
 		walPath := filepath.Join(e.walDir(), wals[i])
 		l, err := fileutil.TryLockFile(walPath, os.O_WRONLY, fileutil.PrivateFileMode)
 		if err != nil {

@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/moby/swarmkit/v2/api"
@@ -116,19 +117,12 @@ func referencesVolumePlugin(mount api.Mount) bool {
 
 // SetTask returns true when the filter is enabled for a given task.
 func (f *PluginFilter) SetTask(t *api.Task) bool {
-	c := t.Spec.GetContainer()
-
-	var volumeTemplates bool
-	if c != nil {
-		for _, mount := range c.Mounts {
-			if referencesVolumePlugin(mount) {
-				volumeTemplates = true
-				break
-			}
-		}
+	if len(t.Networks) > 0 || t.Spec.LogDriver != nil {
+		f.t = t
+		return true
 	}
 
-	if (c != nil && volumeTemplates) || len(t.Networks) > 0 || t.Spec.LogDriver != nil {
+	if c := t.Spec.GetContainer(); c != nil && slices.ContainsFunc(c.Mounts, referencesVolumePlugin) {
 		f.t = t
 		return true
 	}

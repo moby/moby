@@ -7,7 +7,7 @@ import (
 
 type waitItem struct {
 	// channel to wait up the waiter
-	ch chan interface{}
+	ch chan any
 	// callback which is called synchronously when the wait is triggered
 	cb func()
 	// callback which is called to cancel a waiter
@@ -23,19 +23,19 @@ func newWait() *wait {
 	return &wait{m: make(map[uint64]waitItem)}
 }
 
-func (w *wait) register(id uint64, cb func(), cancel func()) <-chan interface{} {
+func (w *wait) register(id uint64, cb func(), cancel func()) <-chan any {
 	w.l.Lock()
 	defer w.l.Unlock()
 	_, ok := w.m[id]
 	if !ok {
-		ch := make(chan interface{}, 1)
+		ch := make(chan any, 1)
 		w.m[id] = waitItem{ch: ch, cb: cb, cancel: cancel}
 		return ch
 	}
 	panic(fmt.Sprintf("duplicate id %x", id))
 }
 
-func (w *wait) trigger(id uint64, x interface{}) bool {
+func (w *wait) trigger(id uint64, x any) bool {
 	w.l.Lock()
 	waitItem, ok := w.m[id]
 	delete(w.m, id)

@@ -214,7 +214,7 @@ func makeExternalSignRequest(ctx context.Context, client *http.Client, url strin
 		return nil, errors.New("certificate signing request failed")
 	}
 
-	result, ok := apiResponse.Result.(map[string]interface{})
+	result, ok := apiResponse.Result.(map[string]any)
 	if !ok {
 		return nil, errors.Errorf("invalid result type: %T", apiResponse.Result)
 	}

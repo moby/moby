@@ -2,6 +2,7 @@ package controlapi
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/moby/swarmkit/v2/api"
@@ -24,15 +25,7 @@ func buildFilters(by func(string) store.By, values []string) store.By {
 }
 
 func filterContains(match string, candidates []string) bool {
-	if len(candidates) == 0 {
-		return true
-	}
-	for _, c := range candidates {
-		if c == match {
-			return true
-		}
-	}
-	return false
+	return len(candidates) == 0 || slices.Contains(candidates, match)
 }
 
 func filterContainsPrefix(match string, candidates []string) bool {

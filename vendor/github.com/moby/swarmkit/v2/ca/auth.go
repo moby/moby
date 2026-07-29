@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509/pkix"
+	"slices"
 	"strings"
 
 	"github.com/moby/swarmkit/v2/api"
@@ -157,10 +158,8 @@ func AuthorizeForwardedRoleAndOrg(ctx context.Context, authorizedRoles, forwarde
 // between the two arrays
 func intersectArrays(orig, tgt []string) bool {
 	for _, i := range orig {
-		for _, x := range tgt {
-			if i == x {
-				return true
-			}
+		if slices.Contains(tgt, i) {
+			return true
 		}
 	}
 	return false

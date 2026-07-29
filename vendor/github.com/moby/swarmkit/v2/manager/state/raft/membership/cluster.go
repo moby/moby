@@ -2,6 +2,7 @@ package membership
 
 import (
 	"errors"
+	"maps"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
@@ -56,12 +57,11 @@ func NewCluster() *Cluster {
 
 // Members returns the list of raft Members in the Cluster.
 func (c *Cluster) Members() map[uint64]*Member {
-	members := make(map[uint64]*Member)
 	c.mu.RLock()
-	for k, v := range c.members {
-		members[k] = v
-	}
-	c.mu.RUnlock()
+	defer c.mu.RUnlock()
+
+	members := make(map[uint64]*Member, len(c.members))
+	maps.Copy(members, c.members)
 	return members
 }
 
@@ -174,10 +174,10 @@ func (c *Cluster) IsIDRemoved(id uint64) bool {
 // Clear resets the list of active Members and removed Members.
 func (c *Cluster) Clear() {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	c.members = make(map[uint64]*Member)
 	c.removed = make(map[uint64]bool)
-	c.mu.Unlock()
 }
 
 // ValidateConfigurationChange takes a proposed ConfChange and

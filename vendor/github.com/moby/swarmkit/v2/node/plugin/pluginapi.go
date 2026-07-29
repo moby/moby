@@ -14,7 +14,7 @@ type AddrPlugin interface {
 }
 
 type Client interface {
-	Call(method string, args, ret interface{}) error
+	Call(method string, args, ret any) error
 }
 
 type Getter interface {

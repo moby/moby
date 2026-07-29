@@ -165,11 +165,11 @@ func FindResources(tx ReadTx, by By) ([]*api.Resource, error) {
 
 type resourceIndexerByKind struct{}
 
-func (ri resourceIndexerByKind) FromArgs(args ...interface{}) ([]byte, error) {
+func (ri resourceIndexerByKind) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ri resourceIndexerByKind) FromObject(obj interface{}) (bool, []byte, error) {
+func (ri resourceIndexerByKind) FromObject(obj any) (bool, []byte, error) {
 	r := obj.(resourceEntry)
 
 	// Add the null character as a terminator
@@ -179,36 +179,36 @@ func (ri resourceIndexerByKind) FromObject(obj interface{}) (bool, []byte, error
 
 type resourceIndexerByID struct{}
 
-func (indexer resourceIndexerByID) FromArgs(args ...interface{}) ([]byte, error) {
+func (indexer resourceIndexerByID) FromArgs(args ...any) ([]byte, error) {
 	return api.ResourceIndexerByID{}.FromArgs(args...)
 }
-func (indexer resourceIndexerByID) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+func (indexer resourceIndexerByID) PrefixFromArgs(args ...any) ([]byte, error) {
 	return api.ResourceIndexerByID{}.PrefixFromArgs(args...)
 }
-func (indexer resourceIndexerByID) FromObject(obj interface{}) (bool, []byte, error) {
+func (indexer resourceIndexerByID) FromObject(obj any) (bool, []byte, error) {
 	return api.ResourceIndexerByID{}.FromObject(obj.(resourceEntry).Resource)
 }
 
 type resourceIndexerByName struct{}
 
-func (indexer resourceIndexerByName) FromArgs(args ...interface{}) ([]byte, error) {
+func (indexer resourceIndexerByName) FromArgs(args ...any) ([]byte, error) {
 	return api.ResourceIndexerByName{}.FromArgs(args...)
 }
-func (indexer resourceIndexerByName) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+func (indexer resourceIndexerByName) PrefixFromArgs(args ...any) ([]byte, error) {
 	return api.ResourceIndexerByName{}.PrefixFromArgs(args...)
 }
-func (indexer resourceIndexerByName) FromObject(obj interface{}) (bool, []byte, error) {
+func (indexer resourceIndexerByName) FromObject(obj any) (bool, []byte, error) {
 	return api.ResourceIndexerByName{}.FromObject(obj.(resourceEntry).Resource)
 }
 
 type resourceCustomIndexer struct{}
 
-func (indexer resourceCustomIndexer) FromArgs(args ...interface{}) ([]byte, error) {
+func (indexer resourceCustomIndexer) FromArgs(args ...any) ([]byte, error) {
 	return api.ResourceCustomIndexer{}.FromArgs(args...)
 }
-func (indexer resourceCustomIndexer) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+func (indexer resourceCustomIndexer) PrefixFromArgs(args ...any) ([]byte, error) {
 	return api.ResourceCustomIndexer{}.PrefixFromArgs(args...)
 }
-func (indexer resourceCustomIndexer) FromObject(obj interface{}) (bool, [][]byte, error) {
+func (indexer resourceCustomIndexer) FromObject(obj any) (bool, [][]byte, error) {
 	return api.ResourceCustomIndexer{}.FromObject(obj.(resourceEntry).Resource)
 }

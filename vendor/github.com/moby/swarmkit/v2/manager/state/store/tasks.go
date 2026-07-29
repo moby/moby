@@ -161,11 +161,11 @@ func FindTasks(tx ReadTx, by By) ([]*api.Task, error) {
 
 type taskIndexerByName struct{}
 
-func (ti taskIndexerByName) FromArgs(args ...interface{}) ([]byte, error) {
+func (ti taskIndexerByName) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ti taskIndexerByName) FromObject(obj interface{}) (bool, []byte, error) {
+func (ti taskIndexerByName) FromObject(obj any) (bool, []byte, error) {
 	t := obj.(*api.Task)
 
 	name := naming.Task(t)
@@ -174,17 +174,17 @@ func (ti taskIndexerByName) FromObject(obj interface{}) (bool, []byte, error) {
 	return true, []byte(strings.ToLower(name) + "\x00"), nil
 }
 
-func (ti taskIndexerByName) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+func (ti taskIndexerByName) PrefixFromArgs(args ...any) ([]byte, error) {
 	return prefixFromArgs(args...)
 }
 
 type taskIndexerByRuntime struct{}
 
-func (ti taskIndexerByRuntime) FromArgs(args ...interface{}) ([]byte, error) {
+func (ti taskIndexerByRuntime) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ti taskIndexerByRuntime) FromObject(obj interface{}) (bool, []byte, error) {
+func (ti taskIndexerByRuntime) FromObject(obj any) (bool, []byte, error) {
 	t := obj.(*api.Task)
 	r, err := naming.Runtime(t.Spec)
 	if err != nil {
@@ -193,17 +193,17 @@ func (ti taskIndexerByRuntime) FromObject(obj interface{}) (bool, []byte, error)
 	return true, []byte(r + "\x00"), nil
 }
 
-func (ti taskIndexerByRuntime) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+func (ti taskIndexerByRuntime) PrefixFromArgs(args ...any) ([]byte, error) {
 	return prefixFromArgs(args...)
 }
 
 type taskIndexerByServiceID struct{}
 
-func (ti taskIndexerByServiceID) FromArgs(args ...interface{}) ([]byte, error) {
+func (ti taskIndexerByServiceID) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ti taskIndexerByServiceID) FromObject(obj interface{}) (bool, []byte, error) {
+func (ti taskIndexerByServiceID) FromObject(obj any) (bool, []byte, error) {
 	t := obj.(*api.Task)
 
 	// Add the null character as a terminator
@@ -213,11 +213,11 @@ func (ti taskIndexerByServiceID) FromObject(obj interface{}) (bool, []byte, erro
 
 type taskIndexerByNodeID struct{}
 
-func (ti taskIndexerByNodeID) FromArgs(args ...interface{}) ([]byte, error) {
+func (ti taskIndexerByNodeID) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ti taskIndexerByNodeID) FromObject(obj interface{}) (bool, []byte, error) {
+func (ti taskIndexerByNodeID) FromObject(obj any) (bool, []byte, error) {
 	t := obj.(*api.Task)
 
 	// Add the null character as a terminator
@@ -227,11 +227,11 @@ func (ti taskIndexerByNodeID) FromObject(obj interface{}) (bool, []byte, error) 
 
 type taskIndexerBySlot struct{}
 
-func (ti taskIndexerBySlot) FromArgs(args ...interface{}) ([]byte, error) {
+func (ti taskIndexerBySlot) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ti taskIndexerBySlot) FromObject(obj interface{}) (bool, []byte, error) {
+func (ti taskIndexerBySlot) FromObject(obj any) (bool, []byte, error) {
 	t := obj.(*api.Task)
 
 	// Add the null character as a terminator
@@ -241,11 +241,11 @@ func (ti taskIndexerBySlot) FromObject(obj interface{}) (bool, []byte, error) {
 
 type taskIndexerByDesiredState struct{}
 
-func (ti taskIndexerByDesiredState) FromArgs(args ...interface{}) ([]byte, error) {
+func (ti taskIndexerByDesiredState) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ti taskIndexerByDesiredState) FromObject(obj interface{}) (bool, []byte, error) {
+func (ti taskIndexerByDesiredState) FromObject(obj any) (bool, []byte, error) {
 	t := obj.(*api.Task)
 
 	// Add the null character as a terminator
@@ -254,11 +254,11 @@ func (ti taskIndexerByDesiredState) FromObject(obj interface{}) (bool, []byte, e
 
 type taskIndexerByNetwork struct{}
 
-func (ti taskIndexerByNetwork) FromArgs(args ...interface{}) ([]byte, error) {
+func (ti taskIndexerByNetwork) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ti taskIndexerByNetwork) FromObject(obj interface{}) (bool, [][]byte, error) {
+func (ti taskIndexerByNetwork) FromObject(obj any) (bool, [][]byte, error) {
 	t := obj.(*api.Task)
 
 	var networkIDs [][]byte
@@ -273,11 +273,11 @@ func (ti taskIndexerByNetwork) FromObject(obj interface{}) (bool, [][]byte, erro
 
 type taskIndexerBySecret struct{}
 
-func (ti taskIndexerBySecret) FromArgs(args ...interface{}) ([]byte, error) {
+func (ti taskIndexerBySecret) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ti taskIndexerBySecret) FromObject(obj interface{}) (bool, [][]byte, error) {
+func (ti taskIndexerBySecret) FromObject(obj any) (bool, [][]byte, error) {
 	t := obj.(*api.Task)
 
 	container := t.Spec.GetContainer()
@@ -297,11 +297,11 @@ func (ti taskIndexerBySecret) FromObject(obj interface{}) (bool, [][]byte, error
 
 type taskIndexerByConfig struct{}
 
-func (ti taskIndexerByConfig) FromArgs(args ...interface{}) ([]byte, error) {
+func (ti taskIndexerByConfig) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ti taskIndexerByConfig) FromObject(obj interface{}) (bool, [][]byte, error) {
+func (ti taskIndexerByConfig) FromObject(obj any) (bool, [][]byte, error) {
 	t, ok := obj.(*api.Task)
 	if !ok {
 		panic("unexpected type passed to FromObject")
@@ -324,11 +324,11 @@ func (ti taskIndexerByConfig) FromObject(obj interface{}) (bool, [][]byte, error
 
 type taskIndexerByVolumeAttachment struct{}
 
-func (ti taskIndexerByVolumeAttachment) FromArgs(args ...interface{}) ([]byte, error) {
+func (ti taskIndexerByVolumeAttachment) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ti taskIndexerByVolumeAttachment) FromObject(obj interface{}) (bool, [][]byte, error) {
+func (ti taskIndexerByVolumeAttachment) FromObject(obj any) (bool, [][]byte, error) {
 	t, ok := obj.(*api.Task)
 	if !ok {
 		panic("unexpected type passed to FromObject")
@@ -344,11 +344,11 @@ func (ti taskIndexerByVolumeAttachment) FromObject(obj interface{}) (bool, [][]b
 
 type taskIndexerByTaskState struct{}
 
-func (ts taskIndexerByTaskState) FromArgs(args ...interface{}) ([]byte, error) {
+func (ts taskIndexerByTaskState) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ts taskIndexerByTaskState) FromObject(obj interface{}) (bool, []byte, error) {
+func (ts taskIndexerByTaskState) FromObject(obj any) (bool, []byte, error) {
 	t := obj.(*api.Task)
 
 	// Add the null character as a terminator

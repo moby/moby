@@ -413,7 +413,7 @@ func DownloadRootCA(ctx context.Context, paths CertPaths, token string, connBrok
 	// first try to contact is not responding properly (it may have
 	// just been demoted, for example).
 
-	for i := 0; i != 5; i++ {
+	for range 5 {
 		rootCA, err = GetRemoteCA(ctx, d, connBroker)
 		if err == nil {
 			break

@@ -189,13 +189,11 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 
 	// Start the workers.
 	slotQueue := make(chan orchestrator.Slot)
-	wg := sync.WaitGroup{}
-	wg.Add(parallelism)
-	for i := 0; i < parallelism; i++ {
-		go func() {
+	var wg sync.WaitGroup
+	for range parallelism {
+		wg.Go(func() {
 			u.worker(ctx, slotQueue, updateConfig)
-			wg.Done()
-		}()
+		})
 	}
 
 	var failedTaskWatch chan events.Event

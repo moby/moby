@@ -359,7 +359,7 @@ func (r *Supervisor) UpdatableTasksInSlot(ctx context.Context, slot orchestrator
 	// Find most recent task
 	byTimestamp := orchestrator.TasksByTimestamp(slot)
 	newestIndex := 0
-	for i := 1; i != len(slot); i++ {
+	for i := 1; i < len(slot); i++ {
 		if byTimestamp.Less(newestIndex, i) {
 			newestIndex = i
 		}

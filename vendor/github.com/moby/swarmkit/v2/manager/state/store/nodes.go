@@ -121,11 +121,11 @@ func FindNodes(tx ReadTx, by By) ([]*api.Node, error) {
 
 type nodeIndexerByHostname struct{}
 
-func (ni nodeIndexerByHostname) FromArgs(args ...interface{}) ([]byte, error) {
+func (ni nodeIndexerByHostname) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ni nodeIndexerByHostname) FromObject(obj interface{}) (bool, []byte, error) {
+func (ni nodeIndexerByHostname) FromObject(obj any) (bool, []byte, error) {
 	n := obj.(*api.Node)
 
 	if n.Description == nil {
@@ -135,17 +135,17 @@ func (ni nodeIndexerByHostname) FromObject(obj interface{}) (bool, []byte, error
 	return true, []byte(strings.ToLower(n.Description.Hostname) + "\x00"), nil
 }
 
-func (ni nodeIndexerByHostname) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+func (ni nodeIndexerByHostname) PrefixFromArgs(args ...any) ([]byte, error) {
 	return prefixFromArgs(args...)
 }
 
 type nodeIndexerByRole struct{}
 
-func (ni nodeIndexerByRole) FromArgs(args ...interface{}) ([]byte, error) {
+func (ni nodeIndexerByRole) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ni nodeIndexerByRole) FromObject(obj interface{}) (bool, []byte, error) {
+func (ni nodeIndexerByRole) FromObject(obj any) (bool, []byte, error) {
 	n := obj.(*api.Node)
 
 	// Add the null character as a terminator
@@ -154,11 +154,11 @@ func (ni nodeIndexerByRole) FromObject(obj interface{}) (bool, []byte, error) {
 
 type nodeIndexerByMembership struct{}
 
-func (ni nodeIndexerByMembership) FromArgs(args ...interface{}) ([]byte, error) {
+func (ni nodeIndexerByMembership) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (ni nodeIndexerByMembership) FromObject(obj interface{}) (bool, []byte, error) {
+func (ni nodeIndexerByMembership) FromObject(obj any) (bool, []byte, error) {
 	n := obj.(*api.Node)
 
 	// Add the null character as a terminator

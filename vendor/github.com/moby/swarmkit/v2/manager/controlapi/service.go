@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -247,10 +248,8 @@ func validateGenericRuntimeSpec(taskSpec api.TaskSpec) error {
 	}
 
 	reservedNames := []string{"container", "attachment"}
-	for _, n := range reservedNames {
-		if strings.ToLower(generic.Kind) == n {
-			return status.Errorf(codes.InvalidArgument, "Generic runtime: %q is a reserved name", generic.Kind)
-		}
+	if slices.Contains(reservedNames, strings.ToLower(generic.Kind)) {
+		return status.Errorf(codes.InvalidArgument, "Generic runtime: %q is a reserved name", generic.Kind)
 	}
 
 	payload := generic.Payload

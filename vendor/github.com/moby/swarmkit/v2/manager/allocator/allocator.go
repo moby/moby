@@ -2,6 +2,7 @@ package allocator
 
 import (
 	"context"
+	"slices"
 	"sync"
 
 	"github.com/docker/go-events"
@@ -105,28 +106,19 @@ func (a *Allocator) Run(ctx context.Context) error {
 			a.registerToVote(aa.taskVoter)
 		}
 
-		// Assign a pointer for variable capture
-		aaPtr := &aa
 		actor := func() error {
-			wg.Add(1)
-			defer wg.Done()
-
 			// init might return an allocator specific context
 			// which is a child of the passed in context to hold
 			// allocator specific state
-			watch, watchCancel, err := a.init(ctx, aaPtr)
+			watch, watchCancel, err := a.init(ctx, &aa)
 			if err != nil {
 				return err
 			}
 
-			wg.Add(1)
-			go func(watch <-chan events.Event, watchCancel func()) {
-				defer func() {
-					watchCancel()
-					wg.Done()
-				}()
-				a.run(ctx, *aaPtr, watch)
-			}(watch, watchCancel)
+			wg.Go(func() {
+				defer watchCancel()
+				a.run(ctx, aa, watch)
+			})
 			return nil
 		}
 
@@ -201,11 +193,8 @@ func (a *Allocator) taskAllocateVote(voter string, id string) bool {
 	defer a.taskBallot.Unlock()
 
 	// If voter has already voted, return false
-	for _, v := range a.taskBallot.votes[id] {
-		// check if voter is in x
-		if v == voter {
-			return false
-		}
+	if slices.Contains(a.taskBallot.votes[id], voter) {
+		return false
 	}
 
 	a.taskBallot.votes[id] = append(a.taskBallot.votes[id], voter)

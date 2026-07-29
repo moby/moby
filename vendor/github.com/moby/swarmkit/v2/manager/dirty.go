@@ -42,7 +42,7 @@ func (m *Manager) IsStateDirty() (bool, error) {
 	val := reflect.ValueOf(*storeSnapshot)
 	numFields := val.NumField()
 
-	for i := 0; i != numFields; i++ {
+	for i := range numFields {
 		field := val.Field(i)
 		structField := val.Type().Field(i)
 		if structField.Type.Kind() != reflect.Slice {
