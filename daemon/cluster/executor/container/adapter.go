@@ -406,11 +406,16 @@ func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
 	eventsq := make(chan events.Message)
 
 	go func() {
+		defer close(eventsq)
 		defer c.backend.UnsubscribeFromEvents(l)
 
 		for {
 			select {
-			case ev := <-l:
+			case ev, ok := <-l:
+				if !ok {
+					return
+				}
+
 				jev, ok := ev.(events.Message)
 				if !ok {
 					swarmlog.G(ctx).Warnf("unexpected event message: %q", ev)
