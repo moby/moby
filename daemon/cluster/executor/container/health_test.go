@@ -17,10 +17,6 @@ import (
 
 func TestHealthStates(t *testing.T) {
 	// set up environment: events, task, container ....
-	e := events.New()
-	_, l, _ := e.Subscribe()
-	defer e.Evict(l)
-
 	task := &api.Task{
 		ID:        "id",
 		ServiceID: "sid",
@@ -38,7 +34,7 @@ func TestHealthStates(t *testing.T) {
 	}
 
 	daemon := &daemon.Daemon{
-		EventsService: e,
+		EventsService: events.New(),
 	}
 
 	ctrlr, err := newController(daemon, nil, nil, task, nil, nil)
