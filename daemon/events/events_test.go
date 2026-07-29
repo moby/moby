@@ -196,3 +196,26 @@ func TestIgnoreBufferedWhenNoTimes(t *testing.T) {
 	messages := evts.loadBufferedEvents(since, until, nil)
 	assert.Assert(t, is.Len(messages, 0))
 }
+
+func BenchmarkLoadBufferedEvents(b *testing.B) {
+	const eventCount = 256
+
+	evts := make([]events.Message, eventCount)
+	for i := range evts {
+		evts[i].TimeNano = int64(i + 1)
+	}
+
+	e := &Events{events: evts}
+
+	for _, matches := range []int{0, 1, 64, eventCount} {
+		b.Run("matches="+strconv.Itoa(matches), func(b *testing.B) {
+			since := time.Unix(0, int64(eventCount-matches+1))
+
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				_ = e.loadBufferedEvents(since, time.Time{}, nil)
+			}
+		})
+	}
+}

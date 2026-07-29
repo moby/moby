@@ -1,6 +1,7 @@
 package events
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -119,9 +120,8 @@ func (e *Events) SubscribersCount() int {
 // It uses `time.Unix(seconds, nanoseconds)` to generate valid dates with those arguments.
 // It filters those buffered messages with a topic function if it's not nil, otherwise it adds all messages.
 func (e *Events) loadBufferedEvents(since, until time.Time, topic func(any) bool) []eventtypes.Message {
-	var buffered []eventtypes.Message
 	if since.IsZero() && until.IsZero() {
-		return buffered
+		return nil
 	}
 
 	var sinceNanoUnix int64
@@ -134,21 +134,22 @@ func (e *Events) loadBufferedEvents(since, until time.Time, topic func(any) bool
 		untilNanoUnix = until.UnixNano()
 	}
 
-	for i := len(e.events) - 1; i >= 0; i-- {
-		ev := e.events[i]
-
+	// Let append grow the result based on actual matches; the time range and topic
+	// filter may exclude most or all buffered events. If dense results prove more
+	// common, cloning and filtering the candidate range in place may be cheaper.
+	var buffered []eventtypes.Message
+	for _, ev := range slices.Backward(e.events) {
 		if ev.TimeNano < sinceNanoUnix {
 			break
 		}
-
 		if untilNanoUnix > 0 && ev.TimeNano > untilNanoUnix {
 			continue
 		}
-
 		if topic == nil || topic(ev) {
-			buffered = append([]eventtypes.Message{ev}, buffered...)
+			buffered = append(buffered, ev)
 		}
 	}
+	slices.Reverse(buffered)
 	return buffered
 }
 
