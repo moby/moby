@@ -34,18 +34,16 @@ func New() *Events {
 // last events, a channel in which you can expect new events (in form
 // of interface{}, so you need type assertion), and a function to call
 // to stop the stream of events.
-func (e *Events) Subscribe() ([]eventtypes.Message, chan any, func()) {
-	metrics.EventSubscribers.Inc()
+func (e *Events) Subscribe() (buf []eventtypes.Message, evts chan any, cancel func()) {
+	// Hold e.mu while loading buffered events and registering the subscriber so
+	// that an event cannot fall between the buffered snapshot and the live stream.
 	e.mu.Lock()
-	current := make([]eventtypes.Message, len(e.events))
-	copy(current, e.events)
-	l := e.pub.Subscribe()
-	e.mu.Unlock()
+	defer metrics.EventSubscribers.Inc()
+	defer e.mu.Unlock()
 
-	cancel := func() {
-		e.Evict(l)
-	}
-	return current, l, cancel
+	buf = slices.Clone(e.events)
+	ch := e.pub.Subscribe()
+	return buf, ch, sync.OnceFunc(func() { e.unsubscribe(ch) })
 }
 
 // SubscribeTopic adds new listener to events, returns slice of 256 stored
@@ -70,9 +68,15 @@ func (e *Events) SubscribeTopic(since, until time.Time, ef *Filter) ([]eventtype
 }
 
 // Evict evicts listener from pubsub
+//
+// TODO(thaJeztah): make all Subscribe methods return a cancelFn and remove this.
 func (e *Events) Evict(l chan any) {
+	e.unsubscribe(l)
+}
+
+func (e *Events) unsubscribe(ch chan any) {
+	e.pub.Evict(ch)
 	metrics.EventSubscribers.Dec()
-	e.pub.Evict(l)
 }
 
 // Log creates a local scope message and publishes it
