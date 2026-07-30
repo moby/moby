@@ -3,7 +3,6 @@ package tracker
 import (
 	"bytes"
 	"fmt"
-	"sync"
 
 	"github.com/pelletier/go-toml/v2/unstable"
 )
@@ -12,9 +11,21 @@ type keyKind uint8
 
 const (
 	invalidKind keyKind = iota
+	// valueKind is a regular value (scalar, array, or inline table). It
+	// cannot be extended.
 	valueKind
+	// kvTableKind is a table created implicitly by a dotted key. It can only
+	// be extended by other dotted keys.
+	kvTableKind
+	// tableKind is a table created by a [header]. The explicit flag tells
+	// whether the table was created by its own header (true) or as an
+	// intermediate step of a longer key (false).
 	tableKind
+	// arrayTableKind is an array of tables created by [[header]].
 	arrayTableKind
+	// anonymousKind is an entry that cannot be looked up by name. It serves
+	// as the parent of the content of inline tables stored inside arrays.
+	anonymousKind
 )
 
 func (k keyKind) String() string {
@@ -23,22 +34,36 @@ func (k keyKind) String() string {
 		return "invalid"
 	case valueKind:
 		return "value"
+	case kvTableKind:
+		return "kv-table"
 	case tableKind:
 		return "table"
 	case arrayTableKind:
-		return "array table"
+		return "array-table"
+	case anonymousKind:
+		return "anonymous"
 	}
 	panic("missing keyKind string mapping")
+}
+
+// entry represents a node that has been seen in the document. Its size has a
+// direct impact on the performance of unmarshaling documents: keep it as
+// small as possible.
+type entry struct {
+	parent   int32
+	kind     keyKind
+	explicit bool
+	name     []byte
 }
 
 // SeenTracker tracks which keys have been seen with which TOML type to flag
 // duplicates and mismatches according to the spec.
 //
-// Each node in the visited tree is represented by an entry. Each entry has an
-// identifier, which is provided by a counter. Entries are stored in the array
-// entries. As new nodes are discovered (referenced for the first time in the
-// TOML document), entries are created and appended to the array. An entry
-// points to its parent using its id.
+// Each node in the visited tree is represented by an entry. Each entry has
+// an identifier, which is provided by a counter. Entries are stored in the
+// array entries. As new nodes are discovered (referenced for the first time
+// in the TOML document), entries are created and appended to the array. An
+// entry points to its parent using its id.
 //
 // To find whether a given key (sequence of []byte) has already been visited,
 // the entries are linearly searched, looking for one with the right name and
@@ -53,307 +78,373 @@ func (k keyKind) String() string {
 // invariant above, the deletion process needs to keep the order of entries.
 // This results in more copies in that case.
 type SeenTracker struct {
-	entries    []entry
-	currentIdx int
+	entries      []entry
+	currentTable int32
+
+	// scratch buffers for clear()
+	removedBuf []bool
+	remapBuf   []int32
 }
 
-var pool = sync.Pool{
-	New: func() interface{} {
-		return &SeenTracker{}
-	},
+// Reset brings the tracker to its initial state, with just a root table, so
+// that it can be reused across documents.
+func (s *SeenTracker) Reset() {
+	s.reset()
 }
 
+// reset brings the tracker to its initial state, with just a root table.
 func (s *SeenTracker) reset() {
-	// Always contains a root element at index 0.
-	s.currentIdx = 0
-	if len(s.entries) == 0 {
-		s.entries = make([]entry, 1, 2)
-	} else {
-		s.entries = s.entries[:1]
-	}
-	s.entries[0].child = -1
-	s.entries[0].next = -1
+	s.entries = append(s.entries[:0], entry{
+		parent: -1,
+		kind:   tableKind,
+	})
+	s.currentTable = 0
 }
 
-type entry struct {
-	// Use -1 to indicate no child or no sibling.
-	child int
-	next  int
-
-	name     []byte
-	kind     keyKind
-	explicit bool
-	kv       bool
-}
-
-// Find the index of the child of parentIdx with key k. Returns -1 if
-// it does not exist.
-func (s *SeenTracker) find(parentIdx int, k []byte) int {
-	for i := s.entries[parentIdx].child; i >= 0; i = s.entries[i].next {
-		if bytes.Equal(s.entries[i].name, k) {
-			return i
+// find returns the id of the entry with the given parent and name, or -1.
+// Anonymous entries are never returned.
+func (s *SeenTracker) find(parent int32, name []byte) int32 {
+	// Children always appear after their parent.
+	for i := int(parent) + 1; i < len(s.entries); i++ {
+		e := &s.entries[i]
+		if e.parent == parent && e.kind != anonymousKind && bytes.Equal(e.name, name) {
+			return int32(i) //nolint:gosec // entry counts are bounded by document size
 		}
 	}
 	return -1
 }
 
-// Remove all descendants of node at position idx.
-func (s *SeenTracker) clear(idx int) {
-	if idx >= len(s.entries) {
-		return
-	}
-
-	for i := s.entries[idx].child; i >= 0; {
-		next := s.entries[i].next
-		n := s.entries[0].next
-		s.entries[0].next = i
-		s.entries[i].next = n
-		s.entries[i].name = nil
-		s.clear(i)
-		i = next
-	}
-
-	s.entries[idx].child = -1
-}
-
-func (s *SeenTracker) create(parentIdx int, name []byte, kind keyKind, explicit bool, kv bool) int {
-	e := entry{
-		child: -1,
-		next:  s.entries[parentIdx].child,
-
-		name:     name,
+// create appends a new entry and returns its id.
+func (s *SeenTracker) create(parent int32, name []byte, kind keyKind, explicit bool) int32 {
+	id := int32(len(s.entries)) //nolint:gosec // entry counts are bounded by document size
+	s.entries = append(s.entries, entry{
+		parent:   parent,
 		kind:     kind,
 		explicit: explicit,
-		kv:       kv,
-	}
-	var idx int
-	if s.entries[0].next >= 0 {
-		idx = s.entries[0].next
-		s.entries[0].next = s.entries[idx].next
-		s.entries[idx] = e
-	} else {
-		idx = len(s.entries)
-		s.entries = append(s.entries, e)
-	}
-
-	s.entries[parentIdx].child = idx
-
-	return idx
+		name:     name,
+	})
+	return id
 }
 
-func (s *SeenTracker) setExplicitFlag(parentIdx int) {
-	for i := s.entries[parentIdx].child; i >= 0; i = s.entries[i].next {
-		if s.entries[i].kv {
-			s.entries[i].explicit = true
-			s.entries[i].kv = false
-		}
-		s.setExplicitFlag(i)
+// clear removes all the descendants of the entry with the given id, keeping
+// the order of the remaining entries.
+func (s *SeenTracker) clear(id int32) {
+	// Compute which entries are removed. Given that children always appear
+	// after their parent, a single forward pass is enough.
+	if cap(s.removedBuf) < len(s.entries) {
+		s.removedBuf = make([]bool, len(s.entries))
+		s.remapBuf = make([]int32, len(s.entries))
 	}
+	removed := s.removedBuf[:len(s.entries)]
+	remap := s.remapBuf[:len(s.entries)]
+	for i := range removed {
+		removed[i] = false
+	}
+
+	n := int32(0)
+	for i := 0; i < len(s.entries); i++ {
+		parent := s.entries[i].parent
+		if parent >= 0 && (parent == id && s.entries[i].kind != invalidKind || removed[parent]) {
+			removed[i] = true
+			continue
+		}
+		remap[i] = n
+		if int32(i) != n { //nolint:gosec // entry counts are bounded by document size
+			e := s.entries[i]
+			e.parent = remap[e.parent]
+			s.entries[n] = e
+		}
+		n++
+	}
+	s.entries = s.entries[:n]
 }
 
 // CheckExpression takes a top-level node and checks that it does not contain
 // keys that have been seen in previous calls, and validates that types are
-// consistent. It returns true if it is the first time this node's key is seen.
-// Useful to clear array tables on first use.
+// consistent. It returns true if it is the first time this node's key is
+// seen. Useful to clear array tables on first use.
 func (s *SeenTracker) CheckExpression(node *unstable.Node) (bool, error) {
-	if s.entries == nil {
+	if len(s.entries) == 0 {
 		s.reset()
 	}
 	switch node.Kind {
 	case unstable.KeyValue:
-		return s.checkKeyValue(node)
+		return false, s.checkKeyValue(s.currentTable, node)
 	case unstable.Table:
 		return s.checkTable(node)
 	case unstable.ArrayTable:
 		return s.checkArrayTable(node)
 	default:
-		panic(fmt.Errorf("this should not be a top level node type: %s", node.Kind))
+		return false, fmt.Errorf("toml: unexpected expression kind %s", node.Kind)
 	}
+}
+
+// CheckTable validates a [table] header given the decoded parts of its key.
+// It mirrors checkTable but is driven directly from the key parts instead of
+// an AST, for callers that decode without building one. It returns whether the
+// table is seen for the first time.
+func (s *SeenTracker) CheckTable(parts [][]byte) (bool, error) {
+	parent := int32(0)
+	for k := 0; k < len(parts); k++ {
+		name := parts[k]
+		if k == len(parts)-1 {
+			// Final part of the key.
+			i := s.find(parent, name)
+			if i < 0 {
+				i = s.create(parent, name, tableKind, true)
+				s.currentTable = i
+				return true, nil
+			}
+			e := &s.entries[i]
+			switch e.kind {
+			case tableKind:
+				if e.explicit {
+					return false, fmt.Errorf("toml: table %s already exists", name)
+				}
+				e.explicit = true
+				s.currentTable = i
+				return false, nil
+			case kvTableKind:
+				return false, fmt.Errorf("toml: table %s already exists as defined by a dotted key", name)
+			case arrayTableKind:
+				return false, fmt.Errorf("toml: table %s already exists as an array of tables", name)
+			default:
+				return false, fmt.Errorf("toml: key %s should be a table, not a %s", name, e.kind)
+			}
+		}
+
+		i := s.find(parent, name)
+		if i < 0 {
+			i = s.create(parent, name, tableKind, false)
+		} else {
+			switch s.entries[i].kind {
+			case tableKind, arrayTableKind, kvTableKind:
+				// Tables created by dotted keys can receive new sub-tables,
+				// but cannot be redefined (handled by the last-part case).
+			default:
+				return false, fmt.Errorf("toml: key %s already exists as a value", name)
+			}
+		}
+		parent = i
+	}
+	panic("unreachable: table expression without key")
+}
+
+// CheckArrayTable validates a [[array table]] header given the decoded parts
+// of its key. It mirrors checkArrayTable but is driven directly from the key
+// parts. It returns whether the array table is seen for the first time.
+func (s *SeenTracker) CheckArrayTable(parts [][]byte) (bool, error) {
+	parent := int32(0)
+	for k := 0; k < len(parts); k++ {
+		name := parts[k]
+		if k == len(parts)-1 {
+			i := s.find(parent, name)
+			if i < 0 {
+				i = s.create(parent, name, arrayTableKind, true)
+				s.currentTable = i
+				return true, nil
+			}
+			if s.entries[i].kind != arrayTableKind {
+				return false, fmt.Errorf("toml: key %s already exists as a %s, but should be an array table", name, s.entries[i].kind)
+			}
+			// Make the descendants of this array table re-discoverable for
+			// the new element.
+			s.clear(i)
+			s.currentTable = i
+			return false, nil
+		}
+
+		i := s.find(parent, name)
+		if i < 0 {
+			i = s.create(parent, name, tableKind, false)
+		} else {
+			switch s.entries[i].kind {
+			case tableKind, arrayTableKind, kvTableKind:
+				// Tables created by dotted keys can receive new sub-tables,
+				// but cannot be redefined (handled by the last-part case).
+			default:
+				return false, fmt.Errorf("toml: key %s already exists as a value", name)
+			}
+		}
+		parent = i
+	}
+	panic("unreachable: array table expression without key")
+}
+
+// CheckKeyValue validates the (possibly dotted) key of a key-value under the
+// current table, WITHOUT validating its value. It returns the id of the leaf
+// entry, so the caller can validate a container value with CheckValueUnder.
+func (s *SeenTracker) CheckKeyValue(parts [][]byte) (int32, error) {
+	parent := s.currentTable
+	for k := 0; k < len(parts); k++ {
+		name := parts[k]
+		if k == len(parts)-1 {
+			if i := s.find(parent, name); i >= 0 {
+				return -1, fmt.Errorf("toml: key %s is already defined", name)
+			}
+			return s.create(parent, name, valueKind, false), nil
+		}
+
+		i := s.find(parent, name)
+		if i < 0 {
+			i = s.create(parent, name, kvTableKind, false)
+		} else if s.entries[i].kind != kvTableKind {
+			return -1, fmt.Errorf("toml: key %s is already defined", name)
+		}
+		parent = i
+	}
+	panic("unreachable: key-value expression without key")
+}
+
+// CheckValueUnder validates the content of a value stored under the given
+// entry (typically the leaf returned by CheckKeyValue): inline tables cannot
+// contain duplicate keys, including in the inline tables and arrays they
+// contain.
+func (s *SeenTracker) CheckValueUnder(parent int32, value *unstable.Node) error {
+	return s.checkValue(parent, value)
 }
 
 func (s *SeenTracker) checkTable(node *unstable.Node) (bool, error) {
-	if s.currentIdx >= 0 {
-		s.setExplicitFlag(s.currentIdx)
-	}
+	parent := int32(0)
 
 	it := node.Key()
-
-	parentIdx := 0
-
-	// This code is duplicated in checkArrayTable. This is because factoring
-	// it in a function requires to copy the iterator, or allocate it to the
-	// heap, which is not cheap.
+	// Handle the intermediate parts of the key.
 	for it.Next() {
+		part := it.Node()
+		name := part.Data
 		if it.IsLast() {
-			break
-		}
-
-		k := it.Node().Data
-
-		idx := s.find(parentIdx, k)
-
-		if idx < 0 {
-			idx = s.create(parentIdx, k, tableKind, false, false)
-		} else {
-			entry := s.entries[idx]
-			if entry.kind == valueKind {
-				return false, fmt.Errorf("toml: expected %s to be a table, not a %s", string(k), entry.kind)
+			// Final part of the key.
+			i := s.find(parent, name)
+			if i < 0 {
+				i = s.create(parent, name, tableKind, true)
+				s.currentTable = i
+				return true, nil
+			}
+			e := &s.entries[i]
+			switch e.kind {
+			case tableKind:
+				if e.explicit {
+					return false, fmt.Errorf("toml: table %s already exists", name)
+				}
+				e.explicit = true
+				s.currentTable = i
+				return false, nil
+			case kvTableKind:
+				return false, fmt.Errorf("toml: table %s already exists as defined by a dotted key", name)
+			case arrayTableKind:
+				return false, fmt.Errorf("toml: table %s already exists as an array of tables", name)
+			default:
+				return false, fmt.Errorf("toml: key %s should be a table, not a %s", name, e.kind)
 			}
 		}
-		parentIdx = idx
-	}
 
-	k := it.Node().Data
-	idx := s.find(parentIdx, k)
-
-	first := false
-	if idx >= 0 {
-		kind := s.entries[idx].kind
-		if kind != tableKind {
-			return false, fmt.Errorf("toml: key %s should be a table, not a %s", string(k), kind)
+		i := s.find(parent, name)
+		if i < 0 {
+			i = s.create(parent, name, tableKind, false)
+		} else {
+			switch s.entries[i].kind {
+			case tableKind, arrayTableKind, kvTableKind:
+				// Tables created by dotted keys can receive new sub-tables,
+				// but cannot be redefined (handled by the last-part case).
+			default:
+				return false, fmt.Errorf("toml: key %s already exists as a value", name)
+			}
 		}
-		if s.entries[idx].explicit {
-			return false, fmt.Errorf("toml: table %s already exists", string(k))
-		}
-		s.entries[idx].explicit = true
-	} else {
-		idx = s.create(parentIdx, k, tableKind, true, false)
-		first = true
+		parent = i
 	}
-
-	s.currentIdx = idx
-
-	return first, nil
+	panic("unreachable: table expression without key")
 }
 
 func (s *SeenTracker) checkArrayTable(node *unstable.Node) (bool, error) {
-	if s.currentIdx >= 0 {
-		s.setExplicitFlag(s.currentIdx)
-	}
+	parent := int32(0)
 
 	it := node.Key()
-
-	parentIdx := 0
-
 	for it.Next() {
+		part := it.Node()
+		name := part.Data
 		if it.IsLast() {
-			break
+			i := s.find(parent, name)
+			if i < 0 {
+				i = s.create(parent, name, arrayTableKind, true)
+				s.currentTable = i
+				return true, nil
+			}
+			if s.entries[i].kind != arrayTableKind {
+				return false, fmt.Errorf("toml: key %s already exists as a %s, but should be an array table", name, s.entries[i].kind)
+			}
+			// Make the descendants of this array table re-discoverable for
+			// the new element.
+			s.clear(i)
+			// Note: clear cannot move i because i comes before all its
+			// descendants.
+			s.currentTable = i
+			return false, nil
 		}
 
-		k := it.Node().Data
-
-		idx := s.find(parentIdx, k)
-
-		if idx < 0 {
-			idx = s.create(parentIdx, k, tableKind, false, false)
+		i := s.find(parent, name)
+		if i < 0 {
+			i = s.create(parent, name, tableKind, false)
 		} else {
-			entry := s.entries[idx]
-			if entry.kind == valueKind {
-				return false, fmt.Errorf("toml: expected %s to be a table, not a %s", string(k), entry.kind)
+			switch s.entries[i].kind {
+			case tableKind, arrayTableKind, kvTableKind:
+				// Tables created by dotted keys can receive new sub-tables,
+				// but cannot be redefined (handled by the last-part case).
+			default:
+				return false, fmt.Errorf("toml: key %s already exists as a value", name)
 			}
 		}
-
-		parentIdx = idx
+		parent = i
 	}
-
-	k := it.Node().Data
-	idx := s.find(parentIdx, k)
-
-	firstTime := idx < 0
-	if firstTime {
-		idx = s.create(parentIdx, k, arrayTableKind, true, false)
-	} else {
-		kind := s.entries[idx].kind
-		if kind != arrayTableKind {
-			return false, fmt.Errorf("toml: key %s already exists as a %s,  but should be an array table", kind, string(k))
-		}
-		s.clear(idx)
-	}
-
-	s.currentIdx = idx
-
-	return firstTime, nil
+	panic("unreachable: array table expression without key")
 }
 
-func (s *SeenTracker) checkKeyValue(node *unstable.Node) (bool, error) {
-	parentIdx := s.currentIdx
+func (s *SeenTracker) checkKeyValue(parent int32, node *unstable.Node) error {
 	it := node.Key()
-
 	for it.Next() {
-		k := it.Node().Data
-
-		idx := s.find(parentIdx, k)
-
-		if idx < 0 {
-			idx = s.create(parentIdx, k, tableKind, false, true)
-		} else {
-			entry := s.entries[idx]
-			switch {
-			case it.IsLast():
-				return false, fmt.Errorf("toml: key %s is already defined", string(k))
-			case entry.kind != tableKind:
-				return false, fmt.Errorf("toml: expected %s to be a table, not a %s", string(k), entry.kind)
-			case entry.explicit:
-				return false, fmt.Errorf("toml: cannot redefine table %s that has already been explicitly defined", string(k))
+		part := it.Node()
+		name := part.Data
+		if it.IsLast() {
+			if i := s.find(parent, name); i >= 0 {
+				return fmt.Errorf("toml: key %s is already defined", name)
 			}
+			id := s.create(parent, name, valueKind, false)
+			return s.checkValue(id, node.Value())
 		}
 
-		parentIdx = idx
+		i := s.find(parent, name)
+		if i < 0 {
+			i = s.create(parent, name, kvTableKind, false)
+		} else if s.entries[i].kind != kvTableKind {
+			return fmt.Errorf("toml: key %s is already defined", name)
+		}
+		parent = i
 	}
+	panic("unreachable: key-value expression without key")
+}
 
-	s.entries[parentIdx].kind = valueKind
-
-	value := node.Value()
-
+// checkValue verifies the content of a value: inline tables cannot contain
+// duplicate keys, including in the inline tables and arrays they contain.
+func (s *SeenTracker) checkValue(id int32, value *unstable.Node) error {
 	switch value.Kind {
 	case unstable.InlineTable:
-		return s.checkInlineTable(value)
+		it := value.Children()
+		for it.Next() {
+			if err := s.checkKeyValue(id, it.Node()); err != nil {
+				return err
+			}
+		}
 	case unstable.Array:
-		return s.checkArray(value)
+		it := value.Children()
+		for it.Next() {
+			elem := it.Node()
+			if elem.Kind == unstable.InlineTable || elem.Kind == unstable.Array {
+				elemID := s.create(id, nil, anonymousKind, false)
+				if err := s.checkValue(elemID, elem); err != nil {
+					return err
+				}
+			}
+		}
 	default:
-		return false, nil
 	}
-}
-
-func (s *SeenTracker) checkArray(node *unstable.Node) (first bool, err error) {
-	it := node.Children()
-	for it.Next() {
-		n := it.Node()
-		switch n.Kind { //nolint:exhaustive
-		case unstable.InlineTable:
-			first, err = s.checkInlineTable(n)
-			if err != nil {
-				return false, err
-			}
-		case unstable.Array:
-			first, err = s.checkArray(n)
-			if err != nil {
-				return false, err
-			}
-		}
-	}
-	return first, nil
-}
-
-func (s *SeenTracker) checkInlineTable(node *unstable.Node) (first bool, err error) {
-	s = pool.Get().(*SeenTracker)
-	s.reset()
-
-	it := node.Children()
-	for it.Next() {
-		n := it.Node()
-		first, err = s.checkKeyValue(n)
-		if err != nil {
-			return false, err
-		}
-	}
-
-	// As inline tables are self-contained, the tracker does not
-	// need to retain the details of what they contain. The
-	// keyValue element that creates the inline table is kept to
-	// mark the presence of the inline table and prevent
-	// redefinition of its keys: check* functions cannot walk into
-	// a value.
-	pool.Put(s)
-	return first, nil
+	return nil
 }
