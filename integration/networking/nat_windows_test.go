@@ -53,19 +53,17 @@ func TestNatNetworkICC(t *testing.T) {
 				container.WithName(ctr1Name),
 				container.WithNetworkMode(tc.netName),
 			)
-			defer apiClient.ContainerRemove(ctx, id1, client.ContainerRemoveOptions{Force: true})
-
-			pingCmd := []string{"ping", "-n", "1", "-w", "3000", ctr1Name}
+			defer container.Remove(ctx, t, apiClient, id1, client.ContainerRemoveOptions{Force: true})
 
 			const ctr2Name = "ctr2"
 			attachCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 			defer cancel()
 			res := container.RunAttach(attachCtx, t, apiClient,
 				container.WithName(ctr2Name),
-				container.WithCmd(pingCmd...),
+				container.WithCmd("ping", "-n", "1", "-w", "3000", ctr1Name),
 				container.WithNetworkMode(tc.netName),
 			)
-			defer apiClient.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+			defer container.Remove(ctx, t, apiClient, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 
 			assert.Check(t, is.Equal(res.ExitCode, 0))
 			assert.Check(t, is.Equal(res.Stderr.Len(), 0))
@@ -86,7 +84,7 @@ func TestFlakyPortMappedHairpinWindows(t *testing.T) {
 	conn, err := net.Dial("tcp4", "hub.docker.com:80")
 	assert.NilError(t, err)
 	hostAddr := conn.LocalAddr().(*net.TCPAddr).IP.String()
-	conn.Close()
+	_ = conn.Close()
 
 	const serverNetName = "servernet"
 	network.CreateNoError(ctx, t, apiClient, serverNetName, network.WithDriver("nat"))
@@ -101,7 +99,7 @@ func TestFlakyPortMappedHairpinWindows(t *testing.T) {
 		container.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80"): {{HostIP: netip.IPv4Unspecified()}}}),
 		container.WithCmd("httpd", "-f"),
 	)
-	defer apiClient.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, serverId, client.ContainerRemoveOptions{Force: true})
 
 	inspect := container.Inspect(ctx, t, apiClient, serverId)
 	hostPort := inspect.NetworkSettings.Ports[networktypes.MustParsePort("80/tcp")][0].HostPort
@@ -112,6 +110,6 @@ func TestFlakyPortMappedHairpinWindows(t *testing.T) {
 		container.WithNetworkMode(clientNetName),
 		container.WithCmd("wget", "http://"+hostAddr+":"+hostPort),
 	)
-	defer apiClient.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 	assert.Check(t, is.Contains(res.Stderr.String(), "404 Not Found"))
 }
