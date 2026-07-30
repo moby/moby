@@ -46,7 +46,9 @@ func TestNatNetworkICC(t *testing.T) {
 				network.CreateNoError(ctx, t, c, tc.netName,
 					network.WithDriver("nat"),
 				)
-				defer network.RemoveNoError(ctx, t, c, tc.netName)
+				t.Cleanup(func() {
+					network.RemoveNoError(context.Background(), t, c, tc.netName)
+				})
 			}
 
 			safeName := strings.ReplaceAll(tc.name, " ", "_")
