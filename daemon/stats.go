@@ -11,6 +11,7 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/pkg/errors"
 )
 
 // ContainerStats writes information about the container to the stream
@@ -124,8 +125,10 @@ func (daemon *Daemon) GetContainerStats(ctr *container.Container) (*containertyp
 		goto done
 	}
 
-	// We already have the network stats on Windows directly from HCS.
-	if !ctr.Config.NetworkDisabled && runtime.GOOS != "windows" {
+	// On Windows, the builtin (HCS) runtime already provides network stats
+	// embedded in the stats above; the containerd runtime does not, so query
+	// them separately when they're missing.
+	if !ctr.Config.NetworkDisabled && (runtime.GOOS != "windows" || len(stats.Networks) == 0) {
 		stats.Networks, err = daemon.getNetworkStats(ctr)
 	}
 
@@ -143,4 +146,19 @@ done:
 		return nil, err
 	}
 	return stats, nil
+}
+
+// getNetworkSandboxID resolves the network SandboxID, following the chain in
+// case the container reuses another container's network stack.
+func (daemon *Daemon) getNetworkSandboxID(c *container.Container) (string, error) {
+	curr := c
+	for curr.HostConfig.NetworkMode.IsContainer() {
+		containerID := curr.HostConfig.NetworkMode.ConnectedContainer()
+		connected, err := daemon.GetContainer(containerID)
+		if err != nil {
+			return "", errors.Wrapf(err, "Could not get container for %s", containerID)
+		}
+		curr = connected
+	}
+	return curr.NetworkSettings.SandboxID, nil
 }
