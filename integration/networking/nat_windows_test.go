@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,7 +49,8 @@ func TestNatNetworkICC(t *testing.T) {
 				defer network.RemoveNoError(ctx, t, c, tc.netName)
 			}
 
-			ctr1Name := tc.name + "-ctr1"
+			safeName := strings.ReplaceAll(tc.name, " ", "_")
+			ctr1Name := safeName + "-ctr1"
 			id1 := container.Run(ctx, t, c,
 				container.WithName(ctr1Name),
 				container.WithNetworkMode(tc.netName),
@@ -59,7 +61,7 @@ func TestNatNetworkICC(t *testing.T) {
 
 			pingCmd := []string{"ping", "-n", "1", "-w", "3000", ctr1Name}
 
-			ctr2Name := tc.name + "-ctr2"
+			ctr2Name := safeName + "-ctr2"
 			// Register cleanup before RunAttach so it fires even if RunAttach exits via t.FailNow.
 			t.Cleanup(func() {
 				c.ContainerRemove(context.Background(), ctr2Name, client.ContainerRemoveOptions{Force: true}) //nolint:errcheck
