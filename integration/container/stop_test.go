@@ -67,7 +67,7 @@ func TestStopContainerWithTimeout(t *testing.T) {
 		forcefulKillExitCode = 0x40010004
 	}
 
-	testCmd := container.WithCmd("sh", "-c", "sleep 10 && exit 42")
+	testCmd := container.WithCmd("sh", "-c", "echo ready; sleep 10; exit 42")
 	testData := []struct {
 		doc              string
 		timeout          int
@@ -107,6 +107,7 @@ func TestStopContainerWithTimeout(t *testing.T) {
 			// TODO(vvoland): Investigate why it helps
 			// t.Parallel()
 			id := container.Run(ctx, t, apiClient, testCmd)
+			poll.WaitOn(t, logsContains(ctx, apiClient, id, "ready"))
 
 			_, err := apiClient.ContainerStop(ctx, id, client.ContainerStopOptions{Timeout: &tc.timeout})
 			assert.NilError(t, err)
