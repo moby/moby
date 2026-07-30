@@ -160,7 +160,7 @@ func (s *DockerCLIPluginsSuite) TestPluginInstallDisableVolumeLs(c *testing.T) {
 }
 
 func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	name := "test"
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 60*time.Second)
@@ -171,7 +171,7 @@ func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
 	devPath := "/dev/bar"
 
 	// Create a new plugin with extra settings
-	err := plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
+	err := plugin.Create(ctx, apiClient, name, func(cfg *plugin.Config) {
 		cfg.Env = []plugintypes.Env{{Name: "DEBUG", Value: &initialValue, Settable: []string{"value"}}}
 		cfg.Mounts = []plugintypes.Mount{
 			{Name: "pmount1", Settable: []string{"source"}, Type: "none", Source: &mntSrc},
@@ -344,11 +344,11 @@ func (s *DockerCLIPluginsSuite) TestPluginInspectOnWindows(c *testing.T) {
 
 func (ps *DockerPluginSuite) TestPluginIDPrefix(c *testing.T) {
 	name := "test"
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 60*time.Second)
 	initialValue := "0"
-	err := plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
+	err := plugin.Create(ctx, apiClient, name, func(cfg *plugin.Config) {
 		cfg.Env = []plugintypes.Env{{Name: "DEBUG", Value: &initialValue, Settable: []string{"value"}}}
 	})
 	cancel()
@@ -405,11 +405,11 @@ func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *testing.T) {
 	assert.NilError(c, err)
 
 	name := "test:latest"
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 60*time.Second)
 	defer cancel()
-	err = plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
+	err = plugin.Create(ctx, apiClient, name, func(cfg *plugin.Config) {
 		cfg.Description = "test plugin"
 	})
 	assert.Assert(c, err == nil, "failed to create test plugin")
