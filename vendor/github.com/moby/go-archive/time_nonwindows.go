@@ -15,12 +15,12 @@ import (
 )
 
 // chtimes changes the access and modification time of a file at the given
-// path.
+// path relative to root.
 //
 // Callers must use boundTime to ensure timestamps are within the range
 // supported by os.Chtimes.
-func chtimes(name string, atime time.Time, mtime time.Time) error {
-	return os.Chtimes(name, atime, mtime)
+func chtimes(root *os.Root, name string, atime, mtime time.Time) error {
+	return root.Chtimes(name, atime, mtime)
 }
 
 func lchtimes(root *os.Root, name string, atime, mtime time.Time) error {

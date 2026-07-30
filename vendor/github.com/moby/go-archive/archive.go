@@ -610,13 +610,13 @@ func createTarFile(root *os.Root, dstPath string, hdr *tar.Header, reader io.Rea
 		// Follow the hardlink only when its target is not itself a symlink.
 		fi, err := root.Lstat(filepath.FromSlash(path.Clean(hdr.Linkname)))
 		if err == nil && fi.Mode()&os.ModeSymlink == 0 {
-			if err := root.Chtimes(dstPath, aTime, mTime); err != nil {
+			if err := chtimes(root, dstPath, aTime, mTime); err != nil {
 				return err
 			}
 		}
 	default:
 		// All other file types follow symlinks.
-		if err := root.Chtimes(dstPath, aTime, mTime); err != nil {
+		if err := chtimes(root, dstPath, aTime, mTime); err != nil {
 			return err
 		}
 	}
@@ -996,7 +996,7 @@ loop:
 
 	for _, d := range dirs {
 		aTime := boundTime(latestTime(d.hdr.AccessTime, d.hdr.ModTime))
-		if err := root.Chtimes(d.name, aTime, boundTime(d.hdr.ModTime)); err != nil {
+		if err := chtimes(root, d.name, aTime, boundTime(d.hdr.ModTime)); err != nil {
 			return err
 		}
 	}

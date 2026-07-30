@@ -316,19 +316,40 @@ func PrepareArchiveCopy(srcContent io.Reader, srcInfo, dstInfo CopyInfo) (dstDir
 	}
 }
 
+// newNameRebaser returns a function that replaces oldBase with newBase at the
+// beginning of POSIX-style archive entry names. It converts oldBase and newBase
+// to forward-slash form and trims trailing slashes.
+//
+// When rebasing from the archive root, the returned function removes all
+// leading slashes from names. It otherwise preserves the remainder verbatim
+// and does not clean or canonicalize paths.
+func newNameRebaser(oldBase, newBase string) func(string) string {
+	oldBase = strings.TrimRight(filepath.ToSlash(oldBase), "/")
+	newBase = strings.TrimRight(filepath.ToSlash(newBase), "/")
+
+	if oldBase == "" {
+		return func(name string) string {
+			name = strings.TrimLeft(name, "/")
+			if newBase == "" {
+				return name
+			}
+			return newBase + "/" + name
+		}
+	}
+
+	return func(name string) string {
+		suffix, ok := strings.CutPrefix(name, oldBase)
+		if !ok || suffix != "" && !strings.HasPrefix(suffix, "/") {
+			return name
+		}
+		return newBase + suffix
+	}
+}
+
 // RebaseArchiveEntries rewrites the given srcContent archive replacing
 // an occurrence of oldBase with newBase at the beginning of entry names.
 func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.ReadCloser {
-	oldBase = filepath.ToSlash(oldBase)
-	newBase = filepath.ToSlash(newBase)
-
-	if oldBase == "/" {
-		// If oldBase specifies the root directory, use an empty string as
-		// oldBase instead so that newBase doesn't replace the path separator
-		// that all paths will start with.
-		oldBase = ""
-	}
-
+	rebase := newNameRebaser(oldBase, newBase)
 	rebased, w := io.Pipe()
 
 	go func() {
@@ -356,9 +377,9 @@ func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.Read
 			//
 			// To fix, set the format to PAX here. See docker/for-linux issue #484.
 			hdr.Format = tar.FormatPAX
-			hdr.Name = strings.Replace(hdr.Name, oldBase, newBase, 1)
+			hdr.Name = rebase(hdr.Name)
 			if hdr.Typeflag == tar.TypeLink {
-				hdr.Linkname = strings.Replace(hdr.Linkname, oldBase, newBase, 1)
+				hdr.Linkname = rebase(hdr.Linkname)
 			}
 
 			if err = rebasedTar.WriteHeader(hdr); err != nil {
