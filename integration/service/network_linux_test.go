@@ -334,3 +334,96 @@ func TestRestoreIngressRulesOnFirewalldReload(t *testing.T) {
 	// It takes a while before this works ...
 	poll.WaitOn(t, checkHTTP, poll.WithTimeout(30*time.Second))
 }
+
+// TestServiceVIPAcrossRollingUpdate checks that a service's VIP keeps carrying
+// connections while the task behind it is replaced. Start-first ordering makes
+// the replacement task run before the one it replaces stops, which is what
+// leaves the load balancer holding both backends and having to keep the VIP
+// serving through the handover.
+func TestServiceVIPAcrossRollingUpdate(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
+	skip.If(t, strings.HasPrefix(testEnv.FirewallBackendDriver(), "nftables"), "swarm cannot be used with nftables")
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv, daemon.WithSwarmIptables(true))
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const netName = "svipu-net"
+	netID := net.CreateNoError(ctx, t, c, netName,
+		net.WithDriver("overlay"),
+		// Attachable so a plain container can join and address the VIP.
+		net.WithAttachable(),
+	)
+
+	serviceID := swarm.CreateService(ctx, t, d,
+		swarm.ServiceWithName("test-svipu"),
+		swarm.ServiceWithCommand([]string{"httpd", "-f"}),
+		swarm.ServiceWithNetwork(netName),
+		func(spec *swarmtypes.ServiceSpec) {
+			// Start the replacement task before stopping the one it replaces, so the
+			// load balancer holds both backends at once and has to keep the VIP
+			// serving through the handover. Under the default stop-first order the
+			// old backend is gone before the new one arrives, and the VIP is
+			// briefly backed by nothing at all - a weaker thing to assert.
+			spec.UpdateConfig = &swarmtypes.UpdateConfig{Order: swarmtypes.UpdateOrderStartFirst}
+		},
+	)
+	defer func() {
+		_, err := c.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
+		assert.NilError(t, err)
+	}()
+	t.Log("Waiting for the service to start")
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, serviceID, 1), swarm.ServicePoll)
+
+	svc := getService(ctx, t, c, serviceID)
+	var vip string
+	for _, v := range svc.Endpoint.VirtualIPs {
+		if v.NetworkID == netID {
+			vip = v.Addr.Addr().String()
+		}
+	}
+	assert.Assert(t, vip != "", "no VIP allocated on %s: %+v", netName, svc.Endpoint.VirtualIPs)
+	t.Log("Service VIP is", vip)
+
+	clientID := container.Run(ctx, t, c, container.WithNetworkMode(netName))
+	defer c.ContainerRemove(ctx, clientID, client.ContainerRemoveOptions{Force: true})
+
+	// The tasks run httpd with nothing to serve, so a "404 Not Found" is the proof
+	// that the request reached one through the VIP - anything short of a task
+	// answering is a connection error instead.
+	checkVIP := func(_ poll.LogT) poll.Result {
+		res, err := container.Exec(ctx, c, clientID,
+			[]string{"wget", "-T1", "-t1", "-O-", "http://" + vip + "/"})
+		if err != nil {
+			return poll.Error(err)
+		}
+		if !strings.Contains(res.Combined(), "404 Not Found") {
+			return poll.Continue("404 Not Found not found in: %s", res.Combined())
+		}
+		return poll.Success()
+	}
+
+	t.Log("Checking VIP access before the update")
+	poll.WaitOn(t, checkVIP, poll.WithTimeout(30*time.Second))
+
+	// Roll the task without changing anything else about the service. Nothing here
+	// depends on what triggered the rollout, only that one task replaces another
+	// under the VIP.
+	t.Log("Forcing a rolling update")
+	svc.Spec.TaskTemplate.ForceUpdate++
+	_, err := c.ServiceUpdate(ctx, serviceID, client.ServiceUpdateOptions{
+		Version: svc.Version,
+		Spec:    svc.Spec,
+	})
+	assert.NilError(t, err)
+	poll.WaitOn(t, serviceIsUpdated(ctx, c, serviceID), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, serviceID, 1), swarm.ServicePoll)
+
+	// Back to one running task, and it is not the one that answered above. The VIP
+	// has to resolve to the replacement.
+	t.Log("Checking VIP access after the update")
+	poll.WaitOn(t, checkVIP, poll.WithTimeout(30*time.Second))
+}
