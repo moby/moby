@@ -11,8 +11,8 @@ The smithy-go runtime requires a minimum version of Go 1.24.
 ## :warning: Client codegen is unstable
 
 The client code generator in this repository powers the aws-sdk-go-v2.
-Arbitrary client generation, while technically possible, is in an early stage
-of development:
+Arbitrary client generation, while possible, is in an early stage of
+development:
 
 * Generated clients are missing certain features that were originally
   implemented SDK-side (e.g. retries)
@@ -31,8 +31,6 @@ This repository implements the following Smithy build plugins:
 | `go-codegen`        | `software.amazon.smithy.go:smithy-go-codegen` | Implements Go client code generation for Smithy models. |
 | `go-server-codegen` | `software.amazon.smithy.go:smithy-go-codegen` | Implements Go server code generation for Smithy models. |
 | `go-shape-codegen` | `software.amazon.smithy.go:smithy-go-codegen` | Implements Go shape code generation (types only) for Smithy models. |
-
-**NOTE: Build plugins are not currently published to mavenCentral. You must publish to mavenLocal to make the build plugins visible to the Smithy CLI. The artifact version is currently fixed at 0.1.0.**
 
 ## `go-codegen`
 
@@ -79,7 +77,7 @@ example created from `smithy init`:
   ],
   "maven": {
     "dependencies": [
-      "software.amazon.smithy.go:smithy-go-codegen:0.1.0"
+      "software.amazon.smithy.go:smithy-go-codegen:[0.1.0,2.0)"
     ]
   },
   "plugins": {
