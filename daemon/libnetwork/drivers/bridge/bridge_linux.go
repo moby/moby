@@ -61,11 +61,6 @@ const (
 
 const spanPrefix = "libnetwork.drivers.bridge"
 
-// DockerForwardChain is where libnetwork.programIngress puts Swarm's jump to DOCKER-INGRESS.
-//
-// FIXME(robmry) - it doesn't belong here.
-const DockerForwardChain = iptabler.DockerForwardChain
-
 // Configuration info for the "bridge" driver.
 type Configuration struct {
 	EnableIPForwarding       bool

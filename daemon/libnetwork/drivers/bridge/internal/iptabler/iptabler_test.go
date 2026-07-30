@@ -34,7 +34,7 @@ func TestCleanupIptableRules(t *testing.T) {
 		// The filter-FORWARD chain has a reference to dockerForwardChain, so it won't be
 		// removed - but it should be flushed. (This has long/always been the case for
 		// the daemon, its filter-FORWARD rules aren't removed.)
-		{name: DockerForwardChain, table: iptables.Filter},
+		{name: dockerForwardChain, table: iptables.Filter},
 		{name: dockerCTChain, table: iptables.Filter, expRemoved: true},
 		{name: dockerBridgeChain, table: iptables.Filter, expRemoved: true},
 		{name: dockerChain, table: iptables.Filter, expRemoved: true},
