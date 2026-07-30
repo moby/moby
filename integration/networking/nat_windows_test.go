@@ -48,16 +48,22 @@ func TestNatNetworkICC(t *testing.T) {
 				defer network.RemoveNoError(ctx, t, c, tc.netName)
 			}
 
-			const ctr1Name = "ctr1"
+			ctr1Name := tc.name + "-ctr1"
 			id1 := container.Run(ctx, t, c,
 				container.WithName(ctr1Name),
 				container.WithNetworkMode(tc.netName),
 			)
-			defer c.ContainerRemove(ctx, id1, client.ContainerRemoveOptions{Force: true})
+			t.Cleanup(func() {
+				c.ContainerRemove(context.Background(), id1, client.ContainerRemoveOptions{Force: true}) //nolint:errcheck
+			})
 
 			pingCmd := []string{"ping", "-n", "1", "-w", "3000", ctr1Name}
 
-			const ctr2Name = "ctr2"
+			ctr2Name := tc.name + "-ctr2"
+			// Register cleanup before RunAttach so it fires even if RunAttach exits via t.FailNow.
+			t.Cleanup(func() {
+				c.ContainerRemove(context.Background(), ctr2Name, client.ContainerRemoveOptions{Force: true}) //nolint:errcheck
+			})
 			attachCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 			defer cancel()
 			res := container.RunAttach(attachCtx, t, c,
@@ -65,7 +71,6 @@ func TestNatNetworkICC(t *testing.T) {
 				container.WithCmd(pingCmd...),
 				container.WithNetworkMode(tc.netName),
 			)
-			defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 
 			assert.Check(t, is.Equal(res.ExitCode, 0))
 			assert.Check(t, is.Equal(res.Stderr.Len(), 0))
