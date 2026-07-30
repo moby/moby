@@ -343,7 +343,7 @@ func (s *DockerCLIPluginsSuite) TestPluginInspectOnWindows(c *testing.T) {
 }
 
 func (ps *DockerPluginSuite) TestPluginIDPrefix(c *testing.T) {
-	name := "test"
+	const name = "test-plugin-id-prefix"
 	apiClient := testEnv.APIClient()
 
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 60*time.Second)
@@ -404,7 +404,7 @@ func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *testing.T) {
 	err = os.WriteFile(filepath.Join(config, "config.json"), []byte(`{"pluginsFormat": "raw"}`), 0o644)
 	assert.NilError(c, err)
 
-	name := "test:latest"
+	const name = "plugin-list-test:latest"
 	apiClient := testEnv.APIClient()
 
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 60*time.Second)
@@ -471,7 +471,7 @@ func (s *DockerCLIPluginsSuite) TestPluginMetricsCollector(c *testing.T) {
 	// plugin listens on localhost:19393 and proxies the metrics
 	resp, err := http.Get("http://localhost:19393/metrics")
 	assert.NilError(c, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	b, err := io.ReadAll(resp.Body)
 	assert.NilError(c, err)
