@@ -198,14 +198,14 @@ func TestNslookupWindows(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
 
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	attachCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	res := container.RunAttach(attachCtx, t, c,
+	res := container.RunAttach(attachCtx, t, apiClient,
 		container.WithCmd("nslookup", "docker.com"),
 	)
-	defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+	defer apiClient.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 
 	assert.Check(t, is.Equal(res.ExitCode, 0))
 	// Current default is to forward requests to external servers, which
