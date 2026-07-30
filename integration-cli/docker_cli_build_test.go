@@ -3576,7 +3576,6 @@ RUN [ $(ls -l /test | awk '{print $3":"$4}') = 'root:root' ]
 }
 
 func (s *DockerCLIBuildSuite) TestBuildSymlinkBreakout(c *testing.T) {
-	skip.If(c, testEnv.UsingSnapshotter(), "FIXME: https://github.com/moby/moby/issues/47107")
 	const name = "testbuildsymlinkbreakout"
 	tmpdir, err := os.MkdirTemp("", name)
 	assert.NilError(c, err)
@@ -3591,9 +3590,9 @@ func (s *DockerCLIBuildSuite) TestBuildSymlinkBreakout(c *testing.T) {
 		c.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(ctx, "Dockerfile"), []byte(`
-	from busybox
-	add symlink.tar /
-	add inject /symlink/
+	FROM `+minimalBaseImage()+`
+	ADD symlink.tar /
+	ADD inject /symlink/
 	`), 0o644); err != nil {
 		c.Fatal(err)
 	}
