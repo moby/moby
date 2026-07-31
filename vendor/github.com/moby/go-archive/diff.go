@@ -29,8 +29,9 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 	tr := tar.NewReader(layer)
 
 	var dirs []unpackedDir
-	// unpackedPaths tracks root-relative paths already written in this layer
-	// so that the AUFS opaque-whiteout walk knows which paths to preserve.
+	// unpackedPaths tracks resolved, native-separator, root-relative paths
+	// already written in this layer so that the AUFS opaque-whiteout walk
+	// knows which paths to preserve.
 	unpackedPaths := make(map[string]struct{})
 
 	if options == nil {
@@ -71,12 +72,6 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 			continue
 		}
 
-		// Ensure that the parent directory exists.
-		err = createImpliedDirectories(root, hdr, options)
-		if err != nil {
-			return 0, err
-		}
-
 		// Skip AUFS metadata dirs
 		if strings.HasPrefix(hdr.Name, WhiteoutMetaPrefix) {
 			// Regular files inside /.wh..wh.plnk can be used as hardlink targets
@@ -109,10 +104,15 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 		// dstPath is the native (host-separator) form of the entry name,
 		// used at all filesystem boundaries (os.Root methods, fsRootPath).
 		// The tar-header name (hdr.Name) is POSIX, so convert it here.
-		dstPath := filepath.FromSlash(hdr.Name)
-		base := filepath.Base(dstPath)
-
-		if strings.HasPrefix(base, WhiteoutPrefix) {
+		dstPath, err := resolveArchivePath(root, filepath.FromSlash(hdr.Name))
+		if err != nil {
+			return 0, err
+		}
+		// Ensure that the parent directory exists.
+		if err := createImpliedDirectories(root, dstPath, options); err != nil {
+			return 0, err
+		}
+		if base := filepath.Base(dstPath); strings.HasPrefix(base, WhiteoutPrefix) {
 			dir := filepath.Dir(dstPath)
 			if base == WhiteoutOpaqueDir {
 				_, err := root.Lstat(dir)
@@ -144,9 +144,9 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 						return err
 					}
 
-					// unpackedPaths is keyed by root-relative slash paths; convert
-					// filepath.WalkDir's native path before looking it up.
-					if _, exists := unpackedPaths[filepath.ToSlash(rel)]; !exists {
+					// unpackedPaths is keyed by resolved, native-separator,
+					// root-relative paths, matching filepath.WalkDir's paths.
+					if _, exists := unpackedPaths[rel]; !exists {
 						return root.RemoveAll(rel)
 					}
 					return nil
@@ -206,9 +206,9 @@ func UnpackLayer(dest string, layer io.Reader, options *TarOptions) (size int64,
 			if hdr.Typeflag == tar.TypeDir {
 				dirs = append(dirs, unpackedDir{hdr: hdr, name: dstPath})
 			}
-			// unpackedPaths is keyed by the POSIX (forward-slash) name so it
-			// matches the ToSlash'd lookup in the opaque-whiteout walk above.
-			unpackedPaths[hdr.Name] = struct{}{}
+			// Record the resolved, native-separator, root-relative path so it
+			// matches the paths produced by the opaque-whiteout walk.
+			unpackedPaths[dstPath] = struct{}{}
 		}
 	}
 
