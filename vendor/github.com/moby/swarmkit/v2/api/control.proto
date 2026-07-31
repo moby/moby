@@ -2,10 +2,11 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
+option go_package = "github.com/moby/swarmkit/v2/api";
+
 import "github.com/docker/swarmkit/api/specs.proto";
 import "github.com/docker/swarmkit/api/objects.proto";
 import "github.com/docker/swarmkit/api/types.proto";
-import "gogoproto/gogo.proto";
 import "google/protobuf/any.proto";
 import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
@@ -565,7 +566,7 @@ message UpdateClusterRequest {
 	ClusterSpec spec = 3;
 
 	// Rotation contains flags for join token and unlock key rotation
-	KeyRotation rotation = 4 [(gogoproto.nullable) = false];
+	KeyRotation rotation = 4;
 }
 
 message UpdateClusterResponse {

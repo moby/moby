@@ -7,9 +7,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/proto"
 )
 
 // This package defines the interfaces and encryption package
@@ -27,7 +27,7 @@ func (e ErrCannotDecrypt) Error() string {
 
 // A Decrypter can decrypt an encrypted record
 type Decrypter interface {
-	Decrypt(api.MaybeEncryptedRecord) ([]byte, error)
+	Decrypt(*api.MaybeEncryptedRecord) ([]byte, error)
 }
 
 // A Encrypter can encrypt some bytes into an encrypted record
@@ -37,7 +37,7 @@ type Encrypter interface {
 
 type noopCrypter struct{}
 
-func (n noopCrypter) Decrypt(e api.MaybeEncryptedRecord) ([]byte, error) {
+func (n noopCrypter) Decrypt(e *api.MaybeEncryptedRecord) ([]byte, error) {
 	if e.Algorithm != n.Algorithm() {
 		return nil, fmt.Errorf("record is encrypted")
 	}
@@ -52,7 +52,7 @@ func (n noopCrypter) Encrypt(data []byte) (*api.MaybeEncryptedRecord, error) {
 }
 
 func (n noopCrypter) Algorithm() api.MaybeEncryptedRecord_Algorithm {
-	return api.MaybeEncryptedRecord_NotEncrypted
+	return api.MaybeEncryptedRecord_NONE
 }
 
 // NoopCrypter is just a pass-through crypter - it does not actually encrypt or
@@ -79,7 +79,7 @@ type MultiDecrypter struct {
 }
 
 // Decrypt tries to decrypt using any decrypters that match the given algorithm.
-func (m MultiDecrypter) Decrypt(r api.MaybeEncryptedRecord) ([]byte, error) {
+func (m MultiDecrypter) Decrypt(r *api.MaybeEncryptedRecord) ([]byte, error) {
 	decrypters, ok := m.decrypters[r.Algorithm]
 	if !ok {
 		return nil, fmt.Errorf("cannot decrypt record encrypted using %s",
@@ -120,8 +120,8 @@ func Decrypt(encryptd []byte, decrypter Decrypter) ([]byte, error) {
 	if decrypter == nil {
 		return nil, ErrCannotDecrypt{msg: "no decrypter specified"}
 	}
-	r := api.MaybeEncryptedRecord{}
-	if err := proto.Unmarshal(encryptd, &r); err != nil {
+	r := &api.MaybeEncryptedRecord{}
+	if err := proto.Unmarshal(encryptd, r); err != nil {
 		// nope, this wasn't marshalled as a MaybeEncryptedRecord
 		return nil, ErrCannotDecrypt{msg: "unable to unmarshal as MaybeEncryptedRecord"}
 	}

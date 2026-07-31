@@ -43,17 +43,17 @@ func init() {
 			}
 			return RestoreTable(tx, tableSecret, toStoreObj)
 		},
-		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
+		ApplyStoreAction: func(tx Tx, sa *api.StoreAction) error {
 			switch v := sa.Target.(type) {
 			case *api.StoreAction_Secret:
 				obj := v.Secret
 				switch sa.Action {
-				case api.StoreActionKindCreate:
+				case api.StoreActionKind_STORE_ACTION_CREATE:
 					return CreateSecret(tx, obj)
-				case api.StoreActionKindUpdate:
+				case api.StoreActionKind_STORE_ACTION_UPDATE:
 					return UpdateSecret(tx, obj)
-				case api.StoreActionKindRemove:
-					return DeleteSecret(tx, obj.ID)
+				case api.StoreActionKind_STORE_ACTION_REMOVE:
+					return DeleteSecret(tx, obj.Id)
 				}
 			}
 			return errUnknownStoreAction
@@ -65,7 +65,7 @@ func init() {
 // Returns ErrExist if the ID is already taken.
 func CreateSecret(tx Tx, s *api.Secret) error {
 	// Ensure the name is not already in use.
-	if tx.lookup(tableSecret, indexName, strings.ToLower(s.Spec.Annotations.Name)) != nil {
+	if tx.lookup(tableSecret, indexName, strings.ToLower(s.GetSpec().GetAnnotations().GetName())) != nil {
 		return ErrNameConflict
 	}
 
@@ -76,8 +76,8 @@ func CreateSecret(tx Tx, s *api.Secret) error {
 // Returns ErrNotExist if the secret doesn't exist.
 func UpdateSecret(tx Tx, s *api.Secret) error {
 	// Ensure the name is either not in use or already used by this same Secret.
-	if existing := tx.lookup(tableSecret, indexName, strings.ToLower(s.Spec.Annotations.Name)); existing != nil {
-		if existing.GetID() != s.ID {
+	if existing := tx.lookup(tableSecret, indexName, strings.ToLower(s.GetSpec().GetAnnotations().GetName())); existing != nil {
+		if existing.GetId() != s.Id {
 			return ErrNameConflict
 		}
 	}

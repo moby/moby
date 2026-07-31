@@ -92,7 +92,7 @@ func remove(na, r *api.GenericResource) bool {
 		}
 
 		na.GetDiscreteResourceSpec().Value -= tr.DiscreteResourceSpec.Value
-		if na.GetDiscreteResourceSpec().Value <= 0 {
+		if na.GetDiscreteResourceSpec().GetValue() <= 0 {
 			return true
 		}
 	case *api.GenericResource_NamedResourceSpec:
@@ -100,7 +100,7 @@ func remove(na, r *api.GenericResource) bool {
 			return false // Type change, ignore
 		}
 
-		if tr.NamedResourceSpec.Value != na.GetNamedResourceSpec().Value {
+		if tr.NamedResourceSpec.Value != na.GetNamedResourceSpec().GetValue() {
 			return false // not the right item, ignore
 		}
 

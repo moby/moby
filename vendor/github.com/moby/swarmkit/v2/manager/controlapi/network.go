@@ -81,7 +81,7 @@ func (s *Server) validateNetworkSpec(spec *api.NetworkSpec) error {
 		return err
 	}
 
-	if _, ok := spec.Annotations.Labels[networkallocator.PredefinedLabel]; ok {
+	if _, ok := spec.GetAnnotations().GetLabels()[networkallocator.PredefinedLabel]; ok {
 		return status.Errorf(codes.PermissionDenied, "label %s is for internally created predefined networks and cannot be applied by users",
 			networkallocator.PredefinedLabel)
 	}
@@ -96,7 +96,7 @@ func (s *Server) validateNetworkSpec(spec *api.NetworkSpec) error {
 		return err
 	}
 
-	return s.validateIPAM(spec.IPAM)
+	return s.validateIPAM(spec.Ipam)
 }
 
 // CreateNetwork creates and returns a Network based on the provided NetworkSpec.
@@ -110,14 +110,14 @@ func (s *Server) CreateNetwork(_ context.Context, request *api.CreateNetworkRequ
 	// TODO(mrjana): Consider using `Name` as a primary key to handle
 	// duplicate creations. See #65
 	n := &api.Network{
-		ID:   identity.NewID(),
-		Spec: *request.Spec,
+		Id:   identity.NewID(),
+		Spec: request.Spec,
 	}
 
 	err := s.store.Update(func(tx store.Tx) error {
-		if request.Spec.Ingress {
+		if request.Spec.GetIngress() {
 			if n, err := allocator.GetIngressNetwork(s.store); err == nil {
-				return status.Errorf(codes.AlreadyExists, "ingress network (%s) is already present", n.ID)
+				return status.Errorf(codes.AlreadyExists, "ingress network (%s) is already present", n.Id)
 			} else if err != allocator.ErrNoIngress {
 				return status.Errorf(codes.Internal, "failed ingress network presence check: %v", err)
 			}
@@ -137,16 +137,16 @@ func (s *Server) CreateNetwork(_ context.Context, request *api.CreateNetworkRequ
 // - Returns `InvalidArgument` if NetworkID is not provided.
 // - Returns `NotFound` if the Network is not found.
 func (s *Server) GetNetwork(ctx context.Context, request *api.GetNetworkRequest) (*api.GetNetworkResponse, error) {
-	if request.NetworkID == "" {
+	if request.NetworkId == "" {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	var n *api.Network
 	s.store.View(func(tx store.ReadTx) {
-		n = store.GetNetwork(tx, request.NetworkID)
+		n = store.GetNetwork(tx, request.NetworkId)
 	})
 	if n == nil {
-		return nil, status.Errorf(codes.NotFound, "network %s not found", request.NetworkID)
+		return nil, status.Errorf(codes.NotFound, "network %s not found", request.NetworkId)
 	}
 	if err := s.networkhooks().OnGetNetwork(ctx, n, request.Appdata.GetTypeUrl(), request.Appdata.GetValue()); err != nil {
 		return nil, err
@@ -161,7 +161,7 @@ func (s *Server) GetNetwork(ctx context.Context, request *api.GetNetworkRequest)
 // - Returns `NotFound` if the Network is not found.
 // - Returns an error if the deletion fails.
 func (s *Server) RemoveNetwork(_ context.Context, request *api.RemoveNetworkRequest) (*api.RemoveNetworkResponse, error) {
-	if request.NetworkID == "" {
+	if request.NetworkId == "" {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
@@ -171,24 +171,24 @@ func (s *Server) RemoveNetwork(_ context.Context, request *api.RemoveNetworkRequ
 	)
 
 	s.store.View(func(tx store.ReadTx) {
-		n = store.GetNetwork(tx, request.NetworkID)
+		n = store.GetNetwork(tx, request.NetworkId)
 	})
 	if n == nil {
-		return nil, status.Errorf(codes.NotFound, "network %s not found", request.NetworkID)
+		return nil, status.Errorf(codes.NotFound, "network %s not found", request.NetworkId)
 	}
 
 	if allocator.IsIngressNetwork(n) {
 		rm = s.removeIngressNetwork
 	}
 
-	if v, ok := n.Spec.Annotations.Labels[networkallocator.PredefinedLabel]; ok && v == "true" {
+	if v, ok := n.GetSpec().GetAnnotations().GetLabels()[networkallocator.PredefinedLabel]; ok && v == "true" {
 		return nil, status.Errorf(codes.FailedPrecondition, "network %s (%s) is a swarm predefined network and cannot be removed",
-			request.NetworkID, n.Spec.Annotations.Name)
+			request.NetworkId, n.GetSpec().GetAnnotations().GetName())
 	}
 
-	if err := rm(n.ID); err != nil {
+	if err := rm(n.Id); err != nil {
 		if err == store.ErrNotExist {
-			return nil, status.Errorf(codes.NotFound, "network %s not found", request.NetworkID)
+			return nil, status.Errorf(codes.NotFound, "network %s not found", request.NetworkId)
 		}
 		return nil, err
 	}
@@ -203,7 +203,7 @@ func (s *Server) removeNetwork(id string) error {
 		}
 
 		if len(services) != 0 {
-			return status.Errorf(codes.FailedPrecondition, "network %s is in use by service %s", id, services[0].ID)
+			return status.Errorf(codes.FailedPrecondition, "network %s is in use by service %s", id, services[0].Id)
 		}
 
 		tasks, err := store.FindTasks(tx, store.ByReferencedNetworkID(id))
@@ -212,8 +212,8 @@ func (s *Server) removeNetwork(id string) error {
 		}
 
 		for _, t := range tasks {
-			if t.DesiredState <= api.TaskStateRunning && t.Status.State <= api.TaskStateRunning {
-				return status.Errorf(codes.FailedPrecondition, "network %s is in use by task %s", id, t.ID)
+			if t.DesiredState <= api.TaskState_RUNNING && t.Status.GetState() <= api.TaskState_RUNNING {
+				return status.Errorf(codes.FailedPrecondition, "network %s is in use by task %s", id, t.Id)
 			}
 		}
 
@@ -229,7 +229,7 @@ func (s *Server) removeIngressNetwork(id string) error {
 		}
 		for _, srv := range services {
 			if allocator.IsIngressNetworkNeeded(srv) {
-				return status.Errorf(codes.FailedPrecondition, "ingress network cannot be removed because service %s depends on it", srv.ID)
+				return status.Errorf(codes.FailedPrecondition, "ingress network cannot be removed because service %s depends on it", srv.Id)
 			}
 		}
 		return store.DeleteNetwork(tx, id)
@@ -268,8 +268,8 @@ func (s *Server) ListNetworks(ctx context.Context, request *api.ListNetworksRequ
 			networks, err = store.FindNetworks(tx, buildFilters(store.ByName, request.Filters.Names))
 		case request.Filters != nil && len(request.Filters.NamePrefixes) > 0:
 			networks, err = store.FindNetworks(tx, buildFilters(store.ByNamePrefix, request.Filters.NamePrefixes))
-		case request.Filters != nil && len(request.Filters.IDPrefixes) > 0:
-			networks, err = store.FindNetworks(tx, buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes))
+		case request.Filters != nil && len(request.Filters.IdPrefixes) > 0:
+			networks, err = store.FindNetworks(tx, buildFilters(store.ByIDPrefix, request.Filters.IdPrefixes))
 		default:
 			networks, err = store.FindNetworks(tx, store.All)
 		}
@@ -281,16 +281,16 @@ func (s *Server) ListNetworks(ctx context.Context, request *api.ListNetworksRequ
 	if request.Filters != nil {
 		networks = filterNetworks(networks,
 			func(e *api.Network) bool {
-				return filterContains(e.Spec.Annotations.Name, request.Filters.Names)
+				return filterContains(e.GetSpec().GetAnnotations().GetName(), request.Filters.Names)
 			},
 			func(e *api.Network) bool {
-				return filterContainsPrefix(e.Spec.Annotations.Name, request.Filters.NamePrefixes)
+				return filterContainsPrefix(e.GetSpec().GetAnnotations().GetName(), request.Filters.NamePrefixes)
 			},
 			func(e *api.Network) bool {
-				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)
+				return filterContainsPrefix(e.Id, request.Filters.IdPrefixes)
 			},
 			func(e *api.Network) bool {
-				return filterMatchLabels(e.Spec.Annotations.Labels, request.Filters.Labels)
+				return filterMatchLabels(e.GetSpec().GetAnnotations().GetLabels(), request.Filters.Labels)
 			},
 		)
 	}

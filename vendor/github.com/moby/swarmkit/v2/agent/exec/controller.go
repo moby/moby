@@ -50,19 +50,19 @@ type Controller interface {
 type ControllerLogs interface {
 	// Logs will write publisher until the context is cancelled or an error
 	// occurs.
-	Logs(ctx context.Context, publisher LogPublisher, options api.LogSubscriptionOptions) error
+	Logs(ctx context.Context, publisher LogPublisher, options *api.LogSubscriptionOptions) error
 }
 
 // LogPublisher defines the protocol for receiving a log message.
 type LogPublisher interface {
-	Publish(ctx context.Context, message api.LogMessage) error
+	Publish(ctx context.Context, message *api.LogMessage) error
 }
 
 // LogPublisherFunc implements publisher with just a function.
-type LogPublisherFunc func(ctx context.Context, message api.LogMessage) error
+type LogPublisherFunc func(ctx context.Context, message *api.LogMessage) error
 
 // Publish calls the wrapped function.
-func (fn LogPublisherFunc) Publish(ctx context.Context, message api.LogMessage) error {
+func (fn LogPublisherFunc) Publish(ctx context.Context, message *api.LogMessage) error {
 	return fn(ctx, message)
 }
 
@@ -93,10 +93,10 @@ type PortStatuser interface {
 // Unlike Do, if an error is returned, the status should still be reported. The
 // error merely reports the failure at getting the controller.
 func Resolve(ctx context.Context, task *api.Task, executor Executor) (Controller, *api.TaskStatus, error) {
-	status := task.Status.Copy()
+	status := statusOf(task)
 
 	defer func() {
-		logStateChange(ctx, task.DesiredState, task.Status.State, status.State)
+		logStateChange(ctx, task.DesiredState, task.Status.GetState(), status.State)
 	}()
 
 	ctlr, err := executor.Controller(task)
@@ -109,15 +109,15 @@ func Resolve(ctx context.Context, task *api.Task, executor Executor) (Controller
 		// before the task has been started, we consider it a rejection.
 		// if task is running, consider the task has failed
 		// otherwise keep the existing state
-		if task.Status.State < api.TaskStateStarting {
-			status.State = api.TaskStateRejected
-		} else if task.Status.State <= api.TaskStateRunning {
-			status.State = api.TaskStateFailed
+		if task.Status.GetState() < api.TaskState_STARTING {
+			status.State = api.TaskState_REJECTED
+		} else if task.Status.GetState() <= api.TaskState_RUNNING {
+			status.State = api.TaskState_FAILED
 		}
-	} else if task.Status.State < api.TaskStateAccepted {
+	} else if task.Status.GetState() < api.TaskState_ACCEPTED {
 		// we always want to proceed to accepted when we resolve the controller
 		status.Message = "accepted"
-		status.State = api.TaskStateAccepted
+		status.State = api.TaskState_ACCEPTED
 		status.Err = ""
 	}
 
@@ -140,7 +140,7 @@ func Resolve(ctx context.Context, task *api.Task, executor Executor) (Controller
 // change. If ErrTaskDead is returned, calls to Do will no longer result in any
 // action.
 func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, error) {
-	status := task.Status.Copy()
+	status := statusOf(task)
 
 	// stay in the current state.
 	noop := func(_ ...error) (*api.TaskStatus, error) {
@@ -212,10 +212,10 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 		// NOTE(stevvooe): The following switch dictates the terminal failure
 		// state based on the state in which the failure was encountered.
 		switch {
-		case status.State < api.TaskStateStarting:
-			status.State = api.TaskStateRejected
-		case status.State >= api.TaskStateStarting:
-			status.State = api.TaskStateFailed
+		case status.State < api.TaskState_STARTING:
+			status.State = api.TaskState_REJECTED
+		case status.State >= api.TaskState_STARTING:
+			status.State = api.TaskState_FAILED
 		}
 
 		return status, nil
@@ -224,9 +224,9 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 	// below, we have several callbacks that are run after the state transition
 	// is completed.
 	defer func() {
-		logStateChange(ctx, task.DesiredState, task.Status.State, status.State)
+		logStateChange(ctx, task.DesiredState, task.Status.GetState(), status.State)
 
-		if !equality.TaskStatusesEqualStable(status, &task.Status) {
+		if !equality.TaskStatusesEqualStable(status, task.Status) {
 			status.Timestamp = ptypes.MustTimestampProto(time.Now())
 		}
 	}()
@@ -234,7 +234,7 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 	// extract the container status from the container, if supported.
 	defer func() {
 		// only do this if in an active state
-		if status.State < api.TaskStateStarting {
+		if status.State < api.TaskState_STARTING {
 			return
 		}
 
@@ -254,10 +254,11 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 			// at this point, things have gone fairly wrong. Remain positive
 			// and let's get something out the door.
 			if containerStatus == nil {
-				containerStatus = new(api.ContainerStatus)
-				containerStatusTask := task.Status.GetContainer()
-				if containerStatusTask != nil {
-					*containerStatus = *containerStatusTask // copy it over.
+				// Deep-copy, as the task's container status is owned by the
+				// caller and must not be aliased into the status we return.
+				containerStatus = task.Status.GetContainer().Copy()
+				if containerStatus == nil {
+					containerStatus = new(api.ContainerStatus)
 				}
 			}
 		}
@@ -289,8 +290,8 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 
 	// this branch bounds the largest state achievable in the agent as SHUTDOWN, which
 	// is exactly the correct behavior for the agent.
-	if task.DesiredState >= api.TaskStateShutdown {
-		if status.State >= api.TaskStateCompleted {
+	if task.DesiredState >= api.TaskState_SHUTDOWN {
+		if status.State >= api.TaskState_COMPLETE {
 			return noop()
 		}
 
@@ -298,7 +299,7 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 			return fatal(err)
 		}
 
-		return transition(api.TaskStateShutdown, "shutdown")
+		return transition(api.TaskState_SHUTDOWN, "shutdown")
 	}
 
 	if status.State > task.DesiredState {
@@ -307,24 +308,24 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 
 	// the following states may proceed past desired state.
 	switch status.State {
-	case api.TaskStatePreparing:
+	case api.TaskState_PREPARING:
 		if err := ctlr.Prepare(ctx); err != nil && err != ErrTaskPrepared {
 			return fatal(err)
 		}
 
-		return transition(api.TaskStateReady, "prepared")
-	case api.TaskStateStarting:
+		return transition(api.TaskState_READY, "prepared")
+	case api.TaskState_STARTING:
 		if err := ctlr.Start(ctx); err != nil && err != ErrTaskStarted {
 			return fatal(err)
 		}
 
-		return transition(api.TaskStateRunning, "started")
-	case api.TaskStateRunning:
+		return transition(api.TaskState_RUNNING, "started")
+	case api.TaskState_RUNNING:
 		if err := ctlr.Wait(ctx); err != nil {
 			return fatal(err)
 		}
 
-		return transition(api.TaskStateCompleted, "finished")
+		return transition(api.TaskState_COMPLETE, "finished")
 	}
 
 	// The following represent "pause" states. We can only proceed when the
@@ -334,15 +335,26 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 	}
 
 	switch status.State {
-	case api.TaskStateNew, api.TaskStatePending, api.TaskStateAssigned:
-		return transition(api.TaskStateAccepted, "accepted")
-	case api.TaskStateAccepted:
-		return transition(api.TaskStatePreparing, "preparing")
-	case api.TaskStateReady:
-		return transition(api.TaskStateStarting, "starting")
+	case api.TaskState_NEW, api.TaskState_PENDING, api.TaskState_ASSIGNED:
+		return transition(api.TaskState_ACCEPTED, "accepted")
+	case api.TaskState_ACCEPTED:
+		return transition(api.TaskState_PREPARING, "preparing")
+	case api.TaskState_READY:
+		return transition(api.TaskState_STARTING, "starting")
 	default: // terminal states
 		return noop()
 	}
+}
+
+// statusOf returns a deep copy of the task's status, which the caller is free
+// to mutate without affecting task. Task.Status is a pointer and may be unset,
+// in which case an empty status (equivalent to [api.TaskState_NEW]) is
+// returned, so that callers never have to nil-check it.
+func statusOf(task *api.Task) *api.TaskStatus {
+	if status := task.Status.Copy(); status != nil {
+		return status
+	}
+	return &api.TaskStatus{}
 }
 
 func logStateChange(ctx context.Context, desired, previous, next api.TaskState) {

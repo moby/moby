@@ -2,9 +2,10 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
+option go_package = "github.com/moby/swarmkit/v2/api";
+
 import "github.com/docker/swarmkit/api/types.proto";
 import "github.com/docker/swarmkit/api/objects.proto";
-import "gogoproto/gogo.proto";
 import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 import "google/protobuf/duration.proto";
 
@@ -146,7 +147,7 @@ message HeartbeatRequest {
 message HeartbeatResponse {
 	// Period is the duration to wait before sending the next heartbeat.
 	// Well-behaved agents should update this on every heartbeat round trip.
-	google.protobuf.Duration period = 1 [(gogoproto.stdduration) = true, (gogoproto.nullable) = false];
+	google.protobuf.Duration period = 1;
 }
 
 message UpdateTaskStatusRequest {
@@ -216,8 +217,8 @@ message Assignment {
 
 message AssignmentChange {
 	enum AssignmentAction {
-		UPDATE = 0 [(gogoproto.enumvalue_customname) = "AssignmentActionUpdate"];
-		REMOVE = 1 [(gogoproto.enumvalue_customname) = "AssignmentActionRemove"];
+		UPDATE = 0;
+		REMOVE = 1;
 	}
 
 	Assignment assignment = 1;

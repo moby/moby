@@ -31,15 +31,15 @@ func (ns *nodeSet) nodeInfo(nodeID string) (NodeInfo, error) {
 // addOrUpdateNode sets the number of tasks for a given node. It adds the node
 // to the set if it wasn't already tracked.
 func (ns *nodeSet) addOrUpdateNode(n NodeInfo) {
-	ns.nodes[n.ID] = n
+	ns.nodes[n.Id] = n
 }
 
 // updateNode sets the number of tasks for a given node. It ignores the update
 // if the node isn't already tracked in the set.
 func (ns *nodeSet) updateNode(n NodeInfo) {
-	_, ok := ns.nodes[n.ID]
+	_, ok := ns.nodes[n.Id]
 	if ok {
-		ns.nodes[n.ID] = n
+		ns.nodes[n.Id] = n
 	}
 }
 
@@ -67,8 +67,8 @@ func (ns *nodeSet) tree(serviceID string, preferences []*api.PlacementPreference
 			var value string
 			switch {
 			case len(descriptor) > len(constraint.NodeLabelPrefix) && strings.EqualFold(descriptor[:len(constraint.NodeLabelPrefix)], constraint.NodeLabelPrefix):
-				if node.Spec.Annotations.Labels != nil {
-					value = node.Spec.Annotations.Labels[descriptor[len(constraint.NodeLabelPrefix):]]
+				if node.GetSpec().GetAnnotations().GetLabels() != nil {
+					value = node.GetSpec().GetAnnotations().GetLabels()[descriptor[len(constraint.NodeLabelPrefix):]]
 				}
 			case len(descriptor) > len(constraint.EngineLabelPrefix) && strings.EqualFold(descriptor[:len(constraint.EngineLabelPrefix)], constraint.EngineLabelPrefix):
 				if node.Description != nil && node.Description.Engine != nil && node.Description.Engine.Labels != nil {

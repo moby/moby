@@ -33,11 +33,13 @@ func (r *configs) Get(configID string) (*api.Config, error) {
 }
 
 // Add adds one or more configs to the config map.
-func (r *configs) Add(configs ...api.Config) {
+func (r *configs) Add(configs ...*api.Config) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, config := range configs {
-		r.m[config.ID] = config.Copy()
+		// Copy, as the caller keeps ownership of the passed messages and may
+		// mutate them after handing them over.
+		r.m[config.Id] = config.Copy()
 	}
 }
 
@@ -80,7 +82,7 @@ func Restrict(configs exec.ConfigGetter, t *api.Task) exec.ConfigGetter {
 	container := t.Spec.GetContainer()
 	if container != nil {
 		for _, configRef := range container.Configs {
-			cids[configRef.ConfigID] = struct{}{}
+			cids[configRef.ConfigId] = struct{}{}
 		}
 	}
 

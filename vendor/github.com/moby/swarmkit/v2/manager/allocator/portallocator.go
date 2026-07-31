@@ -36,7 +36,15 @@ type portSpace struct {
 	dynamicPortSpace *idm.IDM
 }
 
-type allocatedPorts map[api.PortConfig]map[uint32]*api.PortConfig
+// portConfigKey identifies a port within a single Endpoint. api.PortConfig is
+// a protobuf message, which cannot be used as a map key.
+type portConfigKey struct {
+	name       string
+	protocol   api.PortConfig_Protocol
+	targetPort uint32
+}
+
+type allocatedPorts map[portConfigKey]map[uint32]*api.PortConfig
 
 // addState add the state of an allocated port to the collection.
 // `allocatedPorts` is a map of portKey:publishedPort:portState.
@@ -103,7 +111,7 @@ func (ps allocatedPorts) delState(p *api.PortConfig) *api.PortConfig {
 
 func newPortAllocator() *portAllocator {
 	portSpaces := make(map[api.PortConfig_Protocol]*portSpace)
-	for _, protocol := range []api.PortConfig_Protocol{api.ProtocolTCP, api.ProtocolUDP, api.ProtocolSCTP} {
+	for _, protocol := range []api.PortConfig_Protocol{api.PortConfig_TCP, api.PortConfig_UDP, api.PortConfig_SCTP} {
 		portSpaces[protocol] = newPortSpace(protocol)
 	}
 
@@ -131,24 +139,24 @@ func newPortSpace(protocol api.PortConfig_Protocol) *portSpace {
 // getPortConfigKey returns a map key for doing set operations with
 // ports. The key consists of name, protocol and target port which
 // uniquely identifies a port within a single Endpoint.
-func getPortConfigKey(p *api.PortConfig) api.PortConfig {
-	return api.PortConfig{
-		Name:       p.Name,
-		Protocol:   p.Protocol,
-		TargetPort: p.TargetPort,
+func getPortConfigKey(p *api.PortConfig) portConfigKey {
+	return portConfigKey{
+		name:       p.Name,
+		protocol:   p.Protocol,
+		targetPort: p.TargetPort,
 	}
 }
 
 func reconcilePortConfigs(s *api.Service) []*api.PortConfig {
 	// If runtime state hasn't been created or if port config has
 	// changed from port state return the port config from Spec.
-	if s.Endpoint == nil || len(s.Spec.Endpoint.Ports) != len(s.Endpoint.Ports) {
-		return s.Spec.Endpoint.Ports
+	if s.Endpoint == nil || len(s.Spec.GetEndpoint().GetPorts()) != len(s.Endpoint.Ports) {
+		return s.Spec.GetEndpoint().GetPorts()
 	}
 
 	portStates := allocatedPorts{}
 	for _, portState := range s.Endpoint.Ports {
-		if portState.PublishMode == api.PublishModeIngress {
+		if portState.PublishMode == api.PortConfig_INGRESS {
 			portStates.addState(portState)
 		}
 	}
@@ -157,8 +165,8 @@ func reconcilePortConfigs(s *api.Service) []*api.PortConfig {
 
 	// Process the portConfig with portConfig.PublishMode != api.PublishModeIngress
 	// and PublishedPort != 0 (high priority)
-	for _, portConfig := range s.Spec.Endpoint.Ports {
-		if portConfig.PublishMode != api.PublishModeIngress {
+	for _, portConfig := range s.Spec.GetEndpoint().GetPorts() {
+		if portConfig.PublishMode != api.PortConfig_INGRESS {
 			// If the PublishMode is not Ingress simply pick up the port config.
 			portConfigs = append(portConfigs, portConfig)
 		} else if portConfig.PublishedPort != 0 {
@@ -173,12 +181,12 @@ func reconcilePortConfigs(s *api.Service) []*api.PortConfig {
 	}
 
 	// Iterate portConfigs with PublishedPort == 0 (low priority)
-	for _, portConfig := range s.Spec.Endpoint.Ports {
+	for _, portConfig := range s.Spec.GetEndpoint().GetPorts() {
 		// Ignore ports which are not PublishModeIngress (already processed)
 		// And we only process PublishedPort == 0 in this round
 		// So the following:
 		//  `portConfig.PublishMode == api.PublishModeIngress && portConfig.PublishedPort == 0`
-		if portConfig.PublishMode == api.PublishModeIngress && portConfig.PublishedPort == 0 {
+		if portConfig.PublishMode == api.PortConfig_INGRESS && portConfig.PublishedPort == 0 {
 			// If the portConfig is exactly the same as portState
 			// except if SwarmPort is not user-define then prefer
 			// portState to ensure sticky allocation of the same
@@ -199,7 +207,7 @@ func reconcilePortConfigs(s *api.Service) []*api.PortConfig {
 }
 
 func (pa *portAllocator) serviceAllocatePorts(s *api.Service) (err error) {
-	if s.Spec.Endpoint == nil {
+	if s.Spec.GetEndpoint() == nil {
 		return nil
 	}
 
@@ -225,7 +233,7 @@ func (pa *portAllocator) serviceAllocatePorts(s *api.Service) (err error) {
 		portState := portConfig.Copy()
 
 		// Do an actual allocation only if the PublishMode is Ingress
-		if portConfig.PublishMode == api.PublishModeIngress {
+		if portConfig.PublishMode == api.PortConfig_INGRESS {
 			if err = pa.portSpaces[portState.Protocol].allocate(portState); err != nil {
 				return
 			}
@@ -249,7 +257,7 @@ func (pa *portAllocator) serviceDeallocatePorts(s *api.Service) {
 	for _, portState := range s.Endpoint.Ports {
 		// Do an actual free only if the PublishMode is
 		// Ingress
-		if portState.PublishMode != api.PublishModeIngress {
+		if portState.PublishMode != api.PortConfig_INGRESS {
 			continue
 		}
 
@@ -260,22 +268,22 @@ func (pa *portAllocator) serviceDeallocatePorts(s *api.Service) {
 }
 
 func (pa *portAllocator) hostPublishPortsNeedUpdate(s *api.Service) bool {
-	if s.Endpoint == nil && s.Spec.Endpoint == nil {
+	if s.Endpoint == nil && s.Spec.GetEndpoint() == nil {
 		return false
 	}
 
 	portStates := allocatedPorts{}
 	if s.Endpoint != nil {
 		for _, portState := range s.Endpoint.Ports {
-			if portState.PublishMode == api.PublishModeHost {
+			if portState.PublishMode == api.PortConfig_HOST {
 				portStates.addState(portState)
 			}
 		}
 	}
 
-	if s.Spec.Endpoint != nil {
-		for _, portConfig := range s.Spec.Endpoint.Ports {
-			if portConfig.PublishMode == api.PublishModeHost &&
+	if s.Spec.GetEndpoint() != nil {
+		for _, portConfig := range s.Spec.GetEndpoint().GetPorts() {
+			if portConfig.PublishMode == api.PortConfig_HOST &&
 				portConfig.PublishedPort != 0 {
 				if portStates.delState(portConfig) == nil {
 					return true
@@ -290,7 +298,7 @@ func (pa *portAllocator) hostPublishPortsNeedUpdate(s *api.Service) bool {
 func (pa *portAllocator) isPortsAllocatedOnInit(s *api.Service, onInit bool) bool {
 	// If service has no user-defined endpoint and allocated endpoint,
 	// we assume it is allocated and return true.
-	if s.Endpoint == nil && s.Spec.Endpoint == nil {
+	if s.Endpoint == nil && s.Spec.GetEndpoint() == nil {
 		return true
 	}
 
@@ -298,14 +306,14 @@ func (pa *portAllocator) isPortsAllocatedOnInit(s *api.Service, onInit bool) boo
 	// we assume allocated endpoints are redundant, and they need deallocated.
 	// If service has no allocated endpoint while has user-defined endpoint,
 	// we assume it is not allocated.
-	if (s.Endpoint != nil && s.Spec.Endpoint == nil) ||
-		(s.Endpoint == nil && s.Spec.Endpoint != nil) {
+	if (s.Endpoint != nil && s.Spec.GetEndpoint() == nil) ||
+		(s.Endpoint == nil && s.Spec.GetEndpoint() != nil) {
 		return false
 	}
 
 	// If we don't have same number of port states as port configs
 	// we assume it is not allocated.
-	if len(s.Spec.Endpoint.Ports) != len(s.Endpoint.Ports) {
+	if len(s.Spec.GetEndpoint().GetPorts()) != len(s.Endpoint.Ports) {
 		return false
 	}
 
@@ -313,9 +321,9 @@ func (pa *portAllocator) isPortsAllocatedOnInit(s *api.Service, onInit bool) boo
 	hostTargetPorts := map[uint32]struct{}{}
 	for _, portState := range s.Endpoint.Ports {
 		switch portState.PublishMode {
-		case api.PublishModeIngress:
+		case api.PortConfig_INGRESS:
 			portStates.addState(portState)
-		case api.PublishModeHost:
+		case api.PortConfig_HOST:
 			// build a map of host mode ports we've seen. if in the spec we get
 			// a host port that's not in the service, then we need to do
 			// allocation. if we get the same target port but something else
@@ -326,9 +334,9 @@ func (pa *portAllocator) isPortsAllocatedOnInit(s *api.Service, onInit bool) boo
 	}
 
 	// Iterate portConfigs with PublishedPort != 0 (high priority)
-	for _, portConfig := range s.Spec.Endpoint.Ports {
+	for _, portConfig := range s.Spec.GetEndpoint().GetPorts() {
 		// Ignore ports which are not PublishModeIngress
-		if portConfig.PublishMode != api.PublishModeIngress {
+		if portConfig.PublishMode != api.PortConfig_INGRESS {
 			continue
 		}
 		if portConfig.PublishedPort != 0 && portStates.delState(portConfig) == nil {
@@ -337,10 +345,10 @@ func (pa *portAllocator) isPortsAllocatedOnInit(s *api.Service, onInit bool) boo
 	}
 
 	// Iterate portConfigs with PublishedPort == 0 (low priority)
-	for _, portConfig := range s.Spec.Endpoint.Ports {
+	for _, portConfig := range s.Spec.GetEndpoint().GetPorts() {
 		// Ignore ports which are not PublishModeIngress
 		switch portConfig.PublishMode {
-		case api.PublishModeIngress:
+		case api.PortConfig_INGRESS:
 			if portConfig.PublishedPort == 0 && portStates.delState(portConfig) == nil {
 				return false
 			}
@@ -351,7 +359,7 @@ func (pa *portAllocator) isPortsAllocatedOnInit(s *api.Service, onInit bool) boo
 			if portConfig.PublishedPort == 0 && onInit {
 				return false
 			}
-		case api.PublishModeHost:
+		case api.PortConfig_HOST:
 			// check if the target port is already in the port config. if it
 			// isn't, then it's our problem.
 			if _, ok := hostTargetPorts[portConfig.TargetPort]; !ok {

@@ -5,10 +5,10 @@ import (
 	"maps"
 	"sync"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/watch"
 	"go.etcd.io/raft/v3/raftpb"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -87,7 +87,7 @@ func (c *Cluster) broadcastUpdate() {
 	peers := make([]*api.Peer, 0, len(c.members))
 	for _, m := range c.members {
 		peers = append(peers, &api.Peer{
-			NodeID: m.NodeID,
+			NodeId: m.NodeId,
 			Addr:   m.Addr,
 		})
 	}
@@ -99,11 +99,11 @@ func (c *Cluster) AddMember(member *Member) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.removed[member.RaftID] {
+	if c.removed[member.RaftId] {
 		return ErrIDRemoved
 	}
 
-	c.members[member.RaftID] = member
+	c.members[member.RaftId] = member
 
 	c.broadcastUpdate()
 	return nil
@@ -133,7 +133,7 @@ func (c *Cluster) UpdateMember(id uint64, m *api.RaftMember) error {
 		return ErrIDNotFound
 	}
 
-	if oldMember.NodeID != m.NodeID {
+	if oldMember.NodeId != m.NodeId {
 		// Should never happen; this is a sanity check
 		return errors.New("node ID mismatch match on node update")
 	}
@@ -182,24 +182,25 @@ func (c *Cluster) Clear() {
 
 // ValidateConfigurationChange takes a proposed ConfChange and
 // ensures that it is valid.
-func (c *Cluster) ValidateConfigurationChange(cc raftpb.ConfChange) error {
+func (c *Cluster) ValidateConfigurationChange(cc *raftpb.ConfChange) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.removed[cc.NodeID] {
+	nodeID := cc.GetNodeId()
+	if c.removed[nodeID] {
 		return ErrIDRemoved
 	}
-	switch cc.Type {
+	switch cc.GetType() {
 	case raftpb.ConfChangeAddNode:
-		if c.members[cc.NodeID] != nil {
+		if c.members[nodeID] != nil {
 			return ErrIDExists
 		}
 	case raftpb.ConfChangeRemoveNode:
-		if c.members[cc.NodeID] == nil {
+		if c.members[nodeID] == nil {
 			return ErrIDNotFound
 		}
 	case raftpb.ConfChangeUpdateNode:
-		if c.members[cc.NodeID] == nil {
+		if c.members[nodeID] == nil {
 			return ErrIDNotFound
 		}
 	default:

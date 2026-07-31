@@ -47,7 +47,7 @@ type Config struct {
 type Transport struct {
 	config *Config
 
-	unknownc chan raftpb.Message
+	unknownc chan *raftpb.Message
 
 	mu      sync.Mutex
 	peers   map[uint64]*peer
@@ -69,7 +69,7 @@ func New(cfg *Config) *Transport {
 	t := &Transport{
 		peers:    make(map[uint64]*peer),
 		config:   cfg,
-		unknownc: make(chan raftpb.Message),
+		unknownc: make(chan *raftpb.Message),
 		done:     make(chan struct{}),
 		ctx:      ctx,
 		cancel:   cancel,
@@ -107,7 +107,7 @@ func (t *Transport) run(ctx context.Context) {
 		select {
 		case m := <-t.unknownc:
 			if err := t.sendUnknownMessage(ctx, m); err != nil {
-				log.G(ctx).WithError(err).Warnf("ignored message %s to unknown peer %x", m.Type, m.To)
+				log.G(ctx).WithError(err).Warnf("ignored message %s to unknown peer %x", m.GetType(), m.GetTo())
 			}
 		case <-ctx.Done():
 			return
@@ -122,18 +122,18 @@ func (t *Transport) Stop() {
 }
 
 // Send sends raft message to remote peers.
-func (t *Transport) Send(m raftpb.Message) error {
+func (t *Transport) Send(m *raftpb.Message) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.stopped {
 		return errors.New("transport stopped")
 	}
-	if t.config.IsIDRemoved(m.To) {
-		return errors.Errorf("refusing to send message %s to removed member %x", m.Type, m.To)
+	if t.config.IsIDRemoved(m.GetTo()) {
+		return errors.Errorf("refusing to send message %s to removed member %x", m.GetType(), m.GetTo())
 	}
-	p, ok := t.peers[m.To]
+	p, ok := t.peers[m.GetTo()]
 	if !ok {
-		log.G(t.ctx).Warningf("sending message %s to an unrecognized member ID %x", m.Type, m.To)
+		log.G(t.ctx).Warningf("sending message %s to an unrecognized member ID %x", m.GetType(), m.GetTo())
 		select {
 		// we need to process messages to unknown peers in separate goroutine
 		// to not block sender
@@ -146,7 +146,7 @@ func (t *Transport) Send(m raftpb.Message) error {
 		return nil
 	}
 	if err := p.send(m); err != nil {
-		return errors.Wrapf(err, "failed to send message %x to %x", m.Type, m.To)
+		return errors.Wrapf(err, "failed to send message %x to %x", m.GetType(), m.GetTo())
 	}
 	return nil
 }
@@ -399,8 +399,8 @@ func (t *Transport) resolvePeer(ctx context.Context, id uint64) (*peer, error) {
 	return newPeer(id, addr, t)
 }
 
-func (t *Transport) sendUnknownMessage(ctx context.Context, m raftpb.Message) error {
-	p, err := t.resolvePeer(ctx, m.To)
+func (t *Transport) sendUnknownMessage(ctx context.Context, m *raftpb.Message) error {
+	p, err := t.resolvePeer(ctx, m.GetTo())
 	if err != nil {
 		return errors.Wrapf(err, "failed to resolve peer")
 	}

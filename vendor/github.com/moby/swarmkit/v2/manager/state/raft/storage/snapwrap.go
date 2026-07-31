@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
 	"go.etcd.io/raft/v3/raftpb"
+	"google.golang.org/protobuf/proto"
 )
 
 // This package wraps the go.etcd.io/etcd/server/v3/api/snap package, and encrypts
@@ -18,7 +19,7 @@ import (
 
 // Snapshotter is the interface presented by go.etcd.io/etcd/server/v3/api/snap.Snapshotter that we depend upon
 type Snapshotter interface {
-	SaveSnap(snapshot raftpb.Snapshot) error
+	SaveSnap(snapshot *raftpb.Snapshot) error
 	Load() (*raftpb.Snapshot, error)
 }
 
@@ -42,13 +43,16 @@ type wrappedSnap struct {
 
 // SaveSnap encrypts the snapshot data (if an encrypter is exists) before passing it onto the
 // wrapped snap.Snapshotter's SaveSnap function.
-func (s *wrappedSnap) SaveSnap(snapshot raftpb.Snapshot) error {
-	toWrite := snapshot
-	var err error
-	toWrite.Data, err = encryption.Encrypt(snapshot.Data, s.encrypter)
+func (s *wrappedSnap) SaveSnap(snapshot *raftpb.Snapshot) error {
+	data, err := encryption.Encrypt(snapshot.GetData(), s.encrypter)
 	if err != nil {
 		return err
 	}
+	// The snapshot is passed by pointer, so clone it before swapping in the
+	// encrypted payload: only the bytes on disk should be encrypted, the
+	// caller's snapshot must keep its plaintext data.
+	toWrite := proto.Clone(snapshot).(*raftpb.Snapshot)
+	toWrite.Data = data
 	return s.Snapshotter.SaveSnap(toWrite)
 }
 
@@ -126,7 +130,7 @@ func MigrateSnapshot(oldDir, newDir string, oldFactory, newFactory SnapFactory) 
 	tmpSnapshotter := newFactory.New(tmpdirpath)
 
 	// write the new snapshot to the temporary location
-	if err = tmpSnapshotter.SaveSnap(*snapshot); err != nil {
+	if err = tmpSnapshotter.SaveSnap(snapshot); err != nil {
 		return err
 	}
 

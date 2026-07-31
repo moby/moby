@@ -41,15 +41,15 @@ func (d *SecretDriver) Get(spec *api.SecretSpec, task *api.Task) ([]byte, bool, 
 
 	var secretResp SecretsProviderResponse
 	secretReq := &SecretsProviderRequest{
-		SecretName:    spec.Annotations.Name,
-		SecretLabels:  spec.Annotations.Labels,
-		ServiceID:     task.ServiceID,
-		ServiceName:   task.ServiceAnnotations.Name,
-		ServiceLabels: task.ServiceAnnotations.Labels,
-		TaskID:        task.ID,
+		SecretName:    spec.GetAnnotations().GetName(),
+		SecretLabels:  spec.GetAnnotations().GetLabels(),
+		ServiceID:     task.ServiceId,
+		ServiceName:   task.GetServiceAnnotations().GetName(),
+		ServiceLabels: task.GetServiceAnnotations().GetLabels(),
+		TaskID:        task.Id,
 		TaskName:      naming.Task(task),
-		TaskImage:     task.Spec.GetContainer().Image,
-		NodeID:        task.NodeID,
+		TaskImage:     task.Spec.GetContainer().GetImage(),
+		NodeID:        task.NodeId,
 	}
 	container := task.Spec.GetContainer()
 	if container != nil {
@@ -58,7 +58,7 @@ func (d *SecretDriver) Get(spec *api.SecretSpec, task *api.Task) ([]byte, bool, 
 
 	if task.Endpoint != nil && task.Endpoint.Spec != nil {
 		secretReq.ServiceEndpointSpec = &EndpointSpec{
-			Mode: int32(task.Endpoint.Spec.Mode),
+			Mode: int32(task.Endpoint.Spec.GetMode()),
 		}
 		for _, p := range task.Endpoint.Spec.Ports {
 			if p == nil {

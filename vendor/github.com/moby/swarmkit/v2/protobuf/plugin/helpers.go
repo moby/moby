@@ -1,11 +1,17 @@
 package plugin
 
 import (
-	"github.com/gogo/protobuf/proto"
-	google_protobuf "github.com/gogo/protobuf/protoc-gen-gogo/descriptor"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 // DeepcopyEnabled returns true if deepcopy is enabled for the descriptor.
-func DeepcopyEnabled(options *google_protobuf.MessageOptions) bool {
-	return proto.GetBoolExtension(options, E_Deepcopy, true)
+func DeepcopyEnabled(options *descriptorpb.MessageOptions) bool {
+	if options == nil {
+		return true
+	}
+	// The extension defaults to true, and proto.GetExtension already honours
+	// the default for an unpopulated proto2 field.
+	enabled, ok := proto.GetExtension(options, E_Deepcopy).(bool)
+	return !ok || enabled
 }

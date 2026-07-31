@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/ca"
 	"github.com/moby/swarmkit/v2/log"
@@ -36,20 +35,19 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 	}
 
 	// Validate that expiry time being provided is valid, and over our minimum
-	if spec.CAConfig.NodeCertExpiry != nil {
-		expiry, err := gogotypes.DurationFromProto(spec.CAConfig.NodeCertExpiry)
-		if err != nil {
+	if expiry := spec.GetCaConfig().GetNodeCertExpiry(); expiry != nil {
+		if err := expiry.CheckValid(); err != nil {
 			return status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 		}
-		if expiry < ca.MinNodeCertExpiration {
+		if expiry.AsDuration() < ca.MinNodeCertExpiration {
 			return status.Errorf(codes.InvalidArgument, "minimum certificate expiry time is: %s", ca.MinNodeCertExpiration)
 		}
 	}
 
 	// Validate that AcceptancePolicies only include Secrets that are bcrypted
 	// TODO(diogo): Add a global list of acceptance algorithms. We only support bcrypt for now.
-	if len(spec.AcceptancePolicy.Policies) > 0 {
-		for _, policy := range spec.AcceptancePolicy.Policies {
+	if len(spec.GetAcceptancePolicy().GetPolicies()) > 0 {
+		for _, policy := range spec.GetAcceptancePolicy().GetPolicies() {
 			if policy.Secret != nil && strings.ToLower(policy.Secret.Alg) != "bcrypt" {
 				return status.Errorf(codes.InvalidArgument, "hashing algorithm is not supported: %s", policy.Secret.Alg)
 			}
@@ -57,17 +55,16 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 	}
 
 	// Validate that heartbeatPeriod time being provided is valid
-	if spec.Dispatcher.HeartbeatPeriod != nil {
-		heartbeatPeriod, err := gogotypes.DurationFromProto(spec.Dispatcher.HeartbeatPeriod)
-		if err != nil {
+	if hb := spec.GetDispatcher().GetHeartbeatPeriod(); hb != nil {
+		if err := hb.CheckValid(); err != nil {
 			return status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 		}
-		if heartbeatPeriod < 0 {
+		if hb.AsDuration() < 0 {
 			return status.Errorf(codes.InvalidArgument, "heartbeat time period cannot be a negative duration")
 		}
 	}
 
-	if spec.Annotations.Name != store.DefaultClusterName {
+	if spec.GetAnnotations().GetName() != store.DefaultClusterName {
 		return status.Errorf(codes.InvalidArgument, "modification of cluster name is not allowed")
 	}
 
@@ -78,16 +75,16 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 // - Returns `InvalidArgument` if ClusterID is not provided.
 // - Returns `NotFound` if the Cluster is not found.
 func (s *Server) GetCluster(_ context.Context, request *api.GetClusterRequest) (*api.GetClusterResponse, error) {
-	if request.ClusterID == "" {
+	if request.ClusterId == "" {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	var cluster *api.Cluster
 	s.store.View(func(tx store.ReadTx) {
-		cluster = store.GetCluster(tx, request.ClusterID)
+		cluster = store.GetCluster(tx, request.ClusterId)
 	})
 	if cluster == nil {
-		return nil, status.Errorf(codes.NotFound, "cluster %s not found", request.ClusterID)
+		return nil, status.Errorf(codes.NotFound, "cluster %s not found", request.ClusterId)
 	}
 
 	redactedClusters := redactClusters([]*api.Cluster{cluster})
@@ -104,7 +101,7 @@ func (s *Server) GetCluster(_ context.Context, request *api.GetClusterRequest) (
 // - Returns `Unimplemented` if the ClusterSpec references unimplemented features.
 // - Returns an error if the update fails.
 func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRequest) (*api.UpdateClusterResponse, error) {
-	if request.ClusterID == "" || request.ClusterVersion == nil {
+	if request.ClusterId == "" || request.ClusterVersion == nil {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 	if err := validateClusterSpec(request.Spec); err != nil {
@@ -113,42 +110,42 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 
 	var cluster *api.Cluster
 	err := s.store.Update(func(tx store.Tx) error {
-		cluster = store.GetCluster(tx, request.ClusterID)
+		cluster = store.GetCluster(tx, request.ClusterId)
 		if cluster == nil {
-			return status.Errorf(codes.NotFound, "cluster %s not found", request.ClusterID)
+			return status.Errorf(codes.NotFound, "cluster %s not found", request.ClusterId)
 		}
 		// This ensures that we have the current rootCA with which to generate tokens (expiration doesn't matter
 		// for generating the tokens)
-		rootCA, err := ca.RootCAFromAPI(&cluster.RootCA, ca.DefaultNodeCertExpiration)
+		rootCA, err := ca.RootCAFromAPI(cluster.RootCa, ca.DefaultNodeCertExpiration)
 		if err != nil {
 			log.G(ctx).WithField(
 				"method", "(*controlapi.Server).UpdateCluster").WithError(err).Error("invalid cluster root CA")
 			return status.Errorf(codes.Internal, "error loading cluster rootCA for update")
 		}
 
-		cluster.Meta.Version = *request.ClusterVersion
-		cluster.Spec = *request.Spec.Copy()
+		cluster.Meta.Version = request.ClusterVersion
+		cluster.Spec = request.Spec.Copy()
 
 		expireBlacklistedCerts(cluster)
 
-		if request.Rotation.WorkerJoinToken {
-			cluster.RootCA.JoinTokens.Worker = ca.GenerateJoinToken(&rootCA, cluster.FIPS)
+		if request.GetRotation().GetWorkerJoinToken() {
+			cluster.RootCa.GetJoinTokens().Worker = ca.GenerateJoinToken(&rootCA, cluster.Fips)
 		}
-		if request.Rotation.ManagerJoinToken {
-			cluster.RootCA.JoinTokens.Manager = ca.GenerateJoinToken(&rootCA, cluster.FIPS)
+		if request.GetRotation().GetManagerJoinToken() {
+			cluster.RootCa.GetJoinTokens().Manager = ca.GenerateJoinToken(&rootCA, cluster.Fips)
 		}
 
 		updatedRootCA, err := validateCAConfig(ctx, s.securityConfig, cluster)
 		if err != nil {
 			return err
 		}
-		cluster.RootCA = *updatedRootCA
+		cluster.RootCa = updatedRootCA
 
 		var unlockKeys []*api.EncryptionKey
 		var managerKey *api.EncryptionKey
 		for _, eKey := range cluster.UnlockKeys {
 			if eKey.Subsystem == ca.ManagerRole {
-				if !cluster.Spec.EncryptionConfig.AutoLockManagers {
+				if !cluster.GetSpec().GetEncryptionConfig().GetAutoLockManagers() {
 					continue
 				}
 				managerKey = eKey
@@ -157,14 +154,14 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 		}
 
 		switch {
-		case !cluster.Spec.EncryptionConfig.AutoLockManagers:
+		case !cluster.GetSpec().GetEncryptionConfig().GetAutoLockManagers():
 			break
 		case managerKey == nil:
 			unlockKeys = append(unlockKeys, &api.EncryptionKey{
 				Subsystem: ca.ManagerRole,
 				Key:       encryption.GenerateSecretKey(),
 			})
-		case request.Rotation.ManagerUnlockKey:
+		case request.GetRotation().GetManagerUnlockKey():
 			managerKey.Key = encryption.GenerateSecretKey()
 		}
 		cluster.UnlockKeys = unlockKeys
@@ -214,8 +211,8 @@ func (s *Server) ListClusters(_ context.Context, request *api.ListClustersReques
 			clusters, err = store.FindClusters(tx, buildFilters(store.ByName, request.Filters.Names))
 		case request.Filters != nil && len(request.Filters.NamePrefixes) > 0:
 			clusters, err = store.FindClusters(tx, buildFilters(store.ByNamePrefix, request.Filters.NamePrefixes))
-		case request.Filters != nil && len(request.Filters.IDPrefixes) > 0:
-			clusters, err = store.FindClusters(tx, buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes))
+		case request.Filters != nil && len(request.Filters.IdPrefixes) > 0:
+			clusters, err = store.FindClusters(tx, buildFilters(store.ByIDPrefix, request.Filters.IdPrefixes))
 		default:
 			clusters, err = store.FindClusters(tx, store.All)
 		}
@@ -227,16 +224,16 @@ func (s *Server) ListClusters(_ context.Context, request *api.ListClustersReques
 	if request.Filters != nil {
 		clusters = filterClusters(clusters,
 			func(e *api.Cluster) bool {
-				return filterContains(e.Spec.Annotations.Name, request.Filters.Names)
+				return filterContains(e.GetSpec().GetAnnotations().GetName(), request.Filters.Names)
 			},
 			func(e *api.Cluster) bool {
-				return filterContainsPrefix(e.Spec.Annotations.Name, request.Filters.NamePrefixes)
+				return filterContainsPrefix(e.GetSpec().GetAnnotations().GetName(), request.Filters.NamePrefixes)
 			},
 			func(e *api.Cluster) bool {
-				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)
+				return filterContainsPrefix(e.Id, request.Filters.IdPrefixes)
 			},
 			func(e *api.Cluster) bool {
-				return filterMatchLabels(e.Spec.Annotations.Labels, request.Filters.Labels)
+				return filterMatchLabels(e.GetSpec().GetAnnotations().GetLabels(), request.Filters.Labels)
 			},
 		)
 	}
@@ -256,23 +253,33 @@ func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 		// Copy all the mandatory fields
 		// Do not copy secret keys
 		redactedSpec := cluster.Spec.Copy()
-		redactedSpec.CAConfig.SigningCAKey = nil
+		if redactedSpec == nil {
+			redactedSpec = &api.ClusterSpec{}
+		}
+		if redactedSpec.CaConfig == nil {
+			// CaConfig used to be a non-nullable embedded message.
+			redactedSpec.CaConfig = &api.CAConfig{}
+		}
+		redactedSpec.CaConfig.SigningCaKey = nil
 		// the cert is not a secret, but if API users get the cluster spec and then update,
 		// then because the cert is included but not the key, the user can get update errors
 		// or unintended consequences (such as telling swarm to forget about the key so long
 		// as there is a corresponding external CA)
-		redactedSpec.CAConfig.SigningCACert = nil
+		redactedSpec.CaConfig.SigningCaCert = nil
 
-		redactedRootCA := cluster.RootCA.Copy()
-		redactedRootCA.CAKey = nil
+		redactedRootCA := cluster.RootCa.Copy()
+		if redactedRootCA == nil {
+			redactedRootCA = &api.RootCA{}
+		}
+		redactedRootCA.CaKey = nil
 		if r := redactedRootCA.RootRotation; r != nil {
-			r.CAKey = nil
+			r.CaKey = nil
 		}
 		newCluster := &api.Cluster{
-			ID:                      cluster.ID,
+			Id:                      cluster.Id,
 			Meta:                    cluster.Meta,
-			Spec:                    *redactedSpec,
-			RootCA:                  *redactedRootCA,
+			Spec:                    redactedSpec,
+			RootCa:                  redactedRootCA,
 			BlacklistedCertificates: cluster.BlacklistedCertificates,
 			DefaultAddressPool:      cluster.DefaultAddressPool,
 			SubnetSize:              cluster.SubnetSize,
@@ -301,8 +308,9 @@ func expireBlacklistedCerts(cluster *api.Cluster) {
 			continue
 		}
 
-		expiry, err := gogotypes.TimestampFromProto(blacklistedCert.Expiry)
-		if err == nil && nowMinusGrace.After(expiry) {
+		// AsTime cannot fail, so test validity explicitly to keep skipping
+		// certificates whose expiry we cannot make sense of.
+		if ts := blacklistedCert.Expiry; ts.IsValid() && nowMinusGrace.After(ts.AsTime()) {
 			delete(cluster.BlacklistedCertificates, cn)
 		}
 	}

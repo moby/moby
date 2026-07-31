@@ -177,15 +177,15 @@ func (c *Collector) handleNodeEvent(event events.Event) {
 	}
 
 	// Skip updates if nothing changed.
-	if prevNode != nil && newNode != nil && prevNode.Status.State == newNode.Status.State {
+	if prevNode != nil && newNode != nil && prevNode.Status.GetState() == newNode.Status.GetState() {
 		return
 	}
 
 	if prevNode != nil {
-		nodesMetric.WithValues(strings.ToLower(prevNode.Status.State.String())).Dec(1)
+		nodesMetric.WithValues(strings.ToLower(prevNode.Status.GetState().String())).Dec(1)
 	}
 	if newNode != nil {
-		nodesMetric.WithValues(strings.ToLower(newNode.Status.State.String())).Inc(1)
+		nodesMetric.WithValues(strings.ToLower(newNode.Status.GetState().String())).Inc(1)
 	}
 }
 
@@ -202,18 +202,18 @@ func (c *Collector) handleTaskEvent(event events.Event) {
 	}
 
 	// Skip updates if nothing changed.
-	if prevTask != nil && newTask != nil && prevTask.Status.State == newTask.Status.State {
+	if prevTask != nil && newTask != nil && prevTask.Status.GetState() == newTask.Status.GetState() {
 		return
 	}
 
 	if prevTask != nil {
 		tasksMetric.WithValues(
-			strings.ToLower(prevTask.Status.State.String()),
+			strings.ToLower(prevTask.Status.GetState().String()),
 		).Dec(1)
 	}
 	if newTask != nil {
 		tasksMetric.WithValues(
-			strings.ToLower(newTask.Status.State.String()),
+			strings.ToLower(newTask.Status.GetState().String()),
 		).Inc(1)
 	}
 }

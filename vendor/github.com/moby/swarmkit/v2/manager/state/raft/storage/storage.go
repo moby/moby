@@ -101,11 +101,13 @@ func (e *EncryptedRaftLogger) BootstrapFromDisk(ctx context.Context, oldEncrypti
 	}
 
 	walFactory := NewWALFactory(encrypter, decrypter)
-	var walsnap walpb.Snapshot
-	if snapshot != nil {
-		walsnap.Index = snapshot.Metadata.Index
-		walsnap.Term = snapshot.Metadata.Term
-		walsnap.ConfState = &snapshot.Metadata.ConfState
+	// Index and Term have to be set explicitly, even when there is no snapshot
+	// yet: walpb.Snapshot is a proto2 message, and the WAL rejects a snapshot
+	// record whose index or term is absent (see walpb.ValidateSnapshotForWrite).
+	walsnap := &walpb.Snapshot{
+		Index:     new(snapshot.GetMetadata().GetIndex()),
+		Term:      new(snapshot.GetMetadata().GetTerm()),
+		ConfState: snapshot.GetMetadata().GetConfState(),
 	}
 
 	if !wal.Exist(walDir) {
@@ -195,12 +197,11 @@ func (e *EncryptedRaftLogger) RotateEncryptionKey(newKey []byte) {
 }
 
 // SaveSnapshot actually saves a given snapshot to both the WAL and the snapshot.
-func (e *EncryptedRaftLogger) SaveSnapshot(snapshot raftpb.Snapshot) error {
-
-	walsnap := walpb.Snapshot{
-		Index:     snapshot.Metadata.Index,
-		Term:      snapshot.Metadata.Term,
-		ConfState: &snapshot.Metadata.ConfState,
+func (e *EncryptedRaftLogger) SaveSnapshot(snapshot *raftpb.Snapshot) error {
+	walsnap := &walpb.Snapshot{
+		Index:     new(snapshot.GetMetadata().GetIndex()),
+		Term:      new(snapshot.GetMetadata().GetTerm()),
+		ConfState: snapshot.GetMetadata().GetConfState(),
 	}
 
 	e.encoderMu.RLock()
@@ -215,7 +216,7 @@ func (e *EncryptedRaftLogger) SaveSnapshot(snapshot raftpb.Snapshot) error {
 	if err := snapshotter.SaveSnap(snapshot); err != nil {
 		return err
 	}
-	return e.wal.ReleaseLockTo(snapshot.Metadata.Index)
+	return e.wal.ReleaseLockTo(snapshot.GetMetadata().GetIndex())
 }
 
 // GC garbage collects snapshots and wals older than the provided index and term
@@ -318,7 +319,7 @@ func (e *EncryptedRaftLogger) GC(index uint64, term uint64, keepOldSnapshots uin
 }
 
 // SaveEntries saves only entries to disk
-func (e *EncryptedRaftLogger) SaveEntries(st raftpb.HardState, entries []raftpb.Entry) error {
+func (e *EncryptedRaftLogger) SaveEntries(st *raftpb.HardState, entries []*raftpb.Entry) error {
 	e.encoderMu.RLock()
 	defer e.encoderMu.RUnlock()
 

@@ -35,6 +35,9 @@ type logMessage struct {
 // Log subscriptions are pushed to the work nodes by creating log subscription
 // tasks. As such, the LogBroker also acts as an orchestrator of these tasks.
 type LogBroker struct {
+	api.UnimplementedLogsServer
+	api.UnimplementedLogBrokerServer
+
 	mu                sync.RWMutex
 	logQueue          *watch.Queue
 	subscriptionQueue *watch.Queue
@@ -94,7 +97,7 @@ func validateSelector(selector *api.LogSelector) error {
 		return status.Errorf(codes.InvalidArgument, "log selector must be provided")
 	}
 
-	if len(selector.ServiceIDs) == 0 && len(selector.TaskIDs) == 0 && len(selector.NodeIDs) == 0 {
+	if len(selector.ServiceIds) == 0 && len(selector.TaskIds) == 0 && len(selector.NodeIds) == 0 {
 		return status.Errorf(codes.InvalidArgument, "log selector must not be empty")
 	}
 
@@ -106,7 +109,7 @@ func (lb *LogBroker) newSubscription(selector *api.LogSelector, options *api.Log
 	defer lb.mu.RUnlock()
 
 	return newSubscription(lb.store, &api.SubscriptionMessage{
-		ID:       identity.NewID(),
+		Id:       identity.NewID(),
 		Selector: selector,
 		Options:  options,
 	}, lb.subscriptionQueue)
@@ -191,7 +194,7 @@ func (lb *LogBroker) subscribe(id string) (chan events.Event, func()) {
 
 	return lb.logQueue.CallbackWatch(events.MatcherFunc(func(event events.Event) bool {
 		publish := event.(*logMessage)
-		return publish.SubscriptionID == id
+		return publish.SubscriptionId == id
 	}))
 }
 
@@ -271,7 +274,7 @@ func (lb *LogBroker) SubscribeLogs(request *api.SubscribeLogsRequest, stream api
 			completed = nil
 			lb.logQueue.Publish(&logMessage{
 				PublishLogsMessage: &api.PublishLogsMessage{
-					SubscriptionID: sub.ID(),
+					SubscriptionId: sub.ID(),
 				},
 				completed: true,
 				err:       sub.Err(),
@@ -396,17 +399,17 @@ func (lb *LogBroker) PublishLogs(stream api.LogBroker_PublishLogsServer) (err er
 			return err
 		}
 
-		if logMsg.SubscriptionID == "" {
+		if logMsg.SubscriptionId == "" {
 			return status.Errorf(codes.InvalidArgument, "missing subscription ID")
 		}
 
 		if currentSubscription == nil {
-			currentSubscription = lb.getSubscription(logMsg.SubscriptionID)
+			currentSubscription = lb.getSubscription(logMsg.SubscriptionId)
 			if currentSubscription == nil {
 				return status.Errorf(codes.NotFound, "unknown subscription ID")
 			}
 		} else {
-			if logMsg.SubscriptionID != currentSubscription.ID() {
+			if logMsg.SubscriptionId != currentSubscription.ID() {
 				return status.Errorf(codes.InvalidArgument, "different subscription IDs in the same session")
 			}
 		}
@@ -422,8 +425,8 @@ func (lb *LogBroker) PublishLogs(stream api.LogBroker_PublishLogsServer) (err er
 
 		// Make sure logs are emitted using the right Node ID to avoid impersonation.
 		for _, msg := range logMsg.Messages {
-			if msg.Context.NodeID != remote.NodeID {
-				return status.Errorf(codes.PermissionDenied, "invalid NodeID: expected=%s;received=%s", remote.NodeID, msg.Context.NodeID)
+			if msg.Context.NodeId != remote.NodeID {
+				return status.Errorf(codes.PermissionDenied, "invalid NodeID: expected=%s;received=%s", remote.NodeID, msg.Context.NodeId)
 			}
 		}
 

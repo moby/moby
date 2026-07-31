@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/equality"
 	"github.com/moby/swarmkit/v2/identity"
@@ -17,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 )
 
 const (
@@ -29,6 +29,9 @@ const (
 // CA, NodeCA, and other hypothetical future CA services. At the moment,
 // breaking it apart doesn't seem worth it.
 type Server struct {
+	api.UnimplementedCAServer
+	api.UnimplementedNodeCAServer
+
 	mu                          sync.Mutex
 	wg                          sync.WaitGroup
 	ctx                         context.Context
@@ -68,9 +71,9 @@ type Server struct {
 }
 
 // DefaultCAConfig returns the default CA Config, with a default expiration.
-func DefaultCAConfig() api.CAConfig {
-	return api.CAConfig{
-		NodeCertExpiry: gogotypes.DurationProto(DefaultNodeCertExpiration),
+func DefaultCAConfig() *api.CAConfig {
+	return &api.CAConfig{
+		NodeCertExpiry: durationpb.New(DefaultNodeCertExpiration),
 	}
 }
 
@@ -127,11 +130,12 @@ func (s *Server) GetUnlockKey(_ context.Context, _ *api.GetUnlockKeyRequest) (*a
 	// This delay is currently unacceptable because this RPC call is the only way, after a
 	// cluster update, to get the actual value of the unlock key, and we don't want to return
 	// a cached value.
-	resp := api.GetUnlockKeyResponse{}
+	resp := &api.GetUnlockKeyResponse{}
 	s.store.View(func(tx store.ReadTx) {
 		cluster := store.GetCluster(tx, s.clusterID)
-		resp.Version = cluster.Meta.Version
-		if cluster.Spec.EncryptionConfig.AutoLockManagers {
+		// Copy: the response must not alias the object held by the store.
+		resp.Version = cluster.GetMeta().GetVersion().Copy()
+		if cluster.GetSpec().GetEncryptionConfig().GetAutoLockManagers() {
 			for _, encryptionKey := range cluster.UnlockKeys {
 				if encryptionKey.Subsystem == ManagerRole {
 					resp.UnlockKey = encryptionKey.Key
@@ -141,12 +145,12 @@ func (s *Server) GetUnlockKey(_ context.Context, _ *api.GetUnlockKeyRequest) (*a
 		}
 	})
 
-	return &resp, nil
+	return resp, nil
 }
 
 // NodeCertificateStatus returns the current issuance status of an issuance request identified by the nodeID
 func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCertificateStatusRequest) (*api.NodeCertificateStatusResponse, error) {
-	if request.NodeID == "" {
+	if request.NodeId == "" {
 		return nil, status.Error(codes.InvalidArgument, codes.InvalidArgument.String())
 	}
 
@@ -158,7 +162,7 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 	var node *api.Node
 
 	event := api.EventUpdateNode{
-		Node:   &api.Node{ID: request.NodeID},
+		Node:   &api.Node{Id: request.NodeId},
 		Checks: []api.NodeCheckFunc{api.NodeCheckID},
 	}
 
@@ -166,7 +170,7 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 	updates, cancel, err := store.ViewAndWatch(
 		s.store,
 		func(tx store.ReadTx) error {
-			node = store.GetNode(tx, request.NodeID)
+			node = store.GetNode(tx, request.NodeId)
 			return nil
 		},
 		event,
@@ -182,22 +186,22 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 	}
 
 	log.G(ctx).WithFields(log.Fields{
-		"node.id": node.ID,
-		"status":  node.Certificate.Status,
+		"node.id": node.Id,
+		"status":  node.Certificate.GetStatus(),
 		"method":  "NodeCertificateStatus",
 	})
 
 	// If this certificate has a final state, return it immediately (both pending and renew are transition states)
-	if isFinalState(node.Certificate.Status) {
+	if isFinalState(node.Certificate.GetStatus()) {
 		return &api.NodeCertificateStatusResponse{
-			Status:      &node.Certificate.Status,
-			Certificate: &node.Certificate,
+			Status:      node.Certificate.GetStatus(),
+			Certificate: node.Certificate,
 		}, nil
 	}
 
 	log.G(ctx).WithFields(log.Fields{
-		"node.id": node.ID,
-		"status":  node.Certificate.Status,
+		"node.id": node.Id,
+		"status":  node.Certificate.GetStatus(),
 		"method":  "NodeCertificateStatus",
 	}).Debugf("started watching for certificate updates")
 
@@ -209,10 +213,10 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 			case api.EventUpdateNode:
 				// We got an update on the certificate record. If the status is a final state,
 				// return the certificate.
-				if isFinalState(v.Node.Certificate.Status) {
+				if isFinalState(v.Node.Certificate.GetStatus()) {
 					cert := v.Node.Certificate.Copy()
 					return &api.NodeCertificateStatusResponse{
-						Status:      &cert.Status,
+						Status:      cert.Status,
 						Certificate: cert,
 					}, nil
 				}
@@ -233,7 +237,7 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 // IssueNodeCertificate is the only place where new node entries to raft should be created.
 func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNodeCertificateRequest) (*api.IssueNodeCertificateResponse, error) {
 	// First, let's see if the remote node is presenting a non-empty CSR
-	if len(request.CSR) == 0 {
+	if len(request.Csr) == 0 {
 		return nil, status.Error(codes.InvalidArgument, codes.InvalidArgument.String())
 	}
 
@@ -262,7 +266,7 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 	if localNodeInfo != nil {
 		nodeInfo, ok := localNodeInfo.(RemoteNodeInfo)
 		if ok && nodeInfo.NodeID != "" {
-			return s.issueRenewCertificate(ctx, nodeInfo.NodeID, request.CSR)
+			return s.issueRenewCertificate(ctx, nodeInfo.NodeID, request.Csr)
 		}
 	}
 
@@ -270,14 +274,14 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 	// issue a renew worker certificate entry with the correct ID
 	nodeID, err := AuthorizeForwardedRoleAndOrg(ctx, []string{WorkerRole}, []string{ManagerRole}, s.clusterID, blacklistedCerts)
 	if err == nil {
-		return s.issueRenewCertificate(ctx, nodeID, request.CSR)
+		return s.issueRenewCertificate(ctx, nodeID, request.Csr)
 	}
 
 	// If the remote node is a manager (either forwarded by another manager, or calling directly),
 	// issue a renew certificate entry with the correct ID
 	nodeID, err = AuthorizeForwardedRoleAndOrg(ctx, []string{ManagerRole}, []string{ManagerRole}, s.clusterID, blacklistedCerts)
 	if err == nil {
-		return s.issueRenewCertificate(ctx, nodeID, request.CSR)
+		return s.issueRenewCertificate(ctx, nodeID, request.Csr)
 	}
 
 	// The remote node didn't successfully present a valid MTLS certificate, let's issue a
@@ -286,9 +290,9 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 
 	s.mu.Lock()
 	if subtle.ConstantTimeCompare([]byte(s.joinTokens.Manager), []byte(request.Token)) == 1 {
-		role = api.NodeRoleManager
+		role = api.NodeRole_MANAGER
 	} else if subtle.ConstantTimeCompare([]byte(s.joinTokens.Worker), []byte(request.Token)) == 1 {
-		role = api.NodeRoleWorker
+		role = api.NodeRole_WORKER
 	}
 	s.mu.Unlock()
 
@@ -306,18 +310,18 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 		err := s.store.Update(func(tx store.Tx) error {
 			node := &api.Node{
 				Role: role,
-				ID:   nodeID,
-				Certificate: api.Certificate{
-					CSR:  request.CSR,
-					CN:   nodeID,
+				Id:   nodeID,
+				Certificate: &api.Certificate{
+					Csr:  request.Csr,
+					Cn:   nodeID,
 					Role: role,
-					Status: api.IssuanceStatus{
-						State: api.IssuanceStatePending,
+					Status: &api.IssuanceStatus{
+						State: api.IssuanceStatus_PENDING,
 					},
 				},
-				Spec: api.NodeSpec{
+				Spec: &api.NodeSpec{
 					DesiredRole:  role,
-					Membership:   api.NodeMembershipAccepted,
+					Membership:   api.NodeSpec_ACCEPTED,
 					Availability: request.Availability,
 				},
 			}
@@ -346,8 +350,8 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 	}
 
 	return &api.IssueNodeCertificateResponse{
-		NodeID:         nodeID,
-		NodeMembership: api.NodeMembershipAccepted,
+		NodeId:         nodeID,
+		NodeMembership: api.NodeSpec_ACCEPTED,
 	}, nil
 }
 
@@ -355,7 +359,7 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 // and changes the state to RENEW, so it can be picked up and signed by the signing reconciliation loop
 func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr []byte) (*api.IssueNodeCertificateResponse, error) {
 	var (
-		cert api.Certificate
+		cert *api.Certificate
 		node *api.Node
 	)
 	err := s.store.Update(func(tx store.Tx) error {
@@ -371,12 +375,12 @@ func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr [
 		}
 
 		// Create a new Certificate entry for this node with the new CSR and a RENEW state
-		cert = api.Certificate{
-			CSR:  csr,
-			CN:   node.ID,
+		cert = &api.Certificate{
+			Csr:  csr,
+			Cn:   node.Id,
 			Role: node.Role,
-			Status: api.IssuanceStatus{
-				State: api.IssuanceStateRenew,
+			Status: &api.IssuanceStatus{
+				State: api.IssuanceStatus_RENEW,
 			},
 		}
 
@@ -388,14 +392,14 @@ func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr [
 	}
 
 	log.G(ctx).WithFields(log.Fields{
-		"cert.cn":   cert.CN,
+		"cert.cn":   cert.Cn,
 		"cert.role": cert.Role,
 		"method":    "issueRenewCertificate",
 	}).Debugf("node certificate updated")
 
 	return &api.IssueNodeCertificateResponse{
-		NodeID:         nodeID,
-		NodeMembership: node.Spec.Membership,
+		NodeId:         nodeID,
+		NodeMembership: node.Spec.GetMembership(),
 	}, nil
 }
 
@@ -454,7 +458,7 @@ func (s *Server) Run(ctx context.Context) error {
 		api.EventUpdateNode{},
 		api.EventDeleteNode{},
 		api.EventUpdateCluster{
-			Cluster: &api.Cluster{ID: s.clusterID},
+			Cluster: &api.Cluster{Id: s.clusterID},
 			Checks:  []api.ClusterCheckFunc{api.ClusterCheckID},
 		},
 	)
@@ -517,14 +521,14 @@ func (s *Server) Run(ctx context.Context) error {
 			case api.EventUpdateNode:
 				// If this certificate is already at a final state
 				// no need to evaluate and sign it.
-				if !isFinalState(v.Node.Certificate.Status) {
+				if !isFinalState(v.Node.Certificate.GetStatus()) {
 					s.evaluateAndSignNodeCert(ctx, v.Node)
 				}
 				rootReconciler.UpdateNode(v.Node)
 			case api.EventDeleteNode:
 				rootReconciler.DeleteNode(v.Node)
 			case api.EventUpdateCluster:
-				if v.Cluster.ID == s.clusterID {
+				if v.Cluster.Id == s.clusterID {
 					s.UpdateRootCA(ctx, v.Cluster, rootReconciler)
 				}
 			}
@@ -632,20 +636,20 @@ func filterExternalCAURLS(ctx context.Context, desiredCert, defaultCert []byte, 
 	for i, extCA := range apiExternalCAs {
 		// We want to support old external CA specifications which did not have a CA cert.  If there is no cert specified,
 		// we assume it's the old cert
-		certForExtCA := extCA.CACert
+		certForExtCA := extCA.CaCert
 		if len(certForExtCA) == 0 {
 			certForExtCA = defaultCert
 		}
 		certForExtCA = NormalizePEMs(certForExtCA)
-		if extCA.Protocol != api.ExternalCA_CAProtocolCFSSL {
-			log.G(ctx).Debugf("skipping external CA %d (url: %s) due to unknown protocol type", i, extCA.URL)
+		if extCA.Protocol != api.ExternalCA_CFSSL {
+			log.G(ctx).Debugf("skipping external CA %d (url: %s) due to unknown protocol type", i, extCA.Url)
 			continue
 		}
 		if !bytes.Equal(certForExtCA, desiredCert) {
-			log.G(ctx).Debugf("skipping external CA %d (url: %s) because it has the wrong CA cert", i, extCA.URL)
+			log.G(ctx).Debugf("skipping external CA %d (url: %s) because it has the wrong CA cert", i, extCA.Url)
 			continue
 		}
-		urls = append(urls, extCA.URL)
+		urls = append(urls, extCA.Url)
 	}
 	return
 }
@@ -655,9 +659,9 @@ func filterExternalCAURLS(ctx context.Context, desiredCert, defaultCert []byte, 
 // anything to update the root CA material
 func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster, reconciler *rootRotationReconciler) error {
 	s.mu.Lock()
-	s.joinTokens = cluster.RootCA.JoinTokens.Copy()
+	s.joinTokens = cluster.RootCa.GetJoinTokens().Copy()
 	s.mu.Unlock()
-	rCA := cluster.RootCA.Copy()
+	rCA := cluster.RootCa.Copy()
 	if reconciler != nil {
 		reconciler.UpdateRootCA(rCA)
 	}
@@ -665,10 +669,10 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster, reconci
 	s.signingMu.Lock()
 	defer s.signingMu.Unlock()
 	firstSeenCluster := s.lastSeenClusterRootCA == nil && s.lastSeenExternalCAs == nil
-	rootCAChanged := len(rCA.CACert) != 0 && !equality.RootCAEqualStable(s.lastSeenClusterRootCA, rCA)
-	externalCAChanged := !equality.ExternalCAsEqualStable(s.lastSeenExternalCAs, cluster.Spec.CAConfig.ExternalCAs)
+	rootCAChanged := len(rCA.CaCert) != 0 && !equality.RootCAEqualStable(s.lastSeenClusterRootCA, rCA)
+	externalCAChanged := !equality.ExternalCAsEqualStable(s.lastSeenExternalCAs, cluster.Spec.GetCaConfig().GetExternalCas())
 	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
-		"cluster.id": cluster.ID,
+		"cluster.id": cluster.Id,
 		"method":     "(*Server).UpdateRootCA",
 	}))
 
@@ -679,14 +683,13 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster, reconci
 			setOrUpdate = "updated"
 		}
 		expiry := DefaultNodeCertExpiration
-		if cluster.Spec.CAConfig.NodeCertExpiry != nil {
+		if e := cluster.Spec.GetCaConfig().GetNodeCertExpiry(); e != nil {
 			// NodeCertExpiry exists, let's try to parse the duration out of it
-			clusterExpiry, err := gogotypes.DurationFromProto(cluster.Spec.CAConfig.NodeCertExpiry)
-			if err != nil {
+			if err := e.CheckValid(); err != nil {
 				log.G(ctx).WithError(err).Warn("failed to parse certificate expiration, using default")
 			} else {
 				// We were able to successfully parse the expiration out of the cluster.
-				expiry = clusterExpiry
+				expiry = e.AsDuration()
 			}
 		} else {
 			// NodeCertExpiry seems to be nil
@@ -700,16 +703,16 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster, reconci
 
 		s.localRootCA = &updatedRootCA
 		s.externalCAPool = updatedRootCA.Pool
-		externalCACert := rCA.CACert
+		externalCACert := rCA.CaCert
 		if rCA.RootRotation != nil {
-			externalCACert = rCA.RootRotation.CACert
+			externalCACert = rCA.RootRotation.CaCert
 			// the external CA has to trust the new CA cert
 			s.externalCAPool = x509.NewCertPool()
-			s.externalCAPool.AppendCertsFromPEM(rCA.CACert)
-			s.externalCAPool.AppendCertsFromPEM(rCA.RootRotation.CACert)
+			s.externalCAPool.AppendCertsFromPEM(rCA.CaCert)
+			s.externalCAPool.AppendCertsFromPEM(rCA.RootRotation.CaCert)
 		}
-		s.lastSeenExternalCAs = cluster.Spec.CAConfig.Copy().ExternalCAs
-		urls := filterExternalCAURLS(ctx, externalCACert, rCA.CACert, s.lastSeenExternalCAs)
+		s.lastSeenExternalCAs = cluster.Spec.GetCaConfig().Copy().ExternalCas
+		urls := filterExternalCAURLS(ctx, externalCACert, rCA.CaCert, s.lastSeenExternalCAs)
 		// Replace the external CA with the relevant intermediates, URLS, and TLS config
 		s.externalCA = NewExternalCA(updatedRootCA.Intermediates,
 			NewExternalCATLSConfig(s.securityConfig.ClientTLSCreds.Config().Certificates, s.externalCAPool), urls...)
@@ -723,14 +726,14 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster, reconci
 		if !firstSeenCluster {
 			log.G(ctx).Debug("Updating security config external CA URLs due to change in cluster spec's list of external CAs")
 		}
-		wantedExternalCACert := rCA.CACert // we want to only add external CA URLs that use this cert
+		wantedExternalCACert := rCA.CaCert // we want to only add external CA URLs that use this cert
 		if rCA.RootRotation != nil {
 			// we're rotating to a new root, so we only want external CAs with the new root cert
-			wantedExternalCACert = rCA.RootRotation.CACert
+			wantedExternalCACert = rCA.RootRotation.CaCert
 		}
 		// Update our external CA with the list of External CA URLs from the new cluster state
-		s.lastSeenExternalCAs = cluster.Spec.CAConfig.Copy().ExternalCAs
-		urls := filterExternalCAURLS(ctx, wantedExternalCACert, rCA.CACert, s.lastSeenExternalCAs)
+		s.lastSeenExternalCAs = cluster.Spec.GetCaConfig().Copy().ExternalCas
+		urls := filterExternalCAURLS(ctx, wantedExternalCACert, rCA.CaCert, s.lastSeenExternalCAs)
 		s.externalCA.UpdateURLs(urls...)
 	}
 	return nil
@@ -740,20 +743,22 @@ func (s *Server) UpdateRootCA(ctx context.Context, cluster *api.Cluster, reconci
 func (s *Server) evaluateAndSignNodeCert(ctx context.Context, node *api.Node) error {
 	// If the desired membership and actual state are in sync, there's
 	// nothing to do.
-	certState := node.Certificate.Status.State
-	if node.Spec.Membership == api.NodeMembershipAccepted &&
-		(certState == api.IssuanceStateIssued || certState == api.IssuanceStateRotate) {
+	// Certificate, its Status and Spec are all pointers now, so read them
+	// through the getters: a freshly created node has them unset.
+	certState := node.GetCertificate().GetStatus().GetState()
+	if node.GetSpec().GetMembership() == api.NodeSpec_ACCEPTED &&
+		(certState == api.IssuanceStatus_ISSUED || certState == api.IssuanceStatus_ROTATE) {
 		return nil
 	}
 
 	// If the certificate state is renew, then it is a server-sided accepted cert (cert renewals)
-	if certState == api.IssuanceStateRenew {
+	if certState == api.IssuanceStatus_RENEW {
 		return s.signNodeCert(ctx, node)
 	}
 
 	// Sign this certificate if a user explicitly changed it to Accepted, and
 	// the certificate is in pending state
-	if node.Spec.Membership == api.NodeMembershipAccepted && certState == api.IssuanceStatePending {
+	if node.GetSpec().GetMembership() == api.NodeSpec_ACCEPTED && certState == api.IssuanceStatus_PENDING {
 		return s.signNodeCert(ctx, node)
 	}
 
@@ -768,23 +773,23 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) error {
 	s.signingMu.Unlock()
 
 	node = node.Copy()
-	nodeID := node.ID
+	nodeID := node.Id
 	// Convert the role from proto format
-	role, err := ParseRole(node.Certificate.Role)
+	role, err := ParseRole(node.Certificate.GetRole())
 	if err != nil {
 		log.G(ctx).WithFields(log.Fields{
-			"node.id": node.ID,
+			"node.id": node.Id,
 			"method":  "(*Server).signNodeCert",
 		}).WithError(err).Errorf("failed to parse role")
 		return errors.New("failed to parse role")
 	}
 
-	s.pending[node.ID] = node
+	s.pending[node.Id] = node
 
 	// Attempt to sign the CSR
 	var (
-		rawCSR = node.Certificate.CSR
-		cn     = node.Certificate.CN
+		rawCSR = node.Certificate.GetCsr()
+		cn     = node.Certificate.GetCn()
 		ou     = role
 		org    = s.clusterID
 	)
@@ -798,13 +803,13 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) error {
 
 	if err != nil {
 		log.G(ctx).WithFields(log.Fields{
-			"node.id": node.ID,
+			"node.id": node.Id,
 			"method":  "(*Server).signNodeCert",
 		}).WithError(err).Errorf("failed to sign CSR")
 
 		// If the current state is already Failed, no need to change it
-		if node.Certificate.Status.State == api.IssuanceStateFailed {
-			delete(s.pending, node.ID)
+		if node.Certificate.GetStatus().GetState() == api.IssuanceStatus_FAILED {
+			delete(s.pending, node.Id)
 			return errors.New("failed to sign CSR")
 		}
 
@@ -821,8 +826,8 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) error {
 				return errors.Errorf("node %s not found", nodeID)
 			}
 
-			node.Certificate.Status = api.IssuanceStatus{
-				State: api.IssuanceStateFailed,
+			node.Certificate.Status = &api.IssuanceStatus{
+				State: api.IssuanceStatus_FAILED,
 				Err:   err.Error(),
 			}
 
@@ -835,7 +840,7 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) error {
 			}).WithError(err).Errorf("transaction failed when setting state to FAILED")
 		}
 
-		delete(s.pending, node.ID)
+		delete(s.pending, node.Id)
 		return errors.New("failed to sign CSR")
 	}
 
@@ -843,8 +848,8 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) error {
 	for {
 		err = s.store.Update(func(tx store.Tx) error {
 			node.Certificate.Certificate = cert
-			node.Certificate.Status = api.IssuanceStatus{
-				State: api.IssuanceStateIssued,
+			node.Certificate.Status = &api.IssuanceStatus{
+				State: api.IssuanceStatus_ISSUED,
 			}
 
 			err := store.UpdateNode(tx, node)
@@ -858,11 +863,11 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) error {
 		})
 		if err == nil {
 			log.G(ctx).WithFields(log.Fields{
-				"node.id":   node.ID,
-				"node.role": node.Certificate.Role,
+				"node.id":   node.Id,
+				"node.role": node.Certificate.GetRole(),
 				"method":    "(*Server).signNodeCert",
 			}).Debugf("certificate issued")
-			delete(s.pending, node.ID)
+			delete(s.pending, node.Id)
 			break
 		}
 		if err == store.ErrSequenceConflict {
@@ -889,9 +894,9 @@ func (s *Server) reconcileNodeCertificates(ctx context.Context, nodes []*api.Nod
 }
 
 // A successfully issued certificate and a failed certificate are our current final states
-func isFinalState(status api.IssuanceStatus) bool {
-	if status.State == api.IssuanceStateIssued || status.State == api.IssuanceStateFailed ||
-		status.State == api.IssuanceStateRotate {
+func isFinalState(status *api.IssuanceStatus) bool {
+	if status.GetState() == api.IssuanceStatus_ISSUED || status.State == api.IssuanceStatus_FAILED ||
+		status.State == api.IssuanceStatus_ROTATE {
 		return true
 	}
 
@@ -901,15 +906,15 @@ func isFinalState(status api.IssuanceStatus) bool {
 // RootCAFromAPI creates a RootCA object from an api.RootCA object
 func RootCAFromAPI(apiRootCA *api.RootCA, expiry time.Duration) (RootCA, error) {
 	var intermediates []byte
-	signingCert := apiRootCA.CACert
-	signingKey := apiRootCA.CAKey
+	signingCert := apiRootCA.CaCert
+	signingKey := apiRootCA.CaKey
 	if apiRootCA.RootRotation != nil {
-		signingCert = apiRootCA.RootRotation.CrossSignedCACert
-		signingKey = apiRootCA.RootRotation.CAKey
-		intermediates = apiRootCA.RootRotation.CrossSignedCACert
+		signingCert = apiRootCA.RootRotation.CrossSignedCaCert
+		signingKey = apiRootCA.RootRotation.CaKey
+		intermediates = apiRootCA.RootRotation.CrossSignedCaCert
 	}
 	if signingKey == nil {
 		signingCert = nil
 	}
-	return NewRootCA(apiRootCA.CACert, signingCert, signingKey, expiry, intermediates)
+	return NewRootCA(apiRootCA.CaCert, signingCert, signingKey, expiry, intermediates)
 }

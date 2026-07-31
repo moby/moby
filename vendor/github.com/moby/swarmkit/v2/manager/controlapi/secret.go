@@ -17,8 +17,8 @@ import (
 // assumes spec is not nil
 func secretFromSecretSpec(spec *api.SecretSpec) *api.Secret {
 	return &api.Secret{
-		ID:   identity.NewID(),
-		Spec: *spec,
+		Id:   identity.NewID(),
+		Spec: spec,
 	}
 }
 
@@ -28,17 +28,17 @@ func secretFromSecretSpec(spec *api.SecretSpec) *api.Secret {
 // - Returns `InvalidArgument` if the `GetSecretRequest.SecretID` is empty.
 // - Returns an error if getting fails.
 func (s *Server) GetSecret(_ context.Context, request *api.GetSecretRequest) (*api.GetSecretResponse, error) {
-	if request.SecretID == "" {
+	if request.SecretId == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "secret ID must be provided")
 	}
 
 	var secret *api.Secret
 	s.store.View(func(tx store.ReadTx) {
-		secret = store.GetSecret(tx, request.SecretID)
+		secret = store.GetSecret(tx, request.SecretId)
 	})
 
 	if secret == nil {
-		return nil, status.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
+		return nil, status.Errorf(codes.NotFound, "secret %s not found", request.SecretId)
 	}
 
 	secret.Spec.Data = nil // clean the actual secret data so it's never returned
@@ -50,26 +50,26 @@ func (s *Server) GetSecret(_ context.Context, request *api.GetSecretRequest) (*a
 // - Returns `InvalidArgument` if the SecretSpec is malformed or anything other than Labels is changed
 // - Returns an error if the update fails.
 func (s *Server) UpdateSecret(ctx context.Context, request *api.UpdateSecretRequest) (*api.UpdateSecretResponse, error) {
-	if request.SecretID == "" || request.SecretVersion == nil {
+	if request.SecretId == "" || request.SecretVersion == nil {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 	var secret *api.Secret
 	err := s.store.Update(func(tx store.Tx) error {
-		secret = store.GetSecret(tx, request.SecretID)
+		secret = store.GetSecret(tx, request.SecretId)
 		if secret == nil {
-			return status.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
+			return status.Errorf(codes.NotFound, "secret %s not found", request.SecretId)
 		}
 
 		// Check if the Name is different than the current name, or the secret is non-nil and different
 		// than the current secret
-		if secret.Spec.Annotations.Name != request.Spec.Annotations.Name ||
-			(request.Spec.Data != nil && subtle.ConstantTimeCompare(request.Spec.Data, secret.Spec.Data) == 0) {
+		if secret.GetSpec().GetAnnotations().GetName() != request.GetSpec().GetAnnotations().GetName() ||
+			(request.Spec.GetData() != nil && subtle.ConstantTimeCompare(request.Spec.GetData(), secret.Spec.GetData()) == 0) {
 			return status.Errorf(codes.InvalidArgument, "only updates to Labels are allowed")
 		}
 
 		// We only allow updating Labels
-		secret.Meta.Version = *request.SecretVersion
-		secret.Spec.Annotations.Labels = request.Spec.Annotations.Labels
+		secret.Meta.Version = request.SecretVersion
+		secret.Spec.Annotations.Labels = request.Spec.GetAnnotations().GetLabels()
 
 		return store.UpdateSecret(tx, secret)
 	})
@@ -78,8 +78,8 @@ func (s *Server) UpdateSecret(ctx context.Context, request *api.UpdateSecretRequ
 	}
 
 	log.G(ctx).WithFields(log.Fields{
-		"secret.ID":   request.SecretID,
-		"secret.Name": request.Spec.Annotations.Name,
+		"secret.ID":   request.SecretId,
+		"secret.Name": request.GetSpec().GetAnnotations().GetName(),
 		"method":      "UpdateSecret",
 	}).Debugf("secret updated")
 
@@ -113,7 +113,7 @@ func (s *Server) ListSecrets(_ context.Context, request *api.ListSecretsRequest)
 		for _, prefix := range request.Filters.NamePrefixes {
 			byFilters = append(byFilters, store.ByNamePrefix(prefix))
 		}
-		for _, prefix := range request.Filters.IDPrefixes {
+		for _, prefix := range request.Filters.IdPrefixes {
 			byFilters = append(byFilters, store.ByIDPrefix(prefix))
 		}
 		labels = request.Filters.Labels
@@ -137,7 +137,7 @@ func (s *Server) ListSecrets(_ context.Context, request *api.ListSecretsRequest)
 
 	// strip secret data from the secret, filter by label, and filter out all internal secrets
 	for _, secret := range secrets {
-		if secret.Internal || !filterMatchLabels(secret.Spec.Annotations.Labels, labels) {
+		if secret.Internal || !filterMatchLabels(secret.GetSpec().GetAnnotations().GetLabels(), labels) {
 			continue
 		}
 		secret.Spec.Data = nil // clean the actual secret data so it's never returned
@@ -157,8 +157,8 @@ func (s *Server) CreateSecret(ctx context.Context, request *api.CreateSecretRequ
 		return nil, err
 	}
 
-	if request.Spec.Driver != nil { // Check that the requested driver is valid
-		if _, err := s.dr.NewSecretDriver(request.Spec.Driver); err != nil {
+	if request.Spec.GetDriver() != nil { // Check that the requested driver is valid
+		if _, err := s.dr.NewSecretDriver(request.Spec.GetDriver()); err != nil {
 			return nil, err
 		}
 	}
@@ -170,11 +170,11 @@ func (s *Server) CreateSecret(ctx context.Context, request *api.CreateSecretRequ
 
 	switch err {
 	case store.ErrNameConflict:
-		return nil, status.Errorf(codes.AlreadyExists, "secret %s already exists", request.Spec.Annotations.Name)
+		return nil, status.Errorf(codes.AlreadyExists, "secret %s already exists", request.GetSpec().GetAnnotations().GetName())
 	case nil:
 		secret.Spec.Data = nil // clean the actual secret data so it's never returned
 		log.G(ctx).WithFields(log.Fields{
-			"secret.Name": request.Spec.Annotations.Name,
+			"secret.Name": request.GetSpec().GetAnnotations().GetName(),
 			"method":      "CreateSecret",
 		}).Debugf("secret created")
 
@@ -190,30 +190,30 @@ func (s *Server) CreateSecret(ctx context.Context, request *api.CreateSecretRequ
 // - Returns `SecretInUse` if the secret is currently in use
 // - Returns an error if the deletion fails.
 func (s *Server) RemoveSecret(ctx context.Context, request *api.RemoveSecretRequest) (*api.RemoveSecretResponse, error) {
-	if request.SecretID == "" {
+	if request.SecretId == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "secret ID must be provided")
 	}
 
 	err := s.store.Update(func(tx store.Tx) error {
 		// Check if the secret exists
-		secret := store.GetSecret(tx, request.SecretID)
+		secret := store.GetSecret(tx, request.SecretId)
 		if secret == nil {
-			return status.Errorf(codes.NotFound, "could not find secret %s", request.SecretID)
+			return status.Errorf(codes.NotFound, "could not find secret %s", request.SecretId)
 		}
 
 		// Check if any services currently reference this secret, return error if so
-		services, err := store.FindServices(tx, store.ByReferencedSecretID(request.SecretID))
+		services, err := store.FindServices(tx, store.ByReferencedSecretID(request.SecretId))
 		if err != nil {
-			return status.Errorf(codes.Internal, "could not find services using secret %s: %v", request.SecretID, err)
+			return status.Errorf(codes.Internal, "could not find services using secret %s: %v", request.SecretId, err)
 		}
 
 		if len(services) != 0 {
 			serviceNames := make([]string, 0, len(services))
 			for _, service := range services {
-				serviceNames = append(serviceNames, service.Spec.Annotations.Name)
+				serviceNames = append(serviceNames, service.GetSpec().GetAnnotations().GetName())
 			}
 
-			secretName := secret.Spec.Annotations.Name
+			secretName := secret.GetSpec().GetAnnotations().GetName()
 			serviceNameStr := strings.Join(serviceNames, ", ")
 			serviceStr := "services"
 			if len(serviceNames) == 1 {
@@ -223,14 +223,14 @@ func (s *Server) RemoveSecret(ctx context.Context, request *api.RemoveSecretRequ
 			return status.Errorf(codes.InvalidArgument, "secret '%s' is in use by the following %s: %v", secretName, serviceStr, serviceNameStr)
 		}
 
-		return store.DeleteSecret(tx, request.SecretID)
+		return store.DeleteSecret(tx, request.SecretId)
 	})
 	switch err {
 	case store.ErrNotExist:
-		return nil, status.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
+		return nil, status.Errorf(codes.NotFound, "secret %s not found", request.SecretId)
 	case nil:
 		log.G(ctx).WithFields(log.Fields{
-			"secret.ID": request.SecretID,
+			"secret.ID": request.SecretId,
 			"method":    "RemoveSecret",
 		}).Debugf("secret removed")
 

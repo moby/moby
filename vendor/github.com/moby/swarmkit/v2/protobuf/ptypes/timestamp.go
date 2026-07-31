@@ -3,14 +3,14 @@ package ptypes
 import (
 	"time"
 
-	gogotypes "github.com/gogo/protobuf/types"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // MustTimestampProto converts time.Time to a google.protobuf.Timestamp proto.
 // It panics if input timestamp is invalid.
-func MustTimestampProto(t time.Time) *gogotypes.Timestamp {
-	ts, err := gogotypes.TimestampProto(t)
-	if err != nil {
+func MustTimestampProto(t time.Time) *timestamppb.Timestamp {
+	ts := timestamppb.New(t)
+	if err := ts.CheckValid(); err != nil {
 		panic(err.Error())
 	}
 	return ts

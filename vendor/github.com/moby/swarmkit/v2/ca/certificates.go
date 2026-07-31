@@ -806,14 +806,14 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, rootCAPool *x50
 	defer issueCancel()
 
 	// Send the Request and retrieve the request token
-	issueRequest := &api.IssueNodeCertificateRequest{CSR: csr, Token: config.Token, Availability: config.Availability}
+	issueRequest := &api.IssueNodeCertificateRequest{Csr: csr, Token: config.Token, Availability: config.Availability}
 	issueResponse, err := caClient.IssueNodeCertificate(issueCtx, issueRequest)
 	if err != nil {
 		conn.Close(false)
 		return nil, err
 	}
 
-	statusRequest := &api.NodeCertificateStatusRequest{NodeID: issueResponse.NodeID}
+	statusRequest := &api.NodeCertificateStatusRequest{NodeId: issueResponse.NodeId}
 	expBackoff := events.NewExponentialBackoff(events.ExponentialBackoffConfig{
 		Base:   time.Second,
 		Factor: time.Second,
@@ -845,7 +845,7 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, rootCAPool *x50
 			caClient = api.NewNodeCAClient(conn.ClientConn)
 
 		// If there was no deadline exceeded error, and the certificate was issued, return
-		case err == nil && (statusResponse.Status.State == api.IssuanceStateIssued || statusResponse.Status.State == api.IssuanceStateRotate):
+		case err == nil && (statusResponse.Status.GetState() == api.IssuanceStatus_ISSUED || statusResponse.Status.GetState() == api.IssuanceStatus_ROTATE):
 			if statusResponse.Certificate == nil {
 				conn.Close(false)
 				return nil, errors.New("no certificate in CertificateStatus response")
@@ -856,9 +856,9 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, rootCAPool *x50
 			// certificate that was previously issued, we need to
 			// retry until the certificate gets updated per our
 			// current request.
-			if bytes.Equal(statusResponse.Certificate.CSR, csr) {
+			if bytes.Equal(statusResponse.Certificate.GetCsr(), csr) {
 				conn.Close(true)
-				return statusResponse.Certificate.Certificate, nil
+				return statusResponse.Certificate.GetCertificate(), nil
 			}
 		}
 

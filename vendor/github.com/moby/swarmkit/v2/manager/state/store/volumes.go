@@ -51,17 +51,17 @@ func init() {
 			}
 			return RestoreTable(tx, tableVolume, toStoreObj)
 		},
-		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
+		ApplyStoreAction: func(tx Tx, sa *api.StoreAction) error {
 			switch v := sa.Target.(type) {
 			case *api.StoreAction_Volume:
 				obj := v.Volume
 				switch sa.Action {
-				case api.StoreActionKindCreate:
+				case api.StoreActionKind_STORE_ACTION_CREATE:
 					return CreateVolume(tx, obj)
-				case api.StoreActionKindUpdate:
+				case api.StoreActionKind_STORE_ACTION_UPDATE:
 					return UpdateVolume(tx, obj)
-				case api.StoreActionKindRemove:
-					return DeleteVolume(tx, obj.ID)
+				case api.StoreActionKind_STORE_ACTION_REMOVE:
+					return DeleteVolume(tx, obj.Id)
 				}
 			}
 			return errUnknownStoreAction
@@ -70,7 +70,7 @@ func init() {
 }
 
 func CreateVolume(tx Tx, v *api.Volume) error {
-	if tx.lookup(tableVolume, indexName, strings.ToLower(v.Spec.Annotations.Name)) != nil {
+	if tx.lookup(tableVolume, indexName, strings.ToLower(v.GetSpec().GetAnnotations().GetName())) != nil {
 		return ErrNameConflict
 	}
 
@@ -79,8 +79,8 @@ func CreateVolume(tx Tx, v *api.Volume) error {
 
 func UpdateVolume(tx Tx, v *api.Volume) error {
 	// ensure the name is either not in use, or is in use by this volume.
-	if existing := tx.lookup(tableVolume, indexName, strings.ToLower(v.Spec.Annotations.Name)); existing != nil {
-		if existing.GetID() != v.ID {
+	if existing := tx.lookup(tableVolume, indexName, strings.ToLower(v.GetSpec().GetAnnotations().GetName())); existing != nil {
+		if existing.GetId() != v.Id {
 			return ErrNameConflict
 		}
 	}
@@ -127,7 +127,7 @@ func (vi volumeIndexerByGroup) FromArgs(args ...any) ([]byte, error) {
 
 func (vi volumeIndexerByGroup) FromObject(obj any) (bool, []byte, error) {
 	v := obj.(*api.Volume)
-	val := v.Spec.Group + "\x00"
+	val := v.GetSpec().GetGroup() + "\x00"
 	return true, []byte(val), nil
 }
 
@@ -141,9 +141,10 @@ func (vi volumeIndexerByDriver) FromObject(obj any) (bool, []byte, error) {
 	v := obj.(*api.Volume)
 	// this should never happen -- existence of the volume driver is checked
 	// at the controlapi level. However, guard against the unforeseen.
-	if v.Spec.Driver == nil {
+	driver := v.GetSpec().GetDriver()
+	if driver == nil {
 		return false, nil, nil
 	}
-	val := v.Spec.Driver.Name + "\x00"
+	val := driver.Name + "\x00"
 	return true, []byte(val), nil
 }

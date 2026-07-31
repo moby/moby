@@ -13,14 +13,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// MaxConfigSize is the maximum byte length of the `Config.Spec.Data` field.
+// MaxConfigSize is the maximum byte length of the `Config.Spec.GetData()` field.
 const MaxConfigSize = 1000 * 1024 // 1000KB
 
 // assumes spec is not nil
 func configFromConfigSpec(spec *api.ConfigSpec) *api.Config {
 	return &api.Config{
-		ID:   identity.NewID(),
-		Spec: *spec,
+		Id:   identity.NewID(),
+		Spec: spec,
 	}
 }
 
@@ -30,17 +30,17 @@ func configFromConfigSpec(spec *api.ConfigSpec) *api.Config {
 // - Returns `InvalidArgument` if the `GetConfigRequest.ConfigID` is empty.
 // - Returns an error if getting fails.
 func (s *Server) GetConfig(_ context.Context, request *api.GetConfigRequest) (*api.GetConfigResponse, error) {
-	if request.ConfigID == "" {
+	if request.ConfigId == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "config ID must be provided")
 	}
 
 	var config *api.Config
 	s.store.View(func(tx store.ReadTx) {
-		config = store.GetConfig(tx, request.ConfigID)
+		config = store.GetConfig(tx, request.ConfigId)
 	})
 
 	if config == nil {
-		return nil, status.Errorf(codes.NotFound, "config %s not found", request.ConfigID)
+		return nil, status.Errorf(codes.NotFound, "config %s not found", request.ConfigId)
 	}
 
 	return &api.GetConfigResponse{Config: config}, nil
@@ -51,27 +51,27 @@ func (s *Server) GetConfig(_ context.Context, request *api.GetConfigRequest) (*a
 // - Returns `InvalidArgument` if the ConfigSpec is malformed or anything other than Labels is changed
 // - Returns an error if the update fails.
 func (s *Server) UpdateConfig(ctx context.Context, request *api.UpdateConfigRequest) (*api.UpdateConfigResponse, error) {
-	if request.ConfigID == "" || request.ConfigVersion == nil {
+	if request.ConfigId == "" || request.ConfigVersion == nil {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	var config *api.Config
 	err := s.store.Update(func(tx store.Tx) error {
-		config = store.GetConfig(tx, request.ConfigID)
+		config = store.GetConfig(tx, request.ConfigId)
 		if config == nil {
-			return status.Errorf(codes.NotFound, "config %s not found", request.ConfigID)
+			return status.Errorf(codes.NotFound, "config %s not found", request.ConfigId)
 		}
 
 		// Check if the Name is different than the current name, or the config is non-nil and different
 		// than the current config
-		if config.Spec.Annotations.Name != request.Spec.Annotations.Name ||
-			(request.Spec.Data != nil && !bytes.Equal(request.Spec.Data, config.Spec.Data)) {
+		if config.GetSpec().GetAnnotations().GetName() != request.GetSpec().GetAnnotations().GetName() ||
+			(request.Spec.GetData() != nil && !bytes.Equal(request.Spec.GetData(), config.Spec.GetData())) {
 			return status.Errorf(codes.InvalidArgument, "only updates to Labels are allowed")
 		}
 
 		// We only allow updating Labels
-		config.Meta.Version = *request.ConfigVersion
-		config.Spec.Annotations.Labels = request.Spec.Annotations.Labels
+		config.Meta.Version = request.ConfigVersion
+		config.Spec.Annotations.Labels = request.Spec.GetAnnotations().GetLabels()
 
 		return store.UpdateConfig(tx, config)
 	})
@@ -80,8 +80,8 @@ func (s *Server) UpdateConfig(ctx context.Context, request *api.UpdateConfigRequ
 	}
 
 	log.G(ctx).WithFields(log.Fields{
-		"config.ID":   request.ConfigID,
-		"config.Name": request.Spec.Annotations.Name,
+		"config.ID":   request.ConfigId,
+		"config.Name": request.GetSpec().GetAnnotations().GetName(),
 		"method":      "UpdateConfig",
 	}).Debugf("config updated")
 
@@ -113,7 +113,7 @@ func (s *Server) ListConfigs(_ context.Context, request *api.ListConfigsRequest)
 		for _, prefix := range request.Filters.NamePrefixes {
 			byFilters = append(byFilters, store.ByNamePrefix(prefix))
 		}
-		for _, prefix := range request.Filters.IDPrefixes {
+		for _, prefix := range request.Filters.IdPrefixes {
 			byFilters = append(byFilters, store.ByIDPrefix(prefix))
 		}
 		labels = request.Filters.Labels
@@ -137,7 +137,7 @@ func (s *Server) ListConfigs(_ context.Context, request *api.ListConfigsRequest)
 
 	// filter by label
 	for _, config := range configs {
-		if !filterMatchLabels(config.Spec.Annotations.Labels, labels) {
+		if !filterMatchLabels(config.GetSpec().GetAnnotations().GetLabels(), labels) {
 			continue
 		}
 		respConfigs = append(respConfigs, config)
@@ -163,10 +163,10 @@ func (s *Server) CreateConfig(ctx context.Context, request *api.CreateConfigRequ
 
 	switch err {
 	case store.ErrNameConflict:
-		return nil, status.Errorf(codes.AlreadyExists, "config %s already exists", request.Spec.Annotations.Name)
+		return nil, status.Errorf(codes.AlreadyExists, "config %s already exists", request.GetSpec().GetAnnotations().GetName())
 	case nil:
 		log.G(ctx).WithFields(log.Fields{
-			"config.Name": request.Spec.Annotations.Name,
+			"config.Name": request.GetSpec().GetAnnotations().GetName(),
 			"method":      "CreateConfig",
 		}).Debugf("config created")
 
@@ -182,30 +182,30 @@ func (s *Server) CreateConfig(ctx context.Context, request *api.CreateConfigRequ
 // - Returns `ConfigInUse` if the config is currently in use
 // - Returns an error if the deletion fails.
 func (s *Server) RemoveConfig(ctx context.Context, request *api.RemoveConfigRequest) (*api.RemoveConfigResponse, error) {
-	if request.ConfigID == "" {
+	if request.ConfigId == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "config ID must be provided")
 	}
 
 	err := s.store.Update(func(tx store.Tx) error {
 		// Check if the config exists
-		config := store.GetConfig(tx, request.ConfigID)
+		config := store.GetConfig(tx, request.ConfigId)
 		if config == nil {
-			return status.Errorf(codes.NotFound, "could not find config %s", request.ConfigID)
+			return status.Errorf(codes.NotFound, "could not find config %s", request.ConfigId)
 		}
 
 		// Check if any services currently reference this config, return error if so
-		services, err := store.FindServices(tx, store.ByReferencedConfigID(request.ConfigID))
+		services, err := store.FindServices(tx, store.ByReferencedConfigID(request.ConfigId))
 		if err != nil {
-			return status.Errorf(codes.Internal, "could not find services using config %s: %v", request.ConfigID, err)
+			return status.Errorf(codes.Internal, "could not find services using config %s: %v", request.ConfigId, err)
 		}
 
 		if len(services) != 0 {
 			serviceNames := make([]string, 0, len(services))
 			for _, service := range services {
-				serviceNames = append(serviceNames, service.Spec.Annotations.Name)
+				serviceNames = append(serviceNames, service.GetSpec().GetAnnotations().GetName())
 			}
 
-			configName := config.Spec.Annotations.Name
+			configName := config.GetSpec().GetAnnotations().GetName()
 			serviceNameStr := strings.Join(serviceNames, ", ")
 			serviceStr := "services"
 			if len(serviceNames) == 1 {
@@ -215,14 +215,14 @@ func (s *Server) RemoveConfig(ctx context.Context, request *api.RemoveConfigRequ
 			return status.Errorf(codes.InvalidArgument, "config '%s' is in use by the following %s: %v", configName, serviceStr, serviceNameStr)
 		}
 
-		return store.DeleteConfig(tx, request.ConfigID)
+		return store.DeleteConfig(tx, request.ConfigId)
 	})
 	switch err {
 	case store.ErrNotExist:
-		return nil, status.Errorf(codes.NotFound, "config %s not found", request.ConfigID)
+		return nil, status.Errorf(codes.NotFound, "config %s not found", request.ConfigId)
 	case nil:
 		log.G(ctx).WithFields(log.Fields{
-			"config.ID": request.ConfigID,
+			"config.ID": request.ConfigId,
 			"method":    "RemoveConfig",
 		}).Debugf("config removed")
 

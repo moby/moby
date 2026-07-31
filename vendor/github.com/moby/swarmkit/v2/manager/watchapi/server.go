@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/state/store"
 )
 
@@ -15,6 +16,8 @@ var (
 
 // Server is the store API gRPC server.
 type Server struct {
+	api.UnimplementedWatchServer
+
 	store     *store.MemoryStore
 	mu        sync.Mutex
 	pctx      context.Context

@@ -43,17 +43,17 @@ func init() {
 			}
 			return RestoreTable(tx, tableNetwork, toStoreObj)
 		},
-		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
+		ApplyStoreAction: func(tx Tx, sa *api.StoreAction) error {
 			switch v := sa.Target.(type) {
 			case *api.StoreAction_Network:
 				obj := v.Network
 				switch sa.Action {
-				case api.StoreActionKindCreate:
+				case api.StoreActionKind_STORE_ACTION_CREATE:
 					return CreateNetwork(tx, obj)
-				case api.StoreActionKindUpdate:
+				case api.StoreActionKind_STORE_ACTION_UPDATE:
 					return UpdateNetwork(tx, obj)
-				case api.StoreActionKindRemove:
-					return DeleteNetwork(tx, obj.ID)
+				case api.StoreActionKind_STORE_ACTION_REMOVE:
+					return DeleteNetwork(tx, obj.Id)
 				}
 			}
 			return errUnknownStoreAction
@@ -65,7 +65,7 @@ func init() {
 // Returns ErrExist if the ID is already taken.
 func CreateNetwork(tx Tx, n *api.Network) error {
 	// Ensure the name is not already in use.
-	if tx.lookup(tableNetwork, indexName, strings.ToLower(n.Spec.Annotations.Name)) != nil {
+	if tx.lookup(tableNetwork, indexName, strings.ToLower(n.GetSpec().GetAnnotations().GetName())) != nil {
 		return ErrNameConflict
 	}
 
@@ -76,8 +76,8 @@ func CreateNetwork(tx Tx, n *api.Network) error {
 // Returns ErrNotExist if the network doesn't exist.
 func UpdateNetwork(tx Tx, n *api.Network) error {
 	// Ensure the name is either not in use or already used by this same Network.
-	if existing := tx.lookup(tableNetwork, indexName, strings.ToLower(n.Spec.Annotations.Name)); existing != nil {
-		if existing.GetID() != n.ID {
+	if existing := tx.lookup(tableNetwork, indexName, strings.ToLower(n.GetSpec().GetAnnotations().GetName())); existing != nil {
+		if existing.GetId() != n.Id {
 			return ErrNameConflict
 		}
 	}

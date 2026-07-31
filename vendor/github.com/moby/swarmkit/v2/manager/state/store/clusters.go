@@ -49,17 +49,17 @@ func init() {
 			}
 			return RestoreTable(tx, tableCluster, toStoreObj)
 		},
-		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
+		ApplyStoreAction: func(tx Tx, sa *api.StoreAction) error {
 			switch v := sa.Target.(type) {
 			case *api.StoreAction_Cluster:
 				obj := v.Cluster
 				switch sa.Action {
-				case api.StoreActionKindCreate:
+				case api.StoreActionKind_STORE_ACTION_CREATE:
 					return CreateCluster(tx, obj)
-				case api.StoreActionKindUpdate:
+				case api.StoreActionKind_STORE_ACTION_UPDATE:
 					return UpdateCluster(tx, obj)
-				case api.StoreActionKindRemove:
-					return DeleteCluster(tx, obj.ID)
+				case api.StoreActionKind_STORE_ACTION_REMOVE:
+					return DeleteCluster(tx, obj.Id)
 				}
 			}
 			return errUnknownStoreAction
@@ -71,7 +71,7 @@ func init() {
 // Returns ErrExist if the ID is already taken.
 func CreateCluster(tx Tx, c *api.Cluster) error {
 	// Ensure the name is not already in use.
-	if tx.lookup(tableCluster, indexName, strings.ToLower(c.Spec.Annotations.Name)) != nil {
+	if tx.lookup(tableCluster, indexName, strings.ToLower(c.GetSpec().GetAnnotations().GetName())) != nil {
 		return ErrNameConflict
 	}
 
@@ -82,8 +82,8 @@ func CreateCluster(tx Tx, c *api.Cluster) error {
 // Returns ErrNotExist if the cluster doesn't exist.
 func UpdateCluster(tx Tx, c *api.Cluster) error {
 	// Ensure the name is either not in use or already used by this same Cluster.
-	if existing := tx.lookup(tableCluster, indexName, strings.ToLower(c.Spec.Annotations.Name)); existing != nil {
-		if existing.GetID() != c.ID {
+	if existing := tx.lookup(tableCluster, indexName, strings.ToLower(c.GetSpec().GetAnnotations().GetName())); existing != nil {
+		if existing.GetId() != c.Id {
 			return ErrNameConflict
 		}
 	}

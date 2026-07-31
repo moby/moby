@@ -19,12 +19,12 @@ func (e EventCommit) Matches(watchEvent events.Event) bool {
 
 // TaskCheckStateGreaterThan is a TaskCheckFunc for checking task state.
 func TaskCheckStateGreaterThan(t1, t2 *api.Task) bool {
-	return t2.Status.State > t1.Status.State
+	return t2.Status.GetState() > t1.Status.GetState()
 }
 
 // NodeCheckState is a NodeCheckFunc for matching node state.
 func NodeCheckState(n1, n2 *api.Node) bool {
-	return n1.Status.State == n2.Status.State
+	return n1.Status.GetState() == n2.Status.GetState()
 }
 
 // Watch takes a variable number of events to match against. The subscriber

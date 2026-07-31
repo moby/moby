@@ -11,7 +11,7 @@ type ObjectStoreConfig struct {
 	Table            *memdb.TableSchema
 	Save             func(ReadTx, *api.StoreSnapshot) error
 	Restore          func(Tx, *api.StoreSnapshot) error
-	ApplyStoreAction func(Tx, api.StoreAction) error
+	ApplyStoreAction func(Tx, *api.StoreAction) error
 }
 
 // RestoreTable takes a list of new objects of a particular type (e.g. clusters,
@@ -34,7 +34,7 @@ func RestoreTable(tx Tx, table string, newObjects []api.StoreObject) error {
 	updated := make(map[string]struct{})
 
 	for _, o := range newObjects {
-		objectID := o.GetID()
+		objectID := o.GetId()
 		if existing := tx.lookup(table, indexID, objectID); existing != nil {
 			if err := tx.update(table, o); err != nil {
 				return err
@@ -47,7 +47,7 @@ func RestoreTable(tx Tx, table string, newObjects []api.StoreObject) error {
 		}
 	}
 	for _, o := range oldObjects {
-		objectID := o.GetID()
+		objectID := o.GetId()
 		if _, ok := updated[objectID]; !ok {
 			if err := tx.delete(table, objectID); err != nil {
 				return err

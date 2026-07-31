@@ -80,15 +80,15 @@ func (tr *TaskReaper) Run(ctx context.Context) {
 
 		clusters, err := store.FindClusters(readTx, store.ByName(store.DefaultClusterName))
 		if err == nil && len(clusters) == 1 {
-			tr.taskHistory = clusters[0].Spec.Orchestration.TaskHistoryRetentionLimit
+			tr.taskHistory = clusters[0].Spec.GetOrchestration().GetTaskHistoryRetentionLimit()
 		}
 
 		// On startup, scan the entire store and inspect orphaned tasks from previous life.
-		orphanedTasks, err = store.FindTasks(readTx, store.ByTaskState(api.TaskStateOrphaned))
+		orphanedTasks, err = store.FindTasks(readTx, store.ByTaskState(api.TaskState_ORPHANED))
 		if err != nil {
 			log.G(ctx).WithError(err).Error("failed to find Orphaned tasks in task reaper init")
 		}
-		removeTasks, err = store.FindTasks(readTx, store.ByDesiredState(api.TaskStateRemove))
+		removeTasks, err = store.FindTasks(readTx, store.ByDesiredState(api.TaskState_REMOVE))
 		if err != nil {
 			log.G(ctx).WithError(err).Error("failed to find tasks with desired state REMOVE in task reaper init")
 		}
@@ -99,18 +99,18 @@ func (tr *TaskReaper) Run(ctx context.Context) {
 			// Do not reap service tasks immediately.
 			// Let them go through the regular history cleanup process
 			// of checking TaskHistoryRetentionLimit.
-			if t.ServiceID != "" {
+			if t.ServiceId != "" {
 				continue
 			}
 
 			// Serviceless tasks can be cleaned up right away since they are not attached to a service.
-			tr.cleanup = append(tr.cleanup, t.ID)
+			tr.cleanup = append(tr.cleanup, t.Id)
 		}
 		// tasks with desired state REMOVE that have progressed beyond COMPLETE or
 		// haven't been assigned yet can be cleaned up right away
 		for _, t := range removeTasks {
-			if t.Status.State < api.TaskStateAssigned || t.Status.State >= api.TaskStateCompleted {
-				tr.cleanup = append(tr.cleanup, t.ID)
+			if t.Status.GetState() < api.TaskState_ASSIGNED || t.Status.GetState() >= api.TaskState_COMPLETE {
+				tr.cleanup = append(tr.cleanup, t.Id)
 			}
 		}
 		// Clean up tasks in 'cleanup' right away
@@ -166,23 +166,23 @@ func (tr *TaskReaper) Run(ctx context.Context) {
 				t := v.Task
 				tr.dirty[orchestrator.SlotTuple{
 					Slot:      t.Slot,
-					ServiceID: t.ServiceID,
-					NodeID:    t.NodeID,
+					ServiceID: t.ServiceId,
+					NodeID:    t.NodeId,
 				}] = struct{}{}
 			case api.EventUpdateTask:
 				t := v.Task
 				// add serviceless orphaned tasks
-				if t.Status.State >= api.TaskStateOrphaned && t.ServiceID == "" {
-					tr.cleanup = append(tr.cleanup, t.ID)
+				if t.Status.GetState() >= api.TaskState_ORPHANED && t.ServiceId == "" {
+					tr.cleanup = append(tr.cleanup, t.Id)
 				}
 				// add tasks that are yet unassigned or have progressed beyond COMPLETE, with
 				// desired state REMOVE. These tasks are associated with slots that were removed
 				// as part of a service scale down or service removal.
-				if t.DesiredState == api.TaskStateRemove && (t.Status.State < api.TaskStateAssigned || t.Status.State >= api.TaskStateCompleted) {
-					tr.cleanup = append(tr.cleanup, t.ID)
+				if t.DesiredState == api.TaskState_REMOVE && (t.Status.GetState() < api.TaskState_ASSIGNED || t.Status.GetState() >= api.TaskState_COMPLETE) {
+					tr.cleanup = append(tr.cleanup, t.Id)
 				}
 			case api.EventUpdateCluster:
-				tr.taskHistory = v.Cluster.Spec.Orchestration.TaskHistoryRetentionLimit
+				tr.taskHistory = v.Cluster.Spec.GetOrchestration().GetTaskHistoryRetentionLimit()
 			}
 
 			if len(tr.dirty)+len(tr.cleanup) > maxDirty {
@@ -220,12 +220,12 @@ func (tr *TaskReaper) Run(ctx context.Context) {
 
 // taskInTerminalState returns true if task is in a terminal state.
 func taskInTerminalState(task *api.Task) bool {
-	return task.Status.State > api.TaskStateRunning
+	return task.Status.GetState() > api.TaskState_RUNNING
 }
 
 // taskWillNeverRun returns true if task will never reach running state.
 func taskWillNeverRun(task *api.Task) bool {
-	return task.Status.State < api.TaskStateAssigned && task.DesiredState > api.TaskStateRunning
+	return task.Status.GetState() < api.TaskState_ASSIGNED && task.DesiredState > api.TaskState_RUNNING
 }
 
 // tick performs task history cleanup.
@@ -289,8 +289,8 @@ func (tr *TaskReaper) tick() {
 			//     version.
 			//   - Don't force retention of tasks outside of the
 			//     time window configured for restart lookback.
-			if service.Spec.Task.Restart != nil && service.Spec.Task.Restart.MaxAttempts > 0 {
-				taskHistory = int64(service.Spec.Task.Restart.MaxAttempts) + 1
+			if service.Spec.GetTask().GetRestart() != nil && service.Spec.GetTask().GetRestart().GetMaxAttempts() > 0 {
+				taskHistory = int64(service.Spec.GetTask().GetRestart().GetMaxAttempts()) + 1
 			}
 
 			// Negative value for TaskHistoryRetentionLimit is an indication to never clean up task history.
@@ -318,7 +318,7 @@ func (tr *TaskReaper) tick() {
 				}
 
 				for _, t := range tasksByNode {
-					if t.ServiceID == dirty.ServiceID {
+					if t.ServiceId == dirty.ServiceID {
 						historicTasks = append(historicTasks, t)
 					}
 				}
@@ -342,7 +342,7 @@ func (tr *TaskReaper) tick() {
 				// 2. The task has not yet become running and desired state is a terminal state i.e.
 				// actual state not yet TaskStateAssigned and desired state beyond TaskStateRunning.
 				if taskInTerminalState(t) || taskWillNeverRun(t) {
-					deleteTasks[t.ID] = struct{}{}
+					deleteTasks[t.Id] = struct{}{}
 
 					taskHistory++
 					if int64(len(historicTasks)) <= taskHistory {

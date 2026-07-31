@@ -68,9 +68,9 @@ type SecretGetter interface {
 type SecretsManager interface {
 	SecretGetter
 
-	Add(secrets ...api.Secret) // add one or more secrets
-	Remove(secrets []string)   // remove the secrets by ID
-	Reset()                    // remove all secrets
+	Add(secrets ...*api.Secret) // add one or more secrets
+	Remove(secrets []string)    // remove the secrets by ID
+	Reset()                     // remove all secrets
 }
 
 // ConfigGetter contains config data necessary for the Controller.
@@ -84,9 +84,9 @@ type ConfigGetter interface {
 type ConfigsManager interface {
 	ConfigGetter
 
-	Add(configs ...api.Config) // add one or more configs
-	Remove(configs []string)   // remove the configs by ID
-	Reset()                    // remove all configs
+	Add(configs ...*api.Config) // add one or more configs
+	Remove(configs []string)    // remove the configs by ID
+	Reset()                     // remove all configs
 }
 
 // VolumeGetter contains volume data necessary for the Controller.
@@ -101,13 +101,13 @@ type VolumesManager interface {
 	VolumeGetter
 
 	// Add adds one or more volumes
-	Add(volumes ...api.VolumeAssignment)
+	Add(volumes ...*api.VolumeAssignment)
 	// Remove removes one or more volumes. The callback is called each time a
 	// volume is successfully removed with the ID of the volume removed.
 	//
 	// Remove takes a full VolumeAssignment because we may be instructed by the
 	// swarm manager to attempt removal of a Volume we don't know we have.
-	Remove(volumes []api.VolumeAssignment, callback func(string))
+	Remove(volumes []*api.VolumeAssignment, callback func(string))
 	// Plugins returns the VolumePluginManager for this VolumesManager
 	Plugins() VolumePluginManager
 }

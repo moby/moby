@@ -57,7 +57,7 @@ func SetServiceTasksRemove(ctx context.Context, s *store.MemoryStore, service *a
 		err   error
 	)
 	s.View(func(tx store.ReadTx) {
-		tasks, err = store.FindTasks(tx, store.ByServiceID(service.ID))
+		tasks, err = store.FindTasks(tx, store.ByServiceID(service.Id))
 	})
 	if err != nil {
 		log.G(ctx).WithError(err).Errorf("failed to list tasks")
@@ -70,28 +70,28 @@ func SetServiceTasksRemove(ctx context.Context, s *store.MemoryStore, service *a
 				// the task may have changed for some reason in the meantime
 				// since we read it out, so we need to get from the store again
 				// within the boundaries of a transaction
-				latestTask := store.GetTask(tx, t.ID)
+				latestTask := store.GetTask(tx, t.Id)
 
 				// in case the task is deleted
 				if latestTask == nil {
-					log.G(ctx).WithField("task_id", t.ID).Debug("task no longer exists in store")
+					log.G(ctx).WithField("task_id", t.Id).Debug("task no longer exists in store")
 					return nil
 				}
 
 				// time travel is not allowed. if the current desired state is
 				// above the one we're trying to go to we can't go backwards.
 				// we have nothing to do and we should skip to the next task
-				if latestTask.DesiredState > api.TaskStateRemove {
+				if latestTask.DesiredState > api.TaskState_REMOVE {
 					// log a warning, though. we shouln't be trying to rewrite
 					// a state to an earlier state
 					log.G(ctx).Warnf(
 						"cannot update task %v in desired state %v to an earlier desired state %v",
-						latestTask.ID, latestTask.DesiredState, api.TaskStateRemove,
+						latestTask.Id, latestTask.DesiredState, api.TaskState_REMOVE,
 					)
 					return nil
 				}
 				// update desired state to REMOVE
-				latestTask.DesiredState = api.TaskStateRemove
+				latestTask.DesiredState = api.TaskState_REMOVE
 
 				if err := store.UpdateTask(tx, latestTask); err != nil {
 					log.G(ctx).WithError(err).Errorf("failed transaction: update task desired state to REMOVE")

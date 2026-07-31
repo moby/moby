@@ -15,7 +15,6 @@ import (
 
 	"github.com/docker/go-events"
 	gmetrics "github.com/docker/go-metrics"
-	gogotypes "github.com/gogo/protobuf/types"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/ca"
@@ -50,6 +49,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 )
 
 const (
@@ -615,7 +615,7 @@ func (m *Manager) Run(parent context.Context) error {
 	if err != nil {
 		return err
 	}
-	raftConfig := c.Spec.Raft
+	raftConfig := c.Spec.GetRaft()
 
 	if err := m.watchForClusterChanges(ctx); err != nil {
 		return err
@@ -810,7 +810,7 @@ func (m *Manager) watchForClusterChanges(ctx context.Context) error {
 			return nil
 		},
 		api.EventUpdateCluster{
-			Cluster: &api.Cluster{ID: clusterID},
+			Cluster: &api.Cluster{Id: clusterID},
 			Checks:  []api.ClusterCheckFunc{api.ClusterCheckID},
 		},
 	)
@@ -937,7 +937,7 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 	clusterID := m.config.SecurityConfig.ClientTLSCreds.Organization()
 
 	initialCAConfig := ca.DefaultCAConfig()
-	initialCAConfig.ExternalCAs = m.config.ExternalCAs
+	initialCAConfig.ExternalCas = m.config.ExternalCAs
 
 	var (
 		unlockKeys []*api.EncryptionKey
@@ -958,7 +958,7 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 			clusterID,
 			initialCAConfig,
 			raftCfg,
-			api.EncryptionConfig{AutoLockManagers: m.config.AutoLockManagers},
+			&api.EncryptionConfig{AutoLockManagers: m.config.AutoLockManagers},
 			unlockKeys,
 			rootCA,
 			m.config.FIPS,
@@ -1071,9 +1071,8 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 			cluster = store.GetCluster(tx, clusterID)
 		})
 		var defaultConfig = dispatcher.DefaultConfig()
-		heartbeatPeriod, err := gogotypes.DurationFromProto(cluster.Spec.Dispatcher.HeartbeatPeriod)
-		if err == nil {
-			defaultConfig.HeartbeatPeriod = heartbeatPeriod
+		if hb := cluster.GetSpec().GetDispatcher().GetHeartbeatPeriod(); hb.IsValid() {
+			defaultConfig.HeartbeatPeriod = hb.AsDuration()
 		}
 		d.Init(m.raftNode, defaultConfig, drivers.New(m.config.PluginGetter), m.config.SecurityConfig)
 		if err := d.Run(ctx); err != nil {
@@ -1194,9 +1193,9 @@ func (m *Manager) becomeFollower() {
 // defaultClusterObject creates a default cluster.
 func defaultClusterObject(
 	clusterID string,
-	initialCAConfig api.CAConfig,
-	raftCfg api.RaftConfig,
-	encryptionConfig api.EncryptionConfig,
+	initialCAConfig *api.CAConfig,
+	raftCfg *api.RaftConfig,
+	encryptionConfig *api.EncryptionConfig,
 	initialUnlockKeys []*api.EncryptionKey,
 	rootCA *ca.RootCA,
 	fips bool,
@@ -1209,32 +1208,32 @@ func defaultClusterObject(
 	}
 
 	return &api.Cluster{
-		ID: clusterID,
-		Spec: api.ClusterSpec{
-			Annotations: api.Annotations{
+		Id: clusterID,
+		Spec: &api.ClusterSpec{
+			Annotations: &api.Annotations{
 				Name: store.DefaultClusterName,
 			},
-			Orchestration: api.OrchestrationConfig{
+			Orchestration: &api.OrchestrationConfig{
 				TaskHistoryRetentionLimit: defaultTaskHistoryRetentionLimit,
 			},
-			Dispatcher: api.DispatcherConfig{
-				HeartbeatPeriod: gogotypes.DurationProto(dispatcher.DefaultHeartBeatPeriod),
+			Dispatcher: &api.DispatcherConfig{
+				HeartbeatPeriod: durationpb.New(dispatcher.DefaultHeartBeatPeriod),
 			},
 			Raft:             raftCfg,
-			CAConfig:         initialCAConfig,
+			CaConfig:         initialCAConfig,
 			EncryptionConfig: encryptionConfig,
 		},
-		RootCA: api.RootCA{
-			CAKey:      caKey,
-			CACert:     rootCA.Certs,
-			CACertHash: rootCA.Digest.String(),
-			JoinTokens: api.JoinTokens{
+		RootCa: &api.RootCA{
+			CaKey:      caKey,
+			CaCert:     rootCA.Certs,
+			CaCertHash: rootCA.Digest.String(),
+			JoinTokens: &api.JoinTokens{
 				Worker:  ca.GenerateJoinToken(rootCA, fips),
 				Manager: ca.GenerateJoinToken(rootCA, fips),
 			},
 		},
 		UnlockKeys:         initialUnlockKeys,
-		FIPS:               fips,
+		Fips:               fips,
 		DefaultAddressPool: defaultAddressPool,
 		SubnetSize:         subnetSize,
 		VXLANUDPPort:       vxlanUDPPort,
@@ -1244,17 +1243,17 @@ func defaultClusterObject(
 // managerNode creates a new node with NodeRoleManager role.
 func managerNode(nodeID string, availability api.NodeSpec_Availability, vxlanPort uint32) *api.Node {
 	return &api.Node{
-		ID: nodeID,
-		Certificate: api.Certificate{
-			CN:   nodeID,
-			Role: api.NodeRoleManager,
-			Status: api.IssuanceStatus{
-				State: api.IssuanceStateIssued,
+		Id: nodeID,
+		Certificate: &api.Certificate{
+			Cn:   nodeID,
+			Role: api.NodeRole_MANAGER,
+			Status: &api.IssuanceStatus{
+				State: api.IssuanceStatus_ISSUED,
 			},
 		},
-		Spec: api.NodeSpec{
-			DesiredRole:  api.NodeRoleManager,
-			Membership:   api.NodeMembershipAccepted,
+		Spec: &api.NodeSpec{
+			DesiredRole:  api.NodeRole_MANAGER,
+			Membership:   api.NodeSpec_ACCEPTED,
 			Availability: availability,
 		},
 		VXLANUDPPort: vxlanPort,
@@ -1267,14 +1266,14 @@ func managerNode(nodeID string, availability api.NodeSpec_Availability, vxlanPor
 // call this function inside a store update transaction.
 func newIngressNetwork() *api.Network {
 	return &api.Network{
-		ID: identity.NewID(),
-		Spec: api.NetworkSpec{
+		Id: identity.NewID(),
+		Spec: &api.NetworkSpec{
 			Ingress: true,
-			Annotations: api.Annotations{
+			Annotations: &api.Annotations{
 				Name: "ingress",
 			},
 			DriverConfig: &api.Driver{},
-			IPAM: &api.IPAMOptions{
+			Ipam: &api.IPAMOptions{
 				Driver:  &api.Driver{},
 				Configs: []*api.IPAMConfig{},
 			},
@@ -1290,9 +1289,9 @@ func newIngressNetwork() *api.Network {
 // at the predefined label.
 func newPredefinedNetwork(name, driver string) *api.Network {
 	return &api.Network{
-		ID: identity.NewID(),
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: identity.NewID(),
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: name,
 				Labels: map[string]string{
 					networkallocator.PredefinedLabel: "true",

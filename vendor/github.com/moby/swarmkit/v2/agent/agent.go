@@ -7,11 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/log"
+	"github.com/moby/swarmkit/v2/remotes"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -301,20 +302,20 @@ func (a *Agent) run(ctx context.Context) {
 			}
 		case sub := <-session.subscriptions:
 			if sub.Close {
-				if cancel, ok := subscriptions[sub.ID]; ok {
+				if cancel, ok := subscriptions[sub.Id]; ok {
 					cancel()
 				}
-				delete(subscriptions, sub.ID)
+				delete(subscriptions, sub.Id)
 				continue
 			}
 
-			if _, ok := subscriptions[sub.ID]; ok {
+			if _, ok := subscriptions[sub.Id]; ok {
 				// Duplicate subscription
 				continue
 			}
 
 			subCtx, subCancel := context.WithCancel(ctx)
-			subscriptions[sub.ID] = subCancel
+			subscriptions[sub.Id] = subCancel
 			// NOTE(dperny): for like 3 years, there has been a to do saying
 			// "we're tossing the error here, that seems wrong". this is not a
 			// to do anymore. 9/10 of these errors are going to be "context
@@ -326,7 +327,7 @@ func (a *Agent) run(ctx context.Context) {
 				// ourselves that this has occurred. We cannot rely on getting
 				// a Close message from the manager, as any number of things
 				// could go wrong (see github.com/moby/moby/issues/39916).
-				subscriptionDone <- sub.ID
+				subscriptionDone <- sub.Id
 			}()
 		case subID := <-subscriptionDone:
 			// subscription may already have been removed. If so, no need to
@@ -411,14 +412,14 @@ func (a *Agent) run(ctx context.Context) {
 }
 
 func (a *Agent) handleSessionMessage(ctx context.Context, message *api.SessionMessage, nti *api.NodeTLSInfo) error {
-	seen := map[api.Peer]struct{}{}
+	seen := map[remotes.PeerKey]struct{}{}
 	for _, manager := range message.Managers {
 		if manager.Peer.Addr == "" {
 			continue
 		}
 
-		a.config.ConnBroker.Remotes().Observe(*manager.Peer, int(manager.Weight))
-		seen[*manager.Peer] = struct{}{}
+		a.config.ConnBroker.Remotes().Observe(manager.Peer, int(manager.Weight))
+		seen[remotes.NewPeerKey(manager.Peer)] = struct{}{}
 	}
 
 	var changes *NodeChanges
@@ -446,7 +447,7 @@ func (a *Agent) handleSessionMessage(ctx context.Context, message *api.SessionMe
 	// prune managers not in list.
 	for peer := range a.config.ConnBroker.Remotes().Weights() {
 		if _, ok := seen[peer]; !ok {
-			a.config.ConnBroker.Remotes().Remove(peer)
+			a.config.ConnBroker.Remotes().Remove(peer.Peer())
 		}
 	}
 
@@ -599,7 +600,7 @@ func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogP
 	sendCloseMsg := func() {
 		// send a close message, to tell the manager our logs are done
 		publisher.Send(&api.PublishLogsMessage{
-			SubscriptionID: subscriptionID,
+			SubscriptionId: subscriptionID,
 			Close:          true,
 		})
 		// close the stream forreal. ignore the return value and the error,
@@ -607,7 +608,7 @@ func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogP
 		publisher.CloseAndRecv()
 	}
 
-	return exec.LogPublisherFunc(func(ctx context.Context, message api.LogMessage) error {
+	return exec.LogPublisherFunc(func(ctx context.Context, message *api.LogMessage) error {
 			select {
 			case <-ctx.Done():
 				sendCloseMsg()
@@ -616,8 +617,8 @@ func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogP
 			}
 
 			return publisher.Send(&api.PublishLogsMessage{
-				SubscriptionID: subscriptionID,
-				Messages:       []api.LogMessage{message},
+				SubscriptionId: subscriptionID,
+				Messages:       []*api.LogMessage{message},
 			})
 		}), func() {
 			sendCloseMsg()
@@ -633,8 +634,8 @@ func (a *Agent) nodeDescriptionWithHostname(ctx context.Context, tlsInfo *api.No
 		if a.config.Hostname != "" {
 			desc.Hostname = a.config.Hostname
 		}
-		desc.TLSInfo = tlsInfo
-		desc.FIPS = a.config.FIPS
+		desc.TlsInfo = tlsInfo
+		desc.Fips = a.config.FIPS
 	}
 	return desc, err
 }
@@ -646,8 +647,8 @@ func (a *Agent) nodeDescriptionWithHostname(ctx context.Context, tlsInfo *api.No
 func nodesEqual(a, b *api.Node) bool {
 	a, b = a.Copy(), b.Copy()
 
-	a.Status, b.Status = api.NodeStatus{}, api.NodeStatus{}
-	a.Meta, b.Meta = api.Meta{}, api.Meta{}
+	a.Status, b.Status = nil, nil
+	a.Meta, b.Meta = nil, nil
 
 	return proto.Equal(a, b)
 }

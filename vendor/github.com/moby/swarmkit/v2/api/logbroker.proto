@@ -2,18 +2,16 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
-import "gogoproto/gogo.proto";
+option go_package = "github.com/moby/swarmkit/v2/api";
+
 import "google/protobuf/timestamp.proto";
 import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
 // LogStream defines the stream from which the log message came.
 enum LogStream {
-	option (gogoproto.goproto_enum_prefix) = false;
-	option (gogoproto.enum_customname) = "LogStream";
-
-	LOG_STREAM_UNKNOWN = 0 [(gogoproto.enumvalue_customname) = "LogStreamUnknown"];
-	LOG_STREAM_STDOUT = 1 [(gogoproto.enumvalue_customname) = "LogStreamStdout"];
-	LOG_STREAM_STDERR = 2 [(gogoproto.enumvalue_customname) = "LogStreamStderr"];
+	LOG_STREAM_UNKNOWN = 0;
+	LOG_STREAM_STDOUT = 1;
+	LOG_STREAM_STDERR = 2;
 }
 
 message LogSubscriptionOptions {
@@ -75,7 +73,7 @@ message LogAttr {
 // LogMessage
 message LogMessage {
 	// Context identifies the source of the log message.
-	LogContext context = 1 [(gogoproto.nullable) = false];
+	LogContext context = 1;
 
 	// Timestamp is the time at which the message was generated.
 	// Note: can't use stdtime because this field is nullable.
@@ -89,7 +87,7 @@ message LogMessage {
 
 	// Attrs is a list of key value pairs representing additional log details
 	// that may have been returned from the logger
-	repeated LogAttr attrs = 5 [(gogoproto.nullable) = false];
+	repeated LogAttr attrs = 5;
 }
 
 // Logs defines the methods for retrieving task logs messages from a cluster.
@@ -113,7 +111,7 @@ message SubscribeLogsRequest {
 }
 
 message SubscribeLogsMessage {
-	repeated LogMessage messages = 1 [(gogoproto.nullable) = false];
+	repeated LogMessage messages = 1;
 }
 
 // LogBroker defines the API used by the worker to send task logs back to a
@@ -176,7 +174,7 @@ message PublishLogsMessage {
 	string subscription_id = 1;
 
 	// Messages is the log message for publishing.
-	repeated LogMessage messages = 2 [(gogoproto.nullable) = false];
+	repeated LogMessage messages = 2;
 
 	// Close is a boolean for whether or not the client has completed its log
 	// stream. When close is called, the manager can hang up the subscription.

@@ -6,12 +6,12 @@ import (
 	"encoding/pem"
 	"slices"
 
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/state/raft/membership"
 	"github.com/moby/swarmkit/v2/manager/state/store"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func validateNodeSpec(spec *api.NodeSpec) error {
@@ -25,24 +25,24 @@ func validateNodeSpec(spec *api.NodeSpec) error {
 // - Returns `InvalidArgument` if NodeID is not provided.
 // - Returns `NotFound` if the Node is not found.
 func (s *Server) GetNode(_ context.Context, request *api.GetNodeRequest) (*api.GetNodeResponse, error) {
-	if request.NodeID == "" {
+	if request.NodeId == "" {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	var node *api.Node
 	s.store.View(func(tx store.ReadTx) {
-		node = store.GetNode(tx, request.NodeID)
+		node = store.GetNode(tx, request.NodeId)
 	})
 	if node == nil {
-		return nil, status.Errorf(codes.NotFound, "node %s not found", request.NodeID)
+		return nil, status.Errorf(codes.NotFound, "node %s not found", request.NodeId)
 	}
 
 	if s.raft != nil {
 		memberlist := s.raft.GetMemberlist()
 		for _, member := range memberlist {
-			if member.NodeID == node.ID {
+			if member.NodeId == node.Id {
 				node.ManagerStatus = &api.ManagerStatus{
-					RaftID:       member.RaftID,
+					RaftId:       member.RaftId,
 					Addr:         member.Addr,
 					Leader:       member.Status.Leader,
 					Reachability: member.Status.Reachability,
@@ -88,8 +88,8 @@ func (s *Server) ListNodes(_ context.Context, request *api.ListNodesRequest) (*a
 			nodes, err = store.FindNodes(tx, buildFilters(store.ByName, request.Filters.Names))
 		case request.Filters != nil && len(request.Filters.NamePrefixes) > 0:
 			nodes, err = store.FindNodes(tx, buildFilters(store.ByNamePrefix, request.Filters.NamePrefixes))
-		case request.Filters != nil && len(request.Filters.IDPrefixes) > 0:
-			nodes, err = store.FindNodes(tx, buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes))
+		case request.Filters != nil && len(request.Filters.IdPrefixes) > 0:
+			nodes, err = store.FindNodes(tx, buildFilters(store.ByIDPrefix, request.Filters.IdPrefixes))
 		case request.Filters != nil && len(request.Filters.Roles) > 0:
 			filters := make([]store.By, 0, len(request.Filters.Roles))
 			for _, v := range request.Filters.Roles {
@@ -125,7 +125,7 @@ func (s *Server) ListNodes(_ context.Context, request *api.ListNodesRequest) (*a
 				return e.Description != nil && filterContainsPrefix(e.Description.Hostname, request.Filters.NamePrefixes)
 			},
 			func(e *api.Node) bool {
-				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)
+				return filterContainsPrefix(e.Id, request.Filters.IdPrefixes)
 			},
 			func(e *api.Node) bool {
 				if len(request.Filters.Labels) == 0 {
@@ -134,13 +134,13 @@ func (s *Server) ListNodes(_ context.Context, request *api.ListNodesRequest) (*a
 				return e.Description != nil && e.Description.Engine != nil && filterMatchLabels(e.Description.Engine.Labels, request.Filters.Labels)
 			},
 			func(e *api.Node) bool {
-				return len(request.Filters.NodeLabels) == 0 || filterMatchLabels(e.Spec.Annotations.Labels, request.Filters.NodeLabels)
+				return len(request.Filters.NodeLabels) == 0 || filterMatchLabels(e.GetSpec().GetAnnotations().GetLabels(), request.Filters.NodeLabels)
 			},
 			func(e *api.Node) bool {
 				return len(request.Filters.Roles) == 0 || slices.Contains(request.Filters.Roles, e.Role)
 			},
 			func(e *api.Node) bool {
-				return len(request.Filters.Memberships) == 0 || slices.Contains(request.Filters.Memberships, e.Spec.Membership)
+				return len(request.Filters.Memberships) == 0 || slices.Contains(request.Filters.Memberships, e.Spec.GetMembership())
 			},
 		)
 	}
@@ -151,9 +151,9 @@ func (s *Server) ListNodes(_ context.Context, request *api.ListNodesRequest) (*a
 
 		for _, node := range nodes {
 			for _, member := range memberlist {
-				if member.NodeID == node.ID {
+				if member.NodeId == node.Id {
 					node.ManagerStatus = &api.ManagerStatus{
-						RaftID:       member.RaftID,
+						RaftId:       member.RaftId,
 						Addr:         member.Addr,
 						Leader:       member.Status.Leader,
 						Reachability: member.Status.Reachability,
@@ -174,7 +174,7 @@ func (s *Server) ListNodes(_ context.Context, request *api.ListNodesRequest) (*a
 // - Returns `InvalidArgument` if the NodeSpec is malformed.
 // - Returns an error if the update fails.
 func (s *Server) UpdateNode(_ context.Context, request *api.UpdateNodeRequest) (*api.UpdateNodeResponse, error) {
-	if request.NodeID == "" || request.NodeVersion == nil {
+	if request.NodeId == "" || request.NodeVersion == nil {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 	if err := validateNodeSpec(request.Spec); err != nil {
@@ -187,35 +187,35 @@ func (s *Server) UpdateNode(_ context.Context, request *api.UpdateNodeRequest) (
 	)
 
 	err := s.store.Update(func(tx store.Tx) error {
-		node = store.GetNode(tx, request.NodeID)
+		node = store.GetNode(tx, request.NodeId)
 		if node == nil {
-			return status.Errorf(codes.NotFound, "node %s not found", request.NodeID)
+			return status.Errorf(codes.NotFound, "node %s not found", request.NodeId)
 		}
 
 		// Demotion sanity checks.
-		if node.Spec.DesiredRole == api.NodeRoleManager && request.Spec.DesiredRole == api.NodeRoleWorker {
+		if node.Spec.GetDesiredRole() == api.NodeRole_MANAGER && request.Spec.GetDesiredRole() == api.NodeRole_WORKER {
 			// Check for manager entries in Store.
-			managers, err := store.FindNodes(tx, store.ByRole(api.NodeRoleManager))
+			managers, err := store.FindNodes(tx, store.ByRole(api.NodeRole_MANAGER))
 			if err != nil {
 				return status.Errorf(codes.Internal, "internal store error: %v", err)
 			}
-			if len(managers) == 1 && managers[0].ID == node.ID {
+			if len(managers) == 1 && managers[0].Id == node.Id {
 				return status.Errorf(codes.FailedPrecondition, "attempting to demote the last manager of the swarm")
 			}
 
 			// Check for node in memberlist
-			if member = s.raft.GetMemberByNodeID(request.NodeID); member == nil {
+			if member = s.raft.GetMemberByNodeID(request.NodeId); member == nil {
 				return status.Errorf(codes.NotFound, "can't find manager in raft memberlist")
 			}
 
 			// Quorum safeguard
-			if !s.raft.CanRemoveMember(member.RaftID) {
+			if !s.raft.CanRemoveMember(member.RaftId) {
 				return status.Errorf(codes.FailedPrecondition, "can't remove member from the raft: this would result in a loss of quorum")
 			}
 		}
 
-		node.Meta.Version = *request.NodeVersion
-		node.Spec = *request.Spec.Copy()
+		node.Meta.Version = request.NodeVersion
+		node.Spec = request.Spec.Copy()
 		return store.UpdateNode(tx, node)
 	})
 	if err != nil {
@@ -247,10 +247,10 @@ func orphanNodeTasks(tx store.Tx, nodeID string) error {
 		//
 		// therefore, we restrict updating to only tasks in a non-terminal
 		// state. Tasks in a terminal state do not need to be updated.
-		if task.Status.State < api.TaskStateCompleted {
-			task.Status = api.TaskStatus{
-				Timestamp: gogotypes.TimestampNow(),
-				State:     api.TaskStateOrphaned,
+		if task.Status.GetState() < api.TaskState_COMPLETE {
+			task.Status = &api.TaskStatus{
+				Timestamp: timestamppb.Now(),
+				State:     api.TaskState_ORPHANED,
 				Message:   "Task belonged to a node that has been deleted",
 			}
 			store.UpdateTask(tx, task)
@@ -265,25 +265,25 @@ func orphanNodeTasks(tx store.Tx, nodeID string) error {
 // - Returns InvalidArgument if NodeID or NodeVersion is not valid.
 // - Returns an error if the delete fails.
 func (s *Server) RemoveNode(_ context.Context, request *api.RemoveNodeRequest) (*api.RemoveNodeResponse, error) {
-	if request.NodeID == "" {
+	if request.NodeId == "" {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	err := s.store.Update(func(tx store.Tx) error {
-		node := store.GetNode(tx, request.NodeID)
+		node := store.GetNode(tx, request.NodeId)
 		if node == nil {
-			return status.Errorf(codes.NotFound, "node %s not found", request.NodeID)
+			return status.Errorf(codes.NotFound, "node %s not found", request.NodeId)
 		}
-		if node.Spec.DesiredRole == api.NodeRoleManager {
+		if node.Spec.GetDesiredRole() == api.NodeRole_MANAGER {
 			if s.raft == nil {
-				return status.Errorf(codes.FailedPrecondition, "node %s is a manager but cannot access node information from the raft memberlist", request.NodeID)
+				return status.Errorf(codes.FailedPrecondition, "node %s is a manager but cannot access node information from the raft memberlist", request.NodeId)
 			}
-			if member := s.raft.GetMemberByNodeID(request.NodeID); member != nil {
-				return status.Errorf(codes.FailedPrecondition, "node %s is a cluster manager and is a member of the raft cluster. It must be demoted to worker before removal", request.NodeID)
+			if member := s.raft.GetMemberByNodeID(request.NodeId); member != nil {
+				return status.Errorf(codes.FailedPrecondition, "node %s is a cluster manager and is a member of the raft cluster. It must be demoted to worker before removal", request.NodeId)
 			}
 		}
-		if !request.Force && node.Status.State == api.NodeStatus_READY {
-			return status.Errorf(codes.FailedPrecondition, "node %s is not down and can't be removed", request.NodeID)
+		if !request.Force && node.Status.GetState() == api.NodeStatus_READY {
+			return status.Errorf(codes.FailedPrecondition, "node %s is not down and can't be removed", request.NodeId)
 		}
 
 		// lookup the cluster
@@ -300,13 +300,12 @@ func (s *Server) RemoveNode(_ context.Context, request *api.RemoveNodeRequest) (
 
 		// Set an expiry time for this RemovedNode if a certificate
 		// exists and can be parsed.
-		if len(node.Certificate.Certificate) != 0 {
-			certBlock, _ := pem.Decode(node.Certificate.Certificate)
+		if len(node.GetCertificate().GetCertificate()) != 0 {
+			certBlock, _ := pem.Decode(node.GetCertificate().GetCertificate())
 			if certBlock != nil {
 				X509Cert, err := x509.ParseCertificate(certBlock.Bytes)
 				if err == nil && !X509Cert.NotAfter.IsZero() {
-					expiry, err := gogotypes.TimestampProto(X509Cert.NotAfter)
-					if err == nil {
+					if expiry := timestamppb.New(X509Cert.NotAfter); expiry.IsValid() {
 						blacklistedCert.Expiry = expiry
 					}
 				}
@@ -316,7 +315,7 @@ func (s *Server) RemoveNode(_ context.Context, request *api.RemoveNodeRequest) (
 		if cluster.BlacklistedCertificates == nil {
 			cluster.BlacklistedCertificates = make(map[string]*api.BlacklistedCertificate)
 		}
-		cluster.BlacklistedCertificates[node.ID] = blacklistedCert
+		cluster.BlacklistedCertificates[node.Id] = blacklistedCert
 
 		expireBlacklistedCerts(cluster)
 
@@ -324,11 +323,11 @@ func (s *Server) RemoveNode(_ context.Context, request *api.RemoveNodeRequest) (
 			return err
 		}
 
-		if err := orphanNodeTasks(tx, request.NodeID); err != nil {
+		if err := orphanNodeTasks(tx, request.NodeId); err != nil {
 			return err
 		}
 
-		return store.DeleteNode(tx, request.NodeID)
+		return store.DeleteNode(tx, request.NodeId)
 	})
 	if err != nil {
 		return nil, err

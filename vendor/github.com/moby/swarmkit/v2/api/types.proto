@@ -2,10 +2,11 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
+option go_package = "github.com/moby/swarmkit/v2/api";
+
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/wrappers.proto";
-import "gogoproto/gogo.proto";
 
 // This file contains types that are common to objects and spec or that are not
 // considered first-class within the cluster object-model.
@@ -28,7 +29,7 @@ message Annotations {
 
 	// Indices provides keys and values for indexing this object.
 	// A single key may have multiple values.
-	repeated IndexEntry indices = 4 [(gogoproto.nullable) = false];
+	repeated IndexEntry indices = 4;
 }
 
 // NamedGenericResource represents a "user defined" resource which is defined
@@ -67,7 +68,7 @@ enum ResourceType {
 
 message Resources {
 	// Amount of CPUs (e.g. 2000000000 = 2 CPU cores)
-	int64 nano_cpus = 1 [(gogoproto.customname) = "NanoCPUs"];
+	int64 nano_cpus = 1;
 
 	// Amount of memory in bytes.
 	int64 memory_bytes = 2;
@@ -91,7 +92,6 @@ message ResourceRequirements {
 	// the image; set to -1 to unset a previously set value
 	google.protobuf.Int64Value memory_swappiness = 4;
 
-
 }
 
 message Platform {
@@ -99,7 +99,7 @@ message Platform {
 	string architecture = 1;
 
 	// Operating System (e.g. linux)
-	string os = 2 [(gogoproto.customname) = "OS"];
+	string os = 2;
 }
 
 // PluginDescription describes an engine plugin.
@@ -121,7 +121,7 @@ message EngineDescription {
 	map<string, string> labels = 2;
 
 	// Volume, Network, and Auth plugins
-	repeated PluginDescription plugins = 3 [(gogoproto.nullable) = false];
+	repeated PluginDescription plugins = 3;
 }
 
 message NodeDescription {
@@ -139,12 +139,12 @@ message NodeDescription {
 	EngineDescription engine = 4;
 
 	// Information on the node's TLS setup
-	NodeTLSInfo tls_info = 5 [(gogoproto.customname) = "TLSInfo"];
+	NodeTLSInfo tls_info = 5;
 
 	// FIPS indicates whether the node has FIPS-enabled
-	bool fips = 6 [(gogoproto.customname) = "FIPS"];
+	bool fips = 6;
 
-	repeated NodeCSIInfo csi_info = 7 [(gogoproto.customname) = "CSIInfo"];
+	repeated NodeCSIInfo csi_info = 7;
 }
 
 message NodeTLSInfo {
@@ -160,7 +160,6 @@ message NodeTLSInfo {
 // NodeGetInfo RPC on the CSI plugin present on the node. There is a separate
 // NodeCSIInfo object for each CSI plugin present.
 message NodeCSIInfo {
-
 	// PluginName is the name of the CSI plugin.
 	string plugin_name = 1;
 
@@ -198,7 +197,6 @@ message RaftMemberStatus {
 }
 
 message NodeStatus {
-	// TODO(aluzzardi) These should be using `gogoproto.enumvalue_customname`.
 	enum State {
 		// Unknown indicates the node state cannot be resolved.
 		UNKNOWN = 0;
@@ -234,14 +232,11 @@ message Image {
 // mount. This corresponds to flags and data, respectively, in the syscall.
 message Mount {
 	enum Type {
-		option (gogoproto.goproto_enum_prefix) = false;
-		option (gogoproto.enum_customname) = "MountType";
-
-		BIND = 0 [(gogoproto.enumvalue_customname) = "MountTypeBind"]; // Bind mount host dir
-		VOLUME = 1 [(gogoproto.enumvalue_customname) = "MountTypeVolume"];  // Remote storage volumes
-		TMPFS = 2 [(gogoproto.enumvalue_customname) = "MountTypeTmpfs"]; // Mount a tmpfs
-		NPIPE = 3 [(gogoproto.enumvalue_customname) = "MountTypeNamedPipe"]; // Windows named pipes
-		CLUSTER = 4 [(gogoproto.enumvalue_customname) = "MountTypeCluster"]; // CSI volume
+		BIND = 0; // Bind mount host dir
+		VOLUME = 1;  // Remote storage volumes
+		TMPFS = 2; // Mount a tmpfs
+		NPIPE = 3; // Windows named pipes
+		CLUSTER = 4; // CSI volume
 	}
 
 	// Type defines the nature of the mount.
@@ -259,51 +254,45 @@ message Mount {
 	string target = 3;
 
 	// ReadOnly should be set to true if the mount should not be writable.
-	bool readonly = 4 [(gogoproto.customname) = "ReadOnly"];
+	bool readonly = 4;
 
 	// Consistency indicates the tolerable level of file system consistency
 	enum Consistency {
-		option (gogoproto.goproto_enum_prefix) = false;
-		option (gogoproto.enum_customname) = "MountConsistency";
-
-		DEFAULT = 0 [(gogoproto.enumvalue_customname) = "MountConsistencyDefault"];
-		CONSISTENT = 1 [(gogoproto.enumvalue_customname) = "MountConsistencyFull"];
-		CACHED = 2 [(gogoproto.enumvalue_customname) = "MountConsistencyCached"];
-		DELEGATED = 3 [(gogoproto.enumvalue_customname) = "MountConsistencyDelegated"];
+		DEFAULT = 0;
+		CONSISTENT = 1;
+		CACHED = 2;
+		DELEGATED = 3;
 	}
 	Consistency consistency = 8;
 
 	// BindOptions specifies options that are specific to a bind mount.
 	message BindOptions {
 		enum Propagation {
-			option (gogoproto.goproto_enum_prefix) = false;
-			option (gogoproto.enum_customname) = "MountPropagation";
-
-			RPRIVATE = 0 [(gogoproto.enumvalue_customname) = "MountPropagationRPrivate"];
-			PRIVATE = 1 [(gogoproto.enumvalue_customname) = "MountPropagationPrivate"];
-			RSHARED = 2 [(gogoproto.enumvalue_customname) = "MountPropagationRShared"];
-			SHARED = 3 [(gogoproto.enumvalue_customname) = "MountPropagationShared"];
-			RSLAVE = 4 [(gogoproto.enumvalue_customname) = "MountPropagationRSlave"];
-			SLAVE = 5 [(gogoproto.enumvalue_customname) = "MountPropagationSlave"];
+			RPRIVATE = 0;
+			PRIVATE = 1;
+			RSHARED = 2;
+			SHARED = 3;
+			RSLAVE = 4;
+			SLAVE = 5;
 		}
 
 		// Propagation mode of mount.
 		Propagation propagation = 1;
 		// allows non-recursive bind-mount, i.e. mount(2) with "bind" rather than "rbind".
-		bool nonrecursive = 2 [(gogoproto.customname) = "NonRecursive"];
+		bool nonrecursive = 2;
 		// Create the mount point
-		bool createmountpoint = 3 [(gogoproto.customname) = "CreateMountpoint"];
+		bool createmountpoint = 3;
 		// ReadOnlyNonRecursive makes the mount non-recursively read-only, but still leaves the mount recursive
 		// (unless NonRecursive is set to true in conjunction).
-		bool readonlynonrecursive = 4 [(gogoproto.customname) = "ReadOnlyNonRecursive"];
+		bool readonlynonrecursive = 4;
 		// ReadOnlyForceRecursive raises an error if the mount cannot be made recursively read-only.
-		bool readonlyforcerecursive = 5 [(gogoproto.customname) = "ReadOnlyForceRecursive"];
+		bool readonlyforcerecursive = 5;
 	}
 
 	// VolumeOptions contains parameters for mounting the volume.
 	message VolumeOptions {
 		// nocopy prevents automatic copying of data to the volume with data from target
-		bool nocopy = 1 [(gogoproto.customname) = "NoCopy"];
+		bool nocopy = 1;
 
 		// labels to apply to the volume if creating
 		map<string, string> labels = 2;
@@ -315,7 +304,7 @@ message Mount {
 		Driver driver_config = 3;
 
 		// subpath inside the volume to mount.
-		string subpath = 4 [(gogoproto.customname) = "Subpath"];
+		string subpath = 4;
 	}
 
 	message TmpfsOptions {
@@ -330,7 +319,7 @@ message Mount {
 		int64 size_bytes = 1;
 
 		// Mode of the tmpfs upon creation
-		uint32 mode = 2 [(gogoproto.customtype) = "os.FileMode", (gogoproto.nullable) = false];
+		uint32 mode = 2;
 
 		// Options passed to tmpfs mount
 		string options = 3;
@@ -379,11 +368,9 @@ message Mount {
 
 message RestartPolicy {
 	enum RestartCondition {
-		option (gogoproto.goproto_enum_prefix) = false;
-		option (gogoproto.enum_customname) = "RestartCondition";
-		NONE = 0 [(gogoproto.enumvalue_customname) = "RestartOnNone"];
-		ON_FAILURE = 1 [(gogoproto.enumvalue_customname) = "RestartOnFailure"];
-		ANY = 2 [(gogoproto.enumvalue_customname) = "RestartOnAny"];
+		NONE = 0;
+		ON_FAILURE = 1;
+		ANY = 2;
 	}
 
 	RestartCondition condition = 1;
@@ -410,7 +397,7 @@ message UpdateConfig {
 	uint64 parallelism = 1;
 
 	// Amount of time between updates.
-	google.protobuf.Duration delay = 2 [(gogoproto.stdduration) = true, (gogoproto.nullable) = false];
+	google.protobuf.Duration delay = 2;
 
 	enum FailureAction {
 		PAUSE = 0;
@@ -511,32 +498,30 @@ enum TaskState {
 	// TODO(aluzzardi): Move it back into `TaskStatus` because of the naming
 	// collisions of enums.
 
-	option (gogoproto.goproto_enum_prefix) = false;
-	option (gogoproto.enum_customname) = "TaskState";
-	NEW = 0 [(gogoproto.enumvalue_customname)="TaskStateNew"];
-	PENDING = 64 [(gogoproto.enumvalue_customname)="TaskStatePending"]; // waiting for scheduling decision
-	ASSIGNED = 192 [(gogoproto.enumvalue_customname)="TaskStateAssigned"];
-	ACCEPTED = 256 [(gogoproto.enumvalue_customname)="TaskStateAccepted"]; // task has been accepted by an agent.
-	PREPARING = 320 [(gogoproto.enumvalue_customname)="TaskStatePreparing"];
-	READY = 384 [(gogoproto.enumvalue_customname)="TaskStateReady"];
-	STARTING = 448 [(gogoproto.enumvalue_customname)="TaskStateStarting"];
-	RUNNING = 512 [(gogoproto.enumvalue_customname)="TaskStateRunning"];
-	COMPLETE = 576 [(gogoproto.enumvalue_customname)="TaskStateCompleted"]; // successful completion of task (not error code, just ran)
-	SHUTDOWN = 640 [(gogoproto.enumvalue_customname)="TaskStateShutdown"]; // orchestrator requested shutdown
-	FAILED = 704 [(gogoproto.enumvalue_customname)="TaskStateFailed"]; // task execution failed with error
+	NEW = 0;
+	PENDING = 64; // waiting for scheduling decision
+	ASSIGNED = 192;
+	ACCEPTED = 256; // task has been accepted by an agent.
+	PREPARING = 320;
+	READY = 384;
+	STARTING = 448;
+	RUNNING = 512;
+	COMPLETE = 576; // successful completion of task (not error code, just ran)
+	SHUTDOWN = 640; // orchestrator requested shutdown
+	FAILED = 704; // task execution failed with error
 	// TaskStateRejected means a task never ran, for instance if something about
 	// the environment failed (e.g. setting up a port on that node failed).
-	REJECTED = 768 [(gogoproto.enumvalue_customname)="TaskStateRejected"]; // task could not be executed here.
+	REJECTED = 768; // task could not be executed here.
 	// TaskStateRemove is used to correctly handle service deletions and scale
 	// downs. This allows us to keep track of tasks that have been marked for
 	// deletion, but can't yet be removed because the agent is in the process of
 	// shutting them down. Once the agent has shut down tasks with desired state
 	// REMOVE, the task reaper is responsible for removing them.
-	REMOVE = 800 [(gogoproto.enumvalue_customname)="TaskStateRemove"];
+	REMOVE = 800;
 	// TaskStateOrphaned is used to free up resources associated with service
 	// tasks on unresponsive nodes without having to delete those tasks. This
 	// state is directly assigned to the task by the orchestrator.
-	ORPHANED = 832 [(gogoproto.enumvalue_customname)="TaskStateOrphaned"];
+	ORPHANED = 832;
 
 	// NOTE(stevvooe): The state of a task is actually a lamport clock, in that
 	// given two observations, the greater of the two can be considered
@@ -559,7 +544,7 @@ enum TaskState {
 message ContainerStatus {
 	string container_id = 1;
 
-	int32 pid = 2 [(gogoproto.customname) = "PID"];
+	int32 pid = 2;
 	int32 exit_code = 3;
 }
 
@@ -681,26 +666,21 @@ message IPAMConfig {
 // request to this port to any node on the cluster.
 message PortConfig {
 	enum Protocol {
-		option (gogoproto.goproto_enum_prefix) = false;
-
-		TCP = 0 [(gogoproto.enumvalue_customname) = "ProtocolTCP"];
-		UDP = 1 [(gogoproto.enumvalue_customname) = "ProtocolUDP"];
-		SCTP = 2 [(gogoproto.enumvalue_customname) = "ProtocolSCTP"];
+		TCP = 0;
+		UDP = 1;
+		SCTP = 2;
 	}
 
 	// PublishMode controls how ports are published on the swarm.
 	enum PublishMode {
-		option (gogoproto.enum_customname) = "PublishMode";
-		option (gogoproto.goproto_enum_prefix) = false;
-
 		// PublishModeIngress exposes the port across the cluster on all nodes.
-		INGRESS = 0 [(gogoproto.enumvalue_customname) = "PublishModeIngress"];
+		INGRESS = 0;
 
 		// PublishModeHost exposes the port on just the target host.  If the
 		// published port is undefined, an ephemeral port will be allocated. If
 		// the published port is defined, the node will attempt to allocate it,
 		// erroring the task if it fails.
-		HOST = 1 [(gogoproto.enumvalue_customname) = "PublishModeHost"];
+		HOST = 1;
 	}
 
 	// Name for the port. If provided the port information can
@@ -749,23 +729,20 @@ message WeightedPeer {
 	int64 weight = 2;
 }
 
-
 message IssuanceStatus {
 	enum State {
-		option (gogoproto.goproto_enum_prefix) = false;
-
-		UNKNOWN = 0 [(gogoproto.enumvalue_customname) = "IssuanceStateUnknown"];
+		UNKNOWN = 0;
 		// A new certificate should be issued
-		RENEW = 1 [(gogoproto.enumvalue_customname)="IssuanceStateRenew"];
+		RENEW = 1;
 		// Certificate is pending acceptance
-		PENDING = 2 [(gogoproto.enumvalue_customname)="IssuanceStatePending"];
+		PENDING = 2;
 		// successful completion certificate issuance
-		ISSUED = 3 [(gogoproto.enumvalue_customname)="IssuanceStateIssued"];
+		ISSUED = 3;
 		// Certificate issuance failed
-		FAILED = 4 [(gogoproto.enumvalue_customname)="IssuanceStateFailed"];
+		FAILED = 4;
 		// Signals workers to renew their certificate. From the CA's perspective
 		// this is equivalent to IssuanceStateIssued: a noop.
-		ROTATE = 5 [(gogoproto.enumvalue_customname)="IssuanceStateRotate"];
+		ROTATE = 5;
 	}
 	State state = 1;
 
@@ -798,21 +775,21 @@ message AcceptancePolicy {
 
 message ExternalCA {
 	enum CAProtocol {
-		CFSSL = 0 [(gogoproto.enumvalue_customname) = "CAProtocolCFSSL"];
+		CFSSL = 0;
 	}
 
 	// Protocol is the protocol used by this external CA.
 	CAProtocol protocol = 1;
 
 	// URL is the URL where the external CA can be reached.
-	string url = 2 [(gogoproto.customname) = "URL"];
+	string url = 2;
 
 	// Options is a set of additional key/value pairs whose interpretation
 	// depends on the specified CA type.
 	map<string, string> options = 3;
 
 	// CACert specifies which root CA is used by this external CA
-	bytes ca_cert = 4 [(gogoproto.customname) = "CACert"];
+	bytes ca_cert = 4;
 }
 
 message CAConfig {
@@ -822,17 +799,17 @@ message CAConfig {
 
 	// ExternalCAs is a list of CAs to which a manager node will make
 	// certificate signing requests for node certificates.
-	repeated ExternalCA external_cas = 2 [(gogoproto.customname) = "ExternalCAs"];
+	repeated ExternalCA external_cas = 2;
 
 	// SigningCACert is the desired CA certificate to be used as the root and
 	// signing CA for the swarm.  If not provided, indicates that we are either happy
 	// with the current configuration, or (together with a bump in the ForceRotate value)
 	// that we want a certificate and key generated for us.
-	bytes signing_ca_cert = 3 [(gogoproto.customname) = "SigningCACert"];
+	bytes signing_ca_cert = 3;
 
 	// SigningCAKey is the desired private key, matching the signing CA cert, to be used
 	// to sign certificates for the swarm
-	bytes signing_ca_key = 4 [(gogoproto.customname) = "SigningCAKey"];
+	bytes signing_ca_key = 4;
 
 	// ForceRotate is a counter that triggers a root CA rotation even if no relevant
 	// parameters have been in the spec. This will force the manager to generate a new
@@ -935,16 +912,16 @@ message JoinTokens {
 
 message RootCA {
 	// CAKey is the root CA private key.
-	bytes ca_key = 1 [(gogoproto.customname) = "CAKey"];
+	bytes ca_key = 1;
 
 	// CACert is the root CA certificate.
-	bytes ca_cert = 2 [(gogoproto.customname) = "CACert"];
+	bytes ca_cert = 2;
 
 	// CACertHash is the digest of the CA Certificate.
-	string ca_cert_hash = 3 [(gogoproto.customname) = "CACertHash"];
+	string ca_cert_hash = 3;
 
 	// JoinTokens contains the join tokens for workers and managers.
-	JoinTokens join_tokens = 4 [(gogoproto.nullable) = false];
+	JoinTokens join_tokens = 4;
 
 	// RootRotation contains the new root cert and key we want to rotate to - if this is nil, we are not in the
 	// middle of a root rotation
@@ -955,28 +932,23 @@ message RootCA {
 	uint64 last_forced_rotation = 6;
 }
 
-
 enum NodeRole {
-	option (gogoproto.enum_customname) = "NodeRole";
-	option (gogoproto.goproto_enum_prefix) = false;
-
-	WORKER = 0 [(gogoproto.enumvalue_customname) = "NodeRoleWorker"];
-	MANAGER = 1 [(gogoproto.enumvalue_customname) = "NodeRoleManager"];
+	WORKER = 0;
+	MANAGER = 1;
 }
 
 message Certificate {
 	NodeRole role = 1;
 
-	bytes csr = 2 [(gogoproto.customname) = "CSR"];
+	bytes csr = 2;
 
-	IssuanceStatus status = 3 [(gogoproto.nullable) = false];
+	IssuanceStatus status = 3;
 
 	bytes certificate = 4;
 
 	// CN represents the node ID.
-	string cn = 5 [(gogoproto.customname) = "CN"];
+	string cn = 5;
 }
-
 
 // Symmetric keys to encrypt inter-agent communication.
 message EncryptionKey {
@@ -986,8 +958,6 @@ message EncryptionKey {
 
 	// Encryption algorithm that can implemented using this key
 	enum Algorithm {
-		option (gogoproto.goproto_enum_prefix) = false;
-
 		AES_128_GCM = 0;
 	}
 
@@ -1022,13 +992,13 @@ message FileTarget {
 	string name = 1;
 
 	// UID represents the file UID
-	string uid = 2 [(gogoproto.customname) = "UID"];
+	string uid = 2;
 
 	// GID represents the file GID
-	string gid = 3 [(gogoproto.customname) = "GID"];
+	string gid = 3;
 
 	// Mode represents the FileMode of the file
-	uint32 mode = 4 [(gogoproto.customtype) = "os.FileMode", (gogoproto.nullable) = false];
+	uint32 mode = 4;
 }
 
 // RuntimeTarget represents that this secret is _not_ mounted into the
@@ -1118,9 +1088,9 @@ message HealthConfig {
 
 message MaybeEncryptedRecord {
 	enum Algorithm {
-		NONE = 0 [(gogoproto.enumvalue_customname) = "NotEncrypted"];
-		SECRETBOX_SALSA20_POLY1305 = 1 [(gogoproto.enumvalue_customname) = "NACLSecretboxSalsa20Poly1305"];
-		FERNET_AES_128_CBC = 2 [(gogoproto.enumvalue_customname) = "FernetAES128CBC"];
+		NONE = 0;
+		SECRETBOX_SALSA20_POLY1305 = 1;
+		FERNET_AES_128_CBC = 2;
 	}
 
 	Algorithm algorithm = 1;
@@ -1128,12 +1098,11 @@ message MaybeEncryptedRecord {
 	bytes nonce = 3;
 }
 
-
 message RootRotation {
-	bytes ca_cert = 1 [(gogoproto.customname) = "CACert"];
-	bytes ca_key = 2 [(gogoproto.customname) = "CAKey"];
+	bytes ca_cert = 1;
+	bytes ca_key = 2;
 	// cross-signed CA cert is the CACert that has been cross-signed by the previous root
-	bytes cross_signed_ca_cert = 3 [(gogoproto.customname) = "CrossSignedCACert"];
+	bytes cross_signed_ca_cert = 3;
 }
 
 // Privileges specifies security configuration/permissions.
@@ -1160,7 +1129,7 @@ message Privileges {
 		string type = 4;
 		string level = 5;
 	}
-	SELinuxContext selinux_context = 2 [(gogoproto.customname) = "SELinuxContext"];
+	SELinuxContext selinux_context = 2;
 
 	// SeccompOpts contains options for configuring seccomp profiles on the
 	// container. See https://docs.docker.com/engine/security/seccomp/ for more
@@ -1202,7 +1171,7 @@ message JobStatus {
 	// successfully or otherwise. "Executed" refers to the job as a whole being
 	// started, not to the individual Tasks being launched. This is used to
 	// disambiguate which Tasks belong to which iteration of a Job.
-	Version job_iteration = 1 [(gogoproto.nullable) = false];
+	Version job_iteration = 1;
 
 	// LastExecution is the time that the job was last executed. This is set by
 	// the orchestrator in the same transaction that JobIteration is incremented.
@@ -1226,31 +1195,29 @@ message JobStatus {
 message VolumeAccessMode {
 	// Scope enumerates the possible volume access scopes.
 	enum Scope {
-		option (gogoproto.goproto_enum_prefix) = false;
 		// VolumeScopeSingleNode indicates that only one node at a time may have
 		// access to the volume.
-		SINGLE_NODE = 0 [(gogoproto.enumvalue_customname) = "VolumeScopeSingleNode"];
+		SINGLE_NODE = 0;
 		// VolumeScopeMultiNode indicates that multiple nodes may access the volume
 		// at the same time.
-		MULTI_NODE = 1 [(gogoproto.enumvalue_customname) = "VolumeScopeMultiNode"];
+		MULTI_NODE = 1;
 	}
 
 	// Sharing enumerates the possible volume sharing modes.
 	enum Sharing {
-		option (gogoproto.goproto_enum_prefix) = false;
 		// VolumeSharingNone indicates that the volume may only be used by a single
 		// Task at any given time.
-		NONE = 0 [(gogoproto.enumvalue_customname) = "VolumeSharingNone"];
+		NONE = 0;
 		// VolumeSharingReadOnly indicates that the volume may be accessed by
 		// multiple Tasks, but all Tasks only have have read access.
-		READ_ONLY = 1 [(gogoproto.enumvalue_customname) = "VolumeSharingReadOnly"];
+		READ_ONLY = 1;
 		// VolumeSharingOneWriter indicates that the Volume may be accessed by
 		// multiple Tasks, but only the one Task may have write permission for the
 		// Volume.
-		ONE_WRITER = 2 [(gogoproto.enumvalue_customname) = "VolumeSharingOneWriter"];
+		ONE_WRITER = 2;
 		// VolumeSharingAll indicates that any number of Tasks may have read and
 		// write access to the volume.
-		ALL = 3 [(gogoproto.enumvalue_customname) = "VolumeSharingAll"];
+		ALL = 3;
 	}
 
 	// BlockVolume indicates the volume will be accessed with the block device
@@ -1457,7 +1424,6 @@ message VolumeAttachment {
 	// Target indicates the Mount target that this volume is assigned for.
 	string target = 3;
 }
-
 
 // These types are copied from the CSI spec. They are copied because there is
 // difficulty in compatibility between the CSI protos and the swarmkit protos,

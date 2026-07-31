@@ -22,18 +22,18 @@ import (
 
 // WAL is the interface presented by go.etcd.io/etcd/server/v3/storage/wal.WAL that we depend upon
 type WAL interface {
-	ReadAll() ([]byte, raftpb.HardState, []raftpb.Entry, error)
+	ReadAll() ([]byte, *raftpb.HardState, []*raftpb.Entry, error)
 	ReleaseLockTo(index uint64) error
 	Close() error
-	Save(st raftpb.HardState, ents []raftpb.Entry) error
-	SaveSnapshot(e walpb.Snapshot) error
+	Save(st *raftpb.HardState, ents []*raftpb.Entry) error
+	SaveSnapshot(e *walpb.Snapshot) error
 }
 
 // WALFactory provides an interface for the different ways to get a WAL object.
 // For instance, the etcd/wal package itself provides this
 type WALFactory interface {
 	Create(dirpath string, metadata []byte) (WAL, error)
-	Open(dirpath string, walsnap walpb.Snapshot) (WAL, error)
+	Open(dirpath string, walsnap *walpb.Snapshot) (WAL, error)
 }
 
 var _ WAL = &wrappedWAL{}
@@ -49,15 +49,17 @@ type wrappedWAL struct {
 
 // ReadAll wraps the wal.WAL.ReadAll() function, but it first checks to see if the
 // metadata indicates that the entries are encryptd, and if so, decrypts them.
-func (w *wrappedWAL) ReadAll() ([]byte, raftpb.HardState, []raftpb.Entry, error) {
+func (w *wrappedWAL) ReadAll() ([]byte, *raftpb.HardState, []*raftpb.Entry, error) {
 	metadata, state, ents, err := w.WAL.ReadAll()
 	if err != nil {
 		return metadata, state, ents, err
 	}
-	for i, ent := range ents {
-		ents[i].Data, err = encryption.Decrypt(ent.Data, w.decrypter)
+	// The entries are freshly decoded by the wrapped WAL, so decrypting them
+	// in place does not affect anyone else.
+	for _, ent := range ents {
+		ent.Data, err = encryption.Decrypt(ent.Data, w.decrypter)
 		if err != nil {
-			return nil, raftpb.HardState{}, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
@@ -66,14 +68,16 @@ func (w *wrappedWAL) ReadAll() ([]byte, raftpb.HardState, []raftpb.Entry, error)
 
 // Save encrypts the entry data (if an encrypter is exists) before passing it onto the
 // wrapped wal.WAL's Save function.
-func (w *wrappedWAL) Save(st raftpb.HardState, ents []raftpb.Entry) error {
-	var writeEnts []raftpb.Entry
+func (w *wrappedWAL) Save(st *raftpb.HardState, ents []*raftpb.Entry) error {
+	var writeEnts []*raftpb.Entry
 	for _, ent := range ents {
 		data, err := encryption.Encrypt(ent.Data, w.encrypter)
 		if err != nil {
 			return err
 		}
-		writeEnts = append(writeEnts, raftpb.Entry{
+		// Write a copy of the entry rather than encrypting in place, so the
+		// caller keeps hold of its plaintext entries.
+		writeEnts = append(writeEnts, &raftpb.Entry{
 			Index: ent.Index,
 			Term:  ent.Term,
 			Type:  ent.Type,
@@ -114,7 +118,7 @@ func (wc walCryptor) Create(dirpath string, metadata []byte) (WAL, error) {
 }
 
 // Open returns a new WAL object with the given encrypters and decrypters.
-func (wc walCryptor) Open(dirpath string, snap walpb.Snapshot) (WAL, error) {
+func (wc walCryptor) Open(dirpath string, snap *walpb.Snapshot) (WAL, error) {
 	w, err := wal.Open(nil, dirpath, snap)
 	if err != nil {
 		return nil, err
@@ -131,7 +135,7 @@ type originalWAL struct{}
 func (o originalWAL) Create(dirpath string, metadata []byte) (WAL, error) {
 	return wal.Create(nil, dirpath, metadata)
 }
-func (o originalWAL) Open(dirpath string, walsnap walpb.Snapshot) (WAL, error) {
+func (o originalWAL) Open(dirpath string, walsnap *walpb.Snapshot) (WAL, error) {
 	return wal.Open(nil, dirpath, walsnap)
 }
 
@@ -142,8 +146,8 @@ var OriginalWAL WALFactory = originalWAL{}
 // (metadata, hardwate, and entries)
 type WALData struct {
 	Metadata  []byte
-	HardState raftpb.HardState
-	Entries   []raftpb.Entry
+	HardState *raftpb.HardState
+	Entries   []*raftpb.Entry
 }
 
 // ReadRepairWAL opens a WAL for reading, and attempts to read it.  If we can't read it, attempts to repair
@@ -151,14 +155,14 @@ type WALData struct {
 func ReadRepairWAL(
 	ctx context.Context,
 	walDir string,
-	walsnap walpb.Snapshot,
+	walsnap *walpb.Snapshot,
 	factory WALFactory,
 ) (WAL, WALData, error) {
 	var (
 		reader   WAL
 		metadata []byte
-		st       raftpb.HardState
-		ents     []raftpb.Entry
+		st       *raftpb.HardState
+		ents     []*raftpb.Entry
 		err      error
 	)
 	repaired := false
@@ -199,7 +203,7 @@ func ReadRepairWAL(
 
 // MigrateWALs reads existing WALs (from a particular snapshot and beyond) from one directory, encoded one way,
 // and writes them to a new directory, encoded a different way
-func MigrateWALs(ctx context.Context, oldDir, newDir string, oldFactory, newFactory WALFactory, snapshot walpb.Snapshot) error {
+func MigrateWALs(ctx context.Context, oldDir, newDir string, oldFactory, newFactory WALFactory, snapshot *walpb.Snapshot) error {
 	oldReader, waldata, err := ReadRepairWAL(ctx, oldDir, snapshot, oldFactory)
 	if err != nil {
 		return err

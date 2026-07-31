@@ -43,17 +43,17 @@ func init() {
 			}
 			return RestoreTable(tx, tableConfig, toStoreObj)
 		},
-		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
+		ApplyStoreAction: func(tx Tx, sa *api.StoreAction) error {
 			switch v := sa.Target.(type) {
 			case *api.StoreAction_Config:
 				obj := v.Config
 				switch sa.Action {
-				case api.StoreActionKindCreate:
+				case api.StoreActionKind_STORE_ACTION_CREATE:
 					return CreateConfig(tx, obj)
-				case api.StoreActionKindUpdate:
+				case api.StoreActionKind_STORE_ACTION_UPDATE:
 					return UpdateConfig(tx, obj)
-				case api.StoreActionKindRemove:
-					return DeleteConfig(tx, obj.ID)
+				case api.StoreActionKind_STORE_ACTION_REMOVE:
+					return DeleteConfig(tx, obj.Id)
 				}
 			}
 			return errUnknownStoreAction
@@ -65,7 +65,7 @@ func init() {
 // Returns ErrExist if the ID is already taken.
 func CreateConfig(tx Tx, c *api.Config) error {
 	// Ensure the name is not already in use.
-	if tx.lookup(tableConfig, indexName, strings.ToLower(c.Spec.Annotations.Name)) != nil {
+	if tx.lookup(tableConfig, indexName, strings.ToLower(c.GetSpec().GetAnnotations().GetName())) != nil {
 		return ErrNameConflict
 	}
 
@@ -76,8 +76,8 @@ func CreateConfig(tx Tx, c *api.Config) error {
 // Returns ErrNotExist if the config doesn't exist.
 func UpdateConfig(tx Tx, c *api.Config) error {
 	// Ensure the name is either not in use or already used by this same Config.
-	if existing := tx.lookup(tableConfig, indexName, strings.ToLower(c.Spec.Annotations.Name)); existing != nil {
-		if existing.GetID() != c.ID {
+	if existing := tx.lookup(tableConfig, indexName, strings.ToLower(c.GetSpec().GetAnnotations().GetName())); existing != nil {
+		if existing.GetId() != c.Id {
 			return ErrNameConflict
 		}
 	}

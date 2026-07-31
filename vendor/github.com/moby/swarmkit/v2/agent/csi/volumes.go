@@ -150,25 +150,25 @@ func (r *volumes) Get(volumeID string) (string, error) {
 }
 
 // Add adds one or more volumes to the volume map.
-func (r *volumes) Add(volumes ...api.VolumeAssignment) {
+func (r *volumes) Add(volumes ...*api.VolumeAssignment) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	for _, volume := range volumes {
 		// if we get an Add operation, then we will always restart the retries.
 		v := volume.Copy()
-		r.volumes[volume.ID] = volumeState{
+		r.volumes[volume.Id] = volumeState{
 			volume: v,
 		}
 		// enqueue the volume so that we process it
-		r.pendingVolumes.Enqueue(volume.ID, 0)
-		log.L.WithField("method", "(*volumes).Add").Debugf("Add Volume: %v", volume.VolumeID)
+		r.pendingVolumes.Enqueue(volume.Id, 0)
+		log.L.WithField("method", "(*volumes).Add").Debugf("Add Volume: %v", volume.VolumeId)
 	}
 }
 
 // Remove removes one or more volumes from this manager. callback is called
 // whenever the removal is successful.
-func (r *volumes) Remove(volumes []api.VolumeAssignment, callback func(id string)) {
+func (r *volumes) Remove(volumes []*api.VolumeAssignment, callback func(id string)) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -176,12 +176,12 @@ func (r *volumes) Remove(volumes []api.VolumeAssignment, callback func(id string
 		// if we get a Remove call, then we always restart the retries and
 		// attempt removal.
 		v := volume.Copy()
-		r.volumes[volume.ID] = volumeState{
+		r.volumes[volume.Id] = volumeState{
 			volume:         v,
 			remove:         true,
 			removeCallback: callback,
 		}
-		r.pendingVolumes.Enqueue(volume.ID, 0)
+		r.pendingVolumes.Enqueue(volume.Id, 0)
 	}
 }
 
@@ -241,7 +241,7 @@ func Restrict(volumes exec.VolumeGetter, t *api.Task) exec.VolumeGetter {
 	vids := map[string]struct{}{}
 
 	for _, v := range t.Volumes {
-		vids[v.ID] = struct{}{}
+		vids[v.Id] = struct{}{}
 	}
 
 	return &taskRestrictedVolumesProvider{volumes: volumes, volumeIDs: vids}

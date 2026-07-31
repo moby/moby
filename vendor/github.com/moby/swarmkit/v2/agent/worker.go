@@ -91,23 +91,23 @@ func (w *worker) Init(ctx context.Context) error {
 	// read the tasks from the database and start any task managers that may be needed.
 	return w.db.Update(func(tx *bolt.Tx) error {
 		return WalkTasks(tx, func(task *api.Task) error {
-			if !TaskAssigned(tx, task.ID) {
+			if !TaskAssigned(tx, task.Id) {
 				// NOTE(stevvooe): If tasks can survive worker restart, we need
 				// to startup the controller and ensure they are removed. For
 				// now, we can simply remove them from the database.
-				if err := DeleteTask(tx, task.ID); err != nil {
-					log.G(ctx).WithError(err).Errorf("error removing task %v", task.ID)
+				if err := DeleteTask(tx, task.Id); err != nil {
+					log.G(ctx).WithError(err).Errorf("error removing task %v", task.Id)
 				}
 				return nil
 			}
 
-			status, err := GetTaskStatus(tx, task.ID)
+			status, err := GetTaskStatus(tx, task.Id)
 			if err != nil {
 				log.G(ctx).WithError(err).Error("unable to read tasks status")
 				return nil
 			}
 
-			task.Status = *status // merges the status into the task, ensuring we start at the right point.
+			task.Status = status // merges the status into the task, ensuring we start at the right point.
 			return w.startTask(ctx, tx, task)
 		})
 	})
@@ -204,9 +204,9 @@ func reconcileTaskState(ctx context.Context, w *worker, assignments []*api.Assig
 	for _, a := range assignments {
 		if t := a.Assignment.GetTask(); t != nil {
 			switch a.Action {
-			case api.AssignmentChange_AssignmentActionUpdate:
+			case api.AssignmentChange_UPDATE:
 				updatedTasks = append(updatedTasks, t)
-			case api.AssignmentChange_AssignmentActionRemove:
+			case api.AssignmentChange_REMOVE:
 				removedTasks = append(removedTasks, t)
 			}
 		}
@@ -228,41 +228,41 @@ func reconcileTaskState(ctx context.Context, w *worker, assignments []*api.Assig
 
 	for _, task := range updatedTasks {
 		log.G(ctx).WithFields(log.Fields{
-			"task.id":           task.ID,
+			"task.id":           task.Id,
 			"task.desiredstate": task.DesiredState,
 		}).Debug("assigned")
 		if err := PutTask(tx, task); err != nil {
 			return err
 		}
 
-		if err := SetTaskAssignment(tx, task.ID, true); err != nil {
+		if err := SetTaskAssignment(tx, task.Id, true); err != nil {
 			return err
 		}
 
-		if mgr, ok := w.taskManagers[task.ID]; ok {
+		if mgr, ok := w.taskManagers[task.Id]; ok {
 			if err := mgr.Update(ctx, task); err != nil && err != ErrClosed {
 				log.G(ctx).WithError(err).Error("failed updating assigned task")
 			}
 		} else {
 			// we may have still seen the task, let's grab the status from
 			// storage and replace it with our status, if we have it.
-			status, err := GetTaskStatus(tx, task.ID)
+			status, err := GetTaskStatus(tx, task.Id)
 			if err != nil {
 				if err != errTaskUnknown {
 					return err
 				}
 
 				// never seen before, register the provided status
-				if err := PutTaskStatus(tx, task.ID, &task.Status); err != nil {
+				if err := PutTaskStatus(tx, task.Id, task.Status); err != nil {
 					return err
 				}
 			} else {
-				task.Status = *status
+				task.Status = status
 			}
 			w.startTask(ctx, tx, task)
 		}
 
-		assigned[task.ID] = struct{}{}
+		assigned[task.Id] = struct{}{}
 	}
 
 	closeManager := func(tm *taskManager) {
@@ -277,7 +277,7 @@ func reconcileTaskState(ctx context.Context, w *worker, assignments []*api.Assig
 		// make an attempt at removing. this is best effort. any errors will be
 		// retried by the reaper later.
 		if err := tm.ctlr.Remove(ctx); err != nil {
-			log.G(ctx).WithError(err).WithField("task.id", tm.task.ID).Error("remove task failed")
+			log.G(ctx).WithError(err).WithField("task.id", tm.task.Id).Error("remove task failed")
 		}
 
 		if err := tm.ctlr.Close(); err != nil {
@@ -316,14 +316,14 @@ func reconcileTaskState(ctx context.Context, w *worker, assignments []*api.Assig
 		// If this was an incremental set of assignments, we're going to remove only the tasks
 		// in the removed set
 		for _, task := range removedTasks {
-			err := removeTaskAssignment(task.ID)
+			err := removeTaskAssignment(task.Id)
 			if err != nil {
 				continue
 			}
 
-			tm, ok := w.taskManagers[task.ID]
+			tm, ok := w.taskManagers[task.Id]
 			if ok {
-				delete(w.taskManagers, task.ID)
+				delete(w.taskManagers, task.Id)
 				go closeManager(tm)
 			}
 		}
@@ -334,16 +334,16 @@ func reconcileTaskState(ctx context.Context, w *worker, assignments []*api.Assig
 
 func reconcileSecrets(ctx context.Context, w *worker, assignments []*api.AssignmentChange, fullSnapshot bool) error {
 	var (
-		updatedSecrets []api.Secret
+		updatedSecrets []*api.Secret
 		removedSecrets []string
 	)
 	for _, a := range assignments {
 		if s := a.Assignment.GetSecret(); s != nil {
 			switch a.Action {
-			case api.AssignmentChange_AssignmentActionUpdate:
-				updatedSecrets = append(updatedSecrets, *s)
-			case api.AssignmentChange_AssignmentActionRemove:
-				removedSecrets = append(removedSecrets, s.ID)
+			case api.AssignmentChange_UPDATE:
+				updatedSecrets = append(updatedSecrets, s)
+			case api.AssignmentChange_REMOVE:
+				removedSecrets = append(removedSecrets, s.Id)
 			}
 
 		}
@@ -377,16 +377,16 @@ func reconcileSecrets(ctx context.Context, w *worker, assignments []*api.Assignm
 
 func reconcileConfigs(ctx context.Context, w *worker, assignments []*api.AssignmentChange, fullSnapshot bool) error {
 	var (
-		updatedConfigs []api.Config
+		updatedConfigs []*api.Config
 		removedConfigs []string
 	)
 	for _, a := range assignments {
 		if r := a.Assignment.GetConfig(); r != nil {
 			switch a.Action {
-			case api.AssignmentChange_AssignmentActionUpdate:
-				updatedConfigs = append(updatedConfigs, *r)
-			case api.AssignmentChange_AssignmentActionRemove:
-				removedConfigs = append(removedConfigs, r.ID)
+			case api.AssignmentChange_UPDATE:
+				updatedConfigs = append(updatedConfigs, r)
+			case api.AssignmentChange_REMOVE:
+				removedConfigs = append(removedConfigs, r.Id)
 			}
 
 		}
@@ -423,16 +423,16 @@ func reconcileConfigs(ctx context.Context, w *worker, assignments []*api.Assignm
 // and are never reset.
 func reconcileVolumes(ctx context.Context, w *worker, assignments []*api.AssignmentChange) error {
 	var (
-		updatedVolumes []api.VolumeAssignment
-		removedVolumes []api.VolumeAssignment
+		updatedVolumes []*api.VolumeAssignment
+		removedVolumes []*api.VolumeAssignment
 	)
 	for _, a := range assignments {
 		if r := a.Assignment.GetVolume(); r != nil {
 			switch a.Action {
-			case api.AssignmentChange_AssignmentActionUpdate:
-				updatedVolumes = append(updatedVolumes, *r)
-			case api.AssignmentChange_AssignmentActionRemove:
-				removedVolumes = append(removedVolumes, *r)
+			case api.AssignmentChange_UPDATE:
+				updatedVolumes = append(updatedVolumes, r)
+			case api.AssignmentChange_REMOVE:
+				removedVolumes = append(removedVolumes, r)
 			}
 
 		}
@@ -521,7 +521,7 @@ func (w *worker) startTask(ctx context.Context, tx *bolt.Tx, task *api.Task) err
 }
 
 func (w *worker) taskManager(ctx context.Context, tx *bolt.Tx, task *api.Task) (*taskManager, error) {
-	if tm, ok := w.taskManagers[task.ID]; ok {
+	if tm, ok := w.taskManagers[task.Id]; ok {
 		return tm, nil
 	}
 
@@ -529,7 +529,7 @@ func (w *worker) taskManager(ctx context.Context, tx *bolt.Tx, task *api.Task) (
 	if err != nil {
 		return nil, err
 	}
-	w.taskManagers[task.ID] = tm
+	w.taskManagers[task.Id] = tm
 	// keep track of active tasks
 	w.closers.Add(1)
 	return tm, nil
@@ -537,12 +537,12 @@ func (w *worker) taskManager(ctx context.Context, tx *bolt.Tx, task *api.Task) (
 
 func (w *worker) newTaskManager(ctx context.Context, tx *bolt.Tx, task *api.Task) (*taskManager, error) {
 	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
-		"task.id":    task.ID,
-		"service.id": task.ServiceID,
+		"task.id":    task.Id,
+		"service.id": task.ServiceId,
 	}))
 
 	ctlr, status, err := exec.Resolve(ctx, task, w.executor)
-	if err := w.updateTaskStatus(ctx, tx, task.ID, status); err != nil {
+	if err := w.updateTaskStatus(ctx, tx, task.Id, status); err != nil {
 		log.G(ctx).WithError(err).Error("error updating task status after controller resolution")
 	}
 
@@ -595,9 +595,9 @@ func (w *worker) updateTaskStatus(ctx context.Context, tx *bolt.Tx, taskID strin
 
 // Subscribe to log messages matching the subscription.
 func (w *worker) Subscribe(ctx context.Context, subscription *api.SubscriptionMessage) error {
-	log.G(ctx).Debugf("Received subscription %s (selector: %v)", subscription.ID, subscription.Selector)
+	log.G(ctx).Debugf("Received subscription %s (selector: %v)", subscription.Id, subscription.Selector)
 
-	publisher, cancel, err := w.publisherProvider.Publisher(ctx, subscription.ID)
+	publisher, cancel, err := w.publisherProvider.Publisher(ctx, subscription.Id)
 	if err != nil {
 		return err
 	}
@@ -607,9 +607,9 @@ func (w *worker) Subscribe(ctx context.Context, subscription *api.SubscriptionMe
 	match := func(t *api.Task) bool {
 		// TODO(aluzzardi): Consider using maps to limit the iterations.
 		sel := subscription.Selector
-		return slices.Contains(sel.TaskIDs, t.ID) ||
-			slices.Contains(sel.ServiceIDs, t.ServiceID) ||
-			slices.Contains(sel.NodeIDs, t.NodeID)
+		return slices.Contains(sel.TaskIds, t.Id) ||
+			slices.Contains(sel.ServiceIds, t.ServiceId) ||
+			slices.Contains(sel.NodeIds, t.NodeId)
 	}
 
 	var wg sync.WaitGroup
@@ -617,7 +617,7 @@ func (w *worker) Subscribe(ctx context.Context, subscription *api.SubscriptionMe
 	for _, tm := range w.taskManagers {
 		if match(tm.task) {
 			wg.Go(func() {
-				tm.Logs(ctx, *subscription.Options, publisher)
+				tm.Logs(ctx, subscription.Options, publisher)
 			})
 		}
 	}
@@ -650,13 +650,13 @@ func (w *worker) Subscribe(ctx context.Context, subscription *api.SubscriptionMe
 			task := v.(*api.Task)
 			if match(task) {
 				w.mu.RLock()
-				tm, ok := w.taskManagers[task.ID]
+				tm, ok := w.taskManagers[task.Id]
 				w.mu.RUnlock()
 				if !ok {
 					continue
 				}
 
-				go tm.Logs(ctx, *subscription.Options, publisher)
+				go tm.Logs(ctx, subscription.Options, publisher)
 			}
 		case <-ctx.Done():
 			return ctx.Err()

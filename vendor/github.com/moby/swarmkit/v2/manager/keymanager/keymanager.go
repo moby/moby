@@ -40,8 +40,8 @@ const (
 // map of subsystems and corresponding encryption algorithm. Initially only
 // AES_128 in GCM mode is supported.
 var subsysToAlgo = map[string]api.EncryptionKey_Algorithm{
-	SubsystemGossip: api.AES_128_GCM,
-	SubsystemIPSec:  api.AES_128_GCM,
+	SubsystemGossip: api.EncryptionKey_AES_128_GCM,
+	SubsystemIPSec:  api.EncryptionKey_AES_128_GCM,
 }
 
 type keyRing struct {
@@ -111,7 +111,7 @@ func (k *KeyManager) allocateKey(_ context.Context, subsys string) *api.Encrypti
 
 func (k *KeyManager) updateKey(cluster *api.Cluster) error {
 	return k.store.Update(func(tx store.Tx) error {
-		cluster = store.GetCluster(tx, cluster.ID)
+		cluster = store.GetCluster(tx, cluster.Id)
 		if cluster == nil {
 			return nil
 		}

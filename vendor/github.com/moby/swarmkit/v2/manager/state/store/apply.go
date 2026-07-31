@@ -18,28 +18,28 @@ func Apply(store *MemoryStore, item events.Event) (err error) {
 		case api.EventUpdateTask:
 			return UpdateTask(tx, v.Task)
 		case api.EventDeleteTask:
-			return DeleteTask(tx, v.Task.ID)
+			return DeleteTask(tx, v.Task.Id)
 
 		case api.EventCreateService:
 			return CreateService(tx, v.Service)
 		case api.EventUpdateService:
 			return UpdateService(tx, v.Service)
 		case api.EventDeleteService:
-			return DeleteService(tx, v.Service.ID)
+			return DeleteService(tx, v.Service.Id)
 
 		case api.EventCreateNetwork:
 			return CreateNetwork(tx, v.Network)
 		case api.EventUpdateNetwork:
 			return UpdateNetwork(tx, v.Network)
 		case api.EventDeleteNetwork:
-			return DeleteNetwork(tx, v.Network.ID)
+			return DeleteNetwork(tx, v.Network.Id)
 
 		case api.EventCreateNode:
 			return CreateNode(tx, v.Node)
 		case api.EventUpdateNode:
 			return UpdateNode(tx, v.Node)
 		case api.EventDeleteNode:
-			return DeleteNode(tx, v.Node.ID)
+			return DeleteNode(tx, v.Node.Id)
 
 		case state.EventCommit:
 			return nil

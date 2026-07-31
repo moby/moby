@@ -1,9 +1,9 @@
 package agent
 
 import (
-	"github.com/gogo/protobuf/proto"
 	"github.com/moby/swarmkit/v2/api"
 	bolt "go.etcd.io/bbolt"
+	"google.golang.org/protobuf/proto"
 )
 
 // Layout:
@@ -117,11 +117,16 @@ func WalkTaskStatus(tx *bolt.Tx, fn func(id string, status *api.TaskStatus) erro
 
 // PutTask places the task into the database.
 func PutTask(tx *bolt.Tx, task *api.Task) error {
-	return withCreateTaskBucketIfNotExists(tx, task.ID, func(bkt *bolt.Bucket) error {
-		taskCopy := *task
-		taskCopy.Status = api.TaskStatus{} // blank out the status.
+	return withCreateTaskBucketIfNotExists(tx, task.Id, func(bkt *bolt.Bucket) error {
+		taskCopy := task.Copy()
+		// Blank out the status: it is stored separately, under its own key.
+		// Clearing it to nil rather than to an empty message keeps the stored
+		// task round-tripping to exactly what was put in. This database is
+		// node-local, and an older agent reading it decodes an absent status
+		// as the zero value either way.
+		taskCopy.Status = nil
 
-		p, err := proto.Marshal(&taskCopy)
+		p, err := proto.Marshal(taskCopy)
 		if err != nil {
 			return err
 		}

@@ -20,13 +20,13 @@ func (is slotsByRunningState) Less(i, j int) bool {
 	jRunning := false
 
 	for _, ii := range is[i] {
-		if ii.Status.State == api.TaskStateRunning {
+		if ii.Status.GetState() == api.TaskState_RUNNING {
 			iRunning = true
 			break
 		}
 	}
 	for _, ij := range is[j] {
-		if ij.Status.State == api.TaskStateRunning {
+		if ij.Status.GetState() == api.TaskState_RUNNING {
 			jRunning = true
 			break
 		}
@@ -81,7 +81,7 @@ func (r *Orchestrator) updatableAndDeadSlots(ctx context.Context, service *api.S
 		err   error
 	)
 	r.store.View(func(tx store.ReadTx) {
-		tasks, err = store.FindTasks(tx, store.ByServiceID(service.ID))
+		tasks, err = store.FindTasks(tx, store.ByServiceID(service.Id))
 	})
 	if err != nil {
 		return nil, nil, err
@@ -109,7 +109,7 @@ func (r *Orchestrator) updatableAndDeadSlots(ctx context.Context, service *api.S
 // SlotTuple returns a slot tuple for the replicated service task.
 func (r *Orchestrator) SlotTuple(t *api.Task) orchestrator.SlotTuple {
 	return orchestrator.SlotTuple{
-		ServiceID: t.ServiceID,
+		ServiceID: t.ServiceId,
 		Slot:      t.Slot,
 	}
 }

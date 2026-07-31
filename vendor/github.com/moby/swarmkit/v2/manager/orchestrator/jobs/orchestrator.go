@@ -134,17 +134,17 @@ func (o *Orchestrator) init(ctx context.Context) {
 
 	for _, service := range services {
 		if orchestrator.IsReplicatedJob(service) {
-			if err := o.replicatedReconciler.ReconcileService(service.ID); err != nil {
+			if err := o.replicatedReconciler.ReconcileService(service.Id); err != nil {
 				log.G(ctx).WithField(
-					"service.id", service.ID,
+					"service.id", service.Id,
 				).WithError(err).Error("error reconciling replicated job")
 			}
 		}
 
 		if orchestrator.IsGlobalJob(service) {
-			if err := o.globalReconciler.ReconcileService(service.ID); err != nil {
+			if err := o.globalReconciler.ReconcileService(service.Id); err != nil {
 				log.G(ctx).WithField(
-					"service.id", service.ID,
+					"service.id", service.Id,
 				).WithError(err).Error("error reconciling global job")
 			}
 		}
@@ -204,7 +204,7 @@ func (o *Orchestrator) handleEvent(ctx context.Context, event events.Event) {
 	case api.EventDeleteService:
 		if orchestrator.IsReplicatedJob(ev.Service) || orchestrator.IsGlobalJob(ev.Service) {
 			orchestrator.SetServiceTasksRemove(ctx, o.store, ev.Service)
-			o.restartSupervisor.ClearServiceHistory(ev.Service.ID)
+			o.restartSupervisor.ClearServiceHistory(ev.Service.Id)
 		}
 	case api.EventUpdateTask:
 		task = ev.Task
@@ -215,28 +215,28 @@ func (o *Orchestrator) handleEvent(ctx context.Context, event events.Event) {
 	if task != nil {
 		// only bother with all this if the task has entered a terminal
 		// state and we don't want that to have happened.
-		if task.Status.State > api.TaskStateRunning && task.DesiredState <= api.TaskStateCompleted {
+		if task.Status.GetState() > api.TaskState_RUNNING && task.DesiredState <= api.TaskState_COMPLETE {
 			o.store.View(func(tx store.ReadTx) {
 				// if for any reason the service ID is invalid, then
 				// service will just be nil and nothing needs to be
 				// done
-				service = store.GetService(tx, task.ServiceID)
+				service = store.GetService(tx, task.ServiceId)
 			})
 		}
 	}
 
 	if orchestrator.IsReplicatedJob(service) {
-		if err := o.replicatedReconciler.ReconcileService(service.ID); err != nil {
+		if err := o.replicatedReconciler.ReconcileService(service.Id); err != nil {
 			log.G(ctx).WithField(
-				"service.id", service.ID,
+				"service.id", service.Id,
 			).WithError(err).Error("error reconciling replicated job")
 		}
 	}
 
 	if orchestrator.IsGlobalJob(service) {
-		if err := o.globalReconciler.ReconcileService(service.ID); err != nil {
+		if err := o.globalReconciler.ReconcileService(service.Id); err != nil {
 			log.G(ctx).WithField(
-				"service.id", service.ID,
+				"service.id", service.Id,
 			).WithError(err).Error("error reconciling global job")
 		}
 	}

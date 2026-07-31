@@ -13,7 +13,7 @@ import (
 // restart.SupervisorInterface that are actually needed by the reconciler. This
 // more limited interface allows us to write a less ugly fake for unit testing.
 type restartSupervisor interface {
-	Restart(context.Context, store.Tx, *api.Cluster, *api.Service, api.Task) error
+	Restart(context.Context, store.Tx, *api.Cluster, *api.Service, *api.Task) error
 }
 
 // Reconciler is an object that manages reconciliation of replicated jobs. It
@@ -81,7 +81,7 @@ func (r *Reconciler) ReconcileService(id string) error {
 	// JobStatus, so we should create one if so. this won't actually be
 	// committed, though.
 	if service.JobStatus == nil {
-		service.JobStatus = &api.JobStatus{}
+		service.JobStatus = &api.JobStatus{JobIteration: &api.Version{}}
 	}
 
 	// Jobs can be run in multiple iterations. The JobStatus of the service
@@ -119,7 +119,7 @@ func (r *Reconciler) ReconcileService(id string) error {
 		// previous job iteration are not important
 		if task.JobIteration != nil {
 			if task.JobIteration.Index == jobVersion {
-				if task.Status.State == api.TaskStateCompleted {
+				if task.Status.GetState() == api.TaskState_COMPLETE {
 					completeTasks++
 					slots[task.Slot] = true
 				}
@@ -127,7 +127,7 @@ func (r *Reconciler) ReconcileService(id string) error {
 				// the Restart Manager may put a task in the desired state Ready,
 				// so we should match not only tasks in desired state Completed,
 				// but also those in any valid running state.
-				if task.Status.State != api.TaskStateCompleted && task.DesiredState <= api.TaskStateCompleted {
+				if task.Status.GetState() != api.TaskState_COMPLETE && task.DesiredState <= api.TaskState_COMPLETE {
 					runningTasks++
 					slots[task.Slot] = true
 
@@ -135,16 +135,16 @@ func (r *Reconciler) ReconcileService(id string) error {
 					// it. throw it on the pile if so. this is still counted as a
 					// running task for the purpose of determining how many new
 					// tasks to create.
-					if task.Status.State > api.TaskStateCompleted {
-						restartTasks = append(restartTasks, task.ID)
+					if task.Status.GetState() > api.TaskState_COMPLETE {
+						restartTasks = append(restartTasks, task.Id)
 					}
 				}
 			} else {
 				// tasks belonging to a previous iteration of the job may
 				// exist. if any such tasks exist, they should have their task
 				// state set to Remove
-				if task.Status.State <= api.TaskStateRunning && task.DesiredState != api.TaskStateRemove {
-					removeTasks = append(removeTasks, task.ID)
+				if task.Status.GetState() <= api.TaskState_RUNNING && task.DesiredState != api.TaskState_REMOVE {
+					removeTasks = append(removeTasks, task.Id)
 				}
 			}
 		}
@@ -215,7 +215,7 @@ func (r *Reconciler) ReconcileService(id string) error {
 				// when we create the task, we also need to set the
 				// JobIteration.
 				task.JobIteration = &api.Version{Index: jobVersion}
-				task.DesiredState = api.TaskStateCompleted
+				task.DesiredState = api.TaskState_COMPLETE
 
 				// finally, create the task in the store.
 				return store.CreateTask(tx, task)
@@ -231,12 +231,12 @@ func (r *Reconciler) ReconcileService(id string) error {
 					return nil
 				}
 
-				if t.DesiredState > api.TaskStateCompleted {
+				if t.DesiredState > api.TaskState_COMPLETE {
 					return nil
 				}
 
 				// TODO(dperny): pass in context from above
-				return r.restart.Restart(context.Background(), tx, cluster, service, *t)
+				return r.restart.Restart(context.Background(), tx, cluster, service, t)
 			}); err != nil {
 				return err
 			}
@@ -250,10 +250,10 @@ func (r *Reconciler) ReconcileService(id string) error {
 				}
 
 				// don't do unnecessary updates
-				if t.DesiredState == api.TaskStateRemove {
+				if t.DesiredState == api.TaskState_REMOVE {
 					return nil
 				}
-				t.DesiredState = api.TaskStateRemove
+				t.DesiredState = api.TaskState_REMOVE
 				return store.UpdateTask(tx, t)
 			}); err != nil {
 				return err
@@ -286,7 +286,7 @@ func (r *Reconciler) FixTask(_ context.Context, _ *store.Batch, _ *api.Task) {}
 // implements the taskinit.InitHandler interface
 func (r *Reconciler) SlotTuple(t *api.Task) orchestrator.SlotTuple {
 	return orchestrator.SlotTuple{
-		ServiceID: t.ServiceID,
+		ServiceID: t.ServiceId,
 		Slot:      t.Slot,
 	}
 }

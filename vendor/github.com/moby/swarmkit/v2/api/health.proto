@@ -11,7 +11,8 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
-import "gogoproto/gogo.proto";
+option go_package = "github.com/moby/swarmkit/v2/api";
+
 import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
 service Health {

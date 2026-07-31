@@ -146,7 +146,7 @@ func (s *session) start(ctx context.Context, description *api.NodeDescription) e
 
 		stream, err = client.Session(sessionCtx, &api.SessionRequest{
 			Description: description,
-			SessionID:   s.sessionID,
+			SessionId:   s.sessionID,
 		})
 		if err != nil {
 			errChan <- err
@@ -167,7 +167,7 @@ func (s *session) start(ctx context.Context, description *api.NodeDescription) e
 		return errors.New("session initiation timed out")
 	}
 
-	s.sessionID = msg.SessionID
+	s.sessionID = msg.SessionId
 	s.session = stream
 
 	return s.handleSessionMessage(ctx, msg)
@@ -191,7 +191,7 @@ func (s *session) heartbeat(ctx context.Context) error {
 			// TODO(anshul) log manager info in all logs in this function.
 			log.G(ctx).WithFields(fields).Debugf("sending heartbeat to manager %v with timeout %v", s.conn.Peer(), dispatcherRPCTimeout)
 			resp, err := client.Heartbeat(heartbeatCtx, &api.HeartbeatRequest{
-				SessionID: s.sessionID,
+				SessionId: s.sessionID,
 			})
 			cancel()
 			if err != nil {
@@ -206,7 +206,7 @@ func (s *session) heartbeat(ctx context.Context) error {
 
 			log.G(ctx).WithFields(fields).Debugf("heartbeat successful to manager %v, next heartbeat period: %v", s.conn.Peer(), resp.Period)
 
-			heartbeat.Reset(resp.Period)
+			heartbeat.Reset(resp.Period.AsDuration())
 		case <-s.closed:
 			return errSessionClosed
 		case <-ctx.Done():
@@ -296,7 +296,7 @@ func (s *session) watch(ctx context.Context) error {
 		// If this is the first time we're running the loop, or there was a reference mismatch
 		// attempt to get the assignmentWatch
 		if assignmentWatch == nil && !tasksFallback {
-			assignmentWatch, err = client.Assignments(ctx, &api.AssignmentsRequest{SessionID: s.sessionID})
+			assignmentWatch, err = client.Assignments(ctx, &api.AssignmentsRequest{SessionId: s.sessionID})
 			if err != nil {
 				return err
 			}
@@ -319,7 +319,7 @@ func (s *session) watch(ctx context.Context) error {
 		// This code is here for backwards compatibility (so that newer clients can use the
 		// older method Tasks)
 		if tasksWatch == nil && tasksFallback {
-			tasksWatch, err = client.Tasks(ctx, &api.TasksRequest{SessionID: s.sessionID})
+			tasksWatch, err = client.Tasks(ctx, &api.TasksRequest{SessionId: s.sessionID})
 			if err != nil {
 				return err
 			}
@@ -339,7 +339,7 @@ func (s *session) watch(ctx context.Context) error {
 							Task: t,
 						},
 					},
-					Action: api.AssignmentChange_AssignmentActionUpdate,
+					Action: api.AssignmentChange_UPDATE,
 				}
 
 				assignmentChanges = append(assignmentChanges, taskChange)
@@ -369,10 +369,10 @@ func (s *session) watch(ctx context.Context) error {
 func (s *session) sendTaskStatus(ctx context.Context, taskID string, taskStatus *api.TaskStatus) error {
 	client := api.NewDispatcherClient(s.conn.ClientConn)
 	if _, err := client.UpdateTaskStatus(ctx, &api.UpdateTaskStatusRequest{
-		SessionID: s.sessionID,
+		SessionId: s.sessionID,
 		Updates: []*api.UpdateTaskStatusRequest_TaskStatusUpdate{
 			{
-				TaskID: taskID,
+				TaskId: taskID,
 				Status: taskStatus,
 			},
 		},
@@ -414,7 +414,7 @@ func (s *session) sendTaskStatuses(ctx context.Context, updates ...*api.UpdateTa
 	n := min(len(updates), batchSize)
 
 	if _, err := client.UpdateTaskStatus(ctx, &api.UpdateTaskStatusRequest{
-		SessionID: s.sessionID,
+		SessionId: s.sessionID,
 		Updates:   updates[:n],
 	}); err != nil {
 		log.G(ctx).WithError(err).Errorf("failed sending task status batch size of %d", len(updates[:n]))
@@ -430,13 +430,13 @@ func (s *session) reportVolumeUnpublished(ctx context.Context, volumes []string)
 	updates := []*api.UpdateVolumeStatusRequest_VolumeStatusUpdate{}
 	for _, volume := range volumes {
 		updates = append(updates, &api.UpdateVolumeStatusRequest_VolumeStatusUpdate{
-			ID:          volume,
+			Id:          volume,
 			Unpublished: true,
 		})
 	}
 	client := api.NewDispatcherClient(s.conn.ClientConn)
 	_, err := client.UpdateVolumeStatus(ctx, &api.UpdateVolumeStatusRequest{
-		SessionID: s.sessionID,
+		SessionId: s.sessionID,
 		Updates:   updates,
 	})
 	return err

@@ -56,7 +56,7 @@ func (ve *VolumeEnforcer) Stop() {
 }
 
 func (ve *VolumeEnforcer) rejectNoncompliantTasks(v *api.Volume) {
-	if v.Spec.Availability != api.VolumeAvailabilityDrain {
+	if v.Spec.GetAvailability() != api.VolumeSpec_DRAIN {
 		return
 	}
 
@@ -64,7 +64,7 @@ func (ve *VolumeEnforcer) rejectNoncompliantTasks(v *api.Volume) {
 
 	ve.store.View(func(tx store.ReadTx) {
 		// ignore the error, it only happens if you pass an invalid find by
-		volumeTasks, _ = store.FindTasks(tx, store.ByVolumeAttachment(v.ID))
+		volumeTasks, _ = store.FindTasks(tx, store.ByVolumeAttachment(v.Id))
 	})
 	if len(volumeTasks) != 0 {
 		err := ve.store.Batch(func(batch *store.Batch) error {
@@ -75,14 +75,14 @@ func (ve *VolumeEnforcer) rejectNoncompliantTasks(v *api.Volume) {
 				// transactions. we will still need to check again once we
 				// start the transaction against the latest version of the
 				// task.
-				if t.DesiredState > api.TaskStateCompleted || t.Status.State >= api.TaskStateCompleted {
+				if t.DesiredState > api.TaskState_COMPLETE || t.Status.GetState() >= api.TaskState_COMPLETE {
 					continue
 				}
 
 				err := batch.Update(func(tx store.Tx) error {
-					t = store.GetTask(tx, t.ID)
+					t = store.GetTask(tx, t.Id)
 					// another check for task liveness.
-					if t == nil || t.DesiredState > api.TaskStateCompleted || t.Status.State >= api.TaskStateCompleted {
+					if t == nil || t.DesiredState > api.TaskState_COMPLETE || t.Status.GetState() >= api.TaskState_COMPLETE {
 						return nil
 					}
 
@@ -95,20 +95,20 @@ func (ve *VolumeEnforcer) rejectNoncompliantTasks(v *api.Volume) {
 					// will bypass actions such as
 					// restarting the task on another node
 					// (if applicable).
-					t.Status.State = api.TaskStateRejected
+					t.Status.State = api.TaskState_REJECTED
 					t.Status.Message = "task rejected by volume enforcer"
 					t.Status.Err = "attached to volume which is being drained"
 					return store.UpdateTask(tx, t)
 				})
 				if err != nil {
-					log.L.WithField("module", "volumeenforcer").WithError(err).Errorf("failed to shut down task %s", t.ID)
+					log.L.WithField("module", "volumeenforcer").WithError(err).Errorf("failed to shut down task %s", t.Id)
 				}
 			}
 			return nil
 		})
 
 		if err != nil {
-			log.L.WithField("module", "volumeenforcer").WithError(err).Errorf("failed to shut down tasks for volume %s", v.ID)
+			log.L.WithField("module", "volumeenforcer").WithError(err).Errorf("failed to shut down tasks for volume %s", v.Id)
 		}
 	}
 }

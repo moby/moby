@@ -19,6 +19,8 @@ import (
 // Server represents a Health Check server to check
 // if a service is running or not on some host.
 type Server struct {
+	api.UnimplementedHealthServer
+
 	mu sync.Mutex
 	// statusMap stores the serving status of the services this HealthServer monitors.
 	statusMap map[string]api.HealthCheckResponse_ServingStatus

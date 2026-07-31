@@ -203,7 +203,7 @@ func (vm *Manager) init(ctx context.Context) {
 	// the VolumeManager. If it doesn't need any work, then we will quickly
 	// skip by it. Otherwise, the needed work will be performed.
 	for _, volume := range volumes {
-		vm.enqueueVolume(volume.ID)
+		vm.enqueueVolume(volume.Id)
 	}
 }
 
@@ -218,9 +218,9 @@ func (vm *Manager) Stop() {
 func (vm *Manager) handleEvent(ev events.Event) {
 	switch e := ev.(type) {
 	case api.EventCreateVolume:
-		vm.enqueueVolume(e.Volume.ID)
+		vm.enqueueVolume(e.Volume.Id)
 	case api.EventUpdateVolume:
-		vm.enqueueVolume(e.Volume.ID)
+		vm.enqueueVolume(e.Volume.Id)
 	case api.EventCreateNode:
 		vm.handleNode(e.Node)
 	case api.EventUpdateNode:
@@ -232,15 +232,15 @@ func (vm *Manager) handleEvent(ev events.Event) {
 		// becomes more polished.
 		vm.handleNode(e.Node)
 	case api.EventDeleteNode:
-		vm.handleNodeRemove(e.Node.ID)
+		vm.handleNodeRemove(e.Node.Id)
 	}
 }
 
 func (vm *Manager) createVolume(ctx context.Context, v *api.Volume) error {
-	l := log.G(ctx).WithField("volume.id", v.ID).WithField("driver", v.Spec.Driver.Name)
+	l := log.G(ctx).WithField("volume.id", v.Id).WithField("driver", v.Spec.GetDriver().GetName())
 	l.Info("creating volume")
 
-	p, err := vm.getPlugin(v.Spec.Driver.Name)
+	p, err := vm.getPlugin(v.Spec.GetDriver().GetName())
 	if err != nil {
 		l.Errorf("volume creation failed: %s", err.Error())
 		return err
@@ -253,7 +253,7 @@ func (vm *Manager) createVolume(ctx context.Context, v *api.Volume) error {
 	}
 
 	err = vm.store.Update(func(tx store.Tx) error {
-		v2 := store.GetVolume(tx, v.ID)
+		v2 := store.GetVolume(tx, v.Id)
 		// the volume should never be missing. I don't know of even any race
 		// condition that could result in this behavior. nevertheless, it's
 		// better to do this than to segfault.
@@ -331,29 +331,29 @@ func (vm *Manager) handleVolume(ctx context.Context, id string) error {
 	for i, status := range statuses {
 		switch status.State {
 		case api.VolumePublishStatus_PENDING_PUBLISH:
-			plug, err := vm.getPlugin(volume.Spec.Driver.Name)
+			plug, err := vm.getPlugin(volume.Spec.GetDriver().GetName())
 			if err != nil {
 				status.Message = fmt.Sprintf("error publishing volume: %v", err)
-				failedPublishOrUnpublish = append(failedPublishOrUnpublish, status.NodeID)
+				failedPublishOrUnpublish = append(failedPublishOrUnpublish, status.NodeId)
 			} else {
-				publishContext, err := plug.PublishVolume(ctx, volume, status.NodeID)
+				publishContext, err := plug.PublishVolume(ctx, volume, status.NodeId)
 				if err == nil {
 					status.State = api.VolumePublishStatus_PUBLISHED
 					status.PublishContext = publishContext
 					status.Message = ""
 				} else {
 					status.Message = fmt.Sprintf("error publishing volume: %v", err)
-					failedPublishOrUnpublish = append(failedPublishOrUnpublish, status.NodeID)
+					failedPublishOrUnpublish = append(failedPublishOrUnpublish, status.NodeId)
 				}
 			}
 			updated = true
 		case api.VolumePublishStatus_PENDING_UNPUBLISH:
-			plug, err := vm.getPlugin(volume.Spec.Driver.Name)
+			plug, err := vm.getPlugin(volume.Spec.GetDriver().GetName())
 			if err != nil {
 				status.Message = fmt.Sprintf("error unpublishing volume: %v", err)
-				failedPublishOrUnpublish = append(failedPublishOrUnpublish, status.NodeID)
+				failedPublishOrUnpublish = append(failedPublishOrUnpublish, status.NodeId)
 			} else {
-				err := plug.UnpublishVolume(ctx, volume, status.NodeID)
+				err := plug.UnpublishVolume(ctx, volume, status.NodeId)
 				if err == nil {
 					// if there is no error with unpublishing, then we delete the
 					// status from the statuses slice.
@@ -362,7 +362,7 @@ func (vm *Manager) handleVolume(ctx context.Context, id string) error {
 					adjustIndex++
 				} else {
 					status.Message = fmt.Sprintf("error unpublishing volume: %v", err)
-					failedPublishOrUnpublish = append(failedPublishOrUnpublish, status.NodeID)
+					failedPublishOrUnpublish = append(failedPublishOrUnpublish, status.NodeId)
 				}
 			}
 
@@ -374,7 +374,7 @@ func (vm *Manager) handleVolume(ctx context.Context, id string) error {
 		if err := vm.store.Update(func(tx store.Tx) error {
 			// the publish status is now authoritative. read-update-write the
 			// volume object.
-			v := store.GetVolume(tx, volume.ID)
+			v := store.GetVolume(tx, volume.Id)
 			if v == nil {
 				// volume should never be deleted with pending publishes. if
 				// this does occur somehow, then we will just ignore it, rather
@@ -402,14 +402,14 @@ func (vm *Manager) handleNode(n *api.Node) {
 	}
 	// we just call AddNode on every update. Because it's just a map
 	// assignment, this is probably faster than checking if something changed.
-	for _, info := range n.Description.CSIInfo {
+	for _, info := range n.Description.CsiInfo {
 		p, err := vm.getPlugin(info.PluginName)
 		if err != nil {
 			log.L.Warnf("error handling node: %v", err)
 			// TODO(dperny): log something
 			continue
 		}
-		p.AddNode(n.ID, info.NodeID)
+		p.AddNode(n.Id, info.NodeId)
 	}
 }
 
@@ -427,7 +427,7 @@ func (vm *Manager) handleNodeRemove(nodeID string) {
 
 func (vm *Manager) deleteVolume(ctx context.Context, v *api.Volume) error {
 	// TODO(dperny): handle missing plugin
-	plug, err := vm.getPlugin(v.Spec.Driver.Name)
+	plug, err := vm.getPlugin(v.Spec.GetDriver().GetName())
 	if err != nil {
 		return err
 	}
@@ -438,7 +438,7 @@ func (vm *Manager) deleteVolume(ctx context.Context, v *api.Volume) error {
 
 	// TODO(dperny): handle update error
 	return vm.store.Update(func(tx store.Tx) error {
-		return store.DeleteVolume(tx, v.ID)
+		return store.DeleteVolume(tx, v.Id)
 	})
 }
 

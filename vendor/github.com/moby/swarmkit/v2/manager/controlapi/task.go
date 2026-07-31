@@ -16,16 +16,16 @@ import (
 // - Returns `InvalidArgument` if TaskID is not provided.
 // - Returns `NotFound` if the Task is not found.
 func (s *Server) GetTask(_ context.Context, request *api.GetTaskRequest) (*api.GetTaskResponse, error) {
-	if request.TaskID == "" {
+	if request.TaskId == "" {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	var task *api.Task
 	s.store.View(func(tx store.ReadTx) {
-		task = store.GetTask(tx, request.TaskID)
+		task = store.GetTask(tx, request.TaskId)
 	})
 	if task == nil {
-		return nil, status.Errorf(codes.NotFound, "task %s not found", request.TaskID)
+		return nil, status.Errorf(codes.NotFound, "task %s not found", request.TaskId)
 	}
 	return &api.GetTaskResponse{
 		Task: task,
@@ -37,16 +37,16 @@ func (s *Server) GetTask(_ context.Context, request *api.GetTaskRequest) (*api.G
 // - Returns `NotFound` if the Task is not found.
 // - Returns an error if the deletion fails.
 func (s *Server) RemoveTask(_ context.Context, request *api.RemoveTaskRequest) (*api.RemoveTaskResponse, error) {
-	if request.TaskID == "" {
+	if request.TaskId == "" {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	err := s.store.Update(func(tx store.Tx) error {
-		return store.DeleteTask(tx, request.TaskID)
+		return store.DeleteTask(tx, request.TaskId)
 	})
 	if err != nil {
 		if err == store.ErrNotExist {
-			return nil, status.Errorf(codes.NotFound, "task %s not found", request.TaskID)
+			return nil, status.Errorf(codes.NotFound, "task %s not found", request.TaskId)
 		}
 		return nil, err
 	}
@@ -85,14 +85,14 @@ func (s *Server) ListTasks(_ context.Context, request *api.ListTasksRequest) (*a
 			tasks, err = store.FindTasks(tx, buildFilters(store.ByName, request.Filters.Names))
 		case request.Filters != nil && len(request.Filters.NamePrefixes) > 0:
 			tasks, err = store.FindTasks(tx, buildFilters(store.ByNamePrefix, request.Filters.NamePrefixes))
-		case request.Filters != nil && len(request.Filters.IDPrefixes) > 0:
-			tasks, err = store.FindTasks(tx, buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes))
-		case request.Filters != nil && len(request.Filters.ServiceIDs) > 0:
-			tasks, err = store.FindTasks(tx, buildFilters(store.ByServiceID, request.Filters.ServiceIDs))
+		case request.Filters != nil && len(request.Filters.IdPrefixes) > 0:
+			tasks, err = store.FindTasks(tx, buildFilters(store.ByIDPrefix, request.Filters.IdPrefixes))
+		case request.Filters != nil && len(request.Filters.ServiceIds) > 0:
+			tasks, err = store.FindTasks(tx, buildFilters(store.ByServiceID, request.Filters.ServiceIds))
 		case request.Filters != nil && len(request.Filters.Runtimes) > 0:
 			tasks, err = store.FindTasks(tx, buildFilters(store.ByRuntime, request.Filters.Runtimes))
-		case request.Filters != nil && len(request.Filters.NodeIDs) > 0:
-			tasks, err = store.FindTasks(tx, buildFilters(store.ByNodeID, request.Filters.NodeIDs))
+		case request.Filters != nil && len(request.Filters.NodeIds) > 0:
+			tasks, err = store.FindTasks(tx, buildFilters(store.ByNodeID, request.Filters.NodeIds))
 		case request.Filters != nil && len(request.Filters.DesiredStates) > 0:
 			filters := make([]store.By, 0, len(request.Filters.DesiredStates))
 			for _, v := range request.Filters.DesiredStates {
@@ -115,16 +115,16 @@ func (s *Server) ListTasks(_ context.Context, request *api.ListTasksRequest) (*a
 				return filterContainsPrefix(naming.Task(e), request.Filters.NamePrefixes)
 			},
 			func(e *api.Task) bool {
-				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)
+				return filterContainsPrefix(e.Id, request.Filters.IdPrefixes)
 			},
 			func(e *api.Task) bool {
-				return filterMatchLabels(e.ServiceAnnotations.Labels, request.Filters.Labels)
+				return filterMatchLabels(e.GetServiceAnnotations().GetLabels(), request.Filters.Labels)
 			},
 			func(e *api.Task) bool {
-				return filterContains(e.ServiceID, request.Filters.ServiceIDs)
+				return filterContains(e.ServiceId, request.Filters.ServiceIds)
 			},
 			func(e *api.Task) bool {
-				return filterContains(e.NodeID, request.Filters.NodeIDs)
+				return filterContains(e.NodeId, request.Filters.NodeIds)
 			},
 			func(e *api.Task) bool {
 				if len(request.Filters.Runtimes) == 0 {
@@ -145,12 +145,12 @@ func (s *Server) ListTasks(_ context.Context, request *api.ListTasksRequest) (*a
 					return true
 				}
 
-				service := store.GetService(tx, e.ServiceID)
+				service := store.GetService(tx, e.ServiceId)
 				if service == nil {
 					return false
 				}
 
-				n := store.GetNode(tx, e.NodeID)
+				n := store.GetNode(tx, e.NodeId)
 				return !orchestrator.IsTaskDirty(service, e, n)
 			},
 		)

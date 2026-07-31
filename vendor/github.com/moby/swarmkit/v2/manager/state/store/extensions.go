@@ -44,17 +44,17 @@ func init() {
 			}
 			return RestoreTable(tx, tableExtension, toStoreObj)
 		},
-		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
+		ApplyStoreAction: func(tx Tx, sa *api.StoreAction) error {
 			switch v := sa.Target.(type) {
 			case *api.StoreAction_Extension:
 				obj := v.Extension
 				switch sa.Action {
-				case api.StoreActionKindCreate:
+				case api.StoreActionKind_STORE_ACTION_CREATE:
 					return CreateExtension(tx, obj)
-				case api.StoreActionKindUpdate:
+				case api.StoreActionKind_STORE_ACTION_UPDATE:
 					return UpdateExtension(tx, obj)
-				case api.StoreActionKindRemove:
-					return DeleteExtension(tx, obj.ID)
+				case api.StoreActionKind_STORE_ACTION_REMOVE:
+					return DeleteExtension(tx, obj.Id)
 				}
 			}
 			return errUnknownStoreAction
@@ -82,12 +82,12 @@ func (e extensionEntry) EventUpdate(oldObject api.StoreObject) api.Event {
 // Returns ErrExist if the ID is already taken.
 func CreateExtension(tx Tx, e *api.Extension) error {
 	// Ensure the name is not already in use.
-	if tx.lookup(tableExtension, indexName, strings.ToLower(e.Annotations.Name)) != nil {
+	if tx.lookup(tableExtension, indexName, strings.ToLower(e.GetAnnotations().GetName())) != nil {
 		return ErrNameConflict
 	}
 
 	// It can't conflict with built-in kinds either.
-	if _, ok := schema.Tables[e.Annotations.Name]; ok {
+	if _, ok := schema.Tables[e.GetAnnotations().GetName()]; ok {
 		return ErrNameConflict
 	}
 
@@ -109,7 +109,7 @@ func DeleteExtension(tx Tx, id string) error {
 		return ErrNotExist
 	}
 
-	resources, err := FindResources(tx, ByKind(e.(extensionEntry).Annotations.Name))
+	resources, err := FindResources(tx, ByKind(e.(extensionEntry).GetAnnotations().GetName()))
 	if err != nil {
 		return err
 	}

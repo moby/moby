@@ -37,12 +37,12 @@ func (r *resourceAllocator) AttachNetwork(ctx context.Context, id, target string
 				Target:    target,
 				Addresses: addresses,
 			},
-			ContainerID: id,
+			ContainerId: id,
 		})
 		if err != nil {
 			return err
 		}
-		taskID = r.AttachmentID
+		taskID = r.AttachmentId
 		return nil
 	}); err != nil {
 		return "", err
@@ -56,7 +56,7 @@ func (r *resourceAllocator) DetachNetwork(ctx context.Context, aID string) error
 	return r.agent.withSession(ctx, func(session *session) error {
 		client := api.NewResourceAllocatorClient(session.conn.ClientConn)
 		_, err := client.DetachNetwork(ctx, &api.DetachNetworkRequest{
-			AttachmentID: aID,
+			AttachmentId: aID,
 		})
 
 		return err

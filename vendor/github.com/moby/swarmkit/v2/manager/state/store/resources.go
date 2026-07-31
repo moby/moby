@@ -54,17 +54,17 @@ func init() {
 			}
 			return RestoreTable(tx, tableResource, toStoreObj)
 		},
-		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
+		ApplyStoreAction: func(tx Tx, sa *api.StoreAction) error {
 			switch v := sa.Target.(type) {
 			case *api.StoreAction_Resource:
 				obj := v.Resource
 				switch sa.Action {
-				case api.StoreActionKindCreate:
+				case api.StoreActionKind_STORE_ACTION_CREATE:
 					return CreateResource(tx, obj)
-				case api.StoreActionKindUpdate:
+				case api.StoreActionKind_STORE_ACTION_UPDATE:
 					return UpdateResource(tx, obj)
-				case api.StoreActionKindRemove:
-					return DeleteResource(tx, obj.ID)
+				case api.StoreActionKind_STORE_ACTION_REMOVE:
+					return DeleteResource(tx, obj.Id)
 				}
 			}
 			return errUnknownStoreAction
@@ -112,7 +112,7 @@ func CreateResource(tx Tx, r *api.Resource) error {
 	// Resource of _any_ Kind can exist with that name. This isn't a problem
 	// right now, but the ideal case would be for names to be namespaced to the
 	// kind.
-	if tx.lookup(tableResource, indexName, strings.ToLower(r.Annotations.Name)) != nil {
+	if tx.lookup(tableResource, indexName, strings.ToLower(r.GetAnnotations().GetName())) != nil {
 		return ErrNameConflict
 	}
 	return tx.create(tableResource, resourceEntry{r})

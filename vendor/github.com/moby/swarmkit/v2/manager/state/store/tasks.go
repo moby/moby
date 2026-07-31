@@ -93,17 +93,17 @@ func init() {
 			}
 			return RestoreTable(tx, tableTask, toStoreObj)
 		},
-		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
+		ApplyStoreAction: func(tx Tx, sa *api.StoreAction) error {
 			switch v := sa.Target.(type) {
 			case *api.StoreAction_Task:
 				obj := v.Task
 				switch sa.Action {
-				case api.StoreActionKindCreate:
+				case api.StoreActionKind_STORE_ACTION_CREATE:
 					return CreateTask(tx, obj)
-				case api.StoreActionKindUpdate:
+				case api.StoreActionKind_STORE_ACTION_UPDATE:
 					return UpdateTask(tx, obj)
-				case api.StoreActionKindRemove:
-					return DeleteTask(tx, obj.ID)
+				case api.StoreActionKind_STORE_ACTION_REMOVE:
+					return DeleteTask(tx, obj.Id)
 				}
 			}
 			return errUnknownStoreAction
@@ -186,7 +186,7 @@ func (ti taskIndexerByRuntime) FromArgs(args ...any) ([]byte, error) {
 
 func (ti taskIndexerByRuntime) FromObject(obj any) (bool, []byte, error) {
 	t := obj.(*api.Task)
-	r, err := naming.Runtime(t.Spec)
+	r, err := naming.Runtime(t.GetSpec())
 	if err != nil {
 		return false, nil, nil
 	}
@@ -207,7 +207,7 @@ func (ti taskIndexerByServiceID) FromObject(obj any) (bool, []byte, error) {
 	t := obj.(*api.Task)
 
 	// Add the null character as a terminator
-	val := t.ServiceID + "\x00"
+	val := t.ServiceId + "\x00"
 	return true, []byte(val), nil
 }
 
@@ -221,7 +221,7 @@ func (ti taskIndexerByNodeID) FromObject(obj any) (bool, []byte, error) {
 	t := obj.(*api.Task)
 
 	// Add the null character as a terminator
-	val := t.NodeID + "\x00"
+	val := t.NodeId + "\x00"
 	return true, []byte(val), nil
 }
 
@@ -235,7 +235,7 @@ func (ti taskIndexerBySlot) FromObject(obj any) (bool, []byte, error) {
 	t := obj.(*api.Task)
 
 	// Add the null character as a terminator
-	val := t.ServiceID + "\x00" + strconv.FormatUint(t.Slot, 10) + "\x00"
+	val := t.ServiceId + "\x00" + strconv.FormatUint(t.Slot, 10) + "\x00"
 	return true, []byte(val), nil
 }
 
@@ -263,7 +263,7 @@ func (ti taskIndexerByNetwork) FromObject(obj any) (bool, [][]byte, error) {
 
 	var networkIDs [][]byte
 
-	for _, na := range t.Spec.Networks {
+	for _, na := range t.GetSpec().GetNetworks() {
 		// Add the null character as a terminator
 		networkIDs = append(networkIDs, []byte(na.Target+"\x00"))
 	}
@@ -280,7 +280,7 @@ func (ti taskIndexerBySecret) FromArgs(args ...any) ([]byte, error) {
 func (ti taskIndexerBySecret) FromObject(obj any) (bool, [][]byte, error) {
 	t := obj.(*api.Task)
 
-	container := t.Spec.GetContainer()
+	container := t.GetSpec().GetContainer()
 	if container == nil {
 		return false, nil, nil
 	}
@@ -289,7 +289,7 @@ func (ti taskIndexerBySecret) FromObject(obj any) (bool, [][]byte, error) {
 
 	for _, secretRef := range container.Secrets {
 		// Add the null character as a terminator
-		secretIDs = append(secretIDs, []byte(secretRef.SecretID+"\x00"))
+		secretIDs = append(secretIDs, []byte(secretRef.SecretId+"\x00"))
 	}
 
 	return len(secretIDs) != 0, secretIDs, nil
@@ -307,7 +307,7 @@ func (ti taskIndexerByConfig) FromObject(obj any) (bool, [][]byte, error) {
 		panic("unexpected type passed to FromObject")
 	}
 
-	container := t.Spec.GetContainer()
+	container := t.GetSpec().GetContainer()
 	if container == nil {
 		return false, nil, nil
 	}
@@ -316,7 +316,7 @@ func (ti taskIndexerByConfig) FromObject(obj any) (bool, [][]byte, error) {
 
 	for _, configRef := range container.Configs {
 		// Add the null character as a terminator
-		configIDs = append(configIDs, []byte(configRef.ConfigID+"\x00"))
+		configIDs = append(configIDs, []byte(configRef.ConfigId+"\x00"))
 	}
 
 	return len(configIDs) != 0, configIDs, nil
@@ -337,7 +337,7 @@ func (ti taskIndexerByVolumeAttachment) FromObject(obj any) (bool, [][]byte, err
 	var volumeIDs [][]byte
 
 	for _, v := range t.Volumes {
-		volumeIDs = append(volumeIDs, []byte(v.ID+"\x00"))
+		volumeIDs = append(volumeIDs, []byte(v.Id+"\x00"))
 	}
 	return len(volumeIDs) != 0, volumeIDs, nil
 }
@@ -352,5 +352,5 @@ func (ts taskIndexerByTaskState) FromObject(obj any) (bool, []byte, error) {
 	t := obj.(*api.Task)
 
 	// Add the null character as a terminator
-	return true, []byte(strconv.FormatInt(int64(t.Status.State), 10) + "\x00"), nil
+	return true, []byte(strconv.FormatInt(int64(t.GetStatus().GetState()), 10) + "\x00"), nil
 }

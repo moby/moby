@@ -18,7 +18,7 @@ import (
 //     or if the config data is too long or contains invalid characters.
 //   - Returns an error if the creation fails.
 func (s *Server) CreateResource(ctx context.Context, request *api.CreateResourceRequest) (*api.CreateResourceResponse, error) {
-	if request.Annotations == nil || request.Annotations.Name == "" {
+	if request.Annotations == nil || request.GetAnnotations().GetName() == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "Resource must have a name")
 	}
 
@@ -29,8 +29,8 @@ func (s *Server) CreateResource(ctx context.Context, request *api.CreateResource
 		return nil, status.Errorf(codes.InvalidArgument, "Resource must belong to an Extension")
 	}
 	r := &api.Resource{
-		ID:          identity.NewID(),
-		Annotations: *request.Annotations,
+		Id:          identity.NewID(),
+		Annotations: request.Annotations,
 		Kind:        request.Kind,
 		Payload:     request.Payload,
 	}
@@ -46,11 +46,11 @@ func (s *Server) CreateResource(ctx context.Context, request *api.CreateResource
 		return nil, status.Errorf(
 			codes.AlreadyExists,
 			"A resource with name %v already exists",
-			r.Annotations.Name,
+			r.GetAnnotations().GetName(),
 		)
 	case nil:
 		log.G(ctx).WithFields(log.Fields{
-			"resource.Name": r.Annotations.Name,
+			"resource.Name": r.GetAnnotations().GetName(),
 			"method":        "CreateResource",
 		}).Debugf("resource created")
 		return &api.CreateResourceResponse{Resource: r}, nil
@@ -65,16 +65,16 @@ func (s *Server) CreateResource(ctx context.Context, request *api.CreateResource
 // - Returns `InvalidArgument` if the `GetResourceRequest.Resource` is empty.
 // - Returns an error if getting fails.
 func (s *Server) GetResource(_ context.Context, request *api.GetResourceRequest) (*api.GetResourceResponse, error) {
-	if request.ResourceID == "" {
+	if request.ResourceId == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "resource ID must be present")
 	}
 	var resource *api.Resource
 	s.store.View(func(tx store.ReadTx) {
-		resource = store.GetResource(tx, request.ResourceID)
+		resource = store.GetResource(tx, request.ResourceId)
 	})
 
 	if resource == nil {
-		return nil, status.Errorf(codes.NotFound, "resource %s not found", request.ResourceID)
+		return nil, status.Errorf(codes.NotFound, "resource %s not found", request.ResourceId)
 	}
 
 	return &api.GetResourceResponse{Resource: resource}, nil
@@ -85,15 +85,15 @@ func (s *Server) GetResource(_ context.Context, request *api.GetResourceRequest)
 // - Returns `NotFound` if the a resource named `RemoveResourceRequest.ResourceID` is not found.
 // - Returns an error if the deletion fails.
 func (s *Server) RemoveResource(_ context.Context, request *api.RemoveResourceRequest) (*api.RemoveResourceResponse, error) {
-	if request.ResourceID == "" {
+	if request.ResourceId == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "resource ID must be present")
 	}
 	err := s.store.Update(func(tx store.Tx) error {
-		return store.DeleteResource(tx, request.ResourceID)
+		return store.DeleteResource(tx, request.ResourceId)
 	})
 	switch err {
 	case store.ErrNotExist:
-		return nil, status.Errorf(codes.NotFound, "resource %s not found", request.ResourceID)
+		return nil, status.Errorf(codes.NotFound, "resource %s not found", request.ResourceId)
 	case nil:
 		return &api.RemoveResourceResponse{}, nil
 	default:
@@ -128,7 +128,7 @@ func (s *Server) ListResources(_ context.Context, request *api.ListResourcesRequ
 		for _, prefix := range request.Filters.NamePrefixes {
 			byFilters = append(byFilters, store.ByNamePrefix(prefix))
 		}
-		for _, prefix := range request.Filters.IDPrefixes {
+		for _, prefix := range request.Filters.IdPrefixes {
 			byFilters = append(byFilters, store.ByIDPrefix(prefix))
 		}
 		labels = request.Filters.Labels
@@ -171,7 +171,7 @@ func (s *Server) ListResources(_ context.Context, request *api.ListResourcesRequ
 
 	// filter by label and extension
 	for _, resource := range resources {
-		if !filterMatchLabels(resource.Annotations.Labels, labels) {
+		if !filterMatchLabels(resource.GetAnnotations().GetLabels(), labels) {
 			continue
 		}
 		if andKind && resource.Kind != request.Filters.Kind {
@@ -188,23 +188,23 @@ func (s *Server) ListResources(_ context.Context, request *api.ListResourcesRequ
 // - Returns `InvalidArgument` if the UpdateResourceRequest.Resource.Id` is empty.
 // - Returns an error if updating fails.
 func (s *Server) UpdateResource(_ context.Context, request *api.UpdateResourceRequest) (*api.UpdateResourceResponse, error) {
-	if request.ResourceID == "" || request.ResourceVersion == nil {
+	if request.ResourceId == "" || request.ResourceVersion == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "must include ID and version")
 	}
 	var r *api.Resource
 	err := s.store.Update(func(tx store.Tx) error {
-		r = store.GetResource(tx, request.ResourceID)
+		r = store.GetResource(tx, request.ResourceId)
 		if r == nil {
-			return status.Errorf(codes.NotFound, "resource %v not found", request.ResourceID)
+			return status.Errorf(codes.NotFound, "resource %v not found", request.ResourceId)
 		}
 
 		if request.Annotations != nil {
-			if r.Annotations.Name != request.Annotations.Name {
+			if r.GetAnnotations().GetName() != request.GetAnnotations().GetName() {
 				return status.Errorf(codes.InvalidArgument, "cannot change resource name")
 			}
-			r.Annotations = *request.Annotations
+			r.Annotations = request.Annotations
 		}
-		r.Meta.Version = *request.ResourceVersion
+		r.Meta.Version = request.ResourceVersion
 		// only alter the payload if the
 		if request.Payload != nil {
 			r.Payload = request.Payload

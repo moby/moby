@@ -172,7 +172,7 @@ func (p *plugin) CreateVolume(ctx context.Context, v *api.Volume) (*api.VolumeIn
 	if !p.controller {
 		// TODO(dperny): come up with a scheme to handle headless plugins
 		// TODO(dperny): handle plugins without create volume capabilities
-		return &api.VolumeInfo{VolumeID: v.Spec.Annotations.Name}, nil
+		return &api.VolumeInfo{VolumeId: v.GetSpec().GetAnnotations().GetName()}, nil
 	}
 
 	createVolumeRequest := p.makeCreateVolume(v)
@@ -192,7 +192,7 @@ func (p *plugin) DeleteVolume(ctx context.Context, v *api.Volume) error {
 	// request is simple enough to not bother with it
 	secrets := p.makeSecrets(v)
 	req := &csi.DeleteVolumeRequest{
-		VolumeId: v.VolumeInfo.VolumeID,
+		VolumeId: v.VolumeInfo.VolumeId,
 		Secrets:  secrets,
 	}
 	c, err := p.Client(ctx)
@@ -285,14 +285,14 @@ func (p *plugin) Client(ctx context.Context) (csi.ControllerClient, error) {
 func (p *plugin) makeCreateVolume(v *api.Volume) *csi.CreateVolumeRequest {
 	secrets := p.makeSecrets(v)
 	return &csi.CreateVolumeRequest{
-		Name:       v.Spec.Annotations.Name,
-		Parameters: v.Spec.Driver.Options,
+		Name:       v.GetSpec().GetAnnotations().GetName(),
+		Parameters: v.Spec.GetDriver().GetOptions(),
 		VolumeCapabilities: []*csi.VolumeCapability{
-			capability.MakeCapability(v.Spec.AccessMode),
+			capability.MakeCapability(v.Spec.GetAccessMode()),
 		},
 		Secrets:                   secrets,
-		AccessibilityRequirements: makeTopologyRequirement(v.Spec.AccessibilityRequirements),
-		CapacityRange:             makeCapacityRange(v.Spec.CapacityRange),
+		AccessibilityRequirements: makeTopologyRequirement(v.Spec.GetAccessibilityRequirements()),
+		CapacityRange:             makeCapacityRange(v.Spec.GetCapacityRange()),
 	}
 }
 
@@ -300,14 +300,14 @@ func (p *plugin) makeCreateVolume(v *api.Volume) *csi.CreateVolumeRequest {
 // to CSI RPCs.
 func (p *plugin) makeSecrets(v *api.Volume) map[string]string {
 	secrets := map[string]string{}
-	for _, vs := range v.Spec.Secrets {
+	for _, vs := range v.Spec.GetSecrets() {
 		// a secret should never be nil, but check just to be sure
 		if vs != nil {
 			secret := p.provider.GetSecret(vs.Secret)
 			if secret != nil {
 				// TODO(dperny): return an error, but this should never happen,
 				// as secrets should be validated at volume creation time
-				secrets[vs.Key] = string(secret.Spec.Data)
+				secrets[vs.Key] = string(secret.Spec.GetData())
 			}
 		}
 	}
@@ -320,12 +320,12 @@ func (p *plugin) makeControllerPublishVolumeRequest(v *api.Volume, nodeID string
 	}
 
 	secrets := p.makeSecrets(v)
-	capability := capability.MakeCapability(v.Spec.AccessMode)
+	capability := capability.MakeCapability(v.Spec.GetAccessMode())
 	capability.AccessType = &csi.VolumeCapability_Mount{
 		Mount: &csi.VolumeCapability_MountVolume{},
 	}
 	return &csi.ControllerPublishVolumeRequest{
-		VolumeId:         v.VolumeInfo.VolumeID,
+		VolumeId:         v.VolumeInfo.VolumeId,
 		NodeId:           p.swarmToCSI[nodeID],
 		Secrets:          secrets,
 		VolumeCapability: capability,
@@ -340,7 +340,7 @@ func (p *plugin) makeControllerUnpublishVolumeRequest(v *api.Volume, nodeID stri
 
 	secrets := p.makeSecrets(v)
 	return &csi.ControllerUnpublishVolumeRequest{
-		VolumeId: v.VolumeInfo.VolumeID,
+		VolumeId: v.VolumeInfo.VolumeId,
 		NodeId:   p.swarmToCSI[nodeID],
 		Secrets:  secrets,
 	}

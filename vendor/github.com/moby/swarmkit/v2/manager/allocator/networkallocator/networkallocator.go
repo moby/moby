@@ -141,12 +141,12 @@ type Provider interface {
 
 // IsIngressNetwork check if the network is an ingress network
 func IsIngressNetwork(nw *api.Network) bool {
-	if nw.Spec.Ingress {
+	if nw.Spec.GetIngress() {
 		return true
 	}
 	// Check if legacy defined ingress network
-	_, ok := nw.Spec.Annotations.Labels["com.docker.swarm.internal"]
-	return ok && nw.Spec.Annotations.Name == "ingress"
+	_, ok := nw.GetSpec().GetAnnotations().GetLabels()["com.docker.swarm.internal"]
+	return ok && nw.GetSpec().GetAnnotations().GetName() == "ingress"
 }
 
 // IsIngressNetworkNeeded checks whether the service requires the routing-mesh
@@ -155,16 +155,16 @@ func IsIngressNetworkNeeded(s *api.Service) bool {
 		return false
 	}
 
-	if s.Spec.Endpoint == nil {
+	if s.Spec.GetEndpoint() == nil {
 		return false
 	}
 
-	for _, p := range s.Spec.Endpoint.Ports {
+	for _, p := range s.Spec.GetEndpoint().GetPorts() {
 		// The service to which this task belongs is trying to
 		// expose ports with PublishMode as Ingress to the
 		// external world. Automatically attach the task to
 		// the ingress network.
-		if p.PublishMode == api.PublishModeIngress {
+		if p.PublishMode == api.PortConfig_INGRESS {
 			return true
 		}
 	}
