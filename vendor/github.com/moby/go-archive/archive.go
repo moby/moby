@@ -698,13 +698,13 @@ func (t *Tarballer) Do() {
 
 	defer func() {
 		// Make sure to check the error on Close.
-		if err := ta.TarWriter.Close(); err != nil {
+		if err := ta.TarWriter.Close(); err != nil && !errors.Is(err, io.ErrClosedPipe) {
 			log.G(context.TODO()).Errorf("Can't close tar writer: %s", err)
 		}
-		if err := t.compressWriter.Close(); err != nil {
+		if err := t.compressWriter.Close(); err != nil && !errors.Is(err, io.ErrClosedPipe) {
 			log.G(context.TODO()).Errorf("Can't close compress writer: %s", err)
 		}
-		if err := t.pipeWriter.Close(); err != nil {
+		if err := t.pipeWriter.Close(); err != nil && !errors.Is(err, io.ErrClosedPipe) {
 			log.G(context.TODO()).Errorf("Can't close pipe writer: %s", err)
 		}
 	}()
@@ -1034,71 +1034,68 @@ func unrepresentableOnWindows(hdr *tar.Header) error {
 // destination at the OS level (openat(2) semantics), preventing escape via
 // symlinks in the destination tree.
 func createImpliedDirectories(root *os.Root, hdr *tar.Header, options *TarOptions) error {
-	// For non-directory entries, ensure that the parent directory exists.
-	if hdr.Typeflag != tar.TypeDir {
-		parent := filepath.FromSlash(path.Dir(strings.TrimSuffix(hdr.Name, "/")))
-		// Skip when the parent is the root itself; nothing to create.
-		if parent == "." || parent == "" {
-			return nil
-		}
-		if _, err := root.Lstat(parent); err == nil {
-			return nil
-		} else if !os.IsNotExist(err) {
-			return err
-		}
-		// RootPair() is confined inside this loop as most cases will not require a call, so we can spend some
-		// unneeded function calls in the uncommon case to encapsulate logic -- implied directories are a niche
-		// usage that reduces the portability of an image.
-		uid, gid := options.IDMap.RootPair()
+	parent := filepath.FromSlash(path.Dir(strings.TrimSuffix(hdr.Name, "/")))
+	// Skip when the parent is the root itself; nothing to create.
+	if parent == "." || parent == "" {
+		return nil
+	}
+	if _, err := root.Lstat(parent); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	// RootPair() is confined inside this loop as most cases will not require a call, so we can spend some
+	// unneeded function calls in the uncommon case to encapsulate logic -- implied directories are a niche
+	// usage that reduces the portability of an image.
+	uid, gid := options.IDMap.RootPair()
 
-		// Similar to [user.MkdirAllAndChown]
-		//
-		// [user.MkdirAllAndChown]: https://pkg.go.dev/github.com/moby/sys/user#MkdirAllAndChown
-		var cur string
-		for c := range strings.SplitSeq(parent, string(os.PathSeparator)) {
-			if c == "" {
-				continue
+	// Similar to [user.MkdirAllAndChown]
+	//
+	// [user.MkdirAllAndChown]: https://pkg.go.dev/github.com/moby/sys/user#MkdirAllAndChown
+	var cur string
+	for c := range strings.SplitSeq(parent, string(os.PathSeparator)) {
+		if c == "" {
+			continue
+		}
+		cur = filepath.Join(cur, c)
+		if err := root.Mkdir(cur, ImpliedDirectoryMode); err != nil {
+			if !errors.Is(err, os.ErrExist) {
+				return err
 			}
-			cur = filepath.Join(cur, c)
-			if err := root.Mkdir(cur, ImpliedDirectoryMode); err != nil {
-				if !errors.Is(err, os.ErrExist) {
-					return err
-				}
 
-				fi, err := root.Stat(cur)
-				if err != nil {
-					return err
-				}
-				if fi.IsDir() {
-					continue
-				}
-				return &os.PathError{Op: "mkdir", Path: cur, Err: syscall.ENOTDIR}
-			}
-			if options.NoLchown {
-				continue
-			}
-			// Only the successful Mkdir case is newly-created.
-			dir, err := root.Open(cur)
+			fi, err := root.Stat(cur)
 			if err != nil {
 				return err
 			}
-			if uid != 0 || gid != 0 {
-				if err := dir.Chown(uid, gid); err != nil {
-					_ = dir.Close()
-					return err
-				}
+			if fi.IsDir() {
+				continue
 			}
-			// root.Mkdir applies the mode subject to the process umask, so
-			// re-apply it with Chmod to guarantee ImpliedDirectoryMode
-			// independent of umask, matching the previous MkdirAllAndChown
-			// behavior.
-			if err := dir.Chmod(ImpliedDirectoryMode); err != nil {
+			return &os.PathError{Op: "mkdir", Path: cur, Err: syscall.ENOTDIR}
+		}
+		if options.NoLchown {
+			continue
+		}
+		// Only the successful Mkdir case is newly-created.
+		dir, err := root.Open(cur)
+		if err != nil {
+			return err
+		}
+		if uid != 0 || gid != 0 {
+			if err := dir.Chown(uid, gid); err != nil {
 				_ = dir.Close()
 				return err
 			}
-			if err := dir.Close(); err != nil {
-				return err
-			}
+		}
+		// root.Mkdir applies the mode subject to the process umask, so
+		// re-apply it with Chmod to guarantee ImpliedDirectoryMode
+		// independent of umask, matching the previous MkdirAllAndChown
+		// behavior.
+		if err := dir.Chmod(ImpliedDirectoryMode); err != nil {
+			_ = dir.Close()
+			return err
+		}
+		if err := dir.Close(); err != nil {
+			return err
 		}
 	}
 
