@@ -25,7 +25,7 @@ func (c *Cluster) GetTasks(options swarmbackend.TaskListOptions) ([]types.Task, 
 						return err
 					}
 					filter.Del("service", serviceFilter)
-					filter.Add("service", service.ID)
+					filter.Add("service", service.Id)
 				}
 			}
 			if filter.Contains("node") {
@@ -36,7 +36,7 @@ func (c *Cluster) GetTasks(options swarmbackend.TaskListOptions) ([]types.Task, 
 						return err
 					}
 					filter.Del("node", nodeFilter)
-					filter.Add("node", node.ID)
+					filter.Add("node", node.Id)
 				}
 			}
 			if !filter.Contains("runtime") {
@@ -65,7 +65,7 @@ func (c *Cluster) GetTasks(options swarmbackend.TaskListOptions) ([]types.Task, 
 
 	tasks := make([]types.Task, 0, len(r.Tasks))
 	for _, task := range r.Tasks {
-		t, err := convert.TaskFromGRPC(*task)
+		t, err := convert.TaskFromGRPC(task)
 		if err != nil {
 			return nil, err
 		}
@@ -88,5 +88,5 @@ func (c *Cluster) GetTask(input string) (types.Task, error) {
 	if err != nil {
 		return types.Task{}, err
 	}
-	return convert.TaskFromGRPC(*task)
+	return convert.TaskFromGRPC(task)
 }

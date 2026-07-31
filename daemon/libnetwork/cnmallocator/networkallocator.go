@@ -121,8 +121,8 @@ func (p *Provider) NewAllocator(netConfig *networkallocator.Config) (networkallo
 // Allocate allocates all the necessary resources both general
 // and driver-specific which may be specified in the NetworkSpec
 func (na *cnmNetworkAllocator) Allocate(n *api.Network) error {
-	if _, ok := na.networks[n.ID]; ok {
-		return fmt.Errorf("network %s already allocated", n.ID)
+	if _, ok := na.networks[n.Id]; ok {
+		return fmt.Errorf("network %s already allocated", n.Id)
 	}
 
 	d, err := na.resolveDriver(n)
@@ -146,20 +146,20 @@ func (na *cnmNetworkAllocator) Allocate(n *api.Network) error {
 		// In order to support backward compatibility with older daemon
 		// versions which assumes the network attachment to contains
 		// non nil IPAM attribute, passing an empty object
-		n.IPAM = &api.IPAMOptions{Driver: &api.Driver{}}
+		n.Ipam = &api.IPAMOptions{Driver: &api.Driver{}}
 	} else {
 		nw.pools, err = na.allocatePools(n)
 		if err != nil {
-			return errors.Wrapf(err, "failed allocating pools and gateway IP for network %s", n.ID)
+			return errors.Wrapf(err, "failed allocating pools and gateway IP for network %s", n.Id)
 		}
 
 		if err := na.allocateDriverState(d, n); err != nil {
 			na.freePools(n, nw.pools)
-			return errors.Wrapf(err, "failed while allocating driver state for network %s", n.ID)
+			return errors.Wrapf(err, "failed while allocating driver state for network %s", n.Id)
 		}
 	}
 
-	na.networks[n.ID] = nw
+	na.networks[n.Id] = nw
 
 	return nil
 }
@@ -171,22 +171,22 @@ func (na *cnmNetworkAllocator) getNetwork(id string) *network {
 // Deallocate frees all the general and driver specific resources
 // which were assigned to the passed network.
 func (na *cnmNetworkAllocator) Deallocate(n *api.Network) error {
-	localNet := na.getNetwork(n.ID)
+	localNet := na.getNetwork(n.Id)
 	if localNet == nil {
-		return fmt.Errorf("could not get networker state for network %s", n.ID)
+		return fmt.Errorf("could not get networker state for network %s", n.Id)
 	}
 
 	// No swarm-level resource deallocation needed for node-local networks
 	if localNet.isNodeLocal {
-		delete(na.networks, n.ID)
+		delete(na.networks, n.Id)
 		return nil
 	}
 
 	if err := na.freeDriverState(n); err != nil {
-		return errors.Wrapf(err, "failed to free driver state for network %s", n.ID)
+		return errors.Wrapf(err, "failed to free driver state for network %s", n.Id)
 	}
 
-	delete(na.networks, n.ID)
+	delete(na.networks, n.Id)
 
 	return na.freePools(n, localNet.pools)
 }
@@ -207,40 +207,39 @@ func (na *cnmNetworkAllocator) AllocateService(s *api.Service) (err error) {
 
 	// If ResolutionMode is DNSRR do not try allocating VIPs, but
 	// free any VIP from previous state.
-	if s.Spec.Endpoint != nil && s.Spec.Endpoint.Mode == api.ResolutionModeDNSRoundRobin {
-		for _, vip := range s.Endpoint.VirtualIPs {
+	if s.Spec.Endpoint != nil && s.Spec.Endpoint.Mode == api.EndpointSpec_DNSRR {
+		for _, vip := range s.Endpoint.VirtualIps {
 			if err := na.deallocateVIP(vip); err != nil {
 				// don't bail here, deallocate as many as possible.
 				log.L.WithError(err).
-					WithField("vip.network", vip.NetworkID).
+					WithField("vip.network", vip.NetworkId).
 					WithField("vip.addr", vip.Addr).Error("error deallocating vip")
 			}
 		}
 
-		s.Endpoint.VirtualIPs = nil
+		s.Endpoint.VirtualIps = nil
 
-		delete(na.services, s.ID)
+		delete(na.services, s.Id)
 		return nil
 	}
 
 	specNetworks := serviceNetworks(s)
 
 	// Allocate VIPs for all the pre-populated endpoint attachments
-	eVIPs := s.Endpoint.VirtualIPs[:0]
+	eVIPs := s.Endpoint.VirtualIps[:0]
 
 vipLoop:
-	for _, eAttach := range s.Endpoint.VirtualIPs {
+	for _, eAttach := range s.Endpoint.VirtualIps {
 		if na.IsVIPOnIngressNetwork(eAttach) && networkallocator.IsIngressNetworkNeeded(s) {
 			if err = na.allocateVIP(eAttach); err != nil {
 				return err
 			}
 			eVIPs = append(eVIPs, eAttach)
 			continue vipLoop
-
 		}
 		for _, nAttach := range specNetworks {
-			if nAttach.Target == eAttach.NetworkID {
-				log.L.WithFields(log.Fields{"service_id": s.ID, "vip": eAttach.Addr}).Debug("allocate vip")
+			if nAttach.Target == eAttach.NetworkId {
+				log.L.WithFields(log.Fields{"service_id": s.Id, "vip": eAttach.Addr}).Debug("allocate vip")
 				if err = na.allocateVIP(eAttach); err != nil {
 					return err
 				}
@@ -255,13 +254,13 @@ vipLoop:
 
 networkLoop:
 	for _, nAttach := range specNetworks {
-		for _, vip := range s.Endpoint.VirtualIPs {
-			if vip.NetworkID == nAttach.Target {
+		for _, vip := range s.Endpoint.VirtualIps {
+			if vip.NetworkId == nAttach.Target {
 				continue networkLoop
 			}
 		}
 
-		vip := &api.Endpoint_VirtualIP{NetworkID: nAttach.Target}
+		vip := &api.Endpoint_VirtualIP{NetworkId: nAttach.Target}
 		if err = na.allocateVIP(vip); err != nil {
 			return err
 		}
@@ -270,12 +269,12 @@ networkLoop:
 	}
 
 	if len(eVIPs) > 0 {
-		na.services[s.ID] = struct{}{}
+		na.services[s.Id] = struct{}{}
 	} else {
-		delete(na.services, s.ID)
+		delete(na.services, s.Id)
 	}
 
-	s.Endpoint.VirtualIPs = eVIPs
+	s.Endpoint.VirtualIps = eVIPs
 	return nil
 }
 
@@ -286,24 +285,24 @@ func (na *cnmNetworkAllocator) DeallocateService(s *api.Service) error {
 		return nil
 	}
 
-	for _, vip := range s.Endpoint.VirtualIPs {
+	for _, vip := range s.Endpoint.VirtualIps {
 		if err := na.deallocateVIP(vip); err != nil {
 			// don't bail here, deallocate as many as possible.
 			log.L.WithError(err).
-				WithField("vip.network", vip.NetworkID).
+				WithField("vip.network", vip.NetworkId).
 				WithField("vip.addr", vip.Addr).Error("error deallocating vip")
 		}
 	}
-	s.Endpoint.VirtualIPs = nil
+	s.Endpoint.VirtualIps = nil
 
-	delete(na.services, s.ID)
+	delete(na.services, s.Id)
 
 	return nil
 }
 
 // IsAllocated returns if the passed network has been allocated or not.
 func (na *cnmNetworkAllocator) IsAllocated(n *api.Network) bool {
-	_, ok := na.networks[n.ID]
+	_, ok := na.networks[n.Id]
 	return ok
 }
 
@@ -311,7 +310,7 @@ func (na *cnmNetworkAllocator) IsAllocated(n *api.Network) bool {
 func (na *cnmNetworkAllocator) IsTaskAllocated(t *api.Task) bool {
 	// If the task is not found in the allocated set, then it is
 	// not allocated.
-	if _, ok := na.tasks[t.ID]; !ok {
+	if _, ok := na.tasks[t.Id]; !ok {
 		return false
 	}
 
@@ -328,7 +327,7 @@ func (na *cnmNetworkAllocator) IsTaskAllocated(t *api.Task) bool {
 	// Find the first global scope network
 	for _, nAttach := range t.Networks {
 		// If the network is not allocated, the task cannot be allocated.
-		localNet, ok := na.networks[nAttach.Network.ID]
+		localNet, ok := na.networks[nAttach.Network.Id]
 		if !ok {
 			return false
 		}
@@ -360,13 +359,13 @@ func (na *cnmNetworkAllocator) IsServiceAllocated(s *api.Service, flags ...func(
 	// service in VIP allocated set then it needs to be allocated.
 	if len(specNetworks) != 0 &&
 		(s.Spec.Endpoint == nil ||
-			s.Spec.Endpoint.Mode == api.ResolutionModeVirtualIP) {
+			s.Spec.Endpoint.Mode == api.EndpointSpec_VIP) {
 
-		if _, ok := na.services[s.ID]; !ok {
+		if _, ok := na.services[s.Id]; !ok {
 			return false
 		}
 
-		if s.Endpoint == nil || len(s.Endpoint.VirtualIPs) == 0 {
+		if s.Endpoint == nil || len(s.Endpoint.VirtualIps) == 0 {
 			return false
 		}
 
@@ -374,8 +373,8 @@ func (na *cnmNetworkAllocator) IsServiceAllocated(s *api.Service, flags ...func(
 		// the service needs to be allocated.
 	networkLoop:
 		for _, net := range specNetworks {
-			for _, vip := range s.Endpoint.VirtualIPs {
-				if vip.NetworkID == net.Target {
+			for _, vip := range s.Endpoint.VirtualIps {
+				if vip.NetworkId == net.Target {
 					continue networkLoop
 				}
 			}
@@ -387,17 +386,17 @@ func (na *cnmNetworkAllocator) IsServiceAllocated(s *api.Service, flags ...func(
 	// from previous spec the service needs to allocated.
 	if s.Endpoint != nil {
 	vipLoop:
-		for _, vip := range s.Endpoint.VirtualIPs {
+		for _, vip := range s.Endpoint.VirtualIps {
 			if na.IsVIPOnIngressNetwork(vip) && networkallocator.IsIngressNetworkNeeded(s) {
 				// This checks the condition when ingress network is needed
 				// but allocation has not been done.
-				if _, ok := na.services[s.ID]; !ok {
+				if _, ok := na.services[s.Id]; !ok {
 					return false
 				}
 				continue vipLoop
 			}
 			for _, net := range specNetworks {
-				if vip.NetworkID == net.Target {
+				if vip.NetworkId == net.Target {
 					continue vipLoop
 				}
 			}
@@ -409,8 +408,8 @@ func (na *cnmNetworkAllocator) IsServiceAllocated(s *api.Service, flags ...func(
 	// in VIP allocated set then we return to be allocated to make
 	// sure the allocator triggers networkallocator to free up the
 	// resources if any.
-	if s.Spec.Endpoint != nil && s.Spec.Endpoint.Mode == api.ResolutionModeDNSRoundRobin {
-		if _, ok := na.services[s.ID]; ok {
+	if s.Spec.Endpoint != nil && s.Spec.Endpoint.Mode == api.EndpointSpec_DNSRR {
+		if _, ok := na.services[s.Id]; ok {
 			return false
 		}
 	}
@@ -422,18 +421,18 @@ func (na *cnmNetworkAllocator) IsServiceAllocated(s *api.Service, flags ...func(
 // networks that a task is attached to.
 func (na *cnmNetworkAllocator) AllocateTask(t *api.Task) error {
 	for i, nAttach := range t.Networks {
-		if localNet := na.getNetwork(nAttach.Network.ID); localNet != nil && localNet.isNodeLocal {
+		if localNet := na.getNetwork(nAttach.Network.Id); localNet != nil && localNet.isNodeLocal {
 			continue
 		}
 		if err := na.allocateNetworkIPs(nAttach); err != nil {
 			if err := na.releaseEndpoints(t.Networks[:i]); err != nil {
-				log.G(context.TODO()).WithError(err).Errorf("failed to release IP addresses while rolling back allocation for task %s network %s", t.ID, nAttach.Network.ID)
+				log.G(context.TODO()).WithError(err).Errorf("failed to release IP addresses while rolling back allocation for task %s network %s", t.Id, nAttach.Network.Id)
 			}
-			return errors.Wrapf(err, "failed to allocate network IP for task %s network %s", t.ID, nAttach.Network.ID)
+			return errors.Wrapf(err, "failed to allocate network IP for task %s network %s", t.Id, nAttach.Network.Id)
 		}
 	}
 
-	na.tasks[t.ID] = struct{}{}
+	na.tasks[t.Id] = struct{}{}
 
 	return nil
 }
@@ -441,7 +440,7 @@ func (na *cnmNetworkAllocator) AllocateTask(t *api.Task) error {
 // DeallocateTask releases all the endpoint resources for all the
 // networks that a task is attached to.
 func (na *cnmNetworkAllocator) DeallocateTask(t *api.Task) error {
-	delete(na.tasks, t.ID)
+	delete(na.tasks, t.Id)
 	return na.releaseEndpoints(t.Networks)
 }
 
@@ -457,18 +456,18 @@ func (na *cnmNetworkAllocator) IsAttachmentAllocated(node *api.Node, networkAtta
 
 	// If the node is not found in the allocated set, then it is
 	// not allocated.
-	if _, ok := na.nodes[node.ID]; !ok {
+	if _, ok := na.nodes[node.Id]; !ok {
 		return false
 	}
 
 	// If the network is not found in the allocated set, then it is
 	// not allocated.
-	if _, ok := na.nodes[node.ID][networkAttachment.Network.ID]; !ok {
+	if _, ok := na.nodes[node.Id][networkAttachment.Network.Id]; !ok {
 		return false
 	}
 
 	// If the network is not allocated, the node cannot be allocated.
-	localNet, ok := na.networks[networkAttachment.Network.ID]
+	localNet, ok := na.networks[networkAttachment.Network.Id]
 	if !ok {
 		return false
 	}
@@ -493,10 +492,10 @@ func (na *cnmNetworkAllocator) AllocateAttachment(node *api.Node, networkAttachm
 		return err
 	}
 
-	if na.nodes[node.ID] == nil {
-		na.nodes[node.ID] = make(map[string]struct{})
+	if na.nodes[node.Id] == nil {
+		na.nodes[node.Id] = make(map[string]struct{})
 	}
-	na.nodes[node.ID][networkAttachment.Network.ID] = struct{}{}
+	na.nodes[node.Id][networkAttachment.Network.Id] = struct{}{}
 
 	return nil
 }
@@ -504,9 +503,9 @@ func (na *cnmNetworkAllocator) AllocateAttachment(node *api.Node, networkAttachm
 // DeallocateAttachment deallocates the IP addresses for a LB in a network to
 // which the node is attached.
 func (na *cnmNetworkAllocator) DeallocateAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error {
-	delete(na.nodes[node.ID], networkAttachment.Network.ID)
-	if len(na.nodes[node.ID]) == 0 {
-		delete(na.nodes, node.ID)
+	delete(na.nodes[node.Id], networkAttachment.Network.Id)
+	if len(na.nodes[node.Id]) == 0 {
+		delete(na.nodes, node.Id)
 	}
 
 	return na.releaseEndpoints([]*api.NetworkAttachment{networkAttachment})
@@ -514,9 +513,9 @@ func (na *cnmNetworkAllocator) DeallocateAttachment(node *api.Node, networkAttac
 
 func (na *cnmNetworkAllocator) releaseEndpoints(networks []*api.NetworkAttachment) error {
 	for _, nAttach := range networks {
-		localNet := na.getNetwork(nAttach.Network.ID)
+		localNet := na.getNetwork(nAttach.Network.Id)
 		if localNet == nil {
-			return fmt.Errorf("could not find network allocator state for network %s", nAttach.Network.ID)
+			return fmt.Errorf("could not find network allocator state for network %s", nAttach.Network.Id)
 		}
 
 		if localNet.isNodeLocal {
@@ -559,7 +558,7 @@ func (na *cnmNetworkAllocator) releaseEndpoints(networks []*api.NetworkAttachmen
 // allocate virtual IP for a single endpoint attachment of the service.
 func (na *cnmNetworkAllocator) allocateVIP(vip *api.Endpoint_VirtualIP) error {
 	var opts map[string]string
-	localNet := na.getNetwork(vip.NetworkID)
+	localNet := na.getNetwork(vip.NetworkId)
 	if localNet == nil {
 		return errors.New("networkallocator: could not find local network state")
 	}
@@ -588,9 +587,9 @@ func (na *cnmNetworkAllocator) allocateVIP(vip *api.Endpoint_VirtualIP) error {
 			return err
 		}
 	}
-	if localNet.nw.IPAM != nil && localNet.nw.IPAM.Driver != nil {
+	if localNet.nw.Ipam != nil && localNet.nw.Ipam.Driver != nil {
 		// set ipam allocation method to serial
-		opts = setIPAMSerialAlloc(localNet.nw.IPAM.Driver.Options)
+		opts = setIPAMSerialAlloc(localNet.nw.Ipam.Driver.Options)
 	}
 
 	for _, poolID := range localNet.pools {
@@ -612,7 +611,7 @@ func (na *cnmNetworkAllocator) allocateVIP(vip *api.Endpoint_VirtualIP) error {
 }
 
 func (na *cnmNetworkAllocator) deallocateVIP(vip *api.Endpoint_VirtualIP) error {
-	localNet := na.getNetwork(vip.NetworkID)
+	localNet := na.getNetwork(vip.NetworkId)
 	if localNet == nil {
 		return errors.New("networkallocator: could not find local network state")
 	}
@@ -653,9 +652,9 @@ func (na *cnmNetworkAllocator) allocateNetworkIPs(nAttach *api.NetworkAttachment
 		return errors.Wrap(err, "failed to resolve IPAM while allocating")
 	}
 
-	localNet := na.getNetwork(nAttach.Network.ID)
+	localNet := na.getNetwork(nAttach.Network.Id)
 	if localNet == nil {
-		return fmt.Errorf("could not find network allocator state for network %s", nAttach.Network.ID)
+		return fmt.Errorf("could not find network allocator state for network %s", nAttach.Network.Id)
 	}
 
 	addresses := nAttach.Addresses
@@ -677,9 +676,9 @@ func (na *cnmNetworkAllocator) allocateNetworkIPs(nAttach *api.NetworkAttachment
 			}
 		}
 		// Set the ipam options if the network has an ipam driver.
-		if localNet.nw.IPAM != nil && localNet.nw.IPAM.Driver != nil {
+		if localNet.nw.Ipam != nil && localNet.nw.Ipam.Driver != nil {
 			// set ipam allocation method to serial
-			opts = setIPAMSerialAlloc(localNet.nw.IPAM.Driver.Options)
+			opts = setIPAMSerialAlloc(localNet.nw.Ipam.Driver.Options)
 		}
 
 		for _, poolID := range localNet.pools {
@@ -714,7 +713,7 @@ func (na *cnmNetworkAllocator) freeDriverState(n *api.Network) error {
 		return fmt.Errorf("driver %s was loaded from localDrivers and can't be used to free driver state", d.name)
 	}
 
-	return d.driver.NetworkFree(n.ID)
+	return d.driver.NetworkFree(n.Id)
 }
 
 func (na *cnmNetworkAllocator) allocateDriverState(d *networkDriver, n *api.Network) error {
@@ -733,8 +732,8 @@ func (na *cnmNetworkAllocator) allocateDriverState(d *networkDriver, n *api.Netw
 	}
 
 	// Construct IPAM data for driver consumption.
-	ipv4Data := make([]driverapi.IPAMData, 0, len(n.IPAM.Configs))
-	for _, ic := range n.IPAM.Configs {
+	ipv4Data := make([]driverapi.IPAMData, 0, len(n.Ipam.Configs))
+	for _, ic := range n.Ipam.Configs {
 		if ic.Family == api.IPAMConfig_IPV6 {
 			continue
 		}
@@ -758,7 +757,7 @@ func (na *cnmNetworkAllocator) allocateDriverState(d *networkDriver, n *api.Netw
 		ipv4Data = append(ipv4Data, data)
 	}
 
-	ds, err := d.driver.NetworkAllocate(n.ID, options, ipv4Data, nil)
+	ds, err := d.driver.NetworkAllocate(n.Id, options, ipv4Data, nil)
 	if err != nil {
 		return err
 	}
@@ -815,13 +814,13 @@ func (na *cnmNetworkAllocator) loadDriver(name string) error {
 // Resolve the IPAM driver
 func (na *cnmNetworkAllocator) resolveIPAM(n *api.Network) (ipamapi.Ipam, string, map[string]string, error) {
 	dName := defaultipam.DriverName
-	if n.Spec.IPAM != nil && n.Spec.IPAM.Driver != nil && n.Spec.IPAM.Driver.Name != "" {
-		dName = n.Spec.IPAM.Driver.Name
+	if n.Spec.Ipam != nil && n.Spec.Ipam.Driver != nil && n.Spec.Ipam.Driver.Name != "" {
+		dName = n.Spec.Ipam.Driver.Name
 	}
 
 	var dOptions map[string]string
-	if n.Spec.IPAM != nil && n.Spec.IPAM.Driver != nil && len(n.Spec.IPAM.Driver.Options) != 0 {
-		dOptions = n.Spec.IPAM.Driver.Options
+	if n.Spec.Ipam != nil && n.Spec.Ipam.Driver != nil && len(n.Spec.Ipam.Driver.Options) != 0 {
+		dOptions = n.Spec.Ipam.Driver.Options
 	}
 
 	ipam, _ := na.ipamRegistry.IPAM(dName)
@@ -835,10 +834,10 @@ func (na *cnmNetworkAllocator) resolveIPAM(n *api.Network) (ipamapi.Ipam, string
 func (na *cnmNetworkAllocator) freePools(n *api.Network, pools map[netip.Prefix]string) error {
 	ipam, _, _, err := na.resolveIPAM(n)
 	if err != nil {
-		return errors.Wrapf(err, "failed to resolve IPAM while freeing pools for network %s", n.ID)
+		return errors.Wrapf(err, "failed to resolve IPAM while freeing pools for network %s", n.Id)
 	}
 
-	releasePools(ipam, n.IPAM.Configs, pools)
+	releasePools(ipam, n.Ipam.Configs, pools)
 	return nil
 }
 
@@ -880,11 +879,11 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[netip.Prefix]s
 
 	// If there is non-nil IPAM state always prefer those subnet
 	// configs over Spec configs.
-	if n.IPAM != nil {
-		ipamConfigs = n.IPAM.Configs
-	} else if n.Spec.IPAM != nil && len(n.Spec.IPAM.Configs) > 0 {
-		ipamConfigs = make([]*api.IPAMConfig, len(n.Spec.IPAM.Configs))
-		copy(ipamConfigs, n.Spec.IPAM.Configs)
+	if n.Ipam != nil {
+		ipamConfigs = n.Ipam.Configs
+	} else if n.Spec.Ipam != nil && len(n.Spec.Ipam.Configs) > 0 {
+		ipamConfigs = make([]*api.IPAMConfig, len(n.Spec.Ipam.Configs))
+		copy(ipamConfigs, n.Spec.Ipam.Configs)
 	}
 
 	// Append an empty slot for subnet allocation if there are no
@@ -894,7 +893,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[netip.Prefix]s
 	}
 
 	// Update the runtime IPAM configurations with initial state
-	n.IPAM = &api.IPAMOptions{
+	n.Ipam = &api.IPAMOptions{
 		Driver:  &api.Driver{Name: dName, Options: dOptions},
 		Configs: ipamConfigs,
 	}
@@ -964,8 +963,11 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[netip.Prefix]s
 
 func serviceNetworks(s *api.Service) []*api.NetworkAttachmentConfig {
 	// Always prefer NetworkAttachmentConfig in the TaskSpec
-	if len(s.Spec.Task.Networks) == 0 && len(s.Spec.Networks) != 0 {
-		return s.Spec.Networks
+	if s.Spec == nil {
+		return nil
+	}
+	if s.Spec.Task == nil || len(s.Spec.Task.Networks) == 0 {
+		return s.Spec.Networks //nolint:staticcheck // Preserve deprecated ServiceSpec.Networks compatibility.
 	}
 	return s.Spec.Task.Networks
 }
@@ -976,7 +978,7 @@ func (na *cnmNetworkAllocator) IsVIPOnIngressNetwork(vip *api.Endpoint_VirtualIP
 		return false
 	}
 
-	localNet := na.getNetwork(vip.NetworkID)
+	localNet := na.getNetwork(vip.NetworkId)
 	if localNet != nil && localNet.nw != nil {
 		return networkallocator.IsIngressNetwork(localNet.nw)
 	}

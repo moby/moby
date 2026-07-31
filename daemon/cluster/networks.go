@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/containerd/log"
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert"
@@ -14,6 +13,7 @@ import (
 	"github.com/moby/moby/v2/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // GetNetworks returns all current cluster managed networks.
@@ -38,9 +38,9 @@ func (c *Cluster) GetNetworks(filter networkSettings.Filter, withStatus bool) ([
 			continue
 		}
 		if filter.Matches(convert.FilterNetwork{N: n}) {
-			nn, err := convert.NetworkInspectFromGRPC(*n)
+			nn, err := convert.NetworkInspectFromGRPC(n)
 			if err != nil {
-				return nil, fmt.Errorf("%s: failed to convert swarmapi.Network to network.Inspect: %w", n.ID, err)
+				return nil, fmt.Errorf("%s: failed to convert swarmapi.Network to network.Inspect: %w", n.Id, err)
 			}
 			filtered = append(filtered, nn)
 		}
@@ -60,7 +60,7 @@ func (c *Cluster) GetNetworkSummaries(filter networkSettings.Filter) ([]network.
 			continue
 		}
 		if filter.Matches(convert.FilterNetwork{N: n}) {
-			filtered = append(filtered, network.Summary{Network: convert.BasicNetworkFromGRPC(*n)})
+			filtered = append(filtered, network.Summary{Network: convert.BasicNetworkFromGRPC(n)})
 		}
 	}
 
@@ -68,10 +68,10 @@ func (c *Cluster) GetNetworkSummaries(filter networkSettings.Filter) ([]network.
 }
 
 func (c *Cluster) listNetworks(ctx context.Context, filters *swarmapi.ListNetworksRequest_Filters, withStatus bool) ([]*swarmapi.Network, error) {
-	var appdata *gogotypes.Any
+	var appdata *anypb.Any
 	if withStatus {
 		var err error
-		appdata, err = gogotypes.MarshalAny(&netextra.GetNetworkExtraOptions{
+		appdata, err = netextra.MarshalOptions(&netextra.GetNetworkExtraOptions{
 			WithIPAMStatus: withStatus,
 		})
 		if err != nil {
@@ -93,10 +93,10 @@ func (c *Cluster) listNetworks(ctx context.Context, filters *swarmapi.ListNetwor
 
 // GetNetwork returns a cluster network by an ID.
 func (c *Cluster) GetNetwork(input string, withStatus bool) (network.Inspect, error) {
-	var appdata *gogotypes.Any
+	var appdata *anypb.Any
 	if withStatus {
 		var err error
-		appdata, err = gogotypes.MarshalAny(&netextra.GetNetworkExtraOptions{
+		appdata, err = netextra.MarshalOptions(&netextra.GetNetworkExtraOptions{
 			WithIPAMStatus: withStatus,
 		})
 		if err != nil {
@@ -115,7 +115,7 @@ func (c *Cluster) GetNetwork(input string, withStatus bool) (network.Inspect, er
 	}); err != nil {
 		return network.Inspect{}, err
 	}
-	return convert.NetworkInspectFromGRPC(*nw)
+	return convert.NetworkInspectFromGRPC(nw)
 }
 
 // GetNetworksByName returns cluster managed networks by name.
@@ -131,7 +131,7 @@ func (c *Cluster) GetNetworksByName(name string) ([]network.Network, error) {
 	}
 	nr := make([]network.Network, len(list))
 	for i, n := range list {
-		nr[i] = convert.BasicNetworkFromGRPC(*n)
+		nr[i] = convert.BasicNetworkFromGRPC(n)
 	}
 	return nr, nil
 }
@@ -301,7 +301,7 @@ func (c *Cluster) CreateNetwork(s network.CreateRequest) (string, error) {
 	var resp *swarmapi.CreateNetworkResponse
 	if err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		networkSpec := convert.BasicNetworkCreateToGRPC(s)
-		r, err := state.controlClient.CreateNetwork(ctx, &swarmapi.CreateNetworkRequest{Spec: &networkSpec})
+		r, err := state.controlClient.CreateNetwork(ctx, &swarmapi.CreateNetworkRequest{Spec: networkSpec})
 		if err != nil {
 			return err
 		}
@@ -311,7 +311,7 @@ func (c *Cluster) CreateNetwork(s network.CreateRequest) (string, error) {
 		return "", err
 	}
 
-	return resp.Network.ID, nil
+	return resp.Network.Id, nil
 }
 
 // RemoveNetwork removes a cluster network.
@@ -322,7 +322,7 @@ func (c *Cluster) RemoveNetwork(input string) error {
 			return err
 		}
 
-		_, err = state.controlClient.RemoveNetwork(ctx, &swarmapi.RemoveNetworkRequest{NetworkID: nw.ID})
+		_, err = state.controlClient.RemoveNetwork(ctx, &swarmapi.RemoveNetworkRequest{NetworkId: nw.Id})
 		return err
 	})
 }
@@ -349,7 +349,7 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 			return err
 		}
 	setid:
-		networks[i].Target = apiNetwork.ID
+		networks[i].Target = apiNetwork.Id
 	}
 	return nil
 }

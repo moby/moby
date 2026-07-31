@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gogo/protobuf/proto"
-	gogotypes "github.com/gogo/protobuf/types"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/internal/runtime"
 	"github.com/moby/moby/v2/internal/namesgenerator"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/genericresource"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var (
@@ -22,8 +23,8 @@ var (
 )
 
 // ServiceFromGRPC converts a grpc Service to a Service.
-func ServiceFromGRPC(s swarmapi.Service) (types.Service, error) {
-	curSpec, err := serviceSpecFromGRPC(&s.Spec)
+func ServiceFromGRPC(s *swarmapi.Service) (types.Service, error) {
+	curSpec, err := serviceSpecFromGRPC(s.Spec)
 	if err != nil {
 		return types.Service{}, err
 	}
@@ -32,7 +33,7 @@ func ServiceFromGRPC(s swarmapi.Service) (types.Service, error) {
 		return types.Service{}, err
 	}
 	service := types.Service{
-		ID:           s.ID,
+		ID:           s.Id,
 		Spec:         *curSpec,
 		PreviousSpec: prevSpec,
 
@@ -40,9 +41,9 @@ func ServiceFromGRPC(s swarmapi.Service) (types.Service, error) {
 	}
 
 	// Meta
-	service.Version.Index = s.Meta.Version.Index
-	service.CreatedAt, _ = gogotypes.TimestampFromProto(s.Meta.CreatedAt)
-	service.UpdatedAt, _ = gogotypes.TimestampFromProto(s.Meta.UpdatedAt)
+	service.Version.Index = s.GetMeta().GetVersion().GetIndex()
+	service.CreatedAt = s.GetMeta().GetCreatedAt().AsTime()
+	service.UpdatedAt = s.GetMeta().GetUpdatedAt().AsTime()
 
 	if s.JobStatus != nil {
 		service.JobStatus = &types.JobStatus{
@@ -50,7 +51,7 @@ func ServiceFromGRPC(s swarmapi.Service) (types.Service, error) {
 				Index: s.JobStatus.JobIteration.Index,
 			},
 		}
-		service.JobStatus.LastExecution, _ = gogotypes.TimestampFromProto(s.JobStatus.LastExecution)
+		service.JobStatus.LastExecution = s.JobStatus.LastExecution.AsTime()
 	}
 
 	// UpdateStatus
@@ -73,12 +74,12 @@ func ServiceFromGRPC(s swarmapi.Service) (types.Service, error) {
 			// TODO(thaJeztah): make switch exhaustive; add api.UpdateStatus_UNKNOWN
 		}
 
-		startedAt, _ := gogotypes.TimestampFromProto(s.UpdateStatus.StartedAt)
+		startedAt := s.UpdateStatus.StartedAt.AsTime()
 		if !startedAt.IsZero() && startedAt.Unix() != 0 {
 			service.UpdateStatus.StartedAt = &startedAt
 		}
 
-		completedAt, _ := gogotypes.TimestampFromProto(s.UpdateStatus.CompletedAt)
+		completedAt := s.UpdateStatus.CompletedAt.AsTime()
 		if !completedAt.IsZero() && completedAt.Unix() != 0 {
 			service.UpdateStatus.CompletedAt = &completedAt
 		}
@@ -99,7 +100,7 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) (*types.ServiceSpec, error)
 		return nil, err
 	}
 
-	if len(taskTemplate.Networks) == 0 && len(spec.Networks) > 0 {
+	if len(taskTemplate.Networks) == 0 && len(spec.Networks) > 0 { //nolint:staticcheck // Preserve deprecated ServiceSpec.Networks compatibility.
 		// The ServiceSpec.Networks field was deprecated in API v1.25, with
 		// the deprecation notice updated in API v1.44. We only consider this
 		// field on API < v1.44 and if the replacement TaskSpec.Networks is
@@ -108,8 +109,8 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) (*types.ServiceSpec, error)
 		// Account for any service that was created using the old spec.
 		//
 		// TODO(thaJeztah): would swarm still return this? Remove this when we drop API v1.25
-		taskTemplate.Networks = make([]types.NetworkAttachmentConfig, 0, len(spec.Networks))
-		for _, n := range spec.Networks {
+		taskTemplate.Networks = make([]types.NetworkAttachmentConfig, 0, len(spec.Networks)) //nolint:staticcheck // Preserve deprecated ServiceSpec.Networks compatibility.
+		for _, n := range spec.Networks {                                                    //nolint:staticcheck // Preserve deprecated ServiceSpec.Networks compatibility.
 			taskTemplate.Networks = append(taskTemplate.Networks, types.NetworkAttachmentConfig{
 				Target:     n.Target,
 				Aliases:    n.Aliases,
@@ -166,7 +167,7 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) (*types.ServiceSpec, error)
 }
 
 // ServiceSpecToGRPC converts a ServiceSpec to a grpc ServiceSpec.
-func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
+func ServiceSpecToGRPC(s types.ServiceSpec) (*swarmapi.ServiceSpec, error) {
 	name := s.Name
 	if name == "" {
 		name = namesgenerator.GetRandomName(0)
@@ -180,15 +181,15 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 
 	resources, err := resourcesToGRPC(s.TaskTemplate.Resources)
 	if err != nil {
-		return swarmapi.ServiceSpec{}, err
+		return nil, err
 	}
 
-	spec := swarmapi.ServiceSpec{
-		Annotations: swarmapi.Annotations{
+	spec := &swarmapi.ServiceSpec{
+		Annotations: &swarmapi.Annotations{
 			Name:   name,
 			Labels: s.Labels,
 		},
-		Task: swarmapi.TaskSpec{
+		Task: &swarmapi.TaskSpec{
 			Resources:   resources,
 			LogDriver:   driverToGRPC(s.TaskTemplate.LogDriver),
 			Networks:    taskNetworks,
@@ -201,7 +202,7 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		if s.TaskTemplate.ContainerSpec != nil {
 			containerSpec, err := containerToGRPC(s.TaskTemplate.ContainerSpec)
 			if err != nil {
-				return swarmapi.ServiceSpec{}, err
+				return nil, err
 			}
 			if s.TaskTemplate.Resources != nil && s.TaskTemplate.Resources.Limits != nil {
 				// TODO remove this (or keep for backward compat) once SwarmKit API moved PidsLimit into Resources
@@ -210,32 +211,32 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 			spec.Task.Runtime = &swarmapi.TaskSpec_Container{Container: containerSpec}
 		} else {
 			// If the ContainerSpec is nil, we can't set the task runtime
-			return swarmapi.ServiceSpec{}, ErrMismatchedRuntime
+			return nil, ErrMismatchedRuntime
 		}
 	case types.RuntimePlugin:
 		if s.TaskTemplate.PluginSpec != nil {
 			if s.Mode.Replicated != nil {
-				return swarmapi.ServiceSpec{}, errors.New("plugins must not use replicated mode")
+				return nil, errors.New("plugins must not use replicated mode")
 			}
 
 			s.Mode.Global = &types.GlobalService{} // must always be global
 
 			ps := runtime.FromAPI(*s.TaskTemplate.PluginSpec)
-			pluginSpec, err := proto.Marshal(&ps)
+			pluginSpec, err := ps.Marshal()
 			if err != nil {
-				return swarmapi.ServiceSpec{}, err
+				return nil, err
 			}
 			spec.Task.Runtime = &swarmapi.TaskSpec_Generic{
 				Generic: &swarmapi.GenericRuntimeSpec{
 					Kind: string(types.RuntimePlugin),
-					Payload: &gogotypes.Any{
+					Payload: &anypb.Any{
 						TypeUrl: string(types.RuntimeURLPlugin),
 						Value:   pluginSpec,
 					},
 				},
 			}
 		} else {
-			return swarmapi.ServiceSpec{}, ErrMismatchedRuntime
+			return nil, ErrMismatchedRuntime
 		}
 	case types.RuntimeNetworkAttachment:
 		// NOTE(dperny) I'm leaving this case here for completeness. The actual
@@ -245,12 +246,12 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		// ErrUnsupportedRuntime if we get one.
 		fallthrough
 	default:
-		return swarmapi.ServiceSpec{}, ErrUnsupportedRuntime
+		return nil, ErrUnsupportedRuntime
 	}
 
 	restartPolicy, err := restartPolicyToGRPC(s.TaskTemplate.RestartPolicy)
 	if err != nil {
-		return swarmapi.ServiceSpec{}, err
+		return nil, err
 	}
 	spec.Task.Restart = restartPolicy
 
@@ -271,7 +272,7 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		for _, plat := range s.TaskTemplate.Placement.Platforms {
 			platforms = append(platforms, &swarmapi.Platform{
 				Architecture: plat.Architecture,
-				OS:           plat.OS,
+				Os:           plat.OS,
 			})
 		}
 		spec.Task.Placement = &swarmapi.Placement{
@@ -284,18 +285,18 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 
 	spec.Update, err = updateConfigToGRPC(s.UpdateConfig)
 	if err != nil {
-		return swarmapi.ServiceSpec{}, err
+		return nil, err
 	}
 	spec.Rollback, err = updateConfigToGRPC(s.RollbackConfig)
 	if err != nil {
-		return swarmapi.ServiceSpec{}, err
+		return nil, err
 	}
 
 	if s.EndpointSpec != nil {
 		if s.EndpointSpec.Mode != "" &&
 			s.EndpointSpec.Mode != types.ResolutionModeVIP &&
 			s.EndpointSpec.Mode != types.ResolutionModeDNSRR {
-			return swarmapi.ServiceSpec{}, fmt.Errorf("invalid resolution mode: %q", s.EndpointSpec.Mode)
+			return nil, fmt.Errorf("invalid resolution mode: %q", s.EndpointSpec.Mode)
 		}
 
 		spec.Endpoint = &swarmapi.EndpointSpec{}
@@ -329,7 +330,7 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 	}
 
 	if numModes > 1 {
-		return swarmapi.ServiceSpec{}, errors.New("must specify only one service mode")
+		return nil, errors.New("must specify only one service mode")
 	}
 
 	if s.Mode.Global != nil {
@@ -373,7 +374,10 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 	return spec, nil
 }
 
-func annotationsFromGRPC(ann swarmapi.Annotations) types.Annotations {
+func annotationsFromGRPC(ann *swarmapi.Annotations) types.Annotations {
+	if ann == nil {
+		return types.Annotations{Labels: map[string]string{}}
+	}
 	a := types.Annotations{
 		Name:   ann.Name,
 		Labels: ann.Labels,
@@ -434,12 +438,12 @@ func resourcesFromGRPC(ts *swarmapi.TaskSpec) *types.ResourceRequirements {
 			if resources.Limits == nil {
 				resources.Limits = &types.Limit{}
 			}
-			resources.Limits.NanoCPUs = res.Limits.NanoCPUs
+			resources.Limits.NanoCPUs = res.Limits.NanoCpus
 			resources.Limits.MemoryBytes = res.Limits.MemoryBytes
 		}
 		if res.Reservations != nil {
 			resources.Reservations = &types.Resources{
-				NanoCPUs:         res.Reservations.NanoCPUs,
+				NanoCPUs:         res.Reservations.NanoCpus,
 				MemoryBytes:      res.Reservations.MemoryBytes,
 				GenericResources: GenericResourcesFromGRPC(res.Reservations.Generic),
 			}
@@ -451,7 +455,7 @@ func resourcesFromGRPC(ts *swarmapi.TaskSpec) *types.ResourceRequirements {
 	return resources
 }
 
-func int64PointerFromGRPC(v *gogotypes.Int64Value) *int64 {
+func int64PointerFromGRPC(v *wrapperspb.Int64Value) *int64 {
 	if v == nil {
 		return nil
 	}
@@ -483,13 +487,13 @@ func resourcesToGRPC(res *types.ResourceRequirements) (*swarmapi.ResourceRequire
 		if res.Limits != nil {
 			// TODO add PidsLimit once Swarm API has been updated to move it into Limits
 			reqs.Limits = &swarmapi.Resources{
-				NanoCPUs:    res.Limits.NanoCPUs,
+				NanoCpus:    res.Limits.NanoCPUs,
 				MemoryBytes: res.Limits.MemoryBytes,
 			}
 		}
 		if res.Reservations != nil {
 			reqs.Reservations = &swarmapi.Resources{
-				NanoCPUs:    res.Reservations.NanoCPUs,
+				NanoCpus:    res.Reservations.NanoCPUs,
 				MemoryBytes: res.Reservations.MemoryBytes,
 				Generic:     GenericResourcesToGRPC(res.Reservations.GenericResources),
 			}
@@ -504,11 +508,11 @@ func resourcesToGRPC(res *types.ResourceRequirements) (*swarmapi.ResourceRequire
 	return reqs, nil
 }
 
-func int64PointerToGRPC(v *int64) *gogotypes.Int64Value {
+func int64PointerToGRPC(v *int64) *wrapperspb.Int64Value {
 	if v == nil {
 		return nil
 	}
-	return &gogotypes.Int64Value{Value: *v}
+	return wrapperspb.Int64(*v)
 }
 
 func restartPolicyFromGRPC(p *swarmapi.RestartPolicy) *types.RestartPolicy {
@@ -517,22 +521,22 @@ func restartPolicyFromGRPC(p *swarmapi.RestartPolicy) *types.RestartPolicy {
 		rp = &types.RestartPolicy{}
 
 		switch p.Condition {
-		case swarmapi.RestartOnNone:
+		case swarmapi.RestartPolicy_NONE:
 			rp.Condition = types.RestartPolicyConditionNone
-		case swarmapi.RestartOnFailure:
+		case swarmapi.RestartPolicy_ON_FAILURE:
 			rp.Condition = types.RestartPolicyConditionOnFailure
-		case swarmapi.RestartOnAny:
+		case swarmapi.RestartPolicy_ANY:
 			rp.Condition = types.RestartPolicyConditionAny
 		default:
 			rp.Condition = types.RestartPolicyConditionAny
 		}
 
 		if p.Delay != nil {
-			delay, _ := gogotypes.DurationFromProto(p.Delay)
+			delay := p.Delay.AsDuration()
 			rp.Delay = &delay
 		}
 		if p.Window != nil {
-			window, _ := gogotypes.DurationFromProto(p.Window)
+			window := p.Window.AsDuration()
 			rp.Window = &window
 		}
 
@@ -548,23 +552,23 @@ func restartPolicyToGRPC(p *types.RestartPolicy) (*swarmapi.RestartPolicy, error
 
 		switch p.Condition {
 		case types.RestartPolicyConditionNone:
-			rp.Condition = swarmapi.RestartOnNone
+			rp.Condition = swarmapi.RestartPolicy_NONE
 		case types.RestartPolicyConditionOnFailure:
-			rp.Condition = swarmapi.RestartOnFailure
+			rp.Condition = swarmapi.RestartPolicy_ON_FAILURE
 		case types.RestartPolicyConditionAny:
-			rp.Condition = swarmapi.RestartOnAny
+			rp.Condition = swarmapi.RestartPolicy_ANY
 		default:
 			if string(p.Condition) != "" {
 				return nil, fmt.Errorf("invalid RestartCondition: %q", p.Condition)
 			}
-			rp.Condition = swarmapi.RestartOnAny
+			rp.Condition = swarmapi.RestartPolicy_ANY
 		}
 
 		if p.Delay != nil {
-			rp.Delay = gogotypes.DurationProto(*p.Delay)
+			rp.Delay = durationpb.New(*p.Delay)
 		}
 		if p.Window != nil {
-			rp.Window = gogotypes.DurationProto(*p.Window)
+			rp.Window = durationpb.New(*p.Window)
 		}
 		if p.MaxAttempts != nil {
 			rp.MaxAttempts = *p.MaxAttempts
@@ -595,7 +599,7 @@ func placementFromGRPC(p *swarmapi.Placement) *types.Placement {
 	for _, plat := range p.Platforms {
 		r.Platforms = append(r.Platforms, types.Platform{
 			Architecture: plat.Architecture,
-			OS:           plat.OS,
+			OS:           plat.Os,
 		})
 	}
 
@@ -634,9 +638,9 @@ func updateConfigFromGRPC(updateConfig *swarmapi.UpdateConfig) *types.UpdateConf
 		MaxFailureRatio: updateConfig.MaxFailureRatio,
 	}
 
-	converted.Delay = updateConfig.Delay
+	converted.Delay = updateConfig.Delay.AsDuration()
 	if updateConfig.Monitor != nil {
-		converted.Monitor, _ = gogotypes.DurationFromProto(updateConfig.Monitor)
+		converted.Monitor = updateConfig.Monitor.AsDuration()
 	}
 
 	switch updateConfig.FailureAction {
@@ -665,7 +669,7 @@ func updateConfigToGRPC(updateConfig *types.UpdateConfig) (*swarmapi.UpdateConfi
 
 	converted := &swarmapi.UpdateConfig{
 		Parallelism:     updateConfig.Parallelism,
-		Delay:           updateConfig.Delay,
+		Delay:           durationpb.New(updateConfig.Delay),
 		MaxFailureRatio: updateConfig.MaxFailureRatio,
 	}
 
@@ -680,7 +684,7 @@ func updateConfigToGRPC(updateConfig *types.UpdateConfig) (*swarmapi.UpdateConfi
 		return nil, fmt.Errorf("unrecognized update failure action %s", updateConfig.FailureAction)
 	}
 	if updateConfig.Monitor != 0 {
-		converted.Monitor = gogotypes.DurationProto(updateConfig.Monitor)
+		converted.Monitor = durationpb.New(updateConfig.Monitor)
 	}
 
 	switch updateConfig.Order {
@@ -695,13 +699,19 @@ func updateConfigToGRPC(updateConfig *types.UpdateConfig) (*swarmapi.UpdateConfi
 	return converted, nil
 }
 
-func networkAttachmentSpecFromGRPC(attachment swarmapi.NetworkAttachmentSpec) *types.NetworkAttachmentSpec {
+func networkAttachmentSpecFromGRPC(attachment *swarmapi.NetworkAttachmentSpec) *types.NetworkAttachmentSpec {
+	if attachment == nil {
+		return nil
+	}
 	return &types.NetworkAttachmentSpec{
-		ContainerID: attachment.ContainerID,
+		ContainerID: attachment.ContainerId,
 	}
 }
 
-func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
+func taskSpecFromGRPC(taskSpec *swarmapi.TaskSpec) (types.TaskSpec, error) {
+	if taskSpec == nil {
+		return types.TaskSpec{}, nil
+	}
 	taskNetworks := make([]types.NetworkAttachmentConfig, 0, len(taskSpec.Networks))
 	for _, n := range taskSpec.Networks {
 		taskNetworks = append(taskNetworks, types.NetworkAttachmentConfig{
@@ -712,7 +722,7 @@ func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
 	}
 
 	t := types.TaskSpec{
-		Resources:     resourcesFromGRPC(&taskSpec),
+		Resources:     resourcesFromGRPC(taskSpec),
 		RestartPolicy: restartPolicyFromGRPC(taskSpec.Restart),
 		Placement:     placementFromGRPC(taskSpec.Placement),
 		LogDriver:     driverFromGRPC(taskSpec.LogDriver),
@@ -732,7 +742,7 @@ func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
 			switch g.Kind {
 			case string(types.RuntimePlugin):
 				var p runtime.PluginSpec
-				if err := proto.Unmarshal(g.Payload.Value, &p); err != nil {
+				if err := p.Unmarshal(g.Payload.Value); err != nil {
 					return t, errors.Wrap(err, "error unmarshalling plugin spec")
 				}
 				ap := runtime.ToAPI(p)
@@ -742,7 +752,7 @@ func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
 	case *swarmapi.TaskSpec_Attachment:
 		a := taskSpec.GetAttachment()
 		if a != nil {
-			t.NetworkAttachmentSpec = networkAttachmentSpecFromGRPC(*a)
+			t.NetworkAttachmentSpec = networkAttachmentSpecFromGRPC(a)
 		}
 		t.Runtime = types.RuntimeNetworkAttachment
 	}

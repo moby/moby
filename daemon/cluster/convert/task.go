@@ -3,25 +3,24 @@ package convert
 import (
 	"strings"
 
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
 
 // TaskFromGRPC converts a grpc Task to a Task.
-func TaskFromGRPC(t swarmapi.Task) (types.Task, error) {
+func TaskFromGRPC(t *swarmapi.Task) (types.Task, error) {
 	containerStatus := t.Status.GetContainer()
 	taskSpec, err := taskSpecFromGRPC(t.Spec)
 	if err != nil {
 		return types.Task{}, err
 	}
 	task := types.Task{
-		ID:          t.ID,
+		ID:          t.Id,
 		Annotations: annotationsFromGRPC(t.Annotations),
-		ServiceID:   t.ServiceID,
+		ServiceID:   t.ServiceId,
 		Slot:        int(t.Slot),
-		NodeID:      t.NodeID,
+		NodeID:      t.NodeId,
 		Spec:        taskSpec,
 		Status: types.TaskStatus{
 			State:   types.TaskState(strings.ToLower(t.Status.State.String())),
@@ -34,15 +33,15 @@ func TaskFromGRPC(t swarmapi.Task) (types.Task, error) {
 
 	// Meta
 	task.Version.Index = t.Meta.Version.Index
-	task.CreatedAt, _ = gogotypes.TimestampFromProto(t.Meta.CreatedAt)
-	task.UpdatedAt, _ = gogotypes.TimestampFromProto(t.Meta.UpdatedAt)
+	task.CreatedAt = t.Meta.CreatedAt.AsTime()
+	task.UpdatedAt = t.Meta.UpdatedAt.AsTime()
 
-	task.Status.Timestamp, _ = gogotypes.TimestampFromProto(t.Status.Timestamp)
+	task.Status.Timestamp = t.Status.Timestamp.AsTime()
 
 	if containerStatus != nil {
 		task.Status.ContainerStatus = &types.ContainerStatus{
-			ContainerID: containerStatus.ContainerID,
-			PID:         int(containerStatus.PID),
+			ContainerID: containerStatus.ContainerId,
+			PID:         int(containerStatus.Pid),
 			ExitCode:    int(containerStatus.ExitCode),
 		}
 	}
@@ -63,7 +62,7 @@ func TaskFromGRPC(t swarmapi.Task) (types.Task, error) {
 	// converted entries.
 	for _, v := range t.Volumes {
 		task.Volumes = append(task.Volumes, types.VolumeAttachment{
-			ID:     v.ID,
+			ID:     v.Id,
 			Source: v.Source,
 			Target: v.Target,
 		})

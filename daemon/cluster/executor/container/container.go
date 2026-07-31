@@ -8,12 +8,12 @@ import (
 	"math"
 	"net"
 	"net/netip"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	enginemount "github.com/moby/moby/api/types/mount"
@@ -101,11 +101,11 @@ func (c *containerConfig) networkAttachmentContainerID() string {
 		return ""
 	}
 
-	return attachment.ContainerID
+	return attachment.ContainerId
 }
 
 func (c *containerConfig) taskID() string {
-	return c.task.ID
+	return c.task.Id
 }
 
 func (c *containerConfig) spec() *api.ContainerSpec {
@@ -128,11 +128,11 @@ func (c *containerConfig) name() string {
 
 	slot := strconv.FormatUint(c.task.Slot, 10)
 	if slot == "" || c.task.Slot == 0 {
-		slot = c.task.NodeID
+		slot = c.task.NodeId
 	}
 
 	// fallback to service.slot.id.
-	return fmt.Sprintf("%s.%s.%s", c.task.ServiceAnnotations.Name, slot, c.task.ID)
+	return fmt.Sprintf("%s.%s.%s", c.task.ServiceAnnotations.Name, slot, c.task.Id)
 }
 
 func (c *containerConfig) image() string {
@@ -151,7 +151,7 @@ func (c *containerConfig) portBindings() network.PortMap {
 	}
 
 	for _, portConfig := range c.task.Endpoint.Ports {
-		if portConfig.PublishMode != api.PublishModeHost {
+		if portConfig.PublishMode != api.PortConfig_HOST {
 			continue
 		}
 
@@ -196,7 +196,7 @@ func (c *containerConfig) exposedPorts() map[network.Port]struct{} {
 	}
 
 	for _, portConfig := range c.task.Endpoint.Ports {
-		if portConfig.PublishMode != api.PublishModeHost {
+		if portConfig.PublishMode != api.PortConfig_HOST {
 			continue
 		}
 
@@ -222,7 +222,7 @@ func (c *containerConfig) config() *container.Config {
 	config := &container.Config{
 		Labels:       c.labels(),
 		StopSignal:   c.spec().StopSignal,
-		Tty:          c.spec().TTY,
+		Tty:          c.spec().Tty,
 		OpenStdin:    c.spec().OpenStdin,
 		User:         c.spec().User,
 		Env:          env,
@@ -252,10 +252,10 @@ func (c *containerConfig) labels() map[string]string {
 	var (
 		system = map[string]string{
 			"task":         "", // mark as cluster task
-			"task.id":      c.task.ID,
+			"task.id":      c.task.Id,
 			"task.name":    c.name(),
-			"node.id":      c.task.NodeID,
-			"service.id":   c.task.ServiceID,
+			"node.id":      c.task.NodeId,
+			"service.id":   c.task.ServiceId,
 			"service.name": c.task.ServiceAnnotations.Name,
 		}
 		labels = make(map[string]string)
@@ -279,7 +279,7 @@ func (c *containerConfig) labels() map[string]string {
 func (c *containerConfig) mounts(deps exec.VolumeGetter) []enginemount.Mount {
 	var r []enginemount.Mount
 	for _, mount := range c.spec().Mounts {
-		if mount.Type == api.MountTypeCluster {
+		if mount.Type == api.Mount_CLUSTER {
 			r = append(r, c.convertCSIMount(mount, deps))
 		} else {
 			r = append(r, convertMount(mount))
@@ -295,7 +295,7 @@ func (c *containerConfig) mounts(deps exec.VolumeGetter) []enginemount.Mount {
 //
 // TODO(dperny): figure out a scheme for errors? or maybe add code to
 // checkMounts?
-func (c *containerConfig) convertCSIMount(m api.Mount, deps exec.VolumeGetter) enginemount.Mount {
+func (c *containerConfig) convertCSIMount(m *api.Mount, deps exec.VolumeGetter) enginemount.Mount {
 	var mount enginemount.Mount
 
 	// these are actually bind mounts
@@ -305,7 +305,7 @@ func (c *containerConfig) convertCSIMount(m api.Mount, deps exec.VolumeGetter) e
 		if attach.Source == m.Source && attach.Target == m.Target {
 			// we should not get an error here, because we should have checked
 			// already that the volume is ready
-			path, _ := deps.Get(attach.ID)
+			path, _ := deps.Get(attach.Id)
 			mount.Source = path
 			mount.Target = m.Target
 		}
@@ -314,52 +314,52 @@ func (c *containerConfig) convertCSIMount(m api.Mount, deps exec.VolumeGetter) e
 	return mount
 }
 
-func convertMount(m api.Mount) enginemount.Mount {
+func convertMount(m *api.Mount) enginemount.Mount {
 	mount := enginemount.Mount{
 		Source:   m.Source,
 		Target:   m.Target,
-		ReadOnly: m.ReadOnly,
+		ReadOnly: m.Readonly,
 	}
 
 	switch m.Type {
-	case api.MountTypeBind:
+	case api.Mount_BIND:
 		mount.Type = enginemount.TypeBind
-	case api.MountTypeVolume:
+	case api.Mount_VOLUME:
 		mount.Type = enginemount.TypeVolume
-	case api.MountTypeTmpfs:
+	case api.Mount_TMPFS:
 		mount.Type = enginemount.TypeTmpfs
-	case api.MountTypeNamedPipe:
+	case api.Mount_NPIPE:
 		mount.Type = enginemount.TypeNamedPipe
-	case api.MountTypeCluster:
+	case api.Mount_CLUSTER:
 		mount.Type = enginemount.TypeCluster
 	}
 
 	if m.BindOptions != nil {
 		mount.BindOptions = &enginemount.BindOptions{
-			NonRecursive:           m.BindOptions.NonRecursive,
-			CreateMountpoint:       m.BindOptions.CreateMountpoint,
-			ReadOnlyNonRecursive:   m.BindOptions.ReadOnlyNonRecursive,
-			ReadOnlyForceRecursive: m.BindOptions.ReadOnlyForceRecursive,
+			NonRecursive:           m.BindOptions.Nonrecursive,
+			CreateMountpoint:       m.BindOptions.Createmountpoint,
+			ReadOnlyNonRecursive:   m.BindOptions.Readonlynonrecursive,
+			ReadOnlyForceRecursive: m.BindOptions.Readonlyforcerecursive,
 		}
 		switch m.BindOptions.Propagation {
-		case api.MountPropagationRPrivate:
+		case api.Mount_BindOptions_RPRIVATE:
 			mount.BindOptions.Propagation = enginemount.PropagationRPrivate
-		case api.MountPropagationPrivate:
+		case api.Mount_BindOptions_PRIVATE:
 			mount.BindOptions.Propagation = enginemount.PropagationPrivate
-		case api.MountPropagationRSlave:
+		case api.Mount_BindOptions_RSLAVE:
 			mount.BindOptions.Propagation = enginemount.PropagationRSlave
-		case api.MountPropagationSlave:
+		case api.Mount_BindOptions_SLAVE:
 			mount.BindOptions.Propagation = enginemount.PropagationSlave
-		case api.MountPropagationRShared:
+		case api.Mount_BindOptions_RSHARED:
 			mount.BindOptions.Propagation = enginemount.PropagationRShared
-		case api.MountPropagationShared:
+		case api.Mount_BindOptions_SHARED:
 			mount.BindOptions.Propagation = enginemount.PropagationShared
 		}
 	}
 
 	if m.VolumeOptions != nil {
 		mount.VolumeOptions = &enginemount.VolumeOptions{
-			NoCopy:  m.VolumeOptions.NoCopy,
+			NoCopy:  m.VolumeOptions.Nocopy,
 			Subpath: m.VolumeOptions.Subpath,
 		}
 		if m.VolumeOptions.Labels != nil {
@@ -384,7 +384,7 @@ func convertMount(m api.Mount) enginemount.Mount {
 		_ = json.Unmarshal([]byte(m.TmpfsOptions.Options), &options)
 		mount.TmpfsOptions = &enginemount.TmpfsOptions{
 			SizeBytes: m.TmpfsOptions.SizeBytes,
-			Mode:      m.TmpfsOptions.Mode,
+			Mode:      os.FileMode(m.TmpfsOptions.Mode),
 			Options:   options,
 		}
 	}
@@ -397,10 +397,10 @@ func (c *containerConfig) healthcheck() *container.HealthConfig {
 	if hcSpec == nil {
 		return nil
 	}
-	interval, _ := gogotypes.DurationFromProto(hcSpec.Interval)
-	timeout, _ := gogotypes.DurationFromProto(hcSpec.Timeout)
-	startPeriod, _ := gogotypes.DurationFromProto(hcSpec.StartPeriod)
-	startInterval, _ := gogotypes.DurationFromProto(hcSpec.StartInterval)
+	interval := hcSpec.Interval.AsDuration()
+	timeout := hcSpec.Timeout.AsDuration()
+	startPeriod := hcSpec.StartPeriod.AsDuration()
+	startInterval := hcSpec.StartInterval.AsDuration()
 	return &container.HealthConfig{
 		Test:          hcSpec.Test,
 		Interval:      interval,
@@ -426,10 +426,10 @@ func (c *containerConfig) hostConfig(deps exec.VolumeGetter) *container.HostConf
 		OomScoreAdj:    int(c.spec().OomScoreAdj),
 	}
 
-	if c.spec().DNSConfig != nil {
-		hc.DNS = sliceutil.Map(c.spec().DNSConfig.Nameservers, func(ns string) netip.Addr { a, _ := netip.ParseAddr(ns); return a })
-		hc.DNSSearch = c.spec().DNSConfig.Search
-		hc.DNSOptions = c.spec().DNSConfig.Options
+	if c.spec().DnsConfig != nil {
+		hc.DNS = sliceutil.Map(c.spec().DnsConfig.Nameservers, func(ns string) netip.Addr { a, _ := netip.ParseAddr(ns); return a })
+		hc.DNSSearch = c.spec().DnsConfig.Search
+		hc.DNSOptions = c.spec().DnsConfig.Options
 	}
 
 	c.applyPrivileges(hc)
@@ -536,8 +536,8 @@ func (c *containerConfig) resources() container.Resources {
 		resources.MemorySwappiness = &r.MemorySwappiness.Value
 	}
 
-	if r.Limits.NanoCPUs > 0 {
-		resources.NanoCPUs = r.Limits.NanoCPUs
+	if r.Limits.NanoCpus > 0 {
+		resources.NanoCPUs = r.Limits.NanoCpus
 	}
 
 	return resources
@@ -574,7 +574,7 @@ func getEndpointConfig(na *api.NetworkAttachment, b executorpkg.Backend) *networ
 	}
 
 	n := &network.EndpointSettings{
-		NetworkID: na.Network.ID,
+		NetworkID: na.Network.Id,
 		IPAMConfig: &network.EndpointIPAMConfig{
 			IPv4Address: ipv4,
 			IPv6Address: ipv6,
@@ -594,9 +594,9 @@ func (c *containerConfig) virtualIP(networkID string) string {
 		return ""
 	}
 
-	for _, eVip := range c.task.Endpoint.VirtualIPs {
+	for _, eVip := range c.task.Endpoint.VirtualIps {
 		// We only support IPv4 VIPs for now.
-		if eVip.NetworkID == networkID {
+		if eVip.NetworkId == networkID {
 			vip, _, err := net.ParseCIDR(eVip.Addr)
 			if err != nil {
 				return ""
@@ -618,23 +618,23 @@ func (c *containerConfig) serviceConfig() *clustertypes.ServiceConfig {
 	svcCfg := &clustertypes.ServiceConfig{
 		Name:             c.task.ServiceAnnotations.Name,
 		Aliases:          make(map[string][]string),
-		ID:               c.task.ServiceID,
+		ID:               c.task.ServiceId,
 		VirtualAddresses: make(map[string]*clustertypes.VirtualAddress),
 	}
 
 	for _, na := range c.task.Networks {
-		svcCfg.VirtualAddresses[na.Network.ID] = &clustertypes.VirtualAddress{
+		svcCfg.VirtualAddresses[na.Network.Id] = &clustertypes.VirtualAddress{
 			// We support only IPv4 virtual IP for now.
-			IPv4: c.virtualIP(na.Network.ID),
+			IPv4: c.virtualIP(na.Network.Id),
 		}
 		if len(na.Aliases) > 0 {
-			svcCfg.Aliases[na.Network.ID] = na.Aliases
+			svcCfg.Aliases[na.Network.Id] = na.Aliases
 		}
 	}
 
 	if c.task.Endpoint != nil {
 		for _, ePort := range c.task.Endpoint.Ports {
-			if ePort.PublishMode != api.PublishModeIngress {
+			if ePort.PublishMode != api.PortConfig_INGRESS {
 				continue
 			}
 
@@ -675,12 +675,12 @@ func networkCreateRequest(name string, nw *api.Network) clustertypes.NetworkCrea
 		req.Options = nw.DriverState.Options
 	}
 
-	if nw.IPAM != nil {
+	if nw.Ipam != nil {
 		req.IPAM = &network.IPAM{
-			Driver:  nw.IPAM.Driver.Name,
-			Options: nw.IPAM.Driver.Options,
+			Driver:  nw.Ipam.Driver.Name,
+			Options: nw.Ipam.Driver.Options,
 		}
-		for _, ic := range nw.IPAM.Configs {
+		for _, ic := range nw.Ipam.Configs {
 			// The daemon validates the IPAM configs before creating
 			// the network in Swarm's Raft store, so these values
 			// should always either be empty strings or well-formed
@@ -697,7 +697,7 @@ func networkCreateRequest(name string, nw *api.Network) clustertypes.NetworkCrea
 	}
 
 	return clustertypes.NetworkCreateRequest{
-		ID:            nw.ID,
+		ID:            nw.Id,
 		CreateRequest: req,
 	}
 }
@@ -720,7 +720,7 @@ func (c *containerConfig) applyPrivileges(hc *container.HostConfig) {
 		}
 	}
 
-	selinux := privileges.SELinuxContext
+	selinux := privileges.SelinuxContext
 	if selinux != nil {
 		if selinux.Disable {
 			hc.SecurityOpt = append(hc.SecurityOpt, "label=disable")
@@ -772,6 +772,6 @@ func (c *containerConfig) eventFilter() filters.Args {
 	return filters.NewArgs(
 		filters.Arg("type", string(events.ContainerEventType)),
 		filters.Arg("name", c.name()),
-		filters.Arg("label", fmt.Sprintf("%v.task.id=%v", systemLabelPrefix, c.task.ID)),
+		filters.Arg("label", fmt.Sprintf("%v.task.id=%v", systemLabelPrefix, c.task.Id)),
 	)
 }

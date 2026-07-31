@@ -8,11 +8,11 @@ import (
 	"github.com/moby/swarmkit/v2/api"
 )
 
-func validateMounts(mounts []api.Mount) error {
+func validateMounts(mounts []*api.Mount) error {
 	for _, mount := range mounts {
 		// Target must always be absolute
 		// except if target is Windows named pipe
-		if !filepath.IsAbs(mount.Target) && mount.Type != api.MountTypeNamedPipe {
+		if !filepath.IsAbs(mount.Target) && mount.Type != api.Mount_NPIPE {
 			return fmt.Errorf("invalid mount target, must be an absolute path: %s", mount.Target)
 		}
 
@@ -21,23 +21,23 @@ func validateMounts(mounts []api.Mount) error {
 		// volume mounts as bind mounts when the source is absolute (and vice-versa)
 		// See #25253
 		// TODO: This is probably not necessary once #22373 is merged
-		case api.MountTypeBind:
+		case api.Mount_BIND:
 			if !filepath.IsAbs(mount.Source) {
 				return fmt.Errorf("invalid bind mount source, must be an absolute path: %s", mount.Source)
 			}
-		case api.MountTypeVolume:
+		case api.Mount_VOLUME:
 			if filepath.IsAbs(mount.Source) {
 				return fmt.Errorf("invalid volume mount source, must not be an absolute path: %s", mount.Source)
 			}
-		case api.MountTypeTmpfs:
+		case api.Mount_TMPFS:
 			if mount.Source != "" {
 				return errors.New("invalid tmpfs source, source must be empty")
 			}
-		case api.MountTypeNamedPipe:
+		case api.Mount_NPIPE:
 			if mount.Source == "" {
 				return errors.New("invalid npipe source, source must not be empty")
 			}
-		case api.MountTypeCluster:
+		case api.Mount_CLUSTER:
 			// nothing to do here.
 		default:
 			return fmt.Errorf("invalid mount type: %s", mount.Type)

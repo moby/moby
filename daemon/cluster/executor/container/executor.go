@@ -62,12 +62,16 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 		return nil, err
 	}
 
-	plugins := map[api.PluginDescription]struct{}{}
+	type pluginDescription struct {
+		typ  string
+		name string
+	}
+	plugins := map[pluginDescription]struct{}{}
 	addPlugins := func(typ string, names []string) {
 		for _, name := range names {
-			plugins[api.PluginDescription{
-				Type: typ,
-				Name: name,
+			plugins[pluginDescription{
+				typ:  typ,
+				name: name,
 			}] = struct{}{}
 		}
 	}
@@ -98,17 +102,17 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 					plgnTyp = "Log"
 				}
 
-				plugins[api.PluginDescription{
-					Type: plgnTyp,
-					Name: plgn.Name,
+				plugins[pluginDescription{
+					typ:  plgnTyp,
+					name: plgn.Name,
 				}] = struct{}{}
 			}
 		}
 	}
 
-	pluginFields := make([]api.PluginDescription, 0, len(plugins))
+	pluginFields := make([]*api.PluginDescription, 0, len(plugins))
 	for k := range plugins {
-		pluginFields = append(pluginFields, k)
+		pluginFields = append(pluginFields, &api.PluginDescription{Type: k.typ, Name: k.name})
 	}
 
 	sort.Sort(sortedPlugins(pluginFields))
@@ -131,7 +135,7 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 		Hostname: info.Name,
 		Platform: &api.Platform{
 			Architecture: info.Architecture,
-			OS:           info.OSType,
+			Os:           info.OSType,
 		},
 		Engine: &api.EngineDescription{
 			EngineVersion: info.ServerVersion,
@@ -139,11 +143,11 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 			Plugins:       pluginFields,
 		},
 		Resources: &api.Resources{
-			NanoCPUs:    int64(info.NCPU) * 1e9,
+			NanoCpus:    int64(info.NCPU) * 1e9,
 			MemoryBytes: info.MemTotal,
 			Generic:     convert.GenericResourcesToGRPC(info.GenericResources),
 		},
-		CSIInfo: csiInfo,
+		CsiInfo: csiInfo,
 	}
 
 	// Save the node information in the executor field
@@ -170,7 +174,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 			ingressNA = na
 		}
 
-		attachments[na.Network.ID] = na.Addresses[0]
+		attachments[na.Network.Id] = na.Addresses[0]
 	}
 
 	// discover which, if any, attachments have been removed.
@@ -198,17 +202,17 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 			}
 
 			// now, check if the attachment exists and shares the same IP address.
-			if ip, ok := attachments[na.Network.ID]; !ok || na.Addresses[0] != ip {
+			if ip, ok := attachments[na.Network.Id]; !ok || na.Addresses[0] != ip {
 				// if the map entry exists, then the network still exists, and the
 				// IP must be what has changed
-				removeAttachments[na.Network.ID] = !ok
+				removeAttachments[na.Network.Id] = !ok
 			}
 		}
 	}
 
-	if (ingressNA == nil) && (node.Attachment != nil) && (len(node.Attachment.Addresses) > 0) {
-		ingressNA = node.Attachment
-		attachments[ingressNA.Network.ID] = ingressNA.Addresses[0]
+	if (ingressNA == nil) && (node.Attachment != nil) && (len(node.Attachment.Addresses) > 0) { //nolint:staticcheck // Preserve deprecated node attachment compatibility.
+		ingressNA = node.Attachment //nolint:staticcheck // Preserve deprecated node attachment compatibility.
+		attachments[ingressNA.Network.Id] = ingressNA.Addresses[0]
 	}
 
 	if ingressNA == nil {
@@ -218,13 +222,13 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 			Name:   ingressNA.Network.Spec.Annotations.Name,
 			Driver: ingressNA.Network.DriverState.Name,
 			IPAM: &network.IPAM{
-				Driver: ingressNA.Network.IPAM.Driver.Name,
+				Driver: ingressNA.Network.Ipam.Driver.Name,
 			},
 			Ingress: true,
 			Options: ingressNA.Network.DriverState.Options,
 		}
 
-		for _, ic := range ingressNA.Network.IPAM.Configs {
+		for _, ic := range ingressNA.Network.Ipam.Configs {
 			c, err := ipamConfig(ic)
 			if err != nil {
 				swarmlog.G(ctx).WithError(err).Warn("invalid IPAM config for Swarm ingress network")
@@ -233,7 +237,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 		}
 
 		_, err := e.backend.SetupIngress(clustertypes.NetworkCreateRequest{
-			ID:            ingressNA.Network.ID,
+			ID:            ingressNA.Network.Id,
 			CreateRequest: networkCreateRequest,
 		}, ingressNA.Addresses[0])
 		if err != nil {
@@ -356,7 +360,7 @@ func (e *executor) Volumes() exec.VolumesManager {
 	return e.dependencies.Volumes()
 }
 
-type sortedPlugins []api.PluginDescription
+type sortedPlugins []*api.PluginDescription
 
 func (sp sortedPlugins) Len() int { return len(sp) }
 

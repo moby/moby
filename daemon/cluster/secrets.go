@@ -63,7 +63,7 @@ func (c *Cluster) CreateSecret(s types.SecretSpec) (string, error) {
 		secretSpec := convert.SecretSpecToGRPC(s)
 
 		r, err := state.controlClient.CreateSecret(ctx,
-			&swarmapi.CreateSecretRequest{Spec: &secretSpec})
+			&swarmapi.CreateSecretRequest{Spec: secretSpec})
 		if err != nil {
 			return err
 		}
@@ -72,7 +72,7 @@ func (c *Cluster) CreateSecret(s types.SecretSpec) (string, error) {
 	}); err != nil {
 		return "", err
 	}
-	return resp.Secret.ID, nil
+	return resp.Secret.Id, nil
 }
 
 // RemoveSecret removes a secret from a managed swarm cluster.
@@ -84,7 +84,7 @@ func (c *Cluster) RemoveSecret(input string) error {
 		}
 
 		req := &swarmapi.RemoveSecretRequest{
-			SecretID: secret.ID,
+			SecretId: secret.Id,
 		}
 
 		_, err = state.controlClient.RemoveSecret(ctx, req)
@@ -105,11 +105,11 @@ func (c *Cluster) UpdateSecret(input string, version uint64, spec types.SecretSp
 
 		_, err = state.controlClient.UpdateSecret(ctx,
 			&swarmapi.UpdateSecretRequest{
-				SecretID: secret.ID,
+				SecretId: secret.Id,
 				SecretVersion: &swarmapi.Version{
 					Index: version,
 				},
-				Spec: &secretSpec,
+				Spec: secretSpec,
 			})
 		return err
 	})

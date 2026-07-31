@@ -214,23 +214,23 @@ func (n *nodeRunner) watchClusterEvents(ctx context.Context, conn *grpc.ClientCo
 		Entries: []*swarmapi.WatchRequest_WatchEntry{
 			{
 				Kind:   "node",
-				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+				Action: swarmapi.WatchActionKind_WATCH_ACTION_CREATE | swarmapi.WatchActionKind_WATCH_ACTION_UPDATE | swarmapi.WatchActionKind_WATCH_ACTION_REMOVE,
 			},
 			{
 				Kind:   "service",
-				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+				Action: swarmapi.WatchActionKind_WATCH_ACTION_CREATE | swarmapi.WatchActionKind_WATCH_ACTION_UPDATE | swarmapi.WatchActionKind_WATCH_ACTION_REMOVE,
 			},
 			{
 				Kind:   "network",
-				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+				Action: swarmapi.WatchActionKind_WATCH_ACTION_CREATE | swarmapi.WatchActionKind_WATCH_ACTION_UPDATE | swarmapi.WatchActionKind_WATCH_ACTION_REMOVE,
 			},
 			{
 				Kind:   "secret",
-				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+				Action: swarmapi.WatchActionKind_WATCH_ACTION_CREATE | swarmapi.WatchActionKind_WATCH_ACTION_UPDATE | swarmapi.WatchActionKind_WATCH_ACTION_REMOVE,
 			},
 			{
 				Kind:   "config",
-				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+				Action: swarmapi.WatchActionKind_WATCH_ACTION_CREATE | swarmapi.WatchActionKind_WATCH_ACTION_UPDATE | swarmapi.WatchActionKind_WATCH_ACTION_REMOVE,
 			},
 		},
 		IncludeOldObject: true,

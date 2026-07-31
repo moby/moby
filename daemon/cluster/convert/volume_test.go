@@ -5,6 +5,7 @@ import (
 
 	volumetypes "github.com/moby/moby/api/types/volume"
 	swarmapi "github.com/moby/swarmkit/v2/api"
+	"google.golang.org/protobuf/proto"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -50,15 +51,15 @@ func TestVolumeAvailabilityFromGRPC(t *testing.T) {
 	}{
 		{
 			name:     "Active",
-			in:       swarmapi.VolumeAvailabilityActive,
+			in:       swarmapi.VolumeSpec_ACTIVE,
 			expected: volumetypes.AvailabilityActive,
 		}, {
 			name:     "Pause",
-			in:       swarmapi.VolumeAvailabilityPause,
+			in:       swarmapi.VolumeSpec_PAUSE,
 			expected: volumetypes.AvailabilityPause,
 		}, {
 			name:     "Drain",
-			in:       swarmapi.VolumeAvailabilityDrain,
+			in:       swarmapi.VolumeSpec_DRAIN,
 			expected: volumetypes.AvailabilityDrain,
 		},
 	} {
@@ -79,8 +80,8 @@ func TestAccessModeFromGRPC(t *testing.T) {
 		{
 			name: "MountVolume",
 			in: &swarmapi.VolumeAccessMode{
-				Scope:   swarmapi.VolumeScopeSingleNode,
-				Sharing: swarmapi.VolumeSharingNone,
+				Scope:   swarmapi.VolumeAccessMode_SINGLE_NODE,
+				Sharing: swarmapi.VolumeAccessMode_NONE,
 				AccessType: &swarmapi.VolumeAccessMode_Mount{
 					Mount: &swarmapi.VolumeAccessMode_MountVolume{
 						FsType: "foo",
@@ -100,8 +101,8 @@ func TestAccessModeFromGRPC(t *testing.T) {
 		}, {
 			name: "BlockVolume",
 			in: &swarmapi.VolumeAccessMode{
-				Scope:   swarmapi.VolumeScopeSingleNode,
-				Sharing: swarmapi.VolumeSharingNone,
+				Scope:   swarmapi.VolumeAccessMode_SINGLE_NODE,
+				Sharing: swarmapi.VolumeAccessMode_NONE,
 				AccessType: &swarmapi.VolumeAccessMode_Block{
 					Block: &swarmapi.VolumeAccessMode_BlockVolume{},
 				},
@@ -164,7 +165,7 @@ func TestVolumeCreateToGRPC(t *testing.T) {
 
 	assert.Assert(t, swarmSpec != nil)
 	expectedSwarmSpec := &swarmapi.VolumeSpec{
-		Annotations: swarmapi.Annotations{
+		Annotations: &swarmapi.Annotations{
 			Name: "volume1",
 			Labels: map[string]string{
 				"labeled": "yeah",
@@ -178,8 +179,8 @@ func TestVolumeCreateToGRPC(t *testing.T) {
 			},
 		},
 		AccessMode: &swarmapi.VolumeAccessMode{
-			Scope:   swarmapi.VolumeScopeMultiNode,
-			Sharing: swarmapi.VolumeSharingAll,
+			Scope:   swarmapi.VolumeAccessMode_MULTI_NODE,
+			Sharing: swarmapi.VolumeAccessMode_ALL,
 			AccessType: &swarmapi.VolumeAccessMode_Mount{
 				Mount: &swarmapi.VolumeAccessMode_MountVolume{
 					FsType:     "foo",
@@ -205,5 +206,5 @@ func TestVolumeCreateToGRPC(t *testing.T) {
 		},
 	}
 
-	assert.DeepEqual(t, swarmSpec, expectedSwarmSpec)
+	assert.Assert(t, proto.Equal(swarmSpec, expectedSwarmSpec))
 }

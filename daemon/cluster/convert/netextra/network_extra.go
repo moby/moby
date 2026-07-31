@@ -4,39 +4,51 @@ package netextra
 
 import (
 	"net/netip"
+	"strings"
 
-	"github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
+	"google.golang.org/protobuf/types/known/anypb"
+)
+
+const (
+	optionsTypeURL = "type.googleapis.com/docker.engine.netextra.GetNetworkExtraOptions"
+	extraTypeURL   = "type.googleapis.com/docker.engine.netextra.Extra"
 )
 
 func OptionsFrom(typeurl string, value []byte) (GetNetworkExtraOptions, error) {
 	if typeurl == "" {
 		return GetNetworkExtraOptions{}, nil
 	}
-	appdata := &types.Any{TypeUrl: typeurl, Value: value}
-
 	var xo GetNetworkExtraOptions
-	if !types.Is(appdata, &xo) {
+	if !strings.HasSuffix(typeurl, "/docker.engine.netextra.GetNetworkExtraOptions") {
 		// Forward-compatibility: ignore unknown message types
 		return GetNetworkExtraOptions{}, nil
 	}
-	if err := types.UnmarshalAny(appdata, &xo); err != nil {
+	if err := xo.Unmarshal(value); err != nil {
 		return GetNetworkExtraOptions{}, err
 	}
 	return xo, nil
 }
 
-func StatusFrom(extra *types.Any) (*network.Status, error) {
+func MarshalOptions(options *GetNetworkExtraOptions) (*anypb.Any, error) {
+	value, err := options.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	return &anypb.Any{TypeUrl: optionsTypeURL, Value: value}, nil
+}
+
+func StatusFrom(extra *anypb.Any) (*network.Status, error) {
 	if extra == nil {
 		return nil, nil
 	}
 
 	var x Extra
-	if !types.Is(extra, &x) {
+	if !strings.HasSuffix(extra.TypeUrl, "/docker.engine.netextra.Extra") {
 		// Forward-compatibility: ignore unknown message types
 		return nil, nil
 	}
-	if err := types.UnmarshalAny(extra, &x); err != nil {
+	if err := x.Unmarshal(extra.Value); err != nil {
 		return nil, err
 	}
 
@@ -61,7 +73,7 @@ func StatusFrom(extra *types.Any) (*network.Status, error) {
 	return &status, nil
 }
 
-func MarshalStatus(status *network.Status) (*types.Any, error) {
+func MarshalStatus(status *network.Status) (*anypb.Any, error) {
 	if status == nil {
 		return nil, nil
 	}
@@ -78,7 +90,11 @@ func MarshalStatus(status *network.Status) (*types.Any, error) {
 			DynamicIPsAvailable: s.DynamicIPsAvailable,
 		})
 	}
-	return types.MarshalAny(&Extra{
+	value, err := (&Extra{
 		IPAMStatus: ipam,
-	})
+	}).Marshal()
+	if err != nil {
+		return nil, err
+	}
+	return &anypb.Any{TypeUrl: extraTypeURL, Value: value}, nil
 }

@@ -1,7 +1,8 @@
 package convert
 
 import (
-	gogotypes "github.com/gogo/protobuf/types"
+	"os"
+
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
@@ -9,7 +10,7 @@ import (
 // ConfigFromGRPC converts a grpc Config to a Config.
 func ConfigFromGRPC(s *swarmapi.Config) swarmtypes.Config {
 	config := swarmtypes.Config{
-		ID: s.ID,
+		ID: s.Id,
 		Spec: swarmtypes.ConfigSpec{
 			Annotations: annotationsFromGRPC(s.Spec.Annotations),
 			Data:        s.Spec.Data,
@@ -18,8 +19,8 @@ func ConfigFromGRPC(s *swarmapi.Config) swarmtypes.Config {
 
 	config.Version.Index = s.Meta.Version.Index
 	// Meta
-	config.CreatedAt, _ = gogotypes.TimestampFromProto(s.Meta.CreatedAt)
-	config.UpdatedAt, _ = gogotypes.TimestampFromProto(s.Meta.UpdatedAt)
+	config.CreatedAt = s.Meta.CreatedAt.AsTime()
+	config.UpdatedAt = s.Meta.UpdatedAt.AsTime()
 
 	if s.Spec.Templating != nil {
 		config.Spec.Templating = &swarmtypes.Driver{
@@ -32,9 +33,9 @@ func ConfigFromGRPC(s *swarmapi.Config) swarmtypes.Config {
 }
 
 // ConfigSpecToGRPC converts Config to a grpc Config.
-func ConfigSpecToGRPC(s swarmtypes.ConfigSpec) swarmapi.ConfigSpec {
-	spec := swarmapi.ConfigSpec{
-		Annotations: swarmapi.Annotations{
+func ConfigSpecToGRPC(s swarmtypes.ConfigSpec) *swarmapi.ConfigSpec {
+	spec := &swarmapi.ConfigSpec{
+		Annotations: &swarmapi.Annotations{
 			Name:   s.Name,
 			Labels: s.Labels,
 		},
@@ -57,16 +58,16 @@ func ConfigReferencesFromGRPC(s []*swarmapi.ConfigReference) []*swarmtypes.Confi
 
 	for _, r := range s {
 		ref := &swarmtypes.ConfigReference{
-			ConfigID:   r.ConfigID,
+			ConfigID:   r.ConfigId,
 			ConfigName: r.ConfigName,
 		}
 
 		if t, ok := r.Target.(*swarmapi.ConfigReference_File); ok {
 			ref.File = &swarmtypes.ConfigReferenceFileTarget{
 				Name: t.File.Name,
-				UID:  t.File.UID,
-				GID:  t.File.GID,
-				Mode: t.File.Mode,
+				UID:  t.File.Uid,
+				GID:  t.File.Gid,
+				Mode: os.FileMode(t.File.Mode),
 			}
 		}
 

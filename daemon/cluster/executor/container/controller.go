@@ -8,7 +8,6 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/network"
@@ -19,6 +18,7 @@ import (
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const defaultGossipConvergeDelay = 2 * time.Second
@@ -504,7 +504,7 @@ func (r *controller) waitReady(pctx context.Context) error {
 	}
 }
 
-func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, options api.LogSubscriptionOptions) error {
+func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, options *api.LogSubscriptionOptions) error {
 	if err := r.checkClosed(); err != nil {
 		return err
 	}
@@ -537,10 +537,10 @@ func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, opti
 		// this will implement a "token bucket" of size 10 MB, initially full and refilled
 		// at rate 10 MB tokens per second.
 		limiter = rate.NewLimiter(10<<20, 10<<20) // 10 MB/s
-		msgctx  = api.LogContext{
-			NodeID:    r.task.NodeID,
-			ServiceID: r.task.ServiceID,
-			TaskID:    r.task.ID,
+		msgctx  = &api.LogContext{
+			NodeId:    r.task.NodeId,
+			ServiceId: r.task.ServiceId,
+			TaskId:    r.task.Id,
 		}
 	)
 
@@ -560,28 +560,25 @@ func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, opti
 		if err := limiter.WaitN(ctx, len(msg.Line)); err != nil {
 			return errors.Wrap(err, "failed rate limiter")
 		}
-		tsp, err := gogotypes.TimestampProto(msg.Timestamp)
-		if err != nil {
-			return errors.Wrap(err, "failed to convert timestamp")
-		}
+		tsp := timestamppb.New(msg.Timestamp)
 		var stream api.LogStream
 		switch msg.Source {
 		case "stdout":
-			stream = api.LogStreamStdout
+			stream = api.LogStream_LOG_STREAM_STDOUT
 		case "stderr":
-			stream = api.LogStreamStderr
+			stream = api.LogStream_LOG_STREAM_STDERR
 		}
 
 		// parse the details out of the Attrs map
-		var attrs []api.LogAttr
+		var attrs []*api.LogAttr
 		if len(msg.Attrs) != 0 {
-			attrs = make([]api.LogAttr, 0, len(msg.Attrs))
+			attrs = make([]*api.LogAttr, 0, len(msg.Attrs))
 			for _, attr := range msg.Attrs {
-				attrs = append(attrs, api.LogAttr{Key: attr.Key, Value: attr.Value})
+				attrs = append(attrs, &api.LogAttr{Key: attr.Key, Value: attr.Value})
 			}
 		}
 
-		if err := publisher.Publish(ctx, api.LogMessage{
+		if err := publisher.Publish(ctx, &api.LogMessage{
 			Context:   msgctx,
 			Timestamp: tsp,
 			Stream:    stream,
@@ -628,8 +625,8 @@ func (r *controller) checkClosed() error {
 
 func parseContainerStatus(ctnr container.InspectResponse) (*api.ContainerStatus, error) {
 	status := &api.ContainerStatus{
-		ContainerID: ctnr.ID,
-		PID:         int32(ctnr.State.Pid),
+		ContainerId: ctnr.ID,
+		Pid:         int32(ctnr.State.Pid),
 		ExitCode:    int32(ctnr.State.ExitCode),
 	}
 
@@ -657,11 +654,11 @@ func parsePortMap(portMap network.PortMap) ([]*api.PortConfig, error) {
 		var protocol api.PortConfig_Protocol
 		switch port.Proto() {
 		case network.TCP:
-			protocol = api.ProtocolTCP
+			protocol = api.PortConfig_TCP
 		case network.UDP:
-			protocol = api.ProtocolUDP
+			protocol = api.PortConfig_UDP
 		case network.SCTP:
-			protocol = api.ProtocolSCTP
+			protocol = api.PortConfig_SCTP
 		default:
 			return nil, fmt.Errorf("invalid protocol: %s", port.Proto())
 		}
@@ -675,7 +672,7 @@ func parsePortMap(portMap network.PortMap) ([]*api.PortConfig, error) {
 			// TODO(aluzzardi): We're losing the port `name` here since
 			// there's no way to retrieve it back from the Engine.
 			exposedPorts = append(exposedPorts, &api.PortConfig{
-				PublishMode:   api.PublishModeHost,
+				PublishMode:   api.PortConfig_HOST,
 				Protocol:      protocol,
 				TargetPort:    uint32(port.Num()),
 				PublishedPort: uint32(hostPort),
