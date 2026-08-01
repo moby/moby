@@ -211,6 +211,9 @@ func TestCleanup(t *testing.T) {
 }
 
 func TestExistsRaw(t *testing.T) {
+	skip.If(t, UsingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")
+	defer netnsutils.SetupTestOSContext(t)()
+
 	const testChain1 = "ABCD"
 	const testChain2 = "EFGH"
 
