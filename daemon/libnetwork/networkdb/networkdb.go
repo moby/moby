@@ -525,21 +525,33 @@ func (nDB *NetworkDB) DeleteEntry(tname, nid, key string) error {
 	return nil
 }
 
+// deleteNodeFromNetworks stops the node from being a peer of any network and
+// forgets which ones it was attached to.
+// Caller should hold the NetworkDB lock while calling this.
 func (nDB *NetworkDB) deleteNodeFromNetworks(deletedNode string) {
-	for nid, nodes := range nDB.networkNodes {
-		updatedNodes := make([]string, 0, len(nodes))
-		for _, node := range nodes {
-			if node == deletedNode {
-				continue
-			}
-
-			updatedNodes = append(updatedNodes, node)
-		}
-
-		nDB.networkNodes[nid] = updatedNodes
-	}
-
+	nDB.suspendNodeInNetworks(deletedNode)
 	delete(nDB.networks, deletedNode)
+}
+
+// suspendNodeInNetworks stops the node from being a peer of any network,
+// while keeping its attachments for restoreNodeInNetworks.
+// Caller should hold the NetworkDB lock while calling this.
+func (nDB *NetworkDB) suspendNodeInNetworks(nodeName string) {
+	for nid := range nDB.networkNodes {
+		nDB.deleteNetworkNode(nid, nodeName)
+	}
+}
+
+// restoreNodeInNetworks makes the node a peer again of the networks it is
+// attached to.
+// Caller should hold the NetworkDB lock while calling this.
+func (nDB *NetworkDB) restoreNodeInNetworks(nodeName string) {
+	for nid, n := range nDB.networks[nodeName] {
+		if n.leaving {
+			continue
+		}
+		nDB.addNetworkNode(nid, nodeName)
+	}
 }
 
 // deleteNodeNetworkEntries deletes all table entries for a network owned by

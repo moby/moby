@@ -58,6 +58,9 @@ func (nDB *NetworkDB) changeNodeState(nodeName string, newState nodeState) (bool
 		// reset the node reap time
 		n.reapTime = 0
 		nDB.nodes[nodeName] = n
+		// The node is reachable again, so put it back in the peer list of
+		// the networks it was attached to when it failed.
+		nDB.restoreNodeInNetworks(n.Name)
 	case nodeLeftState:
 		if currState == nodeLeftState {
 			return false, nil
@@ -91,13 +94,15 @@ func (nDB *NetworkDB) changeNodeState(nodeName string, newState nodeState) (bool
 		// that the CREATE events will be accepted when it comes back.
 		nDB.deleteNodeTableEntries(n.Name)
 
-		// Only forget which networks the node was attached to on a graceful
-		// leave. Doing it on failure as well would make handleTableEvent
-		// reject the entries the node re-sends when it comes back, as it is
-		// no longer part of the network. The membership is reclaimed by
-		// reapDeadNode if the node never returns.
+		// A node which is not active is not a gossip peer, so take it out of
+		// the network peer lists either way. On a failure remember which
+		// networks it was attached to, so that it can be put straight back
+		// in them when it comes back: the entries it re-sends would otherwise
+		// be rejected by handleTableEvent until the membership was relearnt.
 		if newState == nodeLeftState {
 			nDB.deleteNodeFromNetworks(n.Name)
+		} else {
+			nDB.suspendNodeInNetworks(n.Name)
 		}
 	}
 

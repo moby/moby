@@ -116,7 +116,9 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 
 		if nEvent.Type == NetworkEventTypeLeave {
 			nDB.deleteNetworkNode(nEvent.NetworkID, nEvent.NodeName)
-		} else {
+		} else if _, active := nDB.nodes[nEvent.NodeName]; active {
+			// Only an active node is a gossip peer. Otherwise, changeNodeState
+			// puts it back in the peer list if the node comes back.
 			nDB.addNetworkNode(nEvent.NetworkID, nEvent.NodeName)
 		}
 
@@ -155,12 +157,8 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 	// Check if the owner of the event is still part of the network
 	nodes := nDB.networkNodes[tEvent.NetworkID]
 	nodePresent := slices.Contains(nodes, tEvent.NodeName)
-	// A failed node cannot reach us directly, so an event owned by one can
-	// only be stale state relayed by another node. Accepting it would revive
-	// entries which nothing would delete if the owner never comes back.
-	_, ownerFailed := nDB.failedNodes[tEvent.NodeName]
 
-	if !ok || network.leaving || !nodePresent || ownerFailed {
+	if !ok || network.leaving || !nodePresent {
 		// I'm out of the network OR the event owner is not anymore part of the network so do not propagate
 		return false
 	}

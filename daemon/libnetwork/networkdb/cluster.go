@@ -262,10 +262,10 @@ func (nDB *NetworkDB) reapDeadNode() {
 			continue
 		}
 		log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
-		// The node is not coming back, so drop the network membership which
-		// changeNodeState kept for it. Leaving it behind would keep the node
-		// in networkNodes forever, wasting gossip and bulk-sync rounds on a
-		// peer which no longer exists.
+		// The node is not coming back, so drop the attachments which
+		// changeNodeState kept in case it did. They would otherwise be
+		// remembered forever, and LocalState would keep advertising the
+		// networks of a node which no longer exists to the peers.
 		nDB.deleteNodeFromNetworks(n.Name)
 		nDB.deleteNodeTableEntries(n.Name)
 		delete(nDB.failedNodes, id)
@@ -505,7 +505,9 @@ func (nDB *NetworkDB) gossip() {
 			nDB.RUnlock()
 
 			if mnode == nil {
-				break
+				// The node stopped being an active peer since it was
+				// picked, therefore skip it
+				continue
 			}
 
 			// Send the compound message
@@ -623,7 +625,12 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	mnode := nDB.nodes[node]
 	if mnode == nil {
 		nDB.RUnlock()
-		return nil
+		// Either the name comes from a network's peer list sampled before
+		// the lock is released and can go stale if the node fails in
+		// between, or we are answering a bulk sync sent by a node we
+		// already consider failed. Report it, so that the caller does not
+		// count this as a completed sync.
+		return fmt.Errorf("node %s is not an active peer", node)
 	}
 
 	for _, nid := range networks {
