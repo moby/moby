@@ -3,6 +3,7 @@ package daemon
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,7 +19,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/resolvconf"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/mountinfo"
-	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -46,7 +46,7 @@ func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, id string, u
 	if daemon.root == "" {
 		return nil
 	}
-	var errs []string
+	var errs []error
 
 	regexps := getCleanPatterns(id)
 	sc := bufio.NewScanner(reader)
@@ -57,7 +57,7 @@ func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, id string, u
 					if p.MatchString(mnt) {
 						if err := unmount(mnt); err != nil {
 							log.G(context.TODO()).Error(err)
-							errs = append(errs, err.Error())
+							errs = append(errs, err)
 						}
 					}
 				}
@@ -69,8 +69,8 @@ func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, id string, u
 		return err
 	}
 
-	if len(errs) > 0 {
-		return fmt.Errorf("Error cleaning up mounts:\n%v", strings.Join(errs, "\n"))
+	if err := errors.Join(errs...); err != nil {
+		return fmt.Errorf("error cleaning up mounts:\n%w", err)
 	}
 
 	log.G(context.TODO()).Debugf("Cleaning up old mountid %v: done.", id)
@@ -85,7 +85,7 @@ func (daemon *Daemon) cleanupMounts(cfg *config.Config) error {
 
 	info, err := mountinfo.GetMounts(mountinfo.SingleEntryFilter(daemon.root))
 	if err != nil {
-		return errors.Wrap(err, "error reading mount table for cleanup")
+		return fmt.Errorf("error reading mount table for cleanup: %w", err)
 	}
 
 	if len(info) < 1 {
