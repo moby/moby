@@ -1,12 +1,12 @@
 package daemon
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -51,32 +51,44 @@ func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, mountID stri
 	if daemon.root == "" {
 		return nil
 	}
+
+	root := filepath.Clean(daemon.root)
+	if !filepath.IsAbs(root) {
+		return fmt.Errorf("cannot clean up mounts with non-absolute daemon root %q", daemon.root)
+	}
+	if root == "/" {
+		return errors.New("cannot clean up mounts with daemon root set to /")
+	}
+
+	regexps := getCleanPatterns(mountID)
+	mounts, err := mountinfo.GetMountsFromReader(reader, func(m *mountinfo.Info) (skip, stop bool) {
+		// Mountinfo paths have no trailing slash. Append one to both paths to avoid
+		// matching sibling paths that merely share the daemon-root prefix.
+		if !strings.HasPrefix(m.Mountpoint+"/", root+"/") {
+			return true, false
+		}
+		for _, p := range regexps {
+			if p.MatchString(m.Mountpoint) {
+				return false, false
+			}
+		}
+		return true, false
+	})
+	if err != nil {
+		return err
+	}
+
 	logger := log.G(context.TODO())
 	if mountID != "" {
 		logger = logger.WithField("mountid", mountID)
 	}
 
 	var errs []error
-
-	regexps := getCleanPatterns(mountID)
-	sc := bufio.NewScanner(reader)
-	for sc.Scan() {
-		if fields := strings.Fields(sc.Text()); len(fields) > 4 {
-			if mnt := fields[4]; strings.HasPrefix(mnt, daemon.root) {
-				for _, p := range regexps {
-					if p.MatchString(mnt) {
-						if err := unmount(mnt); err != nil {
-							logger.WithError(err).Error("error unmounting mountpoint")
-							errs = append(errs, err)
-						}
-					}
-				}
-			}
+	for _, mnt := range mounts {
+		if err := unmount(mnt.Mountpoint); err != nil {
+			logger.WithError(err).Error("error unmounting mountpoint")
+			errs = append(errs, err)
 		}
-	}
-
-	if err := sc.Err(); err != nil {
-		return err
 	}
 
 	if err := errors.Join(errs...); err != nil {
@@ -92,13 +104,23 @@ func (daemon *Daemon) cleanupMounts(cfg *config.Config) error {
 		return err
 	}
 
-	info, err := mountinfo.GetMounts(mountinfo.SingleEntryFilter(daemon.root))
+	if daemon.root == "" {
+		return nil
+	}
+	root := filepath.Clean(daemon.root)
+	if !filepath.IsAbs(root) {
+		return fmt.Errorf("cannot clean up mounts with non-absolute daemon root %q", daemon.root)
+	}
+	if root == "/" {
+		return errors.New("cannot clean up mounts with daemon root set to /")
+	}
+	info, err := mountinfo.GetMounts(mountinfo.SingleEntryFilter(root))
 	if err != nil {
 		return fmt.Errorf("error reading mount table for cleanup: %w", err)
 	}
 
-	if len(info) < 1 {
-		// no mount found, we're done here
+	if len(info) == 0 {
+		// No mount found; nothing to clean up.
 		return nil
 	}
 
@@ -107,7 +129,7 @@ func (daemon *Daemon) cleanupMounts(cfg *config.Config) error {
 	//   `mount --bind /daemon/root /daemon/root && mount --make-shared /daemon/root`
 	// This is only done when the daemon is started up and `/daemon/root` is not
 	// already on a shared mountpoint.
-	if !shouldUnmountRoot(daemon.root, info[0]) {
+	if !shouldUnmountRoot(root, info[0]) {
 		return nil
 	}
 
@@ -116,8 +138,8 @@ func (daemon *Daemon) cleanupMounts(cfg *config.Config) error {
 		return nil
 	}
 
-	log.G(context.TODO()).WithField("mountpoint", daemon.root).Debug("unmounting daemon root")
-	if err := mount.Unmount(daemon.root); err != nil {
+	log.G(context.TODO()).WithField("mountpoint", root).Debug("unmounting daemon root")
+	if err := mount.Unmount(root); err != nil {
 		return err
 	}
 	return os.Remove(unmountFile)

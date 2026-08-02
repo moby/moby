@@ -135,6 +135,21 @@ func TestCleanupMounts(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Equal(t, unmounted, 1, "Expected to unmount the shm (and the shm only)")
 	})
+
+	// Verify escaped mountpoint characters are decoded before matching and unmounting.
+	t.Run("escaped mountpoint", func(t *testing.T) {
+		const expected = "/var/lib/docker data/containers/404a7f860e600bfc144f7b5d9140d80bf3072fbb97659f98bc47039fd73d2695/mounts/shm"
+		const mountInfo = `123 456 0:42 / /var/lib/docker\040data/containers/404a7f860e600bfc144f7b5d9140d80bf3072fbb97659f98bc47039fd73d2695/mounts/shm rw,relatime - tmpfs tmpfs rw` //nolint:dupword
+
+		var unmounted string
+		d2 := &Daemon{root: "/var/lib/docker data"}
+		err := d2.cleanupMountsFromReaderByID(strings.NewReader(mountInfo), "", func(target string) error {
+			unmounted = target
+			return nil
+		})
+		assert.NilError(t, err)
+		assert.Equal(t, unmounted, expected)
+	})
 }
 
 func TestCleanupMountsByID(t *testing.T) {
