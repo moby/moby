@@ -31,24 +31,34 @@ func getPluginExecRoot(_ *config.Config) string {
 	return "/run/docker/plugins"
 }
 
-func (daemon *Daemon) cleanupMountsByID(id string) error {
-	log.G(context.TODO()).Debugf("Cleaning up old mountid %s: start.", id)
+func (daemon *Daemon) cleanupMountsByID(mountID string) error {
+	logger := log.G(context.TODO()).WithField("mountid", mountID)
+	logger.Debug("cleaning up old mount start")
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	return daemon.cleanupMountsFromReaderByID(f, id, mount.Unmount)
+	if err := daemon.cleanupMountsFromReaderByID(f, mountID, mount.Unmount); err != nil {
+		return err
+	}
+	logger.Debug("cleaning up old mount done")
+	return nil
 }
 
-func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, id string, unmount func(target string) error) error {
+func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, mountID string, unmount func(target string) error) error {
 	if daemon.root == "" {
 		return nil
 	}
+	logger := log.G(context.TODO())
+	if mountID != "" {
+		logger = logger.WithField("mountid", mountID)
+	}
+
 	var errs []error
 
-	regexps := getCleanPatterns(id)
+	regexps := getCleanPatterns(mountID)
 	sc := bufio.NewScanner(reader)
 	for sc.Scan() {
 		if fields := strings.Fields(sc.Text()); len(fields) > 4 {
@@ -56,7 +66,7 @@ func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, id string, u
 				for _, p := range regexps {
 					if p.MatchString(mnt) {
 						if err := unmount(mnt); err != nil {
-							log.G(context.TODO()).Error(err)
+							logger.WithError(err).Error("error unmounting mountpoint")
 							errs = append(errs, err)
 						}
 					}
@@ -73,7 +83,6 @@ func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, id string, u
 		return fmt.Errorf("error cleaning up mounts:\n%w", err)
 	}
 
-	log.G(context.TODO()).Debugf("Cleaning up old mountid %v: done.", id)
 	return nil
 }
 
