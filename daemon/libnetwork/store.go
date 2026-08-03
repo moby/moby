@@ -23,18 +23,14 @@ func (c *Controller) getNetworkFromStore(nid string) (*Network, error) {
 func (c *Controller) getNetworks() ([]*Network, error) {
 	var nl []*Network
 
-	kvol, err := c.store.List(&Network{ctrlr: c})
+	kvol, err := c.store.List(&Network{ctrlr: c, scope: scope.Local})
 	if err != nil && !errors.Is(err, datastore.ErrKeyNotFound) {
 		return nil, fmt.Errorf("failed to get networks: %w", err)
 	}
 
 	for _, kvo := range kvol {
 		n := kvo.(*Network)
-		n.ctrlr = c
 		c.cacheNetwork(n)
-		if n.scope == "" {
-			n.scope = scope.Local
-		}
 		nl = append(nl, n)
 	}
 
@@ -44,7 +40,7 @@ func (c *Controller) getNetworks() ([]*Network, error) {
 func (c *Controller) getNetworksFromStore(ctx context.Context) []*Network { // FIXME: unify with c.getNetworks()
 	var nl []*Network
 
-	kvol, err := c.store.List(&Network{ctrlr: c})
+	kvol, err := c.store.List(&Network{ctrlr: c, scope: scope.Local})
 	if err != nil {
 		if !errors.Is(err, datastore.ErrKeyNotFound) {
 			log.G(ctx).Debugf("failed to get networks from store: %v", err)
@@ -54,12 +50,6 @@ func (c *Controller) getNetworksFromStore(ctx context.Context) []*Network { // F
 
 	for _, kvo := range kvol {
 		n := kvo.(*Network)
-		n.mu.Lock()
-		n.ctrlr = c
-		if n.scope == "" {
-			n.scope = scope.Local
-		}
-		n.mu.Unlock()
 		nl = append(nl, n)
 	}
 

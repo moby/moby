@@ -733,8 +733,10 @@ func (n *Network) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := netMap["attachable"]; ok {
 		n.attachable = v.(bool)
 	}
-	if s, ok := netMap["scope"]; ok {
-		n.scope = s.(string)
+	if v, ok := netMap["scope"]; ok {
+		if s := v.(string); s != "" {
+			n.scope = s
+		}
 	}
 	if v, ok := netMap["inDelete"]; ok {
 		n.inDelete = v.(bool)
