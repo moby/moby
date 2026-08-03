@@ -90,6 +90,31 @@ func SwarmSpecToGRPC(s types.Spec) (*swarmapi.ClusterSpec, error) {
 
 // MergeSwarmSpecToGRPC merges a Spec with an initial grpc ClusterSpec
 func MergeSwarmSpecToGRPC(s types.Spec, spec *swarmapi.ClusterSpec) (*swarmapi.ClusterSpec, error) {
+	if spec.Annotations == nil {
+		spec.Annotations = &swarmapi.Annotations{}
+	}
+	if spec.AcceptancePolicy == nil { //nolint:staticcheck // Preserve the former non-nullable protobuf field.
+		spec.AcceptancePolicy = &swarmapi.AcceptancePolicy{} //nolint:staticcheck // Preserve the former non-nullable protobuf field.
+	}
+	if spec.Orchestration == nil {
+		spec.Orchestration = &swarmapi.OrchestrationConfig{}
+	}
+	if spec.Raft == nil {
+		spec.Raft = &swarmapi.RaftConfig{}
+	}
+	if spec.Dispatcher == nil {
+		spec.Dispatcher = &swarmapi.DispatcherConfig{}
+	}
+	if spec.CaConfig == nil {
+		spec.CaConfig = &swarmapi.CAConfig{}
+	}
+	if spec.TaskDefaults == nil {
+		spec.TaskDefaults = &swarmapi.TaskDefaults{}
+	}
+	if spec.EncryptionConfig == nil {
+		spec.EncryptionConfig = &swarmapi.EncryptionConfig{}
+	}
+
 	// We take the initSpec (either created from scratch, or returned by swarmkit),
 	// and will only change the value if the one taken from types.Spec is not nil or 0.
 	// In other words, if the value taken from types.Spec is nil or 0, we will maintain the status quo.
