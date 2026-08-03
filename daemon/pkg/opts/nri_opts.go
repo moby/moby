@@ -19,11 +19,8 @@ type NRIOpts struct {
 func (c *NRIOpts) UnmarshalJSON(raw []byte) error {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
-	type nc *NRIOpts // prevent recursion
-	if err := dec.Decode(nc(c)); err != nil {
-		return err
-	}
-	return nil
+	type nriOpts NRIOpts // prevent recursion
+	return dec.Decode((*nriOpts)(c))
 }
 
 // NamedNRIOpts is a NamedOption and flags.Value for NRI configuration parsing.
