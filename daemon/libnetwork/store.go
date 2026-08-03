@@ -7,7 +7,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
-	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"go.opentelemetry.io/otel"
 )
 
@@ -30,11 +29,7 @@ func (c *Controller) getNetworks() ([]*Network, error) {
 
 	for _, kvo := range kvol {
 		n := kvo.(*Network)
-		n.ctrlr = c
 		c.cacheNetwork(n)
-		if n.scope == "" {
-			n.scope = scope.Local
-		}
 		nl = append(nl, n)
 	}
 
@@ -54,12 +49,6 @@ func (c *Controller) getNetworksFromStore(ctx context.Context) []*Network { // F
 
 	for _, kvo := range kvol {
 		n := kvo.(*Network)
-		n.mu.Lock()
-		n.ctrlr = c
-		if n.scope == "" {
-			n.scope = scope.Local
-		}
-		n.mu.Unlock()
 		nl = append(nl, n)
 	}
 
