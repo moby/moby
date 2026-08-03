@@ -1,9 +1,5 @@
 name: validate-pr
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
 
@@ -13,6 +9,9 @@ on:
 
 jobs:
   check-labels:
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-check-labels
+      cancel-in-progress: true
     if: >-
       ${{
         github.event.pull_request.state == 'open' &&
@@ -40,6 +39,9 @@ jobs:
         run: exit 0
 
   check-changelog:
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-check-changelog
+      cancel-in-progress: true
     if: >-
       ${{
         github.event.pull_request.state == 'open' &&
@@ -92,6 +94,9 @@ jobs:
           echo "$desc"
 
   check-commit-references:
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-check-commit-references
+      cancel-in-progress: true
     if: >-
       ${{
         github.event.pull_request.state == 'open' &&
@@ -116,6 +121,9 @@ jobs:
         run: bash hack/validate/pr-gh-references
 
   check-pr-branch:
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-check-pr-branch
+      cancel-in-progress: true
     if: >-
       ${{
         github.event.pull_request.state == 'open' &&
