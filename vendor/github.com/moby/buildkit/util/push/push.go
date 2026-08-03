@@ -138,13 +138,68 @@ func Push(ctx context.Context, sm *session.Manager, sid string, provider content
 		return err
 	}
 
+	manifestStack, err = orderManifests(ctx, provider, manifestStack)
+	if err != nil {
+		return err
+	}
+
 	mfstDone := progress.OneOff(ctx, fmt.Sprintf("pushing manifest for %s", ref))
-	for _, desc := range slices.Backward(manifestStack) {
+	for _, desc := range manifestStack {
 		if _, err := pushHandler(ctx, desc); err != nil {
 			return mfstDone(err)
 		}
 	}
 	return mfstDone(nil)
+}
+
+// orderManifests returns manifests in push order. It preserves the existing
+// child-before-parent behavior from reversing the dispatch stack, and also
+// ensures that subjects present in the same push are uploaded before the
+// manifests or indexes that reference them.
+func orderManifests(ctx context.Context, provider content.Provider, manifests []ocispecs.Descriptor) ([]ocispecs.Descriptor, error) {
+	manifestByDigest := make(map[digest.Digest]ocispecs.Descriptor, len(manifests))
+	for _, desc := range manifests {
+		manifestByDigest[desc.Digest] = desc
+	}
+
+	ordered := make([]ocispecs.Descriptor, 0, len(manifests))
+	visited := make(map[digest.Digest]struct{}, len(manifests))
+
+	var visit func(ocispecs.Descriptor) error
+	visit = func(desc ocispecs.Descriptor) error {
+		if _, ok := visited[desc.Digest]; ok {
+			return nil
+		}
+		visited[desc.Digest] = struct{}{}
+		if images.IsManifestType(desc.MediaType) || images.IsIndexType(desc.MediaType) {
+			p, err := content.ReadBlob(ctx, provider, desc)
+			if err != nil {
+				return err
+			}
+			var withSubject struct {
+				Subject *ocispecs.Descriptor `json:"subject"`
+			}
+			if err := json.Unmarshal(p, &withSubject); err != nil {
+				return err
+			}
+			if withSubject.Subject != nil {
+				if dep, ok := manifestByDigest[withSubject.Subject.Digest]; ok {
+					if err := visit(dep); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		ordered = append(ordered, desc)
+		return nil
+	}
+
+	for _, desc := range slices.Backward(manifests) {
+		if err := visit(desc); err != nil {
+			return nil, err
+		}
+	}
+	return ordered, nil
 }
 
 // TODO: the containerd function for this is filtering too much, that needs to be fixed.
