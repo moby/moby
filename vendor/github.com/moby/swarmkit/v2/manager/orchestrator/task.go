@@ -26,6 +26,10 @@ func NewTask(cluster *api.Cluster, service *api.Service, slot uint64, nodeID str
 	taskID := identity.NewID()
 	task := api.Task{
 		Id: taskID,
+		// Annotations was non-nullable before the migration to the standard
+		// protobuf runtime; keep it always present so API consumers can rely
+		// on the old object invariant.
+		Annotations: &api.Annotations{},
 		// The annotations and the spec are copied, not referenced: they are
 		// messages (pointers) now, and a single service is used to create many
 		// tasks, none of which may observe later changes to the service.

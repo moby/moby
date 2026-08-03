@@ -71,6 +71,38 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 	return nil
 }
 
+// ensureClusterSpecPresence backfills the ClusterSpec submessages that were
+// non-nullable before the migration to the standard protobuf runtime. Every
+// stored ClusterSpec used to carry all of them (an omitted field decoded as
+// an all-zero value), and API consumers dereference them directly, so keep
+// that invariant when accepting a spec from a client.
+func ensureClusterSpecPresence(spec *api.ClusterSpec) {
+	if spec.Annotations == nil {
+		spec.Annotations = &api.Annotations{}
+	}
+	if spec.AcceptancePolicy == nil {
+		spec.AcceptancePolicy = &api.AcceptancePolicy{}
+	}
+	if spec.Orchestration == nil {
+		spec.Orchestration = &api.OrchestrationConfig{}
+	}
+	if spec.Raft == nil {
+		spec.Raft = &api.RaftConfig{}
+	}
+	if spec.Dispatcher == nil {
+		spec.Dispatcher = &api.DispatcherConfig{}
+	}
+	if spec.CaConfig == nil {
+		spec.CaConfig = &api.CAConfig{}
+	}
+	if spec.TaskDefaults == nil {
+		spec.TaskDefaults = &api.TaskDefaults{}
+	}
+	if spec.EncryptionConfig == nil {
+		spec.EncryptionConfig = &api.EncryptionConfig{}
+	}
+}
+
 // GetCluster returns a Cluster given a ClusterID.
 // - Returns `InvalidArgument` if ClusterID is not provided.
 // - Returns `NotFound` if the Cluster is not found.
@@ -124,7 +156,9 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 		}
 
 		cluster.Meta.Version = request.ClusterVersion
-		cluster.Spec = request.Spec.Copy()
+		spec := request.Spec.Copy()
+		ensureClusterSpecPresence(spec)
+		cluster.Spec = spec
 
 		expireBlacklistedCerts(cluster)
 

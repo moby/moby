@@ -37,6 +37,10 @@ func New(store *store.MemoryStore) *ResourceAllocator {
 // - Returns `PermissionDenied` if the Network is not manually attachable.
 // - Returns an error if the creation fails.
 func (ra *ResourceAllocator) AttachNetwork(ctx context.Context, request *api.AttachNetworkRequest) (*api.AttachNetworkResponse, error) {
+	if request.Config == nil {
+		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
+	}
+
 	nodeInfo, err := ca.RemoteNode(ctx)
 	if err != nil {
 		return nil, err
@@ -62,6 +66,11 @@ func (ra *ResourceAllocator) AttachNetwork(ctx context.Context, request *api.Att
 	t := &api.Task{
 		Id:     identity.NewID(),
 		NodeId: nodeInfo.NodeID,
+		// Annotations and ServiceAnnotations were non-nullable before the
+		// migration to the standard protobuf runtime; keep them always
+		// present so API consumers can rely on the old object invariant.
+		Annotations:        &api.Annotations{},
+		ServiceAnnotations: &api.Annotations{},
 		Spec: &api.TaskSpec{
 			Runtime: &api.TaskSpec_Attachment{
 				Attachment: &api.NetworkAttachmentSpec{

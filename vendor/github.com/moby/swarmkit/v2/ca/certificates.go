@@ -358,7 +358,7 @@ func (rca *RootCA) getKEKUpdate(ctx context.Context, leafCert *x509.Certificate,
 		return nil, err
 	}
 	_ = conn.Close(true)
-	return &KEKData{KEK: response.UnlockKey, Version: response.Version.Index}, nil
+	return &KEKData{KEK: response.UnlockKey, Version: response.GetVersion().GetIndex()}, nil
 }
 
 // PrepareCSR creates a CFSSL Sign Request based on the given raw CSR and

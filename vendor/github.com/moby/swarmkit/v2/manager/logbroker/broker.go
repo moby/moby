@@ -425,8 +425,8 @@ func (lb *LogBroker) PublishLogs(stream api.LogBroker_PublishLogsServer) (err er
 
 		// Make sure logs are emitted using the right Node ID to avoid impersonation.
 		for _, msg := range logMsg.Messages {
-			if msg.Context.NodeId != remote.NodeID {
-				return status.Errorf(codes.PermissionDenied, "invalid NodeID: expected=%s;received=%s", remote.NodeID, msg.Context.NodeId)
+			if msg.GetContext().GetNodeId() != remote.NodeID {
+				return status.Errorf(codes.PermissionDenied, "invalid NodeID: expected=%s;received=%s", remote.NodeID, msg.GetContext().GetNodeId())
 			}
 		}
 

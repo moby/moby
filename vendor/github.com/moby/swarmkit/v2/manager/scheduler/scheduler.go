@@ -539,7 +539,10 @@ func (s *Scheduler) applySchedulingDecisions(ctx context.Context, schedulingDeci
 							continue
 						}
 						node := store.GetNode(tx, decision.new.NodeId)
-						if node == nil || node.Meta.Version != nodeInfo.Meta.Version {
+						// Versions are messages now, so compare their contents;
+						// comparing the pointers would only tell whether they
+						// are the same object.
+						if node == nil || !node.Meta.GetVersion().EqualVT(nodeInfo.Meta.GetVersion()) {
 							// node is out of date
 							failed = append(failed, decision)
 							continue

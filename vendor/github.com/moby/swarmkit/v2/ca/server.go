@@ -130,20 +130,30 @@ func (s *Server) GetUnlockKey(_ context.Context, _ *api.GetUnlockKeyRequest) (*a
 	// This delay is currently unacceptable because this RPC call is the only way, after a
 	// cluster update, to get the actual value of the unlock key, and we don't want to return
 	// a cached value.
-	resp := &api.GetUnlockKeyResponse{}
+	var cluster *api.Cluster
 	s.store.View(func(tx store.ReadTx) {
-		cluster := store.GetCluster(tx, s.clusterID)
+		cluster = store.GetCluster(tx, s.clusterID)
+	})
+	// The cluster object is only created once this manager becomes the
+	// leader, so there is a bootstrap window during which it does not exist
+	// yet. Fail rather than return a response whose Version is missing:
+	// callers retry on Unavailable, but dereference Version on success.
+	if cluster == nil {
+		return nil, status.Error(codes.Unavailable, "cluster object not yet available")
+	}
+
+	resp := &api.GetUnlockKeyResponse{
 		// Copy: the response must not alias the object held by the store.
-		resp.Version = cluster.GetMeta().GetVersion().Copy()
-		if cluster.GetSpec().GetEncryptionConfig().GetAutoLockManagers() {
-			for _, encryptionKey := range cluster.UnlockKeys {
-				if encryptionKey.Subsystem == ManagerRole {
-					resp.UnlockKey = encryptionKey.Key
-					return
-				}
+		Version: cluster.GetMeta().GetVersion().Copy(),
+	}
+	if cluster.GetSpec().GetEncryptionConfig().GetAutoLockManagers() {
+		for _, encryptionKey := range cluster.UnlockKeys {
+			if encryptionKey.Subsystem == ManagerRole {
+				resp.UnlockKey = encryptionKey.Key
+				break
 			}
 		}
-	})
+	}
 
 	return resp, nil
 }
@@ -320,10 +330,16 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 					},
 				},
 				Spec: &api.NodeSpec{
+					// Annotations and Status were non-nullable before the
+					// migration to the standard protobuf runtime; keep them
+					// always present so API consumers can rely on the old
+					// object invariant.
+					Annotations:  &api.Annotations{},
 					DesiredRole:  role,
 					Membership:   api.NodeSpec_ACCEPTED,
 					Availability: request.Availability,
 				},
+				Status: &api.NodeStatus{},
 			}
 			node.VXLANUDPPort = clusters[0].VXLANUDPPort
 			return store.CreateNode(tx, node)

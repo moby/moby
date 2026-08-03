@@ -861,6 +861,7 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 				volume := store.GetVolume(tx, volumeID)
 				if volume == nil {
 					logger.Error("volume unavailable")
+					return nil
 				}
 
 				// buckle your seatbelts, we're going quadratic.

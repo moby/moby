@@ -215,7 +215,14 @@ func (s *Server) UpdateNode(_ context.Context, request *api.UpdateNodeRequest) (
 		}
 
 		node.Meta.Version = request.NodeVersion
-		node.Spec = request.Spec.Copy()
+		spec := request.Spec.Copy()
+		// Annotations was non-nullable before the migration to the standard
+		// protobuf runtime, so every stored NodeSpec carried one; keep that
+		// invariant for API consumers that dereference it directly.
+		if spec.Annotations == nil {
+			spec.Annotations = &api.Annotations{}
+		}
+		node.Spec = spec
 		return store.UpdateNode(tx, node)
 	})
 	if err != nil {

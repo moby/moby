@@ -615,7 +615,12 @@ func (m *Manager) Run(parent context.Context) error {
 	if err != nil {
 		return err
 	}
+	// ClusterSpec.Raft used to be a non-nullable field, so a cluster without
+	// one read back as an all-zero config, not as the defaults. Preserve that.
 	raftConfig := c.Spec.GetRaft()
+	if raftConfig == nil {
+		raftConfig = &api.RaftConfig{}
+	}
 
 	if err := m.watchForClusterChanges(ctx); err != nil {
 		return err
@@ -1213,6 +1218,11 @@ func defaultClusterObject(
 			Annotations: &api.Annotations{
 				Name: store.DefaultClusterName,
 			},
+			// AcceptancePolicy and TaskDefaults were non-nullable before the
+			// migration to the standard protobuf runtime; keep every
+			// ClusterSpec submessage always present so API consumers can rely
+			// on the old object invariant.
+			AcceptancePolicy: &api.AcceptancePolicy{},
 			Orchestration: &api.OrchestrationConfig{
 				TaskHistoryRetentionLimit: defaultTaskHistoryRetentionLimit,
 			},
@@ -1221,6 +1231,7 @@ func defaultClusterObject(
 			},
 			Raft:             raftCfg,
 			CaConfig:         initialCAConfig,
+			TaskDefaults:     &api.TaskDefaults{},
 			EncryptionConfig: encryptionConfig,
 		},
 		RootCa: &api.RootCA{
@@ -1252,10 +1263,15 @@ func managerNode(nodeID string, availability api.NodeSpec_Availability, vxlanPor
 			},
 		},
 		Spec: &api.NodeSpec{
+			// Annotations and Status were non-nullable before the migration
+			// to the standard protobuf runtime; keep them always present so
+			// API consumers can rely on the old object invariant.
+			Annotations:  &api.Annotations{},
 			DesiredRole:  api.NodeRole_MANAGER,
 			Membership:   api.NodeSpec_ACCEPTED,
 			Availability: availability,
 		},
+		Status:       &api.NodeStatus{},
 		VXLANUDPPort: vxlanPort,
 	}
 }

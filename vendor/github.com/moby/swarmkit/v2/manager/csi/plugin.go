@@ -151,8 +151,7 @@ func (p *plugin) init(ctx context.Context) error {
 		}
 
 		for _, c := range cCapResp.Capabilities {
-			rpc := c.GetRpc()
-			if rpc.Type == csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME {
+			if rpc := c.GetRpc(); rpc != nil && rpc.Type == csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME {
 				p.publisher = true
 			}
 		}

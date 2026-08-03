@@ -795,8 +795,8 @@ github.com/vishvananda/netlink v1.3.1 h1:3AEMt62VKqz90r0tmNhog0r/PpWKmrEShJU0wJW
 github.com/vishvananda/netlink v1.3.1/go.mod h1:ARtKouGSTGchR8aMwmkzC0qiNPrrWO5JS/XMVl45+b4=
 github.com/vishvananda/netns v0.0.5 h1:DfiHV+j8bA32MFM7bfEunvT8IAqQ/NzSJHtcmW5zdEY=
 github.com/vishvananda/netns v0.0.5/go.mod h1:SpkAiCQRtJ6TvvxPnOSyH3BMl6unz3xZlaprSwhNNJM=
-github.com/vvoland/swarmkit/v2 v2.0.0-20260731190530-a39a1a110ba6 h1:OfYN3cvkFCKixN930gyvm8vJXiOUwwY906SR44U3Nho=
-github.com/vvoland/swarmkit/v2 v2.0.0-20260731190530-a39a1a110ba6/go.mod h1:FpKDAdOmTb4xs5A0k+2ihESZHHqKe0PAt8AVqbIGHFU=
+github.com/vvoland/swarmkit/v2 v2.0.0-20260803110834-31e627378b55 h1:Z2+WIYmDJ6q7YuGZTGkxcSneykeB5j+VyYRfGsQdLMk=
+github.com/vvoland/swarmkit/v2 v2.0.0-20260803110834-31e627378b55/go.mod h1:FpKDAdOmTb4xs5A0k+2ihESZHHqKe0PAt8AVqbIGHFU=
 github.com/weppos/publicsuffix-go v0.12.0/go.mod h1:z3LCPQ38eedDQSwmsSRW4Y7t2L8Ln16JPQ02lHAdn5k=
 github.com/weppos/publicsuffix-go v0.13.0/go.mod h1:z3LCPQ38eedDQSwmsSRW4Y7t2L8Ln16JPQ02lHAdn5k=
 github.com/weppos/publicsuffix-go v0.30.0 h1:QHPZ2GRu/YE7cvejH9iyavPOkVCB4dNxp2ZvtT+vQLY=

@@ -319,4 +319,4 @@ require (
 	tags.cncf.io/container-device-interface/specs-go v1.1.0 // indirect
 )
 
-replace github.com/moby/swarmkit/v2 => github.com/vvoland/swarmkit/v2 v2.0.0-20260731190530-a39a1a110ba6
+replace github.com/moby/swarmkit/v2 => github.com/vvoland/swarmkit/v2 v2.0.0-20260803110834-31e627378b55
