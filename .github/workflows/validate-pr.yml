@@ -13,9 +13,18 @@ on:
 
 jobs:
   check-labels:
-    if: ${{ github.event.pull_request.state == 'open' }}
+    if: >-
+      ${{
+        github.event.pull_request.state == 'open' &&
+        (
+          github.event.action == 'opened' ||
+          github.event.action == 'reopened' ||
+          github.event.action == 'labeled' ||
+          github.event.action == 'unlabeled'
+        )
+      }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 120 # guardrails timeout for the whole job
+    timeout-minutes: 5
     steps:
       - name: Missing `area/` label
         if: always() && contains(join(github.event.pull_request.labels.*.name, ','), 'impact/') && !contains(join(github.event.pull_request.labels.*.name, ','), 'area/')
@@ -31,9 +40,22 @@ jobs:
         run: exit 0
 
   check-changelog:
-    if: ${{ github.event.pull_request.state == 'open' }}
+    if: >-
+      ${{
+        github.event.pull_request.state == 'open' &&
+        (
+          github.event.action == 'opened' ||
+          github.event.action == 'reopened' ||
+          github.event.action == 'labeled' ||
+          github.event.action == 'unlabeled' ||
+          (
+            github.event.action == 'edited' &&
+            github.event.changes.body != null
+          )
+        )
+      }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 120 # guardrails timeout for the whole job
+    timeout-minutes: 5
     env:
       HAS_IMPACT_LABEL: ${{ contains(join(github.event.pull_request.labels.*.name, ','), 'impact/') }}
       PR_BODY: |
@@ -70,7 +92,15 @@ jobs:
           echo "$desc"
 
   check-commit-references:
-    if: ${{ github.event.pull_request.state == 'open' }}
+    if: >-
+      ${{
+        github.event.pull_request.state == 'open' &&
+        (
+          github.event.action == 'opened' ||
+          github.event.action == 'reopened' ||
+          github.event.action == 'synchronize'
+        )
+      }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -86,9 +116,23 @@ jobs:
         run: bash hack/validate/pr-gh-references
 
   check-pr-branch:
-    if: ${{ github.event.pull_request.state == 'open' }}
+    if: >-
+      ${{
+        github.event.pull_request.state == 'open' &&
+        (
+          github.event.action == 'opened' ||
+          github.event.action == 'reopened' ||
+          (
+            github.event.action == 'edited' &&
+            (
+              github.event.changes.title != null ||
+              github.event.changes.base != null
+            )
+          )
+        )
+      }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 120 # guardrails timeout for the whole job
+    timeout-minutes: 5
     env:
       PR_TITLE: ${{ github.event.pull_request.title }}
     steps:
