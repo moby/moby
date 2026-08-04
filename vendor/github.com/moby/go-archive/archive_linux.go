@@ -8,9 +8,27 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/moby/go-archive/internal/archiveoptions"
 	"github.com/moby/sys/userns"
 	"golang.org/x/sys/unix"
 )
+
+func withProcSelfFD(opts *TarOptions) (*TarOptions, func(), error) {
+	procSelfFD, err := os.Open("/proc/self/fd")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var prepared TarOptions
+	if opts != nil {
+		prepared = *opts
+	}
+	prepared.internalOptions = &archiveoptions.Options{
+		ProcSelfFD: procSelfFD,
+	}
+
+	return &prepared, func() { _ = procSelfFD.Close() }, nil
+}
 
 func getWhiteoutConverter(format WhiteoutFormat) tarWhiteoutConverter {
 	if format == OverlayWhiteoutFormat {
