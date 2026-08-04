@@ -33,7 +33,7 @@ jobs:
       - validate-dco
     permissions:
       contents: read # same as global permission
-      id-token: write # for signing attestation(s) with GitHub OIDC Token
+      id-token: write # for signing attestation(s) and authenticating to Docker Hub with GitHub OIDC Token
     with:
       setup-qemu: true
       target: bin-image-cross
@@ -67,8 +67,7 @@ jobs:
         type=semver,pattern={{version}},match=docker-(.*)
         type=semver,pattern={{major}}.{{minor}},match=docker-(.*)
         type=semver,pattern={{major}},match=docker-(.*)
-    secrets:
-      registry-auths: |
-        - registry: docker.io
-          username: ${{ secrets.DOCKERHUB_MOBYBIN_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_MOBYBIN_TOKEN }}
+      registry-identities: |
+        - type: dockerhub
+          username: moby
+          connection_id: ${{ vars.MOBYBIN_DOCKERHUB_OIDC_CONNECTIONID }}
