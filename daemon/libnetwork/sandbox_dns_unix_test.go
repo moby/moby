@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/resolvconf"
+	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -115,6 +116,18 @@ func TestDNSRebuildAfterUpgradeWithStaleHash(t *testing.T) {
 	assert.NilError(t, err)
 
 	resolvConfPath := sb.config.resolvConfPath
+
+	// Simulate an upgrade from an Engine version whose rebuildDNS() wrote the
+	// container's resolv.conf without updating its hash file: the on-disk file no
+	// longer matches the recorded hash. This out-of-sync ("stale") hash is the
+	// exact state that regressed external DNS resolution on restart (#51619),
+	// where setupDNS/rebuildDNS were skipped and upstream nameservers never got
+	// extracted. Without this, both the fixed and regressed code keep the hash in
+	// sync within a single run, so the test would pass either way.
+	staleHash := digest.FromBytes([]byte("resolv.conf written by a previous Engine version"))
+	err = os.WriteFile(sb.config.resolvConfHashFile, []byte(staleHash), filePerm)
+	assert.NilError(t, err)
+
 	err = sb.Delete(ctx)
 	assert.NilError(t, err)
 
