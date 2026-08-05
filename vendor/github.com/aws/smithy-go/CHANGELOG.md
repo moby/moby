@@ -1,3 +1,13 @@
+# Release (2026-07-31)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.27.6
+  * **Bug Fix**: Fix failure to deserialize any `@httpPayload` struct with a non-string member.
+  * **Bug Fix**: Fix failure to serialize any `@httpPayload` struct with a nested struct.
+
 # Release (2026-07-27)
 
 ## General Highlights
