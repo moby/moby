@@ -498,8 +498,7 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 	epj.disableGatewayService = epMap["disableGatewayService"].(bool)
 
 	var tStaticRoute []types.StaticRoute
-	if v, ok := epMap["StaticRoutes"]; ok {
-		epMap["StaticRoutes"] = v
+	if _, ok := epMap["StaticRoutes"]; ok {
 		if err := unmarshalJSONField(epMap, "StaticRoutes", &tStaticRoute); err != nil {
 			return err
 		}
