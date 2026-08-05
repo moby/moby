@@ -283,10 +283,13 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 
 		nDB.RLock()
 		n, ok := nDB.thisNodeNetworks[tEvent.NetworkID]
+		// Read leaving while still holding the lock: it is mutated under
+		// the write lock by (*NetworkDB).LeaveNetwork.
+		leaving := ok && n.leaving
 		nDB.RUnlock()
 
 		// if the network is not there anymore, OR we are leaving the network
-		if !ok || n.leaving {
+		if !ok || leaving {
 			return
 		}
 
