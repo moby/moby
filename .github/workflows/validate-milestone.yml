@@ -63,7 +63,20 @@ jobs:
               return;
             }
             if (milestone !== expected) {
-              core.setFailed(`Milestone '${milestone}' does not match docker next version '${expected}'`);
+              await core.summary
+                .addHeading('This PR cannot be merged yet')
+                .addRaw(
+                  `The milestone <strong>${milestone}</strong> does not match the next version ` +
+                  `<strong>${expected}</strong>.`
+                )
+                .addBreak()
+                .addBreak()
+                .addRaw('Update the milestone or the PR so both versions match.')
+                .write();
+              core.setFailed(
+                `This PR cannot be merged yet because milestone '${milestone}' does not match ` +
+                `the next version '${expected}'. Update the milestone or the PR so both versions match.`
+              );
               return;
             }
             core.info(`Milestone: ${milestone} ✓`);
