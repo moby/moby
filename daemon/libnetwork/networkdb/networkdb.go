@@ -236,6 +236,31 @@ type Config struct {
 	// Default is 60sec.
 	rejoinClusterInterval time.Duration
 
+	// transport, when non-nil, is gossiped over in place of the UDP and TCP
+	// sockets memberlist would otherwise open for itself. BindAddr,
+	// AdvertiseAddr and BindPort are then the transport's business, not
+	// memberlist's, and must agree with what it advertises.
+	//
+	// Only set by tests, to substitute an in-memory network.
+	transport memberlist.Transport
+
+	// tableEventObserver, when non-nil, is called each time a table event
+	// received from a peer is applied to the local store, reporting the node
+	// which applied it and whether it arrived by bulk sync rather than by
+	// gossip. It lets a test attribute convergence to the mechanism which
+	// actually delivered the last missing entry, instead of inferring it from
+	// the elapsed time.
+	//
+	// The receiving node is reported because one observer is shared by a whole
+	// cluster: without it, an entry delivered to any node by bulk sync is
+	// indistinguishable from one delivered to the node under observation.
+	//
+	// It is called with the NetworkDB write lock held, so it must not block
+	// and must not call back into NetworkDB.
+	//
+	// Only set by tests.
+	tableEventObserver func(nodeID, networkID, tableName, key string, viaBulkSync bool)
+
 	// StatsPrintPeriod the period to use to print queue stats
 	// Default is 5min
 	StatsPrintPeriod time.Duration
