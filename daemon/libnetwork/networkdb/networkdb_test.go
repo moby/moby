@@ -38,6 +38,7 @@ func TestMain(m *testing.M) {
 type TestingT interface {
 	assert.TestingT
 	poll.TestingT
+	Cleanup(func())
 	Helper()
 	Context() context.Context
 }

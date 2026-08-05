@@ -190,6 +190,10 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 	}
 	nDB.createOrUpdateEntry(tEvent.NetworkID, tEvent.TableName, tEvent.Key, e)
 
+	if obs := nDB.config.tableEventObserver; obs != nil {
+		obs(nDB.config.NodeID, tEvent.NetworkID, tEvent.TableName, tEvent.Key, isBulkSync)
+	}
+
 	if !entryPresent && tEvent.Type == TableEventTypeDelete {
 		// We will rebroadcast the message for an unknown entry if all the conditions are met:
 		// 1) the message was received from a bulk sync
