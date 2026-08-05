@@ -31,9 +31,9 @@ jobs:
       matrix:
         include:
           - storage: graphdriver
-            containerd: socket
+            containerd: external
           - storage: snapshotter
-            containerd: socket
+            containerd: external
           - storage: snapshotter
             containerd: embedded
     with:
