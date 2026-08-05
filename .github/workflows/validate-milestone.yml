@@ -41,7 +41,7 @@ jobs:
               ? context.payload.pull_request.head.sha
               : context.payload.pull_request.base.ref;
 
-            core.info(`Base ref: ${ref}`);
+            core.info(`Version ref: ${ref}`);
 
             const resp = await github.rest.repos.getContent({
               owner: context.repo.owner,
@@ -63,7 +63,30 @@ jobs:
               return;
             }
             if (milestone !== expected) {
-              core.setFailed(`Milestone '${milestone}' does not match docker next version '${expected}'`);
+              const guidance =
+                'This check prevents the PR from being merged accidentally before it is appropriate ' +
+                'for its milestone. If the milestone is intentional, no action is needed.';
+              await core.summary
+                .addHeading('This PR is intentionally blocked from merging for now')
+                .addTable([
+                  [
+                    {data: 'Milestone', header: true},
+                    {data: 'Expected next version', header: true},
+                  ],
+                  [milestone, expected],
+                ])
+                .addRaw(
+                  touchesVersions
+                    ? 'The expected version comes from releases/versions.yaml in this PR.'
+                    : 'The expected version comes from the target branch.'
+                )
+                .addEOL()
+                .addRaw(guidance)
+                .write();
+              core.setFailed(
+                `This PR cannot be merged yet because milestone '${milestone}' does not match ` +
+                `the next version '${expected}'. ${guidance}`
+              );
               return;
             }
             core.info(`Milestone: ${milestone} ✓`);
