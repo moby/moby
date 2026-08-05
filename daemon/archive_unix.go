@@ -103,6 +103,11 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	defer container.Unlock()
 
 	options := daemon.defaultTarCopyOptions(allowOverwriteDirWithFile)
+	options, cleanup, err := archive.WithProcSelfFD(options)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
 
 	// Decompress the archive before switching into the container's
 	// filesystem to avoid executing decompression binaries (xz, unpigz)
