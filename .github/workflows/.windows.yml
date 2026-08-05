@@ -308,9 +308,8 @@ jobs:
           $testName = ([System.BitConverter]::ToString((New-Object System.Security.Cryptography.SHA256Managed).ComputeHash([System.Text.Encoding]::UTF8.GetBytes($env:MATRIX_TEST))) -replace '-').ToLower()
           echo "TESTREPORTS_NAME=$testName" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf-8 -Append
       -
-        # removes docker service that is currently installed on the runner. we
-        # could use Uninstall-Package but not yet available on Windows runners.
-        # more info: https://github.com/actions/virtual-environments/blob/d3a5bad25f3b4326c5666bab0011ac7f1beec95e/images/win/scripts/Installers/Install-Docker.ps1#L11
+        # Docker is not installed as a PackageManagement package, so remove its
+        # service directly to let the test daemon register under the same name.
         name: Removing current daemon
         run: |
           if (Get-Service docker -ErrorAction SilentlyContinue) {
