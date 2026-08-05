@@ -153,16 +153,16 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	ep.id = epMap["id"].(string)
 
 	if err := unmarshalJSONField(epMap, "ep_iface", &ep.iface); err != nil {
-		return err
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal ep_iface")
 	}
 	if err := unmarshalJSONField(epMap, "joinInfo", &ep.joinInfo); err != nil {
-		return err
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal joinInfo")
 	}
 	if err := unmarshalJSONField(epMap, "exposed_ports", &ep.exposedPorts); err != nil {
-		return err
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal exposed_ports")
 	}
 	if err := unmarshalJSONField(epMap, "sandbox", &ep.sandboxID); err != nil {
-		return err
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal sandbox")
 	}
 
 	if v, ok := epMap["generic"]; ok {
@@ -239,20 +239,20 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	}
 
 	if err := unmarshalJSONField(epMap, "svcAliases", &ep.svcAliases); err != nil {
-		return err
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal svcAliases")
 	}
 	if err := unmarshalJSONField(epMap, "ingressPorts", &ep.ingressPorts); err != nil {
-		return err
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal ingressPorts")
 	}
 
 	var myAliases []string
 	if err := unmarshalJSONField(epMap, "myAliases", &myAliases); err != nil {
-		return err
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal myAliases")
 	}
 
 	_, hasDNSNames := epMap["dnsNames"]
 	if err := unmarshalJSONField(epMap, "dnsNames", &ep.dnsNames); err != nil {
-		return err
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal dnsNames")
 	}
 
 	// TODO(aker): remove this migration code in v27

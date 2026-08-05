@@ -185,8 +185,8 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 	}
 	i.PoolID = m["PoolID"].(string)
 	if _, ok := m["Meta"]; ok {
-		if err = unmarshalJSONField(m, "Meta", &i.Meta); err != nil {
-			return err
+		if err := unmarshalJSONField(m, "Meta", &i.Meta); err != nil {
+			log.G(context.TODO()).WithError(err).Warn("failed to unmarshal Meta")
 		}
 	}
 	if v, ok := m["IPAMData"]; ok {

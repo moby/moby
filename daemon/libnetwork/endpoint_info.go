@@ -1,12 +1,14 @@
 package libnetwork
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/netip"
 	"slices"
 
+	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -500,7 +502,7 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 	var tStaticRoute []types.StaticRoute
 	if _, ok := epMap["StaticRoutes"]; ok {
 		if err := unmarshalJSONField(epMap, "StaticRoutes", &tStaticRoute); err != nil {
-			return err
+			log.G(context.TODO()).WithError(err).Warn("failed to unmarshal StaticRoutes")
 		}
 	}
 	var StaticRoutes []*types.StaticRoute
