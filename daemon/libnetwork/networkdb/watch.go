@@ -53,7 +53,8 @@ type NodeAddr struct {
 // filter is an empty string it acts as a wildcard for that
 // field. Watch returns a channel of events, where the events will be
 // sent. The watch channel is initialized with synthetic create events for all
-// the existing table entries not owned by this node which match the filters.
+// the existing table entries not owned by this node which match the filters,
+// except entries hidden because their owner is failed.
 func (nDB *NetworkDB) Watch(tname, nid string) (*events.Channel, func()) {
 	var matcher events.Matcher
 
@@ -93,7 +94,8 @@ func (nDB *NetworkDB) Watch(tname, nid string) (*events.Channel, func()) {
 			prefix = []byte("/")
 		}
 		nDB.indexes[byNetwork].Root().WalkPrefix(prefix, func(path []byte, v *entry) bool {
-			if !v.deleting && v.node != nDB.config.NodeID {
+			_, hidden := nDB.failedNodes[v.node]
+			if !v.deleting && !hidden && v.node != nDB.config.NodeID {
 				tuple := strings.SplitN(string(path[1:]), "/", 3)
 				if len(tuple) == 3 {
 					entryNid, entryTname, key := tuple[0], tuple[1], tuple[2]
@@ -113,7 +115,8 @@ func (nDB *NetworkDB) Watch(tname, nid string) (*events.Channel, func()) {
 			prefix = append(prefix, []byte(nid+"/")...)
 		}
 		nDB.indexes[byTable].Root().WalkPrefix(prefix, func(path []byte, v *entry) bool {
-			if !v.deleting && v.node != nDB.config.NodeID {
+			_, hidden := nDB.failedNodes[v.node]
+			if !v.deleting && !hidden && v.node != nDB.config.NodeID {
 				tuple := strings.SplitN(string(path[1:]), "/", 3)
 				if len(tuple) == 3 {
 					entryTname, entryNid, key := tuple[0], tuple[1], tuple[2]

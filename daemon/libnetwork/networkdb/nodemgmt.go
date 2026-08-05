@@ -59,8 +59,10 @@ func (nDB *NetworkDB) changeNodeState(nodeName string, newState nodeState) (bool
 		n.reapTime = 0
 		nDB.nodes[nodeName] = n
 		// The node is reachable again, so put it back in the peer list of
-		// the networks it was attached to when it failed.
+		// the networks it was attached to when it failed, and make the
+		// entries remembered across the failure visible again.
 		nDB.restoreNodeInNetworks(n.Name)
+		nDB.restoreNodeTableEntries(n.Name)
 	case nodeLeftState:
 		if currState == nodeLeftState {
 			return false, nil
@@ -89,19 +91,19 @@ func (nDB *NetworkDB) changeNodeState(nodeName string, newState nodeState) (bool
 		if n.reapTime == 0 {
 			n.reapTime = nodeReapInterval
 		}
-		// The node left or failed, delete all the entries created by it.
-		// If the node was temporary down, deleting the entries will guarantee
-		// that the CREATE events will be accepted when it comes back.
-		nDB.deleteNodeTableEntries(n.Name)
-
-		// A node which is not active is not a gossip peer, so take it out of
-		// the network peer lists either way. On a failure remember which
-		// networks it was attached to, so that it can be put straight back
-		// in them when it comes back: the entries it re-sends would otherwise
-		// be rejected by handleTableEvent until the membership was relearnt.
 		if newState == nodeLeftState {
+			// The node is gone for good: delete all the entries created by
+			// it along with the record of which networks it was attached
+			// to. Its entries are already hidden from watchers if it was
+			// failed before.
+			nDB.deleteNodeTableEntries(n.Name, currState != nodeFailedState)
 			nDB.deleteNodeFromNetworks(n.Name)
 		} else {
+			// The node may only be temporarily down. Hide its entries and
+			// remember its attachments, so the freshest state possible can
+			// be put straight back if it returns. What is remembered ages
+			// out on the entry reap timer and is dropped by reapDeadNode.
+			nDB.suspendNodeTableEntries(n.Name)
 			nDB.suspendNodeInNetworks(n.Name)
 		}
 	}

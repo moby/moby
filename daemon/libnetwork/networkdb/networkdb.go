@@ -61,7 +61,9 @@ type NetworkDB struct {
 	// synchronization.
 	estNodes atomic.Int32
 
-	// List of all peer nodes which have failed
+	// List of all peer nodes which have failed. The attachments and table
+	// entries of a failed node are remembered, hidden rather than dropped,
+	// and put back in place if the node returns before it is reaped.
 	failedNodes map[string]*node
 
 	// List of all peer nodes which have left
@@ -69,14 +71,17 @@ type NetworkDB struct {
 
 	// A multi-dimensional map of network/node attachments for peer nodes.
 	// The first key is a node name and the second key is a network ID for
-	// the network that node is participating in.
+	// the network that node is participating in. Attachments of a failed
+	// node are kept until it is reaped, so its table events keep being
+	// accepted and its peer-list membership can be restored if it returns.
 	networks map[string]map[string]*network
 
 	// A map of this node's network attachments.
 	thisNodeNetworks map[string]*thisNodeNetwork
 
-	// A map of nodes which are participating in a given
-	// network. The key is a network ID.
+	// The active peers participating in a given network, which gossip and
+	// bulk sync pick peers from, keyed by network ID. A node is taken out
+	// when it fails or leaves, and put back if it returns.
 	networkNodes map[string][]string
 
 	// A table of subscriptions for every node from which we are waiting for
@@ -260,8 +265,9 @@ type entry struct {
 	// the cluster for certain amount of time after deletion.
 	deleting bool
 
-	// Number of seconds still left before a deleted table entry gets
-	// removed from networkDB
+	// Time still left before the entry gets removed from networkDB. Set
+	// for deleted entries lingering as tombstones, and for entries hidden
+	// because their owner failed.
 	reapTime time.Duration
 }
 
@@ -397,6 +403,9 @@ func (nDB *NetworkDB) GetEntry(tname, nid, key string) ([]byte, error) {
 	if v != nil && v.deleting {
 		return nil, types.NotFoundErrorf("entry in table %s network id %s and key %s deleted and pending garbage collection", tname, nid, key)
 	}
+	if _, failed := nDB.failedNodes[v.node]; failed {
+		return nil, types.NotFoundErrorf("entry in table %s network id %s and key %s is owned by a failed node and hidden until it returns", tname, nid, key)
+	}
 
 	// note: this panics if a nil entry was stored in the table; after
 	// discussion, we decided to not gracefully handle this situation as
@@ -418,13 +427,18 @@ func (nDB *NetworkDB) getEntry(tname, nid, key string) (*entry, error) {
 // table, key) tuple and if the NetworkDB is part of the cluster
 // propagates this event to the cluster. It is an error to create an
 // entry for the same tuple for which there is already an existing
-// entry unless the current entry is deleting state.
+// entry, unless the existing entry is hidden because its owner is a
+// failed node: a hidden entry does not hold its key against the local
+// node. The create takes the key over with a fresher Lamport time, so
+// whatever the failed node re-sends for it is rejected as stale.
 func (nDB *NetworkDB) CreateEntry(tname, nid, key string, value []byte) error {
 	nDB.Lock()
 	oldEntry, err := nDB.getEntry(tname, nid, key)
-	if err == nil || (oldEntry != nil && !oldEntry.deleting) {
-		nDB.Unlock()
-		return fmt.Errorf("cannot create entry in table %s with network id %s and key %s, already exists", tname, nid, key)
+	if err == nil {
+		if _, failed := nDB.failedNodes[oldEntry.node]; !failed {
+			nDB.Unlock()
+			return fmt.Errorf("cannot create entry in table %s with network id %s and key %s, already exists", tname, nid, key)
+		}
 	}
 
 	entry := &entry{
@@ -446,10 +460,16 @@ func (nDB *NetworkDB) CreateEntry(tname, nid, key string, value []byte) error {
 // UpdateEntry updates a table entry in NetworkDB for given (network,
 // table, key) tuple and if the NetworkDB is part of the cluster
 // propagates this event to the cluster. It is an error to update a
-// non-existent entry.
+// non-existent entry, including an entry hidden because its owner is a
+// failed node.
 func (nDB *NetworkDB) UpdateEntry(tname, nid, key string, value []byte) error {
 	nDB.Lock()
-	if _, err := nDB.getEntry(tname, nid, key); err != nil {
+	oldEntry, err := nDB.getEntry(tname, nid, key)
+	hidden := false
+	if err == nil {
+		_, hidden = nDB.failedNodes[oldEntry.node]
+	}
+	if err != nil || hidden {
 		nDB.Unlock()
 		return fmt.Errorf("cannot update entry as the entry in table %s with network id %s and key %s does not exist", tname, nid, key)
 	}
@@ -476,15 +496,30 @@ type TableElem struct {
 	owner string
 }
 
+// failedNodeSet returns the names of the currently failed nodes as a set,
+// for filtering entries after the lock has been released.
+// Caller should hold the NetworkDB lock while calling this.
+func (nDB *NetworkDB) failedNodeSet() map[string]bool {
+	if len(nDB.failedNodes) == 0 {
+		return nil
+	}
+	failed := make(map[string]bool, len(nDB.failedNodes))
+	for name := range nDB.failedNodes {
+		failed[name] = true
+	}
+	return failed
+}
+
 // GetTableByNetwork walks the networkdb by the give table and network id and
 // returns a map of keys and values
 func (nDB *NetworkDB) GetTableByNetwork(tname, nid string) map[string]*TableElem {
 	nDB.RLock()
 	root := nDB.indexes[byTable].Root()
+	failed := nDB.failedNodeSet()
 	nDB.RUnlock()
 	entries := make(map[string]*TableElem)
 	root.WalkPrefix(fmt.Appendf(nil, "/%s/%s", tname, nid), func(k []byte, v *entry) bool {
-		if v.deleting {
+		if v.deleting || failed[v.node] {
 			return false
 		}
 		key := string(k)
@@ -501,7 +536,11 @@ func (nDB *NetworkDB) GetTableByNetwork(tname, nid string) map[string]*TableElem
 func (nDB *NetworkDB) DeleteEntry(tname, nid, key string) error {
 	nDB.Lock()
 	oldEntry, err := nDB.getEntry(tname, nid, key)
-	if err != nil || oldEntry == nil || oldEntry.deleting {
+	hidden := false
+	if err == nil && oldEntry != nil {
+		_, hidden = nDB.failedNodes[oldEntry.node]
+	}
+	if err != nil || oldEntry == nil || oldEntry.deleting || hidden {
 		nDB.Unlock()
 		return fmt.Errorf("cannot delete entry %s with network id %s and key %s "+
 			"does not exist or is already being deleted", tname, nid, key)
@@ -523,6 +562,14 @@ func (nDB *NetworkDB) DeleteEntry(tname, nid, key string) error {
 	}
 
 	return nil
+}
+
+// isNodeAttached reports whether the node has a non-leaving attachment for
+// the network. A failed node still counts if its attachment was remembered.
+// Caller should hold the NetworkDB lock while calling this.
+func (nDB *NetworkDB) isNodeAttached(nodeName, nid string) bool {
+	n, ok := nDB.networks[nodeName][nid]
+	return ok && !n.leaving
 }
 
 // deleteNodeFromNetworks stops the node from being a peer of any network and
@@ -554,9 +601,58 @@ func (nDB *NetworkDB) restoreNodeInNetworks(nodeName string) {
 	}
 }
 
+// suspendNodeTableEntries hides all table entries owned by node from
+// watchers and reads while keeping them in the store, so that the freshest
+// state possible is already in place if the node comes back. The entries
+// age out on the entry reap timer.
+// Caller should hold the NetworkDB lock while calling this.
+func (nDB *NetworkDB) suspendNodeTableEntries(node string) {
+	nDB.indexes[byTable].Root().Walk(func(path []byte, oldEntry *entry) bool {
+		if oldEntry.node != node || oldEntry.deleting {
+			return false
+		}
+		params := strings.Split(string(path[1:]), "/")
+		tName, nwID, key := params[0], params[1], params[2]
+
+		oldEntry.reapTime = nDB.config.reapEntryInterval
+		nDB.broadcaster.Write(WatchEvent{
+			Table:     tName,
+			NetworkID: nwID,
+			Key:       key,
+			Prev:      oldEntry.value,
+		})
+		return false
+	})
+}
+
+// restoreNodeTableEntries makes the table entries which were remembered
+// across a failure of node visible again. What is published is the freshest
+// state this node remembered; a peer which holds newer relayed state
+// delivers it as a regular update afterwards.
+// Caller should hold the NetworkDB lock while calling this.
+func (nDB *NetworkDB) restoreNodeTableEntries(node string) {
+	nDB.indexes[byTable].Root().Walk(func(path []byte, oldEntry *entry) bool {
+		if oldEntry.node != node || oldEntry.deleting {
+			return false
+		}
+		params := strings.Split(string(path[1:]), "/")
+		tName, nwID, key := params[0], params[1], params[2]
+
+		oldEntry.reapTime = 0
+		nDB.broadcaster.Write(WatchEvent{
+			Table:     tName,
+			NetworkID: nwID,
+			Key:       key,
+			Value:     oldEntry.value,
+		})
+		return false
+	})
+}
+
 // deleteNodeNetworkEntries deletes all table entries for a network owned by
 // node from the local store.
 func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
+	_, hidden := nDB.failedNodes[node]
 	nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid),
 		func(path []byte, oldEntry *entry) bool {
 			// Do nothing if the entry is owned by a remote node that is not leaving the network
@@ -569,8 +665,9 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 
 			nDB.deleteEntry(nwID, tName, key)
 
-			// Notify to the upper layer only entries not already marked for deletion
-			if !oldEntry.deleting {
+			// Notify to the upper layer only entries not already marked for
+			// deletion, and not already hidden because their owner is failed.
+			if !oldEntry.deleting && !hidden {
 				nDB.broadcaster.Write(WatchEvent{
 					Table:     tName,
 					NetworkID: nwID,
@@ -583,8 +680,9 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 }
 
 // deleteNodeTableEntries deletes all table entries owned by node from the local
-// store, across all networks.
-func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
+// store, across all networks. Watchers are notified unless notify is false,
+// for callers which know the entries are already hidden from them.
+func (nDB *NetworkDB) deleteNodeTableEntries(node string, notify bool) {
 	nDB.indexes[byTable].Root().Walk(func(path []byte, oldEntry *entry) bool {
 		if oldEntry.node != node {
 			return false
@@ -595,7 +693,7 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 
 		nDB.deleteEntry(nwID, tName, key)
 
-		if !oldEntry.deleting {
+		if !oldEntry.deleting && notify {
 			nDB.broadcaster.Write(WatchEvent{
 				Table:     tName,
 				NetworkID: nwID,
@@ -610,15 +708,19 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 // WalkTable walks a single table in NetworkDB and invokes the passed
 // function for each entry in the table passing the network, key,
 // value. The walk stops if the passed function returns a true.
+// Entries which are hidden because their owner is failed are reported as
+// deleted.
 func (nDB *NetworkDB) WalkTable(tname string, fn func(string, string, []byte, bool) bool) error {
 	nDB.RLock()
 	root := nDB.indexes[byTable].Root()
+	failed := nDB.failedNodeSet()
 	nDB.RUnlock()
 	root.WalkPrefix([]byte("/"+tname), func(path []byte, v *entry) bool {
 		params := strings.Split(string(path[1:]), "/")
 		nid := params[1]
 		key := params[2]
-		return fn(nid, key, v.value, v.deleting)
+		deleted := v.deleting || failed[v.node]
+		return fn(nid, key, v.value, deleted)
 	})
 
 	return nil
@@ -727,7 +829,10 @@ func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 		} else {
 			nDB.deleteEntry(nwID, tName, key)
 		}
-		if !oldEntry.deleting {
+		// Do not notify watchers of entries already hidden from them
+		// because their owner is failed.
+		_, hidden := nDB.failedNodes[oldEntry.node]
+		if !oldEntry.deleting && !hidden {
 			nDB.broadcaster.Write(WatchEvent{
 				Table:     tName,
 				NetworkID: nwID,

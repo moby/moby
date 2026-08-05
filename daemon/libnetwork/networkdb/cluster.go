@@ -262,12 +262,10 @@ func (nDB *NetworkDB) reapDeadNode() {
 			continue
 		}
 		log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
-		// The node is not coming back, so drop the attachments which
-		// changeNodeState kept in case it did. They would otherwise be
-		// remembered forever, and LocalState would keep advertising the
-		// networks of a node which no longer exists to the peers.
+		// The node is not coming back: drop the attachments remembered for
+		// it along with any entries reapTableEntries has not aged out yet.
 		nDB.deleteNodeFromNetworks(n.Name)
-		nDB.deleteNodeTableEntries(n.Name)
+		nDB.deleteNodeTableEntries(n.Name, false)
 		delete(nDB.failedNodes, id)
 	}
 	for id, n := range nDB.leftNodes {
@@ -420,7 +418,11 @@ func (nDB *NetworkDB) reapTableEntries() {
 		nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid), func(path []byte, v *entry) bool {
 			// timeCompensation compensate in case the lock took some time to be released
 			timeCompensation := time.Since(cycleStart)
-			if !v.deleting {
+			// Entries remembered for a failed owner age out like tombstones,
+			// so that they cannot be restored after whatever would delete
+			// them expired.
+			_, ownerFailed := nDB.failedNodes[v.node]
+			if !v.deleting && !ownerFailed {
 				return false
 			}
 
@@ -506,7 +508,7 @@ func (nDB *NetworkDB) gossip() {
 
 			if mnode == nil {
 				// The node stopped being an active peer since it was
-				// picked, therefore skip it
+				// picked, therefore skip it.
 				continue
 			}
 
@@ -625,11 +627,9 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	mnode := nDB.nodes[node]
 	if mnode == nil {
 		nDB.RUnlock()
-		// Either the name comes from a network's peer list sampled before
-		// the lock is released and can go stale if the node fails in
-		// between, or we are answering a bulk sync sent by a node we
-		// already consider failed. Report it, so that the caller does not
-		// count this as a completed sync.
+		// The node failed since it was picked from a peer list, or sent us
+		// a bulk sync while we consider it failed. Report it so the caller
+		// does not count this as a completed sync.
 		return fmt.Errorf("node %s is not an active peer", node)
 	}
 
