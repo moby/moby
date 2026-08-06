@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package metricdata provides types for the metric SDK data model.
-package metricdata // import "go.opentelemetry.io/otel/sdk/metric/metricdata"
+package metricdata
 
 import (
 	"encoding/json"
