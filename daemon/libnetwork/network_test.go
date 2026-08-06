@@ -49,4 +49,15 @@ func TestIpamInfoUnmarshalJSON(t *testing.T) {
 		var i IpamInfo
 		assert.Check(t, i.UnmarshalJSON(data) != nil)
 	})
+
+	t.Run("non-string IPAMData returns an error instead of panicking", func(t *testing.T) {
+		data, err := json.Marshal(map[string]any{
+			"PoolID":   "pool1",
+			"IPAMData": 123,
+		})
+		assert.NilError(t, err)
+
+		var i IpamInfo
+		assert.Check(t, i.UnmarshalJSON(data) != nil)
+	})
 }
