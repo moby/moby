@@ -10,18 +10,18 @@ import (
 	"github.com/moby/swarmkit/v2/api"
 )
 
-func newTestControllerWithMount(m api.Mount) (*controller, error) {
+func newTestControllerWithMount(m *api.Mount) (*controller, error) {
 	return newController(&daemon.Daemon{}, nil, nil, &api.Task{
-		ID:        stringid.GenerateRandomID(),
-		ServiceID: stringid.GenerateRandomID(),
-		Spec: api.TaskSpec{
+		Id:        stringid.GenerateRandomID(),
+		ServiceId: stringid.GenerateRandomID(),
+		Spec: &api.TaskSpec{
 			Runtime: &api.TaskSpec_Container{
 				Container: &api.ContainerSpec{
 					Image: "image_name",
 					Labels: map[string]string{
 						"com.docker.swarm.task.id": "id",
 					},
-					Mounts: []api.Mount{m},
+					Mounts: []*api.Mount{m},
 				},
 			},
 		},
@@ -31,8 +31,8 @@ func newTestControllerWithMount(m api.Mount) (*controller, error) {
 
 func TestControllerValidateMountBind(t *testing.T) {
 	// with improper source
-	if _, err := newTestControllerWithMount(api.Mount{
-		Type:   api.MountTypeBind,
+	if _, err := newTestControllerWithMount(&api.Mount{
+		Type:   api.Mount_BIND,
 		Source: "foo",
 		Target: testAbsPath,
 	}); err == nil || !strings.Contains(err.Error(), "invalid bind mount source") {
@@ -40,8 +40,8 @@ func TestControllerValidateMountBind(t *testing.T) {
 	}
 
 	// with non-existing source
-	if _, err := newTestControllerWithMount(api.Mount{
-		Type:   api.MountTypeBind,
+	if _, err := newTestControllerWithMount(&api.Mount{
+		Type:   api.Mount_BIND,
 		Source: testAbsNonExistent,
 		Target: testAbsPath,
 	}); err != nil {
@@ -55,8 +55,8 @@ func TestControllerValidateMountBind(t *testing.T) {
 	}
 	defer os.Remove(tmpdir)
 
-	if _, err := newTestControllerWithMount(api.Mount{
-		Type:   api.MountTypeBind,
+	if _, err := newTestControllerWithMount(&api.Mount{
+		Type:   api.Mount_BIND,
 		Source: tmpdir,
 		Target: testAbsPath,
 	}); err != nil {
@@ -66,8 +66,8 @@ func TestControllerValidateMountBind(t *testing.T) {
 
 func TestControllerValidateMountVolume(t *testing.T) {
 	// with improper source
-	if _, err := newTestControllerWithMount(api.Mount{
-		Type:   api.MountTypeVolume,
+	if _, err := newTestControllerWithMount(&api.Mount{
+		Type:   api.Mount_VOLUME,
 		Source: testAbsPath,
 		Target: testAbsPath,
 	}); err == nil || !strings.Contains(err.Error(), "invalid volume mount source") {
@@ -75,8 +75,8 @@ func TestControllerValidateMountVolume(t *testing.T) {
 	}
 
 	// with proper source
-	if _, err := newTestControllerWithMount(api.Mount{
-		Type:   api.MountTypeVolume,
+	if _, err := newTestControllerWithMount(&api.Mount{
+		Type:   api.Mount_VOLUME,
 		Source: "foo",
 		Target: testAbsPath,
 	}); err != nil {
@@ -92,8 +92,8 @@ func TestControllerValidateMountTarget(t *testing.T) {
 	defer os.Remove(tmpdir)
 
 	// with improper target
-	if _, err := newTestControllerWithMount(api.Mount{
-		Type:   api.MountTypeBind,
+	if _, err := newTestControllerWithMount(&api.Mount{
+		Type:   api.Mount_BIND,
 		Source: testAbsPath,
 		Target: "foo",
 	}); err == nil || !strings.Contains(err.Error(), "invalid mount target") {
@@ -101,8 +101,8 @@ func TestControllerValidateMountTarget(t *testing.T) {
 	}
 
 	// with proper target
-	if _, err := newTestControllerWithMount(api.Mount{
-		Type:   api.MountTypeBind,
+	if _, err := newTestControllerWithMount(&api.Mount{
+		Type:   api.Mount_BIND,
 		Source: tmpdir,
 		Target: testAbsPath,
 	}); err != nil {
@@ -112,8 +112,8 @@ func TestControllerValidateMountTarget(t *testing.T) {
 
 func TestControllerValidateMountTmpfs(t *testing.T) {
 	// with improper target
-	if _, err := newTestControllerWithMount(api.Mount{
-		Type:   api.MountTypeTmpfs,
+	if _, err := newTestControllerWithMount(&api.Mount{
+		Type:   api.Mount_TMPFS,
 		Source: "foo",
 		Target: testAbsPath,
 	}); err == nil || !strings.Contains(err.Error(), "invalid tmpfs source") {
@@ -121,8 +121,8 @@ func TestControllerValidateMountTmpfs(t *testing.T) {
 	}
 
 	// with proper target
-	if _, err := newTestControllerWithMount(api.Mount{
-		Type:   api.MountTypeTmpfs,
+	if _, err := newTestControllerWithMount(&api.Mount{
+		Type:   api.Mount_TMPFS,
 		Target: testAbsPath,
 	}); err != nil {
 		t.Fatalf("expected no error, got: %v", err)
@@ -131,8 +131,8 @@ func TestControllerValidateMountTmpfs(t *testing.T) {
 
 func TestControllerValidateMountInvalidType(t *testing.T) {
 	// with improper target
-	if _, err := newTestControllerWithMount(api.Mount{
-		Type:   api.Mount_MountType(9999),
+	if _, err := newTestControllerWithMount(&api.Mount{
+		Type:   api.Mount_Type(9999),
 		Source: "foo",
 		Target: testAbsPath,
 	}); err == nil || !strings.Contains(err.Error(), "invalid mount type") {

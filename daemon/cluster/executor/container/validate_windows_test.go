@@ -15,8 +15,8 @@ const (
 )
 
 func TestControllerValidateMountNamedPipe(t *testing.T) {
-	if _, err := newTestControllerWithMount(api.Mount{
-		Type:   api.MountTypeNamedPipe,
+	if _, err := newTestControllerWithMount(&api.Mount{
+		Type:   api.Mount_NPIPE,
 		Source: "",
 		Target: `\\.\pipe\foo`,
 	}); err == nil || !strings.Contains(err.Error(), "invalid npipe source, source must not be empty") {

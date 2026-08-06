@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	gogotypes "github.com/gogo/protobuf/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestNetworkConvertBasicNetworkFromGRPCCreatedAt(t *testing.T) {
@@ -13,21 +13,21 @@ func TestNetworkConvertBasicNetworkFromGRPCCreatedAt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	createdAt, err := gogotypes.TimestampProto(expected)
-	if err != nil {
-		t.Fatal(err)
-	}
+	createdAt := timestamppb.New(expected)
 
 	nw := swarmapi.Network{
-		Meta: swarmapi.Meta{
-			Version: swarmapi.Version{
+		Meta: &swarmapi.Meta{
+			Version: &swarmapi.Version{
 				Index: 1,
 			},
 			CreatedAt: createdAt,
 		},
+		Spec: &swarmapi.NetworkSpec{
+			Annotations: &swarmapi.Annotations{},
+		},
 	}
 
-	n := BasicNetworkFromGRPC(nw)
+	n := BasicNetworkFromGRPC(&nw)
 	if !n.Created.Equal(expected) {
 		t.Fatalf("expected time %s; received %s", expected, n.Created)
 	}

@@ -67,7 +67,7 @@ func (ce *ConstraintEnforcer) rejectNoncompliantTasks(node *api.Node) {
 	// shut down all tasks.
 	// If the availability is "pause", we shouldn't touch
 	// the tasks on this node.
-	if node.Spec.Availability != api.NodeAvailabilityActive {
+	if node.Spec.GetAvailability() != api.NodeSpec_ACTIVE {
 		return
 	}
 
@@ -78,7 +78,7 @@ func (ce *ConstraintEnforcer) rejectNoncompliantTasks(node *api.Node) {
 
 	services := map[string]*api.Service{}
 	ce.store.View(func(tx store.ReadTx) {
-		tasks, err = store.FindTasks(tx, store.ByNodeID(node.ID))
+		tasks, err = store.FindTasks(tx, store.ByNodeID(node.Id))
 		if err != nil {
 			return
 		}
@@ -86,7 +86,7 @@ func (ce *ConstraintEnforcer) rejectNoncompliantTasks(node *api.Node) {
 		// Deduplicate service IDs using the services map. It's okay for the
 		// values to be nil for now, we will look them up from the store next.
 		for _, task := range tasks {
-			services[task.ServiceID] = nil
+			services[task.ServiceId] = nil
 		}
 
 		for serviceID := range services {
@@ -95,7 +95,7 @@ func (ce *ConstraintEnforcer) rejectNoncompliantTasks(node *api.Node) {
 	})
 
 	if err != nil {
-		log.L.WithError(err).Errorf("failed to list tasks for node ID %s", node.ID)
+		log.L.WithError(err).Errorf("failed to list tasks for node ID %s", node.Id)
 	}
 
 	available := &api.Resources{}
@@ -115,13 +115,13 @@ func (ce *ConstraintEnforcer) rejectNoncompliantTasks(node *api.Node) {
 	// to remove the most resource-intensive tasks.
 loop:
 	for _, t := range tasks {
-		if t.DesiredState < api.TaskStateAssigned || t.DesiredState > api.TaskStateCompleted {
+		if t.DesiredState < api.TaskState_ASSIGNED || t.DesiredState > api.TaskState_COMPLETE {
 			continue
 		}
 		// Completed tasks should not consume node reservations. This is
 		// particularly important for replicated-job services, where tasks may
 		// remain with DesiredState=Completed after they finished.
-		if t.Status.State >= api.TaskStateCompleted {
+		if t.Status.GetState() >= api.TaskState_COMPLETE {
 			continue
 		}
 
@@ -151,38 +151,38 @@ loop:
 		//   would incorrectly not be removed. This is why the constraints
 		//   from the service spec should be used instead.
 		var placement *api.Placement
-		if service := services[t.ServiceID]; service != nil {
+		if service := services[t.ServiceId]; service != nil {
 			// This task is associated with a service, so we use the service's
 			// current placement constraints.
-			placement = service.Spec.Task.Placement
+			placement = service.Spec.GetTask().GetPlacement()
 		} else {
 			// This task is not associated with a service (or the service no
 			// longer exists), so we use the placement constraints from the
 			// original task spec.
-			placement = t.Spec.Placement
+			placement = t.Spec.GetPlacement()
 		}
 		if placement != nil && len(placement.Constraints) > 0 {
 			constraints, _ := constraint.Parse(placement.Constraints)
 			if !constraint.NodeMatches(constraints, node) {
-				removeTasks[t.ID] = t
+				removeTasks[t.Id] = t
 				continue
 			}
 		}
 
 		// Ensure that the task assigned to the node
 		// still satisfies the resource limits.
-		if t.Spec.Resources != nil && t.Spec.Resources.Reservations != nil {
-			if t.Spec.Resources.Reservations.MemoryBytes > available.MemoryBytes {
-				removeTasks[t.ID] = t
+		if t.Spec.GetResources() != nil && t.Spec.GetResources().GetReservations() != nil {
+			if t.Spec.GetResources().GetReservations().MemoryBytes > available.MemoryBytes {
+				removeTasks[t.Id] = t
 				continue
 			}
-			if t.Spec.Resources.Reservations.NanoCPUs > available.NanoCPUs {
-				removeTasks[t.ID] = t
+			if t.Spec.GetResources().GetReservations().NanoCpus > available.NanoCpus {
+				removeTasks[t.Id] = t
 				continue
 			}
 
-			available.MemoryBytes -= t.Spec.Resources.Reservations.MemoryBytes
-			available.NanoCPUs -= t.Spec.Resources.Reservations.NanoCPUs
+			available.MemoryBytes -= t.Spec.GetResources().GetReservations().MemoryBytes
+			available.NanoCpus -= t.Spec.GetResources().GetReservations().NanoCpus
 		}
 
 		// Ensure that the task assigned to the node
@@ -191,7 +191,7 @@ loop:
 			for _, ta := range t.AssignedGenericResources {
 				// Type change or no longer available
 				if !genericresource.HasResource(ta, available.Generic) {
-					removeTasks[t.ID] = t
+					removeTasks[t.Id] = t
 					break loop
 				}
 			}
@@ -205,8 +205,8 @@ loop:
 		err := ce.store.Batch(func(batch *store.Batch) error {
 			for _, t := range removeTasks {
 				err := batch.Update(func(tx store.Tx) error {
-					t = store.GetTask(tx, t.ID)
-					if t == nil || t.DesiredState > api.TaskStateCompleted {
+					t = store.GetTask(tx, t.Id)
+					if t == nil || t.DesiredState > api.TaskState_COMPLETE {
 						return nil
 					}
 
@@ -217,14 +217,14 @@ loop:
 					// will bypass actions such as
 					// restarting the task on another node
 					// (if applicable).
-					t.Status.State = api.TaskStateRejected
+					t.Status.State = api.TaskState_REJECTED
 					t.Status.Message = "task rejected by constraint enforcer"
 					t.Status.Err = "assigned node no longer meets constraints"
 					t.Status.Timestamp = ptypes.MustTimestampProto(time.Now())
 					return store.UpdateTask(tx, t)
 				})
 				if err != nil {
-					log.L.WithError(err).Errorf("failed to shut down task %s", t.ID)
+					log.L.WithError(err).Errorf("failed to shut down task %s", t.Id)
 				}
 			}
 			return nil

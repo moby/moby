@@ -13,7 +13,7 @@ import (
 // restart.SupervisorInterface that are actually needed by the reconciler. This
 // more limited interface allows us to write a less ugly fake for unit testing.
 type restartSupervisor interface {
-	Restart(context.Context, store.Tx, *api.Cluster, *api.Service, api.Task) error
+	Restart(context.Context, store.Tx, *api.Cluster, *api.Service, *api.Task) error
 }
 
 // Reconciler is an object that manages reconciliation of global jobs. It is
@@ -86,17 +86,17 @@ func (r *Reconciler) ReconcileService(id string) error {
 	}
 
 	if service.JobStatus == nil {
-		service.JobStatus = &api.JobStatus{}
+		service.JobStatus = &api.JobStatus{JobIteration: &api.Version{}}
 	}
 
 	// we need to compute the constraints on the service so we know which nodes
 	// to schedule it on
 	var constraints []constraint.Constraint
-	if service.Spec.Task.Placement != nil && len(service.Spec.Task.Placement.Constraints) != 0 {
+	if service.Spec.GetTask().GetPlacement() != nil && len(service.Spec.GetTask().GetPlacement().GetConstraints()) != 0 {
 		// constraint.Parse does return an error, but we don't need to check
 		// it, because it was already checked when the service was created or
 		// updated.
-		constraints, _ = constraint.Parse(service.Spec.Task.Placement.Constraints)
+		constraints, _ = constraint.Parse(service.Spec.GetTask().GetPlacement().GetConstraints())
 	}
 
 	var candidateNodes []string
@@ -111,19 +111,19 @@ func (r *Reconciler) ReconcileService(id string) error {
 
 		// if a node is invalid, we should remove any tasks that might be on it
 		if orchestrator.InvalidNode(node) {
-			invalidNodes = append(invalidNodes, node.ID)
+			invalidNodes = append(invalidNodes, node.Id)
 			continue
 		}
 
-		if node.Spec.Availability != api.NodeAvailabilityActive {
+		if node.Spec.GetAvailability() != api.NodeSpec_ACTIVE {
 			continue
 		}
-		if node.Status.State != api.NodeStatus_READY {
+		if node.Status.GetState() != api.NodeStatus_READY {
 			continue
 		}
 		// you can append to a nil slice and get a non-nil slice, which is
 		// pretty slick.
-		candidateNodes = append(candidateNodes, node.ID)
+		candidateNodes = append(candidateNodes, node.Id)
 	}
 
 	// now, we have a list of all nodes that match constraints. it's time to
@@ -145,19 +145,19 @@ func (r *Reconciler) ReconcileService(id string) error {
 		// tasks for nodes on which there are no existing tasks.
 		if task.JobIteration != nil {
 			if task.JobIteration.Index == service.JobStatus.JobIteration.Index &&
-				task.DesiredState <= api.TaskStateCompleted {
+				task.DesiredState <= api.TaskState_COMPLETE {
 				// we already know the task is desired to be executing (because its
 				// desired state is Completed). Check here to see if it's already
 				// failed, so we can restart it
-				if task.Status.State > api.TaskStateCompleted {
-					restartTasks = append(restartTasks, task.ID)
+				if task.Status.GetState() > api.TaskState_COMPLETE {
+					restartTasks = append(restartTasks, task.Id)
 				}
-				nodeToTask[task.NodeID] = task.ID
+				nodeToTask[task.NodeId] = task.Id
 			}
 
 			if task.JobIteration.Index != service.JobStatus.JobIteration.Index {
-				if task.DesiredState != api.TaskStateRemove {
-					removeTasks = append(removeTasks, task.ID)
+				if task.DesiredState != api.TaskState_REMOVE {
+					removeTasks = append(removeTasks, task.Id)
 				}
 			}
 		}
@@ -173,8 +173,8 @@ func (r *Reconciler) ReconcileService(id string) error {
 					// if the node does not already have a running or completed
 					// task, create a task for this node.
 					task := orchestrator.NewTask(cluster, service, 0, node)
-					task.JobIteration = &service.JobStatus.JobIteration
-					task.DesiredState = api.TaskStateCompleted
+					task.JobIteration = service.JobStatus.JobIteration
+					task.DesiredState = api.TaskState_COMPLETE
 					return store.CreateTask(tx, task)
 				}); err != nil {
 					return err
@@ -194,14 +194,14 @@ func (r *Reconciler) ReconcileService(id string) error {
 
 				// if it's not still desired to be running, then don't restart
 				// it.
-				if t.DesiredState > api.TaskStateCompleted {
+				if t.DesiredState > api.TaskState_COMPLETE {
 					return nil
 				}
 
 				// Finally, restart it
 				// TODO(dperny): pass in context to ReconcileService, so we can
 				// pass it in here.
-				return r.restart.Restart(context.Background(), tx, cluster, service, *t)
+				return r.restart.Restart(context.Background(), tx, cluster, service, t)
 			}); err != nil {
 				// TODO(dperny): probably should log like in the other
 				// orchestrators instead of returning here.
@@ -217,11 +217,11 @@ func (r *Reconciler) ReconcileService(id string) error {
 					return nil
 				}
 
-				if t.DesiredState == api.TaskStateRemove {
+				if t.DesiredState == api.TaskState_REMOVE {
 					return nil
 				}
 
-				t.DesiredState = api.TaskStateRemove
+				t.DesiredState = api.TaskState_REMOVE
 				return store.UpdateTask(tx, t)
 			}); err != nil {
 				return err
@@ -238,8 +238,8 @@ func (r *Reconciler) ReconcileService(id string) error {
 					}
 					// if the task is still desired to be running, and is still
 					// actually, running, then it still needs to be shut down.
-					if t.DesiredState > api.TaskStateCompleted || t.Status.State <= api.TaskStateRunning {
-						t.DesiredState = api.TaskStateShutdown
+					if t.DesiredState > api.TaskState_COMPLETE || t.Status.GetState() <= api.TaskState_RUNNING {
+						t.DesiredState = api.TaskState_SHUTDOWN
 						return store.UpdateTask(tx, t)
 					}
 					return nil
@@ -270,18 +270,18 @@ func (r *Reconciler) IsRelatedService(service *api.Service) bool {
 // This implements the FixTask method of the taskinit.InitHandler interface.
 func (r *Reconciler) FixTask(_ context.Context, batch *store.Batch, t *api.Task) {
 	// tasks already desired to be shut down need no action.
-	if t.DesiredState > api.TaskStateCompleted {
+	if t.DesiredState > api.TaskState_COMPLETE {
 		return
 	}
 
 	batch.Update(func(tx store.Tx) error {
-		node := store.GetNode(tx, t.NodeID)
+		node := store.GetNode(tx, t.NodeId)
 		// if the node is no longer a valid node for this task, we need to shut
 		// it down
 		if orchestrator.InvalidNode(node) {
-			task := store.GetTask(tx, t.ID)
-			if task != nil && task.DesiredState < api.TaskStateShutdown {
-				task.DesiredState = api.TaskStateShutdown
+			task := store.GetTask(tx, t.Id)
+			if task != nil && task.DesiredState < api.TaskState_SHUTDOWN {
+				task.DesiredState = api.TaskState_SHUTDOWN
 				return store.UpdateTask(tx, task)
 			}
 		}
@@ -295,7 +295,7 @@ func (r *Reconciler) FixTask(_ context.Context, batch *store.Batch, t *api.Task)
 // taskinit.InitHandler interface.
 func (r *Reconciler) SlotTuple(t *api.Task) orchestrator.SlotTuple {
 	return orchestrator.SlotTuple{
-		ServiceID: t.ServiceID,
-		NodeID:    t.NodeID,
+		ServiceID: t.ServiceId,
+		NodeID:    t.NodeId,
 	}
 }

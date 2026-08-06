@@ -2,7 +2,6 @@ package equality
 
 import (
 	"crypto/subtle"
-	"reflect"
 
 	"github.com/moby/swarmkit/v2/api"
 )
@@ -12,21 +11,30 @@ import (
 //
 // This used to decide whether or not to propagate a task update to a controller.
 func TasksEqualStable(a, b *api.Task) bool {
-	// shallow copy
-	copyA, copyB := *a, *b
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	// Copy rather than clearing the fields on the originals and putting them
+	// back: these objects are shared, so mutating them even briefly would race.
+	// Enumerating the fields to compare instead would be cheaper but would
+	// silently stop covering any field added to Task later.
+	copyA, copyB := a.Copy(), b.Copy()
 
-	copyA.Status, copyB.Status = api.TaskStatus{}, api.TaskStatus{}
-	copyA.Meta, copyB.Meta = api.Meta{}, api.Meta{}
+	copyA.Status, copyB.Status = nil, nil
+	copyA.Meta, copyB.Meta = nil, nil
 
-	return reflect.DeepEqual(&copyA, &copyB)
+	return copyA.EqualVT(copyB)
 }
 
 // TaskStatusesEqualStable compares the task status excluding timestamp fields.
 func TaskStatusesEqualStable(a, b *api.TaskStatus) bool {
-	copyA, copyB := *a, *b
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	copyA, copyB := a.Copy(), b.Copy()
 
 	copyA.Timestamp, copyB.Timestamp = nil, nil
-	return reflect.DeepEqual(&copyA, &copyB)
+	return copyA.EqualVT(copyB)
 }
 
 // RootCAEqualStable compares RootCAs, excluding join tokens, which are randomly generated
@@ -40,28 +48,32 @@ func RootCAEqualStable(a, b *api.RootCA) bool {
 
 	var aRotationKey, bRotationKey []byte
 	if a.RootRotation != nil {
-		aRotationKey = a.RootRotation.CAKey
+		aRotationKey = a.RootRotation.CaKey
 	}
 	if b.RootRotation != nil {
-		bRotationKey = b.RootRotation.CAKey
+		bRotationKey = b.RootRotation.CaKey
 	}
-	if subtle.ConstantTimeCompare(a.CAKey, b.CAKey) != 1 || subtle.ConstantTimeCompare(aRotationKey, bRotationKey) != 1 {
+	if subtle.ConstantTimeCompare(a.CaKey, b.CaKey) != 1 || subtle.ConstantTimeCompare(aRotationKey, bRotationKey) != 1 {
 		return false
 	}
 
-	copyA, copyB := *a, *b
-	copyA.JoinTokens, copyB.JoinTokens = api.JoinTokens{}, api.JoinTokens{}
-	return reflect.DeepEqual(copyA, copyB)
+	copyA, copyB := a.Copy(), b.Copy()
+	copyA.JoinTokens, copyB.JoinTokens = nil, nil
+	return copyA.EqualVT(copyB)
 }
 
 // ExternalCAsEqualStable compares lists of external CAs and determines whether they are equal.
 func ExternalCAsEqualStable(a, b []*api.ExternalCA) bool {
-	// because DeepEqual will treat an empty list and a nil list differently, we want to manually check this first
-	if len(a) == 0 && len(b) == 0 {
-		return true
+	if len(a) != len(b) {
+		return false
 	}
-	// The assumption is that each individual api.ExternalCA within both lists are created from deserializing from a
-	// protobuf, so no special affordances are made to treat a nil map and empty map in the Options field of an
-	// api.ExternalCA as equivalent.
-	return reflect.DeepEqual(a, b)
+	// Protobuf equality considers an unset map and an empty one equal, which is
+	// what we want: both lists are assumed to have been deserialized from the
+	// wire, where that distinction does not survive anyway.
+	for i := range a {
+		if !a[i].EqualVT(b[i]) {
+			return false
+		}
+	}
+	return true
 }

@@ -236,7 +236,7 @@ func (c *Cluster) inspect(ctx context.Context, state nodeState) (types.Swarm, er
 	if err != nil {
 		return types.Swarm{}, err
 	}
-	return convert.SwarmFromGRPC(*s), nil
+	return convert.SwarmFromGRPC(s), nil
 }
 
 // Update updates configuration of a managed swarm cluster.
@@ -265,12 +265,12 @@ func (c *Cluster) Update(version uint64, spec types.Spec, flags swarmbackend.Upd
 		_, err = state.controlClient.UpdateCluster(
 			ctx,
 			&swarmapi.UpdateClusterRequest{
-				ClusterID: swarm.ID,
-				Spec:      &clusterSpec,
+				ClusterId: swarm.Id,
+				Spec:      clusterSpec,
 				ClusterVersion: &swarmapi.Version{
 					Index: version,
 				},
-				Rotation: swarmapi.KeyRotation{
+				Rotation: &swarmapi.KeyRotation{
 					WorkerJoinToken:  flags.RotateWorkerToken,
 					ManagerJoinToken: flags.RotateManagerToken,
 					ManagerUnlockKey: flags.RotateManagerUnlockKey,
@@ -485,7 +485,7 @@ func (c *Cluster) Info(ctx context.Context) types.Info {
 
 	if state.swarmNode != nil {
 		for _, r := range state.swarmNode.Remotes() {
-			info.RemoteManagers = append(info.RemoteManagers, types.Peer{NodeID: r.NodeID, Addr: r.Addr})
+			info.RemoteManagers = append(info.RemoteManagers, types.Peer{NodeID: r.NodeId, Addr: r.Addr})
 		}
 		info.NodeID = state.swarmNode.NodeID()
 	}
@@ -592,9 +592,9 @@ func initClusterSpec(node *swarmnode.Node, spec types.Spec) error {
 				return fmt.Errorf("error updating cluster settings: %v", err)
 			}
 			_, err = client.UpdateCluster(ctx, &swarmapi.UpdateClusterRequest{
-				ClusterID:      cluster.ID,
-				ClusterVersion: &cluster.Meta.Version,
-				Spec:           &clusterSpec,
+				ClusterId:      cluster.Id,
+				ClusterVersion: cluster.Meta.Version,
+				Spec:           clusterSpec,
 			})
 			if err != nil {
 				return fmt.Errorf("error updating cluster settings: %v", err)

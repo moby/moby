@@ -96,11 +96,11 @@ type Conn struct {
 	*grpc.ClientConn
 	isLocal bool
 	remotes remotes.Remotes
-	peer    api.Peer
+	peer    *api.Peer
 }
 
 // Peer returns the peer for this Conn.
-func (c *Conn) Peer() api.Peer {
+func (c *Conn) Peer() *api.Peer {
 	return c.peer
 }
 

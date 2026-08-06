@@ -9,7 +9,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/pkg/authconfig"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
@@ -21,6 +20,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // GetServices returns all services of a managed swarm cluster.
@@ -47,7 +47,7 @@ func (c *Cluster) GetServices(options swarmbackend.ServiceListOptions) ([]swarm.
 
 	filters := &swarmapi.ListServicesRequest_Filters{
 		NamePrefixes: options.Filters.Get("name"),
-		IDPrefixes:   options.Filters.Get("id"),
+		IdPrefixes:   options.Filters.Get("id"),
 		Labels:       convertKVStringsToMap(options.Filters.Get("label")),
 		Runtimes:     options.Filters.Get("runtime"),
 	}
@@ -91,9 +91,9 @@ func (c *Cluster) GetServices(options swarmbackend.ServiceListOptions) ([]swarm.
 				}
 			}
 			if options.Status {
-				serviceIDs = append(serviceIDs, service.ID)
+				serviceIDs = append(serviceIDs, service.Id)
 			}
-			svcs, err := convert.ServiceFromGRPC(*service)
+			svcs, err := convert.ServiceFromGRPC(service)
 			if err != nil {
 				return err
 			}
@@ -123,7 +123,7 @@ func (c *Cluster) GetServices(options swarmbackend.ServiceListOptions) ([]swarm.
 			// convert the status response to an engine api service status here.
 			serviceMap := map[string]*swarm.ServiceStatus{}
 			for _, status := range resp.Statuses {
-				serviceMap[status.ServiceID] = &swarm.ServiceStatus{
+				serviceMap[status.ServiceId] = &swarm.ServiceStatus{
 					RunningTasks:   status.RunningTasks,
 					DesiredTasks:   status.DesiredTasks,
 					CompletedTasks: status.CompletedTasks,
@@ -165,7 +165,7 @@ func (c *Cluster) GetService(input string, insertDefaults bool) (swarm.Service, 
 	}); err != nil {
 		return swarm.Service{}, err
 	}
-	svc, err := convert.ServiceFromGRPC(*service)
+	svc, err := convert.ServiceFromGRPC(service)
 	if err != nil {
 		return swarm.Service{}, err
 	}
@@ -206,12 +206,12 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 				return fmt.Errorf("unsupported runtime type: %q", serviceSpec.Task.GetGeneric().Kind)
 			}
 
-			r, err := state.controlClient.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
+			r, err := state.controlClient.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: serviceSpec})
 			if err != nil {
 				return err
 			}
 
-			resp.ID = r.Service.ID
+			resp.ID = r.Service.Id
 		case *swarmapi.TaskSpec_Container:
 			ctnr := serviceSpec.Task.GetContainer()
 			if ctnr == nil {
@@ -260,12 +260,12 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 				defer cancel()
 			}
 
-			r, err := state.controlClient.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
+			r, err := state.controlClient.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: serviceSpec})
 			if err != nil {
 				return err
 			}
 
-			resp.ID = r.Service.ID
+			resp.ID = r.Service.Id
 		}
 		return nil
 	})
@@ -392,8 +392,8 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 		_, err = state.controlClient.UpdateService(
 			ctx,
 			&swarmapi.UpdateServiceRequest{
-				ServiceID: currentService.ID,
-				Spec:      &serviceSpec,
+				ServiceId: currentService.Id,
+				Spec:      serviceSpec,
 				ServiceVersion: &swarmapi.Version{
 					Index: version,
 				},
@@ -413,7 +413,7 @@ func (c *Cluster) RemoveService(input string) error {
 			return err
 		}
 
-		_, err = state.controlClient.RemoveService(ctx, &swarmapi.RemoveServiceRequest{ServiceID: service.ID})
+		_, err = state.controlClient.RemoveService(ctx, &swarmapi.RemoveServiceRequest{ServiceId: service.Id})
 		return err
 	})
 }
@@ -450,20 +450,16 @@ func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector
 	// set the streams we'll use
 	stdStreams := []swarmapi.LogStream{}
 	if config.ShowStdout {
-		stdStreams = append(stdStreams, swarmapi.LogStreamStdout)
+		stdStreams = append(stdStreams, swarmapi.LogStream_LOG_STREAM_STDOUT)
 	}
 	if config.ShowStderr {
-		stdStreams = append(stdStreams, swarmapi.LogStreamStderr)
+		stdStreams = append(stdStreams, swarmapi.LogStream_LOG_STREAM_STDERR)
 	}
 
 	// get the since value - the time in the past we're looking at logs starting from
-	var sinceProto *gogotypes.Timestamp
+	var sinceProto *timestamppb.Timestamp
 	if !config.Since.IsZero() {
-		var err error
-		sinceProto, err = gogotypes.TimestampProto(config.Since)
-		if err != nil {
-			return nil, errors.Wrap(err, "could not parse timestamp to proto")
-		}
+		sinceProto = timestamppb.New(config.Since)
 	}
 
 	var stream swarmapi.Logs_SubscribeLogsClient
@@ -517,10 +513,7 @@ func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector
 				m := new(backend.LogMessage)
 				m.Attrs = make([]backend.LogAttr, 0, len(msg.Attrs)+3)
 				// add the timestamp, adding the error if it fails
-				m.Timestamp, err = gogotypes.TimestampFromProto(msg.Timestamp)
-				if err != nil {
-					m.Err = err
-				}
+				m.Timestamp = msg.Timestamp.AsTime()
 
 				nodeKey := contextPrefix + ".node.id"
 				serviceKey := contextPrefix + ".service.id"
@@ -538,15 +531,15 @@ func (c *Cluster) ServiceLogs(ctx context.Context, selector *backend.LogSelector
 					}
 				}
 				m.Attrs = append(m.Attrs,
-					backend.LogAttr{Key: nodeKey, Value: msg.Context.NodeID},
-					backend.LogAttr{Key: serviceKey, Value: msg.Context.ServiceID},
-					backend.LogAttr{Key: taskKey, Value: msg.Context.TaskID},
+					backend.LogAttr{Key: nodeKey, Value: msg.Context.NodeId},
+					backend.LogAttr{Key: serviceKey, Value: msg.Context.ServiceId},
+					backend.LogAttr{Key: taskKey, Value: msg.Context.TaskId},
 				)
 
 				switch msg.Stream {
-				case swarmapi.LogStreamStdout:
+				case swarmapi.LogStream_LOG_STREAM_STDOUT:
 					m.Source = "stdout"
-				case swarmapi.LogStreamStderr:
+				case swarmapi.LogStream_LOG_STREAM_STDERR:
 					m.Source = "stderr"
 				default:
 					// TODO(thaJeztah): make switch exhaustive; add swarmapi.LogStreamUnknown
@@ -583,7 +576,7 @@ func convertSelector(ctx context.Context, cc swarmapi.ControlClient, selector *b
 		if c == nil {
 			return nil, errors.New("logs only supported on container tasks")
 		}
-		swarmSelector.ServiceIDs = append(swarmSelector.ServiceIDs, service.ID)
+		swarmSelector.ServiceIds = append(swarmSelector.ServiceIds, service.Id)
 	}
 	for _, t := range selector.Tasks {
 		task, err := getTask(ctx, cc, t)
@@ -594,7 +587,7 @@ func convertSelector(ctx context.Context, cc swarmapi.ControlClient, selector *b
 		if c == nil {
 			return nil, errors.New("logs only supported on container tasks")
 		}
-		swarmSelector.TaskIDs = append(swarmSelector.TaskIDs, task.ID)
+		swarmSelector.TaskIds = append(swarmSelector.TaskIds, task.Id)
 	}
 	return swarmSelector, nil
 }

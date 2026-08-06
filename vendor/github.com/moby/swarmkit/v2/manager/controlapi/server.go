@@ -3,6 +3,7 @@ package controlapi
 import (
 	"errors"
 
+	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/ca"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"github.com/moby/swarmkit/v2/manager/drivers"
@@ -16,6 +17,8 @@ var (
 
 // Server is the Cluster API gRPC server.
 type Server struct {
+	api.UnimplementedControlServer
+
 	store          *store.MemoryStore
 	raft           *raft.Node
 	securityConfig *ca.SecurityConfig

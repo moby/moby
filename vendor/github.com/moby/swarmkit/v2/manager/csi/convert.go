@@ -86,7 +86,7 @@ func makeVolumeInfo(csiVolume *csi.Volume) *api.VolumeInfo {
 	return &api.VolumeInfo{
 		CapacityBytes:      csiVolume.CapacityBytes,
 		VolumeContext:      csiVolume.VolumeContext,
-		VolumeID:           csiVolume.VolumeId,
+		VolumeId:           csiVolume.VolumeId,
 		AccessibleTopology: unmakeTopologies(csiVolume.AccessibleTopology),
 	}
 }

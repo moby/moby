@@ -18,9 +18,9 @@ import (
 func TestHealthStates(t *testing.T) {
 	// set up environment: events, task, container ....
 	task := &api.Task{
-		ID:        "id",
-		ServiceID: "sid",
-		Spec: api.TaskSpec{
+		Id:        "id",
+		ServiceId: "sid",
+		Spec: &api.TaskSpec{
 			Runtime: &api.TaskSpec_Container{
 				Container: &api.ContainerSpec{
 					Image: "image_name",
@@ -30,7 +30,7 @@ func TestHealthStates(t *testing.T) {
 				},
 			},
 		},
-		Annotations: api.Annotations{Name: "name"},
+		Annotations: &api.Annotations{Name: "name"},
 	}
 
 	daemon := &daemon.Daemon{

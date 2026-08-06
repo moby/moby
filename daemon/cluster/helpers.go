@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gogo/protobuf/types"
 	"github.com/moby/moby/v2/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 func getSwarm(ctx context.Context, c swarmapi.ControlClient) (*swarmapi.Cluster, error) {
@@ -26,7 +26,7 @@ func getSwarm(ctx context.Context, c swarmapi.ControlClient) (*swarmapi.Cluster,
 
 func getNode(ctx context.Context, c swarmapi.ControlClient, input string) (*swarmapi.Node, error) {
 	// GetNode to match via full ID.
-	if rg, err := c.GetNode(ctx, &swarmapi.GetNodeRequest{NodeID: input}); err == nil {
+	if rg, err := c.GetNode(ctx, &swarmapi.GetNodeRequest{NodeId: input}); err == nil {
 		return rg.Node, nil
 	}
 
@@ -40,7 +40,7 @@ func getNode(ctx context.Context, c swarmapi.ControlClient, input string) (*swar
 		// If any error or 0 result, ListNodes to match via ID prefix.
 		rl, err = c.ListNodes(ctx, &swarmapi.ListNodesRequest{
 			Filters: &swarmapi.ListNodesRequest_Filters{
-				IDPrefixes: []string{input},
+				IdPrefixes: []string{input},
 			},
 		})
 	}
@@ -62,7 +62,7 @@ func getNode(ctx context.Context, c swarmapi.ControlClient, input string) (*swar
 
 func getService(ctx context.Context, c swarmapi.ControlClient, input string, insertDefaults bool) (*swarmapi.Service, error) {
 	// GetService to match via full ID.
-	if rg, err := c.GetService(ctx, &swarmapi.GetServiceRequest{ServiceID: input, InsertDefaults: insertDefaults}); err == nil {
+	if rg, err := c.GetService(ctx, &swarmapi.GetServiceRequest{ServiceId: input, InsertDefaults: insertDefaults}); err == nil {
 		return rg.Service, nil
 	}
 
@@ -76,7 +76,7 @@ func getService(ctx context.Context, c swarmapi.ControlClient, input string, ins
 		// If any error or 0 result, ListServices to match via ID prefix.
 		rl, err = c.ListServices(ctx, &swarmapi.ListServicesRequest{
 			Filters: &swarmapi.ListServicesRequest_Filters{
-				IDPrefixes: []string{input},
+				IdPrefixes: []string{input},
 			},
 		})
 	}
@@ -97,7 +97,7 @@ func getService(ctx context.Context, c swarmapi.ControlClient, input string, ins
 		return rl.Services[0], nil
 	}
 
-	rg, err := c.GetService(ctx, &swarmapi.GetServiceRequest{ServiceID: rl.Services[0].ID, InsertDefaults: true})
+	rg, err := c.GetService(ctx, &swarmapi.GetServiceRequest{ServiceId: rl.Services[0].Id, InsertDefaults: true})
 	if err == nil {
 		return rg.Service, nil
 	}
@@ -106,7 +106,7 @@ func getService(ctx context.Context, c swarmapi.ControlClient, input string, ins
 
 func getTask(ctx context.Context, c swarmapi.ControlClient, input string) (*swarmapi.Task, error) {
 	// GetTask to match via full ID.
-	if rg, err := c.GetTask(ctx, &swarmapi.GetTaskRequest{TaskID: input}); err == nil {
+	if rg, err := c.GetTask(ctx, &swarmapi.GetTaskRequest{TaskId: input}); err == nil {
 		return rg.Task, nil
 	}
 
@@ -120,7 +120,7 @@ func getTask(ctx context.Context, c swarmapi.ControlClient, input string) (*swar
 		// If any error or 0 result, ListTasks to match via ID prefix.
 		rl, err = c.ListTasks(ctx, &swarmapi.ListTasksRequest{
 			Filters: &swarmapi.ListTasksRequest_Filters{
-				IDPrefixes: []string{input},
+				IdPrefixes: []string{input},
 			},
 		})
 	}
@@ -142,7 +142,7 @@ func getTask(ctx context.Context, c swarmapi.ControlClient, input string) (*swar
 
 func getSecret(ctx context.Context, c swarmapi.ControlClient, input string) (*swarmapi.Secret, error) {
 	// attempt to lookup secret by full ID
-	if rg, err := c.GetSecret(ctx, &swarmapi.GetSecretRequest{SecretID: input}); err == nil {
+	if rg, err := c.GetSecret(ctx, &swarmapi.GetSecretRequest{SecretId: input}); err == nil {
 		return rg.Secret, nil
 	}
 
@@ -156,7 +156,7 @@ func getSecret(ctx context.Context, c swarmapi.ControlClient, input string) (*sw
 		// If any error or 0 result, ListSecrets to match via ID prefix.
 		rl, err = c.ListSecrets(ctx, &swarmapi.ListSecretsRequest{
 			Filters: &swarmapi.ListSecretsRequest_Filters{
-				IDPrefixes: []string{input},
+				IdPrefixes: []string{input},
 			},
 		})
 	}
@@ -178,7 +178,7 @@ func getSecret(ctx context.Context, c swarmapi.ControlClient, input string) (*sw
 
 func getConfig(ctx context.Context, c swarmapi.ControlClient, input string) (*swarmapi.Config, error) {
 	// attempt to lookup config by full ID
-	if rg, err := c.GetConfig(ctx, &swarmapi.GetConfigRequest{ConfigID: input}); err == nil {
+	if rg, err := c.GetConfig(ctx, &swarmapi.GetConfigRequest{ConfigId: input}); err == nil {
 		return rg.Config, nil
 	}
 
@@ -192,7 +192,7 @@ func getConfig(ctx context.Context, c swarmapi.ControlClient, input string) (*sw
 		// If any error or 0 result, ListConfigs to match via ID prefix.
 		rl, err = c.ListConfigs(ctx, &swarmapi.ListConfigsRequest{
 			Filters: &swarmapi.ListConfigsRequest_Filters{
-				IDPrefixes: []string{input},
+				IdPrefixes: []string{input},
 			},
 		})
 	}
@@ -212,9 +212,9 @@ func getConfig(ctx context.Context, c swarmapi.ControlClient, input string) (*sw
 	return rl.Configs[0], nil
 }
 
-func getNetwork(ctx context.Context, c swarmapi.ControlClient, input string, appdata *types.Any) (*swarmapi.Network, error) {
+func getNetwork(ctx context.Context, c swarmapi.ControlClient, input string, appdata *anypb.Any) (*swarmapi.Network, error) {
 	// GetNetwork to match via full ID.
-	if rg, err := c.GetNetwork(ctx, &swarmapi.GetNetworkRequest{NetworkID: input, Appdata: appdata}); err == nil {
+	if rg, err := c.GetNetwork(ctx, &swarmapi.GetNetworkRequest{NetworkId: input, Appdata: appdata}); err == nil {
 		return rg.Network, nil
 	}
 
@@ -228,7 +228,7 @@ func getNetwork(ctx context.Context, c swarmapi.ControlClient, input string, app
 	if err != nil || len(rl.Networks) == 0 {
 		rl, err = c.ListNetworks(ctx, &swarmapi.ListNetworksRequest{
 			Filters: &swarmapi.ListNetworksRequest_Filters{
-				IDPrefixes: []string{input},
+				IdPrefixes: []string{input},
 			},
 			Appdata: appdata,
 		})
@@ -250,7 +250,7 @@ func getNetwork(ctx context.Context, c swarmapi.ControlClient, input string, app
 
 func getVolume(ctx context.Context, c swarmapi.ControlClient, input string) (*swarmapi.Volume, error) {
 	// GetVolume to match via full ID
-	if v, err := c.GetVolume(ctx, &swarmapi.GetVolumeRequest{VolumeID: input}); err == nil {
+	if v, err := c.GetVolume(ctx, &swarmapi.GetVolumeRequest{VolumeId: input}); err == nil {
 		return v.Volume, nil
 	}
 
@@ -265,7 +265,7 @@ func getVolume(ctx context.Context, c swarmapi.ControlClient, input string) (*sw
 	if err != nil || len(resp.Volumes) == 0 {
 		resp, err = c.ListVolumes(ctx, &swarmapi.ListVolumesRequest{
 			Filters: &swarmapi.ListVolumesRequest_Filters{
-				IDPrefixes: []string{input},
+				IdPrefixes: []string{input},
 			},
 		})
 	}

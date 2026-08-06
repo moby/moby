@@ -80,7 +80,7 @@ func (s *nodeStore) AddUnknown(n *api.Node, expireFunc func()) error {
 	rn := &registeredNode{
 		Node: n,
 	}
-	s.nodes[n.ID] = rn
+	s.nodes[n.Id] = rn
 	rn.Heartbeat = heartbeat.New(s.periodChooser.Choose()*s.gracePeriodMultiplierUnknown, expireFunc)
 	return nil
 }
@@ -109,11 +109,11 @@ func (s *nodeStore) Add(n *api.Node, expireFunc func()) *registeredNode {
 	defer s.mu.Unlock()
 	var attempts int
 	var registered time.Time
-	if existRn, ok := s.nodes[n.ID]; ok {
+	if existRn, ok := s.nodes[n.Id]; ok {
 		attempts = existRn.Attempts
 		registered = existRn.Registered
 		existRn.Heartbeat.Stop()
-		delete(s.nodes, n.ID)
+		delete(s.nodes, n.Id)
 	}
 	if registered.IsZero() {
 		registered = time.Now()
@@ -125,7 +125,7 @@ func (s *nodeStore) Add(n *api.Node, expireFunc func()) *registeredNode {
 		Attempts:   attempts,
 		Disconnect: make(chan struct{}),
 	}
-	s.nodes[n.ID] = rn
+	s.nodes[n.Id] = rn
 	rn.Heartbeat = heartbeat.New(s.periodChooser.Choose()*s.gracePeriodMultiplierNormal, expireFunc)
 	return rn
 }

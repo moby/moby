@@ -1,7 +1,6 @@
 package convert
 
 import (
-	gogotypes "github.com/gogo/protobuf/types"
 	volumetypes "github.com/moby/moby/api/types/volume"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
@@ -19,15 +18,15 @@ func VolumeFromGRPC(v *swarmapi.Volume) volumetypes.Volume {
 	}
 
 	clusterVolume := &volumetypes.ClusterVolume{
-		ID:            v.ID,
+		ID:            v.Id,
 		Spec:          clusterVolumeSpec,
 		PublishStatus: volumePublishStatusFromGRPC(v.PublishStatus),
 		Info:          volumeInfoFromGRPC(v.VolumeInfo),
 	}
 
 	clusterVolume.Version.Index = v.Meta.Version.Index
-	clusterVolume.CreatedAt, _ = gogotypes.TimestampFromProto(v.Meta.CreatedAt)
-	clusterVolume.UpdatedAt, _ = gogotypes.TimestampFromProto(v.Meta.UpdatedAt)
+	clusterVolume.CreatedAt = v.Meta.CreatedAt.AsTime()
+	clusterVolume.UpdatedAt = v.Meta.UpdatedAt.AsTime()
 
 	return volumetypes.Volume{
 		ClusterVolume: clusterVolume,
@@ -50,20 +49,20 @@ func volumeSpecToGRPC(spec volumetypes.ClusterVolumeSpec) *swarmapi.VolumeSpec {
 
 		switch spec.AccessMode.Scope {
 		case volumetypes.ScopeSingleNode:
-			swarmSpec.AccessMode.Scope = swarmapi.VolumeScopeSingleNode
+			swarmSpec.AccessMode.Scope = swarmapi.VolumeAccessMode_SINGLE_NODE
 		case volumetypes.ScopeMultiNode:
-			swarmSpec.AccessMode.Scope = swarmapi.VolumeScopeMultiNode
+			swarmSpec.AccessMode.Scope = swarmapi.VolumeAccessMode_MULTI_NODE
 		}
 
 		switch spec.AccessMode.Sharing {
 		case volumetypes.SharingNone:
-			swarmSpec.AccessMode.Sharing = swarmapi.VolumeSharingNone
+			swarmSpec.AccessMode.Sharing = swarmapi.VolumeAccessMode_NONE
 		case volumetypes.SharingReadOnly:
-			swarmSpec.AccessMode.Sharing = swarmapi.VolumeSharingReadOnly
+			swarmSpec.AccessMode.Sharing = swarmapi.VolumeAccessMode_READ_ONLY
 		case volumetypes.SharingOneWriter:
-			swarmSpec.AccessMode.Sharing = swarmapi.VolumeSharingOneWriter
+			swarmSpec.AccessMode.Sharing = swarmapi.VolumeAccessMode_ONE_WRITER
 		case volumetypes.SharingAll:
-			swarmSpec.AccessMode.Sharing = swarmapi.VolumeSharingAll
+			swarmSpec.AccessMode.Sharing = swarmapi.VolumeAccessMode_ALL
 		}
 
 		if spec.AccessMode.BlockVolume != nil {
@@ -122,11 +121,11 @@ func volumeSpecToGRPC(spec volumetypes.ClusterVolumeSpec) *swarmapi.VolumeSpec {
 	// "active".
 	switch spec.Availability {
 	case volumetypes.AvailabilityActive:
-		swarmSpec.Availability = swarmapi.VolumeAvailabilityActive
+		swarmSpec.Availability = swarmapi.VolumeSpec_ACTIVE
 	case volumetypes.AvailabilityPause:
-		swarmSpec.Availability = swarmapi.VolumeAvailabilityPause
+		swarmSpec.Availability = swarmapi.VolumeSpec_PAUSE
 	case volumetypes.AvailabilityDrain:
-		swarmSpec.Availability = swarmapi.VolumeAvailabilityDrain
+		swarmSpec.Availability = swarmapi.VolumeSpec_DRAIN
 	}
 
 	return swarmSpec
@@ -142,7 +141,7 @@ func VolumeCreateToGRPC(volume *volumetypes.CreateRequest) *swarmapi.VolumeSpec 
 		swarmSpec = &swarmapi.VolumeSpec{}
 	}
 
-	swarmSpec.Annotations = swarmapi.Annotations{
+	swarmSpec.Annotations = &swarmapi.Annotations{
 		Name:   volume.Name,
 		Labels: volume.Labels,
 	}
@@ -171,7 +170,7 @@ func volumeInfoFromGRPC(info *swarmapi.VolumeInfo) *volumetypes.Info {
 	return &volumetypes.Info{
 		CapacityBytes:      info.CapacityBytes,
 		VolumeContext:      info.VolumeContext,
-		VolumeID:           info.VolumeID,
+		VolumeID:           info.VolumeId,
 		AccessibleTopology: accessibleTopology,
 	}
 }
@@ -196,7 +195,7 @@ func volumePublishStatusFromGRPC(publishStatus []*swarmapi.VolumePublishStatus) 
 		}
 
 		vps[i] = &volumetypes.PublishStatus{
-			NodeID:         status.NodeID,
+			NodeID:         status.NodeId,
 			State:          state,
 			PublishContext: status.PublishContext,
 		}
@@ -213,20 +212,20 @@ func accessModeFromGRPC(accessMode *swarmapi.VolumeAccessMode) *volumetypes.Acce
 	convertedAccessMode := &volumetypes.AccessMode{}
 
 	switch accessMode.Scope {
-	case swarmapi.VolumeScopeSingleNode:
+	case swarmapi.VolumeAccessMode_SINGLE_NODE:
 		convertedAccessMode.Scope = volumetypes.ScopeSingleNode
-	case swarmapi.VolumeScopeMultiNode:
+	case swarmapi.VolumeAccessMode_MULTI_NODE:
 		convertedAccessMode.Scope = volumetypes.ScopeMultiNode
 	}
 
 	switch accessMode.Sharing {
-	case swarmapi.VolumeSharingNone:
+	case swarmapi.VolumeAccessMode_NONE:
 		convertedAccessMode.Sharing = volumetypes.SharingNone
-	case swarmapi.VolumeSharingReadOnly:
+	case swarmapi.VolumeAccessMode_READ_ONLY:
 		convertedAccessMode.Sharing = volumetypes.SharingReadOnly
-	case swarmapi.VolumeSharingOneWriter:
+	case swarmapi.VolumeAccessMode_ONE_WRITER:
 		convertedAccessMode.Sharing = volumetypes.SharingOneWriter
-	case swarmapi.VolumeSharingAll:
+	case swarmapi.VolumeAccessMode_ALL:
 		convertedAccessMode.Sharing = volumetypes.SharingAll
 	}
 
@@ -302,11 +301,11 @@ func capacityRangeFromGRPC(capacity *swarmapi.CapacityRange) *volumetypes.Capaci
 
 func volumeAvailabilityFromGRPC(availability swarmapi.VolumeSpec_VolumeAvailability) volumetypes.Availability {
 	switch availability {
-	case swarmapi.VolumeAvailabilityActive:
+	case swarmapi.VolumeSpec_ACTIVE:
 		return volumetypes.AvailabilityActive
-	case swarmapi.VolumeAvailabilityPause:
+	case swarmapi.VolumeSpec_PAUSE:
 		return volumetypes.AvailabilityPause
-	case swarmapi.VolumeAvailabilityDrain:
+	case swarmapi.VolumeSpec_DRAIN:
 		return volumetypes.AvailabilityDrain
 	default:
 		return volumetypes.AvailabilityDrain

@@ -57,8 +57,10 @@ func filterMatchLabels(match map[string]string, candidates map[string]string) bo
 	return true
 }
 
-func validateAnnotations(m api.Annotations) error {
-	if m.Name == "" {
+func validateAnnotations(m *api.Annotations) error {
+	// Annotations used to be a non-nullable embedded message, so it was
+	// always present; treat an absent one as a missing name.
+	if m.GetName() == "" {
 		return status.Errorf(codes.InvalidArgument, "meta: name must be provided")
 	}
 	if !isValidDNSName.MatchString(m.Name) {
@@ -72,8 +74,8 @@ func validateAnnotations(m api.Annotations) error {
 	return nil
 }
 
-func validateConfigOrSecretAnnotations(m api.Annotations) error {
-	if m.Name == "" {
+func validateConfigOrSecretAnnotations(m *api.Annotations) error {
+	if m.GetName() == "" {
 		return status.Errorf(codes.InvalidArgument, "name must be provided")
 	} else if len(m.Name) > 64 || !isValidConfigOrSecretName.MatchString(m.Name) {
 		// if the name doesn't match the regex

@@ -36,7 +36,7 @@ type subscription struct {
 
 func newSubscription(store *store.MemoryStore, message *api.SubscriptionMessage, changed *watch.Queue) *subscription {
 	return &subscription{
-		id:           message.ID,
+		id:           message.Id,
 		follow:       message.Options != nil && message.Options.Follow,
 		store:        store,
 		message:      message,
@@ -161,28 +161,28 @@ func (s *subscription) match() {
 	selector := s.message.Selector
 
 	add := func(t *api.Task) {
-		if t.NodeID == "" {
-			s.pendingTasks[t.ID] = struct{}{}
+		if t.NodeId == "" {
+			s.pendingTasks[t.Id] = struct{}{}
 			return
 		}
-		if _, ok := s.nodes[t.NodeID]; !ok {
-			s.nodes[t.NodeID] = struct{}{}
+		if _, ok := s.nodes[t.NodeId]; !ok {
+			s.nodes[t.NodeId] = struct{}{}
 			s.wg.Add(1)
 		}
 	}
 
 	s.store.View(func(tx store.ReadTx) {
-		for _, nid := range selector.NodeIDs {
+		for _, nid := range selector.NodeIds {
 			s.nodes[nid] = struct{}{}
 		}
 
-		for _, tid := range selector.TaskIDs {
+		for _, tid := range selector.TaskIds {
 			if task := store.GetTask(tx, tid); task != nil {
 				add(task)
 			}
 		}
 
-		for _, sid := range selector.ServiceIDs {
+		for _, sid := range selector.ServiceIds {
 			tasks, err := store.FindTasks(tx, store.ByServiceID(sid))
 			if err != nil {
 				log.L.Warning(err)
@@ -190,7 +190,7 @@ func (s *subscription) match() {
 			}
 			for _, task := range tasks {
 				// if we're not following, don't add tasks that aren't running yet
-				if !s.follow && task.Status.State < api.TaskStateRunning {
+				if !s.follow && task.Status.GetState() < api.TaskState_RUNNING {
 					continue
 				}
 				add(task)
@@ -203,12 +203,12 @@ func (s *subscription) watch(ch <-chan events.Event) error {
 	selector := s.message.Selector
 
 	matchTasks := map[string]struct{}{}
-	for _, tid := range selector.TaskIDs {
+	for _, tid := range selector.TaskIds {
 		matchTasks[tid] = struct{}{}
 	}
 
 	matchServices := map[string]struct{}{}
-	for _, sid := range selector.ServiceIDs {
+	for _, sid := range selector.ServiceIds {
 		matchServices[sid] = struct{}{}
 	}
 
@@ -218,15 +218,15 @@ func (s *subscription) watch(ch <-chan events.Event) error {
 		s.mu.Lock()
 
 		// Un-allocated task.
-		if t.NodeID == "" {
-			s.pendingTasks[t.ID] = struct{}{}
+		if t.NodeId == "" {
+			s.pendingTasks[t.Id] = struct{}{}
 			s.mu.Unlock()
 			return
 		}
 
-		delete(s.pendingTasks, t.ID)
-		if _, ok := s.nodes[t.NodeID]; !ok {
-			s.nodes[t.NodeID] = struct{}{}
+		delete(s.pendingTasks, t.Id)
+		if _, ok := s.nodes[t.NodeId]; !ok {
+			s.nodes[t.NodeId] = struct{}{}
 
 			s.mu.Unlock()
 
@@ -258,10 +258,10 @@ func (s *subscription) watch(ch <-chan events.Event) error {
 			panic("received invalid task from the watch queue")
 		}
 
-		if _, ok := matchTasks[t.ID]; ok {
+		if _, ok := matchTasks[t.Id]; ok {
 			add(t)
 		}
-		if _, ok := matchServices[t.ServiceID]; ok {
+		if _, ok := matchServices[t.ServiceId]; ok {
 			add(t)
 		}
 	}
@@ -278,6 +278,5 @@ func (s *subscription) Message() *api.SubscriptionMessage {
 
 	// Return a snapshot of the message to avoid races while it is being
 	// marshaled. See https://github.com/moby/moby/issues/47322.
-	msg := *s.message
-	return &msg
+	return s.message.Copy()
 }

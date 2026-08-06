@@ -8,7 +8,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	"github.com/gogo/protobuf/proto"
 	plugintypes "github.com/moby/moby/api/types/plugin"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
@@ -62,10 +61,10 @@ func NewController(backend Backend, t *api.Task) (*Controller, error) {
 	return &Controller{
 		backend:   backend,
 		spec:      spec,
-		serviceID: t.ServiceID,
+		serviceID: t.ServiceId,
 		logger: log.G(context.TODO()).WithFields(log.Fields{
 			"controller": "plugin",
-			"task":       t.ID,
+			"task":       t.Id,
 			"plugin":     spec.Name,
 		}),
 	}, nil
@@ -75,7 +74,7 @@ func readSpec(t *api.Task) (swarm.RuntimeSpec, error) {
 	var cfg runtime.PluginSpec
 
 	generic := t.Spec.GetGeneric()
-	if err := proto.Unmarshal(generic.Payload.Value, &cfg); err != nil {
+	if err := cfg.Unmarshal(generic.Payload.Value); err != nil {
 		return swarm.RuntimeSpec{}, errors.Wrap(err, "error reading plugin spec")
 	}
 

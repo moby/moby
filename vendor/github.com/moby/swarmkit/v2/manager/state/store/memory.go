@@ -13,11 +13,11 @@ import (
 
 	"github.com/docker/go-events"
 	"github.com/docker/go-metrics"
-	gogotypes "github.com/gogo/protobuf/types"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/state"
 	"github.com/moby/swarmkit/v2/watch"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -251,7 +251,7 @@ type tx struct {
 
 // changelistBetweenVersions returns the changes after "from" up to and
 // including "to".
-func (s *MemoryStore) changelistBetweenVersions(from, to api.Version) ([]api.Event, error) {
+func (s *MemoryStore) changelistBetweenVersions(from, to *api.Version) ([]api.Event, error) {
 	if s.proposer == nil {
 		return nil, errors.New("store does not support versioning")
 	}
@@ -277,7 +277,7 @@ func (s *MemoryStore) changelistBetweenVersions(from, to api.Version) ([]api.Eve
 }
 
 // ApplyStoreActions updates a store based on StoreAction messages.
-func (s *MemoryStore) ApplyStoreActions(actions []api.StoreAction) error {
+func (s *MemoryStore) ApplyStoreActions(actions []*api.StoreAction) error {
 	s.updateLock.Lock()
 	memDBTx := s.memDB.Txn(true)
 
@@ -307,7 +307,7 @@ func (s *MemoryStore) ApplyStoreActions(actions []api.StoreAction) error {
 	return nil
 }
 
-func applyStoreAction(tx Tx, sa api.StoreAction) error {
+func applyStoreAction(tx Tx, sa *api.StoreAction) error {
 	for _, os := range objectStorers {
 		err := os.ApplyStoreAction(tx, sa)
 		if err != errUnknownStoreAction {
@@ -341,7 +341,7 @@ func (s *MemoryStore) update(proposer state.Proposer, cb func(Tx) error) error {
 		if proposer == nil {
 			memDBTx.Commit()
 		} else {
-			var sa []api.StoreAction
+			var sa []*api.StoreAction
 			sa, err = tx.changelistStoreActions()
 
 			if err == nil {
@@ -430,7 +430,7 @@ func (batch *Batch) Update(cb func(Tx) error) error {
 		if err != nil {
 			return err
 		}
-		batch.transactionSizeEstimate += sa.Size()
+		batch.transactionSizeEstimate += sa.SizeVT()
 		batch.changelistLen++
 	}
 
@@ -467,7 +467,7 @@ func (batch *Batch) commit() error {
 	guard <- struct{}{}
 
 	if batch.store.proposer != nil {
-		var sa []api.StoreAction
+		var sa []*api.StoreAction
 		sa, batch.err = batch.tx.changelistStoreActions()
 
 		if batch.err == nil {
@@ -554,8 +554,8 @@ func (tx *tx) init(memDBTx *memdb.Txn, curVersion *api.Version) {
 	tx.changelist = nil
 }
 
-func (tx tx) changelistStoreActions() ([]api.StoreAction, error) {
-	var actions []api.StoreAction
+func (tx tx) changelistStoreActions() ([]*api.StoreAction, error) {
+	var actions []*api.StoreAction
 
 	for _, c := range tx.changelist {
 		sa, err := api.NewStoreAction(c)
@@ -584,21 +584,24 @@ func (tx readTx) lookup(table, index, id string) api.StoreObject {
 // create adds a new object to the store.
 // Returns ErrExist if the ID is already taken.
 func (tx *tx) create(table string, o api.StoreObject) error {
-	if tx.lookup(table, indexID, o.GetID()) != nil {
+	if tx.lookup(table, indexID, o.GetId()) != nil {
 		return ErrExist
 	}
 
 	cp := o.CopyStoreObject()
 	meta := cp.GetMeta()
-	if err := touchMeta(&meta, tx.curVersion); err != nil {
-		return err
+	if meta == nil {
+		meta = &api.Meta{}
 	}
+	touchMeta(meta, tx.curVersion)
 	cp.SetMeta(meta)
 
 	err := tx.memDBTx.Insert(table, cp)
 	if err == nil {
 		tx.changelist = append(tx.changelist, cp.EventCreate())
-		o.SetMeta(meta)
+		// Meta is a pointer now, so the caller has to get its own copy;
+		// sharing it would let a later mutation reach into the store.
+		o.SetMeta(meta.Copy())
 	}
 	return err
 }
@@ -606,29 +609,31 @@ func (tx *tx) create(table string, o api.StoreObject) error {
 // Update updates an existing object in the store.
 // Returns ErrNotExist if the object doesn't exist.
 func (tx *tx) update(table string, o api.StoreObject) error {
-	oldN := tx.lookup(table, indexID, o.GetID())
+	oldN := tx.lookup(table, indexID, o.GetId())
 	if oldN == nil {
 		return ErrNotExist
 	}
 
-	meta := o.GetMeta()
-
 	if tx.curVersion != nil {
-		if oldN.GetMeta().Version != meta.Version {
+		// Compare the version itself: both sides are pointers now, so an
+		// equality check would compare identity rather than the index.
+		if oldN.GetMeta().GetVersion().GetIndex() != o.GetMeta().GetVersion().GetIndex() {
 			return ErrSequenceConflict
 		}
 	}
 
 	cp := o.CopyStoreObject()
-	if err := touchMeta(&meta, tx.curVersion); err != nil {
-		return err
+	meta := cp.GetMeta()
+	if meta == nil {
+		meta = &api.Meta{}
 	}
+	touchMeta(meta, tx.curVersion)
 	cp.SetMeta(meta)
 
 	err := tx.memDBTx.Insert(table, cp)
 	if err == nil {
 		tx.changelist = append(tx.changelist, cp.EventUpdate(oldN))
-		o.SetMeta(meta)
+		o.SetMeta(meta.Copy())
 	}
 	return err
 }
@@ -834,7 +839,7 @@ func (tx readTx) find(table string, by By, checkType func(By) error, appendResul
 					break
 				}
 				o := obj.(api.StoreObject)
-				id := o.GetID()
+				id := o.GetId()
 				if _, exists := ids[id]; !exists {
 					appendResult(o.CopyStoreObject())
 					ids[id] = struct{}{}
@@ -954,7 +959,7 @@ func WatchFrom(store *MemoryStore, version *api.Version, specifiers ...api.Event
 		return nil, nil, errors.New("could not get current version from store")
 	}
 
-	changelist, err := store.changelistBetweenVersions(*version, *curVersion)
+	changelist, err := store.changelistBetweenVersions(version, curVersion)
 	if err != nil {
 		cancelWatch()
 		return nil, nil, err
@@ -995,19 +1000,17 @@ func WatchFrom(store *MemoryStore, version *api.Version, specifiers ...api.Event
 
 // touchMeta updates an object's timestamps when necessary and bumps the version
 // if provided.
-func touchMeta(meta *api.Meta, version *api.Version) error {
+func touchMeta(meta *api.Meta, version *api.Version) {
 	// Skip meta update if version is not defined as it means we're applying
 	// from raft or restoring from a snapshot.
 	if version == nil {
-		return nil
+		return
 	}
 
-	now, err := gogotypes.TimestampProto(time.Now())
-	if err != nil {
-		return err
-	}
+	now := timestamppb.Now()
 
-	meta.Version = *version
+	// Copy rather than share: the transaction's version outlives this object.
+	meta.Version = version.Copy()
 
 	// Updated CreatedAt if not defined
 	if meta.CreatedAt == nil {
@@ -1015,8 +1018,6 @@ func touchMeta(meta *api.Meta, version *api.Version) error {
 	}
 
 	meta.UpdatedAt = now
-
-	return nil
 }
 
 // Wedged returns true if the store lock has been held for a long time,

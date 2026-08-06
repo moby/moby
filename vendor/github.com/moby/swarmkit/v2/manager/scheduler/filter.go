@@ -39,8 +39,8 @@ func (f *ReadyFilter) SetTask(_ *api.Task) bool {
 
 // Check returns true if the task can be scheduled into the given node.
 func (f *ReadyFilter) Check(n *NodeInfo) bool {
-	return n.Status.State == api.NodeStatus_READY &&
-		n.Spec.Availability == api.NodeAvailabilityActive
+	return n.Status.GetState() == api.NodeStatus_READY &&
+		n.Spec.GetAvailability() == api.NodeSpec_ACTIVE
 }
 
 // Explain returns an explanation of a failure.
@@ -59,13 +59,13 @@ type ResourceFilter struct {
 
 // SetTask returns true when the filter is enabled for a given task.
 func (f *ResourceFilter) SetTask(t *api.Task) bool {
-	r := t.Spec.Resources
+	r := t.Spec.GetResources()
 	if r == nil || r.Reservations == nil {
 		return false
 	}
 
 	res := r.Reservations
-	if res.NanoCPUs == 0 && res.MemoryBytes == 0 && len(res.Generic) == 0 {
+	if res.NanoCpus == 0 && res.MemoryBytes == 0 && len(res.Generic) == 0 {
 		return false
 	}
 
@@ -75,7 +75,7 @@ func (f *ResourceFilter) SetTask(t *api.Task) bool {
 
 // Check returns true if the task can be scheduled into the given node.
 func (f *ResourceFilter) Check(n *NodeInfo) bool {
-	if f.reservations.NanoCPUs > n.AvailableResources.NanoCPUs {
+	if f.reservations.NanoCpus > n.AvailableResources.NanoCpus {
 		return false
 	}
 
@@ -106,8 +106,8 @@ type PluginFilter struct {
 	t *api.Task
 }
 
-func referencesVolumePlugin(mount api.Mount) bool {
-	return mount.Type == api.MountTypeVolume &&
+func referencesVolumePlugin(mount *api.Mount) bool {
+	return mount.Type == api.Mount_VOLUME &&
 		mount.VolumeOptions != nil &&
 		mount.VolumeOptions.DriverConfig != nil &&
 		mount.VolumeOptions.DriverConfig.Name != "" &&
@@ -117,7 +117,7 @@ func referencesVolumePlugin(mount api.Mount) bool {
 
 // SetTask returns true when the filter is enabled for a given task.
 func (f *PluginFilter) SetTask(t *api.Task) bool {
-	if len(t.Networks) > 0 || t.Spec.LogDriver != nil {
+	if len(t.Networks) > 0 || t.Spec.GetLogDriver() != nil {
 		f.t = t
 		return true
 	}
@@ -166,10 +166,10 @@ func (f *PluginFilter) Check(n *NodeInfo) bool {
 	// It's possible that the LogDriver object does not carry a name, just some
 	// configuration options. In that case, the plugin filter shouldn't fail to
 	// schedule the task
-	if f.t.Spec.LogDriver != nil && f.t.Spec.LogDriver.Name != "none" && f.t.Spec.LogDriver.Name != "" {
+	if f.t.Spec.GetLogDriver() != nil && f.t.Spec.GetLogDriver().GetName() != "none" && f.t.Spec.GetLogDriver().GetName() != "" {
 		// If there are no log driver types in the list at all, most likely this is
 		// an older daemon that did not report this information. In this case don't filter
-		if typeFound, exists := f.pluginExistsOnNode("Log", f.t.Spec.LogDriver.Name, nodePlugins); !exists && typeFound {
+		if typeFound, exists := f.pluginExistsOnNode("Log", f.t.Spec.GetLogDriver().GetName(), nodePlugins); !exists && typeFound {
 			return false
 		}
 	}
@@ -177,7 +177,7 @@ func (f *PluginFilter) Check(n *NodeInfo) bool {
 }
 
 // pluginExistsOnNode returns true if the (pluginName, pluginType) pair is present in nodePlugins
-func (f *PluginFilter) pluginExistsOnNode(pluginType string, pluginName string, nodePlugins []api.PluginDescription) (bool, bool) {
+func (f *PluginFilter) pluginExistsOnNode(pluginType string, pluginName string, nodePlugins []*api.PluginDescription) (bool, bool) {
 	var typeFound bool
 
 	for _, np := range nodePlugins {
@@ -216,11 +216,11 @@ type ConstraintFilter struct {
 
 // SetTask returns true when the filter is enable for a given task.
 func (f *ConstraintFilter) SetTask(t *api.Task) bool {
-	if t.Spec.Placement == nil || len(t.Spec.Placement.Constraints) == 0 {
+	if t.Spec.GetPlacement() == nil || len(t.Spec.GetPlacement().GetConstraints()) == 0 {
 		return false
 	}
 
-	constraints, err := constraint.Parse(t.Spec.Placement.Constraints)
+	constraints, err := constraint.Parse(t.Spec.GetPlacement().GetConstraints())
 	if err != nil {
 		// constraints have been validated at controlapi
 		// if in any case it finds an error here, treat this task
@@ -251,7 +251,7 @@ type PlatformFilter struct {
 
 // SetTask returns true when the filter is enabled for a given task.
 func (f *PlatformFilter) SetTask(t *api.Task) bool {
-	placement := t.Spec.Placement
+	placement := t.Spec.GetPlacement()
 	if placement != nil {
 		// copy the platform information
 		f.supportedPlatforms = placement.Platforms
@@ -273,7 +273,7 @@ func (f *PlatformFilter) Check(n *NodeInfo) bool {
 	if n.Description != nil {
 		if nodePlatform := n.Description.Platform; nodePlatform != nil {
 			for _, p := range f.supportedPlatforms {
-				if f.platformEqual(*p, *nodePlatform) {
+				if f.platformEqual(p, nodePlatform) {
 					return true
 				}
 			}
@@ -282,24 +282,25 @@ func (f *PlatformFilter) Check(n *NodeInfo) bool {
 	return false
 }
 
-func (f *PlatformFilter) platformEqual(imgPlatform, nodePlatform api.Platform) bool {
-	// normalize "x86_64" architectures to "amd64"
-	if imgPlatform.Architecture == "x86_64" {
-		imgPlatform.Architecture = "amd64"
+// normalizeArch maps the architecture spellings that mean the same thing onto
+// a single one.
+func normalizeArch(arch string) string {
+	switch arch {
+	case "x86_64":
+		return "amd64"
+	case "aarch64":
+		return "arm64"
 	}
-	if nodePlatform.Architecture == "x86_64" {
-		nodePlatform.Architecture = "amd64"
-	}
+	return arch
+}
 
-	// normalize "aarch64" architectures to "arm64"
-	if imgPlatform.Architecture == "aarch64" {
-		imgPlatform.Architecture = "arm64"
-	}
-	if nodePlatform.Architecture == "aarch64" {
-		nodePlatform.Architecture = "arm64"
-	}
+func (f *PlatformFilter) platformEqual(imgPlatform, nodePlatform *api.Platform) bool {
+	// Normalize into locals: these are protobuf messages now, so the filter
+	// must not rewrite the caller's platform.
+	imgArch := normalizeArch(imgPlatform.GetArchitecture())
+	nodeArch := normalizeArch(nodePlatform.GetArchitecture())
 
-	if (imgPlatform.Architecture == "" || imgPlatform.Architecture == nodePlatform.Architecture) && (imgPlatform.OS == "" || imgPlatform.OS == nodePlatform.OS) {
+	if (imgArch == "" || imgArch == nodeArch) && (imgPlatform.GetOs() == "" || imgPlatform.GetOs() == nodePlatform.GetOs()) {
 		return true
 	}
 	return false
@@ -322,7 +323,7 @@ type HostPortFilter struct {
 func (f *HostPortFilter) SetTask(t *api.Task) bool {
 	if t.Endpoint != nil {
 		for _, port := range t.Endpoint.Ports {
-			if port.PublishMode == api.PublishModeHost && port.PublishedPort != 0 {
+			if port.PublishMode == api.PortConfig_HOST && port.PublishedPort != 0 {
 				f.t = t
 				return true
 			}
@@ -335,7 +336,7 @@ func (f *HostPortFilter) SetTask(t *api.Task) bool {
 // Check returns true if the task can be scheduled into the given node.
 func (f *HostPortFilter) Check(n *NodeInfo) bool {
 	for _, port := range f.t.Endpoint.Ports {
-		if port.PublishMode == api.PublishModeHost && port.PublishedPort != 0 {
+		if port.PublishMode == api.PortConfig_HOST && port.PublishedPort != 0 {
 			portSpec := hostPortSpec{protocol: port.Protocol, publishedPort: port.PublishedPort}
 			if _, ok := n.usedHostPorts[portSpec]; ok {
 				return false
@@ -361,7 +362,7 @@ type MaxReplicasFilter struct {
 
 // SetTask returns true when max replicas per node filter > 0 for a given task.
 func (f *MaxReplicasFilter) SetTask(t *api.Task) bool {
-	if t.Spec.Placement != nil && t.Spec.Placement.MaxReplicas > 0 {
+	if t.Spec.GetPlacement() != nil && t.Spec.GetPlacement().GetMaxReplicas() > 0 {
 		f.t = t
 		return true
 	}
@@ -371,7 +372,7 @@ func (f *MaxReplicasFilter) SetTask(t *api.Task) bool {
 
 // Check returns true if there is less active (assigned or pre-assigned) tasks for this service on current node than set to MaxReplicas limit
 func (f *MaxReplicasFilter) Check(n *NodeInfo) bool {
-	return uint64(n.ActiveTasksCountByService[f.t.ServiceID]) < f.t.Spec.Placement.MaxReplicas
+	return uint64(n.ActiveTasksCountByService[f.t.ServiceId]) < f.t.Spec.GetPlacement().GetMaxReplicas()
 }
 
 // Explain returns an explanation of a failure.
@@ -413,9 +414,9 @@ func (f *VolumesFilter) SetTask(t *api.Task) bool {
 	// hasCSI will be set true if one of the mounts is a CSI-type mount.
 	hasCSI := false
 	for _, mount := range c.Mounts {
-		if mount.Type == api.MountTypeCluster {
+		if mount.Type == api.Mount_CLUSTER {
 			hasCSI = true
-			f.requestedVolumes = append(f.requestedVolumes, &mount)
+			f.requestedVolumes = append(f.requestedVolumes, mount)
 		}
 	}
 	return hasCSI

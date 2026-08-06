@@ -37,9 +37,11 @@ func (t templatedSecretGetter) Get(secretID string) (*api.Secret, error) {
 		return secret, errors.Wrapf(err, "failed to expand templated secret %s", secretID)
 	}
 
-	secretCopy := *secret
-	secretCopy.Spec = *newSpec
-	return &secretCopy, nil
+	// ExpandSecretSpec hands back the original spec when there is nothing to
+	// expand, so copy it: the caller must not be able to reach into ours.
+	secretCopy := secret.Copy()
+	secretCopy.Spec = newSpec.Copy()
+	return secretCopy, nil
 }
 
 // TemplatedConfigGetter is a ConfigGetter with an additional method to expose
@@ -90,9 +92,9 @@ func (t templatedConfigGetter) GetAndFlagSecretData(configID string) (*api.Confi
 		return config, false, errors.Wrapf(err, "failed to expand templated config %s", configID)
 	}
 
-	configCopy := *config
-	configCopy.Spec = *newSpec
-	return &configCopy, sensitive, nil
+	configCopy := config.Copy()
+	configCopy.Spec = newSpec.Copy()
+	return configCopy, sensitive, nil
 }
 
 type templatedDependencyGetter struct {

@@ -177,20 +177,20 @@ func TestSetWindowsCredentialSpecInSpec(t *testing.T) {
 		configID := "my-cred-spec"
 
 		dependencyManager := swarmagent.NewDependencyManager(nil)
-		dependencyManager.Configs().Add(swarmapi.Config{
-			ID: configID,
-			Spec: swarmapi.ConfigSpec{
+		dependencyManager.Configs().Add(&swarmapi.Config{
+			Id: configID,
+			Spec: &swarmapi.ConfigSpec{
 				Data: []byte(dummyCredFileContents),
 			},
 		})
 
 		task := &swarmapi.Task{
-			Spec: swarmapi.TaskSpec{
+			Spec: &swarmapi.TaskSpec{
 				Runtime: &swarmapi.TaskSpec_Container{
 					Container: &swarmapi.ContainerSpec{
 						Configs: []*swarmapi.ConfigReference{
 							{
-								ConfigID: configID,
+								ConfigId: configID,
 							},
 						},
 					},

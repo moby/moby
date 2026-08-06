@@ -65,16 +65,16 @@ func assignSecret(a *assignmentSet, readTx store.ReadTx, mapKey typeAndID, t *ap
 	// for the task to allow different values for different tasks.
 	if doNotReuse {
 		// Give the secret a new ID and mark it as internal
-		originalSecretID := secret.ID
-		taskSpecificID := identity.CombineTwoIDs(originalSecretID, t.ID)
-		secret.ID = taskSpecificID
+		originalSecretID := secret.Id
+		taskSpecificID := identity.CombineTwoIDs(originalSecretID, t.Id)
+		secret.Id = taskSpecificID
 		secret.Internal = true
 		// Create a new mapKey with the new ID and insert it into the
 		// dependencies map for the task.  This will make the changes map
 		// contain an entry with the new ID rather than the original one.
-		mapKey = typeAndID{objType: mapKey.objType, id: secret.ID}
+		mapKey = typeAndID{objType: mapKey.objType, id: secret.Id}
 		a.tasksUsingDependency[mapKey] = make(map[string]struct{})
-		a.tasksUsingDependency[mapKey][t.ID] = struct{}{}
+		a.tasksUsingDependency[mapKey][t.Id] = struct{}{}
 	}
 	a.changes[mapKey] = &api.AssignmentChange{
 		Assignment: &api.Assignment{
@@ -82,7 +82,7 @@ func assignSecret(a *assignmentSet, readTx store.ReadTx, mapKey typeAndID, t *ap
 				Secret: secret,
 			},
 		},
-		Action: api.AssignmentChange_AssignmentActionUpdate,
+		Action: api.AssignmentChange_UPDATE,
 	}
 }
 
@@ -102,15 +102,15 @@ func assignConfig(a *assignmentSet, readTx store.ReadTx, mapKey typeAndID) {
 				Config: config,
 			},
 		},
-		Action: api.AssignmentChange_AssignmentActionUpdate,
+		Action: api.AssignmentChange_UPDATE,
 	}
 }
 
 func (a *assignmentSet) addTaskDependencies(readTx store.ReadTx, t *api.Task) {
 	// first, we go through all ResourceReferences, which give us the necessary
 	// information about which secrets and configs are in use.
-	for _, resourceRef := range t.Spec.ResourceReferences {
-		mapKey := typeAndID{objType: resourceRef.ResourceType, id: resourceRef.ResourceID}
+	for _, resourceRef := range t.Spec.GetResourceReferences() {
+		mapKey := typeAndID{objType: resourceRef.ResourceType, id: resourceRef.ResourceId}
 		// if there are no tasks using this dependency yet, then we can assign
 		// it.
 		if len(a.tasksUsingDependency[mapKey]) == 0 {
@@ -128,7 +128,7 @@ func (a *assignmentSet) addTaskDependencies(readTx store.ReadTx, t *api.Task) {
 		}
 		// otherwise, we don't need to add a new assignment. we just need to
 		// track the fact that another task is now using this dependency.
-		a.tasksUsingDependency[mapKey][t.ID] = struct{}{}
+		a.tasksUsingDependency[mapKey][t.Id] = struct{}{}
 	}
 
 	var secrets []*api.SecretReference
@@ -138,7 +138,7 @@ func (a *assignmentSet) addTaskDependencies(readTx store.ReadTx, t *api.Task) {
 	}
 
 	for _, secretRef := range secrets {
-		secretID := secretRef.SecretID
+		secretID := secretRef.SecretId
 		mapKey := typeAndID{objType: api.ResourceType_SECRET, id: secretID}
 
 		// This checks for the presence of each task in the dependency map for the
@@ -146,10 +146,10 @@ func (a *assignmentSet) addTaskDependencies(readTx store.ReadTx, t *api.Task) {
 		// dependencies do not support driver plugins. Arguably, the same task would
 		// not have the same secret as a dependency more than once, but this check
 		// makes sure the task only gets the secret assigned once.
-		if _, exists := a.tasksUsingDependency[mapKey][t.ID]; !exists {
+		if _, exists := a.tasksUsingDependency[mapKey][t.Id]; !exists {
 			assignSecret(a, readTx, mapKey, t)
 		}
-		a.tasksUsingDependency[mapKey][t.ID] = struct{}{}
+		a.tasksUsingDependency[mapKey][t.Id] = struct{}{}
 	}
 
 	var configs []*api.ConfigReference
@@ -157,13 +157,13 @@ func (a *assignmentSet) addTaskDependencies(readTx store.ReadTx, t *api.Task) {
 		configs = container.Configs
 	}
 	for _, configRef := range configs {
-		configID := configRef.ConfigID
+		configID := configRef.ConfigId
 		mapKey := typeAndID{objType: api.ResourceType_CONFIG, id: configID}
 
 		if len(a.tasksUsingDependency[mapKey]) == 0 {
 			assignConfig(a, readTx, mapKey)
 		}
-		a.tasksUsingDependency[mapKey][t.ID] = struct{}{}
+		a.tasksUsingDependency[mapKey][t.Id] = struct{}{}
 	}
 }
 
@@ -176,7 +176,7 @@ func (a *assignmentSet) releaseDependency(mapKey typeAndID, assignment *api.Assi
 	delete(a.tasksUsingDependency, mapKey)
 	a.changes[mapKey] = &api.AssignmentChange{
 		Assignment: assignment,
-		Action:     api.AssignmentChange_AssignmentActionRemove,
+		Action:     api.AssignmentChange_REMOVE,
 	}
 	return true
 }
@@ -186,19 +186,19 @@ func (a *assignmentSet) releaseDependency(mapKey typeAndID, assignment *api.Assi
 func (a *assignmentSet) releaseTaskDependencies(_ store.ReadTx, t *api.Task) bool {
 	var modified bool
 
-	for _, resourceRef := range t.Spec.ResourceReferences {
+	for _, resourceRef := range t.Spec.GetResourceReferences() {
 		var assignment *api.Assignment
 		switch resourceRef.ResourceType {
 		case api.ResourceType_SECRET:
 			assignment = &api.Assignment{
 				Item: &api.Assignment_Secret{
-					Secret: &api.Secret{ID: resourceRef.ResourceID},
+					Secret: &api.Secret{Id: resourceRef.ResourceId},
 				},
 			}
 		case api.ResourceType_CONFIG:
 			assignment = &api.Assignment{
 				Item: &api.Assignment_Config{
-					Config: &api.Config{ID: resourceRef.ResourceID},
+					Config: &api.Config{Id: resourceRef.ResourceId},
 				},
 			}
 		default:
@@ -208,8 +208,8 @@ func (a *assignmentSet) releaseTaskDependencies(_ store.ReadTx, t *api.Task) boo
 			continue
 		}
 
-		mapKey := typeAndID{objType: resourceRef.ResourceType, id: resourceRef.ResourceID}
-		if a.releaseDependency(mapKey, assignment, t.ID) {
+		mapKey := typeAndID{objType: resourceRef.ResourceType, id: resourceRef.ResourceId}
+		if a.releaseDependency(mapKey, assignment, t.Id) {
 			modified = true
 		}
 	}
@@ -222,14 +222,14 @@ func (a *assignmentSet) releaseTaskDependencies(_ store.ReadTx, t *api.Task) boo
 	}
 
 	for _, secretRef := range secrets {
-		secretID := secretRef.SecretID
+		secretID := secretRef.SecretId
 		mapKey := typeAndID{objType: api.ResourceType_SECRET, id: secretID}
 		assignment := &api.Assignment{
 			Item: &api.Assignment_Secret{
-				Secret: &api.Secret{ID: secretID},
+				Secret: &api.Secret{Id: secretID},
 			},
 		}
-		if a.releaseDependency(mapKey, assignment, t.ID) {
+		if a.releaseDependency(mapKey, assignment, t.Id) {
 			modified = true
 		}
 	}
@@ -240,14 +240,14 @@ func (a *assignmentSet) releaseTaskDependencies(_ store.ReadTx, t *api.Task) boo
 	}
 
 	for _, configRef := range configs {
-		configID := configRef.ConfigID
+		configID := configRef.ConfigId
 		mapKey := typeAndID{objType: api.ResourceType_CONFIG, id: configID}
 		assignment := &api.Assignment{
 			Item: &api.Assignment_Config{
-				Config: &api.Config{ID: configID},
+				Config: &api.Config{Id: configID},
 			},
 		}
-		if a.releaseDependency(mapKey, assignment, t.ID) {
+		if a.releaseDependency(mapKey, assignment, t.Id) {
 			modified = true
 		}
 	}
@@ -257,20 +257,20 @@ func (a *assignmentSet) releaseTaskDependencies(_ store.ReadTx, t *api.Task) boo
 
 func (a *assignmentSet) addOrUpdateTask(readTx store.ReadTx, t *api.Task) bool {
 	// We only care about tasks that are ASSIGNED or higher.
-	if t.Status.State < api.TaskStateAssigned {
+	if t.Status.GetState() < api.TaskState_ASSIGNED {
 		return false
 	}
 
-	if oldTask, exists := a.tasksMap[t.ID]; exists {
+	if oldTask, exists := a.tasksMap[t.Id]; exists {
 		// States ASSIGNED and below are set by the orchestrator/scheduler,
 		// not the agent, so tasks in these states need to be sent to the
 		// agent even if nothing else has changed.
-		if equality.TasksEqualStable(oldTask, t) && t.Status.State > api.TaskStateAssigned {
+		if equality.TasksEqualStable(oldTask, t) && t.Status.GetState() > api.TaskState_ASSIGNED {
 			// this update should not trigger a task change for the agent
-			a.tasksMap[t.ID] = t
+			a.tasksMap[t.Id] = t
 			// If this task got updated to a final state, let's release
 			// the dependencies that are being used by the task
-			if t.Status.State > api.TaskStateRunning {
+			if t.Status.GetState() > api.TaskState_RUNNING {
 				// If releasing the dependencies caused us to
 				// remove something from the assignment set,
 				// mark one modification.
@@ -278,21 +278,21 @@ func (a *assignmentSet) addOrUpdateTask(readTx store.ReadTx, t *api.Task) bool {
 			}
 			return false
 		}
-	} else if t.Status.State <= api.TaskStateRunning {
+	} else if t.Status.GetState() <= api.TaskState_RUNNING {
 		// If this task wasn't part of the assignment set before, and it's <= RUNNING
 		// add the dependencies it references to the assignment.
 		// Task states > RUNNING are worker reported only, are never created in
 		// a > RUNNING state.
 		a.addTaskDependencies(readTx, t)
 	}
-	a.tasksMap[t.ID] = t
-	a.changes[typeAndID{objType: api.ResourceType_TASK, id: t.ID}] = &api.AssignmentChange{
+	a.tasksMap[t.Id] = t
+	a.changes[typeAndID{objType: api.ResourceType_TASK, id: t.Id}] = &api.AssignmentChange{
 		Assignment: &api.Assignment{
 			Item: &api.Assignment_Task{
 				Task: t,
 			},
 		},
-		Action: api.AssignmentChange_AssignmentActionUpdate,
+		Action: api.AssignmentChange_UPDATE,
 	}
 	return true
 }
@@ -301,7 +301,7 @@ func (a *assignmentSet) addOrUpdateTask(readTx store.ReadTx, t *api.Task) bool {
 func (a *assignmentSet) addOrUpdateVolume(readTx store.ReadTx, v *api.Volume) bool {
 	var publishStatus *api.VolumePublishStatus
 	for _, status := range v.PublishStatus {
-		if status.NodeID == a.nodeID {
+		if status.NodeId == a.nodeID {
 			publishStatus = status
 			break
 		}
@@ -316,7 +316,7 @@ func (a *assignmentSet) addOrUpdateVolume(readTx store.ReadTx, v *api.Volume) bo
 
 	// check if we are already tracking this volume, and what its old status
 	// is. if the states are identical, then we don't have any update to make.
-	if oldStatus, ok := a.volumesMap[v.ID]; ok && oldStatus.State == publishStatus.State {
+	if oldStatus, ok := a.volumesMap[v.Id]; ok && oldStatus.State == publishStatus.State {
 		return false
 	}
 
@@ -326,7 +326,7 @@ func (a *assignmentSet) addOrUpdateVolume(readTx store.ReadTx, v *api.Volume) bo
 		return a.removeVolume(readTx, v)
 	}
 
-	for _, secret := range v.Spec.Secrets {
+	for _, secret := range v.Spec.GetSecrets() {
 		mapKey := typeAndID{objType: api.ResourceType_SECRET, id: secret.Secret}
 		if len(a.tasksUsingDependency[mapKey]) == 0 {
 			// we can call assignSecret with task being nil, but it does mean
@@ -334,23 +334,23 @@ func (a *assignmentSet) addOrUpdateVolume(readTx store.ReadTx, v *api.Volume) bo
 			// that a limitation of volumes for now.
 			assignSecret(a, readTx, mapKey, nil)
 		}
-		a.tasksUsingDependency[mapKey][v.ID] = struct{}{}
+		a.tasksUsingDependency[mapKey][v.Id] = struct{}{}
 	}
 
 	// volumes are sent to nodes as VolumeAssignments. This is because a node
 	// needs node-specific information (the PublishContext from
 	// ControllerPublishVolume).
 	assignment := &api.VolumeAssignment{
-		ID:             v.ID,
-		VolumeID:       v.VolumeInfo.VolumeID,
-		Driver:         v.Spec.Driver,
+		Id:             v.Id,
+		VolumeId:       v.VolumeInfo.VolumeId,
+		Driver:         v.Spec.GetDriver(),
 		VolumeContext:  v.VolumeInfo.VolumeContext,
 		PublishContext: publishStatus.PublishContext,
-		AccessMode:     v.Spec.AccessMode,
-		Secrets:        v.Spec.Secrets,
+		AccessMode:     v.Spec.GetAccessMode(),
+		Secrets:        v.Spec.GetSecrets(),
 	}
 
-	volumeKey := typeAndID{objType: api.ResourceType_VOLUME, id: v.ID}
+	volumeKey := typeAndID{objType: api.ResourceType_VOLUME, id: v.Id}
 	// assignmentChange is the whole assignment without the action, which we
 	// will set next
 	assignmentChange := &api.AssignmentChange{
@@ -367,57 +367,57 @@ func (a *assignmentSet) addOrUpdateVolume(readTx store.ReadTx, v *api.Volume) bo
 	// has a volume published; for example, the node may be restarting, and
 	// the in-memory store does not have knowledge of the volume.
 	if publishStatus.State == api.VolumePublishStatus_PENDING_NODE_UNPUBLISH {
-		assignmentChange.Action = api.AssignmentChange_AssignmentActionRemove
+		assignmentChange.Action = api.AssignmentChange_REMOVE
 	} else {
-		assignmentChange.Action = api.AssignmentChange_AssignmentActionUpdate
+		assignmentChange.Action = api.AssignmentChange_UPDATE
 	}
 	a.changes[volumeKey] = assignmentChange
-	a.volumesMap[v.ID] = publishStatus
+	a.volumesMap[v.Id] = publishStatus
 	return true
 }
 
 func (a *assignmentSet) removeVolume(_ store.ReadTx, v *api.Volume) bool {
-	if _, exists := a.volumesMap[v.ID]; !exists {
+	if _, exists := a.volumesMap[v.Id]; !exists {
 		return false
 	}
 
 	modified := false
 
 	// if the volume does exists, we can release its secrets
-	for _, secret := range v.Spec.Secrets {
+	for _, secret := range v.Spec.GetSecrets() {
 		mapKey := typeAndID{objType: api.ResourceType_SECRET, id: secret.Secret}
 		assignment := &api.Assignment{
 			Item: &api.Assignment_Secret{
-				Secret: &api.Secret{ID: secret.Secret},
+				Secret: &api.Secret{Id: secret.Secret},
 			},
 		}
-		if a.releaseDependency(mapKey, assignment, v.ID) {
+		if a.releaseDependency(mapKey, assignment, v.Id) {
 			modified = true
 		}
 	}
 
 	// we don't need to add a removal message. the removal of the
 	// VolumeAssignment will have already happened.
-	delete(a.volumesMap, v.ID)
+	delete(a.volumesMap, v.Id)
 
 	return modified
 }
 
 func (a *assignmentSet) removeTask(readTx store.ReadTx, t *api.Task) bool {
-	if _, exists := a.tasksMap[t.ID]; !exists {
+	if _, exists := a.tasksMap[t.Id]; !exists {
 		return false
 	}
 
-	a.changes[typeAndID{objType: api.ResourceType_TASK, id: t.ID}] = &api.AssignmentChange{
+	a.changes[typeAndID{objType: api.ResourceType_TASK, id: t.Id}] = &api.AssignmentChange{
 		Assignment: &api.Assignment{
 			Item: &api.Assignment_Task{
-				Task: &api.Task{ID: t.ID},
+				Task: &api.Task{Id: t.Id},
 			},
 		},
-		Action: api.AssignmentChange_AssignmentActionRemove,
+		Action: api.AssignmentChange_REMOVE,
 	}
 
-	delete(a.tasksMap, t.ID)
+	delete(a.tasksMap, t.Id)
 
 	// Release the dependencies being used by this task.
 	// Ignoring the return here. We will always mark this as a
@@ -426,8 +426,8 @@ func (a *assignmentSet) removeTask(readTx store.ReadTx, t *api.Task) bool {
 	return true
 }
 
-func (a *assignmentSet) message() api.AssignmentsMessage {
-	var message api.AssignmentsMessage
+func (a *assignmentSet) message() *api.AssignmentsMessage {
+	message := &api.AssignmentsMessage{}
 	for _, change := range a.changes {
 		message.Changes = append(message.Changes, change)
 	}
@@ -448,14 +448,14 @@ func (a *assignmentSet) secret(readTx store.ReadTx, task *api.Task, secretID str
 	if secret == nil {
 		return nil, false, fmt.Errorf("secret not found")
 	}
-	if secret.Spec.Driver == nil {
+	if secret.Spec.GetDriver() == nil {
 		return secret, false, nil
 	}
-	d, err := a.dp.NewSecretDriver(secret.Spec.Driver)
+	d, err := a.dp.NewSecretDriver(secret.Spec.GetDriver())
 	if err != nil {
 		return nil, false, err
 	}
-	value, doNotReuse, err := d.Get(&secret.Spec, task)
+	value, doNotReuse, err := d.Get(secret.Spec, task)
 	if err != nil {
 		return nil, false, err
 	}

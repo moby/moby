@@ -62,7 +62,7 @@ func (tm *taskManager) Close() error {
 	return nil
 }
 
-func (tm *taskManager) Logs(ctx context.Context, options api.LogSubscriptionOptions, publisher exec.LogPublisher) {
+func (tm *taskManager) Logs(ctx context.Context, options *api.LogSubscriptionOptions, publisher exec.LogPublisher) {
 	ctx = log.WithModule(ctx, "taskmanager")
 
 	logCtlr, ok := tm.ctlr.(exec.ControllerLogs)
@@ -141,7 +141,7 @@ func (tm *taskManager) run(ctx context.Context) {
 					case <-ctx.Done(): // not opctx, since that may have been cancelled.
 					}
 
-					if err := tm.reporter.UpdateTaskStatus(ctx, running.ID, status); err != nil {
+					if err := tm.reporter.UpdateTaskStatus(ctx, running.Id, status); err != nil {
 						log.G(ctx).WithError(err).Error("task manager failed to report status to agent")
 					}
 				}
@@ -184,14 +184,16 @@ func (tm *taskManager) run(ctx context.Context) {
 			default:
 			}
 		case status := <-statusq:
-			tm.task.Status = *status
+			// The status is shared with the reporter, so take a copy rather
+			// than aliasing it into the task.
+			tm.task.Status = status.Copy()
 		case task := <-tm.updateq:
 			if equality.TasksEqualStable(task, tm.task) {
 				continue // ignore the update
 			}
 
-			if task.ID != tm.task.ID {
-				log.G(ctx).WithField("task.update.id", task.ID).Error("received update for incorrect task")
+			if task.Id != tm.task.Id {
+				log.G(ctx).WithField("task.update.id", task.Id).Error("received update for incorrect task")
 				continue
 			}
 

@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"go.etcd.io/raft/v3"
 	"go.etcd.io/raft/v3/raftpb"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -68,10 +69,10 @@ func (n *Node) loadAndStart(ctx context.Context, forceNewCluster bool) error {
 
 	// Read logs to fully catch up store
 	var raftNode api.RaftMember
-	if err := raftNode.Unmarshal(waldata.Metadata); err != nil {
+	if err := raftNode.UnmarshalVT(waldata.Metadata); err != nil {
 		return errors.Wrap(err, "failed to unmarshal WAL metadata")
 	}
-	n.Config.ID = raftNode.RaftID
+	n.Config.ID = raftNode.RaftId
 
 	if snapshot != nil {
 		snapCluster, err := n.clusterSnapshot(snapshot.Data)
@@ -80,18 +81,18 @@ func (n *Node) loadAndStart(ctx context.Context, forceNewCluster bool) error {
 		}
 		var bootstrapMembers []*api.RaftMember
 		if forceNewCluster {
-			for _, m := range snapCluster.Members {
-				if m.RaftID != n.Config.ID {
-					n.cluster.RemoveMember(m.RaftID)
+			for _, m := range snapCluster.GetMembers() {
+				if m.RaftId != n.Config.ID {
+					n.cluster.RemoveMember(m.RaftId)
 					continue
 				}
 				bootstrapMembers = append(bootstrapMembers, m)
 			}
 		} else {
-			bootstrapMembers = snapCluster.Members
+			bootstrapMembers = snapCluster.GetMembers()
 		}
 		n.bootstrapMembers = bootstrapMembers
-		for _, removedMember := range snapCluster.Removed {
+		for _, removedMember := range snapCluster.GetRemoved() {
 			n.cluster.RemoveMember(removedMember)
 		}
 	}
@@ -103,13 +104,13 @@ func (n *Node) loadAndStart(ctx context.Context, forceNewCluster bool) error {
 	// before processing the configuration change entries, which could make
 	// us get stuck.
 	for _, ent := range ents {
-		if ent.Index <= st.Commit && ent.Type == raftpb.EntryConfChange {
+		if ent.GetIndex() <= st.GetCommit() && ent.GetType() == raftpb.EntryConfChange {
 			var cc raftpb.ConfChange
-			if err := cc.Unmarshal(ent.Data); err != nil {
+			if err := proto.Unmarshal(ent.Data, &cc); err != nil {
 				return errors.Wrap(err, "failed to unmarshal config change")
 			}
-			if cc.Type == raftpb.ConfChangeRemoveNode {
-				n.cluster.RemoveMember(cc.NodeID)
+			if cc.GetType() == raftpb.ConfChangeRemoveNode {
+				n.cluster.RemoveMember(cc.GetNodeId())
 			}
 		}
 	}
@@ -117,7 +118,7 @@ func (n *Node) loadAndStart(ctx context.Context, forceNewCluster bool) error {
 	if forceNewCluster {
 		// discard the previously uncommitted entries
 		for i, ent := range ents {
-			if ent.Index > st.Commit {
+			if ent.GetIndex() > st.GetCommit() {
 				log.G(ctx).Infof("discarding %d uncommitted WAL entries", len(ents)-i)
 				ents = ents[:i]
 				break
@@ -125,7 +126,7 @@ func (n *Node) loadAndStart(ctx context.Context, forceNewCluster bool) error {
 		}
 
 		// force append the configuration change entries
-		toAppEnts := createConfigChangeEnts(getIDs(snapshot, ents), n.Config.ID, st.Term, st.Commit)
+		toAppEnts := createConfigChangeEnts(getIDs(snapshot, ents), n.Config.ID, st.GetTerm(), st.GetCommit())
 
 		// All members that are being removed as part of the
 		// force-new-cluster process must be added to the
@@ -133,13 +134,13 @@ func (n *Node) loadAndStart(ctx context.Context, forceNewCluster bool) error {
 		// connect to them before processing the configuration
 		// change entries, which could make us get stuck.
 		for _, ccEnt := range toAppEnts {
-			if ccEnt.Type == raftpb.EntryConfChange {
+			if ccEnt.GetType() == raftpb.EntryConfChange {
 				var cc raftpb.ConfChange
-				if err := cc.Unmarshal(ccEnt.Data); err != nil {
+				if err := proto.Unmarshal(ccEnt.Data, &cc); err != nil {
 					return errors.Wrap(err, "error unmarshalling force-new-cluster config change")
 				}
-				if cc.Type == raftpb.ConfChangeRemoveNode {
-					n.cluster.RemoveMember(cc.NodeID)
+				if cc.GetType() == raftpb.ConfChangeRemoveNode {
+					n.cluster.RemoveMember(cc.GetNodeId())
 				}
 			}
 		}
@@ -151,12 +152,12 @@ func (n *Node) loadAndStart(ctx context.Context, forceNewCluster bool) error {
 			log.G(ctx).WithError(err).Fatal("failed to save WAL while forcing new cluster")
 		}
 		if len(toAppEnts) != 0 {
-			st.Commit = toAppEnts[len(toAppEnts)-1].Index
+			st.Commit = new(toAppEnts[len(toAppEnts)-1].GetIndex())
 		}
 	}
 
 	if snapshot != nil {
-		if err := n.raftStore.ApplySnapshot(*snapshot); err != nil {
+		if err := n.raftStore.ApplySnapshot(snapshot); err != nil {
 			return err
 		}
 	}
@@ -168,11 +169,11 @@ func (n *Node) loadAndStart(ctx context.Context, forceNewCluster bool) error {
 
 func (n *Node) newRaftLogs(nodeID string) (raft.Peer, error) {
 	raftNode := &api.RaftMember{
-		RaftID: n.Config.ID,
-		NodeID: nodeID,
+		RaftId: n.Config.ID,
+		NodeId: nodeID,
 		Addr:   n.opts.Addr,
 	}
-	metadata, err := raftNode.Marshal()
+	metadata, err := raftNode.MarshalVT()
 	if err != nil {
 		return raft.Peer{}, errors.Wrap(err, "error marshalling raft node")
 	}
@@ -183,13 +184,16 @@ func (n *Node) newRaftLogs(nodeID string) (raft.Peer, error) {
 	return raft.Peer{ID: n.Config.ID, Context: metadata}, nil
 }
 
-func (n *Node) triggerSnapshot(ctx context.Context, raftConfig api.RaftConfig) {
-	snapshot := api.Snapshot{Version: api.Snapshot_V0}
+func (n *Node) triggerSnapshot(ctx context.Context, raftConfig *api.RaftConfig) {
+	snapshot := &api.Snapshot{
+		Version:    api.Snapshot_V0,
+		Membership: &api.ClusterSnapshot{},
+	}
 	for _, member := range n.cluster.Members() {
 		snapshot.Membership.Members = append(snapshot.Membership.Members,
 			&api.RaftMember{
-				NodeID: member.NodeID,
-				RaftID: member.RaftID,
+				NodeId: member.NodeId,
+				RaftId: member.RaftId,
 				Addr:   member.Addr,
 			})
 	}
@@ -197,8 +201,8 @@ func (n *Node) triggerSnapshot(ctx context.Context, raftConfig api.RaftConfig) {
 
 	viewStarted := make(chan struct{})
 	n.asyncTasks.Add(1)
-	n.snapshotInProgress = make(chan raftpb.SnapshotMetadata, 1) // buffered in case Shutdown is called during the snapshot
-	go func(appliedIndex uint64, snapshotMeta raftpb.SnapshotMetadata) {
+	n.snapshotInProgress = make(chan *raftpb.SnapshotMetadata, 1) // buffered in case Shutdown is called during the snapshot
+	go func(appliedIndex uint64, snapshotMeta *raftpb.SnapshotMetadata) {
 		// Deferred latency capture.
 		defer metrics.StartTimer(snapshotLatencyTimer)()
 
@@ -212,19 +216,19 @@ func (n *Node) triggerSnapshot(ctx context.Context, raftConfig api.RaftConfig) {
 
 			var storeSnapshot *api.StoreSnapshot
 			storeSnapshot, err = n.memoryStore.Save(tx)
-			snapshot.Store = *storeSnapshot
+			snapshot.Store = storeSnapshot
 		})
 		if err != nil {
 			log.G(ctx).WithError(err).Error("failed to read snapshot from store")
 			return
 		}
 
-		d, err := snapshot.Marshal()
+		d, err := snapshot.MarshalVT()
 		if err != nil {
 			log.G(ctx).WithError(err).Error("failed to marshal snapshot")
 			return
 		}
-		snap, err := n.raftStore.CreateSnapshot(appliedIndex, &n.confState, d)
+		snap, err := n.raftStore.CreateSnapshot(appliedIndex, n.confState, d)
 		if err == nil {
 			if err := n.raftLogger.SaveSnapshot(snap); err != nil {
 				log.G(ctx).WithError(err).Error("failed to save snapshot")
@@ -248,16 +252,23 @@ func (n *Node) triggerSnapshot(ctx context.Context, raftConfig api.RaftConfig) {
 	<-viewStarted
 }
 
-func (n *Node) clusterSnapshot(data []byte) (api.ClusterSnapshot, error) {
+func (n *Node) clusterSnapshot(data []byte) (*api.ClusterSnapshot, error) {
 	var snapshot api.Snapshot
-	if err := snapshot.Unmarshal(data); err != nil {
+	if err := snapshot.UnmarshalVT(data); err != nil {
 		return snapshot.Membership, err
 	}
 	if snapshot.Version != api.Snapshot_V0 {
 		return snapshot.Membership, fmt.Errorf("unrecognized snapshot version %d", snapshot.Version)
 	}
 
-	if err := n.memoryStore.Restore(&snapshot.Store); err != nil {
+	// Snapshot.store used to be a non-nullable field. A snapshot that arrives
+	// (from a peer or from disk) without one has to clear the store, exactly as
+	// an empty StoreSnapshot did, rather than panic in the restore path.
+	storeSnapshot := snapshot.Store
+	if storeSnapshot == nil {
+		storeSnapshot = &api.StoreSnapshot{}
+	}
+	if err := n.memoryStore.Restore(storeSnapshot); err != nil {
 		return snapshot.Membership, err
 	}
 

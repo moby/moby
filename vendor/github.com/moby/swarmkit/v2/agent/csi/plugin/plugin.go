@@ -220,7 +220,7 @@ func (np *nodePlugin) NodeStageVolume(ctx context.Context, req *api.VolumeAssign
 	}
 
 	_, err = c.NodeStageVolume(ctx, &csi.NodeStageVolumeRequest{
-		VolumeId:          req.VolumeID,
+		VolumeId:          req.VolumeId,
 		StagingTargetPath: stagingTarget,
 		Secrets:           np.makeSecrets(req),
 		VolumeCapability:  capability.MakeCapability(req.AccessMode),
@@ -236,7 +236,7 @@ func (np *nodePlugin) NodeStageVolume(ctx context.Context, req *api.VolumeAssign
 		stagingPath: stagingTarget,
 	}
 
-	np.volumeMap[req.ID] = v
+	np.volumeMap[req.Id] = v
 
 	log.G(ctx).Infof("volume staged to path %s", stagingTarget)
 	return nil
@@ -252,7 +252,7 @@ func (np *nodePlugin) NodeUnstageVolume(ctx context.Context, req *api.VolumeAssi
 	stagingTarget := stagePath(req)
 
 	// Check arguments
-	if len(req.VolumeID) == 0 {
+	if len(req.VolumeId) == 0 {
 		return status.Error(codes.FailedPrecondition, "VolumeID missing in request")
 	}
 
@@ -263,15 +263,15 @@ func (np *nodePlugin) NodeUnstageVolume(ctx context.Context, req *api.VolumeAssi
 
 	// we must unpublish before we unstage. verify here that the volume is not
 	// published.
-	if v, ok := np.volumeMap[req.ID]; ok {
+	if v, ok := np.volumeMap[req.Id]; ok {
 		if v.isPublished {
-			return status.Errorf(codes.FailedPrecondition, "Volume %s is not unpublished", req.ID)
+			return status.Errorf(codes.FailedPrecondition, "Volume %s is not unpublished", req.Id)
 		}
 		return nil
 	}
 
 	_, err = c.NodeUnstageVolume(ctx, &csi.NodeUnstageVolumeRequest{
-		VolumeId:          req.VolumeID,
+		VolumeId:          req.VolumeId,
 		StagingTargetPath: stagingTarget,
 	})
 	if err != nil {
@@ -279,7 +279,7 @@ func (np *nodePlugin) NodeUnstageVolume(ctx context.Context, req *api.VolumeAssi
 	}
 
 	// if the volume doesn't exist in the volumeMap, deleting has no effect.
-	delete(np.volumeMap, req.ID)
+	delete(np.volumeMap, req.Id)
 	log.G(ctx).Info("volume unstaged")
 
 	return nil
@@ -301,7 +301,7 @@ func (np *nodePlugin) NodePublishVolume(ctx context.Context, req *api.VolumeAssi
 	// requiring staging but does not have a staging path in the map, that is an
 	// error.
 	var stagingPath string
-	if vs, ok := np.volumeMap[req.ID]; ok {
+	if vs, ok := np.volumeMap[req.Id]; ok {
 		stagingPath = vs.stagingPath
 	} else if np.staging {
 		return status.Error(codes.FailedPrecondition, "volume requires staging but was not staged")
@@ -313,7 +313,7 @@ func (np *nodePlugin) NodePublishVolume(ctx context.Context, req *api.VolumeAssi
 	}
 
 	_, err = c.NodePublishVolume(ctx, &csi.NodePublishVolumeRequest{
-		VolumeId:          req.VolumeID,
+		VolumeId:          req.VolumeId,
 		TargetPath:        publishTarget,
 		StagingTargetPath: stagingPath,
 		VolumeCapability:  capability.MakeCapability(req.AccessMode),
@@ -325,10 +325,10 @@ func (np *nodePlugin) NodePublishVolume(ctx context.Context, req *api.VolumeAssi
 		return err
 	}
 
-	status, ok := np.volumeMap[req.ID]
+	status, ok := np.volumeMap[req.Id]
 	if !ok {
 		status = &volumePublishStatus{}
-		np.volumeMap[req.ID] = status
+		np.volumeMap[req.Id] = status
 	}
 
 	status.isPublished = true
@@ -341,7 +341,7 @@ func (np *nodePlugin) NodePublishVolume(ctx context.Context, req *api.VolumeAssi
 
 func (np *nodePlugin) NodeUnpublishVolume(ctx context.Context, req *api.VolumeAssignment) error {
 	// Check arguments
-	if len(req.VolumeID) == 0 {
+	if len(req.VolumeId) == 0 {
 		return status.Error(codes.InvalidArgument, "Volume ID missing in request")
 	}
 
@@ -355,7 +355,7 @@ func (np *nodePlugin) NodeUnpublishVolume(ctx context.Context, req *api.VolumeAs
 	}
 
 	_, err = c.NodeUnpublishVolume(ctx, &csi.NodeUnpublishVolumeRequest{
-		VolumeId:   req.VolumeID,
+		VolumeId:   req.VolumeId,
 		TargetPath: publishTarget,
 	})
 
@@ -363,7 +363,7 @@ func (np *nodePlugin) NodeUnpublishVolume(ctx context.Context, req *api.VolumeAs
 		return err
 	}
 
-	if v, ok := np.volumeMap[req.ID]; ok {
+	if v, ok := np.volumeMap[req.Id]; ok {
 		v.publishedPath = ""
 		v.isPublished = false
 		return nil
@@ -384,7 +384,7 @@ func (np *nodePlugin) makeSecrets(v *api.VolumeAssignment) map[string]string {
 		// TODO(dperny): handle error from Get
 		value, _ := np.secrets.Get(secret.Secret)
 		if value != nil {
-			secrets[secret.Key] = string(value.Spec.Data)
+			secrets[secret.Key] = string(value.Spec.GetData())
 		}
 	}
 
@@ -395,7 +395,7 @@ func (np *nodePlugin) makeSecrets(v *api.VolumeAssignment) map[string]string {
 // object.
 func makeNodeInfo(csiNodeInfo *csi.NodeGetInfoResponse) *api.NodeCSIInfo {
 	return &api.NodeCSIInfo{
-		NodeID:            csiNodeInfo.NodeId,
+		NodeId:            csiNodeInfo.NodeId,
 		MaxVolumesPerNode: csiNodeInfo.MaxVolumesPerNode,
 	}
 }
@@ -405,11 +405,11 @@ func stagePath(v *api.VolumeAssignment) string {
 	// this really just exists so we use the same trick to determine staging
 	// path across multiple methods and can't forget to change it in one place
 	// but not another
-	return filepath.Join(TargetStagePath, v.ID)
+	return filepath.Join(TargetStagePath, v.Id)
 }
 
 // publishPath returns the publishing path for a given volume assignment
 func publishPath(v *api.VolumeAssignment) string {
 	// ditto as stagePath
-	return filepath.Join(TargetPublishPath, v.ID)
+	return filepath.Join(TargetPublishPath, v.Id)
 }

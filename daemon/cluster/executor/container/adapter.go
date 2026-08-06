@@ -15,7 +15,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
-	gogotypes "github.com/gogo/protobuf/types"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/network"
@@ -202,7 +201,7 @@ func (c *containerAdapter) waitNodeAttachments(ctx context.Context) error {
 			// drivers, but i also don't think other network drivers use the
 			// node attachment IP address.
 			if nw.DriverState.Name == "overlay" {
-				if _, exists := attachmentStore.GetIPForNetwork(nw.ID); !exists {
+				if _, exists := attachmentStore.GetIPForNetwork(nw.Id); !exists {
 					ready = false
 				}
 			}
@@ -248,7 +247,7 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 	)
 
 	for name, nw := range c.container.networks {
-		if err := c.backend.DeleteManagedNetwork(nw.ID); err != nil {
+		if err := c.backend.DeleteManagedNetwork(nw.Id); err != nil {
 			switch {
 			case errors.As(err, &activeEndpointsError):
 				continue
@@ -365,7 +364,7 @@ func (c *containerAdapter) checkMounts() error {
 	spec := c.container.spec()
 	for _, mount := range spec.Mounts {
 		switch mount.Type {
-		case api.MountTypeBind:
+		case api.Mount_BIND:
 			if _, err := os.Stat(mount.Source); os.IsNotExist(err) {
 				return fmt.Errorf("invalid bind mount source, source path not found: %s", mount.Source)
 			}
@@ -463,7 +462,7 @@ func (c *containerAdapter) remove(ctx context.Context) error {
 func (c *containerAdapter) createVolumes(ctx context.Context) error {
 	// Create plugin volumes that are embedded inside a Mount
 	for _, mount := range c.container.task.Spec.GetContainer().Mounts {
-		if mount.Type != api.MountTypeVolume {
+		if mount.Type != api.Mount_VOLUME {
 			continue
 		}
 
@@ -475,7 +474,7 @@ func (c *containerAdapter) createVolumes(ctx context.Context) error {
 			continue
 		}
 
-		req := c.container.volumeCreateRequest(&mount)
+		req := c.container.volumeCreateRequest(mount)
 
 		// Check if this volume exists on the engine
 		if _, err := c.volumeBackend.Create(ctx, req.Name, req.Driver,
@@ -505,7 +504,7 @@ func (c *containerAdapter) waitClusterVolumes(ctx context.Context) error {
 			default:
 				// continue through the code.
 			}
-			path, err := c.dependencies.Volumes().Get(attached.ID)
+			path, err := c.dependencies.Volumes().Get(attached.Id)
 			if err == nil && path != "" {
 				// break out of the inner-most loop
 				break
@@ -524,7 +523,7 @@ func (c *containerAdapter) deactivateServiceBinding() error {
 	return c.backend.DeactivateContainerServiceBinding(c.container.name())
 }
 
-func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (<-chan *backend.LogMessage, error) {
+func (c *containerAdapter) logs(ctx context.Context, options *api.LogSubscriptionOptions) (<-chan *backend.LogMessage, error) {
 	apiOptions := &backend.ContainerLogsOptions{
 		Follow: options.Follow,
 
@@ -536,11 +535,7 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 	}
 
 	if options.Since != nil {
-		since, err := gogotypes.TimestampFromProto(options.Since)
-		if err != nil {
-			return nil, err
-		}
-		apiOptions.Since = since
+		apiOptions.Since = options.Since.AsTime()
 	}
 
 	if options.Tail < 0 {
@@ -556,9 +551,9 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 	} else {
 		for _, stream := range options.Streams {
 			switch stream {
-			case api.LogStreamStdout:
+			case api.LogStream_LOG_STREAM_STDOUT:
 				apiOptions.ShowStdout = true
-			case api.LogStreamStderr:
+			case api.LogStream_LOG_STREAM_STDERR:
 				apiOptions.ShowStderr = true
 			default:
 				// TODO(thaJeztah): make switch exhaustive; add api.LogStreamUnknown

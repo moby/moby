@@ -36,7 +36,7 @@ func TestWaitNodeAttachment(t *testing.T) {
 		networks: map[string]*api.Network{
 			// network1 is already present in the attachment store.
 			"network1": {
-				ID: "network1",
+				Id: "network1",
 				DriverState: &api.Driver{
 					Name: "overlay",
 				},
@@ -44,7 +44,7 @@ func TestWaitNodeAttachment(t *testing.T) {
 			// network2 is not yet present in the attachment store, and we
 			// should block while waiting for it.
 			"network2": {
-				ID: "network2",
+				Id: "network2",
 				DriverState: &api.Driver{
 					Name: "overlay",
 				},
@@ -53,7 +53,7 @@ func TestWaitNodeAttachment(t *testing.T) {
 			// but we should not block on it, because it is not an overlay
 			// network
 			"localnetwork": {
-				ID: "localnetwork",
+				Id: "localnetwork",
 				DriverState: &api.Driver{
 					Name: "bridge",
 				},

@@ -34,11 +34,11 @@ func (s *secrets) Get(secretID string) (*api.Secret, error) {
 }
 
 // Add adds one or more secrets to the secret map.
-func (s *secrets) Add(secrets ...api.Secret) {
+func (s *secrets) Add(secrets ...*api.Secret) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, secret := range secrets {
-		s.m[secret.ID] = secret.Copy()
+		s.m[secret.Id] = secret.Copy()
 	}
 }
 
@@ -81,7 +81,7 @@ func (sp *taskRestrictedSecretsProvider) Get(secretID string) (*api.Secret, erro
 		return sp.secrets.Get(secretID)
 	}
 	// For all intents and purposes, the rest of the flow should deal with the original secret ID.
-	secret.ID = secretID
+	secret.Id = secretID
 	return secret, err
 }
 
@@ -93,9 +93,9 @@ func Restrict(secrets exec.SecretGetter, t *api.Task) exec.SecretGetter {
 	container := t.Spec.GetContainer()
 	if container != nil {
 		for _, ref := range container.Secrets {
-			sids[ref.SecretID] = struct{}{}
+			sids[ref.SecretId] = struct{}{}
 		}
 	}
 
-	return &taskRestrictedSecretsProvider{secrets: secrets, secretIDs: sids, taskID: t.ID}
+	return &taskRestrictedSecretsProvider{secrets: secrets, secretIDs: sids, taskID: t.Id}
 }

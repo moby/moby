@@ -119,15 +119,15 @@ func (rm *roleManager) Run(ctx context.Context) {
 		// it can contact the other nodes, and makes an RPC call to request to join the
 		// raft cluster.  The node it contacts will add the node to the raft membership.
 		for _, member := range rm.raft.GetMemberlist() {
-			rm.pendingRemoval[member.NodeID] = struct{}{}
+			rm.pendingRemoval[member.NodeId] = struct{}{}
 		}
 		for _, node := range nodes {
 			// if the node exists, we don't want it removed from the raft membership cluster
 			// necessarily
-			delete(rm.pendingRemoval, node.ID)
+			delete(rm.pendingRemoval, node.Id)
 
 			// reconcile each existing node
-			rm.pendingReconciliation[node.ID] = node
+			rm.pendingReconciliation[node.Id] = node
 			rm.reconcileRole(ctx, node)
 		}
 		for nodeID := range rm.pendingRemoval {
@@ -147,11 +147,11 @@ func (rm *roleManager) Run(ctx context.Context) {
 		case event := <-watcher:
 			switch ev := event.(type) {
 			case api.EventUpdateNode:
-				rm.pendingReconciliation[ev.Node.ID] = ev.Node
+				rm.pendingReconciliation[ev.Node.Id] = ev.Node
 				rm.reconcileRole(ctx, ev.Node)
 			case api.EventDeleteNode:
-				rm.pendingRemoval[ev.Node.ID] = struct{}{}
-				rm.evictRemovedNode(ctx, ev.Node.ID)
+				rm.pendingRemoval[ev.Node.Id] = struct{}{}
+				rm.evictRemovedNode(ctx, ev.Node.Id)
 			}
 			// If any reconciliations or member removals failed, we want to try again, so
 			// make sure that we start the ticker so we can try again and again every
@@ -201,16 +201,16 @@ func (rm *roleManager) removeMember(ctx context.Context, member *membership.Memb
 	// Quorum safeguard - quorum should have been checked before a node was allowed to be demoted, but if in the
 	// intervening time some other node disconnected, removing this node would result in a loss of cluster quorum.
 	// We leave it
-	if !rm.raft.CanRemoveMember(member.RaftID) {
+	if !rm.raft.CanRemoveMember(member.RaftId) {
 		// TODO(aaronl): Retry later
-		log.G(ctx).Debugf("can't demote node %s at this time: removing member from raft would result in a loss of quorum", member.NodeID)
+		log.G(ctx).Debugf("can't demote node %s at this time: removing member from raft would result in a loss of quorum", member.NodeId)
 		return
 	}
 
 	rmCtx, rmCancel := context.WithTimeout(rm.ctx, removalTimeout)
 	defer rmCancel()
 
-	if member.RaftID == rm.raft.Config.ID {
+	if member.RaftId == rm.raft.Config.ID {
 		// Don't use rmCtx, because we expect to lose
 		// leadership, which will cancel this context.
 		log.G(ctx).Info("demoted; transferring leadership")
@@ -220,39 +220,39 @@ func (rm *roleManager) removeMember(ctx context.Context, member *membership.Memb
 		}
 		log.G(ctx).WithError(err).Info("failed to transfer leadership")
 	}
-	if err := rm.raft.RemoveMember(rmCtx, member.RaftID); err != nil {
+	if err := rm.raft.RemoveMember(rmCtx, member.RaftId); err != nil {
 		// TODO(aaronl): Retry later
-		log.G(ctx).WithError(err).Debugf("can't demote node %s at this time", member.NodeID)
+		log.G(ctx).WithError(err).Debugf("can't demote node %s at this time", member.NodeId)
 	}
 }
 
 // reconcileRole looks at the desired role for a node, and if it is being demoted or promoted, updates the
 // node role accordingly.   If the node is being demoted, it also removes the node from the raft cluster membership.
 func (rm *roleManager) reconcileRole(ctx context.Context, node *api.Node) {
-	if node.Role == node.Spec.DesiredRole {
+	if node.Role == node.Spec.GetDesiredRole() {
 		// Nothing to do.
-		delete(rm.pendingReconciliation, node.ID)
+		delete(rm.pendingReconciliation, node.Id)
 		return
 	}
 
 	// Promotion can proceed right away.
-	if node.Spec.DesiredRole == api.NodeRoleManager && node.Role == api.NodeRoleWorker {
+	if node.Spec.GetDesiredRole() == api.NodeRole_MANAGER && node.Role == api.NodeRole_WORKER {
 		err := rm.store.Update(func(tx store.Tx) error {
-			updatedNode := store.GetNode(tx, node.ID)
-			if updatedNode == nil || updatedNode.Spec.DesiredRole != node.Spec.DesiredRole || updatedNode.Role != node.Role {
+			updatedNode := store.GetNode(tx, node.Id)
+			if updatedNode == nil || updatedNode.Spec.GetDesiredRole() != node.Spec.GetDesiredRole() || updatedNode.Role != node.Role {
 				return nil
 			}
-			updatedNode.Role = api.NodeRoleManager
+			updatedNode.Role = api.NodeRole_MANAGER
 			return store.UpdateNode(tx, updatedNode)
 		})
 		if err != nil {
-			log.G(ctx).WithError(err).Errorf("failed to promote node %s", node.ID)
+			log.G(ctx).WithError(err).Errorf("failed to promote node %s", node.Id)
 		} else {
-			delete(rm.pendingReconciliation, node.ID)
+			delete(rm.pendingReconciliation, node.Id)
 		}
-	} else if node.Spec.DesiredRole == api.NodeRoleWorker && node.Role == api.NodeRoleManager {
+	} else if node.Spec.GetDesiredRole() == api.NodeRole_WORKER && node.Role == api.NodeRole_MANAGER {
 		// Check for node in memberlist
-		member := rm.raft.GetMemberByNodeID(node.ID)
+		member := rm.raft.GetMemberByNodeID(node.Id)
 		if member != nil {
 			// We first try to remove the raft node from the raft cluster.  On the next tick, if the node
 			// has been removed from the cluster membership, we then update the store to reflect the fact
@@ -262,18 +262,18 @@ func (rm *roleManager) reconcileRole(ctx context.Context, node *api.Node) {
 		}
 
 		err := rm.store.Update(func(tx store.Tx) error {
-			updatedNode := store.GetNode(tx, node.ID)
-			if updatedNode == nil || updatedNode.Spec.DesiredRole != node.Spec.DesiredRole || updatedNode.Role != node.Role {
+			updatedNode := store.GetNode(tx, node.Id)
+			if updatedNode == nil || updatedNode.Spec.GetDesiredRole() != node.Spec.GetDesiredRole() || updatedNode.Role != node.Role {
 				return nil
 			}
-			updatedNode.Role = api.NodeRoleWorker
+			updatedNode.Role = api.NodeRole_WORKER
 
 			return store.UpdateNode(tx, updatedNode)
 		})
 		if err != nil {
-			log.G(ctx).WithError(err).Errorf("failed to demote node %s", node.ID)
+			log.G(ctx).WithError(err).Errorf("failed to demote node %s", node.Id)
 		} else {
-			delete(rm.pendingReconciliation, node.ID)
+			delete(rm.pendingReconciliation, node.Id)
 		}
 	}
 }

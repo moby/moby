@@ -2,7 +2,7 @@ package validation
 
 import "fmt"
 
-// MaxSecretSize is the maximum byte length of the `Secret.Spec.Data` field.
+// MaxSecretSize is the maximum byte length of the `Secret.Spec.GetData()` field.
 const MaxSecretSize = 500 * 1024 // 500KB
 
 // ValidateSecretPayload validates the secret payload size

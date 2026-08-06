@@ -62,7 +62,7 @@ func (c *Cluster) CreateConfig(s types.ConfigSpec) (string, error) {
 		configSpec := convert.ConfigSpecToGRPC(s)
 
 		r, err := state.controlClient.CreateConfig(ctx,
-			&swarmapi.CreateConfigRequest{Spec: &configSpec})
+			&swarmapi.CreateConfigRequest{Spec: configSpec})
 		if err != nil {
 			return err
 		}
@@ -71,7 +71,7 @@ func (c *Cluster) CreateConfig(s types.ConfigSpec) (string, error) {
 	}); err != nil {
 		return "", err
 	}
-	return resp.Config.ID, nil
+	return resp.Config.Id, nil
 }
 
 // RemoveConfig removes a config from a managed swarm cluster.
@@ -83,7 +83,7 @@ func (c *Cluster) RemoveConfig(input string) error {
 		}
 
 		req := &swarmapi.RemoveConfigRequest{
-			ConfigID: config.ID,
+			ConfigId: config.Id,
 		}
 
 		_, err = state.controlClient.RemoveConfig(ctx, req)
@@ -104,11 +104,11 @@ func (c *Cluster) UpdateConfig(input string, version uint64, spec types.ConfigSp
 
 		_, err = state.controlClient.UpdateConfig(ctx,
 			&swarmapi.UpdateConfigRequest{
-				ConfigID: config.ID,
+				ConfigId: config.Id,
 				ConfigVersion: &swarmapi.Version{
 					Index: version,
 				},
-				Spec: &configSpec,
+				Spec: configSpec,
 			})
 		return err
 	})

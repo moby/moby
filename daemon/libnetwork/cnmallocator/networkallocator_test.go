@@ -8,6 +8,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
+	"google.golang.org/protobuf/proto"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -26,13 +27,13 @@ func TestNew(t *testing.T) {
 func TestAllocateInvalidIPAM(t *testing.T) {
 	na := newNetworkAllocator(t)
 	n := &api.Network{
-		ID: "testID",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test",
 			},
 			DriverConfig: &api.Driver{},
-			IPAM: &api.IPAMOptions{
+			Ipam: &api.IPAMOptions{
 				Driver: &api.Driver{
 					Name: "invalidipam,",
 				},
@@ -46,9 +47,9 @@ func TestAllocateInvalidIPAM(t *testing.T) {
 func TestAllocateInvalidDriver(t *testing.T) {
 	na := newNetworkAllocator(t)
 	n := &api.Network{
-		ID: "testID",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test",
 			},
 			DriverConfig: &api.Driver{
@@ -64,9 +65,9 @@ func TestAllocateInvalidDriver(t *testing.T) {
 func TestNetworkDoubleAllocate(t *testing.T) {
 	na := newNetworkAllocator(t)
 	n := &api.Network{
-		ID: "testID",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test",
 			},
 		},
@@ -83,18 +84,18 @@ func TestAllocateEmptyConfig(t *testing.T) {
 	na1 := newNetworkAllocator(t)
 	na2 := newNetworkAllocator(t)
 	n1 := &api.Network{
-		ID: "testID1",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID1",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test1",
 			},
 		},
 	}
 
 	n2 := &api.Network{
-		ID: "testID2",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID2",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test2",
 			},
 		},
@@ -102,71 +103,71 @@ func TestAllocateEmptyConfig(t *testing.T) {
 
 	err := na1.Allocate(n1)
 	assert.Check(t, err)
-	assert.Check(t, n1.IPAM.Configs != nil)
-	assert.Check(t, is.Equal(len(n1.IPAM.Configs), 1))
-	assert.Check(t, is.Equal(n1.IPAM.Configs[0].Range, ""))
-	assert.Check(t, is.Equal(len(n1.IPAM.Configs[0].Reserved), 0))
+	assert.Check(t, n1.Ipam.Configs != nil)
+	assert.Check(t, is.Equal(len(n1.Ipam.Configs), 1))
+	assert.Check(t, is.Equal(n1.Ipam.Configs[0].Range, ""))
+	assert.Check(t, is.Equal(len(n1.Ipam.Configs[0].Reserved), 0))
 
-	_, subnet11, err := net.ParseCIDR(n1.IPAM.Configs[0].Subnet)
+	_, subnet11, err := net.ParseCIDR(n1.Ipam.Configs[0].Subnet)
 	assert.Check(t, err)
 
-	gwip11 := net.ParseIP(n1.IPAM.Configs[0].Gateway)
+	gwip11 := net.ParseIP(n1.Ipam.Configs[0].Gateway)
 	assert.Check(t, gwip11 != nil)
 
 	err = na1.Allocate(n2)
 	assert.Check(t, err)
-	assert.Check(t, n2.IPAM.Configs != nil)
-	assert.Check(t, is.Equal(len(n2.IPAM.Configs), 1))
-	assert.Check(t, is.Equal(n2.IPAM.Configs[0].Range, ""))
-	assert.Check(t, is.Equal(len(n2.IPAM.Configs[0].Reserved), 0))
+	assert.Check(t, n2.Ipam.Configs != nil)
+	assert.Check(t, is.Equal(len(n2.Ipam.Configs), 1))
+	assert.Check(t, is.Equal(n2.Ipam.Configs[0].Range, ""))
+	assert.Check(t, is.Equal(len(n2.Ipam.Configs[0].Reserved), 0))
 
-	_, subnet21, err := net.ParseCIDR(n2.IPAM.Configs[0].Subnet)
+	_, subnet21, err := net.ParseCIDR(n2.Ipam.Configs[0].Subnet)
 	assert.Check(t, err)
 
-	gwip21 := net.ParseIP(n2.IPAM.Configs[0].Gateway)
+	gwip21 := net.ParseIP(n2.Ipam.Configs[0].Gateway)
 	assert.Check(t, gwip21 != nil)
 
 	// Allocate n1 ans n2 with another allocator instance but in
 	// intentionally reverse order.
 	err = na2.Allocate(n2)
 	assert.Check(t, err)
-	assert.Check(t, n2.IPAM.Configs != nil)
-	assert.Check(t, is.Equal(len(n2.IPAM.Configs), 1))
-	assert.Check(t, is.Equal(n2.IPAM.Configs[0].Range, ""))
-	assert.Check(t, is.Equal(len(n2.IPAM.Configs[0].Reserved), 0))
+	assert.Check(t, n2.Ipam.Configs != nil)
+	assert.Check(t, is.Equal(len(n2.Ipam.Configs), 1))
+	assert.Check(t, is.Equal(n2.Ipam.Configs[0].Range, ""))
+	assert.Check(t, is.Equal(len(n2.Ipam.Configs[0].Reserved), 0))
 
-	_, subnet22, err := net.ParseCIDR(n2.IPAM.Configs[0].Subnet)
+	_, subnet22, err := net.ParseCIDR(n2.Ipam.Configs[0].Subnet)
 	assert.Check(t, err)
 	assert.Check(t, is.DeepEqual(subnet21, subnet22))
 
-	gwip22 := net.ParseIP(n2.IPAM.Configs[0].Gateway)
+	gwip22 := net.ParseIP(n2.Ipam.Configs[0].Gateway)
 	assert.Check(t, is.DeepEqual(gwip21, gwip22))
 
 	err = na2.Allocate(n1)
 	assert.Check(t, err)
-	assert.Check(t, n1.IPAM.Configs != nil)
-	assert.Check(t, is.Equal(len(n1.IPAM.Configs), 1))
-	assert.Check(t, is.Equal(n1.IPAM.Configs[0].Range, ""))
-	assert.Check(t, is.Equal(len(n1.IPAM.Configs[0].Reserved), 0))
+	assert.Check(t, n1.Ipam.Configs != nil)
+	assert.Check(t, is.Equal(len(n1.Ipam.Configs), 1))
+	assert.Check(t, is.Equal(n1.Ipam.Configs[0].Range, ""))
+	assert.Check(t, is.Equal(len(n1.Ipam.Configs[0].Reserved), 0))
 
-	_, subnet12, err := net.ParseCIDR(n1.IPAM.Configs[0].Subnet)
+	_, subnet12, err := net.ParseCIDR(n1.Ipam.Configs[0].Subnet)
 	assert.Check(t, err)
 	assert.Check(t, is.DeepEqual(subnet11, subnet12))
 
-	gwip12 := net.ParseIP(n1.IPAM.Configs[0].Gateway)
+	gwip12 := net.ParseIP(n1.Ipam.Configs[0].Gateway)
 	assert.Check(t, is.DeepEqual(gwip11, gwip12))
 }
 
 func TestAllocateWithOneSubnet(t *testing.T) {
 	na := newNetworkAllocator(t)
 	n := &api.Network{
-		ID: "testID",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test",
 			},
 			DriverConfig: &api.Driver{},
-			IPAM: &api.IPAMOptions{
+			Ipam: &api.IPAMOptions{
 				Driver: &api.Driver{},
 				Configs: []*api.IPAMConfig{
 					{
@@ -179,25 +180,25 @@ func TestAllocateWithOneSubnet(t *testing.T) {
 
 	err := na.Allocate(n)
 	assert.Check(t, err)
-	assert.Check(t, is.Equal(len(n.IPAM.Configs), 1))
-	assert.Check(t, is.Equal(n.IPAM.Configs[0].Range, ""))
-	assert.Check(t, is.Equal(len(n.IPAM.Configs[0].Reserved), 0))
-	assert.Check(t, is.Equal(n.IPAM.Configs[0].Subnet, "192.168.1.0/24"))
+	assert.Check(t, is.Equal(len(n.Ipam.Configs), 1))
+	assert.Check(t, is.Equal(n.Ipam.Configs[0].Range, ""))
+	assert.Check(t, is.Equal(len(n.Ipam.Configs[0].Reserved), 0))
+	assert.Check(t, is.Equal(n.Ipam.Configs[0].Subnet, "192.168.1.0/24"))
 
-	ip := net.ParseIP(n.IPAM.Configs[0].Gateway)
+	ip := net.ParseIP(n.Ipam.Configs[0].Gateway)
 	assert.Check(t, ip != nil)
 }
 
 func TestAllocateWithOneSubnetGateway(t *testing.T) {
 	na := newNetworkAllocator(t)
 	n := &api.Network{
-		ID: "testID",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test",
 			},
 			DriverConfig: &api.Driver{},
-			IPAM: &api.IPAMOptions{
+			Ipam: &api.IPAMOptions{
 				Driver: &api.Driver{},
 				Configs: []*api.IPAMConfig{
 					{
@@ -211,23 +212,23 @@ func TestAllocateWithOneSubnetGateway(t *testing.T) {
 
 	err := na.Allocate(n)
 	assert.Check(t, err)
-	assert.Check(t, is.Equal(len(n.IPAM.Configs), 1))
-	assert.Check(t, is.Equal(n.IPAM.Configs[0].Range, ""))
-	assert.Check(t, is.Equal(len(n.IPAM.Configs[0].Reserved), 0))
-	assert.Check(t, is.Equal(n.IPAM.Configs[0].Subnet, "192.168.1.0/24"))
-	assert.Check(t, is.Equal(n.IPAM.Configs[0].Gateway, "192.168.1.1"))
+	assert.Check(t, is.Equal(len(n.Ipam.Configs), 1))
+	assert.Check(t, is.Equal(n.Ipam.Configs[0].Range, ""))
+	assert.Check(t, is.Equal(len(n.Ipam.Configs[0].Reserved), 0))
+	assert.Check(t, is.Equal(n.Ipam.Configs[0].Subnet, "192.168.1.0/24"))
+	assert.Check(t, is.Equal(n.Ipam.Configs[0].Gateway, "192.168.1.1"))
 }
 
 func TestAllocateWithOneSubnetInvalidGateway(t *testing.T) {
 	na := newNetworkAllocator(t)
 	n := &api.Network{
-		ID: "testID",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test",
 			},
 			DriverConfig: &api.Driver{},
-			IPAM: &api.IPAMOptions{
+			Ipam: &api.IPAMOptions{
 				Driver: &api.Driver{},
 				Configs: []*api.IPAMConfig{
 					{
@@ -249,13 +250,13 @@ func TestAllocateWithOneSubnetInvalidGateway(t *testing.T) {
 func TestAllocateWithSmallSubnet(t *testing.T) {
 	na := newNetworkAllocator(t)
 	n := &api.Network{
-		ID: "testID",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test",
 			},
 			DriverConfig: &api.Driver{},
-			IPAM: &api.IPAMOptions{
+			Ipam: &api.IPAMOptions{
 				Driver: &api.Driver{},
 				Configs: []*api.IPAMConfig{
 					{
@@ -273,13 +274,13 @@ func TestAllocateWithSmallSubnet(t *testing.T) {
 func TestAllocateWithTwoSubnetsNoGateway(t *testing.T) {
 	na := newNetworkAllocator(t)
 	n := &api.Network{
-		ID: "testID",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test",
 			},
 			DriverConfig: &api.Driver{},
-			IPAM: &api.IPAMOptions{
+			Ipam: &api.IPAMOptions{
 				Driver: &api.Driver{},
 				Configs: []*api.IPAMConfig{
 					{
@@ -295,30 +296,30 @@ func TestAllocateWithTwoSubnetsNoGateway(t *testing.T) {
 
 	err := na.Allocate(n)
 	assert.Check(t, err)
-	assert.Check(t, is.Equal(len(n.IPAM.Configs), 2))
-	assert.Check(t, is.Equal(n.IPAM.Configs[0].Range, ""))
-	assert.Check(t, is.Equal(len(n.IPAM.Configs[0].Reserved), 0))
-	assert.Check(t, is.Equal(n.IPAM.Configs[0].Subnet, "192.168.1.0/24"))
-	assert.Check(t, is.Equal(n.IPAM.Configs[1].Range, ""))
-	assert.Check(t, is.Equal(len(n.IPAM.Configs[1].Reserved), 0))
-	assert.Check(t, is.Equal(n.IPAM.Configs[1].Subnet, "192.168.2.0/24"))
+	assert.Check(t, is.Equal(len(n.Ipam.Configs), 2))
+	assert.Check(t, is.Equal(n.Ipam.Configs[0].Range, ""))
+	assert.Check(t, is.Equal(len(n.Ipam.Configs[0].Reserved), 0))
+	assert.Check(t, is.Equal(n.Ipam.Configs[0].Subnet, "192.168.1.0/24"))
+	assert.Check(t, is.Equal(n.Ipam.Configs[1].Range, ""))
+	assert.Check(t, is.Equal(len(n.Ipam.Configs[1].Reserved), 0))
+	assert.Check(t, is.Equal(n.Ipam.Configs[1].Subnet, "192.168.2.0/24"))
 
-	ip := net.ParseIP(n.IPAM.Configs[0].Gateway)
+	ip := net.ParseIP(n.Ipam.Configs[0].Gateway)
 	assert.Check(t, ip != nil)
-	ip = net.ParseIP(n.IPAM.Configs[1].Gateway)
+	ip = net.ParseIP(n.Ipam.Configs[1].Gateway)
 	assert.Check(t, ip != nil)
 }
 
 func TestFree(t *testing.T) {
 	na := newNetworkAllocator(t)
 	n := &api.Network{
-		ID: "testID",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test",
 			},
 			DriverConfig: &api.Driver{},
-			IPAM: &api.IPAMOptions{
+			Ipam: &api.IPAMOptions{
 				Driver: &api.Driver{},
 				Configs: []*api.IPAMConfig{
 					{
@@ -345,13 +346,13 @@ func TestAllocateTaskFree(t *testing.T) {
 	na1 := newNetworkAllocator(t)
 	na2 := newNetworkAllocator(t)
 	n1 := &api.Network{
-		ID: "testID1",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID1",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test1",
 			},
 			DriverConfig: &api.Driver{},
-			IPAM: &api.IPAMOptions{
+			Ipam: &api.IPAMOptions{
 				Driver: &api.Driver{},
 				Configs: []*api.IPAMConfig{
 					{
@@ -364,13 +365,13 @@ func TestAllocateTaskFree(t *testing.T) {
 	}
 
 	n2 := &api.Network{
-		ID: "testID2",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID2",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test2",
 			},
 			DriverConfig: &api.Driver{},
-			IPAM: &api.IPAMOptions{
+			Ipam: &api.IPAMOptions{
 				Driver: &api.Driver{},
 				Configs: []*api.IPAMConfig{
 					{
@@ -516,18 +517,18 @@ func TestAllocateTaskFree(t *testing.T) {
 func TestAllocateService(t *testing.T) {
 	na := newNetworkAllocator(t)
 	n := &api.Network{
-		ID: "testID",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test",
 			},
 		},
 	}
 
 	s := &api.Service{
-		ID: "testID1",
-		Spec: api.ServiceSpec{
-			Task: api.TaskSpec{
+		Id: "testID1",
+		Spec: &api.ServiceSpec{
+			Task: &api.TaskSpec{
 				Networks: []*api.NetworkAttachmentConfig{
 					{
 						Target: "testID",
@@ -551,26 +552,26 @@ func TestAllocateService(t *testing.T) {
 
 	err := na.Allocate(n)
 	assert.Check(t, err)
-	assert.Check(t, n.IPAM.Configs != nil)
-	assert.Check(t, is.Equal(len(n.IPAM.Configs), 1))
-	assert.Check(t, is.Equal(n.IPAM.Configs[0].Range, ""))
-	assert.Check(t, is.Equal(len(n.IPAM.Configs[0].Reserved), 0))
+	assert.Check(t, n.Ipam.Configs != nil)
+	assert.Check(t, is.Equal(len(n.Ipam.Configs), 1))
+	assert.Check(t, is.Equal(n.Ipam.Configs[0].Range, ""))
+	assert.Check(t, is.Equal(len(n.Ipam.Configs[0].Reserved), 0))
 
-	_, subnet, err := net.ParseCIDR(n.IPAM.Configs[0].Subnet)
+	_, subnet, err := net.ParseCIDR(n.Ipam.Configs[0].Subnet)
 	assert.Check(t, err)
 
-	gwip := net.ParseIP(n.IPAM.Configs[0].Gateway)
+	gwip := net.ParseIP(n.Ipam.Configs[0].Gateway)
 	assert.Check(t, gwip != nil)
 
 	err = na.AllocateService(s)
 	assert.Check(t, err)
 	assert.Check(t, is.Len(s.Endpoint.Ports, 0)) // Network allocator is not responsible for allocating ports.
 
-	assert.Check(t, is.Equal(1, len(s.Endpoint.VirtualIPs)))
+	assert.Check(t, is.Equal(1, len(s.Endpoint.VirtualIps)))
 
-	assert.Check(t, is.DeepEqual(s.Endpoint.Spec, s.Spec.Endpoint))
+	assert.Check(t, proto.Equal(s.Endpoint.Spec, s.Spec.Endpoint))
 
-	ip, _, err := net.ParseCIDR(s.Endpoint.VirtualIPs[0].Addr)
+	ip, _, err := net.ParseCIDR(s.Endpoint.VirtualIps[0].Addr)
 	assert.Check(t, err)
 
 	assert.Check(t, is.Equal(true, subnet.Contains(ip)))
@@ -580,9 +581,9 @@ func TestDeallocateServiceAllocateIngressMode(t *testing.T) {
 	na := newNetworkAllocator(t)
 
 	n := &api.Network{
-		ID: "testNetID1",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testNetID1",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test",
 			},
 			Ingress: true,
@@ -593,15 +594,16 @@ func TestDeallocateServiceAllocateIngressMode(t *testing.T) {
 	assert.Check(t, err)
 
 	s := &api.Service{
-		ID: "testID1",
-		Spec: api.ServiceSpec{
+		Id: "testID1",
+		Spec: &api.ServiceSpec{
+			Task: &api.TaskSpec{},
 			Endpoint: &api.EndpointSpec{
 				Ports: []*api.PortConfig{
 					{
 						Name:          "some_tcp",
 						TargetPort:    1234,
 						PublishedPort: 1234,
-						PublishMode:   api.PublishModeIngress,
+						PublishMode:   api.PortConfig_INGRESS,
 					},
 				},
 			},
@@ -609,42 +611,42 @@ func TestDeallocateServiceAllocateIngressMode(t *testing.T) {
 		Endpoint: &api.Endpoint{},
 	}
 
-	s.Endpoint.VirtualIPs = append(s.Endpoint.VirtualIPs,
-		&api.Endpoint_VirtualIP{NetworkID: n.ID})
+	s.Endpoint.VirtualIps = append(s.Endpoint.VirtualIps,
+		&api.Endpoint_VirtualIP{NetworkId: n.Id})
 
 	err = na.AllocateService(s)
 	assert.Check(t, err)
-	assert.Check(t, is.Len(s.Endpoint.VirtualIPs, 1))
+	assert.Check(t, is.Len(s.Endpoint.VirtualIps, 1))
 
 	err = na.DeallocateService(s)
 	assert.Check(t, err)
 	assert.Check(t, is.Len(s.Endpoint.Ports, 0))
-	assert.Check(t, is.Len(s.Endpoint.VirtualIPs, 0))
+	assert.Check(t, is.Len(s.Endpoint.VirtualIps, 0))
 	// Allocate again.
-	s.Endpoint.VirtualIPs = append(s.Endpoint.VirtualIPs,
-		&api.Endpoint_VirtualIP{NetworkID: n.ID})
+	s.Endpoint.VirtualIps = append(s.Endpoint.VirtualIps,
+		&api.Endpoint_VirtualIP{NetworkId: n.Id})
 
 	err = na.AllocateService(s)
 	assert.Check(t, err)
-	assert.Check(t, is.Len(s.Endpoint.VirtualIPs, 1))
+	assert.Check(t, is.Len(s.Endpoint.VirtualIps, 1))
 }
 
 func TestServiceNetworkUpdate(t *testing.T) {
 	na := newNetworkAllocator(t)
 
 	n1 := &api.Network{
-		ID: "testID1",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID1",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test",
 			},
 		},
 	}
 
 	n2 := &api.Network{
-		ID: "testID2",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID2",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test2",
 			},
 		},
@@ -659,9 +661,9 @@ func TestServiceNetworkUpdate(t *testing.T) {
 
 	// Attach a network to a service spec and allocate a service
 	s := &api.Service{
-		ID: "testID1",
-		Spec: api.ServiceSpec{
-			Task: api.TaskSpec{
+		Id: "testID1",
+		Spec: &api.ServiceSpec{
+			Task: &api.TaskSpec{
 				Networks: []*api.NetworkAttachmentConfig{
 					{
 						Target: "testID1",
@@ -669,7 +671,7 @@ func TestServiceNetworkUpdate(t *testing.T) {
 				},
 			},
 			Endpoint: &api.EndpointSpec{
-				Mode: api.ResolutionModeVirtualIP,
+				Mode: api.EndpointSpec_VIP,
 			},
 		},
 	}
@@ -677,7 +679,7 @@ func TestServiceNetworkUpdate(t *testing.T) {
 	err = na.AllocateService(s)
 	assert.Check(t, err)
 	assert.Check(t, na.IsServiceAllocated(s))
-	assert.Check(t, is.Len(s.Endpoint.VirtualIPs, 1))
+	assert.Check(t, is.Len(s.Endpoint.VirtualIps, 1))
 
 	// Now update the same service with another network
 	s.Spec.Task.Networks = append(s.Spec.Task.Networks, &api.NetworkAttachmentConfig{Target: "testID2"})
@@ -687,7 +689,7 @@ func TestServiceNetworkUpdate(t *testing.T) {
 	assert.Check(t, err)
 
 	assert.Check(t, na.IsServiceAllocated(s))
-	assert.Check(t, is.Len(s.Endpoint.VirtualIPs, 2))
+	assert.Check(t, is.Len(s.Endpoint.VirtualIps, 2))
 
 	s.Spec.Task.Networks = s.Spec.Task.Networks[:1]
 
@@ -697,7 +699,7 @@ func TestServiceNetworkUpdate(t *testing.T) {
 	err = na.AllocateService(s)
 	assert.Check(t, err)
 	assert.Check(t, na.IsServiceAllocated(s))
-	assert.Check(t, is.Len(s.Endpoint.VirtualIPs, 1))
+	assert.Check(t, is.Len(s.Endpoint.VirtualIps, 1))
 
 	s.Spec.Task.Networks = s.Spec.Task.Networks[:0]
 	// Check if service needs update with all the networks removed and allocate with updated service spec
@@ -706,7 +708,7 @@ func TestServiceNetworkUpdate(t *testing.T) {
 	err = na.AllocateService(s)
 	assert.Check(t, err)
 	assert.Check(t, na.IsServiceAllocated(s))
-	assert.Check(t, is.Len(s.Endpoint.VirtualIPs, 0))
+	assert.Check(t, is.Len(s.Endpoint.VirtualIps, 0))
 
 	// Attach a network and allocate service
 	s.Spec.Task.Networks = append(s.Spec.Task.Networks, &api.NetworkAttachmentConfig{Target: "testID2"})
@@ -716,7 +718,7 @@ func TestServiceNetworkUpdate(t *testing.T) {
 	assert.Check(t, err)
 
 	assert.Check(t, na.IsServiceAllocated(s))
-	assert.Check(t, is.Len(s.Endpoint.VirtualIPs, 1))
+	assert.Check(t, is.Len(s.Endpoint.VirtualIps, 1))
 }
 
 type mockIpam struct {
@@ -764,13 +766,13 @@ func TestCorrectlyPassIPAMOptions(t *testing.T) {
 	assert.Check(t, err)
 
 	n := &api.Network{
-		ID: "testID",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "testID",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "test",
 			},
 			DriverConfig: &api.Driver{},
-			IPAM: &api.IPAMOptions{
+			Ipam: &api.IPAMOptions{
 				Driver: &api.Driver{
 					Name:    "mockipam",
 					Options: expectedIpamOptions,

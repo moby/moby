@@ -16,14 +16,14 @@ func TestIsolationConversion(t *testing.T) {
 		from swarmapi.ContainerSpec_Isolation
 		to   container.Isolation
 	}{
-		{name: "default", from: swarmapi.ContainerIsolationDefault, to: container.IsolationDefault},
-		{name: "process", from: swarmapi.ContainerIsolationProcess, to: container.IsolationProcess},
-		{name: "hyperv", from: swarmapi.ContainerIsolationHyperV, to: container.IsolationHyperV},
+		{name: "default", from: swarmapi.ContainerSpec_ISOLATION_DEFAULT, to: container.IsolationDefault},
+		{name: "process", from: swarmapi.ContainerSpec_ISOLATION_PROCESS, to: container.IsolationProcess},
+		{name: "hyperv", from: swarmapi.ContainerSpec_ISOLATION_HYPERV, to: container.IsolationHyperV},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			task := swarmapi.Task{
-				Spec: swarmapi.TaskSpec{
+				Spec: &swarmapi.TaskSpec{
 					Runtime: &swarmapi.TaskSpec_Container{
 						Container: &swarmapi.ContainerSpec{
 							Image:     "alpine:latest",
@@ -44,8 +44,8 @@ func TestIsolationConversion(t *testing.T) {
 func TestContainerLabels(t *testing.T) {
 	c := &containerConfig{
 		task: &swarmapi.Task{
-			ID: "real-task.id",
-			Spec: swarmapi.TaskSpec{
+			Id: "real-task.id",
+			Spec: &swarmapi.TaskSpec{
 				Runtime: &swarmapi.TaskSpec_Container{
 					Container: &swarmapi.ContainerSpec{
 						Labels: map[string]string{
@@ -60,13 +60,13 @@ func TestContainerLabels(t *testing.T) {
 					},
 				},
 			},
-			ServiceID: "real-service.id",
+			ServiceId: "real-service.id",
 			Slot:      123,
-			NodeID:    "real-node.id",
-			Annotations: swarmapi.Annotations{
+			NodeId:    "real-node.id",
+			Annotations: &swarmapi.Annotations{
 				Name: "real-service.name.123.real-task.id",
 			},
-			ServiceAnnotations: swarmapi.Annotations{
+			ServiceAnnotations: &swarmapi.Annotations{
 				Name: "real-service.name",
 			},
 		},
@@ -120,10 +120,11 @@ func TestCredentialSpecConversion(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
+	for i := range tests {
+		tc := &tests[i]
 		t.Run(tc.name, func(t *testing.T) {
 			task := swarmapi.Task{
-				Spec: swarmapi.TaskSpec{
+				Spec: &swarmapi.TaskSpec{
 					Runtime: &swarmapi.TaskSpec_Container{
 						Container: &swarmapi.ContainerSpec{
 							Privileges: &swarmapi.Privileges{
@@ -145,16 +146,16 @@ func TestCredentialSpecConversion(t *testing.T) {
 func TestTmpfsConversion(t *testing.T) {
 	tests := []struct {
 		name string
-		from []swarmapi.Mount
+		from []*swarmapi.Mount
 		to   []mount.Mount
 	}{
 		{
 			name: "tmpfs-exec",
-			from: []swarmapi.Mount{
+			from: []*swarmapi.Mount{
 				{
 					Source: "/foo",
 					Target: "/bar",
-					Type:   swarmapi.MountTypeTmpfs,
+					Type:   swarmapi.Mount_TMPFS,
 					TmpfsOptions: &swarmapi.Mount_TmpfsOptions{
 						Options: "[[\"exec\"]]",
 					},
@@ -173,11 +174,11 @@ func TestTmpfsConversion(t *testing.T) {
 		},
 		{
 			name: "tmpfs-noexec",
-			from: []swarmapi.Mount{
+			from: []*swarmapi.Mount{
 				{
 					Source: "/foo",
 					Target: "/bar",
-					Type:   swarmapi.MountTypeTmpfs,
+					Type:   swarmapi.Mount_TMPFS,
 					TmpfsOptions: &swarmapi.Mount_TmpfsOptions{
 						Options: "[[\"noexec\"]]",
 					},
@@ -199,7 +200,7 @@ func TestTmpfsConversion(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			task := swarmapi.Task{
-				Spec: swarmapi.TaskSpec{
+				Spec: &swarmapi.TaskSpec{
 					Runtime: &swarmapi.TaskSpec_Container{
 						Container: &swarmapi.ContainerSpec{
 							Image:  "alpine:latest",

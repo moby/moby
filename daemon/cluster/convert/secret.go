@@ -1,7 +1,8 @@
 package convert
 
 import (
-	gogotypes "github.com/gogo/protobuf/types"
+	"os"
+
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 )
@@ -9,7 +10,7 @@ import (
 // SecretFromGRPC converts a grpc Secret to a Secret.
 func SecretFromGRPC(s *swarmapi.Secret) swarmtypes.Secret {
 	secret := swarmtypes.Secret{
-		ID: s.ID,
+		ID: s.Id,
 		Spec: swarmtypes.SecretSpec{
 			Annotations: annotationsFromGRPC(s.Spec.Annotations),
 			Data:        s.Spec.Data,
@@ -19,8 +20,8 @@ func SecretFromGRPC(s *swarmapi.Secret) swarmtypes.Secret {
 
 	secret.Version.Index = s.Meta.Version.Index
 	// Meta
-	secret.CreatedAt, _ = gogotypes.TimestampFromProto(s.Meta.CreatedAt)
-	secret.UpdatedAt, _ = gogotypes.TimestampFromProto(s.Meta.UpdatedAt)
+	secret.CreatedAt = s.Meta.CreatedAt.AsTime()
+	secret.UpdatedAt = s.Meta.UpdatedAt.AsTime()
 
 	if s.Spec.Templating != nil {
 		secret.Spec.Templating = &swarmtypes.Driver{
@@ -33,9 +34,9 @@ func SecretFromGRPC(s *swarmapi.Secret) swarmtypes.Secret {
 }
 
 // SecretSpecToGRPC converts Secret to a grpc Secret.
-func SecretSpecToGRPC(s swarmtypes.SecretSpec) swarmapi.SecretSpec {
-	spec := swarmapi.SecretSpec{
-		Annotations: swarmapi.Annotations{
+func SecretSpecToGRPC(s swarmtypes.SecretSpec) *swarmapi.SecretSpec {
+	spec := &swarmapi.SecretSpec{
+		Annotations: &swarmapi.Annotations{
 			Name:   s.Name,
 			Labels: s.Labels,
 		},
@@ -59,16 +60,16 @@ func SecretReferencesFromGRPC(s []*swarmapi.SecretReference) []*swarmtypes.Secre
 
 	for _, r := range s {
 		ref := &swarmtypes.SecretReference{
-			SecretID:   r.SecretID,
+			SecretID:   r.SecretId,
 			SecretName: r.SecretName,
 		}
 
 		if t, ok := r.Target.(*swarmapi.SecretReference_File); ok {
 			ref.File = &swarmtypes.SecretReferenceFileTarget{
 				Name: t.File.Name,
-				UID:  t.File.UID,
-				GID:  t.File.GID,
-				Mode: t.File.Mode,
+				UID:  t.File.Uid,
+				GID:  t.File.Gid,
+				Mode: os.FileMode(t.File.Mode),
 			}
 		}
 

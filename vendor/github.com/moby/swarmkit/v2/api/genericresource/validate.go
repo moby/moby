@@ -63,7 +63,7 @@ func HasResource(res *api.GenericResource, resources []*api.GenericResource) boo
 				return false
 			}
 
-			if res.GetDiscreteResourceSpec().Value > rtype.DiscreteResourceSpec.Value {
+			if res.GetDiscreteResourceSpec().GetValue() > rtype.DiscreteResourceSpec.Value {
 				return false
 			}
 
@@ -73,7 +73,7 @@ func HasResource(res *api.GenericResource, resources []*api.GenericResource) boo
 				return false
 			}
 
-			if res.GetNamedResourceSpec().Value != rtype.NamedResourceSpec.Value {
+			if res.GetNamedResourceSpec().GetValue() != rtype.NamedResourceSpec.Value {
 				continue
 			}
 

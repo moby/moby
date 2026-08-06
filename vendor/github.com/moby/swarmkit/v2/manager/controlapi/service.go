@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/distribution/reference"
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/defaults"
 	"github.com/moby/swarmkit/v2/api/genericresource"
@@ -22,6 +21,7 @@ import (
 	"github.com/moby/swarmkit/v2/template"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -37,8 +37,8 @@ func validateResources(r *api.Resources) error {
 		return nil
 	}
 
-	if r.NanoCPUs != 0 && r.NanoCPUs < 1e6 {
-		return status.Errorf(codes.InvalidArgument, "invalid cpu value %g: Must be at least %g", float64(r.NanoCPUs)/1e9, 1e6/1e9)
+	if r.NanoCpus != 0 && r.NanoCpus < 1e6 {
+		return status.Errorf(codes.InvalidArgument, "invalid cpu value %g: Must be at least %g", float64(r.NanoCpus)/1e9, 1e6/1e9)
 	}
 
 	if r.MemoryBytes != 0 && r.MemoryBytes < 4*1024*1024 {
@@ -66,20 +66,20 @@ func validateRestartPolicy(rp *api.RestartPolicy) error {
 	}
 
 	if rp.Delay != nil {
-		delay, err := gogotypes.DurationFromProto(rp.Delay)
-		if err != nil {
+		if err := rp.Delay.CheckValid(); err != nil {
 			return err
 		}
+		delay := rp.Delay.AsDuration()
 		if delay < 0 {
 			return status.Errorf(codes.InvalidArgument, "TaskSpec: restart-delay cannot be negative")
 		}
 	}
 
 	if rp.Window != nil {
-		win, err := gogotypes.DurationFromProto(rp.Window)
-		if err != nil {
+		if err := rp.Window.CheckValid(); err != nil {
 			return err
 		}
+		win := rp.Window.AsDuration()
 		if win < 0 {
 			return status.Errorf(codes.InvalidArgument, "TaskSpec: restart-window cannot be negative")
 		}
@@ -101,15 +101,15 @@ func validateUpdate(uc *api.UpdateConfig) error {
 		return nil
 	}
 
-	if uc.Delay < 0 {
+	if uc.Delay.AsDuration() < 0 {
 		return status.Errorf(codes.InvalidArgument, "TaskSpec: update-delay cannot be negative")
 	}
 
 	if uc.Monitor != nil {
-		monitor, err := gogotypes.DurationFromProto(uc.Monitor)
-		if err != nil {
+		if err := uc.Monitor.CheckValid(); err != nil {
 			return err
 		}
+		monitor := uc.Monitor.AsDuration()
 		if monitor < 0 {
 			return status.Errorf(codes.InvalidArgument, "TaskSpec: update-monitor cannot be negative")
 		}
@@ -122,26 +122,26 @@ func validateUpdate(uc *api.UpdateConfig) error {
 	return nil
 }
 
-func validateContainerSpec(taskSpec api.TaskSpec) error {
+func validateContainerSpec(taskSpec *api.TaskSpec) error {
 	// Building a empty/dummy Task to validate the templating and
 	// the resulting container spec as well. This is a *best effort*
 	// validation.
 	container, err := template.ExpandContainerSpec(&api.NodeDescription{
 		Hostname: "nodeHostname",
 		Platform: &api.Platform{
-			OS:           "os",
+			Os:           "os",
 			Architecture: "architecture",
 		},
 	}, &api.Task{
 		Spec:      taskSpec,
-		ServiceID: "serviceid",
+		ServiceId: "serviceid",
 		Slot:      1,
-		NodeID:    "nodeid",
+		NodeId:    "nodeid",
 		Networks:  []*api.NetworkAttachment{},
-		Annotations: api.Annotations{
+		Annotations: &api.Annotations{
 			Name: "taskname",
 		},
-		ServiceAnnotations: api.Annotations{
+		ServiceAnnotations: &api.Annotations{
 			Name: "servicename",
 		},
 		Endpoint:  &api.Endpoint{},
@@ -175,7 +175,7 @@ func validateImage(image string) error {
 }
 
 // validateMounts validates if there are duplicate mounts in containerSpec
-func validateMounts(mounts []api.Mount) error {
+func validateMounts(mounts []*api.Mount) error {
 	mountMap := make(map[string]bool)
 	for _, mount := range mounts {
 		if _, exists := mountMap[mount.Target]; exists {
@@ -194,40 +194,40 @@ func validateHealthCheck(hc *api.HealthConfig) error {
 	}
 
 	if hc.Interval != nil {
-		interval, err := gogotypes.DurationFromProto(hc.Interval)
-		if err != nil {
+		if err := hc.Interval.CheckValid(); err != nil {
 			return err
 		}
+		interval := hc.Interval.AsDuration()
 		if interval != 0 && interval < minimumDuration {
 			return status.Errorf(codes.InvalidArgument, "ContainerSpec: Interval in HealthConfig cannot be less than %s", minimumDuration)
 		}
 	}
 
 	if hc.Timeout != nil {
-		timeout, err := gogotypes.DurationFromProto(hc.Timeout)
-		if err != nil {
+		if err := hc.Timeout.CheckValid(); err != nil {
 			return err
 		}
+		timeout := hc.Timeout.AsDuration()
 		if timeout != 0 && timeout < minimumDuration {
 			return status.Errorf(codes.InvalidArgument, "ContainerSpec: Timeout in HealthConfig cannot be less than %s", minimumDuration)
 		}
 	}
 
 	if hc.StartPeriod != nil {
-		sp, err := gogotypes.DurationFromProto(hc.StartPeriod)
-		if err != nil {
+		if err := hc.StartPeriod.CheckValid(); err != nil {
 			return err
 		}
+		sp := hc.StartPeriod.AsDuration()
 		if sp != 0 && sp < minimumDuration {
 			return status.Errorf(codes.InvalidArgument, "ContainerSpec: StartPeriod in HealthConfig cannot be less than %s", minimumDuration)
 		}
 	}
 
 	if hc.StartInterval != nil {
-		interval, err := gogotypes.DurationFromProto(hc.StartInterval)
-		if err != nil {
+		if err := hc.StartInterval.CheckValid(); err != nil {
 			return err
 		}
+		interval := hc.StartInterval.AsDuration()
 		if interval != 0 && interval < minimumDuration {
 			return status.Errorf(codes.InvalidArgument, "ContainerSpec: StartInterval in HealthConfig cannot be less than %s", minimumDuration)
 		}
@@ -240,7 +240,7 @@ func validateHealthCheck(hc *api.HealthConfig) error {
 	return nil
 }
 
-func validateGenericRuntimeSpec(taskSpec api.TaskSpec) error {
+func validateGenericRuntimeSpec(taskSpec *api.TaskSpec) error {
 	generic := taskSpec.GetGeneric()
 
 	if len(generic.Kind) < 3 {
@@ -269,7 +269,12 @@ func validateGenericRuntimeSpec(taskSpec api.TaskSpec) error {
 	return nil
 }
 
-func validateTaskSpec(taskSpec api.TaskSpec) error {
+func validateTaskSpec(taskSpec *api.TaskSpec) error {
+	// The task spec used to be a non-nullable embedded message, so it was
+	// always present; an absent one is not a valid service spec.
+	if taskSpec == nil {
+		return status.Error(codes.InvalidArgument, errInvalidArgument.Error())
+	}
 	if err := validateResourceRequirements(taskSpec.Resources); err != nil {
 		return err
 	}
@@ -332,7 +337,7 @@ func validateEndpointSpec(epSpec *api.EndpointSpec) error {
 		// But PublishMode="host" doesn't provide Routing-Mesh and the DNSRR is applicable
 		// for the backend network and hence we accept that configuration.
 
-		if epSpec.Mode == api.ResolutionModeDNSRoundRobin && port.PublishMode == api.PublishModeIngress {
+		if epSpec.Mode == api.EndpointSpec_DNSRR && port.PublishMode == api.PortConfig_INGRESS {
 			return status.Errorf(codes.InvalidArgument, "EndpointSpec: port published with ingress mode can't be used with dnsrr mode")
 		}
 
@@ -355,7 +360,7 @@ func validateEndpointSpec(epSpec *api.EndpointSpec) error {
 
 // validateSecretRefsSpec finds if the secrets passed in spec are valid and have no
 // conflicting targets.
-func validateSecretRefsSpec(spec api.TaskSpec) error {
+func validateSecretRefsSpec(spec *api.TaskSpec) error {
 	container := spec.GetContainer()
 	if container == nil {
 		return nil
@@ -366,7 +371,7 @@ func validateSecretRefsSpec(spec api.TaskSpec) error {
 	existingTargets := make(map[string]string)
 	for _, secretRef := range container.Secrets {
 		// SecretID and SecretName are mandatory, we have invalid references without them
-		if secretRef.SecretID == "" || secretRef.SecretName == "" {
+		if secretRef.SecretId == "" || secretRef.SecretName == "" {
 			return status.Errorf(codes.InvalidArgument, "malformed secret reference")
 		}
 
@@ -377,7 +382,7 @@ func validateSecretRefsSpec(spec api.TaskSpec) error {
 
 		// If this is a file target, we will ensure filename uniqueness
 		if secretRef.GetFile() != nil {
-			fileName := secretRef.GetFile().Name
+			fileName := secretRef.GetFile().GetName()
 			if fileName == "" {
 				return status.Errorf(codes.InvalidArgument, "malformed file secret reference, invalid target file name provided")
 			}
@@ -395,7 +400,7 @@ func validateSecretRefsSpec(spec api.TaskSpec) error {
 
 // validateConfigRefsSpec finds if the configs passed in spec are valid and have no
 // conflicting targets.
-func validateConfigRefsSpec(spec api.TaskSpec) error {
+func validateConfigRefsSpec(spec *api.TaskSpec) error {
 	container := spec.GetContainer()
 	if container == nil {
 		return nil
@@ -421,7 +426,7 @@ func validateConfigRefsSpec(spec api.TaskSpec) error {
 	existingTargets := make(map[string]string)
 	for _, configRef := range container.Configs {
 		// ConfigID and ConfigName are mandatory, we have invalid references without them
-		if configRef.ConfigID == "" || configRef.ConfigName == "" {
+		if configRef.ConfigId == "" || configRef.ConfigName == "" {
 			return status.Errorf(codes.InvalidArgument, "malformed config reference")
 		}
 
@@ -432,7 +437,7 @@ func validateConfigRefsSpec(spec api.TaskSpec) error {
 
 		// If this is a file target, we will ensure filename uniqueness
 		if configRef.GetFile() != nil {
-			fileName := configRef.GetFile().Name
+			fileName := configRef.GetFile().GetName()
 			// Validate the file name
 			if fileName == "" {
 				return status.Errorf(codes.InvalidArgument, "malformed file config reference, invalid target file name provided")
@@ -447,7 +452,7 @@ func validateConfigRefsSpec(spec api.TaskSpec) error {
 		}
 
 		if configRef.GetRuntime() != nil {
-			if configRef.ConfigID == credSpecConfig {
+			if configRef.ConfigId == credSpecConfig {
 				credSpecConfigFound = true
 			}
 		}
@@ -475,7 +480,7 @@ func (s *Server) validateNetworks(networks []*api.NetworkAttachmentConfig) error
 		}
 		if allocator.IsIngressNetwork(network) {
 			return status.Errorf(codes.InvalidArgument,
-				"Service cannot be explicitly attached to the ingress network %q", network.Spec.Annotations.Name)
+				"Service cannot be explicitly attached to the ingress network %q", network.GetSpec().GetAnnotations().GetName())
 		}
 	}
 	return nil
@@ -590,9 +595,9 @@ func (s *Server) checkPortConflicts(spec *api.ServiceSpec, serviceID string) err
 			continue
 		}
 		switch pc.PublishMode {
-		case api.PublishModeIngress:
+		case api.PortConfig_INGRESS:
 			ingressPorts[pcToStruct(pc)] = struct{}{}
-		case api.PublishModeHost:
+		case api.PortConfig_HOST:
 			hostModePorts[pcToStruct(pc)] = struct{}{}
 		}
 	}
@@ -618,19 +623,19 @@ func (s *Server) checkPortConflicts(spec *api.ServiceSpec, serviceID string) err
 		}
 
 		switch pc.PublishMode {
-		case api.PublishModeHost:
+		case api.PortConfig_HOST:
 			if _, ok := ingressPorts[pcToStruct(pc)]; ok {
-				return status.Errorf(codes.InvalidArgument, "port '%d' is already in use by service '%s' (%s) as a host-published port", pc.PublishedPort, service.Spec.Annotations.Name, service.ID)
+				return status.Errorf(codes.InvalidArgument, "port '%d' is already in use by service '%s' (%s) as a host-published port", pc.PublishedPort, service.GetSpec().GetAnnotations().GetName(), service.Id)
 			}
 
 			// Multiple services with same port in host publish mode can
 			// coexist - this is handled by the scheduler.
 			return nil
-		case api.PublishModeIngress:
+		case api.PortConfig_INGRESS:
 			_, ingressConflict := ingressPorts[pcToStruct(pc)]
 			_, hostModeConflict := hostModePorts[pcToStruct(pc)]
 			if ingressConflict || hostModeConflict {
-				return status.Errorf(codes.InvalidArgument, "port '%d' is already in use by service '%s' (%s) as an ingress port", pc.PublishedPort, service.Spec.Annotations.Name, service.ID)
+				return status.Errorf(codes.InvalidArgument, "port '%d' is already in use by service '%s' (%s) as an ingress port", pc.PublishedPort, service.GetSpec().GetAnnotations().GetName(), service.Id)
 			}
 		}
 
@@ -639,11 +644,11 @@ func (s *Server) checkPortConflicts(spec *api.ServiceSpec, serviceID string) err
 
 	for _, service := range services {
 		// If service ID is the same (and not "") then this is an update
-		if serviceID != "" && serviceID == service.ID {
+		if serviceID != "" && serviceID == service.Id {
 			continue
 		}
-		if service.Spec.Endpoint != nil {
-			for _, pc := range service.Spec.Endpoint.Ports {
+		if service.Spec.GetEndpoint() != nil {
+			for _, pc := range service.Spec.GetEndpoint().GetPorts() {
 				if err := isPortInUse(pc, service); err != nil {
 					return err
 				}
@@ -669,9 +674,9 @@ func (s *Server) checkSecretExistence(tx store.Tx, spec *api.ServiceSpec) error 
 
 	var failedSecrets []string
 	for _, secretRef := range container.Secrets {
-		secret := store.GetSecret(tx, secretRef.SecretID)
+		secret := store.GetSecret(tx, secretRef.SecretId)
 		// Check to see if the secret exists and secretRef.SecretName matches the actual secretName
-		if secret == nil || secret.Spec.Annotations.Name != secretRef.SecretName {
+		if secret == nil || secret.GetSpec().GetAnnotations().GetName() != secretRef.SecretName {
 			failedSecrets = append(failedSecrets, secretRef.SecretName)
 		}
 	}
@@ -698,9 +703,9 @@ func (s *Server) checkConfigExistence(tx store.Tx, spec *api.ServiceSpec) error 
 
 	var failedConfigs []string
 	for _, configRef := range container.Configs {
-		config := store.GetConfig(tx, configRef.ConfigID)
+		config := store.GetConfig(tx, configRef.ConfigId)
 		// Check to see if the config exists and configRef.ConfigName matches the actual configName
-		if config == nil || config.Spec.Annotations.Name != configRef.ConfigName {
+		if config == nil || config.GetSpec().GetAnnotations().GetName() != configRef.ConfigName {
 			failedConfigs = append(failedConfigs, configRef.ConfigName)
 		}
 	}
@@ -728,7 +733,7 @@ func (s *Server) CreateService(_ context.Context, request *api.CreateServiceRequ
 		return nil, err
 	}
 
-	if err := s.validateNetworks(request.Spec.Task.Networks); err != nil {
+	if err := s.validateNetworks(request.Spec.GetTask().GetNetworks()); err != nil {
 		return nil, err
 	}
 
@@ -739,14 +744,17 @@ func (s *Server) CreateService(_ context.Context, request *api.CreateServiceRequ
 	// TODO(aluzzardi): Consider using `Name` as a primary key to handle
 	// duplicate creations. See #65
 	service := &api.Service{
-		ID:          identity.NewID(),
-		Spec:        *request.Spec,
+		Id:          identity.NewID(),
+		Spec:        request.Spec,
 		SpecVersion: &api.Version{},
 	}
 
 	if isJobSpec(request.Spec) {
 		service.JobStatus = &api.JobStatus{
-			LastExecution: gogotypes.TimestampNow(),
+			// JobIteration used to be a non-nullable embedded message, so it
+			// was always present on a job's status.
+			JobIteration:  &api.Version{},
+			LastExecution: timestamppb.Now(),
 		}
 	}
 
@@ -775,7 +783,7 @@ func (s *Server) CreateService(_ context.Context, request *api.CreateServiceRequ
 		// Enhance the name-confict error to include the service name. The original
 		// `ErrNameConflict` error-message is included for backward-compatibility
 		// with older consumers of the API performing string-matching.
-		return nil, status.Errorf(codes.AlreadyExists, "%s: service %s already exists", err.Error(), request.Spec.Annotations.Name)
+		return nil, status.Errorf(codes.AlreadyExists, "%s: service %s already exists", err.Error(), request.GetSpec().GetAnnotations().GetName())
 	case nil:
 		return &api.CreateServiceResponse{Service: service}, nil
 	default:
@@ -787,20 +795,20 @@ func (s *Server) CreateService(_ context.Context, request *api.CreateServiceRequ
 // - Returns `InvalidArgument` if ServiceID is not provided.
 // - Returns `NotFound` if the Service is not found.
 func (s *Server) GetService(_ context.Context, request *api.GetServiceRequest) (*api.GetServiceResponse, error) {
-	if request.ServiceID == "" {
+	if request.ServiceId == "" {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	var service *api.Service
 	s.store.View(func(tx store.ReadTx) {
-		service = store.GetService(tx, request.ServiceID)
+		service = store.GetService(tx, request.ServiceId)
 	})
 	if service == nil {
-		return nil, status.Errorf(codes.NotFound, "service %s not found", request.ServiceID)
+		return nil, status.Errorf(codes.NotFound, "service %s not found", request.ServiceId)
 	}
 
 	if request.InsertDefaults {
-		service.Spec = *defaults.InterpolateService(&service.Spec)
+		service.Spec = defaults.InterpolateService(service.Spec)
 	}
 
 	return &api.GetServiceResponse{
@@ -814,44 +822,44 @@ func (s *Server) GetService(_ context.Context, request *api.GetServiceRequest) (
 // - Returns `Unimplemented` if the ServiceSpec references unimplemented features.
 // - Returns an error if the update fails.
 func (s *Server) UpdateService(_ context.Context, request *api.UpdateServiceRequest) (*api.UpdateServiceResponse, error) {
-	if request.ServiceID == "" || request.ServiceVersion == nil {
+	if request.ServiceId == "" || request.ServiceVersion == nil {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 	if err := validateServiceSpec(request.Spec); err != nil {
 		return nil, err
 	}
 
-	if err := s.validateNetworks(request.Spec.Task.Networks); err != nil {
+	if err := s.validateNetworks(request.Spec.GetTask().GetNetworks()); err != nil {
 		return nil, err
 	}
 
 	var service *api.Service
 	s.store.View(func(tx store.ReadTx) {
-		service = store.GetService(tx, request.ServiceID)
+		service = store.GetService(tx, request.ServiceId)
 	})
 	if service == nil {
-		return nil, status.Errorf(codes.NotFound, "service %s not found", request.ServiceID)
+		return nil, status.Errorf(codes.NotFound, "service %s not found", request.ServiceId)
 	}
 
-	if request.Spec.Endpoint != nil && !reflect.DeepEqual(request.Spec.Endpoint, service.Spec.Endpoint) {
-		if err := s.checkPortConflicts(request.Spec, request.ServiceID); err != nil {
+	if request.Spec.GetEndpoint() != nil && !request.Spec.GetEndpoint().EqualVT(service.Spec.GetEndpoint()) {
+		if err := s.checkPortConflicts(request.Spec, request.ServiceId); err != nil {
 			return nil, err
 		}
 	}
 
 	err := s.store.Update(func(tx store.Tx) error {
-		service = store.GetService(tx, request.ServiceID)
+		service = store.GetService(tx, request.ServiceId)
 		if service == nil {
-			return status.Errorf(codes.NotFound, "service %s not found", request.ServiceID)
+			return status.Errorf(codes.NotFound, "service %s not found", request.ServiceId)
 		}
 
-		// It's not okay to update Service.Spec.Networks on its own.
-		// However, if Service.Spec.Task.Networks is also being
+		// It's not okay to update Service.Spec.GetNetworks() on its own.
+		// However, if Service.Spec.GetTask().GetNetworks() is also being
 		// updated, that's okay (for example when migrating from the
 		// deprecated Spec.Networks field to Spec.Task.Networks).
-		if (len(request.Spec.Networks) != 0 || len(service.Spec.Networks) != 0) &&
-			!reflect.DeepEqual(request.Spec.Networks, service.Spec.Networks) &&
-			reflect.DeepEqual(request.Spec.Task.Networks, service.Spec.Task.Networks) {
+		if (len(request.Spec.GetNetworks()) != 0 || len(service.Spec.GetNetworks()) != 0) &&
+			!slices.EqualFunc(request.Spec.GetNetworks(), service.Spec.GetNetworks(), (*api.NetworkAttachmentConfig).EqualVT) &&
+			slices.EqualFunc(request.Spec.GetTask().GetNetworks(), service.Spec.GetTask().GetNetworks(), (*api.NetworkAttachmentConfig).EqualVT) {
 			return status.Error(codes.Unimplemented, errNetworkUpdateNotSupported.Error())
 		}
 
@@ -870,31 +878,35 @@ func (s *Server) UpdateService(_ context.Context, request *api.UpdateServiceRequ
 		// orchestrator is designed to be stateless, so it should not deal
 		// with service mode change (comparing current config with previous config).
 		// proper way to change service mode is to delete and re-add.
-		if reflect.TypeOf(service.Spec.Mode) != reflect.TypeOf(request.Spec.Mode) {
+		if reflect.TypeOf(service.Spec.GetMode()) != reflect.TypeOf(request.Spec.GetMode()) {
 			return status.Error(codes.Unimplemented, errModeChangeNotAllowed.Error())
 		}
 
-		if service.Spec.Annotations.Name != request.Spec.Annotations.Name {
+		if service.Spec.GetAnnotations().GetName() != request.Spec.GetAnnotations().GetName() {
 			return status.Error(codes.Unimplemented, errRenameNotSupported.Error())
 		}
 
-		service.Meta.Version = *request.ServiceVersion
+		service.Meta.Version = request.ServiceVersion
 
 		// if the service has a JobStatus, that means it must be a Job, and we
 		// should increment the JobIteration
 		if service.JobStatus != nil {
+			if service.JobStatus.JobIteration == nil {
+				// JobIteration used to be a non-nullable embedded message.
+				service.JobStatus.JobIteration = &api.Version{}
+			}
 			service.JobStatus.JobIteration.Index = service.JobStatus.JobIteration.Index + 1
-			service.JobStatus.LastExecution = gogotypes.TimestampNow()
+			service.JobStatus.LastExecution = timestamppb.Now()
 		}
 
 		if request.Rollback == api.UpdateServiceRequest_PREVIOUS {
 			if service.PreviousSpec == nil {
-				return status.Errorf(codes.FailedPrecondition, "service %s does not have a previous spec", request.ServiceID)
+				return status.Errorf(codes.FailedPrecondition, "service %s does not have a previous spec", request.ServiceId)
 			}
 
 			curSpec := service.Spec.Copy()
 			curSpecVersion := service.SpecVersion
-			service.Spec = *service.PreviousSpec.Copy()
+			service.Spec = service.PreviousSpec.Copy()
 			service.SpecVersion = service.PreviousSpecVersion.Copy()
 			service.PreviousSpec = curSpec
 			service.PreviousSpecVersion = curSpecVersion
@@ -907,7 +919,7 @@ func (s *Server) UpdateService(_ context.Context, request *api.UpdateServiceRequ
 		} else {
 			service.PreviousSpec = service.Spec.Copy()
 			service.PreviousSpecVersion = service.SpecVersion
-			service.Spec = *request.Spec.Copy()
+			service.Spec = request.Spec.Copy()
 			// Set spec version. Note that this will not match the
 			// service's Meta.Version after the store update. The
 			// versions for the spec and the service itself are not
@@ -940,16 +952,16 @@ func (s *Server) UpdateService(_ context.Context, request *api.UpdateServiceRequ
 // - Returns `NotFound` if the Service is not found.
 // - Returns an error if the deletion fails.
 func (s *Server) RemoveService(_ context.Context, request *api.RemoveServiceRequest) (*api.RemoveServiceResponse, error) {
-	if request.ServiceID == "" {
+	if request.ServiceId == "" {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	err := s.store.Update(func(tx store.Tx) error {
-		return store.DeleteService(tx, request.ServiceID)
+		return store.DeleteService(tx, request.ServiceId)
 	})
 	if err != nil {
 		if err == store.ErrNotExist {
-			return nil, status.Errorf(codes.NotFound, "service %s not found", request.ServiceID)
+			return nil, status.Errorf(codes.NotFound, "service %s not found", request.ServiceId)
 		}
 		return nil, err
 	}
@@ -988,8 +1000,8 @@ func (s *Server) ListServices(_ context.Context, request *api.ListServicesReques
 			services, err = store.FindServices(tx, buildFilters(store.ByName, request.Filters.Names))
 		case request.Filters != nil && len(request.Filters.NamePrefixes) > 0:
 			services, err = store.FindServices(tx, buildFilters(store.ByNamePrefix, request.Filters.NamePrefixes))
-		case request.Filters != nil && len(request.Filters.IDPrefixes) > 0:
-			services, err = store.FindServices(tx, buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes))
+		case request.Filters != nil && len(request.Filters.IdPrefixes) > 0:
+			services, err = store.FindServices(tx, buildFilters(store.ByIDPrefix, request.Filters.IdPrefixes))
 		case request.Filters != nil && len(request.Filters.Runtimes) > 0:
 			services, err = store.FindServices(tx, buildFilters(store.ByRuntime, request.Filters.Runtimes))
 		default:
@@ -1008,22 +1020,22 @@ func (s *Server) ListServices(_ context.Context, request *api.ListServicesReques
 	if request.Filters != nil {
 		services = filterServices(services,
 			func(e *api.Service) bool {
-				return filterContains(e.Spec.Annotations.Name, request.Filters.Names)
+				return filterContains(e.GetSpec().GetAnnotations().GetName(), request.Filters.Names)
 			},
 			func(e *api.Service) bool {
-				return filterContainsPrefix(e.Spec.Annotations.Name, request.Filters.NamePrefixes)
+				return filterContainsPrefix(e.GetSpec().GetAnnotations().GetName(), request.Filters.NamePrefixes)
 			},
 			func(e *api.Service) bool {
-				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)
+				return filterContainsPrefix(e.Id, request.Filters.IdPrefixes)
 			},
 			func(e *api.Service) bool {
-				return filterMatchLabels(e.Spec.Annotations.Labels, request.Filters.Labels)
+				return filterMatchLabels(e.GetSpec().GetAnnotations().GetLabels(), request.Filters.Labels)
 			},
 			func(e *api.Service) bool {
 				if len(request.Filters.Runtimes) == 0 {
 					return true
 				}
-				r, err := naming.Runtime(e.Spec.Task)
+				r, err := naming.Runtime(e.Spec.GetTask())
 				if err != nil {
 					return false
 				}
@@ -1052,7 +1064,7 @@ func (s *Server) ListServiceStatuses(_ context.Context, req *api.ListServiceStat
 	s.store.View(func(tx store.ReadTx) {
 		for _, id := range req.Services {
 			status := &api.ListServiceStatusesResponse_ServiceStatus{
-				ServiceID: id,
+				ServiceId: id,
 			}
 			// no matter what, add this status to the list.
 			resp.Statuses = append(resp.Statuses, status)
@@ -1089,7 +1101,7 @@ func (s *Server) ListServiceStatuses(_ context.Context, req *api.ListServiceStat
 				}
 
 				if service.JobStatus != nil {
-					jobIteration = &service.JobStatus.JobIteration
+					jobIteration = service.JobStatus.JobIteration
 				}
 			}
 
@@ -1107,24 +1119,24 @@ func (s *Server) ListServiceStatuses(_ context.Context, req *api.ListServiceStat
 					// additionally, since we've verified that the service is a
 					// job and the task belongs to this iteration, we should
 					// increment CompletedTasks
-					if task.Status.State == api.TaskStateCompleted {
+					if task.Status.GetState() == api.TaskState_COMPLETE {
 						status.CompletedTasks++
 					}
 				}
-				if task.Status.State == api.TaskStateRunning {
+				if task.Status.GetState() == api.TaskState_RUNNING {
 					status.RunningTasks++
 				}
 
 				// if the service is global, a shortcut for figuring out the
 				// number of tasks desired is to look at all tasks, and take a
 				// count of the ones whose desired state is not Shutdown.
-				if global && task.DesiredState == api.TaskStateRunning {
+				if global && task.DesiredState == api.TaskState_RUNNING {
 					status.DesiredTasks++
 				}
 
 				// for jobs, this is any task with desired state Completed
 				// which is not actually in that state.
-				if global && task.Status.State != api.TaskStateCompleted && task.DesiredState == api.TaskStateCompleted {
+				if global && task.Status.GetState() != api.TaskState_COMPLETE && task.DesiredState == api.TaskState_COMPLETE {
 					status.DesiredTasks++
 				}
 			}

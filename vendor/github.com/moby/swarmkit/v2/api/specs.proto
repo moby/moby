@@ -2,8 +2,9 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
+option go_package = "github.com/moby/swarmkit/v2/api";
+
 import "github.com/docker/swarmkit/api/types.proto";
-import "gogoproto/gogo.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/wrappers.proto";
@@ -19,28 +20,24 @@ import "google/protobuf/wrappers.proto";
 // component or a different representation to reflect allocation or resolution.
 
 message NodeSpec {
-	Annotations annotations = 1 [(gogoproto.nullable) = false];
+	Annotations annotations = 1;
 
 	enum Membership {
-		option (gogoproto.goproto_enum_prefix) = false;
-
-		PENDING = 0 [(gogoproto.enumvalue_customname) = "NodeMembershipPending"];
-		ACCEPTED = 1 [(gogoproto.enumvalue_customname) = "NodeMembershipAccepted"];
+		PENDING = 0;
+		ACCEPTED = 1;
 	}
 
 	enum Availability {
-		option (gogoproto.goproto_enum_prefix) = false;
-
 		// Active nodes.
-		ACTIVE = 0 [(gogoproto.enumvalue_customname) = "NodeAvailabilityActive"];
+		ACTIVE = 0;
 
 		// Paused nodes won't be considered by the scheduler, preventing any
 		// further task to run on them.
-		PAUSE = 1 [(gogoproto.enumvalue_customname) = "NodeAvailabilityPause"];
+		PAUSE = 1;
 
 		// Drained nodes are paused and any task already running on them will
 		// be evicted.
-		DRAIN = 2 [(gogoproto.enumvalue_customname) = "NodeAvailabilityDrain"];
+		DRAIN = 2;
 	}
 
 	// DesiredRole defines the role the node should have.
@@ -61,10 +58,10 @@ message NodeSpec {
 // strategy and restart policy, a number of application-level behaviors can be
 // defined.
 message ServiceSpec {
-	Annotations annotations = 1 [(gogoproto.nullable) = false];
+	Annotations annotations = 1;
 
 	// Task defines the task template this service will spawn.
-	TaskSpec task = 2 [(gogoproto.nullable) = false];
+	TaskSpec task = 2;
 
 	oneof mode {
 		ReplicatedService replicated = 3;
@@ -137,8 +134,6 @@ message TaskSpec {
 	// Placement specifies node selection constraints
 	Placement placement = 5;
 
-
-
 	// LogDriver specifies the log driver to use for the task. Any runtime will
 	// direct logs into the specified driver for the duration of the task.
 	Driver log_driver = 6;
@@ -162,7 +157,7 @@ message TaskSpec {
 	// dispatcher to send the related objects.
 	//
 	// ResourceReferences is a list of ResourceReferences used by the task.
-	repeated ResourceReference resource_references = 11 [(gogoproto.nullable) = false];
+	repeated ResourceReference resource_references = 11;
 }
 
 message ResourceReference {
@@ -182,7 +177,6 @@ message NetworkAttachmentSpec {
 	// this attachment is for.
 	string container_id = 1;
 }
-
 
 // Container specifies runtime parameters for a container.
 message ContainerSpec {
@@ -245,7 +239,7 @@ message ContainerSpec {
 
 	// TTY declares that a TTY should be attached to the standard streams,
 	// including stdin if it is still open.
-	bool tty = 13 [(gogoproto.customname) = "TTY"];
+	bool tty = 13;
 
 	// OpenStdin declares that the standard input (stdin) should be open.
 	bool open_stdin = 18;
@@ -259,7 +253,7 @@ message ContainerSpec {
 	// StopSignal defines the signal to stop the container.
 	string stop_signal = 20;
 
-	repeated Mount mounts = 8 [(gogoproto.nullable) = false];
+	repeated Mount mounts = 8;
 
 	// StopGracePeriod the grace period for stopping the container before
 	// forcefully killing the container.
@@ -314,7 +308,7 @@ message ContainerSpec {
 	}
 
 	// DNSConfig allows one to specify DNS related configuration in resolv.conf
-	DNSConfig dns_config = 15 [(gogoproto.customname) = "DNSConfig"];
+	DNSConfig dns_config = 15;
 
 	// Healthcheck describes how to check the container is healthy. If the
 	// container is considered unhealthy, it will be destroyed, its creating
@@ -323,16 +317,14 @@ message ContainerSpec {
 	HealthConfig healthcheck = 16;
 
 	enum Isolation {
-		option (gogoproto.goproto_enum_prefix) = false;
-
 		// ISOLATION_DEFAULT uses whatever default value from the container runtime
-		ISOLATION_DEFAULT = 0 [(gogoproto.enumvalue_customname) = "ContainerIsolationDefault"];
+		ISOLATION_DEFAULT = 0;
 
 		// ISOLATION_PROCESS forces windows container isolation
-		ISOLATION_PROCESS = 1 [(gogoproto.enumvalue_customname) = "ContainerIsolationProcess"];
+		ISOLATION_PROCESS = 1;
 
 		// ISOLATION_HYPERV forces Hyper-V isolation
-		ISOLATION_HYPERV = 2 [(gogoproto.enumvalue_customname) = "ContainerIsolationHyperV"];
+		ISOLATION_HYPERV = 2;
 	}
 
 	// Isolation defines the isolation level for windows containers (default, process, hyperv).
@@ -384,13 +376,11 @@ message EndpointSpec {
 	// internal loadbalancing between tasks which are all within
 	// the cluster. This is sometimes calls east-west data path.
 	enum ResolutionMode {
-		option (gogoproto.goproto_enum_prefix) = false;
-
 		// VIP resolution mode specifies that the
 		// service resolves to a logical IP and the requests
 		// are sent to that logical IP. Packets hitting that
 		// logical IP are load balanced to a chosen backend.
-		VIP = 0 [(gogoproto.enumvalue_customname) = "ResolutionModeVirtualIP"];
+		VIP = 0;
 
 		// DNSRR resolution mode specifies that the
 		// service directly gets resolved to one of the
@@ -398,7 +388,7 @@ message EndpointSpec {
 		// request towards the actual backend. This requires
 		// that the client does not cache the DNS responses
 		// when the DNS response TTL is 0.
-		DNSRR = 1 [(gogoproto.enumvalue_customname) = "ResolutionModeDNSRoundRobin"];
+		DNSRR = 1;
 	}
 
 	ResolutionMode mode = 1;
@@ -410,7 +400,7 @@ message EndpointSpec {
 
 // NetworkSpec specifies user defined network parameters.
 message NetworkSpec {
-	Annotations annotations = 1 [(gogoproto.nullable) = false];
+	Annotations annotations = 1;
 
 	// DriverConfig specific configuration consumed by the network driver.
 	Driver driver_config = 2;
@@ -422,7 +412,7 @@ message NetworkSpec {
 	// accomplished by disabling the default gateway or through other means.
 	bool internal = 4;
 
-	IPAMOptions ipam = 5 [(gogoproto.customname) = "IPAM"];
+	IPAMOptions ipam = 5;
 
 	// Attachable allows external(to swarm) entities to manually
 	// attach to this network. With this flag enabled, external
@@ -451,35 +441,35 @@ message NetworkSpec {
 
 // ClusterSpec specifies global cluster settings.
 message ClusterSpec {
-	Annotations annotations = 1 [(gogoproto.nullable) = false];
+	Annotations annotations = 1;
 
 	// DEPRECATED: AcceptancePolicy defines the certificate issuance policy.
 	// Acceptance policy is no longer customizable, and secrets have been
 	// replaced with join tokens.
-	AcceptancePolicy acceptance_policy = 2 [deprecated=true, (gogoproto.nullable) = false];
+	AcceptancePolicy acceptance_policy = 2 [deprecated=true];
 
 	// Orchestration defines cluster-level orchestration settings.
-	OrchestrationConfig orchestration = 3 [(gogoproto.nullable) = false];
+	OrchestrationConfig orchestration = 3;
 
 	// Raft defines the cluster's raft settings.
-	RaftConfig raft = 4 [(gogoproto.nullable) = false];
+	RaftConfig raft = 4;
 
 	// Dispatcher defines cluster-level dispatcher settings.
-	DispatcherConfig dispatcher = 5 [(gogoproto.nullable) = false];
+	DispatcherConfig dispatcher = 5;
 
 	// CAConfig defines cluster-level certificate authority settings.
-	CAConfig ca_config = 6 [(gogoproto.nullable) = false, (gogoproto.customname) = "CAConfig"];
+	CAConfig ca_config = 6;
 
 	// TaskDefaults specifies the default values to use for task creation.
-	TaskDefaults task_defaults = 7 [(gogoproto.nullable) = false];
+	TaskDefaults task_defaults = 7;
 
 	// EncryptionConfig defines the cluster's encryption settings.
-	EncryptionConfig encryption_config = 8 [(gogoproto.nullable) = false];
+	EncryptionConfig encryption_config = 8;
 }
 
 // SecretSpec specifies a user-provided secret.
 message SecretSpec {
-	Annotations annotations = 1 [(gogoproto.nullable) = false];
+	Annotations annotations = 1;
 
 	// Data is the secret payload - the maximum size is 500KB (that is, 500*1024 bytes)
 	bytes data = 2;
@@ -497,7 +487,7 @@ message SecretSpec {
 
 // ConfigSpec specifies user-provided configuration files.
 message ConfigSpec {
-	Annotations annotations = 1 [(gogoproto.nullable) = false];
+	Annotations annotations = 1;
 
 	// Data is the config payload - the maximum size is 500KB (that is, 500*1024 bytes)
 	// TODO(aaronl): Do we want to revise this to include multiple payloads in a single
@@ -516,7 +506,7 @@ message VolumeSpec {
 	// Annotations includes the name and labels of a volume. The name used in the
 	// spec's Annotations will be passed to the Plugin as the "Name" in the
 	// CreateVolume request.
-	Annotations annotations = 1 [(gogoproto.nullable) = false];
+	Annotations annotations = 1;
 
 	// Group defines the volume group this particular volume belongs to. When
 	// requesting volumes for a workload, the group name can be used instead of
@@ -559,19 +549,17 @@ message VolumeSpec {
 	CapacityRange capacity_range = 7;
 
 	enum VolumeAvailability {
-		option (gogoproto.goproto_enum_prefix) = false;
-
 		// Active allows a volume to be used and scheduled to. This is the
 		// default state.
-		ACTIVE = 0 [(gogoproto.enumvalue_customname) = "VolumeAvailabilityActive"];
+		ACTIVE = 0;
 
 		// Pause prevents volumes from having new workloads scheduled to use
 		// them, even if they're already published on a Node.
-		PAUSE = 1 [(gogoproto.enumvalue_customname) = "VolumeAvailabilityPause"];
+		PAUSE = 1;
 
 		// Drain causes existing workloads using this volume to be rescheduled,
 		// causing the volume to be unpublished and removed from nodes.
-		DRAIN = 2 [(gogoproto.enumvalue_customname) = "VolumeAvailabilityDrain"];
+		DRAIN = 2;
 	}
 
 	// Availability is the Volume's desired availability. Analogous to Node

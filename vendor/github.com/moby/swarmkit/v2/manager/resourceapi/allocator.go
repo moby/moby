@@ -20,6 +20,8 @@ var (
 
 // ResourceAllocator handles resource allocation of cluster entities.
 type ResourceAllocator struct {
+	api.UnimplementedResourceAllocatorServer
+
 	store *store.MemoryStore
 }
 
@@ -35,6 +37,10 @@ func New(store *store.MemoryStore) *ResourceAllocator {
 // - Returns `PermissionDenied` if the Network is not manually attachable.
 // - Returns an error if the creation fails.
 func (ra *ResourceAllocator) AttachNetwork(ctx context.Context, request *api.AttachNetworkRequest) (*api.AttachNetworkResponse, error) {
+	if request.Config == nil {
+		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
+	}
+
 	nodeInfo, err := ca.RemoteNode(ctx)
 	if err != nil {
 		return nil, err
@@ -53,32 +59,37 @@ func (ra *ResourceAllocator) AttachNetwork(ctx context.Context, request *api.Att
 		return nil, status.Errorf(codes.NotFound, "network %s not found", request.Config.Target)
 	}
 
-	if !network.Spec.Attachable {
+	if !network.Spec.GetAttachable() {
 		return nil, status.Errorf(codes.PermissionDenied, "network %s not manually attachable", request.Config.Target)
 	}
 
 	t := &api.Task{
-		ID:     identity.NewID(),
-		NodeID: nodeInfo.NodeID,
-		Spec: api.TaskSpec{
+		Id:     identity.NewID(),
+		NodeId: nodeInfo.NodeID,
+		// Annotations and ServiceAnnotations were non-nullable before the
+		// migration to the standard protobuf runtime; keep them always
+		// present so API consumers can rely on the old object invariant.
+		Annotations:        &api.Annotations{},
+		ServiceAnnotations: &api.Annotations{},
+		Spec: &api.TaskSpec{
 			Runtime: &api.TaskSpec_Attachment{
 				Attachment: &api.NetworkAttachmentSpec{
-					ContainerID: request.ContainerID,
+					ContainerId: request.ContainerId,
 				},
 			},
 			Networks: []*api.NetworkAttachmentConfig{
 				{
-					Target:    network.ID,
+					Target:    network.Id,
 					Addresses: request.Config.Addresses,
 				},
 			},
 		},
-		Status: api.TaskStatus{
-			State:     api.TaskStateNew,
+		Status: &api.TaskStatus{
+			State:     api.TaskState_NEW,
 			Timestamp: ptypes.MustTimestampProto(time.Now()),
 			Message:   "created",
 		},
-		DesiredState: api.TaskStateRunning,
+		DesiredState: api.TaskState_RUNNING,
 		// TODO: Add Network attachment.
 	}
 
@@ -88,7 +99,7 @@ func (ra *ResourceAllocator) AttachNetwork(ctx context.Context, request *api.Att
 		return nil, err
 	}
 
-	return &api.AttachNetworkResponse{AttachmentID: t.ID}, nil
+	return &api.AttachNetworkResponse{AttachmentId: t.Id}, nil
 }
 
 // DetachNetwork allows the node to request the release of
@@ -97,7 +108,7 @@ func (ra *ResourceAllocator) AttachNetwork(ctx context.Context, request *api.Att
 // - Returns `NotFound` if the attachment is not found.
 // - Returns an error if the deletion fails.
 func (ra *ResourceAllocator) DetachNetwork(ctx context.Context, request *api.DetachNetworkRequest) (*api.DetachNetworkResponse, error) {
-	if request.AttachmentID == "" {
+	if request.AttachmentId == "" {
 		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
@@ -107,15 +118,15 @@ func (ra *ResourceAllocator) DetachNetwork(ctx context.Context, request *api.Det
 	}
 
 	if err := ra.store.Update(func(tx store.Tx) error {
-		t := store.GetTask(tx, request.AttachmentID)
+		t := store.GetTask(tx, request.AttachmentId)
 		if t == nil {
-			return status.Errorf(codes.NotFound, "attachment %s not found", request.AttachmentID)
+			return status.Errorf(codes.NotFound, "attachment %s not found", request.AttachmentId)
 		}
-		if t.NodeID != nodeInfo.NodeID {
-			return status.Errorf(codes.PermissionDenied, "attachment %s doesn't belong to this node", request.AttachmentID)
+		if t.NodeId != nodeInfo.NodeID {
+			return status.Errorf(codes.PermissionDenied, "attachment %s doesn't belong to this node", request.AttachmentId)
 		}
 
-		return store.DeleteTask(tx, request.AttachmentID)
+		return store.DeleteTask(tx, request.AttachmentId)
 	}); err != nil {
 		return nil, err
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 func CheckArguments(req *api.VolumeAssignment) error {
-	if len(req.VolumeID) == 0 {
+	if len(req.VolumeId) == 0 {
 		return status.Error(codes.InvalidArgument, "Volume ID missing in request")
 	}
 	if req.AccessMode == nil {
@@ -20,20 +20,20 @@ func CheckArguments(req *api.VolumeAssignment) error {
 func MakeCapability(am *api.VolumeAccessMode) *csi.VolumeCapability {
 	var mode csi.VolumeCapability_AccessMode_Mode
 	switch am.Scope {
-	case api.VolumeScopeSingleNode:
+	case api.VolumeAccessMode_SINGLE_NODE:
 		switch am.Sharing {
-		case api.VolumeSharingNone, api.VolumeSharingOneWriter, api.VolumeSharingAll:
+		case api.VolumeAccessMode_NONE, api.VolumeAccessMode_ONE_WRITER, api.VolumeAccessMode_ALL:
 			mode = csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER
-		case api.VolumeSharingReadOnly:
+		case api.VolumeAccessMode_READ_ONLY:
 			mode = csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY
 		}
-	case api.VolumeScopeMultiNode:
+	case api.VolumeAccessMode_MULTI_NODE:
 		switch am.Sharing {
-		case api.VolumeSharingReadOnly:
+		case api.VolumeAccessMode_READ_ONLY:
 			mode = csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY
-		case api.VolumeSharingOneWriter:
+		case api.VolumeAccessMode_ONE_WRITER:
 			mode = csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER
-		case api.VolumeSharingAll:
+		case api.VolumeAccessMode_ALL:
 			mode = csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER
 		}
 	}

@@ -190,7 +190,7 @@ func sanitizeResource(nodeRes []*api.GenericResource, res *api.GenericResource) 
 				return false, nrs
 			}
 
-			if na.NamedResourceSpec.Value == nr.GetNamedResourceSpec().Value {
+			if na.NamedResourceSpec.Value == nr.GetNamedResourceSpec().GetValue() {
 				return true, nil
 			}
 		}

@@ -17,15 +17,39 @@ var errRemotesUnavailable = fmt.Errorf("no remote hosts provided")
 // that will balance well under repeated observations.
 const DefaultObservationWeight = 10
 
+// PeerKey identifies an [api.Peer]. It carries the same information, but
+// unlike the protobuf message it is comparable, so it can be used as a map key
+// and compared with "==".
+type PeerKey struct {
+	NodeID string
+	Addr   string
+}
+
+// NewPeerKey returns the [PeerKey] identifying peer.
+func NewPeerKey(peer *api.Peer) PeerKey {
+	return PeerKey{
+		NodeID: peer.GetNodeId(),
+		Addr:   peer.GetAddr(),
+	}
+}
+
+// Peer returns a newly allocated [api.Peer] for the peer identified by k.
+func (k PeerKey) Peer() *api.Peer {
+	return &api.Peer{
+		NodeId: k.NodeID,
+		Addr:   k.Addr,
+	}
+}
+
 // Remotes keeps track of remote addresses by weight, informed by
 // observations.
 type Remotes interface {
 	// Weight returns the remotes with their current weights.
-	Weights() map[api.Peer]int
+	Weights() map[PeerKey]int
 
 	// Select a remote from the set of available remotes with optionally
 	// excluding ID or address.
-	Select(...string) (api.Peer, error)
+	Select(...string) (*api.Peer, error)
 
 	// Observe records an experience with a particular remote. A positive weight
 	// indicates a good experience and a negative weight a bad experience.
@@ -33,21 +57,21 @@ type Remotes interface {
 	// The observation will be used to calculate a moving weight, which is
 	// implementation dependent. This method will be called such that repeated
 	// observations of the same master in each session request are favored.
-	Observe(peer api.Peer, weight int)
+	Observe(peer *api.Peer, weight int)
 
 	// ObserveIfExists records an experience with a particular remote if when a
 	// remote exists.
-	ObserveIfExists(peer api.Peer, weight int)
+	ObserveIfExists(peer *api.Peer, weight int)
 
 	// Remove the remote from the list completely.
-	Remove(addrs ...api.Peer)
+	Remove(addrs ...*api.Peer)
 }
 
 // NewRemotes returns a Remotes instance with the provided set of addresses.
 // Entries provided are heavily weighted initially.
-func NewRemotes(peers ...api.Peer) Remotes {
+func NewRemotes(peers ...*api.Peer) Remotes {
 	mwr := &remotesWeightedRandom{
-		remotes: make(map[api.Peer]int),
+		remotes: make(map[PeerKey]int),
 	}
 
 	for _, peer := range peers {
@@ -58,22 +82,22 @@ func NewRemotes(peers ...api.Peer) Remotes {
 }
 
 type remotesWeightedRandom struct {
-	remotes map[api.Peer]int
+	remotes map[PeerKey]int
 	mu      sync.Mutex
 
 	// workspace to avoid reallocation. these get lazily allocated when
 	// selecting values.
 	cdf   []float64
-	peers []api.Peer
+	peers []PeerKey
 }
 
-func (mwr *remotesWeightedRandom) Weights() map[api.Peer]int {
+func (mwr *remotesWeightedRandom) Weights() map[PeerKey]int {
 	mwr.mu.Lock()
 	defer mwr.mu.Unlock()
 	return maps.Clone(mwr.remotes)
 }
 
-func (mwr *remotesWeightedRandom) Select(excludes ...string) (api.Peer, error) {
+func (mwr *remotesWeightedRandom) Select(excludes ...string) (*api.Peer, error) {
 	mwr.mu.Lock()
 	defer mwr.mu.Unlock()
 
@@ -119,39 +143,42 @@ Loop:
 	}
 
 	if len(mwr.peers) == 0 {
-		return api.Peer{}, errRemotesUnavailable
+		return nil, errRemotesUnavailable
 	}
 
 	r := mwr.cdf[len(mwr.cdf)-1] * rand.Float64()
 	i := sort.SearchFloat64s(mwr.cdf, r)
 
-	return mwr.peers[i], nil
+	// Hand out a freshly allocated peer, so that callers cannot mutate the
+	// remotes we track.
+	return mwr.peers[i].Peer(), nil
 }
 
-func (mwr *remotesWeightedRandom) Observe(peer api.Peer, weight int) {
+func (mwr *remotesWeightedRandom) Observe(peer *api.Peer, weight int) {
 	mwr.mu.Lock()
 	defer mwr.mu.Unlock()
 
-	mwr.observe(peer, float64(weight))
+	mwr.observe(NewPeerKey(peer), float64(weight))
 }
 
-func (mwr *remotesWeightedRandom) ObserveIfExists(peer api.Peer, weight int) {
+func (mwr *remotesWeightedRandom) ObserveIfExists(peer *api.Peer, weight int) {
 	mwr.mu.Lock()
 	defer mwr.mu.Unlock()
 
-	if _, ok := mwr.remotes[peer]; !ok {
+	key := NewPeerKey(peer)
+	if _, ok := mwr.remotes[key]; !ok {
 		return
 	}
 
-	mwr.observe(peer, float64(weight))
+	mwr.observe(key, float64(weight))
 }
 
-func (mwr *remotesWeightedRandom) Remove(addrs ...api.Peer) {
+func (mwr *remotesWeightedRandom) Remove(addrs ...*api.Peer) {
 	mwr.mu.Lock()
 	defer mwr.mu.Unlock()
 
 	for _, addr := range addrs {
-		delete(mwr.remotes, addr)
+		delete(mwr.remotes, NewPeerKey(addr))
 	}
 }
 
@@ -174,7 +201,7 @@ func clip(x float64) float64 {
 	return math.Max(math.Min(remoteWeightMax, x), -remoteWeightMax)
 }
 
-func (mwr *remotesWeightedRandom) observe(peer api.Peer, weight float64) {
+func (mwr *remotesWeightedRandom) observe(peer PeerKey, weight float64) {
 
 	// While we have a decent, ad-hoc approach here to weight subsequent
 	// observations, we may want to look into applying forward decay:

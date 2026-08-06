@@ -26,12 +26,12 @@ func (m *Manager) IsStateDirty() (bool, error) {
 
 	// Check Nodes and Clusters fields.
 	nodeID := m.config.SecurityConfig.ClientTLSCreds.NodeID()
-	if len(storeSnapshot.Nodes) > 1 || (len(storeSnapshot.Nodes) == 1 && storeSnapshot.Nodes[0].ID != nodeID) {
+	if len(storeSnapshot.Nodes) > 1 || (len(storeSnapshot.Nodes) == 1 && storeSnapshot.Nodes[0].Id != nodeID) {
 		return true, nil
 	}
 
 	clusterID := m.config.SecurityConfig.ClientTLSCreds.Organization()
-	if len(storeSnapshot.Clusters) > 1 || (len(storeSnapshot.Clusters) == 1 && storeSnapshot.Clusters[0].ID != clusterID) {
+	if len(storeSnapshot.Clusters) > 1 || (len(storeSnapshot.Clusters) == 1 && storeSnapshot.Clusters[0].Id != clusterID) {
 		return true, nil
 	}
 
@@ -39,12 +39,17 @@ func (m *Manager) IsStateDirty() (bool, error) {
 	// lets us implement a whitelist-type approach, where we don't need to
 	// remember to add individual types here.
 
-	val := reflect.ValueOf(*storeSnapshot)
+	// Reflect over the pointer: a protobuf message must not be copied, and it
+	// carries unexported bookkeeping fields that are not object slices.
+	val := reflect.ValueOf(storeSnapshot).Elem()
 	numFields := val.NumField()
 
 	for i := range numFields {
 		field := val.Field(i)
 		structField := val.Type().Field(i)
+		if !structField.IsExported() {
+			continue
+		}
 		if structField.Type.Kind() != reflect.Slice {
 			panic(fmt.Sprintf("unexpected field type in StoreSnapshot: %s (type %v)", structField.Name, structField.Type.Kind()))
 		}

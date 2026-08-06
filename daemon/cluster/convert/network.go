@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/network"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/convert/netextra"
@@ -31,16 +30,16 @@ func networkAttachmentFromGRPC(na *swarmapi.NetworkAttachment) types.NetworkAtta
 func networkFromGRPC(n *swarmapi.Network) types.Network {
 	if n != nil {
 		nw := types.Network{
-			ID: n.ID,
+			ID: n.Id,
 			Spec: types.NetworkSpec{
 				IPv6Enabled: n.Spec.Ipv6Enabled,
 				Internal:    n.Spec.Internal,
 				Attachable:  n.Spec.Attachable,
 				Ingress:     IsIngressNetwork(n),
-				IPAMOptions: ipamFromGRPC(n.Spec.IPAM),
+				IPAMOptions: ipamFromGRPC(n.Spec.Ipam),
 				Scope:       scope.Swarm,
 			},
-			IPAMOptions: ipamFromGRPC(n.IPAM),
+			IPAMOptions: ipamFromGRPC(n.Ipam),
 		}
 
 		if n.Spec.GetNetwork() != "" {
@@ -51,8 +50,8 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 
 		// Meta
 		nw.Version.Index = n.Meta.Version.Index
-		nw.CreatedAt, _ = gogotypes.TimestampFromProto(n.Meta.CreatedAt)
-		nw.UpdatedAt, _ = gogotypes.TimestampFromProto(n.Meta.UpdatedAt)
+		nw.CreatedAt = n.Meta.CreatedAt.AsTime()
+		nw.UpdatedAt = n.Meta.UpdatedAt.AsTime()
 
 		// Annotations
 		nw.Spec.Annotations = annotationsFromGRPC(n.Spec.Annotations)
@@ -129,10 +128,10 @@ func endpointFromGRPC(e *swarmapi.Endpoint) types.Endpoint {
 			endpoint.Ports = append(endpoint.Ports, swarmPortConfigToAPIPortConfig(portState))
 		}
 
-		for _, v := range e.VirtualIPs {
+		for _, v := range e.VirtualIps {
 			vip, _ := netip.ParsePrefix(v.Addr)
 			endpoint.VirtualIPs = append(endpoint.VirtualIPs, types.EndpointVirtualIP{
-				NetworkID: v.NetworkID,
+				NetworkID: v.NetworkId,
 				Addr:      vip,
 			})
 		}
@@ -152,16 +151,16 @@ func swarmPortConfigToAPIPortConfig(portConfig *swarmapi.PortConfig) types.PortC
 }
 
 // BasicNetworkFromGRPC converts a grpc Network to a NetworkResource.
-func BasicNetworkFromGRPC(n swarmapi.Network) network.Network {
+func BasicNetworkFromGRPC(n *swarmapi.Network) network.Network {
 	spec := n.Spec
 	var ipam network.IPAM
-	if n.IPAM != nil {
-		if n.IPAM.Driver != nil {
-			ipam.Driver = n.IPAM.Driver.Name
-			ipam.Options = n.IPAM.Driver.Options
+	if n.Ipam != nil {
+		if n.Ipam.Driver != nil {
+			ipam.Driver = n.Ipam.Driver.Name
+			ipam.Options = n.Ipam.Driver.Options
 		}
-		ipam.Config = make([]network.IPAMConfig, 0, len(n.IPAM.Configs))
-		for _, ic := range n.IPAM.Configs {
+		ipam.Config = make([]network.IPAMConfig, 0, len(n.Ipam.Configs))
+		for _, ic := range n.Ipam.Configs {
 			// Best-effort parse of user supplied values that have
 			// been round-tripped through Swarm's Raft store. It is
 			// far too late to reject bogus values.
@@ -182,7 +181,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Network {
 	}
 
 	nr := network.Network{
-		ID:         n.ID,
+		ID:         n.Id,
 		Name:       n.Spec.Annotations.Name,
 		Scope:      scope.Swarm,
 		EnableIPv4: true,
@@ -190,10 +189,10 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Network {
 		IPAM:       ipam,
 		Internal:   spec.Internal,
 		Attachable: spec.Attachable,
-		Ingress:    IsIngressNetwork(&n),
+		Ingress:    IsIngressNetwork(n),
 		Labels:     n.Spec.Annotations.Labels,
 	}
-	nr.Created, _ = gogotypes.TimestampFromProto(n.Meta.CreatedAt)
+	nr.Created = n.Meta.CreatedAt.AsTime()
 
 	if n.Spec.GetNetwork() != "" {
 		nr.ConfigFrom = network.ConfigReference{
@@ -209,7 +208,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) network.Network {
 	return nr
 }
 
-func NetworkInspectFromGRPC(n swarmapi.Network) (network.Inspect, error) {
+func NetworkInspectFromGRPC(n *swarmapi.Network) (network.Inspect, error) {
 	ni := network.Inspect{
 		Network:    BasicNetworkFromGRPC(n),
 		Containers: make(map[string]network.EndpointResource),
@@ -221,9 +220,9 @@ func NetworkInspectFromGRPC(n swarmapi.Network) (network.Inspect, error) {
 }
 
 // BasicNetworkCreateToGRPC converts a NetworkCreateRequest to a grpc NetworkSpec.
-func BasicNetworkCreateToGRPC(create network.CreateRequest) swarmapi.NetworkSpec {
-	ns := swarmapi.NetworkSpec{
-		Annotations: swarmapi.Annotations{
+func BasicNetworkCreateToGRPC(create network.CreateRequest) *swarmapi.NetworkSpec {
+	ns := &swarmapi.NetworkSpec{
+		Annotations: &swarmapi.Annotations{
 			Name:   create.Name,
 			Labels: create.Labels,
 		},
@@ -243,7 +242,7 @@ func BasicNetworkCreateToGRPC(create network.CreateRequest) swarmapi.NetworkSpec
 		if driver == "" {
 			driver = "default"
 		}
-		ns.IPAM = &swarmapi.IPAMOptions{
+		ns.Ipam = &swarmapi.IPAMOptions{
 			Driver: &swarmapi.Driver{
 				Name:    driver,
 				Options: create.IPAM.Options,
@@ -257,7 +256,7 @@ func BasicNetworkCreateToGRPC(create network.CreateRequest) swarmapi.NetworkSpec
 				Gateway: netipstringer.Addr(ipamConfig.Gateway.Unmap()),
 			})
 		}
-		ns.IPAM.Configs = ipamSpec
+		ns.Ipam.Configs = ipamSpec
 	}
 	if create.ConfigFrom != nil {
 		ns.ConfigFrom = &swarmapi.NetworkSpec_Network{
@@ -284,7 +283,7 @@ type FilterNetwork struct {
 }
 
 func (nw FilterNetwork) ID() string {
-	return nw.N.ID
+	return nw.N.Id
 }
 
 func (nw FilterNetwork) Name() string {
@@ -307,8 +306,7 @@ func (nw FilterNetwork) Scope() string {
 }
 
 func (nw FilterNetwork) Created() time.Time {
-	t, _ := gogotypes.TimestampFromProto(nw.N.Meta.CreatedAt)
-	return t
+	return nw.N.Meta.CreatedAt.AsTime()
 }
 
 func (nw FilterNetwork) HasContainerAttachments() bool {

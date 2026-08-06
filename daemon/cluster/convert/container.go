@@ -5,16 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/netip"
+	"os"
 	"strings"
 
 	"github.com/containerd/log"
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/container"
 	mounttypes "github.com/moby/moby/api/types/mount"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/internal/sliceutil"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
@@ -32,7 +34,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 		User:           c.User,
 		Groups:         c.Groups,
 		StopSignal:     c.StopSignal,
-		TTY:            c.TTY,
+		TTY:            c.Tty,
 		OpenStdin:      c.OpenStdin,
 		ReadOnly:       c.ReadOnly,
 		Hosts:          c.Hosts,
@@ -47,11 +49,11 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 		OomScoreAdj:    c.OomScoreAdj,
 	}
 
-	if c.DNSConfig != nil {
+	if c.DnsConfig != nil {
 		containerSpec.DNSConfig = &types.DNSConfig{
-			Nameservers: sliceutil.Map(c.DNSConfig.Nameservers, func(s string) netip.Addr { a, _ := netip.ParseAddr(s); return a }),
-			Search:      c.DNSConfig.Search,
-			Options:     c.DNSConfig.Options,
+			Nameservers: sliceutil.Map(c.DnsConfig.Nameservers, func(s string) netip.Addr { a, _ := netip.ParseAddr(s); return a }),
+			Search:      c.DnsConfig.Search,
+			Options:     c.DnsConfig.Options,
 		}
 	}
 
@@ -63,13 +65,13 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 			containerSpec.Privileges.CredentialSpec = credentialSpecFromGRPC(c.Privileges.CredentialSpec)
 		}
 
-		if c.Privileges.SELinuxContext != nil {
+		if c.Privileges.SelinuxContext != nil {
 			containerSpec.Privileges.SELinuxContext = &types.SELinuxContext{
-				Disable: c.Privileges.SELinuxContext.Disable,
-				User:    c.Privileges.SELinuxContext.User,
-				Type:    c.Privileges.SELinuxContext.Type,
-				Role:    c.Privileges.SELinuxContext.Role,
-				Level:   c.Privileges.SELinuxContext.Level,
+				Disable: c.Privileges.SelinuxContext.Disable,
+				User:    c.Privileges.SelinuxContext.User,
+				Type:    c.Privileges.SelinuxContext.Type,
+				Role:    c.Privileges.SelinuxContext.Role,
+				Level:   c.Privileges.SelinuxContext.Level,
 			}
 		}
 
@@ -107,23 +109,23 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 		mount := mounttypes.Mount{
 			Target:   m.Target,
 			Source:   m.Source,
-			Type:     mounttypes.Type(strings.ToLower(swarmapi.Mount_MountType_name[int32(m.Type)])),
-			ReadOnly: m.ReadOnly,
+			Type:     mounttypes.Type(strings.ToLower(swarmapi.Mount_Type_name[int32(m.Type)])),
+			ReadOnly: m.Readonly,
 		}
 
 		if m.BindOptions != nil {
 			mount.BindOptions = &mounttypes.BindOptions{
-				Propagation:            mounttypes.Propagation(strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)])),
-				NonRecursive:           m.BindOptions.NonRecursive,
-				CreateMountpoint:       m.BindOptions.CreateMountpoint,
-				ReadOnlyNonRecursive:   m.BindOptions.ReadOnlyNonRecursive,
-				ReadOnlyForceRecursive: m.BindOptions.ReadOnlyForceRecursive,
+				Propagation:            mounttypes.Propagation(strings.ToLower(swarmapi.Mount_BindOptions_Propagation_name[int32(m.BindOptions.Propagation)])),
+				NonRecursive:           m.BindOptions.Nonrecursive,
+				CreateMountpoint:       m.BindOptions.Createmountpoint,
+				ReadOnlyNonRecursive:   m.BindOptions.Readonlynonrecursive,
+				ReadOnlyForceRecursive: m.BindOptions.Readonlyforcerecursive,
 			}
 		}
 
 		if m.VolumeOptions != nil {
 			mount.VolumeOptions = &mounttypes.VolumeOptions{
-				NoCopy:  m.VolumeOptions.NoCopy,
+				NoCopy:  m.VolumeOptions.Nocopy,
 				Labels:  m.VolumeOptions.Labels,
 				Subpath: m.VolumeOptions.Subpath,
 			}
@@ -138,7 +140,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 		if m.TmpfsOptions != nil {
 			mount.TmpfsOptions = &mounttypes.TmpfsOptions{
 				SizeBytes: m.TmpfsOptions.SizeBytes,
-				Mode:      m.TmpfsOptions.Mode,
+				Mode:      os.FileMode(m.TmpfsOptions.Mode),
 				Options:   tmpfsOptionsFromGRPC(m.TmpfsOptions.Options),
 			}
 		}
@@ -146,7 +148,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 	}
 
 	if c.StopGracePeriod != nil {
-		grace, _ := gogotypes.DurationFromProto(c.StopGracePeriod)
+		grace := c.StopGracePeriod.AsDuration()
 		containerSpec.StopGracePeriod = &grace
 	}
 
@@ -157,7 +159,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 	return containerSpec
 }
 
-func initFromGRPC(v *gogotypes.BoolValue) *bool {
+func initFromGRPC(v *wrapperspb.BoolValue) *bool {
 	if v == nil {
 		return nil
 	}
@@ -165,27 +167,27 @@ func initFromGRPC(v *gogotypes.BoolValue) *bool {
 	return &value
 }
 
-func initToGRPC(v *bool) *gogotypes.BoolValue {
+func initToGRPC(v *bool) *wrapperspb.BoolValue {
 	if v == nil {
 		return nil
 	}
-	return &gogotypes.BoolValue{Value: *v}
+	return wrapperspb.Bool(*v)
 }
 
 func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretReference {
 	refs := make([]*swarmapi.SecretReference, 0, len(sr))
 	for _, s := range sr {
 		ref := &swarmapi.SecretReference{
-			SecretID:   s.SecretID,
+			SecretId:   s.SecretID,
 			SecretName: s.SecretName,
 		}
 		if s.File != nil {
 			ref.Target = &swarmapi.SecretReference_File{
 				File: &swarmapi.FileTarget{
 					Name: s.File.Name,
-					UID:  s.File.UID,
-					GID:  s.File.GID,
-					Mode: s.File.Mode,
+					Uid:  s.File.UID,
+					Gid:  s.File.GID,
+					Mode: uint32(s.File.Mode),
 				},
 			}
 		}
@@ -202,17 +204,17 @@ func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretRef
 		target := s.GetFile()
 		if target == nil {
 			// not a file target
-			log.G(context.TODO()).Warnf("secret target not a file: secret=%s", s.SecretID)
+			log.G(context.TODO()).Warnf("secret target not a file: secret=%s", s.SecretId)
 			continue
 		}
 		refs = append(refs, &types.SecretReference{
 			File: &types.SecretReferenceFileTarget{
 				Name: target.Name,
-				UID:  target.UID,
-				GID:  target.GID,
-				Mode: target.Mode,
+				UID:  target.Uid,
+				GID:  target.Gid,
+				Mode: os.FileMode(target.Mode),
 			},
-			SecretID:   s.SecretID,
+			SecretID:   s.SecretId,
 			SecretName: s.SecretName,
 		})
 	}
@@ -224,7 +226,7 @@ func configReferencesToGRPC(sr []*types.ConfigReference) ([]*swarmapi.ConfigRefe
 	refs := make([]*swarmapi.ConfigReference, 0, len(sr))
 	for _, s := range sr {
 		ref := &swarmapi.ConfigReference{
-			ConfigID:   s.ConfigID,
+			ConfigId:   s.ConfigID,
 			ConfigName: s.ConfigName,
 		}
 		switch {
@@ -243,9 +245,9 @@ func configReferencesToGRPC(sr []*types.ConfigReference) ([]*swarmapi.ConfigRefe
 			ref.Target = &swarmapi.ConfigReference_File{
 				File: &swarmapi.FileTarget{
 					Name: s.File.Name,
-					UID:  s.File.UID,
-					GID:  s.File.GID,
-					Mode: s.File.Mode,
+					Uid:  s.File.UID,
+					Gid:  s.File.GID,
+					Mode: uint32(s.File.Mode),
 				},
 			}
 		}
@@ -260,7 +262,7 @@ func configReferencesFromGRPC(sr []*swarmapi.ConfigReference) []*types.ConfigRef
 	refs := make([]*types.ConfigReference, 0, len(sr))
 	for _, s := range sr {
 		r := &types.ConfigReference{
-			ConfigID:   s.ConfigID,
+			ConfigID:   s.ConfigId,
 			ConfigName: s.ConfigName,
 		}
 		if target := s.GetRuntime(); target != nil {
@@ -268,13 +270,13 @@ func configReferencesFromGRPC(sr []*swarmapi.ConfigReference) []*types.ConfigRef
 		} else if target := s.GetFile(); target != nil {
 			r.File = &types.ConfigReferenceFileTarget{
 				Name: target.Name,
-				UID:  target.UID,
-				GID:  target.GID,
-				Mode: target.Mode,
+				UID:  target.Uid,
+				GID:  target.Gid,
+				Mode: os.FileMode(target.Mode),
 			}
 		} else {
 			// not a file target
-			log.G(context.TODO()).Warnf("config target not known: config=%s", s.ConfigID)
+			log.G(context.TODO()).Warnf("config target not known: config=%s", s.ConfigId)
 			continue
 		}
 		refs = append(refs, r)
@@ -295,7 +297,7 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		User:           c.User,
 		Groups:         c.Groups,
 		StopSignal:     c.StopSignal,
-		TTY:            c.TTY,
+		Tty:            c.TTY,
 		OpenStdin:      c.OpenStdin,
 		ReadOnly:       c.ReadOnly,
 		Hosts:          c.Hosts,
@@ -310,7 +312,7 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	}
 
 	if c.DNSConfig != nil {
-		containerSpec.DNSConfig = &swarmapi.ContainerSpec_DNSConfig{
+		containerSpec.DnsConfig = &swarmapi.ContainerSpec_DNSConfig{
 			Nameservers: sliceutil.Map(c.DNSConfig.Nameservers, (netip.Addr).String),
 			Search:      c.DNSConfig.Search,
 			Options:     c.DNSConfig.Options,
@@ -318,7 +320,7 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	}
 
 	if c.StopGracePeriod != nil {
-		containerSpec.StopGracePeriod = gogotypes.DurationProto(*c.StopGracePeriod)
+		containerSpec.StopGracePeriod = durationpb.New(*c.StopGracePeriod)
 	}
 
 	// Privileges
@@ -334,7 +336,7 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		}
 
 		if c.Privileges.SELinuxContext != nil {
-			containerSpec.Privileges.SELinuxContext = &swarmapi.Privileges_SELinuxContext{
+			containerSpec.Privileges.SelinuxContext = &swarmapi.Privileges_SELinuxContext{
 				Disable: c.Privileges.SELinuxContext.Disable,
 				User:    c.Privileges.SELinuxContext.User,
 				Type:    c.Privileges.SELinuxContext.Type,
@@ -385,18 +387,18 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		mount := swarmapi.Mount{
 			Target:   m.Target,
 			Source:   m.Source,
-			ReadOnly: m.ReadOnly,
+			Readonly: m.ReadOnly,
 		}
 
-		if mountType, ok := swarmapi.Mount_MountType_value[strings.ToUpper(string(m.Type))]; ok {
-			mount.Type = swarmapi.Mount_MountType(mountType)
+		if mountType, ok := swarmapi.Mount_Type_value[strings.ToUpper(string(m.Type))]; ok {
+			mount.Type = swarmapi.Mount_Type(mountType)
 		} else if string(m.Type) != "" {
 			return nil, fmt.Errorf("invalid MountType: %q", m.Type)
 		}
 
 		if m.BindOptions != nil {
-			if mountPropagation, ok := swarmapi.Mount_BindOptions_MountPropagation_value[strings.ToUpper(string(m.BindOptions.Propagation))]; ok {
-				mount.BindOptions = &swarmapi.Mount_BindOptions{Propagation: swarmapi.Mount_BindOptions_MountPropagation(mountPropagation)}
+			if mountPropagation, ok := swarmapi.Mount_BindOptions_Propagation_value[strings.ToUpper(string(m.BindOptions.Propagation))]; ok {
+				mount.BindOptions = &swarmapi.Mount_BindOptions{Propagation: swarmapi.Mount_BindOptions_Propagation(mountPropagation)}
 			} else if string(m.BindOptions.Propagation) != "" {
 				return nil, fmt.Errorf("invalid MountPropagation: %q", m.BindOptions.Propagation)
 			}
@@ -406,13 +408,13 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 					// the propagation defaults to rprivate
 					mount.BindOptions = &swarmapi.Mount_BindOptions{}
 				}
-				mount.BindOptions.NonRecursive = m.BindOptions.NonRecursive
+				mount.BindOptions.Nonrecursive = m.BindOptions.NonRecursive
 			}
 		}
 
 		if m.VolumeOptions != nil {
 			mount.VolumeOptions = &swarmapi.Mount_VolumeOptions{
-				NoCopy:  m.VolumeOptions.NoCopy,
+				Nocopy:  m.VolumeOptions.NoCopy,
 				Labels:  m.VolumeOptions.Labels,
 				Subpath: m.VolumeOptions.Subpath,
 			}
@@ -427,12 +429,12 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		if m.TmpfsOptions != nil {
 			mount.TmpfsOptions = &swarmapi.Mount_TmpfsOptions{
 				SizeBytes: m.TmpfsOptions.SizeBytes,
-				Mode:      m.TmpfsOptions.Mode,
+				Mode:      uint32(m.TmpfsOptions.Mode),
 				Options:   tmpfsOptionsToGRPC(m.TmpfsOptions.Options),
 			}
 		}
 
-		containerSpec.Mounts = append(containerSpec.Mounts, mount)
+		containerSpec.Mounts = append(containerSpec.Mounts, &mount)
 	}
 
 	if c.Healthcheck != nil {
@@ -497,10 +499,10 @@ func credentialSpecToGRPC(c *types.CredentialSpec) (*swarmapi.Privileges_Credent
 }
 
 func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
-	interval, _ := gogotypes.DurationFromProto(h.Interval)
-	timeout, _ := gogotypes.DurationFromProto(h.Timeout)
-	startPeriod, _ := gogotypes.DurationFromProto(h.StartPeriod)
-	startInterval, _ := gogotypes.DurationFromProto(h.StartInterval)
+	interval := h.Interval.AsDuration()
+	timeout := h.Timeout.AsDuration()
+	startPeriod := h.StartPeriod.AsDuration()
+	startInterval := h.StartInterval.AsDuration()
 	return &container.HealthConfig{
 		Test:          h.Test,
 		Interval:      interval,
@@ -514,22 +516,22 @@ func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
 func healthConfigToGRPC(h *container.HealthConfig) *swarmapi.HealthConfig {
 	return &swarmapi.HealthConfig{
 		Test:          h.Test,
-		Interval:      gogotypes.DurationProto(h.Interval),
-		Timeout:       gogotypes.DurationProto(h.Timeout),
+		Interval:      durationpb.New(h.Interval),
+		Timeout:       durationpb.New(h.Timeout),
 		Retries:       int32(h.Retries),
-		StartPeriod:   gogotypes.DurationProto(h.StartPeriod),
-		StartInterval: gogotypes.DurationProto(h.StartInterval),
+		StartPeriod:   durationpb.New(h.StartPeriod),
+		StartInterval: durationpb.New(h.StartInterval),
 	}
 }
 
 // IsolationFromGRPC converts a swarm api container isolation to a moby isolation representation
 func IsolationFromGRPC(i swarmapi.ContainerSpec_Isolation) container.Isolation {
 	switch i {
-	case swarmapi.ContainerIsolationHyperV:
+	case swarmapi.ContainerSpec_ISOLATION_HYPERV:
 		return container.IsolationHyperV
-	case swarmapi.ContainerIsolationProcess:
+	case swarmapi.ContainerSpec_ISOLATION_PROCESS:
 		return container.IsolationProcess
-	case swarmapi.ContainerIsolationDefault:
+	case swarmapi.ContainerSpec_ISOLATION_DEFAULT:
 		return container.IsolationDefault
 	}
 	return container.IsolationEmpty
@@ -537,12 +539,12 @@ func IsolationFromGRPC(i swarmapi.ContainerSpec_Isolation) container.Isolation {
 
 func isolationToGRPC(i container.Isolation) swarmapi.ContainerSpec_Isolation {
 	if i.IsHyperV() {
-		return swarmapi.ContainerIsolationHyperV
+		return swarmapi.ContainerSpec_ISOLATION_HYPERV
 	}
 	if i.IsProcess() {
-		return swarmapi.ContainerIsolationProcess
+		return swarmapi.ContainerSpec_ISOLATION_PROCESS
 	}
-	return swarmapi.ContainerIsolationDefault
+	return swarmapi.ContainerSpec_ISOLATION_DEFAULT
 }
 
 func ulimitsFromGRPC(u []*swarmapi.ContainerSpec_Ulimit) []*container.Ulimit {

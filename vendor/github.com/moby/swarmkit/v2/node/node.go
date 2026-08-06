@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -199,7 +198,7 @@ func New(c *Config) (*Node, error) {
 	}
 	stateFile := filepath.Join(c.StateDir, stateFilename)
 	dt, err := os.ReadFile(stateFile)
-	var p []api.Peer
+	var p []*api.Peer
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
@@ -223,7 +222,7 @@ func New(c *Config) (*Node, error) {
 	if n.config.JoinAddr != "" || n.config.ForceNewCluster {
 		n.remotes = newPersistentRemotes(filepath.Join(n.config.StateDir, stateFilename))
 		if n.config.JoinAddr != "" {
-			n.remotes.Observe(api.Peer{Addr: n.config.JoinAddr}, remotes.DefaultObservationWeight)
+			n.remotes.Observe(&api.Peer{Addr: n.config.JoinAddr}, remotes.DefaultObservationWeight)
 		}
 	}
 
@@ -263,9 +262,9 @@ func (n *Node) Start(ctx context.Context) error {
 
 func (n *Node) currentRole() api.NodeRole {
 	n.Lock()
-	currentRole := api.NodeRoleWorker
+	currentRole := api.NodeRole_WORKER
 	if n.role == ca.ManagerRole {
-		currentRole = api.NodeRoleManager
+		currentRole = api.NodeRole_MANAGER
 	}
 	n.Unlock()
 	return currentRole
@@ -362,7 +361,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 	// handles root rotation, but the renewer handles regular certification
 	// rotation.
 	go func() {
-		// lastNodeDesiredRole is the last-seen value of Node.Spec.DesiredRole,
+		// lastNodeDesiredRole is the last-seen value of Node.Spec.GetDesiredRole(),
 		// used to make role changes "edge triggered" and avoid renewal loops.
 		lastNodeDesiredRole := lastSeenRole{role: n.currentRole()}
 
@@ -384,16 +383,16 @@ func (n *Node) run(ctx context.Context) (err error) {
 					//    role, we continue renewing with exponential backoff.
 					// 2) If the server is sending us IssuanceStateRotate, renew the cert as
 					//    requested by the CA.
-					desiredRoleChanged := lastNodeDesiredRole.observe(nodeChanges.Node.Spec.DesiredRole)
+					desiredRoleChanged := lastNodeDesiredRole.observe(nodeChanges.Node.Spec.GetDesiredRole())
 					if desiredRoleChanged {
-						switch nodeChanges.Node.Spec.DesiredRole {
-						case api.NodeRoleManager:
+						switch nodeChanges.Node.Spec.GetDesiredRole() {
+						case api.NodeRole_MANAGER:
 							renewer.SetExpectedRole(ca.ManagerRole)
-						case api.NodeRoleWorker:
+						case api.NodeRole_WORKER:
 							renewer.SetExpectedRole(ca.WorkerRole)
 						}
 					}
-					if desiredRoleChanged || nodeChanges.Node.Certificate.Status.State == api.IssuanceStateRotate {
+					if desiredRoleChanged || nodeChanges.Node.GetCertificate().GetStatus().GetState() == api.IssuanceStatus_ROTATE {
 						renewer.Renew()
 					}
 				}
@@ -432,7 +431,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 		securityConfig.ClientTLSCreds.NodeID(),
 	).Set(1)
 
-	if n.currentRole() == api.NodeRoleManager {
+	if n.currentRole() == api.NodeRole_MANAGER {
 		nodeManager.Set(1)
 	} else {
 		nodeManager.Set(0)
@@ -457,7 +456,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 			n.Unlock()
 
 			// Export the new role for metrics
-			if n.currentRole() == api.NodeRoleManager {
+			if n.currentRole() == api.NodeRole_MANAGER {
 				nodeManager.Set(1)
 			} else {
 				nodeManager.Set(0)
@@ -764,11 +763,11 @@ func (n *Node) IsStateDirty() (bool, error) {
 }
 
 // Remotes returns a list of known peers known to node.
-func (n *Node) Remotes() []api.Peer {
+func (n *Node) Remotes() []*api.Peer {
 	weights := n.remotes.Weights()
-	remotes := make([]api.Peer, 0, len(weights))
+	remotes := make([]*api.Peer, 0, len(weights))
 	for p := range weights {
-		remotes = append(remotes, p)
+		remotes = append(remotes, p.Peer())
 	}
 	return remotes
 }
@@ -1200,10 +1199,10 @@ type persistentRemotes struct {
 	c *sync.Cond
 	remotes.Remotes
 	storePath      string
-	lastSavedState []api.Peer
+	lastSavedState []*api.Peer
 }
 
-func newPersistentRemotes(f string, peers ...api.Peer) *persistentRemotes {
+func newPersistentRemotes(f string, peers ...*api.Peer) *persistentRemotes {
 	pr := &persistentRemotes{
 		storePath: f,
 		Remotes:   remotes.NewRemotes(peers...),
@@ -1212,7 +1211,7 @@ func newPersistentRemotes(f string, peers ...api.Peer) *persistentRemotes {
 	return pr
 }
 
-func (s *persistentRemotes) Observe(peer api.Peer, weight int) {
+func (s *persistentRemotes) Observe(peer *api.Peer, weight int) {
 	s.Lock()
 	defer s.Unlock()
 	s.Remotes.Observe(peer, weight)
@@ -1222,7 +1221,7 @@ func (s *persistentRemotes) Observe(peer api.Peer, weight int) {
 	}
 }
 
-func (s *persistentRemotes) Remove(peers ...api.Peer) {
+func (s *persistentRemotes) Remove(peers ...*api.Peer) {
 	s.Lock()
 	defer s.Unlock()
 	s.Remotes.Remove(peers...)
@@ -1233,12 +1232,14 @@ func (s *persistentRemotes) Remove(peers ...api.Peer) {
 
 func (s *persistentRemotes) save() error {
 	weights := s.Weights()
-	remotes := make([]api.Peer, 0, len(weights))
+	remotes := make([]*api.Peer, 0, len(weights))
 	for r := range weights {
-		remotes = append(remotes, r)
+		remotes = append(remotes, r.Peer())
 	}
 	sort.Sort(sortablePeers(remotes))
-	if reflect.DeepEqual(remotes, s.lastSavedState) {
+	// reflect.DeepEqual is not valid on protobuf messages, which carry
+	// internal state that is populated lazily.
+	if peersEqual(remotes, s.lastSavedState) {
 		return nil
 	}
 	dt, err := json.Marshal(remotes)
@@ -1250,8 +1251,8 @@ func (s *persistentRemotes) save() error {
 }
 
 // WaitSelect waits until at least one remote becomes available and then selects one.
-func (s *persistentRemotes) WaitSelect(ctx context.Context) <-chan api.Peer {
-	c := make(chan api.Peer, 1)
+func (s *persistentRemotes) WaitSelect(ctx context.Context) <-chan *api.Peer {
+	c := make(chan *api.Peer, 1)
 	s.RLock()
 	done := make(chan struct{})
 	go func() {
@@ -1280,10 +1281,24 @@ func (s *persistentRemotes) WaitSelect(ctx context.Context) <-chan api.Peer {
 	return c
 }
 
-// sortablePeers is a sort wrapper for []api.Peer
-type sortablePeers []api.Peer
+// peersEqual reports whether two peer lists hold the same peers in the same
+// order.
+func peersEqual(a, b []*api.Peer) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !a[i].EqualVT(b[i]) {
+			return false
+		}
+	}
+	return true
+}
 
-func (sp sortablePeers) Less(i, j int) bool { return sp[i].NodeID < sp[j].NodeID }
+// sortablePeers is a sort wrapper for []*api.Peer
+type sortablePeers []*api.Peer
+
+func (sp sortablePeers) Less(i, j int) bool { return sp[i].NodeId < sp[j].NodeId }
 
 func (sp sortablePeers) Len() int { return len(sp) }
 

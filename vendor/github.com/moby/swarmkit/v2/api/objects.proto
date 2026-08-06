@@ -2,10 +2,11 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
+option go_package = "github.com/moby/swarmkit/v2/api";
+
 import "github.com/docker/swarmkit/api/types.proto";
 import "github.com/docker/swarmkit/api/specs.proto";
 import "google/protobuf/timestamp.proto";
-import "gogoproto/gogo.proto";
 import "google/protobuf/any.proto";
 import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
@@ -16,7 +17,7 @@ import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 // Meta contains metadata about objects. Every object contains a meta field.
 message Meta {
 	// Version tracks the current version of the object.
-	Version version = 1 [(gogoproto.nullable) = false];
+	Version version = 1;
 
 	// Object timestamps.
 	// Note: can't use stdtime because these fields are nullable.
@@ -42,18 +43,18 @@ message Node {
 	// ID specifies the identity of the node.
 	string id = 1;
 
-	Meta meta = 2 [(gogoproto.nullable) = false];
+	Meta meta = 2;
 
 	// Spec defines the desired state of the node as specified by the user.
 	// The system will honor this and will *never* modify it.
-	NodeSpec spec = 3 [(gogoproto.nullable) = false];
+	NodeSpec spec = 3;
 
 	// Description encapsulated the properties of the Node as reported by the
 	// agent.
 	NodeDescription description = 4;
 
 	// Status provides the current status of the node, as seen by the manager.
-	NodeStatus status = 5 [(gogoproto.nullable) = false];
+	NodeStatus status = 5;
 
 	// ManagerStatus provides the current status of the node's manager
 	// component, if the node is a manager.
@@ -64,7 +65,7 @@ message Node {
 	NetworkAttachment attachment = 7 [deprecated=true];
 
 	// Certificate is the TLS certificate issued for the node, if any.
-	Certificate certificate = 8 [(gogoproto.nullable) = false];
+	Certificate certificate = 8;
 
 	// Role is the *observed* role for this node. It differs from the
 	// desired role set in Node.Spec.Role because the role here is only
@@ -101,9 +102,9 @@ message Service {
 
 	string id = 1;
 
-	Meta meta = 2 [(gogoproto.nullable) = false];
+	Meta meta = 2;
 
-	ServiceSpec spec = 3 [(gogoproto.nullable) = false];
+	ServiceSpec spec = 3;
 
 	// SpecVersion versions Spec, to identify changes in the spec. Note that
 	// this is not directly comparable to the service's Version.
@@ -174,7 +175,7 @@ message Endpoint {
 
 	// VirtualIPs specifies the IP addresses under which this endpoint will be
 	// made available.
-	repeated VirtualIP virtual_ips = 3 [(gogoproto.customname) = "VirtualIPs"];
+	repeated VirtualIP virtual_ips = 3;
 }
 
 // Task specifies the parameters for implementing a Spec. A task is effectively
@@ -198,11 +199,11 @@ message Task {
 
 	string id = 1;
 
-	Meta meta = 2 [(gogoproto.nullable) = false];
+	Meta meta = 2;
 
 	// Spec defines the desired state of the task as specified by the user.
 	// The system will honor this and will *never* modify it.
-	TaskSpec spec = 3 [(gogoproto.nullable) = false];
+	TaskSpec spec = 3;
 
 	// SpecVersion is copied from Service, to identify which version of the
 	// spec this task has. Note that this is not directly comparable to the
@@ -230,16 +231,16 @@ message Task {
 	//
 	// NOTE(stevvooe): The preserves the ability for us to making naming
 	// decisions for tasks in orchestrator, albeit, this is left empty for now.
-	Annotations annotations = 7 [(gogoproto.nullable) = false];
+	Annotations annotations = 7;
 
 	// ServiceAnnotations is a direct copy of the service name and labels when
 	// this task is created.
 	//
 	// Labels set here will *not* be propagated to the runtime target, such as a
 	// container. Use labels on the runtime target for that purpose.
-	Annotations service_annotations = 8 [(gogoproto.nullable) = false];
+	Annotations service_annotations = 8;
 
-	TaskStatus status = 9 [(gogoproto.nullable) = false];
+	TaskStatus status = 9;
 
 	// DesiredState is the target state for the task. It is set to
 	// TaskStateRunning when a task is first created, and changed to
@@ -308,16 +309,16 @@ message Network {
 
 	string id = 1;
 
-	Meta meta = 2 [(gogoproto.nullable) = false];
+	Meta meta = 2;
 
-	NetworkSpec spec = 3 [(gogoproto.nullable) = false];
+	NetworkSpec spec = 3;
 
 	// Driver specific operational state provided by the network driver.
 	Driver driver_state = 4;
 
 	// Runtime state of IPAM options. This may not reflect the
 	// ipam options from NetworkSpec.
-	IPAMOptions ipam = 5 [(gogoproto.customname) = "IPAM"];
+	IPAMOptions ipam = 5;
 
 	// PendingDelete indicates that this network's deletion has been requested.
 	// Services, as well as all service-level resources, can only be deleted
@@ -354,12 +355,12 @@ message Cluster {
 
 	string id = 1;
 
-	Meta meta = 2 [(gogoproto.nullable) = false];
+	Meta meta = 2;
 
-	ClusterSpec spec = 3 [(gogoproto.nullable) = false];
+	ClusterSpec spec = 3;
 
 	// RootCA contains key material for the root CA.
-	RootCA root_ca = 4 [(gogoproto.nullable)=false, (gogoproto.customname) = "RootCA"];
+	RootCA root_ca = 4;
 
 	// Symmetric encryption key distributed by the lead manager. Used by agents
 	// for securing network bootstrapping and communication.
@@ -386,7 +387,7 @@ message Cluster {
 	// the format of the join tokens, and nodes that are not FIPS-enabled should
 	// reject joining the cluster.  Nodes that report themselves to be non-FIPS
 	// should be rejected from the cluster.
-	bool fips = 10 [(gogoproto.customname) = "FIPS"];
+	bool fips = 10;
 
 	// This field specifies default subnet pools for global scope networks. If
 	// unspecified, Docker will use the predefined subnets as it works on older releases.
@@ -417,11 +418,11 @@ message Secret {
 
 	string id = 1;
 
-	Meta meta = 2 [(gogoproto.nullable) = false];
+	Meta meta = 2;
 
 	// Spec contains the actual secret data, as well as any context around the
 	// secret data that the user provides.
-	SecretSpec spec = 3  [(gogoproto.nullable) = false];
+	SecretSpec spec = 3;
 
 	// Whether the secret is an internal secret (not set by a user) or not.
 	bool internal = 4;
@@ -443,11 +444,11 @@ message Config {
 
 	string id = 1;
 
-	Meta meta = 2 [(gogoproto.nullable) = false];
+	Meta meta = 2;
 
 	// Spec contains the actual config data, as well as any context around the
 	// config data that the user provides.
-	ConfigSpec spec = 3  [(gogoproto.nullable) = false];
+	ConfigSpec spec = 3;
 }
 
 // Resource is a top-level object with externally defined content and indexing.
@@ -466,11 +467,11 @@ message Resource {
 		}
 	};
 
-	string id = 1 [(gogoproto.customname) = "ID"];
+	string id = 1;
 
-	Meta meta = 2 [(gogoproto.nullable) = false];
+	Meta meta = 2;
 
-	Annotations annotations = 3 [(gogoproto.nullable) = false];
+	Annotations annotations = 3;
 
 	// Kind identifies this class of object. It is essentially a namespace
 	// to keep IDs or indices from colliding between unrelated Resource
@@ -496,11 +497,11 @@ message Extension {
 		}
 	};
 
-	string id = 1 [(gogoproto.customname) = "ID"];
+	string id = 1;
 
-	Meta meta = 2 [(gogoproto.nullable) = false];
+	Meta meta = 2;
 
-	Annotations annotations = 3 [(gogoproto.nullable) = false];
+	Annotations annotations = 3;
 
 	string description = 4;
 
@@ -538,10 +539,10 @@ message Volume {
 	// ID is the swarmkit-internal ID for this volume object. This has no
 	// relation to the CSI volume identifier provided by the CSI Plugin.
 	string id = 1;
-	Meta meta = 2 [(gogoproto.nullable) = false];
+	Meta meta = 2;
 
 	// Spec is the desired state of the Volume, as provided by the user.
-	VolumeSpec spec = 3 [(gogoproto.nullable) = false];
+	VolumeSpec spec = 3;
 
 	// PublishStatus is the status of the volume as it pertains to the various
 	// nodes it is in use on.

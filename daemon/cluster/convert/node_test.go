@@ -12,17 +12,24 @@ import (
 // gRPC to the Docker types is correct.
 func TestNodeCSIInfoFromGRPC(t *testing.T) {
 	node := &swarmapi.Node{
-		ID: "someID",
+		Id: "someID",
+		Meta: &swarmapi.Meta{
+			Version: &swarmapi.Version{},
+		},
+		Spec: &swarmapi.NodeSpec{
+			Annotations: &swarmapi.Annotations{},
+		},
+		Status: &swarmapi.NodeStatus{},
 		Description: &swarmapi.NodeDescription{
-			CSIInfo: []*swarmapi.NodeCSIInfo{
+			CsiInfo: []*swarmapi.NodeCSIInfo{
 				{
 					PluginName:        "plugin1",
-					NodeID:            "p1n1",
+					NodeId:            "p1n1",
 					MaxVolumesPerNode: 1,
 				},
 				{
 					PluginName:        "plugin2",
-					NodeID:            "p2n1",
+					NodeId:            "p2n1",
 					MaxVolumesPerNode: 2,
 					AccessibleTopology: &swarmapi.Topology{
 						Segments: map[string]string{
@@ -54,7 +61,7 @@ func TestNodeCSIInfoFromGRPC(t *testing.T) {
 		},
 	}
 
-	actual := NodeFromGRPC(*node)
+	actual := NodeFromGRPC(node)
 
 	assert.DeepEqual(t, actual.Description.CSIInfo, expected)
 }

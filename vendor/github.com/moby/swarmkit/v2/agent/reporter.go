@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"reflect"
 	"sync"
 
 	"github.com/moby/swarmkit/v2/api"
@@ -74,7 +73,7 @@ func (sr *statusReporter) UpdateTaskStatus(_ context.Context, taskID string, sta
 
 	current, ok := sr.statuses[taskID]
 	if ok {
-		if reflect.DeepEqual(current, status) {
+		if current.EqualVT(status) {
 			return nil
 		}
 
@@ -150,10 +149,14 @@ func (sr *statusReporter) run(ctx context.Context) {
 			if err != nil {
 				log.G(ctx).WithError(err).Error("status reporter failed to report status to agent")
 
-				// place it back in the map, if not there, allowing us to pick
-				// the value if a new one came in when we were sending the last
-				// update.
-				if _, ok := sr.statuses[taskID]; !ok {
+				// Place it back in the map, so the failed send is retried,
+				// unless a later state arrived while we were sending.
+				//
+				// Ordering here is by state, matching UpdateTaskStatus: a
+				// status whose send failed must not be dropped in favour of an
+				// earlier one that merely arrived while it was in flight, or
+				// the task's final state is never reported.
+				if cur, ok := sr.statuses[taskID]; !ok || cur.State < status.State {
 					sr.statuses[taskID] = status
 				}
 			}

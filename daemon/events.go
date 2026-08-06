@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
 	daemonevents "github.com/moby/moby/v2/daemon/events"
@@ -132,19 +131,19 @@ func (daemon *Daemon) generateClusterEvent(msg *swarmapi.WatchMessage) {
 }
 
 func (daemon *Daemon) logNetworkEvent(action swarmapi.WatchActionKind, net *swarmapi.Network) {
-	daemon.logClusterEvent(action, net.ID, events.NetworkEventType, eventTimestamp(net.Meta, action), map[string]string{
+	daemon.logClusterEvent(action, net.Id, events.NetworkEventType, eventTimestamp(net.Meta, action), map[string]string{
 		"name": net.Spec.Annotations.Name,
 	})
 }
 
 func (daemon *Daemon) logSecretEvent(action swarmapi.WatchActionKind, secret *swarmapi.Secret) {
-	daemon.logClusterEvent(action, secret.ID, events.SecretEventType, eventTimestamp(secret.Meta, action), map[string]string{
+	daemon.logClusterEvent(action, secret.Id, events.SecretEventType, eventTimestamp(secret.Meta, action), map[string]string{
 		"name": secret.Spec.Annotations.Name,
 	})
 }
 
 func (daemon *Daemon) logConfigEvent(action swarmapi.WatchActionKind, config *swarmapi.Config) {
-	daemon.logClusterEvent(action, config.ID, events.ConfigEventType, eventTimestamp(config.Meta, action), map[string]string{
+	daemon.logClusterEvent(action, config.Id, events.ConfigEventType, eventTimestamp(config.Meta, action), map[string]string{
 		"name": config.Spec.Annotations.Name,
 	})
 }
@@ -159,7 +158,7 @@ func (daemon *Daemon) logNodeEvent(action swarmapi.WatchActionKind, node *swarma
 	}
 	eventTime := eventTimestamp(node.Meta, action)
 	// In an update event, display the changes in attributes
-	if action == swarmapi.WatchActionKindUpdate && oldNode != nil {
+	if action == swarmapi.WatchActionKind_WATCH_ACTION_UPDATE && oldNode != nil {
 		if node.Spec.Availability != oldNode.Spec.Availability {
 			attributes["availability.old"] = strings.ToLower(oldNode.Spec.Availability.String())
 			attributes["availability.new"] = strings.ToLower(node.Spec.Availability.String())
@@ -191,7 +190,7 @@ func (daemon *Daemon) logNodeEvent(action swarmapi.WatchActionKind, node *swarma
 		}
 	}
 
-	daemon.logClusterEvent(action, node.ID, events.NodeEventType, eventTime, attributes)
+	daemon.logClusterEvent(action, node.Id, events.NodeEventType, eventTime, attributes)
 }
 
 func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *swarmapi.Service, oldService *swarmapi.Service) {
@@ -200,7 +199,7 @@ func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *
 	}
 	eventTime := eventTimestamp(service.Meta, action)
 
-	if action == swarmapi.WatchActionKindUpdate && oldService != nil {
+	if action == swarmapi.WatchActionKind_WATCH_ACTION_UPDATE && oldService != nil {
 		// check image
 		if x, ok := service.Spec.Task.GetRuntime().(*swarmapi.TaskSpec_Container); ok {
 			containerSpec := x.Container
@@ -238,19 +237,19 @@ func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *
 			}
 		}
 	}
-	daemon.logClusterEvent(action, service.ID, events.ServiceEventType, eventTime, attributes)
+	daemon.logClusterEvent(action, service.Id, events.ServiceEventType, eventTime, attributes)
 }
 
 func (daemon *Daemon) logClusterEvent(action swarmapi.WatchActionKind, id string, eventType events.Type, eventTime time.Time, attributes map[string]string) {
 	var eventAction events.Action
 	switch action {
-	case swarmapi.WatchActionKindCreate:
+	case swarmapi.WatchActionKind_WATCH_ACTION_CREATE:
 		eventAction = events.ActionCreate
-	case swarmapi.WatchActionKindUpdate:
+	case swarmapi.WatchActionKind_WATCH_ACTION_UPDATE:
 		eventAction = events.ActionUpdate
-	case swarmapi.WatchActionKindRemove:
+	case swarmapi.WatchActionKind_WATCH_ACTION_REMOVE:
 		eventAction = events.ActionRemove
-	case swarmapi.WatchActionKindUnknown:
+	case swarmapi.WatchActionKind_WATCH_ACTION_UNKNOWN:
 		// Unknown action kind - skip publishing invalid event
 		return
 	default:
@@ -271,19 +270,17 @@ func (daemon *Daemon) logClusterEvent(action swarmapi.WatchActionKind, id string
 	})
 }
 
-func eventTimestamp(meta swarmapi.Meta, action swarmapi.WatchActionKind) time.Time {
+func eventTimestamp(meta *swarmapi.Meta, action swarmapi.WatchActionKind) time.Time {
 	switch action {
-	case swarmapi.WatchActionKindCreate:
-		eventTime, _ := gogotypes.TimestampFromProto(meta.CreatedAt)
-		return eventTime
-	case swarmapi.WatchActionKindUpdate:
-		eventTime, _ := gogotypes.TimestampFromProto(meta.UpdatedAt)
-		return eventTime
-	case swarmapi.WatchActionKindRemove:
+	case swarmapi.WatchActionKind_WATCH_ACTION_CREATE:
+		return meta.GetCreatedAt().AsTime()
+	case swarmapi.WatchActionKind_WATCH_ACTION_UPDATE:
+		return meta.GetUpdatedAt().AsTime()
+	case swarmapi.WatchActionKind_WATCH_ACTION_REMOVE:
 		// There is no timestamp from store message for remove operations.
 		// Use current time.
 		return time.Now()
-	case swarmapi.WatchActionKindUnknown:
+	case swarmapi.WatchActionKind_WATCH_ACTION_UNKNOWN:
 		return time.Now()
 	default:
 		// For any unexpected action kinds, use current time as fallback.

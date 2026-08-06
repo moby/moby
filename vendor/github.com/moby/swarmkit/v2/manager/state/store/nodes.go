@@ -53,17 +53,17 @@ func init() {
 			}
 			return RestoreTable(tx, tableNode, toStoreObj)
 		},
-		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
+		ApplyStoreAction: func(tx Tx, sa *api.StoreAction) error {
 			switch v := sa.Target.(type) {
 			case *api.StoreAction_Node:
 				obj := v.Node
 				switch sa.Action {
-				case api.StoreActionKindCreate:
+				case api.StoreActionKind_STORE_ACTION_CREATE:
 					return CreateNode(tx, obj)
-				case api.StoreActionKindUpdate:
+				case api.StoreActionKind_STORE_ACTION_UPDATE:
 					return UpdateNode(tx, obj)
-				case api.StoreActionKindRemove:
-					return DeleteNode(tx, obj.ID)
+				case api.StoreActionKind_STORE_ACTION_REMOVE:
+					return DeleteNode(tx, obj.Id)
 				}
 			}
 			return errUnknownStoreAction
@@ -162,5 +162,5 @@ func (ni nodeIndexerByMembership) FromObject(obj any) (bool, []byte, error) {
 	n := obj.(*api.Node)
 
 	// Add the null character as a terminator
-	return true, []byte(strconv.FormatInt(int64(n.Spec.Membership), 10) + "\x00"), nil
+	return true, []byte(strconv.FormatInt(int64(n.GetSpec().GetMembership()), 10) + "\x00"), nil
 }

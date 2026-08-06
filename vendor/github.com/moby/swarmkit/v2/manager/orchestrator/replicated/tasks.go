@@ -23,20 +23,20 @@ func (r *Orchestrator) initTasks(ctx context.Context, readTx store.ReadTx) error
 func (r *Orchestrator) handleTaskEvent(ctx context.Context, event events.Event) {
 	switch v := event.(type) {
 	case api.EventDeleteNode:
-		r.restartTasksByNodeID(ctx, v.Node.ID)
+		r.restartTasksByNodeID(ctx, v.Node.Id)
 	case api.EventCreateNode:
 		r.handleNodeChange(ctx, v.Node)
 	case api.EventUpdateNode:
 		r.handleNodeChange(ctx, v.Node)
 	case api.EventDeleteTask:
-		if v.Task.DesiredState <= api.TaskStateRunning {
+		if v.Task.DesiredState <= api.TaskState_RUNNING {
 			service := r.resolveService(ctx, v.Task)
 			if !orchestrator.IsReplicatedService(service) {
 				return
 			}
-			r.reconcileServices[service.ID] = service
+			r.reconcileServices[service.Id] = service
 		}
-		r.restarts.Cancel(v.Task.ID)
+		r.restarts.Cancel(v.Task.Id)
 	case api.EventUpdateTask:
 		r.handleTaskChange(ctx, v.Task)
 	case api.EventCreateTask:
@@ -52,17 +52,17 @@ func (r *Orchestrator) tickTasks(ctx context.Context) {
 					// TODO(aaronl): optimistic update?
 					t := store.GetTask(tx, taskID)
 					if t != nil {
-						if t.DesiredState > api.TaskStateRunning {
+						if t.DesiredState > api.TaskState_RUNNING {
 							return nil
 						}
 
-						service := store.GetService(tx, t.ServiceID)
+						service := store.GetService(tx, t.ServiceId)
 						if !orchestrator.IsReplicatedService(service) {
 							return nil
 						}
 
 						// Restart task if applicable
-						if err := r.restarts.Restart(ctx, tx, r.cluster, service, *t); err != nil {
+						if err := r.restarts.Restart(ctx, tx, r.cluster, service, t); err != nil {
 							return err
 						}
 					}
@@ -93,12 +93,12 @@ func (r *Orchestrator) restartTasksByNodeID(ctx context.Context, nodeID string) 
 		}
 
 		for _, t := range tasks {
-			if t.DesiredState > api.TaskStateRunning {
+			if t.DesiredState > api.TaskState_RUNNING {
 				continue
 			}
-			service := store.GetService(tx, t.ServiceID)
+			service := store.GetService(tx, t.ServiceId)
 			if orchestrator.IsReplicatedService(service) {
-				r.restartTasks[t.ID] = struct{}{}
+				r.restartTasks[t.Id] = struct{}{}
 			}
 		}
 	})
@@ -112,14 +112,14 @@ func (r *Orchestrator) handleNodeChange(ctx context.Context, n *api.Node) {
 		return
 	}
 
-	r.restartTasksByNodeID(ctx, n.ID)
+	r.restartTasksByNodeID(ctx, n.Id)
 }
 
 // handleTaskChange defines what orchestrator does when a task is updated by agent.
 func (r *Orchestrator) handleTaskChange(_ context.Context, t *api.Task) {
 	// If we already set the desired state past TaskStateRunning, there is no
 	// further action necessary.
-	if t.DesiredState > api.TaskStateRunning {
+	if t.DesiredState > api.TaskState_RUNNING {
 		return
 	}
 
@@ -128,11 +128,11 @@ func (r *Orchestrator) handleTaskChange(_ context.Context, t *api.Task) {
 		service *api.Service
 	)
 	r.store.View(func(tx store.ReadTx) {
-		if t.NodeID != "" {
-			n = store.GetNode(tx, t.NodeID)
+		if t.NodeId != "" {
+			n = store.GetNode(tx, t.NodeId)
 		}
-		if t.ServiceID != "" {
-			service = store.GetService(tx, t.ServiceID)
+		if t.ServiceId != "" {
+			service = store.GetService(tx, t.ServiceId)
 		}
 	})
 
@@ -140,9 +140,9 @@ func (r *Orchestrator) handleTaskChange(_ context.Context, t *api.Task) {
 		return
 	}
 
-	if t.Status.State > api.TaskStateRunning ||
-		(t.NodeID != "" && orchestrator.InvalidNode(n)) {
-		r.restartTasks[t.ID] = struct{}{}
+	if t.Status.GetState() > api.TaskState_RUNNING ||
+		(t.NodeId != "" && orchestrator.InvalidNode(n)) {
+		r.restartTasks[t.Id] = struct{}{}
 	}
 }
 
@@ -151,7 +151,7 @@ func (r *Orchestrator) handleTaskChange(_ context.Context, t *api.Task) {
 func (r *Orchestrator) FixTask(_ context.Context, batch *store.Batch, t *api.Task) {
 	// If we already set the desired state past TaskStateRunning, there is no
 	// further action necessary.
-	if t.DesiredState > api.TaskStateRunning {
+	if t.DesiredState > api.TaskState_RUNNING {
 		return
 	}
 
@@ -160,11 +160,11 @@ func (r *Orchestrator) FixTask(_ context.Context, batch *store.Batch, t *api.Tas
 		service *api.Service
 	)
 	batch.Update(func(tx store.Tx) error {
-		if t.NodeID != "" {
-			n = store.GetNode(tx, t.NodeID)
+		if t.NodeId != "" {
+			n = store.GetNode(tx, t.NodeId)
 		}
-		if t.ServiceID != "" {
-			service = store.GetService(tx, t.ServiceID)
+		if t.ServiceId != "" {
+			service = store.GetService(tx, t.ServiceId)
 		}
 		return nil
 	})
@@ -173,9 +173,9 @@ func (r *Orchestrator) FixTask(_ context.Context, batch *store.Batch, t *api.Tas
 		return
 	}
 
-	if t.Status.State > api.TaskStateRunning ||
-		(t.NodeID != "" && orchestrator.InvalidNode(n)) {
-		r.restartTasks[t.ID] = struct{}{}
+	if t.Status.GetState() > api.TaskState_RUNNING ||
+		(t.NodeId != "" && orchestrator.InvalidNode(n)) {
+		r.restartTasks[t.Id] = struct{}{}
 		return
 	}
 }

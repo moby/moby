@@ -5,18 +5,18 @@ import (
 	"net/netip"
 	"strings"
 
-	gogotypes "github.com/gogo/protobuf/types"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/internal/sliceutil"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/ca"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // SwarmFromGRPC converts a grpc Cluster to a Swarm.
-func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
+func SwarmFromGRPC(c *swarmapi.Cluster) types.Swarm {
 	swarm := types.Swarm{
 		ClusterInfo: types.ClusterInfo{
-			ID: c.ID,
+			ID: c.Id,
 			Spec: types.Spec{
 				Orchestration: types.OrchestrationConfig{
 					TaskHistoryRetentionLimit: &c.Spec.Orchestration.TaskHistoryRetentionLimit,
@@ -35,47 +35,47 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 					// do not include the signing CA cert or key (it should already be redacted via the swarm APIs) -
 					// the key because it's secret, and the cert because otherwise doing a get + update on the spec
 					// can cause issues because the key would be missing and the cert wouldn't
-					ForceRotate: c.Spec.CAConfig.ForceRotate,
+					ForceRotate: c.Spec.CaConfig.ForceRotate,
 				},
 			},
 			TLSInfo: types.TLSInfo{
-				TrustRoot: string(c.RootCA.CACert),
+				TrustRoot: string(c.RootCa.CaCert),
 			},
-			RootRotationInProgress: c.RootCA.RootRotation != nil,
+			RootRotationInProgress: c.RootCa.RootRotation != nil,
 			DefaultAddrPool:        sliceutil.Map(c.DefaultAddressPool, func(s string) netip.Prefix { pfx, _ := netip.ParsePrefix(s); return pfx }),
 			SubnetSize:             c.SubnetSize,
 			DataPathPort:           c.VXLANUDPPort,
 		},
 		JoinTokens: types.JoinTokens{
-			Worker:  c.RootCA.JoinTokens.Worker,
-			Manager: c.RootCA.JoinTokens.Manager,
+			Worker:  c.RootCa.JoinTokens.Worker,
+			Manager: c.RootCa.JoinTokens.Manager,
 		},
 	}
 
-	issuerInfo, err := ca.IssuerFromAPIRootCA(&c.RootCA)
+	issuerInfo, err := ca.IssuerFromAPIRootCA(c.RootCa)
 	if err == nil && issuerInfo != nil {
 		swarm.TLSInfo.CertIssuerSubject = issuerInfo.Subject
 		swarm.TLSInfo.CertIssuerPublicKey = issuerInfo.PublicKey
 	}
 
-	heartbeatPeriod, _ := gogotypes.DurationFromProto(c.Spec.Dispatcher.HeartbeatPeriod)
+	heartbeatPeriod := c.Spec.Dispatcher.HeartbeatPeriod.AsDuration()
 	swarm.Spec.Dispatcher.HeartbeatPeriod = heartbeatPeriod
 
-	swarm.Spec.CAConfig.NodeCertExpiry, _ = gogotypes.DurationFromProto(c.Spec.CAConfig.NodeCertExpiry)
+	swarm.Spec.CAConfig.NodeCertExpiry = c.Spec.CaConfig.NodeCertExpiry.AsDuration()
 
-	for _, ca := range c.Spec.CAConfig.ExternalCAs {
+	for _, ca := range c.Spec.CaConfig.ExternalCas {
 		swarm.Spec.CAConfig.ExternalCAs = append(swarm.Spec.CAConfig.ExternalCAs, &types.ExternalCA{
 			Protocol: types.ExternalCAProtocol(strings.ToLower(ca.Protocol.String())),
-			URL:      ca.URL,
+			URL:      ca.Url,
 			Options:  ca.Options,
-			CACert:   string(ca.CACert),
+			CACert:   string(ca.CaCert),
 		})
 	}
 
 	// Meta
 	swarm.Version.Index = c.Meta.Version.Index
-	swarm.CreatedAt, _ = gogotypes.TimestampFromProto(c.Meta.CreatedAt)
-	swarm.UpdatedAt, _ = gogotypes.TimestampFromProto(c.Meta.UpdatedAt)
+	swarm.CreatedAt = c.Meta.CreatedAt.AsTime()
+	swarm.UpdatedAt = c.Meta.UpdatedAt.AsTime()
 
 	// Annotations
 	swarm.Spec.Annotations = annotationsFromGRPC(c.Spec.Annotations)
@@ -84,12 +84,37 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 }
 
 // SwarmSpecToGRPC converts a Spec to a grpc ClusterSpec.
-func SwarmSpecToGRPC(s types.Spec) (swarmapi.ClusterSpec, error) {
-	return MergeSwarmSpecToGRPC(s, swarmapi.ClusterSpec{})
+func SwarmSpecToGRPC(s types.Spec) (*swarmapi.ClusterSpec, error) {
+	return MergeSwarmSpecToGRPC(s, &swarmapi.ClusterSpec{})
 }
 
 // MergeSwarmSpecToGRPC merges a Spec with an initial grpc ClusterSpec
-func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.ClusterSpec, error) {
+func MergeSwarmSpecToGRPC(s types.Spec, spec *swarmapi.ClusterSpec) (*swarmapi.ClusterSpec, error) {
+	if spec.Annotations == nil {
+		spec.Annotations = &swarmapi.Annotations{}
+	}
+	if spec.AcceptancePolicy == nil { //nolint:staticcheck // Preserve the former non-nullable protobuf field.
+		spec.AcceptancePolicy = &swarmapi.AcceptancePolicy{} //nolint:staticcheck // Preserve the former non-nullable protobuf field.
+	}
+	if spec.Orchestration == nil {
+		spec.Orchestration = &swarmapi.OrchestrationConfig{}
+	}
+	if spec.Raft == nil {
+		spec.Raft = &swarmapi.RaftConfig{}
+	}
+	if spec.Dispatcher == nil {
+		spec.Dispatcher = &swarmapi.DispatcherConfig{}
+	}
+	if spec.CaConfig == nil {
+		spec.CaConfig = &swarmapi.CAConfig{}
+	}
+	if spec.TaskDefaults == nil {
+		spec.TaskDefaults = &swarmapi.TaskDefaults{}
+	}
+	if spec.EncryptionConfig == nil {
+		spec.EncryptionConfig = &swarmapi.EncryptionConfig{}
+	}
+
 	// We take the initSpec (either created from scratch, or returned by swarmkit),
 	// and will only change the value if the one taken from types.Spec is not nil or 0.
 	// In other words, if the value taken from types.Spec is nil or 0, we will maintain the status quo.
@@ -119,30 +144,30 @@ func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.Clu
 		spec.Raft.ElectionTick = uint32(s.Raft.ElectionTick)
 	}
 	if s.Dispatcher.HeartbeatPeriod != 0 {
-		spec.Dispatcher.HeartbeatPeriod = gogotypes.DurationProto(s.Dispatcher.HeartbeatPeriod)
+		spec.Dispatcher.HeartbeatPeriod = durationpb.New(s.Dispatcher.HeartbeatPeriod)
 	}
 	if s.CAConfig.NodeCertExpiry != 0 {
-		spec.CAConfig.NodeCertExpiry = gogotypes.DurationProto(s.CAConfig.NodeCertExpiry)
+		spec.CaConfig.NodeCertExpiry = durationpb.New(s.CAConfig.NodeCertExpiry)
 	}
 	if s.CAConfig.SigningCACert != "" {
-		spec.CAConfig.SigningCACert = []byte(s.CAConfig.SigningCACert)
+		spec.CaConfig.SigningCaCert = []byte(s.CAConfig.SigningCACert)
 	}
 	if s.CAConfig.SigningCAKey != "" {
 		// do propagate the signing CA key here because we want to provide it TO the swarm APIs
-		spec.CAConfig.SigningCAKey = []byte(s.CAConfig.SigningCAKey)
+		spec.CaConfig.SigningCaKey = []byte(s.CAConfig.SigningCAKey)
 	}
-	spec.CAConfig.ForceRotate = s.CAConfig.ForceRotate
+	spec.CaConfig.ForceRotate = s.CAConfig.ForceRotate
 
 	for _, ca := range s.CAConfig.ExternalCAs {
 		protocol, ok := swarmapi.ExternalCA_CAProtocol_value[strings.ToUpper(string(ca.Protocol))]
 		if !ok {
-			return swarmapi.ClusterSpec{}, fmt.Errorf("invalid protocol: %q", ca.Protocol)
+			return nil, fmt.Errorf("invalid protocol: %q", ca.Protocol)
 		}
-		spec.CAConfig.ExternalCAs = append(spec.CAConfig.ExternalCAs, &swarmapi.ExternalCA{
+		spec.CaConfig.ExternalCas = append(spec.CaConfig.ExternalCas, &swarmapi.ExternalCA{
 			Protocol: swarmapi.ExternalCA_CAProtocol(protocol),
-			URL:      ca.URL,
+			Url:      ca.URL,
 			Options:  ca.Options,
-			CACert:   []byte(ca.CACert),
+			CaCert:   []byte(ca.CACert),
 		})
 	}
 

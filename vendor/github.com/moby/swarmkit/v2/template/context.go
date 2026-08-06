@@ -54,28 +54,28 @@ type Context struct {
 // The provided context can then be used to populate runtime values in a
 // ContainerSpec.
 func NewContext(n *api.NodeDescription, t *api.Task) (ctx Context) {
-	ctx.Service.ID = t.ServiceID
-	ctx.Service.Name = t.ServiceAnnotations.Name
-	ctx.Service.Labels = t.ServiceAnnotations.Labels
+	ctx.Service.ID = t.ServiceId
+	ctx.Service.Name = t.GetServiceAnnotations().GetName()
+	ctx.Service.Labels = t.GetServiceAnnotations().GetLabels()
 
-	ctx.Node.ID = t.NodeID
+	ctx.Node.ID = t.NodeId
 
 	// Add node information to context only if we have them available
 	if n != nil {
 		ctx.Node.Hostname = n.Hostname
 		ctx.Node.Platform = Platform{
 			Architecture: n.Platform.Architecture,
-			OS:           n.Platform.OS,
+			OS:           n.Platform.Os,
 		}
 	}
-	ctx.Task.ID = t.ID
+	ctx.Task.ID = t.Id
 	ctx.Task.Name = naming.Task(t)
 
 	if t.Slot != 0 {
 		ctx.Task.Slot = fmt.Sprint(t.Slot)
 	} else {
 		// fall back to node id for slot when there is no slot
-		ctx.Task.Slot = t.NodeID
+		ctx.Task.Slot = t.NodeId
 	}
 
 	return
@@ -123,12 +123,12 @@ func (ctx *PayloadContext) secretGetter(target string) (string, error) {
 	for _, secretRef := range container.Secrets {
 		file := secretRef.GetFile()
 		if file != nil && file.Name == target {
-			secret, err := ctx.restrictedSecrets.Get(secretRef.SecretID)
+			secret, err := ctx.restrictedSecrets.Get(secretRef.SecretId)
 			if err != nil {
 				return "", err
 			}
 			ctx.sensitive = true
-			return string(secret.Spec.Data), nil
+			return string(secret.Spec.GetData()), nil
 		}
 	}
 
@@ -148,11 +148,11 @@ func (ctx *PayloadContext) configGetter(target string) (string, error) {
 	for _, configRef := range container.Configs {
 		file := configRef.GetFile()
 		if file != nil && file.Name == target {
-			config, err := ctx.restrictedConfigs.Get(configRef.ConfigID)
+			config, err := ctx.restrictedConfigs.Get(configRef.ConfigId)
 			if err != nil {
 				return "", err
 			}
-			return string(config.Spec.Data), nil
+			return string(config.Spec.GetData()), nil
 		}
 	}
 

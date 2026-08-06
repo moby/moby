@@ -866,8 +866,6 @@ github.com/gogo/protobuf/protoc-gen-gogo/grpc
 github.com/gogo/protobuf/protoc-gen-gogo/plugin
 github.com/gogo/protobuf/protoc-gen-gogofaster
 github.com/gogo/protobuf/protoc-gen-gogoslick
-github.com/gogo/protobuf/sortkeys
-github.com/gogo/protobuf/types
 github.com/gogo/protobuf/vanity
 github.com/gogo/protobuf/vanity/command
 # github.com/gohugoio/hashstructure v0.6.0
@@ -1332,8 +1330,8 @@ github.com/moby/profiles/seccomp
 # github.com/moby/pubsub v1.0.0
 ## explicit; go 1.19
 github.com/moby/pubsub
-# github.com/moby/swarmkit/v2 v2.1.3-0.20260728230343-5418507a43a2
-## explicit; go 1.25.0
+# github.com/moby/swarmkit/v2 v2.1.3-0.20260728230343-5418507a43a2 => github.com/vvoland/swarmkit/v2 v2.0.0-20260803110834-31e627378b55
+## explicit; go 1.26
 github.com/moby/swarmkit/v2/agent
 github.com/moby/swarmkit/v2/agent/configs
 github.com/moby/swarmkit/v2/agent/csi
@@ -1341,7 +1339,6 @@ github.com/moby/swarmkit/v2/agent/csi/plugin
 github.com/moby/swarmkit/v2/agent/exec
 github.com/moby/swarmkit/v2/agent/secrets
 github.com/moby/swarmkit/v2/api
-github.com/moby/swarmkit/v2/api/deepcopy
 github.com/moby/swarmkit/v2/api/defaults
 github.com/moby/swarmkit/v2/api/equality
 github.com/moby/swarmkit/v2/api/genericresource
@@ -1497,7 +1494,10 @@ github.com/pkg/errors
 # github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10
 ## explicit; go 1.20
 github.com/planetscale/vtprotobuf/protohelpers
+github.com/planetscale/vtprotobuf/types/known/anypb
+github.com/planetscale/vtprotobuf/types/known/durationpb
 github.com/planetscale/vtprotobuf/types/known/timestamppb
+github.com/planetscale/vtprotobuf/types/known/wrapperspb
 github.com/planetscale/vtprotobuf/vtproto
 # github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 ## explicit
@@ -1761,32 +1761,32 @@ go.etcd.io/bbolt
 go.etcd.io/bbolt/errors
 go.etcd.io/bbolt/internal/common
 go.etcd.io/bbolt/internal/freelist
-# go.etcd.io/etcd/api/v3 v3.6.14
-## explicit; go 1.25.0
+# go.etcd.io/etcd/api/v3 v3.7.1
+## explicit; go 1.26
 go.etcd.io/etcd/api/v3/authpb
 go.etcd.io/etcd/api/v3/etcdserverpb
 go.etcd.io/etcd/api/v3/membershippb
 go.etcd.io/etcd/api/v3/mvccpb
 go.etcd.io/etcd/api/v3/version
 go.etcd.io/etcd/api/v3/versionpb
-# go.etcd.io/etcd/client/pkg/v3 v3.6.14
-## explicit; go 1.25.0
+# go.etcd.io/etcd/client/pkg/v3 v3.7.1
+## explicit; go 1.26
 go.etcd.io/etcd/client/pkg/v3/fileutil
 go.etcd.io/etcd/client/pkg/v3/verify
-# go.etcd.io/etcd/pkg/v3 v3.6.14
-## explicit; go 1.25.0
+# go.etcd.io/etcd/pkg/v3 v3.7.1
+## explicit; go 1.26
 go.etcd.io/etcd/pkg/v3/crc
 go.etcd.io/etcd/pkg/v3/idutil
 go.etcd.io/etcd/pkg/v3/ioutil
 go.etcd.io/etcd/pkg/v3/pbutil
-# go.etcd.io/etcd/server/v3 v3.6.14
-## explicit; go 1.25.0
+# go.etcd.io/etcd/server/v3 v3.7.1
+## explicit; go 1.26
 go.etcd.io/etcd/server/v3/etcdserver/api/snap
 go.etcd.io/etcd/server/v3/etcdserver/api/snap/snappb
 go.etcd.io/etcd/server/v3/storage/wal
 go.etcd.io/etcd/server/v3/storage/wal/walpb
-# go.etcd.io/raft/v3 v3.6.0
-## explicit; go 1.23
+# go.etcd.io/raft/v3 v3.7.0
+## explicit; go 1.26
 go.etcd.io/raft/v3
 go.etcd.io/raft/v3/confchange
 go.etcd.io/raft/v3/quorum
@@ -2304,3 +2304,4 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.1.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
+# github.com/moby/swarmkit/v2 => github.com/vvoland/swarmkit/v2 v2.0.0-20260803110834-31e627378b55

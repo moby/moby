@@ -4,19 +4,20 @@ import (
 	"errors"
 	"testing"
 
-	google_protobuf3 "github.com/gogo/protobuf/types"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	swarmapi "github.com/moby/swarmkit/v2/api"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestServiceConvertFromGRPCRuntimeContainer(t *testing.T) {
 	gs := swarmapi.Service{
-		Meta: swarmapi.Meta{
-			Version: swarmapi.Version{
+		Meta: &swarmapi.Meta{
+			Version: &swarmapi.Version{
 				Index: 1,
 			},
 			CreatedAt: nil,
@@ -25,8 +26,8 @@ func TestServiceConvertFromGRPCRuntimeContainer(t *testing.T) {
 		SpecVersion: &swarmapi.Version{
 			Index: 1,
 		},
-		Spec: swarmapi.ServiceSpec{
-			Task: swarmapi.TaskSpec{
+		Spec: &swarmapi.ServiceSpec{
+			Task: &swarmapi.TaskSpec{
 				Runtime: &swarmapi.TaskSpec_Container{
 					Container: &swarmapi.ContainerSpec{
 						Image: "alpine:latest",
@@ -36,7 +37,7 @@ func TestServiceConvertFromGRPCRuntimeContainer(t *testing.T) {
 		},
 	}
 
-	svc, err := ServiceFromGRPC(gs)
+	svc, err := ServiceFromGRPC(&gs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,8 +51,8 @@ func TestServiceConvertFromGRPCGenericRuntimePlugin(t *testing.T) {
 	kind := string(swarmtypes.RuntimePlugin)
 	url := swarmtypes.RuntimeURLPlugin
 	gs := swarmapi.Service{
-		Meta: swarmapi.Meta{
-			Version: swarmapi.Version{
+		Meta: &swarmapi.Meta{
+			Version: &swarmapi.Version{
 				Index: 1,
 			},
 			CreatedAt: nil,
@@ -60,12 +61,12 @@ func TestServiceConvertFromGRPCGenericRuntimePlugin(t *testing.T) {
 		SpecVersion: &swarmapi.Version{
 			Index: 1,
 		},
-		Spec: swarmapi.ServiceSpec{
-			Task: swarmapi.TaskSpec{
+		Spec: &swarmapi.ServiceSpec{
+			Task: &swarmapi.TaskSpec{
 				Runtime: &swarmapi.TaskSpec_Generic{
 					Generic: &swarmapi.GenericRuntimeSpec{
 						Kind: kind,
-						Payload: &google_protobuf3.Any{
+						Payload: &anypb.Any{
 							TypeUrl: string(url),
 						},
 					},
@@ -74,7 +75,7 @@ func TestServiceConvertFromGRPCGenericRuntimePlugin(t *testing.T) {
 		},
 	}
 
-	svc, err := ServiceFromGRPC(gs)
+	svc, err := ServiceFromGRPC(&gs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,12 +160,12 @@ func TestServiceConvertToGRPCIsolation(t *testing.T) {
 		from containertypes.Isolation
 		to   swarmapi.ContainerSpec_Isolation
 	}{
-		{name: "empty", from: containertypes.IsolationEmpty, to: swarmapi.ContainerIsolationDefault},
-		{name: "default", from: containertypes.IsolationDefault, to: swarmapi.ContainerIsolationDefault},
-		{name: "process", from: containertypes.IsolationProcess, to: swarmapi.ContainerIsolationProcess},
-		{name: "hyperv", from: containertypes.IsolationHyperV, to: swarmapi.ContainerIsolationHyperV},
-		{name: "proCess", from: containertypes.Isolation("proCess"), to: swarmapi.ContainerIsolationProcess},
-		{name: "hypErv", from: containertypes.Isolation("hypErv"), to: swarmapi.ContainerIsolationHyperV},
+		{name: "empty", from: containertypes.IsolationEmpty, to: swarmapi.ContainerSpec_ISOLATION_DEFAULT},
+		{name: "default", from: containertypes.IsolationDefault, to: swarmapi.ContainerSpec_ISOLATION_DEFAULT},
+		{name: "process", from: containertypes.IsolationProcess, to: swarmapi.ContainerSpec_ISOLATION_PROCESS},
+		{name: "hyperv", from: containertypes.IsolationHyperV, to: swarmapi.ContainerSpec_ISOLATION_HYPERV},
+		{name: "proCess", from: containertypes.Isolation("proCess"), to: swarmapi.ContainerSpec_ISOLATION_PROCESS},
+		{name: "hypErv", from: containertypes.Isolation("hypErv"), to: swarmapi.ContainerSpec_ISOLATION_HYPERV},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -196,25 +197,19 @@ func TestServiceConvertFromGRPCIsolation(t *testing.T) {
 		from swarmapi.ContainerSpec_Isolation
 		to   containertypes.Isolation
 	}{
-		{name: "default", to: containertypes.IsolationDefault, from: swarmapi.ContainerIsolationDefault},
-		{name: "process", to: containertypes.IsolationProcess, from: swarmapi.ContainerIsolationProcess},
-		{name: "hyperv", to: containertypes.IsolationHyperV, from: swarmapi.ContainerIsolationHyperV},
+		{name: "default", to: containertypes.IsolationDefault, from: swarmapi.ContainerSpec_ISOLATION_DEFAULT},
+		{name: "process", to: containertypes.IsolationProcess, from: swarmapi.ContainerSpec_ISOLATION_PROCESS},
+		{name: "hyperv", to: containertypes.IsolationHyperV, from: swarmapi.ContainerSpec_ISOLATION_HYPERV},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			gs := swarmapi.Service{
-				Meta: swarmapi.Meta{
-					Version: swarmapi.Version{
-						Index: 1,
-					},
-					CreatedAt: nil,
-					UpdatedAt: nil,
+				Meta: &swarmapi.Meta{
+					Version: &swarmapi.Version{Index: 1},
 				},
-				SpecVersion: &swarmapi.Version{
-					Index: 1,
-				},
-				Spec: swarmapi.ServiceSpec{
-					Task: swarmapi.TaskSpec{
+				SpecVersion: &swarmapi.Version{Index: 1},
+				Spec: &swarmapi.ServiceSpec{
+					Task: &swarmapi.TaskSpec{
 						Runtime: &swarmapi.TaskSpec_Container{
 							Container: &swarmapi.ContainerSpec{
 								Image:     "alpine:latest",
@@ -225,7 +220,7 @@ func TestServiceConvertFromGRPCIsolation(t *testing.T) {
 				},
 			}
 
-			svc, err := ServiceFromGRPC(gs)
+			svc, err := ServiceFromGRPC(&gs)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -308,7 +303,8 @@ func TestServiceConvertToGRPCCredentialSpec(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
+	for i := range tests {
+		tc := &tests[i]
 		t.Run(tc.name, func(t *testing.T) {
 			s := swarmtypes.ServiceSpec{
 				TaskTemplate: swarmtypes.TaskSpec{
@@ -331,7 +327,7 @@ func TestServiceConvertToGRPCCredentialSpec(t *testing.T) {
 			if !ok {
 				t.Fatal("expected type swarmapi.TaskSpec_Container")
 			}
-			assert.DeepEqual(t, tc.to, *v.Container.Privileges.CredentialSpec)
+			assert.Assert(t, proto.Equal(&tc.to, v.Container.Privileges.CredentialSpec))
 		})
 	}
 }
@@ -370,11 +366,12 @@ func TestServiceConvertFromGRPCCredentialSpec(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
+	for i := range tests {
+		tc := &tests[i]
 		t.Run(tc.name, func(t *testing.T) {
 			gs := swarmapi.Service{
-				Spec: swarmapi.ServiceSpec{
-					Task: swarmapi.TaskSpec{
+				Spec: &swarmapi.ServiceSpec{
+					Task: &swarmapi.TaskSpec{
 						Runtime: &swarmapi.TaskSpec_Container{
 							Container: &swarmapi.ContainerSpec{
 								Privileges: &swarmapi.Privileges{
@@ -386,7 +383,7 @@ func TestServiceConvertFromGRPCCredentialSpec(t *testing.T) {
 				},
 			}
 
-			svc, err := ServiceFromGRPC(gs)
+			svc, err := ServiceFromGRPC(&gs)
 			assert.NilError(t, err)
 			assert.DeepEqual(t, svc.Spec.TaskTemplate.ContainerSpec.Privileges.CredentialSpec, tc.to)
 		})
@@ -448,11 +445,11 @@ func TestTaskConvertFromGRPCNetworkAttachment(t *testing.T) {
 	s := swarmapi.TaskSpec{
 		Runtime: &swarmapi.TaskSpec_Attachment{
 			Attachment: &swarmapi.NetworkAttachmentSpec{
-				ContainerID: containerID,
+				ContainerId: containerID,
 			},
 		},
 	}
-	ts, err := taskSpecFromGRPC(s)
+	ts, err := taskSpecFromGRPC(&s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -478,11 +475,11 @@ func TestServiceConvertFromGRPCConfigs(t *testing.T) {
 		{
 			name: "file",
 			from: &swarmapi.ConfigReference{
-				ConfigID:   "configFile",
+				ConfigId:   "configFile",
 				ConfigName: "configFile",
 				Target: &swarmapi.ConfigReference_File{
 					// skip mode, if everything else here works mode will too. otherwise we'd need to import os.
-					File: &swarmapi.FileTarget{Name: "foo", UID: "bar", GID: "baz"},
+					File: &swarmapi.FileTarget{Name: "foo", Uid: "bar", Gid: "baz"},
 				},
 			},
 			to: &swarmtypes.ConfigReference{
@@ -494,7 +491,7 @@ func TestServiceConvertFromGRPCConfigs(t *testing.T) {
 		{
 			name: "runtime",
 			from: &swarmapi.ConfigReference{
-				ConfigID:   "configRuntime",
+				ConfigId:   "configRuntime",
 				ConfigName: "configRuntime",
 				Target:     &swarmapi.ConfigReference_Runtime{Runtime: &swarmapi.RuntimeTarget{}},
 			},
@@ -509,8 +506,8 @@ func TestServiceConvertFromGRPCConfigs(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			grpcService := swarmapi.Service{
-				Spec: swarmapi.ServiceSpec{
-					Task: swarmapi.TaskSpec{
+				Spec: &swarmapi.ServiceSpec{
+					Task: &swarmapi.TaskSpec{
 						Runtime: &swarmapi.TaskSpec_Container{
 							Container: &swarmapi.ContainerSpec{
 								Configs: []*swarmapi.ConfigReference{tc.from},
@@ -520,7 +517,7 @@ func TestServiceConvertFromGRPCConfigs(t *testing.T) {
 				},
 			}
 
-			engineService, err := ServiceFromGRPC(grpcService)
+			engineService, err := ServiceFromGRPC(&grpcService)
 			assert.NilError(t, err)
 			assert.DeepEqual(t,
 				engineService.Spec.TaskTemplate.ContainerSpec.Configs[0],
@@ -547,11 +544,11 @@ func TestServiceConvertToGRPCConfigs(t *testing.T) {
 				File:       &swarmtypes.ConfigReferenceFileTarget{Name: "foo", UID: "bar", GID: "baz"},
 			},
 			to: &swarmapi.ConfigReference{
-				ConfigID:   "configFile",
+				ConfigId:   "configFile",
 				ConfigName: "configFile",
 				Target: &swarmapi.ConfigReference_File{
 					// skip mode, if everything else here works mode will too. otherwise we'd need to import os.
-					File: &swarmapi.FileTarget{Name: "foo", UID: "bar", GID: "baz"},
+					File: &swarmapi.FileTarget{Name: "foo", Uid: "bar", Gid: "baz"},
 				},
 			},
 		},
@@ -563,7 +560,7 @@ func TestServiceConvertToGRPCConfigs(t *testing.T) {
 				Runtime:    &swarmtypes.ConfigReferenceRuntimeTarget{},
 			},
 			to: &swarmapi.ConfigReference{
-				ConfigID:   "configRuntime",
+				ConfigId:   "configRuntime",
 				ConfigName: "configRuntime",
 				Target:     &swarmapi.ConfigReference_Runtime{Runtime: &swarmapi.RuntimeTarget{}},
 			},
@@ -606,7 +603,7 @@ func TestServiceConvertToGRPCConfigs(t *testing.T) {
 
 			assert.NilError(t, err)
 			taskRuntime := grpcServiceSpec.Task.Runtime.(*swarmapi.TaskSpec_Container)
-			assert.DeepEqual(t, taskRuntime.Container.Configs[0], tc.to)
+			assert.Assert(t, proto.Equal(taskRuntime.Container.Configs[0], tc.to))
 		})
 	}
 }

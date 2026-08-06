@@ -16,9 +16,9 @@ func (suite *testSuite) TestIPAMNotNil() {
 
 	// Predefined node-local network
 	p := &api.Network{
-		ID: "one_unIque_id",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "one_unIque_id",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "pred_bridge_network",
 				Labels: map[string]string{
 					"com.docker.swarm.predefined": "true",
@@ -30,9 +30,9 @@ func (suite *testSuite) TestIPAMNotNil() {
 
 	// Node-local swarm scope network
 	nln := &api.Network{
-		ID: "another_unIque_id",
-		Spec: api.NetworkSpec{
-			Annotations: api.Annotations{
+		Id: "another_unIque_id",
+		Spec: &api.NetworkSpec{
+			Annotations: &api.Annotations{
 				Name: "swarm-macvlan",
 			},
 			DriverConfig: &api.Driver{Name: "macvlan"},
@@ -43,9 +43,9 @@ func (suite *testSuite) TestIPAMNotNil() {
 	suite.NoError(s.Update(func(tx store.Tx) error {
 		// populate ingress network
 		in := &api.Network{
-			ID: "ingress-nw-id",
-			Spec: api.NetworkSpec{
-				Annotations: api.Annotations{
+			Id: "ingress-nw-id",
+			Spec: &api.NetworkSpec{
+				Annotations: &api.Annotations{
 					Name: "default-ingress",
 				},
 				Ingress: true,
@@ -78,12 +78,12 @@ func (suite *testSuite) TestIPAMNotNil() {
 		sn *api.Network
 	)
 	s.View(func(tx store.ReadTx) {
-		ps = store.GetNetwork(tx, p.ID)
-		sn = store.GetNetwork(tx, nln.ID)
+		ps = store.GetNetwork(tx, p.Id)
+		sn = store.GetNetwork(tx, nln.Id)
 
 	})
 	suite.NotNil(ps)
 	suite.NotNil(sn)
-	suite.NotNil(ps.IPAM)
-	suite.NotNil(sn.IPAM)
+	suite.NotNil(ps.Ipam)
+	suite.NotNil(sn.Ipam)
 }

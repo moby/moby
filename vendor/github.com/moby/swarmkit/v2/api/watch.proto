@@ -2,10 +2,11 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
+option go_package = "github.com/moby/swarmkit/v2/api";
+
 import "github.com/docker/swarmkit/api/specs.proto";
 import "github.com/docker/swarmkit/api/objects.proto";
 import "github.com/docker/swarmkit/api/types.proto";
-import "gogoproto/gogo.proto";
 import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
 message Object {
@@ -26,7 +27,7 @@ message Object {
 // FIXME(aaronl): These messages should ideally be embedded in SelectBy, but
 // protoc generates bad code for that.
 message SelectBySlot {
-	string service_id = 1 [(gogoproto.customname) = "ServiceID"];
+	string service_id = 1;
 	uint64 slot = 2;
 }
 
@@ -42,16 +43,16 @@ message SelectBy {
 	// internal indices going forward.
 	oneof By {
 		// supported by all object types
-		string id = 1 [(gogoproto.customname) = "ID"]; // not applicable for FindObjects - use GetObject instead
-		string id_prefix = 2 [(gogoproto.customname) = "IDPrefix"];
+		string id = 1; // not applicable for FindObjects - use GetObject instead
+		string id_prefix = 2;
 		string name = 3;
 		string name_prefix = 4;
 		SelectByCustom custom = 5;
 		SelectByCustom custom_prefix = 6;
 
 		// supported by tasks only
-		string service_id = 7 [(gogoproto.customname) = "ServiceID"];
-		string node_id = 8 [(gogoproto.customname) = "NodeID"];
+		string service_id = 7;
+		string node_id = 8;
 		SelectBySlot slot = 9;
 		TaskState desired_state = 10;
 
@@ -60,15 +61,14 @@ message SelectBy {
 		NodeSpec.Membership membership = 12;
 
 		// supported by: service, task
-		string referenced_network_id = 13 [(gogoproto.customname) = "ReferencedNetworkID"];
-		string referenced_secret_id = 14 [(gogoproto.customname) = "ReferencedSecretID"];
-		string referenced_config_id = 16 [(gogoproto.customname) = "ReferencedConfigID"];
+		string referenced_network_id = 13;
+		string referenced_secret_id = 14;
+		string referenced_config_id = 16;
 
 		// supported by: resource
 		string kind = 15;
 	}
 }
-
 
 // Watch defines the RPC methods for monitoring data store change.
 service Watch {
@@ -146,10 +146,8 @@ message WatchMessage {
 // is structured as a bitmap so multiple kinds of events can be requested with
 // a mask.
 enum WatchActionKind {
-	option (gogoproto.goproto_enum_prefix) = false;
-	option (gogoproto.enum_customname) = "WatchActionKind";
-	WATCH_ACTION_UNKNOWN = 0 [(gogoproto.enumvalue_customname) = "WatchActionKindUnknown"]; // default value, invalid
-	WATCH_ACTION_CREATE = 1 [(gogoproto.enumvalue_customname) = "WatchActionKindCreate"];
-	WATCH_ACTION_UPDATE = 2 [(gogoproto.enumvalue_customname) = "WatchActionKindUpdate"];
-	WATCH_ACTION_REMOVE = 4 [(gogoproto.enumvalue_customname) = "WatchActionKindRemove"];
+	WATCH_ACTION_UNKNOWN = 0; // default value, invalid
+	WATCH_ACTION_CREATE = 1;
+	WATCH_ACTION_UPDATE = 2;
+	WATCH_ACTION_REMOVE = 4;
 }

@@ -18,13 +18,13 @@ import (
 //     or fails validation.
 //   - Returns an error if the creation fails.
 func (s *Server) CreateExtension(ctx context.Context, request *api.CreateExtensionRequest) (*api.CreateExtensionResponse, error) {
-	if request.Annotations == nil || request.Annotations.Name == "" {
+	if request.Annotations == nil || request.GetAnnotations().GetName() == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "extension name must be provided")
 	}
 
 	extension := &api.Extension{
-		ID:          identity.NewID(),
-		Annotations: *request.Annotations,
+		Id:          identity.NewID(),
+		Annotations: request.Annotations,
 		Description: request.Description,
 	}
 
@@ -34,10 +34,10 @@ func (s *Server) CreateExtension(ctx context.Context, request *api.CreateExtensi
 
 	switch err {
 	case store.ErrNameConflict:
-		return nil, status.Errorf(codes.AlreadyExists, "extension %s already exists", request.Annotations.Name)
+		return nil, status.Errorf(codes.AlreadyExists, "extension %s already exists", request.GetAnnotations().GetName())
 	case nil:
 		log.G(ctx).WithFields(log.Fields{
-			"extension.Name": request.Annotations.Name,
+			"extension.Name": request.GetAnnotations().GetName(),
 			"method":         "CreateExtension",
 		}).Debugf("extension created")
 
@@ -53,17 +53,17 @@ func (s *Server) CreateExtension(ctx context.Context, request *api.CreateExtensi
 // - Returns `InvalidArgument` if the `GetExtensionRequest.extension_id` is empty.
 // - Returns an error if the get fails.
 func (s *Server) GetExtension(_ context.Context, request *api.GetExtensionRequest) (*api.GetExtensionResponse, error) {
-	if request.ExtensionID == "" {
+	if request.ExtensionId == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "extension ID must be provided")
 	}
 
 	var extension *api.Extension
 	s.store.View(func(tx store.ReadTx) {
-		extension = store.GetExtension(tx, request.ExtensionID)
+		extension = store.GetExtension(tx, request.ExtensionId)
 	})
 
 	if extension == nil {
-		return nil, status.Errorf(codes.NotFound, "extension %s not found", request.ExtensionID)
+		return nil, status.Errorf(codes.NotFound, "extension %s not found", request.ExtensionId)
 	}
 
 	return &api.GetExtensionResponse{Extension: extension}, nil
@@ -74,21 +74,21 @@ func (s *Server) GetExtension(_ context.Context, request *api.GetExtensionReques
 // - Returns `NotFound` if the an extension named `RemoveExtensionRequest.extension_id` is not found.
 // - Returns an error if the deletion fails.
 func (s *Server) RemoveExtension(ctx context.Context, request *api.RemoveExtensionRequest) (*api.RemoveExtensionResponse, error) {
-	if request.ExtensionID == "" {
+	if request.ExtensionId == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "extension ID must be provided")
 	}
 
 	err := s.store.Update(func(tx store.Tx) error {
 		// Check if the extension exists
-		extension := store.GetExtension(tx, request.ExtensionID)
+		extension := store.GetExtension(tx, request.ExtensionId)
 		if extension == nil {
-			return status.Errorf(codes.NotFound, "could not find extension %s", request.ExtensionID)
+			return status.Errorf(codes.NotFound, "could not find extension %s", request.ExtensionId)
 		}
 
 		// Check if any resources of this type present in the store, return error if so
-		resources, err := store.FindResources(tx, store.ByKind(request.ExtensionID))
+		resources, err := store.FindResources(tx, store.ByKind(request.ExtensionId))
 		if err != nil {
-			return status.Errorf(codes.Internal, "could not find resources using extension %s: %v", request.ExtensionID, err)
+			return status.Errorf(codes.Internal, "could not find resources using extension %s: %v", request.ExtensionId, err)
 		}
 
 		if len(resources) != 0 {
@@ -97,14 +97,14 @@ func (s *Server) RemoveExtension(ctx context.Context, request *api.RemoveExtensi
 			// Show a limited number of resources for debugging.
 			attachedResourceForDebug := 10
 			for _, resource := range resources {
-				resourceNames = append(resourceNames, resource.Annotations.Name)
+				resourceNames = append(resourceNames, resource.GetAnnotations().GetName())
 				attachedResourceForDebug = attachedResourceForDebug - 1
 				if attachedResourceForDebug == 0 {
 					break
 				}
 			}
 
-			extensionName := extension.Annotations.Name
+			extensionName := extension.GetAnnotations().GetName()
 			resourceNameStr := strings.Join(resourceNames, ", ")
 			resourceStr := "resources"
 			if len(resourceNames) == 1 {
@@ -114,14 +114,14 @@ func (s *Server) RemoveExtension(ctx context.Context, request *api.RemoveExtensi
 			return status.Errorf(codes.InvalidArgument, "extension '%s' is in use by the following %s: %v", extensionName, resourceStr, resourceNameStr)
 		}
 
-		return store.DeleteExtension(tx, request.ExtensionID)
+		return store.DeleteExtension(tx, request.ExtensionId)
 	})
 	switch err {
 	case store.ErrNotExist:
-		return nil, status.Errorf(codes.NotFound, "extension %s not found", request.ExtensionID)
+		return nil, status.Errorf(codes.NotFound, "extension %s not found", request.ExtensionId)
 	case nil:
 		log.G(ctx).WithFields(log.Fields{
-			"extension.ID": request.ExtensionID,
+			"extension.ID": request.ExtensionId,
 			"method":       "RemoveExtension",
 		}).Debugf("extension removed")
 

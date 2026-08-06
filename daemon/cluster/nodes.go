@@ -35,7 +35,7 @@ func (c *Cluster) GetNodes(options swarmbackend.NodeListOptions) ([]types.Node, 
 	nodes := make([]types.Node, 0, len(r.Nodes))
 
 	for _, node := range r.Nodes {
-		nodes = append(nodes, convert.NodeFromGRPC(*node))
+		nodes = append(nodes, convert.NodeFromGRPC(node))
 	}
 	return nodes, nil
 }
@@ -55,7 +55,7 @@ func (c *Cluster) GetNode(input string) (types.Node, error) {
 		return types.Node{}, err
 	}
 
-	return convert.NodeFromGRPC(*node), nil
+	return convert.NodeFromGRPC(node), nil
 }
 
 // UpdateNode updates existing nodes properties.
@@ -78,8 +78,8 @@ func (c *Cluster) UpdateNode(input string, version uint64, spec types.NodeSpec) 
 		_, err = state.controlClient.UpdateNode(
 			ctx,
 			&swarmapi.UpdateNodeRequest{
-				NodeID: currentNode.ID,
-				Spec:   &nodeSpec,
+				NodeId: currentNode.Id,
+				Spec:   nodeSpec,
 				NodeVersion: &swarmapi.Version{
 					Index: version,
 				},
@@ -97,7 +97,7 @@ func (c *Cluster) RemoveNode(input string, force bool) error {
 			return err
 		}
 
-		_, err = state.controlClient.RemoveNode(ctx, &swarmapi.RemoveNodeRequest{NodeID: node.ID, Force: force})
+		_, err = state.controlClient.RemoveNode(ctx, &swarmapi.RemoveNodeRequest{NodeId: node.Id, Force: force})
 		return err
 	})
 }

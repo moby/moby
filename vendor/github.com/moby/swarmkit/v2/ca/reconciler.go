@@ -20,10 +20,10 @@ import (
 const IssuanceStateRotateMaxBatchSize = 30
 
 func hasIssuer(n *api.Node, info *IssuerInfo) bool {
-	if n.Description == nil || n.Description.TLSInfo == nil {
+	if n.Description == nil || n.Description.TlsInfo == nil {
 		return false
 	}
-	return bytes.Equal(info.Subject, n.Description.TLSInfo.CertIssuerSubject) && bytes.Equal(info.PublicKey, n.Description.TLSInfo.CertIssuerPublicKey)
+	return bytes.Equal(info.Subject, n.Description.TlsInfo.CertIssuerSubject) && bytes.Equal(info.PublicKey, n.Description.TlsInfo.CertIssuerPublicKey)
 }
 
 var errRootRotationChanged = errors.New("target root rotation has changed")
@@ -48,9 +48,9 @@ type rootRotationReconciler struct {
 
 // IssuerFromAPIRootCA returns the desired issuer given an API root CA object
 func IssuerFromAPIRootCA(rootCA *api.RootCA) (*IssuerInfo, error) {
-	wantedIssuer := rootCA.CACert
+	wantedIssuer := rootCA.CaCert
 	if rootCA.RootRotation != nil {
-		wantedIssuer = rootCA.RootRotation.CACert
+		wantedIssuer = rootCA.RootRotation.CaCert
 	}
 	issuerCerts, err := helpers.ParseCertificatesPEM(wantedIssuer)
 	if err != nil {
@@ -111,7 +111,7 @@ func (r *rootRotationReconciler) UpdateRootCA(newRootCA *api.RootCA) {
 		r.unconvergedNodes = make(map[string]*api.Node)
 		for _, n := range nodes {
 			if !hasIssuer(n, issuerInfo) {
-				r.unconvergedNodes[n.ID] = n
+				r.unconvergedNodes[n.Id] = n
 			}
 		}
 		shouldStartNewLoop = true
@@ -137,9 +137,9 @@ func (r *rootRotationReconciler) UpdateNode(node *api.Node) {
 		return
 	}
 	if hasIssuer(node, &r.currentIssuer) {
-		delete(r.unconvergedNodes, node.ID)
+		delete(r.unconvergedNodes, node.Id)
 	} else {
-		r.unconvergedNodes[node.ID] = node
+		r.unconvergedNodes[node.Id] = node
 	}
 }
 
@@ -147,7 +147,7 @@ func (r *rootRotationReconciler) UpdateNode(node *api.Node) {
 // a store update event
 func (r *rootRotationReconciler) DeleteNode(node *api.Node) {
 	r.mu.Lock()
-	delete(r.unconvergedNodes, node.ID)
+	delete(r.unconvergedNodes, node.Id)
 	r.mu.Unlock()
 }
 
@@ -173,10 +173,10 @@ func (r *rootRotationReconciler) runReconcilerLoop(ctx context.Context, loopRoot
 		} else {
 			var toUpdate []*api.Node
 			for _, n := range r.unconvergedNodes {
-				iState := n.Certificate.Status.State
-				if iState != api.IssuanceStateRenew && iState != api.IssuanceStatePending && iState != api.IssuanceStateRotate {
+				iState := n.Certificate.GetStatus().GetState()
+				if iState != api.IssuanceStatus_RENEW && iState != api.IssuanceStatus_PENDING && iState != api.IssuanceStatus_ROTATE {
 					n = n.Copy()
-					n.Certificate.Status.State = api.IssuanceStateRotate
+					n.Certificate.Status.State = api.IssuanceStatus_ROTATE
 					toUpdate = append(toUpdate, n)
 					if len(toUpdate) >= IssuanceStateRotateMaxBatchSize {
 						break
@@ -209,30 +209,30 @@ func (r *rootRotationReconciler) finishRootRotation(tx store.Tx, expectedRootCA 
 
 	// If the RootCA object has changed (because another root rotation was started or because some other node
 	// had finished the root rotation), we cannot finish the root rotation that we were working on.
-	if !equality.RootCAEqualStable(expectedRootCA, &cluster.RootCA) {
+	if !equality.RootCAEqualStable(expectedRootCA, cluster.RootCa) {
 		return errRootRotationChanged
 	}
 
 	var signerCert []byte
-	if len(cluster.RootCA.RootRotation.CAKey) > 0 {
-		signerCert = cluster.RootCA.RootRotation.CACert
+	if len(cluster.RootCa.GetRootRotation().GetCaKey()) > 0 {
+		signerCert = cluster.RootCa.GetRootRotation().GetCaCert()
 	}
 	// we don't actually have to parse out the default node expiration from the cluster - we are just using
 	// the ca.RootCA object to generate new tokens and the digest
-	updatedRootCA, err := NewRootCA(cluster.RootCA.RootRotation.CACert, signerCert, cluster.RootCA.RootRotation.CAKey,
+	updatedRootCA, err := NewRootCA(cluster.RootCa.GetRootRotation().GetCaCert(), signerCert, cluster.RootCa.GetRootRotation().GetCaKey(),
 		DefaultNodeCertExpiration, nil)
 	if err != nil {
 		return errors.Wrap(err, "invalid cluster root rotation object")
 	}
-	cluster.RootCA = api.RootCA{
-		CACert:     cluster.RootCA.RootRotation.CACert,
-		CAKey:      cluster.RootCA.RootRotation.CAKey,
-		CACertHash: updatedRootCA.Digest.String(),
-		JoinTokens: api.JoinTokens{
-			Worker:  GenerateJoinToken(&updatedRootCA, cluster.FIPS),
-			Manager: GenerateJoinToken(&updatedRootCA, cluster.FIPS),
+	cluster.RootCa = &api.RootCA{
+		CaCert:     cluster.RootCa.GetRootRotation().GetCaCert(),
+		CaKey:      cluster.RootCa.GetRootRotation().GetCaKey(),
+		CaCertHash: updatedRootCA.Digest.String(),
+		JoinTokens: &api.JoinTokens{
+			Worker:  GenerateJoinToken(&updatedRootCA, cluster.Fips),
+			Manager: GenerateJoinToken(&updatedRootCA, cluster.Fips),
 		},
-		LastForcedRotation: cluster.RootCA.LastForcedRotation,
+		LastForcedRotation: cluster.RootCa.GetLastForcedRotation(),
 	}
 	return store.UpdateCluster(tx, cluster)
 }
@@ -250,7 +250,7 @@ func (r *rootRotationReconciler) batchUpdateNodes(toUpdate []*api.Node) error {
 			if err := batch.Update(func(tx store.Tx) error {
 				return store.UpdateNode(tx, n)
 			}); err != nil && err != store.ErrSequenceConflict {
-				log.G(r.ctx).WithError(err).Errorf("unable to update node %s to request a certificate rotation", n.ID)
+				log.G(r.ctx).WithError(err).Errorf("unable to update node %s to request a certificate rotation", n.Id)
 			}
 		}
 		return nil

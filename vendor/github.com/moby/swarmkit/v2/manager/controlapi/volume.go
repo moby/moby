@@ -2,7 +2,7 @@ package controlapi
 
 import (
 	"context"
-	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/moby/swarmkit/v2/api"
@@ -18,31 +18,31 @@ func (s *Server) CreateVolume(_ context.Context, request *api.CreateVolumeReques
 	}
 
 	// validate the volume spec
-	if request.Spec.Driver == nil {
+	if request.Spec.GetDriver() == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "driver must be specified")
 	}
 
-	if request.Spec.Annotations.Name == "" {
+	if request.GetSpec().GetAnnotations().GetName() == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "meta: name must be provided")
 	}
 
-	if request.Spec.AccessMode == nil {
+	if request.Spec.GetAccessMode() == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "AccessMode must not be nil")
 	}
 
-	if request.Spec.AccessMode.GetAccessType() == nil {
+	if request.Spec.GetAccessMode().GetAccessType() == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Volume AccessMode must specify either Mount or Block access type")
 	}
 
 	volume := &api.Volume{
-		ID:   identity.NewID(),
-		Spec: *request.Spec,
+		Id:   identity.NewID(),
+		Spec: request.Spec,
 	}
 	err := s.store.Update(func(tx store.Tx) error {
 		// check all secrets, so that we can return an error indicating ALL
 		// missing secrets, instead of just the first one.
 		var missingSecrets []string
-		for _, secret := range volume.Spec.Secrets {
+		for _, secret := range volume.Spec.GetSecrets() {
 			s := store.GetSecret(tx, secret.Secret)
 			if s == nil {
 				missingSecrets = append(missingSecrets, secret.Secret)
@@ -71,7 +71,7 @@ func (s *Server) CreateVolume(_ context.Context, request *api.CreateVolumeReques
 }
 
 func (s *Server) UpdateVolume(_ context.Context, request *api.UpdateVolumeRequest) (*api.UpdateVolumeResponse, error) {
-	if request.VolumeID == "" {
+	if request.VolumeId == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "VolumeID must not be empty")
 	}
 	if request.Spec == nil {
@@ -83,48 +83,48 @@ func (s *Server) UpdateVolume(_ context.Context, request *api.UpdateVolumeReques
 
 	var volume *api.Volume
 	if err := s.store.Update(func(tx store.Tx) error {
-		volume = store.GetVolume(tx, request.VolumeID)
+		volume = store.GetVolume(tx, request.VolumeId)
 		if volume == nil {
-			return status.Errorf(codes.NotFound, "volume %v not found", request.VolumeID)
+			return status.Errorf(codes.NotFound, "volume %v not found", request.VolumeId)
 		}
 
 		// compare specs, to see if any invalid fields have changed
-		if request.Spec.Annotations.Name != volume.Spec.Annotations.Name {
+		if request.GetSpec().GetAnnotations().GetName() != volume.GetSpec().GetAnnotations().GetName() {
 			return status.Errorf(codes.InvalidArgument, "Name cannot be updated")
 		}
-		if request.Spec.Group != volume.Spec.Group {
+		if request.Spec.GetGroup() != volume.Spec.GetGroup() {
 			return status.Errorf(codes.InvalidArgument, "Group cannot be updated")
 		}
-		if !reflect.DeepEqual(request.Spec.AccessibilityRequirements, volume.Spec.AccessibilityRequirements) {
+		if !request.Spec.GetAccessibilityRequirements().EqualVT(volume.Spec.GetAccessibilityRequirements()) {
 			return status.Errorf(codes.InvalidArgument, "AccessibilityRequirements cannot be updated")
 		}
-		if !reflect.DeepEqual(request.Spec.Driver, volume.Spec.Driver) {
+		if !request.Spec.GetDriver().EqualVT(volume.Spec.GetDriver()) {
 			return status.Errorf(codes.InvalidArgument, "Driver cannot be updated")
 		}
-		if !reflect.DeepEqual(request.Spec.AccessMode, volume.Spec.AccessMode) {
+		if !request.Spec.GetAccessMode().EqualVT(volume.Spec.GetAccessMode()) {
 			return status.Errorf(codes.InvalidArgument, "AccessMode cannot be updated")
 		}
-		if !reflect.DeepEqual(request.Spec.Secrets, volume.Spec.Secrets) {
+		if !slices.EqualFunc(request.Spec.GetSecrets(), volume.Spec.GetSecrets(), (*api.VolumeSecret).EqualVT) {
 			return status.Errorf(codes.InvalidArgument, "Secrets cannot be updated")
 		}
-		if !reflect.DeepEqual(request.Spec.CapacityRange, volume.Spec.CapacityRange) {
+		if !request.Spec.GetCapacityRange().EqualVT(volume.Spec.GetCapacityRange()) {
 			return status.Errorf(codes.InvalidArgument, "CapacityRange cannot be updated")
 		}
 
 		// to further guard against changing fields we're not allowed to, don't
 		// replace the entire spec. just replace the fields we are allowed to
 		// change
-		volume.Spec.Annotations.Labels = request.Spec.Annotations.Labels
+		volume.Spec.Annotations.Labels = request.Spec.GetAnnotations().GetLabels()
 		volume.Spec.Availability = request.Spec.Availability
 
-		volume.Meta.Version = *request.VolumeVersion
+		volume.Meta.Version = request.VolumeVersion
 		if err := store.UpdateVolume(tx, volume); err != nil {
 			return err
 		}
 		// read the volume back out, so it has the correct meta version
 		// TODO(dperny): this behavior, while likely more correct, may not be
 		// consistent with the rest of swarmkit...
-		volume = store.GetVolume(tx, request.VolumeID)
+		volume = store.GetVolume(tx, request.VolumeId)
 		return nil
 	}); err != nil {
 		return nil, err
@@ -151,8 +151,8 @@ func (s *Server) ListVolumes(_ context.Context, request *api.ListVolumesRequest)
 			// short circuit to avoid nil pointer deref
 		case len(request.Filters.Names) > 0:
 			by = buildFilters(store.ByName, request.Filters.Names)
-		case len(request.Filters.IDPrefixes) > 0:
-			by = buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes)
+		case len(request.Filters.IdPrefixes) > 0:
+			by = buildFilters(store.ByIDPrefix, request.Filters.IdPrefixes)
 		case len(request.Filters.Groups) > 0:
 			by = buildFilters(store.ByVolumeGroup, request.Filters.Groups)
 		case len(request.Filters.Drivers) > 0:
@@ -172,27 +172,27 @@ func (s *Server) ListVolumes(_ context.Context, request *api.ListVolumesRequest)
 	volumes = filterVolumes(volumes,
 		// Names
 		func(v *api.Volume) bool {
-			return filterContains(v.Spec.Annotations.Name, request.Filters.Names)
+			return filterContains(v.GetSpec().GetAnnotations().GetName(), request.Filters.Names)
 		},
 		// NamePrefixes
 		func(v *api.Volume) bool {
-			return filterContainsPrefix(v.Spec.Annotations.Name, request.Filters.NamePrefixes)
+			return filterContainsPrefix(v.GetSpec().GetAnnotations().GetName(), request.Filters.NamePrefixes)
 		},
 		// IDPrefixes
 		func(v *api.Volume) bool {
-			return filterContainsPrefix(v.ID, request.Filters.IDPrefixes)
+			return filterContainsPrefix(v.Id, request.Filters.IdPrefixes)
 		},
 		// Labels
 		func(v *api.Volume) bool {
-			return filterMatchLabels(v.Spec.Annotations.Labels, request.Filters.Labels)
+			return filterMatchLabels(v.GetSpec().GetAnnotations().GetLabels(), request.Filters.Labels)
 		},
 		// Groups
 		func(v *api.Volume) bool {
-			return filterContains(v.Spec.Group, request.Filters.Groups)
+			return filterContains(v.Spec.GetGroup(), request.Filters.Groups)
 		},
 		// Drivers
 		func(v *api.Volume) bool {
-			return v.Spec.Driver != nil && filterContains(v.Spec.Driver.Name, request.Filters.Drivers)
+			return v.Spec.GetDriver() != nil && filterContains(v.Spec.GetDriver().GetName(), request.Filters.Drivers)
 		},
 	)
 
@@ -222,10 +222,10 @@ func filterVolumes(candidates []*api.Volume, filters ...func(*api.Volume) bool) 
 func (s *Server) GetVolume(_ context.Context, request *api.GetVolumeRequest) (*api.GetVolumeResponse, error) {
 	var volume *api.Volume
 	s.store.View(func(tx store.ReadTx) {
-		volume = store.GetVolume(tx, request.VolumeID)
+		volume = store.GetVolume(tx, request.VolumeId)
 	})
 	if volume == nil {
-		return nil, status.Errorf(codes.NotFound, "volume %v not found", request.VolumeID)
+		return nil, status.Errorf(codes.NotFound, "volume %v not found", request.VolumeId)
 	}
 	return &api.GetVolumeResponse{
 		Volume: volume,
@@ -239,9 +239,9 @@ func (s *Server) GetVolume(_ context.Context, request *api.GetVolumeRequest) (*a
 // Volume can no longer be used in any way.
 func (s *Server) RemoveVolume(_ context.Context, request *api.RemoveVolumeRequest) (*api.RemoveVolumeResponse, error) {
 	err := s.store.Update(func(tx store.Tx) error {
-		volume := store.GetVolume(tx, request.VolumeID)
+		volume := store.GetVolume(tx, request.VolumeId)
 		if volume == nil {
-			return status.Errorf(codes.NotFound, "volume %s not found", request.VolumeID)
+			return status.Errorf(codes.NotFound, "volume %s not found", request.VolumeId)
 		}
 
 		// If this is a force delete, we force the delete. No survivors. This
@@ -250,7 +250,7 @@ func (s *Server) RemoveVolume(_ context.Context, request *api.RemoveVolumeReques
 		// cluster, because testing every case where we force-remove a volume
 		// is difficult at best.
 		if request.Force {
-			return store.DeleteVolume(tx, request.VolumeID)
+			return store.DeleteVolume(tx, request.VolumeId)
 		}
 
 		if len(volume.PublishStatus) != 0 {

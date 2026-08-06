@@ -108,7 +108,7 @@ func NodeMatches(constraints []Constraint, n *api.Node) bool {
 	for _, constraint := range constraints {
 		switch {
 		case strings.EqualFold(constraint.key, "node.id"):
-			if !constraint.Match(n.ID) {
+			if !constraint.Match(n.Id) {
 				return false
 			}
 		case strings.EqualFold(constraint.key, "node.hostname"):
@@ -125,7 +125,7 @@ func NodeMatches(constraints []Constraint, n *api.Node) bool {
 				return false
 			}
 		case strings.EqualFold(constraint.key, "node.ip"):
-			nodeIP := net.ParseIP(n.Status.Addr)
+			nodeIP := net.ParseIP(n.Status.GetAddr())
 			// single IP address, node.ip == 2001:db8::2
 			if ip := net.ParseIP(constraint.exp); ip != nil {
 				ipEq := ip.Equal(nodeIP)
@@ -155,7 +155,7 @@ func NodeMatches(constraints []Constraint, n *api.Node) bool {
 				}
 				continue
 			}
-			if !constraint.Match(n.Description.Platform.OS) {
+			if !constraint.Match(n.Description.Platform.Os) {
 				return false
 			}
 		case strings.EqualFold(constraint.key, "node.platform.arch"):
@@ -171,7 +171,7 @@ func NodeMatches(constraints []Constraint, n *api.Node) bool {
 
 		// node labels constraint in form like 'node.labels.key==value'
 		case len(constraint.key) > len(NodeLabelPrefix) && strings.EqualFold(constraint.key[:len(NodeLabelPrefix)], NodeLabelPrefix):
-			if n.Spec.Annotations.Labels == nil {
+			if n.GetSpec().GetAnnotations().GetLabels() == nil {
 				if !constraint.Match("") {
 					return false
 				}
@@ -179,7 +179,7 @@ func NodeMatches(constraints []Constraint, n *api.Node) bool {
 			}
 			label := constraint.key[len(NodeLabelPrefix):]
 			// label itself is case sensitive
-			val := n.Spec.Annotations.Labels[label]
+			val := n.GetSpec().GetAnnotations().GetLabels()[label]
 			if !constraint.Match(val) {
 				return false
 			}

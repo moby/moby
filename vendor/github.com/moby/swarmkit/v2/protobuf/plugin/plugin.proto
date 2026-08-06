@@ -2,6 +2,8 @@ syntax = "proto2";
 
 package docker.protobuf.plugin;
 
+option go_package = "github.com/moby/swarmkit/v2/protobuf/plugin";
+
 import "google/protobuf/descriptor.proto";
 
 message WatchSelectors {

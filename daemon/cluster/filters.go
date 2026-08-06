@@ -22,7 +22,7 @@ func newListNodesFilters(filter filters.Args) (*swarmapi.ListNodesRequest_Filter
 	}
 	f := &swarmapi.ListNodesRequest_Filters{
 		NamePrefixes: filter.Get("name"),
-		IDPrefixes:   filter.Get("id"),
+		IdPrefixes:   filter.Get("id"),
 		Labels:       convertKVStringsToMap(filter.Get("label")),
 		NodeLabels:   convertKVStringsToMap(filter.Get("node.label")),
 	}
@@ -70,10 +70,10 @@ func newListTasksFilters(filter filters.Args, transformFunc func(filters.Args) e
 	}
 	f := &swarmapi.ListTasksRequest_Filters{
 		NamePrefixes: filter.Get("name"),
-		IDPrefixes:   filter.Get("id"),
+		IdPrefixes:   filter.Get("id"),
 		Labels:       convertKVStringsToMap(filter.Get("label")),
-		ServiceIDs:   filter.Get("service"),
-		NodeIDs:      filter.Get("node"),
+		ServiceIds:   filter.Get("service"),
+		NodeIds:      filter.Get("node"),
 		UpToDate:     len(filter.Get("_up-to-date")) != 0,
 		Runtimes:     filter.Get("runtime"),
 	}
@@ -102,7 +102,7 @@ func newListSecretsFilters(filter filters.Args) (*swarmapi.ListSecretsRequest_Fi
 	return &swarmapi.ListSecretsRequest_Filters{
 		Names:        filter.Get("names"),
 		NamePrefixes: filter.Get("name"),
-		IDPrefixes:   filter.Get("id"),
+		IdPrefixes:   filter.Get("id"),
 		Labels:       convertKVStringsToMap(filter.Get("label")),
 	}, nil
 }
@@ -118,7 +118,7 @@ func newListConfigsFilters(filter filters.Args) (*swarmapi.ListConfigsRequest_Fi
 	}
 	return &swarmapi.ListConfigsRequest_Filters{
 		NamePrefixes: filter.Get("name"),
-		IDPrefixes:   filter.Get("id"),
+		IdPrefixes:   filter.Get("id"),
 		Labels:       convertKVStringsToMap(filter.Get("label")),
 	}, nil
 }

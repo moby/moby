@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/go-events"
 	"github.com/docker/go-metrics"
-	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/equality"
 	"github.com/moby/swarmkit/v2/ca"
@@ -23,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 const (
@@ -123,6 +123,8 @@ type clusterUpdate struct {
 
 // Dispatcher is responsible for dispatching tasks and tracking agent health.
 type Dispatcher struct {
+	api.UnimplementedDispatcherServer
+
 	// Mutex to synchronize access to dispatcher shared state e.g. nodes,
 	// lastSeenManagers, networkBootstrapKeys etc.
 	// TODO(anshul): This can potentially be removed and rpcRW used in its place.
@@ -201,7 +203,7 @@ func getWeightedPeers(cluster Cluster) []*api.WeightedPeer {
 	for _, m := range members {
 		mgrs = append(mgrs, &api.WeightedPeer{
 			Peer: &api.Peer{
-				NodeID: m.NodeID,
+				NodeId: m.NodeId,
 				Addr:   m.Addr,
 			},
 
@@ -248,14 +250,13 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 				return err
 			}
 			if len(clusters) == 1 {
-				heartbeatPeriod, err := gogotypes.DurationFromProto(clusters[0].Spec.Dispatcher.HeartbeatPeriod)
-				if err == nil && heartbeatPeriod > 0 {
-					d.config.HeartbeatPeriod = heartbeatPeriod
+				if hb := clusters[0].GetSpec().GetDispatcher().GetHeartbeatPeriod(); hb.IsValid() && hb.AsDuration() > 0 {
+					d.config.HeartbeatPeriod = hb.AsDuration()
 				}
 				if clusters[0].NetworkBootstrapKeys != nil {
 					d.networkBootstrapKeys = clusters[0].NetworkBootstrapKeys
 				}
-				d.lastSeenRootCert = clusters[0].RootCA.CACert
+				d.lastSeenRootCert = clusters[0].GetRootCa().GetCaCert()
 			}
 			return nil
 		},
@@ -318,21 +319,24 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			log.G(ctx).Info("cluster update event")
 			cluster := v.(api.EventUpdateCluster)
 			d.mu.Lock()
-			if cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod != nil {
+			if cluster.Cluster.Spec.GetDispatcher().GetHeartbeatPeriod() != nil {
 				// ignore error, since Spec has passed validation before
-				heartbeatPeriod, _ := gogotypes.DurationFromProto(cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod)
+				heartbeatPeriod := cluster.Cluster.Spec.GetDispatcher().GetHeartbeatPeriod().AsDuration()
 				if heartbeatPeriod != d.config.HeartbeatPeriod {
 					// only call d.nodes.updatePeriod when heartbeatPeriod changes
 					d.config.HeartbeatPeriod = heartbeatPeriod
 					d.nodes.updatePeriod(d.config.HeartbeatPeriod, d.config.HeartbeatEpsilon, d.config.GracePeriodMultiplier)
 				}
 			}
-			d.lastSeenRootCert = cluster.Cluster.RootCA.CACert
+			// RootCa is a pointer now and a cluster restored from a snapshot
+			// may not carry one, so read it through the getters.
+			rootCACert := cluster.Cluster.GetRootCa().GetCaCert()
+			d.lastSeenRootCert = rootCACert
 			d.networkBootstrapKeys = cluster.Cluster.NetworkBootstrapKeys
 			d.mu.Unlock()
 			d.clusterUpdateQueue.Publish(clusterUpdate{
 				bootstrapKeyUpdate: &cluster.Cluster.NetworkBootstrapKeys,
-				rootCAUpdate:       &cluster.Cluster.RootCA.CACert,
+				rootCAUpdate:       &rootCACert,
 			})
 		case <-ctx.Done():
 			return nil
@@ -432,31 +436,35 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 		for _, n := range nodes {
 			err := batch.Update(func(tx store.Tx) error {
 				// check if node is still here
-				node := store.GetNode(tx, n.ID)
+				node := store.GetNode(tx, n.Id)
 				if node == nil {
 					return nil
 				}
 				// do not try to resurrect down nodes
-				if node.Status.State == api.NodeStatus_DOWN {
+				if node.Status.GetState() == api.NodeStatus_DOWN {
 					nodeCopy := node
 					expireFunc := func() {
-						log.Infof("moving tasks to orphaned state for node: %s", nodeCopy.ID)
-						if err := d.moveTasksToOrphaned(nodeCopy.ID); err != nil {
-							log.WithError(err).Errorf(`failed to move all tasks for node %s to "ORPHANED" state`, node.ID)
+						log.Infof("moving tasks to orphaned state for node: %s", nodeCopy.Id)
+						if err := d.moveTasksToOrphaned(nodeCopy.Id); err != nil {
+							log.WithError(err).Errorf(`failed to move all tasks for node %s to "ORPHANED" state`, node.Id)
 						}
 
-						d.downNodes.Delete(nodeCopy.ID)
+						d.downNodes.Delete(nodeCopy.Id)
 					}
 
-					log.Infof(`node %s was found to be down when marking unknown on dispatcher start`, node.ID)
+					log.Infof(`node %s was found to be down when marking unknown on dispatcher start`, node.Id)
 					d.downNodes.Add(nodeCopy, expireFunc)
 					return nil
 				}
 
+				if node.Status == nil {
+					// Status was a non-nullable embedded message.
+					node.Status = &api.NodeStatus{}
+				}
 				node.Status.State = api.NodeStatus_UNKNOWN
 				node.Status.Message = `Node moved to "unknown" state due to leadership change in cluster`
 
-				nodeID := node.ID
+				nodeID := node.Id
 
 				expireFunc := func() {
 					log := log.WithField("node", nodeID)
@@ -474,7 +482,7 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 				return nil
 			})
 			if err != nil {
-				log.WithField("node", n.ID).WithError(err).Error(`failed to move node to "unknown" state`)
+				log.WithField("node", n.Id).WithError(err).Error(`failed to move node to "unknown" state`)
 			}
 		}
 		return nil
@@ -620,7 +628,7 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 	nodeID := nodeInfo.NodeID
 	fields := log.Fields{
 		"node.id":      nodeID,
-		"node.session": r.SessionID,
+		"node.session": r.SessionId,
 		"method":       "(*Dispatcher).UpdateTaskStatus",
 	}
 	if nodeInfo.ForwardedBy != nil {
@@ -628,7 +636,7 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 	}
 	log := log.G(ctx).WithFields(fields)
 
-	if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+	if _, err := d.nodes.GetWithSession(nodeID, r.SessionId); err != nil {
 		return nil, err
 	}
 
@@ -637,23 +645,23 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 	// Validate task updates
 	for _, u := range r.Updates {
 		if u.Status == nil {
-			log.WithField("task.id", u.TaskID).Warn("task report has nil status")
+			log.WithField("task.id", u.TaskId).Warn("task report has nil status")
 			continue
 		}
 
 		var t *api.Task
 		d.store.View(func(tx store.ReadTx) {
-			t = store.GetTask(tx, u.TaskID)
+			t = store.GetTask(tx, u.TaskId)
 		})
 		if t == nil {
 			// Task may have been deleted
-			log.WithField("task.id", u.TaskID).Debug("cannot find target task in store")
+			log.WithField("task.id", u.TaskId).Debug("cannot find target task in store")
 			continue
 		}
 
-		if t.NodeID != nodeID {
+		if t.NodeId != nodeID {
 			err := status.Errorf(codes.PermissionDenied, "cannot update a task not assigned this node")
-			log.WithField("task.id", u.TaskID).Error(err)
+			log.WithField("task.id", u.TaskId).Error(err)
 			return nil, err
 		}
 
@@ -663,7 +671,7 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 	d.taskUpdatesLock.Lock()
 	// Enqueue task updates
 	for _, u := range validTaskUpdates {
-		d.taskUpdates[u.TaskID] = u.Status
+		d.taskUpdates[u.TaskId] = u.Status
 	}
 
 	numUpdates := len(d.taskUpdates)
@@ -696,7 +704,7 @@ func (d *Dispatcher) UpdateVolumeStatus(ctx context.Context, r *api.UpdateVolume
 	nodeID := nodeInfo.NodeID
 	fields := log.Fields{
 		"node.id":      nodeID,
-		"node.session": r.SessionID,
+		"node.session": r.SessionId,
 		"method":       "(*Dispatcher).UpdateVolumeStatus",
 	}
 	if nodeInfo.ForwardedBy != nil {
@@ -704,7 +712,7 @@ func (d *Dispatcher) UpdateVolumeStatus(ctx context.Context, r *api.UpdateVolume
 	}
 	logger := log.G(ctx).WithFields(fields)
 
-	if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+	if _, err := d.nodes.GetWithSession(nodeID, r.SessionId); err != nil {
 		return nil, err
 	}
 
@@ -712,9 +720,9 @@ func (d *Dispatcher) UpdateVolumeStatus(ctx context.Context, r *api.UpdateVolume
 	for _, volumeStatus := range r.Updates {
 		if volumeStatus.Unpublished {
 			// it's ok if nodes is nil, because append works on a nil slice.
-			nodes := append(d.unpublishedVolumes[volumeStatus.ID], nodeID)
-			d.unpublishedVolumes[volumeStatus.ID] = nodes
-			logger.Debugf("volume %s unpublished on node %s", volumeStatus.ID, nodeID)
+			nodes := append(d.unpublishedVolumes[volumeStatus.Id], nodeID)
+			d.unpublishedVolumes[volumeStatus.Id] = nodes
+			logger.Debugf("volume %s unpublished on node %s", volumeStatus.Id, nodeID)
 		}
 	}
 	d.unpublishedVolumesLock.Unlock()
@@ -770,14 +778,14 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 					return nil
 				}
 
-				logger = logger.WithField("state.transition", fmt.Sprintf("%v->%v", task.Status.State, taskStatus.State))
+				logger = logger.WithField("state.transition", fmt.Sprintf("%v->%v", task.Status.GetState(), taskStatus.State))
 
-				if task.Status == *taskStatus {
+				if task.Status.EqualVT(taskStatus) {
 					logger.Debug("task status identical, ignoring")
 					return nil
 				}
 
-				if task.Status.State > taskStatus.State {
+				if task.Status.GetState() > taskStatus.State {
 					logger.Debug("task status invalid transition")
 					return nil
 				}
@@ -788,15 +796,17 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 				// the network delay between the worker and the leader.
 				// This is not ideal, but its a known overestimation, rather than using the status update time
 				// from the worker node, which may cause unknown incorrect results due to possible clock skew.
-				if taskStatus.State == api.TaskStateRunning {
+				if taskStatus.State == api.TaskState_RUNNING {
 					start := time.Unix(taskStatus.AppliedAt.GetSeconds(), int64(taskStatus.AppliedAt.GetNanos()))
 					schedulingDelayTimer.UpdateSince(start)
 				}
 
-				task.Status = *taskStatus
+				// Copy rather than alias: the status came off the wire and the
+				// fields below mutate it.
+				task.Status = taskStatus.Copy()
 				task.Status.AppliedBy = d.securityConfig.ClientTLSCreds.NodeID()
 				task.Status.AppliedAt = ptypes.MustTimestampProto(time.Now())
-				logger.Debugf("state for task %v updated to %v", task.GetID(), task.Status.State)
+				logger.Debugf("state for task %v updated to %v", task.GetId(), task.Status.GetState())
 				if err := store.UpdateTask(tx, task); err != nil {
 					logger.WithError(err).Error("failed to update task status")
 					return nil
@@ -819,6 +829,10 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 				}
 
 				if nodeUpdate.status != nil {
+					if node.Status == nil {
+						// Status was a non-nullable embedded message.
+						node.Status = &api.NodeStatus{}
+					}
 					node.Status.State = nodeUpdate.status.State
 					node.Status.Message = nodeUpdate.status.Message
 					if nodeUpdate.status.Addr != "" {
@@ -847,13 +861,14 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 				volume := store.GetVolume(tx, volumeID)
 				if volume == nil {
 					logger.Error("volume unavailable")
+					return nil
 				}
 
 				// buckle your seatbelts, we're going quadratic.
 			nodesLoop:
 				for _, nodeID := range nodes {
 					for _, status := range volume.PublishStatus {
-						if status.NodeID == nodeID {
+						if status.NodeId == nodeID {
 							status.State = api.VolumePublishStatus_PENDING_UNPUBLISH
 							continue nodesLoop
 						}
@@ -901,7 +916,7 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 
 	fields := log.Fields{
 		"node.id":      nodeID,
-		"node.session": r.SessionID,
+		"node.session": r.SessionId,
 		"method":       "(*Dispatcher).Tasks",
 	}
 	if nodeInfo.ForwardedBy != nil {
@@ -909,7 +924,7 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 	}
 	log.G(stream.Context()).WithFields(fields).Debug("")
 
-	if _, err = d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+	if _, err = d.nodes.GetWithSession(nodeID, r.SessionId); err != nil {
 		return err
 	}
 
@@ -922,15 +937,15 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 				return err
 			}
 			for _, t := range tasks {
-				tasksMap[t.ID] = t
+				tasksMap[t.Id] = t
 			}
 			return nil
 		},
-		api.EventCreateTask{Task: &api.Task{NodeID: nodeID},
+		api.EventCreateTask{Task: &api.Task{NodeId: nodeID},
 			Checks: []api.TaskCheckFunc{api.TaskCheckNodeID}},
-		api.EventUpdateTask{Task: &api.Task{NodeID: nodeID},
+		api.EventUpdateTask{Task: &api.Task{NodeId: nodeID},
 			Checks: []api.TaskCheckFunc{api.TaskCheckNodeID}},
-		api.EventDeleteTask{Task: &api.Task{NodeID: nodeID},
+		api.EventDeleteTask{Task: &api.Task{NodeId: nodeID},
 			Checks: []api.TaskCheckFunc{api.TaskCheckNodeID}},
 	)
 	if err != nil {
@@ -939,14 +954,14 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 	defer cancel()
 
 	for {
-		if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+		if _, err := d.nodes.GetWithSession(nodeID, r.SessionId); err != nil {
 			return err
 		}
 
 		var tasks []*api.Task
 		for _, t := range tasksMap {
 			// dispatcher only sends tasks that have been assigned to a node
-			if t != nil && t.Status.State >= api.TaskStateAssigned {
+			if t != nil && t.Status.GetState() >= api.TaskState_ASSIGNED {
 				tasks = append(tasks, t)
 			}
 		}
@@ -968,23 +983,23 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 			case event := <-nodeTasks:
 				switch v := event.(type) {
 				case api.EventCreateTask:
-					tasksMap[v.Task.ID] = v.Task
+					tasksMap[v.Task.Id] = v.Task
 					modificationCnt++
 				case api.EventUpdateTask:
-					if oldTask, exists := tasksMap[v.Task.ID]; exists {
+					if oldTask, exists := tasksMap[v.Task.Id]; exists {
 						// States ASSIGNED and below are set by the orchestrator/scheduler,
 						// not the agent, so tasks in these states need to be sent to the
 						// agent even if nothing else has changed.
-						if equality.TasksEqualStable(oldTask, v.Task) && v.Task.Status.State > api.TaskStateAssigned {
+						if equality.TasksEqualStable(oldTask, v.Task) && v.Task.Status.GetState() > api.TaskState_ASSIGNED {
 							// this update should not trigger action at agent
-							tasksMap[v.Task.ID] = v.Task
+							tasksMap[v.Task.Id] = v.Task
 							continue
 						}
 					}
-					tasksMap[v.Task.ID] = v.Task
+					tasksMap[v.Task.Id] = v.Task
 					modificationCnt++
 				case api.EventDeleteTask:
-					delete(tasksMap, v.Task.ID)
+					delete(tasksMap, v.Task.Id)
 					modificationCnt++
 				}
 				if batchingTimer != nil {
@@ -1027,7 +1042,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 
 	fields := log.Fields{
 		"node.id":      nodeID,
-		"node.session": r.SessionID,
+		"node.session": r.SessionId,
 		"method":       "(*Dispatcher).Assignments",
 	}
 	if nodeInfo.ForwardedBy != nil {
@@ -1036,7 +1051,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 	log := log.G(stream.Context()).WithFields(fields)
 	log.Debug("")
 
-	if _, err = d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+	if _, err = d.nodes.GetWithSession(nodeID, r.SessionId); err != nil {
 		return err
 	}
 
@@ -1046,14 +1061,14 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 		assignments = newAssignmentSet(nodeID, log, d.dp)
 	)
 
-	sendMessage := func(msg api.AssignmentsMessage, assignmentType api.AssignmentsMessage_Type) error {
+	sendMessage := func(msg *api.AssignmentsMessage, assignmentType api.AssignmentsMessage_Type) error {
 		sequence++
 		msg.AppliesTo = appliesTo
 		msg.ResultsIn = strconv.FormatInt(sequence, 10)
 		appliesTo = msg.ResultsIn
 		msg.Type = assignmentType
 
-		return stream.Send(&msg)
+		return stream.Send(msg)
 	}
 
 	// TODO(aaronl): Also send node secrets that should be exposed to
@@ -1080,7 +1095,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 
 			for _, v := range volumes {
 				for _, status := range v.PublishStatus {
-					if status.NodeID == nodeID {
+					if status.NodeId == nodeID {
 						assignments.addOrUpdateVolume(readTx, v)
 					}
 				}
@@ -1088,9 +1103,9 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 
 			return nil
 		},
-		api.EventUpdateTask{Task: &api.Task{NodeID: nodeID},
+		api.EventUpdateTask{Task: &api.Task{NodeId: nodeID},
 			Checks: []api.TaskCheckFunc{api.TaskCheckNodeID}},
-		api.EventDeleteTask{Task: &api.Task{NodeID: nodeID},
+		api.EventDeleteTask{Task: &api.Task{NodeId: nodeID},
 			Checks: []api.TaskCheckFunc{api.TaskCheckNodeID}},
 		api.EventUpdateVolume{
 			// typically, a check function takes an object from this
@@ -1101,7 +1116,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 			Checks: []api.VolumeCheckFunc{
 				func(_, v2 *api.Volume) bool {
 					for _, status := range v2.PublishStatus {
-						if status.NodeID == nodeID {
+						if status.NodeId == nodeID {
 							return true
 						}
 					}
@@ -1121,7 +1136,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 
 	for {
 		// Check for session expiration
-		if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+		if _, err := d.nodes.GetWithSession(nodeID, r.SessionId); err != nil {
 			return err
 		}
 
@@ -1173,14 +1188,14 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 					// EventCreateSecret.
 				case api.EventUpdateVolume:
 					d.store.View(func(readTx store.ReadTx) {
-						vol := store.GetVolume(readTx, v.Volume.ID)
+						vol := store.GetVolume(readTx, v.Volume.Id)
 						if vol == nil {
 							return
 						}
 						// check through the PublishStatus to see if there is
 						// one for this node.
 						for _, status := range vol.PublishStatus {
-							if status.NodeID == nodeID {
+							if status.NodeId == nodeID {
 								if assignments.addOrUpdateVolume(readTx, vol) {
 									oneModification()
 								}
@@ -1233,8 +1248,8 @@ func (d *Dispatcher) moveTasksToOrphaned(nodeID string) error {
 			//
 			// Tasks in a final state (e.g. rejected) *cannot* have made
 			// progress, therefore there's no point in marking them as orphaned
-			if task.Status.State >= api.TaskStateAssigned && task.Status.State <= api.TaskStateRunning {
-				task.Status.State = api.TaskStateOrphaned
+			if task.Status.GetState() >= api.TaskState_ASSIGNED && task.Status.GetState() <= api.TaskState_RUNNING {
+				task.Status.State = api.TaskState_ORPHANED
 			}
 
 			err := batch.Update(func(tx store.Tx) error {
@@ -1284,7 +1299,7 @@ func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, mes
 	}
 
 	d.downNodes.Add(node, expireFunc)
-	logLocal.Debugf("added node %s to down nodes list", node.ID)
+	logLocal.Debugf("added node %s to down nodes list", node.Id)
 
 	status := &api.NodeStatus{
 		State:   state,
@@ -1309,7 +1324,7 @@ func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, mes
 	if rn := d.nodes.Delete(id); rn == nil {
 		return errors.Errorf("node %s is not found in local storage", id)
 	}
-	logLocal.Debugf("deleted node %s from node store", node.ID)
+	logLocal.Debugf("deleted node %s from node store", node.Id)
 
 	return nil
 }
@@ -1331,10 +1346,10 @@ func (d *Dispatcher) Heartbeat(ctx context.Context, r *api.HeartbeatRequest) (*a
 		return nil, err
 	}
 
-	period, err := d.nodes.Heartbeat(nodeInfo.NodeID, r.SessionID)
+	period, err := d.nodes.Heartbeat(nodeInfo.NodeID, r.SessionId)
 
 	log.G(ctx).WithField("method", "(*Dispatcher).Heartbeat").Debugf("received heartbeat from worker %v, expect next heartbeat in %v", nodeInfo, period)
-	return &api.HeartbeatResponse{Period: period}, err
+	return &api.HeartbeatResponse{Period: durationpb.New(period)}, err
 }
 
 func (d *Dispatcher) getManagers() []*api.WeightedPeer {
@@ -1377,14 +1392,14 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	nodeID := nodeInfo.NodeID
 
 	var sessionID string
-	if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+	if _, err := d.nodes.GetWithSession(nodeID, r.SessionId); err != nil {
 		// register the node.
 		sessionID, err = d.register(ctx, nodeID, r.Description)
 		if err != nil {
 			return err
 		}
 	} else {
-		sessionID = r.SessionID
+		sessionID = r.SessionId
 		// get the node IP addr
 		addr, err := nodeIPFromContext(stream.Context())
 		if err != nil {
@@ -1410,7 +1425,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	nodeUpdates, cancel, err := store.ViewAndWatch(d.store, func(readTx store.ReadTx) error {
 		nodeObj = store.GetNode(readTx, nodeID)
 		return nil
-	}, api.EventUpdateNode{Node: &api.Node{ID: nodeID},
+	}, api.EventUpdateNode{Node: &api.Node{Id: nodeID},
 		Checks: []api.NodeCheckFunc{api.NodeCheckID}},
 	)
 	if cancel != nil {
@@ -1429,7 +1444,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	defer clusterCancel()
 
 	if err := stream.Send(&api.SessionMessage{
-		SessionID:            sessionID,
+		SessionId:            sessionID,
 		Node:                 nodeObj,
 		Managers:             d.getManagers(),
 		NetworkBootstrapKeys: d.getNetworkBootstrapKeys(),
@@ -1496,7 +1511,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		}
 
 		if err := stream.Send(&api.SessionMessage{
-			SessionID:            sessionID,
+			SessionId:            sessionID,
 			Node:                 nodeObj,
 			Managers:             mgrs,
 			NetworkBootstrapKeys: netKeys,

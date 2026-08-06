@@ -2,11 +2,12 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
+option go_package = "github.com/moby/swarmkit/v2/api";
+
 import "github.com/docker/swarmkit/api/objects.proto";
 import "github.com/docker/swarmkit/api/types.proto";
 import "go.etcd.io/raft/v3/raftpb/raft.proto";
-import weak "gogoproto/gogo.proto";
-import weak "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
+import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
 // Raft defines the RPC communication between raft nodes.
 service Raft {
@@ -58,7 +59,7 @@ message RaftMember {
 	string addr = 3;
 
 	// Status provides the current status of the manager from the perspective of another manager.
-	RaftMemberStatus status = 4 [(gogoproto.nullable) = false];
+	RaftMemberStatus status = 4;
 }
 
 message JoinRequest {
@@ -116,7 +117,7 @@ message ResolveAddressResponse {
 message InternalRaftRequest {
 	uint64 id = 1;
 
-	repeated StoreAction action = 2 [(gogoproto.nullable) = false];
+	repeated StoreAction action = 2;
 }
 
 // TODO(stevvooe): Storage actions may belong in another protobuf file. They
@@ -125,12 +126,10 @@ message InternalRaftRequest {
 // StoreActionKind defines the operation to take on the store for the target of
 // a storage action.
 enum StoreActionKind {
-	option (gogoproto.goproto_enum_prefix) = false;
-	option (gogoproto.enum_customname) = "StoreActionKind";
-	UNKNOWN = 0 [(gogoproto.enumvalue_customname) = "StoreActionKindUnknown"]; // default value, invalid
-	STORE_ACTION_CREATE = 1 [(gogoproto.enumvalue_customname) = "StoreActionKindCreate"];
-	STORE_ACTION_UPDATE = 2 [(gogoproto.enumvalue_customname) = "StoreActionKindUpdate"];
-	STORE_ACTION_REMOVE = 3 [(gogoproto.enumvalue_customname) = "StoreActionKindRemove"];
+	UNKNOWN = 0; // default value, invalid
+	STORE_ACTION_CREATE = 1;
+	STORE_ACTION_UPDATE = 2;
+	STORE_ACTION_REMOVE = 3;
 }
 
 // StoreAction defines a target and operation to apply on the storage system.

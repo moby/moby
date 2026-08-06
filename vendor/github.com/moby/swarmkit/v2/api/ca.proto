@@ -2,9 +2,10 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
+option go_package = "github.com/moby/swarmkit/v2/api";
+
 import "github.com/docker/swarmkit/api/types.proto";
 import "github.com/docker/swarmkit/api/specs.proto";
-import "gogoproto/gogo.proto";
 import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
 // CA defines the RPC methods for requesting certificates from a CA.
@@ -43,7 +44,7 @@ message IssueNodeCertificateRequest {
 	NodeRole role = 1 [deprecated=true];
 
 	// CSR is the certificate signing request.
-	bytes csr = 2 [(gogoproto.customname) = "CSR"];
+	bytes csr = 2;
 
 	// Token represents a user-provided string that is necessary for new
 	// nodes to join the cluster
@@ -68,5 +69,5 @@ message GetUnlockKeyRequest {}
 
 message GetUnlockKeyResponse {
 	bytes unlock_key = 1;
-	Version version = 2 [(gogoproto.nullable) = false];
+	Version version = 2;
 }

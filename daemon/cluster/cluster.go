@@ -328,7 +328,7 @@ func (c *Cluster) getRemoteAddressList() []string {
 	remotes := state.swarmNode.Remotes()
 	addressList := make([]string, 0, len(remotes))
 	for _, r := range remotes {
-		if r.NodeID != nodeID {
+		if r.NodeId != nodeID {
 			addressList = append(addressList, r.Addr)
 		}
 	}
@@ -413,7 +413,7 @@ func managerStats(client swarmapi.ControlClient, currentNodeID string) (current 
 		if n.ManagerStatus != nil {
 			if n.ManagerStatus.Reachability == swarmapi.RaftMemberStatus_REACHABLE {
 				reachable++
-				if n.ID == currentNodeID {
+				if n.Id == currentNodeID {
 					current = true
 				}
 			}

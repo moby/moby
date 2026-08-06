@@ -2,9 +2,10 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
+option go_package = "github.com/moby/swarmkit/v2/api";
+
 import "github.com/docker/swarmkit/api/objects.proto";
 import "github.com/docker/swarmkit/api/raft.proto";
-import weak "gogoproto/gogo.proto";
 
 // StoreSnapshot is used to store snapshots of the store.
 message StoreSnapshot {
@@ -40,6 +41,6 @@ message Snapshot {
 
 	Version version = 1;
 
-	ClusterSnapshot membership = 2 [(gogoproto.nullable) = false];
-	StoreSnapshot store = 3 [(gogoproto.nullable) = false];
+	ClusterSnapshot membership = 2;
+	StoreSnapshot store = 3;
 }

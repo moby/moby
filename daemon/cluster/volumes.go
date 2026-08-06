@@ -74,7 +74,7 @@ func (c *Cluster) CreateVolume(v volumetypes.CreateRequest) (*volumetypes.Volume
 	}); err != nil {
 		return nil, err
 	}
-	createdVol, err := c.GetVolume(resp.Volume.ID)
+	createdVol, err := c.GetVolume(resp.Volume.Id)
 	if err != nil {
 		// If there's a failure of some sort in this operation the user would
 		// get a very unhelpful "not found" error on a create, which is not
@@ -98,7 +98,7 @@ func (c *Cluster) RemoveVolume(nameOrID string, force bool) error {
 		}
 
 		_, err = state.controlClient.RemoveVolume(ctx, &swarmapi.RemoveVolumeRequest{
-			VolumeID: volume.ID,
+			VolumeId: volume.Id,
 			Force:    force,
 		})
 		return err
@@ -120,22 +120,22 @@ func (c *Cluster) UpdateVolume(nameOrID string, version uint64, volume volumebac
 		if volume.Spec != nil {
 			switch volume.Spec.Availability {
 			case volumetypes.AvailabilityActive:
-				v.Spec.Availability = swarmapi.VolumeAvailabilityActive
+				v.Spec.Availability = swarmapi.VolumeSpec_ACTIVE
 			case volumetypes.AvailabilityPause:
-				v.Spec.Availability = swarmapi.VolumeAvailabilityPause
+				v.Spec.Availability = swarmapi.VolumeSpec_PAUSE
 			case volumetypes.AvailabilityDrain:
-				v.Spec.Availability = swarmapi.VolumeAvailabilityDrain
+				v.Spec.Availability = swarmapi.VolumeSpec_DRAIN
 			default:
 				// if default empty value, change nothing.
 			}
 		}
 
 		_, err = state.controlClient.UpdateVolume(ctx, &swarmapi.UpdateVolumeRequest{
-			VolumeID: nameOrID,
+			VolumeId: nameOrID,
 			VolumeVersion: &swarmapi.Version{
 				Index: version,
 			},
-			Spec: &v.Spec,
+			Spec: v.Spec,
 		})
 		return err
 	})

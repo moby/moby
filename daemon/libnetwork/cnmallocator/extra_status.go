@@ -24,14 +24,14 @@ func (na *cnmNetworkAllocator) OnGetNetwork(ctx context.Context, swarmnet *api.N
 		return nil
 	}
 
-	n := na.getNetwork(swarmnet.ID)
+	n := na.getNetwork(swarmnet.Id)
 	if n == nil {
-		return fmt.Errorf("cnmallocator: network %s not found", swarmnet.ID)
+		return fmt.Errorf("cnmallocator: network %s not found", swarmnet.Id)
 	}
 
 	ipamdriver, _, _, err := na.resolveIPAM(swarmnet)
 	if err != nil {
-		return fmt.Errorf("cnmallocator: failed to resolve IPAM driver for network %s: %w", swarmnet.ID, err)
+		return fmt.Errorf("cnmallocator: failed to resolve IPAM driver for network %s: %w", swarmnet.Id, err)
 	}
 
 	ipam, ok := ipamdriver.(ipamapi.PoolStatuser)
@@ -48,7 +48,7 @@ func (na *cnmNetworkAllocator) OnGetNetwork(ctx context.Context, swarmnet *api.N
 	for subnet, poolID := range n.pools {
 		pstat, err := ipam.PoolStatus(poolID)
 		if err != nil {
-			return fmt.Errorf("cnmallocator: failed to get pool status for network %s: %w", swarmnet.ID, err)
+			return fmt.Errorf("cnmallocator: failed to get pool status for network %s: %w", swarmnet.Id, err)
 		}
 		status.IPAM.Subnets[subnet] = networktypes.SubnetStatus{
 			IPsInUse:            pstat.IPsInUse,
@@ -58,7 +58,7 @@ func (na *cnmNetworkAllocator) OnGetNetwork(ctx context.Context, swarmnet *api.N
 
 	extra, err := netextra.MarshalStatus(&status)
 	if err != nil {
-		return fmt.Errorf("cnmallocator: failed to marshal network status for network %s: %w", swarmnet.ID, err)
+		return fmt.Errorf("cnmallocator: failed to marshal network status for network %s: %w", swarmnet.Id, err)
 	}
 	swarmnet.Extra = extra
 
