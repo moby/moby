@@ -257,6 +257,9 @@ func (p *conn) ReadOnReady(bufSize int, pool mem.BufferPool) (*[]byte, int, erro
 		}
 		// Now we have a complete frame, decrypted it.
 		msg := framedMsg[MsgLenFieldSize:]
+		if len(msg) < msgTypeFieldSize {
+			return nil, 0, fmt.Errorf("received frame with size %v which is shorter than message type field size %v", len(msg), msgTypeFieldSize)
+		}
 		msgType := binary.LittleEndian.Uint32(msg[:msgTypeFieldSize])
 		if msgType&0xff != altsRecordMsgType {
 			return nil, 0, fmt.Errorf("received frame with incorrect message type %v, expected lower byte %v",
