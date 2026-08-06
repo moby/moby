@@ -246,10 +246,14 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 		myAliases = nil // discard any partially-decoded data
 	}
 
-	_, hasDNSNames := epMap["dnsNames"]
-	if err := unmarshalJSONField(epMap, "dnsNames", &ep.dnsNames); err != nil {
-		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal dnsNames")
-		ep.dnsNames = nil // discard any partially-decoded data
+	hasDNSNames := false
+	if _, ok := epMap["dnsNames"]; ok {
+		if err := unmarshalJSONField(epMap, "dnsNames", &ep.dnsNames); err != nil {
+			log.G(context.TODO()).WithError(err).Warn("failed to unmarshal dnsNames")
+			ep.dnsNames = nil // discard any partially-decoded data
+		} else {
+			hasDNSNames = true
+		}
 	}
 
 	// TODO(aker): remove this migration code in v27
