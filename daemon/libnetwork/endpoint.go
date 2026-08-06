@@ -129,17 +129,6 @@ func (ep *Endpoint) MarshalJSON() ([]byte, error) {
 	return json.Marshal(epMap)
 }
 
-func unmarshalJSONField(m map[string]any, field string, dst any) error {
-	b, err := json.Marshal(m[field])
-	if err != nil {
-		return fmt.Errorf("failed to marshal %s: %w", field, err)
-	}
-	if err := json.Unmarshal(b, dst); err != nil {
-		return fmt.Errorf("failed to unmarshal %s: %w", field, err)
-	}
-	return nil
-}
-
 func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
