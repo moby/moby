@@ -17,6 +17,11 @@
 // The objects are any of: [BaseChain], [Chain], [Rule], [Map], [MapElement],
 // [Set], [SetElement]
 //
+// A [Modifier] holds only creations and deletions, so it can always be reversed.
+// For a change that isn't the creation or deletion of a single object - see
+// [MapElementDeleteFunc] - use a [Batch], which takes any [Cmd] and cannot be
+// reversed. [Table.Apply] accepts either.
+//
 // The modifier can be reused to apply the same set of commands again or, more
 // usefully, reversed in order to revert its changes. See [Modifier.Reverse].
 //
@@ -60,6 +65,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/internal/iterutil"
 )
 
 // Prefix for OTEL span names.
@@ -443,35 +449,90 @@ type Obj interface {
 	delete(context.Context, *table) (bool, error)
 }
 
-// Modifier is used to apply changes to a Table.
-type Modifier struct {
-	cmds []command
+// Cmd is a change that can be appended to a [Batch] with [Batch.Append]. Use
+// [Create] or [Delete] for a single [Obj]; other Cmds, such as
+// [MapElementDeleteFunc], describe their effect in terms of the table's contents
+// and resolve to concrete operations only when the Batch is applied.
+type Cmd interface {
+	// ops resolves the command into the individual operations it performs. It's
+	// called when the command is reached during [Table.Apply], so it sees the
+	// effects of any preceding commands. Each returned op must fully describe the
+	// object it acts on, so that Apply is able to roll it back.
+	ops(t *table) ([]op, error)
 }
 
-// Create enqueues creation of object o, to be applied by tm.Apply.
+// Create returns a [Cmd] that creates o. [Modifier.Create] is shorthand for
+// appending it.
+func Create(o Obj) Cmd { return objCmd{obj: o} }
+
+// Delete returns a [Cmd] that deletes o. [Modifier.Delete] is shorthand for
+// appending it.
+func Delete(o Obj) Cmd { return objCmd{obj: o, delete: true} }
+
+// Changes is a set of changes to apply to a [Table] - a [Modifier] or a [Batch].
+// Only those two types implement it.
+type Changes interface {
+	// all yields the changes, in the order they were enqueued.
+	all() iter.Seq[command]
+}
+
+// all has a value receiver on both implementations, so a caller can pass either
+// the value or a pointer - the methods that populate them take a pointer, so
+// either may be what's to hand.
+var (
+	_ Changes = Modifier{}
+	_ Changes = (*Modifier)(nil)
+	_ Changes = Batch{}
+	_ Changes = (*Batch)(nil)
+)
+
+// Modifier holds creations and deletions of objects. Because that's all it can
+// hold, every Modifier can be reversed - see [Modifier.Reverse]. Use a [Batch]
+// for changes that aren't the creation or deletion of a single object.
+type Modifier struct {
+	objs []objCommand
+}
+
+// Create enqueues creation of object o, to be applied by [Table.Apply].
 func (tm *Modifier) Create(o Obj) {
 	tm.create(o, 1)
 }
 
 func (tm *Modifier) create(o Obj, skipFrames int) {
-	_, f, l, _ := runtime.Caller(skipFrames + 1)
-	tm.cmds = append(tm.cmds, command{
-		obj:        o,
-		callerFile: f,
-		callerLine: l,
-	})
+	tm.add(objCmd{obj: o}, skipFrames+1)
 }
 
-// Delete enqueues deletion of object o, to be applied by tm.Apply.
+// Delete enqueues deletion of object o, to be applied by [Table.Apply].
 func (tm *Modifier) Delete(o Obj) {
-	_, f, l, _ := runtime.Caller(1)
-	tm.cmds = append(tm.cmds, command{
-		obj:        o,
-		delete:     true,
-		callerFile: f,
-		callerLine: l,
-	})
+	tm.add(objCmd{obj: o, delete: true}, 1)
 }
+
+func (tm *Modifier) add(c objCmd, skipFrames int) {
+	_, f, l, _ := runtime.Caller(skipFrames + 1)
+	tm.objs = append(tm.objs, objCommand{objCmd: c, callerFile: f, callerLine: l})
+}
+
+func (tm Modifier) all() iter.Seq[command] {
+	return iterutil.Map(slices.Values(tm.objs), objCommand.command)
+}
+
+// Batch holds any changes, including ones that can't be expressed as the
+// creation or deletion of a single object - see [MapElementDeleteFunc]. Use
+// [Create] and [Delete] for the ones that can.
+//
+// Unlike a [Modifier] a Batch cannot be reversed: a command that selects what it
+// acts on from the table's contents has no inverse to describe.
+type Batch struct {
+	cmds []command
+}
+
+// Append enqueues c, to be applied by [Table.Apply].
+func (b *Batch) Append(c Cmd) {
+	_, f, l, _ := runtime.Caller(1)
+	b.cmds = append(b.cmds, command{cmd: c, callerFile: f, callerLine: l})
+}
+
+func (b Batch) all() iter.Seq[command] { return slices.Values(b.cmds) }
 
 // Reverse returns a Modifier that will undo the actions of tm.
 // Its operations are performed in reverse order, creates become
@@ -488,19 +549,21 @@ func (tm *Modifier) Delete(o Obj) {
 // delete the chain as it is not empty.
 func (tm *Modifier) Reverse() Modifier {
 	rtm := Modifier{
-		cmds: make([]command, len(tm.cmds)),
+		objs: make([]objCommand, len(tm.objs)),
 	}
-	for i, cmd := range tm.cmds {
-		cmd.delete = !cmd.delete
-		rtm.cmds[len(tm.cmds)-i-1] = cmd
+	for i, oc := range tm.objs {
+		oc.delete = !oc.delete
+		rtm.objs[len(tm.objs)-i-1] = oc
 	}
 	return rtm
 }
 
+var incrementalUpdateFailedHook func(applied string, err error)
+
 // Apply makes incremental updates to nftables. If there's a validation
-// error in any of the enqueued objects, or an error applying the updates
+// error in any of the enqueued changes, or an error applying the updates
 // to the underlying nftables, the [Table] will be unmodified.
-func (t *Table) Apply(ctx context.Context, tm ...Modifier) error {
+func (t *Table) Apply(ctx context.Context, changes ...Changes) error {
 	if !Enabled() {
 		return errors.New("nftables is not enabled")
 	}
@@ -515,34 +578,44 @@ func (t *Table) Apply(ctx context.Context, tm ...Modifier) error {
 	if err := t.t.checkUsable(); err != nil {
 		return err
 	}
-	return t.t.apply(ctx, tm...)
+	return t.t.apply(ctx, changes...)
 }
 
-// apply makes the incremental updates described by tm.
+// apply makes the incremental updates described by changes.
 // Acquire t.applyLock before calling this function.
-func (t *table) apply(ctx context.Context, tm ...Modifier) (retErr error) {
-	var rollback []command
+func (t *table) apply(ctx context.Context, changes ...Changes) (retErr error) {
+	var rollback []op
 	defer func() {
 		if retErr == nil {
 			return
 		}
-		for _, c := range slices.Backward(rollback) {
-			if _, err := c.rollback(ctx, t); err != nil {
+		for _, o := range slices.Backward(rollback) {
+			if _, err := o.rollback(ctx, t); err != nil {
 				log.G(ctx).WithError(err).Error("Failed to roll back nftables updates")
 			}
 		}
 		t.updatesApplied()
 	}()
 
-	// Apply tm's updates to the Table.
-	for _, tmm := range tm {
-		for _, cmd := range tmm.cmds {
-			applied, err := cmd.apply(ctx, t)
+	// Apply the updates to the Table.
+	for _, chg := range changes {
+		for cmd := range chg.all() {
+			// Resolve the command here, where it's reached, so that one describing its
+			// effect in terms of the table's contents sees those of preceding commands.
+			// The operations it resolves to each name their object in full, so they can
+			// go on the rollback list in its place.
+			ops, err := cmd.cmd.ops(t)
 			if err != nil {
 				return fmt.Errorf("rule from %s:%d: %w", cmd.callerFile, cmd.callerLine, err)
 			}
-			if applied {
-				rollback = append(rollback, cmd)
+			for _, o := range ops {
+				applied, err := o.apply(ctx, t)
+				if err != nil {
+					return fmt.Errorf("rule from %s:%d: %w", cmd.callerFile, cmd.callerLine, err)
+				}
+				if applied {
+					rollback = append(rollback, o)
+				}
 			}
 		}
 	}
@@ -563,6 +636,9 @@ func (t *table) apply(ctx context.Context, tm ...Modifier) (retErr error) {
 			sb.Write(line)
 		}
 		log.G(ctx).Error("nftables: failed to update nftables:\n", sb.String(), "\n", err)
+		if incrementalUpdateFailedHook != nil {
+			incrementalUpdateFailedHook(sb.String(), err)
+		}
 
 		// It's possible something destructive has happened to nftables. For example, in
 		// integration-cli tests, tests start daemons in the same netns as the integration
@@ -939,7 +1015,6 @@ func (me MapElement) create(ctx context.Context, t *table) (bool, error) {
 		Comment: me.Comment,
 	}
 	nm.AddedElements[me.Key] = nm.Elements[me.Key]
-	delete(nm.DeletedElements, me.Key)
 	log.G(ctx).WithFields(log.Fields{
 		"family":  t.Family,
 		"table":   t.Name,
@@ -965,8 +1040,11 @@ func (me MapElement) delete(ctx context.Context, t *table) (bool, error) {
 			me.MapName, me.Key, oldValue.Value, me.Value)
 	}
 	delete(nm.Elements, me.Key)
-	delete(nm.AddedElements, me.Key)
-	nm.DeletedElements[me.Key] = me.Value
+	if _, ok := nm.AddedElements[me.Key]; ok {
+		delete(nm.AddedElements, me.Key)
+	} else {
+		nm.DeletedElements[me.Key] = me.Value
+	}
 	log.G(ctx).WithFields(log.Fields{
 		"family":  t.Family,
 		"table":   t.Name,
@@ -976,6 +1054,53 @@ func (me MapElement) delete(ctx context.Context, t *table) (bool, error) {
 		"comment": oldValue.Comment,
 	}).Debug("nftables: deleted map element")
 	return true, nil
+}
+
+// MapElementDeleteFunc is a [Cmd] that deletes every element of a named map that
+// Fn selects. Being a Cmd rather than an [Obj], it can only be appended to a
+// [Batch] with [Batch.Append] - a [Modifier] holds objects, so it cannot carry
+// one, which is what keeps every Modifier reversible. There is no create
+// counterpart.
+//
+// The elements are chosen when the [Batch] is applied, not when it's built, so a
+// caller can use it to remove whichever of a map's elements are currently its own
+// without keeping a record of what it last wrote - which also sweeps up anything
+// an earlier failed update left behind. Combine it with [MapElement] creates in
+// one Batch to replace a caller's elements wholesale: the deletes are applied,
+// and rendered, before the creates.
+type MapElementDeleteFunc struct {
+	MapName string
+	// Fn reports whether an element should be deleted. It's called with the
+	// element's Key, Value and Comment populated; the Comment is included so it
+	// can carry metadata to select on, such as which caller owns the element.
+	Fn func(MapElement) bool
+}
+
+func (me MapElementDeleteFunc) ops(t *table) ([]op, error) {
+	if me.MapName == "" {
+		return nil, errors.New("cannot delete elements from unnamed map")
+	}
+	if me.Fn == nil {
+		return nil, fmt.Errorf("cannot delete elements from map '%s', no function", me.MapName)
+	}
+	nm := t.Maps[me.MapName]
+	if nm == nil {
+		return nil, fmt.Errorf("cannot delete elements from map '%s', it does not exist", me.MapName)
+	}
+
+	// The order of the returned ops doesn't matter: element deletions are
+	// rendered from a map keyed by element, so the generated commands come out in
+	// key order however these are enqueued.
+	var ops []op
+	for k, v := range nm.Elements {
+		// Describe the element in full, so that the predicate sees exactly what
+		// would be deleted and rolling the delete back restores it as it was.
+		elem := MapElement{MapName: me.MapName, Key: k, Value: v.Value, Comment: v.Comment}
+		if me.Fn(elem) {
+			ops = append(ops, op{obj: elem, del: true})
+		}
+	}
+	return ops, nil
 }
 
 // ////////////////////////////
@@ -1158,24 +1283,52 @@ func (t *table) deleteChain(ctx context.Context, name string) (bool, error) {
 }
 
 type command struct {
-	obj        Obj
+	cmd        Cmd
 	callerFile string
 	callerLine int
-	delete     bool
 }
 
-func (c command) apply(ctx context.Context, t *table) (bool, error) {
-	if c.delete {
-		return c.obj.delete(ctx, t)
-	}
-	return c.obj.create(ctx, t)
+// objCmd creates or deletes a single [Obj]. It's what [Create] and [Delete]
+// return.
+type objCmd struct {
+	obj    Obj
+	delete bool
 }
 
-func (c command) rollback(ctx context.Context, t *table) (bool, error) {
-	if c.delete {
-		return c.obj.create(ctx, t)
+func (c objCmd) ops(*table) ([]op, error) {
+	return []op{{obj: c.obj, del: c.delete}}, nil
+}
+
+// objCommand is an objCmd with the source location that enqueued it.
+type objCommand struct {
+	objCmd
+	callerFile string
+	callerLine int
+}
+
+func (oc objCommand) command() command {
+	return command{cmd: oc.objCmd, callerFile: oc.callerFile, callerLine: oc.callerLine}
+}
+
+// op is a single reversible operation: the creation or deletion of one
+// fully-described object.
+type op struct {
+	obj Obj
+	del bool
+}
+
+func (o op) apply(ctx context.Context, t *table) (bool, error) {
+	if o.del {
+		return o.obj.delete(ctx, t)
 	}
-	return c.obj.delete(ctx, t)
+	return o.obj.create(ctx, t)
+}
+
+func (o op) rollback(ctx context.Context, t *table) (bool, error) {
+	if o.del {
+		return o.obj.create(ctx, t)
+	}
+	return o.obj.delete(ctx, t)
 }
 
 func (t *table) updatesApplied() {

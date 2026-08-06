@@ -1,0 +1,7 @@
+table ip x {
+	map a_map {
+		typeof numgen random mod 1024 : ip daddr
+		flags interval
+		elements = { 0-511 : 127.0.0.1, 512-1023 : 192.168.0.1 }
+	}
+}
