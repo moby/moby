@@ -40,6 +40,7 @@ const (
 // The whole property runs inside a [testing/synctest] bubble, gossiping over an
 // in-memory network; see memcluster_test.go for why and how.
 func TestNetworkDBAlwaysConverges(t *testing.T) {
+	requireSynctest(t)
 	rapid.Check(t, func(t *rapid.T) {
 		rapid.SyncTest(t, testConvergence)
 	})

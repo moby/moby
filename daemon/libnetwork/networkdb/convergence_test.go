@@ -76,6 +76,7 @@ var latencyClusterSizes = []int{2, 3, 5, 10, 25}
 //	go test ./daemon/libnetwork/networkdb -run TestNetworkDBConvergenceLatency \
 //	    -count=50 -timeout=30m
 func TestNetworkDBConvergenceLatency(t *testing.T) {
+	requireSynctest(t)
 	for _, p := range perturbations {
 		for _, nodes := range latencyClusterSizes {
 			if nodes < p.minNodes {
@@ -768,6 +769,7 @@ const (
 // perturbation names suffixed "-under-churn", so the two conditions can be
 // compared directly.
 func TestNetworkDBConvergenceUnderChurn(t *testing.T) {
+	requireSynctest(t)
 	for _, nodes := range churnClusterSizes {
 		t.Run(fmt.Sprintf("nodes=%d", nodes), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
