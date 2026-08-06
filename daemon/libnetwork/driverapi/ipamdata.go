@@ -60,7 +60,7 @@ func (i *IPAMData) UnmarshalJSON(data []byte) error {
 		}
 		var am map[string]string
 		if err = json.Unmarshal(b, &am); err != nil {
-			return err
+			return fmt.Errorf("failed to unmarshal AuxAddresses: %w", err)
 		}
 		i.AuxAddresses = make(map[string]*net.IPNet, len(am))
 		for k, v := range am {

@@ -194,7 +194,7 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 	// Unlike Meta, IPAMData is required, so its errors are propagated.
 	if v, ok := m["IPAMData"]; ok {
 		if err = json.Unmarshal([]byte(v.(string)), &i.IPAMData); err != nil {
-			return err
+			return fmt.Errorf("failed to unmarshal IPAMData: %w", err)
 		}
 	}
 	return nil

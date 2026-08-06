@@ -155,6 +155,7 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	}
 	if err := unmarshalJSONField(epMap, "sandbox", &ep.sandboxID); err != nil {
 		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal sandbox")
+		ep.sandboxID = "" // discard any partially-decoded data
 	}
 
 	if v, ok := epMap["generic"]; ok {
