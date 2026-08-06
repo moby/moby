@@ -188,6 +188,7 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 	if _, ok := m["Meta"]; ok {
 		if err := unmarshalJSONField(m, "Meta", &i.Meta); err != nil {
 			log.G(context.TODO()).WithError(err).Warn("failed to unmarshal Meta")
+			i.Meta = nil // discard any partially-decoded data
 		}
 	}
 	// Unlike Meta, IPAMData is required, so its errors are propagated.

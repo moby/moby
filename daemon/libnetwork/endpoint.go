@@ -146,9 +146,11 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	}
 	if err := unmarshalJSONField(epMap, "joinInfo", &ep.joinInfo); err != nil {
 		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal joinInfo")
+		ep.joinInfo = nil // discard any partially-decoded data
 	}
 	if err := unmarshalJSONField(epMap, "exposed_ports", &ep.exposedPorts); err != nil {
 		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal exposed_ports")
+		ep.exposedPorts = nil // discard any partially-decoded data
 	}
 	if err := unmarshalJSONField(epMap, "sandbox", &ep.sandboxID); err != nil {
 		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal sandbox")
@@ -229,19 +231,23 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 
 	if err := unmarshalJSONField(epMap, "svcAliases", &ep.svcAliases); err != nil {
 		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal svcAliases")
+		ep.svcAliases = nil // discard any partially-decoded data
 	}
 	if err := unmarshalJSONField(epMap, "ingressPorts", &ep.ingressPorts); err != nil {
 		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal ingressPorts")
+		ep.ingressPorts = nil // discard any partially-decoded data
 	}
 
 	var myAliases []string
 	if err := unmarshalJSONField(epMap, "myAliases", &myAliases); err != nil {
 		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal myAliases")
+		myAliases = nil // discard any partially-decoded data
 	}
 
 	_, hasDNSNames := epMap["dnsNames"]
 	if err := unmarshalJSONField(epMap, "dnsNames", &ep.dnsNames); err != nil {
 		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal dnsNames")
+		ep.dnsNames = nil // discard any partially-decoded data
 	}
 
 	// TODO(aker): remove this migration code in v27

@@ -503,6 +503,7 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 	if _, ok := epMap["StaticRoutes"]; ok {
 		if err := unmarshalJSONField(epMap, "StaticRoutes", &tStaticRoute); err != nil {
 			log.G(context.TODO()).WithError(err).Warn("failed to unmarshal StaticRoutes")
+			tStaticRoute = nil // discard any partially-decoded data
 		}
 	}
 	var StaticRoutes []*types.StaticRoute
