@@ -100,15 +100,24 @@ func TestHealthCheckProcessKilled(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
+	// Note: Windows is much slower than Linux at getting the probe process to
+	// the point where it has written to stdout. With a 50ms timeout the probe
+	// is regularly killed before it has written anything, leaving the timeout
+	// message with no output to report.
+	probeTimeout := 50 * time.Millisecond
+	if testEnv.DaemonInfo.OSType == "windows" {
+		probeTimeout = 500 * time.Millisecond
+	}
+
 	cID := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		c.Config.Healthcheck = &containertypes.HealthConfig{
 			Test:     []string{"CMD", "sh", "-c", `echo "logs1 logs2 logs3"; sleep 60`},
 			Interval: 100 * time.Millisecond,
-			Timeout:  50 * time.Millisecond,
+			Timeout:  probeTimeout,
 			Retries:  1,
 		}
 	})
-	poll.WaitOn(t, pollForHealthCheckLog(ctx, apiClient, cID, "Health check exceeded timeout (50ms): logs1 logs2 logs3\n"))
+	poll.WaitOn(t, pollForHealthCheckLog(ctx, apiClient, cID, fmt.Sprintf("Health check exceeded timeout (%v): logs1 logs2 logs3\n", probeTimeout)))
 }
 
 func TestHealthStartInterval(t *testing.T) {
