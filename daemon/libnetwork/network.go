@@ -183,7 +183,11 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 	if err = json.Unmarshal(data, &m); err != nil {
 		return err
 	}
-	i.PoolID = m["PoolID"].(string)
+	poolID, isString := m["PoolID"].(string)
+	if !isString {
+		return fmt.Errorf("PoolID: expected string, got %T", m["PoolID"])
+	}
+	i.PoolID = poolID
 	// Meta is a generic bag of IPAM-driver-provided metadata; the only key
 	// this restore path reads back is the Gateway fallback hint, so it's
 	// safe to ignore on error.
