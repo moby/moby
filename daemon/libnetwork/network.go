@@ -184,11 +184,13 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	i.PoolID = m["PoolID"].(string)
+	// Meta is only a fallback gateway hint, so it's safe to ignore on error.
 	if _, ok := m["Meta"]; ok {
 		if err := unmarshalJSONField(m, "Meta", &i.Meta); err != nil {
 			log.G(context.TODO()).WithError(err).Warn("failed to unmarshal Meta")
 		}
 	}
+	// Unlike Meta, IPAMData is required, so its errors are propagated.
 	if v, ok := m["IPAMData"]; ok {
 		if err = json.Unmarshal([]byte(v.(string)), &i.IPAMData); err != nil {
 			return err
