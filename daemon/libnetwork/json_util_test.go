@@ -28,12 +28,12 @@ func TestUnmarshalJSONField(t *testing.T) {
 		assert.Check(t, is.DeepEqual(dst, []string{"a", "b", "c"}))
 	})
 
-	t.Run("missing key unmarshals into zero value", func(t *testing.T) {
+	t.Run("missing key succeeds and leaves the destination unchanged", func(t *testing.T) {
 		m := map[string]any{}
-		var dst sample
+		dst := sample{Name: "preexisting"}
 		err := unmarshalJSONField(m, "field", &dst)
 		assert.NilError(t, err)
-		assert.Check(t, is.Equal(dst, sample{}))
+		assert.Check(t, is.Equal(dst, sample{Name: "preexisting"}))
 	})
 
 	t.Run("array where struct is expected returns an error", func(t *testing.T) {
