@@ -66,8 +66,10 @@ type CreateScheduledQueryInput struct {
 	// and functionality.
 	Description *string
 
-	// Configuration for where to deliver query results. Currently supports Amazon S3
-	// destinations for storing query output.
+	// Configuration for where to deliver query results. Supports Amazon S3
+	// destinations for storing query output and lookup table destinations for
+	// automatically refreshing lookup tables with query results. You can configure one
+	// or both destination types.
 	DestinationConfiguration *types.DestinationConfiguration
 
 	// The time offset in seconds that defines the end of the lookback period for the

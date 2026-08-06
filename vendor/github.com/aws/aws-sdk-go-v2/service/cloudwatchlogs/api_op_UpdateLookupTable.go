@@ -8,11 +8,12 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Updates an existing lookup table by replacing all of its CSV content. After the
-// update completes, queries that use this table will use the new data.
+// Updates an existing lookup table by replacing all of its content with new CSV
+// data or CloudWatch Logs query results. After the update completes, queries that
+// use this table use the new data.
 //
-// This is a full replacement operation. All existing content is replaced with the
-// new CSV data.
+// This is a full replacement operation. All existing content is replaced. You
+// must specify either tableBody or queryId , but not both.
 func (c *Client) UpdateLookupTable(ctx context.Context, params *UpdateLookupTableInput, optFns ...func(*Options)) (*UpdateLookupTableOutput, error) {
 	if params == nil {
 		params = &UpdateLookupTableInput{}
@@ -35,13 +36,6 @@ type UpdateLookupTableInput struct {
 	// This member is required.
 	LookupTableArn *string
 
-	// The new CSV content to replace the existing data. The first row must be a
-	// header row with column names. The content must use UTF-8 encoding and not exceed
-	// 10 MB.
-	//
-	// This member is required.
-	TableBody *string
-
 	// An updated description of the lookup table.
 	Description *string
 
@@ -49,6 +43,19 @@ type UpdateLookupTableInput struct {
 	// this parameter to add, update, or remove the KMS key. To remove the KMS key and
 	// use an Amazon Web Services-owned key instead, specify an empty string.
 	KmsKeyId *string
+
+	// The ID of a completed CloudWatch Logs query whose results replace the lookup
+	// table content.
+	//
+	// You must specify either tableBody or queryId , but not both.
+	QueryId *string
+
+	// The new CSV content to replace the existing data. The first row must be a
+	// header row with column names. The content must use UTF-8 encoding and not exceed
+	// 10 MB.
+	//
+	// You must specify either tableBody or queryId , but not both.
+	TableBody *string
 
 	noSmithyDocumentSerde
 }
