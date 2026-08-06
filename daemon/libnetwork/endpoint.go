@@ -143,6 +143,7 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 
 	if err := unmarshalJSONField(epMap, "ep_iface", &ep.iface); err != nil {
 		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal ep_iface")
+		ep.iface = nil // discard any partially-decoded data
 	}
 	if err := unmarshalJSONField(epMap, "joinInfo", &ep.joinInfo); err != nil {
 		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal joinInfo")
