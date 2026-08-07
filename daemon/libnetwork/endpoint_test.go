@@ -92,3 +92,33 @@ func TestEndpointUnmarshalJSONTypeMismatch(t *testing.T) {
 		assert.Check(t, is.Nil(ep.generic))
 	})
 }
+
+func TestDecodeGenericList(t *testing.T) {
+	type sample struct {
+		Name string `json:"name"`
+	}
+
+	t.Run("happy path", func(t *testing.T) {
+		opt := []any{
+			map[string]any{"name": "a"},
+			map[string]any{"name": "b"},
+		}
+		list := decodeGenericList[sample]("key", opt)
+		assert.Check(t, is.DeepEqual(list, []sample{{Name: "a"}, {Name: "b"}}))
+	})
+
+	t.Run("non-slice returns nil", func(t *testing.T) {
+		list := decodeGenericList[sample]("key", "not-a-slice")
+		assert.Check(t, is.Nil(list))
+	})
+
+	t.Run("element not a map stops and returns what was collected so far", func(t *testing.T) {
+		opt := []any{
+			map[string]any{"name": "a"},
+			"not-a-map",
+			map[string]any{"name": "c"},
+		}
+		list := decodeGenericList[sample]("key", opt)
+		assert.Check(t, is.DeepEqual(list, []sample{{Name: "a"}}))
+	})
+}

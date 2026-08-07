@@ -177,65 +177,10 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 			ep.generic = generic
 
 			if opt, ok := ep.generic[netlabel.PortMap]; ok {
-				optList, isSlice := opt.([]any)
-				if !isSlice {
-					log.G(context.TODO()).Errorf("generic[%s]: expected []any, got %T", netlabel.PortMap, opt)
-				} else {
-					pblist := []types.PortBinding{}
-
-					for i := 0; i < len(optList); i++ {
-						pb := types.PortBinding{}
-						tmp, isMap := optList[i].(map[string]any)
-						if !isMap {
-							log.G(context.TODO()).Errorf("generic[%s][%d]: expected map[string]any, got %T", netlabel.PortMap, i, optList[i])
-							break
-						}
-
-						bytes, err := json.Marshal(tmp)
-						if err != nil {
-							log.G(context.TODO()).Error(err)
-							break
-						}
-						err = json.Unmarshal(bytes, &pb)
-						if err != nil {
-							log.G(context.TODO()).Error(err)
-							break
-						}
-						pblist = append(pblist, pb)
-					}
-					ep.generic[netlabel.PortMap] = pblist
-				}
+				ep.generic[netlabel.PortMap] = decodeGenericList[types.PortBinding](netlabel.PortMap, opt)
 			}
-
 			if opt, ok := ep.generic[netlabel.ExposedPorts]; ok {
-				optList, isSlice := opt.([]any)
-				if !isSlice {
-					log.G(context.TODO()).Errorf("generic[%s]: expected []any, got %T", netlabel.ExposedPorts, opt)
-				} else {
-					tplist := []types.TransportPort{}
-
-					for i := 0; i < len(optList); i++ {
-						tp := types.TransportPort{}
-						tmp, isMap := optList[i].(map[string]any)
-						if !isMap {
-							log.G(context.TODO()).Errorf("generic[%s][%d]: expected map[string]any, got %T", netlabel.ExposedPorts, i, optList[i])
-							break
-						}
-
-						bytes, err := json.Marshal(tmp)
-						if err != nil {
-							log.G(context.TODO()).Error(err)
-							break
-						}
-						err = json.Unmarshal(bytes, &tp)
-						if err != nil {
-							log.G(context.TODO()).Error(err)
-							break
-						}
-						tplist = append(tplist, tp)
-					}
-					ep.generic[netlabel.ExposedPorts] = tplist
-				}
+				ep.generic[netlabel.ExposedPorts] = decodeGenericList[types.TransportPort](netlabel.ExposedPorts, opt)
 			}
 		}
 	}
@@ -326,6 +271,40 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	}
 
 	return nil
+}
+
+// decodeGenericList decodes opt (expected to be a []any of map[string]any,
+// as produced by decoding driver-specific "generic" data) into a []T,
+// logging and stopping at the first element that doesn't decode cleanly
+// rather than failing the whole restore.
+func decodeGenericList[T any](key string, opt any) []T {
+	optList, isSlice := opt.([]any)
+	if !isSlice {
+		log.G(context.TODO()).Errorf("generic[%s]: expected []any, got %T", key, opt)
+		return nil
+	}
+
+	list := []T{}
+	for i, item := range optList {
+		tmp, isMap := item.(map[string]any)
+		if !isMap {
+			log.G(context.TODO()).Errorf("generic[%s][%d]: expected map[string]any, got %T", key, i, item)
+			break
+		}
+
+		b, err := json.Marshal(tmp)
+		if err != nil {
+			log.G(context.TODO()).Error(err)
+			break
+		}
+		var v T
+		if err := json.Unmarshal(b, &v); err != nil {
+			log.G(context.TODO()).Error(err)
+			break
+		}
+		list = append(list, v)
+	}
+	return list
 }
 
 func (ep *Endpoint) New() datastore.KVObject {
