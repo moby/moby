@@ -11,7 +11,7 @@
 // bump of the API package).
 //
 // [OpenTelemetry Logs API]: https://pkg.go.dev/go.opentelemetry.io/otel/log
-package embedded // import "go.opentelemetry.io/otel/log/embedded"
+package embedded
 
 // LoggerProvider is embedded in the [Logs API LoggerProvider].
 //
