@@ -677,8 +677,8 @@ github.com/prometheus/procfs v0.21.1 h1:GljZCt+zSTS+NZq88cyQ1LjZ+RCHp3uVuabBWA5+
 github.com/prometheus/procfs v0.21.1/go.mod h1:aB55Cww9pdSJVHk0hUf0inxWyyjPogFIjmHKYgMKmtY=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
-github.com/rootless-containers/rootlesskit/v3 v3.0.2 h1:8hRSEUdzKxmMdy+PHD/rJ3E0+nWEkh9woMDbXjSnMKQ=
-github.com/rootless-containers/rootlesskit/v3 v3.0.2/go.mod h1:oFY5X3mj9mOpi/F+oBaD5ojo6QZhr9JdcpsQ6qepz6Q=
+github.com/rootless-containers/rootlesskit/v3 v3.1.0 h1:6RR+6Y9aml6gIkn4ohcHIpIy6I7Wmyt3iglKKEIb678=
+github.com/rootless-containers/rootlesskit/v3 v3.1.0/go.mod h1:oFY5X3mj9mOpi/F+oBaD5ojo6QZhr9JdcpsQ6qepz6Q=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/ryanuber/go-glob v1.0.0 h1:iQh3xXAumdQ+4Ufa5b25cRpC5TYKlno6hsv6Cb3pkBk=
 github.com/ryanuber/go-glob v1.0.0/go.mod h1:807d1WSdnB0XRJzKNil9Om6lcp/3a0v4qIHxIXzX/Yc=
