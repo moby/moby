@@ -190,6 +190,10 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 	}
 	nDB.createOrUpdateEntry(tEvent.NetworkID, tEvent.TableName, tEvent.Key, e)
 
+	if obs := nDB.config.tableEventObserver; obs != nil {
+		obs(nDB.config.NodeID, tEvent.NetworkID, tEvent.TableName, tEvent.Key, isBulkSync)
+	}
+
 	if !entryPresent && tEvent.Type == TableEventTypeDelete {
 		// We will rebroadcast the message for an unknown entry if all the conditions are met:
 		// 1) the message was received from a bulk sync
@@ -279,10 +283,13 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 
 		nDB.RLock()
 		n, ok := nDB.thisNodeNetworks[tEvent.NetworkID]
+		// Read leaving while still holding the lock: it is mutated under
+		// the write lock by (*NetworkDB).LeaveNetwork.
+		leaving := ok && n.leaving
 		nDB.RUnlock()
 
 		// if the network is not there anymore, OR we are leaving the network
-		if !ok || n.leaving {
+		if !ok || leaving {
 			return
 		}
 

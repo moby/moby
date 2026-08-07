@@ -1,36 +1,62 @@
-//go:build slowtests
-
 package networkdb
 
 import (
 	"fmt"
 	"maps"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"gotest.tools/v3/poll"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"pgregory.net/rapid"
 )
 
+// Virtual-time budget for the convergence check. Once the state machine has
+// stopped mutating, convergence is terminal, so the step only decides how
+// promptly the test notices -- it is not a measurement resolution. This test
+// makes no timing claims; see TestNetworkDBConvergenceLatency for those.
+const (
+	convergenceStep    = 100 * time.Millisecond
+	convergenceTimeout = 2 * time.Minute
+)
+
+// TestNetworkDBAlwaysConverges drives a cluster of NetworkDB instances with a
+// random sequence of joins, leaves and table writes, then asserts that every
+// node's view of the table ends up identical.
+//
+// This test exists to explore interleavings, and deliberately never quiesces
+// the cluster between actions: gossip is still in flight when the next mutation
+// lands, which is where the interesting bugs are. That is also precisely why it
+// cannot measure convergence latency -- by the time the property function gets
+// to look, most runs have already converged during the state machine's own
+// Sleep actions, so any interval it could report would be an upper bound rather
+// than a measurement. TestNetworkDBConvergenceLatency trades interleaving for
+// precision and measures it properly.
+//
+// The whole property runs inside a [testing/synctest] bubble, gossiping over an
+// in-memory network; see memcluster_test.go for why and how.
 func TestNetworkDBAlwaysConverges(t *testing.T) {
-	rapid.Check(t, testConvergence)
+	requireSynctest(t)
+	rapid.Check(t, func(t *rapid.T) {
+		rapid.SyncTest(t, testConvergence)
+	})
 }
 
 func testConvergence(t *rapid.T) {
 	numNodes := rapid.IntRange(2, 25).Draw(t, "numNodes")
 	numNetworks := rapid.IntRange(1, 5).Draw(t, "numNetworks")
 
+	c := newMemCluster(t, numNodes, "node", DefaultConfig())
+
 	fsm := &networkDBFSM{
-		nDB:      createNetworkDBInstances(t, numNodes, "node", DefaultConfig()),
+		nDB:      c.dbs,
 		state:    make([]map[string]map[string]string, numNodes),
 		keysUsed: make(map[string]map[string]bool),
 	}
-	defer closeNetworkDBInstances(t, fsm.nDB)
 	for i := range fsm.state {
 		fsm.state[i] = make(map[string]map[string]string)
 	}
@@ -54,18 +80,18 @@ func testConvergence(t *rapid.T) {
 			maps.Copy(converged[network], entries)
 		}
 	}
-	expected := make(map[string]map[string]map[string]string, numNodes)
+	expected := make(tableState, numNodes)
 	for i, st := range fsm.state {
 		exp := make(map[string]map[string]string)
 		for k := range st {
 			exp[k] = converged[k]
 		}
-		expected[fsm.nDB[i].config.NodeID] = exp
+		expected[c.dbs[i].config.NodeID] = exp
 	}
 
 	t.Logf("Waiting for NetworkDB state to converge to %#v", converged)
 	for i, st := range fsm.state {
-		t.Logf("Node #%d (%s): %v", i, fsm.nDB[i].config.NodeID, slices.Collect(maps.Keys(st)))
+		t.Logf("Node #%d (%s): %v", i, c.dbs[i].config.NodeID, slices.Collect(maps.Keys(st)))
 	}
 	t.Log("Mutations:")
 	for _, m := range fsm.mutations {
@@ -73,67 +99,81 @@ func testConvergence(t *rapid.T) {
 	}
 	t.Log("---------------------------")
 
-	poll.WaitOn(t, func(t poll.LogT) poll.Result {
-		actualState := make(map[string]map[string]map[string]string, numNodes)
-		for _, nDB := range fsm.nDB {
-			actual := make(map[string]map[string]string)
-			for k, nw := range nDB.thisNodeNetworks {
-				if !nw.leaving {
-					actual[k] = make(map[string]string)
-				}
+	waitForTableState(t, c.dbs, expected)
+
+	if drops := c.mn.dropCount(); drops != 0 {
+		// Not a correctness failure -- gossip has to tolerate loss -- but it
+		// means memPacketBuffer was too shallow for this load and the run
+		// needed more retransmits than a real cluster would have.
+		t.Logf("in-memory network dropped %d datagrams for want of receive buffer", drops)
+	}
+}
+
+// tableStateCmp is shared by the check which ends the wait below and the diff
+// which explains a timeout, so the two cannot disagree: on different options the
+// wait could end on state the diff calls equal, and print an empty diff.
+//
+// A network a node has joined but holds no entries for is an empty map on one
+// side and, depending on how it was built, nil on the other. That is not a
+// difference worth failing on -- what matters is which networks a node lists and
+// which keys it holds -- so equate them.
+var tableStateCmp = cmp.Options{cmpopts.EquateEmpty()}
+
+// waitForTableState blocks until every node's view of the table under test
+// matches want, and fails the test if that does not happen in time.
+func waitForTableState(t *rapid.T, dbs []*NetworkDB, want tableState) {
+	deadline := time.Now().Add(convergenceTimeout)
+	for {
+		synctest.Wait()
+		got := snapshotTableState(dbs)
+		if cmp.Equal(want, got, tableStateCmp) {
+			return
+		}
+		if !time.Now().Before(deadline) {
+			t.Errorf("NetworkDB state did not converge within %v of virtual time:\n%v\n\n%v",
+				convergenceTimeout, cmp.Diff(want, got, tableStateCmp), dumpTables(dbs))
+			return
+		}
+		time.Sleep(convergenceStep)
+	}
+}
+
+// tableState is every node's view of every network's entries in the table under
+// test: node ID -> network -> key -> value.
+type tableState map[string]map[string]map[string]string
+
+func snapshotTableState(dbs []*NetworkDB) tableState {
+	st := make(tableState, len(dbs))
+	for _, nDB := range dbs {
+		node := make(map[string]map[string]string)
+		nDB.RLock()
+		for k, nw := range nDB.thisNodeNetworks {
+			if !nw.leaving {
+				node[k] = make(map[string]string)
 			}
-			actualState[nDB.config.NodeID] = actual
 		}
-		tableContent := make([]string, len(fsm.nDB))
-		for i, nDB := range fsm.nDB {
-			tableContent[i] = fmt.Sprintf("Node #%d (%s):\n%v", i, nDB.config.NodeID, nDB.DebugDumpTable("some_table"))
-			nDB.WalkTable("some_table", func(network, key string, value []byte, deleting bool) bool {
-				if deleting {
-					return false
-				}
-				if actualState[nDB.config.NodeID][network] == nil {
-					actualState[nDB.config.NodeID][network] = make(map[string]string)
-				}
-				actualState[nDB.config.NodeID][network][key] = string(value)
+		nDB.RUnlock()
+		nDB.WalkTable(tableUnderTest, func(network, key string, value []byte, deleting bool) bool {
+			if deleting {
 				return false
-			})
-		}
-		diff := cmp.Diff(expected, actualState)
-		if diff != "" {
-			return poll.Continue("NetworkDB state has not converged:\n%v\n%v", diff, strings.Join(tableContent, "\n\n"))
-		}
-		return poll.Success()
-	}, poll.WithTimeout(5*time.Minute), poll.WithDelay(200*time.Millisecond))
+			}
+			if node[network] == nil {
+				node[network] = make(map[string]string)
+			}
+			node[network][key] = string(value)
+			return false
+		})
+		st[nDB.config.NodeID] = node
+	}
+	return st
+}
 
-	convergenceTime := time.Since(fsm.lastMutation)
-	t.Logf("NetworkDB state converged in %v", convergenceTime)
-
-	// Log the convergence time to disk for later statistical analysis.
-
-	if err := os.Mkdir("testdata", 0o755); err != nil && !os.IsExist(err) {
-		t.Logf("Could not log convergence time to disk: failed to create testdata directory: %v", err)
-		return
+func dumpTables(dbs []*NetworkDB) string {
+	dumps := make([]string, len(dbs))
+	for i, nDB := range dbs {
+		dumps[i] = fmt.Sprintf("Node #%d (%s):\n%v", i, nDB.config.NodeID, nDB.DebugDumpTable(tableUnderTest))
 	}
-	f, err := os.OpenFile("testdata/convergence_time.csv", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-	if err != nil {
-		t.Logf("Could not log convergence time to disk: failed to open file: %v", err)
-		return
-	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			t.Logf("Could not log convergence time to disk: error closing file: %v", err)
-		}
-	}()
-	if st, err := f.Stat(); err != nil {
-		t.Logf("Could not log convergence time to disk: failed to stat file: %v", err)
-		return
-	} else if st.Size() == 0 {
-		f.WriteString("Nodes,Networks,#Mutations,Convergence(ns)\n")
-	}
-	if _, err := fmt.Fprintf(f, "%v,%v,%v,%d\n", numNodes, numNetworks, len(fsm.mutations), convergenceTime); err != nil {
-		t.Logf("Could not log convergence time to disk: failed to write to file: %v", err)
-		return
-	}
+	return strings.Join(dumps, "\n\n")
 }
 
 // networkDBFSM is a [rapid.StateMachine] providing the set of actions available
@@ -152,15 +192,11 @@ type networkDBFSM struct {
 	// network -> key -> true
 	keysUsed map[string]map[string]bool
 
-	// Timestamp of the most recent state-machine action which perturbed the
-	// system state.
-	lastMutation time.Time
-	mutations    []string
+	mutations []string
 }
 
 func (u *networkDBFSM) mutated(nodeidx int, action, network, key, value string) {
-	u.lastMutation = time.Now()
-	desc := fmt.Sprintf("  [%v] #%d(%v):%v(%s", u.lastMutation, nodeidx, u.nDB[nodeidx].config.NodeID, action, network)
+	desc := fmt.Sprintf("  [%v] #%d(%v):%v(%s", time.Now(), nodeidx, u.nDB[nodeidx].config.NodeID, action, network)
 	if key != "" {
 		desc += fmt.Sprintf(", %s=%s", key, value)
 	}
@@ -237,7 +273,7 @@ func (u *networkDBFSM) CreateEntry(t *rapid.T) {
 		Draw(t, "key")
 	value := rapid.StringMatching(`[a-z]{5,20}`).Draw(t, "value")
 
-	if err := u.nDB[nodeidx].CreateEntry("some_table", nw, key, []byte(value)); err != nil {
+	if err := u.nDB[nodeidx].CreateEntry(tableUnderTest, nw, key, []byte(value)); err != nil {
 		t.Errorf("Node %v failed to create entry %s=%s in network %s: %v", nodeidx, key, value, nw, err)
 	} else {
 		u.state[nodeidx][nw][key] = value
@@ -261,7 +297,7 @@ func (u *networkDBFSM) UpdateEntry(t *rapid.T) {
 	key := u.drawOwnedDBKey(t, nodeidx, nw)
 	value := rapid.StringMatching(`[a-z]{5,20}`).Draw(t, "value")
 
-	if err := u.nDB[nodeidx].UpdateEntry("some_table", nw, key, []byte(value)); err != nil {
+	if err := u.nDB[nodeidx].UpdateEntry(tableUnderTest, nw, key, []byte(value)); err != nil {
 		t.Errorf("Node %v failed to update entry %s=%s in network %s: %v", nodeidx, key, value, nw, err)
 	} else {
 		u.state[nodeidx][nw][key] = value
@@ -273,7 +309,7 @@ func (u *networkDBFSM) DeleteEntry(t *rapid.T) {
 	nodeidx, nw := u.drawJoinedNodeAndNetwork(t)
 	key := u.drawOwnedDBKey(t, nodeidx, nw)
 
-	if err := u.nDB[nodeidx].DeleteEntry("some_table", nw, key); err != nil {
+	if err := u.nDB[nodeidx].DeleteEntry(tableUnderTest, nw, key); err != nil {
 		t.Errorf("Node %v failed to delete entry %s in network %s: %v", nodeidx, key, nw, err)
 	} else {
 		delete(u.state[nodeidx][nw], key)

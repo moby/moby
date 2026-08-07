@@ -110,6 +110,9 @@ func (nDB *NetworkDB) clusterInit() error {
 	config.BindAddr = nDB.config.BindAddr
 	config.AdvertiseAddr = nDB.config.AdvertiseAddr
 	config.UDPBufferSize = nDB.config.PacketBufferSize
+	// nil unless a test has substituted its own network, in which case
+	// memberlist opens no sockets of its own.
+	config.Transport = nDB.config.transport
 
 	if nDB.config.BindPort != 0 {
 		config.BindPort = nDB.config.BindPort
@@ -462,6 +465,9 @@ func (nDB *NetworkDB) gossip() {
 
 		nDB.RLock()
 		network, ok := nDB.thisNodeNetworks[nid]
+		// Read leaving while still holding the lock: it is mutated under
+		// the write lock by (*NetworkDB).LeaveNetwork.
+		leaving := ok && network.leaving
 		nDB.RUnlock()
 		if !ok || network == nil {
 			// It is normal for the network to be removed
@@ -478,7 +484,7 @@ func (nDB *NetworkDB) gossip() {
 			msent := network.qMessagesSent.Swap(0)
 			log.G(context.TODO()).Infof("NetworkDB stats %v(%v) - netID:%s leaving:%t netPeers:%d entries:%d Queue qLen:%d+%d netMsg/s:%d",
 				nDB.config.Hostname, nDB.config.NodeID,
-				nid, network.leaving, network.tableBroadcasts.NumNodes(), network.entriesNumber.Load(),
+				nid, leaving, network.tableBroadcasts.NumNodes(), network.entriesNumber.Load(),
 				network.tableBroadcasts.NumQueued(), network.tableRebroadcasts.NumQueued(),
 				msent/int64((nDB.config.StatsPrintPeriod/time.Second)))
 		}
