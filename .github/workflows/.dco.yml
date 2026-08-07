@@ -3,54 +3,77 @@ name: .dco
 
 # TODO: hide reusable workflow from the UI. Tracked in https://github.com/community/community/discussions/12025
 
-permissions:
-  contents: read
+# Permissions must be granted by the calling workflow.
+permissions: {}
 
 on:
   workflow_call:
 
-env:
-  ALPINE_VERSION: "3.22"
-
 jobs:
   run:
+    permissions:
+      pull-requests: read
     runs-on: ubuntu-24.04
-    timeout-minutes: 10 # guardrails timeout for the whole job
+    timeout-minutes: 5
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-      -
-        name: Dump context
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            console.log(JSON.stringify(context, null, 2));
-      -
-        name: Get base ref
-        id: base-ref
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          result-encoding: string
-          script: |
-            if (/^refs\/pull\//.test(context.ref) && context.payload?.pull_request?.base?.ref != undefined) {
-              return context.payload.pull_request.base.ref;
-            }
-            return context.ref.replace(/^refs\/heads\//g, '');
-      -
-        name: Validate
-        run: |
-          docker run --rm \
-            --quiet \
-            -v ./:/workspace \
-            -w /workspace \
-            -e VALIDATE_REPO \
-            -e VALIDATE_BRANCH \
-            -e VALIDATE_ORIGIN_BRANCH \
-            alpine:${{ env.ALPINE_VERSION }} sh -c 'apk add --no-cache -q bash git openssh-client && git config --system --add safe.directory /workspace && hack/validate/dco'
+      - name: Validate DCO
         env:
-          VALIDATE_REPO: ${{ github.server_url }}/${{ github.repository }}.git
-          VALIDATE_BRANCH: ${{ steps.base-ref.outputs.result }}
-          VALIDATE_ORIGIN_BRANCH: ${{ github.event.pull_request.base.sha || '' }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Skip the check on non-PR events, but don't skip the check itself,
+          # because other jobs may depend on it ("needs: validate-dco").
+          if [ -z "$PR_NUMBER" ]; then
+            echo "Skipping DCO validation; not a pull request."
+            exit 0
+          fi
+          gh api --paginate --slurp "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits" > "$RUNNER_TEMP/pr-commits.json"
+
+          # Number of commits, excluding merge commits.
+          commitCount="$(jq '[.[][] | select(.parents | length <= 1)] | length' "$RUNNER_TEMP/pr-commits.json")"
+
+          badCommits="$(
+            jq -r '
+              def githubUsername:
+                # "Username may only contain alphanumeric characters or dashes and cannot begin with a dash"
+                "[a-zA-Z0-9][a-zA-Z0-9-]+";
+
+              def dco:
+                # https://github.com/moby/moby/blob/master/CONTRIBUTING.md#sign-your-work
+                "^(Docker-DCO-1\\.1-)?Signed-off-by: ([^<]+) <([^<>@]+@[^<>]+)>( \\(github: ("
+                + githubUsername
+                + ")\\))?$";
+
+              .[][]
+              # Skip merge commits.
+              | select(.parents | length <= 1)
+              | select(
+                  .commit.message
+                  | split("\n")
+                  | any(test(dco))
+                  | not
+              )
+              | .sha
+            ' "$RUNNER_TEMP/pr-commits.json"
+          )"
+
+          if [ -z "$badCommits" ]; then
+            echo "Checked ${commitCount} commit(s); all commits are properly signed with the DCO."
+            exit 0
+          fi
+
+          echo "::error::One or more commits are missing a valid DCO 'Signed-off-by:' trailer."
+          while read -r commit; do
+            echo " - ${commit}"
+          done <<< "$badCommits"
+
+          echo
+          echo "The sign-off certifies that you wrote the contribution or have the right to submit it."
+          echo "Use your real name, not a GitHub username, handle, or pseudonym:"
+          echo
+          echo "    Signed-off-by: YourFirstName YourLastName <yourname@example.org>"
+          echo
+          echo "Git can add this automatically with 'git commit -s'."
+          echo "See https://github.com/moby/moby/blob/master/CONTRIBUTING.md#sign-your-work"
+          echo "DCO 1.1: https://developercertificate.org/"
+          exit 1
