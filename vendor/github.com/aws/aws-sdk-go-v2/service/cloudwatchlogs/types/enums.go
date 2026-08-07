@@ -695,7 +695,8 @@ type ScheduledQueryDestinationType string
 
 // Enum values for ScheduledQueryDestinationType
 const (
-	ScheduledQueryDestinationTypeS3 ScheduledQueryDestinationType = "S3"
+	ScheduledQueryDestinationTypeS3          ScheduledQueryDestinationType = "S3"
+	ScheduledQueryDestinationTypeLookupTable ScheduledQueryDestinationType = "LOOKUP_TABLE"
 )
 
 // Values returns all known values for ScheduledQueryDestinationType. Note that
@@ -706,6 +707,7 @@ const (
 func (ScheduledQueryDestinationType) Values() []ScheduledQueryDestinationType {
 	return []ScheduledQueryDestinationType{
 		"S3",
+		"LOOKUP_TABLE",
 	}
 }
 

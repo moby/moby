@@ -7566,6 +7566,13 @@ func awsAwsjson11_serializeDocumentDestinationConfiguration(v *types.Destination
 	object := value.Object()
 	defer object.Close()
 
+	if v.LookupTableConfiguration != nil {
+		ok := object.Key("lookupTableConfiguration")
+		if err := awsAwsjson11_serializeDocumentLookupTableConfiguration(v.LookupTableConfiguration, ok); err != nil {
+			return err
+		}
+	}
+
 	if v.S3Configuration != nil {
 		ok := object.Key("s3Configuration")
 		if err := awsAwsjson11_serializeDocumentS3Configuration(v.S3Configuration, ok); err != nil {
@@ -7827,6 +7834,40 @@ func awsAwsjson11_serializeDocumentLogTypes(v []string, value smithyjson.Value) 
 		av := array.Value()
 		av.String(v[i])
 	}
+	return nil
+}
+
+func awsAwsjson11_serializeDocumentLookupTableConfiguration(v *types.LookupTableConfiguration, value smithyjson.Value) error {
+	object := value.Object()
+	defer object.Close()
+
+	if v.Description != nil {
+		ok := object.Key("description")
+		ok.String(*v.Description)
+	}
+
+	if v.KmsKeyId != nil {
+		ok := object.Key("kmsKeyId")
+		ok.String(*v.KmsKeyId)
+	}
+
+	if v.RoleArn != nil {
+		ok := object.Key("roleArn")
+		ok.String(*v.RoleArn)
+	}
+
+	if v.TableName != nil {
+		ok := object.Key("tableName")
+		ok.String(*v.TableName)
+	}
+
+	if v.Tags != nil {
+		ok := object.Key("tags")
+		if err := awsAwsjson11_serializeDocumentTags(v.Tags, ok); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -9110,6 +9151,11 @@ func awsAwsjson11_serializeOpDocumentCreateLookupTableInput(v *CreateLookupTable
 	if v.LookupTableName != nil {
 		ok := object.Key("lookupTableName")
 		ok.String(*v.LookupTableName)
+	}
+
+	if v.QueryId != nil {
+		ok := object.Key("queryId")
+		ok.String(*v.QueryId)
 	}
 
 	if v.TableBody != nil {
@@ -11627,6 +11673,11 @@ func awsAwsjson11_serializeOpDocumentUpdateLookupTableInput(v *UpdateLookupTable
 	if v.LookupTableArn != nil {
 		ok := object.Key("lookupTableArn")
 		ok.String(*v.LookupTableArn)
+	}
+
+	if v.QueryId != nil {
+		ok := object.Key("queryId")
+		ok.String(*v.QueryId)
 	}
 
 	if v.TableBody != nil {

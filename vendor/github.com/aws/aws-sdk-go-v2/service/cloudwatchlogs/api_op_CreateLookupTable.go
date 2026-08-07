@@ -8,13 +8,15 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Creates a lookup table by uploading CSV data. You can use lookup tables to
-// enrich log data in CloudWatch Logs Insights queries with reference data such as
-// user details, application names, or error descriptions.
+// Creates a lookup table by uploading CSV data or from CloudWatch Logs query
+// results. You can use lookup tables to enrich log data in CloudWatch Logs queries
+// with reference data such as user details, application names, or error
+// descriptions.
 //
-// The table name must be unique within your account and Region. The CSV content
-// must include a header row with column names, use UTF-8 encoding, and not exceed
-// 10 MB.
+// The table name must be unique within your account and Region. You must specify
+// either tableBody or queryId , but not both. If you use tableBody , the CSV
+// content must include a header row with column names, use UTF-8 encoding, and not
+// exceed 10 MB.
 func (c *Client) CreateLookupTable(ctx context.Context, params *CreateLookupTableInput, optFns ...func(*Options)) (*CreateLookupTableOutput, error) {
 	if params == nil {
 		params = &CreateLookupTableInput{}
@@ -39,12 +41,6 @@ type CreateLookupTableInput struct {
 	// This member is required.
 	LookupTableName *string
 
-	// The CSV content of the lookup table. The first row must be a header row with
-	// column names. The content must use UTF-8 encoding and not exceed 10 MB.
-	//
-	// This member is required.
-	TableBody *string
-
 	// A description of the lookup table. The description can be up to 1024 characters
 	// long.
 	Description *string
@@ -52,6 +48,18 @@ type CreateLookupTableInput struct {
 	// The ARN of the KMS key to use to encrypt the lookup table data. If you don't
 	// specify a key, the data is encrypted with an Amazon Web Services-owned key.
 	KmsKeyId *string
+
+	// The ID of a completed CloudWatch Logs query whose results populate the lookup
+	// table.
+	//
+	// You must specify either tableBody or queryId , but not both.
+	QueryId *string
+
+	// The CSV content of the lookup table. The first row must be a header row with
+	// column names. The content must use UTF-8 encoding and not exceed 10 MB.
+	//
+	// You must specify either tableBody or queryId , but not both.
+	TableBody *string
 
 	// A list of key-value pairs to associate with the lookup table. You can associate
 	// as many as 50 tags with a lookup table. Tags can help you organize and

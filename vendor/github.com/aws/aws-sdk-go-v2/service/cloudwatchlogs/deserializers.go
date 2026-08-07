@@ -17437,6 +17437,11 @@ func awsAwsjson11_deserializeDocumentDestinationConfiguration(v **types.Destinat
 
 	for key, value := range shape {
 		switch key {
+		case "lookupTableConfiguration":
+			if err := awsAwsjson11_deserializeDocumentLookupTableConfiguration(&sv.LookupTableConfiguration, value); err != nil {
+				return err
+			}
+
 		case "s3Configuration":
 			if err := awsAwsjson11_deserializeDocumentS3Configuration(&sv.S3Configuration, value); err != nil {
 				return err
@@ -20210,6 +20215,78 @@ func awsAwsjson11_deserializeDocumentLookupTable(v **types.LookupTable, value in
 
 		case "tableFields":
 			if err := awsAwsjson11_deserializeDocumentTableFields(&sv.TableFields, value); err != nil {
+				return err
+			}
+
+		default:
+			_, _ = key, value
+
+		}
+	}
+	*v = sv
+	return nil
+}
+
+func awsAwsjson11_deserializeDocumentLookupTableConfiguration(v **types.LookupTableConfiguration, value interface{}) error {
+	if v == nil {
+		return fmt.Errorf("unexpected nil of type %T", v)
+	}
+	if value == nil {
+		return nil
+	}
+
+	shape, ok := value.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("unexpected JSON type %v", value)
+	}
+
+	var sv *types.LookupTableConfiguration
+	if *v == nil {
+		sv = &types.LookupTableConfiguration{}
+	} else {
+		sv = *v
+	}
+
+	for key, value := range shape {
+		switch key {
+		case "description":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected LookupTableDescription to be of type string, got %T instead", value)
+				}
+				sv.Description = ptr.String(jtv)
+			}
+
+		case "kmsKeyId":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected KmsKeyId to be of type string, got %T instead", value)
+				}
+				sv.KmsKeyId = ptr.String(jtv)
+			}
+
+		case "roleArn":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected RoleArn to be of type string, got %T instead", value)
+				}
+				sv.RoleArn = ptr.String(jtv)
+			}
+
+		case "tableName":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected LookupTableName to be of type string, got %T instead", value)
+				}
+				sv.TableName = ptr.String(jtv)
+			}
+
+		case "tags":
+			if err := awsAwsjson11_deserializeDocumentTags(&sv.Tags, value); err != nil {
 				return err
 			}
 

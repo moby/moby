@@ -1,3 +1,18 @@
+# v1.81.0 (2026-07-31.2)
+
+* **Feature**: Amazon CloudWatch Logs now lets you create and update lookup tables directly from CloudWatch Logs query results by passing a queryId, and configure a lookup table as a scheduled query destination so it refreshes automatically with the latest query results on each run.
+* **Dependency Update**: Updated to the latest SDK module versions
+* **Dependency Update**: Upgrade to smithy-go v1.27.6 to fix various serde issues in HTTP binding services.
+
+# v1.80.2 (2026-07-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.80.1 (2026-07-28)
+
+* **Dependency Update**: Update to smithy-go v1.27.5.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.80.0 (2026-07-21)
 
 * **Feature**: Add an option to clients to disable clock skew

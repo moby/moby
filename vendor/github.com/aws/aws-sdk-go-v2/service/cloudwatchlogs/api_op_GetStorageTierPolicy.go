@@ -9,7 +9,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns the storage tier policy for your account.
+// Returns the storage tier policy for the account.
 func (c *Client) GetStorageTierPolicy(ctx context.Context, params *GetStorageTierPolicyInput, optFns ...func(*Options)) (*GetStorageTierPolicyOutput, error) {
 	if params == nil {
 		params = &GetStorageTierPolicyInput{}
@@ -32,7 +32,7 @@ type GetStorageTierPolicyInput struct {
 type GetStorageTierPolicyOutput struct {
 
 	// The time when the storage tier policy was last updated, expressed as the number
-	// of milliseconds after Jan 1, 1970 00:00:00 UTC .
+	// of milliseconds after January 1, 1970 00:00:00 UTC .
 	LastUpdatedTime *int64
 
 	// The current storage tier for the account.
