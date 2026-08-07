@@ -42,14 +42,26 @@ func (i *IPAMData) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &m); err != nil {
 		return err
 	}
-	i.AddressSpace = m["AddressSpace"].(string)
+	addressSpace, isString := m["AddressSpace"].(string)
+	if !isString {
+		return fmt.Errorf("AddressSpace: expected string, got %T", m["AddressSpace"])
+	}
+	i.AddressSpace = addressSpace
 	if v, ok := m["Pool"]; ok {
-		if i.Pool, err = types.ParseCIDR(v.(string)); err != nil {
+		s, isString := v.(string)
+		if !isString {
+			return fmt.Errorf("Pool: expected string, got %T", v)
+		}
+		if i.Pool, err = types.ParseCIDR(s); err != nil {
 			return err
 		}
 	}
 	if v, ok := m["Gateway"]; ok {
-		if i.Gateway, err = types.ParseCIDR(v.(string)); err != nil {
+		s, isString := v.(string)
+		if !isString {
+			return fmt.Errorf("Gateway: expected string, got %T", v)
+		}
+		if i.Gateway, err = types.ParseCIDR(s); err != nil {
 			return err
 		}
 	}
