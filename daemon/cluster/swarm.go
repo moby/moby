@@ -224,6 +224,7 @@ func (c *Cluster) Inspect() (types.Swarm, error) {
 			return err
 		}
 		swarm = s
+		swarm.DataPathAddress = c.GetDataPathAddress()
 		return nil
 	}); err != nil {
 		return types.Swarm{}, err
