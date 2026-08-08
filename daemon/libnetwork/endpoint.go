@@ -137,8 +137,17 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	if err := json.Unmarshal(b, &epMap); err != nil {
 		return err
 	}
-	ep.name = epMap["name"].(string)
-	ep.id = epMap["id"].(string)
+	name, isString := epMap["name"].(string)
+	if !isString {
+		return fmt.Errorf("name: expected string, got %T", epMap["name"])
+	}
+	ep.name = name
+
+	id, isString := epMap["id"].(string)
+	if !isString {
+		return fmt.Errorf("id: expected string, got %T", epMap["id"])
+	}
+	ep.id = id
 
 	// TODO(cpuguy83): So yeah, this isn't checking any errors anywhere.
 	// Seems like we should be checking errors even because of memory related issues that can arise.
@@ -161,78 +170,74 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	_ = json.Unmarshal(cb, &ep.sandboxID)   //nolint:errcheck
 
 	if v, ok := epMap["generic"]; ok {
-		ep.generic = v.(map[string]any)
+		generic, isMap := v.(map[string]any)
+		if !isMap {
+			log.G(context.TODO()).Errorf("generic: expected map[string]any, got %T", v)
+		} else {
+			ep.generic = generic
 
-		if opt, ok := ep.generic[netlabel.PortMap]; ok {
-			pblist := []types.PortBinding{}
-
-			for i := 0; i < len(opt.([]any)); i++ {
-				pb := types.PortBinding{}
-				tmp := opt.([]any)[i].(map[string]any)
-
-				bytes, err := json.Marshal(tmp)
-				if err != nil {
-					log.G(context.TODO()).Error(err)
-					break
-				}
-				err = json.Unmarshal(bytes, &pb)
-				if err != nil {
-					log.G(context.TODO()).Error(err)
-					break
-				}
-				pblist = append(pblist, pb)
+			if opt, ok := ep.generic[netlabel.PortMap]; ok {
+				ep.generic[netlabel.PortMap] = decodeGenericList[types.PortBinding](netlabel.PortMap, opt)
 			}
-			ep.generic[netlabel.PortMap] = pblist
-		}
-
-		if opt, ok := ep.generic[netlabel.ExposedPorts]; ok {
-			tplist := []types.TransportPort{}
-
-			for i := 0; i < len(opt.([]any)); i++ {
-				tp := types.TransportPort{}
-				tmp := opt.([]any)[i].(map[string]any)
-
-				bytes, err := json.Marshal(tmp)
-				if err != nil {
-					log.G(context.TODO()).Error(err)
-					break
-				}
-				err = json.Unmarshal(bytes, &tp)
-				if err != nil {
-					log.G(context.TODO()).Error(err)
-					break
-				}
-				tplist = append(tplist, tp)
+			if opt, ok := ep.generic[netlabel.ExposedPorts]; ok {
+				ep.generic[netlabel.ExposedPorts] = decodeGenericList[types.TransportPort](netlabel.ExposedPorts, opt)
 			}
-			ep.generic[netlabel.ExposedPorts] = tplist
 		}
 	}
 
 	var anonymous bool
 	if v, ok := epMap["anonymous"]; ok {
-		anonymous = v.(bool)
+		if b, isBool := v.(bool); isBool {
+			anonymous = b
+		} else {
+			log.G(context.TODO()).Errorf("anonymous: expected bool, got %T", v)
+		}
 	}
 	if v, ok := epMap["disableResolution"]; ok {
-		ep.disableResolution = v.(bool)
+		if b, isBool := v.(bool); isBool {
+			ep.disableResolution = b
+		} else {
+			log.G(context.TODO()).Errorf("disableResolution: expected bool, got %T", v)
+		}
 	}
 	if v, ok := epMap["disableIPv6"]; ok {
-		ep.disableIPv6 = v.(bool)
+		if b, isBool := v.(bool); isBool {
+			ep.disableIPv6 = b
+		} else {
+			log.G(context.TODO()).Errorf("disableIPv6: expected bool, got %T", v)
+		}
 	}
 
 	if sn, ok := epMap["svcName"]; ok {
-		ep.svcName = sn.(string)
+		if s, isString := sn.(string); isString {
+			ep.svcName = s
+		} else {
+			log.G(context.TODO()).Errorf("svcName: expected string, got %T", sn)
+		}
 	}
 
 	if si, ok := epMap["svcID"]; ok {
-		ep.svcID = si.(string)
+		if s, isString := si.(string); isString {
+			ep.svcID = s
+		} else {
+			log.G(context.TODO()).Errorf("svcID: expected string, got %T", si)
+		}
 	}
 
 	if vip, ok := epMap["virtualIP"]; ok {
-		ep.virtualIP = net.ParseIP(vip.(string))
+		if s, isString := vip.(string); isString {
+			ep.virtualIP = net.ParseIP(s)
+		} else {
+			log.G(context.TODO()).Errorf("virtualIP: expected string, got %T", vip)
+		}
 	}
 
 	if v, ok := epMap["loadBalancer"]; ok {
-		ep.loadBalancer = v.(bool)
+		if b, isBool := v.(bool); isBool {
+			ep.loadBalancer = b
+		} else {
+			log.G(context.TODO()).Errorf("loadBalancer: expected bool, got %T", v)
+		}
 	}
 
 	sal, _ := json.Marshal(epMap["svcAliases"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
@@ -266,6 +271,40 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	}
 
 	return nil
+}
+
+// decodeGenericList decodes opt (expected to be a []any of map[string]any,
+// as produced by decoding driver-specific "generic" data) into a []T,
+// logging and stopping at the first element that doesn't decode cleanly
+// rather than failing the whole restore.
+func decodeGenericList[T any](key string, opt any) []T {
+	optList, isSlice := opt.([]any)
+	if !isSlice {
+		log.G(context.TODO()).Errorf("generic[%s]: expected []any, got %T", key, opt)
+		return nil
+	}
+
+	list := []T{}
+	for i, item := range optList {
+		tmp, isMap := item.(map[string]any)
+		if !isMap {
+			log.G(context.TODO()).Errorf("generic[%s][%d]: expected map[string]any, got %T", key, i, item)
+			break
+		}
+
+		b, err := json.Marshal(tmp)
+		if err != nil {
+			log.G(context.TODO()).Error(err)
+			break
+		}
+		var v T
+		if err := json.Unmarshal(b, &v); err != nil {
+			log.G(context.TODO()).Error(err)
+			break
+		}
+		list = append(list, v)
+	}
+	return list
 }
 
 func (ep *Endpoint) New() datastore.KVObject {
