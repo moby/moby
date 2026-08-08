@@ -3,4 +3,4 @@
 package imds
 
 // goModuleVersion is the tagged release for this module
-const goModuleVersion = "1.18.34"
+const goModuleVersion = "1.18.35"
