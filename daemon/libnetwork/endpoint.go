@@ -665,6 +665,60 @@ func (ep *Endpoint) programExternalConnectivity(ctx context.Context, gwep4, gwep
 	return nil
 }
 
+// AddEphemeralPorts publishes additional ports on this endpoint without
+// recreating it. The endpoint must be joined to a sandbox. It's only supported
+// by drivers that implement [driverapi.PortManager] (currently the bridge
+// driver); other drivers return a not-implemented error.
+//
+// The added ports are not persisted; they do not survive a daemon restart.
+// Because they aren't persisted, the driver also can't reconstruct them if the
+// endpoint's gateway modes change (e.g. it gains or loses an IPv6 gateway):
+// there's no stored configuration to re-derive them from, so they aren't
+// re-applied for a newly-active mode. The caller therefore owns re-applying
+// them, and this is intended for endpoints whose gateway modes are stable for
+// their lifetime - such as the Swarm ingress load balancer's docker_gwbridge
+// gateway endpoint.
+//
+// Each [types.PublishedPort] maps one host port to the endpoint port that
+// receives it. That mapping is the caller's to declare: this API has no opinion
+// on how the two relate, and callers with a port model of their own are
+// responsible for translating it (see addIngressPorts for the Swarm ingress
+// mapping). A host-port range can't be expressed, and wouldn't have any
+// allocation semantics on this path.
+func (ep *Endpoint) AddEphemeralPorts(ctx context.Context, ports []types.PublishedPort) error {
+	return ep.modifyPorts(context.WithoutCancel(ctx), ports, driverapi.PortManager.AddEphemeralPorts)
+}
+
+// DelEphemeralPorts unpublishes ports previously published on this endpoint via
+// [Endpoint.AddEphemeralPorts]. The endpoint must be joined to a sandbox. Ports
+// that aren't currently published are ignored.
+func (ep *Endpoint) DelEphemeralPorts(ctx context.Context, ports []types.PublishedPort) error {
+	return ep.modifyPorts(context.WithoutCancel(ctx), ports, driverapi.PortManager.DelEphemeralPorts)
+}
+
+func (ep *Endpoint) modifyPorts(ctx context.Context, ports []types.PublishedPort, fn func(driverapi.PortManager, context.Context, string, string, []types.PublishedPort) error) error {
+	if len(ports) == 0 {
+		return nil
+	}
+	if _, ok := ep.getSandbox(); !ok {
+		return types.InvalidParameterErrorf("endpoint %s (%.7s) is not attached to a sandbox", ep.Name(), ep.ID())
+	}
+	n, err := ep.getNetworkFromStore()
+	if err != nil {
+		return types.InternalErrorf("failed to get network from store for changing published ports: %v", err)
+	}
+	d, err := n.driver(true)
+	if err != nil {
+		return types.InternalErrorf("failed to get driver for changing published ports: %v", err)
+	}
+	pm, ok := d.(driverapi.PortManager)
+	if !ok {
+		return types.NotImplementedErrorf("network driver %q does not support changing published ports on a running endpoint", n.Type())
+	}
+
+	return fn(pm, ctx, n.ID(), ep.ID(), ports)
+}
+
 func (ep *Endpoint) rename(name string) error {
 	ep.mu.Lock()
 	ep.name = name
