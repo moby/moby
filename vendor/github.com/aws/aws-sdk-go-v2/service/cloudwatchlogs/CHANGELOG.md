@@ -1,3 +1,7 @@
+# v1.81.1 (2026-08-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.81.0 (2026-07-31.2)
 
 * **Feature**: Amazon CloudWatch Logs now lets you create and update lookup tables directly from CloudWatch Logs query results by passing a queryId, and configure a lookup table as a scheduled query destination so it refreshes automatically with the latest query results on each run.
