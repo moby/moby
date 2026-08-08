@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+// Package moby.extension.runtime.v1 is the standard extension runtime service:
+// the daemon calls Describe to learn an out-of-process extension's declaration.
+package moby.extension.runtime.v1;
+
+option go_package = "github.com/moby/moby/v2/internal/extensions/sdk/sdkpb";
+
+// Extension is served by every out-of-process extension.
+service Extension {
+  // Describe returns the extension's declaration.
+  rpc Describe(DescribeRequest) returns (DescribeResponse);
+  // Initialize runs the extension's Init. The daemon calls it after connecting
+  // every extension, in dependency order, so that by the time an extension
+  // initializes its dependencies are already initialized and reachable over the
+  // callback channel. An Init error is returned as the RPC status.
+  rpc Initialize(InitializeRequest) returns (InitializeResponse);
+}
+
+message DescribeRequest {}
+
+message DescribeResponse {
+  Declaration declaration = 1;
+}
+
+message InitializeRequest {}
+
+message InitializeResponse {}
+
+// Declaration mirrors the in-process extension declaration over the wire.
+message Declaration {
+  string id = 1;
+  repeated PointDeclaration providers = 2;
+  repeated Dependency dependencies = 3;
+  repeated string conflicts = 4;
+  // exposed_services was the flat list of gRPC services registered by the
+  // extension process. It is kept for wire compatibility; new callers use
+  // provider_services and decide which point, if any, is public.
+  repeated string exposed_services = 5;
+  // provider_services records the fully-qualified gRPC service names registered
+  // while serving each provider point. All of these services are available on
+  // the per-extension socket for the daemon to call; only the host decides which
+  // point's services are also published on the daemon API socket.
+  repeated ProviderServices provider_services = 6;
+}
+
+message PointDeclaration {
+  string id = 1;
+  reserved 2; // was 'exclusive'; exposure covers sole-ownership
+}
+
+message ProviderServices {
+  string point = 1;
+  repeated string services = 2;
+}
+
+message Dependency {
+  string point = 1;
+  string extension = 2;
+  bool optional = 3;
+}

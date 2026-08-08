@@ -146,7 +146,7 @@ jobs:
         run: |
           # Select all validate scripts, excluding checks that are already run
           # elsewhere and/or require pull-request metadata (dco, pr-gh-references).
-          scripts=$(cd ./hack/validate && jq -nc '$ARGS.positional - ["all", "default", "dco", "pr-gh-references"] | map(select(test("[.]")|not)) + ["generate-files"]' --args *)
+          scripts=$(cd ./hack/validate && jq -nc '$ARGS.positional - ["all", "default", "dco", "pr-gh-references"] | map(select(test("[.]")|not)) + ["generate-files", "generate-extensions"]' --args *)
           echo "matrix=$scripts" >> $GITHUB_OUTPUT
           echo "$scripts"
 

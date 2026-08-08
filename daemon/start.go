@@ -173,6 +173,12 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return errdefs.System(err)
 	}
 
+	// Let extensions reshape or veto the generated OCI spec (NRI, security
+	// policy, ...) now that it is fully formed.
+	if err := daemon.runCreateSpecHooks(ctx, container, spec); err != nil {
+		return err
+	}
+
 	if resetRestartManager {
 		container.ResetRestartManager(true)
 		container.HasBeenManuallyStopped = false
