@@ -30,7 +30,7 @@ on:
         required: false
 
 env:
-  GO_VERSION: "1.26.5"
+  GO_VERSION: "1.27rc2"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   ITG_CLI_MATRIX_SIZE: 6
@@ -323,7 +323,7 @@ jobs:
         name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: "1.27.0-rc.2"
           cache: false
       -
         name: Download reports
@@ -357,7 +357,7 @@ jobs:
         name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: "1.27.0-rc.2"
           cache: false
       -
         name: Install gotestlist
@@ -546,7 +546,7 @@ jobs:
         name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: "1.27.0-rc.2"
           cache: false
       -
         name: Download reports
