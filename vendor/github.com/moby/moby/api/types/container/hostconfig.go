@@ -454,6 +454,7 @@ type HostConfig struct {
 	ShmSize         int64             // Total shm memory usage
 	Sysctls         map[string]string `json:",omitempty"` // List of Namespaced sysctls used for the container
 	Runtime         string            `json:",omitempty"` // Runtime to use with this container
+	Umask           *uint32           `json:",omitempty"` // Umask to use for the container
 
 	// Applicable to Windows
 	Isolation Isolation // Isolation technology of the container (e.g. default, hyperv)
