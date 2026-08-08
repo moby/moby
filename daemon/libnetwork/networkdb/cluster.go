@@ -256,18 +256,25 @@ func (nDB *NetworkDB) triggerFunc(stagger time.Duration, C <-chan time.Time, f f
 func (nDB *NetworkDB) reapDeadNode() {
 	nDB.Lock()
 	defer nDB.Unlock()
-	for _, nodeMap := range []map[string]*node{
-		nDB.failedNodes,
-		nDB.leftNodes,
-	} {
-		for id, n := range nodeMap {
-			if n.reapTime > nodeReapPeriod {
-				n.reapTime -= nodeReapPeriod
-				continue
-			}
-			log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
-			delete(nodeMap, id)
+	for id, n := range nDB.failedNodes {
+		if n.reapTime > nodeReapPeriod {
+			n.reapTime -= nodeReapPeriod
+			continue
 		}
+		log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
+		// The node is not coming back: drop the attachments remembered for
+		// it along with any entries reapTableEntries has not aged out yet.
+		nDB.deleteNodeFromNetworks(n.Name)
+		nDB.deleteNodeTableEntries(n.Name, false)
+		delete(nDB.failedNodes, id)
+	}
+	for id, n := range nDB.leftNodes {
+		if n.reapTime > nodeReapPeriod {
+			n.reapTime -= nodeReapPeriod
+			continue
+		}
+		log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
+		delete(nDB.leftNodes, id)
 	}
 }
 
@@ -411,7 +418,11 @@ func (nDB *NetworkDB) reapTableEntries() {
 		nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid), func(path []byte, v *entry) bool {
 			// timeCompensation compensate in case the lock took some time to be released
 			timeCompensation := time.Since(cycleStart)
-			if !v.deleting {
+			// Entries remembered for a failed owner age out like tombstones,
+			// so that they cannot be restored after whatever would delete
+			// them expired.
+			_, ownerFailed := nDB.failedNodes[v.node]
+			if !v.deleting && !ownerFailed {
 				return false
 			}
 
@@ -496,7 +507,9 @@ func (nDB *NetworkDB) gossip() {
 			nDB.RUnlock()
 
 			if mnode == nil {
-				break
+				// The node stopped being an active peer since it was
+				// picked, therefore skip it.
+				continue
 			}
 
 			// Send the compound message
@@ -614,7 +627,10 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	mnode := nDB.nodes[node]
 	if mnode == nil {
 		nDB.RUnlock()
-		return nil
+		// The node failed since it was picked from a peer list, or sent us
+		// a bulk sync while we consider it failed. Report it so the caller
+		// does not count this as a completed sync.
+		return fmt.Errorf("node %s is not an active peer", node)
 	}
 
 	for _, nid := range networks {
