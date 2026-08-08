@@ -358,6 +358,7 @@ func TestLogClosed(t *testing.T) {
 	stream := &logStream{
 		client:   mockClient,
 		messages: loggerutils.NewMessageQueue(0),
+		closedCh: make(chan struct{}),
 	}
 	stream.Close()
 	err := stream.Log(&logger.Message{})
@@ -555,6 +556,7 @@ func TestCollectBatchSimple(t *testing.T) {
 		logStreamName: streamName,
 		sequenceToken: aws.String(sequenceToken),
 		messages:      loggerutils.NewMessageQueue(0),
+		closedCh:      make(chan struct{}),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
@@ -602,6 +604,7 @@ func TestCollectBatchTicker(t *testing.T) {
 		logStreamName: streamName,
 		sequenceToken: aws.String(sequenceToken),
 		messages:      loggerutils.NewMessageQueue(0),
+		closedCh:      make(chan struct{}),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
@@ -670,6 +673,7 @@ func TestCollectBatchMultilinePattern(t *testing.T) {
 		multilinePattern: multilinePattern,
 		sequenceToken:    aws.String(sequenceToken),
 		messages:         loggerutils.NewMessageQueue(0),
+		closedCh:         make(chan struct{}),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
@@ -736,6 +740,7 @@ func BenchmarkCollectBatch(b *testing.B) {
 			logStreamName: streamName,
 			sequenceToken: aws.String(sequenceToken),
 			messages:      loggerutils.NewMessageQueue(0),
+			closedCh:      make(chan struct{}),
 		}
 		mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 			return &cloudwatchlogs.PutLogEventsOutput{
@@ -769,6 +774,7 @@ func BenchmarkCollectBatchMultilinePattern(b *testing.B) {
 			multilinePattern: multilinePattern,
 			sequenceToken:    aws.String(sequenceToken),
 			messages:         loggerutils.NewMessageQueue(0),
+			closedCh:         make(chan struct{}),
 		}
 		mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
 			return &cloudwatchlogs.PutLogEventsOutput{
@@ -800,6 +806,7 @@ func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 		multilinePattern: multilinePattern,
 		sequenceToken:    aws.String(sequenceToken),
 		messages:         loggerutils.NewMessageQueue(0),
+		closedCh:         make(chan struct{}),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
@@ -874,6 +881,7 @@ func TestCollectBatchMultilinePatternNegativeEventAge(t *testing.T) {
 		multilinePattern: multilinePattern,
 		sequenceToken:    aws.String(sequenceToken),
 		messages:         loggerutils.NewMessageQueue(0),
+		closedCh:         make(chan struct{}),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
@@ -931,6 +939,7 @@ func TestCollectBatchMultilinePatternMaxEventSize(t *testing.T) {
 		multilinePattern: multilinePattern,
 		sequenceToken:    aws.String(sequenceToken),
 		messages:         loggerutils.NewMessageQueue(0),
+		closedCh:         make(chan struct{}),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
@@ -991,6 +1000,7 @@ func TestCollectBatchClose(t *testing.T) {
 		logStreamName: streamName,
 		sequenceToken: aws.String(sequenceToken),
 		messages:      loggerutils.NewMessageQueue(0),
+		closedCh:      make(chan struct{}),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
@@ -1093,6 +1103,7 @@ func TestCollectBatchLineSplit(t *testing.T) {
 		logStreamName: streamName,
 		sequenceToken: aws.String(sequenceToken),
 		messages:      loggerutils.NewMessageQueue(0),
+		closedCh:      make(chan struct{}),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
@@ -1141,6 +1152,7 @@ func TestCollectBatchLineSplitWithBinary(t *testing.T) {
 		logStreamName: streamName,
 		sequenceToken: aws.String(sequenceToken),
 		messages:      loggerutils.NewMessageQueue(0),
+		closedCh:      make(chan struct{}),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
@@ -1189,6 +1201,7 @@ func TestCollectBatchMaxEvents(t *testing.T) {
 		logStreamName: streamName,
 		sequenceToken: aws.String(sequenceToken),
 		messages:      loggerutils.NewMessageQueue(0),
+		closedCh:      make(chan struct{}),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
@@ -1243,6 +1256,7 @@ func TestCollectBatchMaxTotalBytes(t *testing.T) {
 		logStreamName: streamName,
 		sequenceToken: aws.String(sequenceToken),
 		messages:      loggerutils.NewMessageQueue(0),
+		closedCh:      make(chan struct{}),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
@@ -1324,6 +1338,7 @@ func TestCollectBatchMaxTotalBytesWithBinary(t *testing.T) {
 		logStreamName: streamName,
 		sequenceToken: aws.String(sequenceToken),
 		messages:      loggerutils.NewMessageQueue(0),
+		closedCh:      make(chan struct{}),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
@@ -1398,6 +1413,7 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 		logStreamName: streamName,
 		sequenceToken: aws.String(sequenceToken),
 		messages:      loggerutils.NewMessageQueue(0),
+		closedCh:      make(chan struct{}),
 	}
 	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
 	called := make(chan struct{}, 50)
@@ -1722,4 +1738,59 @@ func TestNewAWSLogsClientCredentialEndpointDetect(t *testing.T) {
 	assert.Check(t, is.Contains(actualAuthHeader, "AWS4-HMAC-SHA256 Credential=test-access-key-id/"))
 	assert.Check(t, is.Contains(actualAuthHeader, "us-west-2"))
 	assert.Check(t, is.Contains(actualAuthHeader, "Signature="))
+}
+
+// TestCloseWhileLogStreamCreationPending is a regression test for
+// https://github.com/moby/moby/issues/53143.
+//
+// Closing a non-blocking logger must not deadlock while log stream creation
+// is still pending and the awslogs message queue is full.
+func TestCloseWhileLogStreamCreationPending(t *testing.T) {
+	stream := &logStream{
+		client: &mockClient{
+			putLogEventsFunc: func(context.Context, *cloudwatchlogs.PutLogEventsInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+				return &cloudwatchlogs.PutLogEventsOutput{}, nil
+			},
+		},
+		messages: loggerutils.NewMessageQueue(1),
+		closedCh: make(chan struct{}),
+	}
+	creationDone := make(chan bool)
+	go stream.collectBatch(creationDone)
+
+	ring := logger.NewRingLogger(stream, logger.Info{}, 1024)
+
+	assert.NilError(t, ring.Log(&logger.Message{Line: []byte("first")}))
+	assert.NilError(t, ring.Log(&logger.Message{Line: []byte("second")}))
+	assert.NilError(t, ring.Log(&logger.Message{Line: []byte("third")}))
+
+	closed := make(chan struct{})
+	go func() {
+		_ = ring.Close()
+		close(closed)
+	}()
+
+	t.Cleanup(func() {
+		select {
+		case <-closed:
+			return
+		default:
+		}
+
+		// Allow collectBatch to start consuming messages, unblocking the
+		// ring logger and permitting Close to finish.
+		close(creationDone)
+
+		select {
+		case <-closed:
+		case <-time.After(time.Second):
+			t.Error("logger did not shut down during cleanup")
+		}
+	})
+
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+		t.Fatal("Close blocked while log stream creation was pending")
+	}
 }
