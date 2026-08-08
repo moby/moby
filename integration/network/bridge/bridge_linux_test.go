@@ -165,7 +165,7 @@ func TestDefaultIPvOptOverride(t *testing.T) {
 // in 64-bit and bigger subnets, with and without a gateway.
 func Test64BitIPRange(t *testing.T) {
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	type kv struct{ k, v string }
 	subnets := []kv{
@@ -188,8 +188,8 @@ func Test64BitIPRange(t *testing.T) {
 				t.Run(sn.k+"/"+ipr.k+"/"+gw.k, func(t *testing.T) {
 					ctx := testutil.StartSpan(ctx, t)
 					const netName = "test64br"
-					network.CreateNoError(ctx, t, c, netName, network.WithIPv6(), ipamSetter)
-					defer network.RemoveNoError(ctx, t, c, netName)
+					network.CreateNoError(ctx, t, apiClient, netName, network.WithIPv6(), ipamSetter)
+					defer network.RemoveNoError(ctx, t, apiClient, netName)
 				})
 			}
 		}
@@ -200,7 +200,7 @@ func Test64BitIPRange(t *testing.T) {
 // allocate the last address in range that ends on a 64-bit boundary.
 func TestIPRangeAt64BitLimit(t *testing.T) {
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	tests := []struct {
 		name    string
@@ -228,15 +228,15 @@ func TestIPRangeAt64BitLimit(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 			const netName = "test64bl"
-			network.CreateNoError(ctx, t, c, netName,
+			network.CreateNoError(ctx, t, apiClient, netName,
 				network.WithIPv6(),
 				network.WithIPAMRange(tc.subnet, tc.ipRange, ""),
 			)
-			defer network.RemoveNoError(ctx, t, c, netName)
+			defer network.RemoveNoError(ctx, t, apiClient, netName)
 
-			id := ctr.Create(ctx, t, c, ctr.WithNetworkMode(netName))
-			defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
-			_, err := c.ContainerStart(ctx, id, client.ContainerStartOptions{})
+			id := ctr.Create(ctx, t, apiClient, ctr.WithNetworkMode(netName))
+			defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+			_, err := apiClient.ContainerStart(ctx, id, client.ContainerStartOptions{})
 			assert.NilError(t, err)
 		})
 	}
