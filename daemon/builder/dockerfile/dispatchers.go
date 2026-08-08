@@ -256,11 +256,18 @@ func (d *dispatchRequest) getImageOrStage(ctx context.Context, name string, plat
 		}
 
 		// TODO: scratch should not have an os. It should be nil image.
-		imageImage := &image.Image{}
-		if platform != nil {
-			imageImage.OS = platform.OS
-		} else {
-			imageImage.OS = runtime.GOOS
+		if platform == nil {
+			p := platforms.DefaultSpec()
+			platform = &p
+		}
+		imageImage := &image.Image{
+			V1Image: image.V1Image{
+				OS:           platform.OS,
+				Architecture: platform.Architecture,
+				Variant:      platform.Variant,
+			},
+			OSVersion:  platform.OSVersion,
+			OSFeatures: platform.OSFeatures,
 		}
 		return builder.Image(imageImage), nil
 	}
