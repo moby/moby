@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -276,13 +275,7 @@ func (s *DockerCLISaveLoadSuite) TestSaveLoadParents(c *testing.T) {
 	idFoo := makeImage("busybox", "foo")
 	idBar := makeImage(idFoo, "bar")
 
-	tmpDir, err := os.MkdirTemp("", "save-load-parents")
-	assert.NilError(c, err)
-	defer os.RemoveAll(tmpDir)
-
-	c.Log("tmpdir", tmpDir)
-
-	outfile := filepath.Join(tmpDir, "out.tar")
+	outfile := filepath.Join(c.TempDir(), "out.tar")
 
 	cli.DockerCmd(c, "save", "-o", outfile, idBar, idFoo)
 	cli.DockerCmd(c, "rmi", idBar)

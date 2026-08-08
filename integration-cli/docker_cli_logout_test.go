@@ -30,9 +30,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *testing.
 
 	imgRepoName := fmt.Sprintf("%v/dockercli/busybox:authtest", privateRegistryURL)
 
-	tmp, err := os.MkdirTemp("", "integration-cli-")
-	assert.NilError(c, err)
-	defer os.RemoveAll(tmp)
+	tmp := c.TempDir()
 
 	externalAuthConfig := `{ "credsStore": "shell-test" }`
 
@@ -81,8 +79,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithWrongHostnamesStored(c *
 	cmd.Stdin = stdin
 	assert.NilError(c, cmd.Run())
 
-	tmp, err := os.MkdirTemp("", "integration-cli-")
-	assert.NilError(c, err)
+	tmp := c.TempDir()
 
 	externalAuthConfig := fmt.Sprintf(`{ "auths": {"https://%s": {}}, "credsStore": "shell-test" }`, privateRegistryURL)
 
