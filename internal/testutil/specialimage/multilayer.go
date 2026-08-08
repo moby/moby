@@ -60,6 +60,7 @@ func MultiLayerCustom(dir string, imageRef string, layers []SingleFileLayer) (*o
 	}
 
 	manifest := ocispec.Manifest{
+		Versioned: specs.Versioned{SchemaVersion: 2},
 		MediaType: ocispec.MediaTypeImageManifest,
 		Config:    configDesc,
 		Layers:    layerDescs,

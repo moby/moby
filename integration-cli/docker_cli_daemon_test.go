@@ -26,6 +26,7 @@ import (
 	"github.com/cloudflare/cfssl/helpers"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/creack/pty"
+	archive "github.com/moby/go-archive"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/integration-cli/checker"
@@ -34,6 +35,8 @@ import (
 	"github.com/moby/moby/v2/integration-cli/daemon"
 	"github.com/moby/moby/v2/internal/testutil"
 	testdaemon "github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/moby/moby/v2/internal/testutil/registry"
+	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	"github.com/moby/sys/mount"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
@@ -1077,13 +1080,46 @@ func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *testing.T
 
 // Test daemon for no space left on device error
 func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
-	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, Network)
+	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux, RegistryHosting)
 
 	testDir, err := os.MkdirTemp("", "no-space-left-on-device-test")
 	assert.NilError(c, err)
 	defer os.RemoveAll(testDir)
 	assert.NilError(c, mount.MakeRShared(testDir))
 	defer mount.Unmount(testDir)
+
+	// Start a local registry to avoid pulling from Docker Hub (rate limits,
+	// transient network errors). 127.0.0.0/8 is auto-insecure for both the
+	// host and test daemons, so no extra flags are needed.
+	reg := registry.NewV2(c)
+	reg.WaitReady(c)
+	defer reg.Close()
+
+	// Create a synthetic 4 MiB image using the host daemon and push it to
+	// the local registry. The test daemon's data-root is only 3 MiB, so
+	// we use the host daemon for image setup. The image is removed from the
+	// host immediately after pushing — it is not needed locally after that.
+	ctx := testutil.GetContext(c)
+	apiClient := testEnv.APIClient()
+
+	const bigImageRef = registry.DefaultURL + "/testbig:latest"
+	imageTempDir := c.TempDir()
+	_, err = specialimage.MultiLayerCustom(imageTempDir, bigImageRef, []specialimage.SingleFileLayer{
+		{Name: "bigfile", Content: make([]byte, 4<<20)},
+	})
+	assert.NilError(c, err)
+	tar, err := archive.TarWithOptions(imageTempDir, &archive.TarOptions{})
+	assert.NilError(c, err)
+	loadResp, err := apiClient.ImageLoad(ctx, tar, client.ImageLoadWithQuiet(true))
+	assert.NilError(c, err)
+	_, err = io.Copy(io.Discard, loadResp)
+	assert.NilError(c, err)
+	_ = loadResp.Close()
+	pushResp, err := apiClient.ImagePush(ctx, bigImageRef, client.ImagePushOptions{RegistryAuth: "{}"})
+	assert.NilError(c, err)
+	assert.NilError(c, pushResp.Wait(ctx))
+	_, err = apiClient.ImageRemove(ctx, bigImageRef, client.ImageRemoveOptions{Force: true})
+	assert.NilError(c, err)
 
 	// create a 3MiB image (with a 2MiB ext4 fs) and mount it as storage root
 	storageFS := filepath.Join(testDir, "testfs.img")
@@ -1111,8 +1147,8 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 	)
 	defer s.d.Stop(c)
 
-	// pull a repository large enough to overfill the mounted filesystem
-	pullOut, err := s.d.Cmd("pull", "debian:trixie-slim")
+	// Pull the large image into the tiny data-root to trigger ENOSPC.
+	pullOut, err := s.d.Cmd("pull", bigImageRef)
 	assert.Check(c, err != nil)
 	assert.Check(c, is.Contains(pullOut, "no space left on device"))
 }
