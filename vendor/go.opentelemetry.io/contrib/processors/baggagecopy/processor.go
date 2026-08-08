@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package baggagecopy // import "go.opentelemetry.io/contrib/processors/baggagecopy"
+package baggagecopy
 
 import (
 	"context"

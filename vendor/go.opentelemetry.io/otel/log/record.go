@@ -1,11 +1,13 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package log // import "go.opentelemetry.io/otel/log"
+package log
 
 import (
 	"slices"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // attributesInlineCount is the number of attributes that are efficiently
@@ -25,7 +27,7 @@ type Record struct {
 	observedTimestamp time.Time
 	severity          Severity
 	severityText      string
-	body              Value
+	body              attribute.Value
 	err               error
 
 	// The fields below are for optimizing the implementation of Attributes and
@@ -35,7 +37,7 @@ type Record struct {
 	// Allocation optimization: an inline array sized to hold
 	// the majority of log calls (based on examination of open-source
 	// code). It holds the start of the list of attributes.
-	front [attributesInlineCount]KeyValue
+	front [attributesInlineCount]attribute.KeyValue
 
 	// The number of attributes in front.
 	nFront int
@@ -44,7 +46,7 @@ type Record struct {
 	// Invariants:
 	//   - len(back) > 0 if nFront == len(front)
 	//   - Unused array elements are zero-ed. Used to detect mistakes.
-	back []KeyValue
+	back []attribute.KeyValue
 }
 
 // EventName returns the event name.
@@ -55,6 +57,7 @@ func (r *Record) EventName() string {
 
 // SetEventName sets the event name.
 // A log record with non-empty event name is interpreted as an event record.
+// Event names should uniquely identify the event's attribute and body structure.
 func (r *Record) SetEventName(s string) {
 	r.eventName = s
 }
@@ -102,12 +105,12 @@ func (r *Record) SetSeverityText(text string) {
 }
 
 // Body returns the body of the log record.
-func (r *Record) Body() Value {
+func (r *Record) Body() attribute.Value {
 	return r.body
 }
 
 // SetBody sets the body of the log record.
-func (r *Record) SetBody(v Value) {
+func (r *Record) SetBody(v attribute.Value) {
 	r.body = v
 }
 
@@ -122,8 +125,8 @@ func (r *Record) SetErr(err error) {
 }
 
 // WalkAttributes walks all attributes the log record holds by calling f for
-// each on each [KeyValue] in the [Record]. Iteration stops if f returns false.
-func (r *Record) WalkAttributes(f func(KeyValue) bool) {
+// each on each [attribute.KeyValue] in the [Record]. Iteration stops if f returns false.
+func (r *Record) WalkAttributes(f func(attribute.KeyValue) bool) {
 	for i := 0; i < r.nFront; i++ {
 		if !f(r.front[i]) {
 			return
@@ -137,7 +140,7 @@ func (r *Record) WalkAttributes(f func(KeyValue) bool) {
 }
 
 // AddAttributes adds attributes to the log record.
-func (r *Record) AddAttributes(attrs ...KeyValue) {
+func (r *Record) AddAttributes(attrs ...attribute.KeyValue) {
 	var i int
 	for i = 0; i < len(attrs) && r.nFront < len(r.front); i++ {
 		a := attrs[i]

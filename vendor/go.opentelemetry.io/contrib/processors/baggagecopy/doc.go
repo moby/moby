@@ -33,5 +33,5 @@
 //
 // [Span Processor]: https://opentelemetry.io/docs/specs/otel/trace/sdk/#span-processor
 // [Log Record Processor]: https://opentelemetry.io/docs/specs/otel/logs/sdk/#logrecordprocessor
-// [Baggage]: https://opentelemetry.io/docs/specs/otel/api/baggage
-package baggagecopy // import "go.opentelemetry.io/contrib/processors/baggagecopy"
+// [Baggage]: https://opentelemetry.io/docs/specs/otel/baggage/api/
+package baggagecopy
