@@ -3,6 +3,7 @@ package logger
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -14,18 +15,42 @@ func (l *mockLogger) Log(msg *Message) error {
 	l.c <- msg
 	return nil
 }
-
 func (l *mockLogger) Name() string {
 	return "mock"
 }
-
 func (l *mockLogger) Close() error {
+	close(l.c)
+	return nil
+}
+
+type fallibleLogger struct {
+	c chan *Message
+	// Return these errors (or nils) for each Log call. Returns `nil` continuously once empty.
+	errs []error
+}
+
+func (l *fallibleLogger) Log(msg *Message) error {
+	var err error
+	if len(l.errs) > 0 {
+		err, l.errs = l.errs[0], l.errs[1:]
+	}
+	if err == nil {
+		// Only actually record the message if we didn't get an error ("oh no, the TCP stream broke and we couldn't get the message out")
+		l.c <- msg
+	}
+	return err
+}
+func (l *fallibleLogger) Name() string {
+	return "fallible"
+}
+func (l *fallibleLogger) Close() error {
+	close(l.c)
 	return nil
 }
 
 func TestRingLogger(t *testing.T) {
 	mockLog := &mockLogger{make(chan *Message)} // no buffer on this channel
-	ring := newRingLogger(mockLog, Info{}, 1)
+	ring := newRingLogger(mockLog, Info{}, 1, -1)
 	defer ring.Close()
 
 	// this should never block
@@ -145,6 +170,73 @@ func TestRingDrain(t *testing.T) {
 	}
 }
 
+func TestRingRetries(t *testing.T) {
+	sentMessages := []*Message{
+		{Line: []byte("a")},
+		{Line: []byte("lost")},
+		{Line: []byte("b")},
+	}
+	errs := []error{
+		// Message "a" is fine.
+		nil,
+		// Message "lost" has two consecutive errors so is dropped.
+		errors.New("error #1 for 'lost'"),
+		errors.New("error #2 for 'lost'"),
+		// Message "b" has one error then succeeds.
+		errors.New("error #1 for 'b'"),
+	}
+	expectedMessages := []*Message{
+		{Line: []byte("a")},
+		{Line: []byte("b")},
+	}
+
+	logger := &fallibleLogger{make(chan *Message), errs}
+	// Retry one time per message.
+	ring := NewRingLogger(logger, Info{}, -1, 1)
+
+	for _, msg := range sentMessages {
+		ring.Log(msg)
+	}
+
+	received := []*Message{}
+	for {
+		msg, ok := <-logger.c
+		if !ok {
+			break
+		}
+		received = append(received, msg)
+		if len(received) == len(expectedMessages) {
+			ring.Close()
+		}
+	}
+	if len(expectedMessages) != len(received) {
+		t.Fatalf("received wrong number of messages from ringbuffer: snt %v, received %v", expectedMessages, received)
+	}
+	for i := range len(expectedMessages) {
+		if !slices.Equal(expectedMessages[i].Line, received[i].Line) {
+			t.Fatalf("mismatched message order at index %v: sent %v, received %v", i, expectedMessages, received)
+		}
+	}
+}
+
+func TestRingIndefiniteRetries(t *testing.T) {
+	errs := []error{}
+	for range 100 {
+		errs = append(errs, errors.New("oh no"))
+	}
+	errs = append(errs, nil)
+	logger := &fallibleLogger{make(chan *Message), errs}
+	// Negative maxRetries should cause indefinite retries.
+	ring := NewRingLogger(logger, Info{}, -1, -1)
+	defer ring.Close()
+
+	ring.Log(&Message{Line: []byte("a")})
+	_, ok := <-logger.c
+	if !ok {
+		t.Fatal("logger unexpectedly closed")
+	}
+}
+
 type nopLogger struct{}
 
 func (nopLogger) Name() string       { return "nopLogger" }
@@ -154,7 +246,7 @@ func (nopLogger) Log(*Message) error { return nil }
 func BenchmarkRingLoggerThroughputNoReceiver(b *testing.B) {
 	mockLog := &mockLogger{make(chan *Message)}
 	defer mockLog.Close()
-	l := NewRingLogger(mockLog, Info{}, -1)
+	l := NewRingLogger(mockLog, Info{}, -1, 0)
 	msg := &Message{Line: []byte("hello humans and everyone else!")}
 	b.SetBytes(int64(len(msg.Line)))
 
@@ -166,7 +258,7 @@ func BenchmarkRingLoggerThroughputNoReceiver(b *testing.B) {
 }
 
 func BenchmarkRingLoggerThroughputWithReceiverDelay0(b *testing.B) {
-	l := NewRingLogger(nopLogger{}, Info{}, -1)
+	l := NewRingLogger(nopLogger{}, Info{}, -1, 0)
 	msg := &Message{Line: []byte("hello humans and everyone else!")}
 	b.SetBytes(int64(len(msg.Line)))
 
@@ -199,7 +291,7 @@ func consumeWithDelay(delay time.Duration, c <-chan *Message) (cancel func()) {
 func BenchmarkRingLoggerThroughputConsumeDelay1(b *testing.B) {
 	mockLog := &mockLogger{make(chan *Message)}
 	defer mockLog.Close()
-	l := NewRingLogger(mockLog, Info{}, -1)
+	l := NewRingLogger(mockLog, Info{}, -1, 0)
 	msg := &Message{Line: []byte("hello humans and everyone else!")}
 	b.SetBytes(int64(len(msg.Line)))
 
@@ -216,7 +308,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay1(b *testing.B) {
 func BenchmarkRingLoggerThroughputConsumeDelay10(b *testing.B) {
 	mockLog := &mockLogger{make(chan *Message)}
 	defer mockLog.Close()
-	l := NewRingLogger(mockLog, Info{}, -1)
+	l := NewRingLogger(mockLog, Info{}, -1, 0)
 	msg := &Message{Line: []byte("hello humans and everyone else!")}
 	b.SetBytes(int64(len(msg.Line)))
 
@@ -233,7 +325,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay10(b *testing.B) {
 func BenchmarkRingLoggerThroughputConsumeDelay50(b *testing.B) {
 	mockLog := &mockLogger{make(chan *Message)}
 	defer mockLog.Close()
-	l := NewRingLogger(mockLog, Info{}, -1)
+	l := NewRingLogger(mockLog, Info{}, -1, 0)
 	msg := &Message{Line: []byte("hello humans and everyone else!")}
 	b.SetBytes(int64(len(msg.Line)))
 
@@ -250,7 +342,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay50(b *testing.B) {
 func BenchmarkRingLoggerThroughputConsumeDelay100(b *testing.B) {
 	mockLog := &mockLogger{make(chan *Message)}
 	defer mockLog.Close()
-	l := NewRingLogger(mockLog, Info{}, -1)
+	l := NewRingLogger(mockLog, Info{}, -1, 0)
 	msg := &Message{Line: []byte("hello humans and everyone else!")}
 	b.SetBytes(int64(len(msg.Line)))
 
@@ -267,7 +359,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay100(b *testing.B) {
 func BenchmarkRingLoggerThroughputConsumeDelay300(b *testing.B) {
 	mockLog := &mockLogger{make(chan *Message)}
 	defer mockLog.Close()
-	l := NewRingLogger(mockLog, Info{}, -1)
+	l := NewRingLogger(mockLog, Info{}, -1, 0)
 	msg := &Message{Line: []byte("hello humans and everyone else!")}
 	b.SetBytes(int64(len(msg.Line)))
 
@@ -284,7 +376,7 @@ func BenchmarkRingLoggerThroughputConsumeDelay300(b *testing.B) {
 func BenchmarkRingLoggerThroughputConsumeDelay500(b *testing.B) {
 	mockLog := &mockLogger{make(chan *Message)}
 	defer mockLog.Close()
-	l := NewRingLogger(mockLog, Info{}, -1)
+	l := NewRingLogger(mockLog, Info{}, -1, 0)
 	msg := &Message{Line: []byte("hello humans and everyone else!")}
 	b.SetBytes(int64(len(msg.Line)))
 
