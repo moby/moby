@@ -183,16 +183,28 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 	if err = json.Unmarshal(data, &m); err != nil {
 		return err
 	}
-	i.PoolID = m["PoolID"].(string)
-	if v, ok := m["Meta"]; ok {
-		b, _ := json.Marshal(v) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors
-		if err = json.Unmarshal(b, &i.Meta); err != nil {
-			return err
+	poolID, isString := m["PoolID"].(string)
+	if !isString {
+		return fmt.Errorf("PoolID: expected string, got %T", m["PoolID"])
+	}
+	i.PoolID = poolID
+	// Meta is a generic bag of IPAM-driver-provided metadata; the only key
+	// this restore path reads back is the Gateway fallback hint, so it's
+	// safe to ignore on error.
+	if _, ok := m["Meta"]; ok {
+		if err := unmarshalJSONField(m, "Meta", &i.Meta); err != nil {
+			log.G(context.TODO()).WithError(err).Warn("failed to unmarshal Meta")
+			i.Meta = nil // discard any partially-decoded data
 		}
 	}
+	// Unlike Meta, IPAMData must parse correctly when present, so its errors are propagated.
 	if v, ok := m["IPAMData"]; ok {
-		if err = json.Unmarshal([]byte(v.(string)), &i.IPAMData); err != nil {
-			return err
+		s, isString := v.(string)
+		if !isString {
+			return fmt.Errorf("IPAMData: expected string, got %T", v)
+		}
+		if err = json.Unmarshal([]byte(s), &i.IPAMData); err != nil {
+			return fmt.Errorf("failed to unmarshal IPAMData: %w", err)
 		}
 	}
 	return nil

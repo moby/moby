@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"encoding/json"
 	"sort"
 	"testing"
 
@@ -40,4 +41,21 @@ func TestSortByNetworkType(t *testing.T) {
 		"ep-local1",
 	}
 	assert.Check(t, is.DeepEqual(actual, expected))
+}
+
+func TestEndpointUnmarshalJSONMalformedDNSNamesTriggersMigration(t *testing.T) {
+	data, err := json.Marshal(map[string]any{
+		"name":      "ep1",
+		"id":        "id1",
+		"dnsNames":  123, // malformed: not a []string
+		"myAliases": []string{"alias1"},
+	})
+	assert.NilError(t, err)
+
+	var ep Endpoint
+	assert.NilError(t, ep.UnmarshalJSON(data))
+	// A malformed dnsNames value is treated the same as a missing one, so
+	// the pre-v25.0 migration path repopulates it from myAliases instead of
+	// leaving it empty.
+	assert.Check(t, is.DeepEqual(ep.dnsNames, []string{"ep1", "alias1"}))
 }
