@@ -298,6 +298,10 @@ func (daemon *Daemon) CreateNetwork(ctx context.Context, create networktypes.Cre
 }
 
 func (daemon *Daemon) createNetwork(ctx context.Context, cfg *config.Config, create networktypes.CreateRequest, id string, agent bool) (*networktypes.CreateResponse, error) {
+	if network.IsReserved(create.Name) {
+		return nil, errdefs.Forbidden(fmt.Errorf("network name %q is reserved and cannot be created", create.Name))
+	}
+
 	if network.IsPredefined(create.Name) {
 		return nil, PredefinedNetworkError(create.Name)
 	}
