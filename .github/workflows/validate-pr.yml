@@ -1,7 +1,7 @@
 name: validate-pr
 
 permissions:
-  contents: read
+  pull-requests: read
 
 on:
   pull_request:
@@ -109,16 +109,45 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-
       - name: Check GitHub references
         env:
-          VALIDATE_REPO: ${{ github.server_url }}/${{ github.repository }}.git
-          VALIDATE_BRANCH: ${{ github.event.pull_request.base.ref }}
-        run: bash hack/validate/pr-gh-references
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh api --paginate --slurp "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits" > "$RUNNER_TEMP/pr-commits.json"
+
+          # Number of commits, excluding merge commits.
+          commitCount="$(jq '[.[][] | select(.parents | length <= 1)] | length' "$RUNNER_TEMP/pr-commits.json")"
+          references="$(
+              jq -r '
+                  def ghref:
+                      "(^|[^[:alnum:]_])#[0-9]+"
+                      + "|(^|[^[:alnum:]_./-])[[:alnum:]_.-]+#[0-9]+"
+                      + "|(^|[^[:alnum:]_./-])[[:alnum:]_.-]+/[[:alnum:]_.-]+#[0-9]+"
+                      + "|https?://(www\\.)?github\\.com/[^[:space:]/]+/[^[:space:]/]+/(issues|pull)/[0-9]+";
+    
+                  .[][]
+                  # Skip merge commits.
+                  | select(.parents | length <= 1)
+                  | select(.commit.message | test(ghref))
+                  | .sha
+              ' "$RUNNER_TEMP/pr-commits.json"
+          )"
+
+          if [ -z "$references" ]; then
+            echo "Checked ${commitCount} commit(s); no GitHub issue or PR references found."
+            exit 0
+          fi
+
+          while read -r commit; do
+            echo "::error::commit ${commit} contains a GitHub issue or PR reference; use a commit hash instead if a reference is needed."
+          done <<< "$references"
+
+          echo
+          echo "Remove GitHub issue or PR references from commit messages."
+          echo "Use commit hashes instead if a reference is needed."
+          echo "Keep GitHub issue or PR references in GitHub-visible text, such as PR descriptions or comments."
+          exit 1
 
   check-pr-branch:
     concurrency:
