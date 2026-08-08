@@ -93,6 +93,96 @@ func TestIntDNSAsExtDNS(t *testing.T) {
 	}
 }
 
+// TestCrossNetworkInternalDomain checks that a container can resolve another
+// container in a separate user-defined network using the
+// "<container>.<network>.internal" pseudo-domain added for
+// https://github.com/moby/moby/issues/49572.
+func TestCrossNetworkInternalDomain(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "test only works on linux")
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const (
+		netA      = "x49572_netA"
+		netB      = "x49572_netB"
+		c1        = "x49572_c1"
+		c2        = "x49572_c2"
+		isolated  = "x49572_isolated"
+		isolated2 = "x49572_isolated_target"
+	)
+
+	network.CreateNoError(ctx, t, c, netA)
+	defer network.RemoveNoError(ctx, t, c, netA)
+	network.CreateNoError(ctx, t, c, netB)
+	defer network.RemoveNoError(ctx, t, c, netB)
+	network.CreateNoError(ctx, t, c, isolated, network.WithInternal())
+	defer network.RemoveNoError(ctx, t, c, isolated)
+
+	c1Id := container.Run(ctx, t, c,
+		container.WithName(c1),
+		container.WithNetworkMode(netA),
+	)
+	defer c.ContainerRemove(ctx, c1Id, client.ContainerRemoveOptions{Force: true})
+
+	c2Id := container.Run(ctx, t, c,
+		container.WithName(c2),
+		container.WithNetworkMode(netB),
+	)
+	defer c.ContainerRemove(ctx, c2Id, client.ContainerRemoveOptions{Force: true})
+
+	isoId := container.Run(ctx, t, c,
+		container.WithName(isolated2),
+		container.WithNetworkMode(isolated),
+	)
+	defer c.ContainerRemove(ctx, isoId, client.ContainerRemoveOptions{Force: true})
+
+	tests := []struct {
+		name      string
+		query     string
+		expectOK  bool
+		expectOut string
+	}{
+		{
+			name:      "cross-network resolves",
+			query:     c2 + "." + netB + ".internal",
+			expectOK:  true,
+			expectOut: "Address",
+		},
+		{
+			name:      "internal network is excluded",
+			query:     isolated2 + "." + isolated + ".internal",
+			expectOK:  false,
+			expectOut: "",
+		},
+		{
+			name:      "unknown network",
+			query:     c2 + ".does-not-exist.internal",
+			expectOK:  false,
+			expectOut: "",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := container.Exec(ctx, c, c1Id, []string{"nslookup", tc.query})
+			assert.NilError(t, err)
+			if tc.expectOK {
+				assert.Check(t, is.Equal(res.ExitCode, 0), "stdout=%q stderr=%q", res.Stdout(), res.Stderr())
+				assert.Check(t, is.Contains(res.Stdout(), tc.expectOut))
+			} else {
+				assert.Check(t, res.ExitCode != 0, "expected nslookup to fail, stdout=%q", res.Stdout())
+			}
+		})
+	}
+}
+
 // TestExtDNSInIPv6OnlyNw checks that an IPv6-only bridge network has external
 // DNS access.
 func TestExtDNSInIPv6OnlyNw(t *testing.T) {
