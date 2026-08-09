@@ -36,4 +36,4 @@ the experimental features.
 See [go.opentelemetry.io/otel/log] for more information about
 the OpenTelemetry Logs API.
 */
-package log // import "go.opentelemetry.io/otel/sdk/log"
+package log

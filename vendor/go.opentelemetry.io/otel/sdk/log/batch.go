@@ -1,17 +1,20 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package log // import "go.opentelemetry.io/otel/sdk/log"
+package log
 
 import (
 	"context"
 	"errors"
-	"slices"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/internal/global"
+	"go.opentelemetry.io/otel/sdk/log/internal/counter"
+	"go.opentelemetry.io/otel/sdk/log/internal/observ"
 )
 
 const (
@@ -19,7 +22,6 @@ const (
 	dfltExpInterval     = time.Second
 	dfltExpTimeout      = 30 * time.Second
 	dfltExpMaxBatchSize = 512
-	dfltExpBufferSize   = 1
 
 	envarMaxQSize        = "OTEL_BLRP_MAX_QUEUE_SIZE"
 	envarExpInterval     = "OTEL_BLRP_SCHEDULE_DELAY"
@@ -35,82 +37,83 @@ var _ Processor = (*BatchProcessor)(nil)
 // Use [NewBatchProcessor] to create a BatchProcessor. An empty BatchProcessor
 // is shut down by default, no records will be batched or exported.
 type BatchProcessor struct {
-	// The BatchProcessor is designed to provide the highest throughput of
-	// log records possible while being compatible with OpenTelemetry. The
-	// entry point of log records is the OnEmit method. This method is designed
-	// to receive records as fast as possible while still honoring shutdown
-	// commands. All records received are enqueued to queue.
-	//
-	// In order to block OnEmit as little as possible, a separate "poll"
-	// goroutine is spawned at the creation of a BatchProcessor. This
-	// goroutine is responsible for batching the queue at regular polled
-	// intervals, or when it is directly signaled to.
-	//
-	// To keep the polling goroutine from backing up, all batches it makes are
-	// exported with a bufferedExporter. This exporter allows the poll
-	// goroutine to enqueue an export payload that will be handled in a
-	// separate goroutine dedicated to the export. This asynchronous behavior
-	// allows the poll goroutine to maintain accurate interval polling.
-	//
-	//   ___BatchProcessor____     __Poll Goroutine__     __Export Goroutine__
-	// ||                     || ||                  || ||                    ||
-	// ||          ********** || ||                  || ||     **********     ||
-	// || Records=>* OnEmit * || ||   | - ticker     || ||     * export *     ||
-	// ||          ********** || ||   | - trigger    || ||     **********     ||
-	// ||             ||      || ||   |              || ||         ||         ||
-	// ||             ||      || ||   |              || ||         ||         ||
-	// ||   __________\/___   || ||   |***********   || ||   ______/\_______  ||
-	// ||  (____queue______)>=||=||===|*  batch  *===||=||=>[_export_buffer_] ||
-	// ||                     || ||   |***********   || ||                    ||
-	// ||_____________________|| ||__________________|| ||____________________||
-	//
-	//
-	// The "release valve" in this processing is the record queue. This queue
-	// is a ring buffer. It will overwrite the oldest records first when writes
-	// to OnEmit are made faster than the queue can be flushed. If batches
-	// cannot be flushed to the export buffer, the records will remain in the
-	// queue.
-
-	// exporter is the bufferedExporter all batches are exported with.
-	exporter *bufferExporter
+	// A single goroutine owns dequeueing and all exporter calls. OnEmit only
+	// writes to the bounded queue and signals that goroutine. Consequently,
+	// exporter backpressure blocks the exporter goroutine instead of causing
+	// another goroutine to retry without making progress.
+	exporter Exporter
 
 	// q is the active queue of records that have not yet been exported.
 	q *queue
-	// batchSize is the minimum number of records needed before an export is
-	// triggered (unless the interval expires).
+	// batchSize is the maximum number of records in a scheduled export.
 	batchSize int
 
-	// pollTrigger triggers the poll goroutine to flush a batch from the queue.
-	// This is sent to when it is known that the queue contains at least one
-	// complete batch.
-	//
-	// When a send is made to the channel, the poll loop will be reset after
-	// the flush. If there is still enough records in the queue for another
-	// batch the reset of the poll loop will automatically re-trigger itself.
-	// There is no need for the original sender to monitor and resend.
-	pollTrigger chan struct{}
-	// pollKill kills the poll goroutine. This is only expected to be closed
-	// once by the Shutdown method.
-	pollKill chan struct{}
-	// pollDone signals the poll goroutine has completed.
-	pollDone chan struct{}
+	// exportTrigger is a coalesced signal that records are ready to export.
+	exportTrigger chan struct{}
+	// flush serializes ForceFlush requests through the worker.
+	flush chan batchProcessorRequest
+	// shutdown accepts the single Shutdown request. It is separate from flush
+	// so shutdown cannot be blocked behind concurrent ForceFlush callers.
+	shutdown chan batchProcessorRequest
+	// done is closed by the exporter goroutine after exporter shutdown.
+	done chan struct{}
 
 	// stopped holds the stopped state of the BatchProcessor.
 	stopped atomic.Bool
 
+	// inst is the instrumentation for observability (nil when disabled).
+	inst *observ.BLP
+
 	noCmp [0]func() //nolint: unused  // This is indeed used.
+}
+
+type batchProcessorRequest struct {
+	ctx  context.Context
+	resp chan<- error
+}
+
+func (r batchProcessorRequest) respond(err error) {
+	r.resp <- err
 }
 
 // NewBatchProcessor decorates the provided exporter
 // so that the log records are batched before exporting.
 //
-// All of the exporter's methods are called synchronously.
+// Calls to the exporter's Export, ForceFlush, and Shutdown methods are
+// synchronized and never invoked concurrently.
 func NewBatchProcessor(exporter Exporter, opts ...BatchProcessorOption) *BatchProcessor {
 	cfg := newBatchConfig(opts)
 	if exporter == nil {
 		// Do not panic on nil export.
 		exporter = defaultNoopExporter
 	}
+
+	b := &BatchProcessor{
+		q:             newQueue(cfg.maxQSize.Value),
+		batchSize:     cfg.expMaxBatchSize.Value,
+		exportTrigger: make(chan struct{}, 1),
+		flush:         make(chan batchProcessorRequest),
+		shutdown:      make(chan batchProcessorRequest, 1),
+		done:          make(chan struct{}),
+	}
+
+	var err error
+	b.inst, err = observ.NewBLP(
+		counter.NextExporterID(),
+		func() int64 { return int64(b.q.Len()) },
+		int64(cfg.maxQSize.Value),
+	)
+	if err != nil {
+		otel.Handle(err)
+	}
+
+	// Wrap exporter with metrics recording if observability is enabled.
+	// This must be the innermost wrapper (closest to user exporter) to record
+	// metrics just before calling the actual exporter.
+	if b.inst != nil {
+		exporter = newMetricsExporter(exporter, b.inst)
+	}
+
 	// Order is important here. Wrap the timeoutExporter with the chunkExporter
 	// to ensure each export completes in timeout (instead of all chunked
 	// exports).
@@ -119,69 +122,144 @@ func NewBatchProcessor(exporter Exporter, opts ...BatchProcessorOption) *BatchPr
 	// appropriately on export.
 	exporter = newChunkExporter(exporter, cfg.expMaxBatchSize.Value)
 
-	b := &BatchProcessor{
-		exporter: newBufferExporter(exporter, cfg.expBufferSize.Value),
-
-		q:           newQueue(cfg.maxQSize.Value),
-		batchSize:   cfg.expMaxBatchSize.Value,
-		pollTrigger: make(chan struct{}, 1),
-		pollKill:    make(chan struct{}),
-	}
-	b.pollDone = b.poll(cfg.expInterval.Value)
+	b.exporter = exporter
+	b.process(cfg.expInterval.Value)
 	return b
 }
 
-// poll spawns a goroutine to handle interval polling and batch exporting. The
-// returned done chan is closed when the spawned goroutine completes.
-func (b *BatchProcessor) poll(interval time.Duration) (done chan struct{}) {
-	done = make(chan struct{})
-
-	ticker := time.NewTicker(interval)
-	// TODO: investigate using a sync.Pool instead of cloning.
-	buf := make([]Record, b.batchSize)
+// process starts the goroutine that owns dequeueing and all exporter calls.
+func (b *BatchProcessor) process(interval time.Duration) {
 	go func() {
-		defer close(done)
-		defer ticker.Stop()
+		timer := time.NewTimer(interval)
+		defer timer.Stop()
+		// The worker owns and reuses buf. Exporters must not retain the slice
+		// passed to them, so it is safe to refill after Export returns.
+		buf := make([]Record, b.batchSize)
 
 		for {
+			// Probe shutdown by itself first. This makes an already queued terminal
+			// request win over every other ready case. Closing done before replying
+			// also means a successful Shutdown response observes a stopped worker.
 			select {
-			case <-ticker.C:
-			case <-b.pollTrigger:
-				ticker.Reset(interval)
-			case <-b.pollKill:
+			case req := <-b.shutdown:
+				err := b.shutdownExporter(req.ctx)
+				close(b.done)
+				req.respond(err)
 				return
+			default:
 			}
 
-			if d := b.q.Dropped(); d > 0 {
-				global.Warn("dropped log records", "dropped", d)
+			// With no queued shutdown, service a waiting ForceFlush before ordinary
+			// export wakes. The default keeps this priority check non-blocking.
+			// Shutdown remains selectable in case it arrived after the first probe.
+			select {
+			case req := <-b.shutdown:
+				err := b.shutdownExporter(req.ctx)
+				close(b.done)
+				req.respond(err)
+				return
+			case req := <-b.flush:
+				err := b.flushExporter(req.ctx)
+				req.respond(err)
+				continue
+			default:
 			}
 
-			var qLen int
-			// Don't copy data from queue unless exporter can accept more, it is very expensive.
-			if b.exporter.Ready() {
-				qLen = b.q.TryDequeue(buf, func(r []Record) bool {
-					ok := b.exporter.EnqueueExport(r)
-					if ok {
-						buf = slices.Clone(buf)
-					}
-					return ok
-				})
-			} else {
-				qLen = b.q.Len()
-			}
-
-			if qLen >= b.batchSize {
-				// There is another full batch ready. Immediately trigger
-				// another export attempt.
-				select {
-				case b.pollTrigger <- struct{}{}:
-				default:
-					// Another flush signal already received.
-				}
+			// No lifecycle request was waiting, so block on the complete event set.
+			// Both timer and size-triggered exports start a new interval window.
+			select {
+			case req := <-b.shutdown:
+				err := b.shutdownExporter(req.ctx)
+				close(b.done)
+				req.respond(err)
+				return
+			case req := <-b.flush:
+				err := b.flushExporter(req.ctx)
+				req.respond(err)
+			case <-timer.C:
+				resetTimer(timer, interval)
+				b.exportBatch(buf)
+			case <-b.exportTrigger:
+				resetTimer(timer, interval)
+				b.exportBatch(buf)
 			}
 		}
 	}()
-	return done
+}
+
+func resetTimer(timer *time.Timer, interval time.Duration) {
+	// Handle both GODEBUG=asynctimerchan=[0|1] properly.
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+	timer.Reset(interval)
+}
+
+func (b *BatchProcessor) exportBatch(buf []Record) {
+	b.logDroppedRecords()
+	n, remaining := b.q.Dequeue(buf)
+	if n == 0 {
+		return
+	}
+
+	err := b.exporter.Export(context.Background(), buf[:n])
+	clear(buf[:n])
+	if err != nil {
+		otel.Handle(err)
+	}
+	if remaining >= b.batchSize {
+		b.triggerExport()
+	}
+}
+
+func (b *BatchProcessor) flushExporter(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	b.logDroppedRecords()
+	records := b.q.Flush()
+	err := b.exporter.Export(ctx, records)
+	clear(records)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return errors.Join(err, ctxErr)
+	}
+	return errors.Join(err, b.exporter.ForceFlush(ctx))
+}
+
+func (b *BatchProcessor) shutdownExporter(ctx context.Context) error {
+	b.logDroppedRecords()
+	records := b.q.Flush()
+	err := b.exporter.Export(ctx, records)
+	clear(records)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		err = errors.Join(err, ctxErr)
+	} else {
+		err = errors.Join(err, b.exporter.ForceFlush(ctx))
+	}
+	err = errors.Join(err, b.exporter.Shutdown(ctx))
+	if b.inst != nil {
+		err = errors.Join(err, b.inst.Shutdown())
+	}
+	return err
+}
+
+func (b *BatchProcessor) logDroppedRecords() {
+	if d := b.q.Dropped(); d > 0 {
+		if b.inst != nil {
+			b.inst.ProcessedQueueFull(context.Background(), int64(min(math.MaxInt64, d))) // nolint:gosec
+		}
+		global.Warn("dropped log records", "dropped", d)
+	}
+}
+
+func (b *BatchProcessor) triggerExport() {
+	select {
+	case b.exportTrigger <- struct{}{}:
+	default:
+	}
 }
 
 // Enabled returns true, indicating this Processor will process all records.
@@ -196,43 +274,31 @@ func (b *BatchProcessor) OnEmit(_ context.Context, r *Record) error {
 	}
 	// The record is cloned so that changes done by subsequent processors
 	// are not going to lead to a data race.
-	if n := b.q.Enqueue(r.Clone()); n >= b.batchSize {
-		select {
-		case b.pollTrigger <- struct{}{}:
-		default:
-			// Flush chan full. The poll goroutine will handle this by
-			// re-sending any trigger until the queue has less than batchSize
-			// records.
-		}
+	if n, accepted := b.q.Enqueue(r.Clone()); accepted && n >= b.batchSize {
+		b.triggerExport()
 	}
 	return nil
 }
 
-// Shutdown flushes queued log records and shuts down the decorated exporter.
+// Shutdown flushes queued log records and the decorated exporter before
+// shutting it down.
 func (b *BatchProcessor) Shutdown(ctx context.Context) error {
 	if b.stopped.Swap(true) || b.q == nil {
 		return nil
 	}
 
-	// Stop the poll goroutine.
-	close(b.pollKill)
-	select {
-	case <-b.pollDone:
-	case <-ctx.Done():
-		// Out of time.
-		return errors.Join(ctx.Err(), b.exporter.Shutdown(ctx))
+	b.q.Close()
+	resp := make(chan error, 1)
+	b.shutdown <- batchProcessorRequest{ctx: ctx, resp: resp}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-
-	// Flush remaining queued before exporter shutdown.
-	err := b.exporter.Export(ctx, b.q.Flush())
-	return errors.Join(err, b.exporter.Shutdown(ctx))
-}
-
-var errPartialFlush = errors.New("partial flush: export buffer full")
-
-// Used for testing.
-var ctxErr = func(ctx context.Context) error {
-	return ctx.Err()
+	select {
+	case err := <-resp:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // ForceFlush flushes queued log records and flushes the decorated exporter.
@@ -240,27 +306,26 @@ func (b *BatchProcessor) ForceFlush(ctx context.Context) error {
 	if b.stopped.Load() || b.q == nil {
 		return nil
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
-	buf := make([]Record, b.q.cap)
-	notFlushed := func() bool {
-		var flushed bool
-		_ = b.q.TryDequeue(buf, func(r []Record) bool {
-			flushed = b.exporter.EnqueueExport(r)
-			return flushed
-		})
-		return !flushed
+	resp := make(chan error, 1)
+	req := batchProcessorRequest{ctx: ctx, resp: resp}
+	select {
+	case b.flush <- req:
+	case <-b.done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-	var err error
-	// For as long as ctx allows, try to make a single flush of the queue.
-	for notFlushed() {
-		// Use ctxErr instead of calling ctx.Err directly so we can test
-		// the partial error return.
-		if e := ctxErr(ctx); e != nil {
-			err = errors.Join(e, errPartialFlush)
-			break
-		}
+
+	select {
+	case err := <-resp:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-	return errors.Join(err, b.exporter.ForceFlush(ctx))
 }
 
 // queue holds a queue of logging records.
@@ -273,6 +338,7 @@ type queue struct {
 	dropped     atomic.Uint64
 	cap, len    int
 	read, write *ring
+	closed      bool
 }
 
 func newQueue(size int) *queue {
@@ -302,9 +368,13 @@ func (q *queue) Dropped() uint64 {
 //
 // If enqueueing r will exceed the capacity of q, the oldest Record held in q
 // will be dropped and r retained.
-func (q *queue) Enqueue(r Record) int {
+func (q *queue) Enqueue(r Record) (int, bool) {
 	q.Lock()
 	defer q.Unlock()
+
+	if q.closed {
+		return q.len, false
+	}
 
 	q.write.Value = r
 	q.write = q.write.Next()
@@ -316,35 +386,23 @@ func (q *queue) Enqueue(r Record) int {
 		q.read = q.read.Next()
 		q.dropped.Add(1)
 	}
-	return q.len
+	return q.len, true
 }
 
-// TryDequeue attempts to dequeue up to len(buf) Records. The available Records
-// will be assigned into buf and passed to write. If write fails, returning
-// false, the Records will not be removed from the queue. If write succeeds,
-// returning true, the dequeued Records are removed from the queue. The number
-// of Records remaining in the queue are returned.
-//
-// When write is called the lock of q is held. The write function must not call
-// other methods of this q that acquire the lock.
-func (q *queue) TryDequeue(buf []Record, write func([]Record) bool) int {
+// Dequeue removes up to len(buf) records from the queue and copies them into
+// buf. The number copied and the number remaining are returned.
+func (q *queue) Dequeue(buf []Record) (int, int) {
 	q.Lock()
 	defer q.Unlock()
-
-	origRead := q.read
 
 	n := min(len(buf), q.len)
 	for i := range n {
 		buf[i] = q.read.Value // nolint:gosec // n is bounded by len(buf)
+		q.read.Value = Record{}
 		q.read = q.read.Next()
 	}
-
-	if write(buf[:n]) {
-		q.len -= n
-	} else {
-		q.read = origRead
-	}
-	return q.len
+	q.len -= n
+	return n, q.len
 }
 
 // Flush returns all the Records held in the queue and resets it to be
@@ -353,9 +411,22 @@ func (q *queue) Flush() []Record {
 	q.Lock()
 	defer q.Unlock()
 
+	return q.flush()
+}
+
+// Close stops the queue from accepting records.
+func (q *queue) Close() {
+	q.Lock()
+	defer q.Unlock()
+
+	q.closed = true
+}
+
+func (q *queue) flush() []Record {
 	out := make([]Record, q.len)
 	for i := range out {
 		out[i] = q.read.Value
+		q.read.Value = Record{}
 		q.read = q.read.Next()
 	}
 	q.len = 0
@@ -368,7 +439,6 @@ type batchConfig struct {
 	expInterval     setting[time.Duration]
 	expTimeout      setting[time.Duration]
 	expMaxBatchSize setting[int]
-	expBufferSize   setting[int]
 }
 
 func newBatchConfig(options []BatchProcessorOption) batchConfig {
@@ -399,14 +469,9 @@ func newBatchConfig(options []BatchProcessorOption) batchConfig {
 		clearLessThanOne[int](),
 		getenv[int](envarExpMaxBatchSize),
 		clearLessThanOne[int](), // nolint:gocritic // the function argument is duplicated on purpose
-		clampMax[int](c.maxQSize.Value),
 		fallback[int](dfltExpMaxBatchSize),
+		clampMax[int](c.maxQSize.Value),
 	)
-	c.expBufferSize = c.expBufferSize.Resolve(
-		clearLessThanOne[int](),
-		fallback[int](dfltExpBufferSize),
-	)
-
 	return c
 }
 
@@ -474,8 +539,9 @@ func WithExportTimeout(d time.Duration) BatchProcessorOption {
 // and this option is not passed, that variable value will be used.
 //
 // By default, if an environment variable is not set, and this option is not
-// passed, 512 will be used.
+// passed, 512 or the maximum queue size, if smaller, will be used.
 // The default value is also used when the provided value is less than one.
+// The effective batch size will not exceed the configured maximum queue size.
 func WithExportMaxBatchSize(size int) BatchProcessorOption {
 	return batchOptionFunc(func(cfg batchConfig) batchConfig {
 		cfg.expMaxBatchSize = newSetting(size)
@@ -483,14 +549,13 @@ func WithExportMaxBatchSize(size int) BatchProcessorOption {
 	})
 }
 
-// WithExportBufferSize sets the batch buffer size.
-// Batches will be temporarily kept in a memory buffer until they are exported.
+// WithExportBufferSize is retained for source compatibility and has no effect.
+// The processor no longer maintains a separately configurable export-request
+// buffer. [WithMaxQueueSize] bounds the pending-record queue.
 //
-// By default, a value of 1 will be used.
-// The default value is also used when the provided value is less than one.
-func WithExportBufferSize(size int) BatchProcessorOption {
+// Deprecated: This option is no longer used.
+func WithExportBufferSize(_ int) BatchProcessorOption {
 	return batchOptionFunc(func(cfg batchConfig) batchConfig {
-		cfg.expBufferSize = newSetting(size)
 		return cfg
 	})
 }

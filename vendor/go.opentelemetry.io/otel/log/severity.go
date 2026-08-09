@@ -3,7 +3,7 @@
 
 //go:generate stringer -type=Severity -linecomment
 
-package log // import "go.opentelemetry.io/otel/log"
+package log
 
 // Severity represents a log record severity (also known as log level). Smaller
 // numerical values correspond to less severe log records (such as debug

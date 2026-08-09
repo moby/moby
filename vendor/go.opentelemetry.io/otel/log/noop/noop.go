@@ -12,7 +12,7 @@
 // defaults to no operation for methods it does not implement.
 //
 // [OpenTelemetry Logs API]: https://pkg.go.dev/go.opentelemetry.io/otel/log
-package noop // import "go.opentelemetry.io/otel/log/noop"
+package noop
 
 import (
 	"context"

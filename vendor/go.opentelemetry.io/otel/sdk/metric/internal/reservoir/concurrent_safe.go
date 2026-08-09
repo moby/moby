@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package reservoir // import "go.opentelemetry.io/otel/sdk/metric/internal/reservoir"
+package reservoir
 
 // ConcurrentSafe is an interface that can be embedded in an
 // exemplar.Reservoir to indicate to the SDK that it is safe to invoke its

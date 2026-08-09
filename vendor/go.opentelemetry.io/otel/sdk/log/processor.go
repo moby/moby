@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package log // import "go.opentelemetry.io/otel/sdk/log"
+package log
 
 import (
 	"context"
@@ -12,12 +12,22 @@ import (
 
 // Processor handles the processing of log records.
 //
-// Any of the Processor's methods may be called concurrently with itself
-// or with other methods. It is the responsibility of the Processor to manage
-// this concurrency.
+// Enabled, OnEmit, and ForceFlush may be called concurrently with themselves
+// or each other. It is the responsibility of the Processor to manage this
+// concurrency.
+//
+// A Processor must be registered only once and with a single
+// [LoggerProvider]. Registering the same Processor with multiple providers or
+// multiple times with the same provider is not supported.
+//
+// A [LoggerProvider] stops admitting new operations that invoke Enabled,
+// OnEmit, or ForceFlush when shutdown starts. Callers that use a Processor
+// directly are responsible for coordinating those calls with Shutdown.
 type Processor interface {
 	// Enabled reports whether the Processor will process for the given context
 	// and param.
+	//
+	// Enabled is called synchronously and should not block.
 	//
 	// The param contains a subset of the information that will be available
 	// in the Record passed to OnEmit, as defined by EnabledParameters.
@@ -42,11 +52,11 @@ type Processor interface {
 	// The SDK's Logger.Enabled returns false if all the registered processors
 	// return false. Otherwise, it returns true.
 	//
-	// Implementations of this method need to be safe for a user to call
-	// concurrently.
 	Enabled(ctx context.Context, param EnabledParameters) bool
 
 	// OnEmit is called when a Record is emitted.
+	//
+	// OnEmit is called synchronously and should not block.
 	//
 	// OnEmit will be called independent of Enabled. Implementations need to
 	// validate the arguments themselves before processing.
@@ -72,6 +82,13 @@ type Processor interface {
 	// Shutdown is called when the SDK shuts down. Any cleanup or release of
 	// resources held by the Processor (and any underlying Exporter) should be
 	// done in this call.
+	//
+	// A LoggerProvider calls Shutdown at most once. Before calling it, the
+	// LoggerProvider waits for all Enabled, OnEmit, and ForceFlush calls it
+	// admitted to complete. If the LoggerProvider's Shutdown context is canceled
+	// while waiting, Shutdown is not called.
+	//
+	// Shutdown must include the effects of ForceFlush.
 	//
 	// The deadline or cancellation of the passed context must be honored. An
 	// appropriate error should be returned in these situations.

@@ -3,4 +3,4 @@
 
 // Package observ provides observability instrumentation for the OTel log SDK
 // package.
-package observ // import "go.opentelemetry.io/otel/sdk/log/internal/observ"
+package observ

@@ -1,17 +1,14 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package log // import "go.opentelemetry.io/otel/sdk/log"
+package log
 
 import (
 	"context"
 	"errors"
-	"fmt"
-	"sync"
-	"sync/atomic"
 	"time"
 
-	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/sdk/log/internal/observ"
 )
 
 // Exporter handles the delivery of log records to external receivers.
@@ -67,6 +64,11 @@ func (noopExporter) Shutdown(context.Context) error { return nil }
 
 func (noopExporter) ForceFlush(context.Context) error { return nil }
 
+func shutdownExporter(ctx context.Context, exporter Exporter) error {
+	err := exporter.ForceFlush(ctx)
+	return errors.Join(err, exporter.Shutdown(ctx))
+}
+
 // chunkExporter wraps an Exporter's Export method so it is called with
 // appropriately sized export payloads. Any payload larger than a defined size
 // is chunked into smaller payloads and exported sequentially.
@@ -90,12 +92,19 @@ func newChunkExporter(exporter Exporter, size int) Exporter {
 // Export exports records in chunks no larger than c.size.
 func (c chunkExporter) Export(ctx context.Context, records []Record) error {
 	n := len(records)
+	var errs []error
 	for i, j := 0, min(c.size, n); i < n; i, j = i+c.size, min(j+c.size, n) {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return errors.Join(append(errs, ctxErr)...)
+		}
 		if err := c.Exporter.Export(ctx, records[i:j]); err != nil {
-			return err
+			errs = append(errs, err)
+		}
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return errors.Join(append(errs, ctxErr)...)
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // timeoutExporter wraps an Exporter and ensures any call to Export will have a
@@ -126,201 +135,27 @@ func (e *timeoutExporter) Export(ctx context.Context, records []Record) error {
 	return e.Exporter.Export(ctx, records)
 }
 
-// exportSync exports all data from input using exporter in a spawned
-// goroutine. The returned chan will be closed when the spawned goroutine
-// completes.
-func exportSync(input <-chan exportData, exporter Exporter) (done chan struct{}) {
-	done = make(chan struct{})
-	go func() {
-		defer close(done)
-		for data := range input {
-			data.DoExport(exporter.Export)
-		}
-	}()
-	return done
-}
-
-// exportData is data related to an export.
-type exportData struct {
-	ctx     context.Context
-	records []Record
-
-	// respCh is the channel any error returned from the export will be sent
-	// on. If this is nil, and the export error is non-nil, the error will
-	// passed to the OTel error handler.
-	respCh chan<- error
-}
-
-// DoExport calls exportFn with the data contained in e. The error response
-// will be returned on e's respCh if not nil. The error will be handled by the
-// default OTel error handle if it is not nil and respCh is nil or full.
-func (e exportData) DoExport(exportFn func(context.Context, []Record) error) {
-	if len(e.records) == 0 {
-		e.respond(nil)
-		return
-	}
-
-	e.respond(exportFn(e.ctx, e.records))
-}
-
-func (e exportData) respond(err error) {
-	select {
-	case e.respCh <- err:
-	default:
-		// e.respCh is nil or busy, default to otel.Handler.
-		if err != nil {
-			otel.Handle(err)
-		}
-	}
-}
-
-// bufferExporter provides asynchronous and synchronous export functionality by
-// buffering export requests.
-type bufferExporter struct {
+// metricsExporter wraps an Exporter to record log processing metrics
+// just before calling the wrapped exporter.
+type metricsExporter struct {
 	Exporter
-
-	input   chan exportData
-	inputMu sync.Mutex
-
-	done    chan struct{}
-	stopped atomic.Bool
+	inst *observ.BLP
 }
 
-// newBufferExporter returns a new bufferExporter that wraps exporter. The
-// returned bufferExporter will buffer at most size number of export requests.
-// If size is less than 1, 1 will be used.
-func newBufferExporter(exporter Exporter, size int) *bufferExporter {
-	if size < 1 {
-		size = 1
-	}
-	input := make(chan exportData, size)
-	return &bufferExporter{
+// newMetricsExporter creates a metricsExporter that wraps the given exporter.
+func newMetricsExporter(exporter Exporter, inst *observ.BLP) Exporter {
+	return &metricsExporter{
 		Exporter: exporter,
-
-		input: input,
-		done:  exportSync(input, exporter),
+		inst:     inst,
 	}
 }
 
-func (e *bufferExporter) Ready() bool {
-	return len(e.input) != cap(e.input)
-}
-
-var errStopped = errors.New("exporter stopped")
-
-func (e *bufferExporter) enqueue(ctx context.Context, records []Record, rCh chan<- error) error {
-	data := exportData{ctx, records, rCh}
-
-	e.inputMu.Lock()
-	defer e.inputMu.Unlock()
-
-	// Check stopped before enqueueing now that e.inputMu is held. This
-	// prevents sends on a closed chan when Shutdown is called concurrently.
-	if e.stopped.Load() {
-		return errStopped
+// Export records the number of log records as a metric then forwards
+// them to the wrapped Exporter. Error returned from wrapped exporter
+// is not considered as per specification (to be measured by exporter).
+func (e *metricsExporter) Export(ctx context.Context, records []Record) error {
+	if e.inst != nil {
+		e.inst.Processed(ctx, int64(len(records)))
 	}
-
-	select {
-	case e.input <- data:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-	return nil
-}
-
-// EnqueueExport enqueues an export of records in the context of ctx to be
-// performed asynchronously. This will return true if the records are
-// successfully enqueued (or the bufferExporter is shut down), false otherwise.
-//
-// The passed records are held after this call returns.
-func (e *bufferExporter) EnqueueExport(records []Record) bool {
-	if len(records) == 0 {
-		// Nothing to enqueue, do not waste input space.
-		return true
-	}
-
-	data := exportData{ctx: context.Background(), records: records}
-
-	e.inputMu.Lock()
-	defer e.inputMu.Unlock()
-
-	// Check stopped before enqueueing now that e.inputMu is held. This
-	// prevents sends on a closed chan when Shutdown is called concurrently.
-	if e.stopped.Load() {
-		return true
-	}
-
-	select {
-	case e.input <- data:
-		return true
-	default:
-		return false
-	}
-}
-
-// Export synchronously exports records in the context of ctx. This will not
-// return until the export has been completed.
-func (e *bufferExporter) Export(ctx context.Context, records []Record) error {
-	if len(records) == 0 {
-		return nil
-	}
-
-	resp := make(chan error, 1)
-	err := e.enqueue(ctx, records, resp)
-	if err != nil {
-		if errors.Is(err, errStopped) {
-			return nil
-		}
-		return fmt.Errorf("%w: dropping %d records", err, len(records))
-	}
-
-	select {
-	case err := <-resp:
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-// ForceFlush flushes buffered exports. Any existing exports that is buffered
-// is flushed before this returns.
-func (e *bufferExporter) ForceFlush(ctx context.Context) error {
-	resp := make(chan error, 1)
-	err := e.enqueue(ctx, nil, resp)
-	if err != nil {
-		if errors.Is(err, errStopped) {
-			return nil
-		}
-		return err
-	}
-
-	select {
-	case <-resp:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-	return e.Exporter.ForceFlush(ctx)
-}
-
-// Shutdown shuts down e.
-//
-// Any buffered exports are flushed before this returns.
-//
-// All calls to EnqueueExport or Exporter will return nil without any export
-// after this is called.
-func (e *bufferExporter) Shutdown(ctx context.Context) error {
-	if e.stopped.Swap(true) {
-		return nil
-	}
-	e.inputMu.Lock()
-	defer e.inputMu.Unlock()
-
-	// No more sends will be made.
-	close(e.input)
-	select {
-	case <-e.done:
-	case <-ctx.Done():
-		return errors.Join(ctx.Err(), e.Exporter.Shutdown(ctx))
-	}
-	return e.Exporter.Shutdown(ctx)
+	return e.Exporter.Export(ctx, records)
 }

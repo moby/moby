@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package aggregate // import "go.opentelemetry.io/otel/sdk/metric/internal/aggregate"
+package aggregate
 
 import (
 	"math"
@@ -221,23 +221,23 @@ func (l *hotColdWaitGroup) swapHotAndWait() uint64 {
 
 // limitedSyncMap is a sync.Map which enforces the aggregation limit on
 // attribute sets and provides a Len() function.
-type limitedSyncMap struct {
+type limitedSyncMap[V any] struct {
 	sync.Map
 	aggLimit int
 	len      int
 	lenMux   sync.Mutex
 }
 
-func (m *limitedSyncMap) LoadOrStoreAttr(fltrAttr attribute.Set, newValue func(attribute.Set) any) any {
+func (m *limitedSyncMap[V]) LoadOrStoreAttr(fltrAttr attribute.Set, newValue func(attribute.Set) V) V {
 	actual, loaded := m.Load(fltrAttr.Equivalent())
 	if loaded {
-		return actual
+		return actual.(V)
 	}
 	// If the overflow set exists, assume we have already overflowed and don't
 	// bother with the slow path below.
 	actual, loaded = m.Load(overflowSet.Equivalent())
 	if loaded {
-		return actual
+		return actual.(V)
 	}
 	// Slow path: add a new attribute set.
 	m.lenMux.Lock()
@@ -248,7 +248,7 @@ func (m *limitedSyncMap) LoadOrStoreAttr(fltrAttr attribute.Set, newValue func(a
 	// concurrently.
 	actual, loaded = m.Load(fltrAttr.Equivalent())
 	if loaded {
-		return actual
+		return actual.(V)
 	}
 
 	if m.aggLimit > 0 && m.len >= m.aggLimit-1 {
@@ -258,17 +258,17 @@ func (m *limitedSyncMap) LoadOrStoreAttr(fltrAttr attribute.Set, newValue func(a
 	if !loaded {
 		m.len++
 	}
-	return actual
+	return actual.(V)
 }
 
-func (m *limitedSyncMap) Clear() {
+func (m *limitedSyncMap[V]) Clear() {
 	m.lenMux.Lock()
 	defer m.lenMux.Unlock()
 	m.len = 0
 	m.Map.Clear()
 }
 
-func (m *limitedSyncMap) Len() int {
+func (m *limitedSyncMap[V]) Len() int {
 	m.lenMux.Lock()
 	defer m.lenMux.Unlock()
 	return m.len

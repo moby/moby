@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package log // import "go.opentelemetry.io/otel/sdk/log"
+package log
 
 import (
 	"context"
@@ -11,19 +11,19 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/log/embedded"
 	"go.opentelemetry.io/otel/sdk/instrumentation"
-	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
 var now = time.Now
 
 const (
-	exceptionTypeKey       = string(semconv.ExceptionTypeKey)
-	exceptionMessageKey    = string(semconv.ExceptionMessageKey)
-	exceptionStacktraceKey = string(semconv.ExceptionStacktraceKey)
+	exceptionTypeKey    = semconv.ExceptionTypeKey
+	exceptionMessageKey = semconv.ExceptionMessageKey
 )
 
 // Compile-time check logger implements log.Logger.
@@ -55,16 +55,49 @@ func newLogger(p *LoggerProvider, scope instrumentation.Scope) *logger {
 }
 
 func (l *logger) Emit(ctx context.Context, r log.Record) {
-	newRecord := l.newRecord(ctx, r)
-	for _, p := range l.provider.processors {
-		if err := p.OnEmit(ctx, &newRecord); err != nil {
-			otel.Handle(err)
+	processors := l.provider.processors
+	if len(processors) == 0 {
+		if l.provider.stopped.Load() {
+			return
 		}
+		// Emit remains observable without processors, but no lifecycle
+		// admission or SDK record construction is needed.
+		l.recordCreated(ctx)
+		return
+	}
+
+	for _, err := range l.emit(ctx, r, processors) {
+		otel.Handle(err)
+	}
+}
+
+func (l *logger) emit(ctx context.Context, r log.Record, processors []Processor) []error {
+	if !l.provider.beginProcessorOperation() {
+		return nil
+	}
+	defer l.provider.endProcessorOperation()
+
+	l.recordCreated(ctx)
+	newRecord := l.newRecord(ctx, r)
+	var errs []error
+	for _, processor := range processors {
+		if err := processor.OnEmit(ctx, &newRecord); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs
+}
+
+func (l *logger) recordCreated(ctx context.Context) {
+	if l.recCntIncr != nil {
+		l.recCntIncr(ctx)
 	}
 }
 
 // Enabled returns true if at least one Processor held by the LoggerProvider
 // that created the logger will process for the provided context and param.
+//
+// Enabled returns false after the LoggerProvider that created l starts shutdown.
 //
 // If it is not possible to definitively determine the record will be
 // processed, true will be returned by default. A value of false will only be
@@ -76,7 +109,13 @@ func (l *logger) Enabled(ctx context.Context, param log.EnabledParameters) bool 
 		EventName:            param.EventName,
 	}
 
-	for _, processor := range l.provider.processors {
+	processors := l.provider.processors
+	if len(processors) == 0 || !l.provider.beginProcessorOperation() {
+		return false
+	}
+	defer l.provider.endProcessorOperation()
+
+	for _, processor := range processors {
 		if processor.Enabled(ctx, p) {
 			// At least one Processor will process the Record.
 			return true
@@ -106,10 +145,6 @@ func (l *logger) newRecord(ctx context.Context, r log.Record) Record {
 		attributeCountLimit:       l.provider.attributeCountLimit,
 		allowDupKeys:              l.provider.allowDupKeys,
 	}
-	if l.recCntIncr != nil {
-		l.recCntIncr(ctx)
-	}
-
 	// This ensures we deduplicate key-value collections in the log body
 	newRecord.SetBody(r.Body())
 
@@ -118,45 +153,63 @@ func (l *logger) newRecord(ctx context.Context, r log.Record) Record {
 		newRecord.observedTimestamp = now()
 	}
 
-	hasExceptionAttr := false
-	r.WalkAttributes(func(kv log.KeyValue) bool {
+	// User-provided exception attributes MUST take precedence. Track message
+	// and type independently so a supplied value suppresses only its own
+	// derivation.
+	var hasExceptionMessage, hasExceptionType bool
+	r.WalkAttributes(func(kv attribute.KeyValue) bool {
 		switch kv.Key {
-		case exceptionTypeKey, exceptionMessageKey, exceptionStacktraceKey:
-			hasExceptionAttr = true
+		case exceptionMessageKey:
+			hasExceptionMessage = true
+		case exceptionTypeKey:
+			hasExceptionType = true
 		}
 		newRecord.AddAttributes(kv)
 		return true
 	})
 
-	if err := r.Err(); err != nil && !hasExceptionAttr {
-		addExceptionAttrs(&newRecord, err)
+	// Avoid inspecting the error for attributes when the caller has
+	// already supplied the attributes.
+	if err := r.Err(); err != nil && (!hasExceptionMessage || !hasExceptionType) {
+		// Derive missing exception attributes by default, as required by the
+		// Logs SDK specification. Attribute limits may constrain generation,
+		// so stop once there is no capacity for another attribute.
+		var attrs [2]attribute.KeyValue
+		n := 0
+
+		// Derived attributes are buffered until flush, so the current attribute
+		// count stays unchanged while missing values are prepared.
+		hasLimit := newRecord.hasAttributeCountLimit()
+		var remaining int
+		if hasLimit {
+			remaining = newRecord.attributeCountLimit - newRecord.AttributesLen()
+		}
+		if !hasExceptionMessage {
+			if msg := err.Error(); msg != "" {
+				if hasLimit && remaining <= n {
+					goto flush
+				}
+				attrs[n] = exceptionMessageKey.String(msg)
+				n++
+			}
+		}
+		if !hasExceptionType {
+			if errType := errorType(err); errType != "" {
+				if hasLimit && remaining <= n {
+					goto flush
+				}
+				attrs[n] = exceptionTypeKey.String(errType)
+				n++
+			}
+		}
+
+	flush:
+		if n > 0 {
+			newRecord.addAttrs(attrs[:n])
+		}
 	}
 
 	return newRecord
-}
-
-func addExceptionAttrs(r *Record, err error) {
-	var attrs [2]log.KeyValue
-	n := 0
-	if msg := err.Error(); msg != "" {
-		if r.attributeCountLimit > 0 && r.attributeCountLimit-r.AttributesLen() < n+1 {
-			goto flush
-		}
-		attrs[n] = log.String(exceptionMessageKey, msg)
-		n++
-	}
-	if errType := errorType(err); errType != "" {
-		if r.attributeCountLimit > 0 && r.attributeCountLimit-r.AttributesLen() < n+1 {
-			goto flush
-		}
-		attrs[n] = log.String(exceptionTypeKey, errType)
-		n++
-	}
-
-flush:
-	if n > 0 {
-		r.addAttrs(attrs[:n])
-	}
 }
 
 func errorType(err error) string {
