@@ -558,7 +558,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 	if flags != nil {
 		var jsonConfig map[string]any
 		if err := json.Unmarshal(b, &jsonConfig); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid JSON: %w", err)
 		}
 
 		configSet := configValuesSet(jsonConfig)
@@ -601,7 +601,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 	}
 
 	if err := json.Unmarshal(b, &config); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid JSON: %w", err)
 	}
 
 	for _, mc := range migratedNamedConfig {

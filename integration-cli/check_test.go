@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"sync"
 	"syscall"
@@ -613,18 +614,24 @@ func (s *DockerSwarmSuite) AddDaemon(ctx context.Context, t *testing.T, joinSwar
 func (s *DockerSwarmSuite) TearDownTest(ctx context.Context, t *testing.T) {
 	testRequires(t, DaemonIsLinux)
 	s.daemonsLock.Lock()
-	for _, d := range s.daemons {
-		if d != nil {
-			if t.Failed() {
-				d.TailLogsT(t, 100)
-			}
-			d.Stop(t)
-			d.Cleanup(t)
-		}
-	}
+	daemons := slices.Clone(s.daemons)
 	s.daemons = nil
 	s.portIndex = 0
 	s.daemonsLock.Unlock()
+
+	testFailed := t.Failed()
+	for _, d := range daemons {
+		if d == nil {
+			continue
+		}
+		if testFailed {
+			d.TailLogsT(t, 100)
+		}
+		t.Run("stop-"+d.ID(), func(t *testing.T) {
+			d.Stop(t)
+		})
+		d.Cleanup(t)
+	}
 	s.ds.TearDownTest(ctx, t)
 }
 

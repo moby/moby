@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -37,11 +38,13 @@ func TestDaemonConfigurationNotFound(t *testing.T) {
 	assert.Check(t, os.IsNotExist(err), "got: %[1]T: %[1]v", err)
 }
 
-func TestDaemonBrokenConfiguration(t *testing.T) {
-	configFile := makeConfigFile(t, `{"Debug": tru`)
+func TestDaemonConfigurationMalformedJSON(t *testing.T) {
+	configFile := makeConfigFile(t, `{"debug": tru`)
 
 	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
-	assert.ErrorContains(t, err, `invalid character ' ' in literal true`)
+	assert.Check(t, is.ErrorContains(err, "invalid JSON"))
+	var syntaxErr *json.SyntaxError
+	assert.Check(t, errors.As(err, &syntaxErr), `got: %[1]T: %[1]v`, err)
 }
 
 // TestDaemonConfigurationUnicodeVariations feeds various variations of Unicode into the JSON parser, ensuring that we

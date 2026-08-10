@@ -14,24 +14,24 @@ import (
 	"github.com/moby/sys/user"
 )
 
-func (daemon *Daemon) tarCopyOptions(ctr *container.Container, allowOverwriteDirWithFile bool) (*archive.TarOptions, error) {
+func (daemon *Daemon) applyTarCopyUserOptions(ctr *container.Container, opts *archive.TarOptions) error {
 	if ctr.Config.User == "" {
-		return daemon.defaultTarCopyOptions(allowOverwriteDirWithFile), nil
+		return nil
 	}
 
 	uid, gid, err := getUIDGID(ctr.Config.User)
 	if err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return errdefs.InvalidParameter(err)
 	}
 	uid, gid, err = daemon.idMapping.ToHost(uid, gid)
 	if err != nil {
-		return nil, errdefs.InvalidParameter(err)
+		return errdefs.InvalidParameter(err)
 	}
 
-	return &archive.TarOptions{
-		NoOverwriteDirNonDir: !allowOverwriteDirWithFile,
-		ChownOpts:            &archive.ChownOpts{UID: uid, GID: gid},
-	}, nil
+	// ChownOpts overrides archive ownership, so avoid remapping header IDs.
+	opts.IDMap = user.IdentityMapping{}
+	opts.ChownOpts = &archive.ChownOpts{UID: uid, GID: gid}
+	return nil
 }
 
 // getUIDGID resolves the UID and GID of a given container's Config.User,
