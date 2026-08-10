@@ -4,6 +4,8 @@ permissions:
   contents: read
 
 on:
+  push:
+  pull_request:
   workflow_dispatch:
     inputs:
       go_version:
@@ -36,8 +38,8 @@ jobs:
         id: inputs
         shell: pwsh
         env:
-          REQUESTED_GO_VERSION: ${{ inputs.go_version }}
-          REQUESTED_ITERATIONS: ${{ inputs.iterations }}
+          REQUESTED_GO_VERSION: ${{ inputs.go_version || '1.26.5' }}
+          REQUESTED_ITERATIONS: ${{ inputs.iterations || '250' }}
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path $env:ARTIFACT_DIR | Out-Null
