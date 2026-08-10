@@ -5,6 +5,7 @@ package iptabler
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
@@ -49,12 +50,13 @@ func NewIptabler(ctx context.Context, config firewaller.Config) (*Iptabler, erro
 			return nil, err
 		}
 
-		// Make sure on firewall reload, first thing being re-played is chains creation
+		// Make sure on firewall reload, first thing being re-played is chains
+		// creation. Remove chains first to ensure a clean state (firewalld
+		// may have partially flushed them during reload, causing EnsureJumpRule
+		// to fail on the delete-then-reinsert pattern).
 		iptables.OnReloaded(func() {
 			log.G(ctx).Debugf("Recreating iptables chains on firewall reload")
-			if err := setupIPChains(ctx, iptables.IPv4, ipt.config); err != nil {
-				log.G(ctx).WithError(err).Error("Error reloading iptables chains")
-			}
+			reloadIPChains(ctx, iptables.IPv4, ipt.config, "iptables")
 		})
 	}
 
@@ -78,12 +80,12 @@ func NewIptabler(ctx context.Context, config firewaller.Config) (*Iptabler, erro
 			// will work. So, log the problem, and continue.
 			log.G(ctx).WithError(err).Warn("ip6tables is enabled, but cannot set up ip6tables chains")
 		} else {
-			// Make sure on firewall reload, first thing being re-played is chains creation
+			// Make sure on firewall reload, first thing being re-played is
+			// chains creation. Remove chains first for the same reason as
+			// the IPv4 case.
 			iptables.OnReloaded(func() {
 				log.G(ctx).Debugf("Recreating ip6tables chains on firewall reload")
-				if err := setupIPChains(ctx, iptables.IPv6, ipt.config); err != nil {
-					log.G(ctx).WithError(err).Error("Error reloading ip6tables chains")
-				}
+				reloadIPChains(ctx, iptables.IPv6, ipt.config, "ip6tables")
 			})
 		}
 	}
@@ -116,6 +118,32 @@ func (ipt *Iptabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVer
 		}
 	})
 	return nil
+}
+
+// reloadIPChains removes and re-creates Docker iptables chains after a firewall
+// reload. It retries on failure to handle the race where firewalld's concurrent
+// chain cleanup deletes chains that setupIPChains just created. The deferred
+// cleanup in setupIPChains is correct on failure, but leaves the daemon
+// chainless; retrying after a short delay (by which time firewalld's cleanup has
+// finished) restores a clean state.
+func reloadIPChains(ctx context.Context, version iptables.IPVersion, cfg firewaller.Config, name string) {
+	const (
+		maxAttempts = 3
+		retryDelay  = 100 * time.Millisecond
+	)
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		removeIPChains(ctx, version)
+		if err := setupIPChains(ctx, version, cfg); err == nil {
+			return
+		} else if attempt < maxAttempts {
+			log.G(ctx).WithError(err).Debugf(
+				"%s chain setup attempt %d/%d failed on reload, retrying",
+				name, attempt, maxAttempts)
+			time.Sleep(retryDelay)
+		} else {
+			log.G(ctx).WithError(err).Errorf("Error reloading %s chains", name)
+		}
+	}
 }
 
 func setupIPChains(ctx context.Context, version iptables.IPVersion, iptCfg firewaller.Config) (retErr error) {
