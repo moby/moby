@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -88,7 +87,7 @@ func handleTarTypeBlockCharFifo(root *os.Root, hdr *tar.Header, dstPath string) 
 // handleLChmod applies the mode from hdrInfo to dstPath within root, skipping
 // symlinks (there is no lchmod). For hardlinks, the mode is applied only when
 // the link target is itself not a symlink.
-func handleLChmod(root *os.Root, dstPath string, hdr *tar.Header, hdrInfo os.FileInfo) error {
+func handleLChmod(root *os.Root, dstPath string, hardlinkTarget string, hdr *tar.Header, hdrInfo os.FileInfo) error {
 	switch hdr.Typeflag {
 	case tar.TypeSymlink:
 		return nil
@@ -96,7 +95,7 @@ func handleLChmod(root *os.Root, dstPath string, hdr *tar.Header, hdrInfo os.Fil
 	case tar.TypeLink:
 		// If the target is a symlink, there is no way to chmod the hardlink
 		// without following it.
-		fi, err := root.Lstat(filepath.FromSlash(path.Clean(hdr.Linkname)))
+		fi, err := root.Lstat(hardlinkTarget)
 		if err != nil || fi.Mode()&os.ModeSymlink != 0 {
 			return nil
 		}

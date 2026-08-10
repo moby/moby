@@ -1,3 +1,12 @@
+# Release (2026-07-27)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.27.5
+  * **Bug Fix**: Fix a performance issue in awsQuery with large response payloads.
+
 # Release (2026-07-16)
 
 ## General Highlights
