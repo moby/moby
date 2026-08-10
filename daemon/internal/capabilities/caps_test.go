@@ -51,7 +51,7 @@ func TestMatch(t *testing.T) {
 	}
 
 	for _, m := range testcases {
-		t.Run(fmt.Sprintf("%v", m.caps), func(t *testing.T) {
+		t.Run(fmt.Sprint(m.caps), func(t *testing.T) {
 			selected := set.Match(m.caps)
 			if m.expected == nil || selected == nil {
 				if m.expected == nil && selected == nil {

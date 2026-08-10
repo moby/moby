@@ -953,20 +953,8 @@ func (c *Client) GetSnapshotterSupportedPlatforms(ctx context.Context, snapshott
 	}
 
 	sn := resp.Plugins[0]
-	snPlatforms := toPlatforms(sn.Platforms)
+	snPlatforms := apitypes.OCIPlatformFromProto(sn.Platforms)
 	return platforms.Any(snPlatforms...), nil
-}
-
-func toPlatforms(pt []*apitypes.Platform) []ocispec.Platform {
-	platforms := make([]ocispec.Platform, len(pt))
-	for i, p := range pt {
-		platforms[i] = ocispec.Platform{
-			Architecture: p.Architecture,
-			OS:           p.OS,
-			Variant:      p.Variant,
-		}
-	}
-	return platforms
 }
 
 // GetSnapshotterCapabilities returns the capabilities of a snapshotter.
@@ -995,12 +983,12 @@ type RuntimeVersion struct {
 type RuntimeInfo struct {
 	Name        string
 	Version     RuntimeVersion
-	Options     interface{}
-	Features    interface{}
+	Options     any
+	Features    any
 	Annotations map[string]string
 }
 
-func (c *Client) RuntimeInfo(ctx context.Context, runtimePath string, runtimeOptions interface{}) (*RuntimeInfo, error) {
+func (c *Client) RuntimeInfo(ctx context.Context, runtimePath string, runtimeOptions any) (*RuntimeInfo, error) {
 	runtime, err := c.defaultRuntime(ctx)
 	if err != nil {
 		return nil, err

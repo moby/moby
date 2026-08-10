@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package serf
@@ -75,7 +75,7 @@ type nodeKeyResponse struct {
 // newSerfQueries is used to create a new serfQueries. We return an event
 // channel that is ingested and forwarded to an outCh. Any Queries that
 // have the InternalQueryPrefix are handled instead of forwarded.
-func newSerfQueries(serf *Serf, logger *log.Logger, outCh chan<- Event, shutdownCh <-chan struct{}) (chan<- Event, error) {
+func newSerfQueries(serf *Serf, logger *log.Logger, outCh chan<- Event, shutdownCh <-chan struct{}) (chan<- Event, error) { //nolint:unparam
 	inCh := make(chan Event, 1024)
 	q := &serfQueries{
 		inCh:       inCh,

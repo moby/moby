@@ -101,7 +101,7 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 		},
 		{
 			reqVersion: "9999.9999",
-			errString:  fmt.Sprintf("client version 9999.9999 is too new. Maximum supported API version is %s", config.MaxAPIVersion),
+			errString:  "client version 9999.9999 is too new. Maximum supported API version is " + config.MaxAPIVersion,
 		},
 	}
 

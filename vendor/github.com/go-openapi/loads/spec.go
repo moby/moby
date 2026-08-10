@@ -77,6 +77,14 @@ func Embedded(orig, flat json.RawMessage, opts ...LoaderOption) (*Document, erro
 // Spec loads a new spec document from a local or remote path.
 //
 // By default it uses a JSON or YAML loader, with auto-detection based on the resource extension.
+//
+// Security: by default the path is read with no confinement (local) and fetched with
+// [net/http.DefaultClient] (remote), and any "$ref" later resolved by [Document.Expanded] is
+// loaded the same way. When the path or the spec contents may derive from untrusted input,
+// confine loading with [WithLoadingOptions] (for example
+// [github.com/go-openapi/swag/loading.WithRoot] and
+// [github.com/go-openapi/swag/loading.WithHTTPClient]). See the package documentation on
+// Security.
 func Spec(path string, opts ...LoaderOption) (*Document, error) {
 	ldr := loaderFromOptions(opts)
 
@@ -157,6 +165,14 @@ func trimData(in json.RawMessage) (json.RawMessage, error) {
 }
 
 // Expanded expands the $ref fields in the spec [Document] and returns a new expanded [Document].
+//
+// Security: expansion resolves every "$ref" by calling the document's loader recursively, so
+// the spec contents drive further loads. A spec from an untrusted source can thus trigger
+// arbitrary local reads or SSRF through its references. The loader carries the
+// [github.com/go-openapi/swag/loading] options supplied via [WithLoadingOptions] at load time;
+// configure confinement there so it applies to expansion as well. When no document loader is
+// set, expansion falls back to the unconfined package-level loader. See the package
+// documentation on Security.
 func (d *Document) Expanded(options ...*spec.ExpandOptions) (*Document, error) {
 	swspec := new(spec.Swagger)
 	if err := json.Unmarshal(d.raw, swspec); err != nil {

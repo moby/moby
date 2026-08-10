@@ -328,7 +328,7 @@ Function Run-UnitTests() {
     $jsonFilePath = $bundlesDir + "\go-test-report-unit-flaky-tests.json"
     $xmlFilePath = $bundlesDir + "\junit-report-unit-flaky-tests.xml"
     $coverageFilePath = $bundlesDir + "\coverage-report-unit-flaky-tests.txt"
-    $goTestArg = "--rerun-fails=4  --format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath """ + "--packages=$pkgList" + """ -- " + $raceParm + " -coverprofile=$coverageFilePath -covermode=atomic -ldflags -w -a -test.timeout=10m -test.run=TestFlaky.*"
+    $goTestArg = "--rerun-fails=4  --format=testname --jsonfile=$jsonFilePath --junitfile=$xmlFilePath """ + "--packages=$pkgList" + """ -- " + $raceParm + " -coverprofile=$coverageFilePath -covermode=atomic -ldflags -w -a -test.timeout=10m -test.run=TestFlaky.*"
     Write-Host "INFO: Invoking unit tests run with $GOTESTSUM_LOCATION\gotestsum.exe $goTestArg"
     $pinfo = New-Object System.Diagnostics.ProcessStartInfo
     $pinfo.FileName = "$GOTESTSUM_LOCATION\gotestsum.exe"
@@ -344,7 +344,7 @@ Function Run-UnitTests() {
     $jsonFilePath = $bundlesDir + "\go-test-report-unit-tests.json"
     $xmlFilePath = $bundlesDir + "\junit-report-unit-tests.xml"
     $coverageFilePath = $bundlesDir + "\coverage-report-unit-tests.txt"
-    $goTestArg = "--format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- " + $raceParm + " -coverprofile=$coverageFilePath -covermode=atomic -ldflags -w -a -test.timeout=10m -test.skip=TestFlaky.*" + " $pkgList"
+    $goTestArg = "--format=testname --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- " + $raceParm + " -coverprofile=$coverageFilePath -covermode=atomic -ldflags -w -a -test.timeout=10m -test.skip=TestFlaky.*" + " $pkgList"
     Write-Host "INFO: Invoking unit tests run with $GOTESTSUM_LOCATION\gotestsum.exe $goTestArg"
     $pinfo = New-Object System.Diagnostics.ProcessStartInfo
     $pinfo.FileName = "$GOTESTSUM_LOCATION\gotestsum.exe"
@@ -388,7 +388,7 @@ Function Run-IntegrationTests() {
         $pinfo.FileName = "gotestsum.exe"
         $pinfo.WorkingDirectory = "$($PWD.Path)"
         $pinfo.UseShellExecute = $false
-        $pinfo.Arguments = "--format=standard-verbose --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- -coverprofile=$coverageFilePath -covermode=atomic -test.timeout=60m $env:INTEGRATION_TESTFLAGS"
+        $pinfo.Arguments = "--format=testname --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- -coverprofile=$coverageFilePath -covermode=atomic -test.timeout=60m $env:INTEGRATION_TESTFLAGS"
         $p = New-Object System.Diagnostics.Process
         $p.StartInfo = $pinfo
         $p.Start() | Out-Null
@@ -417,7 +417,7 @@ Function Run-IntegrationCliTests() {
     $jsonFilePath = $bundlesDir + "\go-test-report-int-cli-tests$reportSuffix.json"
     $xmlFilePath = $bundlesDir + "\junit-report-int-cli-tests$reportSuffix.xml"
     $coverageFilePath = $bundlesDir + "\coverage-report-int-cli-tests$reportSuffix.txt"
-    $goTestArg = "--format=standard-verbose --packages=./integration-cli/... --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- -coverprofile=$coverageFilePath -covermode=atomic -tags=autogen -test.timeout=200m $goTestRun $env:INTEGRATION_TESTFLAGS"
+    $goTestArg = "--format=testname --packages=./integration-cli/... --jsonfile=$jsonFilePath --junitfile=$xmlFilePath -- -coverprofile=$coverageFilePath -covermode=atomic -tags=autogen -test.timeout=200m $goTestRun $env:INTEGRATION_TESTFLAGS"
     Write-Host "INFO: Invoking integration-cli tests run with gotestsum.exe $goTestArg"
     $pinfo = New-Object System.Diagnostics.ProcessStartInfo
     $pinfo.FileName = "gotestsum.exe"

@@ -17,8 +17,8 @@
 // It uses data-independent memory access, which is preferred for password
 // hashing and password-based key derivation. Argon2i requires more passes over
 // memory than Argon2id to protect from trade-off attacks. The recommended
-// parameters (taken from [RFC 9106 Section 7.3]) for non-interactive operations are time=3 and to
-// use the maximum available memory.
+// parameters (taken from [RFC 9106 Section 7.3]) for non-interactive
+// operations are time=3 and to use the maximum available memory.
 //
 // # Argon2id
 //
@@ -26,11 +26,14 @@
 // Argon2i and Argon2d. It uses data-independent memory access for the first
 // half of the first iteration over the memory and data-dependent memory access
 // for the rest. Argon2id is side-channel resistant and provides better brute-
-// force cost savings due to time-memory tradeoffs than Argon2i. The recommended
-// parameters for non-interactive operations (taken from [RFC 9106 Section 7.3]) are time=1 and to
-// use the maximum available memory.
+// force cost savings due to time-memory tradeoffs than Argon2i. [RFC 9106
+// Section 4] recommends time=1, memory=2*1024*1024 KiB (2 GiB), and threads=4
+// as the first recommended option. If much less memory is available, it
+// recommends time=3, memory=64*1024 KiB (64 MiB), and threads=4 as the second
+// recommended option.
 //
 // [argon2-specs.pdf]: https://github.com/P-H-C/phc-winner-argon2/blob/master/argon2-specs.pdf
+// [RFC 9106 Section 4]: https://www.rfc-editor.org/rfc/rfc9106.html#section-4
 // [RFC 9106 Section 7.3]: https://www.rfc-editor.org/rfc/rfc9106.html#section-7.3
 package argon2
 
@@ -59,9 +62,9 @@ const (
 //
 //	key := argon2.Key([]byte("some password"), salt, 3, 32*1024, 4, 32)
 //
-// [RFC 9106 Section 7.3] recommends time=3, and memory=32*1024 as a sensible number.
-// If using that amount of memory (32 MB) is not possible in some contexts then
-// the time parameter can be increased to compensate.
+// The example above uses time=3 and memory=32*1024. Argon2i generally
+// requires more passes over memory than Argon2id. If in doubt, prefer IDKey
+// and its Argon2id parameter recommendations.
 //
 // The time parameter specifies the number of passes over the memory and the
 // memory parameter specifies the size of the memory in KiB. For example
@@ -69,8 +72,6 @@ const (
 // adjusted to the number of available CPUs. The cost parameters should be
 // increased as memory latency and CPU parallelism increases. Remember to get a
 // good random salt.
-//
-// [RFC 9106 Section 7.3]: https://www.rfc-editor.org/rfc/rfc9106.html#section-7.3
 func Key(password, salt []byte, time, memory uint32, threads uint8, keyLen uint32) []byte {
 	return deriveKey(argon2i, password, salt, nil, nil, time, memory, threads, keyLen)
 }
@@ -83,20 +84,20 @@ func Key(password, salt []byte, time, memory uint32, threads uint8, keyLen uint3
 // For example, you can get a derived key for e.g. AES-256 (which needs a
 // 32-byte key) by doing:
 //
-//	key := argon2.IDKey([]byte("some password"), salt, 1, 64*1024, 4, 32)
+//	key := argon2.IDKey([]byte("some password"), salt, 1, 2*1024*1024, 4, 32)
 //
-// [RFC 9106 Section 7.3] recommends time=1, and memory=64*1024 as a sensible number.
-// If using that amount of memory (64 MB) is not possible in some contexts then
-// the time parameter can be increased to compensate.
+// The example above uses the first [RFC 9106 Section 4] recommended option.
+// If much less memory is available, the second recommended option is time=3,
+// memory=64*1024 KiB (64 MiB), and threads=4.
 //
 // The time parameter specifies the number of passes over the memory and the
 // memory parameter specifies the size of the memory in KiB. For example
-// memory=64*1024 sets the memory cost to ~64 MB. The number of threads can be
-// adjusted to the numbers of available CPUs. The cost parameters should be
+// memory=2*1024*1024 sets the memory cost to ~2 GiB. The number of threads can
+// be adjusted to the numbers of available CPUs. The cost parameters should be
 // increased as memory latency and CPU parallelism increases. Remember to get a
 // good random salt.
 //
-// [RFC 9106 Section 7.3]: https://www.rfc-editor.org/rfc/rfc9106.html#section-7.3
+// [RFC 9106 Section 4]: https://www.rfc-editor.org/rfc/rfc9106.html#section-4
 func IDKey(password, salt []byte, time, memory uint32, threads uint8, keyLen uint32) []byte {
 	return deriveKey(argon2id, password, salt, nil, nil, time, memory, threads, keyLen)
 }

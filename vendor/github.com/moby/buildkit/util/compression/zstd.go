@@ -12,7 +12,11 @@ import (
 
 func (c zstdType) Compress(ctx context.Context, comp Config) (compressorFunc Compressor, finalize Finalizer) {
 	return func(dest io.Writer, _ string) (io.WriteCloser, error) {
-		return zstdWriter(comp)(dest)
+		var opts []zstd.EOption
+		if comp.Level != nil {
+			opts = append(opts, zstd.WithEncoderLevel(zstd.EncoderLevelFromZstd(*comp.Level)))
+		}
+		return zstd.NewWriter(dest, opts...)
 	}, nil
 }
 
@@ -48,29 +52,4 @@ func (c zstdType) MediaType() string {
 
 func (c zstdType) String() string {
 	return "zstd"
-}
-
-func zstdWriter(comp Config) func(io.Writer) (io.WriteCloser, error) {
-	return func(dest io.Writer) (io.WriteCloser, error) {
-		level := zstd.SpeedDefault
-		if comp.Level != nil {
-			level = toZstdEncoderLevel(*comp.Level)
-		}
-		return zstd.NewWriter(dest, zstd.WithEncoderLevel(level))
-	}
-}
-
-func toZstdEncoderLevel(level int) zstd.EncoderLevel {
-	// map zstd compression levels to go-zstd levels
-	// once we also have c based implementation move this to helper pkg
-	if level < 0 {
-		return zstd.SpeedDefault
-	} else if level < 3 {
-		return zstd.SpeedFastest
-	} else if level < 7 {
-		return zstd.SpeedDefault
-	} else if level < 9 {
-		return zstd.SpeedBetterCompression
-	}
-	return zstd.SpeedBestCompression
 }

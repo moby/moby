@@ -263,7 +263,7 @@ func (s *DockerCLIInspectSuite) TestInspectLogConfigNoType(c *testing.T) {
 	assert.Assert(c, err == nil, "%v", out)
 
 	assert.Equal(c, logConfig.Type, "json-file")
-	assert.Equal(c, logConfig.Config["max-file"], "42", fmt.Sprintf("%v", logConfig))
+	assert.Equal(c, logConfig.Config["max-file"], "42", fmt.Sprint(logConfig))
 }
 
 func (s *DockerCLIInspectSuite) TestInspectNoSizeFlagContainer(c *testing.T) {
@@ -274,7 +274,7 @@ func (s *DockerCLIInspectSuite) TestInspectNoSizeFlagContainer(c *testing.T) {
 
 	formatStr := "--format={{.SizeRw}},{{.SizeRootFs}}"
 	out := cli.DockerCmd(c, "inspect", "--type=container", formatStr, "busybox").Stdout()
-	assert.Equal(c, strings.TrimSpace(out), "<nil>,<nil>", fmt.Sprintf("Expected not to display size info: %s", out))
+	assert.Equal(c, strings.TrimSpace(out), "<nil>,<nil>", "Expected not to display size info: "+out)
 }
 
 func (s *DockerCLIInspectSuite) TestInspectSizeFlagContainer(c *testing.T) {

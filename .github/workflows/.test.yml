@@ -48,7 +48,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -57,14 +57,14 @@ jobs:
         uses: ./.github/actions/setup-tracing
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
+        uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
         with:
           targets: dev
           set: |
@@ -104,23 +104,42 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Full history needed to diff against target branch and detect new tests (test-integration-flaky).
           fetch-depth: 0
+      -
+        # Extract a /flaky-check=TestA,TestB directive from the PR body and
+        # expose it as FLAKY_EXTRA_TESTS so that hack/make/test-integration-flaky
+        # appends those tests to the ones detected from the diff.
+        name: Extract flaky-check extra tests
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          flaky_tests=$(
+            printf '%s\n' "$PR_BODY" |
+            tr -d '\r' |
+            grep -oEm1 '^/flaky-check=Test[A-Za-z0-9_]+(,Test[A-Za-z0-9_]+)*$' |
+            sed 's|^/flaky-check=||'
+          )
+          if [ -n "$flaky_tests" ]; then
+            echo "Appending /flaky-check tests: $flaky_tests"
+            echo "FLAKY_EXTRA_TESTS=$flaky_tests" >> "$GITHUB_ENV"
+          fi
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
+        uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
         with:
           targets: dev
           set: |
@@ -180,7 +199,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -197,6 +216,9 @@ jobs:
           if [[ "$MODE" == *"rootless"* ]]; then
             echo "DOCKER_ROOTLESS=1" >> $GITHUB_ENV
           fi
+          if [[ "$MODE" == *"userns"* ]]; then
+            echo "DOCKER_REMAP_ROOT=default" >> $GITHUB_ENV
+          fi
           if [[ "$MODE" == *"systemd"* ]]; then
             echo "SYSTEMD=true" >> $GITHUB_ENV
             CACHE_DEV_SCOPE="dev-systemd-${ARCH}"
@@ -207,6 +229,9 @@ jobs:
           fi
           if [[ "$MODE" == *"nftables"* ]]; then
             echo "DOCKER_FIREWALL_BACKEND=nftables" >> $GITHUB_ENV
+          fi
+          if [[ "$MODE" == *"embedded"* ]]; then
+            echo "TEST_INTEGRATION_CONTAINERD_EMBEDDED=1" >> $GITHUB_ENV
           fi
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
@@ -224,14 +249,14 @@ jobs:
           sudo systemctl restart apparmor.service
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
+        uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
         with:
           targets: dev
           set: |
@@ -296,7 +321,7 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -327,10 +352,10 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
         name: Set up Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false
@@ -425,7 +450,7 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
         name: Set up runner
         uses: ./.github/actions/setup-runner
@@ -449,14 +474,14 @@ jobs:
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
           buildkitd-flags: --debug
       -
         name: Build dev image
-        uses: docker/bake-action@6614cfa25eff9a0b2b2697efb0b6159e7680d584 # v7.2.0
+        uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
         with:
           targets: dev
           set: |
@@ -519,7 +544,7 @@ jobs:
     steps:
       -
         name: Set up Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: false

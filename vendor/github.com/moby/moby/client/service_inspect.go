@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/url"
 
 	"github.com/moby/moby/api/types/swarm"
@@ -28,7 +27,9 @@ func (cli *Client) ServiceInspect(ctx context.Context, serviceID string, options
 	}
 
 	query := url.Values{}
-	query.Set("insertDefaults", fmt.Sprintf("%v", options.InsertDefaults))
+	if options.InsertDefaults {
+		query.Set("insertDefaults", "1")
+	}
 	resp, err := cli.get(ctx, "/services/"+serviceID, query, nil)
 	if err != nil {
 		return ServiceInspectResult{}, err

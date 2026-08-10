@@ -77,6 +77,8 @@ var defaultAWSConfigResolvers = []awsConfigResolver{
 
 	// Sets the DisableRequestCompression if present in env var or shared config profile
 	resolveDisableRequestCompression,
+	// Sets the DisableClockSkewCorrection if present in env var or shared config profile
+	resolveDisableClockSkewCorrection,
 
 	// Sets the RequestMinCompressSizeBytes if present in env var or shared config profile
 	resolveRequestMinCompressSizeBytes,

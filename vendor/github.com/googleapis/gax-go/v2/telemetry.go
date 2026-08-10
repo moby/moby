@@ -54,8 +54,9 @@ import (
 // regardless of any other documented package stability guarantees.
 // It should not be used by external consumers.
 type TransportTelemetryData struct {
-	serverAddress string
-	serverPort    int
+	serverAddress  string
+	serverPort     int
+	httpStatusCode int
 }
 
 // SetServerAddress sets the server address.
@@ -77,6 +78,16 @@ func (d *TransportTelemetryData) SetServerPort(port int) { d.serverPort = port }
 // Experimental: This function is experimental and may be modified or removed in future versions,
 // regardless of any other documented package stability guarantees.
 func (d *TransportTelemetryData) ServerPort() int { return d.serverPort }
+
+// SetHTTPStatusCode sets the HTTP status code.
+// Experimental: This function is experimental and may be modified or removed in future versions,
+// regardless of any other documented package stability guarantees.
+func (d *TransportTelemetryData) SetHTTPStatusCode(code int) { d.httpStatusCode = code }
+
+// HTTPStatusCode returns the HTTP status code.
+// Experimental: This function is experimental and may be modified or removed in future versions,
+// regardless of any other documented package stability guarantees.
+func (d *TransportTelemetryData) HTTPStatusCode() int { return d.httpStatusCode }
 
 // transportTelemetryKey is the private context key used to inject TransportTelemetryData
 type transportTelemetryKey struct{}
@@ -449,6 +460,9 @@ func recordMetric(ctx context.Context, settings CallSettings, d time.Duration, e
 		}
 		if td.ServerPort() != 0 {
 			attrs = append(attrs, attribute.Int("server.port", td.ServerPort()))
+		}
+		if td.HTTPStatusCode() != 0 {
+			attrs = append(attrs, attribute.Int("http.response.status_code", td.HTTPStatusCode()))
 		}
 	}
 

@@ -67,7 +67,7 @@ func main() {
 	errorOut("error", checkFlags())
 
 	pkg, err := Parse(*inputFile, *typeName)
-	errorOut(fmt.Sprintf("error parsing requested type %s", *typeName), err)
+	errorOut("error parsing requested type "+*typeName, err)
 
 	analysis := struct {
 		InterfaceType string

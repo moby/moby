@@ -4,6 +4,10 @@ https://github.com/moby/moby/blob/master/CONTRIBUTING.md
 
 Make sure commits are signed off (`git commit -s`) with your real name.
 
+To explicitly stress-test specific integration tests for flakiness in CI,
+add a /flaky-check directive anywhere in the PR body (outside of comments):
+  /flaky-check=TestFoo,TestBar
+
 If the PR relates to an existing issue or PR, mention it at the top:
 
 - Fixes: https://github.com/moby/moby/issues/12345678

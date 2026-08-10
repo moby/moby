@@ -107,7 +107,7 @@ func (m *MountPoint) Cleanup(ctx context.Context) error {
 
 	logger := log.G(ctx).WithFields(log.Fields{"active": m.active, "id": m.ID})
 
-	// TODO: Remove once the real bug is fixed: https://github.com/moby/moby/issues/46508
+	// TODO: Remove once the fix is confirmed: https://github.com/moby/moby/issues/46508
 	if m.active == 0 {
 		logger.Error("An attempt to decrement a zero mount count")
 		logger.Error(string(debug.Stack()))

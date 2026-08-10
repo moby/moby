@@ -96,6 +96,13 @@ type configStore struct {
 	Runtimes runtimes
 }
 
+// ContainerdDialer dials the in-process containerd over an in-memory pipe.
+//
+// It is set in embedded mode, so the daemon's own client can skip socket
+// syscalls, and is nil otherwise. The signature matches grpc.WithContextDialer,
+// and the address argument is ignored.
+type ContainerdDialer = func(ctx context.Context, addr string) (net.Conn, error)
+
 // Daemon holds information about the Docker daemon.
 type Daemon struct {
 	id                string
@@ -846,7 +853,7 @@ func CheckSystem() error {
 
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
-func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware) (_ *Daemon, retErr error) {
+func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store, authzMiddleware *authorization.Middleware, containerdDialer ContainerdDialer) (_ *Daemon, retErr error) {
 	registryService, err := registry.NewService(config.ServiceOptions)
 	if err != nil {
 		return nil, err
@@ -922,22 +929,21 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	migrationThreshold := int64(-1)
 	if config.Features["containerd-migration"] {
+		migrationThreshold = 0
 		if ts := os.Getenv("DOCKER_MIGRATE_SNAPSHOTTER_THRESHOLD"); ts != "" {
 			v, err := units.FromHumanSize(ts)
-			if err == nil {
-				migrationThreshold = v
-			} else {
-				log.G(ctx).WithError(err).WithField("size", ts).Warn("Invalid migration threshold value, defaulting to 0")
-				migrationThreshold = 0
+			if err != nil {
+				return nil, fmt.Errorf("invalid migration threshold value (DOCKER_MIGRATE_SNAPSHOTTER_THRESHOLD=%s): %w", ts, err)
 			}
-
-		} else {
-			migrationThreshold = 0
+			if v < 0 {
+				return nil, fmt.Errorf("invalid migration threshold value (DOCKER_MIGRATE_SNAPSHOTTER_THRESHOLD=%s): value must not be negative", ts)
+			}
+			migrationThreshold = v
 		}
 		if migrationThreshold > 0 {
 			log.G(ctx).WithField("max_size", migrationThreshold).Info("(Experimental) Migration to containerd is enabled, driver will be switched to snapshotter after migration is complete")
 		} else {
-			log.G(ctx).WithField("env", os.Environ()).Info("Migration to containerd is enabled, driver will be switched to snapshotter if there are no images or containers")
+			log.G(ctx).Info("Migration to containerd is enabled, driver will be switched to snapshotter if there are no images or containers")
 		}
 	}
 
@@ -1010,6 +1016,12 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		grpc.WithUnaryInterceptor(grpcerrors.UnaryClientInterceptor),
 		grpc.WithStreamInterceptor(grpcerrors.StreamClientInterceptor),
 	}
+	if containerdDialer != nil {
+		// Keep ContainerdAddr as the gRPC target (so containerd.New still
+		// installs its namespace interceptors) but override the connection to
+		// use the in-memory pipe.
+		gopts = append(gopts, grpc.WithContextDialer(containerdDialer))
+	}
 
 	if cfgStore.ContainerdAddr != "" {
 		log.G(ctx).WithFields(log.Fields{
@@ -1046,7 +1058,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			shim     string
 			shimOpts any
 		)
-		if runtime.GOOS != "windows" {
+		if !isWindows {
 			shim, shimOpts, err = rts.Get("")
 			if err != nil {
 				return nil, err
@@ -1322,6 +1334,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			IDMapping:              idMapping,
 			RefCountMounter:        snapshotter.NewMounter(config.Root, driverName, idMapping),
 			PolicyVerifierProvider: verifierProvider(cfgStore.Root),
+			MaxConcurrentDownloads: config.MaxConcurrentDownloads,
+			MaxConcurrentUploads:   config.MaxConcurrentUploads,
 		})
 
 		if migrationConfig.ImageCount > 0 {
@@ -1480,7 +1494,10 @@ func (daemon *Daemon) shutdownTimeout(cfg *config.Config) int {
 
 	graceTimeout := 5
 	for _, c := range daemon.containers.List() {
-		stopTimeout := c.StopTimeout()
+		stopTimeout := cfg.DefaultStopTimeout
+		if c.Config.StopTimeout != nil {
+			stopTimeout = *c.Config.StopTimeout
+		}
 		if stopTimeout < 0 {
 			return -1
 		}
@@ -1595,7 +1612,7 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 		// The mount path reported by the graph driver should always be trusted on Windows, since the
 		// volume path for a given mounted layer may change over time.  This should only be an error
 		// on non-Windows operating systems.
-		if runtime.GOOS != "windows" {
+		if !isWindows {
 			daemon.Unmount(container)
 			driver := daemon.ImageService().StorageDriver()
 			return fmt.Errorf("driver %s is returning inconsistent paths for container %s ('%s' then '%s')",

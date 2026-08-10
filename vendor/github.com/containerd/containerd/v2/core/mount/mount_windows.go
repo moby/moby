@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/Microsoft/go-winio/pkg/bindfilter"
@@ -256,20 +257,10 @@ func GetCimPath(m *Mount) (string, error) {
 
 // GetEnableLayerIntegrity checks if the enableLayerIntegrity flag is present in mount options
 func GetEnableLayerIntegrity(m *Mount) bool {
-	for _, option := range m.Options {
-		if option == EnableLayerIntegrityFlag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(m.Options, EnableLayerIntegrityFlag)
 }
 
 // GetAppendVHDFooter checks if the appendVHDFooter flag is present in mount options
 func GetAppendVHDFooter(m *Mount) bool {
-	for _, option := range m.Options {
-		if option == AppendVHDFooterFlag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(m.Options, AppendVHDFooterFlag)
 }

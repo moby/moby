@@ -37,7 +37,7 @@ func (s *DockerRegistrySuite) TestV2Only(c *testing.T) {
 		c.Fatal("V1 registry contacted")
 	})
 
-	repoName := fmt.Sprintf("%s/busybox", reg.URL())
+	repoName := reg.URL() + "/busybox"
 
 	s.d.Start(c, "--insecure-registry", reg.URL())
 

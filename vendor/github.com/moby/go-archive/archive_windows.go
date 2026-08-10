@@ -33,30 +33,31 @@ func getWalkRoot(srcPath string, include string) string {
 
 // chmodTarEntry is used to adjust the file permissions used in tar header based
 // on the platform the archival is done.
-func chmodTarEntry(perm os.FileMode) os.FileMode {
+func chmodTarEntry(mode int64) int64 {
 	// Remove group- and world-writable bits.
-	perm &= 0o755
+	mode &= 0o755
 
 	// Add the x bit: make everything +x on Windows
-	return perm | 0o111
+	return mode | 0o111
 }
 
-func getInodeFromStat(stat interface{}) (uint64, error) {
+func getInodeFromStat(stat any) (uint64, error) {
 	// do nothing. no notion of Inode in stat on Windows
 	return 0, nil
 }
 
 // handleTarTypeBlockCharFifo is an OS-specific helper function used by
 // createTarFile to handle the following types of header: Block; Char; Fifo
-func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
+func handleTarTypeBlockCharFifo(root *os.Root, hdr *tar.Header, path string) error {
 	return nil
 }
 
-func handleLChmod(hdr *tar.Header, path string, hdrInfo os.FileInfo) error {
+// handleLChmod is a no-op on Windows because chmod is not supported.
+func handleLChmod(root *os.Root, path string, hdr *tar.Header, hdrInfo os.FileInfo) error {
 	return nil
 }
 
-func getFileUIDGID(stat interface{}) (int, int, error) {
+func getFileUIDGID(stat any) (int, int, error) {
 	// no notion of file ownership mapping yet on Windows
 	return 0, 0, nil
 }

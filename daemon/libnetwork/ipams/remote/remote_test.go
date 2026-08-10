@@ -219,7 +219,7 @@ func TestRemoteDriver(t *testing.T) {
 		if ip == "" {
 			ip = "172.20.0.34"
 		}
-		ip = fmt.Sprintf("%s/16", ip)
+		ip = ip + "/16"
 		return map[string]any{
 			"Address": ip,
 		}

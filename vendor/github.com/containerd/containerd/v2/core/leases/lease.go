@@ -18,6 +18,7 @@ package leases
 
 import (
 	"context"
+	"maps"
 	"time"
 )
 
@@ -84,9 +85,7 @@ func WithLabels(labels map[string]string) Opt {
 		if l.Labels == nil {
 			l.Labels = map[string]string{}
 		}
-		for k, v := range labels {
-			l.Labels[k] = v
-		}
+		maps.Copy(l.Labels, labels)
 		return nil
 	}
 }

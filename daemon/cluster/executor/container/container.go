@@ -126,7 +126,7 @@ func (c *containerConfig) name() string {
 		return c.task.Annotations.Name
 	}
 
-	slot := fmt.Sprint(c.task.Slot)
+	slot := strconv.FormatUint(c.task.Slot, 10)
 	if slot == "" || c.task.Slot == 0 {
 		slot = c.task.NodeID
 	}

@@ -36,7 +36,7 @@ type StartConfig struct {
 type SpanOpt func(config *StartConfig)
 
 // WithAttribute appends attributes to a new created span.
-func WithAttribute(k string, v interface{}) SpanOpt {
+func WithAttribute(k string, v any) SpanOpt {
 	return func(config *StartConfig) {
 		config.spanOpts = append(config.spanOpts,
 			trace.WithAttributes(Attribute(k, v)))

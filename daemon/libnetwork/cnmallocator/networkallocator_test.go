@@ -1,7 +1,6 @@
 package cnmallocator
 
 import (
-	"fmt"
 	"net"
 	"net/netip"
 	"testing"
@@ -733,7 +732,7 @@ func (a *mockIpam) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool, 
 
 	poolCidr := netip.MustParsePrefix(req.Pool)
 	return ipamapi.AllocatedPool{
-		PoolID: fmt.Sprintf("defaultAS/%s", req.Pool),
+		PoolID: "defaultAS/" + req.Pool,
 		Pool:   poolCidr,
 	}, nil
 }

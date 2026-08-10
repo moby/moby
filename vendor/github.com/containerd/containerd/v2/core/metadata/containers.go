@@ -124,8 +124,12 @@ func (s *containerStore) Create(ctx context.Context, container containers.Contai
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.Name(spanContainerPrefix, "Create"),
 		tracing.WithAttribute("container.id", container.ID),
+		tracing.WithNamespace(ctx),
 	)
 	defer span.End()
+	if container.SandboxID != "" {
+		span.SetAttributes(tracing.Attribute("sandbox.id", container.SandboxID))
+	}
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return containers.Container{}, err
@@ -157,6 +161,7 @@ func (s *containerStore) Create(ctx context.Context, container containers.Contai
 
 		span.SetAttributes(
 			tracing.Attribute("container.createdAt", container.CreatedAt.Format(time.RFC3339)),
+			tracing.Attribute("container.updatedAt", container.UpdatedAt.Format(time.RFC3339)),
 		)
 		return nil
 	}); err != nil {
@@ -167,18 +172,22 @@ func (s *containerStore) Create(ctx context.Context, container containers.Contai
 }
 
 func (s *containerStore) Update(ctx context.Context, container containers.Container, fieldpaths ...string) (containers.Container, error) {
+	if container.ID == "" {
+		return containers.Container{}, fmt.Errorf("must specify a container id: %w", errdefs.ErrInvalidArgument)
+	}
+
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.Name(spanContainerPrefix, "Update"),
 		tracing.WithAttribute("container.id", container.ID),
+		tracing.WithNamespace(ctx),
 	)
 	defer span.End()
+	if container.SandboxID != "" {
+		span.SetAttributes(tracing.Attribute("sandbox.id", container.SandboxID))
+	}
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return containers.Container{}, err
-	}
-
-	if container.ID == "" {
-		return containers.Container{}, fmt.Errorf("must specify a container id: %w", errdefs.ErrInvalidArgument)
 	}
 
 	var updated containers.Container
@@ -279,8 +288,13 @@ func (s *containerStore) Delete(ctx context.Context, id string) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.Name(spanContainerPrefix, "Delete"),
 		tracing.WithAttribute("container.id", id),
+		tracing.WithNamespace(ctx),
 	)
 	defer span.End()
+
+	if meta, err := s.Get(ctx, id); err == nil && meta.SandboxID != "" {
+		span.SetAttributes(tracing.Attribute("sandbox.id", meta.SandboxID))
+	}
 
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {

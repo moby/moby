@@ -27,6 +27,18 @@ Use the links above for more information on each.
 
 # changelog
 
+* Jul 1st, 2026 [1.19.0](https://github.com/klauspost/compress/releases/tag/v1.19.0)
+	* zstd: Add true concurrent stream encodingin https://github.com/klauspost/compress/pull/1136
+	* zstd: arm64 decoder asm by @lizthegrey in https://github.com/klauspost/compress/pull/1160
+	* flate: Add inflate checkpoints in https://github.com/klauspost/compress/pull/1154
+	* zstd: avoid unused BuildDict encoder allocation by @snissn in https://github.com/klauspost/compress/pull/1147
+	* snappy/s2: Limit length of varint in `decodedLen` by @eustas in https://github.com/klauspost/compress/pull/1148
+	* gzhttp: match qvalue parameter case-insensitively (RFC 7231) by @z9z in https://github.com/klauspost/compress/pull/1149
+	* zip: add NameDecoder callback for legacy encoding rewrite by @SAY-5 in https://github.com/klauspost/compress/pull/1150
+	* huff0: Allow building tables from histogram in https://github.com/klauspost/compress/pull/1155
+	* huff0: Allow building table from oversized histogram in https://github.com/klauspost/compress/pull/1156
+	* s2sx: Clean symlink targets in https://github.com/klauspost/compress/pull/1163
+
 * Feb 9th, 2026 [1.18.4](https://github.com/klauspost/compress/releases/tag/v1.18.4)
 	* gzhttp: Add zstandard to server handler wrapper https://github.com/klauspost/compress/pull/1121
 	* zstd: Add ResetWithOptions to encoder/decoder https://github.com/klauspost/compress/pull/1122

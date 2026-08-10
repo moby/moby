@@ -39,6 +39,8 @@ var (
 	ErrPluginNotFound = errors.New("plugin: not found")
 	// ErrPluginMultipleInstances is used when a plugin is expected a single instance but has multiple
 	ErrPluginMultipleInstances = errors.New("plugin: multiple instances")
+	// ErrPluginCircularDependency is used when the graph detect a circular plugin dependency
+	ErrPluginCircularDependency = errors.New("plugin: dependency loop detected")
 
 	// ErrInvalidRequires will be thrown if the requirements for a plugin are
 	// defined in an invalid manner.
@@ -110,36 +112,43 @@ type Registry []*Registration
 // Graph computes the ordered list of registrations based on their dependencies,
 // filtering out any plugins which match the provided filter.
 func (registry Registry) Graph(filter DisableFilter) []Registration {
-	disabled := map[*Registration]bool{}
-	for _, r := range registry {
-		if filter(r) {
-			disabled[r] = true
+	handled := make(map[*Registration]struct{}, len(registry))
+	if filter != nil {
+		for _, r := range registry {
+			if filter(r) {
+				handled[r] = struct{}{}
+			}
 		}
 	}
 
-	ordered := make([]Registration, 0, len(registry)-len(disabled))
-	added := map[*Registration]bool{}
+	ordered := make([]Registration, 0, len(registry)-len(handled))
+	stack := make([]*Registration, 0, cap(ordered))
 	for _, r := range registry {
-		if disabled[r] {
+		if _, ok := handled[r]; ok {
 			continue
 		}
-		children(r, registry, added, disabled, &ordered)
-		if !added[r] {
-			ordered = append(ordered, *r)
-			added[r] = true
-		}
+		children(append(stack, r), registry, handled, &ordered)
+		handled[r] = struct{}{}
+		ordered = append(ordered, *r)
 	}
 	return ordered
 }
 
-func children(reg *Registration, registry []*Registration, added, disabled map[*Registration]bool, ordered *[]Registration) {
+func children(stack []*Registration, registry []*Registration, handled map[*Registration]struct{}, ordered *[]Registration) {
+	reg := stack[len(stack)-1]
 	for _, t := range reg.Requires {
 		for _, r := range registry {
-			if !disabled[r] && r.URI() != reg.URI() && (t == "*" || r.Type == t) {
-				children(r, registry, added, disabled, ordered)
-				if !added[r] {
+			if (t == "*" || r.Type == t) && r != reg {
+				if _, ok := handled[r]; !ok {
+					// Ensure not in current stack
+					for _, p := range stack[:len(stack)-1] {
+						if p == r {
+							panic(fmt.Errorf("circular plugin dependency at %s: %w", r.URI(), ErrPluginCircularDependency))
+						}
+					}
+					children(append(stack, r), registry, handled, ordered)
+					handled[r] = struct{}{}
 					*ordered = append(*ordered, *r)
-					added[r] = true
 				}
 			}
 		}
@@ -160,7 +169,7 @@ func (registry Registry) Register(r *Registration) Registry {
 	}
 
 	for _, requires := range r.Requires {
-		if requires == "*" && len(r.Requires) != 1 {
+		if (requires == "*" && len(r.Requires) != 1) || requires == r.Type {
 			panic(ErrInvalidRequires)
 		}
 	}
@@ -170,7 +179,7 @@ func (registry Registry) Register(r *Registration) Registry {
 
 func checkUnique(registry Registry, r *Registration) error {
 	for _, registered := range registry {
-		if r.URI() == registered.URI() {
+		if r.Type == registered.Type && r.ID == registered.ID {
 			return fmt.Errorf("%s: %w", r.URI(), ErrIDRegistered)
 		}
 	}

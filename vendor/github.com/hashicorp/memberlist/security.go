@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2013, 2025
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package memberlist
@@ -40,13 +40,13 @@ const (
 func pkcs7encode(buf *bytes.Buffer, ignore, blockSize int) {
 	n := buf.Len() - ignore
 	more := blockSize - (n % blockSize)
-	for i := 0; i < more; i++ {
+	for range more {
 		buf.WriteByte(byte(more))
 	}
 }
 
 // pkcs7decode is used to decode a buffer that has been padded
-func pkcs7decode(buf []byte, blockSize int) []byte {
+func pkcs7decode(buf []byte, _ int) []byte {
 	if len(buf) == 0 {
 		panic("Cannot decode a PKCS7 buffer of zero length")
 	}

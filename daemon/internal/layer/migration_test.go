@@ -49,7 +49,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 		newTestFile("/root/.bashrc", []byte("# Updated configuration"), 0o644),
 	}
 
-	graph, err := newVFSGraphDriver(filepath.Join(tempDir, "graphdriver-"))
+	graph, err := newVFSGraphDriver(tempDir)
 	if err != nil {
 		t.Fatal(err)
 	}

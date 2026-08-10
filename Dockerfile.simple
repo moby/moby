@@ -57,5 +57,5 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV PATH=/usr/local/cli:$PATH
 
 ENV AUTO_GOPATH 1
-WORKDIR /usr/src/docker
-COPY . /usr/src/docker
+WORKDIR /usr/src/moby
+COPY . /usr/src/moby

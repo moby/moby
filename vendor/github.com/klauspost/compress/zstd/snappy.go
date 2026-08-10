@@ -334,9 +334,10 @@ func decodeSnappy(blk *blockEnc, src []byte) error {
 
 				return errUnsupportedLiteralLength
 			}
-			//if length > snappyMaxBlockSize-d || uint32(length) > len(src)-s {
-			//	return ErrSnappyCorrupt
-			//}
+			if length > len(src)-s {
+				println("length > len(src)-s", length, len(src)-s)
+				return ErrSnappyCorrupt
+			}
 
 			blk.literals = append(blk.literals, src[s:s+length]...)
 			//println(length, "litLen")

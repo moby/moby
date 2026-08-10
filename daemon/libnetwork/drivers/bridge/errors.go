@@ -4,7 +4,6 @@ package bridge
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/moby/moby/v2/errdefs"
 )
@@ -17,7 +16,7 @@ var errInvalidGateway = errdefs.InvalidParameter(errors.New("default gateway ip 
 type invalidNetworkIDError string
 
 func (e invalidNetworkIDError) Error() string {
-	return fmt.Sprintf("invalid network id %s", string(e))
+	return "invalid network id " + string(e)
 }
 
 // NotFound denotes the type of this error
@@ -28,7 +27,7 @@ func (e invalidNetworkIDError) NotFound() {}
 type invalidEndpointIDError string
 
 func (e invalidEndpointIDError) Error() string {
-	return fmt.Sprintf("invalid endpoint id: %s", string(e))
+	return "invalid endpoint id: " + string(e)
 }
 
 // InvalidParameter denotes the type of this error
@@ -39,7 +38,7 @@ func (e invalidEndpointIDError) InvalidParameter() {}
 type endpointNotFoundError string
 
 func (e endpointNotFoundError) Error() string {
-	return fmt.Sprintf("endpoint not found: %s", string(e))
+	return "endpoint not found: " + string(e)
 }
 
 // NotFound denotes the type of this error

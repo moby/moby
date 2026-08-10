@@ -17,11 +17,21 @@ changed_tests() {
 		|| true
 }
 
+# explicit_tests emits extra test names appended via the /flaky-check=TestA,TestB
+# directive in the PR body.  The workflow extracts that directive and passes it
+# here as the FLAKY_EXTRA_TESTS variable.
+explicit_tests() {
+	if [ -n "${FLAKY_EXTRA_TESTS-}" ]; then
+		echo "$FLAKY_EXTRA_TESTS" | tr ',' '\n'
+	fi
+}
+
 run_integration_flaky() {
 	tests=$(
 		{
 			added_tests
 			changed_tests
+			explicit_tests
 		} | sort -u
 	)
 
@@ -37,10 +47,10 @@ run_integration_flaky() {
 
 	(
 		TESTARRAY=$(echo "$tests" | tr '\n' '|')
-		# Note: TEST_REPEAT will make the test suite run 5 times, restarting the daemon
-		# and each test will run 5 times in a row under the same daemon.
-		# This will make a total of 25 runs for each test in TESTARRAY.
-		export TEST_REPEAT=5
+		# Note: TEST_REPEAT will make the test suite run 10 times, restarting the daemon
+		# and each test will run 10 times in a row under the same daemon.
+		# This will make a total of 100 runs for each test in TESTARRAY.
+		export TEST_REPEAT=10
 		export TESTFLAGS="-test.count ${TEST_REPEAT} -test.run ${TESTARRAY%?}"
 		echo "Using test flags: $TESTFLAGS"
 		source hack/make/test-integration

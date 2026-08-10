@@ -158,7 +158,12 @@ func TestNRIContainerCreateAddMount(t *testing.T) {
 
 	// Create and populate a directory for containers to mount.
 	dirToMount := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dirToMount, "testfile.txt"), []byte("hello\n"), 0o644); err != nil {
+	testFile := filepath.Join(dirToMount, "testfile.txt")
+	if err := os.WriteFile(testFile, []byte("hello\n"), 0o666); err != nil {
+		assert.NilError(t, err)
+	}
+	// The process umask may remove write bits needed by remapped container root.
+	if err := os.Chmod(testFile, 0o666); err != nil {
 		assert.NilError(t, err)
 	}
 	const (

@@ -13,8 +13,9 @@ import (
 	contentapi "github.com/containerd/containerd/api/services/content/v1"
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/plugins/services/content/contentserver"
+	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
-	"github.com/mitchellh/hashstructure/v2"
+	"github.com/gohugoio/hashstructure"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	apitypes "github.com/moby/buildkit/api/types"
 	"github.com/moby/buildkit/cache/remotecache"
@@ -548,7 +549,11 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 			resolveMode = v
 		}
 
-		procs = append(procs, proc.SBOMProcessor(ref.String(), useCache, resolveMode, params))
+		scannerPlatform := platforms.Normalize(platforms.DefaultSpec())
+		if ps := w.Platforms(false); len(ps) > 0 {
+			scannerPlatform = ps[0]
+		}
+		procs = append(procs, proc.SBOMProcessor(ref.String(), scannerPlatform, useCache, resolveMode, params))
 	}
 
 	if attrs, ok := attests["provenance"]; ok {
@@ -811,7 +816,7 @@ func cacheOptKey(opt *controlapi.CacheOptionsEntry) (string, error) {
 		Type:  opt.Type,
 		Attrs: opt.Attrs,
 	}
-	hash, err := hashstructure.Hash(rawOpt, hashstructure.FormatV2, nil)
+	hash, err := hashstructure.Hash(rawOpt, nil)
 	if err != nil {
 		return "", err
 	}

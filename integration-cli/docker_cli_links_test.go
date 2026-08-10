@@ -173,7 +173,7 @@ func (s *DockerCLILinksSuite) TestLinksUpdateOnRestart(c *testing.T) {
 	content := readContainerFileWithExec(c, id, "/etc/hosts")
 
 	getIP := func(hosts []byte, hostname string) string {
-		re := regexp.MustCompile(fmt.Sprintf(`(\S*)\t%s`, regexp.QuoteMeta(hostname)))
+		re := regexp.MustCompile(`(\S*)\t` + regexp.QuoteMeta(hostname))
 		matches := re.FindSubmatch(hosts)
 		assert.Assert(c, matches != nil, "Hostname %s have no matches in hosts", hostname)
 		return string(matches[1])

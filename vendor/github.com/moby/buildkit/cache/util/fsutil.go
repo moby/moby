@@ -41,6 +41,14 @@ func ReadFile(ctx context.Context, root string, req ReadRequest) ([]byte, error)
 	}
 	defer f.Close()
 
+	info, err := f.Stat()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, errors.Errorf("%s is not a regular file", req.Filename)
+	}
+
 	var rdr io.Reader = f
 	if req.Range != nil {
 		rdr = io.NewSectionReader(f, int64(req.Range.Offset), int64(req.Range.Length))

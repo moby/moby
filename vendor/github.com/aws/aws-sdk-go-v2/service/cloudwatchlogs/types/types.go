@@ -2851,6 +2851,10 @@ type ScheduledQuerySummary struct {
 	// The cron expression that defines when the scheduled query runs.
 	ScheduleExpression *string
 
+	// The schedule type of the scheduled query. Valid values are CUSTOMER_MANAGED and
+	// AWS_MANAGED .
+	ScheduleType ScheduleType
+
 	// The ARN of the scheduled query.
 	ScheduledQueryArn *string
 
@@ -3049,6 +3053,25 @@ type SuppressionPeriod struct {
 	// Specifies the number of seconds, minutes or hours to suppress this anomaly.
 	// There is no maximum.
 	Value int32
+
+	noSmithyDocumentSerde
+}
+
+// Contains information about a syslog configuration associated with a log group.
+type SyslogConfiguration struct {
+
+	// The time when the syslog configuration was created, expressed as the number of
+	// milliseconds after Jan 1, 1970 00:00:00 UTC .
+	CreatedAt *int64
+
+	// The ARN of the log group associated with this syslog configuration.
+	LogGroupArn *string
+
+	// The source type for the syslog configuration.
+	SourceType SyslogSourceType
+
+	// The ID of the VPC endpoint used for syslog ingestion.
+	VpcEndpointId *string
 
 	noSmithyDocumentSerde
 }

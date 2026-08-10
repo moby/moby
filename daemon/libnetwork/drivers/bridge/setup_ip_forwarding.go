@@ -121,7 +121,7 @@ func setupIPv6Forwarding(ffd filterForwardDropper, wantFilterForwardDrop bool) (
 
 func configureIPForwarding(file string, val byte) (changed bool, _ error) {
 	data, err := os.ReadFile(file)
-	if err != nil || len(data) == 0 {
+	if err != nil {
 		return false, fmt.Errorf("cannot read IP forwarding setup from '%s': %w", file, err)
 	}
 	if len(data) == 0 {

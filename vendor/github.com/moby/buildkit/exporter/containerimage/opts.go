@@ -15,7 +15,7 @@ type ImageCommitOpts struct {
 	ImageName   string
 	RefCfg      cacheconfig.RefConfig
 	OCITypes    *bool
-	OCIArtifact bool
+	OCIArtifact *bool
 	Annotations AnnotationsGroup
 	Epoch       *epoch.Epoch
 
@@ -51,7 +51,9 @@ func (c *ImageCommitOpts) Load(ctx context.Context, opt map[string]string) (map[
 			err = parseBool(&b, k, v)
 			c.OCITypes = &b
 		case exptypes.OptKeyOCIArtifact:
-			err = parseBool(&c.OCIArtifact, k, v)
+			var b bool
+			err = parseBool(&b, k, v)
+			c.OCIArtifact = &b
 		case exptypes.OptKeyForceInlineAttestations:
 			err = parseBool(&c.ForceInlineAttestations, k, v)
 		case exptypes.OptKeyPreferNondistLayers:
@@ -83,7 +85,7 @@ func (c *ImageCommitOpts) Validate() error {
 	if c.RefCfg.Compression.Type.OnlySupportOCITypes() && !c.OCITypesEnabled() {
 		return errors.Errorf("exporter option \"compression=%s\" conflicts with \"oci-mediatypes=false\"", c.RefCfg.Compression.Type)
 	}
-	if c.OCIArtifact && !c.OCITypesEnabled() {
+	if c.OCIArtifactEnabled() && !c.OCITypesEnabled() {
 		return errors.New("exporter option \"oci-artifact=true\" conflicts with \"oci-mediatypes=false\"")
 	}
 	return nil
@@ -97,6 +99,16 @@ func (c *ImageCommitOpts) SetOCITypesDefault(v bool) {
 
 func (c *ImageCommitOpts) OCITypesEnabled() bool {
 	return c.OCITypes != nil && *c.OCITypes
+}
+
+func (c *ImageCommitOpts) SetOCIArtifactDefault(v bool) {
+	if c.OCIArtifact == nil {
+		c.OCIArtifact = &v
+	}
+}
+
+func (c *ImageCommitOpts) OCIArtifactEnabled() bool {
+	return c.OCIArtifact != nil && *c.OCIArtifact
 }
 
 func parseBool(dest *bool, key string, value string) error {

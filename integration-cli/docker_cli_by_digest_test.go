@@ -99,13 +99,13 @@ func (s *DockerRegistrySuite) TestPullByDigest(t *testing.T) {
 func (s *DockerRegistrySuite) TestPullByDigestNoFallback(t *testing.T) {
 	testRequires(t, DaemonIsLinux)
 	// pull from the registry using the <name>@<digest> reference
-	imageReference := fmt.Sprintf("%s@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", repoName)
+	imageReference := repoName + "@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 	out, _, err := dockerCmdWithError("pull", imageReference)
 	assert.Assert(t, err != nil, "expected non-zero exit status and correct error message when pulling non-existing image")
 
 	expectedMsg := fmt.Sprintf("manifest for %s not found", imageReference)
 	if testEnv.UsingSnapshotter() {
-		expectedMsg = fmt.Sprintf("%s: not found", imageReference)
+		expectedMsg = imageReference + ": not found"
 	}
 
 	assert.Check(t, is.Contains(out, expectedMsg), "expected non-zero exit status and correct error message when pulling non-existing image")
@@ -135,7 +135,7 @@ func (s *DockerRegistrySuite) TestRunByDigest(t *testing.T) {
 
 	foundRegex := regexp.MustCompile("found=([^\n]+)")
 	matches := foundRegex.FindStringSubmatch(out)
-	assert.Equal(t, len(matches), 2, fmt.Sprintf("unable to parse digest from pull output: %s", out))
+	assert.Equal(t, len(matches), 2, "unable to parse digest from pull output: "+out)
 	assert.Equal(t, matches[1], "1", fmt.Sprintf("Expected %q, got %q", "1", matches[1]))
 
 	res := inspectField(t, containerName, "Config.Image")

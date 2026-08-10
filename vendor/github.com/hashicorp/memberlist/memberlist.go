@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2013, 2025
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 /*
@@ -39,19 +39,19 @@ import (
 var errNodeNamesAreRequired = errors.New("memberlist: node names are required by configuration but one was not provided")
 
 type Memberlist struct {
-	sequenceNum uint32 // Local sequence number
-	incarnation uint32 // Local incarnation number
-	numNodes    uint32 // Number of known nodes (estimate)
-	pushPullReq uint32 // Number of push/pull requests
+	sequenceNum uint32        // Local sequence number
+	incarnation atomic.Uint32 // Local incarnation number
+	numNodes    atomic.Uint32 // Number of known nodes (estimate)
+	pushPullReq atomic.Uint32 // Number of push/pull requests
 
 	advertiseLock sync.RWMutex
 	advertiseAddr net.IP
 	advertisePort uint16
 
 	config         *Config
-	shutdown       int32 // Used as an atomic boolean value
+	shutdown       atomic.Uint32 // Used as an atomic boolean value
 	shutdownCh     chan struct{}
-	leave          int32 // Used as an atomic boolean value
+	leave          atomic.Int32 // Used as an atomic boolean value
 	leaveBroadcast chan struct{}
 
 	shutdownLock sync.Mutex // Serializes calls to Shutdown
@@ -151,7 +151,7 @@ func newMemberlist(conf *Config) (*Memberlist, error) {
 		// See comment below for details about the retry in here.
 		makeNetRetry := func(limit int) (*NetTransport, error) {
 			var err error
-			for try := 0; try < limit; try++ {
+			for range limit {
 				var nt *NetTransport
 				if nt, err = NewNetTransport(nc); err == nil {
 					return nt, nil
@@ -655,10 +655,12 @@ func (m *Memberlist) Leave(timeout time.Duration) error {
 	}
 
 	if !m.hasLeft() {
-		atomic.StoreInt32(&m.leave, 1)
+		m.leave.Store(1)
 
 		m.nodeLock.Lock()
 		state, ok := m.nodeMap[m.config.Name]
+		incarnation := state.Incarnation
+		name := state.Name
 		m.nodeLock.Unlock()
 		if !ok {
 			m.logger.Printf("[WARN] memberlist: Leave but we're not in the node map.")
@@ -670,9 +672,9 @@ func (m *Memberlist) Leave(timeout time.Duration) error {
 		// intentionally. When Node equals From, other nodes know for
 		// sure this node is gone.
 		d := dead{
-			Incarnation: state.Incarnation,
-			Node:        state.Name,
-			From:        state.Name,
+			Incarnation: incarnation,
+			Node:        name,
+			From:        name,
 		}
 		m.deadNode(&d)
 
@@ -744,18 +746,18 @@ func (m *Memberlist) Shutdown() error {
 	}
 
 	// Now tear down everything else.
-	atomic.StoreInt32(&m.shutdown, 1)
+	m.shutdown.Store(1)
 	close(m.shutdownCh)
 	m.deschedule()
 	return nil
 }
 
 func (m *Memberlist) hasShutdown() bool {
-	return atomic.LoadInt32(&m.shutdown) == 1
+	return m.shutdown.Load() == 1
 }
 
 func (m *Memberlist) hasLeft() bool {
-	return atomic.LoadInt32(&m.leave) == 1
+	return m.leave.Load() == 1
 }
 
 func (m *Memberlist) getNodeState(addr string) NodeStateType {

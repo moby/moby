@@ -45,7 +45,7 @@ func (fn TraceExporterDetector) DetectMetricExporter() (sdkmetric.Exporter, erro
 }
 
 func detectExporter[T any](envVar string, fn func(d ExporterDetector) (T, bool, error)) (exp T, err error) {
-	ignoreErrors, _ := strconv.ParseBool("OTEL_IGNORE_ERROR")
+	ignoreErrors, _ := strconv.ParseBool(os.Getenv("OTEL_IGNORE_ERROR"))
 
 	if n := os.Getenv(envVar); n != "" {
 		d, ok := detectors[n]

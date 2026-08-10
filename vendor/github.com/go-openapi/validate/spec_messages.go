@@ -177,6 +177,18 @@ const (
 	// UnusedResponseWarning ...
 	UnusedResponseWarning = "response %q is not used anywhere"
 
+	// DubiousAbsoluteRefWarning flags a $ref pointing to an absolute local file location that escapes the
+	// spec's base path. Absolute local references are legitimate when they stay beneath the base path
+	// (flattening/expansion introduces such anchors for cyclical $refs), but an absolute reference that
+	// escapes the base path - or a file:// reference in a spec with no known base - may indicate an
+	// unsafe or adversarial spec.
+	DubiousAbsoluteRefWarning = "$ref %q points to an absolute or local file location that escapes the spec's base path: this may be unsafe with adversarial specs"
+
+	// DubiousMultipleHostsWarning flags a spec whose remote $refs resolve to several distinct hosts.
+	// A single consistent remote host is common and legitimate; references spread across multiple hosts
+	// may indicate an unsafe or adversarial spec.
+	DubiousMultipleHostsWarning = "$ref values point to %d distinct remote hosts (%s): a spec referencing multiple hosts may be unsafe"
+
 	InvalidObject = "expected an object in %q.%s"
 )
 
@@ -403,4 +415,12 @@ func someParametersBrokenMsg(path, method, operationID string) errors.Error {
 
 func refShouldNotHaveSiblingsMsg(path, operationID string) errors.Error {
 	return errors.New(errors.CompositeErrorCode, RefShouldNotHaveSiblingsWarning, operationID, path)
+}
+
+func dubiousAbsoluteRefMsg(ref string) errors.Error {
+	return errors.New(errors.CompositeErrorCode, DubiousAbsoluteRefWarning, ref)
+}
+
+func dubiousMultipleHostsMsg(count int, hosts string) errors.Error {
+	return errors.New(errors.CompositeErrorCode, DubiousMultipleHostsWarning, count, hosts)
 }

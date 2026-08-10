@@ -36,6 +36,10 @@ func NewImageIdentifier(str string) (*ImageIdentifier, error) {
 
 var _ source.Identifier = (*ImageIdentifier)(nil)
 
+func (id *ImageIdentifier) String() string {
+	return srctypes.DockerImageScheme + "://" + id.Reference.String()
+}
+
 func (*ImageIdentifier) Scheme() string {
 	return srctypes.DockerImageScheme
 }
@@ -74,6 +78,10 @@ func NewOCIIdentifier(str string) (*OCIIdentifier, error) {
 }
 
 var _ source.Identifier = (*OCIIdentifier)(nil)
+
+func (id *OCIIdentifier) String() string {
+	return srctypes.OCIScheme + "://" + id.Reference.String()
+}
 
 func (*OCIIdentifier) Scheme() string {
 	return srctypes.OCIScheme

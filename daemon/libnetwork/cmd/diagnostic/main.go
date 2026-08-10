@@ -118,7 +118,7 @@ func fetchNodePeers(ip string, port int, network string) map[string]netip.Addr {
 		path = fmt.Sprintf(clusterPeers, ip, port)
 	}
 
-	resp, err := http.Get(path) //nolint:gosec // G107: Potential HTTP request made with variable url
+	resp, err := http.Get(path) // #nosec G107 -- Potential HTTP request made with variable url
 	if err != nil {
 		log.G(context.TODO()).WithError(err).Fatalf("Failed fetching path")
 	}

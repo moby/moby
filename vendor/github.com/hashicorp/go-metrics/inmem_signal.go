@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2025
 // SPDX-License-Identifier: MIT
 
 package metrics
@@ -107,7 +107,7 @@ func (i *InmemSignal) dumpStats() {
 	}
 
 	// Write out the bytes
-	i.w.Write(buf.Bytes())
+	_, _ = i.w.Write(buf.Bytes())
 }
 
 // Flattens the key for formatting along with its labels, removes spaces
@@ -116,8 +116,8 @@ func (i *InmemSignal) flattenLabels(name string, labels []Label) string {
 	replacer := strings.NewReplacer(" ", "_", ":", "_")
 
 	for _, label := range labels {
-		replacer.WriteString(buf, ".")
-		replacer.WriteString(buf, label.Value)
+		_, _ = replacer.WriteString(buf, ".")
+		_, _ = replacer.WriteString(buf, label.Value)
 	}
 
 	return buf.String()

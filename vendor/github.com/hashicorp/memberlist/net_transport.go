@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2013, 2025
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package memberlist
@@ -54,7 +54,7 @@ type NetTransport struct {
 	wg           sync.WaitGroup
 	tcpListeners []*net.TCPListener
 	udpListeners []*net.UDPConn
-	shutdown     int32
+	shutdown     atomic.Int32
 
 	metricLabels []metrics.Label
 }
@@ -268,7 +268,7 @@ func (t *NetTransport) IngestStream(conn net.Conn) error {
 // See Transport.
 func (t *NetTransport) Shutdown() error {
 	// This will avoid log spam about errors when we shut down.
-	atomic.StoreInt32(&t.shutdown, 1)
+	t.shutdown.Store(1)
 
 	// Rip through all the connections and shut them down.
 	for _, conn := range t.tcpListeners {
@@ -300,7 +300,7 @@ func (t *NetTransport) tcpListen(tcpLn *net.TCPListener) {
 	for {
 		conn, err := tcpLn.AcceptTCP()
 		if err != nil {
-			if s := atomic.LoadInt32(&t.shutdown); s == 1 {
+			if s := t.shutdown.Load(); s == 1 {
 				break
 			}
 
@@ -336,7 +336,7 @@ func (t *NetTransport) udpListen(udpLn *net.UDPConn) {
 		n, addr, err := udpLn.ReadFrom(buf)
 		ts := time.Now()
 		if err != nil {
-			if s := atomic.LoadInt32(&t.shutdown); s == 1 {
+			if s := t.shutdown.Load(); s == 1 {
 				break
 			}
 

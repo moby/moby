@@ -235,6 +235,14 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	opts = append(opts, containerd.WithImageHandlerWrapper(joinHandlerWrappers(infoHandler, referrers.Handler)))
 	opts = append(opts, containerd.WithReferrersProvider(referrers))
 
+	i.transferLimitMu.Lock()
+	maxConcurrentDownloads := i.maxConcurrentDownloads
+	downloadLimiter := i.downloadLimiter
+	i.transferLimitMu.Unlock()
+	if maxConcurrentDownloads > 0 {
+		opts = append(opts, containerd.WithMaxConcurrentDownloads(maxConcurrentDownloads))
+	}
+	opts = append(opts, containerd.WithDownloadLimiter(downloadLimiter))
 	img, err := i.client.Pull(ctx, ref.String(), opts...)
 	if err != nil {
 		if errors.Is(err, docker.ErrInvalidAuthorization) {

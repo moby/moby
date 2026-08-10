@@ -2,7 +2,6 @@ package container
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -65,7 +64,7 @@ func TestContainerList_Annotations(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		t.Run(fmt.Sprintf("run with version v%s", tc.apiVersion), func(t *testing.T) {
+		t.Run("run with version v"+tc.apiVersion, func(t *testing.T) {
 			apiClient := request.NewAPIClient(t, client.WithAPIVersion(tc.apiVersion))
 			id := container.Create(ctx, t, apiClient, container.WithAnnotations(tc.expectedAnnotations))
 			defer container.Remove(ctx, t, apiClient, id, client.ContainerRemoveOptions{Force: true})
@@ -190,7 +189,7 @@ func TestContainerList_HealthSummary(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		t.Run(fmt.Sprintf("run with version v%s", tc.apiVersion), func(t *testing.T) {
+		t.Run("run with version v"+tc.apiVersion, func(t *testing.T) {
 			apiClient := request.NewAPIClient(t, client.WithAPIVersion(tc.apiVersion))
 
 			cID := container.Run(ctx, t, apiClient, container.WithTty(true), container.WithWorkingDir("/foo"), func(c *container.TestContainerConfig) {

@@ -1,5 +1,5 @@
 {
-    "release-type": "go-yoshi",
+    "release-type": "go-librarian",
     "separate-pull-requests": true,
     "include-component-in-tag": false,
     "packages": {

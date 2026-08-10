@@ -9,6 +9,8 @@
 // Alternatively, you can use CloudWatch Logs commands in the Amazon Web Services
 // CLI, CloudWatch Logs API, or CloudWatch Logs SDK.
 //
+// For more information about CloudWatch Logs features, see the [Amazon CloudWatch Logs User Guide].
+//
 // You can use CloudWatch Logs to:
 //
 //   - Monitor logs from EC2 instances in real time: You can use CloudWatch Logs
@@ -32,4 +34,10 @@
 //     events earlier than this setting are automatically deleted. The CloudWatch Logs
 //     agent helps to quickly send both rotated and non-rotated log data off of a host
 //     and into the log service. You can then access the raw log data when you need it.
+//
+// CloudWatch Logs might log request contents for fields that aren't considered
+// sensitive, such as API request parameters for CloudWatch Logs actions. This
+// provides debugging information for failed API requests.
+//
+// [Amazon CloudWatch Logs User Guide]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/WhatIsCloudWatchLogs.html
 package cloudwatchlogs

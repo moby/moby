@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"net/netip"
 	"strconv"
@@ -269,22 +269,6 @@ func (r *Resolver) filterExtServers(extDNS []extDNSEntry) []extDNSEntry {
 	return result
 }
 
-//nolint:gosec // The RNG is not used in a security-sensitive context.
-var (
-	shuffleRNG   = rand.New(rand.NewSource(time.Now().Unix()))
-	shuffleRNGMu sync.Mutex
-)
-
-func shuffleAddr(addr []net.IP) []net.IP {
-	shuffleRNGMu.Lock()
-	defer shuffleRNGMu.Unlock()
-	for i := len(addr) - 1; i > 0; i-- {
-		r := shuffleRNG.Intn(i + 1) //nolint:gosec // gosec complains about the use of rand here. It should be fine.
-		addr[i], addr[r] = addr[r], addr[i]
-	}
-	return addr
-}
-
 func createRespMsg(query *dns.Msg) *dns.Msg {
 	resp := &dns.Msg{}
 	resp.SetReply(query)
@@ -320,9 +304,9 @@ func (r *Resolver) handleIPQuery(ctx context.Context, query *dns.Msg, ipType typ
 	r.log(ctx).Debugf("[resolver] lookup for %s: IP %v", name, addr)
 
 	resp := createRespMsg(query)
-	if len(addr) > 1 {
-		addr = shuffleAddr(addr)
-	}
+	rand.Shuffle(len(addr), func(i, j int) {
+		addr[i], addr[j] = addr[j], addr[i]
+	})
 	if ipType == types.IPv4 {
 		for _, ip := range addr {
 			resp.Answer = append(resp.Answer, &dns.A{

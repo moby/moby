@@ -171,7 +171,7 @@ func printIpamConf(list []*IpamConf) string {
 	for _, i := range list {
 		s = fmt.Sprintf("%s %v,", s, i)
 	}
-	s = fmt.Sprintf("%s}", s)
+	s = s + "}"
 	return s
 }
 
@@ -180,7 +180,7 @@ func printIpamInfo(list []*IpamInfo) string {
 	for _, i := range list {
 		s = fmt.Sprintf("%s\n{\n%s\n}", s, i)
 	}
-	s = fmt.Sprintf("%s\n}", s)
+	s = s + "\n}"
 	return s
 }
 

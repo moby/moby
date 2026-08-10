@@ -305,6 +305,37 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 	}
 }
 
+func TestDaemonReloadDefaultStopTimeout(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		timeout int
+	}{
+		{name: "positive", timeout: 42},
+		{name: "zero", timeout: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			daemon := newDaemonForReloadT(t, &config.Config{
+				CommonConfig: config.CommonConfig{
+					ContainerDefaults: config.ContainerDefaults{
+						DefaultStopTimeout: 10,
+					},
+				},
+			})
+			newConfig := &config.Config{
+				CommonConfig: config.CommonConfig{
+					ContainerDefaults: config.ContainerDefaults{
+						DefaultStopTimeout: tc.timeout,
+					},
+					ValuesSet: map[string]any{"default-stop-timeout": tc.timeout},
+				},
+			}
+
+			assert.NilError(t, daemon.Reload(newConfig))
+			assert.Equal(t, daemon.config().DefaultStopTimeout, tc.timeout)
+		})
+	}
+}
+
 func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	if os.Getuid() != 0 {
 		t.Skip("root required")

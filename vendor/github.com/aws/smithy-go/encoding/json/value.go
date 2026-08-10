@@ -106,6 +106,11 @@ func (jv Value) BigInteger(v *big.Int) {
 
 // BigDecimal encodes v as JSON value
 func (jv Value) BigDecimal(v *big.Float) {
+	if v.Sign() == 0 && v.Signbit() {
+		// Preserve negative zero sign which Int64() would lose.
+		jv.w.Write([]byte("-0"))
+		return
+	}
 	if i, accuracy := v.Int64(); accuracy == big.Exact {
 		jv.Long(i)
 		return

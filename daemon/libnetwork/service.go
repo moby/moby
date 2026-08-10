@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"fmt"
 	"net"
+	strings "strings"
 	"sync"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/setmatrix"
@@ -24,9 +25,11 @@ func (p portConfigs) String() string {
 
 	pc := p[0]
 	str := fmt.Sprintf("%d:%d/%s", pc.PublishedPort, pc.TargetPort, PortConfig_Protocol_name[int32(pc.Protocol)])
+	var strSb27 strings.Builder
 	for _, pc := range p[1:] {
-		str = str + fmt.Sprintf(",%d:%d/%s", pc.PublishedPort, pc.TargetPort, PortConfig_Protocol_name[int32(pc.Protocol)])
+		strSb27.WriteString(fmt.Sprintf(",%d:%d/%s", pc.PublishedPort, pc.TargetPort, PortConfig_Protocol_name[int32(pc.Protocol)]))
 	}
+	str += strSb27.String()
 
 	return str
 }

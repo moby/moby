@@ -461,7 +461,7 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 	// TODO(@cpuguy83): Setup here based on log driver is a little weird.
 	switch cfg.Type {
 	case jsonfilelog.Name:
-		info.LogPath, err = container.GetRootResourcePath(fmt.Sprintf("%s-json.log", container.ID))
+		info.LogPath, err = container.GetRootResourcePath(container.ID + "-json.log")
 		if err != nil {
 			return nil, err
 		}
@@ -603,14 +603,6 @@ func (container *Container) StopSignal() syscall.Signal {
 		}
 	}
 	return stopSignal
-}
-
-// StopTimeout returns the timeout (in seconds) used to stop the container.
-func (container *Container) StopTimeout() int {
-	if container.Config.StopTimeout != nil {
-		return *container.Config.StopTimeout
-	}
-	return defaultStopTimeout
 }
 
 // InitDNSHostConfig ensures that the dns fields are never nil.

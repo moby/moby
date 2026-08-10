@@ -41,7 +41,7 @@ func (opts *SetOpts) GetAll() map[string]bool {
 }
 
 func (opts *SetOpts) String() string {
-	return fmt.Sprintf("%v", opts.values)
+	return fmt.Sprint(opts.values)
 }
 
 // Type returns a string name for this Option type

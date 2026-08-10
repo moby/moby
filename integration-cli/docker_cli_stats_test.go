@@ -12,7 +12,6 @@ import (
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 type DockerCLIStatsSuite struct {
@@ -64,9 +63,6 @@ func (s *DockerCLIStatsSuite) TestStatsContainerNotFound(c *testing.T) {
 }
 
 func (s *DockerCLIStatsSuite) TestStatsAllRunningNoStream(c *testing.T) {
-	// FIXME(thaJeztah): stats doesn't work on Windows with containerd; see https://github.com/moby/moby/pull/52913#issuecomment-4741507027
-	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
-
 	id1 := runSleepingContainer(c)[:12]
 	cli.WaitRun(c, id1)
 	id2 := runSleepingContainer(c)[:12]
@@ -97,9 +93,6 @@ func (s *DockerCLIStatsSuite) TestStatsAllRunningNoStream(c *testing.T) {
 }
 
 func (s *DockerCLIStatsSuite) TestStatsAllNoStream(c *testing.T) {
-	// FIXME(thaJeztah): stats doesn't work on Windows with containerd; see https://github.com/moby/moby/pull/52913#issuecomment-4741507027
-	skip.If(c, RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
-
 	id1 := runSleepingContainer(c)[:12]
 	cli.WaitRun(c, id1)
 	cli.DockerCmd(c, "stop", id1)

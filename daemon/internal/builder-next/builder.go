@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -98,6 +99,10 @@ type Opt struct {
 	UseSnapshotter      bool
 	Snapshotter         string
 	ContainerdAddress   string
+	// ContainerdDialer, when set (embedded mode), connects to the in-process
+	// containerd over an in-memory pipe so BuildKit avoids socket syscalls.
+	// ContainerdAddress is still the gRPC target.
+	ContainerdDialer    func(ctx context.Context, address string) (net.Conn, error)
 	ContainerdNamespace string
 	HyperVIsolation     bool
 	Callbacks           exporter.BuildkitCallbacks

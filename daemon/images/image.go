@@ -3,7 +3,6 @@ package images
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 
 	"github.com/containerd/containerd/v2/core/content"
@@ -31,7 +30,7 @@ func (e ErrImageDoesNotExist) Error() string {
 	if named, ok := ref.(reference.Named); ok {
 		ref = reference.TagNameOnly(named)
 	}
-	return fmt.Sprintf("No such image: %s", reference.FamiliarString(ref))
+	return "No such image: " + reference.FamiliarString(ref)
 }
 
 // NotFound implements the NotFound interface

@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"context"
 	"math/rand"
-	"reflect"
 	"sync"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/moby/swarmkit/v2/agent/exec"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/log"
@@ -249,7 +249,7 @@ func (a *Agent) run(ctx context.Context) {
 		// if the node description has changed, update it to the new one
 		// and close the session. The old session will be stopped and a
 		// new one will be created with the updated description
-		if !reflect.DeepEqual(nodeDescription, newNodeDescription) {
+		if !nodeDescriptionsEqual(nodeDescription, newNodeDescription) {
 			nodeDescription = newNodeDescription
 			// close the session
 			log.G(ctx).Info("agent: found node update")
@@ -645,12 +645,19 @@ func (a *Agent) nodeDescriptionWithHostname(ctx context.Context, tlsInfo *api.No
 // nodesEqual returns true if the node states are functionally equal, ignoring status,
 // version and other superfluous fields.
 //
-// This used to decide whether or not to propagate a node update to executor.
+// This is used to decide whether to propagate a node update to the executor.
 func nodesEqual(a, b *api.Node) bool {
 	a, b = a.Copy(), b.Copy()
 
 	a.Status, b.Status = api.NodeStatus{}, api.NodeStatus{}
 	a.Meta, b.Meta = api.Meta{}, api.Meta{}
 
-	return reflect.DeepEqual(a, b)
+	return proto.Equal(a, b)
+}
+
+// nodeDescriptionsEqual reports whether two node descriptions are equal
+// according to protobuf semantics, which treat nil and empty repeated fields
+// as equivalent.
+func nodeDescriptionsEqual(a, b *api.NodeDescription) bool {
+	return proto.Equal(a, b)
 }

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/containerd/platforms"
-	"github.com/mitchellh/hashstructure/v2"
+	"github.com/gohugoio/hashstructure"
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
@@ -163,6 +163,9 @@ func (b *llbBridge) loadResult(ctx context.Context, def *pb.Definition, cacheImp
 }
 
 func (b *llbBridge) policy(engine *sourcepolicy.Engine) SourcePolicyEvaluator {
+	if engine == nil {
+		return nil
+	}
 	return &policyEvaluator{
 		llbBridge: b,
 		engine:    engine,
@@ -279,6 +282,7 @@ func (b *llbBridge) resolveSourceMetadata(ctx context.Context, op *pb.SourceOp, 
 	engine := sourcepolicy.NewEngine(opt.SourcePolicies)
 
 	if !withPolicy {
+		op.Identifier = normalizedSourceIdentifier(w, op)
 		if _, err := engine.Evaluate(ctx, op); err != nil {
 			return nil, errors.Wrap(err, "could not resolve image due to policy")
 		}
@@ -382,7 +386,7 @@ func cmKey(im gw.CacheOptionsEntry) (string, error) {
 	if im.Type == "registry" && im.Attrs["ref"] != "" {
 		return im.Attrs["ref"], nil
 	}
-	i, err := hashstructure.Hash(im, hashstructure.FormatV2, nil)
+	i, err := hashstructure.Hash(im, nil)
 	if err != nil {
 		return "", err
 	}

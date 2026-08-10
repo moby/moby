@@ -2,7 +2,6 @@ package buildkit
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -59,6 +58,7 @@ import (
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"go.opentelemetry.io/otel/sdk/trace"
+	"google.golang.org/grpc"
 )
 
 func newController(ctx context.Context, rt http.RoundTripper, opt Opt) (*control.Controller, error) {
@@ -135,7 +135,16 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		CDIManager:      cdiManager,
 	}
 
-	wo, err := containerd.NewWorkerOpt(workerOpts, ctd.WithTimeout(60*time.Second))
+	ctdOpts := []ctd.Opt{ctd.WithTimeout(60 * time.Second)}
+	if opt.ContainerdDialer != nil {
+		// Embedded mode: dial the in-process containerd over the in-memory
+		// pipe. The address stays the gRPC target, and the dialer overrides the
+		// connection.
+		ctdOpts = append(ctdOpts, ctd.WithExtraDialOpts([]grpc.DialOption{
+			grpc.WithContextDialer(opt.ContainerdDialer),
+		}))
+	}
+	wo, err := containerd.NewWorkerOpt(workerOpts, ctdOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +173,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		rootless:            opt.Rootless,
 		identityMapping:     opt.IdentityMapping,
 		containerdAddr:      opt.ContainerdAddress,
+		containerdDialer:    opt.ContainerdDialer,
 		containerdNamespace: opt.ContainerdNamespace,
 		hypervIsolation:     opt.HyperVIsolation,
 	})
@@ -236,7 +246,9 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 }
 
 func openHistoryDB(root string, fn string, cfg *config.BuilderHistoryConfig) (*bolt.DB, *bkconfig.HistoryConfig, error) {
-	db, err := bolt.Open(filepath.Join(root, fn), 0o600, nil)
+	db, err := bolt.Open(filepath.Join(root, fn), 0o600, &bolt.Options{
+		FreelistType: bolt.FreelistMapType,
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -286,7 +298,9 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		return nil, err
 	}
 
-	db, err := bolt.Open(filepath.Join(root, "containerdmeta.db"), 0o644, nil)
+	db, err := bolt.Open(filepath.Join(root, "containerdmeta.db"), 0o644, &bolt.Options{
+		FreelistType: bolt.FreelistMapType,
+	})
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -381,6 +395,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 
 		// Windows-only fields (currently not used, as newExecutorGD is not implemented on Windows)
 		containerdAddr:      opt.ContainerdAddress,
+		containerdDialer:    opt.ContainerdDialer,
 		containerdNamespace: opt.ContainerdNamespace,
 		hypervIsolation:     opt.HyperVIsolation,
 	})
@@ -553,7 +568,7 @@ func parseGCPolicy(p config.BuilderGCRule, prefix string) (reservedSpace, maxUse
 		if prefix != "" {
 			key = prefix + strings.ToTitle(key)
 		}
-		return fmt.Sprintf("failed to parse %s", key)
+		return "failed to parse " + key
 	}
 
 	if p.ReservedSpace != "" {

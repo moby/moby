@@ -610,6 +610,26 @@ func (m *validateOpDeleteSubscriptionFilter) HandleInitialize(ctx context.Contex
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpDeleteSyslogConfiguration struct {
+}
+
+func (*validateOpDeleteSyslogConfiguration) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpDeleteSyslogConfiguration) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*DeleteSyslogConfigurationInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpDeleteSyslogConfigurationInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpDeleteTransformer struct {
 }
 
@@ -1490,6 +1510,26 @@ func (m *validateOpPutRetentionPolicy) HandleInitialize(ctx context.Context, in 
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpPutStorageTierPolicy struct {
+}
+
+func (*validateOpPutStorageTierPolicy) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpPutStorageTierPolicy) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*PutStorageTierPolicyInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpPutStorageTierPolicyInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpPutSubscriptionFilter struct {
 }
 
@@ -1505,6 +1545,26 @@ func (m *validateOpPutSubscriptionFilter) HandleInitialize(ctx context.Context, 
 		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
 	}
 	if err := validateOpPutSubscriptionFilterInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
+type validateOpPutSyslogConfiguration struct {
+}
+
+func (*validateOpPutSyslogConfiguration) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpPutSyslogConfiguration) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*PutSyslogConfigurationInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpPutSyslogConfigurationInput(input); err != nil {
 		return out, metadata, err
 	}
 	return next.HandleInitialize(ctx, in)
@@ -1930,6 +1990,10 @@ func addOpDeleteSubscriptionFilterValidationMiddleware(stack *middleware.Stack) 
 	return stack.Initialize.Add(&validateOpDeleteSubscriptionFilter{}, middleware.After)
 }
 
+func addOpDeleteSyslogConfigurationValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpDeleteSyslogConfiguration{}, middleware.After)
+}
+
 func addOpDeleteTransformerValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpDeleteTransformer{}, middleware.After)
 }
@@ -2106,8 +2170,16 @@ func addOpPutRetentionPolicyValidationMiddleware(stack *middleware.Stack) error 
 	return stack.Initialize.Add(&validateOpPutRetentionPolicy{}, middleware.After)
 }
 
+func addOpPutStorageTierPolicyValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpPutStorageTierPolicy{}, middleware.After)
+}
+
 func addOpPutSubscriptionFilterValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpPutSubscriptionFilter{}, middleware.After)
+}
+
+func addOpPutSyslogConfigurationValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpPutSyslogConfiguration{}, middleware.After)
 }
 
 func addOpPutTransformerValidationMiddleware(stack *middleware.Stack) error {
@@ -3570,6 +3642,21 @@ func validateOpDeleteSubscriptionFilterInput(v *DeleteSubscriptionFilterInput) e
 	}
 }
 
+func validateOpDeleteSyslogConfigurationInput(v *DeleteSyslogConfigurationInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "DeleteSyslogConfigurationInput"}
+	if v.LogGroupIdentifier == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("LogGroupIdentifier"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
 func validateOpDeleteTransformerInput(v *DeleteTransformerInput) error {
 	if v == nil {
 		return nil
@@ -4336,6 +4423,21 @@ func validateOpPutRetentionPolicyInput(v *PutRetentionPolicyInput) error {
 	}
 }
 
+func validateOpPutStorageTierPolicyInput(v *PutStorageTierPolicyInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "PutStorageTierPolicyInput"}
+	if len(v.StorageTier) == 0 {
+		invalidParams.Add(smithy.NewErrParamRequired("StorageTier"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
 func validateOpPutSubscriptionFilterInput(v *PutSubscriptionFilterInput) error {
 	if v == nil {
 		return nil
@@ -4352,6 +4454,21 @@ func validateOpPutSubscriptionFilterInput(v *PutSubscriptionFilterInput) error {
 	}
 	if v.DestinationArn == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("DestinationArn"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpPutSyslogConfigurationInput(v *PutSyslogConfigurationInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "PutSyslogConfigurationInput"}
+	if v.LogGroupIdentifier == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("LogGroupIdentifier"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams

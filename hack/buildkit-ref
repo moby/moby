@@ -49,6 +49,9 @@ if [[ "${buildkit_ref}" == *-*-* ]]; then
 	fi
 fi
 
+# https://github.com/moby/buildkit/pull/6992
+buildkit_ref="f5d08d5a04381687203ced27ef877e0c417fd122"
+
 cat << EOF
 BUILDKIT_REPO=$buildkit_repo
 BUILDKIT_REF=$buildkit_ref

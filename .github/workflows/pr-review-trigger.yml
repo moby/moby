@@ -1,0 +1,31 @@
+name: PR Review - Trigger
+
+on:
+  pull_request:
+    types: [review_requested]
+
+permissions: {}
+
+concurrency:
+  group: pr-review-trigger-${{ github.event.pull_request.number }}-${{ github.event.requested_reviewer.login }}
+  cancel-in-progress: true
+
+jobs:
+  save-context:
+    if: github.event.requested_reviewer.login == 'GordonTheTurtle'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Save event context
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p context
+          printf '%s' "$PR_NUMBER" > context/pr_number.txt
+
+      - name: Upload context
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-review-context
+          path: context/
+          retention-days: 1

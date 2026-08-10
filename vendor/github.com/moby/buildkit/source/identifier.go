@@ -11,6 +11,9 @@ var (
 )
 
 type Identifier interface {
+	// String returns the canonical source operation identifier.
+	String() string
+
 	// Scheme returns the scheme of the identifier so that it can be routed back
 	// to an appropriate Source.
 	Scheme() string

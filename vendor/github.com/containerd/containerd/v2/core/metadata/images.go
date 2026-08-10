@@ -362,15 +362,15 @@ func validateTarget(target *ocispec.Descriptor) error {
 	// NOTE(stevvooe): Only validate fields we actually store.
 
 	if err := target.Digest.Validate(); err != nil {
-		return fmt.Errorf("Target.Digest %q invalid: %v: %w", target.Digest, err, errdefs.ErrInvalidArgument)
+		return fmt.Errorf("target.Digest %q invalid: %v: %w", target.Digest, err, errdefs.ErrInvalidArgument)
 	}
 
 	if target.Size <= 0 {
-		return fmt.Errorf("Target.Size must be greater than zero: %w", errdefs.ErrInvalidArgument)
+		return fmt.Errorf("target.Size must be greater than zero: %w", errdefs.ErrInvalidArgument)
 	}
 
 	if target.MediaType == "" {
-		return fmt.Errorf("Target.MediaType must be set: %w", errdefs.ErrInvalidArgument)
+		return fmt.Errorf("target.MediaType must be set: %w", errdefs.ErrInvalidArgument)
 	}
 
 	return nil

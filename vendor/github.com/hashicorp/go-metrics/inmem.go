@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2025
 // SPDX-License-Identifier: MIT
 
 package metrics
@@ -6,6 +6,7 @@ package metrics
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"math"
 	"net/url"
 	"strings"
@@ -94,7 +95,7 @@ type AggregateSample struct {
 
 // Computes a Stddev of the values
 func (a *AggregateSample) Stddev() float64 {
-	num := (float64(a.Count) * a.SumSq) - math.Pow(a.Sum, 2)
+	num := (float64(a.Count) * a.SumSq) - (a.Sum * a.Sum)
 	div := float64(a.Count * (a.Count - 1))
 	if div == 0 {
 		return 0
@@ -143,12 +144,12 @@ func NewInmemSinkFromURL(u *url.URL) (MetricSink, error) {
 
 	interval, err := time.ParseDuration(params.Get("interval"))
 	if err != nil {
-		return nil, fmt.Errorf("Bad 'interval' param: %s", err)
+		return nil, fmt.Errorf("bad 'interval' param: %s", err)
 	}
 
 	retain, err := time.ParseDuration(params.Get("retain"))
 	if err != nil {
-		return nil, fmt.Errorf("Bad 'retain' param: %s", err)
+		return nil, fmt.Errorf("bad 'retain' param: %s", err)
 	}
 
 	return NewInmemSink(interval, retain), nil
@@ -251,6 +252,7 @@ func (i *InmemSink) AddSampleWithLabels(key []string, val float32, labels []Labe
 }
 
 // Data is used to retrieve all the aggregated metrics
+// The metric for the current interval is a snapshot
 // Intervals may be in use, and a read lock should be acquired
 func (i *InmemSink) Data() []*IntervalMetrics {
 	// Get the current interval, forces creation
@@ -263,37 +265,11 @@ func (i *InmemSink) Data() []*IntervalMetrics {
 	intervals := make([]*IntervalMetrics, n)
 
 	copy(intervals[:n-1], i.intervals[:n-1])
-	current := i.intervals[n-1]
 
 	// make its own copy for current interval
-	intervals[n-1] = &IntervalMetrics{}
-	copyCurrent := intervals[n-1]
+	current := i.intervals[n-1]
 	current.RLock()
-	*copyCurrent = *current
-	// RWMutex is not safe to copy, so create a new instance on the copy
-	copyCurrent.RWMutex = sync.RWMutex{}
-
-	copyCurrent.Gauges = make(map[string]GaugeValue, len(current.Gauges))
-	for k, v := range current.Gauges {
-		copyCurrent.Gauges[k] = v
-	}
-	copyCurrent.PrecisionGauges = make(map[string]PrecisionGaugeValue, len(current.PrecisionGauges))
-	for k, v := range current.PrecisionGauges {
-		copyCurrent.PrecisionGauges[k] = v
-	}
-	// saved values will be not change, just copy its link
-	copyCurrent.Points = make(map[string][]float32, len(current.Points))
-	for k, v := range current.Points {
-		copyCurrent.Points[k] = v
-	}
-	copyCurrent.Counters = make(map[string]SampledValue, len(current.Counters))
-	for k, v := range current.Counters {
-		copyCurrent.Counters[k] = v.deepCopy()
-	}
-	copyCurrent.Samples = make(map[string]SampledValue, len(current.Samples))
-	for k, v := range current.Samples {
-		copyCurrent.Samples[k] = v.deepCopy()
-	}
+	intervals[n-1] = current.deepCopy()
 	current.RUnlock()
 
 	return intervals
@@ -309,7 +285,7 @@ func (i *InmemSink) getInterval() *IntervalMetrics {
 	// a read lock.
 	i.intervalLock.RLock()
 	n := len(i.intervals)
-	if n > 0 && i.intervals[n-1].Interval == intv {
+	if n > 0 && i.intervals[n-1].Interval.Equal(intv) {
 		defer i.intervalLock.RUnlock()
 		return i.intervals[n-1]
 	}
@@ -320,7 +296,7 @@ func (i *InmemSink) getInterval() *IntervalMetrics {
 
 	// Re-check for an existing interval now that the lock is re-acquired.
 	n = len(i.intervals)
-	if n > 0 && i.intervals[n-1].Interval == intv {
+	if n > 0 && i.intervals[n-1].Interval.Equal(intv) {
 		return i.intervals[n-1]
 	}
 
@@ -345,7 +321,7 @@ func (i *InmemSink) flattenKey(parts []string) string {
 
 	joined := strings.Join(parts, ".")
 
-	spaceReplacer.WriteString(buf, joined)
+	_, _ = spaceReplacer.WriteString(buf, joined)
 
 	return buf.String()
 }
@@ -356,8 +332,34 @@ func (i *InmemSink) flattenKeyLabels(parts []string, labels []Label) (string, st
 	buf := bytes.NewBufferString(key)
 
 	for _, label := range labels {
-		spaceReplacer.WriteString(buf, fmt.Sprintf(";%s=%s", label.Name, label.Value))
+		_, _ = spaceReplacer.WriteString(buf, fmt.Sprintf(";%s=%s", label.Name, label.Value))
 	}
 
 	return buf.String(), key
+}
+
+func (intv *IntervalMetrics) deepCopy() *IntervalMetrics {
+	c := IntervalMetrics{
+		Interval:        intv.Interval,
+		Gauges:          make(map[string]GaugeValue, len(intv.Gauges)),
+		PrecisionGauges: make(map[string]PrecisionGaugeValue, len(intv.PrecisionGauges)),
+		Points:          make(map[string][]float32, len(intv.Points)),
+		Counters:        make(map[string]SampledValue, len(intv.Counters)),
+		Samples:         make(map[string]SampledValue, len(intv.Samples)),
+		done:            make(chan struct{}),
+	}
+
+	maps.Copy(c.Gauges, intv.Gauges)
+	maps.Copy(c.PrecisionGauges, intv.PrecisionGauges)
+	// saved values will be not change, just copy its link
+	maps.Copy(c.Points, intv.Points)
+
+	for k, v := range intv.Counters {
+		c.Counters[k] = v.deepCopy()
+	}
+	for k, v := range intv.Samples {
+		c.Samples[k] = v.deepCopy()
+	}
+
+	return &c
 }

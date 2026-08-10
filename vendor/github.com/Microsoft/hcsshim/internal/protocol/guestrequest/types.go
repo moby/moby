@@ -74,3 +74,17 @@ const (
 	STDErrHandle STDIOHandle = "StdErr"
 	AllHandles   STDIOHandle = "All"
 )
+
+type LogForwardServiceRPCRequest struct {
+	RPCType  RPCType `json:"RPCType,omitempty"` // "LogForwardService"
+	Settings string  `json:"Settings,omitempty"`
+}
+
+type RPCType string
+
+const (
+	// LogForwardServiceRPC is the RPC type for the log forward service.
+	RPCModifyServiceSettings RPCType = "ModifyServiceSettings"
+	RPCStartLogForwarding    RPCType = "StartLogForwarding"
+	RPCStopLogForwarding     RPCType = "StopLogForwarding"
+)

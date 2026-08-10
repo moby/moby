@@ -288,7 +288,7 @@ RUN echo 2 #layer2
 	// See if the "tmp2" can be untagged.
 	out = cli.DockerCmd(c, "rmi", newTag).Combined()
 	// Expected 1 untagged entry
-	assert.Equal(c, strings.Count(out, "Untagged: "), 1, fmt.Sprintf("out: %s", out))
+	assert.Equal(c, strings.Count(out, "Untagged: "), 1, "out: "+out)
 
 	// Now let's add the tag again and create a container based on it.
 	cli.DockerCmd(c, "tag", idToTag, newTag)

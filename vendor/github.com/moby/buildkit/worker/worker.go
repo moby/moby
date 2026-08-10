@@ -15,6 +15,7 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/network"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -37,6 +38,7 @@ type Worker interface {
 	LoadRef(ctx context.Context, id string, hidden bool) (cache.ImmutableRef, error)
 	// ResolveOp resolves Vertex.Sys() to Op implementation.
 	ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *session.Manager, proxyOpt ProxyOpt) (solver.Op, error)
+	ParseSource(op *pb.SourceOp, platform *pb.Platform) (source.Identifier, error)
 	ResolveSourceMetadata(ctx context.Context, op *pb.SourceOp, opt sourceresolver.Opt, sm *session.Manager, jobCtx solver.JobContext) (*sourceresolver.MetaResponse, error)
 	DiskUsage(ctx context.Context, opt client.DiskUsageInfo) ([]*client.UsageInfo, error)
 	Exporter(name string, sm *session.Manager) (exporter.Exporter, error)

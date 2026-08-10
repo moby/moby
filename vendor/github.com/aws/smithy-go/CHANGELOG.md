@@ -1,3 +1,23 @@
+# Release (2026-07-16)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go/aws-http-auth`: [v1.2.1](aws-http-auth/CHANGELOG.md#v121-2026-07-16)
+  * **Bug Fix**: Use r.URL.Host when r.Host is unset.
+* `github.com/aws/smithy-go/aws-http-auth-schemes`: [v1.0.0](aws-http-auth-schemes/CHANGELOG.md#v100-2026-07-16)
+  * **Release**: Module `github.com/aws/smithy-go/aws-http-auth-schemes` adds generic smithy-go client support for AWS Sigv4 and Sigv4a.
+
+# Release (2026-06-26)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.27.3
+  * **Bug Fix**: Fix bug in JSON doc encoder and endpoint host label format validation
+
 # Release (2026-06-05)
 
 ## General Highlights

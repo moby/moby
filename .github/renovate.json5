@@ -19,6 +19,12 @@
       "matchDepNames": ["/^golang\\.org\\/x\\//"]
     },
     {
+      "matchManagers": ["github-actions"],
+      "groupName": "docker GitHub Actions",
+      "groupSlug": "docker-actions",
+      "matchDepNames": ["/^docker\\//"]
+    },
+    {
       // Keep all the google.golang.org/genproto modules at the same version.
       "matchManagers": ["gomod"],
       "groupName": "google.golang.org/genproto packages",

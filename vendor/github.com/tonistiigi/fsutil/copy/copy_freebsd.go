@@ -1,5 +1,4 @@
 //go:build freebsd
-// +build freebsd
 
 package fs
 

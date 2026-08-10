@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -90,7 +89,7 @@ func mirrorsToRegistryHosts(mirrors []string, dHost docker.RegistryHost) []docke
 
 		u, err := url.Parse(mirror)
 		if err != nil || u.Host == "" {
-			u, err = url.Parse(fmt.Sprintf("dummy://%s", mirror))
+			u, err = url.Parse("dummy://" + mirror)
 		}
 		if err == nil && u.Host != "" {
 			h.Host = u.Host

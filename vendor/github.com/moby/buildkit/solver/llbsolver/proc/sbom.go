@@ -13,10 +13,11 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/result"
 	"github.com/moby/buildkit/util/tracing"
+	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
-func SBOMProcessor(scannerRef string, useCache bool, resolveMode string, params map[string]string) llbsolver.Processor {
+func SBOMProcessor(scannerRef string, scannerPlatform ocispecs.Platform, useCache bool, resolveMode string, params map[string]string) llbsolver.Processor {
 	return func(ctx context.Context, res *llbsolver.Result, s *llbsolver.Solver, j *solver.Job, usage *resources.SysSampler) (*llbsolver.Result, error) {
 		// skip sbom generation if we already have an sbom
 		if sbom.HasSBOM(res.Result) {
@@ -31,9 +32,10 @@ func SBOMProcessor(scannerRef string, useCache bool, resolveMode string, params 
 			return nil, err
 		}
 
-		scanner, err := sbom.CreateSBOMScanner(ctx, s.Bridge(j), scannerRef, sourceresolver.Opt{
+		scanner, err := sbom.CreateSBOMScanner(ctx, s.Bridge(j), scannerRef, scannerPlatform, sourceresolver.Opt{
 			ImageOpt: &sourceresolver.ResolveImageOpt{
 				ResolveMode: resolveMode,
+				Platform:    &scannerPlatform,
 			},
 		}, params)
 		if err != nil {

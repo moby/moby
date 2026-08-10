@@ -117,7 +117,7 @@ func (r *schemaLoader) updateBasePath(transitive *schemaLoader, basePath string)
 
 func (r *schemaLoader) resolveRef(ref *Ref, target any, basePath string) error {
 	tgt := reflect.ValueOf(target)
-	if tgt.Kind() != reflect.Ptr {
+	if tgt.Kind() != reflect.Pointer {
 		return ErrResolveRefNeedsAPointer
 	}
 

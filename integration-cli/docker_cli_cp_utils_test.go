@@ -42,7 +42,7 @@ func (fd fileData) creationCommand() string {
 		// Don't overwrite the file if it already exists!
 		command = fmt.Sprintf("if [ ! -f %s ]; then echo %q > %s; fi", fd.path, fd.contents, fd.path)
 	case ftDir:
-		command = fmt.Sprintf("mkdir -p %s", fd.path)
+		command = "mkdir -p " + fd.path
 	case ftSymlink:
 		command = fmt.Sprintf("ln -fs %s %s", fd.contents, fd.path)
 	}
@@ -187,7 +187,7 @@ func containerCpPath(containerID string, pathElements ...string) string {
 }
 
 func containerCpPathTrailingSep(containerID string, pathElements ...string) string {
-	return fmt.Sprintf("%s/", containerCpPath(containerID, pathElements...))
+	return containerCpPath(containerID, pathElements...) + "/"
 }
 
 func runDockerCp(t *testing.T, src, dst string) error {
@@ -274,9 +274,9 @@ func defaultVolumes(tmpDir string) []string {
 	if testEnv.IsLocalDaemon() {
 		return []string{
 			"/vol1",
-			fmt.Sprintf("%s:/vol2", tmpDir),
-			fmt.Sprintf("%s:/vol3", filepath.Join(tmpDir, "vol3")),
-			fmt.Sprintf("%s:/vol_ro:ro", filepath.Join(tmpDir, "vol_ro")),
+			tmpDir + ":/vol2",
+			filepath.Join(tmpDir, "vol3") + ":/vol3",
+			filepath.Join(tmpDir, "vol_ro") + ":/vol_ro:ro",
 		}
 	}
 

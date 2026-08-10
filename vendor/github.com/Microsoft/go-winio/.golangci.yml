@@ -59,6 +59,10 @@ issues:
       text: "^directive `//nolint:errorlint` should provide explanation"
       source: '[=|!]= io.EOF'
 
+    - linters:
+        - gosec
+      text: "^G115: integer overflow conversion"
+
 
 linters-settings:
   exhaustive:

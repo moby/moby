@@ -65,11 +65,9 @@ func resolveSnapshotOptions(ctx context.Context, client *Client, snapshotterName
 		return "", err
 	}
 
-	for _, capab := range capabs {
-		if capab == capaRemapIDs {
-			// Snapshotter supports ID remapping, we don't need to do anything.
-			return parent, nil
-		}
+	if slices.Contains(capabs, capaRemapIDs) {
+		// Snapshotter supports ID remapping, we don't need to do anything.
+		return parent, nil
 	}
 
 	var local snapshots.Info

@@ -23,6 +23,10 @@ func (daemon *Daemon) tarCopyOptions(ctr *container.Container, allowOverwriteDir
 	if err != nil {
 		return nil, errdefs.InvalidParameter(err)
 	}
+	uid, gid, err = daemon.idMapping.ToHost(uid, gid)
+	if err != nil {
+		return nil, errdefs.InvalidParameter(err)
+	}
 
 	return &archive.TarOptions{
 		NoOverwriteDirNonDir: !allowOverwriteDirWithFile,

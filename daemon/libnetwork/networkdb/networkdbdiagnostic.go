@@ -50,7 +50,7 @@ func (nDB *NetworkDB) dbJoin(w http.ResponseWriter, r *http.Request) {
 	logger.Info("join cluster")
 
 	if len(r.Form["members"]) < 1 {
-		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?members=ip1,ip2,...", r.URL.Path))
+		rsp := diagnostic.WrongCommand(missingParameter, r.URL.Path+"?members=ip1,ip2,...")
 		logger.Error("join cluster failed, wrong input")
 		diagnostic.HTTPReply(w, rsp, json)
 		return
@@ -83,7 +83,7 @@ func (nDB *NetworkDB) dbPeers(w http.ResponseWriter, r *http.Request) {
 	logger.Info("network peers")
 
 	if len(r.Form["nid"]) < 1 {
-		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?nid=test", r.URL.Path))
+		rsp := diagnostic.WrongCommand(missingParameter, r.URL.Path+"?nid=test")
 		logger.Error("network peers failed, wrong input")
 		diagnostic.HTTPReply(w, rsp, json)
 		return
@@ -143,7 +143,7 @@ func (nDB *NetworkDB) dbCreateEntry(w http.ResponseWriter, r *http.Request) {
 		len(r.Form["nid"]) < 1 ||
 		len(r.Form["key"]) < 1 ||
 		len(r.Form["value"]) < 1 {
-		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id&key=k&value=v", r.URL.Path))
+		rsp := diagnostic.WrongCommand(missingParameter, r.URL.Path+"?tname=table_name&nid=network_id&key=k&value=v")
 		logger.Error("create entry failed, wrong input")
 		diagnostic.HTTPReply(w, rsp, json)
 		return
@@ -192,7 +192,7 @@ func (nDB *NetworkDB) dbUpdateEntry(w http.ResponseWriter, r *http.Request) {
 		len(r.Form["nid"]) < 1 ||
 		len(r.Form["key"]) < 1 ||
 		len(r.Form["value"]) < 1 {
-		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id&key=k&value=v", r.URL.Path))
+		rsp := diagnostic.WrongCommand(missingParameter, r.URL.Path+"?tname=table_name&nid=network_id&key=k&value=v")
 		logger.Error("update entry failed, wrong input")
 		diagnostic.HTTPReply(w, rsp, json)
 		return
@@ -239,7 +239,7 @@ func (nDB *NetworkDB) dbDeleteEntry(w http.ResponseWriter, r *http.Request) {
 	if len(r.Form["tname"]) < 1 ||
 		len(r.Form["nid"]) < 1 ||
 		len(r.Form["key"]) < 1 {
-		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id&key=k", r.URL.Path))
+		rsp := diagnostic.WrongCommand(missingParameter, r.URL.Path+"?tname=table_name&nid=network_id&key=k")
 		logger.Error("delete entry failed, wrong input")
 		diagnostic.HTTPReply(w, rsp, json)
 		return
@@ -276,7 +276,7 @@ func (nDB *NetworkDB) dbGetEntry(w http.ResponseWriter, r *http.Request) {
 	if len(r.Form["tname"]) < 1 ||
 		len(r.Form["nid"]) < 1 ||
 		len(r.Form["key"]) < 1 {
-		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id&key=k", r.URL.Path))
+		rsp := diagnostic.WrongCommand(missingParameter, r.URL.Path+"?tname=table_name&nid=network_id&key=k")
 		logger.Error("get entry failed, wrong input")
 		diagnostic.HTTPReply(w, rsp, json)
 		return
@@ -320,7 +320,7 @@ func (nDB *NetworkDB) dbJoinNetwork(w http.ResponseWriter, r *http.Request) {
 	logger.Info("join network")
 
 	if len(r.Form["nid"]) < 1 {
-		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?nid=network_id", r.URL.Path))
+		rsp := diagnostic.WrongCommand(missingParameter, r.URL.Path+"?nid=network_id")
 		logger.Error("join network failed, wrong input")
 		diagnostic.HTTPReply(w, rsp, json)
 		return
@@ -352,7 +352,7 @@ func (nDB *NetworkDB) dbLeaveNetwork(w http.ResponseWriter, r *http.Request) {
 	logger.Info("leave network")
 
 	if len(r.Form["nid"]) < 1 {
-		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?nid=network_id", r.URL.Path))
+		rsp := diagnostic.WrongCommand(missingParameter, r.URL.Path+"?nid=network_id")
 		logger.Error("leave network failed, wrong input")
 		diagnostic.HTTPReply(w, rsp, json)
 		return
@@ -385,7 +385,7 @@ func (nDB *NetworkDB) dbGetTable(w http.ResponseWriter, r *http.Request) {
 
 	if len(r.Form["tname"]) < 1 ||
 		len(r.Form["nid"]) < 1 {
-		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id", r.URL.Path))
+		rsp := diagnostic.WrongCommand(missingParameter, r.URL.Path+"?tname=table_name&nid=network_id")
 		logger.Error("get table failed, wrong input")
 		diagnostic.HTTPReply(w, rsp, json)
 		return
@@ -432,7 +432,7 @@ func (nDB *NetworkDB) dbNetworkStats(w http.ResponseWriter, r *http.Request) {
 	logger.Info("network stats")
 
 	if len(r.Form["nid"]) < 1 {
-		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?nid=test", r.URL.Path))
+		rsp := diagnostic.WrongCommand(missingParameter, r.URL.Path+"?nid=test")
 		logger.Error("network stats failed, wrong input")
 		diagnostic.HTTPReply(w, rsp, json)
 		return

@@ -22,6 +22,8 @@
         "internal/endpoints/endpoints.go",
         "internal/endpoints/endpoints_test.go",
         "options.go",
+        "request_snapshot_test.go",
+        "response_snapshot_test.go",
         "serializers.go",
         "snapshot_test.go",
         "sra_operation_order_test.go",

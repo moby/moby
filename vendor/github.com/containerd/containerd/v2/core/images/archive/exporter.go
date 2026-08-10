@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"path"
 	"slices"
 	"sort"
@@ -195,9 +196,7 @@ func WithSkipMissing(store content.InfoReaderProvider) ExportOpt {
 
 func addNameAnnotation(name string, base map[string]string) map[string]string {
 	annotations := map[string]string{}
-	for k, v := range base {
-		annotations[k] = v
-	}
+	maps.Copy(annotations, base)
 
 	annotations[images.AnnotationImageName] = name
 	annotations[ocispec.AnnotationRefName] = ociReferenceName(name)

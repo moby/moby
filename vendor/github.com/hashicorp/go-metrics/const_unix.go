@@ -1,8 +1,7 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2025
 // SPDX-License-Identifier: MIT
 
 //go:build !windows && !js
-// +build !windows,!js
 
 package metrics
 

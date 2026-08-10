@@ -72,7 +72,7 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 	if parent != "" {
 		historyComment = fmt.Sprintf("merge %s to %s", id, parent)
 	} else {
-		historyComment = fmt.Sprintf("create new from %s", id)
+		historyComment = "create new from " + id
 	}
 
 	newImage.History = append(newImage.History, image.History{

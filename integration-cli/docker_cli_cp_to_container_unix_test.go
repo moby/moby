@@ -3,7 +3,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -48,7 +47,7 @@ func (s *DockerCLICpSuite) TestCpCheckDestOwnership(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	tmpVolDir := getTestDir(c, "test-cp-tmpvol")
 	containerID := makeTestContainer(c,
-		testContainerOptions{volumes: []string{fmt.Sprintf("%s:/tmpvol", tmpVolDir)}})
+		testContainerOptions{volumes: []string{tmpVolDir + ":/tmpvol"}})
 
 	tmpDir := getTestDir(c, "test-cp-to-check-ownership")
 	defer os.RemoveAll(tmpDir)

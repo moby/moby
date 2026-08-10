@@ -1,11 +1,14 @@
 //go:build windows
-// +build windows
 
 package vhd
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
+	"strings"
 	"syscall"
+	"unsafe"
 
 	"github.com/Microsoft/go-winio/pkg/guid"
 	"golang.org/x/sys/windows"
@@ -18,6 +21,8 @@ import (
 //sys attachVirtualDisk(handle syscall.Handle, securityDescriptor *uintptr, attachVirtualDiskFlag uint32, providerSpecificFlags uint32, parameters *AttachVirtualDiskParameters, overlapped *syscall.Overlapped) (win32err error) = virtdisk.AttachVirtualDisk
 //sys detachVirtualDisk(handle syscall.Handle, detachVirtualDiskFlags uint32, providerSpecificFlags uint32) (win32err error) = virtdisk.DetachVirtualDisk
 //sys getVirtualDiskPhysicalPath(handle syscall.Handle, diskPathSizeInBytes *uint32, buffer *uint16) (win32err error) = virtdisk.GetVirtualDiskPhysicalPath
+//sys getVirtualDiskInformation(handle syscall.Handle, bufferSize *uint32, info *virtualDiskInfo, sizeUsed *uint32) (win32err error) = virtdisk.GetVirtualDiskInformation
+//sys setVirtualDiskInformation(handle syscall.Handle, info *virtualDiskInfo) (win32err error) = virtdisk.SetVirtualDiskInformation
 
 type (
 	CreateVirtualDiskFlag uint32
@@ -86,6 +91,20 @@ type AttachVirtualDiskParameters struct {
 	Version2 AttachVersion2
 }
 
+// `virtualDiskInfo` struct is used to represent both GET_VIRTUAL_DISK_INFO
+// (https://learn.microsoft.com/en-us/windows/win32/api/virtdisk/ns-virtdisk-get_virtual_disk_info)
+// and SET_VIRTUAL_DISK_INFO
+// (https://learn.microsoft.com/en-us/windows/win32/api/virtdisk/ns-virtdisk-set_virtual_disk_info)
+// win32 types. Both of these win32 types have the same size and a very similar
+// structure. These types use tagged unions which aren't directly supported in Go, so we
+// keep this type unexported, and provide a cleaner interface to our callers by parsing
+// the data buffer for the right type.
+type virtualDiskInfo struct {
+	version uint32
+	_       [4]byte  // padding
+	data    [24]byte // union of various types
+}
+
 const (
 	//revive:disable-next-line:var-naming ALL_CAPS
 	VIRTUAL_STORAGE_TYPE_DEVICE_VHDX = 0x3
@@ -143,6 +162,34 @@ const (
 
 	// Flags for detaching a VHD.
 	DetachVirtualDiskFlagNone DetachVirtualDiskFlag = 0x0
+
+	// Flags for setting information about a VHD - these should remain unexported as we provide APIs to directly get/set a particular field.
+	setVirtualDiskInfoUnspecified         uint32 = 0x0
+	setVirtualDiskInfoParentPath          uint32 = 0x1
+	setVirtualDiskInfoIdentifier          uint32 = 0x2
+	setVirtualDiskInfoParentPathWithDepth uint32 = 0x3
+	setVirtualDiskInfoPhysicalSectorSize  uint32 = 0x4
+	setVirtualDiskInfoVirtualDiskID       uint32 = 0x5
+	setVirtualDiskInfoChangeTrackingState uint32 = 0x6
+	setVirtualDiskInfoParentLocator       uint32 = 0x7
+
+	// Flags for getting information about a VHD - these should remain unexported as we provide APIs to directly get/set a particular field.
+	getVirtualDiskInfoUnspecified             uint32 = 0x0
+	getVirtualDiskInfoSize                    uint32 = 0x1
+	getVirtualDiskInfoIdentifier              uint32 = 0x2
+	getVirtualDiskInfoParentLocation          uint32 = 0x3
+	getVirtualDiskInfoParentIdentifier        uint32 = 0x4
+	getVirtualDiskInfoParentTimestamp         uint32 = 0x5
+	getVirtualDiskInfoVirtualStorageType      uint32 = 0x6
+	getVirtualDiskInfoProviderSubtype         uint32 = 0x7
+	getVirtualDiskInfoIs4kAligned             uint32 = 0x8
+	getVirtualDiskInfoPhysicalDisk            uint32 = 0x9
+	getVirtualDiskInfoVHDPhysicalSectorSize   uint32 = 0xA
+	getVirtualDiskInfoSmallestSafeVirtualSize uint32 = 0xB
+	getVirtualDiskInfoFragmentation           uint32 = 0xC
+	getVirtualDiskInfoIsLoaded                uint32 = 0xD
+	getVirtualDiskInfoVirtualDiskID           uint32 = 0xE
+	getVirtualDiskInfoChangeTrackingState     uint32 = 0xF
 )
 
 // CreateVhdx is a helper function to create a simple vhdx file at the given path using
@@ -374,4 +421,61 @@ func CreateDiffVhd(diffVhdPath, baseVhdPath string, blockSizeInMB uint32) error 
 		return fmt.Errorf("failed to close differencing vhd handle: %w", err)
 	}
 	return nil
+}
+
+// SetVirtualDiskIdentifier sets the virtual disk identifier for the specified virtual disk.
+func SetVirtualDiskIdentifier(vhdPath string, identifier guid.GUID) error {
+	handle, err := OpenVirtualDisk(vhdPath, VirtualDiskAccessNone, OpenVirtualDiskFlagNone)
+	if err != nil {
+		return fmt.Errorf("failed to open %s: %w", vhdPath, err)
+	}
+	defer syscall.Close(handle)
+
+	info := &virtualDiskInfo{
+		version: setVirtualDiskInfoIdentifier,
+	}
+	if strings.HasSuffix(vhdPath, ".vhdx") {
+		// VHDx requires a different version to set disk id
+		info.version = setVirtualDiskInfoVirtualDiskID
+	}
+
+	if _, err := binary.Encode(info.data[:], binary.LittleEndian, identifier); err != nil {
+		return fmt.Errorf("failed to serialize virtual disk identifier: %w", err)
+	}
+
+	if err := setVirtualDiskInformation(handle, info); err != nil {
+		return fmt.Errorf("failed to set virtual disk identifier: %w", err)
+	}
+	return nil
+}
+
+// GetVirtualDiskIdentifier retrieves the virtual disk identifier for the specified virtual disk.
+func GetVirtualDiskIdentifier(vhdPath string) (guid.GUID, error) {
+	handle, err := OpenVirtualDisk(vhdPath, VirtualDiskAccessNone, OpenVirtualDiskFlagNone)
+	if err != nil {
+		return guid.GUID{}, fmt.Errorf("failed to open %s: %w", vhdPath, err)
+	}
+	defer syscall.Close(handle)
+
+	info := &virtualDiskInfo{
+		version: getVirtualDiskInfoIdentifier,
+	}
+	if strings.HasSuffix(vhdPath, ".vhdx") {
+		// VHDx requires a different version to get disk id
+		info.version = getVirtualDiskInfoVirtualDiskID
+	}
+
+	var sizeUsed uint32
+	bufferSize := uint32(unsafe.Sizeof(*info))
+	if err := getVirtualDiskInformation(handle, &bufferSize, info, &sizeUsed); err != nil {
+		return guid.GUID{}, fmt.Errorf("failed to get virtual disk identifier: %w", err)
+	}
+
+	// Parse the response
+	id := &guid.GUID{}
+	reader := bytes.NewReader(info.data[:])
+	if err := binary.Read(reader, binary.LittleEndian, id); err != nil {
+		return guid.GUID{}, fmt.Errorf("failed to parse virtual disk identifier: %w", err)
+	}
+	return *id, nil
 }

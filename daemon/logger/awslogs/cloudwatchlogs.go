@@ -41,7 +41,7 @@ const (
 	logCreateStreamKey     = "awslogs-create-stream"
 	datetimeFormatKey      = "awslogs-datetime-format"
 	multilinePatternKey    = "awslogs-multiline-pattern"
-	credentialsEndpointKey = "awslogs-credentials-endpoint" //nolint:gosec // G101: Potential hardcoded credentials
+	credentialsEndpointKey = "awslogs-credentials-endpoint" // #nosec G101 -- Potential hardcoded credentials
 	forceFlushIntervalKey  = "awslogs-force-flush-interval-seconds"
 	maxBufferedEventsKey   = "awslogs-max-buffered-events"
 	logFormatKey           = "awslogs-format"
@@ -61,7 +61,7 @@ const (
 	// this replacement happens.
 	maximumBytesPerEvent = 262144 - perEventBytes
 
-	credentialsEndpoint = "http://169.254.170.2" //nolint:gosec // G101: Potential hardcoded credentials
+	credentialsEndpoint = "http://169.254.170.2" // #nosec G101 -- Potential hardcoded credentials
 
 	// See: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Embedded_Metric_Format_Specification.html
 	logsFormatHeader = "x-amzn-logs-format"

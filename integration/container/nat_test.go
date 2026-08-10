@@ -125,7 +125,7 @@ func startServerContainer(ctx context.Context, t *testing.T, msg string, port ui
 			c.HostConfig.PortBindings = network.PortMap{
 				network.MustParsePort(fmt.Sprintf("%d/tcp", port)): []network.PortBinding{
 					{
-						HostPort: fmt.Sprintf("%d", port),
+						HostPort: strconv.FormatUint(uint64(port), 10),
 					},
 				},
 			}

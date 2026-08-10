@@ -5,7 +5,7 @@ import "net"
 const (
 	// Version of the REST API, not implementation version.
 	// See openapi.yaml for the definition.
-	Version = "1.1.1"
+	Version = "1.1.2"
 )
 
 // Info is the structure returned by `GET /info`
@@ -24,6 +24,7 @@ type NetworkDriverInfo struct {
 	DNS            []net.IP `json:"dns,omitempty"`
 	ChildIP        net.IP   `json:"childIP,omitempty"`        // since API v1.1.1 (RootlessKit v0.14.1)
 	DynamicChildIP bool     `json:"dynamicChildIP,omitempty"` // since API v1.1.1
+	IPv6           bool     `json:"ipv6,omitempty"`           // since API v1.1.2
 }
 
 // PortDriverInfo in Info

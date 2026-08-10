@@ -62,7 +62,7 @@ func (e *Envelope) Field(fieldpath []string) (string, bool) {
 }
 
 // Event is a generic interface for any type of event
-type Event interface{}
+type Event any
 
 // Publisher posts the event.
 type Publisher interface {

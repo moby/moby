@@ -88,7 +88,7 @@ func getVersion(name string, dep *debug.Module) (string, bool) {
 func normalize(v string) string {
 	base, metas, dirty := splitMetadata(v)
 
-	out := base
+	var out strings.Builder
 	if base2, rev, undoPatch, ok := splitPseudo(base); ok {
 		if undoPatch {
 			// Downgrade the patch version that was raised by pseudo-versions:
@@ -103,18 +103,22 @@ func normalize(v string) string {
 		if len(rev) > 12 {
 			rev = rev[:12]
 		}
-		out = base2 + "+" + rev
+		out.WriteString(base2)
+		out.WriteByte('+')
+		out.WriteString(rev)
+	} else {
+		out.WriteString(base)
 	}
 
 	// Preserve other metadata (except for "+incompatible").
 	for _, m := range metas {
-		out += m
+		out.WriteString(m)
 	}
 	if dirty {
 		// +dirty goes last
-		out += "+dirty"
+		out.WriteString("+dirty")
 	}
-	return out
+	return out.String()
 }
 
 func splitMetadata(v string) (base string, metas []string, dirty bool) {

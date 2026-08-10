@@ -449,23 +449,23 @@ func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *testing.T) {
 	assert.NilError(c, s.d.Signal(unix.SIGHUP))
 	time.Sleep(3 * time.Second)
 
-	out, err := s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", fmt.Sprintf("daemon=%s", info.ID))
+	out, err := s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", "daemon="+info.ID)
 	assert.NilError(c, err)
-	assert.Assert(c, is.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
+	assert.Assert(c, is.Contains(out, "daemon reload "+info.ID))
 
-	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", fmt.Sprintf("daemon=%s", info.ID))
+	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", "daemon="+info.ID)
 	assert.NilError(c, err)
-	assert.Assert(c, is.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
+	assert.Assert(c, is.Contains(out, "daemon reload "+info.ID))
 
 	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", "daemon=foo")
 	assert.NilError(c, err)
-	assert.Assert(c, !strings.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
+	assert.Assert(c, !strings.Contains(out, "daemon reload "+info.ID))
 
 	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", "type=daemon")
 	assert.NilError(c, err)
-	assert.Assert(c, is.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
+	assert.Assert(c, is.Contains(out, "daemon reload "+info.ID))
 
 	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", "type=container")
 	assert.NilError(c, err)
-	assert.Assert(c, !strings.Contains(out, fmt.Sprintf("daemon reload %s", info.ID)))
+	assert.Assert(c, !strings.Contains(out, "daemon reload "+info.ID))
 }

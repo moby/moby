@@ -208,6 +208,23 @@ func getDisableRequestCompression(ctx context.Context, configs configs) (value b
 	return
 }
 
+// disableClockSkewCorrectionProvider provides access to the DisableClockSkewCorrection
+type disableClockSkewCorrectionProvider interface {
+	getDisableClockSkewCorrection(context.Context) (bool, bool, error)
+}
+
+func getDisableClockSkewCorrection(ctx context.Context, configs configs) (value bool, found bool, err error) {
+	for _, cfg := range configs {
+		if p, ok := cfg.(disableClockSkewCorrectionProvider); ok {
+			value, found, err = p.getDisableClockSkewCorrection(ctx)
+			if err != nil || found {
+				break
+			}
+		}
+	}
+	return
+}
+
 // requestMinCompressSizeBytesProvider provides access to the MinCompressSizeBytes
 type requestMinCompressSizeBytesProvider interface {
 	getRequestMinCompressSizeBytes(context.Context) (int64, bool, error)

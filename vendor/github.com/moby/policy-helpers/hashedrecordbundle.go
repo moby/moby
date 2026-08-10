@@ -198,6 +198,13 @@ func (d *hashedRecordSignedEntity) Certificate() *x509.Certificate {
 	return d.cert.Certificate()
 }
 
+func (d *hashedRecordSignedEntity) Intermediates() []*x509.Certificate {
+	if d.isDHI {
+		return nil
+	}
+	return d.cert.Intermediates()
+}
+
 func (d *hashedRecordSignedEntity) PublicKey() verify.PublicKeyProvider {
 	if d.isDHI {
 		return bundle.PublicKey{}

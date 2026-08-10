@@ -182,13 +182,18 @@ func ParseKnownHosts(in []byte) (marker string, hosts []string, pubKey PublicKey
 		}
 
 		hosts := string(keyFields[0])
-		// keyFields[1] contains the key type (e.g. “ssh-rsa”).
-		// However, that information is duplicated inside the
-		// base64-encoded key and so is ignored here.
+		// keyFields[1] contains the key type (e.g. "ssh-rsa"). This information
+		// is duplicated within the base64-encoded key blob. As OpenSSH's
+		// sshkey_read does, we verify that the declared key type matches the
+		// type embedded in the key blob.
+		wantType := string(keyFields[1])
 
 		key := bytes.Join(keyFields[2:], []byte(" "))
 		if pubKey, comment, err = parseAuthorizedKey(key); err != nil {
 			return "", nil, nil, "", nil, err
+		}
+		if pubKey.Type() != wantType {
+			return "", nil, nil, "", nil, fmt.Errorf("ssh: known hosts key type mismatch: human-readable type %q, encoded type %q", wantType, pubKey.Type())
 		}
 
 		return marker, strings.Split(hosts, ","), pubKey, comment, rest, nil
@@ -228,10 +233,17 @@ func ParseAuthorizedKey(in []byte) (out PublicKey, comment string, options []str
 		}
 
 		if out, comment, err = parseAuthorizedKey(in[i:]); err == nil {
-			return out, comment, options, rest, nil
-		} else {
-			lastErr = err
+			// The first field contains the declared key type. As OpenSSH's
+			// sshkey_read does, we verify that it matches the type embedded in
+			// the key blob. Without this check, a single-token option (e.g.
+			// "restrict") appearing in the key type position could be silently
+			// discarded along with its intended effect.
+			if string(in[:i]) == out.Type() {
+				return out, comment, options, rest, nil
+			}
+			err = fmt.Errorf("ssh: authorized keys key type mismatch: human-readable type %q, encoded type %q", in[:i], out.Type())
 		}
+		lastErr = err
 
 		// No key type recognised. Maybe there's an options field at
 		// the beginning.
@@ -271,11 +283,15 @@ func ParseAuthorizedKey(in []byte) (out PublicKey, comment string, options []str
 		}
 
 		if out, comment, err = parseAuthorizedKey(in[i:]); err == nil {
-			options = candidateOptions
-			return out, comment, options, rest, nil
-		} else {
-			lastErr = err
+			// As above, the declared key type (here following the options
+			// field) must match the type embedded in the key blob.
+			if string(in[:i]) == out.Type() {
+				options = candidateOptions
+				return out, comment, options, rest, nil
+			}
+			err = fmt.Errorf("ssh: authorized keys key type mismatch: human-readable type %q, encoded type %q", in[:i], out.Type())
 		}
+		lastErr = err
 
 		in = rest
 		continue

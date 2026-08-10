@@ -311,3 +311,49 @@ func debugSchedulerSkipInputRequestBasedOnDepState(e *edge, dep *dep, desiredSta
 			Debug("skip input request based on dep state")
 	}
 }
+
+// debugSchedulerNoCacheMatchPossible records the moment an edge latches
+// noCacheMatchPossible because a dependency exposed no probeable key
+// (len(dep.keyMap)==0) once past cache-slow. When the dep nonetheless carries a
+// non-empty result cache key (dep_result_keys>0 with dep_keymap==0), that is the
+// stale/complete shared-dependency starvation: the key lives on the result but
+// was never delivered via edgeState.keys, so probeCache/Query never ran.
+func debugSchedulerNoCacheMatchPossible(e *edge, dep *dep, depHasSlowCache bool) {
+	if e.debug {
+		depResultKeys := 0
+		if dep.result != nil {
+			depResultKeys = len(dep.result.CacheKeys())
+		}
+		bklog.G(context.TODO()).
+			WithField("vtx", e.edge.Vertex.Digest()).
+			WithField("dep", dep.index).
+			WithField("dep_state", dep.state).
+			WithField("dep_keys", len(dep.keys)).
+			WithField("dep_keymap", len(dep.keyMap)).
+			WithField("dep_has_slow_cache", depHasSlowCache).
+			WithField("dep_result", dep.result != nil).
+			WithField("dep_result_keys", depResultKeys).
+			Debug("noCacheMatchPossible set: dep yields no probeable cache key")
+	}
+}
+
+// debugSchedulerDepDelivery records what a dependency hands over once it is
+// key-bearing (cache-slow) or terminal (complete). The starvation shows up as a
+// dep that arrives with dep_edgestate_keys=0 while dep_result_keys>0 -- keys on
+// the result but none in edgeState.keys, so probeCache is fed an empty slice.
+func debugSchedulerDepDelivery(e *edge, dep *dep, state *edgeState) {
+	if e.debug {
+		depResultKeys := 0
+		if state.result != nil {
+			depResultKeys = len(state.result.CacheKeys())
+		}
+		bklog.G(context.TODO()).
+			WithField("vtx", e.edge.Vertex.Digest()).
+			WithField("dep", dep.index).
+			WithField("dep_state", state.state).
+			WithField("dep_edgestate_keys", len(state.keys)).
+			WithField("dep_result", state.result != nil).
+			WithField("dep_result_keys", depResultKeys).
+			Debug("dep delivery: edgeState keys vs result keys")
+	}
+}

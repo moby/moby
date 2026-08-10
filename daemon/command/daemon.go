@@ -30,7 +30,7 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	buildkit "github.com/moby/moby/v2/daemon/internal/builder-next"
 	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter"
-	"github.com/moby/moby/v2/daemon/internal/libcontainerd/supervisor"
+	"github.com/moby/moby/v2/daemon/internal/containerd/server/supervisor"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/listeners"
@@ -75,6 +75,10 @@ type daemonCLI struct {
 
 	d               *daemon.Daemon
 	authzMiddleware *authorization.Middleware // authzMiddleware enables to dynamically reload the authorization plugins
+
+	// containerdDialer is the in-memory dialer for the embedded containerd. It
+	// is set in embedded mode and nil otherwise. See [daemon.ContainerdDialer].
+	containerdDialer daemon.ContainerdDialer
 
 	stopOnce     sync.Once
 	apiShutdown  chan struct{}
@@ -294,7 +298,7 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	}
 	cli.authzMiddleware = authz
 
-	d, err := daemon.NewDaemon(ctx, cli.Config, pluginStore, cli.authzMiddleware)
+	d, err := daemon.NewDaemon(ctx, cli.Config, pluginStore, cli.authzMiddleware, cli.containerdDialer)
 	if err != nil {
 		return errors.Wrap(err, "failed to start daemon")
 	}
@@ -322,7 +326,7 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	// initialized the cluster.
 	d.RestartSwarmContainers()
 
-	b, shutdownBuildKit, err := initBuildkit(ctx, d, cdiCache)
+	b, shutdownBuildKit, err := initBuildkit(ctx, d, cdiCache, cli.containerdDialer)
 	if err != nil {
 		return fmt.Errorf("error initializing buildkit: %w", err)
 	}
@@ -444,7 +448,7 @@ func setOTLPProtoDefault() {
 	}
 }
 
-func initBuildkit(ctx context.Context, d *daemon.Daemon, cdiCache *cdi.Cache) (_ builderOptions, closeFn func(), _ error) {
+func initBuildkit(ctx context.Context, d *daemon.Daemon, cdiCache *cdi.Cache, containerdDialer daemon.ContainerdDialer) (_ builderOptions, closeFn func(), _ error) {
 	log.G(ctx).Info("Initializing buildkit")
 	closeFn = func() {}
 
@@ -477,6 +481,7 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon, cdiCache *cdi.Cache) (_
 		UseSnapshotter:      d.UsesSnapshotter(),
 		Snapshotter:         d.ImageService().StorageDriver(),
 		ContainerdAddress:   cfg.ContainerdAddr,
+		ContainerdDialer:    containerdDialer,
 		ContainerdNamespace: cfg.ContainerdNamespace,
 		HyperVIsolation:     d.DefaultIsolation().IsHyperV(),
 		Callbacks: exporter.BuildkitCallbacks{
@@ -1159,7 +1164,11 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 		return nil, errors.Wrap(err, "failed to generate containerd options")
 	}
 
-	r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
+	rootDir, err := containerdRootDir(ctx, cli.Config)
+	if err != nil {
+		return nil, err
+	}
+	r, err := supervisor.Start(ctx, rootDir, filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start containerd")
 	}
@@ -1167,6 +1176,24 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 
 	// Try to wait for containerd to shutdown
 	return r.WaitTimeout, nil
+}
+
+// containerdRootEnv is a temporary testing override for reusing a standalone
+// containerd data root with embedded or supervised containerd.
+const containerdRootEnv = "DOCKER_CONTAINERD_ROOT"
+
+func containerdRootDir(ctx context.Context, cfg *config.Config) (string, error) {
+	if root := os.Getenv(containerdRootEnv); root != "" {
+		if !filepath.IsAbs(root) {
+			return "", fmt.Errorf("%s must be an absolute path: %q", containerdRootEnv, root)
+		}
+		log.G(ctx).WithFields(log.Fields{
+			"environment-variable": containerdRootEnv,
+			"root":                 root,
+		}).Warn("overriding containerd root from environment")
+		return root, nil
+	}
+	return filepath.Join(cfg.Root, "containerd", "daemon"), nil
 }
 
 // cdiEnabled returns true if CDI feature wasn't explicitly disabled via

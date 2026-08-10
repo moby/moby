@@ -230,7 +230,7 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 	}
 	block := blockEnc{lowMem: false}
 	block.init()
-	enc := encoder(&bestFastEncoder{fastBase: fastBase{maxMatchOff: int32(maxMatchLen), bufferReset: math.MaxInt32 - int32(maxMatchLen*2), lowMem: false}})
+	var enc encoder
 	if o.Level != 0 {
 		eOpts := encoderOptions{
 			level:      o.Level,
@@ -242,6 +242,7 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 		enc = eOpts.encoder()
 	} else {
 		o.Level = SpeedBestCompression
+		enc = encoder(&bestFastEncoder{fastBase: fastBase{maxMatchOff: int32(maxMatchLen), bufferReset: math.MaxInt32 - int32(maxMatchLen*2), lowMem: false}})
 	}
 	var (
 		remain [256]int

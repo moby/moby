@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/pkg/oci"
-	"github.com/mitchellh/hashstructure/v2"
+	"github.com/gohugoio/hashstructure"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
@@ -44,6 +44,29 @@ var tracingEnvVars = []string{
 	"OTEL_TRACES_EXPORTER=otlp",
 	"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=" + getTracingSocket(),
 	"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=grpc",
+}
+
+// envName returns the variable name of a "NAME=VALUE" environment entry.
+func envName(env string) string {
+	name, _, _ := strings.Cut(env, "=")
+	return name
+}
+
+// appendMissingTracingEnv appends the OpenTelemetry trace-exporter variables
+// that the build has not already set. This lets a build override or opt out of
+// them (for example with `--opt env.OTEL_TRACES_EXPORTER=none`) instead of
+// BuildKit unconditionally forcing its own values.
+func appendMissingTracingEnv(env []string) []string {
+	existing := make(map[string]struct{}, len(env))
+	for _, e := range env {
+		existing[envName(e)] = struct{}{}
+	}
+	for _, e := range tracingEnvVars {
+		if _, ok := existing[envName(e)]; !ok {
+			env = append(env, e)
+		}
+	}
+	return env
 }
 
 func (pm ProcessMode) String() string {
@@ -125,7 +148,9 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 
 	if tracingSocket != "" {
 		// https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/exporter.md
-		meta.Env = append(meta.Env, tracingEnvVars...)
+		// Only inject the trace-exporter variables the build has not already set,
+		// so it can override or opt out of them (e.g. `--opt env.OTEL_TRACES_EXPORTER=none`).
+		meta.Env = appendMissingTracingEnv(meta.Env)
 		meta.Env = append(meta.Env, childprocess.Environ(ctx)...)
 	}
 
@@ -265,7 +290,7 @@ func (s *submounts) subMount(m mount.Mount, subPath string) (mount.Mount, error)
 	if s.m == nil {
 		s.m = map[uint64]mountRef{}
 	}
-	h, err := hashstructure.Hash(m, hashstructure.FormatV2, nil)
+	h, err := hashstructure.Hash(m, nil)
 	if err != nil {
 		return mount.Mount{}, errors.WithStack(err)
 	}

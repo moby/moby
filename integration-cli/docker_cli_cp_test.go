@@ -540,7 +540,7 @@ func (s *DockerCLICpSuite) TestCopyAndRestart(c *testing.T) {
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
 
-	cli.DockerCmd(c, "cp", fmt.Sprintf("%s:/etc/group", containerID), tmpDir)
+	cli.DockerCmd(c, "cp", containerID+":/etc/group", tmpDir)
 
 	out = cli.DockerCmd(c, "start", "-a", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), expectedMsg)

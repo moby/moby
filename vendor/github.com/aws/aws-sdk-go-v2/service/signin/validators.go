@@ -30,6 +30,26 @@ func (m *validateOpCreateOAuth2Token) HandleInitialize(ctx context.Context, in m
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpCreateOAuth2TokenWithIAM struct {
+}
+
+func (*validateOpCreateOAuth2TokenWithIAM) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpCreateOAuth2TokenWithIAM) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*CreateOAuth2TokenWithIAMInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpCreateOAuth2TokenWithIAMInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpDeleteResourcePermissionStatement struct {
 }
 
@@ -50,12 +70,64 @@ func (m *validateOpDeleteResourcePermissionStatement) HandleInitialize(ctx conte
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpIntrospectOAuth2TokenWithIAM struct {
+}
+
+func (*validateOpIntrospectOAuth2TokenWithIAM) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpIntrospectOAuth2TokenWithIAM) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*IntrospectOAuth2TokenWithIAMInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpIntrospectOAuth2TokenWithIAMInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
+type validateOpRevokeOAuth2TokenWithIAM struct {
+}
+
+func (*validateOpRevokeOAuth2TokenWithIAM) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpRevokeOAuth2TokenWithIAM) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*RevokeOAuth2TokenWithIAMInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpRevokeOAuth2TokenWithIAMInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 func addOpCreateOAuth2TokenValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpCreateOAuth2Token{}, middleware.After)
 }
 
+func addOpCreateOAuth2TokenWithIAMValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpCreateOAuth2TokenWithIAM{}, middleware.After)
+}
+
 func addOpDeleteResourcePermissionStatementValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpDeleteResourcePermissionStatement{}, middleware.After)
+}
+
+func addOpIntrospectOAuth2TokenWithIAMValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpIntrospectOAuth2TokenWithIAM{}, middleware.After)
+}
+
+func addOpRevokeOAuth2TokenWithIAMValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpRevokeOAuth2TokenWithIAM{}, middleware.After)
 }
 
 func validateCreateOAuth2TokenRequestBody(v *types.CreateOAuth2TokenRequestBody) error {
@@ -95,6 +167,24 @@ func validateOpCreateOAuth2TokenInput(v *CreateOAuth2TokenInput) error {
 	}
 }
 
+func validateOpCreateOAuth2TokenWithIAMInput(v *CreateOAuth2TokenWithIAMInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "CreateOAuth2TokenWithIAMInput"}
+	if v.GrantType == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("GrantType"))
+	}
+	if v.Resource == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Resource"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
 func validateOpDeleteResourcePermissionStatementInput(v *DeleteResourcePermissionStatementInput) error {
 	if v == nil {
 		return nil
@@ -102,6 +192,36 @@ func validateOpDeleteResourcePermissionStatementInput(v *DeleteResourcePermissio
 	invalidParams := smithy.InvalidParamsError{Context: "DeleteResourcePermissionStatementInput"}
 	if v.StatementId == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("StatementId"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpIntrospectOAuth2TokenWithIAMInput(v *IntrospectOAuth2TokenWithIAMInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "IntrospectOAuth2TokenWithIAMInput"}
+	if v.Token == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Token"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpRevokeOAuth2TokenWithIAMInput(v *RevokeOAuth2TokenWithIAMInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "RevokeOAuth2TokenWithIAMInput"}
+	if v.Token == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Token"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams

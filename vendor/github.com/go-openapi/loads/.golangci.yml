@@ -7,6 +7,8 @@ linters:
     - gochecknoglobals # on this repo, it is hard to refactor without globals/inits and no breaking change
     - gochecknoinits
     - godox
+    - gomodguard
+    - gomodguard_v2
     - exhaustruct
     - nlreturn
     - nonamedreturns

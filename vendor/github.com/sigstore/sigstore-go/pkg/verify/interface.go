@@ -69,6 +69,7 @@ type VerificationContent interface {
 	CompareKey(any, root.TrustedMaterial) bool
 	ValidAtTime(time.Time, root.TrustedMaterial) bool
 	Certificate() *x509.Certificate
+	Intermediates() []*x509.Certificate
 	PublicKey() PublicKeyProvider
 }
 

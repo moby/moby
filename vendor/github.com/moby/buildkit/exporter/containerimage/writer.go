@@ -342,7 +342,7 @@ func (ic *ImageWriter) Commit(ctx context.Context, inp *exporter.Source, session
 				return nil, err
 			}
 
-			desc, err := ic.commitAttestationsManifest(ctx, opts, *desc, stmts, opts.OCIArtifact)
+			desc, err := ic.commitAttestationsManifest(ctx, opts, *desc, stmts, opts.OCIArtifactEnabled())
 			if err != nil {
 				return nil, err
 			}

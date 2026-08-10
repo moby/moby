@@ -57,7 +57,7 @@ func (e *Engine) selectorCache(src *spb.Selector) *selectorCache {
 // Evaluate evaluates a source operation against the policy.
 //
 // Policies are re-evaluated for each convert rule.
-// Evaluate will error if the there are too many converts for a single source op to prevent infinite loops.
+// Evaluate will error if there are too many converts for a single source op to prevent infinite loops.
 // This function may error out even if the op was mutated, in which case `true` will be returned along with the error.
 //
 // An error is returned when the source is denied by the policy.

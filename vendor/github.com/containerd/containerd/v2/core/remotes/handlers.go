@@ -55,9 +55,27 @@ func WithMediaTypeKeyPrefix(ctx context.Context, mediaType, prefix string) conte
 	return context.WithValue(ctx, refKeyPrefix{}, values)
 }
 
-// MakeRefKey returns a unique reference for the descriptor. This reference can be
-// used to lookup ongoing processes related to the descriptor. This function
-// may look to the context to namespace the reference appropriately.
+// MakeRefKey returns a stable ingest reference for desc.
+//
+// The returned key is used as a content-store reference to correlate ongoing
+// fetch and push operations for the same descriptor. The key is derived from
+// the descriptor digest and, when present, the
+// [ocispec.AnnotationRefName] annotation.
+//
+// By default, the key is prefixed according to the descriptor media type:
+//
+//   - "manifest-" for manifest media types recognized by [images.IsManifestType]
+//   - "index-" for index media types recognized by [images.IsIndexType]
+//   - "layer-" for layer media types recognized by [images.IsLayerType]
+//   - "config-" for config media types recognized by [images.IsKnownConfig]
+//   - "attestation-" for attestation media types recognized by [images.IsAttestationType]
+//
+// Additional exact media type mappings may be provided through
+// [WithMediaTypeKeyPrefix]. A context-provided mapping takes precedence over the
+// built-in classification.
+//
+// If the media type is not recognized and no context override exists,
+// MakeRefKey falls back to the "unknown-" prefix.
 func MakeRefKey(ctx context.Context, desc ocispec.Descriptor) string {
 	key := desc.Digest.String()
 	if desc.Annotations != nil {
@@ -85,7 +103,11 @@ func MakeRefKey(ctx context.Context, desc ocispec.Descriptor) string {
 	case images.IsAttestationType(desc.MediaType):
 		return "attestation-" + key
 	default:
-		log.G(ctx).Warnf("reference for unknown type: %s", desc.MediaType)
+		log.G(ctx).WithFields(log.Fields{
+			"digest":       desc.Digest,
+			"mediatype":    desc.MediaType,
+			"artifactType": desc.ArtifactType,
+		}).Debug("using generic reference key prefix for unclassified descriptor")
 		return "unknown-" + key
 	}
 }

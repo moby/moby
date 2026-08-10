@@ -105,8 +105,9 @@ message Options {
 	// UTC.
 	bool no_inherit_host_timezone = 19;
 
-	// scrub_logs enables removing environment variables and other potentially sensitive information from logs
-	bool scrub_logs = 20;
+	// scrub_logs controls removing environment variables and other potentially sensitive information from logs.
+	// If unset, scrubbing is enabled by default. Set explicitly to false to disable.
+	optional bool scrub_logs = 20;
 }
 
 // ProcessDetails contains additional information about a process. This is the additional

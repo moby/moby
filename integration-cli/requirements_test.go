@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -68,7 +67,7 @@ func Network() bool {
 
 	resp, err := c.Get(url)
 	if err != nil && !errors.Is(err, net.ErrClosed) {
-		panic(fmt.Sprintf("Timeout for GET request on %s", url))
+		panic("Timeout for GET request on " + url)
 	}
 	if resp != nil {
 		resp.Body.Close()
@@ -144,8 +143,14 @@ func RegistryHosting() bool {
 	return err == nil
 }
 
+// RuntimeIsWindowsContainerd returns whether the containerd runtime is used on
+// Windows.
+// It is true when either the legacy DOCKER_WINDOWS_CONTAINERD_RUNTIME=1 env
+// var is set, or when the embedded-containerd feature is enabled via
+// TEST_INTEGRATION_CONTAINERD_EMBEDDED (which also uses containerd).
 func RuntimeIsWindowsContainerd() bool {
-	return os.Getenv("DOCKER_WINDOWS_CONTAINERD_RUNTIME") == "1"
+	return os.Getenv("DOCKER_WINDOWS_CONTAINERD_RUNTIME") == "1" ||
+		(runtime.GOOS == "windows" && os.Getenv("TEST_INTEGRATION_CONTAINERD_EMBEDDED") != "")
 }
 
 func SwarmInactive() bool {

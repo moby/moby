@@ -28,10 +28,10 @@ import (
 var reLocal = regexp.MustCompile(`.*\.localhost(?::\d{1,5})?$`)
 
 // Detect the loopback IP (127.0.0.1)
-var reLoopback = regexp.MustCompile(regexp.QuoteMeta("127.0.0.1"))
+var reLoopback = regexp.MustCompile(`^127\.0\.0\.1(?::\d{1,5})?$`)
 
 // Detect the loopback IPV6 (::1)
-var reipv6Loopback = regexp.MustCompile(regexp.QuoteMeta("::1"))
+var reipv6Loopback = regexp.MustCompile(`^(::1|\[::1\](?::\d{1,5})?)$`)
 
 // Registry stores a docker registry name in a structured form.
 type Registry struct {

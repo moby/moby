@@ -9,7 +9,7 @@ ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 ARG XX_VERSION=1.9.0
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
-ARG DOCKERCLI_VERSION=v29.5.3
+ARG DOCKERCLI_VERSION=v29.6.0
 ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
 
 # cli version used for integration-cli tests
@@ -20,7 +20,7 @@ ARG DOCKERCLI_INTEGRATION_VERSION=v25.0.5
 ARG BUILDX_VERSION=0.35.0
 
 # COMPOSE_VERSION is the version of compose to install in the dev container.
-ARG COMPOSE_VERSION=v5.1.4
+ARG COMPOSE_VERSION=v5.3.1
 
 ARG SYSTEMD="false"
 ARG FIREWALLD="false"
@@ -142,7 +142,7 @@ WORKDIR /usr/src/containerd
 # It is used to build containerd binaries, and used for the integration tests.
 # The distributed docker .deb and .rpm packages depend on a separate (containerd.io)
 # package, which may be a different version than specified here.
-ARG CONTAINERD_VERSION=v2.2.6
+ARG CONTAINERD_VERSION=v2.3.3
 ADD https://github.com/containerd/containerd.git?ref=${CONTAINERD_VERSION}&keep-git-dir=1 .
 
 FROM base AS containerd-build
@@ -248,7 +248,7 @@ WORKDIR /usr/src/runc
 # This version should usually match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged.
-ARG RUNC_VERSION=v1.3.6
+ARG RUNC_VERSION=v1.4.3
 ADD https://github.com/opencontainers/runc.git?ref=${RUNC_VERSION}&keep-git-dir=1 .
 
 FROM base AS runc-build
@@ -443,7 +443,7 @@ ENV PATH=/usr/local/cli:$PATH
 ENV TEST_CLIENT_BINARY=/usr/local/cli-integration/docker
 ENV CONTAINERD_ADDRESS=/run/docker/containerd/containerd.sock
 ENV CONTAINERD_NAMESPACE=moby
-WORKDIR /go/src/github.com/docker/docker
+WORKDIR /usr/src/moby
 VOLUME /var/lib/docker
 VOLUME /home/unprivilegeduser/.local/share/docker
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
@@ -473,13 +473,13 @@ RUN useradd --create-home --gid docker unprivilegeduser \
  && mkdir -p /home/unprivilegeduser/.local/share/docker \
  && chown -R unprivilegeduser /home/unprivilegeduser
 # Let us use a .bashrc file
-RUN ln -sfv /go/src/github.com/docker/docker/.bashrc ~/.bashrc
+RUN ln -sfv /usr/src/moby/.bashrc ~/.bashrc
 # Activate bash completion
 RUN echo "source /usr/share/bash-completion/bash_completion" >> /etc/bash.bashrc
 RUN ldconfig
 # Set dev environment as safe git directory to prevent "dubious ownership" errors
 # when bind-mounting the source into the dev-container. See https://github.com/moby/moby/pull/44930
-RUN git config --global --add safe.directory $GOPATH/src/github.com/docker/docker
+RUN git config --global --add safe.directory /usr/src/moby
 # This should only install packages that are specifically needed for the dev environment and nothing else
 # Do you really need to add another package here? Can it be done in a different build stage?
 RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
@@ -529,7 +529,7 @@ COPY --link --from=dockercli-integration /build/ /usr/local/cli-integration
 
 FROM base AS build
 COPY --from=gowinres /build/ /usr/local/bin/
-WORKDIR /go/src/github.com/docker/docker
+WORKDIR /usr/src/moby
 ENV CGO_ENABLED=1
 RUN --mount=type=cache,sharing=locked,id=moby-build-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-build-aptcache,target=/var/cache/apt \

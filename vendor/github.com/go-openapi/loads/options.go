@@ -51,25 +51,16 @@ func WithDocLoader(l DocLoader) LoaderOption {
 // Loaders are executed in the order of provided [DocLoaderWithMatch] 'es.
 func WithDocLoaderMatches(l ...DocLoaderWithMatch) LoaderOption {
 	return func(opt *options) {
-		var final, prev *loader
-		for _, ldr := range l {
-			if ldr.Fn == nil {
-				continue
-			}
-
-			if prev == nil {
-				final = &loader{DocLoaderWithMatch: ldr}
-				prev = final
-				continue
-			}
-
-			prev = prev.WithNext(&loader{DocLoaderWithMatch: ldr})
-		}
-		opt.loader = final
+		opt.loader = buildLoaderChain(l...)
 	}
 }
 
 // WithLoadingOptions adds some [loading.Option] to be added when calling a registered loader.
+//
+// The options are attached to the document's loader, so they apply both to the initial load
+// and to every "$ref" resolved during [Document.Expanded]. This is the recommended place to
+// confine loading of untrusted input, for example with [loading.WithRoot] (local) and
+// [loading.WithHTTPClient] (remote). See the package documentation on Security.
 func WithLoadingOptions(loadingOptions ...loading.Option) LoaderOption {
 	return func(opt *options) {
 		opt.loadingOptions = loadingOptions

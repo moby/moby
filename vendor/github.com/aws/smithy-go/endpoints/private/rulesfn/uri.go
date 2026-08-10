@@ -27,6 +27,9 @@ func IsValidHostLabel(input string, allowSubDomains bool) bool {
 		if !smithyhttp.ValidHostLabel(label) {
 			return false
 		}
+		if label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
 	}
 
 	return true

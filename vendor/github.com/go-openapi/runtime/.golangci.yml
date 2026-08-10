@@ -36,7 +36,7 @@ linters:
     dupl:
       threshold: 200
     goconst:
-      min-len: 2
+      min-len: 9
       min-occurrences: 3
     cyclop:
       max-complexity: 25

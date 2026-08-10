@@ -815,6 +815,12 @@ func (ld *loader) refine(response *DriverResponse) ([]*Package, error) {
 			needsrc:   needsrc,
 			goVersion: response.GoVersion,
 		}
+		// Don't trust the driver to respond with duplicate-free
+		// package names (go.dev/issue/63822).
+		if _, ok := ld.pkgs[lpkg.ID]; ok {
+			return nil, fmt.Errorf("%s response contained duplicate packages for ID %q",
+				cond(ld.externalDriver, "go/packages driver", "go list"), lpkg.ID)
+		}
 		ld.pkgs[lpkg.ID] = lpkg
 		if rootIndex >= 0 {
 			initial[rootIndex] = lpkg
@@ -1589,3 +1595,11 @@ func usesExportData(cfg *Config) bool {
 }
 
 type unit struct{}
+
+func cond[T any](cond bool, t, f T) T {
+	if cond {
+		return t
+	} else {
+		return f
+	}
+}

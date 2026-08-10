@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Exporter_FindExporters_FullMethodName = "/moby.exporter.v1.Exporter/FindExporters"
+	Exporter_FindExporters_FullMethodName  = "/moby.exporter.v1.Exporter/FindExporters"
+	Exporter_FinalizeExport_FullMethodName = "/moby.exporter.v1.Exporter/FinalizeExport"
 )
 
 // ExporterClient is the client API for Exporter service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ExporterClient interface {
 	FindExporters(ctx context.Context, in *FindExportersRequest, opts ...grpc.CallOption) (*FindExportersResponse, error)
+	FinalizeExport(ctx context.Context, in *FinalizeExportRequest, opts ...grpc.CallOption) (*FinalizeExportResponse, error)
 }
 
 type exporterClient struct {
@@ -47,11 +49,22 @@ func (c *exporterClient) FindExporters(ctx context.Context, in *FindExportersReq
 	return out, nil
 }
 
+func (c *exporterClient) FinalizeExport(ctx context.Context, in *FinalizeExportRequest, opts ...grpc.CallOption) (*FinalizeExportResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FinalizeExportResponse)
+	err := c.cc.Invoke(ctx, Exporter_FinalizeExport_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ExporterServer is the server API for Exporter service.
 // All implementations should embed UnimplementedExporterServer
 // for forward compatibility.
 type ExporterServer interface {
 	FindExporters(context.Context, *FindExportersRequest) (*FindExportersResponse, error)
+	FinalizeExport(context.Context, *FinalizeExportRequest) (*FinalizeExportResponse, error)
 }
 
 // UnimplementedExporterServer should be embedded to have
@@ -63,6 +76,9 @@ type UnimplementedExporterServer struct{}
 
 func (UnimplementedExporterServer) FindExporters(context.Context, *FindExportersRequest) (*FindExportersResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method FindExporters not implemented")
+}
+func (UnimplementedExporterServer) FinalizeExport(context.Context, *FinalizeExportRequest) (*FinalizeExportResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method FinalizeExport not implemented")
 }
 func (UnimplementedExporterServer) testEmbeddedByValue() {}
 
@@ -102,6 +118,24 @@ func _Exporter_FindExporters_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Exporter_FinalizeExport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FinalizeExportRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ExporterServer).FinalizeExport(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Exporter_FinalizeExport_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ExporterServer).FinalizeExport(ctx, req.(*FinalizeExportRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Exporter_ServiceDesc is the grpc.ServiceDesc for Exporter service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -112,6 +146,10 @@ var Exporter_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FindExporters",
 			Handler:    _Exporter_FindExporters_Handler,
+		},
+		{
+			MethodName: "FinalizeExport",
+			Handler:    _Exporter_FinalizeExport_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

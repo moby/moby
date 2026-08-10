@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package serf
@@ -130,12 +130,12 @@ func (m *messageQueryResponse) Ack() bool {
 	return (m.Flags & queryFlagAck) != 0
 }
 
-func decodeMessage(buf []byte, out interface{}) error {
+func decodeMessage(buf []byte, out any) error {
 	handle := codec.MsgpackHandle{}
 	return codec.NewDecoder(bytes.NewReader(buf), &handle).Decode(out)
 }
 
-func encodeMessage(t messageType, msg interface{}, msgpackUseNewTimeFormat bool) ([]byte, error) {
+func encodeMessage(t messageType, msg any, msgpackUseNewTimeFormat bool) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteByte(uint8(t))
 
@@ -161,7 +161,7 @@ func encodeRelayMessage(
 	t messageType,
 	addr net.UDPAddr,
 	nodeName string,
-	msg interface{},
+	msg any,
 ) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	handle := codec.MsgpackHandle{}
@@ -182,7 +182,7 @@ func encodeRelayMessage(
 	return buf.Bytes(), err
 }
 
-func encodeFilter(f filterType, filt interface{}) ([]byte, error) {
+func encodeFilter(f filterType, filt any) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteByte(uint8(f))
 

@@ -13,7 +13,7 @@ import (
 )
 
 func RandomSinglePlatform(dir string, platform ocispec.Platform, source rand.Source) (*ocispec.Index, error) {
-	r := rand.New(source) //nolint:gosec // Ignore G404: Use of weak random number generator (math/rand instead of crypto/rand)
+	r := rand.New(source) // #nosec G404 -- Use of weak random number generator (math/rand instead of crypto/rand)
 
 	imageRef := "random-" + strconv.FormatInt(r.Int63(), 10) + ":latest"
 

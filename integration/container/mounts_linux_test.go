@@ -350,6 +350,7 @@ func TestMountDaemonRoot(t *testing.T) {
 func TestContainerBindMountNonRecursive(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "cannot be tested because RootlessKit executes the daemon in private mount namespace (https://github.com/rootless-containers/rootlesskit/issues/97)")
+	skip.If(t, testEnv.IsUserNamespace, "non-recursive bind mounts of directories containing submounts fail with EINVAL in a user namespace")
 
 	ctx := setupTest(t)
 

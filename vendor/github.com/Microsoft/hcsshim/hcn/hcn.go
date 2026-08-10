@@ -10,7 +10,7 @@ import (
 	"github.com/Microsoft/go-winio/pkg/guid"
 )
 
-//go:generate go run github.com/Microsoft/go-winio/tools/mkwinsyscall -output zsyscall_windows.go hcn.go
+//go:generate go tool github.com/Microsoft/go-winio/tools/mkwinsyscall -output zsyscall_windows.go hcn.go
 
 /// HNS V1 API
 

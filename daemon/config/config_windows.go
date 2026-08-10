@@ -17,6 +17,8 @@ const (
 	StockRuntimeName = ""
 
 	WindowsV1RuntimeName = "com.docker.hcsshim.v1"
+
+	defaultStopTimeout = 30
 )
 
 // BridgeConfig is meant to store all the parameters for both the bridge driver and the default bridge network. On

@@ -599,8 +599,8 @@ func writeContentsForImage(ctx context.Context, snName string, cs content.Store,
 
 	// config should reference to snapshotter and container config
 	labelOpt := content.WithLabels(map[string]string{
-		fmt.Sprintf("containerd.io/gc.ref.snapshot.%s", snName): identity.ChainID(newConfig.RootFS.DiffIDs).String(),
-		contentLabelGcRefContainerConfig:                        ccDesc.Digest.String(),
+		"containerd.io/gc.ref.snapshot." + snName: identity.ChainID(newConfig.RootFS.DiffIDs).String(),
+		contentLabelGcRefContainerConfig:          ccDesc.Digest.String(),
 	})
 	err = content.WriteBlob(ctx, cs, configDesc.Digest.String(), bytes.NewReader(newConfigJSON), configDesc, labelOpt)
 	if err != nil {

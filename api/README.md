@@ -2,7 +2,6 @@
 
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/moby/moby/api)](https://pkg.go.dev/github.com/moby/moby/api)
 ![GitHub License](https://img.shields.io/github/license/moby/moby)
-[![Go Report Card](https://goreportcard.com/badge/github.com/moby/moby/api)](https://goreportcard.com/report/github.com/moby/moby/api)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/moby/moby/badge)](https://scorecard.dev/viewer/?uri=github.com/moby/moby)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10989/badge)](https://www.bestpractices.dev/projects/10989)
 

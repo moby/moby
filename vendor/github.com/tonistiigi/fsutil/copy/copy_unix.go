@@ -1,5 +1,4 @@
 //go:build solaris || darwin || freebsd || openbsd || netbsd
-// +build solaris darwin freebsd openbsd netbsd
 
 package fs
 
@@ -62,7 +61,11 @@ func (c *copier) copyFileTimestamp(fi os.FileInfo, name string) error {
 	}
 
 	st := fi.Sys().(*syscall.Stat_t)
-	timespec := []unix.Timespec{unix.Timespec(StatAtime(st)), unix.Timespec(StatMtime(st))}
+	atime, mtime := StatAtime(st), StatMtime(st)
+	timespec := []unix.Timespec{
+		{Sec: atime.Sec, Nsec: atime.Nsec},
+		{Sec: mtime.Sec, Nsec: mtime.Nsec},
+	}
 	if err := unix.UtimesNanoAt(unix.AT_FDCWD, name, timespec, unix.AT_SYMLINK_NOFOLLOW); err != nil {
 		return errors.Wrapf(err, "failed to utime %s", name)
 	}

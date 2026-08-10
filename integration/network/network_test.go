@@ -2,7 +2,6 @@ package network
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"slices"
 	"testing"
@@ -16,6 +15,7 @@ import (
 	"gotest.tools/v3/assert"
 
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 )
 
 // TestNetworkInvalidJSON tests that POST endpoints that expect a body return
@@ -145,7 +145,7 @@ func TestAPINetworkFilter(t *testing.T) {
 			found = true
 		}
 	}
-	assert.Assert(t, found, fmt.Sprintf("%s is not found", networkName))
+	assert.Assert(t, found, networkName+" is not found")
 }
 
 func TestNetworkInspectWithScope(t *testing.T) {
@@ -160,8 +160,15 @@ func TestNetworkInspectWithScope(t *testing.T) {
 	create, err := cli.NetworkCreate(ctx, name, client.NetworkCreateOptions{Driver: "overlay"})
 	assert.NilError(t, err)
 
-	inspect, err := cli.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
-	assert.NilError(t, err)
+	var inspect client.NetworkInspectResult
+	poll.WaitOn(t, func(_ poll.LogT) poll.Result {
+		var err error
+		inspect, err = cli.NetworkInspect(ctx, name, client.NetworkInspectOptions{})
+		if err != nil {
+			return poll.Continue("waiting for network %s to be inspectable: %v", name, err)
+		}
+		return poll.Success()
+	}, swarm.NetworkPoll)
 	assert.Check(t, is.Equal("swarm", inspect.Network.Scope))
 	assert.Check(t, is.Equal(create.ID, inspect.Network.ID))
 

@@ -101,7 +101,7 @@ func normalizeWorkdirWindows(current string, requested string) (string, error) {
 // along with an indication that the arguments are escaped so the runtime shouldn't escape.
 //
 // A better solution could be made, but it would be exceptionally invasive throughout
-// many parts of the daemon which are coded assuming Linux args array only only, not taking
+// many parts of the daemon which are coded assuming Linux args array only, not taking
 // account of Windows-natural command line semantics and it's argv handling. Put another way,
 // while what is here is good-enough, it could be improved, but would be highly invasive.
 //

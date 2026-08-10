@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/cgroups/v3"
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -244,6 +245,15 @@ func removeSysfs(s *specs.Spec) error {
 	var mounts []specs.Mount // nolint: prealloc
 	for _, mount := range s.Mounts {
 		if strings.HasPrefix(mount.Destination, "/sys") {
+			// Unlike sysfs, mounting cgroup2 does not require the netns to
+			// be owned by the userns, so the cgroup mount can be kept when
+			// running with cgroup v2. Without it, the container cannot see
+			// its own limits (e.g. /sys/fs/cgroup/pids.max), although they
+			// are still enforced.
+			// https://github.com/moby/moby/issues/44084
+			if cgroups.Mode() == cgroups.Unified && path.Clean(mount.Destination) == "/sys/fs/cgroup" {
+				mounts = append(mounts, mount)
+			}
 			continue
 		}
 		mounts = append(mounts, mount)

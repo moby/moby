@@ -73,27 +73,23 @@ func copyIO(fifos *FIFOSet, ioset *Streams) (*cio, error) {
 
 	var wg = &sync.WaitGroup{}
 	if fifos.Stdout != "" {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			p := bufPool.Get().(*[]byte)
 			defer bufPool.Put(p)
 
 			io.CopyBuffer(ioset.Stdout, pipes.Stdout, *p)
 			pipes.Stdout.Close()
-			wg.Done()
-		}()
+		})
 	}
 
 	if !fifos.Terminal && fifos.Stderr != "" {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			p := bufPool.Get().(*[]byte)
 			defer bufPool.Put(p)
 
 			io.CopyBuffer(ioset.Stderr, pipes.Stderr, *p)
 			pipes.Stderr.Close()
-			wg.Done()
-		}()
+		})
 	}
 	return &cio{
 		config:  fifos.Config,

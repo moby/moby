@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MIT
 
 package metrics
@@ -256,12 +256,12 @@ func (m *Metrics) allowMetric(key []string, labels []Label) (bool, []Label) {
 	defer m.filterLock.RUnlock()
 
 	if m.filter == nil || m.filter.Len() == 0 {
-		return m.Config.FilterDefault, m.filterLabels(labels)
+		return m.FilterDefault, m.filterLabels(labels)
 	}
 
 	_, allowed, ok := m.filter.Root().LongestPrefix([]byte(strings.Join(key, ".")))
 	if !ok {
-		return m.Config.FilterDefault, m.filterLabels(labels)
+		return m.FilterDefault, m.filterLabels(labels)
 	}
 
 	return allowed.(bool), m.filterLabels(labels)
@@ -320,7 +320,7 @@ func insert(i int, v string, s []string) []string {
 	newS := make([]string, len(s)+1)
 
 	// Copy s[0, i-1] into newS
-	for j := 0; j < i; j++ {
+	for j := range i {
 		newS[j] = s[j]
 	}
 

@@ -65,7 +65,16 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 			}
 
 			assert.Check(t, is.Equal("foobar:1.0@sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96", serviceSpec.TaskTemplate.ContainerSpec.Image))
-			assert.Check(t, is.Len(serviceSpec.TaskTemplate.Placement.Platforms, 1))
+			assert.Check(t, is.Len(serviceSpec.TaskTemplate.Placement.Platforms, 7))
+			assert.Check(t, is.DeepEqual(serviceSpec.TaskTemplate.Placement.Platforms, []swarm.Platform{
+				{Architecture: "amd64", OS: "linux"},
+				{Architecture: "", OS: "linux"}, // arm (v6/v7 collapse to a single entry); https://github.com/moby/swarmkit/issues/2294
+				{Architecture: "arm64", OS: "linux"},
+				{Architecture: "386", OS: "linux"},
+				{Architecture: "ppc64le", OS: "linux"},
+				{Architecture: "riscv64", OS: "linux"},
+				{Architecture: "s390x", OS: "linux"},
+			}))
 
 			p := serviceSpec.TaskTemplate.Placement.Platforms[0]
 			return mockJSONResponse(http.StatusOK, nil, swarm.ServiceCreateResponse{
@@ -77,10 +86,22 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 					Digest: "sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96",
 				},
 				Platforms: []ocispec.Platform{
-					{
-						Architecture: "amd64",
-						OS:           "linux",
-					},
+					{Architecture: "amd64", OS: "linux"},
+					{Architecture: "unknown", OS: "unknown"},
+					{Architecture: "arm", OS: "linux", Variant: "v6"},
+					{Architecture: "unknown", OS: "unknown"},
+					{Architecture: "arm", OS: "linux", Variant: "v7"},
+					{Architecture: "unknown", OS: "unknown"},
+					{Architecture: "arm64", OS: "linux", Variant: "v8"},
+					{Architecture: "unknown", OS: "unknown"},
+					{Architecture: "386", OS: "linux"},
+					{Architecture: "unknown", OS: "unknown"},
+					{Architecture: "ppc64le", OS: "linux"},
+					{Architecture: "unknown", OS: "unknown"},
+					{Architecture: "riscv64", OS: "linux"},
+					{Architecture: "unknown", OS: "unknown"},
+					{Architecture: "s390x", OS: "linux"},
+					{Architecture: "unknown", OS: "unknown"},
 				},
 			})(req)
 		} else {

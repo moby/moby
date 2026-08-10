@@ -366,7 +366,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverDeleteContainer(c *t
 }
 
 func hostVolumePath(name string) string {
-	return fmt.Sprintf("/var/lib/docker/volumes/%s", name)
+	return "/var/lib/docker/volumes/" + name
 }
 
 // Make sure a request to use a down driver doesn't block other requests
@@ -463,10 +463,10 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverList(c *testing.T) {
 	cli.DockerCmd(c, "volume", "create", "-d", volumePluginName, "abc3")
 	out := cli.DockerCmd(c, "volume", "ls").Stdout()
 	ls := strings.Split(strings.TrimSpace(out), "\n")
-	assert.Equal(c, len(ls), 2, fmt.Sprintf("\n%s", out))
+	assert.Equal(c, len(ls), 2, "\n"+out)
 
 	vol := strings.Fields(ls[len(ls)-1])
-	assert.Equal(c, len(vol), 2, fmt.Sprintf("%v", vol))
+	assert.Equal(c, len(vol), 2, fmt.Sprint(vol))
 	assert.Equal(c, vol[0], volumePluginName)
 	assert.Equal(c, vol[1], "abc3")
 
@@ -489,8 +489,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *testing.T) {
 
 	assert.NilError(c, json.Unmarshal([]byte(out), &st))
 	assert.Equal(c, len(st), 1)
-	assert.Equal(c, len(st[0].Status), 1, fmt.Sprintf("%v", st[0]))
-	assert.Equal(c, st[0].Status["Hello"], "world", fmt.Sprintf("%v", st[0].Status))
+	assert.Equal(c, len(st[0].Status), 1, fmt.Sprint(st[0]))
+	assert.Equal(c, st[0].Status["Hello"], "world", fmt.Sprint(st[0].Status))
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c *testing.T) {

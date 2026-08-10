@@ -1,7 +1,6 @@
 package image
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/moby/moby/client"
@@ -102,5 +101,5 @@ func TestTagMatchesDigest(t *testing.T) {
 
 	// check that no new image matches the digest
 	_, err = apiClient.ImageInspect(ctx, digest)
-	assert.Check(t, is.ErrorContains(err, fmt.Sprintf("No such image: %s", digest)))
+	assert.Check(t, is.ErrorContains(err, "No such image: "+digest))
 }

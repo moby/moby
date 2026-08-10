@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"gotest.tools/v3/assert"
@@ -31,20 +32,20 @@ func testSetup(t *testing.T) func() {
 	}
 }
 
-func applyAndCheck(t *testing.T, tbl Table, tm Modifier, goldenFilename string) {
+func applyAndCheck(t *testing.T, goldenFilename string, tbl Table, tm ...Modifier) {
 	t.Helper()
-	err := tbl.Apply(context.Background(), tm)
+	err := tbl.Apply(context.Background(), tm...)
 	assert.Check(t, err)
 	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
 	res.Assert(t, icmd.Success)
 	golden.Assert(t, res.Combined(), goldenFilename)
 }
 
-func reloadAndCheck(t *testing.T, tbl Table, ipv Family, goldenFilename string) {
+func reloadAndCheck(t *testing.T, goldenFilename string, tbl Table) {
 	t.Helper()
 	err := tbl.Reload(context.Background())
 	assert.Check(t, err)
-	res := icmd.RunCommand("nft", "list", "table", string(ipv), tbl.t.Name)
+	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
 	res.Assert(t, icmd.Success)
 	golden.Assert(t, res.Combined(), goldenFilename)
 }
@@ -60,8 +61,8 @@ func TestTable(t *testing.T) {
 	defer tbl6.Close()
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl4, Modifier{}, t.Name()+"/created4.golden")
-	applyAndCheck(t, tbl6, Modifier{}, t.Name()+"/created6.golden")
+	applyAndCheck(t, t.Name()+"/created4.golden", tbl4, Modifier{})
+	applyAndCheck(t, t.Name()+"/created6.golden", tbl6, Modifier{})
 }
 
 func TestChain(t *testing.T) {
@@ -100,14 +101,14 @@ func TestChain(t *testing.T) {
 	tm.Create(bcJumpRule)
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, tm, t.Name()+"/created.golden")
+	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
 
 	// Delete a rule from the base chain.
 	tm = Modifier{}
 	tm.Delete(bcCounterRule)
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, tm, t.Name()+"/modified.golden")
+	applyAndCheck(t, t.Name()+"/modified.golden", tbl, tm)
 
 	// Delete the base chain.
 	tm = Modifier{}
@@ -117,7 +118,7 @@ func TestChain(t *testing.T) {
 	tm.Delete(cDesc)
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, tm, t.Name()+"/deleted.golden")
+	applyAndCheck(t, t.Name()+"/deleted.golden", tbl, tm)
 }
 
 func TestChainRuleGroups(t *testing.T) {
@@ -134,7 +135,7 @@ func TestChainRuleGroups(t *testing.T) {
 	tm.Create(Rule{Chain: chainName, Group: 100, Rule: []string{"iifname hello101 counter"}})
 	tm.Create(Rule{Chain: chainName, Group: 200, Rule: []string{"iifname hello201 counter"}})
 	tm.Create(Rule{Chain: chainName, Group: 100, Rule: []string{"iifname hello102 counter"}})
-	applyAndCheck(t, tbl, tm, t.Name()+".golden")
+	applyAndCheck(t, t.Name()+".golden", tbl, tm)
 }
 
 func TestIgnoreExist(t *testing.T) {
@@ -149,7 +150,7 @@ func TestIgnoreExist(t *testing.T) {
 	tm.Create(Chain{Name: chainName})
 	tm.Create(Rule{Chain: chainName, Rule: []string{"counter"}})
 	tm.Create(Rule{Chain: chainName, Rule: []string{"counter"}, IgnoreExist: true})
-	applyAndCheck(t, tbl, tm, t.Name()+"/created.golden")
+	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
 
 	// Add the rule again, ignoring the duplicate, but in a modifier that has an
 	// error - check that the existing rule isn't removed by rollback of this modifier.
@@ -160,12 +161,12 @@ func TestIgnoreExist(t *testing.T) {
 	assert.Check(t, err != nil, "Expected an error")
 
 	// Reload, to flush table state.
-	reloadAndCheck(t, tbl, IPv4, t.Name()+"/created.golden")
+	reloadAndCheck(t, t.Name()+"/created.golden", tbl)
 
 	// Delete the rule.
 	tmDel := Modifier{}
 	tmDel.Delete(Rule{Chain: chainName, Rule: []string{"counter"}})
-	applyAndCheck(t, tbl, tmDel, t.Name()+"/deleted.golden")
+	applyAndCheck(t, t.Name()+"/deleted.golden", tbl, tmDel)
 
 	// Delete it again, in another chain that will roll back, to check it's not resurrected.
 	tmReDel := Modifier{}
@@ -175,7 +176,7 @@ func TestIgnoreExist(t *testing.T) {
 	assert.Check(t, err != nil, "Expected an error")
 
 	// Reload, to flush table state.
-	reloadAndCheck(t, tbl, IPv4, t.Name()+"/deleted.golden")
+	reloadAndCheck(t, t.Name()+"/deleted.golden", tbl)
 }
 
 func TestVMap(t *testing.T) {
@@ -189,18 +190,22 @@ func TestVMap(t *testing.T) {
 
 	// Create a verdict map.
 	const mapName = "this_is_a_vmap"
-	tm.Create(Map{Name: mapName, ElementType: Ifname.VMap()})
+	tm.Create(Map{
+		Name:        mapName,
+		ElementType: Ifname.VMap(),
+		Flags:       []string{"dynamic", "timeout"},
+	})
 	tm.Create(MapElement{MapName: mapName, Key: "eth0", Value: "return"})
-	tm.Create(MapElement{MapName: mapName, Key: "eth1", Value: "drop"})
+	tm.Create(MapElement{MapName: mapName, Key: "eth1", Value: "drop", Comment: `/// this is a comment on a map element \\\`})
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, tm, t.Name()+"/created.golden")
+	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
 
 	// Undo those changes by reversing the commands.
 	tmRev := tm.Reverse()
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl, tmRev, t.Name()+"/deleted.golden")
+	applyAndCheck(t, t.Name()+"/deleted.golden", tbl, tmRev)
 }
 
 func TestSet(t *testing.T) {
@@ -220,19 +225,19 @@ func TestSet(t *testing.T) {
 	tm4.Create(Set{Name: set4Name, ElementType: IPv4Addr, Flags: []string{"interval"}})
 	const set6Name = "set6"
 	tm6 := Modifier{}
-	tm6.Create(Set{Name: set6Name, ElementType: IPv6Addr, Flags: []string{"interval"}})
+	tm6.Create(Set{Name: set6Name, ElementType: IPv6Addr, Flags: []string{"interval", "timeout"}})
 
 	// Add elements to each set.
 	tm4.Create(SetElement{SetName: set4Name, Element: "192.0.2.0/24"})
-	tm6.Create(SetElement{SetName: set6Name, Element: "2001:db8::/64"})
+	tm6.Create(SetElement{SetName: set6Name, Element: "2001:db8::/64", Comment: `/// this is a comment on a set element \\\`})
 
 	// Update nftables and check what happened.
-	applyAndCheck(t, tbl4, tm4, t.Name()+"/created4.golden")
-	applyAndCheck(t, tbl6, tm6, t.Name()+"/created6.golden")
+	applyAndCheck(t, t.Name()+"/created4.golden", tbl4, tm4)
+	applyAndCheck(t, t.Name()+"/created6.golden", tbl6, tm6)
 
 	// Delete elements.
-	applyAndCheck(t, tbl4, tm4.Reverse(), t.Name()+"/deleted4.golden")
-	applyAndCheck(t, tbl6, tm6.Reverse(), t.Name()+"/deleted6.golden")
+	applyAndCheck(t, t.Name()+"/deleted4.golden", tbl4, tm4.Reverse())
+	applyAndCheck(t, t.Name()+"/deleted6.golden", tbl6, tm6.Reverse())
 }
 
 func TestReload(t *testing.T) {
@@ -258,13 +263,16 @@ func TestReload(t *testing.T) {
 	const vmapName = "this_is_a_vmap"
 	tm.Create(Map{Name: vmapName, ElementType: Ifname.VMap()})
 	tm.Create(MapElement{MapName: vmapName, Key: "eth0", Value: "return"})
-	tm.Create(MapElement{MapName: vmapName, Key: "eth1", Value: "return"})
+	tm.Create(MapElement{MapName: vmapName, Key: "eth1", Value: "return", Comment: "{foo}"})
 
 	const setName = "this_is_a_set"
 	tm.Create(Set{Name: setName, ElementType: IPv4Addr, Flags: []string{"interval"}})
-	tm.Create(SetElement{SetName: setName, Element: "192.0.2.0/24"})
+	tm.Create(SetElement{SetName: setName, Element: "192.0.2.0/24", Comment: "}bar{"})
 
-	applyAndCheck(t, tbl, tm, t.Name()+"/created.golden")
+	tm.Create(Map{Name: "dynamic_map", ElementType: IPv4Addr.MapTo(EtherAddr), Flags: []string{"dynamic", "timeout"}, Size: 1024, Timeout: 2*time.Minute + 30*time.Second + 500*time.Millisecond + 654*time.Microsecond})
+	tm.Create(Set{Name: "dynamic_set", ElementType: IPv4Addr, Flags: []string{"dynamic", "timeout"}, Size: 4096, Timeout: 5*time.Minute + 10*time.Second + 250*time.Millisecond + 123*time.Microsecond})
+
+	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
 
 	// Delete the underlying nftables table.
 	deleteTable := func() {
@@ -291,7 +299,68 @@ func TestReload(t *testing.T) {
 	// from a vmap/set will trigger this.
 	tm = Modifier{}
 	tm.Delete(SetElement{SetName: setName, Element: "192.0.2.0/24"})
-	applyAndCheck(t, tbl, tm, t.Name()+"/recovered.golden")
+	applyAndCheck(t, t.Name()+"/recovered.golden", tbl, tm)
+}
+
+func TestApplyMultipleModifiers(t *testing.T) {
+	defer testSetup(t)()
+
+	tbl, err := NewTable(IPv4, "this_is_a_table")
+	assert.NilError(t, err)
+	defer tbl.Close()
+
+	const chainName = "this_is_a_chain"
+	var tm1, tm2 Modifier
+	tm1.Create(Chain{Name: chainName})
+	tm1.Create(Rule{Chain: chainName, Rule: []string{"counter"}})
+
+	tm2.Create(Rule{Chain: chainName, Rule: []string{"drop"}})
+	// This rule should fail validation and trigger rollback.
+	tm2.Create(Rule{Chain: "bogus", Rule: []string{"counter"}})
+	tm2.Create(Rule{Chain: chainName, Rule: []string{"reject"}})
+
+	err = tbl.Apply(context.Background(), tm1, tm2)
+	assert.Check(t, err != nil, "Expected an error")
+
+	// Verify the apply was a no-op: the table should not exist yet.
+	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
+	res.Assert(t, icmd.Expected{ExitCode: 1})
+
+	// Verify no traces of the failed apply remain in memory.
+	reloadAndCheck(t, t.Name()+"/empty.golden", tbl)
+
+	// A subsequent valid apply should still succeed.
+	var tm3 Modifier
+	tm3.Create(Rule{Chain: chainName, Rule: []string{"accept"}})
+	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm1, tm3)
+}
+
+func TestNetdevChain(t *testing.T) {
+	defer testSetup(t)()
+
+	tbl, err := NewTable(Netdev, "testtable")
+	assert.NilError(t, err)
+	defer tbl.Close()
+	tm := Modifier{}
+
+	const bcName = "this_is_a_netdev_chain"
+	tm.Create(BaseChain{
+		Name:      bcName,
+		ChainType: BaseChainTypeFilter,
+		Hook:      BaseChainHookIngress,
+		Device:    "lo",
+		Priority:  -123,
+		Policy:    BaseChainPolicyAccept,
+	})
+	tm.Create(Rule{Chain: bcName, Rule: []string{"accept"}})
+	applyAndCheck(t, t.Name()+"/created.golden", tbl, tm)
+
+	icmd.RunCommand("nft", "flush", "ruleset").Assert(t, icmd.Success)
+	err = tbl.Reload(context.Background())
+	assert.Check(t, err)
+	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
+	res.Assert(t, icmd.Success)
+	golden.Assert(t, res.Combined(), t.Name()+"/created.golden")
 }
 
 func TestValidation(t *testing.T) {
@@ -547,6 +616,22 @@ func TestValidation(t *testing.T) {
 			},
 			expErr: "cannot add to map 'avmap', element must have key and value",
 		},
+		{
+			name: "map element with newline in comment",
+			cmds: []command{
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
+				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop", Comment: "new\nline"}},
+			},
+			expErr: `map 'avmap' element 'eth0' comment contains "\n"`,
+		},
+		{
+			name: "map element with quote char in comment",
+			cmds: []command{
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
+				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop", Comment: `"quoted"`}},
+			},
+			expErr: `map 'avmap' element 'eth0' comment contains "\""`,
+		},
 		// Set
 		{
 			name: "duplicate set",
@@ -628,6 +713,22 @@ func TestValidation(t *testing.T) {
 			},
 			expErr: "Address family for hostname not supported",
 		},
+		{
+			name: "set element with newline in comment",
+			cmds: []command{
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
+				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24", Comment: "new\nline"}},
+			},
+			expErr: `set 'aset' element '192.0.2.0/24' comment contains "\n"`,
+		},
+		{
+			name: "set element with quote char in comment",
+			cmds: []command{
+				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
+				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24", Comment: `"quoted"`}},
+			},
+			expErr: `set 'aset' element '192.0.2.0/24' comment contains "\""`,
+		},
 	}
 
 	testName := t.Name()
@@ -645,7 +746,7 @@ func TestValidation(t *testing.T) {
 			res := icmd.RunCommand("nft", "list", "table", string(IPv4), "tablename")
 			res.Assert(t, icmd.Expected{ExitCode: 1})
 			// Check the empty table can be created (the Table structure is still healthy).
-			applyAndCheck(t, tbl, Modifier{}, testName+"/empty.golden")
+			applyAndCheck(t, testName+"/empty.golden", tbl, Modifier{})
 		})
 	}
 }

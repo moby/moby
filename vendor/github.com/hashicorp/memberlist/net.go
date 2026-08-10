@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2013, 2025
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package memberlist
@@ -12,7 +12,6 @@ import (
 	"io"
 	"math"
 	"net"
-	"sync/atomic"
 	"time"
 
 	metrics "github.com/hashicorp/go-metrics/compat"
@@ -87,7 +86,8 @@ const (
 	userMsgOverhead        = 1
 	blockingWarning        = 10 * time.Millisecond // Warn if a UDP packet takes this long to process
 	maxPushStateBytes      = 20 * 1024 * 1024
-	maxPushPullRequests    = 128 // Maximum number of concurrent push/pull requests
+	maxPushStateNodes      = 1024 * 1024 // Each requires conservatively  ~20 bytes when encoded
+	maxPushPullRequests    = 128         // Maximum number of concurrent push/pull requests
 )
 
 // ping request sent directly to node
@@ -303,8 +303,8 @@ func (m *Memberlist) handleConn(conn net.Conn) {
 		}
 	case pushPullMsg:
 		// Increment counter of pending push/pulls
-		numConcurrent := atomic.AddUint32(&m.pushPullReq, 1)
-		defer atomic.AddUint32(&m.pushPullReq, ^uint32(0))
+		numConcurrent := m.pushPullReq.Add(1)
+		defer m.pushPullReq.Add(^uint32(0))
 
 		// Check if we have too many open push/pull requests
 		if numConcurrent >= maxPushPullRequests {
@@ -761,7 +761,7 @@ func (m *Memberlist) handleDead(buf []byte, from net.Addr) {
 }
 
 // handleUser is used to notify channels of incoming user data
-func (m *Memberlist) handleUser(buf []byte, from net.Addr) {
+func (m *Memberlist) handleUser(buf []byte, _ net.Addr) {
 	d := m.config.Delegate
 	if d != nil {
 		d.NotifyMsg(buf)
@@ -782,7 +782,7 @@ func (m *Memberlist) handleCompressed(buf []byte, from net.Addr, timestamp time.
 }
 
 // encodeAndSendMsg is used to combine the encoding and sending steps
-func (m *Memberlist) encodeAndSendMsg(a Address, msgType messageType, msg interface{}) error {
+func (m *Memberlist) encodeAndSendMsg(a Address, msgType messageType, msg any) error {
 	out, err := encode(msgType, msg, m.config.MsgpackUseNewTimeFormat)
 	if err != nil {
 		return err
@@ -850,10 +850,10 @@ func (m *Memberlist) rawSendMsgPacket(a Address, node *Node, msg []byte) error {
 		}
 		m.nodeLock.RLock()
 		nodeState, ok := m.nodeMap[toAddr]
-		m.nodeLock.RUnlock()
 		if ok {
 			node = &nodeState.Node
 		}
+		m.nodeLock.RUnlock()
 	}
 
 	// Add a CRC to the end of the payload if the recipient understands
@@ -1234,6 +1234,10 @@ func (m *Memberlist) readRemoteState(bufConn io.Reader, dec *codec.Decoder) (boo
 		return false, nil, nil, err
 	}
 
+	if header.Nodes < 0 || header.Nodes > maxPushStateNodes {
+		return false, nil, nil, fmt.Errorf("number of nodes in header (%d) exceeds limit", header.Nodes)
+	}
+
 	// Allocate space for the transfer
 	remoteNodes := make([]pushNodeState, header.Nodes)
 
@@ -1242,6 +1246,10 @@ func (m *Memberlist) readRemoteState(bufConn io.Reader, dec *codec.Decoder) (boo
 		if err := dec.Decode(&remoteNodes[i]); err != nil {
 			return false, nil, nil, err
 		}
+	}
+
+	if header.UserStateLen < 0 || header.UserStateLen > maxPushStateBytes {
+		return false, nil, nil, fmt.Errorf("user state length (%d) exceeds limit", header.UserStateLen)
 	}
 
 	// Read the remote user state into a buffer

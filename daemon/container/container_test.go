@@ -1,7 +1,6 @@
 package container
 
 import (
-	"fmt"
 	"path/filepath"
 	"syscall"
 	"testing"
@@ -32,22 +31,6 @@ func TestContainerStopSignal(t *testing.T) {
 	}
 	s = c.StopSignal()
 	assert.Equal(t, s, defaultStopSignal)
-}
-
-func TestContainerStopTimeout(t *testing.T) {
-	c := &Container{
-		Config: &container.Config{},
-	}
-
-	s := c.StopTimeout()
-	assert.Equal(t, s, defaultStopTimeout)
-
-	stopTimeout := 15
-	c = &Container{
-		Config: &container.Config{StopTimeout: &stopTimeout},
-	}
-	s = c.StopTimeout()
-	assert.Equal(t, s, stopTimeout)
 }
 
 func TestContainerSecretReferenceDestTarget(t *testing.T) {
@@ -82,7 +65,7 @@ func TestContainerLogPathSetForJSONFileLogger(t *testing.T) {
 		assert.NilError(t, logger.Close())
 	}()
 
-	expectedLogPath, err := filepath.Abs(filepath.Join(containerRoot, fmt.Sprintf("%s-json.log", c.ID)))
+	expectedLogPath, err := filepath.Abs(filepath.Join(containerRoot, c.ID+"-json.log"))
 	assert.NilError(t, err)
 	assert.Equal(t, c.LogPath, expectedLogPath)
 }
@@ -110,7 +93,7 @@ func TestContainerLogPathSetForRingLogger(t *testing.T) {
 		assert.NilError(t, logger.Close())
 	}()
 
-	expectedLogPath, err := filepath.Abs(filepath.Join(containerRoot, fmt.Sprintf("%s-json.log", c.ID)))
+	expectedLogPath, err := filepath.Abs(filepath.Join(containerRoot, c.ID+"-json.log"))
 	assert.NilError(t, err)
 	assert.Equal(t, c.LogPath, expectedLogPath)
 }

@@ -24,13 +24,15 @@ import (
 	"github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/containerd/platforms"
+	"github.com/opencontainers/go-digest"
 )
 
 type convertOpts struct {
-	layerConvertFunc ConvertFunc
-	docker2oci       bool
-	indexConvertFunc ConvertFunc
-	platformMC       platforms.MatchComparer
+	layerConvertFunc   ConvertFunc
+	docker2oci         bool
+	indexConvertFunc   ConvertFunc
+	platformMC         platforms.MatchComparer
+	updateManifestFunc UpdateManifestFunc
 }
 
 // Opt is an option for Convert()
@@ -70,6 +72,15 @@ func WithIndexConvertFunc(fn ConvertFunc) Opt {
 	}
 }
 
+// WithUpdateManifest specifies a callback that is invoked after manifest
+// conversion.
+func WithUpdateManifest(fn UpdateManifestFunc) Opt {
+	return func(copts *convertOpts) error {
+		copts.updateManifestFunc = fn
+		return nil
+	}
+}
+
 // Client is implemented by *containerd.Client .
 type Client interface {
 	WithLease(ctx context.Context, opts ...leases.Opt) (context.Context, func(context.Context) error, error)
@@ -89,7 +100,18 @@ func Convert(ctx context.Context, client Client, dstRef, srcRef string, opts ...
 		copts.platformMC = platforms.All
 	}
 	if copts.indexConvertFunc == nil {
-		copts.indexConvertFunc = DefaultIndexConvertFunc(copts.layerConvertFunc, copts.docker2oci, copts.platformMC)
+		if copts.updateManifestFunc != nil {
+			c := &defaultConverter{
+				layerConvertFunc:   copts.layerConvertFunc,
+				docker2oci:         copts.docker2oci,
+				platformMC:         copts.platformMC,
+				diffIDMap:          make(map[digest.Digest]digest.Digest),
+				updateManifestFunc: copts.updateManifestFunc,
+			}
+			copts.indexConvertFunc = c.convert
+		} else {
+			copts.indexConvertFunc = DefaultIndexConvertFunc(copts.layerConvertFunc, copts.docker2oci, copts.platformMC)
+		}
 	}
 
 	ctx, done, err := client.WithLease(ctx)
