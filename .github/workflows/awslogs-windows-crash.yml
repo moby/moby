@@ -313,3 +313,285 @@ jobs:
             Write-Error "Test process failed at iteration $env:FAILED_ITERATION with child exit code $env:CHILD_EXIT_CODE"
             exit 1
           }
+
+  container-hot-stress:
+    name: container hot-stress shard ${{ matrix.shard }}
+    runs-on: windows-2025
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    env:
+      ARTIFACT_DIR: ${{ github.workspace }}\awslogs-container-crash-artifacts
+      CHILD_TIMEOUT_SECONDS: '130'
+      CONTAINER_ARTIFACT_DIR: C:\awslogs-artifacts
+      CONTAINER_NAME: awslogs-container-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
+      DOCKER_BUILDKIT: '0'
+      ROUNDS: '25'
+      TEST_COUNT: '1000'
+      TEST_IMAGE_NAME: moby:test
+      WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
+      WINDOWS_BASE_IMAGE_TAG: ltsc2025
+      WORKERS: '4'
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      -
+        name: Validate and record fixed inputs
+        shell: pwsh
+        env:
+          MATRIX_SHARD: ${{ matrix.shard }}
+          REQUESTED_GO_VERSION: ${{ inputs.go_version || '1.26.5' }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path $env:ARTIFACT_DIR | Out-Null
+          'Container input validation did not complete.' |
+            Set-Content -LiteralPath (Join-Path $env:ARTIFACT_DIR 'container-input-validation.txt') -Encoding utf8
+
+          $goVersion = $env:REQUESTED_GO_VERSION.Trim()
+          if ($goVersion -notmatch '^1\.26\.(?:[3-9]|[1-9][0-9])$') {
+            throw 'go_version must be a Go 1.26 patch from 1.26.3 through 1.26.99'
+          }
+          if ($env:ROUNDS -ne '25' -or $env:WORKERS -ne '4' -or
+              $env:TEST_COUNT -ne '1000' -or $env:CHILD_TIMEOUT_SECONDS -ne '130') {
+            throw 'container stress parameters must remain fixed at 25 rounds, 4 workers, count 1000, and 130 seconds'
+          }
+          if ($env:RUNNER_ARCH -ne 'X64') {
+            throw "expected an amd64 runner, found '$env:RUNNER_ARCH'"
+          }
+
+          @(
+            "go_version=$goVersion"
+            "rounds=$env:ROUNDS"
+            "workers_per_round=$env:WORKERS"
+            "test_count_per_worker=$env:TEST_COUNT"
+            "planned_top_level_executions=$([int]$env:ROUNDS * [int]$env:WORKERS * [int]$env:TEST_COUNT)"
+            'test_run=^TestNewStreamConfig$'
+            'go_test_timeout=2m'
+            "parent_child_timeout_seconds=$env:CHILD_TIMEOUT_SECONDS"
+            'base_image=mcr.microsoft.com/windows/servercore:ltsc2025'
+            'docker_buildkit=0'
+            'gotoolchain=local'
+            'warning=Crash dumps may contain sensitive process memory; protect them before sharing.'
+          ) | Set-Content -LiteralPath (Join-Path $env:ARTIFACT_DIR 'container-input-validation.txt') -Encoding utf8
+          "GO_VERSION=$goVersion" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Warning 'WER full dumps may contain sensitive process memory; protect downloaded artifacts.'
+      -
+        name: Record host environment
+        shell: pwsh
+        env:
+          MATRIX_SHARD: ${{ matrix.shard }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & systeminfo.exe *> (Join-Path $env:ARTIFACT_DIR 'host-systeminfo.txt')
+          if ($LASTEXITCODE -ne 0) {
+            throw "systeminfo.exe failed with exit code $LASTEXITCODE"
+          }
+
+          $checkedOutCommit = (& git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0) {
+            throw "git rev-parse HEAD failed with exit code $LASTEXITCODE"
+          }
+          @(
+            "checked_out_commit=$checkedOutCommit"
+            "workflow_commit=$env:GITHUB_SHA"
+          ) | Set-Content -LiteralPath (Join-Path $env:ARTIFACT_DIR 'container-commit.txt') -Encoding utf8
+          @(
+            "workflow=$env:GITHUB_WORKFLOW"
+            "run_id=$env:GITHUB_RUN_ID"
+            "run_attempt=$env:GITHUB_RUN_ATTEMPT"
+            "repository=$env:GITHUB_REPOSITORY"
+            "ref=$env:GITHUB_REF"
+            "event_name=$env:GITHUB_EVENT_NAME"
+            "matrix_shard=$env:MATRIX_SHARD"
+            "runner_os=$env:RUNNER_OS"
+            "runner_arch=$env:RUNNER_ARCH"
+            "runner_name=$env:RUNNER_NAME"
+            "runner_environment=$env:RUNNER_ENVIRONMENT"
+            "image_os=$env:ImageOS"
+            "image_version=$env:ImageVersion"
+            "powershell_version=$($PSVersionTable.PSVersion)"
+            "process_architecture=$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture)"
+          ) | Set-Content -LiteralPath (Join-Path $env:ARTIFACT_DIR 'container-host-metadata.txt') -Encoding utf8
+      -
+        name: Ensure Windows Docker
+        uses: ./.github/actions/ensure-windows-docker
+      -
+        name: Record host Docker metadata
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & docker version *> (Join-Path $env:ARTIFACT_DIR 'host-docker-version.txt')
+          if ($LASTEXITCODE -ne 0) {
+            throw "docker version failed with exit code $LASTEXITCODE"
+          }
+          & docker info *> (Join-Path $env:ARTIFACT_DIR 'host-docker-info.txt')
+          if ($LASTEXITCODE -ne 0) {
+            throw "docker info failed with exit code $LASTEXITCODE"
+          }
+      -
+        name: Build the repository Windows test image
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
+            $PSNativeCommandUseErrorActionPreference = $false
+          }
+          @(
+            'docker build'
+            '  --build-arg GO_VERSION'
+            '  --build-arg WINDOWS_BASE_IMAGE'
+            '  --build-arg WINDOWS_BASE_IMAGE_TAG'
+            "  -t $env:TEST_IMAGE_NAME"
+            '  -f Dockerfile.windows .'
+          ) | Set-Content -LiteralPath (Join-Path $env:ARTIFACT_DIR 'container-image-build-command.txt') -Encoding utf8
+
+          $buildArguments = @(
+            'build',
+            '--build-arg', 'GO_VERSION',
+            '--build-arg', 'WINDOWS_BASE_IMAGE',
+            '--build-arg', 'WINDOWS_BASE_IMAGE_TAG',
+            '-t', $env:TEST_IMAGE_NAME,
+            '-f', 'Dockerfile.windows', '.'
+          )
+          & docker @buildArguments *> (Join-Path $env:ARTIFACT_DIR 'container-image-build-output.txt')
+          $buildExitCode = $LASTEXITCODE
+          "exit_code=$buildExitCode" |
+            Set-Content -LiteralPath (Join-Path $env:ARTIFACT_DIR 'container-image-build-result.txt') -Encoding utf8
+          if ($buildExitCode -ne 0) {
+            Get-Content -LiteralPath (Join-Path $env:ARTIFACT_DIR 'container-image-build-output.txt') -Raw |
+              Write-Host
+            throw "Dockerfile.windows image build failed with exit code $buildExitCode"
+          }
+      -
+        name: Record container image metadata
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $imageInspectPath = Join-Path $env:ARTIFACT_DIR 'container-image-inspect.json'
+          & docker image inspect $env:TEST_IMAGE_NAME *> $imageInspectPath
+          if ($LASTEXITCODE -ne 0) {
+            throw "docker image inspect failed with exit code $LASTEXITCODE"
+          }
+          $imageHistoryPath = Join-Path $env:ARTIFACT_DIR 'container-image-history.txt'
+          & docker image history --no-trunc $env:TEST_IMAGE_NAME *> $imageHistoryPath
+          if ($LASTEXITCODE -ne 0) {
+            throw "docker image history failed with exit code $LASTEXITCODE"
+          }
+      -
+        name: Run containerized hot-stress probe
+        id: container-stress
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
+            $PSNativeCommandUseErrorActionPreference = $false
+          }
+          $artifactPath = [IO.Path]::GetFullPath($env:ARTIFACT_DIR)
+          $mount = "type=bind,source=${artifactPath},target=$env:CONTAINER_ARTIFACT_DIR"
+          @(
+            "image=$env:TEST_IMAGE_NAME"
+            "container=$env:CONTAINER_NAME"
+            "mount_target=$env:CONTAINER_ARTIFACT_DIR"
+            'environment=GOTOOLCHAIN=local,GOTRACEBACK=crash'
+            'script=hack\awslogs-windows-container-stress.ps1'
+            "expected_go_version=$env:GO_VERSION"
+            "rounds=$env:ROUNDS"
+            "workers=$env:WORKERS"
+            "test_count=$env:TEST_COUNT"
+            "child_timeout_seconds=$env:CHILD_TIMEOUT_SECONDS"
+          ) | Set-Content -LiteralPath (Join-Path $env:ARTIFACT_DIR 'container-run-command.txt') -Encoding utf8
+
+          $runArguments = @(
+            'run', '--name', $env:CONTAINER_NAME,
+            '--env', 'GOTOOLCHAIN=local',
+            '--env', 'GOTRACEBACK=crash',
+            '--mount', $mount,
+            $env:TEST_IMAGE_NAME,
+            'hack\awslogs-windows-container-stress.ps1',
+            '-ArtifactDirectory', $env:CONTAINER_ARTIFACT_DIR,
+            '-ExpectedGoVersion', $env:GO_VERSION,
+            '-Rounds', $env:ROUNDS,
+            '-Workers', $env:WORKERS,
+            '-TestCount', $env:TEST_COUNT,
+            '-ChildTimeoutSeconds', $env:CHILD_TIMEOUT_SECONDS
+          )
+          & docker @runArguments *> (Join-Path $env:ARTIFACT_DIR 'container-run-output.txt')
+          $containerExitCode = $LASTEXITCODE
+          "exit_code=$containerExitCode" |
+            Set-Content -LiteralPath (Join-Path $env:ARTIFACT_DIR 'container-run-result.txt') -Encoding utf8
+          "exit_code=$containerExitCode" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          if ($containerExitCode -ne 0) {
+            Get-Content -LiteralPath (Join-Path $env:ARTIFACT_DIR 'container-run-output.txt') -Raw |
+              Write-Host
+            exit $containerExitCode
+          }
+      -
+        name: Record container metadata and clean up
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
+            $PSNativeCommandUseErrorActionPreference = $false
+          }
+          $inspectPath = Join-Path $env:ARTIFACT_DIR 'test-container-inspect.json'
+          & docker container inspect $env:CONTAINER_NAME *> $inspectPath
+          $inspectExitCode = $LASTEXITCODE
+          if ($inspectExitCode -ne 0) {
+            "status=container-not-found`ninspect_exit_code=$inspectExitCode" |
+              Set-Content -LiteralPath (Join-Path $env:ARTIFACT_DIR 'test-container-cleanup.txt') -Encoding utf8
+            return
+          }
+
+          & docker container rm --force $env:CONTAINER_NAME *> $null
+          $removeExitCode = $LASTEXITCODE
+          @(
+            'status=container-found'
+            "inspect_exit_code=$inspectExitCode"
+            "remove_exit_code=$removeExitCode"
+          ) | Set-Content -LiteralPath (Join-Path $env:ARTIFACT_DIR 'test-container-cleanup.txt') -Encoding utf8
+          if ($removeExitCode -ne 0) {
+            throw "failed to remove test container '$env:CONTAINER_NAME' (exit code $removeExitCode)"
+          }
+      -
+        name: Write container artifact checksums
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $checksumFile = Join-Path $env:ARTIFACT_DIR 'container-checksums.sha256'
+          Get-ChildItem -LiteralPath $env:ARTIFACT_DIR -Recurse -File |
+            Where-Object FullName -ne $checksumFile |
+            Sort-Object FullName |
+            ForEach-Object {
+              $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+              $relativePath = [IO.Path]::GetRelativePath($env:ARTIFACT_DIR, $_.FullName).Replace('\', '/')
+              "$hash  $relativePath"
+            } | Set-Content -LiteralPath $checksumFile -Encoding ascii
+      -
+        name: Upload container investigation artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: awslogs-windows-container-2025-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
+          path: ${{ env.ARTIFACT_DIR }}
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
+      -
+        name: Report container test result
+        if: always()
+        shell: pwsh
+        env:
+          CONTAINER_EXIT_CODE: ${{ steps.container-stress.outputs.exit_code }}
+          CONTAINER_STEP_OUTCOME: ${{ steps.container-stress.outcome }}
+        run: |
+          if ($env:CONTAINER_STEP_OUTCOME -ne 'success') {
+            Write-Error "Containerized hot-stress probe outcome was '$env:CONTAINER_STEP_OUTCOME' (container exit '$env:CONTAINER_EXIT_CODE')"
+            exit 1
+          }
+          Write-Host 'Containerized hot-stress probe passed.'
