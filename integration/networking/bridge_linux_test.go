@@ -2255,7 +2255,7 @@ func TestGatewayErrorOnNetDisconnect(t *testing.T) {
 		}}),
 		container.WithCapability("NET_ADMIN"),
 	)
-	defer container.Remove(ctx, t, c, ctrID, client.ContainerRemoveOptions{Force: true})
+	container.Remove(ctx, t, c, ctrID, client.ContainerRemoveOptions{Force: true})
 
 	// Break n2 so it can't be used as a gateway (there will be no route).
 	execRes := container.ExecT(ctx, t, c, ctrID, []string{"ip", "link", "set", "eth2", "down"})
