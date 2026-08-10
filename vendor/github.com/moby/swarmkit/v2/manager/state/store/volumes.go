@@ -121,11 +121,11 @@ func FindVolumes(tx ReadTx, by By) ([]*api.Volume, error) {
 
 type volumeIndexerByGroup struct{}
 
-func (vi volumeIndexerByGroup) FromArgs(args ...interface{}) ([]byte, error) {
+func (vi volumeIndexerByGroup) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (vi volumeIndexerByGroup) FromObject(obj interface{}) (bool, []byte, error) {
+func (vi volumeIndexerByGroup) FromObject(obj any) (bool, []byte, error) {
 	v := obj.(*api.Volume)
 	val := v.Spec.Group + "\x00"
 	return true, []byte(val), nil
@@ -133,11 +133,11 @@ func (vi volumeIndexerByGroup) FromObject(obj interface{}) (bool, []byte, error)
 
 type volumeIndexerByDriver struct{}
 
-func (vi volumeIndexerByDriver) FromArgs(args ...interface{}) ([]byte, error) {
+func (vi volumeIndexerByDriver) FromArgs(args ...any) ([]byte, error) {
 	return fromArgs(args...)
 }
 
-func (vi volumeIndexerByDriver) FromObject(obj interface{}) (bool, []byte, error) {
+func (vi volumeIndexerByDriver) FromObject(obj any) (bool, []byte, error) {
 	v := obj.(*api.Volume)
 	// this should never happen -- existence of the volume driver is checked
 	// at the controlapi level. However, guard against the unforeseen.

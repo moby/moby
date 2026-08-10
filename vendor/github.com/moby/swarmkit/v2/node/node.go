@@ -425,7 +425,6 @@ func (n *Node) run(ctx context.Context) (err error) {
 	// the node object until all 3 of these components have terminated, so we
 	// create a waitgroup to block termination of the node until then
 	var wg sync.WaitGroup
-	wg.Add(3)
 
 	// These two blocks update some of the metrics settings.
 	nodeInfo.WithValues(
@@ -444,7 +443,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 	// CertificateUpdates, and launch a goroutine to handle this. Updates is a
 	// channel we iterate containing the results of certificate renewals.
 	updates := renewer.Start(ctx)
-	go func() {
+	wg.Go(func() {
 		for certUpdate := range updates {
 			if certUpdate.Err != nil {
 				log.G(ctx).Warnf("error renewing TLS certificate: %v", certUpdate.Err)
@@ -464,9 +463,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 				nodeManager.Set(0)
 			}
 		}
-
-		wg.Done()
-	}()
+	})
 
 	// and, finally, start the two main components: the manager and the agent
 	role := n.role
@@ -479,18 +476,17 @@ func (n *Node) run(ctx context.Context) (err error) {
 	// respective goroutines below.
 	var managerErr error
 	var agentErr error
-	go func() {
+	wg.Go(func() {
 		// superviseManager is a routine that watches our manager role
 		managerErr = n.superviseManager(ctx, securityConfig, paths.RootCA, managerReady, renewer) // store err and loop
-		wg.Done()
 		cancel()
-	}()
-	go func() {
+	})
+	wg.Go(func() {
+		defer close(agentDone)
+
 		agentErr = n.runAgent(ctx, db, securityConfig, agentReady)
-		wg.Done()
 		cancel()
-		close(agentDone)
-	}()
+	})
 
 	// This goroutine is what signals that the node has fully started by
 	// closing the n.ready channel. First, it waits for the agent to start.

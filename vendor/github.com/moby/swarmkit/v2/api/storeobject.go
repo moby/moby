@@ -73,7 +73,7 @@ func customIndexer(kind string, annotations *Annotations) (bool, [][]byte, error
 	return len(converted) != 0, converted, nil
 }
 
-func fromArgs(args ...interface{}) ([]byte, error) {
+func fromArgs(args ...any) ([]byte, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("must provide only a single argument")
 	}
@@ -86,7 +86,7 @@ func fromArgs(args ...interface{}) ([]byte, error) {
 	return []byte(arg), nil
 }
 
-func prefixFromArgs(args ...interface{}) ([]byte, error) {
+func prefixFromArgs(args ...any) ([]byte, error) {
 	val, err := fromArgs(args...)
 	if err != nil {
 		return nil, err

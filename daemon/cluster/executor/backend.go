@@ -46,7 +46,7 @@ type Backend interface {
 	ContainerInspect(ctx context.Context, name string, options backend.ContainerInspectOptions) (_ *container.InspectResponse, desiredMACAddress network.HardwareAddr, _ error)
 	ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan containerpkg.StateStatus, error)
 	ContainerRm(name string, config *backend.ContainerRmConfig) error
-	ContainerKill(name string, sig string) error
+	ContainerKill(ctx context.Context, name string, sig string) error
 	SetContainerDependencyStore(name string, store exec.DependencyGetter) error
 	SetContainerSecretReferences(name string, refs []*swarm.SecretReference) error
 	SetContainerConfigReferences(name string, refs []*swarm.ConfigReference) error

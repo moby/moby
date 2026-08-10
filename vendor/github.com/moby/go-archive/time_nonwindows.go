@@ -14,23 +14,13 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// chtimes changes the access time and modified time of a file at the given path.
-// If the modified time is prior to the Unix Epoch (unixMinTime), or after the
-// end of Unix Time (unixEpochTime), os.Chtimes has undefined behavior. In this
-// case, Chtimes defaults to Unix Epoch, just in case.
-func chtimes(name string, atime time.Time, mtime time.Time) error {
-	return os.Chtimes(name, atime, mtime)
-}
-
-func timeToTimespec(time time.Time) unix.Timespec {
-	if time.IsZero() {
-		// Return UTIME_OMIT special value
-		return unix.Timespec{
-			Sec:  0,
-			Nsec: (1 << 30) - 2,
-		}
-	}
-	return unix.NsecToTimespec(time.UnixNano())
+// chtimes changes the access and modification time of a file at the given
+// path relative to root.
+//
+// Callers must use boundTime to ensure timestamps are within the range
+// supported by os.Chtimes.
+func chtimes(root *os.Root, name string, atime, mtime time.Time) error {
+	return root.Chtimes(name, atime, mtime)
 }
 
 func lchtimes(root *os.Root, name string, atime, mtime time.Time) error {
@@ -62,4 +52,15 @@ func lchtimes(root *os.Root, name string, atime, mtime time.Time) error {
 		return &os.PathError{Op: "lchtimes", Path: name, Err: err}
 	}
 	return nil
+}
+
+func timeToTimespec(time time.Time) unix.Timespec {
+	if time.IsZero() {
+		// Return UTIME_OMIT special value
+		return unix.Timespec{
+			Sec:  0,
+			Nsec: (1 << 30) - 2,
+		}
+	}
+	return unix.NsecToTimespec(time.UnixNano())
 }

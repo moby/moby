@@ -190,7 +190,7 @@ func (k *KeyManager) Run(ctx context.Context) error {
 	cluster := clusters[0]
 	if len(cluster.NetworkBootstrapKeys) == 0 {
 		for _, subsys := range k.config.Subsystems {
-			for i := 0; i < keyringSize; i++ {
+			for range keyringSize {
 				k.keyRing.keys = append(k.keyRing.keys, k.allocateKey(ctx, subsys))
 			}
 		}

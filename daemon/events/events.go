@@ -1,6 +1,7 @@
 package events
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -33,50 +34,49 @@ func New() *Events {
 // last events, a channel in which you can expect new events (in form
 // of interface{}, so you need type assertion), and a function to call
 // to stop the stream of events.
-func (e *Events) Subscribe() ([]eventtypes.Message, chan any, func()) {
-	metrics.EventSubscribers.Inc()
+func (e *Events) Subscribe() (buf []eventtypes.Message, evts chan any, cancel func()) {
+	// Hold e.mu while loading buffered events and registering the subscriber so
+	// that an event cannot fall between the buffered snapshot and the live stream.
 	e.mu.Lock()
-	current := make([]eventtypes.Message, len(e.events))
-	copy(current, e.events)
-	l := e.pub.Subscribe()
-	e.mu.Unlock()
+	defer metrics.EventSubscribers.Inc()
+	defer e.mu.Unlock()
 
-	cancel := func() {
-		e.Evict(l)
-	}
-	return current, l, cancel
+	buf = slices.Clone(e.events)
+	ch := e.pub.Subscribe()
+	return buf, ch, sync.OnceFunc(func() { e.unsubscribe(ch) })
 }
 
 // SubscribeTopic adds new listener to events, returns slice of 256 stored
 // last events, a channel in which you can expect new events (in form
 // of interface{}, so you need type assertion).
 func (e *Events) SubscribeTopic(since, until time.Time, ef *Filter) ([]eventtypes.Message, chan any) {
-	metrics.EventSubscribers.Inc()
-	e.mu.Lock()
-
 	var topic func(m any) bool
 	if ef != nil && ef.filter.Len() > 0 {
 		topic = func(m any) bool { return ef.Include(m.(eventtypes.Message)) }
 	}
 
+	// Hold e.mu while loading buffered events and registering the subscriber so
+	// that an event cannot fall between the buffered snapshot and the live stream.
+	e.mu.Lock()
+	defer metrics.EventSubscribers.Inc()
+	defer e.mu.Unlock()
+
 	buffered := e.loadBufferedEvents(since, until, topic)
-
-	var ch chan any
-	if topic != nil {
-		ch = e.pub.SubscribeTopic(topic)
-	} else {
-		// Subscribe to all events if there are no filters
-		ch = e.pub.Subscribe()
-	}
-
-	e.mu.Unlock()
+	// Subscribe to all events if there are no filters (topic=nil).
+	ch := e.pub.SubscribeTopic(topic)
 	return buffered, ch
 }
 
 // Evict evicts listener from pubsub
+//
+// TODO(thaJeztah): make all Subscribe methods return a cancelFn and remove this.
 func (e *Events) Evict(l chan any) {
+	e.unsubscribe(l)
+}
+
+func (e *Events) unsubscribe(ch chan any) {
+	e.pub.Evict(ch)
 	metrics.EventSubscribers.Dec()
-	e.pub.Evict(l)
 }
 
 // Log creates a local scope message and publishes it
@@ -119,9 +119,8 @@ func (e *Events) SubscribersCount() int {
 // It uses `time.Unix(seconds, nanoseconds)` to generate valid dates with those arguments.
 // It filters those buffered messages with a topic function if it's not nil, otherwise it adds all messages.
 func (e *Events) loadBufferedEvents(since, until time.Time, topic func(any) bool) []eventtypes.Message {
-	var buffered []eventtypes.Message
 	if since.IsZero() && until.IsZero() {
-		return buffered
+		return nil
 	}
 
 	var sinceNanoUnix int64
@@ -134,21 +133,22 @@ func (e *Events) loadBufferedEvents(since, until time.Time, topic func(any) bool
 		untilNanoUnix = until.UnixNano()
 	}
 
-	for i := len(e.events) - 1; i >= 0; i-- {
-		ev := e.events[i]
-
+	// Let append grow the result based on actual matches; the time range and topic
+	// filter may exclude most or all buffered events. If dense results prove more
+	// common, cloning and filtering the candidate range in place may be cheaper.
+	var buffered []eventtypes.Message
+	for _, ev := range slices.Backward(e.events) {
 		if ev.TimeNano < sinceNanoUnix {
 			break
 		}
-
 		if untilNanoUnix > 0 && ev.TimeNano > untilNanoUnix {
 			continue
 		}
-
 		if topic == nil || topic(ev) {
-			buffered = append([]eventtypes.Message{ev}, buffered...)
+			buffered = append(buffered, ev)
 		}
 	}
+	slices.Reverse(buffered)
 	return buffered
 }
 

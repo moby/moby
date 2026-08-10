@@ -698,7 +698,7 @@ github.com/docker/distribution/registry/client/auth/challenge
 github.com/docker/distribution/registry/client/transport
 github.com/docker/distribution/registry/storage/cache
 github.com/docker/distribution/registry/storage/cache/memory
-# github.com/docker/go-connections v0.8.0
+# github.com/docker/go-connections v0.8.1
 ## explicit; go 1.23
 github.com/docker/go-connections/sockets
 github.com/docker/go-connections/tlsconfig
@@ -1072,7 +1072,7 @@ github.com/mitchellh/copystructure
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.32.0-rc2
+# github.com/moby/buildkit v0.32.0
 ## explicit; go 1.26.3
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1266,7 +1266,7 @@ github.com/moby/buildkit/worker/label
 # github.com/moby/docker-image-spec v1.3.1
 ## explicit; go 1.18
 github.com/moby/docker-image-spec/specs-go/v1
-# github.com/moby/go-archive v0.2.2-0.20260724112411-2ff9bfb8b2ee
+# github.com/moby/go-archive v0.3.0
 ## explicit; go 1.25
 github.com/moby/go-archive
 github.com/moby/go-archive/chrootarchive
@@ -1280,7 +1280,7 @@ github.com/moby/ipvs
 # github.com/moby/locker v1.0.1
 ## explicit; go 1.13
 github.com/moby/locker
-# github.com/moby/moby/api v1.55.0 => ./api
+# github.com/moby/moby/api v1.55.0
 ## explicit; go 1.24
 github.com/moby/moby/api/pkg/authconfig
 github.com/moby/moby/api/pkg/stdcopy
@@ -1302,7 +1302,7 @@ github.com/moby/moby/api/types/storage
 github.com/moby/moby/api/types/swarm
 github.com/moby/moby/api/types/system
 github.com/moby/moby/api/types/volume
-# github.com/moby/moby/client v0.5.0 => ./client
+# github.com/moby/moby/client v0.5.1
 ## explicit; go 1.24
 github.com/moby/moby/client
 github.com/moby/moby/client/internal
@@ -1331,8 +1331,8 @@ github.com/moby/profiles/seccomp
 # github.com/moby/pubsub v1.0.0
 ## explicit; go 1.19
 github.com/moby/pubsub
-# github.com/moby/swarmkit/v2 v2.1.3-0.20260725133749-28ad14b9eb35
-## explicit; go 1.24.0
+# github.com/moby/swarmkit/v2 v2.1.3-0.20260728230343-5418507a43a2
+## explicit; go 1.25.0
 github.com/moby/swarmkit/v2/agent
 github.com/moby/swarmkit/v2/agent/configs
 github.com/moby/swarmkit/v2/agent/csi
@@ -1478,10 +1478,10 @@ github.com/package-url/packageurl-go
 # github.com/pelletier/go-toml v1.9.5
 ## explicit; go 1.12
 github.com/pelletier/go-toml
-# github.com/pelletier/go-toml/v2 v2.3.1
+# github.com/pelletier/go-toml/v2 v2.4.3
 ## explicit; go 1.21.0
 github.com/pelletier/go-toml/v2
-github.com/pelletier/go-toml/v2/internal/characters
+github.com/pelletier/go-toml/v2/internal/parserbridge
 github.com/pelletier/go-toml/v2/internal/tracker
 github.com/pelletier/go-toml/v2/unstable
 # github.com/petermattis/goid v0.0.0-20240813172612-4fcff4a6cae7
@@ -1760,26 +1760,26 @@ go.etcd.io/bbolt
 go.etcd.io/bbolt/errors
 go.etcd.io/bbolt/internal/common
 go.etcd.io/bbolt/internal/freelist
-# go.etcd.io/etcd/api/v3 v3.6.8
-## explicit; go 1.24.0
+# go.etcd.io/etcd/api/v3 v3.6.14
+## explicit; go 1.25.0
 go.etcd.io/etcd/api/v3/authpb
 go.etcd.io/etcd/api/v3/etcdserverpb
 go.etcd.io/etcd/api/v3/membershippb
 go.etcd.io/etcd/api/v3/mvccpb
 go.etcd.io/etcd/api/v3/version
 go.etcd.io/etcd/api/v3/versionpb
-# go.etcd.io/etcd/client/pkg/v3 v3.6.8
-## explicit; go 1.24.0
+# go.etcd.io/etcd/client/pkg/v3 v3.6.14
+## explicit; go 1.25.0
 go.etcd.io/etcd/client/pkg/v3/fileutil
 go.etcd.io/etcd/client/pkg/v3/verify
-# go.etcd.io/etcd/pkg/v3 v3.6.8
-## explicit; go 1.24.0
+# go.etcd.io/etcd/pkg/v3 v3.6.14
+## explicit; go 1.25.0
 go.etcd.io/etcd/pkg/v3/crc
 go.etcd.io/etcd/pkg/v3/idutil
 go.etcd.io/etcd/pkg/v3/ioutil
 go.etcd.io/etcd/pkg/v3/pbutil
-# go.etcd.io/etcd/server/v3 v3.6.8
-## explicit; go 1.24.0
+# go.etcd.io/etcd/server/v3 v3.6.14
+## explicit; go 1.25.0
 go.etcd.io/etcd/server/v3/etcdserver/api/snap
 go.etcd.io/etcd/server/v3/etcdserver/api/snap/snappb
 go.etcd.io/etcd/server/v3/storage/wal
@@ -2303,5 +2303,3 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.1.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
-# github.com/moby/moby/api => ./api
-# github.com/moby/moby/client => ./client

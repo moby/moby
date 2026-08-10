@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
+	"slices"
 
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/moby/swarmkit/v2/api"
@@ -115,19 +116,13 @@ func (s *Server) ListNodes(_ context.Context, request *api.ListNodesRequest) (*a
 				if len(request.Filters.Names) == 0 {
 					return true
 				}
-				if e.Description == nil {
-					return false
-				}
-				return filterContains(e.Description.Hostname, request.Filters.Names)
+				return e.Description != nil && filterContains(e.Description.Hostname, request.Filters.Names)
 			},
 			func(e *api.Node) bool {
 				if len(request.Filters.NamePrefixes) == 0 {
 					return true
 				}
-				if e.Description == nil {
-					return false
-				}
-				return filterContainsPrefix(e.Description.Hostname, request.Filters.NamePrefixes)
+				return e.Description != nil && filterContainsPrefix(e.Description.Hostname, request.Filters.NamePrefixes)
 			},
 			func(e *api.Node) bool {
 				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)
@@ -136,38 +131,16 @@ func (s *Server) ListNodes(_ context.Context, request *api.ListNodesRequest) (*a
 				if len(request.Filters.Labels) == 0 {
 					return true
 				}
-				if e.Description == nil {
-					return false
-				}
-				return filterMatchLabels(e.Description.Engine.Labels, request.Filters.Labels)
+				return e.Description != nil && e.Description.Engine != nil && filterMatchLabels(e.Description.Engine.Labels, request.Filters.Labels)
 			},
 			func(e *api.Node) bool {
-				if len(request.Filters.NodeLabels) == 0 {
-					return true
-				}
-				return filterMatchLabels(e.Spec.Annotations.Labels, request.Filters.NodeLabels)
+				return len(request.Filters.NodeLabels) == 0 || filterMatchLabels(e.Spec.Annotations.Labels, request.Filters.NodeLabels)
 			},
 			func(e *api.Node) bool {
-				if len(request.Filters.Roles) == 0 {
-					return true
-				}
-				for _, c := range request.Filters.Roles {
-					if c == e.Role {
-						return true
-					}
-				}
-				return false
+				return len(request.Filters.Roles) == 0 || slices.Contains(request.Filters.Roles, e.Role)
 			},
 			func(e *api.Node) bool {
-				if len(request.Filters.Memberships) == 0 {
-					return true
-				}
-				for _, c := range request.Filters.Memberships {
-					if c == e.Spec.Membership {
-						return true
-					}
-				}
-				return false
+				return len(request.Filters.Memberships) == 0 || slices.Contains(request.Filters.Memberships, e.Spec.Membership)
 			},
 		)
 	}

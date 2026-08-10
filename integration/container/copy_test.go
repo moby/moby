@@ -41,7 +41,6 @@ func TestCopyFromContainerPathDoesNotExist(t *testing.T) {
 // TestCopyFromContainerPathIsNotDir tests that an error is returned when
 // trying to create a directory on a path that's a file.
 func TestCopyFromContainerPathIsNotDir(t *testing.T) {
-	skip.If(t, testEnv.UsingSnapshotter(), "FIXME: https://github.com/moby/moby/issues/47107")
 	ctx := setupTest(t)
 
 	apiClient := testEnv.APIClient()
@@ -49,27 +48,100 @@ func TestCopyFromContainerPathIsNotDir(t *testing.T) {
 
 	// Pick a path that already exists as a file; on Linux "/etc/passwd"
 	// is expected to be there, so we pick that for convenience.
-	existingFile := "/etc/passwd/"
+	existingFile := "/etc/passwd"
+	existingDir := "/etc"
 	expected := []string{"not a directory"}
 	if testEnv.DaemonInfo.OSType == "windows" {
-		existingFile = "c:/windows/system32/drivers/etc/hosts/"
-
-		// Depending on the version of Windows, this produces a "ERROR_INVALID_NAME" (Windows < 2025),
-		// or a "ERROR_DIRECTORY" (Windows 2025); https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-
-		expected = []string{
+		existingFile = "c:/windows/system32/drivers/etc/hosts"
+		existingDir = "c:/windows/system32/drivers/etc"
+		expected = append(expected,
 			"The directory name is invalid.",                                     // ERROR_DIRECTORY
 			"The filename, directory name, or volume label syntax is incorrect.", // ERROR_INVALID_NAME
-		}
+		)
 	}
-	_, err := apiClient.CopyFromContainer(ctx, cid, client.CopyFromContainerOptions{SourcePath: existingFile})
-	var found bool
-	for _, expErr := range expected {
-		if err != nil && strings.Contains(err.Error(), expErr) {
-			found = true
-			break
+
+	isNotADirErr := func(err error) bool {
+		for _, e := range expected {
+			if err != nil && strings.Contains(err.Error(), e) {
+				return true
+			}
 		}
+		return false
 	}
-	assert.Check(t, found, "Expected error to be one of %v, but got %v", expected, err)
+
+	t.Run("file with trailing separator errors", func(t *testing.T) {
+		_, err := apiClient.CopyFromContainer(ctx, cid, client.CopyFromContainerOptions{SourcePath: existingFile + "/"})
+		assert.Check(t, isNotADirErr(err), "expected a 'not a directory' error, but got %v", err)
+	})
+
+	t.Run("file with trailing dot errors", func(t *testing.T) {
+		// The graphdriver surfaces this as a not-found error rather than
+		// "not a directory", so we only assert that the copy fails.
+		_, err := apiClient.CopyFromContainer(ctx, cid, client.CopyFromContainerOptions{SourcePath: existingFile + "/."})
+		assert.Check(t, err != nil, "expected an error for a file path asserting a directory")
+	})
+
+	t.Run("file without trailing separator is ok", func(t *testing.T) {
+		res, err := apiClient.CopyFromContainer(ctx, cid, client.CopyFromContainerOptions{SourcePath: existingFile})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(res.Stat.Mode.IsDir(), false))
+		_, err = io.Copy(io.Discard, res.Content)
+		assert.NilError(t, err)
+		assert.NilError(t, res.Content.Close())
+	})
+
+	t.Run("directory with trailing separator is ok", func(t *testing.T) {
+		res, err := apiClient.CopyFromContainer(ctx, cid, client.CopyFromContainerOptions{SourcePath: existingDir + "/"})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(res.Stat.Mode.IsDir(), true))
+		_, err = io.Copy(io.Discard, res.Content)
+		assert.NilError(t, err)
+		assert.NilError(t, res.Content.Close())
+	})
+}
+
+// TestCopyFromContainerDirSymlinkTrailingSeparator is a regression test for
+// moby/moby#47107: a symlink copied with a trailing separator (or "/.") is
+// resolved to its target first, so a directory symlink is accepted while a file
+// symlink is still rejected. The check is in the Windows StatPath, so this is
+// Windows-only; Linux is covered by TestCopyFromContainer ("bar/dirsymlink/").
+func TestCopyFromContainerDirSymlinkTrailingSeparator(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
+	ctx := setupTest(t)
+
+	apiClient := testEnv.APIClient()
+
+	// mklink requires SeCreateSymbolicLinkPrivilege, hence ContainerAdministrator.
+	buildCtx := fakecontext.New(t, t.TempDir(), fakecontext.WithDockerfile(`
+		FROM `+testEnv.PlatformDefaults.BaseImage+`
+		USER ContainerAdministrator
+		RUN cmd /c mklink /D C:\linkdir C:\Windows\System32\drivers\etc
+		RUN cmd /c mklink C:\filelink C:\Windows\System32\drivers\etc\hosts
+	`))
+	defer buildCtx.Close()
+
+	imageID := build.Do(ctx, t, apiClient, buildCtx, client.ImageBuildOptions{})
+	cid := container.Create(ctx, t, apiClient, container.WithImage(imageID))
+
+	// A directory symlink resolves to a directory and must be accepted. Only the
+	// trailing-separator form is reliable across drivers: windowsfilter's
+	// os.Lstat rejects a trailing "/." even on a real directory.
+	t.Run("c:/linkdir/", func(t *testing.T) {
+		res, err := apiClient.CopyFromContainer(ctx, cid, client.CopyFromContainerOptions{SourcePath: "c:/linkdir/"})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(res.Stat.Mode.IsDir(), true))
+		_, err = io.Copy(io.Discard, res.Content)
+		assert.NilError(t, err)
+		assert.NilError(t, res.Content.Close())
+	})
+
+	// A file symlink resolves to a file and must be rejected (error varies by driver).
+	for _, src := range []string{"c:/filelink/", "c:/filelink/."} {
+		t.Run(src, func(t *testing.T) {
+			_, err := apiClient.CopyFromContainer(ctx, cid, client.CopyFromContainerOptions{SourcePath: src})
+			assert.Check(t, err != nil, "expected an error for a file symlink asserting a directory")
+		})
+	}
 }
 
 func TestCopyToContainerPathDoesNotExist(t *testing.T) {

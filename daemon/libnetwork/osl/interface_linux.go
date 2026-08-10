@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -92,7 +93,13 @@ func newInterface(ns *Namespace, srcName, dstPrefix, dstName string, options ...
 // host namespace to DstName in a different net namespace with the appropriate
 // network settings.
 type Interface struct {
-	stopCh      chan struct{} // stopCh is closed before the interface is deleted.
+	// stopCh is closed before the interface is deleted, to stop background tasks
+	// that outlive [Namespace.AddInterface] (the unsolicited ARP/NA sends). Close
+	// it via stop(), removal can be attempted more than once for the same
+	// Interface.
+	stopCh   chan struct{}
+	stopOnce sync.Once
+
 	srcName     string
 	dstPrefix   string
 	dstName     string
@@ -170,6 +177,12 @@ func (i *Interface) Routes() []*net.IPNet {
 func (i *Interface) Remove() error {
 	nameSpace := i.ns
 	return nameSpace.RemoveInterface(i)
+}
+
+// stop stops the interface's background tasks. It is safe to call more than
+// once, and from multiple goroutines.
+func (i *Interface) stop() {
+	i.stopOnce.Do(func() { close(i.stopCh) })
 }
 
 // Statistics returns the sandbox's side veth interface statistics.
@@ -818,8 +831,14 @@ func (n *Namespace) prepAdvertiseAddrs(ctx context.Context, i *Interface, ifInde
 
 // RemoveInterface removes an interface from the namespace by renaming to
 // original name and moving it out of the sandbox.
+//
+// On failure, i is left in the Namespace's list of interfaces - the interface
+// may still be present in the namespace, and its name is still reserved. So,
+// callers that iterate over [Namespace.Interfaces] will try to remove i again
+// during a later teardown. RemoveInterface must therefore tolerate being called
+// more than once for the same Interface.
 func (n *Namespace) RemoveInterface(i *Interface) error {
-	close(i.stopCh)
+	i.stop()
 
 	// Find the network interface identified by the DstName attribute.
 	iface, err := n.nlHandle.LinkByName(i.DstName())

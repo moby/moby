@@ -105,40 +105,38 @@ func (lb *LogBroker) newSubscription(selector *api.LogSelector, options *api.Log
 	lb.mu.RLock()
 	defer lb.mu.RUnlock()
 
-	subscription := newSubscription(lb.store, &api.SubscriptionMessage{
+	return newSubscription(lb.store, &api.SubscriptionMessage{
 		ID:       identity.NewID(),
 		Selector: selector,
 		Options:  options,
 	}, lb.subscriptionQueue)
-
-	return subscription
 }
 
 func (lb *LogBroker) getSubscription(id string) *subscription {
 	lb.mu.RLock()
 	defer lb.mu.RUnlock()
 
-	subscription, ok := lb.registeredSubscriptions[id]
+	sub, ok := lb.registeredSubscriptions[id]
 	if !ok {
 		return nil
 	}
-	return subscription
+	return sub
 }
 
-func (lb *LogBroker) registerSubscription(subscription *subscription) {
+func (lb *LogBroker) registerSubscription(sub *subscription) {
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
 
-	lb.registeredSubscriptions[subscription.message.ID] = subscription
-	lb.subscriptionQueue.Publish(subscription)
+	lb.registeredSubscriptions[sub.ID()] = sub
+	lb.subscriptionQueue.Publish(sub)
 
-	for _, node := range subscription.Nodes() {
+	for _, node := range sub.Nodes() {
 		if _, ok := lb.subscriptionsByNode[node]; !ok {
 			// Mark nodes that won't receive the message as done.
-			subscription.Done(node, fmt.Errorf("node %s is not available", node))
+			sub.Done(node, fmt.Errorf("node %s is not available", node))
 		} else {
 			// otherwise, add the subscription to the node's subscriptions list
-			lb.subscriptionsByNode[node][subscription] = struct{}{}
+			lb.subscriptionsByNode[node][sub] = struct{}{}
 		}
 	}
 }
@@ -147,7 +145,7 @@ func (lb *LogBroker) unregisterSubscription(subscription *subscription) {
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
 
-	delete(lb.registeredSubscriptions, subscription.message.ID)
+	delete(lb.registeredSubscriptions, subscription.ID())
 
 	// remove the subscription from all of the nodes
 	for _, node := range subscription.Nodes() {
@@ -234,25 +232,25 @@ func (lb *LogBroker) SubscribeLogs(request *api.SubscribeLogsRequest, stream api
 		return errNotRunning
 	}
 
-	subscription := lb.newSubscription(request.Selector, request.Options)
-	subscription.Run(pctx)
-	defer subscription.Stop()
+	sub := lb.newSubscription(request.Selector, request.Options)
+	sub.Run(pctx)
+	defer sub.Stop()
 
 	logger := log.G(ctx).WithFields(
 		log.Fields{
 			"method":          "(*LogBroker).SubscribeLogs",
-			"subscription.id": subscription.message.ID,
+			"subscription.id": sub.ID(),
 		},
 	)
 	logger.Debug("subscribed")
 
-	publishCh, publishCancel := lb.subscribe(subscription.message.ID)
+	publishCh, publishCancel := lb.subscribe(sub.ID())
 	defer publishCancel()
 
-	lb.registerSubscription(subscription)
-	defer lb.unregisterSubscription(subscription)
+	lb.registerSubscription(sub)
+	defer lb.unregisterSubscription(sub)
 
-	completed := subscription.Wait(ctx)
+	completed := sub.Wait(ctx)
 	for {
 		select {
 		case <-ctx.Done():
@@ -273,10 +271,10 @@ func (lb *LogBroker) SubscribeLogs(request *api.SubscribeLogsRequest, stream api
 			completed = nil
 			lb.logQueue.Publish(&logMessage{
 				PublishLogsMessage: &api.PublishLogsMessage{
-					SubscriptionID: subscription.message.ID,
+					SubscriptionID: sub.ID(),
 				},
 				completed: true,
-				err:       subscription.Err(),
+				err:       sub.Err(),
 			})
 		}
 	}
@@ -332,7 +330,7 @@ func (lb *LogBroker) ListenSubscriptions(_ *api.ListenSubscriptionsRequest, stre
 	activeSubscriptions := make(map[string]*subscription)
 
 	// Start by sending down all active subscriptions.
-	for _, subscription := range subscriptions {
+	for _, sub := range subscriptions {
 		select {
 		case <-stream.Context().Done():
 			return stream.Context().Err()
@@ -341,30 +339,30 @@ func (lb *LogBroker) ListenSubscriptions(_ *api.ListenSubscriptionsRequest, stre
 		default:
 		}
 
-		if err := stream.Send(subscription.message); err != nil {
-			logger.Error(err)
+		if err := stream.Send(sub.Message()); err != nil {
+			logger.WithError(err).Error("failed to send initial subscription")
 			return err
 		}
-		activeSubscriptions[subscription.message.ID] = subscription
+		activeSubscriptions[sub.ID()] = sub
 	}
 
 	// Send down new subscriptions.
 	for {
 		select {
 		case v := <-subscriptionCh:
-			subscription := v.(*subscription)
+			sub := v.(*subscription)
 
-			if subscription.Closed() {
-				delete(activeSubscriptions, subscription.message.ID)
+			if sub.Closed() {
+				delete(activeSubscriptions, sub.ID())
 			} else {
 				// Avoid sending down the same subscription multiple times
-				if _, ok := activeSubscriptions[subscription.message.ID]; ok {
+				if _, ok := activeSubscriptions[sub.ID()]; ok {
 					continue
 				}
-				activeSubscriptions[subscription.message.ID] = subscription
+				activeSubscriptions[sub.ID()] = sub
 			}
-			if err := stream.Send(subscription.message); err != nil {
-				logger.Error(err)
+			if err := stream.Send(sub.Message()); err != nil {
+				logger.WithError(err).Error("failed to send subscription update")
 				return err
 			}
 		case <-stream.Context().Done():
@@ -408,7 +406,7 @@ func (lb *LogBroker) PublishLogs(stream api.LogBroker_PublishLogsServer) (err er
 				return status.Errorf(codes.NotFound, "unknown subscription ID")
 			}
 		} else {
-			if logMsg.SubscriptionID != currentSubscription.message.ID {
+			if logMsg.SubscriptionID != currentSubscription.ID() {
 				return status.Errorf(codes.InvalidArgument, "different subscription IDs in the same session")
 			}
 		}

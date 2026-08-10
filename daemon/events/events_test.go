@@ -14,10 +14,10 @@ import (
 
 func TestEventsLog(t *testing.T) {
 	e := New()
-	_, l1, _ := e.Subscribe()
-	_, l2, _ := e.Subscribe()
-	defer e.Evict(l1)
-	defer e.Evict(l2)
+	_, l1, cancel1 := e.Subscribe()
+	defer cancel1()
+	_, l2, cancel2 := e.Subscribe()
+	defer cancel2()
 	subscriberCount := e.SubscribersCount()
 	assert.Check(t, is.Equal(subscriberCount, 2))
 
@@ -53,8 +53,8 @@ func TestEventsLog(t *testing.T) {
 
 func TestEventsLogTimeout(t *testing.T) {
 	e := New()
-	_, l, _ := e.Subscribe()
-	defer e.Evict(l)
+	_, _, cancel := e.Subscribe()
+	defer cancel()
 
 	c := make(chan struct{})
 	go func() {
@@ -82,7 +82,8 @@ func TestLogEvents(t *testing.T) {
 		})
 	}
 	time.Sleep(50 * time.Millisecond)
-	current, l, _ := e.Subscribe()
+	current, l, cancel := e.Subscribe()
+	defer cancel()
 	for i := range 10 {
 		num := strconv.Itoa(i + eventsLimit + 16)
 		e.Log(events.Action("action_"+num), events.ContainerEventType, events.Actor{
@@ -195,4 +196,27 @@ func TestIgnoreBufferedWhenNoTimes(t *testing.T) {
 
 	messages := evts.loadBufferedEvents(since, until, nil)
 	assert.Assert(t, is.Len(messages, 0))
+}
+
+func BenchmarkLoadBufferedEvents(b *testing.B) {
+	const eventCount = 256
+
+	evts := make([]events.Message, eventCount)
+	for i := range evts {
+		evts[i].TimeNano = int64(i + 1)
+	}
+
+	e := &Events{events: evts}
+
+	for _, matches := range []int{0, 1, 64, eventCount} {
+		b.Run("matches="+strconv.Itoa(matches), func(b *testing.B) {
+			since := time.Unix(0, int64(eventCount-matches+1))
+
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				_ = e.loadBufferedEvents(since, time.Time{}, nil)
+			}
+		})
+	}
 }

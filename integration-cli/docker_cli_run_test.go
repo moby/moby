@@ -2673,7 +2673,11 @@ func (s *DockerCLIRunSuite) TestRunContainerWithRmFlagExitCodeNotEqualToZero(c *
 		ExitCode: 1,
 	})
 
-	poll.WaitOn(c, containerRemoved(name))
+	removeTimeout := 10 * time.Second
+	if DaemonIsWindows() {
+		removeTimeout = 60 * time.Second
+	}
+	poll.WaitOn(c, containerRemoved(name), poll.WithTimeout(removeTimeout))
 }
 
 func (s *DockerCLIRunSuite) TestRunContainerWithRmFlagCannotStartContainer(c *testing.T) {
@@ -2682,7 +2686,11 @@ func (s *DockerCLIRunSuite) TestRunContainerWithRmFlagCannotStartContainer(c *te
 		ExitCode: 127,
 	})
 
-	poll.WaitOn(c, containerRemoved(name))
+	removeTimeout := 10 * time.Second
+	if DaemonIsWindows() {
+		removeTimeout = 60 * time.Second
+	}
+	poll.WaitOn(c, containerRemoved(name), poll.WithTimeout(removeTimeout))
 }
 
 func containerRemoved(name string) poll.Check {

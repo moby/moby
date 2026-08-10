@@ -166,10 +166,7 @@ func splitSnapshotData(_ context.Context, m *raftpb.Message) []api.StreamRaftMes
 
 	// split the snapshot into smaller messages.
 	for snapDataIndex := 0; snapDataIndex < size; {
-		chunkSize := size - snapDataIndex
-		if chunkSize > payloadSize {
-			chunkSize = payloadSize
-		}
+		chunkSize := min(size-snapDataIndex, payloadSize)
 
 		raftMsg := *m
 		// Clone Snapshot so that re-slicing Snapshot.Data below

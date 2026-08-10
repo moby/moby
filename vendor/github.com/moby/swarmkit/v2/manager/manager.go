@@ -263,7 +263,7 @@ func New(config *Config) (*Manager, error) {
 	// they are not automatically tested. If you modify them later, make _sure_
 	// that they are correct. If you add substantial side effects, abstract
 	// these out and test them!
-	unaryInterceptorWrapper := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	unaryInterceptorWrapper := func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		// pass the call down into the grpc_prometheus interceptor
 		resp, err := grpc_prometheus.UnaryServerInterceptor(ctx, req, info, handler)
 		if err != nil {
@@ -272,7 +272,7 @@ func New(config *Config) (*Manager, error) {
 		return resp, err
 	}
 
-	streamInterceptorWrapper := func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	streamInterceptorWrapper := func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		// we can't re-write a stream context, so don't bother creating a
 		// sub-context like in unary methods
 		// pass the call down into the grpc_prometheus interceptor

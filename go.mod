@@ -42,7 +42,7 @@ require (
 	github.com/creack/pty v1.1.24
 	github.com/distribution/reference v0.6.0
 	github.com/docker/distribution v2.8.3+incompatible
-	github.com/docker/go-connections v0.8.0
+	github.com/docker/go-connections v0.8.1
 	github.com/docker/go-events v0.0.0-20260713150650-1ee7122bc07b
 	github.com/docker/go-metrics v0.0.1
 	github.com/docker/go-units v0.5.0
@@ -62,19 +62,19 @@ require (
 	github.com/miekg/dns v1.1.72
 	github.com/mistifyio/go-zfs/v4 v4.0.0
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.32.0-rc2
+	github.com/moby/buildkit v0.32.0
 	github.com/moby/docker-image-spec v1.3.1
-	github.com/moby/go-archive v0.2.2-0.20260724112411-2ff9bfb8b2ee
+	github.com/moby/go-archive v0.3.0
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
 	github.com/moby/moby/api v1.55.0
-	github.com/moby/moby/client v0.5.0
+	github.com/moby/moby/client v0.5.1
 	github.com/moby/patternmatcher v0.6.1
 	github.com/moby/policy-helpers v0.0.0-20260722051018-856be88baec4
 	github.com/moby/profiles/apparmor v0.2.1
 	github.com/moby/profiles/seccomp v0.2.3
 	github.com/moby/pubsub v1.0.0
-	github.com/moby/swarmkit/v2 v2.1.3-0.20260725133749-28ad14b9eb35
+	github.com/moby/swarmkit/v2 v2.1.3-0.20260728230343-5418507a43a2
 	github.com/moby/sys/atomicwriter v0.1.0
 	github.com/moby/sys/mount v0.3.5
 	github.com/moby/sys/mountinfo v0.7.2
@@ -90,7 +90,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/opencontainers/runtime-spec v1.3.0
 	github.com/opencontainers/selinux v1.15.1
-	github.com/pelletier/go-toml/v2 v2.3.1
+	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.24.1
 	github.com/rootless-containers/rootlesskit/v3 v3.0.2
@@ -281,10 +281,10 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/zmap/zcrypto v0.0.0-20230310154051-c8b263fd8300 // indirect
 	github.com/zmap/zlint/v3 v3.5.0 // indirect
-	go.etcd.io/etcd/api/v3 v3.6.8 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.6.8 // indirect
-	go.etcd.io/etcd/pkg/v3 v3.6.8 // indirect
-	go.etcd.io/etcd/server/v3 v3.6.8 // indirect
+	go.etcd.io/etcd/api/v3 v3.6.14 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.6.14 // indirect
+	go.etcd.io/etcd/pkg/v3 v3.6.14 // indirect
+	go.etcd.io/etcd/server/v3 v3.6.14 // indirect
 	go.etcd.io/raft/v3 v3.6.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
@@ -318,7 +318,3 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.1.0 // indirect
 )
-
-replace github.com/moby/moby/api => ./api
-
-replace github.com/moby/moby/client => ./client

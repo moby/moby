@@ -14,8 +14,8 @@ import (
 
 func TestLogContainerEventCopyLabels(t *testing.T) {
 	e := events.New()
-	_, l, _ := e.Subscribe()
-	defer e.Evict(l)
+	_, l, cancel := e.Subscribe()
+	defer cancel()
 
 	ctr := &container.Container{
 		ID:   "container_id",
@@ -45,8 +45,8 @@ func TestLogContainerEventCopyLabels(t *testing.T) {
 
 func TestLogContainerEventWithAttributes(t *testing.T) {
 	e := events.New()
-	_, l, _ := e.Subscribe()
-	defer e.Evict(l)
+	_, l, cancel := e.Subscribe()
+	defer cancel()
 
 	ctr := &container.Container{
 		ID:   "container_id",

@@ -702,8 +702,8 @@ func (suite *testSuite) TestNoDuplicateIPs() {
 		return true
 	}
 
-	reps := 100
-	for i := 0; i != reps; i++ {
+	const reps = 100
+	for i := range reps {
 		suite.NoError(s.Update(func(tx store.Tx) error {
 			t2 := &api.Task{
 				// The allocator iterates over the tasks in
@@ -760,7 +760,7 @@ func (suite *testSuite) TestAllocatorRestoreForDuplicateIPs() {
 		}
 		suite.NoError(store.CreateNetwork(tx, in))
 
-		for i := 0; i != numsvcstsks; i++ {
+		for i := range numsvcstsks {
 			svc := &api.Service{
 				ID: "testServiceID" + strconv.Itoa(i),
 				Spec: api.ServiceSpec{
@@ -802,7 +802,7 @@ func (suite *testSuite) TestAllocatorRestoreForDuplicateIPs() {
 		return nil
 	}))
 
-	for i := 0; i != numsvcstsks; i++ {
+	for i := range numsvcstsks {
 		suite.NoError(s.Update(func(tx store.Tx) error {
 			tsk := &api.Task{
 				ID: "testTaskID" + strconv.Itoa(i),
@@ -859,7 +859,7 @@ func (suite *testSuite) TestAllocatorRestoreForDuplicateIPs() {
 	defer cancel()
 
 	// Confirm tasks have no IPs that overlap with the services VIPs on restart
-	for i := 0; i != numsvcstsks; i++ {
+	for range numsvcstsks {
 		watchTask(suite.T(), s, taskWatch, false, hasNoIPOverlapTasks)
 		watchService(suite.T(), serviceWatch, false, hasNoIPOverlapServices)
 	}
@@ -897,7 +897,7 @@ func (suite *testSuite) TestAllocatorRestartNoEndpointSpec() {
 		}
 		suite.NoError(store.CreateNetwork(tx, in))
 
-		for i := 0; i != numsvcstsks; i++ {
+		for i := range numsvcstsks {
 			svc := &api.Service{
 				ID: "testServiceID" + strconv.Itoa(i),
 				Spec: api.ServiceSpec{
@@ -932,7 +932,7 @@ func (suite *testSuite) TestAllocatorRestartNoEndpointSpec() {
 		return nil
 	}))
 
-	for i := 0; i != numsvcstsks; i++ {
+	for i := range numsvcstsks {
 		suite.NoError(s.Update(func(tx store.Tx) error {
 			tsk := &api.Task{
 				ID: "testTaskID" + strconv.Itoa(i),
@@ -1003,7 +1003,7 @@ func (suite *testSuite) TestAllocatorRestartNoEndpointSpec() {
 	defer cancel()
 
 	// Confirm tasks have no IPs that overlap with the services VIPs on restart
-	for i := 0; i != numsvcstsks; i++ {
+	for range numsvcstsks {
 		watchTask(suite.T(), s, taskWatch, false, hasNoIPOverlapTasks)
 		watchService(suite.T(), serviceWatch, false, hasNoIPOverlapServices)
 	}
@@ -1078,7 +1078,7 @@ func (suite *testSuite) TestAllocatorRestoreForUnallocatedNetwork() {
 		}
 		suite.NoError(store.CreateNetwork(tx, n2))
 
-		for i := 0; i != numsvcstsks; i++ {
+		for i := range numsvcstsks {
 			svc := &api.Service{
 				ID: "testServiceID" + strconv.Itoa(i),
 				Spec: api.ServiceSpec{
@@ -1130,7 +1130,7 @@ func (suite *testSuite) TestAllocatorRestoreForUnallocatedNetwork() {
 		return nil
 	}))
 
-	for i := 0; i != numsvcstsks; i++ {
+	for i := range numsvcstsks {
 		suite.NoError(s.Update(func(tx store.Tx) error {
 			tsk := &api.Task{
 				ID: "testTaskID" + strconv.Itoa(i),
@@ -1201,7 +1201,7 @@ func (suite *testSuite) TestAllocatorRestoreForUnallocatedNetwork() {
 	defer cancel()
 
 	// Confirm tasks have no IPs that overlap with the services VIPs on restart
-	for i := 0; i != numsvcstsks; i++ {
+	for range numsvcstsks {
 		watchTask(suite.T(), s, taskWatch, false, hasNoIPOverlapTasks)
 		watchService(suite.T(), serviceWatch, false, hasNoIPOverlapServices)
 	}
@@ -2056,7 +2056,7 @@ func isValidSubnet(t assert.TestingT, subnet string) bool {
 
 type mockTester struct{}
 
-func (m mockTester) Errorf(_ string, _ ...interface{}) {
+func (m mockTester) Errorf(_ string, _ ...any) {
 }
 
 // Returns a timeout given whether we should expect a timeout:  In the case where we do expect a timeout,

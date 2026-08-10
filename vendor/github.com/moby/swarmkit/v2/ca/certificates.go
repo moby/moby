@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	cfcsr "github.com/cloudflare/cfssl/csr"
@@ -242,7 +243,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 	// Retry up to 5 times in case the manager we first try to contact isn't
 	// responding properly (for example, it may have just been demoted).
 	var signedCert []byte
-	for i := 0; i != 5; i++ {
+	for range 5 {
 		signedCert, err = GetRemoteSignedCertificate(ctx, csr, rca.Pool, config)
 		if err == nil {
 			break
@@ -299,7 +300,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 	}
 
 	var kekUpdate *KEKData
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		// ValidateCertChain will always return at least 1 cert, so indexing at 0 is safe
 		kekUpdate, err = rca.getKEKUpdate(ctx, leafCert, tlsKeyPair, config)
 		if err == nil {
@@ -330,42 +331,34 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 }
 
 func (rca *RootCA) getKEKUpdate(ctx context.Context, leafCert *x509.Certificate, keypair tls.Certificate, config CertificateRequestConfig) (*KEKData, error) {
-	var managerRole bool
-	for _, ou := range leafCert.Subject.OrganizationalUnit {
-		if ou == ManagerRole {
-			managerRole = true
-			break
-		}
+	if !slices.Contains(leafCert.Subject.OrganizationalUnit, ManagerRole) {
+		// If this is a worker, set to never encrypt. We always want to set to the lock key to nil,
+		// in case this was a manager that was demoted to a worker.
+		return &KEKData{}, nil
 	}
 
-	if managerRole {
-		mtlsCreds := credentials.NewTLS(&tls.Config{ServerName: CARole, RootCAs: rca.Pool, Certificates: []tls.Certificate{keypair}})
-		conn, err := getGRPCConnection(mtlsCreds, config.ConnBroker, config.ForceRemote)
-		if err != nil {
-			return nil, err
-		}
-
-		client := api.NewCAClient(conn.ClientConn)
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-		response, err := client.GetUnlockKey(ctx, &api.GetUnlockKeyRequest{})
-		if err != nil {
-			s, _ := status.FromError(err)
-			if s.Code() == codes.Unimplemented { // if the server does not support keks, return as if no encryption key was specified
-				conn.Close(true)
-				return &KEKData{}, nil
-			}
-
-			conn.Close(false)
-			return nil, err
-		}
-		conn.Close(true)
-		return &KEKData{KEK: response.UnlockKey, Version: response.Version.Index}, nil
+	mtlsCreds := credentials.NewTLS(&tls.Config{ServerName: CARole, RootCAs: rca.Pool, Certificates: []tls.Certificate{keypair}})
+	conn, err := getGRPCConnection(mtlsCreds, config.ConnBroker, config.ForceRemote)
+	if err != nil {
+		return nil, err
 	}
 
-	// If this is a worker, set to never encrypt. We always want to set to the lock key to nil,
-	// in case this was a manager that was demoted to a worker.
-	return &KEKData{}, nil
+	client := api.NewCAClient(conn.ClientConn)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	response, err := client.GetUnlockKey(ctx, &api.GetUnlockKeyRequest{})
+	if err != nil {
+		s, _ := status.FromError(err)
+		if s.Code() == codes.Unimplemented { // if the server does not support keks, return as if no encryption key was specified
+			_ = conn.Close(true)
+			return &KEKData{}, nil
+		}
+
+		_ = conn.Close(false)
+		return nil, err
+	}
+	_ = conn.Close(true)
+	return &KEKData{KEK: response.UnlockKey, Version: response.Version.Index}, nil
 }
 
 // PrepareCSR creates a CFSSL Sign Request based on the given raw CSR and

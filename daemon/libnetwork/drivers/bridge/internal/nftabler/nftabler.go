@@ -47,14 +47,20 @@ const (
 type Nftabler struct {
 	config  firewaller.Config
 	cleaner firewaller.FirewallCleaner
-	table4  nftables.Table
-	table6  nftables.Table
+	table4  *nftables.Table
+	table6  *nftables.Table
 }
 
 // NewNftabler creates a new Nftabler instance, initializing the nftables tables.
 // Call Close() on the returned Nftabler to release resources when done.
-func NewNftabler(ctx context.Context, config firewaller.Config) (*Nftabler, error) {
+func NewNftabler(ctx context.Context, config firewaller.Config) (_ *Nftabler, retErr error) {
 	nft := &Nftabler{config: config}
+	defer func() {
+		if retErr != nil {
+			// Don't leave the tables set up so-far open.
+			_ = nft.Close()
+		}
+	}()
 
 	if nft.config.IPv4 {
 		var err error
@@ -81,11 +87,11 @@ func (nft *Nftabler) Close() error {
 	return errors.Join(nft.table4.Close(), nft.table6.Close())
 }
 
-func (nft *Nftabler) init(ctx context.Context, family nftables.Family) (nftables.Table, error) {
+func (nft *Nftabler) init(ctx context.Context, family nftables.Family) (*nftables.Table, error) {
 	// Instantiate the table.
 	table, err := nftables.NewTable(family, dockerTable)
 	if err != nil {
-		return table, err
+		return nil, err
 	}
 	tm := nftables.Modifier{}
 
@@ -210,15 +216,17 @@ func (nft *Nftabler) init(ctx context.Context, family nftables.Family) (nftables
 	}
 
 	if err := table.Apply(ctx, tm); err != nil {
+		// The table's no use to anyone now, don't hold its resources open.
+		_ = table.Close()
 		if family == nftables.IPv4 {
-			return nftables.Table{}, err
+			return nil, err
 		}
 		// Perhaps the kernel has no IPv6 support. It won't be possible to create IPv6
 		// networks without enabling ip6_tables in the kernel, or disabling ip6tables in
 		// the daemon config. But, allow the daemon to start because IPv4 will work. So,
 		// log the problem, and continue.
 		log.G(ctx).WithError(err).Warn("ip6tables is enabled, but cannot set up IPv6 nftables table")
-		return nftables.Table{}, nil
+		return nil, nil
 	}
 	return table, nil
 }
