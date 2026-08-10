@@ -313,6 +313,13 @@ func (cli *Client) addHeaders(req *http.Request, headers http.Header) *http.Requ
 		req.Header.Set(k, v)
 	}
 
+	// Extra request-scoped headers carried by the request's context (see
+	// WithRequestHeaders). Applied before the caller-provided headers so
+	// they cannot override headers the client sets for a specific request.
+	for k, v := range requestHeadersFromContext(req.Context()) {
+		req.Header[http.CanonicalHeaderKey(k)] = v
+	}
+
 	for k, v := range headers {
 		req.Header[http.CanonicalHeaderKey(k)] = v
 	}
