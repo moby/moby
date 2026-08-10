@@ -1,0 +1,313 @@
+name: awslogs Windows crash investigation
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      go_version:
+        description: Go 1.26 patch version (1.26.3 through 1.26.99)
+        required: true
+        default: '1.26.5'
+        type: string
+      iterations:
+        description: Fresh test processes per shard (1 through 1000)
+        required: true
+        default: '250'
+        type: string
+
+jobs:
+  stress:
+    name: shard ${{ matrix.shard }}
+    runs-on: windows-2025
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    env:
+      ARTIFACT_DIR: ${{ github.workspace }}\awslogs-crash-artifacts
+      TEST_EXE: ${{ github.workspace }}\awslogs-crash-artifacts\awslogs.test.exe
+      GOTRACEBACK: crash
+    steps:
+      -
+        name: Validate inputs
+        id: inputs
+        shell: pwsh
+        env:
+          REQUESTED_GO_VERSION: ${{ inputs.go_version }}
+          REQUESTED_ITERATIONS: ${{ inputs.iterations }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path $env:ARTIFACT_DIR | Out-Null
+          'Input validation did not complete.' |
+            Out-File -FilePath (Join-Path $env:ARTIFACT_DIR 'input-validation.txt') -Encoding utf8
+
+          $goVersion = $env:REQUESTED_GO_VERSION.Trim()
+          if ($goVersion -notmatch '^1\.26\.(?:[3-9]|[1-9][0-9])$') {
+            throw "go_version must be a Go 1.26 patch from 1.26.3 through 1.26.99"
+          }
+
+          $iterations = 0
+          if (-not [int]::TryParse($env:REQUESTED_ITERATIONS, [ref]$iterations) -or $iterations -lt 1 -or $iterations -gt 1000) {
+            throw "iterations must be an integer from 1 through 1000"
+          }
+
+          @(
+            "go_version=$goVersion"
+            "iterations=$iterations"
+          ) | Out-File -FilePath (Join-Path $env:ARTIFACT_DIR 'input-validation.txt') -Encoding utf8
+          "go_version=$goVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "iterations=$iterations" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      -
+        name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      -
+        name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ steps.inputs.outputs.go_version }}
+          cache: false
+      -
+        name: Record environment
+        shell: pwsh
+        env:
+          MATRIX_SHARD: ${{ matrix.shard }}
+          VALIDATED_GO_VERSION: ${{ steps.inputs.outputs.go_version }}
+          VALIDATED_ITERATIONS: ${{ steps.inputs.outputs.iterations }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          & go version *> (Join-Path $env:ARTIFACT_DIR 'go-version.txt')
+          if ($LASTEXITCODE -ne 0) { throw "go version failed with exit code $LASTEXITCODE" }
+          & go env *> (Join-Path $env:ARTIFACT_DIR 'go-env.txt')
+          if ($LASTEXITCODE -ne 0) { throw "go env failed with exit code $LASTEXITCODE" }
+          & systeminfo.exe *> (Join-Path $env:ARTIFACT_DIR 'systeminfo.txt')
+          if ($LASTEXITCODE -ne 0) { throw "systeminfo failed with exit code $LASTEXITCODE" }
+
+          $commit = (& git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0) { throw "git rev-parse failed with exit code $LASTEXITCODE" }
+          @(
+            "checked_out_commit=$commit"
+            "workflow_commit=$env:GITHUB_SHA"
+          ) | Out-File -FilePath (Join-Path $env:ARTIFACT_DIR 'commit.txt') -Encoding utf8
+
+          @(
+            "workflow=$env:GITHUB_WORKFLOW"
+            "run_id=$env:GITHUB_RUN_ID"
+            "run_attempt=$env:GITHUB_RUN_ATTEMPT"
+            "repository=$env:GITHUB_REPOSITORY"
+            "ref=$env:GITHUB_REF"
+            "event_name=$env:GITHUB_EVENT_NAME"
+            "matrix_shard=$env:MATRIX_SHARD"
+            "runner_os=$env:RUNNER_OS"
+            "runner_arch=$env:RUNNER_ARCH"
+            "runner_name=$env:RUNNER_NAME"
+            "runner_environment=$env:RUNNER_ENVIRONMENT"
+            "image_os=$env:ImageOS"
+            "image_version=$env:ImageVersion"
+            "pwsh_version=$($PSVersionTable.PSVersion)"
+            "process_architecture=$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture)"
+            "validated_go_version=$env:VALIDATED_GO_VERSION"
+            "validated_iterations=$env:VALIDATED_ITERATIONS"
+            "gotraceback=$env:GOTRACEBACK"
+          ) | Out-File -FilePath (Join-Path $env:ARTIFACT_DIR 'runner-metadata.txt') -Encoding utf8
+          if ($env:RUNNER_ARCH -ne 'X64') {
+            throw "expected an amd64 runner, found $env:RUNNER_ARCH"
+          }
+      -
+        name: Build test executable
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $buildCommand = "go test -c -a -cover -covermode=atomic -ldflags=-w -o `"$env:TEST_EXE`" ./daemon/logger/awslogs"
+          $buildCommand | Out-File -FilePath (Join-Path $env:ARTIFACT_DIR 'build-command.txt') -Encoding utf8
+
+          $buildArgs = @(
+            'test', '-c', '-a', '-cover', '-covermode=atomic', '-ldflags=-w',
+            '-o', $env:TEST_EXE, './daemon/logger/awslogs'
+          )
+          & go @buildArgs *> (Join-Path $env:ARTIFACT_DIR 'build-output.txt')
+          $buildExitCode = $LASTEXITCODE
+          "exit_code=$buildExitCode" | Out-File -FilePath (Join-Path $env:ARTIFACT_DIR 'build-result.txt') -Encoding utf8
+          if ($buildExitCode -ne 0) {
+            Get-Content -Raw (Join-Path $env:ARTIFACT_DIR 'build-output.txt') | Write-Host
+            throw "test executable build failed with exit code $buildExitCode"
+          }
+
+          & go version -m $env:TEST_EXE *> (Join-Path $env:ARTIFACT_DIR 'executable-build-info.txt')
+          if ($LASTEXITCODE -ne 0) { throw "go version -m failed with exit code $LASTEXITCODE" }
+          $exeHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $env:TEST_EXE).Hash.ToLowerInvariant()
+          "$exeHash  awslogs.test.exe" | Out-File -FilePath (Join-Path $env:ARTIFACT_DIR 'executable.sha256') -Encoding ascii
+      -
+        name: Configure Windows crash dumps
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dumpDirectory = Join-Path $env:ARTIFACT_DIR 'dumps'
+          New-Item -ItemType Directory -Force -Path $dumpDirectory | Out-Null
+
+          # GOTRACEBACK=crash lets WER observe runtime fatals; one full dump bounds artifact size.
+          $dumpKey = 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\awslogs.test.exe'
+          New-Item -Path $dumpKey -Force | Out-Null
+          New-ItemProperty -Path $dumpKey -Name DumpFolder -PropertyType ExpandString -Value $dumpDirectory -Force | Out-Null
+          New-ItemProperty -Path $dumpKey -Name DumpType -PropertyType DWord -Value 2 -Force | Out-Null
+          New-ItemProperty -Path $dumpKey -Name DumpCount -PropertyType DWord -Value 1 -Force | Out-Null
+          Get-ItemProperty -Path $dumpKey |
+            Select-Object DumpFolder, DumpType, DumpCount |
+            Format-List |
+            Out-File -FilePath (Join-Path $env:ARTIFACT_DIR 'wer-localdumps.txt') -Encoding utf8
+      -
+        name: Run fresh test processes
+        id: stress
+        shell: pwsh
+        env:
+          ITERATIONS: ${{ steps.inputs.outputs.iterations }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $summary = Join-Path $env:ARTIFACT_DIR 'iteration-summary.csv'
+          'iteration,started_utc,duration_ms,exit_code,exit_code_hex,fatal_output,timed_out,dump_status,status' |
+            Out-File -FilePath $summary -Encoding ascii
+
+          $failed = $false
+          $failedIteration = ''
+          $failedExitCode = ''
+          $fatalPattern = '(?i)(fatal error:|access violation|exception 0xc0000005|runtime: unexpected)'
+          $testArgs = @(
+            '-test.run=^TestNewStreamConfig$',
+            '-test.count=1',
+            '-test.timeout=2m',
+            '-test.v'
+          )
+          ("`"$env:TEST_EXE`" " + ($testArgs -join ' ')) |
+            Out-File -FilePath (Join-Path $env:ARTIFACT_DIR 'test-command.txt') -Encoding utf8
+
+          for ($iteration = 1; $iteration -le [int]$env:ITERATIONS; $iteration++) {
+            $started = [DateTime]::UtcNow
+            $stdout = Join-Path $env:RUNNER_TEMP ("awslogs-{0:D4}.stdout.log" -f $iteration)
+            $stderr = Join-Path $env:RUNNER_TEMP ("awslogs-{0:D4}.stderr.log" -f $iteration)
+            Remove-Item -Force -ErrorAction SilentlyContinue $stdout, $stderr
+
+            # A fresh count=1 process preserves the subtest-completion crash shape.
+            $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+            $process = Start-Process -FilePath $env:TEST_EXE -ArgumentList $testArgs `
+              -NoNewWindow -PassThru `
+              -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            $timedOut = -not $process.WaitForExit(130000)
+            $killError = ''
+            if ($timedOut) {
+              try {
+                $process.Kill($true)
+              } catch {
+                $killError = $_.Exception.Message
+              }
+              $process.WaitForExit(10000)
+            }
+            $stopwatch.Stop()
+            $hasExitCode = $process.HasExited
+            $exitCode = if ($hasExitCode) { $process.ExitCode } else { 'unavailable' }
+            $exitCodeHex = if ($hasExitCode) {
+              $unsignedExitCode = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$exitCode), 0)
+              '0x{0:x8}' -f $unsignedExitCode
+            } else { 'unavailable' }
+            $fatalOutput = [bool](Select-String -Path $stdout, $stderr -Pattern $fatalPattern -Quiet)
+            $dumpStatus = 'not-applicable'
+            $status = if ($timedOut) { 'timeout' } elseif ($exitCode -ne 0) { 'nonzero' } elseif ($fatalOutput) { 'fatal-output' } else { 'passed' }
+
+            if ($status -ne 'passed') {
+              $failed = $true
+              $failedIteration = $iteration
+              $failedExitCode = "$exitCode ($exitCodeHex)"
+              Move-Item -Force $stdout (Join-Path $env:ARTIFACT_DIR ("failure-{0:D4}.stdout.log" -f $iteration))
+              Move-Item -Force $stderr (Join-Path $env:ARTIFACT_DIR ("failure-{0:D4}.stderr.log" -f $iteration))
+              $processDetails = @(
+                "status=$status"
+                "timed_out=$($timedOut.ToString().ToLowerInvariant())"
+                "process_exited=$($hasExitCode.ToString().ToLowerInvariant())"
+                "exit_code=$exitCode"
+                "exit_code_hex=$exitCodeHex"
+                "kill_error=$killError"
+              )
+
+              # WER may finish writing asynchronously after the failed process exits.
+              $dumpDirectory = Join-Path $env:ARTIFACT_DIR 'dumps'
+              $lastDumpSize = -1L
+              $stableChecks = 0
+              $dumpSeen = $false
+              $dumpStabilized = $false
+              for ($wait = 0; $wait -lt 15; $wait++) {
+                $dump = Get-ChildItem $dumpDirectory -Filter '*.dmp' -File -ErrorAction SilentlyContinue |
+                  Where-Object Length -gt 0 | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+                if ($null -ne $dump) {
+                  $dumpSeen = $true
+                  if ($dump.Length -eq $lastDumpSize) { $stableChecks++ } else { $stableChecks = 1 }
+                  $lastDumpSize = $dump.Length
+                  if ($stableChecks -ge 3) {
+                    $dumpStabilized = $true
+                    break
+                  }
+                }
+                Start-Sleep -Seconds 2
+              }
+              $dumpStatus = if ($dumpStabilized) { 'stabilized' } elseif ($dumpSeen) { 'stabilization-timeout' } else { 'no-dump' }
+              $processDetails += "dump_status=$dumpStatus"
+              $processDetails | Out-File -FilePath (Join-Path $env:ARTIFACT_DIR ("failure-{0:D4}.process.txt" -f $iteration)) -Encoding utf8
+              Write-Host "Failure in iteration $iteration (child exit code $exitCode, timed out: $timedOut, dump: $dumpStatus, fatal output: $fatalOutput)"
+            }
+
+            ('{0},{1},{2},{3},{4},{5},{6},{7},{8}' -f $iteration, $started.ToString('o'),
+              $stopwatch.ElapsedMilliseconds, $exitCode, $exitCodeHex,
+              $fatalOutput.ToString().ToLowerInvariant(), $timedOut.ToString().ToLowerInvariant(),
+              $dumpStatus, $status) |
+              Out-File -FilePath $summary -Encoding ascii -Append
+
+            if ($status -ne 'passed') { break }
+
+            Remove-Item -Force -ErrorAction SilentlyContinue $stdout, $stderr
+            if (($iteration % 25) -eq 0 -or $iteration -eq [int]$env:ITERATIONS) {
+              Write-Host "Completed $iteration/$env:ITERATIONS iterations"
+            }
+          }
+
+          "failed=$($failed.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "failed_iteration=$failedIteration" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "exit_code=$failedExitCode" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      -
+        name: Write artifact checksums
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $checksumFile = Join-Path $env:ARTIFACT_DIR 'checksums.sha256'
+          Get-ChildItem -LiteralPath $env:ARTIFACT_DIR -Recurse -File |
+            Where-Object FullName -ne $checksumFile |
+            Sort-Object FullName |
+            ForEach-Object {
+              $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+              $relativePath = [IO.Path]::GetRelativePath($env:ARTIFACT_DIR, $_.FullName).Replace('\', '/')
+              "$hash  $relativePath"
+            } | Out-File -FilePath $checksumFile -Encoding ascii
+      -
+        name: Upload investigation artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: awslogs-windows-2025-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
+          path: ${{ env.ARTIFACT_DIR }}
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
+      -
+        name: Report test result
+        if: always()
+        shell: pwsh
+        env:
+          TEST_FAILED: ${{ steps.stress.outputs.failed }}
+          FAILED_ITERATION: ${{ steps.stress.outputs.failed_iteration }}
+          CHILD_EXIT_CODE: ${{ steps.stress.outputs.exit_code }}
+        run: |
+          if ($env:TEST_FAILED -eq 'true') {
+            Write-Error "Test process failed at iteration $env:FAILED_ITERATION with child exit code $env:CHILD_EXIT_CODE"
+            exit 1
+          }
