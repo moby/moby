@@ -32,14 +32,14 @@ message WindowUpdate {
 // direction). The client sends data through the stream and the
 // server reads it.
 message ReadStream {
-	string stream = 1;
-	string media_type = 2;
+  string stream = 1;
+  string media_type = 2;
 }
 
 // WriteStream carries data from the server to the client (export
 // direction). The server writes data into the stream and the
 // client receives it.
 message WriteStream {
-	string stream = 1;
-	string media_type = 2;
+  string stream = 1;
+  string media_type = 2;
 }
