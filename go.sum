@@ -475,8 +475,8 @@ github.com/in-toto/in-toto-golang v0.11.0/go.mod h1:u3PjTnwFKjp5a1YCcw8SJg0G+tMe
 github.com/inconshreveable/log15 v0.0.0-20170622235902-74a0988b5f80/go.mod h1:cOaXtrgN4ScfRrD9Bre7U1thNq5RtJ8ZoP4iXVGRj6o=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
-github.com/intel/goresctrl v0.12.0 h1:F44m7jiVgOdqWfTTWaREF+5HTeX3i06qhvpuzpnrBko=
-github.com/intel/goresctrl v0.12.0/go.mod h1:5GWtmPY4BWl/a9rU8apGED9Xul5b5WoLtg/qOWaghWU=
+github.com/intel/goresctrl v0.13.0 h1:5fhKjNq4V5MYDFHa//6M6x0jP6Iq5EXwZc6/eYxdEtQ=
+github.com/intel/goresctrl v0.13.0/go.mod h1:KFHS91JGOmeeuEog+nTQcsGjLC81nRqdsdhcqf69fjU=
 github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2 h1:36qep4gxKs+JgeHGWeQ040RyZdt9kQlLglL1rFVn/oQ=
 github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2/go.mod h1:co9pwDoBCm1kGxawmb4sPq0cSIOOWNPT4KnHotMP1Zg=
 github.com/jedisct1/go-minisign v0.0.0-20211028175153-1c139d1cc84b h1:ZGiXF8sz7PDk6RgkP+A/SFfUD0ZR/AgG6SpRNEDKZy8=

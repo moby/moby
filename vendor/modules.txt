@@ -1024,7 +1024,7 @@ github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v1
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
-# github.com/intel/goresctrl v0.12.0
+# github.com/intel/goresctrl v0.13.0
 ## explicit; go 1.25.0
 github.com/intel/goresctrl/pkg/blockio
 github.com/intel/goresctrl/pkg/kubernetes

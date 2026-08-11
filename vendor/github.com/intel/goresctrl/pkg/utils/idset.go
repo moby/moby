@@ -173,33 +173,45 @@ func (s IDSet) SortedMembers() []ID {
 	return ids
 }
 
-// String returns the set as a string.
+// String returns the set as a string in packed range format (e.g. "0,2-4,7-8,10").
 func (s IDSet) String() string {
 	return s.StringWithSeparator(",")
 }
 
-// StringWithSeparator returns the set as a string, separated with the given separator.
+// StringWithSeparator returns the set as a packed range string using the given separator
+// between groups (e.g. separator "," gives "0,2-4,7-8,10").
 func (s IDSet) StringWithSeparator(args ...string) string {
 	if len(s) == 0 {
 		return ""
 	}
 
-	var sep string
-
+	sep := ","
 	if len(args) == 1 {
 		sep = args[0]
+	}
+
+	sorted := s.SortedMembers()
+	var parts []string
+	start, end := sorted[0], sorted[0]
+	for _, id := range sorted[1:] {
+		if id == end+1 {
+			end = id
+		} else {
+			if end > start {
+				parts = append(parts, strconv.Itoa(start)+"-"+strconv.Itoa(end))
+			} else {
+				parts = append(parts, strconv.Itoa(start))
+			}
+			start, end = id, id
+		}
+	}
+	if end > start {
+		parts = append(parts, strconv.Itoa(start)+"-"+strconv.Itoa(end))
 	} else {
-		sep = ","
+		parts = append(parts, strconv.Itoa(start))
 	}
 
-	str := ""
-	t := ""
-	for _, id := range s.SortedMembers() {
-		str = str + t + strconv.Itoa(int(id))
-		t = sep
-	}
-
-	return str
+	return strings.Join(parts, sep)
 }
 
 // MarshalJSON is the JSON marshaller for IDSet.
@@ -214,18 +226,10 @@ func (s *IDSet) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("invalid IDSet entry '%s': %v", string(data), err)
 	}
 
-	*s = NewIDSet()
-	if str == "" {
-		return nil
+	parsed, err := NewIDSetFromString(str)
+	if err != nil {
+		return fmt.Errorf("invalid IDSet entry '%s': %v", str, err)
 	}
-
-	for _, idstr := range strings.Split(str, ",") {
-		id, err := strconv.ParseInt(idstr, 10, 0)
-		if err != nil {
-			return fmt.Errorf("invalid IDSet entry '%s': %v", idstr, err)
-		}
-		s.Add(ID(id))
-	}
-
+	*s = parsed
 	return nil
 }
