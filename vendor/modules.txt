@@ -1047,8 +1047,8 @@ github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/knqyf263/go-plugin v0.9.0
 ## explicit; go 1.24.0
 github.com/knqyf263/go-plugin/wasm
-# github.com/mdlayher/socket v0.5.1
-## explicit; go 1.20
+# github.com/mdlayher/socket v0.6.0
+## explicit; go 1.25.0
 github.com/mdlayher/socket
 # github.com/mdlayher/vsock v1.2.1
 ## explicit; go 1.20
