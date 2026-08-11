@@ -150,6 +150,24 @@ type collectionWithBackRefs interface {
 	ActiveWithBackRefs(namespace string, fn func(gc.Node), bref func(gc.Node, gc.Node))
 }
 
+// collectionWithReferences is an optional interface a CollectionContext may
+// implement to emit forward references lazily during graph traversal.
+//
+// It is the forward-reference analogue of collectionWithBackRefs.  Whereas
+// ActiveWithBackRefs must enumerate every edge up-front — and the gcContext
+// holds all of them in its backRefs map for the entire collection — References
+// is invoked on demand when the GC visits a single node of the collector's
+// resource type.  A collector whose resources fan out to many other nodes
+// (for example an index blob that references many content blobs) can
+// therefore emit those edges without bloating memory for the whole pass.
+//
+// References is consulted by gcContext.references after the built-in core
+// resource types have been handled, so a collector only needs to handle the
+// resource type(s) it registered.
+type collectionWithReferences interface {
+	References(ctx context.Context, node gc.Node, fn func(gc.Node))
+}
+
 // Collector is an interface to manage resource collection for any collectible
 // resource registered for garbage collection.
 type Collector interface {
@@ -184,6 +202,11 @@ type gcContext struct {
 	labelHandlers []referenceLabelHandler
 	contexts      map[gc.ResourceType]CollectionContext
 	backRefs      map[gc.Node][]gc.Node
+	// refContexts holds, per resource type, the collection contexts that emit
+	// references (see collectionWithReferences). Separate from contexts to avoid
+	// repeated type assertion when called by references() after the
+	// built-in core type switch.
+	refContexts map[gc.ResourceType]collectionWithReferences
 }
 
 type referenceLabelHandler struct {
@@ -374,6 +397,7 @@ func startGCContext(ctx context.Context, collectors map[gc.ResourceType]Collecto
 			},
 		},
 	}
+	var refContexts map[gc.ResourceType]collectionWithReferences
 	if len(collectors) > 0 {
 		contexts = map[gc.ResourceType]CollectionContext{}
 		for rt, collector := range collectors {
@@ -400,6 +424,14 @@ func startGCContext(ctx context.Context, collectors map[gc.ResourceType]Collecto
 				})
 			}
 			contexts[rt] = c
+
+			// Register the forward-reference emitter, if implemented.
+			if rc, ok := c.(collectionWithReferences); ok {
+				if refContexts == nil {
+					refContexts = map[gc.ResourceType]collectionWithReferences{}
+				}
+				refContexts[rt] = rc
+			}
 		}
 		// Sort labelHandlers to ensure key seeking is always forward
 		sort.Slice(labelHandlers, func(i, j int) bool {
@@ -410,6 +442,7 @@ func startGCContext(ctx context.Context, collectors map[gc.ResourceType]Collecto
 		labelHandlers: labelHandlers,
 		contexts:      contexts,
 		backRefs:      make(map[gc.Node][]gc.Node),
+		refContexts:   refContexts,
 	}
 }
 
@@ -886,6 +919,14 @@ func (c *gcContext) references(ctx context.Context, tx *bolt.Tx, node gc.Node, f
 		}
 
 		return c.sendLabelRefs(node.Namespace, bkt, labelRefCallbacks{fn: fn})
+	}
+
+	// Collectible resource types that emit forward references (see collectionWithReferences)
+	// are handled here, after the built-in core types.  This lets a collector
+	// reference core types, without having to pre-compute and hold every edge in
+	// backRefs for the whole gc context.
+	if rc, ok := c.refContexts[node.Type]; ok {
+		rc.References(ctx, node, fn)
 	}
 
 	return nil

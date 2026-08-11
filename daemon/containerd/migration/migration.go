@@ -181,10 +181,9 @@ func (lm *LayerMigrator) MigrateTocontainerd(ctx context.Context, snKey string, 
 
 			key := chainID.String()
 
-			snapshotLabels := map[string]string{
-				"containerd.io/snapshot.ref": key,
-			}
-			mounts, err := sn.Prepare(ctx, active, parent, snapshots.WithLabels(snapshotLabels))
+			mounts, err := sn.Prepare(ctx, active, parent, snapshots.WithLabels(map[string]string{
+				snapshots.LabelSnapshotDiffID: key,
+			}))
 			parent = key
 			if err != nil {
 				if cerrdefs.IsAlreadyExists(err) {

@@ -33,12 +33,37 @@ const (
 	// UnpackKeyFormat is the format for the snapshotter keys used for extraction
 	UnpackKeyFormat       = UnpackKeyPrefix + "-%s %s"
 	inheritedLabelsPrefix = "containerd.io/snapshot/"
-	labelSnapshotRef      = "containerd.io/snapshot.ref"
+
+	// LabelSnapshotRef is set by the unpacker on the extraction Prepare to
+	// the target chainID. A snapshotter that already has the layer commits a
+	// snapshot named after this value and returns ErrAlreadyExists, which
+	// makes the unpacker skip fetching and applying the layer (the remote
+	// snapshot protocol). It is inherited by FilterInheritedLabels.
+	LabelSnapshotRef = "containerd.io/snapshot.ref"
+
+	// LabelSnapshotDiffID is set by the unpacker on the extraction Prepare to
+	// the uncompressed digest (diffID) of the layer being unpacked.
+	LabelSnapshotDiffID = "containerd.io/snapshot/diff-id"
 
 	// LabelSnapshotUIDMapping is the label used for UID mappings
 	LabelSnapshotUIDMapping = "containerd.io/snapshot/uidmapping"
 	// LabelSnapshotGIDMapping is the label used for GID mappings
 	LabelSnapshotGIDMapping = "containerd.io/snapshot/gidmapping"
+
+	// LabelSnapshotMaxSize is a hint to the snapshotter that the active
+	// snapshot's filesystem should be limited to the given size, in bytes
+	// (decimal int64 as a string). Snapshotters that back an active
+	// snapshot with a block image or support filesystem quotas should
+	// honor this value; those that cannot enforce a size may ignore it.
+	// Ignoring is not a failure — callers that require enforcement must
+	// pick a snapshotter that supports it.
+	LabelSnapshotMaxSize = "containerd.io/snapshot/max-size"
+
+	// RebaseCap is a snapshotter capability (advertised via the plugin's metadata)
+	// indicating that an active snapshot may be committed with a parent supplied at
+	// Commit time (via WithParent). It lets the unpacker prepare and apply layers in
+	// parallel and rebase the chain into place at commit.
+	RebaseCap = "rebase"
 )
 
 // Kind identifies the kind of snapshot.
@@ -388,7 +413,7 @@ func FilterInheritedLabels(labels map[string]string) map[string]string {
 
 	filtered := make(map[string]string)
 	for k, v := range labels {
-		if k == labelSnapshotRef || strings.HasPrefix(k, inheritedLabelsPrefix) {
+		if k == LabelSnapshotRef || strings.HasPrefix(k, inheritedLabelsPrefix) {
 			filtered[k] = v
 		}
 	}

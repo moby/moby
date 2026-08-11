@@ -14,15 +14,16 @@
    limitations under the License.
 */
 
-/*
-   File copied and customized based on
-   https://github.com/moby/moby/tree/v20.10.14/profiles/seccomp/kernel_linux.go
-*/
+// SPDX-FileCopyrightText: Copyright The containerd Authors
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+//
+// File copied and customized based on
+// https://github.com/moby/profiles/blob/seccomp/v0.2.3/seccomp/kernel_linux.go
 
 package kernelversion
 
 import (
-	"bytes"
 	"fmt"
 	"sync"
 
@@ -43,28 +44,19 @@ func (k *KernelVersion) String() string {
 	return ""
 }
 
-var (
-	currentKernelVersion *KernelVersion
-	kernelVersionError   error
-	once                 sync.Once
-)
-
 // getKernelVersion gets the current kernel version.
-func getKernelVersion() (*KernelVersion, error) {
-	once.Do(func() {
-		var uts unix.Utsname
-		if err := unix.Uname(&uts); err != nil {
-			return
-		}
-		// Remove the \x00 from the release for Atoi to parse correctly
-		currentKernelVersion, kernelVersionError = parseRelease(string(uts.Release[:bytes.IndexByte(uts.Release[:], 0)]))
-	})
-	return currentKernelVersion, kernelVersionError
-}
+var getKernelVersion = sync.OnceValues(func() (*KernelVersion, error) {
+	var uts unix.Utsname
+	if err := unix.Uname(&uts); err != nil {
+		return nil, err
+	}
+	// Convert the NUL-terminated release field before parsing.
+	return parseRelease(unix.ByteSliceToString(uts.Release[:]))
+})
 
 // parseRelease parses a string and creates a KernelVersion based on it.
 func parseRelease(release string) (*KernelVersion, error) {
-	var version = KernelVersion{}
+	var version KernelVersion
 
 	// We're only make sure we get the "kernel" and "major revision". Sometimes we have
 	// 3.12.25-gentoo, but sometimes we just have 3.12-1-amd64.

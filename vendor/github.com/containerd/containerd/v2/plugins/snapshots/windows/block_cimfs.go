@@ -96,8 +96,8 @@ func init() {
 }
 
 func NewBlockCIMSnapshotter(root string, config *BlockCIMSnapshotterConfig) (snapshots.Snapshotter, error) {
-	if !cimfs.IsBlockCimSupported() {
-		return nil, fmt.Errorf("host windows version doesn't support block CIMs: %w", plugin.ErrSkipPlugin)
+	if !cimfs.IsBlockCimWriteSupported() {
+		return nil, fmt.Errorf("host OS doesn't support writable block CIMs: %w", plugin.ErrSkipPlugin)
 	}
 
 	baseSn, err := newBaseSnapshotter(root)
