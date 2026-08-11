@@ -397,8 +397,8 @@ github.com/containerd/cgroups/v3/cgroup2/stats
 # github.com/containerd/console v1.0.5
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd/api v1.11.1
-## explicit; go 1.24.0
+# github.com/containerd/containerd/api v1.12.0-rc.0
+## explicit; go 1.25.0
 github.com/containerd/containerd/api/events
 github.com/containerd/containerd/api/runtime/bootstrap/v1
 github.com/containerd/containerd/api/runtime/sandbox/v1
