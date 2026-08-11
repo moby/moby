@@ -82,4 +82,4 @@ implement all the API interfaces when a user updates their API.
 
 [registry]: https://opentelemetry.io/ecosystem/registry/?language=go&component=log-bridge
 */
-package log // import "go.opentelemetry.io/otel/log"
+package log

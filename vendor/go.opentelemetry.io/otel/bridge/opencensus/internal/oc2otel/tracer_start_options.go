@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package oc2otel // import "go.opentelemetry.io/otel/bridge/opencensus/internal/oc2otel"
+package oc2otel
 
 import (
 	"fmt"

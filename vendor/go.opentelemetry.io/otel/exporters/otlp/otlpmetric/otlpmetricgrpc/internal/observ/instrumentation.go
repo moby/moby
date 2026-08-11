@@ -3,7 +3,7 @@
 
 // Package observ provides self-observability metrics for OTLP metric exporters.
 // This is an experimental feature controlled by the x.Observability feature flag.
-package observ // import "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc/internal/observ"
+package observ
 
 import (
 	"context"
@@ -17,8 +17,8 @@ import (
 	"go.opentelemetry.io/otel/internal/global"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk"
-	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
-	"go.opentelemetry.io/otel/semconv/v1.41.0/otelconv"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
+	"go.opentelemetry.io/otel/semconv/v1.43.0/otelconv"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

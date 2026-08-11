@@ -24,7 +24,7 @@ When enabled, the exporter will create the following metrics using the global `M
 
 Please see the [Semantic conventions for OpenTelemetry SDK metrics] documentation for more details on these metrics.
 
-[Semantic conventions for OpenTelemetry SDK metrics]: https://github.com/open-telemetry/semantic-conventions/blob/v1.41.0/docs/otel/sdk-metrics.md
+[Semantic conventions for OpenTelemetry SDK metrics]: https://github.com/open-telemetry/semantic-conventions/blob/v1.43.0/docs/otel/sdk-metrics.md
 
 ## Compatibility and Stability
 

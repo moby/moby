@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package opencensus // import "go.opentelemetry.io/otel/bridge/opencensus"
+package opencensus
 
 import (
 	"go.opentelemetry.io/otel"

@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package log // import "go.opentelemetry.io/otel/log"
+package log
 
 import "go.opentelemetry.io/otel/log/embedded"
 
@@ -24,7 +24,8 @@ type LoggerProvider interface {
 	// commonly, this means a bridge will need to accept this value from its
 	// users.
 	//
-	// If name is empty, implementations need to provide a default name.
+	// An empty name is invalid. Implementations should retain the empty value as the
+	// instrumentation scope name, return a working Logger, and report the invalid value.
 	//
 	// The version of the packages using a bridge can be critical information
 	// to include when logging. The bridge should accept this version
