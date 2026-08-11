@@ -23,6 +23,15 @@ func exeName(name string) string {
 	return name
 }
 
+func shortTempDir(t *testing.T) string {
+	t.Helper()
+	// Keep socket paths relative so they fit Windows' AF_UNIX path limit.
+	dir, err := os.MkdirTemp(".", "m")
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
+}
+
 func TestBinaries(t *testing.T) {
 	dir := t.TempDir()
 	exe := filepath.Join(dir, exeName("org.example.one.v1"))
@@ -90,7 +99,7 @@ func TestLaunchOutOfProcess(t *testing.T) {
 		t.Skip("builds and launches a helper binary")
 	}
 	const id = "org.example.exthook.v1"
-	bin := filepath.Join(t.TempDir(), id)
+	bin := filepath.Join(t.TempDir(), exeName(id))
 	build := exec.Command("go", "build", "-o", bin, "./testdata/exthook")
 	out, err := build.CombinedOutput()
 	assert.NilError(t, err, "build extension: %s", out)
@@ -98,7 +107,7 @@ func TestLaunchOutOfProcess(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	launched, err := Launcher{RuntimeDir: t.TempDir()}.Launch(ctx, bin)
+	launched, err := Launcher{RuntimeDir: shortTempDir(t)}.Launch(ctx, bin)
 	assert.NilError(t, err)
 	defer func() { assert.NilError(t, launched.Close(context.Background())) }()
 

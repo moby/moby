@@ -30,7 +30,7 @@ func TestSocketExposure(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	bin := filepath.Join(dir, greeter.ID)
+	bin := extensionBinaryPath(dir, greeter.ID)
 	build := exec.Command("go", "build", "-o", bin, "github.com/moby/moby/v2/integration/extension/testdata/greeter/cmd/greeter")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build greeter extension: %v\n%s", err, out)
@@ -40,7 +40,7 @@ func TestSocketExposure(t *testing.T) {
 	defer cancel()
 
 	h, err := host.New(ctx, host.Options{
-		RuntimeDir:       t.TempDir(),
+		RuntimeDir:       shortTempDir(t),
 		Dirs:             []string{dir},
 		ExposeOnlyPoints: []extensions.PointID{servicegrpcv0.Point.ID()},
 	})
@@ -57,7 +57,7 @@ func TestSocketExposure(t *testing.T) {
 	}
 	assert.Check(t, routes["org.mobyproject.extension.example.greeter.v0.Greeter"] != nil)
 
-	sock := filepath.Join(t.TempDir(), "api.sock")
+	sock := filepath.Join(shortTempDir(t), "api.sock")
 	lis, err := net.Listen("unix", sock)
 	assert.NilError(t, err)
 	proxy := grpcproxy.New(routes)
@@ -82,7 +82,7 @@ func TestHookOnlyServicesAreNotSocketExposed(t *testing.T) {
 
 	dir := t.TempDir()
 	const id = "org.example.exthook.v1"
-	bin := filepath.Join(dir, id)
+	bin := extensionBinaryPath(dir, id)
 	build := exec.Command("go", "build", "-o", bin, "github.com/moby/moby/v2/internal/extensions/internal/launcher/testdata/exthook")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build exthook extension: %v\n%s", err, out)
@@ -92,7 +92,7 @@ func TestHookOnlyServicesAreNotSocketExposed(t *testing.T) {
 	defer cancel()
 
 	h, err := host.New(ctx, host.Options{
-		RuntimeDir:      t.TempDir(),
+		RuntimeDir:      shortTempDir(t),
 		Dirs:            []string{dir},
 		ClientProviders: []clientpoint.Registration{echopb.ClientPoint},
 	})
@@ -115,7 +115,7 @@ func TestHookOnlyServicesAreNotSocketExposed(t *testing.T) {
 func TestInProcessServiceExposure(t *testing.T) {
 	ctx := context.Background()
 	h, err := host.New(ctx, host.Options{
-		RuntimeDir: t.TempDir(),
+		RuntimeDir: shortTempDir(t),
 		Extensions: []extensions.Extension{greeter.Extension},
 	})
 	assert.NilError(t, err)
@@ -128,7 +128,7 @@ func TestInProcessServiceExposure(t *testing.T) {
 		srv.RegisterService(svc.Desc, svc.Impl)
 	}
 
-	sock := filepath.Join(t.TempDir(), "api.sock")
+	sock := filepath.Join(shortTempDir(t), "api.sock")
 	lis, err := net.Listen("unix", sock)
 	assert.NilError(t, err)
 	go srv.Serve(lis)

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -19,6 +20,15 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+func shortTempDir(t *testing.T) string {
+	t.Helper()
+	// Keep socket paths relative so they fit Windows' AF_UNIX path limit.
+	dir, err := os.MkdirTemp(".", "m")
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
+}
 
 func TestRegisterBuildsDeclaration(t *testing.T) {
 	srv := NewServer()
@@ -107,7 +117,7 @@ func TestListenDeliversConfig(t *testing.T) {
 	srv := NewServer()
 	assert.NilError(t, srv.Register(ext))
 
-	endpoint := filepath.Join(t.TempDir(), "x.sock")
+	endpoint := filepath.Join(shortTempDir(t), "x.sock")
 	in, err := json.Marshal(StartupConfig{
 		Endpoint:        endpoint,
 		ProtocolVersion: ProtocolVersion,

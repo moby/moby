@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -47,11 +48,11 @@ func TestProxyServerStreaming(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	backendSock := filepath.Join(t.TempDir(), "backend.sock")
+	backendSock := filepath.Join(shortTempDir(t), "backend.sock")
 	backendConn := serve(t, backendSock, func(s *grpc.Server) { s.RegisterService(&streamerDesc, nil) })
 
 	proxy := grpcproxy.New(map[string]grpc.ClientConnInterface{"test.Streamer": backendConn})
-	proxySock := filepath.Join(t.TempDir(), "proxy.sock")
+	proxySock := filepath.Join(shortTempDir(t), "proxy.sock")
 	lis, err := net.Listen("unix", proxySock)
 	assert.NilError(t, err)
 	go proxy.Serve(lis)
@@ -211,10 +212,10 @@ func TestProxyClientStreaming(t *testing.T) {
 
 func startProxy(t *testing.T, service string, register func(*grpc.Server)) *grpc.ClientConn {
 	t.Helper()
-	backendConn := serve(t, filepath.Join(t.TempDir(), "backend.sock"), register)
+	backendConn := serve(t, filepath.Join(shortTempDir(t), "backend.sock"), register)
 
 	proxy := grpcproxy.New(map[string]grpc.ClientConnInterface{service: backendConn})
-	proxySock := filepath.Join(t.TempDir(), "proxy.sock")
+	proxySock := filepath.Join(shortTempDir(t), "proxy.sock")
 	lis, err := net.Listen("unix", proxySock)
 	assert.NilError(t, err)
 	go proxy.Serve(lis)
@@ -239,4 +240,13 @@ func serve(t *testing.T, sock string, register func(*grpc.Server)) grpc.ClientCo
 	assert.NilError(t, err)
 	t.Cleanup(func() { conn.Close() })
 	return conn
+}
+
+func shortTempDir(t *testing.T) string {
+	t.Helper()
+	// Keep socket paths relative so they fit Windows' AF_UNIX path limit.
+	dir, err := os.MkdirTemp(".", "m")
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
 }

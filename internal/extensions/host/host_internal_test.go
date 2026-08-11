@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -13,6 +14,15 @@ import (
 	"google.golang.org/grpc"
 	"gotest.tools/v3/assert"
 )
+
+func shortTempDir(t *testing.T) string {
+	t.Helper()
+	// Keep socket paths relative so they fit Windows' AF_UNIX path limit.
+	dir, err := os.MkdirTemp(".", "m")
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
+}
 
 func TestExtensionFromLaunchedRejectsUnsupportedPoints(t *testing.T) {
 	const supported = extensions.PointID("org.mobyproject.extension.supported.v1")
@@ -94,7 +104,7 @@ func TestServeCallback(t *testing.T) {
 	t.Run("zero providers is skipped", func(t *testing.T) {
 		b := broker.New()
 		var served []any
-		endpoint := filepath.Join(t.TempDir(), "callback.sock")
+		endpoint := filepath.Join(shortTempDir(t), "callback.sock")
 		srv, err := serveCallback(endpoint, []serverpoint.Registration{newDep(&served)}, b)
 		assert.NilError(t, err)
 		if srv != nil {
@@ -107,7 +117,7 @@ func TestServeCallback(t *testing.T) {
 		b := broker.New()
 		assert.NilError(t, b.Register(newProviderExtension("org.example.a.v1", dep)))
 		var served []any
-		endpoint := filepath.Join(t.TempDir(), "callback.sock")
+		endpoint := filepath.Join(shortTempDir(t), "callback.sock")
 		srv, err := serveCallback(endpoint, []serverpoint.Registration{newDep(&served)}, b)
 		assert.NilError(t, err)
 		assert.Assert(t, srv != nil)
@@ -120,7 +130,7 @@ func TestServeCallback(t *testing.T) {
 		assert.NilError(t, b.Register(newProviderExtension("org.example.a.v1", dep)))
 		assert.NilError(t, b.Register(newProviderExtension("org.example.b.v1", dep)))
 		var served []any
-		endpoint := filepath.Join(t.TempDir(), "callback.sock")
+		endpoint := filepath.Join(shortTempDir(t), "callback.sock")
 		srv, err := serveCallback(endpoint, []serverpoint.Registration{newDep(&served)}, b)
 		if srv != nil {
 			srv.Stop()
