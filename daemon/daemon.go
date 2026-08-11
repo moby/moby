@@ -84,6 +84,7 @@ import (
 	"github.com/moby/moby/v2/daemon/stats"
 	volumesservice "github.com/moby/moby/v2/daemon/volume/service"
 	"github.com/moby/moby/v2/dockerversion"
+	"github.com/moby/moby/v2/internal/extensions/host"
 	"github.com/moby/moby/v2/pkg/authorization"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/moby/v2/pkg/sysinfo"
@@ -128,6 +129,7 @@ type Daemon struct {
 	PluginStore       *plugin.Store // TODO: remove
 	nri               *nri.NRI
 	pluginManager     *plugin.Manager
+	extensionHost     *host.Host
 	linkIndex         *linkIndex
 	containerdClient  *containerd.Client
 	containerd        libcontainerdtypes.Client
@@ -958,6 +960,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 	}()
 
+	// Build the host after installing the cleanup defer: this starts extension
+	// processes and must be covered if initialization fails.
+	d.extensionHost, err = setupExtensionHost(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := d.setGenericResources(&cfgStore.Config); err != nil {
 		return nil, err
 	}
@@ -1566,6 +1575,12 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 
 	// Shutdown plugins after containers and layerstore. Don't change the order.
 	daemon.pluginShutdown()
+
+	if daemon.extensionHost != nil {
+		if err := daemon.extensionHost.Shutdown(ctx); err != nil {
+			log.G(ctx).WithError(err).Error("failed to shut down extensions")
+		}
+	}
 
 	if daemon.nri != nil {
 		daemon.nri.Shutdown(ctx)

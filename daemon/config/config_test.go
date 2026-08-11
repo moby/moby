@@ -47,8 +47,23 @@ func TestDaemonConfigurationMalformedJSON(t *testing.T) {
 	assert.Check(t, errors.As(err, &syntaxErr), `got: %[1]T: %[1]v`, err)
 }
 
-// TestDaemonConfigurationUnicodeVariations feeds various variations of Unicode into the JSON parser, ensuring that we
-// respect a BOM and otherwise default to UTF-8.
+func TestDaemonConfigurationExtensionConfig(t *testing.T) {
+	configFile := makeConfigFile(t, `{
+		"extension-config": {
+			"org.example.foo": {"plugin_path": "/opt/foo", "enabled": true},
+			"com.docker.compose.v1": {"workers": 4}
+		}
+	}`)
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	cfg, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, cfg.ExtensionConfig["org.example.foo"], map[string]any{
+		"plugin_path": "/opt/foo",
+		"enabled":     true,
+	})
+	assert.Equal(t, cfg.ExtensionConfig["com.docker.compose.v1"]["workers"], float64(4))
+}
+
 func TestDaemonConfigurationUnicodeVariations(t *testing.T) {
 	jsonData := `{"debug": true}`
 
@@ -84,8 +99,6 @@ func TestDaemonConfigurationUnicodeVariations(t *testing.T) {
 	}
 }
 
-// TestDaemonConfigurationInvalidUnicode ensures that the JSON parser returns a useful error message if malformed UTF-8
-// is provided.
 func TestDaemonConfigurationInvalidUnicode(t *testing.T) {
 	configFileBOM := makeConfigFile(t, "\xef\xbb\xbf{\"debug\": true}\xff")
 	_, err := MergeDaemonConfigurations(&Config{}, nil, configFileBOM)
@@ -193,7 +206,6 @@ func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
 	assert.ErrorContains(t, err, `the following directives are specified both as a flag and in the configuration file: tlscacert`)
 }
 
-// TestDaemonConfigurationMergeDefaultAddressPools is a regression test for #40711.
 func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
 	emptyConfigFile := makeConfigFile(t, `{}`)
 	configFile := makeConfigFile(t, `{"default-address-pools":[{"base": "10.123.0.0/16", "size": 24 }]}`)
@@ -783,8 +795,6 @@ func field(field string) cmp.Option {
 	return cmpopts.IgnoreFields(Config{}, ignoreFields...)
 }
 
-// TestReloadSetConfigFileNotExist tests that when `--config-file` is set, and it doesn't exist the `Reload` function
-// returns an error.
 func TestReloadSetConfigFileNotExist(t *testing.T) {
 	configFile := "/tmp/blabla/not/exists/config.json"
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
@@ -795,8 +805,6 @@ func TestReloadSetConfigFileNotExist(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
 }
 
-// TestReloadDefaultConfigNotExist tests that if the default configuration file doesn't exist the daemon still will
-// still be reloaded.
 func TestReloadDefaultConfigNotExist(t *testing.T) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	defaultConfigFile := "/tmp/blabla/not/exists/daemon.json"
@@ -810,8 +818,6 @@ func TestReloadDefaultConfigNotExist(t *testing.T) {
 	assert.Check(t, reloaded)
 }
 
-// TestReloadBadDefaultConfig tests that when `--config-file` is not set and the default configuration file exists and
-// is bad, an error is returned.
 func TestReloadBadDefaultConfig(t *testing.T) {
 	configFile := makeConfigFile(t, `{wrong: "configuration"}`)
 
