@@ -33,6 +33,7 @@ type ResourceAttributesGetter interface {
 
 var getter ResourceAttributesGetter = &defaultResourceGetter{
 	metaClient: metadata.NewClient(&http.Client{
+		Timeout: 15 * time.Second,
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
 				Timeout:   1 * time.Second,
