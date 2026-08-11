@@ -16,6 +16,8 @@ on:
 
 jobs:
   validate-dco:
+    permissions:
+      pull-requests: read
     uses: ./.github/workflows/.dco.yml
   run:
     needs: validate-dco
