@@ -630,8 +630,9 @@ func (nw *namespacedWriter) Commit(ctx context.Context, size int64, expected dig
 
 	if publisher := nw.db.Publisher(ctx); publisher != nil {
 		if err := publisher.Publish(ctx, "/content/create", &eventstypes.ContentCreate{
-			Digest: actualDgst.String(),
-			Size:   actualSize,
+			Digest:    actualDgst.String(),
+			Size:      actualSize,
+			MediaType: nw.desc.MediaType,
 		}); err != nil {
 			return err
 		}
