@@ -158,7 +158,9 @@ func (w *fen) readEvents() {
 
 	pevents := make([]unix.PortEvent, 8)
 	for {
-		count, err := w.port.Get(pevents, 1, nil)
+		count, err := internal.IgnoringEINTR(func() (int, error) {
+			return w.port.Get(pevents, 1, nil)
+		})
 		if err != nil && err != unix.ETIME {
 			// Interrupted system call (count should be 0) ignore and continue
 			if errors.Is(err, unix.EINTR) && count == 0 {
