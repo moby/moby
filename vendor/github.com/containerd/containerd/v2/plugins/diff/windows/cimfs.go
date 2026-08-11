@@ -72,8 +72,8 @@ func init() {
 			plugins.MetadataPlugin,
 		},
 		InitFn: func(ic *plugin.InitContext) (any, error) {
-			if !cimfs.IsBlockCimSupported() {
-				return nil, fmt.Errorf("host OS version doesn't support block CIMs: %w", plugin.ErrSkipPlugin)
+			if !cimfs.IsBlockCimWriteSupported() {
+				return nil, fmt.Errorf("host OS doesn't support writable block CIMs: %w", plugin.ErrSkipPlugin)
 			}
 
 			md, err := ic.GetSingle(plugins.MetadataPlugin)

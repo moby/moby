@@ -425,7 +425,7 @@ github.com/containerd/containerd/api/types/runc/options
 github.com/containerd/containerd/api/types/runtimeoptions/v1
 github.com/containerd/containerd/api/types/task
 github.com/containerd/containerd/api/types/transfer
-# github.com/containerd/containerd/v2 v2.3.4
+# github.com/containerd/containerd/v2 v2.4.0-beta.0
 ## explicit; go 1.26.3
 github.com/containerd/containerd/v2/client
 github.com/containerd/containerd/v2/cmd/containerd/server/config
@@ -1040,7 +1040,9 @@ github.com/jmoiron/sqlx/types
 # github.com/klauspost/compress v1.19.2
 ## explicit; go 1.24
 github.com/klauspost/compress
+github.com/klauspost/compress/flate
 github.com/klauspost/compress/fse
+github.com/klauspost/compress/gzip
 github.com/klauspost/compress/huff0
 github.com/klauspost/compress/internal/cpuinfo
 github.com/klauspost/compress/internal/le
