@@ -1,4 +1,4 @@
-package namesgenerator
+package legacy
 
 import (
 	"strings"
@@ -6,7 +6,7 @@ import (
 )
 
 func TestNameFormat(t *testing.T) {
-	name := GetRandomName(0)
+	name := generateName(0)
 	if !strings.Contains(name, "_") {
 		t.Fatalf("Generated name does not contain an underscore")
 	}
@@ -16,7 +16,7 @@ func TestNameFormat(t *testing.T) {
 }
 
 func TestNameRetries(t *testing.T) {
-	name := GetRandomName(1)
+	name := generateName(1)
 	if !strings.Contains(name, "_") {
 		t.Fatalf("Generated name does not contain an underscore")
 	}
@@ -29,7 +29,7 @@ func BenchmarkGetRandomName(b *testing.B) {
 	b.ReportAllocs()
 	var out string
 	for b.Loop() {
-		out = GetRandomName(5)
+		out = generateName(5)
 	}
 	b.Log("Last result:", out)
 }
