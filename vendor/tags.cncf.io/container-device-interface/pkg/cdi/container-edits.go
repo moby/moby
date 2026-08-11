@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	oci "github.com/opencontainers/runtime-spec/specs-go"
-	ocigen "github.com/opencontainers/runtime-tools/generate"
+	"tags.cncf.io/container-device-interface/internal/ociedit"
 	cdi "tags.cncf.io/container-device-interface/specs-go"
 )
 
@@ -42,6 +42,9 @@ const (
 	PoststartHook = "poststart"
 	// PoststopHook is the name of the OCI "poststop" hook.
 	PoststopHook = "poststop"
+
+	// NoPermissions requests empty cgroup permissions for a device.
+	NoPermissions = "none"
 )
 
 var (
@@ -77,9 +80,12 @@ func (e *ContainerEdits) Apply(spec *oci.Spec) error {
 		return nil
 	}
 
-	specgen := ocigen.NewFromSpec(spec)
+	editor, err := ociedit.NewSpecEditor(spec)
+	if err != nil {
+		return fmt.Errorf("error creating spec editor: %w", err)
+	}
 	if len(e.Env) > 0 {
-		specgen.AddMultipleProcessEnv(e.Env)
+		editor.AddMultipleProcessEnv(e.Env)
 	}
 
 	for _, d := range e.DeviceNodes {
@@ -101,91 +107,74 @@ func (e *ContainerEdits) Apply(spec *oci.Spec) error {
 			}
 		}
 
-		specgen.RemoveDevice(dev.Path)
-		specgen.AddDevice(dev)
+		editor.RemoveDevice(dev.Path)
+		editor.AddDevice(dev)
 
 		if dev.Type == "b" || dev.Type == "c" {
 			access := d.Permissions
-			if access == "" {
+			switch access {
+			case "":
 				access = "rwm"
+			case NoPermissions:
+				access = ""
 			}
-			specgen.AddLinuxResourcesDevice(true, dev.Type, &dev.Major, &dev.Minor, access)
+			editor.AddLinuxResourcesDevice(true, dev.Type, &dev.Major, &dev.Minor, access)
 		}
 	}
 
 	if len(e.NetDevices) > 0 {
-		// specgen is currently missing functionality to set Linux NetDevices,
-		// so we use a locally rolled function for now.
 		for _, dev := range e.NetDevices {
-			specgenAddLinuxNetDevice(&specgen, dev.HostInterfaceName, (&LinuxNetDevice{dev}).toOCI())
+			editor.SetLinuxNetDevice(dev.HostInterfaceName, (&LinuxNetDevice{dev}).toOCI())
 		}
 	}
 
 	if len(e.Mounts) > 0 {
 		for _, m := range e.Mounts {
-			specgen.RemoveMount(m.ContainerPath)
-			specgen.AddMount((&Mount{m}).toOCI())
+			mnt := &Mount{m}
+
+			editor.RemoveMount(m.ContainerPath)
+
+			if !specHasUserNamespace(spec) {
+				editor.AddMount(mnt.toOCI())
+			} else {
+				editor.AddMount(mnt.toOCI(withIDMapForBindMount()))
+			}
 		}
-		sortMounts(&specgen)
+		sortMounts(editor)
 	}
 
 	for _, h := range e.Hooks {
 		ociHook := (&Hook{h}).toOCI()
 		switch h.HookName {
 		case PrestartHook:
-			specgen.AddPreStartHook(ociHook)
+			editor.AddPreStartHook(ociHook)
 		case PoststartHook:
-			specgen.AddPostStartHook(ociHook)
+			editor.AddPostStartHook(ociHook)
 		case PoststopHook:
-			specgen.AddPostStopHook(ociHook)
-			// TODO: Maybe runtime-tools/generate should be updated with these...
+			editor.AddPostStopHook(ociHook)
 		case CreateRuntimeHook:
-			ensureOCIHooks(spec)
-			spec.Hooks.CreateRuntime = append(spec.Hooks.CreateRuntime, ociHook)
+			editor.AddCreateRuntimeHook(ociHook)
 		case CreateContainerHook:
-			ensureOCIHooks(spec)
-			spec.Hooks.CreateContainer = append(spec.Hooks.CreateContainer, ociHook)
+			editor.AddCreateContainerHook(ociHook)
 		case StartContainerHook:
-			ensureOCIHooks(spec)
-			spec.Hooks.StartContainer = append(spec.Hooks.StartContainer, ociHook)
+			editor.AddStartContainerHook(ociHook)
 		default:
 			return fmt.Errorf("unknown hook name %q", h.HookName)
 		}
 	}
 
 	if e.IntelRdt != nil {
-		// The specgen is missing functionality to set all parameters so we
-		// just piggy-back on it to initialize all structs and the copy over.
-		specgen.SetLinuxIntelRdtClosID(e.IntelRdt.ClosID)
-		spec.Linux.IntelRdt = (&IntelRdt{e.IntelRdt}).toOCI()
+		editor.SetLinuxIntelRdt((&IntelRdt{e.IntelRdt}).toOCI())
 	}
 
 	for _, additionalGID := range e.AdditionalGIDs {
 		if additionalGID == 0 {
 			continue
 		}
-		specgen.AddProcessAdditionalGid(additionalGID)
+		editor.AddProcessAdditionalGID(additionalGID)
 	}
 
 	return nil
-}
-
-func specgenAddLinuxNetDevice(specgen *ocigen.Generator, hostIf string, netDev *oci.LinuxNetDevice) {
-	if specgen == nil || netDev == nil {
-		return
-	}
-	ensureLinuxNetDevices(specgen.Config)
-	specgen.Config.Linux.NetDevices[hostIf] = *netDev
-}
-
-// Ensure OCI Spec Linux NetDevices map is not nil.
-func ensureLinuxNetDevices(spec *oci.Spec) {
-	if spec.Linux == nil {
-		spec.Linux = &oci.Linux{}
-	}
-	if spec.Linux.NetDevices == nil {
-		spec.Linux.NetDevices = map[string]oci.LinuxNetDevice{}
-	}
 }
 
 // Validate container edits.
@@ -354,12 +343,14 @@ func (d *DeviceNode) Validate() error {
 	if _, ok := validTypes[d.Type]; !ok {
 		return fmt.Errorf("device %q: invalid type %q", d.Path, d.Type)
 	}
-	for _, bit := range d.Permissions {
-		if bit != 'r' && bit != 'w' && bit != 'm' {
-			return fmt.Errorf("device %q: invalid permissions %q",
-				d.Path, d.Permissions)
-		}
+	switch {
+	case d.Permissions == "":
+	case d.Permissions == NoPermissions:
+	case strings.Trim(d.Permissions, "rwm") != "":
+		return fmt.Errorf("device %q: invalid permissions %q",
+			d.Path, d.Permissions)
 	}
+
 	return nil
 }
 
@@ -422,19 +413,11 @@ func (i *IntelRdt) Validate() error {
 	return nil
 }
 
-// Ensure OCI Spec hooks are not nil so we can add hooks.
-func ensureOCIHooks(spec *oci.Spec) {
-	if spec.Hooks == nil {
-		spec.Hooks = &oci.Hooks{}
-	}
-}
-
 // sortMounts sorts the mounts in the given OCI Spec.
-func sortMounts(specgen *ocigen.Generator) {
-	mounts := specgen.Mounts()
-	specgen.ClearMounts()
+func sortMounts(editor ociedit.SpecEditor) {
+	mounts := editor.Mounts()
 	sort.Stable(orderedMounts(mounts))
-	specgen.Config.Mounts = mounts
+	editor.SetMounts(mounts)
 }
 
 // orderedMounts defines how to sort an OCI Spec Mount slice.
@@ -464,4 +447,17 @@ func (m orderedMounts) Swap(i, j int) {
 // parts returns the number of parts in the destination of a mount. Used in sorting.
 func (m orderedMounts) parts(i int) int {
 	return strings.Count(filepath.Clean(m[i].Destination), string(os.PathSeparator))
+}
+
+// specHasUserNamespace returns true if the OCI Spec has a Linux UserNamespace.
+func specHasUserNamespace(spec *oci.Spec) bool {
+	if spec == nil || spec.Linux == nil {
+		return false
+	}
+	for _, ns := range spec.Linux.Namespaces {
+		if ns.Type == oci.UserNamespace {
+			return true
+		}
+	}
+	return false
 }

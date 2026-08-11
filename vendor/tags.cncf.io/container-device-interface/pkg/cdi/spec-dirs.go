@@ -43,6 +43,10 @@ var (
 
 // WithSpecDirs returns an option to override the CDI Spec directories.
 func WithSpecDirs(dirs ...string) Option {
+	// If no spec dirs are specified use the default spec dirs.
+	if len(dirs) == 0 {
+		return WithSpecDirs(DefaultSpecDirs...)
+	}
 	return func(c *Cache) {
 		specDirs := make([]string, len(dirs))
 		for i, dir := range dirs {
