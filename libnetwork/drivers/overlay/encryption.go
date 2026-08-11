@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"net"
@@ -130,6 +131,14 @@ func (d *driver) setupEncryption(remoteIP netip.Addr) error {
 	d.mu.Unlock()
 	log.G(context.TODO()).Debugf("Programming encryption between %s and %s", localIP, remoteIP)
 
+	// Block userspace from marking arbitrary packets for encryption using
+	// the security association we are about to program into the kernel.
+	if len(d.secMap) == 0 {
+		if err := d.programMangleMarkSpoofProtection(true); err != nil {
+			return err
+		}
+	}
+
 	indices := make([]spi, 0, len(d.keys))
 
 	for i, k := range d.keys {
@@ -196,6 +205,13 @@ func (d *driver) removeEncryption(remoteIP netip.Addr) error {
 			log.G(context.TODO()).Warn(err)
 		}
 	}
+
+	if len(d.secMap) == 0 {
+		if err := d.programMangleMarkSpoofProtection(false); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -226,15 +242,69 @@ func (d *driver) programMangle(vni uint32, add bool) error {
 		return err
 	}
 
+	// Clear out stale mangle rules which indiscriminately mark both
+	// authentic and forged VXLAN datagrams for encryption.
+	staleErr := iptable.ProgramRule(iptables.Mangle, chain, iptables.Delete, rule)
+	if staleErr != nil {
+		staleErr = fmt.Errorf("could not clear old mangle rule: %w", staleErr)
+	}
+
 	if !add {
 		a = iptables.Delete
 		action = "remove"
 	}
 
-	if err := iptable.ProgramRule(iptables.Mangle, chain, a, rule); err != nil {
-		return fmt.Errorf("could not %s mangle rule: %w", action, err)
+	// Mark authentic VXLAN packets to be encrypted, skipping forged packets
+	// with the same VNI.
+	//
+	// Only packets sent from this network namespace are evaluated by the
+	// OUTPUT chain so we do not need to explicitly guard against marking
+	// forged packets sent by processes from other network namespaces. We
+	// only need to distinguish authentic packets encapsulated by our VXLAN
+	// links (which are sent from this network namespace) from forged
+	// packets sent by processes in this network namespace. All forged
+	// packets processed by the OUTPUT chain will match --socket-exists. Our
+	// authentic VXLAN packets will not match as they are associated with
+	// foreign sockets from containers' namespaces or with no socket at all
+	// (always the case on Linux v4.18 and earlier, which scrubbed socket
+	// associations when crossing netns boundaries).
+	rule = append([]string{"-m", "owner", "!", "--socket-exists"}, rule...)
+	err = iptable.ProgramRule(iptables.Mangle, chain, a, rule)
+	if err != nil {
+		err = fmt.Errorf("could not %s mangle rule: %w", action, err)
+	}
+	return errors.Join(staleErr, err)
+}
+
+func (d *driver) programMangleMarkSpoofProtection(add bool) error {
+	a := iptables.Append
+	action := "install"
+	if !add {
+		a = iptables.Delete
+		action = "remove"
 	}
 
+	iptable, err := d.transportIPTable()
+	if err != nil {
+		// Fail closed if unsure. Better safe than cleartext.
+		return err
+	}
+
+	// Block processes in the host netns with CAP_NET_RAW from using
+	// setsockopt(SO_MARK) to encrypt forged packets and neutralize any
+	// exploitable mangle rules earlier in the chain left over from old
+	// daemon versions. We do not need to guard against forged packets from
+	// other network namespaces as any packet marks are scrubbed when the
+	// packet crosses the netns boundary.
+	clearUserspaceMarkRule := []string{
+		"-p", "udp", "--dport", strconv.FormatUint(uint64(overlayutils.VXLANUDPPort()), 10),
+		"-m", "owner", "--socket-exists",
+		"-m", "mark", "--mark", strconv.FormatUint(mark, 10),
+		"-j", "MARK", "--set-mark", "0",
+	}
+	if err := iptable.ProgramRule(iptables.Mangle, "OUTPUT", a, clearUserspaceMarkRule); err != nil {
+		return fmt.Errorf("could not %s mangle local-spoof-protection rule: %w", action, err)
+	}
 	return nil
 }
 
@@ -457,6 +527,11 @@ func (d *driver) setKeys(keys []*key) error {
 
 	// Remove any stale policy, state
 	clearEncryptionStates()
+	if len(d.secMap) > 0 {
+		if err := d.programMangleMarkSpoofProtection(false); err != nil {
+			log.G(context.TODO()).WithError(err).Warn("Failed to clear iptables local-spoof-protection rule")
+		}
+	}
 	// Accept the encryption keys and clear any stale encryption map
 	d.secMap = encrMap{}
 	d.keys = keys
