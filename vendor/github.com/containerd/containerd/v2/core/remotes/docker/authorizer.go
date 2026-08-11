@@ -315,8 +315,7 @@ func (ah *authHandler) doBearerAuth(ctx context.Context) (token, refreshToken st
 		// TODO: Allow setting client_id
 		resp, err := auth.FetchTokenWithOAuth(ctx, ah.client, ah.header, "containerd-client", to)
 		if err != nil {
-			var errStatus remoteerrors.ErrUnexpectedStatus
-			if errors.As(err, &errStatus) {
+			if errStatus, ok := errors.AsType[remoteerrors.ErrUnexpectedStatus](err); ok {
 				// Registries without support for POST may return 404 for POST /v2/token.
 				// As of September 2017, GCR is known to return 404.
 				// As of February 2018, JFrog Artifactory is known to return 401.

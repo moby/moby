@@ -18,16 +18,19 @@ package v2
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/containerd/log"
+	"github.com/containerd/typeurl/v2"
+	"github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/containerd/v2/pkg/identifiers"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/pkg/oci"
-	"github.com/containerd/typeurl/v2"
-	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // LoadBundle loads an existing bundle from disk
@@ -106,10 +109,21 @@ func NewBundle(ctx context.Context, root, state, id string, spec typeurl.Any) (b
 	// Spec may be nil for some sandboxers that do not initialize the spec, for
 	// example the shim sandboxer with a hostNetwork container.
 	if spec != nil {
-		if spec := spec.GetValue(); spec != nil {
+		if specVal := spec.GetValue(); specVal != nil {
+			logger := log.G(ctx)
+			if logger.Logger.IsLevelEnabled(log.TraceLevel) && typeurl.Is(spec, &specs.Spec{}) {
+				var s specs.Spec
+				if err := json.Unmarshal(specVal, &s); err == nil && s.Linux != nil {
+					logger.WithFields(log.Fields{
+						"bundle":        b.Path,
+						"maskedPaths":   s.Linux.MaskedPaths,
+						"readonlyPaths": s.Linux.ReadonlyPaths,
+					}).Trace("configured bundle paths")
+				}
+			}
 			// write the spec to the bundle
 			specPath := filepath.Join(b.Path, oci.ConfigFilename)
-			err = os.WriteFile(specPath, spec, 0666)
+			err = os.WriteFile(specPath, specVal, 0666)
 			if err != nil {
 				return nil, fmt.Errorf("failed to write bundle spec: %w", err)
 			}
