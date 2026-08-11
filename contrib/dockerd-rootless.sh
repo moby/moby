@@ -14,7 +14,7 @@
 #   * Defaults to "slirp4netns" if slirp4netns (>= v0.4.0) is installed, else "pasta", else "vpnkit", else "gvisor-tap-vsock".
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_MTU=NUM: the MTU value for the rootlesskit network driver.
 #   * Defaults to 65520 for slirp4netns, pasta, and gvisor-tap-vsock. Defaults to 1500 for other rootlesskit network drivers.
-# * DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=(builtin|slirp4netns|implicit|gvisor-tap-vsock): the rootlesskit port driver.
+# * DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=(builtin|slirp4netns|pesto|implicit|gvisor-tap-vsock): the rootlesskit port driver.
 #   * Defaults to "implicit" for "pasta", "builtin" for other rootlesskit network drivers.
 # * DOCKERD_ROOTLESS_ROOTLESSKIT_SLIRP4NETNS_SANDBOX=(auto|true|false): whether to protect slirp4netns with a dedicated mount namespace.
 #   * Defaults to "auto".
@@ -44,6 +44,7 @@
 #  gvisor-tap-vsock | gvisor-tap-vsock | Slow           | Slow            | ❌     | ✅      | Not recommended. Use `builtin` port driver instead.
 #  slirp4netns      | slirp4netns      | Slow           | Slow            | ✅     | ✅      |
 #  pasta            | implicit         | Slow           | Fast ✅         | ✅     | ✅      | Experimental; Needs recent version of pasta (2023_12_04)
+#  pasta            | pesto            | Slow           | Fast ✅         | ✅     | ✅      | Experimental; IPv4 only; Needs recent version of pasta (2026_05_07)
 #  lxc-user-nic     | builtin          | Fast ✅        | Fast ✅         | ✅ (*) | ❌      | Experimental
 #  (bypass4netns)   | (bypass4netns)   | Fast ✅        | Fast ✅         | ✅     | ✅      | (Not integrated to RootlessKit)
 #
