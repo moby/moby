@@ -114,10 +114,10 @@ message BootstrapResult {
 // positive, and more verbose levels are negative. This is an open enum;
 // unknown numeric values are preserved on the wire.
 enum LogLevel {
-  LOG_LEVEL_INFO  = 0;
+  LOG_LEVEL_INFO = 0;
   LOG_LEVEL_TRACE = -8;
   LOG_LEVEL_DEBUG = -4;
-  LOG_LEVEL_WARN  = 4;
+  LOG_LEVEL_WARN = 4;
   LOG_LEVEL_ERROR = 8;
   LOG_LEVEL_FATAL = 10;
   LOG_LEVEL_PANIC = 12;
