@@ -46,7 +46,8 @@ FROM tools AS generated
 ENV GO111MODULE=off
 RUN --mount=from=src,source=/out,target=.,rw <<EOT
   set -ex
-  go generate -v ./...
+  packages=$(go list -f '{{.Dir}}' ./... | grep -vE '/(extpoints|internal/extensions)(/|$)' | sed "s#^$(pwd)#.#")
+  go generate -v $packages
   mkdir /out
   git ls-files -m --others -- ':!vendor' 'profiles/seccomp/default.json' '**/*.pb.go' | tar -cf - --files-from - | tar -C /out -xf -
 EOT
