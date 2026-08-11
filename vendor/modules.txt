@@ -1272,6 +1272,7 @@ github.com/moby/docker-image-spec/specs-go/v1
 ## explicit; go 1.26.0
 github.com/moby/extensions
 github.com/moby/extensions/clientpoint
+github.com/moby/extensions/cmd/mobyextgen
 github.com/moby/extensions/example/greeter/v0
 github.com/moby/extensions/example/greeter/v0/protogen
 github.com/moby/extensions/extpoints/servicegrpc/v0

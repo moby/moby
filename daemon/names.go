@@ -10,7 +10,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/names"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/moby/moby/v2/internal/namesgenerator"
+	namesgeneratorv0 "github.com/moby/moby/v2/extpoints/namesgenerator/v0"
 	"github.com/pkg/errors"
 )
 
@@ -85,10 +85,33 @@ func (daemon *Daemon) releaseName(name string) {
 	daemon.containersReplica.ReleaseName(name)
 }
 
+// GenerateName resolves the configured name generator extension.
+func (daemon *Daemon) GenerateName(ctx context.Context, retry int) (string, error) {
+	if daemon.extensionHost == nil {
+		return "", errors.New("name generator extension host is not configured")
+	}
+
+	reply, err := namesgeneratorv0.Generate(ctx, daemon.extensionHost, &namesgeneratorv0.GenerateRequest{Retry: int64(retry)})
+	if reply != nil && reply.Name != "" {
+		if err != nil {
+			log.G(ctx).WithError(err).Warn("name generator extension failed; using built-in fallback")
+		}
+		return reply.Name, nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return "", errors.New("name generator returned no name")
+}
+
 func (daemon *Daemon) generateAndReserveName(id string) (string, error) {
 	var name string
 	for i := range 6 {
-		name = namesgenerator.GetRandomName(i)
+		var err error
+		name, err = daemon.GenerateName(context.TODO(), i)
+		if err != nil {
+			return "", err
+		}
 		if name[0] != '/' {
 			name = "/" + name
 		}

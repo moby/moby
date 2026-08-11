@@ -172,12 +172,33 @@ func (c *Cluster) GetService(input string, insertDefaults bool) (swarm.Service, 
 	return svc, nil
 }
 
+func (c *Cluster) defaultServiceName(ctx context.Context, spec *swarm.ServiceSpec) error {
+	if spec.Name != "" {
+		return nil
+	}
+	if c.config.GenerateName == nil {
+		return errors.New("service name generator is not configured")
+	}
+	name, err := c.config.GenerateName(ctx, 0)
+	if err != nil {
+		return errors.Wrap(err, "generate service name")
+	}
+	if name == "" {
+		return errors.New("service name generator returned no name")
+	}
+	spec.Name = name
+	return nil
+}
+
 // CreateService creates a new service in a managed swarm cluster.
 func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRegistry bool) (*swarm.ServiceCreateResponse, error) {
 	var resp *swarm.ServiceCreateResponse
 	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		err := c.populateNetworkID(ctx, state.controlClient, &s)
 		if err != nil {
+			return err
+		}
+		if err := c.defaultServiceName(ctx, &s); err != nil {
 			return err
 		}
 
@@ -280,6 +301,9 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		err := c.populateNetworkID(ctx, state.controlClient, &spec)
 		if err != nil {
+			return err
+		}
+		if err := c.defaultServiceName(ctx, &spec); err != nil {
 			return err
 		}
 
