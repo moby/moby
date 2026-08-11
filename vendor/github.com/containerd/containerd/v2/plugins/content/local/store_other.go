@@ -1,4 +1,4 @@
-//go:build windows
+//go:build !windows
 
 /*
    Copyright The containerd Authors.
@@ -16,10 +16,14 @@
    limitations under the License.
 */
 
-package oci
+package local
 
-import "io/fs"
+import "os"
 
-func resolveInRootFS(_ fs.ReadLinkFS, name string) (string, error) {
-	return name, nil
+func removePath(path string) error {
+	return os.RemoveAll(path)
+}
+
+func readFileWithRetry(path string) ([]byte, error) {
+	return os.ReadFile(path)
 }

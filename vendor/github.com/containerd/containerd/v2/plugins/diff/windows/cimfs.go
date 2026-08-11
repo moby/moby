@@ -41,6 +41,7 @@ import (
 	"github.com/containerd/plugin/registry"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
 func init() {
@@ -71,8 +72,8 @@ func init() {
 			plugins.MetadataPlugin,
 		},
 		InitFn: func(ic *plugin.InitContext) (any, error) {
-			if !cimfs.IsBlockCimSupported() {
-				return nil, fmt.Errorf("host OS version doesn't support block CIMs: %w", plugin.ErrSkipPlugin)
+			if !cimfs.IsBlockCimWriteSupported() {
+				return nil, fmt.Errorf("host OS doesn't support writable block CIMs: %w", plugin.ErrSkipPlugin)
 			}
 
 			md, err := ic.GetSingle(plugins.MetadataPlugin)
@@ -160,7 +161,9 @@ func NewBlockCimDiff(store content.Store) (CompareApplier, error) {
 
 // parseBlockCIMMount parses the mount returned by the BlockCIM snapshotter and returns
 func parseBlockCIMMount(m *mount.Mount) (*cimfs.BlockCIM, []*cimfs.BlockCIM, error) {
-	var parentPaths []string
+	var (
+		parentPaths []string
+	)
 
 	for _, option := range m.Options {
 		if val, ok := strings.CutPrefix(option, mount.ParentLayerCimPathsFlag); ok {
@@ -208,7 +211,9 @@ func (c blockCIMDiff) Apply(ctx context.Context, desc ocispec.Descriptor, mounts
 
 	m := mounts[0]
 
-	log.G(ctx).WithField("mount", m).Info("applying blockCIM diff")
+	log.G(ctx).WithFields(logrus.Fields{
+		"mount": m,
+	}).Info("applying blockCIM diff")
 
 	layer, parentLayers, err := parseBlockCIMMount(&m)
 	if err != nil {
@@ -235,6 +240,7 @@ func (c blockCIMDiff) Apply(ctx context.Context, desc ocispec.Descriptor, mounts
 	}
 
 	return applyCIMLayerCommon(ctx, desc, c.store, applyFunc, opts...)
+
 }
 
 // Compare creates a diff between the given mounts and uploads the result
@@ -301,4 +307,5 @@ func applyCIMLayerCommon(ctx context.Context, desc ocispec.Descriptor, store con
 		Size:      rc.c,
 		Digest:    digester.Digest(),
 	}, nil
+
 }

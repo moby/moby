@@ -172,9 +172,18 @@ func Fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
+	var wrapped io.ReadCloser
+	if seeker, ok := rc.(io.Seeker); ok {
+		wrapped = &closeOnEOFReadSeeker{
+			closeOnEOFReader: closeOnEOFReader{rc: rc},
+			seeker:           seeker,
+		}
+	} else {
+		wrapped = &closeOnEOFReader{rc: rc}
+	}
+	defer wrapped.Close()
 
-	return content.Copy(ctx, cw, rc, desc.Size, desc.Digest)
+	return content.Copy(ctx, cw, wrapped, desc.Size, desc.Digest)
 }
 
 // PushHandler returns a handler that will push all content from the provider
@@ -417,4 +426,44 @@ func copyDistributionSourceLabels(from map[string]string, to *ocispec.Descriptor
 		}
 		to.Annotations[k] = v
 	}
+}
+
+type closeOnEOFReader struct {
+	rc     io.ReadCloser
+	once   sync.Once
+	closed bool
+}
+
+func (c *closeOnEOFReader) Read(p []byte) (n int, err error) {
+	if c.closed {
+		return 0, io.EOF
+	}
+	n, err = c.rc.Read(p)
+	if err != nil {
+		if err == io.EOF {
+			c.Close()
+		}
+	}
+	return n, err
+}
+
+func (c *closeOnEOFReader) Close() error {
+	var err error
+	c.once.Do(func() {
+		c.closed = true
+		err = c.rc.Close()
+	})
+	return err
+}
+
+type closeOnEOFReadSeeker struct {
+	closeOnEOFReader
+	seeker io.Seeker
+}
+
+func (c *closeOnEOFReadSeeker) Seek(offset int64, whence int) (int64, error) {
+	if c.closed {
+		return 0, fmt.Errorf("seek on closed reader: %w", io.ErrClosedPipe)
+	}
+	return c.seeker.Seek(offset, whence)
 }
