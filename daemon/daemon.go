@@ -1519,6 +1519,14 @@ func (daemon *Daemon) shutdownTimeout(cfg *config.Config) int {
 
 // Shutdown stops the daemon.
 func (daemon *Daemon) Shutdown(ctx context.Context) error {
+	defer func() {
+		if daemon.extensionHost != nil {
+			if err := daemon.extensionHost.Shutdown(ctx); err != nil {
+				log.G(ctx).WithError(err).Error("failed to shut down extensions")
+			}
+		}
+	}()
+
 	daemon.shutdown = true
 	// Keep mounts and networking running on daemon shutdown if
 	// we are to keep containers running and restore them.
@@ -1575,12 +1583,6 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 
 	// Shutdown plugins after containers and layerstore. Don't change the order.
 	daemon.pluginShutdown()
-
-	if daemon.extensionHost != nil {
-		if err := daemon.extensionHost.Shutdown(ctx); err != nil {
-			log.G(ctx).WithError(err).Error("failed to shut down extensions")
-		}
-	}
 
 	if daemon.nri != nil {
 		daemon.nri.Shutdown(ctx)
