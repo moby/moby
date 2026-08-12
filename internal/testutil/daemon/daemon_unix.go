@@ -4,12 +4,19 @@ package daemon
 
 import (
 	"os/exec"
+	"strconv"
 	"syscall"
 	"testing"
 
 	"github.com/moby/sys/mount"
 	"golang.org/x/sys/unix"
 )
+
+const defaultContainerdSocket = "/var/run/docker/containerd/containerd.sock"
+
+func userlandProxyArgs(enabled bool) []string {
+	return []string{"--userland-proxy=" + strconv.FormatBool(enabled)}
+}
 
 // cleanupMount unmounts the daemon root directory, or logs a message if
 // unmounting failed.

@@ -352,8 +352,13 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	})
 	gs := newGRPCServer(ctx)
 	b.backend.RegisterGRPC(gs)
+	// Publish extension gRPC services on the API socket.
+	extProxy, err := d.ExposeExtensionServices(gs)
+	if err != nil {
+		return err
+	}
 	httpServer.Protocols = &p
-	httpServer.Handler = newHTTPHandler(ctx, gs, apiServer.CreateMux(ctx, routers...))
+	httpServer.Handler = newHTTPHandler(ctx, gs, extProxy, apiServer.CreateMux(ctx, routers...))
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 

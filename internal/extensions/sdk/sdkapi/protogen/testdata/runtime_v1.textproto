@@ -1,0 +1,143 @@
+# The wire contract of the extension runtime service as protoc compiled it
+# from the hand-written runtime.proto, before the contract moved to Go-first.
+# Normalized: file name, go_package, and declaration order removed. Captured
+# once; it is the fixed protocol deployed extension binaries speak, so it may
+# only change with a new version of the service.
+package:  "moby.extension.runtime.v1"
+message_type:  {
+  name:  "Declaration"
+  field:  {
+    name:  "id"
+    number:  1
+    label:  LABEL_OPTIONAL
+    type:  TYPE_STRING
+    json_name:  "id"
+  }
+  field:  {
+    name:  "providers"
+    number:  2
+    label:  LABEL_REPEATED
+    type:  TYPE_MESSAGE
+    type_name:  ".moby.extension.runtime.v1.PointDeclaration"
+    json_name:  "providers"
+  }
+  field:  {
+    name:  "dependencies"
+    number:  3
+    label:  LABEL_REPEATED
+    type:  TYPE_MESSAGE
+    type_name:  ".moby.extension.runtime.v1.Dependency"
+    json_name:  "dependencies"
+  }
+  field:  {
+    name:  "conflicts"
+    number:  4
+    label:  LABEL_REPEATED
+    type:  TYPE_STRING
+    json_name:  "conflicts"
+  }
+  field:  {
+    name:  "exposed_services"
+    number:  5
+    label:  LABEL_REPEATED
+    type:  TYPE_STRING
+    json_name:  "exposedServices"
+  }
+  field:  {
+    name:  "provider_services"
+    number:  6
+    label:  LABEL_REPEATED
+    type:  TYPE_MESSAGE
+    type_name:  ".moby.extension.runtime.v1.ProviderServices"
+    json_name:  "providerServices"
+  }
+}
+message_type:  {
+  name:  "Dependency"
+  field:  {
+    name:  "point"
+    number:  1
+    label:  LABEL_OPTIONAL
+    type:  TYPE_STRING
+    json_name:  "point"
+  }
+  field:  {
+    name:  "extension"
+    number:  2
+    label:  LABEL_OPTIONAL
+    type:  TYPE_STRING
+    json_name:  "extension"
+  }
+  field:  {
+    name:  "optional"
+    number:  3
+    label:  LABEL_OPTIONAL
+    type:  TYPE_BOOL
+    json_name:  "optional"
+  }
+}
+message_type:  {
+  name:  "DescribeRequest"
+}
+message_type:  {
+  name:  "DescribeResponse"
+  field:  {
+    name:  "declaration"
+    number:  1
+    label:  LABEL_OPTIONAL
+    type:  TYPE_MESSAGE
+    type_name:  ".moby.extension.runtime.v1.Declaration"
+    json_name:  "declaration"
+  }
+}
+message_type:  {
+  name:  "InitializeRequest"
+}
+message_type:  {
+  name:  "InitializeResponse"
+}
+message_type:  {
+  name:  "PointDeclaration"
+  field:  {
+    name:  "id"
+    number:  1
+    label:  LABEL_OPTIONAL
+    type:  TYPE_STRING
+    json_name:  "id"
+  }
+  reserved_range:  {
+    start:  2
+    end:  3
+  }
+}
+message_type:  {
+  name:  "ProviderServices"
+  field:  {
+    name:  "point"
+    number:  1
+    label:  LABEL_OPTIONAL
+    type:  TYPE_STRING
+    json_name:  "point"
+  }
+  field:  {
+    name:  "services"
+    number:  2
+    label:  LABEL_REPEATED
+    type:  TYPE_STRING
+    json_name:  "services"
+  }
+}
+service:  {
+  name:  "Extension"
+  method:  {
+    name:  "Describe"
+    input_type:  ".moby.extension.runtime.v1.DescribeRequest"
+    output_type:  ".moby.extension.runtime.v1.DescribeResponse"
+  }
+  method:  {
+    name:  "Initialize"
+    input_type:  ".moby.extension.runtime.v1.InitializeRequest"
+    output_type:  ".moby.extension.runtime.v1.InitializeResponse"
+  }
+}
+syntax:  "proto3"
