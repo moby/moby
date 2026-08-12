@@ -542,7 +542,9 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		"--data-root", d.Root,
 		"--exec-root", d.execRoot,
 		"--pidfile", d.pidFile,
-		"--userland-proxy="+strconv.FormatBool(d.userlandProxy),
+	)
+	d.args = append(d.args, userlandProxyArgs(d.userlandProxy)...)
+	d.args = append(d.args,
 		"--containerd-namespace", d.id,
 		"--containerd-plugins-namespace", d.id+"p",
 	)
