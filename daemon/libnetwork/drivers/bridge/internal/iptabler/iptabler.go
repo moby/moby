@@ -50,10 +50,11 @@ func NewIptabler(ctx context.Context, config firewaller.Config) (*Iptabler, erro
 			return nil, err
 		}
 
-		// Make sure on firewall reload, first thing being re-played is chains
-		// creation. Remove chains first to ensure a clean state (firewalld
-		// may have partially flushed them during reload, causing EnsureJumpRule
-		// to fail on the delete-then-reinsert pattern).
+		// On firewall reload, re-create chains from scratch. removeIPChains
+		// uses the native iptables binary (bypassing firewalld's passthrough
+		// store) so these flush commands are not accumulated by firewalld and
+		// replayed on future reloads, which would flush per-network rules that
+		// Docker re-establishes after the reload.
 		iptables.OnReloaded(func() {
 			log.G(ctx).Debugf("Recreating iptables chains on firewall reload")
 			reloadIPChains(ctx, iptables.IPv4, ipt.config, "iptables")
@@ -80,9 +81,9 @@ func NewIptabler(ctx context.Context, config firewaller.Config) (*Iptabler, erro
 			// will work. So, log the problem, and continue.
 			log.G(ctx).WithError(err).Warn("ip6tables is enabled, but cannot set up ip6tables chains")
 		} else {
-			// Make sure on firewall reload, first thing being re-played is
-			// chains creation. Remove chains first for the same reason as
-			// the IPv4 case.
+			// Same as the IPv4 case: re-create chains on reload using
+			// native iptables calls in removeIPChains to avoid storing
+			// flush commands in firewalld's passthrough history.
 			iptables.OnReloaded(func() {
 				log.G(ctx).Debugf("Recreating ip6tables chains on firewall reload")
 				reloadIPChains(ctx, iptables.IPv6, ipt.config, "ip6tables")
@@ -121,10 +122,11 @@ func (ipt *Iptabler) FilterForwardDrop(ctx context.Context, ipv firewaller.IPVer
 }
 
 // reloadIPChains removes and re-creates Docker iptables chains after a firewall
-// reload. It retries on failure to handle the race where firewalld's concurrent
-// chain cleanup deletes chains that setupIPChains just created. The deferred
-// cleanup in setupIPChains is correct on failure, but leaves the daemon
-// chainless; retrying after a short delay (by which time firewalld's cleanup has
+// reload. removeIPChains uses the native iptables binary (bypassing firewalld's
+// passthrough store) to avoid accumulating flush commands that firewalld would
+// replay on future reloads. It retries on failure to handle the race where
+// firewalld's concurrent chain cleanup deletes chains that setupIPChains just
+// created; retrying after a short delay (by which time the cleanup has
 // finished) restores a clean state.
 func reloadIPChains(ctx context.Context, version iptables.IPVersion, cfg firewaller.Config, name string) {
 	const (
