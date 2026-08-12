@@ -1,5 +1,12 @@
 # Changes
 
+## [1.19.1](https://github.com/googleapis/google-cloud-go/compare/logging/v1.19.0...logging/v1.19.1) (2026-08-07)
+
+
+### Bug Fixes
+
+* **logging:** Add HTTP client Timeout to fix metadata probe hang ([#19979](https://github.com/googleapis/google-cloud-go/issues/19979)) ([a47a42b](https://github.com/googleapis/google-cloud-go/commit/a47a42b853e6afcdf492ad7e40268f03614165c6))
+
 ## [1.19.0](https://github.com/googleapis/google-cloud-go/compare/logging/v1.18.0...logging/v1.19.0) (2026-07-13)
 
 
