@@ -12,6 +12,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const defaultContainerdSocket = "/var/run/docker/containerd/containerd.sock"
+
 func userlandProxyArgs(enabled bool) []string {
 	return []string{"--userland-proxy=" + strconv.FormatBool(enabled)}
 }
