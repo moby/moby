@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"net/http"
 	"os/exec"
 	"strconv"
 	"testing"
@@ -12,8 +13,16 @@ import (
 
 const defaultContainerdSocket = ""
 
+func (*Daemon) rootlessCommand(dockerdBinary string) (string, []string, error) {
+	return dockerdBinary, nil, nil
+}
+
 func (*Daemon) platformArgs() []string {
 	return nil
+}
+
+func defaultHostConfig() (*http.Transport, string, string, string) {
+	return &http.Transport{}, "http", "npipe", `//./pipe/docker_engine`
 }
 
 // SignalDaemonDump sends a signal to the daemon to write a dump file
