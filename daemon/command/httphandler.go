@@ -15,29 +15,44 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 
+	"github.com/moby/extensions/grpcproxy"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 )
 
 type httpHandler struct {
 	ctx        context.Context
 	grpcServer *grpc.Server
+	grpcProxy  *grpcproxy.Proxy
 	apiServer  http.Handler
 }
 
-func newHTTPHandler(ctx context.Context, gs *grpc.Server, apiServer http.Handler) http.Handler {
+func newHTTPHandler(ctx context.Context, gs *grpc.Server, proxy *grpcproxy.Proxy, apiServer http.Handler) http.Handler {
 	return &httpHandler{
 		ctx:        ctx,
 		grpcServer: gs,
+		grpcProxy:  proxy,
 		apiServer:  apiServer,
 	}
 }
 
 func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
+		if h.grpcProxy != nil && h.grpcProxy.Handles(grpcService(r.URL.Path)) {
+			h.grpcProxy.ServeHTTP(w, r)
+			return
+		}
 		h.grpcServer.ServeHTTP(w, r)
 	} else {
 		h.apiServer.ServeHTTP(w, r)
 	}
+}
+
+func grpcService(path string) string {
+	s := strings.TrimPrefix(path, "/")
+	if i := strings.LastIndex(s, "/"); i >= 0 {
+		return s[:i]
+	}
+	return s
 }
 
 func newGRPCServer(ctx context.Context) *grpc.Server {
