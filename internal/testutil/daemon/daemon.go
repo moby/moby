@@ -48,7 +48,6 @@ func (nopLog) Logf(string, ...any) {}
 
 const (
 	defaultDockerdBinary         = "dockerd"
-	defaultContainerdSocket      = "/var/run/docker/containerd/containerd.sock"
 	defaultDockerdRootlessBinary = "dockerd-rootless.sh"
 	defaultUnixSocket            = "/var/run/docker.sock"
 	defaultTLSHost               = "localhost:2376"
@@ -538,7 +537,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 	d.args = append(d.args,
 		// Make sure we don't use the environment-provided global config file.
-		"--config-file", "/dev/null",
+		"--config-file", os.DevNull,
 		"--data-root", d.Root,
 		"--exec-root", d.execRoot,
 		"--pidfile", d.pidFile,

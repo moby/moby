@@ -10,6 +10,8 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+const defaultContainerdSocket = ""
+
 func (*Daemon) platformArgs() []string {
 	return nil
 }
