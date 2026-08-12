@@ -13,6 +13,8 @@ import (
 
 type echo struct{}
 
+var extensionID = "org.example.exthook.v1"
+
 func (echo) Echo(_ context.Context, req *echov1.EchoRequest) (*echov1.EchoResponse, error) {
 	if req.Message == "" {
 		return nil, errors.New("message must not be empty")
@@ -22,7 +24,7 @@ func (echo) Echo(_ context.Context, req *echov1.EchoRequest) (*echov1.EchoRespon
 
 func main() {
 	ext := extensions.New(extensions.Declaration{
-		ID:        "org.example.exthook.v1",
+		ID:        extensions.ExtensionID(extensionID),
 		Providers: []extensions.Provider{echov1.Point.Provide(echo{})},
 	})
 	sdk.Main(ext, echopb.ServerPoint)

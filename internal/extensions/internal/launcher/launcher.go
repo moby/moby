@@ -3,6 +3,8 @@ package launcher
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -111,7 +113,7 @@ func Binaries(ctx context.Context, dir string) ([]string, error) {
 		path := filepath.Join(dir, e.Name())
 		// The file name is the extension id. Validate it before launching so a
 		// shared directory cannot execute arbitrary helper binaries.
-		name := strings.TrimSuffix(e.Name(), ".exe")
+		name := extensionName(e.Name())
 		if err := extensions.ValidateExtensionID(extensions.ExtensionID(name)); err != nil {
 			log.G(ctx).WithError(err).Warnf("extensions: skipping %q: not a valid extension binary name", path)
 			continue
@@ -156,6 +158,16 @@ func isExecutable(info fs.FileInfo) bool {
 	return info.Mode().Perm()&0o111 != 0
 }
 
+func extensionName(file string) string {
+	if runtime.GOOS == "windows" {
+		ext := filepath.Ext(file)
+		if strings.EqualFold(ext, ".exe") {
+			return strings.TrimSuffix(file, ext)
+		}
+	}
+	return strings.TrimSuffix(file, ".exe")
+}
+
 // worldWritable reports whether info is writable by others (the o+w bit). A
 // world-writable binary or directory on the daemon's exec path lets any local
 // user run code as the daemon, so it is not trusted. The bit is only meaningful
@@ -186,11 +198,11 @@ func (l Launcher) Launch(ctx context.Context, bin string) (*Launched, error) {
 	if err := os.MkdirAll(l.RuntimeDir, 0o700); err != nil {
 		return nil, fmt.Errorf("create extension runtime dir: %w", err)
 	}
-	name := strings.TrimSuffix(filepath.Base(bin), ".exe")
+	name := extensionName(filepath.Base(bin))
 	if _, err := os.Stat(bin); err != nil {
 		return nil, fmt.Errorf("extension %q: %w", name, err)
 	}
-	endpoint := filepath.Join(l.RuntimeDir, name+".sock")
+	endpoint := extensionSocketPath(l.RuntimeDir, name)
 	if err := os.Remove(endpoint); err != nil && !os.IsNotExist(err) {
 		return nil, fmt.Errorf("remove stale extension socket: %w", err)
 	}
@@ -209,13 +221,21 @@ func (l Launcher) Launch(ctx context.Context, bin string) (*Launched, error) {
 		return nil, fmt.Errorf("open extension stderr: %w", err)
 	}
 	go logOutput(ctx, name, stderr)
-	if err := cmd.Start(); err != nil {
+	lifetime, err := startProcess(cmd)
+	if err != nil {
+		_ = stdin.Close()
+		_ = stdout.Close()
+		_ = stderr.Close()
 		return nil, fmt.Errorf("start extension %q: %w", name, err)
 	}
 	// Reap the child immediately. Later shutdown reads this channel because Wait
 	// may only be called once.
 	wait := make(chan error, 1)
 	go func() { wait <- cmd.Wait() }()
+	stop := func() {
+		_ = stopProcess(context.Background(), cmd, wait, shutdownTimeout)
+		_ = lifetime.Close()
+	}
 	startup := sdk.StartupConfig{
 		Endpoint:         endpoint,
 		ProtocolVersion:  sdk.ProtocolVersion,
@@ -223,7 +243,7 @@ func (l Launcher) Launch(ctx context.Context, bin string) (*Launched, error) {
 		CallbackEndpoint: l.CallbackEndpoint,
 	}
 	if err := json.NewEncoder(stdin).Encode(startup); err != nil {
-		_ = stopProcess(context.Background(), cmd, wait, shutdownTimeout)
+		stop()
 		return nil, fmt.Errorf("write startup config for extension %q: %w", name, err)
 	}
 	_ = stdin.Close()
@@ -232,7 +252,7 @@ func (l Launcher) Launch(ctx context.Context, bin string) (*Launched, error) {
 	defer cancel()
 	stdoutBuf := bufio.NewReader(stdout)
 	if err := waitReady(readyCtx, stdout, stdoutBuf); err != nil {
-		_ = stopProcess(context.Background(), cmd, wait, shutdownTimeout)
+		stop()
 		return nil, fmt.Errorf("wait for extension %q readiness: %w", name, err)
 	}
 	// Keep draining stdout after the readiness ack so the pipe cannot fill and
@@ -241,24 +261,24 @@ func (l Launcher) Launch(ctx context.Context, bin string) (*Launched, error) {
 
 	conn, err := dial(endpoint)
 	if err != nil {
-		_ = stopProcess(context.Background(), cmd, wait, shutdownTimeout)
+		stop()
 		return nil, fmt.Errorf("connect to extension %q: %w", name, err)
 	}
 	resp, err := sdkapipb.NewClient(conn).Describe(ctx, &sdkapi.DescribeRequest{})
 	if err != nil {
 		_ = conn.Close()
-		_ = stopProcess(context.Background(), cmd, wait, shutdownTimeout)
+		stop()
 		return nil, fmt.Errorf("describe extension %q: %w", name, err)
 	}
 	decl := resp.Declaration
 	if decl == nil || decl.ID == "" {
 		_ = conn.Close()
-		_ = stopProcess(context.Background(), cmd, wait, shutdownTimeout)
+		stop()
 		return nil, fmt.Errorf("extension %q described no extension", name)
 	}
 	if decl.ID != name {
 		_ = conn.Close()
-		_ = stopProcess(context.Background(), cmd, wait, shutdownTimeout)
+		stop()
 		return nil, fmt.Errorf("extension %q declared id %q, which must match its file name", name, decl.ID)
 	}
 	launched := &Launched{
@@ -267,7 +287,7 @@ func (l Launcher) Launch(ctx context.Context, bin string) (*Launched, error) {
 		Conflicts:        declaredConflicts(decl.Conflicts),
 		ProviderServices: declaredServices(decl.ProviderServices),
 		Conn:             conn,
-		shutdown:         &processShutdown{conn: conn, cmd: cmd, wait: wait, timeout: shutdownTimeout},
+		shutdown:         &processShutdown{conn: conn, cmd: cmd, wait: wait, timeout: shutdownTimeout, lifetime: lifetime},
 	}
 	for _, p := range decl.Providers {
 		launched.Points = append(launched.Points, LaunchedPoint{
@@ -278,10 +298,18 @@ func (l Launcher) Launch(ctx context.Context, bin string) (*Launched, error) {
 	// keeps socket exposure behind the point's explicit opt-in.
 	if err := validateDeclaredServices(name, launched); err != nil {
 		_ = conn.Close()
-		_ = stopProcess(context.Background(), cmd, wait, shutdownTimeout)
+		stop()
 		return nil, err
 	}
 	return launched, nil
+}
+
+// extensionSocketPath keeps the private AF_UNIX socket name bounded regardless
+// of extension ID length. Windows and Unix both impose short sockaddr limits.
+func extensionSocketPath(runtimeDir, name string) string {
+	sum := sha256.Sum256([]byte(name))
+	socketName := base64.RawURLEncoding.EncodeToString(sum[:16]) + ".sock"
+	return filepath.Join(runtimeDir, socketName)
 }
 
 // validateDeclaredServices rejects services listed under a point the extension
@@ -316,28 +344,36 @@ func declaredServices(in []sdkapi.ProviderServices) map[extensions.PointID][]str
 	return out
 }
 
+type processLifetime interface {
+	Close() error
+}
+
 type processShutdown struct {
-	conn    *grpc.ClientConn
-	cmd     *exec.Cmd
-	wait    <-chan error
-	timeout time.Duration
-	once    sync.Once
-	err     error
+	conn     *grpc.ClientConn
+	cmd      *exec.Cmd
+	wait     <-chan error
+	timeout  time.Duration
+	lifetime processLifetime
+	once     sync.Once
+	err      error
 }
 
 // Close stops the extension once. The host and broker may both call it during
 // failure cleanup, so repeated calls are no-ops.
 func (s *processShutdown) Close(ctx context.Context) error {
 	s.once.Do(func() {
-		s.err = errors.Join(s.conn.Close(), stopProcess(ctx, s.cmd, s.wait, s.timeout))
+		s.err = errors.Join(
+			s.conn.Close(),
+			stopProcess(ctx, s.cmd, s.wait, s.timeout),
+			s.lifetime.Close(),
+		)
 	})
 	return s.err
 }
 
 // stopErr ignores the exit status of a process that was deliberately stopped.
 func stopErr(err error) error {
-	var exit *exec.ExitError
-	if errors.As(err, &exit) {
+	if _, ok := errors.AsType[*exec.ExitError](err); ok {
 		return nil
 	}
 	return err

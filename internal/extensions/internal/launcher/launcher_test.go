@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,9 +42,18 @@ func TestBinaries(t *testing.T) {
 
 	assert.NilError(t, os.WriteFile(filepath.Join(dir, exeName("helper")), []byte("x"), 0o755))
 
+	if runtime.GOOS == "windows" {
+		upper := filepath.Join(dir, "org.example.upper.v1.EXE")
+		assert.NilError(t, os.WriteFile(upper, []byte("x"), 0o755))
+	}
+
 	bins, err := Binaries(context.Background(), dir)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, bins, []string{exe})
+	want := []string{exe}
+	if runtime.GOOS == "windows" {
+		want = append(want, filepath.Join(dir, "org.example.upper.v1.EXE"))
+	}
+	assert.DeepEqual(t, bins, want)
 
 	missing, err := Binaries(context.Background(), filepath.Join(dir, "does-not-exist"))
 	assert.NilError(t, err)
@@ -98,16 +108,18 @@ func TestLaunchOutOfProcess(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds and launches a helper binary")
 	}
-	const id = "org.example.exthook.v1"
+	id := "org.example." + strings.Repeat("long.", 16) + "exthook.v1"
 	bin := filepath.Join(t.TempDir(), exeName(id))
-	build := exec.Command("go", "build", "-o", bin, "./testdata/exthook")
+	build := exec.Command("go", "build", "-ldflags", "-X main.extensionID="+id, "-o", bin, "./testdata/exthook")
 	out, err := build.CombinedOutput()
 	assert.NilError(t, err, "build extension: %s", out)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	launched, err := Launcher{RuntimeDir: shortTempDir(t)}.Launch(ctx, bin)
+	runtimeDir := filepath.Join(shortTempDir(t), strings.Repeat("r", 40))
+	assert.NilError(t, os.Mkdir(runtimeDir, 0o755))
+	launched, err := Launcher{RuntimeDir: runtimeDir}.Launch(ctx, bin)
 	assert.NilError(t, err)
 	defer func() { assert.NilError(t, launched.Close(context.Background())) }()
 
