@@ -47,6 +47,23 @@ func TestDaemonConfigurationMalformedJSON(t *testing.T) {
 	assert.Check(t, errors.As(err, &syntaxErr), `got: %[1]T: %[1]v`, err)
 }
 
+func TestDaemonConfigurationExtensionConfig(t *testing.T) {
+	configFile := makeConfigFile(t, `{
+		"extension-config": {
+			"org.example.foo": {"plugin_path": "/opt/foo", "enabled": true},
+			"com.docker.compose.v1": {"workers": 4}
+		}
+	}`)
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	cfg, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, cfg.ExtensionConfig["org.example.foo"], map[string]any{
+		"plugin_path": "/opt/foo",
+		"enabled":     true,
+	})
+	assert.Equal(t, cfg.ExtensionConfig["com.docker.compose.v1"]["workers"], float64(4))
+}
+
 // TestDaemonConfigurationUnicodeVariations feeds various variations of Unicode into the JSON parser, ensuring that we
 // respect a BOM and otherwise default to UTF-8.
 func TestDaemonConfigurationUnicodeVariations(t *testing.T) {
