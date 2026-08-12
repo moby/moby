@@ -4,12 +4,17 @@ package daemon
 
 import (
 	"os/exec"
+	"strconv"
 	"syscall"
 	"testing"
 
 	"github.com/moby/sys/mount"
 	"golang.org/x/sys/unix"
 )
+
+func (d *Daemon) platformArgs() []string {
+	return []string{"--userland-proxy=" + strconv.FormatBool(d.userlandProxy)}
+}
 
 // cleanupMount unmounts the daemon root directory, or logs a message if
 // unmounting failed.

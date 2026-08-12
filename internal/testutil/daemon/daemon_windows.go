@@ -10,6 +10,10 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+func (*Daemon) platformArgs() []string {
+	return nil
+}
+
 // SignalDaemonDump sends a signal to the daemon to write a dump file
 func SignalDaemonDump(pid int) {
 	ev, _ := windows.UTF16PtrFromString("Global\\docker-daemon-" + strconv.Itoa(pid))

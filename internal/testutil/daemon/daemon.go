@@ -542,10 +542,11 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		"--data-root", d.Root,
 		"--exec-root", d.execRoot,
 		"--pidfile", d.pidFile,
-		"--userland-proxy="+strconv.FormatBool(d.userlandProxy),
 		"--containerd-namespace", d.id,
 		"--containerd-plugins-namespace", d.id+"p",
 	)
+	d.args = append(d.args, d.platformArgs()...)
+
 	if d.containerdEmbedded {
 		d.args = append(d.args, "--feature", "embedded-containerd")
 	} else if d.containerdSocket != "" {
