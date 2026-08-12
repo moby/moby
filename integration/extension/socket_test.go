@@ -63,7 +63,11 @@ func buildGreeterExtension(ctx context.Context, t *testing.T) string {
 	// The extension directory is read by the daemon, which may run as an
 	// unprivileged user in rootless mode.
 	assert.NilError(t, os.Chmod(dir, 0o755))
-	bin := filepath.Join(dir, greeter.ID)
+	name := greeter.ID
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	bin := filepath.Join(dir, name)
 	cmd := exec.CommandContext(ctx, "go", "build", "-buildvcs=false", "-o", bin, "./testdata/greeter/cmd/greeter")
 	out, err := cmd.CombinedOutput()
 	assert.NilError(t, err, "build greeter extension: %s", out)
