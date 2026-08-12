@@ -2,10 +2,12 @@ package extension
 
 import (
 	"context"
+	"net"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"testing"
 
@@ -32,9 +34,21 @@ func TestSocketExposedGRPCService(t *testing.T) {
 
 	d := daemon.New(t)
 	d.Start(t, startArgs...)
-	defer d.Stop(t)
+	defer func() {
+		if runtime.GOOS == "windows" {
+			assert.NilError(t, d.Kill())
+			return
+		}
+		d.Stop(t)
+	}()
 
-	conn, err := grpc.NewClient(d.Sock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	daemonDialer := d.NewClientT(t).Dialer()
+	conn, err := grpc.NewClient(d.Sock(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
+			return daemonDialer(ctx)
+		}),
+	)
 	assert.NilError(t, err)
 	defer conn.Close()
 
