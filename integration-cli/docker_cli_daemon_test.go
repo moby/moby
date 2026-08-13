@@ -1505,21 +1505,18 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *testing.T) {
 func (s *DockerDaemonSuite) TestDaemonDebugLog(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
-	debugLog := "\x1b[37mDEBU\x1b"
-
-	p, tty, err := pty.Open()
+	logFile, err := os.CreateTemp(c.TempDir(), "dockerd-debug-*.log")
 	assert.NilError(c, err)
-	defer func() {
-		tty.Close()
-		p.Close()
-	}()
+	defer logFile.Close()
 
-	b := bytes.NewBuffer(nil)
-	go io.Copy(b, p)
-
-	s.d.StartWithLogFile(tty, "--debug")
+	err = s.d.StartWithLogFile(logFile, "--debug", "--log-format=json")
+	assert.NilError(c, err)
 	s.d.Stop(c)
-	assert.Assert(c, is.Contains(b.String(), debugLog))
+
+	data, err := os.ReadFile(logFile.Name())
+	assert.NilError(c, err)
+
+	assert.Assert(c, is.Contains(string(data), `"level":"debug"`))
 }
 
 // Test for #21956
