@@ -22,7 +22,7 @@ on:
 
 jobs:
   sync-release-branch:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     outputs:
@@ -97,7 +97,7 @@ jobs:
   push-release-branch:
     needs: sync-release-branch
     if: ${{ !inputs.dry_run && needs.sync-release-branch.outputs.has_changes == 'true' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: docker-releases
     permissions:
       contents: write

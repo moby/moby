@@ -42,7 +42,7 @@ env:
 
 jobs:
   docker-py:
-    runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
+    runs-on: ubuntu-26.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     steps:
@@ -98,7 +98,7 @@ jobs:
           retention-days: 1
 
   integration-flaky:
-    runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
+    runs-on: ubuntu-26.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     steps:
@@ -137,7 +137,7 @@ jobs:
           TEST_SKIP_INTEGRATION_CLI: 1
 
   integration-prepare:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     outputs:
@@ -157,9 +157,9 @@ jobs:
             const extraModes = JSON.parse(`${{ env.MATRIX_EXTRA_MODES }}`);
             const runnerSuffix = `${{ env.MATRIX_RUNNER_SUFFIX }}`;
             let includes = [
-              { arch: arch, runner: `ubuntu-24.04${runnerSuffix}`, mode: '' },
+              { arch: arch, runner: `ubuntu-26.04${runnerSuffix}`, mode: '' },
             ];
-            includes.push(...extraModes.map(mode => ({ arch: arch, runner: `ubuntu-24.04${runnerSuffix}`, mode: mode })));
+            includes.push(...extraModes.map(mode => ({ arch: arch, runner: `ubuntu-26.04${runnerSuffix}`, mode: mode })));
 
             if (arch == "amd64") {
               includes.push({ arch: arch, runner: 'ubuntu-22.04', mode: '' });
@@ -297,7 +297,7 @@ jobs:
           retention-days: 1
 
   integration-report:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     if: always()
@@ -329,7 +329,7 @@ jobs:
           fi
 
   integration-cli-prepare:
-    runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
+    runs-on: ubuntu-26.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     outputs:
@@ -424,7 +424,7 @@ jobs:
             });
 
   integration-cli:
-    runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
+    runs-on: ubuntu-26.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     needs:
@@ -520,7 +520,7 @@ jobs:
           retention-days: 1
 
   integration-cli-report:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     if: always()

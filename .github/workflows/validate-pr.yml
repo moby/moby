@@ -22,7 +22,7 @@ jobs:
           github.event.action == 'unlabeled'
         )
       }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - name: Missing `area/` label
@@ -56,7 +56,7 @@ jobs:
           )
         )
       }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     env:
       HAS_IMPACT_LABEL: ${{ contains(join(github.event.pull_request.labels.*.name, ','), 'impact/') }}
@@ -106,7 +106,7 @@ jobs:
           github.event.action == 'synchronize'
         )
       }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - name: Check GitHub references
@@ -168,7 +168,7 @@ jobs:
           )
         )
       }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     env:
       PR_TITLE: ${{ github.event.pull_request.title }}
