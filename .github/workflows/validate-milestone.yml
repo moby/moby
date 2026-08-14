@@ -15,7 +15,7 @@ on:
 jobs:
   validate-milestone:
     if: ${{ github.event.pull_request.state == 'open' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - name: Validate milestone matches docker next version

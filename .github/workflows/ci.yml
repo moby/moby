@@ -38,13 +38,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-24.04
+          - runner: ubuntu-26.04
             target: binary
-          - runner: ubuntu-24.04
+          - runner: ubuntu-26.04
             target: dynbinary
-          - runner: ubuntu-24.04-arm
+          - runner: ubuntu-26.04-arm
             target: binary
-          - runner: ubuntu-24.04-arm
+          - runner: ubuntu-26.04-arm
             target: dynbinary
     steps:
       -
@@ -69,7 +69,7 @@ jobs:
           find ${{ env.DESTDIR }} -type f -exec file -e ascii -- {} +
 
   prepare-cross:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
@@ -89,7 +89,7 @@ jobs:
           fields: platforms
 
   cross:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
@@ -130,7 +130,7 @@ jobs:
           find ${{ env.DESTDIR }} -type f -exec file -e ascii -- {} +
 
   govulncheck:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     # Always run security checks, even with 'ci/validate-only' label
     permissions:
@@ -159,7 +159,7 @@ jobs:
           sarif_file: ${{ env.DESTDIR }}/govulncheck.out
 
   build-dind:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 120 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
@@ -182,7 +182,7 @@ jobs:
 
   success:
     name: CI Build Success
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: ${{ always() }}
     needs:
       - validate-dco
@@ -204,7 +204,7 @@ jobs:
   # TODO(vvoland): Remove once most PRs have rebased
   build-binary:
     name: build (binary)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: ${{ always() }}
     needs:
       - success

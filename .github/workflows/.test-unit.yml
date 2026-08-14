@@ -30,7 +30,7 @@ env:
 
 jobs:
   unit:
-    runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
+    runs-on: ubuntu-26.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     strategy:
@@ -103,7 +103,7 @@ jobs:
           retention-days: 1
 
   unit-report:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     if: always()

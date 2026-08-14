@@ -32,7 +32,7 @@ jobs:
     uses: ./.github/workflows/.dco.yml
 
   build-dev:
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-26.04-arm' || 'ubuntu-26.04' }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     needs:
       - validate-dco
@@ -132,7 +132,7 @@ jobs:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   validate-prepare:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10 # guardrails timeout for the whole job
     needs:
       - validate-dco
@@ -153,7 +153,7 @@ jobs:
           echo "$scripts"
 
   validate:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30 # guardrails timeout for the whole job
     needs:
       - validate-prepare
@@ -207,7 +207,7 @@ jobs:
           make -o build "validate-${SCRIPT}"
 
   validate-api-swagger:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10 # guardrails timeout for the whole job
     defaults:
       run:
@@ -226,7 +226,7 @@ jobs:
           make validate-swagger-gen
 
   smoke-prepare:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
@@ -246,7 +246,7 @@ jobs:
           fields: platforms
 
   smoke:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
