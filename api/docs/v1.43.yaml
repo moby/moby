@@ -7574,6 +7574,10 @@ paths:
           description: "no error"
         304:
           description: "container already started"
+        400:
+          description: "bad parameter, including an invalid checkpoint ID"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such container"
           schema:
