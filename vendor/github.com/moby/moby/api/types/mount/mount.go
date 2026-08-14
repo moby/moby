@@ -98,7 +98,7 @@ type BindOptions struct {
 	// selected by its Source, without changing ownership on the backing
 	// filesystem.
 	//
-	// Requires API v1.56 or newer, a Linux daemon running rootful, a kernel
+	// Requires API v1.57 or newer, a Linux daemon running rootful, a kernel
 	// with MOUNT_ATTR_IDMAP support for the backing filesystem (5.12 or
 	// newer for most filesystems), and an OCI runtime with id-mapped mount
 	// support (runc 1.2 or newer).
