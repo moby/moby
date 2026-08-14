@@ -174,7 +174,13 @@ func (iptable IPTable) NewChain(name string, table Table) (*ChainInfo, error) {
 	// Add chain if it doesn't exist
 	if _, err := iptable.Raw("-t", string(table), "-n", "-L", name); err != nil {
 		if output, err := iptable.Raw("-t", string(table), "-N", name); err != nil {
-			return nil, err
+			// If the check above returned a transient error (e.g. a D-Bus
+			// timeout when querying through firewalld) and another process
+			// created the chain in the meantime (e.g. firewalld's passthrough
+			// replay on reload), treat the existing chain as success.
+			if !strings.Contains(err.Error(), "already exists") {
+				return nil, err
+			}
 		} else if len(output) != 0 {
 			return nil, fmt.Errorf("could not create %s/%s chain: %s", table, name, output)
 		}
