@@ -25,7 +25,7 @@ func defaultDebugAddress(stateDir string) string {
 
 func (r *remote) stopDaemon() {
 	// Ask the daemon to quit
-	syscall.Kill(r.daemonPid, syscall.SIGTERM)
+	_ = syscall.Kill(r.daemonPid, syscall.SIGTERM)
 	// Wait up to 15secs for it to stop
 	for i := time.Duration(0); i < shutdownTimeout; i += time.Second {
 		if !process.Alive(r.daemonPid) {
@@ -35,8 +35,8 @@ func (r *remote) stopDaemon() {
 	}
 
 	if process.Alive(r.daemonPid) {
-		r.logger.WithField("pid", r.daemonPid).Warn("daemon didn't stop within 15 secs, killing it")
-		syscall.Kill(r.daemonPid, syscall.SIGKILL)
+		r.logger.WithField("pid", r.daemonPid).Warn("containerd didn't stop within 15 secs, killing it")
+		_ = syscall.Kill(r.daemonPid, syscall.SIGKILL)
 	}
 }
 
