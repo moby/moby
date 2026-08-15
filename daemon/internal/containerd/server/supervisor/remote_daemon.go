@@ -32,8 +32,9 @@ const (
 	pidFile                 = "containerd.pid"
 )
 
-type remote struct {
-	config.Config
+// Daemon configures, starts, and monitors a containerd daemon.
+type Daemon struct {
+	config config.Config
 
 	// configFile is the location where the generated containerd configuration
 	// file is saved.
@@ -52,21 +53,15 @@ type remote struct {
 	daemonStopCh  chan struct{}
 }
 
-// Daemon represents a running containerd daemon
-type Daemon interface {
-	WaitTimeout(time.Duration) error
-	Address() string
-}
-
 // DaemonOpt allows to configure parameters of container daemons
-type DaemonOpt func(c *remote) error
+type DaemonOpt func(c *Daemon) error
 
 // Start starts a containerd daemon and monitors it.
 // It uses rootDir for persistent state and the daemon subdirectory under
 // stateDir for runtime state.
-func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
-	r := &remote{
-		Config: config.Config{
+func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (*Daemon, error) {
+	r := &Daemon{
+		config: config.Config{
 			Version: 2, // FIXME(thaJeztah): update to v3 when we drop support for containerd v1.
 			Root:    rootDir,
 			State:   filepath.Join(stateDir, "daemon"),
@@ -119,7 +114,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 	}
 }
 
-func (r *remote) WaitTimeout(d time.Duration) error {
+func (r *Daemon) WaitTimeout(d time.Duration) error {
 	timeout := time.NewTimer(d)
 	defer timeout.Stop()
 
@@ -132,11 +127,11 @@ func (r *remote) WaitTimeout(d time.Duration) error {
 	return nil
 }
 
-func (r *remote) Address() string {
-	return r.GRPC.Address //nolint:staticcheck // Deprecated in config v4, but required for config v3.
+func (r *Daemon) Address() string {
+	return r.config.GRPC.Address //nolint:staticcheck // Deprecated in config v4, but required for config v3.
 }
 
-func (r *remote) getContainerdConfig() (string, error) {
+func (r *Daemon) getContainerdConfig() (string, error) {
 	f, err := os.OpenFile(r.configFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to open containerd config file (%s)", r.configFile)
@@ -149,7 +144,7 @@ func (r *remote) getContainerdConfig() (string, error) {
 	return r.configFile, nil
 }
 
-func (r *remote) startContainerd() error {
+func (r *Daemon) startContainerd() error {
 	pid, err := pidfile.Read(r.pidFile)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -233,7 +228,7 @@ func (r *remote) startContainerd() error {
 	return nil
 }
 
-func (r *remote) monitorDaemon(ctx context.Context) {
+func (r *Daemon) monitorDaemon(ctx context.Context) {
 	var (
 		transientFailureCount = 0
 		client                *containerd.Client
