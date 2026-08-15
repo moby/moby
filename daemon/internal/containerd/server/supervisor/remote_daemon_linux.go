@@ -23,7 +23,7 @@ func defaultDebugAddress(stateDir string) string {
 	return filepath.Join(stateDir, debugSockFile)
 }
 
-func (r *remote) stopDaemon() {
+func (r *Daemon) stopDaemon() {
 	// Ask the daemon to quit
 	_ = syscall.Kill(r.daemonPid, syscall.SIGTERM)
 	// Wait up to 15secs for it to stop
@@ -40,13 +40,13 @@ func (r *remote) stopDaemon() {
 	}
 }
 
-func (r *remote) killDaemon() {
+func (r *Daemon) killDaemon() {
 	// Try to get a stack trace
 	_ = syscall.Kill(r.daemonPid, syscall.SIGUSR1)
 	<-time.After(100 * time.Millisecond)
 	_ = process.Kill(r.daemonPid)
 }
 
-func (r *remote) platformCleanup() {
+func (r *Daemon) platformCleanup() {
 	_ = os.Remove(r.Address())
 }

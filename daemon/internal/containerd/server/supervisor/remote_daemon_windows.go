@@ -20,7 +20,7 @@ func defaultDebugAddress(_ string) string {
 	return debugPipeName
 }
 
-func (r *remote) stopDaemon() {
+func (r *Daemon) stopDaemon() {
 	p, err := os.FindProcess(r.daemonPid)
 	if err != nil {
 		r.logger.WithField("pid", r.daemonPid).Warn("could not find containerd process")
@@ -39,10 +39,10 @@ func (r *remote) stopDaemon() {
 	}
 }
 
-func (r *remote) killDaemon() {
+func (r *Daemon) killDaemon() {
 	_ = process.Kill(r.daemonPid)
 }
 
-func (r *remote) platformCleanup() {
+func (r *Daemon) platformCleanup() {
 	// Nothing to do
 }
