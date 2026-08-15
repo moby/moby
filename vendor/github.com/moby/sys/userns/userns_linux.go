@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"syscall"
 )
+
+// See PROC_USER_INIT_INO in https://github.com/torvalds/linux/blob/v7.1/include/uapi/linux/nsfs.h#L50.
+const procUserInitIno = 0xEFFFFFFD
 
 var inUserNS = sync.OnceValue(runningInUserNS)
 
@@ -17,6 +21,20 @@ var inUserNS = sync.OnceValue(runningInUserNS)
 // [libcontainer/runc]: https://github.com/opencontainers/runc/blob/3778ae603c706494fd1e2c2faf83b406e38d687d/libcontainer/userns/userns_linux.go#L12-L49
 // [lcx/incus]: https://github.com/lxc/incus/blob/e45085dd42f826b3c8c3228e9733c0b6f998eafe/shared/util.go#L678-L700
 func runningInUserNS() bool {
+	var st syscall.Stat_t
+	if err := syscall.Stat("/proc/self/ns/user", &st); err == nil {
+		return st.Ino != procUserInitIno
+	} else if !os.IsNotExist(err) {
+		// As long as /proc/self/ns/user exists, we are on a modern kernel.
+		// Other errors indicate an unexpected procfs state, where assuming the
+		// init namespace would be unsafe.
+		return false
+	}
+
+	// Only fall back for older kernels that do not expose the user namespace
+	// through procfs at /proc/self/ns/user.
+	// TODO: Remove this fallback once Linux kernels older than 3.8 are no
+	// longer supported.
 	file, err := os.Open("/proc/self/uid_map")
 	if err != nil {
 		// This kernel-provided file only exists if user namespaces are supported.
