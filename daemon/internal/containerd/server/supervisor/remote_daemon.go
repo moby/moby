@@ -39,6 +39,7 @@ type Daemon struct {
 	// configFile is the location where the generated containerd configuration
 	// file is saved.
 	configFile string
+	stateDir   string
 
 	// daemonPath is the binary to execute, and can be either a basename (to use
 	// a binary installed in the system's $PATH), or the full path to the binary
@@ -56,10 +57,11 @@ type Daemon struct {
 // DaemonOpt allows to configure parameters of container daemons
 type DaemonOpt func(c *Daemon) error
 
-// Start starts a containerd daemon and monitors it.
+// New creates a containerd daemon supervisor.
+//
 // It uses rootDir for persistent state and the daemon subdirectory under
 // stateDir for runtime state.
-func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (*Daemon, error) {
+func New(rootDir, stateDir string, opts ...DaemonOpt) (*Daemon, error) {
 	r := &Daemon{
 		config: config.Config{
 			Version: 2, // FIXME(thaJeztah): update to v3 when we drop support for containerd v1.
@@ -74,6 +76,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (*D
 				Address: defaultDebugAddress(stateDir), //nolint:staticcheck // Deprecated in config v4, but required for config v3.
 			},
 		},
+		stateDir:      stateDir,
 		configFile:    filepath.Join(stateDir, configFile),
 		daemonPath:    binaryName,
 		daemonPid:     -1,
@@ -88,13 +91,29 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (*D
 		}
 	}
 
+	path, err := exec.LookPath(r.daemonPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to find containerd binary: %s", r.daemonPath)
+	}
+	r.daemonPath = path
+
+	return r, nil
+}
+
+// Start starts the containerd daemon and monitors it until ctx is canceled.
+func (r *Daemon) Start(ctx context.Context) error {
+	path, err := exec.LookPath(r.daemonPath)
+	if err != nil {
+		return errors.Wrapf(err, "failed to find containerd binary: %s", r.daemonPath)
+	}
+	r.daemonPath = path
 	r.logger = log.G(ctx).WithFields(log.Fields{
 		"binary": r.daemonPath,
 		"module": "supervisor",
 	})
 
-	if err := os.MkdirAll(stateDir, 0o700); err != nil {
-		return nil, err
+	if err := os.MkdirAll(r.stateDir, 0o700); err != nil {
+		return err
 	}
 
 	go r.monitorDaemon(ctx)
@@ -104,13 +123,13 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (*D
 
 	select {
 	case <-timeout.C:
-		return nil, errors.New("timeout waiting for containerd to start")
+		return errors.New("timeout waiting for containerd to start")
 	case err := <-r.daemonStartCh:
 		if err != nil {
-			return nil, err
+			return err
 		}
 		r.logger.Info("started managed containerd")
-		return r, nil
+		return nil
 	}
 }
 

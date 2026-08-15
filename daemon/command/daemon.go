@@ -1166,8 +1166,11 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 		return nil, err
 	}
 	opts := supervisorOpts(cli.Config)
-	r, err := supervisor.Start(ctx, rootDir, filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
+	r, err := supervisor.New(rootDir, filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
 	if err != nil {
+		return nil, err
+	}
+	if err := r.Start(ctx); err != nil {
 		return nil, errors.Wrap(err, "failed to start containerd")
 	}
 	cli.Config.ContainerdAddr = r.Address()
