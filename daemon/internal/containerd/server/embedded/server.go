@@ -129,7 +129,7 @@ func Start(ctx context.Context, rootDir, stateDir string) (*Daemon, error) {
 	// for the server to stop after ctx is already done.
 	go func() {
 		<-ctx.Done()
-		if err := e.Shutdown(context.WithoutCancel(ctx)); err != nil {
+		if err := e.shutdown(context.WithoutCancel(ctx)); err != nil {
 			log.G(ctx).WithError(err).Error("failed to shut down embedded containerd")
 		}
 	}()
@@ -180,7 +180,7 @@ func (e *Daemon) Dial(ctx context.Context, addr string) (net.Conn, error) {
 	return e.inMemory.DialContext(ctx, "inmem", addr)
 }
 
-// WaitTimeout waits up to d for the server to stop after Shutdown.
+// WaitTimeout waits up to d for the server to stop after shutdown.
 func (e *Daemon) WaitTimeout(d time.Duration) error {
 	timer := time.NewTimer(d)
 	defer timer.Stop()
@@ -192,8 +192,8 @@ func (e *Daemon) WaitTimeout(d time.Duration) error {
 	}
 }
 
-// Shutdown gracefully stops the in-process server and waits for it to exit.
-func (e *Daemon) Shutdown(ctx context.Context) error {
+// shutdown gracefully stops the in-process server and waits for it to exit.
+func (e *Daemon) shutdown(ctx context.Context) error {
 	e.stopping.Store(true)
 	// Stop closes both RPC servers and their listeners.
 	e.srv.Stop()
