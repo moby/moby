@@ -202,15 +202,22 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	waitForContainerDShutdown, err := cli.initContainerd(ctx)
-	if waitForContainerDShutdown != nil {
-		defer waitForContainerDShutdown(10 * time.Second)
-	}
+	waitShutdown, err := cli.initContainerd(ctx)
 	if err != nil {
 		cancel()
 		return err
 	}
-	defer cancel()
+
+	// The normal shutdown path calls this before tracing is torn down. Defer it
+	// as a fallback for startup failures after containerd has started; OnceFunc
+	// prevents the deferred call from repeating the wait.
+	shutdownContainerd := sync.OnceFunc(func() {
+		cancel()
+		if err := waitShutdown(10 * time.Second); err != nil {
+			log.G(ctx).WithError(err).Warn("failed to wait for containerd to stop")
+		}
+	})
+	defer shutdownContainerd()
 
 	httpServer := &http.Server{
 		ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
@@ -405,17 +412,20 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	// shutdown / close BuildKit backend
 	shutdownBuildKit()
 
-	// Stop notification processing and any background processes
-	cancel()
+	// Stop notification processing and background processes, then wait for
+	// containerd to stop.
+	shutdownContainerd()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := otelShutdown(shutdownCtx); err != nil {
+		log.G(ctx).WithError(err).Error("failed to shutdown OTEL tracing")
+	}
 
 	if err, ok := <-errAPI; ok {
 		return errors.Wrap(err, "shutting down due to ServeAPI error")
 	}
-
-	if err := otelShutdown(context.WithoutCancel(ctx)); err != nil {
-		log.G(ctx).WithError(err).Error("Failed to shutdown OTEL tracing")
-	}
-
 	return nil
 }
 
@@ -1141,15 +1151,20 @@ func overrideProxyEnv(ctx context.Context, name, val string) {
 	_ = os.Setenv(name, val)
 }
 
+// nopWaitFunc is used when containerd is managed externally.
+func nopWaitFunc(time.Duration) error {
+	return nil
+}
+
 func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Duration) error, error) {
 	systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not determine whether the system containerd is running")
 	}
 	if ok {
-		// detected a system containerd at the given address.
+		// Use the externally managed system containerd detected at this address.
 		cli.Config.ContainerdAddr = systemContainerdAddr
-		return nil, nil
+		return nopWaitFunc, nil
 	}
 
 	log.G(ctx).Info("containerd not running, starting managed containerd")
