@@ -468,6 +468,14 @@ message UpdateStatus {
 		ROLLBACK_STARTED = 4;
 		ROLLBACK_PAUSED = 5; // if a rollback fails
 		ROLLBACK_COMPLETED = 6;
+		// INTERRUPTED indicates the update stopped scheduling further
+		// task replacements in response to a ServiceUpdateInterrupt
+		// call. Tasks that were already replaced when the interrupt
+		// took effect are left running (disposition HOLD) or reverted
+		// to the pre-update spec (disposition REVERT). This is a
+		// terminal state: it is reached instead of, never before,
+		// COMPLETED, PAUSED or ROLLBACK_COMPLETED.
+		INTERRUPTED = 7;
 	}
 
 	// State is the state of this update. It indicates whether the
@@ -496,6 +504,26 @@ message UpdateStatus {
 	// the update from proceeding (typically the failure of a task to start up
 	// when OnFailure is PAUSE).
 	string message = 4;
+
+	enum Interrupt {
+		// NONE indicates no interrupt has been requested for this
+		// update.
+		NONE = 0;
+		// HOLD requests that the update stop scheduling further task
+		// replacements once the tasks currently being replaced
+		// finish or fail.
+		HOLD = 1;
+		// REVERT requests HOLD, followed by reverting any task
+		// replacements already completed by this update back to the
+		// specification the service ran before the update started.
+		REVERT = 2;
+	}
+
+	// RequestedInterrupt records a pending ServiceUpdateInterrupt
+	// disposition that the updater has not yet acted on. It is set by
+	// ServiceUpdateInterrupt and cleared once the updater has stopped
+	// and (for REVERT) finished reverting completed replacements.
+	Interrupt requested_interrupt = 5;
 }
 
 // TaskState enumerates the states that a task progresses through within an

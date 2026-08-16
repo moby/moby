@@ -3047,6 +3047,14 @@ file {
       type: TYPE_STRING
       json_name: "message"
     }
+    field {
+      name: "requested_interrupt"
+      number: 5
+      label: LABEL_OPTIONAL
+      type: TYPE_ENUM
+      type_name: ".docker.swarmkit.v1.UpdateStatus.Interrupt"
+      json_name: "requestedInterrupt"
+    }
     enum_type {
       name: "UpdateState"
       value {
@@ -3076,6 +3084,25 @@ file {
       value {
         name: "ROLLBACK_COMPLETED"
         number: 6
+      }
+      value {
+        name: "INTERRUPTED"
+        number: 7
+      }
+    }
+    enum_type {
+      name: "Interrupt"
+      value {
+        name: "NONE"
+        number: 0
+      }
+      value {
+        name: "HOLD"
+        number: 1
+      }
+      value {
+        name: "REVERT"
+        number: 2
       }
     }
   }
@@ -8128,6 +8155,54 @@ file {
     }
   }
   message_type {
+    name: "ServiceUpdateInterruptRequest"
+    field {
+      name: "service_id"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "serviceId"
+    }
+    field {
+      name: "version"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Version"
+      json_name: "version"
+    }
+    field {
+      name: "disposition"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_ENUM
+      type_name: ".docker.swarmkit.v1.ServiceUpdateInterruptRequest.Disposition"
+      json_name: "disposition"
+    }
+    enum_type {
+      name: "Disposition"
+      value {
+        name: "HOLD"
+        number: 0
+      }
+      value {
+        name: "REVERT"
+        number: 1
+      }
+    }
+  }
+  message_type {
+    name: "ServiceUpdateInterruptResponse"
+    field {
+      name: "service"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".docker.swarmkit.v1.Service"
+      json_name: "service"
+    }
+  }
+  message_type {
     name: "RemoveServiceRequest"
     field {
       name: "service_id"
@@ -9498,6 +9573,16 @@ file {
       name: "RemoveService"
       input_type: ".docker.swarmkit.v1.RemoveServiceRequest"
       output_type: ".docker.swarmkit.v1.RemoveServiceResponse"
+      options {
+        73626345 {
+          1: "swarm-manager"
+        }
+      }
+    }
+    method {
+      name: "ServiceUpdateInterrupt"
+      input_type: ".docker.swarmkit.v1.ServiceUpdateInterruptRequest"
+      output_type: ".docker.swarmkit.v1.ServiceUpdateInterruptResponse"
       options {
         73626345 {
           1: "swarm-manager"

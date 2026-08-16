@@ -50,6 +50,15 @@ service Control {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
 	};
 
+	// ServiceUpdateInterrupt interrupts a service update or rollback that
+	// is currently in progress. It stops the update from scheduling
+	// further task replacements once the tasks currently being replaced
+	// finish or fail, and moves UpdateStatus.State to INTERRUPTED. If
+	// there is no update in progress, this call is a no-op that succeeds.
+	rpc ServiceUpdateInterrupt(ServiceUpdateInterruptRequest) returns (ServiceUpdateInterruptResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
 	// ListServiceStatuses returns a `ListServiceStatusesResponse` with the
 	// status of the requested services, formed by computing the number of
 	// running vs desired tasks. It is provided as a shortcut or helper method,
@@ -408,6 +417,34 @@ message UpdateServiceRequest {
 }
 
 message UpdateServiceResponse {
+	Service service = 1;
+}
+
+message ServiceUpdateInterruptRequest {
+	string service_id = 1;
+
+	// Version is the version of the service being interrupted. The
+	// request is rejected with an out-of-sequence error if the service
+	// has been written since this version.
+	Version version = 2;
+
+	enum Disposition {
+		// HOLD stops scheduling further task replacements. Task
+		// replacements already completed are left running.
+		HOLD = 0;
+
+		// REVERT does everything HOLD does, and additionally reverts
+		// completed task replacements back to the specification the
+		// service ran before the update started.
+		REVERT = 1;
+	}
+
+	// Disposition controls what happens to task replacements that were
+	// already completed when the interrupt takes effect.
+	Disposition disposition = 3;
+}
+
+message ServiceUpdateInterruptResponse {
 	Service service = 1;
 }
 
