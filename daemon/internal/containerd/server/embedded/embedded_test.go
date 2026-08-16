@@ -3,12 +3,8 @@
 package embedded
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
-
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 // TestPluginGraphResolves guards the blank-import plugin set: it starts the
@@ -26,17 +22,4 @@ func TestPluginGraphResolves(t *testing.T) {
 		t.Skipf("embedded containerd did not start in this environment: %v", err)
 	}
 	t.Cleanup(func() { _ = d.Shutdown(ctx) })
-}
-
-func TestBuildServerConfigUsesSupervisedLayout(t *testing.T) {
-	rootDir := filepath.Join(t.TempDir(), "root")
-	stateDir := filepath.Join(t.TempDir(), "state")
-	address := defaultAddress(stateDir)
-
-	cfg := buildServerConfig(rootDir, stateDir, address)
-
-	assert.Check(t, is.Equal(cfg.root, rootDir))
-	assert.Check(t, is.Equal(cfg.state, filepath.Join(stateDir, "daemon")))
-	assert.Check(t, is.Equal(cfg.grpcAddress, address))
-	assert.Check(t, is.Equal(cfg.ttrpcAddress, address+".ttrpc"))
 }

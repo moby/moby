@@ -57,7 +57,14 @@ func Start(ctx context.Context, rootDir, stateDir string) (*Daemon, error) {
 	setContainerdVersion()
 
 	address := defaultAddress(stateDir)
-	cfg := buildServerConfig(rootDir, stateDir, address)
+	cfg := &serverConfig{
+		root:               rootDir,
+		state:              filepath.Join(stateDir, "daemon"),
+		grpcAddress:        address,
+		ttrpcAddress:       address + ".ttrpc",
+		maxRecvMessageSize: defaults.DefaultMaxRecvMsgSize,
+		maxSendMessageSize: defaults.DefaultMaxSendMsgSize,
+	}
 
 	// Create the root and state directories with the permissions containerd
 	// expects (e.g. the state dir at 0o711 for userns-remapped containers),
@@ -148,17 +155,6 @@ func setContainerdVersion() {
 			version.Version = dep.Version
 			break
 		}
-	}
-}
-
-func buildServerConfig(rootDir, stateDir, address string) *serverConfig {
-	return &serverConfig{
-		root:               rootDir,
-		state:              filepath.Join(stateDir, "daemon"),
-		grpcAddress:        address,
-		ttrpcAddress:       address + ".ttrpc",
-		maxRecvMessageSize: defaults.DefaultMaxRecvMsgSize,
-		maxSendMessageSize: defaults.DefaultMaxSendMsgSize,
 	}
 }
 
