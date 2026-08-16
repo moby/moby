@@ -107,22 +107,20 @@ func newServerWithRegistrations(ctx context.Context, cfg *serverConfig, registra
 		id := registration.URI()
 		log.G(ctx).WithFields(log.Fields{"id": id, "type": registration.Type}).Info("loading plugin")
 
+		initContext := plugin.NewContext(ctx, initialized, map[string]string{
+			plugins.PropertyRootDir:      filepath.Join(cfg.root, id),
+			plugins.PropertyStateDir:     filepath.Join(cfg.state, id),
+			plugins.PropertyGRPCAddress:  cfg.grpcAddress,
+			plugins.PropertyTTRPCAddress: cfg.ttrpcAddress,
+		})
+
+		initContext.Config = registration.Config
+
 		var mustSucceed atomic.Bool
-		initContext := plugin.NewContext(
-			ctx,
-			initialized,
-			map[string]string{
-				plugins.PropertyRootDir:      filepath.Join(cfg.root, id),
-				plugins.PropertyStateDir:     filepath.Join(cfg.state, id),
-				plugins.PropertyGRPCAddress:  cfg.grpcAddress,
-				plugins.PropertyTTRPCAddress: cfg.ttrpcAddress,
-			},
-		)
 		initContext.RegisterReadiness = func() func() {
 			mustSucceed.Store(true)
 			return srv.registerReadiness()
 		}
-		initContext.Config = registration.Config
 
 		result := registration.Init(initContext)
 		if err := initialized.Add(result); err != nil {
