@@ -129,14 +129,14 @@ func newServerWithRegistrations(ctx context.Context, cfg *serverConfig, registra
 
 		instance, err := result.Instance()
 		if err != nil {
+			if mustSucceed.Load() {
+				return nil, fmt.Errorf("plugin %q failed after registering readiness: %w", id, err)
+			}
 			fields := log.Fields{"error": err, "id": id, "type": registration.Type}
 			if plugin.IsSkipPlugin(err) {
 				log.G(ctx).WithFields(fields).Info("skip loading plugin")
 			} else {
 				log.G(ctx).WithFields(fields).Warn("failed to load plugin")
-			}
-			if mustSucceed.Load() {
-				return nil, fmt.Errorf("plugin %q failed after registering readiness: %w", id, err)
 			}
 			continue
 		}
