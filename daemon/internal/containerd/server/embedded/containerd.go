@@ -114,7 +114,12 @@ func newServerWithRegistrations(ctx context.Context, cfg *serverConfig, registra
 			plugins.PropertyTTRPCAddress: cfg.ttrpcAddress,
 		})
 
-		initContext.Config = registration.Config
+		// Disable cgroups Prometheus metrics for the embedded server to
+		// avoid exposing them through dockerd's process-global Prometheus
+		// registry.
+		//
+		// TODO(thaJeztah): Consider making containerd's cgroups Prometheus metrics configurable.
+		initContext.Config = disableCgroupsPrometheus(registration)
 
 		var mustSucceed atomic.Bool
 		initContext.RegisterReadiness = func() func() {
