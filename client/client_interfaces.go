@@ -180,6 +180,7 @@ type ServiceAPIClient interface {
 	ServiceInspect(ctx context.Context, serviceID string, options ServiceInspectOptions) (ServiceInspectResult, error)
 	ServiceList(ctx context.Context, options ServiceListOptions) (ServiceListResult, error)
 	ServiceUpdate(ctx context.Context, serviceID string, options ServiceUpdateOptions) (ServiceUpdateResult, error)
+	ServiceUpdateInterrupt(ctx context.Context, serviceID string, options ServiceUpdateInterruptOptions) (ServiceUpdateInterruptResult, error)
 	ServiceRemove(ctx context.Context, serviceID string, options ServiceRemoveOptions) (ServiceRemoveResult, error)
 
 	ServiceLogs(ctx context.Context, serviceID string, options ServiceLogsOptions) (ServiceLogsResult, error)

@@ -62,6 +62,11 @@ const (
 	UpdateStateRollbackPaused UpdateState = "rollback_paused"
 	// UpdateStateRollbackCompleted is the state with a rollback in progress.
 	UpdateStateRollbackCompleted UpdateState = "rollback_completed"
+	// UpdateStateInterrupted is the state after a ServiceUpdateInterrupt
+	// call stopped the update or rollback. It is a terminal state: it is
+	// reached instead of, never before, UpdateStateCompleted,
+	// UpdateStatePaused, or UpdateStateRollbackCompleted.
+	UpdateStateInterrupted UpdateState = "interrupted"
 )
 
 // UpdateStatus reports the status of a service update.
@@ -215,4 +220,20 @@ type RegistryAuthSource string
 const (
 	RegistryAuthFromSpec         RegistryAuthSource = "spec"
 	RegistryAuthFromPreviousSpec RegistryAuthSource = "previous-spec"
+)
+
+// ServiceUpdateInterruptDisposition defines options for the "disposition"
+// query parameter on a service update interrupt.
+type ServiceUpdateInterruptDisposition string
+
+// Values for Disposition in ServiceUpdateInterruptOptions.
+const (
+	// ServiceUpdateInterruptHold stops scheduling further task
+	// replacements. Task replacements already completed are left running.
+	ServiceUpdateInterruptHold ServiceUpdateInterruptDisposition = "hold"
+	// ServiceUpdateInterruptRevert does everything
+	// ServiceUpdateInterruptHold does, and additionally reverts completed
+	// task replacements back to the specification the service ran before
+	// the update started.
+	ServiceUpdateInterruptRevert ServiceUpdateInterruptDisposition = "revert"
 )
