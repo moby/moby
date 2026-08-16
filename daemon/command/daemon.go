@@ -875,7 +875,7 @@ func initMiddlewares(_ context.Context, s *apiserver.Server, cfg *config.Config,
 	return authzMiddleware, nil
 }
 
-func getContainerdDaemonOpts(cfg *config.Config) ([]supervisor.DaemonOpt, error) {
+func supervisorOpts(cfg *config.Config) []supervisor.DaemonOpt {
 	var opts []supervisor.DaemonOpt
 	if cfg.Debug {
 		opts = append(opts, supervisor.WithLogLevel("debug"))
@@ -907,7 +907,7 @@ func getContainerdDaemonOpts(cfg *config.Config) ([]supervisor.DaemonOpt, error)
 		opts = append(opts, supervisor.WithDetectLocalBinary())
 	}
 
-	return opts, nil
+	return opts
 }
 
 func newAPIServerTLSConfig(cfg *config.Config) (*tls.Config, error) {
@@ -1161,15 +1161,11 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 	}
 
 	log.G(ctx).Info("containerd not running, starting managed containerd")
-	opts, err := getContainerdDaemonOpts(cli.Config)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate containerd options")
-	}
-
 	rootDir, err := containerdRootDir(ctx, cli.Config)
 	if err != nil {
 		return nil, err
 	}
+	opts := supervisorOpts(cli.Config)
 	r, err := supervisor.Start(ctx, rootDir, filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start containerd")
