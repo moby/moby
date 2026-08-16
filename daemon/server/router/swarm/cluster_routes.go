@@ -305,6 +305,32 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	return httputils.WriteJSON(w, http.StatusOK, resp)
 }
 
+func (sr *swarmRouter) interruptServiceUpdate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	rawVersion := r.URL.Query().Get("version")
+	version, err := strconv.ParseUint(rawVersion, 10, 64)
+	if err != nil {
+		err := fmt.Errorf("invalid service version '%s': %v", rawVersion, err)
+		return errdefs.InvalidParameter(err)
+	}
+
+	disposition := types.ServiceUpdateInterruptDisposition(r.URL.Query().Get("disposition"))
+	switch disposition {
+	case "", types.ServiceUpdateInterruptHold, types.ServiceUpdateInterruptRevert:
+	default:
+		return errdefs.InvalidParameter(fmt.Errorf("invalid disposition '%s'", disposition))
+	}
+
+	if err := sr.backend.InterruptServiceUpdate(vars["id"], version, disposition); err != nil {
+		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
+			"error":      err,
+			"service-id": vars["id"],
+		}).Debug("Error interrupting service update")
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
 func (sr *swarmRouter) removeService(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := sr.backend.RemoveService(vars["id"]); err != nil {
 		log.G(ctx).WithContext(ctx).WithFields(log.Fields{
