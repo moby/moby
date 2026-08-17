@@ -354,6 +354,29 @@ func (ImportStatus) Values() []ImportStatus {
 	}
 }
 
+type IndexCategory string
+
+// Enum values for IndexCategory
+const (
+	IndexCategoryDefault  IndexCategory = "DEFAULT"
+	IndexCategoryCustom   IndexCategory = "CUSTOM"
+	IndexCategoryAuto     IndexCategory = "AUTO"
+	IndexCategoryInactive IndexCategory = "INACTIVE"
+)
+
+// Values returns all known values for IndexCategory. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (IndexCategory) Values() []IndexCategory {
+	return []IndexCategory{
+		"DEFAULT",
+		"CUSTOM",
+		"AUTO",
+		"INACTIVE",
+	}
+}
+
 type IndexSource string
 
 // Enum values for IndexSource

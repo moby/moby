@@ -5,7 +5,6 @@ package cloudwatchlogs
 import (
 	"context"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Updates an existing lookup table by replacing all of its content with new CSV
@@ -44,8 +43,9 @@ type UpdateLookupTableInput struct {
 	// use an Amazon Web Services-owned key instead, specify an empty string.
 	KmsKeyId *string
 
-	// The ID of a completed CloudWatch Logs query whose results replace the lookup
-	// table content.
+	// The ID of a completed or cancelled CloudWatch Logs query whose results replace
+	// the lookup table content. A cancelled query replaces the content with the
+	// partial results that were available when the query was stopped.
 	//
 	// You must specify either tableBody or queryId , but not both.
 	QueryId *string
@@ -85,9 +85,6 @@ func (c *Client) addOperationUpdateLookupTableMiddlewares(stack *middleware.Stac
 		return err
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
 	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
@@ -100,19 +97,10 @@ func (c *Client) addOperationUpdateLookupTableMiddlewares(stack *middleware.Stac
 	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpUpdateLookupTableValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "UpdateLookupTable"), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
