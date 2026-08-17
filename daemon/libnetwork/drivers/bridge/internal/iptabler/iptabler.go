@@ -151,88 +151,49 @@ func reloadIPChains(ctx context.Context, version iptables.IPVersion, cfg firewal
 func setupIPChains(ctx context.Context, version iptables.IPVersion, iptCfg firewaller.Config) (retErr error) {
 	iptable := iptables.GetIptable(version)
 
+	// On failure, tear down any chains created so far. removeIPChains uses the
+	// native iptables binary (bypassing firewalld's passthrough interface), so
+	// no cleanup commands are stored for future replay — avoiding the cascade
+	// where replayed deletes remove chains just created by a later setup call.
+	defer func() {
+		if retErr != nil {
+			removeIPChains(ctx, version)
+		}
+	}()
+
 	_, err := iptable.NewChain(dockerChain, iptables.Nat)
 	if err != nil {
 		return fmt.Errorf("failed to create NAT chain %s: %v", dockerChain, err)
 	}
-	defer func() {
-		if retErr != nil {
-			if err := iptable.RemoveExistingChain(dockerChain, iptables.Nat); err != nil {
-				log.G(ctx).Warnf("failed on removing iptables NAT chain %s on cleanup: %v", dockerChain, err)
-			}
-		}
-	}()
 
 	_, err = iptable.NewChain(dockerChain, iptables.Filter)
 	if err != nil {
 		return fmt.Errorf("failed to create FILTER chain %s: %v", dockerChain, err)
 	}
-	defer func() {
-		if retErr != nil {
-			if err := iptable.RemoveExistingChain(dockerChain, iptables.Filter); err != nil {
-				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", dockerChain, err)
-			}
-		}
-	}()
 
 	_, err = iptable.NewChain(DockerForwardChain, iptables.Filter)
 	if err != nil {
 		return fmt.Errorf("failed to create FILTER chain %s: %v", DockerForwardChain, err)
 	}
-	defer func() {
-		if retErr != nil {
-			if err := iptable.RemoveExistingChain(DockerForwardChain, iptables.Filter); err != nil {
-				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", DockerForwardChain, err)
-			}
-		}
-	}()
 
 	_, err = iptable.NewChain(dockerBridgeChain, iptables.Filter)
 	if err != nil {
 		return fmt.Errorf("failed to create FILTER chain %s: %v", dockerBridgeChain, err)
 	}
-	defer func() {
-		if retErr != nil {
-			if err := iptable.RemoveExistingChain(dockerBridgeChain, iptables.Filter); err != nil {
-				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", dockerBridgeChain, err)
-			}
-		}
-	}()
 
 	_, err = iptable.NewChain(dockerCTChain, iptables.Filter)
 	if err != nil {
 		return fmt.Errorf("failed to create FILTER chain %s: %v", dockerCTChain, err)
 	}
-	defer func() {
-		if retErr != nil {
-			if err := iptable.RemoveExistingChain(dockerCTChain, iptables.Filter); err != nil {
-				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", dockerCTChain, err)
-			}
-		}
-	}()
 
 	_, err = iptable.NewChain(dockerInternalChain, iptables.Filter)
 	if err != nil {
 		return fmt.Errorf("failed to create FILTER internal chain: %v", err)
 	}
-	defer func() {
-		if retErr != nil {
-			if err := iptable.RemoveExistingChain(dockerInternalChain, iptables.Filter); err != nil {
-				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", dockerInternalChain, err)
-			}
-		}
-	}()
 
 	if err := addNATJumpRules(version, iptCfg.Hairpin, true); err != nil {
 		return fmt.Errorf("failed to add jump rules to %s NAT table: %w", version, err)
 	}
-	defer func() {
-		if retErr != nil {
-			if err := addNATJumpRules(version, iptCfg.Hairpin, false); err != nil {
-				log.G(ctx).Warnf("failed on removing jump rules from %s NAT table: %v", version, err)
-			}
-		}
-	}()
 
 	// Make sure the filter-FORWARD chain has rules to accept related packets and
 	// jump to the isolation and docker chains. (Re-)insert at the top of the table,
