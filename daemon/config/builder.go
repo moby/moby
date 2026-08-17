@@ -143,11 +143,5 @@ type BuilderConfig struct {
 	GC           BuilderGCConfig
 	Entitlements BuilderEntitlements
 	History      *BuilderHistoryConfig `json:",omitempty"`
-	// ProxyNetwork, when true, forces all network-enabled embedded BuildKit
-	// exec operations through BuildKit's own HTTP/HTTPS proxy, blocking direct
-	// egress from those execs. This setting applies daemon-wide and cannot be
-	// overridden by a client. A dockerd restart is required to change this
-	// setting. Source operations (image pulls, remote Git contexts, etc.) use
-	// daemon-side networking and are unaffected.
-	ProxyNetwork bool `json:"proxy-network,omitempty"`
+	ProxyNetwork bool                  `json:"proxy-network,omitempty"`
 }
