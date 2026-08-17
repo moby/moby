@@ -63,11 +63,15 @@ func (suite *Suite) Require() *require.Assertions {
 	return suite.require
 }
 
-// Assert returns an assert context for suite.  Normally, you can call
-// `suite.NoError(expected, actual)`, but for situations where the embedded
-// methods are overridden (for example, you might want to override
-// assert.Assertions with require.Assertions), this method is provided so you
-// can call `suite.Assert().NoError()`.
+// Assert returns an assert context for suite. Normally, you can call:
+//
+//	suite.NoError(err)
+//
+// But for situations where the embedded methods are overridden (for example,
+// you might want to override assert.Assertions with require.Assertions), this
+// method is provided so you can call:
+//
+//	suite.Assert().NoError(err)
 func (suite *Suite) Assert() *assert.Assertions {
 	suite.mu.Lock()
 	defer suite.mu.Unlock()
@@ -158,7 +162,19 @@ func Run(t *testing.T, suite TestingSuite) {
 		if matchMethodRE != nil && !matchMethodRE.MatchString(method.Name) {
 			continue
 		}
-
+		// Check method signature
+		if method.Type.NumIn() > 1 || method.Type.NumOut() > 0 {
+			tests = append(tests, test{
+				name: method.Name,
+				run: func(t *testing.T) {
+					t.Errorf(
+						"testify: suite method %q has invalid signature: expected no input or output parameters, method has %d input parameters and %d output parameters",
+						method.Name, method.Type.NumIn()-1, method.Type.NumOut(),
+					)
+				},
+			})
+			continue
+		}
 		test := test{
 			name: method.Name,
 			run: func(t *testing.T) {
@@ -184,14 +200,14 @@ func Run(t *testing.T, suite TestingSuite) {
 					failOnPanic(t, r)
 				}()
 
+				stats.start(method.Name)
+
 				if setupTestSuite, ok := suite.(SetupTestSuite); ok {
 					setupTestSuite.SetupTest()
 				}
 				if beforeTestSuite, ok := suite.(BeforeTest); ok {
 					beforeTestSuite.BeforeTest(methodFinder.Elem().Name(), method.Name)
 				}
-
-				stats.start(method.Name)
 
 				method.Func.Call([]reflect.Value{reflect.ValueOf(suite)})
 			},
