@@ -7715,6 +7715,17 @@ func awsAwsjson11_serializeDocumentImportStatusList(v []types.ImportStatus, valu
 	return nil
 }
 
+func awsAwsjson11_serializeDocumentIndexCategories(v []types.IndexCategory, value smithyjson.Value) error {
+	array := value.Array()
+	defer array.Close()
+
+	for i := range v {
+		av := array.Value()
+		av.String(string(v[i]))
+	}
+	return nil
+}
+
 func awsAwsjson11_serializeDocumentInputLogEvent(v *types.InputLogEvent, value smithyjson.Value) error {
 	object := value.Object()
 	defer object.Close()
@@ -9728,6 +9739,13 @@ func awsAwsjson11_serializeOpDocumentDescribeExportTasksInput(v *DescribeExportT
 func awsAwsjson11_serializeOpDocumentDescribeFieldIndexesInput(v *DescribeFieldIndexesInput, value smithyjson.Value) error {
 	object := value.Object()
 	defer object.Close()
+
+	if v.IndexCategories != nil {
+		ok := object.Key("indexCategories")
+		if err := awsAwsjson11_serializeDocumentIndexCategories(v.IndexCategories, ok); err != nil {
+			return err
+		}
+	}
 
 	if v.LogGroupIdentifiers != nil {
 		ok := object.Key("logGroupIdentifiers")

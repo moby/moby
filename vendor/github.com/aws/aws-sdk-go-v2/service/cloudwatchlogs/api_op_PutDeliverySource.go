@@ -6,7 +6,6 @@ import (
 	"context"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Creates or updates a logical delivery source. A delivery source represents an
@@ -66,6 +65,9 @@ func (c *Client) PutDeliverySource(ctx context.Context, params *PutDeliverySourc
 type PutDeliverySourceInput struct {
 
 	// Defines the type of log that the source is sending.
+	//
+	//   - For Application Load Balancer, the valid values are ALB_ACCESS_LOGS ,
+	//   ALB_CONNECTION_LOGS , and ALB_HEALTH_CHECK_LOGS .
 	//
 	//   - For Amazon Bedrock Agents, the valid values are APPLICATION_LOGS and
 	//   EVENT_LOGS .
@@ -208,9 +210,6 @@ func (c *Client) addOperationPutDeliverySourceMiddlewares(stack *middleware.Stac
 		return err
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
 	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
@@ -223,19 +222,10 @@ func (c *Client) addOperationPutDeliverySourceMiddlewares(stack *middleware.Stac
 	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpPutDeliverySourceValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "PutDeliverySource"), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
