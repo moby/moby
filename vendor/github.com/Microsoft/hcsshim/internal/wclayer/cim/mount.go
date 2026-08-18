@@ -11,10 +11,10 @@ import (
 
 	"github.com/Microsoft/go-winio/pkg/guid"
 	"github.com/Microsoft/hcsshim/internal/log"
-	"github.com/Microsoft/hcsshim/internal/oc"
+	"github.com/Microsoft/hcsshim/internal/ot"
 	cimfs "github.com/Microsoft/hcsshim/pkg/cimfs"
 	"github.com/sirupsen/logrus"
-	"go.opencensus.io/trace"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 var cimMountNamespace guid.GUID = guid.GUID{Data1: 0x6827367b, Data2: 0xc388, Data3: 0x4e9b, Data4: [8]byte{0x96, 0x1c, 0x6d, 0x2c, 0x93, 0x6c}}
@@ -41,13 +41,13 @@ func MountForkedCimLayer(ctx context.Context, cimPath, containerID string) (stri
 // at which this CIM is mounted.  containerID is used so that if the shim process crashes
 // for any reason, the mounted cim can be correctly cleaned up during `shim delete` call.
 func MountBlockCIMLayer(ctx context.Context, layer *cimfs.BlockCIM, containerID string) (_ string, err error) {
-	ctx, span := oc.StartSpan(ctx, "MountBlockCIMLayer")
+	ctx, span := ot.StartSpan(ctx, "MountBlockCIMLayer")
 	defer func() {
-		oc.SetSpanStatus(span, err)
+		ot.SetSpanStatus(span, err)
 		span.End()
 	}()
-	span.AddAttributes(
-		trace.StringAttribute("layer", layer.String()))
+	span.SetAttributes(
+		attribute.String("layer", layer.String()))
 
 	var mountFlags uint32
 	switch layer.Type {
@@ -85,14 +85,14 @@ func MountBlockCIMLayer(ctx context.Context, layer *cimfs.BlockCIM, containerID 
 // parentLayers MUST be in the base to topmost order. I.e base layer should be at index 0
 // and immediate parent MUST be at the last index.
 func MergeMountBlockCIMLayer(ctx context.Context, mergedLayer *cimfs.BlockCIM, parentLayers []*cimfs.BlockCIM, containerID string) (_ string, err error) {
-	_, span := oc.StartSpan(ctx, "MergeMountBlockCIMLayer")
+	_, span := ot.StartSpan(ctx, "MergeMountBlockCIMLayer")
 	defer func() {
-		oc.SetSpanStatus(span, err)
+		ot.SetSpanStatus(span, err)
 		span.End()
 	}()
-	span.AddAttributes(
-		trace.StringAttribute("merged layer", mergedLayer.String()),
-		trace.StringAttribute("parent layers", fmt.Sprintf("%v", parentLayers)))
+	span.SetAttributes(
+		attribute.String("merged layer", mergedLayer.String()),
+		attribute.String("parent layers", fmt.Sprintf("%v", parentLayers)))
 
 	var mountFlags uint32
 	switch mergedLayer.Type {
