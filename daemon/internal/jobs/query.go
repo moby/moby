@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/server/backend"
@@ -106,6 +107,23 @@ func (m *Manager) setPaused(jobRef string, paused bool) error {
 		return nil
 	}
 	job.Paused = paused
+	if paused {
+		m.sched.disarm(job.ID)
+		job.NextFireAtNano = 0
+	} else {
+		// Re-arm from the next occurrence; fires missed while paused are
+		// not backfilled.
+		schedule, loc, err := parseScheduleTrigger(job.Spec.Trigger.Schedule)
+		if err != nil {
+			return err
+		}
+		if next, ok := schedule.next(m.now(), loc); ok {
+			m.sched.arm(job.ID, schedule, loc, next)
+			if job.State == jobsv0.JobStateIdle {
+				job.NextFireAtNano = next.UnixNano()
+			}
+		}
+	}
 	job.UpdatedAtNano = m.now().UnixNano()
 	return m.store.UpdateJob(job)
 }
@@ -177,6 +195,7 @@ func (m *Manager) Remove(ctx context.Context, jobRef, runsRemoval string) error 
 		removeErr = m.store.DeleteJob(job.ID)
 	}
 	if removeErr == nil {
+		m.sched.disarm(job.ID)
 		// Wake waiters so a Wait on the removed job re-resolves to
 		// not-found instead of blocking until its context expires.
 		m.broadcast(job.ID)
@@ -311,16 +330,33 @@ func matchesLabels(labels map[string]string, filterEntries []string) bool {
 // Run executes an existing job, creating its next run. The returned run may
 // already be terminal when the container could not be created or started;
 // the failure is recorded on the run record, per the API contract.
+//
+// With reschedule, the manual fire stands in for the job's upcoming
+// scheduled occurrence: the schedule re-arms on the occurrence after it,
+// instead of keeping the original cadence.
 func (m *Manager) Run(ctx context.Context, jobRef string, reschedule bool) (*jobsv0.Run, error) {
-	if reschedule {
-		// Rebasing a schedule's cadence takes effect when the scheduler is
-		// wired in; accepting the flag before then would silently ignore
-		// it, the failure mode this package rejects triggers over.
-		return nil, errdefs.InvalidParameter(errors.New("reschedule is not supported yet"))
-	}
 	job, err := m.resolveJob(jobRef)
 	if err != nil {
 		return nil, err
 	}
-	return m.fireManual(ctx, job.ID)
+	if reschedule && triggerKind(job.Spec.Trigger) != jobsv0.TriggerKindSchedule {
+		return nil, errdefs.InvalidParameter(errors.New("reschedule requires a schedule trigger"))
+	}
+	// Read the occurrence this fire will stand in for before firing: if a
+	// tick consumes it while the manual run starts, the compare-and-skip
+	// below becomes a no-op instead of skipping a second occurrence.
+	var expected time.Time
+	if reschedule {
+		expected, _ = m.sched.nextFor(job.ID)
+	}
+	run, err := m.fireManual(ctx, job.ID)
+	if err != nil {
+		return nil, err
+	}
+	if reschedule && !expected.IsZero() {
+		if next, ok := m.sched.skipNext(job.ID, expected); ok {
+			m.persistNextFire(job.ID, next.UnixNano())
+		}
+	}
+	return run, nil
 }
