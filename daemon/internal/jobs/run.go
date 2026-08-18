@@ -83,6 +83,9 @@ func (m *Manager) tryFire(ctx context.Context, jobID string, evidence *jobsv0.Tr
 		return nil, err
 	}
 	job.State = jobsv0.JobStateRunning
+	// A running job advertises no next fire; the completion transition
+	// restores it from the scheduler's armed occurrence.
+	job.NextFireAtNano = 0
 	job.UpdatedAtNano = now
 	if err := m.store.UpdateJob(job); err != nil {
 		m.completeRunLocked(context.WithoutCancel(ctx), job, run, terminalOutcome{state: jobsv0.RunStateFailed, errMsg: "recording job state: " + err.Error()})
@@ -223,6 +226,9 @@ func (m *Manager) completeRunLocked(ctx context.Context, job *jobsv0.Job, run *j
 	// are then a tombstone and there is no state to restore.
 	if current, err := m.store.Job(job.ID); err == nil {
 		current.State = jobsv0.JobStateIdle
+		if next, armed := m.sched.nextFor(job.ID); armed {
+			current.NextFireAtNano = next.UnixNano()
+		}
 		current.UpdatedAtNano = m.now().UnixNano()
 		if err := m.store.UpdateJob(current); err != nil {
 			log.G(ctx).WithError(err).WithFields(log.Fields{"job": job.ID}).Warn("could not return job to idle")

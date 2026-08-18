@@ -818,13 +818,12 @@ func TestManagerReservedLabelPrefixIsExact(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-func TestManagerRescheduleNotSupportedYet(t *testing.T) {
+func TestManagerRescheduleRequiresSchedule(t *testing.T) {
 	m, _ := newTestManager(t)
-	_, _, err := m.Create(t.Context(), "nightly", scheduleSpec(""))
+	_, _, err := m.Create(t.Context(), "adhoc", manualSpec())
 	assert.NilError(t, err)
-	// Accepting the flag before the scheduler exists would silently ignore
-	// it; the package fails loudly instead.
-	_, err = m.Run(t.Context(), "nightly", true)
+	// Rebasing a cadence only means something for a schedule trigger.
+	_, err = m.Run(t.Context(), "adhoc", true)
 	assert.Check(t, cerrdefs.IsInvalidArgument(err), "want invalid-argument, got %v", err)
 }
 

@@ -360,8 +360,9 @@ type CreateReply struct {
 type RunRequest struct {
 	// JobRef is the job's ID or name.
 	JobRef string `pb:"1"`
-	// Reschedule rebases a schedule job's cadence on this fire instead of
-	// preserving the original cron alignment.
+	// Reschedule makes this fire stand in for the job's next scheduled
+	// occurrence, which is skipped; later occurrences keep the cron
+	// alignment. Rejected for jobs without a schedule trigger.
 	Reschedule bool `pb:"2"`
 }
 

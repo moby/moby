@@ -12,6 +12,7 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/log"
 	"github.com/moby/locker"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
@@ -71,9 +72,8 @@ type Manager struct {
 	locks *locker.Locker
 	// now is the manager's clock, injectable in tests.
 	now func() time.Time
-	// validateCron validates a cron expression at registration time. It is
-	// a field so the scheduler step can plug the real parser in; until then
-	// only trivially empty expressions are rejected.
+	// validateCron validates a cron expression at registration time; a
+	// field so tests can substitute it.
 	validateCron func(expr string) error
 
 	mu sync.Mutex
@@ -89,10 +89,17 @@ type Manager struct {
 	// job or run transition; Wait re-checks its condition on each signal.
 	notify map[string][]chan struct{}
 	// background tracks every goroutine the manager spawns (run watchers,
-	// queued fires, container stops) so Shutdown can drain them. Goroutines
-	// spawned by a tracked goroutine register before their parent finishes,
-	// so the counter cannot reach zero while work is still being spawned.
+	// queued fires, container stops, the scheduler loop) so Shutdown can
+	// drain them. Goroutines spawned by a tracked goroutine register before
+	// their parent finishes, so the counter cannot reach zero while work is
+	// still being spawned.
 	background sync.WaitGroup
+	// sched fires schedule jobs; its loop runs between Start and Shutdown,
+	// but arming works from construction so jobs registered before Start
+	// are picked up when the loop begins.
+	sched   *scheduler
+	started bool
+	stopped bool
 }
 
 // NewManager builds a manager on top of a loaded store.
@@ -103,22 +110,95 @@ type Manager struct {
 // run from the container's actual state) runs it. Wiring that up is the
 // extension's startup responsibility, alongside Shutdown on the way down.
 func NewManager(store *Store, backend Backend) *Manager {
-	return &Manager{
+	m := &Manager{
 		store:   store,
 		backend: backend,
 		locks:   locker.New(),
 		now:     time.Now,
 		validateCron: func(expr string) error {
-			if strings.TrimSpace(expr) == "" {
-				return errors.New("cron expression must not be empty")
-			}
-			return nil
+			_, err := parseCron(expr)
+			return err
 		},
 		queued:    make(map[string]*jobsv0.TriggerEvidence),
 		overrides: make(map[string]string),
 		timers:    make(map[string]*time.Timer),
 		notify:    make(map[string][]chan struct{}),
 	}
+	m.sched = newScheduler(m)
+	return m
+}
+
+// Start arms every registered schedule job and starts the scheduler loop.
+// Occurrences missed while the daemon was down — the persisted next-fire
+// time is in the past — follow each job's missed-fires policy: one fires a
+// single catch-up run, skip drops them; either way the schedule then re-arms
+// from the next occurrence, never replaying the backlog.
+func (m *Manager) Start(ctx context.Context) {
+	m.mu.Lock()
+	if m.started {
+		m.mu.Unlock()
+		return
+	}
+	m.started = true
+	m.mu.Unlock()
+
+	now := m.now()
+	for _, job := range m.store.Jobs() {
+		if triggerKind(job.Spec.Trigger) != jobsv0.TriggerKindSchedule || job.Paused {
+			continue
+		}
+		trigger := job.Spec.Trigger.Schedule
+		schedule, loc, err := parseScheduleTrigger(trigger)
+		if err != nil {
+			// Specs are validated at registration; only a store record from
+			// a buggy or newer daemon gets here. Leave the job disarmed
+			// rather than fail the whole startup.
+			log.G(ctx).WithError(err).WithFields(log.Fields{"job": job.ID}).Warn("leaving job with unparseable schedule disarmed")
+			// The record must not keep advertising an occurrence that will
+			// never fire.
+			m.persistNextFire(job.ID, 0)
+			continue
+		}
+		// A job loaded in the running state is a crash leftover awaiting
+		// run reconciliation, which the extension performs before Start in
+		// the startup sequence. Left to defense here: no catch-up (the
+		// orphaned run occupies the job anyway) and a zeroed next-fire so
+		// the record honors the "zero while running" contract; completion
+		// restores the armed occurrence.
+		stale := job.State == jobsv0.JobStateRunning
+		if missed := job.NextFireAtNano; !stale && missed > 0 && !time.Unix(0, missed).After(now) &&
+			(trigger.MissedFires == "" || trigger.MissedFires == jobsv0.MissedFiresOne) {
+			m.background.Go(func() { m.fireScheduled(ctx, job.ID, time.Unix(0, missed)) })
+		}
+		next, ok := schedule.next(now, loc)
+		if !ok {
+			m.persistNextFire(job.ID, 0)
+			continue
+		}
+		m.sched.arm(job.ID, schedule, loc, next)
+		if stale {
+			m.persistNextFire(job.ID, 0)
+		} else {
+			m.persistNextFire(job.ID, next.UnixNano())
+		}
+	}
+	m.background.Go(func() { m.sched.run(ctx) })
+}
+
+// parseScheduleTrigger resolves a validated schedule trigger into its parsed
+// expression and timezone (empty means UTC).
+func parseScheduleTrigger(trigger *jobsv0.ScheduleTrigger) (*cronSchedule, *time.Location, error) {
+	schedule, err := parseCron(trigger.Cron)
+	if err != nil {
+		return nil, nil, err
+	}
+	loc := time.UTC
+	if trigger.Timezone != "" {
+		if loc, err = time.LoadLocation(trigger.Timezone); err != nil {
+			return nil, nil, err
+		}
+	}
+	return schedule, loc, nil
 }
 
 // Shutdown waits for in-flight run watchers to finish recording their
@@ -128,6 +208,12 @@ func NewManager(store *Store, backend Backend) *Manager {
 // sync.WaitGroup forbids. When the context expires first, the internal
 // waiter goroutine lingers until the background work eventually drains.
 func (m *Manager) Shutdown(ctx context.Context) error {
+	m.mu.Lock()
+	if m.started && !m.stopped {
+		m.stopped = true
+		close(m.sched.stop)
+	}
+	m.mu.Unlock()
 	done := make(chan struct{})
 	go func() {
 		m.background.Wait()
@@ -158,6 +244,25 @@ func (m *Manager) Create(ctx context.Context, name string, spec *jobsv0.JobSpec)
 		return nil, false, err
 	}
 
+	// Registering a schedule job arms its trigger; the next occurrence is
+	// computed up front so the returned job already advertises it, and an
+	// expression with no future occurrence is rejected rather than silently
+	// registering a job that would never fire.
+	var (
+		schedule *cronSchedule
+		loc      *time.Location
+		next     time.Time
+	)
+	if spec.Trigger != nil && spec.Trigger.Schedule != nil {
+		if schedule, loc, err = parseScheduleTrigger(spec.Trigger.Schedule); err != nil {
+			return nil, false, errdefs.InvalidParameter(err) // unreachable after validateSpec, kept for defense
+		}
+		var ok bool
+		if next, ok = schedule.next(m.now(), loc); !ok {
+			return nil, false, errdefs.InvalidParameter(fmt.Errorf("cron expression %q has no future occurrence", spec.Trigger.Schedule.Cron))
+		}
+	}
+
 	job := &jobsv0.Job{
 		ID:            stringid.GenerateRandomID(),
 		Name:          name,
@@ -166,6 +271,9 @@ func (m *Manager) Create(ctx context.Context, name string, spec *jobsv0.JobSpec)
 		State:         jobsv0.JobStateIdle,
 		CreatedAtNano: m.now().UnixNano(),
 		UpdatedAtNano: m.now().UnixNano(),
+	}
+	if schedule != nil {
+		job.NextFireAtNano = next.UnixNano()
 	}
 	if err := m.store.CreateJob(job); err != nil {
 		// A name conflict is idempotent when the stored spec matches;
@@ -182,6 +290,9 @@ func (m *Manager) Create(ctx context.Context, name string, spec *jobsv0.JobSpec)
 			return nil, false, cerrdefs.ErrAlreadyExists.WithMessage(fmt.Sprintf("job name %s is already in use by a different spec (stored %s, submitted %s)", name, existing.SpecHash, hash))
 		}
 		return nil, false, err
+	}
+	if schedule != nil {
+		m.sched.arm(job.ID, schedule, loc, next)
 	}
 	return m.composeJob(job), true, nil
 }
