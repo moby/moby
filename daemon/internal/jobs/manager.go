@@ -32,7 +32,8 @@ type Backend interface {
 	ContainerRm(name string, config *backend.ContainerRmConfig) error
 	// ContainerWait with WaitConditionNotRunning resolves on the container's
 	// final exit, after its restart policy is exhausted, which is exactly a
-	// run's outcome.
+	// run's outcome. The returned channel delivers exactly one status; it
+	// must never be closed without delivering it.
 	ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan StateStatus, error)
 }
 
@@ -105,6 +106,11 @@ type Manager struct {
 	sched   *scheduler
 	started bool
 	stopped bool
+	// stop is closed by Shutdown so run watchers detach from containers
+	// that are not exiting — under live-restore the daemon shuts down while
+	// containers deliberately keep running, and waiting on them would stall
+	// (or, with an unbounded shutdown timeout, deadlock) the daemon's exit.
+	stop chan struct{}
 }
 
 // NewManager builds a manager on top of a loaded store, generating default
@@ -130,6 +136,7 @@ func NewManager(store *Store, backend Backend, generateName NameGenerator) *Mana
 		overrides: make(map[string]string),
 		timers:    make(map[string]*time.Timer),
 		notify:    make(map[string][]chan struct{}),
+		stop:      make(chan struct{}),
 	}
 	m.sched = newScheduler(m)
 	return m
@@ -216,9 +223,19 @@ func parseScheduleTrigger(trigger *jobsv0.ScheduleTrigger) (*cronSchedule, *time
 // waiter goroutine lingers until the background work eventually drains.
 func (m *Manager) Shutdown(ctx context.Context) error {
 	m.mu.Lock()
-	if m.started && !m.stopped {
+	if !m.stopped {
 		m.stopped = true
-		close(m.sched.stop)
+		close(m.stop)
+		if m.started {
+			close(m.sched.stop)
+		}
+		// Disarm run timeouts: a deadline landing in the shutdown window
+		// would stop a container that live-restore deliberately keeps
+		// running.
+		for runID, timer := range m.timers {
+			timer.Stop()
+			delete(m.timers, runID)
+		}
 	}
 	m.mu.Unlock()
 	done := make(chan struct{})
