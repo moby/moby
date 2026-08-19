@@ -910,19 +910,24 @@ func TestManagerInspectRunRefs(t *testing.T) {
 	assert.Check(t, cerrdefs.IsNotFound(err))
 }
 
-func TestManagerShutdownExpires(t *testing.T) {
-	m, fake := newTestManager(t)
+func TestManagerShutdownDetachesFromRunningContainers(t *testing.T) {
+	m, _ := newTestManager(t)
 	_, _, err := m.Create(t.Context(), "backup", manualSpec())
 	assert.NilError(t, err)
 	run, err := m.Run(t.Context(), "backup", false)
 	assert.NilError(t, err)
 
-	// A watcher still blocked on its container outlives the deadline.
-	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	// The container never exits — the live-restore shape, where the daemon
+	// shuts down while containers deliberately keep running. Shutdown must
+	// detach the watcher and return promptly instead of stalling until the
+	// context expires.
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
-	assert.Check(t, is.ErrorIs(m.Shutdown(ctx), context.DeadlineExceeded))
+	assert.NilError(t, m.Shutdown(ctx))
 
-	// Release the watcher so the cleanup drain succeeds.
-	fake.exit(run.ContainerID, 0, nil)
-	waitTerminal(t, m, "backup", run.ID)
+	// The run record is deliberately left in flight: the crash-leftover
+	// shape restart reconciliation resolves on the next startup.
+	kept, err := m.store.Run(run.JobID, run.ID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(kept.State, jobsv0.RunStateRunning))
 }

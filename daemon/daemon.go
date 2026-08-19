@@ -65,6 +65,7 @@ import (
 	dmetadata "github.com/moby/moby/v2/daemon/internal/distribution/metadata"
 	"github.com/moby/moby/v2/daemon/internal/idtools"
 	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/internal/jobs"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd"
 	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
@@ -130,6 +131,7 @@ type Daemon struct {
 	nri               *nri.NRI
 	pluginManager     *plugin.Manager
 	extensionHost     *host.Host
+	jobsExtension     *jobs.Extension
 	linkIndex         *linkIndex
 	containerdClient  *containerd.Client
 	containerd        libcontainerdtypes.Client
@@ -962,7 +964,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	// Build the host after installing the cleanup defer: this starts extension
 	// processes and must be covered if initialization fails.
-	d.extensionHost, err = newExtensionHost(ctx, config)
+	d.extensionHost, d.jobsExtension, err = setupExtensionHost(ctx, config)
 	if err != nil {
 		return nil, err
 	}
@@ -1397,6 +1399,14 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	// Wait for migration to complete
 	close(d.startupDone)
+
+	if d.jobsExtension != nil {
+		// The jobs extension drives containers through the daemon's own
+		// backend, so it only starts serving once restore has completed.
+		if err := d.jobsExtension.Activate(ctx, jobsBackend{d}); err != nil {
+			return nil, err
+		}
+	}
 
 	info, err := d.SystemInfo(ctx)
 	if err != nil {
