@@ -23,6 +23,14 @@ type ExecCreateOptions struct {
 	Env          []string    // Environment variables
 	WorkingDir   string      // Working directory
 	Cmd          []string    // Execution commands and args
+
+	// CaptureLogs tees the exec process's stdout and stderr into the
+	// container's logging driver, stamping each captured message with the
+	// exec's identity ("exec_id" and any Labels).
+	CaptureLogs bool
+
+	// Labels holds user-defined metadata for the exec instance.
+	Labels map[string]string
 }
 
 // ExecCreateResult holds the result of creating a container exec.
@@ -54,6 +62,8 @@ func (cli *Client) ExecCreate(ctx context.Context, containerID string, options E
 		Env:          options.Env,
 		WorkingDir:   options.WorkingDir,
 		Cmd:          options.Cmd,
+		CaptureLogs:  options.CaptureLogs,
+		Labels:       options.Labels,
 	}
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/exec", nil, req, nil)
@@ -172,6 +182,9 @@ type ExecInspectResult struct {
 	Running     bool
 	ExitCode    int
 	PID         int
+
+	// Labels holds the user-defined metadata declared at exec create time.
+	Labels map[string]string
 }
 
 // ExecInspect returns information about a specific exec process on the docker host.
@@ -199,5 +212,6 @@ func (cli *Client) ExecInspect(ctx context.Context, execID string, options ExecI
 		Running:     response.Running,
 		ExitCode:    ec,
 		PID:         response.Pid,
+		Labels:      response.Labels,
 	}, nil
 }
