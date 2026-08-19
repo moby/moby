@@ -17,7 +17,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	// Wrapper around gopkg.in/yaml.v3
+	// Wrapper around go.yaml.in/yaml/v3
 	"github.com/stretchr/testify/assert/yaml"
 	"github.com/stretchr/testify/internal/difflib"
 	"github.com/stretchr/testify/internal/spew"
