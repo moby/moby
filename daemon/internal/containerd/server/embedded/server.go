@@ -53,11 +53,18 @@ import (
 // See the package doc for the transport layout.
 // Plugins self-register via the blank imports above and in the platform-specific
 // files.
-func Start(ctx context.Context, rootDir, stateDir string) (Daemon, error) {
+func Start(ctx context.Context, rootDir, stateDir string) (*Daemon, error) {
 	setContainerdVersion()
 
 	address := defaultAddress(stateDir)
-	cfg := buildServerConfig(rootDir, stateDir, address)
+	cfg := &serverConfig{
+		root:               rootDir,
+		state:              filepath.Join(stateDir, "daemon"),
+		grpcAddress:        address,
+		ttrpcAddress:       address + ".ttrpc",
+		maxRecvMessageSize: defaults.DefaultMaxRecvMsgSize,
+		maxSendMessageSize: defaults.DefaultMaxSendMsgSize,
+	}
 
 	// Create the root and state directories with the permissions containerd
 	// expects (e.g. the state dir at 0o711 for userns-remapped containers),
@@ -91,7 +98,7 @@ func Start(ctx context.Context, rootDir, stateDir string) (Daemon, error) {
 	// dials during startup or reconnects.
 	inMemory := sockets.NewInmemSocket("embedded-containerd", 16)
 
-	e := &embeddedDaemon{
+	e := &Daemon{
 		srv:      srv,
 		address:  address,
 		inMemory: inMemory,
@@ -122,7 +129,7 @@ func Start(ctx context.Context, rootDir, stateDir string) (Daemon, error) {
 	// for the server to stop after ctx is already done.
 	go func() {
 		<-ctx.Done()
-		if err := e.Shutdown(context.WithoutCancel(ctx)); err != nil {
+		if err := e.shutdown(context.WithoutCancel(ctx)); err != nil {
 			log.G(ctx).WithError(err).Error("failed to shut down embedded containerd")
 		}
 	}()
@@ -151,18 +158,8 @@ func setContainerdVersion() {
 	}
 }
 
-func buildServerConfig(rootDir, stateDir, address string) *serverConfig {
-	return &serverConfig{
-		root:               rootDir,
-		state:              filepath.Join(stateDir, "daemon"),
-		grpcAddress:        address,
-		ttrpcAddress:       address + ".ttrpc",
-		maxRecvMessageSize: defaults.DefaultMaxRecvMsgSize,
-		maxSendMessageSize: defaults.DefaultMaxSendMsgSize,
-	}
-}
-
-type embeddedDaemon struct {
+// Daemon is an in-process containerd server.
+type Daemon struct {
 	srv      *containerdServer
 	address  string
 	inMemory *sockets.InmemSocket
@@ -171,17 +168,20 @@ type embeddedDaemon struct {
 	stopping atomic.Bool
 }
 
-func (e *embeddedDaemon) Address() string {
+// Address returns the containerd gRPC address (unix socket path, or named
+// pipe on Windows) external clients and tooling should dial.
+func (e *Daemon) Address() string {
 	return e.address
 }
 
 // Dial returns one end of an in-memory pipe connected to the gRPC server. The
 // addr argument is ignored, and only present to satisfy grpc.WithContextDialer.
-func (e *embeddedDaemon) Dial(ctx context.Context, addr string) (net.Conn, error) {
+func (e *Daemon) Dial(ctx context.Context, addr string) (net.Conn, error) {
 	return e.inMemory.DialContext(ctx, "inmem", addr)
 }
 
-func (e *embeddedDaemon) WaitTimeout(d time.Duration) error {
+// WaitTimeout waits up to d for the server to stop after shutdown.
+func (e *Daemon) WaitTimeout(d time.Duration) error {
 	timer := time.NewTimer(d)
 	defer timer.Stop()
 	select {
@@ -192,7 +192,8 @@ func (e *embeddedDaemon) WaitTimeout(d time.Duration) error {
 	}
 }
 
-func (e *embeddedDaemon) Shutdown(ctx context.Context) error {
+// shutdown gracefully stops the in-process server and waits for it to exit.
+func (e *Daemon) shutdown(ctx context.Context) error {
 	e.stopping.Store(true)
 	// Stop closes both RPC servers and their listeners.
 	e.srv.Stop()

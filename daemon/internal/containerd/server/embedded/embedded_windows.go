@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/Microsoft/go-winio"
+	"github.com/containerd/plugin"
 	"github.com/containerd/ttrpc"
 
 	// Windows-specific containerd plugin registrations. Cross-platform plugins
@@ -40,4 +41,8 @@ func listen(address string) (net.Listener, error) {
 
 func newTTRPCServer() (*ttrpc.Server, error) {
 	return ttrpc.NewServer()
+}
+
+func disableCgroupsPrometheus(registration plugin.Registration) any {
+	return registration.Config
 }
