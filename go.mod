@@ -59,7 +59,7 @@ require (
 	github.com/hashicorp/serf v0.10.4
 	github.com/in-toto/in-toto-golang v0.11.0
 	github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2
-	github.com/miekg/dns v1.1.72
+	github.com/miekg/dns v1.1.73
 	github.com/mistifyio/go-zfs/v4 v4.0.0
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/moby/buildkit v0.32.2
@@ -303,7 +303,6 @@ require (
 	golang.org/x/mod v0.40.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/term v0.45.0 // indirect
-	golang.org/x/tools v0.49.0 // indirect
 	google.golang.org/api v0.287.1 // indirect
 	google.golang.org/genproto v0.0.0-20260803160001-6ac0973c030d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
