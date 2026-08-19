@@ -210,6 +210,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		}
 
 		exitCode := 127
+		var execLabels map[string]string
 		if execConfig := c.ExecCommands.Get(ei.ProcessID); execConfig != nil {
 			ec := int(ei.ExitCode)
 			execConfig.Lock()
@@ -233,6 +234,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			}
 
 			exitCode = ec
+			execLabels = execConfig.Labels
 
 			// If the exec failed at start in such a way that containerd
 			// publishes an exit event for it, we will race processing the event
@@ -254,10 +256,10 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 				}()
 			}
 		}
-		daemon.LogContainerEventWithAttributes(c, events.ActionExecDie, map[string]string{
+		daemon.LogContainerEventWithAttributes(c, events.ActionExecDie, execEventAttributes(execLabels, map[string]string{
 			"execID":   ei.ProcessID,
 			"exitCode": strconv.Itoa(exitCode),
-		})
+		}))
 		return nil
 	case libcontainerdtypes.EventStart:
 		c.Lock()
