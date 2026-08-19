@@ -14,4 +14,16 @@ type ExecCreateRequest struct {
 	Env          []string // Environment variables
 	WorkingDir   string   // Working directory
 	Cmd          []string // Execution commands and args
+
+	// CaptureLogs tees the exec process's stdout and stderr into the
+	// container's logging driver. Captured messages carry the exec's
+	// identity ("exec_id" and any Labels) as per-message attributes, so log
+	// readers can tell exec output apart from the container's main process
+	// output.
+	CaptureLogs bool `json:",omitempty"`
+
+	// Labels holds user-defined metadata for the exec instance. Labels are
+	// reported by exec inspect, attached to the exec's lifecycle events,
+	// and stamped on captured log messages when CaptureLogs is set.
+	Labels map[string]string `json:",omitempty"`
 }
