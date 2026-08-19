@@ -159,15 +159,7 @@ func (entry *Entry) String() (string, error) {
 // WithError adds an error as single field (using the key defined in [ErrorKey])
 // to the Entry.
 func (entry *Entry) WithError(err error) *Entry {
-	// Avoid reflection work in WithFields; we know the type is an error;
-	// copy the entry data and set the ErrorKey directly.
-	dup := entry.dup()
-	dup.Data = maps.Clone(entry.Data)
-	if dup.Data == nil {
-		dup.Data = make(Fields, 1)
-	}
-	dup.Data[ErrorKey] = err
-	return dup
+	return entry.WithField(ErrorKey, err)
 }
 
 // WithContext adds a context to the Entry.
@@ -182,18 +174,7 @@ func (entry *Entry) WithContext(ctx context.Context) *Entry {
 func (entry *Entry) WithField(key string, value any) *Entry {
 	dup := entry.dup()
 	dup.Data = maps.Clone(entry.Data)
-	if isInvalidField(value) {
-		if dup.err != "" {
-			dup.err += ", skipping unsupported field " + strconv.Quote(key)
-		} else {
-			dup.err = "skipping unsupported field " + strconv.Quote(key)
-		}
-		return dup
-	}
-	if dup.Data == nil {
-		dup.Data = make(Fields, 1)
-	}
-	dup.Data[key] = value
+	dup.addField(key, value)
 	return dup
 }
 
@@ -204,25 +185,9 @@ func (entry *Entry) WithFields(fields Fields) *Entry {
 	maps.Copy(dup.Data, entry.Data)
 
 	for key, value := range fields {
-		if isInvalidField(value) {
-			if dup.err != "" {
-				dup.err += ", skipping unsupported field " + strconv.Quote(key)
-			} else {
-				dup.err = "skipping unsupported field " + strconv.Quote(key)
-			}
-		} else {
-			dup.Data[key] = value
-		}
+		dup.addField(key, value)
 	}
 	return dup
-}
-
-func isInvalidField(v any) bool {
-	t := reflect.TypeOf(v)
-	if t == nil {
-		return false
-	}
-	return t.Kind() == reflect.Func || t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Func
 }
 
 // WithTime overrides the time of the Entry.
@@ -231,6 +196,25 @@ func (entry *Entry) WithTime(t time.Time) *Entry {
 	dup.Data = maps.Clone(entry.Data)
 	dup.Time = t
 	return dup
+}
+
+func (entry *Entry) addField(key string, value any) {
+	if _, ok := value.(error); !ok {
+		t := reflect.TypeOf(value)
+		if t != nil && (t.Kind() == reflect.Func || t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Func) {
+			if entry.err != "" {
+				entry.err += ", skipping unsupported field " + strconv.Quote(key)
+			} else {
+				entry.err = "skipping unsupported field " + strconv.Quote(key)
+			}
+			return
+		}
+	}
+
+	if entry.Data == nil {
+		entry.Data = make(Fields, 1)
+	}
+	entry.Data[key] = value
 }
 
 // getPackageName reduces a fully qualified function name to the package name

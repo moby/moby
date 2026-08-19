@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"reflect"
 	"runtime"
 	"slices"
 	"strconv"
@@ -329,10 +330,10 @@ func (f *TextFormatter) appendValue(b *bytes.Buffer, value any) {
 		f.appendBytes(b, strconv.AppendBool(raw[:0], v))
 		return
 	case error:
-		f.appendString(b, v.Error())
+		f.appendError(b, v)
 		return
 	case fmt.Stringer:
-		f.appendString(b, v.String())
+		f.appendStringer(b, v)
 		return
 	}
 
@@ -415,6 +416,29 @@ func (f *TextFormatter) appendNumeric(b *bytes.Buffer, out []byte) {
 		return
 	}
 	b.Write(out)
+}
+
+func (f *TextFormatter) appendError(b *bytes.Buffer, v error) {
+	defer f.recoverValue(b, v, "Error")
+
+	f.appendString(b, v.Error())
+}
+
+func (f *TextFormatter) appendStringer(b *bytes.Buffer, v fmt.Stringer) {
+	defer f.recoverValue(b, v, "String")
+
+	f.appendString(b, v.String())
+}
+
+func (f *TextFormatter) recoverValue(b *bytes.Buffer, v any, method string) {
+	if r := recover(); r != nil {
+		rv := reflect.ValueOf(v)
+		if rv.Kind() == reflect.Pointer && rv.IsNil() {
+			f.appendString(b, "<nil>")
+		} else {
+			f.appendString(b, fmt.Sprintf("%%!v(PANIC=%s method: %v)", method, r))
+		}
+	}
 }
 
 // needsQuoting returns true if the string contains any byte that
