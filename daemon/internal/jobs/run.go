@@ -164,7 +164,26 @@ func (m *Manager) watch(ctx context.Context, job *jobsv0.Job, run *jobsv0.Run) {
 		m.completeRunLocked(ctx, job, run, terminalOutcome{state: jobsv0.RunStateFailed, errMsg: "waiting on run container: " + err.Error()})
 		return
 	}
-	status := <-waitC
+	var status StateStatus
+	select {
+	case delivered, ok := <-waitC:
+		if !ok {
+			// The Backend contract forbids closing without a status; treat
+			// a violation as a failed observation rather than panicking on
+			// a nil interface.
+			m.locks.Lock(job.ID)
+			defer m.locks.Unlock(job.ID)
+			m.completeRunLocked(ctx, job, run, terminalOutcome{state: jobsv0.RunStateFailed, errMsg: "waiting on run container: wait channel closed without a status"})
+			return
+		}
+		status = delivered
+	case <-m.stop:
+		// The manager is shutting down while the container keeps running
+		// (live-restore): detach without recording. The run stays in
+		// flight on disk, the exact shape restart reconciliation resolves
+		// from the container's actual state on the next startup.
+		return
+	}
 
 	m.locks.Lock(job.ID)
 	defer m.locks.Unlock(job.ID)
