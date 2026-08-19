@@ -11,17 +11,26 @@ import (
 	"github.com/moby/extensions/host"
 	"github.com/moby/extensions/serverpoint"
 	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/internal/jobs"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	servicegrpcv0 "github.com/moby/moby/v2/extpoints/servicegrpc/v0"
 	"github.com/moby/moby/v2/pkg/homedir"
 	"google.golang.org/grpc"
 )
 
-// newExtensionHost builds the daemon's extension host.
-func newExtensionHost(ctx context.Context, cfg *config.Config) (*host.Host, error) {
-	return host.New(ctx,
+// setupExtensionHost builds the daemon's extension host. The jobs extension
+// is returned alongside it: unlike other builtins it needs the daemon's
+// container backend, which is not usable until container restore completes,
+// so the daemon activates it explicitly later in startup.
+func setupExtensionHost(ctx context.Context, cfg *config.Config) (*host.Host, *jobs.Extension, error) {
+	exts := builtinExtensions(cfg)
+	jobsExt := jobsExtension(cfg)
+	if jobsExt != nil {
+		exts = append(exts, jobsExt)
+	}
+	h, err := host.New(ctx,
 		host.WithRuntimeDir(filepath.Join(cfg.ExecRoot, "extensions")),
-		host.WithExtensions(builtinExtensions(cfg)...),
+		host.WithExtensions(exts...),
 		host.WithDirs(extensionDirs(cfg)...),
 		host.WithClientProviders(clientProviders()...),
 		host.WithProviderPolicy(host.PointPolicyFunc(func(extensions.ExtensionIdentity, extensions.PointID) host.PointPolicyResult {
@@ -30,6 +39,10 @@ func newExtensionHost(ctx context.Context, cfg *config.Config) (*host.Host, erro
 		host.WithDependencyProviders(dependencyProviders()...),
 		host.WithExtensionConfig(extensionConfig(cfg)),
 	)
+	if err != nil {
+		return nil, nil, err
+	}
+	return h, jobsExt, nil
 }
 
 // dependencyProviders lists points that launched extensions may call back into.
