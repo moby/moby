@@ -11,15 +11,15 @@ import (
 
 	"github.com/Microsoft/go-winio"
 	"github.com/Microsoft/hcsshim/internal/hcserror"
-	"github.com/Microsoft/hcsshim/internal/oc"
+	"github.com/Microsoft/hcsshim/internal/ot"
 	"github.com/Microsoft/hcsshim/internal/safefile"
 	"github.com/Microsoft/hcsshim/internal/winapi"
-	"go.opencensus.io/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type baseLayerWriter struct {
 	ctx context.Context
-	s   *trace.Span
+	s   trace.Span
 
 	root         *os.File
 	f            *os.File
@@ -145,7 +145,7 @@ func (w *baseLayerWriter) Write(b []byte) (int, error) {
 
 func (w *baseLayerWriter) Close() (err error) {
 	defer w.s.End()
-	defer func() { oc.SetSpanStatus(w.s, err) }()
+	defer func() { ot.SetSpanStatus(w.s, err) }()
 	defer func() {
 		w.root.Close()
 		w.root = nil
