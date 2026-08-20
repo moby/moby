@@ -602,7 +602,7 @@ github.com/containerd/nydus-snapshotter/pkg/label
 ## explicit; go 1.21
 github.com/containerd/otelttrpc
 github.com/containerd/otelttrpc/internal
-# github.com/containerd/platforms v1.0.0-rc.4
+# github.com/containerd/platforms v1.0.0-rc.5
 ## explicit; go 1.24
 github.com/containerd/platforms
 # github.com/containerd/plugin v1.1.0
