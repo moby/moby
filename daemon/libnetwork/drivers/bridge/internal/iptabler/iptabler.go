@@ -148,19 +148,15 @@ func reloadIPChains(ctx context.Context, version iptables.IPVersion, cfg firewal
 	}
 }
 
-func setupIPChains(ctx context.Context, version iptables.IPVersion, iptCfg firewaller.Config) (retErr error) {
+func setupIPChains(ctx context.Context, version iptables.IPVersion, iptCfg firewaller.Config) error {
 	iptable := iptables.GetIptable(version)
 
-	// On failure, tear down any chains created so far. removeIPChains uses the
-	// native iptables binary (bypassing firewalld's passthrough interface), so
-	// no cleanup commands are stored for future replay — avoiding the cascade
-	// where replayed deletes remove chains just created by a later setup call.
-	defer func() {
-		if retErr != nil {
-			removeIPChains(ctx, version)
-		}
-	}()
-
+	// Note: no deferred cleanup on failure here. When called from
+	// reloadIPChains, cleanup is handled by the removeIPChains call at the
+	// start of each retry attempt. Cleaning up inside setupIPChains would
+	// remove all Docker chains if every retry fails, leaving the system with
+	// no chains at all — worse than a partial setup, which at least allows
+	// network creation to succeed.
 	_, err := iptable.NewChain(dockerChain, iptables.Nat)
 	if err != nil {
 		return fmt.Errorf("failed to create NAT chain %s: %v", dockerChain, err)
