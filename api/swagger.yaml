@@ -19,10 +19,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.55"
+basePath: "/v1.56"
 info:
   title: "Docker Engine API"
-  version: "1.55"
+  version: "1.56"
   x-logo:
     url: "https://docs.docker.com/assets/images/logo-docker-main.png"
   description: |
@@ -56,7 +56,7 @@ info:
     is returned.
 
     If you omit the version-prefix, the current version of the API is used.
-    For example, calling `/info` is the same as calling `/v1.55/info`. Using the
+    For example, calling `/info` is the same as calling `/v1.56/info`. Using the
     API without a version-prefix is deprecated and will be removed in a future release.
 
     Engine releases in the near future should support this version of the API,
@@ -11180,6 +11180,15 @@ paths:
               AttachStderr:
                 type: "boolean"
                 description: "Attach to `stderr` of the exec command."
+              CaptureLogs:
+                type: "boolean"
+                default: false
+                description: |
+                  Tee the exec process's `stdout` and `stderr` into the
+                  container's logging driver. Captured messages carry the
+                  exec's identity (`exec_id` and any `Labels`) as per-message
+                  attributes, surfaced by the log endpoints when `details`
+                  is requested.
               ConsoleSize:
                 type: "array"
                 description: "Initial console size, as an `[height, width]` array."
@@ -11209,6 +11218,15 @@ paths:
                 type: "array"
                 description: "Command to run, as a string or array of strings."
                 items:
+                  type: "string"
+              Labels:
+                type: "object"
+                description: |
+                  User-defined key/value metadata for the exec instance.
+                  Reported by exec inspect, attached to the exec's lifecycle
+                  events, and stamped on captured log messages when
+                  `CaptureLogs` is enabled.
+                additionalProperties:
                   type: "string"
               Privileged:
                 type: "boolean"
@@ -11373,6 +11391,13 @@ paths:
               Pid:
                 type: "integer"
                 description: "The system process ID for the exec process."
+              Labels:
+                type: "object"
+                description: |
+                  User-defined key/value metadata declared at exec create
+                  time.
+                additionalProperties:
+                  type: "string"
           examples:
             application/json:
               CanRemove: false
