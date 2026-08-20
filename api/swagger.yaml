@@ -1942,7 +1942,18 @@ definitions:
         x-nullable: true
       Size:
         description: |
-          Total size of the image including all layers it is composed of.
+          Total size of the image variant, including all layers it is composed of.
+
+          For multi-platform images, this is the size of the platform variant
+          selected by the `platform` query parameter. If no platform is specified,
+          the daemon selects a platform as described in the `platform` parameter.
+
+          When using the containerd image store, this includes both the image content
+          that's present locally and the unpacked snapshot data for the selected
+          variant.
+
+          Image data may be shared between images, so this size does not indicate
+          how much space would be reclaimed by deleting the image.
         type: "integer"
         format: "int64"
         x-nullable: false

@@ -6,10 +6,12 @@ import (
 	"testing"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/log/logtest"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
+	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -87,20 +89,55 @@ func TestImageInspect(t *testing.T) {
 		assert.Check(t, is.Len(inspect.RootFS.Layers, len(mfst.Layers)))
 	})
 
-	t.Run("inspect image with platform parameter", func(t *testing.T) {
+	t.Run("inspect image size by platform", func(t *testing.T) {
 		ctx := logtest.WithT(ctx, t)
 		service := fakeImageService(t, ctx, cs)
 
-		multiPlatformImage := toContainerdImage(t, func(dir string) (*ocispec.Index, error) {
-			idx, _, err := specialimage.MultiPlatform(dir, "multiplatform:latest", []ocispec.Platform{
-				{OS: "linux", Architecture: "amd64"},
-				{OS: "linux", Architecture: "arm64"},
-			})
-			return idx, err
+		idx, manifestDescs, err := specialimage.MultiPlatform(blobsDir, "multiplatform:latest", []ocispec.Platform{
+			{OS: "linux", Architecture: "amd64"},
+			{OS: "linux", Architecture: "arm64"},
 		})
-
-		_, err := service.images.Create(ctx, multiPlatformImage)
 		assert.NilError(t, err)
+		multiPlatformImage := imagesFromIndex(idx)[0]
+
+		_, err = service.images.Create(ctx, multiPlatformImage)
+		assert.NilError(t, err)
+
+		snapshotSizeByArch := map[string]int64{
+			"amd64": 10_000_000,
+			"arm64": 20_000_000,
+		}
+		snapshotter, ok := service.snapshotterServices[service.snapshotter].(*testSnapshotterService)
+		assert.Assert(t, ok)
+		snapshotter.usageByKey = make(map[string]snapshots.Usage, len(manifestDescs))
+		for _, desc := range manifestDescs {
+			assert.Assert(t, desc.Platform != nil)
+			platformImage, err := service.NewImageManifest(ctx, multiPlatformImage, desc)
+			assert.NilError(t, err)
+			diffIDs, err := platformImage.RootFS(ctx)
+			assert.NilError(t, err)
+			snapshotter.usageByKey[identity.ChainID(diffIDs).String()] = snapshots.Usage{
+				Size: snapshotSizeByArch[desc.Platform.Architecture],
+			}
+		}
+
+		inspectAll, err := service.ImageInspect(ctx, multiPlatformImage.Name, imagebackend.ImageInspectOpts{Manifests: true})
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(inspectAll.Manifests, 2))
+
+		totalSizeByArch := make(map[string]int64, len(inspectAll.Manifests))
+		for _, manifest := range inspectAll.Manifests {
+			assert.Assert(t, manifest.ImageData != nil)
+			arch := manifest.ImageData.Platform.Architecture
+			snapshotSize, ok := snapshotSizeByArch[arch]
+			assert.Assert(t, ok)
+			assert.Equal(t, manifest.ImageData.Size.Unpacked, snapshotSize)
+			assert.Equal(t, manifest.Size.Total, manifest.Size.Content+snapshotSize)
+			totalSizeByArch[arch] = manifest.Size.Total
+		}
+		selectedSize, ok := totalSizeByArch[inspectAll.Architecture]
+		assert.Assert(t, ok)
+		assert.Equal(t, inspectAll.Size, selectedSize)
 
 		// Test with amd64 platform
 		amd64Platform := &ocispec.Platform{OS: "linux", Architecture: "amd64"}
@@ -110,6 +147,7 @@ func TestImageInspect(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Equal(t, inspectAmd64.Architecture, "amd64")
 		assert.Equal(t, inspectAmd64.Os, "linux")
+		assert.Equal(t, inspectAmd64.Size, totalSizeByArch["amd64"])
 
 		// Test with arm64 platform
 		arm64Platform := &ocispec.Platform{OS: "linux", Architecture: "arm64"}
@@ -119,5 +157,6 @@ func TestImageInspect(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Equal(t, inspectArm64.Architecture, "arm64")
 		assert.Equal(t, inspectArm64.Os, "linux")
+		assert.Equal(t, inspectArm64.Size, totalSizeByArch["arm64"])
 	})
 }
