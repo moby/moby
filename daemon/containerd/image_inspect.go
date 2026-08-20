@@ -47,14 +47,24 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 	}
 
 	platform := i.matchRequestedOrDefault(platforms.OnlyStrict, requestedPlatform)
+
+	multi, err := i.multiPlatformSummary(ctx, c8dImg, platform)
+	if err != nil {
+		return nil, err
+	}
+
 	size, err := i.size(ctx, target, platform)
 	if err != nil {
 		return nil, err
 	}
 
-	multi, err := i.multiPlatformSummary(ctx, c8dImg, platform)
-	if err != nil {
-		return nil, err
+	if multi.Best != nil {
+		snapshotUsage, err := multi.Best.SnapshotUsage(ctx, i.snapshotterService(i.snapshotter))
+		if err != nil {
+			log.G(ctx).WithFields(log.Fields{"image": c8dImg.Name, "error": err}).Warn("failed to calculate unpacked size for image inspect")
+		} else {
+			size += snapshotUsage.Size
+		}
 	}
 
 	if multi.Best == nil && requestedPlatform != nil {
