@@ -13,6 +13,8 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.56 API changes
+
 ## v1.55 API changes
 
 * `GET /images/{name}/attestations` is a new endpoint that returns the in-toto
