@@ -19,10 +19,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.55"
+basePath: "/v1.56"
 info:
   title: "Docker Engine API"
-  version: "1.55"
+  version: "1.56"
   x-logo:
     url: "https://docs.docker.com/assets/images/logo-docker-main.png"
   description: |
@@ -56,7 +56,7 @@ info:
     is returned.
 
     If you omit the version-prefix, the current version of the API is used.
-    For example, calling `/info` is the same as calling `/v1.55/info`. Using the
+    For example, calling `/info` is the same as calling `/v1.56/info`. Using the
     API without a version-prefix is deprecated and will be removed in a future release.
 
     Engine releases in the near future should support this version of the API,
@@ -463,6 +463,45 @@ definitions:
             description: "Raise an error if the mount cannot be made recursively read-only."
             type: "boolean"
             default: false
+          IDMapping:
+            description: |
+              Make the mount an id-mapped mount: file ownership within the
+              mount is translated according to the mapping selected by
+              `Source`, without changing ownership on the backing
+              filesystem.
+
+              Requires API v1.56 or newer, a Linux daemon running rootful, a
+              kernel with `MOUNT_ATTR_IDMAP` support for the backing
+              filesystem (5.12 or newer for most filesystems), and an OCI
+              runtime with id-mapped mount support (runc 1.2 or newer).
+            type: "object"
+            x-nullable: true
+            properties:
+              Source:
+                description: |
+                  Selects how the mapping is derived:
+
+                  - `match-user`: the owner of the mount's source appears,
+                    inside the container, as the container user — the user
+                    configured in `User` when set, or the container's
+                    running user otherwise. Files created through the mount
+                    by that container user are owned by the source's owner
+                    on the backing filesystem.
+                  - `userns`: the mount follows the mapping of the
+                    container's private user namespace, which requires the
+                    container to run in one (e.g. userns-remap).
+                type: "string"
+                enum:
+                  - "match-user"
+                  - "userns"
+              User:
+                description: |
+                  The container user (name, UID, or UID:GID, as accepted
+                  for running a container) the mount source's owner is
+                  presented as when `Source` is `match-user`. When empty,
+                  the container's running user is used. Must be empty for
+                  other sources.
+                type: "string"
       VolumeOptions:
         description: "Optional configuration for the `volume` type."
         type: "object"
