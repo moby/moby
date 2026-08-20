@@ -167,7 +167,10 @@ func (d *driver) removeEncryption(remoteIP netip.Addr) error {
 	defer d.encrMu.Unlock()
 
 	var spi []spi
-	node := d.secMap[remoteIP]
+	node, ok := d.secMap[remoteIP]
+	if !ok {
+		return nil
+	}
 	if node.count == 1 {
 		delete(d.secMap, remoteIP)
 		spi = node.spi
