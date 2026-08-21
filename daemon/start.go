@@ -47,6 +47,12 @@ func validateState(ctr *container.Container) error {
 
 // ContainerStart starts a container.
 func (daemon *Daemon) ContainerStart(ctx context.Context, name string, checkpoint string, checkpointDir string) error {
+	if checkpoint != "" {
+		if err := validateCheckpointID(checkpoint); err != nil {
+			return err
+		}
+	}
+
 	daemonCfg := daemon.config()
 	if checkpoint != "" && !daemonCfg.Experimental {
 		return errdefs.InvalidParameter(errors.New("checkpoint is only supported in experimental mode"))
@@ -84,6 +90,11 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		span.End()
 	}()
 
+	if checkpointDir != "" {
+		// TODO(mlaventure): how would we support that?
+		return errdefs.Forbidden(errors.New("custom checkpointdir is not supported"))
+	}
+
 	start := time.Now()
 	container.Lock()
 	defer container.Unlock()
@@ -94,11 +105,6 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 
 	if container.State.RemovalInProgress || container.State.Dead {
 		return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
-	}
-
-	if checkpointDir != "" {
-		// TODO(mlaventure): how would we support that?
-		return errdefs.Forbidden(errors.New("custom checkpointdir is not supported"))
 	}
 
 	// if we encounter an error during start we need to ensure that any other
