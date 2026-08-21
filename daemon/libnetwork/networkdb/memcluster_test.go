@@ -135,15 +135,36 @@ func newMemCluster(t TestingT, num int, namePrefix string, conf *Config) *memClu
 		localConfig.BindPort = int(addr.Port())
 
 		db := launchNode(t, localConfig)
-		if i != 0 {
-			prev := c.dbs[i-1]
-			assert.Check(t, db.Join([]string{net.JoinHostPort(prev.config.AdvertiseAddr, strconv.Itoa(prev.config.BindPort))}))
+		if len(c.dbs) > 0 {
+			// Seed the newcomer with every node already up, not just the
+			// previous one. Join push/pulls with each seed synchronously, so
+			// all of them learn the newcomer before Join returns and the
+			// cluster is fully formed without the clock advancing at all.
+			//
+			// Chain-joining left the newcomer known only to its one seed, and
+			// its spread to everyone else rode memberlist's alive broadcast:
+			// a one-shot epidemic whose budget is
+			// RetransmitMult*ceil(log10(N+1)) transmissions, spent one per
+			// recipient, so gossiping to GossipNodes peers costs that many at
+			// once. At N=9 the budget is 4 against 8 peers -- the worst ratio
+			// in the range these tests use, since the ceil(log10) step to 8
+			// lands at N=10 -- and roughly 10% of formations lost the race and
+			// fell back to memberlist's push/pull anti-entropy: one random
+			// peer per node per 30s, several rounds to spread from a single
+			// origin, 15-60s of virtual time. That tail sat right on
+			// formationTimeout, so about 1 run in 171 timed out here.
+			seeds := make([]string, 0, len(c.dbs))
+			for _, prev := range c.dbs {
+				seeds = append(seeds, net.JoinHostPort(prev.config.AdvertiseAddr, strconv.Itoa(prev.config.BindPort)))
+			}
+			assert.Check(t, db.Join(seeds))
 		}
 		c.dbs = append(c.dbs, db)
 	}
 
-	// Chain-joining tells each node about one peer; wait for gossip to give
-	// every node all of them before handing the cluster over.
+	// Formation is synchronous now, so this should pass on its first look. It
+	// stays as a guard: if a future change makes membership depend on gossip
+	// again, this reports it here rather than as a puzzling failure later.
 	incomplete := func(db *NetworkDB) bool { return len(db.ClusterPeers()) != len(c.dbs) }
 	start := time.Now()
 	for {
