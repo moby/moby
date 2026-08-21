@@ -15,7 +15,6 @@ import (
 
 	"github.com/containerd/log"
 	"github.com/hashicorp/memberlist"
-	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"gotest.tools/v3/assert"
 )
 
@@ -115,7 +114,12 @@ func newMemCluster(t TestingT, num int, namePrefix string, conf *Config) *memClu
 
 		localConfig := *conf
 		localConfig.Hostname = fmt.Sprintf("%s%d", namePrefix, i+1)
-		localConfig.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
+		// Derived from the index, not stringid.GenerateRandomID, which reads
+		// crypto/rand: identical clusters across runs make a failure dump
+		// diffable against the next run's, and stop node identity from being
+		// one more thing a replay cannot reproduce. Twelve characters, matching
+		// what TruncateID would have produced, and never all-digits.
+		localConfig.NodeID = fmt.Sprintf("node%08d", i+1)
 		localConfig.transport = tr
 		localConfig.BindAddr = addr.Addr().String()
 		localConfig.AdvertiseAddr = localConfig.BindAddr
