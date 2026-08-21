@@ -875,13 +875,15 @@ func migrateHostGatewayIP(config *Config) {
 	}
 }
 
-// Sanitize sanitizes the config for printing. It is currently limited to
-// masking usernames and passwords from Proxy URLs.
+// Sanitize sanitizes the config for printing.
+// It masks usernames and passwords from Proxy URLs.
+// It omits extension configuration.
 func Sanitize(cfg Config) Config {
 	cfg.CommonConfig.Proxies = Proxies{
 		HTTPProxy:  MaskCredentials(cfg.HTTPProxy),
 		HTTPSProxy: MaskCredentials(cfg.HTTPSProxy),
 		NoProxy:    MaskCredentials(cfg.NoProxy),
 	}
+	cfg.CommonConfig.ExtensionConfig = nil
 	return cfg
 }
