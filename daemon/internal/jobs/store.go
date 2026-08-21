@@ -164,12 +164,12 @@ func (s *Store) loadJobDir(ctx context.Context, id string) {
 	for _, entry := range runEntries {
 		data, err := os.ReadFile(filepath.Join(s.runsDir(id), entry.Name()))
 		if err != nil {
-			logger.WithFields(log.Fields{"error": err, "run": entry.Name()}).Warn("skipping unreadable run record")
+			logger.WithError(err).WithFields(log.Fields{"run": entry.Name()}).Warn("skipping unreadable run record")
 			continue
 		}
 		var record runRecord
 		if err := json.Unmarshal(data, &record); err != nil {
-			logger.WithFields(log.Fields{"error": err, "run": entry.Name()}).Warn("skipping undecodable run record")
+			logger.WithError(err).WithFields(log.Fields{"run": entry.Name()}).Warn("skipping undecodable run record")
 			continue
 		}
 		if record.SchemaVersion > storeSchemaVersion {

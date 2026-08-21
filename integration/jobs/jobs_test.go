@@ -99,6 +99,42 @@ func TestJobsSurviveDaemonRestart(t *testing.T) {
 	assert.Check(t, is.Equal(inspected.Job.ID, created.Job.ID))
 }
 
+// TestJobsReconcileAfterUncleanShutdown kills the daemon under an in-flight
+// run and verifies reconciliation resolves it after restart: the run is
+// either re-attached (container survived — then cancellable like any run)
+// or recorded terminal from the container's actual fate; either way it ends
+// terminal and the job returns to idle instead of being stuck running.
+func TestJobsReconcileAfterUncleanShutdown(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot start a local daemon on a remote host")
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "the jobs extension test image is linux-only")
+	ctx := testutil.StartSpan(baseContext, t)
+
+	d, jobs := startJobsDaemon(ctx, t, "--feature", "jobs")
+
+	spec := &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox","Cmd":["sleep","300"]}`)}
+	started, err := jobs.CreateAndRun(ctx, &jobsv0.CreateAndRunRequest{Name: "sleeper", Spec: spec})
+	assert.NilError(t, err)
+
+	assert.NilError(t, d.Kill())
+	d.Start(t, "--feature", "jobs", "--iptables=false", "--ip6tables=false")
+
+	inspected, err := jobs.InspectRun(ctx, &jobsv0.InspectRunRequest{JobRef: "sleeper", RunRef: started.Run.ID})
+	assert.NilError(t, err)
+	if inspected.Run.State == jobsv0.RunStateRunning {
+		// Re-attached to the surviving container: cancel to finish the test
+		// without waiting out the sleep.
+		_, err := jobs.Cancel(ctx, &jobsv0.CancelRequest{JobRef: "sleeper"})
+		assert.NilError(t, err)
+	}
+	waited, err := jobs.Wait(ctx, &jobsv0.WaitRequest{JobRef: "sleeper", RunRef: started.Run.ID})
+	assert.NilError(t, err)
+	assert.Check(t, is.Contains([]string{jobsv0.RunStateCancelled, jobsv0.RunStateFailed}, waited.Run.State))
+
+	job, err := jobs.Inspect(ctx, &jobsv0.InspectRequest{JobRef: "sleeper"})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(job.Job.State, jobsv0.JobStateIdle))
+}
+
 // TestJobsFeatureDisabled proves the gate: without the feature, the daemon
 // does not expose the Jobs service at all.
 func TestJobsFeatureDisabled(t *testing.T) {
