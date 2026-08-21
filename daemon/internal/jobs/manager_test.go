@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -145,6 +146,14 @@ func (b *fakeBackend) createCount() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return len(b.containers)
+}
+
+// stoppedContainers returns a copy of the stop log, for assertions that are
+// not ordered after the stop by a happens-before chain.
+func (b *fakeBackend) stoppedContainers() []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return slices.Clone(b.stopped)
 }
 
 func newTestManager(t *testing.T) (*Manager, *fakeBackend) {

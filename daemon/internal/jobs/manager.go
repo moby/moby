@@ -108,13 +108,9 @@ type Manager struct {
 	stop chan struct{}
 }
 
-// NewManager builds a manager on top of a loaded store.
-//
-// It does not reconcile runs orphaned by a daemon crash: a job reloaded in
-// the running state with a non-terminal run and no watcher stays stuck until
-// the restart-reconciliation step (which re-attaches watchers or fails the
-// run from the container's actual state) runs it. Wiring that up is the
-// extension's startup responsibility, alongside Shutdown on the way down.
+// NewManager builds a manager on top of a loaded store. The constructor
+// does not reconcile runs orphaned by an unclean stop — callers run Restore
+// before Start, as the extension's activation does.
 func NewManager(store *Store, backend Backend) *Manager {
 	m := &Manager{
 		store:   store,

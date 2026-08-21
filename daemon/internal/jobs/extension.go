@@ -65,6 +65,10 @@ func (e *Extension) Activate(ctx context.Context, backend Backend) error {
 		return fmt.Errorf("activating the jobs extension: %w", err)
 	}
 	manager := NewManager(store, backend)
+	// Order matters: reconciliation resolves runs orphaned by an unclean
+	// stop from the containers' actual state, so triggers re-arm from a
+	// truthful picture.
+	manager.Restore(ctx)
 	manager.Start(ctx)
 	e.manager = manager
 	return nil
