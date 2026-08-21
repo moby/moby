@@ -921,23 +921,39 @@ func TestMaskURLCredentials(t *testing.T) {
 
 func TestSanitize(t *testing.T) {
 	const (
-		userPass    = "myuser:mypassword@"
-		proxyRawURL = "https://" + userPass + "example.org"
-		proxyURL    = "https://xxxxx:xxxxx@example.org"
+		userPass        = "myuser:mypassword@"
+		proxyRawURL     = "https://" + userPass + "example.org"
+		proxyURL        = "https://xxxxx:xxxxx@example.org"
+		extensionID     = "org.example.test"
+		extensionSecret = "unique-extension-secret"
 	)
-	sanitizedCfg := Sanitize(Config{
+	cfg := Config{
 		CommonConfig: CommonConfig{
 			Proxies: Proxies{
 				HTTPProxy:  proxyRawURL,
 				HTTPSProxy: proxyRawURL,
 				NoProxy:    proxyRawURL,
 			},
+			ExtensionConfig: map[string]map[string]any{
+				extensionID: {
+					"secret": extensionSecret,
+				},
+			},
 		},
-	})
+	}
+	sanitizedCfg := Sanitize(cfg)
 	expectedProxies := Proxies{
 		HTTPProxy:  proxyURL,
 		HTTPSProxy: proxyURL,
 		NoProxy:    proxyURL,
 	}
 	assert.Check(t, is.DeepEqual(sanitizedCfg.Proxies, expectedProxies))
+
+	sanitizedJSON, err := json.Marshal(sanitizedCfg)
+	assert.NilError(t, err)
+	assert.Assert(t, !strings.Contains(string(sanitizedJSON), extensionSecret))
+	assert.Assert(t, !strings.Contains(string(sanitizedJSON), `"extension-config"`))
+	assert.Check(t, is.DeepEqual(cfg.ExtensionConfig[extensionID], map[string]any{
+		"secret": extensionSecret,
+	}))
 }
