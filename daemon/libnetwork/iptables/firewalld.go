@@ -47,7 +47,7 @@ var (
 // UsingFirewalld returns true if iptables rules will be applied via firewalld's
 // passthrough interface.
 func UsingFirewalld() bool {
-	_ = initCheck()
+	firewalldOnce.Do(initFirewalld)
 	return firewalldRunning
 }
 
