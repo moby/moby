@@ -1,0 +1,19 @@
+table ip docker-overlay {
+	set encrypted-vnis {
+		typeof @th,96,24
+		elements = { 0x1000 }
+	}
+
+	chain enc-in {
+		type filter hook input priority raw; policy accept;
+		meta ipsec missing udp dport 4789 @th,96,24 @encrypted-vnis counter packets 0 bytes 0 drop
+	}
+
+	chain enc-out {
+		type route hook output priority mangle; policy accept;
+		udp dport 4789 meta skuid 0-4294967294 counter packets 0 bytes 0 goto {
+			meta mark 0x00d0c4e3 counter packets 0 bytes 0 meta mark set 0x00000000
+		}
+		udp dport 4789 @th,96,24 @encrypted-vnis counter packets 0 bytes 0 meta mark set 0x00d0c4e3
+	}
+}
