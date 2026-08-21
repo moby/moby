@@ -166,6 +166,11 @@ func (n *NRI) PrepareReload(nriCfg opts.NRIOpts) (func() error, error) {
 // No lock is acquired on ctr, CreateContainer the caller must ensure it cannot be
 // accessed from other threads.
 func (n *NRI) CreateContainer(ctx context.Context, ctr *container.Container) error {
+	// Block plugin registration until this container has been offered to the plugins.
+	// This must be taken before n.mu because registration takes the two locks in that order.
+	unblockPluginSync := n.blockPluginSync()
+	defer unblockPluginSync()
+
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	if n.adap == nil {
@@ -199,6 +204,18 @@ func (n *NRI) CreateContainer(ctx context.Context, ctr *container.Container) err
 		return err
 	}
 	return nil
+}
+
+// blockPluginSync stops NRI plugin registration until the returned function is called.
+// It must be called before n.mu because registration takes the two locks in that order.
+func (n *NRI) blockPluginSync() func() {
+	n.mu.RLock()
+	adap := n.adap
+	n.mu.RUnlock()
+	if adap == nil {
+		return func() {}
+	}
+	return adap.BlockPluginSync().Unblock
 }
 
 // syncFn is called when a plugin registers, allowing the plugin to learn the
