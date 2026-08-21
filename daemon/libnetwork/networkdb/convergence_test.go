@@ -913,3 +913,113 @@ func (g *churnGenerator) step() {
 	}
 	g.joined = !g.joined
 }
+
+// TestNetworkDBBulkSyncCarriesAttachments pins the invariant that a bulk sync
+// carries the network attachments its table entries are predicated on, and
+// carries them first.
+//
+// handleTableEvent rejects an entry from a node it does not record as
+// participating in the network, and that record is otherwise disseminated only
+// by a one-shot NetworkEvent broadcast with a bounded retransmit budget. A node
+// which misses that broadcast rejects the owner's entries indefinitely --
+// including the ones every bulk sync hands it -- unless the sync repairs the
+// membership too.
+//
+// Driving exactly one bulkSyncNode is what makes this a test of ordering rather
+// than merely of presence. handleCompound processes a compound message's parts
+// in order, so attachments appended after the entries would leave those entries
+// rejected on this sync and accepted only on a later one -- which a test that
+// waited for eventual convergence would pass without noticing.
+func TestNetworkDBBulkSyncCarriesAttachments(t *testing.T) {
+	requireSynctest(t)
+	synctest.Test(t, func(t *testing.T) {
+		const (
+			nw  = "nw0"
+			key = "k0"
+		)
+
+		c := newMemCluster(t, 2, "node", DefaultConfig())
+		a, b := c.dbs[0], c.dbs[1]
+		aID, bID := a.config.NodeID, b.config.NodeID
+
+		for _, db := range c.dbs {
+			assert.NilError(t, db.JoinNetwork(nw))
+		}
+		c.settle(t, nw, []string{aID, bID})
+
+		// Make a forget that b participates in nw, leaving it exactly as
+		// deleteNodeFromNetworks does: the attachment record gone and the owner
+		// out of the per-network peer list. Dropping only the peer list would
+		// not reproduce anything reachable -- a would still hold an attachment
+		// record no staler than the repair, and handleNetworkEvent would
+		// discard the repair as stale.
+		a.Lock()
+		delete(a.networks[bID], nw)
+		a.deleteNetworkNode(nw, bID)
+		a.Unlock()
+
+		// b writes after the divergence. The clock is not advanced from here
+		// on, so no gossip round, push/pull or periodic sync runs: the entry
+		// has exactly one way to reach a, and it is the sync below. Advancing
+		// the clock instead would make this flaky, since memberlist staggers
+		// the first push/pull uniformly over PushPullInterval and that would
+		// sometimes repair a on its own.
+		assert.NilError(t, b.CreateEntry(tableUnderTest, nw, key, []byte("v0")))
+		synctest.Wait()
+		_, err := a.GetEntry(tableUnderTest, nw, key)
+		assert.Check(t, err != nil, "a already holds the entry, so this test would pass without proving anything")
+
+		// Solicited, not unsolicited: an unsolicited sync makes a answer with
+		// one of its own, and bulkSyncNode then blocks on the ack.
+		assert.NilError(t, b.bulkSyncNode([]string{nw}, aID, false))
+		synctest.Wait()
+
+		got, err := a.GetEntry(tableUnderTest, nw, key)
+		assert.NilError(t, err, "a rejected the bulk-synced entry: the sync did not carry b's attachment ahead of it")
+		assert.Equal(t, string(got), "v0")
+	})
+}
+
+// TestNetworkDBBulkSyncSkipsAttachmentsForOldPeers is the counterpart to the
+// test above. A daemon which does not advertise Lamport-time-aware invalidation
+// must not be sent network events in a bulk sync: it would queue relays it can
+// then evict out of order, gossiping a stale attachment. It keeps the
+// convergence gap the sync would have closed until it is upgraded, which is the
+// conservative side to err on during a rolling upgrade.
+func TestNetworkDBBulkSyncSkipsAttachmentsForOldPeers(t *testing.T) {
+	requireSynctest(t)
+	synctest.Test(t, func(t *testing.T) {
+		const (
+			nw  = "nw0"
+			key = "k0"
+		)
+
+		c := newMemCluster(t, 2, "node", DefaultConfig())
+		a, b := c.dbs[0], c.dbs[1]
+		aID, bID := a.config.NodeID, b.config.NodeID
+
+		for _, db := range c.dbs {
+			assert.NilError(t, db.JoinNetwork(nw))
+		}
+		c.settle(t, nw, []string{aID, bID})
+
+		// Let b see a as a daemon from before node metadata carried a version.
+		b.Lock()
+		b.nodes[aID].Meta = nil
+		b.Unlock()
+
+		a.Lock()
+		delete(a.networks[bID], nw)
+		a.deleteNetworkNode(nw, bID)
+		a.Unlock()
+
+		assert.NilError(t, b.CreateEntry(tableUnderTest, nw, key, []byte("v0")))
+		synctest.Wait()
+		assert.NilError(t, b.bulkSyncNode([]string{nw}, aID, false))
+		synctest.Wait()
+
+		_, err := a.GetEntry(tableUnderTest, nw, key)
+		assert.Check(t, err != nil,
+			"a accepted the entry, so the sync carried attachments to a peer which cannot safely take them")
+	})
+}

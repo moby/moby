@@ -155,6 +155,15 @@ type network struct {
 	reapTime time.Duration
 }
 
+// networkEventType returns the [NetworkEvent_Type] which announces an
+// attachment that is, or is not, in the process of leaving.
+func networkEventType(leaving bool) NetworkEvent_Type {
+	if leaving {
+		return NetworkEventTypeLeave
+	}
+	return NetworkEventTypeJoin
+}
+
 // thisNodeNetwork describes a network attachment on the local node.
 type thisNodeNetwork struct {
 	network
