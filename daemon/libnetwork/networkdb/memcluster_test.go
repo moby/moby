@@ -109,6 +109,10 @@ func newMemCluster(t TestingT, num int, namePrefix string, conf *Config) *memClu
 		synctest.Wait()
 	})
 
+	// Configs first, and sequentially: memNetwork hands out addresses from a
+	// counter, so allocating them concurrently would leave a node's address
+	// decided by the scheduler and stop a recorded failure from replaying.
+	configs := make([]Config, num)
 	for i := range num {
 		tr := c.mn.NewTransport()
 		addr := tr.AddrPort()
@@ -134,16 +138,76 @@ func newMemCluster(t TestingT, num int, namePrefix string, conf *Config) *memClu
 		localConfig.AdvertiseAddr = localConfig.BindAddr
 		localConfig.BindPort = int(addr.Port())
 
-		db := launchNode(t, localConfig)
-		if i != 0 {
-			prev := c.dbs[i-1]
-			assert.Check(t, db.Join([]string{net.JoinHostPort(prev.config.AdvertiseAddr, strconv.Itoa(prev.config.BindPort))}))
-		}
-		c.dbs = append(c.dbs, db)
+		configs[i] = localConfig
 	}
 
-	// Chain-joining tells each node about one peer; wait for gossip to give
-	// every node all of them before handing the cluster over.
+	// Then bring every node up from its own goroutine, all at one virtual
+	// instant. Creating them together is deliberate, and here is the only place
+	// it can be decided: Create calls memberlist's schedule(), which builds the
+	// probe and gossip tickers, and clusterInit starts NetworkDB's own triggers,
+	// so the instant a node is created fixes the phase of every periodic task it
+	// will ever run, and nothing afterwards moves it -- memberlist's randStagger
+	// cannot, since schedule() builds the ticker before the goroutine which reads
+	// it, and a stagger shorter than the interval never even skips a tick.
+	//
+	// Launching one at a time left those phases to whatever each Join happened to
+	// cost, which came out a multiple of the gossip interval: they landed in
+	// phase by accident rather than by intent, and would have drifted the moment
+	// a join got faster or slower.
+	dbs := make([]*NetworkDB, num)
+	errs := make([]error, num)
+	var wg sync.WaitGroup
+	for i := range num {
+		wg.Go(func() {
+			dbs[i], errs[i] = New(&configs[i])
+		})
+	}
+	wg.Wait()
+	// Register whatever came up before reporting any failure, so the cleanup
+	// above closes it either way. The reporting happens here and not inside the
+	// goroutines because t.Fatal has to run on the test's own goroutine.
+	for _, db := range dbs {
+		if db != nil {
+			c.dbs = append(c.dbs, db)
+		}
+	}
+	for _, err := range errs {
+		assert.NilError(t, err)
+	}
+
+	for i, db := range c.dbs {
+		if i > 0 {
+			// Seed the newcomer with every node already up, not just the
+			// previous one. Join push/pulls with each seed synchronously, so
+			// all of them learn the newcomer before Join returns and formation
+			// never waits on an epidemic to spread it. That is not the same as
+			// costing no clock -- a join spends a few hundred milliseconds of
+			// it, and forming nineteen nodes some seconds in total -- but what
+			// it costs does not turn on a race.
+			//
+			// Chain-joining left the newcomer known only to its one seed, and
+			// its spread to everyone else rode memberlist's alive broadcast:
+			// a one-shot epidemic whose budget is
+			// RetransmitMult*ceil(log10(N+1)) transmissions, spent one per
+			// recipient, so gossiping to GossipNodes peers costs that many at
+			// once. At N=9 the budget is 4 against 8 peers -- the worst ratio
+			// in the range these tests use, since the ceil(log10) step to 8
+			// lands at N=10 -- and roughly 10% of formations lost the race and
+			// fell back to memberlist's push/pull anti-entropy: one random
+			// peer per node per 30s, several rounds to spread from a single
+			// origin, 15-60s of virtual time. That tail sat right on
+			// formationTimeout, so about 1 run in 171 timed out here.
+			seeds := make([]string, 0, i)
+			for _, prev := range c.dbs[:i] {
+				seeds = append(seeds, net.JoinHostPort(prev.config.AdvertiseAddr, strconv.Itoa(prev.config.BindPort)))
+			}
+			assert.Check(t, db.Join(seeds))
+		}
+	}
+
+	// Formation is synchronous now, so this should pass on its first look. It
+	// stays as a guard: if a future change makes membership depend on gossip
+	// again, this reports it here rather than as a puzzling failure later.
 	incomplete := func(db *NetworkDB) bool { return len(db.ClusterPeers()) != len(c.dbs) }
 	start := time.Now()
 	for {
