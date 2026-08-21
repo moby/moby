@@ -261,6 +261,19 @@ type Config struct {
 	// Only set by tests.
 	tableEventObserver func(nodeID, networkID, tableName, key string, viaBulkSync bool)
 
+	// rngSeed, when non-nil, seeds the RNG which picks gossip and bulk-sync
+	// peers and staggers the periodic tickers, in place of a seed read from
+	// crypto/rand. Fixing it makes a cluster's gossip topology reproducible,
+	// which a property test needs in order to replay a recorded failure: the
+	// interleaving is otherwise drawn from a source the test framework does not
+	// control and cannot record.
+	//
+	// Note this is the seed, not the RNG: every instance still gets its own
+	// stream, so nodes do not make identical choices.
+	//
+	// Only set by tests.
+	rngSeed *[32]byte
+
 	// StatsPrintPeriod the period to use to print queue stats
 	// Default is 5min
 	StatsPrintPeriod time.Duration
@@ -333,7 +346,11 @@ func newNetworkDB(c *Config) *NetworkDB {
 	c.reapNetworkInterval = c.reapEntryInterval + 5*reapPeriod
 
 	var rngSeed [32]byte
-	_, _ = cryptorand.Read(rngSeed[:]) // Documented never to return an error
+	if c.rngSeed != nil {
+		rngSeed = *c.rngSeed
+	} else {
+		_, _ = cryptorand.Read(rngSeed[:]) // Documented never to return an error
+	}
 
 	return &NetworkDB{
 		config: c,

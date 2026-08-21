@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	golog "log"
-	"math/rand/v2"
 	"net"
 	"net/netip"
 	"slices"
@@ -157,6 +156,8 @@ func (nDB *NetworkDB) clusterInit() error {
 	nDB.ctx, nDB.cancelCtx = context.WithCancel(context.Background())
 	nDB.memberlist = mlist
 
+	nDB.rngMu.Lock()
+	defer nDB.rngMu.Unlock()
 	for _, trigger := range []struct {
 		interval time.Duration
 		fn       func()
@@ -169,7 +170,10 @@ func (nDB *NetworkDB) clusterInit() error {
 		{nDB.config.rejoinClusterInterval, nDB.rejoinClusterBootStrap},
 	} {
 		t := time.NewTicker(trigger.interval)
-		go nDB.triggerFunc(trigger.interval, t.C, trigger.fn)
+		// Use a random stagger to avoid synchronizing. Use consecutive
+		// draws from this instance's own RNG so tests can reproduce the
+		// phase of every ticker in this instance by seeding the RNG.
+		go nDB.triggerFunc(time.Duration(nDB.rng.Int64N(int64(trigger.interval))), t.C, trigger.fn)
 		nDB.tickers = append(nDB.tickers, t)
 	}
 
@@ -238,10 +242,8 @@ func (nDB *NetworkDB) clusterLeave() error {
 
 func (nDB *NetworkDB) triggerFunc(stagger time.Duration, C <-chan time.Time, f func()) {
 	if stagger > 0 {
-		// Use a random stagger to avoid synchronizing.
-		randStagger := time.Duration(rand.Int64N(int64(stagger))) // #nosec G404 -- use of math/rand/v2 is fine for this purpose.
 		select {
-		case <-time.After(randStagger):
+		case <-time.After(stagger):
 		case <-nDB.ctx.Done():
 			return
 		}

@@ -1,6 +1,7 @@
 package networkdb
 
 import (
+	"encoding/binary"
 	"fmt"
 	"maps"
 	"slices"
@@ -50,7 +51,16 @@ func testConvergence(t *rapid.T) {
 	numNodes := rapid.IntRange(2, 25).Draw(t, "numNodes")
 	numNetworks := rapid.IntRange(1, 5).Draw(t, "numNetworks")
 
-	c := newMemCluster(t, numNodes, "node", DefaultConfig())
+	// Draw the gossip seed rather than letting each node read crypto/rand, so
+	// that the interleaving is part of what rapid records and shrinks. A fixed
+	// seed would be worse than either: it would pin one interleaving, and the
+	// point of this test is to explore them.
+	conf := DefaultConfig()
+	var seed [32]byte
+	binary.LittleEndian.PutUint64(seed[:], rapid.Uint64().Draw(t, "rngSeed"))
+	conf.rngSeed = &seed
+
+	c := newMemCluster(t, numNodes, "node", conf)
 
 	fsm := &networkDBFSM{
 		nDB:      c.dbs,
