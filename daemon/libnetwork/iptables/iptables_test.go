@@ -311,7 +311,6 @@ func mustDumpChain(t *testing.T, table Table, chain string) string {
 }
 
 func TestFlushChain(t *testing.T) {
-	_ = firewalldInit()
 	if UsingFirewalld() {
 		t.Skip("firewalld in host netns cannot create rules in the test's netns")
 	}
