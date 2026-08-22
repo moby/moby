@@ -505,6 +505,67 @@ func TestRemoteDriver(t *testing.T) {
 	}
 }
 
+// TestRemoteDriverJoinDstName verifies that a DstName the driver returns
+// in its Join response is applied to the endpoint's interface, and that an
+// empty DstName keeps the generated-from-DstPrefix behaviour. DstName is
+// how a remote driver honours a request for a custom interface name
+// (com.docker.network.endpoint.ifname), which it receives in the options
+// of the CreateEndpoint call.
+func TestRemoteDriverJoinDstName(t *testing.T) {
+	testcases := []struct {
+		name        string
+		respDstName string // DstName returned by the driver's Join
+	}{
+		{
+			name:        "driver-returned DstName is applied",
+			respDstName: "myiface0",
+		},
+		{
+			name:        "empty DstName falls back to DstPrefix",
+			respDstName: "",
+		},
+	}
+
+	for i, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Unique plugin name per subtest: plugins.Get caches by name,
+			// and each subtest stands up its own short-lived HTTP server.
+			plugin := fmt.Sprintf("test-dstname-driver-%d", i)
+			ep := &testEndpoint{
+				t:         t,
+				srcName:   "vethsrc",
+				dstPrefix: "vethdst",
+				dstName:   tc.respDstName, // SetNames asserts it receives this
+			}
+
+			mux := http.NewServeMux()
+			defer setupPlugin(t, plugin, mux)()
+
+			handle(t, mux, "Join", func(msg map[string]any) any {
+				return map[string]any{
+					"InterfaceName": map[string]any{
+						"SrcName":   ep.srcName,
+						"DstPrefix": ep.dstPrefix,
+						"DstName":   tc.respDstName,
+					},
+				}
+			})
+			handle(t, mux, "Leave", func(msg map[string]any) any {
+				return map[string]string{}
+			})
+
+			p, err := plugins.Get(plugin, driverapi.NetworkPluginEndpointType)
+			assert.NilError(t, err)
+			client, err := getPluginClient(p)
+			assert.NilError(t, err)
+			d := newDriver(plugin, client)
+
+			err = d.Join(context.Background(), "dummy-network", "dummy-endpoint", "sandbox-key", ep, nil, map[string]any{})
+			assert.NilError(t, err)
+		})
+	}
+}
+
 func TestDriverError(t *testing.T) {
 	plugin := "test-net-driver-error"
 
