@@ -256,29 +256,26 @@ func (ps *DockerPluginSuite) TestPluginEnableDisableNegative(c *testing.T) {
 }
 
 func (ps *DockerPluginSuite) TestPluginCreate(c *testing.T) {
-	name := "foo/bar-driver"
-	temp, err := os.MkdirTemp("", "foo")
-	assert.NilError(c, err)
-	defer os.RemoveAll(temp)
+	temp := c.TempDir()
 
-	data := `{"description": "foo plugin"}`
-	err = os.WriteFile(filepath.Join(temp, "config.json"), []byte(data), 0o644)
-	assert.NilError(c, err)
+	err := os.WriteFile(filepath.Join(temp, "config.json"), []byte(`{"description": "foo plugin"}`), 0o644)
+	assert.Check(c, err)
 
 	err = os.MkdirAll(filepath.Join(temp, "rootfs"), 0o700)
-	assert.NilError(c, err)
+	assert.Check(c, err)
 
+	const name = "foo/bar-driver"
 	out, _, err := dockerCmdWithError("plugin", "create", name, temp)
-	assert.NilError(c, err)
+	assert.Check(c, err)
 	assert.Check(c, is.Contains(out, name))
 	out, _, err = dockerCmdWithError("plugin", "ls")
-	assert.NilError(c, err)
+	assert.Check(c, err)
 	assert.Check(c, is.Contains(out, name))
 	out, _, err = dockerCmdWithError("plugin", "create", name, temp)
-	assert.ErrorContains(c, err, "")
+	assert.Check(c, is.ErrorContains(err, ""))
 	assert.Check(c, is.Contains(out, "already exist"))
 	out, _, err = dockerCmdWithError("plugin", "ls")
-	assert.NilError(c, err)
+	assert.Check(c, err)
 	assert.Check(c, is.Contains(out, name))
 	// The output will consists of one HEADER line and one line of foo/bar-driver
 	assert.Equal(c, len(strings.Split(strings.TrimSpace(out), "\n")), 2)
@@ -397,11 +394,9 @@ func (ps *DockerPluginSuite) TestPluginIDPrefix(c *testing.T) {
 }
 
 func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *testing.T) {
-	config, err := os.MkdirTemp("", "config-file-")
-	assert.NilError(c, err)
-	defer os.RemoveAll(config)
+	config := c.TempDir()
 
-	err = os.WriteFile(filepath.Join(config, "config.json"), []byte(`{"pluginsFormat": "raw"}`), 0o644)
+	err := os.WriteFile(filepath.Join(config, "config.json"), []byte(`{"pluginsFormat": "raw"}`), 0o644)
 	assert.NilError(c, err)
 
 	name := "test:latest"
