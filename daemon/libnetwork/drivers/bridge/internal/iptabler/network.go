@@ -408,24 +408,49 @@ const oldIsolationChain = "DOCKER-ISOLATION"
 func removeIPChains(ctx context.Context, version iptables.IPVersion) {
 	ipt := iptables.GetIptable(version)
 
-	// Remove obsolete rules from default chains
-	ipt.ProgramRule(iptables.Filter, "FORWARD", iptables.Delete, []string{"-j", oldIsolationChain})
+	// Remove obsolete rules from default chains.
+	ipt.ProgramRule(
+		iptables.Filter, "FORWARD", iptables.Delete, []string{"-j", oldIsolationChain},
+	)
 
-	// Remove chains
-	for _, chainInfo := range []iptables.ChainInfo{
-		{Name: dockerChain, Table: iptables.Nat, IPVersion: version},
-		{Name: DockerForwardChain, Table: iptables.Filter, IPVersion: version},
-		{Name: dockerBridgeChain, Table: iptables.Filter, IPVersion: version},
-		{Name: dockerChain, Table: iptables.Filter, IPVersion: version},
-		{Name: dockerCTChain, Table: iptables.Filter, IPVersion: version},
-		{Name: dockerInternalChain, Table: iptables.Filter, IPVersion: version},
-		{Name: isolationChain1, Table: iptables.Filter, IPVersion: version},
-		{Name: isolationChain2, Table: iptables.Filter, IPVersion: version},
-		{Name: oldIsolationChain, Table: iptables.Filter, IPVersion: version},
+	// Flush and delete all Docker chains using the native iptables binary,
+	// bypassing firewalld's passthrough interface. If sent through the
+	// passthrough interface, firewalld stores these flush commands and replays
+	// them on future reloads. On replay, commands such as
+	// "-F DOCKER-FORWARD" arrive after Docker has already re-populated the
+	// chain with per-network rules (e.g. ICC ACCEPT rules for internal
+	// networks), silently removing those rules and leaving traffic blocked.
+	nat := string(iptables.Nat)
+	filter := string(iptables.Filter)
+
+	// Remove NAT DOCKER chain: delete PREROUTING/OUTPUT jump rules first,
+	// then flush and delete the chain itself.
+	_ = ipt.RawCombinedOutputNative(
+		"-t", nat, "-D", "PREROUTING",
+		"-m", "addrtype", "--dst-type", "LOCAL", "-j", dockerChain,
+	)
+	// Non-hairpin mode: OUTPUT rule has "! --dst <loopback>".
+	_ = ipt.RawCombinedOutputNative(
+		"-t", nat, "-D", "OUTPUT",
+		"-m", "addrtype", "--dst-type", "LOCAL",
+		"!", "--dst", loopbackAddress(version), "-j", dockerChain,
+	)
+	// Hairpin mode / legacy (versions <= 0.1.6): no "! --dst" qualifier.
+	_ = ipt.RawCombinedOutputNative(
+		"-t", nat, "-D", "OUTPUT",
+		"-m", "addrtype", "--dst-type", "LOCAL", "-j", dockerChain,
+	)
+	_ = ipt.RawCombinedOutputNative("-t", nat, "-F", dockerChain)
+	_ = ipt.RawCombinedOutputNative("-t", nat, "-X", dockerChain)
+
+	// Flush and delete filter chains.
+	for _, name := range []string{
+		DockerForwardChain, dockerBridgeChain, dockerChain,
+		dockerCTChain, dockerInternalChain,
+		isolationChain1, isolationChain2, oldIsolationChain,
 	} {
-		if err := chainInfo.Remove(); err != nil {
-			log.G(ctx).Warnf("Failed to remove existing iptables entries in table %s chain %s : %v", chainInfo.Table, chainInfo.Name, err)
-		}
+		_ = ipt.RawCombinedOutputNative("-t", filter, "-F", name)
+		_ = ipt.RawCombinedOutputNative("-t", filter, "-X", name)
 	}
 }
 
