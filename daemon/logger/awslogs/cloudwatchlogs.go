@@ -2,12 +2,14 @@
 package awslogs
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
@@ -26,6 +28,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
+	"github.com/moby/moby/v2/daemon/logger/templates"
 	"github.com/moby/moby/v2/dockerversion"
 	"github.com/pkg/errors"
 )
@@ -45,9 +48,18 @@ const (
 	forceFlushIntervalKey  = "awslogs-force-flush-interval-seconds"
 	maxBufferedEventsKey   = "awslogs-max-buffered-events"
 	logFormatKey           = "awslogs-format"
+	entityServiceNameKey   = "awslogs-entity-service-name"
+	entityEnvironmentKey   = "awslogs-entity-environment"
+	entityAttributesKey    = "awslogs-entity-attributes"
 
 	defaultForceFlushInterval = 5 * time.Second
 	defaultMaxBufferedEvents  = 4096
+
+	// See: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_Entity.html
+	entityTypeService   = "Service"
+	maxEntityAttributes = 10
+	maxAttributeKey     = 256
+	maxEntityValue      = 512
 
 	// See: http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
 	perEventBytes          = 26
@@ -75,6 +87,7 @@ type logStream struct {
 	logCreateStream    bool
 	forceFlushInterval time.Duration
 	multilinePattern   *regexp.Regexp
+	entity             *types.Entity
 	client             api
 
 	messages *loggerutils.MessageQueue
@@ -91,6 +104,7 @@ type logStreamConfig struct {
 	forceFlushInterval time.Duration
 	maxBufferedEvents  int
 	multilinePattern   *regexp.Regexp
+	entity             *types.Entity
 }
 
 var _ logger.SizedLogger = &logStream{}
@@ -125,7 +139,8 @@ type eventBatch struct {
 // New creates an awslogs logger using the configuration passed in on the
 // context.  Supported context configuration variables are awslogs-region,
 // awslogs-endpoint, awslogs-group, awslogs-stream, awslogs-create-group,
-// awslogs-multiline-pattern and awslogs-datetime-format.
+// awslogs-multiline-pattern, awslogs-datetime-format, awslogs-entity-service-name,
+// awslogs-entity-environment and awslogs-entity-attributes.
 // When available, configuration is also taken from environment variables
 // AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, the shared credentials
 // file (~/.aws/credentials), and the EC2 Instance Metadata Service.
@@ -148,6 +163,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		logCreateStream:    containerStreamConfig.logCreateStream,
 		forceFlushInterval: containerStreamConfig.forceFlushInterval,
 		multilinePattern:   containerStreamConfig.multilinePattern,
+		entity:             containerStreamConfig.entity,
 		client:             client,
 		messages:           loggerutils.NewMessageQueue(containerStreamConfig.maxBufferedEvents),
 	}
@@ -235,6 +251,11 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 		return nil, err
 	}
 
+	entity, err := parseEntity(info)
+	if err != nil {
+		return nil, err
+	}
+
 	containerStreamConfig := &logStreamConfig{
 		logStreamName:      logStreamName,
 		logGroupName:       logGroupName,
@@ -243,9 +264,117 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 		forceFlushInterval: forceFlushInterval,
 		maxBufferedEvents:  maxBufferedEvents,
 		multilinePattern:   multilinePattern,
+		entity:             entity,
 	}
 
 	return containerStreamConfig, nil
+}
+
+// parseEntity builds a CloudWatch Entity from the awslogs-entity-* log options.
+// It returns a nil entity when none of the entity options are set.
+// The service name and environment values support the same Go-template
+// placeholders as the awslogs-stream and tag options (for example {{.Name}}).
+func parseEntity(info logger.Info) (*types.Entity, error) {
+	serviceNameTmpl := info.Config[entityServiceNameKey]
+	environmentTmpl := info.Config[entityEnvironmentKey]
+	attributesRaw := info.Config[entityAttributesKey]
+
+	if serviceNameTmpl == "" && environmentTmpl == "" && attributesRaw == "" {
+		return nil, nil
+	}
+	if serviceNameTmpl == "" || environmentTmpl == "" {
+		return nil, fmt.Errorf("log opts '%s' and '%s' must both be specified to set a CloudWatch entity", entityServiceNameKey, entityEnvironmentKey)
+	}
+
+	serviceName, err := expandEntityTemplate(info, entityServiceNameKey, serviceNameTmpl)
+	if err != nil {
+		return nil, err
+	}
+	environment, err := expandEntityTemplate(info, entityEnvironmentKey, environmentTmpl)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateKeyAttributeValue(entityServiceNameKey, serviceName); err != nil {
+		return nil, err
+	}
+	if err := validateKeyAttributeValue(entityEnvironmentKey, environment); err != nil {
+		return nil, err
+	}
+
+	attributes, err := parseEntityAttributes(attributesRaw)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.Entity{
+		KeyAttributes: map[string]string{
+			"Type":        entityTypeService,
+			"Name":        serviceName,
+			"Environment": environment,
+		},
+		Attributes: attributes,
+	}, nil
+}
+
+// validateKeyAttributeValue checks a resolved entity KeyAttribute value against
+// the CloudWatch Entity limits.
+func validateKeyAttributeValue(optKey, val string) error {
+	if val == "" {
+		return fmt.Errorf("log opt '%s' resolved to an empty value", optKey)
+	}
+	if len(val) > maxEntityValue {
+		return fmt.Errorf("log opt '%s' value exceeds the CloudWatch limit of %d characters", optKey, maxEntityValue)
+	}
+	return nil
+}
+
+// expandEntityTemplate runs an entity log-opt value through the container-aware
+// template engine, the same one used by ParseLogTag.
+func expandEntityTemplate(info logger.Info, optKey, tmplText string) (string, error) {
+	tmpl, err := templates.NewParse(optKey, tmplText)
+	if err != nil {
+		return "", errors.Wrapf(err, "awslogs could not parse log opt %q", optKey)
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, &info); err != nil {
+		return "", errors.Wrapf(err, "awslogs could not expand log opt %q", optKey)
+	}
+	return buf.String(), nil
+}
+
+// parseEntityAttributes parses a comma-separated key=value list into a map,
+// enforcing the CloudWatch Entity attribute limits. Empty entries (for example
+// from a trailing comma) are ignored.
+func parseEntityAttributes(raw string) (map[string]string, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	attributes := map[string]string{}
+	for _, pair := range strings.Split(raw, ",") {
+		if strings.TrimSpace(pair) == "" {
+			continue
+		}
+		k, v, ok := strings.Cut(pair, "=")
+		k = strings.TrimSpace(k)
+		v = strings.TrimSpace(v)
+		if !ok || k == "" || v == "" {
+			return nil, fmt.Errorf("log opt '%s' must be a comma-separated list of key=value pairs", entityAttributesKey)
+		}
+		if _, exists := attributes[k]; exists {
+			return nil, fmt.Errorf("log opt '%s' has a duplicate key %q", entityAttributesKey, k)
+		}
+		if len(k) > maxAttributeKey || len(v) > maxEntityValue {
+			return nil, fmt.Errorf("log opt '%s' entry %q exceeds CloudWatch limits (key <= %d chars, value <= %d chars)", entityAttributesKey, k, maxAttributeKey, maxEntityValue)
+		}
+		attributes[k] = v
+	}
+	if len(attributes) == 0 {
+		return nil, nil
+	}
+	if len(attributes) > maxEntityAttributes {
+		return nil, fmt.Errorf("log opt '%s' supports at most %d attributes", entityAttributesKey, maxEntityAttributes)
+	}
+	return attributes, nil
 }
 
 // formatSequences matches each strftime format sequence.
@@ -705,6 +834,7 @@ func (l *logStream) putLogEvents(events []types.InputLogEvent, sequenceToken *st
 		SequenceToken: sequenceToken,
 		LogGroupName:  aws.String(l.logGroupName),
 		LogStreamName: aws.String(l.logStreamName),
+		Entity:        l.entity,
 	}
 	resp, err := l.client.PutLogEvents(context.TODO(), input)
 	if err != nil {
@@ -719,12 +849,22 @@ func (l *logStream) putLogEvents(events []types.InputLogEvent, sequenceToken *st
 		}
 		return nil, err
 	}
+	if resp.RejectedEntityInfo != nil {
+		// The log events are still accepted when only the entity is rejected,
+		// so this is logged as a warning rather than returned as an error.
+		log.G(context.TODO()).WithFields(log.Fields{
+			"errorType":     resp.RejectedEntityInfo.ErrorType,
+			"logGroupName":  l.logGroupName,
+			"logStreamName": l.logStreamName,
+		}).Warn("CloudWatch rejected the entity metadata")
+	}
 	return resp.NextSequenceToken, nil
 }
 
 // ValidateLogOpt looks for awslogs-specific log options awslogs-region, awslogs-endpoint
 // awslogs-group, awslogs-stream, awslogs-create-group, awslogs-create-stream, awslogs-datetime-format,
-// awslogs-multiline-pattern
+// awslogs-multiline-pattern, awslogs-entity-service-name, awslogs-entity-environment and
+// awslogs-entity-attributes
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
@@ -742,6 +882,9 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case forceFlushIntervalKey:
 		case maxBufferedEventsKey:
 		case logFormatKey:
+		case entityServiceNameKey:
+		case entityEnvironmentKey:
+		case entityAttributesKey:
 		default:
 			return fmt.Errorf("unknown log opt '%s' for %s log driver", key, name)
 		}
@@ -783,6 +926,16 @@ func ValidateLogOpt(cfg map[string]string) error {
 		if datetimeFormatKeyExists || multilinePatternKeyExists {
 			return fmt.Errorf("you cannot configure log opt '%s' or '%s' when log opt '%s' is set to '%s'", datetimeFormatKey, multilinePatternKey, logFormatKey, jsonEmfLogFormat)
 		}
+	}
+
+	serviceNameSet := cfg[entityServiceNameKey] != ""
+	environmentSet := cfg[entityEnvironmentKey] != ""
+	attributesSet := cfg[entityAttributesKey] != ""
+	if (serviceNameSet || environmentSet || attributesSet) && (!serviceNameSet || !environmentSet) {
+		return fmt.Errorf("log opts '%s' and '%s' must be configured together", entityServiceNameKey, entityEnvironmentKey)
+	}
+	if _, err := parseEntityAttributes(cfg[entityAttributesKey]); err != nil {
+		return err
 	}
 
 	return nil
