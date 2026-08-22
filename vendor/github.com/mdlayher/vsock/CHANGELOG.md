@@ -1,10 +1,16 @@
 # CHANGELOG
 
-# v1.2.1
+## v1.3.0
+
+- [Improvement]: Updated dependencies and now requires Go 1.25. (#63)
+- [Improvement]: Update to use net.ErrClosed error (#57)
+- [Tests]: Check for ENETUNREACH and ETIMEDOUT in tests (#54)
+
+## v1.2.1
 
 - [Improvement]: updated dependencies, test with Go 1.20.
 
-# v1.2.0
+## v1.2.0
 
 **This is the first release of package vsock that only supports Go 1.18+. Users
 on older versions of Go must use v1.1.1.**
