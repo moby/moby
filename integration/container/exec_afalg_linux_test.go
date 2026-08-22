@@ -101,7 +101,10 @@ func TestExecSocketDenied(t *testing.T) {
 		// Seccomp cannot filter socketcall arguments (the address family
 		// is behind a userspace pointer). Only an LSM (AppArmor or
 		// SELinux) can deny AF_ALG via the security_socket_create hook.
-		hasLSM := slices.Contains(testEnv.DaemonInfo.SecurityOptions, "name=apparmor") ||
+		hasAppArmor := slices.ContainsFunc(testEnv.DaemonInfo.SecurityOptions, func(option string) bool {
+			return strings.HasPrefix(option, "name=apparmor,")
+		})
+		hasLSM := hasAppArmor ||
 			slices.Contains(testEnv.DaemonInfo.SecurityOptions, "name=selinux")
 		skip.If(t, !hasLSM, "socketcall filtering requires AppArmor or SELinux")
 
