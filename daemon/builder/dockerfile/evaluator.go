@@ -32,6 +32,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/pkg/oci"
 	"github.com/moby/moby/v2/errdefs"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -114,6 +115,7 @@ type dispatchState struct {
 	stageName       string
 	buildArgs       *BuildArgs
 	operatingSystem string
+	platform        ocispec.Platform
 }
 
 func newDispatchState(baseArgs *BuildArgs) *dispatchState {
@@ -217,6 +219,7 @@ func (s *dispatchState) beginStage(stageName string, img builder.Image) error {
 	s.stageName = stageName
 	s.imageID = img.ImageID()
 	s.operatingSystem = img.OperatingSystem()
+	s.platform = img.Platform()
 	if err := image.CheckOS(s.operatingSystem); err != nil {
 		return err
 	}

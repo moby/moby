@@ -86,11 +86,15 @@ func (m *imageSources) Add(im *imageMount, platform *ocispec.Platform) {
 			os = "linux"
 		}
 
-		im.image = &dockerimage.Image{V1Image: dockerimage.V1Image{
-			OS:           os,
-			Architecture: platform.Architecture,
-			Variant:      platform.Variant,
-		}}
+		im.image = &dockerimage.Image{
+			V1Image: dockerimage.V1Image{
+				OS:           os,
+				Architecture: platform.Architecture,
+				Variant:      platform.Variant,
+			},
+			OSVersion:  platform.OSVersion,
+			OSFeatures: platform.OSFeatures,
+		}
 	default:
 		m.byImageID[im.image.ImageID()] = im
 	}

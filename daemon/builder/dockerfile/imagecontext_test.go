@@ -47,6 +47,8 @@ func TestAddFromScratchPopulatesPlatform(t *testing.T) {
 		{
 			OS:           "linux",
 			Architecture: "amd64",
+			OSVersion:    "test-version",
+			OSFeatures:   []string{"feature-a", "feature-b"},
 		},
 		{
 			OS:           "linux",
@@ -63,6 +65,8 @@ func TestAddFromScratchPopulatesPlatform(t *testing.T) {
 		assert.Assert(t, ok)
 		assert.Equal(t, image.OS, platform.OS)
 		assert.Equal(t, image.Architecture, platform.Architecture)
+		assert.Equal(t, image.OSVersion, platform.OSVersion)
+		assert.DeepEqual(t, image.OSFeatures, platform.OSFeatures)
 		assert.Equal(t, image.Variant, platform.Variant)
 	}
 }
