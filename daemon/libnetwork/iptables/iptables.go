@@ -68,7 +68,8 @@ const (
 var (
 	iptablesPath  string
 	ip6tablesPath string
-	initOnce      sync.Once
+	iptablesOnce  sync.Once
+	firewalldOnce sync.Once
 )
 
 // IPTable defines struct with [IPVersion].
@@ -134,13 +135,8 @@ func initFirewalld() {
 	}
 }
 
-func initDependencies() {
-	initFirewalld()
-	detectIptables()
-}
-
 func initCheck() error {
-	initOnce.Do(initDependencies)
+	iptablesOnce.Do(detectIptables)
 
 	if iptablesPath == "" {
 		return errors.New("iptables not found")
@@ -336,6 +332,7 @@ func filterOutput(start time.Time, output []byte, args ...string) []byte {
 
 // Raw calls 'iptables' system command, passing supplied arguments.
 func (iptable IPTable) Raw(args ...string) ([]byte, error) {
+	firewalldOnce.Do(initFirewalld)
 	if firewalldRunning {
 		startTime := time.Now()
 		output, err := passthrough(iptable.ipVersion, args...)
