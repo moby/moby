@@ -32,12 +32,14 @@ const (
 	pidFile                 = "containerd.pid"
 )
 
-type remote struct {
-	config.Config
+// Daemon configures, starts, and monitors a containerd daemon.
+type Daemon struct {
+	config config.Config
 
 	// configFile is the location where the generated containerd configuration
 	// file is saved.
 	configFile string
+	stateDir   string
 
 	// daemonPath is the binary to execute, and can be either a basename (to use
 	// a binary installed in the system's $PATH), or the full path to the binary
@@ -52,21 +54,16 @@ type remote struct {
 	daemonStopCh  chan struct{}
 }
 
-// Daemon represents a running containerd daemon
-type Daemon interface {
-	WaitTimeout(time.Duration) error
-	Address() string
-}
-
 // DaemonOpt allows to configure parameters of container daemons
-type DaemonOpt func(c *remote) error
+type DaemonOpt func(c *Daemon) error
 
-// Start starts a containerd daemon and monitors it.
+// New creates a containerd daemon supervisor.
+//
 // It uses rootDir for persistent state and the daemon subdirectory under
 // stateDir for runtime state.
-func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
-	r := &remote{
-		Config: config.Config{
+func New(rootDir, stateDir string, opts ...DaemonOpt) (*Daemon, error) {
+	r := &Daemon{
+		config: config.Config{
 			Version: 2, // FIXME(thaJeztah): update to v3 when we drop support for containerd v1.
 			Root:    rootDir,
 			State:   filepath.Join(stateDir, "daemon"),
@@ -79,11 +76,11 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 				Address: defaultDebugAddress(stateDir), //nolint:staticcheck // Deprecated in config v4, but required for config v3.
 			},
 		},
+		stateDir:      stateDir,
 		configFile:    filepath.Join(stateDir, configFile),
 		daemonPath:    binaryName,
 		daemonPid:     -1,
 		pidFile:       filepath.Join(stateDir, pidFile),
-		logger:        log.G(ctx).WithField("module", "libcontainerd"),
 		daemonStartCh: make(chan error, 1),
 		daemonStopCh:  make(chan struct{}),
 	}
@@ -94,8 +91,29 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 		}
 	}
 
-	if err := os.MkdirAll(stateDir, 0o700); err != nil {
-		return nil, err
+	path, err := exec.LookPath(r.daemonPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to find containerd binary: %s", r.daemonPath)
+	}
+	r.daemonPath = path
+
+	return r, nil
+}
+
+// Start starts the containerd daemon and monitors it until ctx is canceled.
+func (r *Daemon) Start(ctx context.Context) error {
+	path, err := exec.LookPath(r.daemonPath)
+	if err != nil {
+		return errors.Wrapf(err, "failed to find containerd binary: %s", r.daemonPath)
+	}
+	r.daemonPath = path
+	r.logger = log.G(ctx).WithFields(log.Fields{
+		"binary": r.daemonPath,
+		"module": "supervisor",
+	})
+
+	if err := os.MkdirAll(r.stateDir, 0o700); err != nil {
+		return err
 	}
 
 	go r.monitorDaemon(ctx)
@@ -105,17 +123,17 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 
 	select {
 	case <-timeout.C:
-		return nil, errors.New("timeout waiting for containerd to start")
+		return errors.New("timeout waiting for containerd to start")
 	case err := <-r.daemonStartCh:
 		if err != nil {
-			return nil, err
+			return err
 		}
+		r.logger.Info("started managed containerd")
+		return nil
 	}
-
-	return r, nil
 }
 
-func (r *remote) WaitTimeout(d time.Duration) error {
+func (r *Daemon) WaitTimeout(d time.Duration) error {
 	timeout := time.NewTimer(d)
 	defer timeout.Stop()
 
@@ -128,11 +146,11 @@ func (r *remote) WaitTimeout(d time.Duration) error {
 	return nil
 }
 
-func (r *remote) Address() string {
-	return r.GRPC.Address //nolint:staticcheck // Deprecated in config v4, but required for config v3.
+func (r *Daemon) Address() string {
+	return r.config.GRPC.Address //nolint:staticcheck // Deprecated in config v4, but required for config v3.
 }
 
-func (r *remote) getContainerdConfig() (string, error) {
+func (r *Daemon) getContainerdConfig() (string, error) {
 	f, err := os.OpenFile(r.configFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to open containerd config file (%s)", r.configFile)
@@ -145,7 +163,7 @@ func (r *remote) getContainerdConfig() (string, error) {
 	return r.configFile, nil
 }
 
-func (r *remote) startContainerd() error {
+func (r *Daemon) startContainerd() error {
 	pid, err := pidfile.Read(r.pidFile)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -153,7 +171,8 @@ func (r *remote) startContainerd() error {
 
 	if pid > 0 {
 		r.daemonPid = pid
-		r.logger.WithField("pid", pid).Infof("%s is still running", binaryName)
+		r.logger = r.logger.WithField("pid", pid)
+		r.logger.Info("containerd is still running")
 		return nil
 	}
 
@@ -162,7 +181,7 @@ func (r *remote) startContainerd() error {
 		return err
 	}
 
-	r.logger.WithField("binary", r.daemonPath).Debug("starting containerd binary")
+	r.logger.Debug("starting containerd binary")
 	// Docker clears its umask on startup.
 	// Managed containerd inherits that umask, so paths it creates use the
 	// literal modes requested by containerd instead of being masked by the
@@ -219,15 +238,16 @@ func (r *remote) startContainerd() error {
 
 	if err := pidfile.Write(r.pidFile, r.daemonPid); err != nil {
 		_ = process.Kill(r.daemonPid)
-		return errors.Wrap(err, "libcontainerd: failed to save daemon pid to disk")
+		return errors.Wrap(err, "failed to save containerd pid to disk")
 	}
 
-	r.logger.WithField("pid", r.daemonPid).WithField("address", r.Address()).Infof("started new %s process", binaryName)
+	r.logger = r.logger.WithField("pid", r.daemonPid)
+	r.logger.WithField("address", r.Address()).Info("started new containerd process")
 
 	return nil
 }
 
-func (r *remote) monitorDaemon(ctx context.Context) {
+func (r *Daemon) monitorDaemon(ctx context.Context) {
 	var (
 		transientFailureCount = 0
 		client                *containerd.Client
@@ -261,9 +281,9 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 
 		select {
 		case <-ctx.Done():
-			r.logger.Info("stopping healthcheck following graceful shutdown")
+			r.logger.Info("stopping containerd healthcheck following graceful shutdown")
 			if client != nil {
-				client.Close()
+				_ = client.Close()
 			}
 			return
 		case <-timer.C:
@@ -334,14 +354,18 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				continue
 			}
 
-			r.logger.WithError(err).WithField("binary", binaryName).Debug("daemon is not responding")
+			r.logger.WithFields(log.Fields{
+				"error":   err,
+				"pid":     r.daemonPid,
+				"retries": transientFailureCount,
+			}).Debug("daemon is not responding")
 
 			transientFailureCount++
 			if transientFailureCount < maxConnectionRetryCount || process.Alive(r.daemonPid) {
 				delay = time.Duration(transientFailureCount) * 200 * time.Millisecond
 				continue
 			}
-			client.Close()
+			_ = client.Close()
 			client = nil
 		}
 
