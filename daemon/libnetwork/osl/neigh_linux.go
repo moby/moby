@@ -12,29 +12,29 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-// NeighborSearchError indicates that the neighbor is already present
+// NeighborSearchError indicates that the neighbor is missing or already present.
 type NeighborSearchError struct {
-	ip       net.IP
-	mac      net.HardwareAddr
-	linkName string
-	present  bool
+	IP       net.IP
+	MAC      net.HardwareAddr
+	LinkName string
+	Present  bool
 }
 
 func (n NeighborSearchError) Error() string {
 	var b strings.Builder
 	b.WriteString("neighbor entry ")
-	if n.present {
+	if n.Present {
 		b.WriteString("already exists ")
 	} else {
 		b.WriteString("not found ")
 	}
 	b.WriteString("for IP ")
-	b.WriteString(n.ip.String())
+	b.WriteString(n.IP.String())
 	b.WriteString(", mac ")
-	b.WriteString(n.mac.String())
-	if n.linkName != "" {
+	b.WriteString(n.MAC.String())
+	if n.LinkName != "" {
 		b.WriteString(", link ")
-		b.WriteString(n.linkName)
+		b.WriteString(n.LinkName)
 	}
 	return b.String()
 }
@@ -110,6 +110,26 @@ func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, options .
 		"mac": dstMac,
 		"ifc": linkName,
 	}).Debug("Neighbor entry added")
+
+	return nil
+}
+
+// SetNeighbor adds a neighbor entry into the sandbox or replaces an existing one.
+func (n *Namespace) SetNeighbor(dstIP net.IP, dstMac net.HardwareAddr, options ...NeighOption) error {
+	nlnh, linkName, err := n.nlNeigh(dstIP, dstMac, options...)
+	if err != nil {
+		return err
+	}
+
+	if err := n.nlHandle.NeighSet(nlnh); err != nil {
+		return fmt.Errorf("could not set neighbor entry %+v: %w", nlnh, err)
+	}
+
+	log.G(context.TODO()).WithFields(log.Fields{
+		"ip":  dstIP,
+		"mac": dstMac,
+		"ifc": linkName,
+	}).Debug("Neighbor entry set")
 
 	return nil
 }

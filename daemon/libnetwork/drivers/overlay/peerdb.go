@@ -137,7 +137,7 @@ func (n *network) peerAdd(eid string, peerIP netip.Prefix, peerMac hashable.MACA
 }
 
 // addNeighbor programs the kernel so the given peer is reachable through the VXLAN tunnel.
-func (n *network) addNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) error {
+func (n *network) addNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) (retErr error) {
 	if n.sbox == nil {
 		// We are hitting this case for all the events that are arriving before that the sandbox
 		// is being created. The peer got already added into the database and the sandbox init will
@@ -156,18 +156,33 @@ func (n *network) addNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, vte
 
 	if n.secure {
 		if err := n.driver.setupEncryption(vtep); err != nil {
-			log.G(context.TODO()).Warn(err)
+			return fmt.Errorf("could not setup encryption for peer %v: %w", vtep, err)
 		}
+		defer func() {
+			if retErr != nil {
+				if err := n.driver.removeEncryption(vtep); err != nil {
+					retErr = errors.Join(retErr, fmt.Errorf("could not roll back encryption for peer %v: %w", vtep, err))
+				}
+			}
+		}()
 	}
 
 	// Add neighbor entry for the peer IP
 	if err := n.sbox.AddNeighbor(peerIP.Addr().AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName)); err != nil {
 		return fmt.Errorf("could not add neighbor entry into the sandbox: %w", err)
 	}
+	defer func() {
+		if retErr != nil {
+			if err := n.sbox.DeleteNeighbor(peerIP.Addr().AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName)); err != nil {
+				retErr = errors.Join(retErr, fmt.Errorf("could not roll back sandbox neighbor entry for %v: %w", peerIP, err))
+			}
+		}
+	}()
 
 	// Add fdb entry to the bridge for the peer mac
-	if n.fdbCnt.Add(hashable.IPMACFrom(vtep, peerMac), 1) == 1 {
-		if err := n.sbox.AddNeighbor(vtep.AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE)); err != nil {
+	if v := hashable.IPMACFrom(vtep, peerMac); n.fdbCnt.Add(v, 1) == 1 {
+		if err := n.sbox.SetNeighbor(vtep.AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE)); err != nil {
+			n.fdbCnt.Add(v, -1)
 			return fmt.Errorf("could not add fdb entry into the sandbox: %w", err)
 		}
 	}
@@ -228,26 +243,40 @@ func (n *network) deleteNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, 
 		return nil
 	}
 
-	if n.secure {
-		if err := n.driver.removeEncryption(vtep); err != nil {
-			log.G(context.TODO()).Warn(err)
-		}
-	}
-
 	s := n.getSubnetforIP(peerIP)
 	if s == nil {
 		return fmt.Errorf("could not find the subnet %q in network %q", peerIP.String(), n.id)
 	}
+
+	// Delete neighbor entry for the peer IP
+	if err := n.sbox.DeleteNeighbor(peerIP.Addr().AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName)); err != nil {
+		return fmt.Errorf("could not delete neighbor entry in the sandbox: %w", err)
+	}
+
 	// Remove fdb entry to the bridge for the peer mac
-	if n.fdbCnt.Add(hashable.IPMACFrom(vtep, peerMac), -1) == 0 {
-		if err := n.sbox.DeleteNeighbor(vtep.AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE)); err != nil {
+	if v := hashable.IPMACFrom(vtep, peerMac); n.fdbCnt[v] == 0 {
+		err := osl.NeighborSearchError{IP: vtep.AsSlice(), MAC: peerMac.AsSlice(), LinkName: s.vxlanName, Present: false}
+		return fmt.Errorf("fdb entry was not programmed into sandbox: %w", err)
+	} else if n.fdbCnt.Add(v, -1) == 0 {
+		err := n.sbox.DeleteNeighbor(vtep.AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE))
+		if err != nil && !errors.As(err, &osl.NeighborSearchError{}) {
+			// Deletion failed for a reason other than the entry
+			// being absent from the fdb.
+			n.fdbCnt.Add(v, 1)
 			return fmt.Errorf("could not delete fdb entry in the sandbox: %w", err)
 		}
 	}
 
-	// Delete neighbor entry for the peer IP
-	if err := n.sbox.DeleteNeighbor(peerIP.Addr().AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName)); err != nil {
-		return fmt.Errorf("could not delete neighbor entry in the sandbox:%v", err)
+	// Decrement the reference count for the encrypted tunnel last so there
+	// is no opportunity for VXLAN datagrams to be sent in the clear. Note
+	// that control flow can only reach here if we succeeded in deleting the
+	// neighbor entry (and fdb entry, if applicable) since the entries are
+	// only present in the kernel if the matching addNeighbor call we are
+	// reversing was successful.
+	if n.secure {
+		if err := n.driver.removeEncryption(vtep); err != nil {
+			return fmt.Errorf("could not remove encryption for peer %v: %w", vtep, err)
+		}
 	}
 
 	return nil
