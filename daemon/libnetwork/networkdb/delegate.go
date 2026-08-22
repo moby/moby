@@ -3,7 +3,6 @@ package networkdb
 import (
 	"context"
 	"net"
-	"slices"
 	"time"
 
 	"github.com/containerd/log"
@@ -116,7 +115,9 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 
 		if nEvent.Type == NetworkEventTypeLeave {
 			nDB.deleteNetworkNode(nEvent.NetworkID, nEvent.NodeName)
-		} else {
+		} else if _, active := nDB.nodes[nEvent.NodeName]; active {
+			// Only an active node is a gossip peer. Otherwise, changeNodeState
+			// puts it back in the peer list if the node comes back.
 			nDB.addNetworkNode(nEvent.NetworkID, nEvent.NodeName)
 		}
 
@@ -152,14 +153,19 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 
 	// Ignore the table events for networks that are in the process of going away
 	network, ok := nDB.thisNodeNetworks[tEvent.NetworkID]
-	// Check if the owner of the event is still part of the network
-	nodes := nDB.networkNodes[tEvent.NetworkID]
-	nodePresent := slices.Contains(nodes, tEvent.NodeName)
-
-	if !ok || network.leaving || !nodePresent {
-		// I'm out of the network OR the event owner is not anymore part of the network so do not propagate
+	if !ok || network.leaving {
+		// I'm out of the network so do not propagate
 		return false
 	}
+
+	// Check if the owner of the event is still attached to the network. The
+	// attachments of a failed node are remembered, so its entries keep
+	// being accepted while it is down.
+	if !nDB.isNodeAttached(tEvent.NodeName, tEvent.NetworkID) {
+		return false
+	}
+
+	ownerFailed := nDB.isNodeFailed(tEvent.NodeName)
 
 	var entryPresent bool
 	prev, err := nDB.getEntry(tEvent.TableName, tEvent.NetworkID, tEvent.Key)
@@ -188,6 +194,11 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 			nDB.config.Hostname, nDB.config.NodeID, tEvent)
 		e.reapTime = nDB.config.reapEntryInterval
 	}
+	if !e.deleting && ownerFailed && e.reapTime == 0 {
+		// The sender believes the owner is active and sent no residual reap
+		// time, so bound the remembered entry's retention locally.
+		e.reapTime = nDB.config.reapEntryInterval
+	}
 	nDB.createOrUpdateEntry(tEvent.NetworkID, tEvent.TableName, tEvent.Key, e)
 
 	if obs := nDB.config.tableEventObserver; obs != nil {
@@ -212,6 +223,13 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 
 		// log.G(ctx).Infof("exiting on delete not knowing the obj with rebroadcast:%t", network.inSync)
 		return isBulkSync && network.inSync && e.reapTime > nDB.config.reapEntryInterval/6
+	}
+
+	if ownerFailed {
+		// The entry is hidden while its owner is failed. Watchers saw it
+		// deleted when the owner failed and get it back if the owner
+		// returns. Keep the event flowing so the whole cluster remembers it.
+		return network.inSync
 	}
 
 	event := WatchEvent{
