@@ -508,17 +508,11 @@ func (d *delegate) MergeRemoteState(buf []byte, isJoin bool) {
 	d.nDB.handleNodeEvent(nodeEvent)
 
 	for _, n := range pp.Networks {
-		nEvent := &NetworkEvent{
+		d.nDB.handleNetworkEvent(&NetworkEvent{
 			LTime:     n.LTime,
 			NodeName:  n.NodeName,
 			NetworkID: n.NetworkID,
-			Type:      NetworkEventTypeJoin,
-		}
-
-		if n.Leaving {
-			nEvent.Type = NetworkEventTypeLeave
-		}
-
-		d.nDB.handleNetworkEvent(nEvent)
+			Type:      networkEventType(n.Leaving),
+		})
 	}
 }

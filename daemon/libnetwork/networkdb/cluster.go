@@ -623,6 +623,33 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 		return nil
 	}
 
+	// Carry the attachment view for the networks being synced, ahead of the
+	// entries which depend on it.
+	//
+	// handleTableEvent will not accept an entry from a node it does not believe
+	// participates in the network, and attachments are otherwise disseminated
+	// only by one-shot NetworkEvent broadcasts with a bounded number of
+	// retransmits. A node which misses those has no way back: this bulk sync
+	// hands it the entries every round and it rejects every one of them, for as
+	// long as its view stays stale. Sending the attachments the entries are
+	// predicated on makes the sync self-sufficient, so anti-entropy converges
+	// the membership it needs rather than assuming it.
+	//
+	// These are ordinary network events, so handleNetworkEvent applies its usual
+	// Lamport-time check and a receiver which is already up to date does nothing.
+	for _, nid := range networks {
+		if n, ok := nDB.thisNodeNetworks[nid]; ok {
+			msgs = appendNetworkEventMsg(msgs, nDB.config.NodeID, nid, n.network)
+		}
+	}
+	for owner, nws := range nDB.networks {
+		for _, nid := range networks {
+			if n, ok := nws[nid]; ok {
+				msgs = appendNetworkEventMsg(msgs, owner, nid, *n)
+			}
+		}
+	}
+
 	for _, nid := range networks {
 		nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid), func(path []byte, v *entry) bool {
 			eType := TableEventTypeCreate
@@ -757,4 +784,23 @@ func (nDB *NetworkDB) mRandomNodes(m int, nodes []string) []string {
 	}
 
 	return sample
+}
+
+// appendNetworkEventMsg appends an encoded NetworkEvent describing one node's
+// attachment to a network. Used to make a bulk sync carry the membership its
+// table entries are predicated on.
+func appendNetworkEventMsg(msgs [][]byte, nodeName, nid string, n network) [][]byte {
+	nEvent := NetworkEvent{
+		Type:      networkEventType(n.leaving),
+		LTime:     n.ltime,
+		NodeName:  nodeName,
+		NetworkID: nid,
+	}
+
+	msg, err := encodeMessage(MessageTypeNetworkEvent, &nEvent)
+	if err != nil {
+		log.G(context.TODO()).Errorf("Encode failure during bulk sync: %#v", nEvent)
+		return msgs
+	}
+	return append(msgs, msg)
 }
