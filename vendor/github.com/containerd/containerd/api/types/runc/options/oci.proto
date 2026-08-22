@@ -55,6 +55,8 @@ message CheckpointOptions {
   string image_path = 8;
   // checkpoint work path
   string work_path = 9;
+  // parent image path
+  string parent_path = 10;
 }
 
 message ProcessDetails {

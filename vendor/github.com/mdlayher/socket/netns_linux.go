@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package socket
 
@@ -65,7 +64,7 @@ func withNetNS(fd int, fn func() (*Conn, error)) (*Conn, error) {
 		// No more thread-local state manipulation; return the new Conn.
 		runtime.UnlockOSThread()
 		conn = c
-		return nil
+		return err
 	})
 
 	if err := eg.Wait(); err != nil {

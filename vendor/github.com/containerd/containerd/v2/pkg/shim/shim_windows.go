@@ -18,6 +18,7 @@ package shim
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -28,6 +29,7 @@ import (
 	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/ttrpc"
+	"golang.org/x/sys/windows"
 )
 
 func setupSignals(config Config) (chan os.Signal, error) {
@@ -85,9 +87,15 @@ func awaitPipeReady(address string) error {
 			return nil
 		}
 		lastErr = err
-		// Retry on both "pipe not found" and "pipe busy / deadline exceeded"
-		// — the pipe may still be starting up or temporarily at capacity.
-		if !os.IsNotExist(err) && err != context.DeadlineExceeded {
+		// Retry on pipe-not-found, i/o timeout, and pipe-busy.
+		// winio.DialPipe returns winio.ErrTimeout when the per-attempt timeout fires.
+		// ERROR_PIPE_BUSY is normally absorbed by go-winio's tryDialPipe loop
+		// and surfaces as winio.ErrTimeout once the deadline fires; guard it
+		// explicitly in case a future go-winio version surfaces it unwrapped.
+		retryable := os.IsNotExist(err) ||
+			errors.Is(err, winio.ErrTimeout) ||
+			errors.Is(err, windows.ERROR_PIPE_BUSY)
+		if !retryable {
 			return err
 		}
 		select {

@@ -150,6 +150,9 @@ func validateVendorOrClassName(name string) error {
 	if !IsLetter(rune(name[0])) {
 		return fmt.Errorf("%q, should start with letter", name)
 	}
+	if len(name) == 1 {
+		return nil
+	}
 	for _, c := range string(name[1 : len(name)-1]) {
 		switch {
 		case IsAlphaNumeric(c):

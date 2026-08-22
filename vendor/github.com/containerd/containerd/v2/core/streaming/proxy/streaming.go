@@ -74,7 +74,7 @@ type streamCreator struct {
 func (sc *streamCreator) Create(ctx context.Context, id string) (streaming.Stream, error) {
 	stream, err := sc.client.Stream(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errgrpc.ToNative(err)
 	}
 
 	a, err := typeurl.MarshalAny(&streamingapi.StreamInit{

@@ -26,8 +26,8 @@ require (
 	github.com/aws/smithy-go v1.27.8
 	github.com/cloudflare/cfssl v1.6.5
 	github.com/containerd/cgroups/v3 v3.1.3
-	github.com/containerd/containerd/api v1.11.1
-	github.com/containerd/containerd/v2 v2.3.4
+	github.com/containerd/containerd/api v1.12.0-beta.0
+	github.com/containerd/containerd/v2 v2.4.0-beta.0
 	github.com/containerd/continuity v0.5.0
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/fifo v1.1.0
@@ -120,7 +120,7 @@ require (
 	gotest.tools/v3 v3.5.2
 	pgregory.net/rapid v1.3.0
 	resenje.org/singleflight v0.4.3
-	tags.cncf.io/container-device-interface v1.1.0
+	tags.cncf.io/container-device-interface v1.1.1-0.20260720132747-49ac08dcf160
 )
 
 require (
@@ -177,7 +177,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/fernet/fernet-go v0.0.0-20240119011108-303da6aec611 // indirect
-	github.com/fsnotify/fsnotify v1.9.0 // indirect
+	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -228,19 +228,17 @@ require (
 	github.com/hiddeco/sshsig v0.2.0 // indirect
 	github.com/in-toto/attestation v1.2.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/intel/goresctrl v0.12.0 // indirect
+	github.com/intel/goresctrl v0.13.0 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/knqyf263/go-plugin v0.9.0 // indirect
-	github.com/mdlayher/socket v0.5.1 // indirect
-	github.com/mdlayher/vsock v1.2.1 // indirect
+	github.com/mdlayher/socket v0.6.0 // indirect
+	github.com/mdlayher/vsock v1.3.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/moby/sys/capability v0.4.0 // indirect
 	github.com/moby/sys/sequential v0.7.0 // indirect
 	github.com/morikuni/aec v1.1.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
-	github.com/opencontainers/runtime-tools v0.9.1-0.20251114084447-edf4cb3d2116 // indirect
 	github.com/package-url/packageurl-go v0.1.1 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/petermattis/goid v0.0.0-20240813172612-4fcff4a6cae7 // indirect
