@@ -365,7 +365,7 @@ func (c *containerRouter) postContainersRestart(ctx context.Context, w http.Resp
 	if tmpSeconds := r.Form.Get("t"); tmpSeconds != "" {
 		valSeconds, err := strconv.Atoi(tmpSeconds)
 		if err != nil {
-			return err
+			return errdefs.InvalidParameter(err)
 		}
 		options.Timeout = &valSeconds
 	}
