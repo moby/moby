@@ -50,7 +50,14 @@ func (e ErrInadequateCapability) Error() string {
 func (p *Plugin) ScopedPath(s string) string {
 	if p.PluginObj.Config.PropagatedMount != "" && strings.HasPrefix(s, p.PluginObj.Config.PropagatedMount) {
 		// re-scope to the propagated mount path on the host
-		return filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount", strings.TrimPrefix(s, p.PluginObj.Config.PropagatedMount))
+		base := filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount")
+		result := filepath.Join(base, strings.TrimPrefix(s, p.PluginObj.Config.PropagatedMount))
+		// Clean the path to resolve any .. components and verify the result
+		// doesn't escape the base directory (path traversal prevention)
+		if !strings.HasPrefix(result, base) {
+			return filepath.Join(p.Rootfs, s)
+		}
+		return result
 	}
 	return filepath.Join(p.Rootfs, s)
 }
