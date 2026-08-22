@@ -69,6 +69,8 @@ func ServiceFromGRPC(s swarmapi.Service) (types.Service, error) {
 			service.UpdateStatus.State = types.UpdateStateRollbackPaused
 		case swarmapi.UpdateStatus_ROLLBACK_COMPLETED:
 			service.UpdateStatus.State = types.UpdateStateRollbackCompleted
+		case swarmapi.UpdateStatus_INTERRUPTED:
+			service.UpdateStatus.State = types.UpdateStateInterrupted
 		default:
 			// TODO(thaJeztah): make switch exhaustive; add api.UpdateStatus_UNKNOWN
 		}

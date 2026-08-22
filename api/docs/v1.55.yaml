@@ -13202,6 +13202,75 @@ paths:
           type: "string"
 
       tags: ["Service"]
+  /services/{id}/interrupt:
+    post:
+      summary: "Interrupt a service update"
+      description: |
+        Interrupt a service update or rollback that is currently in
+        progress, so that it stops scheduling further task replacements
+        once the tasks currently being replaced finish or fail. Task
+        replacements already completed are either left running, or, if
+        `disposition` is `revert`, reverted back to the specification the
+        service ran before the update started.
+
+        This call is a no-op that succeeds if the service has no update
+        or rollback in progress.
+
+        Interrupting does not wait for the interruption to take effect.
+        The service's `UpdateStatus.State` becomes `interrupted` once it
+        does; poll `GET /services/{id}` or watch the events API to
+        observe this.
+      operationId: "ServiceUpdateInterrupt"
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      responses:
+        204:
+          description: "no error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        404:
+          description: "no such service"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is not part of a swarm"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "ID or name of service."
+          required: true
+          type: "string"
+        - name: "version"
+          in: "query"
+          description: |
+            The version number of the service object being interrupted.
+            This is required to avoid conflicting writes.
+            This version number should be the value as currently set on
+            the service *before* the call. You can find the current
+            version by calling `GET /services/{id}`
+          required: true
+          type: "integer"
+        - name: "disposition"
+          in: "query"
+          description: |
+            Controls what happens to task replacements the update already
+            completed when the interrupt takes effect. `hold` stops
+            scheduling further replacements and leaves completed ones
+            running. `revert` does the same, and additionally reverts
+            completed replacements back to the specification the service
+            ran before the update started.
+          type: "string"
+          enum: ["hold", "revert"]
+          default: "hold"
+      tags: ["Service"]
   /services/{id}/logs:
     get:
       summary: "Get service logs"

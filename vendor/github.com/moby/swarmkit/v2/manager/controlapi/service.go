@@ -935,6 +935,70 @@ func (s *Server) UpdateService(_ context.Context, request *api.UpdateServiceRequ
 	}, nil
 }
 
+// ServiceUpdateInterrupt interrupts a service update or rollback that is
+// currently in progress, referenced by ServiceID.
+//   - Returns `InvalidArgument` if ServiceID or Version is not provided.
+//   - Returns `NotFound` if the Service is not found.
+//   - Returns an out-of-sequence error if the service has been written since
+//     the given version.
+//   - Is a no-op that succeeds if there is no update or rollback in progress.
+func (s *Server) ServiceUpdateInterrupt(_ context.Context, request *api.ServiceUpdateInterruptRequest) (*api.ServiceUpdateInterruptResponse, error) {
+	if request.ServiceID == "" || request.Version == nil {
+		return nil, status.Error(codes.InvalidArgument, errInvalidArgument.Error())
+	}
+
+	var service *api.Service
+	s.store.View(func(tx store.ReadTx) {
+		service = store.GetService(tx, request.ServiceID)
+	})
+	if service == nil {
+		return nil, status.Errorf(codes.NotFound, "service %s not found", request.ServiceID)
+	}
+
+	if !updateInProgress(service) {
+		// No update to interrupt. This is a no-op, but a stale caller
+		// should still be told its view of the service is out of date,
+		// rather than being told its (no-op) interrupt succeeded.
+		if service.Meta.Version != *request.Version {
+			return nil, store.ErrSequenceConflict
+		}
+		return &api.ServiceUpdateInterruptResponse{Service: service}, nil
+	}
+
+	disposition := api.UpdateStatus_HOLD
+	if request.Disposition == api.ServiceUpdateInterruptRequest_REVERT {
+		disposition = api.UpdateStatus_REVERT
+	}
+
+	err := s.store.Update(func(tx store.Tx) error {
+		service = store.GetService(tx, request.ServiceID)
+		if service == nil {
+			return status.Errorf(codes.NotFound, "service %s not found", request.ServiceID)
+		}
+		if !updateInProgress(service) {
+			// The update finished or was superseded since we checked
+			// above; there is nothing left to interrupt.
+			return nil
+		}
+
+		service.Meta.Version = *request.Version
+		service.UpdateStatus.RequestedInterrupt = disposition
+
+		return store.UpdateService(tx, service)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &api.ServiceUpdateInterruptResponse{Service: service}, nil
+}
+
+func updateInProgress(service *api.Service) bool {
+	return service.UpdateStatus != nil &&
+		(service.UpdateStatus.State == api.UpdateStatus_UPDATING ||
+			service.UpdateStatus.State == api.UpdateStatus_ROLLBACK_STARTED)
+}
+
 // RemoveService removes a Service referenced by ServiceID.
 // - Returns `InvalidArgument` if ServiceID is not provided.
 // - Returns `NotFound` if the Service is not found.

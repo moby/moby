@@ -21,6 +21,7 @@ type Backend interface {
 	GetService(idOrName string, insertDefaults bool) (swarm.Service, error)
 	CreateService(swarm.ServiceSpec, string, bool) (*swarm.ServiceCreateResponse, error)
 	UpdateService(string, uint64, swarm.ServiceSpec, swarmbackend.ServiceUpdateOptions, bool) (*swarm.ServiceUpdateResponse, error)
+	InterruptServiceUpdate(string, uint64, swarm.ServiceUpdateInterruptDisposition) error
 	RemoveService(string) error
 	ServiceLogs(context.Context, *backend.LogSelector, *backend.ContainerLogsOptions) (<-chan *backend.LogMessage, error)
 	GetNodes(swarmbackend.NodeListOptions) ([]swarm.Node, error)
