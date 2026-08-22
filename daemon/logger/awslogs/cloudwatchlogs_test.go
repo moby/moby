@@ -790,6 +790,207 @@ func BenchmarkCollectBatchMultilinePattern(b *testing.B) {
 	}
 }
 
+// Parses the log options enabling awslogs-datetime-as-event-time for the given
+// datetime format.
+func testDatetimeAsEventTime(t *testing.T, datetimeFormat string) (*regexp.Regexp, *eventTimeParser) {
+	t.Helper()
+	info := logger.Info{
+		Config: map[string]string{
+			datetimeFormatKey:      datetimeFormat,
+			datetimeAsEventTimeKey: "true",
+		},
+	}
+	multilinePattern, err := parseMultilineOptions(info)
+	assert.NilError(t, err)
+	eventTime, err := parseEventTimeOptions(info, multilinePattern)
+	assert.NilError(t, err)
+	assert.Assert(t, eventTime != nil)
+	return multilinePattern, eventTime
+}
+
+func TestCollectBatchMultilineDatetimeAsEventTime(t *testing.T) {
+	mockClient := &mockClient{}
+	multilinePattern, eventTime := testDatetimeAsEventTime(t, "%Y-%m-%d %H:%M:%S")
+	stream := &logStream{
+		client:           mockClient,
+		logGroupName:     groupName,
+		logStreamName:    streamName,
+		multilinePattern: multilinePattern,
+		eventTime:        eventTime,
+		sequenceToken:    aws.String(sequenceToken),
+		messages:         loggerutils.NewMessageQueue(0),
+	}
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		}, nil
+	}
+	ticks := make(chan time.Time)
+	newTicker = func(_ time.Duration) *time.Ticker {
+		return &time.Ticker{
+			C: ticks,
+		}
+	}
+
+	d := make(chan bool)
+	close(d)
+	go stream.collectBatch(d)
+
+	// The read time is deliberately unrelated to the datetime in the log lines
+	readTime := time.Now()
+	stream.Log(&logger.Message{
+		Line:      []byte("2017-01-01 01:01:44 first event"),
+		Timestamp: readTime,
+	})
+	stream.Log(&logger.Message{
+		Line:      []byte("a continuation line"),
+		Timestamp: readTime,
+	})
+	stream.Log(&logger.Message{
+		Line:      []byte("2017-01-01 01:01:45 second event"),
+		Timestamp: readTime,
+	})
+
+	stream.Close()
+
+	<-called
+	assert.Assert(t, len(calls) == 1)
+	argument := calls[0]
+	close(called)
+	assert.Assert(t, argument != nil)
+	assert.Assert(t, is.Len(argument.LogEvents, 2))
+	assert.Check(t, is.Equal("2017-01-01 01:01:44 first event\na continuation line\n", aws.ToString(argument.LogEvents[0].Message)))
+	assert.Check(t, is.Equal(time.Date(2017, time.January, 1, 1, 1, 44, 0, time.UTC).UnixMilli(), aws.ToInt64(argument.LogEvents[0].Timestamp)), "Expected the event time to be taken from the log line")
+	assert.Check(t, is.Equal("2017-01-01 01:01:45 second event\n", aws.ToString(argument.LogEvents[1].Message)))
+	assert.Check(t, is.Equal(time.Date(2017, time.January, 1, 1, 1, 45, 0, time.UTC).UnixMilli(), aws.ToInt64(argument.LogEvents[1].Timestamp)), "Expected the event time to be taken from the log line")
+}
+
+// A batch spanning more than 24 hours is rejected as a whole by CloudWatch, so
+// it has to be split once event timestamps are read off the log lines.
+func TestCollectBatchDatetimeAsEventTimeMaxTimeSpan(t *testing.T) {
+	mockClient := &mockClient{}
+	multilinePattern, eventTime := testDatetimeAsEventTime(t, "%Y-%m-%d %H:%M:%S")
+	stream := &logStream{
+		client:           mockClient,
+		logGroupName:     groupName,
+		logStreamName:    streamName,
+		multilinePattern: multilinePattern,
+		eventTime:        eventTime,
+		sequenceToken:    aws.String(sequenceToken),
+		messages:         loggerutils.NewMessageQueue(0),
+	}
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		}, nil
+	}
+	ticks := make(chan time.Time)
+	newTicker = func(_ time.Duration) *time.Ticker {
+		return &time.Ticker{
+			C: ticks,
+		}
+	}
+
+	d := make(chan bool)
+	close(d)
+	go stream.collectBatch(d)
+
+	// Two events 48 hours apart
+	readTime := time.Now()
+	stream.Log(&logger.Message{
+		Line:      []byte("2017-01-01 01:01:44 first event"),
+		Timestamp: readTime,
+	})
+	stream.Log(&logger.Message{
+		Line:      []byte("2017-01-03 01:01:44 second event"),
+		Timestamp: readTime,
+	})
+
+	stream.Close()
+
+	for range 2 {
+		select {
+		case <-called:
+		case <-time.After(10 * time.Second):
+			t.Fatal("Timed out waiting for the batch to be split")
+		}
+	}
+	assert.Assert(t, is.Len(calls, 2), "Expected the batch to be split")
+	close(called)
+	assert.Assert(t, is.Len(calls[0].LogEvents, 1))
+	assert.Check(t, is.Equal(time.Date(2017, time.January, 1, 1, 1, 44, 0, time.UTC).UnixMilli(), aws.ToInt64(calls[0].LogEvents[0].Timestamp)))
+	assert.Assert(t, is.Len(calls[1].LogEvents, 1))
+	assert.Check(t, is.Equal(time.Date(2017, time.January, 3, 1, 1, 44, 0, time.UTC).UnixMilli(), aws.ToInt64(calls[1].LogEvents[0].Timestamp)))
+}
+
+// Exceeding the maximum event size splits a single logical event, so all of its
+// parts have to keep the timestamp of the line that started it, even though the
+// line causing the overflow carries no datetime of its own.
+func TestCollectBatchDatetimeAsEventTimeMaxEventSize(t *testing.T) {
+	mockClient := &mockClient{}
+	multilinePattern, eventTime := testDatetimeAsEventTime(t, "%Y-%m-%d %H:%M:%S")
+	stream := &logStream{
+		client:           mockClient,
+		logGroupName:     groupName,
+		logStreamName:    streamName,
+		multilinePattern: multilinePattern,
+		eventTime:        eventTime,
+		sequenceToken:    aws.String(sequenceToken),
+		messages:         loggerutils.NewMessageQueue(0),
+	}
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		}, nil
+	}
+	ticks := make(chan time.Time)
+	newTicker = func(_ time.Duration) *time.Ticker {
+		return &time.Ticker{
+			C: ticks,
+		}
+	}
+
+	d := make(chan bool)
+	close(d)
+	go stream.collectBatch(d)
+
+	readTime := time.Now()
+	// A line filling up a whole event, so that the next one overflows it
+	datetimePrefix := "2017-01-01 01:01:44 "
+	stream.Log(&logger.Message{
+		Line:      []byte(datetimePrefix + strings.Repeat("A", maximumBytesPerEvent-len(datetimePrefix))),
+		Timestamp: readTime,
+	})
+	// A continuation line, carrying no datetime, overflows the buffered event
+	stream.Log(&logger.Message{
+		Line:      []byte(strings.Repeat("B", 100)),
+		Timestamp: readTime,
+	})
+
+	stream.Close()
+
+	<-called
+	assert.Assert(t, is.Len(calls, 1))
+	argument := calls[0]
+	close(called)
+	assert.Assert(t, is.Len(argument.LogEvents, 2), "Expected the event to be split")
+	eventTimestamp := time.Date(2017, time.January, 1, 1, 1, 44, 0, time.UTC).UnixMilli()
+	assert.Check(t, is.Equal(eventTimestamp, aws.ToInt64(argument.LogEvents[0].Timestamp)))
+	assert.Check(t, is.Equal(eventTimestamp, aws.ToInt64(argument.LogEvents[1].Timestamp)), "Expected both parts to keep the timestamp of the line that started the event")
+}
+
 func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 	mockClient := &mockClient{}
 	multilinePattern := regexp.MustCompile("xxxx")
@@ -1488,6 +1689,421 @@ func TestParseLogOptionsDatetimeFormat(t *testing.T) {
 			multilinePattern, err := parseMultilineOptions(info)
 			assert.Check(t, err, "Received unexpected error")
 			assert.Check(t, multilinePattern.MatchString(dt.match), "No multiline pattern match found")
+		})
+	}
+}
+
+func TestStrftimeToLayout(t *testing.T) {
+	tests := []struct {
+		format    string
+		layout    string
+		shouldErr bool
+	}{
+		{format: "%Y-%m-%d %H:%M:%S", layout: "2006-01-02 15:04:05"},
+		{format: "[%d/%b/%Y:%H:%M:%S %z]", layout: "[02/Jan/2006:15:04:05 -0700]"},
+		{format: "%a %B %d %I:%M:%S%L %p", layout: "Mon January 02 03:04:05.000 PM"},
+		{format: "%y-%j %H:%M:%S.%f", layout: "06-002 15:04:05.000000"},
+		// %w (weekday as a digit) has no equivalent in a Go layout
+		{format: "%Y-%m-%d %w", shouldErr: true},
+		// %Z (timezone abbreviation) cannot be resolved reliably
+		{format: "%Y-%m-%d %H:%M:%S %Z", shouldErr: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.format, func(t *testing.T) {
+			layout, err := strftimeToLayout(tc.format)
+			if tc.shouldErr {
+				assert.Check(t, err != nil, "Expected an error")
+				return
+			}
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(tc.layout, layout), "Unexpected layout")
+		})
+	}
+}
+
+func TestEventTimeParserParse(t *testing.T) {
+	readTime := time.Date(2026, time.June, 17, 9, 0, 0, 0, time.UTC)
+	tests := []struct {
+		testName string
+		format   string
+		line     string
+		// Defaults to readTime when left out
+		readTime time.Time
+		expected time.Time
+	}{
+		{
+			testName: "full datetime",
+			format:   "%Y-%m-%d %H:%M:%S",
+			line:     "2017-01-01 01:01:44 This is a log entry",
+			expected: time.Date(2017, time.January, 1, 1, 1, 44, 0, time.UTC),
+		},
+		{
+			testName: "datetime preceded by other text",
+			format:   "%Y-%m-%d %H:%M:%S",
+			line:     "INFO 2017-01-01 01:01:44 This is a log entry",
+			expected: time.Date(2017, time.January, 1, 1, 1, 44, 0, time.UTC),
+		},
+		{
+			testName: "milliseconds",
+			format:   "%Y-%m-%d %H:%M:%S%L",
+			line:     "2017-01-01 01:01:44.123 This is a log entry",
+			expected: time.Date(2017, time.January, 1, 1, 1, 44, int(123*time.Millisecond), time.UTC),
+		},
+		{
+			testName: "utc offset",
+			format:   "%Y-%m-%d %H:%M:%S%z",
+			line:     "2017-01-01 01:01:44+0200 This is a log entry",
+			expected: time.Date(2016, time.December, 31, 23, 1, 44, 0, time.UTC),
+		},
+		{
+			testName: "day of the year",
+			format:   "%Y-%j %H:%M:%S",
+			line:     "2017-032 01:01:44 This is a log entry",
+			expected: time.Date(2017, time.February, 1, 1, 1, 44, 0, time.UTC),
+		},
+		{
+			testName: "year taken from the read time",
+			format:   "%b %d %H:%M:%S",
+			line:     "Jan 15 01:01:44 This is a log entry",
+			expected: time.Date(2026, time.January, 15, 1, 1, 44, 0, time.UTC),
+		},
+		{
+			testName: "date taken from the read time",
+			format:   "%H:%M:%S",
+			line:     "01:01:44 This is a log entry",
+			expected: time.Date(2026, time.June, 17, 1, 1, 44, 0, time.UTC),
+		},
+		{
+			testName: "year and month taken from the read time",
+			format:   "%d %H:%M:%S",
+			line:     "13 01:01:44 This is a log entry",
+			expected: time.Date(2026, time.June, 13, 1, 1, 44, 0, time.UTC),
+		},
+		{
+			testName: "day taken from the read time",
+			format:   "%Y-%m",
+			line:     "2017-01 This is a log entry",
+			expected: time.Date(2017, time.January, 17, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			// The 31st of the read time does not go into a parsed February
+			testName: "borrowed day clamped to the parsed month",
+			format:   "%Y-%m",
+			line:     "2026-02 This is a log entry",
+			readTime: time.Date(2026, time.March, 31, 9, 0, 0, 0, time.UTC),
+			expected: time.Date(2026, time.February, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			// Same as above, read in the afternoon: a format carrying no hour
+			// must not be rounded on the midnight time.Parse fills in
+			testName: "borrowed day for a format carrying no hour",
+			format:   "%Y-%m",
+			line:     "2026-02 This is a log entry",
+			readTime: time.Date(2026, time.March, 31, 20, 0, 0, 0, time.UTC),
+			expected: time.Date(2026, time.February, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			// The parsed day rules out the month of the read time, leaving the
+			// one before it
+			testName: "borrowed month rejected by the parsed day",
+			format:   "%d %H:%M:%S",
+			line:     "31 01:01:44 This is a log entry",
+			readTime: time.Date(2026, time.February, 20, 9, 0, 0, 0, time.UTC),
+			expected: time.Date(2026, time.January, 31, 1, 1, 44, 0, time.UTC),
+		},
+		{
+			// Neither the read year nor the one before it has a 29th of
+			// February, so the date cannot be completed at all
+			testName: "no usable date falls back to the read time",
+			format:   "%b %d %H:%M:%S",
+			line:     "Feb 29 01:01:44 This is a log entry",
+			expected: readTime,
+		},
+		{
+			testName: "no match falls back to the read time",
+			format:   "%Y-%m-%d %H:%M:%S",
+			line:     "a continuation line of a multiline event",
+			expected: readTime,
+		},
+		{
+			testName: "unparsable datetime falls back to the read time",
+			format:   "%Y-%m-%d",
+			line:     "2017-02-31 This is a log entry",
+			expected: readTime,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.testName, func(t *testing.T) {
+			at := tc.readTime
+			if at.IsZero() {
+				at = readTime
+			}
+			_, eventTime := testDatetimeAsEventTime(t, tc.format)
+			parsed := eventTime.parse([]byte(tc.line), at)
+			assert.Check(t, is.Equal(tc.expected.UTC(), parsed.UTC()), "Unexpected event time")
+		})
+	}
+}
+
+// A log line written just before the turn of a year or a month is read after
+// it, so the component taken from the read time cannot be used as-is.
+func TestEventTimeParserParseRollover(t *testing.T) {
+	tests := []struct {
+		testName string
+		format   string
+		line     string
+		readTime time.Time
+		expected time.Time
+	}{
+		{
+			testName: "year",
+			format:   "%b %d %H:%M:%S",
+			line:     "Dec 31 23:59:59 last entry",
+			readTime: time.Date(2026, time.January, 1, 0, 0, 5, 0, time.UTC),
+			expected: time.Date(2025, time.December, 31, 23, 59, 59, 0, time.UTC),
+		},
+		{
+			testName: "month",
+			format:   "%d %H:%M:%S",
+			line:     "31 23:59:59 last entry",
+			readTime: time.Date(2026, time.September, 1, 0, 0, 5, 0, time.UTC),
+			expected: time.Date(2026, time.August, 31, 23, 59, 59, 0, time.UTC),
+		},
+		{
+			testName: "day",
+			format:   "%H:%M:%S",
+			line:     "23:59:59 last entry",
+			readTime: time.Date(2026, time.June, 18, 0, 0, 5, 0, time.UTC),
+			expected: time.Date(2026, time.June, 17, 23, 59, 59, 0, time.UTC),
+		},
+		{
+			// Stepping a day back off the first of a year crosses both the
+			// month and the year
+			testName: "day across the turn of the year",
+			format:   "%H:%M:%S",
+			line:     "23:59:59 last entry",
+			readTime: time.Date(2026, time.January, 1, 0, 0, 5, 0, time.UTC),
+			expected: time.Date(2025, time.December, 31, 23, 59, 59, 0, time.UTC),
+		},
+		{
+			// The month is carried, so the format repeats yearly even though
+			// the day is missing too
+			testName: "year for a format carrying no day",
+			format:   "%m %H:%M:%S",
+			line:     "12 23:59:59 last entry",
+			readTime: time.Date(2026, time.January, 1, 0, 0, 5, 0, time.UTC),
+			expected: time.Date(2025, time.December, 31, 23, 59, 59, 0, time.UTC),
+		},
+		{
+			// The year and the month are carried and only the day is borrowed,
+			// so it is the borrowed day that has to give
+			testName: "day for a format carrying a year and a month",
+			format:   "%Y-%m %H:%M:%S",
+			line:     "2026-06 23:59:59 last entry",
+			readTime: time.Date(2026, time.July, 1, 0, 0, 5, 0, time.UTC),
+			expected: time.Date(2026, time.June, 30, 23, 59, 59, 0, time.UTC),
+		},
+		{
+			// Stepping a month back off January crosses the year, which is
+			// taken from the read time anyway
+			testName: "month across the turn of the year",
+			format:   "%d %H:%M:%S",
+			line:     "31 23:59:59 last entry",
+			readTime: time.Date(2026, time.January, 1, 0, 0, 5, 0, time.UTC),
+			expected: time.Date(2025, time.December, 31, 23, 59, 59, 0, time.UTC),
+		},
+		{
+			// The year pins the date, so the month the line carries must not be
+			// stepped away from even though the resulting date is far ahead
+			testName: "no rollover when the format carries a year",
+			format:   "%Y-%m",
+			line:     "2027-01 an entry",
+			readTime: time.Date(2026, time.March, 1, 0, 0, 5, 0, time.UTC),
+			expected: time.Date(2027, time.January, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			// A clock slightly ahead must not cost a whole day
+			testName: "no rollover for a small offset into the future",
+			format:   "%H:%M:%S",
+			line:     "09:30:00 an entry",
+			readTime: time.Date(2026, time.June, 17, 9, 0, 0, 0, time.UTC),
+			expected: time.Date(2026, time.June, 17, 9, 30, 0, 0, time.UTC),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.testName, func(t *testing.T) {
+			_, eventTime := testDatetimeAsEventTime(t, tc.format)
+			assert.Check(t, is.Equal(tc.expected, eventTime.parse([]byte(tc.line), tc.readTime).UTC()))
+		})
+	}
+}
+
+// A format carrying no hour has no time of day to place the event by, so the
+// hour the message happened to be read at must not move it.
+func TestEventTimeParserParseIndependentOfTheReadHour(t *testing.T) {
+	formats := []string{"%Y-%m", "%m", "%d", "%Y-%m-%d"}
+	for _, format := range formats {
+		t.Run(format, func(t *testing.T) {
+			_, eventTime := testDatetimeAsEventTime(t, format)
+			line := []byte(time.Date(2026, time.February, 28, 0, 0, 0, 0, time.UTC).Format(eventTime.layout))
+
+			var first time.Time
+			for hour := range 24 {
+				readTime := time.Date(2026, time.March, 31, hour, 30, 0, 0, time.UTC)
+				parsed := eventTime.parse(line, readTime)
+				if hour == 0 {
+					first = parsed
+					continue
+				}
+				assert.Check(t, is.Equal(first, parsed), "Read at %02d:30 differs from read at 00:30", hour)
+			}
+		})
+	}
+}
+
+func TestEventTimeParserParseTimezone(t *testing.T) {
+	readTime := time.Date(2026, time.June, 17, 9, 0, 0, 0, time.UTC)
+	tests := []struct {
+		datetimeTimezone string
+		location         *time.Location
+	}{
+		{datetimeTimezone: "", location: time.UTC},
+		{datetimeTimezone: "utc", location: time.UTC},
+		{datetimeTimezone: "local", location: time.Local},
+		{datetimeTimezone: "LOCAL", location: time.Local},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.datetimeTimezone, func(t *testing.T) {
+			info := logger.Info{
+				Config: map[string]string{
+					datetimeFormatKey:      "%Y-%m-%d %H:%M:%S",
+					datetimeAsEventTimeKey: "true",
+					datetimeTimezoneKey:    tc.datetimeTimezone,
+				},
+			}
+			multilinePattern, err := parseMultilineOptions(info)
+			assert.NilError(t, err)
+			eventTime, err := parseEventTimeOptions(info, multilinePattern)
+			assert.NilError(t, err)
+
+			parsed := eventTime.parse([]byte("2017-01-01 01:01:44 This is a log entry"), readTime)
+			// Asserted on its own, so that the test still says something on a
+			// host whose local timezone happens to be UTC
+			assert.Check(t, parsed.Location() == tc.location, "Unexpected location %s", parsed.Location())
+			expected := time.Date(2017, time.January, 1, 1, 1, 44, 0, tc.location)
+			assert.Check(t, is.Equal(expected.UTC(), parsed.UTC()), "Unexpected event time")
+		})
+	}
+}
+
+func TestParseDatetimeTimezone(t *testing.T) {
+	_, err := parseDatetimeTimezone("cet")
+	assert.Check(t, err != nil, "Expected an error")
+	assert.Check(t, is.Contains(err.Error(), "must specify 'utc' or 'local' for log opt 'awslogs-datetime-timezone': cet"))
+}
+
+func TestParseEventTimeOptions(t *testing.T) {
+	tests := []struct {
+		testName            string
+		datetimeFormat      string
+		datetimeAsEventTime string
+		shouldErr           bool
+		expectParser        bool
+	}{
+		{testName: "unset", datetimeFormat: "%Y-%m-%d"},
+		{testName: "disabled", datetimeFormat: "%Y-%m-%d", datetimeAsEventTime: "false"},
+		{testName: "enabled", datetimeFormat: "%Y-%m-%d", datetimeAsEventTime: "true", expectParser: true},
+		{testName: "invalid value", datetimeFormat: "%Y-%m-%d", datetimeAsEventTime: "yes please", shouldErr: true},
+		{testName: "without datetime format", datetimeAsEventTime: "true", shouldErr: true},
+		{testName: "unsupported datetime format", datetimeFormat: "%w", datetimeAsEventTime: "true", shouldErr: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.testName, func(t *testing.T) {
+			info := logger.Info{
+				Config: map[string]string{
+					datetimeFormatKey:      tc.datetimeFormat,
+					datetimeAsEventTimeKey: tc.datetimeAsEventTime,
+				},
+			}
+			multilinePattern, err := parseMultilineOptions(info)
+			assert.NilError(t, err)
+
+			eventTime, err := parseEventTimeOptions(info, multilinePattern)
+			if tc.shouldErr {
+				assert.Check(t, err != nil, "Expected an error")
+				return
+			}
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(tc.expectParser, eventTime != nil), "Unexpected parser")
+		})
+	}
+}
+
+func TestValidateLogOptionsDatetimeAsEventTime(t *testing.T) {
+	tests := []struct {
+		testName    string
+		cfg         map[string]string
+		expectedErr string
+	}{
+		{
+			testName: "enabled",
+			cfg:      map[string]string{datetimeFormatKey: "%Y-%m-%d", datetimeAsEventTimeKey: "true"},
+		},
+		{
+			testName: "disabled without datetime format",
+			cfg:      map[string]string{datetimeAsEventTimeKey: "false"},
+		},
+		{
+			testName:    "invalid value",
+			cfg:         map[string]string{datetimeFormatKey: "%Y-%m-%d", datetimeAsEventTimeKey: "1.5"},
+			expectedErr: "must specify valid value for log opt 'awslogs-datetime-as-event-time'",
+		},
+		{
+			testName:    "without datetime format",
+			cfg:         map[string]string{datetimeAsEventTimeKey: "true"},
+			expectedErr: "log opt 'awslogs-datetime-as-event-time' requires log opt 'awslogs-datetime-format' to be set",
+		},
+		{
+			testName:    "unsupported datetime format",
+			cfg:         map[string]string{datetimeFormatKey: "%Y-%m-%d %w", datetimeAsEventTimeKey: "true"},
+			expectedErr: "awslogs cannot use log opt 'awslogs-datetime-format' as event time: format sequence \"%w\" is not supported",
+		},
+		{
+			testName:    "timezone abbreviation in the datetime format",
+			cfg:         map[string]string{datetimeFormatKey: "%Y-%m-%d %H:%M:%S %Z", datetimeAsEventTimeKey: "true"},
+			expectedErr: "format sequence \"%Z\" is not supported, use %z or log opt 'awslogs-datetime-timezone' instead",
+		},
+		{
+			testName: "local timezone",
+			cfg:      map[string]string{datetimeFormatKey: "%Y-%m-%d", datetimeAsEventTimeKey: "true", datetimeTimezoneKey: "local"},
+		},
+		{
+			testName:    "invalid timezone",
+			cfg:         map[string]string{datetimeFormatKey: "%Y-%m-%d", datetimeAsEventTimeKey: "true", datetimeTimezoneKey: "cet"},
+			expectedErr: "must specify 'utc' or 'local' for log opt 'awslogs-datetime-timezone': cet",
+		},
+		{
+			testName:    "timezone without datetime as event time",
+			cfg:         map[string]string{datetimeFormatKey: "%Y-%m-%d", datetimeTimezoneKey: "local"},
+			expectedErr: "log opt 'awslogs-datetime-timezone' requires log opt 'awslogs-datetime-as-event-time' to be enabled",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.testName, func(t *testing.T) {
+			tc.cfg[logGroupKey] = groupName
+			err := ValidateLogOpt(tc.cfg)
+			if tc.expectedErr == "" {
+				assert.NilError(t, err)
+				return
+			}
+			assert.Check(t, err != nil, "Expected an error")
+			assert.Check(t, is.Contains(err.Error(), tc.expectedErr), "Received invalid error")
 		})
 	}
 }
