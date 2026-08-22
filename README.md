@@ -5,6 +5,7 @@ The Moby Project
 ![GitHub License](https://img.shields.io/github/license/moby/moby)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/moby/moby/badge)](https://scorecard.dev/viewer/?uri=github.com/moby/moby)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10989/badge)](https://www.bestpractices.dev/projects/10989)
+[![inspect.software](https://raw.githubusercontent.com/inspect-software/badges/main/v1/m/moby/moby.svg)](https://inspect.software/software/moby/moby)
 
 
 ![Moby Project logo](docs/static_files/moby-project-logo.png "The Moby Project")
