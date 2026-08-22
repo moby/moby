@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	"github.com/aws/smithy-go"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
 	"github.com/moby/moby/v2/dockerversion"
@@ -1722,4 +1723,52 @@ func TestNewAWSLogsClientCredentialEndpointDetect(t *testing.T) {
 	assert.Check(t, is.Contains(actualAuthHeader, "AWS4-HMAC-SHA256 Credential=test-access-key-id/"))
 	assert.Check(t, is.Contains(actualAuthHeader, "us-west-2"))
 	assert.Check(t, is.Contains(actualAuthHeader, "Signature="))
+}
+
+func TestPublishBatchExpiredTokenRefresh(t *testing.T) {
+	renewedClient := &mockClient{}
+	stream := &logStream{
+		client:        &mockClient{},
+		logGroupName:  groupName,
+		logStreamName: streamName,
+		sequenceToken: aws.String(sequenceToken),
+		info:          logger.Info{Config: map[string]string{regionKey: "us-east-1"}},
+	}
+
+	// First call fails with ExpiredTokenException
+	calls := 0
+	stream.client.(*mockClient).putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls++
+		return nil, &smithy.GenericAPIError{
+			Code:    "ExpiredTokenException",
+			Message: "The security token included in the request is expired",
+		}
+	}
+
+	// After refresh, the new client succeeds
+	renewedClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls++
+		return &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		}, nil
+	}
+
+	// Swap newAWSLogsClient to return the renewed mock client
+	origNewAWSLogsClient := newAWSLogsClient
+	defer func() { newAWSLogsClient = origNewAWSLogsClient }()
+	newAWSLogsClient = func(info logger.Info, configOpts ...func(*config.LoadOptions) error) (api, error) {
+		return renewedClient, nil
+	}
+
+	events := []wrappedEvent{
+		{
+			inputLogEvent: types.InputLogEvent{
+				Message: aws.String(logline),
+			},
+		},
+	}
+
+	stream.publishBatch(testEventBatch(events))
+	assert.Equal(t, 2, calls)
+	assert.Equal(t, nextSequenceToken, aws.ToString(stream.sequenceToken))
 }
