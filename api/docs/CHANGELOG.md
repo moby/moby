@@ -17,6 +17,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.55 API changes
 
+* `GET /events`: `die` events for containers now include a `restarting`
+  attribute, set to `"true"` when the container is going to be restarted,
+  either by its restart policy or by a manual restart in progress. The
+  attribute is omitted when the container is not going to be restarted.
 * `GET /images/{name}/attestations` is a new endpoint that returns the in-toto
   attestation statements attached to an image. The `platform` query parameter
   selects the image variant (defaults to the daemon's host platform); it is
