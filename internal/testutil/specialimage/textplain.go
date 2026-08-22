@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/distribution/reference"
+	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -23,7 +24,9 @@ func TextPlain(dir string) (*ocispec.Index, error) {
 	configDesc.MediaType = "application/vnd.oci.empty.v1+json"
 
 	desc, err := writeJsonBlob(dir, ocispec.MediaTypeImageManifest, ocispec.Manifest{
-		Config: configDesc,
+		Versioned: specs.Versioned{SchemaVersion: 2},
+		MediaType: ocispec.MediaTypeImageManifest,
+		Config:    configDesc,
 		Layers: []ocispec.Descriptor{
 			emptyJsonDesc,
 		},
