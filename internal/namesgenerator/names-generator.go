@@ -5,16 +5,38 @@
 // For a long time, this package provided a lot of joy within the project, but
 // at some point the conflicts of opinion became greater than the added joy.
 //
-// At some future time, this may be replaced with something that sparks less
-// controversy, but for now it will remain as-is.
+// Alternative generators can replace this built-in through the namesgenerator
+// extension point.
 //
 // See also https://github.com/moby/moby/pull/43210#issuecomment-1029934277
 package namesgenerator
 
 import (
+	"context"
+	"errors"
 	"math/rand/v2"
 	"strconv"
+
+	"github.com/moby/extensions"
+	namesgeneratorv0 "github.com/moby/moby/v2/extpoints/namesgenerator/v0"
 )
+
+const extensionID extensions.ExtensionID = "org.mobyproject.namesgenerator.v1"
+
+// Extension provides Moby's built-in random name generator.
+var Extension = extensions.New(extensions.Declaration{
+	ID:        extensionID,
+	Providers: []extensions.Provider{namesgeneratorv0.Point.Provide(provider{})},
+})
+
+type provider struct{}
+
+func (provider) Generate(_ context.Context, req *namesgeneratorv0.GenerateRequest) (*namesgeneratorv0.GenerateReply, error) {
+	if req == nil {
+		return nil, errors.New("generate request is required")
+	}
+	return &namesgeneratorv0.GenerateReply{Name: generateName(req.Retry)}, nil
+}
 
 var (
 	left = [...]string{
@@ -843,10 +865,9 @@ var (
 	}
 )
 
-// GetRandomName generates a random name from the list of adjectives and surnames in this package
-// formatted as "adjective_surname". For example 'focused_turing'. If retry is non-zero, a random
-// integer between 0 and 10 will be added to the end of the name, e.g `focused_turing3`
-func GetRandomName(retry int) string {
+// generateName generates a random name formatted as "adjective_surname".
+// If retry is non-zero, one random decimal digit is appended.
+func generateName(retry int64) string {
 begin:
 	name := left[rand.IntN(len(left))] + "_" + right[rand.IntN(len(right))] // #nosec G404 -- Use of weak random number generator (math/rand instead of crypto/rand)
 	if name == "boring_wozniak" /* Steve Wozniak is not boring */ {

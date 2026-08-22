@@ -50,6 +50,7 @@ import (
 	"resenje.org/singleflight"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 
+	"github.com/moby/extensions/host"
 	"github.com/moby/moby/v2/daemon/builder"
 	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
 	"github.com/moby/moby/v2/daemon/config"
@@ -128,6 +129,7 @@ type Daemon struct {
 	PluginStore       *plugin.Store // TODO: remove
 	nri               *nri.NRI
 	pluginManager     *plugin.Manager
+	extensionHost     *host.Host
 	linkIndex         *linkIndex
 	containerdClient  *containerd.Client
 	containerd        libcontainerdtypes.Client
@@ -958,6 +960,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 	}()
 
+	// Build the host after installing the cleanup defer: this starts extension
+	// processes and must be covered if initialization fails.
+	d.extensionHost, err = setupExtensionHost(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := d.setGenericResources(&cfgStore.Config); err != nil {
 		return nil, err
 	}
@@ -1510,6 +1519,14 @@ func (daemon *Daemon) shutdownTimeout(cfg *config.Config) int {
 
 // Shutdown stops the daemon.
 func (daemon *Daemon) Shutdown(ctx context.Context) error {
+	defer func() {
+		if daemon.extensionHost != nil {
+			if err := daemon.extensionHost.Shutdown(ctx); err != nil {
+				log.G(ctx).WithError(err).Error("failed to shut down extensions")
+			}
+		}
+	}()
+
 	daemon.shutdown = true
 	// Keep mounts and networking running on daemon shutdown if
 	// we are to keep containers running and restore them.
