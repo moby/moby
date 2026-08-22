@@ -1691,6 +1691,13 @@ func clearConntrackEntries(nlh nlwrap.Handle, ep *bridgeEndpoint) {
 	var udpPorts []types.PortBinding
 	for _, pb := range ep.portMapping {
 		if pb.Proto == types.UDP {
+			// NAT'd bindings: the conntrack entry's orig-dst-port is the
+			// published host port. Routed bindings (no NAT) are covered by
+			// the IP-keyed flush above — their flows are never DNAT'd, so
+			// a port-keyed flush is not needed for them.
+			if !pb.NAT.IsValid() {
+				continue
+			}
 			udpPorts = append(udpPorts, pb.PortBinding)
 		}
 	}
