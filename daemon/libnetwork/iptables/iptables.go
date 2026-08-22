@@ -513,10 +513,15 @@ func (r Rule) Append() error {
 	return r.ensure(Append)
 }
 
-// Insert inserts the rule at the head of the chain. If the rule already exists anywhere in the
-// chain, this is a no-op.
+// Insert inserts the rule at the head of the chain. If the rule already exists
+// anywhere in the chain, it is moved to the head.
 func (r Rule) Insert() error {
-	return r.ensure(Insert)
+	if r.Exists() {
+		if err := r.exec(Delete); err != nil {
+			return err
+		}
+	}
+	return r.exec(Insert)
 }
 
 // Delete deletes the rule from the kernel. If the rule does not exist, this is a no-op.
