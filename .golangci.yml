@@ -304,6 +304,16 @@ linters:
         linters:
           - gosec
 
+      - text: "G702: Command injection via taint analysis"
+        path: _test\.go
+        linters:
+          - gosec
+
+      - text: "G703: Path traversal via taint analysis"
+        path: _test\.go
+        linters:
+          - gosec
+
       - text: "^G402: " # Look for bad TLS connection settings
         path: '^client/'
         source: "cmpopts\\.Ignore"
