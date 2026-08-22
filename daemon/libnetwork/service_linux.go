@@ -4,21 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
+	"math"
 	"net"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 
 	"github.com/containerd/log"
-	"github.com/ishidawataru/sctp"
 	"github.com/moby/ipvs"
-	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
-	"github.com/moby/moby/v2/daemon/libnetwork/ns"
+	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/vishvananda/netlink/nl"
 )
 
@@ -127,11 +124,12 @@ func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 		}
 
 		if sb.ingress {
-			var gwIP net.IP
-			if gwEP, _ := sb.getGatewayEndpoint(); gwEP != nil {
-				gwIP = gwEP.Iface().Address().IP
+			gwEP, _ := sb.getGatewayEndpoint()
+			if gwEP == nil {
+				log.G(context.TODO()).Errorf("Failed to add ingress ports: no gateway endpoint for sandbox %.7s", sb.ID())
+				return
 			}
-			if err := addIngressPorts(gwIP, lb.service.ingressPorts); err != nil {
+			if err := addIngressPorts(gwEP, lb.service.ingressPorts); err != nil {
 				log.G(context.TODO()).Errorf("Failed to add ingress: %v", err)
 				return
 			}
@@ -230,12 +228,14 @@ func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 		}
 
 		if sb.ingress {
-			var gwIP net.IP
-			if gwEP, _ := sb.getGatewayEndpoint(); gwEP != nil {
-				gwIP = gwEP.Iface().Address().IP
-			}
-			if err := removeIngressPorts(gwIP, lb.service.ingressPorts); err != nil {
-				log.G(context.TODO()).Errorf("Failed to delete ingress: %v", err)
+			// This is teardown: if the gateway endpoint is already gone, or
+			// unpublishing the ingress ports fails, log and carry on so the fwmark
+			// rules and VIP alias below are still cleaned up rather than left
+			// behind. Only the ingress-port unpublishing is skipped.
+			if gwEP, _ := sb.getGatewayEndpoint(); gwEP == nil {
+				log.G(context.TODO()).Errorf("Failed to remove ingress ports: no gateway endpoint for sandbox %.7s", sb.ID())
+			} else if err := removeIngressPorts(gwEP, lb.service.ingressPorts); err != nil {
+				log.G(context.TODO()).Errorf("Failed to remove ingress: %v", err)
 			}
 		}
 
@@ -256,311 +256,163 @@ func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 	}
 }
 
-const ingressChain = "DOCKER-INGRESS"
-
 var (
-	ingressOnce     sync.Once
-	ingressMu       sync.Mutex // lock for operations on ingress
-	ingressProxyTbl = make(map[string]io.Closer)
-	portConfigMu    sync.Mutex
-	portConfigTbl   = make(map[PortConfig]int)
+	ingressMu    sync.Mutex // lock for operations on ingress
+	portConfigMu sync.Mutex
+	// portConfigTbl counts how many services reference each host-port
+	// reservation. It's keyed by the reservation itself rather than by the
+	// PortConfig that asked for it, because that reservation is the resource
+	// being shared: two services - or, more usually, two generations of one
+	// service - whose port configs differ only in TargetPort want the same host
+	// port, and must share one reference to it rather than each taking a first
+	// one and then both trying to reserve it.
+	portConfigTbl = make(map[types.PublishedPort]int)
 )
 
-func filterPortConfigs(ingressPorts []*PortConfig, isDelete bool) []*PortConfig {
-	portConfigMu.Lock()
-	iPorts := make([]*PortConfig, 0, len(ingressPorts))
+// publishedPort is the host-port reservation ingress port config pc implies.
+//
+// Both sides of the mapping are pc's PublishedPort: the host publishes
+// PublishedPort and DNATs it to the gateway endpoint on that same port. It's the
+// backend task's own sandbox that redirects PublishedPort -> TargetPort once the
+// packet is on the ingress network, so TargetPort plays no part here - and must
+// not, because what gets reserved is only the protocol and the host port.
+func publishedPort(pc *PortConfig) (types.PublishedPort, error) {
+	if pc.PublishedPort > math.MaxUint16 {
+		return types.PublishedPort{}, types.InvalidParameterErrorf("ingress published port %d is out of range", pc.PublishedPort)
+	}
+	return types.PublishedPort{
+		Proto:    types.ParseProtocol(strings.ToLower(pc.Protocol.String())),
+		Port:     uint16(pc.PublishedPort),
+		HostPort: uint16(pc.PublishedPort),
+	}, nil
+}
+
+// publishedPorts converts each of ingressPorts to the reservation it implies,
+// returning nothing unless every one of them is valid. Narrowing the whole set
+// once, here at the boundary, is what lets the reference counting below be
+// infallible - so a caller undoing it can't be left holding an error.
+func publishedPorts(ingressPorts []*PortConfig) ([]types.PublishedPort, error) {
+	pps := make([]types.PublishedPort, 0, len(ingressPorts))
 	for _, pc := range ingressPorts {
-		if isDelete {
-			if cnt, ok := portConfigTbl[*pc]; ok {
-				// This is the last reference to this
-				// port config. Delete the port config
-				// and add it to filtered list to be
-				// plumbed.
-				if cnt == 1 {
-					delete(portConfigTbl, *pc)
-					iPorts = append(iPorts, pc)
-					continue
-				}
+		pp, err := publishedPort(pc)
+		if err != nil {
+			return nil, err
+		}
+		pps = append(pps, pp)
+	}
+	return pps, nil
+}
 
-				portConfigTbl[*pc] = cnt - 1
-			}
+// refIngressPorts takes a reference to each of pps on behalf of a service, and
+// returns those that are newly referenced - the ones that still need publishing
+// on the load-balancer sandbox's gateway endpoint. Reservations already held for
+// another service, or for another generation of the same one, are ref-counted and
+// left out of the result.
+//
+// Undo a successful call with [unrefIngressPorts].
+func refIngressPorts(pps []types.PublishedPort) []types.PublishedPort {
+	portConfigMu.Lock()
+	defer portConfigMu.Unlock()
 
+	publish := make([]types.PublishedPort, 0, len(pps))
+	for _, pp := range pps {
+		if cnt, ok := portConfigTbl[pp]; ok {
+			portConfigTbl[pp] = cnt + 1
 			continue
 		}
 
-		if cnt, ok := portConfigTbl[*pc]; ok {
-			portConfigTbl[*pc] = cnt + 1
-			continue
-		}
-
-		// We are adding it for the first time. Add it to the
-		// filter list to be plumbed.
-		portConfigTbl[*pc] = 1
-		iPorts = append(iPorts, pc)
+		// We are adding it for the first time, so it needs plumbing.
+		portConfigTbl[pp] = 1
+		publish = append(publish, pp)
 	}
-	portConfigMu.Unlock()
 
-	return iPorts
+	return publish
 }
 
-func initIngressConfiguration(gwIP net.IP, iptable *iptables.IPTable) error {
-	ingressOnce.Do(func() {
-		// Flush nat table and filter table ingress chain rules during init if it
-		// exists. It might contain stale rules from previous life.
-		if err := iptable.FlushChain(iptables.Nat, ingressChain); err != nil {
-			log.G(context.TODO()).Errorf("Could not flush nat table ingress chain rules during init: %v", err)
-		}
-		if err := iptable.FlushChain(iptables.Filter, ingressChain); err != nil {
-			log.G(context.TODO()).Errorf("Could not flush filter table ingress chain rules during init: %v", err)
-		}
-		// Remove the jump from FORWARD to DOCKER-INGRESS, if it was created there by a version of
-		// the daemon older than 28.0.1.
-		if err := iptable.DeleteJumpRule(iptables.Filter, "FORWARD", ingressChain); err != nil {
-			log.G(context.TODO()).WithError(err).Debug("Failed to delete jump from FORWARD to " + ingressChain)
-		}
-	})
+// unrefIngressPorts drops a service's reference to each of pps, and returns those
+// whose last reference is gone - the ones that should now be unpublished from the
+// load-balancer sandbox's gateway endpoint. Reservations still referenced
+// elsewhere are left out of the result, and ones with no outstanding reference
+// are ignored.
+func unrefIngressPorts(pps []types.PublishedPort) []types.PublishedPort {
+	portConfigMu.Lock()
+	defer portConfigMu.Unlock()
 
-	for _, table := range []iptables.Table{iptables.Nat, iptables.Filter} {
-		// Create the DOCKER-INGRESS chain in the NAT and FILTER tables if it does not exist.
-		if _, err := iptable.NewChain(ingressChain, table); err != nil {
-			return fmt.Errorf("failed to create ingress chain: %v in table %s: %v", ingressChain, table, err)
-		}
-		// Add a RETURN rule to the end of the DOCKER-INGRESS chain in the NAT and FILTER tables.
-		if err := iptable.AddReturnRule(table, ingressChain); err != nil {
-			return fmt.Errorf("failed to add return rule in %s table %s chain: %v", table, ingressChain, err)
-		}
-	}
-
-	// Add a jump rule in the OUTPUT and PREROUTING chains of the NAT table to the DOCKER-INGRESS chain.
-	for _, chain := range []string{"OUTPUT", "PREROUTING"} {
-		if err := iptable.EnsureJumpRule(iptables.Nat, chain, ingressChain, "-m", "addrtype", "--dst-type", "LOCAL"); err != nil {
-			return fmt.Errorf("failed to add jump rule in %s to %s chain: %v", chain, ingressChain, err)
-		}
-	}
-
-	// The DOCKER-FORWARD chain is created by the bridge driver on startup. It's a stable place to
-	// put the jump to DOCKER-INGRESS (nothing else will ever be inserted before it, and the jump
-	// will precede the bridge driver's other rules).
-	// Add a jump rule in the DOCKER-FORWARD chain of the FILTER table to the DOCKER-INGRESS chain.
-	if err := iptable.EnsureJumpRule(iptables.Filter, bridge.DockerForwardChain, ingressChain); err != nil {
-		return fmt.Errorf("failed to add jump rule in %s to %s chain: %v", bridge.DockerForwardChain, ingressChain, err)
-	}
-
-	// Find the bridge interface name for the gateway IP.
-	oifName, err := findOIFName(gwIP)
-	if err != nil {
-		return fmt.Errorf("failed to find gateway bridge interface name for %s: %v", gwIP, err)
-	}
-	// Enable local routing for the gateway bridge interface by writing to /proc/sys/net/ipv4/conf/<oifName>/route_localnet.
-	path := filepath.Join("/proc/sys/net/ipv4/conf", oifName, "route_localnet")
-	if err := os.WriteFile(path, []byte{'1', '\n'}, 0o644); err != nil {
-		return fmt.Errorf("could not write to %s: %v", path, err)
-	}
-	// Add a POSTROUTING rule to the NAT table to masquerade traffic
-	rule := iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Nat, Chain: "POSTROUTING", Args: []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", oifName, "-j", "MASQUERADE"}}
-	if err := rule.Insert(); err != nil {
-		return fmt.Errorf("failed to insert ingress localhost POSTROUTING rule for %s: %v", oifName, err)
-	}
-	return nil
-}
-
-func removeIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
-	// TODO IPv6 support
-
-	ingressMu.Lock()
-	defer ingressMu.Unlock()
-
-	// Filter the ingress ports until port rules start to be added/deleted
-	filteredPorts := filterPortConfigs(ingressPorts, true)
-
-	if err := deleteIngressPortsRules(gwIP, filteredPorts); err != nil {
-		filterPortConfigs(ingressPorts, false)
-		return fmt.Errorf("failed to program ingress ports: %v", err)
-	}
-
-	closeIngressPortsProxy(filteredPorts)
-
-	return nil
-}
-
-func addIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
-	// TODO IPv6 support
-	iptable := iptables.GetIptable(iptables.IPv4)
-
-	ingressMu.Lock()
-	defer ingressMu.Unlock()
-
-	if err := initIngressConfiguration(gwIP, iptable); err != nil {
-		return err
-	}
-
-	// Filter the ingress ports until port rules start to be added/deleted
-	filteredPorts := filterPortConfigs(ingressPorts, false)
-
-	if err := programIngressPortsRules(gwIP, filteredPorts); err != nil {
-		filterPortConfigs(filteredPorts, true)
-		return fmt.Errorf("failed to program ingress ports: %v", err)
-	}
-
-	plumbIngressPortsProxy(filteredPorts)
-
-	return nil
-}
-
-func restoreIngressPorts(gwIP net.IP, ingressPorts []*PortConfig) error {
-	// TODO IPv6 support
-	iptable := iptables.GetIptable(iptables.IPv4)
-
-	ingressMu.Lock()
-	defer ingressMu.Unlock()
-
-	if err := initIngressConfiguration(gwIP, iptable); err != nil {
-		return err
-	}
-
-	if err := programIngressPortsRules(gwIP, ingressPorts); err != nil {
-		return fmt.Errorf("failed to program ingress ports: %v", err)
-	}
-
-	return nil
-}
-
-func generateIngressRules(port *PortConfig, destIP net.IP) []iptables.Rule {
-	var (
-		protocol      = strings.ToLower(port.Protocol.String())
-		publishedPort = strconv.FormatUint(uint64(port.PublishedPort), 10)
-		destination   = net.JoinHostPort(destIP.String(), publishedPort)
-	)
-	return []iptables.Rule{
-		{
-			IPVer: iptables.IPv4,
-			Table: iptables.Nat,
-			Chain: ingressChain,
-			Args:  []string{"-p", protocol, "--dport", publishedPort, "-j", "DNAT", "--to-destination", destination},
-		},
-		{
-			IPVer: iptables.IPv4,
-			Table: iptables.Filter,
-			Chain: ingressChain,
-			Args:  []string{"-p", protocol, "--sport", publishedPort, "-m", "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "ACCEPT"},
-		},
-		{
-			IPVer: iptables.IPv4,
-			Table: iptables.Filter,
-			Chain: ingressChain,
-			Args:  []string{"-p", protocol, "--dport", publishedPort, "-j", "ACCEPT"},
-		},
-	}
-}
-
-func programIngressPortsRules(gwIP net.IP, filteredPorts []*PortConfig) (portErr error) {
-	rollbackRules := make([]iptables.Rule, 0, len(filteredPorts)*3)
-	defer func() {
-		if portErr != nil {
-			for _, rule := range rollbackRules {
-				if err := rule.Delete(); err != nil {
-					log.G(context.TODO()).Warnf("roll back rule failed, %v: %v", rule, err)
-				}
-			}
-		}
-	}()
-
-	for _, iPort := range filteredPorts {
-		for _, rule := range generateIngressRules(iPort, gwIP) {
-			if portErr = rule.Insert(); portErr != nil {
-				err := fmt.Errorf("set up rule failed, %v: %v", rule, portErr)
-				return err
-			}
-			rollbackRules = append(rollbackRules, rule)
-		}
-	}
-
-	return nil
-}
-
-func deleteIngressPortsRules(gwIP net.IP, filteredPorts []*PortConfig) error {
-	var portErr error
-
-	for _, iPort := range filteredPorts {
-		for _, rule := range generateIngressRules(iPort, gwIP) {
-			if portErr = rule.Delete(); portErr != nil {
-				err := fmt.Errorf("delete rule failed, %v: %v", rule, portErr)
-				log.G(context.TODO()).Warn(err)
-			}
-		}
-	}
-
-	return nil
-}
-
-func findOIFName(ip net.IP) (string, error) {
-	nlh := ns.NlHandle()
-
-	routes, err := nlh.RouteGet(ip)
-	if err != nil {
-		return "", err
-	}
-
-	if len(routes) == 0 {
-		return "", fmt.Errorf("no route to %s", ip)
-	}
-
-	// Pick the first route(typically there is only one route). We
-	// don't support multipath.
-	link, err := nlh.LinkByIndex(routes[0].LinkIndex)
-	if err != nil {
-		return "", err
-	}
-
-	return link.Attrs().Name, nil
-}
-
-func closeIngressPortsProxy(ingressPorts []*PortConfig) {
-	for _, iPort := range ingressPorts {
-		portSpec := fmt.Sprintf("%d/%s", iPort.PublishedPort, strings.ToLower(iPort.Protocol.String()))
-		listener, ok := ingressProxyTbl[portSpec]
+	unpublish := make([]types.PublishedPort, 0, len(pps))
+	for _, pp := range pps {
+		cnt, ok := portConfigTbl[pp]
 		if !ok {
 			continue
 		}
-
-		if listener != nil {
-			listener.Close()
-		}
-		delete(ingressProxyTbl, portSpec)
-	}
-}
-
-func plumbIngressPortsProxy(ingressPorts []*PortConfig) {
-	var (
-		err error
-		l   io.Closer
-	)
-
-	for _, iPort := range ingressPorts {
-		portSpec := fmt.Sprintf("%d/%s", iPort.PublishedPort, strings.ToLower(iPort.Protocol.String()))
-		listener, ok := ingressProxyTbl[portSpec]
-		if ok && listener != nil {
-			continue // already listening on this port
-		}
-
-		switch iPort.Protocol {
-		case ProtocolTCP:
-			l, err = net.ListenTCP("tcp", &net.TCPAddr{Port: int(iPort.PublishedPort)})
-		case ProtocolUDP:
-			l, err = net.ListenUDP("udp", &net.UDPAddr{Port: int(iPort.PublishedPort)})
-		case ProtocolSCTP:
-			l, err = sctp.ListenSCTP("sctp", &sctp.SCTPAddr{Port: int(iPort.PublishedPort)})
-		default:
-			err = fmt.Errorf("unknown protocol %v", iPort.Protocol)
-		}
-
-		if err != nil {
-			log.G(context.TODO()).Warnf("failed to create proxy for port %s: %v", iPort, err)
+		if cnt > 1 {
+			portConfigTbl[pp] = cnt - 1
 			continue
 		}
 
-		ingressProxyTbl[portSpec] = l
+		// This is the last reference to this reservation, so it needs unplumbing.
+		delete(portConfigTbl, pp)
+		unpublish = append(unpublish, pp)
 	}
+
+	return unpublish
+}
+
+// removeIngressPorts unpublishes the ingress ports whose last reference is being
+// removed from the load-balancer sandbox's gateway endpoint.
+func removeIngressPorts(gwEP *Endpoint, ingressPorts []*PortConfig) error {
+	pps, err := publishedPorts(ingressPorts)
+	if err != nil {
+		return err
+	}
+
+	ingressMu.Lock()
+	defer ingressMu.Unlock()
+
+	unpublish := unrefIngressPorts(pps)
+	if len(unpublish) == 0 {
+		return nil
+	}
+	// The references stay dropped even if this fails. DelEphemeralPorts tears the
+	// bindings down best-effort and commits that whether or not every step
+	// succeeded, so an error does not mean the ports are still published - it
+	// means they were unpublished with complaints. Re-taking the references would
+	// pin reservations that no longer exist, and because rmServiceBinding has
+	// already removed this loadBalancer from the service, nothing would ever
+	// release them: the next service to publish the same port would find a
+	// non-zero count, be told there was nothing to plumb, and never come up.
+	if err := gwEP.DelEphemeralPorts(context.TODO(), unpublish); err != nil {
+		return fmt.Errorf("failed to remove ingress ports: %v", err)
+	}
+	return nil
+}
+
+// addIngressPorts publishes the ingress ports being referenced for the first
+// time on the load-balancer sandbox's gateway endpoint, reusing the bridge
+// driver's port-publishing machinery (DNAT + forwarding rules + host-port
+// reservation).
+func addIngressPorts(gwEP *Endpoint, ingressPorts []*PortConfig) error {
+	pps, err := publishedPorts(ingressPorts)
+	if err != nil {
+		return err
+	}
+
+	ingressMu.Lock()
+	defer ingressMu.Unlock()
+
+	publish := refIngressPorts(pps)
+	if len(publish) == 0 {
+		return nil
+	}
+	// Ingress ports are re-derived from the cluster and re-added on
+	// restart, so they must not be saved to the bridge driver's store (else
+	// they'd be restored and then published a second time).
+	if err := gwEP.AddEphemeralPorts(context.TODO(), publish); err != nil {
+		// Drop the references just taken - all of them, not just the
+		// newly-referenced ones, so the counts stay balanced.
+		unrefIngressPorts(pps)
+		return fmt.Errorf("failed to program ingress ports: %v", err)
+	}
+	return nil
 }
 
 // configureFWMark configures the sandbox firewall to mark vip destined packets
