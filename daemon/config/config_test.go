@@ -47,6 +47,23 @@ func TestDaemonConfigurationMalformedJSON(t *testing.T) {
 	assert.Check(t, errors.As(err, &syntaxErr), `got: %[1]T: %[1]v`, err)
 }
 
+func TestDaemonConfigurationExtensionConfig(t *testing.T) {
+	configFile := makeConfigFile(t, `{
+		"extension-config": {
+			"org.example.foo": {"plugin_path": "/opt/foo", "enabled": true},
+			"com.docker.compose.v1": {"workers": 4}
+		}
+	}`)
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	cfg, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, cfg.ExtensionConfig["org.example.foo"], map[string]any{
+		"plugin_path": "/opt/foo",
+		"enabled":     true,
+	})
+	assert.Equal(t, cfg.ExtensionConfig["com.docker.compose.v1"]["workers"], float64(4))
+}
+
 // TestDaemonConfigurationUnicodeVariations feeds various variations of Unicode into the JSON parser, ensuring that we
 // respect a BOM and otherwise default to UTF-8.
 func TestDaemonConfigurationUnicodeVariations(t *testing.T) {
@@ -904,23 +921,39 @@ func TestMaskURLCredentials(t *testing.T) {
 
 func TestSanitize(t *testing.T) {
 	const (
-		userPass    = "myuser:mypassword@"
-		proxyRawURL = "https://" + userPass + "example.org"
-		proxyURL    = "https://xxxxx:xxxxx@example.org"
+		userPass        = "myuser:mypassword@"
+		proxyRawURL     = "https://" + userPass + "example.org"
+		proxyURL        = "https://xxxxx:xxxxx@example.org"
+		extensionID     = "org.example.test"
+		extensionSecret = "unique-extension-secret"
 	)
-	sanitizedCfg := Sanitize(Config{
+	cfg := Config{
 		CommonConfig: CommonConfig{
 			Proxies: Proxies{
 				HTTPProxy:  proxyRawURL,
 				HTTPSProxy: proxyRawURL,
 				NoProxy:    proxyRawURL,
 			},
+			ExtensionConfig: map[string]map[string]any{
+				extensionID: {
+					"secret": extensionSecret,
+				},
+			},
 		},
-	})
+	}
+	sanitizedCfg := Sanitize(cfg)
 	expectedProxies := Proxies{
 		HTTPProxy:  proxyURL,
 		HTTPSProxy: proxyURL,
 		NoProxy:    proxyURL,
 	}
 	assert.Check(t, is.DeepEqual(sanitizedCfg.Proxies, expectedProxies))
+
+	sanitizedJSON, err := json.Marshal(sanitizedCfg)
+	assert.NilError(t, err)
+	assert.Assert(t, !strings.Contains(string(sanitizedJSON), extensionSecret))
+	assert.Assert(t, !strings.Contains(string(sanitizedJSON), `"extension-config"`))
+	assert.Check(t, is.DeepEqual(cfg.ExtensionConfig[extensionID], map[string]any{
+		"secret": extensionSecret,
+	}))
 }
