@@ -13430,7 +13430,6 @@ paths:
             - `id=<config id>`
             - `label=<key> or label=<key>=value`
             - `name=<config name>`
-            - `names=<config name>`
       tags: ["Config"]
   /configs/create:
     post:
