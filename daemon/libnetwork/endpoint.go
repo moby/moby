@@ -137,28 +137,26 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	if err := json.Unmarshal(b, &epMap); err != nil {
 		return err
 	}
+
 	ep.name = epMap["name"].(string)
 	ep.id = epMap["id"].(string)
 
-	// TODO(cpuguy83): So yeah, this isn't checking any errors anywhere.
-	// Seems like we should be checking errors even because of memory related issues that can arise.
-	// Alas it seems like given the nature of this data we could introduce problems if we start checking these errors.
-	//
-	// If anyone ever comes here and figures out one way or another if we can/should be checking these errors and it turns out we can't... then please document *why*
-
-	ib, _ := json.Marshal(epMap["ep_iface"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
-	_ = json.Unmarshal(ib, &ep.iface)        //nolint:errcheck
-
-	jb, _ := json.Marshal(epMap["joinInfo"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
-	_ = json.Unmarshal(jb, &ep.joinInfo)     //nolint:errcheck
-
-	tb, _ := json.Marshal(epMap["exposed_ports"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
-	var tPorts []types.TransportPort
-	_ = json.Unmarshal(tb, &tPorts) //nolint:errcheck
-	ep.exposedPorts = tPorts
-
-	cb, _ := json.Marshal(epMap["sandbox"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
-	_ = json.Unmarshal(cb, &ep.sandboxID)   //nolint:errcheck
+	if err := unmarshalJSONField(epMap, "ep_iface", &ep.iface); err != nil {
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal ep_iface")
+		ep.iface = nil // discard any partially-decoded data
+	}
+	if err := unmarshalJSONField(epMap, "joinInfo", &ep.joinInfo); err != nil {
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal joinInfo")
+		ep.joinInfo = nil // discard any partially-decoded data
+	}
+	if err := unmarshalJSONField(epMap, "exposed_ports", &ep.exposedPorts); err != nil {
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal exposed_ports")
+		ep.exposedPorts = nil // discard any partially-decoded data
+	}
+	if err := unmarshalJSONField(epMap, "sandbox", &ep.sandboxID); err != nil {
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal sandbox")
+		ep.sandboxID = "" // discard any partially-decoded data
+	}
 
 	if v, ok := epMap["generic"]; ok {
 		ep.generic = v.(map[string]any)
@@ -175,8 +173,7 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 					log.G(context.TODO()).Error(err)
 					break
 				}
-				err = json.Unmarshal(bytes, &pb)
-				if err != nil {
+				if err := json.Unmarshal(bytes, &pb); err != nil {
 					log.G(context.TODO()).Error(err)
 					break
 				}
@@ -197,8 +194,7 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 					log.G(context.TODO()).Error(err)
 					break
 				}
-				err = json.Unmarshal(bytes, &tp)
-				if err != nil {
+				if err := json.Unmarshal(bytes, &tp); err != nil {
 					log.G(context.TODO()).Error(err)
 					break
 				}
@@ -235,25 +231,30 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 		ep.loadBalancer = v.(bool)
 	}
 
-	sal, _ := json.Marshal(epMap["svcAliases"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
-	var svcAliases []string
-	_ = json.Unmarshal(sal, &svcAliases) //nolint:errcheck
-	ep.svcAliases = svcAliases
+	if err := unmarshalJSONField(epMap, "svcAliases", &ep.svcAliases); err != nil {
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal svcAliases")
+		ep.svcAliases = nil // discard any partially-decoded data
+	}
+	if err := unmarshalJSONField(epMap, "ingressPorts", &ep.ingressPorts); err != nil {
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal ingressPorts")
+		ep.ingressPorts = nil // discard any partially-decoded data
+	}
 
-	pc, _ := json.Marshal(epMap["ingressPorts"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
-	var ingressPorts []*PortConfig
-	_ = json.Unmarshal(pc, &ingressPorts) //nolint:errcheck
-	ep.ingressPorts = ingressPorts
-
-	ma, _ := json.Marshal(epMap["myAliases"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
 	var myAliases []string
-	_ = json.Unmarshal(ma, &myAliases) //nolint:errcheck
+	if err := unmarshalJSONField(epMap, "myAliases", &myAliases); err != nil {
+		log.G(context.TODO()).WithError(err).Warn("failed to unmarshal myAliases")
+		myAliases = nil // discard any partially-decoded data
+	}
 
-	_, hasDNSNames := epMap["dnsNames"]
-	dn, _ := json.Marshal(epMap["dnsNames"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
-	var dnsNames []string
-	_ = json.Unmarshal(dn, &dnsNames) //nolint:errcheck
-	ep.dnsNames = dnsNames
+	hasDNSNames := false
+	if _, ok := epMap["dnsNames"]; ok {
+		if err := unmarshalJSONField(epMap, "dnsNames", &ep.dnsNames); err != nil {
+			log.G(context.TODO()).WithError(err).Warn("failed to unmarshal dnsNames")
+			ep.dnsNames = nil // discard any partially-decoded data
+		} else {
+			hasDNSNames = true
+		}
+	}
 
 	// TODO(aker): remove this migration code in v27
 	if !hasDNSNames {
