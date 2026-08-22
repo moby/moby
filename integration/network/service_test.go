@@ -61,6 +61,42 @@ func TestDaemonRestartWithLiveRestore(t *testing.T) {
 	assert.Equal(t, res1.Network.IPAM.Config[0].Subnet, subnet)
 }
 
+func TestLiveRestoreWithHostGateway(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support live-restore")
+	ctx := setupTest(t)
+
+	t.Parallel()
+	d := daemon.New(t)
+	defer d.Stop(t)
+	d.StartWithBusybox(ctx, t, "--live-restore=true")
+
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	ctrID := container.Run(ctx, t, apiClient,
+		container.WithCmd("top"),
+		container.WithExtraHost("host.docker.internal:host-gateway"),
+	)
+
+	d.Restart(t, "--live-restore=true")
+
+	const networkName = "test-live-restore-host-gateway"
+	network.CreateNoError(ctx, t, apiClient, networkName, network.WithDriver("bridge"))
+	defer func() {
+		container.Remove(ctx, t, apiClient, ctrID, client.ContainerRemoveOptions{Force: true})
+		network.RemoveNoError(ctx, t, apiClient, networkName)
+	}()
+
+	_, err := apiClient.NetworkConnect(ctx, networkName, client.NetworkConnectOptions{Container: ctrID})
+	assert.NilError(t, err)
+
+	res, err := container.Exec(ctx, apiClient, ctrID, []string{"grep", "host.docker.internal", "/etc/hosts"})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(res.ExitCode, 0), res.Stderr())
+}
+
 func TestDaemonDefaultNetworkPools(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	// Remove docker0 bridge and the start daemon defining the predefined address pools
