@@ -713,7 +713,7 @@ func TestBuildWorkdirNoCacheMiss(t *testing.T) {
 	}
 }
 
-func TestBuildEmitsImageCreateEvent(t *testing.T) {
+func TestBuildEmitsImageEvents(t *testing.T) {
 	ctx := setupTest(t)
 
 	dockerfile := "FROM busybox\nRUN echo hello > /hello"
@@ -722,57 +722,124 @@ func TestBuildEmitsImageCreateEvent(t *testing.T) {
 
 	apiClient := testEnv.APIClient()
 
-	for _, builderVersion := range []build.BuilderVersion{build.BuilderV1, build.BuilderBuildKit} {
-		t.Run("v"+string(builderVersion), func(t *testing.T) {
-			skip.If(t, builderVersion == build.BuilderBuildKit && testEnv.DaemonInfo.OSType == "windows" && !testEnv.UsingSnapshotter(),
-				"Buildkit is not supported on Windows with graphdrivers")
+	for _, builderVersion := range []build.BuilderVersion{
+		build.BuilderV1,
+		build.BuilderBuildKit,
+	} {
+		for _, tc := range []struct {
+			name    string
+			withTag bool
+		}{
+			{name: "without tag"},
+			{name: "with tag", withTag: true},
+		} {
+			t.Run("v"+string(builderVersion)+"/"+tc.name, func(t *testing.T) {
+				skip.If(
+					t,
+					builderVersion == build.BuilderBuildKit &&
+						testEnv.DaemonInfo.OSType == "windows" &&
+						!testEnv.UsingSnapshotter(),
+					"Buildkit is not supported on Windows with graphdrivers",
+				)
 
-			ctx, cancel := context.WithCancel(ctx)
-			defer cancel()
+				ctx, cancel := context.WithCancel(ctx)
+				defer cancel()
 
-			since := time.Now()
-
-			resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
-				Version: builderVersion,
-				NoCache: true,
-			})
-			assert.NilError(t, err)
-
-			defer resp.Body.Close()
-
-			out := bytes.NewBuffer(nil)
-			_, err = io.Copy(out, resp.Body)
-			assert.NilError(t, err)
-			buildLogs := out.String()
-
-			result := apiClient.Events(ctx, client.EventsListOptions{
-				Since: since.Format(time.RFC3339Nano),
-				Until: time.Now().Format(time.RFC3339Nano),
-			})
-			eventsChan := result.Messages
-			errs := result.Err
-
-			var eventsReceived []string
-			imageCreateEvts := 0
-			finished := false
-			for !finished {
-				select {
-				case evt := <-eventsChan:
-					eventsReceived = append(eventsReceived, fmt.Sprintf("type: %v, action: %v", evt.Type, evt.Action))
-					if evt.Type == events.ImageEventType && evt.Action == events.ActionCreate {
-						imageCreateEvts++
-					}
-				case err := <-errs:
-					assert.Check(t, err == nil || errors.Is(err, io.EOF))
-					finished = true
+				tag := ""
+				var tags []string
+				if tc.withTag {
+					tag = "testbuildemitsevents:v" + string(builderVersion)
+					tags = []string{tag}
 				}
-			}
 
-			if !assert.Check(t, is.Equal(1, imageCreateEvts)) {
-				t.Logf("build-logs:\n%s", buildLogs)
-				t.Logf("events received:\n%s", strings.Join(eventsReceived, "\n"))
-			}
-		})
+				since := time.Now()
+
+				resp, err := apiClient.ImageBuild(
+					ctx,
+					source.AsTarReader(t),
+					client.ImageBuildOptions{
+						Version: builderVersion,
+						NoCache: true,
+						Tags:    tags,
+					},
+				)
+				assert.NilError(t, err)
+
+				imageID := readBuildImageIDs(t, resp.Body)
+				assert.Check(t, resp.Body.Close())
+				assert.Check(t, imageID != "")
+
+				result := apiClient.Events(ctx, client.EventsListOptions{
+					Since: since.Format(time.RFC3339Nano),
+					Until: time.Now().Format(time.RFC3339Nano),
+					Filters: make(client.Filters).
+						Add("type", "image").
+						Add("image", imageID),
+				})
+
+				var eventsReceived []string
+				imageCreateEvents := 0
+				imageTagEvents := 0
+				finished := false
+
+				for !finished {
+					select {
+					case event := <-result.Messages:
+						eventsReceived = append(
+							eventsReceived,
+							fmt.Sprintf(
+								"type: %v, action: %v, name: %v",
+								event.Type,
+								event.Action,
+								event.Actor.Attributes["name"],
+							),
+						)
+
+						switch event.Action {
+						case events.ActionCreate:
+							imageCreateEvents++
+						case events.ActionTag:
+							imageTagEvents++
+							assert.Check(
+								t,
+								is.Equal(
+									tag,
+									event.Actor.Attributes["name"],
+								),
+							)
+						}
+
+					case err := <-result.Err:
+						assert.Check(
+							t,
+							err == nil || errors.Is(err, io.EOF),
+						)
+						finished = true
+					}
+				}
+
+				wantTagEvents := 0
+				if tc.withTag {
+					wantTagEvents = 1
+				}
+
+				createEventsMatch := assert.Check(
+					t,
+					is.Equal(1, imageCreateEvents),
+				)
+				tagEventsMatch := assert.Check(
+					t,
+					is.Equal(wantTagEvents, imageTagEvents),
+				)
+
+				if !createEventsMatch || !tagEventsMatch {
+					t.Logf(
+						"events received:\n%s",
+						strings.Join(eventsReceived, "\n"),
+					)
+				}
+			})
+		}
 	}
 }
 
