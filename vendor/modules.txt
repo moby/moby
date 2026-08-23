@@ -576,8 +576,8 @@ github.com/containerd/go-cni
 # github.com/containerd/go-runc v1.1.0
 ## explicit; go 1.18
 github.com/containerd/go-runc
-# github.com/containerd/log v0.1.0
-## explicit; go 1.20
+# github.com/containerd/log v0.1.0 => github.com/thaJeztah/log v0.0.0-20260823155049-2c1de810ab5d
+## explicit; go 1.23
 github.com/containerd/log
 github.com/containerd/log/logtest
 # github.com/containerd/nri v0.12.2
@@ -2264,5 +2264,6 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.1.0
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
+# github.com/containerd/log => github.com/thaJeztah/log v0.0.0-20260823155049-2c1de810ab5d
 # github.com/moby/moby/api => ./api
 # github.com/moby/moby/client => ./client
