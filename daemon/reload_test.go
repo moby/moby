@@ -20,7 +20,7 @@ import (
 // muteLogs suppresses logs that are generated during the test
 func muteLogs(t *testing.T) {
 	t.Helper()
-	err := log.SetLevel("error")
+	err := log.SetLevel(log.ErrorLevel)
 	if err != nil {
 		t.Error(err)
 	}

@@ -10,7 +10,7 @@ import (
 func TestEnable(t *testing.T) {
 	t.Cleanup(func() {
 		_ = os.Setenv("DEBUG", "")
-		_ = log.SetLevel("info")
+		_ = log.SetLevel(log.InfoLevel)
 	})
 	Enable()
 	if debug := os.Getenv("DEBUG"); debug != "1" {

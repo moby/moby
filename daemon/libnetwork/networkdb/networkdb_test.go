@@ -30,8 +30,8 @@ func init() {
 }
 
 func TestMain(m *testing.M) {
-	os.WriteFile("/proc/sys/net/ipv6/conf/lo/disable_ipv6", []byte{'0', '\n'}, 0o644)
-	log.SetLevel("debug")
+	_ = os.WriteFile("/proc/sys/net/ipv6/conf/lo/disable_ipv6", []byte{'0', '\n'}, 0o644)
+	_ = log.SetLevel(log.DebugLevel)
 	os.Exit(m.Run())
 }
 
@@ -1045,7 +1045,7 @@ func TestNetworkDBIslands(t *testing.T) {
 		return defaultTimeout
 	}
 
-	_ = log.SetLevel("debug")
+	_ = log.SetLevel(log.DebugLevel)
 	conf := DefaultConfig()
 	// Shorten durations to speed up test execution.
 	conf.rejoinClusterDuration = conf.rejoinClusterDuration / 10
