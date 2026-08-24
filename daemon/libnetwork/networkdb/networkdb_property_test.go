@@ -112,7 +112,23 @@ func testConvergence(t *rapid.T) {
 	}
 	t.Log("---------------------------")
 
-	waitForTableState(t, c.dbs, expected)
+	if diff := awaitTableState(c.dbs, expected); diff != "" {
+		t.Logf("%v\n\n%v", diff, dumpTables(c.dbs))
+
+		// Deliberately carries no detail. rapid compares failures by their
+		// message text: to decide whether a replay reproduced the failure it was
+		// asked to minimize, and to decide whether a candidate scenario still
+		// fails. A diff or a table dump in here varies with the interleaving, so
+		// one bug would report a different failure every run -- which rapid reads
+		// as a flaky test and declines to minimize. The detail goes to the log
+		// above instead, where nothing compares it.
+		//
+		// The cost is that every non-convergence looks alike, so minimizing may
+		// land on a different scenario than the one that failed. Any scenario
+		// that fails to converge is a valid witness for this property, so that is
+		// a fair trade.
+		t.Errorf("NetworkDB state did not converge within %v of virtual time", convergenceTimeout)
+	}
 
 	if drops := c.mn.dropCount(); drops != 0 {
 		// Not a correctness failure -- gossip has to tolerate loss -- but it
@@ -132,20 +148,19 @@ func testConvergence(t *rapid.T) {
 // which keys it holds -- so equate them.
 var tableStateCmp = cmp.Options{cmpopts.EquateEmpty()}
 
-// waitForTableState blocks until every node's view of the table under test
-// matches want, and fails the test if that does not happen in time.
-func waitForTableState(t *rapid.T, dbs []*NetworkDB, want tableState) {
+// awaitTableState blocks until every node's view of the table under test matches
+// want, and returns "" once it does. If that has not happened within
+// convergenceTimeout of virtual time it gives up and returns a diff.
+func awaitTableState(dbs []*NetworkDB, want tableState) string {
 	deadline := time.Now().Add(convergenceTimeout)
 	for {
 		synctest.Wait()
 		got := snapshotTableState(dbs)
 		if cmp.Equal(want, got, tableStateCmp) {
-			return
+			return ""
 		}
 		if !time.Now().Before(deadline) {
-			t.Errorf("NetworkDB state did not converge within %v of virtual time:\n%v\n\n%v",
-				convergenceTimeout, cmp.Diff(want, got, tableStateCmp), dumpTables(dbs))
-			return
+			return cmp.Diff(want, got, tableStateCmp)
 		}
 		time.Sleep(convergenceStep)
 	}
