@@ -252,7 +252,7 @@ func (daemon *Daemon) fillDebugInfo(ctx context.Context, v *system.Info) {
 // for debugging purposes.
 func (daemon *Daemon) fillContainerdInfo(v *system.Info, cfg *config.Config) {
 	if cfg.Features["embedded-containerd"] {
-		v.Warnings = append(v.Warnings, "WARNING: Running with experimental embedded-containerd mode. This feature may change or be removed in a future release.")
+		v.Warnings = append(v.Warnings, "NOTE: Running with experimental embedded-containerd mode. In a future release, this mode may be used by default when no system containerd is available, rather than starting and supervising a separate containerd process. The option used to enable this mode may also change.")
 	}
 	if cfg.ContainerdAddr == "" {
 		return
