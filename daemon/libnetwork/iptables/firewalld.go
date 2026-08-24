@@ -313,7 +313,7 @@ func setupDockerForwardingPolicy() (bool, error) {
 // AddInterfaceFirewalld adds the interface to the trusted zone. It is a
 // no-op if firewalld is not running.
 func AddInterfaceFirewalld(intf string) error {
-	if !firewalldRunning.Load() {
+	if !UsingFirewalld() {
 		return nil
 	}
 
@@ -339,7 +339,7 @@ func AddInterfaceFirewalld(intf string) error {
 // DelInterfaceFirewalld removes the interface from the trusted zone It is a
 // no-op if firewalld is not running.
 func DelInterfaceFirewalld(intf string) error {
-	if !firewalldRunning.Load() {
+	if !UsingFirewalld() {
 		return nil
 	}
 
