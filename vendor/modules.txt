@@ -1259,6 +1259,26 @@ github.com/moby/buildkit/worker/label
 # github.com/moby/docker-image-spec v1.3.1
 ## explicit; go 1.18
 github.com/moby/docker-image-spec/specs-go/v1
+# github.com/moby/extensions v0.0.0-20260826195513-eca6e585c3ec
+## explicit; go 1.26.0
+github.com/moby/extensions
+github.com/moby/extensions/client
+github.com/moby/extensions/clientpoint
+github.com/moby/extensions/cmd/mobyextgen
+github.com/moby/extensions/example/greeter/v0
+github.com/moby/extensions/example/greeter/v0/protogen
+github.com/moby/extensions/extpoints/service/v0
+github.com/moby/extensions/grpcproxy
+github.com/moby/extensions/host
+github.com/moby/extensions/internal/broker
+github.com/moby/extensions/internal/extensiondecl
+github.com/moby/extensions/internal/launcher
+github.com/moby/extensions/sdk
+github.com/moby/extensions/sdk/internal/dependencyresolver
+github.com/moby/extensions/sdk/sdkapi
+github.com/moby/extensions/sdk/sdkapi/protogen
+github.com/moby/extensions/serverpoint
+github.com/moby/extensions/servicegrpc
 # github.com/moby/go-archive v0.3.3
 ## explicit; go 1.25
 github.com/moby/go-archive
