@@ -2,7 +2,6 @@ package extension
 
 import (
 	"context"
-	"net"
 	"os"
 	"os/exec"
 	"os/user"
@@ -11,12 +10,12 @@ import (
 	"strconv"
 	"testing"
 
+	extensionclient "github.com/moby/extensions/client"
+	greeterv0 "github.com/moby/extensions/example/greeter/v0"
 	greeterpb "github.com/moby/extensions/example/greeter/v0/protogen"
 	"github.com/moby/moby/v2/integration/extension/testdata/greeter"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )
@@ -42,19 +41,16 @@ func TestSocketExposedGRPCService(t *testing.T) {
 		d.Stop(t)
 	}()
 
-	daemonDialer := d.NewClientT(t).Dialer()
-	conn, err := grpc.NewClient(d.Sock(),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
-			return daemonDialer(ctx)
-		}),
-	)
+	engine := d.NewClientT(t)
+	extensions, err := extensionclient.New(engine, extensionclient.WithGRPCPoint(greeterpb.ClientPoint))
 	assert.NilError(t, err)
-	defer conn.Close()
+	defer func() { assert.NilError(t, extensions.Close()) }()
 
-	resp, err := greeterpb.NewGreeterClient(conn).Greet(ctx, &greeterpb.HelloRequest{Name: "world"})
+	greeter, err := extensionclient.Resolve(extensions, greeterv0.Point)
 	assert.NilError(t, err)
-	assert.Equal(t, resp.GetMessage(), "hello world")
+	resp, err := greeter.Greet(ctx, &greeterv0.HelloRequest{Name: "world"})
+	assert.NilError(t, err)
+	assert.Equal(t, resp.Message, "hello world")
 }
 
 func buildGreeterExtension(ctx context.Context, t *testing.T) string {
