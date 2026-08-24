@@ -1,3 +1,15 @@
+# Release (2026-08-21)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.27.9
+  * **Bug Fix**: Fix a generic event stream exception not carrying the error code and message from its payload.
+  * **Bug Fix**: Fix an event stream not being closed when its connection is lost, which would cause a caller writing to the stream to block indefinitely.
+  * **Bug Fix**: Fix deserialization of an empty list producing a nil slice instead of an empty one.
+  * **Bug Fix**: Restore draining the HTTP response body in `CloseResponseBody` to avoid issues with TCP connection reuse.
+
 # Release (2026-08-14)
 
 ## General Highlights
