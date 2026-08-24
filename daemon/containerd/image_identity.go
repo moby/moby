@@ -167,7 +167,11 @@ func (i *ImageService) computeSignatureIdentity(ctx context.Context, desc ocispe
 
 	signatureIdentity, err := i.signatureIdentity(ctx, desc, multi.Best, multi.BestPlatform)
 	if err != nil {
-		log.G(ctx).WithError(err).Error("failed to validate image signature")
+		if signatureVerificationErrorIsTransient(err) {
+			log.G(ctx).WithError(err).Warn("failed to validate image signature")
+		} else {
+			log.G(ctx).WithError(err).Debug("failed to validate image signature")
+		}
 		return nil, signatureVerificationErrorIsTransient(err)
 	}
 
