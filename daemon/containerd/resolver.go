@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"net/http"
+	"sync"
 
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
@@ -38,6 +39,14 @@ func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.Aut
 		return hostsFn
 	}
 
+	type hostKey struct {
+		scheme string
+		host   string
+		path   string
+	}
+	var mu sync.Mutex
+	authorizers := make(map[hostKey]docker.Authorizer)
+
 	return func(n string) ([]docker.RegistryHost, error) {
 		hosts, err := hostsFn(n)
 		if err != nil {
@@ -45,7 +54,19 @@ func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.Aut
 		}
 
 		for i := range hosts {
-			hosts[i].Authorizer = authorizerFromAuthConfig(*optAuthConfig, ref, hosts[i].Client)
+			key := hostKey{
+				scheme: hosts[i].Scheme,
+				host:   hosts[i].Host,
+				path:   hosts[i].Path,
+			}
+			mu.Lock()
+			authorizer, ok := authorizers[key]
+			if !ok {
+				authorizer = authorizerFromAuthConfig(*optAuthConfig, ref, hosts[i].Client)
+				authorizers[key] = authorizer
+			}
+			mu.Unlock()
+			hosts[i].Authorizer = authorizer
 		}
 		return hosts, nil
 	}
