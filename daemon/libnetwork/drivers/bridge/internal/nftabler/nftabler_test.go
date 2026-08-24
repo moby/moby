@@ -38,11 +38,14 @@ func TestNftabler(t *testing.T) {
 	for i := range uint64(1) << numBoolParams {
 		p := func(n uint64) bool { return (i & n) == n }
 		for _, gwmode := range []string{"nat", "nat-unprotected", "routed"} {
+			isWSL2Mirrored := p(wsl2Mirrored)
 			config := firewaller.Config{
-				IPv4:         p(ipv4),
-				IPv6:         p(ipv6),
-				Hairpin:      p(hairpin),
-				WSL2Mirrored: p(wsl2Mirrored),
+				IPv4:    p(ipv4),
+				IPv6:    p(ipv6),
+				Hairpin: p(hairpin),
+				WSL2Mirrored: func(context.Context) bool {
+					return isWSL2Mirrored
+				},
 			}
 			netConfig := firewaller.NetworkConfig{
 				IfName:     "br-dummy",
@@ -121,7 +124,7 @@ func testNftabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 	// WSL2Mirrored should only affect IPv4 results, and only if there's a port binding
 	// to a loopback address or docker-proxy is disabled. Share other results files.
 	rnWSL2Mirrored := func(resName string) string {
-		if config.IPv4 && config.WSL2Mirrored && (bindLocalhost || !config.Hairpin) {
+		if config.IPv4 && config.IsWSL2Mirrored(context.Background()) && (bindLocalhost || !config.Hairpin) {
 			return resName + ",wsl2mirrored=true"
 		}
 		return resName
@@ -171,4 +174,51 @@ func testNftabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 	assert.NilError(t, err)
 	checkResults("ip", rnWSL2Mirrored(fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin)), config.IPv4)
 	checkResults("ip6", fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin), config.IPv6)
+}
+
+func TestLoopbackFilteringRepairsStaleDropAfterWSL2MirroredDetection(t *testing.T) {
+	nftables.Enable()
+	t.Cleanup(func() { nftables.Disable() })
+	defer netnsutils.SetupTestOSContext(t, netnsutils.WithSetNsHandles(false))()
+
+	ctx := context.Background()
+	wsl2Mirrored := false
+	fw, err := NewNftabler(ctx, firewaller.Config{
+		IPv4:    true,
+		Hairpin: true,
+		WSL2Mirrored: func(context.Context) bool {
+			return wsl2Mirrored
+		},
+	})
+	assert.NilError(t, err)
+	defer func() { assert.NilError(t, fw.Close()) }()
+	nw := &network{fw: fw}
+	pbs := []types.PortBinding{{
+		Proto:    types.TCP,
+		IP:       net.ParseIP("192.168.0.2"),
+		Port:     80,
+		HostIP:   net.ParseIP("127.0.0.1"),
+		HostPort: 8080,
+	}}
+
+	applyLoopbackRules := func() string {
+		t.Helper()
+		tm := nftables.Modifier{}
+		nw.filterPortMappedOnLoopback(ctx, pbs, &tm, nftables.IPv4, true)
+		assert.NilError(t, fw.table4.Apply(ctx, tm))
+		res := icmd.RunCommand("nft", "list", "table", "ip", dockerTable)
+		assert.Assert(t, res.Error, res.Combined())
+		return res.Combined()
+	}
+
+	rules := applyLoopbackRules()
+	assert.Check(t, !strings.Contains(rules, "ACCEPT WSL2 LOOPBACK"), rules)
+	assert.Check(t, strings.Contains(rules, "DROP REMOTE LOOPBACK"), rules)
+
+	wsl2Mirrored = true
+	rules = applyLoopbackRules()
+	acceptPos := strings.Index(rules, "ACCEPT WSL2 LOOPBACK")
+	dropPos := strings.Index(rules, "DROP REMOTE LOOPBACK")
+	assert.Assert(t, acceptPos >= 0, rules)
+	assert.Assert(t, dropPos > acceptPos, rules)
 }

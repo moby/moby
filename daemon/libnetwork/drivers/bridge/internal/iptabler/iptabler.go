@@ -220,7 +220,7 @@ func setupIPChains(ctx context.Context, version iptables.IPVersion, iptCfg firew
 		return err
 	}
 
-	if err := mirroredWSL2Workaround(version, !iptCfg.Hairpin && iptCfg.WSL2Mirrored); err != nil {
+	if err := mirroredWSL2Workaround(version, version == iptables.IPv4 && !iptCfg.Hairpin && iptCfg.IsWSL2Mirrored(ctx)); err != nil {
 		return err
 	}
 

@@ -39,8 +39,9 @@ import (
 // destination 127.0.0.0/8.
 func mirroredWSL2Workaround(tm *nftables.Modifier) {
 	tm.Create(nftables.Rule{
-		Chain: natChain,
-		Group: initialRuleGroup,
-		Rule:  []string{`iifname "loopback0" ip daddr 127.0.0.0/8 counter return`},
+		Chain:       natChain,
+		Group:       natWSL2LoopbackRuleGroup,
+		Rule:        []string{`iifname "loopback0" ip daddr 127.0.0.0/8 counter return`},
+		IgnoreExist: true,
 	})
 }

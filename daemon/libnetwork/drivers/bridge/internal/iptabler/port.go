@@ -47,7 +47,7 @@ func (n *network) setPerPortIptables(ctx context.Context, b types.PortBinding, e
 		return nil
 	}
 
-	if err := filterPortMappedOnLoopback(ctx, b, b.HostIP, n.ipt.config.WSL2Mirrored, enable); err != nil {
+	if err := n.filterPortMappedOnLoopback(ctx, b, b.HostIP, enable); err != nil {
 		return err
 	}
 
@@ -149,24 +149,12 @@ func setPerPortForwarding(b types.PortBinding, ipv iptables.IPVersion, bridgeNam
 // This is a no-op if the portBinding is for IPv6 (IPv6 loopback address is
 // non-routable), or over a network with gw_mode=routed (PBs in routed mode
 // don't map ports on the host).
-func filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP net.IP, wsl2Mirrored, enable bool) error {
+func (n *network) filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP net.IP, enable bool) error {
 	if rawRulesDisabled(ctx) {
 		return nil
 	}
 	if b.HostPort == 0 || !hostIP.IsLoopback() || hostIP.To4() == nil {
 		return nil
-	}
-
-	acceptMirrored := iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
-		"-p", b.Proto.String(),
-		"-d", hostIP.String(),
-		"--dport", strconv.Itoa(int(b.HostPort)),
-		"-i", "loopback0",
-		"-j", "ACCEPT",
-	}}
-	enableMirrored := enable && wsl2Mirrored
-	if err := appendOrDelChainRule(acceptMirrored, "LOOPBACK FILTERING - ACCEPT MIRRORED", enableMirrored); err != nil {
-		return err
 	}
 
 	drop := iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
@@ -176,6 +164,33 @@ func filterPortMappedOnLoopback(ctx context.Context, b types.PortBinding, hostIP
 		"!", "-i", "lo",
 		"-j", "DROP",
 	}}
+
+	wsl2Mirrored := enable && n.ipt.config.IsWSL2Mirrored(ctx)
+	if wsl2Mirrored && !n.ipt.config.Hairpin {
+		if err := mirroredWSL2Workaround(iptables.IPv4, true); err != nil {
+			return err
+		}
+	}
+
+	acceptMirrored := iptables.Rule{IPVer: iptables.IPv4, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
+		"-p", b.Proto.String(),
+		"-d", hostIP.String(),
+		"--dport", strconv.Itoa(int(b.HostPort)),
+		"-i", "loopback0",
+		"-j", "ACCEPT",
+	}}
+	if wsl2Mirrored {
+		// The DROP may have been added before loopback0 appeared. Move it behind
+		// the ACCEPT, otherwise iptables' first-match semantics make the ACCEPT
+		// ineffective.
+		if err := appendOrDelChainRule(drop, "LOOPBACK FILTERING - DROP", false); err != nil {
+			return err
+		}
+	}
+	if err := appendOrDelChainRule(acceptMirrored, "LOOPBACK FILTERING - ACCEPT MIRRORED", wsl2Mirrored); err != nil {
+		return err
+	}
+
 	if err := appendOrDelChainRule(drop, "LOOPBACK FILTERING - DROP", enable); err != nil {
 		return err
 	}
