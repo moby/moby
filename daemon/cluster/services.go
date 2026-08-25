@@ -22,6 +22,8 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // GetServices returns all services of a managed swarm cluster.
@@ -255,10 +257,18 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 			}
 		}
 
-		if serviceSpec.Annotations.Name == "" {
-			serviceSpec.Annotations.Name = namesgenerator.GetRandomName(0)
+		generatedName := serviceSpec.Annotations.Name == ""
+		var r *swarmapi.CreateServiceResponse
+		// Use the same six-attempt limit as automatic container names.
+		for retry := range 6 {
+			if generatedName {
+				serviceSpec.Annotations.Name = namesgenerator.GetRandomName(retry)
+			}
+			r, err = state.controlClient.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
+			if !generatedName || status.Code(err) != codes.AlreadyExists {
+				break
+			}
 		}
-		r, err := state.controlClient.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
 		if err != nil {
 			return err
 		}
