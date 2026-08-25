@@ -9,6 +9,7 @@ issues:
 linters:
   enable:
     - errorlint
+    - gosec
     - unconvert
     - unparam
   exclusions:
@@ -16,7 +17,18 @@ linters:
     presets:
       - comments
       - std-error-handling
+    rules:
+      # Ignore "G204: Subprocess launched with a potential tainted input or cmd arguments"
+      - path: '(.+)_test\.go'
+        linters:
+          - gosec
+        text: 'G204: Subprocess launched'
   settings:
+    gosec:
+      excludes:
+        - G301 # Expect directory permissions to be 0750 or less
+        - G304 # Potential file inclusion via variable
+        - G306 # Expect WriteFile permissions to be 0600 or less
     staticcheck:
       # Enable all options, with some exceptions.
       # For defaults, see https://golangci-lint.run/usage/linters/#staticcheck

@@ -22,7 +22,7 @@ var (
 )
 
 var copyPool = sync.Pool{
-	New: func() interface{} { s := make([]byte, 32*1024); return &s },
+	New: func() any { s := make([]byte, 32*1024); return &s },
 }
 
 func copyWithBuffer(dst io.Writer, src io.Reader) error {
@@ -316,16 +316,40 @@ func PrepareArchiveCopy(srcContent io.Reader, srcInfo, dstInfo CopyInfo) (dstDir
 	}
 }
 
+// newNameRebaser returns a function that replaces oldBase with newBase at the
+// beginning of POSIX-style archive entry names. It converts oldBase and newBase
+// to forward-slash form and trims trailing slashes.
+//
+// When rebasing from the archive root, the returned function removes all
+// leading slashes from names. It otherwise preserves the remainder verbatim
+// and does not clean or canonicalize paths.
+func newNameRebaser(oldBase, newBase string) func(string) string {
+	oldBase = strings.TrimRight(filepath.ToSlash(oldBase), "/")
+	newBase = strings.TrimRight(filepath.ToSlash(newBase), "/")
+
+	if oldBase == "" {
+		return func(name string) string {
+			name = strings.TrimLeft(name, "/")
+			if newBase == "" {
+				return name
+			}
+			return newBase + "/" + name
+		}
+	}
+
+	return func(name string) string {
+		suffix, ok := strings.CutPrefix(name, oldBase)
+		if !ok || suffix != "" && !strings.HasPrefix(suffix, "/") {
+			return name
+		}
+		return newBase + suffix
+	}
+}
+
 // RebaseArchiveEntries rewrites the given srcContent archive replacing
 // an occurrence of oldBase with newBase at the beginning of entry names.
 func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.ReadCloser {
-	if oldBase == string(os.PathSeparator) {
-		// If oldBase specifies the root directory, use an empty string as
-		// oldBase instead so that newBase doesn't replace the path separator
-		// that all paths will start with.
-		oldBase = ""
-	}
-
+	rebase := newNameRebaser(oldBase, newBase)
 	rebased, w := io.Pipe()
 
 	go func() {
@@ -336,12 +360,12 @@ func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.Read
 			hdr, err := srcTar.Next()
 			if errors.Is(err, io.EOF) {
 				// Signals end of archive.
-				rebasedTar.Close()
-				w.Close()
+				_ = rebasedTar.Close()
+				_ = w.Close()
 				return
 			}
 			if err != nil {
-				w.CloseWithError(err)
+				_ = w.CloseWithError(err)
 				return
 			}
 
@@ -353,13 +377,13 @@ func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.Read
 			//
 			// To fix, set the format to PAX here. See docker/for-linux issue #484.
 			hdr.Format = tar.FormatPAX
-			hdr.Name = strings.Replace(hdr.Name, oldBase, newBase, 1)
+			hdr.Name = rebase(hdr.Name)
 			if hdr.Typeflag == tar.TypeLink {
-				hdr.Linkname = strings.Replace(hdr.Linkname, oldBase, newBase, 1)
+				hdr.Linkname = rebase(hdr.Linkname)
 			}
 
 			if err = rebasedTar.WriteHeader(hdr); err != nil {
-				w.CloseWithError(err)
+				_ = w.CloseWithError(err)
 				return
 			}
 
@@ -374,7 +398,7 @@ func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.Read
 			// not be vulnerable to this code consuming memory.
 			//nolint:gosec // G110: Potential DoS vulnerability via decompression bomb (gosec)
 			if _, err = io.Copy(rebasedTar, srcTar); err != nil {
-				w.CloseWithError(err)
+				_ = w.CloseWithError(err)
 				return
 			}
 		}
@@ -408,7 +432,7 @@ func CopyResource(srcPath, dstPath string, followLink bool) error {
 	if err != nil {
 		return err
 	}
-	defer content.Close()
+	defer func() { _ = content.Close() }()
 
 	return CopyTo(content, srcInfo, dstPath)
 }
@@ -427,14 +451,12 @@ func CopyTo(content io.Reader, srcInfo CopyInfo, dstPath string) error {
 	if err != nil {
 		return err
 	}
-	defer copyArchive.Close()
+	defer func() { _ = copyArchive.Close() }()
 
-	options := &TarOptions{
+	return Untar(copyArchive, dstDir, &TarOptions{
 		NoLchown:             true,
 		NoOverwriteDirNonDir: true,
-	}
-
-	return Untar(copyArchive, dstDir, options)
+	})
 }
 
 // ResolveHostSourcePath decides real path need to be copied with parameters such as

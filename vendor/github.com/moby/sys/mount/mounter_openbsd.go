@@ -1,5 +1,4 @@
 //go:build openbsd && cgo
-// +build openbsd,cgo
 
 /*
    Due to how OpenBSD mount(2) works, filesystem types need to be

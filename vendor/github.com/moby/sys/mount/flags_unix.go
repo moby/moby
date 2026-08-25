@@ -1,5 +1,4 @@
-//go:build !darwin && !windows
-// +build !darwin,!windows
+//go:build !windows
 
 package mount
 
@@ -100,14 +99,14 @@ func MergeTmpfsOptions(options []string) ([]string, error) {
 			}
 			continue
 		}
-		opt := strings.SplitN(option, "=", 2)
-		if len(opt) != 2 || !validFlags[opt[0]] {
+		opt, _, ok := strings.Cut(option, "=")
+		if !ok || !validFlags[opt] {
 			return nil, fmt.Errorf("invalid tmpfs option %q", opt)
 		}
-		if !dataCollisions[opt[0]] {
+		if !dataCollisions[opt] {
 			// We prepend the option and add to collision map
 			newOptions = append([]string{option}, newOptions...)
-			dataCollisions[opt[0]] = true
+			dataCollisions[opt] = true
 		}
 	}
 

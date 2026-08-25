@@ -724,8 +724,8 @@ github.com/ishidawataru/sctp
 # github.com/jmoiron/sqlx v1.3.3
 ## explicit; go 1.10
 github.com/jmoiron/sqlx/types
-# github.com/klauspost/compress v1.18.2
-## explicit; go 1.23
+# github.com/klauspost/compress v1.18.7
+## explicit; go 1.24
 github.com/klauspost/compress
 github.com/klauspost/compress/fse
 github.com/klauspost/compress/huff0
@@ -900,11 +900,12 @@ github.com/moby/buildkit/worker
 github.com/moby/buildkit/worker/base
 github.com/moby/buildkit/worker/containerd
 github.com/moby/buildkit/worker/label
-# github.com/moby/go-archive v0.2.0
-## explicit; go 1.23.0
+# github.com/moby/go-archive v0.3.3
+## explicit; go 1.25
 github.com/moby/go-archive
 github.com/moby/go-archive/chrootarchive
 github.com/moby/go-archive/compression
+github.com/moby/go-archive/internal/archiveoptions
 github.com/moby/go-archive/internal/mounttree
 github.com/moby/go-archive/internal/unshare
 github.com/moby/go-archive/tarheader
@@ -914,7 +915,7 @@ github.com/moby/ipvs
 # github.com/moby/locker v1.0.1
 ## explicit; go 1.13
 github.com/moby/locker
-# github.com/moby/patternmatcher v0.6.0
+# github.com/moby/patternmatcher v0.6.1
 ## explicit; go 1.19
 github.com/moby/patternmatcher
 github.com/moby/patternmatcher/ignorefile
@@ -992,8 +993,8 @@ github.com/moby/swarmkit/v2/volumequeue
 github.com/moby/swarmkit/v2/watch
 github.com/moby/swarmkit/v2/watch/queue
 github.com/moby/swarmkit/v2/xnet
-# github.com/moby/sys/mount v0.3.4
-## explicit; go 1.17
+# github.com/moby/sys/mount v0.3.5
+## explicit; go 1.18
 github.com/moby/sys/mount
 # github.com/moby/sys/mountinfo v0.7.2
 ## explicit; go 1.17
@@ -1001,8 +1002,8 @@ github.com/moby/sys/mountinfo
 # github.com/moby/sys/reexec v0.1.0
 ## explicit; go 1.18
 github.com/moby/sys/reexec
-# github.com/moby/sys/sequential v0.6.0
-## explicit; go 1.17
+# github.com/moby/sys/sequential v0.7.0
+## explicit; go 1.24.0
 github.com/moby/sys/sequential
 # github.com/moby/sys/signal v0.7.0
 ## explicit; go 1.16
@@ -1010,8 +1011,8 @@ github.com/moby/sys/signal
 # github.com/moby/sys/symlink v0.2.0
 ## explicit; go 1.16
 github.com/moby/sys/symlink
-# github.com/moby/sys/user v0.4.0
-## explicit; go 1.17
+# github.com/moby/sys/user v0.4.1
+## explicit; go 1.18
 github.com/moby/sys/user
 # github.com/moby/sys/userns v0.1.0
 ## explicit; go 1.21
@@ -1107,8 +1108,8 @@ github.com/secure-systems-lab/go-securesystemslib/signerverifier
 # github.com/shibumi/go-pathspec v1.3.0
 ## explicit; go 1.17
 github.com/shibumi/go-pathspec
-# github.com/sirupsen/logrus v1.9.3
-## explicit; go 1.13
+# github.com/sirupsen/logrus v1.9.4
+## explicit; go 1.17
 github.com/sirupsen/logrus
 # github.com/spdx/tools-golang v0.5.1
 ## explicit; go 1.13
