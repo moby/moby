@@ -17,6 +17,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/swarmbackend"
 	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/internal/namesgenerator"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -205,13 +206,6 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 			default:
 				return fmt.Errorf("unsupported runtime type: %q", serviceSpec.Task.GetGeneric().Kind)
 			}
-
-			r, err := state.controlClient.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
-			if err != nil {
-				return err
-			}
-
-			resp.ID = r.Service.ID
 		case *swarmapi.TaskSpec_Container:
 			ctnr := serviceSpec.Task.GetContainer()
 			if ctnr == nil {
@@ -259,14 +253,16 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 				ctx, cancel = context.WithTimeout(ctx, swarmRequestTimeout)
 				defer cancel()
 			}
-
-			r, err := state.controlClient.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
-			if err != nil {
-				return err
-			}
-
-			resp.ID = r.Service.ID
 		}
+
+		if serviceSpec.Annotations.Name == "" {
+			serviceSpec.Annotations.Name = namesgenerator.GetRandomName(0)
+		}
+		r, err := state.controlClient.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
+		if err != nil {
+			return err
+		}
+		resp.ID = r.Service.ID
 		return nil
 	})
 
