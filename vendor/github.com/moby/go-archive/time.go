@@ -22,6 +22,10 @@ func init() {
 	}
 }
 
+// boundTime returns t if it falls within the range supported by os.Chtimes.
+// Times before the Unix epoch (minTime) or after the end of Unix time
+// (maxTime) are replaced with minTime, as os.Chtimes has undefined behavior
+// outside that range.
 func boundTime(t time.Time) time.Time {
 	if t.Before(minTime) || t.After(maxTime) {
 		return minTime

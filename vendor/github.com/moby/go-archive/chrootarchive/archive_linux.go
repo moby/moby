@@ -9,9 +9,15 @@ import (
 	"github.com/moby/go-archive"
 )
 
-func doUnpack(decompressedArchive io.Reader, relDest, root string, options *archive.TarOptions) error {
+func doUnpack(decompressedArchive io.Reader, relDest, root string, opts *archive.TarOptions) error {
+	options, closeOptions, err := archive.WithProcSelfFD(opts)
+	if err != nil {
+		return err
+	}
+	defer closeOptions()
+
 	done := make(chan error)
-	err := goInChroot(root, func() { done <- archive.Unpack(decompressedArchive, relDest, options) })
+	err = goInChroot(root, func() { done <- archive.Unpack(decompressedArchive, relDest, options) })
 	if err != nil {
 		return err
 	}
@@ -30,14 +36,20 @@ func doPack(relSrc, root string, options *archive.TarOptions) (io.ReadCloser, er
 	return tb.Reader(), nil
 }
 
-func doUnpackLayer(root string, layer io.Reader, options *archive.TarOptions) (int64, error) {
+func doUnpackLayer(root string, layer io.Reader, opts *archive.TarOptions) (int64, error) {
+	options, closeOptions, err := archive.WithProcSelfFD(opts)
+	if err != nil {
+		return 0, err
+	}
+	defer closeOptions()
+
 	type result struct {
 		layerSize int64
 		err       error
 	}
 	done := make(chan result)
 
-	err := goInChroot(root, func() {
+	err = goInChroot(root, func() {
 		// We need to be able to set any perms
 		_ = unix.Umask(0)
 

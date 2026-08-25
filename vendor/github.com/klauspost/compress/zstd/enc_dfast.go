@@ -1040,15 +1040,18 @@ func (e *doubleFastEncoder) Reset(d *dict, singleBlock bool) {
 // ResetDict will reset and set a dictionary if not nil
 func (e *doubleFastEncoderDict) Reset(d *dict, singleBlock bool) {
 	allDirty := e.allDirty
+	dictChanged := d != e.lastDict
 	e.fastEncoderDict.Reset(d, singleBlock)
 	if d == nil {
 		return
 	}
 
 	// Init or copy dict table
-	if len(e.dictLongTable) != len(e.longTable) || d.id != e.lastDictID {
+	if len(e.dictLongTable) != len(e.longTable) || dictChanged {
 		if len(e.dictLongTable) != len(e.longTable) {
 			e.dictLongTable = make([]tableEntry, len(e.longTable))
+		} else {
+			clear(e.dictLongTable)
 		}
 		if len(d.content) >= 8 {
 			cv := load6432(d.content, 0)
@@ -1065,7 +1068,6 @@ func (e *doubleFastEncoderDict) Reset(d *dict, singleBlock bool) {
 				}
 			}
 		}
-		e.lastDictID = d.id
 		allDirty = true
 	}
 	// Reset table to initial state

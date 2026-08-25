@@ -331,14 +331,20 @@ func (p *Pattern) match(path string) (bool, error) {
 		// **/foo matches "foo"
 		return suffix[0] == os.PathSeparator && path == suffix[1:], nil
 	case regexpMatch:
+		if p.regexp == nil {
+			return false, filepath.ErrBadPattern
+		}
 		return p.regexp.MatchString(path), nil
+	case unknownMatch:
+		return false, filepath.ErrBadPattern
+	default:
+		return false, nil
 	}
-
-	return false, nil
 }
 
 func (p *Pattern) compile(sl string) error {
 	regStr := "^"
+	detectedType := exactMatch // assume exact match
 	pattern := p.cleanedPattern
 	// Go through the pattern and convert it to a regexp.
 	// We use a scanner so we can support utf-8 chars.
@@ -350,7 +356,6 @@ func (p *Pattern) compile(sl string) error {
 		escSL += `\`
 	}
 
-	p.matchType = exactMatch
 	for i := 0; scan.Peek() != scanner.EOF; i++ {
 		ch := scan.Next()
 
@@ -366,32 +371,32 @@ func (p *Pattern) compile(sl string) error {
 
 				if scan.Peek() == scanner.EOF {
 					// is "**EOF" - to align with .gitignore just accept all
-					if p.matchType == exactMatch {
-						p.matchType = prefixMatch
+					if detectedType == exactMatch {
+						detectedType = prefixMatch
 					} else {
 						regStr += ".*"
-						p.matchType = regexpMatch
+						detectedType = regexpMatch
 					}
 				} else {
 					// is "**"
 					// Note that this allows for any # of /'s (even 0) because
 					// the .* will eat everything, even /'s
 					regStr += "(.*" + escSL + ")?"
-					p.matchType = regexpMatch
+					detectedType = regexpMatch
 				}
 
 				if i == 0 {
-					p.matchType = suffixMatch
+					detectedType = suffixMatch
 				}
 			} else {
 				// is "*" so map it to anything but "/"
 				regStr += "[^" + escSL + "]*"
-				p.matchType = regexpMatch
+				detectedType = regexpMatch
 			}
 		} else if ch == '?' {
 			// "?" is any char except "/"
 			regStr += "[^" + escSL + "]"
-			p.matchType = regexpMatch
+			detectedType = regexpMatch
 		} else if shouldEscape(ch) {
 			// Escape some regexp special chars that have no meaning
 			// in golang's filepath.Match
@@ -408,31 +413,29 @@ func (p *Pattern) compile(sl string) error {
 			}
 			if scan.Peek() != scanner.EOF {
 				regStr += `\` + string(scan.Next())
-				p.matchType = regexpMatch
+				detectedType = regexpMatch
 			} else {
 				regStr += `\`
 			}
 		} else if ch == '[' || ch == ']' {
 			regStr += string(ch)
-			p.matchType = regexpMatch
+			detectedType = regexpMatch
 		} else {
 			regStr += string(ch)
 		}
 	}
 
-	if p.matchType != regexpMatch {
-		return nil
+	if detectedType == regexpMatch {
+		regStr += "$"
+
+		re, err := regexp.Compile(regStr)
+		if err != nil {
+			return err
+		}
+
+		p.regexp = re
 	}
-
-	regStr += "$"
-
-	re, err := regexp.Compile(regStr)
-	if err != nil {
-		return err
-	}
-
-	p.regexp = re
-	p.matchType = regexpMatch
+	p.matchType = detectedType
 	return nil
 }
 
