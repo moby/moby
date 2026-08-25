@@ -962,7 +962,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	// Build the host after installing the cleanup defer: this starts extension
 	// processes and must be covered if initialization fails.
-	d.extensionHost, err = setupExtensionHost(ctx, config)
+	d.extensionHost, err = newExtensionHost(ctx, config)
 	if err != nil {
 		return nil, err
 	}
@@ -1520,6 +1520,8 @@ func (daemon *Daemon) shutdownTimeout(cfg *config.Config) int {
 // Shutdown stops the daemon.
 func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	daemon.shutdown = true
+	// Extensions are daemon-scoped regardless of whether they are built-in or
+	// executable, so shut them down before the live-restore early return.
 	if daemon.extensionHost != nil {
 		if err := daemon.extensionHost.Shutdown(ctx); err != nil {
 			log.G(ctx).WithError(err).Error("failed to shut down extensions")
