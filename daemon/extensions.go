@@ -43,8 +43,8 @@ func extensionConfig(cfg *config.Config) map[extensions.ExtensionID]extensions.C
 		return nil
 	}
 	out := make(map[extensions.ExtensionID]extensions.Config, len(cfg.ExtensionConfig))
-	for id, c := range cfg.ExtensionConfig {
-		out[extensions.ExtensionID(id)] = c
+	for _, extensionConfig := range cfg.ExtensionConfig {
+		out[extensionConfig.ID] = extensionConfig.Config
 	}
 	return out
 }
@@ -53,8 +53,8 @@ func extensionConfig(cfg *config.Config) map[extensions.ExtensionID]extensions.C
 // binaries: the ones configured with --extension-dir, or the default location
 // when none are configured.
 func extensionDirs(cfg *config.Config) []string {
-	if len(cfg.Extensions) > 0 {
-		return cfg.Extensions
+	if len(cfg.ExtensionDirs) > 0 {
+		return cfg.ExtensionDirs
 	}
 	dir, err := defaultExtensionDir()
 	if err != nil {

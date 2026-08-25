@@ -214,12 +214,12 @@ type CommonConfig struct {
 	Pidfile               string   `json:"pidfile,omitempty"`
 	Root                  string   `json:"data-root,omitempty"`
 	ExecRoot              string   `json:"exec-root,omitempty"`
-	Extensions            []string `json:"extensions,omitempty"`
-	// ExtensionConfig holds per-extension configuration keyed by extension id.
+	ExtensionDirs         []string `json:"extension-dirs,omitempty"`
+	// ExtensionConfig holds per-extension configuration keyed by extension ID.
 	// The entry reaches in-process Init directly or a launched binary through the
 	// startup handshake.
-	ExtensionConfig map[string]map[string]any `json:"extension-config,omitempty"`
-	SocketGroup     string                    `json:"group,omitempty"`
+	ExtensionConfig ExtensionConfigs `json:"extension-config,omitempty"`
+	SocketGroup     string           `json:"group,omitempty"`
 
 	// Proxies holds the proxies that are configured for the daemon.
 	Proxies `json:"proxies"`
