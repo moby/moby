@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.10.2
+
+Changed:
+
+  * Update `github.com/stretchr/testify` to v1.12.1, removing the legacy
+    `gopkg.in/yaml.v3` dependency.
+
 ## 1.10.1
 
 Fixes:
