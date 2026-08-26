@@ -19,9 +19,9 @@ import (
 
 const (
 	// attributesInlineCount is the number of attributes that are efficiently
-	// stored in an array within a Record. This value is borrowed from slog which
-	// performed a quantitative survey of log library use and found this value to
-	// cover 95% of all use-cases (https://go.dev/blog/slog#performance).
+	// stored in an array within a Record. This value is borrowed from slog, which
+	// performed a quantitative survey of log library use and found that this
+	// value covers 95% of all use cases (https://go.dev/blog/slog#performance).
 	attributesInlineCount = 5
 	// maxUniqueSize helps reduce peak allocation.
 	maxUniqueSize = 1028
@@ -35,7 +35,11 @@ var logKeyValuePairDropped = sync.OnceFunc(func() {
 	global.Warn("key duplication: dropping key-value pair")
 })
 
-// uniquePool is a pool of unique attributes used for attributes de-duplication.
+var logInvalidAttribute = sync.OnceFunc(func() {
+	global.Warn("invalid attribute: dropping attribute with empty key")
+})
+
+// uniquePool is a pool of unique attributes used for attribute deduplication.
 var uniquePool = sync.Pool{
 	New: func() any { return new([]attribute.KeyValue) },
 }
@@ -52,7 +56,7 @@ func putUnique(v *[]attribute.KeyValue) {
 	}
 }
 
-// indexPool is a pool of index maps used for attributes de-duplication.
+// indexPool is a pool of index maps used for attribute deduplication.
 var indexPool = sync.Pool{
 	New: func() any { return make(map[attribute.Key]int) },
 }
@@ -67,13 +71,13 @@ func putIndex(index map[attribute.Key]int) {
 }
 
 // Record is a log record emitted by the Logger.
-// A log record with non-empty event name is interpreted as an event record.
+// A log record with a non-empty event name is interpreted as an event record.
 //
 // Do not create instances of Record on your own in production code.
 // You can use [go.opentelemetry.io/otel/sdk/log/logtest.RecordFactory]
 // for testing purposes.
 type Record struct {
-	// Do not embed the log.Record. Attributes need to be overwrite-able and
+	// Do not embed the log.Record. Attributes need to be overwritable, and
 	// deep-copying needs to be possible.
 
 	eventName         string
@@ -98,7 +102,7 @@ type Record struct {
 	// The list of attributes except for those in front.
 	// Invariants:
 	//   - len(back) > 0 if nFront == len(front)
-	//   - Unused array elements are zero-ed. Used to detect mistakes.
+	//   - Unused array elements are zeroed to detect mistakes.
 	back []attribute.KeyValue
 
 	// dropped is the count of attributes that have been dropped when limits
@@ -118,7 +122,8 @@ type Record struct {
 	attributeValueLengthLimit int
 	attributeCountLimit       int
 
-	// specifies whether we should deduplicate any key value collections or not
+	// allowDupKeys specifies whether duplicate keys are allowed in key-value
+	// collections.
 	allowDupKeys bool
 
 	noCmp [0]func() //nolint: unused  // This is indeed used.
@@ -132,13 +137,13 @@ func (r *Record) addDropped(n int) {
 }
 
 // EventName returns the event name.
-// A log record with non-empty event name is interpreted as an event record.
+// A log record with a non-empty event name is interpreted as an event record.
 func (r *Record) EventName() string {
 	return r.eventName
 }
 
 // SetEventName sets the event name.
-// A log record with non-empty event name is interpreted as an event record.
+// A log record with a non-empty event name is interpreted as an event record.
 func (r *Record) SetEventName(s string) {
 	r.eventName = s
 }
@@ -173,14 +178,16 @@ func (r *Record) SetSeverity(level log.Severity) {
 	r.severity = level
 }
 
-// SeverityText returns severity (also known as log level) text. This is the
-// original string representation of the severity as it is known at the source.
+// SeverityText returns the text of the severity (also known as the log level).
+// This is the original string representation of the severity as it is known at
+// the source.
 func (r *Record) SeverityText() string {
 	return r.severityText
 }
 
-// SetSeverityText sets severity (also known as log level) text. This is the
-// original string representation of the severity as it is known at the source.
+// SetSeverityText sets the text of the severity (also known as the log level).
+// This is the original string representation of the severity as it is known at
+// the source.
 func (r *Record) SetSeverityText(text string) {
 	r.severityText = text
 }
@@ -199,8 +206,9 @@ func (r *Record) SetBody(v attribute.Value) {
 	}
 }
 
-// WalkAttributes walks all attributes the log record holds by calling f for
-// each on each [attribute.KeyValue] in the [Record]. Iteration stops if f returns false.
+// WalkAttributes walks through all attributes held by the log record, calling
+// f for each [attribute.KeyValue] in the [Record]. Iteration stops if f returns
+// false.
 func (r *Record) WalkAttributes(f func(attribute.KeyValue) bool) {
 	for i := 0; i < r.nFront; i++ {
 		if !f(r.front[i]) {
@@ -215,8 +223,11 @@ func (r *Record) WalkAttributes(f func(attribute.KeyValue) bool) {
 }
 
 // AddAttributes adds attributes to the log record.
-// Attributes in attrs will overwrite any attribute already added to r with the same key.
+// Unless key duplication is enabled with [WithAllowKeyDuplication], an
+// attribute in attrs overwrites any attribute already added to r with the same
+// key. Attributes with invalid keys are ignored.
 func (r *Record) AddAttributes(attrs ...attribute.KeyValue) {
+	attrs = filterInvalid(attrs)
 	n := r.AttributesLen()
 	if n == 0 {
 		// Avoid the more complex duplicate map lookups below.
@@ -300,11 +311,11 @@ func (r *Record) AddAttributes(attrs ...attribute.KeyValue) {
 }
 
 // attrIndex returns an index map for all attributes in the Record r. The index
-// maps the attribute key to location the attribute is stored. If the value is
-// < 0 then -(value + 1) (e.g. -1 -> 0, -2 -> 1, -3 -> 2) represents the index
-// in r.nFront. Otherwise, the index is the exact index of r.back.
+// maps the attribute key to the location where the attribute is stored. If the
+// value is < 0, then -(value + 1) (e.g., -1 -> 0, -2 -> 1, -3 -> 2) represents
+// the index in r.front. Otherwise, the value is the exact index in r.back.
 //
-// The returned index is taken from the indexPool. It is the callers
+// The returned index is taken from the indexPool. It is the caller's
 // responsibility to return the index to that pool (putIndex) when done.
 func (r *Record) attrIndex() map[attribute.Key]int {
 	index := getIndex()
@@ -320,8 +331,8 @@ func (r *Record) attrIndex() map[attribute.Key]int {
 }
 
 // addAttrs adds attrs to the Record r. This does not validate any limits or
-// duplication of attributes, these tasks are left to the caller to handle
-// prior to calling.
+// attribute duplication; these tasks are left to the caller to handle before
+// calling addAttrs.
 func (r *Record) addAttrs(attrs []attribute.KeyValue) {
 	var i int
 	for i = 0; i < len(attrs) && r.nFront < len(r.front); i++ {
@@ -339,8 +350,10 @@ func (r *Record) addAttrs(attrs []attribute.KeyValue) {
 	}
 }
 
-// SetAttributes sets (and overrides) attributes to the log record.
+// SetAttributes sets (and overrides) attributes on the log record.
+// Attributes with invalid keys are ignored.
 func (r *Record) SetAttributes(attrs ...attribute.KeyValue) {
+	attrs = filterInvalid(attrs)
 	var drop int
 	r.dropped = 0
 	if !r.allowDupKeys {
@@ -365,6 +378,32 @@ func (r *Record) SetAttributes(attrs ...attribute.KeyValue) {
 	for i, a := range r.back {
 		r.back[i] = r.applyAttrLimitsAndDedup(a)
 	}
+}
+
+// filterInvalid returns attrs without invalid attributes. The original slice is
+// returned when all attributes are valid.
+func filterInvalid(attrs []attribute.KeyValue) []attribute.KeyValue {
+	valid := 0
+	for _, attr := range attrs {
+		if attr.Valid() {
+			valid++
+		}
+	}
+	if valid == len(attrs) {
+		return attrs
+	}
+	logInvalidAttribute()
+	if valid == 0 {
+		return nil
+	}
+
+	filtered := make([]attribute.KeyValue, 0, valid)
+	for _, attr := range attrs {
+		if attr.Valid() {
+			filtered = append(filtered, attr)
+		}
+	}
+	return filtered
 }
 
 // head returns the attributes r can retain along with the number dropped.
@@ -418,12 +457,12 @@ func (r *Record) AttributesLen() int {
 }
 
 // DroppedAttributes returns the number of attributes dropped due to limits
-// being reached.
+// being reached. Invalid attributes are ignored and not counted.
 func (r *Record) DroppedAttributes() int {
 	return r.dropped
 }
 
-// TraceID returns the trace ID or empty array.
+// TraceID returns the trace ID or an empty array.
 func (r *Record) TraceID() trace.TraceID {
 	return r.traceID
 }
@@ -433,7 +472,7 @@ func (r *Record) SetTraceID(id trace.TraceID) {
 	r.traceID = id
 }
 
-// SpanID returns the span ID or empty array.
+// SpanID returns the span ID or an empty array.
 func (r *Record) SpanID() trace.SpanID {
 	return r.spanID
 }

@@ -62,3 +62,8 @@ func (h Hash) String(val string) Hash {
 func (h Hash) Sum64() uint64 {
 	return h.d.Sum64()
 }
+
+// Reset resets the hash to its initial state.
+func (h Hash) Reset() {
+	h.d.Reset()
+}

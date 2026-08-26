@@ -33,19 +33,71 @@ const (
 	emptyID        uint64 = 7305809155345288421 // "__empty_" (little endian)
 )
 
-// hashKVs returns a new xxHash64 hash of kvs.
-func hashKVs(kvs []KeyValue) uint64 {
-	h := xxhash.New()
-	for _, kv := range kvs {
-		h = hashKV(h, kv)
-	}
-	sum := h.Sum64()
-	// Remap 0 to a non-zero value for non-empty input because hash == 0 is a reserved sentinel (treated as empty/invalid).
-	const remappedZeroHash uint64 = 1
-	if sum == 0 && len(kvs) > 0 {
-		return remappedZeroHash
+// Hasher computes a Distinct value from KeyValue attributes supplied with
+// Write.
+//
+// A Hasher must be obtained from [NewHasher]. The zero value is not usable and
+// its methods will panic.
+type Hasher struct {
+	h xxhash.Hash
+}
+
+// NewHasher returns a new Hasher.
+func NewHasher() *Hasher {
+	return &Hasher{h: xxhash.New()}
+}
+
+// Reset resets h to its initial state so it can be reused.
+func (h *Hasher) Reset() {
+	h.h.Reset()
+}
+
+// Write adds kv to the hash.
+//
+// Write requires attributes to be supplied in ascending key order with no
+// duplicate keys. To produce the same Distinct as Set.Equivalent, write
+// attributes in ascending key order, with no more than one value for each key.
+// If the source contains duplicate keys, retain the last value for each key
+// before calling Write.
+func (h *Hasher) Write(kv KeyValue) {
+	// hashKV mutates the digest h.h refers to in place and returns the same
+	// Hash value it was passed. Discarding the result keeps the digest pointer
+	// from flowing back into h, which would force the digest to be heap
+	// allocated for every Hasher. Keeping Write this small also keeps it within
+	// the inlining budget, which matters because hashKVs calls it per attribute.
+	_ = hashKV(h.h, kv)
+}
+
+// Distinct returns the identifier for the attributes written to h. When Write
+// is called as described above, it returns the same value as [Set.Equivalent].
+func (h *Hasher) Distinct() Distinct {
+	// No count of written attributes is needed to detect the empty case. The
+	// sum of a digest with nothing written to it is emptyHash, which is
+	// non-zero (0xef46db3751d8e999), so it passes through remapZeroHash
+	// unchanged and matches emptySet.Equivalent.
+	return Distinct{hash: remapZeroHash(h.h.Sum64())}
+}
+
+// remapZeroHash remaps a 0 sum to a non-zero value, because hash == 0 is a
+// reserved sentinel (treated as empty/invalid).
+func remapZeroHash(sum uint64) uint64 {
+	if sum == 0 {
+		return 1
 	}
 	return sum
+}
+
+// hashKVs returns a new xxHash64 hash of kvs.
+//
+// This routes through [Hasher] so that Set hashing and Hasher cannot disagree:
+// there is exactly one implementation of how attributes are mixed and how the
+// final sum is framed.
+func hashKVs(kvs []KeyValue) uint64 {
+	h := NewHasher()
+	for _, kv := range kvs {
+		h.Write(kv)
+	}
+	return h.Distinct().hash
 }
 
 // hashKV returns the xxHash64 hash of kv with h as the base.

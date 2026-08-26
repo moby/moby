@@ -50,6 +50,7 @@ type (
 		TLSCfg         *tls.Config
 		Headers        map[string]string
 		Compression    Compression
+		Protocol       Protocol
 		MaxRequestSize int
 		Timeout        time.Duration
 		URLPath        string
@@ -84,6 +85,7 @@ func NewHTTPConfig(opts ...HTTPOption) Config {
 			Endpoint:       fmt.Sprintf("%s:%d", DefaultCollectorHost, DefaultCollectorHTTPPort),
 			URLPath:        DefaultTracesPath,
 			Compression:    NoCompression,
+			Protocol:       ProtocolHTTPProtobuf,
 			MaxRequestSize: DefaultMaxRequestSize,
 			Timeout:        DefaultTimeout,
 		},
@@ -119,6 +121,7 @@ func NewGRPCConfig(opts ...GRPCOption) Config {
 			Endpoint:       fmt.Sprintf("%s:%d", DefaultCollectorHost, DefaultCollectorGRPCPort),
 			URLPath:        DefaultTracesPath,
 			Compression:    NoCompression,
+			Protocol:       ProtocolGRPC,
 			MaxRequestSize: DefaultMaxRequestSize,
 			Timeout:        DefaultTimeout,
 		},
@@ -375,4 +378,26 @@ func WithHTTPClient(c *http.Client) GenericOption {
 		cfg.Traces.HTTPClient = c
 		return cfg
 	})
+}
+
+func WithProtocol(protocol Protocol) GenericOption {
+	return newSplitOption(
+		// For OTLP/HTTP endpoints, this is the encoding format of the payloads sent to the collector.
+		func(cfg Config) Config {
+			if protocol == ProtocolGRPC {
+				global.Warn("grpc is not a valid protocol for OTLP/HTTP, defaulting to http/protobuf")
+				protocol = ProtocolHTTPProtobuf
+			}
+			cfg.Traces.Protocol = protocol
+			return cfg
+		},
+		// For OTLP/gRPC endpoints, it's always "grpc".
+		func(cfg Config) Config {
+			if protocol != ProtocolGRPC {
+				global.Debug("protocol option is ignored for OTLP/gRPC and is set to grpc")
+			}
+			cfg.Traces.Protocol = ProtocolGRPC
+			return cfg
+		},
+	)
 }

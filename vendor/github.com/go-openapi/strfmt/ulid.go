@@ -69,11 +69,6 @@ var (
 	ULIDValueOverrideFunc = ULIDValueDefaultFunc
 )
 
-func init() { //nolint:gochecknoinits // registers ulid format in the default registry
-	ulid := ULID{}
-	Default.Add("ulid", &ulid, IsULID)
-}
-
 // IsULID checks if provided string is [ULID] format
 // Be noticed that this function considers overflowed [ULID] as non-[ulid].
 // For more details see https://github.com/[ulid]/spec

@@ -69,8 +69,13 @@ $(GORELEASE): PACKAGE=golang.org/x/exp/cmd/gorelease
 GOVULNCHECK = $(TOOLS)/govulncheck
 $(TOOLS)/govulncheck: PACKAGE=golang.org/x/vuln/cmd/govulncheck
 
+AFFECTEDMODS = $(TOOLS)/affectedmods
+AFFECTEDMODS_FILES := $(sort $(shell find $(TOOLS_MOD_DIR)/affectedmods -type f))
+$(TOOLS)/affectedmods: PACKAGE=go.opentelemetry.io/otel/$(TOOLS_MOD_DIR)/affectedmods
+$(TOOLS)/affectedmods: $(AFFECTEDMODS_FILES)
+
 .PHONY: tools
-tools: $(CROSSLINK) $(GOLANGCI_LINT) $(MISSPELL) $(GOCOVMERGE) $(STRINGER) $(VERIFYREADMES) $(MULTIMOD) $(SEMCONVKIT) $(GOTMPL) $(GORELEASE)
+tools: $(CROSSLINK) $(GOLANGCI_LINT) $(MISSPELL) $(GOCOVMERGE) $(STRINGER) $(VERIFYREADMES) $(MULTIMOD) $(SEMCONVKIT) $(GOTMPL) $(GORELEASE) $(AFFECTEDMODS)
 
 # Virtualized python tools via docker
 
@@ -125,9 +130,11 @@ go-work: $(CROSSLINK)
 
 # Build
 
-.PHONY: build
+.PHONY: build cross-build
 
 build: $(OTEL_GO_MOD_DIRS:%=build/%) $(OTEL_GO_MOD_DIRS:%=build-tests/%)
+# Cross-platform builds cannot execute the binaries produced by build-tests (go test), so use a compile-only target.
+cross-build: $(OTEL_GO_MOD_DIRS:%=build/%)
 build/%: DIR=$*
 build/%:
 	@echo "$(GO) build $(DIR)/..." \
@@ -163,6 +170,9 @@ test/%:
 		| grep -v third_party \
 		| xargs $(GO) test -timeout $(TIMEOUT)s $(ARGS)
 
+.PHONY: test-tools
+test-tools: test/$(TOOLS_MOD_DIR)
+
 COVERAGE_MODE    = atomic
 COVERAGE_PROFILE = coverage.out
 .PHONY: test-coverage
@@ -187,14 +197,22 @@ benchmark/%:
 
 # sdk/metric is split into two shards to work around CodSpeed limitations.
 # See https://github.com/CodSpeedHQ/codspeed-go/issues/56
-BENCHMARK_SHARDS := $(filter-out ./sdk/metric,$(OTEL_GO_MOD_DIRS)) ./sdk/metric/root ./sdk/metric/internal
-benchmark/./sdk/metric/root:
+BENCHMARK_SHARDS := $(filter-out ./sdk/metric,$(OTEL_GO_MOD_DIRS)) ./sdk/metric/. ./sdk/metric/internal
+benchmark/./sdk/metric/.:
 	cd ./sdk/metric && $(GO) test -run='^$$' -bench=. $(ARGS) . ./exemplar/...
-benchmark/./sdk/metric/internal:
-	cd ./sdk/metric && $(GO) test -run='^$$' -bench=. $(ARGS) ./internal/...
 
 print-sharded-benchmarks:
 	@echo $(BENCHMARK_SHARDS) | jq -cR 'split(" ")'
+
+# Print the JSON list of benchmark shards whose code changed since
+# BASE_REF (default: main). Filters print-sharded-benchmarks
+# down to shards whose underlying module contains a changed *.go file.
+# Non-Go changes (docs, workflows, Makefile, go.mod/go.sum, tooling) emit [].
+# Override the diff base via BASE_REF, or pass ARGS=-all to emit the full list.
+BASE_REF ?= main
+.PHONY: print-affected-benchmarks
+print-affected-benchmarks:
+	@$(MAKE) -s print-sharded-benchmarks | $(GO) -C $(TOOLS_MOD_DIR) run ./affectedmods $(if $(strip $(BASE_REF)),-base=$(BASE_REF),) $(ARGS)
 
 .PHONY: golangci-lint golangci-lint-fix
 golangci-lint-fix: ARGS=--fix

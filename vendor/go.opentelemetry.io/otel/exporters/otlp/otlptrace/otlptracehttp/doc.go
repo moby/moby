@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /*
-Package otlptracehttp provides an OTLP span exporter using HTTP with protobuf payloads.
+Package otlptracehttp provides an OTLP span exporter using HTTP with protobuf or JSON payloads.
 By default the telemetry is sent to https://localhost:4318/v1/traces.
 
 Exporter should be created using [New].
@@ -62,6 +62,12 @@ OTEL_EXPORTER_OTLP_CLIENT_KEY, OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY (default: no
 the filepath to the client's private key to use in mTLS communication in PEM format.
 OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY takes precedence over OTEL_EXPORTER_OTLP_CLIENT_KEY.
 The configuration can be overridden by [WithTLSClientConfig] option.
+
+OTEL_EXPORTER_OTLP_PROTOCOL, OTEL_EXPORTER_OTLP_TRACES_PROTOCOL (default: "http/protobuf") -
+the transport protocol the exporter uses. For OTLP/HTTP exporters, it indicates the encoding format of the payloads sent to the collector.
+Supported value: "http/protobuf", "http/json".
+OTEL_EXPORTER_OTLP_TRACES_PROTOCOL takes precedence over OTEL_EXPORTER_OTLP_PROTOCOL.
+The configuration can be overridden by [WithEncoding] option.
 
 [W3C Baggage HTTP Header Content Format]: https://www.w3.org/TR/baggage/#header-content
 */

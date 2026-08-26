@@ -6,7 +6,7 @@ package jsonpointer
 import (
 	"sync"
 
-	"github.com/go-openapi/swag/jsonname"
+	"github.com/go-openapi/jsonpointer/jsonname"
 )
 
 // Option to tune the behavior of a JSON [Pointer].
@@ -25,9 +25,9 @@ var (
 //
 // By default, the default provider is [jsonname.DefaultJSONNameProvider].
 //
-// It is safe to call concurrently with [Pointer.Get], [Pointer.Set],
-// [GetForToken] and [SetForToken]. The typical usage is to call it once
-// at initialization time.
+// It is safe to call concurrently with [Pointer.Get], [Pointer.Set], [GetForToken] and
+// [SetForToken].
+// The typical usage is to call it once at initialization time.
 //
 // A nil provider is ignored.
 func SetDefaultNameProvider(provider NameProvider) {
@@ -41,16 +41,15 @@ func SetDefaultNameProvider(provider NameProvider) {
 	defaultOptions.provider = provider
 }
 
-// UseGoNameProvider sets the [NameProvider] as a package-level default
-// to the alternative provider [jsonname.GoNameProvider], that covers a few areas
-// not supported by the default name provider.
+// UseGoNameProvider sets the [NameProvider] as a package-level default to the alternative provider
+// [jsonname.GoNameProvider], that covers a few areas not supported by the default name provider.
 //
 // This implementation supports untagged exported fields and embedded types in go struct.
 // It follows strictly the behavior of the JSON standard library regarding field naming conventions.
 //
-// It is safe to call concurrently with [Pointer.Get], [Pointer.Set],
-// [GetForToken] and [SetForToken]. The typical usage is to call it once
-// at initialization time.
+// It is safe to call concurrently with [Pointer.Get], [Pointer.Set], [GetForToken] and
+// [SetForToken].
+// The typical usage is to call it once at initialization time.
 func UseGoNameProvider() {
 	SetDefaultNameProvider(jsonname.NewGoNameProvider())
 }

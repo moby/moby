@@ -63,16 +63,16 @@ func newSchemaValidator(schema *spec.Schema, rootSchema any, root string, format
 		rootSchema = schema
 	}
 
+	if opts == nil {
+		opts = new(SchemaValidatorOptions)
+	}
+
 	if schema.ID != "" || schema.Ref.String() != "" || schema.Ref.IsRoot() {
-		err := spec.ExpandSchema(schema, rootSchema, nil)
+		err := spec.ExpandSchemaWithOptions(schema, rootSchema, nil, opts.expandOptions(""))
 		if err != nil {
 			msg := invalidSchemaProvidedMsg(err).Error()
 			panic(msg)
 		}
-	}
-
-	if opts == nil {
-		opts = new(SchemaValidatorOptions)
 	}
 
 	var s *SchemaValidator

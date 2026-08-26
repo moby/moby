@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package noop provides an implementation of the [OpenTelemetry Logs Bridge
-// API] that produces no telemetry and minimizes used computation resources.
+// API] that produces no telemetry and minimizes computational resource usage.
 //
 // Using this package to implement the [OpenTelemetry Logs API] will
 // effectively disable OpenTelemetry.
 //
 // This implementation can be embedded in other implementations of the
-// [OpenTelemetry Logs API]. Doing so will mean the implementation
-// defaults to no operation for methods it does not implement.
+// [OpenTelemetry Logs API]. Doing so means that the implementation defaults to
+// performing no operation for methods it does not implement.
 //
 // [OpenTelemetry Logs API]: https://pkg.go.dev/go.opentelemetry.io/otel/log
 package noop
@@ -22,7 +22,8 @@ import (
 )
 
 var (
-	// Compile-time check this implements the OpenTelemetry API.
+	// These compile-time checks ensure that the implementations satisfy the
+	// OpenTelemetry API.
 	_ log.LoggerProvider = LoggerProvider{}
 	_ log.Logger         = Logger{}
 )

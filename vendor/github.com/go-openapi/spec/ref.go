@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"encoding/gob"
 	"encoding/json"
-	"net/http"
 	"os"
 	"path/filepath"
 
@@ -62,7 +61,15 @@ func (r *Ref) RemoteURI() string {
 	return u.String()
 }
 
-// IsValidURI returns true when the url the ref points to can be found.
+// IsValidURI returns true when the ref points to a valid URI.
+//
+// For an absolute URL, it only checks that the reference is a well-formed URI. It deliberately
+// does NOT perform a network request to verify that the remote target is reachable: doing so
+// would make validation depend on network availability and expose callers to denial-of-service
+// and SSRF when processing untrusted specifications. Resolving and fetching remote references is
+// the responsibility of the expander, through its configurable (and confinable) document loader.
+//
+// For a local file reference, it checks that the file exists.
 func (r *Ref) IsValidURI(basepaths ...string) bool {
 	if r.String() == "" {
 		return true
@@ -74,15 +81,8 @@ func (r *Ref) IsValidURI(basepaths ...string) bool {
 	}
 
 	if r.HasFullURL {
-		//nolint:noctx,gosec
-		rr, err := http.Get(v)
-		if err != nil {
-			return false
-		}
-		defer rr.Body.Close()
-
-		// true if the response is >= 200 and < 300
-		return rr.StatusCode/100 == 2 //nolint:mnd
+		// a well-formed absolute URL is a valid URI; remote reachability is not checked here (see above).
+		return true
 	}
 
 	if !r.HasFileScheme && !r.HasFullFilePath && !r.HasURLPathOnly {

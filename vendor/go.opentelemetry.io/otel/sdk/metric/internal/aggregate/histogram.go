@@ -107,12 +107,11 @@ type deltaHistogram[N int64 | float64] struct {
 func (s *deltaHistogram[N]) measure(
 	ctx context.Context,
 	value N,
-	fltrAttr attribute.Set,
-	droppedAttr []attribute.KeyValue,
+	lazy lazyFilteredAttributes,
 ) {
 	hotIdx := s.hcwg.start()
 	defer s.hcwg.done(hotIdx)
-	h := s.hotColdValMap[hotIdx].LoadOrStoreAttr(fltrAttr, func(attr attribute.Set) *histogramPoint[N] {
+	h := s.hotColdValMap[hotIdx].LoadOrStoreAttr(lazy, func(attr attribute.Set) *histogramPoint[N] {
 		r := s.newRes(attr)
 		_, isDrop := r.(*dropRes[N])
 		hPt := &histogramPoint[N]{
@@ -145,7 +144,7 @@ func (s *deltaHistogram[N]) measure(
 		h.total.add(value)
 	}
 	if !h.dropExemplars {
-		h.res.Offer(ctx, value, droppedAttr)
+		h.res.Offer(ctx, value, lazy)
 	}
 }
 
@@ -286,10 +285,9 @@ func newCumulativeHistogram[N int64 | float64](
 func (s *cumulativeHistogram[N]) measure(
 	ctx context.Context,
 	value N,
-	fltrAttr attribute.Set,
-	droppedAttr []attribute.KeyValue,
+	lazy lazyFilteredAttributes,
 ) {
-	h := s.values.LoadOrStoreAttr(fltrAttr, func(attr attribute.Set) *hotColdHistogramPoint[N] {
+	h := s.values.LoadOrStoreAttr(lazy, func(attr attribute.Set) *hotColdHistogramPoint[N] {
 		r := s.newRes(attr)
 		_, isDrop := r.(*dropRes[N])
 		hPt := &hotColdHistogramPoint[N]{
@@ -334,7 +332,7 @@ func (s *cumulativeHistogram[N]) measure(
 		h.hotColdPoint[hotIdx].total.add(value)
 	}
 	if !h.dropExemplars {
-		h.res.Offer(ctx, value, droppedAttr)
+		h.res.Offer(ctx, value, lazy)
 	}
 }
 
