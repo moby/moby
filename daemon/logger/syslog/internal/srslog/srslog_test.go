@@ -125,11 +125,9 @@ func startServer(n, la string, done chan<- string) (addr string, sock io.Closer,
 		}
 		addr = l.LocalAddr().String()
 		sock = l
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			runPktSyslog(l, done)
-		}()
+		})
 	} else if n == "tcp+tls" {
 		cert, err := tls.LoadX509KeyPair("test/cert.pem", "test/privkey.pem")
 		if err != nil {
@@ -142,11 +140,9 @@ func startServer(n, la string, done chan<- string) (addr string, sock io.Closer,
 		}
 		addr = l.Addr().String()
 		sock = l
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			runStreamSyslog(l, done, wg)
-		}()
+		})
 	} else {
 		l, e := net.Listen(n, la)
 		if e != nil {
@@ -154,11 +150,9 @@ func startServer(n, la string, done chan<- string) (addr string, sock io.Closer,
 		}
 		addr = l.Addr().String()
 		sock = l
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			runStreamSyslog(l, done, wg)
-		}()
+		})
 	}
 	return
 }
@@ -461,16 +455,14 @@ func TestConcurrentWrite(t *testing.T) {
 		t.Fatalf("syslog.Dial() failed: %v", err)
 	}
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 10 {
+		wg.Go(func() {
 			err := w.Info("test")
 			if err != nil {
 				t.Errorf("Info() failed: %v", err)
 				return
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }
@@ -511,23 +503,20 @@ func TestConcurrentReconnect(t *testing.T) {
 	}()
 
 	var wg sync.WaitGroup
-	wg.Add(N)
-	for i := 0; i < N; i++ {
-		go func() {
-			defer wg.Done()
+	for range N {
+		wg.Go(func() {
 			w, err := Dial(net, addr, LOG_USER|LOG_ERR, "tag")
 			if err != nil {
 				t.Fatalf("syslog.Dial() failed: %v", err)
 			}
 			defer w.Close()
-			for i := 0; i < M; i++ {
-				err := w.Info("test")
-				if err != nil {
+			for range M {
+				if err := w.Info("test"); err != nil {
 					t.Errorf("Info() failed: %v", err)
 					return
 				}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	sock.Close()

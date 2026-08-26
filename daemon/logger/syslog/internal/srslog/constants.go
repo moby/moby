@@ -10,14 +10,17 @@ import (
 // the default facility is LOG_KERN.
 type Priority int
 
-const severityMask = 0x07
-const facilityMask = 0xf8
+const (
+	severityMask = 0x07
+	facilityMask = 0xf8
+)
 
 const (
 	// Severity.
 
 	// From /usr/include/sys/syslog.h.
 	// These are the same on Linux, BSD, and OS X.
+
 	LOG_EMERG Priority = iota
 	LOG_ALERT
 	LOG_CRIT
@@ -33,6 +36,7 @@ const (
 
 	// From /usr/include/sys/syslog.h.
 	// These are the same up to LOG_FTP on Linux, BSD, and OS X.
+
 	LOG_KERN Priority = iota << 3
 	LOG_USER
 	LOG_MAIL

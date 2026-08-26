@@ -64,7 +64,7 @@ func DialWithTLSCertPath(network, raddr string, priority Priority, tag, certPath
 	return DialWithTLSCert(network, raddr, priority, tag, serverCert)
 }
 
-// DialWIthTLSCert establishes a secure connection to a log daemon by connecting to
+// DialWithTLSCert establishes a secure connection to a log daemon by connecting to
 // address raddr on the specified network. It uses serverCert to load a TLS certificate
 // and configure the secure connection.
 func DialWithTLSCert(network, raddr string, priority Priority, tag string, serverCert []byte) (*Writer, error) {

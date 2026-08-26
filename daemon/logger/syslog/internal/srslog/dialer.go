@@ -35,9 +35,9 @@ func (df dialerFunctionWrapper) Call() (serverConn, string, error) {
 // function and adding it to the map.
 func (w *Writer) getDialer() dialerFunctionWrapper {
 	dialers := map[string]dialerFunctionWrapper{
-		"":        dialerFunctionWrapper{"unixDialer", w.unixDialer},
-		"tcp+tls": dialerFunctionWrapper{"tlsDialer", w.tlsDialer},
-		"custom":  dialerFunctionWrapper{"customDialer", w.customDialer},
+		"":        {"unixDialer", w.unixDialer},
+		"tcp+tls": {"tlsDialer", w.tlsDialer},
+		"custom":  {"customDialer", w.customDialer},
 	}
 	dialer, ok := dialers[w.network]
 	if !ok {

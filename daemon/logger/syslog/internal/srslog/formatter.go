@@ -41,8 +41,8 @@ func RFC3164Formatter(p Priority, hostname, tag, content string) string {
 
 // if string's length is greater than max, then use the last part
 func truncateStartStr(s string, max int) string {
-	if (len(s) > max) {
-		return s[len(s) - max:]
+	if len(s) > max {
+		return s[len(s)-max:]
 	}
 	return s
 }
