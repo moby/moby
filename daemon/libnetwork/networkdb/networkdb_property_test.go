@@ -1,6 +1,7 @@
 package networkdb
 
 import (
+	"encoding/binary"
 	"fmt"
 	"maps"
 	"slices"
@@ -50,7 +51,19 @@ func testConvergence(t *rapid.T) {
 	numNodes := rapid.IntRange(2, 25).Draw(t, "numNodes")
 	numNetworks := rapid.IntRange(1, 5).Draw(t, "numNetworks")
 
-	c := newMemCluster(t, numNodes, "node", DefaultConfig())
+	// Draw the gossip seed rather than letting each node read crypto/rand, so
+	// that it is recorded and shrunk like any other draw instead of being
+	// invented. It does not pin the interleaving -- memberlist's own randomness
+	// is unseedable and synctest orders the clock, not the scheduler -- but it
+	// takes one uncontrolled input out of the picture. A fixed seed would be
+	// worse than either: every run would gossip alike, and the point of this
+	// test is to explore that space.
+	conf := DefaultConfig()
+	var seed [32]byte
+	binary.LittleEndian.PutUint64(seed[:], rapid.Uint64().Draw(t, "rngSeed"))
+	conf.rngSeed = &seed
+
+	c := newMemCluster(t, numNodes, "node", conf)
 
 	fsm := &networkDBFSM{
 		nDB:      c.dbs,

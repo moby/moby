@@ -2,6 +2,7 @@ package networkdb
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"net/netip"
@@ -120,6 +121,14 @@ func newMemCluster(t TestingT, num int, namePrefix string, conf *Config) *memClu
 		// one more thing a replay cannot reproduce. Twelve characters, matching
 		// what TruncateID would have produced, and never all-digits.
 		localConfig.NodeID = fmt.Sprintf("node%08d", i+1)
+		if conf.rngSeed != nil {
+			// One stream per node, all derived from the template's seed, so a
+			// single recorded value reproduces the whole cluster's gossip
+			// without every node making identical choices.
+			seed := *conf.rngSeed
+			binary.LittleEndian.PutUint64(seed[24:], uint64(i))
+			localConfig.rngSeed = &seed
+		}
 		localConfig.transport = tr
 		localConfig.BindAddr = addr.Addr().String()
 		localConfig.AdvertiseAddr = localConfig.BindAddr
