@@ -2,14 +2,14 @@ package metrics
 
 import "github.com/prometheus/client_golang/prometheus"
 
-// Register adds all the metrics in the provided namespace to the global
-// metrics registry
+// Register is a convenience wrapper around [prometheus.MustRegister] that
+// registers all metrics in n with the default Prometheus registry.
 func Register(n *Namespace) {
 	prometheus.MustRegister(n)
 }
 
-// Deregister removes all the metrics in the provided namespace from the
-// global metrics registry
+// Deregister is a convenience wrapper around [prometheus.Unregister] that
+// unregisters all metrics in n from the default Prometheus registry.
 func Deregister(n *Namespace) {
 	prometheus.Unregister(n)
 }
