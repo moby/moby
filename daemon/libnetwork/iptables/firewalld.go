@@ -331,6 +331,11 @@ func AddInterfaceFirewalld(intf string) error {
 	log.G(context.TODO()).Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
 	// Runtime
 	if err := connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
+		var derr dbus.Error
+		if errors.As(err, &derr) && derr.Name == dbusInterface+".Exception" && strings.HasPrefix(err.Error(), "ZONE_ALREADY_SET:") {
+			log.G(context.TODO()).Infof("Firewalld: interface %s already part of %s zone, returning", intf, dockerZone)
+			return nil
+		}
 		return err
 	}
 	return nil
