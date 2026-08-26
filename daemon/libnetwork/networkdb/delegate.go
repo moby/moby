@@ -341,8 +341,10 @@ func (nDB *NetworkDB) handleNodeMessage(buf []byte) {
 			return
 		}
 
-		nDB.nodeBroadcasts.QueueBroadcast(&nodeEventMessage{
-			msg: buf,
+		nDB.nodeBroadcasts.QueueBroadcast(&relayedNodeEventMessage{
+			msg:   buf,
+			node:  nEvent.NodeName,
+			ltime: nEvent.LTime,
 		})
 	}
 }

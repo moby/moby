@@ -67,3 +67,77 @@ func TestTableEventQueueKeepsFreshest(t *testing.T) {
 	// The ordinary case still collapses to one message.
 	assert.DeepEqual(t, queuedMessages(t, stale, fresh), []string{"fresh"})
 }
+
+func TestRelayedNodeEventMessageInvalidates(t *testing.T) {
+	msg := func(node string, ltime serf.LamportTime) *relayedNodeEventMessage {
+		return &relayedNodeEventMessage{node: node, ltime: ltime}
+	}
+
+	for _, tc := range []struct {
+		name       string
+		m, other   *relayedNodeEventMessage
+		invalidate bool
+	}{
+		{"fresher supersedes staler", msg("n1", 7), msg("n1", 5), true},
+		{"same ltime is a duplicate", msg("n1", 5), msg("n1", 5), true},
+		{"staler must not evict fresher", msg("n1", 5), msg("n1", 7), false},
+		{"another node", msg("n1", 9), msg("n2", 1), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.m.Invalidates(tc.other), tc.invalidate)
+		})
+	}
+
+	// It shares a queue with ownNodeEventMessage, so it must tolerate one.
+	assert.Check(t, !msg("n1", 9).Invalidates(&ownNodeEventMessage{}))
+}
+
+// A flapping peer's churn collapses to the newest event known of it, since
+// handleNodeEvent would discard the rest on arrival anyway.
+func TestRelayedNodeEventQueueCollapsesChurn(t *testing.T) {
+	relay := func(node string, ltime serf.LamportTime, body string) *relayedNodeEventMessage {
+		return &relayedNodeEventMessage{node: node, ltime: ltime, msg: []byte(body)}
+	}
+
+	assert.DeepEqual(t, queuedMessages(t,
+		relay("n1", 5, "join5"),
+		relay("n1", 6, "leave6"),
+		relay("n1", 7, "join7"),
+	), []string{"join7"})
+
+	// A straggler must not displace the event it lost the race to.
+	got := queuedMessages(t, relay("n1", 7, "join7"), relay("n1", 5, "join5"))
+	assert.Check(t, slices.Contains(got, "join7"), "queue dropped the fresher event: %v", got)
+
+	// Different peers do not collapse into each other.
+	assert.DeepEqual(t, queuedMessages(t,
+		relay("n1", 9, "n1-event"),
+		relay("n2", 1, "n2-event"),
+	), []string{"n1-event", "n2-event"})
+}
+
+// Queueing a relayed event must not release the wait in sendNodeEvent: the
+// queue calls Finished on whatever it invalidates, and this node's own message
+// signals that channel from Finished.
+func TestOwnNodeEventSurvivesRelayedEvents(t *testing.T) {
+	q := &memberlist.TransmitLimitedQueue{
+		NumNodes:       func() int { return 3 },
+		RetransmitMult: 4,
+	}
+	notify := make(chan struct{})
+	q.QueueBroadcast(&ownNodeEventMessage{msg: []byte("own"), notify: notify})
+	q.QueueBroadcast(&relayedNodeEventMessage{node: "n1", ltime: 9, msg: []byte("relay")})
+
+	select {
+	case <-notify:
+		t.Fatal("a relayed node event invalidated this node's own event, releasing sendNodeEvent as though it had been broadcast")
+	default:
+	}
+
+	var got []string
+	for _, raw := range q.GetBroadcasts(0, 1<<20) {
+		got = append(got, string(raw))
+	}
+	slices.Sort(got)
+	assert.DeepEqual(t, got, []string{"own", "relay"})
+}
