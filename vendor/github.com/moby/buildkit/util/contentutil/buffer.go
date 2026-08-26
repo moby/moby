@@ -206,7 +206,7 @@ func (w *bufferedWriter) Digest() digest.Digest {
 
 func (w *bufferedWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opt ...content.Opt) error {
 	if w.buffer == nil {
-		return errors.Errorf("can't commit already committed or closed")
+		return errors.New("can't commit already committed or closed")
 	}
 	if s := int64(w.buffer.Len()); size > 0 && size != s {
 		return errors.Errorf("unexpected commit size %d, expected %d", s, size)

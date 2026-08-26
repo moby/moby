@@ -121,7 +121,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 
 	if s == nil {
 		if opt.SessionPreInitialized {
-			return nil, errors.Errorf("no session provided for preinitialized option")
+			return nil, errors.New("no session provided for preinitialized option")
 		}
 		s, err = session.NewSession(statusContext, opt.SharedKey)
 		if err != nil {

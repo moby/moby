@@ -89,7 +89,7 @@ func (s *Source) Print(w io.Writer) error {
 		}
 		fmt.Fprintf(w, " %3d | %s %s\n", i, pfx, lines[i-1])
 	}
-	fmt.Fprintf(w, "--------------------\n")
+	fmt.Fprint(w, "--------------------\n")
 	return nil
 }
 

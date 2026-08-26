@@ -16,8 +16,8 @@ import (
 // nested progress reporting
 
 var (
-	errRetry        = errors.Errorf("retry")
-	errRetryTimeout = errors.Errorf("exceeded retry timeout")
+	errRetry        = errors.New("retry")
+	errRetryTimeout = errors.New("exceeded retry timeout")
 )
 
 type contextKeyT string

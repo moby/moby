@@ -215,7 +215,7 @@ func marshalItem(ctx context.Context, it *item, state *marshalState) error {
 		if id != "" {
 			idx, ok := state.chainsByID[id]
 			if !ok {
-				return errors.Errorf("parent chainid not found")
+				return errors.New("parent chainid not found")
 			}
 			rec.Results = append(rec.Results, cacheimporttypes.CacheResult{LayerIndex: idx, CreatedAt: res.CreatedAt})
 		}

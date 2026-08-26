@@ -221,7 +221,7 @@ type DNSConfig struct {
 
 type HistoryConfig struct {
 	MaxAge     Duration `toml:"maxAge"`
-	MaxEntries int64    `toml:"maxEntries"`
+	MaxEntries *int64   `toml:"maxEntries"`
 }
 
 type DockerfileFrontendConfig struct {

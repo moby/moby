@@ -45,7 +45,7 @@ func Unbundle(ctx context.Context, s session.Group, bundled []exporter.Attestati
 					return errors.New("attestation bundle cannot have callback")
 				}
 				if att.Ref == nil {
-					return errors.Errorf("no ref provided for attestation bundle")
+					return errors.New("no ref provided for attestation bundle")
 				}
 
 				mount, err := att.Ref.Mount(ctx, true, s)

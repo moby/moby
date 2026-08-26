@@ -55,13 +55,13 @@ func NewPassthrough(id string, inputs []PassthroughInput, opts ...ConstraintsOpt
 
 func (p *PassthroughOp) Validate(context.Context, *Constraints) error {
 	if len(p.inputs) == 0 {
-		return errors.Errorf("passthrough must have at least one input")
+		return errors.New("passthrough must have at least one input")
 	}
 	if p.id == "" {
-		return errors.Errorf("passthrough requires an id")
+		return errors.New("passthrough requires an id")
 	}
 	if len(p.outputMap) == 0 {
-		return errors.Errorf("passthrough must have at least one output")
+		return errors.New("passthrough must have at least one output")
 	}
 	for _, input := range p.outputMap {
 		if input < 0 || input >= len(p.inputs) {

@@ -49,7 +49,7 @@ func Parse(raw []byte) (*GitObject, error) {
 	obj := &GitObject{Headers: make(map[string][]string), Raw: raw}
 	lines := strings.Split(string(raw), "\n")
 	if len(lines) == 0 {
-		return nil, errors.Errorf("invalid empty git object")
+		return nil, errors.New("invalid empty git object")
 	}
 
 	isTag := bytes.HasPrefix(raw, []byte("object "))
@@ -171,7 +171,7 @@ func (obj *GitObject) VerifyChecksum(sha string) error {
 
 func (obj *GitObject) ToCommit() (*Commit, error) {
 	if obj.Type != "commit" {
-		return nil, errors.Errorf("not a commit object")
+		return nil, errors.New("not a commit object")
 	}
 	c := &Commit{}
 	if trees, ok := obj.Headers["tree"]; ok && len(trees) > 0 {
@@ -192,7 +192,7 @@ func (obj *GitObject) ToCommit() (*Commit, error) {
 
 func (obj *GitObject) ToTag() (*Tag, error) {
 	if obj.Type != "tag" {
-		return nil, errors.Errorf("not a tag object")
+		return nil, errors.New("not a tag object")
 	}
 	t := &Tag{}
 	if objects, ok := obj.Headers["object"]; ok && len(objects) > 0 {

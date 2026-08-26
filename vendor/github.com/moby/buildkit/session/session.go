@@ -18,10 +18,11 @@ import (
 )
 
 const (
-	headerSessionID        = "X-Docker-Expose-Session-Uuid"
-	headerSessionName      = "X-Docker-Expose-Session-Name"
-	headerSessionSharedKey = "X-Docker-Expose-Session-Sharedkey"
-	headerSessionMethod    = "X-Docker-Expose-Session-Grpc-Method"
+	headerSessionID               = "X-Docker-Expose-Session-Uuid"
+	headerSessionName             = "X-Docker-Expose-Session-Name"
+	headerSessionSharedKey        = "X-Docker-Expose-Session-Sharedkey"
+	headerSessionSharedKeyEncoded = headerSessionSharedKey + "-Encoded"
+	headerSessionMethod           = "X-Docker-Expose-Session-Grpc-Method"
 )
 
 var propagators = propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
@@ -101,7 +102,11 @@ func (s *Session) Run(ctx context.Context, dialer Dialer) error {
 
 	meta := make(map[string][]string)
 	meta[headerSessionID] = []string{s.id}
-	meta[headerSessionSharedKey] = []string{s.sharedKey}
+	sharedKey, encoded := encodeHeaderValue(s.sharedKey)
+	meta[headerSessionSharedKey] = []string{sharedKey}
+	if encoded {
+		meta[headerSessionSharedKeyEncoded] = []string{"1"}
+	}
 
 	for name, svc := range s.grpcServer.GetServiceInfo() {
 		for _, method := range svc.Methods {

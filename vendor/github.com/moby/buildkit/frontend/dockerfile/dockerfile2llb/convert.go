@@ -833,6 +833,7 @@ func (dctx *dispatchContext) dispatchStages(ctx context.Context, allReachable ma
 			buildPlatforms:      dctx.platformOpt.buildPlatforms,
 			targetPlatform:      dctx.platformOpt.targetPlatform,
 			extraHosts:          dctx.opt.ExtraHosts,
+			gitAdvice:           dctx.opt.GitAdvice,
 			shmSize:             dctx.opt.ShmSize,
 			ulimit:              dctx.opt.Ulimits,
 			devices:             dctx.opt.Devices,
@@ -989,6 +990,7 @@ type dispatchOpt struct {
 	targetPlatform      ocispecs.Platform
 	buildPlatforms      []ocispecs.Platform
 	extraHosts          []llb.HostIP
+	gitAdvice           bool
 	shmSize             int64
 	ulimit              []*pb.Ulimit
 	devices             []*pb.CDIDevice

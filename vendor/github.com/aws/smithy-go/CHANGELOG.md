@@ -1,3 +1,13 @@
+# Release (2026-08-25)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.27.10
+  * **Bug Fix**: Fix a data race on the underlying writer when an event stream is closed while an event write is in flight.
+  * **Bug Fix**: Restore draining the HTTP response body in `CloseResponseBody` to avoid issues with TCP connection reuse.
+
 # Release (2026-08-21)
 
 ## General Highlights

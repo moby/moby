@@ -114,6 +114,9 @@ type containerState struct {
 	// On Windows we need to use the root mounts to achieve the same thing that Linux does
 	// with rootfsPath. So we save both in details.
 	rootMounts []mount.Mount
+	// Destinations of the mounts that the rootless spec conversion removed, whose mount
+	// points have to be recreated after the container is gone.
+	removedMounts []string
 }
 
 func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.Mount, mounts []executor.Mount, process executor.ProcessInfo, started chan<- struct{}) (rec resourcestypes.Recorder, err error) {
@@ -192,7 +195,7 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 	}
 	defer namespace.Close()
 	if proxyNS, ok := namespace.(network.ProxyNamespace); ok {
-		meta.Env = append(meta.Env, proxyNS.ProxyEnv()...)
+		meta.Env = executor.ReplaceEnv(meta.Env, proxyNS.ProxyEnv())
 		cleanProxyCA, err := executor.InjectProxyCA(details.rootfsPath, proxyNS.ProxyCACert())
 		if err != nil {
 			return nil, err
@@ -207,6 +210,15 @@ func (w *containerdExecutor) Run(ctx context.Context, id string, root executor.M
 	if releaseSpec != nil {
 		defer releaseSpec()
 	}
+
+	// Recreate the mount points that the rootless spec conversion removed, so that they
+	// are left in the rootfs the way a rootful build leaves them. This executor has no
+	// identity mapping, so they are owned by root. moby/buildkit#6686
+	defer func() {
+		if err == nil {
+			err = executor.CreateMountStubs(details.rootfsPath, details.removedMounts, 0, 0)
+		}
+	}()
 
 	opts := []ctd.NewContainerOpts{
 		ctd.WithSpec(spec),
@@ -315,6 +327,10 @@ func (w *containerdExecutor) Exec(ctx context.Context, id string, process execut
 	}
 
 	proc := spec.Process
+	if meta.Proxy != nil && len(meta.Env) > 0 {
+		meta.Env = executor.ReplaceEnv(meta.Env, network.FilterProxyEnv(proc.Env))
+		process.Meta = meta
+	}
 	if meta.User != "" {
 		userSpec, err := getUserSpec(meta.User, details.rootfsPath)
 		if err != nil {
@@ -332,8 +348,8 @@ func (w *containerdExecutor) Exec(ctx context.Context, id string, process execut
 	if meta.Cwd != "" {
 		spec.Process.Cwd = meta.Cwd
 	}
-	if len(process.Meta.Env) > 0 {
-		spec.Process.Env = process.Meta.Env
+	if len(meta.Env) > 0 {
+		proc.Env = meta.Env
 	}
 
 	fixProcessOutput(&process)
@@ -478,7 +494,7 @@ func (w *containerdExecutor) runProcess(ctx context.Context, p ctd.Process, resi
 				cancel(errors.WithStack(context.Canceled))
 			}
 			io.Cancel()
-			return errors.Errorf("failed to kill process on cancel")
+			return errors.New("failed to kill process on cancel")
 		}
 	}
 }
