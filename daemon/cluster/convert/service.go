@@ -8,7 +8,6 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/daemon/cluster/internal/runtime"
-	"github.com/moby/moby/v2/internal/namesgenerator"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/api/genericresource"
 	"github.com/pkg/errors"
@@ -167,11 +166,6 @@ func serviceSpecFromGRPC(spec *swarmapi.ServiceSpec) (*types.ServiceSpec, error)
 
 // ServiceSpecToGRPC converts a ServiceSpec to a grpc ServiceSpec.
 func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
-	name := s.Name
-	if name == "" {
-		name = namesgenerator.GetRandomName(0)
-	}
-
 	taskNetworks := make([]*swarmapi.NetworkAttachmentConfig, 0, len(s.TaskTemplate.Networks))
 	for _, n := range s.TaskTemplate.Networks {
 		netConfig := &swarmapi.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases, DriverAttachmentOpts: n.DriverOpts}
@@ -185,7 +179,7 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 
 	spec := swarmapi.ServiceSpec{
 		Annotations: swarmapi.Annotations{
-			Name:   name,
+			Name:   s.Name,
 			Labels: s.Labels,
 		},
 		Task: swarmapi.TaskSpec{
