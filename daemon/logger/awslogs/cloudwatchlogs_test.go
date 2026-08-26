@@ -1732,6 +1732,15 @@ func TestNewStreamConfigEntity(t *testing.T) {
 			},
 		},
 		{
+			testName: "multi-byte service name within character limit",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: strings.Repeat("界", maxEntityValue),
+				entityEnvironmentKey: "prod",
+			},
+			wantKeyAttr: map[string]string{"Type": "Service", "Name": strings.Repeat("界", maxEntityValue), "Environment": "prod"},
+		},
+		{
 			testName: "trailing comma in attributes is tolerated",
 			config: map[string]string{
 				logGroupKey:          groupName,
@@ -1899,6 +1908,15 @@ func TestValidateLogOptEntity(t *testing.T) {
 			testName:  "attribute value too long",
 			config:    map[string]string{logGroupKey: groupName, entityServiceNameKey: "svc", entityEnvironmentKey: "prod", entityAttributesKey: "a=" + strings.Repeat("x", maxEntityValue+1)},
 			shouldErr: true,
+		},
+		{
+			testName: "multi-byte attribute key and value within character limits",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "svc",
+				entityEnvironmentKey: "prod",
+				entityAttributesKey:  strings.Repeat("界", maxAttributeKey) + "=" + strings.Repeat("界", maxEntityValue),
+			},
 		},
 	}
 

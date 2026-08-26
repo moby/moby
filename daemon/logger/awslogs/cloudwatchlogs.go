@@ -323,7 +323,7 @@ func validateKeyAttributeValue(optKey, val string) error {
 	if val == "" {
 		return fmt.Errorf("log opt '%s' resolved to an empty value", optKey)
 	}
-	if len(val) > maxEntityValue {
+	if utf8.RuneCountInString(val) > maxEntityValue {
 		return fmt.Errorf("log opt '%s' value exceeds the CloudWatch limit of %d characters", optKey, maxEntityValue)
 	}
 	return nil
@@ -372,7 +372,7 @@ func parseEntityAttributes(raw string) (map[string]string, error) {
 		if _, exists := attributes[k]; exists {
 			return nil, fmt.Errorf("log opt '%s' has a duplicate key %q", entityAttributesKey, k)
 		}
-		if len(k) > maxAttributeKey || len(v) > maxEntityValue {
+		if utf8.RuneCountInString(k) > maxAttributeKey || utf8.RuneCountInString(v) > maxEntityValue {
 			return nil, fmt.Errorf("log opt '%s' entry %q exceeds CloudWatch limits (key <= %d chars, value <= %d chars)", entityAttributesKey, k, maxAttributeKey, maxEntityValue)
 		}
 		attributes[k] = v
