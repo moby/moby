@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 )
 
@@ -93,7 +93,7 @@ func TestTLSDialer(t *testing.T) {
 	defer sock.Close()
 
 	pool := x509.NewCertPool()
-	serverCert, err := ioutil.ReadFile("test/cert.pem")
+	serverCert, err := os.ReadFile("test/cert.pem")
 	if err != nil {
 		t.Errorf("failed to read file: %v", err)
 	}

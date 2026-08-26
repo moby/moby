@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -57,7 +56,7 @@ func DialWithCustomDialer(network, raddr string, priority Priority, tag string, 
 // address raddr on the specified network. It uses certPath to load TLS certificates and configure
 // the secure connection.
 func DialWithTLSCertPath(network, raddr string, priority Priority, tag, certPath string) (*Writer, error) {
-	serverCert, err := ioutil.ReadFile(certPath)
+	serverCert, err := os.ReadFile(certPath)
 	if err != nil {
 		return nil, err
 	}

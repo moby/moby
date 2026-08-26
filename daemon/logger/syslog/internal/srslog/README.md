@@ -57,7 +57,7 @@ And if you need more control over your TLS configuration :
 
 ```
 pool := x509.NewCertPool()
-serverCert, err := ioutil.ReadFile("/path/to/servercert.pem")
+serverCert, err := os.ReadFile("/path/to/servercert.pem")
 if err != nil {
     return nil, err
 }
