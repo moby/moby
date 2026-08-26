@@ -109,12 +109,24 @@ type tableEventMessage struct {
 	id    string
 	tname string
 	key   string
+	ltime serf.LamportTime
 	msg   []byte
 }
 
 func (m *tableEventMessage) Invalidates(other memberlist.Broadcast) bool {
 	otherm := other.(*tableEventMessage)
-	return m.tname == otherm.tname && m.id == otherm.id && m.key == otherm.key
+	if m.tname != otherm.tname || m.id != otherm.id || m.key != otherm.key {
+		return false
+	}
+	// Supersede an event for this key only if this one is no older. Both paths
+	// which queue a table event do so after releasing the lock they mutated the
+	// entry under -- CreateEntry, UpdateEntry and DeleteEntry all Unlock before
+	// calling sendTableEvent, and handleTableMessage queues its relay after
+	// handleTableEvent returns -- so two writers to one key can take the lock in
+	// Lamport order and reach the queue in the opposite order. Matching on the
+	// key alone would then let the straggler evict the fresher event and gossip
+	// a superseded value in its place, until anti-entropy corrected it.
+	return m.ltime >= otherm.ltime
 }
 
 func (m *tableEventMessage) Message() []byte {
@@ -156,6 +168,7 @@ func (nDB *NetworkDB) sendTableEvent(event TableEvent_Type, nid string, tname st
 		id:    nid,
 		tname: tname,
 		key:   key,
+		ltime: entry.ltime,
 	})
 	return nil
 }
