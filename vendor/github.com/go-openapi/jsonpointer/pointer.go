@@ -34,7 +34,8 @@ const (
 //
 // For struct s resolved by reflection, key mappings honor the conventional struct tag `json`.
 //
-// Fields that do not specify a `json` tag, or specify an empty one, or are tagged as `json:"-"` are ignored.
+// Fields that do not specify a `json` tag, or specify an empty one, or are tagged as `json:"-"` are
+// ignored.
 //
 // # Limitations
 //
@@ -61,23 +62,24 @@ func (p *Pointer) Get(document any, opts ...Option) (any, reflect.Kind, error) {
 	return p.get(document, o.provider)
 }
 
-// Set uses the pointer to set a value from a data type
-// that represent a JSON document.
+// Set uses the pointer to set a value from a data type that represent a JSON document.
 //
 // # Mutation contract
 //
-// Set mutates the provided document in place whenever Go's type system allows
-// it: when document is a map, a pointer, or when the targeted value is reached
-// through an addressable ancestor (e.g. a struct field traversed via a pointer,
-// a slice element). Callers that rely on this in-place behavior may continue
-// to ignore the returned document.
+// Set mutates the provided document in place whenever Go's type system allows it: when document is
+// a map, a pointer, or when the targeted value is reached through an addressable ancestor (e.g. a
+// struct field traversed via a pointer, a slice element).
+//
+// Callers that rely on this in-place behavior may continue to ignore the returned document.
 //
 // The returned document is only load-bearing when Set cannot mutate in place.
-// This happens in one specific case: appending to a top-level slice passed by
-// value (e.g. document of type []T rather than *[]T) via the RFC 6901 "-"
-// terminal token. reflect.Append produces a new slice header that the library
-// cannot rebind into the caller's variable; the updated document is returned
-// instead. Pass *[]T if you want in-place rebind for that case as well.
+//
+// This happens in one specific case: appending to a top-level slice passed by value (e.g. document
+// of type []T rather than *[]T) via the RFC 6901 "-" terminal token. reflect.Append produces a new
+// slice header that the library cannot rebind into the caller's variable; the updated document is
+// returned instead.
+//
+// Pass *[]T if you want in-place rebind for that case as well.
 //
 // See [ErrDashToken] for the semantics of the "-" token.
 func (p *Pointer) Set(document any, value any, opts ...Option) (any, error) {
@@ -112,23 +114,23 @@ func (p *Pointer) String() string {
 	return pointerSeparator + strings.Join(p.referenceTokens, pointerSeparator)
 }
 
-// Offset returns the byte offset, in the raw JSON text of document, of the
-// location referenced by this pointer's terminal token.
+// Offset returns the byte offset, in the raw JSON text of document, of the location referenced by
+// this pointer's terminal token.
 //
-// Unlike [Pointer.Get] and [Pointer.Set], which operate on a decoded Go value,
-// Offset operates directly on the textual JSON source. It drives an
-// [encoding/json.Decoder] over the string and stops at the terminal token,
-// returning the position at which the decoder was about to read that token.
+// Unlike [Pointer.Get] and [Pointer.Set], which operate on a decoded Go value, Offset operates
+// directly on the textual JSON source.
 //
-// It is primarily intended for tooling that needs to map a pointer back to a
-// region of the original source: reporting line/column for validation or
-// parse diagnostics, extracting a sub-document by slicing the raw bytes, or
-// highlighting the referenced span in an editor.
+// It drives an [encoding/json.Decoder] over the string and stops at the terminal token, returning
+// the position at which the decoder was about to read that token.
+//
+// It is primarily intended for tooling that needs to map a pointer back to a region of the original
+// source: reporting line/column for validation or parse diagnostics, extracting a sub-document by
+// slicing the raw bytes, or highlighting the referenced span in an editor.
 //
 // # Offset semantics
 //
-// The meaning of the returned offset depends on whether the terminal token
-// addresses an object property or an array element:
+// The meaning of the returned offset depends on whether the terminal token addresses an object
+// property or an array element:
 //
 //   - Object property: the offset points to the first byte of the key (its
 //     opening quote character), not to the associated value. For example,
@@ -183,16 +185,15 @@ func (p *Pointer) Offset(document string) (int64, error) {
 	return skipJSONSeparator(document, offset), nil
 }
 
-// skipJSONSeparator advances offset past trailing JSON whitespace and at most
-// one value separator (comma) in document, so the result points at the first
-// byte of the next JSON token.
+// skipJSONSeparator advances offset past trailing JSON whitespace and at most one value separator
+// (comma) in document, so the result points at the first byte of the next JSON token.
 //
-// The streaming decoder's InputOffset sits right after the most recently
-// consumed token, which between values is the comma (or whitespace) — not
-// the following token. Normalizing here keeps Offset's contract uniform:
-// for both object keys and array elements, and regardless of position within
-// the parent container, the returned offset always points at the first byte
-// of the addressed token.
+// The streaming decoder's InputOffset sits right after the most recently consumed token, which
+// between values is the comma (or whitespace) — not the following token.
+//
+// Normalizing here keeps Offset's contract uniform: for both object keys and array elements, and
+// regardless of position within the parent container, the returned offset always points at the
+// first byte of the addressed token.
 func skipJSONSeparator(document string, offset int64) int64 {
 	n := int64(len(document))
 	for offset < n && isJSONWhitespace(document[offset]) {
@@ -279,14 +280,13 @@ func (p *Pointer) set(node, data any, nameProvider NameProvider) (any, error) {
 	return p.setAt(node, p.referenceTokens, data, nameProvider)
 }
 
-// setAt recursively walks the token list, setting the data at the terminal
-// token and rebinding any new child reference (e.g. a slice header returned
-// by an "-" append) into its parent on the way back up.
+// setAt recursively walks the token list, setting the data at the terminal token and rebinding any
+// new child reference (e.g. a slice header returned by an "-" append) into its parent on the way
+// back up.
 //
-// Returning the (possibly new) node at each level is what makes append work
-// at any depth without requiring the caller to pass a pointer to the
-// containing slice: the new slice header propagates up and each parent
-// rebinds it via the appropriate kind-specific setter.
+// Returning the (possibly new) node at each level is what makes append work at any depth without
+// requiring the caller to pass a pointer to the containing slice: the new slice header propagates
+// up and each parent rebinds it via the appropriate kind-specific setter.
 func (p *Pointer) setAt(node any, tokens []string, data any, nameProvider NameProvider) (any, error) {
 	decodedToken := Unescape(tokens[0])
 
@@ -309,15 +309,14 @@ func (p *Pointer) setAt(node any, tokens []string, data any, nameProvider NamePr
 
 // rebindChild writes newChild back into node at decodedToken.
 //
-// For cases where the child was already mutated in place (pointer aliasing,
-// addressable slice elements) the rebind is a safe no-op. For cases where
-// the child was returned by value (map entries holding a slice, slices
-// reached through a non-addressable ancestor), the rebind propagates the
-// new value into the parent.
+// For cases where the child was already mutated in place (pointer aliasing, addressable slice
+// elements) the rebind is a safe no-op.
 //
-// Parents implementing [JSONPointable] are left alone: they took ownership
-// of the child via JSONLookup and did not opt into a JSONSet-based rebind
-// on intermediate tokens.
+// For cases where the child was returned by value (map entries holding a slice, slices reached
+// through a non-addressable ancestor), the rebind propagates the new value into the parent.
+//
+// Parents implementing [JSONPointable] are left alone: they took ownership of the child via
+// JSONLookup and did not opt into a JSONSet-based rebind on intermediate tokens.
 func rebindChild(node any, decodedToken string, newChild any, nameProvider NameProvider) (any, error) {
 	if _, ok := node.(JSONPointable); ok {
 		return node, nil
@@ -362,9 +361,9 @@ func rebindChild(node any, decodedToken string, newChild any, nameProvider NameP
 	}
 }
 
-// assignReflectValue assigns src into dst, unwrapping a pointer when dst
-// expects the pointee type. This tolerates the pointer-wrapping performed
-// by [typeFromValue] for addressable fields.
+// assignReflectValue assigns src into dst, unwrapping a pointer when dst expects the pointee type.
+//
+// This tolerates the pointer-wrapping performed by [typeFromValue] for addressable fields.
 func assignReflectValue(dst reflect.Value, src any) {
 	nv := reflect.ValueOf(src)
 	if !nv.IsValid() {
@@ -474,8 +473,8 @@ func GetForToken(document any, decodedToken string, opts ...Option) (any, reflec
 
 // SetForToken sets a value for a json pointer token 1 level deep.
 //
-// See [Pointer.Set] for the mutation contract, in particular the handling of
-// the RFC 6901 "-" token on slices.
+// See [Pointer.Set] for the mutation contract, in particular the handling of the RFC 6901 "-" token
+// on slices.
 func SetForToken(document any, decodedToken string, value any, opts ...Option) (any, error) {
 	o := optionsWithDefaults(opts)
 
@@ -586,10 +585,10 @@ func setSingleImpl(node, data any, decodedToken string, nameProvider NameProvide
 
 	case reflect.Slice:
 		if decodedToken == dashToken {
-			// RFC 6901 §4 / RFC 6902 append semantics: terminal "-" appends
-			// the value to the slice. We rebind in place when the slice is
-			// reachable via an addressable ancestor; otherwise we return the
-			// new slice header for the parent (or the public Set) to rebind.
+			// RFC 6901 §4 / RFC 6902 append semantics: terminal "-" appends the value to the slice.
+			//
+			// We rebind in place when the slice is reachable via an addressable ancestor; otherwise we
+			// return the new slice header for the parent (or the public Set) to rebind.
 			value := reflect.ValueOf(data)
 			elemType := rValue.Type().Elem()
 			if !value.Type().AssignableTo(elemType) {
@@ -650,8 +649,8 @@ func offsetSingleObject(dec *json.Decoder, decodedToken string) (int64, error) {
 			return offset, nil
 		}
 
-		// Consume the associated value. Scalars are fully read by a single
-		// Token() call; composite values must be drained.
+		// Consume the associated value.
+		// Scalars are fully read by a single Token() call; composite values must be drained.
 		tk, err = dec.Token()
 		if err != nil {
 			return 0, err
@@ -736,10 +735,7 @@ func drainSingle(dec *json.Decoder) error {
 	return nil
 }
 
-// JSON pointer encoding:
-// ~0 => ~
-// ~1 => /
-// ... and vice versa
+// JSON pointer encoding: ~0 => ~ ~1 => / ... and vice versa.
 
 const (
 	encRefTok0 = `~0`

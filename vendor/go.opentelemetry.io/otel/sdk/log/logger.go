@@ -26,7 +26,7 @@ const (
 	exceptionMessageKey = semconv.ExceptionMessageKey
 )
 
-// Compile-time check logger implements log.Logger.
+// This is a compile-time check that logger implements log.Logger.
 var _ log.Logger = (*logger)(nil)
 
 type logger struct {
@@ -95,13 +95,15 @@ func (l *logger) recordCreated(ctx context.Context) {
 }
 
 // Enabled returns true if at least one Processor held by the LoggerProvider
-// that created the logger will process for the provided context and param.
+// that created the logger will process a record for the provided context and
+// param.
 //
-// Enabled returns false after the LoggerProvider that created l starts shutdown.
+// Enabled returns false after the LoggerProvider that created l starts shutting
+// down.
 //
-// If it is not possible to definitively determine the record will be
+// If it is not possible to definitively determine whether the record will be
 // processed, true will be returned by default. A value of false will only be
-// returned if it can be positively verified that no Processor will process.
+// returned if it can be positively verified that no Processor will process it.
 func (l *logger) Enabled(ctx context.Context, param log.EnabledParameters) bool {
 	p := EnabledParameters{
 		InstrumentationScope: l.instrumentationScope,
@@ -173,7 +175,7 @@ func (l *logger) newRecord(ctx context.Context, r log.Record) Record {
 	if err := r.Err(); err != nil && (!hasExceptionMessage || !hasExceptionType) {
 		// Derive missing exception attributes by default, as required by the
 		// Logs SDK specification. Attribute limits may constrain generation,
-		// so stop once there is no capacity for another attribute.
+		// but attributes omitted due to those limits are still counted.
 		var attrs [2]attribute.KeyValue
 		n := 0
 
@@ -187,6 +189,13 @@ func (l *logger) newRecord(ctx context.Context, r log.Record) Record {
 		if !hasExceptionMessage {
 			if msg := err.Error(); msg != "" {
 				if hasLimit && remaining <= n {
+					dropped := 1
+					if !hasExceptionType {
+						// Every non-nil error has a concrete type, so avoid
+						// resolving it when it cannot be retained.
+						dropped++
+					}
+					newRecord.addDropped(dropped)
 					goto flush
 				}
 				attrs[n] = exceptionMessageKey.String(msg)
@@ -194,10 +203,11 @@ func (l *logger) newRecord(ctx context.Context, r log.Record) Record {
 			}
 		}
 		if !hasExceptionType {
+			if hasLimit && remaining <= n {
+				newRecord.addDropped(1)
+				goto flush
+			}
 			if errType := errorType(err); errType != "" {
-				if hasLimit && remaining <= n {
-					goto flush
-				}
 				attrs[n] = exceptionTypeKey.String(errType)
 				n++
 			}

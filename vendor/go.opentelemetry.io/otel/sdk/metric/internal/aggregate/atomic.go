@@ -228,8 +228,13 @@ type limitedSyncMap[V any] struct {
 	lenMux   sync.Mutex
 }
 
-func (m *limitedSyncMap[V]) LoadOrStoreAttr(fltrAttr attribute.Set, newValue func(attribute.Set) V) V {
-	actual, loaded := m.Load(fltrAttr.Equivalent())
+// LoadOrStoreAttr performs lookup using lazy.Distinct() on the hot path without
+// constructing a Set. If the entry is not found and the aggregation limit has not
+// been exceeded, lazy.Set() is called to construct the attribute.Set for storage.
+// If the aggregation limit is exceeded, overflowSet is used instead without calling lazy.Set().
+func (m *limitedSyncMap[V]) LoadOrStoreAttr(lazy lazyFilteredAttributes, newValue func(attribute.Set) V) V {
+	distinct := lazy.Distinct()
+	actual, loaded := m.Load(distinct)
 	if loaded {
 		return actual.(V)
 	}
@@ -246,15 +251,19 @@ func (m *limitedSyncMap[V]) LoadOrStoreAttr(fltrAttr attribute.Set, newValue fun
 	// re-fetch now that we hold the lock to ensure we don't use the overflow
 	// set unless we are sure the attribute set isn't being written
 	// concurrently.
-	actual, loaded = m.Load(fltrAttr.Equivalent())
+	actual, loaded = m.Load(distinct)
 	if loaded {
 		return actual.(V)
 	}
 
+	var fltrAttr attribute.Set
 	if m.aggLimit > 0 && m.len >= m.aggLimit-1 {
 		fltrAttr = overflowSet
+		distinct = overflowSet.Equivalent()
+	} else {
+		fltrAttr = lazy.Set()
 	}
-	actual, loaded = m.LoadOrStore(fltrAttr.Equivalent(), newValue(fltrAttr))
+	actual, loaded = m.LoadOrStore(distinct, newValue(fltrAttr))
 	if !loaded {
 		m.len++
 	}

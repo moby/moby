@@ -42,8 +42,8 @@ type BLP struct {
 	processedQueueFullOpts []metric.AddOption
 }
 
-// NewBLP creates a new BatchLogProcessor instrumentation.
-// Returns nil if observability is not enabled.
+// NewBLP creates new instrumentation for a BatchLogProcessor.
+// It returns nil if observability is not enabled.
 func NewBLP(id int64, qLen func() int64, qMax int64) (*BLP, error) {
 	if !x.Observability.Enabled() {
 		return nil, nil
@@ -107,6 +107,7 @@ func NewBLP(id int64, qLen func() int64, qMax int64) (*BLP, error) {
 	}, nil
 }
 
+// Shutdown unregisters the callbacks registered by NewBLP.
 func (b *BLP) Shutdown() error {
 	if b == nil || b.reg == nil {
 		return nil
@@ -114,12 +115,16 @@ func (b *BLP) Shutdown() error {
 	return b.reg.Unregister()
 }
 
+// Processed records n log records as having finished processing
+// successfully.
 func (b *BLP) Processed(ctx context.Context, n int64) {
 	if b.processed.Enabled(ctx) {
 		b.processed.Add(ctx, n, b.processedOpts...)
 	}
 }
 
+// ProcessedQueueFull records n log records as having finished processing
+// with a queue-full error.
 func (b *BLP) ProcessedQueueFull(ctx context.Context, n int64) {
 	if b.processed.Enabled(ctx) {
 		b.processed.Add(ctx, n, b.processedQueueFullOpts...)

@@ -21,14 +21,15 @@ const (
 	// ErrUnsupportedValueType indicates that a value of the wrong type is being set.
 	ErrUnsupportedValueType pointerError = "only structs, pointers, maps and slices are supported for setting values"
 
-	// ErrDashToken indicates use of the RFC 6901 "-" reference token
-	// in a context where it cannot be resolved.
+	// ErrDashToken indicates use of the RFC 6901 "-" reference token in a context where it cannot be
+	// resolved.
 	//
-	// Per RFC 6901 §4 the "-" token refers to the (nonexistent) element
-	// after the last array element. It may only be used as the terminal
-	// token of a [Pointer.Set] against a slice, where it means "append".
-	// Any other use (get, offset, intermediate traversal, non-slice target)
-	// is an error condition that wraps this sentinel.
+	// Per RFC 6901 §4 the "-" token refers to the (nonexistent) element after the last array element.
+	// It may only be used as the terminal token of a [Pointer.Set] against a slice, where it means
+	// "append".
+	//
+	// Any other use (get, offset, intermediate traversal, non-slice target) is an error condition that
+	// wraps this sentinel.
 	ErrDashToken pointerError = `the "-" array token cannot be resolved here` //nolint:gosec // G101 false positive: this is a JSON Pointer reference token, not a credential.
 )
 

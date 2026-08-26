@@ -14,9 +14,10 @@
 
 An implementation of JSON Reference for golang.
 
-<!--
 ## Announcements
--->
+
+* **2026-07-07** : landing v1.0.0
+  * stable API pledge
 
 ## Status
 
@@ -105,9 +106,6 @@ Maintainers can cut a new release by either:
 [doc-url]: https://goswagger.io/go-openapi
 [godoc-badge]: https://pkg.go.dev/badge/github.com/go-openapi/jsonreference
 [godoc-url]: http://pkg.go.dev/github.com/go-openapi/jsonreference
-[slack-logo]: https://a.slack-edge.com/e6a93c1/img/icons/favicon-32.png
-[slack-badge]: https://img.shields.io/badge/slack-blue?link=https%3A%2F%2Fgoswagger.slack.com%2Farchives%2FC04R30YM
-[slack-url]: https://goswagger.slack.com/archives/C04R30YMU
 [discord-badge]: https://img.shields.io/discord/1446918742398341256?logo=discord&label=discord&color=blue
 [discord-url]: https://discord.gg/FfnFYaC3k5
 

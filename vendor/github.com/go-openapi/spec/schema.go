@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/go-openapi/jsonpointer"
-	"github.com/go-openapi/swag/jsonname"
+	"github.com/go-openapi/jsonpointer/jsonname"
 	"github.com/go-openapi/swag/jsonutils"
 )
 

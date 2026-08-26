@@ -138,6 +138,11 @@ type recordingSpan struct {
 	attributes        []attribute.KeyValue
 	droppedAttributes int
 	logDropAttrsOnce  sync.Once
+	// attributesDirty indicates attributes may contain duplicate keys.
+	attributesDirty bool
+	// attributesShared indicates the attributes backing array has been exposed
+	// to a reader and must not be modified.
+	attributesShared bool
 
 	// events are stored in FIFO queue capped by configured limit.
 	events evictedQueue[Event]
@@ -251,6 +256,11 @@ func (s *recordingSpan) SetAttributes(attributes ...attribute.KeyValue) {
 		s.addDroppedAttr(len(attributes))
 		return
 	}
+	maxCap := len(s.attributes) + len(attributes)
+	if limit > 0 {
+		maxCap = min(maxCap, limit)
+	}
+	s.ensureAttrsWritable(maxCap)
 
 	// If adding these attributes could exceed the capacity of s perform a
 	// de-duplication and truncation while adding to avoid over allocation.
@@ -271,7 +281,21 @@ func (s *recordingSpan) SetAttributes(attributes ...attribute.KeyValue) {
 		a = dedupAttr(a)
 		a = attrnorm.Truncate(s.tracer.provider.spanLimits.AttributeValueLengthLimit, a)
 		s.attributes = append(s.attributes, a)
+		s.attributesDirty = true
 	}
+}
+
+// ensureAttrsWritable copies shared attributes into a backing array with at
+// least capacity. This method assumes s.mu.Lock is held by the caller.
+func (s *recordingSpan) ensureAttrsWritable(capacity int) {
+	if !s.attributesShared {
+		return
+	}
+	capacity = max(capacity, len(s.attributes))
+	attrs := make([]attribute.KeyValue, len(s.attributes), capacity)
+	copy(attrs, s.attributes)
+	s.attributes = attrs
+	s.attributesShared = false
 }
 
 // Declared as a var so tests can override.
@@ -592,6 +616,7 @@ func (s *recordingSpan) Attributes() []attribute.KeyValue {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.dedupeAttrs()
+	s.attributesShared = cap(s.attributes) > 0
 	return s.attributes
 }
 
@@ -599,6 +624,10 @@ func (s *recordingSpan) Attributes() []attribute.KeyValue {
 //
 // This method assumes s.mu.Lock is held by the caller.
 func (s *recordingSpan) dedupeAttrs() {
+	if !s.attributesDirty {
+		return
+	}
+	s.ensureAttrsWritable(len(s.attributes))
 	// Do not set a capacity when creating this map. Benchmark testing has
 	// showed this to only add unused memory allocations in general use.
 	exists := make(map[attribute.Key]int, len(s.attributes))
@@ -622,6 +651,7 @@ func (s *recordingSpan) dedupeAttrsFromRecord(record map[attribute.Key]int) {
 	}
 	clear(s.attributes[len(unique):]) // Erase unneeded elements to let GC collect objects.
 	s.attributes = unique
+	s.attributesDirty = false
 }
 
 // Links returns the links of this span.
@@ -765,6 +795,7 @@ func (s *recordingSpan) snapshot() ReadOnlySpan {
 	if len(s.attributes) > 0 {
 		s.dedupeAttrs()
 		sd.attributes = s.attributes
+		s.attributesShared = true
 	}
 	sd.droppedAttributeCount = s.droppedAttributes
 	if len(s.events.queue) > 0 {

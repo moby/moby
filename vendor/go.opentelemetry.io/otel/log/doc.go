@@ -4,8 +4,8 @@
 /*
 Package log provides the OpenTelemetry Logs API.
 
-This API is separate from its implementation so the instrumentation built from
-it is reusable. See [go.opentelemetry.io/otel/sdk/log] for the official
+This API is separate from its implementation, so the instrumentation built
+from it is reusable. See [go.opentelemetry.io/otel/sdk/log] for the official
 OpenTelemetry implementation of this API.
 
 The log package provides the OpenTelemetry Logs API, which serves as a standard
@@ -15,16 +15,16 @@ that can be easily integrated with observability tools. It ensures that log data
 in a way that is consistent with OpenTelemetry's data model.
 
 This package can be used to create bridges between existing logging libraries and OpenTelemetry.
-Log bridges allow integrating the existing logging setups with OpenTelemetry.
+Log bridges allow existing logging setups to be integrated with OpenTelemetry.
 Log bridges can be found in the [registry].
 
 # API Implementations
 
-This package does not conform to the standard Go versioning policy, all of its
+This package does not conform to the standard Go versioning policy; all of its
 interfaces may have methods added to them without a package major version bump.
 This non-standard API evolution could surprise an uninformed implementation
 author. They could unknowingly build their implementation in a way that would
-result in a runtime panic for their users that update to the new API.
+result in a runtime panic for their users who update to the new API.
 
 The API is designed to help inform an instrumentation author about this
 non-standard API evolution. It requires them to choose a default behavior for
@@ -38,7 +38,7 @@ make:
 All interfaces in this API embed a corresponding interface from
 [go.opentelemetry.io/otel/log/embedded]. If an author wants the default
 behavior of their implementations to be a compilation failure, signaling to
-their users they need to update to the latest version of that implementation,
+their users that they need to update to the latest version of that implementation,
 they need to embed the corresponding interface from
 [go.opentelemetry.io/otel/log/embedded] in their implementation. For example,
 
@@ -49,7 +49,7 @@ they need to embed the corresponding interface from
 		// ...
 	}
 
-If an author wants the default behavior of their implementations to a panic,
+If an author wants the default behavior of their implementations to panic,
 they need to embed the API interface directly.
 
 	import "go.opentelemetry.io/otel/log"
@@ -60,7 +60,7 @@ they need to embed the API interface directly.
 	}
 
 This is not a recommended behavior as it could lead to publishing packages that
-contain runtime panics when users update other package that use newer versions
+contain runtime panics when users update other packages that use newer versions
 of [go.opentelemetry.io/otel/log].
 
 Finally, an author can embed another implementation in theirs. The embedded

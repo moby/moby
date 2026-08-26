@@ -313,6 +313,9 @@ func filteredToFront(slice []KeyValue, keep Filter) int {
 // Filter returns a filtered copy of this Set. See the documentation for
 // NewSetWithSortableFiltered for more details.
 func (l *Set) Filter(re Filter) (Set, []KeyValue) {
+	if l == nil {
+		return emptySet, nil
+	}
 	if re == nil {
 		return *l, nil
 	}
