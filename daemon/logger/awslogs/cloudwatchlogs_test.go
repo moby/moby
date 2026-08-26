@@ -1972,19 +1972,27 @@ func TestPublishBatchEntityRejected(t *testing.T) {
 			KeyAttributes: map[string]string{"Type": "Service", "Name": "my-service", "Environment": "prod"},
 		},
 	}
+	var inputs []*cloudwatchlogs.PutLogEventsInput
 	mockClient.putLogEventsFunc = func(ctx context.Context, i *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
-		return &cloudwatchlogs.PutLogEventsOutput{
-			NextSequenceToken:  aws.String(nextSequenceToken),
-			RejectedEntityInfo: &types.RejectedEntityInfo{ErrorType: types.EntityRejectionErrorTypeInvalidEntity},
-		}, nil
+		inputs = append(inputs, i)
+		output := &cloudwatchlogs.PutLogEventsOutput{NextSequenceToken: aws.String(nextSequenceToken)}
+		if i.Entity != nil {
+			output.RejectedEntityInfo = &types.RejectedEntityInfo{ErrorType: types.EntityRejectionErrorTypeInvalidEntity}
+		}
+		return output, nil
 	}
 	events := []wrappedEvent{
 		{inputLogEvent: types.InputLogEvent{Message: aws.String(logline)}},
 	}
 
-	// A rejected entity must not block the log events from being accepted.
-	stream.publishBatch(testEventBatch(events))
+	batch := testEventBatch(events)
+	stream.publishBatch(batch)
+	stream.publishBatch(batch)
+
 	assert.Equal(t, nextSequenceToken, aws.ToString(stream.sequenceToken), "sequenceToken")
+	assert.Equal(t, len(inputs), 2)
+	assert.Assert(t, inputs[0].Entity != nil)
+	assert.Check(t, is.Nil(inputs[1].Entity))
 }
 
 func TestNewAWSLogsClientCredentialEndpointDetect(t *testing.T) {

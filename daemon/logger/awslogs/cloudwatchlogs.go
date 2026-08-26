@@ -859,13 +859,14 @@ func (l *logStream) putLogEvents(events []types.InputLogEvent, sequenceToken *st
 		return nil, err
 	}
 	if resp.RejectedEntityInfo != nil {
-		// The log events are still accepted when only the entity is rejected,
-		// so this is logged as a warning rather than returned as an error.
 		log.G(context.TODO()).WithFields(log.Fields{
 			"errorType":     resp.RejectedEntityInfo.ErrorType,
 			"logGroupName":  l.logGroupName,
 			"logStreamName": l.logStreamName,
 		}).Warn("CloudWatch rejected the entity metadata")
+		// Entity configuration is immutable for the stream, so do not keep
+		// sending metadata that the service has already rejected.
+		l.entity = nil
 	}
 	return resp.NextSequenceToken, nil
 }
