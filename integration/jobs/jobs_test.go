@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"testing"
+	"time"
 
 	extensionclient "github.com/moby/extensions/client"
 	"github.com/moby/moby/client"
@@ -133,6 +134,94 @@ func TestJobsReconcileAfterUncleanShutdown(t *testing.T) {
 	job, err := jobs.Inspect(ctx, &jobsv0.InspectRequest{JobRef: "sleeper"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(job.Job.State, jobsv0.JobStateIdle))
+}
+
+// TestJobScheduleFires proves the daemon-owned clock end to end: an
+// every-minute schedule fires a real run with no client involved. This is
+// the slowest test of the package by design — cron granularity is one
+// minute, so observing a fire costs up to a minute of wall clock.
+func TestJobScheduleFires(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot start a local daemon on a remote host")
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "the jobs extension test image is linux-only")
+	ctx := testutil.StartSpan(baseContext, t)
+
+	_, jobs := startJobsDaemon(ctx, t, "--feature", "jobs")
+
+	spec := &jobsv0.JobSpec{
+		ContainerSpec: []byte(`{"Image":"busybox","Cmd":["/bin/sh","-c","echo fired"]}`),
+		Trigger:       &jobsv0.Trigger{Schedule: &jobsv0.ScheduleTrigger{Cron: "* * * * *"}},
+	}
+	created, err := jobs.Create(ctx, &jobsv0.CreateRequest{Name: "minutely", Spec: spec})
+	assert.NilError(t, err)
+	assert.Check(t, created.Job.NextFireAtNano > 0, "registration must arm the trigger")
+
+	// Wait blocks until the first run fires and completes; bound it to the
+	// cron granularity plus a comfortable execution margin.
+	waitCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+	waited, err := jobs.Wait(waitCtx, &jobsv0.WaitRequest{JobRef: "minutely"})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(waited.Run.State, jobsv0.RunStateSucceeded))
+	assert.Assert(t, waited.Run.Trigger != nil)
+	assert.Check(t, is.Equal(waited.Run.Trigger.Kind, jobsv0.TriggerKindSchedule))
+	assert.Check(t, waited.Run.Trigger.ScheduledAtNano > 0)
+
+	// The schedule re-armed on the next occurrence.
+	inspected, err := jobs.Inspect(ctx, &jobsv0.InspectRequest{JobRef: "minutely"})
+	assert.NilError(t, err)
+	assert.Check(t, inspected.Job.NextFireAtNano > waited.Run.Trigger.ScheduledAtNano)
+}
+
+// TestJobTimeout proves deadline enforcement against a real container: the
+// daemon stops it and the run ends timed_out.
+func TestJobTimeout(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot start a local daemon on a remote host")
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "the jobs extension test image is linux-only")
+	ctx := testutil.StartSpan(baseContext, t)
+
+	_, jobs := startJobsDaemon(ctx, t, "--feature", "jobs")
+
+	spec := &jobsv0.JobSpec{
+		ContainerSpec:  []byte(`{"Image":"busybox","Cmd":["sleep","300"]}`),
+		TimeoutSeconds: 1,
+	}
+	started, err := jobs.CreateAndRun(ctx, &jobsv0.CreateAndRunRequest{Name: "deadline", Spec: spec})
+	assert.NilError(t, err)
+
+	waited, err := jobs.Wait(ctx, &jobsv0.WaitRequest{JobRef: "deadline", RunRef: started.Run.ID})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(waited.Run.State, jobsv0.RunStateTimedOut))
+}
+
+// TestJobPauseResume proves trigger suppression at the API level: pausing
+// clears the advertised next fire, resuming re-arms it.
+func TestJobPauseResume(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot start a local daemon on a remote host")
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "the jobs extension test image is linux-only")
+	ctx := testutil.StartSpan(baseContext, t)
+
+	_, jobs := startJobsDaemon(ctx, t, "--feature", "jobs")
+
+	spec := &jobsv0.JobSpec{
+		ContainerSpec: []byte(`{"Image":"busybox"}`),
+		Trigger:       &jobsv0.Trigger{Schedule: &jobsv0.ScheduleTrigger{Cron: "0 3 * * *"}},
+	}
+	_, err := jobs.Create(ctx, &jobsv0.CreateRequest{Name: "nightly", Spec: spec})
+	assert.NilError(t, err)
+
+	err = jobs.Pause(ctx, &jobsv0.PauseRequest{JobRef: "nightly"})
+	assert.NilError(t, err)
+	paused, err := jobs.Inspect(ctx, &jobsv0.InspectRequest{JobRef: "nightly"})
+	assert.NilError(t, err)
+	assert.Check(t, paused.Job.Paused)
+	assert.Check(t, is.Equal(paused.Job.NextFireAtNano, int64(0)))
+
+	err = jobs.Resume(ctx, &jobsv0.ResumeRequest{JobRef: "nightly"})
+	assert.NilError(t, err)
+	resumed, err := jobs.Inspect(ctx, &jobsv0.InspectRequest{JobRef: "nightly"})
+	assert.NilError(t, err)
+	assert.Check(t, !resumed.Job.Paused)
+	assert.Check(t, resumed.Job.NextFireAtNano > 0)
 }
 
 // TestJobsFeatureDisabled proves the gate: without the feature, the daemon
