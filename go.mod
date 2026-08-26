@@ -9,6 +9,9 @@ tool (
 	google.golang.org/protobuf/cmd/protoc-gen-go
 )
 
+// FIXME(thaJeztah): temporary replace, just for testing https://github.com/containerd/log/pull/22
+replace github.com/containerd/log => github.com/thaJeztah/log v0.0.0-20260823155049-2c1de810ab5d
+
 require (
 	cloud.google.com/go/compute/metadata v0.9.0
 	cloud.google.com/go/logging v1.19.1

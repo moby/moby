@@ -40,6 +40,7 @@ package log
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/sirupsen/logrus"
 )
@@ -108,10 +109,16 @@ const (
 	PanicLevel Level = logrus.PanicLevel
 )
 
-// SetLevel sets log level globally. It returns an error if the given
-// level is not supported.
+// levelValue is a log level accepted by [SetLevel].
+type levelValue interface {
+	string | Level
+}
+
+// SetLevel sets the global log level.
 //
-// level can be one of:
+// The level may be specified as a string or a [Level].
+//
+// String levels are parsed using [logrus.ParseLevel] and may be one of:
 //
 //   - "trace" ([TraceLevel])
 //   - "debug" ([DebugLevel])
@@ -120,13 +127,27 @@ const (
 //   - "error" ([ErrorLevel])
 //   - "fatal" ([FatalLevel])
 //   - "panic" ([PanicLevel])
-func SetLevel(level string) error {
-	lvl, err := logrus.ParseLevel(level)
-	if err != nil {
-		return err
+//
+// SetLevel returns an error if a string level is not supported.
+func SetLevel[T levelValue](level T) error {
+	var lvl Level
+
+	switch l := any(level).(type) {
+	case string:
+		var err error
+		lvl, err = logrus.ParseLevel(l)
+		if err != nil {
+			return err
+		}
+
+	case Level:
+		lvl = l
 	}
 
 	L.Logger.SetLevel(lvl)
+	if slogOut != nil {
+		slogLevel.Set(logrusToSlogLevel(lvl))
+	}
 	return nil
 }
 
@@ -155,15 +176,26 @@ func SetFormat(format OutputFormat) error {
 			TimestampFormat: RFC3339NanoFixed,
 			FullTimestamp:   true,
 		})
-		return nil
 	case JSONFormat:
 		L.Logger.SetFormatter(&logrus.JSONFormatter{
 			TimestampFormat: RFC3339NanoFixed,
 		})
-		return nil
 	default:
 		return fmt.Errorf("unknown log format: %s", format)
 	}
+
+	if slogOut != nil {
+		var handler slog.Handler
+		switch format {
+		case TextFormat:
+			handler = slog.NewTextHandler(slogOut, &slog.HandlerOptions{Level: slogLevel})
+		case JSONFormat:
+			handler = slog.NewJSONHandler(slogOut, &slog.HandlerOptions{Level: slogLevel})
+		}
+		slog.SetDefault(slog.New(handler))
+	}
+
+	return nil
 }
 
 // WithLogger returns a new context with the provided logger. Use in
