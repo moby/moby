@@ -314,8 +314,12 @@ func (d *driver) Join(_ context.Context, nid, eid string, sboxKey string, jinfo 
 
 	ifaceName := res.InterfaceName
 	if iface := jinfo.InterfaceName(); iface != nil && ifaceName != nil {
-		if err := iface.SetNames(ifaceName.SrcName, ifaceName.DstPrefix, ""); err != nil {
-			return fmt.Errorf("failed to set interface name: %s", err)
+		// DstName lets the driver pick the exact interface name inside the
+		// container — e.g. to honour the com.docker.network.endpoint.ifname
+		// endpoint option it received in CreateEndpoint. When the driver
+		// leaves it empty, a name is generated from DstPrefix.
+		if err := iface.SetNames(ifaceName.SrcName, ifaceName.DstPrefix, ifaceName.DstName); err != nil {
+			return fmt.Errorf("failed to set interface name: %w", err)
 		}
 	}
 
