@@ -21,9 +21,8 @@ func unixSyslog() (conn serverConn, err error) {
 			conn, err := net.Dial(network, path)
 			if err != nil {
 				continue
-			} else {
-				return &localConn{conn: conn}, nil
 			}
+			return &localConn{conn: conn}, nil
 		}
 	}
 	return nil, errors.New("Unix syslog delivery error")

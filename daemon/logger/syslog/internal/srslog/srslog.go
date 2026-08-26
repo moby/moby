@@ -71,7 +71,8 @@ func DialWithTLSCert(network, raddr string, priority Priority, tag string, serve
 	pool := x509.NewCertPool()
 	pool.AppendCertsFromPEM(serverCert)
 	config := tls.Config{
-		RootCAs: pool,
+		RootCAs:    pool,
+		MinVersion: tls.VersionTLS12,
 	}
 
 	return DialWithTLSConfig(network, raddr, priority, tag, &config)

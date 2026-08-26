@@ -19,38 +19,38 @@ func TestGetDialer(t *testing.T) {
 	}
 
 	dialer := w.getDialer()
-	if "unixDialer" != dialer.Name {
+	if dialer.Name != "unixDialer" {
 		t.Errorf("should get unixDialer, got: %v", dialer)
 	}
 
 	w.network = "tcp+tls"
 	dialer = w.getDialer()
-	if "tlsDialer" != dialer.Name {
+	if dialer.Name != "tlsDialer" {
 		t.Errorf("should get tlsDialer, got: %v", dialer)
 	}
 
 	w.network = "tcp"
 	dialer = w.getDialer()
-	if "basicDialer" != dialer.Name {
+	if dialer.Name != "basicDialer" {
 		t.Errorf("should get basicDialer, got: %v", dialer)
 	}
 
 	w.network = "udp"
 	dialer = w.getDialer()
-	if "basicDialer" != dialer.Name {
+	if dialer.Name != "basicDialer" {
 		t.Errorf("should get basicDialer, got: %v", dialer)
 	}
 
 	w.network = "something else entirely"
 	dialer = w.getDialer()
-	if "basicDialer" != dialer.Name {
+	if dialer.Name != "basicDialer" {
 		t.Errorf("should get basicDialer, got: %v", dialer)
 	}
 
 	w.network = "custom"
 	w.customDial = func(string, string) (net.Conn, error) { return nil, nil }
 	dialer = w.getDialer()
-	if "customDialer" != dialer.Name {
+	if dialer.Name != "customDialer" {
 		t.Errorf("should get customDialer, got: %v", dialer)
 	}
 }
@@ -99,7 +99,8 @@ func TestTLSDialer(t *testing.T) {
 	}
 	pool.AppendCertsFromPEM(serverCert)
 	config := tls.Config{
-		RootCAs: pool,
+		RootCAs:    pool,
+		MinVersion: tls.VersionTLS12,
 	}
 
 	w := Writer{

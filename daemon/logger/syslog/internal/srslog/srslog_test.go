@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -16,7 +17,7 @@ import (
 
 func runPktSyslog(c net.PacketConn, done chan<- string) {
 	var buf [4096]byte
-	var rcvd string
+	var rcvd strings.Builder
 	ct := 0
 	for {
 		var n int
@@ -24,7 +25,7 @@ func runPktSyslog(c net.PacketConn, done chan<- string) {
 
 		c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 		n, _, err = c.ReadFrom(buf[:])
-		rcvd += string(buf[:n])
+		rcvd.Write(buf[:n])
 		if err != nil {
 			if oe, ok := err.(*net.OpError); ok {
 				if ct < 3 && oe.Temporary() {
@@ -36,7 +37,7 @@ func runPktSyslog(c net.PacketConn, done chan<- string) {
 		}
 	}
 	c.Close()
-	done <- rcvd
+	done <- rcvd.String()
 }
 
 type Crashy struct {
@@ -118,7 +119,8 @@ func startServer(n, la string, done chan<- string) (addr string, sock io.Closer,
 	}
 
 	wg = new(sync.WaitGroup)
-	if n == "udp" || n == "unixgram" {
+	switch n {
+	case "udp", "unixgram":
 		l, e := net.ListenPacket(n, la)
 		if e != nil {
 			log.Fatalf("startServer failed: %v", e)
@@ -128,12 +130,15 @@ func startServer(n, la string, done chan<- string) (addr string, sock io.Closer,
 		wg.Go(func() {
 			runPktSyslog(l, done)
 		})
-	} else if n == "tcp+tls" {
+	case "tcp+tls":
 		cert, err := tls.LoadX509KeyPair("test/cert.pem", "test/privkey.pem")
 		if err != nil {
 			log.Fatalf("failed to load TLS keypair: %v", err)
 		}
-		config := tls.Config{Certificates: []tls.Certificate{cert}}
+		config := tls.Config{
+			Certificates: []tls.Certificate{cert},
+			MinVersion:   tls.VersionTLS12,
+		}
 		l, e := tls.Listen("tcp", la, &config)
 		if e != nil {
 			log.Fatalf("startServer failed: %v", e)
@@ -143,7 +148,7 @@ func startServer(n, la string, done chan<- string) (addr string, sock io.Closer,
 		wg.Go(func() {
 			runStreamSyslog(l, done, wg)
 		})
-	} else {
+	default:
 		l, e := net.Listen(n, la)
 		if e != nil {
 			log.Fatalf("startServer failed: %v", e)
@@ -154,7 +159,7 @@ func startServer(n, la string, done chan<- string) (addr string, sock io.Closer,
 			runStreamSyslog(l, done, wg)
 		})
 	}
-	return
+	return addr, sock, wg
 }
 
 func TestWithSimulated(t *testing.T) {
@@ -261,10 +266,16 @@ func TestDial(t *testing.T) {
 		t.Skip("skipping syslog test during -short")
 	}
 	f, err := Dial("", "", (LOG_LOCAL7|LOG_DEBUG)+1, "syslog_test")
+	if err == nil {
+		t.Fatal("should have failed")
+	}
 	if f != nil {
 		t.Fatalf("Should have trapped bad priority")
 	}
 	f, err = Dial("", "", -1, "syslog_test")
+	if err == nil {
+		t.Fatal("should have failed")
+	}
 	if f != nil {
 		t.Fatalf("Should have trapped bad priority")
 	}
@@ -507,7 +518,8 @@ func TestConcurrentReconnect(t *testing.T) {
 		wg.Go(func() {
 			w, err := Dial(net, addr, LOG_USER|LOG_ERR, "tag")
 			if err != nil {
-				t.Fatalf("syslog.Dial() failed: %v", err)
+				t.Errorf("syslog.Dial() failed: %v", err)
+				return
 			}
 			defer w.Close()
 			for range M {
