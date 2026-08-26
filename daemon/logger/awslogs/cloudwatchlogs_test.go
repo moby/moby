@@ -1718,6 +1718,20 @@ func TestNewStreamConfigEntity(t *testing.T) {
 			wantAttr:    map[string]string{"PlatformType": "Generic", "Host": "worker-7", "K8s.Cluster": "foo=bar"},
 		},
 		{
+			testName: "attributes containing commas",
+			config: map[string]string{
+				logGroupKey:          groupName,
+				entityServiceNameKey: "my-service",
+				entityEnvironmentKey: "prod",
+				entityAttributesKey:  `"Telemetry.SDK=opentelemetry,1.32.0-aws-SNAPSHOT,java,Auto","Telemetry.Source=ClientSpan, JMX"`,
+			},
+			wantKeyAttr: map[string]string{"Type": "Service", "Name": "my-service", "Environment": "prod"},
+			wantAttr: map[string]string{
+				"Telemetry.SDK":    "opentelemetry,1.32.0-aws-SNAPSHOT,java,Auto",
+				"Telemetry.Source": "ClientSpan, JMX",
+			},
+		},
+		{
 			testName: "trailing comma in attributes is tolerated",
 			config: map[string]string{
 				logGroupKey:          groupName,

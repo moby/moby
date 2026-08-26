@@ -4,6 +4,7 @@ package awslogs
 import (
 	"bytes"
 	"context"
+	"encoding/csv"
 	"fmt"
 	"os"
 	"regexp"
@@ -343,14 +344,22 @@ func expandEntityTemplate(info logger.Info, optKey, tmplText string) (string, er
 }
 
 // parseEntityAttributes parses a comma-separated key=value list into a map,
-// enforcing the CloudWatch Entity attribute limits. Empty entries (for example
-// from a trailing comma) are ignored.
+// enforcing the CloudWatch Entity attribute limits. Quoting a complete pair
+// preserves commas in its value. Empty entries, such as a trailing comma, are
+// ignored.
 func parseEntityAttributes(raw string) (map[string]string, error) {
 	if raw == "" {
 		return nil, nil
 	}
+	reader := csv.NewReader(strings.NewReader(raw))
+	reader.TrimLeadingSpace = true
+	records, err := reader.ReadAll()
+	if err != nil || len(records) != 1 {
+		return nil, fmt.Errorf("log opt '%s' must be a comma-separated CSV list of key=value pairs", entityAttributesKey)
+	}
+
 	attributes := map[string]string{}
-	for _, pair := range strings.Split(raw, ",") {
+	for _, pair := range records[0] {
 		if strings.TrimSpace(pair) == "" {
 			continue
 		}
