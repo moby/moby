@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	golog "log"
-	"math/rand/v2"
 	"net"
 	"net/netip"
 	"slices"
@@ -168,9 +167,7 @@ func (nDB *NetworkDB) clusterInit() error {
 		{nodeReapPeriod, nDB.reapDeadNode},
 		{nDB.config.rejoinClusterInterval, nDB.rejoinClusterBootStrap},
 	} {
-		t := time.NewTicker(trigger.interval)
-		go nDB.triggerFunc(trigger.interval, t.C, trigger.fn)
-		nDB.tickers = append(nDB.tickers, t)
+		nDB.goTriggerFunc(nDB.ctx.Done(), trigger.interval, trigger.fn)
 	}
 
 	return nil
@@ -229,31 +226,33 @@ func (nDB *NetworkDB) clusterLeave() error {
 	// cancel the context
 	nDB.cancelCtx()
 
-	for _, t := range nDB.tickers {
-		t.Stop()
-	}
-
 	return mlist.Shutdown()
 }
 
-func (nDB *NetworkDB) triggerFunc(stagger time.Duration, C <-chan time.Time, f func()) {
-	if stagger > 0 {
-		// Use a random stagger to avoid synchronizing.
-		randStagger := time.Duration(rand.Int64N(int64(stagger))) // #nosec G404 -- use of math/rand/v2 is fine for this purpose.
+// goTriggerFunc starts a background goroutine which calls f every interval
+// until ch is closed. The first call is additionally delayed by a random
+// stagger to avoid synchronizing with other nodes.
+func (nDB *NetworkDB) goTriggerFunc(ch <-chan struct{}, interval time.Duration, f func()) {
+	nDB.rngMu.Lock()
+	randStagger := time.Duration(nDB.rng.Int64N(int64(interval))) // #nosec G404 -- use of math/rand/v2 is fine for this purpose.
+	nDB.rngMu.Unlock()
+	go func() {
 		select {
 		case <-time.After(randStagger):
-		case <-nDB.ctx.Done():
+		case <-ch:
 			return
 		}
-	}
-	for {
-		select {
-		case <-C:
-			f()
-		case <-nDB.ctx.Done():
-			return
+		t := time.NewTicker(interval)
+		defer t.Stop()
+		for {
+			select {
+			case <-t.C:
+				f()
+			case <-ch:
+				return
+			}
 		}
-	}
+	}()
 }
 
 func (nDB *NetworkDB) reapDeadNode() {

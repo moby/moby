@@ -107,10 +107,6 @@ type NetworkDB struct {
 	// events.
 	broadcaster *events.Broadcaster
 
-	// List of all tickers which needed to be stopped when
-	// cleaning up.
-	tickers []*time.Ticker
-
 	// Reference to the memberlist's keyring to add & remove keys
 	keyring *memberlist.Keyring
 

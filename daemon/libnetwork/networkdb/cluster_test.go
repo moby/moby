@@ -5,14 +5,49 @@ import (
 	"maps"
 	"math"
 	"math/bits"
+	"math/rand/v2"
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"pgregory.net/rapid"
 )
+
+func TestTriggerFuncStagger(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		epoch := time.Now()
+
+		ndb := &NetworkDB{
+			rng: rand.New(new(rand.PCG)),
+		}
+		var calls []time.Duration
+		ndb.goTriggerFunc(t.Context().Done(), time.Second, func() {
+			calls = append(calls, time.Since(epoch))
+		})
+
+		time.Sleep(10 * time.Second)
+		synctest.Wait()
+
+		assert.Check(t, is.Len(calls, 9))
+		if len(calls) > 0 {
+			assert.Check(t, calls[0] > time.Second, "first call was not staggered: called after %v delay", calls[0])
+			assert.Check(t, calls[0] < 2*time.Second, "first call was staggered by more than interval: called after %v delay", calls[0])
+		}
+
+		for i := 1; i < len(calls); i++ {
+			delta := calls[i] - calls[i-1]
+			jitter := delta - time.Second
+			if jitter < 0 {
+				jitter = -jitter
+			}
+			assert.Check(t, jitter < time.Millisecond, "calls were not spaced by interval: call %d was %v after call %d, want ~1s", i, delta, i-1)
+		}
+	})
+}
 
 func TestMRandomNodes(t *testing.T) {
 	cfg := DefaultConfig()
