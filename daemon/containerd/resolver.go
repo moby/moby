@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"net/http"
+	"sync"
 
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
@@ -21,8 +22,24 @@ func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig
 
 	hosts := i.registryHosts
 	if authConfig != nil {
+		authConfig := *authConfig
+		var mu sync.Mutex
+		// Keep each host, client, and authorizer together so registry and token
+		// requests use matching transport settings across resolver phases.
+		hostsByName := map[string][]docker.RegistryHost{}
 		hosts = func(name string) ([]docker.RegistryHost, error) {
-			return hostsWrapper(i.registryHosts, *authConfig, ref, name)
+			mu.Lock()
+			defer mu.Unlock()
+
+			if hosts, ok := hostsByName[name]; ok {
+				return hosts, nil
+			}
+			hosts, err := hostsWrapper(i.registryHosts, authConfig, ref, name)
+			if err != nil {
+				return nil, err
+			}
+			hostsByName[name] = hosts
+			return hosts, nil
 		}
 	}
 	headers := http.Header{}
