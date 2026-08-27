@@ -60,7 +60,11 @@ func (daemon *Daemon) generateIDAndName(name string) (string, string, error) {
 }
 
 func (daemon *Daemon) reserveName(id, name string) (string, error) {
-	if !validContainerNamePattern.MatchString(strings.TrimPrefix(name, "/")) {
+	effectiveName := strings.TrimPrefix(name, "/")
+	if len(effectiveName) < 2 {
+		return "", errdefs.InvalidParameter(errors.Errorf("Invalid container name (%s), names should be at least two alphanumeric characters", name))
+	}
+	if !validContainerNamePattern.MatchString(effectiveName) {
 		return "", errdefs.InvalidParameter(errors.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars))
 	}
 	if name[0] != '/' {
