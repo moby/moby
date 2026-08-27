@@ -70,7 +70,7 @@ func grpcClientConn(ctx context.Context, conn net.Conn, opts map[string][]string
 	var dialCount atomic.Int64
 	dialer := grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
 		if c := dialCount.Add(1); c > 1 {
-			return nil, errors.Errorf("only one connection allowed")
+			return nil, errors.New("only one connection allowed")
 		}
 		return conn, nil
 	})

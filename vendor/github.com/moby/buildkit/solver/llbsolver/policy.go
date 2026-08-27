@@ -86,7 +86,7 @@ func (p *policyEvaluator) evaluate(ctx context.Context, op *pb.Op, max int) (boo
 	for {
 		max--
 		if max < 0 { // TODO: better loop detection
-			return false, errors.Errorf("too many policy requests")
+			return false, errors.New("too many policy requests")
 		}
 		resp, err := verifier.CheckPolicy(ctx, req)
 		if err != nil {
@@ -156,12 +156,12 @@ func (p *policyEvaluator) evaluate(ctx context.Context, op *pb.Op, max int) (boo
 
 		decision := resp.GetDecision()
 		if decision == nil {
-			return false, errors.Errorf("no decision in policy response")
+			return false, errors.New("no decision in policy response")
 		}
 		if decision.Action == spb.PolicyAction_CONVERT {
 			newSrc := decision.Update
 			if newSrc == nil {
-				return false, errors.Errorf("convert action requires updated source")
+				return false, errors.New("convert action requires updated source")
 			}
 			source.Identifier = newSrc.Identifier
 			source.Attrs = newSrc.Attrs
@@ -260,7 +260,7 @@ func loadSourcePolicy(b solver.Builder) (*spb.Policy, error) {
 		}
 		for _, f := range x.Rules {
 			if f == nil {
-				return errors.Errorf("invalid nil policy rule")
+				return errors.New("invalid nil policy rule")
 			}
 			srcPol.Rules = append(srcPol.Rules, f.CloneVT())
 		}

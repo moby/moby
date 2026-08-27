@@ -132,7 +132,7 @@ func (e *imageExporterInstance) Config() *exporter.Config {
 
 func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source, buildInfo exporter.ExportBuildInfo) (_ map[string]string, _ exporter.FinalizeFunc, descref exporter.DescriptorReference, err error) {
 	if e.opt.Variant == VariantDocker && len(src.Refs) > 0 {
-		return nil, nil, nil, errors.Errorf("docker exporter does not currently support exporting manifest lists")
+		return nil, nil, nil, errors.New("docker exporter does not currently support exporting manifest lists")
 	}
 
 	src = src.Clone()

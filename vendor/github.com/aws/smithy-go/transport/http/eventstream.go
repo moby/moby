@@ -56,7 +56,10 @@ func NewEventStreamWriter(protocol ClientProtocol, schema *smithy.Schema, stream
 }
 
 func (w *EventStreamWriter) writeStream() {
-	defer w.Close()
+	defer func() {
+		w.err.SetError(w.eventStream.Close())
+	}()
+	defer w.signalClose()
 
 	for {
 		select {
@@ -100,11 +103,14 @@ func (w *EventStreamWriter) Send(ctx context.Context, variant *smithy.Schema, ev
 // Close signals end-of-stream and closes the underlying writer. Close is
 // safe for concurrent calls.
 func (w *EventStreamWriter) Close() error {
+	w.signalClose()
+	return w.err.Err()
+}
+
+func (w *EventStreamWriter) signalClose() {
 	w.closeOnce.Do(func() {
 		close(w.done)
-		w.err.SetError(w.eventStream.Close())
 	})
-	return w.err.Err()
 }
 
 // Err returns the first error encountered during writing.

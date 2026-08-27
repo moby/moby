@@ -44,7 +44,7 @@ func (c *Store) Walk(ctx context.Context, fn content.WalkFunc, filters ...string
 }
 
 func (c *Store) Delete(ctx context.Context, dgst digest.Digest) error {
-	return errors.Errorf("contentstore.Delete usage is forbidden")
+	return errors.New("contentstore.Delete usage is forbidden")
 }
 
 func (c *Store) Status(ctx context.Context, ref string) (content.Status, error) {

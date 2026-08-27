@@ -66,7 +66,7 @@ func (rm *RefManager) Commit(ctx context.Context, mount fileoptypes.Mount) (file
 		return nil, errors.Errorf("invalid mount type %T", mount)
 	}
 	if m.mr == nil {
-		return nil, errors.Errorf("invalid mount without active ref for commit")
+		return nil, errors.New("invalid mount without active ref for commit")
 	}
 	ref, err := m.mr.Commit(ctx)
 	if err != nil {

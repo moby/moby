@@ -81,7 +81,7 @@ func runMountPostHook(cmd *RunCommand, req parseRequest) error {
 func setMountState(cmd *RunCommand, expander SingleWordExpander) error {
 	st := getMountState(cmd)
 	if st == nil {
-		return errors.Errorf("no mount state")
+		return errors.New("no mount state")
 	}
 	mounts := make([]*Mount, len(st.flag.StringValues))
 	for i, str := range st.flag.StringValues {
@@ -289,16 +289,16 @@ func parseMount(val string, expander SingleWordExpander) (*Mount, error) {
 
 	if m.Type == MountTypeSecret {
 		if m.From != "" {
-			return nil, errors.Errorf("secret mount should not have a from")
+			return nil, errors.New("secret mount should not have a from")
 		}
 		if m.CacheSharing != "" {
-			return nil, errors.Errorf("secret mount should not define sharing")
+			return nil, errors.New("secret mount should not define sharing")
 		}
 		if m.Source == "" && m.Target == "" && m.CacheID == "" {
-			return nil, errors.Errorf("invalid secret mount. one of source, target required")
+			return nil, errors.New("invalid secret mount. one of source, target required")
 		}
 		if m.Source != "" && m.CacheID != "" {
-			return nil, errors.Errorf("both source and id can't be set")
+			return nil, errors.New("both source and id can't be set")
 		}
 	}
 

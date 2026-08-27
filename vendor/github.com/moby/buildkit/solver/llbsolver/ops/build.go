@@ -67,7 +67,7 @@ func (b *BuildOp) CacheMap(ctx context.Context, job solver.JobContext, index int
 
 func (b *BuildOp) Exec(ctx context.Context, job solver.JobContext, inputs []solver.Result) (outputs []solver.Result, retErr error) {
 	if b.op.Builder != int64(pb.LLBBuilder) {
-		return nil, errors.Errorf("only LLB builder is currently allowed")
+		return nil, errors.New("only LLB builder is currently allowed")
 	}
 
 	builderInputs := b.op.Inputs

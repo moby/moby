@@ -38,7 +38,7 @@ func (p *fetchedProvider) ReaderAt(ctx context.Context, desc ocispecs.Descriptor
 func (p *fetchedProvider) FetchReferrers(ctx context.Context, dgst digest.Digest, opts ...remotes.FetchReferrersOpt) ([]ocispecs.Descriptor, error) {
 	refs, ok := p.f.(remotes.ReferrersFetcher)
 	if !ok {
-		return nil, errors.Errorf("fetcher does not support referrers")
+		return nil, errors.New("fetcher does not support referrers")
 	}
 	return refs.FetchReferrers(ctx, dgst, opts...)
 }
@@ -61,7 +61,7 @@ func (r *readerAt) ReadAt(b []byte, off int64) (int, error) {
 			if ra, ok := r.Reader.(io.ReaderAt); ok {
 				return ra.ReadAt(b, off)
 			}
-			return 0, errors.Errorf("unsupported offset")
+			return 0, errors.New("unsupported offset")
 		}
 	}
 

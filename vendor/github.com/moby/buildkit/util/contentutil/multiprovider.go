@@ -20,6 +20,18 @@ func NewMultiProvider(base content.InfoReaderProvider) *MultiProvider {
 	}
 }
 
+type sessionProvider interface {
+	ProviderForSession(session.Group) content.Provider
+}
+
+// ProviderForSession provides a session-bound content provider when supported.
+func ProviderForSession(p content.Provider, g session.Group) content.Provider {
+	if sp, ok := p.(sessionProvider); ok {
+		return sp.ProviderForSession(g)
+	}
+	return p
+}
+
 // MultiProvider is a provider backed by a mutable map of providers
 type MultiProvider struct {
 	mu   sync.RWMutex
@@ -84,6 +96,28 @@ func (mp *MultiProvider) Add(dgst digest.Digest, p content.InfoReaderProvider) {
 	mp.mu.Lock()
 	defer mp.mu.Unlock()
 	mp.sub[dgst] = p
+}
+
+func (mp *MultiProvider) ProviderForSession(g session.Group) content.Provider {
+	return &multiProviderForSession{MultiProvider: mp, g: g}
+}
+
+type multiProviderForSession struct {
+	*MultiProvider
+	g session.Group
+}
+
+func (p *multiProviderForSession) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content.ReaderAt, error) {
+	p.mu.RLock()
+	provider, ok := p.sub[desc.Digest]
+	if !ok {
+		provider = p.base
+	}
+	p.mu.RUnlock()
+	if provider == nil {
+		return nil, errors.Wrapf(cerrdefs.ErrNotFound, "content %v", desc.Digest)
+	}
+	return ProviderForSession(provider, p.g).ReaderAt(ctx, desc)
 }
 
 func (mp *MultiProvider) UnlazySession(desc ocispecs.Descriptor) session.Group {
