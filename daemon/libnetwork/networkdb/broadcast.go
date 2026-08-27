@@ -11,14 +11,26 @@ import (
 const broadcastTimeout = 5 * time.Second
 
 type networkEventMessage struct {
-	id   string
-	node string
-	msg  []byte
+	id    string
+	node  string
+	ltime serf.LamportTime
+	msg   []byte
 }
 
 func (m *networkEventMessage) Invalidates(other memberlist.Broadcast) bool {
 	otherm := other.(*networkEventMessage)
-	return m.id == otherm.id && m.node == otherm.node
+	if m.id != otherm.id || m.node != otherm.node {
+		return false
+	}
+	// Supersede an event only if this one is no older. handleNetworkMessage
+	// queues a relay after releasing the lock it applied the event under, and
+	// the two paths that deliver events do not share a goroutine: gossip is
+	// handled by memberlist's single packetHandler, bulk syncs arrive over
+	// streams with one goroutine per connection. Two handlers can therefore
+	// apply in Lamport order and reach the queue in the opposite order.
+	// Matching on (network, node) alone would let the straggler evict the
+	// fresher relay and put a stale attachment on the wire in its place.
+	return m.ltime >= otherm.ltime
 }
 
 func (m *networkEventMessage) Message() []byte {
@@ -42,9 +54,10 @@ func (nDB *NetworkDB) sendNetworkEvent(nid string, event NetworkEvent_Type, ltim
 	}
 
 	nDB.networkBroadcasts.QueueBroadcast(&networkEventMessage{
-		msg:  raw,
-		id:   nid,
-		node: nDB.config.NodeID,
+		msg:   raw,
+		id:    nid,
+		ltime: ltime,
+		node:  nDB.config.NodeID,
 	})
 	return nil
 }

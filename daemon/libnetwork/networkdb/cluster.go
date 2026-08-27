@@ -671,6 +671,12 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 		return fmt.Errorf("cannot bulk sync with unknown node %s", node)
 	}
 
+	// Carry the attachment view for the networks being synced, ahead of the
+	// entries which depend on it, for any peer which can take it.
+	if mnode.canReceiveNetworkEvents() {
+		msgs = nDB.appendNetworkEvents(msgs, networks, node)
+	}
+
 	for _, nid := range networks {
 		nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid), func(path []byte, v *entry) bool {
 			eType := TableEventTypeCreate
@@ -693,7 +699,7 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 
 			msg, err := encodeMessage(MessageTypeTableEvent, &tEvent)
 			if err != nil {
-				log.G(context.TODO()).Errorf("Encode failure during bulk sync: %#v", tEvent)
+				log.G(context.TODO()).WithError(err).Errorf("Encode failure during bulk sync: %#v", tEvent)
 				return false
 			}
 
@@ -813,4 +819,74 @@ func (nDB *NetworkDB) mRandomNodes(m int, nodes []string) []string {
 	}
 
 	return sample
+}
+
+// appendNetworkEvents appends the attachment view for networks: which nodes this
+// one believes participate in each of them. Call with nDB's read lock held.
+//
+// handleTableEvent will not accept an entry from a node it does not believe
+// participates in the network, and attachments are otherwise disseminated only
+// by one-shot NetworkEvent broadcasts with a bounded number of retransmits. A
+// node which misses those has no way back: a bulk sync hands it the entries
+// every round and it rejects every one of them, for as long as its view stays
+// stale. Sending the attachments those entries are predicated on makes the sync
+// self-sufficient, so anti-entropy converges the membership it needs rather
+// than assuming it.
+//
+// The volume is bounded by the membership of the networks being synced, not by
+// cluster history: changeNodeState drops a peer's attachments as soon as it goes
+// failed or left, and reapNetworks collects those marked leaving, so nDB.networks
+// holds live peers plus a short tail of departures.
+//
+// Departures are included on purpose. A node which missed a Leave is the mirror
+// image of the case above -- it holds a departed owner in networkNodes and keeps
+// accepting and serving its entries -- and handleNetworkEvent's Leave path is
+// what clears that. Filtering on !n.leaving here would trade one stale view for
+// the other.
+//
+// These are ordinary network events, so handleNetworkEvent applies its usual
+// Lamport-time check and a receiver which is already up to date does nothing.
+func (nDB *NetworkDB) appendNetworkEvents(msgs [][]byte, networks []string, node string) [][]byte {
+	for _, nid := range networks {
+		if n, ok := nDB.thisNodeNetworks[nid]; ok {
+			msgs = appendNetworkEventMsg(msgs, nDB.config.NodeID, nid, n.network)
+		}
+	}
+	for owner, nws := range nDB.networks {
+		if owner == node {
+			// The peer is authoritative for its own attachments, so
+			// handleNetworkEvent drops anything we tell it about itself. Skipping
+			// it is not just a saving: findCommonNetworks only returns networks
+			// this node records the peer as attached to, so without this every
+			// network in the sync would carry one event guaranteed to be
+			// discarded -- after the receiver had taken the write lock to
+			// discard it.
+			continue
+		}
+		for _, nid := range networks {
+			if n, ok := nws[nid]; ok {
+				msgs = appendNetworkEventMsg(msgs, owner, nid, *n)
+			}
+		}
+	}
+	return msgs
+}
+
+// appendNetworkEventMsg appends an encoded NetworkEvent describing one node's
+// attachment to a network. Used to make a bulk sync carry the membership its
+// table entries are predicated on.
+func appendNetworkEventMsg(msgs [][]byte, nodeName, nid string, n network) [][]byte {
+	nEvent := NetworkEvent{
+		Type:      networkEventType(n.leaving),
+		LTime:     n.ltime,
+		NodeName:  nodeName,
+		NetworkID: nid,
+	}
+
+	msg, err := encodeMessage(MessageTypeNetworkEvent, &nEvent)
+	if err != nil {
+		log.G(context.TODO()).WithError(err).Errorf("Encode failure during bulk sync: %#v", nEvent)
+		return msgs
+	}
+	return append(msgs, msg)
 }

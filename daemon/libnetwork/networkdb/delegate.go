@@ -13,8 +13,47 @@ type delegate struct {
 	nDB *NetworkDB
 }
 
+// Node metadata, which memberlist carries in alive messages and push/pull state
+// and hands back on every [memberlist.Node]. It is opaque to memberlist and
+// ignored by daemons which do not understand it, which is what makes it usable
+// here at all: memberlist's own DelegateProtocolVersion is not, because
+// verifyProtocol -- reached from mergeRemoteState on every push/pull, not just
+// joins -- rejects any node whose DCur exceeds the cluster-wide minimum DMax,
+// and daemons predating this advertise DMax=0. Raising it would have their
+// push/pulls, and a new node's join, refused outright.
+const (
+	// nodeMetaLTimeInvalidation marks a daemon whose networkEventMessage
+	// invalidation compares Lamport times, and which may therefore be sent
+	// network events in a bulk sync. See (*node).canReceiveNetworkEvents.
+	nodeMetaLTimeInvalidation = 1
+
+	// nodeMetaVersion is what this daemon advertises. NodeMeta has returned an
+	// empty slice ever since networkdb was introduced, so empty metadata
+	// identifies a daemon from before any of this existed.
+	nodeMetaVersion = nodeMetaLTimeInvalidation
+)
+
 func (d *delegate) NodeMeta(limit int) []byte {
-	return []byte{}
+	return []byte{nodeMetaVersion}
+}
+
+// canReceiveNetworkEvents reports whether network events may be included in a
+// bulk sync to n.
+//
+// The receiver applies them through handleNetworkMessage, which queues a relay
+// after releasing the lock it applied the event under. Bulk syncs arrive on a
+// goroutine per connection while gossip is handled by memberlist's single
+// packetHandler, so two handlers can apply in Lamport order and reach the queue
+// in the opposite order. A daemon which invalidates queued network events on
+// (network, node) alone lets the straggler evict the fresher relay and gossip a
+// stale attachment in its place.
+//
+// This daemon compares Lamport times and is safe either way, but older ones do
+// not, and sending to them would make that flaw reachable for the length of a
+// rolling upgrade. They keep the convergence gap this is all meant to close
+// until they are upgraded, which is the more conservative of the two.
+func (n *node) canReceiveNetworkEvents() bool {
+	return len(n.Meta) > 0 && n.Meta[0] >= nodeMetaLTimeInvalidation
 }
 
 func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
@@ -365,9 +404,10 @@ func (nDB *NetworkDB) handleNetworkMessage(buf []byte) {
 		}
 
 		nDB.networkBroadcasts.QueueBroadcast(&networkEventMessage{
-			msg:  buf,
-			id:   nEvent.NetworkID,
-			node: nEvent.NodeName,
+			msg:   buf,
+			id:    nEvent.NetworkID,
+			ltime: nEvent.LTime,
+			node:  nEvent.NodeName,
 		})
 	}
 }
@@ -529,17 +569,11 @@ func (d *delegate) MergeRemoteState(buf []byte, isJoin bool) {
 	d.nDB.handleNodeEvent(nodeEvent)
 
 	for _, n := range pp.Networks {
-		nEvent := &NetworkEvent{
+		d.nDB.handleNetworkEvent(&NetworkEvent{
 			LTime:     n.LTime,
 			NodeName:  n.NodeName,
 			NetworkID: n.NetworkID,
-			Type:      NetworkEventTypeJoin,
-		}
-
-		if n.Leaving {
-			nEvent.Type = NetworkEventTypeLeave
-		}
-
-		d.nDB.handleNetworkEvent(nEvent)
+			Type:      networkEventType(n.Leaving),
+		})
 	}
 }

@@ -141,3 +141,29 @@ func TestOwnNodeEventSurvivesRelayedEvents(t *testing.T) {
 	slices.Sort(got)
 	assert.DeepEqual(t, got, []string{"own", "relay"})
 }
+
+// A queued network event may only be superseded by one which is at least as
+// fresh. handleNetworkMessage queues a relay after releasing the lock it
+// applied the event under, and gossip and bulk sync do not share a goroutine,
+// so a stale relay can reach the queue behind a fresher one.
+func TestNetworkEventMessageInvalidates(t *testing.T) {
+	msg := func(nid, node string, ltime serf.LamportTime) *networkEventMessage {
+		return &networkEventMessage{id: nid, node: node, ltime: ltime}
+	}
+
+	for _, tc := range []struct {
+		name       string
+		m, other   *networkEventMessage
+		invalidate bool
+	}{
+		{"fresher supersedes staler", msg("nw", "n1", 7), msg("nw", "n1", 5), true},
+		{"same ltime is a duplicate", msg("nw", "n1", 5), msg("nw", "n1", 5), true},
+		{"staler must not evict fresher", msg("nw", "n1", 5), msg("nw", "n1", 7), false},
+		{"another node's attachment", msg("nw", "n1", 9), msg("nw", "n2", 1), false},
+		{"another network", msg("nw2", "n1", 9), msg("nw", "n1", 1), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.m.Invalidates(tc.other), tc.invalidate)
+		})
+	}
+}
