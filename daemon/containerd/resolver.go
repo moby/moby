@@ -19,7 +19,12 @@ import (
 func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig *registrytypes.AuthConfig, ref reference.Named, metaHeaders http.Header) (remotes.Resolver, docker.StatusTracker) {
 	tracker := docker.NewInMemoryTracker()
 
-	hosts := hostsWrapper(i.registryHosts, authConfig, ref)
+	hosts := i.registryHosts
+	if authConfig != nil {
+		hosts = func(name string) ([]docker.RegistryHost, error) {
+			return hostsWrapper(i.registryHosts, *authConfig, ref, name)
+		}
+	}
 	headers := http.Header{}
 	if metaHeaders != nil {
 		headers = metaHeaders.Clone()
@@ -33,22 +38,15 @@ func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig
 	}), tracker
 }
 
-func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.AuthConfig, ref reference.Named) docker.RegistryHosts {
-	if optAuthConfig == nil {
-		return hostsFn
+func hostsWrapper(hostsFn docker.RegistryHosts, authConfig registrytypes.AuthConfig, ref reference.Named, name string) ([]docker.RegistryHost, error) {
+	hosts, err := hostsFn(name)
+	if err != nil {
+		return nil, err
 	}
-
-	return func(n string) ([]docker.RegistryHost, error) {
-		hosts, err := hostsFn(n)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := range hosts {
-			hosts[i].Authorizer = authorizerFromAuthConfig(*optAuthConfig, ref, hosts[i].Client)
-		}
-		return hosts, nil
+	for i := range hosts {
+		hosts[i].Authorizer = authorizerFromAuthConfig(authConfig, ref, hosts[i].Client)
 	}
+	return hosts, nil
 }
 
 func authorizerFromAuthConfig(authConfig registrytypes.AuthConfig, ref reference.Named, client *http.Client) docker.Authorizer {
