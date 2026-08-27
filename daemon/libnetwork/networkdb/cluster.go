@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	golog "log"
+	"maps"
 	"net"
 	"net/netip"
 	"slices"
@@ -349,6 +350,10 @@ func (nDB *NetworkDB) reconnectNode() {
 	}
 	nDB.RUnlock()
 
+	// Built by ranging failedNodes, so unsorted the same offset names a
+	// different node on each run.
+	slices.SortFunc(nodes, func(a, b *node) int { return strings.Compare(a.Name, b.Name) })
+
 	nDB.rngMu.Lock()
 	offset := nDB.rng.IntN(len(nodes))
 	nDB.rngMu.Unlock()
@@ -469,7 +474,11 @@ func (nDB *NetworkDB) gossip() {
 		nDB.lastHealthTimestamp = time.Now()
 	}
 
-	for nid, nodes := range networkNodes {
+	// Sorted: the draws mRandomNodes makes below are consumed in visitation
+	// order, so ranging the map would hand a given network a different draw on
+	// each run.
+	for _, nid := range slices.Sorted(maps.Keys(networkNodes)) {
+		nodes := networkNodes[nid]
 		mNodes := nDB.mRandomNodes(3, nodes)
 		bytesAvail := nDB.config.PacketBufferSize - compoundHeaderOverhead
 
@@ -539,6 +548,23 @@ func (nDB *NetworkDB) bulkSyncTables() {
 		networks = append(networks, nid)
 	}
 	nDB.RUnlock()
+	// Sorted for a canonical starting point -- ranging thisNodeNetworks would
+	// otherwise hand each network a different bulk-sync draw on each run -- and
+	// then permuted, because the order this loop visits networks in has to keep
+	// varying between cycles.
+	//
+	// bulkSync returns every network it found in common with the peer it chose,
+	// and the loop below strikes all of them off. A network which is always
+	// visited after one it overlaps with is therefore always struck off before it
+	// selects a peer of its own, and never syncs with the members it does not
+	// share that first network with. Two groups overlapping on one network can
+	// then stay partitioned for good: anti-entropy never crosses between them.
+	slices.Sort(networks)
+	nDB.rngMu.Lock()
+	nDB.rng.Shuffle(len(networks), func(i, j int) {
+		networks[i], networks[j] = networks[j], networks[i]
+	})
+	nDB.rngMu.Unlock()
 
 	for len(networks) != 0 {
 		nid := networks[0]
@@ -759,6 +785,14 @@ func (nDB *NetworkDB) mRandomNodes(m int, nodes []string) []string {
 		}
 		mNodes = append(mNodes, node)
 	}
+
+	// networkNodes is in the order attachments were learned, which follows
+	// gossip arrival and so differs between nodes and between runs. The draws
+	// below select by index, so without a total order the same draw picks a
+	// different peer. Sorting a copy -- mNodes already is one -- makes peer
+	// selection a function of the RNG alone. Both callers reach the RNG through
+	// here, so this is the one place it has to happen.
+	slices.Sort(mNodes)
 
 	if len(mNodes) < m {
 		nDB.rngMu.Lock()

@@ -1,6 +1,7 @@
 package networkdb
 
 import (
+	"encoding/binary"
 	"fmt"
 	"maps"
 	"slices"
@@ -50,7 +51,19 @@ func testConvergence(t *rapid.T) {
 	numNodes := rapid.IntRange(2, 25).Draw(t, "numNodes")
 	numNetworks := rapid.IntRange(1, 5).Draw(t, "numNetworks")
 
-	c := newMemCluster(t, numNodes, "node", DefaultConfig())
+	// Draw the gossip seed rather than letting each node read crypto/rand, so
+	// that it is recorded and shrunk like any other draw instead of being
+	// invented. It does not pin the interleaving -- memberlist's own randomness
+	// is unseedable and synctest orders the clock, not the scheduler -- but it
+	// takes one uncontrolled input out of the picture. A fixed seed would be
+	// worse than either: every run would gossip alike, and the point of this
+	// test is to explore that space.
+	conf := DefaultConfig()
+	var seed [32]byte
+	binary.LittleEndian.PutUint64(seed[:], rapid.Uint64().Draw(t, "rngSeed"))
+	conf.rngSeed = &seed
+
+	c := newMemCluster(t, numNodes, "node", conf)
 
 	fsm := &networkDBFSM{
 		nDB:      c.dbs,
@@ -91,7 +104,7 @@ func testConvergence(t *rapid.T) {
 
 	t.Logf("Waiting for NetworkDB state to converge to %#v", converged)
 	for i, st := range fsm.state {
-		t.Logf("Node #%d (%s): %v", i, c.dbs[i].config.NodeID, slices.Collect(maps.Keys(st)))
+		t.Logf("Node #%d (%s): %v", i, c.dbs[i].config.NodeID, slices.Sorted(maps.Keys(st)))
 	}
 	t.Log("Mutations:")
 	for _, m := range fsm.mutations {
@@ -252,7 +265,13 @@ func (u *networkDBFSM) drawJoinedNodeAndNetwork(t *rapid.T) (nodeidx int, nw str
 	}
 	nodeidx = rapid.SampledFrom(nodes).Draw(t, "node")
 
-	nw = rapid.SampledFrom(slices.Collect(maps.Keys(u.state[nodeidx]))).Draw(t, "network")
+	// Sorted, not merely collected. SampledFrom records the index it chose,
+	// and map iteration order is randomised per run, so an unsorted candidate
+	// list makes that index resolve to a different element on replay. The
+	// model then diverges, later candidate lists differ in size, draws consume
+	// different widths, and the rest of the stream desynchronises -- which is
+	// why an unsorted list defeats both failfile replay and shrinking.
+	nw = rapid.SampledFrom(slices.Sorted(maps.Keys(u.state[nodeidx]))).Draw(t, "network")
 	return nodeidx, nw
 }
 
@@ -284,7 +303,7 @@ func (u *networkDBFSM) CreateEntry(t *rapid.T) {
 
 // drawOwnedDBKey returns a random key in nw owned by the node at nodeidx.
 func (u *networkDBFSM) drawOwnedDBKey(t *rapid.T, nodeidx int, nw string) string {
-	keys := slices.Collect(maps.Keys(u.state[nodeidx][nw]))
+	keys := slices.Sorted(maps.Keys(u.state[nodeidx][nw])) // sorted: see drawJoinedNodeAndNetwork
 	if len(keys) == 0 {
 		t.Skipf("Node %v owns no entries in network %s", nodeidx, nw)
 		panic("unreachable")
