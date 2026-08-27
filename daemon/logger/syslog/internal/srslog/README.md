@@ -1,6 +1,9 @@
-[![Build Status](https://travis-ci.org/RackSec/srslog.svg?branch=master)](https://travis-ci.org/RackSec/srslog)
-
 # srslog
+
+> **Note:** This package is a hard fork of [RackSec/srslog](https://github.com/RackSec/srslog),
+> imported from commit `a4725f04ec91af1a91b380da679d6e0c2f061e59`. It is
+> maintained as an internal package of Moby and is not intended to track
+> the original upstream repository.
 
 Go has a `syslog` package in the standard library, but it has the following
 shortcomings:
@@ -25,7 +28,7 @@ Switch from the standard library:
 ```
 import(
     //"log/syslog"
-    syslog "github.com/RackSec/srslog"
+    syslog "github.com/moby/moby/v2/daemon/logger/syslog/internal/srslog"
 )
 ```
 
@@ -106,42 +109,7 @@ w, err := DialWithCustomDialer("custom", "192.168.0.52:514", syslog.LOG_ERR, "te
 
 Your custom dial func can set timeouts, proxy connections, and do whatever else it needs before returning a net.Conn.
 
-# Generating TLS Certificates
-
-We've provided a script that you can use to generate a self-signed keypair:
-
-```
-pip install cryptography
-python script/gen-certs.py
-```
-
-That outputs the public key and private key to standard out. Put those into
-`.pem` files. (And don't put them into any source control. The certificate in
-the `test` directory is used by the unit tests, and please do not actually use
-it anywhere else.)
-
-# Running Tests
-
-Run the tests as usual:
-
-```
-go test
-```
-
-But we've also provided a test coverage script that will show you which
-lines of code are not covered:
-
-```
-script/coverage --html
-```
-
-That will open a new browser tab showing coverage information.
-
 # License
 
-This project uses the New BSD License, the same as the Go project itself.
-
-# Code of Conduct
-
-Please note that this project is released with a Contributor Code of Conduct.
-By participating in this project you agree to abide by its terms.
+This package is distributed under the BSD 3-Clause License. See the
+[`LICENSE`](LICENSE) file included with this package.
