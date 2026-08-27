@@ -321,6 +321,7 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 			id:    tEvent.NetworkID,
 			tname: tEvent.TableName,
 			key:   tEvent.Key,
+			ltime: tEvent.LTime,
 		})
 	}
 }
@@ -340,8 +341,10 @@ func (nDB *NetworkDB) handleNodeMessage(buf []byte) {
 			return
 		}
 
-		nDB.nodeBroadcasts.QueueBroadcast(&nodeEventMessage{
-			msg: buf,
+		nDB.nodeBroadcasts.QueueBroadcast(&relayedNodeEventMessage{
+			msg:   buf,
+			node:  nEvent.NodeName,
+			ltime: nEvent.LTime,
 		})
 	}
 }
