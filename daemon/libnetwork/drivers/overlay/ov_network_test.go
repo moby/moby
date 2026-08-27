@@ -127,3 +127,115 @@ func TestDeleteNeighborUnprogrammedPeer(t *testing.T) {
 	assert.Check(t, is.Equal(d.secMap[vtep].count, 1), "the sibling's tunnel must not be torn down")
 	assert.Check(t, is.Len(n.fdbCnt, 1))
 }
+
+func TestReleaseEncryptionRefs(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	d := newEncTestDriver()
+	n := newEncTestNetwork(t, d, "nid", true)
+
+	vtepA := netip.MustParseAddr("192.0.2.2")
+	vtepB := netip.MustParseAddr("192.0.2.3")
+
+	// Two endpoints hosted on peer A, one on peer B.
+	addPeer(t, n, vtepA, mustMAC("02:42:c0:00:02:0a"))
+	addPeer(t, n, vtepA, mustMAC("02:42:c0:00:02:0b"))
+	addPeer(t, n, vtepB, mustMAC("02:42:c0:00:02:0c"))
+
+	assert.Check(t, is.Equal(d.secMap[vtepA].count, 2))
+	assert.Check(t, is.Equal(d.secMap[vtepB].count, 1))
+	assert.Check(t, is.Len(n.fdbCnt, 3))
+
+	n.releaseEncryptionRefs()
+
+	assert.Check(t, is.Len(d.secMap, 0), "every tunnel reference should have been released")
+	assert.Check(t, is.Len(n.fdbCnt, 0))
+
+	// A second call must not release references the network no longer holds.
+	n.releaseEncryptionRefs()
+	assert.Check(t, is.Len(d.secMap, 0))
+}
+
+// TestReleaseEncryptionRefsScopedToNetwork checks that a network releases only
+// the references it took, not every reference outstanding for the peer. secMap
+// is scoped to the driver, so peers shared with another overlay network must
+// keep their tunnel.
+func TestReleaseEncryptionRefsScopedToNetwork(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	d := newEncTestDriver()
+	n1 := newEncTestNetwork(t, d, "nid1", true)
+	n2 := newEncTestNetwork(t, d, "nid2", true)
+
+	vtep := netip.MustParseAddr("192.0.2.2")
+	addPeer(t, n1, vtep, mustMAC("02:42:c0:00:02:0a"))
+	addPeer(t, n2, vtep, mustMAC("02:42:c0:00:02:0b"))
+	assert.Check(t, is.Equal(d.secMap[vtep].count, 2))
+
+	n1.releaseEncryptionRefs()
+
+	assert.Check(t, is.Equal(d.secMap[vtep].count, 1), "the other network's reference should survive")
+	assert.Check(t, is.Len(n1.fdbCnt, 0))
+	assert.Check(t, is.Len(n2.fdbCnt, 1))
+}
+
+// TestReleaseEncryptionRefsUnencryptedNetwork checks that an unencrypted
+// network releases nothing: it never took a reference, and secMap is shared
+// with the encrypted networks on the same driver.
+func TestReleaseEncryptionRefsUnencryptedNetwork(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	d := newEncTestDriver()
+	secure := newEncTestNetwork(t, d, "secure", true)
+	plain := newEncTestNetwork(t, d, "plain", false)
+
+	// Both networks have an endpoint on the same peer node.
+	vtep := netip.MustParseAddr("192.0.2.2")
+	addPeer(t, secure, vtep, mustMAC("02:42:c0:00:02:0a"))
+	addPeer(t, plain, vtep, mustMAC("02:42:c0:00:02:0b"))
+	assert.Check(t, is.Equal(d.secMap[vtep].count, 1))
+
+	plain.releaseEncryptionRefs()
+
+	assert.Check(t, is.Equal(d.secMap[vtep].count, 1), "an unencrypted network must not release tunnel references")
+	assert.Check(t, is.Len(plain.fdbCnt, 0))
+}
+
+// TestDestroySandboxReleasesEncryptionRefs checks that the references are
+// released even when there is no sandbox to tear down, so a network which
+// failed to create one cannot hold them forever.
+func TestDestroySandboxReleasesEncryptionRefs(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	d := newEncTestDriver()
+	n := newEncTestNetwork(t, d, "nid", true)
+
+	vtep := netip.MustParseAddr("192.0.2.2")
+	addPeer(t, n, vtep, mustMAC("02:42:c0:00:02:0a"))
+	assert.Check(t, is.Equal(d.secMap[vtep].count, 1))
+
+	assert.Check(t, is.Nil(n.sbox))
+	n.destroySandbox()
+
+	assert.Check(t, is.Len(d.secMap, 0))
+	assert.Check(t, is.Len(n.fdbCnt, 0))
+}
+
+// TestDeleteNetworkReleasesEncryptionRefs checks the belt-and-braces release in
+// DeleteNetwork: the network object becomes unreachable once it is dropped from
+// d.networks, so anything it still holds has to go with it.
+func TestDeleteNetworkReleasesEncryptionRefs(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	d := newEncTestDriver()
+	n := newEncTestNetwork(t, d, "nid", true)
+
+	vtep := netip.MustParseAddr("192.0.2.2")
+	addPeer(t, n, vtep, mustMAC("02:42:c0:00:02:0a"))
+	assert.Check(t, is.Equal(d.secMap[vtep].count, 1))
+
+	assert.NilError(t, d.DeleteNetwork("nid"))
+
+	assert.Check(t, is.Len(d.secMap, 0))
+	assert.Check(t, is.Len(d.networks, 0))
+}
