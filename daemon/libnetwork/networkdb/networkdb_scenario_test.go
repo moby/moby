@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -40,6 +41,52 @@ func TestNetworkDBReplayScenario(t *testing.T) {
 	runScenario(t, p)
 }
 
+// TestNetworkDBScenarios executes every scenario committed under
+// testdata/scenarios, as a regression test for the bugs they pin.
+//
+// TestNetworkDBAlwaysConverges searches; this remembers. A scenario which once
+// failed is worth keeping even after the fix, because the search is not
+// guaranteed to draw it again -- 6000 executions of it turned up nothing on a
+// tree where one of these scenarios fails roughly one execution in seven.
+//
+// # Committing a scenario
+//
+// Minimize it first, the cluster above all. Cost here is attempts times the cost
+// of one execution, and it is paid on every run, since a scenario whose bug is
+// fixed can only finish by exhausting its attempts. One execution costs about
+// 5ms over 3 nodes and about 46ms over 9, so the node count is worth far more
+// than the action count when trimming.
+//
+// Set attempts in the header, high enough that the scenario fails on nearly
+// every run rather than merely often, and record what it was measured at in a
+// comment. How often a scenario fails is a property of the bug it pins and
+// varies enormously between them: the three kept here fail between about one
+// execution in eight and one in twenty at worst, and a reduction of one of them,
+// small enough to read at a glance, fails about one in seven hundred.
+//
+// These are probabilistic tests, and that has a cost worth knowing about: a
+// change which makes a bug rarer rather than fixing it leaves the scenario
+// quietly detecting less often, and a run that never had a chance of failing
+// looks exactly like one that passed. The measured rate in the comment is what a
+// future reader has to re-validate against a known-bad build.
+//
+// A scenario for a bug which is not fixed yet goes in testdata/scenarios/unfixed
+// instead. The glob below does not descend into it, so the scenario is kept and
+// reviewable without a red build; move it up a directory when the fix lands.
+func TestNetworkDBScenarios(t *testing.T) {
+	requireSynctest(t)
+	files, err := filepath.Glob(filepath.Join("testdata", "scenarios", "*.scenario"))
+	assert.NilError(t, err)
+	if len(files) == 0 {
+		t.Skip("no scenarios under testdata/scenarios")
+	}
+	for _, f := range files {
+		t.Run(strings.TrimSuffix(filepath.Base(f), ".scenario"), func(t *testing.T) {
+			runScenario(t, loadScenario(t, f))
+		})
+	}
+}
+
 // loadScenario parses the scenario in path.
 func loadScenario(t *testing.T, path string) *plan {
 	t.Helper()
@@ -51,12 +98,12 @@ func loadScenario(t *testing.T, path string) *plan {
 	return p
 }
 
-// runScenario executes p as many times as -networkdb.convergence-attempts
-// asks for, failing on the first execution which does not converge.
+// runScenario executes p as many times as it asks for, failing on the first
+// execution which does not converge.
 func runScenario(t *testing.T, p *plan) {
 	t.Helper()
 
-	attempts := max(*convergenceAttempts, 1)
+	attempts := p.attemptCount()
 	t.Logf("Replaying %d time(s):\n%s", attempts, p)
 	for attempt := range attempts {
 		// One bubble per attempt; see testConvergence. A failure inside a bubble
@@ -66,6 +113,25 @@ func runScenario(t *testing.T, p *plan) {
 			executePlan(t, p, attempt, attempts)
 		})
 	}
+}
+
+// attemptCount is how many times p should be executed: what
+// -networkdb.convergence-attempts says if it was given, otherwise what the plan
+// asks for, otherwise once. Passing the flag overrides a committed scenario, so
+// that one can be investigated without being edited.
+//
+// The flag defaults to 0 rather than 1 so that "not given" is a value this can
+// see. Defaulting it to 1 would make an explicit -networkdb.convergence-attempts=1
+// -- run this committed scenario once -- indistinguishable from not passing it at
+// all, leaving no way to override a scenario's attempts downwards.
+func (p *plan) attemptCount() int {
+	if *convergenceAttempts > 0 {
+		return *convergenceAttempts
+	}
+	if p.attempts > 0 {
+		return p.attempts
+	}
+	return 1
 }
 
 // delayColumn is how much room [action.String] gives the wait before an action,
@@ -87,6 +153,9 @@ func (p *plan) String() string {
 	if p.stagger > 0 {
 		fmt.Fprintf(&b, " stagger=%v", p.stagger)
 	}
+	if p.attempts > 0 {
+		fmt.Fprintf(&b, " attempts=%d", p.attempts)
+	}
 	b.WriteString("\n")
 
 	for _, a := range p.actions {
@@ -96,7 +165,7 @@ func (p *plan) String() string {
 }
 
 var (
-	planHeaderRE = regexp.MustCompile(`^scenario nodes=(\d+) seed=(0x[0-9a-fA-F]+)(?: stagger=([0-9hmsun\xb5.]+))?$`)
+	planHeaderRE = regexp.MustCompile(`^scenario nodes=(\d+) seed=(0x[0-9a-fA-F]+)(?: stagger=([0-9hmsun\xb5.]+))?(?: attempts=(\d+))?$`)
 	planActionRE = regexp.MustCompile(`^#(\d+):(\w+)\((.*)\)$`)
 	// An action may be preceded by how long to wait before it, as "+250ms".
 	planDelayRE = regexp.MustCompile(`^\+(\S+)\s+`)
@@ -137,6 +206,13 @@ func parsePlan(s string) (*plan, error) {
 				}
 				p.stagger = stagger
 			}
+			if m[4] != "" {
+				attempts, err := strconv.Atoi(m[4])
+				if err != nil || attempts < 1 {
+					return nil, fmt.Errorf("line %d: attempts=%s: want 1 or more", lineno, m[4])
+				}
+				p.attempts = attempts
+			}
 			continue
 		}
 		if p.nodes < 0 {
@@ -144,6 +220,15 @@ func parsePlan(s string) (*plan, error) {
 			// prints above the plan, a shell prompt, a copied command -- so skip
 			// it. Past the header every line has to parse: a plan quietly read as
 			// something other than what it says is worse than no plan at all.
+			continue
+		}
+
+		// A committed scenario carries its provenance in comments. The marker is
+		// "# " rather than "#", because an action line starts with a '#' too --
+		// always followed by a digit, never a space -- and a mistyped action
+		// should be an error rather than a silent remark. A bare "#" is a blank
+		// line within a comment block.
+		if line == "#" || strings.HasPrefix(line, "# ") {
 			continue
 		}
 
@@ -173,13 +258,14 @@ func TestPlanRoundTrip(t *testing.T) {
 		numNodes := rapid.IntRange(2, 25).Draw(t, "numNodes")
 		numNetworks := rapid.IntRange(1, 5).Draw(t, "numNetworks")
 		seed := rapid.Uint64().Draw(t, "rngSeed")
+		attempts := rapid.IntRange(0, 500).Draw(t, "attempts")
 		// Nanoseconds, not the whole milliseconds the search draws: a duration
 		// prints to whatever precision it holds, and the awkward values are the
 		// ones which would catch a lossy round trip.
 		stagger := time.Duration(rapid.IntRange(0, 200_000_000).Draw(t, "stagger"))
 		fsm := newNetworkDBFSM(numNodes, numNetworks, rapid.IntRange(0, 500).Draw(t, "maxDelay"))
 		t.Repeat(rapid.StateMachineActions(fsm))
-		want := &plan{nodes: numNodes, seed: seed, stagger: stagger, actions: fsm.plan}
+		want := &plan{nodes: numNodes, seed: seed, stagger: stagger, actions: fsm.plan, attempts: attempts}
 
 		got, err := parsePlan(want.String())
 		if err != nil {

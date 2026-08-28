@@ -30,7 +30,7 @@ const (
 // convergenceAttempts is how many times a scenario is executed before it is
 // taken to hold. See TestNetworkDBAlwaysConverges for when to raise it.
 var convergenceAttempts = flag.Int("networkdb.convergence-attempts", 0,
-	"executions of each scenario in the NetworkDB convergence tests; raise to reproduce or minimize a failure. 0, the default, means once when searching")
+	"executions of each scenario in the NetworkDB convergence tests; raise to reproduce or minimize a failure. 0, the default, means once when searching, or whatever a scenario file asks for")
 
 // TestNetworkDBAlwaysConverges drives a cluster of NetworkDB instances with a
 // random sequence of joins, leaves and table writes, then asserts that every
@@ -100,6 +100,10 @@ var convergenceAttempts = flag.Int("networkdb.convergence-attempts", 0,
 //
 // Searching wants the opposite of repetition -- for a fixed execution budget,
 // distinct scenarios find more bugs than repeats of one -- so the default is 1.
+//
+// Once a scenario is minimized and understood, commit it under
+// testdata/scenarios so it keeps being run; see TestNetworkDBScenarios. The
+// search is not guaranteed to draw it again.
 func TestNetworkDBAlwaysConverges(t *testing.T) {
 	requireSynctest(t)
 	rapid.Check(t, testConvergence)
@@ -294,6 +298,13 @@ type plan struct {
 	stagger time.Duration
 
 	actions []action
+
+	// attempts is how many times this scenario should be executed before it is
+	// taken to hold, or 0 to leave that to -networkdb.convergence-attempts. A
+	// committed scenario sets it, because how often a scenario fails is a
+	// property of the bug it pins and varies by orders of magnitude between
+	// them; see TestNetworkDBScenarios.
+	attempts int
 }
 
 // attemptSeed is the gossip seed for one execution of p. The drawn seed goes in
