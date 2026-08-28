@@ -2,6 +2,7 @@ package networkdb
 
 import (
 	"encoding/binary"
+	"flag"
 	"fmt"
 	"maps"
 	"slices"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"gotest.tools/v3/assert"
 	"pgregory.net/rapid"
 )
 
@@ -25,6 +27,11 @@ const (
 	convergenceTimeout = 2 * time.Minute
 )
 
+// convergenceAttempts is how many times a scenario is executed before it is
+// taken to hold. See TestNetworkDBAlwaysConverges for when to raise it.
+var convergenceAttempts = flag.Int("networkdb.convergence-attempts", 0,
+	"executions of each drawn scenario in TestNetworkDBAlwaysConverges; raise to reproduce or minimize a failure. 0, the default, means once")
+
 // TestNetworkDBAlwaysConverges drives a cluster of NetworkDB instances with a
 // random sequence of joins, leaves and table writes, then asserts that every
 // node's view of the table ends up identical.
@@ -33,18 +40,59 @@ const (
 // the cluster between actions: gossip is still in flight when the next mutation
 // lands, which is where the interesting bugs are. That is also precisely why it
 // cannot measure convergence latency -- by the time the property function gets
-// to look, most runs have already converged during the state machine's own
-// Sleep actions, so any interval it could report would be an upper bound rather
+// to look, most runs have already converged during the waits the state machine
+// draws, so any interval it could report would be an upper bound rather
 // than a measurement. TestNetworkDBConvergenceLatency trades interleaving for
 // precision and measures it properly.
 //
 // The whole property runs inside a [testing/synctest] bubble, gossiping over an
 // in-memory network; see memcluster_test.go for why and how.
+//
+// # Reproducing a failure
+//
+// A failure prints the scenario it drew as a plan. Whether replaying that plan
+// fails again is a separate question:
+// convergence depends on the order gossip interleaves in, that order comes from
+// goroutine scheduling, and nothing here controls scheduling. A scenario that
+// failed once can pass the next hundred runs, which is what rapid reports as
+// "flaky test, can not reproduce a failure".
+//
+// -networkdb.convergence-attempts is the lever for that, in both modes below.
+// It executes the scenario that many times -- a fresh cluster and a
+// different gossip stream each time -- and fails if any execution does, turning
+// a failure that shows up one run in thirty into one that shows up in nearly
+// every run.
+//
+// Replaying rapid's own failfile runs the same scenario back through the
+// property:
+//
+//	go test ./daemon/libnetwork/networkdb/ -run TestNetworkDBAlwaysConverges \
+//	    -rapid.failfile=<failfile> -networkdb.convergence-attempts=250
+//
+// To have rapid minimize a scenario, run its seed instead. A failfile is only
+// ever replayed, never minimized, and rapid picks up any failfile under
+// testdata/rapid/ whether or not -rapid.failfile names one -- so the file has to
+// be moved aside for the seed to get a look in:
+//
+//	mv testdata/rapid/TestNetworkDBAlwaysConverges/*.fail /tmp/
+//	go test ./daemon/libnetwork/networkdb/ -run TestNetworkDBAlwaysConverges \
+//	    -rapid.seed=<seed> -networkdb.convergence-attempts=250 -rapid.shrinktime=10m
+//
+// Set attempts high enough that a failing scenario fails on nearly every batch,
+// not merely most of them. rapid gets a single batch to confirm a failure before
+// it starts minimizing, and judges each candidate on a single batch after that,
+// reading any batch that passes as the bug being absent. The logged "attempt N of
+// M" is the guide: at attempt 29 of 50, one execution finds that scenario about
+// 3% of the time, so 50 attempts leaves roughly a one-in-five chance that the
+// confirmation batch passes and the failure is written off as flaky. Minimizing
+// is also the expensive mode, because rapid spends the whole attempt budget on
+// every scenario that passes.
+//
+// Searching wants the opposite of repetition -- for a fixed execution budget,
+// distinct scenarios find more bugs than repeats of one -- so the default is 1.
 func TestNetworkDBAlwaysConverges(t *testing.T) {
 	requireSynctest(t)
-	rapid.Check(t, func(t *rapid.T) {
-		rapid.SyncTest(t, testConvergence)
-	})
+	rapid.Check(t, testConvergence)
 }
 
 func testConvergence(t *rapid.T) {
@@ -58,70 +106,71 @@ func testConvergence(t *rapid.T) {
 	// takes one uncontrolled input out of the picture. A fixed seed would be
 	// worse than either: every run would gossip alike, and the point of this
 	// test is to explore that space.
-	conf := DefaultConfig()
-	var seed [32]byte
-	binary.LittleEndian.PutUint64(seed[:], rapid.Uint64().Draw(t, "rngSeed"))
-	conf.rngSeed = &seed
+	seed := rapid.Uint64().Draw(t, "rngSeed")
 
-	// The bound on how long any one action may wait before it happens, and how
-	// far apart the nodes are created. Both are drawn once for the whole
-	// scenario; see wait for what the bound does with the waits under it, and
-	// why both ends of its range are worth covering.
+	// Draw the whole scenario before executing any of it. Every draw an action
+	// makes resolves against the model alone -- which node has joined what,
+	// which keys are taken -- and never against the cluster, so the scenario is
+	// a pure function of rapid's draw buffer and can be executed as many times
+	// as we like. Drawing and executing in one pass, as this test used to, ties
+	// the two together: a second execution consumes fresh draws and so runs a
+	// different scenario, which is what leaves a flaky failure unreproducible.
+	// Drawn once per scenario, not per action: see networkDBFSM.record for why
+	// the whole range from burst to spread is worth covering.
 	maxDelay := rapid.IntRange(0, 500).Draw(t, "maxDelay")
+
+	// Drawn once per scenario for the same reason as maxDelay: both ends are
+	// worth covering, and which end a scenario sits at is a property of the
+	// scenario. One gossip interval is the whole useful range -- phase is taken
+	// modulo the interval, so a larger bound only spreads the launches further
+	// apart without spreading the phases any wider.
 	stagger := time.Duration(rapid.IntRange(0, 200).Draw(t, "stagger")) * time.Millisecond
 
-	c := newMemCluster(t, numNodes, "node", conf, stagger)
-
-	fsm := &networkDBFSM{
-		nDB:      c.dbs,
-		maxDelay: maxDelay,
-		state:    make([]map[string]map[string]string, numNodes),
-		keysUsed: make(map[string]map[string]bool),
-	}
-	for i := range fsm.state {
-		fsm.state[i] = make(map[string]map[string]string)
-	}
-	for i := range numNetworks {
-		nw := "nw" + strconv.Itoa(i)
-		fsm.networks = append(fsm.networks, nw)
-		fsm.keysUsed[nw] = make(map[string]bool)
-	}
-	// Drive the NetworkDB instances with a sequence of actions in random order.
-	// We do not check for convergence until afterwards as NetworkDB is an
-	// eventually consistent system.
+	fsm := newNetworkDBFSM(numNodes, numNetworks, maxDelay)
 	t.Repeat(rapid.StateMachineActions(fsm))
+	p := &plan{nodes: numNodes, seed: seed, stagger: stagger, actions: fsm.plan}
 
-	// Take the union of all entries in all networks owned by all nodes.
-	converged := make(map[string]map[string]string)
-	for _, state := range fsm.state {
-		for network, entries := range state {
-			if converged[network] == nil {
-				converged[network] = make(map[string]string)
-			}
-			maps.Copy(converged[network], entries)
-		}
-	}
-	expected := make(tableState, numNodes)
-	for i, st := range fsm.state {
-		exp := make(map[string]map[string]string)
-		for k := range st {
-			exp[k] = converged[k]
-		}
-		expected[c.dbs[i].config.NodeID] = exp
+	t.Logf("Scenario: %d nodes, %d networks, %d actions, stagger %v",
+		numNodes, numNetworks, len(p.actions), p.stagger)
+	for _, a := range p.actions {
+		t.Log("  " + a.String())
 	}
 
-	t.Logf("Waiting for NetworkDB state to converge to %#v", converged)
-	for i, st := range fsm.state {
-		t.Logf("Node #%d (%s): %v", i, c.dbs[i].config.NodeID, slices.Sorted(maps.Keys(st)))
+	attempts := max(*convergenceAttempts, 1)
+	for attempt := range attempts {
+		// One bubble per attempt, rather than one bubble running every attempt.
+		// newMemCluster registers its teardown with t.Cleanup, and rapid runs
+		// those cleanups at the end of the bubble they were registered in, so a
+		// shared bubble would keep every attempt's nodes alive until the last
+		// one finished -- and a bubble reports a goroutine still running when it
+		// ends as a deadlock. Separate bubbles also give each attempt the same
+		// virtual-time origin, which keeps their output comparable.
+		rapid.SyncTest(t, func(t *rapid.T) {
+			executePlan(t, p, attempt, attempts)
+		})
 	}
-	t.Log("Mutations:")
-	for _, m := range fsm.mutations {
-		t.Log(m)
-	}
-	t.Log("---------------------------")
+}
 
-	if diff := awaitTableState(c.dbs, expected); diff != "" {
-		t.Logf("%v\n\n%v", diff, dumpTables(c.dbs))
+// executePlan runs p once against a fresh cluster and fails the test if the
+// cluster does not converge on the state p implies. It must be called inside a
+// [testing/synctest] bubble.
+func executePlan(t *rapid.T, p *plan, attempt, attempts int) {
+	t.Helper()
+
+	state, err := p.model()
+	assert.NilError(t, err)
+
+	conf := DefaultConfig()
+	seed := p.attemptSeed(attempt)
+	conf.rngSeed = &seed
+	c := newMemCluster(t, p.nodes, "node", conf, p.stagger)
+
+	for _, a := range p.actions {
+		a.apply(t, c.dbs)
+	}
+
+	if diff := awaitTableState(c.dbs, wantTableState(state, c.dbs)); diff != "" {
+		t.Logf("Attempt %d of %d did not converge.\n%v\n\n%v", attempt+1, attempts, diff, dumpTables(c.dbs))
 
 		// Deliberately carries no detail. rapid compares failures by their
 		// message text: to decide whether a replay reproduced the failure it was
@@ -212,11 +261,221 @@ func dumpTables(dbs []*NetworkDB) string {
 	return strings.Join(dumps, "\n\n")
 }
 
+// plan is a scenario: how many nodes to run it on, the seed their gossip derives
+// from, and the actions to perform in order.
+type plan struct {
+	nodes int
+	seed  uint64
+
+	// stagger bounds how far apart the nodes are created, which is the only
+	// thing that spreads the phase of the cluster's periodic work. Zero creates
+	// them all at one virtual instant and leaves every node's gossip and probe
+	// ticker in phase for the whole run -- memberlist's schedule() fixes a
+	// ticker's phase when the node is created, and the randStagger in its
+	// triggerFunc cannot move it, since the ticker is built before the
+	// goroutine which reads it and the stagger is shorter than the interval.
+	// A real cluster cannot reach that state, its nodes having started at
+	// arbitrary times, so it is worth reaching deliberately rather than by
+	// accident, and worth being able to leave.
+	//
+	// Each node's offset is drawn uniformly from [0, stagger) off the attempt
+	// seed, so the arrangement replays with the rest of the scenario instead of
+	// having to be recorded a node at a time.
+	stagger time.Duration
+
+	actions []action
+}
+
+// attemptSeed is the gossip seed for one execution of p. The drawn seed goes in
+// the first eight bytes and the attempt in the next eight, so that repeat
+// executions of one plan gossip differently while staying a function of the
+// plan; newMemCluster fans a per-node stream out of the last eight.
+func (p *plan) attemptSeed(attempt int) [32]byte {
+	var seed [32]byte
+	binary.LittleEndian.PutUint64(seed[:], p.seed)
+	binary.LittleEndian.PutUint64(seed[8:], uint64(attempt))
+	return seed
+}
+
+// model folds p's actions into what each node ends up owning: node -> joined
+// network -> key -> value. It reports the first action inconsistent with the
+// ones before it, which is what a hand-trimmed plan is likely to get wrong.
+func (p *plan) model() ([]map[string]map[string]string, error) {
+	state := make([]map[string]map[string]string, p.nodes)
+	for i := range state {
+		state[i] = make(map[string]map[string]string)
+	}
+	for i, a := range p.actions {
+		if err := applyToModel(state, a); err != nil {
+			return nil, fmt.Errorf("action %d, %s: %w", i+1, a, err)
+		}
+	}
+	return state, nil
+}
+
+// wantTableState is the state every node should hold once the cluster has
+// converged: for each network, the union of the entries owned by every node
+// which has joined it.
+func wantTableState(state []map[string]map[string]string, dbs []*NetworkDB) tableState {
+	converged := make(map[string]map[string]string)
+	for _, st := range state {
+		for network, entries := range st {
+			if converged[network] == nil {
+				converged[network] = make(map[string]string)
+			}
+			maps.Copy(converged[network], entries)
+		}
+	}
+	want := make(tableState, len(state))
+	for i, st := range state {
+		exp := make(map[string]map[string]string)
+		for k := range st {
+			exp[k] = converged[k]
+		}
+		want[dbs[i].config.NodeID] = exp
+	}
+	return want
+}
+
+// applyToModel folds a into state, or reports why it cannot be. It is the one
+// place the meaning of an action is written down: networkDBFSM folds each action
+// it draws through here, and plan.model folds a parsed plan through the same
+// path, so a replayed plan cannot disagree with the drawn one about what should
+// converge.
+func applyToModel(state []map[string]map[string]string, a action) error {
+	if a.nodeidx < 0 || a.nodeidx >= len(state) {
+		return fmt.Errorf("node #%d is out of range for a %d-node cluster", a.nodeidx, len(state))
+	}
+	if a.kind == actionJoinNetwork {
+		if _, ok := state[a.nodeidx][a.network]; ok {
+			return fmt.Errorf("node #%d has already joined %s", a.nodeidx, a.network)
+		}
+		state[a.nodeidx][a.network] = make(map[string]string)
+		return nil
+	}
+	entries, joined := state[a.nodeidx][a.network]
+	if !joined {
+		return fmt.Errorf("node #%d has not joined %s", a.nodeidx, a.network)
+	}
+	_, owned := entries[a.key]
+	switch a.kind {
+	case actionLeaveNetwork:
+		delete(state[a.nodeidx], a.network)
+	case actionCreateEntry:
+		if owned {
+			return fmt.Errorf("node #%d already owns %s in %s", a.nodeidx, a.key, a.network)
+		}
+		entries[a.key] = a.value
+	case actionUpdateEntry:
+		if !owned {
+			return fmt.Errorf("node #%d does not own %s in %s", a.nodeidx, a.key, a.network)
+		}
+		entries[a.key] = a.value
+	case actionDeleteEntry:
+		if !owned {
+			return fmt.Errorf("node #%d does not own %s in %s", a.nodeidx, a.key, a.network)
+		}
+		delete(entries, a.key)
+	default:
+		// actionJoinNetwork returns above, being the one kind which must not
+		// have joined already. Anything else is a kind this model was never
+		// taught, which is a bug here rather than a plan worth reporting on.
+		return fmt.Errorf("no model for action kind %v", a.kind)
+	}
+	return nil
+}
+
+// actionKind is one of the mutations networkDBFSM can draw.
+type actionKind int
+
+const (
+	actionJoinNetwork actionKind = iota
+	actionLeaveNetwork
+	actionCreateEntry
+	actionUpdateEntry
+	actionDeleteEntry
+)
+
+var actionKindNames = [...]string{"JoinNetwork", "LeaveNetwork", "CreateEntry", "UpdateEntry", "DeleteEntry"}
+
+func (k actionKind) String() string {
+	if k < 0 || int(k) >= len(actionKindNames) {
+		return fmt.Sprintf("actionKind(%d)", int(k))
+	}
+	return actionKindNames[k]
+}
+
+// action is a single step of a scenario, resolved against the model at the point
+// it was drawn and so executable without drawing anything further.
+type action struct {
+	kind    actionKind
+	nodeidx int
+	network string
+	key     string
+	value   string
+	// delay is how long to wait before performing the action. Waiting after
+	// would be the same thing minus a case, since the convergence check which
+	// follows the last action waits anyway.
+	delay time.Duration
+}
+
+// String prints the action, preceded by how long it waits before happening.
+func (a action) String() string {
+	var s string
+	switch a.kind {
+	case actionCreateEntry, actionUpdateEntry:
+		s = fmt.Sprintf("#%d:%v(%s, %s=%s)", a.nodeidx, a.kind, a.network, a.key, a.value)
+	case actionDeleteEntry:
+		s = fmt.Sprintf("#%d:%v(%s, %s)", a.nodeidx, a.kind, a.network, a.key)
+	default:
+		s = fmt.Sprintf("#%d:%v(%s)", a.nodeidx, a.kind, a.network)
+	}
+	if a.delay > 0 {
+		return "+" + a.delay.String() + " " + s
+	}
+	return s
+}
+
+// apply performs a against a running cluster. Failure messages carry only what
+// the plan determines, never anything derived from the interleaving; see the
+// t.Errorf in executePlan for why that matters.
+func (a action) apply(t *rapid.T, dbs []*NetworkDB) {
+	t.Helper()
+	if a.delay > 0 {
+		time.Sleep(a.delay)
+	}
+	switch a.kind {
+	case actionJoinNetwork:
+		if err := dbs[a.nodeidx].JoinNetwork(a.network); err != nil {
+			t.Errorf("Node %v failed to join network %s: %v", a.nodeidx, a.network, err)
+		}
+	case actionLeaveNetwork:
+		if err := dbs[a.nodeidx].LeaveNetwork(a.network); err != nil {
+			t.Errorf("Node %v failed to leave network %s: %v", a.nodeidx, a.network, err)
+		}
+	case actionCreateEntry:
+		if err := dbs[a.nodeidx].CreateEntry(tableUnderTest, a.network, a.key, []byte(a.value)); err != nil {
+			t.Errorf("Node %v failed to create entry %s=%s in network %s: %v", a.nodeidx, a.key, a.value, a.network, err)
+		}
+	case actionUpdateEntry:
+		if err := dbs[a.nodeidx].UpdateEntry(tableUnderTest, a.network, a.key, []byte(a.value)); err != nil {
+			t.Errorf("Node %v failed to update entry %s=%s in network %s: %v", a.nodeidx, a.key, a.value, a.network, err)
+		}
+	case actionDeleteEntry:
+		if err := dbs[a.nodeidx].DeleteEntry(tableUnderTest, a.network, a.key); err != nil {
+			t.Errorf("Node %v failed to delete entry %s in network %s: %v", a.nodeidx, a.key, a.network, err)
+		}
+	}
+}
+
 // networkDBFSM is a [rapid.StateMachine] providing the set of actions available
-// for rapid to drive NetworkDB with in tests. See also
+// for rapid to draw a NetworkDB scenario from. See also
 // [rapid.StateMachineActions] and [rapid.Repeat].
+//
+// Its actions draw and record; they do not touch a cluster. Everything a draw
+// depends on lives in the model below, which is what lets the recorded plan be
+// executed more than once. executePlan executes it.
 type networkDBFSM struct {
-	nDB      []*NetworkDB
 	networks []string // list of networks which can be joined
 	// node -> joined-network -> key -> value
 	state []map[string]map[string]string
@@ -228,15 +487,32 @@ type networkDBFSM struct {
 	// network -> key -> true
 	keysUsed map[string]map[string]bool
 
-	// maxDelay bounds how long any one action waits before it happens, in
-	// milliseconds; see wait.
-	maxDelay int
+	plan []action
 
-	mutations []string
+	// maxDelay bounds how long any one action waits before it happens, in
+	// milliseconds; see record.
+	maxDelay int
 }
 
-// wait pauses for a drawn moment before the action about to be performed, so
-// that actions land spread through virtual time rather than all at one instant.
+func newNetworkDBFSM(numNodes, numNetworks, maxDelay int) *networkDBFSM {
+	u := &networkDBFSM{
+		maxDelay: maxDelay,
+		state:    make([]map[string]map[string]string, numNodes),
+		keysUsed: make(map[string]map[string]bool),
+	}
+	for i := range u.state {
+		u.state[i] = make(map[string]map[string]string)
+	}
+	for i := range numNetworks {
+		nw := "nw" + strconv.Itoa(i)
+		u.networks = append(u.networks, nw)
+		u.keysUsed[nw] = make(map[string]bool)
+	}
+	return u
+}
+
+// record draws how long to wait before a, folds it into the model, and appends it
+// to the plan being drawn.
 //
 // The wait is a single draw between zero and u.maxDelay, zero meaning the action
 // happens immediately after the one before it. Only the bound is per scenario;
@@ -263,27 +539,26 @@ type networkDBFSM struct {
 // Drawing the wait as a number rather than as an action of its own also puts it
 // inside what rapid searches: shrinking narrows a delay toward zero, and zero is
 // removal.
-func (u *networkDBFSM) wait(t *rapid.T) {
-	if u.maxDelay <= 0 {
-		return
+//
+// applyToModel can only reject an action this state machine had no business
+// drawing, since every action method picks from what the model already permits. So
+// a rejection is a bug here rather than anything a run can provoke, and panicking
+// says so: rapid turns it into a failure with a traceback.
+func (u *networkDBFSM) record(t *rapid.T, a action) {
+	if u.maxDelay > 0 {
+		a.delay = time.Duration(rapid.IntRange(0, u.maxDelay).Draw(t, "delay")) * time.Millisecond
 	}
-	time.Sleep(time.Duration(rapid.IntRange(0, u.maxDelay).Draw(t, "delay")) * time.Millisecond)
-}
-
-func (u *networkDBFSM) mutated(nodeidx int, action, network, key, value string) {
-	desc := fmt.Sprintf("  [%v] #%d(%v):%v(%s", time.Now(), nodeidx, u.nDB[nodeidx].config.NodeID, action, network)
-	if key != "" {
-		desc += fmt.Sprintf(", %s=%s", key, value)
+	if err := applyToModel(u.state, a); err != nil {
+		panic(fmt.Sprintf("state machine drew an action its own model rejects: %v", err))
 	}
-	desc += ")"
-	u.mutations = append(u.mutations, desc)
+	u.plan = append(u.plan, a)
 }
 
 func (u *networkDBFSM) Check(t *rapid.T) {
 	// This method is required to implement the [rapid.StateMachine]
-	// interface. But there is nothing much to check stepwise as we are
-	// testing an eventually consistent system. The checks happen after
-	// rapid is done randomly driving the FSM.
+	// interface. But there is nothing to check stepwise: the actions only
+	// draw, and what they are drawing a plan for is an eventually consistent
+	// system. The checks happen once the plan is executed.
 }
 
 func (u *networkDBFSM) JoinNetwork(t *rapid.T) {
@@ -306,16 +581,11 @@ func (u *networkDBFSM) JoinNetwork(t *rapid.T) {
 	})
 	nw := rapid.SampledFrom(networks).Draw(t, "network")
 
-	u.wait(t)
-	if err := u.nDB[nodeidx].JoinNetwork(nw); err != nil {
-		t.Errorf("Node %v failed to join network %s: %v", nodeidx, nw, err)
-	} else {
-		u.state[nodeidx][nw] = make(map[string]string)
-		u.mutated(nodeidx, "JoinNetwork", nw, "", "")
-	}
+	u.record(t, action{kind: actionJoinNetwork, nodeidx: nodeidx, network: nw})
 }
 
-// drawJoinedNode returns a random node that has joined at least one network.
+// drawJoinedNodeAndNetwork returns a random node that has joined at least one
+// network, and one of the networks it has joined.
 func (u *networkDBFSM) drawJoinedNodeAndNetwork(t *rapid.T) (nodeidx int, nw string) {
 	var nodes []int
 	for i, s := range u.state {
@@ -340,13 +610,7 @@ func (u *networkDBFSM) drawJoinedNodeAndNetwork(t *rapid.T) (nodeidx int, nw str
 
 func (u *networkDBFSM) LeaveNetwork(t *rapid.T) {
 	nodeidx, nw := u.drawJoinedNodeAndNetwork(t)
-	u.wait(t)
-	if err := u.nDB[nodeidx].LeaveNetwork(nw); err != nil {
-		t.Errorf("Node %v failed to leave network %s: %v", nodeidx, nw, err)
-	} else {
-		delete(u.state[nodeidx], nw)
-		u.mutated(nodeidx, "LeaveNetwork", nw, "", "")
-	}
+	u.record(t, action{kind: actionLeaveNetwork, nodeidx: nodeidx, network: nw})
 }
 
 func (u *networkDBFSM) CreateEntry(t *rapid.T) {
@@ -356,14 +620,8 @@ func (u *networkDBFSM) CreateEntry(t *rapid.T) {
 		Draw(t, "key")
 	value := rapid.StringMatching(`[a-z]{5,20}`).Draw(t, "value")
 
-	u.wait(t)
-	if err := u.nDB[nodeidx].CreateEntry(tableUnderTest, nw, key, []byte(value)); err != nil {
-		t.Errorf("Node %v failed to create entry %s=%s in network %s: %v", nodeidx, key, value, nw, err)
-	} else {
-		u.state[nodeidx][nw][key] = value
-		u.keysUsed[nw][key] = true
-		u.mutated(nodeidx, "CreateEntry", nw, key, value)
-	}
+	u.keysUsed[nw][key] = true
+	u.record(t, action{kind: actionCreateEntry, nodeidx: nodeidx, network: nw, key: key, value: value})
 }
 
 // drawOwnedDBKey returns a random key in nw owned by the node at nodeidx.
@@ -381,24 +639,12 @@ func (u *networkDBFSM) UpdateEntry(t *rapid.T) {
 	key := u.drawOwnedDBKey(t, nodeidx, nw)
 	value := rapid.StringMatching(`[a-z]{5,20}`).Draw(t, "value")
 
-	u.wait(t)
-	if err := u.nDB[nodeidx].UpdateEntry(tableUnderTest, nw, key, []byte(value)); err != nil {
-		t.Errorf("Node %v failed to update entry %s=%s in network %s: %v", nodeidx, key, value, nw, err)
-	} else {
-		u.state[nodeidx][nw][key] = value
-		u.mutated(nodeidx, "UpdateEntry", nw, key, value)
-	}
+	u.record(t, action{kind: actionUpdateEntry, nodeidx: nodeidx, network: nw, key: key, value: value})
 }
 
 func (u *networkDBFSM) DeleteEntry(t *rapid.T) {
 	nodeidx, nw := u.drawJoinedNodeAndNetwork(t)
 	key := u.drawOwnedDBKey(t, nodeidx, nw)
 
-	u.wait(t)
-	if err := u.nDB[nodeidx].DeleteEntry(tableUnderTest, nw, key); err != nil {
-		t.Errorf("Node %v failed to delete entry %s in network %s: %v", nodeidx, key, nw, err)
-	} else {
-		delete(u.state[nodeidx][nw], key)
-		u.mutated(nodeidx, "DeleteEntry", nw, key, "")
-	}
+	u.record(t, action{kind: actionDeleteEntry, nodeidx: nodeidx, network: nw, key: key})
 }
