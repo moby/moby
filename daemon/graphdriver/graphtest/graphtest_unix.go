@@ -85,7 +85,11 @@ func DriverTestCreateEmpty(t testing.TB, drivername string, driverOptions ...str
 	driver := GetDriver(t, drivername, driverOptions...)
 	defer PutDriver(t)
 
+	// The daemon clears its umask, so drivers must set modes explicitly instead
+	// of relying on the umask to strip the group/other-write bits.
+	oldmask := unix.Umask(0)
 	err := driver.Create("empty", "", nil)
+	unix.Umask(oldmask)
 	assert.NilError(t, err)
 
 	defer func() {
