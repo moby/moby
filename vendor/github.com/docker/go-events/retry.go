@@ -2,7 +2,7 @@ package events
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -26,13 +26,11 @@ type RetryingSink struct {
 // off on failure. Parameters threshold and backoff adjust the behavior of the
 // circuit breaker.
 func NewRetryingSink(sink Sink, strategy RetryStrategy) *RetryingSink {
-	rs := &RetryingSink{
+	return &RetryingSink{
 		sink:     sink,
 		strategy: strategy,
 		closed:   make(chan struct{}),
 	}
-
-	return rs
 }
 
 // Write attempts to flush the events to the downstream sink until it succeeds
@@ -66,14 +64,12 @@ retry:
 			return err
 		}
 
-		logger := logger.WithError(err) // shadow!!
-
 		if rs.strategy.Failure(event, err) {
-			logger.Errorf("retryingsink: dropped event")
+			logger.WithError(err).Error("retryingsink: dropped event")
 			return nil
 		}
 
-		logger.Errorf("retryingsink: error writing event, retrying")
+		logger.WithError(err).Error("retryingsink: error writing event, retrying")
 		goto retry
 	}
 
@@ -93,7 +89,7 @@ func (rs *RetryingSink) Close() error {
 func (rs *RetryingSink) String() string {
 	// Serialize a copy of the RetryingSink without the sync.Once, to avoid
 	// a data race.
-	rs2 := map[string]interface{}{
+	rs2 := map[string]any{
 		"sink":     rs.sink,
 		"strategy": rs.strategy,
 		"closed":   rs.closed,
@@ -201,7 +197,7 @@ type ExponentialBackoffConfig struct {
 // ExponentialBackoff implements random backoff with exponentially increasing
 // bounds as the number consecutive failures increase.
 type ExponentialBackoff struct {
-	failures uint64 // consecutive failure counter (needs to be 64-bit aligned)
+	failures atomic.Uint64 // consecutive failure counter (needs to be 64-bit aligned)
 	config   ExponentialBackoffConfig
 }
 
@@ -215,17 +211,17 @@ func NewExponentialBackoff(config ExponentialBackoffConfig) *ExponentialBackoff 
 
 // Proceed returns the next randomly bound exponential backoff time.
 func (b *ExponentialBackoff) Proceed(event Event) time.Duration {
-	return b.backoff(atomic.LoadUint64(&b.failures))
+	return b.backoff(b.failures.Load())
 }
 
 // Success resets the failures counter.
 func (b *ExponentialBackoff) Success(event Event) {
-	atomic.StoreUint64(&b.failures, 0)
+	b.failures.Store(0)
 }
 
 // Failure increments the failure counter.
 func (b *ExponentialBackoff) Failure(event Event, err error) bool {
-	atomic.AddUint64(&b.failures, 1)
+	b.failures.Add(1)
 	return false
 }
 
@@ -242,17 +238,16 @@ func (b *ExponentialBackoff) backoff(failures uint64) time.Duration {
 		factor = DefaultExponentialBackoffConfig.Factor
 	}
 
-	backoff := b.config.Base + factor*time.Duration(1<<(failures-1))
-
-	max := b.config.Max
-	if max <= 0 {
-		max = DefaultExponentialBackoffConfig.Max
+	maxBackoff := b.config.Max
+	if maxBackoff <= 0 {
+		maxBackoff = DefaultExponentialBackoffConfig.Max
 	}
 
-	if backoff > max || backoff < 0 {
-		backoff = max
+	backoff := b.config.Base + factor*time.Duration(1<<(failures-1))
+	if backoff > maxBackoff || backoff < 0 {
+		backoff = maxBackoff
 	}
 
 	// Choose a uniformly distributed value from [0, backoff).
-	return time.Duration(rand.Int63n(int64(backoff)))
+	return rand.N(backoff)
 }

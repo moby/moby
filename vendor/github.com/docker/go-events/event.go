@@ -1,7 +1,7 @@
 package events
 
 // Event marks items that can be sent as events.
-type Event interface{}
+type Event any
 
 // Sink accepts and sends events.
 type Sink interface {

@@ -34,10 +34,15 @@ func (ch *Channel) Done() chan struct{} {
 // the listener.
 func (ch *Channel) Write(event Event) error {
 	select {
-	case ch.C <- event:
-		return nil
 	case <-ch.closed:
 		return ErrSinkClosed
+	default:
+		select {
+		case <-ch.closed:
+			return ErrSinkClosed
+		case ch.C <- event:
+			return nil
+		}
 	}
 }
 
@@ -53,9 +58,8 @@ func (ch *Channel) Close() error {
 func (ch *Channel) String() string {
 	// Serialize a copy of the Channel that doesn't contain the sync.Once,
 	// to avoid a data race.
-	ch2 := map[string]interface{}{
+	return fmt.Sprint(map[string]any{
 		"C":      ch.C,
 		"closed": ch.closed,
-	}
-	return fmt.Sprint(ch2)
+	})
 }
