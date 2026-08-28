@@ -7,14 +7,13 @@ import (
 	"github.com/moby/extensions"
 	"github.com/moby/extensions/clientpoint"
 	"github.com/moby/extensions/serverpoint"
-	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/internal/extensionconfig"
 	"github.com/moby/moby/v2/daemon/internal/extensionstorage/bbolt"
 	"github.com/moby/moby/v2/daemon/internal/jobs"
 
 	containernamegeneratorpb "github.com/moby/moby/v2/extpoints/containernamegenerator/v0/protogen"
 	daemonconfigpb "github.com/moby/moby/v2/extpoints/daemonconfig/v0/protogen"
+	jobspb "github.com/moby/moby/v2/extpoints/jobs/api/v0/protogen"
 	servicenamegeneratorpb "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0/protogen"
 	storagepb "github.com/moby/moby/v2/extpoints/storage/kv/v0/protogen"
 	namesgeneratorlegacy "github.com/moby/moby/v2/internal/namesgenerator/legacy"
@@ -29,56 +28,41 @@ var builtinExtensions = []extensions.Extension{
 
 // daemonExtensions declares extensions that need daemon-owned state.
 // Ordinary builtin definitions obtain their bootstrap settings through points.
+// Feature flags are read once at startup; flipping one with a config reload
+// takes effect on the next daemon start, like containerd-snapshotter.
 func (daemon *Daemon) daemonExtensions() []extensions.Extension {
 	cfg := daemon.Config()
 	exts := []extensions.Extension{
 		extensionconfig.New(&cfg),
 		runtimeExtension(daemon),
 	}
-	if daemon.jobsExtension != nil {
-		exts = append(exts, daemon.jobsExtension)
+	if cfg.Features["jobs"] {
+		exts = append(exts, jobs.NewExtension(filepath.Join(cfg.Root, "jobs"), daemonReady(daemon)))
 	}
 	return exts
 }
 
-// jobsExtension builds the builtin jobs extension when the jobs feature is
-// enabled. The daemon holds on to it: unlike other builtins it needs the
-// daemon's container backend, which is not usable until container restore
-// completes, so the daemon activates it explicitly later in startup. The
-// flag is read once at startup; flipping it with a config reload takes
-// effect on the next daemon start, like containerd-snapshotter.
-func jobsExtension(cfg *config.Config) *jobs.Extension {
-	if !cfg.Features["jobs"] {
-		return nil
-	}
-	return jobs.NewExtension(filepath.Join(cfg.Root, "jobs"))
-}
-
-// jobsBackend adapts the daemon to the jobs backend interface. Every method
-// is served by the daemon directly except ContainerWait, whose channel
-// element must be converted: channels are invariant, so the daemon's
-// concrete StateStatus channel cannot satisfy the interface-typed one.
-type jobsBackend struct {
-	*Daemon
-}
-
-func (b jobsBackend) ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan jobs.StateStatus, error) {
-	waitC, err := b.Daemon.ContainerWait(ctx, name, condition)
-	if err != nil {
-		return nil, err
-	}
-	out := make(chan jobs.StateStatus, 1)
-	// The forwarder lives until the container's final exit delivers the
-	// status (the daemon-side channel always sends exactly one); under
-	// live-restore that can be the rest of the container's life, which is
-	// also how long the daemon-side wait it forwards from lives.
-	go func() {
-		defer close(out)
-		if state, ok := <-waitC; ok {
-			out <- state
+// daemonReady reports when the daemon's container backend can serve: the
+// extension host is built before container restore completes. Injected into
+// extensions that must wait for it, until the framework offers a general
+// readiness mechanism.
+func daemonReady(d *Daemon) func(context.Context) error {
+	return func(ctx context.Context) error {
+		select {
+		case <-d.startupDone:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
 		}
-	}()
-	return out, nil
+	}
+}
+
+// pointServers lists the generated server adapters for the points that
+// in-process extensions may offer for publication through service.v0. The
+// host adapts the typed provider to the socket's gRPC transport with this
+// wiring, keeping the extensions themselves transport-agnostic.
+func pointServers() []serverpoint.Registration {
+	return []serverpoint.Registration{jobspb.ServerPoint}
 }
 
 // clientProviders lists generated client wiring for points that launched

@@ -36,6 +36,7 @@ func (daemon *Daemon) newExtensionHost(ctx context.Context) (*host.Host, error) 
 		host.WithProviderPolicy(host.PointPolicyFunc(func(extensions.ExtensionIdentity, extensions.PointID) host.PointPolicyResult {
 			return host.Allow()
 		})),
+		host.WithPointServers(pointServers()...),
 		host.WithDependencyProviders(dependencyProviders()...),
 		host.WithExtensionConfig(extensionConfig(&cfg)),
 	)
@@ -85,8 +86,9 @@ func defaultExtensionDir() (string, error) {
 	return filepath.Join(libexecDir, "docker", "moby-extensions"), nil
 }
 
-// ExposeExtensionServices publishes services selected through service.grpc on
-// the API socket. In-process services are registered on gs; out-of-process
+// ExposeExtensionServices publishes services selected through service.grpc,
+// and points offered through service.v0 (adapted to gRPC by the host), on the
+// API socket. In-process services are registered on gs; out-of-process
 // services are proxied by name. Service-name collisions fail startup.
 func (daemon *Daemon) ExposeExtensionServices(gs *grpc.Server) (*grpcproxy.Proxy, error) {
 	if daemon.extensionHost == nil {
@@ -101,6 +103,12 @@ func (daemon *Daemon) ExposeExtensionServices(gs *grpc.Server) (*grpcproxy.Proxy
 	if err != nil {
 		return nil, err
 	}
+	// The host adapted the points offered through service.v0 during
+	// construction (using the generated wiring from WithPointServers);
+	// collect them through a registrar so they share the collision check.
+	var hosted serviceCollector
+	daemon.extensionHost.RegisterInProcessServices(&hosted)
+	inproc = append(inproc, hosted.services...)
 	for _, svc := range inproc {
 		if _, taken := reserved[svc.Name]; taken {
 			return nil, fmt.Errorf("in-process extension cannot expose gRPC service %q: it is already served", svc.Name)
@@ -125,4 +133,14 @@ func (daemon *Daemon) ExposeExtensionServices(gs *grpc.Server) (*grpcproxy.Proxy
 		return nil, nil
 	}
 	return grpcproxy.New(routes), nil
+}
+
+// serviceCollector captures gRPC service registrations instead of serving
+// them, so hosted services can be collision-checked before installation.
+type serviceCollector struct {
+	services []servicegrpcv0.Service
+}
+
+func (c *serviceCollector) RegisterService(desc *grpc.ServiceDesc, impl any) {
+	c.services = append(c.services, servicegrpcv0.Service{Name: desc.ServiceName, Desc: desc, Impl: impl})
 }
