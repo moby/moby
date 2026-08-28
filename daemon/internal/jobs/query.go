@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
 )
@@ -156,7 +155,7 @@ func (m *Manager) Remove(ctx context.Context, jobRef, runsRemoval string) error 
 			containerID := run.ContainerID
 			stopCtx := context.WithoutCancel(ctx)
 			m.background.Go(func() {
-				if err := m.backend.ContainerStop(stopCtx, containerID, backend.ContainerStopOptions{}); err != nil {
+				if err := m.backend.ContainerStop(stopCtx, containerID); err != nil {
 					log.G(stopCtx).WithError(err).WithFields(log.Fields{"job": job.ID, "run": run.ID}).Warn("could not stop run container of removed job")
 				}
 			})
