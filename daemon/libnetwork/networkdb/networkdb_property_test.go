@@ -30,7 +30,7 @@ const (
 // convergenceAttempts is how many times a scenario is executed before it is
 // taken to hold. See TestNetworkDBAlwaysConverges for when to raise it.
 var convergenceAttempts = flag.Int("networkdb.convergence-attempts", 0,
-	"executions of each drawn scenario in TestNetworkDBAlwaysConverges; raise to reproduce or minimize a failure. 0, the default, means once")
+	"executions of each scenario in the NetworkDB convergence tests; raise to reproduce or minimize a failure. 0, the default, means once when searching")
 
 // TestNetworkDBAlwaysConverges drives a cluster of NetworkDB instances with a
 // random sequence of joins, leaves and table writes, then asserts that every
@@ -50,21 +50,31 @@ var convergenceAttempts = flag.Int("networkdb.convergence-attempts", 0,
 //
 // # Reproducing a failure
 //
-// A failure prints the scenario it drew as a plan. Whether replaying that plan
-// fails again is a separate question:
+// A failure prints the scenario it drew as a plan, in the form parsePlan reads
+// back. Whether replaying that plan fails again is a separate question:
 // convergence depends on the order gossip interleaves in, that order comes from
 // goroutine scheduling, and nothing here controls scheduling. A scenario that
 // failed once can pass the next hundred runs, which is what rapid reports as
 // "flaky test, can not reproduce a failure".
 //
-// -networkdb.convergence-attempts is the lever for that, in both modes below.
-// It executes the scenario that many times -- a fresh cluster and a
+// -networkdb.convergence-attempts is the lever for that, in all three modes
+// below. It executes the scenario that many times -- a fresh cluster and a
 // different gossip stream each time -- and fails if any execution does, turning
 // a failure that shows up one run in thirty into one that shows up in nearly
 // every run.
 //
+// Quickest is to save the printed plan to a file and replay it on its own, with
+// no draw buffer, seed or failfile in the way. A plan can also be trimmed by
+// hand, which is often faster than asking rapid to minimize it:
+//
+//	go test ./daemon/libnetwork/networkdb/ -run TestNetworkDBReplayScenario \
+//	    -networkdb.convergence-plan=/tmp/plan.txt -networkdb.convergence-attempts=250
+//
+// A relative path there is resolved against the package directory, since that is
+// where go test runs the binary, so an absolute one saves confusion.
+//
 // Replaying rapid's own failfile runs the same scenario back through the
-// property:
+// property, which is worth doing when the plan is not the suspect:
 //
 //	go test ./daemon/libnetwork/networkdb/ -run TestNetworkDBAlwaysConverges \
 //	    -rapid.failfile=<failfile> -networkdb.convergence-attempts=250
@@ -130,11 +140,7 @@ func testConvergence(t *rapid.T) {
 	t.Repeat(rapid.StateMachineActions(fsm))
 	p := &plan{nodes: numNodes, seed: seed, stagger: stagger, actions: fsm.plan}
 
-	t.Logf("Scenario: %d nodes, %d networks, %d actions, stagger %v",
-		numNodes, numNetworks, len(p.actions), p.stagger)
-	for _, a := range p.actions {
-		t.Log("  " + a.String())
-	}
+	t.Logf("Scenario, replayable with -networkdb.convergence-plan:\n%s", p)
 
 	attempts := max(*convergenceAttempts, 1)
 	for attempt := range attempts {
@@ -154,7 +160,7 @@ func testConvergence(t *rapid.T) {
 // executePlan runs p once against a fresh cluster and fails the test if the
 // cluster does not converge on the state p implies. It must be called inside a
 // [testing/synctest] bubble.
-func executePlan(t *rapid.T, p *plan, attempt, attempts int) {
+func executePlan(t TestingT, p *plan, attempt, attempts int) {
 	t.Helper()
 
 	state, err := p.model()
@@ -263,6 +269,10 @@ func dumpTables(dbs []*NetworkDB) string {
 
 // plan is a scenario: how many nodes to run it on, the seed their gossip derives
 // from, and the actions to perform in order.
+//
+// It is what this test reproduces. Printing it in a form parsePlan reads back
+// means a failure can be replayed without rapid -- see
+// TestNetworkDBReplayScenario -- and cut down by hand.
 type plan struct {
 	nodes int
 	seed  uint64
@@ -307,7 +317,7 @@ func (p *plan) model() ([]map[string]map[string]string, error) {
 	}
 	for i, a := range p.actions {
 		if err := applyToModel(state, a); err != nil {
-			return nil, fmt.Errorf("action %d, %s: %w", i+1, a, err)
+			return nil, fmt.Errorf("action %d, %s: %w", i+1, strings.TrimSpace(a.String()), err)
 		}
 	}
 	return state, nil
@@ -419,7 +429,10 @@ type action struct {
 	delay time.Duration
 }
 
-// String prints the action, preceded by how long it waits before happening.
+// String prints the action, preceded by how long to wait before it in a column
+// of fixed width, so that a run of them lines up as a timeline. An action which
+// waits for nothing is padded to the same width and so carries leading blanks;
+// [plan.model] trims them where it names an action in an error.
 func (a action) String() string {
 	var s string
 	switch a.kind {
@@ -430,16 +443,17 @@ func (a action) String() string {
 	default:
 		s = fmt.Sprintf("#%d:%v(%s)", a.nodeidx, a.kind, a.network)
 	}
+	delay := ""
 	if a.delay > 0 {
-		return "+" + a.delay.String() + " " + s
+		delay = "+" + a.delay.String()
 	}
-	return s
+	return fmt.Sprintf("%*s %s", delayColumn, delay, s)
 }
 
 // apply performs a against a running cluster. Failure messages carry only what
 // the plan determines, never anything derived from the interleaving; see the
 // t.Errorf in executePlan for why that matters.
-func (a action) apply(t *rapid.T, dbs []*NetworkDB) {
+func (a action) apply(t TestingT, dbs []*NetworkDB) {
 	t.Helper()
 	if a.delay > 0 {
 		time.Sleep(a.delay)
