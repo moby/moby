@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -19,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
 	"github.com/moby/moby/v2/dockerversion"
@@ -120,17 +122,21 @@ func TestNewStreamConfig(t *testing.T) {
 }
 
 func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userAgent := r.Header.Get("User-Agent")
-		assert.Check(t, is.Contains(userAgent, "Docker/"+dockerversion.Version))
-		fmt.Fprintln(w, "{}")
-	}))
-	defer ts.Close()
+	var userAgent string
+	httpClient := smithyhttp.ClientDoFunc(func(r *http.Request) (*http.Response, error) {
+		userAgent = r.Header.Get("User-Agent")
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("{}")),
+			Request:    r,
+		}, nil
+	})
 
 	info := logger.Info{
 		Config: map[string]string{
 			regionKey:   "us-east-1",
-			endpointKey: ts.URL,
+			endpointKey: "http://cloudwatchlogs.test",
 		},
 	}
 
@@ -139,11 +145,13 @@ func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
 			Value: aws.Credentials{AccessKeyID: "AKID", SecretAccessKey: "SECRET", SessionToken: "SESSION"},
 		}),
+		config.WithHTTPClient(httpClient),
 	)
 	assert.NilError(t, err)
 
 	_, err = client.CreateLogGroup(t.Context(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
 	assert.NilError(t, err)
+	assert.Check(t, is.Contains(userAgent, "Docker/"+dockerversion.Version))
 }
 
 func TestNewAWSLogsClientLogFormatHeaderHandler(t *testing.T) {
