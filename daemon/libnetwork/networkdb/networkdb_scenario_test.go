@@ -38,7 +38,20 @@ func TestNetworkDBReplayScenario(t *testing.T) {
 	requireSynctest(t)
 
 	p := loadScenario(t, *convergencePlan)
-	runScenario(t, p)
+	if *convergenceMeasure {
+		reportMeasurement(t, p)
+		return
+	}
+
+	switch *convergenceMinimize {
+	case "":
+		runScenario(t, p)
+	case minimizeDiagnose, minimizeOptimize:
+		minimizePlan(t, p, *convergenceMinimize)
+	default:
+		t.Fatalf("-networkdb.convergence-minimize=%q: want %q or %q",
+			*convergenceMinimize, minimizeDiagnose, minimizeOptimize)
+	}
 }
 
 // TestNetworkDBScenarios executes every scenario committed under

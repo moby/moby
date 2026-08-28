@@ -73,6 +73,12 @@ var convergenceAttempts = flag.Int("networkdb.convergence-attempts", 0,
 // A relative path there is resolved against the package directory, since that is
 // where go test runs the binary, so an absolute one saves confusion.
 //
+// -networkdb.convergence-minimize reduces a scenario and measures what the
+// results would cost to catch, ready to be saved under testdata/scenarios. It
+// takes "diagnose" for the smallest scenario which still fails, or "optimize"
+// for the one cheapest to catch, which is rarely the same thing. See
+// minimizePlan.
+//
 // Replaying rapid's own failfile runs the same scenario back through the
 // property, which is worth doing when the plan is not the suspect:
 //
@@ -161,10 +167,20 @@ func testConvergence(t *rapid.T) {
 	}
 }
 
-// executePlan runs p once against a fresh cluster and fails the test if the
-// cluster does not converge on the state p implies. It must be called inside a
-// [testing/synctest] bubble.
-func executePlan(t TestingT, p *plan, attempt, attempts int) {
+func (p *plan) clone() *plan {
+	c := *p
+	c.actions = slices.Clone(p.actions)
+	return &c
+}
+
+// runPlanOnce executes p against a fresh cluster and reports whether it
+// converged: "" if it did, a diff explaining the state it was left in if it did
+// not. It must be called inside a [testing/synctest] bubble.
+//
+// It stops short of calling the answer a test failure, which is executePlan's
+// job, because the minimizer asks this question hundreds of times and a run that
+// does not converge is the answer it is hoping for.
+func runPlanOnce(t TestingT, p *plan, attempt int) outcome {
 	t.Helper()
 
 	state, err := p.model()
@@ -179,22 +195,12 @@ func executePlan(t TestingT, p *plan, attempt, attempts int) {
 		a.apply(t, c.dbs)
 	}
 
-	if diff := awaitTableState(c.dbs, wantTableState(state, c.dbs)); diff != "" {
-		t.Logf("Attempt %d of %d did not converge.\n%v\n\n%v", attempt+1, attempts, diff, dumpTables(c.dbs))
-
-		// Deliberately carries no detail. rapid compares failures by their
-		// message text: to decide whether a replay reproduced the failure it was
-		// asked to minimize, and to decide whether a candidate scenario still
-		// fails. A diff or a table dump in here varies with the interleaving, so
-		// one bug would report a different failure every run -- which rapid reads
-		// as a flaky test and declines to minimize. The detail goes to the log
-		// above instead, where nothing compares it.
-		//
-		// The cost is that every non-convergence looks alike, so minimizing may
-		// land on a different scenario than the one that failed. Any scenario
-		// that fails to converge is a valid witness for this property, so that is
-		// a fair trade.
-		t.Errorf("NetworkDB state did not converge within %v of virtual time", convergenceTimeout)
+	want := wantTableState(state, c.dbs)
+	diff, got := awaitTableState(c.dbs, want)
+	var o outcome
+	if diff != "" {
+		o.diff = diff + "\n\n" + dumpTables(c.dbs)
+		o.networks, o.entries = diverged(want, got)
 	}
 
 	if drops := c.mn.dropCount(); drops != 0 {
@@ -203,6 +209,32 @@ func executePlan(t TestingT, p *plan, attempt, attempts int) {
 		// needed more retransmits than a real cluster would have.
 		t.Logf("in-memory network dropped %d datagrams for want of receive buffer", drops)
 	}
+	return o
+}
+
+// executePlan runs p once and fails the test if the cluster does not converge.
+// It must be called inside a [testing/synctest] bubble.
+func executePlan(t TestingT, p *plan, attempt, attempts int) {
+	t.Helper()
+
+	o := runPlanOnce(t, p, attempt)
+	if o.diff == "" {
+		return
+	}
+	t.Logf("Attempt %d of %d did not converge.\n%v", attempt+1, attempts, o.diff)
+
+	// Deliberately carries no detail. rapid compares failures by their message
+	// text: to decide whether a replay reproduced the failure it was asked to
+	// minimize, and to decide whether a candidate scenario still fails. A diff or
+	// a table dump in here varies with the interleaving, so one bug would report
+	// a different failure every run -- which rapid reads as a flaky test and
+	// declines to minimize. The detail goes to the log above instead, where
+	// nothing compares it.
+	//
+	// The cost is that every non-convergence looks alike, so minimizing may land
+	// on a different scenario than the one that failed. Any scenario that fails
+	// to converge is a valid witness for this property, so that is a fair trade.
+	t.Errorf("NetworkDB state did not converge within %v of virtual time", convergenceTimeout)
 }
 
 // tableStateCmp is shared by the check which ends the wait below and the diff
@@ -218,19 +250,65 @@ var tableStateCmp = cmp.Options{cmpopts.EquateEmpty()}
 // awaitTableState blocks until every node's view of the table under test matches
 // want, and returns "" once it does. If that has not happened within
 // convergenceTimeout of virtual time it gives up and returns a diff.
-func awaitTableState(dbs []*NetworkDB, want tableState) string {
+func awaitTableState(dbs []*NetworkDB, want tableState) (string, tableState) {
 	deadline := time.Now().Add(convergenceTimeout)
 	for {
 		synctest.Wait()
 		got := snapshotTableState(dbs)
 		if cmp.Equal(want, got, tableStateCmp) {
-			return ""
+			return "", got
 		}
 		if !time.Now().Before(deadline) {
-			return cmp.Diff(want, got, tableStateCmp)
+			return cmp.Diff(want, got, tableStateCmp), got
 		}
 		time.Sleep(convergenceStep)
 	}
+}
+
+// outcome is what one execution of a scenario came to.
+type outcome struct {
+	// diff explains what the cluster was left disagreeing about, and is empty
+	// if it converged.
+	diff string
+	// networks are those some node did not converge on. Reduction uses this to
+	// propose dropping the actions of networks which did converge: they are
+	// scattered through a scenario, so removing them as a group is a move the
+	// block ladder cannot make in one step.
+	networks map[string]bool
+	// entries are the "network/key" pairs some node did not converge on, for
+	// the same purpose one level down.
+	entries map[string]bool
+}
+
+// diverged reports where got fell short of want. It compares the two states
+// rather than reading the printed diff, which is for people.
+func diverged(want, got tableState) (networks, entries map[string]bool) {
+	networks, entries = map[string]bool{}, map[string]bool{}
+	for node, wantNws := range want {
+		gotNws := got[node]
+		for nw, wantKeys := range wantNws {
+			gotKeys, joined := gotNws[nw]
+			if !joined {
+				networks[nw] = true
+				continue
+			}
+			for k, v := range wantKeys {
+				if gotKeys[k] != v {
+					networks[nw] = true
+					entries[nw+"/"+k] = true
+				}
+			}
+		}
+	}
+	// A network a node holds but should not is a divergence too.
+	for node, gotNws := range got {
+		for nw := range gotNws {
+			if _, ok := want[node][nw]; !ok {
+				networks[nw] = true
+			}
+		}
+	}
+	return networks, entries
 }
 
 // tableState is every node's view of every network's entries in the table under
