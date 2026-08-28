@@ -162,43 +162,82 @@ func (n *NRI) PrepareReload(nriCfg opts.NRIOpts) (func() error, error) {
 
 // CreateContainer notifies plugins of a "creation" NRI-lifecycle event for a container,
 // allowing the plugin to adjust settings before the container is created.
+// The returned function is safe to defer unconditionally and call earlier
+// after the container is registered.
+// Subsequent calls are no-ops.
 //
 // No lock is acquired on ctr, CreateContainer the caller must ensure it cannot be
 // accessed from other threads.
-func (n *NRI) CreateContainer(ctx context.Context, ctr *container.Container) error {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-	if n.adap == nil {
-		return nil
+func (n *NRI) CreateContainer(ctx context.Context, ctr *container.Container) (_ func(), retErr error) {
+	var (
+		adap            *adaptation.Adaptation
+		pluginSyncBlock *adaptation.PluginSyncBlock
+	)
+	for {
+		n.mu.RLock()
+		adap = n.adap
+		n.mu.RUnlock()
+
+		// Plugin registration takes the adaptation sync lock before calling
+		// syncFn, which takes n.mu. Take the locks in the same order.
+		if adap != nil {
+			pluginSyncBlock = adap.BlockPluginSync()
+		}
+
+		n.mu.RLock()
+		if adap == n.adap {
+			break
+		}
+		n.mu.RUnlock()
+		if pluginSyncBlock != nil {
+			pluginSyncBlock.Unblock()
+			pluginSyncBlock = nil
+		}
+	}
+
+	release := sync.OnceFunc(func() {
+		n.mu.RUnlock()
+		if pluginSyncBlock != nil {
+			pluginSyncBlock.Unblock()
+		}
+	})
+	defer func() {
+		if retErr != nil {
+			release()
+		}
+	}()
+
+	if adap == nil {
+		return release, nil
 	}
 	// ctr.State can safely be locked here, but there's no need because it's expected
 	// to be newly created and not yet accessible in any other thread.
 
 	nriPod, nriCtr, err := containerToNRI(ctr)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// TODO(robmry): call RunPodSandbox?
 
-	resp, err := n.adap.CreateContainer(ctx, &adaptation.CreateContainerRequest{
+	resp, err := adap.CreateContainer(ctx, &adaptation.CreateContainerRequest{
 		Pod:       nriPod,
 		Container: nriCtr,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if resp.GetUpdate() != nil {
-		return errors.New("container update is not supported")
+		return nil, errors.New("container update is not supported")
 	}
 	if resp.GetEvict() != nil {
-		return errors.New("container eviction is not supported")
+		return nil, errors.New("container eviction is not supported")
 	}
 	if err := applyAdjustments(ctx, ctr, resp.GetAdjust()); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return release, nil
 }
 
 // syncFn is called when a plugin registers, allowing the plugin to learn the
