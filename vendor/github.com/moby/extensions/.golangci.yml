@@ -1,0 +1,11 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - copyloopvar
+    - errcheck
+    - intrange
+    - mirror
+    - perfsprint
+    - usestdlibvars
