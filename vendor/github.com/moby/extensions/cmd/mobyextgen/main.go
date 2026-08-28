@@ -28,7 +28,7 @@ import (
 func main() {
 	service := flag.String("service", "", "fully qualified name of a non-Point gRPC service")
 	flag.Usage = func() {
-		fmt.Fprintln(flag.CommandLine.Output(), "usage: mobyextgen [-service package.Service] [dir]")
+		_, _ = fmt.Fprintln(flag.CommandLine.Output(), "usage: mobyextgen [-service package.Service] [dir]")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
