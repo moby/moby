@@ -63,10 +63,18 @@ func testConvergence(t *rapid.T) {
 	binary.LittleEndian.PutUint64(seed[:], rapid.Uint64().Draw(t, "rngSeed"))
 	conf.rngSeed = &seed
 
-	c := newMemCluster(t, numNodes, "node", conf)
+	// The bound on how long any one action may wait before it happens, and how
+	// far apart the nodes are created. Both are drawn once for the whole
+	// scenario; see wait for what the bound does with the waits under it, and
+	// why both ends of its range are worth covering.
+	maxDelay := rapid.IntRange(0, 500).Draw(t, "maxDelay")
+	stagger := time.Duration(rapid.IntRange(0, 200).Draw(t, "stagger")) * time.Millisecond
+
+	c := newMemCluster(t, numNodes, "node", conf, stagger)
 
 	fsm := &networkDBFSM{
 		nDB:      c.dbs,
+		maxDelay: maxDelay,
 		state:    make([]map[string]map[string]string, numNodes),
 		keysUsed: make(map[string]map[string]bool),
 	}
@@ -220,7 +228,46 @@ type networkDBFSM struct {
 	// network -> key -> true
 	keysUsed map[string]map[string]bool
 
+	// maxDelay bounds how long any one action waits before it happens, in
+	// milliseconds; see wait.
+	maxDelay int
+
 	mutations []string
+}
+
+// wait pauses for a drawn moment before the action about to be performed, so
+// that actions land spread through virtual time rather than all at one instant.
+//
+// The wait is a single draw between zero and u.maxDelay, zero meaning the action
+// happens immediately after the one before it. Only the bound is per scenario;
+// the waits under it vary action by action across the whole of that range. So
+// what a scenario settles is how tightly packed it can be, not how tightly packed
+// any stretch of it is. Waiting as an action of its own could not do that: it
+// would be a fixed fraction of the set, putting every scenario at the same
+// middling spacing.
+//
+// Both ends matter, because they exercise different code: a burst of actions at
+// one virtual instant overruns memberlist's broadcast path and leaves the cluster
+// to converge by push/pull anti-entropy tens of seconds later, where a spread
+// scenario converges by gossip as it goes.
+//
+// Leaning on rapid's bias is deliberate. Its integer draws favour small
+// magnitudes in absolute terms -- of 4000 draws from [0,500], 11% came out zero
+// and 40% under ten, and widening the range to [0,10000] barely moved either --
+// so drawing the delay directly gives frequent tight clumping under a near-flat
+// tail of longer waits, and a maxDelay of zero, which the scenario-level draw
+// also lands on about a tenth of the time, gives a scenario that is all burst.
+// Comparing a biased draw against a threshold cannot do this: a nominal
+// one-in-five delayed every second action when measured.
+//
+// Drawing the wait as a number rather than as an action of its own also puts it
+// inside what rapid searches: shrinking narrows a delay toward zero, and zero is
+// removal.
+func (u *networkDBFSM) wait(t *rapid.T) {
+	if u.maxDelay <= 0 {
+		return
+	}
+	time.Sleep(time.Duration(rapid.IntRange(0, u.maxDelay).Draw(t, "delay")) * time.Millisecond)
 }
 
 func (u *networkDBFSM) mutated(nodeidx int, action, network, key, value string) {
@@ -259,6 +306,7 @@ func (u *networkDBFSM) JoinNetwork(t *rapid.T) {
 	})
 	nw := rapid.SampledFrom(networks).Draw(t, "network")
 
+	u.wait(t)
 	if err := u.nDB[nodeidx].JoinNetwork(nw); err != nil {
 		t.Errorf("Node %v failed to join network %s: %v", nodeidx, nw, err)
 	} else {
@@ -292,6 +340,7 @@ func (u *networkDBFSM) drawJoinedNodeAndNetwork(t *rapid.T) (nodeidx int, nw str
 
 func (u *networkDBFSM) LeaveNetwork(t *rapid.T) {
 	nodeidx, nw := u.drawJoinedNodeAndNetwork(t)
+	u.wait(t)
 	if err := u.nDB[nodeidx].LeaveNetwork(nw); err != nil {
 		t.Errorf("Node %v failed to leave network %s: %v", nodeidx, nw, err)
 	} else {
@@ -307,6 +356,7 @@ func (u *networkDBFSM) CreateEntry(t *rapid.T) {
 		Draw(t, "key")
 	value := rapid.StringMatching(`[a-z]{5,20}`).Draw(t, "value")
 
+	u.wait(t)
 	if err := u.nDB[nodeidx].CreateEntry(tableUnderTest, nw, key, []byte(value)); err != nil {
 		t.Errorf("Node %v failed to create entry %s=%s in network %s: %v", nodeidx, key, value, nw, err)
 	} else {
@@ -331,6 +381,7 @@ func (u *networkDBFSM) UpdateEntry(t *rapid.T) {
 	key := u.drawOwnedDBKey(t, nodeidx, nw)
 	value := rapid.StringMatching(`[a-z]{5,20}`).Draw(t, "value")
 
+	u.wait(t)
 	if err := u.nDB[nodeidx].UpdateEntry(tableUnderTest, nw, key, []byte(value)); err != nil {
 		t.Errorf("Node %v failed to update entry %s=%s in network %s: %v", nodeidx, key, value, nw, err)
 	} else {
@@ -343,15 +394,11 @@ func (u *networkDBFSM) DeleteEntry(t *rapid.T) {
 	nodeidx, nw := u.drawJoinedNodeAndNetwork(t)
 	key := u.drawOwnedDBKey(t, nodeidx, nw)
 
+	u.wait(t)
 	if err := u.nDB[nodeidx].DeleteEntry(tableUnderTest, nw, key); err != nil {
 		t.Errorf("Node %v failed to delete entry %s in network %s: %v", nodeidx, key, nw, err)
 	} else {
 		delete(u.state[nodeidx][nw], key)
 		u.mutated(nodeidx, "DeleteEntry", nw, key, "")
 	}
-}
-
-func (u *networkDBFSM) Sleep(t *rapid.T) {
-	duration := time.Duration(rapid.IntRange(10, 500).Draw(t, "duration")) * time.Millisecond
-	time.Sleep(duration)
 }
