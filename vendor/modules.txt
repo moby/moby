@@ -1261,7 +1261,7 @@ github.com/moby/buildkit/worker/label
 # github.com/moby/docker-image-spec v1.3.1
 ## explicit; go 1.18
 github.com/moby/docker-image-spec/specs-go/v1
-# github.com/moby/extensions v0.0.0-20260826195513-eca6e585c3ec
+# github.com/moby/extensions v0.0.0-20260828112943-dd7ba219688d
 ## explicit; go 1.26.0
 github.com/moby/extensions
 github.com/moby/extensions/client
