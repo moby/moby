@@ -53,6 +53,10 @@ func newFakeBackend() *fakeBackend {
 	return &fakeBackend{containers: make(map[string]*fakeContainer)}
 }
 
+// Ready reports the fake ready immediately: tests activate the extension
+// with a live backend.
+func (b *fakeBackend) Ready(context.Context) error { return nil }
+
 func (b *fakeBackend) ContainerCreate(_ context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

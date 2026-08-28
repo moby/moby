@@ -17,34 +17,20 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/names"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
 	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
+	runtimev0 "github.com/moby/moby/v2/extpoints/runtime/v0"
 	"github.com/moby/moby/v2/internal/namesgenerator"
 )
 
-// Backend is the slice of the daemon's container backend the jobs manager
-// drives runs with. The signatures match *daemon.Daemon method for method so
-// the daemon satisfies the interface directly, with no adapter.
-type Backend interface {
-	ContainerCreate(ctx context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error)
-	ContainerStart(ctx context.Context, name string, checkpoint string, checkpointDir string) error
-	ContainerStop(ctx context.Context, name string, options backend.ContainerStopOptions) error
-	ContainerRm(name string, config *backend.ContainerRmConfig) error
-	// ContainerWait with WaitConditionNotRunning resolves on the container's
-	// final exit, after its restart policy is exhausted, which is exactly a
-	// run's outcome. The returned channel delivers exactly one status; it
-	// must never be closed without delivering it.
-	ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan StateStatus, error)
-}
+// Backend is the container runtime surface the manager drives runs with —
+// the daemon-provided runtime extension point the jobs extension declares as
+// its dependency.
+type Backend = runtimev0.Runtime
 
-// StateStatus reports a container's final exit. It mirrors the daemon
-// container package's StateStatus so the daemon satisfies Backend without an
-// adapter, while keeping fakes trivial to build in tests.
-type StateStatus interface {
-	ExitCode() int
-	Err() error
-}
+// StateStatus reports a container's final exit, as delivered by
+// [Backend.ContainerWait].
+type StateStatus = runtimev0.StateStatus
 
 // Reserved labels applied to every run container, correlating it with its
 // job and run records across the container API.
