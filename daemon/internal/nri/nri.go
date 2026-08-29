@@ -349,9 +349,11 @@ func containerToNRI(ctr *container.Container) (*adaptation.PodSandbox, *adaptati
 		State:        stateToNRI(ctr.State),
 		Labels:       ctr.Config.Labels,
 		Annotations:  ctr.HostConfig.Annotations,
-		Args:         append([]string{ctr.Path}, ctr.Args...),
-		Env:          ctr.Config.Env,
-		Hooks:        nil,
+		// Args is a fresh copy of the resolved workload argv. It intentionally
+		// excludes OCI-only wrappers such as Docker init.
+		Args:  append([]string{ctr.Path}, ctr.Args...),
+		Env:   ctr.Config.Env,
+		Hooks: nil,
 		Linux: &adaptation.LinuxContainer{
 			Namespaces:     nil,
 			Devices:        nil,
