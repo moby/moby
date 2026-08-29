@@ -100,9 +100,8 @@ func (cli *Client) tryPluginPrivileges(ctx context.Context, query url.Values, re
 }
 
 func (cli *Client) tryPluginPull(ctx context.Context, query url.Values, privileges plugin.Privileges, registryAuth string) (*http.Response, error) {
-	return cli.post(ctx, "/plugins/pull", query, privileges, http.Header{
-		registry.AuthHeader: {registryAuth},
-	})
+	headers := http.Header{registry.AuthHeader: {registryAuth}}
+	return cli.post(ctx, "/plugins/pull", query, headers, privileges)
 }
 
 func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values, options pluginOptions) (plugin.Privileges, error) {

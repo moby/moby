@@ -46,13 +46,11 @@ func (cli *Client) ContainerCreate(ctx context.Context, options ContainerCreateO
 		query.Set("name", options.Name)
 	}
 
-	body := container.CreateRequest{
+	resp, err := cli.post(ctx, "/containers/create", query, nil, container.CreateRequest{
 		Config:           cfg,
 		HostConfig:       normalizeHostConfig(options.HostConfig),
 		NetworkingConfig: options.NetworkingConfig,
-	}
-
-	resp, err := cli.post(ctx, "/containers/create", query, body, nil)
+	})
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return ContainerCreateResult{}, err

@@ -18,7 +18,7 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 	if err != nil {
 		return HijackedResponse{}, err
 	}
-	req, err := cli.buildRequest(ctx, http.MethodPost, cli.getAPIPath(ctx, path, query), jsonBody, headers)
+	req, err := cli.buildRequest(ctx, http.MethodPost, cli.getAPIPath(ctx, path, query), headers, jsonBody)
 	if err != nil {
 		return HijackedResponse{}, err
 	}

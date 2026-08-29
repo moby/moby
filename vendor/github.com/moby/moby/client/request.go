@@ -19,49 +19,49 @@ import (
 
 // head sends an http request to the docker API using the method HEAD.
 func (cli *Client) head(ctx context.Context, path string, query url.Values, headers http.Header) (*http.Response, error) {
-	return cli.sendRequest(ctx, http.MethodHead, path, query, nil, headers)
+	return cli.sendRequest(ctx, http.MethodHead, path, query, headers, nil)
 }
 
 // get sends an http request to the docker API using the method GET with a specific Go context.
 func (cli *Client) get(ctx context.Context, path string, query url.Values, headers http.Header) (*http.Response, error) {
-	return cli.sendRequest(ctx, http.MethodGet, path, query, nil, headers)
+	return cli.sendRequest(ctx, http.MethodGet, path, query, headers, nil)
 }
 
 // post sends an http POST request to the API.
-func (cli *Client) post(ctx context.Context, path string, query url.Values, body any, headers http.Header) (*http.Response, error) {
+func (cli *Client) post(ctx context.Context, path string, query url.Values, headers http.Header, body any) (*http.Response, error) {
 	jsonBody, headers, err := prepareJSONRequest(body, headers)
 	if err != nil {
 		return nil, err
 	}
-	return cli.sendRequest(ctx, http.MethodPost, path, query, jsonBody, headers)
+	return cli.sendRequest(ctx, http.MethodPost, path, query, headers, jsonBody)
 }
 
-func (cli *Client) postRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers http.Header) (*http.Response, error) {
-	return cli.sendRequest(ctx, http.MethodPost, path, query, body, headers)
+func (cli *Client) postRaw(ctx context.Context, path string, query url.Values, headers http.Header, body io.Reader) (*http.Response, error) {
+	return cli.sendRequest(ctx, http.MethodPost, path, query, headers, body)
 }
 
-func (cli *Client) put(ctx context.Context, path string, query url.Values, body any, headers http.Header) (*http.Response, error) {
+func (cli *Client) put(ctx context.Context, path string, query url.Values, headers http.Header, body any) (*http.Response, error) {
 	jsonBody, headers, err := prepareJSONRequest(body, headers)
 	if err != nil {
 		return nil, err
 	}
-	return cli.putRaw(ctx, path, query, jsonBody, headers)
+	return cli.putRaw(ctx, path, query, headers, jsonBody)
 }
 
 // putRaw sends an http request to the docker API using the method PUT.
-func (cli *Client) putRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers http.Header) (*http.Response, error) {
+func (cli *Client) putRaw(ctx context.Context, path string, query url.Values, headers http.Header, body io.Reader) (*http.Response, error) {
 	// PUT requests are expected to always have a body (apparently)
 	// so explicitly pass an empty body to sendRequest to signal that
 	// it should set the Content-Type header if not already present.
 	if body == nil {
 		body = http.NoBody
 	}
-	return cli.sendRequest(ctx, http.MethodPut, path, query, body, headers)
+	return cli.sendRequest(ctx, http.MethodPut, path, query, headers, body)
 }
 
 // delete sends an http request to the docker API using the method DELETE.
 func (cli *Client) delete(ctx context.Context, path string, query url.Values, headers http.Header) (*http.Response, error) {
-	return cli.sendRequest(ctx, http.MethodDelete, path, query, nil, headers)
+	return cli.sendRequest(ctx, http.MethodDelete, path, query, headers, nil)
 }
 
 // prepareJSONRequest encodes the given body to JSON and returns it as an [io.Reader], and sets the Content-Type
@@ -87,7 +87,7 @@ func prepareJSONRequest(body any, headers http.Header) (io.Reader, http.Header, 
 	return jsonBody, hdr, nil
 }
 
-func (cli *Client) buildRequest(ctx context.Context, method, path string, body io.Reader, headers http.Header) (*http.Request, error) {
+func (cli *Client) buildRequest(ctx context.Context, method, path string, headers http.Header, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, path, body)
 	if err != nil {
 		return nil, err
@@ -104,8 +104,8 @@ func (cli *Client) buildRequest(ctx context.Context, method, path string, body i
 	return req, nil
 }
 
-func (cli *Client) sendRequest(ctx context.Context, method, path string, query url.Values, body io.Reader, headers http.Header) (*http.Response, error) {
-	req, err := cli.buildRequest(ctx, method, cli.getAPIPath(ctx, path, query), body, headers)
+func (cli *Client) sendRequest(ctx context.Context, method, path string, query url.Values, headers http.Header, body io.Reader) (*http.Response, error) {
+	req, err := cli.buildRequest(ctx, method, cli.getAPIPath(ctx, path, query), headers, body)
 	if err != nil {
 		return nil, err
 	}

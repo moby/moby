@@ -89,5 +89,5 @@ func (cli *Client) tryImageCreate(ctx context.Context, query url.Values, resolve
 			hdr.Set(registry.AuthHeader, registryAuth)
 		}
 	}
-	return cli.post(ctx, "/images/create", query, nil, hdr)
+	return cli.post(ctx, "/images/create", query, hdr, nil)
 }
