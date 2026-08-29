@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"path"
-	"sort"
+	"slices"
 	"strings"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -86,6 +86,17 @@ func formatPlatform(platform ocispec.Platform) string {
 // allCapabilities is a magic value for "all capabilities"
 const allCapabilities = "ALL"
 
+// normalizeCap normalizes a capability to its canonical format by upper-casing
+// and adding a "CAP_" prefix (if not yet present). It also accepts the "ALL"
+// magic-value.
+func normalizeCap(c string) string {
+	c = strings.ToUpper(c)
+	if c != allCapabilities && !strings.HasPrefix(c, "CAP_") {
+		c = "CAP_" + c
+	}
+	return c
+}
+
 // normalizeCapabilities normalizes capabilities to their canonical form,
 // removes duplicates, and sorts the results.
 //
@@ -94,32 +105,10 @@ const allCapabilities = "ALL"
 //
 // [caps.NormalizeLegacyCapabilities]: https://github.com/moby/moby/blob/v28.3.2/oci/caps/utils.go#L56
 func normalizeCapabilities(caps []string) []string {
-	var normalized []string
-
-	unique := make(map[string]struct{})
-	for _, c := range caps {
-		c = normalizeCap(c)
-		if _, ok := unique[c]; ok {
-			continue
-		}
-		unique[c] = struct{}{}
-		normalized = append(normalized, c)
+	normalized := slices.Clone(caps)
+	for i, c := range normalized {
+		normalized[i] = normalizeCap(c)
 	}
-
-	sort.Strings(normalized)
-	return normalized
-}
-
-// normalizeCap normalizes a capability to its canonical format by upper-casing
-// and adding a "CAP_" prefix (if not yet present). It also accepts the "ALL"
-// magic-value.
-func normalizeCap(capability string) string {
-	capability = strings.ToUpper(capability)
-	if capability == allCapabilities {
-		return capability
-	}
-	if !strings.HasPrefix(capability, "CAP_") {
-		capability = "CAP_" + capability
-	}
-	return capability
+	slices.Sort(normalized)
+	return slices.Compact(normalized)
 }
