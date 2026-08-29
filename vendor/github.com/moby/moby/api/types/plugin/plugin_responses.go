@@ -1,9 +1,5 @@
 package plugin
 
-import (
-	"sort"
-)
-
 // ListResponse contains the response for the Engine API
 type ListResponse []Plugin
 
@@ -15,19 +11,20 @@ type Privilege struct {
 	Value       []string
 }
 
-// Privileges is a list of Privilege
+// Privileges is a list of Privilege.
 type Privileges []Privilege
 
+// Len implements [sort.Interface].
 func (s Privileges) Len() int {
 	return len(s)
 }
 
+// Less implements [sort.Interface].
 func (s Privileges) Less(i, j int) bool {
 	return s[i].Name < s[j].Name
 }
 
+// Swap implements [sort.Interface].
 func (s Privileges) Swap(i, j int) {
-	sort.Strings(s[i].Value)
-	sort.Strings(s[j].Value)
 	s[i], s[j] = s[j], s[i]
 }
