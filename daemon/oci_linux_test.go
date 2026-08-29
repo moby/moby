@@ -15,6 +15,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	nwconfig "github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/network"
+	daemonoci "github.com/moby/moby/v2/daemon/pkg/oci"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
@@ -75,6 +76,94 @@ type fakeImageService struct {
 
 func (i *fakeImageService) StorageDriver() string {
 	return "overlay"
+}
+
+func TestWithCommonOptionsDockerInit(t *testing.T) {
+	initPath := filepath.Join(t.TempDir(), "docker-init")
+	err := os.WriteFile(initPath, []byte("#!/bin/sh\n"), 0o755)
+	assert.NilError(t, err)
+
+	initEnabled := true
+	initDisabled := false
+	workloadArgs := []string{"/usr/local/bin/workload", "--entrypoint-option", "cmd-arg-1", "cmd-arg-2"}
+	wrappedArgs := append([]string{inContainerInitPath, "--"}, workloadArgs...)
+
+	tests := []struct {
+		name          string
+		containerInit *bool
+		daemonInit    bool
+		pidMode       containertypes.PidMode
+		wantArgs      []string
+		wantInitMount bool
+	}{
+		{
+			name:          "container init enabled",
+			containerInit: &initEnabled,
+			wantArgs:      wrappedArgs,
+			wantInitMount: true,
+		},
+		{
+			name:          "daemon default init enabled",
+			daemonInit:    true,
+			wantArgs:      wrappedArgs,
+			wantInitMount: true,
+		},
+		{
+			name:          "container init explicitly disabled",
+			containerInit: &initDisabled,
+			daemonInit:    true,
+			wantArgs:      workloadArgs,
+		},
+		{
+			name:          "host PID namespace",
+			containerInit: &initEnabled,
+			pidMode:       containertypes.PidMode("host"),
+			wantArgs:      workloadArgs,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &container.Container{
+				BaseFS: t.TempDir(),
+				Path:   workloadArgs[0],
+				Args:   workloadArgs[1:],
+				Config: &containertypes.Config{
+					Entrypoint: workloadArgs[:2],
+					Cmd:        workloadArgs[2:],
+				},
+				HostConfig: &containertypes.HostConfig{
+					Init:    tc.containerInit,
+					PidMode: tc.pidMode,
+				},
+				NetworkSettings: &network.Settings{Networks: make(map[string]*network.EndpointSettings)},
+			}
+			d := &Daemon{linkIndex: newLinkIndex()}
+			daemonCfg := config.Config{Init: tc.daemonInit, InitPath: initPath}
+			s := daemonoci.DefaultSpec()
+
+			err := withCommonOptions(d, &daemonCfg, c)(t.Context(), nil, nil, &s)
+			assert.NilError(t, err)
+			assert.Check(t, is.DeepEqual(s.Process.Args, tc.wantArgs))
+
+			var initMounts []specs.Mount
+			for _, m := range s.Mounts {
+				if m.Destination == inContainerInitPath {
+					initMounts = append(initMounts, m)
+				}
+			}
+			if !tc.wantInitMount {
+				assert.Equal(t, len(initMounts), 0)
+				return
+			}
+			assert.Check(t, is.DeepEqual(initMounts, []specs.Mount{{
+				Destination: inContainerInitPath,
+				Type:        "bind",
+				Source:      initPath,
+				Options:     []string{"bind", "ro"},
+			}}))
+		})
+	}
 }
 
 func TestCreateSpecPreservesCDIAdditionalGIDs(t *testing.T) {
