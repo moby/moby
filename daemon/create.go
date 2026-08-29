@@ -18,10 +18,12 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/images"
+	"github.com/moby/moby/v2/daemon/internal/cgrouputil"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/multierror"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
+	"github.com/moby/moby/v2/daemon/internal/peercred"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
@@ -119,6 +121,23 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 
 	if opts.params.HostConfig == nil {
 		opts.params.HostConfig = &containertypes.HostConfig{}
+	}
+	// If the daemon is configured to enforce the client's cgroup, override
+	// HostConfig.CgroupParent with the cgroup of the calling process (via
+	// SO_PEERCRED). This is for shared HPC/Slurm environments.
+	if daemonCfg.CgroupParentFromClient {
+		if cred, ok := peercred.FromContext(ctx); ok && cred != nil {
+			if cgroupPath, err := cgrouputil.GetClientCgroup(cred.PID); err == nil && cgroupPath != "" && cgroupPath != "/" {
+				if opts.params.HostConfig.CgroupParent != cgroupPath {
+					log.G(ctx).WithFields(log.Fields{"clientPID": cred.PID, "clientCgroup": cgroupPath, "previous": opts.params.HostConfig.CgroupParent}).Debug("enforcing cgroup parent from client")
+					opts.params.HostConfig.CgroupParent = cgroupPath
+				}
+			} else if err != nil {
+				log.G(ctx).WithError(err).WithField("pid", cred.PID).Warn("failed to get client cgroup, using default cgroup parent")
+			}
+		} else {
+			log.G(ctx).Debug("cgroup-parent-from-client enabled but no peer credentials available")
+		}
 	}
 	err = daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig)
 	if err != nil {
