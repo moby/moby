@@ -58,7 +58,7 @@ func (cli *Client) PluginUpgrade(ctx context.Context, name string, options Plugi
 	return resp.Body, nil
 }
 
-func (cli *Client) tryPluginUpgrade(ctx context.Context, query url.Values, privileges plugin.Privileges, name, registryAuth string) (*http.Response, error) {
+func (cli *Client) tryPluginUpgrade(ctx context.Context, query url.Values, privileges []plugin.Privilege, name, registryAuth string) (*http.Response, error) {
 	headers := http.Header{registry.AuthHeader: {registryAuth}}
 	return cli.post(ctx, "/plugins/"+name+"/upgrade", query, headers, privileges)
 }
