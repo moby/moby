@@ -5,5 +5,5 @@ package metric
 
 // version is the current release version of the metric SDK in use.
 func version() string {
-	return "1.45.0"
+	return "1.46.0"
 }

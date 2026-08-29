@@ -14,6 +14,7 @@ var enabledCaps = map[string]struct{}{
 	"moby.buildkit.frontend.subrequests":    {},
 	"moby.buildkit.frontend.contexts":       {},
 	"moby.buildkit.frontend.gitquerystring": {},
+	"moby.buildkit.frontend.contexts.zstd":  {},
 }
 
 func validateCaps(req string) (forward bool, err error) {

@@ -13,7 +13,7 @@ import (
 // If there is no change, then the return value should be false and is not considered an error.
 func mutate(ctx context.Context, op *pb.SourceOp, rule *spb.Rule, selector *selectorCache, ref string) (bool, error) {
 	if rule.Updates == nil {
-		return false, errors.Errorf("missing destination for convert rule")
+		return false, errors.New("missing destination for convert rule")
 	}
 
 	dest := rule.Updates.Identifier

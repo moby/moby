@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Lists log events from the specified log stream. You can list all of the log
@@ -106,6 +105,8 @@ type GetLogEventsInput struct {
 	// 1, 1970 00:00:00 UTC . Events with a timestamp equal to this time or later than
 	// this time are included. Events with a timestamp earlier than this time are not
 	// included.
+	//
+	// Set startTime explicitly to reduce the chances of empty pages in the response.
 	StartTime *int64
 
 	// Specify true to display the log event fields with all sensitive data unmasked
@@ -149,9 +150,6 @@ func (c *Client) addOperationGetLogEventsMiddlewares(stack *middleware.Stack, op
 		return err
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
 	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
@@ -164,19 +162,10 @@ func (c *Client) addOperationGetLogEventsMiddlewares(stack *middleware.Stack, op
 	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpGetLogEventsValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "GetLogEvents"), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {

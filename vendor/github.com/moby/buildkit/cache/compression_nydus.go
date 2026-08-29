@@ -37,7 +37,7 @@ func MergeNydus(ctx context.Context, ref ImmutableRef, comp compression.Config, 
 	}
 	refs := iref.layerChain()
 	if len(refs) == 0 {
-		return nil, errors.Errorf("refs can't be empty")
+		return nil, errors.New("refs can't be empty")
 	}
 
 	// Extracts nydus bootstrap from nydus format for each layer.

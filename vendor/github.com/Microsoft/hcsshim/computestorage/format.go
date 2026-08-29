@@ -5,7 +5,7 @@ package computestorage
 import (
 	"context"
 
-	"github.com/Microsoft/hcsshim/internal/oc"
+	"github.com/Microsoft/hcsshim/internal/ot"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 )
@@ -20,9 +20,9 @@ import (
 // that can be obtained from the virtdisk APIs.
 func FormatWritableLayerVhd(ctx context.Context, vhdHandle windows.Handle) (err error) {
 	title := "hcsshim::FormatWritableLayerVhd"
-	ctx, span := oc.StartSpan(ctx, title) //nolint:ineffassign,staticcheck
+	ctx, span := ot.StartSpan(ctx, title) //nolint:ineffassign,staticcheck
 	defer span.End()
-	defer func() { oc.SetSpanStatus(span, err) }()
+	defer func() { ot.SetSpanStatus(span, err) }()
 
 	err = hcsFormatWritableLayerVhd(vhdHandle)
 	if err != nil {

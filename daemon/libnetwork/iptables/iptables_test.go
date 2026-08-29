@@ -211,26 +211,17 @@ func TestCleanup(t *testing.T) {
 }
 
 func TestExistsRaw(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
 	const testChain1 = "ABCD"
 	const testChain2 = "EFGH"
 
 	iptable := GetIptable(IPv4)
-
-	_, err := iptable.NewChain(testChain1, Filter)
-	if err != nil {
-		t.Fatal(err)
+	for _, chain := range []string{testChain1, testChain2} {
+		if err := iptable.RawCombinedOutputNative("-t", string(Filter), "-N", chain); err != nil {
+			t.Fatal(err)
+		}
 	}
-	defer func() {
-		iptable.RemoveExistingChain(testChain1, Filter)
-	}()
-
-	_, err = iptable.NewChain(testChain2, Filter)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		iptable.RemoveExistingChain(testChain2, Filter)
-	}()
 
 	// Test detection over full and truncated rule string
 	input := []struct{ rule []string }{
@@ -242,18 +233,18 @@ func TestExistsRaw(t *testing.T) {
 
 	for i, r := range input {
 		ruleAdd := append([]string{"-t", string(Filter), "-A", testChain1}, r.rule...)
-		err = iptable.RawCombinedOutput(ruleAdd...)
+		err := iptable.RawCombinedOutputNative(ruleAdd...)
 		if err != nil {
 			t.Fatalf("i=%d, err: %v", i, err)
 		}
-		if !iptable.exists(true, Filter, testChain1, r.rule...) {
+		if !iptable.ExistsNative(Filter, testChain1, r.rule...) {
 			t.Fatalf("Failed to detect rule. i=%d", i)
 		}
 		// Truncate the rule
 		trg := r.rule[len(r.rule)-1]
 		trg = trg[:len(trg)-2]
 		r.rule[len(r.rule)-1] = trg
-		if iptable.exists(true, Filter, testChain1, r.rule...) {
+		if iptable.ExistsNative(Filter, testChain1, r.rule...) {
 			t.Fatalf("Invalid detection. i=%d", i)
 		}
 	}
@@ -311,7 +302,6 @@ func mustDumpChain(t *testing.T, table Table, chain string) string {
 }
 
 func TestFlushChain(t *testing.T) {
-	_ = firewalldInit()
 	if UsingFirewalld() {
 		t.Skip("firewalld in host netns cannot create rules in the test's netns")
 	}

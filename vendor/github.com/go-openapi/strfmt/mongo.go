@@ -4,7 +4,6 @@
 package strfmt
 
 import (
-	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"time"
@@ -41,6 +40,8 @@ var (
 	_ bsonUnmarshaler = &Base64{}
 	_ bsonMarshaler   = Duration(0)
 	_ bsonUnmarshaler = (*Duration)(nil)
+	_ bsonMarshaler   = DurationISO8601(0)
+	_ bsonUnmarshaler = (*DurationISO8601)(nil)
 	_ bsonMarshaler   = DateTime{}
 	_ bsonUnmarshaler = &DateTime{}
 	_ bsonMarshaler   = ULID{}
@@ -92,6 +93,10 @@ var (
 	_ bsonValueUnmarshaler = &DateTime{}
 	_ bsonValueMarshaler   = ObjectId{}
 	_ bsonValueUnmarshaler = &ObjectId{}
+	_ bsonMarshaler        = Currency{}
+	_ bsonUnmarshaler      = (*Currency)(nil)
+	_ bsonMarshaler        = Country{}
+	_ bsonUnmarshaler      = (*Country)(nil)
 )
 
 const (
@@ -140,7 +145,7 @@ func (b *Base64) UnmarshalBSON(data []byte) error {
 		return fmt.Errorf("couldn't unmarshal bson bytes as base64: %w", ErrFormat)
 	}
 
-	vb, err := base64.StdEncoding.DecodeString(s)
+	vb, err := base64Encoding.DecodeString(s)
 	if err != nil {
 		return err
 	}
@@ -168,6 +173,38 @@ func (d *Duration) UnmarshalBSON(data []byte) error {
 		return err
 	}
 	*d = Duration(rd)
+	return nil
+}
+
+// MarshalBSON renders the [ISODuration] as a BSON document.
+//
+// BSON is a storage boundary (like SQL): the value is emitted losslessly with [ISODuration.String], regardless of the
+// policy P — a strict policy that could not serialize a sign or sub-second precision on the interchange path must still
+// be persistable.
+func (d ISODuration[P]) MarshalBSON() ([]byte, error) {
+	return bsonlite.C.MarshalDoc(d.String())
+}
+
+// UnmarshalBSON reads an [ISODuration] from a BSON document.
+//
+// The stored value is our own canonical output, so it is parsed leniently: BSON is trusted storage, not external
+// interchange, and must round-trip whatever [ISODuration.MarshalBSON] emitted even under a strict policy P.
+func (d *ISODuration[P]) UnmarshalBSON(data []byte) error {
+	v, err := bsonlite.C.UnmarshalDoc(data)
+	if err != nil {
+		return err
+	}
+
+	s, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("couldn't unmarshal bson bytes value as ISODuration: %w", ErrFormat)
+	}
+
+	rd, err := parseISO8601Duration(s, DurationLenient{}.isoDurationConfig())
+	if err != nil {
+		return err
+	}
+	*d = ISODuration[P](rd)
 	return nil
 }
 
@@ -597,5 +634,49 @@ func (id *ObjectId) UnmarshalBSONValue(_ byte, data []byte) error {
 	var oid [12]byte
 	copy(oid[:], data)
 	*id = ObjectId(oid)
+	return nil
+}
+
+// MarshalBSON document from this value.
+func (u Currency) MarshalBSON() ([]byte, error) {
+	return bsonlite.C.MarshalDoc(u.String())
+}
+
+// UnmarshalBSON document into this value.
+func (u *Currency) UnmarshalBSON(data []byte) error {
+	s, err := unmarshalBSONString(data, "Currency")
+	if err != nil {
+		return err
+	}
+
+	cur, err := ParseCurrency(s)
+	if err != nil {
+		return err
+	}
+
+	*u = cur
+
+	return nil
+}
+
+// MarshalBSON document from this value.
+func (u Country) MarshalBSON() ([]byte, error) {
+	return bsonlite.C.MarshalDoc(u.String())
+}
+
+// UnmarshalBSON document into this value.
+func (u *Country) UnmarshalBSON(data []byte) error {
+	s, err := unmarshalBSONString(data, "Country")
+	if err != nil {
+		return err
+	}
+
+	cur, err := ParseCountry(s)
+	if err != nil {
+		return err
+	}
+
+	*u = cur
+
 	return nil
 }

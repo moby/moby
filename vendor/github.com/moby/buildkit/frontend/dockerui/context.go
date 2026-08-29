@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"encoding/binary"
 	"io"
 	"maps"
 	"path/filepath"
@@ -90,6 +91,7 @@ func (bc *Client) initContext(ctx context.Context) (*buildContext, error) {
 	if opts[buildArgPrefix+"SOURCE_DATE_EPOCH"] != "" {
 		extraGitOpts = append(extraGitOpts, llb.GitMTimeCommit())
 	}
+	extraGitOpts = append(extraGitOpts, gitAdviceOpts(bc.GitAdvice)...)
 	if st, ok, err := DetectGitContext(opts[localNameContext], keepGit, extraGitOpts...); ok {
 		if err != nil {
 			return nil, err
@@ -325,6 +327,13 @@ func DetectGitContext(ref string, keepGit *bool, opts ...llb.GitOption) (*llb.St
 	return &st, true, nil
 }
 
+func gitAdviceOpts(enabled bool) []llb.GitOption {
+	if enabled {
+		return []llb.GitOption{llb.GitAdvice(true)}
+	}
+	return nil
+}
+
 func DetectHTTPContext(ref string) (*llb.State, string, bool) {
 	filename := "context"
 	if httpPrefix.MatchString(ref) {
@@ -339,15 +348,16 @@ func isArchive(header []byte) bool {
 		{0x42, 0x5A, 0x68},                   // bzip2
 		{0x1F, 0x8B, 0x08},                   // gzip
 		{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00}, // xz
+		{0x28, 0xB5, 0x2F, 0xFD},             // zstd
 	} {
-		if len(header) < len(m) {
-			continue
-		}
-		if bytes.Equal(m, header[:len(m)]) {
+		if bytes.HasPrefix(header, m) {
 			return true
 		}
 	}
-
+	// zstd skippable frames use magic numbers from 0x184D2A50 to 0x184D2A5F
+	if len(header) >= 8 && binary.LittleEndian.Uint32(header[:4])&0xFFFFFFF0 == 0x184D2A50 {
+		return true
+	}
 	r := tar.NewReader(bytes.NewBuffer(header))
 	_, err := r.Next()
 	return err == nil

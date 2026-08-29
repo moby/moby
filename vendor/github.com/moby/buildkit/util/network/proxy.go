@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/moby/buildkit/solver/pb"
@@ -32,6 +33,53 @@ type ProxyNamespace interface {
 	Namespace
 	ProxyEnv() []string
 	ProxyCACert() []byte
+}
+
+var proxyEnvNames = [...]struct {
+	name    string
+	noProxy bool
+}{
+	{name: "HTTP_PROXY"},
+	{name: "HTTPS_PROXY"},
+	{name: "ALL_PROXY"},
+	{name: "http_proxy"},
+	{name: "https_proxy"},
+	{name: "all_proxy"},
+	{name: "NO_PROXY", noProxy: true},
+	{name: "no_proxy", noProxy: true},
+}
+
+// ProxyEnv returns the environment entries used to configure a process to use
+// a BuildKit-owned HTTP(S) proxy.
+func ProxyEnv(proxy, noProxy string) []string {
+	out := make([]string, 0, len(proxyEnvNames))
+	for _, env := range proxyEnvNames {
+		value := proxy
+		if env.noProxy {
+			value = noProxy
+		}
+		out = append(out, env.name+"="+value)
+	}
+	return out
+}
+
+// FilterProxyEnv returns entries whose names are emitted by ProxyEnv, preserving
+// their original order.
+func FilterProxyEnv(env []string) []string {
+	out := make([]string, 0, len(proxyEnvNames))
+	for _, entry := range env {
+		name, _, ok := strings.Cut(entry, "=")
+		if !ok {
+			continue
+		}
+		for _, proxyEnv := range proxyEnvNames {
+			if name == proxyEnv.name {
+				out = append(out, entry)
+				break
+			}
+		}
+	}
+	return out
 }
 
 type ProxyMaterial struct {

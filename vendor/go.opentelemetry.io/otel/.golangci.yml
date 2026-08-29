@@ -143,8 +143,7 @@ linters:
         - name: constant-logical-expr
         - name: context-as-argument
           arguments:
-            - allow-types-before: '*testing.T'
-          disabled: true
+            - allow-types-before: '*testing.T,*testing.B'
         - name: context-keys-type
         - name: deep-exit
         - name: defer

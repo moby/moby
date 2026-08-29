@@ -3,12 +3,10 @@
 package embedded
 
 import (
-	"path/filepath"
+	"context"
 	"strings"
 	"testing"
-
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
+	"time"
 )
 
 // TestPluginGraphResolves guards the blank-import plugin set: it starts the
@@ -16,8 +14,13 @@ import (
 // the registry or its dependency graph cannot be satisfied. Runtime init
 // failures unrelated to registration (e.g. requiring root) are tolerated, so
 // the test is safe to run unprivileged.
+//
+// On successful startup, it also verifies that context cancellation shuts
+// down the server.
 func TestPluginGraphResolves(t *testing.T) {
-	ctx := t.Context()
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
 	d, err := Start(ctx, t.TempDir(), t.TempDir())
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "no plugins registered") {
@@ -25,18 +28,10 @@ func TestPluginGraphResolves(t *testing.T) {
 		}
 		t.Skipf("embedded containerd did not start in this environment: %v", err)
 	}
-	t.Cleanup(func() { _ = d.Shutdown(ctx) })
-}
 
-func TestBuildServerConfigUsesSupervisedLayout(t *testing.T) {
-	rootDir := filepath.Join(t.TempDir(), "root")
-	stateDir := filepath.Join(t.TempDir(), "state")
-	address := defaultAddress(stateDir)
-
-	cfg := buildServerConfig(rootDir, stateDir, address)
-
-	assert.Check(t, is.Equal(cfg.root, rootDir))
-	assert.Check(t, is.Equal(cfg.state, filepath.Join(stateDir, "daemon")))
-	assert.Check(t, is.Equal(cfg.grpcAddress, address))
-	assert.Check(t, is.Equal(cfg.ttrpcAddress, address+".ttrpc"))
+	// Shutdown the embedded containerd server, and wait for it to be stopped.
+	cancel()
+	if err := d.WaitTimeout(10 * time.Second); err != nil {
+		t.Fatalf("embedded containerd did not stop: %v", err)
+	}
 }

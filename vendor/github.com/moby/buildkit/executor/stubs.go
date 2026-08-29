@@ -2,15 +2,49 @@ package executor
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 
 	"github.com/containerd/continuity/fs"
 	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/sys/user"
+	"github.com/pkg/errors"
 )
+
+// CreateMountStubs creates the directories that the container runtime would have created
+// itself as mount points for dests. Destinations nested under another destination are
+// skipped: the runtime sets the parent mount up first and creates those inside it, so
+// they never become part of the rootfs.
+//
+// This is for mounts that were dropped from the spec before it reached the runtime, so
+// that the mount points left in the rootfs do not depend on whether the mount was
+// dropped.
+func CreateMountStubs(dir string, dests []string, uid, gid int) error {
+	for _, dest := range dests {
+		p := filepath.Join("/", dest)
+		if p == "/" {
+			continue
+		}
+		if slices.ContainsFunc(dests, func(other string) bool {
+			other = filepath.Join("/", other)
+			return other != p && strings.HasPrefix(p, other+"/")
+		}) {
+			continue
+		}
+		realPath, err := fs.RootPath(dir, p)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		// WithOnlyNew leaves a directory that the image already provides alone.
+		if err := user.MkdirAllAndChown(realPath, 0o755, uid, gid, user.WithOnlyNew); err != nil {
+			return errors.Wrapf(err, "failed to create mount stub %q", p)
+		}
+	}
+	return nil
+}
 
 func MountStubsCleaner(ctx context.Context, dir string, mounts []Mount, recursive bool) func() {
 	names := []string{"/etc/resolv.conf", "/etc/hosts"}

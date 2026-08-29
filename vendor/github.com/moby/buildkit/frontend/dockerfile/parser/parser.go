@@ -274,7 +274,7 @@ func (r *Result) PrintWarnings(out io.Writer) {
 		fmt.Fprintf(out, "[WARNING]: %s\n", w.Short)
 	}
 	if len(r.Warnings) > 0 {
-		fmt.Fprintf(out, "[WARNING]: Empty continuation lines will become errors in a future release.\n")
+		fmt.Fprint(out, "[WARNING]: Empty continuation lines will become errors in a future release.\n")
 	}
 }
 

@@ -7,14 +7,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"go.opencensus.io/trace"
-
 	"github.com/Microsoft/hcsshim/internal/interop"
 	"github.com/Microsoft/hcsshim/internal/log"
 	"github.com/Microsoft/hcsshim/internal/logfields"
-	"github.com/Microsoft/hcsshim/internal/oc"
+	"github.com/Microsoft/hcsshim/internal/ot"
 	"github.com/Microsoft/hcsshim/internal/timeout"
+	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 //go:generate go tool github.com/Microsoft/go-winio/tools/mkwinsyscall -output zsyscall_windows.go vmcompute.go
@@ -117,15 +116,15 @@ func execute(ctx gcontext.Context, timeout time.Duration, f func() error) error 
 }
 
 func HcsEnumerateComputeSystems(ctx gcontext.Context, query string) (computeSystems, result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsEnumerateComputeSystems")
+	ctx, span := ot.StartSpan(ctx, "HcsEnumerateComputeSystems")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
-		oc.SetSpanStatus(span, hr)
+		ot.SetSpanStatus(span, hr)
 	}()
-	span.AddAttributes(trace.StringAttribute("query", query))
+	span.SetAttributes(attribute.String("query", query))
 
 	return computeSystems, result, execute(ctx, timeout.SyscallWatcher, func() error {
 		var (
@@ -144,19 +143,19 @@ func HcsEnumerateComputeSystems(ctx gcontext.Context, query string) (computeSyst
 }
 
 func HcsCreateComputeSystem(ctx gcontext.Context, id string, configuration string, identity syscall.Handle) (computeSystem HcsSystem, result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsCreateComputeSystem")
+	ctx, span := ot.StartSpan(ctx, "HcsCreateComputeSystem")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
 		if hr != errVmcomputeOperationPending { //nolint:errorlint // explicitly returned
-			oc.SetSpanStatus(span, hr)
+			ot.SetSpanStatus(span, hr)
 		}
 	}()
-	span.AddAttributes(
-		trace.StringAttribute("id", id),
-		trace.StringAttribute("configuration", configuration))
+	span.SetAttributes(
+		attribute.String("id", id),
+		attribute.String("configuration", configuration))
 
 	return computeSystem, result, execute(ctx, timeout.SystemCreate, func() error {
 		var resultp *uint16
@@ -169,13 +168,13 @@ func HcsCreateComputeSystem(ctx gcontext.Context, id string, configuration strin
 }
 
 func HcsOpenComputeSystem(ctx gcontext.Context, id string) (computeSystem HcsSystem, result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsOpenComputeSystem")
+	ctx, span := ot.StartSpan(ctx, "HcsOpenComputeSystem")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
-		oc.SetSpanStatus(span, hr)
+		ot.SetSpanStatus(span, hr)
 	}()
 
 	return computeSystem, result, execute(ctx, timeout.SyscallWatcher, func() error {
@@ -189,9 +188,9 @@ func HcsOpenComputeSystem(ctx gcontext.Context, id string) (computeSystem HcsSys
 }
 
 func HcsCloseComputeSystem(ctx gcontext.Context, computeSystem HcsSystem) (hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsCloseComputeSystem")
+	ctx, span := ot.StartSpan(ctx, "HcsCloseComputeSystem")
 	defer span.End()
-	defer func() { oc.SetSpanStatus(span, hr) }()
+	defer func() { ot.SetSpanStatus(span, hr) }()
 
 	return execute(ctx, timeout.SyscallWatcher, func() error {
 		return hcsCloseComputeSystem(computeSystem)
@@ -199,17 +198,17 @@ func HcsCloseComputeSystem(ctx gcontext.Context, computeSystem HcsSystem) (hr er
 }
 
 func HcsStartComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, options string) (result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsStartComputeSystem")
+	ctx, span := ot.StartSpan(ctx, "HcsStartComputeSystem")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
 		if hr != errVmcomputeOperationPending { //nolint:errorlint // explicitly returned
-			oc.SetSpanStatus(span, hr)
+			ot.SetSpanStatus(span, hr)
 		}
 	}()
-	span.AddAttributes(trace.StringAttribute("options", options))
+	span.SetAttributes(attribute.String("options", options))
 
 	return result, execute(ctx, timeout.SystemStart, func() error {
 		var resultp *uint16
@@ -222,17 +221,17 @@ func HcsStartComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, option
 }
 
 func HcsShutdownComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, options string) (result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsShutdownComputeSystem")
+	ctx, span := ot.StartSpan(ctx, "HcsShutdownComputeSystem")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
 		if hr != errVmcomputeOperationPending { //nolint:errorlint // explicitly returned
-			oc.SetSpanStatus(span, hr)
+			ot.SetSpanStatus(span, hr)
 		}
 	}()
-	span.AddAttributes(trace.StringAttribute("options", options))
+	span.SetAttributes(attribute.String("options", options))
 
 	return result, execute(ctx, timeout.SyscallWatcher, func() error {
 		var resultp *uint16
@@ -245,17 +244,17 @@ func HcsShutdownComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, opt
 }
 
 func HcsTerminateComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, options string) (result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsTerminateComputeSystem")
+	ctx, span := ot.StartSpan(ctx, "HcsTerminateComputeSystem")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
 		if hr != errVmcomputeOperationPending { //nolint:errorlint // explicitly returned
-			oc.SetSpanStatus(span, hr)
+			ot.SetSpanStatus(span, hr)
 		}
 	}()
-	span.AddAttributes(trace.StringAttribute("options", options))
+	span.SetAttributes(attribute.String("options", options))
 
 	return result, execute(ctx, timeout.SyscallWatcher, func() error {
 		var resultp *uint16
@@ -268,17 +267,17 @@ func HcsTerminateComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, op
 }
 
 func HcsPauseComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, options string) (result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsPauseComputeSystem")
+	ctx, span := ot.StartSpan(ctx, "HcsPauseComputeSystem")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
 		if hr != errVmcomputeOperationPending { //nolint:errorlint // explicitly returned
-			oc.SetSpanStatus(span, hr)
+			ot.SetSpanStatus(span, hr)
 		}
 	}()
-	span.AddAttributes(trace.StringAttribute("options", options))
+	span.SetAttributes(attribute.String("options", options))
 
 	return result, execute(ctx, timeout.SystemPause, func() error {
 		var resultp *uint16
@@ -291,17 +290,17 @@ func HcsPauseComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, option
 }
 
 func HcsResumeComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, options string) (result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsResumeComputeSystem")
+	ctx, span := ot.StartSpan(ctx, "HcsResumeComputeSystem")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
 		if hr != errVmcomputeOperationPending { //nolint:errorlint // explicitly returned
-			oc.SetSpanStatus(span, hr)
+			ot.SetSpanStatus(span, hr)
 		}
 	}()
-	span.AddAttributes(trace.StringAttribute("options", options))
+	span.SetAttributes(attribute.String("options", options))
 
 	return result, execute(ctx, timeout.SystemResume, func() error {
 		var resultp *uint16
@@ -314,15 +313,15 @@ func HcsResumeComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, optio
 }
 
 func HcsGetComputeSystemProperties(ctx gcontext.Context, computeSystem HcsSystem, propertyQuery string) (properties, result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsGetComputeSystemProperties")
+	ctx, span := ot.StartSpan(ctx, "HcsGetComputeSystemProperties")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
-		oc.SetSpanStatus(span, hr)
+		ot.SetSpanStatus(span, hr)
 	}()
-	span.AddAttributes(trace.StringAttribute("propertyQuery", propertyQuery))
+	span.SetAttributes(attribute.String("propertyQuery", propertyQuery))
 
 	return properties, result, execute(ctx, timeout.SyscallWatcher, func() error {
 		var (
@@ -341,15 +340,15 @@ func HcsGetComputeSystemProperties(ctx gcontext.Context, computeSystem HcsSystem
 }
 
 func HcsModifyComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, configuration string) (result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsModifyComputeSystem")
+	ctx, span := ot.StartSpan(ctx, "HcsModifyComputeSystem")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
-		oc.SetSpanStatus(span, hr)
+		ot.SetSpanStatus(span, hr)
 	}()
-	span.AddAttributes(trace.StringAttribute("configuration", configuration))
+	span.SetAttributes(attribute.String("configuration", configuration))
 
 	return result, execute(ctx, timeout.SyscallWatcher, func() error {
 		var resultp *uint16
@@ -362,15 +361,15 @@ func HcsModifyComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, confi
 }
 
 func HcsModifyServiceSettings(ctx gcontext.Context, settings string) (result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsModifyServiceSettings")
+	ctx, span := ot.StartSpan(ctx, "HcsModifyServiceSettings")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
-		oc.SetSpanStatus(span, hr)
+		ot.SetSpanStatus(span, hr)
 	}()
-	span.AddAttributes(trace.StringAttribute("settings", settings))
+	span.SetAttributes(attribute.String("settings", settings))
 
 	return result, execute(ctx, timeout.SyscallWatcher, func() error {
 		var resultp *uint16
@@ -383,9 +382,9 @@ func HcsModifyServiceSettings(ctx gcontext.Context, settings string) (result str
 }
 
 func HcsRegisterComputeSystemCallback(ctx gcontext.Context, computeSystem HcsSystem, callback uintptr, context uintptr) (callbackHandle HcsCallback, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsRegisterComputeSystemCallback")
+	ctx, span := ot.StartSpan(ctx, "HcsRegisterComputeSystemCallback")
 	defer span.End()
-	defer func() { oc.SetSpanStatus(span, hr) }()
+	defer func() { ot.SetSpanStatus(span, hr) }()
 
 	return callbackHandle, execute(ctx, timeout.SyscallWatcher, func() error {
 		return hcsRegisterComputeSystemCallback(computeSystem, callback, context, &callbackHandle)
@@ -393,9 +392,9 @@ func HcsRegisterComputeSystemCallback(ctx gcontext.Context, computeSystem HcsSys
 }
 
 func HcsUnregisterComputeSystemCallback(ctx gcontext.Context, callbackHandle HcsCallback) (hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsUnregisterComputeSystemCallback")
+	ctx, span := ot.StartSpan(ctx, "HcsUnregisterComputeSystemCallback")
 	defer span.End()
-	defer func() { oc.SetSpanStatus(span, hr) }()
+	defer func() { ot.SetSpanStatus(span, hr) }()
 
 	return execute(ctx, timeout.SyscallWatcher, func() error {
 		return hcsUnregisterComputeSystemCallback(callbackHandle)
@@ -403,18 +402,18 @@ func HcsUnregisterComputeSystemCallback(ctx gcontext.Context, callbackHandle Hcs
 }
 
 func HcsCreateProcess(ctx gcontext.Context, computeSystem HcsSystem, processParameters string) (processInformation HcsProcessInformation, process HcsProcess, result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsCreateProcess")
+	ctx, span := ot.StartSpan(ctx, "HcsCreateProcess")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
-		oc.SetSpanStatus(span, hr)
+		ot.SetSpanStatus(span, hr)
 	}()
-	if span.IsRecordingEvents() {
+	if span.IsRecording() {
 		// wont handle v1 process parameters
 		if s, err := log.ScrubProcessParameters(processParameters); err == nil {
-			span.AddAttributes(trace.StringAttribute("processParameters", s))
+			span.SetAttributes(attribute.String("processParameters", s))
 		}
 	}
 
@@ -429,15 +428,15 @@ func HcsCreateProcess(ctx gcontext.Context, computeSystem HcsSystem, processPara
 }
 
 func HcsOpenProcess(ctx gcontext.Context, computeSystem HcsSystem, pid uint32) (process HcsProcess, result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsOpenProcess")
+	ctx, span := ot.StartSpan(ctx, "HcsOpenProcess")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
-		oc.SetSpanStatus(span, hr)
+		ot.SetSpanStatus(span, hr)
 	}()
-	span.AddAttributes(trace.Int64Attribute("pid", int64(pid)))
+	span.SetAttributes(attribute.Int64("pid", int64(pid)))
 
 	return process, result, execute(ctx, timeout.SyscallWatcher, func() error {
 		var resultp *uint16
@@ -450,9 +449,9 @@ func HcsOpenProcess(ctx gcontext.Context, computeSystem HcsSystem, pid uint32) (
 }
 
 func HcsCloseProcess(ctx gcontext.Context, process HcsProcess) (hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsCloseProcess")
+	ctx, span := ot.StartSpan(ctx, "HcsCloseProcess")
 	defer span.End()
-	defer func() { oc.SetSpanStatus(span, hr) }()
+	defer func() { ot.SetSpanStatus(span, hr) }()
 
 	return execute(ctx, timeout.SyscallWatcher, func() error {
 		return hcsCloseProcess(process)
@@ -460,13 +459,13 @@ func HcsCloseProcess(ctx gcontext.Context, process HcsProcess) (hr error) {
 }
 
 func HcsTerminateProcess(ctx gcontext.Context, process HcsProcess) (result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsTerminateProcess")
+	ctx, span := ot.StartSpan(ctx, "HcsTerminateProcess")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
-		oc.SetSpanStatus(span, hr)
+		ot.SetSpanStatus(span, hr)
 	}()
 
 	return result, execute(ctx, timeout.SyscallWatcher, func() error {
@@ -480,15 +479,15 @@ func HcsTerminateProcess(ctx gcontext.Context, process HcsProcess) (result strin
 }
 
 func HcsSignalProcess(ctx gcontext.Context, process HcsProcess, options string) (result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsSignalProcess")
+	ctx, span := ot.StartSpan(ctx, "HcsSignalProcess")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
-		oc.SetSpanStatus(span, hr)
+		ot.SetSpanStatus(span, hr)
 	}()
-	span.AddAttributes(trace.StringAttribute("options", options))
+	span.SetAttributes(attribute.String("options", options))
 
 	return result, execute(ctx, timeout.SyscallWatcher, func() error {
 		var resultp *uint16
@@ -501,13 +500,13 @@ func HcsSignalProcess(ctx gcontext.Context, process HcsProcess, options string) 
 }
 
 func HcsGetProcessInfo(ctx gcontext.Context, process HcsProcess) (processInformation HcsProcessInformation, result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsGetProcessInfo")
+	ctx, span := ot.StartSpan(ctx, "HcsGetProcessInfo")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
-		oc.SetSpanStatus(span, hr)
+		ot.SetSpanStatus(span, hr)
 	}()
 
 	return processInformation, result, execute(ctx, timeout.SyscallWatcher, func() error {
@@ -521,13 +520,13 @@ func HcsGetProcessInfo(ctx gcontext.Context, process HcsProcess) (processInforma
 }
 
 func HcsGetProcessProperties(ctx gcontext.Context, process HcsProcess) (processProperties, result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsGetProcessProperties")
+	ctx, span := ot.StartSpan(ctx, "HcsGetProcessProperties")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
-		oc.SetSpanStatus(span, hr)
+		ot.SetSpanStatus(span, hr)
 	}()
 
 	return processProperties, result, execute(ctx, timeout.SyscallWatcher, func() error {
@@ -547,15 +546,15 @@ func HcsGetProcessProperties(ctx gcontext.Context, process HcsProcess) (processP
 }
 
 func HcsModifyProcess(ctx gcontext.Context, process HcsProcess, settings string) (result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsModifyProcess")
+	ctx, span := ot.StartSpan(ctx, "HcsModifyProcess")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
-		oc.SetSpanStatus(span, hr)
+		ot.SetSpanStatus(span, hr)
 	}()
-	span.AddAttributes(trace.StringAttribute("settings", settings))
+	span.SetAttributes(attribute.String("settings", settings))
 
 	return result, execute(ctx, timeout.SyscallWatcher, func() error {
 		var resultp *uint16
@@ -568,15 +567,15 @@ func HcsModifyProcess(ctx gcontext.Context, process HcsProcess, settings string)
 }
 
 func HcsGetServiceProperties(ctx gcontext.Context, propertyQuery string) (properties, result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsGetServiceProperties")
+	ctx, span := ot.StartSpan(ctx, "HcsGetServiceProperties")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
-		oc.SetSpanStatus(span, hr)
+		ot.SetSpanStatus(span, hr)
 	}()
-	span.AddAttributes(trace.StringAttribute("propertyQuery", propertyQuery))
+	span.SetAttributes(attribute.String("propertyQuery", propertyQuery))
 
 	return properties, result, execute(ctx, timeout.SyscallWatcher, func() error {
 		var (
@@ -595,9 +594,9 @@ func HcsGetServiceProperties(ctx gcontext.Context, propertyQuery string) (proper
 }
 
 func HcsRegisterProcessCallback(ctx gcontext.Context, process HcsProcess, callback uintptr, context uintptr) (callbackHandle HcsCallback, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsRegisterProcessCallback")
+	ctx, span := ot.StartSpan(ctx, "HcsRegisterProcessCallback")
 	defer span.End()
-	defer func() { oc.SetSpanStatus(span, hr) }()
+	defer func() { ot.SetSpanStatus(span, hr) }()
 
 	return callbackHandle, execute(ctx, timeout.SyscallWatcher, func() error {
 		return hcsRegisterProcessCallback(process, callback, context, &callbackHandle)
@@ -605,9 +604,9 @@ func HcsRegisterProcessCallback(ctx gcontext.Context, process HcsProcess, callba
 }
 
 func HcsUnregisterProcessCallback(ctx gcontext.Context, callbackHandle HcsCallback) (hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsUnregisterProcessCallback")
+	ctx, span := ot.StartSpan(ctx, "HcsUnregisterProcessCallback")
 	defer span.End()
-	defer func() { oc.SetSpanStatus(span, hr) }()
+	defer func() { ot.SetSpanStatus(span, hr) }()
 
 	return execute(ctx, timeout.SyscallWatcher, func() error {
 		return hcsUnregisterProcessCallback(callbackHandle)
@@ -615,14 +614,14 @@ func HcsUnregisterProcessCallback(ctx gcontext.Context, callbackHandle HcsCallba
 }
 
 func HcsSaveComputeSystem(ctx gcontext.Context, computeSystem HcsSystem, options string) (result string, hr error) {
-	ctx, span := oc.StartSpan(ctx, "HcsSaveComputeSystem")
+	ctx, span := ot.StartSpan(ctx, "HcsSaveComputeSystem")
 	defer span.End()
 	defer func() {
 		if result != "" {
-			span.AddAttributes(trace.StringAttribute("result", result))
+			span.SetAttributes(attribute.String("result", result))
 		}
 		if hr != errVmcomputeOperationPending { //nolint:errorlint // explicitly returned
-			oc.SetSpanStatus(span, hr)
+			ot.SetSpanStatus(span, hr)
 		}
 	}()
 

@@ -23,9 +23,9 @@ func defaultDebugAddress(stateDir string) string {
 	return filepath.Join(stateDir, debugSockFile)
 }
 
-func (r *remote) stopDaemon() {
+func (r *Daemon) stopDaemon() {
 	// Ask the daemon to quit
-	syscall.Kill(r.daemonPid, syscall.SIGTERM)
+	_ = syscall.Kill(r.daemonPid, syscall.SIGTERM)
 	// Wait up to 15secs for it to stop
 	for i := time.Duration(0); i < shutdownTimeout; i += time.Second {
 		if !process.Alive(r.daemonPid) {
@@ -35,18 +35,18 @@ func (r *remote) stopDaemon() {
 	}
 
 	if process.Alive(r.daemonPid) {
-		r.logger.WithField("pid", r.daemonPid).Warn("daemon didn't stop within 15 secs, killing it")
-		syscall.Kill(r.daemonPid, syscall.SIGKILL)
+		r.logger.WithField("pid", r.daemonPid).Warn("containerd didn't stop within 15 secs, killing it")
+		_ = syscall.Kill(r.daemonPid, syscall.SIGKILL)
 	}
 }
 
-func (r *remote) killDaemon() {
+func (r *Daemon) killDaemon() {
 	// Try to get a stack trace
 	_ = syscall.Kill(r.daemonPid, syscall.SIGUSR1)
 	<-time.After(100 * time.Millisecond)
 	_ = process.Kill(r.daemonPid)
 }
 
-func (r *remote) platformCleanup() {
+func (r *Daemon) platformCleanup() {
 	_ = os.Remove(r.Address())
 }

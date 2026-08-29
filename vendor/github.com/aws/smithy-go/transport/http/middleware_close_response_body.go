@@ -20,6 +20,12 @@ func CloseResponseBody(ctx context.Context, resp *Response, isStreaming bool, op
 		return
 	}
 
+	// Drain to EOF before closing; a body closed while unread prevents
+	// connection reuse.
+	if _, copyErr := io.Copy(io.Discard, resp.Body); copyErr != nil {
+		middleware.GetLogger(ctx).Logf(logging.Warn, "failed to discard remaining HTTP response body, this may affect connection reuse")
+	}
+
 	if closeErr := resp.Body.Close(); closeErr != nil {
 		middleware.GetLogger(ctx).Logf(logging.Warn, "failed to close HTTP response body, this may affect connection reuse")
 	}

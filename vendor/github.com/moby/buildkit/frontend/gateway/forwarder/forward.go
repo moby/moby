@@ -70,7 +70,7 @@ func (c *BridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*cli
 	for _, atts := range res.Attestations {
 		for _, att := range atts {
 			if att.ContentFunc != nil {
-				return nil, errors.Errorf("attestation callback cannot be sent through gateway")
+				return nil, errors.New("attestation callback cannot be sent through gateway")
 			}
 		}
 	}
@@ -203,7 +203,7 @@ func (c *BridgeClient) toFrontendResult(r *client.Result) (*frontend.Result, err
 	for _, atts := range r.Attestations {
 		for _, att := range atts {
 			if att.ContentFunc != nil {
-				return nil, errors.Errorf("attestation callback cannot be sent through gateway")
+				return nil, errors.New("attestation callback cannot be sent through gateway")
 			}
 		}
 	}

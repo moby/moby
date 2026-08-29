@@ -36,7 +36,8 @@ type Conn struct {
 var (
 	connection *Conn
 
-	firewalldRunning bool // is Firewalld service running
+	firewalldRunning atomic.Bool // is firewalld service running
+	firewalldOnce    sync.Once
 	// Time of the last firewalld reload.
 	firewalldReloadedAt atomic.Value
 	// Mutex to serialise firewalld reload callbacks.
@@ -47,8 +48,8 @@ var (
 // UsingFirewalld returns true if iptables rules will be applied via firewalld's
 // passthrough interface.
 func UsingFirewalld() bool {
-	_ = initCheck()
-	return firewalldRunning
+	firewalldOnce.Do(initFirewalld)
+	return firewalldRunning.Load()
 }
 
 // FirewalldReloadedAt returns the time at which the daemon last completed a
@@ -77,8 +78,8 @@ func firewalldInit() error {
 	if connection, err = newConnection(); err != nil {
 		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
 	}
-	firewalldRunning = checkRunning()
-	if !firewalldRunning {
+	firewalldRunning.Store(checkRunning())
+	if !firewalldRunning.Load() {
 		connection.sysconn.Close()
 		connection = nil
 	}
@@ -133,7 +134,7 @@ func signalHandler() {
 	for signal := range connection.signal {
 		switch {
 		case strings.Contains(signal.Name, "NameOwnerChanged"):
-			firewalldRunning = checkRunning()
+			firewalldRunning.Store(checkRunning())
 			dbusConnectionChanged(signal.Body)
 
 		case strings.Contains(signal.Name, "Reloaded"):
@@ -312,7 +313,7 @@ func setupDockerForwardingPolicy() (bool, error) {
 // AddInterfaceFirewalld adds the interface to the trusted zone. It is a
 // no-op if firewalld is not running.
 func AddInterfaceFirewalld(intf string) error {
-	if !firewalldRunning {
+	if !UsingFirewalld() {
 		return nil
 	}
 
@@ -330,6 +331,11 @@ func AddInterfaceFirewalld(intf string) error {
 	log.G(context.TODO()).Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
 	// Runtime
 	if err := connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
+		var derr dbus.Error
+		if errors.As(err, &derr) && derr.Name == dbusInterface+".Exception" && strings.HasPrefix(err.Error(), "ZONE_ALREADY_SET:") {
+			log.G(context.TODO()).Infof("Firewalld: interface %s already part of %s zone, returning", intf, dockerZone)
+			return nil
+		}
 		return err
 	}
 	return nil
@@ -338,7 +344,7 @@ func AddInterfaceFirewalld(intf string) error {
 // DelInterfaceFirewalld removes the interface from the trusted zone It is a
 // no-op if firewalld is not running.
 func DelInterfaceFirewalld(intf string) error {
-	if !firewalldRunning {
+	if !UsingFirewalld() {
 		return nil
 	}
 

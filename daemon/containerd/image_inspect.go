@@ -3,7 +3,6 @@ package containerd
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
@@ -16,8 +15,6 @@ import (
 	"github.com/moby/moby/api/types/storage"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/internal/sliceutil"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"golang.org/x/sync/semaphore"
 )
 
 func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts imagebackend.ImageInspectOpts) (*imagebackend.InspectData, error) {
@@ -47,11 +44,6 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 	}
 
 	platform := i.matchRequestedOrDefault(platforms.OnlyStrict, requestedPlatform)
-	size, err := i.size(ctx, target, platform)
-	if err != nil {
-		return nil, err
-	}
-
 	multi, err := i.multiPlatformSummary(ctx, c8dImg, platform)
 	if err != nil {
 		return nil, err
@@ -78,6 +70,15 @@ func (i *ImageService) ImageInspect(ctx context.Context, refOrID string, opts im
 
 	if requestedPlatform != nil {
 		target = multi.Best.Target()
+	}
+
+	var size int64
+	if multi.Best != nil {
+		size = multi.BestManifest.Size.Total
+	} else {
+		// No image manifest matched the platform matcher - fall back to the
+		// summarized TotalSize, consistent with image list.
+		size = multi.TotalSize
 	}
 
 	var identity *imagetypes.Identity
@@ -183,32 +184,4 @@ func collectRepoTagsAndDigests(ctx context.Context, tagged []c8dimages.Image) (r
 		repoDigests = append(repoDigests, reference.FamiliarString(digested))
 	}
 	return sliceutil.Dedup(repoTags), sliceutil.Dedup(repoDigests)
-}
-
-// size returns the total size of the image's packed resources.
-func (i *ImageService) size(ctx context.Context, desc ocispec.Descriptor, platform platforms.MatchComparer) (int64, error) {
-	var size atomic.Int64
-
-	cs := i.content
-	handler := c8dimages.LimitManifests(c8dimages.ChildrenHandler(cs), platform, 1)
-
-	var wh c8dimages.HandlerFunc = func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-		children, err := handler(ctx, desc)
-		if err != nil {
-			if !cerrdefs.IsNotFound(err) {
-				return nil, err
-			}
-		}
-
-		size.Add(desc.Size)
-
-		return children, nil
-	}
-
-	l := semaphore.NewWeighted(3)
-	if err := c8dimages.Dispatch(ctx, wh, l, desc); err != nil {
-		return 0, err
-	}
-
-	return size.Load(), nil
 }

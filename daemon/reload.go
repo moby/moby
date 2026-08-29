@@ -43,7 +43,7 @@ func (tx *reloadTxn) OnCommit(cb func() error) {
 // OnRollback defers a function to be called when a config reload is aborted.
 // The error returned from cb is purely informational.
 func (tx *reloadTxn) OnRollback(cb func() error) {
-	tx.onCommit = append(tx.onRollback, cb)
+	tx.onRollback = append(tx.onRollback, cb)
 }
 
 func (tx *reloadTxn) run(cbs []func() error) error {

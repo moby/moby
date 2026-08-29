@@ -5,5 +5,5 @@ package otlpmetricgrpc
 
 // Version is the current release version of the OpenTelemetry OTLP over gRPC metrics exporter in use.
 func Version() string {
-	return "1.45.0"
+	return "1.46.0"
 }

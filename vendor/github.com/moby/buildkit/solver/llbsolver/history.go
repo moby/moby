@@ -16,6 +16,7 @@ import (
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/frontend/attestations"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/llbsolver/history"
 	"github.com/moby/buildkit/solver/llbsolver/provenance"
 	provenancetypes "github.com/moby/buildkit/solver/llbsolver/provenance/types"
 	"github.com/moby/buildkit/util/bklog"
@@ -25,6 +26,40 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+// recordBuildCompletionWithoutHistory reads an already-closed job's status
+// stream and emits the same build metrics as the history-recording path.
+func (s *Solver) recordBuildCompletionWithoutHistory(ctx context.Context, j *solver.Job, startedAt time.Time, buildErr error) {
+	ctx, cancel := context.WithTimeoutCause(ctx, 300*time.Second, errors.WithStack(context.DeadlineExceeded))
+	defer cancel()
+
+	ch := make(chan *client.SolveStatus)
+	statusErr := make(chan error, 1)
+	go func() {
+		statusErr <- j.Status(ctx, ch)
+	}()
+
+	rec := &controlapi.BuildHistoryRecord{
+		CreatedAt:   timestamppb.New(startedAt),
+		CompletedAt: timestamppb.Now(),
+	}
+	if buildErr != nil {
+		rec.Error = history.BuildErrorStatus(ctx, buildErr)
+	}
+
+	var summary history.StatusSummary
+	for st := range ch {
+		summary.Update(st)
+	}
+	if err := <-statusErr; err != nil {
+		bklog.G(ctx).Warnf("failed to read build status for metrics: %+v", err)
+	}
+	rec.NumCachedSteps = int32(summary.NumCachedSteps)
+	rec.NumCompletedSteps = int32(summary.NumCompletedSteps)
+	rec.NumTotalSteps = int32(summary.NumTotalSteps)
+	rec.NumWarnings = int32(summary.NumWarnings)
+	s.metrics.recordBuildCompletion(ctx, rec)
+}
 
 func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend.SolveRequest, exp ExporterRequest, j *solver.Job, usage *resources.SysSampler) (func(context.Context, *Result, []exporter.DescriptorReference, error) error, error) {
 	stopTrace, err := detect.Recorder.Record(ctx)

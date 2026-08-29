@@ -22,7 +22,7 @@ const (
 	externalBucket = "_external"
 )
 
-var errNotFound = errors.Errorf("not found")
+var errNotFound = errors.New("not found")
 
 type Store struct {
 	db db.DB

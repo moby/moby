@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.26.6
+ARG GO_VERSION=1.26.7
 ARG BASE_DEBIAN_DISTRO="bookworm"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
@@ -17,10 +17,10 @@ ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
 ARG DOCKERCLI_INTEGRATION_VERSION=v25.0.5
 
 # BUILDX_VERSION is the version of buildx to install in the dev container.
-ARG BUILDX_VERSION=0.36.0
+ARG BUILDX_VERSION=0.36.1
 
 # COMPOSE_VERSION is the version of compose to install in the dev container.
-ARG COMPOSE_VERSION=v5.4.0
+ARG COMPOSE_VERSION=v5.5.0
 
 ARG SYSTEMD="false"
 ARG FIREWALLD="false"
@@ -142,7 +142,7 @@ WORKDIR /usr/src/containerd
 # It is used to build containerd binaries, and used for the integration tests.
 # The distributed docker .deb and .rpm packages depend on a separate (containerd.io)
 # package, which may be a different version than specified here.
-ARG CONTAINERD_VERSION=v2.3.3
+ARG CONTAINERD_VERSION=v2.3.4
 ADD https://github.com/containerd/containerd.git?ref=${CONTAINERD_VERSION}&keep-git-dir=1 .
 
 FROM base AS containerd-build
@@ -248,7 +248,7 @@ WORKDIR /usr/src/runc
 # This version should usually match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged.
-ARG RUNC_VERSION=v1.4.3
+ARG RUNC_VERSION=v1.5.1
 ADD https://github.com/opencontainers/runc.git?ref=${RUNC_VERSION}&keep-git-dir=1 .
 
 FROM base AS runc-build
@@ -276,7 +276,7 @@ RUN --mount=from=runc-src,src=/usr/src/runc,rw \
   fi
 
   set -x
-  CGO_ENABLED=1 make "$target"
+  CGO_ENABLED=1 make RUNC_BUILDTAGS="-libpathrs" "$target"
   xx-verify $verify_flags runc
   mkdir /build
   mv runc /build/

@@ -8,12 +8,12 @@
 package log
 
 // A ring is an element of a circular list, or ring. Rings do not have a
-// beginning or end; a pointer to any ring element serves as reference to the
+// beginning or end; a pointer to any ring element serves as a reference to the
 // entire ring. Empty rings are represented as nil ring pointers. The zero
 // value for a ring is a one-element ring with a nil Value.
 //
-// This is copied from the "container/ring" package. It uses a Record type for
-// Value instead of any to avoid allocations.
+// This is copied from the "container/ring" package. It uses Record as the type
+// of Value instead of any to avoid allocations.
 type ring struct {
 	next, prev *ring
 	Value      Record
@@ -57,7 +57,7 @@ func newRing(n int) *ring {
 	return r
 }
 
-// Len computes the number of elements in ring r. It executes in time
+// Len computes the number of elements in the ring r. It executes in time
 // proportional to the number of elements.
 func (r *ring) Len() int {
 	n := 0
@@ -70,7 +70,7 @@ func (r *ring) Len() int {
 	return n
 }
 
-// Do calls function f on each element of the ring, in forward order. The
+// Do calls f on each element of the ring, in forward order. The
 // behavior of Do is undefined if f changes *r.
 func (r *ring) Do(f func(Record)) {
 	if r != nil {

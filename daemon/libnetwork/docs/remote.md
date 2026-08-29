@@ -232,6 +232,7 @@ The response must have the form
     {
 		"InterfaceName": {
 			SrcName: string,
+			DstName: string,
 			DstPrefix: string
 		},
 		"Gateway": string,
@@ -245,7 +246,7 @@ The response must have the form
 
 `Gateway` is optional and if supplied is an IP address as a string; e.g., `"192.168.0.1"`. `GatewayIPv6` is optional and if supplied is an IPv6 address as a string; e.g., `"fe80::7809:baff:fec6:7744"`.
 
-The entries in `InterfaceName` represent actual OS level interfaces that should be moved by LibNetwork into the sandbox; the `SrcName` is the name of the OS level interface that the remote process created, and the `DstPrefix` is a prefix for the name the OS level interface should have after it has been moved into the sandbox (LibNetwork will append an index to make sure the actual name does not collide with others).
+The entries in `InterfaceName` represent actual OS level interfaces that should be moved by LibNetwork into the sandbox; the `SrcName` is the name of the OS level interface that the remote process created. `DstName` is optional and specifies the exact name the interface should have after it has been moved into the sandbox. If `DstName` is empty, `DstPrefix` is used as a prefix for the interface name, and LibNetwork appends an index to make sure the actual name does not collide with others.
 
 The entries in `"StaticRoutes"` represent routes that should be added to an interface once it has been moved into the sandbox. Since there may be zero or more routes for an interface, unlike the interface name they can be supplied in any order.
 

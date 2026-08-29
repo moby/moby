@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.10.2
+
+Changed:
+
+  * Update `github.com/stretchr/testify` to v1.12.1, removing the legacy
+    `gopkg.in/yaml.v3` dependency.
+
+## 1.10.1
+
+Fixes:
+
+  * Fix a regression introduced in v1.10.0 where `TextFormatter` could panic
+    when formatting nil or panicking `error` and `fmt.Stringer` values.
+  * Allow function-backed implementations of `error` as field values.
+
 ## 1.10.0
 
 Fixes:

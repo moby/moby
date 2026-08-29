@@ -14,6 +14,10 @@
    limitations under the License.
 */
 
+// Package runc provides Go bindings for invoking and interacting with the
+// [runc] command-line interface.
+//
+// [runc]: https://github.com/opencontainers/runc
 package runc
 
 import (
@@ -59,10 +63,16 @@ const (
 var DefaultCommand = "runc"
 
 // Runc is the client to the runc cli
+//
+// Fields here apply to every invocation. For per-invocation settings see the
+// Opts types and WithExtraEnv.
 type Runc struct {
 	// Command overrides the name of the runc binary. If empty, DefaultCommand
 	// is used.
-	Command   string
+	Command string
+	// WorkDir sets the working directory of the runc process. If empty, the
+	// working directory of the calling process is used.
+	WorkDir   string
 	Root      string
 	Debug     bool
 	Log       string
@@ -126,18 +136,28 @@ type ConsoleSocket interface {
 	Path() string
 }
 
+// PidfdSocket handles the path of the socket which receives the pidfd of the
+// process runc creates.
+type PidfdSocket interface {
+	Path() string
+}
+
 // CreateOpts holds all the options information for calling runc with supported options
 type CreateOpts struct {
 	IO
 	// PidFile is a path to where a pid file should be created
 	PidFile       string
 	ConsoleSocket ConsoleSocket
-	Detach        bool
-	NoPivot       bool
-	NoNewKeyring  bool
-	ExtraFiles    []*os.File
-	Started       chan<- int
-	ExtraArgs     []string
+	// PidfdSocket receives a pidfd referencing the container's init process,
+	// which lets the caller signal or wait on it without racing against pid
+	// reuse. Requires runc v1.2.0 or newer.
+	PidfdSocket  PidfdSocket
+	Detach       bool
+	NoPivot      bool
+	NoNewKeyring bool
+	ExtraFiles   []*os.File
+	Started      chan<- int
+	ExtraArgs    []string
 }
 
 func (o *CreateOpts) args() (out []string, err error) {
@@ -150,6 +170,9 @@ func (o *CreateOpts) args() (out []string, err error) {
 	}
 	if o.ConsoleSocket != nil {
 		out = append(out, "--console-socket", o.ConsoleSocket.Path())
+	}
+	if o.PidfdSocket != nil {
+		out = append(out, "--pidfd-socket", o.PidfdSocket.Path())
 	}
 	if o.NoPivot {
 		out = append(out, "--no-pivot")
@@ -228,16 +251,24 @@ func (r *Runc) Start(context context.Context, id string) error {
 // ExecOpts holds optional settings when starting an exec process with runc
 type ExecOpts struct {
 	IO
+	LogFile       string
 	PidFile       string
 	ConsoleSocket ConsoleSocket
-	Detach        bool
-	Started       chan<- int
-	ExtraArgs     []string
+	// PidfdSocket receives a pidfd referencing the exec'd process, which lets
+	// the caller signal or wait on it without racing against pid reuse.
+	// Requires runc v1.2.0 or newer.
+	PidfdSocket PidfdSocket
+	Detach      bool
+	Started     chan<- int
+	ExtraArgs   []string
 }
 
 func (o *ExecOpts) args() (out []string, err error) {
 	if o.ConsoleSocket != nil {
 		out = append(out, "--console-socket", o.ConsoleSocket.Path())
+	}
+	if o.PidfdSocket != nil {
+		out = append(out, "--pidfd-socket", o.PidfdSocket.Path())
 	}
 	if o.Detach {
 		out = append(out, "--detach")
@@ -280,7 +311,7 @@ func (r *Runc) Exec(context context.Context, id string, spec specs.Process, opts
 		return err
 	}
 	args = append(args, oargs...)
-	cmd := r.command(context, append(args, id)...)
+	cmd := r.commandWithCustomLogFile(context, opts.LogFile, append(args, id)...)
 	if opts.IO != nil {
 		opts.Set(cmd)
 	}
@@ -703,7 +734,9 @@ func (r *Runc) Update(context context.Context, id string, resources *specs.Linux
 	return r.runOrError(cmd)
 }
 
-// ErrParseRuncVersion is used when the runc version can't be parsed
+// ErrParseRuncVersion is kept for backward compatibility with older versions.
+//
+// Deprecated: ErrParseRuncVersion is never emitted, and should not be used.
 var ErrParseRuncVersion = errors.New("unable to parse runc version")
 
 // Version represents the runc version information
@@ -720,16 +753,16 @@ func (r *Runc) Version(context context.Context) (Version, error) {
 	if err != nil {
 		return Version{}, err
 	}
-	return parseVersion(data.Bytes())
+	return parseVersion(data.Bytes()), nil
 }
 
-func parseVersion(data []byte) (Version, error) {
+func parseVersion(data []byte) Version {
 	var v Version
 	parts := strings.Split(strings.TrimSpace(string(data)), "\n")
 
 	if len(parts) > 0 {
 		if !strings.HasPrefix(parts[0], "runc version ") {
-			return v, nil
+			return v
 		}
 		v.Runc = parts[0][13:]
 
@@ -742,7 +775,7 @@ func parseVersion(data []byte) (Version, error) {
 		}
 	}
 
-	return v, nil
+	return v
 }
 
 // Features shows the features implemented by the runtime.
@@ -750,7 +783,7 @@ func parseVersion(data []byte) (Version, error) {
 // Availability:
 //
 //   - runc:  supported since runc v1.1.0
-//   - crun:  https://github.com/containers/crun/issues/1177
+//   - crun:  supported since crun v1.8.6
 //   - youki: https://github.com/containers/youki/issues/815
 func (r *Runc) Features(context context.Context) (*features.Features, error) {
 	data, err := r.cmdOutput(r.command(context, "features"), false, nil)
@@ -765,7 +798,7 @@ func (r *Runc) Features(context context.Context) (*features.Features, error) {
 	return &feat, nil
 }
 
-func (r *Runc) args() (out []string) {
+func (r *Runc) args(logFile string) (out []string) {
 	if r.Root != "" {
 		out = append(out, "--root", r.Root)
 	}
@@ -773,7 +806,12 @@ func (r *Runc) args() (out []string) {
 		out = append(out, "--debug")
 	}
 	if r.Log != "" {
-		out = append(out, "--log", r.Log)
+		if logFile == "" {
+			out = append(out, "--log", r.Log)
+		}
+	}
+	if logFile != "" {
+		out = append(out, "--log", logFile)
 	}
 	if r.LogFormat != none {
 		out = append(out, "--log-format", string(r.LogFormat))

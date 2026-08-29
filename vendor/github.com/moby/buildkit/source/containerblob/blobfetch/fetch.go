@@ -57,7 +57,7 @@ func FetchBlob(ctx context.Context, g session.Group, opt FetchOpt) (io.ReadClose
 	switch opt.Scheme {
 	case srctypes.OCIBlobScheme:
 		if opt.StoreID == "" {
-			return nil, "", errors.Errorf("oci-layout blob source requires store id")
+			return nil, "", errors.New("oci-layout blob source requires store id")
 		}
 		rc, err := fetchFromOCILayoutStore(ctx, g, opt)
 		if err != nil {

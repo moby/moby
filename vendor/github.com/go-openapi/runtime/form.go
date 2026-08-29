@@ -71,11 +71,16 @@ type FileBinder func(file multipart.File, header *multipart.FileHeader) error
 // behaviour) be added without breaking the signature.
 type BindOption func(*bindConfig)
 
-type bindConfig struct {
-	maxParseMemory int64
+type multipartFormLimits struct {
 	maxBody        int64
 	maxFiles       int
 	maxFilenameLen int
+}
+
+type bindConfig struct {
+	multipartFormLimits
+
+	maxParseMemory int64
 	files          []formFileSpec
 }
 
@@ -198,7 +203,9 @@ func BindFormFile(name string, required bool, bind FileBinder) BindOption {
 //     it directly as a filesystem path.
 func BindForm(r *http.Request, opts ...BindOption) (fatal bool, err error) {
 	cfg := bindConfig{
-		maxFilenameLen: DefaultMaxUploadFilenameLength,
+		multipartFormLimits: multipartFormLimits{
+			maxFilenameLen: DefaultMaxUploadFilenameLength,
+		},
 	}
 	for _, opt := range opts {
 		opt(&cfg)

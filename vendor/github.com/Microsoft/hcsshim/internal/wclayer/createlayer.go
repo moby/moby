@@ -6,20 +6,20 @@ import (
 	"context"
 
 	"github.com/Microsoft/hcsshim/internal/hcserror"
-	"github.com/Microsoft/hcsshim/internal/oc"
-	"go.opencensus.io/trace"
+	"github.com/Microsoft/hcsshim/internal/ot"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // CreateLayer creates a new, empty, read-only layer on the filesystem based on
 // the parent layer provided.
 func CreateLayer(ctx context.Context, path, parent string) (err error) {
 	title := "hcsshim::CreateLayer"
-	ctx, span := oc.StartSpan(ctx, title) //nolint:ineffassign,staticcheck
+	ctx, span := ot.StartSpan(ctx, title) //nolint:ineffassign,staticcheck
 	defer span.End()
-	defer func() { oc.SetSpanStatus(span, err) }()
-	span.AddAttributes(
-		trace.StringAttribute("path", path),
-		trace.StringAttribute("parent", parent))
+	defer func() { ot.SetSpanStatus(span, err) }()
+	span.SetAttributes(
+		attribute.String("path", path),
+		attribute.String("parent", parent))
 
 	err = createLayer(&stdDriverInfo, path, parent)
 	if err != nil {

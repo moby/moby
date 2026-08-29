@@ -2,8 +2,10 @@ package command
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -116,15 +118,21 @@ func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) e
 		return cli.initEmbeddedContainerd(ctx)
 	}
 	if cli.Config.ContainerdAddr != "" {
-		return nil, nil
+		// use system containerd at the given address.
+		return nopWaitFunc, nil
 	}
 
 	if cli.Config.DefaultRuntime == "" || cli.Config.DefaultRuntime == config.WindowsV1RuntimeName {
 		// Legacy non-containerd runtime is used
-		return nil, nil
+		return nopWaitFunc, nil
 	}
 
-	return cli.initializeContainerd(ctx)
+	waitTimeout, err := cli.initializeContainerd(ctx)
+	if errors.Is(err, exec.ErrNotFound) {
+		log.G(ctx).WithError(err).Info("containerd binary not found, starting embedded containerd")
+		return cli.initEmbeddedContainerd(ctx)
+	}
+	return waitTimeout, err
 }
 
 func validateCPURealtimeOptions(_ *config.Config) error {

@@ -6,9 +6,22 @@ package spec
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/go-openapi/swag/loading"
 )
 
 const smallPrealloc = 10
+
+// DefaultMaxExpansionNodes is the default upper bound on the number of schema nodes
+// expanded during a single ExpandSpec / ExpandSchema* call.
+//
+// It guards against maliciously crafted specifications whose $ref graph expands to an
+// exponential number of nodes from a few kilobytes of input. For reference, expanding the
+// full Kubernetes API specification (the largest real-world spec we test against) visits
+// roughly 47,000 nodes, so this default leaves ample headroom for legitimate documents.
+//
+// See ExpandOptions.MaxExpansionNodes to tune or disable this budget.
+const DefaultMaxExpansionNodes = 500_000
 
 // ExpandOptions provides options for the spec expander.
 //
@@ -17,13 +30,59 @@ const smallPrealloc = 10
 // If left empty, the root document is assumed to be located in the current working directory:
 // all relative $ref's will be resolved from there.
 //
-// PathLoader injects a document loading method. By default, this resolves to the function provided by the SpecLoader package variable.
+// PathLoader injects a document loading method. By default, this resolves to the function provided by the PathLoader package variable.
+//
+// PathLoaderWithOptions is an alternative document loader that accepts [loading.Option] values, matching the
+// signature used by the go-openapi/swag/loading and go-openapi/loads loaders. When set, it takes precedence over
+// PathLoader. This lets a caller inject an options-aware (e.g. path-confined) loader without an adapter closure.
+//
+// Security: the default loader is not sandboxed. When expanding an untrusted specification, inject a confined
+// loader (for example one built with loading.WithRoot) — see the package "Security" section.
 type ExpandOptions struct {
 	RelativeBase        string                                // the path to the root document to expand. This is a file, not a directory
 	SkipSchemas         bool                                  // do not expand schemas, just paths, parameters and responses
 	ContinueOnError     bool                                  // continue expanding even after and error is found
 	PathLoader          func(string) (json.RawMessage, error) `json:"-"` // the document loading method that takes a path as input and yields a json document
 	AbsoluteCircularRef bool                                  // circular $ref remaining after expansion remain absolute URLs
+
+	// PathLoaderWithOptions injects a document loading method that accepts loading options.
+	//
+	// It has the same role as PathLoader but matches the option-aware loader signature exposed by
+	// github.com/go-openapi/swag/loading (and github.com/go-openapi/loads), so such a loader can be
+	// injected directly, without wrapping it in an adapter closure.
+	//
+	// When set, PathLoaderWithOptions takes precedence over PathLoader. The provided loader is expected
+	// to carry its own loading options (for example a path confinement built with loading.WithRoot);
+	// the expander itself invokes it without adding options.
+	PathLoaderWithOptions func(string, ...loading.Option) (json.RawMessage, error) `json:"-"`
+
+	// MaxExpansionNodes caps the number of schema nodes expanded during a single expansion call,
+	// as a safeguard against $ref amplification attacks (see ErrExpandTooManyNodes).
+	//
+	// The value is interpreted as follows:
+	//
+	//   0  (the zero value): use DefaultMaxExpansionNodes. Every caller is protected by default.
+	//   <0: no limit (unbounded expansion). Use only with fully trusted specifications.
+	//   >0: cap the expansion at this number of nodes.
+	//
+	// When the budget is exceeded, expansion stops and ErrExpandTooManyNodes is returned.
+	// Because this is a resource-exhaustion safeguard, the error is always returned, even when
+	// ContinueOnError is set.
+	MaxExpansionNodes int
+}
+
+// maxExpansionNodes resolves the tri-state MaxExpansionNodes option into an effective budget.
+//
+// A returned value of 0 means "unbounded".
+func (o *ExpandOptions) maxExpansionNodes() int {
+	switch {
+	case o.MaxExpansionNodes == 0:
+		return DefaultMaxExpansionNodes
+	case o.MaxExpansionNodes < 0:
+		return 0 // unbounded
+	default:
+		return o.MaxExpansionNodes
+	}
 }
 
 func optionsOrDefault(opts *ExpandOptions) *ExpandOptions {
@@ -39,6 +98,10 @@ func optionsOrDefault(opts *ExpandOptions) *ExpandOptions {
 }
 
 // ExpandSpec expands the references in a swagger spec.
+//
+// Security: with default options the document loader is not sandboxed, so a "$ref" in an
+// untrusted spec can read local files or reach internal addresses. See the package "Security"
+// section before expanding untrusted input.
 func ExpandSpec(spec *Swagger, options *ExpandOptions) error {
 	options = optionsOrDefault(options)
 	resolver := defaultSchemaLoader(spec, options, nil, nil)
@@ -121,25 +184,50 @@ func baseForRoot(root any, cache ResolutionCache) string {
 // (use ExpandSchemaWithBasePath to resolve external references).
 //
 // Setting the cache is optional and this parameter may safely be left to nil.
+//
+// ExpandSchema uses the package default document loader, which is not sandboxed. To expand a
+// schema whose $ref may derive from untrusted input, use [ExpandSchemaWithOptions] with a confined
+// loader — see the package "Security" section.
 func ExpandSchema(schema *Schema, root any, cache ResolutionCache) error {
+	return ExpandSchemaWithOptions(schema, root, cache, nil)
+}
+
+// ExpandSchemaWithOptions expands the refs in the schema object with reference to the root object,
+// honoring the provided expand options. It is the option-aware form of [ExpandSchema].
+//
+// In particular, set opts.PathLoaderWithOptions (or opts.PathLoader) to inject a confined document
+// loader when expanding a schema whose $ref may derive from an untrusted source (see the package
+// "Security" section). opts.ContinueOnError, opts.AbsoluteCircularRef and opts.MaxExpansionNodes
+// are honored as well.
+//
+// The base path is always derived from root (as with [ExpandSchema]), so opts.RelativeBase and
+// opts.SkipSchemas are ignored. Passing nil opts is equivalent to [ExpandSchema].
+//
+// Setting the cache is optional and this parameter may safely be left to nil.
+func ExpandSchemaWithOptions(schema *Schema, root any, cache ResolutionCache, opts *ExpandOptions) error {
 	cache = cacheOrDefault(cache)
 	if root == nil {
 		root = schema
 	}
 
-	opts := &ExpandOptions{
-		// when a root is specified, cache the root as an in-memory document for $ref retrieval
-		RelativeBase:    baseForRoot(root, cache),
-		SkipSchemas:     false,
-		ContinueOnError: false,
+	effective := ExpandOptions{}
+	if opts != nil {
+		effective = *opts // preserve caller options (loader, ContinueOnError, budget, ...)
 	}
+	// when a root is specified, cache the root as an in-memory document for $ref retrieval
+	effective.RelativeBase = baseForRoot(root, cache)
+	effective.SkipSchemas = false
 
-	return ExpandSchemaWithBasePath(schema, cache, opts)
+	return ExpandSchemaWithBasePath(schema, cache, &effective)
 }
 
 // ExpandSchemaWithBasePath expands the refs in the schema object, base path configured through expand options.
 //
 // Setting the cache is optional and this parameter may safely be left to nil.
+//
+// Security: with default options the document loader is not sandboxed, so a "$ref" in an
+// untrusted schema can read local files or reach internal addresses. See the package "Security"
+// section before expanding untrusted input.
 func ExpandSchemaWithBasePath(schema *Schema, cache ResolutionCache, opts *ExpandOptions) error {
 	if schema == nil {
 		return nil
@@ -192,6 +280,10 @@ func expandItems(target Schema, parentRefs []string, resolver *schemaLoader, bas
 
 //nolint:gocognit,gocyclo,cyclop // complex but well-tested $ref expansion logic; refactoring deferred to dedicated PR
 func expandSchema(target Schema, parentRefs []string, resolver *schemaLoader, basePath string) (*Schema, error) {
+	if err := resolver.context.countNode(); err != nil {
+		return &target, err
+	}
+
 	if target.Ref.String() == "" && target.Ref.IsRoot() {
 		newRef := normalizeRef(&target.Ref, basePath)
 		target.Ref = *newRef
@@ -454,25 +546,28 @@ func expandOperation(op *Operation, resolver *schemaLoader, basePath string) err
 //
 // Setting the cache is optional and this parameter may safely be left to nil.
 func ExpandResponseWithRoot(response *Response, root any, cache ResolutionCache) error {
-	cache = cacheOrDefault(cache)
-	opts := &ExpandOptions{
-		RelativeBase: baseForRoot(root, cache),
-	}
-	resolver := defaultSchemaLoader(root, opts, cache, nil)
-
-	return expandParameterOrResponse(response, resolver, opts.RelativeBase)
+	return ExpandResponseWithOptions(response, root, cache, nil)
 }
 
 // ExpandResponse expands a response based on a basepath
 //
 // All refs inside response will be resolved relative to basePath.
 func ExpandResponse(response *Response, basePath string) error {
-	opts := optionsOrDefault(&ExpandOptions{
-		RelativeBase: basePath,
-	})
-	resolver := defaultSchemaLoader(nil, opts, nil, nil)
+	return ExpandResponseWithOptions(response, nil, nil, &ExpandOptions{RelativeBase: basePath})
+}
 
-	return expandParameterOrResponse(response, resolver, opts.RelativeBase)
+// ExpandResponseWithOptions expands a response, honoring the provided expand options.
+//
+// It is the option-aware form of [ExpandResponse] and [ExpandResponseWithRoot]. When root is
+// non-nil, refs resolve against the in-memory root document; otherwise they resolve relative to
+// opts.RelativeBase.
+//
+// Set opts.PathLoaderWithOptions (or opts.PathLoader) to inject a confined document loader when
+// the response's $ref may derive from an untrusted source — see the package "Security" section.
+//
+// Setting the cache is optional and this parameter may safely be left to nil.
+func ExpandResponseWithOptions(response *Response, root any, cache ResolutionCache, opts *ExpandOptions) error {
+	return expandRefableWithOptions(response, root, cache, opts)
 }
 
 // ExpandParameterWithRoot expands a parameter based on a root document, not a fetchable document.
@@ -480,26 +575,43 @@ func ExpandResponse(response *Response, basePath string) error {
 // Notice that it is impossible to reference a json schema in a different document other than root
 // (use ExpandParameter to resolve external references).
 func ExpandParameterWithRoot(parameter *Parameter, root any, cache ResolutionCache) error {
-	cache = cacheOrDefault(cache)
-
-	opts := &ExpandOptions{
-		RelativeBase: baseForRoot(root, cache),
-	}
-	resolver := defaultSchemaLoader(root, opts, cache, nil)
-
-	return expandParameterOrResponse(parameter, resolver, opts.RelativeBase)
+	return ExpandParameterWithOptions(parameter, root, cache, nil)
 }
 
 // ExpandParameter expands a parameter based on a basepath.
 // This is the exported version of expandParameter
 // all refs inside parameter will be resolved relative to basePath.
 func ExpandParameter(parameter *Parameter, basePath string) error {
-	opts := optionsOrDefault(&ExpandOptions{
-		RelativeBase: basePath,
-	})
-	resolver := defaultSchemaLoader(nil, opts, nil, nil)
+	return ExpandParameterWithOptions(parameter, nil, nil, &ExpandOptions{RelativeBase: basePath})
+}
 
-	return expandParameterOrResponse(parameter, resolver, opts.RelativeBase)
+// ExpandParameterWithOptions expands a parameter, honoring the provided expand options.
+//
+// It is the option-aware form of [ExpandParameter] and [ExpandParameterWithRoot]. When root is
+// non-nil, refs resolve against the in-memory root document; otherwise they resolve relative to
+// opts.RelativeBase.
+//
+// Set opts.PathLoaderWithOptions (or opts.PathLoader) to inject a confined document loader when
+// the parameter's $ref may derive from an untrusted source — see the package "Security" section.
+//
+// Setting the cache is optional and this parameter may safely be left to nil.
+func ExpandParameterWithOptions(parameter *Parameter, root any, cache ResolutionCache, opts *ExpandOptions) error {
+	return expandRefableWithOptions(parameter, root, cache, opts)
+}
+
+// expandRefableWithOptions is the shared implementation for the option-aware parameter/response
+// expanders. When root is non-nil, refs resolve against the in-memory root (base derived from
+// root); otherwise they resolve relative to opts.RelativeBase. opts carries the loader and other
+// expand options.
+func expandRefableWithOptions(input any, root any, cache ResolutionCache, opts *ExpandOptions) error {
+	cache = cacheOrDefault(cache)
+	effective := optionsOrDefault(opts) // clones and normalizes RelativeBase; preserves the loader
+	if root != nil {
+		effective.RelativeBase = baseForRoot(root, cache)
+	}
+	resolver := defaultSchemaLoader(root, effective, cache, nil)
+
+	return expandParameterOrResponse(input, resolver, effective.RelativeBase)
 }
 
 func getRefAndSchema(input any) (*Ref, *Schema, error) {

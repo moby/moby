@@ -2,6 +2,7 @@ package events
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -105,55 +106,46 @@ func (b *Broadcaster) Close() error {
 // Close is called, this goroutine will exit.
 func (b *Broadcaster) run() {
 	defer close(b.closed)
-	remove := func(target Sink) {
-		for i, sink := range b.sinks {
-			if sink == target {
-				b.sinks = append(b.sinks[:i], b.sinks[i+1:]...)
-				break
-			}
-		}
-	}
 
 	for {
 		select {
 		case event := <-b.events:
-			for _, sink := range b.sinks {
+			for i := 0; i < len(b.sinks); {
+				sink := b.sinks[i]
 				if err := sink.Write(event); err != nil {
 					if err == ErrSinkClosed {
-						// remove closed sinks
-						remove(sink)
+						b.sinks = slices.Delete(b.sinks, i, i+1)
 						continue
 					}
-					logrus.WithField("event", event).WithField("events.sink", sink).WithError(err).
-						Errorf("broadcaster: dropping event")
+					logrus.WithFields(logrus.Fields{
+						"error":       err,
+						"event":       event,
+						"events.sink": sink,
+					}).Error("broadcaster: dropping event")
 				}
+				i++
 			}
 		case request := <-b.adds:
 			// while we have to iterate for add/remove, common iteration for
 			// send is faster against slice.
-
-			var found bool
-			for _, sink := range b.sinks {
-				if request.sink == sink {
-					found = true
-					break
-				}
-			}
-
-			if !found {
+			// b.sinks[request.sink] = struct{}{}
+			if !slices.Contains(b.sinks, request.sink) {
 				b.sinks = append(b.sinks, request.sink)
 			}
-			// b.sinks[request.sink] = struct{}{}
 			request.response <- nil
 		case request := <-b.removes:
-			remove(request.sink)
+			if i := slices.Index(b.sinks, request.sink); i >= 0 {
+				b.sinks = slices.Delete(b.sinks, i, i+1)
+			}
 			request.response <- nil
 		case <-b.shutdown:
 			// close all the underlying sinks
 			for _, sink := range b.sinks {
 				if err := sink.Close(); err != nil && err != ErrSinkClosed {
-					logrus.WithField("events.sink", sink).WithError(err).
-						Errorf("broadcaster: closing sink failed")
+					logrus.WithFields(logrus.Fields{
+						"error":       err,
+						"events.sink": sink,
+					}).Error("broadcaster: closing sink failed")
 				}
 			}
 			return
@@ -164,8 +156,7 @@ func (b *Broadcaster) run() {
 func (b *Broadcaster) String() string {
 	// Serialize copy of this broadcaster without the sync.Once, to avoid
 	// a data race.
-
-	b2 := map[string]interface{}{
+	return fmt.Sprint(map[string]any{
 		"sinks":   b.sinks,
 		"events":  b.events,
 		"adds":    b.adds,
@@ -173,7 +164,5 @@ func (b *Broadcaster) String() string {
 
 		"shutdown": b.shutdown,
 		"closed":   b.closed,
-	}
-
-	return fmt.Sprint(b2)
+	})
 }

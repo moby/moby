@@ -278,14 +278,7 @@ func (n *proxyNS) Sample() (*resourcestypes.NetworkSample, error) {
 func (n *proxyNS) ProxyEnv() []string {
 	proxy := "http://" + n.ln.Addr().String()
 	noProxy := "127.0.0.1,localhost,::1"
-	return []string{
-		"HTTP_PROXY=" + proxy,
-		"HTTPS_PROXY=" + proxy,
-		"http_proxy=" + proxy,
-		"https_proxy=" + proxy,
-		"NO_PROXY=" + noProxy,
-		"no_proxy=" + noProxy,
-	}
+	return network.ProxyEnv(proxy, noProxy)
 }
 
 func (n *proxyNS) ProxyCACert() []byte {
@@ -381,6 +374,10 @@ func (n *proxyNS) startProxy(ctx context.Context, proxy *network.ProxyConfig) er
 	if proxy == nil {
 		return errors.New("proxy network config is required")
 	}
+	hasHTTPSProxy, err := upstreamProxyEnvironment()
+	if err != nil {
+		return err
+	}
 	ln, err := listenInNetNS(ctx, n.proxyNSPath, "tcp4", net.JoinHostPort(n.hostIP.String(), "0"))
 	if err != nil {
 		return errors.WithStack(err)
@@ -402,12 +399,17 @@ func (n *proxyNS) startProxy(ctx context.Context, proxy *network.ProxyConfig) er
 	n.egressNS = egressNS
 	transport := n.provider.transport.Clone()
 	transport.DialContext = dialer.DialContext
+	transport.Proxy = http.ProxyFromEnvironment
+	var roundTripper http.RoundTripper = transport
+	if hasHTTPSProxy {
+		roundTripper = configureTransportForUpstream(transport)
+	}
 	n.transport = transport
 	handler := &proxyHandler{
 		provider:  n.provider,
 		policy:    proxy.Policy,
 		capture:   proxy.Capture,
-		transport: transport,
+		transport: roundTripper,
 	}
 	n.server = &http.Server{
 		Handler:           handler,
@@ -503,7 +505,7 @@ type proxyHandler struct {
 	provider  *provider
 	policy    network.ProxyPolicy
 	capture   *network.ProxyCapture
-	transport *http.Transport
+	transport http.RoundTripper
 }
 
 func (h *proxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

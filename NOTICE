@@ -6,6 +6,11 @@ This product includes software developed at Docker, Inc. (https://www.docker.com
 This product contains software (https://github.com/creack/pty) developed
 by Keith Rarick, licensed under the MIT License.
 
+This product contains software derived from RackSec/srslog
+(https://github.com/RackSec/srslog), developed by Rackspace and derived
+from the Go standard library's log/syslog package, licensed under the
+BSD 3-Clause License.
+
 The following is courtesy of our legal counsel:
 
 

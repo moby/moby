@@ -407,22 +407,38 @@ func (*config) handleRPC(
 				// Don't use gctx.metricAttrSet here, because it requires passing
 				// multiple RecordOptions, which would call metric.mergeSets and
 				// allocate a new set for each Record call.
-				metricAttrs = make([]attribute.KeyValue, 0, len(gctx.metricAttrs)+1)
+				metricAttrs = make([]attribute.KeyValue, 0, len(gctx.metricAttrs)+2)
 				metricAttrs = append(metricAttrs, gctx.metricAttrs...)
 			}
 			metricAttrs = append(metricAttrs, rpcStatusAttr)
-			// Allocate vararg slice once.
-			recordOpts := []metric.RecordOption{metric.WithAttributeSet(attribute.NewSet(metricAttrs...))}
+
+			// error.type is Conditionally Required on the stable rpc.*.call.duration
+			// metrics when the RPC failed, and SHOULD be set to the returned status
+			// code. The failure classification is role-specific: clients treat every
+			// non-OK status as an error, while servers only classify Unknown,
+			// DeadlineExceeded, Unimplemented, Internal, Unavailable and DataLoss
+			// as errors. Use recordStatus so the client and server rules are applied
+			// independently (e.g. a client cancellation is not a server error).
+			// The legacy v1.37 rpc.*.duration conventions did not define error.type,
+			// so the compatibility instruments keep the unmodified attribute set.
+			// Build each record option only in its enabled branch: single-mode
+			// configurations (rpc, rpc/old) must not allocate the other set, and
+			// error.type is only appended after the legacy instruments recorded.
 
 			// Use floating point division here for higher precision (instead of Millisecond method).
 			// Measure right before calling Record() to capture as much elapsed time as possible.
 			elapsedTime := float64(rs.EndTime.Sub(rs.BeginTime)) / float64(time.Second)
 
-			if durationEnabled {
-				duration.Record(ctx, elapsedTime, recordOpts...)
-			}
 			if oldDurationEnabled {
-				oldDuration.Record(ctx, elapsedTime*1000.0, recordOpts...)
+				oldDuration.Record(ctx, elapsedTime*1000.0, metric.WithAttributeSet(attribute.NewSet(metricAttrs...)))
+			}
+			if durationEnabled {
+				if s != nil {
+					if c, _ := recordStatus(s); c == codes.Error {
+						metricAttrs = append(metricAttrs, semconv.ErrorTypeKey.String(canonicalString(s.Code())))
+					}
+				}
+				duration.Record(ctx, elapsedTime, metric.WithAttributeSet(attribute.NewSet(metricAttrs...)))
 			}
 		}
 

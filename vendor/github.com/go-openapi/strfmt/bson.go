@@ -10,11 +10,6 @@ import (
 	"fmt"
 )
 
-func init() { //nolint:gochecknoinits // registers bsonobjectid format in the default registry
-	var id ObjectId
-	Default.Add("bsonobjectid", &id, IsBSONObjectID)
-}
-
 // IsBSONObjectID returns true when the string is a valid BSON [ObjectId].
 func IsBSONObjectID(str string) bool {
 	_, err := objectIDFromHex(str)

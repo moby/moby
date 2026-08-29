@@ -16,10 +16,10 @@ import (
 
 // Truncate returns a truncated version of attr. Only string, string slice,
 // byte slice, slice, and map attribute values are truncated. String values are
-// truncated to at most a length of limit. Each string slice value is truncated
-// in this fashion (the slice length itself is unaffected), and byte slice
-// values are truncated to at most limit bytes. For slice and map attribute
-// values, the limit is applied recursively to contained values.
+// truncated according to limit. Each string slice value is truncated in this
+// fashion (the slice length itself is unaffected), and byte slice values are
+// truncated to at most limit bytes. For slice and map attribute values, the
+// limit is applied recursively to contained values.
 //
 // No truncation is performed for a negative limit.
 func Truncate(limit int, attr attribute.KeyValue) attribute.KeyValue {
@@ -155,22 +155,20 @@ func needsTruncation(limit int, v attribute.Value) bool {
 	return false
 }
 
-// truncate returns a truncated version of s such that it contains less than
-// the limit number of characters. Truncation is applied by returning the limit
-// number of valid characters contained in s.
+// truncate returns a version of s truncated according to limit.
 //
 // If limit is negative, it returns the original string.
 //
-// UTF-8 is supported. When truncating, all invalid characters are dropped
+// UTF-8 is supported. When truncating, all invalid UTF-8 bytes are dropped
 // before applying truncation.
 //
-// If s already contains less than the limit number of bytes, it is returned
-// unchanged. No invalid characters are removed.
+// If s already contains at most limit bytes, it is returned unchanged. No
+// invalid characters are removed.
 func truncate(limit int, s string) string {
-	// This prioritize performance in the following order based on the most
-	// common expected use-cases.
+	// This prioritizes performance in the following order based on the most
+	// common expected use cases.
 	//
-	//  - Short values less than the default limit (128).
+	//  - Values shorter than the default limit (128).
 	//  - Strings with valid encodings that exceed the limit.
 	//  - No limit.
 	//  - Strings with invalid encodings that exceed the limit.

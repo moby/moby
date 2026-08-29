@@ -37,7 +37,7 @@ func TestInspect(t *testing.T) {
 	assert.NilError(t, err)
 
 	id := resp.ID
-	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, id, instances))
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, id, instances), swarm.ServicePoll)
 
 	result, err := apiClient.ServiceInspect(ctx, id, client.ServiceInspectOptions{})
 	assert.NilError(t, err)

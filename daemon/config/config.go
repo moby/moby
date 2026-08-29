@@ -61,7 +61,7 @@ const (
 	// MaxAPIVersion is the highest REST API version supported by the daemon.
 	//
 	// This version may be lower than the version of the api library module used.
-	MaxAPIVersion = "1.55"
+	MaxAPIVersion = "1.56"
 	// defaultMinAPIVersion is the minimum API version supported by the API.
 	// This version can be overridden through the "DOCKER_MIN_API_VERSION"
 	// environment variable. The minimum allowed version is determined
@@ -92,6 +92,7 @@ var flatOptions = map[string]bool{
 	"features":             true,
 	"builder":              true,
 	"nri-opts":             true,
+	"extension-config":     true,
 }
 
 // skipValidateOptions contains configuration keys
@@ -102,7 +103,8 @@ var skipValidateOptions = map[string]bool{
 	"builder":  true,
 
 	// Only available in daemon.json, no flags
-	"min-api-version": true,
+	"min-api-version":  true,
+	"extension-config": true,
 
 	// Deprecated options that are safe to ignore if present.
 	"deprecated-key-path":              true,
@@ -212,7 +214,12 @@ type CommonConfig struct {
 	Pidfile               string   `json:"pidfile,omitempty"`
 	Root                  string   `json:"data-root,omitempty"`
 	ExecRoot              string   `json:"exec-root,omitempty"`
-	SocketGroup           string   `json:"group,omitempty"`
+	ExtensionDirs         []string `json:"extension-dirs,omitempty"`
+	// ExtensionConfig holds per-extension configuration keyed by extension ID.
+	// The entry reaches in-process Init directly or a launched binary through the
+	// startup handshake.
+	ExtensionConfig ExtensionConfigs `json:"extension-config,omitempty"`
+	SocketGroup     string           `json:"group,omitempty"`
 
 	// Proxies holds the proxies that are configured for the daemon.
 	Proxies `json:"proxies"`
@@ -868,13 +875,15 @@ func migrateHostGatewayIP(config *Config) {
 	}
 }
 
-// Sanitize sanitizes the config for printing. It is currently limited to
-// masking usernames and passwords from Proxy URLs.
+// Sanitize sanitizes the config for printing.
+// It masks usernames and passwords from Proxy URLs.
+// It omits extension configuration.
 func Sanitize(cfg Config) Config {
 	cfg.CommonConfig.Proxies = Proxies{
 		HTTPProxy:  MaskCredentials(cfg.HTTPProxy),
 		HTTPSProxy: MaskCredentials(cfg.HTTPSProxy),
 		NoProxy:    MaskCredentials(cfg.NoProxy),
 	}
+	cfg.CommonConfig.ExtensionConfig = nil
 	return cfg
 }

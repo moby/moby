@@ -106,7 +106,7 @@ func PrintOutline(dt []byte, w io.Writer) error {
 
 	if len(o.Args) > 0 {
 		tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
-		fmt.Fprintf(tw, "BUILD ARG\tVALUE\tDESCRIPTION\n")
+		fmt.Fprint(tw, "BUILD ARG\tVALUE\tDESCRIPTION\n")
 		for _, a := range o.Args {
 			fmt.Fprintf(tw, "%s\t%s\t%s\n", a.Name, a.Value, a.Description)
 		}
@@ -116,7 +116,7 @@ func PrintOutline(dt []byte, w io.Writer) error {
 
 	if len(o.Secrets) > 0 {
 		tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
-		fmt.Fprintf(tw, "SECRET\tREQUIRED\n")
+		fmt.Fprint(tw, "SECRET\tREQUIRED\n")
 		for _, s := range o.Secrets {
 			b := ""
 			if s.Required {
@@ -130,7 +130,7 @@ func PrintOutline(dt []byte, w io.Writer) error {
 
 	if len(o.SSH) > 0 {
 		tw := tabwriter.NewWriter(w, 0, 0, 3, ' ', 0)
-		fmt.Fprintf(tw, "SSH\tREQUIRED\n")
+		fmt.Fprint(tw, "SSH\tREQUIRED\n")
 		for _, s := range o.SSH {
 			b := ""
 			if s.Required {

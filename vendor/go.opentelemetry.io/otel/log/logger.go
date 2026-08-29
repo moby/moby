@@ -15,7 +15,7 @@ import (
 //
 // Warning: Methods may be added to this interface in minor releases. See
 // package documentation on API implementation for information on how to set
-// default behavior for unimplemented methods.
+// the default behavior for unimplemented methods.
 type Logger interface {
 	// Users of the interface can ignore this. This embedded type is only used
 	// by implementations of this interface. See the "API Implementations"
@@ -25,7 +25,7 @@ type Logger interface {
 	// Emit emits a log record.
 	//
 	// The record may be held by the implementation. Callers should not mutate
-	// the record after passed.
+	// the record after it is passed.
 	//
 	// Implementations of this method need to be safe for a user to call
 	// concurrently.
@@ -34,22 +34,28 @@ type Logger interface {
 	// Enabled reports whether the Logger emits for the given context and
 	// param.
 	//
-	// This is useful for users that want to know if a [Record]
-	// will be processed or dropped before they perform complex operations to
-	// construct the [Record]. Callers should invoke Enabled before each call
-	// to [Logger.Emit] because the enabled state may change over time.
+	// Calling Enabled is optional. It is not required before calling
+	// [Logger.Emit].
 	//
-	// The passed param is likely to be a partial record information being
-	// provided (e.g a param with only the Severity set).
+	// Enabled is useful when constructing a [Record] is expensive. A caller can
+	// call Enabled first and skip record construction when it returns false.
+	// When constructing the Record is inexpensive, a caller can emit it
+	// directly.
+	//
+	// The returned value is not static and may change over time. A cached value
+	// can become stale.
+	//
+	// The passed param is likely to contain only partial information about a
+	// record (e.g., a param with only the Severity set).
 	// If a Logger needs more information than is provided, it
 	// is said to be in an indeterminate state (see below).
 	//
-	// The returned value will be true when the Logger will emit for the
-	// provided context and param, and will be false if the Logger will not
-	// emit. The returned value may be true or false in an indeterminate state.
+	// The returned value is true if the Logger emits for the provided context
+	// and param, and false if the Logger does not emit. The returned value may be
+	// true or false in an indeterminate state.
 	// An implementation should default to returning true for an indeterminate
-	// state, but may return false if valid reasons in particular circumstances
-	// exist (e.g. performance, correctness).
+	// state, but may return false if there are valid reasons to do so in
+	// particular circumstances (e.g., performance or correctness).
 	//
 	// The param should not be held by the implementation. A copy should be
 	// made if the param needs to be held after the call returns.
@@ -61,7 +67,7 @@ type Logger interface {
 
 // LoggerOption applies configuration options to a [Logger].
 type LoggerOption interface {
-	// applyLogger is used to set a LoggerOption value of a LoggerConfig.
+	// applyLogger applies a LoggerOption to a LoggerConfig.
 	applyLogger(LoggerConfig) LoggerConfig
 }
 
@@ -123,8 +129,8 @@ func WithInstrumentationVersion(version string) LoggerOption {
 	})
 }
 
-// mergeSets returns the union of keys between a and b. Any duplicate keys will
-// use the value associated with b.
+// mergeSets returns the union of the keys in a and b. For duplicate keys, the
+// value associated with b is used.
 func mergeSets(a, b attribute.Set) attribute.Set {
 	// NewMergeIterator uses the first value for any duplicates.
 	iter := attribute.NewMergeIterator(&b, &a)
@@ -144,18 +150,20 @@ func mergeSets(a, b attribute.Set) attribute.Set {
 //
 // If multiple [WithInstrumentationAttributes] or [WithInstrumentationAttributeSet]
 // options are passed, the attributes will be merged together in the order
-// they are passed. Attributes with duplicate keys will use the last value passed.
+// they are passed. For attributes with duplicate keys, the last value passed
+// will be used.
 func WithInstrumentationAttributes(attr ...attribute.KeyValue) LoggerOption {
 	set := attribute.NewSet(slices.Clone(attr)...)
 	return WithInstrumentationAttributeSet(set)
 }
 
-// WithInstrumentationAttributeSet returns a [LoggerOption] that adds the
-// instrumentation attributes of a [Logger].
+// WithInstrumentationAttributeSet returns a [LoggerOption] that adds
+// instrumentation attributes to a [Logger].
 //
 // If multiple [WithInstrumentationAttributes] or [WithInstrumentationAttributeSet]
 // options are passed, the attributes will be merged together in the order
-// they are passed. Attributes with duplicate keys will use the last value passed.
+// they are passed. For attributes with duplicate keys, the last value passed
+// will be used.
 func WithInstrumentationAttributeSet(set attribute.Set) LoggerOption {
 	if set.Len() == 0 {
 		return loggerOptionFunc(func(config LoggerConfig) LoggerConfig {
@@ -182,7 +190,7 @@ func WithSchemaURL(schemaURL string) LoggerOption {
 	})
 }
 
-// EnabledParameters represents payload for [Logger]'s Enabled method.
+// EnabledParameters represents the payload for [Logger.Enabled].
 type EnabledParameters struct {
 	Severity  Severity
 	EventName string

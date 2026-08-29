@@ -53,7 +53,7 @@ func (c *Controller) List(filterStrings ...string) ([]Worker, error) {
 // GetDefault returns the default local worker
 func (c *Controller) GetDefault() (Worker, error) {
 	if len(c.workers) == 0 {
-		return nil, errors.Errorf("no default worker")
+		return nil, errors.New("no default worker")
 	}
 	return c.workers[0], nil
 }

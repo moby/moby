@@ -62,7 +62,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/bridge/opencensus"
 	"go.opentelemetry.io/otel/propagation"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 )
@@ -203,15 +202,22 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	waitForContainerDShutdown, err := cli.initContainerd(ctx)
-	if waitForContainerDShutdown != nil {
-		defer waitForContainerDShutdown(10 * time.Second)
-	}
+	waitShutdown, err := cli.initContainerd(ctx)
 	if err != nil {
 		cancel()
 		return err
 	}
-	defer cancel()
+
+	// The normal shutdown path calls this before tracing is torn down. Defer it
+	// as a fallback for startup failures after containerd has started; OnceFunc
+	// prevents the deferred call from repeating the wait.
+	shutdownContainerd := sync.OnceFunc(func() {
+		cancel()
+		if err := waitShutdown(10 * time.Second); err != nil {
+			log.G(ctx).WithError(err).Warn("failed to wait for containerd to stop")
+		}
+	})
+	defer shutdownContainerd()
 
 	httpServer := &http.Server{
 		ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
@@ -269,11 +275,6 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	tp, otelShutdown := otelutil.NewTracerProvider(ctx, true)
 	otel.SetTracerProvider(tp)
 	log.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
-	// The github.com/microsoft/hcsshim module is instrumented with
-	// OpenCensus, but we use OpenTelemetry for tracing in the daemon.
-	// Bridge OpenCensus to OpenTelemetry so OC trace spans are exported to
-	// the daemon's configured OTEL collector.
-	opencensus.InstallTraceBridge()
 
 	pluginStore := plugin.NewStore()
 
@@ -352,8 +353,13 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	})
 	gs := newGRPCServer(ctx)
 	b.backend.RegisterGRPC(gs)
+	// Publish extension gRPC services on the API socket.
+	extProxy, err := d.ExposeExtensionServices(gs)
+	if err != nil {
+		return err
+	}
 	httpServer.Protocols = &p
-	httpServer.Handler = newHTTPHandler(ctx, gs, apiServer.CreateMux(ctx, routers...))
+	httpServer.Handler = newHTTPHandler(ctx, gs, extProxy, apiServer.CreateMux(ctx, routers...))
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 
@@ -411,17 +417,20 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	// shutdown / close BuildKit backend
 	shutdownBuildKit()
 
-	// Stop notification processing and any background processes
-	cancel()
+	// Stop notification processing and background processes, then wait for
+	// containerd to stop.
+	shutdownContainerd()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := otelShutdown(shutdownCtx); err != nil {
+		log.G(ctx).WithError(err).Error("failed to shutdown OTEL tracing")
+	}
 
 	if err, ok := <-errAPI; ok {
 		return errors.Wrap(err, "shutting down due to ServeAPI error")
 	}
-
-	if err := otelShutdown(context.WithoutCancel(ctx)); err != nil {
-		log.G(ctx).WithError(err).Error("Failed to shutdown OTEL tracing")
-	}
-
 	return nil
 }
 
@@ -878,7 +887,7 @@ func initMiddlewares(_ context.Context, s *apiserver.Server, cfg *config.Config,
 	return authzMiddleware, nil
 }
 
-func getContainerdDaemonOpts(cfg *config.Config) ([]supervisor.DaemonOpt, error) {
+func supervisorOpts(cfg *config.Config) []supervisor.DaemonOpt {
 	var opts []supervisor.DaemonOpt
 	if cfg.Debug {
 		opts = append(opts, supervisor.WithLogLevel("debug"))
@@ -910,7 +919,7 @@ func getContainerdDaemonOpts(cfg *config.Config) ([]supervisor.DaemonOpt, error)
 		opts = append(opts, supervisor.WithDetectLocalBinary())
 	}
 
-	return opts, nil
+	return opts
 }
 
 func newAPIServerTLSConfig(cfg *config.Config) (*tls.Config, error) {
@@ -1147,29 +1156,33 @@ func overrideProxyEnv(ctx context.Context, name, val string) {
 	_ = os.Setenv(name, val)
 }
 
+// nopWaitFunc is used when containerd is managed externally.
+func nopWaitFunc(time.Duration) error {
+	return nil
+}
+
 func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Duration) error, error) {
 	systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not determine whether the system containerd is running")
 	}
 	if ok {
-		// detected a system containerd at the given address.
+		// Use the externally managed system containerd detected at this address.
 		cli.Config.ContainerdAddr = systemContainerdAddr
-		return nil, nil
+		return nopWaitFunc, nil
 	}
 
 	log.G(ctx).Info("containerd not running, starting managed containerd")
-	opts, err := getContainerdDaemonOpts(cli.Config)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate containerd options")
-	}
-
 	rootDir, err := containerdRootDir(ctx, cli.Config)
 	if err != nil {
 		return nil, err
 	}
-	r, err := supervisor.Start(ctx, rootDir, filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
+	opts := supervisorOpts(cli.Config)
+	r, err := supervisor.New(rootDir, filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
 	if err != nil {
+		return nil, err
+	}
+	if err := r.Start(ctx); err != nil {
 		return nil, errors.Wrap(err, "failed to start containerd")
 	}
 	cli.Config.ContainerdAddr = r.Address()

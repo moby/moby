@@ -11,8 +11,15 @@ import (
 	"go.opentelemetry.io/otel/sdk/log/internal/observ"
 )
 
+// ErrExporterShutdown is returned if Export is called after an
+// Exporter has been Shutdown.
+var ErrExporterShutdown = errors.New("exporter is shutdown")
+
 // Exporter handles the delivery of log records to external receivers.
 type Exporter interface {
+	// DO NOT CHANGE: any modification will not be backwards compatible and
+	// must never be done outside of a new major release.
+
 	// Export transmits log records to a receiver.
 	//
 	// The deadline or cancellation of the passed context must be honored. An
@@ -28,9 +35,13 @@ type Exporter interface {
 	// Before modifying a Record, the implementation must use Record.Clone
 	// to create a copy that shares no state with the original.
 	//
+	// Export should return [ErrExporterShutdown] if called after Shutdown.
+	//
 	// Export should never be called concurrently with other Export calls.
 	// However, it may be called concurrently with other methods.
 	Export(ctx context.Context, records []Record) error
+	// DO NOT CHANGE: any modification will not be backwards compatible and
+	// must never be done outside of a new major release.
 
 	// Shutdown is called when the SDK shuts down. Any cleanup or release of
 	// resources held by the exporter should be done in this call.
@@ -38,20 +49,24 @@ type Exporter interface {
 	// The deadline or cancellation of the passed context must be honored. An
 	// appropriate error should be returned in these situations.
 	//
-	// After Shutdown is called, calls to Export, Shutdown, or ForceFlush
-	// should perform no operation and return nil error.
+	// After Shutdown is called, calls to Shutdown or ForceFlush should perform
+	// no operation and return nil. Calls to Export should return
+	// [ErrExporterShutdown].
 	//
 	// Shutdown may be called concurrently with itself or with other methods.
 	Shutdown(ctx context.Context) error
+	// DO NOT CHANGE: any modification will not be backwards compatible and
+	// must never be done outside of a new major release.
 
-	// ForceFlush exports log records to the configured Exporter that have not yet
-	// been exported.
+	// ForceFlush flushes any log records held by the Exporter.
 	//
 	// The deadline or cancellation of the passed context must be honored. An
 	// appropriate error should be returned in these situations.
 	//
 	// ForceFlush may be called concurrently with itself or with other methods.
 	ForceFlush(ctx context.Context) error
+	// DO NOT CHANGE: any modification will not be backwards compatible and
+	// must never be done outside of a new major release.
 }
 
 var defaultNoopExporter = &noopExporter{}
@@ -79,9 +94,9 @@ type chunkExporter struct {
 	size int
 }
 
-// newChunkExporter wraps exporter. Calls to the Export will have their records
-// payload chunked so they do not exceed size. If size is less than or equal
-// to 0, exporter is returned directly.
+// newChunkExporter wraps exporter. Record payloads passed to Export are
+// chunked so that they do not exceed size. If size is less than or equal to 0,
+// exporter is returned directly.
 func newChunkExporter(exporter Exporter, size int) Exporter {
 	if size <= 0 {
 		return exporter
@@ -107,8 +122,8 @@ func (c chunkExporter) Export(ctx context.Context, records []Record) error {
 	return errors.Join(errs...)
 }
 
-// timeoutExporter wraps an Exporter and ensures any call to Export will have a
-// timeout for the context.
+// timeoutExporter wraps an Exporter and adds a timeout to the context of any
+// call to Export.
 type timeoutExporter struct {
 	Exporter
 
@@ -116,9 +131,9 @@ type timeoutExporter struct {
 	timeout time.Duration
 }
 
-// newTimeoutExporter wraps exporter with an Exporter that limits the context
-// lifetime passed to Export to be timeout. If timeout is less than or equal to
-// zero, exporter will be returned directly.
+// newTimeoutExporter wraps exporter with an Exporter that limits the lifetime
+// of the context passed to Export to the timeout value. If timeout is less than
+// or equal to zero, exporter will be returned directly.
 func newTimeoutExporter(exp Exporter, timeout time.Duration) Exporter {
 	if timeout <= 0 {
 		return exp
@@ -126,7 +141,7 @@ func newTimeoutExporter(exp Exporter, timeout time.Duration) Exporter {
 	return &timeoutExporter{Exporter: exp, timeout: timeout}
 }
 
-// Export sets the timeout of ctx before calling the Exporter e wraps.
+// Export sets a timeout on ctx before calling the Exporter that e wraps.
 func (e *timeoutExporter) Export(ctx context.Context, records []Record) error {
 	// This only used by the batch processor, and it takes processor timeout config.
 	// Thus, the error message points to the processor. So users know they should adjust the processor timeout.
@@ -150,9 +165,9 @@ func newMetricsExporter(exporter Exporter, inst *observ.BLP) Exporter {
 	}
 }
 
-// Export records the number of log records as a metric then forwards
-// them to the wrapped Exporter. Error returned from wrapped exporter
-// is not considered as per specification (to be measured by exporter).
+// Export records the number of log records as a metric, then forwards them to
+// the wrapped Exporter. As specified, the error returned by the wrapped
+// exporter is not considered because it is to be measured by the exporter.
 func (e *metricsExporter) Export(ctx context.Context, records []Record) error {
 	if e.inst != nil {
 		e.inst.Processed(ctx, int64(len(records)))

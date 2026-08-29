@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"text/template"
 	"time"
 
 	containerd "github.com/containerd/containerd/v2/client"
@@ -50,6 +51,7 @@ import (
 	"resenje.org/singleflight"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 
+	"github.com/moby/extensions/host"
 	"github.com/moby/moby/v2/daemon/builder"
 	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
 	"github.com/moby/moby/v2/daemon/config"
@@ -128,6 +130,7 @@ type Daemon struct {
 	PluginStore       *plugin.Store // TODO: remove
 	nri               *nri.NRI
 	pluginManager     *plugin.Manager
+	extensionHost     *host.Host
 	linkIndex         *linkIndex
 	containerdClient  *containerd.Client
 	containerd        libcontainerdtypes.Client
@@ -139,8 +142,10 @@ type Daemon struct {
 
 	machineMemory uint64
 
-	seccompProfile     []byte
-	seccompProfilePath string
+	seccompProfile      []byte
+	seccompProfilePath  string
+	appArmorProfile     *template.Template
+	appArmorProfilePath string
 
 	usageContainers singleflight.Group[bool, *backend.ContainerDiskUsage]
 	usageImages     singleflight.Group[bool, *backend.ImageDiskUsage]
@@ -958,6 +963,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 	}()
 
+	// Build the host after installing the cleanup defer: this starts extension
+	// processes and must be covered if initialization fails.
+	d.extensionHost, err = newExtensionHost(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := d.setGenericResources(&cfgStore.Config); err != nil {
 		return nil, err
 	}
@@ -972,6 +984,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err := d.setupSeccompProfile(&cfgStore.Config); err != nil {
 		return nil, err
 	}
+	if err := d.setupAppArmorProfile(&cfgStore.Config); err != nil {
+		return nil, err
+	}
 
 	// Set the default isolation mode (only applicable on Windows)
 	if err := d.setDefaultIsolation(&cfgStore.Config); err != nil {
@@ -984,7 +999,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	// Always install the default AppArmor profile at startup to pick up
 	// any changes to the profile template from a daemon upgrade.
-	if err := installDefaultAppArmorProfile(); err != nil {
+	if err := d.installDefaultAppArmorProfile(); err != nil {
 		log.G(ctx).WithError(err).Error("Failed to load default apparmor profile")
 	}
 
@@ -1511,6 +1526,14 @@ func (daemon *Daemon) shutdownTimeout(cfg *config.Config) int {
 // Shutdown stops the daemon.
 func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	daemon.shutdown = true
+	// Extensions are daemon-scoped regardless of whether they are built-in or
+	// executable, so shut them down before the live-restore early return.
+	if daemon.extensionHost != nil {
+		if err := daemon.extensionHost.Shutdown(ctx); err != nil {
+			log.G(ctx).WithError(err).Error("failed to shut down extensions")
+		}
+	}
+
 	// Keep mounts and networking running on daemon shutdown if
 	// we are to keep containers running and restore them.
 
