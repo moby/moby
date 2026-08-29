@@ -35,13 +35,6 @@ func (cli *Client) ContainerCreate(ctx context.Context, options ContainerCreateO
 		return ContainerCreateResult{}, cerrdefs.ErrInvalidArgument.WithMessage("config.Image or Image is required")
 	}
 
-	var response container.CreateResponse
-
-	if options.HostConfig != nil {
-		options.HostConfig.CapAdd = normalizeCapabilities(options.HostConfig.CapAdd)
-		options.HostConfig.CapDrop = normalizeCapabilities(options.HostConfig.CapDrop)
-	}
-
 	query := url.Values{}
 	if options.Platform != nil {
 		if p := formatPlatform(*options.Platform); p != "unknown" {
@@ -55,7 +48,7 @@ func (cli *Client) ContainerCreate(ctx context.Context, options ContainerCreateO
 
 	body := container.CreateRequest{
 		Config:           cfg,
-		HostConfig:       options.HostConfig,
+		HostConfig:       normalizeHostConfig(options.HostConfig),
 		NetworkingConfig: options.NetworkingConfig,
 	}
 
@@ -65,6 +58,7 @@ func (cli *Client) ContainerCreate(ctx context.Context, options ContainerCreateO
 		return ContainerCreateResult{}, err
 	}
 
+	var response container.CreateResponse
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	return ContainerCreateResult{ID: response.ID, Warnings: response.Warnings}, err
 }
@@ -111,4 +105,16 @@ func normalizeCapabilities(caps []string) []string {
 	}
 	slices.Sort(normalized)
 	return slices.Compact(normalized)
+}
+
+// normalizeHostConfig returns a shallow copy of hostConfig with capabilities normalized.
+func normalizeHostConfig(hostConfig *container.HostConfig) *container.HostConfig {
+	if hostConfig == nil {
+		return nil
+	}
+
+	normalized := *hostConfig
+	normalized.CapAdd = normalizeCapabilities(hostConfig.CapAdd)
+	normalized.CapDrop = normalizeCapabilities(hostConfig.CapDrop)
+	return &normalized
 }
