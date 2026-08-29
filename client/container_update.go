@@ -26,12 +26,9 @@ func (cli *Client) ContainerUpdate(ctx context.Context, containerID string, opti
 		return ContainerUpdateResult{}, err
 	}
 
-	updateConfig := container.UpdateConfig{}
-	if options.Resources != nil {
-		updateConfig.Resources = *options.Resources
-	}
-	if options.RestartPolicy != nil {
-		updateConfig.RestartPolicy = *options.RestartPolicy
+	updateConfig := container.UpdateConfig{
+		Resources:     valueOrZero(options.Resources),
+		RestartPolicy: valueOrZero(options.RestartPolicy),
 	}
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/update", nil, updateConfig, nil)
