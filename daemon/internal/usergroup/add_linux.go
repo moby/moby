@@ -147,6 +147,8 @@ func findNextGIDRange() (int, error) {
 	return findNextRangeStart(ranges), nil
 }
 
+// findNextRangeStart returns the first available subordinate ID range start.
+// The input ranges are sorted in-place by their starting ID.
 func findNextRangeStart(rangeList []user.SubID) int {
 	slices.SortFunc(rangeList, func(a, b user.SubID) int {
 		return cmp.Compare(a.SubID, b.SubID)
@@ -154,9 +156,7 @@ func findNextRangeStart(rangeList []user.SubID) int {
 
 	var startID int64 = defaultRangeStart
 	for _, arange := range rangeList {
-		high := startID + defaultRangeLen
-		if (startID >= arange.SubID && startID <= arange.SubID+arange.Count) ||
-			(high <= arange.SubID+arange.Count && high >= arange.SubID) {
+		if startID < arange.SubID+arange.Count && arange.SubID < startID+defaultRangeLen {
 			startID = arange.SubID + arange.Count
 		}
 	}

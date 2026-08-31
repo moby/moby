@@ -66,6 +66,57 @@ func TestLookupUserAndGroup(t *testing.T) {
 	assert.Check(t, is.DeepEqual(fetchedGroupByID, fetchedGroup))
 }
 
+// TestFindNextRangeStart verifies that findNextRangeStart selects the first
+// available range, including when existing ranges are unsorted or fully
+// contained within the candidate range.
+func TestFindNextRangeStart(t *testing.T) {
+	tests := []struct {
+		name   string
+		ranges []mobyuser.SubID
+		want   int
+	}{
+		{
+			name: "empty",
+			want: defaultRangeStart,
+		},
+		{
+			name: "range at start",
+			ranges: []mobyuser.SubID{
+				{SubID: defaultRangeStart, Count: 100},
+			},
+			want: defaultRangeStart + 100,
+		},
+		{
+			name: "range contained within candidate",
+			ranges: []mobyuser.SubID{
+				{SubID: defaultRangeStart + 100, Count: 100},
+			},
+			want: defaultRangeStart + 200,
+		},
+		{
+			name: "range immediately after candidate",
+			ranges: []mobyuser.SubID{
+				{SubID: defaultRangeStart + defaultRangeLen, Count: 100},
+			},
+			want: defaultRangeStart,
+		},
+		{
+			name: "unsorted ranges",
+			ranges: []mobyuser.SubID{
+				{SubID: defaultRangeStart + 200, Count: 100},
+				{SubID: defaultRangeStart, Count: 100},
+			},
+			want: defaultRangeStart + 300,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, findNextRangeStart(tc.ranges), tc.want)
+		})
+	}
+}
+
 func delUser(t *testing.T, name string) {
 	t.Helper()
 	out, err := exec.Command("userdel", name).CombinedOutput()
