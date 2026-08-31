@@ -77,7 +77,7 @@ func (cli *Client) CopyToContainer(ctx context.Context, containerID string, opti
 		query.Set("copyUIDGID", "true")
 	}
 
-	response, err := cli.putRaw(ctx, "/containers/"+containerID+"/archive", query, options.Content, nil)
+	response, err := cli.putRaw(ctx, "/containers/"+containerID+"/archive", query, nil, options.Content)
 	defer ensureReaderClosed(response)
 	if err != nil {
 		return CopyToContainerResult{}, err

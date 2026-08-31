@@ -25,7 +25,7 @@ func (cli *Client) NodeUpdate(ctx context.Context, nodeID string, options NodeUp
 
 	query := url.Values{}
 	query.Set("version", options.Version.String())
-	resp, err := cli.post(ctx, "/nodes/"+nodeID+"/update", query, options.Spec, nil)
+	resp, err := cli.post(ctx, "/nodes/"+nodeID+"/update", query, nil, options.Spec)
 	defer ensureReaderClosed(resp)
 	return NodeUpdateResult{}, err
 }

@@ -51,7 +51,7 @@ func (cli *Client) NetworkCreate(ctx context.Context, name string, options Netwo
 		req.ConfigFrom = &network.ConfigReference{Network: options.ConfigFrom}
 	}
 
-	resp, err := cli.post(ctx, "/networks/create", nil, req, nil)
+	resp, err := cli.post(ctx, "/networks/create", nil, nil, req)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return NetworkCreateResult{}, err

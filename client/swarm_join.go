@@ -23,16 +23,14 @@ type SwarmJoinResult struct {
 
 // SwarmJoin joins the swarm.
 func (cli *Client) SwarmJoin(ctx context.Context, options SwarmJoinOptions) (SwarmJoinResult, error) {
-	req := swarm.JoinRequest{
+	resp, err := cli.post(ctx, "/swarm/join", nil, nil, swarm.JoinRequest{
 		ListenAddr:    options.ListenAddr,
 		AdvertiseAddr: options.AdvertiseAddr,
 		DataPathAddr:  options.DataPathAddr,
 		RemoteAddrs:   options.RemoteAddrs,
 		JoinToken:     options.JoinToken,
 		Availability:  options.Availability,
-	}
-
-	resp, err := cli.post(ctx, "/swarm/join", nil, req, nil)
+	})
 	defer ensureReaderClosed(resp)
 	return SwarmJoinResult{}, err
 }

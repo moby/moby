@@ -24,13 +24,11 @@ func (cli *Client) CheckpointCreate(ctx context.Context, containerID string, opt
 	if err != nil {
 		return CheckpointCreateResult{}, err
 	}
-	requestBody := checkpoint.CreateRequest{
+	resp, err := cli.post(ctx, "/containers/"+containerID+"/checkpoints", nil, nil, checkpoint.CreateRequest{
 		CheckpointID:  options.CheckpointID,
 		CheckpointDir: options.CheckpointDir,
 		Exit:          options.Exit,
-	}
-
-	resp, err := cli.post(ctx, "/containers/"+containerID+"/checkpoints", nil, requestBody, nil)
+	})
 	defer ensureReaderClosed(resp)
 	return CheckpointCreateResult{}, err
 }

@@ -29,7 +29,7 @@ type SwarmInitResult struct {
 
 // SwarmInit initializes the swarm.
 func (cli *Client) SwarmInit(ctx context.Context, options SwarmInitOptions) (SwarmInitResult, error) {
-	req := swarm.InitRequest{
+	resp, err := cli.post(ctx, "/swarm/init", nil, nil, swarm.InitRequest{
 		ListenAddr:       options.ListenAddr,
 		AdvertiseAddr:    options.AdvertiseAddr,
 		DataPathAddr:     options.DataPathAddr,
@@ -40,9 +40,7 @@ func (cli *Client) SwarmInit(ctx context.Context, options SwarmInitOptions) (Swa
 		Availability:     options.Availability,
 		DefaultAddrPool:  options.DefaultAddrPool,
 		SubnetSize:       options.SubnetSize,
-	}
-
-	resp, err := cli.post(ctx, "/swarm/init", nil, req, nil)
+	})
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return SwarmInitResult{}, err

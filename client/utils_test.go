@@ -11,6 +11,26 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
+func TestValueOrZero(t *testing.T) {
+	type value struct{ Name string }
+	type options struct{ Value *value }
+
+	t.Run("nil", func(t *testing.T) {
+		opts := options{}
+
+		got := valueOrZero(opts.Value)
+		assert.Equal(t, value{}, got)
+	})
+
+	t.Run("non-nil", func(t *testing.T) {
+		want := value{Name: "foo"}
+		opts := options{Value: &want}
+
+		got := valueOrZero(opts.Value)
+		assert.Equal(t, want, got)
+	})
+}
+
 func TestEncodePlatforms(t *testing.T) {
 	tests := []struct {
 		doc       string

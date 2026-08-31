@@ -32,7 +32,7 @@ func (cli *Client) RegistryLogin(ctx context.Context, options RegistryLoginOptio
 		RegistryToken: options.RegistryToken,
 	}
 
-	resp, err := cli.post(ctx, "/auth", url.Values{}, auth, nil)
+	resp, err := cli.post(ctx, "/auth", url.Values{}, nil, auth)
 	defer ensureReaderClosed(resp)
 
 	if err != nil {

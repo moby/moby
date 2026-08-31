@@ -16,10 +16,9 @@ type SwarmUnlockResult struct{}
 
 // SwarmUnlock unlocks locked swarm.
 func (cli *Client) SwarmUnlock(ctx context.Context, options SwarmUnlockOptions) (SwarmUnlockResult, error) {
-	req := &swarm.UnlockRequest{
+	resp, err := cli.post(ctx, "/swarm/unlock", nil, nil, swarm.UnlockRequest{
 		UnlockKey: options.Key,
-	}
-	resp, err := cli.post(ctx, "/swarm/unlock", nil, req, nil)
+	})
 	defer ensureReaderClosed(resp)
 	return SwarmUnlockResult{}, err
 }
