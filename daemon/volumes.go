@@ -36,12 +36,17 @@ func compareMountPaths(a, b string) int {
 
 	aParts := strings.Count(a, string(os.PathSeparator))
 	bParts := strings.Count(b, string(os.PathSeparator))
-	return cmp.Compare(aParts, bParts)
+	if c := cmp.Compare(aParts, bParts); c != 0 {
+		return c
+	}
+	return cmp.Compare(a, b)
 }
 
 // sortMounts sorts mounts by destination depth so that parent mounts are
-// applied before mounts beneath them. For example, /etc must be mounted
-// before /etc/resolv.conf.
+// applied before mounts beneath them. Mounts at the same depth are sorted
+// by destination to produce a deterministic order.
+//
+// For example, /etc must be mounted before /etc/resolv.conf.
 func sortMounts(m []container.Mount) {
 	slices.SortStableFunc(m, func(a, b container.Mount) int {
 		return compareMountPaths(a.Destination, b.Destination)
