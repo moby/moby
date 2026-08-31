@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"gotest.tools/v3/assert"
-
 	"github.com/moby/moby/api/types/network"
 )
 
@@ -25,34 +23,34 @@ var (
 func TestPort(t *testing.T) {
 	t.Run("Zero Value", func(t *testing.T) {
 		var p network.Port
-		assert.Check(t, p.IsZero())
-		assert.Check(t, !p.IsValid())
-		assert.Equal(t, p.String(), "invalid port")
-		assert.Equal(t, p.Proto(), network.IPProtocol(""))
-		assert.Equal(t, p.Num(), uint16(0))
-		assert.Equal(t, p.Port(), "")
-		assert.Equal(t, p.Range(), network.PortRange{})
+		assertEqual(t, p.IsZero(), true)
+		assertEqual(t, p.IsValid(), false)
+		assertEqual(t, p.String(), "invalid port")
+		assertEqual(t, p.Proto(), network.IPProtocol(""))
+		assertEqual(t, p.Num(), uint16(0))
+		assertEqual(t, p.Port(), "")
+		assertEqual(t, p.Range(), network.PortRange{})
 
 		t.Run("Marshal Unmarshal", func(t *testing.T) {
 			var p network.Port
 			bytes, err := p.MarshalText()
-			assert.NilError(t, err)
-			assert.Check(t, len(bytes) == 0)
+			assertNoError(t, err)
+			assertEqual(t, len(bytes), 0)
 
 			err = p.UnmarshalText([]byte(""))
-			assert.NilError(t, err)
-			assert.Equal(t, p, network.Port{})
+			assertNoError(t, err)
+			assertEqual(t, p, network.Port{})
 		})
 
 		t.Run("JSON Marshal Unmarshal", func(t *testing.T) {
 			var p network.Port
 			bytes, err := json.Marshal(p)
-			assert.NilError(t, err)
-			assert.Equal(t, string(bytes), `""`)
+			assertNoError(t, err)
+			assertEqual(t, string(bytes), `""`)
 
 			err = json.Unmarshal([]byte(`""`), &p)
-			assert.NilError(t, err)
-			assert.Equal(t, p, network.Port{})
+			assertNoError(t, err)
+			assertEqual(t, p, network.Port{})
 		})
 	})
 
@@ -72,10 +70,10 @@ func TestPort(t *testing.T) {
 		for _, tc := range tests {
 			t.Run(fmt.Sprintf("%d_%s", tc.num, tc.proto), func(t *testing.T) {
 				p, ok := network.PortFrom(tc.num, tc.proto)
-				assert.Check(t, ok)
-				assert.Equal(t, p.Num(), tc.num)
-				assert.Equal(t, p.Port(), strconv.Itoa(int(tc.num)))
-				assert.Equal(t, p.Proto(), tc.proto)
+				assertEqual(t, ok, true)
+				assertEqual(t, p.Num(), tc.num)
+				assertEqual(t, p.Port(), strconv.Itoa(int(tc.num)))
+				assertEqual(t, p.Proto(), tc.proto)
 			})
 		}
 
@@ -83,8 +81,8 @@ func TestPort(t *testing.T) {
 			pr1 := portFrom(1234, "tcp")
 			pr2 := portFrom(1234, "TCP")
 			pr3 := portFrom(1234, "tCp")
-			assert.Equal(t, pr1, pr2)
-			assert.Equal(t, pr2, pr3)
+			assertEqual(t, pr1, pr2)
+			assertEqual(t, pr2, pr3)
 		})
 
 		negativeTests := []struct {
@@ -97,10 +95,10 @@ func TestPort(t *testing.T) {
 		for _, tc := range negativeTests {
 			t.Run(fmt.Sprintf("%d_%s", tc.num, tc.proto), func(t *testing.T) {
 				p, ok := network.PortFrom(tc.num, tc.proto)
-				assert.Check(t, !ok)
-				assert.Check(t, p.IsZero())
-				assert.Check(t, !p.IsValid())
-				assert.Equal(t, p.String(), "invalid port")
+				assertEqual(t, ok, false)
+				assertEqual(t, p.IsZero(), true)
+				assertEqual(t, p.IsValid(), false)
+				assertEqual(t, p.String(), "invalid port")
 			})
 		}
 	})
@@ -170,23 +168,23 @@ func TestPort(t *testing.T) {
 		for _, tc := range tests {
 			t.Run(strings.ReplaceAll(tc.in, "/", "_"), func(t *testing.T) {
 				got, err := network.ParsePort(tc.in)
-				assert.NilError(t, err)
-				assert.Equal(t, got, tc.port)
+				assertNoError(t, err)
+				assertEqual(t, got, tc.port)
 
 				network.MustParsePort(tc.in) // should not panic
 
-				assert.Check(t, !got.IsZero())
-				assert.Check(t, got.IsValid())
+				assertEqual(t, got.IsZero(), false)
+				assertEqual(t, got.IsValid(), true)
 
 				// Check that ParsePort is a pure function.
 				got2, err := network.ParsePort(tc.in)
-				assert.NilError(t, err)
-				assert.Equal(t, got2, got)
+				assertNoError(t, err)
+				assertEqual(t, got2, got)
 
 				// Check that ParsePort(port.String()) is the identity function.
 				got3, err := network.ParsePort(got.String())
-				assert.NilError(t, err)
-				assert.Equal(t, got3, got)
+				assertNoError(t, err)
+				assertEqual(t, got3, got)
 
 				// Check String() output
 				s := got.String()
@@ -194,23 +192,23 @@ func TestPort(t *testing.T) {
 				if wants == "" {
 					wants = tc.in
 				}
-				assert.Equal(t, s, wants)
+				assertEqual(t, s, wants)
 
 				js := `"` + tc.in + `"`
 				var jsgot network.Port
 				err = json.Unmarshal([]byte(js), &jsgot)
-				assert.NilError(t, err)
-				assert.Equal(t, jsgot, got)
+				assertNoError(t, err)
+				assertEqual(t, jsgot, got)
 
 				jsb, err := json.Marshal(jsgot)
-				assert.NilError(t, err)
+				assertNoError(t, err)
 
 				jswant := `"` + wants + `"`
-				assert.Equal(t, string(jsb), jswant)
+				assertEqual(t, string(jsb), jswant)
 
 				// Check Range() output
 				r := got.Range()
-				assert.Equal(t, r, tc.portRange)
+				assertEqual(t, r, tc.portRange)
 			})
 		}
 
@@ -218,8 +216,8 @@ func TestPort(t *testing.T) {
 			p1 := network.MustParsePort("1234/tcp")
 			p2 := network.MustParsePort("1234/TCP")
 			p3 := network.MustParsePort("1234/tCp")
-			assert.Equal(t, p1, p2)
-			assert.Equal(t, p2, p3)
+			assertEqual(t, p1, p2)
+			assertEqual(t, p2, p3)
 		})
 
 		negativeTests := []string{
@@ -248,9 +246,9 @@ func TestPort(t *testing.T) {
 		for _, s := range negativeTests {
 			t.Run(strings.ReplaceAll(s, "/", "_"), func(t *testing.T) {
 				got, err := network.ParsePort(s)
-				assert.ErrorContains(t, err, "invalid port")
-				assert.Check(t, got.IsZero())
-				assert.Check(t, !got.IsValid())
+				assertErrorContains(t, err, "invalid port")
+				assertEqual(t, got.IsZero(), true)
+				assertEqual(t, got.IsValid(), false)
 
 				// Skip JSON unmarshalling test for empty string as that should succeed.
 				// See test "Zero Value" above.
@@ -261,8 +259,8 @@ func TestPort(t *testing.T) {
 				var jsGot network.Port
 				js := []byte(`"` + s + `"`)
 				err = json.Unmarshal(js, &jsGot)
-				assert.ErrorContains(t, err, "invalid port")
-				assert.Equal(t, jsGot, network.Port{})
+				assertErrorContains(t, err, "invalid port")
+				assertEqual(t, jsGot, network.Port{})
 			})
 		}
 	})
@@ -271,36 +269,38 @@ func TestPort(t *testing.T) {
 func TestPortRange(t *testing.T) {
 	t.Run("Zero Value", func(t *testing.T) {
 		var pr network.PortRange
-		assert.Check(t, pr.IsZero())
-		assert.Check(t, !pr.IsValid())
-		assert.Equal(t, pr.String(), "invalid port range")
-		assert.Equal(t, pr.Start(), uint16(0))
-		assert.Equal(t, pr.End(), uint16(0))
-		assert.Equal(t, pr.Proto(), network.IPProtocol(""))
-		assert.Equal(t, pr.Range(), pr)
+		assertEqual(t, pr.IsZero(), true)
+		assertEqual(t, pr.IsValid(), false)
+		assertEqual(t, pr.String(), "invalid port range")
+		assertEqual(t, pr.Start(), uint16(0))
+		assertEqual(t, pr.End(), uint16(0))
+		assertEqual(t, pr.Proto(), network.IPProtocol(""))
+		assertEqual(t, pr.Range(), pr)
 		var ephemeralPort network.Port
-		assert.Check(t, slices.Equal(slices.Collect(pr.All()), []network.Port{ephemeralPort}))
+		if got := slices.Collect(pr.All()); !slices.Equal(got, []network.Port{ephemeralPort}) {
+			t.Errorf("PortRange.All() = %#v, want %#v", got, []network.Port{ephemeralPort})
+		}
 
 		t.Run("Marshal Unmarshal", func(t *testing.T) {
 			var pr network.PortRange
 			bytes, err := pr.MarshalText()
-			assert.NilError(t, err)
-			assert.Check(t, len(bytes) == 0)
+			assertNoError(t, err)
+			assertEqual(t, len(bytes), 0)
 
 			err = pr.UnmarshalText([]byte(""))
-			assert.NilError(t, err)
-			assert.Equal(t, pr, network.PortRange{})
+			assertNoError(t, err)
+			assertEqual(t, pr, network.PortRange{})
 		})
 
 		t.Run("JSON Marshal Unmarshal", func(t *testing.T) {
 			var pr network.PortRange
 			bytes, err := json.Marshal(pr)
-			assert.NilError(t, err)
-			assert.Equal(t, string(bytes), `""`)
+			assertNoError(t, err)
+			assertEqual(t, string(bytes), `""`)
 
 			err = json.Unmarshal([]byte(`""`), &pr)
-			assert.NilError(t, err)
-			assert.Equal(t, pr, network.PortRange{})
+			assertNoError(t, err)
+			assertEqual(t, pr, network.PortRange{})
 		})
 	})
 
@@ -322,10 +322,10 @@ func TestPortRange(t *testing.T) {
 		for _, tc := range tests {
 			t.Run(fmt.Sprintf("%d_%d_%s", tc.start, tc.end, tc.proto), func(t *testing.T) {
 				pr, ok := network.PortRangeFrom(tc.start, tc.end, tc.proto)
-				assert.Check(t, ok)
-				assert.Equal(t, pr.Start(), tc.start)
-				assert.Equal(t, pr.End(), tc.end)
-				assert.Equal(t, pr.Proto(), tc.proto)
+				assertEqual(t, ok, true)
+				assertEqual(t, pr.Start(), tc.start)
+				assertEqual(t, pr.End(), tc.end)
+				assertEqual(t, pr.Proto(), tc.proto)
 			})
 		}
 
@@ -333,8 +333,8 @@ func TestPortRange(t *testing.T) {
 			pr1, _ := network.PortRangeFrom(1234, 5678, "tcp")
 			pr2, _ := network.PortRangeFrom(1234, 5678, "TCP")
 			pr3, _ := network.PortRangeFrom(1234, 5678, "tCp")
-			assert.Equal(t, pr1, pr2)
-			assert.Equal(t, pr2, pr3)
+			assertEqual(t, pr1, pr2)
+			assertEqual(t, pr2, pr3)
 		})
 
 		negativeTests := []struct {
@@ -348,9 +348,9 @@ func TestPortRange(t *testing.T) {
 		for _, tc := range negativeTests {
 			t.Run(fmt.Sprintf("%d_%d_%s", tc.start, tc.end, tc.proto), func(t *testing.T) {
 				pr, ok := network.PortRangeFrom(tc.start, tc.end, tc.proto)
-				assert.Check(t, !ok)
-				assert.Check(t, pr.IsZero())
-				assert.Check(t, !pr.IsValid())
+				assertEqual(t, ok, false)
+				assertEqual(t, pr.IsZero(), true)
+				assertEqual(t, pr.IsValid(), false)
 			})
 		}
 	})
@@ -416,22 +416,22 @@ func TestPortRange(t *testing.T) {
 		for _, tc := range tests {
 			t.Run(strings.ReplaceAll(tc.in, "/", "_"), func(t *testing.T) {
 				got, err := network.ParsePortRange(tc.in)
-				assert.NilError(t, err)
-				assert.Equal(t, got, tc.portRange)
-				assert.Check(t, !got.IsZero())
-				assert.Check(t, got.IsValid())
+				assertNoError(t, err)
+				assertEqual(t, got, tc.portRange)
+				assertEqual(t, got.IsZero(), false)
+				assertEqual(t, got.IsValid(), true)
 
 				network.MustParsePortRange(tc.in) // should not panic
 
 				// Check that ParsePortRange is a pure function.
 				got2, err := network.ParsePortRange(tc.in)
-				assert.NilError(t, err)
-				assert.Equal(t, got2, got)
+				assertNoError(t, err)
+				assertEqual(t, got2, got)
 
 				// Check that ParsePortRange(port.String()) is the identity function.
 				got3, err := network.ParsePortRange(got.String())
-				assert.NilError(t, err)
-				assert.Equal(t, got3, got)
+				assertNoError(t, err)
+				assertEqual(t, got3, got)
 
 				// Check String() output
 				s := got.String()
@@ -439,30 +439,30 @@ func TestPortRange(t *testing.T) {
 				if wants == "" {
 					wants = tc.in
 				}
-				assert.Equal(t, s, wants)
+				assertEqual(t, s, wants)
 
 				js := `"` + tc.in + `"`
 				var jsgot network.PortRange
 				err = json.Unmarshal([]byte(js), &jsgot)
-				assert.NilError(t, err)
-				assert.Equal(t, jsgot, got)
+				assertNoError(t, err)
+				assertEqual(t, jsgot, got)
 
 				jsb, err := json.Marshal(jsgot)
-				assert.NilError(t, err)
+				assertNoError(t, err)
 				jswant := `"` + wants + `"`
-				assert.Equal(t, string(jsb), jswant)
+				assertEqual(t, string(jsb), jswant)
 
 				// Check Range() output
 				r := got.Range()
-				assert.Equal(t, r, tc.portRange)
+				assertEqual(t, r, tc.portRange)
 			})
 
 			t.Run("Normalize Protocol", func(t *testing.T) {
 				pr1 := network.MustParsePortRange("1234-5678/tcp")
 				pr2 := network.MustParsePortRange("1234-5678/TCP")
 				pr3 := network.MustParsePortRange("1234-5678/tCp")
-				assert.Equal(t, pr1, pr2)
-				assert.Equal(t, pr2, pr3)
+				assertEqual(t, pr1, pr2)
+				assertEqual(t, pr2, pr3)
 			})
 
 			negativeTests := []string{
@@ -495,9 +495,11 @@ func TestPortRange(t *testing.T) {
 			for _, s := range negativeTests {
 				t.Run(strings.ReplaceAll(s, "/", "_"), func(t *testing.T) {
 					got, err := network.ParsePortRange(s)
-					assert.Check(t, err != nil)
-					assert.Check(t, got.IsZero())
-					assert.Check(t, !got.IsValid())
+					if err == nil {
+						t.Error("expected error")
+					}
+					assertEqual(t, got.IsZero(), true)
+					assertEqual(t, got.IsValid(), false)
 
 					// Skip JSON unmarshalling test for empty string as that should succeed.
 					// See test "Zero Value" above.
@@ -508,8 +510,10 @@ func TestPortRange(t *testing.T) {
 					var jsgot network.PortRange
 					js := []byte(`"` + s + `"`)
 					err = json.Unmarshal(js, &jsgot)
-					assert.Check(t, err != nil)
-					assert.Equal(t, jsgot, network.PortRange{})
+					if err == nil {
+						t.Error("expected error")
+					}
+					assertEqual(t, jsgot, network.PortRange{})
 				})
 			}
 		}
@@ -595,6 +599,29 @@ func BenchmarkPortRangeAll(b *testing.B) {
 			}
 		}
 	})
+}
+
+func assertNoError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func assertErrorContains(t *testing.T, err error, want string) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("expected error containing %q, got nil", want)
+	} else if !strings.Contains(err.Error(), want) {
+		t.Fatalf("error = %q, want error containing %q", err, want)
+	}
+}
+
+func assertEqual[T comparable](t *testing.T, got, want T) {
+	t.Helper()
+	if got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
 }
 
 func portFrom(num uint16, proto network.IPProtocol) network.Port {

@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/container"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestValidateRestartPolicy(t *testing.T) {
@@ -94,21 +92,18 @@ func TestValidateRestartPolicy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := container.ValidateRestartPolicy(tc.input)
 			if tc.expectedErr == "" {
-				assert.Check(t, err)
-			} else {
-				assert.Check(t, is.ErrorType(err, isInvalidParameter))
-				assert.Check(t, is.Error(err, tc.expectedErr))
+				checkNoError(t, err)
+				return
 			}
+
+			if err == nil {
+				t.Errorf("ValidateRestartPolicy(%+v) error = nil, want %q", tc.input, tc.expectedErr)
+				return
+			}
+			if _, ok := err.(interface{ InvalidParameter() }); !ok {
+				t.Errorf("ValidateRestartPolicy(%+v) error = %T, want invalid-parameter error", tc.input, err)
+			}
+			checkError(t, err, tc.expectedErr)
 		})
 	}
-}
-
-// isInvalidParameter is a minimal implementation of [github.com/containerd/errdefs.IsInvalidArgument],
-// because this was the only import of that package in api/types, which is the
-// package imported by external users.
-func isInvalidParameter(err error) bool {
-	_, ok := err.(interface {
-		InvalidParameter()
-	})
-	return ok
 }

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/container"
-	"gotest.tools/v3/assert"
 )
 
 func TestValidateContainerState(t *testing.T) {
@@ -25,9 +24,9 @@ func TestValidateContainerState(t *testing.T) {
 		t.Run(string(tc.state), func(t *testing.T) {
 			err := container.ValidateContainerState(tc.state)
 			if tc.expectedErr == "" {
-				assert.NilError(t, err)
+				checkNoError(t, err)
 			} else {
-				assert.Error(t, err, tc.expectedErr)
+				checkError(t, err, tc.expectedErr)
 			}
 		})
 	}

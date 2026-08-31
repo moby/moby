@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/container"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestCgroupnsMode(t *testing.T) {
@@ -26,10 +24,10 @@ func TestCgroupnsMode(t *testing.T) {
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
-			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
-			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
-			assert.Check(t, is.Equal(mode.IsEmpty(), expected.empty))
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
+			checkEqual(t, mode.IsPrivate(), expected.private)
+			checkEqual(t, mode.IsHost(), expected.host)
+			checkEqual(t, mode.IsEmpty(), expected.empty)
+			checkEqual(t, mode.Valid(), expected.valid)
 		})
 	}
 }
@@ -57,9 +55,9 @@ func TestCgroupSpec(t *testing.T) {
 
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
-			assert.Check(t, is.Equal(mode.IsContainer(), expected.container))
-			assert.Check(t, is.Equal(mode.Container(), expected.ctrName))
+			checkEqual(t, mode.Valid(), expected.valid)
+			checkEqual(t, mode.IsContainer(), expected.container)
+			checkEqual(t, mode.Container(), expected.ctrName)
 		})
 	}
 }
@@ -88,14 +86,14 @@ func TestNetworkMode(t *testing.T) {
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
-			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
-			assert.Check(t, is.Equal(mode.IsBridge(), expected.bridge))
-			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
-			assert.Check(t, is.Equal(mode.IsContainer(), expected.container))
-			assert.Check(t, is.Equal(mode.IsNone(), expected.none))
-			assert.Check(t, is.Equal(mode.IsDefault(), expected.isDefault))
-			assert.Check(t, is.Equal(mode.NetworkName(), expected.name))
-			assert.Check(t, is.Equal(mode.ConnectedContainer(), expected.ctrName))
+			checkEqual(t, mode.IsPrivate(), expected.private)
+			checkEqual(t, mode.IsBridge(), expected.bridge)
+			checkEqual(t, mode.IsHost(), expected.host)
+			checkEqual(t, mode.IsContainer(), expected.container)
+			checkEqual(t, mode.IsNone(), expected.none)
+			checkEqual(t, mode.IsDefault(), expected.isDefault)
+			checkEqual(t, mode.NetworkName(), expected.name)
+			checkEqual(t, mode.ConnectedContainer(), expected.ctrName)
 		})
 	}
 }
@@ -128,12 +126,12 @@ func TestIpcMode(t *testing.T) {
 
 	for mode, expected := range ipcModes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
-			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
-			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
-			assert.Check(t, is.Equal(mode.IsContainer(), expected.container))
-			assert.Check(t, is.Equal(mode.IsShareable(), expected.shareable))
-			assert.Check(t, is.Equal(mode.Container(), expected.ctrName))
+			checkEqual(t, mode.Valid(), expected.valid)
+			checkEqual(t, mode.IsPrivate(), expected.private)
+			checkEqual(t, mode.IsHost(), expected.host)
+			checkEqual(t, mode.IsContainer(), expected.container)
+			checkEqual(t, mode.IsShareable(), expected.shareable)
+			checkEqual(t, mode.Container(), expected.ctrName)
 		})
 	}
 }
@@ -152,9 +150,9 @@ func TestUTSMode(t *testing.T) {
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
-			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
-			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
+			checkEqual(t, mode.IsPrivate(), expected.private)
+			checkEqual(t, mode.IsHost(), expected.host)
+			checkEqual(t, mode.Valid(), expected.valid)
 		})
 	}
 }
@@ -173,9 +171,9 @@ func TestUsernsMode(t *testing.T) {
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
-			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
-			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
+			checkEqual(t, mode.Valid(), expected.valid)
+			checkEqual(t, mode.IsPrivate(), expected.private)
+			checkEqual(t, mode.IsHost(), expected.host)
 		})
 	}
 }
@@ -204,11 +202,11 @@ func TestPidMode(t *testing.T) {
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
-			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
-			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
-			assert.Check(t, is.Equal(mode.IsContainer(), expected.container))
-			assert.Check(t, is.Equal(mode.Container(), expected.ctrName))
+			checkEqual(t, mode.Valid(), expected.valid)
+			checkEqual(t, mode.IsPrivate(), expected.private)
+			checkEqual(t, mode.IsHost(), expected.host)
+			checkEqual(t, mode.IsContainer(), expected.container)
+			checkEqual(t, mode.Container(), expected.ctrName)
 		})
 	}
 }
@@ -223,9 +221,9 @@ func TestRestartPolicy(t *testing.T) {
 	}
 	for policy, expected := range policies {
 		t.Run("policy="+string(policy.Name), func(t *testing.T) {
-			assert.Check(t, is.Equal(policy.IsNone(), expected.none))
-			assert.Check(t, is.Equal(policy.IsAlways(), expected.always))
-			assert.Check(t, is.Equal(policy.IsOnFailure(), expected.onFailure))
+			checkEqual(t, policy.IsNone(), expected.none)
+			checkEqual(t, policy.IsAlways(), expected.always)
+			checkEqual(t, policy.IsOnFailure(), expected.onFailure)
 		})
 	}
 }
