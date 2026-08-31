@@ -23,10 +23,10 @@ func TestNewIDMappings(t *testing.T) {
 	assert.Check(t, err)
 	defer delUser(t, tempUser)
 
-	tempUser, err := user.Lookup(tempUser)
+	tmpUser, err := user.Lookup(tempUser)
 	assert.Check(t, err)
 
-	idMapping, err := LoadIdentityMapping(tempUser.Username)
+	idMapping, err := LoadIdentityMapping(tmpUser.Username)
 	assert.Check(t, err)
 
 	rootUID, rootGID := idMapping.RootPair()
@@ -67,6 +67,7 @@ func TestLookupUserAndGroup(t *testing.T) {
 }
 
 func delUser(t *testing.T, name string) {
+	t.Helper()
 	out, err := exec.Command("userdel", name).CombinedOutput()
 	assert.Check(t, err, out)
 }
