@@ -109,6 +109,32 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 		}
 	}
 
+	apiNetworks := make(map[string]*networktypes.EndpointSettings, len(ctr.NetworkSettings.Networks))
+	for nwName, epConf := range ctr.NetworkSettings.Networks {
+		if epConf.EndpointSettings != nil {
+			// We must make a copy of this pointer object otherwise it can race with other operations
+			apiNetworks[nwName] = epConf.EndpointSettings.Copy()
+		}
+	}
+
+	ports := maps.Clone(ctr.NetworkSettings.Ports)
+	if ports == nil {
+		// Avoid producing "null" instead of "{}" in the API response. We
+		// should consider handling such situations in the API / API server.
+		//
+		// - https://github.com/moby/moby/pull/53526#discussion_r3896380969
+		// - https://github.com/moby/moby/commit/7917a36cc787ada58987320e67cc6d96858f3b55
+		ports = make(networktypes.PortMap)
+	}
+
+	imageManifest := ctr.ImageManifest
+	if imageManifest != nil && imageManifest.Platform == nil {
+		// Copy the image manifest to avoid mutating the original.
+		c := *imageManifest
+		c.Platform = &ctr.ImagePlatform
+		imageManifest = &c
+	}
+
 	inspectResponse := &containertypes.InspectResponse{
 		ID:      ctr.ID,
 		Created: ctr.Created.Format(time.RFC3339Nano),
@@ -144,42 +170,14 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 		HostConfig:      &hostConfig,
 		Mounts:          ctr.GetMountPoints(),
 		Config:          ctr.Config,
+		NetworkSettings: &containertypes.NetworkSettings{
+			SandboxID:  ctr.NetworkSettings.SandboxID,
+			SandboxKey: ctr.NetworkSettings.SandboxKey,
+			Ports:      ports,
+			Networks:   apiNetworks,
+		},
+		ImageManifestDescriptor: imageManifest,
 	}
-
-	apiNetworks := make(map[string]*networktypes.EndpointSettings, len(ctr.NetworkSettings.Networks))
-	for nwName, epConf := range ctr.NetworkSettings.Networks {
-		if epConf.EndpointSettings != nil {
-			// We must make a copy of this pointer object otherwise it can race with other operations
-			apiNetworks[nwName] = epConf.EndpointSettings.Copy()
-		}
-	}
-
-	ports := maps.Clone(ctr.NetworkSettings.Ports)
-	if ports == nil {
-		// Avoid producing "null" instead of "{}" in the API response. We
-		// should consider handling such situations in the API / API server.
-		//
-		// - https://github.com/moby/moby/pull/53526#discussion_r3896380969
-		// - https://github.com/moby/moby/commit/7917a36cc787ada58987320e67cc6d96858f3b55
-		ports = make(networktypes.PortMap)
-	}
-	inspectResponse.NetworkSettings = &containertypes.NetworkSettings{
-		SandboxID:  ctr.NetworkSettings.SandboxID,
-		SandboxKey: ctr.NetworkSettings.SandboxKey,
-		Ports:      ports,
-		Networks:   apiNetworks,
-	}
-
-	imageManifest := ctr.ImageManifest
-	if imageManifest != nil && imageManifest.Platform == nil {
-		// Copy the image manifest to avoid mutating the original
-		c := *imageManifest
-		imageManifest = &c
-
-		imageManifest.Platform = &ctr.ImagePlatform
-	}
-
-	inspectResponse.ImageManifestDescriptor = imageManifest
 
 	if daemon.UsesSnapshotter() {
 		inspectResponse.Storage = &storage.Storage{
