@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -31,7 +32,6 @@ import (
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
 	"github.com/moby/moby/v2/daemon/logger/templates"
 	"github.com/moby/moby/v2/dockerversion"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -334,11 +334,11 @@ func validateKeyAttributeValue(optKey, val string) error {
 func expandEntityTemplate(info logger.Info, optKey, tmplText string) (string, error) {
 	tmpl, err := templates.NewParse(optKey, tmplText)
 	if err != nil {
-		return "", errors.Wrapf(err, "awslogs could not parse log opt %q", optKey)
+		return "", fmt.Errorf("awslogs could not parse log opt %q: %w", optKey, err)
 	}
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, &info); err != nil {
-		return "", errors.Wrapf(err, "awslogs could not expand log opt %q", optKey)
+		return "", fmt.Errorf("awslogs could not expand log opt %q: %w", optKey, err)
 	}
 	return buf.String(), nil
 }
@@ -408,7 +408,7 @@ func parseMultilineOptions(info logger.Info) (*regexp.Regexp, error) {
 	if multilinePattern != "" {
 		multilinePatternRe, err := regexp.Compile(multilinePattern)
 		if err != nil {
-			return nil, errors.Wrapf(err, "awslogs could not parse multiline pattern key %q", multilinePatternRe)
+			return nil, fmt.Errorf("awslogs could not parse multiline pattern key %q: %w", multilinePatternRe, err)
 		}
 		return multilinePatternRe, nil
 	}
@@ -475,13 +475,13 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 		regFinder, err := newRegionFinder(context.TODO())
 		if err != nil {
 			log.G(ctx).WithError(err).Error("could not create regionFinder")
-			return nil, errors.Wrap(err, "could not create regionFinder")
+			return nil, fmt.Errorf("could not create regionFinder: %w", err)
 		}
 
 		r, err := regFinder.GetRegion(context.TODO(), &imds.GetRegionInput{})
 		if err != nil {
 			log.G(ctx).WithError(err).Error("Could not get region from IMDS, environment, or log option")
-			return nil, errors.Wrap(err, "cannot determine region for awslogs driver")
+			return nil, fmt.Errorf("cannot determine region for awslogs driver: %w", err)
 		}
 		region = &r.Region
 	}
@@ -498,7 +498,7 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 	cfg, err := config.LoadDefaultConfig(context.TODO(), configOpts...)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("Could not initialize AWS SDK config")
-		return nil, errors.Wrap(err, "could not initialize AWS SDK config")
+		return nil, fmt.Errorf("could not initialize AWS SDK config: %w", err)
 	}
 
 	log.G(ctx).WithFields(log.Fields{
@@ -583,14 +583,14 @@ func (l *logStream) create() error {
 	var apiErr *types.ResourceNotFoundException
 	if errors.As(err, &apiErr) && l.logCreateGroup {
 		if err := l.createLogGroup(); err != nil {
-			return errors.Wrap(err, "failed to create Cloudwatch log group")
+			return fmt.Errorf("failed to create Cloudwatch log group: %w", err)
 		}
 		err = l.createLogStream()
 		if err == nil {
 			return nil
 		}
 	}
-	return errors.Wrap(err, "failed to create Cloudwatch log stream")
+	return fmt.Errorf("failed to create Cloudwatch log stream: %w", err)
 }
 
 // createLogGroup creates a log group for the instance of the awslogs logging driver
@@ -782,8 +782,8 @@ func (l *logStream) processEvent(batch *eventBatch, bytes []byte, timestamp int6
 // utf8.RuneError)
 func effectiveLen(line string) int {
 	effectiveBytes := 0
-	for _, rune := range line {
-		effectiveBytes += utf8.RuneLen(rune)
+	for _, r := range line {
+		effectiveBytes += utf8.RuneLen(r)
 	}
 	return effectiveBytes
 }
