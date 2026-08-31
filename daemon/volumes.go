@@ -1,13 +1,14 @@
 package daemon
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"maps"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -27,37 +28,24 @@ import (
 
 var _ volume.LiveRestorer = (*volumeWrapper)(nil)
 
-// mountSort implements [sort.Interface] to sort an array of mounts in
-// lexicographic order.
-type mountSort []container.Mount
+// compareMountPaths compares mount paths by depth so that parent paths sort
+// before paths beneath them.
+func compareMountPaths(a, b string) int {
+	a = filepath.Clean(a)
+	b = filepath.Clean(b)
 
-// Len returns the number of mounts. Used in sorting.
-func (m mountSort) Len() int {
-	return len(m)
+	aParts := strings.Count(a, string(os.PathSeparator))
+	bParts := strings.Count(b, string(os.PathSeparator))
+	return cmp.Compare(aParts, bParts)
 }
 
-// Less returns true if the number of parts (a/b/c would be 3 parts) in the
-// mount indexed by parameter 1 is less than that of the mount indexed by
-// parameter 2. Used in sorting.
-func (m mountSort) Less(i, j int) bool {
-	return m.parts(i) < m.parts(j)
-}
-
-// Swap swaps two items in an array of mounts. Used in sorting
-func (m mountSort) Swap(i, j int) {
-	m[i], m[j] = m[j], m[i]
-}
-
-// parts returns the number of parts in the destination of a mount. Used in sorting.
-func (m mountSort) parts(i int) int {
-	return strings.Count(filepath.Clean(m[i].Destination), string(os.PathSeparator))
-}
-
-// sortMounts sorts an array of mounts in lexicographic order. This ensure that
-// when mounting, the mounts don't shadow other mounts. For example, if mounting
-// /etc and /etc/resolv.conf, /etc/resolv.conf must not be mounted first.
+// sortMounts sorts mounts by destination depth so that parent mounts are
+// applied before mounts beneath them. For example, /etc must be mounted
+// before /etc/resolv.conf.
 func sortMounts(m []container.Mount) []container.Mount {
-	sort.Sort(mountSort(m))
+	slices.SortStableFunc(m, func(a, b container.Mount) int {
+		return compareMountPaths(a.Destination, b.Destination)
+	})
 	return m
 }
 
