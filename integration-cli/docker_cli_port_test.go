@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -167,27 +167,9 @@ func (s *DockerCLIPortSuite) TestPortList(c *testing.T) {
 
 func assertPortList(t *testing.T, out string, expected []string) {
 	t.Helper()
-	lines := strings.Split(strings.Trim(out, "\n "), "\n")
-	assert.Assert(t, is.Len(lines, len(expected)), "expected: %s", strings.Join(expected, ", "))
 
-	sort.Strings(lines)
-	sort.Strings(expected)
-
-	// "docker port" does not yet have a "--format" flag, and older versions
-	// of the CLI used an incorrect output format for mappings on IPv6 addresses
-	// for example, "80/tcp -> :::80" instead of "80/tcp -> [::]:80".
-	oldFormat := func(mapping string) string {
-		old := strings.Replace(mapping, "[", "", 1)
-		old = strings.Replace(old, "]:", ":", 1)
-		return old
-	}
-
-	for i := range expected {
-		if lines[i] == expected[i] {
-			continue
-		}
-		assert.Equal(t, lines[i], oldFormat(expected[i]))
-	}
+	actual := strings.Split(strings.TrimSpace(out), "\n")
+	assert.DeepEqual(t, actual, expected, cmpopts.SortSlices(func(a, b string) bool { return a < b }))
 }
 
 func assertPortRange(ctx context.Context, id string, expectedTCP, expectedUDP []int) error {
