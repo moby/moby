@@ -3,7 +3,6 @@ package daemon
 import (
 	"context"
 	"errors"
-	"fmt"
 	"maps"
 	"runtime"
 	"time"
@@ -80,10 +79,9 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 	hostConfig := *ctr.HostConfig
 
 	// Add information for legacy links
-	children := daemon.linkIndex.children(ctr)
 	hostConfig.Links = nil // do not expose the internal structure
-	for linkAlias, child := range children {
-		hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
+	for linkAlias, child := range daemon.linkIndex.children(ctr) {
+		hostConfig.Links = append(hostConfig.Links, child.Name+":"+linkAlias)
 	}
 
 	// We merge the Ulimits from hostConfig with daemon default
@@ -144,14 +142,11 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 		AppArmorProfile: ctr.AppArmorProfile, // Only used on Linux.
 		ExecIDs:         ctr.GetExecIDs(),
 		HostConfig:      &hostConfig,
+		Mounts:          ctr.GetMountPoints(),
 		Config:          ctr.Config,
 	}
 
-	// TODO(thaJeztah): do we need a deep copy here? Otherwise we could use maps.Clone (see https://github.com/moby/moby/commit/7917a36cc787ada58987320e67cc6d96858f3b55)
-	ports := make(networktypes.PortMap, len(ctr.NetworkSettings.Ports))
-	maps.Copy(ports, ctr.NetworkSettings.Ports)
-
-	apiNetworks := make(map[string]*networktypes.EndpointSettings)
+	apiNetworks := make(map[string]*networktypes.EndpointSettings, len(ctr.NetworkSettings.Networks))
 	for nwName, epConf := range ctr.NetworkSettings.Networks {
 		if epConf.EndpointSettings != nil {
 			// We must make a copy of this pointer object otherwise it can race with other operations
@@ -162,10 +157,9 @@ func (daemon *Daemon) getInspectData(daemonCfg *config.Config, ctr *container.Co
 	inspectResponse.NetworkSettings = &containertypes.NetworkSettings{
 		SandboxID:  ctr.NetworkSettings.SandboxID,
 		SandboxKey: ctr.NetworkSettings.SandboxKey,
-		Ports:      ports,
+		Ports:      maps.Clone(ctr.NetworkSettings.Ports),
 		Networks:   apiNetworks,
 	}
-	inspectResponse.Mounts = ctr.GetMountPoints()
 
 	imageManifest := ctr.ImageManifest
 	if imageManifest != nil && imageManifest.Platform == nil {
