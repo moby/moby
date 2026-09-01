@@ -9,6 +9,7 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 
@@ -45,7 +46,7 @@ func NewRouter(backends ...Backend) router.Router {
 	}
 
 	r := &grpcRouter{
-		h2Server:   &http2.Server{},
+		h2Server:   &http2.Server{MaxConcurrentStreams: math.MaxUint32},
 		grpcServer: grpc.NewServer(opts...),
 	}
 	for _, b := range backends {
