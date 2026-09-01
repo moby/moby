@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
@@ -23,6 +22,7 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
+	"github.com/moby/moby/v2/internal/testutil/request"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -758,7 +758,7 @@ func TestBuildWorkdirNoCacheMiss(t *testing.T) {
 	}
 }
 
-func TestBuildEmitsImageCreateEvent(t *testing.T) {
+func TestBuildEmitsEvents(t *testing.T) {
 	ctx := setupTest(t)
 
 	dockerfile := "FROM busybox\nRUN echo hello > /hello"
@@ -771,51 +771,111 @@ func TestBuildEmitsImageCreateEvent(t *testing.T) {
 		t.Run("v"+string(builderVersion), func(t *testing.T) {
 			skip.If(t, builderVersion == build.BuilderBuildKit && testEnv.DaemonInfo.OSType == "windows" && !testEnv.UsingSnapshotter(),
 				"Buildkit is not supported on Windows with graphdrivers")
+			for _, tc := range []struct {
+				name           string
+				tag            string
+				expectCreate   int
+				expectTag      int
+				expectTagValue string
+			}{
+				{
+					name:         "no tag",
+					tag:          "",
+					expectCreate: 1,
+					expectTag:    0,
+				},
+				{
+					name:           "with tag",
+					tag:            "testbuildemitsevents",
+					expectCreate:   1,
+					expectTag:      1,
+					expectTagValue: "testbuildemitsevents:latest",
+				},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
 
-			ctx, cancel := context.WithCancel(ctx)
-			defer cancel()
+					ctx, cancel := context.WithCancel(ctx)
+					defer cancel()
 
-			since := time.Now()
+					// Use the daemon's own clock for the event window, not the test
+					// runner's: the two can drift when the test suite talks to a
+					// remote daemon, which would make daemon-stamped build events
+					// fall outside a runner-clock-bounded window.
+					since := request.DaemonUnixTime(ctx, t, apiClient, testEnv)
 
-			resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
-				Version: builderVersion,
-				NoCache: true,
-			})
-			assert.NilError(t, err)
-
-			defer resp.Body.Close()
-
-			out := bytes.NewBuffer(nil)
-			_, err = io.Copy(out, resp.Body)
-			assert.NilError(t, err)
-			buildLogs := out.String()
-
-			result := apiClient.Events(ctx, client.EventsListOptions{
-				Since: since.Format(time.RFC3339Nano),
-				Until: time.Now().Format(time.RFC3339Nano),
-			})
-			eventsChan := result.Messages
-			errs := result.Err
-
-			var eventsReceived []string
-			imageCreateEvts := 0
-			finished := false
-			for !finished {
-				select {
-				case evt := <-eventsChan:
-					eventsReceived = append(eventsReceived, fmt.Sprintf("type: %v, action: %v", evt.Type, evt.Action))
-					if evt.Type == events.ImageEventType && evt.Action == events.ActionCreate {
-						imageCreateEvts++
+					buildOpts := client.ImageBuildOptions{
+						Version: builderVersion,
+						NoCache: true,
 					}
-				case err := <-errs:
-					assert.Check(t, err == nil || errors.Is(err, io.EOF))
-					finished = true
-				}
-			}
+					if tc.tag != "" {
+						buildOpts.Tags = []string{tc.tag}
+					}
 
-			if !assert.Check(t, is.Equal(1, imageCreateEvts)) {
-				t.Logf("build-logs:\n%s", buildLogs)
-				t.Logf("events received:\n%s", strings.Join(eventsReceived, "\n"))
+					resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), buildOpts)
+					assert.NilError(t, err)
+
+					defer resp.Body.Close()
+
+					out := bytes.NewBuffer(nil)
+					_, err = io.Copy(out, resp.Body)
+					assert.NilError(t, err)
+					buildLogs := out.String()
+					imageID := readBuildImageIDs(t, bytes.NewReader(out.Bytes()))
+					assert.Assert(t, imageID != "", "could not determine built image ID from build output:\n%s", buildLogs)
+
+					// Clean up tagged image if we created one
+					if tc.tag != "" {
+						t.Cleanup(func() {
+							if _, err := apiClient.ImageRemove(context.Background(), tc.tag, client.ImageRemoveOptions{Force: true}); err != nil {
+								t.Logf("failed to remove image %s: %v", tc.tag, err)
+							}
+						})
+					}
+
+					until := request.DaemonUnixTime(ctx, t, apiClient, testEnv)
+					result := apiClient.Events(ctx, client.EventsListOptions{
+						Since: since,
+						Until: until,
+						// Scope to the image this subtest built: the daemon is shared
+						// across (sub)tests, so an unfiltered stream would also pick up
+						// create/tag events from unrelated concurrent activity.
+						Filters: make(client.Filters).Add(string(events.ImageEventType), imageID),
+					})
+					eventsChan := result.Messages
+					errs := result.Err
+
+					var eventsReceived []string
+					imageCreateEvts := 0
+					imageTagEvts := 0
+					var imageTagEvtName string
+					finished := false
+					for !finished {
+						select {
+						case evt := <-eventsChan:
+							eventsReceived = append(eventsReceived, fmt.Sprintf("type: %v, action: %v", evt.Type, evt.Action))
+							if evt.Type == events.ImageEventType && evt.Action == events.ActionCreate {
+								imageCreateEvts++
+							}
+							if evt.Type == events.ImageEventType && evt.Action == events.ActionTag {
+								imageTagEvts++
+								imageTagEvtName = evt.Actor.Attributes["name"]
+							}
+						case err := <-errs:
+							assert.Check(t, err == nil || errors.Is(err, io.EOF))
+							finished = true
+						}
+					}
+
+					createOk := assert.Check(t, is.Equal(tc.expectCreate, imageCreateEvts))
+					tagOk := assert.Check(t, is.Equal(tc.expectTag, imageTagEvts))
+					if !createOk || !tagOk {
+						t.Logf("build-logs:\n%s", buildLogs)
+						t.Logf("events received:\n%s", strings.Join(eventsReceived, "\n"))
+					}
+					if tc.expectTagValue != "" {
+						assert.Check(t, is.Equal(tc.expectTagValue, imageTagEvtName))
+					}
+				})
 			}
 		})
 	}
