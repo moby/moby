@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
@@ -40,6 +41,10 @@ const (
 	logCreateGroupKey      = "awslogs-create-group"
 	logCreateStreamKey     = "awslogs-create-stream"
 	datetimeFormatKey      = "awslogs-datetime-format"
+	datetimeAsEventTimeKey = "awslogs-datetime-as-event-time"
+	datetimeTimezoneKey    = "awslogs-datetime-timezone"
+	datetimeTimezoneUTC    = "utc"
+	datetimeTimezoneLocal  = "local"
 	multilinePatternKey    = "awslogs-multiline-pattern"
 	credentialsEndpointKey = "awslogs-credentials-endpoint" // #nosec G101 -- Potential hardcoded credentials
 	forceFlushIntervalKey  = "awslogs-force-flush-interval-seconds"
@@ -53,6 +58,10 @@ const (
 	perEventBytes          = 26
 	maximumBytesPerPut     = 1048576
 	maximumLogEventsPerPut = 10000
+	// A batch spanning more than this fails as a whole, so it matters once
+	// event timestamps are read off the log lines and no longer bounded by the
+	// flush interval.
+	maximumTimeSpanPerPut = int64(24 * time.Hour / time.Millisecond)
 
 	// See: http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_limits.html
 	// Because the events are interpreted as UTF-8 encoded Unicode, invalid UTF-8 byte sequences are replaced with the
@@ -75,6 +84,7 @@ type logStream struct {
 	logCreateStream    bool
 	forceFlushInterval time.Duration
 	multilinePattern   *regexp.Regexp
+	eventTime          *eventTimeParser
 	client             api
 
 	messages *loggerutils.MessageQueue
@@ -91,6 +101,7 @@ type logStreamConfig struct {
 	forceFlushInterval time.Duration
 	maxBufferedEvents  int
 	multilinePattern   *regexp.Regexp
+	eventTime          *eventTimeParser
 }
 
 var _ logger.SizedLogger = &logStream{}
@@ -118,14 +129,17 @@ type byTimestamp []wrappedEvent
 // concurrently. This type is expected to be consumed in a single go
 // routine and never concurrently.
 type eventBatch struct {
-	batch []wrappedEvent
-	bytes int
+	batch        []wrappedEvent
+	bytes        int
+	minTimestamp int64
+	maxTimestamp int64
 }
 
 // New creates an awslogs logger using the configuration passed in on the
 // context.  Supported context configuration variables are awslogs-region,
 // awslogs-endpoint, awslogs-group, awslogs-stream, awslogs-create-group,
-// awslogs-multiline-pattern and awslogs-datetime-format.
+// awslogs-multiline-pattern, awslogs-datetime-format,
+// awslogs-datetime-as-event-time and awslogs-datetime-timezone.
 // When available, configuration is also taken from environment variables
 // AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, the shared credentials
 // file (~/.aws/credentials), and the EC2 Instance Metadata Service.
@@ -148,6 +162,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		logCreateStream:    containerStreamConfig.logCreateStream,
 		forceFlushInterval: containerStreamConfig.forceFlushInterval,
 		multilinePattern:   containerStreamConfig.multilinePattern,
+		eventTime:          containerStreamConfig.eventTime,
 		client:             client,
 		messages:           loggerutils.NewMessageQueue(containerStreamConfig.maxBufferedEvents),
 	}
@@ -235,6 +250,11 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 		return nil, err
 	}
 
+	eventTime, err := parseEventTimeOptions(info, multilinePattern)
+	if err != nil {
+		return nil, err
+	}
+
 	containerStreamConfig := &logStreamConfig{
 		logStreamName:      logStreamName,
 		logGroupName:       logGroupName,
@@ -243,6 +263,7 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 		forceFlushInterval: forceFlushInterval,
 		maxBufferedEvents:  maxBufferedEvents,
 		multilinePattern:   multilinePattern,
+		eventTime:          eventTime,
 	}
 
 	return containerStreamConfig, nil
@@ -298,6 +319,250 @@ var strftimeToRegex = map[string]string{
 	/*tzName                */ `%Z`: `[A-Z]{1,4}T`,
 	/*dayOfYearZeroPadded   */ `%j`: `(?:0[0-9][1-9]|[1,2][0-9][0-9]|3[0-5][0-9]|36[0-6])`,
 	/*milliseconds          */ `%L`: `\.\d{3}`,
+}
+
+// Maps strftime format strings to the reference time layout used by time.Parse.
+// Every sequence in strftimeToRegex is present except %w (weekday as a digit),
+// which has no equivalent in a Go layout, and %Z (timezone abbreviation), which
+// cannot be resolved reliably.
+var strftimeToGoLayout = map[string]string{
+	/*weekdayShort          */ `%a`: `Mon`,
+	/*weekdayFull           */ `%A`: `Monday`,
+	/*dayZeroPadded         */ `%d`: `02`,
+	/*monthShort            */ `%b`: `Jan`,
+	/*monthFull             */ `%B`: `January`,
+	/*monthZeroPadded       */ `%m`: `01`,
+	/*yearCentury           */ `%Y`: `2006`,
+	/*yearZeroPadded        */ `%y`: `06`,
+	/*hour24ZeroPadded      */ `%H`: `15`,
+	/*hour12ZeroPadded      */ `%I`: `03`,
+	/*AM or PM              */ `%p`: `PM`,
+	/*minuteZeroPadded      */ `%M`: `04`,
+	/*secondZeroPadded      */ `%S`: `05`,
+	/*microsecondZeroPadded */ `%f`: `000000`,
+	/*utcOffset             */ `%z`: `-0700`,
+	/*dayOfYearZeroPadded   */ `%j`: `002`,
+	/*milliseconds          */ `%L`: `.000`,
+}
+
+// eventTimeParser derives the CloudWatch Logs event timestamp from the datetime
+// embedded in a log line, as described by awslogs-datetime-format.  It matches
+// with the very same expression that detects the start of a multiline event, so
+// the matched text is guaranteed to line up with the layout derived from the
+// same format.
+type eventTimeParser struct {
+	pattern  *regexp.Regexp
+	layout   string
+	location *time.Location
+	hasYear  bool
+	hasMonth bool
+	hasDay   bool
+	hasHour  bool
+}
+
+// Parses the awslogs-datetime-as-event-time option.  The option is only
+// meaningful together with awslogs-datetime-format, whose compiled expression is
+// passed in as pattern.  Returns nil when the option is disabled, leaving the
+// event timestamp to be taken from the time the message was read.
+func parseEventTimeOptions(info logger.Info, pattern *regexp.Regexp) (*eventTimeParser, error) {
+	if info.Config[datetimeAsEventTimeKey] == "" {
+		return nil, nil
+	}
+	datetimeAsEventTime, err := strconv.ParseBool(info.Config[datetimeAsEventTimeKey])
+	if err != nil {
+		return nil, err
+	}
+	if !datetimeAsEventTime {
+		return nil, nil
+	}
+	dateTimeFormat := info.Config[datetimeFormatKey]
+	if dateTimeFormat == "" {
+		return nil, fmt.Errorf("log opt '%s' requires log opt '%s' to be set", datetimeAsEventTimeKey, datetimeFormatKey)
+	}
+	layout, err := strftimeToLayout(dateTimeFormat)
+	if err != nil {
+		return nil, err
+	}
+	location, err := parseDatetimeTimezone(info.Config[datetimeTimezoneKey])
+	if err != nil {
+		return nil, err
+	}
+	// %j (day of the year) carries both the month and the day
+	dayOfYear := strings.Contains(dateTimeFormat, `%j`)
+	return &eventTimeParser{
+		pattern:  pattern,
+		layout:   layout,
+		location: location,
+		hasYear:  strings.Contains(dateTimeFormat, `%Y`) || strings.Contains(dateTimeFormat, `%y`),
+		hasMonth: dayOfYear || strings.Contains(dateTimeFormat, `%m`) || strings.Contains(dateTimeFormat, `%b`) || strings.Contains(dateTimeFormat, `%B`),
+		hasDay:   dayOfYear || strings.Contains(dateTimeFormat, `%d`),
+		hasHour:  strings.Contains(dateTimeFormat, `%H`) || strings.Contains(dateTimeFormat, `%I`),
+	}, nil
+}
+
+// Parses the awslogs-datetime-timezone option, which tells in what timezone a
+// datetime that carries none of its own is to be read.  Defaults to UTC.
+func parseDatetimeTimezone(datetimeTimezone string) (*time.Location, error) {
+	switch strings.ToLower(datetimeTimezone) {
+	case "", datetimeTimezoneUTC:
+		return time.UTC, nil
+	case datetimeTimezoneLocal:
+		return time.Local, nil
+	default:
+		return nil, fmt.Errorf("must specify '%s' or '%s' for log opt '%s': %s", datetimeTimezoneUTC, datetimeTimezoneLocal, datetimeTimezoneKey, datetimeTimezone)
+	}
+}
+
+// strftimeToLayout converts a strftime format to the reference time layout used
+// by time.Parse, keeping any literal text in between as-is.  It errors out on
+// format sequences that cannot be expressed as a Go layout.
+func strftimeToLayout(dateTimeFormat string) (string, error) {
+	var unsupported string
+	layout := formatSequences.ReplaceAllStringFunc(dateTimeFormat, func(s string) string {
+		goLayout, ok := strftimeToGoLayout[s]
+		if !ok {
+			unsupported = s
+		}
+		return goLayout
+	})
+	if unsupported != "" {
+		err := fmt.Errorf("awslogs cannot use log opt '%s' as event time: format sequence %q is not supported", datetimeFormatKey, unsupported)
+		if unsupported == `%Z` {
+			// A timezone abbreviation is ambiguous (CST is both -06:00 and
+			// +08:00), and time.Parse resolves one it does not know to a zero
+			// offset without failing, silently dating the event wrong
+			err = fmt.Errorf("%w, use %%z or log opt '%s' instead", err, datetimeTimezoneKey)
+		}
+		return "", err
+	}
+	return layout, nil
+}
+
+// parse returns the timestamp carried by line, falling back to readTime when the
+// line holds no datetime (a continuation line of a multiline event) or when the
+// datetime does not parse.
+func (p *eventTimeParser) parse(line []byte, readTime time.Time) time.Time {
+	loc := p.pattern.FindIndex(line)
+	if loc == nil {
+		return readTime
+	}
+	timestamp, err := time.ParseInLocation(p.layout, string(line[loc[0]:loc[1]]), p.location)
+	if err != nil {
+		log.G(context.TODO()).WithError(err).Debugf("awslogs could not parse event time from %q", line[loc[0]:loc[1]])
+		return readTime
+	}
+	completed, ok := p.completeDate(timestamp, readTime)
+	if !ok {
+		log.G(context.TODO()).Debugf("awslogs could not complete the date of event time %q", line[loc[0]:loc[1]])
+		return readTime
+	}
+	return completed
+}
+
+// completeDate fills in the date components that the datetime format does not
+// carry (a bare time, or the year-less format used by syslog) from the time the
+// message was read.
+func (p *eventTimeParser) completeDate(timestamp, readTime time.Time) (time.Time, bool) {
+	if p.hasYear && p.hasMonth && p.hasDay {
+		return timestamp, true
+	}
+	// Compare dates in the zone of the parsed timestamp, so that a date taken
+	// from the read time is the date the log line was written in its own zone.
+	readTime = readTime.In(timestamp.Location())
+
+	// Missing components are taken from the day the line would have been
+	// written on: the read time less the time of day the line carries, rounded
+	// to the nearest day.  Borrowing from that rather than from the read time
+	// itself keeps the event next to it even when the two fall either side of a
+	// midnight, and with it either side of a month or a year.
+	//
+	// A format carrying no hour has no time of day to go by: time.Parse fills a
+	// midnight the line never carried, and rounding on it would make the same
+	// line land differently for having been read before or after noon.
+	written := readTime
+	if p.hasHour {
+		timeOfDay := time.Duration(timestamp.Hour())*time.Hour +
+			time.Duration(timestamp.Minute())*time.Minute +
+			time.Duration(timestamp.Second())*time.Second +
+			time.Duration(timestamp.Nanosecond())
+		written = readTime.Add(12*time.Hour - timeOfDay)
+	}
+
+	// What the borrowed day cannot settle, the format repeats: one carrying no
+	// year reads the same every year, one carrying no month the same every
+	// month.  Of the candidate on the borrowed date and the one a period back,
+	// the one closer to the time the message was read wins.
+	var years, months int
+	switch {
+	case !p.hasYear && p.hasMonth:
+		years = -1
+	case !p.hasMonth && p.hasDay:
+		months = -1
+	}
+
+	// A borrowed component may still not go together with one the line carries,
+	// a borrowed 31st in a parsed February being the case time cannot normalize
+	// away without changing that February.  Such a candidate is dropped, and if
+	// neither survives the event keeps the time it was read.
+	var best time.Time
+	var found bool
+	for _, candidate := range [...]time.Time{
+		p.fillDate(timestamp, written, 0, 0),
+		p.fillDate(timestamp, written, years, months),
+	} {
+		if !p.preservesDate(candidate, timestamp) {
+			continue
+		}
+		if !found || candidate.Sub(readTime).Abs() < best.Sub(readTime).Abs() {
+			best, found = candidate, true
+		}
+	}
+	return best, found
+}
+
+// preservesDate reports whether candidate still holds every date component the
+// line itself carries, which time.Date normalizes away when a component taken
+// from readTime does not go together with them.
+func (p *eventTimeParser) preservesDate(candidate, timestamp time.Time) bool {
+	switch {
+	case p.hasYear && candidate.Year() != timestamp.Year():
+		return false
+	case p.hasMonth && candidate.Month() != timestamp.Month():
+		return false
+	case p.hasDay && candidate.Day() != timestamp.Day():
+		return false
+	}
+	return true
+}
+
+// fillDate rebuilds timestamp, taking the date components that the datetime
+// format does not carry from written, shifted a period back by the given number
+// of years and months.  Shifting the components rather than the date they came
+// from keeps a month off the end of a longer one, February off the 31st of
+// March being the case that would otherwise not shift at all.
+func (p *eventTimeParser) fillDate(timestamp, written time.Time, years, months int) time.Time {
+	year, month, day := timestamp.Date()
+	writtenYear, writtenMonth, writtenDay := written.Date()
+	if !p.hasYear {
+		year = writtenYear + years
+	}
+	if !p.hasMonth {
+		month = writtenMonth + time.Month(months)
+	}
+	if !p.hasDay {
+		day = writtenDay
+		if p.hasMonth {
+			// The day is not the line's own, so rather than let it push the
+			// month the line does carry along, take the closest one that month
+			// can hold.  Only a format carrying a month gets here with a day to
+			// clamp: without one the day is borrowed alongside the month it is
+			// known to fit.
+			if last := time.Date(year, month+1, 0, 0, 0, 0, 0, timestamp.Location()).Day(); day > last {
+				day = last
+			}
+		}
+	}
+	return time.Date(year, month, day, timestamp.Hour(), timestamp.Minute(), timestamp.Second(), timestamp.Nanosecond(), timestamp.Location())
 }
 
 // newRegionFinder is a variable such that the implementation
@@ -537,6 +802,9 @@ var newTicker = func(freq time.Duration) *time.Ticker {
 // messages. When events are ready to be processed for submission to CloudWatch
 // Logs, the processEvents method is called.  If a multiline pattern is not
 // configured, log events are submitted to the processEvents method immediately.
+// If the awslogs-datetime-as-event-time option has been enabled, the timestamp
+// of a log event is taken from the datetime matched in the log line itself
+// rather than from the time the message was read.
 func (l *logStream) collectBatch(created chan bool) {
 	// Wait for the logstream/group to be created
 	<-created
@@ -547,6 +815,11 @@ func (l *logStream) collectBatch(created chan bool) {
 	ticker := newTicker(flushInterval)
 	var eventBuffer []byte
 	var eventBufferTimestamp int64
+	// Time at which the buffered event was read.  It only differs from
+	// eventBufferTimestamp when the event timestamp is taken from the log line
+	// itself, and is kept apart from it so that how long an event may be
+	// buffered stays a matter of wall-clock time.
+	var eventBufferReadTime int64
 	batch := newEventBatch()
 
 	chLogs := l.messages.Receiver()
@@ -554,8 +827,8 @@ func (l *logStream) collectBatch(created chan bool) {
 		select {
 		case t := <-ticker.C:
 			// If event buffer is older than batch publish frequency flush the event buffer
-			if eventBufferTimestamp > 0 && len(eventBuffer) > 0 {
-				eventBufferAge := t.UnixNano()/int64(time.Millisecond) - eventBufferTimestamp
+			if eventBufferReadTime > 0 && len(eventBuffer) > 0 {
+				eventBufferAge := t.UnixNano()/int64(time.Millisecond) - eventBufferReadTime
 				eventBufferExpired := eventBufferAge >= int64(flushInterval)/int64(time.Millisecond)
 				eventBufferNegative := eventBufferAge < 0
 				if eventBufferExpired || eventBufferNegative {
@@ -573,17 +846,31 @@ func (l *logStream) collectBatch(created chan bool) {
 				batch.reset()
 				return
 			}
+			eventTimestamp := msg.Timestamp
+			if l.eventTime != nil {
+				eventTimestamp = l.eventTime.parse(msg.Line, msg.Timestamp)
+			}
+			timestamp := eventTimestamp.UnixNano() / int64(time.Millisecond)
+			readTime := msg.Timestamp.UnixNano() / int64(time.Millisecond)
 			if eventBufferTimestamp == 0 {
-				eventBufferTimestamp = msg.Timestamp.UnixNano() / int64(time.Millisecond)
+				eventBufferTimestamp = timestamp
+				eventBufferReadTime = readTime
 			}
 			line := msg.Line
 			if l.multilinePattern != nil {
 				lineEffectiveLen := effectiveLen(string(line))
-				if l.multilinePattern.Match(line) || effectiveLen(string(eventBuffer))+lineEffectiveLen > maximumBytesPerEvent {
+				newEvent := l.multilinePattern.Match(line)
+				if newEvent || effectiveLen(string(eventBuffer))+lineEffectiveLen > maximumBytesPerEvent {
 					// This is a new log event or we will exceed max bytes per event
 					// so flush the current eventBuffer to events and reset timestamp
 					l.processEvent(batch, eventBuffer, eventBufferTimestamp)
-					eventBufferTimestamp = msg.Timestamp.UnixNano() / int64(time.Millisecond)
+					if newEvent {
+						// Exceeding max bytes per event splits a single event,
+						// whose parts all keep the timestamp of the line that
+						// started it.
+						eventBufferTimestamp = timestamp
+					}
+					eventBufferReadTime = readTime
 					eventBuffer = eventBuffer[:0]
 				}
 				// Append newline if event is less than max event size
@@ -593,7 +880,7 @@ func (l *logStream) collectBatch(created chan bool) {
 				eventBuffer = append(eventBuffer, line...)
 				logger.PutMessage(msg)
 			} else {
-				l.processEvent(batch, line, msg.Timestamp.UnixNano()/int64(time.Millisecond))
+				l.processEvent(batch, line, timestamp)
 				logger.PutMessage(msg)
 			}
 		}
@@ -724,7 +1011,7 @@ func (l *logStream) putLogEvents(events []types.InputLogEvent, sequenceToken *st
 
 // ValidateLogOpt looks for awslogs-specific log options awslogs-region, awslogs-endpoint
 // awslogs-group, awslogs-stream, awslogs-create-group, awslogs-create-stream, awslogs-datetime-format,
-// awslogs-multiline-pattern
+// awslogs-datetime-as-event-time, awslogs-datetime-timezone, awslogs-multiline-pattern
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
@@ -737,6 +1024,8 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case regionKey:
 		case endpointKey:
 		case datetimeFormatKey:
+		case datetimeAsEventTimeKey:
+		case datetimeTimezoneKey:
 		case multilinePatternKey:
 		case credentialsEndpointKey:
 		case forceFlushIntervalKey:
@@ -773,6 +1062,30 @@ func ValidateLogOpt(cfg map[string]string) error {
 	_, multilinePatternKeyExists := cfg[multilinePatternKey]
 	if datetimeFormatKeyExists && multilinePatternKeyExists {
 		return fmt.Errorf("you cannot configure log opt '%s' and '%s' at the same time", datetimeFormatKey, multilinePatternKey)
+	}
+	datetimeAsEventTime := false
+	if cfg[datetimeAsEventTimeKey] != "" {
+		var err error
+		datetimeAsEventTime, err = strconv.ParseBool(cfg[datetimeAsEventTimeKey])
+		if err != nil {
+			return fmt.Errorf("must specify valid value for log opt '%s': %v", datetimeAsEventTimeKey, err)
+		}
+		if datetimeAsEventTime {
+			if cfg[datetimeFormatKey] == "" {
+				return fmt.Errorf("log opt '%s' requires log opt '%s' to be set", datetimeAsEventTimeKey, datetimeFormatKey)
+			}
+			if _, err := strftimeToLayout(cfg[datetimeFormatKey]); err != nil {
+				return err
+			}
+		}
+	}
+	if cfg[datetimeTimezoneKey] != "" {
+		if !datetimeAsEventTime {
+			return fmt.Errorf("log opt '%s' requires log opt '%s' to be enabled", datetimeTimezoneKey, datetimeAsEventTimeKey)
+		}
+		if _, err := parseDatetimeTimezone(cfg[datetimeTimezoneKey]); err != nil {
+			return err
+		}
 	}
 
 	if cfg[logFormatKey] != "" {
@@ -851,15 +1164,26 @@ func (b *eventBatch) events() []wrappedEvent {
 func (b *eventBatch) add(event wrappedEvent, size int) bool {
 	addBytes := size + perEventBytes
 
+	timestamp := aws.ToInt64(event.inputLogEvent.Timestamp)
+	minTimestamp, maxTimestamp := timestamp, timestamp
+	if len(b.batch) > 0 {
+		minTimestamp = min(b.minTimestamp, timestamp)
+		maxTimestamp = max(b.maxTimestamp, timestamp)
+	}
+
 	// verify we are still within service limits
 	switch {
 	case len(b.batch) >= maximumLogEventsPerPut:
 		return false
 	case b.bytes+addBytes > maximumBytesPerPut:
 		return false
+	case maxTimestamp-minTimestamp > maximumTimeSpanPerPut:
+		// An empty batch always accepts, so a single event never gets stuck here
+		return false
 	}
 
 	b.bytes += addBytes
+	b.minTimestamp, b.maxTimestamp = minTimestamp, maxTimestamp
 	b.batch = append(b.batch, event)
 
 	return true
@@ -888,5 +1212,7 @@ func (b *eventBatch) isEmpty() bool {
 // reset prepares the batch for reuse.
 func (b *eventBatch) reset() {
 	b.bytes = 0
+	b.minTimestamp = 0
+	b.maxTimestamp = 0
 	b.batch = b.batch[:0]
 }
