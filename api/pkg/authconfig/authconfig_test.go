@@ -1,10 +1,11 @@
-package authconfig
+package authconfig_test
 
 import (
 	"encoding/base64"
 	"strings"
 	"testing"
 
+	"github.com/moby/moby/api/pkg/authconfig"
 	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -109,9 +110,12 @@ func TestDecodeAuthConfig(t *testing.T) {
 				assert.Check(t, is.Equal(b64, tc.inputBase64))
 			}
 
-			out, err := Decode(tc.inputBase64)
+			out, err := authconfig.Decode(tc.inputBase64)
 			if tc.expectedErr != "" {
-				assert.Check(t, is.ErrorType(err, errInvalidParameter{}))
+				assert.Check(t, is.ErrorType(err, func(err error) bool {
+					_, ok := err.(interface{ InvalidParameter() })
+					return ok
+				}))
 				assert.Check(t, is.Error(err, tc.expectedErr))
 			} else {
 				assert.NilError(t, err)
@@ -155,7 +159,7 @@ func TestEncodeAuthConfig(t *testing.T) {
 		assert.Check(t, is.Equal(b64, tc.outBase64))
 
 		t.Run(tc.doc, func(t *testing.T) {
-			out, err := Encode(tc.input)
+			out, err := authconfig.Encode(tc.input)
 			assert.NilError(t, err)
 			assert.Equal(t, out, tc.outBase64)
 
@@ -200,7 +204,7 @@ func BenchmarkDecodeAuthConfig(b *testing.B) {
 		b.Run(tc.doc, func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				_, err := Decode(tc.inputBase64)
+				_, err := authconfig.Decode(tc.inputBase64)
 				if !tc.invalid && err != nil {
 					b.Fatal(err)
 				}
