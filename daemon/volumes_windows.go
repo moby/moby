@@ -48,7 +48,8 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 		})
 	}
 
-	return sortMounts(mnts), mntCleanups.Release(), nil
+	sortMounts(mnts)
+	return mnts, mntCleanups.Release(), nil
 }
 
 // setBindModeIfNull is platform specific processing which is a no-op on

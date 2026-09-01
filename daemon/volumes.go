@@ -42,11 +42,10 @@ func compareMountPaths(a, b string) int {
 // sortMounts sorts mounts by destination depth so that parent mounts are
 // applied before mounts beneath them. For example, /etc must be mounted
 // before /etc/resolv.conf.
-func sortMounts(m []container.Mount) []container.Mount {
+func sortMounts(m []container.Mount) {
 	slices.SortStableFunc(m, func(a, b container.Mount) int {
 		return compareMountPaths(a.Destination, b.Destination)
 	})
-	return m
 }
 
 // registerMountPoints initializes the container mount points with the configured volumes and bind mounts.
