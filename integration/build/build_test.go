@@ -15,6 +15,7 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/platforms"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/image"
@@ -673,6 +674,50 @@ func TestBuildPlatformInvalid(t *testing.T) {
 
 	assert.Check(t, is.ErrorContains(err, "unknown operating system or architecture"))
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+}
+
+func TestBuildCacheUsesDockerfilePlatform(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "test images are only available on linux")
+
+	platform := "linux/arm64/v8"
+	baseImage := "hello-world:arm64"
+	daemonPlatform := platforms.Normalize(ocispec.Platform{
+		OS:           "linux",
+		Architecture: testEnv.DaemonInfo.Architecture,
+	})
+	if daemonPlatform.Architecture == "arm64" {
+		platform = "linux/amd64"
+		baseImage = "hello-world:amd64"
+	}
+	requestedPlatform, err := platforms.Parse(platform)
+	assert.NilError(t, err)
+	assert.Assert(t, !platforms.Only(daemonPlatform).Match(requestedPlatform))
+
+	ctx := setupTest(t)
+	source := fakecontext.New(t, "", fakecontext.WithDockerfile(fmt.Sprintf(`
+FROM --platform=%s %s
+ENV CACHE_TEST=1
+`, platform, baseImage)))
+	defer source.Close()
+
+	buildImage := func() string {
+		resp, err := testEnv.APIClient().ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
+			Version: build.BuilderV1,
+		})
+		assert.NilError(t, err)
+		defer resp.Body.Close()
+
+		out := bytes.NewBuffer(nil)
+		_, err = io.Copy(out, resp.Body)
+		assert.NilError(t, err)
+		return out.String()
+	}
+
+	buildImage()
+	out := buildImage()
+	if !assert.Check(t, is.Contains(out, "Using cache")) {
+		t.Log(out)
+	}
 }
 
 // TestBuildWorkdirNoCacheMiss is a regression test for https://github.com/moby/moby/issues/47627
