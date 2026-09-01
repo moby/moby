@@ -13600,8 +13600,8 @@ paths:
 
             - `id=<secret id>`
             - `label=<key> or label=<key>=value`
-            - `name=<secret name>`
-            - `names=<secret name>`
+            - `name=<secret name>` matches all or part of a secret name (prefix match)
+            - `names=<secret name>` matches a secret name (exact match)
       tags: ["Secret"]
   /secrets/create:
     post:
@@ -13807,8 +13807,7 @@ paths:
 
             - `id=<config id>`
             - `label=<key> or label=<key>=value`
-            - `name=<config name>`
-            - `names=<config name>`
+            - `name=<config name>` matches all or part of a config name (prefix match)
       tags: ["Config"]
   /configs/create:
     post:
