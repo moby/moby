@@ -48,7 +48,7 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 		})
 	}
 
-	sortMounts(mnts)
+	container.SortMounts(mnts)
 	return mnts, mntCleanups.Release(), nil
 }
 

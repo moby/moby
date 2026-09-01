@@ -103,7 +103,7 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 		}
 	}
 
-	sortMounts(mounts)
+	container.SortMounts(mounts)
 	netMounts := c.NetworkMounts()
 	// if we are going to mount any of the network files from container
 	// metadata, the ownership must be set properly for potential container

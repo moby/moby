@@ -479,7 +479,7 @@ var (
 // withMounts sets the container's mounts
 func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, mounts []container.Mount) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
-		sortMounts(mounts)
+		container.SortMounts(mounts)
 
 		userMounts := make(map[string]struct{})
 		for _, m := range mounts {

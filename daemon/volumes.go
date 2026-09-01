@@ -1,15 +1,10 @@
 package daemon
 
 import (
-	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"maps"
-	"os"
-	"path/filepath"
-	"slices"
-	"strings"
 	"time"
 
 	"github.com/containerd/log"
@@ -27,31 +22,6 @@ import (
 )
 
 var _ volume.LiveRestorer = (*volumeWrapper)(nil)
-
-// compareMountPaths compares mount paths by depth so that parent paths sort
-// before paths beneath them.
-func compareMountPaths(a, b string) int {
-	a = filepath.Clean(a)
-	b = filepath.Clean(b)
-
-	aParts := strings.Count(a, string(os.PathSeparator))
-	bParts := strings.Count(b, string(os.PathSeparator))
-	if c := cmp.Compare(aParts, bParts); c != 0 {
-		return c
-	}
-	return cmp.Compare(a, b)
-}
-
-// sortMounts sorts mounts by destination depth so that parent mounts are
-// applied before mounts beneath them. Mounts at the same depth are sorted
-// by destination to produce a deterministic order.
-//
-// For example, /etc must be mounted before /etc/resolv.conf.
-func sortMounts(m []container.Mount) {
-	slices.SortStableFunc(m, func(a, b container.Mount) int {
-		return compareMountPaths(a.Destination, b.Destination)
-	})
-}
 
 // registerMountPoints initializes the container mount points with the configured volumes and bind mounts.
 // It follows the next sequence to decide what to mount in each final destination:

@@ -1,4 +1,4 @@
-package daemon
+package container_test
 
 import (
 	"testing"
@@ -81,7 +81,7 @@ func TestSortMounts(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			sortMounts(tc.mounts)
+			container.SortMounts(tc.mounts)
 			assert.DeepEqual(t, tc.expected, tc.mounts)
 		})
 	}
