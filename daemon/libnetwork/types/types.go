@@ -58,6 +58,28 @@ type PortBinding struct {
 	HostPortEnd uint16
 }
 
+// PublishedPort is a request to publish a single container port on the host.
+// Unlike [PortBinding] it cannot express a host-port range - the host port is
+// always a single port. It's the currency of the dynamic port-publishing API
+// ([github.com/moby/moby/v2/daemon/libnetwork/driverapi.PortManager]), so that
+// callers can't request a range on a path that doesn't support one.
+type PublishedPort struct {
+	Proto    Protocol
+	Port     uint16 // container port
+	HostPort uint16 // single host port - there is no range
+}
+
+// PortBinding returns the single-port [PortBinding] equivalent of p, with
+// HostPortEnd pinned to HostPort so it can never denote a range.
+func (p PublishedPort) PortBinding() PortBinding {
+	return PortBinding{
+		Proto:       p.Proto,
+		Port:        p.Port,
+		HostPort:    p.HostPort,
+		HostPortEnd: p.HostPort,
+	}
+}
+
 // HostAddr returns the host side transport address
 func (p PortBinding) HostAddr() (net.Addr, error) {
 	switch p.Proto {
