@@ -780,7 +780,9 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.PidsLimit = nil
 	}
 
-	enforceCgroupParentFromClient(ctx, hostConfig, c.backend)
+	if err := enforceCgroupParentFromClient(ctx, hostConfig, c.backend); err != nil {
+		return err
+	}
 
 	ccr, err := c.backend.ContainerCreate(ctx, backend.ContainerCreateConfig{
 		Name:                        name,
@@ -810,37 +812,42 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 // without requiring users to pass --cgroup-parent on every create.
 //
 // The client PID is obtained from SO_PEERCRED on the Unix socket (see
-// daemon/internal/peercred). For TCP connections or when the cgroup cannot
-// be determined, the function leaves HostConfig.CgroupParent unchanged.
-func enforceCgroupParentFromClient(ctx context.Context, hostConfig *container.HostConfig, backend Backend) {
+// daemon/internal/peercred). When the option is enabled the function is
+// fail-closed: if peer credentials are unavailable (e.g. TCP) or the cgroup
+// cannot be determined, it returns an error and the container creation is
+// rejected. This avoids silently placing the container under the daemon's
+// cgroup and breaking isolation. If a fallback (warn-and-continue) is
+// preferred we can make this configurable – happy to adjust.
+// TODO: consider exposing this as an Extension point (see #53365) so the
+// cgroup decision and SO_PEERCRED propagation can be pluggable.
+func enforceCgroupParentFromClient(ctx context.Context, hostConfig *container.HostConfig, backend Backend) error {
 	type cfgProvider interface {
 		Config() config.Config
 	}
 	p, ok := backend.(cfgProvider)
 	if !ok {
-		return
+		return nil
 	}
 	cfg := p.Config()
 	if !cfg.CgroupParentFromClient {
-		return
+		return nil
 	}
 	cred, ok := peercred.FromContext(ctx)
 	if !ok || cred == nil {
-		log.G(ctx).Debug("cgroup-parent-from-client enabled but no peer credentials available")
-		return
+		return errdefs.InvalidParameter(errors.New("cgroup-parent-from-client is enabled but no peer credentials available (is the request via Unix socket?)"))
 	}
 	cgroupPath, err := cgrouputil.GetClientCgroup(cred.PID)
 	if err != nil {
-		log.G(ctx).WithError(err).WithField("pid", cred.PID).Warn("failed to get client cgroup, using default cgroup parent")
-		return
+		return errdefs.System(fmt.Errorf("failed to get client cgroup for PID %d: %w", cred.PID, err))
 	}
 	if cgroupPath == "" || cgroupPath == "/" {
-		return
+		return errdefs.InvalidParameter(fmt.Errorf("client cgroup is empty or root (%q), refusing container creation", cgroupPath))
 	}
 	if hostConfig.CgroupParent != cgroupPath {
 		log.G(ctx).WithFields(log.Fields{"clientPID": cred.PID, "clientCgroup": cgroupPath, "previous": hostConfig.CgroupParent}).Debug("enforcing cgroup parent from client")
 		hostConfig.CgroupParent = cgroupPath
 	}
+	return nil
 }
 
 // handleVolumeDriverBC handles the use of the container-wide "VolumeDriver"

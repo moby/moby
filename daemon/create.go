@@ -124,19 +124,25 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	}
 	// If the daemon is configured to enforce the client's cgroup, override
 	// HostConfig.CgroupParent with the cgroup of the calling process (via
-	// SO_PEERCRED). This is for shared HPC/Slurm environments.
+	// SO_PEERCRED). This is for shared HPC/Slurm environments. Fail-closed
+	// when enabled: missing peer credentials or inability to read the client's
+	// cgroup returns an error instead of silently falling back to the daemon's
+	// cgroup (which would break isolation). See discussion in #53514.
 	if daemonCfg.CgroupParentFromClient {
-		if cred, ok := peercred.FromContext(ctx); ok && cred != nil {
-			if cgroupPath, err := cgrouputil.GetClientCgroup(cred.PID); err == nil && cgroupPath != "" && cgroupPath != "/" {
-				if opts.params.HostConfig.CgroupParent != cgroupPath {
-					log.G(ctx).WithFields(log.Fields{"clientPID": cred.PID, "clientCgroup": cgroupPath, "previous": opts.params.HostConfig.CgroupParent}).Debug("enforcing cgroup parent from client")
-					opts.params.HostConfig.CgroupParent = cgroupPath
-				}
-			} else if err != nil {
-				log.G(ctx).WithError(err).WithField("pid", cred.PID).Warn("failed to get client cgroup, using default cgroup parent")
-			}
-		} else {
-			log.G(ctx).Debug("cgroup-parent-from-client enabled but no peer credentials available")
+		cred, ok := peercred.FromContext(ctx)
+		if !ok || cred == nil {
+			return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(errors.New("cgroup-parent-from-client is enabled but no peer credentials available (is the request via Unix socket?)"))
+		}
+		cgroupPath, err := cgrouputil.GetClientCgroup(cred.PID)
+		if err != nil {
+			return containertypes.CreateResponse{Warnings: warnings}, errdefs.System(fmt.Errorf("failed to get client cgroup for PID %d: %w", cred.PID, err))
+		}
+		if cgroupPath == "" || cgroupPath == "/" {
+			return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(fmt.Errorf("client cgroup is empty or root (%q), refusing container creation", cgroupPath))
+		}
+		if opts.params.HostConfig.CgroupParent != cgroupPath {
+			log.G(ctx).WithFields(log.Fields{"clientPID": cred.PID, "clientCgroup": cgroupPath, "previous": opts.params.HostConfig.CgroupParent}).Debug("enforcing cgroup parent from client")
+			opts.params.HostConfig.CgroupParent = cgroupPath
 		}
 	}
 	err = daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig)
