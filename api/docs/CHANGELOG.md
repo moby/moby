@@ -15,6 +15,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.56 API changes
 
+* `GET /containers/json` now supports an `annotation` filter to filter
+  containers by annotation, either by key (`annotation=key`) or by key and
+  value (`annotation="key=value"`), similar to the existing `label` filter.
+
 ## v1.55 API changes
 
 * `GET /images/{name}/attestations` is a new endpoint that returns the in-toto

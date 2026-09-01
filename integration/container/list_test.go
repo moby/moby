@@ -81,6 +81,53 @@ func TestContainerList_Annotations(t *testing.T) {
 	}
 }
 
+func TestContainerList_AnnotationFilter(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	annotated := container.Create(ctx, t, apiClient, container.WithAnnotations(map[string]string{"com.example.key": "value"}))
+	defer container.Remove(ctx, t, apiClient, annotated, client.ContainerRemoveOptions{Force: true})
+	plain := container.Create(ctx, t, apiClient)
+	defer container.Remove(ctx, t, apiClient, plain, client.ContainerRemoveOptions{Force: true})
+
+	tests := []struct {
+		doc      string
+		filter   string
+		expected []string
+	}{
+		{
+			doc:      "by key",
+			filter:   "com.example.key",
+			expected: []string{annotated},
+		},
+		{
+			doc:      "by key and value",
+			filter:   "com.example.key=value",
+			expected: []string{annotated},
+		},
+		{
+			doc:      "no match",
+			filter:   "com.example.key=other",
+			expected: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+			list, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
+				All:     true,
+				Filters: make(client.Filters).Add("annotation", tc.filter),
+			})
+			assert.NilError(t, err)
+			assert.Assert(t, is.Len(list.Items, len(tc.expected)))
+			for i, id := range tc.expected {
+				assert.Check(t, is.Equal(list.Items[i].ID, id))
+			}
+		})
+	}
+}
+
 func TestContainerList_Filter(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
