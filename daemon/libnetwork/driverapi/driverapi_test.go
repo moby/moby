@@ -116,3 +116,37 @@ func TestValidateAndIsV6(t *testing.T) {
 		t.Fatal("expected error but succeeded")
 	}
 }
+
+func TestIPAMDataUnmarshalJSONTypeMismatch(t *testing.T) {
+	tests := []struct {
+		name string
+		m    map[string]any
+	}{
+		{
+			name: "non-string AddressSpace",
+			m:    map[string]any{"AddressSpace": 123},
+		},
+		{
+			name: "non-string Pool",
+			m:    map[string]any{"AddressSpace": "as1", "Pool": 123},
+		},
+		{
+			name: "non-string Gateway",
+			m:    map[string]any{"AddressSpace": "as1", "Pool": "10.0.0.0/24", "Gateway": 123},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := json.Marshal(tc.m)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var i IPAMData
+			if err := i.UnmarshalJSON(data); err == nil {
+				t.Fatal("expected an error, got nil")
+			}
+		})
+	}
+}

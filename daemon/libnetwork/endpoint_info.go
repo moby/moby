@@ -1,12 +1,14 @@
 package libnetwork
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/netip"
 	"slices"
 
+	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -490,12 +492,24 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if v, ok := epMap["gw"]; ok {
-		epj.gw = net.ParseIP(v.(string))
+		if s, isString := v.(string); isString {
+			epj.gw = net.ParseIP(s)
+		} else {
+			log.G(context.TODO()).Errorf("gw: expected string, got %T", v)
+		}
 	}
 	if v, ok := epMap["gw6"]; ok {
-		epj.gw6 = net.ParseIP(v.(string))
+		if s, isString := v.(string); isString {
+			epj.gw6 = net.ParseIP(s)
+		} else {
+			log.G(context.TODO()).Errorf("gw6: expected string, got %T", v)
+		}
 	}
-	epj.disableGatewayService = epMap["disableGatewayService"].(bool)
+	disableGatewayService, isBool := epMap["disableGatewayService"].(bool)
+	if !isBool {
+		return fmt.Errorf("disableGatewayService: expected bool, got %T", epMap["disableGatewayService"])
+	}
+	epj.disableGatewayService = disableGatewayService
 
 	var tStaticRoute []types.StaticRoute
 	if v, ok := epMap["StaticRoutes"]; ok {
