@@ -55,15 +55,6 @@ func init() {
 	}
 }
 
-// Copy returns a shallow copy of the header.
-func Copy(header http.Header) http.Header {
-	h := make(http.Header)
-	for k, vs := range header {
-		h[k] = vs
-	}
-	return h
-}
-
 var timeLayouts = []string{"Mon, 02 Jan 2006 15:04:05 GMT", time.RFC850, time.ANSIC}
 
 // ParseTime parses the header as time. The zero value is returned if the
