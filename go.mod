@@ -73,7 +73,7 @@ require (
 	github.com/moby/moby/client v0.5.1
 	github.com/moby/patternmatcher v0.6.1
 	github.com/moby/policy-helpers v0.0.0-20260901142052-72f704e6cdb6
-	github.com/moby/profiles/apparmor v0.2.1
+	github.com/moby/profiles/apparmor v0.2.2-0.20260828104831-61eaf32614c7
 	github.com/moby/profiles/seccomp v0.2.3
 	github.com/moby/pubsub v1.0.0
 	github.com/moby/swarmkit/v2 v2.1.3-0.20260828175525-ad0357aedfca
