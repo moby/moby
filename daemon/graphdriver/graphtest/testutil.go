@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/v2/daemon/graphdriver"
@@ -214,33 +213,6 @@ func checkManyFiles(drv graphdriver.Driver, layer string, count int, seed int64)
 			if !bytes.Equal(fileContent, content) {
 				return fmt.Errorf("mismatched file content %v, expecting %v", fileContent, content)
 			}
-		}
-	}
-
-	return nil
-}
-
-type changeList []archive.Change
-
-func (c changeList) Less(i, j int) bool {
-	if c[i].Path == c[j].Path {
-		return c[i].Kind < c[j].Kind
-	}
-	return c[i].Path < c[j].Path
-}
-func (c changeList) Len() int      { return len(c) }
-func (c changeList) Swap(i, j int) { c[j], c[i] = c[i], c[j] }
-
-func checkChanges(expected, actual []archive.Change) error {
-	if len(expected) != len(actual) {
-		return fmt.Errorf("unexpected number of changes, expected %d, got %d", len(expected), len(actual))
-	}
-	sort.Sort(changeList(expected))
-	sort.Sort(changeList(actual))
-
-	for i := range expected {
-		if expected[i] != actual[i] {
-			return fmt.Errorf("unexpected change, expecting %v, got %v", expected[i], actual[i])
 		}
 	}
 

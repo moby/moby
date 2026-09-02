@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/docker/go-units"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/go-archive"
 	"github.com/moby/moby/v2/daemon/graphdriver"
 	"github.com/moby/moby/v2/daemon/internal/quota"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
@@ -293,9 +295,12 @@ func DriverTestChanges(t testing.TB, drivername string, driverOptions ...string)
 		t.Fatal(err)
 	}
 
-	if err = checkChanges(expectedChanges, changes); err != nil {
-		t.Fatal(err)
-	}
+	assert.DeepEqual(t, changes, expectedChanges, cmpopts.SortSlices(func(a, b archive.Change) bool {
+		if a.Path != b.Path {
+			return a.Path < b.Path
+		}
+		return a.Kind < b.Kind
+	}))
 }
 
 func writeRandomFile(path string, size uint64) error {
