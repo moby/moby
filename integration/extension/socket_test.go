@@ -25,7 +25,7 @@ func TestSocketExposedGRPCService(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	extDir := buildGreeterExtension(ctx, t)
+	extDir := buildExtension(ctx, t, greeter.ID, "./testdata/greeter/cmd/greeter")
 	startArgs := []string{"--extension-dir", extDir}
 	if testEnv.DaemonInfo.OSType == "linux" {
 		startArgs = append(startArgs, "--iptables=false", "--ip6tables=false")
@@ -53,20 +53,20 @@ func TestSocketExposedGRPCService(t *testing.T) {
 	assert.Equal(t, resp.Message, "hello world")
 }
 
-func buildGreeterExtension(ctx context.Context, t *testing.T) string {
+func buildExtension(ctx context.Context, t *testing.T, id, pkg string) string {
 	t.Helper()
 	dir := testutil.TempDir(t)
 	// The extension directory is read by the daemon, which may run as an
 	// unprivileged user in rootless mode.
 	assert.NilError(t, os.Chmod(dir, 0o755))
-	name := greeter.ID
+	name := id
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}
 	bin := filepath.Join(dir, name)
-	cmd := exec.CommandContext(ctx, "go", "build", "-buildvcs=false", "-o", bin, "./testdata/greeter/cmd/greeter")
+	cmd := exec.CommandContext(ctx, "go", "build", "-buildvcs=false", "-o", bin, pkg)
 	out, err := cmd.CombinedOutput()
-	assert.NilError(t, err, "build greeter extension: %s", out)
+	assert.NilError(t, err, "build extension %s: %s", id, out)
 
 	if testEnv.IsRootless() {
 		// RootlessKit maps unprivilegeduser to root in the daemon's user
