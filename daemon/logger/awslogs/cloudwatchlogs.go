@@ -3,12 +3,14 @@ package awslogs
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -31,7 +33,6 @@ import (
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
 	"github.com/moby/moby/v2/daemon/logger/templates"
 	"github.com/moby/moby/v2/dockerversion"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -124,7 +125,6 @@ type wrappedEvent struct {
 	inputLogEvent types.InputLogEvent
 	insertOrder   int
 }
-type byTimestamp []wrappedEvent
 
 // eventBatch holds the events that are batched for submission and the
 // associated data about it.
@@ -257,7 +257,7 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 		return nil, err
 	}
 
-	containerStreamConfig := &logStreamConfig{
+	return &logStreamConfig{
 		logStreamName:      logStreamName,
 		logGroupName:       logGroupName,
 		logCreateGroup:     logCreateGroup,
@@ -266,9 +266,7 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 		maxBufferedEvents:  maxBufferedEvents,
 		multilinePattern:   multilinePattern,
 		entity:             entity,
-	}
-
-	return containerStreamConfig, nil
+	}, nil
 }
 
 // parseEntity builds a CloudWatch Entity from the awslogs-entity-* log options.
@@ -334,11 +332,11 @@ func validateKeyAttributeValue(optKey, val string) error {
 func expandEntityTemplate(info logger.Info, optKey, tmplText string) (string, error) {
 	tmpl, err := templates.NewParse(optKey, tmplText)
 	if err != nil {
-		return "", errors.Wrapf(err, "awslogs could not parse log opt %q", optKey)
+		return "", fmt.Errorf("awslogs could not parse log opt %q: %w", optKey, err)
 	}
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, &info); err != nil {
-		return "", errors.Wrapf(err, "awslogs could not expand log opt %q", optKey)
+		return "", fmt.Errorf("awslogs could not expand log opt %q: %w", optKey, err)
 	}
 	return buf.String(), nil
 }
@@ -408,7 +406,7 @@ func parseMultilineOptions(info logger.Info) (*regexp.Regexp, error) {
 	if multilinePattern != "" {
 		multilinePatternRe, err := regexp.Compile(multilinePattern)
 		if err != nil {
-			return nil, errors.Wrapf(err, "awslogs could not parse multiline pattern key %q", multilinePatternRe)
+			return nil, fmt.Errorf("awslogs could not parse multiline pattern key %q: %w", multilinePatternRe, err)
 		}
 		return multilinePatternRe, nil
 	}
@@ -475,13 +473,13 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 		regFinder, err := newRegionFinder(context.TODO())
 		if err != nil {
 			log.G(ctx).WithError(err).Error("could not create regionFinder")
-			return nil, errors.Wrap(err, "could not create regionFinder")
+			return nil, fmt.Errorf("could not create regionFinder: %w", err)
 		}
 
 		r, err := regFinder.GetRegion(context.TODO(), &imds.GetRegionInput{})
 		if err != nil {
 			log.G(ctx).WithError(err).Error("Could not get region from IMDS, environment, or log option")
-			return nil, errors.Wrap(err, "cannot determine region for awslogs driver")
+			return nil, fmt.Errorf("cannot determine region for awslogs driver: %w", err)
 		}
 		region = &r.Region
 	}
@@ -491,14 +489,14 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 	if uri, ok := info.Config[credentialsEndpointKey]; ok {
 		log.G(ctx).Debugf("Trying to get credentials from awslogs-credentials-endpoint")
 
-		endpoint := fmt.Sprintf("%s%s", newSDKEndpoint, uri)
-		configOpts = append(configOpts, config.WithCredentialsProvider(endpointcreds.New(endpoint)))
+		ep := newSDKEndpoint + uri
+		configOpts = append(configOpts, config.WithCredentialsProvider(endpointcreds.New(ep)))
 	}
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(), configOpts...)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("Could not initialize AWS SDK config")
-		return nil, errors.Wrap(err, "could not initialize AWS SDK config")
+		return nil, fmt.Errorf("could not initialize AWS SDK config: %w", err)
 	}
 
 	log.G(ctx).WithFields(log.Fields{
@@ -535,9 +533,7 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 		},
 	)
 
-	client := cloudwatchlogs.NewFromConfig(cfg, clientOpts...)
-
-	return client, nil
+	return cloudwatchlogs.NewFromConfig(cfg, clientOpts...), nil
 }
 
 // Name returns the name of the awslogs logging driver
@@ -580,17 +576,16 @@ func (l *logStream) create() error {
 		return nil
 	}
 
-	var apiErr *types.ResourceNotFoundException
-	if errors.As(err, &apiErr) && l.logCreateGroup {
+	if _, ok := errors.AsType[*types.ResourceNotFoundException](err); ok && l.logCreateGroup {
 		if err := l.createLogGroup(); err != nil {
-			return errors.Wrap(err, "failed to create Cloudwatch log group")
+			return fmt.Errorf("failed to create Cloudwatch log group: %w", err)
 		}
 		err = l.createLogStream()
 		if err == nil {
 			return nil
 		}
 	}
-	return errors.Wrap(err, "failed to create Cloudwatch log stream")
+	return fmt.Errorf("failed to create Cloudwatch log stream: %w", err)
 }
 
 // createLogGroup creates a log group for the instance of the awslogs logging driver
@@ -598,20 +593,19 @@ func (l *logStream) createLogGroup() error {
 	if _, err := l.client.CreateLogGroup(context.TODO(), &cloudwatchlogs.CreateLogGroupInput{
 		LogGroupName: aws.String(l.logGroupName),
 	}); err != nil {
-		var apiErr smithy.APIError
-		if errors.As(err, &apiErr) {
-			fields := log.Fields{
+		if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
+			logr := log.G(context.TODO()).WithFields(log.Fields{
 				"errorCode":      apiErr.ErrorCode(),
 				"message":        apiErr.ErrorMessage(),
 				"logGroupName":   l.logGroupName,
 				"logCreateGroup": l.logCreateGroup,
-			}
+			})
 			if _, ok := apiErr.(*types.ResourceAlreadyExistsException); ok {
 				// Allow creation to succeed
-				log.G(context.TODO()).WithFields(fields).Info("Log group already exists")
+				logr.Info("Log group already exists")
 				return nil
 			}
-			log.G(context.TODO()).WithFields(fields).Error("Failed to create log group")
+			logr.Error("Failed to create log group")
 		}
 		return err
 	}
@@ -637,20 +631,19 @@ func (l *logStream) createLogStream() error {
 
 	_, err := l.client.CreateLogStream(context.TODO(), input)
 	if err != nil {
-		var apiErr smithy.APIError
-		if errors.As(err, &apiErr) {
-			fields := log.Fields{
+		if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
+			logr := log.G(context.TODO()).WithFields(log.Fields{
 				"errorCode":     apiErr.ErrorCode(),
 				"message":       apiErr.ErrorMessage(),
 				"logGroupName":  l.logGroupName,
 				"logStreamName": l.logStreamName,
-			}
+			})
 			if _, ok := apiErr.(*types.ResourceAlreadyExistsException); ok {
 				// Allow creation to succeed
-				log.G(context.TODO()).WithFields(fields).Info("Log stream already exists")
+				logr.Info("Log stream already exists")
 				return nil
 			}
-			log.G(context.TODO()).WithFields(fields).Error("Failed to create log stream")
+			logr.Error("Failed to create log stream")
 		}
 	}
 	return err
@@ -782,8 +775,8 @@ func (l *logStream) processEvent(batch *eventBatch, bytes []byte, timestamp int6
 // utf8.RuneError)
 func effectiveLen(line string) int {
 	effectiveBytes := 0
-	for _, rune := range line {
-		effectiveBytes += utf8.RuneLen(rune)
+	for _, r := range line {
+		effectiveBytes += utf8.RuneLen(r)
 	}
 	return effectiveBytes
 }
@@ -838,17 +831,15 @@ func (l *logStream) publishBatch(batch *eventBatch) {
 
 // putLogEvents wraps the PutLogEvents API
 func (l *logStream) putLogEvents(events []types.InputLogEvent, sequenceToken *string) (*string, error) {
-	input := &cloudwatchlogs.PutLogEventsInput{
+	resp, err := l.client.PutLogEvents(context.TODO(), &cloudwatchlogs.PutLogEventsInput{
 		LogEvents:     events,
 		SequenceToken: sequenceToken,
 		LogGroupName:  aws.String(l.logGroupName),
 		LogStreamName: aws.String(l.logStreamName),
 		Entity:        l.entity,
-	}
-	resp, err := l.client.PutLogEvents(context.TODO(), input)
+	})
 	if err != nil {
-		var apiErr smithy.APIError
-		if errors.As(err, &apiErr) {
+		if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
 			log.G(context.TODO()).WithFields(log.Fields{
 				"errorCode":     apiErr.ErrorCode(),
 				"message":       apiErr.ErrorMessage(),
@@ -951,34 +942,6 @@ func ValidateLogOpt(cfg map[string]string) error {
 	return nil
 }
 
-// Len returns the length of a byTimestamp slice.  Len is required by the
-// sort.Interface interface.
-func (slice byTimestamp) Len() int {
-	return len(slice)
-}
-
-// Less compares two values in a byTimestamp slice by Timestamp.  Less is
-// required by the sort.Interface interface.
-func (slice byTimestamp) Less(i, j int) bool {
-	iTimestamp, jTimestamp := int64(0), int64(0)
-	if slice != nil && slice[i].inputLogEvent.Timestamp != nil {
-		iTimestamp = *slice[i].inputLogEvent.Timestamp
-	}
-	if slice != nil && slice[j].inputLogEvent.Timestamp != nil {
-		jTimestamp = *slice[j].inputLogEvent.Timestamp
-	}
-	if iTimestamp == jTimestamp {
-		return slice[i].insertOrder < slice[j].insertOrder
-	}
-	return iTimestamp < jTimestamp
-}
-
-// Swap swaps two values in a byTimestamp slice with each other.  Swap is
-// required by the sort.Interface interface.
-func (slice byTimestamp) Swap(i, j int) {
-	slice[i], slice[j] = slice[j], slice[i]
-}
-
 func unwrapEvents(events []wrappedEvent) []types.InputLogEvent {
 	cwEvents := make([]types.InputLogEvent, len(events))
 	for i, input := range events {
@@ -995,12 +958,25 @@ func newEventBatch() *eventBatch {
 }
 
 // events returns a slice of wrappedEvents sorted in order of their
-// timestamps and then by their insertion order (see `byTimestamp`).
+// timestamps and then by their insertion order.
 //
 // Warning: this method is not threadsafe and must not be used
 // concurrently.
 func (b *eventBatch) events() []wrappedEvent {
-	sort.Sort(byTimestamp(b.batch))
+	slices.SortFunc(b.batch, func(a, b wrappedEvent) int {
+		aTimestamp, bTimestamp := int64(0), int64(0)
+		if a.inputLogEvent.Timestamp != nil {
+			aTimestamp = *a.inputLogEvent.Timestamp
+		}
+		if b.inputLogEvent.Timestamp != nil {
+			bTimestamp = *b.inputLogEvent.Timestamp
+		}
+
+		if c := cmp.Compare(aTimestamp, bTimestamp); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.insertOrder, b.insertOrder)
+	})
 	return b.batch
 }
 
