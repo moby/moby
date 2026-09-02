@@ -43,7 +43,6 @@ RUN --mount=from=src,source=/out,target=.,rw \
 EOT
 
 FROM tools AS generated
-ENV GO111MODULE=off
 RUN --mount=from=src,source=/out,target=.,rw <<EOT
   set -ex
   go generate -v ./...
