@@ -1280,6 +1280,18 @@ definitions:
             x-nullable: true
             description: |-
               Runtime to use with this container.
+          Umask:
+            type: "integer"
+            format: "uint32"
+            x-nullable: true
+            description: |-
+              Set the initial umask for a Unix container.
+
+              If omitted, the daemon does not set a umask in the OCI process
+              specification, and the runtime's default behavior applies.
+
+              JSON integers are decimal. For example, use `18` for the octal
+              umask `0022`, and `511` for the octal umask `0777`.
           # Applicable to Windows
           Isolation:
             type: "string"

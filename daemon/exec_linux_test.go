@@ -4,6 +4,8 @@ package daemon
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
@@ -11,6 +13,32 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"gotest.tools/v3/assert"
 )
+
+func TestExecSetPlatformOptPreservesUmaskWhenResolvingUser(t *testing.T) {
+	root := t.TempDir()
+	assert.NilError(t, os.MkdirAll(filepath.Join(root, "etc"), 0o755))
+	assert.NilError(t, os.WriteFile(filepath.Join(root, "etc/passwd"), []byte("test:x:1234:5678::/:/bin/sh\n"), 0o644))
+	assert.NilError(t, os.WriteFile(filepath.Join(root, "etc/group"), []byte("test:x:5678:\n"), 0o644))
+
+	c := &container.Container{
+		BaseFS: root,
+		SecurityOptions: container.SecurityOptions{
+			AppArmorProfile: unconfinedAppArmorProfile,
+		},
+		HostConfig: &containertypes.HostConfig{},
+	}
+	ec := &container.ExecConfig{Container: c, User: "1234:5678"}
+	umask := uint32(0o027)
+	p := &specs.Process{User: specs.User{Umask: &umask}}
+	cfg := &configStore{}
+
+	err := (&Daemon{}).execSetPlatformOpt(context.Background(), &cfg.Config, ec, p)
+	assert.NilError(t, err)
+	assert.Equal(t, p.User.UID, uint32(1234))
+	assert.Equal(t, p.User.GID, uint32(5678))
+	assert.Assert(t, p.User.Umask != nil)
+	assert.Equal(t, *p.User.Umask, umask)
+}
 
 func TestExecSetPlatformOptAppArmor(t *testing.T) {
 	appArmorEnabled := appArmorSupported()
