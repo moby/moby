@@ -784,6 +784,7 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		NetworkingConfig:            networkingConfig,
 		Platform:                    platform,
 		DefaultReadOnlyNonRecursive: defaultReadOnlyNonRecursive,
+		Profile:                     req.Profile,
 	})
 
 	// Log warnings for debugging, regardless if the request was successful or not.
