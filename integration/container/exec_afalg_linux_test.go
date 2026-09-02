@@ -9,10 +9,25 @@ import (
 
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
+	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
+
+// kernelSupportsAFALG reports whether the host kernel has the AF_ALG address
+// family registered. Starting with kernel 7.2, AF_ALG is deprecated and may
+// be built without CONFIG_CRYPTO_USER_API, so socket creation fails with
+// EAFNOSUPPORT before any LSM policy is consulted, which is indistinguishable
+// from a denied test result.
+func kernelSupportsAFALG() bool {
+	fd, err := unix.Socket(unix.AF_ALG, unix.SOCK_SEQPACKET, 0)
+	defer unix.Close(fd)
+	if err != nil {
+		return err != unix.EAFNOSUPPORT
+	}
+	return true
+}
 
 var (
 	//go:embed testdata/af_alg.c
@@ -119,6 +134,10 @@ func TestExecSocketDenied(t *testing.T) {
 		// which catches it at the security_socket_create hook even
 		// though seccomp cannot filter socketcall args.
 		t.Run("AF_ALG", func(t *testing.T) {
+			if testEnv.IsLocalDaemon() {
+				skip.If(t, !kernelSupportsAFALG(), "host kernel does not support AF_ALG")
+			}
+
 			binPath := "/tmp/socketcall_af_alg"
 			res := container.ExecT(ctx, t, apiClient, cID, append(gcc,
 				"-DSOCK_FAMILY=AF_ALG", "-DSOCK_TYPE=SOCK_SEQPACKET",
