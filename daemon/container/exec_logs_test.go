@@ -67,7 +67,7 @@ func TestStartLogCapture(t *testing.T) {
 		}
 	})
 	assert.Check(t, is.Equal(string(msg.Line), "captured line"))
-	assert.Check(t, is.Equal(msg.Source, "stdout"))
+	assert.Check(t, is.Equal(msg.Source, "exec-stdout"))
 	assert.Check(t, is.DeepEqual(msg.Attrs, []backend.LogAttr{
 		{Key: "exec_id", Value: ec.ID},
 		{Key: "com.example.hook", Value: "post_start"},

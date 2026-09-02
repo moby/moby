@@ -21,10 +21,16 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /containers/{id}/exec` now accepts a `CaptureLogs` boolean to tee the
   exec process's `stdout` and `stderr` into the container's logging driver,
   and a `Labels` map holding user-defined metadata for the exec instance.
-  Captured log messages carry the exec's identity (`exec_id` and any labels)
-  as per-message attributes, surfaced by the log endpoints when `details` is
-  requested. Labels are reported by `GET /exec/{id}/json` and attached to the
-  exec's lifecycle events.
+  Captured output is recorded on dedicated `exec-stdout` / `exec-stderr`
+  streams, kept apart from the container's own output: `GET
+  /containers/{id}/logs` returns them only when requested through the new
+  `exec-stdout` and `exec-stderr` query parameters, and the multiplexed
+  stream format identifies their frames with the new stream types `4`
+  (exec stdout) and `5` (exec stderr). Captured log messages additionally
+  carry the exec's identity (`exec_id` and any labels) as per-message
+  attributes, surfaced by the log endpoints when `details` is requested.
+  Labels are reported by `GET /exec/{id}/json` and attached to the exec's
+  lifecycle events.
 
 ## v1.55 API changes
 

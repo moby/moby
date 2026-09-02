@@ -33,9 +33,13 @@ func Write(ctx context.Context, w http.ResponseWriter, msgs <-chan *backend.LogM
 	outStream := io.Writer(wf)
 	errStream := outStream
 	sysErrStream := errStream
+	execOutStream := outStream
+	execErrStream := outStream
 	if mux {
 		sysErrStream = stdcopymux.NewStdWriter(outStream, stdcopy.Systemerr)
 		errStream = stdcopymux.NewStdWriter(outStream, stdcopy.Stderr)
+		execOutStream = stdcopymux.NewStdWriter(outStream, stdcopy.ExecStdout)
+		execErrStream = stdcopymux.NewStdWriter(outStream, stdcopy.ExecStderr)
 		outStream = stdcopymux.NewStdWriter(outStream, stdcopy.Stdout)
 	}
 
@@ -70,6 +74,16 @@ func Write(ctx context.Context, w http.ResponseWriter, msgs <-chan *backend.LogM
 			case "stderr":
 				if config.ShowStderr {
 					_, _ = errStream.Write(logLine)
+				}
+				continue
+			case "exec-stdout":
+				if config.ShowExecStdout {
+					_, _ = execOutStream.Write(logLine)
+				}
+				continue
+			case "exec-stderr":
+				if config.ShowExecStderr {
+					_, _ = execErrStream.Write(logLine)
 				}
 				continue
 			default:

@@ -8724,6 +8724,22 @@ paths:
           description: "Return logs from `stderr`"
           type: "boolean"
           default: false
+        - name: "exec-stdout"
+          in: "query"
+          description: |
+            Return the `stdout` stream of execs whose output was captured in
+            the container's logs (execs created with `CaptureLogs`). In the
+            multiplexed stream format these frames use stream type `4`.
+          type: "boolean"
+          default: false
+        - name: "exec-stderr"
+          in: "query"
+          description: |
+            Return the `stderr` stream of execs whose output was captured in
+            the container's logs (execs created with `CaptureLogs`). In the
+            multiplexed stream format these frames use stream type `5`.
+          type: "boolean"
+          default: false
         - name: "since"
           in: "query"
           description: "Only return logs since this time, as a UNIX timestamp"
@@ -11207,7 +11223,10 @@ paths:
                 default: false
                 description: |
                   Tee the exec process's `stdout` and `stderr` into the
-                  container's logging driver. Captured messages carry the
+                  container's logging driver. Captured output is recorded on
+                  dedicated `exec-stdout` / `exec-stderr` streams, returned by
+                  the container logs endpoint on request (`exec-stdout` and
+                  `exec-stderr` query parameters). Captured messages carry the
                   exec's identity (`exec_id` and any `Labels`) as per-message
                   attributes, surfaced by the log endpoints when `details`
                   is requested.

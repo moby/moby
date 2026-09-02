@@ -33,10 +33,12 @@ func (c *ExecConfig) startLogCapture() {
 
 	// The driver is shared with the container's own stdio copier; drivers
 	// already accept concurrent Log calls from the stdout and stderr copy
-	// goroutines, two more sources follow the same contract.
+	// goroutines, two more sources follow the same contract. Captured
+	// messages are recorded under dedicated stream names so log readers can
+	// serve exec output separately from the container's own output.
 	copier := logger.NewCopier(map[string]io.Reader{
-		"stdout": c.StreamConfig.StdoutPipe(),
-		"stderr": c.StreamConfig.StderrPipe(),
+		"exec-stdout": c.StreamConfig.StdoutPipe(),
+		"exec-stderr": c.StreamConfig.StderrPipe(),
 	}, &execLogger{Logger: logDriver, attrs: attrs})
 	c.LogCopier = copier
 	copier.Run()
