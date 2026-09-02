@@ -797,13 +797,18 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 		assert.Check(t, is.Equal(int64(keysWriteDelete), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries number should match")
 		dbs[i].Unlock()
 	}
-	// at this point the entries should had been all deleted
-	time.Sleep(30 * time.Second)
-	for i := range 3 {
-		dbs[i].Lock()
-		assert.Check(t, is.Equal(int64(0), dbs[i].thisNodeNetworks["network1"].entriesNumber.Load()), "entries should had been garbage collected")
-		dbs[i].Unlock()
-	}
+	// Wait for the reaper instead of assuming it runs on schedule.
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		for _, db := range dbs {
+			db.Lock()
+			entries := db.thisNodeNetworks["network1"].entriesNumber.Load()
+			db.Unlock()
+			if entries != 0 {
+				return poll.Continue("%s still has %d entries", db.config.Hostname, entries)
+			}
+		}
+		return poll.Success()
+	}, poll.WithDelay(time.Second), poll.WithTimeout(2*config.reapEntryInterval))
 
 	// make sure that entries are not coming back
 	time.Sleep(15 * time.Second)
