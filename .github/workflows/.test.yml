@@ -30,7 +30,7 @@ on:
         required: false
 
 env:
-  GO_VERSION: "1.26.7"
+  GO_VERSION: "1.26.8"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   ITG_CLI_MATRIX_SIZE: 6
