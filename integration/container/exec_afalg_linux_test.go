@@ -129,11 +129,17 @@ func TestExecSocketDenied(t *testing.T) {
 		})
 		res.AssertSuccess(t)
 
-		// AF_ALG (38) via socketcall must be denied by the LSM
-		// (AppArmor's "deny network alg" or SELinux's alg_socket deny),
-		// which catches it at the security_socket_create hook even
-		// though seccomp cannot filter socketcall args.
+		// AF_ALG (38) via socketcall must be denied by the LSM, which
+		// catches it at the security_socket_create hook even though
+		// seccomp cannot filter socketcall args. Docker ships and
+		// controls the "deny network alg" rule in its own AppArmor
+		// profile, so that backstop is verified here. SELinux
+		// enforcement of an equivalent alg_socket deny depends on the
+		// distro's container-selinux policy, which Docker does not
+		// ship, so it isn't asserted on SELinux-only hosts.
 		t.Run("AF_ALG", func(t *testing.T) {
+			skip.If(t, !hasAppArmor, "AF_ALG socketcall denial is only guaranteed by Docker's own AppArmor profile")
+
 			if testEnv.IsLocalDaemon() {
 				skip.If(t, !kernelSupportsAFALG(), "host kernel does not support AF_ALG")
 			}
