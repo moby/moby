@@ -874,10 +874,6 @@ github.com/gohugoio/hashstructure
 # github.com/golang-jwt/jwt/v5 v5.3.1
 ## explicit; go 1.21
 github.com/golang-jwt/jwt/v5
-# github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f
-## explicit; go 1.13
-github.com/golang/gddo/httputil
-github.com/golang/gddo/httputil/header
 # github.com/golang/protobuf v1.5.4
 ## explicit; go 1.17
 github.com/golang/protobuf/proto

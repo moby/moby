@@ -5,7 +5,7 @@ package contentencoding
 import (
 	"net/http"
 
-	"github.com/golang/gddo/httputil"
+	"github.com/moby/moby/v2/daemon/server/httputils/internal/httputil"
 )
 
 // Negotiate returns the best offered content encoding for the request's
