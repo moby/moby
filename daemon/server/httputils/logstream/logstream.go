@@ -54,10 +54,26 @@ func Write(ctx context.Context, w http.ResponseWriter, msgs <-chan *backend.LogM
 				_, _ = fmt.Fprintf(sysErrStream, "Error grabbing logs: %v\n", msg.Err)
 				continue
 			}
-			var logLine []byte
+			var stream io.Writer
+			switch msg.Source {
+			case "stdout":
+				if !config.ShowStdout {
+					continue
+				}
+				stream = outStream
+			case "stderr":
+				if !config.ShowStderr {
+					continue
+				}
+				stream = errStream
+			default:
+				// unknown source
+				continue
+			}
+
 			if !config.Timestamps && !config.Details {
 				// Fast path: avoid allocating and copying the message.
-				logLine = msg.Line
+				_, _ = stream.Write(msg.Line)
 			} else {
 				size := len(msg.Line)
 				if config.Timestamps {
@@ -67,7 +83,7 @@ func Write(ctx context.Context, w http.ResponseWriter, msgs <-chan *backend.LogM
 					// Reserve some space for attributes to reduce reallocations.
 					size += len(msg.Attrs) * 16
 				}
-				logLine = make([]byte, 0, size)
+				logLine := make([]byte, 0, size)
 
 				if config.Timestamps {
 					logLine = append(logLine, msg.Timestamp.Format(rfc3339NanoFixed)...)
@@ -78,21 +94,7 @@ func Write(ctx context.Context, w http.ResponseWriter, msgs <-chan *backend.LogM
 					logLine = append(logLine, ' ')
 				}
 				logLine = append(logLine, msg.Line...)
-			}
-			switch msg.Source {
-			case "stdout":
-				if config.ShowStdout {
-					_, _ = outStream.Write(logLine)
-				}
-				continue
-			case "stderr":
-				if config.ShowStderr {
-					_, _ = errStream.Write(logLine)
-				}
-				continue
-			default:
-				// unknown source
-				continue
+				_, _ = stream.Write(logLine)
 			}
 		}
 	}
