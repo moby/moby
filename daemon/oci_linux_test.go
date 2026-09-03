@@ -78,6 +78,28 @@ func (i *fakeImageService) StorageDriver() string {
 	return "overlay"
 }
 
+func TestWithUmask(t *testing.T) {
+	t.Run("omitted", func(t *testing.T) {
+		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
+		s := daemonoci.DefaultSpec()
+
+		err := WithUmask(c)(t.Context(), nil, nil, &s)
+		assert.NilError(t, err)
+		assert.Assert(t, s.Process.User.Umask == nil)
+	})
+
+	t.Run("set", func(t *testing.T) {
+		umask := uint32(0o027)
+		c := &container.Container{HostConfig: &containertypes.HostConfig{Umask: &umask}}
+		s := daemonoci.DefaultSpec()
+
+		err := WithUmask(c)(t.Context(), nil, nil, &s)
+		assert.NilError(t, err)
+		assert.Assert(t, s.Process.User.Umask != nil)
+		assert.Equal(t, *s.Process.User.Umask, umask)
+	})
+}
+
 func TestWithCommonOptionsDockerInit(t *testing.T) {
 	initPath := filepath.Join(t.TempDir(), "docker-init")
 	err := os.WriteFile(initPath, []byte("#!/bin/sh\n"), 0o755)

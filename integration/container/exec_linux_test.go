@@ -1,6 +1,7 @@
 package container
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -64,5 +65,54 @@ func TestFailedExecExitCode(t *testing.T) {
 
 			assert.Equal(t, result.ExitCode, tc.expectedExitCode)
 		})
+	}
+}
+
+func TestContainerExecWithUmask(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.56"), "requires API v1.56")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	users := []string{"", "1000", "nobody"}
+	prettyUser := func(s string) string {
+		if s == "" {
+			return "unspecified"
+		}
+		return s
+	}
+
+	tests := []struct {
+		umask    uint32
+		expected string
+	}{
+		{
+			umask:    0o000,
+			expected: "0000",
+		},
+		{
+			umask:    0o777,
+			expected: "0777",
+		},
+	}
+	prettyUmask := func(u uint32) string {
+		return fmt.Sprintf("%04o", u)
+	}
+
+	for _, runUser := range users {
+		for _, execUser := range users {
+			for _, tc := range tests {
+				t.Run(fmt.Sprintf("user_%s_%s_umask_%s", prettyUser(runUser), prettyUser(execUser), prettyUmask(tc.umask)), func(t *testing.T) {
+					cID := container.Run(ctx, t, apiClient, container.WithUser(runUser), func(c *container.TestContainerConfig) {
+						c.HostConfig.Umask = &tc.umask
+					})
+					result, err := container.Exec(ctx, apiClient, cID, []string{"sh", "-c", "umask"}, func(ec *client.ExecCreateOptions) {
+						ec.User = execUser
+					})
+					assert.NilError(t, err)
+					assert.Equal(t, tc.expected, strings.TrimSpace(result.Stdout()))
+				})
+			}
+		}
 	}
 }

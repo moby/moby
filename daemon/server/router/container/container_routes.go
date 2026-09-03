@@ -777,6 +777,11 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.PidsLimit = nil
 	}
 
+	if versions.LessThan(version, "1.56") {
+		// Ignore Umask because it was added in API v1.56.
+		hostConfig.Umask = nil
+	}
+
 	ccr, err := c.backend.ContainerCreate(ctx, backend.ContainerCreateConfig{
 		Name:                        name,
 		Config:                      config,
