@@ -40,14 +40,17 @@ type ExecConfig struct {
 	Process      types.Process
 	ConsoleSize  *[2]uint
 
-	// CaptureLogs tees the exec's stdout and stderr into the container's
-	// logging driver, stamping each message with the exec's identity.
-	CaptureLogs bool
+	// CaptureStdout tees the exec's stdout into the container's logging
+	// driver, stamping each message with the exec's identity.
+	CaptureStdout bool
+	// CaptureStderr tees the exec's stderr into the container's logging
+	// driver, stamping each message with the exec's identity.
+	CaptureStderr bool
 	// Labels holds the user-defined metadata declared at exec create time.
 	Labels map[string]string
 	// LogCopier feeds the exec's output to the container's logging driver
-	// when CaptureLogs is set. Its copy goroutines terminate when the exec's
-	// streams are closed.
+	// when CaptureStdout or CaptureStderr is set. Its copy goroutines
+	// terminate when the exec's streams are closed.
 	LogCopier *logger.Copier
 }
 
@@ -63,7 +66,7 @@ func NewExecConfig(c *Container) *ExecConfig {
 
 // InitializeStdio is called by libcontainerd to connect the stdio.
 func (c *ExecConfig) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
-	if c.CaptureLogs {
+	if c.CaptureStdout || c.CaptureStderr {
 		// Attach the log-capture pipes before the process's output starts
 		// flowing, so no early output is missed.
 		c.startLogCapture()

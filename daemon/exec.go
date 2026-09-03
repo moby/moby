@@ -151,11 +151,12 @@ func (daemon *Daemon) ContainerExecCreate(name string, options *containertypes.E
 	execConfig.User = options.User
 	execConfig.WorkingDir = options.WorkingDir
 	execConfig.Labels = options.Labels
-	if options.CaptureLogs {
+	if options.CaptureStdout || options.CaptureStderr {
 		if cntr.HostConfig.LogConfig.Type == "none" {
 			return "", errdefs.InvalidParameter(errors.New("cannot capture exec output: container has no logging driver (log driver is \"none\")"))
 		}
-		execConfig.CaptureLogs = true
+		execConfig.CaptureStdout = options.CaptureStdout
+		execConfig.CaptureStderr = options.CaptureStderr
 	}
 
 	linkedEnv, err := daemon.setupLinkedContainers(cntr)

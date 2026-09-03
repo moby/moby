@@ -24,9 +24,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   umask for a Unix container. When set, the daemon includes the value in the OCI
   process configuration for the container's entrypoint, exec processes, and
   healthchecks. When omitted, the runtime's default behavior applies.
-* `POST /containers/{id}/exec` now accepts a `CaptureLogs` boolean to tee the
-  exec process's `stdout` and `stderr` into the container's logging driver,
-  and a `Labels` map holding user-defined metadata for the exec instance.
+* `POST /containers/{id}/exec` now accepts `CaptureStdout` and `CaptureStderr`
+  booleans to tee the exec process's `stdout` and/or `stderr` into the
+  container's logging driver, and a `Labels` map holding user-defined
+  metadata for the exec instance.
   Captured output is recorded on dedicated `exec-stdout` / `exec-stderr`
   streams, kept apart from the container's own output: `GET
   /containers/{id}/logs` returns them only when requested through the new

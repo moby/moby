@@ -16,12 +16,14 @@ type ContainerLogsOptions struct {
 	ShowStderr bool
 
 	// ShowExecStdout requests the stdout stream of execs whose output was
-	// captured in the container's logs (execs created with CaptureLogs).
+	// captured in the container's logs (execs created with CaptureStdout /
+	// CaptureStderr).
 	// Requires API v1.56 or newer.
 	ShowExecStdout bool
 
 	// ShowExecStderr requests the stderr stream of execs whose output was
-	// captured in the container's logs (execs created with CaptureLogs).
+	// captured in the container's logs (execs created with CaptureStdout /
+	// CaptureStderr).
 	// Requires API v1.56 or newer.
 	ShowExecStderr bool
 

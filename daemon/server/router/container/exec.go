@@ -55,10 +55,11 @@ func (c *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 		execConfig.ConsoleSize = nil
 	}
 	if versions.LessThan(version, "1.56") {
-		// CaptureLogs cannot be silently ignored: a client asking for the
-		// exec output to be captured must not believe it was when it wasn't.
-		if execConfig.CaptureLogs {
-			return errdefs.InvalidParameter(errors.New("CaptureLogs requires API v1.56 or newer"))
+		// Capture requests cannot be silently ignored: a client asking for
+		// the exec output to be captured must not believe it was when it
+		// wasn't.
+		if execConfig.CaptureStdout || execConfig.CaptureStderr {
+			return errdefs.InvalidParameter(errors.New("CaptureStdout and CaptureStderr require API v1.56 or newer"))
 		}
 		// Labels are pure metadata; dropped like ConsoleSize above.
 		execConfig.Labels = nil

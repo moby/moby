@@ -113,10 +113,12 @@ type ContainerLogsOptions struct {
 	ShowStdout bool
 	ShowStderr bool
 	// ShowExecStdout selects the stdout stream of execs whose output was
-	// captured in the container's logs (execs created with CaptureLogs).
+	// captured in the container's logs (execs created with CaptureStdout /
+	// CaptureStderr).
 	ShowExecStdout bool
 	// ShowExecStderr selects the stderr stream of execs whose output was
-	// captured in the container's logs (execs created with CaptureLogs).
+	// captured in the container's logs (execs created with CaptureStdout /
+	// CaptureStderr).
 	ShowExecStderr bool
 	Since          time.Time
 	Until          time.Time

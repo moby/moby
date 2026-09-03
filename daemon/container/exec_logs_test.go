@@ -50,7 +50,8 @@ func TestStartLogCapture(t *testing.T) {
 	ctr.LogDriver = rec
 
 	ec := NewExecConfig(ctr)
-	ec.CaptureLogs = true
+	ec.CaptureStdout = true
+	ec.CaptureStderr = true
 	ec.Labels = map[string]string{"com.example.hook": "post_start"}
 	ec.startLogCapture()
 
@@ -76,10 +77,48 @@ func TestStartLogCapture(t *testing.T) {
 	assert.NilError(t, ec.CloseStreams())
 }
 
+// TestStartLogCaptureStderrOnly verifies that capture is per stream: with
+// only CaptureStderr set, stderr output is captured and stdout output is not.
+func TestStartLogCaptureStderrOnly(t *testing.T) {
+	rec := &recordingLogger{msgs: make(chan *logger.Message, 16)}
+	ctr := &Container{State: &State{}}
+	ctr.LogDriver = rec
+
+	ec := NewExecConfig(ctr)
+	ec.CaptureStderr = true
+	ec.startLogCapture()
+
+	_, err := ec.StreamConfig.Stdout().Write([]byte("ignored line\n"))
+	assert.NilError(t, err)
+	_, err = ec.StreamConfig.Stderr().Write([]byte("captured line\n"))
+	assert.NilError(t, err)
+
+	var msg *logger.Message
+	poll.WaitOn(t, func(poll.LogT) poll.Result {
+		select {
+		case msg = <-rec.msgs:
+			return poll.Success()
+		default:
+			return poll.Continue("no message captured yet")
+		}
+	})
+	assert.Check(t, is.Equal(string(msg.Line), "captured line"))
+	assert.Check(t, is.Equal(msg.Source, "exec-stderr"))
+
+	assert.NilError(t, ec.CloseStreams())
+	// the uncaptured stdout line never reached the driver
+	select {
+	case extra := <-rec.msgs:
+		t.Fatalf("unexpected captured message: %q from %s", extra.Line, extra.Source)
+	default:
+	}
+}
+
 func TestStartLogCaptureWithoutDriver(t *testing.T) {
 	ctr := &Container{State: &State{}}
 	ec := NewExecConfig(ctr)
-	ec.CaptureLogs = true
+	ec.CaptureStdout = true
+	ec.CaptureStderr = true
 	// no logging driver on the container: capture is skipped, not fatal
 	ec.startLogCapture()
 	assert.Check(t, ec.LogCopier == nil)
