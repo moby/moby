@@ -10,7 +10,7 @@ require (
 	github.com/docker/go-connections v0.7.0
 	github.com/docker/go-units v0.5.0
 	github.com/google/go-cmp v0.7.0
-	github.com/moby/moby/api v1.55.1-0.20260903191745-b40d37ef51db
+	github.com/moby/moby/api v1.56.0
 	github.com/moby/term v0.5.2
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
