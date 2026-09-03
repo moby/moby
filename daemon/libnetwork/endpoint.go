@@ -21,7 +21,6 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/moby/moby/v2/internal/sliceutil"
 	"go.opentelemetry.io/otel"
 )
 
@@ -208,10 +207,6 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 		}
 	}
 
-	var anonymous bool
-	if v, ok := epMap["anonymous"]; ok {
-		anonymous = v.(bool)
-	}
 	if v, ok := epMap["disableResolution"]; ok {
 		ep.disableResolution = v.(bool)
 	}
@@ -249,21 +244,10 @@ func (ep *Endpoint) UnmarshalJSON(b []byte) (err error) {
 	var myAliases []string
 	_ = json.Unmarshal(ma, &myAliases) //nolint:errcheck
 
-	_, hasDNSNames := epMap["dnsNames"]
 	dn, _ := json.Marshal(epMap["dnsNames"]) //nolint:errchkjson // FIXME: handle json (Un)Marshal errors (see above)
 	var dnsNames []string
 	_ = json.Unmarshal(dn, &dnsNames) //nolint:errcheck
 	ep.dnsNames = dnsNames
-
-	// TODO(aker): remove this migration code in v27
-	if !hasDNSNames {
-		// The field dnsNames was introduced in v25.0. If we don't have it, the on-disk state was written by an older
-		// daemon, thus we need to populate dnsNames based off of myAliases and anonymous values.
-		if !anonymous {
-			myAliases = append([]string{ep.name}, myAliases...)
-		}
-		ep.dnsNames = sliceutil.Dedup(myAliases)
-	}
 
 	return nil
 }
