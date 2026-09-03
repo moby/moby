@@ -966,7 +966,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	// Build the host after installing the cleanup defer: this starts extension
 	// processes and must be covered if initialization fails.
-	d.extensionHost, err = newExtensionHost(ctx, config)
+	d.extensionHost, err = setupExtensionHost(ctx, config, d)
 	if err != nil {
 		return nil, err
 	}
