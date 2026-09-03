@@ -1058,6 +1058,13 @@ func getNodeStatus(t *testing.T, d *daemon.Daemon) swarm.LocalNodeState {
 	return info.LocalNodeState
 }
 
+func waitForLocalNodeState(ctx context.Context, t *testing.T, d *daemon.Daemon, state swarm.LocalNodeState) {
+	t.Helper()
+	// Daemon startup can finish while the swarm node is still reconnecting,
+	// so allow time for the cluster to converge after a restart.
+	poll.WaitOn(t, pollCheck(t, d.CheckLocalNodeState(ctx), checker.Equals(state)), poll.WithTimeout(defaultReconciliationTimeout))
+}
+
 func checkKeyIsEncrypted(d *daemon.Daemon) func(*testing.T) (any, string) {
 	return func(t *testing.T) (any, string) {
 		keyBytes, err := os.ReadFile(filepath.Join(d.Folder, "root", "swarm", "certificates", "swarm-node.key"))
@@ -1079,7 +1086,7 @@ func checkSwarmLockedToUnlocked(ctx context.Context, t *testing.T, d *daemon.Dae
 	poll.WaitOn(t, pollCheck(t, checkKeyIsEncrypted(d), checker.Equals(false)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	d.RestartNode(t)
-	poll.WaitOn(t, pollCheck(t, d.CheckLocalNodeState(ctx), checker.Equals(swarm.LocalNodeStateActive)), poll.WithTimeout(time.Second))
+	waitForLocalNodeState(ctx, t, d, swarm.LocalNodeStateActive)
 }
 
 func checkSwarmUnlockedToLocked(ctx context.Context, t *testing.T, d *daemon.Daemon) {
@@ -1087,7 +1094,7 @@ func checkSwarmUnlockedToLocked(ctx context.Context, t *testing.T, d *daemon.Dae
 	poll.WaitOn(t, pollCheck(t, checkKeyIsEncrypted(d), checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	d.RestartNode(t)
-	poll.WaitOn(t, pollCheck(t, d.CheckLocalNodeState(ctx), checker.Equals(swarm.LocalNodeStateLocked)), poll.WithTimeout(time.Second))
+	waitForLocalNodeState(ctx, t, d, swarm.LocalNodeStateLocked)
 }
 
 func (s *DockerSwarmSuite) TestUnlockEngineAndUnlockedSwarm(c *testing.T) {
@@ -1199,7 +1206,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *testing.T) {
 
 	// they start off unlocked
 	d2.RestartNode(c)
-	assert.Equal(c, getNodeStatus(c, d2), swarm.LocalNodeStateActive)
+	waitForLocalNodeState(ctx, c, d2, swarm.LocalNodeStateActive)
 
 	// stop this one so it does not get autolock info
 	d2.Stop(c)
@@ -1221,7 +1228,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *testing.T) {
 
 	// d2 never got the cluster update, so it is still set to unlocked
 	d2.StartNode(c)
-	assert.Equal(c, getNodeStatus(c, d2), swarm.LocalNodeStateActive)
+	waitForLocalNodeState(ctx, c, d2, swarm.LocalNodeStateActive)
 
 	// d2 is now set to lock
 	checkSwarmUnlockedToLocked(ctx, c, d2)
@@ -1250,7 +1257,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *testing.T) {
 	// managers who join now are never set to locked in the first place
 	d4 := s.AddDaemon(ctx, c, true, true)
 	d4.RestartNode(c)
-	assert.Equal(c, getNodeStatus(c, d4), swarm.LocalNodeStateActive)
+	waitForLocalNodeState(ctx, c, d4, swarm.LocalNodeStateActive)
 }
 
 func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
@@ -1265,7 +1272,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 	// joined workers start off unlocked
 	d2 := s.AddDaemon(ctx, c, true, false)
 	d2.RestartNode(c)
-	poll.WaitOn(c, pollCheck(c, d2.CheckLocalNodeState(ctx), checker.Equals(swarm.LocalNodeStateActive)), poll.WithTimeout(time.Second))
+	waitForLocalNodeState(ctx, c, d2, swarm.LocalNodeStateActive)
 
 	// promote worker
 	outs, err = d1.Cmd("node", "promote", d2.NodeID())
@@ -1308,7 +1315,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *testing.T) {
 
 	// by now, it should *never* be locked on restart
 	d3.RestartNode(c)
-	poll.WaitOn(c, pollCheck(c, d3.CheckLocalNodeState(ctx), checker.Equals(swarm.LocalNodeStateActive)), poll.WithTimeout(time.Second))
+	waitForLocalNodeState(ctx, c, d3, swarm.LocalNodeStateActive)
 }
 
 const swarmIsEncryptedMsg = "encrypted and needs to be unlocked"
