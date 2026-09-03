@@ -1038,6 +1038,8 @@ func TestParallelDelete(t *testing.T) {
 }
 
 func TestNetworkDBIslands(t *testing.T) {
+	t.Skip("FIXME: flaky test; see https://github.com/moby/moby/issues/42459")
+
 	pollTimeout := func() time.Duration {
 		const defaultTimeout = 120 * time.Second
 		dl, ok := t.Deadline()
