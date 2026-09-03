@@ -81,6 +81,9 @@ func validatePlatformConfig(conf *Config) error {
 	if conf.FirewallBackend != "" {
 		return errors.New("firewall-backend can only be configured on Linux")
 	}
+	if conf.CgroupParentFromClient {
+		return errors.New("cgroup-parent-from-client is only supported on Linux")
+	}
 	return nil
 }
 

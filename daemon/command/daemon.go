@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/moby/moby/v2/daemon/internal/peercred"
+
 	containerddefaults "github.com/containerd/containerd/v2/defaults"
 	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
@@ -221,6 +223,7 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 
 	httpServer := &http.Server{
 		ReadHeaderTimeout: 5 * time.Minute, // "G112: Potential Slowloris Attack (gosec)"; not a real concern for our use, so setting a long timeout.
+		ConnContext:       peercred.ConnContext,
 	}
 	apiShutdownCtx, apiShutdownCancel := context.WithCancel(context.WithoutCancel(ctx))
 	apiShutdownDone := make(chan struct{})
