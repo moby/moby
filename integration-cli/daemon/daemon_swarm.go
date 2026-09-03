@@ -157,7 +157,7 @@ func (d *Daemon) CheckNodeReadyCount(ctx context.Context) func(t *testing.T) (an
 func (d *Daemon) CheckLocalNodeState(ctx context.Context) func(t *testing.T) (any, string) {
 	return func(t *testing.T) (any, string) {
 		info := d.SwarmInfo(ctx, t)
-		return info.LocalNodeState, ""
+		return info.LocalNodeState, fmt.Sprintf("local node state is %q", info.LocalNodeState)
 	}
 }
 
