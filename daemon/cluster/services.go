@@ -411,6 +411,40 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 	return resp, err
 }
 
+// InterruptServiceUpdate interrupts a service update or rollback that is
+// currently in progress. It is a no-op that succeeds if there is no update
+// in progress.
+func (c *Cluster) InterruptServiceUpdate(serviceIDOrName string, version uint64, disposition swarm.ServiceUpdateInterruptDisposition) error {
+	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
+		currentService, err := getService(ctx, state.controlClient, serviceIDOrName, false)
+		if err != nil {
+			return err
+		}
+
+		var grpcDisposition swarmapi.ServiceUpdateInterruptRequest_Disposition
+		switch disposition {
+		case "", swarm.ServiceUpdateInterruptHold:
+			grpcDisposition = swarmapi.ServiceUpdateInterruptRequest_HOLD
+		case swarm.ServiceUpdateInterruptRevert:
+			grpcDisposition = swarmapi.ServiceUpdateInterruptRequest_REVERT
+		default:
+			return fmt.Errorf("unrecognized disposition %s", disposition)
+		}
+
+		_, err = state.controlClient.ServiceUpdateInterrupt(
+			ctx,
+			&swarmapi.ServiceUpdateInterruptRequest{
+				ServiceID: currentService.ID,
+				Version: &swarmapi.Version{
+					Index: version,
+				},
+				Disposition: grpcDisposition,
+			},
+		)
+		return err
+	})
+}
+
 // RemoveService removes a service from a managed swarm cluster.
 func (c *Cluster) RemoveService(input string) error {
 	return c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {

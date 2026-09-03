@@ -39,6 +39,16 @@ keywords: "API, Docker, rcli, REST, documentation"
   ignored by the daemon. Omit a field or set it to `null` to leave the current
   per-device rules unchanged. Set it to an empty array to clear the current
   per-device rules for that resource type.
+* `POST /services/{id}/interrupt` is a new endpoint that interrupts a service
+  update or rollback that is currently in progress, stopping it from
+  scheduling further task replacements once the tasks currently being
+  replaced finish or fail. It is a no-op that succeeds if the service has no
+  update or rollback in progress. The `disposition` query parameter (`hold`
+  or `revert`) controls whether task replacements already completed by the
+  update are left running (`hold`) or reverted back to the specification the
+  service ran before the update started (`revert`). The service's
+  `UpdateStatus.State` becomes `interrupted` once the interrupt has taken
+  effect.
 
 ## v1.54 API changes
 

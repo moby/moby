@@ -36,6 +36,7 @@ func (sr *swarmRouter) initRoutes() {
 		router.NewGetRoute("/services/{id}", sr.getService),
 		router.NewPostRoute("/services/create", sr.createService),
 		router.NewPostRoute("/services/{id}/update", sr.updateService),
+		router.NewPostRoute("/services/{id}/interrupt", sr.interruptServiceUpdate, router.WithMinimumAPIVersion("1.55")),
 		router.NewDeleteRoute("/services/{id}", sr.removeService),
 		router.NewGetRoute("/services/{id}/logs", sr.getServiceLogs),
 

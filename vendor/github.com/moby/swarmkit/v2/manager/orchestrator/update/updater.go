@@ -126,10 +126,12 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 
 	service := u.newService
 
-	// If the update is in a PAUSED state, we should not do anything.
+	// If the update is in a PAUSED or INTERRUPTED state, we should not do
+	// anything.
 	if service.UpdateStatus != nil &&
 		(service.UpdateStatus.State == api.UpdateStatus_PAUSED ||
-			service.UpdateStatus.State == api.UpdateStatus_ROLLBACK_PAUSED) {
+			service.UpdateStatus.State == api.UpdateStatus_ROLLBACK_PAUSED ||
+			service.UpdateStatus.State == api.UpdateStatus_INTERRUPTED) {
 		return
 	}
 
@@ -210,9 +212,33 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 		defer cancelWatch()
 	}
 
+	// Unlike failedTaskWatch above, this isn't gated on FailureAction: an
+	// interrupt can be requested regardless of how failures are handled.
+	interruptWatch, cancelInterruptWatch := state.Watch(
+		u.store.WatchQueue(),
+		api.EventUpdateService{
+			Service: &api.Service{ID: service.ID},
+			Checks:  []api.ServiceCheckFunc{api.ServiceCheckID},
+		},
+	)
+	defer cancelInterruptWatch()
+
 	stopped := false
+	interrupted := false
+	interruptDisposition := api.UpdateStatus_HOLD
 	failedTasks := make(map[string]struct{})
 	totalFailures := 0
+
+	checkInterrupt := func(ev events.Event) bool {
+		updated := ev.(api.EventUpdateService).Service
+		if updated.UpdateStatus != nil && updated.UpdateStatus.RequestedInterrupt != api.UpdateStatus_NONE {
+			stopped = true
+			interrupted = true
+			interruptDisposition = updated.UpdateStatus.RequestedInterrupt
+			return true
+		}
+		return false
+	}
 
 	failureTriggersAction := func(failedTask *api.Task) bool {
 		// Ignore tasks we have already seen as failures.
@@ -264,6 +290,10 @@ slotsLoop:
 			case <-u.stopChan:
 				stopped = true
 				break slotsLoop
+			case ev := <-interruptWatch:
+				if checkInterrupt(ev) {
+					break slotsLoop
+				}
 			case ev := <-failedTaskWatch:
 				if failureTriggersAction(ev.(api.EventUpdateTask).Task) {
 					break slotsLoop
@@ -294,6 +324,10 @@ slotsLoop:
 				break monitorLoop
 			case <-doneMonitoring:
 				break monitorLoop
+			case ev := <-interruptWatch:
+				if checkInterrupt(ev) {
+					break monitorLoop
+				}
 			case ev := <-failedTaskWatch:
 				if failureTriggersAction(ev.(api.EventUpdateTask).Task) {
 					break monitorLoop
@@ -305,7 +339,9 @@ slotsLoop:
 	// TODO(aaronl): Potentially roll back the service if not enough tasks
 	// have reached RUNNING by this point.
 
-	if !stopped {
+	if interrupted {
+		u.interruptUpdate(ctx, service.ID, interruptDisposition, updateConfig)
+	} else if !stopped {
 		u.completeUpdate(ctx, service.ID)
 	}
 }
@@ -620,6 +656,104 @@ func (u *Updater) rollbackUpdate(ctx context.Context, serviceID, message string)
 		log.G(ctx).WithError(err).Errorf("failed to start rollback of service %s", serviceID)
 		return
 	}
+}
+
+// interruptUpdate reverts (if requested) before writing INTERRUPTED, so
+// that by the time a client observes that state the service is quiescent.
+func (u *Updater) interruptUpdate(ctx context.Context, serviceID string, disposition api.UpdateStatus_Interrupt, updateConfig *api.UpdateConfig) {
+	log.G(ctx).Debugf("interrupting update of service %s", serviceID)
+
+	reverted := false
+	if disposition == api.UpdateStatus_REVERT && u.newService.PreviousSpec != nil {
+		revertedService := u.newService.Copy()
+		revertedService.Spec = *revertedService.PreviousSpec
+		// The slots Run was called with predate anything the interrupted
+		// update did; reread from the store, or its replacement tasks
+		// would be invisible to the dirty check below.
+		u.revertSlots(ctx, revertedService, u.runnableSlots(serviceID), updateConfig)
+		reverted = true
+	}
+
+	err := u.store.Update(func(tx store.Tx) error {
+		service := store.GetService(tx, serviceID)
+		if service == nil {
+			return nil
+		}
+		if service.UpdateStatus == nil {
+			// The service was changed since we started this update
+			return nil
+		}
+
+		service.UpdateStatus.State = api.UpdateStatus_INTERRUPTED
+		service.UpdateStatus.RequestedInterrupt = api.UpdateStatus_NONE
+		switch {
+		case reverted:
+			service.UpdateStatus.Message = "update interrupted; replacements reverted to the previous specification"
+		case disposition == api.UpdateStatus_REVERT:
+			service.UpdateStatus.Message = "update interrupted; no previous specification was available to revert to"
+		default:
+			service.UpdateStatus.Message = "update interrupted"
+		}
+		service.UpdateStatus.CompletedAt = ptypes.MustTimestampProto(time.Now())
+
+		return store.UpdateService(tx, service)
+	})
+
+	if err != nil {
+		log.G(ctx).WithError(err).Errorf("failed to mark update of service %s interrupted", serviceID)
+	}
+}
+
+// revertSlots reuses worker's dirty check against revertedService, so
+// slots the interrupted update never touched are left alone.
+func (u *Updater) revertSlots(ctx context.Context, revertedService *api.Service, slots []orchestrator.Slot, updateConfig *api.UpdateConfig) {
+	original := u.newService
+	u.newService = revertedService
+	defer func() { u.newService = original }()
+
+	parallelism := int(updateConfig.Parallelism)
+	if parallelism == 0 {
+		parallelism = len(slots)
+	}
+
+	slotQueue := make(chan orchestrator.Slot)
+	var wg sync.WaitGroup
+	for range parallelism {
+		wg.Go(func() {
+			u.worker(ctx, slotQueue, updateConfig)
+		})
+	}
+
+feedLoop:
+	for _, slot := range slots {
+		select {
+		case <-u.stopChan:
+			break feedLoop
+		case slotQueue <- slot:
+		}
+	}
+	close(slotQueue)
+	wg.Wait()
+}
+
+func (u *Updater) runnableSlots(serviceID string) []orchestrator.Slot {
+	var tasks []*api.Task
+	u.store.View(func(tx store.ReadTx) {
+		tasks, _ = store.FindTasks(tx, store.ByServiceID(serviceID))
+	})
+
+	bySlot := make(map[uint64]orchestrator.Slot)
+	for _, t := range tasks {
+		if t.DesiredState <= api.TaskStateRunning {
+			bySlot[t.Slot] = append(bySlot[t.Slot], t)
+		}
+	}
+
+	slots := make([]orchestrator.Slot, 0, len(bySlot))
+	for _, slot := range bySlot {
+		slots = append(slots, slot)
+	}
+	return slots
 }
 
 func (u *Updater) completeUpdate(ctx context.Context, serviceID string) {
