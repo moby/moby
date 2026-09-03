@@ -13,6 +13,7 @@ import (
 
 	"github.com/mdlayher/socket"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/security"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
@@ -123,13 +124,12 @@ func TestExecSocketDenied(t *testing.T) {
 		// Seccomp cannot filter socketcall arguments (the address family
 		// is behind a userspace pointer). Only an LSM (AppArmor or
 		// SELinux) can deny AF_ALG via the security_socket_create hook.
-		hasAppArmor := slices.ContainsFunc(testEnv.DaemonInfo.SecurityOptions, func(option string) bool {
-			name, _, _ := strings.Cut(option, ",")
-			return name == "name=apparmor"
+		securityOptions := security.DecodeOptions(testEnv.DaemonInfo.SecurityOptions)
+		hasAppArmor := slices.ContainsFunc(securityOptions, func(option security.Option) bool {
+			return option.Name == "apparmor"
 		})
-		hasSeLinux := slices.ContainsFunc(testEnv.DaemonInfo.SecurityOptions, func(option string) bool {
-			name, _, _ := strings.Cut(option, ",")
-			return name == "name=selinux"
+		hasSeLinux := slices.ContainsFunc(securityOptions, func(option security.Option) bool {
+			return option.Name == "selinux"
 		})
 
 		srcPath := "/tmp/socketcall.c"

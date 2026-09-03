@@ -1322,6 +1322,7 @@ github.com/moby/moby/client/internal
 github.com/moby/moby/client/internal/mod
 github.com/moby/moby/client/internal/timestamp
 github.com/moby/moby/client/pkg/jsonmessage
+github.com/moby/moby/client/pkg/security
 github.com/moby/moby/client/pkg/stringid
 github.com/moby/moby/client/pkg/versions
 # github.com/moby/patternmatcher v0.6.1
