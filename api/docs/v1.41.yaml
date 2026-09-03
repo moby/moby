@@ -3936,7 +3936,7 @@ definitions:
               forcefully killing it.
             type: "integer"
             format: "int64"
-          HealthCheck:
+          Healthcheck:
             $ref: "#/definitions/HealthConfig"
           Hosts:
             type: "array"
