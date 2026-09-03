@@ -1,16 +1,17 @@
 //go:build !windows
 
-package container
+package container_test
 
 import (
 	"testing"
 
+	"github.com/moby/moby/api/types/container"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestCgroupnsMode(t *testing.T) {
-	modes := map[CgroupnsMode]struct{ valid, private, host, empty bool }{
+	modes := map[container.CgroupnsMode]struct{ valid, private, host, empty bool }{
 		"":                {valid: true, empty: true},
 		":":               {valid: false},
 		"something":       {valid: false},
@@ -34,7 +35,7 @@ func TestCgroupnsMode(t *testing.T) {
 }
 
 func TestCgroupSpec(t *testing.T) {
-	modes := map[CgroupSpec]struct {
+	modes := map[container.CgroupSpec]struct {
 		valid     bool
 		private   bool
 		host      bool
@@ -66,7 +67,7 @@ func TestCgroupSpec(t *testing.T) {
 // TODO Windows: This will need addressing for a Windows daemon.
 func TestNetworkMode(t *testing.T) {
 	// TODO(thaJeztah): we should consider the cases with a colon (":") in the network name to be invalid.
-	modes := map[NetworkMode]struct {
+	modes := map[container.NetworkMode]struct {
 		private, bridge, host, container, none, isDefault bool
 		name, ctrName                                     string
 	}{
@@ -100,7 +101,7 @@ func TestNetworkMode(t *testing.T) {
 }
 
 func TestIpcMode(t *testing.T) {
-	ipcModes := map[IpcMode]struct {
+	ipcModes := map[container.IpcMode]struct {
 		valid     bool
 		private   bool
 		host      bool
@@ -138,7 +139,7 @@ func TestIpcMode(t *testing.T) {
 }
 
 func TestUTSMode(t *testing.T) {
-	modes := map[UTSMode]struct{ valid, private, host bool }{
+	modes := map[container.UTSMode]struct{ valid, private, host bool }{
 		"":                {valid: true, private: true},
 		":":               {valid: false, private: true},
 		"something":       {valid: false, private: true},
@@ -159,7 +160,7 @@ func TestUTSMode(t *testing.T) {
 }
 
 func TestUsernsMode(t *testing.T) {
-	modes := map[UsernsMode]struct{ valid, private, host bool }{
+	modes := map[container.UsernsMode]struct{ valid, private, host bool }{
 		"":                {valid: true, private: true},
 		":":               {valid: false, private: true},
 		"something":       {valid: false, private: true},
@@ -180,7 +181,7 @@ func TestUsernsMode(t *testing.T) {
 }
 
 func TestPidMode(t *testing.T) {
-	modes := map[PidMode]struct {
+	modes := map[container.PidMode]struct {
 		valid     bool
 		private   bool
 		host      bool
@@ -213,7 +214,7 @@ func TestPidMode(t *testing.T) {
 }
 
 func TestRestartPolicy(t *testing.T) {
-	policies := map[RestartPolicy]struct{ none, always, onFailure bool }{
+	policies := map[container.RestartPolicy]struct{ none, always, onFailure bool }{
 		{Name: "", MaximumRetryCount: 0}:           {none: true, always: false, onFailure: false},
 		{Name: "something", MaximumRetryCount: 0}:  {none: false, always: false, onFailure: false},
 		{Name: "no", MaximumRetryCount: 0}:         {none: true, always: false, onFailure: false},

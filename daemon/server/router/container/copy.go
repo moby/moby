@@ -9,9 +9,9 @@ import (
 	"io"
 	"net/http"
 
-	gddohttputil "github.com/golang/gddo/httputil"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/server/httputils"
+	"github.com/moby/moby/v2/daemon/server/httputils/contentencoding"
 )
 
 // setContainerPathStatHeader encodes the stat to JSON, base64 encode, and place in a header.
@@ -45,7 +45,7 @@ func (c *containerRouter) headContainersArchive(ctx context.Context, w http.Resp
 
 func writeCompressedResponse(w http.ResponseWriter, r *http.Request, body io.Reader) error {
 	var cw io.Writer
-	switch gddohttputil.NegotiateContentEncoding(r, []string{"gzip", "deflate"}) {
+	switch contentencoding.Negotiate(r.Header, []string{"gzip", "deflate"}) {
 	case "gzip":
 		gw := gzip.NewWriter(w)
 		defer gw.Close()
@@ -59,8 +59,15 @@ func writeCompressedResponse(w http.ResponseWriter, r *http.Request, body io.Rea
 		defer fw.Close()
 		cw = fw
 		w.Header().Set("Content-Encoding", "deflate")
-	default:
+	case "identity":
 		cw = w
+	case "":
+		// No acceptable encoding.
+
+		// TODO(thaJeztah): Decide whether to return 406 or preserve the current behavior.
+		cw = w
+	default:
+		panic("unexpected content encoding")
 	}
 	_, err := io.Copy(cw, body)
 	return err

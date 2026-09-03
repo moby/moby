@@ -15,6 +15,13 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.56 API changes
 
+* `GET /containers/json` now supports an `annotation` filter to filter
+  containers by annotation, either by key (`annotation=key`) or by key and
+  value (`annotation="key=value"`), similar to the existing `label` filter.
+* `POST /containers/create` now supports `HostConfig.Umask` to set the initial
+  umask for a Unix container. When set, the daemon includes the value in the OCI
+  process configuration for the container's entrypoint, exec processes, and
+  healthchecks. When omitted, the runtime's default behavior applies.
 * `POST /containers/create` now supports `BindOptions.IDMapping` for mounts
   of type `bind`, making the mount an id-mapped mount without changing
   ownership on the backing filesystem. The mapping is derived from the

@@ -111,6 +111,8 @@ func TestServiceUpdateSecrets(t *testing.T) {
 
 	serviceName := "TestService_" + t.Name()
 	serviceID := swarm.CreateService(ctx, t, d, swarm.ServiceWithName(serviceName))
+	// Avoid racing the update with the initial task startup.
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 1), swarm.ServicePoll)
 	service := getService(ctx, t, apiClient, serviceID)
 
 	// add secret
@@ -181,6 +183,8 @@ func TestServiceUpdateConfigs(t *testing.T) {
 
 	serviceName := "TestService_" + t.Name()
 	serviceID := swarm.CreateService(ctx, t, d, swarm.ServiceWithName(serviceName))
+	// Avoid racing the update with the initial task startup.
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 1), swarm.ServicePoll)
 	service := getService(ctx, t, apiClient, serviceID)
 
 	// add config

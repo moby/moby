@@ -505,6 +505,23 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 		}
 	}
 
+	subvolPath := path.Join(subvolumes, id)
+
+	// if we have a remapped root (user namespaces enabled), change the created snapshot
+	// dir ownership to match
+	if uid != 0 || gid != 0 {
+		if err := os.Chown(subvolPath, uid, gid); err != nil {
+			return err
+		}
+	}
+
+	// Btrfs creates the subvolume's root inode with 0777&^umask, and the daemon
+	// runs with umask 0000, so set the mode explicitly, like the other
+	// graphdrivers do for the directories they create.
+	if err := os.Chmod(subvolPath, 0o755); err != nil {
+		return err
+	}
+
 	var storageOpt map[string]string
 	if opts != nil {
 		storageOpt = opts.StorageOpt
@@ -523,14 +540,6 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 			return err
 		}
 		if err := os.WriteFile(path.Join(quotas, id), []byte(strconv.FormatUint(driver.options.size, 10)), 0o644); err != nil {
-			return err
-		}
-	}
-
-	// if we have a remapped root (user namespaces enabled), change the created snapshot
-	// dir ownership to match
-	if uid != 0 || gid != 0 {
-		if err := os.Chown(path.Join(subvolumes, id), uid, gid); err != nil {
 			return err
 		}
 	}

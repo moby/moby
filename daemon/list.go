@@ -24,21 +24,22 @@ import (
 )
 
 var acceptedPsFilterTags = map[string]bool{
-	"ancestor":  true,
-	"before":    true,
-	"exited":    true,
-	"id":        true,
-	"isolation": true,
-	"label":     true,
-	"name":      true,
-	"status":    true,
-	"health":    true,
-	"since":     true,
-	"volume":    true,
-	"network":   true,
-	"is-task":   true,
-	"publish":   true,
-	"expose":    true,
+	"ancestor":   true,
+	"annotation": true,
+	"before":     true,
+	"exited":     true,
+	"id":         true,
+	"isolation":  true,
+	"label":      true,
+	"name":       true,
+	"status":     true,
+	"health":     true,
+	"since":      true,
+	"volume":     true,
+	"network":    true,
+	"is-task":    true,
+	"publish":    true,
+	"expose":     true,
 }
 
 // iterationAction represents possible outcomes happening during the container iteration.
@@ -455,6 +456,11 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 
 	// Do not include container if any of the labels don't match
 	if !filter.filters.MatchKVList("label", container.Labels) {
+		return excludeContainer
+	}
+
+	// Do not include container if any of the annotations don't match
+	if !filter.filters.MatchKVList("annotation", container.Summary.HostConfig.Annotations) {
 		return excludeContainer
 	}
 

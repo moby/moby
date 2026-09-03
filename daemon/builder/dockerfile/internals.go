@@ -381,6 +381,11 @@ func (b *Builder) getPlatform(state *dispatchState) ocispec.Platform {
 	if b.platform != nil {
 		out = *b.platform
 	}
+	if state.baseImage != nil {
+		if platform := state.baseImage.Platform(); platform.Architecture != "" {
+			out = platform
+		}
+	}
 
 	if state.operatingSystem != "" {
 		out.OS = state.operatingSystem

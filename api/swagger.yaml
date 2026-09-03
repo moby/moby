@@ -1319,6 +1319,18 @@ definitions:
             x-nullable: true
             description: |-
               Runtime to use with this container.
+          Umask:
+            type: "integer"
+            format: "uint32"
+            x-nullable: true
+            description: |-
+              Set the initial umask for a Unix container.
+
+              If omitted, the daemon does not set a umask in the OCI process
+              specification, and the runtime's default behavior applies.
+
+              JSON integers are decimal. For example, use `18` for the octal
+              umask `0022`, and `511` for the octal umask `0777`.
           # Applicable to Windows
           Isolation:
             type: "string"
@@ -8404,6 +8416,7 @@ paths:
             Available filters:
 
             - `ancestor`=(`<image-name>[:<tag>]`, `<image id>`, or `<image@digest>`)
+            - `annotation=key` or `annotation="key=value"` of a container annotation
             - `before`=(`<container id>` or `<container name>`)
             - `expose`=(`<port>[/<proto>]`|`<startport-endport>/[<proto>]`)
             - `exited=<int>` containers with exit code of `<int>`
@@ -9914,14 +9927,17 @@ paths:
           in: "query"
           description: "Set memory limit for build."
           type: "integer"
+          format: "int64"
         - name: "memswap"
           in: "query"
           description: "Total memory (memory + swap). Set as `-1` to disable swap."
           type: "integer"
+          format: "int64"
         - name: "cpushares"
           in: "query"
           description: "CPU shares (relative weight)."
           type: "integer"
+          format: "int64"
         - name: "cpusetcpus"
           in: "query"
           description: "CPUs in which to allow execution (e.g., `0-3`, `0,1`)."
@@ -9930,10 +9946,12 @@ paths:
           in: "query"
           description: "The length of a CPU period in microseconds."
           type: "integer"
+          format: "int64"
         - name: "cpuquota"
           in: "query"
           description: "Microseconds of CPU time that the container can get in a CPU period."
           type: "integer"
+          format: "int64"
         - name: "buildargs"
           in: "query"
           description: >
@@ -9953,6 +9971,7 @@ paths:
           in: "query"
           description: "Size of `/dev/shm` in bytes. The size must be greater than 0. If omitted the system uses 64MB."
           type: "integer"
+          format: "int64"
         - name: "squash"
           in: "query"
           description: "Squash the resulting images layers into a single layer. *(Experimental release only.)*"
@@ -13644,8 +13663,8 @@ paths:
 
             - `id=<secret id>`
             - `label=<key> or label=<key>=value`
-            - `name=<secret name>`
-            - `names=<secret name>`
+            - `name=<secret name>` matches all or part of a secret name (prefix match)
+            - `names=<secret name>` matches a secret name (exact match)
       tags: ["Secret"]
   /secrets/create:
     post:
@@ -13851,8 +13870,7 @@ paths:
 
             - `id=<config id>`
             - `label=<key> or label=<key>=value`
-            - `name=<config name>`
-            - `names=<config name>`
+            - `name=<config name>` matches all or part of a config name (prefix match)
       tags: ["Config"]
   /configs/create:
     post:
