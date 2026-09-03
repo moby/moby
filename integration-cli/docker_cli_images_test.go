@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -228,24 +227,16 @@ func (s *DockerCLIImagesSuite) TestImagesFilterSpaceTrimCase(c *testing.T) {
 		"dangling = true",
 	}
 
-	imageListings := make([][]string, 5)
-	for idx, filter := range filters {
+	imageListings := make([][]string, len(filters))
+	for i, filter := range filters {
 		out := cli.DockerCmd(c, "images", "-q", "-f", filter).Stdout()
-		listing := strings.Split(out, "\n")
-		sort.Strings(listing)
-		imageListings[idx] = listing
+		imageListings[i] = strings.Fields(out)
+		slices.Sort(imageListings[i])
 	}
 
-	for idx, listing := range imageListings {
-		if idx < 4 && !reflect.DeepEqual(listing, imageListings[idx+1]) {
-			for idx, errListing := range imageListings {
-				fmt.Printf("out %d\n", idx)
-				for _, img := range errListing {
-					fmt.Print(img)
-				}
-				fmt.Print("")
-			}
-			c.Fatalf("All output must be the same")
+	for i := 1; i < len(imageListings); i++ {
+		if !slices.Equal(imageListings[0], imageListings[i]) {
+			c.Errorf("image listings differ:\nfirst: %v\n%s: %v", imageListings[0], filters[i], imageListings[i])
 		}
 	}
 }

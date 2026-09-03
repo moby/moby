@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"reflect"
-	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -276,11 +274,11 @@ func (s *DockerCLIExecSuite) TestExecCgroup(c *testing.T) {
 	cli.DockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
 
 	out := cli.DockerCmd(c, "exec", "testing", "cat", "/proc/1/cgroup").Stdout()
-	containerCgroups := sort.StringSlice(strings.Split(out, "\n"))
+	containerCgroups := strings.Split(out, "\n")
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	var execCgroups []sort.StringSlice
+	var execCgroups [][]string
 	errChan := make(chan error, 5)
 	// exec a few times concurrently to get consistent failure
 	for range 5 {
@@ -290,10 +288,9 @@ func (s *DockerCLIExecSuite) TestExecCgroup(c *testing.T) {
 				errChan <- err
 				return
 			}
-			cg := sort.StringSlice(strings.Split(out, "\n"))
 
 			mu.Lock()
-			execCgroups = append(execCgroups, cg)
+			execCgroups = append(execCgroups, strings.Split(out, "\n"))
 			mu.Unlock()
 		})
 	}
@@ -305,18 +302,7 @@ func (s *DockerCLIExecSuite) TestExecCgroup(c *testing.T) {
 	}
 
 	for _, cg := range execCgroups {
-		if !reflect.DeepEqual(cg, containerCgroups) {
-			fmt.Println("exec cgroups:")
-			for _, name := range cg {
-				fmt.Printf(" %s\n", name)
-			}
-
-			fmt.Println("container cgroups:")
-			for _, name := range containerCgroups {
-				fmt.Printf(" %s\n", name)
-			}
-			c.Fatal("cgroups mismatched")
-		}
+		assert.DeepEqual(c, cg, containerCgroups)
 	}
 }
 
