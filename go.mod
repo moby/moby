@@ -50,7 +50,6 @@ require (
 	github.com/fluent/fluent-logger-golang v1.10.1
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/gogo/protobuf v1.3.2
-	github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1

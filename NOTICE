@@ -11,6 +11,10 @@ This product contains software derived from RackSec/srslog
 from the Go standard library's log/syslog package, licensed under the
 BSD 3-Clause License.
 
+This product contains software derived from golang/gddo
+(https://github.com/golang/gddo), developed by The Go Authors and licensed
+under the BSD 3-Clause License.
+
 The following is courtesy of our legal counsel:
 
 

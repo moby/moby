@@ -44,8 +44,8 @@ func init() {
 		var t octetType
 		isCtl := c <= 31 || c == 127
 		isChar := 0 <= c && c <= 127
-		isSeparator := strings.IndexRune(" \t\"(),/:;<=>?@[]\\{}", rune(c)) >= 0
-		if strings.IndexRune(" \t\r\n", rune(c)) >= 0 {
+		isSeparator := strings.ContainsRune(" \t\"(),/:;<=>?@[]\\{}", rune(c))
+		if strings.ContainsRune(" \t\r\n", rune(c)) {
 			t |= isSpace
 		}
 		if isChar && !isCtl && !isSeparator {
@@ -53,15 +53,6 @@ func init() {
 		}
 		octetTypes[c] = t
 	}
-}
-
-// Copy returns a shallow copy of the header.
-func Copy(header http.Header) http.Header {
-	h := make(http.Header)
-	for k, vs := range header {
-		h[k] = vs
-	}
-	return h
 }
 
 var timeLayouts = []string{"Mon, 02 Jan 2006 15:04:05 GMT", time.RFC850, time.ANSIC}

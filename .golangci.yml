@@ -358,6 +358,12 @@ linters:
         linters:
           - gocheckcompilerdirectives
 
+      # Keep the imported gddo code close to its upstream form.
+      - path: daemon/server/httputils/internal/httputil/
+        linters:
+          - gocritic
+          - nakedret
+
     # Log a warning if an exclusion rule is unused.
     # Default: false
     warn-unused: true
