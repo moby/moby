@@ -69,8 +69,8 @@ require (
 	github.com/moby/go-archive v0.3.3
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
-	github.com/moby/moby/api v1.55.0
-	github.com/moby/moby/client v0.5.1
+	github.com/moby/moby/api v1.55.1-0.20260903191745-b40d37ef51db
+	github.com/moby/moby/client v0.5.2-0.20260903191745-b40d37ef51db
 	github.com/moby/patternmatcher v0.6.1
 	github.com/moby/policy-helpers v0.0.0-20260901142052-72f704e6cdb6
 	github.com/moby/profiles/apparmor v0.2.2-0.20260828104831-61eaf32614c7
@@ -312,7 +312,3 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.1.0 // indirect
 )
-
-replace github.com/moby/moby/api => ./api
-
-replace github.com/moby/moby/client => ./client
