@@ -54,6 +54,15 @@ func (c *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 		// Not supported by API versions before 1.42
 		execConfig.ConsoleSize = nil
 	}
+	if versions.LessThan(version, "1.56") {
+		// CaptureLogs cannot be silently ignored: a client asking for the
+		// exec output to be captured must not believe it was when it wasn't.
+		if execConfig.CaptureLogs {
+			return errdefs.InvalidParameter(errors.New("CaptureLogs requires API v1.56 or newer"))
+		}
+		// Labels are pure metadata; dropped like ConsoleSize above.
+		execConfig.Labels = nil
+	}
 
 	// Register an instance of Exec in container.
 	id, err := c.backend.ContainerExecCreate(vars["name"], execConfig)
