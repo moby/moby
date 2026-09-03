@@ -51,21 +51,6 @@ func newAuthTransport(base http.RoundTripper, authConfig *registry.AuthConfig, a
 	}
 }
 
-// cloneRequest returns a clone of the provided *http.Request.
-// The clone is a shallow copy of the struct and its Header map.
-func cloneRequest(r *http.Request) *http.Request {
-	// shallow copy of the struct
-	r2 := new(http.Request)
-	*r2 = *r
-	// deep copy of the Header
-	r2.Header = make(http.Header, len(r.Header))
-	for k, s := range r.Header {
-		r2.Header[k] = append([]string(nil), s...)
-	}
-
-	return r2
-}
-
 // onEOFReader wraps an io.ReadCloser and a function
 // the function will run at the end of file or close the file.
 type onEOFReader struct {
@@ -107,7 +92,7 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 		return tr.base.RoundTrip(orig)
 	}
 
-	req := cloneRequest(orig)
+	req := orig.Clone(orig.Context())
 	tr.mu.Lock()
 	tr.modReq[orig] = req
 	tr.mu.Unlock()
