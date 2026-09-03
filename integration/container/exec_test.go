@@ -436,10 +436,11 @@ func TestExecWithGroupAdd(t *testing.T) {
 	assert.Check(t, is.Equal(strings.TrimSpace(result.Stdout()), expected), "exec command not keeping additional groups w/ user")
 }
 
-// TestExecCaptureLogs exercises the CaptureLogs exec option: the exec's
-// stdout and stderr are teed into the container's logging driver on the
-// dedicated exec streams, each line stamped with the exec's identity,
-// retrievable through the container logs endpoint after the exec terminated.
+// TestExecCaptureLogs exercises the CaptureStdout/CaptureStderr exec
+// options: the exec's stdout and stderr are teed into the container's
+// logging driver on the dedicated exec streams, each line stamped with the
+// exec's identity, retrievable through the container logs endpoint after
+// the exec terminated.
 func TestExecCaptureLogs(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.56"), "requires API v1.56")
 	ctx := setupTest(t)
@@ -450,7 +451,8 @@ func TestExecCaptureLogs(t *testing.T) {
 	res, err := container.Exec(ctx, apiClient, cID,
 		[]string{"sh", "-c", "echo captured-stdout; echo captured-stderr >&2"},
 		func(o *client.ExecCreateOptions) {
-			o.CaptureLogs = true
+			o.CaptureStdout = true
+			o.CaptureStderr = true
 			o.Labels = map[string]string{"com.example.origin": "exec-capture-test"}
 		})
 	assert.NilError(t, err)

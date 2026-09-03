@@ -11,10 +11,10 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 )
 
-// startLogCapture tees the exec's stdout and stderr into the container's
+// startLogCapture tees the exec's captured streams into the container's
 // logging driver, stamping each message with the exec's identity so log
 // readers can attribute the output. It is called from InitializeStdio when
-// the exec was created with CaptureLogs.
+// the exec was created with CaptureStdout or CaptureStderr.
 func (c *ExecConfig) startLogCapture() {
 	c.Container.Lock()
 	logDriver := c.Container.LogDriver
@@ -33,13 +33,19 @@ func (c *ExecConfig) startLogCapture() {
 
 	// The driver is shared with the container's own stdio copier; drivers
 	// already accept concurrent Log calls from the stdout and stderr copy
-	// goroutines, two more sources follow the same contract. Captured
-	// messages are recorded under dedicated stream names so log readers can
-	// serve exec output separately from the container's own output.
-	copier := logger.NewCopier(map[string]io.Reader{
-		"exec-stdout": c.StreamConfig.StdoutPipe(),
-		"exec-stderr": c.StreamConfig.StderrPipe(),
-	}, &execLogger{Logger: logDriver, attrs: attrs})
+	// goroutines, more sources follow the same contract. Captured messages
+	// are recorded under dedicated stream names so log readers can serve
+	// exec output separately from the container's own output. Pipes are
+	// only opened for the requested streams: an unread pipe would block the
+	// stream broadcaster.
+	srcs := make(map[string]io.Reader, 2)
+	if c.CaptureStdout {
+		srcs["exec-stdout"] = c.StreamConfig.StdoutPipe()
+	}
+	if c.CaptureStderr {
+		srcs["exec-stderr"] = c.StreamConfig.StderrPipe()
+	}
+	copier := logger.NewCopier(srcs, &execLogger{Logger: logDriver, attrs: attrs})
 	c.LogCopier = copier
 	copier.Run()
 }

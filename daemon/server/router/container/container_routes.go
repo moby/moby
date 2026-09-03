@@ -202,7 +202,7 @@ func (c *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
 	var execStdout, execStderr bool
 	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.56") {
-		// Execs created with CaptureLogs record their output on dedicated
+		// Execs created with CaptureStdout / CaptureStderr record their output on dedicated
 		// "exec-stdout" / "exec-stderr" streams, returned only on request.
 		execStdout, execStderr = httputils.BoolValue(r, "exec-stdout"), httputils.BoolValue(r, "exec-stderr")
 	}

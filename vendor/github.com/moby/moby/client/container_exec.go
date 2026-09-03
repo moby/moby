@@ -24,10 +24,15 @@ type ExecCreateOptions struct {
 	WorkingDir   string      // Working directory
 	Cmd          []string    // Execution commands and args
 
-	// CaptureLogs tees the exec process's stdout and stderr into the
-	// container's logging driver, stamping each captured message with the
-	// exec's identity ("exec_id" and any Labels).
-	CaptureLogs bool
+	// CaptureStdout tees the exec process's stdout into the container's
+	// logging driver, recorded on the dedicated "exec-stdout" stream and
+	// stamped with the exec's identity ("exec_id" and any Labels).
+	CaptureStdout bool
+
+	// CaptureStderr tees the exec process's stderr into the container's
+	// logging driver, recorded on the dedicated "exec-stderr" stream and
+	// stamped with the exec's identity ("exec_id" and any Labels).
+	CaptureStderr bool
 
 	// Labels holds user-defined metadata for the exec instance.
 	Labels map[string]string
@@ -51,19 +56,20 @@ func (cli *Client) ExecCreate(ctx context.Context, containerID string, options E
 	}
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/exec", nil, nil, container.ExecCreateRequest{
-		User:         options.User,
-		Privileged:   options.Privileged,
-		Tty:          options.TTY,
-		ConsoleSize:  consoleSize,
-		AttachStdin:  options.AttachStdin,
-		AttachStderr: options.AttachStderr,
-		AttachStdout: options.AttachStdout,
-		DetachKeys:   options.DetachKeys,
-		Env:          options.Env,
-		WorkingDir:   options.WorkingDir,
-		Cmd:          options.Cmd,
-		CaptureLogs:  options.CaptureLogs,
-		Labels:       options.Labels,
+		User:          options.User,
+		Privileged:    options.Privileged,
+		Tty:           options.TTY,
+		ConsoleSize:   consoleSize,
+		AttachStdin:   options.AttachStdin,
+		AttachStderr:  options.AttachStderr,
+		AttachStdout:  options.AttachStdout,
+		DetachKeys:    options.DetachKeys,
+		Env:           options.Env,
+		WorkingDir:    options.WorkingDir,
+		Cmd:           options.Cmd,
+		CaptureStdout: options.CaptureStdout,
+		CaptureStderr: options.CaptureStderr,
+		Labels:        options.Labels,
 	})
 	defer ensureReaderClosed(resp)
 	if err != nil {
