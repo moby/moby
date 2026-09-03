@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/plugin"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 	"pgregory.net/rapid"
 )
 
@@ -56,16 +54,25 @@ func TestCapabilityID_MarshalUnmarshal(t *testing.T) {
 		t.Logf("InterfaceType(%q)", b)
 
 		var roundtrip plugin.CapabilityID
-		err = roundtrip.UnmarshalText(b)
-		assert.Assert(t, err)
-		assert.Assert(t, is.DeepEqual(typ, roundtrip))
+		if err := roundtrip.UnmarshalText(b); err != nil {
+			t.Fatal(err)
+		}
+		if typ != roundtrip {
+			t.Errorf("roundtrip = %+v, want %+v", roundtrip, typ)
+		}
 
 		jb, err := json.Marshal(string(b))
-		assert.Assert(t, err)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		var oldparser pluginCapabilityID
-		err = oldparser.unmarshalJSON(jb)
-		assert.Assert(t, err)
-		assert.Assert(t, is.DeepEqual(typ, plugin.CapabilityID(oldparser)), "new parser does not match the old parser")
+		if err := oldparser.unmarshalJSON(jb); err != nil {
+			t.Fatal(err)
+		}
+		if typ != plugin.CapabilityID(oldparser) {
+			t.Errorf("new parser = %+v, old parser = %+v", typ, oldparser)
+		}
 	})
 }
 
@@ -81,11 +88,16 @@ func TestCapabilityID_JSONMarshalUnmarshal(t *testing.T) {
 		},
 	}
 	b, err := json.Marshal(a)
-	assert.Assert(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Logf("JSON: %s", b)
 
 	var roundtrip rt
-	err = json.Unmarshal(b, &roundtrip)
-	assert.Assert(t, err)
-	assert.Assert(t, is.DeepEqual(a, roundtrip))
+	if err := json.Unmarshal(b, &roundtrip); err != nil {
+		t.Fatal(err)
+	}
+	if a != roundtrip {
+		t.Errorf("roundtrip = %+v, want %+v", roundtrip, a)
+	}
 }
