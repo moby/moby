@@ -99,6 +99,12 @@ func TestImagesFilterUntil(t *testing.T) {
 	assert.DeepEqual(t, listedIDs, imgs[1:2], cmpopts.SortSlices(func(a, b string) bool { return a < b }))
 }
 
+// TestImagesFilterBeforeSince verifies that the before and since filters
+// select images relative to another image, referenced either by name or ID,
+// and that matching images are returned in newest-first order.
+//
+// These filters were originally added in
+// https://github.com/moby/moby/pull/22908.
 func TestImagesFilterBeforeSince(t *testing.T) {
 	ctx := setupTest(t)
 
@@ -107,33 +113,96 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 	name := strings.ToLower(t.Name())
 	ctr := container.Create(ctx, t, apiClient, container.WithName(name))
 
-	imgs := make([]string, 5)
+	imgs := make([]string, 3)
+	refs := make([]string, len(imgs))
 	for i := range imgs {
 		if i > 0 {
-			// Make sure each image has a distinct timestamp.
-			time.Sleep(time.Millisecond)
+			// The ImageList API sorts the list by created timestamp... truncated to
+			// 1-second precision. Since all the images were created within
+			// milliseconds of each other, listedIDs is effectively unordered and
+			// the assertion must therefore be order-independent.
+			time.Sleep(time.Second)
 		}
-		id, err := apiClient.ContainerCommit(ctx, ctr, client.ContainerCommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
+
+		refs[i] = fmt.Sprintf("%s:v%d", name, i)
+		img, err := apiClient.ContainerCommit(ctx, ctr, client.ContainerCommitOptions{
+			Reference: refs[i],
+		})
 		assert.NilError(t, err)
-		imgs[i] = id.ID
+		imgs[i] = img.ID
 	}
 
-	filter := make(client.Filters).
-		Add("since", imgs[0]).
-		Add("before", imgs[len(imgs)-1])
-	list, err := apiClient.ImageList(ctx, client.ImageListOptions{Filters: filter})
-	assert.NilError(t, err)
-
-	var listedIDs []string
-	for _, i := range list.Items {
-		t.Logf("ImageList: ID=%v RepoTags=%v", i.ID, i.RepoTags)
-		listedIDs = append(listedIDs, i.ID)
+	tests := []struct {
+		name    string
+		filters client.Filters
+		want    []string
+	}{
+		{
+			name:    "since first reference",
+			filters: make(client.Filters).Add("since", refs[0]),
+			want:    []string{imgs[2], imgs[1]},
+		},
+		{
+			name:    "since first ID",
+			filters: make(client.Filters).Add("since", imgs[0]),
+			want:    []string{imgs[2], imgs[1]},
+		},
+		{
+			name:    "since second reference",
+			filters: make(client.Filters).Add("since", refs[1]),
+			want:    []string{imgs[2]},
+		},
+		{
+			name:    "since second ID",
+			filters: make(client.Filters).Add("since", imgs[1]),
+			want:    []string{imgs[2]},
+		},
+		{
+			name:    "before third reference",
+			filters: make(client.Filters).Add("before", refs[2]),
+			want:    []string{imgs[1], imgs[0]},
+		},
+		{
+			name:    "before third ID",
+			filters: make(client.Filters).Add("before", imgs[2]),
+			want:    []string{imgs[1], imgs[0]},
+		},
+		{
+			name:    "before second reference",
+			filters: make(client.Filters).Add("before", refs[1]),
+			want:    []string{imgs[0]},
+		},
+		{
+			name:    "before second ID",
+			filters: make(client.Filters).Add("before", imgs[1]),
+			want:    []string{imgs[0]},
+		},
+		{
+			name: "since and before",
+			filters: make(client.Filters).
+				Add("since", imgs[0]).
+				Add("before", imgs[2]),
+			want: []string{imgs[1]},
+		},
 	}
-	// The ImageList API sorts the list by created timestamp... truncated to
-	// 1-second precision. Since all the images were created within
-	// milliseconds of each other, listedIDs is effectively unordered and
-	// the assertion must therefore be order-independent.
-	assert.DeepEqual(t, listedIDs, imgs[1:len(imgs)-1], cmpopts.SortSlices(func(a, b string) bool { return a < b }))
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			list, err := apiClient.ImageList(ctx, client.ImageListOptions{
+				Filters: tc.filters,
+			})
+			assert.NilError(t, err)
+
+			var got []string
+			for _, img := range list.Items {
+				if slices.Contains(imgs, img.ID) {
+					got = append(got, img.ID)
+				}
+			}
+
+			assert.DeepEqual(t, tc.want, got)
+		})
+	}
 }
 
 func TestAPIImagesFilters(t *testing.T) {
