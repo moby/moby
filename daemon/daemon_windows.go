@@ -46,6 +46,9 @@ func adjustParallelLimit(n int, limit int) int {
 	return int(math.Max(1, math.Floor(float64(runtime.NumCPU())*.8)))
 }
 
+func setHostGatewayIP(*libnetwork.Controller, *config.Config) {
+}
+
 // Windows has no concept of an execution state directory. So use config.Root here.
 func getPluginExecRoot(cfg *config.Config) string {
 	return filepath.Join(cfg.Root, "plugins")
