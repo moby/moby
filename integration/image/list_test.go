@@ -397,3 +397,67 @@ func TestAPIImagesListIntermediateImages(t *testing.T) {
 		})
 	}
 }
+
+// TestAPIImagesListDanglingFilter verifies that an image which becomes
+// dangling after its tag is reassigned is listed exactly once by default and
+// when filtering for dangling images, and is excluded when filtering for
+// non-dangling images.
+//
+// This provides API-level coverage for dangling-image bookkeeping independently
+// of the CLI rendering regression covered by
+// https://github.com/moby/moby/pull/11464.
+func TestAPIImagesListDanglingFilter(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	ctr := container.Create(ctx, t, apiClient)
+
+	img, err := apiClient.ContainerCommit(ctx, ctr, client.ContainerCommitOptions{
+		Reference: "foobox",
+	})
+	assert.NilError(t, err)
+
+	_, err = apiClient.ImageTag(ctx, client.ImageTagOptions{
+		Source: "busybox",
+		Target: "foobox",
+	})
+	assert.NilError(t, err)
+
+	tests := []struct {
+		name    string
+		filters client.Filters
+		want    []string
+	}{
+		{
+			name: "default",
+			want: []string{img.ID},
+		},
+		{
+			name:    "dangling",
+			filters: make(client.Filters).Add("dangling", "true"),
+			want:    []string{img.ID},
+		},
+		{
+			name:    "not-dangling",
+			filters: make(client.Filters).Add("dangling", "false"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			list, err := apiClient.ImageList(ctx, client.ImageListOptions{
+				Filters: tc.filters,
+			})
+			assert.NilError(t, err)
+
+			var got []string
+			for _, listed := range list.Items {
+				if listed.ID == img.ID {
+					got = append(got, listed.ID)
+				}
+			}
+
+			assert.DeepEqual(t, tc.want, got)
+		})
+	}
+}

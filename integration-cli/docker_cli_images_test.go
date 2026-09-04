@@ -241,6 +241,12 @@ func (s *DockerCLIImagesSuite) TestImagesFilterSpaceTrimCase(c *testing.T) {
 	}
 }
 
+// TestImagesEnsureDanglingImageOnlyListedOnce verifies that the CLI prints a
+// dangling image only once. This is a regression test for
+// https://github.com/moby/moby/pull/11464, where dangling images were printed
+// twice because both RepoTags and RepoDigests contained dangling placeholders.
+//
+// FIXME(thaJeztah): should be a unit test for `docker image ls` in docker/cli.
 func (s *DockerCLIImagesSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// create container 1
