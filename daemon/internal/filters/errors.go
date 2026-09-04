@@ -13,7 +13,7 @@ func (e invalidFilter) Error() string {
 	if e.Filter != "" {
 		msg += " '" + e.Filter
 		if e.Value != nil {
-			msg = fmt.Sprintf("%s=%s", msg, e.Value)
+			msg += "=" + fmt.Sprint(e.Value)
 		}
 		msg += "'"
 	}
