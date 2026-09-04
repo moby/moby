@@ -8,13 +8,16 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
+	buildtypes "github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/versions"
+	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -321,5 +324,95 @@ func TestAPIImagesListManifests(t *testing.T) {
 
 			assert.Check(t, is.DeepEqual(mfst.ImageData.Containers, []string{cid}))
 		}
+	}
+}
+
+// TestAPIImagesListIntermediateImages verifies that the image list hides
+// intermediate images produced by the classic builder by default, while still
+// showing an untagged final image. With All enabled, both are shown.
+//
+// See https://github.com/moby/moby/pull/16890.
+func TestAPIImagesListIntermediateImages(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	before, err := apiClient.ImageList(ctx, client.ImageListOptions{All: true})
+	assert.NilError(t, err)
+
+	existing := make(map[string]struct{}, len(before.Items))
+	for _, img := range before.Items {
+		existing[img.ID] = struct{}{}
+	}
+
+	buildCtx := fakecontext.New(t, "", fakecontext.WithDockerfile(`
+FROM busybox
+RUN echo foo > /foo
+RUN echo bar > /bar
+`))
+	head := build.Do(ctx, t, apiClient, buildCtx, client.ImageBuildOptions{
+		Version: buildtypes.BuilderV1,
+		NoCache: true,
+	})
+
+	all, err := apiClient.ImageList(ctx, client.ImageListOptions{All: true})
+	assert.NilError(t, err)
+
+	var intermediates []string
+	for _, img := range all.Items {
+		if _, ok := existing[img.ID]; !ok && img.ID != head {
+			intermediates = append(intermediates, img.ID)
+		}
+	}
+	assert.Assert(t, is.Len(intermediates, 1))
+	intermediate := intermediates[0]
+
+	tests := []struct {
+		name    string
+		options client.ImageListOptions
+		want    []string
+	}{
+		{
+			name: "default",
+			want: []string{
+				head,
+			},
+		},
+		{
+			name: "all",
+			options: client.ImageListOptions{
+				All: true,
+			},
+			want: []string{
+				intermediate,
+				head,
+			},
+		},
+		{
+			name: "dangling",
+			options: client.ImageListOptions{
+				Filters: make(client.Filters).Add("dangling", "true"),
+			},
+			want: []string{
+				head,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			list, err := apiClient.ImageList(ctx, tc.options)
+			assert.NilError(t, err)
+
+			var got []string
+			for _, img := range list.Items {
+				if img.ID == intermediate || img.ID == head {
+					got = append(got, img.ID)
+				}
+			}
+
+			assert.DeepEqual(t, tc.want, got, cmpopts.SortSlices(func(a, b string) bool {
+				return a < b
+			}))
+		})
 	}
 }
