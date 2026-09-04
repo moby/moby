@@ -273,29 +273,6 @@ func (s *DockerCLIImagesSuite) TestImagesWithIncorrectFilter(c *testing.T) {
 	assert.Assert(c, is.Contains(out, "invalid filter"))
 }
 
-func (s *DockerCLIImagesSuite) TestImagesEnsureOnlyHeadsImagesShown(c *testing.T) {
-	const dockerfile = `
-        FROM busybox
-        MAINTAINER docker
-        ENV foo bar`
-	const name = "scratch-image"
-	result := cli.Docker(cli.Args("build", "-t", name), build.WithDockerfile(dockerfile))
-	result.Assert(c, icmd.Success)
-	id := getIDByName(c, name)
-
-	// this is just the output of docker build
-	// we're interested in getting the image id of the MAINTAINER instruction
-	// and that's located at output, line 5, from 7 to end
-	split := strings.Split(result.Combined(), "\n")
-	intermediate := strings.TrimSpace(split[5][7:])
-
-	out := cli.DockerCmd(c, "images").Stdout()
-	// images shouldn't show non-heads images
-	assert.Assert(c, !strings.Contains(out, intermediate))
-	// images should contain final built images
-	assert.Assert(c, is.Contains(out, stringid.TruncateID(id)))
-}
-
 func (s *DockerCLIImagesSuite) TestImagesEnsureImagesFromScratchShown(c *testing.T) {
 	testRequires(c, DaemonIsLinux) // Windows does not support FROM scratch
 	const dockerfile = `

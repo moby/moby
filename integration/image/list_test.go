@@ -323,3 +323,77 @@ func TestAPIImagesListManifests(t *testing.T) {
 		}
 	}
 }
+
+// TestAPIImagesListIntermediateImages verifies that the image list hides
+// untagged intermediate images by default, while still showing untagged
+// images that have no children. With All enabled, both are shown.
+//
+// Parent/child relationships are used by both image-store implementations
+// to distinguish intermediate images, including images produced by the
+// classic builder.
+//
+// See https://github.com/moby/moby/pull/16890.
+func TestAPIImagesListIntermediateImages(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	ctr := container.Create(ctx, t, apiClient)
+
+	intermediate, err := apiClient.ContainerCommit(ctx, ctr, client.ContainerCommitOptions{})
+	assert.NilError(t, err)
+
+	ctr = container.Create(ctx, t, apiClient, container.WithImage(intermediate.ID))
+
+	head, err := apiClient.ContainerCommit(ctx, ctr, client.ContainerCommitOptions{})
+	assert.NilError(t, err)
+
+	tests := []struct {
+		name    string
+		options client.ImageListOptions
+		want    []string
+	}{
+		{
+			name: "default",
+			want: []string{
+				head.ID,
+			},
+		},
+		{
+			name: "all",
+			options: client.ImageListOptions{
+				All: true,
+			},
+			want: []string{
+				intermediate.ID,
+				head.ID,
+			},
+		},
+		{
+			name: "dangling",
+			options: client.ImageListOptions{
+				Filters: make(client.Filters).Add("dangling", "true"),
+			},
+			want: []string{
+				head.ID,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			list, err := apiClient.ImageList(ctx, tc.options)
+			assert.NilError(t, err)
+
+			var got []string
+			for _, img := range list.Items {
+				if img.ID == intermediate.ID || img.ID == head.ID {
+					got = append(got, img.ID)
+				}
+			}
+
+			assert.DeepEqual(t, tc.want, got, cmpopts.SortSlices(func(a, b string) bool {
+				return a < b
+			}))
+		})
+	}
+}
