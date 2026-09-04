@@ -125,6 +125,8 @@ require (
 	tags.cncf.io/container-device-interface v1.1.0
 )
 
+require github.com/containerd/errdefs/pkg v0.3.0
+
 require (
 	cloud.google.com/go v0.123.0 // indirect
 	cloud.google.com/go/auth v0.20.0 // indirect
@@ -161,7 +163,6 @@ require (
 	github.com/container-storage-interface/spec v1.10.0 // indirect
 	github.com/containerd/accelerated-container-image v1.3.0 // indirect
 	github.com/containerd/console v1.0.5 // indirect
-	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/go-cni v1.1.13 // indirect
 	github.com/containerd/go-runc v1.2.1 // indirect
 	github.com/containerd/nydus-snapshotter v0.15.15 // indirect
