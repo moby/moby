@@ -16,6 +16,7 @@ import (
 	internalauth "github.com/aws/aws-sdk-go-v2/internal/auth"
 	internalauthsmithy "github.com/aws/aws-sdk-go-v2/internal/auth/smithy"
 	internalConfig "github.com/aws/aws-sdk-go-v2/internal/configsources"
+	"github.com/aws/aws-sdk-go-v2/internal/timeouts"
 	"github.com/aws/aws-sdk-go-v2/internal/v4a"
 	acceptencodingcust "github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding"
 	presignedurlcust "github.com/aws/aws-sdk-go-v2/service/internal/presigned-url"
@@ -533,6 +534,12 @@ func resolveHTTPClient(o *Options) {
 		})
 	}
 
+	if _, ok := buildable.GetReadTimeout(); !ok {
+		if timeout, ok := timeouts.GetServiceReadTimeout(ServiceID); ok {
+			buildable = buildable.WithReadTimeout(timeout)
+		}
+	}
+
 	o.HTTPClient = buildable
 }
 
@@ -672,10 +679,6 @@ func newDefaultV4Signer(o Options) *v4.Signer {
 
 func addClientRequestID(stack *middleware.Stack) error {
 	return stack.Build.Add(&awsmiddleware.ClientRequestID{}, middleware.After)
-}
-
-func addComputeContentLength(stack *middleware.Stack) error {
-	return stack.Build.Insert(&smithyhttp.ComputeContentLength{}, "ClientRequestID", middleware.After)
 }
 
 func addRawResponseToMetadata(stack *middleware.Stack) error {
@@ -836,35 +839,21 @@ func addUserAgentRetryMode(stack *middleware.Stack, options Options) error {
 	return nil
 }
 
-type setCredentialSourceMiddleware struct {
-	ua      *awsmiddleware.RequestUserAgent
-	options Options
-}
-
-func (m setCredentialSourceMiddleware) ID() string { return "SetCredentialSourceMiddleware" }
-
-func (m setCredentialSourceMiddleware) HandleBuild(ctx context.Context, in middleware.BuildInput, next middleware.BuildHandler) (
-	out middleware.BuildOutput, metadata middleware.Metadata, err error,
-) {
-	asProviderSource, ok := m.options.Credentials.(aws.CredentialProviderSource)
-	if !ok {
-		return next.HandleBuild(ctx, in)
-	}
-	providerSources := asProviderSource.ProviderSources()
-	for _, source := range providerSources {
-		m.ua.AddCredentialsSource(source)
-	}
-	return next.HandleBuild(ctx, in)
-}
-
 func addCredentialSource(stack *middleware.Stack, options Options) error {
 	ua, err := getOrAddRequestUserAgent(stack)
 	if err != nil {
 		return err
 	}
 
-	mw := setCredentialSourceMiddleware{ua: ua, options: options}
-	return stack.Build.Insert(&mw, "UserAgent", middleware.Before)
+	asProviderSource, ok := options.Credentials.(aws.CredentialProviderSource)
+	if !ok {
+		return nil
+	}
+
+	for _, source := range asProviderSource.ProviderSources() {
+		ua.AddCredentialsSource(source)
+	}
+	return nil
 }
 
 func finalizeSTSRetryableErrors(o *Options) {
