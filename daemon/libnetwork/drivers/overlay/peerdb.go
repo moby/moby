@@ -195,7 +195,7 @@ func (n *network) peerDelete(eid string, peerIP netip.Prefix, peerMac hashable.M
 		logger.Warn("Peer entry was not in db")
 	}
 	if vtep.IsValid() {
-		err := n.deleteNeighbor(peerIP, peerMac, vtep)
+		err := n.deleteNeighbor(peerIP, peerMac, vtep, dbEntries)
 		if err != nil {
 			if dbEntries > 0 && errors.As(err, &osl.NeighborSearchError{}) {
 				// We fall in here if there is a transient state and if the neighbor that is being deleted
@@ -223,7 +223,7 @@ func (n *network) peerDelete(eid string, peerIP netip.Prefix, peerMac hashable.M
 
 // deleteNeighbor removes programming from the kernel for the given peer to be
 // reachable through the VXLAN tunnel. It is the inverse of [driver.addNeighbor].
-func (n *network) deleteNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) error {
+func (n *network) deleteNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr, dbEntries int) error {
 	if n.sbox == nil {
 		return nil
 	}
@@ -238,17 +238,22 @@ func (n *network) deleteNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, 
 	if s == nil {
 		return fmt.Errorf("could not find the subnet %q in network %q", peerIP.String(), n.id)
 	}
+	var errs []error
+	fdbDeleteFailed := false
 	// Remove fdb entry to the bridge for the peer mac
 	if n.fdbCnt.Add(hashable.IPMACFrom(vtep, peerMac), -1) == 0 {
 		if err := n.sbox.DeleteNeighbor(vtep.AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName), osl.WithFamily(syscall.AF_BRIDGE)); err != nil {
-			return fmt.Errorf("could not delete fdb entry in the sandbox: %w", err)
+			errs = append(errs, fmt.Errorf("could not delete fdb entry in the sandbox: %w", err))
+			fdbDeleteFailed = true
 		}
 	}
 
 	// Delete neighbor entry for the peer IP
-	if err := n.sbox.DeleteNeighbor(peerIP.Addr().AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName)); err != nil {
-		return fmt.Errorf("could not delete neighbor entry in the sandbox:%v", err)
+	if !fdbDeleteFailed || dbEntries == 0 {
+		if err := n.sbox.DeleteNeighbor(peerIP.Addr().AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName)); err != nil {
+			errs = append(errs, fmt.Errorf("could not delete neighbor entry in the sandbox: %w", err))
+		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
