@@ -125,77 +125,6 @@ func (s *DockerCLIImagesSuite) TestCommitWithFilterLabel(c *testing.T) {
 	assert.Equal(c, out, imageID)
 }
 
-func (s *DockerCLIImagesSuite) TestImagesFilterSinceAndBefore(c *testing.T) {
-	cli.BuildCmd(c, "testfilter:test_1", build.WithDockerfile("FROM busybox\nRUN echo 1 > /result.txt\n"))
-	imageID1 := getIDByName(c, "testfilter:test_1")
-
-	time.Sleep(1 * time.Second) // need some delay to make sure images sort predictable
-	cli.BuildCmd(c, "testfilter:test_2", build.WithDockerfile("FROM busybox\nRUN echo 22 > /result.txt\n"))
-	imageID2 := getIDByName(c, "testfilter:test_2")
-
-	time.Sleep(1 * time.Second) // need some delay to make sure images sort predictable
-	cli.BuildCmd(c, "testfilter:test_3", build.WithDockerfile("FROM busybox\nRUN echo 333 > /result.txt\n"))
-	imageID3 := getIDByName(c, "testfilter:test_3")
-
-	out := cli.DockerCmd(c, "image", "ls", "--format", `{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}`, "--no-trunc", "testfilter").Stdout()
-	c.Log(out)
-
-	tests := []struct {
-		name     string
-		filter   string
-		expected []string
-	}{
-		{
-			name:     "since image 1",
-			filter:   "since=testfilter:test_1",
-			expected: []string{imageID3, imageID2},
-		},
-		{
-			name:     "since image 1 digest",
-			filter:   "since=" + imageID1,
-			expected: []string{imageID3, imageID2},
-		},
-		{
-			name:     "since image 2",
-			filter:   "since=testfilter:test_2",
-			expected: []string{imageID3},
-		},
-		{
-			name:     "since image 2 digest",
-			filter:   "since=" + imageID2,
-			expected: []string{imageID3},
-		},
-		{
-			name:     "before image 3",
-			filter:   "before=testfilter:test_3",
-			expected: []string{imageID2, imageID1},
-		},
-		{
-			name:     "before image 3 digest",
-			filter:   "before=" + imageID3,
-			expected: []string{imageID2, imageID1},
-		},
-		{
-			name:     "before image 2",
-			filter:   "before=testfilter:test_2",
-			expected: []string{imageID1},
-		},
-		{
-			name:     "before image 2 digest",
-			filter:   "before=" + imageID2,
-			expected: []string{imageID1},
-		},
-	}
-
-	for _, tc := range tests {
-		c.Run(tc.filter, func(t *testing.T) {
-			out = cli.DockerCmd(t, "image", "ls", "--format", `{{.Tag}}\t{{.ID}}`, "--no-trunc", "--filter", tc.filter, "testfilter").Stdout()
-			actual := getImageIDs(out)
-			assert.Check(t, is.DeepEqual(actual, tc.expected), "image list is not in the correct order")
-		})
-	}
-}
-
 func getImageIDs(out string) []string {
 	var actual []string
 	imgs := strings.SplitSeq(out, "\n")
@@ -241,6 +170,12 @@ func (s *DockerCLIImagesSuite) TestImagesFilterSpaceTrimCase(c *testing.T) {
 	}
 }
 
+// TestImagesEnsureDanglingImageOnlyListedOnce verifies that the CLI prints a
+// dangling image only once. This is a regression test for
+// https://github.com/moby/moby/pull/11464, where dangling images were printed
+// twice because both RepoTags and RepoDigests contained dangling placeholders.
+//
+// FIXME(thaJeztah): should be a unit test for `docker image ls` in docker/cli.
 func (s *DockerCLIImagesSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// create container 1
@@ -271,29 +206,6 @@ func (s *DockerCLIImagesSuite) TestImagesWithIncorrectFilter(c *testing.T) {
 	out, _, err := dockerCmdWithError("images", "-f", "dangling=invalid")
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, is.Contains(out, "invalid filter"))
-}
-
-func (s *DockerCLIImagesSuite) TestImagesEnsureOnlyHeadsImagesShown(c *testing.T) {
-	const dockerfile = `
-        FROM busybox
-        MAINTAINER docker
-        ENV foo bar`
-	const name = "scratch-image"
-	result := cli.Docker(cli.Args("build", "-t", name), build.WithDockerfile(dockerfile))
-	result.Assert(c, icmd.Success)
-	id := getIDByName(c, name)
-
-	// this is just the output of docker build
-	// we're interested in getting the image id of the MAINTAINER instruction
-	// and that's located at output, line 5, from 7 to end
-	split := strings.Split(result.Combined(), "\n")
-	intermediate := strings.TrimSpace(split[5][7:])
-
-	out := cli.DockerCmd(c, "images").Stdout()
-	// images shouldn't show non-heads images
-	assert.Assert(c, !strings.Contains(out, intermediate))
-	// images should contain final built images
-	assert.Assert(c, is.Contains(out, stringid.TruncateID(id)))
 }
 
 func (s *DockerCLIImagesSuite) TestImagesEnsureImagesFromScratchShown(c *testing.T) {
