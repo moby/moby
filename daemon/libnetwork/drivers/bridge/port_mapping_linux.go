@@ -99,6 +99,11 @@ func (n *bridgeNetwork) addPortMappings(
 		toBind = toBind[:0]
 	}
 
+	fwPorts := collectFirewallPorts(bindings)
+	if err := n.firewallerNetwork.AddPorts(ctx, fwPorts); err != nil {
+		return nil, err
+	}
+
 	return bindings, nil
 }
 
@@ -133,22 +138,6 @@ func (n *bridgeNetwork) mapPorts(ctx context.Context, pms *drvregistry.PortMappe
 		// Make sure that Mapper is correctly set such that UnmapPorts call the right portmapper.
 		bindings[i].Mapper = mapper
 	}
-
-	fwPorts := collectFirewallPorts(bindings)
-	if err := n.firewallerNetwork.AddPorts(ctx, fwPorts); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if retErr != nil {
-			if err := n.firewallerNetwork.DelPorts(ctx, fwPorts); err != nil {
-				log.G(ctx).WithFields(log.Fields{
-					"bindings": bindings,
-					"error":    err,
-					"origErr":  retErr,
-				}).Warn("Failed to remove firewall rules after error")
-			}
-		}
-	}()
 
 	// Start userland proxy processes.
 	defer func() {
