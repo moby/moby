@@ -52,6 +52,9 @@ func ParseSourceDateEpoch(sourceDateEpoch string) (*time.Time, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid value: %w", err)
 	}
+	if i64 < 0 {
+		return nil, fmt.Errorf("invalid value: %q must be non-negative", sourceDateEpoch)
+	}
 	unix := time.Unix(i64, 0).UTC()
 	return &unix, nil
 }

@@ -397,8 +397,8 @@ github.com/containerd/cgroups/v3/cgroup2/stats
 # github.com/containerd/console v1.0.5
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd/api v1.11.1
-## explicit; go 1.24.0
+# github.com/containerd/containerd/api v1.12.0-rc.0
+## explicit; go 1.25.0
 github.com/containerd/containerd/api/events
 github.com/containerd/containerd/api/runtime/bootstrap/v1
 github.com/containerd/containerd/api/runtime/sandbox/v1
@@ -425,7 +425,7 @@ github.com/containerd/containerd/api/types/runc/options
 github.com/containerd/containerd/api/types/runtimeoptions/v1
 github.com/containerd/containerd/api/types/task
 github.com/containerd/containerd/api/types/transfer
-# github.com/containerd/containerd/v2 v2.3.4
+# github.com/containerd/containerd/v2 v2.4.0-beta.0
 ## explicit; go 1.26.3
 github.com/containerd/containerd/v2/client
 github.com/containerd/containerd/v2/cmd/containerd/server/config
@@ -1016,7 +1016,7 @@ github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v1
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
-# github.com/intel/goresctrl v0.12.0
+# github.com/intel/goresctrl v0.13.0
 ## explicit; go 1.25.0
 github.com/intel/goresctrl/pkg/blockio
 github.com/intel/goresctrl/pkg/kubernetes
@@ -1032,7 +1032,9 @@ github.com/jmoiron/sqlx/types
 # github.com/klauspost/compress v1.19.2
 ## explicit; go 1.24
 github.com/klauspost/compress
+github.com/klauspost/compress/flate
 github.com/klauspost/compress/fse
+github.com/klauspost/compress/gzip
 github.com/klauspost/compress/huff0
 github.com/klauspost/compress/internal/cpuinfo
 github.com/klauspost/compress/internal/le
@@ -1415,9 +1417,6 @@ github.com/moby/swarmkit/v2/xnet
 # github.com/moby/sys/atomicwriter v0.1.0
 ## explicit; go 1.18
 github.com/moby/sys/atomicwriter
-# github.com/moby/sys/capability v0.4.0
-## explicit; go 1.21
-github.com/moby/sys/capability
 # github.com/moby/sys/mount v0.3.5
 ## explicit; go 1.18
 github.com/moby/sys/mount
@@ -1472,11 +1471,6 @@ github.com/opencontainers/image-spec/specs-go/v1
 ## explicit
 github.com/opencontainers/runtime-spec/specs-go
 github.com/opencontainers/runtime-spec/specs-go/features
-# github.com/opencontainers/runtime-tools v0.9.1-0.20251114084447-edf4cb3d2116
-## explicit; go 1.21
-github.com/opencontainers/runtime-tools/generate
-github.com/opencontainers/runtime-tools/generate/seccomp
-github.com/opencontainers/runtime-tools/validate/capabilities
 # github.com/opencontainers/selinux v1.15.1
 ## explicit; go 1.22
 github.com/opencontainers/selinux/go-selinux
@@ -2235,9 +2229,6 @@ google.golang.org/protobuf/types/pluginpb
 # gopkg.in/inf.v0 v0.9.1
 ## explicit
 gopkg.in/inf.v0
-# gopkg.in/yaml.v3 v3.0.1
-## explicit
-gopkg.in/yaml.v3
 # gotest.tools/v3 v3.5.2
 ## explicit; go 1.17
 gotest.tools/v3/assert
@@ -2280,8 +2271,9 @@ sigs.k8s.io/json/internal/golang/encoding/json
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
-# tags.cncf.io/container-device-interface v1.1.0
-## explicit; go 1.21
+# tags.cncf.io/container-device-interface v1.1.1-0.20260828125525-73444d1f71f2
+## explicit; go 1.23
+tags.cncf.io/container-device-interface/internal/ociedit
 tags.cncf.io/container-device-interface/internal/validation
 tags.cncf.io/container-device-interface/internal/validation/k8s
 tags.cncf.io/container-device-interface/pkg/cdi
