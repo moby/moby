@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 
 	streamingapi "github.com/containerd/containerd/api/services/streaming/v1"
 	"github.com/containerd/errdefs"
@@ -105,10 +106,13 @@ func (sc *streamCreator) Create(ctx context.Context, id string) (streaming.Strea
 }
 
 type clientStream struct {
-	s streamingapi.TTRPCStreaming_StreamClient
+	sendMu sync.Mutex
+	s      streamingapi.TTRPCStreaming_StreamClient
 }
 
 func (cs *clientStream) Send(a typeurl.Any) (err error) {
+	cs.sendMu.Lock()
+	defer cs.sendMu.Unlock()
 	err = cs.s.Send(typeurl.MarshalProto(a))
 	if !errors.Is(err, io.EOF) {
 		err = errgrpc.ToNative(err)
@@ -125,5 +129,7 @@ func (cs *clientStream) Recv() (a typeurl.Any, err error) {
 }
 
 func (cs *clientStream) Close() error {
+	cs.sendMu.Lock()
+	defer cs.sendMu.Unlock()
 	return cs.s.CloseSend()
 }
