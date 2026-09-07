@@ -19,8 +19,8 @@ func overrideLookupIP(t *testing.T) {
 		mockHosts := map[string][]net.IP{
 			"":            {net.ParseIP("0.0.0.0")},
 			"localhost":   {net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
-			"example.com": {net.ParseIP("42.42.42.42")},
-			"other.com":   {net.ParseIP("43.43.43.43")},
+			"example.com": {net.ParseIP("192.0.2.42")},
+			"other.com":   {net.ParseIP("198.51.100.43")},
 		}
 		if addrs, ok := mockHosts[host]; ok {
 			return addrs, nil
@@ -169,19 +169,19 @@ func TestIsSecureIndex(t *testing.T) {
 		{
 			name:     "registry with port matching insecure CIDR",
 			addr:     "example.com:5000",
-			insecure: []string{"42.42.0.0/16"},
+			insecure: []string{"192.0.2.0/24"},
 			expected: false,
 		},
 		{
 			name:     "registry matching insecure CIDR",
 			addr:     "example.com",
-			insecure: []string{"42.42.0.0/16"},
+			insecure: []string{"192.0.2.0/24"},
 			expected: false,
 		},
 		{
 			name:     "registry matching masked insecure CIDR",
 			addr:     "example.com:5000",
-			insecure: []string{"42.42.42.42/8"},
+			insecure: []string{"192.0.2.42/24"},
 			expected: false,
 		},
 		{
@@ -192,14 +192,14 @@ func TestIsSecureIndex(t *testing.T) {
 		},
 		{
 			name:     "IP address matching masked insecure CIDR",
-			addr:     "42.42.42.42:5000",
-			insecure: []string{"42.1.1.1/8"},
+			addr:     "192.0.2.42:5000",
+			insecure: []string{"192.0.2.1/24"},
 			expected: false,
 		},
 		{
 			name:     "unresolvable registry does not match insecure CIDR",
 			addr:     "invalid.example.com",
-			insecure: []string{"42.42.0.0/16"},
+			insecure: []string{"192.0.2.0/24"},
 			expected: true,
 		},
 		{
