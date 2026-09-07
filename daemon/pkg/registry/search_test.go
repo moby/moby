@@ -599,14 +599,14 @@ func TestNewIndexInfo(t *testing.T) {
 			Secure:   false,
 			Mirrors:  []string{},
 		},
-		"42.42.0.1:5000": {
-			Name:     "42.42.0.1:5000",
+		"192.0.2.1:5000": {
+			Name:     "192.0.2.1:5000",
 			Official: false,
 			Secure:   false,
 			Mirrors:  []string{},
 		},
-		"42.43.0.1:5000": {
-			Name:     "42.43.0.1:5000",
+		"198.51.100.1:5000": {
+			Name:     "198.51.100.1:5000",
 			Official: false,
 			Secure:   true,
 			Mirrors:  []string{},
@@ -620,7 +620,7 @@ func TestNewIndexInfo(t *testing.T) {
 	}
 	t.Run("custom insecure", func(t *testing.T) {
 		config, err := newServiceConfig(ServiceOptions{
-			InsecureRegistries: []string{"42.42.0.0/16"},
+			InsecureRegistries: []string{"192.0.2.0/24"},
 		})
 		assert.NilError(t, err)
 		for indexName, expected := range expectedIndexInfos {
