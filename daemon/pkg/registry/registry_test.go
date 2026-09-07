@@ -21,6 +21,14 @@ func overrideLookupIP(t *testing.T) {
 			"localhost":   {net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
 			"example.com": {net.ParseIP("192.0.2.42")},
 			"other.com":   {net.ParseIP("198.51.100.43")},
+			"loopback.example": {
+				net.ParseIP("127.0.0.2"),
+				net.ParseIP("::1"),
+			},
+			"mixed.example": {
+				net.ParseIP("127.0.0.1"),
+				net.ParseIP("192.0.2.1"),
+			},
 		}
 		if addrs, ok := mockHosts[host]; ok {
 			return addrs, nil
@@ -219,6 +227,24 @@ func TestIsSecureIndex(t *testing.T) {
 			addr:     "invalid.example.com:5000",
 			insecure: []string{"invalid.example.com:5000"},
 			expected: false,
+		},
+		{
+			name:     "all resolved addresses in insecure subnets are insecure",
+			addr:     "loopback.example",
+			insecure: []string{"127.0.0.0/8", "::1/128"},
+			expected: false,
+		},
+		{
+			name:     "resolved addresses may match different insecure subnets",
+			addr:     "mixed.example",
+			insecure: []string{"127.0.0.0/8", "192.0.2.0/24"},
+			expected: false,
+		},
+		{
+			name:     "registry is secure if any resolved address is outside insecure subnets",
+			addr:     "mixed.example",
+			insecure: []string{"127.0.0.0/8"},
+			expected: true,
 		},
 	}
 	for _, tc := range tests {

@@ -197,17 +197,18 @@ func (config *serviceConfig) loadInsecureRegistries(registries []string) error {
 	return nil
 }
 
-// isSecureIndex returns false if the provided indexName is part of the list of insecure registries
+// isSecureIndex returns false if the provided indexName is part of the list of insecure registries.
 // Insecure registries accept HTTP and/or accept HTTPS with certificates from unknown CAs.
 //
 // The list of insecure registries can contain an element with CIDR notation to specify a whole subnet.
-// If the subnet contains one of the IPs of the registry specified by indexName, the latter is considered
-// insecure.
+// If all IP addresses of the registry specified by indexName are contained in one or more of those
+// subnets, the registry is considered insecure. If any resolved IP address is not contained in an
+// insecure subnet, the registry is considered secure.
 //
 // indexName should be a URL.Host (`host:port` or `host`) where the `host` part can be either a domain name
-// or an IP address. If it is a domain name, then it will be resolved in order to check if the IP is contained
-// in a subnet. If the resolving is not successful, isSecureIndex will only try to match hostname to any element
-// of insecureRegistries.
+// or an IP address. If it is a domain name, then it will be resolved in order to check its IP addresses
+// against the configured subnets. If resolution is not successful, isSecureIndex will only try to match
+// the hostname to an element of insecureRegistries.
 func (config *serviceConfig) isSecureIndex(indexName string) bool {
 	// Check for configured index, first.  This is needed in case isSecureIndex
 	// is called from anything besides newIndexInfo, in order to honor per-index configurations.
@@ -221,45 +222,48 @@ func (config *serviceConfig) isSecureIndex(indexName string) bool {
 // for mocking in unit tests.
 var lookupIP = net.LookupIP
 
-// isCIDRMatch returns true if urlHost matches an element of cidrs. urlHost is a URL.Host ("host:port" or "host")
-// where the `host` part can be either a domain name or an IP address. If it is a domain name, then it will be
-// resolved to IP addresses for matching. If resolution fails, false is returned.
+// isCIDRMatch returns true if all IP addresses for urlHost match an element of
+// cidrs. urlHost is a URL.Host ("host:port" or "host"), where the host part can
+// be either a domain name or an IP address. Domain names are resolved before
+// matching. If resolution fails, or no addresses are returned, false is returned.
 func isCIDRMatch(cidrs []netip.Prefix, urlHost string) bool {
 	if len(cidrs) == 0 {
 		return false
 	}
 
-	host, _, err := net.SplitHostPort(urlHost)
-	if err != nil {
-		// Assume urlHost is a host without port and go on.
-		host = urlHost
+	host := urlHost
+	if h, _, err := net.SplitHostPort(urlHost); err == nil {
+		// urlHost includes a port; use only the host for matching.
+		host = h
 	}
 
-	addresses := make(map[netip.Addr]struct{})
 	if ip, err := netip.ParseAddr(host); err == nil {
-		// Host is an IP-address.
-		addresses[ip] = struct{}{}
-	} else {
-		// Try to resolve the host's IP-address.
-		ips, err := lookupIP(host)
-		if err != nil {
-			// We failed to resolve the host; assume there's no match.
+		// host is an IP-address.
+		return matchesCIDR(cidrs, ip)
+	}
+
+	// Try to resolve the host's IP-address.
+	ips, err := lookupIP(host)
+	if err != nil || len(ips) == 0 {
+		// We failed to resolve the host; assume there's no match.
+		return false
+	}
+	for _, ip := range ips {
+		addr, ok := netip.AddrFromSlice(ip)
+		if !ok || !matchesCIDR(cidrs, addr) {
 			return false
 		}
-		for _, ip := range ips {
-			addr, _ := netip.AddrFromSlice(ip)
-			addresses[addr] = struct{}{}
+	}
+	return true
+}
+
+func matchesCIDR(cidrs []netip.Prefix, addr netip.Addr) bool {
+	addr = addr.Unmap()
+	for _, prefix := range cidrs {
+		if prefix.Contains(addr) {
+			return true
 		}
 	}
-
-	for addr := range addresses {
-		for _, ipnet := range cidrs {
-			if ipnet.Contains(addr.Unmap()) {
-				return true
-			}
-		}
-	}
-
 	return false
 }
 
