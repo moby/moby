@@ -1835,16 +1835,11 @@ func WithWindowsNetworkNamespace(ns string) SpecOpts {
 	}
 }
 
-// readLinker defines the ReadLink method locally.
-// We keep this shim to ensure compatibility with build environments where
-// the standard library's fs.ReadLinkFS interface is not yet available or recognized.
-type readLinker interface {
-	ReadLink(name string) (string, error)
-}
-
 // openUserFile attempts to open a file within the root fs.
-// It handles cases where the file is an absolute symlink (e.g., NixOS /etc/passwd -> /nix/store/...),
-// which triggers "path escapes from parent" errors in Go 1.24+ due to stricter os.DirFS validation.
+// It handles cases where the path contains symlinks (e.g., NixOS
+// /etc/passwd -> /nix/store/...). os.Root-backed filesystems reject
+// absolute symlinks, so when the direct open fails the path is resolved
+// within the root via resolveInRootFS and the open is retried.
 //
 // The returned file rejects non-regular sources and returns an error if more
 // than maxUserFileBytes are read from it.
@@ -1854,32 +1849,21 @@ func openUserFile(root fs.FS, name string) (fs.File, error) {
 		return wrapUserFile(f, name)
 	}
 
-	// Check if the FS implements our local ReadLink interface.
-	// We use a local interface instead of fs.ReadLinkFS to avoid strict dependency
-	// issues in some build environments.
-	if lfs, ok := root.(readLinker); ok {
-		if target, lerr := lfs.ReadLink(name); lerr == nil {
-			// Use filepath.IsAbs to handle platform-agnostic absolute path checks
-			if filepath.IsAbs(target) {
-				// Re-anchor the absolute path to the root.
-				// e.g. /nix/store/... becomes nix/store/... (relative to root fs)
-				// We use filepath.Rel to safely strip the leading separator.
-				rel, rerr := filepath.Rel(string(filepath.Separator), target)
-				if rerr == nil {
-					// filepath.Rel might return OS-specific separators (backslashes on Windows).
-					// fs.Open strictly expects forward slashes, so we convert it.
-					f, oerr := root.Open(filepath.ToSlash(rel))
-					if oerr != nil {
-						return nil, oerr
-					}
-					return wrapUserFile(f, name)
-				}
-			}
-		}
+	lfs, ok := root.(fs.ReadLinkFS)
+	if !ok {
+		return nil, err
 	}
 
-	// Return the original error if we couldn't resolve it
-	return nil, err
+	resolvedName, err := resolveInRootFS(lfs, name)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err = root.Open(resolvedName)
+	if err != nil {
+		return nil, err
+	}
+	return wrapUserFile(f, name)
 }
 
 // maxUserFileBytes caps how much data is read from any user-database file
