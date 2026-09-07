@@ -17,6 +17,7 @@
 package cdi
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -25,8 +26,7 @@ import (
 	"sync"
 
 	oci "github.com/opencontainers/runtime-spec/specs-go"
-	orderedyaml "gopkg.in/yaml.v3"
-	"sigs.k8s.io/yaml"
+	"go.yaml.in/yaml/v3"
 
 	"tags.cncf.io/container-device-interface/internal/validation"
 	"tags.cncf.io/container-device-interface/pkg/parser"
@@ -136,7 +136,7 @@ func (s *Spec) write(overwrite bool) error {
 	}
 
 	if filepath.Ext(s.path) == ".yaml" {
-		data, err = orderedyaml.Marshal(s.Spec)
+		data, err = yaml.Marshal(s.Spec)
 		data = append([]byte("---\n"), data...)
 	} else {
 		data, err = json.Marshal(s.Spec)
@@ -207,7 +207,10 @@ func (s *Spec) edits() *ContainerEdits {
 }
 
 // MinimumRequiredVersion determines the minimum spec version for the input spec.
-// Deprecated: use cdi.MinimumRequiredVersion instead
+//
+// Deprecated: use [cdi.MinimumRequiredVersion] instead.
+//
+//go:fix inline
 func MinimumRequiredVersion(spec *cdi.Spec) (string, error) {
 	return cdi.MinimumRequiredVersion(spec)
 }
@@ -250,9 +253,11 @@ func (s *Spec) validate() (map[string]*Device, error) {
 
 // ParseSpec parses CDI Spec data into a raw CDI Spec.
 func ParseSpec(data []byte) (*cdi.Spec, error) {
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+
 	var raw *cdi.Spec
-	err := yaml.UnmarshalStrict(data, &raw)
-	if err != nil {
+	if err := dec.Decode(&raw); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal CDI Spec: %w", err)
 	}
 	return raw, nil
