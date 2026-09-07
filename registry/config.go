@@ -184,7 +184,7 @@ func (config *serviceConfig) loadMirrors(mirrors []string) error {
 func (config *serviceConfig) loadInsecureRegistries(registries []string) error {
 	// Localhost is by default considered as an insecure registry. This is a
 	// stop-gap for people who are running a private registry on localhost.
-	registries = append(registries, "127.0.0.0/8")
+	registries = append(registries, "::1/128", "127.0.0.0/8")
 
 	var (
 		insecureRegistryCIDRs = make([]*registry.NetIPNet, 0)
@@ -264,17 +264,18 @@ func (config *serviceConfig) allowNondistributableArtifacts(hostname string) boo
 	return isCIDRMatch(config.AllowNondistributableArtifactsCIDRs, hostname)
 }
 
-// isSecureIndex returns false if the provided indexName is part of the list of insecure registries
+// isSecureIndex returns false if the provided indexName is part of the list of insecure registries.
 // Insecure registries accept HTTP and/or accept HTTPS with certificates from unknown CAs.
 //
 // The list of insecure registries can contain an element with CIDR notation to specify a whole subnet.
-// If the subnet contains one of the IPs of the registry specified by indexName, the latter is considered
-// insecure.
+// If all IP addresses of the registry specified by indexName are contained in one or more of those
+// subnets, the registry is considered insecure. If any resolved IP address is not contained in an
+// insecure subnet, the registry is considered secure.
 //
 // indexName should be a URL.Host (`host:port` or `host`) where the `host` part can be either a domain name
-// or an IP address. If it is a domain name, then it will be resolved in order to check if the IP is contained
-// in a subnet. If the resolving is not successful, isSecureIndex will only try to match hostname to any element
-// of insecureRegistries.
+// or an IP address. If it is a domain name, then it will be resolved in order to check its IP addresses
+// against the configured subnets. If resolution is not successful, isSecureIndex will only try to match
+// the hostname to an element of insecureRegistries.
 func (config *serviceConfig) isSecureIndex(indexName string) bool {
 	// Check for configured index, first.  This is needed in case isSecureIndex
 	// is called from anything besides newIndexInfo, in order to honor per-index configurations.
@@ -285,38 +286,46 @@ func (config *serviceConfig) isSecureIndex(indexName string) bool {
 	return !isCIDRMatch(config.InsecureRegistryCIDRs, indexName)
 }
 
-// isCIDRMatch returns true if URLHost matches an element of cidrs. URLHost is a URL.Host (`host:port` or `host`)
-// where the `host` part can be either a domain name or an IP address. If it is a domain name, then it will be
-// resolved to IP addresses for matching. If resolution fails, false is returned.
-func isCIDRMatch(cidrs []*registry.NetIPNet, URLHost string) bool {
-	host, _, err := net.SplitHostPort(URLHost)
-	if err != nil {
-		// Assume URLHost is of the form `host` without the port and go on.
-		host = URLHost
+// isCIDRMatch returns true if all IP addresses for urlHost match an element of
+// cidrs. urlHost is a URL.Host ("host:port" or "host"), where the host part can
+// be either a domain name or an IP address. Domain names are resolved before
+// matching. If resolution fails, or no addresses are returned, false is returned.
+func isCIDRMatch(cidrs []*registry.NetIPNet, urlHost string) bool {
+	if len(cidrs) == 0 {
+		return false
 	}
 
-	addrs, err := lookupIP(host)
-	if err != nil {
-		ip := net.ParseIP(host)
-		if ip != nil {
-			addrs = []net.IP{ip}
+	host := urlHost
+	if h, _, err := net.SplitHostPort(urlHost); err == nil {
+		// urlHost includes a port; use only the host for matching.
+		host = h
+	}
+
+	if ip := net.ParseIP(host); ip != nil {
+		// host is an IP-address.
+		return matchesCIDR(cidrs, ip)
+	}
+
+	// Try to resolve the host's IP-address.
+	ips, err := lookupIP(host)
+	if err != nil || len(ips) == 0 {
+		// We failed to resolve the host; assume there's no match.
+		return false
+	}
+	for _, ip := range ips {
+		if !matchesCIDR(cidrs, ip) {
+			return false
 		}
-
-		// if ip == nil, then `host` is neither an IP nor it could be looked up,
-		// either because the index is unreachable, or because the index is behind an HTTP proxy.
-		// So, len(addrs) == 0 and we're not aborting.
 	}
+	return true
+}
 
-	// Try CIDR notation only if addrs has any elements, i.e. if `host`'s IP could be determined.
-	for _, addr := range addrs {
-		for _, ipnet := range cidrs {
-			// check if the addr falls in the subnet
-			if (*net.IPNet)(ipnet).Contains(addr) {
-				return true
-			}
+func matchesCIDR(cidrs []*registry.NetIPNet, addr net.IP) bool {
+	for _, ipnet := range cidrs {
+		if (*net.IPNet)(ipnet).Contains(addr) {
+			return true
 		}
 	}
-
 	return false
 }
 

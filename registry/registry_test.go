@@ -610,6 +610,24 @@ func TestIsSecureIndex(t *testing.T) {
 			insecure: []string{"invalid.example.com:5000"},
 			expected: false,
 		},
+		{
+			name:     "all resolved addresses in insecure subnets are insecure",
+			addr:     "loopback.example",
+			insecure: []string{"127.0.0.0/8", "::1/128"},
+			expected: false,
+		},
+		{
+			name:     "resolved addresses may match different insecure subnets",
+			addr:     "mixed.example",
+			insecure: []string{"127.0.0.0/8", "192.0.2.0/24"},
+			expected: false,
+		},
+		{
+			name:     "registry is secure if any resolved address is outside insecure subnets",
+			addr:     "mixed.example",
+			insecure: []string{"127.0.0.0/8"},
+			expected: true,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
