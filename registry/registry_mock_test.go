@@ -42,8 +42,8 @@ func init() {
 		mockHosts := map[string][]net.IP{
 			"":            {net.ParseIP("0.0.0.0")},
 			"localhost":   {net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
-			"example.com": {net.ParseIP("42.42.42.42")},
-			"other.com":   {net.ParseIP("43.43.43.43")},
+			"example.com": {net.ParseIP("192.0.2.42")},
+			"other.com":   {net.ParseIP("198.51.100.43")},
 		}
 		for h, addrs := range mockHosts {
 			if host == h {

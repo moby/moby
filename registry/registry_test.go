@@ -339,7 +339,7 @@ func TestNewIndexInfo(t *testing.T) {
 	}
 	testIndexInfo(config, expectedIndexInfos)
 
-	config, err = makeServiceConfig(nil, []string{"42.42.0.0/16"})
+	config, err = makeServiceConfig(nil, []string{"192.0.2.0/24"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -436,12 +436,12 @@ func TestAllowNondistributableArtifacts(t *testing.T) {
 		{"example.com", []string{"example.com"}, true},
 		{"127.0.0.1", []string{"example.com"}, false},
 		{"127.0.0.1:5000", []string{"example.com"}, false},
-		{"example.com:5000", []string{"42.42.0.0/16"}, true},
-		{"example.com", []string{"42.42.0.0/16"}, true},
-		{"example.com:5000", []string{"42.42.42.42/8"}, true},
+		{"example.com:5000", []string{"192.0.2.0/24"}, true},
+		{"example.com", []string{"192.0.2.0/24"}, true},
+		{"example.com:5000", []string{"192.0.2.42/8"}, true},
 		{"127.0.0.1:5000", []string{"127.0.0.0/8"}, true},
-		{"42.42.42.42:5000", []string{"42.1.1.1/8"}, true},
-		{"invalid.example.com", []string{"42.42.0.0/16"}, false},
+		{"192.0.2.42:5000", []string{"192.0.2.0/24"}, true},
+		{"invalid.example.com", []string{"192.0.2.0/24"}, false},
 		{"invalid.example.com", []string{"invalid.example.com"}, true},
 		{"invalid.example.com:5000", []string{"invalid.example.com"}, false},
 		{"invalid.example.com:5000", []string{"invalid.example.com:5000"}, true},
@@ -559,19 +559,19 @@ func TestIsSecureIndex(t *testing.T) {
 		{
 			name:     "registry with port matching insecure CIDR",
 			addr:     "example.com:5000",
-			insecure: []string{"42.42.0.0/16"},
+			insecure: []string{"192.0.2.0/24"},
 			expected: false,
 		},
 		{
 			name:     "registry matching insecure CIDR",
 			addr:     "example.com",
-			insecure: []string{"42.42.0.0/16"},
+			insecure: []string{"192.0.2.0/24"},
 			expected: false,
 		},
 		{
 			name:     "registry matching masked insecure CIDR",
 			addr:     "example.com:5000",
-			insecure: []string{"42.42.42.42/8"},
+			insecure: []string{"192.0.2.42/24"},
 			expected: false,
 		},
 		{
@@ -582,14 +582,14 @@ func TestIsSecureIndex(t *testing.T) {
 		},
 		{
 			name:     "IP address matching masked insecure CIDR",
-			addr:     "42.42.42.42:5000",
-			insecure: []string{"42.1.1.1/8"},
+			addr:     "192.0.2.42:5000",
+			insecure: []string{"192.0.2.1/24"},
 			expected: false,
 		},
 		{
 			name:     "unresolvable registry does not match insecure CIDR",
 			addr:     "invalid.example.com",
-			insecure: []string{"42.42.0.0/16"},
+			insecure: []string{"192.0.2.0/24"},
 			expected: true,
 		},
 		{
