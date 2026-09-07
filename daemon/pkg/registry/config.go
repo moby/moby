@@ -191,6 +191,7 @@ func (config *serviceConfig) loadInsecureRegistries(registries []string) error {
 		Official: true,
 	}
 	config.InsecureRegistryCIDRs = slices.Collect(maps.Keys(insecureRegistryCIDRs))
+	slices.SortFunc(config.InsecureRegistryCIDRs, netip.Prefix.Compare)
 	config.IndexConfigs = indexConfigs
 
 	return nil

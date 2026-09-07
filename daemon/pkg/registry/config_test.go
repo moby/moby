@@ -1,9 +1,12 @@
 package registry
 
 import (
+	"net/netip"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/moby/api/types/registry"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -233,22 +236,53 @@ func TestNewServiceConfig(t *testing.T) {
 	tests := []struct {
 		doc    string
 		opts   ServiceOptions
-		errStr string
+		expCfg *serviceConfig
+		expErr string
 	}{
 		{
 			doc: "empty config",
+			expCfg: &serviceConfig{
+				InsecureRegistryCIDRs: []netip.Prefix{
+					netip.MustParsePrefix("127.0.0.0/8"),
+					netip.MustParsePrefix("::1/128"),
+				},
+				IndexConfigs: map[string]*registry.IndexInfo{
+					"docker.io": {
+						Name:     "docker.io",
+						Mirrors:  []string{},
+						Secure:   true,
+						Official: true,
+					},
+				},
+				Mirrors: []string{},
+			},
 		},
 		{
 			doc: "invalid mirror",
 			opts: ServiceOptions{
 				Mirrors: []string{"example.com:5000"},
 			},
-			errStr: `invalid mirror: no scheme specified for "example.com:5000": must use either 'https://' or 'http://'`,
+			expErr: `invalid mirror: no scheme specified for "example.com:5000": must use either 'https://' or 'http://'`,
 		},
 		{
 			doc: "valid mirror",
 			opts: ServiceOptions{
 				Mirrors: []string{"https://example.com:5000"},
+			},
+			expCfg: &serviceConfig{
+				InsecureRegistryCIDRs: []netip.Prefix{
+					netip.MustParsePrefix("127.0.0.0/8"),
+					netip.MustParsePrefix("::1/128"),
+				},
+				IndexConfigs: map[string]*registry.IndexInfo{
+					"docker.io": {
+						Name:     "docker.io",
+						Mirrors:  []string{"https://example.com:5000/"},
+						Secure:   true,
+						Official: true,
+					},
+				},
+				Mirrors: []string{"https://example.com:5000/"},
 			},
 		},
 		{
@@ -256,25 +290,37 @@ func TestNewServiceConfig(t *testing.T) {
 			opts: ServiceOptions{
 				InsecureRegistries: []string{"[fe80::]/64"},
 			},
-			errStr: `insecure registry [fe80::]/64 is not valid: invalid host "[fe80::]/64"`,
+			expErr: `insecure registry [fe80::]/64 is not valid: invalid host "[fe80::]/64"`,
 		},
 		{
 			doc: "valid insecure registry",
 			opts: ServiceOptions{
 				InsecureRegistries: []string{"102.10.8.1/24"},
 			},
+			expCfg: &serviceConfig{
+				InsecureRegistryCIDRs: []netip.Prefix{
+					netip.MustParsePrefix("102.10.8.0/24"),
+					netip.MustParsePrefix("127.0.0.0/8"),
+					netip.MustParsePrefix("::1/128"),
+				},
+				IndexConfigs: map[string]*registry.IndexInfo{
+					"docker.io": {Name: "docker.io", Mirrors: []string{}, Secure: true, Official: true},
+				},
+				Mirrors: []string{},
+			},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			_, err := newServiceConfig(tc.opts)
-			if tc.errStr != "" {
-				assert.Check(t, is.Error(err, tc.errStr))
+			cfg, err := newServiceConfig(tc.opts)
+			if tc.expErr != "" {
+				assert.Check(t, is.Error(err, tc.expErr))
 				assert.Check(t, cerrdefs.IsInvalidArgument(err))
 			} else {
 				assert.Check(t, err)
 			}
+			assert.Check(t, is.DeepEqual(cfg, tc.expCfg, cmpopts.EquateComparable(netip.Prefix{})))
 		})
 	}
 }
