@@ -19,9 +19,13 @@ import (
 
 // setupExtensionHost builds the daemon's extension host.
 func setupExtensionHost(ctx context.Context, cfg *config.Config, d *Daemon) (*host.Host, error) {
+	builtins, err := builtinExtensions(cfg, d)
+	if err != nil {
+		return nil, err
+	}
 	return host.New(ctx,
 		host.WithRuntimeDir(filepath.Join(cfg.ExecRoot, "extensions")),
-		host.WithExtensions(builtinExtensions(cfg, d)...),
+		host.WithExtensions(builtins...),
 		host.WithDirs(extensionDirs(cfg)...),
 		host.WithClientProviders(clientProviders()...),
 		host.WithProviderPolicy(host.PointPolicyFunc(func(extensions.ExtensionIdentity, extensions.PointID) host.PointPolicyResult {
