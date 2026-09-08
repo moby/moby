@@ -22,10 +22,11 @@ func runtimeExtension(d *Daemon) extensions.Extension {
 	})
 }
 
-// daemonRuntime provides the container runtime point from the daemon. Every
-// method is delegated directly except ContainerWait, whose channel element
-// must be converted: channels are invariant, so the daemon's concrete
-// StateStatus channel cannot satisfy the interface-typed one.
+// daemonRuntime provides the container runtime point from the daemon,
+// translating the point's self-contained types onto the daemon's backend.
+// ContainerWait additionally converts the channel element: channels are
+// invariant, so the daemon's concrete StateStatus channel cannot satisfy the
+// interface-typed one.
 type daemonRuntime struct {
 	d *Daemon
 }
@@ -42,20 +43,25 @@ func (r daemonRuntime) Ready(ctx context.Context) error {
 	}
 }
 
-func (r daemonRuntime) ContainerCreate(ctx context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error) {
-	return r.d.ContainerCreate(ctx, config)
+func (r daemonRuntime) ContainerCreate(ctx context.Context, req runtimev0.ContainerCreateRequest) (container.CreateResponse, error) {
+	return r.d.ContainerCreate(ctx, backend.ContainerCreateConfig{
+		Name:             req.Name,
+		Config:           req.Config,
+		HostConfig:       req.HostConfig,
+		NetworkingConfig: req.NetworkingConfig,
+	})
 }
 
-func (r daemonRuntime) ContainerStart(ctx context.Context, name string, checkpoint string, checkpointDir string) error {
-	return r.d.ContainerStart(ctx, name, checkpoint, checkpointDir)
+func (r daemonRuntime) ContainerStart(ctx context.Context, name string) error {
+	return r.d.ContainerStart(ctx, name, "", "")
 }
 
-func (r daemonRuntime) ContainerStop(ctx context.Context, name string, options backend.ContainerStopOptions) error {
-	return r.d.ContainerStop(ctx, name, options)
+func (r daemonRuntime) ContainerStop(ctx context.Context, name string) error {
+	return r.d.ContainerStop(ctx, name, backend.ContainerStopOptions{})
 }
 
-func (r daemonRuntime) ContainerRm(name string, config *backend.ContainerRmConfig) error {
-	return r.d.ContainerRm(name, config)
+func (r daemonRuntime) ContainerRm(name string) error {
+	return r.d.ContainerRm(name, &backend.ContainerRmConfig{})
 }
 
 func (r daemonRuntime) ContainerWait(ctx context.Context, name string, condition container.WaitCondition) (<-chan runtimev0.StateStatus, error) {

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/v2/daemon/server/backend"
 	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
+	runtimev0 "github.com/moby/moby/v2/extpoints/runtime/v0"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -119,7 +119,7 @@ func TestRestoreFailsUnstartedRun(t *testing.T) {
 			// whose start was never recorded, on a job stuck running.
 			run := &jobsv0.Run{ID: "orphan", JobID: job.ID, State: jobsv0.RunStatePending, CreatedAtNano: 1}
 			if tc.withContainer {
-				created, err := fake.ContainerCreate(t.Context(), backend.ContainerCreateConfig{Name: "job-backup-orphan"})
+				created, err := fake.ContainerCreate(t.Context(), runtimev0.ContainerCreateRequest{Name: "job-backup-orphan"})
 				assert.NilError(t, err)
 				run.ContainerID = created.ID
 			}

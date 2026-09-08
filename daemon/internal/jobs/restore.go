@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/containerd/log"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
 )
 
@@ -68,7 +67,7 @@ func (m *Manager) restoreJobLocked(ctx context.Context, job *jobsv0.Job) {
 			// RemoveOnFailure removal, which tolerates a still-running
 			// container by keeping it.
 			m.background.Go(func() {
-				if err := m.backend.ContainerStop(ctx, containerID, backend.ContainerStopOptions{}); err != nil {
+				if err := m.backend.ContainerStop(ctx, containerID); err != nil {
 					log.G(ctx).WithError(err).WithFields(log.Fields{"job": job.ID, "run": run.ID}).Warn("could not stop container of unstarted restored run")
 				}
 			})
@@ -89,7 +88,7 @@ func (m *Manager) restoreJobLocked(ctx context.Context, job *jobsv0.Job) {
 			// now, and let the re-attached watcher record the outcome.
 			containerID := run.ContainerID
 			m.background.Go(func() {
-				if err := m.backend.ContainerStop(ctx, containerID, backend.ContainerStopOptions{}); err != nil {
+				if err := m.backend.ContainerStop(ctx, containerID); err != nil {
 					log.G(ctx).WithError(err).WithFields(log.Fields{"job": job.ID, "run": run.ID}).Warn("could not stop restored run past its deadline")
 				}
 			})
