@@ -1,5 +1,5 @@
 // Package jobs exercises the jobs extension end to end: a real daemon with
-// the jobs feature enabled, driven through the gRPC API it exposes on the
+// the jobs extension enabled, driven through the gRPC API it exposes on the
 // daemon socket.
 package jobs
 

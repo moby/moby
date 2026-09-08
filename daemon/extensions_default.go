@@ -2,7 +2,11 @@ package daemon
 
 import (
 	"context"
+	"fmt"
+	"maps"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/moby/extensions"
 	"github.com/moby/extensions/clientpoint"
@@ -26,20 +30,37 @@ var builtinExtensions = []extensions.Extension{
 	bbolt.Extension,
 }
 
-// daemonExtensions declares extensions that need daemon-owned state.
-// Ordinary builtin definitions obtain their bootstrap settings through points.
-// Feature flags are read once at startup; flipping one with a config reload
-// takes effect on the next daemon start, like containerd-snapshotter.
-func (daemon *Daemon) daemonExtensions() []extensions.Extension {
+// daemonExtensions declares extensions that need daemon-owned state: the
+// always-on ones, plus those built-ins that ship disabled and were opted into
+// through enable-extensions. Ordinary builtin definitions obtain their
+// bootstrap settings through points. The list is read once at startup;
+// changing it with a config reload takes effect on the next daemon start.
+func (daemon *Daemon) daemonExtensions() ([]extensions.Extension, error) {
 	cfg := daemon.Config()
 	exts := []extensions.Extension{
 		extensionconfig.New(&cfg),
 		runtimeExtension(daemon),
 	}
-	if cfg.Features["jobs"] {
-		exts = append(exts, jobs.NewExtension(filepath.Join(cfg.Root, "jobs"), daemonReady(daemon)))
+	// Built-in extensions that ship with the daemon but stay disabled until
+	// opted into by extension ID.
+	optional := map[string]func() extensions.Extension{
+		jobs.ExtensionID: func() extensions.Extension {
+			return jobs.NewExtension(filepath.Join(cfg.Root, "jobs"), daemonReady(daemon))
+		},
 	}
-	return exts
+	seen := make(map[string]bool, len(cfg.EnableExtensions))
+	for _, id := range cfg.EnableExtensions {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		build, ok := optional[id]
+		if !ok {
+			return nil, fmt.Errorf("enable-extensions: unknown built-in extension %q (available: %s)", id, strings.Join(slices.Sorted(maps.Keys(optional)), ", "))
+		}
+		exts = append(exts, build())
+	}
+	return exts, nil
 }
 
 // daemonReady reports when the daemon's container backend can serve: the

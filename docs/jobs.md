@@ -13,26 +13,29 @@ contract is versioned by its extension point, currently
 `org.mobyproject.extension.jobs.api.v0`, and may change between releases
 while the feature is experimental.
 
-## Enabling the feature
+## Enabling the extension
 
-The jobs extension is off by default. Enable it with the daemon's feature
-flags, either on the command line:
+The jobs extension ships with the daemon but is disabled by default. Opt in
+by extension ID, either on the command line:
 
 ```console
-$ dockerd --feature jobs
+$ dockerd --enable-extension org.mobyproject.jobs.v1
 ```
 
 or in `daemon.json`:
 
 ```json
 {
-  "features": { "jobs": true }
+  "enable-extensions": ["org.mobyproject.jobs.v1"]
 }
 ```
 
-The flag is read once at startup; changing it takes effect on the next
-daemon start. When the feature is disabled the Jobs service is not
-registered at all, and calls to it fail with the gRPC `Unimplemented` code.
+The list is read once at startup; changing it takes effect on the next
+daemon start. It applies only to extensions built into the daemon:
+out-of-process extensions are enabled by placing their binary in an
+`--extension-dir` directory. When the extension is not enabled the Jobs
+service is not registered at all, and calls to it fail with the gRPC
+`Unimplemented` code.
 
 > **Note**: the gRPC endpoint of the daemon socket is not evaluated by
 > authorization plugins, which gate the HTTP API only. Deployments relying

@@ -27,10 +27,14 @@ func (daemon *Daemon) newExtensionHost(ctx context.Context) (*host.Host, error) 
 	if err := os.Chmod(runtimeDir, 0o700); err != nil {
 		return nil, fmt.Errorf("set permissions on extension runtime directory: %w", err)
 	}
+	daemonExts, err := daemon.daemonExtensions()
+	if err != nil {
+		return nil, err
+	}
 	return host.New(ctx,
 		host.WithRuntimeDir(runtimeDir),
 		host.WithExtensions(builtinExtensions...),
-		host.WithExtensions(daemon.daemonExtensions()...),
+		host.WithExtensions(daemonExts...),
 		host.WithDirs(extensionDirs(&cfg)...),
 		host.WithClientProviders(clientProviders()...),
 		host.WithProviderPolicy(host.PointPolicyFunc(func(extensions.ExtensionIdentity, extensions.PointID) host.PointPolicyResult {
