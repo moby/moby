@@ -198,17 +198,32 @@ func TestNslookupWindows(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
 
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	attachCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	res := container.RunAttach(attachCtx, t, c,
-		container.WithCmd("nslookup", "docker.com"),
+	res := container.RunAttach(attachCtx, t, apiClient,
+		container.WithCmd("nslookup", "example.com"),
 	)
-	defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+	t.Cleanup(func() {
+		container.Remove(ctx, t, apiClient, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+	})
 
 	assert.Check(t, is.Equal(res.ExitCode, 0))
 	// Current default is to forward requests to external servers, which
 	// can only be changed in daemon.json using feature flag "windows-dns-proxy".
-	assert.Check(t, is.Contains(res.Stdout.String(), "Addresses:"))
+	output := res.Stdout.String()
+	_, answer, ok := strings.Cut(output, "Name:")
+	assert.Check(t, ok, "nslookup output does not contain an answer: %q", output)
+	if !ok {
+		return
+	}
+
+	name, answer, _ := strings.Cut(answer, "\n")
+	assert.Check(t, is.Equal(strings.TrimSpace(name), "example.com"))
+
+	assert.Check(t, strings.Contains(answer, "Address:") ||
+		strings.Contains(answer, "Addresses:"),
+		"nslookup output does not contain an address: %q", output,
+	)
 }
