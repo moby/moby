@@ -1,7 +1,11 @@
 package daemon
 
 import (
+	"fmt"
+	"maps"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/moby/extensions"
 	"github.com/moby/extensions/clientpoint"
@@ -23,20 +27,35 @@ func clientProviders() []clientpoint.Registration {
 	}
 }
 
-// builtinExtensions returns the in-process extensions selected by daemon
-// config, plus the runtime extension through which the daemon provides
-// container operations. Feature flags are read once at startup; flipping one
-// with a config reload takes effect on the next daemon start, like
-// containerd-snapshotter.
-func builtinExtensions(cfg *config.Config, d *Daemon) []extensions.Extension {
+// builtinExtensions returns the in-process extensions: the always-on ones,
+// plus those built-ins that ship disabled and were opted into through
+// enable-extensions. The list is read once at startup; changing it with a
+// config reload takes effect on the next daemon start.
+func builtinExtensions(cfg *config.Config, d *Daemon) ([]extensions.Extension, error) {
 	exts := []extensions.Extension{
 		namesgeneratorlegacy.Extension,
 		runtimeExtension(d),
 	}
-	if cfg.Features["jobs"] {
-		exts = append(exts, jobs.NewExtension(filepath.Join(cfg.Root, "jobs")))
+	// Built-in extensions that ship with the daemon but stay disabled until
+	// opted into by extension ID.
+	optional := map[string]func() extensions.Extension{
+		jobs.ExtensionID: func() extensions.Extension {
+			return jobs.NewExtension(filepath.Join(cfg.Root, "jobs"))
+		},
 	}
-	return exts
+	seen := make(map[string]bool, len(cfg.EnableExtensions))
+	for _, id := range cfg.EnableExtensions {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		build, ok := optional[id]
+		if !ok {
+			return nil, fmt.Errorf("enable-extensions: unknown built-in extension %q (available: %s)", id, strings.Join(slices.Sorted(maps.Keys(optional)), ", "))
+		}
+		exts = append(exts, build())
+	}
+	return exts, nil
 }
 
 // pointServers lists the generated server adapters for the points that
