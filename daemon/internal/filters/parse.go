@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"maps"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -36,13 +37,9 @@ func NewArgs(initialArgs ...KeyValuePair) Args {
 	return args
 }
 
-// Keys returns all the keys in list of Args
+// Keys returns all the keys in Args.
 func (args Args) Keys() []string {
-	keys := make([]string, 0, len(args.fields))
-	for k := range args.fields {
-		keys = append(keys, k)
-	}
-	return keys
+	return slices.Collect(maps.Keys(args.fields))
 }
 
 // MarshalJSON returns a JSON byte representation of the Args
@@ -87,7 +84,7 @@ func FromJSON(p string) (Args, error) {
 }
 
 // UnmarshalJSON populates the Args from JSON encode bytes
-func (args Args) UnmarshalJSON(raw []byte) error {
+func (args *Args) UnmarshalJSON(raw []byte) error {
 	return json.Unmarshal(raw, &args.fields)
 }
 
@@ -95,31 +92,29 @@ func (args Args) UnmarshalJSON(raw []byte) error {
 func (args Args) Get(key string) []string {
 	values := args.fields[key]
 	if values == nil {
-		return make([]string, 0)
+		return []string{}
 	}
-	slice := make([]string, 0, len(values))
-	for key := range values {
-		slice = append(slice, key)
-	}
-	return slice
+	return slices.Collect(maps.Keys(values))
 }
 
 // Add a new value to the set of values
-func (args Args) Add(key, value string) {
-	if _, ok := args.fields[key]; ok {
-		args.fields[key][value] = true
-	} else {
-		args.fields[key] = map[string]bool{value: true}
+func (args *Args) Add(key, value string) {
+	if args.fields == nil {
+		args.fields = make(map[string]map[string]bool)
 	}
+	values := args.fields[key]
+	if values == nil {
+		values = make(map[string]bool)
+		args.fields[key] = values
+	}
+	values[value] = true
 }
 
 // Del removes a value from the set
 func (args Args) Del(key, value string) {
-	if _, ok := args.fields[key]; ok {
-		delete(args.fields[key], value)
-		if len(args.fields[key]) == 0 {
-			delete(args.fields, key)
-		}
+	delete(args.fields[key], value)
+	if len(args.fields[key]) == 0 {
+		delete(args.fields, key)
 	}
 }
 
@@ -200,9 +195,9 @@ func (args Args) GetBoolOrDefault(key string, defaultValue bool) (bool, error) {
 
 // ExactMatch returns true if the source matches exactly one of the values.
 func (args Args) ExactMatch(key, source string) bool {
-	fieldValues, ok := args.fields[key]
+	fieldValues := args.fields[key]
 	// do not filter if there is no filter set or cannot determine filter
-	if !ok || len(fieldValues) == 0 {
+	if len(fieldValues) == 0 {
 		return true
 	}
 
@@ -218,7 +213,7 @@ func (args Args) UniqueExactMatch(key, source string) bool {
 	if len(fieldValues) == 0 {
 		return true
 	}
-	if len(args.fields[key]) != 1 {
+	if len(fieldValues) != 1 {
 		return false
 	}
 
@@ -263,9 +258,6 @@ func (args Args) Validate(accepted map[string]bool) error {
 // op() for each value. If op returns an error the iteration stops and the
 // error is returned.
 func (args Args) WalkValues(field string, op func(value string) error) error {
-	if _, ok := args.fields[field]; !ok {
-		return nil
-	}
 	for v := range args.fields[field] {
 		if err := op(v); err != nil {
 			return err
@@ -275,23 +267,18 @@ func (args Args) WalkValues(field string, op func(value string) error) error {
 }
 
 // Clone returns a copy of args.
-func (args Args) Clone() (newArgs Args) {
-	newArgs.fields = make(map[string]map[string]bool, len(args.fields))
-	for k, m := range args.fields {
-		var mm map[string]bool
-		if m != nil {
-			mm = make(map[string]bool, len(m))
-			maps.Copy(mm, m)
-		}
-		newArgs.fields[k] = mm
+func (args Args) Clone() Args {
+	fields := maps.Clone(args.fields)
+	for k, values := range fields {
+		fields[k] = maps.Clone(values)
 	}
-	return newArgs
+	return Args{fields: fields}
 }
 
 func deprecatedArgs(d map[string][]string) map[string]map[string]bool {
-	m := map[string]map[string]bool{}
+	m := make(map[string]map[string]bool, len(d))
 	for k, v := range d {
-		values := map[string]bool{}
+		values := make(map[string]bool, len(v))
 		for _, vv := range v {
 			values[vv] = true
 		}
