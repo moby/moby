@@ -1382,10 +1382,9 @@ definitions:
           enum:
             - {}
           default: {}
-        example: {
-          "80/tcp": {},
+        example:
+          "80/tcp": {}
           "443/tcp": {}
-        }
       Tty:
         description: |
           Attach standard streams to a TTY, including `stdin` if it is not closed.
@@ -1518,10 +1517,9 @@ definitions:
           enum:
             - {}
           default: {}
-        example: {
-          "80/tcp": {},
+        example:
+          "80/tcp": {}
           "443/tcp": {}
-        }
       Env:
         description: |
           A list of environment variables to set inside the container in the
@@ -1748,11 +1746,10 @@ definitions:
         x-nullable: false
         additionalProperties:
           type: "string"
-        example: {
-          "MergedDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/merged",
-          "UpperDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/diff",
+        example:
+          "MergedDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/merged"
+          "UpperDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/diff"
           "WorkDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/work"
-        }
 
   Storage:
     description: |
@@ -6353,10 +6350,9 @@ definitions:
         items:
           $ref: "#/definitions/ContainerBlkioStatEntry"
     example:
-      io_service_bytes_recursive: [
-        {"major": 254, "minor": 0, "op": "read", "value": 7593984},
-        {"major": 254, "minor": 0, "op": "write", "value": 100}
-      ]
+      io_service_bytes_recursive:
+        - {"major": 254, "minor": 0, "op": "read", "value": 7593984}
+        - {"major": 254, "minor": 0, "op": "write", "value": 100}
       io_serviced_recursive: null
       io_queue_recursive: null
       io_service_time_recursive: null
