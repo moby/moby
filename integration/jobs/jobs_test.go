@@ -18,8 +18,9 @@ import (
 	"gotest.tools/v3/skip"
 )
 
-// startJobsDaemon starts a daemon with the jobs feature enabled and returns
+// startJobsDaemon starts a daemon with the given extra arguments and returns
 // a Jobs API client resolved through the extensions client over its socket.
+// Callers opt into the jobs extension with --enable-extension.
 func startJobsDaemon(ctx context.Context, t *testing.T, args ...string) (*daemon.Daemon, jobsv0.Jobs) {
 	t.Helper()
 	d := daemon.New(t)
@@ -44,7 +45,7 @@ func TestJobLifecycle(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "the jobs extension test image is linux-only")
 	ctx := testutil.StartSpan(baseContext, t)
 
-	d, jobs := startJobsDaemon(ctx, t, "--feature", "jobs")
+	d, jobs := startJobsDaemon(ctx, t, "--enable-extension", "org.mobyproject.jobs.v1")
 
 	spec := &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox","Cmd":["/bin/sh","-c","echo hello-from-job"]}`)}
 	created, err := jobs.Create(ctx, &jobsv0.CreateRequest{Name: "greet", Spec: spec})
@@ -87,13 +88,13 @@ func TestJobsSurviveDaemonRestart(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "the jobs extension test image is linux-only")
 	ctx := testutil.StartSpan(baseContext, t)
 
-	d, jobs := startJobsDaemon(ctx, t, "--feature", "jobs")
+	d, jobs := startJobsDaemon(ctx, t, "--enable-extension", "org.mobyproject.jobs.v1")
 
 	spec := &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox"}`)}
 	created, err := jobs.Create(ctx, &jobsv0.CreateRequest{Name: "durable", Spec: spec})
 	assert.NilError(t, err)
 
-	d.Restart(t, "--feature", "jobs", "--iptables=false", "--ip6tables=false")
+	d.Restart(t, "--enable-extension", "org.mobyproject.jobs.v1", "--iptables=false", "--ip6tables=false")
 
 	inspected, err := jobs.Inspect(ctx, &jobsv0.InspectRequest{JobRef: "durable"})
 	assert.NilError(t, err)
@@ -110,14 +111,14 @@ func TestJobsReconcileAfterUncleanShutdown(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "the jobs extension test image is linux-only")
 	ctx := testutil.StartSpan(baseContext, t)
 
-	d, jobs := startJobsDaemon(ctx, t, "--feature", "jobs")
+	d, jobs := startJobsDaemon(ctx, t, "--enable-extension", "org.mobyproject.jobs.v1")
 
 	spec := &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox","Cmd":["sleep","300"]}`)}
 	started, err := jobs.CreateAndRun(ctx, &jobsv0.CreateAndRunRequest{Name: "sleeper", Spec: spec})
 	assert.NilError(t, err)
 
 	assert.NilError(t, d.Kill())
-	d.Start(t, "--feature", "jobs", "--iptables=false", "--ip6tables=false")
+	d.Start(t, "--enable-extension", "org.mobyproject.jobs.v1", "--iptables=false", "--ip6tables=false")
 
 	inspected, err := jobs.InspectRun(ctx, &jobsv0.InspectRunRequest{JobRef: "sleeper", RunRef: started.Run.ID})
 	assert.NilError(t, err)
@@ -145,7 +146,7 @@ func TestJobScheduleFires(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "the jobs extension test image is linux-only")
 	ctx := testutil.StartSpan(baseContext, t)
 
-	_, jobs := startJobsDaemon(ctx, t, "--feature", "jobs")
+	_, jobs := startJobsDaemon(ctx, t, "--enable-extension", "org.mobyproject.jobs.v1")
 
 	spec := &jobsv0.JobSpec{
 		ContainerSpec: []byte(`{"Image":"busybox","Cmd":["/bin/sh","-c","echo fired"]}`),
@@ -179,7 +180,7 @@ func TestJobTimeout(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "the jobs extension test image is linux-only")
 	ctx := testutil.StartSpan(baseContext, t)
 
-	_, jobs := startJobsDaemon(ctx, t, "--feature", "jobs")
+	_, jobs := startJobsDaemon(ctx, t, "--enable-extension", "org.mobyproject.jobs.v1")
 
 	spec := &jobsv0.JobSpec{
 		ContainerSpec:  []byte(`{"Image":"busybox","Cmd":["sleep","300"]}`),
@@ -200,7 +201,7 @@ func TestJobPauseResume(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "the jobs extension test image is linux-only")
 	ctx := testutil.StartSpan(baseContext, t)
 
-	_, jobs := startJobsDaemon(ctx, t, "--feature", "jobs")
+	_, jobs := startJobsDaemon(ctx, t, "--enable-extension", "org.mobyproject.jobs.v1")
 
 	spec := &jobsv0.JobSpec{
 		ContainerSpec: []byte(`{"Image":"busybox"}`),
@@ -224,9 +225,9 @@ func TestJobPauseResume(t *testing.T) {
 	assert.Check(t, resumed.Job.NextFireAtNano > 0)
 }
 
-// TestJobsFeatureDisabled proves the gate: without the feature, the daemon
-// does not expose the Jobs service at all.
-func TestJobsFeatureDisabled(t *testing.T) {
+// TestJobsExtensionDisabled proves the gate: without the extension enabled,
+// the daemon does not expose the Jobs service at all.
+func TestJobsExtensionDisabled(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot start a local daemon on a remote host")
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "the jobs extension test image is linux-only")
 	ctx := testutil.StartSpan(baseContext, t)
