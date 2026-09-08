@@ -215,6 +215,9 @@ type CommonConfig struct {
 	Root                  string   `json:"data-root,omitempty"`
 	ExecRoot              string   `json:"exec-root,omitempty"`
 	ExtensionDirs         []string `json:"extension-dirs,omitempty"`
+	// EnableExtensions lists built-in extensions, by extension ID, to enable
+	// among those that ship with the daemon disabled by default.
+	EnableExtensions []string `json:"enable-extensions,omitempty"`
 	// ExtensionConfig holds per-extension configuration keyed by extension ID.
 	// The entry reaches in-process Init directly or a launched binary through the
 	// startup handshake.
