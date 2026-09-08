@@ -11,8 +11,8 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
+	runtimev0 "github.com/moby/moby/v2/extpoints/runtime/v0"
 )
 
 // errFireQueued reports that a fire was deferred behind the current run by
@@ -115,7 +115,7 @@ func (m *Manager) startContainer(ctx context.Context, job *jobsv0.Job, run *jobs
 	req.Config.Labels[LabelJobID] = job.ID
 	req.Config.Labels[LabelRunID] = run.ID
 
-	created, err := m.backend.ContainerCreate(ctx, backend.ContainerCreateConfig{
+	created, err := m.backend.ContainerCreate(ctx, runtimev0.ContainerCreateRequest{
 		// The run-ID suffix keeps the name unique across job generations: a
 		// removed job leaves its kept containers behind, and a re-created
 		// job under the same name restarts its iterations at one.
@@ -132,7 +132,7 @@ func (m *Manager) startContainer(ctx context.Context, job *jobsv0.Job, run *jobs
 		return fmt.Errorf("recording run container: %w", err)
 	}
 
-	if err := m.backend.ContainerStart(ctx, created.ID, "", ""); err != nil {
+	if err := m.backend.ContainerStart(ctx, created.ID); err != nil {
 		return fmt.Errorf("starting run container: %w", err)
 	}
 	run.State = jobsv0.RunStateRunning
@@ -156,7 +156,7 @@ func (m *Manager) watch(ctx context.Context, job *jobsv0.Job, run *jobsv0.Run) {
 	if err != nil {
 		// The container may still be running with nobody left to observe or
 		// bound it; stop it rather than leak an unwatched container.
-		if stopErr := m.backend.ContainerStop(ctx, run.ContainerID, backend.ContainerStopOptions{}); stopErr != nil {
+		if stopErr := m.backend.ContainerStop(ctx, run.ContainerID); stopErr != nil {
 			log.G(ctx).WithError(stopErr).WithFields(log.Fields{"job": job.ID, "run": run.ID}).Warn("could not stop unwatchable run container")
 		}
 		m.locks.Lock(job.ID)
@@ -221,7 +221,7 @@ func (m *Manager) completeRunLocked(ctx context.Context, job *jobsv0.Job, run *j
 	removeContainer := (outcome.state == jobsv0.RunStateSucceeded && job.Spec.RemoveOnSuccess) ||
 		(outcome.state == jobsv0.RunStateFailed && job.Spec.RemoveOnFailure)
 	if removeContainer && run.ContainerID != "" {
-		if err := m.backend.ContainerRm(run.ContainerID, &backend.ContainerRmConfig{}); err != nil {
+		if err := m.backend.ContainerRm(run.ContainerID); err != nil {
 			log.G(ctx).WithError(err).WithFields(log.Fields{"job": job.ID, "run": run.ID}).Warn("keeping run container that could not be auto-removed")
 		} else {
 			run.ContainerGone = true
@@ -304,7 +304,7 @@ func (m *Manager) Cancel(ctx context.Context, jobRef string) (string, error) {
 	m.background.Go(func() {
 		// Stopping can take the stop grace period; do not hold the job lock
 		// for it. The watcher records the terminal state.
-		if err := m.backend.ContainerStop(stopCtx, containerID, backend.ContainerStopOptions{}); err != nil {
+		if err := m.backend.ContainerStop(stopCtx, containerID); err != nil {
 			log.G(stopCtx).WithError(err).WithFields(log.Fields{"job": job.ID, "run": run.ID}).Warn("could not stop cancelled run container")
 		}
 	})
@@ -334,7 +334,7 @@ func (m *Manager) armTimeout(runID, containerID string, timeout time.Duration) {
 		}
 		m.overrides[runID] = jobsv0.RunStateTimedOut
 		m.mu.Unlock()
-		if err := m.backend.ContainerStop(context.Background(), containerID, backend.ContainerStopOptions{}); err != nil {
+		if err := m.backend.ContainerStop(context.Background(), containerID); err != nil {
 			log.G(context.Background()).WithError(err).WithFields(log.Fields{"run": runID}).Warn("could not stop timed-out run container")
 		}
 	})
