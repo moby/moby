@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"strings"
@@ -18,8 +19,11 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/jsonmessage"
+	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/moby/moby/v2/internal/testutil/registry"
+	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -27,6 +31,93 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
+
+// Regression test for https://github.com/moby/moby/issues/49784.
+func TestImagePullWithExistingSnapshot(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "We don't run a test registry on Windows")
+	skip.If(t, !testEnv.UsingSnapshotter(), "requires the containerd image store")
+	ctx := setupTest(t)
+
+	reg := registry.NewV2(t)
+	defer reg.Close()
+	reg.WaitReady(t)
+
+	dir := t.TempDir()
+	index, err := specialimage.MultiLayer(dir)
+	assert.NilError(t, err)
+	desc := index.Manifests[0]
+	store, err := local.NewStore(dir)
+	assert.NilError(t, err)
+	remote := path.Join(registry.DefaultURL, strings.ToLower(t.Name())+":latest")
+
+	publisher, err := containerd.New("", containerd.WithServices(containerd.WithContentStore(store)))
+	assert.NilError(t, err)
+	defer publisher.Close()
+	assert.NilError(t, publisher.Push(ctx, remote, desc))
+
+	d := daemon.New(t)
+	d.Start(t)
+	defer d.Cleanup(t)
+	apiClient := d.NewClientT(t)
+
+	manifestJSON, err := content.ReadBlob(ctx, store, desc)
+	assert.NilError(t, err)
+	var manifest ocispec.Manifest
+	assert.NilError(t, json.Unmarshal(manifestJSON, &manifest))
+
+	// Saving needs the layer blobs; running a container can reuse the snapshot.
+	checkSavedLayers := func() {
+		t.Helper()
+		saved, err := apiClient.ImageSave(ctx, []string{remote})
+		assert.NilError(t, err)
+		defer saved.Close()
+		tarfs := tarIndexFS(t, saved)
+		for _, layer := range manifest.Layers {
+			data, err := fs.ReadFile(tarfs, "blobs/"+layer.Digest.Algorithm().String()+"/"+layer.Digest.Encoded())
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(digest.FromBytes(data), layer.Digest))
+		}
+	}
+
+	rdr, err := apiClient.ImagePull(ctx, remote, client.ImagePullOptions{})
+	assert.NilError(t, err)
+	defer rdr.Close()
+	assert.NilError(t, jsonmessage.DisplayStream(rdr, io.Discard))
+	assert.NilError(t, rdr.Close())
+
+	checkSavedLayers()
+
+	inspect, err := apiClient.ImageInspect(ctx, remote)
+	assert.NilError(t, err)
+
+	// Keep the unpacked snapshot alive while removing all image references.
+	container.Create(ctx, t, apiClient, container.WithImage(remote))
+	_, err = apiClient.ImageRemove(ctx, remote, client.ImageRemoveOptions{Force: true})
+	assert.NilError(t, err)
+	_, err = apiClient.ImageRemove(ctx, inspect.ID, client.ImageRemoveOptions{Force: true})
+	assert.NilError(t, err)
+
+	info, err := apiClient.Info(ctx, client.InfoOptions{})
+	assert.NilError(t, err)
+	c8dClient, err := containerd.New(info.Info.Containerd.Address, containerd.WithDefaultNamespace(info.Info.Containerd.Namespaces.Containers))
+	assert.NilError(t, err)
+	defer c8dClient.Close()
+
+	for _, layer := range manifest.Layers {
+		// Without this precondition, retained content could hide a skipped download.
+		_, err := c8dClient.ContentStore().Info(ctx, layer.Digest)
+		assert.Assert(t, cerrdefs.IsNotFound(err), "layer %s was not garbage collected: %v", layer.Digest, err)
+	}
+
+	rdr, err = apiClient.ImagePull(ctx, remote, client.ImagePullOptions{})
+	assert.NilError(t, err)
+	defer rdr.Close()
+	assert.NilError(t, jsonmessage.DisplayStream(rdr, io.Discard))
+	assert.NilError(t, rdr.Close())
+
+	checkSavedLayers()
+}
 
 func TestImagePullPlatformInvalid(t *testing.T) {
 	ctx := setupTest(t)
