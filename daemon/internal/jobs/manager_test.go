@@ -12,8 +12,8 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/v2/daemon/server/backend"
 	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
+	runtimev0 "github.com/moby/moby/v2/extpoints/runtime/v0"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -29,7 +29,7 @@ func (s fakeStatus) Err() error    { return s.err }
 
 // fakeContainer is one container tracked by the fake backend.
 type fakeContainer struct {
-	config  backend.ContainerCreateConfig
+	config  runtimev0.ContainerCreateRequest
 	started bool
 	removed bool
 	exited  *fakeStatus
@@ -57,7 +57,7 @@ func newFakeBackend() *fakeBackend {
 // with a live backend.
 func (b *fakeBackend) Ready(context.Context) error { return nil }
 
-func (b *fakeBackend) ContainerCreate(_ context.Context, config backend.ContainerCreateConfig) (container.CreateResponse, error) {
+func (b *fakeBackend) ContainerCreate(_ context.Context, config runtimev0.ContainerCreateRequest) (container.CreateResponse, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.createErr != nil {
@@ -69,7 +69,7 @@ func (b *fakeBackend) ContainerCreate(_ context.Context, config backend.Containe
 	return container.CreateResponse{ID: id}, nil
 }
 
-func (b *fakeBackend) ContainerStart(_ context.Context, name string, _ string, _ string) error {
+func (b *fakeBackend) ContainerStart(_ context.Context, name string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.startErr != nil {
@@ -83,7 +83,7 @@ func (b *fakeBackend) ContainerStart(_ context.Context, name string, _ string, _
 	return nil
 }
 
-func (b *fakeBackend) ContainerStop(_ context.Context, name string, _ backend.ContainerStopOptions) error {
+func (b *fakeBackend) ContainerStop(_ context.Context, name string) error {
 	b.mu.Lock()
 	b.stopped = append(b.stopped, name)
 	b.mu.Unlock()
@@ -91,7 +91,7 @@ func (b *fakeBackend) ContainerStop(_ context.Context, name string, _ backend.Co
 	return nil
 }
 
-func (b *fakeBackend) ContainerRm(name string, _ *backend.ContainerRmConfig) error {
+func (b *fakeBackend) ContainerRm(name string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	ctr, exists := b.containers[name]
