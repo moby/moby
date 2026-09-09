@@ -25,6 +25,9 @@ import (
 	"time"
 
 	"github.com/containernetworking/cni/pkg/types"
+	"go.opentelemetry.io/otel/baggage"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type RawExec struct {
@@ -35,7 +38,7 @@ func (e *RawExec) ExecPlugin(ctx context.Context, pluginPath string, stdinData [
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	c := exec.CommandContext(ctx, pluginPath)
-	c.Env = environ
+	c.Env = injectTraceContext(ctx, environ)
 	c.Stdin = bytes.NewBuffer(stdinData)
 	c.Stdout = stdout
 	c.Stderr = stderr
@@ -69,13 +72,42 @@ func (e *RawExec) ExecPlugin(ctx context.Context, pluginPath string, stdinData [
 	return stdout.Bytes(), nil
 }
 
+// injectTraceContext will add OpenTelemetry trace context to the environment variables based on
+// https://github.com/open-telemetry/opentelemetry-specification/blob/main/oteps/0258-env-context-baggage-carriers.md
+func injectTraceContext(ctx context.Context, environ []string) []string {
+	sc := trace.SpanContextFromContext(ctx)
+	if !sc.IsValid() {
+		return environ
+	}
+
+	ctx = trace.ContextWithRemoteSpanContext(ctx, sc)
+	mc := propagation.MapCarrier{}
+	(propagation.TraceContext{}).Inject(ctx, mc)
+
+	// Currently, both traceparent and tracestate are not exported variables,
+	// https://github.com/open-telemetry/opentelemetry-go/blob/bcf8234d0c9c48b626cad85367a3681f3fc0c0fd/propagation/trace_context.go#L18-L19
+	// so we have to use the string literals here.
+	if traceparent := mc.Get("traceparent"); traceparent != "" {
+		environ = append(environ, "TRACEPARENT"+"="+traceparent)
+	}
+
+	if tracestate := mc.Get("tracestate"); tracestate != "" {
+		environ = append(environ, "TRACESTATE"+"="+tracestate)
+	}
+
+	if envBaggage := baggage.FromContext(ctx).String(); envBaggage != "" {
+		environ = append(environ, "BAGGAGE"+"="+envBaggage)
+	}
+	return environ
+}
+
 func (e *RawExec) pluginErr(err error, stdout, stderr []byte) error {
 	emsg := types.Error{}
 	if len(stdout) == 0 {
 		if len(stderr) == 0 {
 			emsg.Msg = fmt.Sprintf("netplugin failed with no error message: %v", err)
 		} else {
-			emsg.Msg = fmt.Sprintf("netplugin failed: %q", string(stderr))
+			emsg.Msg = fmt.Sprintf("netplugin failed: %q: %v", string(stderr), err)
 		}
 	} else if perr := json.Unmarshal(stdout, &emsg); perr != nil {
 		emsg.Msg = fmt.Sprintf("netplugin failed but error parsing its diagnostic message %q: %v", string(stdout), perr)

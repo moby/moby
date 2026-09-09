@@ -21,17 +21,12 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"syscall"
 	"time"
 
 	winio "github.com/Microsoft/go-winio"
 )
 
 const shimBinaryFormat = "containerd-shim-%s-%s.exe"
-
-func getSysProcAttr() *syscall.SysProcAttr {
-	return nil
-}
 
 // AnonReconnectDialer connects to a named pipe that should already exist.
 // It fails immediately if the pipe is not found, rather than retrying.

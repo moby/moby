@@ -22,32 +22,28 @@ package shim
 // Once settled, this file should be removed.
 
 import (
-	"bytes"
+	"errors"
 	"fmt"
-	"os"
 
 	bootapi "github.com/containerd/containerd/api/runtime/bootstrap/v1"
-	"github.com/containerd/containerd/api/types/runc/options"
+	"github.com/containerd/containerd/v2/pkg/protobuf/proto"
 )
 
-func readBootstrapParamsFromDeprecatedFields(input []byte, params *bootapi.BootstrapParams, parsedID string, parsedNamespace string, parsedBinary string, parsedDebug bool) error {
-	params.InstanceID = parsedID
-	params.Namespace = parsedNamespace
-	params.ContainerdTtrpcAddress = os.Getenv(ttrpcAddressEnv)
-	params.ContainerdGrpcAddress = os.Getenv(grpcAddressEnv)
-	params.ContainerdBinary = parsedBinary
+var errDeprecatedBootstrapAPI = errors.New("shim was started through the deprecated API but was built against the new API; if you upgraded containerd, you may need to restart the daemon")
 
-	if parsedDebug {
-		params.LogLevel = bootapi.LogLevel_LOG_LEVEL_DEBUG
+// parseBootstrapParams parses input from a caller using the bootstrap API.
+// Legacy runtime options can unmarshal as BootstrapParams, so verify the
+// identity against the command-line values.
+func parseBootstrapParams(input []byte, cliID, cliNamespace string) (*bootapi.BootstrapParams, error) {
+	params := &bootapi.BootstrapParams{}
+	if len(input) == 0 {
+		return nil, errDeprecatedBootstrapAPI
 	}
-
-	// Task options
-
-	if opts, err := ReadRuntimeOptions[*options.Options](bytes.NewBuffer(input)); err == nil {
-		if err := params.AddExtension(opts); err != nil {
-			return fmt.Errorf("unable to add runc options: %w", err)
-		}
+	if err := proto.Unmarshal(input, params); err != nil {
+		return nil, fmt.Errorf("%w: failed to unmarshal bootstrap parameters: %w", errDeprecatedBootstrapAPI, err)
 	}
-
-	return nil
+	if params.InstanceID != cliID || params.Namespace != cliNamespace {
+		return nil, fmt.Errorf("bootstrap parameters do not match command-line arguments: %w", errDeprecatedBootstrapAPI)
+	}
+	return params, nil
 }

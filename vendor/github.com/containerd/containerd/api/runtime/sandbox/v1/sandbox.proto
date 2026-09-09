@@ -23,6 +23,7 @@ import "google/protobuf/timestamp.proto";
 import "types/metrics.proto";
 import "types/mount.proto";
 import "types/platform.proto";
+import "types/sandbox.proto";
 
 option go_package = "github.com/containerd/containerd/api/runtime/sandbox/v1;sandbox";
 
@@ -58,6 +59,13 @@ service Sandbox {
 
   // SandboxMetrics retrieves metrics about a sandbox instance.
   rpc SandboxMetrics(SandboxMetricsRequest) returns (SandboxMetricsResponse);
+
+  // UpdateSandbox applies an update of the sandbox metadata object to a running
+  // sandbox instance (for example a pod level resource resize).
+  // Implementing this RPC is optional: a shim that does not support updates MUST
+  // return a `github.com/containerd/errdefs.ErrNotImplemented` error (gRPC
+  // `codes.Unimplemented`), which callers are expected to tolerate.
+  rpc UpdateSandbox(UpdateSandboxRequest) returns (UpdateSandboxResponse);
 }
 
 message CreateSandboxRequest {
@@ -98,8 +106,16 @@ message StopSandboxResponse {}
 
 message UpdateSandboxRequest {
   string sandbox_id = 1;
-  google.protobuf.Any resources = 2;
-  map<string, string> annotations = 3;
+  // Deprecated: not set by containerd, use `sandbox` instead.
+  google.protobuf.Any resources = 2 [deprecated = true];
+  // Deprecated: not set by containerd, use `sandbox` instead.
+  map<string, string> annotations = 3 [deprecated = true];
+  // Sandbox is the updated sandbox metadata object as stored by containerd,
+  // including its labels, spec and extensions.
+  containerd.types.Sandbox sandbox = 4;
+  // Fields are the fieldpaths of `sandbox` that have been updated.
+  // An empty list means the whole object should be considered updated.
+  repeated string fields = 5;
 }
 
 message WaitSandboxRequest {

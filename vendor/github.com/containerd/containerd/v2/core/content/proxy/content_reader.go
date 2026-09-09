@@ -18,8 +18,10 @@ package proxy
 
 import (
 	"context"
+	"io"
 
 	contentapi "github.com/containerd/containerd/api/services/content/v1"
+	"github.com/containerd/errdefs/pkg/errgrpc"
 	digest "github.com/opencontainers/go-digest"
 )
 
@@ -48,7 +50,7 @@ func (ra *remoteReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	defer cancel()
 	rc, err := ra.client.Read(childCtx, rr)
 	if err != nil {
-		return 0, err
+		return 0, errgrpc.ToNative(err)
 	}
 
 	for len(p) > 0 {
@@ -56,7 +58,10 @@ func (ra *remoteReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 		// fill our buffer up until we can fill p.
 		resp, err = rc.Recv()
 		if err != nil {
-			return n, err
+			if err == io.EOF {
+				return n, err
+			}
+			return n, errgrpc.ToNative(err)
 		}
 
 		copied := copy(p, resp.Data)
