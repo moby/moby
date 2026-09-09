@@ -76,7 +76,7 @@ func deleteAllContainers(ctx context.Context, t testing.TB, apiclient client.Con
 		})
 
 		// Ignore if container is already gone, or removal of container is already in progress.
-		if err == nil || cerrdefs.IsNotFound(err) || strings.Contains(err.Error(), "is already in progress") {
+		if err == nil || cerrdefs.IsNotFound(err) || (cerrdefs.IsConflict(err) && strings.Contains(err.Error(), "is already in progress")) {
 			continue
 		}
 		assert.Check(t, err, "failed to remove %s", ctr.ID)
