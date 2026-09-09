@@ -364,7 +364,7 @@ FROM rootlesskit-${TARGETOS} AS rootlesskit
 
 FROM base AS crun
 # CRUN_VERSION is the version of crun to install in the dev-container.
-ARG CRUN_VERSION=1.21
+ARG CRUN_VERSION=1.29.1
 RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-crun-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
@@ -372,11 +372,12 @@ RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
             automake \
             build-essential \
             libcap-dev \
+            libjson-c-dev \
             libprotobuf-c-dev \
             libseccomp-dev \
             libsystemd-dev \
             libtool \
-            libyajl-dev \
+            pkgconf \
             python3 \
             ;
 WORKDIR /tmp/crun-build
