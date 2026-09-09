@@ -813,10 +813,14 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 //
 // The client PID is obtained from SO_PEERCRED on the Unix socket (see
 // daemon/internal/peercred). When the option is enabled the function is
-// fail-closed: if peer credentials are unavailable (e.g. TCP) or the cgroup
-// cannot be determined, it returns an error and the container creation is
-// rejected. This avoids silently placing the container under the daemon's
-// cgroup and breaking isolation. If a fallback (warn-and-continue) is
+// fail-closed: missing peer credentials (e.g. TCP, which has no SO_PEERCRED),
+// PID-owner mismatch, unreadable cgroup, empty/root cgroup, or a systemd
+// scope path all return an error and the container creation is rejected.
+// This avoids silently placing the container under the daemon's cgroup and
+// breaking isolation. Scope paths (e.g. Slurm's slurmstepd.scope) cannot be
+// used as a parent: scopes are leaf cgroups, the systemd driver requires a
+// "xxx.slice" parent, and a second manager on the same scope needs a patched
+// runc with relaxed eBPF handling. If a fallback (warn-and-continue) is
 // preferred we can make this configurable – happy to adjust.
 // TODO: consider exposing this as an Extension point (see #53365) so the
 // cgroup decision and SO_PEERCRED propagation can be pluggable.
@@ -839,6 +843,12 @@ func enforceCgroupParentFromClient(ctx context.Context, hostConfig *container.Ho
 	cgroupPath, err := cgrouputil.GetClientCgroup(cred.PID)
 	if err != nil {
 		return errdefs.System(fmt.Errorf("failed to get client cgroup for PID %d: %w", cred.PID, err))
+	}
+	if err := cgrouputil.VerifyPIDOwner(cred.PID, cred.UID); err != nil {
+		return errdefs.InvalidParameter(fmt.Errorf("cgroup-parent-from-client: refusing creation: %w", err))
+	}
+	if cgrouputil.IsScopePath(cgroupPath) {
+		return errdefs.InvalidParameter(fmt.Errorf("client cgroup %q is inside a systemd scope (.scope), which cannot be used as cgroup-parent (systemd driver requires a \"xxx.slice\"); Slurm scope jobs need a slice parent or a patched runc with relaxed eBPF handling, refusing container creation", cgroupPath))
 	}
 	if cgroupPath == "" || cgroupPath == "/" {
 		return errdefs.InvalidParameter(fmt.Errorf("client cgroup is empty or root (%q), refusing container creation", cgroupPath))

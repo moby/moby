@@ -196,6 +196,17 @@ Bridge networks will accept packets with this firewall mark/mask.
   Set parent cgroup for all containers. Default is "/docker" for fs cgroup
   driver and "system.slice" for systemd cgroup driver.
 
+**--cgroup-parent-from-client**=**true**|**false**
+  If set, containers inherit the cgroup of the client process via SO_PEERCRED
+  (Unix sockets only, Linux only). Fail-closed when enabled: requests without
+  peer credentials (e.g. TCP), PID-owner mismatch, unreadable cgroup, or
+  empty/root cgroup are rejected. Systemd scope paths (e.g. Slurm's
+  slurmstepd.scope) are also rejected because scopes cannot be used as a
+  cgroup-parent (systemd driver requires a "xxx.slice", and a second manager
+  on the same scope needs a patched runc). Same-UID PID reuse between
+  connection and create remains possible; a full fix requires per-request
+  credentials. Default is **false**.
+
 **--config-file**=*"/etc/docker/daemon.json"*
   Specifies the JSON file path to load the configuration from. Default is
   */etc/docker/daemon.json*.
