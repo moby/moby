@@ -16,8 +16,8 @@ import (
 	"time"
 
 	containerddefaults "github.com/containerd/containerd/v2/defaults"
-	"github.com/containerd/containerd/v2/pkg/tracing"
 	"github.com/containerd/log"
+	logotel "github.com/containerd/log/otel"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/tracing/detect"
@@ -274,7 +274,7 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 
 	tp, otelShutdown := otelutil.NewTracerProvider(ctx, true)
 	otel.SetTracerProvider(tp)
-	log.G(ctx).Logger.AddHook(tracing.NewLogrusHook())
+	log.G(ctx).Logger.AddHook(logotel.NewLogrusHook())
 
 	pluginStore := plugin.NewStore()
 
