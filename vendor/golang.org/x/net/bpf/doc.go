@@ -49,6 +49,13 @@ to extensions, which are essentially calls to kernel utility
 functions. Currently, the only extensions supported by this package
 are the Linux packet filter extensions.
 
+# Security Considerations
+
+The implementation of the BPF VM in this package is suitable for
+testing BPF programs. It aims for consistency with other BPF VM
+implementations, but divergence in behavior is not considered a
+security issue.
+
 # Examples
 
 This packet filter selects all ARP packets.
