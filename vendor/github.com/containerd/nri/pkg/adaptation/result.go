@@ -504,7 +504,7 @@ func (r *result) adjustSysctl(sysctl map[string]string, plugin string) error {
 	}
 
 	for k := range del {
-		r.reply.adjust.Annotations[MarkForRemoval(k)] = ""
+		r.reply.adjust.Linux.Sysctl[MarkForRemoval(k)] = ""
 	}
 
 	return nil
