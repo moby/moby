@@ -147,7 +147,7 @@ func NewSnapshotter(root string, opts ...Opt) (snapshots.Snapshotter, error) {
 		return nil, err
 	}
 
-	if !hasOption(config.mountOptions, "userxattr", false) {
+	if !hasOption(config.mountOptions, "userxattr") {
 		// figure out whether "userxattr" option is recognized by the kernel && needed
 		userxattr, err := overlayutils.NeedsUserXAttr(root)
 		if err != nil {
@@ -158,7 +158,9 @@ func NewSnapshotter(root string, opts ...Opt) (snapshots.Snapshotter, error) {
 		}
 	}
 
-	if !hasOption(config.mountOptions, "index", false) && supportsIndex() {
+	// Mount options are last-wins in the kernel, so appending "index=off"
+	// after a configured "index=on" would silently override it.
+	if !hasOption(config.mountOptions, "index") && supportsIndex() {
 		config.mountOptions = append(config.mountOptions, "index=off")
 	}
 
@@ -173,13 +175,14 @@ func NewSnapshotter(root string, opts ...Opt) (snapshots.Snapshotter, error) {
 	}, nil
 }
 
-func hasOption(options []string, key string, hasValue bool) bool {
+// hasOption reports whether the "key" option is present in options, either
+// as a bare flag ("userxattr") or in "key=value" form ("index=on").
+func hasOption(options []string, key string) bool {
 	for _, option := range options {
-		if hasValue {
-			if strings.HasPrefix(option, key) && len(option) > len(key) && option[len(key)] == '=' {
-				return true
-			}
-		} else if option == key {
+		if option == key {
+			return true
+		}
+		if optionKey, _, ok := strings.Cut(option, "="); ok && optionKey == key {
 			return true
 		}
 	}

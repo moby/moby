@@ -261,6 +261,8 @@ type UnpackConfig struct {
 	DuplicationSuppressor kmutex.KeyedLocker
 	// Limiter is used to limit concurrent unpacks
 	Limiter *semaphore.Weighted
+	// FetchAllContent fetches layers during Pull even if their snapshots exist.
+	FetchAllContent bool
 }
 
 // UnpackOpt provides configuration for unpack
@@ -294,6 +296,17 @@ func WithUnpackApplyOpts(opts ...diff.ApplyOpt) UnpackOpt {
 func WithUnpackLimiter(limiter *semaphore.Weighted) UnpackOpt {
 	return func(ctx context.Context, uc *UnpackConfig) error {
 		uc.Limiter = limiter
+		return nil
+	}
+}
+
+// WithUnpackFetchAllContent fetches layers during Pull even if their snapshots
+// already exist, without changing the selected platforms.
+// Use it with WithPullUnpack and WithUnpackOpts.
+// It has no effect on Image.Unpack, which does not fetch content.
+func WithUnpackFetchAllContent() UnpackOpt {
+	return func(ctx context.Context, uc *UnpackConfig) error {
+		uc.FetchAllContent = true
 		return nil
 	}
 }

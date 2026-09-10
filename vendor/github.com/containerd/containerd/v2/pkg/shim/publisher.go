@@ -57,7 +57,12 @@ func WithPublishTTRPCOpts(opts ...ttrpc.ClientOpts) PublisherOpts {
 
 // NewPublisher creates a new remote events publisher
 func NewPublisher(address string, opts ...PublisherOpts) (*RemoteEventsPublisher, error) {
-	client, err := ttrpcutil.NewClient(address)
+	var cfg publisherConfig
+	for _, fn := range opts {
+		fn(&cfg)
+	}
+
+	client, err := ttrpcutil.NewClient(address, cfg.ttrpcOpts...)
 	if err != nil {
 		return nil, err
 	}

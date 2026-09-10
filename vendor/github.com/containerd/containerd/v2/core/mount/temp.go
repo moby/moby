@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/containerd/log"
@@ -82,53 +83,56 @@ func WithTempMount(ctx context.Context, mounts []Mount, f func(root string) erro
 // TODO: Make this logic conditional once the kernel supports reusing
 // overlayfs volatile mounts.
 func RemoveVolatileOption(mounts []Mount) []Mount {
-	var out []Mount
-	for i, m := range mounts {
-		if m.Type != "overlay" {
-			continue
-		}
-		for j, opt := range m.Options {
-			if opt == "volatile" || opt == "fsync=volatile" {
-				if out == nil {
-					out = copyMounts(mounts)
-				}
-				out[i].Options = append(out[i].Options[:j], out[i].Options[j+1:]...)
-				break
+	return filterMountOptions(mounts, func(m Mount, opt string) bool {
+		if m.Type == "overlay" {
+			switch opt {
+			case "volatile", "fsync=volatile":
+				return false
 			}
 		}
-	}
-
-	if out != nil {
-		return out
-	}
-
-	return mounts
+		return true
+	})
 }
 
 // RemoveIDMapOption copies and removes the uidmap/gidmap options on any of the mounts using it.
 func RemoveIDMapOption(mounts []Mount) []Mount {
+	return filterMountOptions(mounts, func(_ Mount, opt string) bool {
+		// Match all uidmap/gidmap prefixes because fuse-overlayfs also uses
+		// related options such as uidmapping and gidmapping.
+		return !strings.HasPrefix(opt, "uidmap") && !strings.HasPrefix(opt, "gidmap")
+	})
+}
+
+// filterMountOptions returns mounts filtering out options not matching the
+// [keep] predicate.
+// It does not mutate the input, and returns the input unchanged when no options
+// are filtered out.
+func filterMountOptions(mounts []Mount, keep func(Mount, string) bool) []Mount {
 	var out []Mount
 	for i, m := range mounts {
+		var options []string
 		for j, opt := range m.Options {
-			if strings.HasPrefix(opt, "uidmap") || strings.HasPrefix(opt, "gidmap") {
+			if !keep(m, opt) {
 				if out == nil {
-					out = copyMounts(mounts)
+					out = slices.Clone(mounts)
 				}
-				out[i].Options = append(out[i].Options[:j], out[i].Options[j+1:]...)
+				if options == nil {
+					options = slices.Clone(m.Options[:j])
+				}
+				continue
 			}
+			if options != nil {
+				options = append(options, opt)
+			}
+		}
+		if options != nil {
+			out[i].Options = options
 		}
 	}
 	if out != nil {
 		return out
 	}
 	return mounts
-}
-
-// copyMounts creates a copy of the original slice to allow for modification and not altering the original
-func copyMounts(in []Mount) []Mount {
-	out := make([]Mount, len(in))
-	copy(out, in)
-	return out
 }
 
 // WithReadonlyTempMount mounts the provided mounts to a temp dir as readonly,

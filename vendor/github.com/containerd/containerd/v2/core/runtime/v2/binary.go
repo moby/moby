@@ -64,11 +64,9 @@ type binary struct {
 }
 
 func (b *binary) Start(ctx context.Context, opts *types.Any, onClose func()) (_ *shim, err error) {
-	// containerd daemon is the intended caller of client.Command; the deprecation
-	// targets external callers.
-	cmd, err := client.Command( //nolint:staticcheck // SA1019
+	cmd, err := command(
 		ctx,
-		&client.CommandConfig{
+		&commandConfig{
 			ID:           b.bundle.ID,
 			RuntimePath:  b.runtime,
 			GRPCAddress:  b.containerdAddress,
@@ -145,10 +143,11 @@ func (b *binary) Start(ctx context.Context, opts *types.Any, onClose func()) (_ 
 	// The address is in the form like ttrpc+unix://<uds-path> or grpc+vsock://<cid>:<port>
 	address := fmt.Sprintf("%s+%s", params.Protocol, params.Address)
 	return &shim{
-		bundle:  b.bundle,
-		client:  conn,
-		address: address,
-		version: int(params.Version),
+		bundle:    b.bundle,
+		client:    conn,
+		address:   address,
+		version:   int(params.Version),
+		bootstrap: params,
 	}, nil
 }
 
@@ -165,10 +164,8 @@ func (b *binary) Delete(ctx context.Context) (*runtime.Exit, error) {
 		bundlePath = b.bundle.Path
 	}
 
-	// containerd daemon is the intended caller of client.Command; the deprecation
-	// targets external callers.
-	cmd, err := client.Command(ctx, //nolint:staticcheck // SA1019
-		&client.CommandConfig{
+	cmd, err := command(ctx,
+		&commandConfig{
 			ID:           b.bundle.ID,
 			RuntimePath:  b.runtime,
 			BundlePath:   b.bundle.Path,
@@ -220,7 +217,7 @@ func (b *binary) Delete(ctx context.Context) (*runtime.Exit, error) {
 
 // shimCallError builds an error for a failed shim binary invocation.
 //
-// client.Command is run via exec.CommandContext, which kills the process
+// command is run via exec.CommandContext, which kills the process
 // once ctx is done. On Windows that kill is TerminateProcess(handle, 1),
 // which is indistinguishable from the shim genuinely calling os.Exit(1),
 // and os/exec reports the wait status in preference to the context error.
