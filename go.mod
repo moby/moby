@@ -33,6 +33,7 @@ require (
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.2.0
+	github.com/containerd/log/otel v0.1.0
 	github.com/containerd/nri v0.12.2
 	github.com/containerd/platforms v1.0.0-rc.5
 	github.com/containerd/plugin v1.1.0
@@ -164,7 +165,6 @@ require (
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/go-cni v1.1.14 // indirect
 	github.com/containerd/go-runc v1.2.1 // indirect
-	github.com/containerd/log/otel v0.1.0 // indirect
 	github.com/containerd/nydus-snapshotter v0.15.15 // indirect
 	github.com/containerd/otelttrpc v0.1.0 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.18.2 // indirect
