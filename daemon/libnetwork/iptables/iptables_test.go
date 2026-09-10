@@ -336,3 +336,24 @@ func TestFlushChain(t *testing.T) {
 	// Cleanup
 	_ = iptable.RemoveExistingChain(chain, table)
 }
+
+// TestDeleteNonExistingRule verifies the diagnostic returned by iptables when
+// deleting a rule that does not exist. This is used to handle the race where a
+// rule is removed by another process between checking for it and deleting it.
+//
+// Reproducing that race directly would be timing-dependent, so exercise the
+// delete error deterministically with a rule that cannot exist instead.
+func TestDeleteNonExistingRule(t *testing.T) {
+	iptable := GetIptable(IPv4)
+
+	// Use a TEST-NET-1 source address to construct a rule that should not
+	// exist in the FORWARD chain.
+	err := iptable.RawCombinedOutput(
+		"-t", string(Filter),
+		"-D", "FORWARD",
+		"-s", "192.0.2.1",
+		"-j", "ACCEPT",
+	)
+	assert.Assert(t, err != nil)
+	assert.Assert(t, isRuleNotFoundError(err), err)
+}
