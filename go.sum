@@ -168,6 +168,8 @@ github.com/containerd/go-runc v1.2.1 h1:TAnah92bVA7dYDZ7Mm9FrOoFQvnLZdL3z3xT7BS1
 github.com/containerd/go-runc v1.2.1/go.mod h1:Azy6SkBcIFMSMYiYUuSQhZ25zD3zJEYYbbIVplhYD7M=
 github.com/containerd/log v0.1.0 h1:TCJt7ioM2cr/tfR8GPbGf9/VRAX8D2B4PjzCpfX540I=
 github.com/containerd/log v0.1.0/go.mod h1:VRRf09a7mHDIRezVKTRCrOq78v577GXq3bSa3EhrzVo=
+github.com/containerd/log/otel v0.1.0 h1:Az5rFFo0+c4v2yC8ROR63sWsZpKl/vhtUnUhqLSpE6U=
+github.com/containerd/log/otel v0.1.0/go.mod h1:65C5iYF2xIQByCyxzoO2KKKK1+/tGxD4XqhdlrTtvzE=
 github.com/containerd/nri v0.12.2 h1:piA7h2QUm0m3+e994qWFPYwnoXXwAphwDc1Ydx1eWi4=
 github.com/containerd/nri v0.12.2/go.mod h1:o6Pz0I/iks9g2KlH3WdgvFtc9rB7k0aeoZCAH01xOGk=
 github.com/containerd/nydus-snapshotter v0.15.15 h1:kVYbFpYA4K43qxGVoc/VBwRXLAVWn4X9mdwGrR+HsLk=
