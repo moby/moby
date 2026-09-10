@@ -98,11 +98,18 @@ func testNftabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 	checkResults := func(family, name string, en bool) {
 		t.Helper()
 		res := icmd.RunCommand("nft", "list", "table", family, dockerTable)
+		out := res.Combined()
 		if !en {
-			assert.Assert(t, is.Contains(res.Combined(), "No such file or directory"))
+			assert.Assert(t, is.Contains(out, "No such file or directory"))
 			return
 		}
-		out := strings.ReplaceAll(res.Combined(), "type nat hook output priority -100", "type nat hook output priority dstnat")
+		// nftables before v1.0.9 don't stringify the dstnat priority for an
+		// output hook, and print its numeric value (-100) instead. Normalize the
+		// output for stable test results.
+		//
+		// - https://git.netfilter.org/nftables/commit/?id=8beafab74c391130fbb9111bfccab8613644e3b9
+		// - https://github.com/moby/moby/pull/50745 / https://github.com/moby/moby/commit/fbde2bcb9a8a8fcf06cc6fe1675560cf46237e7b
+		out = strings.ReplaceAll(out, "type nat hook output priority -100", "type nat hook output priority dstnat")
 		assert.Assert(t, res.Error, out)
 		golden.Assert(t, out, name+"__"+family+".golden")
 	}
