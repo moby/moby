@@ -424,14 +424,14 @@ func TestWithHTTPClient(t *testing.T) {
 		cmpopts.EquateComparable(&cookiejar.Jar{}))
 }
 
-func TestWithResponseHook(t *testing.T) {
+func TestWithHTTPResponseHook(t *testing.T) {
 	const hdrKey = "X-Test-Header"
 	const hdrVal = "hello-world"
 
 	t.Run("single hook", func(t *testing.T) {
 		var got string
 		c, err := New(
-			WithResponseHook(func(resp *http.Response) {
+			WithHTTPResponseHook(func(resp *http.Response) {
 				got = resp.Header.Get(hdrKey)
 			}),
 			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
@@ -453,7 +453,7 @@ func TestWithResponseHook(t *testing.T) {
 	})
 
 	t.Run("invalid hook", func(t *testing.T) {
-		_, err := New(WithResponseHook(nil))
+		_, err := New(WithHTTPResponseHook(nil))
 		assert.Error(t, err, "invalid response hook: hook is nil")
 	})
 
@@ -461,10 +461,10 @@ func TestWithResponseHook(t *testing.T) {
 		var triggered []string
 
 		c, err := New(
-			WithResponseHook(func(*http.Response) {
+			WithHTTPResponseHook(func(*http.Response) {
 				triggered = append(triggered, "hook 1: "+hdrVal)
 			}),
-			WithResponseHook(func(*http.Response) {
+			WithHTTPResponseHook(func(*http.Response) {
 				triggered = append(triggered, "hook 2: "+hdrVal)
 			}),
 			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
