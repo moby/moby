@@ -21,7 +21,7 @@ func (daemon *Daemon) validateBuildkitConfig(features map[string]bool) error {
 }
 
 // BuilderVersion returns the daemon's recommended builder version.
-// BuildKit is preferred except on Windows.
+// BuildKit is preferred except on Windows with the classic image store.
 // This is only a recommendation; clients choose which builder to use.
 //
 // Setting features.buildkit=false is an escape hatch to recommend the classic
@@ -35,7 +35,7 @@ func (daemon *Daemon) BuilderVersion() build.BuilderVersion {
 		}
 		return build.BuilderV1
 	}
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == "windows" && !daemon.usesSnapshotter {
 		return build.BuilderV1
 	}
 	return build.BuilderBuildKit

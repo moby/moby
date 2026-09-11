@@ -12,9 +12,9 @@ import (
 func TestBuilderVersion(t *testing.T) {
 	t.Parallel()
 
-	defaultVersion := build.BuilderBuildKit
+	classicStoreDefault := build.BuilderBuildKit
 	if runtime.GOOS == "windows" {
-		defaultVersion = build.BuilderV1
+		classicStoreDefault = build.BuilderV1
 	}
 
 	for _, tc := range []struct {
@@ -25,12 +25,12 @@ func TestBuilderVersion(t *testing.T) {
 	}{
 		{
 			name:     "classic image store default",
-			expected: defaultVersion,
+			expected: classicStoreDefault,
 		},
 		{
 			name:           "containerd image store default",
 			useSnapshotter: true,
-			expected:       defaultVersion,
+			expected:       build.BuilderBuildKit,
 		},
 		{
 			name:     "classic image store with buildkit enabled",
@@ -57,13 +57,13 @@ func TestBuilderVersion(t *testing.T) {
 		{
 			name:     "classic image store with mismatched feature flag",
 			features: map[string]bool{"containerd-snapshotter": true},
-			expected: defaultVersion,
+			expected: classicStoreDefault,
 		},
 		{
 			name:           "containerd image store with mismatched feature flag",
 			features:       map[string]bool{"containerd-snapshotter": false},
 			useSnapshotter: true,
-			expected:       defaultVersion,
+			expected:       build.BuilderBuildKit,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
