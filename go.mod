@@ -32,7 +32,7 @@ require (
 	github.com/containerd/continuity v0.5.0
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/fifo v1.1.0
-	github.com/containerd/log v0.1.0
+	github.com/containerd/log v0.2.0
 	github.com/containerd/log/otel v0.1.0
 	github.com/containerd/nri v0.12.2
 	github.com/containerd/platforms v1.0.0-rc.5
