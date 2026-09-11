@@ -1268,8 +1268,9 @@ type addrConn struct {
 
 	channelz *channelz.SubChannel
 
-	localityLabel       string
-	backendServiceLabel string
+	localityLabel        string
+	backendServiceLabel  string
+	disconnectErrorLabel string
 }
 
 // Note: this requires a lock on ac.mu.
@@ -1286,9 +1287,14 @@ func (ac *addrConn) updateConnectivityState(s connectivity.State, lastErr error)
 	// TODO: https://github.com/grpc/grpc-go/issues/7862 - Remove the second
 	// part of the if condition below once the issue is fixed.
 	if ac.state == connectivity.Ready || (ac.state == connectivity.Connecting && s == connectivity.Idle) {
-		disconnectionsMetric.Record(ac.cc.metricsRecorderList, 1, ac.cc.target, ac.backendServiceLabel, ac.localityLabel, "unknown")
+		disconnectError := ac.disconnectErrorLabel
+		if disconnectError == "" {
+			disconnectError = "unknown"
+		}
+		disconnectionsMetric.Record(ac.cc.metricsRecorderList, 1, ac.cc.target, ac.backendServiceLabel, ac.localityLabel, disconnectError)
 		openConnectionsMetric.Record(ac.cc.metricsRecorderList, -1, ac.cc.target, ac.backendServiceLabel, ac.securityLevelLocked(), ac.localityLabel)
 	}
+	ac.disconnectErrorLabel = "" // Reset for next time
 	ac.state = s
 	ac.channelz.ChannelMetrics.State.Store(&s)
 	if lastErr == nil {
@@ -1483,11 +1489,11 @@ func (ac *addrConn) createTransport(ctx context.Context, addr resolver.Address, 
 	addr.ServerName = ac.cc.getServerName(addr)
 	hctx, hcancel := context.WithCancel(ctx)
 
-	onClose := func(r transport.GoAwayReason) {
+	onClose := func(info transport.GoAwayInfo) {
 		ac.mu.Lock()
 		defer ac.mu.Unlock()
 		// adjust params based on GoAwayReason
-		ac.adjustParams(r)
+		ac.adjustParams(info.Reason)
 		if ctx.Err() != nil {
 			// Already shut down or connection attempt canceled.  tearDown() or
 			// updateAddrs() already cleared the transport and canceled hctx
@@ -1504,6 +1510,7 @@ func (ac *addrConn) createTransport(ctx context.Context, addr resolver.Address, 
 			return
 		}
 		ac.transport = nil
+		ac.disconnectErrorLabel = disconnectErrorString(info)
 		// Refresh the name resolver on any connection loss.
 		ac.cc.resolveNow(resolver.ResolveNowOptions{})
 		// Always go idle and wait for the LB policy to initiate a new
@@ -1558,6 +1565,19 @@ func (ac *addrConn) createTransport(ctx context.Context, addr resolver.Address, 
 	ac.transport = newTr
 	ac.startHealthCheck(hctx) // Will set state to READY if appropriate.
 	return nil
+}
+
+// disconnectErrorString returns the grpc.disconnect_error metric label corresponding
+// to the provided transport.GoAwayInfo, as specified by gRFC A94:
+// https://github.com/grpc/proposal/blob/master/A94-grpc-subchannel-disconnections-metrics.md
+func disconnectErrorString(info transport.GoAwayInfo) string {
+	if info.Reason != transport.GoAwayInvalid {
+		return fmt.Sprintf("GOAWAY %s", info.GoAwayCode.String())
+	}
+	if info.Err == nil {
+		return "unknown"
+	}
+	return disconnectErrorLabel(info.Err)
 }
 
 // startHealthCheck starts the health checking stream (RPC) to watch the health
@@ -1663,6 +1683,9 @@ func (ac *addrConn) tearDown(err error) {
 	}
 	curTr := ac.transport
 	ac.transport = nil
+	if ac.disconnectErrorLabel == "" {
+		ac.disconnectErrorLabel = "subchannel shutdown"
+	}
 	// We have to set the state to Shutdown before anything else to prevent races
 	// between setting the state and logic that waits on context cancellation / etc.
 	ac.updateConnectivityState(connectivity.Shutdown, nil)

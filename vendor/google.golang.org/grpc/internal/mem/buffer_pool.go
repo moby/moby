@@ -26,11 +26,25 @@ import (
 	"slices"
 	"sort"
 	"sync"
+
+	"google.golang.org/grpc/internal"
 )
 
 const (
 	goPageSize = 4 * 1024 // 4KiB. N.B. this must be a power of 2.
 )
+
+var (
+	// BufferPoolingThreshold is the minimum size of a buffer that can be pooled.
+	// This is used to determine whether to pool buffers or allocate them directly.
+	BufferPoolingThreshold = 1 << 10
+)
+
+func init() {
+	internal.SetBufferPoolingThresholdForTesting = func(threshold int) {
+		BufferPoolingThreshold = threshold
+	}
+}
 
 var uintSize = bits.UintSize // use a variable for mocking during tests.
 
@@ -73,7 +87,7 @@ type BinaryTieredBufferPool struct {
 func NewBinaryTieredBufferPool(powerOfTwoExponents ...uint8) (*BinaryTieredBufferPool, error) {
 	return newBinaryTiered(func(size int) bufferPool {
 		return newSizedBufferPool(size, true)
-	}, &simpleBufferPool{shouldZero: true}, powerOfTwoExponents...)
+	}, &SimpleBufferPool{shouldZero: true}, powerOfTwoExponents...)
 }
 
 // NewDirtyBinaryTieredBufferPool returns a BufferPool backed by multiple
@@ -82,7 +96,7 @@ func NewBinaryTieredBufferPool(powerOfTwoExponents ...uint8) (*BinaryTieredBuffe
 func NewDirtyBinaryTieredBufferPool(powerOfTwoExponents ...uint8) (*BinaryTieredBufferPool, error) {
 	return newBinaryTiered(func(size int) bufferPool {
 		return newSizedBufferPool(size, false)
-	}, &simpleBufferPool{shouldZero: false}, powerOfTwoExponents...)
+	}, NewDirtySimplePool(), powerOfTwoExponents...)
 }
 
 func newBinaryTiered(sizedPoolFactory func(int) bufferPool, fallbackPool bufferPool, powerOfTwoExponents ...uint8) (*BinaryTieredBufferPool, error) {
@@ -258,7 +272,7 @@ func newSizedBufferPool(size int, zero bool) *sizedBufferPool {
 // buffer pools for different sizes of buffers.
 type TieredBufferPool struct {
 	sizedPools   []*sizedBufferPool
-	fallbackPool simpleBufferPool
+	fallbackPool SimpleBufferPool
 }
 
 // NewTieredBufferPool returns a BufferPool implementation that uses multiple
@@ -271,7 +285,7 @@ func NewTieredBufferPool(poolSizes ...int) *TieredBufferPool {
 	}
 	return &TieredBufferPool{
 		sizedPools:   pools,
-		fallbackPool: simpleBufferPool{shouldZero: true},
+		fallbackPool: SimpleBufferPool{shouldZero: true},
 	}
 }
 
@@ -297,16 +311,26 @@ func (p *TieredBufferPool) getPool(size int) bufferPool {
 	return p.sizedPools[poolIdx]
 }
 
-// simpleBufferPool is an implementation of the BufferPool interface that
+// SimpleBufferPool is an implementation of the mem.BufferPool interface that
 // attempts to pool buffers with a sync.Pool. When Get is invoked, it tries to
 // acquire a buffer from the pool but if that buffer is too small, it returns it
 // to the pool and creates a new one.
-type simpleBufferPool struct {
+type SimpleBufferPool struct {
 	pool       sync.Pool
 	shouldZero bool
 }
 
-func (p *simpleBufferPool) Get(size int) *[]byte {
+// NewDirtySimplePool constructs a [SimpleBufferPool]. It does not initialize
+// the buffers before returning them. Callers must ensure they don't read the
+// buffers before writing data to them.
+func NewDirtySimplePool() *SimpleBufferPool {
+	return &SimpleBufferPool{
+		shouldZero: false,
+	}
+}
+
+// Get returns a buffer with specified length from the pool.
+func (p *SimpleBufferPool) Get(size int) *[]byte {
 	bs, ok := p.pool.Get().(*[]byte)
 	if ok && cap(*bs) >= size {
 		if p.shouldZero {
@@ -333,6 +357,7 @@ func (p *simpleBufferPool) Get(size int) *[]byte {
 	return &b
 }
 
-func (p *simpleBufferPool) Put(buf *[]byte) {
+// Put returns a buffer to the pool.
+func (p *SimpleBufferPool) Put(buf *[]byte) {
 	p.pool.Put(buf)
 }

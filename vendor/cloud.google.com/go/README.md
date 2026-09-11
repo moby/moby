@@ -24,22 +24,35 @@ Our libraries are compatible with the two most recent major Go
 releases, the same [policy](https://go.dev/doc/devel/release#policy) the Go
 programming language follows. This means the currently supported versions are:
 
-- Go 1.23
 - Go 1.24
+- Go 1.25
 
-## Authorization
+## Authentication
 
-By default, each API will use [Google Application Default Credentials](https://developers.google.com/identity/protocols/application-default-credentials)
-for authorization credentials used in calling the API endpoints. This will allow your
-application to run in many environments without requiring explicit configuration.
+By default, each client library will use [Application Default Credentials](https://developers.google.com/identity/protocols/application-default-credentials)
+(ADC) to automatically configure the credentials used in calling the API endpoint.
+When using the libraries in a Google Cloud Platform environment such as Compute
+Engine, Kubernetes Engine, or App Engine, no additional authentication steps are
+necessary. See [Authentication methods at Google](https://cloud.google.com/docs/authentication)
+and [Authenticate for using client libraries](https://cloud.google.com/docs/authentication/client-libraries)
+for more information.
 
 ```go
 client, err := storage.NewClient(ctx)
 ```
 
-To authorize using a
-[JSON key file](https://cloud.google.com/iam/docs/managing-service-account-keys),
-pass
+For applications running elsewhere, such as your local development environment,
+you can use the `gcloud auth application-default login` command from the
+[Google Cloud CLI](https://cloud.google.com/cli) to set user credentials in
+your local filesystem. Application Default Credentials will automatically detect
+these credentials. See [Set up ADC for a local development
+environment](https://cloud.google.com/docs/authentication/set-up-adc-local-dev-environment)
+for more information.
+
+Alternately, you may need to provide an explicit path to your credentials. To authenticate
+using a [service account](https://cloud.google.com/docs/authentication#service-accounts)
+key file, either set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to the path
+to your key file, or programmatically pass
 [`option.WithCredentialsFile`](https://pkg.go.dev/google.golang.org/api/option#WithCredentialsFile)
 to the `NewClient` function of the desired package. For example:
 
@@ -47,14 +60,15 @@ to the `NewClient` function of the desired package. For example:
 client, err := storage.NewClient(ctx, option.WithCredentialsFile("path/to/keyfile.json"))
 ```
 
-You can exert more control over authorization by using the
+You can exert even more control over authentication by using the
 [credentials](https://pkg.go.dev/cloud.google.com/go/auth/credentials) package to
 create an [auth.Credentials](https://pkg.go.dev/cloud.google.com/go/auth#Credentials).
 Then pass [`option.WithAuthCredentials`](https://pkg.go.dev/google.golang.org/api/option#WithAuthCredentials)
 to the `NewClient` function:
 
 ```go
-creds := ...
+creds, err := credentials.DetectDefault(&credentials.DetectOptions{...})
+...
 client, err := storage.NewClient(ctx, option.WithAuthCredentials(creds))
 ```
 

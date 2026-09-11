@@ -25,8 +25,8 @@ import (
 
 	"cloud.google.com/go/auth"
 	detect "cloud.google.com/go/auth/credentials"
-	"cloud.google.com/go/auth/internal"
 	"cloud.google.com/go/auth/internal/transport"
+	"cloud.google.com/go/auth/internal/transport/headers"
 	"github.com/googleapis/gax-go/v2/internallog"
 )
 
@@ -168,6 +168,15 @@ type InternalOptions struct {
 	// for the credentials. It should only be used internally for clients that
 	// need more control over their transport. The default is false.
 	SkipUniverseDomainValidation bool
+	// TelemetryAttributes specifies a map of telemetry attributes to be added
+	// to all OpenTelemetry signals, such as tracing and metrics, for purposes
+	// including representing the static identity of the client (e.g., service
+	// name, version). These attributes are expected to be consistent across all
+	// signals to enable cross-signal correlation.
+	//
+	// It should only be used internally by generated clients. Callers should not
+	// modify the map after it is passed in.
+	TelemetryAttributes map[string]string
 }
 
 // AddAuthorizationMiddleware adds a middleware to the provided client's
@@ -236,12 +245,10 @@ func NewClient(opts *Options) (*http.Client, error) {
 	}, nil
 }
 
-// SetAuthHeader uses the provided token to set the Authorization header on a
-// request. If the token.Type is empty, the type is assumed to be Bearer.
+// SetAuthHeader uses the provided token to set the Authorization and trust
+// boundary headers on an http.Request. If the token.Type is empty, the type is
+// assumed to be Bearer. This is the recommended way to set authorization
+// headers on a custom http.Request.
 func SetAuthHeader(token *auth.Token, req *http.Request) {
-	typ := token.Type
-	if typ == "" {
-		typ = internal.TokenTypeBearer
-	}
-	req.Header.Set("Authorization", typ+" "+token.Value)
+	headers.SetAuthHeader(token, req)
 }
