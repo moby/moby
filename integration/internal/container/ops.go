@@ -61,7 +61,7 @@ func WithNetworkMode(mode string) func(*TestContainerConfig) {
 // WithDNS sets external DNS servers for the container
 func WithDNS(dns []netip.Addr) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
-		c.HostConfig.DNS = append([]netip.Addr(nil), dns...)
+		c.HostConfig.DNS = slices.Clone(dns)
 	}
 }
 

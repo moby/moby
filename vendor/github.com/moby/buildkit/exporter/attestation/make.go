@@ -17,7 +17,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const maxAttestationBytes int64 = 40 << 20
+const maxAttestationBytes int64 = 80 << 20
 
 // ReadAll reads the content of an attestation.
 func ReadAll(ctx context.Context, s session.Group, att exporter.Attestation) ([]byte, error) {

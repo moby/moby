@@ -253,20 +253,7 @@ func (m *TaskManager) Create(ctx context.Context, taskID string, opts runtime.Cr
 		// NOTE: ctx contains required namespace information.
 		m.manager.shims.Delete(ctx, taskID)
 
-		dctx, cancel := timeout.WithContext(context.WithoutCancel(ctx), cleanupTimeout)
-		defer cancel()
-
-		sandboxed := opts.SandboxID != ""
-		_, errShim := shimTask.delete(dctx, sandboxed, func(context.Context, string) {})
-		if errShim != nil {
-			if errdefs.IsDeadlineExceeded(errShim) {
-				dctx, cancel = timeout.WithContext(context.WithoutCancel(ctx), cleanupTimeout)
-				defer cancel()
-			}
-
-			shimTask.Shutdown(dctx)
-			shimTask.Close()
-		}
+		_ = cleanupShimTask(ctx, shimTask, opts.SandboxID != "")
 
 		return nil, fmt.Errorf("failed to create shim task: %w", err)
 	}

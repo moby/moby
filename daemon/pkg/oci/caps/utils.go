@@ -40,31 +40,37 @@ func knownCapabilities() map[string]*struct{} {
 
 const allCapabilities = "ALL"
 
+// normalizeCap normalizes a capability to its canonical format by upper-casing
+// and adding a "CAP_" prefix (if not yet present). It also accepts the "ALL"
+// magic-value.
+func normalizeCap(c string) string {
+	c = strings.ToUpper(c)
+	if c != allCapabilities && !strings.HasPrefix(c, "CAP_") {
+		c = "CAP_" + c
+	}
+	return c
+}
+
 // NormalizeLegacyCapabilities normalizes, and validates CapAdd/CapDrop capabilities
 // by upper-casing them, and adding a CAP_ prefix (if not yet present).
 //
 // This function also accepts the "ALL" magic-value, that's used by CapAdd/CapDrop.
 func NormalizeLegacyCapabilities(caps []string) ([]string, error) {
-	var (
-		normalized     []string
-		capabilityList = knownCapabilities()
-	)
+	normalized := slices.Clone(caps)
+	capabilityList := knownCapabilities()
 
-	for _, c := range caps {
-		c = strings.ToUpper(c)
+	for i, c := range normalized {
+		c = normalizeCap(c)
+		normalized[i] = c
+
 		if c == allCapabilities {
-			normalized = append(normalized, c)
 			continue
-		}
-		if !strings.HasPrefix(c, "CAP_") {
-			c = "CAP_" + c
 		}
 		if v, ok := capabilityList[c]; !ok {
 			return nil, errdefs.InvalidParameter(fmt.Errorf("unknown capability: %q", c))
 		} else if v == nil {
 			return nil, errdefs.InvalidParameter(fmt.Errorf("capability not supported by your kernel or not available in the current environment: %q", c))
 		}
-		normalized = append(normalized, c)
 	}
 	return normalized, nil
 }

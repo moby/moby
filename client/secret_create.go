@@ -19,7 +19,7 @@ type SecretCreateResult struct {
 
 // SecretCreate creates a new secret.
 func (cli *Client) SecretCreate(ctx context.Context, options SecretCreateOptions) (SecretCreateResult, error) {
-	resp, err := cli.post(ctx, "/secrets/create", nil, options.Spec, nil)
+	resp, err := cli.post(ctx, "/secrets/create", nil, nil, options.Spec)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return SecretCreateResult{}, err

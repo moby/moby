@@ -2,7 +2,7 @@ package system
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/moby/moby/api/types/registry"
@@ -140,6 +140,6 @@ func TestInfoRegistryMirrors(t *testing.T) {
 	defer d.Stop(t)
 
 	info := d.Info(t)
-	sort.Strings(info.RegistryConfig.Mirrors)
+	slices.Sort(info.RegistryConfig.Mirrors)
 	assert.DeepEqual(t, info.RegistryConfig.Mirrors, []string{registryMirror2 + "/", registryMirror1 + "/"})
 }

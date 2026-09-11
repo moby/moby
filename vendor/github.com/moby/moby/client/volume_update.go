@@ -31,7 +31,7 @@ func (cli *Client) VolumeUpdate(ctx context.Context, volumeID string, options Vo
 	query := url.Values{}
 	query.Set("version", options.Version.String())
 
-	resp, err := cli.put(ctx, "/volumes/"+volumeID, query, options, nil)
+	resp, err := cli.put(ctx, "/volumes/"+volumeID, query, nil, options)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return VolumeUpdateResult{}, err

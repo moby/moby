@@ -46,7 +46,7 @@ func (cli *Client) ImageImport(ctx context.Context, source ImageImportSource, re
 		query.Add("changes", change)
 	}
 
-	resp, err := cli.postRaw(ctx, "/images/create", query, source.Source, nil)
+	resp, err := cli.postRaw(ctx, "/images/create", query, nil, source.Source)
 	if err != nil {
 		return nil, err
 	}

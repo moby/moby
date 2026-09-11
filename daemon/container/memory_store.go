@@ -1,6 +1,8 @@
 package container
 
 import (
+	"maps"
+	"slices"
 	"sync"
 )
 
@@ -44,8 +46,10 @@ func (c *memoryStore) Delete(id string) {
 // List returns a sorted list of containers from the store.
 // The containers are ordered by creation date.
 func (c *memoryStore) List() []*Container {
-	containers := History(c.all())
-	containers.sort()
+	containers := c.all()
+	slices.SortFunc(containers, func(a, b *Container) int {
+		return b.Created.Compare(a.Created)
+	})
 	return containers
 }
 
@@ -70,26 +74,20 @@ func (c *memoryStore) First(filter StoreFilter) *Container {
 // This operation is asynchronous in the memory store.
 // NOTE: Modifications to the store MUST NOT be done by the StoreReducer.
 func (c *memoryStore) ApplyAll(apply StoreReducer) {
-	wg := new(sync.WaitGroup)
+	var wg sync.WaitGroup
 	for _, cont := range c.all() {
-		wg.Add(1)
-		go func(container *Container) {
-			apply(container)
-			wg.Done()
-		}(cont)
+		wg.Go(func() {
+			apply(cont)
+		})
 	}
-
 	wg.Wait()
 }
 
 func (c *memoryStore) all() []*Container {
 	c.RLock()
-	containers := make([]*Container, 0, len(c.s))
-	for _, cont := range c.s {
-		containers = append(containers, cont)
-	}
-	c.RUnlock()
-	return containers
+	defer c.RUnlock()
+
+	return slices.Collect(maps.Values(c.s))
 }
 
 var _ Store = &memoryStore{}

@@ -184,6 +184,70 @@ func TestContainerList_NameFilter(t *testing.T) {
 	assert.Assert(t, containerListContainsName(containerListWithPrefix, three.Name))
 }
 
+func TestContainerList_AnnotationFilter(t *testing.T) {
+	db, err := container.NewViewDB()
+	assert.NilError(t, err)
+	d := &Daemon{
+		containersReplica: db,
+	}
+
+	one := setupContainerWithName(t, "a1", d)
+	one.HostConfig.Annotations = map[string]string{"annotation1": "value1"}
+	assert.NilError(t, db.Save(one))
+
+	two := setupContainerWithName(t, "a2", d)
+	two.HostConfig.Annotations = map[string]string{"annotation1": "value2", "annotation2": "value1"}
+	assert.NilError(t, db.Save(two))
+
+	// no annotations
+	three := setupContainerWithName(t, "b1", d)
+
+	tests := []struct {
+		doc      string
+		filters  []filters.KeyValuePair
+		expected []string
+	}{
+		{
+			doc:      "by key",
+			filters:  []filters.KeyValuePair{filters.Arg("annotation", "annotation1")},
+			expected: []string{one.Name, two.Name},
+		},
+		{
+			doc:      "by key and value",
+			filters:  []filters.KeyValuePair{filters.Arg("annotation", "annotation1=value1")},
+			expected: []string{one.Name},
+		},
+		{
+			doc: "multiple annotations",
+			filters: []filters.KeyValuePair{
+				filters.Arg("annotation", "annotation1"),
+				filters.Arg("annotation", "annotation2=value1"),
+			},
+			expected: []string{two.Name},
+		},
+		{
+			doc:      "no match",
+			filters:  []filters.KeyValuePair{filters.Arg("annotation", "annotation1=other")},
+			expected: []string{},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			containerList, err := d.Containers(context.Background(), &backend.ContainerListOptions{
+				All:     true,
+				Filters: filters.NewArgs(tc.filters...),
+			})
+			assert.NilError(t, err)
+			assert.Assert(t, is.Len(containerList, len(tc.expected)))
+			for _, name := range tc.expected {
+				assert.Assert(t, containerListContainsName(containerList, name))
+			}
+			assert.Assert(t, !containerListContainsName(containerList, three.Name))
+		})
+	}
+}
+
 func TestContainerList_LimitFilter(t *testing.T) {
 	db, err := container.NewViewDB()
 	assert.NilError(t, err)

@@ -95,7 +95,7 @@ type Image interface {
 	ImageID() string
 	RunConfig() *container.Config
 	MarshalJSON() ([]byte, error)
-	OperatingSystem() string
+	Platform() ocispec.Platform
 }
 
 // ROLayer is a reference to image rootfs layer

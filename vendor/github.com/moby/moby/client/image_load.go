@@ -42,9 +42,8 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, loadOpts ...I
 		query["platform"] = p
 	}
 
-	resp, err := cli.postRaw(ctx, "/images/load", query, input, http.Header{
-		"Content-Type": {"application/x-tar"},
-	})
+	headers := http.Header{"Content-Type": {"application/x-tar"}}
+	resp, err := cli.postRaw(ctx, "/images/load", query, headers, input)
 	if err != nil {
 		return nil, err
 	}

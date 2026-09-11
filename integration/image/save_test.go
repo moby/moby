@@ -8,12 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/cpuguy83/tar2go"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/go-archive/compression"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/versions"
@@ -470,9 +470,9 @@ func TestSaveRepoWithMultipleImages(t *testing.T) {
 			assert.Check(t, err)
 		}
 	} else {
-		sort.Strings(actual)
-		sort.Strings(expected)
-		assert.Assert(t, is.DeepEqual(actual, expected), "archive does not contains the right layers: got %v, expected %v", actual, expected)
+		assert.Assert(t, is.DeepEqual(actual, expected, cmpopts.SortSlices(func(a, b string) bool {
+			return a < b
+		})), "archive does not contain the right layers")
 	}
 }
 

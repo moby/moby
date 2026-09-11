@@ -30,11 +30,10 @@ func (cli *Client) NetworkDisconnect(ctx context.Context, networkID string, opti
 		return NetworkDisconnectResult{}, err
 	}
 
-	req := network.DisconnectRequest{
+	resp, err := cli.post(ctx, "/networks/"+networkID+"/disconnect", nil, nil, network.DisconnectRequest{
 		Container: containerID,
 		Force:     options.Force,
-	}
-	resp, err := cli.post(ctx, "/networks/"+networkID+"/disconnect", nil, req, nil)
+	})
 	defer ensureReaderClosed(resp)
 	return NetworkDisconnectResult{}, err
 }

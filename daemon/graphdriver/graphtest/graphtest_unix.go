@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/docker/go-units"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/go-archive"
 	"github.com/moby/moby/v2/daemon/graphdriver"
 	"github.com/moby/moby/v2/daemon/internal/quota"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
@@ -85,7 +87,11 @@ func DriverTestCreateEmpty(t testing.TB, drivername string, driverOptions ...str
 	driver := GetDriver(t, drivername, driverOptions...)
 	defer PutDriver(t)
 
+	// The daemon clears its umask, so drivers must set modes explicitly instead
+	// of relying on the umask to strip the group/other-write bits.
+	oldmask := unix.Umask(0)
 	err := driver.Create("empty", "", nil)
+	unix.Umask(oldmask)
 	assert.NilError(t, err)
 
 	defer func() {
@@ -289,9 +295,12 @@ func DriverTestChanges(t testing.TB, drivername string, driverOptions ...string)
 		t.Fatal(err)
 	}
 
-	if err = checkChanges(expectedChanges, changes); err != nil {
-		t.Fatal(err)
-	}
+	assert.DeepEqual(t, changes, expectedChanges, cmpopts.SortSlices(func(a, b archive.Change) bool {
+		if a.Path != b.Path {
+			return a.Path < b.Path
+		}
+		return a.Kind < b.Kind
+	}))
 }
 
 func writeRandomFile(path string, size uint64) error {

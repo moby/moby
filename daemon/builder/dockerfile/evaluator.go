@@ -22,6 +22,7 @@ package dockerfile
 import (
 	"context"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -216,7 +217,10 @@ func (s *dispatchState) hasFromImage() bool {
 func (s *dispatchState) beginStage(stageName string, img builder.Image) error {
 	s.stageName = stageName
 	s.imageID = img.ImageID()
-	s.operatingSystem = img.OperatingSystem()
+	s.operatingSystem = img.Platform().OS
+	if s.operatingSystem == "" {
+		s.operatingSystem = runtime.GOOS
+	}
 	if err := image.CheckOS(s.operatingSystem); err != nil {
 		return err
 	}

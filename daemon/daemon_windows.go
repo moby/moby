@@ -171,6 +171,9 @@ func verifyPlatformContainerSettings(daemon *Daemon, daemonCfg *configStore, hos
 	if hostConfig == nil {
 		return nil, nil
 	}
+	if hostConfig.Umask != nil {
+		return nil, errors.New("invalid option: Windows does not support Umask")
+	}
 	return verifyPlatformContainerResources(&hostConfig.Resources, daemon.runAsHyperVContainer(hostConfig))
 }
 

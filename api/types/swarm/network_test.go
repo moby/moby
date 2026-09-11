@@ -6,7 +6,6 @@ import (
 
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/swarm"
-	"gotest.tools/v3/assert"
 )
 
 func TestPortConfigCompareSort(t *testing.T) {
@@ -88,7 +87,9 @@ func TestPortConfigCompareSort(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			got := slices.Clone(tc.ports)
 			slices.SortFunc(got, swarm.PortConfig.Compare)
-			assert.DeepEqual(t, tc.expected, got)
+			if !slices.Equal(got, tc.expected) {
+				t.Errorf("sorted ports = %#v, want %#v", got, tc.expected)
+			}
 		})
 	}
 }

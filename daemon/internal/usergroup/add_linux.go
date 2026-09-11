@@ -1,10 +1,11 @@
 package usergroup
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"os/exec"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -135,8 +136,7 @@ func findNextUIDRange() (int, error) {
 	if err != nil {
 		return -1, fmt.Errorf("couldn't parse all ranges in /etc/subuid file: %v", err)
 	}
-	sortRanges(ranges)
-	return findNextRangeStart(ranges)
+	return findNextRangeStart(ranges), nil
 }
 
 func findNextGIDRange() (int, error) {
@@ -144,32 +144,21 @@ func findNextGIDRange() (int, error) {
 	if err != nil {
 		return -1, fmt.Errorf("couldn't parse all ranges in /etc/subgid file: %v", err)
 	}
-	sortRanges(ranges)
-	return findNextRangeStart(ranges)
+	return findNextRangeStart(ranges), nil
 }
 
-func sortRanges(ranges []user.SubID) {
-	sort.Slice(ranges, func(i, j int) bool {
-		return ranges[i].SubID < ranges[j].SubID
+// findNextRangeStart returns the first available subordinate ID range start.
+// The input ranges are sorted in-place by their starting ID.
+func findNextRangeStart(rangeList []user.SubID) int {
+	slices.SortFunc(rangeList, func(a, b user.SubID) int {
+		return cmp.Compare(a.SubID, b.SubID)
 	})
-}
 
-func findNextRangeStart(rangeList []user.SubID) (int, error) {
 	var startID int64 = defaultRangeStart
 	for _, arange := range rangeList {
-		if wouldOverlap(arange, startID) {
+		if startID < arange.SubID+arange.Count && arange.SubID < startID+defaultRangeLen {
 			startID = arange.SubID + arange.Count
 		}
 	}
-	return int(startID), nil
-}
-
-func wouldOverlap(arange user.SubID, ID int64) bool {
-	low := ID
-	high := low + defaultRangeLen
-	if (low >= arange.SubID && low <= arange.SubID+arange.Count) ||
-		(high <= arange.SubID+arange.Count && high >= arange.SubID) {
-		return true
-	}
-	return false
+	return int(startID)
 }

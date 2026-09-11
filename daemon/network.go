@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/netip"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -607,28 +606,18 @@ func (daemon *Daemon) GetNetworkDriverList(ctx context.Context) []string {
 
 	pluginList := daemon.netController.BuiltinDrivers()
 
-	managedPlugins := daemon.PluginStore.GetAllManagedPluginsByCap(driverapi.NetworkPluginEndpointType)
-
-	for _, plugin := range managedPlugins {
+	for _, plugin := range daemon.PluginStore.GetAllManagedPluginsByCap(driverapi.NetworkPluginEndpointType) {
 		pluginList = append(pluginList, plugin.Name())
 	}
 
-	pluginMap := make(map[string]bool)
-	for _, plugin := range pluginList {
-		pluginMap[plugin] = true
-	}
-
-	networks := daemon.netController.Networks(ctx)
-
-	for _, nw := range networks {
-		if !pluginMap[nw.Type()] {
-			pluginList = append(pluginList, nw.Type())
-			pluginMap[nw.Type()] = true
+	pluginList = sliceutil.Dedup(pluginList)
+	for _, nw := range daemon.netController.Networks(ctx) {
+		if typ := nw.Type(); !slices.Contains(pluginList, typ) {
+			pluginList = append(pluginList, typ)
 		}
 	}
 
-	sort.Strings(pluginList)
-
+	slices.Sort(pluginList)
 	return pluginList
 }
 

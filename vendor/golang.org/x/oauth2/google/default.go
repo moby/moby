@@ -253,7 +253,7 @@ func FindDefaultCredentialsWithParams(ctx context.Context, params CredentialsPar
 	if metadata.OnGCE() {
 		id, _ := metadata.ProjectID()
 		universeDomainProvider := func() (string, error) {
-			universeDomain, err := metadata.Get("universe/universe_domain")
+			universeDomain, err := metadata.Get("universe/universe-domain")
 			if err != nil {
 				if _, ok := err.(metadata.NotDefinedError); ok {
 					// http.StatusNotFound (404)

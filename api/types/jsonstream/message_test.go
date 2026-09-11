@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/jsonstream"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 // TestMessageMarshal is a sanity-check to make sure the struct is
@@ -29,8 +27,12 @@ func TestMessageMarshal(t *testing.T) {
 		Error: &jsonstream.Error{Code: http.StatusBadRequest, Message: "error message"},
 		Aux:   &auxM,
 	})
-	assert.NilError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	const expected = `{"stream":"stream","status":"status","progressDetail":{"current":1,"total":2,"start":94777200,"hidecounts":true,"units":"lightyear"},"id":"id","errorDetail":{"code":400,"message":"error message"},"aux":{"aux":"aux"}}`
-	assert.Assert(t, is.Equal(string(b), expected))
+	if got := string(b); got != expected {
+		t.Errorf("json.Marshal() = %q, want %q", got, expected)
+	}
 }

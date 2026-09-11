@@ -1,13 +1,12 @@
-package authconfig
+package authconfig_test
 
 import (
 	"encoding/base64"
 	"strings"
 	"testing"
 
+	"github.com/moby/moby/api/pkg/authconfig"
 	"github.com/moby/moby/api/types/registry"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestDecodeAuthConfig(t *testing.T) {
@@ -106,16 +105,30 @@ func TestDecodeAuthConfig(t *testing.T) {
 				if !strings.HasSuffix(tc.inputBase64, "=") {
 					b64 = strings.TrimRight(b64, "=")
 				}
-				assert.Check(t, is.Equal(b64, tc.inputBase64))
+				if b64 != tc.inputBase64 {
+					t.Errorf("base64 fixture = %q, want %q", b64, tc.inputBase64)
+				}
 			}
 
-			out, err := Decode(tc.inputBase64)
+			out, err := authconfig.Decode(tc.inputBase64)
 			if tc.expectedErr != "" {
-				assert.Check(t, is.ErrorType(err, errInvalidParameter{}))
-				assert.Check(t, is.Error(err, tc.expectedErr))
-			} else {
-				assert.NilError(t, err)
-				assert.Equal(t, *out, tc.expected)
+				if err == nil {
+					t.Errorf("Decode(%q) error = nil, want %q", tc.inputBase64, tc.expectedErr)
+				} else {
+					if _, ok := err.(interface{ InvalidParameter() }); !ok {
+						t.Errorf("Decode(%q) error = %T, want invalid-parameter error", tc.inputBase64, err)
+					}
+					if err.Error() != tc.expectedErr {
+						t.Errorf("Decode(%q) error = %q, want %q", tc.inputBase64, err, tc.expectedErr)
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Decode(%q) error = %v", tc.inputBase64, err)
+			}
+			if *out != tc.expected {
+				t.Errorf("Decode(%q) = %+v, want %+v", tc.inputBase64, *out, tc.expected)
 			}
 		})
 	}
@@ -152,16 +165,26 @@ func TestEncodeAuthConfig(t *testing.T) {
 	for _, tc := range tests {
 		// Sanity check to make sure our fixtures are correct.
 		b64 := base64.URLEncoding.EncodeToString([]byte(tc.outPlain))
-		assert.Check(t, is.Equal(b64, tc.outBase64))
+		if b64 != tc.outBase64 {
+			t.Errorf("base64 fixture = %q, want %q", b64, tc.outBase64)
+		}
 
 		t.Run(tc.doc, func(t *testing.T) {
-			out, err := Encode(tc.input)
-			assert.NilError(t, err)
-			assert.Equal(t, out, tc.outBase64)
+			out, err := authconfig.Encode(tc.input)
+			if err != nil {
+				t.Fatalf("Encode(%+v) error = %v", tc.input, err)
+			}
+			if out != tc.outBase64 {
+				t.Errorf("Encode(%+v) = %q, want %q", tc.input, out, tc.outBase64)
+			}
 
 			authJSON, err := base64.URLEncoding.DecodeString(out)
-			assert.NilError(t, err)
-			assert.Equal(t, string(authJSON), tc.outPlain)
+			if err != nil {
+				t.Fatalf("DecodeString(%q) error = %v", out, err)
+			}
+			if got := string(authJSON); got != tc.outPlain {
+				t.Errorf("decoded auth JSON = %q, want %q", got, tc.outPlain)
+			}
 		})
 	}
 }
@@ -200,7 +223,7 @@ func BenchmarkDecodeAuthConfig(b *testing.B) {
 		b.Run(tc.doc, func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				_, err := Decode(tc.inputBase64)
+				_, err := authconfig.Decode(tc.inputBase64)
 				if !tc.invalid && err != nil {
 					b.Fatal(err)
 				}

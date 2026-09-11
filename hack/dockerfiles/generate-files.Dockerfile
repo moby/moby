@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.26.7
+ARG GO_VERSION=1.26.8
 ARG BASE_DEBIAN_DISTRO="bookworm"
 ARG PROTOC_VERSION=3.11.4
 
@@ -43,7 +43,6 @@ RUN --mount=from=src,source=/out,target=.,rw \
 EOT
 
 FROM tools AS generated
-ENV GO111MODULE=off
 RUN --mount=from=src,source=/out,target=.,rw <<EOT
   set -ex
   go generate -v ./...

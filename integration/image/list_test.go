@@ -8,13 +8,16 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
+	buildtypes "github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/versions"
+	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
@@ -99,6 +102,12 @@ func TestImagesFilterUntil(t *testing.T) {
 	assert.DeepEqual(t, listedIDs, imgs[1:2], cmpopts.SortSlices(func(a, b string) bool { return a < b }))
 }
 
+// TestImagesFilterBeforeSince verifies that the before and since filters
+// select images relative to another image, referenced either by name or ID,
+// and that matching images are returned in newest-first order.
+//
+// These filters were originally added in
+// https://github.com/moby/moby/pull/22908.
 func TestImagesFilterBeforeSince(t *testing.T) {
 	ctx := setupTest(t)
 
@@ -107,33 +116,94 @@ func TestImagesFilterBeforeSince(t *testing.T) {
 	name := strings.ToLower(t.Name())
 	ctr := container.Create(ctx, t, apiClient, container.WithName(name))
 
-	imgs := make([]string, 5)
+	imgs := make([]string, 3)
+	refs := make([]string, len(imgs))
 	for i := range imgs {
 		if i > 0 {
-			// Make sure each image has a distinct timestamp.
-			time.Sleep(time.Millisecond)
+			// Make sure each image has a distinct timestamp. The ImageList API
+			// sorts by created timestamp, truncated to 1-second precision.
+			time.Sleep(time.Second)
 		}
-		id, err := apiClient.ContainerCommit(ctx, ctr, client.ContainerCommitOptions{Reference: fmt.Sprintf("%s:v%d", name, i)})
+
+		refs[i] = fmt.Sprintf("%s:v%d", name, i)
+		img, err := apiClient.ContainerCommit(ctx, ctr, client.ContainerCommitOptions{
+			Reference: refs[i],
+		})
 		assert.NilError(t, err)
-		imgs[i] = id.ID
+		imgs[i] = img.ID
 	}
 
-	filter := make(client.Filters).
-		Add("since", imgs[0]).
-		Add("before", imgs[len(imgs)-1])
-	list, err := apiClient.ImageList(ctx, client.ImageListOptions{Filters: filter})
-	assert.NilError(t, err)
-
-	var listedIDs []string
-	for _, i := range list.Items {
-		t.Logf("ImageList: ID=%v RepoTags=%v", i.ID, i.RepoTags)
-		listedIDs = append(listedIDs, i.ID)
+	tests := []struct {
+		name    string
+		filters client.Filters
+		want    []string
+	}{
+		{
+			name:    "since first reference",
+			filters: make(client.Filters).Add("since", refs[0]),
+			want:    []string{imgs[2], imgs[1]},
+		},
+		{
+			name:    "since first ID",
+			filters: make(client.Filters).Add("since", imgs[0]),
+			want:    []string{imgs[2], imgs[1]},
+		},
+		{
+			name:    "since second reference",
+			filters: make(client.Filters).Add("since", refs[1]),
+			want:    []string{imgs[2]},
+		},
+		{
+			name:    "since second ID",
+			filters: make(client.Filters).Add("since", imgs[1]),
+			want:    []string{imgs[2]},
+		},
+		{
+			name:    "before third reference",
+			filters: make(client.Filters).Add("before", refs[2]),
+			want:    []string{imgs[1], imgs[0]},
+		},
+		{
+			name:    "before third ID",
+			filters: make(client.Filters).Add("before", imgs[2]),
+			want:    []string{imgs[1], imgs[0]},
+		},
+		{
+			name:    "before second reference",
+			filters: make(client.Filters).Add("before", refs[1]),
+			want:    []string{imgs[0]},
+		},
+		{
+			name:    "before second ID",
+			filters: make(client.Filters).Add("before", imgs[1]),
+			want:    []string{imgs[0]},
+		},
+		{
+			name: "since and before",
+			filters: make(client.Filters).
+				Add("since", imgs[0]).
+				Add("before", imgs[2]),
+			want: []string{imgs[1]},
+		},
 	}
-	// The ImageList API sorts the list by created timestamp... truncated to
-	// 1-second precision. Since all the images were created within
-	// milliseconds of each other, listedIDs is effectively unordered and
-	// the assertion must therefore be order-independent.
-	assert.DeepEqual(t, listedIDs, imgs[1:len(imgs)-1], cmpopts.SortSlices(func(a, b string) bool { return a < b }))
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			list, err := apiClient.ImageList(ctx, client.ImageListOptions{
+				Filters: tc.filters,
+			})
+			assert.NilError(t, err)
+
+			var got []string
+			for _, img := range list.Items {
+				if slices.Contains(imgs, img.ID) {
+					got = append(got, img.ID)
+				}
+			}
+
+			assert.DeepEqual(t, tc.want, got)
+		})
+	}
 }
 
 func TestAPIImagesFilters(t *testing.T) {
@@ -321,5 +391,160 @@ func TestAPIImagesListManifests(t *testing.T) {
 
 			assert.Check(t, is.DeepEqual(mfst.ImageData.Containers, []string{cid}))
 		}
+	}
+}
+
+// TestAPIImagesListIntermediateImages verifies that the image list hides
+// intermediate images produced by the classic builder by default, while still
+// showing an untagged final image. With All enabled, both are shown.
+//
+// See https://github.com/moby/moby/pull/16890.
+func TestAPIImagesListIntermediateImages(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	before, err := apiClient.ImageList(ctx, client.ImageListOptions{All: true})
+	assert.NilError(t, err)
+
+	existing := make(map[string]struct{}, len(before.Items))
+	for _, img := range before.Items {
+		existing[img.ID] = struct{}{}
+	}
+
+	buildCtx := fakecontext.New(t, "", fakecontext.WithDockerfile(`
+FROM busybox
+RUN echo foo > /foo
+RUN echo bar > /bar
+`))
+	head := build.Do(ctx, t, apiClient, buildCtx, client.ImageBuildOptions{
+		Version: buildtypes.BuilderV1,
+		NoCache: true,
+	})
+
+	all, err := apiClient.ImageList(ctx, client.ImageListOptions{All: true})
+	assert.NilError(t, err)
+
+	var intermediates []string
+	for _, img := range all.Items {
+		if _, ok := existing[img.ID]; !ok && img.ID != head {
+			intermediates = append(intermediates, img.ID)
+		}
+	}
+	assert.Assert(t, is.Len(intermediates, 1))
+	intermediate := intermediates[0]
+
+	tests := []struct {
+		name    string
+		options client.ImageListOptions
+		want    []string
+	}{
+		{
+			name: "default",
+			want: []string{
+				head,
+			},
+		},
+		{
+			name: "all",
+			options: client.ImageListOptions{
+				All: true,
+			},
+			want: []string{
+				intermediate,
+				head,
+			},
+		},
+		{
+			name: "dangling",
+			options: client.ImageListOptions{
+				Filters: make(client.Filters).Add("dangling", "true"),
+			},
+			want: []string{
+				head,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			list, err := apiClient.ImageList(ctx, tc.options)
+			assert.NilError(t, err)
+
+			var got []string
+			for _, img := range list.Items {
+				if img.ID == intermediate || img.ID == head {
+					got = append(got, img.ID)
+				}
+			}
+
+			assert.DeepEqual(t, tc.want, got, cmpopts.SortSlices(func(a, b string) bool {
+				return a < b
+			}))
+		})
+	}
+}
+
+// TestAPIImagesListDanglingFilter verifies that an image which becomes
+// dangling after its tag is reassigned is listed exactly once by default and
+// when filtering for dangling images, and is excluded when filtering for
+// non-dangling images.
+//
+// This provides API-level coverage for dangling-image bookkeeping independently
+// of the CLI rendering regression covered by
+// https://github.com/moby/moby/pull/11464.
+func TestAPIImagesListDanglingFilter(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	ctr := container.Create(ctx, t, apiClient)
+
+	name := strings.ToLower(t.Name())
+	img, err := apiClient.ContainerCommit(ctx, ctr, client.ContainerCommitOptions{
+		Reference: name,
+	})
+	assert.NilError(t, err)
+
+	_, err = apiClient.ImageTag(ctx, client.ImageTagOptions{
+		Source: "busybox",
+		Target: name,
+	})
+	assert.NilError(t, err)
+
+	tests := []struct {
+		name    string
+		filters client.Filters
+		want    []string
+	}{
+		{
+			name: "default",
+			want: []string{img.ID},
+		},
+		{
+			name:    "dangling",
+			filters: make(client.Filters).Add("dangling", "true"),
+			want:    []string{img.ID},
+		},
+		{
+			name:    "not-dangling",
+			filters: make(client.Filters).Add("dangling", "false"),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			list, err := apiClient.ImageList(ctx, client.ImageListOptions{
+				Filters: tc.filters,
+			})
+			assert.NilError(t, err)
+
+			var got []string
+			for _, listed := range list.Items {
+				if listed.ID == img.ID {
+					got = append(got, listed.ID)
+				}
+			}
+
+			assert.DeepEqual(t, tc.want, got)
+		})
 	}
 }

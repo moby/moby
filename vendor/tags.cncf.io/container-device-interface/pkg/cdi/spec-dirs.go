@@ -30,19 +30,24 @@ const (
 	DefaultDynamicDir = "/var/run/cdi"
 )
 
-var (
-	// DefaultSpecDirs is the default Spec directory configuration.
-	// While altering this variable changes the package defaults,
-	// the preferred way of overriding the default directories is
-	// to use a WithSpecDirs options. Otherwise the change is only
-	// effective if it takes place before creating the cache instance.
-	DefaultSpecDirs = []string{DefaultStaticDir, DefaultDynamicDir}
-	// ErrStopScan can be returned from a ScanSpecFunc to stop the scan.
-	ErrStopScan = errors.New("stop Spec scan")
-)
+// DefaultSpecDirs is the default Spec directory configuration.
+//
+// The preferred way of overriding the default directories is
+// to use [WithSpecDirs], otherwise the change is only effective
+// if it takes place before creating the cache instance.
+var DefaultSpecDirs = []string{DefaultStaticDir, DefaultDynamicDir}
+
+// ErrStopScan can be returned from a scanSpecFunc to stop the scan.
+//
+// Deprecated: ErrStopScan was only used by internal scan callbacks and is no longer used.
+var ErrStopScan = errors.New("stop Spec scan")
 
 // WithSpecDirs returns an option to override the CDI Spec directories.
 func WithSpecDirs(dirs ...string) Option {
+	// If no spec dirs are specified use the default spec dirs.
+	if len(dirs) == 0 {
+		return WithSpecDirs(DefaultSpecDirs...)
+	}
 	return func(c *Cache) {
 		specDirs := make([]string, len(dirs))
 		for i, dir := range dirs {
@@ -64,47 +69,33 @@ type scanSpecFunc func(string, int, *Spec, error) error
 //
 // Scanning stops once all files have been processed or when the scan
 // function returns an error. The result of ScanSpecDirs is the error
-// returned by the scan function, if any. The special error ErrStopScan
-// can be used to terminate the scan gracefully without ScanSpecDirs
-// returning an error. ScanSpecDirs silently skips any subdirectories.
+// returned by the scan function, if any. ScanSpecDirs does not recurse
+// into subdirectories.
 func scanSpecDirs(dirs []string, scanFn scanSpecFunc) error {
-	var (
-		spec *Spec
-		err  error
-	)
-
 	for priority, dir := range dirs {
-		err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-			// for initial stat failure Walk calls us with nil info
-			if info == nil {
-				if errors.Is(err, fs.ErrNotExist) {
-					return nil
-				}
-				return err
-			}
-			// first call from Walk is for dir itself, others we skip
-			if info.IsDir() {
-				if path == dir {
-					return nil
-				}
-				return filepath.SkipDir
+		entries, err := os.ReadDir(dir)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
 			}
 
 			// ignore obviously non-Spec files
-			if ext := filepath.Ext(path); ext != ".json" && ext != ".yaml" {
-				return nil
+			if ext := filepath.Ext(entry.Name()); ext != ".json" && ext != ".yaml" {
+				continue
 			}
 
-			if err != nil {
-				return scanFn(path, priority, nil, err)
+			path := filepath.Join(dir, entry.Name())
+			spec, specErr := ReadSpec(path, priority) // ignore specErr; it's recorded through scanFn
+			if err := scanFn(path, priority, spec, specErr); err != nil {
+				return err
 			}
-
-			spec, err = ReadSpec(path, priority)
-			return scanFn(path, priority, spec, err)
-		})
-
-		if err != nil && err != ErrStopScan {
-			return err
 		}
 	}
 

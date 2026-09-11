@@ -16,13 +16,13 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/stringid"
@@ -835,8 +835,6 @@ func (s *DockerCLIRunSuite) TestRunEnvironment(c *testing.T) {
 	result.Assert(c, icmd.Success)
 
 	actualEnv := strings.Split(strings.TrimSuffix(result.Stdout(), "\n"), "\n")
-	sort.Strings(actualEnv)
-
 	goodEnv := []string{
 		// The first two should not be tested here, those are "inherent" environment variable. This test validates
 		// the -e behavior, not the default environment variable (that could be subject to change)
@@ -849,15 +847,9 @@ func (s *DockerCLIRunSuite) TestRunEnvironment(c *testing.T) {
 		"",
 		"HOME=/root",
 	}
-	sort.Strings(goodEnv)
-	if len(goodEnv) != len(actualEnv) {
-		c.Fatalf("Wrong environment: should be %d variables, not %d: %q", len(goodEnv), len(actualEnv), strings.Join(actualEnv, ", "))
-	}
-	for i := range goodEnv {
-		if actualEnv[i] != goodEnv[i] {
-			c.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
-		}
-	}
+	assert.DeepEqual(c, actualEnv, goodEnv, cmpopts.SortSlices(func(a, b string) bool {
+		return a < b
+	}))
 }
 
 func (s *DockerCLIRunSuite) TestRunEnvironmentErase(c *testing.T) {
@@ -876,21 +868,13 @@ func (s *DockerCLIRunSuite) TestRunEnvironmentErase(c *testing.T) {
 	result.Assert(c, icmd.Success)
 
 	actualEnv := strings.Split(strings.TrimSpace(result.Combined()), "\n")
-	sort.Strings(actualEnv)
-
 	goodEnv := []string{
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"HOME=/root",
 	}
-	sort.Strings(goodEnv)
-	if len(goodEnv) != len(actualEnv) {
-		c.Fatalf("Wrong environment: should be %d variables, not %d: %q", len(goodEnv), len(actualEnv), strings.Join(actualEnv, ", "))
-	}
-	for i := range goodEnv {
-		if actualEnv[i] != goodEnv[i] {
-			c.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
-		}
-	}
+	assert.DeepEqual(c, actualEnv, goodEnv, cmpopts.SortSlices(func(a, b string) bool {
+		return a < b
+	}))
 }
 
 func (s *DockerCLIRunSuite) TestRunEnvironmentOverride(c *testing.T) {
@@ -908,22 +892,14 @@ func (s *DockerCLIRunSuite) TestRunEnvironmentOverride(c *testing.T) {
 	result.Assert(c, icmd.Success)
 
 	actualEnv := strings.Split(strings.TrimSpace(result.Combined()), "\n")
-	sort.Strings(actualEnv)
-
 	goodEnv := []string{
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"HOME=/root2",
 		"HOSTNAME=bar",
 	}
-	sort.Strings(goodEnv)
-	if len(goodEnv) != len(actualEnv) {
-		c.Fatalf("Wrong environment: should be %d variables, not %d: %q", len(goodEnv), len(actualEnv), strings.Join(actualEnv, ", "))
-	}
-	for i := range goodEnv {
-		if actualEnv[i] != goodEnv[i] {
-			c.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
-		}
-	}
+	assert.DeepEqual(c, actualEnv, goodEnv, cmpopts.SortSlices(func(a, b string) bool {
+		return a < b
+	}))
 }
 
 func (s *DockerCLIRunSuite) TestRunContainerNetwork(c *testing.T) {
@@ -1735,48 +1711,38 @@ func (s *DockerCLIRunSuite) TestRunWriteSpecialFilesAndNotCommit(c *testing.T) {
 	// Cannot run on Windows as this files are not present in Windows
 	testRequires(c, DaemonIsLinux)
 
-	testRunWriteSpecialFilesAndNotCommit(c, "writehosts", "/etc/hosts")
-	testRunWriteSpecialFilesAndNotCommit(c, "writehostname", "/etc/hostname")
-	testRunWriteSpecialFilesAndNotCommit(c, "writeresolv", "/etc/resolv.conf")
-}
+	for _, tc := range []struct {
+		name string
+		path string
+	}{
+		{name: "writehosts", path: "/etc/hosts"},
+		{name: "writehostname", path: "/etc/hostname"},
+		{name: "writeresolv", path: "/etc/resolv.conf"},
+	} {
+		c.Run(tc.name, func(t *testing.T) {
+			command := fmt.Sprintf("echo test2267 >> %s && cat %s", tc.path, tc.path)
+			out := cli.DockerCmd(t, "run", "--name", tc.name, "busybox", "sh", "-c", command).Combined()
+			if !strings.Contains(out, "test2267") {
+				t.Fatalf("%s should contain 'test2267'", tc.path)
+			}
 
-func testRunWriteSpecialFilesAndNotCommit(t *testing.T, name, path string) {
-	command := fmt.Sprintf("echo test2267 >> %s && cat %s", path, path)
-	out := cli.DockerCmd(t, "run", "--name", name, "busybox", "sh", "-c", command).Combined()
-	if !strings.Contains(out, "test2267") {
-		t.Fatalf("%s should contain 'test2267'", path)
+			out = cli.DockerCmd(t, "diff", tc.name).Combined()
+			if strings.Trim(out, "\r\n") == "" {
+				return
+			}
+
+			baseName := "eqToBaseDiff" + testutil.RandomAlpha(32)
+			cli.DockerCmd(t, "run", "--name", baseName, "busybox", "echo", "hello")
+
+			baseID := getIDByName(t, baseName)
+			baseDiff := strings.Split(cli.DockerCmd(t, "diff", baseID).Combined(), "\n")
+			actualDiff := strings.Split(out, "\n")
+
+			assert.DeepEqual(t, actualDiff, baseDiff, cmpopts.SortSlices(func(a, b string) bool {
+				return a < b
+			}))
+		})
 	}
-
-	out = cli.DockerCmd(t, "diff", name).Combined()
-	if strings.Trim(out, "\r\n") != "" && !eqToBaseDiff(out, t) {
-		t.Fatal("diff should be empty")
-	}
-}
-
-func eqToBaseDiff(out string, t *testing.T) bool {
-	name := "eqToBaseDiff" + testutil.RandomAlpha(32)
-	cli.DockerCmd(t, "run", "--name", name, "busybox", "echo", "hello")
-	cID := getIDByName(t, name)
-	baseDiff := cli.DockerCmd(t, "diff", cID).Combined()
-	baseArr := strings.Split(baseDiff, "\n")
-	sort.Strings(baseArr)
-	outArr := strings.Split(out, "\n")
-	sort.Strings(outArr)
-	return sliceEq(baseArr, outArr)
-}
-
-func sliceEq(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
 }
 
 func (s *DockerCLIRunSuite) TestRunWithBadDevice(c *testing.T) {

@@ -1,0 +1,12 @@
+;; Block AF_VSOCK sockets in container domains.
+;; AF_VSOCK could let a container connect to virtual machines running on the
+;; host.
+;;
+;; This rule targets container_domain (container_t, spc_t, etc.) and
+;; does not affect the container runtime (container_runtime_t) or host
+;; processes.
+;;
+;; Requires SELinux userspace >= 3.6 for CIL deny support.
+;; Requires container-selinux for the container_domain attribute.
+
+(deny container_domain self (vsock_socket (create)))

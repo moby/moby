@@ -26,7 +26,8 @@ func TestGenerateIfaceName(t *testing.T) {
 		{names: []string{"test0", "test2"}, want: "test1"},
 		{names: []string{"test2"}, want: "test0"},
 		{names: []string{"test-0", "test-1"}, want: "test0"},
-		{names: []string{}, want: "test0"},
+		{names: []string{"test0", "test0", "test1"}, want: "test2"},
+		{names: nil, want: "test0"},
 	}
 
 	for _, tc := range testcases {

@@ -27,7 +27,7 @@ setup_integration_test_filter() {
 
 	local dirs
 	local files
-	if files=$(grep -rIlE --include '*_test.go' "func .*${TEST_FILTER}.*\(. \*testing\.T\)" ./integration*/); then
+	if files=$(grep -ralE --include '*_test.go' "func .*${TEST_FILTER}.*\(. \*testing\.T\)" ./integration*/); then
 		dirs=$(echo "$files" | xargs -I file dirname file | uniq)
 	fi
 

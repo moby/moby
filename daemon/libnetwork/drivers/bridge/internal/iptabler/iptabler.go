@@ -15,10 +15,8 @@ import (
 const (
 	// dockerChain: DOCKER iptable chain name
 	dockerChain = "DOCKER"
-	// DockerForwardChain contains Docker's filter-FORWARD rules.
-	//
-	// FIXME(robmry) - only exported because it's used to set up the jump to swarm's DOCKER-INGRESS chain.
-	DockerForwardChain  = "DOCKER-FORWARD"
+	// dockerForwardChain contains Docker's filter-FORWARD rules.
+	dockerForwardChain  = "DOCKER-FORWARD"
 	dockerBridgeChain   = "DOCKER-BRIDGE"
 	dockerCTChain       = "DOCKER-CT"
 	dockerInternalChain = "DOCKER-INTERNAL"
@@ -145,14 +143,14 @@ func setupIPChains(ctx context.Context, version iptables.IPVersion, iptCfg firew
 		}
 	}()
 
-	_, err = iptable.NewChain(DockerForwardChain, iptables.Filter)
+	_, err = iptable.NewChain(dockerForwardChain, iptables.Filter)
 	if err != nil {
-		return fmt.Errorf("failed to create FILTER chain %s: %v", DockerForwardChain, err)
+		return fmt.Errorf("failed to create FILTER chain %s: %v", dockerForwardChain, err)
 	}
 	defer func() {
 		if retErr != nil {
-			if err := iptable.RemoveExistingChain(DockerForwardChain, iptables.Filter); err != nil {
-				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", DockerForwardChain, err)
+			if err := iptable.RemoveExistingChain(dockerForwardChain, iptables.Filter); err != nil {
+				log.G(ctx).Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", dockerForwardChain, err)
 			}
 		}
 	}()
@@ -207,16 +205,16 @@ func setupIPChains(ctx context.Context, version iptables.IPVersion, iptCfg firew
 	// Make sure the filter-FORWARD chain has rules to accept related packets and
 	// jump to the isolation and docker chains. (Re-)insert at the top of the table,
 	// in reverse order.
-	if err := iptable.EnsureJumpRule(iptables.Filter, "FORWARD", DockerForwardChain); err != nil {
+	if err := iptable.EnsureJumpRule(iptables.Filter, "FORWARD", dockerForwardChain); err != nil {
 		return err
 	}
-	if err := iptable.EnsureJumpRule(iptables.Filter, DockerForwardChain, dockerBridgeChain); err != nil {
+	if err := iptable.EnsureJumpRule(iptables.Filter, dockerForwardChain, dockerBridgeChain); err != nil {
 		return err
 	}
-	if err := iptable.EnsureJumpRule(iptables.Filter, DockerForwardChain, dockerInternalChain); err != nil {
+	if err := iptable.EnsureJumpRule(iptables.Filter, dockerForwardChain, dockerInternalChain); err != nil {
 		return err
 	}
-	if err := iptable.EnsureJumpRule(iptables.Filter, DockerForwardChain, dockerCTChain); err != nil {
+	if err := iptable.EnsureJumpRule(iptables.Filter, dockerForwardChain, dockerCTChain); err != nil {
 		return err
 	}
 

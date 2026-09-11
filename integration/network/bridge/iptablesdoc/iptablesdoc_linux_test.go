@@ -389,13 +389,14 @@ func pollService(ctx context.Context, t *testing.T, c *client.Client, host netwo
 	if len(list.Items) != 1 {
 		return poll.Continue("got %d containers, want 1", len(list.Items))
 	}
-	// The DOCKER-INGRESS chain seems to be created, then populated, a few
-	// milliseconds after the container starts. So, also wait for a conntrack
-	// "RELATED" rule to appear in the chain.
+	// Ingress ports are published as ordinary port mappings on the load-balancer
+	// sandbox's docker_gwbridge gateway endpoint, a few milliseconds after the
+	// task container starts. So, wait for the DNAT rule to appear in the nat
+	// DOCKER chain.
 	// TODO(robmry) - is there something better to poll?
-	di, err := host.Run(t, "iptables", "-L", "DOCKER-INGRESS")
-	if err != nil || !strings.Contains(di, "RELATED") {
-		return poll.Continue("ingress chain not ready, got: %s", di)
+	di, err := host.Run(t, "iptables", "-t", "nat", "-S", "DOCKER")
+	if err != nil || !strings.Contains(di, "DNAT") {
+		return poll.Continue("ingress DNAT rule not ready, got: %s", di)
 	}
 	return poll.Success()
 }

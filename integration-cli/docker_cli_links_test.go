@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"sort"
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -115,8 +115,9 @@ func (s *DockerCLILinksSuite) TestLinksInspectLinksStarted(c *testing.T) {
 		"/container1:/testinspectlink/alias1",
 		"/container2:/testinspectlink/alias2",
 	}
-	sort.Strings(result)
-	assert.DeepEqual(c, result, expected)
+	assert.DeepEqual(c, result, expected, cmpopts.SortSlices(func(a, b string) bool {
+		return a < b
+	}))
 }
 
 func (s *DockerCLILinksSuite) TestLinksInspectLinksStopped(c *testing.T) {
@@ -135,8 +136,9 @@ func (s *DockerCLILinksSuite) TestLinksInspectLinksStopped(c *testing.T) {
 		"/container1:/testinspectlink/alias1",
 		"/container2:/testinspectlink/alias2",
 	}
-	sort.Strings(result)
-	assert.DeepEqual(c, result, expected)
+	assert.DeepEqual(c, result, expected, cmpopts.SortSlices(func(a, b string) bool {
+		return a < b
+	}))
 }
 
 func (s *DockerCLILinksSuite) TestLinksNotStartedParentNotFail(c *testing.T) {

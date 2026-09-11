@@ -2,12 +2,17 @@
 package awslogs
 
 import (
+	"bytes"
+	"cmp"
 	"context"
+	"encoding/csv"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
@@ -26,8 +31,8 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
+	"github.com/moby/moby/v2/daemon/logger/templates"
 	"github.com/moby/moby/v2/dockerversion"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -45,9 +50,18 @@ const (
 	forceFlushIntervalKey  = "awslogs-force-flush-interval-seconds"
 	maxBufferedEventsKey   = "awslogs-max-buffered-events"
 	logFormatKey           = "awslogs-format"
+	entityServiceNameKey   = "awslogs-entity-service-name"
+	entityEnvironmentKey   = "awslogs-entity-environment"
+	entityAttributesKey    = "awslogs-entity-attributes"
 
 	defaultForceFlushInterval = 5 * time.Second
 	defaultMaxBufferedEvents  = 4096
+
+	// See: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_Entity.html
+	entityTypeService   = "Service"
+	maxEntityAttributes = 10
+	maxAttributeKey     = 256
+	maxEntityValue      = 512
 
 	// See: http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
 	perEventBytes          = 26
@@ -75,6 +89,7 @@ type logStream struct {
 	logCreateStream    bool
 	forceFlushInterval time.Duration
 	multilinePattern   *regexp.Regexp
+	entity             *types.Entity
 	client             api
 
 	messages *loggerutils.MessageQueue
@@ -91,6 +106,7 @@ type logStreamConfig struct {
 	forceFlushInterval time.Duration
 	maxBufferedEvents  int
 	multilinePattern   *regexp.Regexp
+	entity             *types.Entity
 }
 
 var _ logger.SizedLogger = &logStream{}
@@ -109,7 +125,6 @@ type wrappedEvent struct {
 	inputLogEvent types.InputLogEvent
 	insertOrder   int
 }
-type byTimestamp []wrappedEvent
 
 // eventBatch holds the events that are batched for submission and the
 // associated data about it.
@@ -125,7 +140,8 @@ type eventBatch struct {
 // New creates an awslogs logger using the configuration passed in on the
 // context.  Supported context configuration variables are awslogs-region,
 // awslogs-endpoint, awslogs-group, awslogs-stream, awslogs-create-group,
-// awslogs-multiline-pattern and awslogs-datetime-format.
+// awslogs-multiline-pattern, awslogs-datetime-format, awslogs-entity-service-name,
+// awslogs-entity-environment and awslogs-entity-attributes.
 // When available, configuration is also taken from environment variables
 // AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, the shared credentials
 // file (~/.aws/credentials), and the EC2 Instance Metadata Service.
@@ -148,6 +164,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		logCreateStream:    containerStreamConfig.logCreateStream,
 		forceFlushInterval: containerStreamConfig.forceFlushInterval,
 		multilinePattern:   containerStreamConfig.multilinePattern,
+		entity:             containerStreamConfig.entity,
 		client:             client,
 		messages:           loggerutils.NewMessageQueue(containerStreamConfig.maxBufferedEvents),
 	}
@@ -235,7 +252,12 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 		return nil, err
 	}
 
-	containerStreamConfig := &logStreamConfig{
+	entity, err := parseEntity(info)
+	if err != nil {
+		return nil, err
+	}
+
+	return &logStreamConfig{
 		logStreamName:      logStreamName,
 		logGroupName:       logGroupName,
 		logCreateGroup:     logCreateGroup,
@@ -243,9 +265,123 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 		forceFlushInterval: forceFlushInterval,
 		maxBufferedEvents:  maxBufferedEvents,
 		multilinePattern:   multilinePattern,
+		entity:             entity,
+	}, nil
+}
+
+// parseEntity builds a CloudWatch Entity from the awslogs-entity-* log options.
+// It returns a nil entity when none of the entity options are set.
+// The service name and environment values support the same Go-template
+// placeholders as the awslogs-stream and tag options (for example {{.Name}}).
+func parseEntity(info logger.Info) (*types.Entity, error) {
+	serviceNameTmpl := info.Config[entityServiceNameKey]
+	environmentTmpl := info.Config[entityEnvironmentKey]
+	attributesRaw := info.Config[entityAttributesKey]
+
+	if serviceNameTmpl == "" && environmentTmpl == "" && attributesRaw == "" {
+		return nil, nil
+	}
+	if serviceNameTmpl == "" || environmentTmpl == "" {
+		return nil, fmt.Errorf("log opts '%s' and '%s' must both be specified to set a CloudWatch entity", entityServiceNameKey, entityEnvironmentKey)
 	}
 
-	return containerStreamConfig, nil
+	serviceName, err := expandEntityTemplate(info, entityServiceNameKey, serviceNameTmpl)
+	if err != nil {
+		return nil, err
+	}
+	environment, err := expandEntityTemplate(info, entityEnvironmentKey, environmentTmpl)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateKeyAttributeValue(entityServiceNameKey, serviceName); err != nil {
+		return nil, err
+	}
+	if err := validateKeyAttributeValue(entityEnvironmentKey, environment); err != nil {
+		return nil, err
+	}
+
+	attributes, err := parseEntityAttributes(attributesRaw)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.Entity{
+		KeyAttributes: map[string]string{
+			"Type":        entityTypeService,
+			"Name":        serviceName,
+			"Environment": environment,
+		},
+		Attributes: attributes,
+	}, nil
+}
+
+// validateKeyAttributeValue checks a resolved entity KeyAttribute value against
+// the CloudWatch Entity limits.
+func validateKeyAttributeValue(optKey, val string) error {
+	if val == "" {
+		return fmt.Errorf("log opt '%s' resolved to an empty value", optKey)
+	}
+	if utf8.RuneCountInString(val) > maxEntityValue {
+		return fmt.Errorf("log opt '%s' value exceeds the CloudWatch limit of %d characters", optKey, maxEntityValue)
+	}
+	return nil
+}
+
+// expandEntityTemplate runs an entity log-opt value through the container-aware
+// template engine, the same one used by ParseLogTag.
+func expandEntityTemplate(info logger.Info, optKey, tmplText string) (string, error) {
+	tmpl, err := templates.NewParse(optKey, tmplText)
+	if err != nil {
+		return "", fmt.Errorf("awslogs could not parse log opt %q: %w", optKey, err)
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, &info); err != nil {
+		return "", fmt.Errorf("awslogs could not expand log opt %q: %w", optKey, err)
+	}
+	return buf.String(), nil
+}
+
+// parseEntityAttributes parses a comma-separated key=value list into a map,
+// enforcing the CloudWatch Entity attribute limits. Quoting a complete pair
+// preserves commas in its value. Empty entries, such as a trailing comma, are
+// ignored.
+func parseEntityAttributes(raw string) (map[string]string, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	reader := csv.NewReader(strings.NewReader(raw))
+	reader.TrimLeadingSpace = true
+	records, err := reader.ReadAll()
+	if err != nil || len(records) != 1 {
+		return nil, fmt.Errorf("log opt '%s' must be a comma-separated CSV list of key=value pairs", entityAttributesKey)
+	}
+
+	attributes := map[string]string{}
+	for _, pair := range records[0] {
+		if strings.TrimSpace(pair) == "" {
+			continue
+		}
+		k, v, ok := strings.Cut(pair, "=")
+		k = strings.TrimSpace(k)
+		v = strings.TrimSpace(v)
+		if !ok || k == "" || v == "" {
+			return nil, fmt.Errorf("log opt '%s' must be a comma-separated list of key=value pairs", entityAttributesKey)
+		}
+		if _, exists := attributes[k]; exists {
+			return nil, fmt.Errorf("log opt '%s' has a duplicate key %q", entityAttributesKey, k)
+		}
+		if utf8.RuneCountInString(k) > maxAttributeKey || utf8.RuneCountInString(v) > maxEntityValue {
+			return nil, fmt.Errorf("log opt '%s' entry %q exceeds CloudWatch limits (key <= %d chars, value <= %d chars)", entityAttributesKey, k, maxAttributeKey, maxEntityValue)
+		}
+		attributes[k] = v
+	}
+	if len(attributes) == 0 {
+		return nil, nil
+	}
+	if len(attributes) > maxEntityAttributes {
+		return nil, fmt.Errorf("log opt '%s' supports at most %d attributes", entityAttributesKey, maxEntityAttributes)
+	}
+	return attributes, nil
 }
 
 // formatSequences matches each strftime format sequence.
@@ -270,7 +406,7 @@ func parseMultilineOptions(info logger.Info) (*regexp.Regexp, error) {
 	if multilinePattern != "" {
 		multilinePatternRe, err := regexp.Compile(multilinePattern)
 		if err != nil {
-			return nil, errors.Wrapf(err, "awslogs could not parse multiline pattern key %q", multilinePatternRe)
+			return nil, fmt.Errorf("awslogs could not parse multiline pattern key %q: %w", multilinePatternRe, err)
 		}
 		return multilinePatternRe, nil
 	}
@@ -337,13 +473,13 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 		regFinder, err := newRegionFinder(context.TODO())
 		if err != nil {
 			log.G(ctx).WithError(err).Error("could not create regionFinder")
-			return nil, errors.Wrap(err, "could not create regionFinder")
+			return nil, fmt.Errorf("could not create regionFinder: %w", err)
 		}
 
 		r, err := regFinder.GetRegion(context.TODO(), &imds.GetRegionInput{})
 		if err != nil {
 			log.G(ctx).WithError(err).Error("Could not get region from IMDS, environment, or log option")
-			return nil, errors.Wrap(err, "cannot determine region for awslogs driver")
+			return nil, fmt.Errorf("cannot determine region for awslogs driver: %w", err)
 		}
 		region = &r.Region
 	}
@@ -353,14 +489,14 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 	if uri, ok := info.Config[credentialsEndpointKey]; ok {
 		log.G(ctx).Debugf("Trying to get credentials from awslogs-credentials-endpoint")
 
-		endpoint := fmt.Sprintf("%s%s", newSDKEndpoint, uri)
-		configOpts = append(configOpts, config.WithCredentialsProvider(endpointcreds.New(endpoint)))
+		ep := newSDKEndpoint + uri
+		configOpts = append(configOpts, config.WithCredentialsProvider(endpointcreds.New(ep)))
 	}
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(), configOpts...)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("Could not initialize AWS SDK config")
-		return nil, errors.Wrap(err, "could not initialize AWS SDK config")
+		return nil, fmt.Errorf("could not initialize AWS SDK config: %w", err)
 	}
 
 	log.G(ctx).WithFields(log.Fields{
@@ -397,9 +533,7 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 		},
 	)
 
-	client := cloudwatchlogs.NewFromConfig(cfg, clientOpts...)
-
-	return client, nil
+	return cloudwatchlogs.NewFromConfig(cfg, clientOpts...), nil
 }
 
 // Name returns the name of the awslogs logging driver
@@ -442,17 +576,16 @@ func (l *logStream) create() error {
 		return nil
 	}
 
-	var apiErr *types.ResourceNotFoundException
-	if errors.As(err, &apiErr) && l.logCreateGroup {
+	if _, ok := errors.AsType[*types.ResourceNotFoundException](err); ok && l.logCreateGroup {
 		if err := l.createLogGroup(); err != nil {
-			return errors.Wrap(err, "failed to create Cloudwatch log group")
+			return fmt.Errorf("failed to create Cloudwatch log group: %w", err)
 		}
 		err = l.createLogStream()
 		if err == nil {
 			return nil
 		}
 	}
-	return errors.Wrap(err, "failed to create Cloudwatch log stream")
+	return fmt.Errorf("failed to create Cloudwatch log stream: %w", err)
 }
 
 // createLogGroup creates a log group for the instance of the awslogs logging driver
@@ -460,20 +593,19 @@ func (l *logStream) createLogGroup() error {
 	if _, err := l.client.CreateLogGroup(context.TODO(), &cloudwatchlogs.CreateLogGroupInput{
 		LogGroupName: aws.String(l.logGroupName),
 	}); err != nil {
-		var apiErr smithy.APIError
-		if errors.As(err, &apiErr) {
-			fields := log.Fields{
+		if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
+			logr := log.G(context.TODO()).WithFields(log.Fields{
 				"errorCode":      apiErr.ErrorCode(),
 				"message":        apiErr.ErrorMessage(),
 				"logGroupName":   l.logGroupName,
 				"logCreateGroup": l.logCreateGroup,
-			}
+			})
 			if _, ok := apiErr.(*types.ResourceAlreadyExistsException); ok {
 				// Allow creation to succeed
-				log.G(context.TODO()).WithFields(fields).Info("Log group already exists")
+				logr.Info("Log group already exists")
 				return nil
 			}
-			log.G(context.TODO()).WithFields(fields).Error("Failed to create log group")
+			logr.Error("Failed to create log group")
 		}
 		return err
 	}
@@ -499,20 +631,19 @@ func (l *logStream) createLogStream() error {
 
 	_, err := l.client.CreateLogStream(context.TODO(), input)
 	if err != nil {
-		var apiErr smithy.APIError
-		if errors.As(err, &apiErr) {
-			fields := log.Fields{
+		if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
+			logr := log.G(context.TODO()).WithFields(log.Fields{
 				"errorCode":     apiErr.ErrorCode(),
 				"message":       apiErr.ErrorMessage(),
 				"logGroupName":  l.logGroupName,
 				"logStreamName": l.logStreamName,
-			}
+			})
 			if _, ok := apiErr.(*types.ResourceAlreadyExistsException); ok {
 				// Allow creation to succeed
-				log.G(context.TODO()).WithFields(fields).Info("Log stream already exists")
+				logr.Info("Log stream already exists")
 				return nil
 			}
-			log.G(context.TODO()).WithFields(fields).Error("Failed to create log stream")
+			logr.Error("Failed to create log stream")
 		}
 	}
 	return err
@@ -644,8 +775,8 @@ func (l *logStream) processEvent(batch *eventBatch, bytes []byte, timestamp int6
 // utf8.RuneError)
 func effectiveLen(line string) int {
 	effectiveBytes := 0
-	for _, rune := range line {
-		effectiveBytes += utf8.RuneLen(rune)
+	for _, r := range line {
+		effectiveBytes += utf8.RuneLen(r)
 	}
 	return effectiveBytes
 }
@@ -700,16 +831,15 @@ func (l *logStream) publishBatch(batch *eventBatch) {
 
 // putLogEvents wraps the PutLogEvents API
 func (l *logStream) putLogEvents(events []types.InputLogEvent, sequenceToken *string) (*string, error) {
-	input := &cloudwatchlogs.PutLogEventsInput{
+	resp, err := l.client.PutLogEvents(context.TODO(), &cloudwatchlogs.PutLogEventsInput{
 		LogEvents:     events,
 		SequenceToken: sequenceToken,
 		LogGroupName:  aws.String(l.logGroupName),
 		LogStreamName: aws.String(l.logStreamName),
-	}
-	resp, err := l.client.PutLogEvents(context.TODO(), input)
+		Entity:        l.entity,
+	})
 	if err != nil {
-		var apiErr smithy.APIError
-		if errors.As(err, &apiErr) {
+		if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
 			log.G(context.TODO()).WithFields(log.Fields{
 				"errorCode":     apiErr.ErrorCode(),
 				"message":       apiErr.ErrorMessage(),
@@ -719,12 +849,23 @@ func (l *logStream) putLogEvents(events []types.InputLogEvent, sequenceToken *st
 		}
 		return nil, err
 	}
+	if resp.RejectedEntityInfo != nil {
+		log.G(context.TODO()).WithFields(log.Fields{
+			"errorType":     resp.RejectedEntityInfo.ErrorType,
+			"logGroupName":  l.logGroupName,
+			"logStreamName": l.logStreamName,
+		}).Warn("CloudWatch rejected the entity metadata")
+		// Entity configuration is immutable for the stream, so do not keep
+		// sending metadata that the service has already rejected.
+		l.entity = nil
+	}
 	return resp.NextSequenceToken, nil
 }
 
 // ValidateLogOpt looks for awslogs-specific log options awslogs-region, awslogs-endpoint
 // awslogs-group, awslogs-stream, awslogs-create-group, awslogs-create-stream, awslogs-datetime-format,
-// awslogs-multiline-pattern
+// awslogs-multiline-pattern, awslogs-entity-service-name, awslogs-entity-environment and
+// awslogs-entity-attributes
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
@@ -742,6 +883,9 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case forceFlushIntervalKey:
 		case maxBufferedEventsKey:
 		case logFormatKey:
+		case entityServiceNameKey:
+		case entityEnvironmentKey:
+		case entityAttributesKey:
 		default:
 			return fmt.Errorf("unknown log opt '%s' for %s log driver", key, name)
 		}
@@ -785,35 +929,17 @@ func ValidateLogOpt(cfg map[string]string) error {
 		}
 	}
 
+	serviceNameSet := cfg[entityServiceNameKey] != ""
+	environmentSet := cfg[entityEnvironmentKey] != ""
+	attributesSet := cfg[entityAttributesKey] != ""
+	if (serviceNameSet || environmentSet || attributesSet) && (!serviceNameSet || !environmentSet) {
+		return fmt.Errorf("log opts '%s' and '%s' must be configured together", entityServiceNameKey, entityEnvironmentKey)
+	}
+	if _, err := parseEntityAttributes(cfg[entityAttributesKey]); err != nil {
+		return err
+	}
+
 	return nil
-}
-
-// Len returns the length of a byTimestamp slice.  Len is required by the
-// sort.Interface interface.
-func (slice byTimestamp) Len() int {
-	return len(slice)
-}
-
-// Less compares two values in a byTimestamp slice by Timestamp.  Less is
-// required by the sort.Interface interface.
-func (slice byTimestamp) Less(i, j int) bool {
-	iTimestamp, jTimestamp := int64(0), int64(0)
-	if slice != nil && slice[i].inputLogEvent.Timestamp != nil {
-		iTimestamp = *slice[i].inputLogEvent.Timestamp
-	}
-	if slice != nil && slice[j].inputLogEvent.Timestamp != nil {
-		jTimestamp = *slice[j].inputLogEvent.Timestamp
-	}
-	if iTimestamp == jTimestamp {
-		return slice[i].insertOrder < slice[j].insertOrder
-	}
-	return iTimestamp < jTimestamp
-}
-
-// Swap swaps two values in a byTimestamp slice with each other.  Swap is
-// required by the sort.Interface interface.
-func (slice byTimestamp) Swap(i, j int) {
-	slice[i], slice[j] = slice[j], slice[i]
 }
 
 func unwrapEvents(events []wrappedEvent) []types.InputLogEvent {
@@ -832,12 +958,25 @@ func newEventBatch() *eventBatch {
 }
 
 // events returns a slice of wrappedEvents sorted in order of their
-// timestamps and then by their insertion order (see `byTimestamp`).
+// timestamps and then by their insertion order.
 //
 // Warning: this method is not threadsafe and must not be used
 // concurrently.
 func (b *eventBatch) events() []wrappedEvent {
-	sort.Sort(byTimestamp(b.batch))
+	slices.SortFunc(b.batch, func(a, b wrappedEvent) int {
+		aTimestamp, bTimestamp := int64(0), int64(0)
+		if a.inputLogEvent.Timestamp != nil {
+			aTimestamp = *a.inputLogEvent.Timestamp
+		}
+		if b.inputLogEvent.Timestamp != nil {
+			bTimestamp = *b.inputLogEvent.Timestamp
+		}
+
+		if c := cmp.Compare(aTimestamp, bTimestamp); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.insertOrder, b.insertOrder)
+	})
 	return b.batch
 }
 

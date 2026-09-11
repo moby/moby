@@ -65,7 +65,7 @@ func (cli *Client) ContainerCommit(ctx context.Context, containerID string, opti
 	}
 
 	var response container.CommitResponse
-	resp, err := cli.post(ctx, "/commit", query, options.Config, nil)
+	resp, err := cli.post(ctx, "/commit", query, nil, options.Config)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return ContainerCommitResult{}, err

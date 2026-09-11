@@ -8,6 +8,7 @@ import (
 
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
@@ -212,6 +213,55 @@ func pollForHealthStatus(ctx context.Context, apiClient client.APIClient, contai
 			return poll.Success()
 		default:
 			return poll.Continue("waiting for container to become %s", healthStatus)
+		}
+	}
+}
+
+func TestHealthCheckUmask(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows does not support umask")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.56"), "requires API v1.56")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	users := []string{"", "1000", "nobody"}
+	prettyUser := func(s string) string {
+		if s == "" {
+			return "unspecified"
+		}
+		return s
+	}
+
+	tests := []struct {
+		umask    uint32
+		expected string
+	}{
+		{
+			umask:    0o000,
+			expected: "0000",
+		},
+		{
+			umask:    0o777,
+			expected: "0777",
+		},
+	}
+	prettyUmask := func(u uint32) string {
+		return fmt.Sprintf("%04o", u)
+	}
+
+	for _, user := range users {
+		for _, tc := range tests {
+			t.Run(fmt.Sprintf("user_%s_umask_%s", prettyUser(user), prettyUmask(tc.umask)), func(t *testing.T) {
+				cID := container.Run(ctx, t, apiClient, container.WithUser(user), func(c *container.TestContainerConfig) {
+					c.HostConfig.Umask = &tc.umask
+					c.Config.Healthcheck = &containertypes.HealthConfig{
+						Test:     []string{"CMD-SHELL", "umask"},
+						Interval: time.Millisecond,
+						Retries:  1,
+					}
+				})
+				poll.WaitOn(t, pollForHealthCheckLog(ctx, apiClient, cID, tc.expected+"\n"), poll.WithTimeout(3*time.Second))
+			})
 		}
 	}
 }

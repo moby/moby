@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"sort"
+	"slices"
 	"testing"
 	"time"
 
@@ -13,6 +13,7 @@ import (
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/swarm"
+	"github.com/moby/moby/v2/internal/sliceutil"
 	"github.com/moby/moby/v2/internal/testutil"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -61,7 +62,6 @@ func TestConfigList(t *testing.T) {
 	testName0 := "test0-" + t.Name()
 	testName1 := "test1-" + t.Name()
 	testNames := []string{testName0, testName1}
-	sort.Strings(testNames)
 
 	// create config test0
 	createConfig(ctx, t, c, testName0, []byte("TESTINGDATA0"), map[string]string{"type": "test"})
@@ -392,14 +392,13 @@ func TestConfigCreateResolve(t *testing.T) {
 	assert.NilError(t, err)
 	res, err = c.ConfigList(ctx, client.ConfigListOptions{})
 	assert.NilError(t, err)
-	assert.Assert(t, is.Equal(0, len(res.Items)))
+	assert.Assert(t, is.Len(res.Items, 0))
 }
 
 func configNamesFromList(entries []swarmtypes.Config) []string {
-	var values []string
-	for _, entry := range entries {
-		values = append(values, entry.Spec.Name)
-	}
-	sort.Strings(values)
+	values := sliceutil.Map(entries, func(entry swarmtypes.Config) string {
+		return entry.Spec.Name
+	})
+	slices.Sort(values)
 	return values
 }

@@ -452,8 +452,9 @@ func (e *ExecOp) Exec(ctx context.Context, jobCtx solver.JobContext, inputs []so
 	if err != nil {
 		return nil, err
 	}
+	args := e.op.Meta.Args
 	if emu != nil {
-		e.op.Meta.Args = append([]string{qemuMountName}, e.op.Meta.Args...)
+		args = append([]string{qemuMountName}, args...)
 
 		p.Mounts = append(p.Mounts, executor.Mount{
 			Readonly: true,
@@ -463,7 +464,7 @@ func (e *ExecOp) Exec(ctx context.Context, jobCtx solver.JobContext, inputs []so
 	}
 
 	meta := executor.Meta{
-		Args:                      e.op.Meta.Args,
+		Args:                      args,
 		Env:                       e.op.Meta.Env,
 		Cwd:                       e.op.Meta.Cwd,
 		User:                      e.op.Meta.User,
@@ -552,7 +553,7 @@ func (e *ExecOp) Exec(ctx context.Context, jobCtx solver.JobContext, inputs []so
 		p.OutputRefs[i].Ref = nil
 	}
 	e.rec = rec
-	return results, errors.Wrapf(execErr, "process %q did not complete successfully", strings.Join(e.op.Meta.Args, " "))
+	return results, errors.Wrapf(execErr, "process %q did not complete successfully", strings.Join(meta.Args, " "))
 }
 
 func logProxyRequests(w io.Writer, requests []network.ProxyRequest) {

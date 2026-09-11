@@ -21,8 +21,11 @@ package oci
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
+	"syscall"
 
 	"github.com/moby/sys/userns"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -182,4 +185,121 @@ func DeviceFromPath(path string) (*specs.LinuxDevice, error) {
 		UID:      &stat.Uid,
 		GID:      &stat.Gid,
 	}, nil
+}
+
+// resolveInRootFS resolves name within rootFS, following symbolic links while
+// treating rootFS as the filesystem root. It returns the canonical path
+// relative to rootFS.
+//
+// ReadLink is expected to return a bounded target. Linux rejects symlink
+// targets of PATH_MAX (4096) bytes or more when creating them. Together with
+// the 40-link limit, this bounds the work during resolution. However, a
+// synthetic fs.ReadLinkFS can return an arbitrarily large target and make the
+// resolution expensive. See the "Length limit" section of path_resolution(7).
+func resolveInRootFS(rootFs fs.ReadLinkFS, name string) (string, error) {
+	if len(name) == 0 {
+		return "", &fs.PathError{
+			Op:   "resolve",
+			Path: name,
+			Err:  syscall.ENOENT,
+		}
+	}
+
+	// In Linux 4.2, the kernel's pathname-resolution code was reworked to
+	// eliminate the use of recursion, so that the only limit that remains
+	// is the maximum of 40 resolutions for the entire pathname.
+	//
+	// https://man7.org/linux/man-pages/man7/path_resolution.7.html
+	const symloopMax = 40
+	followed := 0
+
+	seq := "/"
+
+	pendings := splitPathComponents(name)
+	candidates := make([]string, 0, len(pendings))
+	for len(pendings) > 0 {
+		part := pendings[0]
+		pendings = pendings[1:]
+
+		if part == "." {
+			continue
+		}
+
+		if part == ".." {
+			if len(candidates) > 0 {
+				candidates = candidates[:len(candidates)-1]
+			}
+			continue
+		}
+
+		candidates = append(candidates, part)
+
+		resolved := strings.Join(candidates, seq)
+
+		info, err := rootFs.Lstat(resolved)
+		if err != nil {
+			return "", err
+		}
+
+		if info.Mode()&os.ModeSymlink != 0 {
+			followed++
+
+			if followed > symloopMax {
+				return "", &fs.PathError{
+					Op:   "resolve",
+					Path: resolved,
+					Err:  syscall.ELOOP,
+				}
+			}
+
+			// target can't be empty in real filesystem because
+			// linux kernel doesn't allow to create empty symbolic
+			// link. However, synthetic fs.FS can do that.
+			target, err := rootFs.ReadLink(resolved)
+			if err != nil {
+				return "", err
+			}
+
+			if filepath.IsAbs(target) {
+				candidates = candidates[:0]
+			} else {
+				candidates = candidates[:len(candidates)-1]
+			}
+
+			pendings = append(splitPathComponents(target), pendings...)
+			continue
+		}
+
+		if !info.IsDir() && len(pendings) > 0 {
+			return "", &fs.PathError{
+				Op:   "resolve",
+				Path: resolved,
+				Err:  syscall.ENOTDIR,
+			}
+		}
+	}
+
+	resolvedName := strings.Join(candidates, seq)
+	if resolvedName == "" {
+		resolvedName = "."
+	}
+	return resolvedName, nil
+}
+
+// splitPathComponents returns path components in string slice format and appends
+// "." as last one if origin name contains trailing slash. With trailing dot
+// component, the path resolution can verify if name is directory or not.
+func splitPathComponents(name string) []string {
+	res := make([]string, 0, 8)
+	for part := range strings.SplitSeq(name, "/") {
+		if part == "" {
+			continue
+		}
+		res = append(res, part)
+	}
+
+	if len(name) > 0 && name[len(name)-1] == '/' {
+		res = append(res, ".")
+	}
+	return res
 }

@@ -41,7 +41,6 @@ import (
 	"github.com/containerd/plugin"
 	"github.com/containerd/plugin/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -119,7 +118,6 @@ func NewBlockCIMSnapshotter(root string, config *BlockCIMSnapshotterConfig) (sna
 		// copy the differing VHD for every new scratch snapshot. If a different size is
 		// specified, we use ExpandVHD to change the size.
 		err = createDifferencingScratchVHDs(context.Background(), root)
-
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare scratch VHDs: %w", err)
@@ -172,7 +170,6 @@ func (s *blockCIMSnapshotter) getSnapshotBlockCIM(ctx context.Context, snID stri
 		Type:      cimfs.BlockCIMTypeSingleFile,
 		BlockPath: s.getSingleFileCIMBlockPath(snID),
 	}, nil
-
 }
 
 func (s *blockCIMSnapshotter) Usage(ctx context.Context, key string) (usage snapshots.Usage, err error) {
@@ -270,7 +267,7 @@ func (s *blockCIMSnapshotter) createSnapshot(ctx context.Context, kind snapshots
 			return fmt.Errorf("failed to create snapshot: %w", err)
 		}
 
-		log.G(ctx).WithFields(logrus.Fields{
+		log.G(ctx).WithFields(log.Fields{
 			"key":    key,
 			"parent": parent,
 			"ID":     newSnapshot.ID,
@@ -451,7 +448,7 @@ func (s *blockCIMSnapshotter) mounts(ctx context.Context, sn storage.Snapshot, k
 		m.Source = s.getLayerCIMPathFromCIMBlock(s.getSingleFileCIMBlockPath(sn.ID))
 	}
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"snapshot ID":   sn.ID,
 		"snapshot name": key,
 		"parent IDs":    sn.ParentIDs,
@@ -477,7 +474,7 @@ func (s *blockCIMSnapshotter) prepareMergedCIM(ctx context.Context, snapshotIDs 
 	if len(snapshotIDs) < 2 {
 		return fmt.Errorf("merging CIM requires at least 2 snapshots")
 	}
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"source snapshots": snapshotIDs,
 	}).Debugf("preparing merged CIM")
 
@@ -535,7 +532,7 @@ func (s *blockCIMSnapshotter) prepareMergedCIM(ctx context.Context, snapshotIDs 
 		return fmt.Errorf("failed to merge CIMs: %w", err)
 	}
 
-	log.G(ctx).WithFields(logrus.Fields{
+	log.G(ctx).WithFields(log.Fields{
 		"merged CIM": mergedCIM,
 	}).Debugf("merged CIM created")
 
