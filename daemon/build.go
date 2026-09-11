@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/distribution/reference"
+	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -17,6 +18,27 @@ func (daemon *Daemon) validateBuildkitConfig(features map[string]bool) error {
 		return errors.New("features.buildkit=true requires the containerd image store on Windows")
 	}
 	return nil
+}
+
+// BuilderVersion returns the daemon's recommended builder version.
+// BuildKit is preferred except on Windows.
+// This is only a recommendation; clients choose which builder to use.
+//
+// Setting features.buildkit=false is an escape hatch to recommend the classic
+// builder instead.
+// CLI users can opt out per invocation with DOCKER_BUILDKIT=0.
+// On Windows, using BuildKit requires the containerd image store.
+func (daemon *Daemon) BuilderVersion() build.BuilderVersion {
+	if enabled, ok := daemon.config().Features["buildkit"]; ok {
+		if enabled {
+			return build.BuilderBuildKit
+		}
+		return build.BuilderV1
+	}
+	if runtime.GOOS == "windows" {
+		return build.BuilderV1
+	}
+	return build.BuilderBuildKit
 }
 
 // ImageExportedByBuildkit is a callback that is called when an image is exported by buildkit.
