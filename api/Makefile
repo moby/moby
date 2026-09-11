@@ -38,7 +38,7 @@ build:
 		.
 
 .PHONY: swagger-gen
-swagger-gen: build ## generate swagger API types
+swagger-gen: build ## generate swagger.yaml and API types
 	$(DOCKER_RUN) ./scripts/generate-swagger-api.sh
 
 .PHONY: swagger-spec
@@ -51,9 +51,9 @@ swagger-docs: ## preview the API documentation
 	@docker run --rm \
 		-v ./:/usr/share/nginx/html/swagger/ \
 		-e 'REDOC_OPTIONS=hide-hostname="true" lazy-rendering' \
-		-e SPEC_URL="swagger/swagger.yaml" \
+		-e SPEC_URL="swagger/openapi.yaml" \
 		-p $(SWAGGER_DOCS_PORT):80 \
-		redocly/redoc:v2.5.1
+		redocly/redoc:v2.5.3
 
 .PHONY: validate-swagger
 validate-swagger: build ## validate OpenAPI and the generated Swagger specification
