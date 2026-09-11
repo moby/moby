@@ -31,14 +31,25 @@ package gax
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/googleapis/gax-go/v2/apierror"
+	"google.golang.org/grpc/metadata"
 )
 
 // APICall is a user defined call stub.
 type APICall func(context.Context, CallSettings) error
+
+// withRetryCount returns a new context with the retry count appended to
+// gRPC metadata. The retry count is the number of retries that have been
+// attempted. On the initial request, retry count is 0.
+// On a second request (the first retry), retry count is 1.
+func withRetryCount(ctx context.Context, retryCount int) context.Context {
+	// Add to gRPC metadata so it's visible to StatsHandlers
+	return metadata.AppendToOutgoingContext(ctx, "gcp.grpc.resend_count", strconv.Itoa(retryCount))
+}
 
 // Invoke calls the given APICall, performing retries as specified by opts, if
 // any.
@@ -78,8 +89,15 @@ func invoke(ctx context.Context, call APICall, settings CallSettings, sp sleeper
 		ctx = c
 	}
 
+	retryCount := 0
+	// Feature gate: GOOGLE_SDK_GO_EXPERIMENTAL_TRACING=true
+	tracingEnabled := IsFeatureEnabled("TRACING")
 	for {
-		err := call(ctx, settings)
+		ctxToUse := ctx
+		if tracingEnabled {
+			ctxToUse = withRetryCount(ctx, retryCount)
+		}
+		err := call(ctxToUse, settings)
 		if err == nil {
 			return nil
 		}
@@ -110,5 +128,6 @@ func invoke(ctx context.Context, call APICall, settings CallSettings, sp sleeper
 		} else if err = sp(ctx, d); err != nil {
 			return err
 		}
+		retryCount++
 	}
 }

@@ -12,7 +12,8 @@
       "component": "auth/oauth2adapt"
     },
     "bigquery": {
-      "component": "bigquery"
+      "component": "bigquery",
+      "exclude-paths": ["bigquery/v2"]
     },
     "bigtable": {
       "component": "bigtable"
@@ -33,7 +34,11 @@
       "component": "profiler"
     },
     "pubsub": {
-      "component": "pubsub"
+      "component": "pubsub",
+      "exclude-paths": ["pubsub/v2"]
+    },
+    "pubsub/v2": {
+      "component": "pubsub/v2"
     },
     "pubsublite": {
       "component": "pubsublite"

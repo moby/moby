@@ -195,7 +195,7 @@ func (r *Reservation) CancelAt(t time.Time) {
 	// update state
 	r.lim.last = t
 	r.lim.tokens = tokens
-	if r.timeToAct == r.lim.lastEvent {
+	if r.timeToAct.Equal(r.lim.lastEvent) {
 		prevEvent := r.timeToAct.Add(r.limit.durationFromTokens(float64(-r.tokens)))
 		if !prevEvent.Before(t) {
 			r.lim.lastEvent = prevEvent

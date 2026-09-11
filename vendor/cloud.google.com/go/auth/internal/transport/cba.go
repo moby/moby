@@ -31,7 +31,6 @@ import (
 	"cloud.google.com/go/auth/internal"
 	"cloud.google.com/go/auth/internal/transport/cert"
 	"github.com/google/s2a-go"
-	"github.com/google/s2a-go/fallback"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -170,18 +169,9 @@ func GetGRPCTransportCredsAndEndpoint(opts *Options) (*GRPCTransportCredentials,
 		return &GRPCTransportCredentials{defaultTransportCreds, config.endpoint, TransportTypeUnknown}, nil
 	}
 
-	var fallbackOpts *s2a.FallbackOptions
-	// In case of S2A failure, fall back to the endpoint that would've been used without S2A.
-	if fallbackHandshake, err := fallback.DefaultFallbackClientHandshakeFunc(config.endpoint); err == nil {
-		fallbackOpts = &s2a.FallbackOptions{
-			FallbackClientHandshakeFunc: fallbackHandshake,
-		}
-	}
-
 	s2aTransportCreds, err := s2a.NewClientCreds(&s2a.ClientOptions{
 		S2AAddress:     s2aAddr,
 		TransportCreds: transportCredsForS2A,
-		FallbackOpts:   fallbackOpts,
 	})
 	if err != nil {
 		// Use default if we cannot initialize S2A client transport credentials.
@@ -218,23 +208,9 @@ func GetHTTPTransportConfig(opts *Options) (cert.Provider, func(context.Context,
 		return config.clientCertSource, nil, nil
 	}
 
-	var fallbackOpts *s2a.FallbackOptions
-	// In case of S2A failure, fall back to the endpoint that would've been used without S2A.
-	if fallbackURL, err := url.Parse(config.endpoint); err == nil {
-		if fallbackDialer, fallbackServerAddr, err := fallback.DefaultFallbackDialerAndAddress(fallbackURL.Hostname()); err == nil {
-			fallbackOpts = &s2a.FallbackOptions{
-				FallbackDialer: &s2a.FallbackDialer{
-					Dialer:     fallbackDialer,
-					ServerAddr: fallbackServerAddr,
-				},
-			}
-		}
-	}
-
 	dialTLSContextFunc := s2a.NewS2ADialTLSContextFunc(&s2a.ClientOptions{
 		S2AAddress:     s2aAddr,
 		TransportCreds: transportCredsForS2A,
-		FallbackOpts:   fallbackOpts,
 	})
 	return nil, dialTLSContextFunc, nil
 }

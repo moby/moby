@@ -2786,10 +2786,8 @@ const (
 	ErrorTypeKey = attribute.Key("error.type")
 )
 
-var (
-	// A fallback error value to be used when the instrumentation doesn't define a custom value
-	ErrorTypeOther = ErrorTypeKey.String("_OTHER")
-)
+// A fallback error value to be used when the instrumentation doesn't define a custom value
+var ErrorTypeOther = ErrorTypeKey.String("_OTHER")
 
 // Attributes for Events represented using Log Records.
 const (
@@ -3655,10 +3653,8 @@ const (
 	GenAiUsagePromptTokensKey = attribute.Key("gen_ai.usage.prompt_tokens")
 )
 
-var (
-	// OpenAI
-	GenAiSystemOpenai = GenAiSystemKey.String("openai")
-)
+// OpenAI
+var GenAiSystemOpenai = GenAiSystemKey.String("openai")
 
 // GenAiCompletion returns an attribute KeyValue conforming to the
 // "gen_ai.completion" semantic conventions. It represents the full response

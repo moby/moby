@@ -362,9 +362,6 @@ func (c *cachedTokenProvider) tokenState() tokenState {
 // blocking call to Token should likely return the same error on the main goroutine.
 func (c *cachedTokenProvider) tokenAsync(ctx context.Context) {
 	fn := func() {
-		c.mu.Lock()
-		c.isRefreshRunning = true
-		c.mu.Unlock()
 		t, err := c.tp.Token(ctx)
 		c.mu.Lock()
 		defer c.mu.Unlock()
@@ -380,6 +377,7 @@ func (c *cachedTokenProvider) tokenAsync(ctx context.Context) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if !c.isRefreshRunning && !c.isRefreshErr {
+		c.isRefreshRunning = true
 		go fn()
 	}
 }
@@ -485,6 +483,8 @@ type Options2LO struct {
 	Audience string
 	// PrivateClaims allows specifying any custom claims for the JWT. Optional.
 	PrivateClaims map[string]interface{}
+	// UniverseDomain is the default service domain for a given Cloud universe.
+	UniverseDomain string
 
 	// Client is the client to be used to make the underlying token requests.
 	// Optional.
