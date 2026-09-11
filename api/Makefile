@@ -41,6 +41,10 @@ build:
 swagger-gen: build ## generate swagger API types
 	$(DOCKER_RUN) ./scripts/generate-swagger-api.sh
 
+.PHONY: swagger-spec
+swagger-spec: build ## generate the Swagger 2.0 compatibility specification
+	$(DOCKER_RUN) ./scripts/generate-swagger-spec.sh
+
 .PHONY: swagger-docs
 swagger-docs: ## preview the API documentation
 	@echo "API docs preview will be running at http://localhost:$(SWAGGER_DOCS_PORT)"
@@ -52,7 +56,7 @@ swagger-docs: ## preview the API documentation
 		redocly/redoc:v2.5.1
 
 .PHONY: validate-swagger
-validate-swagger: build ## validate the swagger.yaml file
+validate-swagger: build ## validate OpenAPI and the generated Swagger specification
 	$(DOCKER_RUN) ./scripts/validate-swagger.sh
 
 .PHONY: validate-swagger-gen

@@ -12622,9 +12622,6 @@ paths:
     post:
       summary: "Initialize a new swarm"
       operationId: "SwarmInit"
-      produces:
-        - "application/json"
-        - "text/plain"
       responses:
         200:
           description: "no error"
