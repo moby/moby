@@ -22,12 +22,16 @@ done
 
 cp "${API_DIR}/swagger.yaml" "${TMP_DIR}/"
 cp "${API_DIR}/swagger-gen.yaml" "${TMP_DIR}/"
+cp "${API_DIR}/go.mod" "${TMP_DIR}/"
 cp -r "${API_DIR}/templates" "${TMP_DIR}/" 2> /dev/null || true
 
 echo "Generating swagger types in temporary folder..."
 (
 	cd "${TMP_DIR}"
-	"${SCRIPT_DIR}/generate-swagger-api.sh" > /dev/null 2>&1
+	"${SCRIPT_DIR}/generate-swagger-api.sh" "${TMP_DIR}" > "${TMP_DIR}/generate.log" 2>&1 || {
+		cat "${TMP_DIR}/generate.log" >&2
+		exit 1
+	}
 )
 
 echo "Run diff for all generated files..."
