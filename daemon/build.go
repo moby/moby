@@ -5,6 +5,7 @@ import (
 	"errors"
 	"runtime"
 
+	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
@@ -12,11 +13,17 @@ import (
 )
 
 func (daemon *Daemon) validateBuildkitConfig(features map[string]bool) error {
+	if !features["buildkit"] {
+		return nil
+	}
+
 	// Check the actual image store, not the containerd-snapshotter feature flag:
 	// storage-driver selection, migration, or a reload can make them differ.
-	if runtime.GOOS == "windows" && features["buildkit"] && !daemon.usesSnapshotter {
+	if runtime.GOOS == "windows" && !daemon.usesSnapshotter {
 		return errors.New("features.buildkit=true requires the containerd image store on Windows")
 	}
+
+	log.G(context.TODO()).Warn("features.buildkit=true is unnecessary because BuildKit is already the default builder; remove this setting from the daemon configuration")
 	return nil
 }
 
