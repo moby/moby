@@ -17,6 +17,7 @@ import (
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
+	"github.com/docker/distribution/manifest/schema2"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/moby/moby/v2/internal/testutil/registry"
@@ -27,6 +28,8 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
+
+const pluginConfigPullError = `Encountered remote "application/vnd.docker.plugin.v1+json"(plugin) when fetching`
 
 func TestImagePullPlatformInvalid(t *testing.T) {
 	ctx := setupTest(t)
@@ -116,6 +119,74 @@ func createTestImage(ctx context.Context, t testing.TB, store content.Store) oci
 	}
 }
 
+func createTestPlugin(ctx context.Context, t testing.TB, store content.Store) ocispec.Descriptor {
+	w, err := store.Writer(ctx, content.WithRef("plugin-layer"))
+	assert.NilError(t, err)
+	defer w.Close()
+
+	const layer = `./0000775000000000000000000000000014201045023007702 5ustar  rootroot`
+
+	_, err = w.Write([]byte(layer))
+	assert.NilError(t, err)
+
+	err = w.Commit(ctx, int64(len(layer)), digest.FromBytes([]byte(layer)))
+	assert.NilError(t, err)
+
+	layerDigest := w.Digest()
+	assert.Check(t, w.Close())
+
+	const pluginConfig = `{"description":"test plugin"}`
+
+	w, err = store.Writer(ctx, content.WithRef("plugin-config"))
+	assert.NilError(t, err)
+	defer w.Close()
+	_, err = w.Write([]byte(pluginConfig))
+	assert.NilError(t, err)
+	assert.NilError(t, w.Commit(ctx, int64(len(pluginConfig)), digest.FromBytes([]byte(pluginConfig))))
+
+	configDigest := w.Digest()
+	assert.Check(t, w.Close())
+
+	info, err := store.Info(ctx, layerDigest)
+	assert.NilError(t, err)
+
+	manifest := ocispec.Manifest{
+		Versioned: specs.Versioned{
+			SchemaVersion: 2,
+		},
+		MediaType: c8dimages.MediaTypeDockerSchema2Manifest,
+		Config: ocispec.Descriptor{
+			MediaType: schema2.MediaTypePluginConfig,
+			Digest:    configDigest,
+			Size:      int64(len(pluginConfig)),
+		},
+		Layers: []ocispec.Descriptor{{
+			MediaType: c8dimages.MediaTypeDockerSchema2Layer,
+			Digest:    layerDigest,
+			Size:      info.Size,
+		}},
+	}
+
+	manifestJSON, err := json.Marshal(manifest)
+	assert.NilError(t, err)
+
+	w, err = store.Writer(ctx, content.WithRef("plugin-manifest"))
+	assert.NilError(t, err)
+	defer w.Close()
+	_, err = w.Write(manifestJSON)
+	assert.NilError(t, err)
+	assert.NilError(t, w.Commit(ctx, int64(len(manifestJSON)), digest.FromBytes(manifestJSON)))
+
+	manifestDigest := w.Digest()
+	assert.Check(t, w.Close())
+
+	return ocispec.Descriptor{
+		MediaType: c8dimages.MediaTypeDockerSchema2Manifest,
+		Digest:    manifestDigest,
+		Size:      int64(len(manifestJSON)),
+	}
+}
+
 // Make sure that pulling by an already cached digest but for a different ref (that should not have that digest)
 // verifies with the remote that the digest exists in that repo.
 func TestImagePullStoredDigestForOtherRepo(t *testing.T) {
@@ -160,6 +231,45 @@ func TestImagePullStoredDigestForOtherRepo(t *testing.T) {
 	assert.Assert(t, err != nil, "Expected error, got none: %v", err)
 	assert.Assert(t, cerrdefs.IsNotFound(err), err)
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
+}
+
+func TestImagePullPluginConfigReturnsUnsupportedRemoteError(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	skip.If(t, !testEnv.UsingSnapshotter(), "only relevant to containerd image store")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "We don't run a test registry on Windows")
+	ctx := setupTest(t)
+
+	reg := registry.NewV2(t, registry.WithStdout(os.Stdout), registry.WithStderr(os.Stderr))
+	defer reg.Close()
+	reg.WaitReady(t)
+
+	dir := t.TempDir()
+	store, err := local.NewStore(dir)
+	assert.NilError(t, err)
+
+	desc := createTestPlugin(ctx, t, store)
+	remote := path.Join(registry.DefaultURL, "test-plugin:latest")
+
+	c8dClient, err := containerd.New("", containerd.WithServices(containerd.WithContentStore(store)))
+	assert.NilError(t, err)
+
+	err = c8dClient.Push(ctx, remote, desc)
+	assert.NilError(t, err)
+
+	apiClient := testEnv.APIClient()
+	rdr, pullErr := apiClient.ImagePull(ctx, remote, client.ImagePullOptions{})
+	if rdr != nil {
+		defer rdr.Close()
+		body, err := io.ReadAll(rdr)
+		assert.NilError(t, err)
+		assert.Check(t, is.Contains(string(body), schema2.MediaTypePluginConfig))
+		assert.Check(t, is.Contains(string(body), "(plugin) when fetching"))
+		return
+	}
+
+	assert.Assert(t, pullErr != nil)
+	assert.Check(t, is.ErrorContains(pullErr, pluginConfigPullError))
+	assert.Check(t, is.ErrorType(pullErr, cerrdefs.IsInvalidArgument))
 }
 
 // TestImagePullNonExisting pulls non-existing images from the central registry, with different
