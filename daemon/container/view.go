@@ -149,26 +149,29 @@ func (db *ViewDB) withTxn(cb func(*memdb.Txn) error) error {
 }
 
 // Save atomically updates the in-memory store state for a Container.
-// Only read only (deep) copies of containers may be passed in.
+// Only read-only (deep) copies of containers may be passed in.
 func (db *ViewDB) Save(c *Container) error {
 	return db.withTxn(func(txn *memdb.Txn) error {
 		return txn.Insert(memdbContainersTable, c)
 	})
 }
 
-// Delete removes an item by ID
-func (db *ViewDB) Delete(c *Container) error {
-	return db.withTxn(func(txn *memdb.Txn) error {
+// Delete removes a container by its ID and releases all names associated
+// with it. Delete is idempotent, and ignores errors due to the container
+// not existing.
+func (db *ViewDB) Delete(containerID string) {
+	_ = db.withTxn(func(txn *memdb.Txn) error {
 		view := &View{txn: txn}
-		names := view.getNames(c.ID)
 
-		for _, name := range names {
-			txn.Delete(memdbNamesTable, nameAssociation{name: name})
+		// Clean up all names associated with the container; ignore
+		// errors, as names may not be found and we need to clean up
+		// the container itself after this.
+		for _, name := range view.getNames(containerID) {
+			_ = txn.Delete(memdbNamesTable, nameAssociation{name: name})
 		}
 
-		// Ignore error - the container may not actually exist in the
-		// db, but we still need to clean up associated names.
-		txn.Delete(memdbContainersTable, NewBaseContainer(c.ID, c.Root))
+		// Ignore error - the container may not actually exist.
+		_ = txn.Delete(memdbContainersTable, containerIDKey(containerID))
 		return nil
 	})
 }
@@ -426,21 +429,30 @@ func (v *View) transform(ctr *Container) *Snapshot {
 	return snapshot
 }
 
+// terminator is the null character, used as a terminator.
+const terminator = "\x00"
+
+// containerIDKey is used to lookup a container by its ID. It's an alternative
+// to passing a [Container] struct for situations where no Container struct
+// is available.
+type containerIDKey string
+
 // containerByIDIndexer is used to extract the ID field from Container types.
 // memdb.StringFieldIndex can not be used since ID is a field from an embedded struct.
 type containerByIDIndexer struct{}
 
-// terminator is the null character, used as a terminator.
-const terminator = "\x00"
-
 // FromObject implements the memdb.SingleIndexer interface for Container objects
 func (e *containerByIDIndexer) FromObject(obj any) (bool, []byte, error) {
-	c, ok := obj.(*Container)
-	if !ok {
+	switch c := obj.(type) {
+	case containerIDKey:
+		// Add the null character as a terminator
+		return true, []byte(c + terminator), nil
+	case *Container:
+		// Add the null character as a terminator
+		return true, []byte(c.ID + terminator), nil
+	default:
 		return false, nil, fmt.Errorf("%T is not a Container", obj)
 	}
-	// Add the null character as a terminator
-	return true, []byte(c.ID + terminator), nil
 }
 
 // FromArgs implements the memdb.Indexer interface
