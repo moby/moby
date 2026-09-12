@@ -31,6 +31,7 @@ require (
 	github.com/containerd/containerd/v2 v2.3.5
 	github.com/containerd/continuity v0.5.0
 	github.com/containerd/errdefs v1.0.0
+	github.com/containerd/errdefs/pkg v0.3.0
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.1.0
 	github.com/containerd/log/otel v0.1.0
@@ -162,7 +163,6 @@ require (
 	github.com/container-storage-interface/spec v1.10.0 // indirect
 	github.com/containerd/accelerated-container-image v1.3.0 // indirect
 	github.com/containerd/console v1.0.5 // indirect
-	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/go-cni v1.1.13 // indirect
 	github.com/containerd/go-runc v1.2.1 // indirect
 	github.com/containerd/nydus-snapshotter v0.15.15 // indirect
