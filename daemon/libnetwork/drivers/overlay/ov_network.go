@@ -236,6 +236,12 @@ func (d *driver) DeleteNetwork(nid string) error {
 		}
 	}
 
+	// Endpoints are expected to have left before a network is deleted, which
+	// would have released the tunnel references via destroySandbox(). Nothing
+	// here enforces that, and the network object is about to become
+	// unreachable, so release anything it still holds.
+	n.releaseEncryptionRefs()
+
 	d.mu.Lock()
 	delete(d.networks, nid)
 	d.mu.Unlock()
@@ -327,6 +333,39 @@ func (n *network) destroySandbox() {
 		n.sbox.Destroy()
 		n.sbox = nil
 	}
+
+	// The kernel state the tunnel references were taken for is destroyed
+	// along with the sandbox, and the peer database is replayed through
+	// addNeighbor() the next time the sandbox is created, which takes fresh
+	// references.
+	n.releaseEncryptionRefs()
+}
+
+// releaseEncryptionRefs releases the IPsec tunnel references taken by
+// addNeighbor() for the peers programmed into the network's sandbox.
+//
+// addNeighbor() increments fdbCnt and takes a tunnel reference together, and
+// rolls both back together on failure, so fdbCnt is exactly the set of
+// references held by this network. They have to stay in lockstep: taking a
+// reference without incrementing fdbCnt, or vice versa, would break this.
+//
+// It is idempotent: a second call releases nothing.
+//
+// To be called while holding the network lock.
+func (n *network) releaseEncryptionRefs() {
+	if n.secure {
+		for k, cnt := range n.fdbCnt {
+			for range cnt {
+				if err := n.driver.removeEncryption(k.IP()); err != nil {
+					log.G(context.TODO()).WithFields(log.Fields{
+						"error": err,
+						"vtep":  k.IP(),
+					}).Warn("Failed to release encrypted tunnel reference")
+				}
+			}
+		}
+	}
+	clear(n.fdbCnt)
 }
 
 func populateVNITbl() {
