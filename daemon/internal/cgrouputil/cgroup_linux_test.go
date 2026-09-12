@@ -40,6 +40,19 @@ func TestVerifyPIDOwnerSelf(t *testing.T) {
 	assert.ErrorContains(t, VerifyPIDOwner(int32(os.Getpid()), uid^1), "not peer uid")
 }
 
+func TestValidateScopeForDriver(t *testing.T) {
+	// Non-scope paths are always allowed regardless of driver.
+	assert.NilError(t, ValidateScopeForDriver("/system.slice/docker.service", true))
+	assert.NilError(t, ValidateScopeForDriver("/system.slice/docker.service", false))
+	assert.NilError(t, ValidateScopeForDriver("/slurm/uid_1001/job_123", true))
+	assert.NilError(t, ValidateScopeForDriver("/slurm/uid_1001/job_123", false))
+	// Scope paths require cgroupfs: rejected with systemd, allowed with cgroupfs.
+	assert.ErrorContains(t, ValidateScopeForDriver("/user.slice/user-1000.slice/session-3.scope", true), "native.cgroupdriver=systemd")
+	assert.NilError(t, ValidateScopeForDriver("/user.slice/user-1000.slice/session-3.scope", false))
+	assert.ErrorContains(t, ValidateScopeForDriver("/system.slice/slurmstepd.scope", true), "cgroupfs")
+	assert.NilError(t, ValidateScopeForDriver("/system.slice/slurmstepd.scope", false))
+}
+
 func TestVerifyPIDOwnerErrors(t *testing.T) {
 	assert.ErrorContains(t, VerifyPIDOwner(0, 0), "invalid pid")
 	assert.ErrorContains(t, VerifyPIDOwner(-1, 0), "invalid pid")

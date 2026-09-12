@@ -86,17 +86,19 @@ func GetClientCgroup(pid int32) (string, error) {
 // IsScopePath reports whether a cgroup v2 path is inside a systemd scope
 // (any path segment ending in ".scope", e.g.
 // "/user.slice/user-1000.slice/session-3.scope" or
-// "/system.slice/slurmstepd.scope/job_123").
+// "/system.slice/slurmstepd.scope/job_123/step_0").
 //
-// Scopes are leaf cgroups that hold processes and cannot have children, so
-// they cannot be used as a CgroupParent for a new container under the
-// systemd cgroup driver (which requires a "xxx.slice" parent). Placing a
-// container under a scope already managed by another manager (e.g. Slurm)
-// would also require a second cgroup manager on the same scope, which stock
-// runc refuses via its eBPF device filter; that part is driver-independent,
-// so scopes are rejected regardless of cgroup driver. Callers should reject
-// scope paths fail-closed with an actionable error instead of passing them
-// through to the generic ".slice" validation or to runc.
+// Scopes are leaf cgroups that hold processes. With the systemd cgroup
+// driver they cannot be used as a CgroupParent: the driver requires a
+// "xxx.slice" parent (see daemon.verifyPlatformContainerSettings) and
+// systemd itself rejects Slice=*.scope. With the cgroupfs driver
+// (--exec-opt native.cgroupdriver=cgroupfs) the parent is used as-is via
+// mkdir under /sys/fs/cgroup/<parent>/<id>, so scope-resident clients
+// (e.g. Slurm slurmstepd.scope) work there; a device-BPF conflict with the
+// scope owner is rare and surfaces from the runtime (patched runc only
+// needed for that edge case). Callers must therefore reject scope paths
+// fail-closed only when the systemd driver is in use, and allow them with
+// cgroupfs.
 func IsScopePath(p string) bool {
 	for _, seg := range strings.Split(p, "/") {
 		if strings.HasSuffix(seg, ".scope") {
@@ -104,6 +106,17 @@ func IsScopePath(p string) bool {
 		}
 	}
 	return false
+}
+
+// ValidateScopeForDriver rejects scope paths fail-closed only when the
+// systemd cgroup driver is in use. With cgroupfs
+// (--exec-opt native.cgroupdriver=cgroupfs) scope parents are used as-is
+// via mkdir, so they are allowed. Returns nil when allowed.
+func ValidateScopeForDriver(cgroupPath string, usingSystemd bool) error {
+	if IsScopePath(cgroupPath) && usingSystemd {
+		return fmt.Errorf("client cgroup %q is inside a systemd scope (.scope), which cannot be used with native.cgroupdriver=systemd (cgroup-parent must be \"xxx.slice\"); run dockerd with --exec-opt native.cgroupdriver=cgroupfs to support scope-resident clients (a device-BPF conflict with the scope owner, if hit, needs a patched runc), refusing container creation", cgroupPath)
+	}
+	return nil
 }
 
 // VerifyPIDOwner mitigates PID-reuse (TOCTOU) between SO_PEERCRED collection

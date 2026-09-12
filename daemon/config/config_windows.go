@@ -73,6 +73,12 @@ func setPlatformDefaults(cfg *Config) error {
 	return nil
 }
 
+// UsingSystemd reports whether the systemd cgroup driver is in use.
+// Always false on Windows (native.cgroupdriver is Linux-only).
+func UsingSystemd(_ *Config) bool {
+	return false
+}
+
 // validatePlatformConfig checks if any platform-specific configuration settings are invalid.
 func validatePlatformConfig(conf *Config) error {
 	if conf.MTU != 0 && conf.MTU != DefaultNetworkMtu {

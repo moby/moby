@@ -201,9 +201,11 @@ Bridge networks will accept packets with this firewall mark/mask.
   (Unix sockets only, Linux only). Fail-closed when enabled: requests without
   peer credentials (e.g. TCP), PID-owner mismatch, unreadable cgroup, or
   empty/root cgroup are rejected. Systemd scope paths (e.g. Slurm's
-  slurmstepd.scope) are also rejected because scopes cannot be used as a
-  cgroup-parent (systemd driver requires a "xxx.slice", and a second manager
-  on the same scope needs a patched runc). Same-UID PID reuse between
+  slurmstepd.scope) require `--exec-opt native.cgroupdriver=cgroupfs`: with
+  the systemd driver the parent must be a "xxx.slice" and scopes are rejected
+  with an actionable error, while cgroupfs uses the scope path as-is via
+  mkdir (a device-BPF conflict with the scope owner, if hit, needs a patched
+  runc). Cannot be combined with `--cgroup-parent`. Same-UID PID reuse between
   connection and create remains possible; a full fix requires per-request
   credentials. Default is **false**.
 

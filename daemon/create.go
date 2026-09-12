@@ -126,13 +126,13 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	// HostConfig.CgroupParent with the cgroup of the calling process (via
 	// SO_PEERCRED). This is for shared HPC/Slurm environments. Fail-closed
 	// when enabled: missing peer credentials (e.g. TCP, which has no
-	// SO_PEERCRED), PID-owner mismatch, unreadable cgroup, empty/root cgroup,
-	// or a systemd scope path all return an error instead of silently
-	// falling back to the daemon's cgroup (which would break isolation).
-	// Scope paths (e.g. Slurm's slurmstepd.scope) cannot be used as a
-	// CgroupParent: scopes are leaf cgroups and the systemd driver requires
-	// a "xxx.slice" parent; a second manager on the same scope also needs
-	// a patched runc with relaxed eBPF handling. See discussion in #53514.
+	// SO_PEERCRED), PID-owner mismatch, unreadable cgroup, or empty/root
+	// cgroup all return an error instead of silently falling back to the
+	// daemon's cgroup (which would break isolation).
+	// Systemd scope paths (e.g. Slurm's slurmstepd.scope) require the
+	// cgroupfs driver (--exec-opt native.cgroupdriver=cgroupfs): the
+	// systemd driver requires a "xxx.slice" parent and rejects scopes, while
+	// cgroupfs uses the scope path as-is via mkdir. See discussion in #53514.
 	if daemonCfg.CgroupParentFromClient {
 		cred, ok := peercred.FromContext(ctx)
 		if !ok || cred == nil {
@@ -145,11 +145,14 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 		if err := cgrouputil.VerifyPIDOwner(cred.PID, cred.UID); err != nil {
 			return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(fmt.Errorf("cgroup-parent-from-client: refusing creation: %w", err))
 		}
-		if cgrouputil.IsScopePath(cgroupPath) {
-			return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(fmt.Errorf("client cgroup %q is inside a systemd scope (.scope), which cannot be used as cgroup-parent (systemd driver requires a \"xxx.slice\"); Slurm scope jobs need a slice parent or a patched runc with relaxed eBPF handling, refusing container creation", cgroupPath))
-		}
 		if cgroupPath == "" || cgroupPath == "/" {
 			return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(fmt.Errorf("client cgroup is empty or root (%q), refusing container creation", cgroupPath))
+		}
+		if err := cgrouputil.ValidateScopeForDriver(cgroupPath, UsingSystemd(&daemonCfg.Config)); err != nil {
+			return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
+		}
+		if cgrouputil.IsScopePath(cgroupPath) {
+			log.G(ctx).WithFields(log.Fields{"clientPID": cred.PID, "clientCgroup": cgroupPath}).Debug("allowing scope parent with cgroupfs driver for cgroup-parent-from-client")
 		}
 		if opts.params.HostConfig.CgroupParent != cgroupPath {
 			log.G(ctx).WithFields(log.Fields{"clientPID": cred.PID, "clientCgroup": cgroupPath, "previous": opts.params.HostConfig.CgroupParent}).Debug("enforcing cgroup parent from client")
