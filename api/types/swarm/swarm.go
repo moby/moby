@@ -16,6 +16,9 @@ type ClusterInfo struct {
 	DefaultAddrPool        []netip.Prefix
 	SubnetSize             uint32
 	DataPathPort           uint32
+	// DataPathAddress is the address used for data path traffic.
+	// This is the resolved advertise address, not the spec value.
+	DataPathAddress string
 }
 
 // Swarm represents a swarm.
