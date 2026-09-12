@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
@@ -16,6 +17,7 @@ import (
 // Backend is the methods that need to be implemented to provide
 // system specific functionality.
 type Backend interface {
+	BuilderVersion() build.BuilderVersion
 	SystemInfo(context.Context) (*system.Info, error)
 	SystemVersion(context.Context) (system.VersionResponse, error)
 	SystemDiskUsage(ctx context.Context, opts backend.DiskUsageOptions) (*backend.DiskUsage, error)

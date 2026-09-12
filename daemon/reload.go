@@ -300,6 +300,10 @@ func (daemon *Daemon) reloadNetworkDiagnosticPort(txn *reloadTxn, newCfg *config
 
 // reloadFeatures updates configuration with enabled/disabled features
 func (daemon *Daemon) reloadFeatures(_ *reloadTxn, newCfg *configStore, conf *config.Config, attributes map[string]string) error {
+	if err := daemon.validateBuildkitConfig(conf.Features); err != nil {
+		return err
+	}
+
 	// update corresponding configuration
 	// note that we allow features option to be entirely unset
 	newCfg.Features = conf.Features

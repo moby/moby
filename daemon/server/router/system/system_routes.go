@@ -22,7 +22,6 @@ import (
 	"github.com/moby/moby/v2/daemon/server/buildbackend"
 	"github.com/moby/moby/v2/daemon/server/httputils"
 	"github.com/moby/moby/v2/daemon/server/httputils/contenttype"
-	"github.com/moby/moby/v2/daemon/server/router/build"
 	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -37,8 +36,7 @@ func (s *systemRouter) pingHandler(ctx context.Context, w http.ResponseWriter, r
 	w.Header().Add("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Add("Pragma", "no-cache")
 
-	builderVersion := build.BuilderVersion(s.features())
-	if bv := builderVersion; bv != "" {
+	if bv := s.backend.BuilderVersion(); bv != "" {
 		w.Header().Set("Builder-Version", string(bv))
 	}
 
