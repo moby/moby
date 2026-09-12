@@ -576,8 +576,8 @@ github.com/containerd/go-cni
 # github.com/containerd/go-runc v1.2.1
 ## explicit; go 1.21
 github.com/containerd/go-runc
-# github.com/containerd/log v0.1.0
-## explicit; go 1.20
+# github.com/containerd/log v0.2.0
+## explicit; go 1.23
 github.com/containerd/log
 github.com/containerd/log/logtest
 # github.com/containerd/log/otel v0.1.0
@@ -1609,6 +1609,7 @@ github.com/sigstore/timestamp-authority/v2/pkg/verification
 # github.com/sirupsen/logrus v1.10.2
 ## explicit; go 1.23
 github.com/sirupsen/logrus
+github.com/sirupsen/logrus/hooks/slog
 # github.com/spdx/tools-golang v0.5.7
 ## explicit; go 1.22
 github.com/spdx/tools-golang/convert
