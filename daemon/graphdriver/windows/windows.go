@@ -630,6 +630,7 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 }
 
 func writeTarFromLayer(r hcsshim.LayerReader, w io.Writer) error {
+	linkRecords := make(map[[16]byte]string)
 	t := tar.NewWriter(w)
 	for {
 		name, size, fileInfo, err := r.Next()
@@ -648,6 +649,21 @@ func writeTarFromLayer(r hcsshim.LayerReader, w io.Writer) error {
 				return err
 			}
 		} else {
+			// For files with multiple hardlinks, write the first occurrence normally
+			// and record its path. Subsequent occurrences are emitted as hardlinks to it.
+			if nlinks, id, err := r.LinkInfo(); err == nil && nlinks > 1 {
+				if prev, ok := linkRecords[id.FileID]; ok {
+					hdr := backuptar.BasicInfoHeader(name, 0, fileInfo)
+					hdr.Mode = 0o644
+					hdr.Typeflag = tar.TypeLink
+					hdr.Linkname = prev
+					if err := t.WriteHeader(hdr); err != nil {
+						return err
+					}
+					continue
+				}
+				linkRecords[id.FileID] = filepath.ToSlash(name)
+			}
 			err = backuptar.WriteTarFileFromBackupStream(t, r, name, size, fileInfo)
 			if err != nil {
 				return err
