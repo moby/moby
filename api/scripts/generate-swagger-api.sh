@@ -3,7 +3,11 @@
 # -*- indent-tabs-mode: t -*-
 set -eu
 
-API_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Usage: generate-swagger-api.sh [api-directory]
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+API_DIR="${1:-${SCRIPT_DIR}/..}"
+
+"${SCRIPT_DIR}/generate-swagger-spec.sh" "${API_DIR}"
 
 generate_model() {
 	local package="$1"
