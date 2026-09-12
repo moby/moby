@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/containerd/cgroups/v3"
 	"github.com/containerd/log"
@@ -232,6 +234,43 @@ func lookupBinPath(binary string) (string, error) {
 
 	// if we checked all the "libexec" directories and found no matches, fall back to PATH
 	return exec.LookPath(binary)
+}
+
+// UsingSystemd returns true if the daemon is configured to use the systemd
+// cgroup driver (explicit native.cgroupdriver=systemd, or defaulted on
+// cgroup v2 hosts running systemd). Mirrors daemon.UsingSystemd without
+// importing the daemon package (which would be an import cycle) so that
+// API-layer helpers (e.g. cgroup-parent-from-client enforcement) can make
+// driver-aware decisions.
+func UsingSystemd(cfg *Config) bool {
+	// Error ignored: invalid exec-opts are rejected in verifyCgroupDriver at daemon startup.
+	cd, _, _ := cfg.GetExecOpt("native.cgroupdriver")
+	if cd == "systemd" {
+		return true
+	}
+	// On cgroup v2 hosts, default to systemd driver.
+	if cd == "" && cgroups.Mode() == cgroups.Unified && isRunningSystemd() {
+		return true
+	}
+	return false
+}
+
+var (
+	runningSystemd bool
+	detectSystemd  sync.Once
+)
+
+// isRunningSystemd checks whether the host was booted with systemd as its
+// init system (same check as daemon.isRunningSystemd: /run/systemd/system/).
+func isRunningSystemd() bool {
+	detectSystemd.Do(func() {
+		fi, err := os.Lstat("/run/systemd/system")
+		if err != nil {
+			return
+		}
+		runningSystemd = fi.IsDir()
+	})
+	return runningSystemd
 }
 
 // validatePlatformConfig checks if any platform-specific configuration settings are invalid.
