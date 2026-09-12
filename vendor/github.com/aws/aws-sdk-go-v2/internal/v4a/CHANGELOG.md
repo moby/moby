@@ -1,3 +1,25 @@
+# v1.5.3 (2026-09-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.5.2 (2026-09-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.5.1 (2026-08-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.5.0 (2026-08-27)
+
+* **Feature**: Support connection read timeouts in the SDK. This is currently available on an opt-in basis by setting env `AWS_ENABLE_DEFAULT_SOCKET_TIMEOUT_2026=true`.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.4.41 (2026-08-26)
+
+* **Dependency Update**: Update to smithy-go v1.28.0.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.4.40 (2026-08-25)
 
 * **Dependency Update**: Update to smithy-go v1.27.10.
