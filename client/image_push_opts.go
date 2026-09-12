@@ -8,8 +8,9 @@ import (
 
 // ImagePushOptions holds information to push images.
 type ImagePushOptions struct {
-	All          bool
-	RegistryAuth string // RegistryAuth is the base64 encoded credentials for the registry
+	All                  bool
+	RegistryAuth         string // RegistryAuth is the base64 encoded credentials for the registry
+	ForceCheckLayerExist bool
 
 	// PrivilegeFunc is a function that clients can supply to retry operations
 	// after getting an authorization error. This function returns the registry
