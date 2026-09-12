@@ -16,6 +16,7 @@ import (
 	internalauth "github.com/aws/aws-sdk-go-v2/internal/auth"
 	internalauthsmithy "github.com/aws/aws-sdk-go-v2/internal/auth/smithy"
 	internalConfig "github.com/aws/aws-sdk-go-v2/internal/configsources"
+	"github.com/aws/aws-sdk-go-v2/internal/timeouts"
 	"github.com/aws/aws-sdk-go-v2/internal/v4a"
 	acceptencodingcust "github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding"
 	presignedurlcust "github.com/aws/aws-sdk-go-v2/service/internal/presigned-url"
@@ -397,9 +398,6 @@ func (c *Client) addCommonMiddlewares(stack *middleware.Stack, options Options, 
 	if err := addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err := addSpanRetryLoop(stack, options); err != nil {
-		return err
-	}
 	if err := addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -531,6 +529,12 @@ func resolveHTTPClient(o *Options) {
 				transport.TLSHandshakeTimeout = tlsHandshakeTimeout
 			}
 		})
+	}
+
+	if _, ok := buildable.GetReadTimeout(); !ok {
+		if timeout, ok := timeouts.GetServiceReadTimeout(ServiceID); ok {
+			buildable = buildable.WithReadTimeout(timeout)
+		}
 	}
 
 	o.HTTPClient = buildable
@@ -674,10 +678,6 @@ func addClientRequestID(stack *middleware.Stack) error {
 	return stack.Build.Add(&awsmiddleware.ClientRequestID{}, middleware.After)
 }
 
-func addComputeContentLength(stack *middleware.Stack) error {
-	return stack.Build.Insert(&smithyhttp.ComputeContentLength{}, "ClientRequestID", middleware.After)
-}
-
 func addRawResponseToMetadata(stack *middleware.Stack) error {
 	return stack.Deserialize.Add(&awsmiddleware.AddRawResponse{}, middleware.Before)
 }
@@ -686,30 +686,6 @@ func addRecordResponseTiming(stack *middleware.Stack, options Options) error {
 	return stack.Deserialize.Add(&awsmiddleware.RecordResponseTiming{
 		DisableClockSkewCorrection: options.DisableClockSkewCorrection,
 	}, middleware.After)
-}
-
-func addSpanRetryLoop(stack *middleware.Stack, options Options) error {
-	return stack.Finalize.Insert(&spanRetryLoop{options: options}, "Retry", middleware.Before)
-}
-
-type spanRetryLoop struct {
-	options Options
-}
-
-func (*spanRetryLoop) ID() string {
-	return "spanRetryLoop"
-}
-
-func (m *spanRetryLoop) HandleFinalize(
-	ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler,
-) (
-	middleware.FinalizeOutput, middleware.Metadata, error,
-) {
-	tracer := operationTracer(m.options.TracerProvider)
-	ctx, span := tracer.StartSpan(ctx, "RetryLoop")
-	defer span.End()
-
-	return next.HandleFinalize(ctx, in)
 }
 func addStreamingEventsPayload(stack *middleware.Stack) error {
 	return stack.Finalize.Add(&v4.StreamingEventsPayload{}, middleware.Before)
@@ -759,9 +735,6 @@ func addRetry(stack *middleware.Stack, o Options, c *Client) error {
 		m.DisableClockSkewCorrection = o.DisableClockSkewCorrection
 	})
 	if err := stack.Finalize.Insert(attempt, "ResolveAuthScheme", middleware.Before); err != nil {
-		return err
-	}
-	if err := stack.Finalize.Insert(&retry.MetricsHeader{}, attempt.ID(), middleware.After); err != nil {
 		return err
 	}
 	return nil
@@ -836,35 +809,21 @@ func addUserAgentRetryMode(stack *middleware.Stack, options Options) error {
 	return nil
 }
 
-type setCredentialSourceMiddleware struct {
-	ua      *awsmiddleware.RequestUserAgent
-	options Options
-}
-
-func (m setCredentialSourceMiddleware) ID() string { return "SetCredentialSourceMiddleware" }
-
-func (m setCredentialSourceMiddleware) HandleBuild(ctx context.Context, in middleware.BuildInput, next middleware.BuildHandler) (
-	out middleware.BuildOutput, metadata middleware.Metadata, err error,
-) {
-	asProviderSource, ok := m.options.Credentials.(aws.CredentialProviderSource)
-	if !ok {
-		return next.HandleBuild(ctx, in)
-	}
-	providerSources := asProviderSource.ProviderSources()
-	for _, source := range providerSources {
-		m.ua.AddCredentialsSource(source)
-	}
-	return next.HandleBuild(ctx, in)
-}
-
 func addCredentialSource(stack *middleware.Stack, options Options) error {
 	ua, err := getOrAddRequestUserAgent(stack)
 	if err != nil {
 		return err
 	}
 
-	mw := setCredentialSourceMiddleware{ua: ua, options: options}
-	return stack.Build.Insert(&mw, "UserAgent", middleware.Before)
+	asProviderSource, ok := options.Credentials.(aws.CredentialProviderSource)
+	if !ok {
+		return nil
+	}
+
+	for _, source := range asProviderSource.ProviderSources() {
+		ua.AddCredentialsSource(source)
+	}
+	return nil
 }
 
 func finalizeSTSRetryableErrors(o *Options) {
@@ -1023,9 +982,6 @@ func (c presignConverter) convertToPresignMiddleware(stack *middleware.Stack, op
 	}
 	if _, ok := stack.Finalize.Get((*retry.Attempt)(nil).ID()); ok {
 		stack.Finalize.Remove((*retry.Attempt)(nil).ID())
-	}
-	if _, ok := stack.Finalize.Get((*retry.MetricsHeader)(nil).ID()); ok {
-		stack.Finalize.Remove((*retry.MetricsHeader)(nil).ID())
 	}
 	stack.Deserialize.Clear()
 	stack.Build.Remove((*awsmiddleware.ClientRequestID)(nil).ID())
