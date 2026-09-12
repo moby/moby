@@ -27,8 +27,8 @@ require (
 	github.com/aws/smithy-go v1.28.1
 	github.com/cloudflare/cfssl v1.6.5
 	github.com/containerd/cgroups/v3 v3.1.3
-	github.com/containerd/containerd/api v1.11.1
-	github.com/containerd/containerd/v2 v2.3.5
+	github.com/containerd/containerd/api v1.12.0-rc.0
+	github.com/containerd/containerd/v2 v2.4.0-beta.0
 	github.com/containerd/continuity v0.5.0
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/fifo v1.1.0
@@ -231,7 +231,7 @@ require (
 	github.com/hiddeco/sshsig v0.2.0 // indirect
 	github.com/in-toto/attestation v1.2.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/intel/goresctrl v0.12.0 // indirect
+	github.com/intel/goresctrl v0.13.0 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/knqyf263/go-plugin v0.9.0 // indirect

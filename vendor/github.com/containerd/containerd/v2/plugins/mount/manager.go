@@ -81,7 +81,14 @@ func init() {
 
 			metadb := filepath.Join(root, "mounts.db")
 
-			db, err := bolt.Open(metadb, 0600, nil)
+			options := *bolt.DefaultOptions
+
+			// Disable stat usage since we never consume the data.
+			// This can reduce unnecessary contention during transactions.
+			// https://github.com/etcd-io/bbolt/pull/977
+			options.NoStatistics = true
+
+			db, err := bolt.Open(metadb, 0600, &options)
 			if err != nil {
 				return nil, fmt.Errorf("failed to open database file: %w", err)
 			}

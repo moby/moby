@@ -218,40 +218,6 @@ type dockerFetcher struct {
 	*dockerBase
 }
 
-func stripSensitiveHeadersForExternalURLs(h http.Header) {
-	h.Del("Authorization")
-	h.Del("Proxy-Authorization")
-	h.Del("Cookie")
-	h.Del("Cookie2")
-}
-
-func effectivePort(u *url.URL) string {
-	if port := u.Port(); port != "" {
-		return port
-	}
-	switch strings.ToLower(u.Scheme) {
-	case "http":
-		return "80"
-	case "https":
-		return "443"
-	default:
-		return ""
-	}
-}
-
-func isRegistryOrigin(u *url.URL, hosts []RegistryHost) bool {
-	for _, host := range hosts {
-		if !strings.EqualFold(u.Scheme, host.Scheme) {
-			continue
-		}
-		hostURL := &url.URL{Scheme: host.Scheme, Host: host.Host}
-		if strings.EqualFold(u.Hostname(), hostURL.Hostname()) && effectivePort(u) == effectivePort(hostURL) {
-			return true
-		}
-	}
-	return false
-}
-
 func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("digest", desc.Digest))
 
@@ -263,6 +229,13 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 	ctx, err := ContextWithRepositoryScope(ctx, r.refspec, false)
 	if err != nil {
 		return nil, err
+	}
+
+	if r.warningHandler != nil {
+		ctx = context.WithValue(ctx, warningSourceKey{}, WarningSource{
+			Desc:   &desc,
+			Digest: &desc.Digest,
+		})
 	}
 
 	return newHTTPReadSeeker(desc.Size, func(offset int64) (io.ReadCloser, error) {
@@ -277,6 +250,7 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 				log.G(ctx).Debug("non-http(s) alternative url is unsupported")
 				continue
 			}
+
 			ctx = log.WithLogger(ctx, log.G(ctx).WithField("url", u))
 			log.G(ctx).Info("request")
 
@@ -289,9 +263,7 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 				Capabilities: HostCapabilityPull,
 			}
 			req := r.request(host, http.MethodGet)
-			if !isRegistryOrigin(u, hosts) {
-				stripSensitiveHeadersForExternalURLs(req.header)
-			}
+			// Strip namespace from base
 			req.path = u.Path
 			if u.RawQuery != "" {
 				req.path = req.path + "?" + u.RawQuery
@@ -413,6 +385,12 @@ func (r dockerFetcher) FetchByDigest(ctx context.Context, dgst digest.Digest, op
 	ctx, err := ContextWithRepositoryScope(ctx, r.refspec, false)
 	if err != nil {
 		return nil, desc, err
+	}
+
+	if r.warningHandler != nil {
+		ctx = context.WithValue(ctx, warningSourceKey{}, WarningSource{
+			Digest: &dgst,
+		})
 	}
 
 	var (

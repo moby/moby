@@ -23,6 +23,7 @@ import (
 
 	"github.com/moby/sys/userns"
 
+	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/plugins"
 	"github.com/containerd/containerd/v2/plugins/snapshots/overlay"
 	"github.com/containerd/containerd/v2/plugins/snapshots/overlay/overlayutils"
@@ -34,7 +35,6 @@ import (
 const (
 	capaRemapIDs     = "remap-ids"
 	capaOnlyRemapIDs = "only-remap-ids"
-	capaRebase       = "rebase"
 )
 
 // Config represents configuration for the overlay plugin.
@@ -99,7 +99,7 @@ func init() {
 				// "rebase" capability depends on `mknod c 0 0` via OverlayConvertWhiteout,
 				// so it does not work when running in UserNS.
 				// https://github.com/containerd/containerd/issues/13388
-				ic.Meta.Capabilities = append(ic.Meta.Capabilities, capaRebase)
+				ic.Meta.Capabilities = append(ic.Meta.Capabilities, snapshots.RebaseCap)
 			}
 
 			ic.Meta.Exports[plugins.SnapshotterRootDir] = root

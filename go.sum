@@ -150,10 +150,10 @@ github.com/containerd/cgroups/v3 v3.1.3 h1:eUNflyMddm18+yrDmZPn3jI7C5hJ9ahABE5q6
 github.com/containerd/cgroups/v3 v3.1.3/go.mod h1:PKZ2AcWmSBsY/tJUVhtS/rluX0b1uq1GmPO1ElCmbOw=
 github.com/containerd/console v1.0.5 h1:R0ymNeydRqH2DmakFNdmjR2k0t7UPuiOV/N/27/qqsc=
 github.com/containerd/console v1.0.5/go.mod h1:YynlIjWYF8myEu6sdkwKIvGQq+cOckRm6So2avqoYAk=
-github.com/containerd/containerd/api v1.11.1 h1:h8nfoDW9+fNsC/9TwiAHj8B1GzXKtR4eFtkhi/X5RLU=
-github.com/containerd/containerd/api v1.11.1/go.mod h1:CaQFRu+N1MtbgL6JDOJLUB1hCKESU1lD6MuTJhgtdlw=
-github.com/containerd/containerd/v2 v2.3.5 h1:9MYlI81gUcOZ0WsCkSMtvOU7rTR3hqAoa2eCzhoLlkA=
-github.com/containerd/containerd/v2 v2.3.5/go.mod h1:RXDyLPaI3zoO7dFdAW9/54W4cix+z3A6larieufC9mg=
+github.com/containerd/containerd/api v1.12.0-rc.0 h1:Uu/0brBDz8nW/Vo+g8ah/iJkhZML+1z+X44g8q70MVw=
+github.com/containerd/containerd/api v1.12.0-rc.0/go.mod h1:EBcSzoi9Vl18cdODaXUCskf3D2NT8lsSXeZJnU5jIUc=
+github.com/containerd/containerd/v2 v2.4.0-beta.0 h1:uFwtEE0kwGngxOT0WVW3/mozESCVg+8hKUExSis7SLY=
+github.com/containerd/containerd/v2 v2.4.0-beta.0/go.mod h1:GOAqkxqN53nSzBcz9Y5jAM9JELRMo67r34O/HDCY4Ro=
 github.com/containerd/continuity v0.5.0 h1:7a85HZpCSs+1Zps0Ee3DPSuAWY+0SJM1JNM51nlEVDg=
 github.com/containerd/continuity v0.5.0/go.mod h1:/lNJvtJKUQStBzpVQ1+rasXO1LAWtUQssk28EZvJ3nE=
 github.com/containerd/errdefs v1.0.0 h1:tg5yIfIlQIrxYtu9ajqY42W3lpS19XqdxRQeEwYG8PI=
@@ -241,8 +241,8 @@ github.com/envoyproxy/go-control-plane/envoy v1.37.0 h1:u3riX6BoYRfF4Dr7dwSOroNf
 github.com/envoyproxy/go-control-plane/envoy v1.37.0/go.mod h1:DReE9MMrmecPy+YvQOAOHNYMALuowAnbjjEMkkWOi6A=
 github.com/envoyproxy/protoc-gen-validate v1.3.3 h1:MVQghNeW+LZcmXe7SY1V36Z+WFMDjpqGAGacLe2T0ds=
 github.com/envoyproxy/protoc-gen-validate v1.3.3/go.mod h1:TsndJ/ngyIdQRhMcVVGDDHINPLWB7C82oDArY51KfB0=
-github.com/erofs/go-erofs v0.3.0 h1:o/W5ABAA3sHYl97WL93dacKEfeDpJhdFf3c2snAti7I=
-github.com/erofs/go-erofs v0.3.0/go.mod h1:XkSeN9MHszGd4+3gcEjadJLYHCQpWzJ7/8yznzMuzJs=
+github.com/erofs/go-erofs v0.3.1 h1:Sux82Jq9yvyYhIoLgSHDp741p/+370HsOj9dAh1+VVs=
+github.com/erofs/go-erofs v0.3.1/go.mod h1:XkSeN9MHszGd4+3gcEjadJLYHCQpWzJ7/8yznzMuzJs=
 github.com/felixge/httpsnoop v1.1.0 h1:3YtUj32ZZkqZtt3sZZsClsymw/QDuVfpNhoA31zeORc=
 github.com/felixge/httpsnoop v1.1.0/go.mod h1:Zqxgdd+1Rkcz8euOqdr7lqgCRJztwr5hp9vDSi5UZCE=
 github.com/fernet/fernet-go v0.0.0-20240119011108-303da6aec611 h1:JwYtKJ/DVEoIA5dH45OEU7uoryZY/gjd/BQiwwAOImM=
@@ -437,8 +437,8 @@ github.com/in-toto/in-toto-golang v0.11.0 h1:nfidMYBFx+E0lnmX5KUnN2Pdm8zdNKal1ay
 github.com/in-toto/in-toto-golang v0.11.0/go.mod h1:u3PjTnwFKjp5a1YCcw8SJg0G+tMeKfVoWsWeFMDCMtw=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
-github.com/intel/goresctrl v0.12.0 h1:F44m7jiVgOdqWfTTWaREF+5HTeX3i06qhvpuzpnrBko=
-github.com/intel/goresctrl v0.12.0/go.mod h1:5GWtmPY4BWl/a9rU8apGED9Xul5b5WoLtg/qOWaghWU=
+github.com/intel/goresctrl v0.13.0 h1:5fhKjNq4V5MYDFHa//6M6x0jP6Iq5EXwZc6/eYxdEtQ=
+github.com/intel/goresctrl v0.13.0/go.mod h1:KFHS91JGOmeeuEog+nTQcsGjLC81nRqdsdhcqf69fjU=
 github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2 h1:36qep4gxKs+JgeHGWeQ040RyZdt9kQlLglL1rFVn/oQ=
 github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2/go.mod h1:co9pwDoBCm1kGxawmb4sPq0cSIOOWNPT4KnHotMP1Zg=
 github.com/jedisct1/go-minisign v0.0.0-20211028175153-1c139d1cc84b h1:ZGiXF8sz7PDk6RgkP+A/SFfUD0ZR/AgG6SpRNEDKZy8=
