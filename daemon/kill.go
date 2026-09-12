@@ -78,6 +78,7 @@ func (daemon *Daemon) killWithSignal(ctx context.Context, container *containerpk
 	}
 
 	var unpause bool
+	var isStopSignal bool
 	if container.Config.StopSignal != "" && stopSignal != syscall.SIGKILL {
 		containerStopSignal, err := signal.ParseSignal(container.Config.StopSignal)
 		if err != nil {
@@ -86,13 +87,15 @@ func (daemon *Daemon) killWithSignal(ctx context.Context, container *containerpk
 		if containerStopSignal == stopSignal {
 			container.ExitOnNext()
 			unpause = container.State.Paused
+			isStopSignal = true
 		}
 	} else {
 		container.ExitOnNext()
 		unpause = container.State.Paused
+		isStopSignal = true
 	}
 
-	if !daemon.IsShuttingDown() {
+	if isStopSignal && !daemon.IsShuttingDown() {
 		container.HasBeenManuallyStopped = true
 		if err := container.CheckpointTo(ctx, daemon.containersReplica); err != nil {
 			log.G(ctx).WithFields(log.Fields{
