@@ -347,6 +347,10 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 		}
 
 		if !isDanglingImage(img) {
+			if err := i.images.Delete(ctx, danglingImageName(img.Target.Digest)); err != nil && !cerrdefs.IsNotFound(err) {
+				log.G(ctx).WithError(err).Warn("failed to delete dangling image")
+			}
+
 			i.warmImageIdentityCache(ctx, img)
 		}
 

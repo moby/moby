@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/containerd/containerd/v2/core/content"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	cerrdefs "github.com/containerd/errdefs"
@@ -19,6 +20,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/internal/testutil/labelstore"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -175,4 +177,144 @@ func verifyImagePlatforms(ctx context.Context, imgSvc *ImageService, imgRef stri
 	}
 
 	return nil
+}
+
+func TestImageLoadDanglingReferences(t *testing.T) {
+	linuxAmd64 := ocispec.Platform{OS: "linux", Architecture: "amd64"}
+	baseName := t.Name()
+
+	newImageDir := func(name, content string) string {
+		t.Helper()
+		dir := t.TempDir()
+		_, err := specialimage.MultiLayerCustom(dir, name, []specialimage.SingleFileLayer{
+			{Name: "foo", Content: []byte(content)},
+		})
+		assert.NilError(t, err)
+		return dir
+	}
+
+	newEnv := func(t *testing.T) *loadTestEnv {
+		t.Helper()
+		ctx := namespaces.WithNamespace(t.Context(), "testing-"+baseName)
+
+		store, err := local.NewLabeledStore(t.TempDir(), &labelstore.InMemory{})
+		assert.NilError(t, err)
+
+		imgSvc := fakeImageService(t, ctx, store)
+		imgSvc.defaultPlatformOverride = &linuxAmd64
+
+		return &loadTestEnv{
+			tryLoad: func(t *testing.T, dir string, platformList []ocispec.Platform) error {
+				t.Helper()
+				tarRc, err := archive.Tar(dir, compression.None)
+				assert.NilError(t, err)
+				defer tarRc.Close()
+
+				buf := bytes.Buffer{}
+				defer func() {
+					t.Log(buf.String())
+				}()
+
+				return imgSvc.LoadImage(ctx, tarRc, platformList, &buf, true)
+			},
+			images: func(t *testing.T) []c8dimages.Image {
+				t.Helper()
+				imgs, err := imgSvc.images.List(ctx)
+				assert.NilError(t, err)
+				return imgs
+			},
+		}
+	}
+
+	t.Run("same tag and digest", func(t *testing.T) {
+		env := newEnv(t)
+		dir := newImageDir("same:latest", "1")
+
+		for range 3 {
+			assert.NilError(t, env.tryLoad(t, dir, nil))
+		}
+
+		imgs := env.images(t)
+		assert.Assert(t, is.Len(imgs, 1), "expected a single named image, got %d", len(imgs))
+		assert.Assert(t, is.Len(danglingImagesOf(imgs), 0), "no dangling duplicate expected")
+	})
+
+	t.Run("same tag different digest", func(t *testing.T) {
+		env := newEnv(t)
+		oldDir := newImageDir("replaced:latest", "1")
+		assert.NilError(t, env.tryLoad(t, oldDir, nil))
+		oldTarget := imageTarget(t, env, "docker.io/library/replaced:latest")
+
+		newDir := newImageDir("replaced:latest", "2")
+		assert.NilError(t, env.tryLoad(t, newDir, nil))
+		newTarget := imageTarget(t, env, "docker.io/library/replaced:latest")
+		assert.Assert(t, oldTarget != newTarget, "test images must have different targets")
+
+		imgs := env.images(t)
+		assert.Assert(t, is.Len(imgs, 2), "expected the named image plus the replaced dangling image, got %d", len(imgs))
+
+		dangling := danglingImagesOf(imgs)
+		assert.Assert(t, is.Len(dangling, 1), "expected the replaced target to stay dangling")
+		assert.Assert(t, is.Equal(dangling[0].Target.Digest, oldTarget))
+		for _, img := range imgs {
+			if !isDanglingImage(img) {
+				assert.Assert(t, is.Equal(img.Target.Digest, newTarget), "the tag must point to the new image")
+			}
+		}
+	})
+
+	t.Run("new tag", func(t *testing.T) {
+		env := newEnv(t)
+		dir := newImageDir("brand-new:latest", "1")
+		assert.NilError(t, env.tryLoad(t, dir, nil))
+
+		imgs := env.images(t)
+		assert.Assert(t, is.Len(imgs, 1), "expected a single named image, got %d", len(imgs))
+		assert.Assert(t, is.Len(danglingImagesOf(imgs), 0))
+	})
+
+	t.Run("multi-platform", func(t *testing.T) {
+		env := newEnv(t)
+		dir := t.TempDir()
+		_, _, err := specialimage.MultiPlatform(dir, "multiplatform:latest", []ocispec.Platform{
+			{OS: "linux", Architecture: "amd64"},
+			{OS: "linux", Architecture: "arm64"},
+		})
+		assert.NilError(t, err)
+
+		assert.NilError(t, env.tryLoad(t, dir, nil))
+		firstLoad := env.images(t)
+
+		assert.NilError(t, env.tryLoad(t, dir, nil))
+		imgs := env.images(t)
+
+		assert.Assert(t, is.Len(imgs, len(firstLoad)), "reloading must not add records (got %d -> %d)", len(firstLoad), len(imgs))
+		assert.Assert(t, is.Len(danglingImagesOf(imgs), 0))
+	})
+}
+
+type loadTestEnv struct {
+	tryLoad func(t *testing.T, dir string, platformList []ocispec.Platform) error
+	images  func(t *testing.T) []c8dimages.Image
+}
+
+func danglingImagesOf(imgs []c8dimages.Image) []c8dimages.Image {
+	var dangling []c8dimages.Image
+	for _, img := range imgs {
+		if isDanglingImage(img) {
+			dangling = append(dangling, img)
+		}
+	}
+	return dangling
+}
+
+func imageTarget(t *testing.T, env *loadTestEnv, name string) digest.Digest {
+	t.Helper()
+	for _, img := range env.images(t) {
+		if img.Name == name {
+			return img.Target.Digest
+		}
+	}
+	t.Fatalf("image %s not found in the store", name)
+	return ""
 }
