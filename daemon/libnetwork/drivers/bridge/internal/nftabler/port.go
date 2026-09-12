@@ -69,7 +69,7 @@ func (n *network) setPerPortRules(ctx context.Context, pbs []types.PortBinding, 
 	}
 	n.setPerPortDNAT(pbs, updater, ipv)
 	n.setPerPortHairpinMasq(pbs, updater, ipv)
-	n.filterPortMappedOnLoopback(pbs, updater, ipv)
+	n.filterPortMappedOnLoopback(ctx, pbs, &tm, ipv, enable)
 	if err := table.Apply(ctx, tm); err != nil {
 		return fmt.Errorf("adding rules for bridge %s: %w", n.config.IfName, err)
 	}
@@ -124,7 +124,7 @@ func (n *network) setPerPortDNAT(pbs []types.PortBinding, updater func(nftables.
 		}
 		updater(nftables.Rule{
 			Chain: natChain,
-			Group: initialRuleGroup,
+			Group: natPortsRuleGroup,
 			Rule: []string{
 				proxySkip, v6LLSkip, daddrMatch, pb.Proto.String(), "dport", strconv.Itoa(int(pb.HostPort)), "counter dnat to",
 				net.JoinHostPort(pb.IP.String(), strconv.Itoa(int(pb.Port))), "comment DNAT",
@@ -177,10 +177,16 @@ func (n *network) setPerPortHairpinMasq(pbs []types.PortBinding, updater func(nf
 // This is a no-op if the portBinding is for IPv6 (IPv6 loopback address is
 // non-routable), or over a network with gw_mode=routed (PBs in routed mode
 // don't map ports on the host).
-func (n *network) filterPortMappedOnLoopback(pbs []types.PortBinding, updater func(nftables.Obj), ipv nftables.Family) {
+func (n *network) filterPortMappedOnLoopback(ctx context.Context, pbs []types.PortBinding, tm *nftables.Modifier, ipv nftables.Family, enable bool) {
 	if ipv == nftables.IPv6 {
 		return
 	}
+	updater := tm.Create
+	if !enable {
+		updater = tm.Delete
+	}
+	wsl2Mirrored := false
+	detectedWSL2Mirrored := false
 	for _, pb := range pbs {
 		// Nothing to do if not binding to the loopback address.
 		if pb.HostPort == 0 || !pb.HostIP.IsLoopback() {
@@ -190,25 +196,34 @@ func (n *network) filterPortMappedOnLoopback(pbs []types.PortBinding, updater fu
 		if pb.HostIP.To4() == nil {
 			continue
 		}
-		if n.fw.config.WSL2Mirrored {
+		if enable && !detectedWSL2Mirrored {
+			wsl2Mirrored = n.fw.config.IsWSL2Mirrored(ctx)
+			detectedWSL2Mirrored = true
+			if wsl2Mirrored && !n.fw.config.Hairpin {
+				mirroredWSL2Workaround(tm)
+			}
+		}
+		if wsl2Mirrored || !enable {
 			updater(nftables.Rule{
 				Chain: rawPreroutingChain,
-				Group: rawPreroutingPortsRuleGroup,
+				Group: rawPreroutingLoopbackAcceptRuleGroup,
 				Rule: []string{
 					"iifname loopback0 ip daddr", pb.HostIP.String(), pb.Proto.String(),
 					"dport", strconv.Itoa(int(pb.HostPort)),
 					`counter accept comment "ACCEPT WSL2 LOOPBACK"`,
 				},
+				IgnoreExist: true,
 			})
 		}
 		updater(nftables.Rule{
 			Chain: rawPreroutingChain,
-			Group: rawPreroutingPortsRuleGroup,
+			Group: rawPreroutingLoopbackDropRuleGroup,
 			Rule: []string{
 				`iifname != lo ip daddr`, pb.HostIP.String(), pb.Proto.String(),
 				"dport", strconv.Itoa(int(pb.HostPort)),
 				`counter drop comment "DROP REMOTE LOOPBACK"`,
 			},
+			IgnoreExist: true,
 		})
 	}
 }

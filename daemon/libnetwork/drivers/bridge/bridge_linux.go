@@ -198,7 +198,7 @@ func newDriver(store *datastore.Store, config Configuration, pms *drvregistry.Po
 		IPv6:               config.EnableIP6Tables,
 		Hairpin:            !config.EnableProxy,
 		AllowDirectRouting: config.AllowDirectRouting,
-		WSL2Mirrored:       isRunningUnderWSL2MirroredMode(context.Background()),
+		WSL2Mirrored:       isRunningUnderWSL2MirroredMode,
 	})
 	if err != nil {
 		return nil, err

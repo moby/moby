@@ -95,11 +95,14 @@ func TestIptabler(t *testing.T) {
 	for i := range 1 << numBoolParams {
 		p := func(n int64) bool { return (i & (1 << n)) != 0 }
 		for _, gwmode := range []string{"nat", "nat-unprotected", "routed"} {
+			isWSL2Mirrored := p(wsl2Mirrored)
 			config := firewaller.Config{
-				IPv4:         p(ipv4),
-				IPv6:         p(ipv6),
-				Hairpin:      p(hairpin),
-				WSL2Mirrored: p(wsl2Mirrored),
+				IPv4:    p(ipv4),
+				IPv6:    p(ipv6),
+				Hairpin: p(hairpin),
+				WSL2Mirrored: func(context.Context) bool {
+					return isWSL2Mirrored
+				},
 			}
 			netConfig := firewaller.NetworkConfig{
 				IfName:     "br-dummy",
@@ -189,7 +192,7 @@ func testIptabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 	// WSL2Mirrored should only affect IPv4 results, and only if there's a port binding
 	// to a loopback address or docker-proxy is disabled. Share other results files.
 	rnWSL2Mirrored := func(resName string) string {
-		if config.IPv4 && config.WSL2Mirrored && (bindLocalhost || !config.Hairpin) {
+		if config.IPv4 && config.IsWSL2Mirrored(context.Background()) && (bindLocalhost || !config.Hairpin) {
 			return resName + ",wsl2mirrored=true"
 		}
 		return resName
@@ -237,4 +240,49 @@ func testIptabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 	assert.NilError(t, err)
 	checkResults("iptables", rnWSL2Mirrored(fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin)), config.IPv4)
 	checkResults("ip6tables", fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin), config.IPv6)
+}
+
+func TestLoopbackFilteringRepairsStaleDropAfterWSL2MirroredDetection(t *testing.T) {
+	skip.If(t, iptables.UsingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")
+	defer netnsutils.SetupTestOSContext(t, netnsutils.WithSetNsHandles(false))()
+
+	ctx := context.Background()
+	wsl2Mirrored := false
+	fw, err := NewIptabler(ctx, firewaller.Config{
+		IPv4:    true,
+		Hairpin: true,
+		WSL2Mirrored: func(context.Context) bool {
+			return wsl2Mirrored
+		},
+	})
+	assert.NilError(t, err)
+	nw, err := fw.NewNetwork(ctx, firewaller.NetworkConfig{
+		IfName: "br-dummy",
+		Config4: firewaller.NetworkConfigFam{
+			Prefix: netip.MustParsePrefix("192.168.0.0/24"),
+		},
+	})
+	assert.NilError(t, err)
+	pb := types.PortBinding{
+		Proto:    types.TCP,
+		IP:       net.ParseIP("192.168.0.2"),
+		Port:     80,
+		HostIP:   net.ParseIP("127.0.0.1"),
+		HostPort: 8080,
+	}
+
+	assert.NilError(t, nw.AddPorts(ctx, []types.PortBinding{pb}))
+	rules, err := iptables.GetIptable(iptables.IPv4).Raw("-t", "raw", "-S", "PREROUTING")
+	assert.NilError(t, err)
+	assert.Check(t, !strings.Contains(string(rules), "-i loopback0"), string(rules))
+	assert.Check(t, strings.Contains(string(rules), "! -i lo"), string(rules))
+
+	wsl2Mirrored = true
+	assert.NilError(t, nw.AddPorts(ctx, []types.PortBinding{pb}))
+	rules, err = iptables.GetIptable(iptables.IPv4).Raw("-t", "raw", "-S", "PREROUTING")
+	assert.NilError(t, err)
+	acceptPos := strings.Index(string(rules), "-i loopback0")
+	dropPos := strings.Index(string(rules), "! -i lo")
+	assert.Assert(t, acceptPos >= 0, string(rules))
+	assert.Assert(t, dropPos > acceptPos, string(rules))
 }
