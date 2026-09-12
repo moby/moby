@@ -182,7 +182,7 @@ FROM binary-dummy AS containerd-windows
 FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
-ARG GOLANGCI_LINT_VERSION=v2.8.0
+ARG GOLANGCI_LINT_VERSION=v2.12.2
 ADD https://github.com/golangci/golangci-lint.git?ref=${GOLANGCI_LINT_VERSION}&keep-git-dir=1 /go/src/github.com/golangci/golangci-lint
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
