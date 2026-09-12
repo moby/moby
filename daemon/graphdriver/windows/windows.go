@@ -629,9 +629,14 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 	return map[string]string{"dir": d.dir(id)}, nil
 }
 
-func writeTarFromLayer(r hcsshim.LayerReader, w io.Writer) error {
+func writeTarFromLayer(r hcsshim.LayerReader, w io.Writer) (retErr error) {
 	linkRecords := make(map[[16]byte]string)
 	t := tar.NewWriter(w)
+	defer func() {
+		if err := t.Close(); err != nil && retErr == nil {
+			retErr = err
+		}
+	}()
 	for {
 		name, size, fileInfo, err := r.Next()
 		if err == io.EOF {
@@ -670,7 +675,7 @@ func writeTarFromLayer(r hcsshim.LayerReader, w io.Writer) error {
 			}
 		}
 	}
-	return t.Close()
+	return nil
 }
 
 // exportLayer generates an archive from a layer based on the given ID.
