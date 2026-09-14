@@ -10289,13 +10289,6 @@ paths:
             container should connect to.
           schema:
             type: "string"
-        - name: "Content-type"
-          in: "header"
-          schema:
-            type: "string"
-            enum:
-              - "application/x-tar"
-            default: "application/x-tar"
         - name: "X-Registry-Config"
           in: "header"
           description: |
@@ -10382,6 +10375,10 @@ paths:
         description: "A tar archive compressed with one of the following algorithms: identity (no compression), gzip, bzip2, xz."
         content:
           "application/octet-stream":
+            schema:
+              type: "string"
+              format: "binary"
+          "application/x-tar":
             schema:
               type: "string"
               format: "binary"

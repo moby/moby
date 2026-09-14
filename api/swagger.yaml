@@ -9842,6 +9842,7 @@ paths:
       operationId: "ImageBuild"
       consumes:
         - "application/octet-stream"
+        - "application/x-tar"
       produces:
         - "application/json"
       parameters:
@@ -9961,12 +9962,6 @@ paths:
             Any other value is taken as a custom network's name or ID to which this
             container should connect to.
           type: "string"
-        - name: "Content-type"
-          in: "header"
-          type: "string"
-          enum:
-            - "application/x-tar"
-          default: "application/x-tar"
         - name: "X-Registry-Config"
           in: "header"
           description: |
