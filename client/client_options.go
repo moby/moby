@@ -58,7 +58,7 @@ type clientConfig struct {
 	// takes precedence. Either field disables API-version negotiation.
 	envAPIVersion string
 
-	// responseHooks is a list of custom response hooks to call on responses.
+	// responseHooks contains hooks to call on responses.
 	responseHooks []ResponseHook
 
 	// traceOpts is a list of options to configure the tracing span.

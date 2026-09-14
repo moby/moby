@@ -1,6 +1,7 @@
 package client
 
 import (
+	"errors"
 	"net/http"
 )
 
@@ -15,9 +16,22 @@ func (t *hookTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return resp, err
 	}
 
+	hookResp := *resp
+	if hookResp.Body != nil {
+		hookResp.Body = hookBody{}
+	}
+
 	for _, h := range t.respHooks {
-		h(resp)
+		h(&hookResp)
 	}
 
 	return resp, nil
 }
+
+type hookBody struct{}
+
+func (hookBody) Read([]byte) (int, error) {
+	return 0, errors.New("hooks must not read HTTP message body")
+}
+
+func (hookBody) Close() error { return nil }

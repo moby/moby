@@ -2,6 +2,7 @@ package client
 
 import (
 	"crypto/tls"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"runtime"
@@ -484,4 +485,46 @@ func TestWithHTTPResponseHook(t *testing.T) {
 
 		assert.NilError(t, c.Close())
 	})
+
+	t.Run("cannot read or close body", func(t *testing.T) {
+		body := &trackingBody{Reader: strings.NewReader("response body")}
+
+		c, err := New(
+			WithHTTPResponseHook(func(resp *http.Response) {
+				_, err := io.ReadAll(resp.Body)
+				assert.Check(t, !body.read, "response hook must not read response body")
+				assert.Error(t, err, "hooks must not read HTTP message body")
+				assert.NilError(t, resp.Body.Close())
+				assert.Check(t, !body.closed, "response hook must not close response body")
+			}),
+			WithBaseMockClient(func(*http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+					Body:       body,
+				}, nil
+			}),
+		)
+		assert.NilError(t, err)
+
+		_, err = c.Ping(t.Context(), PingOptions{})
+		assert.NilError(t, err)
+		assert.NilError(t, c.Close())
+	})
+}
+
+type trackingBody struct {
+	io.Reader
+	read   bool
+	closed bool
+}
+
+func (b *trackingBody) Read(p []byte) (int, error) {
+	b.read = true
+	return b.Reader.Read(p)
+}
+
+func (b *trackingBody) Close() error {
+	b.closed = true
+	return nil
 }
