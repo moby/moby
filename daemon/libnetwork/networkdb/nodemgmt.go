@@ -2,6 +2,7 @@ package networkdb
 
 import (
 	"context"
+	"iter"
 
 	"github.com/containerd/log"
 	"github.com/hashicorp/memberlist"
@@ -95,26 +96,51 @@ func (nDB *NetworkDB) failNode(ctx context.Context, nodeName string) bool {
 	return true
 }
 
-func (nDB *NetworkDB) purgeReincarnation(mn *memberlist.Node) bool {
-	for name, node := range nDB.nodes {
-		if node.Addr.Equal(mn.Addr) && node.Port == mn.Port && mn.Name != name {
-			log.G(context.TODO()).Infof("Node %s/%s, is the new incarnation of the active node %s/%s", mn.Name, mn.Addr, name, node.Addr)
-			nDB.forgetNode(context.TODO(), name)
-			return true
+// purgeReincarnation retires a node which mn has taken the place of: one at
+// the same address, under a name the cluster is no longer using.
+//
+// Only nodes memberlist has already given up on are candidates. An address
+// collision on its own does not say which of the two names is the current one,
+// and the answer is not ours to guess: a node still in the active list is one
+// memberlist last told us was alive, and gossip about a departed incarnation
+// can arrive after its replacement is already known. Retiring the active node
+// on the strength of the address would evict a live peer -- deleting its
+// entries and its network attachments -- and nothing would bring it back,
+// since memberlist does not re-announce a node it still believes in.
+//
+// So leave the active list alone and let memberlist settle it. It probes by
+// name and a node refuses to ack a ping addressed to someone else, so whichever
+// of the two is gone stops acking within a probe cycle or two and is reported
+// to us as having left. [eventDelegate.NotifyLeave] retires it then, once the
+// question has an answer.
+func (nDB *NetworkDB) purgeReincarnation(mn *memberlist.Node) int {
+	var purged int
+	for name, node := range nDB.failedNodes.AllColliding(mn) {
+		log.G(context.TODO()).Infof("Node %s/%s, is the new incarnation of the failed node %s/%s", mn.Name, mn.Addr, name, node.Addr)
+		if nDB.forgetNode(context.TODO(), name) {
+			purged++
 		}
 	}
 
-	for name, node := range nDB.failedNodes {
-		if node.Addr.Equal(mn.Addr) && node.Port == mn.Port && mn.Name != name {
-			log.G(context.TODO()).Infof("Node %s/%s, is the new incarnation of the failed node %s/%s", mn.Name, mn.Addr, name, node.Addr)
-			nDB.forgetNode(context.TODO(), name)
-			return true
-		}
-	}
-
-	return false
+	return purged
 }
 
 func (nDB *NetworkDB) estNumNodes() int {
 	return int(nDB.estNodes.Load())
+}
+
+type nodeMap map[string]*node
+
+// AllColliding yields all nodes in the map that have the same address and port,
+// but a different name from, the given node.
+func (nm nodeMap) AllColliding(needle *memberlist.Node) iter.Seq2[string, *node] {
+	return func(yield func(string, *node) bool) {
+		for name, n := range nm {
+			if n.Addr.Equal(needle.Addr) && n.Port == needle.Port && needle.Name != name {
+				if !yield(name, n) {
+					return
+				}
+			}
+		}
+	}
 }
