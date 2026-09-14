@@ -1019,14 +1019,6 @@ func TestParallelDelete(t *testing.T) {
 }
 
 func TestNetworkDBIslands(t *testing.T) {
-	// FIXME: kept skipped for now. It is a poor guard for the rejoin fault it
-	// was written for: with that fault present it passed 40 runs out of 40.
-	// Its closing check also counts node-list entries rather than naming the
-	// nodes it expects, so it answers a question about timing as much as one
-	// about convergence. TestRejoinClusterBootStrapStragglers covers the
-	// fault directly.
-	t.Skip("FIXME: flaky test; see https://github.com/moby/moby/issues/42459")
-
 	pollTimeout := func() time.Duration {
 		const defaultTimeout = 120 * time.Second
 		dl, ok := t.Deadline()
@@ -1125,22 +1117,32 @@ func TestNetworkDBIslands(t *testing.T) {
 		dbs[i] = launchNode(t, conf)
 	}
 
-	// Give some time for the reconnect routine to run, it runs every 6s.
+	// Every node has to end up seeing all five of the current nodes as
+	// active, which is what reconverging means and what the relaunched three
+	// have no way to bring about for themselves: they did no join.
+	//
+	// Asserted by identity rather than by counting the node lists. A node
+	// which starts after another has departed can still be told of that
+	// departed incarnation by gossip already in flight, and it sits in
+	// failedNodes until something supersedes it at its address. Which nodes
+	// carry such a straggler is a matter of timing, so counting them tests
+	// the schedule rather than the convergence.
+	current := make([]string, 0, len(dbs))
+	for _, db := range dbs {
+		current = append(current, db.config.NodeID)
+	}
 	check = func(t poll.LogT) poll.Result {
-		// Verify that the cluster is again all connected. Note that the 3 previous node did not do any join.
-		// The two groups converge on the same state now: the survivors have
-		// nothing left to remember the departed incarnations by, so there is
-		// no longer an asymmetry between them and the nodes which came back.
-		for i := range 5 {
-			db := dbs[i]
+		for _, db := range dbs {
 			db.RLock()
-			nNodes, nFailed := len(db.nodes), len(db.failedNodes)
-			db.RUnlock()
-			if nNodes != 5 {
-				return poll.Continue("%s:Waiting to connect to all nodes", dbs[i].config.Hostname)
+			var missing []string
+			for _, id := range current {
+				if _, ok := db.nodes[id]; !ok {
+					missing = append(missing, id)
+				}
 			}
-			if nFailed != 0 {
-				return poll.Continue("%s:Waiting for 0 failedNodes", dbs[i].config.Hostname)
+			db.RUnlock()
+			if len(missing) > 0 {
+				return poll.Continue("%s: waiting to see %v active", db.config.Hostname, missing)
 			}
 		}
 		return poll.Success()
