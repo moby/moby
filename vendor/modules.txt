@@ -583,7 +583,7 @@ github.com/containerd/log/logtest
 # github.com/containerd/log/otel v0.1.0
 ## explicit; go 1.23
 github.com/containerd/log/otel
-# github.com/containerd/nri v0.12.2
+# github.com/containerd/nri v0.12.3
 ## explicit; go 1.24.0
 github.com/containerd/nri/pkg/adaptation
 github.com/containerd/nri/pkg/adaptation/builtin
