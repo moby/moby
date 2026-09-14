@@ -45,7 +45,7 @@ jobs:
         uses: lima-vm/lima-actions/setup@55627e31b78637bf254a8b2a14da8ea7d12564e5  # v1.1.0
         id: lima-actions-setup
         with:
-          version: v2.0.2
+          version: v2.2.0
       -
         name: Cache ~/.cache/lima
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
