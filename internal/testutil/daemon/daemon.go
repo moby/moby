@@ -709,9 +709,25 @@ func (d *Daemon) Kill() error {
 	return nil
 }
 
-// Pid returns the pid of the daemon
+// Pid returns the pid of the daemon's direct child process. In rootless
+// mode, this is the outermost process started by the test framework (e.g.
+// sudo), not dockerd itself.
 func (d *Daemon) Pid() int {
 	return d.cmd.Process.Pid
+}
+
+// DockerdPid returns the pid of the dockerd process itself, as recorded by
+// dockerd in its pidfile. Unlike Pid, this is accurate in rootless mode.
+func (d *Daemon) DockerdPid(t testing.TB) int {
+	t.Helper()
+
+	pidBytes, err := os.ReadFile(d.pidFile)
+	assert.NilError(t, err)
+
+	pid, err := strconv.Atoi(strings.TrimSpace(string(pidBytes)))
+	assert.NilError(t, err)
+
+	return pid
 }
 
 // Interrupt stops the daemon by sending it an Interrupt signal
