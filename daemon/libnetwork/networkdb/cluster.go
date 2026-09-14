@@ -282,6 +282,20 @@ func (nDB *NetworkDB) reapDeadNode() {
 // rejoinClusterBootStrap is called periodically to check if all bootStrap nodes are active in the cluster,
 // if not, call the cluster join to merge 2 separate clusters that are formed when all managers
 // stopped/started at the same time
+//
+// Each bootstrap address is considered on its own: being attached to one of
+// them says nothing about the others, and memberlist.Join reports an error only
+// when every address it was given fails, so a rejoin which reached part of the
+// list still returns success. Only the addresses which are not already peers
+// are worth rejoining, and they stay worth rejoining for as long as they are
+// absent.
+//
+// That matters most for a partition which outlives node reaping. reconnectNode
+// retries the peers it saw fail, but reapDeadNode forgets them after
+// nodeReapInterval, leaving this function as the only thing which can still
+// merge the two halves. With a bootstrap node left on each side, each half is
+// attached to one bootstrap address throughout, so it has to keep trying the
+// ones it cannot see or the split outlives the network fault which caused it.
 func (nDB *NetworkDB) rejoinClusterBootStrap() {
 	// Ask who the bootstrap nodes are before taking the lock: the answer comes
 	// from the caller, whose own locks must not be taken beneath ours.
@@ -293,13 +307,22 @@ func (nDB *NetworkDB) rejoinClusterBootStrap() {
 		return
 	}
 
+	// Ourselves included: a bootstrap address which is our own is one we have
+	// no way to rejoin and no reason to, so it belongs in here rather than
+	// being skipped over and then treated as an absent peer.
 	nDB.RLock()
-	myself, ok := nDB.nodes[nDB.config.NodeID]
-	if !ok {
+	if _, ok := nDB.nodes[nDB.config.NodeID]; !ok {
 		nDB.RUnlock()
 		log.G(context.TODO()).Warnf("rejoinClusterBootstrap unable to find local node info using ID:%v", nDB.config.NodeID)
 		return
 	}
+	joined := make(map[netip.AddrPort]struct{}, len(nDB.nodes))
+	for _, node := range nDB.nodes {
+		nodeIP, _ := netip.AddrFromSlice(node.Addr)
+		joined[netip.AddrPortFrom(nodeIP.Unmap(), node.Port)] = struct{}{}
+	}
+	nDB.RUnlock()
+
 	bootStrapIPs := make([]string, 0, len(peers))
 	for _, bootIP := range peers {
 		// bootstrap IPs are usually IP:port from the Join
@@ -312,28 +335,24 @@ func (nDB *NetworkDB) rejoinClusterBootStrap() {
 				bootstrapIP = netip.AddrPortFrom(addr, uint16(nDB.config.BindPort))
 			}
 		}
-		if bootstrapIP.IsValid() {
-			for _, node := range nDB.nodes {
-				if node == myself {
-					continue
-				}
-				nodeIP, _ := netip.AddrFromSlice(node.Addr)
-				if bootstrapIP == netip.AddrPortFrom(nodeIP.Unmap(), node.Port) {
-					// One of the bootstrap nodes (and not myself) is part of the cluster, return
-					nDB.RUnlock()
-					return
-				}
-			}
-			bootStrapIPs = append(bootStrapIPs, bootIP)
+		if !bootstrapIP.IsValid() {
+			continue
 		}
+		if _, ok := joined[bootstrapIP]; ok {
+			// This bootstrap node is already part of the cluster, so it
+			// needs no rejoining. The others still might.
+			continue
+		}
+		bootStrapIPs = append(bootStrapIPs, bootIP)
 	}
-	nDB.RUnlock()
 	if len(bootStrapIPs) == 0 {
-		// this will also avoid to call the Join with an empty list erasing the current bootstrap ip list
-		log.G(context.TODO()).Debug("rejoinClusterBootStrap did not find any valid IP")
+		// Every bootstrap node is already a peer, or none of them parsed.
+		// memberlist.Join reports success on an empty list, so without this
+		// retryJoin would announce a join it never made.
+		log.G(context.TODO()).Debug("rejoinClusterBootStrap has no bootstrap node to rejoin")
 		return
 	}
-	// None of the bootStrap nodes are in the cluster, call memberlist join
+	// Some of the bootStrap nodes are not in the cluster, call memberlist join
 	log.G(context.TODO()).Debugf("rejoinClusterBootStrap, calling cluster join with bootStrap %v", bootStrapIPs)
 	ctx, cancel := context.WithTimeout(nDB.ctx, nDB.config.rejoinClusterDuration)
 	defer cancel()
