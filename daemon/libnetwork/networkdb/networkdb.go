@@ -55,7 +55,7 @@ type NetworkDB struct {
 
 	// List of all peer nodes in the cluster not-limited to any
 	// network.
-	nodes map[string]*node
+	nodes nodeMap
 
 	// An approximation of len(nodes) that can be accessed without
 	// synchronization.
@@ -64,7 +64,7 @@ type NetworkDB struct {
 	// List of all peer nodes which have failed. The attachments and table
 	// entries of a failed node are remembered, hidden rather than dropped,
 	// and put back in place if the node returns before it is reaped.
-	failedNodes map[string]*node
+	failedNodes nodeMap
 
 	// A multi-dimensional map of network/node attachments for peer nodes.
 	// The first key is a node name and the second key is a network ID for

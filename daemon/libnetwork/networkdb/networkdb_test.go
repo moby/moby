@@ -886,32 +886,36 @@ func TestNodeReincarnation(t *testing.T) {
 	db := newNetworkDB(DefaultConfig())
 	defer db.broadcaster.Close()
 
-	db.nodes["node1"] = &node{Node: memberlist.Node{Name: "node1", Addr: net.ParseIP("192.168.1.1")}}
-	db.failedNodes["node3"] = &node{Node: memberlist.Node{Name: "node3", Addr: net.ParseIP("192.168.1.3")}}
+	const addrLive, addrDead = "192.168.1.1", "192.168.1.2"
+	db.nodes["active1"] = &node{Node: memberlist.Node{Name: "active1", Addr: net.ParseIP(addrLive)}}
+	db.failedNodes["failed1"] = &node{Node: memberlist.Node{Name: "failed1", Addr: net.ParseIP(addrDead)}}
+	db.failedNodes["failed2"] = &node{Node: memberlist.Node{Name: "failed2", Addr: net.ParseIP(addrDead)}}
 
-	assert.Check(t, is.Len(db.nodes, 1))
-	assert.Check(t, is.Len(db.failedNodes, 1))
-
-	// An active node superseded at its address.
-	b := db.purgeReincarnation(&memberlist.Node{Name: "node4", Addr: net.ParseIP("192.168.1.1")})
-	assert.Check(t, b)
-	// It is forgotten outright rather than filed away somewhere else.
-	checkNodeIsForgotten(t, db, "node1", "a superseded node should be forgotten")
-	db.nodes["node4"] = &node{Node: memberlist.Node{Name: "node4", Addr: net.ParseIP("192.168.1.1")}}
-
-	// A failed node superseded at its address.
-	b = db.purgeReincarnation(&memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.3")})
-	assert.Check(t, b)
-	checkNodeIsForgotten(t, db, "node3", "a superseded failed node should be forgotten")
-	db.nodes["node6"] = &node{Node: memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.1")}}
+	// An active node is left where it is. An address collision says nothing
+	// about which of the two names is the current one, and gossip about a
+	// departed incarnation can arrive after its replacement is known, so
+	// retiring active1 here would evict a peer which may well be the live one.
+	assert.Check(t, is.Equal(db.purgeReincarnation(&memberlist.Node{Name: "new1", Addr: net.ParseIP(addrLive)}), 0),
+		"an active node should survive an address collision")
+	assert.Check(t, is.Contains(db.nodes, "active1"))
 
 	// An address nobody is at supersedes nothing.
-	b = db.purgeReincarnation(&memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.10")})
-	assert.Check(t, !b)
+	assert.Check(t, is.Equal(db.purgeReincarnation(&memberlist.Node{Name: "new2", Addr: net.ParseIP("192.168.1.10")}), 0))
 
-	// node4 and node6
-	assert.Check(t, is.Len(db.nodes, 2))
-	assert.Check(t, is.Len(db.failedNodes, 0))
+	// Every node memberlist has already given up on at that address is
+	// retired, not only the first one found.
+	assert.Check(t, is.Equal(db.purgeReincarnation(&memberlist.Node{Name: "new3", Addr: net.ParseIP(addrDead)}), 2))
+	checkNodeIsForgotten(t, db, "failed1")
+	checkNodeIsForgotten(t, db, "failed2")
+
+	// The half of the decision purgeReincarnation defers: once memberlist has
+	// given up on the active node and a replacement holds its address, it is
+	// superseded and NotifyLeave retires it.
+	db.nodes["new1"] = &node{Node: memberlist.Node{Name: "new1", Addr: net.ParseIP(addrLive)}}
+	ed := &eventDelegate{db}
+	ed.NotifyLeave(&memberlist.Node{Name: "active1", Addr: net.ParseIP(addrLive)})
+	checkNodeIsForgotten(t, db, "active1", "superseded once memberlist gave up on it")
+	assert.Check(t, is.Contains(db.nodes, "new1"), "the replacement is untouched")
 }
 
 func TestParallelCreate(t *testing.T) {
