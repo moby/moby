@@ -174,22 +174,25 @@ func (nDB *NetworkDB) clusterInit() error {
 	return nil
 }
 
+// retryJoin joins members, retrying every retryInterval until it succeeds or
+// ctx is done. The first attempt is made straight away: waiting out a tick
+// first would make the whole call a no-op whenever ctx expires within
+// retryInterval, and it is the caller who chooses that budget.
 func (nDB *NetworkDB) retryJoin(ctx context.Context, members []string) {
 	t := time.NewTicker(retryInterval)
 	defer t.Stop()
 
-	for {
+	for ctx.Err() == nil {
+		if _, err := nDB.memberlist.Join(members); err != nil {
+			log.G(ctx).Errorf("Failed to join memberlist %s on retry: %v", members, err)
+		} else if err := nDB.sendNodeEvent(NodeEventTypeJoin); err != nil {
+			log.G(ctx).Errorf("failed to send node join on retry: %v", err)
+		} else {
+			return
+		}
+
 		select {
 		case <-t.C:
-			if _, err := nDB.memberlist.Join(members); err != nil {
-				log.G(ctx).Errorf("Failed to join memberlist %s on retry: %v", members, err)
-				continue
-			}
-			if err := nDB.sendNodeEvent(NodeEventTypeJoin); err != nil {
-				log.G(ctx).Errorf("failed to send node join on retry: %v", err)
-				continue
-			}
-			return
 		case <-ctx.Done():
 			return
 		}

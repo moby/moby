@@ -1,19 +1,24 @@
 package networkdb
 
 import (
+	"context"
 	"iter"
 	"maps"
 	"math"
 	"math/bits"
 	"math/rand/v2"
+	"net"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
 
+	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"pgregory.net/rapid"
 )
 
@@ -257,4 +262,41 @@ func distributionStats(vals iter.Seq[int]) (mean, stdev, minv, maxv float64) {
 	mean = sum / float64(n)
 	stdev = math.Sqrt(sumSq/float64(n) - mean*mean)
 	return mean, stdev, minv, maxv
+}
+
+// TestRetryJoinAttemptsBeforeTicking pins that retryJoin makes its first
+// attempt straight away. Waiting out a tick first makes the whole call a no-op
+// for any caller whose budget is shorter than retryInterval, and no test which
+// drives a real cluster would notice: they all allow a budget several ticks
+// long.
+func TestRetryJoinAttemptsBeforeTicking(t *testing.T) {
+	conf := DefaultConfig()
+	conf.BindAddr = "127.0.0.1"
+	conf.AdvertiseAddr = conf.BindAddr
+
+	launch := func(name string) *NetworkDB {
+		t.Helper()
+		c := *conf
+		c.Hostname = name
+		c.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
+		c.BindPort = int(dbPort.Add(1))
+		return launchNode(t, c)
+	}
+	// Deliberately not joined to each other: retryJoin is the only thing which
+	// puts them in touch.
+	a, b := launch("node1"), launch("node2")
+	defer closeNetworkDBInstances(t, []*NetworkDB{a, b})
+
+	ctx, cancel := context.WithTimeout(t.Context(), retryInterval/10)
+	defer cancel()
+	a.retryJoin(ctx, []string{net.JoinHostPort(b.config.AdvertiseAddr, strconv.Itoa(b.config.BindPort))})
+
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		a.RLock()
+		defer a.RUnlock()
+		if _, ok := a.nodes[b.config.NodeID]; ok {
+			return poll.Success()
+		}
+		return poll.Continue("waiting for the join made inside the budget to have taken")
+	}, poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
 }
