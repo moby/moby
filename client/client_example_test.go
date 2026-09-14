@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 
 	"github.com/moby/moby/client"
 )
@@ -42,4 +44,40 @@ func Example() {
 	for _, ctr := range result.Items {
 		fmt.Printf("%s  %-22s  %s\n", ctr.ID, ctr.Status, ctr.Image)
 	}
+}
+
+// ExampleWithHTTPRequestHook demonstrates using a request hook to add
+// metadata that varies between requests made by the same client.
+func ExampleWithHTTPRequestHook() {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("X-Request-ID:", r.Header.Get("X-Request-ID"))
+	}))
+	defer server.Close()
+
+	type requestIDKey struct{}
+	apiClient, err := client.New(
+		client.WithHost(server.URL),
+		client.WithHTTPRequestHook(func(req *http.Request) error {
+			if requestID, ok := req.Context().Value(requestIDKey{}).(string); ok {
+				req.Header.Set("X-Request-ID", requestID)
+			}
+			return nil
+		}),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer apiClient.Close()
+
+	// Use the same client with different request-scoped metadata.
+	for _, requestID := range []string{"request-1", "request-2"} {
+		ctx := context.WithValue(context.Background(), requestIDKey{}, requestID)
+		if _, err := apiClient.Ping(ctx, client.PingOptions{}); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// Output:
+	// X-Request-ID: request-1
+	// X-Request-ID: request-2
 }
