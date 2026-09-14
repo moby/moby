@@ -17,6 +17,53 @@ import (
 	"gotest.tools/v3/skip"
 )
 
+func TestNetworkInspectUserDefinedNetwork(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	netName := "testnetwork_" + t.Name()
+	netID, err := network.Create(ctx, apiClient, netName,
+		network.WithDriver("bridge"),
+		network.WithIPAMRange("172.28.0.0/16", "172.28.5.0/24", "172.28.5.254"),
+		network.WithOption("foo", "bar"),
+		network.WithOption("opts", "dopts"),
+		func(options *client.NetworkCreateOptions) {
+			options.IPAM.Driver = "default"
+		},
+	)
+	if !assert.Check(t, err) {
+		return
+	}
+	removed := false
+	defer func() {
+		if !removed {
+			network.RemoveNoError(ctx, t, apiClient, netID)
+		}
+	}()
+
+	assert.Check(t, IsNetworkAvailable(ctx, apiClient, netName))
+
+	res, err := apiClient.NetworkInspect(ctx, netID, client.NetworkInspectOptions{})
+	if !assert.Check(t, err) {
+		return
+	}
+	if !assert.Check(t, is.Len(res.Network.IPAM.Config, 1)) {
+		return
+	}
+
+	assert.Check(t, is.Equal(res.Network.IPAM.Config[0].Subnet, netip.MustParsePrefix("172.28.0.0/16")))
+	assert.Check(t, is.Equal(res.Network.IPAM.Config[0].IPRange, netip.MustParsePrefix("172.28.5.0/24")))
+	assert.Check(t, is.Equal(res.Network.IPAM.Config[0].Gateway, netip.MustParseAddr("172.28.5.254")))
+	assert.Check(t, is.Equal(res.Network.Options["foo"], "bar"))
+	assert.Check(t, is.Equal(res.Network.Options["opts"], "dopts"))
+
+	_, err = apiClient.NetworkRemove(ctx, netID, client.NetworkRemoveOptions{})
+	assert.NilError(t, err)
+	removed = true
+	assert.Check(t, IsNetworkNotAvailable(ctx, apiClient, netName))
+}
+
 func TestInspectNetwork(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
