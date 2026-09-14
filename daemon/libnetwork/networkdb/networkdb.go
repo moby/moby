@@ -210,7 +210,9 @@ type Config struct {
 	AdvertiseAddr string
 
 	// BindPort is the local node's port to which we bind to for
-	// cluster communication.
+	// cluster communication. Zero leaves the choice to memberlist, so it is
+	// not the port this node ends up gossiping on: for that, ask memberlist
+	// what it advertises.
 	BindPort int
 
 	// Keys to be added to the Keyring of the memberlist. Key at index

@@ -279,6 +279,57 @@ func (nDB *NetworkDB) reapDeadNode() {
 	}
 }
 
+// bootstrapPeersToRejoin is the subset of peers which are not currently in the
+// cluster, and so are worth rejoining. Ourselves is counted as in it: a
+// bootstrap address which is our own is one we have no way to rejoin and no
+// reason to, rather than an absent peer.
+//
+// An address which names no port is read as being on the port we gossip on,
+// and not config.BindPort: that is only a request, left zero by every caller
+// which is happy with memberlist's default. Addresses are compared unmapped,
+// because memberlist knows its peers by whatever form their address arrived
+// in, so a 4-in-6 address has to match the same address written as IPv4.
+func (nDB *NetworkDB) bootstrapPeersToRejoin(peers []string) []string {
+	nDB.RLock()
+	defer nDB.RUnlock()
+
+	myself, ok := nDB.nodes[nDB.config.NodeID]
+	if !ok {
+		log.G(context.TODO()).Warnf("rejoinClusterBootstrap unable to find local node info using ID:%v", nDB.config.NodeID)
+		return nil
+	}
+	gossipPort := myself.Port
+
+	joined := make(map[netip.AddrPort]struct{}, len(nDB.nodes))
+	for _, node := range nDB.nodes {
+		nodeIP, _ := netip.AddrFromSlice(node.Addr)
+		joined[netip.AddrPortFrom(nodeIP.Unmap(), node.Port)] = struct{}{}
+	}
+
+	rejoin := make([]string, 0, len(peers))
+	for _, bootIP := range peers {
+		// bootstrap IPs are usually IP:port from the Join
+		bootstrapIP, err := netip.ParseAddrPort(bootIP)
+		if err != nil {
+			// try to parse it as an IP without port
+			// Note this seems to be the case for swarm that do not specify any port
+			addr, err := netip.ParseAddr(bootIP)
+			if err != nil {
+				continue
+			}
+			// A peer is assumed to gossip on the same port we do.
+			bootstrapIP = netip.AddrPortFrom(addr, gossipPort)
+		}
+		if _, ok := joined[netip.AddrPortFrom(bootstrapIP.Addr().Unmap(), bootstrapIP.Port())]; ok {
+			// This bootstrap node is already part of the cluster, so it
+			// needs no rejoining. The others still might.
+			continue
+		}
+		rejoin = append(rejoin, bootIP)
+	}
+	return rejoin
+}
+
 // rejoinClusterBootStrap is called periodically to check if all bootStrap nodes are active in the cluster,
 // if not, call the cluster join to merge 2 separate clusters that are formed when all managers
 // stopped/started at the same time
@@ -307,44 +358,7 @@ func (nDB *NetworkDB) rejoinClusterBootStrap() {
 		return
 	}
 
-	// Ourselves included: a bootstrap address which is our own is one we have
-	// no way to rejoin and no reason to, so it belongs in here rather than
-	// being skipped over and then treated as an absent peer.
-	nDB.RLock()
-	if _, ok := nDB.nodes[nDB.config.NodeID]; !ok {
-		nDB.RUnlock()
-		log.G(context.TODO()).Warnf("rejoinClusterBootstrap unable to find local node info using ID:%v", nDB.config.NodeID)
-		return
-	}
-	joined := make(map[netip.AddrPort]struct{}, len(nDB.nodes))
-	for _, node := range nDB.nodes {
-		nodeIP, _ := netip.AddrFromSlice(node.Addr)
-		joined[netip.AddrPortFrom(nodeIP.Unmap(), node.Port)] = struct{}{}
-	}
-	nDB.RUnlock()
-
-	bootStrapIPs := make([]string, 0, len(peers))
-	for _, bootIP := range peers {
-		// bootstrap IPs are usually IP:port from the Join
-		bootstrapIP, err := netip.ParseAddrPort(bootIP)
-		if err != nil {
-			// try to parse it as an IP without port
-			// Note this seems to be the case for swarm that do not specify any port
-			addr, err := netip.ParseAddr(bootIP)
-			if err == nil {
-				bootstrapIP = netip.AddrPortFrom(addr, uint16(nDB.config.BindPort))
-			}
-		}
-		if !bootstrapIP.IsValid() {
-			continue
-		}
-		if _, ok := joined[bootstrapIP]; ok {
-			// This bootstrap node is already part of the cluster, so it
-			// needs no rejoining. The others still might.
-			continue
-		}
-		bootStrapIPs = append(bootStrapIPs, bootIP)
-	}
+	bootStrapIPs := nDB.bootstrapPeersToRejoin(peers)
 	if len(bootStrapIPs) == 0 {
 		// Every bootstrap node is already a peer, or none of them parsed.
 		// memberlist.Join reports success on an empty list, so without this
