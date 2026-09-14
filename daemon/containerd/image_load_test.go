@@ -68,6 +68,20 @@ func TestImageLoad(t *testing.T) {
 		}), "failed to delete all content")
 	}
 
+	t.Run("unchanged image", func(t *testing.T) {
+		imgDataDir := t.TempDir()
+		_, err := specialimage.MultiLayer(imgDataDir)
+		assert.NilError(t, err)
+
+		assert.NilError(t, tryLoad(ctx, t, imgDataDir, nil))
+		assert.NilError(t, tryLoad(ctx, t, imgDataDir, nil))
+
+		images, err := imgSvc.images.List(ctx)
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(images, 1))
+	})
+	cleanup(ctx, t)
+
 	t.Run("empty index", func(t *testing.T) {
 		imgDataDir := t.TempDir()
 		_, err := specialimage.EmptyIndex(imgDataDir)
@@ -92,6 +106,10 @@ func TestImageLoad(t *testing.T) {
 		err = tryLoad(ctx, t, imgDataDir, []ocispec.Platform{linuxArm64})
 		assert.Check(t, is.ErrorContains(err, "doesn't provide the requested platform ([linux/arm64])"))
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
+
+		images, err := imgSvc.images.List(ctx)
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(images, 1))
 	})
 	cleanup(ctx, t)
 

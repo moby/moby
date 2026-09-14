@@ -237,21 +237,10 @@ func (i *ImageService) leaseContent(ctx context.Context, store content.Store, de
 	}), desc)
 }
 
-// LoadImage uploads a set of images into the repository. This is the
-// complement of ExportImage.  The input stream is an uncompressed tar
-// ball containing images and metadata.
-func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platformList []ocispec.Platform, outStream io.Writer, quiet bool) error {
-	decompressed, err := compression.DecompressStream(inTar)
-	if err != nil {
-		return errors.Wrap(err, "failed to decompress input tar archive")
-	}
-	defer decompressed.Close()
-
-	specificPlatforms := len(platformList) > 0
-
-	// Get the platform matcher for the requested platforms (matches all platforms if none specified)
-	pm := matchAnyWithPreference(i.hostPlatformMatcher(), platformList)
-
+// importImages preserves previous image targets while importing the archive.
+// The caller must hold a lease in ctx until the import and reference cleanup finish.
+func (i *ImageService) importImages(ctx context.Context, inTar io.Reader, pm platforms.MatchComparer, skipMissing bool) ([]c8dimages.Image, error) {
+	previousImagesByTarget := map[digest.Digest]c8dimages.Image{}
 	opts := []containerd.ImportOpt{
 		containerd.WithImportPlatform(pm),
 
@@ -270,10 +259,17 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 				return false
 			}
 
-			// Look up if there is an existing image with this name and ensure a dangling image exists.
+			// Keep the previous image content leased until the import reveals
+			// whether the name moved to a different target.
 			if img, err := i.images.Get(ctx, ref.String()); err == nil {
-				if err := i.ensureDanglingImage(ctx, img); err != nil {
-					log.G(ctx).WithError(err).Warnf("failed to keep the previous image for %s as dangling", img.Name)
+				if _, ok := previousImagesByTarget[img.Target.Digest]; !ok {
+					previousImagesByTarget[img.Target.Digest] = img
+					if err := i.leaseContent(ctx, i.content, img.Target); err != nil {
+						log.G(ctx).WithError(err).Warnf("failed to lease the previous image for %s", img.Name)
+						if err := i.ensureDanglingImage(ctx, img); err != nil {
+							log.G(ctx).WithError(err).Warnf("failed to keep the previous image for %s as dangling", img.Name)
+						}
+					}
 				}
 			} else if !cerrdefs.IsNotFound(err) {
 				log.G(ctx).WithError(err).Warn("failed to retrieve image: %w", err)
@@ -282,12 +278,108 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 		}),
 	}
 
-	if !specificPlatforms {
+	if skipMissing {
 		// Allow variants to be missing if no specific platform is requested.
 		opts = append(opts, containerd.WithSkipMissing())
 	}
 
-	imgs, err := i.client.Import(ctx, decompressed, opts...)
+	imgs, err := i.client.Import(ctx, inTar, opts...)
+	cleanupCtx := context.WithoutCancel(ctx)
+	for target, previous := range previousImagesByTarget {
+		refs, listErr := i.images.List(cleanupCtx, "target.digest=="+target.String())
+		if listErr != nil {
+			log.G(ctx).WithError(listErr).WithField("digest", target).Warn("failed to retrieve references to previous image")
+			continue
+		}
+
+		hasNamedRef := false
+		for _, ref := range refs {
+			if !isDanglingImage(ref) {
+				hasNamedRef = true
+				break
+			}
+		}
+
+		if !hasNamedRef {
+			if err := i.ensureDanglingImage(cleanupCtx, previous); err != nil {
+				log.G(ctx).WithError(err).WithField("digest", target).Warn("failed to keep previous image as dangling")
+			}
+			continue
+		}
+
+		if err := i.images.Delete(cleanupCtx, danglingImageName(target)); err != nil && !cerrdefs.IsNotFound(err) {
+			log.G(ctx).WithError(err).WithField("digest", target).Warn("failed to remove redundant dangling image")
+		}
+	}
+
+	return imgs, err
+}
+
+func (i *ImageService) unpackLoadedImage(ctx context.Context, img c8dimages.Image, name string, pm platforms.Matcher) error {
+	return i.walkImageManifests(ctx, img, func(platformImg *ImageManifest) error {
+		logger := log.G(ctx).WithFields(log.Fields{
+			"image":    name,
+			"manifest": platformImg.Target().Digest,
+		})
+
+		if isPseudo, err := platformImg.IsPseudoImage(ctx); isPseudo || err != nil {
+			if err != nil {
+				logger.WithError(err).Warn("failed to read manifest")
+			} else {
+				logger.Debug("don't unpack non-image manifest")
+			}
+			return nil
+		}
+
+		imgPlat, err := platformImg.ImagePlatform(ctx)
+		if err != nil {
+			logger.WithError(err).Warn("failed to read image platform, skipping unpack")
+			return nil
+		}
+
+		if !pm.Match(imgPlat) {
+			return nil
+		}
+
+		unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
+		if err != nil {
+			logger.WithError(err).Warn("failed to check if image is unpacked")
+			return nil
+		}
+
+		if !unpacked {
+			err = platformImg.Unpack(ctx, i.snapshotter)
+			if err != nil {
+				return errdefs.System(err)
+			}
+		}
+		logger.WithField("alreadyUnpacked", unpacked).WithError(err).Debug("unpack")
+		return nil
+	})
+}
+
+// LoadImage uploads a set of images into the repository. This is the
+// complement of ExportImage.  The input stream is an uncompressed tar
+// ball containing images and metadata.
+func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platformList []ocispec.Platform, outStream io.Writer, quiet bool) error {
+	decompressed, err := compression.DecompressStream(inTar)
+	if err != nil {
+		return errors.Wrap(err, "failed to decompress input tar archive")
+	}
+	defer decompressed.Close()
+
+	ctx, done, err := i.withLease(ctx, true)
+	if err != nil {
+		return errdefs.System(err)
+	}
+	defer done()
+
+	specificPlatforms := len(platformList) > 0
+
+	// Get the platform matcher for the requested platforms (matches all platforms if none specified)
+	pm := matchAnyWithPreference(i.hostPlatformMatcher(), platformList)
+
+	imgs, err := i.importImages(ctx, decompressed, pm, !specificPlatforms)
 	if err != nil {
 		if specificPlatforms {
 			platformNames := make([]string, 0, len(platformList))
@@ -350,46 +442,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 			i.warmImageIdentityCache(ctx, img)
 		}
 
-		err = i.walkImageManifests(ctx, img, func(platformImg *ImageManifest) error {
-			logger := log.G(ctx).WithFields(log.Fields{
-				"image":    name,
-				"manifest": platformImg.Target().Digest,
-			})
-
-			if isPseudo, err := platformImg.IsPseudoImage(ctx); isPseudo || err != nil {
-				if err != nil {
-					logger.WithError(err).Warn("failed to read manifest")
-				} else {
-					logger.Debug("don't unpack non-image manifest")
-				}
-				return nil
-			}
-
-			imgPlat, err := platformImg.ImagePlatform(ctx)
-			if err != nil {
-				logger.WithError(err).Warn("failed to read image platform, skipping unpack")
-				return nil
-			}
-
-			if !unpackPm.Match(imgPlat) {
-				return nil
-			}
-
-			unpacked, err := platformImg.IsUnpacked(ctx, i.snapshotter)
-			if err != nil {
-				logger.WithError(err).Warn("failed to check if image is unpacked")
-				return nil
-			}
-
-			if !unpacked {
-				err = platformImg.Unpack(ctx, i.snapshotter)
-				if err != nil {
-					return errdefs.System(err)
-				}
-			}
-			logger.WithField("alreadyUnpacked", unpacked).WithError(err).Debug("unpack")
-			return nil
-		})
+		err = i.unpackLoadedImage(ctx, img, name, unpackPm)
 
 		fmt.Fprintf(progress, "%s: %s\n", loadedMsg, name)
 		i.LogImageEvent(ctx, img.Target.Digest.String(), img.Target.Digest.String(), events.ActionLoad)
