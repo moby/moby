@@ -18,11 +18,15 @@ import (
 
 func TestHijackHooks(t *testing.T) {
 	const (
+		reqHeaderKey    = "X-Test-Request"
+		reqHeaderValue  = "request"
 		respHeaderKey   = "X-Test-Header"
 		respHeaderValue = "hello-world"
 	)
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		assert.Equal(t, req.Header.Get(reqHeaderKey), reqHeaderValue)
+
 		conn, _, err := w.(http.Hijacker).Hijack()
 		assert.NilError(t, err)
 		defer func() { _ = conn.Close() }()
@@ -45,6 +49,10 @@ func TestHijackHooks(t *testing.T) {
 	var gotResponseHeader string
 	c, err := New(
 		WithHost("tcp://"+serverURL.Host),
+		WithHTTPRequestHook(func(req *http.Request) error {
+			req.Header.Set(reqHeaderKey, reqHeaderValue)
+			return nil
+		}),
 		WithHTTPResponseHook(func(resp *http.Response) {
 			gotResponseHeader = resp.Header.Get(respHeaderKey)
 		}),

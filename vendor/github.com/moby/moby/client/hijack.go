@@ -73,9 +73,10 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 	cfg := &cli.clientConfig
 
 	var rt http.RoundTripper = otelhttp.NewTransport(hc, cli.traceOpts...)
-	if len(cfg.responseHooks) > 0 {
+	if len(cfg.requestHooks) > 0 || len(cfg.responseHooks) > 0 {
 		rt = &hookTransport{
 			base:      rt,
+			reqHooks:  cfg.requestHooks,
 			respHooks: cfg.responseHooks,
 		}
 	}

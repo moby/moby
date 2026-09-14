@@ -249,9 +249,10 @@ func New(ops ...Opt) (*Client, error) {
 
 	c.client.Transport = otelhttp.NewTransport(c.client.Transport, c.traceOpts...)
 
-	if len(cfg.responseHooks) > 0 {
+	if len(cfg.requestHooks) > 0 || len(cfg.responseHooks) > 0 {
 		c.client.Transport = &hookTransport{
 			base:      c.client.Transport,
+			reqHooks:  cfg.requestHooks,
 			respHooks: cfg.responseHooks,
 		}
 	}
