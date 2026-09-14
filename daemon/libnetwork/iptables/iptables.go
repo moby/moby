@@ -440,7 +440,11 @@ func (iptable IPTable) DeleteJumpRule(table Table, fromChain, toChain string, ru
 	rule = append(rule, "-j", toChain)
 	if iptable.Exists(table, fromChain, rule...) {
 		if err := iptable.RawCombinedOutput(append([]string{"-t", string(table), "-D", fromChain}, rule...)...); err != nil {
-			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %v", toChain, fromChain, err)
+			// Another process may have removed the rule between Exists and Delete.
+			if isRuleNotFoundError(err) {
+				return nil
+			}
+			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %w", toChain, fromChain, err)
 		}
 	}
 	return nil
@@ -500,7 +504,14 @@ func (r Rule) Delete() error {
 	if !r.Exists() {
 		return nil
 	}
-	return r.exec(Delete)
+	if err := r.exec(Delete); err != nil {
+		// Another process may have removed the rule between Exists and Delete.
+		if isRuleNotFoundError(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (r Rule) String() string {
@@ -509,4 +520,19 @@ func (r Rule) String() string {
 		cmd[0] = "ip6tables"
 	}
 	return strings.Join(cmd, " ")
+}
+
+// isRuleNotFoundError reports whether err indicates that an iptables
+// delete could not find a matching rule.
+//
+// The iptables-nft backend maps ENOENT from nft_rule_delete to this
+// diagnostic:
+//
+//	iptables: Bad rule (does a matching rule exist in that chain?).
+//
+// see: https://git.netfilter.org/iptables/tree/iptables/nft.c?id=384958620abab397062b67fb2763e813b63f74f0#n2745
+// ref: https://git.netfilter.org/iptables/commit/?id=384958620abab397062b67fb2763e813b63f74f0
+func isRuleNotFoundError(err error) bool {
+	return err != nil &&
+		strings.Contains(err.Error(), "Bad rule (does a matching rule exist in that chain?)")
 }
