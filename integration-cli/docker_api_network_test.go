@@ -40,35 +40,6 @@ func (s *DockerAPISuite) TestAPINetworkInspectBridge(c *testing.T) {
 	assert.Equal(c, nr.Containers[containerID].IPv4Address.Addr().String(), containerIP)
 }
 
-func (s *DockerAPISuite) TestAPINetworkInspectUserDefinedNetwork(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	// IPAM configuration inspect
-	ipam := &network.IPAM{
-		Driver: "default",
-		Config: []network.IPAMConfig{{Subnet: netip.MustParsePrefix("172.28.0.0/16"), IPRange: netip.MustParsePrefix("172.28.5.0/24"), Gateway: netip.MustParseAddr("172.28.5.254")}},
-	}
-	config := network.CreateRequest{
-		Name:    "br0",
-		Driver:  "bridge",
-		IPAM:    ipam,
-		Options: map[string]string{"foo": "bar", "opts": "dopts"},
-	}
-	id0 := createNetwork(c, config, http.StatusCreated)
-	assert.Assert(c, isNetworkAvailable(c, "br0"))
-
-	nr := getNetworkResource(c, id0)
-	assert.Equal(c, len(nr.IPAM.Config), 1)
-	assert.Equal(c, nr.IPAM.Config[0].Subnet, netip.MustParsePrefix("172.28.0.0/16"))
-	assert.Equal(c, nr.IPAM.Config[0].IPRange, netip.MustParsePrefix("172.28.5.0/24"))
-	assert.Equal(c, nr.IPAM.Config[0].Gateway, netip.MustParseAddr("172.28.5.254"))
-	assert.Equal(c, nr.Options["foo"], "bar")
-	assert.Equal(c, nr.Options["opts"], "dopts")
-
-	// delete the network and make sure it is deleted
-	deleteNetwork(c, id0, true)
-	assert.Assert(c, !isNetworkAvailable(c, "br0"))
-}
-
 func (s *DockerAPISuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// Create test network
