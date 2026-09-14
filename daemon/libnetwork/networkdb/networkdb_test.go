@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"text/tabwriter"
@@ -89,6 +90,44 @@ func closeNetworkDBInstances(t TestingT, dbs []*NetworkDB) {
 	for _, db := range dbs {
 		db.Close()
 	}
+}
+
+// addrOf is db's gossip address, in the ip:port form a bootstrap list takes.
+func addrOf(db *NetworkDB) string {
+	return net.JoinHostPort(db.config.AdvertiseAddr, strconv.Itoa(db.config.BindPort))
+}
+
+// peerList answers [Config.BootstrapPeers] with something a test can change as
+// it goes, so a node is only told where to rejoin once the test wants it to
+// try. Its zero value answers "no bootstrap nodes known".
+type peerList struct {
+	mu    sync.Mutex
+	addrs []string
+}
+
+// get is the [Config.BootstrapPeers] callback. It is called from the rejoin
+// timer, so it copies rather than handing out the slice set below.
+func (p *peerList) get() []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return append([]string(nil), p.addrs...)
+}
+
+func (p *peerList) set(addrs ...string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.addrs = addrs
+}
+
+// waitFor polls cond until it holds, failing the test if it never does.
+func waitFor(t TestingT, what string, cond func() bool) {
+	t.Helper()
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		if cond() {
+			return poll.Success()
+		}
+		return poll.Continue("waiting for %s", what)
+	}, poll.WithDelay(100*time.Millisecond), poll.WithTimeout(60*time.Second))
 }
 
 func (nDB *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool) {
@@ -1086,4 +1125,69 @@ func TestNetworkDBIslands(t *testing.T) {
 	}
 	poll.WaitOn(t, check, poll.WithDelay(time.Second), poll.WithTimeout(pollTimeout()))
 	closeNetworkDBInstances(t, dbs)
+}
+
+// TestRejoinClusterBootStrapUsesCurrentPeers checks that a rejoin targets the
+// peers the caller names now, not the ones it named when the node started.
+//
+// The bootstrap list was a snapshot taken once, at agent init, and nothing
+// refreshed it. A swarm which replaces a manager at a new address therefore
+// left every node holding an address which would never answer again, and no
+// address for the manager which replaced it -- so the one path which can still
+// merge a split cluster was aimed where the cluster used to be.
+//
+// Both bootstrap nodes are put beyond reach here and a replacement brought up
+// somewhere the cluster has never seen, so gossip cannot carry the news: naming
+// it in the live list is the only way the survivor can find it.
+func TestRejoinClusterBootStrapUsesCurrentPeers(t *testing.T) {
+	var peers peerList
+
+	conf := DefaultConfig()
+	// Shortened so the test is not sitting through the default minute-long
+	// rejoin interval.
+	conf.rejoinClusterInterval = 2 * time.Second
+	conf.rejoinClusterDuration = 3 * time.Second
+	conf.BootstrapPeers = peers.get
+
+	dbs := createNetworkDBInstances(t, 3, "node", conf)
+	survivor := dbs[2]
+
+	// Closed nodes are not put back here, so the teardown tracks what is still
+	// running rather than closing the whole slice: NetworkDB.Close is not
+	// idempotent, and a second call panics inside memberlist.Leave.
+	live := append([]*NetworkDB(nil), dbs...)
+	defer func() { closeNetworkDBInstances(t, live) }()
+
+	peers.set(addrOf(dbs[0]), addrOf(dbs[1]))
+
+	dbs[0].Close()
+	dbs[1].Close()
+	live = []*NetworkDB{survivor}
+	waitFor(t, "the survivor to be left on its own", func() bool {
+		survivor.RLock()
+		defer survivor.RUnlock()
+		return len(survivor.nodes) == 1
+	})
+
+	// The replacement has no bootstrap list of its own -- no callback, and it
+	// joins nothing -- so it cannot reach out. Only the survivor can close the
+	// gap, and only if it is told where to look.
+	plain := DefaultConfig()
+	plain.rejoinClusterInterval = conf.rejoinClusterInterval
+	plain.rejoinClusterDuration = conf.rejoinClusterDuration
+	plain.Hostname = "replacement"
+	plain.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
+	plain.BindPort = int(dbPort.Add(1))
+	plain.BindAddr = "127.0.0.1"
+	plain.AdvertiseAddr = plain.BindAddr
+	replacement := launchNode(t, *plain)
+	live = append(live, replacement)
+
+	peers.set(addrOf(replacement))
+	waitFor(t, "the survivor to rejoin through the replacement", func() bool {
+		survivor.RLock()
+		defer survivor.RUnlock()
+		_, ok := survivor.nodes[replacement.config.NodeID]
+		return ok
+	})
 }

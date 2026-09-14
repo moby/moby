@@ -203,9 +203,12 @@ func (nDB *NetworkDB) clusterJoin(members []string) error {
 	mlist := nDB.memberlist
 
 	if _, err := mlist.Join(members); err != nil {
-		// In case of failure, we no longer need to explicitly call retryJoin.
-		// rejoinClusterBootStrap, which runs every nDB.config.rejoinClusterInterval,
-		// will retryJoin for nDB.config.rejoinClusterDuration.
+		// No explicit retryJoin here: rejoinClusterBootStrap runs every
+		// nDB.config.rejoinClusterInterval and will retryJoin for
+		// nDB.config.rejoinClusterDuration. Note that it works from
+		// Config.BootstrapPeers, not from members, so it only picks this
+		// join up again if the caller also names these addresses there --
+		// and a NetworkDB configured without BootstrapPeers never retries.
 		return fmt.Errorf("could not join node to memberlist: %v", err)
 	}
 
@@ -280,20 +283,25 @@ func (nDB *NetworkDB) reapDeadNode() {
 // if not, call the cluster join to merge 2 separate clusters that are formed when all managers
 // stopped/started at the same time
 func (nDB *NetworkDB) rejoinClusterBootStrap() {
-	nDB.RLock()
-	if len(nDB.bootStrapIP) == 0 {
-		nDB.RUnlock()
+	// Ask who the bootstrap nodes are before taking the lock: the answer comes
+	// from the caller, whose own locks must not be taken beneath ours.
+	if nDB.config.BootstrapPeers == nil {
+		return
+	}
+	peers := nDB.config.BootstrapPeers()
+	if len(peers) == 0 {
 		return
 	}
 
+	nDB.RLock()
 	myself, ok := nDB.nodes[nDB.config.NodeID]
 	if !ok {
 		nDB.RUnlock()
 		log.G(context.TODO()).Warnf("rejoinClusterBootstrap unable to find local node info using ID:%v", nDB.config.NodeID)
 		return
 	}
-	bootStrapIPs := make([]string, 0, len(nDB.bootStrapIP))
-	for _, bootIP := range nDB.bootStrapIP {
+	bootStrapIPs := make([]string, 0, len(peers))
+	for _, bootIP := range peers {
 		// bootstrap IPs are usually IP:port from the Join
 		bootstrapIP, err := netip.ParseAddrPort(bootIP)
 		if err != nil {
