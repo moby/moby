@@ -5,6 +5,7 @@ package daemon
 import (
 	"net/http"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"syscall"
 	"testing"
@@ -33,6 +34,8 @@ func (d *Daemon) rootlessCommand(dockerdBinary string) (string, []string, error)
 		"--preserve-env=PATH", // Pass through PATH, overriding secure_path.
 		"XDG_RUNTIME_DIR=" + d.rootlessXDGRuntimeDir,
 		"HOME=" + d.rootlessUser.HomeDir,
+		// Avoid colliding with another instance set up via dockerd-rootless.sh
+		"DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR=" + filepath.Join(d.rootlessXDGRuntimeDir, "rootless"),
 		"--",
 		defaultDockerdRootlessBinary,
 	}, nil
