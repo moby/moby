@@ -72,13 +72,46 @@ func (p *BootstrapParams) AddExtension(msg proto.Message) error {
 
 // FindExtension finds an extension matching the type of dst and unmarshals it.
 func (p *BootstrapParams) FindExtension(dst proto.Message) (bool, error) {
-	if p == nil {
-		return false, nil
-	}
-
 	name := dst.ProtoReflect().Descriptor().FullName()
 
-	for _, ext := range p.Extensions {
+	for _, ext := range p.GetExtensions() {
+		if ext.GetValue().MessageIs(dst) {
+			if err := ext.GetValue().UnmarshalTo(dst); err != nil {
+				return false, fmt.Errorf("failed to unmarshal extension %q: %w", name, err)
+			}
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// AddExtension adds a new extension to the BootstrapResult.
+// The message is wrapped in a google.protobuf.Any with its type URL automatically set.
+// If the message is already an *anypb.Any, it is used directly without double-wrapping.
+func (r *BootstrapResult) AddExtension(msg proto.Message) error {
+	var anyVal *anypb.Any
+	if a, ok := msg.(*anypb.Any); ok {
+		// Already an Any, use it directly
+		anyVal = a
+	} else {
+		var err error
+		anyVal, err = anypb.New(msg)
+		if err != nil {
+			return err
+		}
+	}
+
+	r.Extensions = append(r.Extensions, &Extension{Value: anyVal})
+	return nil
+}
+
+// FindExtension finds an extension matching the type of dst and unmarshals it.
+// Extensions of any other type are ignored.
+func (r *BootstrapResult) FindExtension(dst proto.Message) (bool, error) {
+	name := dst.ProtoReflect().Descriptor().FullName()
+
+	for _, ext := range r.GetExtensions() {
 		if ext.GetValue().MessageIs(dst) {
 			if err := ext.GetValue().UnmarshalTo(dst); err != nil {
 				return false, fmt.Errorf("failed to unmarshal extension %q: %w", name, err)

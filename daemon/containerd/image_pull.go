@@ -225,6 +225,14 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	// TODO(thaJeztah): we may have to pass the snapshotter to use if the pull is part of a "docker run" (container create -> pull image if missing). See https://github.com/moby/moby/issues/45273
 	opts = append(opts, containerd.WithPullSnapshotter(i.snapshotter))
 
+	// Fetch missing layer content even when snapshots already exist,
+	// so the pulled image can also be saved or pushed.
+	// See https://github.com/moby/moby/issues/49784.
+	unpackOpts := []containerd.UnpackOpt{
+		containerd.WithUnpackFetchAllContent(),
+	}
+	opts = append(opts, containerd.WithUnpackOpts(unpackOpts))
+
 	// AppendInfoHandlerWrapper will annotate the image with basic information like manifest and layer digests as labels;
 	// this information is used to enable remote snapshotters like nydus and stargz to query a registry.
 	// This is also needed for the pull progress to detect the `Extracting` status.

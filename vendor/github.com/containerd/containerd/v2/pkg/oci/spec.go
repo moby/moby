@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"path/filepath"
+	"path"
 	"runtime"
 
 	"github.com/opencontainers/go-digest"
@@ -206,7 +206,7 @@ func populateDefaultUnixSpec(ctx context.Context, s *Spec, id string) error {
 				"/proc/sys",
 				"/proc/sysrq-trigger",
 			},
-			CgroupsPath: filepath.Join("/", ns, id),
+			CgroupsPath: path.Join("/", ns, id),
 			Resources: &specs.LinuxResources{
 				Devices: []specs.LinuxDeviceCgroup{
 					{
