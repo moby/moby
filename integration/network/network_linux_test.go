@@ -27,6 +27,41 @@ import (
 	"gotest.tools/v3/skip"
 )
 
+func TestNetworkInspectBridge(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	inspect, err := apiClient.NetworkInspect(ctx, "bridge", client.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, inspect.Network.Name, "bridge")
+
+	containerID := container.Run(ctx, t, apiClient)
+	defer apiClient.ContainerRemove(ctx, containerID, client.ContainerRemoveOptions{Force: true})
+
+	containerInspect := container.Inspect(ctx, t, apiClient, containerID)
+	containerNetwork := containerInspect.NetworkSettings.Networks["bridge"]
+	assert.Assert(t, containerNetwork != nil)
+
+	inspect, err = apiClient.NetworkInspect(ctx, inspect.Network.ID, client.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, inspect.Network.Driver, "bridge")
+	assert.Equal(t, inspect.Network.Scope, "local")
+	assert.Equal(t, inspect.Network.Internal, false)
+	assert.Equal(t, inspect.Network.EnableIPv6, false)
+	assert.Equal(t, inspect.Network.IPAM.Driver, "default")
+	networkContainer, ok := inspect.Network.Containers[containerID]
+	assert.Assert(t, ok)
+	assert.Equal(t, networkContainer.IPv4Address.Addr(), containerNetwork.IPAddress)
+}
+
 func TestRunContainerWithBridgeNone(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
 	skip.If(t, testEnv.IsUserNamespace)

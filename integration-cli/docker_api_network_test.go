@@ -15,30 +15,6 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func (s *DockerAPISuite) TestAPINetworkInspectBridge(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	// Inspect default bridge network
-	nr := getNetworkResource(c, "bridge")
-	assert.Equal(c, nr.Name, "bridge")
-
-	// run a container and attach it to the default bridge network
-	out := cli.DockerCmd(c, "run", "-d", "--name", "test", "busybox", "top").Stdout()
-	containerID := strings.TrimSpace(out)
-	containerIP := findContainerIP(c, "test", "bridge")
-
-	// inspect default bridge network again and make sure the container is connected
-	nr = getNetworkResource(c, nr.ID)
-	assert.Equal(c, nr.Driver, "bridge")
-	assert.Equal(c, nr.Scope, "local")
-	assert.Equal(c, nr.Internal, false)
-	assert.Equal(c, nr.EnableIPv6, false)
-	assert.Equal(c, nr.IPAM.Driver, "default")
-	_, ok := nr.Containers[containerID]
-	assert.Assert(c, ok)
-
-	assert.Equal(c, nr.Containers[containerID].IPv4Address.Addr().String(), containerIP)
-}
-
 func (s *DockerAPISuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	// Create test network
