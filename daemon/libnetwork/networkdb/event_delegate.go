@@ -42,7 +42,7 @@ func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
 	e.nDB.Lock()
 	defer e.nDB.Unlock()
 
-	// In case the node is rejoining after a failure or leave,
+	// In case the node is rejoining after a failure,
 	// just add the node back to active
 	if moved, _ := e.nDB.changeNodeState(mn.Name, nodeActiveState); moved {
 		return
@@ -67,11 +67,11 @@ func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
 
 	n, currState, _ := e.nDB.findNode(mn.Name)
 	if n == nil {
-		log.G(context.TODO()).Errorf("Node %s/%s not found in the node lists", mn.Name, mn.Addr)
+		// We already processed the node's leave message; memberlist is catching up.
 		return
 	}
 	// if the node was active means that did not send the leave cluster message, so it's probable that
-	// failed. Else would be already in the left list so nothing else has to be done
+	// failed. Else would be already removed from the lists so nothing else has to be done
 	if currState == nodeActiveState {
 		moved, err := e.nDB.changeNodeState(mn.Name, nodeFailedState)
 		if err != nil {

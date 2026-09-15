@@ -13,23 +13,22 @@ type nodeState int
 const (
 	nodeNotFound    nodeState = -1
 	nodeActiveState nodeState = 0
-	nodeLeftState   nodeState = 1
-	nodeFailedState nodeState = 2
+	nodeFailedState nodeState = 1
+	nodeLeftState   nodeState = 2
 )
 
 var nodeStateName = map[nodeState]string{
 	-1: "NodeNotFound",
 	0:  "NodeActive",
-	1:  "NodeLeft",
-	2:  "NodeFailed",
+	1:  "NodeFailed",
+	2:  "NodeLeft",
 }
 
-// findNode search the node into the 3 node lists and returns the node pointer and the list
+// findNode search the node into the node lists and returns the node pointer and the list
 // where it got found
 func (nDB *NetworkDB) findNode(nodeName string) (*node, nodeState, map[string]*node) {
 	for i, nodes := range []map[string]*node{
 		nDB.nodes,
-		nDB.leftNodes,
 		nDB.failedNodes,
 	} {
 		if n, ok := nodes[nodeName]; ok {
@@ -39,9 +38,9 @@ func (nDB *NetworkDB) findNode(nodeName string) (*node, nodeState, map[string]*n
 	return nil, nodeNotFound, nil
 }
 
-// changeNodeState changes the state of the node specified, returns true if the node was moved,
-// false if there was no need to change the node state. Error will be returned if the node does not
-// exists
+// changeNodeState changes the state of the node specified. It returns true if the
+// node's state was changed. An error will be returned if the node does not
+// exist.
 func (nDB *NetworkDB) changeNodeState(nodeName string, newState nodeState) (bool, error) {
 	n, currState, m := nDB.findNode(nodeName)
 	if n == nil {
@@ -64,12 +63,19 @@ func (nDB *NetworkDB) changeNodeState(nodeName string, newState nodeState) (bool
 		nDB.restoreNodeInNetworks(n.Name)
 		nDB.restoreNodeTableEntries(n.Name)
 	case nodeLeftState:
-		if currState == nodeLeftState {
-			return false, nil
-		}
-
 		delete(m, nodeName)
-		nDB.leftNodes[nodeName] = n
+		// The node is gone for good: delete all the entries created by
+		// it along with the record of which networks it was attached to.
+		deletedEvents := nDB.deleteNodeTableEntries(n.Name)
+		if currState != nodeFailedState {
+			// The entries were still visible: tell the watchers they
+			// are gone. Had the node already failed, the watchers were
+			// told when it failed.
+			for _, ev := range deletedEvents {
+				nDB.broadcaster.Write(ev)
+			}
+		}
+		nDB.deleteNodeFromNetworks(n.Name)
 	case nodeFailedState:
 		if currState == nodeFailedState {
 			return false, nil
@@ -77,6 +83,17 @@ func (nDB *NetworkDB) changeNodeState(nodeName string, newState nodeState) (bool
 
 		delete(m, nodeName)
 		nDB.failedNodes[nodeName] = n
+
+		// set the node reap time, if not already set
+		if n.reapTime == 0 {
+			n.reapTime = nodeReapInterval
+		}
+		// The node may only be temporarily down. Hide its entries and
+		// remember its attachments, so the freshest state possible can
+		// be put straight back if it returns. What is remembered ages
+		// out on the entry reap timer and is dropped by reapDeadNode.
+		nDB.suspendNodeTableEntries(n.Name)
+		nDB.suspendNodeInNetworks(n.Name)
 	default:
 		// TODO(thaJeztah): make switch exhaustive; add networkdb.nodeNotFound
 	}
@@ -84,35 +101,6 @@ func (nDB *NetworkDB) changeNodeState(nodeName string, newState nodeState) (bool
 	nDB.estNodes.Store(int32(len(nDB.nodes)))
 
 	log.G(context.TODO()).Infof("Node %s change state %s --> %s", nodeName, nodeStateName[currState], nodeStateName[newState])
-
-	if newState == nodeLeftState || newState == nodeFailedState {
-		// set the node reap time, if not already set
-		// It is possible that a node passes from failed to left and the reaptime was already set so keep that value
-		if n.reapTime == 0 {
-			n.reapTime = nodeReapInterval
-		}
-		if newState == nodeLeftState {
-			// The node is gone for good: delete all the entries created by
-			// it along with the record of which networks it was attached to.
-			deletedEvents := nDB.deleteNodeTableEntries(n.Name)
-			if currState != nodeFailedState {
-				// The entries were still visible: tell the watchers they
-				// are gone. Had the node already failed, the watchers were
-				// told when it failed.
-				for _, ev := range deletedEvents {
-					nDB.broadcaster.Write(ev)
-				}
-			}
-			nDB.deleteNodeFromNetworks(n.Name)
-		} else {
-			// The node may only be temporarily down. Hide its entries and
-			// remember its attachments, so the freshest state possible can
-			// be put straight back if it returns. What is remembered ages
-			// out on the entry reap timer and is dropped by reapDeadNode.
-			nDB.suspendNodeTableEntries(n.Name)
-			nDB.suspendNodeInNetworks(n.Name)
-		}
-	}
 
 	return true, nil
 }
