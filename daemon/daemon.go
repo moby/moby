@@ -1377,6 +1377,12 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 	}
 
+	// Validate after image-store selection and possible migration, but before
+	// restoring containers.
+	if err := d.validateBuildkitConfig(cfgStore.Features); err != nil {
+		return nil, err
+	}
+
 	go d.execCommandGC()
 
 	d.containerd, err = libcontainerd.NewClient(ctx, d.containerdClient, filepath.Join(config.ExecRoot, "containerd"), config.ContainerdNamespace, d)
