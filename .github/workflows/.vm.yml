@@ -41,6 +41,14 @@ jobs:
         name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      -
+        name: Build integration test dependencies
+        uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
+        with:
+          targets: test-integration-deps
+      -
         name: Set up Lima
         uses: lima-vm/lima-actions/setup@55627e31b78637bf254a8b2a14da8ea7d12564e5  # v1.1.0
         id: lima-actions-setup
@@ -79,16 +87,25 @@ jobs:
         run: |
           lima sudo bash < hack/host/load-kernel-modules.sh
       -
-        name: Install dockerd in the guest VM
+        name: Install integration test dependencies in the guest VM
         run: |
           set -eux -o pipefail
-          lima sudo bash -s -- "$(whoami)" < hack/host/provision.sh
-          lima docker info
+          lima sudo bash < hack/host/provision.sh
+          mv bundles/test-integration-deps "${RUNNER_TEMP}/test-integration-deps"
+          # BuildKit also creates bundles/ with mode 0700, which the harness
+          # preserves when cleaning its contents. Test daemons need to traverse it.
+          chmod 0755 bundles
+          # BuildKit's local exporter creates the output directory with mode 0700
+          # and assigns files to the runner. Preserve guest directory metadata,
+          # especially /, and install the dependencies as root.
+          tar -C "${RUNNER_TEMP}/test-integration-deps" -c . | lima sudo tar -C / -x --no-same-owner --no-overwrite-dir
       -
         name: Copy the current directory
         run: |
           set -eux -o pipefail
           limactl cp -r . default:/tmp/docker
+          # The checkout belongs to the login user, while Go builds run as root.
+          lima sudo git config --global --add safe.directory /tmp/docker
       -
         name: Test
         run: |
@@ -99,6 +116,10 @@ jobs:
             DOCKER_ROOTLESS=1
             if lima grep -q "AlmaLinux release 8" /etc/system-release; then
               # kernel prior to 5.11 needs fuse-overlayfs
+              DOCKER_GRAPHDRIVER=fuse-overlayfs
+            fi
+            if lima selinuxenabled; then
+              # Rootless overlay2 is unsupported with SELinux.
               DOCKER_GRAPHDRIVER=fuse-overlayfs
             fi
           fi
@@ -113,7 +134,10 @@ jobs:
 
           # TODO: just propagate the env from the host: https://github.com/lima-vm/lima/issues/3430
           # TODO: enable GHA cache?
-          LIMA_WORKDIR=/tmp/docker lima \
+          LIMA_WORKDIR=/tmp/docker lima sudo env \
+            PATH=/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin \
+            DOCKER_GITCOMMIT="${GITHUB_SHA}" \
+            GITHUB_ACTIONS="${GITHUB_ACTIONS}" \
             TEST_SKIP_INTEGRATION_CLI=1 \
             TEST_INTEGRATION_DIR="${INPUTS_INTEGRATION_DIR}" \
             TEST_INTEGRATION_USE_GRAPHDRIVER=1 \
@@ -121,7 +145,7 @@ jobs:
             DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER} \
             DOCKER_IGNORE_BR_NETFILTER_ERROR=${DOCKER_IGNORE_BR_NETFILTER_ERROR} \
             TIMEOUT=15m \
-            make test-integration
+            hack/make.sh dynbinary test-integration
         env:
           INPUTS_INTEGRATION_DIR: ${{ inputs.integration_dir }}
       -

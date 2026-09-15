@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
 
+# Provision a dedicated RHEL-compatible host for integration tests. Run as root.
 set -eux -o pipefail
 
-# The argument is the login user that will run Docker in the guest.
-mkdir -p /etc/systemd/system/docker.socket.d
-cat <<- EOF | tee /etc/systemd/system/docker.socket.d/override.conf
-	[Socket]
-	SocketUser=$1
+dnf -q -y install \
+	gcc git pkgconf-pkg-config systemd-devel \
+	iproute iptables iputils nftables procps-ng libselinux-utils \
+	fuse-overlayfs slirp4netns shadow-utils
+
+# The integration test helpers use this account for rootless daemons.
+# Lima reserves a large subordinate ID range for its login user.
+useradd --create-home \
+	--key SUB_UID_MAX=2147483647 --key SUB_GID_MAX=2147483647 \
+	unprivilegeduser
+mkdir -p /etc/systemd/system/user@.service.d
+cat << EOF > /etc/systemd/system/user@.service.d/delegate.conf
+[Service]
+Delegate=cpu cpuset io memory pids
 EOF
-# TODO: use native packages for AlmaLinux: https://github.com/docker/packaging/pull/138
-dnf config-manager --add-repo=https://download.docker.com/linux/rhel/docker-ce.repo
-dnf -q -y install --nobest docker-ce make git
-systemctl enable --now docker
+systemctl daemon-reload
