@@ -77,45 +77,12 @@ jobs:
       -
         name: Load kernel modules in the guest VM
         run: |
-          set -eux -o pipefail
-          cat <<-EOF | lima sudo tee /etc/modules-load.d/docker.conf
-          br_netfilter
-          bridge
-          ip6_tables
-          ip6table_filter
-          ip6table_nat
-          ip_tables
-          ip_vs
-          iptable_filter
-          iptable_nat
-          nf_tables
-          overlay
-          tap
-          tun
-          veth
-          x_tables
-          xt_addrtype
-          xt_comment
-          xt_conntrack
-          xt_mark
-          xt_multiport
-          xt_nat
-          xt_tcpudp
-          EOF
-          lima sudo systemctl restart systemd-modules-load.service
+          lima sudo bash < hack/host/load-kernel-modules.sh
       -
         name: Install dockerd in the guest VM
         run: |
           set -eux -o pipefail
-          lima sudo mkdir -p /etc/systemd/system/docker.socket.d
-          cat <<-EOF | lima sudo tee /etc/systemd/system/docker.socket.d/override.conf
-          [Socket]
-          SocketUser=$(whoami)
-          EOF
-          # TODO: use native packages for AlmaLinux: https://github.com/docker/packaging/pull/138
-          lima sudo dnf config-manager --add-repo=https://download.docker.com/linux/rhel/docker-ce.repo
-          lima sudo dnf -q -y install --nobest docker-ce make git
-          lima sudo systemctl enable --now docker
+          lima sudo bash -s -- "$(whoami)" < hack/host/provision.sh
           lima docker info
       -
         name: Copy the current directory
