@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 
@@ -175,7 +176,7 @@ func TestFilter(t *testing.T) {
 		{
 			subtest: "type=invalid",
 			filter:  filters.NewArgs(filters.Arg("type", "invalid")),
-			err:     "invalid filter: 'type'='invalid'",
+			err:     "invalid value for filter 'type': must be 'builtin' or 'custom'",
 		},
 		{
 			subtest: "scope=local",
@@ -329,7 +330,7 @@ func TestFilter(t *testing.T) {
 			subtest:     "Prune/MultipleTerms=until",
 			filter:      filters.NewArgs(filters.Arg("until", "2024-12-01T01:00:00"), filters.Arg("until", "2h")),
 			pruneFilter: true,
-			err:         "more than one until filter specified",
+			err:         "invalid filter: 'until' cannot be specified more than once",
 		},
 		{
 			subtest:     "Prune/id=invalid",
@@ -351,7 +352,8 @@ func TestFilter(t *testing.T) {
 				flt, err = NewFilter(testCase.filter)
 			}
 			if testCase.err != "" {
-				assert.ErrorContains(t, err, testCase.err)
+				assert.Check(t, is.ErrorContains(err, testCase.err))
+				assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 				return
 			}
 			assert.NilError(t, err)

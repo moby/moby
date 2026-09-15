@@ -90,16 +90,23 @@ func newFilter(args filters.Args) (Filter, error) {
 		case "1", "true":
 			danglingOnly = true
 		default:
-			return Filter{}, errdefs.InvalidParameter(errors.New(`invalid value for filter 'dangling', must be "true" (or "1"), or "false" (or "0")`))
+			return Filter{}, errdefs.InvalidParameter(errors.New(`invalid value for filter 'dangling': must be "true" (or "1"), or "false" (or "0")`))
 		}
 	}
-	if err := args.WalkValues("type", validateNetworkTypeFilter); err != nil {
+	if err := args.WalkValues("type", func(netType string) error {
+		switch netType {
+		case "builtin", "custom":
+			return nil
+		default:
+			return errdefs.InvalidParameter(errors.New("invalid value for filter 'type': must be 'builtin' or 'custom'"))
+		}
+	}); err != nil {
 		return Filter{}, err
 	}
 	var until time.Time
 	if untilFilters := args.Get("until"); len(untilFilters) > 0 {
 		if len(untilFilters) > 1 {
-			return Filter{}, errdefs.InvalidParameter(errors.New("more than one until filter specified"))
+			return Filter{}, errdefs.InvalidParameter(errors.New("invalid filter: 'until' cannot be specified more than once"))
 		}
 		var err error
 		until, err = timestamp.Parse(untilFilters[0], time.Now())
@@ -166,15 +173,6 @@ func matchesUse(danglingOnly bool, nw FilterNetwork) bool {
 		return !IsPredefined(nw.Name()) && !nw.HasContainerAttachments() && !nw.HasServiceAttachments()
 	}
 	return IsPredefined(nw.Name()) || nw.HasContainerAttachments() || nw.HasServiceAttachments()
-}
-
-func validateNetworkTypeFilter(netType string) error {
-	switch netType {
-	case "builtin", "custom":
-		return nil
-	default:
-		return errors.Errorf("invalid filter: 'type'='%s'", netType)
-	}
 }
 
 func matchesType(netTypes []string, nw FilterNetwork) bool {
