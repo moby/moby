@@ -56,18 +56,18 @@ func watchTable(nDB *networkdb.NetworkDB) func(w http.ResponseWriter, r *http.Re
 }
 
 func watchTableEntries(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm() //nolint:errcheck
+	_ = r.ParseForm()
 	diagnostic.DebugHTTPForm(r)
 	if len(r.Form["tname"]) < 1 {
 		rsp := diagnostic.WrongCommand(missingParameter, r.URL.Path+"?tname=table_name")
-		diagnostic.HTTPReply(w, rsp, &diagnostic.JSONOutput{}) //nolint:errcheck
+		_, _ = diagnostic.HTTPReply(w, rsp, &diagnostic.JSONOutput{})
 		return
 	}
 
 	tableName := r.Form["tname"][0]
 	table, ok := clientWatchTable[tableName]
 	if !ok {
-		fmt.Fprintf(w, "Table %s not watched\n", tableName)
+		fmt.Fprintf(w, "Table %s not watched\n", tableName) // #nosec G705 -- ignore "XSS via taint analysis".
 		return
 	}
 

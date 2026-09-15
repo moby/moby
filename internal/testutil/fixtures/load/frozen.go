@@ -176,7 +176,7 @@ func pullTagAndRemove(ctx context.Context, apiClient client.APIClient, ref strin
 }
 
 func readFrozenImageList(ctx context.Context, dockerfilePath string, images []string) (map[string]string, error) {
-	f, err := os.Open(dockerfilePath)
+	f, err := os.Open(dockerfilePath) // #nosec G703 -- intentionally parameterized.
 	if err != nil {
 		return nil, errors.Wrap(err, "error reading dockerfile")
 	}
