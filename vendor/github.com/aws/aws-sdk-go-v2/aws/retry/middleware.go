@@ -93,6 +93,9 @@ func (r Attempt) logf(logger logging.Logger, classification logging.Classificati
 func (r *Attempt) HandleFinalize(ctx context.Context, in smithymiddle.FinalizeInput, next smithymiddle.FinalizeHandler) (
 	out smithymiddle.FinalizeOutput, metadata smithymiddle.Metadata, err error,
 ) {
+	ctx, span := tracing.StartSpan(ctx, "RetryLoop")
+	defer span.End()
+
 	var attemptClockSkew time.Duration
 	if !r.DisableClockSkewCorrection && r.ClientSkew != nil {
 		attemptClockSkew = time.Duration(r.ClientSkew.Load())
@@ -224,6 +227,11 @@ func (r *Attempt) handleAttempt(
 
 		r.logf(logger, logging.Debug, "retrying request %s/%s, attempt %d",
 			service, operation, attemptNum)
+	}
+
+	// Not an error for other transports: they have no header to set.
+	if req, ok := in.Request.(*http.Request); ok {
+		setRetryMetricsHeader(ctx, req)
 	}
 
 	var metadata smithymiddle.Metadata
@@ -386,14 +394,22 @@ func absDuration(d time.Duration) time.Duration {
 }
 
 // MetricsHeader attaches SDK request metric header for retries to the transport
+//
+// Deprecated: AWS service clients no longer use this middleware. The
+// Amz-Sdk-Request header is set by the Attempt middleware, which already holds
+// the retry metadata the header describes.
 type MetricsHeader struct{}
 
 // ID returns the middleware identifier
+//
+// Deprecated: MetricsHeader is deprecated.
 func (r *MetricsHeader) ID() string {
 	return "RetryMetricsHeader"
 }
 
 // HandleFinalize attaches the SDK request metric header to the transport layer
+//
+// Deprecated: MetricsHeader is deprecated.
 func (r MetricsHeader) HandleFinalize(ctx context.Context, in smithymiddle.FinalizeInput, next smithymiddle.FinalizeHandler) (
 	out smithymiddle.FinalizeOutput, metadata smithymiddle.Metadata, err error,
 ) {
@@ -427,6 +443,34 @@ func (r MetricsHeader) HandleFinalize(ctx context.Context, in smithymiddle.Final
 	}
 
 	return next.HandleFinalize(ctx, in)
+}
+
+// setRetryMetricsHeader sets the Amz-Sdk-Request header from the retry metadata
+// on the context.
+func setRetryMetricsHeader(ctx context.Context, req *http.Request) {
+	retryMetadata, _ := getRetryMetadata(ctx)
+
+	const retryMetricHeader = "Amz-Sdk-Request"
+	var parts []string
+
+	parts = append(parts, "attempt="+strconv.Itoa(retryMetadata.AttemptNum))
+	if retryMetadata.MaxAttempts != 0 {
+		parts = append(parts, "max="+strconv.Itoa(retryMetadata.MaxAttempts))
+	}
+
+	var ttl time.Time
+	if deadline, ok := ctx.Deadline(); ok {
+		ttl = deadline
+	}
+
+	// Only append the TTL if it can be determined.
+	if !ttl.IsZero() && retryMetadata.AttemptClockSkew > 0 {
+		const unixTimeFormat = "20060102T150405Z"
+		ttl = ttl.Add(retryMetadata.AttemptClockSkew)
+		parts = append(parts, "ttl="+ttl.Format(unixTimeFormat))
+	}
+
+	req.Header[retryMetricHeader] = append(req.Header[retryMetricHeader][:0], strings.Join(parts, "; "))
 }
 
 type retryMetadataKey struct{}
@@ -471,9 +515,6 @@ func AddRetryMiddlewares(stack *smithymiddle.Stack, options AddRetryMiddlewaresO
 		return err
 	}
 
-	if err := stack.Finalize.Insert(&MetricsHeader{}, attempt.ID(), smithymiddle.After); err != nil {
-		return err
-	}
 	return nil
 }
 
