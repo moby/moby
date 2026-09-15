@@ -107,6 +107,175 @@ func TestEncodeDecode(t *testing.T) {
 	assert.Assert(t, errors.Is(err, io.EOF))
 }
 
+func TestDecodeNULBytes(t *testing.T) {
+	t.Parallel()
+
+	m1 := &logger.Message{Line: []byte("hello 1"), Timestamp: time.Now(), Source: "stdout"}
+	m2 := &logger.Message{Line: []byte("hello 2"), Timestamp: time.Now(), Source: "stdout"}
+
+	buf := bytes.NewBuffer(nil)
+	assert.Assert(t, marshalMessage(m1, nil, buf))
+	// Corrupt gap of NUL bytes (e.g. from an unclean shutdown / sparse allocation)
+	buf.WriteString("\x00\x00\x00\x00\x00\x00\x00\x00\n")
+	assert.Assert(t, marshalMessage(m2, nil, buf))
+
+	dec := decodeFunc(buf)
+	defer dec.Close()
+
+	msg, err := dec.Decode()
+	assert.NilError(t, err)
+	assert.Assert(t, string(msg.Line) == "hello 1\n", string(msg.Line))
+
+	msg, err = dec.Decode()
+	assert.NilError(t, err)
+	assert.Assert(t, string(msg.Line) == "hello 2\n", string(msg.Line))
+
+	_, err = dec.Decode()
+	assert.Assert(t, errors.Is(err, io.EOF))
+}
+
+func TestDecodeEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	t.Run("AllNULBytes", func(t *testing.T) {
+		t.Parallel()
+		buf := bytes.NewBufferString("\x00\x00\x00\x00\x00\x00\x00\x00\n\x00\x00\x00\x00")
+		dec := decodeFunc(buf)
+		defer dec.Close()
+
+		_, err := dec.Decode()
+		assert.Assert(t, errors.Is(err, io.EOF))
+	})
+
+	t.Run("LeadingTrailingNULAndCorruptedLine", func(t *testing.T) {
+		t.Parallel()
+		m1 := &logger.Message{Line: []byte("hello 1"), Timestamp: time.Now(), Source: "stdout"}
+		m2 := &logger.Message{Line: []byte("hello 2"), Timestamp: time.Now(), Source: "stdout"}
+		m3 := &logger.Message{Line: []byte("hello 3"), Timestamp: time.Now(), Source: "stdout"}
+
+		var buf1 bytes.Buffer
+		assert.Assert(t, marshalMessage(m1, nil, &buf1))
+		var buf2 bytes.Buffer
+		assert.Assert(t, marshalMessage(m2, nil, &buf2))
+		var buf3 bytes.Buffer
+		assert.Assert(t, marshalMessage(m3, nil, &buf3))
+
+		combined := bytes.NewBuffer(nil)
+		// valid m1
+		combined.Write(buf1.Bytes())
+		// multiple consecutive NUL lines
+		combined.WriteString("\x00\x00\x00\x00\n\x00\x00\x00\x00\x00\n")
+		// corrupted line with non-JSON text
+		combined.WriteString("this is corrupted garbage\n")
+		// valid m2 surrounded by NULs
+		combined.WriteString("\x00\x00")
+		combined.Write(bytes.TrimRight(buf2.Bytes(), "\n"))
+		combined.WriteString("\x00\n")
+		// valid m3 without trailing newline at EOF
+		combined.Write(bytes.TrimRight(buf3.Bytes(), "\n"))
+
+		dec := decodeFunc(combined)
+		defer dec.Close()
+
+		msg, err := dec.Decode()
+		assert.NilError(t, err)
+		assert.Assert(t, string(msg.Line) == "hello 1\n")
+
+		msg, err = dec.Decode()
+		assert.NilError(t, err)
+		assert.Assert(t, string(msg.Line) == "hello 2\n")
+
+		msg, err = dec.Decode()
+		assert.NilError(t, err)
+		assert.Assert(t, string(msg.Line) == "hello 3\n")
+
+		_, err = dec.Decode()
+		assert.Assert(t, errors.Is(err, io.EOF))
+	})
+}
+
+func TestReadLogsNULBytesResynchronization(t *testing.T) {
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "container.log")
+
+	info := logger.Info{
+		ContainerID: "testcontainerid123456",
+		LogPath:     logPath,
+	}
+
+	l, err := New(info)
+	assert.NilError(t, err)
+
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	var messages []*logger.Message
+	for i := 0; i < 5; i++ {
+		msg := &logger.Message{
+			Source:    "stdout",
+			Timestamp: now.Add(time.Duration(i) * time.Second),
+			Line:      []byte(fmt.Sprintf("message %d", i+1)),
+		}
+		messages = append(messages, msg)
+		assert.NilError(t, l.Log(msg))
+	}
+	assert.NilError(t, l.Close())
+
+	// Read file content and corrupt message 3 with NUL bytes
+	content, err := os.ReadFile(logPath)
+	assert.NilError(t, err)
+
+	lines := bytes.Split(content, []byte("\n"))
+	assert.Assert(t, len(lines) >= 5)
+	for i := range lines[2] {
+		lines[2][i] = 0
+	}
+	corruptedContent := bytes.Join(lines, []byte("\n"))
+	assert.NilError(t, os.WriteFile(logPath, corruptedContent, 0o640))
+
+	readerLogger, err := New(info)
+	assert.NilError(t, err)
+	defer readerLogger.Close()
+	lr := readerLogger.(logger.LogReader)
+
+	t.Run("FullRead", func(t *testing.T) {
+		lw := lr.ReadLogs(t.Context(), logger.ReadConfig{Tail: -1})
+		defer lw.ConsumerGone()
+
+		var readLines []string
+		for msg := range lw.Msg {
+			readLines = append(readLines, string(msg.Line))
+		}
+		expected := []string{"message 1\n", "message 2\n", "message 4\n", "message 5\n"}
+		assert.DeepEqual(t, readLines, expected)
+	})
+
+	t.Run("SinceAcrossNULGap", func(t *testing.T) {
+		lw := lr.ReadLogs(t.Context(), logger.ReadConfig{
+			Tail:  -1,
+			Since: now.Add(3 * time.Second), // timestamp of message 4
+		})
+		defer lw.ConsumerGone()
+
+		var readLines []string
+		for msg := range lw.Msg {
+			readLines = append(readLines, string(msg.Line))
+		}
+		expected := []string{"message 4\n", "message 5\n"}
+		assert.DeepEqual(t, readLines, expected)
+	})
+
+	t.Run("TailAcrossNULGap", func(t *testing.T) {
+		lw := lr.ReadLogs(t.Context(), logger.ReadConfig{Tail: 4})
+		defer lw.ConsumerGone()
+
+		var readLines []string
+		for msg := range lw.Msg {
+			readLines = append(readLines, string(msg.Line))
+		}
+		expected := []string{"message 2\n", "message 4\n", "message 5\n"}
+		assert.DeepEqual(t, readLines, expected)
+	})
+}
+
 func TestReadLogs(t *testing.T) {
 	t.Parallel()
 	r := loggertest.Reader{
