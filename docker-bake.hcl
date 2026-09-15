@@ -141,6 +141,16 @@ target "all-cross" {
   inherits = ["all", "_platforms"]
 }
 
+# Export the pinned tools and fixtures for integration tests on a Linux host.
+target "test-integration-deps" {
+  inherits = ["_common"]
+  target = "test-integration-deps"
+  args = {
+    DOCKER_STATIC = "1"
+  }
+  output = [bindir("test-integration-deps")]
+}
+
 #
 # bin image
 #
