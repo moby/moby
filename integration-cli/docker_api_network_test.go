@@ -69,24 +69,6 @@ func createDeletePredefinedNetwork(t *testing.T, name string) {
 	deleteNetwork(t, name, false)
 }
 
-func isNetworkAvailable(t *testing.T, name string) bool {
-	resp, body, err := request.Get(testutil.GetContext(t), "/networks")
-	assert.NilError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
-
-	var nJSON []network.Inspect
-	err = json.NewDecoder(body).Decode(&nJSON)
-	assert.NilError(t, err)
-
-	for _, n := range nJSON {
-		if n.Name == name {
-			return true
-		}
-	}
-	return false
-}
-
 func getNetworkResource(t *testing.T, id string) *network.Inspect {
 	_, obj, err := request.Get(testutil.GetContext(t), "/networks/"+id)
 	assert.NilError(t, err)
