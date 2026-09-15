@@ -537,6 +537,18 @@ func TestPublishedPortAlreadyInUse(t *testing.T) {
 	inspect, err := apiClient.ContainerInspect(ctx, ctr2, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.Container.State.Status, containertypes.StateCreated))
+
+	_, err = apiClient.ContainerStart(ctx, ctr2, client.ContainerStartOptions{})
+	assert.Assert(t, is.ErrorContains(err, "failed to set up container networking"))
+
+	inspect, err = apiClient.ContainerInspect(ctx, ctr2, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(inspect.Container.State.Status, containertypes.StateCreated))
+	assert.Assert(t, is.Len(inspect.Container.HostConfig.PortBindings[mappedPort], 1))
+	assert.Check(t, is.Equal(inspect.Container.HostConfig.PortBindings[mappedPort][0].HostPort, "8000"))
+	// The bridge entry must survive the failed start, otherwise the next start
+	// would silently succeed with no networking attached.
+	assert.Assert(t, is.Contains(inspect.Container.NetworkSettings.Networks, "bridge"))
 }
 
 // TestAllPortMappingsAreReturned check that dual-stack ports mapped through
