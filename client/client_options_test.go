@@ -2,6 +2,7 @@ package client
 
 import (
 	"crypto/tls"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"runtime"
@@ -424,14 +425,14 @@ func TestWithHTTPClient(t *testing.T) {
 		cmpopts.EquateComparable(&cookiejar.Jar{}))
 }
 
-func TestWithResponseHook(t *testing.T) {
+func TestWithHTTPResponseHook(t *testing.T) {
 	const hdrKey = "X-Test-Header"
 	const hdrVal = "hello-world"
 
 	t.Run("single hook", func(t *testing.T) {
 		var got string
 		c, err := New(
-			WithResponseHook(func(resp *http.Response) {
+			WithHTTPResponseHook(func(resp *http.Response) {
 				got = resp.Header.Get(hdrKey)
 			}),
 			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
@@ -453,7 +454,7 @@ func TestWithResponseHook(t *testing.T) {
 	})
 
 	t.Run("invalid hook", func(t *testing.T) {
-		_, err := New(WithResponseHook(nil))
+		_, err := New(WithHTTPResponseHook(nil))
 		assert.Error(t, err, "invalid response hook: hook is nil")
 	})
 
@@ -461,10 +462,10 @@ func TestWithResponseHook(t *testing.T) {
 		var triggered []string
 
 		c, err := New(
-			WithResponseHook(func(*http.Response) {
+			WithHTTPResponseHook(func(*http.Response) {
 				triggered = append(triggered, "hook 1: "+hdrVal)
 			}),
-			WithResponseHook(func(*http.Response) {
+			WithHTTPResponseHook(func(*http.Response) {
 				triggered = append(triggered, "hook 2: "+hdrVal)
 			}),
 			WithBaseMockClient(func(req *http.Request) (*http.Response, error) {
@@ -484,4 +485,45 @@ func TestWithResponseHook(t *testing.T) {
 
 		assert.NilError(t, c.Close())
 	})
+
+	t.Run("cannot read or close body", func(t *testing.T) {
+		body := &trackingBody{Reader: strings.NewReader("response body")}
+
+		c, err := New(
+			WithHTTPResponseHook(func(resp *http.Response) {
+				_, err := io.ReadAll(resp.Body)
+				assert.Error(t, err, "hooks must not read HTTP message body")
+				assert.NilError(t, resp.Body.Close())
+				assert.Check(t, !body.closed, "response hook must not close response body")
+			}),
+			WithBaseMockClient(func(*http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+					Body:       body,
+				}, nil
+			}),
+		)
+		assert.NilError(t, err)
+
+		_, err = c.Ping(t.Context(), PingOptions{})
+		assert.NilError(t, err)
+		assert.NilError(t, c.Close())
+	})
+}
+
+type trackingBody struct {
+	io.Reader
+	read   bool
+	closed bool
+}
+
+func (b *trackingBody) Read(p []byte) (int, error) {
+	b.read = true
+	return b.Reader.Read(p)
+}
+
+func (b *trackingBody) Close() error {
+	b.closed = true
+	return nil
 }
