@@ -1,11 +1,6 @@
 package build
 
-import (
-	"runtime"
-
-	"github.com/moby/moby/api/types/build"
-	"github.com/moby/moby/v2/daemon/server/router"
-)
+import "github.com/moby/moby/v2/daemon/server/router"
 
 // buildRouter is a router to talk with the build controller
 type buildRouter struct {
@@ -35,33 +30,4 @@ func (br *buildRouter) initRoutes() {
 		router.NewPostRoute("/build/prune", br.postPrune, router.WithMinimumAPIVersion("1.31")),
 		router.NewPostRoute("/build/cancel", br.postCancel),
 	}
-}
-
-// BuilderVersion derives the default docker builder version from the config.
-//
-// The default on Linux is version "2" (BuildKit), but the daemon can be
-// configured to recommend version "1" (classic Builder). Windows does not
-// yet support BuildKit for native Windows images, and uses "1" (classic builder)
-// as a default.
-//
-// This value is only a recommendation as advertised by the daemon, and it is
-// up to the client to choose which builder to use.
-func BuilderVersion(features map[string]bool) build.BuilderVersion {
-	// TODO(thaJeztah) move the default to daemon/config
-	bv := build.BuilderBuildKit
-	if runtime.GOOS == "windows" {
-		// BuildKit is not yet the default on Windows.
-		bv = build.BuilderV1
-	}
-
-	// Allow the features field in the daemon config to override the
-	// default builder to advertise.
-	if enable, ok := features["buildkit"]; ok {
-		if enable {
-			bv = build.BuilderBuildKit
-		} else {
-			bv = build.BuilderV1
-		}
-	}
-	return bv
 }
