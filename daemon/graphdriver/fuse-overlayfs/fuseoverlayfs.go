@@ -286,9 +286,16 @@ func (d *Driver) Remove(id string) error {
 	if lid, err := os.ReadFile(path.Join(dir, "link")); err == nil {
 		linkID := string(lid)
 		if linkID == "." || filepath.Base(linkID) != linkID || !filepath.IsLocal(linkID) {
-			logger.Errorf("refusing to remove invalid link for layer %v", id)
+			logger.WithFields(log.Fields{
+				"layer":  id,
+				"linkID": linkID,
+			}).Error("refusing to remove invalid link for layer")
 		} else if err := os.RemoveAll(path.Join(d.home, linkDir, linkID)); err != nil { // #nosec G703 -- path input is trusted and validated above
-			logger.Debugf("Failed to remove link: %v", err)
+			logger.WithFields(log.Fields{
+				"error":  err,
+				"layer":  id,
+				"linkID": linkID,
+			}).Debug("failed to remove link for layer")
 		}
 	}
 
@@ -500,7 +507,10 @@ func fusermountU(mountpoint string) (unmounted bool) {
 	for _, v := range []string{"fusermount3", "fusermount"} {
 		if err := exec.Command(v, "-u", mountpoint).Run(); err != nil {
 			if !os.IsNotExist(err) {
-				log.G(context.TODO()).WithError(err).Debugf("Error unmounting %s with %s", mountpoint, v)
+				logger.WithFields(log.Fields{
+					"error":      err,
+					"mountpoint": mountpoint,
+				}).Debugf("Error unmounting %s with %s", mountpoint, v)
 			}
 			continue
 		}
@@ -511,7 +521,10 @@ func fusermountU(mountpoint string) (unmounted bool) {
 	fd, err := unix.Open(mountpoint, unix.O_DIRECTORY, 0)
 	if err == nil {
 		if err := unix.Syncfs(fd); err != nil {
-			log.G(context.TODO()).WithError(err).Debugf("Error Syncfs(%s)", mountpoint)
+			logger.WithFields(log.Fields{
+				"error":      err,
+				"mountpoint": mountpoint,
+			}).Debugf("Error Syncfs(%s)", mountpoint)
 		}
 		_ = unix.Close(fd)
 	}

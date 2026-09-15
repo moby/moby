@@ -492,9 +492,16 @@ func (d *Driver) Remove(id string) error {
 	if lid, err := os.ReadFile(path.Join(dir, "link")); err == nil {
 		linkID := string(lid)
 		if linkID == "." || filepath.Base(linkID) != linkID || !filepath.IsLocal(linkID) {
-			logger.Errorf("refusing to remove invalid link for layer %v", id)
+			logger.WithFields(log.Fields{
+				"layer":  id,
+				"linkID": linkID,
+			}).Error("refusing to remove invalid link for layer")
 		} else if err := os.RemoveAll(path.Join(d.home, linkDir, linkID)); err != nil { // #nosec G703 -- path input is trusted and validated above
-			logger.Debugf("Failed to remove link: %v", err)
+			logger.WithFields(log.Fields{
+				"error":  err,
+				"layer":  id,
+				"linkID": linkID,
+			}).Debug("failed to remove link for layer")
 		}
 	}
 
