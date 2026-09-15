@@ -6,7 +6,9 @@ This package provides various compression algorithms.
 * [S2](https://github.com/klauspost/compress/tree/master/s2#s2-compression) is a high performance replacement for Snappy.
 * Optimized [deflate](https://godoc.org/github.com/klauspost/compress/flate) packages which can be used as a dropin replacement for [gzip](https://godoc.org/github.com/klauspost/compress/gzip), [zip](https://godoc.org/github.com/klauspost/compress/zip) and [zlib](https://godoc.org/github.com/klauspost/compress/zlib).
 * [snappy](https://github.com/klauspost/compress/tree/master/snappy) is a drop-in replacement for `github.com/golang/snappy` offering better compression and concurrent streams.
+* [lzw](https://github.com/klauspost/compress/tree/master/lzw) is a drop-in replacement for `compress/lzw` with 1.4-4x faster decompression and 1.1-2.7x faster compression, depending on the data.
 * [huff0](https://github.com/klauspost/compress/tree/master/huff0) and [FSE](https://github.com/klauspost/compress/tree/master/fse) implementations for raw entropy encoding.
+* [Xpress](https://github.com/klauspost/compress/tree/master/xpress) decompression of the Microsoft XPRESS (MS-XCA) plain LZ77 and LZ77+Huffman formats (the LZ77+Huffman variant is the one used in WIM images and Windows Compact OS / WOF data).
 * [gzhttp](https://github.com/klauspost/compress/tree/master/gzhttp) Provides client and server wrappers for handling gzipped/zstd HTTP requests efficiently.
 * [pgzip](https://github.com/klauspost/pgzip) is a separate package that provides a very fast parallel gzip implementation.
 
