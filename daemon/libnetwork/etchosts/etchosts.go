@@ -194,5 +194,5 @@ func Update(path, IP, hostname string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2"+"$3")), 0o644)
+	return os.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2"+"$3")), 0o644) // #nosec G703 -- path argument is from trusted source.
 }
