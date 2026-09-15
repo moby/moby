@@ -152,20 +152,6 @@ func (mm *mountManager) Activate(ctx context.Context, name string, mounts []moun
 		opt(&config)
 	}
 
-	shouldTransform := func(p string, t string) bool {
-		p = p + "/*"
-		for _, mt := range config.AllowMountTypes {
-			if mt == p || mt == t {
-				return false
-			}
-		}
-		return true
-	}
-
-	shouldHandle := func(t string) bool {
-		return !slices.Contains(config.AllowMountTypes, t)
-	}
-
 	transforms := map[string]mount.Transformer{
 		"format": mountFormatter{},
 		"mkfs": &mkfs{
@@ -177,59 +163,10 @@ func (mm *mountManager) Activate(ctx context.Context, name string, mounts []moun
 	}
 
 	start := time.Now()
-	// highest index of a mount
-	// first system mount is the first index which should be mounted by the system
-	var firstSystemMount = -1
-	var mountConv [][]mount.Transformer
-	var handlers []mount.Handler
-	for i := range mounts {
-		mountType := mounts[i].Type
-
-		// Check is the source needs transformation, any transform operation requires
-		// mounting with the mount manager.
-		for transformType, mt, ok := strings.Cut(mountType, "/"); ok; transformType, mt, ok = strings.Cut(mountType, "/") {
-			if tr, ok := transforms[transformType]; ok {
-				if shouldTransform(transformType, mounts[i].Type) {
-					// At least everything before this must be mounted
-					// by the mount manager
-					firstSystemMount = i
-				}
-
-				if handlers == nil {
-					handlers = make([]mount.Handler, len(mounts))
-				}
-
-				if mountConv == nil {
-					mountConv = make([][]mount.Transformer, len(mounts))
-				}
-
-				mountConv[i] = append(mountConv[i], typeTransformer{
-					Transformer: tr,
-					mountType:   mt,
-				})
-
-				mountType = mt
-			} else {
-				log.G(ctx).Warnf("unknown transform %q for mount %v", transformType, mounts[i])
-				break
-			}
-		}
-
-		var handler mount.Handler
-		if mm.handlers != nil {
-			handler = mm.handlers[mountType]
-		}
-
-		if handler != nil || config.Temporary {
-			if handlers == nil {
-				handlers = make([]mount.Handler, len(mounts))
-			}
-			handlers[i] = handler
-			if shouldHandle(mountType) || config.Temporary {
-				firstSystemMount = i + 1
-			}
-		}
-	}
+	plan := planActivation(ctx, mounts, config, transforms, mm.handlers)
+	firstSystemMount := plan.firstSystemMount
+	mountConv := plan.transforms
+	handlers := plan.handlers
 	// If no mounts are handled here, return not implemented and caller
 	// may just perform system mounts as normal.
 	if firstSystemMount == -1 {
@@ -472,9 +409,17 @@ func (mm *mountManager) Activate(ctx context.Context, name string, mounts []moun
 		mounted = append(mounted, active)
 	}
 
-	// If first system mount is converted, fill in the format
-	if mountConv != nil {
-		for _, tr := range mountConv[firstSystemMount] {
+	// If the first system mount has transforms, apply the ones the caller
+	// has not claimed. A claim can only be honored as a suffix of the
+	// chain: applyCount always covers at least every transform up to and
+	// including the last unclaimed one, since each depends on the last's
+	// output; see planActivation.
+	//
+	// firstSystemMount can reach len(mounts) when every mount is handled
+	// inside the manager (for example, every mount claimed via Temporary);
+	// there is then no system mount left to transform.
+	if mountConv != nil && firstSystemMount < len(mounts) {
+		for _, tr := range mountConv[firstSystemMount][:plan.applyCount[firstSystemMount]] {
 			newM, err := tr.Transform(ctx, mounts[firstSystemMount], mounted)
 			if err != nil {
 				return mount.ActivationInfo{}, err
@@ -776,12 +721,12 @@ func (mm *mountManager) Deactivate(ctx context.Context, name string) error {
 
 	// TODO: Should this also be backgrounded, no much can do on failure to unmount
 	var mountErrors error
-	for i := len(allActive) - 1; i >= 0; i-- {
+	for _, active := range slices.Backward(allActive) {
 		var err error
-		if h := mm.handlers[allActive[i].Type]; h != nil {
-			err = h.Unmount(ctx, allActive[i].MountPoint)
+		if h := mm.handlers[active.Type]; h != nil {
+			err = h.Unmount(ctx, active.MountPoint)
 		} else {
-			err = mount.Unmount(allActive[i].MountPoint, 0)
+			err = mount.Unmount(active.MountPoint, 0)
 		}
 		if err != nil {
 			mountErrors = errors.Join(mountErrors, err)

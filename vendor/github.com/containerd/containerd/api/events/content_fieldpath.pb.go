@@ -12,6 +12,8 @@ func (m *ContentCreate) Field(fieldpath []string) (string, bool) {
 	// unhandled: size
 	case "digest":
 		return string(m.Digest), len(m.Digest) > 0
+	case "mediaType":
+		return string(m.MediaType), len(m.MediaType) > 0
 	}
 	return "", false
 }
