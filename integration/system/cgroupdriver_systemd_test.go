@@ -29,6 +29,7 @@ func hasSystemd() bool {
 func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, !hasSystemd())
+	skip.If(t, testEnv.IsRootless() && testEnv.DaemonInfo.CgroupVersion == "1", "rootless systemd cgroup driver requires cgroup v2")
 	t.Parallel()
 
 	ctx := testutil.StartSpan(baseContext, t)

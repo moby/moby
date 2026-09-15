@@ -182,6 +182,68 @@ To run the same test inside your Docker development container, you do this:
 # TESTFLAGS='-test.run TestDockerCLIBuildSuite' hack/make.sh binary test-integration
 ```
 
+### Run integration tests directly in a Linux VM
+
+The `vm` workflow runs the daemon and integration tests directly in a Lima
+guest, using the guest's systemd, networking tools, and kernel. Docker is only
+used on the build host to prepare the pinned runtime binaries, Go toolchain,
+test reporter, and frozen test images:
+
+```bash
+docker buildx bake test-integration-deps
+chmod 0755 bundles
+```
+
+BuildKit creates the parent `bundles/` directory with mode `0700` when it does
+not exist. Make it accessible before copying the checkout so rootless daemons
+and remapped container users can traverse the binary and data directories.
+
+Build this target for the same architecture as the guest. Copy the contents of
+`bundles/test-integration-deps/` into the guest's root directory, preserving the
+ownership and permissions of existing guest directories. For example, with Lima:
+
+```bash
+tar -C bundles/test-integration-deps -c . | lima sudo tar -C / -x --no-same-owner --no-overwrite-dir
+```
+
+The local exporter creates its output directory with mode `0700` and assigns
+files to the build host's user. The extraction flags keep this metadata from
+overwriting the guest's `/` directory and install the dependencies as root.
+
+Provision a dedicated RHEL-compatible guest with the scripts in
+[`hack/host/`](../../hack/host/). They load kernel modules, install native build
+and runtime packages, and set up the rootless test account and cgroup delegation.
+Run them from the build host:
+
+```bash
+lima sudo bash < hack/host/load-kernel-modules.sh
+lima sudo bash < hack/host/provision.sh
+```
+
+Copy the source checkout into a writable directory in the guest. Then, from the
+guest's source directory, run:
+
+```bash
+sudo git config --global --add safe.directory "$PWD"
+sudo env \
+  PATH=/usr/local/go/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin \
+  DOCKER_GITCOMMIT="$(git rev-parse HEAD)" \
+  TEST_SKIP_INTEGRATION_CLI=1 \
+  TEST_INTEGRATION_DIR='./integration/container ./integration/build ./integration/system' \
+  TEST_INTEGRATION_USE_GRAPHDRIVER=1 \
+  DOCKER_GRAPHDRIVER=overlay2 \
+  TIMEOUT=15m \
+  hack/make.sh dynbinary test-integration
+```
+
+Use a dedicated test VM with no other Docker daemon running: tests start
+additional daemons and modify host networking and other system configuration.
+For rootless coverage, add `DOCKER_ROOTLESS=1` to the command. The test runner
+still runs as root and starts the rootless daemons as `unprivilegeduser`, which
+the provisioning script creates. Use `DOCKER_GRAPHDRIVER=fuse-overlayfs` when
+SELinux is enabled or the kernel predates 5.11. Reports and daemon logs are
+written under `bundles/test-integration/`.
+
 ## Test the Windows binary against a Linux daemon
 
 This explains how to test the Windows binary on a Windows machine set up as a

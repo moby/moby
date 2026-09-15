@@ -118,7 +118,11 @@ if [ -n "$DOCKER_ROOTLESS" ]; then
 	# The rootless daemon won't be able to load modules for tests that need them, so do it here.
 	# There's no modprobe in the dev container, so https://x.com/lucabruno/status/902934379835662336
 	ip link show br_netfilter || true
-	dockerd="sudo -u $user -E -E XDG_RUNTIME_DIR=${xdg_runtime_dir} -E HOME=/home/${user} -E PATH=$PATH -- dockerd-rootless.sh"
+	# Override sudo's secure_path so the daemon and rootless tools built for the
+	# tests take precedence over any system-installed binaries.
+	# Older sudo versions still use secure_path to look up the command itself.
+	rootless_binary=$(command -v dockerd-rootless.sh)
+	dockerd="sudo -u $user --preserve-env --preserve-env=PATH XDG_RUNTIME_DIR=${xdg_runtime_dir} HOME=/home/${user} -- $rootless_binary"
 fi
 
 if [ -z "$DOCKER_TEST_HOST" ]; then

@@ -616,6 +616,20 @@ COPY --link --from=rootlesskit   /build/ /
 COPY --link --from=containerutil /build/ /
 COPY --link --from=build         /build  /
 
+# Tools and fixtures for running integration tests directly on a Linux host.
+# Build this for the host architecture; the Go toolchain and gotestsum run there.
+# The daemon and tests are compiled on the host by hack/make.sh.
+FROM scratch AS test-integration-deps
+COPY --link --from=base          /usr/local/go/ /usr/local/go/
+COPY --link --from=tini          /build/ /usr/local/bin/
+COPY --link --from=runc          /build/ /usr/local/bin/
+COPY --link --from=containerd    /build/ /usr/local/bin/
+COPY --link --from=rootlesskit   /build/ /usr/local/bin/
+COPY --link --from=dockercli     /build/ /usr/local/bin/
+COPY --link --from=gotestsum     /build/ /usr/local/bin/
+COPY --link --from=registry      /build/ /usr/local/bin/
+COPY --link --from=frozen-images /build/ /docker-frozen-images/
+
 # smoke tests
 # usage:
 # > docker buildx bake binary-smoketest
