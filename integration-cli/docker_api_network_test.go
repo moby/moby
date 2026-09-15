@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"net/netip"
 	"strings"
 	"testing"
 
@@ -33,7 +32,11 @@ func (s *DockerAPISuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 	containerID := strings.TrimSpace(out)
 
 	// connect the container to the test network
-	connectNetwork(c, nr.ID, containerID)
+	resp, _, err := request.Post(testutil.GetContext(c), "/networks/"+nr.ID+"/connect", request.JSONBody(network.ConnectRequest{
+		Container: containerID,
+	}))
+	assert.NilError(c, err)
+	assert.Equal(c, resp.StatusCode, http.StatusOK)
 
 	// inspect the network to make sure container is connected
 	nr = getNetworkResource(c, nr.ID)
@@ -46,7 +49,12 @@ func (s *DockerAPISuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 	assert.Equal(c, nr.Containers[containerID].IPv4Address.Addr().String(), containerIP)
 
 	// disconnect container from the network
-	disconnectNetwork(c, nr.ID, containerID)
+	res, _, err := request.Post(testutil.GetContext(c), "/networks/"+nr.ID+"/disconnect", request.JSONBody(client.NetworkDisconnectOptions{
+		Container: containerID,
+	}))
+	assert.NilError(c, err)
+	assert.Equal(c, res.StatusCode, http.StatusOK)
+
 	nr = getNetworkResource(c, nr.ID)
 	assert.Equal(c, nr.Name, name)
 	assert.Equal(c, len(nr.Containers), 0)
@@ -68,24 +76,6 @@ func createDeletePredefinedNetwork(t *testing.T, name string) {
 	expectedStatus := http.StatusForbidden
 	createNetwork(t, config, expectedStatus)
 	deleteNetwork(t, name, false)
-}
-
-func isNetworkAvailable(t *testing.T, name string) bool {
-	resp, body, err := request.Get(testutil.GetContext(t), "/networks")
-	assert.NilError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
-
-	var nJSON []network.Inspect
-	err = json.NewDecoder(body).Decode(&nJSON)
-	assert.NilError(t, err)
-
-	for _, n := range nJSON {
-		if n.Name == name {
-			return true
-		}
-	}
-	return false
 }
 
 func getNetworkResource(t *testing.T, id string) *network.Inspect {
@@ -120,24 +110,6 @@ func createNetwork(t *testing.T, config network.CreateRequest, expectedStatusCod
 		return nr.ID
 	}
 	return ""
-}
-
-func connectNetwork(t *testing.T, nid, cid string) {
-	resp, _, err := request.Post(testutil.GetContext(t), "/networks/"+nid+"/connect", request.JSONBody(network.ConnectRequest{
-		Container: cid,
-	}))
-	assert.NilError(t, err)
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
-}
-
-func disconnectNetwork(t *testing.T, nid, cid string) {
-	config := client.NetworkDisconnectOptions{
-		Container: cid,
-	}
-
-	resp, _, err := request.Post(testutil.GetContext(t), "/networks/"+nid+"/disconnect", request.JSONBody(config))
-	assert.NilError(t, err)
-	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }
 
 func deleteNetwork(t *testing.T, id string, shouldSucceed bool) {
