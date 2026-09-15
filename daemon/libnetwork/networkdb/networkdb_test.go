@@ -826,12 +826,10 @@ func TestFindNode(t *testing.T) {
 
 	dbs[0].nodes["active"] = &node{Node: memberlist.Node{Name: "active"}}
 	dbs[0].failedNodes["failed"] = &node{Node: memberlist.Node{Name: "failed"}}
-	dbs[0].leftNodes["left"] = &node{Node: memberlist.Node{Name: "left"}}
 
 	// active nodes is 2 because the testing node is in the list
 	assert.Check(t, is.Len(dbs[0].nodes, 2))
 	assert.Check(t, is.Len(dbs[0].failedNodes, 1))
-	assert.Check(t, is.Len(dbs[0].leftNodes, 1))
 
 	n, currState, m := dbs[0].findNode("active")
 	assert.Check(t, n != nil)
@@ -852,19 +850,6 @@ func TestFindNode(t *testing.T) {
 	assert.Check(t, is.Equal("failed", n.Name))
 	assert.Check(t, is.Equal(nodeFailedState, currState))
 	assert.Check(t, m != nil)
-
-	// find and remove
-	n, currState, m = dbs[0].findNode("left")
-	assert.Check(t, n != nil)
-	assert.Check(t, is.Equal("left", n.Name))
-	assert.Check(t, is.Equal(nodeLeftState, currState))
-	assert.Check(t, m != nil)
-	delete(m, "left")
-
-	n, currState, m = dbs[0].findNode("left")
-	assert.Check(t, is.Nil(n))
-	assert.Check(t, is.Equal(nodeNotFound, currState))
-	assert.Check(t, is.Nil(m))
 
 	closeNetworkDBInstances(t, dbs)
 }
@@ -905,36 +890,22 @@ func TestChangeNodeState(t *testing.T) {
 	assert.Check(t, m != nil)
 	assert.Check(t, is.Equal(time.Duration(0), n.reapTime))
 
-	// node1 to left
+	// node1 to left. A node which has left is forgotten outright, so there is
+	// nothing left to find it in.
 	dbs[0].changeNodeState("node1", nodeLeftState)
 	dbs[0].changeNodeState("node2", nodeLeftState)
 	dbs[0].changeNodeState("node3", nodeLeftState)
 
-	n, currState, m = dbs[0].findNode("node1")
-	assert.Check(t, n != nil)
-	assert.Check(t, is.Equal(nodeLeftState, currState))
-	assert.Check(t, is.Equal("node1", n.Name))
-	assert.Check(t, m != nil)
-	assert.Check(t, time.Duration(0) != n.reapTime)
-
-	n, currState, m = dbs[0].findNode("node2")
-	assert.Check(t, n != nil)
-	assert.Check(t, is.Equal(nodeLeftState, currState))
-	assert.Check(t, is.Equal("node2", n.Name))
-	assert.Check(t, m != nil)
-	assert.Check(t, time.Duration(0) != n.reapTime)
-
-	n, currState, m = dbs[0].findNode("node3")
-	assert.Check(t, n != nil)
-	assert.Check(t, is.Equal(nodeLeftState, currState))
-	assert.Check(t, is.Equal("node3", n.Name))
-	assert.Check(t, m != nil)
-	assert.Check(t, time.Duration(0) != n.reapTime)
+	for _, name := range []string{"node1", "node2", "node3"} {
+		n, currState, m := dbs[0].findNode(name)
+		assert.Check(t, is.Nil(n), "%s should be forgotten once it has left", name)
+		assert.Check(t, is.Equal(nodeNotFound, currState))
+		assert.Check(t, is.Nil(m))
+	}
 
 	// active nodes is 1 because the testing node is in the list
 	assert.Check(t, is.Len(dbs[0].nodes, 1))
 	assert.Check(t, is.Len(dbs[0].failedNodes, 0))
-	assert.Check(t, is.Len(dbs[0].leftNodes, 3))
 
 	closeNetworkDBInstances(t, dbs)
 }
@@ -943,34 +914,37 @@ func TestNodeReincarnation(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 1, "node", DefaultConfig())
 
 	dbs[0].nodes["node1"] = &node{Node: memberlist.Node{Name: "node1", Addr: net.ParseIP("192.168.1.1")}}
-	dbs[0].leftNodes["node2"] = &node{Node: memberlist.Node{Name: "node2", Addr: net.ParseIP("192.168.1.2")}}
 	dbs[0].failedNodes["node3"] = &node{Node: memberlist.Node{Name: "node3", Addr: net.ParseIP("192.168.1.3")}}
 
 	// active nodes is 2 because the testing node is in the list
 	assert.Check(t, is.Len(dbs[0].nodes, 2))
 	assert.Check(t, is.Len(dbs[0].failedNodes, 1))
-	assert.Check(t, is.Len(dbs[0].leftNodes, 1))
 
 	dbs[0].Lock()
+
+	// An active node superseded at its address.
 	b := dbs[0].purgeReincarnation(&memberlist.Node{Name: "node4", Addr: net.ParseIP("192.168.1.1")})
 	assert.Check(t, b)
+	// It is forgotten outright rather than filed away somewhere else.
+	n, currState, _ := dbs[0].findNode("node1")
+	assert.Check(t, is.Nil(n), "a superseded node should be forgotten")
+	assert.Check(t, is.Equal(nodeNotFound, currState))
 	dbs[0].nodes["node4"] = &node{Node: memberlist.Node{Name: "node4", Addr: net.ParseIP("192.168.1.1")}}
 
-	b = dbs[0].purgeReincarnation(&memberlist.Node{Name: "node5", Addr: net.ParseIP("192.168.1.2")})
-	assert.Check(t, b)
-	dbs[0].nodes["node5"] = &node{Node: memberlist.Node{Name: "node5", Addr: net.ParseIP("192.168.1.1")}}
-
+	// A failed node superseded at its address.
 	b = dbs[0].purgeReincarnation(&memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.3")})
 	assert.Check(t, b)
+	n, _, _ = dbs[0].findNode("node3")
+	assert.Check(t, is.Nil(n), "a superseded failed node should be forgotten")
 	dbs[0].nodes["node6"] = &node{Node: memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.1")}}
 
+	// An address nobody is at supersedes nothing.
 	b = dbs[0].purgeReincarnation(&memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.10")})
 	assert.Check(t, !b)
 
-	// active nodes is 1 because the testing node is in the list
-	assert.Check(t, is.Len(dbs[0].nodes, 4))
+	// the testing node, plus node4 and node6
+	assert.Check(t, is.Len(dbs[0].nodes, 3))
 	assert.Check(t, is.Len(dbs[0].failedNodes, 0))
-	assert.Check(t, is.Len(dbs[0].leftNodes, 3))
 
 	dbs[0].Unlock()
 	closeNetworkDBInstances(t, dbs)
@@ -1075,8 +1049,12 @@ func TestNetworkDBIslands(t *testing.T) {
 	}
 
 	// Now the 3 bootstrap nodes will cleanly leave, and will be properly removed from the other 2 nodes
-	for i := range 3 {
+	departed := make([]string, 3)
+	for i := range departed {
 		log.G(t.Context()).Infof("node %d leaving", i)
+		// Record the node ID so we can check if their absence has
+		// propagated to the survivor nodes.
+		departed[i] = dbs[i].config.NodeID
 		dbs[i].Close()
 	}
 
@@ -1088,20 +1066,21 @@ func TestNetworkDBIslands(t *testing.T) {
 
 	// Give some time to let the system propagate the messages and free up the ports
 	check := func(t poll.LogT) poll.Result {
-		// Verify that the nodes are actually all gone and marked appropriately
+		// Verify that the nodes are actually all gone. One which memberlist
+		// declared failed rather than seeing leave is still on its way out,
+		// which is the latitude the left-or-failed count used to allow.
 		for name, db := range checkDBs {
 			db.RLock()
-			if (len(db.leftNodes) + len(db.failedNodes)) != 3 {
-				for name := range db.leftNodes {
-					t.Logf("%s: Node %s left", db.config.Hostname, name)
+			var stillPeers []string
+			for _, id := range departed {
+				if _, ok := db.nodes[id]; ok {
+					stillPeers = append(stillPeers, id)
 				}
-				for name := range db.failedNodes {
-					t.Logf("%s: Node %s failed", db.config.Hostname, name)
-				}
-				db.RUnlock()
-				return poll.Continue("%s:Waiting for all nodes to leave, left: %d, failed nodes: %d", name, len(db.leftNodes), len(db.failedNodes))
 			}
 			db.RUnlock()
+			if len(stillPeers) > 0 {
+				return poll.Continue("%s:Waiting for nodes %v to leave", name, stillPeers)
+			}
 			t.Logf("%s: OK", name)
 			delete(checkDBs, name)
 		}
@@ -1119,32 +1098,21 @@ func TestNetworkDBIslands(t *testing.T) {
 
 	// Give some time for the reconnect routine to run, it runs every 6s.
 	check = func(t poll.LogT) poll.Result {
-		// Verify that the cluster is again all connected. Note that the 3 previous node did not do any join
+		// Verify that the cluster is again all connected. Note that the 3 previous node did not do any join.
+		// The two groups converge on the same state now: the survivors have
+		// nothing left to remember the departed incarnations by, so there is
+		// no longer an asymmetry between them and the nodes which came back.
 		for i := range 5 {
 			db := dbs[i]
 			db.RLock()
-			if len(db.nodes) != 5 {
-				db.RUnlock()
+			nNodes, nFailed := len(db.nodes), len(db.failedNodes)
+			db.RUnlock()
+			if nNodes != 5 {
 				return poll.Continue("%s:Waiting to connect to all nodes", dbs[i].config.Hostname)
 			}
-			if len(db.failedNodes) != 0 {
-				db.RUnlock()
+			if nFailed != 0 {
 				return poll.Continue("%s:Waiting for 0 failedNodes", dbs[i].config.Hostname)
 			}
-			if i < 3 {
-				// nodes from 0 to 3 has no left nodes
-				if len(db.leftNodes) != 0 {
-					db.RUnlock()
-					return poll.Continue("%s:Waiting to have no leftNodes", dbs[i].config.Hostname)
-				}
-			} else {
-				// nodes from 4 to 5 has the 3 previous left nodes
-				if (len(db.leftNodes) + len(db.failedNodes)) != 3 {
-					db.RUnlock()
-					return poll.Continue("%s:Waiting to have 3 leftNodes+failedNodes", dbs[i].config.Hostname)
-				}
-			}
-			db.RUnlock()
 		}
 		return poll.Success()
 	}

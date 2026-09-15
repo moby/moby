@@ -66,9 +66,6 @@ type NetworkDB struct {
 	// and put back in place if the node returns before it is reaped.
 	failedNodes map[string]*node
 
-	// List of all peer nodes which have left
-	leftNodes map[string]*node
-
 	// A multi-dimensional map of network/node attachments for peer nodes.
 	// The first key is a node name and the second key is a network ID for
 	// the network that node is participating in. Attachments of a failed
@@ -376,7 +373,6 @@ func newNetworkDB(c *Config) *NetworkDB {
 		thisNodeNetworks: make(map[string]*thisNodeNetwork),
 		nodes:            make(map[string]*node),
 		failedNodes:      make(map[string]*node),
-		leftNodes:        make(map[string]*node),
 		networkNodes:     make(map[string][]string),
 		bulkSyncAckTbl:   make(map[string][]bulkSyncSubscription),
 		broadcaster:      events.NewBroadcaster(),
