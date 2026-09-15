@@ -1566,8 +1566,13 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 				logger.WithError(err).Error("failed to shut down container")
 				return
 			}
-			if mountid, err := daemon.imageService.GetLayerMountID(c.ID); err == nil {
-				daemon.cleanupMountsByID(mountid)
+			if mountID, err := daemon.imageService.GetLayerMountID(c.ID); err == nil {
+				if err := daemon.cleanupMountsByID(mountID); err != nil {
+					logger.WithFields(log.Fields{
+						"error":   err,
+						"mountid": mountID,
+					}).Warn("failed to clean up container mounts")
+				}
 			}
 			logger.Debugf("shut down container")
 		})
@@ -1575,7 +1580,7 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 
 	if daemon.volumes != nil {
 		if err := daemon.volumes.Shutdown(); err != nil {
-			log.G(ctx).Errorf("Error shutting down volume store: %v", err)
+			log.G(ctx).WithError(err).Error("error shutting down volume store")
 		}
 	}
 
@@ -1606,11 +1611,11 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	}
 
 	if daemon.containerdClient != nil {
-		daemon.containerdClient.Close()
+		_ = daemon.containerdClient.Close()
 	}
 
 	if daemon.mdDB != nil {
-		daemon.mdDB.Close()
+		_ = daemon.mdDB.Close()
 	}
 
 	// At this point, everything has been shut down and no containers are
@@ -1618,7 +1623,7 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	// '/events' endpoint, closing the EventsService should tear them down
 	// immediately.
 	if daemon.EventsService != nil {
-		daemon.EventsService.Close()
+		_ = daemon.EventsService.Close()
 	}
 
 	return daemon.cleanupMounts(cfg)
