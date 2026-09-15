@@ -488,12 +488,20 @@ func (d *Driver) Remove(id string) error {
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
 	dir := d.dir(id)
-	lid, err := os.ReadFile(path.Join(dir, "link"))
-	if err == nil {
-		if len(lid) == 0 {
-			logger.Errorf("refusing to remove empty link for layer %v", id)
-		} else if err := os.RemoveAll(path.Join(d.home, linkDir, string(lid))); err != nil {
-			logger.Debugf("Failed to remove link: %v", err)
+
+	if lid, err := os.ReadFile(path.Join(dir, "link")); err == nil {
+		linkID := string(lid)
+		if linkID == "" || linkID == "." || linkID == ".." || path.Base(linkID) != linkID {
+			logger.WithFields(log.Fields{
+				"layer":  id,
+				"linkID": string(lid),
+			}).Error("refusing to remove invalid link for layer")
+		} else if err := os.RemoveAll(path.Join(d.home, linkDir, linkID)); err != nil { // #nosec G703 -- path input is trusted and validated above
+			logger.WithFields(log.Fields{
+				"error":  err,
+				"layer":  id,
+				"linkID": linkID,
+			}).Debug("failed to remove link for layer")
 		}
 	}
 
