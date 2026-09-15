@@ -265,6 +265,10 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 		return translateRegistryError(ctx, err)
 	}
 
+	if err := i.ensurePulledContentAvailable(ctx, ref.String(), resolver, img.Metadata(), p); err != nil {
+		return err
+	}
+
 	logger := log.G(ctx).WithFields(log.Fields{
 		"digest": img.Target().Digest,
 		"remote": ref.String(),
@@ -284,6 +288,39 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	outNewImg = img
 
 	return nil
+}
+
+func (i *ImageService) ensurePulledContentAvailable(ctx context.Context, ref string, resolver remotes.Resolver, img c8dimages.Image, platform platforms.MatchComparer) error {
+	var fetcher remotes.Fetcher
+	var lastMissing []ocispec.Descriptor
+	// A successful pull normally leaves the manifest in the content store, so
+	// Check returns all missing config and layer descriptors in one pass. Retry
+	// once in case a resolver returned only the selected manifest initially.
+	for range 2 {
+		available, _, _, missing, err := c8dimages.Check(ctx, i.content, img.Target, platform)
+		if err != nil {
+			return err
+		}
+		if available && len(missing) == 0 {
+			return nil
+		}
+
+		lastMissing = missing
+		if fetcher == nil {
+			fetcher, err = resolver.Fetcher(ctx, ref)
+			if err != nil {
+				return translateRegistryError(ctx, err)
+			}
+		}
+
+		for _, desc := range missing {
+			if err := remotes.Fetch(ctx, i.content, fetcher, desc); err != nil && !cerrdefs.IsAlreadyExists(err) {
+				return translateRegistryError(ctx, err)
+			}
+		}
+	}
+
+	return errdefs.NotFound(fmt.Errorf("failed to fetch all content for %s: %d descriptors still missing", ref, len(lastMissing)))
 }
 
 func joinHandlerWrappers(funcs ...func(c8dimages.Handler) c8dimages.Handler) func(c8dimages.Handler) c8dimages.Handler {
