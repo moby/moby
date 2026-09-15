@@ -163,7 +163,11 @@ finalize:
 	RET
 
 // func writeBlocks(s *Digest, b []byte) int
-TEXT ·writeBlocks(SB), NOSPLIT|NOFRAME, $0-40
+//
+// Deliberately not NOSPLIT: the stack check is the preemption point that lets a
+// stop-the-world proceed between chunks. The frame must be >= abi.StackSmall
+// (128), or the assembler marks this leaf NOSPLIT anyway and drops that check.
+TEXT ·writeBlocks(SB), $128-40
 	LDP ·primes+0(SB), (prime1, prime2)
 
 	// Load state. Assume v[1-4] are stored contiguously.
