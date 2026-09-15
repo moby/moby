@@ -33,6 +33,11 @@ const (
 )
 
 const (
+	natWSL2LoopbackRuleGroup = iota + initialRuleGroup
+	natPortsRuleGroup
+)
+
+const (
 	fwdInAcceptFwMarkRuleGroup = iota + initialRuleGroup + 1
 	fwdInLegacyLinksRuleGroup
 	fwdInICCRuleGroup
@@ -41,7 +46,11 @@ const (
 )
 
 const (
-	rawPreroutingPortsRuleGroup = iota + initialRuleGroup + 1
+	// The WSL2 ACCEPT rules must precede the DROP rules even when mirrored mode
+	// is first detected after the DROP rules were added.
+	rawPreroutingDirectAccessRuleGroup = iota + initialRuleGroup + 1
+	rawPreroutingLoopbackAcceptRuleGroup
+	rawPreroutingLoopbackDropRuleGroup
 )
 
 type Nftabler struct {
@@ -211,7 +220,7 @@ func (nft *Nftabler) init(ctx context.Context, family nftables.Family) (*nftable
 	})
 
 	// WSL2 does not (currently) support Windows<->Linux communication via ::1.
-	if !nft.config.Hairpin && nft.config.WSL2Mirrored && table.Family() == nftables.IPv4 {
+	if table.Family() == nftables.IPv4 && !nft.config.Hairpin && nft.config.IsWSL2Mirrored(ctx) {
 		mirroredWSL2Workaround(&tm)
 	}
 
