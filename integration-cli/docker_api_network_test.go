@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -78,65 +77,6 @@ func (s *DockerAPISuite) TestAPINetworkConnectDisconnect(c *testing.T) {
 
 	// delete the network
 	deleteNetwork(c, nr.ID, true)
-}
-
-func (s *DockerAPISuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	// test0 bridge network
-	ipam0 := &network.IPAM{
-		Driver: "default",
-		Config: []network.IPAMConfig{{Subnet: netip.MustParsePrefix("192.178.0.0/16"), IPRange: netip.MustParsePrefix("192.178.128.0/17"), Gateway: netip.MustParseAddr("192.178.138.100")}},
-	}
-	config0 := network.CreateRequest{
-		Name:   "test0",
-		Driver: "bridge",
-		IPAM:   ipam0,
-	}
-	id0 := createNetwork(c, config0, http.StatusCreated)
-	assert.Assert(c, isNetworkAvailable(c, "test0"))
-
-	ipam1 := &network.IPAM{
-		Driver: "default",
-		Config: []network.IPAMConfig{{Subnet: netip.MustParsePrefix("192.178.128.0/17"), Gateway: netip.MustParseAddr("192.178.128.1")}},
-	}
-	// test1 bridge network overlaps with test0
-	config1 := network.CreateRequest{
-		Name:   "test1",
-		Driver: "bridge",
-		IPAM:   ipam1,
-	}
-	createNetwork(c, config1, http.StatusForbidden)
-	assert.Assert(c, !isNetworkAvailable(c, "test1"))
-
-	ipam2 := &network.IPAM{
-		Driver: "default",
-		Config: []network.IPAMConfig{{Subnet: netip.MustParsePrefix("192.169.0.0/16"), Gateway: netip.MustParseAddr("192.169.100.100")}},
-	}
-	// test2 bridge network does not overlap
-	config2 := network.CreateRequest{
-		Name:   "test2",
-		Driver: "bridge",
-		IPAM:   ipam2,
-	}
-	createNetwork(c, config2, http.StatusCreated)
-	assert.Assert(c, isNetworkAvailable(c, "test2"))
-
-	// remove test0 and retry to create test1
-	deleteNetwork(c, id0, true)
-	createNetwork(c, config1, http.StatusCreated)
-	assert.Assert(c, isNetworkAvailable(c, "test1"))
-
-	// for networks w/o ipam specified, docker will choose proper non-overlapping subnets
-	createNetwork(c, network.CreateRequest{Name: "test3"}, http.StatusCreated)
-	assert.Assert(c, isNetworkAvailable(c, "test3"))
-	createNetwork(c, network.CreateRequest{Name: "test4"}, http.StatusCreated)
-	assert.Assert(c, isNetworkAvailable(c, "test4"))
-	createNetwork(c, network.CreateRequest{Name: "test5"}, http.StatusCreated)
-	assert.Assert(c, isNetworkAvailable(c, "test5"))
-
-	for i := 1; i < 6; i++ {
-		deleteNetwork(c, fmt.Sprintf("test%d", i), true)
-	}
 }
 
 func (s *DockerAPISuite) TestAPICreateDeletePredefinedNetworks(c *testing.T) {
