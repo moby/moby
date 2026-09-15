@@ -22,12 +22,14 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listene
 
 	switch proto {
 	case "tcp":
-		l, err := sockets.NewTCPSocket(addr, tlsConfig)
+		l, err := net.Listen("tcp", addr)
 		if err != nil {
 			return nil, err
 		}
+		if tlsConfig != nil {
+			l = tls.NewListener(l, tlsConfig)
+		}
 		ls = append(ls, l)
-
 	case "npipe":
 		sddl, err := getSecurityDescriptor(additionalUsersAndGroups)
 		if err != nil {
@@ -43,7 +45,6 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listene
 			return nil, err
 		}
 		ls = append(ls, l)
-
 	case "unix":
 		l, err := sockets.NewUnixSocket(addr, additionalUsersAndGroups)
 		if err != nil {
