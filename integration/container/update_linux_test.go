@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -236,10 +237,21 @@ func blkioTestDevice(t *testing.T) (devPath, majMin string) {
 	minor := unix.Minor(st.Dev)
 
 	// Resolve the device name via sysfs so we get a real /dev/… path.
-	uevent, err := os.ReadFile(fmt.Sprintf("/sys/dev/block/%d:%d/uevent", major, minor))
+	sysfsPath, err := filepath.EvalSymlinks(fmt.Sprintf("/sys/dev/block/%d:%d", major, minor))
 	if err != nil {
 		t.Skipf("cannot resolve block device for / from sysfs: %v", err)
 	}
+	// cgroup v1's blkio controller accepts whole disks, not partitions. A VM's
+	// root filesystem is commonly on a partition, unlike the DIND test setup.
+	if _, err := os.Stat(filepath.Join(sysfsPath, "partition")); err == nil {
+		sysfsPath = filepath.Dir(sysfsPath)
+	} else {
+		assert.Assert(t, os.IsNotExist(err), "checking whether %s is a partition: %v", sysfsPath, err)
+	}
+	dev, err := os.ReadFile(filepath.Join(sysfsPath, "dev"))
+	assert.NilError(t, err)
+	uevent, err := os.ReadFile(filepath.Join(sysfsPath, "uevent"))
+	assert.NilError(t, err)
 	var name string
 	for _, line := range strings.Split(string(uevent), "\n") {
 		if after, ok := strings.CutPrefix(line, "DEVNAME="); ok {
@@ -250,7 +262,7 @@ func blkioTestDevice(t *testing.T) (devPath, majMin string) {
 	if name == "" {
 		t.Skip("DEVNAME not found in sysfs uevent for / block device")
 	}
-	return "/dev/" + name, fmt.Sprintf("%d:%d", major, minor)
+	return "/dev/" + name, strings.TrimSpace(string(dev))
 }
 
 // parseIOMax returns the value of field (rbps/wbps/riops/wiops) for the given
