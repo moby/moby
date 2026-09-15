@@ -12,16 +12,7 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-check-labels
       cancel-in-progress: true
-    if: >-
-      ${{
-        github.event.pull_request.state == 'open' &&
-        (
-          github.event.action == 'opened' ||
-          github.event.action == 'reopened' ||
-          github.event.action == 'labeled' ||
-          github.event.action == 'unlabeled'
-        )
-      }}
+    if: ${{ github.event.pull_request.state == 'open' }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
@@ -42,20 +33,7 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-check-changelog
       cancel-in-progress: true
-    if: >-
-      ${{
-        github.event.pull_request.state == 'open' &&
-        (
-          github.event.action == 'opened' ||
-          github.event.action == 'reopened' ||
-          github.event.action == 'labeled' ||
-          github.event.action == 'unlabeled' ||
-          (
-            github.event.action == 'edited' &&
-            github.event.changes.body != null
-          )
-        )
-      }}
+    if: ${{ github.event.pull_request.state == 'open' }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     env:
@@ -97,15 +75,7 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-check-commit-references
       cancel-in-progress: true
-    if: >-
-      ${{
-        github.event.pull_request.state == 'open' &&
-        (
-          github.event.action == 'opened' ||
-          github.event.action == 'reopened' ||
-          github.event.action == 'synchronize'
-        )
-      }}
+    if: ${{ github.event.pull_request.state == 'open' }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
@@ -153,21 +123,7 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-check-pr-branch
       cancel-in-progress: true
-    if: >-
-      ${{
-        github.event.pull_request.state == 'open' &&
-        (
-          github.event.action == 'opened' ||
-          github.event.action == 'reopened' ||
-          (
-            github.event.action == 'edited' &&
-            (
-              github.event.changes.title != null ||
-              github.event.changes.base != null
-            )
-          )
-        )
-      }}
+    if: ${{ github.event.pull_request.state == 'open' }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     env:
