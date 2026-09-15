@@ -134,14 +134,6 @@ func (nDB *NetworkDB) purgeReincarnation(mn *memberlist.Node) bool {
 		}
 	}
 
-	for name, node := range nDB.leftNodes {
-		if node.Addr.Equal(mn.Addr) && node.Port == mn.Port && mn.Name != name {
-			log.G(context.TODO()).Infof("Node %s/%s, is the new incarnation of the shutdown node %s/%s", mn.Name, mn.Addr, name, node.Addr)
-			nDB.changeNodeState(name, nodeLeftState)
-			return true
-		}
-	}
-
 	return false
 }
 
