@@ -85,13 +85,28 @@ func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, option
 }
 
 // AddNeighbor adds a neighbor entry into the sandbox.
+//
+// An FDB entry (family AF_BRIDGE) replaces any existing entry for the same
+// MAC. Any other entry is only added when absent, and [NeighborSearchError]
+// is returned when it is already present.
 func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, options ...NeighOption) error {
 	nlnh, linkName, err := n.nlNeigh(dstIP, dstMac, options...)
 	if err != nil {
 		return err
 	}
 
-	if err := n.nlHandle.NeighAdd(nlnh); err != nil {
+	if nlnh.Family > 0 {
+		// The VXLAN device learns FDB entries from inbound traffic, so the
+		// kernel may already hold a dynamic entry for this MAC by the time
+		// the permanent one is (re)added, e.g. after a peer node failed and
+		// rejoined the cluster while its containers kept sending. Replace
+		// it rather than fail: the learned entry ages out, the permanent
+		// one must not.
+		err = n.nlHandle.NeighSet(nlnh)
+	} else {
+		err = n.nlHandle.NeighAdd(nlnh)
+	}
+	if err != nil {
 		if errors.Is(err, os.ErrExist) {
 			log.G(context.TODO()).WithFields(log.Fields{
 				"ip":    dstIP,
