@@ -21,7 +21,7 @@ func Encode(authConfig registry.AuthConfig) (string, error) {
 	//
 	// FIXME(thaJeztah): find exactly what code-paths are impacted by this.
 	// if authConfig == (AuthConfig{}) { return "", nil }
-	buf, err := json.Marshal(authConfig)
+	buf, err := json.Marshal(authConfig) // #nosec G117 -- intentionally marshaling auth.
 	if err != nil {
 		return "", errInvalidParameter{err}
 	}
