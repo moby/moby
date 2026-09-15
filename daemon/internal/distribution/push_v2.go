@@ -147,12 +147,13 @@ func (p *pusher) pushTag(ctx context.Context, ref reference.NamedTagged, id dige
 	var descriptors []xfer.UploadDescriptor
 
 	descriptorTemplate := pushDescriptor{
-		metadataService: p.metadataService,
-		hmacKey:         hmacKey,
-		repoName:        p.repoName,
-		ref:             p.ref,
-		repo:            p.repo,
-		pushState:       &p.pushState,
+		metadataService:      p.metadataService,
+		hmacKey:              hmacKey,
+		repoName:             p.repoName,
+		ref:                  p.ref,
+		repo:                 p.repo,
+		pushState:            &p.pushState,
+		forceCheckLayerExist: p.config.ForceCheckLayerExist,
 	}
 
 	// Loop bounds condition is to avoid pushing the base layer on Windows.
@@ -241,14 +242,15 @@ func manifestFromBuilder(ctx context.Context, builder distribution.ManifestBuild
 }
 
 type pushDescriptor struct {
-	layer            PushLayer
-	metadataService  metadata.V2MetadataService
-	hmacKey          []byte
-	repoName         reference.Named
-	ref              reference.Named
-	repo             distribution.Repository
-	pushState        *pushState
-	remoteDescriptor distribution.Descriptor
+	layer                PushLayer
+	metadataService      metadata.V2MetadataService
+	hmacKey              []byte
+	repoName             reference.Named
+	ref                  reference.Named
+	repo                 distribution.Repository
+	pushState            *pushState
+	forceCheckLayerExist bool
+	remoteDescriptor     distribution.Descriptor
 	// a set of digests whose presence has been checked in a target repository
 	checkedDigests map[digest.Digest]struct{}
 }
@@ -287,6 +289,19 @@ func (pd *pushDescriptor) Upload(ctx context.Context, progressOutput progress.Ou
 		descriptor, exists, err := pd.layerAlreadyExists(ctx, progressOutput, diffID, true, 1, metaData)
 		if exists || err != nil {
 			return descriptor, err
+		}
+	} else if pd.forceCheckLayerExist {
+		if desc, err := pd.repo.Blobs(ctx).Stat(ctx, pd.Descriptor().Digest); err == nil {
+			_ = pd.metadataService.TagAndAdd(diffID, pd.hmacKey, metadata.V2Metadata{
+				Digest:           desc.Digest,
+				SourceRepository: pd.repoName.Name(),
+			})
+			desc.MediaType = schema2.MediaTypeLayer
+			progress.Update(progressOutput, pd.ID(), "Layer already exists")
+			pd.pushState.Lock()
+			pd.pushState.remoteLayers[diffID] = desc
+			pd.pushState.Unlock()
+			return desc, nil
 		}
 	}
 
