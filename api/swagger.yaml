@@ -7707,7 +7707,6 @@ definitions:
         description: |
           List of ID's and addresses of other managers in the swarm.
         type: "array"
-        default: null
         x-nullable: true
         items:
           $ref: "#/definitions/PeerNode"
@@ -8693,6 +8692,7 @@ paths:
       produces:
         - "application/vnd.docker.raw-stream"
         - "application/vnd.docker.multiplexed-stream"
+        - "application/json"
       operationId: "ContainerLogs"
       responses:
         200:
@@ -8811,6 +8811,7 @@ paths:
       operationId: "ContainerExport"
       produces:
         - "application/octet-stream"
+        - "application/json"
       responses:
         200:
           description: "no error"
@@ -8910,7 +8911,7 @@ paths:
       consumes:
         - "application/octet-stream"
       produces:
-        - "text/plain"
+        - "application/json"
       responses:
         200:
           description: "no error"
@@ -8979,6 +8980,8 @@ paths:
             single character `[a-Z]` or `ctrl-<value>` where `<value>` is one
             of: `a-z`, `@`, `^`, `[`, `,` or `_`.
           type: "string"
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/stop:
     post:
@@ -9015,6 +9018,8 @@ paths:
           in: "query"
           description: "Number of seconds to wait before killing the container"
           type: "integer"
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/restart:
     post:
@@ -9049,6 +9054,8 @@ paths:
           in: "query"
           description: "Number of seconds to wait before killing the container"
           type: "integer"
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/kill:
     post:
@@ -9090,6 +9097,8 @@ paths:
             Signal to send to the container as an integer or string (e.g. `SIGINT`).
           type: "string"
           default: "SIGKILL"
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/update:
     post:
@@ -9181,6 +9190,8 @@ paths:
           required: true
           description: "New name for the container"
           type: "string"
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/pause:
     post:
@@ -9213,6 +9224,8 @@ paths:
           required: true
           description: "ID or name of the container"
           type: "string"
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/unpause:
     post:
@@ -9239,6 +9252,8 @@ paths:
           required: true
           description: "ID or name of the container"
           type: "string"
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/attach:
     post:
@@ -9343,6 +9358,7 @@ paths:
       produces:
         - "application/vnd.docker.raw-stream"
         - "application/vnd.docker.multiplexed-stream"
+        - "application/json"
       responses:
         101:
           description: "no error, hints proxy about hijacking"
@@ -9571,6 +9587,8 @@ paths:
           description: "Remove the specified link associated with the container."
           type: "boolean"
           default: false
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/archive:
     head:
@@ -9591,19 +9609,10 @@ paths:
                 information about the path
         400:
           description: "Bad parameter"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         404:
           description: "Container or path does not exist"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-          examples:
-            application/json:
-              message: "No such container: c2ada9df5af8"
         500:
           description: "Server error"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
       parameters:
         - name: "id"
           in: "path"
@@ -9615,12 +9624,15 @@ paths:
           required: true
           description: "Resource in the container’s filesystem to archive."
           type: "string"
+      produces: []
       tags: ["Container"]
     get:
       summary: "Get an archive of a filesystem resource in a container"
       description: "Get a tar archive of a resource in the filesystem of container id."
       operationId: "ContainerArchive"
-      produces: ["application/x-tar"]
+      produces:
+        - "application/x-tar"
+        - "application/json"
       responses:
         200:
           description: "no error"
@@ -10157,10 +10169,12 @@ paths:
             Apply `Dockerfile` instructions to the image that is created,
             for example: `changes=ENV DEBUG=true`.
             Note that `ENV DEBUG=true` should be URI component encoded.
+            Repeat the parameter to apply multiple instructions.
 
             Supported `Dockerfile` instructions:
             `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
           type: "array"
+          collectionFormat: "multi"
           items:
             type: "string"
         - name: "platform"
@@ -10563,9 +10577,10 @@ paths:
           in: "query"
           description: |
             Select platform-specific content to delete.
-            Multiple values are accepted.
+            Repeat the parameter to select multiple platforms.
             Each platform is a OCI platform encoded as a JSON string.
           type: "array"
+          collectionFormat: "multi"
           items:
             # This should be OCIPlatform
             # but $ref is not supported for array in query in Swagger 2.0
@@ -10752,7 +10767,9 @@ paths:
       summary: "Ping"
       description: "This is a dummy endpoint you can use to test if the server is accessible."
       operationId: "SystemPing"
-      produces: ["text/plain"]
+      produces:
+        - "text/plain"
+        - "application/json"
       responses:
         200:
           description: "no error"
@@ -10808,13 +10825,10 @@ paths:
       summary: "Ping"
       description: "This is a dummy endpoint you can use to test if the server is accessible."
       operationId: "SystemPingHead"
-      produces: ["text/plain"]
+      produces: []
       responses:
         200:
           description: "no error"
-          schema:
-            type: "string"
-            example: "(empty)"
           headers:
             Api-Version:
               type: "string"
@@ -10840,8 +10854,6 @@ paths:
               default: "no-cache"
         500:
           description: "server error"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
       tags: ["System"]
   /commit:
     post:
@@ -10936,6 +10948,7 @@ paths:
         - "application/jsonl"
         - "application/x-ndjson"
         - "application/json-seq"
+        - "application/json"
       responses:
         200:
           description: "no error"
@@ -11045,6 +11058,7 @@ paths:
       operationId: "ImageGet"
       produces:
         - "application/x-tar"
+        - "application/json"
       responses:
         200:
           description: "no error"
@@ -11092,6 +11106,7 @@ paths:
       operationId: "ImageGetAll"
       produces:
         - "application/x-tar"
+        - "application/json"
       responses:
         200:
           description: "no error"
@@ -11105,8 +11120,9 @@ paths:
       parameters:
         - name: "names"
           in: "query"
-          description: "Image names to filter by"
+          description: "Image names to filter by. Repeat the parameter for multiple images."
           type: "array"
+          collectionFormat: "multi"
           items:
             type: "string"
         - name: "platform"
@@ -11289,6 +11305,7 @@ paths:
       produces:
         - "application/vnd.docker.raw-stream"
         - "application/vnd.docker.multiplexed-stream"
+        - "application/json"
       responses:
         200:
           description: "No error"
@@ -11614,6 +11631,8 @@ paths:
           description: "Force the removal of the volume"
           type: "boolean"
           default: false
+      produces:
+        - "application/json"
       tags: ["Volume"]
 
   /volumes/prune:
@@ -11813,6 +11832,8 @@ paths:
           description: "Network ID or name"
           required: true
           type: "string"
+      produces:
+        - "application/json"
       tags: ["Network"]
 
   /networks/create:
@@ -12347,6 +12368,8 @@ paths:
                 Description: ""
                 Value:
                   - "/dev/cpu_dma_latency"
+      produces:
+        - "application/json"
       tags: ["Plugin"]
   /plugins/create:
     post:
@@ -12375,6 +12398,8 @@ paths:
           schema:
             type: "string"
             format: "binary"
+      produces:
+        - "application/json"
       tags: ["Plugin"]
   /plugins/{name}/push:
     post:
@@ -12434,6 +12459,8 @@ paths:
           description: "Server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
+      produces:
+        - "application/json"
       tags: ["Plugin"]
   /nodes:
     get:
@@ -13244,6 +13271,7 @@ paths:
       produces:
         - "application/vnd.docker.raw-stream"
         - "application/vnd.docker.multiplexed-stream"
+        - "application/json"
       operationId: "ServiceLogs"
       responses:
         200:
@@ -13502,6 +13530,7 @@ paths:
       produces:
         - "application/vnd.docker.raw-stream"
         - "application/vnd.docker.multiplexed-stream"
+        - "application/json"
       responses:
         200:
           description: "logs returned as a stream in response body"
@@ -14048,6 +14077,7 @@ paths:
       operationId: "Session"
       produces:
         - "application/vnd.docker.raw-stream"
+        - "application/json"
       responses:
         101:
           description: "no error, hijacking successful"
