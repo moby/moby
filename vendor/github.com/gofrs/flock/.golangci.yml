@@ -6,7 +6,9 @@ formatters:
     - goimports
   settings:
     gofumpt:
-      extra-rules: true
+      extra:
+        clothe-returns: true
+        group-params: true
 
 linters:
   enable:
