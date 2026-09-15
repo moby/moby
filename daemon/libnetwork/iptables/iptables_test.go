@@ -258,7 +258,7 @@ func TestRule(t *testing.T) {
 
 	rule := Rule{IPVer: IPv4, Table: Filter, Chain: "TESTCHAIN", Args: []string{"-j", "RETURN"}}
 	assert.NilError(t, rule.Insert())
-	assert.Equal(t, rule.Exists(), true)
+	assert.Equal(t, rule.exists(), true)
 	assert.Equal(t, mustDumpChain(t, Filter, "TESTCHAIN"), `-N TESTCHAIN
 -A TESTCHAIN -j RETURN
 `)
@@ -285,7 +285,7 @@ func TestRule(t *testing.T) {
 `)
 
 	assert.NilError(t, rule.Delete())
-	assert.Equal(t, rule.Exists(), false)
+	assert.Equal(t, rule.exists(), false)
 	assert.Equal(t, mustDumpChain(t, Filter, "TESTCHAIN"), `-N TESTCHAIN
 -A TESTCHAIN -j RETURN
 `)

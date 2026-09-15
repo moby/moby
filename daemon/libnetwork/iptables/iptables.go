@@ -459,6 +459,10 @@ type Rule struct {
 
 // Exists returns true if the rule exists in the kernel.
 func (r Rule) Exists() bool {
+	return r.exists()
+}
+
+func (r Rule) exists() bool {
 	return GetIptable(r.IPVer).Exists(r.Table, r.Chain, r.Args...)
 }
 
@@ -478,30 +482,27 @@ func (r Rule) WithChain(chain string) Rule {
 	return wc
 }
 
-// ensure appends/insert the rule to the end of the chain. If the rule already exists anywhere in the
-// chain, this is a no-op.
-func (r Rule) ensure(op Action) error {
-	if r.Exists() {
-		return nil
-	}
-	return r.exec(op)
-}
-
 // Append appends the rule to the end of the chain. If the rule already exists anywhere in the
 // chain, this is a no-op.
 func (r Rule) Append() error {
-	return r.ensure(Append)
+	if r.exists() {
+		return nil
+	}
+	return r.exec(Append)
 }
 
 // Insert inserts the rule at the head of the chain. If the rule already exists anywhere in the
 // chain, this is a no-op.
 func (r Rule) Insert() error {
-	return r.ensure(Insert)
+	if r.exists() {
+		return nil
+	}
+	return r.exec(Insert)
 }
 
 // Delete deletes the rule from the kernel. If the rule does not exist, this is a no-op.
 func (r Rule) Delete() error {
-	if !r.Exists() {
+	if !r.exists() {
 		return nil
 	}
 	if err := r.exec(Delete); err != nil {
