@@ -62,6 +62,7 @@ type BuildableClient struct {
 	initOnce sync.Once
 
 	clientTimeout time.Duration
+	readTimeout   *time.Duration
 	client        *http.Client
 }
 
@@ -96,9 +97,12 @@ func (b *BuildableClient) Freeze() aws.HTTPClient {
 }
 
 func (b *BuildableClient) build() {
+	tr := b.GetTransport()
+	b.installReadTimeout(tr)
+
 	b.client = wrapWithLimitedRedirect(&http.Client{
 		Timeout:   b.clientTimeout,
-		Transport: b.GetTransport(),
+		Transport: tr,
 	})
 }
 
@@ -107,6 +111,7 @@ func (b *BuildableClient) clone() *BuildableClient {
 	cpy.transport = b.GetTransport()
 	cpy.dialer = b.GetDialer()
 	cpy.clientTimeout = b.clientTimeout
+	cpy.readTimeout = b.readTimeout
 
 	return cpy
 }
@@ -155,6 +160,25 @@ func (b *BuildableClient) WithTimeout(timeout time.Duration) *BuildableClient {
 	return cpy
 }
 
+// WithReadTimeout copies the BuildableClient and returns it with the read
+// timeout set.
+//
+// The timeout is the maximum time the client waits for a connection to deliver
+// any data. It resets on every byte received, so a slow but progressing response
+// does not fail. It is not a deadline on the operation; use WithTimeout for that.
+//
+// A value set here takes precedence over the SDK's defaults for every service
+// this client is used with, including services the SDK would otherwise apply a
+// higher value to or exempt entirely. Pass 0 to disable read timeouts.
+//
+// The timeout is applied per connection, so a client shared between service
+// clients applies the same value to all of them.
+func (b *BuildableClient) WithReadTimeout(timeout time.Duration) *BuildableClient {
+	cpy := b.clone()
+	cpy.readTimeout = &timeout
+	return cpy
+}
+
 // GetTransport returns a copy of the client's HTTP Transport.
 func (b *BuildableClient) GetTransport() *http.Transport {
 	var tr *http.Transport
@@ -182,6 +206,17 @@ func (b *BuildableClient) GetDialer() *net.Dialer {
 // GetTimeout returns a copy of the client's timeout to cancel requests with.
 func (b *BuildableClient) GetTimeout() time.Duration {
 	return b.clientTimeout
+}
+
+// GetReadTimeout returns the configured read timeout and whether one was set on
+// this client. When it was not, the SDK resolves a default per
+// service.
+func (b *BuildableClient) GetReadTimeout() (time.Duration, bool) {
+	if b.readTimeout == nil {
+		return 0, false
+	}
+
+	return *b.readTimeout, true
 }
 
 func defaultDialer() *net.Dialer {
