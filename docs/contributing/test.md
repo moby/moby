@@ -210,7 +210,7 @@ The local exporter creates its output directory with mode `0700` and assigns
 files to the build host's user. The extraction flags keep this metadata from
 overwriting the guest's `/` directory and install the dependencies as root.
 
-Provision a dedicated RHEL-compatible guest with the scripts in
+Provision a dedicated RHEL-compatible or SUSE-compatible guest with the scripts in
 [`hack/host/`](../../hack/host/). They load kernel modules, install native build
 and runtime packages, and set up the rootless test account and cgroup delegation.
 Run them from the build host:
