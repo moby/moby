@@ -9636,7 +9636,8 @@ paths:
       summary: "Get an archive of a filesystem resource in a container"
       description: "Get a tar archive of a resource in the filesystem of container id."
       operationId: "ContainerArchive"
-      produces: ["application/x-tar"]
+      produces:
+        - "application/x-tar"
       responses:
         200:
           description: "no error"
@@ -10771,7 +10772,8 @@ paths:
       summary: "Ping"
       description: "This is a dummy endpoint you can use to test if the server is accessible."
       operationId: "SystemPing"
-      produces: ["text/plain"]
+      produces:
+        - "text/plain"
       responses:
         200:
           description: "no error"
