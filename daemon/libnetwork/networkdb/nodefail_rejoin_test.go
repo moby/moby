@@ -117,9 +117,9 @@ func TestLeftNodeClearsNetworkMembership(t *testing.T) {
 	defer cancel()
 
 	nDB.Lock()
-	_, err := nDB.changeNodeState("node1", nodeLeftState)
+	ok := nDB.forgetNode(t.Context(), "node1")
 	nDB.Unlock()
-	assert.NilError(t, err)
+	assert.Assert(t, ok)
 
 	nDB.RLock()
 	present := slices.Contains(nDB.networkNodes["network1"], "node1")
@@ -212,9 +212,9 @@ func TestFailedThenLeftDropsRememberedState(t *testing.T) {
 	ed.NotifyLeave(mn)
 
 	nDB.Lock()
-	_, err := nDB.changeNodeState("node1", nodeLeftState)
+	ok := nDB.forgetNode(t.Context(), "node1")
 	nDB.Unlock()
-	assert.NilError(t, err)
+	assert.Assert(t, ok)
 
 	nDB.RLock()
 	_, rawErr := nDB.getEntry("table1", "network1", "key1")
