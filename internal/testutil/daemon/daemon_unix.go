@@ -27,6 +27,12 @@ func (d *Daemon) rootlessCommand(dockerdBinary string) (string, []string, error)
 	if d.dockerdBinary != defaultDockerdBinary {
 		return "", nil, errors.Errorf("[%s] DOCKER_ROOTLESS doesn't support non-default dockerd binary path %q", d.id, d.dockerdBinary)
 	}
+	// Older sudo versions use secure_path to look up the command even when
+	// PATH is preserved for the command's environment.
+	rootlessBinary, err := exec.LookPath(defaultDockerdRootlessBinary)
+	if err != nil {
+		return "", nil, err
+	}
 	return "sudo", []string{
 		"-u", d.rootlessUser.Username,
 		"--preserve-env",
@@ -34,7 +40,7 @@ func (d *Daemon) rootlessCommand(dockerdBinary string) (string, []string, error)
 		"XDG_RUNTIME_DIR=" + d.rootlessXDGRuntimeDir,
 		"HOME=" + d.rootlessUser.HomeDir,
 		"--",
-		defaultDockerdRootlessBinary,
+		rootlessBinary,
 	}, nil
 }
 

@@ -36,8 +36,6 @@ type GenerateContainerNameReply struct {
 }
 
 // Point is the single-provider container name-generator point.
-//
-//mobyextgen:service=ContainerNameGenerator
 var Point = extensions.DefineSinglePoint[ContainerNameGenerator]("org.mobyproject.extension.containernamegenerator.v0")
 
 // GenerateContainerName calls the effective container name provider.

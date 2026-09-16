@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 ARG GO_VERSION=1.26.8
-ARG BASE_DEBIAN_DISTRO="bookworm"
+ARG BASE_DEBIAN_DISTRO=trixie
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
 # XX_VERSION specifies the version of the xx utility to use.
@@ -9,7 +9,7 @@ ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 ARG XX_VERSION=1.9.0
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
-ARG DOCKERCLI_VERSION=v29.7.2
+ARG DOCKERCLI_VERSION=v29.8.0
 ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
 
 # cli version used for integration-cli tests
@@ -142,7 +142,7 @@ WORKDIR /usr/src/containerd
 # It is used to build containerd binaries, and used for the integration tests.
 # The distributed docker .deb and .rpm packages depend on a separate (containerd.io)
 # package, which may be a different version than specified here.
-ARG CONTAINERD_VERSION=v2.3.4
+ARG CONTAINERD_VERSION=v2.3.5
 ADD https://github.com/containerd/containerd.git?ref=${CONTAINERD_VERSION}&keep-git-dir=1 .
 
 FROM base AS containerd-build
@@ -364,7 +364,7 @@ FROM rootlesskit-${TARGETOS} AS rootlesskit
 
 FROM base AS crun
 # CRUN_VERSION is the version of crun to install in the dev-container.
-ARG CRUN_VERSION=1.21
+ARG CRUN_VERSION=1.29.1
 RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-crun-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
@@ -372,11 +372,12 @@ RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
             automake \
             build-essential \
             libcap-dev \
+            libjson-c-dev \
             libprotobuf-c-dev \
             libseccomp-dev \
             libsystemd-dev \
             libtool \
-            libyajl-dev \
+            pkgconf \
             python3 \
             ;
 WORKDIR /tmp/crun-build
@@ -488,6 +489,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             apparmor \
             bash-completion \
             bzip2 \
+            e2fsprogs \
             fuse-overlayfs \
             inetutils-ping \
             iproute2 \
@@ -613,6 +615,20 @@ COPY --link --from=containerd    /build/ /
 COPY --link --from=rootlesskit   /build/ /
 COPY --link --from=containerutil /build/ /
 COPY --link --from=build         /build  /
+
+# Tools and fixtures for running integration tests directly on a Linux host.
+# Build this for the host architecture; the Go toolchain and gotestsum run there.
+# The daemon and tests are compiled on the host by hack/make.sh.
+FROM scratch AS test-integration-deps
+COPY --link --from=base          /usr/local/go/ /usr/local/go/
+COPY --link --from=tini          /build/ /usr/local/bin/
+COPY --link --from=runc          /build/ /usr/local/bin/
+COPY --link --from=containerd    /build/ /usr/local/bin/
+COPY --link --from=rootlesskit   /build/ /usr/local/bin/
+COPY --link --from=dockercli     /build/ /usr/local/bin/
+COPY --link --from=gotestsum     /build/ /usr/local/bin/
+COPY --link --from=registry      /build/ /usr/local/bin/
+COPY --link --from=frozen-images /build/ /docker-frozen-images/
 
 # smoke tests
 # usage:

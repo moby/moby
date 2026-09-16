@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/containerd/containerd/v2/core/content"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	cerrdefs "github.com/containerd/errdefs"
@@ -19,6 +20,7 @@ import (
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/internal/testutil/labelstore"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -68,6 +70,82 @@ func TestImageLoad(t *testing.T) {
 		}), "failed to delete all content")
 	}
 
+	t.Run("unchanged image", func(t *testing.T) {
+		imgDataDir := t.TempDir()
+		_, err := specialimage.MultiLayer(imgDataDir)
+		assert.NilError(t, err)
+
+		assert.NilError(t, tryLoad(ctx, t, imgDataDir, nil))
+		assert.NilError(t, tryLoad(ctx, t, imgDataDir, nil))
+
+		images, err := imgSvc.images.List(ctx)
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(images, 1))
+	})
+	cleanup(ctx, t)
+
+	for _, tc := range []struct {
+		name         string
+		existingTags []string
+	}{
+		{
+			name:         "replaced image",
+			existingTags: []string{"docker.io/library/foo:latest"},
+		},
+		{
+			name:         "replaced image with another named reference",
+			existingTags: []string{"docker.io/library/foo:latest", "docker.io/library/bar:latest"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Both versions use the first tag; the other tags stay on version A.
+			replacedTag := tc.existingTags[0]
+			extraTags := tc.existingTags[1:]
+			loadVariant := func(version string) ocispec.Descriptor {
+				t.Helper()
+				dir := t.TempDir()
+				index, err := specialimage.MultiLayerCustom(dir, replacedTag, []specialimage.SingleFileLayer{
+					{Name: "version", Content: []byte(version)},
+				})
+				assert.NilError(t, err)
+
+				err = tryLoad(ctx, t, dir, nil)
+				assert.NilError(t, err)
+				return index.Manifests[0]
+			}
+
+			previousTarget := loadVariant("A")
+			for _, tag := range extraTags {
+				_, err := imgSvc.images.Create(ctx, c8dimages.Image{Name: tag, Target: previousTarget})
+				assert.NilError(t, err)
+			}
+
+			replacementTarget := loadVariant("B")
+			assert.Assert(t, previousTarget.Digest != replacementTarget.Digest)
+
+			// Version A becomes dangling only if it lost its last tag.
+			want := map[string]digest.Digest{
+				replacedTag: replacementTarget.Digest,
+			}
+			for _, tag := range extraTags {
+				want[tag] = previousTarget.Digest
+			}
+			if len(extraTags) == 0 {
+				want[danglingImageName(previousTarget.Digest)] = previousTarget.Digest
+			}
+
+			images, err := imgSvc.images.List(ctx)
+			assert.NilError(t, err)
+
+			got := make(map[string]digest.Digest, len(images))
+			for _, img := range images {
+				got[img.Name] = img.Target.Digest
+			}
+			assert.Check(t, is.DeepEqual(got, want))
+		})
+		cleanup(ctx, t)
+	}
+
 	t.Run("empty index", func(t *testing.T) {
 		imgDataDir := t.TempDir()
 		_, err := specialimage.EmptyIndex(imgDataDir)
@@ -92,6 +170,10 @@ func TestImageLoad(t *testing.T) {
 		err = tryLoad(ctx, t, imgDataDir, []ocispec.Platform{linuxArm64})
 		assert.Check(t, is.ErrorContains(err, "doesn't provide the requested platform ([linux/arm64])"))
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
+
+		images, err := imgSvc.images.List(ctx)
+		assert.NilError(t, err)
+		assert.Check(t, is.Len(images, 1))
 	})
 	cleanup(ctx, t)
 

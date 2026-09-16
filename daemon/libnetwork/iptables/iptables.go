@@ -440,7 +440,11 @@ func (iptable IPTable) DeleteJumpRule(table Table, fromChain, toChain string, ru
 	rule = append(rule, "-j", toChain)
 	if iptable.Exists(table, fromChain, rule...) {
 		if err := iptable.RawCombinedOutput(append([]string{"-t", string(table), "-D", fromChain}, rule...)...); err != nil {
-			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %v", toChain, fromChain, err)
+			// Another process may have removed the rule between Exists and Delete.
+			if isRuleNotFoundError(err) {
+				return nil
+			}
+			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %w", toChain, fromChain, err)
 		}
 	}
 	return nil
@@ -455,6 +459,10 @@ type Rule struct {
 
 // Exists returns true if the rule exists in the kernel.
 func (r Rule) Exists() bool {
+	return r.exists()
+}
+
+func (r Rule) exists() bool {
 	return GetIptable(r.IPVer).Exists(r.Table, r.Chain, r.Args...)
 }
 
@@ -474,33 +482,37 @@ func (r Rule) WithChain(chain string) Rule {
 	return wc
 }
 
-// ensure appends/insert the rule to the end of the chain. If the rule already exists anywhere in the
-// chain, this is a no-op.
-func (r Rule) ensure(op Action) error {
-	if r.Exists() {
-		return nil
-	}
-	return r.exec(op)
-}
-
 // Append appends the rule to the end of the chain. If the rule already exists anywhere in the
 // chain, this is a no-op.
 func (r Rule) Append() error {
-	return r.ensure(Append)
+	if r.exists() {
+		return nil
+	}
+	return r.exec(Append)
 }
 
 // Insert inserts the rule at the head of the chain. If the rule already exists anywhere in the
 // chain, this is a no-op.
 func (r Rule) Insert() error {
-	return r.ensure(Insert)
+	if r.exists() {
+		return nil
+	}
+	return r.exec(Insert)
 }
 
 // Delete deletes the rule from the kernel. If the rule does not exist, this is a no-op.
 func (r Rule) Delete() error {
-	if !r.Exists() {
+	if !r.exists() {
 		return nil
 	}
-	return r.exec(Delete)
+	if err := r.exec(Delete); err != nil {
+		// Another process may have removed the rule between Exists and Delete.
+		if isRuleNotFoundError(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (r Rule) String() string {
@@ -509,4 +521,19 @@ func (r Rule) String() string {
 		cmd[0] = "ip6tables"
 	}
 	return strings.Join(cmd, " ")
+}
+
+// isRuleNotFoundError reports whether err indicates that an iptables
+// delete could not find a matching rule.
+//
+// The iptables-nft backend maps ENOENT from nft_rule_delete to this
+// diagnostic:
+//
+//	iptables: Bad rule (does a matching rule exist in that chain?).
+//
+// see: https://git.netfilter.org/iptables/tree/iptables/nft.c?id=384958620abab397062b67fb2763e813b63f74f0#n2745
+// ref: https://git.netfilter.org/iptables/commit/?id=384958620abab397062b67fb2763e813b63f74f0
+func isRuleNotFoundError(err error) bool {
+	return err != nil &&
+		strings.Contains(err.Error(), "Bad rule (does a matching rule exist in that chain?)")
 }

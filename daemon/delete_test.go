@@ -80,11 +80,12 @@ func TestContainerDelete(t *testing.T) {
 	}
 }
 
-func TestContainerDoubleDelete(t *testing.T) {
-	c := newContainerWithState(&container.State{})
-
-	// Mark the container as having a delete in progress
-	c.State.SetRemovalInProgress()
+// TestContainerDeleteRemovalInProgress verifies that removing a container
+// that is already being removed returns a conflict, even when forced.
+func TestContainerDeleteRemovalInProgress(t *testing.T) {
+	c := newContainerWithState(&container.State{
+		RemovalInProgress: true,
+	})
 
 	d, cleanup := newDaemonWithTmpRoot(t)
 	defer cleanup()
@@ -93,5 +94,6 @@ func TestContainerDoubleDelete(t *testing.T) {
 	// Try to remove the container when its state is removalInProgress.
 	// It should return an error indicating it is under removal progress.
 	err := d.ContainerRm(c.ID, &backend.ContainerRmConfig{ForceRemove: true})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsConflict))
 	assert.Check(t, is.ErrorContains(err, fmt.Sprintf("removal of container %s is already in progress", c.ID)))
 }

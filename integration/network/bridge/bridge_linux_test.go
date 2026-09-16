@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
@@ -22,6 +23,7 @@ import (
 	ctr "github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/integration/internal/testutils/networking"
+	n "github.com/moby/moby/v2/integration/network"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/vishvananda/netlink"
@@ -58,6 +60,90 @@ func TestCreateWithMultiNetworks(t *testing.T) {
 	// interfaces for testnet1 and testnet2, plus lo.
 	ifacesWithAddress := strings.Count(res.Stdout.String(), "\n")
 	assert.Equal(t, ifacesWithAddress, 3)
+}
+
+func TestCreateMultipleNetworksWithOverlappingIPAM(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	prefix := t.Name()
+	test0 := prefix + "-test0"
+	test1 := prefix + "-test1"
+	test2 := prefix + "-test2"
+	test3 := prefix + "-test3"
+	test4 := prefix + "-test4"
+	test5 := prefix + "-test5"
+
+	withDefaultIPAM := func(options *client.NetworkCreateOptions) {
+		options.IPAM.Driver = "default"
+	}
+	remove := func(name string) error {
+		_, err := apiClient.NetworkRemove(ctx, name, client.NetworkRemoveOptions{})
+		return err
+	}
+
+	// test0 bridge network
+	network.CreateNoError(ctx, t, apiClient, test0,
+		network.WithDriver("bridge"),
+		network.WithIPAMRange("192.178.0.0/16", "192.178.128.0/17", "192.178.138.100"),
+		withDefaultIPAM,
+	)
+	test0Created := true
+	t.Cleanup(func() {
+		if test0Created {
+			assert.NilError(t, remove(test0))
+		}
+	})
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, test0))
+
+	test1Created := false
+	t.Cleanup(func() {
+		if test1Created {
+			assert.NilError(t, remove(test1))
+		}
+	})
+	// test1 bridge network overlaps with test0
+	_, err := network.Create(ctx, apiClient, test1,
+		network.WithDriver("bridge"),
+		network.WithIPAM("192.178.128.0/17", "192.178.128.1"),
+		withDefaultIPAM,
+	)
+	if err == nil {
+		test1Created = true
+	}
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
+	assert.Check(t, n.IsNetworkNotAvailable(ctx, apiClient, test1))
+
+	// test2 bridge network does not overlap
+	network.CreateNoError(ctx, t, apiClient, test2,
+		network.WithDriver("bridge"),
+		network.WithIPAM("192.169.0.0/16", "192.169.100.100"),
+		withDefaultIPAM,
+	)
+	t.Cleanup(func() { assert.NilError(t, remove(test2)) })
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, test2))
+
+	// remove test0 and retry to create test1
+	if err := remove(test0); err != nil {
+		assert.NilError(t, err)
+	} else {
+		test0Created = false
+	}
+
+	network.CreateNoError(ctx, t, apiClient, test1,
+		network.WithDriver("bridge"),
+		network.WithIPAM("192.178.128.0/17", "192.178.128.1"),
+		withDefaultIPAM,
+	)
+	test1Created = true
+	assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, test1))
+
+	// for networks w/o ipam specified, docker will choose proper non-overlapping subnets
+	for _, name := range []string{test3, test4, test5} {
+		network.CreateNoError(ctx, t, apiClient, name)
+		t.Cleanup(func() { assert.NilError(t, remove(name)) })
+		assert.Check(t, n.IsNetworkAvailable(ctx, apiClient, name))
+	}
 }
 
 func TestCreateWithIPv6DefaultsToULAPrefix(t *testing.T) {

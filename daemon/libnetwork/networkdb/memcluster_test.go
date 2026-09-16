@@ -88,8 +88,8 @@ func newMemCluster(t TestingT, num int, namePrefix string, conf *Config) *memClu
 	t.Helper()
 
 	if logLevel := log.GetLevel(); logLevel > log.WarnLevel {
-		_ = log.SetLevel(log.WarnLevel.String())
-		t.Cleanup(func() { _ = log.SetLevel(logLevel.String()) })
+		_ = log.SetLevel(log.WarnLevel)
+		t.Cleanup(func() { _ = log.SetLevel(logLevel) })
 	}
 
 	c := &memCluster{mn: &memNetwork{}}

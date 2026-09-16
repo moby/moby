@@ -33,13 +33,14 @@ func WithLogFormat(format log.OutputFormat) DaemonOpt {
 // WithCRIDisabled disables the CRI plugins.
 //
 // Containerd v1 uses the single io.containerd.grpc.v1.cri plugin, while
-// containerd v2 splits CRI into io.containerd.cri.v1.images and io.containerd.cri.v1.runtime.
+// containerd v2 splits CRI across multiple plugins.
 func WithCRIDisabled() DaemonOpt {
 	return func(r *Daemon) error {
 		r.config.DisabledPlugins = append(r.config.DisabledPlugins,
 			"io.containerd.grpc.v1.cri",
 			"io.containerd.cri.v1.images",
 			"io.containerd.cri.v1.runtime",
+			"io.containerd.podsandbox.controller.v1.podsandbox",
 		)
 		return nil
 	}

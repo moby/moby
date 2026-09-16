@@ -2,10 +2,11 @@ package filters
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"sort"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -28,6 +29,14 @@ func TestMarshalJSONWithEmpty(t *testing.T) {
 	assert.Check(t, err)
 	const expected = `{}`
 	assert.Check(t, is.Equal(string(s), expected))
+}
+
+func TestUnmarshalJSONZeroValue(t *testing.T) {
+	var args Args
+
+	assert.NilError(t, json.Unmarshal([]byte(`{"status":{"running":true}}`), &args))
+	expected := []string{"running"}
+	assert.DeepEqual(t, args.Get("status"), expected)
 }
 
 func TestToJSON(t *testing.T) {
@@ -244,6 +253,12 @@ func TestArgsMatch(t *testing.T) {
 	for args, field := range differs {
 		assert.Check(t, !args.Match(field, source), "Expected field %s to not match %s", field, source)
 	}
+}
+
+func TestAddZeroValue(t *testing.T) {
+	var args Args
+	args.Add("status", "running")
+	assert.DeepEqual(t, args.Get("status"), []string{"running"})
 }
 
 func TestAdd(t *testing.T) {
@@ -480,14 +495,16 @@ func TestGetBoolOrDefault(t *testing.T) {
 				assert.Check(t, is.ErrorType(err, tc.expectedErr))
 
 				// Check if error is the same.
-				expected := tc.expectedErr.(*invalidFilter)
-				actual := err.(*invalidFilter)
+				expected, ok := errors.AsType[*invalidFilter](tc.expectedErr)
+				assert.Check(t, ok)
+
+				actual, ok := errors.AsType[*invalidFilter](err)
+				assert.Check(t, ok)
 
 				assert.Check(t, is.Equal(expected.Filter, actual.Filter))
-
-				sort.Strings(expected.Value)
-				sort.Strings(actual.Value)
-				assert.Check(t, is.DeepEqual(expected.Value, actual.Value))
+				assert.Check(t, is.DeepEqual(expected.Value, actual.Value, cmpopts.SortSlices(func(a, b string) bool {
+					return a < b
+				})))
 
 				wrappedErr := fmt.Errorf("something went wrong: %w", err)
 				assert.Check(t, is.ErrorIs(wrappedErr, err), "Expected a wrapped error to be detected as invalidFilter")

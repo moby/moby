@@ -247,11 +247,18 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 	}
 	defer decompressed.Close()
 
+	ctx, done, err := i.withLease(ctx, true)
+	if err != nil {
+		return errdefs.System(err)
+	}
+	defer done()
+
 	specificPlatforms := len(platformList) > 0
 
 	// Get the platform matcher for the requested platforms (matches all platforms if none specified)
 	pm := matchAnyWithPreference(i.hostPlatformMatcher(), platformList)
 
+	previousImagesByTarget := map[digest.Digest]c8dimages.Image{}
 	opts := []containerd.ImportOpt{
 		containerd.WithImportPlatform(pm),
 
@@ -270,10 +277,17 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 				return false
 			}
 
-			// Look up if there is an existing image with this name and ensure a dangling image exists.
+			// Keep the previous image content leased until the import reveals
+			// whether the name moved to a different target.
 			if img, err := i.images.Get(ctx, ref.String()); err == nil {
-				if err := i.ensureDanglingImage(ctx, img); err != nil {
-					log.G(ctx).WithError(err).Warnf("failed to keep the previous image for %s as dangling", img.Name)
+				if _, ok := previousImagesByTarget[img.Target.Digest]; !ok {
+					previousImagesByTarget[img.Target.Digest] = img
+					if err := i.leaseContent(ctx, i.content, img.Target); err != nil {
+						log.G(ctx).WithError(err).Warnf("failed to lease the previous image for %s", img.Name)
+						if err := i.ensureDanglingImage(ctx, img); err != nil {
+							log.G(ctx).WithError(err).Warnf("failed to keep the previous image for %s as dangling", img.Name)
+						}
+					}
 				}
 			} else if !cerrdefs.IsNotFound(err) {
 				log.G(ctx).WithError(err).Warn("failed to retrieve image: %w", err)
@@ -288,6 +302,34 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, platf
 	}
 
 	imgs, err := i.client.Import(ctx, decompressed, opts...)
+	cleanupCtx := context.WithoutCancel(ctx)
+	for target, previous := range previousImagesByTarget {
+		refs, listErr := i.images.List(cleanupCtx, "target.digest=="+target.String())
+		if listErr != nil {
+			log.G(ctx).WithError(listErr).WithField("digest", target).Warn("failed to retrieve references to previous image")
+			continue
+		}
+
+		hasNamedRef := false
+		for _, ref := range refs {
+			if !isDanglingImage(ref) {
+				hasNamedRef = true
+				break
+			}
+		}
+
+		if !hasNamedRef {
+			if err := i.ensureDanglingImage(cleanupCtx, previous); err != nil {
+				log.G(ctx).WithError(err).WithField("digest", target).Warn("failed to keep previous image as dangling")
+			}
+			continue
+		}
+
+		if err := i.images.Delete(cleanupCtx, danglingImageName(target)); err != nil && !cerrdefs.IsNotFound(err) {
+			log.G(ctx).WithError(err).WithField("digest", target).Warn("failed to remove redundant dangling image")
+		}
+	}
+
 	if err != nil {
 		if specificPlatforms {
 			platformNames := make([]string, 0, len(platformList))

@@ -258,7 +258,7 @@ func TestRule(t *testing.T) {
 
 	rule := Rule{IPVer: IPv4, Table: Filter, Chain: "TESTCHAIN", Args: []string{"-j", "RETURN"}}
 	assert.NilError(t, rule.Insert())
-	assert.Equal(t, rule.Exists(), true)
+	assert.Equal(t, rule.exists(), true)
 	assert.Equal(t, mustDumpChain(t, Filter, "TESTCHAIN"), `-N TESTCHAIN
 -A TESTCHAIN -j RETURN
 `)
@@ -285,7 +285,7 @@ func TestRule(t *testing.T) {
 `)
 
 	assert.NilError(t, rule.Delete())
-	assert.Equal(t, rule.Exists(), false)
+	assert.Equal(t, rule.exists(), false)
 	assert.Equal(t, mustDumpChain(t, Filter, "TESTCHAIN"), `-N TESTCHAIN
 -A TESTCHAIN -j RETURN
 `)
@@ -335,4 +335,34 @@ func TestFlushChain(t *testing.T) {
 
 	// Cleanup
 	_ = iptable.RemoveExistingChain(chain, table)
+}
+
+// TestDeleteNonExistingRule verifies the diagnostic returned by iptables when
+// deleting a rule that does not exist. This is used to handle the race where a
+// rule is removed by another process between checking for it and deleting it.
+//
+// Reproducing that race directly would be timing-dependent, so exercise the
+// delete error deterministically with a rule in a freshly-created chain.
+func TestDeleteNonExistingRule(t *testing.T) {
+	if UsingFirewalld() {
+		t.Skip("firewalld in host netns cannot create rules in the test's netns")
+	}
+	defer netnsutils.SetupTestOSContext(t)()
+	iptable := GetIptable(IPv4)
+
+	const chain = "TEST-DELETEMISSING"
+	_, err := iptable.NewChain(chain, Filter)
+	assert.NilError(t, err)
+	defer func() { _ = iptable.RemoveExistingChain(chain, Filter) }()
+
+	// Use TEST-NET-1 to make the rule clearly test-only. The freshly-created
+	// chain guarantees that the rule does not already exist.
+	err = iptable.RawCombinedOutput(
+		"-t", string(Filter),
+		"-D", chain,
+		"-s", "192.0.2.1",
+		"-j", "ACCEPT",
+	)
+	assert.Assert(t, err != nil)
+	assert.Assert(t, isRuleNotFoundError(err), err)
 }

@@ -131,6 +131,13 @@ func (m *ShimManager) loadShim(ctx context.Context, bundle *Bundle) error {
 		id      = bundle.ID
 	)
 
+	// One budget for the whole load: shims are loaded during plugin
+	// initialization, so a shim that never answers would otherwise stall
+	// containerd startup. Nested timeouts can only shorten a deadline, so this
+	// bounds the load however many calls it makes.
+	ctx, cancel := timeout.WithContext(ctx, loadTimeout)
+	defer cancel()
+
 	// If we're on 1.6+ and specified custom path to the runtime binary, path will be saved in 'shim-binary-path' file.
 	if data, err := os.ReadFile(filepath.Join(bundle.Path, "shim-binary-path")); err == nil {
 		runtime = string(data)
@@ -175,7 +182,7 @@ func (m *ShimManager) loadShim(ctx context.Context, bundle *Bundle) error {
 		m.shims.Delete(ctx, id)
 	})
 	if err != nil {
-		cleanupAfterDeadShim(ctx, id, m.shims, m.events, binaryCall)
+		cleanupAfterDeadShim(context.WithoutCancel(ctx), id, m.shims, m.events, binaryCall)
 		return fmt.Errorf("unable to load shim %q: %w", id, err)
 	}
 
@@ -195,7 +202,11 @@ func (m *ShimManager) loadShim(ctx context.Context, bundle *Bundle) error {
 			logEntry = logEntry.WithError(pidErr)
 		}
 		logEntry.Info("cleaning leaked shim process")
-		shim.delete(ctx, false, func(ctx context.Context, id string) {})
+		if err := cleanupShimTask(ctx, shim, false); err != nil && !errdefs.IsNotFound(err) {
+			// Returning an error makes loadShims remove the bundle; a shim we
+			// cannot reap would otherwise be reloaded on every start.
+			return fmt.Errorf("failed to clean up leaked shim %q: %w", id, err)
+		}
 	} else {
 		if pidErr != nil {
 			log.G(ctx).WithField("id", id).WithError(pidErr).Warn("failed to query shim pids, keeping shim registered")
@@ -224,9 +235,6 @@ func loadShimTask(ctx context.Context, bundle *Bundle, onClose func()) (_ *shimT
 	if err != nil {
 		return nil, err
 	}
-
-	ctx, cancel := timeout.WithContext(ctx, loadTimeout)
-	defer cancel()
 
 	if _, err := s.PID(ctx); err != nil {
 		if !errdefs.IsNotImplemented(err) {

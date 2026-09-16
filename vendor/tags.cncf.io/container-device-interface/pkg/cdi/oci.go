@@ -30,14 +30,46 @@ func (h *Hook) toOCI() spec.Hook {
 	}
 }
 
+// Additional OCI mount option to apply to injected mounts.
+type ociMountOption func(*spec.Mount)
+
+// withIDMapForBindMount adds any necessary ID mapping options for a bind mount.
+func withIDMapForBindMount() ociMountOption {
+	return func(m *spec.Mount) {
+		option := ""
+		if m.Type == "bind" {
+			option = "idmap"
+		}
+
+		for _, o := range m.Options {
+			switch o {
+			case "idmap", "ridmap":
+				return
+			case "bind":
+				option = "idmap"
+			case "rbind":
+				option = "ridmap"
+			}
+		}
+
+		if option != "" {
+			m.Options = append(m.Options, option)
+		}
+	}
+}
+
 // toOCI returns the opencontainers runtime Spec Mount for this Mount.
-func (m *Mount) toOCI() spec.Mount {
-	return spec.Mount{
+func (m *Mount) toOCI(options ...ociMountOption) spec.Mount {
+	om := spec.Mount{
 		Source:      m.HostPath,
 		Destination: m.ContainerPath,
 		Options:     m.Options,
 		Type:        m.Type,
 	}
+	for _, o := range options {
+		o(&om)
+	}
+	return om
 }
 
 // toOCI returns the opencontainers runtime Spec LinuxDevice for this DeviceNode.

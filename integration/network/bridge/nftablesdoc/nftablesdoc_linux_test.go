@@ -380,6 +380,13 @@ func pollService(ctx context.Context, t *testing.T, c *client.Client, host netwo
 func runNftables(t *testing.T, host networking.Host) map[string]string {
 	res := map[string]string{}
 	out := host.MustRun(t, "nft", "-s", "list", "table", "ip", "docker-bridges")
+
+	// nftables before v1.0.9 don't stringify the dstnat priority for an
+	// output hook, and print its numeric value (-100) instead. Normalize the
+	// output for stable test results.
+	//
+	// - https://git.netfilter.org/nftables/commit/?id=8beafab74c391130fbb9111bfccab8613644e3b9
+	// - https://github.com/moby/moby/pull/50745 / https://github.com/moby/moby/commit/fbde2bcb9a8a8fcf06cc6fe1675560cf46237e7b
 	out = strings.ReplaceAll(out, "type nat hook output priority -100", "type nat hook output priority dstnat")
 	// Indent the result, so that it's treated as preformatted markdown.
 	res["Ruleset4"] = "    " + strings.ReplaceAll(out, "\n", "\n    ")

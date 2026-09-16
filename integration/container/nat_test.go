@@ -31,22 +31,27 @@ func TestNetworkNat(t *testing.T) {
 
 	endpoint := getExternalAddress(t)
 
-	var conn net.Conn
+	var data []byte
 	addr := net.JoinHostPort(endpoint.String(), strconv.Itoa(port))
-	poll.WaitOn(t, func(t poll.LogT) poll.Result {
-		var err error
-		conn, err = net.Dial("tcp", addr)
+	poll.WaitOn(t, func(_ poll.LogT) poll.Result {
+		conn, err := net.Dial("tcp", addr)
 		if err != nil {
 			return poll.Continue("waiting for %s to be accessible: %v", addr, err)
 		}
+		defer func() {
+			assert.Check(t, conn.Close())
+		}()
+
+		data, err = io.ReadAll(conn)
+		if err != nil {
+			return poll.Error(err)
+		}
+		// The port proxy can accept a connection before nc is listening.
+		if len(data) == 0 {
+			return poll.Continue("waiting for a response from %s", addr)
+		}
 		return poll.Success()
 	})
-	defer func() {
-		assert.Check(t, conn.Close())
-	}()
-
-	data, err := io.ReadAll(conn)
-	assert.NilError(t, err)
 	assert.Check(t, is.Equal(msg, strings.TrimSpace(string(data))))
 }
 
@@ -59,22 +64,27 @@ func TestNetworkLocalhostTCPNat(t *testing.T) {
 	const port = 8081
 	startServerContainer(ctx, t, msg, port)
 
-	var conn net.Conn
+	var data []byte
 	addr := net.JoinHostPort("localhost", strconv.Itoa(port))
-	poll.WaitOn(t, func(t poll.LogT) poll.Result {
-		var err error
-		conn, err = net.Dial("tcp", addr)
+	poll.WaitOn(t, func(_ poll.LogT) poll.Result {
+		conn, err := net.Dial("tcp", addr)
 		if err != nil {
 			return poll.Continue("waiting for %s to be accessible: %v", addr, err)
 		}
+		defer func() {
+			assert.Check(t, conn.Close())
+		}()
+
+		data, err = io.ReadAll(conn)
+		if err != nil {
+			return poll.Error(err)
+		}
+		// The port proxy can accept a connection before nc is listening.
+		if len(data) == 0 {
+			return poll.Continue("waiting for a response from %s", addr)
+		}
 		return poll.Success()
 	})
-	defer func() {
-		assert.Check(t, conn.Close())
-	}()
-
-	data, err := io.ReadAll(conn)
-	assert.NilError(t, err)
 	assert.Check(t, is.Equal(msg, strings.TrimSpace(string(data))))
 }
 

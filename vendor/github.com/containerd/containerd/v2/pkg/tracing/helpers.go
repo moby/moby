@@ -73,13 +73,15 @@ func keyValue(k string, v any) attribute.KeyValue {
 		return attribute.String(k, typed)
 	case []string:
 		return attribute.StringSlice(k, typed)
+	case error:
+		return attribute.String(k, fmt.Sprint(typed))
 	}
 
 	if stringer, ok := v.(fmt.Stringer); ok {
-		return attribute.String(k, stringer.String())
+		return attribute.String(k, fmt.Sprint(stringer))
 	}
 	if b, err := json.Marshal(v); b != nil && err == nil {
 		return attribute.String(k, string(b))
 	}
-	return attribute.String(k, fmt.Sprintf("%v", v))
+	return attribute.String(k, fmt.Sprint(v))
 }

@@ -35,8 +35,6 @@ type GenerateServiceNameReply struct {
 }
 
 // Point is the single-provider service name-generator point.
-//
-//mobyextgen:service=ServiceNameGenerator
 var Point = extensions.DefineSinglePoint[ServiceNameGenerator]("org.mobyproject.extension.servicenamegenerator.v0")
 
 // GenerateServiceName calls the effective service name provider.

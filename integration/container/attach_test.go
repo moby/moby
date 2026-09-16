@@ -113,6 +113,7 @@ func TestAttachDisconnectLeak(t *testing.T) {
 	defer d.Cleanup(t)
 
 	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
+	defer d.Stop(t)
 
 	apiClient := d.NewClientT(t)
 

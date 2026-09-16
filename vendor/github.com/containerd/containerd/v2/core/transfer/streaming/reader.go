@@ -18,9 +18,9 @@ package streaming
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 
 	transferapi "github.com/containerd/containerd/api/types/transfer"
 	"github.com/containerd/containerd/v2/core/streaming"
@@ -30,7 +30,7 @@ import (
 type readByteStream struct {
 	ctx       context.Context
 	stream    streaming.Stream
-	window    int32
+	window    atomic.Int32
 	updated   chan struct{}
 	errCh     chan error
 	remaining []byte
@@ -40,13 +40,12 @@ func ReadByteStream(ctx context.Context, stream streaming.Stream) io.ReadCloser 
 	rbs := &readByteStream{
 		ctx:     ctx,
 		stream:  stream,
-		window:  0,
-		errCh:   make(chan error),
+		errCh:   make(chan error, 1),
 		updated: make(chan struct{}, 1),
 	}
 	go func() {
 		for {
-			if rbs.window >= windowSize {
+			if rbs.window.Load() >= windowSize {
 				select {
 				case <-ctx.Done():
 					return
@@ -62,11 +61,11 @@ func ReadByteStream(ctx context.Context, stream streaming.Stream) io.ReadCloser 
 				rbs.errCh <- err
 				return
 			}
-			if err := stream.Send(anyType); err == nil {
-				rbs.window += windowSize
-			} else if !errors.Is(err, io.EOF) {
-				rbs.errCh <- err
+			if err := stream.Send(anyType); err != nil {
+				// Read reports stream errors.
+				return
 			}
+			rbs.window.Add(windowSize)
 		}
 
 	}()
@@ -105,9 +104,12 @@ func (r *readByteStream) Read(p []byte) (n int, err error) {
 		if len(v.Data) > plen {
 			r.remaining = v.Data[plen:]
 		}
-		r.window = r.window - int32(n)
-		if r.window < windowSize {
-			r.updated <- struct{}{}
+		if r.window.Add(-int32(len(v.Data))) < windowSize {
+			select {
+			case r.updated <- struct{}{}:
+			default:
+				// Don't block if the window goroutine has ended.
+			}
 		}
 		return n, nil
 	default:

@@ -37,8 +37,11 @@ func (daemon *Daemon) containerRm(cfg *config.Config, name string, opts *backend
 
 	// Container state RemovalInProgress should be used to avoid races.
 	if inProgress := ctr.State.SetRemovalInProgress(); inProgress {
-		err := fmt.Errorf("removal of container %s is already in progress", name)
-		return errdefs.Conflict(err)
+		// TODO(thaJeztah): Consider waiting for an in-progress removal instead of returning a conflict.
+		// Concurrent removal is not itself a conflicting operation, and using Conflict makes it
+		// indistinguishable from actual state conflicts, such as attempting to remove a running
+		// or paused container without force.
+		return errdefs.Conflict(fmt.Errorf("removal of container %s is already in progress", name))
 	}
 	defer ctr.State.ResetRemovalInProgress()
 

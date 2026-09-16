@@ -18,39 +18,29 @@ package validation
 
 import (
 	"fmt"
-	"strings"
 
 	"tags.cncf.io/container-device-interface/internal/validation/k8s"
 )
 
 // ValidateSpecAnnotations checks whether spec annotations are valid.
-func ValidateSpecAnnotations(name string, any interface{}) error {
-	if any == nil {
+func ValidateSpecAnnotations(name string, specAnnotations any) error {
+	values, ok := specAnnotations.(map[string]any)
+	if !ok {
 		return nil
 	}
 
-	switch v := any.(type) {
-	case map[string]interface{}:
-		annotations := make(map[string]string)
-		for k, v := range v {
-			if s, ok := v.(string); ok {
-				annotations[k] = s
-			} else {
-				return fmt.Errorf("invalid annotation %v.%v; %v is not a string", name, k, any)
-			}
+	annotations := make(map[string]string, len(values))
+	for k, v := range values {
+		s, ok := v.(string)
+		if !ok {
+			return fmt.Errorf("invalid annotation %v.%v; %v is not a string", name, k, v)
 		}
-		return validateSpecAnnotations(name, annotations)
+		annotations[k] = s
 	}
 
-	return nil
-}
-
-// validateSpecAnnotations checks whether spec annotations are valid.
-func validateSpecAnnotations(name string, annotations map[string]string) error {
 	path := "annotations"
 	if name != "" {
-		path = strings.Join([]string{name, path}, ".")
+		path = name + "." + path
 	}
-
 	return k8s.ValidateAnnotations(annotations, path)
 }

@@ -52,7 +52,7 @@ func main() {
 	flag.Parse()
 
 	if *verbosePtr {
-		_ = log.SetLevel("debug")
+		_ = log.SetLevel(log.DebugLevel)
 	}
 
 	if _, ok := os.LookupEnv("DIND_CLIENT"); !ok && *joinPtr {
