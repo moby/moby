@@ -551,9 +551,9 @@ func TestBulkSyncWithFailedPeer(t *testing.T) {
 	// the memberlist node list is ignored, and memberlist only notifies a join
 	// for a node it sees coming back.
 	dbs[0].Lock()
-	_, err := dbs[0].changeNodeState(dbs[1].config.NodeID, nodeFailedState)
+	ok := dbs[0].failNode(t.Context(), dbs[1].config.NodeID)
 	dbs[0].Unlock()
-	assert.NilError(t, err)
+	assert.Assert(t, ok)
 
 	assert.NilError(t, dbs[0].bulkSyncNode([]string{"network1"}, dbs[1].config.NodeID, false))
 	assert.Check(t, is.ErrorContains(
@@ -821,133 +821,97 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	closeNetworkDBInstances(t, dbs)
 }
 
-func TestFindNode(t *testing.T) {
-	dbs := createNetworkDBInstances(t, 1, "node", DefaultConfig())
-
-	dbs[0].nodes["active"] = &node{Node: memberlist.Node{Name: "active"}}
-	dbs[0].failedNodes["failed"] = &node{Node: memberlist.Node{Name: "failed"}}
-
-	// active nodes is 2 because the testing node is in the list
-	assert.Check(t, is.Len(dbs[0].nodes, 2))
-	assert.Check(t, is.Len(dbs[0].failedNodes, 1))
-
-	n, currState, m := dbs[0].findNode("active")
-	assert.Check(t, n != nil)
-	assert.Check(t, is.Equal("active", n.Name))
-	assert.Check(t, is.Equal(nodeActiveState, currState))
-	assert.Check(t, m != nil)
-	// delete the entry manually
-	delete(m, "active")
-
-	// test if can be still find
-	n, currState, m = dbs[0].findNode("active")
-	assert.Check(t, is.Nil(n))
-	assert.Check(t, is.Equal(nodeNotFound, currState))
-	assert.Check(t, is.Nil(m))
-
-	n, currState, m = dbs[0].findNode("failed")
-	assert.Check(t, n != nil)
-	assert.Check(t, is.Equal("failed", n.Name))
-	assert.Check(t, is.Equal(nodeFailedState, currState))
-	assert.Check(t, m != nil)
-
-	closeNetworkDBInstances(t, dbs)
+func checkNodeIsForgotten(t *testing.T, db *NetworkDB, nodeName string, msgAndArgs ...any) {
+	t.Helper()
+	_, active := db.nodes[nodeName]
+	assert.Check(t, !active, msgAndArgs...)
+	_, failed := db.failedNodes[nodeName]
+	assert.Check(t, !failed, msgAndArgs...)
 }
 
-func TestChangeNodeState(t *testing.T) {
-	dbs := createNetworkDBInstances(t, 1, "node", DefaultConfig())
+func TestNodeStateTransitions(t *testing.T) {
+	db := newNetworkDB(DefaultConfig())
+	defer db.broadcaster.Close()
 
-	dbs[0].nodes["node1"] = &node{Node: memberlist.Node{Name: "node1"}}
-	dbs[0].nodes["node2"] = &node{Node: memberlist.Node{Name: "node2"}}
-	dbs[0].nodes["node3"] = &node{Node: memberlist.Node{Name: "node3"}}
+	db.nodes["node1"] = &node{Node: memberlist.Node{Name: "node1"}}
+	db.nodes["node2"] = &node{Node: memberlist.Node{Name: "node2"}}
+	db.nodes["node3"] = &node{Node: memberlist.Node{Name: "node3"}}
 
-	// active nodes is 4 because the testing node is in the list
-	assert.Check(t, is.Len(dbs[0].nodes, 4))
+	assert.Check(t, is.Len(db.nodes, 3))
 
-	n, currState, m := dbs[0].findNode("node1")
+	_, failed := db.failedNodes["node1"]
+	assert.Check(t, !failed)
+	n, active := db.nodes["node1"]
+	assert.Check(t, active)
 	assert.Check(t, n != nil)
-	assert.Check(t, is.Equal(nodeActiveState, currState))
 	assert.Check(t, is.Equal("node1", n.Name))
-	assert.Check(t, m != nil)
 
 	// node1 to failed
-	dbs[0].changeNodeState("node1", nodeFailedState)
+	assert.Check(t, db.failNode(t.Context(), "node1"))
 
-	n, currState, m = dbs[0].findNode("node1")
+	_, active = db.nodes["node1"]
+	assert.Check(t, !active)
+	n, failed = db.failedNodes["node1"]
+	assert.Check(t, failed)
 	assert.Check(t, n != nil)
-	assert.Check(t, is.Equal(nodeFailedState, currState))
 	assert.Check(t, is.Equal("node1", n.Name))
-	assert.Check(t, m != nil)
 	assert.Check(t, time.Duration(0) != n.reapTime)
 
 	// node1 back to active
-	dbs[0].changeNodeState("node1", nodeActiveState)
+	assert.Check(t, db.reactivateNode(t.Context(), "node1"))
 
-	n, currState, m = dbs[0].findNode("node1")
+	_, failed = db.failedNodes["node1"]
+	assert.Check(t, !failed)
+	n, active = db.nodes["node1"]
+	assert.Check(t, active)
 	assert.Check(t, n != nil)
-	assert.Check(t, is.Equal(nodeActiveState, currState))
 	assert.Check(t, is.Equal("node1", n.Name))
-	assert.Check(t, m != nil)
 	assert.Check(t, is.Equal(time.Duration(0), n.reapTime))
 
 	// node1 to left. A node which has left is forgotten outright, so there is
 	// nothing left to find it in.
-	dbs[0].changeNodeState("node1", nodeLeftState)
-	dbs[0].changeNodeState("node2", nodeLeftState)
-	dbs[0].changeNodeState("node3", nodeLeftState)
+	assert.Check(t, db.forgetNode(t.Context(), "node1"))
+	assert.Check(t, db.forgetNode(t.Context(), "node2"))
+	assert.Check(t, db.forgetNode(t.Context(), "node3"))
 
 	for _, name := range []string{"node1", "node2", "node3"} {
-		n, currState, m := dbs[0].findNode(name)
-		assert.Check(t, is.Nil(n), "%s should be forgotten once it has left", name)
-		assert.Check(t, is.Equal(nodeNotFound, currState))
-		assert.Check(t, is.Nil(m))
+		checkNodeIsForgotten(t, db, name, "%s should be forgotten once it has left", name)
 	}
 
-	// active nodes is 1 because the testing node is in the list
-	assert.Check(t, is.Len(dbs[0].nodes, 1))
-	assert.Check(t, is.Len(dbs[0].failedNodes, 0))
-
-	closeNetworkDBInstances(t, dbs)
+	assert.Check(t, is.Len(db.nodes, 0))
+	assert.Check(t, is.Len(db.failedNodes, 0))
 }
 
 func TestNodeReincarnation(t *testing.T) {
-	dbs := createNetworkDBInstances(t, 1, "node", DefaultConfig())
+	db := newNetworkDB(DefaultConfig())
+	defer db.broadcaster.Close()
 
-	dbs[0].nodes["node1"] = &node{Node: memberlist.Node{Name: "node1", Addr: net.ParseIP("192.168.1.1")}}
-	dbs[0].failedNodes["node3"] = &node{Node: memberlist.Node{Name: "node3", Addr: net.ParseIP("192.168.1.3")}}
+	db.nodes["node1"] = &node{Node: memberlist.Node{Name: "node1", Addr: net.ParseIP("192.168.1.1")}}
+	db.failedNodes["node3"] = &node{Node: memberlist.Node{Name: "node3", Addr: net.ParseIP("192.168.1.3")}}
 
-	// active nodes is 2 because the testing node is in the list
-	assert.Check(t, is.Len(dbs[0].nodes, 2))
-	assert.Check(t, is.Len(dbs[0].failedNodes, 1))
-
-	dbs[0].Lock()
+	assert.Check(t, is.Len(db.nodes, 1))
+	assert.Check(t, is.Len(db.failedNodes, 1))
 
 	// An active node superseded at its address.
-	b := dbs[0].purgeReincarnation(&memberlist.Node{Name: "node4", Addr: net.ParseIP("192.168.1.1")})
+	b := db.purgeReincarnation(&memberlist.Node{Name: "node4", Addr: net.ParseIP("192.168.1.1")})
 	assert.Check(t, b)
 	// It is forgotten outright rather than filed away somewhere else.
-	n, currState, _ := dbs[0].findNode("node1")
-	assert.Check(t, is.Nil(n), "a superseded node should be forgotten")
-	assert.Check(t, is.Equal(nodeNotFound, currState))
-	dbs[0].nodes["node4"] = &node{Node: memberlist.Node{Name: "node4", Addr: net.ParseIP("192.168.1.1")}}
+	checkNodeIsForgotten(t, db, "node1", "a superseded node should be forgotten")
+	db.nodes["node4"] = &node{Node: memberlist.Node{Name: "node4", Addr: net.ParseIP("192.168.1.1")}}
 
 	// A failed node superseded at its address.
-	b = dbs[0].purgeReincarnation(&memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.3")})
+	b = db.purgeReincarnation(&memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.3")})
 	assert.Check(t, b)
-	n, _, _ = dbs[0].findNode("node3")
-	assert.Check(t, is.Nil(n), "a superseded failed node should be forgotten")
-	dbs[0].nodes["node6"] = &node{Node: memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.1")}}
+	checkNodeIsForgotten(t, db, "node3", "a superseded failed node should be forgotten")
+	db.nodes["node6"] = &node{Node: memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.1")}}
 
 	// An address nobody is at supersedes nothing.
-	b = dbs[0].purgeReincarnation(&memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.10")})
+	b = db.purgeReincarnation(&memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.10")})
 	assert.Check(t, !b)
 
-	// the testing node, plus node4 and node6
-	assert.Check(t, is.Len(dbs[0].nodes, 3))
-	assert.Check(t, is.Len(dbs[0].failedNodes, 0))
-
-	dbs[0].Unlock()
-	closeNetworkDBInstances(t, dbs)
+	// node4 and node6
+	assert.Check(t, is.Len(db.nodes, 2))
+	assert.Check(t, is.Len(db.failedNodes, 0))
 }
 
 func TestParallelCreate(t *testing.T) {
