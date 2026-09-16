@@ -56,7 +56,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/hashicorp/go-memdb v1.3.5
-	github.com/hashicorp/memberlist v0.6.0
+	github.com/hashicorp/memberlist v0.7.0
 	github.com/hashicorp/serf v0.10.4
 	github.com/in-toto/in-toto-golang v0.11.0
 	github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2
