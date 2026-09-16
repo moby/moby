@@ -11,7 +11,28 @@
   "postUpdateOptions": ["gomodTidy"],
   "minimumReleaseAge": "3 days",
   "internalChecksFilter": "strict",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^Dockerfile$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) versioning=(?<versioning>\\S+)[ \\t]*\\r?\\n[ \\t]*ARG[ \\t]+\\w+=(?<currentValue>\\S+)"
+      ]
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^hack/make\\.ps1$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) versioning=(?<versioning>\\S+)[ \\t]*\\r?\\n[ \\t]*\\$\\w+[ \\t]*=[ \\t]*\"(?<currentValue>[^\"]+)\""
+      ]
+    }
+  ],
   "packageRules": [
+    {
+      "matchDatasources": ["docker", "github-tags"],
+      "matchDepNames": ["docker/buildx-bin", "docker/cli"],
+      "minimumReleaseAge": "0 days"
+    },
     {
       "matchManagers": ["gomod"],
       "groupName": "golang.org/x packages",
