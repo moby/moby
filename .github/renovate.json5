@@ -11,6 +11,15 @@
   "postUpdateOptions": ["gomodTidy"],
   "minimumReleaseAge": "3 days",
   "internalChecksFilter": "strict",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^hack/make\\.ps1$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) versioning=(?<versioning>\\S+)[ \\t]*\\r?\\n[ \\t]*\\$\\w+[ \\t]*=[ \\t]*\"(?<currentValue>[^\"]+)\""
+      ]
+    }
+  ],
   "packageRules": [
     {
       "matchManagers": ["gomod"],

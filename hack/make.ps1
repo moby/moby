@@ -541,7 +541,10 @@ Try {
                 Remove-Item -Force "docker.zip"
             }
 
-            if (-not ($buildx = $env:BUILDX_VERSION)) { $buildx = "0.37.0" }
+            if (-not ($buildx = $env:BUILDX_VERSION)) {
+                # renovate: datasource=docker depName=docker/buildx-bin versioning=docker
+                $buildx = "0.37.0"
+            }
             Write-Host "INFO: Downloading docker/buildx version $buildx..."
             $url = "https://github.com/docker/buildx/releases/download/v${buildx}/buildx-v${buildx}.windows-amd64.exe"
             Invoke-WebRequest $url -OutFile "$PWD\bundles\docker-buildx.exe"
