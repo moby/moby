@@ -3,14 +3,18 @@ package container
 import (
 	"context"
 	"math/rand"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"github.com/moby/moby/api/types/container"
+	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -155,6 +159,67 @@ func TestViewWithHealthCheck(t *testing.T) {
 	s, err := db.Snapshot().Get(one.ID)
 	assert.NilError(t, err)
 	assert.Equal(t, s.Health, container.Starting)
+}
+
+func TestViewWithPortBindings(t *testing.T) {
+	tests := []struct {
+		name     string
+		ports    networktypes.PortMap
+		expected []container.PortSummary
+	}{
+		{
+			name: "published",
+			ports: networktypes.PortMap{
+				networktypes.MustParsePort("80/tcp"): {
+					{
+						HostIP:   netip.MustParseAddr("127.0.0.1"),
+						HostPort: "8080",
+					},
+				},
+			},
+			expected: []container.PortSummary{{
+				PrivatePort: 80,
+				PublicPort:  8080,
+				Type:        "tcp",
+				IP:          netip.MustParseAddr("127.0.0.1"),
+			}},
+		},
+		{
+			// A port published on a network using gateway_mode_ipv4=routed
+			// or gateway_mode_ipv6=routed has no HostPort.
+			//
+			// Regression test for https://github.com/moby/moby/issues/53692
+			name: "routed",
+			ports: networktypes.PortMap{
+				networktypes.MustParsePort("80/tcp"): {{
+					HostIP: netip.MustParseAddr("127.0.0.1"),
+				}},
+			},
+			expected: []container.PortSummary{{
+				PrivatePort: 80,
+				Type:        "tcp",
+				IP:          netip.MustParseAddr("127.0.0.1"),
+			}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			db, err := NewViewDB()
+			assert.NilError(t, err)
+
+			ctr := newContainer(t, t.TempDir())
+			ctr.NetworkSettings = &network.Settings{
+				Ports: tc.ports,
+			}
+
+			assert.NilError(t, ctr.CheckpointTo(context.Background(), db))
+
+			s, err := db.Snapshot().Get(ctr.ID)
+			assert.NilError(t, err)
+			assert.DeepEqual(t, s.Ports, tc.expected, cmpopts.EquateComparable(netip.Addr{}))
+		})
+	}
 }
 
 func TestTruncIndex(t *testing.T) {
