@@ -10,6 +10,7 @@ import (
 	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 )
 
 // fakeClock is an injectable manager clock; the scheduler is exercised by
@@ -171,10 +172,21 @@ func TestSchedulerMissedFiresOnStart(t *testing.T) {
 			}
 
 			// Either way the schedule re-armed from the next occurrence,
-			// not from the backlog.
-			inspected, err := m.Inspect(t.Context(), job.ID)
-			assert.NilError(t, err)
-			assert.Check(t, is.Equal(inspected.NextFireAtNano, jan15.Add(27*time.Hour).UnixNano()))
+			// not from the backlog. The catch-up fire runs concurrently
+			// with Start's own arm+persist, so the re-arm write can land
+			// an instant after the run turns terminal: poll rather than
+			// assert on the first read.
+			want := jan15.Add(27 * time.Hour).UnixNano()
+			poll.WaitOn(t, func(poll.LogT) poll.Result {
+				inspected, err := m.Inspect(t.Context(), job.ID)
+				if err != nil {
+					return poll.Error(err)
+				}
+				if inspected.NextFireAtNano == want {
+					return poll.Success()
+				}
+				return poll.Continue("schedule not re-armed yet (next fire %d, want %d)", inspected.NextFireAtNano, want)
+			})
 		})
 	}
 }
