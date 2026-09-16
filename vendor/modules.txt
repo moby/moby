@@ -321,7 +321,7 @@ github.com/aws/smithy-go/transport/http/internal/io
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
-# github.com/bits-and-blooms/bitset v1.13.0
+# github.com/bits-and-blooms/bitset v1.25.0
 ## explicit; go 1.16
 github.com/bits-and-blooms/bitset
 # github.com/blang/semver v3.5.1+incompatible
