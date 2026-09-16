@@ -9,6 +9,7 @@ ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 ARG XX_VERSION=1.9.0
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
+# renovate: datasource=github-tags depName=docker/cli versioning=semver
 ARG DOCKERCLI_VERSION=v29.8.0
 ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
 
