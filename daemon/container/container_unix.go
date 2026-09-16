@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"syscall"
 
 	"github.com/containerd/continuity/fs"
@@ -440,6 +441,9 @@ func (container *Container) GetMountPoints() []containertypes.MountPoint {
 			Propagation: m.Propagation,
 		})
 	}
+	slices.SortStableFunc(mountPoints, func(a, b containertypes.MountPoint) int {
+		return compareMountPaths(a.Destination, b.Destination)
+	})
 	return mountPoints
 }
 

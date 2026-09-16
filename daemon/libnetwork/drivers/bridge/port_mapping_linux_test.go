@@ -830,7 +830,7 @@ func TestAddPortMappings(t *testing.T) {
 			if ep.addrv6 != nil || (!tc.noProxy6To4 && ep.addr != nil) {
 				pbm.ipv6 = true
 			}
-			pbs, err := n.addPortMappings(ctx, ep, tc.cfg, tc.defHostIP, pbm)
+			pbs, err := n.addPortMappings(ctx, ep, tc.cfg, tc.defHostIP, pbm, pbm)
 			if tc.expErr != "" {
 				assert.ErrorContains(t, err, tc.expErr)
 				return

@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"fmt"
+	"iter"
 	"net"
 	"net/netip"
 	"os"
@@ -34,6 +35,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/moby/v2/internal/iterutil"
 	"github.com/moby/moby/v2/internal/sliceutil"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
@@ -58,11 +60,6 @@ const (
 )
 
 const spanPrefix = "libnetwork.drivers.bridge"
-
-// DockerForwardChain is where libnetwork.programIngress puts Swarm's jump to DOCKER-INGRESS.
-//
-// FIXME(robmry) - it doesn't belong here.
-const DockerForwardChain = iptabler.DockerForwardChain
 
 // Configuration info for the "bridge" driver.
 type Configuration struct {
@@ -131,18 +128,32 @@ type connectivityConfiguration struct {
 }
 
 type bridgeEndpoint struct {
-	id               string
-	nid              string
-	srcName          string
-	addr             *net.IPNet
-	addrv6           *net.IPNet
-	macAddress       net.HardwareAddr
-	containerConfig  *containerConfiguration
-	extConnConfig    *connectivityConfiguration
-	portMapping      []portmapperapi.PortBinding // Operational port bindings
-	portBindingState portBindingMode             // Not persisted, even on live-restore port mappings are re-created.
-	dbIndex          uint64
-	dbExists         bool
+	id              string
+	nid             string
+	srcName         string
+	addr            *net.IPNet
+	addrv6          *net.IPNet
+	macAddress      net.HardwareAddr
+	containerConfig *containerConfiguration
+	extConnConfig   *connectivityConfiguration
+	portMapping     []portmapperapi.PortBinding // Operational port bindings, persisted for live-restore.
+	// ephemeralPortMapping holds operational port bindings that must not be
+	// persisted - they're re-created from another source of truth after a restart
+	// (e.g. Swarm ingress ports, re-derived from the cluster). They're treated
+	// exactly like portMapping for all live operations (firewalld reload, release
+	// on leave, etc.), just not written to the store.
+	ephemeralPortMapping []portmapperapi.PortBinding
+	portBindingState     portBindingMode // Not persisted, even on live-restore port mappings are re-created.
+	dbIndex              uint64
+	dbExists             bool
+}
+
+// allPortBindings returns an iterator over the endpoint's persisted and
+// ephemeral operational port bindings. Callers that only read the bindings (to
+// reprogram or release them) should use this; callers that mutate the set must
+// operate on portMapping and ephemeralPortMapping directly.
+func (ep *bridgeEndpoint) allPortBindings() iter.Seq[portmapperapi.PortBinding] {
+	return iterutil.Chain(slices.Values(ep.ephemeralPortMapping), slices.Values(ep.portMapping))
 }
 
 type bridgeNetwork struct {
@@ -1500,7 +1511,11 @@ func (d *driver) Leave(nid, eid string) error {
 		return endpointNotFoundError(eid)
 	}
 
-	if endpoint.portMapping != nil {
+	// Ephemeral bindings must be released too - an endpoint can have them without
+	// any persisted portMapping (the Swarm ingress load balancer's gateway
+	// endpoint only ever has ephemeral ingress ports), and releasePorts is what
+	// frees their host-port reservations, rules and proxies.
+	if endpoint.portMapping != nil || endpoint.ephemeralPortMapping != nil {
 		if err := network.releasePorts(endpoint); err != nil {
 			return err
 		}
@@ -1522,6 +1537,17 @@ type portBindingMode struct {
 	routed bool
 	ipv4   bool
 	ipv6   bool
+}
+
+// added returns the modes that are enabled in want but not already in m. It's
+// used to work out which port binding modes need to be programmed when an
+// endpoint's set of active modes changes from m to want.
+func (m portBindingMode) added(want portBindingMode) portBindingMode {
+	return portBindingMode{
+		routed: want.routed && !m.routed,
+		ipv4:   want.ipv4 && !m.ipv4,
+		ipv6:   want.ipv6 && !m.ipv6,
+	}
 }
 
 func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid string, gw4Id, gw6Id string) (retErr error) {
@@ -1573,15 +1599,23 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 	if err != nil {
 		return err
 	}
+	// Restore the recorded mode along with the bindings themselves. A failure
+	// after portBindingState has been updated below would otherwise leave the
+	// endpoint holding bindings its state says it doesn't have, so the next call
+	// would compute the wrong set to add or trim.
+	pbmPrev := endpoint.portBindingState
 	defer func() {
 		if retErr != nil && undoTrim != nil {
 			endpoint.portMapping = append(endpoint.portMapping, undoTrim()...)
+			endpoint.portBindingState = pbmPrev
 		}
 	}()
 
-	// Set up new port bindings, and store them in the endpoint.
+	// Set up port bindings for the modes that have become active, and store them
+	// in the endpoint.
 	if endpoint.extConnConfig != nil && endpoint.extConnConfig.PortBindings != nil {
-		newPMs, err := network.addPortMappings(ctx, endpoint, endpoint.extConnConfig.PortBindings, network.config.DefaultBindingIP, pbmReq)
+		pbmAdd := endpoint.portBindingState.added(pbmReq)
+		newPMs, err := network.addPortMappings(ctx, endpoint, endpoint.extConnConfig.PortBindings, network.config.DefaultBindingIP, pbmAdd, pbmReq)
 		if err != nil {
 			return err
 		}
@@ -1602,11 +1636,157 @@ func (d *driver) ProgramExternalConnectivity(ctx context.Context, nid, eid strin
 	return nil
 }
 
+// AddEphemeralPorts implements [driverapi.PortManager]. It publishes additional
+// ports on an endpoint that's already joined to a sandbox, reusing the same
+// machinery as the port bindings supplied at Join time. Host port-mappings
+// (DNAT) are only programmed for the address families the endpoint is currently
+// acting as a gateway for - exactly as for Join-time bindings.
+//
+// The bindings are kept operational (so they're reprogrammed on a firewalld
+// reload and released on leave) but deliberately not written to the store, so
+// they aren't restored - and then re-created by their owner - after a restart.
+func (d *driver) AddEphemeralPorts(ctx context.Context, nid, eid string, ports []types.PublishedPort) error {
+	if len(ports) == 0 {
+		return nil
+	}
+
+	// Make sure the network isn't deleted, or in the middle of a firewalld reload,
+	// while updating its iptables rules. This is also the lock that serialises
+	// access to endpoint.ephemeralPortMapping / portBindingState with
+	// ProgramExternalConnectivity.
+	d.configNetwork.Lock()
+	defer d.configNetwork.Unlock()
+
+	network, err := d.getNetwork(nid)
+	if err != nil {
+		return err
+	}
+	endpoint, err := network.getEndpoint(eid)
+	if err != nil {
+		return err
+	}
+	if endpoint == nil {
+		return endpointNotFoundError(eid)
+	}
+
+	reqs := sliceutil.Map(ports, func(p types.PublishedPort) portmapperapi.PortBindingReq {
+		return portmapperapi.PortBindingReq{PortBinding: p.PortBinding()}
+	})
+
+	// Program the new bindings for whichever modes the endpoint is currently
+	// serving (it's already joined, so its portBindingState is settled). Host
+	// port-mappings are only created for the address families it's acting as a
+	// gateway for, exactly as for the bindings supplied at Join time.
+	newPMs, err := network.addPortMappings(ctx, endpoint, reqs, network.config.DefaultBindingIP, endpoint.portBindingState, endpoint.portBindingState)
+	if err != nil {
+		return err
+	}
+	endpoint.ephemeralPortMapping = append(endpoint.ephemeralPortMapping, newPMs...)
+
+	// Clean the host's conntrack state for the newly-added ports only (not the
+	// whole endpoint), so their new NAT rules are applied to any flows that were
+	// bound to the host/proxy, while flows to the endpoint's other ports are left
+	// undisturbed.
+	clearConntrackEntriesForPorts(d.nlh, newPMs)
+
+	return nil
+}
+
+// DelEphemeralPorts implements [driverapi.PortManager]. It unpublishes ports
+// previously published via AddEphemeralPorts on an endpoint that's still joined
+// to a sandbox. Ports that aren't currently published are ignored.
+//
+// Only ephemeral bindings are searched: this API only ever publishes ephemeral
+// ports, and Join-time bindings are released through Leave, not here.
+func (d *driver) DelEphemeralPorts(ctx context.Context, nid, eid string, ports []types.PublishedPort) error {
+	if len(ports) == 0 {
+		return nil
+	}
+
+	d.configNetwork.Lock()
+	defer d.configNetwork.Unlock()
+
+	network, err := d.getNetwork(nid)
+	if err != nil {
+		return err
+	}
+	endpoint, err := network.getEndpoint(eid)
+	if err != nil {
+		return err
+	}
+	if endpoint == nil {
+		return endpointNotFoundError(eid)
+	}
+
+	reqs := sliceutil.Map(ports, types.PublishedPort.PortBinding)
+
+	// Work out the bindings to drop and the ones to keep before mutating the
+	// endpoint, so the split is taken from one consistent view of its bindings.
+	var toDrop, keepEphemeral []portmapperapi.PortBinding
+	for _, pb := range endpoint.ephemeralPortMapping {
+		if portBindingMatchesAny(pb.PortBinding, reqs) {
+			toDrop = append(toDrop, pb)
+		} else {
+			keepEphemeral = append(keepEphemeral, pb)
+		}
+	}
+
+	if len(toDrop) == 0 {
+		return nil
+	}
+
+	// unmapPBs is best-effort: it releases every binding's host port and stops its
+	// proxy, and calls DelPorts over the whole set, collecting errors instead of
+	// stopping at the first. So an error does not mean the bindings survived, and
+	// the endpoint has to stop tracking them either way - keeping them would leave
+	// it claiming reservations that have been released, and a retry would try to
+	// unmap them a second time. The error is still returned, to be reported.
+	err = network.unmapPBs(ctx, toDrop)
+
+	// Clean the host's conntrack state for the removed ports only, so flows to
+	// the endpoint's other, still-published ports are left undisturbed.
+	clearConntrackEntriesForPorts(d.nlh, toDrop)
+
+	endpoint.ephemeralPortMapping = keepEphemeral
+
+	return err
+}
+
+// portBindingMatchesAny reports whether pb corresponds to any of the requested
+// port bindings reqs, comparing the fields a caller specifies when requesting a
+// binding: protocol, container IP and port, and (when the request pins them) the
+// host IP and port. Operational-only fields (allocated socket, proxy handle) are
+// ignored.
+func portBindingMatchesAny(pb types.PortBinding, reqs []types.PortBinding) bool {
+	for _, req := range reqs {
+		if pb.Proto != req.Proto || pb.Port != req.Port {
+			continue
+		}
+		if len(req.IP) > 0 && !pb.IP.Equal(req.IP) {
+			continue
+		}
+		if req.HostPort != 0 && pb.HostPort != req.HostPort {
+			continue
+		}
+		if len(req.HostIP) > 0 && !req.HostIP.IsUnspecified() && !pb.HostIP.Equal(req.HostIP) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
 // trimPortBindings compares pbmReq with the current port bindings, and removes
 // port bindings that are no longer required.
 //
 // ep.portMapping is updated when bindings are removed.
 func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork, pbmReq portBindingMode) (func() []portmapperapi.PortBinding, error) {
+	// Only the persisted bindings (portMapping) are trimmed on a gateway-mode
+	// change. Ephemeral bindings (ephemeralPortMapping) are deliberately not
+	// touched: they have no stored config to re-derive from, so their owner is
+	// responsible for re-applying them across mode changes, and they're only used
+	// on endpoints whose gateway modes are stable (see AddEphemeralPorts).
+
 	// Drop IPv4 bindings if this endpoint is not the IPv4 gateway, unless the
 	// network is "routed" (routed bindings get dropped unconditionally by Leave).
 	drop4 := !pbmReq.ipv4 && !n.gwMode(firewaller.IPv4).routed()
@@ -1645,12 +1825,15 @@ func (ep *bridgeEndpoint) trimPortBindings(ctx context.Context, n *bridgeNetwork
 	}
 	ep.portMapping = toKeep
 
+	// The dropped bindings are always NATed (routed bindings aren't dropped here),
+	// so re-adding them means programming the IPv4/IPv6 modes that were dropped.
+	droppedModes := portBindingMode{ipv4: drop4, ipv6: drop6}
 	undo := func() []portmapperapi.PortBinding {
 		pbReq := make([]portmapperapi.PortBindingReq, 0, len(toDrop))
 		for _, pb := range toDrop {
 			pbReq = append(pbReq, portmapperapi.PortBindingReq{PortBinding: pb.Copy()})
 		}
-		pbs, err := n.addPortMappings(ctx, ep, pbReq, n.config.DefaultBindingIP, ep.portBindingState)
+		pbs, err := n.addPortMappings(ctx, ep, pbReq, n.config.DefaultBindingIP, droppedModes, ep.portBindingState)
 		if err != nil {
 			log.G(ctx).WithFields(log.Fields{
 				"error": err,
@@ -1688,14 +1871,26 @@ func clearConntrackEntries(nlh nlwrap.Handle, ep *bridgeEndpoint) {
 		ipv6List = append(ipv6List, ep.addrv6.IP)
 	}
 
+	iptables.DeleteConntrackEntries(nlh, ipv4List, ipv6List)
+	clearConntrackEntriesForPorts(nlh, ep.portMapping)
+}
+
+// clearConntrackEntriesForPorts flushes conntrack entries for the given port
+// bindings only, so that the newly-programmed (or newly-removed) NAT rules are
+// applied to their flows - see [clearConntrackEntries] for why that's needed.
+//
+// Unlike [clearConntrackEntries], it does not flush by the endpoint's IP
+// address, because that would tear down established flows to the endpoint's
+// other, unmodified ports. It's used when ports are added to or removed from an
+// endpoint that's already joined to a sandbox. Only UDP entries need clearing;
+// a stale TCP flow to a just-changed port is reset by its peer.
+func clearConntrackEntriesForPorts(nlh nlwrap.Handle, pbs []portmapperapi.PortBinding) {
 	var udpPorts []types.PortBinding
-	for _, pb := range ep.portMapping {
+	for _, pb := range pbs {
 		if pb.Proto == types.UDP {
 			udpPorts = append(udpPorts, pb.PortBinding)
 		}
 	}
-
-	iptables.DeleteConntrackEntries(nlh, ipv4List, ipv6List)
 	iptables.DeleteConntrackEntriesByPort(nlh, types.UDP, udpPorts)
 }
 

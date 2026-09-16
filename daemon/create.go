@@ -250,9 +250,11 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	}
 	daemon.updateContainerNetworkSettings(ctr, endpointsConfigs)
 
-	if err := daemon.nri.CreateContainer(ctx, ctr); err != nil {
+	releaseNRI, err := daemon.nri.CreateContainer(ctx, ctr)
+	if err != nil {
 		return nil, err
 	}
+	defer releaseNRI()
 
 	if err := daemon.registerMountPoints(ctr, opts.params.DefaultReadOnlyNonRecursive); err != nil {
 		return nil, err
@@ -281,6 +283,7 @@ func (daemon *Daemon) create(ctx context.Context, daemonCfg *config.Config, opts
 	if err := daemon.register(ctx, ctr); err != nil {
 		return nil, err
 	}
+	releaseNRI()
 	metrics.StateCtr.Set(ctr.ID, "stopped")
 	daemon.LogContainerEvent(ctr, events.ActionCreate)
 	return ctr, nil

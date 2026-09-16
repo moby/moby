@@ -1,19 +1,20 @@
-package plugin
+package plugin_test
 
 import (
 	"encoding/json"
 	"fmt"
 	"testing"
 
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
+	"github.com/moby/moby/api/types/plugin"
 	"pgregory.net/rapid"
 )
+
+type pluginCapabilityID plugin.CapabilityID
 
 // unmarshalJSON is a copy of the original PluginInterfaceType.UnmarshalJSON
 // parser, used to test that the new parser produces the same results for
 // well-formed inputs.
-func (t *CapabilityID) unmarshalJSON(p []byte) error {
+func (t *pluginCapabilityID) unmarshalJSON(p []byte) error {
 	versionIndex := len(p)
 	prefixIndex := 0
 	if len(p) < 2 || p[0] != '"' || p[len(p)-1] != '"' {
@@ -41,7 +42,7 @@ loop:
 func TestCapabilityID_MarshalUnmarshal(t *testing.T) {
 	stringgen := rapid.StringMatching(`[a-z0-9-./]*`)
 	rapid.Check(t, func(t *rapid.T) {
-		typ := CapabilityID{
+		typ := plugin.CapabilityID{
 			Capability: stringgen.Draw(t, "Capability"),
 			Prefix:     stringgen.Draw(t, "Prefix"),
 			Version:    stringgen.Draw(t, "Version"),
@@ -52,37 +53,51 @@ func TestCapabilityID_MarshalUnmarshal(t *testing.T) {
 		}
 		t.Logf("InterfaceType(%q)", b)
 
-		var roundtrip CapabilityID
-		err = roundtrip.UnmarshalText(b)
-		assert.Assert(t, err)
-		assert.Assert(t, is.DeepEqual(typ, roundtrip))
+		var roundtrip plugin.CapabilityID
+		if err := roundtrip.UnmarshalText(b); err != nil {
+			t.Fatal(err)
+		}
+		if typ != roundtrip {
+			t.Errorf("roundtrip = %+v, want %+v", roundtrip, typ)
+		}
 
 		jb, err := json.Marshal(string(b))
-		assert.Assert(t, err)
-		var oldparser CapabilityID
-		err = oldparser.unmarshalJSON(jb)
-		assert.Assert(t, err)
-		assert.Assert(t, is.DeepEqual(typ, oldparser), "new parser does not match the old parser")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var oldparser pluginCapabilityID
+		if err := oldparser.unmarshalJSON(jb); err != nil {
+			t.Fatal(err)
+		}
+		if typ != plugin.CapabilityID(oldparser) {
+			t.Errorf("new parser = %+v, old parser = %+v", typ, oldparser)
+		}
 	})
 }
 
 func TestCapabilityID_JSONMarshalUnmarshal(t *testing.T) {
 	type rt struct {
-		Type CapabilityID
+		Type plugin.CapabilityID
 	}
 	a := rt{
-		Type: CapabilityID{
+		Type: plugin.CapabilityID{
 			Capability: "foo",
 			Prefix:     "bar",
 			Version:    "baz",
 		},
 	}
 	b, err := json.Marshal(a)
-	assert.Assert(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Logf("JSON: %s", b)
 
 	var roundtrip rt
-	err = json.Unmarshal(b, &roundtrip)
-	assert.Assert(t, err)
-	assert.Assert(t, is.DeepEqual(a, roundtrip))
+	if err := json.Unmarshal(b, &roundtrip); err != nil {
+		t.Fatal(err)
+	}
+	if a != roundtrip {
+		t.Errorf("roundtrip = %+v, want %+v", roundtrip, a)
+	}
 }

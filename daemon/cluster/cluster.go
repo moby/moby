@@ -91,6 +91,7 @@ type Config struct {
 	PluginBackend          plugin.Backend
 	VolumeBackend          executorpkg.VolumeBackend
 	NetworkSubnetsProvider NetworkSubnetsProvider
+	GenerateServiceName    func(context.Context, int, string) (string, error)
 
 	// DefaultAdvertiseAddr is the default host/IP or network interface to use
 	// if no AdvertiseAddr value is specified.

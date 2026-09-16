@@ -94,5 +94,5 @@ func (cli *Client) tryImagePush(ctx context.Context, imageID string, query url.V
 	// We use [http.NoBody], which gets marshaled to an empty JSON document.
 	//
 	// see: https://github.com/moby/moby/commit/ea29dffaa541289591aa44fa85d2a596ce860e16
-	return cli.post(ctx, "/images/"+imageID+"/push", query, http.NoBody, hdr)
+	return cli.post(ctx, "/images/"+imageID+"/push", query, hdr, http.NoBody)
 }

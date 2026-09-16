@@ -1,16 +1,15 @@
 //go:build !windows
 
-package container
+package container_test
 
 import (
 	"testing"
 
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
+	"github.com/moby/moby/api/types/container"
 )
 
 func TestCgroupnsMode(t *testing.T) {
-	modes := map[CgroupnsMode]struct{ valid, private, host, empty bool }{
+	modes := map[container.CgroupnsMode]struct{ valid, private, host, empty bool }{
 		"":                {valid: true, empty: true},
 		":":               {valid: false},
 		"something":       {valid: false},
@@ -25,16 +24,16 @@ func TestCgroupnsMode(t *testing.T) {
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
-			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
-			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
-			assert.Check(t, is.Equal(mode.IsEmpty(), expected.empty))
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
+			checkEqual(t, mode.IsPrivate(), expected.private)
+			checkEqual(t, mode.IsHost(), expected.host)
+			checkEqual(t, mode.IsEmpty(), expected.empty)
+			checkEqual(t, mode.Valid(), expected.valid)
 		})
 	}
 }
 
 func TestCgroupSpec(t *testing.T) {
-	modes := map[CgroupSpec]struct {
+	modes := map[container.CgroupSpec]struct {
 		valid     bool
 		private   bool
 		host      bool
@@ -56,9 +55,9 @@ func TestCgroupSpec(t *testing.T) {
 
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
-			assert.Check(t, is.Equal(mode.IsContainer(), expected.container))
-			assert.Check(t, is.Equal(mode.Container(), expected.ctrName))
+			checkEqual(t, mode.Valid(), expected.valid)
+			checkEqual(t, mode.IsContainer(), expected.container)
+			checkEqual(t, mode.Container(), expected.ctrName)
 		})
 	}
 }
@@ -66,7 +65,7 @@ func TestCgroupSpec(t *testing.T) {
 // TODO Windows: This will need addressing for a Windows daemon.
 func TestNetworkMode(t *testing.T) {
 	// TODO(thaJeztah): we should consider the cases with a colon (":") in the network name to be invalid.
-	modes := map[NetworkMode]struct {
+	modes := map[container.NetworkMode]struct {
 		private, bridge, host, container, none, isDefault bool
 		name, ctrName                                     string
 	}{
@@ -87,20 +86,20 @@ func TestNetworkMode(t *testing.T) {
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
-			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
-			assert.Check(t, is.Equal(mode.IsBridge(), expected.bridge))
-			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
-			assert.Check(t, is.Equal(mode.IsContainer(), expected.container))
-			assert.Check(t, is.Equal(mode.IsNone(), expected.none))
-			assert.Check(t, is.Equal(mode.IsDefault(), expected.isDefault))
-			assert.Check(t, is.Equal(mode.NetworkName(), expected.name))
-			assert.Check(t, is.Equal(mode.ConnectedContainer(), expected.ctrName))
+			checkEqual(t, mode.IsPrivate(), expected.private)
+			checkEqual(t, mode.IsBridge(), expected.bridge)
+			checkEqual(t, mode.IsHost(), expected.host)
+			checkEqual(t, mode.IsContainer(), expected.container)
+			checkEqual(t, mode.IsNone(), expected.none)
+			checkEqual(t, mode.IsDefault(), expected.isDefault)
+			checkEqual(t, mode.NetworkName(), expected.name)
+			checkEqual(t, mode.ConnectedContainer(), expected.ctrName)
 		})
 	}
 }
 
 func TestIpcMode(t *testing.T) {
-	ipcModes := map[IpcMode]struct {
+	ipcModes := map[container.IpcMode]struct {
 		valid     bool
 		private   bool
 		host      bool
@@ -127,18 +126,18 @@ func TestIpcMode(t *testing.T) {
 
 	for mode, expected := range ipcModes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
-			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
-			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
-			assert.Check(t, is.Equal(mode.IsContainer(), expected.container))
-			assert.Check(t, is.Equal(mode.IsShareable(), expected.shareable))
-			assert.Check(t, is.Equal(mode.Container(), expected.ctrName))
+			checkEqual(t, mode.Valid(), expected.valid)
+			checkEqual(t, mode.IsPrivate(), expected.private)
+			checkEqual(t, mode.IsHost(), expected.host)
+			checkEqual(t, mode.IsContainer(), expected.container)
+			checkEqual(t, mode.IsShareable(), expected.shareable)
+			checkEqual(t, mode.Container(), expected.ctrName)
 		})
 	}
 }
 
 func TestUTSMode(t *testing.T) {
-	modes := map[UTSMode]struct{ valid, private, host bool }{
+	modes := map[container.UTSMode]struct{ valid, private, host bool }{
 		"":                {valid: true, private: true},
 		":":               {valid: false, private: true},
 		"something":       {valid: false, private: true},
@@ -151,15 +150,15 @@ func TestUTSMode(t *testing.T) {
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
-			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
-			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
+			checkEqual(t, mode.IsPrivate(), expected.private)
+			checkEqual(t, mode.IsHost(), expected.host)
+			checkEqual(t, mode.Valid(), expected.valid)
 		})
 	}
 }
 
 func TestUsernsMode(t *testing.T) {
-	modes := map[UsernsMode]struct{ valid, private, host bool }{
+	modes := map[container.UsernsMode]struct{ valid, private, host bool }{
 		"":                {valid: true, private: true},
 		":":               {valid: false, private: true},
 		"something":       {valid: false, private: true},
@@ -172,15 +171,15 @@ func TestUsernsMode(t *testing.T) {
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
-			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
-			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
+			checkEqual(t, mode.Valid(), expected.valid)
+			checkEqual(t, mode.IsPrivate(), expected.private)
+			checkEqual(t, mode.IsHost(), expected.host)
 		})
 	}
 }
 
 func TestPidMode(t *testing.T) {
-	modes := map[PidMode]struct {
+	modes := map[container.PidMode]struct {
 		valid     bool
 		private   bool
 		host      bool
@@ -203,17 +202,17 @@ func TestPidMode(t *testing.T) {
 	}
 	for mode, expected := range modes {
 		t.Run("mode="+string(mode), func(t *testing.T) {
-			assert.Check(t, is.Equal(mode.Valid(), expected.valid))
-			assert.Check(t, is.Equal(mode.IsPrivate(), expected.private))
-			assert.Check(t, is.Equal(mode.IsHost(), expected.host))
-			assert.Check(t, is.Equal(mode.IsContainer(), expected.container))
-			assert.Check(t, is.Equal(mode.Container(), expected.ctrName))
+			checkEqual(t, mode.Valid(), expected.valid)
+			checkEqual(t, mode.IsPrivate(), expected.private)
+			checkEqual(t, mode.IsHost(), expected.host)
+			checkEqual(t, mode.IsContainer(), expected.container)
+			checkEqual(t, mode.Container(), expected.ctrName)
 		})
 	}
 }
 
 func TestRestartPolicy(t *testing.T) {
-	policies := map[RestartPolicy]struct{ none, always, onFailure bool }{
+	policies := map[container.RestartPolicy]struct{ none, always, onFailure bool }{
 		{Name: "", MaximumRetryCount: 0}:           {none: true, always: false, onFailure: false},
 		{Name: "something", MaximumRetryCount: 0}:  {none: false, always: false, onFailure: false},
 		{Name: "no", MaximumRetryCount: 0}:         {none: true, always: false, onFailure: false},
@@ -222,9 +221,9 @@ func TestRestartPolicy(t *testing.T) {
 	}
 	for policy, expected := range policies {
 		t.Run("policy="+string(policy.Name), func(t *testing.T) {
-			assert.Check(t, is.Equal(policy.IsNone(), expected.none))
-			assert.Check(t, is.Equal(policy.IsAlways(), expected.always))
-			assert.Check(t, is.Equal(policy.IsOnFailure(), expected.onFailure))
+			checkEqual(t, policy.IsNone(), expected.none)
+			checkEqual(t, policy.IsAlways(), expected.always)
+			checkEqual(t, policy.IsOnFailure(), expected.onFailure)
 		})
 	}
 }

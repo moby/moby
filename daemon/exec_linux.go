@@ -43,18 +43,19 @@ func getUserFromContainerd(ctx context.Context, containerdCli *containerd.Client
 
 func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, daemonCfg *config.Config, ec *container.ExecConfig, p *specs.Process) error {
 	if ec.User != "" {
+		var user specs.User
 		var err error
 		if daemon.UsesSnapshotter() {
-			p.User, err = getUserFromContainerd(ctx, daemon.containerdClient, ec)
-			if err != nil {
-				return err
-			}
+			user, err = getUserFromContainerd(ctx, daemon.containerdClient, ec)
 		} else {
-			p.User, err = getUser(ec.Container, ec.User)
-			if err != nil {
-				return err
-			}
+			user, err = getUser(ec.Container, ec.User)
 		}
+		if err != nil {
+			return err
+		}
+		// Preserve the umask inherited from the container's process spec.
+		user.Umask = p.User.Umask
+		p.User = user
 	}
 
 	if ec.Privileged {
@@ -84,7 +85,7 @@ func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, daemonCfg *config.
 			// telling the system to keep our profile loaded, in order to make
 			// sure that we keep the default profile enabled we load it again
 			// if it is missing.
-			if err := loadDefaultAppArmorProfileIfMissing(); err != nil {
+			if err := daemon.loadDefaultAppArmorProfileIfMissing(); err != nil {
 				return err
 			}
 		}

@@ -99,13 +99,12 @@ func (cli *Client) tryPluginPrivileges(ctx context.Context, query url.Values, re
 	})
 }
 
-func (cli *Client) tryPluginPull(ctx context.Context, query url.Values, privileges plugin.Privileges, registryAuth string) (*http.Response, error) {
-	return cli.post(ctx, "/plugins/pull", query, privileges, http.Header{
-		registry.AuthHeader: {registryAuth},
-	})
+func (cli *Client) tryPluginPull(ctx context.Context, query url.Values, privileges []plugin.Privilege, registryAuth string) (*http.Response, error) {
+	headers := http.Header{registry.AuthHeader: {registryAuth}}
+	return cli.post(ctx, "/plugins/pull", query, headers, privileges)
 }
 
-func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values, options pluginOptions) (plugin.Privileges, error) {
+func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values, options pluginOptions) ([]plugin.Privilege, error) {
 	resp, err := cli.tryPluginPrivileges(ctx, query, options.getRegistryAuth())
 	if cerrdefs.IsUnauthorized(err) && options.getPrivilegeFunc() != nil {
 		// TODO: do inspect before to check existing name before checking privileges
@@ -122,7 +121,7 @@ func (cli *Client) checkPluginPermissions(ctx context.Context, query url.Values,
 		return nil, err
 	}
 
-	var privileges plugin.Privileges
+	var privileges []plugin.Privilege
 	if err := json.NewDecoder(resp.Body).Decode(&privileges); err != nil {
 		ensureReaderClosed(resp)
 		return nil, err

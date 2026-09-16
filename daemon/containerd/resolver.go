@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"net/http"
+	"sync"
 
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
@@ -19,7 +20,28 @@ import (
 func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig *registrytypes.AuthConfig, ref reference.Named, metaHeaders http.Header) (remotes.Resolver, docker.StatusTracker) {
 	tracker := docker.NewInMemoryTracker()
 
-	hosts := hostsWrapper(i.registryHosts, authConfig, ref)
+	hosts := i.registryHosts
+	if authConfig != nil {
+		authConfig := *authConfig
+		var mu sync.Mutex
+		// Keep each host, client, and authorizer together so registry and token
+		// requests use matching transport settings across resolver phases.
+		hostsByName := map[string][]docker.RegistryHost{}
+		hosts = func(name string) ([]docker.RegistryHost, error) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			if hosts, ok := hostsByName[name]; ok {
+				return hosts, nil
+			}
+			hosts, err := hostsWrapper(i.registryHosts, authConfig, ref, name)
+			if err != nil {
+				return nil, err
+			}
+			hostsByName[name] = hosts
+			return hosts, nil
+		}
+	}
 	headers := http.Header{}
 	if metaHeaders != nil {
 		headers = metaHeaders.Clone()
@@ -33,22 +55,15 @@ func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig
 	}), tracker
 }
 
-func hostsWrapper(hostsFn docker.RegistryHosts, optAuthConfig *registrytypes.AuthConfig, ref reference.Named) docker.RegistryHosts {
-	if optAuthConfig == nil {
-		return hostsFn
+func hostsWrapper(hostsFn docker.RegistryHosts, authConfig registrytypes.AuthConfig, ref reference.Named, name string) ([]docker.RegistryHost, error) {
+	hosts, err := hostsFn(name)
+	if err != nil {
+		return nil, err
 	}
-
-	return func(n string) ([]docker.RegistryHost, error) {
-		hosts, err := hostsFn(n)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := range hosts {
-			hosts[i].Authorizer = authorizerFromAuthConfig(*optAuthConfig, ref, hosts[i].Client)
-		}
-		return hosts, nil
+	for i := range hosts {
+		hosts[i].Authorizer = authorizerFromAuthConfig(authConfig, ref, hosts[i].Client)
 	}
+	return hosts, nil
 }
 
 func authorizerFromAuthConfig(authConfig registrytypes.AuthConfig, ref reference.Named, client *http.Client) docker.Authorizer {

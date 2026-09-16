@@ -78,7 +78,7 @@ func (cli *Client) ServiceCreate(ctx context.Context, options ServiceCreateOptio
 	if options.EncodedRegistryAuth != "" {
 		headers[registry.AuthHeader] = []string{options.EncodedRegistryAuth}
 	}
-	resp, err := cli.post(ctx, "/services/create", nil, options.Spec, headers)
+	resp, err := cli.post(ctx, "/services/create", nil, headers, options.Spec)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return ServiceCreateResult{}, err

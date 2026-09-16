@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
@@ -192,6 +193,9 @@ func (container *Container) GetMountPoints() []containertypes.MountPoint {
 			RW:          m.RW,
 		})
 	}
+	slices.SortStableFunc(mountPoints, func(a, b containertypes.MountPoint) int {
+		return compareMountPaths(a.Destination, b.Destination)
+	})
 	return mountPoints
 }
 

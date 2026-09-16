@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -406,7 +405,8 @@ func (n *Namespace) generateIfaceName(prefix string) string {
 		}
 	}
 
-	sort.Ints(suffixes)
+	slices.Sort(suffixes)
+	suffixes = slices.Compact(suffixes)
 
 	// There are gaps in the numbering; find the first unused number.
 	//
@@ -415,8 +415,8 @@ func (n *Namespace) generateIfaceName(prefix string) string {
 	// name overflow the IFNAMSIZ limit (= 16 chars), the kernel would reject
 	// that interface name while there are other unused numbers. So, instead
 	// use the lowest suffix available.
-	for i := 0; i < len(suffixes); i++ {
-		if i != suffixes[i] {
+	for i, suffix := range suffixes {
+		if i != suffix {
 			return prefix + strconv.Itoa(i)
 		}
 	}

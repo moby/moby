@@ -1,4 +1,4 @@
-// Copyright The Moby Authors.
+// SPDX-FileCopyrightText: Copyright The Moby Authors
 // SPDX-License-Identifier: Apache-2.0
 
 //go:build linux
@@ -80,16 +80,10 @@ func installDefault(ctx context.Context, name string) error {
 	// Figure out the daemon profile.
 	var daemonProfile string
 	if currentProfile, err := os.ReadFile("/proc/self/attr/current"); err == nil {
-		// /proc/self/attr/current returns the current label for the process.
-		// Unlike /sys/kernel/security/apparmor/profiles, this value may not
-		// include a " (<mode>)" suffix (e.g. it can be just "unconfined").
-		// If a suffix is present, it is of the form "<profile> (<mode>)".
-		// Profile names may contain spaces, so split on " (" rather than the
-		// first space. Trim whitespace first because the value includes a
-		// trailing newline.
-		if profile, _, _ := strings.Cut(strings.TrimSpace(string(currentProfile)), " ("); profile != "" {
-			daemonProfile = profile
-		}
+		// Profile may be either "<profile> (<mode>)", e.g. "foo (enforce)"
+		// or a bare profile (e.g. "unconfined"). Use cleanProfileName to
+		// only get the profile name.
+		daemonProfile = cleanProfileName(string(currentProfile))
 	}
 
 	p := profileData{
@@ -121,9 +115,10 @@ func isLoaded(name string, fileName string) (bool, error) {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		// Entries are of the form "<profile> (<mode>)", e.g. "foo (enforce)".
-		// Profile names may contain spaces (quoted names are supported in AppArmor),
-		// so split on " (" rather than the first space.
-		if prefix, _, ok := strings.Cut(scanner.Text(), " ("); ok && prefix == name {
+		// Profile names may contain spaces (quoted names are supported in AppArmor);
+		// use splitCon to correctly handle profile names containing spaces and/or parentheses.
+		label, _ := splitCon(scanner.Text())
+		if label == name {
 			return true, nil
 		}
 	}
@@ -144,4 +139,53 @@ func loadProfile(ctx context.Context, profile io.Reader) error {
 	}
 
 	return nil
+}
+
+// cleanProfileName returns the AppArmor profile name from a confinement
+// context as reported by /proc/self/attr/current.
+//
+// The value may be either a bare profile name, "unconfined", or a profile name
+// with a trailing mode suffix of the form " (<mode>)". If profile is empty,
+// cleanProfileName returns "unconfined".
+func cleanProfileName(profile string) string {
+	label, _ := splitCon(profile)
+	if label == "" {
+		return "unconfined"
+	}
+	return label
+}
+
+// splitCon splits an AppArmor confinement context into a label and mode,
+// similar to libapparmor [splitcon]. splitCon follows libapparmor's parsing
+// semantics and does not validate the returned mode.
+//
+// /proc/self/attr/current returns the current label for the process, but
+// unlike /sys/kernel/security/apparmor/profiles, this value may not include
+// a " (<mode>)" suffix.
+//
+// Supported forms:
+//
+//	<profile>
+//	<profile> (<mode>)
+//	unconfined
+//
+// splitCon strips one trailing newline before parsing.
+//
+// [splitcon]: https://gitlab.com/apparmor/apparmor/-/blob/v5.0.1/libraries/libapparmor/src/kernel.c#L562-615
+func splitCon(con string) (label, mode string) {
+	// Value includes a trailing newline.
+	con = strings.TrimSuffix(con, "\n")
+	if con == "" || con == "unconfined" {
+		return con, ""
+	}
+
+	if strings.HasSuffix(con, ")") {
+		// Profile names may contain spaces, so split on the last " (" before
+		// the trailing ")" rather than the first space.
+		if i := strings.LastIndex(con[:len(con)-1], " ("); i >= 0 {
+			return con[:i], con[i+2 : len(con)-1]
+		}
+	}
+
+	return con, ""
 }

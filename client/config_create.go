@@ -19,7 +19,7 @@ type ConfigCreateResult struct {
 
 // ConfigCreate creates a new config.
 func (cli *Client) ConfigCreate(ctx context.Context, options ConfigCreateOptions) (ConfigCreateResult, error) {
-	resp, err := cli.post(ctx, "/configs/create", nil, options.Spec, nil)
+	resp, err := cli.post(ctx, "/configs/create", nil, nil, options.Spec)
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return ConfigCreateResult{}, err

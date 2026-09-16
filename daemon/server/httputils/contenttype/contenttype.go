@@ -3,8 +3,8 @@ package contenttype
 import (
 	"net/http"
 
-	"github.com/golang/gddo/httputil"
-	"github.com/golang/gddo/httputil/header"
+	"github.com/moby/moby/v2/daemon/server/httputils/internal/httputil"
+	"github.com/moby/moby/v2/daemon/server/httputils/internal/httputil/header"
 )
 
 // MatchAcceptStrict returns the best matching offer explicitly listed in the

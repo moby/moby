@@ -1,6 +1,7 @@
 package nri
 
 import (
+	"slices"
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
@@ -33,10 +34,13 @@ func newTestContainer(entrypoint, cmd []string) *container.Container {
 }
 
 func TestContainerToNRIArgs(t *testing.T) {
+	initEnabled := true
+	initDisabled := false
 	tests := []struct {
 		name       string
 		entrypoint []string
 		cmd        []string
+		init       *bool
 		expArgs    []string
 	}{
 		{
@@ -46,10 +50,24 @@ func TestContainerToNRIArgs(t *testing.T) {
 			expArgs:    []string{"echo", "hello"},
 		},
 		{
-			name:       "entrypoint with args plus cmd",
+			name:       "init enabled",
 			entrypoint: []string{"/usr/bin/tool", "--mode"},
-			cmd:        []string{"input"},
-			expArgs:    []string{"/usr/bin/tool", "--mode", "input"},
+			cmd:        []string{"input", "output"},
+			init:       &initEnabled,
+			expArgs:    []string{"/usr/bin/tool", "--mode", "input", "output"},
+		},
+		{
+			name:       "daemon init default possible",
+			entrypoint: []string{"/usr/bin/tool", "--mode"},
+			cmd:        []string{"input", "output"},
+			expArgs:    []string{"/usr/bin/tool", "--mode", "input", "output"},
+		},
+		{
+			name:       "init disabled",
+			entrypoint: []string{"/usr/bin/tool", "--mode"},
+			cmd:        []string{"input", "output"},
+			init:       &initDisabled,
+			expArgs:    []string{"/usr/bin/tool", "--mode", "input", "output"},
 		},
 		{
 			name:    "cmd only",
@@ -65,12 +83,15 @@ func TestContainerToNRIArgs(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctr := newTestContainer(tc.entrypoint, tc.cmd)
+			ctr.HostConfig.Init = tc.init
 			_, nriCtr, err := containerToNRI(ctr)
 			assert.NilError(t, err)
 			assert.Check(t, is.DeepEqual(nriCtr.Args, tc.expArgs))
-			// The NRI args must match the process args placed in the OCI spec,
-			// which are constructed as append([]string{c.Path}, c.Args...).
+			// NRI reports the resolved workload argv, not OCI-only wrappers.
 			assert.Check(t, is.DeepEqual(nriCtr.Args, append([]string{ctr.Path}, ctr.Args...)))
+			for _, initArg := range []string{"/sbin/docker-init", "--", "/usr/libexec/docker-init"} {
+				assert.Check(t, !slices.Contains(nriCtr.Args, initArg), "NRI args unexpectedly include init argument %q: %v", initArg, nriCtr.Args)
+			}
 		})
 	}
 }

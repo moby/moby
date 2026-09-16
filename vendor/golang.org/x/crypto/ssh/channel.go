@@ -173,6 +173,12 @@ type channel struct {
 	// (for outbound channels) or received (for inbound channels).
 	decided bool
 
+	// established is set to true once the channel is open and may carry normal
+	// channel traffic: for an outbound channel when the peer's open
+	// confirmation is received, for an inbound channel when the local side
+	// accepts it. It is set and read from different goroutines.
+	established atomic.Bool
+
 	// direction contains either channelOutbound, for channels created
 	// locally, or channelInbound, for channels created by the peer.
 	direction channelDirection
@@ -434,10 +440,20 @@ func (ch *channel) responseMessageReceived() error {
 		return errors.New("ssh: duplicate response received for channel")
 	}
 	ch.decided = true
+	ch.established.Store(true)
 	return nil
 }
 
 func (ch *channel) handlePacket(packet []byte) error {
+	// Only the open response is expected before the channel is established.
+	if !ch.established.Load() {
+		switch packet[0] {
+		case msgChannelOpenConfirm, msgChannelOpenFailure:
+		default:
+			return nil
+		}
+	}
+
 	switch packet[0] {
 	case msgChannelData, msgChannelExtendedData:
 		return ch.handleData(packet)
@@ -503,7 +519,8 @@ func (ch *channel) handlePacket(packet []byte) error {
 		default:
 		}
 	default:
-		ch.msg <- msg
+		// No other message type is expected on an established channel.
+		return fmt.Errorf("ssh: unexpected message type %d on channel %d", packet[0], ch.localId)
 	}
 	return nil
 }
@@ -554,6 +571,7 @@ func (ch *channel) Accept() (Channel, <-chan *Request, error) {
 		MaxPacketSize: ch.maxIncomingPayload,
 	}
 	ch.decided = true
+	ch.established.Store(true)
 	if err := ch.sendMessage(confirm); err != nil {
 		return nil, nil, err
 	}

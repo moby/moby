@@ -1,3 +1,21 @@
+# Release (2026-08-26)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.28.1
+  * **Bug Fix**: Fix broken AddLogger middleware since its insert point was removed.
+
+# Release (2026-08-25.2)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.28.0
+  * **Feature**: Set `Content-Length` inline when the request body is set via `SetStream`. The `ComputeContentLength` middleware is now deprecated.
+
 # Release (2026-08-25)
 
 ## General Highlights

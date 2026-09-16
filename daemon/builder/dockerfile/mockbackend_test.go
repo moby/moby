@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"runtime"
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/builder"
@@ -95,8 +94,8 @@ func (i *mockImage) RunConfig() *container.Config {
 	return i.config
 }
 
-func (i *mockImage) OperatingSystem() string {
-	return runtime.GOOS
+func (i *mockImage) Platform() ocispec.Platform {
+	return ocispec.Platform{}
 }
 
 func (i *mockImage) MarshalJSON() ([]byte, error) {

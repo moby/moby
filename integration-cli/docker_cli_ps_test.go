@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/client/pkg/stringid"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
@@ -392,26 +392,13 @@ func (s *DockerCLIPsSuite) TestPsListContainersFilterAncestorImage(c *testing.T)
 	checkPsAncestorFilterOutput(c, RemoveOutputForExistingElements(out, existingContainers), imageName2+","+imageName1Tagged, []string{fourthID, fifthID})
 }
 
-func checkPsAncestorFilterOutput(t *testing.T, out string, filterName string, expectedIDs []string) {
-	var actualIDs []string
-	if out != "" {
-		actualIDs = strings.Split(out[:len(out)-1], "\n")
-	}
-	sort.Strings(actualIDs)
-	sort.Strings(expectedIDs)
+func checkPsAncestorFilterOutput(t *testing.T, out, filterName string, expectedIDs []string) {
+	t.Helper()
 
-	assert.Equal(t, len(actualIDs), len(expectedIDs), fmt.Sprintf("Expected filtered container(s) for %s ancestor filter to be %v:%v, got %v:%v", filterName, len(expectedIDs), expectedIDs, len(actualIDs), actualIDs))
-	if len(expectedIDs) > 0 {
-		same := true
-		for i := range expectedIDs {
-			if actualIDs[i] != expectedIDs[i] {
-				t.Logf("%s, %s", actualIDs[i], expectedIDs[i])
-				same = false
-				break
-			}
-		}
-		assert.Equal(t, same, true, fmt.Sprintf("Expected filtered container(s) for %s ancestor filter to be %v, got %v", filterName, expectedIDs, actualIDs))
-	}
+	actualIDs := strings.Fields(out)
+	assert.Assert(t, is.DeepEqual(actualIDs, expectedIDs, cmpopts.SortSlices(func(a, b string) bool {
+		return a < b
+	})), "unexpected containers for %s ancestor filter", filterName)
 }
 
 func (s *DockerCLIPsSuite) TestPsListContainersFilterLabel(c *testing.T) {

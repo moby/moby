@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/moby/moby/api/types/swarm"
@@ -39,39 +40,46 @@ func TestCreateServiceNameConflict(t *testing.T) {
 		name      string
 		conflicts int
 		err       error
-		expCalls  int
+		expNames  []string
 		expErr    codes.Code
 	}{
 		{
 			doc:       "generated name is redrawn on conflict",
 			conflicts: 1,
-			expCalls:  2,
+			expNames:  []string{"generated-0", "generated-1"},
 		},
 		{
 			doc:       "gives up after six draws",
 			conflicts: 100,
-			expCalls:  6,
+			expNames:  []string{"generated-0", "generated-1", "generated-2", "generated-3", "generated-4", "generated-5"},
 			expErr:    codes.AlreadyExists,
 		},
 		{
 			doc:       "caller-chosen name is not redrawn",
 			name:      "bold_lichterman",
 			conflicts: 1,
-			expCalls:  1,
+			expNames:  []string{"bold_lichterman"},
 			expErr:    codes.AlreadyExists,
 		},
 		{
 			doc:       "other errors are not retried",
 			conflicts: 1,
 			err:       status.Error(codes.InvalidArgument, "invalid spec"),
-			expCalls:  1,
+			expNames:  []string{"generated-0"},
 			expErr:    codes.InvalidArgument,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
 			client := &fakeServiceCreator{conflicts: tc.conflicts, err: tc.err}
-			cluster := &Cluster{nr: &nodeRunner{nodeState: nodeState{controlClient: client}}}
+			var generatedImages []string
+			cluster := &Cluster{
+				config: Config{GenerateServiceName: func(_ context.Context, retry int, image string) (string, error) {
+					generatedImages = append(generatedImages, image)
+					return fmt.Sprintf("generated-%d", retry), nil
+				}},
+				nr: &nodeRunner{nodeState: nodeState{controlClient: client}},
+			}
 			resp, err := cluster.CreateService(swarm.ServiceSpec{
 				Annotations: swarm.Annotations{Name: tc.name},
 				TaskTemplate: swarm.TaskSpec{
@@ -79,13 +87,18 @@ func TestCreateServiceNameConflict(t *testing.T) {
 				},
 			}, "", false)
 
-			assert.Check(t, is.Len(client.names, tc.expCalls))
+			assert.Check(t, is.DeepEqual(client.names, tc.expNames))
+			if tc.name == "" {
+				assert.Check(t, is.Len(generatedImages, len(tc.expNames)))
+				for _, image := range generatedImages {
+					assert.Check(t, is.Equal(image, "image"))
+				}
+			} else {
+				assert.Check(t, is.Len(generatedImages, 0))
+			}
 			assert.Check(t, is.Equal(status.Code(err), tc.expErr))
 			if tc.expErr == codes.OK {
 				assert.Check(t, is.Equal(resp.ID, "serviceid"))
-			}
-			if len(client.names) > 1 {
-				assert.Check(t, client.names[1] != client.names[0])
 			}
 		})
 	}

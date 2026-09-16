@@ -115,7 +115,7 @@ func (daemon *Daemon) newContainer(name string, platform ocispec.Platform, confi
 		id  string
 		err error
 	)
-	id, name, err = daemon.generateIDAndName(name)
+	id, name, err = daemon.generateIDAndName(name, config.Image)
 	if err != nil {
 		return nil, err
 	}

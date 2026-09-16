@@ -270,7 +270,7 @@ func (n *network) setupNonInternalNetworkRules(ctx context.Context, ipVer iptabl
 		if err != nil {
 			return err
 		}
-		if err := programChainRule(iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{
+		if err := programChainRule(iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: dockerForwardChain, Args: []string{
 			"-m", "mark", "--mark", fwm, "-j", "ACCEPT",
 		}}, "ALLOW FW MARK", enable); err != nil {
 			return err
@@ -323,7 +323,7 @@ func (n *network) setupNonInternalNetworkRules(ctx context.Context, ipVer iptabl
 	// to ACCEPT packets that weren't ICC - an extra rule was needed to enable
 	// ICC if needed. Those rules are now combined. So, outRuleNoICC is only
 	// needed for ICC=false, along with the DROP rule for ICC added by setIcc.
-	outRuleNoICC := iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{
+	outRuleNoICC := iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: dockerForwardChain, Args: []string{
 		"-i", n.config.IfName,
 		"!", "-o", n.config.IfName,
 		"-j", "ACCEPT",
@@ -336,7 +336,7 @@ func (n *network) setupNonInternalNetworkRules(ctx context.Context, ipVer iptabl
 	}
 	if n.config.ICC {
 		// Accept outgoing traffic to anywhere, including other containers on this bridge.
-		outRuleICC := iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: DockerForwardChain, Args: []string{
+		outRuleICC := iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: dockerForwardChain, Args: []string{
 			"-i", n.config.IfName,
 			"-j", "ACCEPT",
 		}}
@@ -362,8 +362,8 @@ func (n *network) setupNonInternalNetworkRules(ctx context.Context, ipVer iptabl
 
 func setIcc(ctx context.Context, version iptables.IPVersion, bridgeIface string, iccEnable, internal, insert bool) error {
 	args := []string{"-i", bridgeIface, "-o", bridgeIface, "-j"}
-	acceptRule := iptables.Rule{IPVer: version, Table: iptables.Filter, Chain: DockerForwardChain, Args: append(args, "ACCEPT")}
-	dropRule := iptables.Rule{IPVer: version, Table: iptables.Filter, Chain: DockerForwardChain, Args: append(args, "DROP")}
+	acceptRule := iptables.Rule{IPVer: version, Table: iptables.Filter, Chain: dockerForwardChain, Args: append(args, "ACCEPT")}
+	dropRule := iptables.Rule{IPVer: version, Table: iptables.Filter, Chain: dockerForwardChain, Args: append(args, "DROP")}
 
 	// The accept rule is no longer required for a bridge with external connectivity, because
 	// ICC traffic is allowed by the outgoing-packets rule created by setupIptablesInternal.
@@ -402,8 +402,11 @@ func setIcc(ctx context.Context, version iptables.IPVersion, bridgeIface string,
 	return nil
 }
 
-// Obsolete chain from previous docker versions
-const oldIsolationChain = "DOCKER-ISOLATION"
+// Obsolete chains from previous docker versions
+const (
+	oldIsolationChain = "DOCKER-ISOLATION"
+	oldIngressChain   = "DOCKER-INGRESS"
+)
 
 func removeIPChains(ctx context.Context, version iptables.IPVersion) {
 	ipt := iptables.GetIptable(version)
@@ -414,7 +417,7 @@ func removeIPChains(ctx context.Context, version iptables.IPVersion) {
 	// Remove chains
 	for _, chainInfo := range []iptables.ChainInfo{
 		{Name: dockerChain, Table: iptables.Nat, IPVersion: version},
-		{Name: DockerForwardChain, Table: iptables.Filter, IPVersion: version},
+		{Name: dockerForwardChain, Table: iptables.Filter, IPVersion: version},
 		{Name: dockerBridgeChain, Table: iptables.Filter, IPVersion: version},
 		{Name: dockerChain, Table: iptables.Filter, IPVersion: version},
 		{Name: dockerCTChain, Table: iptables.Filter, IPVersion: version},
@@ -422,6 +425,8 @@ func removeIPChains(ctx context.Context, version iptables.IPVersion) {
 		{Name: isolationChain1, Table: iptables.Filter, IPVersion: version},
 		{Name: isolationChain2, Table: iptables.Filter, IPVersion: version},
 		{Name: oldIsolationChain, Table: iptables.Filter, IPVersion: version},
+		{Name: oldIngressChain, Table: iptables.Filter, IPVersion: version},
+		{Name: oldIngressChain, Table: iptables.Nat, IPVersion: version},
 	} {
 		if err := chainInfo.Remove(); err != nil {
 			log.G(ctx).Warnf("Failed to remove existing iptables entries in table %s chain %s : %v", chainInfo.Table, chainInfo.Name, err)

@@ -21,7 +21,7 @@ func (cli *Client) PluginSet(ctx context.Context, name string, options PluginSet
 		return PluginSetResult{}, err
 	}
 
-	resp, err := cli.post(ctx, "/plugins/"+name+"/set", nil, options.Args, nil)
+	resp, err := cli.post(ctx, "/plugins/"+name+"/set", nil, nil, options.Args)
 	defer ensureReaderClosed(resp)
 	return PluginSetResult{}, err
 }

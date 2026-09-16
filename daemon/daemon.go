@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"text/template"
 	"time"
 
 	containerd "github.com/containerd/containerd/v2/client"
@@ -86,6 +87,7 @@ import (
 	volumesservice "github.com/moby/moby/v2/daemon/volume/service"
 	"github.com/moby/moby/v2/dockerversion"
 	"github.com/moby/moby/v2/pkg/authorization"
+	"github.com/moby/moby/v2/pkg/meminfo"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/moby/v2/pkg/sysinfo"
 	policyverifier "github.com/moby/policy-helpers"
@@ -141,8 +143,10 @@ type Daemon struct {
 
 	machineMemory uint64
 
-	seccompProfile     []byte
-	seccompProfilePath string
+	seccompProfile      []byte
+	seccompProfilePath  string
+	appArmorProfile     *template.Template
+	appArmorProfilePath string
 
 	usageContainers singleflight.Group[bool, *backend.ContainerDiskUsage]
 	usageImages     singleflight.Group[bool, *backend.ImageDiskUsage]
@@ -981,6 +985,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err := d.setupSeccompProfile(&cfgStore.Config); err != nil {
 		return nil, err
 	}
+	if err := d.setupAppArmorProfile(&cfgStore.Config); err != nil {
+		return nil, err
+	}
 
 	// Set the default isolation mode (only applicable on Windows)
 	if err := d.setDefaultIsolation(&cfgStore.Config); err != nil {
@@ -993,7 +1000,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	// Always install the default AppArmor profile at startup to pick up
 	// any changes to the profile template from a daemon upgrade.
-	if err := installDefaultAppArmorProfile(); err != nil {
+	if err := d.installDefaultAppArmorProfile(); err != nil {
 		log.G(ctx).WithError(err).Error("Failed to load default apparmor profile")
 	}
 
@@ -1124,6 +1131,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 	d.execCommands = container.NewExecStore()
+	if runtime.GOOS == "linux" {
+		if mi, err := meminfo.Read(); err == nil && mi.MemTotal > 0 {
+			d.machineMemory = uint64(mi.MemTotal)
+		}
+	}
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
 
 	d.EventsService = events.New()

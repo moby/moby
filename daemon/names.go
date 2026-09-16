@@ -10,7 +10,8 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/names"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/moby/moby/v2/internal/namesgenerator"
+	containernamegeneratorv0 "github.com/moby/moby/v2/extpoints/containernamegenerator/v0"
+	servicenamegeneratorv0 "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0"
 	"github.com/pkg/errors"
 )
 
@@ -29,7 +30,7 @@ func (daemon *Daemon) registerName(container *container.Container) error {
 		return errors.New("container is already loaded")
 	}
 	if container.Name == "" {
-		name, err := daemon.generateAndReserveName(container.ID)
+		name, err := daemon.generateAndReserveName(container.ID, container.Config.Image)
 		if err != nil {
 			return err
 		}
@@ -39,14 +40,14 @@ func (daemon *Daemon) registerName(container *container.Container) error {
 	return daemon.containersReplica.ReserveName(container.Name, container.ID)
 }
 
-func (daemon *Daemon) generateIDAndName(name string) (string, string, error) {
+func (daemon *Daemon) generateIDAndName(name, image string) (string, string, error) {
 	var (
 		err error
 		id  = stringid.GenerateRandomID()
 	)
 
 	if name == "" {
-		if name, err = daemon.generateAndReserveName(id); err != nil {
+		if name, err = daemon.generateAndReserveName(id, image); err != nil {
 			return "", "", err
 		}
 		return id, name, nil
@@ -85,10 +86,61 @@ func (daemon *Daemon) releaseName(name string) {
 	daemon.containersReplica.ReleaseName(name)
 }
 
-func (daemon *Daemon) generateAndReserveName(id string) (string, error) {
+// GenerateServiceName resolves the configured service name-generator extension.
+func (daemon *Daemon) GenerateServiceName(ctx context.Context, retry int, image string) (string, error) {
+	if daemon.extensionHost == nil {
+		return "", errors.New("name generator extension host is not configured")
+	}
+
+	reply, err := servicenamegeneratorv0.GenerateServiceName(ctx, daemon.extensionHost, &servicenamegeneratorv0.GenerateServiceNameRequest{
+		Retry: int64(retry),
+		Image: image,
+	})
+	var name string
+	if reply != nil {
+		name = reply.Name
+	}
+	return generatedName(ctx, name, err)
+}
+
+func (daemon *Daemon) generateContainerName(ctx context.Context, req *containernamegeneratorv0.GenerateContainerNameRequest) (string, error) {
+	if daemon.extensionHost == nil {
+		return "", errors.New("name generator extension host is not configured")
+	}
+
+	reply, err := containernamegeneratorv0.GenerateContainerName(ctx, daemon.extensionHost, req)
+	var name string
+	if reply != nil {
+		name = reply.Name
+	}
+	return generatedName(ctx, name, err)
+}
+
+func generatedName(ctx context.Context, name string, err error) (string, error) {
+	if name != "" {
+		if err != nil {
+			log.G(ctx).WithError(err).Warn("name generator extension failed; using built-in fallback")
+		}
+		return name, nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return "", errors.New("name generator returned no name")
+}
+
+func (daemon *Daemon) generateAndReserveName(id, image string) (string, error) {
 	var name string
 	for i := range 6 {
-		name = namesgenerator.GetRandomName(i)
+		var err error
+		name, err = daemon.generateContainerName(context.TODO(), &containernamegeneratorv0.GenerateContainerNameRequest{
+			Retry:       int64(i),
+			ContainerID: id,
+			Image:       image,
+		})
+		if err != nil {
+			return "", err
+		}
 		if name[0] != '/' {
 			name = "/" + name
 		}

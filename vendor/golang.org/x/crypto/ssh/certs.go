@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"slices"
 	"sort"
 	"time"
 )
@@ -305,8 +306,11 @@ const sourceAddressCriticalOption = "source-address"
 // minimally, the IsAuthority callback should be set.
 type CertChecker struct {
 	// SupportedCriticalOptions lists the CriticalOptions that the
-	// server application layer understands. These are only used
-	// for user certificates.
+	// application layer understands. A certificate carrying a critical
+	// option that is not listed here is rejected.
+	// CertChecker.Authenticate additionally accepts the source-address
+	// option, which the server enforces on the Permissions that
+	// Authenticate returns.
 	SupportedCriticalOptions []string
 
 	// IsUserAuthority should return true if the key is recognized as an
@@ -369,8 +373,9 @@ func (c *CertChecker) CheckHostKey(addr string, remote net.Addr, key PublicKey) 
 	return c.CheckCert(hostname, cert)
 }
 
-// Authenticate checks a user certificate. Authenticate can be used as
-// a value for ServerConfig.PublicKeyCallback.
+// Authenticate checks a user certificate. Authenticate can be used as a value
+// for ServerConfig.PublicKeyCallback. The source-address critical option is
+// allowed, as it will be enforced by the server.
 func (c *CertChecker) Authenticate(conn ConnMetadata, pubKey PublicKey) (*Permissions, error) {
 	cert, ok := pubKey.(*Certificate)
 	if !ok {
@@ -389,8 +394,11 @@ func (c *CertChecker) Authenticate(conn ConnMetadata, pubKey PublicKey) (*Permis
 	if !c.IsUserAuthority(cert.SignatureKey) {
 		return nil, fmt.Errorf("ssh: certificate signed by unrecognized authority")
 	}
-
-	if err := c.CheckCert(conn.User(), cert); err != nil {
+	// The source-address critical option is enforced by serverAuthenticate,
+	// so it is supported regardless of SupportedCriticalOptions
+	cc := *c
+	cc.SupportedCriticalOptions = append(slices.Clip(cc.SupportedCriticalOptions), sourceAddressCriticalOption)
+	if err := cc.CheckCert(conn.User(), cert); err != nil {
 		return nil, err
 	}
 
@@ -398,27 +406,15 @@ func (c *CertChecker) Authenticate(conn ConnMetadata, pubKey PublicKey) (*Permis
 }
 
 // CheckCert checks CriticalOptions, ValidPrincipals, revocation, timestamp and
-// the signature of the certificate.
+// the signature of the certificate. Critical options that are not listed in
+// SupportedCriticalOptions are rejected.
 func (c *CertChecker) CheckCert(principal string, cert *Certificate) error {
 	if c.IsRevoked != nil && c.IsRevoked(cert) {
 		return fmt.Errorf("ssh: certificate serial %d revoked", cert.Serial)
 	}
 
 	for opt := range cert.CriticalOptions {
-		// sourceAddressCriticalOption will be enforced by
-		// serverAuthenticate
-		if opt == sourceAddressCriticalOption {
-			continue
-		}
-
-		found := false
-		for _, supp := range c.SupportedCriticalOptions {
-			if supp == opt {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(c.SupportedCriticalOptions, opt) {
 			return fmt.Errorf("ssh: unsupported critical option %q in certificate", opt)
 		}
 	}

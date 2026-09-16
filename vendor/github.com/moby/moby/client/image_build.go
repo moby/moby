@@ -32,7 +32,7 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 	headers.Add("X-Registry-Config", base64.URLEncoding.EncodeToString(buf))
 	headers.Set("Content-Type", "application/x-tar")
 
-	resp, err := cli.postRaw(ctx, "/build", query, buildContext, headers)
+	resp, err := cli.postRaw(ctx, "/build", query, headers, buildContext)
 	if err != nil {
 		return ImageBuildResult{}, err
 	}

@@ -1060,6 +1060,7 @@ func createAndStartCluster(d *daemon.Daemon, cfg *config.Config) (*cluster.Clust
 		ImageBackend:           d.ImageBackend(),
 		PluginBackend:          d.PluginManager(),
 		NetworkSubnetsProvider: d,
+		GenerateServiceName:    d.GenerateServiceName,
 		DefaultAdvertiseAddr:   cfg.SwarmDefaultAdvertiseAddr,
 		RaftHeartbeatTick:      cfg.SwarmRaftHeartbeatTick,
 		RaftElectionTick:       cfg.SwarmRaftElectionTick,

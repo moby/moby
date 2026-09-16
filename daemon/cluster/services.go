@@ -17,7 +17,6 @@ import (
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/swarmbackend"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/moby/moby/v2/internal/namesgenerator"
 	swarmapi "github.com/moby/swarmkit/v2/api"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -175,12 +174,46 @@ func (c *Cluster) GetService(input string, insertDefaults bool) (swarm.Service, 
 	return svc, nil
 }
 
+func (c *Cluster) generateServiceName(ctx context.Context, spec *swarm.ServiceSpec, retry int) (string, error) {
+	if c.config.GenerateServiceName == nil {
+		return "", errors.New("service name generator is not configured")
+	}
+	var image string
+	if spec.TaskTemplate.ContainerSpec != nil {
+		image = spec.TaskTemplate.ContainerSpec.Image
+	}
+	name, err := c.config.GenerateServiceName(ctx, retry, image)
+	if err != nil {
+		return "", errors.Wrap(err, "generate service name")
+	}
+	if name == "" {
+		return "", errors.New("service name generator returned no name")
+	}
+	return name, nil
+}
+
+func (c *Cluster) defaultServiceName(ctx context.Context, spec *swarm.ServiceSpec) error {
+	if spec.Name != "" {
+		return nil
+	}
+	name, err := c.generateServiceName(ctx, spec, 0)
+	if err != nil {
+		return err
+	}
+	spec.Name = name
+	return nil
+}
+
 // CreateService creates a new service in a managed swarm cluster.
 func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRegistry bool) (*swarm.ServiceCreateResponse, error) {
 	var resp *swarm.ServiceCreateResponse
 	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		err := c.populateNetworkID(ctx, state.controlClient, &s)
 		if err != nil {
+			return err
+		}
+		generatedName := s.Name == ""
+		if err := c.defaultServiceName(ctx, &s); err != nil {
 			return err
 		}
 
@@ -257,12 +290,14 @@ func (c *Cluster) CreateService(s swarm.ServiceSpec, encodedAuth string, queryRe
 			}
 		}
 
-		generatedName := serviceSpec.Annotations.Name == ""
 		var r *swarmapi.CreateServiceResponse
 		// Use the same six-attempt limit as automatic container names.
 		for retry := range 6 {
-			if generatedName {
-				serviceSpec.Annotations.Name = namesgenerator.GetRandomName(retry)
+			if generatedName && retry > 0 {
+				serviceSpec.Annotations.Name, err = c.generateServiceName(ctx, &s, retry)
+				if err != nil {
+					return err
+				}
 			}
 			r, err = state.controlClient.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
 			if !generatedName || status.Code(err) != codes.AlreadyExists {
@@ -286,6 +321,9 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec swa
 	err := c.lockedManagerAction(context.TODO(), func(ctx context.Context, state nodeState) error {
 		err := c.populateNetworkID(ctx, state.controlClient, &spec)
 		if err != nil {
+			return err
+		}
+		if err := c.defaultServiceName(ctx, &spec); err != nil {
 			return err
 		}
 

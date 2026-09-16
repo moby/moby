@@ -35,6 +35,10 @@ func (c *containerRouter) getContainersByName(ctx context.Context, w http.Respon
 	if versions.LessThan(version, "1.48") {
 		ctr.ImageManifestDescriptor = nil
 	}
+	if versions.LessThan(version, "1.56") && ctr.HostConfig != nil {
+		// Ignore Umask because it was added in API v1.56.
+		ctr.HostConfig.Umask = nil
+	}
 
 	var wrapOpts []compat.Option
 	if versions.LessThan(version, "1.52") {

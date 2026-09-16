@@ -24,7 +24,7 @@ func TestDiff(t *testing.T) {
 		{Kind: containertypes.ChangeAdd, Path: "/foo/bar"},
 	}
 
-	poll.WaitOn(t, container.IsStopped(ctx, apiClient, cID))
+	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited), poll.WithTimeout(60*time.Second))
 	result, err := apiClient.ContainerDiff(ctx, cID, client.ContainerDiffOptions{})
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, result.Changes)

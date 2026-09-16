@@ -122,7 +122,7 @@ func WithSelinux(c *container.Container) coci.SpecOpts {
 }
 
 // WithApparmor sets the apparmor profile
-func WithApparmor(c *container.Container) coci.SpecOpts {
+func WithApparmor(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		if appArmorSupported() {
 			var appArmorProfile string
@@ -141,7 +141,7 @@ func WithApparmor(c *container.Container) coci.SpecOpts {
 				// telling the system to keep our profile loaded, in order to make
 				// sure that we keep the default profile enabled we load it again
 				// if it is missing.
-				if err := loadDefaultAppArmorProfileIfMissing(); err != nil {
+				if err := daemon.loadDefaultAppArmorProfileIfMissing(); err != nil {
 					return err
 				}
 			}
@@ -479,7 +479,7 @@ var (
 // withMounts sets the container's mounts
 func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, mounts []container.Mount) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
-		sortMounts(mounts)
+		container.SortMounts(mounts)
 
 		userMounts := make(map[string]struct{})
 		for _, m := range mounts {
@@ -997,9 +997,22 @@ func WithUser(c *container.Container) coci.SpecOpts {
 		if s.Process == nil {
 			s.Process = &specs.Process{}
 		}
-		var err error
-		s.Process.User, err = getUser(c, c.Config.User)
+		user, err := getUser(c, c.Config.User)
+		// Preserve fields already set on the process user, such as Umask.
+		s.Process.User.UID = user.UID
+		s.Process.User.GID = user.GID
+		s.Process.User.AdditionalGids = user.AdditionalGids
 		return err
+	}
+}
+
+// WithUmask sets the container's umask.
+func WithUmask(c *container.Container) coci.SpecOpts {
+	return func(ctx context.Context, client coci.Client, ctr *containers.Container, s *coci.Spec) error {
+		if c.HostConfig.Umask == nil {
+			return nil
+		}
+		return coci.WithUmask(*c.HostConfig.Umask)(ctx, client, ctr, s)
 	}
 }
 
@@ -1015,13 +1028,14 @@ func (daemon *Daemon) createSpec(ctx context.Context, daemonCfg *configStore, c 
 		WithSysctls(c),
 		// Set the user before CDI device injection, which may append supplementary groups.
 		WithUser(c),
+		WithUmask(c),
 		WithDevices(daemon, c),
 		withRlimits(daemon, &daemonCfg.Config, c),
 		WithNamespaces(daemon, c),
 		WithCapabilities(c),
 		WithSeccomp(daemon, c),
 		withMounts(daemon, daemonCfg, c, mounts),
-		WithApparmor(c),
+		WithApparmor(daemon, c),
 		WithSelinux(c),
 		WithOOMScore(&c.HostConfig.OomScoreAdj),
 		coci.WithAnnotations(c.HostConfig.Annotations),

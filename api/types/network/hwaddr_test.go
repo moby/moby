@@ -2,12 +2,15 @@ package network_test
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 
 	"github.com/moby/moby/api/types/network"
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 )
+
+func equalHardwareAddr(a, b network.HardwareAddr) bool {
+	return (a == nil) == (b == nil) && slices.Equal(a, b)
+}
 
 func TestHardwareAddr_UnmarshalText(t *testing.T) {
 	cases := []struct {
@@ -22,10 +25,14 @@ func TestHardwareAddr_UnmarshalText(t *testing.T) {
 	for _, c := range cases {
 		a := network.HardwareAddr{0xde, 0xad, 0xbe, 0xef}
 		err := a.UnmarshalText([]byte(c.in))
-		if (c.err == "") != (err == nil) {
-			t.Errorf("UnmarshalText(%q) error = %v, want %v", c.in, err, c.err)
+		if c.err != "" {
+			assertErrorContains(t, err, c.err)
+		} else {
+			assertNoError(t, err)
 		}
-		assert.Check(t, is.DeepEqual(a, c.out), "UnmarshalText(%q)", c.in)
+		if !equalHardwareAddr(a, c.out) {
+			t.Errorf("UnmarshalText(%q) = %v, want %v", c.in, a, c.out)
+		}
 	}
 }
 
@@ -40,8 +47,8 @@ func TestHardwareAddr_MarshalText(t *testing.T) {
 	}
 	for _, c := range cases {
 		out, err := c.in.MarshalText()
-		assert.Check(t, err, "MarshalText(%v)", c.in)
-		assert.Check(t, is.Equal(string(out), c.out), "MarshalText(%v)", c.in)
+		assertNoError(t, err)
+		assertEqual(t, string(out), c.out)
 	}
 }
 
@@ -59,8 +66,8 @@ func TestHardwareAddr_MarshalJSON(t *testing.T) {
 			Mac network.HardwareAddr `json:"mac"`
 		}{c.in}
 		got, err := json.Marshal(s)
-		assert.Check(t, err, "json.Marshal(network.HardwareAddr(%v))", c.in)
-		assert.Check(t, is.Equal(string(got), c.out), "json.Marshal(network.HardwareAddr(%v))", c.in)
+		assertNoError(t, err)
+		assertEqual(t, string(got), c.out)
 	}
 }
 
@@ -79,9 +86,13 @@ func TestHardwareAddr_UnmarshalJSON(t *testing.T) {
 			Mac network.HardwareAddr `json:"mac"`
 		}{network.HardwareAddr{0xde, 0xad, 0xbe, 0xef}}
 		err := json.Unmarshal([]byte(c.in), &s)
-		if (c.err == "") != (err == nil) {
-			t.Errorf("json.Unmarshal(%q) error = %v, want %v", c.in, err, c.err)
+		if c.err != "" {
+			assertErrorContains(t, err, c.err)
+		} else {
+			assertNoError(t, err)
 		}
-		assert.Check(t, is.DeepEqual(s.Mac, c.out), "json.Unmarshal(%q)", c.in)
+		if !equalHardwareAddr(s.Mac, c.out) {
+			t.Errorf("json.Unmarshal(%q) = %v, want %v", c.in, s.Mac, c.out)
+		}
 	}
 }

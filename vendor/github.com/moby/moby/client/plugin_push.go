@@ -24,9 +24,8 @@ func (cli *Client) PluginPush(ctx context.Context, name string, options PluginPu
 	if err != nil {
 		return PluginPushResult{}, err
 	}
-	resp, err := cli.post(ctx, "/plugins/"+name+"/push", nil, nil, http.Header{
-		registry.AuthHeader: {options.RegistryAuth},
-	})
+	headers := http.Header{registry.AuthHeader: {options.RegistryAuth}}
+	resp, err := cli.post(ctx, "/plugins/"+name+"/push", nil, headers, nil)
 	if err != nil {
 		return PluginPushResult{}, err
 	}

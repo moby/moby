@@ -198,7 +198,11 @@ func (daemon *Daemon) fillPluginsInfo(ctx context.Context, v *system.Info, cfg *
 func (daemon *Daemon) fillSecurityOptions(v *system.Info, sysInfo *sysinfo.SysInfo, cfg *config.Config) {
 	var securityOptions []string
 	if sysInfo.AppArmor {
-		securityOptions = append(securityOptions, "name=apparmor")
+		profile := daemon.appArmorProfilePath
+		if profile == "" {
+			profile = "default"
+		}
+		securityOptions = append(securityOptions, "name=apparmor,profile="+profile)
 	}
 	if sysInfo.Seccomp && supportsSeccomp {
 		if daemon.seccompProfilePath != config.SeccompProfileDefault {

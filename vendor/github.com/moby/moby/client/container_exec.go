@@ -42,7 +42,7 @@ func (cli *Client) ExecCreate(ctx context.Context, containerID string, options E
 		return ExecCreateResult{}, err
 	}
 
-	req := container.ExecCreateRequest{
+	resp, err := cli.post(ctx, "/containers/"+containerID+"/exec", nil, nil, container.ExecCreateRequest{
 		User:         options.User,
 		Privileged:   options.Privileged,
 		Tty:          options.TTY,
@@ -54,9 +54,7 @@ func (cli *Client) ExecCreate(ctx context.Context, containerID string, options E
 		Env:          options.Env,
 		WorkingDir:   options.WorkingDir,
 		Cmd:          options.Cmd,
-	}
-
-	resp, err := cli.post(ctx, "/containers/"+containerID+"/exec", nil, req, nil)
+	})
 	defer ensureReaderClosed(resp)
 	if err != nil {
 		return ExecCreateResult{}, err
@@ -91,12 +89,11 @@ func (cli *Client) ExecStart(ctx context.Context, execID string, options ExecSta
 		return ExecStartResult{}, err
 	}
 
-	req := container.ExecStartRequest{
+	resp, err := cli.post(ctx, "/exec/"+execID+"/start", nil, nil, container.ExecStartRequest{
 		Detach:      options.Detach,
 		Tty:         options.TTY,
 		ConsoleSize: consoleSize,
-	}
-	resp, err := cli.post(ctx, "/exec/"+execID+"/start", nil, req, nil)
+	})
 	defer ensureReaderClosed(resp)
 	return ExecStartResult{}, err
 }

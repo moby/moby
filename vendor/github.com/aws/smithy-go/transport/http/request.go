@@ -118,6 +118,9 @@ func (r *Request) IsStreamSeekable() bool {
 // SetStream returns a clone of the request with the stream set to the provided
 // reader. May return an error if the provided reader is seekable but returns
 // an error.
+//
+// ContentLength is set to the stream's length when it can be determined, and
+// left unchanged otherwise.
 func (r *Request) SetStream(reader io.Reader) (rc *Request, err error) {
 	rc = r.Clone()
 
@@ -150,6 +153,12 @@ func (r *Request) SetStream(reader io.Reader) (rc *Request, err error) {
 	rc.stream = reader
 	rc.isStreamSeekable = isStreamSeekable
 	rc.streamStartPos = streamStartPos
+
+	if n, ok, err := rc.StreamLength(); err != nil {
+		return rc, err
+	} else if ok {
+		rc.ContentLength = n
+	}
 
 	return rc, err
 }

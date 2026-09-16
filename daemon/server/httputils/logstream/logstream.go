@@ -1,12 +1,13 @@
 package logstream
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"sort"
+	"slices"
 
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/v2/daemon/internal/stdcopymux"
@@ -50,56 +51,69 @@ func Write(ctx context.Context, w http.ResponseWriter, msgs <-chan *backend.LogM
 			// check if the message contains an error. if so, write that error
 			// and exit
 			if msg.Err != nil {
-				fmt.Fprintf(sysErrStream, "Error grabbing logs: %v\n", msg.Err)
+				_, _ = fmt.Fprintf(sysErrStream, "Error grabbing logs: %v\n", msg.Err)
 				continue
 			}
-			logLine := msg.Line
-			if config.Details {
-				logLine = append(attrsByteSlice(msg.Attrs), ' ')
-				logLine = append(logLine, msg.Line...)
-			}
-			if config.Timestamps {
-				logLine = append([]byte(msg.Timestamp.Format(rfc3339NanoFixed)+" "), logLine...)
-			}
+			var stream io.Writer
 			switch msg.Source {
 			case "stdout":
-				if config.ShowStdout {
-					_, _ = outStream.Write(logLine)
+				if !config.ShowStdout {
+					continue
 				}
-				continue
+				stream = outStream
 			case "stderr":
-				if config.ShowStderr {
-					_, _ = errStream.Write(logLine)
+				if !config.ShowStderr {
+					continue
 				}
-				continue
+				stream = errStream
 			default:
 				// unknown source
 				continue
+			}
+
+			if !config.Timestamps && !config.Details {
+				// Fast path: avoid allocating and copying the message.
+				_, _ = stream.Write(msg.Line)
+			} else {
+				size := len(msg.Line)
+				if config.Timestamps {
+					size += len(rfc3339NanoFixed) + 1
+				}
+				if config.Details {
+					// Reserve some space for attributes to reduce reallocations.
+					size += len(msg.Attrs) * 16
+				}
+				logLine := make([]byte, 0, size)
+
+				if config.Timestamps {
+					logLine = append(logLine, msg.Timestamp.Format(rfc3339NanoFixed)...)
+					logLine = append(logLine, ' ')
+				}
+				if config.Details {
+					logLine = appendAttrs(logLine, msg.Attrs)
+					logLine = append(logLine, ' ')
+				}
+				logLine = append(logLine, msg.Line...)
+				_, _ = stream.Write(logLine)
 			}
 		}
 	}
 }
 
-type byKey []backend.LogAttr
-
-func (b byKey) Len() int           { return len(b) }
-func (b byKey) Less(i, j int) bool { return b[i].Key < b[j].Key }
-func (b byKey) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
-
-func attrsByteSlice(a []backend.LogAttr) []byte {
-	// Note this sorts "a" in-place. That is fine here - nothing else is
+func appendAttrs(dst []byte, attrs []backend.LogAttr) []byte {
+	// Note this sorts attrs in-place. That is fine here - nothing else is
 	// going to use Attrs or care about the order.
-	sort.Sort(byKey(a))
+	slices.SortFunc(attrs, func(a, b backend.LogAttr) int {
+		return cmp.Compare(a.Key, b.Key)
+	})
 
-	var ret []byte
-	for i, pair := range a {
-		k, v := url.QueryEscape(pair.Key), url.QueryEscape(pair.Value)
-		ret = append(ret, []byte(k)...)
-		ret = append(ret, '=')
-		ret = append(ret, []byte(v)...)
-		if i != len(a)-1 {
-			ret = append(ret, ',')
+	for i, pair := range attrs {
+		if i > 0 {
+			dst = append(dst, ',')
 		}
+		dst = append(dst, url.QueryEscape(pair.Key)...)
+		dst = append(dst, '=')
+		dst = append(dst, url.QueryEscape(pair.Value)...)
 	}
-	return ret
+	return dst
 }

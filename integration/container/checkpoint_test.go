@@ -1,14 +1,16 @@
 package container
 
 import (
+	"cmp"
 	"encoding/json"
 	"net/http"
 	"net/url"
 	"os/exec"
 	"regexp"
-	"sort"
+	"slices"
 	"testing"
 
+	"github.com/moby/moby/api/types/checkpoint"
 	"github.com/moby/moby/api/types/common"
 
 	containertypes "github.com/moby/moby/api/types/container"
@@ -124,13 +126,11 @@ func TestCheckpoint(t *testing.T) {
 	res, err = apiClient.CheckpointList(ctx, cID, client.CheckpointListOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, len(res.Items), 2)
-	cptNames := make([]string, 2)
-	for i, c := range res.Items {
-		cptNames[i] = c.Name
-	}
-	sort.Strings(cptNames)
-	assert.Equal(t, cptNames[0], "test")
-	assert.Equal(t, cptNames[1], "test2")
+	slices.SortFunc(res.Items, func(a, b checkpoint.Summary) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	assert.Equal(t, res.Items[0].Name, "test")
+	assert.Equal(t, res.Items[1].Name, "test2")
 
 	// Restore the container from a second checkpoint.
 	t.Log("Restore the container")
