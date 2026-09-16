@@ -153,7 +153,7 @@ jobs:
         if: always()
         run: |
           set -eux -o pipefail
-          limactl cp -v -r default:/tmp/docker/bundles . || true
+          limactl cp --backend=scp -v -r default:/tmp/docker/bundles . || true
           reportsName="${{ env.TEMPLATE_NAME }}"
           reportsName="${reportsName#template:}"
           if [ -n "${{ matrix.mode }}" ]; then
