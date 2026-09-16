@@ -40,10 +40,9 @@ jobs:
           # coverage (cgroup namespaces, cgroup driver/systemd, and resource
           # update verification via /sys/fs/cgroup paths).
           #
-          # FIXME: use almalinux-8, then probably no need to keep oraclelinux-8 here.
-          # On almalinux-8, port forwarding tests are failing:
+          # FIXME: On almalinux-8, port forwarding tests in integration/network are failing:
           # https://github.com/moby/moby/pull/49819#issuecomment-2815676000
-          - template: template:oraclelinux-8  # Oracle's kernel 5.15
+          - template: template:almalinux-8
             integration_dir: ./integration/container ./integration/build ./integration/system
     with:
       template: ${{ matrix.template }}
