@@ -1,10 +1,15 @@
 package container
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/url"
 	"os/exec"
 	"regexp"
 	"sort"
 	"testing"
+
+	"github.com/moby/moby/api/types/common"
 
 	containertypes "github.com/moby/moby/api/types/container"
 	mounttypes "github.com/moby/moby/api/types/mount"
@@ -16,6 +21,19 @@ import (
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
+
+func TestCheckpointInvalidID(t *testing.T) {
+	ctx := setupTest(t)
+	query := url.Values{"checkpoint": {"../outside"}}
+	res, body, err := request.Post(ctx, "/containers/missing/start?"+query.Encode())
+	assert.NilError(t, err)
+	defer body.Close()
+	assert.Equal(t, res.StatusCode, http.StatusBadRequest)
+
+	var errorResponse common.ErrorResponse
+	assert.NilError(t, json.NewDecoder(body).Decode(&errorResponse))
+	assert.Check(t, is.ErrorContains(errorResponse, `invalid checkpoint ID "../outside"`))
+}
 
 func TestCheckpoint(t *testing.T) {
 	t.Skip("TestCheckpoint is broken; see https://github.com/moby/moby/issues/38963")

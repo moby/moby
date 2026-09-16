@@ -30,7 +30,7 @@ func runDevicePostHook(cmd *RunCommand, req parseRequest) error {
 func setDeviceState(cmd *RunCommand) error {
 	st := getDeviceState(cmd)
 	if st == nil {
-		return errors.Errorf("no device state")
+		return errors.New("no device state")
 	}
 	devices := make([]*Device, len(st.flag.StringValues))
 	for i, str := range st.flag.StringValues {

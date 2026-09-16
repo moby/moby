@@ -2453,11 +2453,14 @@ func validateDestinationConfiguration(v *types.DestinationConfiguration) error {
 		return nil
 	}
 	invalidParams := smithy.InvalidParamsError{Context: "DestinationConfiguration"}
-	if v.S3Configuration == nil {
-		invalidParams.Add(smithy.NewErrParamRequired("S3Configuration"))
-	} else if v.S3Configuration != nil {
+	if v.S3Configuration != nil {
 		if err := validateS3Configuration(v.S3Configuration); err != nil {
 			invalidParams.AddNested("S3Configuration", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.LookupTableConfiguration != nil {
+		if err := validateLookupTableConfiguration(v.LookupTableConfiguration); err != nil {
+			invalidParams.AddNested("LookupTableConfiguration", err.(smithy.InvalidParamsError))
 		}
 	}
 	if invalidParams.Len() > 0 {
@@ -2527,6 +2530,24 @@ func validateListToMap(v *types.ListToMap) error {
 	}
 	if v.Key == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("Key"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateLookupTableConfiguration(v *types.LookupTableConfiguration) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "LookupTableConfiguration"}
+	if v.TableName == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("TableName"))
+	}
+	if v.RoleArn == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("RoleArn"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams
@@ -3317,9 +3338,6 @@ func validateOpCreateLookupTableInput(v *CreateLookupTableInput) error {
 	invalidParams := smithy.InvalidParamsError{Context: "CreateLookupTableInput"}
 	if v.LookupTableName == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("LookupTableName"))
-	}
-	if v.TableBody == nil {
-		invalidParams.Add(smithy.NewErrParamRequired("TableBody"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams
@@ -4717,9 +4735,6 @@ func validateOpUpdateLookupTableInput(v *UpdateLookupTableInput) error {
 	invalidParams := smithy.InvalidParamsError{Context: "UpdateLookupTableInput"}
 	if v.LookupTableArn == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("LookupTableArn"))
-	}
-	if v.TableBody == nil {
-		invalidParams.Add(smithy.NewErrParamRequired("TableBody"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams

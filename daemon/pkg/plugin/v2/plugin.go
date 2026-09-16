@@ -48,9 +48,11 @@ func (e ErrInadequateCapability) Error() string {
 
 // ScopedPath returns the path scoped to the plugin rootfs
 func (p *Plugin) ScopedPath(s string) string {
-	if p.PluginObj.Config.PropagatedMount != "" && strings.HasPrefix(s, p.PluginObj.Config.PropagatedMount) {
-		// re-scope to the propagated mount path on the host
-		return filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount", strings.TrimPrefix(s, p.PluginObj.Config.PropagatedMount))
+	s = filepath.Join("/", s)
+	if p.PluginObj.Config.PropagatedMount != "" {
+		if rel, err := filepath.Rel(p.PluginObj.Config.PropagatedMount, s); err == nil && filepath.IsLocal(rel) {
+			return filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount", rel)
+		}
 	}
 	return filepath.Join(p.Rootfs, s)
 }

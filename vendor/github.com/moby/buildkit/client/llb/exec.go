@@ -111,7 +111,7 @@ func (e *ExecOp) Validate(ctx context.Context, c *Constraints) error {
 		return err
 	}
 	if len(args) == 0 {
-		return errors.Errorf("arguments are required")
+		return errors.New("arguments are required")
 	}
 	cwd, err := getDir(e.base)(ctx, c)
 	if err != nil {
@@ -364,7 +364,7 @@ func (e *ExecOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []
 		inputIndex := pb.InputIndex(len(pop.Inputs))
 		if m.source != nil {
 			if m.tmpfs {
-				return "", nil, nil, nil, errors.Errorf("tmpfs mounts must use scratch")
+				return "", nil, nil, nil, errors.New("tmpfs mounts must use scratch")
 			}
 			inp, err := m.source.ToInput(ctx, c)
 			if err != nil {

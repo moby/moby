@@ -48,6 +48,7 @@ import (
 	"github.com/moby/buildkit/source/local"
 	"github.com/moby/buildkit/util/archutil"
 	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/leaseutil"
 	"github.com/moby/buildkit/util/network"
 	"github.com/moby/buildkit/util/progress"
@@ -661,7 +662,9 @@ func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (ref cac
 	}
 
 	descHandler := &cache.DescHandler{
-		Provider: func(session.Group) content.Provider { return remote.Provider },
+		Provider: func(g session.Group) content.Provider {
+			return contentutil.ProviderForSession(remote.Provider, g)
+		},
 		Progress: pg,
 	}
 	snapshotLabels := func([]ocispecs.Descriptor, int) map[string]string { return nil }

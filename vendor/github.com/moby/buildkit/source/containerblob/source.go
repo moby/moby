@@ -78,7 +78,7 @@ func (is *Source) ociLayoutIdentifier(ref string, attrs map[string]string, _ *pb
 		return nil, err
 	}
 	if id.StoreID == "" {
-		return nil, errors.Errorf("oci-layout blob source requires store id")
+		return nil, errors.New("oci-layout blob source requires store id")
 	}
 	return parsed, nil
 }

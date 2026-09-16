@@ -296,46 +296,90 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 			if offset > 3 {
 				newOffsets[offset-3]++
 			} else {
-				newOffsets[uint32(o.Offsets[offset-1])]++
+				// Repeat codes reference the training Offsets. Skip unset
+				// (zero) entries so they are not ranked as real offsets.
+				prev := o.Offsets[offset-1]
+				if prev > 0 {
+					newOffsets[uint32(prev)]++
+				}
 			}
 		}
 	}
 	// Find most used offsets.
 	var sortedOffsets []uint32
 	for k := range newOffsets {
+		if k == 0 {
+			continue
+		}
 		sortedOffsets = append(sortedOffsets, k)
 	}
 	sort.Slice(sortedOffsets, func(i, j int) bool {
 		a, b := sortedOffsets[i], sortedOffsets[j]
-		if a == b {
+		ca, cb := newOffsets[a], newOffsets[b]
+		if ca == cb {
 			// Prefer the longer offset
-			return sortedOffsets[i] > sortedOffsets[j]
+			return a > b
 		}
-		return newOffsets[sortedOffsets[i]] > newOffsets[sortedOffsets[j]]
+		return ca > cb
 	})
-	if len(sortedOffsets) > 3 {
-		if debug {
-			print("Offsets:")
-			for i, v := range sortedOffsets {
-				if i > 20 {
-					break
-				}
-				printf("[%d: %d],", v, newOffsets[v])
+	if debug {
+		print("Offsets:")
+		for i, v := range sortedOffsets {
+			if i > 20 {
+				break
 			}
-			println("")
+			printf("[%d: %d],", v, newOffsets[v])
 		}
-
-		sortedOffsets = sortedOffsets[:3]
+		println("")
 	}
-	for i, v := range sortedOffsets {
-		o.Offsets[i] = int(v)
+	// Dictionary recent-offsets must be three positive values within the
+	// history. Ranked matches may be fewer (or empty when only unset
+	// repeat codes were seen), so fill remaining slots with defaults.
+	used := make(map[int]bool, 3)
+	var finalOffsets [3]int
+	nOff := 0
+	for _, v := range sortedOffsets {
+		iv := int(v)
+		if iv <= 0 || iv > len(hist) || used[iv] {
+			continue
+		}
+		finalOffsets[nOff] = iv
+		used[iv] = true
+		nOff++
+		if nOff == 3 {
+			break
+		}
 	}
+	for _, def := range []int{1, 4, 8} {
+		if nOff == 3 {
+			break
+		}
+		if def <= len(hist) && !used[def] {
+			finalOffsets[nOff] = def
+			used[def] = true
+			nOff++
+		}
+	}
+	for def := 1; nOff < 3 && def <= len(hist); def++ {
+		if !used[def] {
+			finalOffsets[nOff] = def
+			used[def] = true
+			nOff++
+		}
+	}
+	if nOff < 3 {
+		return nil, fmt.Errorf("could not determine 3 valid dictionary offsets (history size %d)", len(hist))
+	}
+	o.Offsets = finalOffsets
 	if debug {
 		println("New repeat offsets", o.Offsets)
 	}
 
 	if nUsed == 0 || seqs == 0 {
 		return nil, fmt.Errorf("%d blocks, %d sequences found", nUsed, seqs)
+	}
+	if litTotal == 0 {
+		return nil, errors.New("0 literals found")
 	}
 	if debug {
 		println("Sequences:", seqs, "Blocks:", nUsed, "Literals:", litTotal)
@@ -517,11 +561,10 @@ func BuildDict(o BuildDictOptions) ([]byte, error) {
 	out.Write(binary.LittleEndian.AppendUint32(nil, uint32(o.Offsets[1])))
 	out.Write(binary.LittleEndian.AppendUint32(nil, uint32(o.Offsets[2])))
 	out.Write(hist)
+	if _, err := loadDict(out.Bytes()); err != nil {
+		return nil, fmt.Errorf("built dictionary failed validation: %w", err)
+	}
 	if debug {
-		_, err := loadDict(out.Bytes())
-		if err != nil {
-			panic(err)
-		}
 		i, err := InspectDictionary(out.Bytes())
 		if err != nil {
 			panic(err)

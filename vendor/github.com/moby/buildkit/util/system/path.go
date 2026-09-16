@@ -188,7 +188,7 @@ func CheckSystemDriveAndRemoveDriveLetter(path string, inputOS string, keepSlash
 
 	// UNC paths should error out
 	if len(path) >= 2 && ToSlash(path[:2], inputOS) == "//" {
-		return "", errors.Errorf("UNC paths are not supported")
+		return "", errors.New("UNC paths are not supported")
 	}
 
 	parts := strings.SplitN(path, ":", 2)

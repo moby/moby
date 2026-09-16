@@ -13,22 +13,27 @@ func (fn MatcherFunc) Match(event Event) bool {
 	return fn(event)
 }
 
-// Filter provides an event sink that sends only events that are accepted by a
-// Matcher. No methods on filter are goroutine safe.
-type Filter struct {
+// Filter is the concrete implementation returned by [NewFilter].
+//
+// Deprecated: Filter should not be constructed directly. Use [NewFilter] instead.
+type Filter = filter
+
+type filter struct {
 	dst     Sink
 	matcher Matcher
 	closed  bool
 }
 
-// NewFilter returns a new filter that will send to events to dst that return
-// true for Matcher.
+// NewFilter returns a new event sink that forwards only events accepted by
+// matcher to dst.
+//
+// The returned Sink's methods are not safe for concurrent use.
 func NewFilter(dst Sink, matcher Matcher) Sink {
-	return &Filter{dst: dst, matcher: matcher}
+	return &filter{dst: dst, matcher: matcher}
 }
 
 // Write an event to the filter.
-func (f *Filter) Write(event Event) error {
+func (f *filter) Write(event Event) error {
 	if f.closed {
 		return ErrSinkClosed
 	}
@@ -41,7 +46,7 @@ func (f *Filter) Write(event Event) error {
 }
 
 // Close the filter and allow no more events to pass through.
-func (f *Filter) Close() error {
+func (f *filter) Close() error {
 	// TODO(stevvooe): Not all sinks should have Close.
 	if f.closed {
 		return nil

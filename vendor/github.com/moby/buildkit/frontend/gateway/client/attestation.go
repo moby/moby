@@ -9,7 +9,7 @@ import (
 
 func AttestationToPB[T any](a *result.Attestation[T]) (*pb.Attestation, error) {
 	if a.ContentFunc != nil {
-		return nil, errors.Errorf("attestation callback cannot be sent through gateway")
+		return nil, errors.New("attestation callback cannot be sent through gateway")
 	}
 
 	subjects := make([]*pb.InTotoSubject, len(a.InToto.Subjects))
@@ -32,12 +32,12 @@ func AttestationToPB[T any](a *result.Attestation[T]) (*pb.Attestation, error) {
 
 func AttestationFromPB[T any](a *pb.Attestation) (*result.Attestation[T], error) {
 	if a == nil {
-		return nil, errors.Errorf("invalid nil attestation")
+		return nil, errors.New("invalid nil attestation")
 	}
 	subjects := make([]result.InTotoSubject, len(a.InTotoSubjects))
 	for i, subject := range a.InTotoSubjects {
 		if subject == nil {
-			return nil, errors.Errorf("invalid nil attestation subject")
+			return nil, errors.New("invalid nil attestation subject")
 		}
 		subjects[i] = result.InTotoSubject{
 			Kind:   subject.Kind,

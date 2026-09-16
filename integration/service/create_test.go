@@ -289,7 +289,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 		}),
 	)
 
-	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances))
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances), swarm.ServicePoll)
 
 	res, err := apiClient.ServiceLogs(ctx, serviceID, client.ServiceLogsOptions{
 		Tail:       "1",
@@ -304,7 +304,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 
 	_, err = apiClient.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, swarm.NoTasksForService(ctx, apiClient, serviceID))
+	poll.WaitOn(t, swarm.NoTasksForService(ctx, apiClient, serviceID), swarm.ServicePoll)
 
 	_, err = apiClient.ConfigRemove(ctx, configName, client.ConfigRemoveOptions{})
 	assert.NilError(t, err)
@@ -354,7 +354,7 @@ func TestCreateServiceSysctls(t *testing.T) {
 		)
 
 		// wait for the service to converge to 1 running task as expected
-		poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances))
+		poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances), swarm.ServicePoll)
 
 		// we're going to check 3 things:
 		//
@@ -426,7 +426,7 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	)
 
 	// wait for the service to converge to 1 running task as expected
-	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances))
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, instances), swarm.ServicePoll)
 
 	// we're going to check 3 things:
 	//
@@ -516,7 +516,7 @@ func TestCreateServiceMemorySwap(t *testing.T) {
 				ctx, t, d,
 				swarm.ServiceWithMemorySwap(testCase.swapSpec, testCase.limitSpec),
 			)
-			poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 1))
+			poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 1), swarm.ServicePoll)
 
 			inspect, err := apiClient.ServiceInspect(ctx, serviceID, client.ServiceInspectOptions{})
 			assert.NilError(t, err)
@@ -588,7 +588,7 @@ func TestCreateServiceMemorySwappiness(t *testing.T) {
 				ctx, t, d,
 				swarm.ServiceWithMemorySwappiness(testCase.swappinessSpec),
 			)
-			poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 1))
+			poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 1), swarm.ServicePoll)
 
 			filter := make(client.Filters)
 			filter.Add("service", serviceID)

@@ -6,7 +6,6 @@ import (
 	"context"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Creates or updates a subscription filter and associates it with the specified
@@ -124,8 +123,9 @@ type PutSubscriptionFilterInput struct {
 	Distribution types.Distribution
 
 	// A list of system fields to include in the log events sent to the subscription
-	// destination. Valid values are @aws.account and @aws.region . These fields
-	// provide source information for centralized log data in the forwarded payload.
+	// destination. Valid values are @aws.account , @aws.region , and @source.log .
+	// These fields provide source information for centralized log data in the
+	// forwarded payload.
 	EmitSystemFields []string
 
 	// A filter expression that specifies which log events should be processed by this
@@ -160,9 +160,6 @@ func (c *Client) addOperationPutSubscriptionFilterMiddlewares(stack *middleware.
 		return err
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
 	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
@@ -175,19 +172,10 @@ func (c *Client) addOperationPutSubscriptionFilterMiddlewares(stack *middleware.
 	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpPutSubscriptionFilterValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "PutSubscriptionFilter"), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {

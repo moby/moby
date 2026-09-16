@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"gotest.tools/v3/assert"
@@ -70,5 +71,5 @@ func FirewalldReload(t *testing.T, d *daemon.Daemon) {
 			return poll.Success()
 		}
 		return poll.Continue("firewalld reload not complete")
-	})
+	}, poll.WithTimeout(30*time.Second))
 }

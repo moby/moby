@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package otlptracehttp // import "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+package otlptracehttp
 
 import (
 	"crypto/tls"
@@ -17,6 +17,9 @@ import (
 // collector.
 type Compression otlpconfig.Compression
 
+// Encoding describes the encoding used for payloads sent to the collector.
+type Encoding int
+
 // HTTPTransportProxyFunc is a function that resolves which URL to use as proxy for a given request.
 // This type is compatible with http.Transport.Proxy and can be used to set a custom proxy function
 // to the OTLP HTTP client.
@@ -29,6 +32,13 @@ const (
 	// GzipCompression tells the driver to send payloads after
 	// compressing them with gzip.
 	GzipCompression = Compression(otlpconfig.GzipCompression)
+)
+
+const (
+	// EncodingProtobuf tells the driver to send protobuf-encoded payloads.
+	EncodingProtobuf Encoding = iota
+	// EncodingJSON tells the driver to send JSON-encoded payloads.
+	EncodingJSON
 )
 
 // Option applies an option to the HTTP client.
@@ -93,6 +103,11 @@ func WithEndpoint(endpoint string) Option {
 //
 // If an invalid URL is provided, the default value will be kept.
 //
+// The path of the provided URL is used as-is; with one exception: if the URL has
+// no path, it is normalized to the root path ("/"). The default traces path
+// ("/v1/traces") is not appended automatically. Use WithEndpoint if you want
+// that behavior, or pass a URL that includes that path.
+//
 // By default, if an environment variable is not set, and this option is not
 // passed, "localhost:4318" will be used.
 //
@@ -104,6 +119,15 @@ func WithEndpointURL(u string) Option {
 // WithCompression tells the driver to compress the sent data.
 func WithCompression(compression Compression) Option {
 	return wrappedOption{otlpconfig.WithCompression(otlpconfig.Compression(compression))}
+}
+
+// WithEncoding tells the driver to use a specific encoding for the request payload.
+func WithEncoding(encoding Encoding) Option {
+	protocol := otlpconfig.ProtocolHTTPProtobuf
+	if encoding == EncodingJSON {
+		protocol = otlpconfig.ProtocolHTTPJSON
+	}
+	return wrappedOption{otlpconfig.WithProtocol(protocol)}
 }
 
 // WithURLPath allows one to override the default URL path used

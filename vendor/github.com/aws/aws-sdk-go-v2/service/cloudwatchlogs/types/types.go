@@ -772,9 +772,12 @@ type Destination struct {
 // destination type and associated settings for result delivery.
 type DestinationConfiguration struct {
 
+	// Configuration for delivering query results to a lookup table. The query results
+	// automatically populate or refresh the specified lookup table on each scheduled
+	// execution.
+	LookupTableConfiguration *LookupTableConfiguration
+
 	// Configuration for delivering query results to Amazon S3.
-	//
-	// This member is required.
 	S3Configuration *S3Configuration
 
 	noSmithyDocumentSerde
@@ -879,6 +882,30 @@ type FieldIndex struct {
 	// The time and date of the earliest log event that matches this field index,
 	// after the index policy that contains it was created.
 	FirstEventTime *int64
+
+	// The category of the field index:
+	//
+	//   - DEFAULT : Fields that CloudWatch Logs indexes by default. Examples include
+	//   @logStream and @data_format .
+	//
+	//   - CUSTOM : Fields that you added manually to the field index policy.
+	//   CloudWatch Logs always indexes these fields. These fields count toward the quota
+	//   of 20 fields for each log group.
+	//
+	//   - AUTO : Fields that CloudWatch Logs indexes automatically based on your query
+	//   patterns and usage. These fields do not count toward the field index quota.
+	//   CloudWatch Logs might update these fields based on changes in your query
+	//   patterns. To keep a field indexed permanently, add it to an account-level or
+	//   log-group level field index policy.
+	//
+	//   - INACTIVE : Fields that CloudWatch Logs indexed before but does not index
+	//   now. This happens if you remove a field from the field index policy or if
+	//   CloudWatch Logs automatically selects a different field based on your queries.
+	//
+	// For more information about automatically indexed fields, see [Automatically indexed fields].
+	//
+	// [Automatically indexed fields]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogs-Field-Indexing-Automatic.html
+	IndexCategory IndexCategory
 
 	// The time and date of the most recent log event that matches this field index.
 	LastEventTime *int64
@@ -1549,6 +1576,36 @@ type LookupTable struct {
 
 	// The column headers from the first row of the CSV file.
 	TableFields []string
+
+	noSmithyDocumentSerde
+}
+
+// Configuration for a lookup table destination. Use it to automatically refresh a
+// lookup table with query results on a schedule.
+type LookupTableConfiguration struct {
+
+	// The ARN of the IAM role that grants permissions to create or update the lookup
+	// table with query results.
+	//
+	// This member is required.
+	RoleArn *string
+
+	// The name of the lookup table to create or update with query results. The name
+	// can contain only alphanumeric characters and underscores.
+	//
+	// This member is required.
+	TableName *string
+
+	// A description of the lookup table.
+	Description *string
+
+	// The ARN of the KMS key to use to encrypt the lookup table data. If you don't
+	// specify a key, the data is encrypted with an Amazon Web Services-owned key.
+	KmsKeyId *string
+
+	// Key-value pairs to associate with the lookup table for resource management and
+	// cost allocation. The service applies tags only during initial table creation.
+	Tags map[string]string
 
 	noSmithyDocumentSerde
 }

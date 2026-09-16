@@ -42,7 +42,7 @@ env:
 
 jobs:
   docker-py:
-    runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
+    runs-on: ubuntu-26.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     steps:
@@ -57,7 +57,7 @@ jobs:
         uses: ./.github/actions/setup-tracing
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
@@ -98,7 +98,7 @@ jobs:
           retention-days: 1
 
   integration-flaky:
-    runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
+    runs-on: ubuntu-26.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     steps:
@@ -109,30 +109,11 @@ jobs:
           # Full history needed to diff against target branch and detect new tests (test-integration-flaky).
           fetch-depth: 0
       -
-        # Extract a /flaky-check=TestA,TestB directive from the PR body and
-        # expose it as FLAKY_EXTRA_TESTS so that hack/make/test-integration-flaky
-        # appends those tests to the ones detected from the diff.
-        name: Extract flaky-check extra tests
-        if: github.event_name == 'pull_request'
-        env:
-          PR_BODY: ${{ github.event.pull_request.body }}
-        run: |
-          flaky_tests=$(
-            printf '%s\n' "$PR_BODY" |
-            tr -d '\r' |
-            grep -oEm1 '^/flaky-check=Test[A-Za-z0-9_]+(,Test[A-Za-z0-9_]+)*$' |
-            sed 's|^/flaky-check=||'
-          )
-          if [ -n "$flaky_tests" ]; then
-            echo "Appending /flaky-check tests: $flaky_tests"
-            echo "FLAKY_EXTRA_TESTS=$flaky_tests" >> "$GITHUB_ENV"
-          fi
-      -
         name: Set up runner
         uses: ./.github/actions/setup-runner
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
@@ -147,12 +128,16 @@ jobs:
       -
         name: Test
         run: |
+          source hack/make/.test-integration-flaky
+          export FLAKY_EXTRA_TESTS
+          FLAKY_EXTRA_TESTS=$(flaky_check_tests)
           make -o build test-integration-flaky
         env:
+          PR_BODY: ${{ github.event.pull_request.body }}
           TEST_SKIP_INTEGRATION_CLI: 1
 
   integration-prepare:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     outputs:
@@ -172,9 +157,9 @@ jobs:
             const extraModes = JSON.parse(`${{ env.MATRIX_EXTRA_MODES }}`);
             const runnerSuffix = `${{ env.MATRIX_RUNNER_SUFFIX }}`;
             let includes = [
-              { arch: arch, runner: `ubuntu-24.04${runnerSuffix}`, mode: '' },
+              { arch: arch, runner: `ubuntu-26.04${runnerSuffix}`, mode: '' },
             ];
-            includes.push(...extraModes.map(mode => ({ arch: arch, runner: `ubuntu-24.04${runnerSuffix}`, mode: mode })));
+            includes.push(...extraModes.map(mode => ({ arch: arch, runner: `ubuntu-26.04${runnerSuffix}`, mode: mode })));
 
             if (arch == "amd64") {
               includes.push({ arch: arch, runner: 'ubuntu-22.04', mode: '' });
@@ -249,7 +234,7 @@ jobs:
           sudo systemctl restart apparmor.service
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
@@ -291,7 +276,7 @@ jobs:
           tree -nh $reportsPath
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v6.0.2
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -312,7 +297,7 @@ jobs:
           retention-days: 1
 
   integration-report:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     if: always()
@@ -344,7 +329,7 @@ jobs:
           fi
 
   integration-cli-prepare:
-    runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
+    runs-on: ubuntu-26.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     outputs:
@@ -439,7 +424,7 @@ jobs:
             });
 
   integration-cli:
-    runs-on: ubuntu-24.04${{ inputs.runnerSuffix }}
+    runs-on: ubuntu-26.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     needs:
@@ -474,7 +459,7 @@ jobs:
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
         with:
           version: ${{ env.SETUP_BUILDX_VERSION }}
           driver-opts: image=${{ env.SETUP_BUILDKIT_IMAGE }}
@@ -514,7 +499,7 @@ jobs:
           tree -nh $reportsPath
       -
         name: Send to Codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v6.0.2
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
@@ -535,7 +520,7 @@ jobs:
           retention-days: 1
 
   integration-cli-report:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     continue-on-error: ${{ github.event_name != 'pull_request' }}
     if: always()

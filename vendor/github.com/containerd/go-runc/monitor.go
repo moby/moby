@@ -112,7 +112,7 @@ func (m *defaultMonitor) StartLocked(c *exec.Cmd) (chan Exit, error) {
 	return ec, nil
 }
 
-func (m *defaultMonitor) Wait(c *exec.Cmd, ec chan Exit) (int, error) {
+func (m *defaultMonitor) Wait(_ *exec.Cmd, ec chan Exit) (int, error) {
 	e := <-ec
 	return e.Status, nil
 }

@@ -7566,6 +7566,13 @@ func awsAwsjson11_serializeDocumentDestinationConfiguration(v *types.Destination
 	object := value.Object()
 	defer object.Close()
 
+	if v.LookupTableConfiguration != nil {
+		ok := object.Key("lookupTableConfiguration")
+		if err := awsAwsjson11_serializeDocumentLookupTableConfiguration(v.LookupTableConfiguration, ok); err != nil {
+			return err
+		}
+	}
+
 	if v.S3Configuration != nil {
 		ok := object.Key("s3Configuration")
 		if err := awsAwsjson11_serializeDocumentS3Configuration(v.S3Configuration, ok); err != nil {
@@ -7708,6 +7715,17 @@ func awsAwsjson11_serializeDocumentImportStatusList(v []types.ImportStatus, valu
 	return nil
 }
 
+func awsAwsjson11_serializeDocumentIndexCategories(v []types.IndexCategory, value smithyjson.Value) error {
+	array := value.Array()
+	defer array.Close()
+
+	for i := range v {
+		av := array.Value()
+		av.String(string(v[i]))
+	}
+	return nil
+}
+
 func awsAwsjson11_serializeDocumentInputLogEvent(v *types.InputLogEvent, value smithyjson.Value) error {
 	object := value.Object()
 	defer object.Close()
@@ -7827,6 +7845,40 @@ func awsAwsjson11_serializeDocumentLogTypes(v []string, value smithyjson.Value) 
 		av := array.Value()
 		av.String(v[i])
 	}
+	return nil
+}
+
+func awsAwsjson11_serializeDocumentLookupTableConfiguration(v *types.LookupTableConfiguration, value smithyjson.Value) error {
+	object := value.Object()
+	defer object.Close()
+
+	if v.Description != nil {
+		ok := object.Key("description")
+		ok.String(*v.Description)
+	}
+
+	if v.KmsKeyId != nil {
+		ok := object.Key("kmsKeyId")
+		ok.String(*v.KmsKeyId)
+	}
+
+	if v.RoleArn != nil {
+		ok := object.Key("roleArn")
+		ok.String(*v.RoleArn)
+	}
+
+	if v.TableName != nil {
+		ok := object.Key("tableName")
+		ok.String(*v.TableName)
+	}
+
+	if v.Tags != nil {
+		ok := object.Key("tags")
+		if err := awsAwsjson11_serializeDocumentTags(v.Tags, ok); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -9112,6 +9164,11 @@ func awsAwsjson11_serializeOpDocumentCreateLookupTableInput(v *CreateLookupTable
 		ok.String(*v.LookupTableName)
 	}
 
+	if v.QueryId != nil {
+		ok := object.Key("queryId")
+		ok.String(*v.QueryId)
+	}
+
 	if v.TableBody != nil {
 		ok := object.Key("tableBody")
 		ok.String(*v.TableBody)
@@ -9682,6 +9739,13 @@ func awsAwsjson11_serializeOpDocumentDescribeExportTasksInput(v *DescribeExportT
 func awsAwsjson11_serializeOpDocumentDescribeFieldIndexesInput(v *DescribeFieldIndexesInput, value smithyjson.Value) error {
 	object := value.Object()
 	defer object.Close()
+
+	if v.IndexCategories != nil {
+		ok := object.Key("indexCategories")
+		if err := awsAwsjson11_serializeDocumentIndexCategories(v.IndexCategories, ok); err != nil {
+			return err
+		}
+	}
 
 	if v.LogGroupIdentifiers != nil {
 		ok := object.Key("logGroupIdentifiers")
@@ -11627,6 +11691,11 @@ func awsAwsjson11_serializeOpDocumentUpdateLookupTableInput(v *UpdateLookupTable
 	if v.LookupTableArn != nil {
 		ok := object.Key("lookupTableArn")
 		ok.String(*v.LookupTableArn)
+	}
+
+	if v.QueryId != nil {
+		ok := object.Key("queryId")
+		ok.String(*v.QueryId)
 	}
 
 	if v.TableBody != nil {

@@ -28,6 +28,7 @@ import (
 	"github.com/containerd/log"
 
 	"github.com/containerd/containerd/v2/core/mount"
+	runtimeapi "github.com/containerd/containerd/v2/core/runtime"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/pkg/timeout"
 	"golang.org/x/sync/errgroup"
@@ -188,16 +189,29 @@ func (m *ShimManager) loadShim(ctx context.Context, bundle *Bundle) error {
 
 	_, sgetErr := m.sandboxStore.Get(ctx, id)
 	pInfo, pidErr := shim.Pids(ctx)
-	if sgetErr != nil && errors.Is(sgetErr, errdefs.ErrNotFound) && (len(pInfo) == 0 || errors.Is(pidErr, errdefs.ErrNotFound)) {
-		log.G(ctx).WithField("id", id).Info("cleaning leaked shim process")
-		// We are unable to get Pids from the shim and it's not a sandbox
-		// shim. We should clean it up her.
-		// No need to do anything for removeTask since we never added this shim.
+	if shouldCleanupShim(sgetErr, pidErr, pInfo) {
+		logEntry := log.G(ctx).WithField("id", id)
+		if pidErr != nil {
+			logEntry = logEntry.WithError(pidErr)
+		}
+		logEntry.Info("cleaning leaked shim process")
 		shim.delete(ctx, false, func(ctx context.Context, id string) {})
 	} else {
+		if pidErr != nil {
+			log.G(ctx).WithField("id", id).WithError(pidErr).Warn("failed to query shim pids, keeping shim registered")
+		}
 		m.shims.Add(ctx, shim.ShimInstance)
 	}
 	return nil
+}
+
+// shouldCleanupShim determines whether or not a shim is in such a state that
+// we should reap it. To be reapable we confirm that it is not a sandbox shim
+// and it has no pids running
+func shouldCleanupShim(sgetErr, pidErr error, pInfo []runtimeapi.ProcessInfo) bool {
+	return errors.Is(sgetErr, errdefs.ErrNotFound) &&
+		(errors.Is(pidErr, errdefs.ErrNotFound) ||
+			(pidErr == nil && len(pInfo) == 0))
 }
 
 func loadShimTask(ctx context.Context, bundle *Bundle, onClose func()) (_ *shimTask, retErr error) {

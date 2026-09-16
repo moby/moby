@@ -527,7 +527,7 @@ type Metric struct {
 	// A description of the metric, which can be used in documentation.
 	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
 	// The unit in which the metric value is reported. Follows the format
-	// described by https://unitsofmeasure.org/ucum.html.
+	// described by https://ucum.org/ucum and https://units-of-measurement.org/
 	Unit string `protobuf:"bytes,3,opt,name=unit,proto3" json:"unit,omitempty"`
 	// Data determines the aggregation type (if any) of the metric, what is the
 	// reported value type for the data points, as well as the relatationship to

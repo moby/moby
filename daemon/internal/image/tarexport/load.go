@@ -25,7 +25,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/progress"
 	"github.com/moby/moby/v2/daemon/internal/streamformatter"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
-	"github.com/moby/sys/sequential"
 	"github.com/moby/sys/symlink"
 	"github.com/opencontainers/go-digest"
 )
@@ -212,8 +211,8 @@ func (l *tarexporter) loadLayer(ctx context.Context, filename string, rootFS ima
 	}()
 
 	// We use sequential file access to avoid depleting the standby list on Windows.
-	// On Linux, this equates to a regular os.Open.
-	rawTar, err := sequential.Open(filename)
+	// On non-Windows platforms this equates to a regular os.Open.
+	rawTar, err := os.OpenFile(filename, os.O_RDONLY|windows_O_FILE_FLAG_SEQUENTIAL_SCAN, 0)
 	if err != nil {
 		log.G(context.TODO()).Debugf("Error reading embedded tar: %v", err)
 		return nil, err

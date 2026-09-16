@@ -6,12 +6,11 @@ import (
 	"context"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Sets the storage tier policy for your account. When you set the storage tier to
-// INTELLIGENT_TIERING , CloudWatch Logs automatically moves your log data between
-// storage tiers based on access patterns to optimize costs.
+// Sets the storage tier policy for the account. When you set the storage tier to
+// INTELLIGENT_TIERING , the service automatically moves log data to the most
+// cost-effective storage tier based on access frequency.
 func (c *Client) PutStorageTierPolicy(ctx context.Context, params *PutStorageTierPolicyInput, optFns ...func(*Options)) (*PutStorageTierPolicyOutput, error) {
 	if params == nil {
 		params = &PutStorageTierPolicyInput{}
@@ -29,8 +28,9 @@ func (c *Client) PutStorageTierPolicy(ctx context.Context, params *PutStorageTie
 
 type PutStorageTierPolicyInput struct {
 
-	// The storage tier to set for the account. Valid values are STANDARD and
-	// INTELLIGENT_TIERING .
+	// The storage tier to set for the account. Use INTELLIGENT_TIERING to
+	// automatically optimize storage costs by moving log data to the appropriate tier
+	// based on access frequency.
 	//
 	// This member is required.
 	StorageTier types.StorageTier
@@ -41,10 +41,10 @@ type PutStorageTierPolicyInput struct {
 type PutStorageTierPolicyOutput struct {
 
 	// The time when the storage tier policy was last updated, expressed as the number
-	// of milliseconds after Jan 1, 1970 00:00:00 UTC .
+	// of milliseconds after January 1, 1970 00:00:00 UTC .
 	LastUpdatedTime *int64
 
-	// The storage tier that was set.
+	// The storage tier for the account.
 	StorageTier types.StorageTier
 
 	// Metadata pertaining to the operation's result.
@@ -63,9 +63,6 @@ func (c *Client) addOperationPutStorageTierPolicyMiddlewares(stack *middleware.S
 		return err
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
 	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
@@ -78,19 +75,10 @@ func (c *Client) addOperationPutStorageTierPolicyMiddlewares(stack *middleware.S
 	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpPutStorageTierPolicyValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "PutStorageTierPolicy"), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {

@@ -703,7 +703,7 @@ func (f *FileOp) Validate(context.Context, *Constraints) error {
 		return nil
 	}
 	if f.action == nil {
-		return errors.Errorf("action is required")
+		return errors.New("action is required")
 	}
 	f.isValidated = true
 	return nil
@@ -805,7 +805,7 @@ func (ms *marshalState) add(fa *FileAction, c *Constraints) (*fileActionState, e
 			}
 			st.input2Relative = &src.target
 		} else {
-			return nil, errors.Errorf("invalid empty source for copy")
+			return nil, errors.New("invalid empty source for copy")
 		}
 	}
 

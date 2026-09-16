@@ -63,6 +63,7 @@ func oneLayerPlatformManifest(dir string, platform ocispec.Platform, f FileInLay
 	}
 
 	manifestDesc, err := writeJsonBlob(dir, ocispec.MediaTypeImageManifest, ocispec.Manifest{
+		Versioned: specs.Versioned{SchemaVersion: 2},
 		MediaType: ocispec.MediaTypeImageManifest,
 		Config:    configDesc,
 		Layers:    []ocispec.Descriptor{layerDesc},

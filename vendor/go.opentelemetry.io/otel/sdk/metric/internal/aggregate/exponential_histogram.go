@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package aggregate // import "go.opentelemetry.io/otel/sdk/metric/internal/aggregate"
+package aggregate
 
 import (
 	"context"
@@ -331,8 +331,7 @@ type expoHistogram[N int64 | float64] struct {
 func (e *expoHistogram[N]) measure(
 	ctx context.Context,
 	value N,
-	fltrAttr attribute.Set,
-	droppedAttr []attribute.KeyValue,
+	lazy lazyFilteredAttributes,
 ) {
 	// Ignore NaN and infinity.
 	if math.IsInf(float64(value), 0) || math.IsNaN(float64(value)) {
@@ -342,13 +341,17 @@ func (e *expoHistogram[N]) measure(
 	e.valuesMu.Lock()
 	defer e.valuesMu.Unlock()
 
-	v, ok := e.values[fltrAttr.Equivalent()]
+	distinct := lazy.Distinct()
+	v, ok := e.values[distinct]
 	if !ok {
-		fltrAttr = e.limit.Attributes(fltrAttr, e.values)
-		// If we overflowed, make sure we add to the existing overflow series
-		// if it already exists.
-		v, ok = e.values[fltrAttr.Equivalent()]
+		v, ok = e.values[overflowSet.Equivalent()]
 		if !ok {
+			var fltrAttr attribute.Set
+			if e.limit.aggLimit > 0 && len(e.values) >= e.limit.aggLimit-1 {
+				fltrAttr = overflowSet
+			} else {
+				fltrAttr = lazy.Set()
+			}
 			v = newExpoHistogramDataPoint[N](fltrAttr, e.maxSize, e.maxScale, e.noMinMax, e.noSum)
 			r := e.newRes(fltrAttr)
 			_, isDrop := r.(*dropRes[N])
@@ -360,7 +363,7 @@ func (e *expoHistogram[N]) measure(
 	}
 	v.record(value)
 	if !v.dropExemplars {
-		v.res.Offer(ctx, value, droppedAttr)
+		v.res.Offer(ctx, value, lazy)
 	}
 }
 
@@ -412,12 +415,15 @@ func (e *expoHistogram[N]) delta(
 
 		if !e.noSum {
 			hDPts[i].Sum = val.sum.load()
+		} else {
+			hDPts[i].Sum = 0
 		}
-		if !e.noMinMax {
-			if val.minMax.set.Load() {
-				hDPts[i].Min = metricdata.NewExtrema(val.minMax.minimum.Load())
-				hDPts[i].Max = metricdata.NewExtrema(val.minMax.maximum.Load())
-			}
+		if !e.noMinMax && val.minMax.set.Load() {
+			hDPts[i].Min = metricdata.NewExtrema(val.minMax.minimum.Load())
+			hDPts[i].Max = metricdata.NewExtrema(val.minMax.maximum.Load())
+		} else {
+			hDPts[i].Min = metricdata.Extrema[N]{}
+			hDPts[i].Max = metricdata.Extrema[N]{}
 		}
 
 		collectExemplars(&hDPts[i].Exemplars, val.res.Collect)
@@ -488,12 +494,15 @@ func (e *expoHistogram[N]) cumulative(
 
 		if !e.noSum {
 			hDPts[i].Sum = val.sum.load()
+		} else {
+			hDPts[i].Sum = 0
 		}
-		if !e.noMinMax {
-			if val.minMax.set.Load() {
-				hDPts[i].Min = metricdata.NewExtrema(val.minMax.minimum.Load())
-				hDPts[i].Max = metricdata.NewExtrema(val.minMax.maximum.Load())
-			}
+		if !e.noMinMax && val.minMax.set.Load() {
+			hDPts[i].Min = metricdata.NewExtrema(val.minMax.minimum.Load())
+			hDPts[i].Max = metricdata.NewExtrema(val.minMax.maximum.Load())
+		} else {
+			hDPts[i].Min = metricdata.Extrema[N]{}
+			hDPts[i].Max = metricdata.Extrema[N]{}
 		}
 
 		collectExemplars(&hDPts[i].Exemplars, val.res.Collect)

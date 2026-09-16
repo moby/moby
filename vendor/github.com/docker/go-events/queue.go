@@ -103,6 +103,7 @@ func (eq *Queue) next() Event {
 		eq.cond.Wait()
 	}
 
+	// Len is non-zero while holding eq.mu, so Front cannot be nil.
 	front := eq.events.Front()
 	block := front.Value.(Event)
 	eq.events.Remove(front)

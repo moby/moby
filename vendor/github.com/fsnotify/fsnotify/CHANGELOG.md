@@ -1,5 +1,54 @@
 # Changelog
 
+1.10.1 2026-05-04
+-----------------
+
+### Changes and fixes
+
+- inotify: don't remove sibling watches sharing a path prefix ([#754])
+
+- inotify, windows: don't rename sibling watches sharing a path prefix
+  ([#755])
+
+
+[#754]: https://github.com/fsnotify/fsnotify/pull/754
+[#755]: https://github.com/fsnotify/fsnotify/pull/755
+
+
+1.10.0 2026-04-30
+-----------------
+This version of fsnotify needs Go 1.23.
+
+### Changes and fixes
+
+- inotify: improve initialization error message ([#731])
+
+- inotify: send Rename event if recursive watch is renamed ([#696])
+
+- inotify: avoid copying event buffers when reading names ([#741])
+
+- kqueue: skip dangling symlinks (ENOENT) in watchDirectoryFiles, so a
+  bad entry no longer aborts Watcher.Add for the whole directory ([#748])
+
+- kqueue: drop watches directly in Close() to fix a file descriptor leak
+  when recycling watchers ([#740])
+
+- windows: fix nil pointer dereference in remWatch ([#736])
+
+- windows: lock watch field updates against concurrent WatchList to fix
+  a race introduced in v1.9.0 ([#709], [#749])
+
+
+[#696]: https://github.com/fsnotify/fsnotify/pull/696
+[#709]: https://github.com/fsnotify/fsnotify/pull/709
+[#731]: https://github.com/fsnotify/fsnotify/pull/731
+[#736]: https://github.com/fsnotify/fsnotify/pull/736
+[#740]: https://github.com/fsnotify/fsnotify/pull/740
+[#741]: https://github.com/fsnotify/fsnotify/pull/741
+[#748]: https://github.com/fsnotify/fsnotify/pull/748
+[#749]: https://github.com/fsnotify/fsnotify/pull/749
+
+
 1.9.0 2024-04-04
 ----------------
 

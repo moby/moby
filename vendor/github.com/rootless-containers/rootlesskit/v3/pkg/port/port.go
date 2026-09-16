@@ -20,6 +20,7 @@ type Spec struct {
 	// - builtin     driver: 127.0.0.1
 	// - slirp4netns driver: slirp4netns's child IP, e.g., 10.0.2.100
 	// - gvisor-tap-vsock driver: gvisor-tap-vsock's child IP, e.g., 10.0.2.100
+	// - pesto driver: pasta's child IP, e.g., 10.0.2.100
 	ChildIP string `json:"childIP,omitempty"`
 }
 

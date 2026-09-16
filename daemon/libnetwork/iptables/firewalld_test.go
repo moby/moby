@@ -16,8 +16,6 @@ func skipIfNoFirewalld(t *testing.T) {
 	if err != nil {
 		t.Skipf("cannot connect to D-bus system bus: %v", err)
 	}
-	defer conn.Close()
-
 	var zone string
 	err = conn.Object(dbusInterface, dbusPath).Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
 	if err != nil {
@@ -25,10 +23,10 @@ func skipIfNoFirewalld(t *testing.T) {
 	}
 }
 
-func TestFirewalldInit(t *testing.T) {
+func TestUsingFirewalld(t *testing.T) {
 	skipIfNoFirewalld(t)
-	if err := firewalldInit(); err != nil {
-		t.Fatal(err)
+	if !UsingFirewalld() {
+		t.Fatal("firewalld is running, but UsingFirewalld() is false")
 	}
 }
 
@@ -97,11 +95,10 @@ func TestPassthrough(t *testing.T) {
 		"-j", "ACCEPT",
 	}
 
-	err := firewalldInit()
-	if err != nil {
-		t.Fatal(err)
+	if !UsingFirewalld() {
+		t.Fatal("firewalld is running, but UsingFirewalld() is false")
 	}
-	_, err = passthrough(IPv4, rule1...)
+	_, err := passthrough(IPv4, rule1...)
 	if err != nil {
 		t.Fatal(err)
 	}

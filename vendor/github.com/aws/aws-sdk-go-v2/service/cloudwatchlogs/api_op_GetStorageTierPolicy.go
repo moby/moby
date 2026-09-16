@@ -6,10 +6,9 @@ import (
 	"context"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns the storage tier policy for your account.
+// Returns the storage tier policy for the account.
 func (c *Client) GetStorageTierPolicy(ctx context.Context, params *GetStorageTierPolicyInput, optFns ...func(*Options)) (*GetStorageTierPolicyOutput, error) {
 	if params == nil {
 		params = &GetStorageTierPolicyInput{}
@@ -32,7 +31,7 @@ type GetStorageTierPolicyInput struct {
 type GetStorageTierPolicyOutput struct {
 
 	// The time when the storage tier policy was last updated, expressed as the number
-	// of milliseconds after Jan 1, 1970 00:00:00 UTC .
+	// of milliseconds after January 1, 1970 00:00:00 UTC .
 	LastUpdatedTime *int64
 
 	// The current storage tier for the account.
@@ -54,9 +53,6 @@ func (c *Client) addOperationGetStorageTierPolicyMiddlewares(stack *middleware.S
 		return err
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
 	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
@@ -69,16 +65,7 @@ func (c *Client) addOperationGetStorageTierPolicyMiddlewares(stack *middleware.S
 	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addCredentialSource(stack, options); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "GetStorageTierPolicy"), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {

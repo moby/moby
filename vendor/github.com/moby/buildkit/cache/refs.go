@@ -1311,7 +1311,17 @@ func (sr *immutableRef) unlazyDiffMerge(ctx context.Context, dhs DescHandlers, p
 // should be called within sizeG.Do call for this ref's ID
 func (sr *immutableRef) unlazyLayer(ctx context.Context, dhs DescHandlers, pg progress.Controller, s session.Group, ensureContentStore bool) (rerr error) {
 	if !sr.getBlobOnly() {
-		return nil
+		// unlazy may reach this path because either the snapshot or content is
+		// missing. Recheck the snapshot to distinguish these cases. If the snapshot
+		// disappeared but the blob remains, re-extract it from the blob.
+		if _, err := sr.cm.Snapshotter.Stat(ctx, sr.getSnapshotID()); err == nil {
+			return nil
+		} else if !cerrdefs.IsNotFound(err) {
+			return errors.Wrapf(err, "failed to stat snapshot %s", sr.getSnapshotID())
+		}
+		if sr.getBlob() == "" {
+			return errors.Errorf("failed to restore missing snapshot %s: no blob available", sr.getSnapshotID())
+		}
 	}
 
 	if sr.cm.Applier == nil {

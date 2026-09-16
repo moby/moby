@@ -5,14 +5,102 @@ import (
 	"maps"
 	"math"
 	"math/bits"
+	"math/rand/v2"
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"pgregory.net/rapid"
 )
+
+func TestTriggerFuncStagger(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		epoch := time.Now()
+
+		ndb := &NetworkDB{
+			rng: rand.New(new(rand.PCG)),
+		}
+		var calls []time.Duration
+		ndb.goTriggerFunc(t.Context().Done(), time.Second, func() {
+			calls = append(calls, time.Since(epoch))
+		})
+
+		time.Sleep(10 * time.Second)
+		synctest.Wait()
+
+		assert.Check(t, is.Len(calls, 9))
+		if len(calls) > 0 {
+			assert.Check(t, calls[0] > time.Second, "first call was not staggered: called after %v delay", calls[0])
+			assert.Check(t, calls[0] < 2*time.Second, "first call was staggered by more than interval: called after %v delay", calls[0])
+		}
+
+		for i := 1; i < len(calls); i++ {
+			delta := calls[i] - calls[i-1]
+			jitter := delta - time.Second
+			if jitter < 0 {
+				jitter = -jitter
+			}
+			assert.Check(t, jitter < time.Millisecond, "calls were not spaced by interval: call %d was %v after call %d, want ~1s", i, delta, i-1)
+		}
+	})
+}
+
+// TestBulkSyncTablesCrossesOverlappingNetworks guards the order bulkSyncTables
+// visits networks in.
+//
+// bulkSync returns every network it found in common with the peer it picked, and
+// bulkSyncTables strikes all of them off its worklist. So a network which is
+// always visited after one it overlaps with is always struck off before it picks
+// a peer of its own, and only ever syncs with the members it shares that earlier
+// network with. Two groups overlapping on a single network stay partitioned:
+// gossip which misses an entry is never repaired by anti-entropy.
+//
+// Here nodes 0 and 1 share a-left, nodes 2 and 3 share b-right, and all four
+// share z-shared, which sorts last. Visiting networks in a fixed order leaves the
+// entry stranded in the first group.
+func TestBulkSyncTablesCrossesOverlappingNetworks(t *testing.T) {
+	requireSynctest(t)
+	synctest.Test(t, func(t *testing.T) {
+		c := newMemCluster(t, 4, "node", DefaultConfig())
+		members := func(indices ...int) []string {
+			out := make([]string, 0, len(indices))
+			for _, i := range indices {
+				out = append(out, c.dbs[i].config.NodeID)
+			}
+			return out
+		}
+		for _, i := range []int{0, 1} {
+			assert.NilError(t, c.dbs[i].JoinNetwork("a-left"))
+		}
+		for _, i := range []int{2, 3} {
+			assert.NilError(t, c.dbs[i].JoinNetwork("b-right"))
+		}
+		for _, db := range c.dbs {
+			assert.NilError(t, db.JoinNetwork("z-shared"))
+		}
+		c.settle(t, "a-left", members(0, 1))
+		c.settle(t, "b-right", members(2, 3))
+		c.settle(t, "z-shared", members(0, 1, 2, 3))
+
+		assert.NilError(t, c.dbs[0].CreateEntry(tableUnderTest, "z-shared", "key", []byte("value")))
+		// Enough rounds that every node has visited z-shared first several times
+		// over; one round is not enough even when the order does vary.
+		for range 20 {
+			for _, db := range c.dbs {
+				db.bulkSyncTables()
+			}
+			synctest.Wait()
+		}
+		for i, db := range c.dbs {
+			_, err := db.GetEntry(tableUnderTest, "z-shared", "key")
+			assert.NilError(t, err, "node %d never received the entry", i)
+		}
+	})
+}
 
 func TestMRandomNodes(t *testing.T) {
 	cfg := DefaultConfig()

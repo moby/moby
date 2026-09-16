@@ -66,7 +66,7 @@ func PrintTargets(dt []byte, w io.Writer) error {
 	}
 
 	tw := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-	fmt.Fprintf(tw, "TARGET\tDESCRIPTION\n")
+	fmt.Fprint(tw, "TARGET\tDESCRIPTION\n")
 
 	for _, t := range l.Targets {
 		name := t.Name

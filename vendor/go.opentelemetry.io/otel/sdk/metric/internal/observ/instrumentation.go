@@ -3,7 +3,7 @@
 
 // Package observ provides experimental observability instrumentation for the
 // metric reader.
-package observ // import "go.opentelemetry.io/otel/sdk/metric/internal/observ"
+package observ
 
 import (
 	"context"
@@ -16,8 +16,8 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk"
 	"go.opentelemetry.io/otel/sdk/internal/x"
-	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
-	"go.opentelemetry.io/otel/semconv/v1.41.0/otelconv"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
+	"go.opentelemetry.io/otel/semconv/v1.43.0/otelconv"
 )
 
 const (

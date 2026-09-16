@@ -30,11 +30,12 @@ type Event struct {
 
 // Stats is statistical information from the runc process
 type Stats struct {
-	Cpu     Cpu                `json:"cpu"` //revive:disable
-	Memory  Memory             `json:"memory"`
-	Pids    Pids               `json:"pids"`
-	Blkio   Blkio              `json:"blkio"`
-	Hugetlb map[string]Hugetlb `json:"hugetlb"`
+	Cpu               Cpu                 `json:"cpu"` //revive:disable
+	Memory            Memory              `json:"memory"`
+	Pids              Pids                `json:"pids"`
+	Blkio             Blkio               `json:"blkio"`
+	Hugetlb           map[string]Hugetlb  `json:"hugetlb"`
+	NetworkInterfaces []*NetworkInterface `json:"network_interfaces"`
 }
 
 // Hugetlb represents the detailed hugetlb component of the statistics data
@@ -112,4 +113,18 @@ type Memory struct {
 	Kernel    MemoryEntry       `json:"kernel,omitempty"`
 	KernelTCP MemoryEntry       `json:"kernelTCP,omitempty"`
 	Raw       map[string]uint64 `json:"raw,omitempty"`
+}
+
+type NetworkInterface struct {
+	// Name is the name of the network interface.
+	Name string
+
+	RxBytes   uint64
+	RxPackets uint64
+	RxErrors  uint64
+	RxDropped uint64
+	TxBytes   uint64
+	TxPackets uint64
+	TxErrors  uint64
+	TxDropped uint64
 }

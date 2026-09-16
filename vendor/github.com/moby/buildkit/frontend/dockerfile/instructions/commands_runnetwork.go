@@ -40,7 +40,7 @@ func runNetworkPreHook(cmd *RunCommand, req parseRequest) error {
 func runNetworkPostHook(cmd *RunCommand, req parseRequest) error {
 	st := cmd.getExternalValue(networkKey).(*networkState)
 	if st == nil {
-		return errors.Errorf("no network state")
+		return errors.New("no network state")
 	}
 
 	value := st.flag.Value

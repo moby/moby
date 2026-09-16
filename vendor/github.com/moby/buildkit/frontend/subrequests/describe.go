@@ -55,7 +55,7 @@ func Describe(ctx context.Context, c client.Client) ([]Request, error) {
 
 	dt, ok := res.Metadata["result.json"]
 	if !ok {
-		return nil, errors.Errorf("no result.json metadata in response")
+		return nil, errors.New("no result.json metadata in response")
 	}
 
 	var reqs []Request
@@ -72,7 +72,7 @@ func PrintDescribe(dt []byte, w io.Writer) error {
 	}
 
 	tw := tabwriter.NewWriter(w, 0, 0, 1, ' ', 0)
-	fmt.Fprintf(tw, "NAME\tVERSION\tDESCRIPTION\n")
+	fmt.Fprint(tw, "NAME\tVERSION\tDESCRIPTION\n")
 
 	for _, r := range d {
 		fmt.Fprintf(tw, "%s\t%s\t%s\n", strings.TrimPrefix(r.Name, "frontend."), r.Version, r.Description)

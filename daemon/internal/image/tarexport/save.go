@@ -25,7 +25,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/system"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/moby/sys/sequential"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -550,12 +549,12 @@ func (s *saveSession) saveConfigAndLayer(ctx context.Context, id layer.ChainID, 
 		return distribution.Descriptor{}, err
 	}
 
-	// We use sequential file access to avoid depleting the standby list on
-	// Windows. On Linux, this equates to a regular os.Create.
 	if err := mkdirAllWithChtimes(filepath.Dir(layerPath), 0o755, ts, ts); err != nil {
 		return distribution.Descriptor{}, errors.Wrap(err, "could not create layer dir parent")
 	}
-	tarFile, err := sequential.Create(layerPath)
+	// We use sequential file access to avoid depleting the standby list on
+	// Windows. On non-Windows platforms this equates to a regular os.Create.
+	tarFile, err := os.OpenFile(layerPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC|windows_O_FILE_FLAG_SEQUENTIAL_SCAN, 0o666)
 	if err != nil {
 		return distribution.Descriptor{}, errors.Wrap(err, "error creating layer file")
 	}

@@ -10,14 +10,10 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/go-openapi/errors"
 	"github.com/go-viper/mapstructure/v2"
 )
-
-// Default is the default formats registry.
-var Default = NewSeededFormats(nil, nil) //nolint:gochecknoglobals // package-level default registry, by design
 
 // Validator represents a validator for a string format.
 type Validator func(string) bool
@@ -48,11 +44,28 @@ type knownFormat struct {
 }
 
 // NameNormalizer is a function that normalizes a format name.
+//
+// The default duration format corresponds to "duration-human".
 type NameNormalizer func(string) string
+
+var dashReplacer = strings.NewReplacer("-", "") //nolint:gochecknoglobals // it's okay to use a global private replacer
 
 // DefaultNameNormalizer removes all dashes.
 func DefaultNameNormalizer(name string) string {
-	return strings.ReplaceAll(name, "-", "")
+	if name == "duration" {
+		name = "duration-human"
+	}
+
+	return dashReplacer.Replace(name)
+}
+
+// JSONSchema2020Normalizer is like [NameNormalizer] but adopts "duration-iso8601" as the default "duration" format.
+func JSONSchema2020Normalizer(name string) string {
+	if name == "duration" {
+		name = "duration-iso8601"
+	}
+
+	return dashReplacer.Replace(name)
 }
 
 type defaultFormats struct {
@@ -63,6 +76,11 @@ type defaultFormats struct {
 }
 
 // MapStructureHookFunc is a decode hook function for mapstructure.
+//
+// A registered format is decoded by delegating to the destination type's own
+// [encoding.TextUnmarshaler], so the mapstructure path is identical to the JSON
+// and [defaultFormats.Parse] paths. New formats are picked up automatically as
+// soon as they are registered — no per-type wiring here.
 func (f *defaultFormats) MapStructureHookFunc() mapstructure.DecodeHookFunc { //nolint:ireturn // returns interface required by mapstructure
 	return func(from reflect.Type, to reflect.Type, obj any) (any, error) {
 		if from.Kind() != reflect.String {
@@ -74,85 +92,25 @@ func (f *defaultFormats) MapStructureHookFunc() mapstructure.DecodeHookFunc { //
 		}
 
 		for _, v := range f.data {
-			tpe, _ := f.GetType(v.Name)
-			if to == tpe {
-				return decodeFormatFromString(v.Name, data)
+			if to != v.Type {
+				continue
 			}
-		}
-		return data, nil
-	}
-}
 
-// decodeFormatFromString decodes a string into the appropriate format type by name.
-func decodeFormatFromString(name, data string) (any, error) { //nolint:gocyclo,cyclop // flat switch over format names, no real complexity
-	switch name {
-	case "date":
-		d, err := time.ParseInLocation(RFC3339FullDate, data, DefaultTimeLocation)
-		if err != nil {
-			return nil, err
+			// reflect.New yields an addressable *T so the (pointer-receiver)
+			// TextUnmarshaler can hydrate it; we hand back the dereferenced
+			// value to match the destination field's (value) type.
+			nw := reflect.New(v.Type).Interface()
+			dec, isText := nw.(encoding.TextUnmarshaler)
+			if !isText {
+				return nil, errors.InvalidTypeName(v.Name)
+			}
+			if err := dec.UnmarshalText([]byte(data)); err != nil {
+				return nil, err
+			}
+			return reflect.ValueOf(nw).Elem().Interface(), nil
 		}
-		return Date(d), nil
-	case "datetime":
-		if len(data) == 0 {
-			return nil, fmt.Errorf("empty string is an invalid datetime format: %w", ErrFormat)
-		}
-		return ParseDateTime(data)
-	case "duration":
-		dur, err := ParseDuration(data)
-		if err != nil {
-			return nil, err
-		}
-		return Duration(dur), nil
-	case "uri":
-		return URI(data), nil
-	case "email":
-		return Email(data), nil
-	case "uuid":
-		return UUID(data), nil
-	case "uuid3":
-		return UUID3(data), nil
-	case "uuid4":
-		return UUID4(data), nil
-	case "uuid5":
-		return UUID5(data), nil
-	case "uuid7":
-		return UUID7(data), nil
-	case "hostname":
-		return Hostname(data), nil
-	case "ipv4":
-		return IPv4(data), nil
-	case "ipv6":
-		return IPv6(data), nil
-	case "cidr":
-		return CIDR(data), nil
-	case "mac":
-		return MAC(data), nil
-	case "isbn":
-		return ISBN(data), nil
-	case "isbn10":
-		return ISBN10(data), nil
-	case "isbn13":
-		return ISBN13(data), nil
-	case "creditcard":
-		return CreditCard(data), nil
-	case "ssn":
-		return SSN(data), nil
-	case "hexcolor":
-		return HexColor(data), nil
-	case "rgbcolor":
-		return RGBColor(data), nil
-	case "byte":
-		return Base64(data), nil
-	case "password":
-		return Password(data), nil
-	case "ulid":
-		ulid, err := ParseULID(data)
-		if err != nil {
-			return nil, err
-		}
-		return ulid, nil
-	default:
-		return nil, errors.InvalidTypeName(name)
+
+		return data, nil
 	}
 }
 

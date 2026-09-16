@@ -10,13 +10,13 @@ import (
 
 // WithLogLevel defines which log level to start containerd with.
 func WithLogLevel(lvl string) DaemonOpt {
-	return func(r *remote) error {
+	return func(r *Daemon) error {
 		if lvl == "info" {
 			// both dockerd and containerd default log-level is "info",
 			// so don't pass the default.
 			lvl = ""
 		}
-		r.Config.Debug.Level = lvl
+		r.config.Debug.Level = lvl
 		return nil
 	}
 }
@@ -24,16 +24,16 @@ func WithLogLevel(lvl string) DaemonOpt {
 // WithLogFormat defines the containerd log format.
 // This only makes sense if WithStartDaemon() was set to true.
 func WithLogFormat(format log.OutputFormat) DaemonOpt {
-	return func(r *remote) error {
-		r.Debug.Format = string(format)
+	return func(r *Daemon) error {
+		r.config.Debug.Format = string(format)
 		return nil
 	}
 }
 
 // WithCRIDisabled disables the CRI plugin.
 func WithCRIDisabled() DaemonOpt {
-	return func(r *remote) error {
-		r.DisabledPlugins = append(r.DisabledPlugins, "io.containerd.grpc.v1.cri")
+	return func(r *Daemon) error {
+		r.config.DisabledPlugins = append(r.config.DisabledPlugins, "io.containerd.grpc.v1.cri")
 		return nil
 	}
 }
@@ -42,7 +42,7 @@ func WithCRIDisabled() DaemonOpt {
 // directory as the dockerd binary, and overrides the path of the containerd
 // binary to start if found. If no binary is found, no changes are made.
 func WithDetectLocalBinary() DaemonOpt {
-	return func(r *remote) error {
+	return func(r *Daemon) error {
 		dockerdPath, err := os.Executable()
 		if err != nil {
 			return errors.Wrap(err, "looking up binary path")
@@ -60,7 +60,6 @@ func WithDetectLocalBinary() DaemonOpt {
 			return errors.Errorf("local containerd path found (%s), but is a directory", localBinary)
 		}
 		r.daemonPath = localBinary
-		r.logger.WithField("daemon path", r.daemonPath).Debug("Local containerd daemon found.")
 
 		return nil
 	}

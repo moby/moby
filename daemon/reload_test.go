@@ -447,3 +447,43 @@ func TestDaemonReloadPreservesDNSConfig(t *testing.T) {
 		assert.Check(t, addr.IsValid(), "HostGatewayIPs[%d] should be valid, got %q", i, addr)
 	}
 }
+
+func TestReloadTxn(t *testing.T) {
+	// Count callback sets without making execution order part of the contract.
+	type calls struct {
+		commit   int
+		rollback int
+	}
+	newTxn := func() (*reloadTxn, *calls) {
+		var tx reloadTxn
+		called := new(calls)
+		commit := func() error {
+			called.commit++
+			return nil
+		}
+		rollback := func() error {
+			called.rollback++
+			return nil
+		}
+		// Interleave duplicates to catch replacement and cross-execution.
+		tx.OnCommit(commit)
+		tx.OnRollback(rollback)
+		tx.OnCommit(commit)
+		tx.OnRollback(rollback)
+		return &tx, called
+	}
+
+	t.Run("Commit", func(t *testing.T) {
+		tx, called := newTxn()
+		assert.NilError(t, tx.Commit())
+		assert.Equal(t, called.commit, 2)
+		assert.Equal(t, called.rollback, 0)
+	})
+
+	t.Run("Rollback", func(t *testing.T) {
+		tx, called := newTxn()
+		assert.NilError(t, tx.Rollback())
+		assert.Equal(t, called.commit, 0)
+		assert.Equal(t, called.rollback, 2)
+	})
+}

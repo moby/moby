@@ -3,15 +3,10 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/miekg/dns)](https://goreportcard.com/report/miekg/dns)
 [![](https://godoc.org/github.com/miekg/dns?status.svg)](https://godoc.org/github.com/miekg/dns)
 
-DNS version 2 is now available at <https://codeberg.org/miekg/dns>, check it out if you want to
-help shape the next 15 years of the Go DNS package.
+DNS version 2 is now available at <https://codeberg.org/miekg/dns>. This version should be 2x faster across
+the board. Further optimizations welcome.
 
-The version here will see no new features and less and less development, and my time (if any) will be fully
-devoted towards v2.
-
-**December 2025**: v2 should be (already) a good replacement, the coming months would be a good time to
-migrate, see [this file describing the
-differences](https://codeberg.org/miekg/dns/src/branch/main/README-diff-with-v1.md), to help you get started.
+The version here will only see specific fixes and nothing else. At some point this repo will be archived.
 
 # Alternative (more granular) approach to a DNS library
 

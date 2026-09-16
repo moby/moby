@@ -243,7 +243,7 @@ func nameInlinedSchemas(opts *FlattenOpts) error {
 			continue
 		}
 
-		asch, err := Schema(SchemaOpts{Schema: sch.Schema, Root: opts.Swagger(), BasePath: opts.BasePath})
+		asch, err := Schema(SchemaOpts{Schema: sch.Schema, Root: opts.Swagger(), BasePath: opts.BasePath, PathLoaderWithOptions: opts.PathLoaderWithOptions})
 		if err != nil {
 			return ErrAtKey(key, err)
 		}
@@ -575,7 +575,7 @@ func stripOAIGenForRef(opts *FlattenOpts, k string, r *newRef) (bool, error) {
 	}
 
 	// rewrite other parents to point to first parent
-	if len(pr) > 1 {
+	if len(pr) > 1 { //nolint:nestif // should be refactored at a later time
 		for _, p := range pr[1:] {
 			replacingRef := spec.MustCreateRef(pr[0])
 
@@ -657,7 +657,7 @@ func stripOAIGenForRef(opts *FlattenOpts, k string, r *newRef) (bool, error) {
 
 	// determine if the previous substitution did inline a complex schema
 	if r.schema != nil && r.schema.Ref.String() == "" { // inline schema
-		asch, err := Schema(SchemaOpts{Schema: r.schema, Root: opts.Swagger(), BasePath: opts.BasePath})
+		asch, err := Schema(SchemaOpts{Schema: r.schema, Root: opts.Swagger(), BasePath: opts.BasePath, PathLoaderWithOptions: opts.PathLoaderWithOptions})
 		if err != nil {
 			return false, err
 		}
@@ -761,7 +761,7 @@ func flattenAnonPointer(key string, v SchemaRef, refsToReplace map[string]Schema
 	debugLog("namePointers at %s for %s", key, v.Ref.String())
 
 	// qualify the expanded schema
-	asch, ers := Schema(SchemaOpts{Schema: v.Schema, Root: opts.Swagger(), BasePath: opts.BasePath})
+	asch, ers := Schema(SchemaOpts{Schema: v.Schema, Root: opts.Swagger(), BasePath: opts.BasePath, PathLoaderWithOptions: opts.PathLoaderWithOptions})
 	if ers != nil {
 		return ErrAtKey(key, ers)
 	}

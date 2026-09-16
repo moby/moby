@@ -2,6 +2,7 @@ table ip table4 {
 	set set4 {
 		type ipv4_addr
 		flags interval
-		elements = { 192.0.2.0/24 }
+		counter
+		elements = { 192.0.2.0/24 counter packets 0 bytes 0 }
 	}
 }

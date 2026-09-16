@@ -28,7 +28,7 @@ import (
 	fstypes "github.com/tonistiigi/fsutil/types"
 )
 
-var errNotFound = errors.Errorf("not found")
+var errNotFound = errors.New("not found")
 
 var (
 	defaultManager     *cacheManager

@@ -1,7 +1,7 @@
 fsnotify is a Go library to provide cross-platform filesystem notifications on
 Windows, Linux, macOS, BSD, and illumos.
 
-Go 1.17 or newer is required; the full documentation is at
+Go 1.23 or newer is required; the full documentation is at
 https://pkg.go.dev/github.com/fsnotify/fsnotify
 
 ---
@@ -12,7 +12,7 @@ Platform support:
 | :-------------------- | :--------- | :------------------------------------------------------------------------ |
 | inotify               | Linux      | Supported                                                                 |
 | kqueue                | BSD, macOS | Supported                                                                 |
-| ReadDirectoryChangesW | Windows    | Supported                                                                 |
+| ReadDirectoryChangesW | Windows    | Supported ([excluding `Chmod` operations][#487])                          |
 | FEN                   | illumos    | Supported                                                                 |
 | fanotify              | Linux 5.9+ | [Not yet](https://github.com/fsnotify/fsnotify/issues/114)                |
 | FSEvents              | macOS      | [Needs support in x/sys/unix][fsevents]                                   |
@@ -22,6 +22,7 @@ Platform support:
 Linux and illumos should include Android and Solaris, but these are currently
 untested.
 
+[#487]:       https://github.com/fsnotify/fsnotify/issues/487
 [fsevents]:   https://github.com/fsnotify/fsnotify/issues/11#issuecomment-1279133120
 [usn]:        https://github.com/fsnotify/fsnotify/issues/53#issuecomment-1279829847
 
@@ -126,7 +127,7 @@ settings* until we have a native FSEvents implementation (see [#11]).
 ### Watching a file doesn't work well
 Watching individual files (rather than directories) is generally not recommended
 as many programs (especially editors) update files atomically: it will write to
-a temporary file which is then moved to to destination, overwriting the original
+a temporary file which is then moved to a destination, overwriting the original
 (or some variant thereof). The watcher on the original file is now lost, as that
 no longer exists.
 
@@ -151,26 +152,57 @@ This is the event that inotify sends, so not much can be changed about this.
 The `fs.inotify.max_user_watches` sysctl variable specifies the upper limit for
 the number of watches per user, and `fs.inotify.max_user_instances` specifies
 the maximum number of inotify instances per user. Every Watcher you create is an
-"instance", and every path you add is a "watch".
+"instance", and every path you add is a "watch". Reaching the limit will result
+in a "no space left on device" or "too many open files" error.
 
 These are also exposed in `/proc` as `/proc/sys/fs/inotify/max_user_watches` and
-`/proc/sys/fs/inotify/max_user_instances`
+`/proc/sys/fs/inotify/max_user_instances`. The default values differ per distro
+and available memory.
 
 To increase them you can use `sysctl` or write the value to proc file:
 
-    # The default values on Linux 5.18
-    sysctl fs.inotify.max_user_watches=124983
-    sysctl fs.inotify.max_user_instances=128
+    sysctl fs.inotify.max_user_watches=200000
+    sysctl fs.inotify.max_user_instances=256
 
 To make the changes persist on reboot edit `/etc/sysctl.conf` or
 `/usr/lib/sysctl.d/50-default.conf` (details differ per Linux distro; check your
 distro's documentation):
 
-    fs.inotify.max_user_watches=124983
-    fs.inotify.max_user_instances=128
+    fs.inotify.max_user_watches=200000
+    fs.inotify.max_user_instances=256
 
-Reaching the limit will result in a "no space left on device" or "too many open
-files" error.
+### Windows
+Recursive watching is not currently enabled through fsnotify's public API
+(see the FAQ "Are subdirectories watched?" above). The notes below
+describe Windows backend behavior observed when recursive watching is
+enabled internally (for example, in fsnotify's own tests). They are kept
+here as a reference for maintainers and contributors who encounter the
+behavior, since the recursive code path still exists in the backend.
+
+When recursive watching is enabled and you watch a directory, you may
+receive a `Write` event for an intermediate directory whenever a child
+entry inside it is created, renamed, or removed. For example, with a
+recursive watch on `/a` and a new file `/a/b/c`, you will receive
+`Create /a/b/c` and may also receive `Write /a/b`.
+
+This happens because, on NTFS-backed volumes, modifying the entries of a
+directory updates that directory's last-write time, and the Windows
+backend requests `FILE_NOTIFY_CHANGE_LAST_WRITE` to support `Write` events
+on files. The same `Write` filter therefore picks up the directory's
+metadata update.
+
+kqueue has the same "directory `Write` = directory contents changed"
+semantics, so portable code that treats `Write` on a directory as
+"something inside it changed" works on Windows and BSD/macOS, but not on
+Linux (inotify uses `Write` only for file-content changes). If you only
+care about file content, filter out `Write` events whose path refers to a
+directory.
+
+Whether the directory `Write` is actually delivered alongside the child
+events is not guaranteed: it depends on `ReadDirectoryChangesW` buffering,
+NTFS metadata update timing, and event coalescing, none of which fsnotify
+controls.
+
 
 ### kqueue (macOS, all BSD systems)
 kqueue requires opening a file descriptor for every file that's being watched;

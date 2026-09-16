@@ -6,7 +6,6 @@ import (
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/noop"
 	"google.golang.org/grpc/codes"
 )
 
@@ -37,19 +36,19 @@ const (
 // every Solve via the *Solver receiver — instruments are concurrency-safe
 // per the OTEL metric API contract.
 type buildMetrics struct {
+	enabled  bool
 	builds   metric.Int64Counter
 	steps    metric.Int64Counter
 	duration metric.Float64Histogram
 }
 
 // newBuildMetrics registers the build-completion instruments against mp.
-// A nil mp is treated as a request to disable metrics: a no-op provider
-// is used so the rest of the solver does not need to special-case the
-// "metrics disabled" path. Returning an error here causes daemon startup
-// to fail fast, matching the buildkit convention for required wiring.
+// A nil mp disables metrics so callers can skip metric-only collection work.
+// Returning an error here causes daemon startup to fail fast, matching the
+// buildkit convention for required wiring.
 func newBuildMetrics(mp metric.MeterProvider) (*buildMetrics, error) {
 	if mp == nil {
-		mp = noop.NewMeterProvider()
+		return &buildMetrics{}, nil
 	}
 	meter := mp.Meter(instrumentationName)
 
@@ -79,6 +78,7 @@ func newBuildMetrics(mp metric.MeterProvider) (*buildMetrics, error) {
 	}
 
 	return &buildMetrics{
+		enabled:  true,
 		builds:   builds,
 		steps:    steps,
 		duration: duration,
@@ -86,9 +86,7 @@ func newBuildMetrics(mp metric.MeterProvider) (*buildMetrics, error) {
 }
 
 // recordBuildCompletion observes one finished build onto every relevant
-// instrument. It is invoked from the recordBuildHistory finalizer, after
-// rec is fully populated and immediately before the COMPLETE history
-// event is sent.
+// instrument after rec is fully populated.
 //
 // Labels are deliberately bounded to keep cardinality finite:
 //   - status: "success" or "failure".
@@ -106,7 +104,7 @@ func newBuildMetrics(mp metric.MeterProvider) (*buildMetrics, error) {
 // A nil receiver or nil rec is a no-op so callers do not have to guard
 // the call site.
 func (m *buildMetrics) recordBuildCompletion(ctx context.Context, rec *controlapi.BuildHistoryRecord) {
-	if m == nil || rec == nil {
+	if m == nil || !m.enabled || rec == nil {
 		return
 	}
 

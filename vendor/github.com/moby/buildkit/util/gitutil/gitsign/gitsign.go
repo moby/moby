@@ -79,7 +79,7 @@ func parseSignatureBlock(data []byte) ([]byte, error) {
 		}
 		return block.Bytes, nil
 	}
-	return nil, errors.Errorf("invalid signature format")
+	return nil, errors.New("invalid signature format")
 }
 
 func ParseSignature(data []byte) (*Signature, error) {
@@ -101,5 +101,5 @@ func ParseSignature(data []byte) (*Signature, error) {
 		}
 		return &Signature{SSHSignature: sig}, nil
 	}
-	return nil, errors.Errorf("invalid signature format")
+	return nil, errors.New("invalid signature format")
 }

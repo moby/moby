@@ -26,7 +26,7 @@ func (h *sessionHandler) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	if req.Method != http.MethodGet {
-		return nil, errors.Errorf("invalid request")
+		return nil, errors.New("invalid request")
 	}
 
 	var resp *http.Response

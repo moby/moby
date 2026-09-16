@@ -121,7 +121,6 @@ func TestCreateByImageID(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
 			resp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
 				Config: &container.Config{Image: tc.image},

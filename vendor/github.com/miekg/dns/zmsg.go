@@ -2369,7 +2369,7 @@ func (rr *RESINFO) unpack(msg []byte, off int) (off1 int, err error) {
 
 	rr.Txt, off, err = unpackStringTxt(msg, off)
 	if err != nil {
-		return off, err
+		return off, fmt.Errorf("RESINFO.Txt: %w", err)
 	}
 	return off, nil
 }

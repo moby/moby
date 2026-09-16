@@ -293,6 +293,11 @@ func (c *Cluster) DetachNetwork(target string, containerID string) error {
 
 // CreateNetwork creates a new cluster managed network.
 func (c *Cluster) CreateNetwork(s network.CreateRequest) (string, error) {
+	if networkSettings.IsReserved(s.Name) {
+		err := notAllowedError(fmt.Sprintf("network name %q is reserved and cannot be created", s.Name))
+		return "", errors.WithStack(err)
+	}
+
 	if networkSettings.IsPredefined(s.Name) {
 		err := notAllowedError(s.Name + " is a pre-defined network and cannot be created")
 		return "", errors.WithStack(err)

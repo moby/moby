@@ -2081,7 +2081,7 @@ sequenceDecs_decodeSync_amd64_match_len_ofs_ok:
 	MOVQ 16(SP), R13
 
 	// Check if we have enough space in s.out
-	LEAQ (AX)(R13*1), R14
+	LEAQ 16(AX)(R13*1), R14
 	ADDQ R10, R14
 	CMPQ R14, 32(SP)
 	JA   error_not_enough_space
@@ -2601,7 +2601,7 @@ sequenceDecs_decodeSync_bmi2_match_len_ofs_ok:
 	MOVQ 16(SP), R13
 
 	// Check if we have enough space in s.out
-	LEAQ (CX)(R13*1), R14
+	LEAQ 16(CX)(R13*1), R14
 	ADDQ R9, R14
 	CMPQ R14, 32(SP)
 	JA   error_not_enough_space

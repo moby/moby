@@ -51,26 +51,25 @@ import (
 // The fs.inotify.max_user_watches sysctl variable specifies the upper limit
 // for the number of watches per user, and fs.inotify.max_user_instances
 // specifies the maximum number of inotify instances per user. Every Watcher you
-// create is an "instance", and every path you add is a "watch".
+// create is an "instance", and every path you add is a "watch". Reaching the
+// limit will result in a "no space left on device" or "too many open files"
+// error.
 //
 // These are also exposed in /proc as /proc/sys/fs/inotify/max_user_watches and
-// /proc/sys/fs/inotify/max_user_instances
+// /proc/sys/fs/inotify/max_user_instances. The default values differ per distro
+// and available memory.
 //
 // To increase them you can use sysctl or write the value to the /proc file:
 //
-//	# Default values on Linux 5.18
-//	sysctl fs.inotify.max_user_watches=124983
-//	sysctl fs.inotify.max_user_instances=128
+//	sysctl fs.inotify.max_user_watches=200000
+//	sysctl fs.inotify.max_user_instances=256
 //
 // To make the changes persist on reboot edit /etc/sysctl.conf or
 // /usr/lib/sysctl.d/50-default.conf (details differ per Linux distro; check
 // your distro's documentation):
 //
-//	fs.inotify.max_user_watches=124983
-//	fs.inotify.max_user_instances=128
-//
-// Reaching the limit will result in a "no space left on device" or "too many open
-// files" error.
+//	fs.inotify.max_user_watches=200000
+//	fs.inotify.max_user_instances=256
 //
 // # kqueue notes (macOS, BSD)
 //
@@ -92,6 +91,28 @@ import (
 // directory itself, but may not send events for all files in that directory.
 // Sometimes it will send events for all files, sometimes it will send no
 // events, and often only for some files.
+//
+// Recursive watching is not currently enabled through fsnotify's public
+// API; the recursive code path is gated and only exercised by fsnotify's
+// own tests. The note below describes backend behavior observed when
+// recursive watching is enabled internally, and is kept here as a
+// reference for maintainers and contributors who encounter it.
+//
+// When recursive watching is enabled and you watch a directory, you may
+// receive a Write event for an intermediate directory whenever a child
+// entry inside it is created, renamed, or removed. For example, with a
+// recursive watch on /a and a new file /a/b/c, you will receive
+// Create /a/b/c and may also receive Write /a/b.
+//
+// This happens because, on NTFS-backed volumes, modifying the entries of a
+// directory updates that directory's last-write time, and the Windows
+// backend requests FILE_NOTIFY_CHANGE_LAST_WRITE to support Write events
+// on files. The same Write filter therefore picks up the directory's
+// metadata update.
+//
+// Whether the directory Write is actually delivered alongside the child
+// events is not guaranteed; it depends on ReadDirectoryChangesW buffering,
+// NTFS metadata update timing, and event coalescing.
 //
 // The default ReadDirectoryChangesW() buffer size is 64K, which is the largest
 // value that is guaranteed to work with SMB filesystems. If you have many
@@ -129,8 +150,12 @@ type Watcher struct {
 	//                      want to wait until you've stopped receiving them
 	//                      (see the dedup example in cmd/fsnotify).
 	//
-	//                      Some systems may send Write event for directories
-	//                      when the directory content changes.
+	//                      Some systems also send Write events for directories
+	//                      when the directory contents change. This is the
+	//                      case for kqueue, and on Windows for the directory
+	//                      that contains a created, renamed, or removed child
+	//                      entry. It does not happen on inotify. See the
+	//                      per-platform notes on [Watcher].
 	//
 	//   fsnotify.Chmod     Attributes were changed. On Linux this is also sent
 	//                      when a file is removed (or more accurately, when a
@@ -179,7 +204,9 @@ const (
 	Create Op = 1 << iota
 
 	// The pathname was written to; this does *not* mean the write has finished,
-	// and a write can be followed by more writes.
+	// and a write can be followed by more writes. On Windows and kqueue, a
+	// Write on a directory can also indicate that its contents changed; see
+	// the per-platform notes on [Watcher].
 	Write
 
 	// The path was removed; any watches on it will be removed. Some "remove"
@@ -220,7 +247,7 @@ const (
 
 	// File opened for reading was closed.
 	//
-	// Only works on Linux and FreeBSD.
+	// Only works on Linux.
 	xUnportableCloseRead
 )
 
@@ -410,7 +437,6 @@ type (
 	withOpts struct {
 		bufsize    int
 		op         Op
-		noFollow   bool
 		sendCreate bool
 	}
 )
@@ -469,12 +495,6 @@ func withOps(op Op) addOpt {
 	return func(opt *withOpts) { opt.op = op }
 }
 
-// WithNoFollow disables following symlinks, so the symlinks themselves are
-// watched.
-func withNoFollow() addOpt {
-	return func(opt *withOpts) { opt.noFollow = true }
-}
-
 // "Internal" option for recursive watches on inotify.
 func withCreate() addOpt {
 	return func(opt *withOpts) { opt.sendCreate = true }
@@ -494,3 +514,13 @@ func recursivePath(path string) (string, bool) {
 	}
 	return path, false
 }
+
+type watchFlag uint8
+
+const (
+	// Added by user with Add(), rather than an internal watch.
+	flagByUser = watchFlag(0x01)
+	// Part of recursive watch; as the top-level path added by the user or an
+	// "internal" watch.
+	flagRecurse = watchFlag(0x02)
+)

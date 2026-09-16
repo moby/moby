@@ -310,7 +310,7 @@ func containerToNRI(ctr *container.Container) (*adaptation.PodSandbox, *adaptati
 		State:        stateToNRI(ctr.State),
 		Labels:       ctr.Config.Labels,
 		Annotations:  ctr.HostConfig.Annotations,
-		Args:         ctr.Config.Cmd,
+		Args:         append([]string{ctr.Path}, ctr.Args...),
 		Env:          ctr.Config.Env,
 		Hooks:        nil,
 		Linux: &adaptation.LinuxContainer{

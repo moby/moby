@@ -9,6 +9,7 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -43,6 +44,7 @@ func RandomSinglePlatform(dir string, platform ocispec.Platform, source rand.Sou
 	}
 
 	manifest := ocispec.Manifest{
+		Versioned: specs.Versioned{SchemaVersion: 2},
 		MediaType: ocispec.MediaTypeImageManifest,
 		Config:    configDesc,
 		Layers:    layers,

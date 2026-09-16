@@ -4,12 +4,12 @@
 
 | Total Contributors | Total Contributions |
 | --- | --- |
-| 40  | 239  |
+| 41  | 243  |
 
 | Username | All Time Contribution Count | All Commits |
 | --- | --- | --- |
 | @casualjim | 88 | <https://github.com/go-openapi/strfmt/commits?author=casualjim> |
-| @fredbi | 71 | <https://github.com/go-openapi/strfmt/commits?author=fredbi> |
+| @fredbi | 74 | <https://github.com/go-openapi/strfmt/commits?author=fredbi> |
 | @youyuanwu | 13 | <https://github.com/go-openapi/strfmt/commits?author=youyuanwu> |
 | @jlambatl | 9 | <https://github.com/go-openapi/strfmt/commits?author=jlambatl> |
 | @GlenDC | 5 | <https://github.com/go-openapi/strfmt/commits?author=GlenDC> |
@@ -26,6 +26,7 @@
 | @bg451 | 2 | <https://github.com/go-openapi/strfmt/commits?author=bg451> |
 | @aleksandr-vin | 2 | <https://github.com/go-openapi/strfmt/commits?author=aleksandr-vin> |
 | @ujjwalsh | 1 | <https://github.com/go-openapi/strfmt/commits?author=ujjwalsh> |
+| @patchwright | 1 | <https://github.com/go-openapi/strfmt/commits?author=patchwright> |
 | @kenjones-cisco | 1 | <https://github.com/go-openapi/strfmt/commits?author=kenjones-cisco> |
 | @jwalter1-quest | 1 | <https://github.com/go-openapi/strfmt/commits?author=jwalter1-quest> |
 | @ccoVeille | 1 | <https://github.com/go-openapi/strfmt/commits?author=ccoVeille> |

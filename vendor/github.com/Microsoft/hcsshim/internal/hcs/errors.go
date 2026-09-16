@@ -59,6 +59,10 @@ var (
 	// ErrVmcomputeAlreadyStopped is an error encountered when a shutdown or terminate request is made on a stopped container
 	ErrVmcomputeAlreadyStopped = syscall.Errno(0xc0370110)
 
+	// ErrVmcomputeSystemAlreadyStopped is returned when an operation targets a compute system that is no longer running
+	// (e.g. modifying a UVM during migration teardown after it has been stopped).
+	ErrVmcomputeSystemAlreadyStopped = syscall.Errno(0x80370110)
+
 	// ErrVmcomputeOperationPending is an error encountered when the operation is being completed asynchronously
 	ErrVmcomputeOperationPending = syscall.Errno(0xC0370103)
 
@@ -300,7 +304,7 @@ func IsTimeout(err error) bool {
 // already exited, or does not exist. Both IsAlreadyStopped and IsNotExist
 // will currently return true when the error is ErrElementNotFound.
 func IsAlreadyStopped(err error) bool {
-	return IsAny(err, ErrVmcomputeAlreadyStopped, ErrProcessAlreadyStopped, ErrElementNotFound)
+	return IsAny(err, ErrVmcomputeAlreadyStopped, ErrVmcomputeSystemAlreadyStopped, ErrProcessAlreadyStopped, ErrElementNotFound)
 }
 
 // IsNotSupported returns a boolean indicating whether the error is caused by

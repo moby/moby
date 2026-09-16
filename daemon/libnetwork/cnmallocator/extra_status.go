@@ -26,7 +26,8 @@ func (na *cnmNetworkAllocator) OnGetNetwork(ctx context.Context, swarmnet *api.N
 
 	n := na.getNetwork(swarmnet.ID)
 	if n == nil {
-		return fmt.Errorf("cnmallocator: network %s not found", swarmnet.ID)
+		// Unallocated networks have no operational status to report.
+		return nil
 	}
 
 	ipamdriver, _, _, err := na.resolveIPAM(swarmnet)

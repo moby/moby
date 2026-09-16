@@ -298,6 +298,7 @@ func newTestDB(ctx context.Context, t testing.TB) *metadata.DB {
 
 type testSnapshotterService struct {
 	snapshots.Snapshotter
+	usageByKey map[string]snapshots.Usage
 }
 
 func (s *testSnapshotterService) Stat(ctx context.Context, key string) (snapshots.Info, error) {
@@ -305,5 +306,5 @@ func (s *testSnapshotterService) Stat(ctx context.Context, key string) (snapshot
 }
 
 func (s *testSnapshotterService) Usage(ctx context.Context, key string) (snapshots.Usage, error) {
-	return snapshots.Usage{}, nil
+	return s.usageByKey[key], nil
 }

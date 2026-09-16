@@ -49,6 +49,12 @@ type MigrationTransferOptions struct {
 	Origin MigrationOrigin `json:"Origin,omitempty"`
 }
 
+// MigrationCancelOptions is a set of options used to cancel a live migration.
+type MigrationCancelOptions struct {
+	// Origin is the side of migration the workflow is performed on.
+	Origin MigrationOrigin `json:"Origin,omitempty"`
+}
+
 // StartOptions specifies options for starting a compute system.
 type StartOptions struct {
 	// DestinationMigrationOptions specifies settings to use when starting a migration on the destination side.

@@ -1,7 +1,6 @@
 package vsock
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -403,7 +402,7 @@ func opError(op string, err error, local, remote net.Addr) error {
 		//
 		// To rectify the differences, net.TCPConn uses an error with this text
 		// from internal/poll for the backing file already being closed.
-		err = errors.New("use of closed network connection")
+		err = net.ErrClosed
 	default:
 		// Nothing to do, return this directly.
 	}

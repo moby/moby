@@ -118,8 +118,6 @@ func (b *binary) Start(ctx context.Context, opts *types.Any, onClose func()) (_ 
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", out, err)
 	}
-	response := bytes.TrimSpace(out)
-
 	onCloseWithShimLog := func() {
 		onClose()
 		cancelShimLog()
@@ -130,7 +128,7 @@ func (b *binary) Start(ctx context.Context, opts *types.Any, onClose func()) (_ 
 		return nil, err
 	}
 
-	params, err := parseStartResponse(response)
+	params, err := parseStartResponse(out)
 	if err != nil {
 		return nil, err
 	}

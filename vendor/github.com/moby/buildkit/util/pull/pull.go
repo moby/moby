@@ -93,7 +93,7 @@ func (p *Puller) tryLocalResolve(ctx context.Context) error {
 	}
 
 	if ok, err := contentutil.HasSource(info, p.Src); err != nil || !ok {
-		return errors.Errorf("no matching source")
+		return errors.New("no matching source")
 	}
 
 	desc.Size = info.Size

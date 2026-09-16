@@ -33,7 +33,7 @@ func WithCredentials(c func(string) (string, string, error)) ResolveOptFunc {
 	}
 }
 
-func ProviderFromRef(ref string, opts ...ResolveOptFunc) (ocispecs.Descriptor, content.Provider, error) {
+func ProviderFromRef(ctx context.Context, ref string, opts ...ResolveOptFunc) (ocispecs.Descriptor, content.Provider, error) {
 	headers := http.Header{}
 	headers.Set("User-Agent", version.UserAgent())
 
@@ -52,26 +52,26 @@ func ProviderFromRef(ref string, opts ...ResolveOptFunc) (ocispecs.Descriptor, c
 	}
 	remote := docker.NewResolver(dro)
 
-	name, desc, err := remote.Resolve(context.TODO(), ref)
+	name, desc, err := remote.Resolve(ctx, ref)
 	if err != nil {
 		return ocispecs.Descriptor{}, nil, err
 	}
 
-	fetcher, err := remote.Fetcher(context.TODO(), name)
+	fetcher, err := remote.Fetcher(ctx, name)
 	if err != nil {
 		return ocispecs.Descriptor{}, nil, err
 	}
 	return desc, FromFetcher(fetcher), nil
 }
 
-func IngesterFromRef(ref string) (content.Ingester, error) {
+func IngesterFromRef(ctx context.Context, ref string) (content.Ingester, error) {
 	headers := http.Header{}
 	headers.Set("User-Agent", version.UserAgent())
 	remote := docker.NewResolver(docker.ResolverOptions{
 		Headers: headers,
 	})
 
-	p, err := remote.Pusher(context.TODO(), ref)
+	p, err := remote.Pusher(ctx, ref)
 	if err != nil {
 		return nil, err
 	}

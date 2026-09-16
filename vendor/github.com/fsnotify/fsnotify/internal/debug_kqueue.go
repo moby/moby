@@ -27,6 +27,6 @@ func Debug(name string, kevent *unix.Kevent_t) {
 	if unknown > 0 {
 		l = append(l, fmt.Sprintf("0x%x", unknown))
 	}
-	fmt.Fprintf(os.Stderr, "FSNOTIFY_DEBUG: %s  %10d:%-60s → %q\n",
+	fmt.Fprintf(os.Stderr, "FSNOTIFY_DEBUG: %s  %10d:%-20s → %q\n",
 		time.Now().Format("15:04:05.000000000"), mask, strings.Join(l, " | "), name)
 }

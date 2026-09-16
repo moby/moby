@@ -65,11 +65,23 @@ const (
 	IPv6 IPVersion = "ipv6"
 )
 
-var (
-	iptablesPath  string
-	ip6tablesPath string
-	initOnce      sync.Once
-)
+var iptablesPath = sync.OnceValues(func() (string, error) {
+	path, err := exec.LookPath("iptables")
+	if err != nil {
+		log.G(context.TODO()).WithError(err).Warnf("failed to find iptables")
+		return "", errors.New("iptables not found")
+	}
+	return path, nil
+})
+
+var ip6tablesPath = sync.OnceValues(func() (string, error) {
+	path, err := exec.LookPath("ip6tables")
+	if err != nil {
+		log.G(context.TODO()).WithError(err).Warnf("failed to find ip6tables")
+		return "", errors.New("ip6tables not found")
+	}
+	return path, nil
+})
 
 // IPTable defines struct with [IPVersion].
 type IPTable struct {
@@ -106,22 +118,6 @@ func loopbackAddress(version IPVersion) string {
 	}
 }
 
-func detectIptables() {
-	path, err := exec.LookPath("iptables")
-	if err != nil {
-		log.G(context.TODO()).WithError(err).Warnf("failed to find iptables")
-		return
-	}
-	iptablesPath = path
-
-	path, err = exec.LookPath("ip6tables")
-	if err != nil {
-		log.G(context.TODO()).WithError(err).Warnf("unable to find ip6tables")
-	} else {
-		ip6tablesPath = path
-	}
-}
-
 func initFirewalld() {
 	// When running with RootlessKit, firewalld is running as the root outside our network namespace
 	// https://github.com/moby/moby/issues/43781
@@ -132,20 +128,6 @@ func initFirewalld() {
 	if err := firewalldInit(); err != nil {
 		log.G(context.TODO()).WithError(err).Debugf("unable to initialize firewalld; using raw iptables instead")
 	}
-}
-
-func initDependencies() {
-	initFirewalld()
-	detectIptables()
-}
-
-func initCheck() error {
-	initOnce.Do(initDependencies)
-
-	if iptablesPath == "" {
-		return errors.New("iptables not found")
-	}
-	return nil
 }
 
 // GetIptable returns an instance of IPTable with specified version ([IPv4]
@@ -292,12 +274,6 @@ func (iptable IPTable) ExistsNative(table Table, chain string, rule ...string) b
 }
 
 func (iptable IPTable) exists(native bool, table Table, chain string, rule ...string) bool {
-	if err := initCheck(); err != nil {
-		// The exists() signature does not allow us to return an error, but at least
-		// we can skip the (likely invalid) exec invocation.
-		return false
-	}
-
 	f := iptable.Raw
 	if native {
 		f = iptable.raw
@@ -336,7 +312,7 @@ func filterOutput(start time.Time, output []byte, args ...string) []byte {
 
 // Raw calls 'iptables' system command, passing supplied arguments.
 func (iptable IPTable) Raw(args ...string) ([]byte, error) {
-	if firewalldRunning {
+	if UsingFirewalld() {
 		startTime := time.Now()
 		output, err := passthrough(iptable.ipVersion, args...)
 		if err == nil || !strings.Contains(err.Error(), "was not provided by any .service files") {
@@ -347,17 +323,17 @@ func (iptable IPTable) Raw(args ...string) ([]byte, error) {
 }
 
 func (iptable IPTable) raw(args ...string) ([]byte, error) {
-	if err := initCheck(); err != nil {
-		return nil, err
-	}
-	path := iptablesPath
+	var path string
 	commandName := "iptables"
+	var err error
 	if iptable.ipVersion == IPv6 {
-		if ip6tablesPath == "" {
-			return nil, errors.New("ip6tables is missing")
-		}
-		path = ip6tablesPath
+		path, err = ip6tablesPath()
 		commandName = "ip6tables"
+	} else {
+		path, err = iptablesPath()
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	args = append([]string{"--wait"}, args...)

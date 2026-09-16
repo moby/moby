@@ -72,7 +72,11 @@ type InspectResponse struct {
 	// run on (especially for Windows).
 	OsVersion string `json:",omitempty"`
 
-	// Size is the total size of the image including all layers it is composed of.
+	// Size is the total size of the selected image variant, including all layers
+	// it is composed of.
+	//
+	// When using the containerd image store, this includes both the image content
+	// that's present locally and the unpacked snapshot data.
 	Size int64
 
 	// GraphDriver holds information about the storage driver used to store the

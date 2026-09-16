@@ -9,13 +9,14 @@ import (
 // (JSON, CBOR, etc.) uses a distinct slot to cache precomputed data.
 type ExtensionID int
 
-const numExtensionSlots = 4
+const numExtensionSlots = 5
 
 const (
-	ExtJSON  ExtensionID = iota // transport/http/protocol/internal/json
-	ExtCBOR                     // transport/http/protocol/internal/cbor
-	ExtXML                      // transport/http/protocol/internal/xml
-	ExtQuery                    // transport/http/protocol/internal/query
+	ExtJSON        ExtensionID = iota // transport/http/protocol/internal/json
+	ExtCBOR                           // transport/http/protocol/internal/cbor
+	ExtXML                            // transport/http/protocol/internal/xml
+	ExtQuery                          // transport/http/protocol/internal/query
+	ExtHTTPBinding                    // transport/http/protocol/internal/httpbinding
 )
 
 // SchemaExtension retrieves or lazily computes the extension for the given

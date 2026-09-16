@@ -222,7 +222,7 @@ func (ce *contentCacheExporter) Finalize(ctx context.Context) (map[string]string
 		layerDone(nil)
 		return nil, nil
 	})
-	if err := images.Dispatch(ctx, copyHandler, semaphore.NewWeighted(limited.DefaultMaxConcurrency), layerDescs...); err != nil {
+	if err := images.Dispatch(ctx, copyHandler, semaphore.NewWeighted(limited.Default.Size()), layerDescs...); err != nil {
 		return nil, err
 	}
 

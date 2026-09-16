@@ -128,7 +128,7 @@ func (x *BuilderGCConfig) UnmarshalJSON(data []byte) error {
 // BuilderHistoryConfig contains history config for a buildkit builder
 type BuilderHistoryConfig struct {
 	MaxAge     bkconfig.Duration
-	MaxEntries int64 `json:",omitempty"`
+	MaxEntries *int64 `json:",omitempty"`
 }
 
 // BuilderEntitlements contains settings to enable/disable entitlements

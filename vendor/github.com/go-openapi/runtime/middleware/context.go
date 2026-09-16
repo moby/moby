@@ -442,6 +442,7 @@ func (c *Context) RouteInfo(request *http.Request) (*MatchedRoute, *http.Request
 
 	if route, ok := c.LookupRoute(request); ok {
 		rCtx = stdContext.WithValue(rCtx, ctxMatchedRoute, route)
+		request.Pattern = route.BasePath + route.PathPattern
 		return route, request.WithContext(rCtx), ok
 	}
 

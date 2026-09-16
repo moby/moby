@@ -23,8 +23,7 @@ func NewCacheKeyStorage(cc *CacheChains, w worker.Worker) (solver.CacheKeyStorag
 	cc.computeIDs()
 
 	for it := range cc.leaves() {
-		visited := make(map[*item]*itemWithOutgoingLinks)
-		if _, err := addItemToStorage(storage, it, visited); err != nil {
+		if _, err := addItemToStorage(storage, it); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -39,30 +38,22 @@ func NewCacheKeyStorage(cc *CacheChains, w worker.Worker) (solver.CacheKeyStorag
 	return storage, results, nil
 }
 
-func addItemToStorage(k *cacheKeyStorage, it *item, visited map[*item]*itemWithOutgoingLinks) (*itemWithOutgoingLinks, error) {
-	if v, ok := visited[it]; ok {
-		return v, nil
-	}
-	visited[it] = nil
-
+func addItemToStorage(k *cacheKeyStorage, it *item) (*itemWithOutgoingLinks, error) {
+	// byItem is shared across all leaf traversals and must be the sole source
+	// of memoized items. A separate per-traversal map can retain a nil marker
+	// when this shortcut finds an item completed by an earlier traversal,
+	// causing a later reference to that item to silently lose its link.
 	if id, ok := k.byItem[it]; ok {
-		if id == "" {
-			return nil, errors.Errorf("invalid loop")
-		}
 		return k.byID[id], nil
 	}
 
 	id := it.id
-	k.byItem[it] = ""
 
 	for i, m := range it.parents {
 		for l := range m {
-			src, err := addItemToStorage(k, l.src, visited)
+			src, err := addItemToStorage(k, l.src)
 			if err != nil {
 				return nil, err
-			}
-			if src == nil {
-				continue
 			}
 			cl := nlink{
 				input:    i,
@@ -73,13 +64,11 @@ func addItemToStorage(k *cacheKeyStorage, it *item, visited map[*item]*itemWithO
 		}
 	}
 
-	k.byItem[it] = id
-
 	itl := &itemWithOutgoingLinks{
 		item:  it,
 		links: map[nlink][]string{},
 	}
-
+	k.byItem[it] = id
 	k.byID[id] = itl
 
 	seen := map[string]struct{}{}
@@ -96,7 +85,6 @@ func addItemToStorage(k *cacheKeyStorage, it *item, visited map[*item]*itemWithO
 		}
 		ids[id] = struct{}{}
 	}
-	visited[it] = itl
 	return itl, nil
 }
 
@@ -256,7 +244,7 @@ type cacheResultStorage struct {
 }
 
 func (cs *cacheResultStorage) Save(res solver.Result, createdAt time.Time) (solver.CacheResult, error) {
-	return solver.CacheResult{}, errors.Errorf("importer is immutable")
+	return solver.CacheResult{}, errors.New("importer is immutable")
 }
 
 func (cs *cacheResultStorage) LoadWithParents(ctx context.Context, res solver.CacheResult) (map[string]solver.Result, error) {

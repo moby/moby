@@ -36,7 +36,7 @@ func runSecurityPreHook(cmd *RunCommand, req parseRequest) error {
 func runSecurityPostHook(cmd *RunCommand, req parseRequest) error {
 	st := cmd.getExternalValue(securityKey).(*securityState)
 	if st == nil {
-		return errors.Errorf("no security state")
+		return errors.New("no security state")
 	}
 
 	value := st.flag.Value

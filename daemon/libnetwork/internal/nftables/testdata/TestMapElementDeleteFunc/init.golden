@@ -1,0 +1,9 @@
+table ip x {
+	map a_map {
+		typeof ip daddr . numgen random mod 1024 : ip daddr
+		flags interval
+		elements = { 10.0.0.1 . 0-511 comment "svc-a" : 127.0.0.1,
+			     10.0.0.1 . 512-1023 comment "svc-a" : 127.0.0.2,
+			     10.0.0.2 . 0-1023 comment "svc-b" : 127.0.0.3 }
+	}
+}

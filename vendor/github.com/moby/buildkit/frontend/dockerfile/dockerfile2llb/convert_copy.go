@@ -139,6 +139,9 @@ func dispatchCopy(d *dispatchState, cfg copyConfig) error {
 				llb.WithCustomName(pgName),
 				llb.GitRef(gitRef.Ref),
 			}
+			if cfg.opt.gitAdvice {
+				gitOptions = append(gitOptions, llb.GitAdvice(true))
+			}
 			if cfg.keepGitDir != nil && gitRef.KeepGitDir != nil {
 				if *cfg.keepGitDir != *gitRef.KeepGitDir {
 					return errors.New("inconsistent keep-git-dir configuration")

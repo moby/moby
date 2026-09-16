@@ -4,21 +4,21 @@
 
 | Total Contributors | Total Contributions |
 | --- | --- |
-| 13  | 111  |
+| 13  | 132  |
 
 | Username | All Time Contribution Count | All Commits |
 | --- | --- | --- |
-| @fredbi | 63 | <https://github.com/go-openapi/jsonpointer/commits?author=fredbi> |
+| @fredbi | 83 | <https://github.com/go-openapi/jsonpointer/commits?author=fredbi> |
 | @casualjim | 33 | <https://github.com/go-openapi/jsonpointer/commits?author=casualjim> |
 | @magodo | 3 | <https://github.com/go-openapi/jsonpointer/commits?author=magodo> |
 | @youyuanwu | 3 | <https://github.com/go-openapi/jsonpointer/commits?author=youyuanwu> |
+| @alexandear | 2 | <https://github.com/go-openapi/jsonpointer/commits?author=alexandear> |
 | @gaiaz-iusipov | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=gaiaz-iusipov> |
 | @gbjk | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=gbjk> |
 | @gordallott | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=gordallott> |
 | @ianlancetaylor | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=ianlancetaylor> |
 | @mfleader | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=mfleader> |
 | @Neo2308 | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=Neo2308> |
-| @alexandear | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=alexandear> |
 | @olivierlemasle | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=olivierlemasle> |
 | @testwill | 1 | <https://github.com/go-openapi/jsonpointer/commits?author=testwill> |
 

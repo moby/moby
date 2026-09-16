@@ -23,11 +23,11 @@ var contextKey = contextKeyT("buildkit/util/resolver/limited")
 // DefaultMaxConcurrency is the default number of concurrent connections per registry.
 var DefaultMaxConcurrency int64 = 4
 
-var Default = New(int(DefaultMaxConcurrency))
+var Default = New(DefaultMaxConcurrency)
 
 type Group struct {
 	mu   sync.Mutex
-	size int
+	size int64
 	sem  map[string][2]*semaphore.Weighted
 }
 
@@ -66,11 +66,16 @@ func (r *req) acquire(ctx context.Context, desc ocispecs.Descriptor) (context.Co
 	}, nil
 }
 
-func New(size int) *Group {
+func New(size int64) *Group {
 	return &Group{
 		size: size,
 		sem:  make(map[string][2]*semaphore.Weighted),
 	}
+}
+
+// Size returns the maximum concurrency for the group.
+func (g *Group) Size() int64 {
+	return g.size
 }
 
 func (g *Group) req(ref string) *req {
@@ -84,8 +89,8 @@ func (g *Group) getOrInit(domain string) [2]*semaphore.Weighted {
 	s, ok := g.sem[domain]
 	if !ok {
 		s = [2]*semaphore.Weighted{
-			semaphore.NewWeighted(int64(g.size)),
-			semaphore.NewWeighted(int64(g.size + 1)),
+			semaphore.NewWeighted(g.size),
+			semaphore.NewWeighted(g.size + 1),
 		}
 		g.sem[domain] = s
 	}
@@ -93,7 +98,7 @@ func (g *Group) getOrInit(domain string) [2]*semaphore.Weighted {
 }
 
 // SetMaxConcurrency sets the default maximum concurrency for the default group.
-func SetMaxConcurrency(size int) {
+func SetMaxConcurrency(size int64) {
 	Default = New(size)
 }
 

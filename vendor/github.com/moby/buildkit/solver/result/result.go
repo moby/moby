@@ -62,7 +62,7 @@ func (r *Result[T]) SingleRef() (T, error) {
 	var zero T
 	if r.Refs != nil && r.Ref == zero {
 		var t T
-		return t, errors.Errorf("invalid map result")
+		return t, errors.New("invalid map result")
 	}
 	return r.Ref, nil
 }

@@ -9,7 +9,7 @@ import (
 
 func dispatchSSH(d *dispatchState, m *instructions.Mount, loc []parser.Range) (llb.RunOption, error) {
 	if m.Source != "" {
-		return nil, errors.Errorf("ssh does not support source")
+		return nil, errors.New("ssh does not support source")
 	}
 
 	id := m.CacheID

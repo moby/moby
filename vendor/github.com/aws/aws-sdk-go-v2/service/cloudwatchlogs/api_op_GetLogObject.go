@@ -91,9 +91,6 @@ func (c *Client) addOperationGetLogObjectMiddlewares(stack *middleware.Stack, op
 		return err
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
 	if err = addEventStreamGetLogObjectMiddleware(stack, options); err != nil {
 		return err
 	}
@@ -116,9 +113,6 @@ func (c *Client) addOperationGetLogObjectMiddlewares(stack *middleware.Stack, op
 		return err
 	}
 	if err = addOpGetLogObjectValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "GetLogObject"), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {

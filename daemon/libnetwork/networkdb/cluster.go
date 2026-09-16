@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	golog "log"
-	"math/rand/v2"
+	"maps"
 	"net"
 	"net/netip"
 	"slices"
@@ -110,6 +110,9 @@ func (nDB *NetworkDB) clusterInit() error {
 	config.BindAddr = nDB.config.BindAddr
 	config.AdvertiseAddr = nDB.config.AdvertiseAddr
 	config.UDPBufferSize = nDB.config.PacketBufferSize
+	// nil unless a test has substituted its own network, in which case
+	// memberlist opens no sockets of its own.
+	config.Transport = nDB.config.transport
 
 	if nDB.config.BindPort != 0 {
 		config.BindPort = nDB.config.BindPort
@@ -165,9 +168,7 @@ func (nDB *NetworkDB) clusterInit() error {
 		{nodeReapPeriod, nDB.reapDeadNode},
 		{nDB.config.rejoinClusterInterval, nDB.rejoinClusterBootStrap},
 	} {
-		t := time.NewTicker(trigger.interval)
-		go nDB.triggerFunc(trigger.interval, t.C, trigger.fn)
-		nDB.tickers = append(nDB.tickers, t)
+		nDB.goTriggerFunc(nDB.ctx.Done(), trigger.interval, trigger.fn)
 	}
 
 	return nil
@@ -226,48 +227,57 @@ func (nDB *NetworkDB) clusterLeave() error {
 	// cancel the context
 	nDB.cancelCtx()
 
-	for _, t := range nDB.tickers {
-		t.Stop()
-	}
-
 	return mlist.Shutdown()
 }
 
-func (nDB *NetworkDB) triggerFunc(stagger time.Duration, C <-chan time.Time, f func()) {
-	if stagger > 0 {
-		// Use a random stagger to avoid synchronizing.
-		randStagger := time.Duration(rand.Int64N(int64(stagger))) // #nosec G404 -- use of math/rand/v2 is fine for this purpose.
+// goTriggerFunc starts a background goroutine which calls f every interval
+// until ch is closed. The first call is additionally delayed by a random
+// stagger to avoid synchronizing with other nodes.
+func (nDB *NetworkDB) goTriggerFunc(ch <-chan struct{}, interval time.Duration, f func()) {
+	nDB.rngMu.Lock()
+	randStagger := time.Duration(nDB.rng.Int64N(int64(interval))) // #nosec G404 -- use of math/rand/v2 is fine for this purpose.
+	nDB.rngMu.Unlock()
+	go func() {
 		select {
 		case <-time.After(randStagger):
-		case <-nDB.ctx.Done():
+		case <-ch:
 			return
 		}
-	}
-	for {
-		select {
-		case <-C:
-			f()
-		case <-nDB.ctx.Done():
-			return
+		t := time.NewTicker(interval)
+		defer t.Stop()
+		for {
+			select {
+			case <-t.C:
+				f()
+			case <-ch:
+				return
+			}
 		}
-	}
+	}()
 }
 
 func (nDB *NetworkDB) reapDeadNode() {
 	nDB.Lock()
 	defer nDB.Unlock()
-	for _, nodeMap := range []map[string]*node{
-		nDB.failedNodes,
-		nDB.leftNodes,
-	} {
-		for id, n := range nodeMap {
-			if n.reapTime > nodeReapPeriod {
-				n.reapTime -= nodeReapPeriod
-				continue
-			}
-			log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
-			delete(nodeMap, id)
+	for id, n := range nDB.failedNodes {
+		if n.reapTime > nodeReapPeriod {
+			n.reapTime -= nodeReapPeriod
+			continue
 		}
+		log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
+		// The node is not coming back: drop the attachments remembered for
+		// it along with any entries reapTableEntries has not aged out yet.
+		nDB.deleteNodeFromNetworks(n.Name)
+		nDB.deleteNodeTableEntries(n.Name)
+		delete(nDB.failedNodes, id)
+	}
+	for id, n := range nDB.leftNodes {
+		if n.reapTime > nodeReapPeriod {
+			n.reapTime -= nodeReapPeriod
+			continue
+		}
+		log.G(context.TODO()).Debugf("Garbage collect node %v", n.Name)
+		delete(nDB.leftNodes, id)
 	}
 }
 
@@ -340,6 +350,10 @@ func (nDB *NetworkDB) reconnectNode() {
 	}
 	nDB.RUnlock()
 
+	// Built by ranging failedNodes, so unsorted the same offset names a
+	// different node on each run.
+	slices.SortFunc(nodes, func(a, b *node) int { return strings.Compare(a.Name, b.Name) })
+
 	nDB.rngMu.Lock()
 	offset := nDB.rng.IntN(len(nodes))
 	nDB.rngMu.Unlock()
@@ -361,8 +375,9 @@ func (nDB *NetworkDB) reconnectNode() {
 // For timing the entry deletion in the reaper APIs that doesn't use monotonic clock
 // source (time.Now, Sub etc.) should be avoided. Hence we use reapTime in every
 // entry which is set initially to reapInterval and decremented by reapPeriod every time
-// the reaper runs. NOTE nDB.reapTableEntries updates the reapTime with a readlock. This
-// is safe as long as no other concurrent path touches the reapTime field.
+// the reaper runs. NOTE reapTime is only written while holding the NetworkDB write
+// lock — by the reapers and by the paths which suspend and restore the entries of a
+// failed node — and only read while holding at least the read lock.
 func (nDB *NetworkDB) reapState() {
 	// The reapTableEntries leverage the presence of the network so garbage collect entries first
 	nDB.reapTableEntries()
@@ -411,7 +426,10 @@ func (nDB *NetworkDB) reapTableEntries() {
 		nDB.indexes[byNetwork].Root().WalkPrefix([]byte("/"+nid), func(path []byte, v *entry) bool {
 			// timeCompensation compensate in case the lock took some time to be released
 			timeCompensation := time.Since(cycleStart)
-			if !v.deleting {
+			// Entries remembered for a failed owner age out like tombstones,
+			// so that they cannot be restored after whatever would delete
+			// them expired.
+			if !v.deleting && !nDB.isNodeFailed(v.node) {
 				return false
 			}
 
@@ -456,12 +474,19 @@ func (nDB *NetworkDB) gossip() {
 		nDB.lastHealthTimestamp = time.Now()
 	}
 
-	for nid, nodes := range networkNodes {
+	// Sorted: the draws mRandomNodes makes below are consumed in visitation
+	// order, so ranging the map would hand a given network a different draw on
+	// each run.
+	for _, nid := range slices.Sorted(maps.Keys(networkNodes)) {
+		nodes := networkNodes[nid]
 		mNodes := nDB.mRandomNodes(3, nodes)
 		bytesAvail := nDB.config.PacketBufferSize - compoundHeaderOverhead
 
 		nDB.RLock()
 		network, ok := nDB.thisNodeNetworks[nid]
+		// Read leaving while still holding the lock: it is mutated under
+		// the write lock by (*NetworkDB).LeaveNetwork.
+		leaving := ok && network.leaving
 		nDB.RUnlock()
 		if !ok || network == nil {
 			// It is normal for the network to be removed
@@ -478,7 +503,7 @@ func (nDB *NetworkDB) gossip() {
 			msent := network.qMessagesSent.Swap(0)
 			log.G(context.TODO()).Infof("NetworkDB stats %v(%v) - netID:%s leaving:%t netPeers:%d entries:%d Queue qLen:%d+%d netMsg/s:%d",
 				nDB.config.Hostname, nDB.config.NodeID,
-				nid, network.leaving, network.tableBroadcasts.NumNodes(), network.entriesNumber.Load(),
+				nid, leaving, network.tableBroadcasts.NumNodes(), network.entriesNumber.Load(),
 				network.tableBroadcasts.NumQueued(), network.tableRebroadcasts.NumQueued(),
 				msent/int64((nDB.config.StatsPrintPeriod/time.Second)))
 		}
@@ -496,7 +521,9 @@ func (nDB *NetworkDB) gossip() {
 			nDB.RUnlock()
 
 			if mnode == nil {
-				break
+				// The node stopped being an active peer since it was
+				// picked, therefore skip it.
+				continue
 			}
 
 			// Send the compound message
@@ -521,6 +548,23 @@ func (nDB *NetworkDB) bulkSyncTables() {
 		networks = append(networks, nid)
 	}
 	nDB.RUnlock()
+	// Sorted for a canonical starting point -- ranging thisNodeNetworks would
+	// otherwise hand each network a different bulk-sync draw on each run -- and
+	// then permuted, because the order this loop visits networks in has to keep
+	// varying between cycles.
+	//
+	// bulkSync returns every network it found in common with the peer it chose,
+	// and the loop below strikes all of them off. A network which is always
+	// visited after one it overlaps with is therefore always struck off before it
+	// selects a peer of its own, and never syncs with the members it does not
+	// share that first network with. Two groups overlapping on one network can
+	// then stay partitioned for good: anti-entropy never crosses between them.
+	slices.Sort(networks)
+	nDB.rngMu.Lock()
+	nDB.rng.Shuffle(len(networks), func(i, j int) {
+		networks[i], networks[j] = networks[j], networks[i]
+	})
+	nDB.rngMu.Unlock()
 
 	for len(networks) != 0 {
 		nid := networks[0]
@@ -613,8 +657,24 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	nDB.RLock()
 	mnode := nDB.nodes[node]
 	if mnode == nil {
+		// The node is not an active peer: it either failed since it was
+		// picked from a peer list, or it sent us a bulk sync while
+		// memberlist considers it failed. Sync at the address last known
+		// for it anyway: it evidently could reach us, and it is waiting for
+		// our reply if the bulk sync we are answering was unsolicited.
+		mnode = nDB.failedNodes[node]
+	}
+	if mnode == nil {
 		nDB.RUnlock()
-		return nil
+		// Nothing is known about the node, so it cannot be reached. Report
+		// it so that the caller does not count this as a completed sync.
+		return fmt.Errorf("cannot bulk sync with unknown node %s", node)
+	}
+
+	// Carry the attachment view for the networks being synced, ahead of the
+	// entries which depend on it, for any peer which can take it.
+	if mnode.canReceiveNetworkEvents() {
+		msgs = nDB.appendNetworkEvents(msgs, networks, node)
 	}
 
 	for _, nid := range networks {
@@ -639,7 +699,7 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 
 			msg, err := encodeMessage(MessageTypeTableEvent, &tEvent)
 			if err != nil {
-				log.G(context.TODO()).Errorf("Encode failure during bulk sync: %#v", tEvent)
+				log.G(context.TODO()).WithError(err).Errorf("Encode failure during bulk sync: %#v", tEvent)
 				return false
 			}
 
@@ -732,6 +792,14 @@ func (nDB *NetworkDB) mRandomNodes(m int, nodes []string) []string {
 		mNodes = append(mNodes, node)
 	}
 
+	// networkNodes is in the order attachments were learned, which follows
+	// gossip arrival and so differs between nodes and between runs. The draws
+	// below select by index, so without a total order the same draw picks a
+	// different peer. Sorting a copy -- mNodes already is one -- makes peer
+	// selection a function of the RNG alone. Both callers reach the RNG through
+	// here, so this is the one place it has to happen.
+	slices.Sort(mNodes)
+
 	if len(mNodes) < m {
 		nDB.rngMu.Lock()
 		nDB.rng.Shuffle(len(mNodes), func(i, j int) {
@@ -751,4 +819,74 @@ func (nDB *NetworkDB) mRandomNodes(m int, nodes []string) []string {
 	}
 
 	return sample
+}
+
+// appendNetworkEvents appends the attachment view for networks: which nodes this
+// one believes participate in each of them. Call with nDB's read lock held.
+//
+// handleTableEvent will not accept an entry from a node it does not believe
+// participates in the network, and attachments are otherwise disseminated only
+// by one-shot NetworkEvent broadcasts with a bounded number of retransmits. A
+// node which misses those has no way back: a bulk sync hands it the entries
+// every round and it rejects every one of them, for as long as its view stays
+// stale. Sending the attachments those entries are predicated on makes the sync
+// self-sufficient, so anti-entropy converges the membership it needs rather
+// than assuming it.
+//
+// The volume is bounded by the membership of the networks being synced, not by
+// cluster history: changeNodeState drops a peer's attachments as soon as it goes
+// failed or left, and reapNetworks collects those marked leaving, so nDB.networks
+// holds live peers plus a short tail of departures.
+//
+// Departures are included on purpose. A node which missed a Leave is the mirror
+// image of the case above -- it holds a departed owner in networkNodes and keeps
+// accepting and serving its entries -- and handleNetworkEvent's Leave path is
+// what clears that. Filtering on !n.leaving here would trade one stale view for
+// the other.
+//
+// These are ordinary network events, so handleNetworkEvent applies its usual
+// Lamport-time check and a receiver which is already up to date does nothing.
+func (nDB *NetworkDB) appendNetworkEvents(msgs [][]byte, networks []string, node string) [][]byte {
+	for _, nid := range networks {
+		if n, ok := nDB.thisNodeNetworks[nid]; ok {
+			msgs = appendNetworkEventMsg(msgs, nDB.config.NodeID, nid, n.network)
+		}
+	}
+	for owner, nws := range nDB.networks {
+		if owner == node {
+			// The peer is authoritative for its own attachments, so
+			// handleNetworkEvent drops anything we tell it about itself. Skipping
+			// it is not just a saving: findCommonNetworks only returns networks
+			// this node records the peer as attached to, so without this every
+			// network in the sync would carry one event guaranteed to be
+			// discarded -- after the receiver had taken the write lock to
+			// discard it.
+			continue
+		}
+		for _, nid := range networks {
+			if n, ok := nws[nid]; ok {
+				msgs = appendNetworkEventMsg(msgs, owner, nid, *n)
+			}
+		}
+	}
+	return msgs
+}
+
+// appendNetworkEventMsg appends an encoded NetworkEvent describing one node's
+// attachment to a network. Used to make a bulk sync carry the membership its
+// table entries are predicated on.
+func appendNetworkEventMsg(msgs [][]byte, nodeName, nid string, n network) [][]byte {
+	nEvent := NetworkEvent{
+		Type:      networkEventType(n.leaving),
+		LTime:     n.ltime,
+		NodeName:  nodeName,
+		NetworkID: nid,
+	}
+
+	msg, err := encodeMessage(MessageTypeNetworkEvent, &nEvent)
+	if err != nil {
+		log.G(context.TODO()).WithError(err).Errorf("Encode failure during bulk sync: %#v", nEvent)
+		return msgs
+	}
+	return append(msgs, msg)
 }

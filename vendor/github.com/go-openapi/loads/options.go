@@ -58,8 +58,9 @@ func WithDocLoaderMatches(l ...DocLoaderWithMatch) LoaderOption {
 // WithLoadingOptions adds some [loading.Option] to be added when calling a registered loader.
 //
 // The options are attached to the document's loader, so they apply both to the initial load
-// and to every "$ref" resolved during [Document.Expanded]. This is the recommended place to
-// confine loading of untrusted input, for example with [loading.WithRoot] (local) and
+// and to every "$ref" resolved during [Document.Expanded].
+//
+// This is the recommended place to confine loading of untrusted input, for example with [loading.WithRoot] (local) and
 // [loading.WithHTTPClient] (remote). See the package documentation on Security.
 func WithLoadingOptions(loadingOptions ...loading.Option) LoaderOption {
 	return func(opt *options) {

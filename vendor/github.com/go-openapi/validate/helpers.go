@@ -242,9 +242,9 @@ func (h *paramHelper) resolveParam(path, method, operationID string, param *spec
 	res := new(Result)
 	isRef := param.Ref.String() != ""
 	if s.spec.SpecFilePath() == "" {
-		err = spec.ExpandParameterWithRoot(param, s.spec.Spec(), nil)
+		err = spec.ExpandParameterWithOptions(param, s.spec.Spec(), nil, s.schemaOptions.expandOptions(""))
 	} else {
-		err = spec.ExpandParameter(param, s.spec.SpecFilePath())
+		err = spec.ExpandParameterWithOptions(param, nil, nil, s.schemaOptions.expandOptions(s.spec.SpecFilePath()))
 	}
 	if err != nil { // Safeguard
 		// NOTE: we may enter here when the whole parameter is an unresolved $ref
@@ -295,9 +295,9 @@ func (r *responseHelper) expandResponseRef(
 	res := new(Result)
 	if s.spec.SpecFilePath() == "" {
 		// there is no physical document to resolve $ref in response
-		err = spec.ExpandResponseWithRoot(response, s.spec.Spec(), nil)
+		err = spec.ExpandResponseWithOptions(response, s.spec.Spec(), nil, s.schemaOptions.expandOptions(""))
 	} else {
-		err = spec.ExpandResponse(response, s.spec.SpecFilePath())
+		err = spec.ExpandResponseWithOptions(response, nil, nil, s.schemaOptions.expandOptions(s.spec.SpecFilePath()))
 	}
 	if err != nil { // Safeguard
 		// NOTE: we may enter here when the whole response is an unresolved $ref.

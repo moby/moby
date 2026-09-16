@@ -1,5 +1,3 @@
-//go:build dfrundevice
-
 package dockerfile2llb
 
 import (

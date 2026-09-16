@@ -20,6 +20,8 @@ on:
 
 jobs:
   validate-dco:
+    permissions:
+      pull-requests: read
     uses: ./.github/workflows/.dco.yml
 
   run:
@@ -31,9 +33,9 @@ jobs:
       matrix:
         include:
           - storage: graphdriver
-            containerd: socket
+            containerd: external
           - storage: snapshotter
-            containerd: socket
+            containerd: external
           - storage: snapshotter
             containerd: embedded
     with:

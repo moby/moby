@@ -108,6 +108,7 @@ type (
 	POSIXRlimit              = api.POSIXRlimit
 	SecurityProfile          = api.SecurityProfile
 	User                     = api.User
+	Image                    = api.Image
 
 	Event     = api.Event
 	EventMask = api.EventMask

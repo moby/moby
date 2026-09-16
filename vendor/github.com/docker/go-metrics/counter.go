@@ -23,10 +23,12 @@ func (lc *labeledCounter) WithValues(vs ...string) Counter {
 	return &counter{pc: lc.pc.WithLabelValues(vs...)}
 }
 
+// Describe implements [prometheus.Collector].
 func (lc *labeledCounter) Describe(ch chan<- *prometheus.Desc) {
 	lc.pc.Describe(ch)
 }
 
+// Collect implements [prometheus.Collector].
 func (lc *labeledCounter) Collect(ch chan<- prometheus.Metric) {
 	lc.pc.Collect(ch)
 }
@@ -43,10 +45,12 @@ func (c *counter) Inc(vs ...float64) {
 	c.pc.Add(sumFloat64(vs...))
 }
 
+// Describe implements [prometheus.Collector].
 func (c *counter) Describe(ch chan<- *prometheus.Desc) {
 	c.pc.Describe(ch)
 }
 
+// Collect implements [prometheus.Collector].
 func (c *counter) Collect(ch chan<- prometheus.Metric) {
 	c.pc.Collect(ch)
 }

@@ -5,6 +5,11 @@ include Makefile.bootfiles
 # enable loading kernel modules in init
 KMOD:=0
 
+# whether the base rootfs uses a usr-merged layout (i.e. /bin is a symlink to
+# /usr/bin). This defaults to disabled; set USR_MERGED_ROOTFS=1 for a
+# usr-merged base rootfs such as Azure Linux.
+USR_MERGED_ROOTFS:=0
+
 CFLAGS:=-O2 -Wall
 LDFLAGS:=-static -s #strip C binaries
 LDLIBS:=
@@ -89,7 +94,12 @@ out/delta-snp.tar.gz: out/delta.tar.gz bin/internal/tools/snp-report boot/startu
 out/delta.tar.gz: bin/init bin/vsockexec bin/cmd/gcs bin/cmd/gcstools bin/cmd/hooks/wait-paths Makefile
 	@mkdir -p out
 	rm -rf rootfs
-	mkdir -p rootfs/bin/
+ifeq "$(USR_MERGED_ROOTFS)" "1"
+	mkdir -p rootfs/usr/bin
+	ln -s usr/bin rootfs/bin
+else
+	mkdir -p rootfs/bin
+endif
 	mkdir -p rootfs/info/
 	cp bin/init rootfs/
 	cp bin/vsockexec rootfs/bin/

@@ -17,11 +17,6 @@ import (
 // Unix 0 for an EST timezone is not equivalent to a UTC timezone.
 var UnixZero = time.Unix(0, 0).UTC() //nolint:gochecknoglobals // package-level sentinel value for unix epoch
 
-func init() { //nolint:gochecknoinits // registers datetime format in the default registry
-	dt := DateTime{}
-	Default.Add("datetime", &dt, IsDateTime)
-}
-
 // IsDateTime returns true when the string is a valid date-time.
 //
 // JSON datetime format consist of a date and a time separated by a "T", e.g. 2012-04-23T18:25:43.511Z.

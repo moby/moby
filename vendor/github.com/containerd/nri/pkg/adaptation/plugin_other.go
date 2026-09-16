@@ -25,6 +25,6 @@ import (
 )
 
 // getPeerPid returns the process id at the other end of the connection.
-func getPeerPid(conn net.Conn) (int, error) {
+func getPeerPid(net.Conn) (int, error) {
 	return 0, fmt.Errorf("getPeerPid() unimplemented on %s", runtime.GOOS)
 }

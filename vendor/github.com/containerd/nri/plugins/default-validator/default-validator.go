@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"strings"
 
-	yaml "gopkg.in/yaml.v3"
+	yaml "go.yaml.in/yaml/v3"
 
 	"github.com/containerd/nri/pkg/api"
 	"github.com/containerd/nri/pkg/log"

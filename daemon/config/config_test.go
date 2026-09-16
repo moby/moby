@@ -47,6 +47,78 @@ func TestDaemonConfigurationMalformedJSON(t *testing.T) {
 	assert.Check(t, errors.As(err, &syntaxErr), `got: %[1]T: %[1]v`, err)
 }
 
+func TestDaemonConfigurationExtensionConfig(t *testing.T) {
+	configFile := makeConfigFile(t, `{
+		"extension-config": {
+			"org.example.foo.v1": {"plugin_path": "/opt/foo", "enabled": true},
+			"com.docker.compose.v1": {"workers": 4}
+		}
+	}`)
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	cfg, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, cfg.ExtensionConfig, ExtensionConfigs{
+		{ID: "org.example.foo.v1", Config: map[string]any{
+			"plugin_path": "/opt/foo",
+			"enabled":     true,
+		}},
+		{ID: "com.docker.compose.v1", Config: map[string]any{
+			"workers": float64(4),
+		}},
+	})
+}
+
+func TestExtensionConfigsMarshalOrder(t *testing.T) {
+	configs := ExtensionConfigs{
+		{ID: "org.example.first.v1", Config: map[string]any{"name": "first"}},
+		{ID: "org.example.second.v1", Config: map[string]any{"name": "second"}},
+	}
+
+	encoded, err := json.Marshal(configs)
+	assert.NilError(t, err)
+	assert.Equal(t, string(encoded), `{"org.example.first.v1":{"name":"first"},"org.example.second.v1":{"name":"second"}}`)
+}
+
+func TestExtensionConfigsNullAndEmpty(t *testing.T) {
+	var configs ExtensionConfigs
+	assert.NilError(t, json.Unmarshal([]byte(`null`), &configs))
+	assert.Assert(t, configs == nil)
+
+	assert.NilError(t, json.Unmarshal([]byte(`{}`), &configs))
+	assert.Assert(t, configs != nil)
+	assert.Equal(t, len(configs), 0)
+
+	encoded, err := json.Marshal(configs)
+	assert.NilError(t, err)
+	assert.Equal(t, string(encoded), `{}`)
+
+	configs = nil
+	encoded, err = json.Marshal(configs)
+	assert.NilError(t, err)
+	assert.Equal(t, string(encoded), `null`)
+}
+
+func TestDaemonConfigurationInvalidExtensionConfigID(t *testing.T) {
+	configFile := makeConfigFile(t, `{
+		"extension-config": {
+			"org.example.foo": {"enabled": true}
+		}
+	}`)
+
+	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
+	assert.ErrorContains(t, err, `invalid extension-config key "org.example.foo"`)
+}
+
+func TestDaemonConfigurationExtensionDirs(t *testing.T) {
+	configFile := makeConfigFile(t, `{
+		"extension-dirs": ["/opt/extensions/one", "/opt/extensions/two"]
+	}`)
+
+	cfg, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, cfg.ExtensionDirs, []string{"/opt/extensions/one", "/opt/extensions/two"})
+}
+
 // TestDaemonConfigurationUnicodeVariations feeds various variations of Unicode into the JSON parser, ensuring that we
 // respect a BOM and otherwise default to UTF-8.
 func TestDaemonConfigurationUnicodeVariations(t *testing.T) {
@@ -904,23 +976,40 @@ func TestMaskURLCredentials(t *testing.T) {
 
 func TestSanitize(t *testing.T) {
 	const (
-		userPass    = "myuser:mypassword@"
-		proxyRawURL = "https://" + userPass + "example.org"
-		proxyURL    = "https://xxxxx:xxxxx@example.org"
+		userPass        = "myuser:mypassword@"
+		proxyRawURL     = "https://" + userPass + "example.org"
+		proxyURL        = "https://xxxxx:xxxxx@example.org"
+		extensionID     = "org.example.test.v1"
+		extensionSecret = "unique-extension-secret"
 	)
-	sanitizedCfg := Sanitize(Config{
+	cfg := Config{
 		CommonConfig: CommonConfig{
 			Proxies: Proxies{
 				HTTPProxy:  proxyRawURL,
 				HTTPSProxy: proxyRawURL,
 				NoProxy:    proxyRawURL,
 			},
+			ExtensionConfig: ExtensionConfigs{{
+				ID: extensionID,
+				Config: map[string]any{
+					"secret": extensionSecret,
+				},
+			}},
 		},
-	})
+	}
+	sanitizedCfg := Sanitize(cfg)
 	expectedProxies := Proxies{
 		HTTPProxy:  proxyURL,
 		HTTPSProxy: proxyURL,
 		NoProxy:    proxyURL,
 	}
 	assert.Check(t, is.DeepEqual(sanitizedCfg.Proxies, expectedProxies))
+
+	sanitizedJSON, err := json.Marshal(sanitizedCfg)
+	assert.NilError(t, err)
+	assert.Assert(t, !strings.Contains(string(sanitizedJSON), extensionSecret))
+	assert.Assert(t, !strings.Contains(string(sanitizedJSON), `"extension-config"`))
+	assert.Check(t, is.DeepEqual(cfg.ExtensionConfig[0].Config, map[string]any{
+		"secret": extensionSecret,
+	}))
 }

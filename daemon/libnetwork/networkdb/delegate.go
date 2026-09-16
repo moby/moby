@@ -3,7 +3,6 @@ package networkdb
 import (
 	"context"
 	"net"
-	"slices"
 	"time"
 
 	"github.com/containerd/log"
@@ -14,8 +13,47 @@ type delegate struct {
 	nDB *NetworkDB
 }
 
+// Node metadata, which memberlist carries in alive messages and push/pull state
+// and hands back on every [memberlist.Node]. It is opaque to memberlist and
+// ignored by daemons which do not understand it, which is what makes it usable
+// here at all: memberlist's own DelegateProtocolVersion is not, because
+// verifyProtocol -- reached from mergeRemoteState on every push/pull, not just
+// joins -- rejects any node whose DCur exceeds the cluster-wide minimum DMax,
+// and daemons predating this advertise DMax=0. Raising it would have their
+// push/pulls, and a new node's join, refused outright.
+const (
+	// nodeMetaLTimeInvalidation marks a daemon whose networkEventMessage
+	// invalidation compares Lamport times, and which may therefore be sent
+	// network events in a bulk sync. See (*node).canReceiveNetworkEvents.
+	nodeMetaLTimeInvalidation = 1
+
+	// nodeMetaVersion is what this daemon advertises. NodeMeta has returned an
+	// empty slice ever since networkdb was introduced, so empty metadata
+	// identifies a daemon from before any of this existed.
+	nodeMetaVersion = nodeMetaLTimeInvalidation
+)
+
 func (d *delegate) NodeMeta(limit int) []byte {
-	return []byte{}
+	return []byte{nodeMetaVersion}
+}
+
+// canReceiveNetworkEvents reports whether network events may be included in a
+// bulk sync to n.
+//
+// The receiver applies them through handleNetworkMessage, which queues a relay
+// after releasing the lock it applied the event under. Bulk syncs arrive on a
+// goroutine per connection while gossip is handled by memberlist's single
+// packetHandler, so two handlers can apply in Lamport order and reach the queue
+// in the opposite order. A daemon which invalidates queued network events on
+// (network, node) alone lets the straggler evict the fresher relay and gossip a
+// stale attachment in its place.
+//
+// This daemon compares Lamport times and is safe either way, but older ones do
+// not, and sending to them would make that flaw reachable for the length of a
+// rolling upgrade. They keep the convergence gap this is all meant to close
+// until they are upgraded, which is the more conservative of the two.
+func (n *node) canReceiveNetworkEvents() bool {
+	return len(n.Meta) > 0 && n.Meta[0] >= nodeMetaLTimeInvalidation
 }
 
 func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
@@ -116,7 +154,9 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 
 		if nEvent.Type == NetworkEventTypeLeave {
 			nDB.deleteNetworkNode(nEvent.NetworkID, nEvent.NodeName)
-		} else {
+		} else if _, active := nDB.nodes[nEvent.NodeName]; active {
+			// Only an active node is a gossip peer. Otherwise, changeNodeState
+			// puts it back in the peer list if the node comes back.
 			nDB.addNetworkNode(nEvent.NetworkID, nEvent.NodeName)
 		}
 
@@ -152,14 +192,19 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 
 	// Ignore the table events for networks that are in the process of going away
 	network, ok := nDB.thisNodeNetworks[tEvent.NetworkID]
-	// Check if the owner of the event is still part of the network
-	nodes := nDB.networkNodes[tEvent.NetworkID]
-	nodePresent := slices.Contains(nodes, tEvent.NodeName)
-
-	if !ok || network.leaving || !nodePresent {
-		// I'm out of the network OR the event owner is not anymore part of the network so do not propagate
+	if !ok || network.leaving {
+		// I'm out of the network so do not propagate
 		return false
 	}
+
+	// Check if the owner of the event is still attached to the network. The
+	// attachments of a failed node are remembered, so its entries keep
+	// being accepted while it is down.
+	if !nDB.isNodeAttached(tEvent.NodeName, tEvent.NetworkID) {
+		return false
+	}
+
+	ownerFailed := nDB.isNodeFailed(tEvent.NodeName)
 
 	var entryPresent bool
 	prev, err := nDB.getEntry(tEvent.TableName, tEvent.NetworkID, tEvent.Key)
@@ -188,7 +233,16 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 			nDB.config.Hostname, nDB.config.NodeID, tEvent)
 		e.reapTime = nDB.config.reapEntryInterval
 	}
+	if !e.deleting && ownerFailed && e.reapTime == 0 {
+		// The sender believes the owner is active and sent no residual reap
+		// time, so bound the remembered entry's retention locally.
+		e.reapTime = nDB.config.reapEntryInterval
+	}
 	nDB.createOrUpdateEntry(tEvent.NetworkID, tEvent.TableName, tEvent.Key, e)
+
+	if obs := nDB.config.tableEventObserver; obs != nil {
+		obs(nDB.config.NodeID, tEvent.NetworkID, tEvent.TableName, tEvent.Key, isBulkSync)
+	}
 
 	if !entryPresent && tEvent.Type == TableEventTypeDelete {
 		// We will rebroadcast the message for an unknown entry if all the conditions are met:
@@ -208,6 +262,13 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool
 
 		// log.G(ctx).Infof("exiting on delete not knowing the obj with rebroadcast:%t", network.inSync)
 		return isBulkSync && network.inSync && e.reapTime > nDB.config.reapEntryInterval/6
+	}
+
+	if ownerFailed {
+		// The entry is hidden while its owner is failed. Watchers saw it
+		// deleted when the owner failed and get it back if the owner
+		// returns. Keep the event flowing so the whole cluster remembers it.
+		return network.inSync
 	}
 
 	event := WatchEvent{
@@ -279,10 +340,13 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 
 		nDB.RLock()
 		n, ok := nDB.thisNodeNetworks[tEvent.NetworkID]
+		// Read leaving while still holding the lock: it is mutated under
+		// the write lock by (*NetworkDB).LeaveNetwork.
+		leaving := ok && n.leaving
 		nDB.RUnlock()
 
 		// if the network is not there anymore, OR we are leaving the network
-		if !ok || n.leaving {
+		if !ok || leaving {
 			return
 		}
 
@@ -296,6 +360,7 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 			id:    tEvent.NetworkID,
 			tname: tEvent.TableName,
 			key:   tEvent.Key,
+			ltime: tEvent.LTime,
 		})
 	}
 }
@@ -315,8 +380,10 @@ func (nDB *NetworkDB) handleNodeMessage(buf []byte) {
 			return
 		}
 
-		nDB.nodeBroadcasts.QueueBroadcast(&nodeEventMessage{
-			msg: buf,
+		nDB.nodeBroadcasts.QueueBroadcast(&relayedNodeEventMessage{
+			msg:   buf,
+			node:  nEvent.NodeName,
+			ltime: nEvent.LTime,
 		})
 	}
 }
@@ -337,9 +404,10 @@ func (nDB *NetworkDB) handleNetworkMessage(buf []byte) {
 		}
 
 		nDB.networkBroadcasts.QueueBroadcast(&networkEventMessage{
-			msg:  buf,
-			id:   nEvent.NetworkID,
-			node: nEvent.NodeName,
+			msg:   buf,
+			id:    nEvent.NetworkID,
+			ltime: nEvent.LTime,
+			node:  nEvent.NodeName,
 		})
 	}
 }
@@ -501,17 +569,11 @@ func (d *delegate) MergeRemoteState(buf []byte, isJoin bool) {
 	d.nDB.handleNodeEvent(nodeEvent)
 
 	for _, n := range pp.Networks {
-		nEvent := &NetworkEvent{
+		d.nDB.handleNetworkEvent(&NetworkEvent{
 			LTime:     n.LTime,
 			NodeName:  n.NodeName,
 			NetworkID: n.NetworkID,
-			Type:      NetworkEventTypeJoin,
-		}
-
-		if n.Leaving {
-			nEvent.Type = NetworkEventTypeLeave
-		}
-
-		d.nDB.handleNetworkEvent(nEvent)
+			Type:      networkEventType(n.Leaving),
+		})
 	}
 }

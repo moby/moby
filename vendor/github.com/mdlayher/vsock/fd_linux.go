@@ -31,6 +31,6 @@ func isErrno(err error, errno int) bool {
 	}
 }
 
-func panicf(format string, a ...interface{}) {
+func panicf(format string, a ...any) {
 	panic(fmt.Sprintf(format, a...))
 }

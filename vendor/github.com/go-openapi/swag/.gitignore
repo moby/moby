@@ -4,3 +4,4 @@ Godeps
 .idea
 *.out
 .mcp.json
+.worktrees

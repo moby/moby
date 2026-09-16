@@ -125,7 +125,7 @@ func (np *nodePlugin) connect(ctx context.Context) error {
 	return np.init(ctx)
 }
 
-func (np *nodePlugin) Client(ctx context.Context) (csi.NodeClient, error) {
+func (np *nodePlugin) client(ctx context.Context) (csi.NodeClient, error) {
 	if np.nodeClient == nil {
 		if err := np.connect(ctx); err != nil {
 			return nil, err
@@ -143,7 +143,7 @@ func (np *nodePlugin) init(ctx context.Context) error {
 		return status.Error(codes.FailedPrecondition, "Plugin is not Ready")
 	}
 
-	c, err := np.Client(ctx)
+	c, err := np.client(ctx)
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func (np *nodePlugin) GetPublishedPath(volumeID string) string {
 }
 
 func (np *nodePlugin) NodeGetInfo(ctx context.Context) (*api.NodeCSIInfo, error) {
-	c, err := np.Client(ctx)
+	c, err := np.client(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func (np *nodePlugin) NodeStageVolume(ctx context.Context, req *api.VolumeAssign
 		return err
 	}
 
-	c, err := np.Client(ctx)
+	c, err := np.client(ctx)
 	if err != nil {
 		return err
 	}
@@ -256,7 +256,7 @@ func (np *nodePlugin) NodeUnstageVolume(ctx context.Context, req *api.VolumeAssi
 		return status.Error(codes.FailedPrecondition, "VolumeID missing in request")
 	}
 
-	c, err := np.Client(ctx)
+	c, err := np.client(ctx)
 	if err != nil {
 		return err
 	}
@@ -307,7 +307,7 @@ func (np *nodePlugin) NodePublishVolume(ctx context.Context, req *api.VolumeAssi
 		return status.Error(codes.FailedPrecondition, "volume requires staging but was not staged")
 	}
 
-	c, err := np.Client(ctx)
+	c, err := np.client(ctx)
 	if err != nil {
 		return err
 	}
@@ -349,7 +349,7 @@ func (np *nodePlugin) NodeUnpublishVolume(ctx context.Context, req *api.VolumeAs
 	defer np.mu.Unlock()
 	publishTarget := publishPath(req)
 
-	c, err := np.Client(ctx)
+	c, err := np.client(ctx)
 	if err != nil {
 		return err
 	}

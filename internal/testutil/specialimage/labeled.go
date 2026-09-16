@@ -3,6 +3,7 @@ package specialimage
 import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
+	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -28,6 +29,7 @@ func Labeled(dir string, imageRef string, labels map[string]string) (*ocispec.In
 	}
 
 	manifest := ocispec.Manifest{
+		Versioned: specs.Versioned{SchemaVersion: 2},
 		MediaType: ocispec.MediaTypeImageManifest,
 		Config:    configDesc,
 		Layers:    []ocispec.Descriptor{},

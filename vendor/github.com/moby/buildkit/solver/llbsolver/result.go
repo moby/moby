@@ -134,7 +134,7 @@ func (rp *resultProxy) Result(ctx context.Context) (res solver.CachedResult, err
 		rp.mu.Lock()
 		if rp.released {
 			rp.mu.Unlock()
-			return nil, errors.Errorf("accessing released result")
+			return nil, errors.New("accessing released result")
 		}
 		if rp.v != nil || rp.err != nil {
 			rp.mu.Unlock()
@@ -157,7 +157,7 @@ func (rp *resultProxy) Result(ctx context.Context) (res solver.CachedResult, err
 				v.Release(context.TODO())
 			}
 			rp.mu.Unlock()
-			return nil, errors.Errorf("evaluating released result")
+			return nil, errors.New("evaluating released result")
 		}
 		if err == nil {
 			var capture *provenance.Capture

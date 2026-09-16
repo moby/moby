@@ -85,7 +85,8 @@ type certID struct {
 
 // https://tools.ietf.org/html/rfc2560#section-4.1.1
 type ocspRequest struct {
-	TBSRequest tbsRequest
+	TBSRequest        tbsRequest
+	OptionalSignature asn1.RawValue `asn1:"explicit,tag:0,optional"`
 }
 
 type tbsRequest struct {
@@ -321,10 +322,10 @@ type Request struct {
 func (req *Request) Marshal() ([]byte, error) {
 	hashAlg := getOIDFromHashAlgorithm(req.HashAlgorithm)
 	if hashAlg == nil {
-		return nil, errors.New("Unknown hash algorithm")
+		return nil, errors.New("unknown hash algorithm")
 	}
 	return asn1.Marshal(ocspRequest{
-		tbsRequest{
+		TBSRequest: tbsRequest{
 			Version: 0,
 			RequestList: []request{
 				{
@@ -418,8 +419,10 @@ func (p ParseError) Error() string {
 }
 
 // ParseRequest parses an OCSP request in DER form. It only supports
-// requests for a single certificate. Signed requests are not supported.
-// If a request includes a signature, it will result in a ParseError.
+// requests for a single certificate identifier. If a request includes
+// multiple certificate identifiers, only the first will be included in
+// the parsed Request. Signed requests are not supported. If a request
+// includes a signature, it will result in a ParseError.
 func ParseRequest(bytes []byte) (*Request, error) {
 	var req ocspRequest
 	rest, err := asn1.Unmarshal(bytes, &req)
@@ -428,6 +431,10 @@ func ParseRequest(bytes []byte) (*Request, error) {
 	}
 	if len(rest) > 0 {
 		return nil, ParseError("trailing data in OCSP request")
+	}
+
+	if len(req.OptionalSignature.FullBytes) > 0 {
+		return nil, ParseError("signed OCSP requests are not supported")
 	}
 
 	if len(req.TBSRequest.RequestList) == 0 {

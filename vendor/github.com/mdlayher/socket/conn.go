@@ -120,7 +120,7 @@ func (c *Conn) ReadContext(ctx context.Context, b []byte) (int, error) {
 		b = b[:maxRW]
 	}
 
-	n, err := readT(c, ctx, "read", func(fd int) (int, error) {
+	n, err := readT(ctx, c, "read", func(fd int) (int, error) {
 		return unix.Read(fd, b)
 	})
 	if n == 0 && err == nil && c.facts.zeroReadIsEOF {
@@ -142,12 +142,12 @@ func (c *Conn) WriteContext(ctx context.Context, b []byte) (int, error) {
 	)
 
 	doErr := c.write(ctx, "write", func(fd int) error {
-		max := len(b)
-		if c.facts.isStream && max-nn > maxRW {
-			max = nn + maxRW
+		lenb := len(b)
+		if c.facts.isStream && lenb-nn > maxRW {
+			lenb = nn + maxRW
 		}
 
-		n, err = unix.Write(fd, b[nn:max])
+		n, err = unix.Write(fd, b[nn:lenb])
 		if n > 0 {
 			nn += n
 		}
@@ -418,7 +418,7 @@ func (c *Conn) Accept(ctx context.Context, flags int) (*Conn, unix.Sockaddr, err
 		sa  unix.Sockaddr
 	}
 
-	r, err := readT(c, ctx, sysAccept, func(fd int) (ret, error) {
+	r, err := readT(ctx, c, sysAccept, func(fd int) (ret, error) {
 		// Either accept(2) or accept4(2) depending on the OS.
 		nfd, sa, err := accept(fd, flags|socketFlags)
 		return ret{nfd, sa}, err
@@ -464,7 +464,7 @@ func (c *Conn) Connect(ctx context.Context, sa unix.Sockaddr) (unix.Sockaddr, er
 		// have an explicit WaitWrite call like internal/poll does, so we have
 		// to wait until the runtime calls the closure again to indicate we can
 		// write.
-		progress uint32
+		progress atomic.Uint32
 
 		// Capture closure sockaddr and error.
 		rsa unix.Sockaddr
@@ -472,7 +472,7 @@ func (c *Conn) Connect(ctx context.Context, sa unix.Sockaddr) (unix.Sockaddr, er
 	)
 
 	doErr := c.write(ctx, op, func(fd int) error {
-		if atomic.AddUint32(&progress, 1) == 1 {
+		if progress.Add(1) == 1 {
 			// First call: initiate connect.
 			return unix.Connect(fd, sa)
 		}
@@ -569,7 +569,7 @@ func (c *Conn) Recvmsg(ctx context.Context, p, oob []byte, flags int) (int, int,
 		from               unix.Sockaddr
 	}
 
-	r, err := readT(c, ctx, "recvmsg", func(fd int) (ret, error) {
+	r, err := readT(ctx, c, "recvmsg", func(fd int) (ret, error) {
 		n, oobn, recvflags, from, err := unix.Recvmsg(fd, p, oob, flags)
 		return ret{n, oobn, recvflags, from}, err
 	})
@@ -587,7 +587,7 @@ func (c *Conn) Recvfrom(ctx context.Context, p []byte, flags int) (int, unix.Soc
 		addr unix.Sockaddr
 	}
 
-	out, err := readT(c, ctx, "recvfrom", func(fd int) (ret, error) {
+	out, err := readT(ctx, c, "recvfrom", func(fd int) (ret, error) {
 		n, addr, err := unix.Recvfrom(fd, p, flags)
 		return ret{n, addr}, err
 	})
@@ -600,7 +600,7 @@ func (c *Conn) Recvfrom(ctx context.Context, p []byte, flags int) (int, unix.Soc
 
 // Sendmsg wraps sendmsg(2).
 func (c *Conn) Sendmsg(ctx context.Context, p, oob []byte, to unix.Sockaddr, flags int) (int, error) {
-	return writeT(c, ctx, "sendmsg", func(fd int) (int, error) {
+	return writeT(ctx, c, "sendmsg", func(fd int) (int, error) {
 		return unix.SendmsgN(fd, p, oob, to, flags)
 	})
 }
@@ -645,7 +645,7 @@ func (c *Conn) Shutdown(how int) error {
 // read wraps readT to execute a function and capture its error result. This is
 // a convenience wrapper for functions which don't return any extra values.
 func (c *Conn) read(ctx context.Context, op string, f func(fd int) error) error {
-	_, err := readT(c, ctx, op, func(fd int) (struct{}, error) {
+	_, err := readT(ctx, c, op, func(fd int) (struct{}, error) {
 		return struct{}{}, f(fd)
 	})
 	return err
@@ -654,7 +654,7 @@ func (c *Conn) read(ctx context.Context, op string, f func(fd int) error) error 
 // write executes f, a write function, against the associated file descriptor.
 // op is used to create an *os.SyscallError if the file descriptor is closed.
 func (c *Conn) write(ctx context.Context, op string, f func(fd int) error) error {
-	_, err := writeT(c, ctx, op, func(fd int) (struct{}, error) {
+	_, err := writeT(ctx, c, op, func(fd int) (struct{}, error) {
 		return struct{}{}, f(fd)
 	})
 	return err
@@ -662,7 +662,7 @@ func (c *Conn) write(ctx context.Context, op string, f func(fd int) error) error
 
 // readT executes c.rc.Read for op using the input function, returning a newly
 // allocated result T.
-func readT[T any](c *Conn, ctx context.Context, op string, f func(fd int) (T, error)) (T, error) {
+func readT[T any](ctx context.Context, c *Conn, op string, f func(fd int) (T, error)) (T, error) {
 	return rwT(c, rwContext[T]{
 		Context: ctx,
 		Type:    read,
@@ -673,7 +673,7 @@ func readT[T any](c *Conn, ctx context.Context, op string, f func(fd int) (T, er
 
 // writeT executes c.rc.Write for op using the input function, returning a newly
 // allocated result T.
-func writeT[T any](c *Conn, ctx context.Context, op string, f func(fd int) (T, error)) (T, error) {
+func writeT[T any](ctx context.Context, c *Conn, op string, f func(fd int) (T, error)) (T, error) {
 	return rwT(c, rwContext[T]{
 		Context: ctx,
 		Type:    write,
@@ -771,9 +771,7 @@ func rwT[T any](c *Conn, rw rwContext[T]) (T, error) {
 		//
 		// TODO(mdlayher): is it possible to detect a background context vs a
 		// context with possible future cancel?
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 
 			select {
 			case <-rw.Context.Done():
@@ -784,7 +782,7 @@ func rwT[T any](c *Conn, rw rwContext[T]) (T, error) {
 			case <-doneC:
 				// Nothing to do.
 			}
-		}()
+		})
 	}
 
 	var (

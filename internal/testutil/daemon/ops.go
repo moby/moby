@@ -14,7 +14,8 @@ type Option func(*Daemon)
 // WithContainerdSocket sets the --containerd option on the daemon.
 // Use an empty string to remove the option.
 //
-// If unset the --containerd option will be used with a default value.
+// On Unix, the default is /var/run/docker/containerd/containerd.sock.
+// On Windows, the option is omitted by default.
 func WithContainerdSocket(socket string) Option {
 	return func(d *Daemon) {
 		d.containerdSocket = socket

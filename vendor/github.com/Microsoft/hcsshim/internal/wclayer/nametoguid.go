@@ -4,11 +4,11 @@ package wclayer
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/Microsoft/go-winio/pkg/guid"
 	"github.com/Microsoft/hcsshim/internal/hcserror"
-	"github.com/Microsoft/hcsshim/internal/oc"
-	"go.opencensus.io/trace"
+	"github.com/Microsoft/hcsshim/internal/ot"
 )
 
 // NameToGuid converts the given string into a GUID using the algorithm in the
@@ -16,16 +16,16 @@ import (
 // across all clients.
 func NameToGuid(ctx context.Context, name string) (_ guid.GUID, err error) {
 	title := "hcsshim::NameToGuid"
-	ctx, span := oc.StartSpan(ctx, title) //nolint:ineffassign,staticcheck
+	ctx, span := ot.StartSpan(ctx, title) //nolint:ineffassign,staticcheck
 	defer span.End()
-	defer func() { oc.SetSpanStatus(span, err) }()
-	span.AddAttributes(trace.StringAttribute("objectName", name))
+	defer func() { ot.SetSpanStatus(span, err) }()
+	span.SetAttributes(attribute.String("objectName", name))
 
 	var id guid.GUID
 	err = nameToGuid(name, &id)
 	if err != nil {
 		return guid.GUID{}, hcserror.New(err, title, "")
 	}
-	span.AddAttributes(trace.StringAttribute("guid", id.String()))
+	span.SetAttributes(attribute.String("guid", id.String()))
 	return id, nil
 }

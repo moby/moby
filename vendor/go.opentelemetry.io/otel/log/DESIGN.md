@@ -62,10 +62,10 @@ Implementation requirements:
 - The [specification requires](https://opentelemetry.io/docs/specs/otel/logs/api/#concurrency-requirements)
   the method to be safe to be called concurrently.
 
-- The method should use some default name if the passed name is empty
-  in order to meet the [specification's SDK requirement](https://opentelemetry.io/docs/specs/otel/logs/sdk/#logger-creation)
-  to return a working logger when an invalid name is passed
-  as well as to resemble the behavior of getting tracers and meters.
+- If the passed name is empty, this should be reported as invalid as specified
+  by the [Logs SDK specification](https://opentelemetry.io/docs/specs/otel/logs/sdk/#logger-creation).
+  The method should still use it as the instrumentation scope name and return
+  a working logger.
 
 `Logger` can be extended by adding new `LoggerOption` options
 and adding new exported fields to the `LoggerConfig` struct.
@@ -148,16 +148,16 @@ func (r *Record) SetSeverityText(s string)
 is accessed using following methods:
 
 ```go
-func (r *Record) Body() Value
-func (r *Record) SetBody(v Value)
+func (r *Record) Body() attribute.Value
+func (r *Record) SetBody(v attribute.Value)
 ```
 
 [Log record attributes](https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-attributes)
 are accessed using following methods:
 
 ```go
-func (r *Record) WalkAttributes(f func(KeyValue) bool)
-func (r *Record) AddAttributes(attrs ...KeyValue)
+func (r *Record) WalkAttributes(f func(attribute.KeyValue) bool)
+func (r *Record) AddAttributes(attrs ...attribute.KeyValue)
 ```
 
 `Record` has a `AttributesLen` method that returns
@@ -175,49 +175,20 @@ while keeping the API user friendly.
 It relieves the user from making his own improvements
 for reducing the number of allocations when passing attributes.
 
-The abstractions described in
-[the specification](https://opentelemetry.io/docs/specs/otel/logs/#new-first-party-application-logs)
-are defined in [keyvalue.go](keyvalue.go).
+Log body and attributes use the common
+[`attribute.Value`](https://pkg.go.dev/go.opentelemetry.io/otel/attribute#Value)
+and
+[`attribute.KeyValue`](https://pkg.go.dev/go.opentelemetry.io/otel/attribute#KeyValue)
+types.
+These types cover the Logs Data Model `any` value shape, including empty
+values, byte slices, generic slices, and maps.
+Reusing the attribute package keeps the API consistent across signals and
+avoids maintaining a second value model with conversion helpers.
 
-`Value` is representing `any`.
-`KeyValue` is representing a key(string)-value(`any`) pair.
-
-`Kind` is an enumeration used for specifying the underlying value type.
-`KindEmpty` is used for an empty (zero) value.
-`KindBool` is used for boolean value.
-`KindFloat64` is used for a double precision floating point (IEEE 754-1985) value.
-`KindInt64` is used for a signed integer value.
-`KindString` is used for a string value.
-`KindBytes` is used for a slice of bytes (in spec: A byte array).
-`KindSlice` is used for a slice of values (in spec: an array (a list) of any values).
-`KindMap` is used for a slice of key-value pairs (in spec: `map<string, any>`).
-
-These types are defined in `go.opentelemetry.io/otel/log` package
-as they are tightly coupled with the API and different from common attributes.
-
-The internal implementation of `Value` is based on
-[`slog.Value`](https://pkg.go.dev/log/slog#Value)
-and the API is mostly inspired by
-[`attribute.Value`](https://pkg.go.dev/go.opentelemetry.io/otel/attribute#Value).
-The benchmarks[^1] show that the implementation is more performant than
-[`attribute.Value`](https://pkg.go.dev/go.opentelemetry.io/otel/attribute#Value).
-
-The value accessors (`func (v Value) As[Kind]` methods) must not panic,
-as it would violate the [specification](https://opentelemetry.io/docs/specs/otel/error-handling/):
-
-> API methods MUST NOT throw unhandled exceptions when used incorrectly by end
-> users. The API and SDK SHOULD provide safe defaults for missing or invalid
-> arguments. [...] Whenever the library suppresses an error that would otherwise
-> have been exposed to the user, the library SHOULD log the error using
-> language-specific conventions.
-
-Therefore, the value accessors should return a zero value
-and log an error when a bad accessor is called.
-
-The `Severity`, `Kind`, `Value`, `KeyValue` may implement
-the [`fmt.Stringer`](https://pkg.go.dev/fmt#Stringer) interface.
-However, it is not needed for the first stable release
-and the `String` methods can be added later.
+The zero value of `attribute.Value` represents an empty body.
+Log maps use `attribute.MAP`, which may contain duplicate keys when callers
+construct one that way. Duplicate-key normalization is an SDK policy, not an
+API behavior.
 
 The caller must not subsequently mutate the record passed to `Emit`.
 This would allow the implementation to not clone the record,
@@ -252,12 +223,11 @@ Rejected alternatives:
 - [Passing record as pointer to Logger.Emit](#passing-record-as-pointer-to-loggeremit)
 - [Logger.WithAttributes](#loggerwithattributes)
 - [Record attributes as slice](#record-attributes-as-slice)
-- [Use any instead of defining Value](#use-any-instead-of-defining-value)
+- [Use any instead of attribute.Value](#use-any-instead-of-attributevalue)
 - [Severity type encapsulating number and text](#severity-type-encapsulating-number-and-text)
-- [Reuse attribute package](#reuse-attribute-package)
+- [Define log-specific value types](#define-log-specific-value-types)
 - [Mix receiver types for Record](#mix-receiver-types-for-record)
 - [Add XYZ method to Logger](#add-xyz-method-to-logger)
-- [Rename KeyValue to Attr](#rename-keyvalue-to-attr)
 
 ### Logger.Enabled
 
@@ -476,30 +446,21 @@ less user friendly (users and bridges would use e.g. a `sync.Pool` to reduce
 the number of heap allocation), less safe (more prone to use after free bugs
 and race conditions), and the benchmark differences were not significant.
 
-### Use any instead of defining Value
+### Use any instead of attribute.Value
 
 [Logs Data Model](https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-body)
 defines Body to be `any`.
 One could propose to define `Body` (and attribute values) as `any`
-instead of a defining a new type (`Value`).
+instead of using `attribute.Value`.
 
 First of all, [`any` type defined in the specification](https://opentelemetry.io/docs/specs/otel/logs/data-model/#type-any)
 is not the same as `any` (`interface{}`) in Go.
 
 Moreover, using `any` as a field would decrease the performance.[^7]
 
-Notice it will be still possible to add following kind and factories
-in a backwards compatible way:
-
-```go
-const KindMap Kind
-
-func AnyValue(value any) KeyValue
-
-func Any(key string, value any) KeyValue
-```
-
-However, currently, it would not be specification compliant.
+Using `attribute.Value` preserves a typed, allocation-conscious representation
+of the Logs Data Model `any` values while avoiding unconstrained `interface{}`
+handling in bridge implementations.
 
 ### Severity type encapsulating number and text
 
@@ -518,20 +479,22 @@ It should be more user friendly to have them separated.
 Especially when having getter and setter methods, setting one value
 when the other is already set would be unpleasant.
 
-### Reuse attribute package
+### Define log-specific value types
 
-It was tempting to reuse the existing
-[https://pkg.go.dev/go.opentelemetry.io/otel/attribute] package
-for defining log attributes and body.
+The original design defined `Kind`, `Value`, and `KeyValue` in
+`go.opentelemetry.io/otel/log`.
+That avoided coupling log bodies to the common attribute package while logs were
+still exploring structured value support.
 
-However, this would be wrong because [the log attribute definition](https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-attributes)
-is different from [the common attribute definition](https://opentelemetry.io/docs/specs/otel/common/#attribute).
+The Logs Data Model and common attribute value model now share the structured
+`any` shapes needed by Go: empty, bool, int64, float64, string, byte slice,
+homogeneous slices, generic slices, and maps.
+The specification direction is to reuse these value shapes across signals.
+Keeping log-specific types would duplicate API surface, require conversion
+helpers, and make bridge code choose between two equivalent value models.
 
-Moreover, it there is nothing telling that [the body definition](https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-body)
-has anything in common with a common attribute value.
-
-Therefore, we define new types representing the abstract types defined
-in the [Logs Data Model](https://opentelemetry.io/docs/specs/otel/logs/data-model/#definitions-used-in-this-document).
+Therefore log records now use `attribute.Value` for body values and
+`attribute.KeyValue` for attributes and map entries.
 
 ### Mix receiver types for Record
 
@@ -591,36 +554,6 @@ The `Logger` does not have methods like `SetSeverity`, etc.
 as the Logs API needs to follow (be compliant with)
 the [specification](https://opentelemetry.io/docs/specs/otel/logs/api/)
 
-### Rename KeyValue to Attr
-
-There was a proposal to rename `KeyValue` to `Attr` (or `Attribute`).[^11]
-New developers may not intuitively know that `log.KeyValue` is an attribute in
-the OpenTelemetry parlance.
-
-During the discussion we agreed to keep the `KeyValue` name.
-
-The type is used in multiple semantics:
-
-- as a log attribute,
-- as a map item,
-- as a log record Body.
-
-As for map item semantics, this type is a key-value pair, not an attribute.
-Naming the type as `Attr` would convey semantical meaning
-that would not be correct for a map.
-
-We expect that most of the Logs API users will be OpenTelemetry contributors.
-We plan to implement bridges for the most popular logging libraries ourselves.
-Given we will all have the context needed to disambiguate these overlapping
-names, developers' confusion should not be an issue.
-
-For bridges not developed by us,
-developers will likely look at our existing bridges for inspiration.
-Our correct use of these types will be a reference to them.
-
-At last, we provide `ValueFromAttribute` and `KeyValueFromAttribute`
-to offer reuse of `attribute.Value` and `attribute.KeyValue`.
-
 [^1]: [Handle structured body and attributes](https://github.com/pellared/opentelemetry-go/pull/7)
 [^2]: Jonathan Amsterdam, [The Go Blog: Structured Logging with slog](https://go.dev/blog/slog)
 [^3]: Jonathan Amsterdam, [GopherCon Europe 2023: A Fast Structured Logging Package](https://www.youtube.com/watch?v=tC4Jt3i62ns)
@@ -631,4 +564,3 @@ to offer reuse of `attribute.Value` and `attribute.KeyValue`.
 [^8]: [log/slog: structured, leveled logging](https://github.com/golang/go/issues/56345#issuecomment-1302563756)
 [^9]: [Record with pointer receivers only](https://github.com/pellared/opentelemetry-go/pull/8)
 [^10]: [Go FAQ: Stack or heap](https://go.dev/doc/faq#stack_or_heap)
-[^11]: [Rename KeyValue to Attr discussion](https://github.com/open-telemetry/opentelemetry-go/pull/4809#discussion_r1476080093)

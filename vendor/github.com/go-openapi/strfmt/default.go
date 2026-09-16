@@ -32,22 +32,22 @@ const (
 )
 
 const (
-	// UUIDPattern Regex for [UUID] that allows uppercase
+	// UUIDPattern Regex for [UUID] that allows uppercase.
 	//
 	// Deprecated: [strfmt] no longer uses regular expressions to validate UUIDs.
 	UUIDPattern = `(?i)(^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$)|(^[0-9a-f]{32}$)`
 
-	// UUID3Pattern Regex for [UUID3] that allows uppercase
+	// UUID3Pattern Regex for [UUID3] that allows uppercase.
 	//
 	// Deprecated: [strfmt] no longer uses regular expressions to validate UUIDs.
 	UUID3Pattern = `(?i)(^[0-9a-f]{8}-[0-9a-f]{4}-3[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$)|(^[0-9a-f]{12}3[0-9a-f]{3}?[0-9a-f]{16}$)`
 
-	// UUID4Pattern Regex for [UUID4] that allows uppercase
+	// UUID4Pattern Regex for [UUID4] that allows uppercase.
 	//
 	// Deprecated: [strfmt] no longer uses regular expressions to validate UUIDs.
 	UUID4Pattern = `(?i)(^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$)|(^[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$)`
 
-	// UUID5Pattern Regex for [UUID]5 that allows uppercase
+	// UUID5Pattern Regex for [UUID]5 that allows uppercase.
 	//
 	// Deprecated: [strfmt] no longer uses regular expressions to validate UUIDs.
 	UUID5Pattern = `(?i)(^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$)|(^[0-9a-f]{12}5[0-9a-f]{3}[89ab][0-9a-f]{15}$)`
@@ -88,8 +88,8 @@ var (
 
 // IsHostname returns true when the string is a valid hostname.
 //
-// It follows the rules detailed at https://url.spec.whatwg.org/#concept-host-parser
-// and implemented by most modern web browsers.
+// It follows the rules detailed at https://url.spec.whatwg.org/#concept-host-parser and implemented by most modern web
+// browsers.
 //
 // It supports IDNA rules regarding internationalized names with unicode.
 //
@@ -142,13 +142,13 @@ func IsHostname(str string) bool {
 	return true
 }
 
-// domainEndsAsNumber determines if a domain name ends with a decimal, octal or hex digit,
-// accounting for a possible trailing dot (the last part being empty in that case).
+// domainEndsAsNumber determines if a domain name ends with a decimal, octal or hex digit, accounting for a possible
+// trailing dot (the last part being empty in that case).
 //
 // It returns the last non-trailing dot part and if that part consists only of (dec/hex/oct) digits.
 func domainEndsAsNumber(parts []string) (lastPart string, lastIndex int, ok bool) {
-	// NOTE: using ParseUint(x, 0, 32) is not an option, as the IPv4 format supported why WHATWG
-	// doesn't support notations such as "0b1001" (binary digits) or "0o666" (alternate notation for octal digits).
+	// NOTE: using ParseUint(x, 0, 32) is not an option, as the IPv4 format supported why WHATWG doesn't support notations
+	// such as "0b1001" (binary digits) or "0o666" (alternate notation for octal digits).
 	lastIndex = len(parts) - 1
 	lastPart = parts[lastIndex]
 	if len(lastPart) == 0 {
@@ -233,8 +233,9 @@ func isValidIPv6(str string) bool {
 //	"0o07.2.3.4"
 func isValidIPv4(parts []string) bool {
 	// NOTE: using ParseUint(x, 0, 32) is not an option, even though it would simplify this code a lot.
-	// The IPv4 format supported why WHATWG doesn't support notations such as "0b1001" (binary digits)
-	// or "0o666" (alternate notation for octal digits).
+	//
+	// The IPv4 format supported why WHATWG doesn't support notations such as "0b1001" (binary digits) or "0o666"
+	// (alternate notation for octal digits).
 	const (
 		maxPartsInIPv4  = 4
 		maxDigitsInPart = 11 // max size of a 4-bytes hex or octal digit
@@ -376,101 +377,22 @@ func IsEmail(str string) bool {
 	return e == nil && addr.Address != ""
 }
 
-func init() { //nolint:gochecknoinits // registers all default string formats in the registry
-	// register formats in the default registry:
-	//   - byte
-	//   - creditcard
-	//   - email
-	//   - hexcolor
-	//   - hostname
-	//   - ipv4
-	//   - ipv6
-	//   - cidr
-	//   - isbn
-	//   - isbn10
-	//   - isbn13
-	//   - mac
-	//   - password
-	//   - rgbcolor
-	//   - ssn
-	//   - uri
-	//   - uuid
-	//   - uuid3
-	//   - uuid4
-	//   - uuid5
-	//   - uuid7
-	u := URI("")
-	Default.Add("uri", &u, isRequestURI)
+// base64Encoding is the canonical alphabet for the [Base64] format.
+//
+// OpenAPI `format: byte` means standard base64 (RFC 4648 §4, the `+/` alphabet), not base64url.
+// This is the single seam every [Base64] path encodes and decodes through, so a future URL-safe variant only swaps the
+// encoding here.
+// See go-openapi/strfmt#87.
+var base64Encoding = base64.StdEncoding //nolint:gochecknoglobals // canonical alphabet seam for the Base64 format
 
-	eml := Email("")
-	Default.Add("email", &eml, IsEmail)
-
-	hn := Hostname("")
-	Default.Add("hostname", &hn, IsHostname)
-
-	ip4 := IPv4("")
-	Default.Add("ipv4", &ip4, isIPv4)
-
-	ip6 := IPv6("")
-	Default.Add("ipv6", &ip6, isIPv6)
-
-	cidr := CIDR("")
-	Default.Add("cidr", &cidr, isCIDR)
-
-	mac := MAC("")
-	Default.Add("mac", &mac, isMAC)
-
-	uid := UUID("")
-	Default.Add("uuid", &uid, IsUUID)
-
-	uid3 := UUID3("")
-	Default.Add("uuid3", &uid3, IsUUID3)
-
-	uid4 := UUID4("")
-	Default.Add("uuid4", &uid4, IsUUID4)
-
-	uid5 := UUID5("")
-	Default.Add("uuid5", &uid5, IsUUID5)
-
-	uid7 := UUID7("")
-	Default.Add("uuid7", &uid7, IsUUID7)
-
-	isbn := ISBN("")
-	Default.Add("isbn", &isbn, func(str string) bool { return isISBN10(str) || isISBN13(str) })
-
-	isbn10 := ISBN10("")
-	Default.Add("isbn10", &isbn10, isISBN10)
-
-	isbn13 := ISBN13("")
-	Default.Add("isbn13", &isbn13, isISBN13)
-
-	cc := CreditCard("")
-	Default.Add("creditcard", &cc, isCreditCard)
-
-	ssn := SSN("")
-	Default.Add("ssn", &ssn, isSSN)
-
-	hc := HexColor("")
-	Default.Add("hexcolor", &hc, isHexcolor)
-
-	rc := RGBColor("")
-	Default.Add("rgbcolor", &rc, isRGBcolor)
-
-	b64 := Base64([]byte(nil))
-	Default.Add("byte", &b64, isBase64)
-
-	pw := Password("")
-	Default.Add("password", &pw, func(_ string) bool { return true })
-}
-
-// Base64 represents a base64 encoded string, using URLEncoding alphabet.
+// Base64 represents a base64 encoded string, using the standard RFC 4648 alphabet.
 //
 // swagger:strfmt byte.
 type Base64 []byte
 
 // MarshalText turns this instance into text.
 func (b Base64) MarshalText() ([]byte, error) {
-	enc := base64.URLEncoding
+	enc := base64Encoding
 	src := []byte(b)
 	buf := make([]byte, enc.EncodedLen(len(src)))
 	enc.Encode(buf, src)
@@ -479,7 +401,7 @@ func (b Base64) MarshalText() ([]byte, error) {
 
 // UnmarshalText hydrates this instance from text.
 func (b *Base64) UnmarshalText(data []byte) error { // validation is performed later on
-	enc := base64.URLEncoding
+	enc := base64Encoding
 	dbuf := make([]byte, enc.DecodedLen(len(data)))
 
 	n, err := enc.Decode(dbuf, data)
@@ -495,14 +417,14 @@ func (b *Base64) UnmarshalText(data []byte) error { // validation is performed l
 func (b *Base64) Scan(raw any) error {
 	switch v := raw.(type) {
 	case []byte:
-		dbuf := make([]byte, base64.StdEncoding.DecodedLen(len(v)))
-		n, err := base64.StdEncoding.Decode(dbuf, v)
+		dbuf := make([]byte, base64Encoding.DecodedLen(len(v)))
+		n, err := base64Encoding.Decode(dbuf, v)
 		if err != nil {
 			return err
 		}
 		*b = dbuf[:n]
 	case string:
-		vv, err := base64.StdEncoding.DecodeString(v)
+		vv, err := base64Encoding.DecodeString(v)
 		if err != nil {
 			return err
 		}
@@ -520,7 +442,7 @@ func (b Base64) Value() (driver.Value, error) {
 }
 
 func (b Base64) String() string {
-	return base64.StdEncoding.EncodeToString([]byte(b))
+	return base64Encoding.EncodeToString([]byte(b))
 }
 
 // MarshalJSON returns the Base64 as JSON.
@@ -534,7 +456,7 @@ func (b *Base64) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &b64str); err != nil {
 		return err
 	}
-	vb, err := base64.StdEncoding.DecodeString(b64str)
+	vb, err := base64Encoding.DecodeString(b64str)
 	if err != nil {
 		return err
 	}
@@ -1040,7 +962,7 @@ func (u *MAC) DeepCopy() *MAC {
 	return out
 }
 
-// UUID represents a [uuid] string format
+// UUID represents a [uuid] string format.
 //
 // swagger:strfmt uuid.
 type UUID string
@@ -1905,6 +1827,7 @@ func (r *RGBColor) DeepCopy() *RGBColor {
 }
 
 // Password represents a password.
+//
 // This has no validations and is mainly used as a marker for UI components.
 //
 // swagger:strfmt password.
@@ -1978,11 +1901,10 @@ func (r *Password) DeepCopy() *Password {
 }
 
 func isRequestURI(rawurl string) bool {
-	// url.ParseRequestURI assumes the input contains no "#fragment"
-	// (RFC 3986 §3.5). A URI with a fragment and an empty path, such as
-	// "https://host#@frag", is therefore misread as userinfo and rejected
-	// as "invalid userinfo". Strip the fragment first so the absolute
-	// request URI validates, matching url.Parse's RFC 3986 handling.
+	// url.ParseRequestURI assumes the input contains no "#fragment" (RFC 3986 §3.5).
+	// A URI with a fragment and an empty path, such as "https://host#@frag", is therefore misread as userinfo and rejected
+	// as "invalid userinfo".
+	// Strip the fragment first so the absolute request URI validates, matching url.Parse's RFC 3986 handling.
 	if i := strings.IndexByte(rawurl, '#'); i >= 0 {
 		rawurl = rawurl[:i]
 	}
@@ -2009,19 +1931,20 @@ func isCIDR(str string) bool {
 }
 
 // isMAC checks if a string is valid MAC address.
+//
 // Possible MAC formats:
-// 01:23:45:67:89:ab
-// 01:23:45:67:89:ab:cd:ef
-// 01-23-45-67-89-ab
-// 01-23-45-67-89-ab-cd-ef
-// 0123.4567.89ab
-// 0123.4567.89ab.cdef.
+//   - 01:23:45:67:89:ab
+//   - 01:23:45:67:89:ab:cd:ef
+//   - 01-23-45-67-89-ab
+//   - 01-23-45-67-89-ab-cd-ef
+//   - 0123.4567.89ab 0123.4567.89ab.cdef
 func isMAC(str string) bool {
 	_, err := net.ParseMAC(str)
 	return err == nil
 }
 
 // isISBN checks if the string is an ISBN (version 10 or 13).
+//
 // If version value is not equal to 10 or 13, it will be checks both variants.
 func isISBN(str string, version int) bool {
 	sanitized := whiteSpacesAndMinus.ReplaceAllString(str, "")
@@ -2120,7 +2043,7 @@ func isRGBcolor(str string) bool {
 
 // isBase64 checks if a string is base64 encoded.
 func isBase64(str string) bool {
-	_, err := base64.StdEncoding.DecodeString(str)
+	_, err := base64Encoding.DecodeString(str)
 
 	return err == nil
 }

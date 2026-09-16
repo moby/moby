@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-var ErrNotFound = errors.Errorf("not found")
+var ErrNotFound = errors.New("not found")
 
 // CacheKeyStorage is interface for persisting cache metadata
 type CacheKeyStorage interface {

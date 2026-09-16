@@ -51,10 +51,12 @@ func (lt *labeledTimer) WithValues(labels ...string) *labeledTimerObserver {
 	return &labeledTimerObserver{m: lt.m.WithLabelValues(labels...)}
 }
 
+// Describe implements [prometheus.Collector].
 func (lt *labeledTimer) Describe(c chan<- *prometheus.Desc) {
 	lt.m.Describe(c)
 }
 
+// Collect implements [prometheus.Collector].
 func (lt *labeledTimer) Collect(c chan<- prometheus.Metric) {
 	lt.m.Collect(c)
 }
@@ -71,10 +73,12 @@ func (t *timer) UpdateSince(since time.Time) {
 	t.m.Observe(time.Since(since).Seconds())
 }
 
+// Describe implements [prometheus.Collector].
 func (t *timer) Describe(c chan<- *prometheus.Desc) {
 	c <- t.m.(prometheus.Metric).Desc()
 }
 
+// Collect implements [prometheus.Collector].
 func (t *timer) Collect(c chan<- prometheus.Metric) {
 	// Are there any observers that don't implement Collector? It is really
 	// unclear what the point of the upstream change was, but we'll let this

@@ -47,6 +47,31 @@ func defaultLoaders() *loader {
 	})
 }
 
+// LoaderChain links a list of [DocLoaderWithMatch] into a single [DocLoader], preserving order.
+// Entries with a nil Fn are skipped. Loading options passed at call time are forwarded to the
+// matched loader.
+//
+// Combined with [LoaderWithOptions], it composes a self-contained loader (for example a
+// format-dispatching YAML/JSON chain, each entry carrying its own options) that a caller can inject
+// through [WithDocLoader] instead of relying on the package-level global loaders.
+//
+// The returned DocLoader is never nil: when no usable loader is provided, it yields [ErrNoLoader]
+// on every call. This fails closed rather than returning nil (which every caller would have to
+// guard against, at the risk of a nil-func panic) or silently falling back to an unconfined
+// loader.
+func LoaderChain(ldrs ...DocLoaderWithMatch) DocLoader {
+	loader := buildLoaderChain(ldrs...)
+
+	return func(pth string, opts ...loading.Option) (json.RawMessage, error) {
+		l := loader.clone()
+		if l != nil {
+			l.loadingOptions = opts
+		}
+
+		return l.Load(pth) // nil-safe: yields ErrNoLoader when the chain is empty
+	}
+}
+
 // buildLoaderChain links a list of [DocLoaderWithMatch] into a loader chain, preserving order.
 // Entries with a nil Fn are skipped. Returns nil when no usable loader is provided.
 func buildLoaderChain(ldrs ...DocLoaderWithMatch) *loader {
@@ -72,6 +97,26 @@ func buildLoaderChain(ldrs ...DocLoaderWithMatch) *loader {
 
 // DocLoader represents a doc loader type.
 type DocLoader func(string, ...loading.Option) (json.RawMessage, error)
+
+// LoaderWithOptions returns a [DocLoader] that always applies opts.
+//
+// Use it to bind a set of [loading.Option] to a loader so they apply to every load — for example a
+// custom HTTP client or timeout, authentication or custom headers, an embedded or rooted file
+// system, or a remote-address restriction. This is the building block for a document loader that
+// carries its own options, avoiding reliance on the package-level global loaders.
+//
+// opts are appended after any options passed at call time, so they take precedence (loading
+// options are last-wins). This also makes confinement options (e.g. [loading.WithRoot]) win over
+// any caller-supplied options.
+func LoaderWithOptions(fn DocLoader, opts ...loading.Option) DocLoader {
+	return func(path string, callOpts ...loading.Option) (json.RawMessage, error) {
+		all := make([]loading.Option, 0, len(callOpts)+len(opts))
+		all = append(all, callOpts...)
+		all = append(all, opts...)
+
+		return fn(path, all...)
+	}
+}
 
 // DocMatcher represents a predicate to check if a loader matches.
 type DocMatcher func(string) bool

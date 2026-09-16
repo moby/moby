@@ -82,12 +82,18 @@ func (d *deserializeOpGetCredential) HandleDeserialize(ctx context.Context, in s
 	out smithymiddleware.DeserializeOutput, metadata smithymiddleware.Metadata, err error,
 ) {
 	out, metadata, err = next.HandleDeserialize(ctx, in)
+
+	// Close the response body on every exit path in place of the standalone close middleware.
+	// Deferred in a closure so it observes the final err (this output is not a streaming
+	// payload, so it is always closed regardless).
+	response, _ := out.RawResponse.(*smithyhttp.Response)
+	defer func() { smithyhttp.CloseResponseBody(ctx, response, false, err) }()
+
 	if err != nil {
 		return out, metadata, err
 	}
 
-	response, ok := out.RawResponse.(*smithyhttp.Response)
-	if !ok {
+	if response == nil {
 		return out, metadata, &smithy.DeserializationError{Err: fmt.Errorf("unknown transport type %T", out.RawResponse)}
 	}
 

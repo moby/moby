@@ -19,6 +19,9 @@ To opt-in, set the environment variable `OTEL_GO_X_OBSERVABILITY` to `true`.
 When enabled, the SDK will create the following metrics using the global `MeterProvider`:
 
 - `otel.sdk.log.created`
+- `otel.sdk.processor.log.queue.capacity`
+- `otel.sdk.processor.log.queue.size`
+- `otel.sdk.processor.log.processed`
 
 Please see the [Semantic conventions for OpenTelemetry SDK metrics] documentation for more details on these metrics.
 

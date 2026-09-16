@@ -65,7 +65,7 @@ func (l *LeaseRef) Adopt(ctx context.Context) error {
 	}
 	currentID, ok := leases.FromContext(ctx)
 	if !ok {
-		return errors.Errorf("missing lease requirement for adopt")
+		return errors.New("missing lease requirement for adopt")
 	}
 	for _, r := range l.resources {
 		if err := l.lm.AddResource(ctx, leases.Lease{ID: currentID}, r); err != nil {

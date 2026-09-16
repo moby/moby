@@ -159,10 +159,15 @@ func (w *containerdExecutor) createOCISpec(ctx context.Context, id, resolvConf, 
 	releasers = append(releasers, cleanup)
 	spec.Process.Terminal = meta.Tty
 	if w.rootless {
-		if err := rootlessspecconv.ToRootless(spec); err != nil {
+		removedMounts, err := rootlessspecconv.ToRootless(spec)
+		if err != nil {
 			releaseAll()
 			return nil, nil, err
 		}
+		// The runtime no longer sets these mounts up, but a rootful build still gets
+		// their mount points left in the rootfs. The caller recreates them once the
+		// container is gone. moby/buildkit#6686
+		details.removedMounts = removedMounts
 	}
 	return spec, releaseAll, nil
 }

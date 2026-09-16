@@ -1,21 +1,15 @@
 # go-runc
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/containerd/go-runc.svg)](https://pkg.go.dev/github.com/containerd/go-runc)
 [![Build Status](https://github.com/containerd/go-runc/workflows/CI/badge.svg)](https://github.com/containerd/go-runc/actions?query=workflow%3ACI)
-[![codecov](https://codecov.io/gh/containerd/go-runc/branch/main/graph/badge.svg)](https://codecov.io/gh/containerd/go-runc)
+[![codecov](https://codecov.io/gh/containerd/go-runc/tree/main/graph/badge.svg)](https://app.codecov.io/gh/containerd/go-runc/tree/main)
 
-This is a package for consuming the [runc](https://github.com/opencontainers/runc) binary in your Go applications.
-It tries to expose all the settings and features of the runc CLI.  If there is something missing then add it, its opensource!
-
-This needs runc @ [a9610f2c0](https://github.com/opencontainers/runc/commit/a9610f2c0237d2636d05a031ec8659a70e75ffeb)
-or greater.
-
-## Docs
-
-Docs can be found at [godoc.org](https://godoc.org/github.com/containerd/go-runc).
+This is a module for consuming the [runc](https://github.com/opencontainers/runc) binary in your Go applications.
+It tries to expose all the settings and features of the runc CLI.
 
 ## Project details
 
-The go-runc is a containerd sub-project, licensed under the [Apache 2.0 license](./LICENSE).
+**go-runc** is a containerd sub-project, licensed under the [Apache 2.0 license](./LICENSE).
 As a containerd sub-project, you will find the:
 
  * [Project governance](https://github.com/containerd/project/blob/main/GOVERNANCE.md),

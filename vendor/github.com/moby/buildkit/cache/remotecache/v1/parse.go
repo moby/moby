@@ -33,7 +33,7 @@ func ParseConfig(config cacheimporttypes.CacheConfig, provider DescriptorProvide
 func parseRecord(cc cacheimporttypes.CacheConfig, idx int, provider DescriptorProvider, t solver.CacheExporterTarget, cache map[int]solver.CacheExporterRecord) (solver.CacheExporterRecord, error) {
 	if r, ok := cache[idx]; ok {
 		if r == nil {
-			return nil, errors.Errorf("invalid looping record")
+			return nil, errors.New("invalid looping record")
 		}
 		return r, nil
 	}
@@ -115,7 +115,7 @@ func parseRecord(cc cacheimporttypes.CacheConfig, idx int, provider DescriptorPr
 
 func getRemoteChain(layers []cacheimporttypes.CacheLayer, idx int, provider DescriptorProvider, visited map[int]struct{}) (*solver.Remote, error) {
 	if _, ok := visited[idx]; ok {
-		return nil, errors.Errorf("invalid looping layer")
+		return nil, errors.New("invalid looping layer")
 	}
 	visited[idx] = struct{}{}
 

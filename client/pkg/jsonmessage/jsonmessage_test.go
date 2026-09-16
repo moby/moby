@@ -3,6 +3,7 @@ package jsonmessage
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -191,6 +192,80 @@ func TestDisplayStreamInvalidJSON(t *testing.T) {
 	exp := "invalid character "
 	if err := DisplayStream(reader, data); err == nil || !strings.HasPrefix(err.Error(), exp) {
 		t.Fatalf("Expected error (%s...), got %q", exp, err)
+	}
+}
+
+func TestDisplayStreamWithMessagePrinter(t *testing.T) {
+	testcases := []struct {
+		name        string
+		input       string
+		expected    string
+		expectedErr string
+		printer     func(jsonstream.Message, io.Writer) error
+		auxCallback func(jsonstream.Message)
+	}{
+		{
+			name:     "message",
+			input:    `{"status":"status"}`,
+			expected: "custom",
+			printer: func(jm jsonstream.Message, w io.Writer) error {
+				assert.Equal(t, jm.Status, "status")
+				_, err := fmt.Fprint(w, "custom")
+				return err
+			},
+		},
+		{
+			name:        "message error",
+			input:       `{"errorDetail":{"message":"boom"},"error":"boom"}`,
+			expectedErr: "boom",
+			printer: func(jm jsonstream.Message, _ io.Writer) error {
+				assert.Assert(t, jm.Error != nil)
+				assert.Equal(t, jm.Error.Message, "boom")
+				return jm.Error
+			},
+		},
+		{
+			name:     "auxiliary message",
+			input:    `{"aux":{"ID":"sha256:deadbeef"}}{"status":"status"}`,
+			expected: "custom",
+			printer: func(jm jsonstream.Message, w io.Writer) error {
+				assert.Equal(t, jm.Status, "status")
+				_, err := fmt.Fprint(w, "custom")
+				return err
+			},
+			auxCallback: func(jm jsonstream.Message) {
+				assert.Assert(t, jm.Aux != nil)
+			},
+		},
+		{
+			name:     "auxiliary message without callback",
+			input:    `{"aux":{"ID":"sha256:deadbeef"}}`,
+			expected: "",
+			printer: func(jsonstream.Message, io.Writer) error {
+				t.Fatal("message printer must not be called for auxiliary messages")
+				return nil
+			},
+		},
+	}
+
+	for _, testcase := range testcases {
+		t.Run(testcase.name, func(t *testing.T) {
+			opts := []DisplayOpt{
+				WithMessagePrinter(testcase.printer),
+			}
+			if testcase.auxCallback != nil {
+				opts = append(opts, WithAuxCallback(testcase.auxCallback))
+			}
+
+			var out bytes.Buffer
+			err := DisplayStream(strings.NewReader(testcase.input), &out, opts...)
+			if testcase.expectedErr != "" {
+				assert.Error(t, err, testcase.expectedErr)
+			} else {
+				assert.NilError(t, err)
+			}
+			assert.Equal(t, out.String(), testcase.expected)
+		})
 	}
 }
 

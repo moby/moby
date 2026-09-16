@@ -1,6 +1,8 @@
 package executor
 
-import "github.com/pkg/errors"
+import (
+	"github.com/pkg/errors"
+)
 
 // ValidContainerID validates that id is non-empty and contains only ASCII letters and digits.
 func ValidContainerID(id string) error {

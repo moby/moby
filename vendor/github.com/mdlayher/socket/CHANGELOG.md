@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.5.2
+
+- [Improvement]: Bump build to Go 1.23.0. Note this is required for the latest
+  Go extended library versions.
+
 ## v0.5.1
 
 - [Improvement]: revert `go.mod` to Go 1.20 to [resolve an issue around Go

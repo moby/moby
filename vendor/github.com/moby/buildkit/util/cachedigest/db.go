@@ -10,8 +10,8 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-var ErrInvalidEncoding = errors.Errorf("invalid encoding")
-var ErrNotFound = errors.Errorf("not found")
+var ErrInvalidEncoding = errors.New("invalid encoding")
+var ErrNotFound = errors.New("not found")
 
 const bucketName = "byhash"
 

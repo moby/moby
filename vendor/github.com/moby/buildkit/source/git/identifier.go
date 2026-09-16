@@ -26,6 +26,7 @@ type GitIdentifier struct {
 	KnownSSHHosts    string
 	SkipSubmodules   bool
 	MTime            string // "checkout" (default) or "commit"
+	Advice           bool
 	FetchByCommit    bool
 
 	// Bundle, when non-empty, instructs the git source to fetch commits from a
@@ -136,7 +137,7 @@ func validateBundleAttrs(id *GitIdentifier) error {
 			return err
 		}
 		if id.Checksum == "" {
-			return errors.Errorf("git.bundle requires git.checksum to be set")
+			return errors.New("git.bundle requires git.checksum to be set")
 		}
 		// Reject the pathological "Ref=sha1, Checksum=sha2" case: if both
 		// are set and Ref is itself a commit SHA, the two must agree.
@@ -148,10 +149,10 @@ func validateBundleAttrs(id *GitIdentifier) error {
 	}
 	if id.CheckoutBundle {
 		if id.KeepGitDir {
-			return errors.Errorf("git.checkoutbundle is incompatible with git.keepgitdir")
+			return errors.New("git.checkoutbundle is incompatible with git.keepgitdir")
 		}
 		if id.Subdir != "" {
-			return errors.Errorf("git.checkoutbundle is incompatible with git.subdir")
+			return errors.New("git.checkoutbundle is incompatible with git.subdir")
 		}
 	}
 	return nil

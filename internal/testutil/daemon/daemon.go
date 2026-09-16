@@ -47,11 +47,8 @@ type nopLog struct{}
 func (nopLog) Logf(string, ...any) {}
 
 const (
-	defaultDockerdBinary         = "dockerd"
-	defaultContainerdSocket      = "/var/run/docker/containerd/containerd.sock"
-	defaultDockerdRootlessBinary = "dockerd-rootless.sh"
-	defaultUnixSocket            = "/var/run/docker.sock"
-	defaultTLSHost               = "localhost:2376"
+	defaultDockerdBinary = "dockerd"
+	defaultTLSHost       = "localhost:2376"
 )
 
 var errDaemonNotStarted = errors.New("daemon not started")
@@ -519,33 +516,23 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		d.pidFile = filepath.Join(d.Folder, "docker.pid")
 	}
 
-	d.args = []string{}
-	if d.rootlessUser != nil {
-		if d.dockerdBinary != defaultDockerdBinary {
-			return errors.Errorf("[%s] DOCKER_ROOTLESS doesn't support non-default dockerd binary path %q", d.id, d.dockerdBinary)
-		}
-		dockerdBinary = "sudo"
-		d.args = append(d.args,
-			"-u", d.rootlessUser.Username,
-			"--preserve-env",
-			"--preserve-env=PATH", // Pass through PATH, overriding secure_path.
-			"XDG_RUNTIME_DIR="+d.rootlessXDGRuntimeDir,
-			"HOME="+d.rootlessUser.HomeDir,
-			"--",
-			defaultDockerdRootlessBinary,
-		)
+	dockerdBinary, args, err := d.rootlessCommand(dockerdBinary)
+	if err != nil {
+		return err
 	}
+	d.args = args
 
 	d.args = append(d.args,
 		// Make sure we don't use the environment-provided global config file.
-		"--config-file", "/dev/null",
+		"--config-file", os.DevNull,
 		"--data-root", d.Root,
 		"--exec-root", d.execRoot,
 		"--pidfile", d.pidFile,
-		"--userland-proxy="+strconv.FormatBool(d.userlandProxy),
 		"--containerd-namespace", d.id,
 		"--containerd-plugins-namespace", d.id+"p",
 	)
+	d.args = append(d.args, d.platformArgs()...)
+
 	if d.containerdEmbedded {
 		d.args = append(d.args, "--feature", "embedded-containerd")
 	} else if d.containerdSocket != "" {
@@ -974,10 +961,7 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 		scheme = "https"
 		proto = "tcp"
 	} else if d.UseDefaultHost {
-		addr = defaultUnixSocket
-		proto = "unix"
-		scheme = "http"
-		transport = &http.Transport{}
+		transport, scheme, proto, addr = defaultHostConfig()
 	} else {
 		addr = d.sockPath()
 		proto = "unix"

@@ -1,0 +1,24 @@
+package sdk
+
+import "github.com/moby/extensions"
+
+// ProtocolVersion is the startup protocol version spoken by this package.
+const ProtocolVersion = 1
+
+// ReadinessAck is written to stdout by an extension once it is listening.
+const ReadinessAck = "ready\n"
+
+// StartupConfig is written to an extension binary's stdin at launch. It is JSON
+// (not gRPC), since it bootstraps the connection itself.
+type StartupConfig struct {
+	Endpoint        string `json:"endpoint"`
+	ProtocolVersion int    `json:"protocolVersion"`
+	// Config is the parsed per-extension configuration. It reaches in-process
+	// Init directly and is sent here for out-of-process extensions.
+	Config extensions.Config `json:"config,omitempty"`
+	// CallbackEndpoint is the unix socket the daemon serves the extension's
+	// declared dependencies on. The SDK dials it at Initialize and hands the
+	// extension a resolver backed by it, so a dependency call is routed to the
+	// real provider. Empty when the host offers no dependencies.
+	CallbackEndpoint string `json:"callbackEndpoint,omitempty"`
+}

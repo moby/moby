@@ -2,7 +2,9 @@ package file
 
 import (
 	"archive/tar"
+	stderrors "errors"
 	"os"
+	"os/exec"
 	"time"
 
 	"github.com/containerd/continuity/fs"
@@ -18,7 +20,11 @@ func unpack(srcRoot string, src string, destRoot string, dest string, ch copy.Ch
 	if err != nil {
 		return false, err
 	}
-	if !isArchivePath(src) {
+	isArchive, err := isArchivePath(src)
+	if err != nil {
+		return false, err
+	}
+	if !isArchive {
 		return false, nil
 	}
 
@@ -51,25 +57,28 @@ func unpack(srcRoot string, src string, destRoot string, dest string, ch copy.Ch
 	return true, chrootarchive.Untar(file, dest, opts)
 }
 
-func isArchivePath(path string) bool {
+func isArchivePath(path string) (bool, error) {
 	fi, err := os.Lstat(path)
 	if err != nil {
-		return false
+		return false, nil
 	}
 	if fi.Mode()&os.ModeType != 0 {
-		return false
+		return false, nil
 	}
 	file, err := os.Open(path)
 	if err != nil {
-		return false
+		return false, nil
 	}
 	defer file.Close()
 	rdr, err := compression.DecompressStream(file)
 	if err != nil {
-		return false
+		if _, ok := stderrors.AsType[*exec.Error](err); ok {
+			return false, err
+		}
+		return false, nil
 	}
 	defer rdr.Close()
 	r := tar.NewReader(rdr)
 	_, err = r.Next()
-	return err == nil
+	return err == nil, nil
 }

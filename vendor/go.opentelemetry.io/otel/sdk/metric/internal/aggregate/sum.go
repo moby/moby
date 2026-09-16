@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package aggregate // import "go.opentelemetry.io/otel/sdk/metric/internal/aggregate"
+package aggregate
 
 import (
 	"context"
@@ -21,17 +21,16 @@ type sumValue[N int64 | float64] struct {
 }
 
 type sumValueMap[N int64 | float64] struct {
-	values limitedSyncMap
 	newRes func(attribute.Set) FilteredExemplarReservoir[N]
+	values limitedSyncMap[*sumValue[N]]
 }
 
 func (s *sumValueMap[N]) measure(
 	ctx context.Context,
 	value N,
-	fltrAttr attribute.Set,
-	droppedAttr []attribute.KeyValue,
+	lazy lazyFilteredAttributes,
 ) {
-	sv := s.values.LoadOrStoreAttr(fltrAttr, func(attr attribute.Set) any {
+	sv := s.values.LoadOrStoreAttr(lazy, func(attr attribute.Set) *sumValue[N] {
 		r := s.newRes(attr)
 		_, isDrop := r.(*dropRes[N])
 		return &sumValue[N]{
@@ -40,13 +39,13 @@ func (s *sumValueMap[N]) measure(
 			startTime:     now(),
 			dropExemplars: isDrop,
 		}
-	}).(*sumValue[N])
+	})
 	sv.n.add(value)
 	// It is possible for collection to race with measurement and observe the
 	// exemplar in the batch of metrics after the add() for cumulative sums.
 	// This is an accepted tradeoff to avoid locking during measurement.
 	if !sv.dropExemplars {
-		sv.res.Offer(ctx, value, droppedAttr)
+		sv.res.Offer(ctx, value, lazy)
 	}
 }
 
@@ -63,12 +62,12 @@ func newDeltaSum[N int64 | float64](
 		start:     now(),
 		hotColdValMap: [2]sumValueMap[N]{
 			{
-				values: limitedSyncMap{aggLimit: limit},
 				newRes: r,
+				values: limitedSyncMap[*sumValue[N]]{aggLimit: limit},
 			},
 			{
-				values: limitedSyncMap{aggLimit: limit},
 				newRes: r,
+				values: limitedSyncMap[*sumValue[N]]{aggLimit: limit},
 			},
 		},
 	}
@@ -83,10 +82,10 @@ type deltaSum[N int64 | float64] struct {
 	hotColdValMap [2]sumValueMap[N]
 }
 
-func (s *deltaSum[N]) measure(ctx context.Context, value N, fltrAttr attribute.Set, droppedAttr []attribute.KeyValue) {
+func (s *deltaSum[N]) measure(ctx context.Context, value N, lazy lazyFilteredAttributes) {
 	hotIdx := s.hcwg.start()
 	defer s.hcwg.done(hotIdx)
-	s.hotColdValMap[hotIdx].measure(ctx, value, fltrAttr, droppedAttr)
+	s.hotColdValMap[hotIdx].measure(ctx, value, lazy)
 }
 
 func (s *deltaSum[N]) collect(
@@ -140,8 +139,8 @@ func newCumulativeSum[N int64 | float64](
 		monotonic: monotonic,
 		start:     now(),
 		sumValueMap: sumValueMap[N]{
-			values: limitedSyncMap{aggLimit: limit},
 			newRes: r,
+			values: limitedSyncMap[*sumValue[N]]{aggLimit: limit},
 		},
 	}
 }

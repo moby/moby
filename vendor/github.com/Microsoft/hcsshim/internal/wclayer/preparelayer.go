@@ -8,8 +8,8 @@ import (
 	"sync"
 
 	"github.com/Microsoft/hcsshim/internal/hcserror"
-	"github.com/Microsoft/hcsshim/internal/oc"
-	"go.opencensus.io/trace"
+	"github.com/Microsoft/hcsshim/internal/ot"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 var prepareLayerLock sync.Mutex
@@ -21,12 +21,12 @@ var prepareLayerLock sync.Mutex
 // Disabling the filter must be done via UnprepareLayer.
 func PrepareLayer(ctx context.Context, path string, parentLayerPaths []string) (err error) {
 	title := "hcsshim::PrepareLayer"
-	ctx, span := oc.StartSpan(ctx, title)
+	ctx, span := ot.StartSpan(ctx, title)
 	defer span.End()
-	defer func() { oc.SetSpanStatus(span, err) }()
-	span.AddAttributes(
-		trace.StringAttribute("path", path),
-		trace.StringAttribute("parentLayerPaths", strings.Join(parentLayerPaths, ", ")))
+	defer func() { ot.SetSpanStatus(span, err) }()
+	span.SetAttributes(
+		attribute.String("path", path),
+		attribute.String("parentLayerPaths", strings.Join(parentLayerPaths, ", ")))
 
 	// Generate layer descriptors
 	layers, err := layerPathsToDescriptors(ctx, parentLayerPaths)

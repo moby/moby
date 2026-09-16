@@ -199,7 +199,7 @@ func CreateFS(ctx context.Context, sessionID string, k string, ref cache.Immutab
 			if addPlatformToFilename {
 				nameExt := path.Ext(name)
 				namBase := strings.TrimSuffix(name, nameExt)
-				name = fmt.Sprintf("%s.%s%s", namBase, strings.ReplaceAll(k, "/", "_"), nameExt)
+				name = fmt.Sprintf("%s.%s%s", namBase, PlatformIDToPath(k), nameExt)
 			}
 			if _, ok := names[name]; ok {
 				return nil, nil, errors.Errorf("duplicate attestation path name %s", name)

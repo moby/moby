@@ -27,10 +27,12 @@ func (lg *labeledGauge) WithValues(labels ...string) Gauge {
 	return &gauge{pg: lg.pg.WithLabelValues(labels...)}
 }
 
+// Describe implements [prometheus.Collector].
 func (lg *labeledGauge) Describe(c chan<- *prometheus.Desc) {
 	lg.pg.Describe(c)
 }
 
+// Collect implements [prometheus.Collector].
 func (lg *labeledGauge) Collect(c chan<- prometheus.Metric) {
 	lg.pg.Collect(c)
 }
@@ -63,10 +65,12 @@ func (g *gauge) Set(v float64) {
 	g.pg.Set(v)
 }
 
+// Describe implements [prometheus.Collector].
 func (g *gauge) Describe(c chan<- *prometheus.Desc) {
 	g.pg.Describe(c)
 }
 
+// Collect implements [prometheus.Collector].
 func (g *gauge) Collect(c chan<- prometheus.Metric) {
 	g.pg.Collect(c)
 }

@@ -26,5 +26,5 @@ func (b chainBuilder) Rule(rule ...string) chainBuilder {
 }
 
 func (b chainBuilder) Create(tm *Modifier) {
-	tm.cmds = append(tm.cmds, b.tm.cmds...)
+	tm.objs = append(tm.objs, b.tm.objs...)
 }

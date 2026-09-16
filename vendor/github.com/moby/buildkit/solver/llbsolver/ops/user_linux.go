@@ -29,7 +29,7 @@ func readUser(chopt *pb.ChownOpt, mu, mg snapshot.Mountable) (*copy.User, error)
 		switch u := chopt.User.User.(type) {
 		case *pb.UserOpt_ByName:
 			if mu == nil {
-				return nil, errors.Errorf("invalid missing user mount")
+				return nil, errors.New("invalid missing user mount")
 			}
 
 			lm := snapshot.LocalMounter(mu)
@@ -75,7 +75,7 @@ func readUser(chopt *pb.ChownOpt, mu, mg snapshot.Mountable) (*copy.User, error)
 		switch u := chopt.Group.User.(type) {
 		case *pb.UserOpt_ByName:
 			if mg == nil {
-				return nil, errors.Errorf("invalid missing group mount")
+				return nil, errors.New("invalid missing group mount")
 			}
 
 			lm := snapshot.LocalMounter(mg)

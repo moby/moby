@@ -25,15 +25,20 @@ func testSetup(t *testing.T) func() {
 		t.Fatalf("Failed to enable nftables: %s", err)
 	}
 	cleanupContext := netnsutils.SetupTestOSContext(t)
+
+	incrementalUpdateFailedHook = func(applied string, err error) {
+		t.Errorf("Incremental update failed\n%s\n---\n%s", applied, err)
+	}
 	return func() {
+		incrementalUpdateFailedHook = nil
 		cleanupContext()
 		Disable()
 	}
 }
 
-func applyAndCheck(t *testing.T, goldenFilename string, tbl *Table, tm ...Modifier) {
+func applyAndCheck(t *testing.T, goldenFilename string, tbl *Table, changes ...Changes) {
 	t.Helper()
-	err := tbl.Apply(t.Context(), tm...)
+	err := tbl.Apply(t.Context(), changes...)
 	assert.Check(t, err)
 	res := icmd.RunCommand("nft", "list", "table", string(tbl.Family()), tbl.Name())
 	res.Assert(t, icmd.Success)
@@ -306,6 +311,7 @@ func TestVMap(t *testing.T) {
 		Name:        mapName,
 		ElementType: Ifname.VMap(),
 		Flags:       []string{"dynamic", "timeout"},
+		Counter:     true,
 	})
 	tm.Create(MapElement{MapName: mapName, Key: "eth0", Value: "return"})
 	tm.Create(MapElement{MapName: mapName, Key: "eth1", Value: "drop", Comment: `/// this is a comment on a map element \\\`})
@@ -334,7 +340,7 @@ func TestSet(t *testing.T) {
 	// Create a set in each table.
 	const set4Name = "set4"
 	tm4 := Modifier{}
-	tm4.Create(Set{Name: set4Name, ElementType: IPv4Addr, Flags: []string{"interval"}})
+	tm4.Create(Set{Name: set4Name, ElementType: IPv4Addr, Flags: []string{"interval"}, Counter: true})
 	const set6Name = "set6"
 	tm6 := Modifier{}
 	tm6.Create(Set{Name: set6Name, ElementType: IPv6Addr, Flags: []string{"interval", "timeout"}})
@@ -350,6 +356,53 @@ func TestSet(t *testing.T) {
 	// Delete elements.
 	applyAndCheck(t, t.Name()+"/deleted4.golden", tbl4, tm4.Reverse())
 	applyAndCheck(t, t.Name()+"/deleted6.golden", tbl6, tm6.Reverse())
+}
+
+func TestMapElementAtomicReplace(t *testing.T) {
+	defer testSetup(t)()
+
+	tbl, err := NewTable(IPv4, "x")
+	assert.NilError(t, err)
+	defer tbl.Close()
+
+	const mapName = "a_map"
+	init := Modifier{}
+	init.Create(Map{
+		Name:        mapName,
+		ElementType: Typeof("numgen random mod 1024").MapTo("ip daddr"),
+		Flags:       []string{"interval"},
+	})
+
+	gen1 := Modifier{}
+	gen1.Create(MapElement{MapName: mapName, Key: "0-511", Value: "127.0.0.1"})
+	gen1.Create(MapElement{MapName: mapName, Key: "512-1023", Value: "192.168.0.1"})
+	applyAndCheck(t, t.Name()+"/init.golden", tbl, init, gen1)
+
+	gen2 := Modifier{}
+	gen2.Create(MapElement{MapName: mapName, Key: "0-511", Value: "169.254.169.254"})
+	gen2.Create(MapElement{MapName: mapName, Key: "512-1023", Value: "1.1.1.1"})
+	applyAndCheck(t, t.Name()+"/updated.golden", tbl, gen1.Reverse(), gen2)
+}
+
+func TestMapElementDeleteCancelsCreate(t *testing.T) {
+	// The final state of applying a sequence of creates and deletes should
+	// be the same, whether applied from one transaction or multiple.
+
+	defer testSetup(t)()
+
+	tbl, err := NewTable(IPv4, "x")
+	assert.NilError(t, err)
+	defer tbl.Close()
+
+	const mapName = "a_map"
+	var init, create Modifier
+	init.Create(Map{
+		Name:        mapName,
+		ElementType: Typeof("numgen random mod 1024").MapTo("ip daddr"),
+		Flags:       []string{"interval"},
+	})
+	create.Create(MapElement{MapName: mapName, Key: "0-1023", Value: "127.0.0.1"})
+	applyAndCheck(t, t.Name()+".golden", tbl, init, create, create.Reverse())
 }
 
 func TestReload(t *testing.T) {
@@ -409,6 +462,7 @@ func TestReload(t *testing.T) {
 
 	// Check implicit/recovery reload - only deleting something that's gone missing
 	// from a vmap/set will trigger this.
+	incrementalUpdateFailedHook = nil
 	tm = Modifier{}
 	tm.Delete(SetElement{SetName: setName, Element: "192.0.2.0/24"})
 	applyAndCheck(t, t.Name()+"/recovered.golden", tbl, tm)
@@ -478,34 +532,34 @@ func TestNetdevChain(t *testing.T) {
 func TestValidation(t *testing.T) {
 	testcases := []struct {
 		name   string
-		cmds   []command
+		cmds   []objCmd
 		expErr string
 	}{
 		// BaseChain
 		{
 			name: "create with missing base chain name",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: BaseChain{ChainType: BaseChainTypeNAT, Hook: BaseChainHookPostrouting, Priority: BaseChainPrioritySrcNAT}},
 			},
 			expErr: "base chain must have a name",
 		},
 		{
 			name: "create with missing base chain type",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: BaseChain{Name: "achain", Hook: BaseChainHookPostrouting, Priority: BaseChainPrioritySrcNAT}},
 			},
 			expErr: "chain 'achain': fields ChainType and Hook are required",
 		},
 		{
 			name: "create with missing base chain hook",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: BaseChain{Name: "achain", ChainType: BaseChainTypeNAT, Priority: BaseChainPrioritySrcNAT}},
 			},
 			expErr: "chain 'achain': fields ChainType and Hook are required",
 		},
 		{
 			name: "delete non-empty base chain",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: BaseChain{
 					Name: "achain", ChainType: BaseChainTypeNAT, Hook: BaseChainHookPostrouting, Priority: BaseChainPrioritySrcNAT,
 				}},
@@ -522,7 +576,7 @@ func TestValidation(t *testing.T) {
 		// Chain
 		{
 			name: "duplicate chain",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Chain{Name: "achain"}},
 				{obj: Chain{Name: "achain"}},
 			},
@@ -530,21 +584,21 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "delete missing chain",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Chain{Name: "achain"}, delete: true},
 			},
 			expErr: "does not exist",
 		},
 		{
 			name: "missing chain name",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Chain{}},
 			},
 			expErr: "chain must have a name",
 		},
 		{
 			name: "delete non-empty chain",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Chain{Name: "achain"}},
 				{obj: Rule{Chain: "achain", Rule: []string{"counter"}}},
 				{obj: Chain{Name: "achain"}, delete: true},
@@ -554,7 +608,7 @@ func TestValidation(t *testing.T) {
 		// Rule
 		{
 			name: "bad rule",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Chain{Name: "achain"}},
 				{obj: Rule{Chain: "achain", Rule: []string{"this is nonsense"}}},
 			},
@@ -562,7 +616,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "duplicate rule",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Chain{Name: "achain"}},
 				{obj: Rule{Chain: "achain", Rule: []string{"counter"}}},
 				{obj: Rule{Chain: "achain", Rule: []string{"counter"}}},
@@ -571,7 +625,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "delete missing rule",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Chain{Name: "achain"}},
 				{obj: Rule{Chain: "achain", Rule: []string{"counter"}}, delete: true},
 			},
@@ -579,7 +633,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "duplicate rule delete",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Chain{Name: "achain"}},
 				{obj: Rule{Chain: "achain", Rule: []string{"counter"}}},
 				{obj: Rule{Chain: "achain", Rule: []string{"counter"}}, delete: true},
@@ -589,7 +643,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "create rule with missing chain name",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Chain{Name: "achain"}},
 				{obj: Rule{Rule: []string{"counter"}}},
 			},
@@ -597,7 +651,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "delete rule with missing chain name",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Chain{Name: "achain"}},
 				{obj: Rule{Rule: []string{"counter"}}, delete: true},
 			},
@@ -605,21 +659,21 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "create rule with nonexistent chain",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Rule{Chain: "achain", Rule: []string{"counter"}}},
 			},
 			expErr: "chain 'achain' does not exist",
 		},
 		{
 			name: "delete rule with nonexistent chain",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Rule{Chain: "achain", Rule: []string{"counter"}}, delete: true},
 			},
 			expErr: "chain 'achain' does not exist",
 		},
 		{
 			name: "create rule with no rule",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Chain{Name: "achain"}},
 				{obj: Rule{Chain: "achain"}},
 			},
@@ -627,7 +681,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "delete rule with no rule",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Chain{Name: "achain"}},
 				{obj: Rule{Chain: "achain"}, delete: true},
 			},
@@ -635,7 +689,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "bad rule mid-sequence",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Chain{Name: "achain"}},
 				{obj: Rule{Chain: "achain", Rule: []string{"counter"}}},
 				{obj: Rule{Chain: "achain", Rule: []string{"counter"}}, delete: true},
@@ -647,7 +701,7 @@ func TestValidation(t *testing.T) {
 		// Map (verdict)
 		{
 			name: "duplicate map",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
 				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
 			},
@@ -655,24 +709,24 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "delete nonexistent map",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}, delete: true},
 			},
 			expErr: "cannot delete map 'avmap', it does not exist",
 		},
 		{
 			name:   "missing map name",
-			cmds:   []command{{obj: Map{ElementType: Ifname.VMap()}}},
+			cmds:   []objCmd{{obj: Map{ElementType: Ifname.VMap()}}},
 			expErr: "map must have a name",
 		},
 		{
 			name:   "missing map element type",
-			cmds:   []command{{obj: Map{Name: "avmap"}}},
+			cmds:   []objCmd{{obj: Map{Name: "avmap"}}},
 			expErr: "map 'avmap' has no element type",
 		},
 		{
 			name: "delete non-empty map",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
 				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop"}},
 				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}, delete: true},
@@ -682,7 +736,7 @@ func TestValidation(t *testing.T) {
 		// MapElement
 		{
 			name: "duplicate map element",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
 				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop"}},
 				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop"}},
@@ -691,22 +745,32 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "add to map that does not exist",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop"}},
 			},
 			expErr: "cannot add to map 'avmap', it does not exist",
 		},
 		{
 			name: "delete nonexistent map element",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
 				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop"}, delete: true},
 			},
 			expErr: "map 'avmap' does not contain element 'eth0'",
 		},
 		{
+			name: "delete map element twice",
+			cmds: []objCmd{
+				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
+				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop"}},
+				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop"}, delete: true},
+				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop"}, delete: true},
+			},
+			expErr: "map 'avmap' does not contain element 'eth0'",
+		},
+		{
 			name: "map element with no named map",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
 				{obj: MapElement{Key: "eth0", Value: "drop"}},
 			},
@@ -714,7 +778,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "map element with no key",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
 				{obj: MapElement{MapName: "avmap", Value: "drop"}},
 			},
@@ -722,7 +786,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "map element with no value",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
 				{obj: MapElement{MapName: "avmap", Key: "eth0"}},
 			},
@@ -730,7 +794,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "map element with newline in comment",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
 				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop", Comment: "new\nline"}},
 			},
@@ -738,7 +802,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "map element with quote char in comment",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Map{Name: "avmap", ElementType: Ifname.VMap()}},
 				{obj: MapElement{MapName: "avmap", Key: "eth0", Value: "drop", Comment: `"quoted"`}},
 			},
@@ -747,7 +811,7 @@ func TestValidation(t *testing.T) {
 		// Set
 		{
 			name: "duplicate set",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 			},
@@ -755,28 +819,28 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "delete nonexistent set",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}, delete: true},
 			},
 			expErr: "cannot delete set 'aset', it does not exist",
 		},
 		{
 			name: "missing set name",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Set{ElementType: IPv4Addr, Flags: []string{"interval"}}},
 			},
 			expErr: "set must have a name",
 		},
 		{
 			name: "missing set element type",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Set{Name: "aset", Flags: []string{"interval"}}},
 			},
 			expErr: "set 'aset' must have a type",
 		},
 		{
 			name: "delete non-empty set",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24"}},
 				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}, delete: true},
@@ -786,7 +850,7 @@ func TestValidation(t *testing.T) {
 		// SetElement
 		{
 			name: "duplicate set element",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24"}},
 				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24"}},
@@ -795,7 +859,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "delete nonexistent set element",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24"}, delete: true},
 			},
@@ -803,7 +867,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "add set element to unnamed set",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: SetElement{Element: "192.0.2.0/24"}},
 			},
@@ -811,7 +875,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "add set element with no element",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: SetElement{SetName: "aset"}},
 			},
@@ -819,7 +883,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "mismatched set element type",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: SetElement{SetName: "aset", Element: "2001:db8::/64"}},
 			},
@@ -827,7 +891,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "set element with newline in comment",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24", Comment: "new\nline"}},
 			},
@@ -835,7 +899,7 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "set element with quote char in comment",
-			cmds: []command{
+			cmds: []objCmd{
 				{obj: Set{Name: "aset", ElementType: IPv4Addr, Flags: []string{"interval"}}},
 				{obj: SetElement{SetName: "aset", Element: "192.0.2.0/24", Comment: `"quoted"`}},
 			},
@@ -847,10 +911,16 @@ func TestValidation(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			defer testSetup(t)()
+			if tc.expErr != "" {
+				incrementalUpdateFailedHook = nil
+			}
 			tbl, err := NewTable(IPv4, "tablename")
 			assert.NilError(t, err)
 			defer tbl.Close()
-			tm := Modifier{cmds: tc.cmds}
+			tm := Batch{}
+			for _, c := range tc.cmds {
+				tm.Append(c)
+			}
 			err = tbl.Apply(t.Context(), tm)
 			assert.Check(t, err != nil, "expected error containing '%s'", tc.expErr)
 			assert.Check(t, is.ErrorContains(err, tc.expErr))
@@ -859,6 +929,156 @@ func TestValidation(t *testing.T) {
 			res.Assert(t, icmd.Expected{ExitCode: 1})
 			// Check the empty table can be created (the Table structure is still healthy).
 			applyAndCheck(t, testName+"/empty.golden", tbl, Modifier{})
+		})
+	}
+}
+
+func TestMapElementDeleteFunc(t *testing.T) {
+	defer testSetup(t)()
+
+	tbl, err := NewTable(IPv4, "x")
+	assert.NilError(t, err)
+	defer tbl.Close()
+
+	// Keys are concatenated, as the load balancer's are: the first component
+	// identifies the owner's destination, so different owners never share - or
+	// overlap in - the interval space.
+	const mapName = "a_map"
+	init := Modifier{}
+	init.Create(Map{
+		Name:        mapName,
+		ElementType: Typeof("ip daddr").Concat("numgen random mod 1024").MapTo("ip daddr"),
+		Flags:       []string{"interval"},
+	})
+	// Two owners sharing one map, identified by the element comment.
+	gen1 := Modifier{}
+	gen1.Create(MapElement{MapName: mapName, Key: "10.0.0.1 . 0-511", Value: "127.0.0.1", Comment: "svc-a"})
+	gen1.Create(MapElement{MapName: mapName, Key: "10.0.0.1 . 512-1023", Value: "127.0.0.2", Comment: "svc-a"})
+	gen1.Create(MapElement{MapName: mapName, Key: "10.0.0.2 . 0-1023", Value: "127.0.0.3", Comment: "svc-b"})
+	applyAndCheck(t, t.Name()+"/init.golden", tbl, init, gen1)
+
+	// Replace svc-a's elements with a different number of intervals, in a single
+	// Batch: the delete-func sweeps whatever it currently owns (including the
+	// keys that are about to disappear, which is why they can't simply be
+	// overwritten), then the new elements are created. svc-b must be left alone.
+	gen2 := Batch{}
+	gen2.Append(MapElementDeleteFunc{
+		MapName: mapName,
+		Fn:      func(e MapElement) bool { return e.Comment == "svc-a" },
+	})
+	gen2.Append(Create(MapElement{MapName: mapName, Key: "10.0.0.1 . 0-340", Value: "127.0.0.4", Comment: "svc-a"}))
+	gen2.Append(Create(MapElement{MapName: mapName, Key: "10.0.0.1 . 341-1023", Value: "127.0.0.5", Comment: "svc-a"}))
+	applyAndCheck(t, t.Name()+"/replaced.golden", tbl, gen2)
+
+	// Sweeping an owner with nothing in the map is a no-op, not an error.
+	gen3 := Batch{}
+	gen3.Append(MapElementDeleteFunc{
+		MapName: mapName,
+		Fn:      func(e MapElement) bool { return e.Comment == "svc-nonexistent" },
+	})
+	applyAndCheck(t, t.Name()+"/replaced.golden", tbl, gen3)
+}
+
+func TestMapElementDeleteFuncRollback(t *testing.T) {
+	defer testSetup(t)()
+	// The failing Apply below is expected.
+	incrementalUpdateFailedHook = nil
+
+	tbl, err := NewTable(IPv4, "x")
+	assert.NilError(t, err)
+	defer tbl.Close()
+
+	const mapName = "a_map"
+	init := Modifier{}
+	init.Create(Map{
+		Name:        mapName,
+		ElementType: Typeof("ip daddr").Concat("numgen random mod 1024").MapTo("ip daddr"),
+		Flags:       []string{"interval"},
+	})
+	init.Create(MapElement{MapName: mapName, Key: "10.0.0.1 . 0-511", Value: "127.0.0.1", Comment: "svc-a"})
+	init.Create(MapElement{MapName: mapName, Key: "10.0.0.1 . 512-1023", Value: "127.0.0.2", Comment: "svc-a"})
+	applyAndCheck(t, t.Name()+"/init.golden", tbl, init)
+
+	// Sweep the elements, then fail: deleting an element that doesn't exist is an
+	// error, so the whole Batch is rolled back.
+	tm := Batch{}
+	tm.Append(MapElementDeleteFunc{
+		MapName: mapName,
+		Fn:      func(e MapElement) bool { return e.Comment == "svc-a" },
+	})
+	tm.Append(Delete(MapElement{MapName: mapName, Key: "10.0.0.9 . 0-1023", Value: "127.0.0.9"}))
+	err = tbl.Apply(t.Context(), tm)
+	assert.Check(t, err != nil, "expected the Apply to fail")
+
+	// The swept elements must be restored, comments included - the expanded
+	// deletes name the elements fully, so the normal rollback can recreate them.
+	applyAndCheck(t, t.Name()+"/init.golden", tbl, Modifier{})
+}
+
+func TestMapElementDeleteFuncErrors(t *testing.T) {
+	defer testSetup(t)()
+	incrementalUpdateFailedHook = nil
+
+	const mapName = "a_map"
+	newTable := func(t *testing.T) *Table {
+		t.Helper()
+		tbl, err := NewTable(IPv4, "x")
+		assert.NilError(t, err)
+		t.Cleanup(func() { tbl.Close() })
+		init := Modifier{}
+		init.Create(Map{
+			Name:        mapName,
+			ElementType: Typeof("numgen random mod 1024").MapTo("ip daddr"),
+			Flags:       []string{"interval"},
+		})
+		assert.NilError(t, tbl.Apply(t.Context(), init))
+		return tbl
+	}
+
+	alwaysTrue := func(MapElement) bool { return true }
+
+	tests := []struct {
+		name   string
+		tm     func() Batch
+		expErr string
+	}{
+		// Neither a "create" nor a "reversed" case is testable any more, and that's
+		// the point: MapElementDeleteFunc is a Cmd, not an Obj, so it can only reach a
+		// Batch - which has no Create and no Reverse. Both misuses are compile errors.
+		{
+			name: "no function",
+			tm: func() Batch {
+				tm := Batch{}
+				tm.Append(MapElementDeleteFunc{MapName: mapName})
+				return tm
+			},
+			expErr: "no function",
+		},
+		{
+			name: "unnamed map",
+			tm: func() Batch {
+				tm := Batch{}
+				tm.Append(MapElementDeleteFunc{Fn: alwaysTrue})
+				return tm
+			},
+			expErr: "unnamed map",
+		},
+		{
+			name: "no such map",
+			tm: func() Batch {
+				tm := Batch{}
+				tm.Append(MapElementDeleteFunc{MapName: "nope", Fn: alwaysTrue})
+				return tm
+			},
+			expErr: "it does not exist",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tbl := newTable(t)
+			err := tbl.Apply(t.Context(), tc.tm())
+			assert.Check(t, err != nil, "expected error containing '%s'", tc.expErr)
+			assert.Check(t, is.ErrorContains(err, tc.expErr))
 		})
 	}
 }

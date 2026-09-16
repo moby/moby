@@ -14,6 +14,7 @@ import (
 	cacheimporttypes "github.com/moby/buildkit/cache/remotecache/v1/types"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/util/contentutil"
 	digest "github.com/opencontainers/go-digest"
 	ocispecs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -241,6 +242,11 @@ type DescriptorProviderPair struct {
 
 func (p DescriptorProviderPair) ReaderAt(ctx context.Context, desc ocispecs.Descriptor) (content.ReaderAt, error) {
 	return p.Provider.ReaderAt(ctx, desc)
+}
+
+func (p DescriptorProviderPair) ProviderForSession(g session.Group) content.Provider {
+	p.Provider = contentutil.ProviderForSession(p.Provider, g)
+	return p
 }
 
 func (p DescriptorProviderPair) Info(ctx context.Context, dgst digest.Digest) (content.Info, error) {

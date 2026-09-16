@@ -114,3 +114,31 @@ func TestBuilderGC_Enabled(t *testing.T) {
 		})
 	}
 }
+
+func TestBuilderHistoryMaxEntries(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  string
+		wantSet bool
+		want    int64
+	}{
+		{name: "unset", config: `{"builder":{"history":{"maxAge":"48h"}}}`},
+		{name: "disabled", config: `{"builder":{"history":{"maxEntries":0}}}`, wantSet: true},
+		{name: "configured", config: `{"builder":{"history":{"maxEntries":12}}}`, wantSet: true, want: 12},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tempFile := fs.NewFile(t, "config", fs.WithContent(tc.config))
+			cfg, err := MergeDaemonConfigurations(&Config{}, nil, tempFile.Path())
+			assert.NilError(t, err)
+			assert.Assert(t, cfg.Builder.History != nil)
+			if tc.wantSet {
+				assert.Assert(t, cfg.Builder.History.MaxEntries != nil)
+				assert.Equal(t, *cfg.Builder.History.MaxEntries, tc.want)
+			} else {
+				assert.Assert(t, cfg.Builder.History.MaxEntries == nil)
+			}
+		})
+	}
+}

@@ -21,6 +21,7 @@ type GitCLI struct {
 	args    []string
 	dir     string
 	streams StreamFunc
+	advice  *bool
 
 	workTree string
 	gitDir   string
@@ -51,6 +52,13 @@ func WithExec(exec func(context.Context, *exec.Cmd) error) Option {
 func WithArgs(args ...string) Option {
 	return func(b *GitCLI) {
 		b.args = append(b.args, args...)
+	}
+}
+
+// WithGitAdvice controls whether Git advice messages are emitted.
+func WithGitAdvice(enabled bool) Option {
+	return func(b *GitCLI) {
+		b.advice = &enabled
 	}
 }
 
@@ -165,6 +173,9 @@ func (cli *GitCLI) Run(ctx context.Context, args ...string) (_ []byte, err error
 
 		// Block sneaky repositories from using repos from the filesystem as submodules.
 		cmd.Args = append(cmd.Args, "-c", "protocol.file.allow=user")
+		if cli.advice != nil && !*cli.advice {
+			cmd.Args = append(cmd.Args, "-c", "advice.detachedHead=false")
+		}
 		if cli.workTree != "" {
 			cmd.Args = append(cmd.Args, "--work-tree", cli.workTree)
 		}
@@ -202,6 +213,13 @@ func (cli *GitCLI) Run(ctx context.Context, args ...string) (_ []byte, err error
 			"GIT_SSH_COMMAND=" + getGitSSHCommand(cli.sshKnownHosts),
 			//	"GIT_TRACE=1",
 			"LC_ALL=C", // Ensure consistent output.
+		}
+		if cli.advice != nil {
+			if *cli.advice {
+				cmd.Env = append(cmd.Env, "GIT_ADVICE=1")
+			} else {
+				cmd.Env = append(cmd.Env, "GIT_ADVICE=0")
+			}
 		}
 		if cli.hostGitConfig {
 			for _, ev := range [...]string{

@@ -243,6 +243,11 @@ type NetAdapterNameNetworkPolicySetting struct {
 	NetworkAdapterName string `json:",omitempty"`
 }
 
+// ProviderAddressNetworkPolicySetting sets network adapter of a network based on IP address.
+type ProviderAddressNetworkPolicySetting struct {
+	ProviderAddress string `json:",omitempty"`
+}
+
 // VSwitchExtensionNetworkPolicySetting enables/disabled VSwitch extensions for a network.
 type VSwitchExtensionNetworkPolicySetting struct {
 	ExtensionID string `json:",omitempty"`

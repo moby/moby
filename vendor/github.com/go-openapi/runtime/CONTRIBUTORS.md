@@ -4,12 +4,12 @@
 
 | Total Contributors | Total Contributions |
 | --- | --- |
-| 71  | 567  |
+| 71  | 570  |
 
 | Username | All Time Contribution Count | All Commits |
 | --- | --- | --- |
 | @casualjim | 268 | <https://github.com/go-openapi/runtime/commits?author=casualjim> |
-| @fredbi | 142 | <https://github.com/go-openapi/runtime/commits?author=fredbi> |
+| @fredbi | 144 | <https://github.com/go-openapi/runtime/commits?author=fredbi> |
 | @youyuanwu | 19 | <https://github.com/go-openapi/runtime/commits?author=youyuanwu> |
 | @josephwoodward | 13 | <https://github.com/go-openapi/runtime/commits?author=josephwoodward> |
 | @kenjones-cisco | 12 | <https://github.com/go-openapi/runtime/commits?author=kenjones-cisco> |
@@ -18,8 +18,8 @@
 | @mstoykov | 6 | <https://github.com/go-openapi/runtime/commits?author=mstoykov> |
 | @elakito | 6 | <https://github.com/go-openapi/runtime/commits?author=elakito> |
 | @ifraixedes | 5 | <https://github.com/go-openapi/runtime/commits?author=ifraixedes> |
+| @Copilot | 4 | <https://github.com/go-openapi/runtime/commits?author=Copilot> |
 | @zeitlinger | 4 | <https://github.com/go-openapi/runtime/commits?author=zeitlinger> |
-| @Copilot | 3 | <https://github.com/go-openapi/runtime/commits?author=Copilot> |
 | @jkawamoto | 3 | <https://github.com/go-openapi/runtime/commits?author=jkawamoto> |
 | @stoyanr | 3 | <https://github.com/go-openapi/runtime/commits?author=stoyanr> |
 | @keramix | 2 | <https://github.com/go-openapi/runtime/commits?author=keramix> |

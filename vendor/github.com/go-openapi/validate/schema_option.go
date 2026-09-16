@@ -3,6 +3,13 @@
 
 package validate
 
+import (
+	"encoding/json"
+
+	"github.com/go-openapi/spec"
+	"github.com/go-openapi/swag/loading"
+)
+
 // SchemaValidatorOptions defines optional rules for schema validation.
 type SchemaValidatorOptions struct {
 	EnableObjectArrayTypeCheck    bool
@@ -10,6 +17,7 @@ type SchemaValidatorOptions struct {
 	recycleValidators             bool
 	recycleResult                 bool
 	skipSchemataResult            bool
+	pathLoaderWithOptions         func(string, ...loading.Option) (json.RawMessage, error)
 }
 
 // Option sets optional rules for schema validation.
@@ -60,6 +68,23 @@ func WithSkipSchemataResult(enable bool) Option {
 	}
 }
 
+// WithPathLoader injects the document loader used to resolve remote and relative $ref while
+// validating a schema or specification. It matches the option-aware loader signature of
+// github.com/go-openapi/swag/loading (and go-openapi/loads).
+//
+// This lets validation resolve references through a caller-provided loader instead of the spec
+// package's global default. The loader may carry any loading options — a custom HTTP client or
+// timeout, authentication or custom headers, an embedded or rooted file system, and so on.
+//
+// One important use is confining loading of untrusted input: build the loader with loading.WithRoot
+// (to confine local reads) and loading.WithHTTPClient (to restrict remote fetches), or use a
+// restricted loader from go-openapi/loads. Left unset, the spec package default loader is used.
+func WithPathLoader(loader func(string, ...loading.Option) (json.RawMessage, error)) Option {
+	return func(svo *SchemaValidatorOptions) {
+		svo.pathLoaderWithOptions = loader
+	}
+}
+
 // Options returns the current set of options.
 func (svo SchemaValidatorOptions) Options() []Option {
 	return []Option{
@@ -68,5 +93,17 @@ func (svo SchemaValidatorOptions) Options() []Option {
 		WithRecycleValidators(svo.recycleValidators),
 		withRecycleResults(svo.recycleResult),
 		WithSkipSchemataResult(svo.skipSchemataResult),
+		WithPathLoader(svo.pathLoaderWithOptions),
+	}
+}
+
+// expandOptions builds the spec expand options for schema/$ref expansion during validation,
+// carrying the injected loader (when set) so resolution can be confined. relativeBase is used for
+// base-path-relative resolution; it is ignored by [spec.ExpandSchemaWithOptions], which derives the
+// base from the root.
+func (svo *SchemaValidatorOptions) expandOptions(relativeBase string) *spec.ExpandOptions {
+	return &spec.ExpandOptions{
+		RelativeBase:          relativeBase,
+		PathLoaderWithOptions: svo.pathLoaderWithOptions,
 	}
 }

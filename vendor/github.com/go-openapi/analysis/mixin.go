@@ -130,6 +130,7 @@ func pathItemOps(p spec.PathItem) []*spec.Operation {
 	rv = appendOp(rv, p.Post)
 	rv = appendOp(rv, p.Delete)
 	rv = appendOp(rv, p.Head)
+	rv = appendOp(rv, p.Options)
 	rv = appendOp(rv, p.Patch)
 
 	return rv
@@ -213,9 +214,9 @@ func mergePaths(primary *spec.Swagger, m *spec.Swagger, opIDs map[string]bool, m
 			// Swagger requires that operationIds be
 			// unique within a spec. If we find a
 			// collision we append "Mixin0" to the
-			// operatoinId we are adding, where 0 is mixin
+			// operationId we are adding, where 0 is mixin
 			// index.  We assume that operationIds with
-			// all the proivded specs are already unique.
+			// all the provided specs are already unique.
 			piops := pathItemOps(v)
 			for _, piop := range piops {
 				if opIDs[piop.ID] {
@@ -358,7 +359,7 @@ func mergeSwaggerProps(primary *spec.Swagger, m *spec.Swagger) []string {
 
 	if primary.ExternalDocs == nil {
 		primary.ExternalDocs = m.ExternalDocs
-	} else if m != nil {
+	} else if m.ExternalDocs != nil {
 		skippedDocs = mergeExternalDocs(primary.ExternalDocs, m.ExternalDocs)
 		skipped = append(skipped, skippedDocs...)
 	}

@@ -57,6 +57,7 @@ const (
 	keyHostnameArg          = "build-arg:BUILDKIT_SANDBOX_HOSTNAME"
 	keyDockerfileLintArg    = "build-arg:BUILDKIT_DOCKERFILE_CHECK"
 	keyContextKeepGitDirArg = "build-arg:BUILDKIT_CONTEXT_KEEP_GIT_DIR"
+	keyGitAdviceArg         = "build-arg:BUILDKIT_GIT_ADVICE"
 )
 
 type Config struct {
@@ -68,6 +69,7 @@ type Config struct {
 	ImageResolveMode llb.ResolveMode
 	Labels           map[string]string
 	NetworkMode      pb.NetMode
+	GitAdvice        bool
 	ShmSize          int64
 	Target           string
 	Ulimits          []*pb.Ulimit
@@ -233,7 +235,7 @@ func (bc *Client) init() error {
 			return errors.Errorf("invalid boolean value for multi-platform: %s", v)
 		}
 		if !b && multiPlatform {
-			return errors.Errorf("conflicting config: returning multiple target platforms is not allowed")
+			return errors.New("conflicting config: returning multiple target platforms is not allowed")
 		}
 		multiPlatform = b
 	}
@@ -285,7 +287,7 @@ func (bc *Client) init() error {
 			}
 		}
 		if ref == nil {
-			return errors.Errorf("sbom scanner cannot be empty")
+			return errors.New("sbom scanner cannot be empty")
 		}
 
 		bc.SBOM = &SBOM{
@@ -309,6 +311,12 @@ func (bc *Client) init() error {
 		bc.LinterConfig, err = linter.ParseLintOptions(v)
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse %s", keyDockerfileLintArg)
+		}
+	}
+	if v := opts[keyGitAdviceArg]; v != "" {
+		bc.GitAdvice, err = strconv.ParseBool(v)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse %s", keyGitAdviceArg)
 		}
 	}
 

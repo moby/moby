@@ -248,6 +248,9 @@ type multiPlatformSummary struct {
 	// Best is the single platform image manifest preferred by the platform matcher.
 	Best *ImageManifest
 
+	// BestManifest is the summary of the best image.
+	BestManifest imagetypes.ManifestSummary
+
 	// BestPlatform is the platform of the best image.
 	BestPlatform ocispec.Platform
 
@@ -394,6 +397,7 @@ func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.I
 
 		if summary.Best == nil || platformMatcher.Less(platform, summary.BestPlatform) {
 			summary.Best = img
+			summary.BestManifest = mfstSummary
 			summary.BestPlatform = platform
 		}
 

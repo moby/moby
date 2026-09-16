@@ -6,11 +6,13 @@ import (
 	"context"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
@@ -124,8 +126,13 @@ func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) e
 	}
 	if cli.Config.ContainerdAddr != "" {
 		// use system containerd at the given address.
-		return nil, nil
+		return nopWaitFunc, nil
 	}
 
-	return cli.initializeContainerd(ctx)
+	waitTimeout, err := cli.initializeContainerd(ctx)
+	if errors.Is(err, exec.ErrNotFound) {
+		log.G(ctx).WithError(err).Info("containerd binary not found, starting embedded containerd")
+		return cli.initEmbeddedContainerd(ctx)
+	}
+	return waitTimeout, err
 }

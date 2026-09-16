@@ -77,11 +77,54 @@ type StatusImportResult struct {
 	NumWarnings       int
 }
 
+const (
+	statusFlagCached uint8 = 1 << iota
+	statusFlagCompleted
+)
+
+// StatusSummary contains the build-step counts used by history records and metrics.
+type StatusSummary struct {
+	NumCachedSteps    int
+	NumCompletedSteps int
+	NumTotalSteps     int
+	NumWarnings       int
+	vertices          map[digest.Digest]uint8
+}
+
+// Update incorporates one solve-status update into the summary.
+func (s *StatusSummary) Update(st *client.SolveStatus) {
+	if s.vertices == nil {
+		s.vertices = map[digest.Digest]uint8{}
+	}
+	s.NumWarnings += len(st.Warnings)
+	for _, vertex := range st.Vertexes {
+		state, ok := s.vertices[vertex.Digest]
+		if !ok {
+			s.NumTotalSteps++
+		}
+		if vertex.Cached && state&statusFlagCached == 0 {
+			s.NumCachedSteps++
+			state |= statusFlagCached
+		}
+		if vertex.Completed != nil && state&statusFlagCompleted == 0 {
+			s.NumCompletedSteps++
+			state |= statusFlagCompleted
+		}
+		s.vertices[vertex.Digest] = state
+	}
+}
+
+// Enabled reports whether new build history events and records are captured.
+func (h *Queue) Enabled() bool {
+	return h.opt.CleanConfig == nil || h.opt.CleanConfig.MaxEntries == nil || *h.opt.CleanConfig.MaxEntries != 0
+}
+
 func NewQueue(opt QueueOpt) (*Queue, error) {
 	if opt.CleanConfig == nil {
+		maxEntries := int64(50)
 		opt.CleanConfig = &config.HistoryConfig{
 			MaxAge:     config.Duration{Duration: 48 * time.Hour},
-			MaxEntries: 50,
+			MaxEntries: &maxEntries,
 		}
 	}
 	h := &Queue{
@@ -149,6 +192,19 @@ func NewQueue(opt QueueOpt) (*Queue, error) {
 	return h, nil
 }
 
+// maxEntries returns the retention floor used by GC. An unset MaxEntries in a
+// present history section and an explicit zero both return zero; Enabled keeps
+// them distinct because only an explicit zero disables recording.
+func (h *Queue) maxEntries() int64 {
+	if h.opt.CleanConfig == nil {
+		return 50
+	}
+	if h.opt.CleanConfig.MaxEntries == nil {
+		return 0
+	}
+	return *h.opt.CleanConfig.MaxEntries
+}
+
 func (h *Queue) gc() error {
 	var records []*controlapi.BuildHistoryRecord
 
@@ -173,7 +229,8 @@ func (h *Queue) gc() error {
 	}
 
 	// in order for record to get deleted by gc it exceed both maxentries and maxage criteria
-	if len(records) < int(h.opt.CleanConfig.MaxEntries) {
+	maxEntries := h.maxEntries()
+	if len(records) < int(maxEntries) {
 		return nil
 	}
 
@@ -186,7 +243,7 @@ func (h *Queue) gc() error {
 	defer h.mu.Unlock()
 
 	now := time.Now()
-	for _, r := range records[h.opt.CleanConfig.MaxEntries:] {
+	for _, r := range records[maxEntries:] {
 		if now.Add(-h.opt.CleanConfig.MaxAge.Duration).After(r.CompletedAt.AsTime()) {
 			if _, err := h.delete(r.Ref); err != nil {
 				return err
@@ -335,7 +392,7 @@ func (h *Queue) UpdateRef(ctx context.Context, ref string, upt func(r *controlap
 	br.Generation++
 
 	if br.Ref != ref {
-		return errors.Errorf("invalid ref change")
+		return errors.New("invalid ref change")
 	}
 
 	if err := h.update(ctx, &br); err != nil {
@@ -634,13 +691,21 @@ func (w *Writer) Commit(ctx context.Context) (*ocispecs.Descriptor, func(), erro
 		}, nil
 }
 
-func (h *Queue) ImportError(ctx context.Context, err error) (_ *spb.Status, _ *controlapi.Descriptor, _ func(), retErr error) {
+// BuildErrorStatus converts a build error to the status stored in history and
+// consumed by build metrics.
+func BuildErrorStatus(ctx context.Context, err error) *spb.Status {
+	if err == nil {
+		return nil
+	}
 	st, ok := grpcerrors.AsGRPCStatus(grpcerrors.ToGRPC(ctx, err))
 	if !ok {
 		st = status.New(codes.Unknown, err.Error())
 	}
+	return st.Proto()
+}
 
-	stpb := st.Proto()
+func (h *Queue) ImportError(ctx context.Context, err error) (_ *spb.Status, _ *controlapi.Descriptor, _ func(), retErr error) {
+	stpb := BuildErrorStatus(ctx, err)
 	dt, err := proto.Marshal(stpb)
 	if err != nil {
 		return nil, nil, nil, err
@@ -698,27 +763,11 @@ func (h *Queue) ImportStatus(ctx context.Context, ch chan *client.SolveStatus) (
 		}
 	}()
 
-	type vtxInfo struct {
-		cached    bool
-		completed bool
-	}
-	vtxMap := make(map[digest.Digest]*vtxInfo)
-	var numWarnings int
+	var summary StatusSummary
 
 	buf := make([]byte, 32*1024)
 	for st := range ch {
-		numWarnings += len(st.Warnings)
-		for _, vtx := range st.Vertexes {
-			if _, ok := vtxMap[vtx.Digest]; !ok {
-				vtxMap[vtx.Digest] = &vtxInfo{}
-			}
-			if vtx.Cached {
-				vtxMap[vtx.Digest].cached = true
-			}
-			if vtx.Completed != nil {
-				vtxMap[vtx.Digest].completed = true
-			}
-		}
+		summary.Update(st)
 
 		hdr := make([]byte, 4)
 		for _, pst := range st.Marshal() {
@@ -747,23 +796,12 @@ func (h *Queue) ImportStatus(ctx context.Context, ch chan *client.SolveStatus) (
 		return nil, nil, err
 	}
 
-	numCached := 0
-	numCompleted := 0
-	for _, info := range vtxMap {
-		if info.cached {
-			numCached++
-		}
-		if info.completed {
-			numCompleted++
-		}
-	}
-
 	return &StatusImportResult{
 		Descriptor:        *desc,
-		NumCachedSteps:    numCached,
-		NumCompletedSteps: numCompleted,
-		NumTotalSteps:     len(vtxMap),
-		NumWarnings:       numWarnings,
+		NumCachedSteps:    summary.NumCachedSteps,
+		NumCompletedSteps: summary.NumCompletedSteps,
+		NumTotalSteps:     summary.NumTotalSteps,
+		NumWarnings:       summary.NumWarnings,
 	}, release, nil
 }
 

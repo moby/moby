@@ -25,15 +25,21 @@ import (
 )
 
 func (r *Runc) command(context context.Context, args ...string) *exec.Cmd {
+	return r.commandWithCustomLogFile(context, "", args...)
+}
+
+func (r *Runc) commandWithCustomLogFile(context context.Context, logFile string, args ...string) *exec.Cmd {
 	command := r.Command
 	if command == "" {
 		command = DefaultCommand
 	}
-	cmd := exec.CommandContext(context, command, append(r.args(), args...)...)
+	cmd := exec.CommandContext(context, command, append(r.args(logFile), args...)...) // #nosec G702 -- executing the caller-configured runtime is the purpose of this package.
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: r.Setpgid,
 	}
 	cmd.Env = filterEnv(os.Environ(), "NOTIFY_SOCKET") // NOTIFY_SOCKET introduces a special behavior in runc but should only be set if invoked from systemd
+	cmd.Env = append(cmd.Env, extraEnv(context)...)
+	cmd.Dir = r.WorkDir
 	if r.PdeathSignal != 0 {
 		cmd.SysProcAttr.Pdeathsig = r.PdeathSignal
 	}

@@ -150,7 +150,7 @@ func (d *DefinitionOp) Validate(context.Context, *Constraints) error {
 	// It is possible for d.index >= len(d.ops[d.dgst]) when depending on scratch
 	// images.
 	if d.index < 0 {
-		return errors.Errorf("invalid definition op with invalid index")
+		return errors.New("invalid definition op with invalid index")
 	}
 
 	return nil
@@ -158,7 +158,7 @@ func (d *DefinitionOp) Validate(context.Context, *Constraints) error {
 
 func (d *DefinitionOp) Marshal(ctx context.Context, c *Constraints) (digest.Digest, []byte, *pb.OpMetadata, []*SourceLocation, error) {
 	if d.dgst == "" {
-		return "", nil, nil, nil, errors.Errorf("cannot marshal empty definition op")
+		return "", nil, nil, nil, errors.New("cannot marshal empty definition op")
 	}
 
 	if err := d.Validate(ctx, c); err != nil {
