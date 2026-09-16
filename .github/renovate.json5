@@ -29,6 +29,11 @@
   ],
   "packageRules": [
     {
+      "matchDatasources": ["docker", "github-tags"],
+      "matchDepNames": ["docker/buildx-bin", "docker/cli"],
+      "minimumReleaseAge": "0 days"
+    },
+    {
       "matchManagers": ["gomod"],
       "groupName": "golang.org/x packages",
       "groupSlug": "golang-x",
