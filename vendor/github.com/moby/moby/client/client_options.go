@@ -411,12 +411,12 @@ func WithTraceOptions(opts ...otelhttp.Option) Opt {
 	}
 }
 
-// WithResponseHook adds a ResponseHook to the client. ResponseHooks are called
+// WithHTTPResponseHook adds a [ResponseHook] to the client. ResponseHooks are called
 // for each HTTP response returned by the daemon. Hooks are invoked in the order
 // they were added.
 //
 // Hooks must not read or close resp.Body.
-func WithResponseHook(h ResponseHook) Opt {
+func WithHTTPResponseHook(h ResponseHook) Opt {
 	return func(c *clientConfig) error {
 		if h == nil {
 			return errors.New("invalid response hook: hook is nil")
@@ -424,4 +424,13 @@ func WithResponseHook(h ResponseHook) Opt {
 		c.responseHooks = append(c.responseHooks, h)
 		return nil
 	}
+}
+
+// WithResponseHook is equivalent to [WithHTTPResponseHook].
+//
+// Deprecated: use [WithHTTPResponseHook] instead.
+//
+//go:fix inline
+func WithResponseHook(h ResponseHook) Opt {
+	return WithHTTPResponseHook(h)
 }
