@@ -235,6 +235,12 @@ a subsequent commit that uses it.
 Remember, you're telling part of the story with the commit message. Don't make
 your chapter weird.
 
+Contributors are responsible for their commits, including any AI-assisted work.
+Do not credit LLMs or AI agents with `Co-Authored-By` trailers; reserve those for
+human contributors.
+Credit agents in the pull request body or with an `Assisted-By: <agent name>`
+commit trailer instead.
+
 ### Review
 
 Code review comments may be added to your pull request. Discuss, then make the

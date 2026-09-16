@@ -3,7 +3,9 @@
 When opening a pull request:
 
 - Follow `.github/PULL_REQUEST_TEMPLATE.md` and fill in the applicable sections.
-- Add "Created with: <AGENT NAME>" note at the end of the PR body
+- Do not add `Co-Authored-By` trailers for LLMs or AI agents; reserve them for
+  human contributors.
+- Add "Created with: <AGENT NAME>" note at the end of the PR body.
 
 ## Release note section
 
