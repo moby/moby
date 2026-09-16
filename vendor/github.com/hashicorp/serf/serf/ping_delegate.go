@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"time"
 
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/coordinate"
@@ -38,7 +38,7 @@ func (p *pingDelegate) AckPayload() []byte {
 
 	// The rest of the message is the serialized coordinate.
 	enc := codec.NewEncoder(&buf, &codec.MsgpackHandle{
-		BasicHandle: codec.BasicHandle{
+		BasicHandle: codec.BasicHandle{ //nolint:staticcheck
 			TimeNotBuiltin: !p.serf.msgpackUseNewTimeFormat,
 		},
 	})

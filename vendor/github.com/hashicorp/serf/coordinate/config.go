@@ -6,7 +6,7 @@ package coordinate
 import (
 	"math/rand"
 
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 )
 
 // Config is used to set the parameters of the Vivaldi-based coordinate mapping

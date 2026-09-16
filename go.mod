@@ -56,8 +56,8 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/hashicorp/go-memdb v1.3.5
-	github.com/hashicorp/memberlist v0.6.0
-	github.com/hashicorp/serf v0.10.4
+	github.com/hashicorp/memberlist v0.7.0
+	github.com/hashicorp/serf v0.11.0
 	github.com/in-toto/in-toto-golang v0.11.0
 	github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2
 	github.com/mdlayher/socket v0.6.1
@@ -140,7 +140,6 @@ require (
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/anchore/go-struct-converter v0.1.0 // indirect
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
-	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.18 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.39 // indirect
@@ -222,7 +221,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
-	github.com/hashicorp/go-metrics v0.6.0 // indirect
+	github.com/hashicorp/go-metrics v0.7.0 // indirect
 	github.com/hashicorp/go-msgpack/v2 v2.1.5 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.7 // indirect
@@ -246,8 +245,8 @@ require (
 	github.com/petermattis/goid v0.0.0-20240813172612-4fcff4a6cae7 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
-	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.70.1 // indirect
+	github.com/prometheus/client_model v0.6.3 // indirect
+	github.com/prometheus/common v0.71.0 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/sasha-s/go-deadlock v0.3.5 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect

@@ -238,8 +238,14 @@ func (s *serfQueries) handleInstallKey(q *Query) {
 	response := nodeKeyResponse{Result: false}
 	keyring := s.serf.config.MemberlistConfig.Keyring
 	req := keyRequest{}
+	var err error
 
-	err := decodeMessage(q.Payload[1:], &req)
+	if len(q.Payload) < 1 {
+		s.logger.Printf("[ERR] serf: Invalid key request payload")
+		goto SEND
+	}
+
+	err = decodeMessage(q.Payload[1:], &req)
 	if err != nil {
 		s.logger.Printf("[ERR] serf: Failed to decode key request: %v", err)
 		goto SEND
@@ -280,8 +286,14 @@ func (s *serfQueries) handleUseKey(q *Query) {
 	response := nodeKeyResponse{Result: false}
 	keyring := s.serf.config.MemberlistConfig.Keyring
 	req := keyRequest{}
+	var err error
 
-	err := decodeMessage(q.Payload[1:], &req)
+	if len(q.Payload) < 1 {
+		s.logger.Printf("[ERR] serf: Invalid key request payload")
+		goto SEND
+	}
+
+	err = decodeMessage(q.Payload[1:], &req)
 	if err != nil {
 		s.logger.Printf("[ERR] serf: Failed to decode key request: %v", err)
 		goto SEND
@@ -320,8 +332,14 @@ func (s *serfQueries) handleRemoveKey(q *Query) {
 	response := nodeKeyResponse{Result: false}
 	keyring := s.serf.config.MemberlistConfig.Keyring
 	req := keyRequest{}
+	var err error
 
-	err := decodeMessage(q.Payload[1:], &req)
+	if len(q.Payload) < 1 {
+		s.logger.Printf("[ERR] serf: Invalid key request payload")
+		goto SEND
+	}
+
+	err = decodeMessage(q.Payload[1:], &req)
 	if err != nil {
 		s.logger.Printf("[ERR] serf: Failed to decode key request: %v", err)
 		goto SEND

@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	sockaddr "github.com/hashicorp/go-sockaddr"
 )
 
