@@ -65,8 +65,11 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	defer nDB.Unlock()
 
 	// check if the node exists
-	n, _, _ := nDB.findNode(nEvent.NodeName)
-	if n == nil {
+	n, ok := nDB.nodes[nEvent.NodeName]
+	if !ok {
+		n, ok = nDB.failedNodes[nEvent.NodeName]
+	}
+	if !ok {
 		return false
 	}
 
@@ -87,21 +90,13 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 
 	switch nEvent.Type {
 	case NodeEventTypeJoin:
-		moved, err := nDB.changeNodeState(n.Name, nodeActiveState)
-		if err != nil {
-			log.G(context.TODO()).WithError(err).Error("unable to find the node to move")
-			return false
-		}
+		moved := nDB.reactivateNode(context.TODO(), n.Name)
 		if moved {
 			log.G(context.TODO()).Infof("%v(%v): Node join event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
 		}
 		return moved
 	case NodeEventTypeLeave:
-		moved, err := nDB.changeNodeState(n.Name, nodeLeftState)
-		if err != nil {
-			log.G(context.TODO()).WithError(err).Error("unable to find the node to move")
-			return false
-		}
+		moved := nDB.forgetNode(context.TODO(), n.Name)
 		if moved {
 			log.G(context.TODO()).Infof("%v(%v): Node leave event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
 		}
