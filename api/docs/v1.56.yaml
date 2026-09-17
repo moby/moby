@@ -7707,7 +7707,6 @@ definitions:
         description: |
           List of ID's and addresses of other managers in the swarm.
         type: "array"
-        default: null
         x-nullable: true
         items:
           $ref: "#/definitions/PeerNode"
