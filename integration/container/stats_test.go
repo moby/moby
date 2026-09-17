@@ -101,7 +101,11 @@ func TestStatsContainerNotFound(t *testing.T) {
 }
 
 func TestStatsNetworkStats(t *testing.T) {
-	skip.If(t, testEnv.IsRootless() && testEnv.DaemonInfo.CgroupVersion == "1", "Rootless Mode does not support cgroups v1 stats")
+	// The test pings the container from the namespace it runs in. In rootless
+	// mode the container network lives in the RootlessKit network namespace,
+	// which is not reachable from there, so the ping only appears to succeed
+	// where something else answers for the address.
+	skip.If(t, testEnv.IsRootless(), "the container IP is not reachable outside the RootlessKit network namespace")
 	skip.If(t, testEnv.IsRemoteDaemon(), "Test requires a local daemon")
 
 	ctx := setupTest(t)

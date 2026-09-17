@@ -122,6 +122,12 @@ if [ -n "$DOCKER_ROOTLESS" ]; then
 	# tests take precedence over any system-installed binaries.
 	# Older sudo versions still use secure_path to look up the command itself.
 	rootless_binary=$(command -v dockerd-rootless.sh)
+	# dockerd honors these when running with RootlessKit, and sudo --preserve-env
+	# passes on the ones of the invoking user. Some distributions (SUSE) set them
+	# from PAM, so they point at root's home here. Unset them to let the daemon
+	# derive them from the $HOME set below, both for the daemon started here and
+	# for the ones the test suite starts the same way.
+	unset XDG_CONFIG_HOME XDG_DATA_HOME
 	dockerd="sudo -u $user --preserve-env --preserve-env=PATH XDG_RUNTIME_DIR=${xdg_runtime_dir} HOME=/home/${user} -- $rootless_binary"
 fi
 

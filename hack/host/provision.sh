@@ -1,12 +1,25 @@
 #!/usr/bin/env bash
 
-# Provision a dedicated RHEL-compatible host for integration tests. Run as root.
+# Provision a dedicated host for integration tests. Run as root.
+# RHEL-compatible and SUSE-compatible hosts are supported.
 set -eux -o pipefail
 
-dnf -q -y install \
-	gcc git pkgconf-pkg-config systemd-devel \
-	iproute iptables iputils nftables procps-ng libselinux-utils \
-	fuse-overlayfs slirp4netns shadow-utils
+packages=(
+	gcc pkgconf-pkg-config systemd-devel
+	iptables iputils nftables libselinux-utils
+	fuse-overlayfs slirp4netns
+)
+
+if command -v dnf > /dev/null 2>&1; then
+	packages+=(git iproute procps-ng shadow-utils)
+	dnf -q -y install "${packages[@]}"
+elif command -v zypper > /dev/null 2>&1; then
+	packages+=(git-core iproute2 procps shadow)
+	zypper -q --non-interactive install --no-recommends "${packages[@]}"
+else
+	echo "Unsupported distribution: neither dnf nor zypper was found" >&2
+	exit 1
+fi
 
 # The integration test helpers use this account for rootless daemons.
 # Lima reserves a large subordinate ID range for its login user.
