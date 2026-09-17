@@ -419,8 +419,7 @@ func (c *Config) Decode(ctx context.Context, id string, config any) (any, error)
 	}
 
 	if err := toml.NewDecoder(bytes.NewReader(b)).DisallowUnknownFields().Decode(config); err != nil {
-		var serr *toml.StrictMissingError
-		if errors.As(err, &serr) {
+		if serr, ok := errors.AsType[*toml.StrictMissingError](err); ok {
 			for _, derr := range serr.Errors {
 				log.G(ctx).WithFields(log.Fields{
 					"plugin": id,
@@ -527,8 +526,7 @@ func loadConfigFile(ctx context.Context, path string) (*Config, error) {
 	defer f.Close()
 
 	if err := toml.NewDecoder(f).DisallowUnknownFields().Decode(config); err != nil {
-		var serr *toml.StrictMissingError
-		if errors.As(err, &serr) {
+		if serr, ok := errors.AsType[*toml.StrictMissingError](err); ok {
 			for _, derr := range serr.Errors {
 				row, col := derr.Position()
 				log.G(ctx).WithFields(log.Fields{
@@ -547,8 +545,7 @@ func loadConfigFile(ctx context.Context, path string) (*Config, error) {
 			err = toml.NewDecoder(f).Decode(config)
 		}
 		if err != nil {
-			var derr *toml.DecodeError
-			if errors.As(err, &derr) {
+			if derr, ok := errors.AsType[*toml.DecodeError](err); ok {
 				row, column := derr.Position()
 				log.G(ctx).WithFields(log.Fields{
 					"file":   path,

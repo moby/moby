@@ -395,8 +395,8 @@ github.com/containerd/cgroups/v3/cgroup2/stats
 # github.com/containerd/console v1.0.5
 ## explicit; go 1.13
 github.com/containerd/console
-# github.com/containerd/containerd/api v1.11.1
-## explicit; go 1.24.0
+# github.com/containerd/containerd/api v1.12.0
+## explicit; go 1.25.0
 github.com/containerd/containerd/api/events
 github.com/containerd/containerd/api/runtime/bootstrap/v1
 github.com/containerd/containerd/api/runtime/sandbox/v1
@@ -423,8 +423,8 @@ github.com/containerd/containerd/api/types/runc/options
 github.com/containerd/containerd/api/types/runtimeoptions/v1
 github.com/containerd/containerd/api/types/task
 github.com/containerd/containerd/api/types/transfer
-# github.com/containerd/containerd/v2 v2.3.5
-## explicit; go 1.26.3
+# github.com/containerd/containerd/v2 v2.4.0
+## explicit; go 1.26.6
 github.com/containerd/containerd/v2/client
 github.com/containerd/containerd/v2/cmd/containerd/server/config
 github.com/containerd/containerd/v2/core/containers
@@ -568,7 +568,7 @@ github.com/containerd/errdefs/pkg/internal/types
 # github.com/containerd/fifo v1.1.0
 ## explicit; go 1.18
 github.com/containerd/fifo
-# github.com/containerd/go-cni v1.1.13
+# github.com/containerd/go-cni v1.1.14
 ## explicit; go 1.21
 github.com/containerd/go-cni
 # github.com/containerd/go-runc v1.2.1
@@ -620,7 +620,7 @@ github.com/containerd/ttrpc
 # github.com/containerd/typeurl/v2 v2.3.0
 ## explicit; go 1.21
 github.com/containerd/typeurl/v2
-# github.com/containernetworking/cni v1.3.0
+# github.com/containernetworking/cni v1.3.1
 ## explicit; go 1.21
 github.com/containernetworking/cni/libcni
 github.com/containernetworking/cni/pkg/invoke
@@ -1016,7 +1016,7 @@ github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v1
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
-# github.com/intel/goresctrl v0.12.0
+# github.com/intel/goresctrl v0.13.0
 ## explicit; go 1.25.0
 github.com/intel/goresctrl/pkg/blockio
 github.com/intel/goresctrl/pkg/kubernetes
@@ -1032,10 +1032,13 @@ github.com/jmoiron/sqlx/types
 # github.com/klauspost/compress v1.20.0
 ## explicit; go 1.25
 github.com/klauspost/compress
+github.com/klauspost/compress/flate
 github.com/klauspost/compress/fse
+github.com/klauspost/compress/gzip
 github.com/klauspost/compress/huff0
 github.com/klauspost/compress/internal/cpuinfo
 github.com/klauspost/compress/internal/le
+github.com/klauspost/compress/internal/regmask
 github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
@@ -2243,7 +2246,7 @@ gotest.tools/v3/internal/format
 gotest.tools/v3/internal/source
 gotest.tools/v3/poll
 gotest.tools/v3/skip
-# k8s.io/apimachinery v0.36.3
+# k8s.io/apimachinery v0.37.0
 ## explicit; go 1.26.0
 k8s.io/apimachinery/pkg/api/resource
 k8s.io/apimachinery/pkg/runtime/serializer/cbor/direct

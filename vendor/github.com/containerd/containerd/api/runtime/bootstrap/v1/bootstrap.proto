@@ -108,16 +108,27 @@ message BootstrapResult {
 
   // Optional: Additional metadata from shim
   map<string, string> metadata = 5;
+
+  // Optional: Typed detail describing what this shim instance is able to
+  // do, so that containerd can adjust its own behavior. For example, a
+  // containerd.types.MountCapabilities extension tells containerd which
+  // mount types and transforms this shim performs itself, so the mount
+  // manager does not perform them on the shim's behalf.
+  //
+  // containerd MUST ignore an extension whose type it does not recognize,
+  // so a shim may advertise unconditionally and an older daemon will
+  // simply keep its previous behavior.
+  repeated Extension extensions = 6;
 }
 
 // LogLevel defines log verbosity. INFO = 0, more critical levels are
 // positive, and more verbose levels are negative. This is an open enum;
 // unknown numeric values are preserved on the wire.
 enum LogLevel {
-  LOG_LEVEL_INFO  = 0;
+  LOG_LEVEL_INFO = 0;
   LOG_LEVEL_TRACE = -8;
   LOG_LEVEL_DEBUG = -4;
-  LOG_LEVEL_WARN  = 4;
+  LOG_LEVEL_WARN = 4;
   LOG_LEVEL_ERROR = 8;
   LOG_LEVEL_FATAL = 10;
   LOG_LEVEL_PANIC = 12;

@@ -44,6 +44,12 @@ type SandboxClient interface {
 	ShutdownSandbox(ctx context.Context, in *ShutdownSandboxRequest, opts ...grpc.CallOption) (*ShutdownSandboxResponse, error)
 	// SandboxMetrics retrieves metrics about a sandbox instance.
 	SandboxMetrics(ctx context.Context, in *SandboxMetricsRequest, opts ...grpc.CallOption) (*SandboxMetricsResponse, error)
+	// UpdateSandbox applies an update of the sandbox metadata object to a running
+	// sandbox instance (for example a pod level resource resize).
+	// Implementing this RPC is optional: a shim that does not support updates MUST
+	// return a `github.com/containerd/errdefs.ErrNotImplemented` error (gRPC
+	// `codes.Unimplemented`), which callers are expected to tolerate.
+	UpdateSandbox(ctx context.Context, in *UpdateSandboxRequest, opts ...grpc.CallOption) (*UpdateSandboxResponse, error)
 }
 
 type sandboxClient struct {
@@ -135,6 +141,15 @@ func (c *sandboxClient) SandboxMetrics(ctx context.Context, in *SandboxMetricsRe
 	return out, nil
 }
 
+func (c *sandboxClient) UpdateSandbox(ctx context.Context, in *UpdateSandboxRequest, opts ...grpc.CallOption) (*UpdateSandboxResponse, error) {
+	out := new(UpdateSandboxResponse)
+	err := c.cc.Invoke(ctx, "/containerd.runtime.sandbox.v1.Sandbox/UpdateSandbox", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SandboxServer is the server API for Sandbox service.
 // All implementations must embed UnimplementedSandboxServer
 // for forward compatibility
@@ -159,6 +174,12 @@ type SandboxServer interface {
 	ShutdownSandbox(context.Context, *ShutdownSandboxRequest) (*ShutdownSandboxResponse, error)
 	// SandboxMetrics retrieves metrics about a sandbox instance.
 	SandboxMetrics(context.Context, *SandboxMetricsRequest) (*SandboxMetricsResponse, error)
+	// UpdateSandbox applies an update of the sandbox metadata object to a running
+	// sandbox instance (for example a pod level resource resize).
+	// Implementing this RPC is optional: a shim that does not support updates MUST
+	// return a `github.com/containerd/errdefs.ErrNotImplemented` error (gRPC
+	// `codes.Unimplemented`), which callers are expected to tolerate.
+	UpdateSandbox(context.Context, *UpdateSandboxRequest) (*UpdateSandboxResponse, error)
 	mustEmbedUnimplementedSandboxServer()
 }
 
@@ -192,6 +213,9 @@ func (UnimplementedSandboxServer) ShutdownSandbox(context.Context, *ShutdownSand
 }
 func (UnimplementedSandboxServer) SandboxMetrics(context.Context, *SandboxMetricsRequest) (*SandboxMetricsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SandboxMetrics not implemented")
+}
+func (UnimplementedSandboxServer) UpdateSandbox(context.Context, *UpdateSandboxRequest) (*UpdateSandboxResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateSandbox not implemented")
 }
 func (UnimplementedSandboxServer) mustEmbedUnimplementedSandboxServer() {}
 
@@ -368,6 +392,24 @@ func _Sandbox_SandboxMetrics_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Sandbox_UpdateSandbox_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateSandboxRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SandboxServer).UpdateSandbox(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/containerd.runtime.sandbox.v1.Sandbox/UpdateSandbox",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SandboxServer).UpdateSandbox(ctx, req.(*UpdateSandboxRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Sandbox_ServiceDesc is the grpc.ServiceDesc for Sandbox service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -410,6 +452,10 @@ var Sandbox_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SandboxMetrics",
 			Handler:    _Sandbox_SandboxMetrics_Handler,
+		},
+		{
+			MethodName: "UpdateSandbox",
+			Handler:    _Sandbox_UpdateSandbox_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

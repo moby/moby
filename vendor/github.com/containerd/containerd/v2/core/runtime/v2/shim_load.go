@@ -202,7 +202,7 @@ func (m *ShimManager) loadShim(ctx context.Context, bundle *Bundle) error {
 			logEntry = logEntry.WithError(pidErr)
 		}
 		logEntry.Info("cleaning leaked shim process")
-		if err := cleanupShimTask(ctx, shim, false); err != nil && !errdefs.IsNotFound(err) {
+		if err := cleanupShimTask(ctx, shim); err != nil && !errdefs.IsNotFound(err) {
 			// Returning an error makes loadShims remove the bundle; a shim we
 			// cannot reap would otherwise be reloaded on every start.
 			return fmt.Errorf("failed to clean up leaked shim %q: %w", id, err)
