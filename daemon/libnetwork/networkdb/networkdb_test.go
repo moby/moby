@@ -249,6 +249,7 @@ func TestNetworkDBSimple(t *testing.T) {
 
 func TestNetworkDBJoinLeaveNetwork(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	err := dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
@@ -259,11 +260,11 @@ func TestNetworkDBJoinLeaveNetwork(t *testing.T) {
 	assert.NilError(t, err)
 
 	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", false)
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBJoinLeaveNetworks(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	n := 10
 	for i := 1; i <= n; i++ {
@@ -302,11 +303,11 @@ func TestNetworkDBJoinLeaveNetworks(t *testing.T) {
 		dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, fmt.Sprintf("network1%d", i), false)
 	}
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBCRUDTableEntry(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 3, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	err := dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
@@ -332,7 +333,6 @@ func TestNetworkDBCRUDTableEntry(t *testing.T) {
 
 	dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "", false)
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 // TestCreateEntryOverTombstone checks that a key can be created again while
@@ -416,6 +416,7 @@ func (nDB *NetworkDB) dumpTable(t *testing.T, tname string) {
 
 func TestNetworkDBCRUDTableEntries(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	err := dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
@@ -489,11 +490,15 @@ func TestNetworkDBCRUDTableEntries(t *testing.T) {
 		dbs[n].dumpTable(t, "test_table")
 	}
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBNodeLeave(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	// Closing is what this test does rather than how it tidies up, so the
+	// teardown tracks what is still running: NetworkDB.Close is not
+	// idempotent, and a second call panics inside memberlist.Leave.
+	live := append([]*NetworkDB(nil), dbs...)
+	defer func() { closeNetworkDBInstances(t, live) }()
 
 	err := dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
@@ -507,12 +512,15 @@ func TestNetworkDBNodeLeave(t *testing.T) {
 	dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_value", true)
 
 	dbs[0].Close()
+	live = []*NetworkDB{dbs[1]}
 	dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_value", false)
 	dbs[1].Close()
+	live = nil
 }
 
 func TestNetworkDBWatch(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 	err := dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
 
@@ -537,11 +545,11 @@ func TestNetworkDBWatch(t *testing.T) {
 	testWatch(t, ch.C, "test_table", "network1", "test_key", "test_updated_value", "")
 
 	cancel()
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBBulkSync(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	err := dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
@@ -568,7 +576,6 @@ func TestNetworkDBBulkSync(t *testing.T) {
 		assert.NilError(t, err)
 	}
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 // TestBulkSyncWithFailedPeer checks that a bulk sync is still sent to a peer
@@ -652,6 +659,7 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 	n := 5
 
 	dbs := createNetworkDBInstances(t, n, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	// Shake out any data races.
 	done := make(chan struct{})
@@ -717,11 +725,11 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 		assert.Check(t, is.Contains(err.Error(), "deleted and pending garbage collection"), err)
 	}
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	dbChangeWitness := func(nDB *NetworkDB) func(network string, expectNodeCount int) {
 		staleNetworkTime := nDB.networkClock.Time()
@@ -793,7 +801,6 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 	witness1("network1", 2)
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBGarbageCollection(t *testing.T) {
@@ -803,6 +810,7 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	config.StatsPrintPeriod = 15 * time.Second
 
 	dbs := createNetworkDBInstances(t, 3, "node", config)
+	defer closeNetworkDBInstances(t, dbs)
 
 	// 2 Nodes join network
 	err := dbs[0].JoinNetwork("network1")
@@ -857,7 +865,6 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 		dbs[i].Unlock()
 	}
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 func checkNodeIsForgotten(t *testing.T, db *NetworkDB, nodeName string, msgAndArgs ...any) {
@@ -959,6 +966,7 @@ func TestNodeReincarnation(t *testing.T) {
 
 func TestParallelCreate(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 1, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	startCh := make(chan int)
 	doneCh := make(chan error)
@@ -983,11 +991,11 @@ func TestParallelCreate(t *testing.T) {
 	// Only 1 write should have succeeded
 	assert.Check(t, is.Equal(uint32(1), success.Load()))
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestParallelDelete(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 1, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	err := dbs[0].CreateEntry("testTable", "testNetwork", "key", []byte("value"))
 	assert.NilError(t, err)
@@ -1015,7 +1023,6 @@ func TestParallelDelete(t *testing.T) {
 	// Only 1 write should have succeeded
 	assert.Check(t, is.Equal(uint32(1), success.Load()))
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBIslands(t *testing.T) {
@@ -1042,6 +1049,12 @@ func TestNetworkDBIslands(t *testing.T) {
 	// to rejoin anything while the cluster is still whole.
 	conf.BootstrapPeers = peers.get
 	dbs := createNetworkDBInstances(t, 5, "node", conf)
+	// The first three leave part-way through and are relaunched, so the
+	// teardown tracks what is still running rather than closing the whole
+	// slice: NetworkDB.Close is not idempotent, and a second call panics
+	// inside memberlist.Leave.
+	live := append([]*NetworkDB(nil), dbs...)
+	defer func() { closeNetworkDBInstances(t, live) }()
 
 	// Get the node IP used currently. The memberlist event delegate writes
 	// this map from its own goroutines while the cluster gossips, so it is
@@ -1069,6 +1082,7 @@ func TestNetworkDBIslands(t *testing.T) {
 		departed[i] = dbs[i].config.NodeID
 		dbs[i].Close()
 	}
+	live = []*NetworkDB{dbs[3], dbs[4]}
 
 	checkDBs := make(map[string]*NetworkDB)
 	for i := 3; i < 5; i++ {
@@ -1115,6 +1129,7 @@ func TestNetworkDBIslands(t *testing.T) {
 		// come from the two which stayed.
 		conf.BootstrapPeers = nil
 		dbs[i] = launchNode(t, conf)
+		live = append(live, dbs[i])
 	}
 
 	// Every node has to end up seeing all five of the current nodes as
@@ -1148,7 +1163,6 @@ func TestNetworkDBIslands(t *testing.T) {
 		return poll.Success()
 	}
 	poll.WaitOn(t, check, poll.WithDelay(time.Second), poll.WithTimeout(pollTimeout()))
-	closeNetworkDBInstances(t, dbs)
 }
 
 // TestRejoinClusterBootStrapUsesCurrentPeers checks that a rejoin targets the
