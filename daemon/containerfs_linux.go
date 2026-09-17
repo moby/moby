@@ -143,7 +143,10 @@ func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSV
 				// file descriptor pinning the resolved inode. Using
 				// /proc/self/fd/<fd> as the mount target prevents any
 				// subsequent symlink swap from redirecting the mount.
-				targetFile, err := root.Open(relDest)
+				// O_PATH is required: the target is not necessarily a
+				// regular file or a directory, and opening a socket or a
+				// FIFO for I/O would fail or block.
+				targetFile, err := root.OpenFile(relDest, unix.O_PATH, 0)
 				if err != nil {
 					return fmt.Errorf("open mount target %q: %w", m.Destination, err)
 				}
@@ -314,7 +317,16 @@ func createIfNotExists(root *os.Root, unsafePath string, isDir bool) error {
 		}
 	}
 
-	f, err := root.OpenFile(unsafePath, os.O_CREATE|os.O_WRONLY, 0o755)
+	// O_EXCL leaves an existing destination alone whatever its type, and does
+	// so atomically. Checking for the destination and then opening it would
+	// let a container process substitute a FIFO in between, and opening a
+	// FIFO for writing blocks until a reader shows up -- wedging the thread
+	// while the container lock is held. Opening an existing socket would fail
+	// with ENXIO, and an existing directory with EISDIR.
+	f, err := root.OpenFile(unsafePath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o755)
+	if errors.Is(err, os.ErrExist) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
