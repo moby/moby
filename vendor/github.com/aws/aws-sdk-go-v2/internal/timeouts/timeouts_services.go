@@ -1,0 +1,102 @@
+// Code generated from the connection read timeout risk mitigation
+// document's exemption table. DO NOT EDIT.
+
+package timeouts
+
+// serviceInactivityTimeoutMillis overrides the default read timeout for
+// services whose operations legitimately hold a connection open, keyed by
+// ServiceID. A negative value means the service is fully exempt and gets no
+// timeout.
+//
+// Services absent from this map get DefaultReadTimeout.
+var serviceInactivityTimeoutMillis = map[string]int64{
+	// Fully exempt: an operation takes an event stream or a streaming blob as
+	// input. The caller controls how long the request takes, and no response
+	// arrives until it finishes, so a read timeout would fire on the duration of
+	// the caller's own upload rather than on a network problem.
+	"Bedrock Runtime":         -1,
+	"CloudSearch Domain":      -1,
+	"ConnectHealth":           -1,
+	"EBS":                     -1,
+	"Glacier":                 -1,
+	"Lambda":                  -1,
+	"Lex Runtime Service":     -1,
+	"Lex Runtime V2":          -1,
+	"MediaStore Data":         -1,
+	"Omics":                   -1,
+	"Polly":                   -1,
+	"QBusiness":               -1,
+	"S3":                      -1,
+	"SageMaker Runtime HTTP2": -1,
+	"Transcribe Streaming":    -1,
+	"codeartifact":            -1,
+
+	// Long-hold operations: a higher ceiling rather than no ceiling.
+	"API Gateway":                     900000,
+	"ApiGatewayV2":                    900000,
+	"AppIntegrations":                 900000,
+	"AppStream":                       900000,
+	"Athena":                          900000,
+	"Auto Scaling":                    900000,
+	"Batch":                           900000,
+	"Bedrock":                         900000,
+	"Bedrock Agent":                   900000,
+	"Bedrock Agent Runtime":           900000,
+	"Bedrock AgentCore":               900000,
+	"Bedrock AgentCore Control":       900000,
+	"Bedrock Data Automation Runtime": 900000,
+	"CloudFormation":                  900000,
+	"CloudWatch":                      900000,
+	"CodeBuild":                       900000,
+	"CodeCatalyst":                    900000,
+	"CodeDeploy":                      900000,
+	"Config Service":                  900000,
+	"Connect":                         900000,
+	"Data Pipeline":                   900000,
+	"DataBrew":                        900000,
+	"DataExchange":                    900000,
+	"DataZone":                        900000,
+	"Device Farm":                     900000,
+	"EC2":                             900000,
+	"ECS":                             900000,
+	"EMR Serverless":                  900000,
+	"Elastic Load Balancing v2":       900000,
+	"GameLift":                        900000,
+	"GameLiftStreams":                 900000,
+	"Glue":                            900000,
+	"IoT":                             900000,
+	"IoT Data Plane":                  900000,
+	"IoT Jobs Data Plane":             900000,
+	"IoTSecureTunneling":              900000,
+	"Kinesis":                         900000,
+	"Kinesis Analytics V2":            900000,
+	"Kinesis Video Archived Media":    900000,
+	"Kinesis Video Media":             900000,
+	"Kinesis Video Signaling":         900000,
+	"Kinesis Video WebRTC Storage":    900000,
+	"Lex Model Building Service":      900000,
+	"Lex Models V2":                   900000,
+	"Neptune Graph":                   900000,
+	"Nova Act":                        900000,
+	"QApps":                           900000,
+	"QConnect":                        900000,
+	"QuickSight":                      900000,
+	"RDS":                             900000,
+	"RDS Data":                        900000,
+	"RTBFabric":                       900000,
+	"SFN":                             900000,
+	"SQS":                             900000,
+	"SSM":                             900000,
+	"SWF":                             900000,
+	"SageMaker":                       900000,
+	"SageMaker Runtime":               900000,
+	"SagemakerJobRuntime":             900000,
+	"Storage Gateway":                 900000,
+	"Timestream Query":                900000,
+	"Wisdom":                          900000,
+	"WorkSpaces":                      900000,
+	"WorkSpaces Web":                  900000,
+	"b2bi":                            900000,
+	"mgn":                             900000,
+	"neptunedata":                     900000,
+}
