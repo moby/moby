@@ -7421,8 +7421,9 @@ paths:
       parameters:
         - name: "names"
           in: "query"
-          description: "Image names to filter by"
+          description: "Image names to filter by. Repeat the parameter for multiple images."
           type: "array"
+          collectionFormat: "multi"
           items:
             type: "string"
       tags: ["Image"]

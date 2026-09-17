@@ -8887,10 +8887,12 @@ paths:
             Apply `Dockerfile` instructions to the image that is created,
             for example: `changes=ENV DEBUG=true`.
             Note that `ENV DEBUG=true` should be URI component encoded.
+            Repeat the parameter to apply multiple instructions.
 
             Supported `Dockerfile` instructions:
             `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
           type: "array"
+          collectionFormat: "multi"
           items:
             type: "string"
         - name: "platform"
@@ -9767,8 +9769,9 @@ paths:
       parameters:
         - name: "names"
           in: "query"
-          description: "Image names to filter by"
+          description: "Image names to filter by. Repeat the parameter for multiple images."
           type: "array"
+          collectionFormat: "multi"
           items:
             type: "string"
       tags: ["Image"]
