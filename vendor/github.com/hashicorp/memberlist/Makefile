@@ -7,7 +7,7 @@ SHELL := /bin/bash
 
 # test runs the test suite
 test: subnet
-	go test -count ./...
+	go test -count=1 ./...
 
 # runs integration tests
 integ: subnet

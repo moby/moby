@@ -215,6 +215,9 @@ type NodeResponse struct {
 // a set of filers.
 func (s *Serf) shouldProcessQuery(filters [][]byte) bool {
 	for _, filter := range filters {
+		if len(filter) == 0 {
+			return false
+		}
 		switch filterType(filter[0]) {
 		case filterNodeType:
 			// Decode the filter

@@ -19,7 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/coordinate"
@@ -1189,20 +1189,37 @@ func (s *Serf) handleNodeLeaveIntent(leaveMsg *messageLeave) bool {
 }
 
 // handlePrune waits for nodes that are leaving and then forcibly
-// erases a member from the list of members
+// erases a member from the list of members. This function is called
+// while the caller holds memberLock, but spawns a goroutine to avoid
+// blocking while sleeping.
 func (s *Serf) handlePrune(member *memberState) {
-	if member.Status == StatusLeaving {
-		time.Sleep(s.config.BroadcastTimeout + s.config.LeavePropagateDelay)
-	}
+	memberName := member.Name
+	memberAddr := member.Addr
+	memberStatus := member.Status
 
-	s.logger.Printf("[INFO] serf: EventMemberReap (forced): %s %s", member.Name, member.Addr)
+	go func() {
+		if memberStatus == StatusLeaving {
+			time.Sleep(s.config.BroadcastTimeout + s.config.LeavePropagateDelay)
+		}
 
-	//If we are leaving or left we may be in that list of members
-	if member.Status == StatusLeaving || member.Status == StatusLeft {
-		s.leftMembers = removeOldMember(s.leftMembers, member.Name)
-	}
-	s.eraseNode(member)
+		s.logger.Printf("[INFO] serf: EventMemberReap (forced): %s %s", memberName, memberAddr)
 
+		// Acquire lock to safely modify member state
+		s.memberLock.Lock()
+		defer s.memberLock.Unlock()
+
+		// Verify the member still exists and should be erased
+		m, ok := s.members[memberName]
+		if !ok {
+			return
+		}
+
+		// If we are leaving or left we may be in that list of members
+		if m.Status == StatusLeaving || m.Status == StatusLeft {
+			s.leftMembers = removeOldMember(s.leftMembers, memberName)
+		}
+		s.eraseNode(m)
+	}()
 }
 
 // handleNodeJoinIntent is called when a node broadcasts a

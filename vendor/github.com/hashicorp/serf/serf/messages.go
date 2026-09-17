@@ -140,7 +140,7 @@ func encodeMessage(t messageType, msg any, msgpackUseNewTimeFormat bool) ([]byte
 	buf.WriteByte(uint8(t))
 
 	handle := codec.MsgpackHandle{
-		BasicHandle: codec.BasicHandle{
+		BasicHandle: codec.BasicHandle{ //nolint:staticcheck
 			TimeNotBuiltin: !msgpackUseNewTimeFormat,
 		},
 	}

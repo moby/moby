@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2013, 2025
+// Copyright IBM Corp. 2013, 2026
 // SPDX-License-Identifier: MIT
 
 package metrics
@@ -31,6 +31,7 @@ func NewStatsiteSinkFromURL(u *url.URL) (MetricSink, error) {
 type StatsiteSink struct {
 	addr        string
 	metricQueue chan string
+	logger      SinkLogger
 }
 
 // NewStatsiteSink is used to create a new StatsiteSink
@@ -41,6 +42,47 @@ func NewStatsiteSink(addr string) (*StatsiteSink, error) {
 	}
 	go s.flushMetrics()
 	return s, nil
+}
+
+// NewStatsiteSinkWithLogger is used to create a new StatsiteSink with a SinkLogger.
+// The logger is set before the background flush goroutine starts, ensuring all
+// operational errors are routed through it from the first connection attempt.
+func NewStatsiteSinkWithLogger(addr string, logger SinkLogger) (*StatsiteSink, error) {
+	s := &StatsiteSink{
+		addr:        addr,
+		metricQueue: make(chan string, 4096),
+		logger:      logger,
+	}
+	go s.flushMetrics()
+	return s, nil
+}
+
+// SetLogger assigns a SinkLogger to the sink. When set, operational errors
+// such as connection failures and flush errors are emitted through the provided
+// logger instead of the stdlib log package, allowing callers to control the
+// log format and destination.
+func (s *StatsiteSink) SetLogger(logger SinkLogger) {
+	s.logger = logger
+}
+
+// logWarn emits a warning through the configured SinkLogger when one is set,
+// falling back to stdlib log.Printf otherwise.
+func (s *StatsiteSink) logWarn(msg string, err error) {
+	if s.logger != nil {
+		s.logger.Warn(msg, "error", err)
+	} else {
+		log.Printf("[WARN] %s Err: %s", msg, err)
+	}
+}
+
+// logErr emits an error through the configured SinkLogger when one is set,
+// falling back to stdlib log.Printf otherwise.
+func (s *StatsiteSink) logErr(msg string, err error) {
+	if s.logger != nil {
+		s.logger.Error(msg, "error", err)
+	} else {
+		log.Printf("[ERR] %s Err: %s", msg, err)
+	}
 }
 
 // Close is used to stop flushing to statsite
@@ -137,7 +179,7 @@ CONNECT:
 	// Attempt to connect
 	sock, err = net.Dial("tcp", s.addr)
 	if err != nil {
-		log.Printf("[ERR] Error connecting to statsite! Err: %s", err)
+		s.logErr("Error connecting to statsite!", err)
 		goto WAIT
 	}
 
@@ -155,12 +197,12 @@ CONNECT:
 			// Try to send to statsite
 			_, err := buffered.Write([]byte(metric))
 			if err != nil {
-				log.Printf("[ERR] Error writing to statsite! Err: %s", err)
+				s.logErr("Error writing to statsite!", err)
 				goto WAIT
 			}
 		case <-ticker.C:
 			if err := buffered.Flush(); err != nil {
-				log.Printf("[ERR] Error flushing to statsite! Err: %s", err)
+				s.logErr("Error flushing to statsite!", err)
 				goto WAIT
 			}
 		}
