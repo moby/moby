@@ -91,6 +91,7 @@ Most rules are the same as the network with [icc enabled][0]:
     
     	chain filter-forward-in__bridge1 {
     		ct state established,related counter accept
+    		ip daddr 192.0.2.2 tcp dport 80 ct original ip daddr != 192.0.2.2 counter accept
     		iifname "bridge1" counter drop comment "ICC"
     		ip daddr 192.0.2.2 tcp dport 80 counter accept
     		counter drop comment "UNPUBLISHED PORT DROP"
@@ -119,6 +120,7 @@ from the same network:
 
     	chain filter-forward-in__bridge1 {
     		ct state established,related counter accept
+    		ip daddr 192.0.2.2 tcp dport 80 ct original ip daddr != 192.0.2.2 counter accept
     		iifname "bridge1" counter drop comment "ICC"
     		ip daddr 192.0.2.2 tcp dport 80 counter accept
     		counter drop comment "UNPUBLISHED PORT DROP"

@@ -25,9 +25,10 @@ The filter table is:
     
     Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 ACCEPT     tcp  --  !bridge1 bridge1  anywhere             192.0.2.2            tcp dpt:http
-    2        0     0 DROP       all  --  !docker0 docker0  anywhere             anywhere            
-    3        0     0 DROP       all  --  !bridge1 bridge1  anywhere             anywhere            
+    1        0     0 ACCEPT     tcp  --  bridge1 bridge1  anywhere             192.0.2.2            tcp dpt:http ! ctorigdst 192.0.2.2
+    2        0     0 ACCEPT     tcp  --  !bridge1 bridge1  anywhere             192.0.2.2            tcp dpt:http
+    3        0     0 DROP       all  --  !docker0 docker0  anywhere             anywhere            
+    4        0     0 DROP       all  --  !bridge1 bridge1  anywhere             anywhere            
     
     Chain DOCKER-BRIDGE (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -69,6 +70,7 @@ The filter table is:
     -N DOCKER-USER
     -A FORWARD -j DOCKER-USER
     -A FORWARD -j DOCKER-FORWARD
+    -A DOCKER -d 192.0.2.2/32 -i bridge1 -o bridge1 -p tcp -m tcp --dport 80 -m conntrack ! --ctorigdst 192.0.2.2 -j ACCEPT
     -A DOCKER -d 192.0.2.2/32 ! -i bridge1 -o bridge1 -p tcp -m tcp --dport 80 -j ACCEPT
     -A DOCKER ! -i docker0 -o docker0 -j DROP
     -A DOCKER ! -i bridge1 -o bridge1 -j DROP

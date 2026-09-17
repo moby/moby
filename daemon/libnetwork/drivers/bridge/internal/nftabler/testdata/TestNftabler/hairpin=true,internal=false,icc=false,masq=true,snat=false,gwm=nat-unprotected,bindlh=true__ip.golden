@@ -52,6 +52,7 @@ table ip docker-bridges {
 
 	chain filter-forward-in__br-dummy {
 		ct state established,related counter packets 0 bytes 0 accept
+		ip daddr 192.168.0.2 tcp dport 80 ct original ip daddr != 192.168.0.2 counter packets 0 bytes 0 accept
 		iifname "br-dummy" counter packets 0 bytes 0 drop comment "ICC"
 		counter packets 0 bytes 0 accept comment "UNPROTECTED"
 	}

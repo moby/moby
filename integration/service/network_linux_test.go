@@ -685,3 +685,81 @@ for arg in $@; do
 		}, poll.WithTimeout(20*time.Second))
 	})
 }
+
+// TestIngressPortFromTaskOnSameNode checks that a container on the node can
+// reach a service's published port via one of the node's own addresses, with
+// and without the userland proxy.
+//
+// The ingress load balancer's published ports are mapped onto its
+// docker_gwbridge endpoint, and docker_gwbridge is created with inter-container
+// communication disabled. With docker-proxy in place the connection is served
+// from the host's netns and never crosses that bridge. Without it the traffic
+// is DNATed across the bridge instead, so it has to get past the rules that
+// implement icc=false - and used not to. Reaching a published port is not
+// supposed to depend on the userland proxy, which is why both modes are checked
+// here and asserted to behave the same.
+//
+// Regression test for https://github.com/moby/moby/issues/53713
+func TestIngressPortFromTaskOnSameNode(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
+	skip.If(t, testEnv.FirewallBackendDriver() == "nftables")
+	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
+	ctx := setupTest(t)
+
+	for i, tc := range []struct {
+		name          string
+		userlandProxy bool
+	}{
+		{name: "with-proxy", userlandProxy: true},
+		{name: "no-proxy", userlandProxy: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Run each case in its own netns, to avoid interfering with iptables on
+			// the test host - and so that the host ports it publishes are its own.
+			// 111-113 are used by the other tests in this file, each of which
+			// needs its L3 segment's prefix to itself.
+			hostAddr := fmt.Sprintf("192.168.%d.222", 114+i)
+			l3SegHost := fmt.Sprintf("ipft%d", i)
+			l3 := networking.NewL3Segment(t, "test-"+l3SegHost)
+			defer l3.Destroy(t)
+			l3.AddHost(t, l3SegHost, "ns-"+l3SegHost, "eth0", netip.MustParsePrefix(hostAddr+"/24"))
+
+			l3.Hosts[l3SegHost].Do(t, func() {
+				// Not swarm.NewSwarm, because it can't pass extra daemon flags.
+				d := daemon.New(t, daemon.WithSwarmIptables(true))
+				d.StartWithBusybox(ctx, t, "--swarm-default-advertise-addr=lo",
+					fmt.Sprintf("--userland-proxy=%v", tc.userlandProxy))
+				defer d.Stop(t)
+				d.SwarmInit(ctx, t, swarmtypes.InitRequest{})
+				c := d.NewClientT(t)
+				defer c.Close()
+
+				serviceID := createIngressService(ctx, t, d, c, "test-"+l3SegHost, 1, ingressPortSpec(8080))
+				defer func() {
+					_, err := c.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
+					assert.NilError(t, err)
+				}()
+
+				t.Log("Checking http access from outside the node")
+				poll.WaitOn(t, checkIngressPort(t, l3.Hosts[l3SegHost], hostAddr, "8080"), poll.WithTimeout(30*time.Second))
+
+				// An attachable overlay network, so that the container below gets an
+				// endpoint on docker_gwbridge and routes to the node's address over
+				// it, like any Swarm task would.
+				const netName = "ipft-overlay"
+				net.CreateNoError(ctx, t, c, netName, net.WithDriver("overlay"), net.WithAttachable())
+				defer net.RemoveNoError(ctx, t, c, netName)
+
+				t.Log("Checking http access from a container on the node")
+				res := container.RunAttach(ctx, t, c,
+					container.WithNetworkMode(netName),
+					container.WithCmd("wget", "-T3", "-t1", "-O-", "http://"+stdnet.JoinHostPort(hostAddr, "8080")),
+				)
+				defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+				assert.Check(t, is.Contains(res.Stderr.String(), "404 Not Found"),
+					"a container on the node should reach the published port via the node's address; got: %s", res.Stderr.String())
+			})
+		})
+	}
+}

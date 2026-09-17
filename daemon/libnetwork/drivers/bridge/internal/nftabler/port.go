@@ -67,6 +67,10 @@ func (n *network) setPerPortRules(ctx context.Context, pbs []types.PortBinding, 
 	if !unprotected {
 		n.setPerPortForwarding(pbs, updater, ipv)
 	}
+	// Not conditional on unprotected: that mode skips the per-port forwarding
+	// rules above, but its blanket accept comes after the ICC rule, so it
+	// doesn't cover the hairpin either.
+	n.setPerPortHairpinForwarding(pbs, updater, ipv)
 	n.setPerPortDNAT(pbs, updater, ipv)
 	n.setPerPortHairpinMasq(pbs, updater, ipv)
 	n.filterPortMappedOnLoopback(pbs, updater, ipv)
@@ -93,6 +97,44 @@ func (n *network) setPerPortForwarding(pbs []types.PortBinding, updater func(nft
 			Rule: []string{
 				string(ipv), "daddr", pb.IP.String(), pb.Proto.String(),
 				"dport", strconv.Itoa(int(pb.Port)), "counter accept",
+			},
+			IgnoreExist: true,
+		})
+	}
+}
+
+// setPerPortHairpinForwarding opens a container's published port to the other
+// containers on its own network, for traffic that reached it via one of the
+// host's addresses.
+//
+// The ICC rule drops traffic from another container on this network when ICC is
+// disabled. But a published port is meant to be reachable via the host's
+// addresses from anywhere that can route to them, and a peer on the same bridge
+// is no exception.
+//
+// So, accept it ahead of the ICC rule - but only if it was DNATed, by requiring
+// that the connection's original destination wasn't the container's own
+// address. Without that, this rule would also open up direct access to the
+// container's address, which is exactly what ICC is meant to prevent. (Both
+// cases are otherwise identical by the time they get here: same input
+// interface, same destination, same port.)
+func (n *network) setPerPortHairpinForwarding(pbs []types.PortBinding, updater func(nftables.Obj), ipv nftables.Family) {
+	if n.config.ICC {
+		return
+	}
+	chainName := chainFilterFwdIn(n.config.IfName)
+	for _, pb := range pbs {
+		if pb.HostPort == 0 {
+			continue
+		}
+		updater(nftables.Rule{
+			Chain: chainName,
+			Group: fwdInHairpinPortsRuleGroup,
+			Rule: []string{
+				string(ipv), "daddr", pb.IP.String(), pb.Proto.String(),
+				"dport", strconv.Itoa(int(pb.Port)),
+				"ct original", string(ipv), "daddr !=", pb.IP.String(),
+				"counter accept",
 			},
 			IgnoreExist: true,
 		})
