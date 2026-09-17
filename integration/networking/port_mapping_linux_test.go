@@ -1687,3 +1687,160 @@ func TestPortMappingOnDistinctLoopbackAddrs(t *testing.T) {
 			"%s answered by the wrong container", url)
 	}
 }
+
+// TestAccessPublishedPortFromCtrICCDisabled checks that a container can reach a
+// neighbour's published port via one of the host's addresses when the network
+// has inter-container communication disabled. Publishing a port makes it
+// reachable via the host's addresses from anywhere that can route to them,
+// including the port's own network.
+//
+// It also checks that the neighbour's own address is still unreachable on that
+// port, which is what disabling ICC is for.
+//
+// Regression test for https://github.com/moby/moby/issues/53713
+func TestAccessPublishedPortFromCtrICCDisabled(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "rootlesskit has its own netns")
+
+	const (
+		subnet4 = "192.168.135.0/24"
+		gw4     = "192.168.135.1"
+		subnet6 = "fd6d:9b09:5d3a::/64"
+		gw6     = "fd6d:9b09:5d3a::1"
+	)
+
+	for _, tc := range []struct {
+		name       string
+		daemonOpts []string
+		gwMode     string
+	}{
+		{
+			// Set explicitly, so that this keeps covering docker-proxy if the
+			// default changes.
+			name:       "with-proxy",
+			daemonOpts: []string{"--userland-proxy=true"},
+		},
+		{
+			// Without docker-proxy, the packets are DNATed across the bridge, so
+			// they have to get past the rules that implement icc=false.
+			name:       "no-proxy",
+			daemonOpts: []string{"--userland-proxy=false"},
+		},
+		{
+			// gw_mode=nat-unprotected skips the per-port forwarding rules, and
+			// its blanket accept excludes packets arriving on the bridge, so the
+			// hairpin needs its own rule in this mode too.
+			name:       "no-proxy/nat-unprotected",
+			daemonOpts: []string{"--userland-proxy=false"},
+			gwMode:     "nat-unprotected",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := setupTest(t)
+
+			d := daemon.New(t)
+			d.StartWithBusybox(ctx, t, tc.daemonOpts...)
+			defer d.Stop(t)
+			c := d.NewClientT(t)
+			defer c.Close()
+
+			const netName = "ticcpubport"
+			nwOpts := []func(*client.NetworkCreateOptions){
+				network.WithDriver("bridge"),
+				network.WithIPv6(),
+				network.WithOption(bridge.EnableICC, "false"),
+				network.WithIPAM(subnet4, gw4),
+				network.WithIPAM(subnet6, gw6),
+			}
+			if tc.gwMode != "" {
+				nwOpts = append(nwOpts,
+					network.WithOption(bridge.IPv4GatewayMode, tc.gwMode),
+					network.WithOption(bridge.IPv6GatewayMode, tc.gwMode),
+				)
+			}
+			network.CreateNoError(ctx, t, c, netName, nwOpts...)
+			defer network.RemoveNoError(ctx, t, c, netName)
+
+			serverID := container.Run(ctx, t, c,
+				container.WithNetworkMode(netName),
+				container.WithExposedPorts("80"),
+				container.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {
+					{HostIP: netip.MustParseAddr("0.0.0.0")},
+					{HostIP: netip.MustParseAddr("::")},
+				}}),
+				container.WithCmd("httpd", "-f"),
+			)
+			defer c.ContainerRemove(ctx, serverID, client.ContainerRemoveOptions{Force: true})
+
+			inspect := container.Inspect(ctx, t, c, serverID)
+			ctrNet := inspect.NetworkSettings.Networks[netName]
+			bindings := inspect.NetworkSettings.Ports[networktypes.MustParsePort("80/tcp")]
+
+			// wget from a fresh container on the same network. The server responds
+			// 404 to any request, so "404 Not Found" means the connection got
+			// through. Let wget time out by itself rather than relying on the
+			// context deadline, so that a blocked probe still returns its output.
+			wget := func(t *testing.T, addr string) string {
+				t.Helper()
+				clientCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+				defer cancel()
+				res := container.RunAttach(clientCtx, t, c,
+					container.WithNetworkMode(netName),
+					container.WithCmd("wget", "-T", "3", "http://"+addr),
+				)
+				defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+				return res.Stderr.String()
+			}
+
+			// Run the probes in parallel. A probe can only be seen to be blocked
+			// by waiting for wget to time out, so running them together waits out
+			// one timeout rather than one per blocked probe. t.Run returns only
+			// once its parallel subtests have finished, so the deferred cleanup
+			// above still runs after them.
+			t.Run("probes", func(t *testing.T) {
+				for _, fam := range []struct {
+					name     string
+					hostAddr string
+					ctrAddr  netip.Addr
+					// checkHairpin is false for IPv6, where opening the published
+					// port isn't enough for a peer to reach it. The server can't
+					// reply, because it needs to resolve the client's link-layer
+					// address, and ICMPv6 Neighbour Discovery between containers is
+					// dropped when ICC is disabled. IPv4 isn't affected, because ARP
+					// isn't filtered by ip(6)tables. So for IPv6, only check that
+					// direct access is still blocked.
+					checkHairpin bool
+				}{
+					{name: "ipv4", hostAddr: gw4, ctrAddr: ctrNet.IPAddress, checkHairpin: true},
+					{name: "ipv6", hostAddr: gw6, ctrAddr: ctrNet.GlobalIPv6Address},
+				} {
+					// The published port must be reachable via a host address.
+					if fam.checkHairpin {
+						var hostPort string
+						for _, b := range bindings {
+							if b.HostIP.Is4() == fam.ctrAddr.Is4() {
+								hostPort = b.HostPort
+							}
+						}
+						assert.Assert(t, hostPort != "", "%s: the port wasn't published (bindings: %v)", fam.name, bindings)
+
+						t.Run(fam.name+"/via-host-address", func(t *testing.T) {
+							t.Parallel()
+							out := wget(t, net.JoinHostPort(fam.hostAddr, hostPort))
+							assert.Check(t, is.Contains(out, "404 Not Found"),
+								"published port should be reachable from a neighbour via a host address, got: %s", out)
+						})
+					}
+
+					// The container's own address must not be reachable, even on the
+					// published port. That's what icc=false blocks.
+					t.Run(fam.name+"/direct-to-container", func(t *testing.T) {
+						t.Parallel()
+						out := wget(t, net.JoinHostPort(fam.ctrAddr.String(), "80"))
+						assert.Check(t, !strings.Contains(out, "404 Not Found"),
+							"icc=false should still block direct access to the container's address, got: %s", out)
+					})
+				}
+			})
+		})
+	}
+}
