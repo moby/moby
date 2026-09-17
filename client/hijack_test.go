@@ -108,7 +108,8 @@ func TestTLSCloseWriter(t *testing.T) {
 	client, err := New(WithHost("tcp://"+serverURL.Host), WithHTTPClient(httpClient))
 	assert.NilError(t, err)
 
-	resp, err := client.postHijacked(ctx, "/asdf", url.Values{}, nil, map[string][]string{"Content-Type": {"text/plain"}})
+	headers := http.Header{"Content-Type": {"text/plain"}}
+	resp, err := client.postHijacked(ctx, "/asdf", url.Values{}, headers, nil)
 	assert.NilError(t, err)
 	defer resp.Close()
 

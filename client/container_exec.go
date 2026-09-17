@@ -134,13 +134,11 @@ func (cli *Client) ExecAttach(ctx context.Context, execID string, options ExecAt
 	if err != nil {
 		return ExecAttachResult{}, err
 	}
-	req := container.ExecStartRequest{
+	headers := http.Header{"Content-Type": {"application/json"}}
+	response, err := cli.postHijacked(ctx, "/exec/"+execID+"/start", nil, headers, container.ExecStartRequest{
 		Detach:      false,
 		Tty:         options.TTY,
 		ConsoleSize: consoleSize,
-	}
-	response, err := cli.postHijacked(ctx, "/exec/"+execID+"/start", nil, req, http.Header{
-		"Content-Type": {"application/json"},
 	})
 	return ExecAttachResult{HijackedResponse: response}, err
 }
