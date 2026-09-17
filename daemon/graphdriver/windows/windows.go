@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf16"
 
 	"github.com/Microsoft/go-winio"
 	"github.com/Microsoft/go-winio/backuptar"
@@ -669,7 +671,15 @@ func writeTarFromLayer(r hcsshim.LayerReader, w io.Writer) (retErr error) {
 				}
 				linkRecords[id.FileID] = filepath.ToSlash(name)
 			}
-			err = backuptar.WriteTarFileFromBackupStream(t, r, name, size, fileInfo)
+			streamReader := io.Reader(r)
+			if fileInfo != nil && (fileInfo.FileAttributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0) {
+				fixed, err := fixReparseBackupStream(r)
+				if err != nil {
+					return err
+				}
+				streamReader = fixed
+			}
+			err = backuptar.WriteTarFileFromBackupStream(t, streamReader, name, size, fileInfo)
 			if err != nil {
 				return err
 			}
@@ -743,6 +753,156 @@ func writeBackupStreamFromTarAndSaveMutatedFiles(buf *bufio.Writer, w io.Writer,
 	return backuptar.WriteBackupStreamFromTarFile(buf, t, hdr)
 }
 
+// normalizeReparseTarget normalizes Windows reparse point (symlink/junction) targets
+// before saving them to the layer.
+//
+// Tools like PowerShell's New-Item cmdlet create NTFS junctions with targets prefixed
+// by the NT namespace prefix `\??\` (e.g. `\??\C:\Windows` or `\??\UNC\server\share`).
+// If written directly to the layer, this prefix is unrecognized as a DOS drive path by
+// backuptar/winio, causing it to treat the path as relative, producing invalid reparse
+// point metadata and loss of the junction target in subsequent container layers.
+//
+// normalizeReparseTarget strips or normalizes the NT prefix `\??\` (and `\\?\`) into a standard
+// Win32 path without altering relative paths or valid non-prefixed paths.
+func normalizeReparseTarget(target string) string {
+	if target == "" {
+		return target
+	}
+	p := filepath.FromSlash(target)
+
+	// Handle \??\ prefix (NT namespace)
+	if strings.HasPrefix(p, `\??\`) {
+		rest := p[4:]
+		// Case: \??\UNC\server\share -> \\server\share
+		if len(rest) >= 4 && strings.EqualFold(rest[:4], `UNC\`) {
+			return `\\` + rest[4:]
+		}
+		// Case: \??\Volume{...}\ -> \\?\Volume{...}\
+		if len(rest) >= 7 && strings.EqualFold(rest[:7], `Volume{`) {
+			return `\\?\` + rest
+		}
+		// Case: \??\C:\... -> C:\...
+		if len(rest) >= 2 && isDriveLetter(rest[0]) && rest[1] == ':' {
+			return rest
+		}
+		// Fallback: return the original target intact if not explicitly normalizable
+		// to avoid corrupting legitimate system NT paths (e.g. \??\GLOBALROOT\Device\...)
+		return target
+	}
+
+	// Handle \\?\ prefix (Win32 extended path)
+	if strings.HasPrefix(p, `\\?\`) {
+		rest := p[4:]
+		// Case: \\?\UNC\server\share -> \\server\share
+		if len(rest) >= 4 && strings.EqualFold(rest[:4], `UNC\`) {
+			return `\\` + rest[4:]
+		}
+		// Case: \\?\C:\... -> C:\...
+		if len(rest) >= 2 && isDriveLetter(rest[0]) && rest[1] == ':' {
+			return rest
+		}
+		return target
+	}
+
+	return target
+}
+
+func isDriveLetter(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+const (
+	reparseTagMountPoint = 0xA0000003
+)
+
+func fixReparseBuffer(b []byte) []byte {
+	if len(b) < 16 {
+		return b
+	}
+	tag := binary.LittleEndian.Uint32(b[0:4])
+	// The PowerShell bug affects ONLY Mount Points (Junctions).
+	// Buffer reconstruction must ONLY occur if two conditions are strictly met:
+	// 1. The tag is IO_REPARSE_TAG_MOUNT_POINT (0xA0000003)
+	// 2. PrintNameLength is exactly 0
+	// Any other scenario (e.g. Symlinks or Mount Points with non-empty PrintName)
+	// must return the original, untouched buffer to preserve all original flags and metadata.
+	if tag != reparseTagMountPoint {
+		return b
+	}
+
+	data := b[8:]
+	if len(data) < 8 {
+		return b
+	}
+
+	subNameOffset := binary.LittleEndian.Uint16(data[0:2])
+	subNameLength := binary.LittleEndian.Uint16(data[2:4])
+	printNameLength := binary.LittleEndian.Uint16(data[6:8])
+
+	if printNameLength != 0 {
+		return b
+	}
+
+	// Extract SubstituteName and re-encode a standard reparse data buffer with both
+	// SubstituteName and PrintName populated.
+	start := 8 + int(subNameOffset)
+	end := start + int(subNameLength)
+	if start < 0 || end > len(data) || start > end {
+		return b
+	}
+	name := make([]uint16, subNameLength/2)
+	if err := binary.Read(bytes.NewReader(data[start:end]), binary.LittleEndian, &name); err != nil {
+		return b
+	}
+	subName := string(utf16.Decode(name))
+	if subName == "" {
+		return b
+	}
+
+	target := normalizeReparseTarget(subName)
+	return winio.EncodeReparsePoint(&winio.ReparsePoint{
+		Target:       target,
+		IsMountPoint: true,
+	})
+}
+
+func fixReparseBackupStream(r io.Reader) (io.Reader, error) {
+	br := winio.NewBackupStreamReader(r)
+	var buf bytes.Buffer
+	bw := winio.NewBackupStreamWriter(&buf)
+	for {
+		hdr, err := br.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if hdr.Id == winio.BackupReparseData {
+			data, err := io.ReadAll(br)
+			if err != nil {
+				return nil, err
+			}
+			fixedData := fixReparseBuffer(data)
+			hdr.Size = int64(len(fixedData))
+			if err := bw.WriteHeader(hdr); err != nil {
+				return nil, err
+			}
+			if _, err := bw.Write(fixedData); err != nil {
+				return nil, err
+			}
+		} else {
+			if err := bw.WriteHeader(hdr); err != nil {
+				return nil, err
+			}
+			if _, err := io.Copy(bw, br); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return bytes.NewReader(buf.Bytes()), nil
+}
+
 func writeLayerFromTar(r io.Reader, w hcsshim.LayerWriter, root string) (int64, error) {
 	t := tar.NewReader(r)
 	hdr, err := t.Next()
@@ -764,6 +924,9 @@ func writeLayerFromTar(r io.Reader, w hcsshim.LayerWriter, root string) (int64, 
 			}
 			hdr, err = t.Next()
 		} else {
+			if hdr.Linkname != "" {
+				hdr.Linkname = normalizeReparseTarget(hdr.Linkname)
+			}
 			var (
 				name     string
 				size     int64
