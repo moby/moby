@@ -28,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc/balancer"
@@ -148,6 +149,94 @@ type ClientStream interface {
 	RecvMsg(m any) error
 }
 
+// clientStreamWrapper wraps a ClientStream and handles SendMsg, CloseSend, and
+// RecvMsg parities based on the nature of stream.
+type clientStreamWrapper struct {
+	ClientStream
+	desc            *StreamDesc
+	closeSendCalled atomic.Bool
+}
+
+// CloseSend closes the send direction of the stream. The implementation ensures
+// that CloseSend is only called once on the underlying ClientStream, even if
+// CloseSend is called multiple times on the wrapper.
+func (w *clientStreamWrapper) CloseSend() error {
+	if w.closeSendCalled.Swap(true) {
+		return nil
+	}
+	return w.ClientStream.CloseSend()
+}
+
+// SendMsg sends message m across the stream. For RPCs where client can call
+// SendMsg only once, i.e. only server-streaming RPCs, it converts io.EOF to nil
+// and immediately calls CloseSend to trigger any interceptor hooks.
+func (w *clientStreamWrapper) SendMsg(m any) error {
+	err := w.ClientStream.SendMsg(m)
+	// If the RPC is a client-streaming RPC, the client can send multiple
+	// messages. In this case, the client should handle any type of
+	// error,including io.EOF and call CloseSend once it is done sending messages.
+	if w.desc.ClientStreams {
+		return err
+	}
+
+	if err == io.EOF {
+		// For non-client-streaming RPCs, we return nil instead of EOF on error
+		// because the generated code requires it. finish is not called; RecvMsg()
+		// will call it with the stream's status independently.
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	// In some scenarios (e.g., xDS), the same interceptors process both unary and
+	// streaming RPCs, relying on CloseSend to signal that no more messages are on
+	// the way. Although protobuf-generated stubs already invoke CloseSend for
+	// server-streaming RPCs, it is explicitly called here to ensure downstream
+	// interceptors are also notified when callers interact with the ClientStream
+	// API directly.
+	if err := w.CloseSend(); err != nil && err != io.EOF {
+		return err
+	}
+	return nil
+
+}
+
+// RecvMsg receives message m from the stream. For RPCs that call RecvMsg only
+// once i.e. only client streaming RPCs, it calls the underlying RecvMsg a
+// second time after receiving the first message to get the trailers.
+func (w *clientStreamWrapper) RecvMsg(m any) error {
+	err := w.ClientStream.RecvMsg(m)
+	if err != nil {
+		return err
+	}
+	if w.desc.ServerStreams {
+		return nil
+	}
+	// Call RecvMsg again for non-server streaming RPCs to get the trailers and
+	// ensure RPC has completed successfully.
+	err = w.ClientStream.RecvMsg(m)
+	if err == io.EOF {
+		return nil
+	}
+	if err == nil {
+		return status.Error(codes.Internal, "cardinality violation: expected <EOF> for non server-streaming RPCs, but received another message")
+	}
+	return err
+}
+
+// defaultStreamInterceptor is a StreamClientInterceptor which wraps the
+// ClientStream and is always invoked as the first interceptor. It consolidates
+// behavior for different RPC types at the level closest to the application,
+// which simplifies the underlying stream implementation and other interceptors
+// by avoiding duplicate or scattered handling.
+func defaultStreamInterceptor(ctx context.Context, desc *StreamDesc, cc *ClientConn, method string, streamer Streamer, opts ...CallOption) (ClientStream, error) {
+	cs, err := streamer(ctx, desc, cc, method, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &clientStreamWrapper{ClientStream: cs, desc: desc}, nil
+}
+
 // NewStream creates a new Stream for the client side. This is typically
 // called by generated code. ctx is used for the lifetime of the stream.
 //
@@ -253,14 +342,11 @@ func newClientStream(ctx context.Context, desc *StreamDesc, cc *ClientConn, meth
 
 	mc := &emptyMethodConfig
 	var onCommit func()
-	newStream := func(ctx context.Context, filterOpts ...CallOption) (ClientStream, error) {
-		if filterOpts != nil {
-			opts = combine(opts, filterOpts)
-		}
+	newStream := func(ctx context.Context, opts ...CallOption) (ClientStream, error) {
 		return newClientStreamWithParams(ctx, desc, cc, method, mc, onCommit, nameResolutionDelayed, opts...)
 	}
 
-	rpcInfo := iresolver.RPCInfo{Context: ctx, Method: method}
+	rpcInfo := iresolver.RPCInfo{Context: ctx, Method: method, Authority: cc.authority}
 	rpcConfig, err := cc.safeConfigSelector.SelectConfig(rpcInfo)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -278,13 +364,23 @@ func newClientStream(ctx context.Context, desc *StreamDesc, cc *ClientConn, meth
 			ctx = rpcConfig.Context
 		}
 		mc = &rpcConfig.MethodConfig
-		onCommit = rpcConfig.OnCommitted
+
+		if rpcConfig.OnCommitted != nil {
+			onCommit = rpcConfig.OnCommitted
+			// Register an OnFinish CallOption with the OnCommitted callback to
+			// ensure it is invoked on stream termination, even if the stream
+			// fails early before committing. Implementations of OnCommitted are
+			// expected to be idempotent (e.g., guarded by sync.Once), since both
+			// onCommit and OnFinish may run for a single RPC.
+			opts = append(opts, OnFinish(func(error) { rpcConfig.OnCommitted() }))
+		}
+
 		if rpcConfig.Interceptor != nil {
 			rpcInfo.Context = nil
 			ns := newStream
 			if interceptor, ok := rpcConfig.Interceptor.(clientInterceptor); ok {
-				newStream = func(ctx context.Context, filterOpts ...CallOption) (ClientStream, error) {
-					cs, err := interceptor.NewStream(ctx, rpcInfo, ns, filterOpts...)
+				newStream = func(ctx context.Context, opts ...CallOption) (ClientStream, error) {
+					cs, err := interceptor.NewStream(ctx, rpcInfo, ns, opts...)
 					if err != nil {
 						return nil, toRPCErr(err)
 					}
@@ -296,7 +392,7 @@ func newClientStream(ctx context.Context, desc *StreamDesc, cc *ClientConn, meth
 		}
 	}
 
-	return newStream(ctx)
+	return newStream(ctx, opts...)
 }
 
 func newClientStreamWithParams(ctx context.Context, desc *StreamDesc, cc *ClientConn, method string, mc *serviceconfig.MethodConfig, onCommit func(), nameResolutionDelayed bool, opts ...CallOption) (_ ClientStream, err error) {
@@ -543,6 +639,9 @@ func (a *csAttempt) newStream() error {
 	// maintained in it are local to the attempt. When the attempt has to be
 	// retried, a new instance of csAttempt will be created.
 	if a.pickResult.Metadata != nil {
+		if err := imetadata.Validate(a.pickResult.Metadata); err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
 		// We currently do not have a function it the metadata package which
 		// merges given metadata with existing metadata in a context. Existing
 		// function `AppendToOutgoingContext()` takes a variadic argument of key
@@ -1044,8 +1143,8 @@ func (cs *clientStream) RecvMsg(m any) error {
 			binlog.Log(cs.ctx, sm)
 		}
 	}
-	if err != nil || !cs.desc.ServerStreams {
-		// err != nil or non-server-streaming indicates end of stream.
+	if err != nil {
+		// err != nil indicates end of stream.
 		cs.finish(err)
 	}
 	return err
@@ -1093,7 +1192,8 @@ func (cs *clientStream) finish(err error) {
 	}
 	cs.finished = true
 	cs.commitAttemptLocked()
-	if cs.attempt != nil {
+	attemptCreated := cs.attempt != nil
+	if attemptCreated {
 		cs.attempt.finish(err)
 		// after functions all rely upon having a stream.
 		if cs.attempt.transportStream != nil {
@@ -1131,7 +1231,13 @@ func (cs *clientStream) finish(err error) {
 	if err == nil {
 		cs.retryThrottler.successfulRPC()
 	}
-	endOfClientStream(cs.cc, err, cs.opts...)
+	// If no attempt was ever created, stream creation has failed, and the
+	// cleanup is left to newClientStream, whose deferred cleanup invokes
+	// endOfClientStream if the call fails. Invoking it here as well would
+	// run the cleanup twice for the same call.
+	if attemptCreated {
+		endOfClientStream(cs.cc, err, cs.opts...)
+	}
 	cs.cancel()
 }
 
@@ -1145,12 +1251,6 @@ func (a *csAttempt) sendMsg(m any, hdr []byte, payld mem.BufferSlice, dataLength
 		a.mu.Unlock()
 	}
 	if err := a.transportStream.Write(hdr, payld, &transport.WriteOptions{Last: !cs.desc.ClientStreams}); err != nil {
-		if !cs.desc.ClientStreams {
-			// For non-client-streaming RPCs, we return nil instead of EOF on error
-			// because the generated code requires it.  finish is not called; RecvMsg()
-			// will call it with the stream's status independently.
-			return nil
-		}
 		return io.EOF
 	}
 	if a.statsHandler != nil {
@@ -1218,18 +1318,7 @@ func (a *csAttempt) recvMsg(m any, payInfo *payloadInfo) (err error) {
 			Length:           payInfo.uncompressedBytes.Len(),
 		})
 	}
-	if cs.desc.ServerStreams {
-		// Subsequent messages should be received by subsequent RecvMsg calls.
-		return nil
-	}
-	// Special handling for non-server-stream rpcs.
-	// This recv expects EOF or errors, so we don't collect inPayload.
-	if err := recv(&a.parser, cs.codec, a.transportStream, a.decompressorV0, m, *cs.callInfo.maxReceiveMessageSize, nil, a.decompressorV1, false); err == io.EOF {
-		return a.transportStream.Status().Err() // non-server streaming Recv returns nil on success
-	} else if err != nil {
-		return toRPCErr(err)
-	}
-	return status.Error(codes.Internal, "cardinality violation: expected <EOF> for non server-streaming RPCs, but received another message")
+	return nil
 }
 
 func (a *csAttempt) finish(err error) {
@@ -1399,7 +1488,7 @@ func newNonRetryClientStream(ctx context.Context, desc *StreamDesc, method strin
 			}
 		}()
 	}
-	return as, nil
+	return &clientStreamWrapper{ClientStream: as, desc: desc}, nil
 }
 
 type addrConnStream struct {
@@ -1497,12 +1586,6 @@ func (as *addrConnStream) SendMsg(m any) (err error) {
 	}
 
 	if err := as.transportStream.Write(hdr, payload, &transport.WriteOptions{Last: !as.desc.ClientStreams}); err != nil {
-		if !as.desc.ClientStreams {
-			// For non-client-streaming RPCs, we return nil instead of EOF on error
-			// because the generated code requires it.  finish is not called; RecvMsg()
-			// will call it with the stream's status independently.
-			return nil
-		}
 		return io.EOF
 	}
 
@@ -1511,8 +1594,8 @@ func (as *addrConnStream) SendMsg(m any) (err error) {
 
 func (as *addrConnStream) RecvMsg(m any) (err error) {
 	defer func() {
-		if err != nil || !as.desc.ServerStreams {
-			// err != nil or non-server-streaming indicates end of stream.
+		if err != nil {
+			// err != nil indicates end of stream.
 			as.finish(err)
 		}
 	}()
@@ -1551,20 +1634,7 @@ func (as *addrConnStream) RecvMsg(m any) (err error) {
 		return toRPCErr(err)
 	}
 	as.receivedFirstMsg = true
-
-	if as.desc.ServerStreams {
-		// Subsequent messages should be received by subsequent RecvMsg calls.
-		return nil
-	}
-
-	// Special handling for non-server-stream rpcs.
-	// This recv expects EOF or errors, so we don't collect inPayload.
-	if err := recv(&as.parser, as.codec, as.transportStream, as.decompressorV0, m, *as.callInfo.maxReceiveMessageSize, nil, as.decompressorV1, false); err == io.EOF {
-		return as.transportStream.Status().Err() // non-server streaming Recv returns nil on success
-	} else if err != nil {
-		return toRPCErr(err)
-	}
-	return status.Error(codes.Internal, "cardinality violation: expected <EOF> for non server-streaming RPCs, but received another message")
+	return nil
 }
 
 func (as *addrConnStream) finish(err error) {
@@ -1675,6 +1745,8 @@ type serverStream struct {
 	// synchronized.
 	serverHeaderBinlogged bool
 
+	statusWritten atomic.Bool // True if status has been written to the transport.
+
 	mu sync.Mutex // protects trInfo.tr after the service handler runs.
 }
 
@@ -1723,6 +1795,16 @@ func (ss *serverStream) SetTrailer(md metadata.MD) {
 	ss.s.SetTrailer(md)
 }
 
+// writeStatus sends the status of a stream to the client. It uses an atomic
+// CAS to guarantee that the status is written to the transport exactly once,
+// even if called concurrently.
+func (ss *serverStream) writeStatus(st *status.Status) error {
+	if !ss.statusWritten.CompareAndSwap(false, true) {
+		return nil
+	}
+	return ss.s.WriteStatus(st)
+}
+
 func (ss *serverStream) SendMsg(m any) (err error) {
 	defer func() {
 		if ss.trInfo != nil {
@@ -1739,7 +1821,7 @@ func (ss *serverStream) SendMsg(m any) (err error) {
 		}
 		if err != nil && err != io.EOF {
 			st, _ := status.FromError(toRPCErr(err))
-			ss.s.WriteStatus(st)
+			ss.writeStatus(st)
 			// Non-user specified status was sent out. This should be an error
 			// case (as a server side Cancel maybe).
 			//
@@ -1822,7 +1904,7 @@ func (ss *serverStream) RecvMsg(m any) (err error) {
 		}
 		if err != nil && err != io.EOF {
 			st, _ := status.FromError(toRPCErr(err))
-			ss.s.WriteStatus(st)
+			ss.writeStatus(st)
 			// Non-user specified status was sent out. This should be an error
 			// case (as a server side Cancel maybe).
 			//
