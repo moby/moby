@@ -145,6 +145,38 @@ func (n *network) configure(ctx context.Context, table *nftables.Table, conf fir
 			})
 		}
 
+		// Accept the IPv6 Neighbour Discovery messages that containers on this
+		// network need in order to address each other, even when ICC is disabled.
+		// Without them a container can't resolve a peer's link-layer address, so
+		// it can't reply to a peer that reaches one of its published ports via a
+		// host address. IPv4 needs no equivalent because ARP isn't filtered here.
+		//
+		// Only Neighbour Solicitation and Advertisement are accepted. The other
+		// ICMPv6 messages RFC 4890 section 4.4.1 says must not be dropped are
+		// exchanged between a host and its router - here that's the bridge
+		// itself, not another container, so they never reach this rule. ICMPv6
+		// errors belonging to a permitted flow are accepted by the conntrack rule.
+		//
+		// That section also recommends checking these carry a hop limit of 255,
+		// which a genuine on-link ND message always does. There's no such check
+		// here: the rule only matches traffic bridged between two containers on
+		// this network, which is on-link by construction, and a container on the
+		// link can send a well-formed message with a hop limit of 255 as easily
+		// as a malformed one.
+		//
+		// In routed mode the ICMP rule below already accepts all ICMPv6.
+		if !n.config.ICC && !conf.Routed && table.Family() == nftables.IPv6 {
+			tm.Create(nftables.Rule{
+				Chain: fwdInChain,
+				Group: fwdInNDRuleGroup,
+				Rule: []string{
+					"iifname ==", n.config.IfName,
+					"icmpv6 type { nd-neighbor-solicit, nd-neighbor-advert }",
+					`counter accept comment "ICMPv6 ND"`,
+				},
+			})
+		}
+
 		// Inter-Container Communication
 		tm.Create(nftables.Rule{
 			Chain: fwdInChain,

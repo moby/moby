@@ -147,6 +147,41 @@ func setICMP(ipv iptables.IPVersion, bridgeName string, enable bool) error {
 	return appendOrDelChainRule(icmpRule, "ICMP", enable)
 }
 
+// setICMPv6ND accepts the IPv6 Neighbour Discovery messages that containers on
+// the network need in order to address each other, even when ICC is disabled.
+//
+// Without them a container can't resolve a peer's link-layer address, so it
+// can't reply to a peer that reaches one of its published ports via a host
+// address. IPv4 needs no equivalent because ARP isn't filtered here at all.
+//
+// Only Neighbour Solicitation and Neighbour Advertisement are accepted. The
+// other ICMPv6 messages RFC 4890 section 4.4.1 says must not be dropped are
+// exchanged between a host and its router - here that's the bridge itself, not
+// another container, so they never reach the ICC rules. ICMPv6 errors belonging
+// to a permitted flow are already accepted as conntrack RELATED.
+//
+// That section also recommends checking these carry a hop limit of 255, which a
+// genuine on-link ND message always does. There's no such check here: the rule
+// only matches traffic bridged between two containers on this network, which is
+// on-link by construction, and a container on the link can send a well-formed
+// message with a hop limit of 255 as easily as a malformed one.
+func setICMPv6ND(bridgeName string, enable bool) error {
+	// Neighbour Solicitation and Neighbour Advertisement.
+	for _, icmpType := range []string{"135", "136"} {
+		rule := iptables.Rule{IPVer: iptables.IPv6, Table: iptables.Filter, Chain: dockerChain, Args: []string{
+			"-i", bridgeName,
+			"-o", bridgeName,
+			"-p", "icmpv6",
+			"--icmpv6-type", icmpType,
+			"-j", "ACCEPT",
+		}}
+		if err := appendOrDelChainRule(rule, "ICMPv6 ND", enable); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func addNATJumpRules(ipVer iptables.IPVersion, hairpinMode, enable bool) error {
 	preroute := iptables.Rule{IPVer: ipVer, Table: iptables.Nat, Chain: "PREROUTING", Args: []string{
 		"-m", "addrtype",
@@ -315,6 +350,14 @@ func (n *network) setupNonInternalNetworkRules(ctx context.Context, ipVer iptabl
 	// Allow ICMP in routed mode.
 	if !nat {
 		if err := setICMP(ipVer, n.config.IfName, enable); err != nil {
+			return err
+		}
+	}
+
+	// Allow Neighbour Discovery between containers, which ICC would otherwise
+	// drop. (In routed mode the rule above already accepts all ICMPv6.)
+	if ipVer == iptables.IPv6 && nat {
+		if err := setICMPv6ND(n.config.IfName, enable && !n.config.ICC); err != nil {
 			return err
 		}
 	}
