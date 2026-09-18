@@ -939,6 +939,11 @@ func TestAcceptFwMark(t *testing.T) {
 func TestRoutedNonGateway(t *testing.T) {
 	skip.If(t, testEnv.IsRootless())
 	skip.If(t, networking.FirewalldRunning(), "Firewalld's IPv6_rpfilter=yes breaks IPv6 direct routing from L3Segment")
+	// The container replies to the remote host via its default gateway, so its
+	// replies reach the host on the NAT'd network's bridge, with a source address
+	// the host would route via the routed network's bridge. Strict rp_filter
+	// drops them.
+	skip.If(t, networking.StrictRPFilter(), "Strict rp_filter breaks IPv4 direct routing from L3Segment")
 
 	ctx := setupTest(t)
 	d := daemon.New(t)
