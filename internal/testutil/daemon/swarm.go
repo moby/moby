@@ -177,7 +177,7 @@ func (d *Daemon) SwarmUnlock(t testing.TB, req swarm.UnlockRequest) error {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
-	_, err := cli.SwarmUnlock(context.Background(), client.SwarmUnlockOptions{Key: req.UnlockKey})
+	_, err := cli.SwarmUnlock(t.Context(), client.SwarmUnlockOptions{Key: req.UnlockKey})
 	if err != nil {
 		err = errors.Wrap(err, "unlocking swarm")
 	}

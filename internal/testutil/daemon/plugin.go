@@ -11,8 +11,8 @@ import (
 )
 
 // PluginIsRunning provides a poller to check if the specified plugin is running
-func (d *Daemon) PluginIsRunning(t testing.TB, name string) func(poll.LogT) poll.Result {
-	return withClient(t, d, withPluginInspect(name, func(plugin *plugin.Plugin, t poll.LogT) poll.Result {
+func (d *Daemon) PluginIsRunning(t testing.TB, name string) poll.Check {
+	return withClient(t, d, withPluginInspect(name, func(plugin *plugin.Plugin) poll.Result {
 		if plugin.Enabled {
 			return poll.Success()
 		}
@@ -21,8 +21,8 @@ func (d *Daemon) PluginIsRunning(t testing.TB, name string) func(poll.LogT) poll
 }
 
 // PluginIsNotRunning provides a poller to check if the specified plugin is not running
-func (d *Daemon) PluginIsNotRunning(t testing.TB, name string) func(poll.LogT) poll.Result {
-	return withClient(t, d, withPluginInspect(name, func(p *plugin.Plugin, t poll.LogT) poll.Result {
+func (d *Daemon) PluginIsNotRunning(t testing.TB, name string) poll.Check {
+	return withClient(t, d, withPluginInspect(name, func(p *plugin.Plugin) poll.Result {
 		if !p.Enabled {
 			return poll.Success()
 		}
@@ -31,9 +31,9 @@ func (d *Daemon) PluginIsNotRunning(t testing.TB, name string) func(poll.LogT) p
 }
 
 // PluginIsNotPresent provides a poller to check if the specified plugin is not present
-func (d *Daemon) PluginIsNotPresent(t testing.TB, name string) func(poll.LogT) poll.Result {
-	return withClient(t, d, func(c client.APIClient, t poll.LogT) poll.Result {
-		_, err := c.PluginInspect(context.Background(), name, client.PluginInspectOptions{})
+func (d *Daemon) PluginIsNotPresent(t testing.TB, name string) poll.Check {
+	return withClient(t, d, func(c client.APIClient) poll.Result {
+		_, err := c.PluginInspect(t.Context(), name, client.PluginInspectOptions{})
 		if cerrdefs.IsNotFound(err) {
 			return poll.Success()
 		}
@@ -45,8 +45,8 @@ func (d *Daemon) PluginIsNotPresent(t testing.TB, name string) func(poll.LogT) p
 }
 
 // PluginReferenceIs provides a poller to check if the specified plugin has the specified reference
-func (d *Daemon) PluginReferenceIs(t testing.TB, name, expectedRef string) func(poll.LogT) poll.Result {
-	return withClient(t, d, withPluginInspect(name, func(p *plugin.Plugin, t poll.LogT) poll.Result {
+func (d *Daemon) PluginReferenceIs(t testing.TB, name, expectedRef string) poll.Check {
+	return withClient(t, d, withPluginInspect(name, func(p *plugin.Plugin) poll.Result {
 		if p.PluginReference == expectedRef {
 			return poll.Success()
 		}
@@ -54,8 +54,8 @@ func (d *Daemon) PluginReferenceIs(t testing.TB, name, expectedRef string) func(
 	}))
 }
 
-func withPluginInspect(name string, f func(*plugin.Plugin, poll.LogT) poll.Result) func(client.APIClient, poll.LogT) poll.Result {
-	return func(c client.APIClient, t poll.LogT) poll.Result {
+func withPluginInspect(name string, f func(*plugin.Plugin) poll.Result) func(client.APIClient) poll.Result {
+	return func(c client.APIClient) poll.Result {
 		res, err := c.PluginInspect(context.Background(), name, client.PluginInspectOptions{})
 		if cerrdefs.IsNotFound(err) {
 			return poll.Continue("plugin %q not found", name)
@@ -63,13 +63,13 @@ func withPluginInspect(name string, f func(*plugin.Plugin, poll.LogT) poll.Resul
 		if err != nil {
 			return poll.Error(err)
 		}
-		return f(&res.Plugin, t)
+		return f(&res.Plugin)
 	}
 }
 
-func withClient(t testing.TB, d *Daemon, f func(client.APIClient, poll.LogT) poll.Result) func(poll.LogT) poll.Result {
-	return func(pt poll.LogT) poll.Result {
+func withClient(t testing.TB, d *Daemon, f func(client.APIClient) poll.Result) poll.Check {
+	return func(poll.LogT) poll.Result {
 		c := d.NewClientT(t)
-		return f(c, pt)
+		return f(c)
 	}
 }
