@@ -45,8 +45,7 @@ jobs:
           - template: template:almalinux-8
             integration_dir: ./integration/container ./integration/build ./integration/system
           # openSUSE Tumbleweed is a rolling release, and provides coverage for
-          # a recent kernel, SELinux in enforcing mode, and an iptables-nft
-          # based userspace.
+          # a recent kernel and SELinux in enforcing mode
           - template: template:experimental/opensuse-tumbleweed
             integration_dir: ./integration/container ./integration/build ./integration/system
     with:
