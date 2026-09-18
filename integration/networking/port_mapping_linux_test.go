@@ -1478,11 +1478,20 @@ func TestAccessPortPublishedOnLoopbackAddress(t *testing.T) {
 // But UDP is inherently unreliable, so we need to send the payload multiple
 // times.
 func sendPayloadFromHost(t *testing.T, host networking.Host, daddr, dport, payload string, check func() bool) bool {
+	_, err := exec.LookPath("nc")
+	assert.NilError(t, err, "netcat is needed to send probes")
+
 	var res bool
 	host.Do(t, func() {
 		for i := range 10 {
 			t.Logf("Sending probe #%d to %s:%s from host %s", i, daddr, dport, host.Name)
-			icmd.RunCommand("/bin/sh", "-c", fmt.Sprintf("echo '%s' | nc -w1 -u %s %s", payload, daddr, dport)).Assert(t, icmd.Success)
+			// Don't check the exit status. Some implementations of netcat (for
+			// example, nmap's) report an error when the probe triggers an ICMP
+			// error - which is expected, for example, before the container's
+			// listener is ready. The payload is sent again, in that case.
+			if pRes := icmd.RunCommand("/bin/sh", "-c", fmt.Sprintf("echo '%s' | nc -w1 -u %s %s", payload, daddr, dport)); pRes.Error != nil {
+				t.Logf("Probe #%d failed: %v, %s", i, pRes.Error, pRes.Combined())
+			}
 
 			res = check()
 			if res {

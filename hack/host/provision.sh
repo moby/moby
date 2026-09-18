@@ -11,10 +11,10 @@ packages=(
 )
 
 if command -v dnf > /dev/null 2>&1; then
-	packages+=(git iproute procps-ng shadow-utils)
+	packages+=(git iproute procps-ng shadow-utils nmap-ncat)
 	dnf -q -y install "${packages[@]}"
 elif command -v zypper > /dev/null 2>&1; then
-	packages+=(git-core iproute2 procps shadow)
+	packages+=(git-core iproute2 procps shadow netcat-openbsd)
 	zypper -q --non-interactive install --no-recommends "${packages[@]}"
 else
 	echo "Unsupported distribution: neither dnf nor zypper was found" >&2
