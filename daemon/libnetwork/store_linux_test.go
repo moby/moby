@@ -1,7 +1,6 @@
 package libnetwork
 
 import (
-	"context"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -17,16 +16,16 @@ func TestBoltdbBackend(t *testing.T) {
 
 func TestNoPersist(t *testing.T) {
 	configOption := config.OptionDataDir(t.TempDir())
-	testController, err := New(context.Background(), configOption)
+	testController, err := New(t.Context(), configOption)
 	if err != nil {
 		t.Fatalf("Error creating new controller: %v", err)
 	}
 	defer testController.Stop()
-	nw, err := testController.NewNetwork(context.Background(), "host", "host", "", NetworkOptionPersist(false))
+	nw, err := testController.NewNetwork(t.Context(), "host", "host", "", NetworkOptionPersist(false))
 	if err != nil {
 		t.Fatalf(`Error creating default "host" network: %v`, err)
 	}
-	ep, err := nw.CreateEndpoint(context.Background(), "newendpoint", []EndpointOption{}...)
+	ep, err := nw.CreateEndpoint(t.Context(), "newendpoint", []EndpointOption{}...)
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
@@ -34,7 +33,7 @@ func TestNoPersist(t *testing.T) {
 
 	// Create a new controller using the same database-file. The network
 	// should not have persisted.
-	testController, err = New(context.Background(), configOption)
+	testController, err = New(t.Context(), configOption)
 	if err != nil {
 		t.Fatalf("Error creating new controller: %v", err)
 	}

@@ -3,7 +3,6 @@
 package libnetwork
 
 import (
-	"context"
 	"net"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 
 func TestCleanupServiceDiscovery(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()),
+	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	assert.NilError(t, err)
 	defer c.Stop()
@@ -26,11 +25,11 @@ func TestCleanupServiceDiscovery(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	n1, err := c.NewNetwork(context.Background(), "bridge", "net1", "", NetworkOptionEnableIPv4(true))
+	n1, err := c.NewNetwork(t.Context(), "bridge", "net1", "", NetworkOptionEnableIPv4(true))
 	assert.NilError(t, err)
 	defer cleanup(n1)
 
-	n2, err := c.NewNetwork(context.Background(), "bridge", "net2", "", NetworkOptionEnableIPv4(true))
+	n2, err := c.NewNetwork(t.Context(), "bridge", "net2", "", NetworkOptionEnableIPv4(true))
 	assert.NilError(t, err)
 	defer cleanup(n2)
 
@@ -68,7 +67,7 @@ func TestCleanupServiceDiscovery(t *testing.T) {
 //     versa.
 func TestServiceAliasRefCounting(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	c, err := New(ctx, config.OptionDataDir(t.TempDir()),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
