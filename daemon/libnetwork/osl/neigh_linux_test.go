@@ -1,7 +1,6 @@
 package osl
 
 import (
-	"context"
 	"net"
 	"syscall"
 	"testing"
@@ -31,7 +30,7 @@ func TestAddNeighborReplacesLearnedFDBEntry(t *testing.T) {
 		Learning:  true,
 	})
 	assert.NilError(t, err)
-	err = n.AddInterface(context.Background(), srcName, "vxlan", "")
+	err = n.AddInterface(t.Context(), srcName, "vxlan", "")
 	assert.NilError(t, err)
 
 	link, err := n.nlHandle.LinkByName(n.findDst(srcName, false))
