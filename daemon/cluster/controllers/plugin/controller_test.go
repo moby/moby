@@ -30,7 +30,7 @@ const (
 func TestPrepare(t *testing.T) {
 	b := newMockBackend()
 	c := newTestController(b, false)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if err := c.Prepare(ctx); err != nil {
 		t.Fatal(err)
@@ -61,7 +61,7 @@ func TestPrepare(t *testing.T) {
 func TestStart(t *testing.T) {
 	b := newMockBackend()
 	c := newTestController(b, false)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if err := c.Prepare(ctx); err != nil {
 		t.Fatal(err)
@@ -101,7 +101,7 @@ func TestStart(t *testing.T) {
 func TestWaitCancel(t *testing.T) {
 	b := newMockBackend()
 	c := newTestController(b, true)
-	ctx := context.Background()
+	ctx := t.Context()
 	if err := c.Prepare(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestWaitCancel(t *testing.T) {
 func TestWaitDisabled(t *testing.T) {
 	b := newMockBackend()
 	c := newTestController(b, true)
-	ctx := context.Background()
+	ctx := t.Context()
 	if err := c.Prepare(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +209,7 @@ func TestWaitDisabled(t *testing.T) {
 func TestWaitEnabled(t *testing.T) {
 	b := newMockBackend()
 	c := newTestController(b, false)
-	ctx := context.Background()
+	ctx := t.Context()
 	if err := c.Prepare(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -290,7 +290,7 @@ func TestWaitEnabled(t *testing.T) {
 func TestRemove(t *testing.T) {
 	b := newMockBackend()
 	c := newTestController(b, false)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if err := c.Prepare(ctx); err != nil {
 		t.Fatal(err)
