@@ -1290,7 +1290,7 @@ func TestDeadlockOnBlockedEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, unblock := context.WithCancel(context.Background())
+	ctx, unblock := context.WithCancel(t.Context())
 	hec.withBlock(ctx)
 	defer unblock()
 
