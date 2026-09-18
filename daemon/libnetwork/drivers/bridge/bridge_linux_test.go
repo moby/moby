@@ -302,7 +302,7 @@ func TestCreateFullOptions(t *testing.T) {
 			AuxAddresses: map[string]*net.IPNet{DefaultGatewayV4AuxKey: defgw},
 		},
 	}
-	err = d.CreateNetwork(context.Background(), "dummy", netOption, nil, ipdList, getIPv6Data(t))
+	err = d.CreateNetwork(t.Context(), "dummy", netOption, nil, ipdList, getIPv6Data(t))
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -310,7 +310,7 @@ func TestCreateFullOptions(t *testing.T) {
 	// Verify the IP address allocated for the endpoint belongs to the container network
 	epOptions := make(map[string]any)
 	te := newTestEndpoint(cnw, 10)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), epOptions)
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep1", te.Interface(), epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
@@ -329,7 +329,7 @@ func TestCreateNoConfig(t *testing.T) {
 	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = netconfig
 
-	if err := d.CreateNetwork(context.Background(), "dummy", genericOption, nil, getIPv4Data(t), nil); err != nil {
+	if err := d.CreateNetwork(t.Context(), "dummy", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 }
@@ -372,7 +372,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 		},
 	}
 
-	err = d.CreateNetwork(context.Background(), "dummy", netOption, nil, ipdList, ipd6List)
+	err = d.CreateNetwork(t.Context(), "dummy", netOption, nil, ipdList, ipd6List)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -422,7 +422,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 
 	// Check that a MAC address is generated if not already configured.
 	te1 := newTestEndpoint(ipdList[0].Pool, 20)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te1.Interface(), map[string]any{})
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep1", te1.Interface(), map[string]any{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(te1.iface.mac, 6))
 
@@ -430,7 +430,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 	te2 := newTestEndpoint(ipdList[0].Pool, 20)
 	const macAddr = "aa:bb:cc:dd:ee:ff"
 	te2.iface.mac = netutils.MustParseMAC(macAddr)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep2", te2.Interface(), map[string]any{})
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep2", te2.Interface(), map[string]any{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(te2.iface.mac.String(), macAddr))
 }
@@ -490,7 +490,7 @@ func TestCreateVeth(t *testing.T) {
 			}()
 
 			iface := &testInterface{netnsPath: netnsPath}
-			nlhCtr, err := createVeth(context.Background(), hostIfName, containerIfName, iface, nlh)
+			nlhCtr, err := createVeth(t.Context(), hostIfName, containerIfName, iface, nlh)
 			assert.Check(t, err)
 
 			assert.Check(t, is.Equal(iface.createdInContainer, tc.expCreatedInContainer))
@@ -523,11 +523,11 @@ func TestCreate(t *testing.T) {
 	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = netconfig
 
-	if err := d.CreateNetwork(context.Background(), "dummy", genericOption, nil, getIPv4Data(t), nil); err != nil {
+	if err := d.CreateNetwork(t.Context(), "dummy", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	err = d.CreateNetwork(context.Background(), "dummy", genericOption, nil, getIPv4Data(t), nil)
+	err = d.CreateNetwork(t.Context(), "dummy", genericOption, nil, getIPv4Data(t), nil)
 	if err == nil {
 		t.Fatal("Expected bridge driver to refuse creation of second network with default name")
 	}
@@ -546,7 +546,7 @@ func TestCreateFail(t *testing.T) {
 	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = netconfig
 
-	if err := d.CreateNetwork(context.Background(), "dummy", genericOption, nil, getIPv4Data(t), nil); err == nil {
+	if err := d.CreateNetwork(t.Context(), "dummy", genericOption, nil, getIPv4Data(t), nil); err == nil {
 		t.Fatal("Bridge creation was expected to fail")
 	}
 }
@@ -575,28 +575,28 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	config1 := &networkConfiguration{BridgeName: "net_test_1", EnableIPv4: true}
 	genericOption := make(map[string]any)
 	genericOption[netlabel.GenericData] = config1
-	if err := d.CreateNetwork(context.Background(), "1", genericOption, nil, getIPv4Data(t), nil); err != nil {
+	if err := d.CreateNetwork(t.Context(), "1", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 	checkFirewallerNetworks()
 
 	config2 := &networkConfiguration{BridgeName: "net_test_2", EnableIPv4: true}
 	genericOption[netlabel.GenericData] = config2
-	if err := d.CreateNetwork(context.Background(), "2", genericOption, nil, getIPv4Data(t), nil); err != nil {
+	if err := d.CreateNetwork(t.Context(), "2", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 	checkFirewallerNetworks()
 
 	config3 := &networkConfiguration{BridgeName: "net_test_3", EnableIPv4: true}
 	genericOption[netlabel.GenericData] = config3
-	if err := d.CreateNetwork(context.Background(), "3", genericOption, nil, getIPv4Data(t), nil); err != nil {
+	if err := d.CreateNetwork(t.Context(), "3", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 	checkFirewallerNetworks()
 
 	config4 := &networkConfiguration{BridgeName: "net_test_4", EnableIPv4: true}
 	genericOption[netlabel.GenericData] = config4
-	if err := d.CreateNetwork(context.Background(), "4", genericOption, nil, getIPv4Data(t), nil); err != nil {
+	if err := d.CreateNetwork(t.Context(), "4", genericOption, nil, getIPv4Data(t), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 	checkFirewallerNetworks()
@@ -783,7 +783,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	genericOption[netlabel.GenericData] = netconfig
 
 	ipdList := getIPv4Data(t)
-	err = d.CreateNetwork(context.Background(), "net1", genericOption, nil, ipdList, nil)
+	err = d.CreateNetwork(t.Context(), "net1", genericOption, nil, ipdList, nil)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -792,17 +792,17 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	sbOptions[netlabel.PortMap] = getPortMapping()
 
 	te := newTestEndpoint(ipdList[0].Pool, 11)
-	err = d.CreateEndpoint(context.Background(), "net1", "ep1", te.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "net1", "ep1", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
 
-	err = d.Join(context.Background(), "net1", "ep1", "sbox", te, nil, sbOptions)
+	err = d.Join(t.Context(), "net1", "ep1", "sbox", te, nil, sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 
-	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep1", "ep1", "")
+	err = d.ProgramExternalConnectivity(t.Context(), "net1", "ep1", "ep1", "")
 	if err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
@@ -833,7 +833,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 		}
 	}
 
-	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep1", "", "")
+	err = d.ProgramExternalConnectivity(t.Context(), "net1", "ep1", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -879,13 +879,13 @@ func TestLinkContainers(t *testing.T) {
 	genericOption[netlabel.GenericData] = netconfig
 
 	ipdList := getIPv4Data(t)
-	err = d.CreateNetwork(context.Background(), "net1", genericOption, nil, ipdList, nil)
+	err = d.CreateNetwork(t.Context(), "net1", genericOption, nil, ipdList, nil)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
 	te1 := newTestEndpoint(ipdList[0].Pool, 11)
-	err = d.CreateEndpoint(context.Background(), "net1", "ep1", te1.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "net1", "ep1", te1.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
@@ -894,12 +894,12 @@ func TestLinkContainers(t *testing.T) {
 	sbOptions := make(map[string]any)
 	sbOptions[netlabel.ExposedPorts] = exposedPorts
 
-	err = d.Join(context.Background(), "net1", "ep1", "sbox", te1, nil, sbOptions)
+	err = d.Join(t.Context(), "net1", "ep1", "sbox", te1, nil, sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 
-	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep1", "ep1", "")
+	err = d.ProgramExternalConnectivity(t.Context(), "net1", "ep1", "ep1", "")
 	if err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
@@ -910,7 +910,7 @@ func TestLinkContainers(t *testing.T) {
 	}
 
 	te2 := newTestEndpoint(ipdList[0].Pool, 22)
-	err = d.CreateEndpoint(context.Background(), "net1", "ep2", te2.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "net1", "ep2", te2.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
@@ -925,12 +925,12 @@ func TestLinkContainers(t *testing.T) {
 		"ChildEndpoints": []string{"ep1"},
 	}
 
-	err = d.Join(context.Background(), "net1", "ep2", "", te2, nil, sbOptions)
+	err = d.Join(t.Context(), "net1", "ep2", "", te2, nil, sbOptions)
 	if err != nil {
 		t.Fatal("Failed to link ep1 and ep2")
 	}
 
-	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep2", "ep2", "ep2")
+	err = d.ProgramExternalConnectivity(t.Context(), "net1", "ep2", "ep2", "ep2")
 	if err != nil {
 		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
@@ -949,7 +949,7 @@ func TestLinkContainers(t *testing.T) {
 	}
 	checkLink(true)
 
-	err = d.ProgramExternalConnectivity(context.Background(), "net1", "ep2", "", "")
+	err = d.ProgramExternalConnectivity(t.Context(), "net1", "ep2", "", "")
 	if err != nil {
 		t.Fatalf("Failed to revoke external connectivity: %v", err)
 	}
@@ -965,7 +965,7 @@ func TestLinkContainers(t *testing.T) {
 		"ChildEndpoints": []string{"ep1", "ep4"},
 	}
 
-	err = d.Join(context.Background(), "net1", "ep2", "", te2, nil, sbOptions)
+	err = d.Join(t.Context(), "net1", "ep2", "", te2, nil, sbOptions)
 	assert.Check(t, err != nil, "Expected Join to fail given link conditions are not satisfied")
 	checkLink(false)
 }
@@ -1147,18 +1147,18 @@ func TestSetDefaultGw(t *testing.T) {
 		},
 	}
 
-	err = d.CreateNetwork(context.Background(), "dummy", option, nil, ipam4, ipam6)
+	err = d.CreateNetwork(t.Context(), "dummy", option, nil, ipam4, ipam6)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
 	te := newTestEndpoint(ipam4[0].Pool, 10)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create endpoint: %v", err)
 	}
 
-	err = d.Join(context.Background(), "dummy", "ep", "sbox", te, nil, nil)
+	err = d.Join(t.Context(), "dummy", "ep", "sbox", te, nil, nil)
 	if err != nil {
 		t.Fatalf("Failed to join endpoint: %v", err)
 	}
@@ -1212,7 +1212,7 @@ func TestCreateWithExistingBridge(t *testing.T) {
 	// Set network gateway to X.X.X.1
 	ipv4Data[0].Gateway.IP[len(ipv4Data[0].Gateway.IP)-1] = 1
 
-	if err := d.CreateNetwork(context.Background(), brName, genericOption, nil, ipv4Data, nil); err != nil {
+	if err := d.CreateNetwork(t.Context(), brName, genericOption, nil, ipv4Data, nil); err != nil {
 		t.Fatalf("Failed to create bridge network: %v", err)
 	}
 
@@ -1256,11 +1256,11 @@ func TestCreateParallel(t *testing.T) {
 			config := &networkConfiguration{BridgeName: name, EnableIPv4: true}
 			genericOption := make(map[string]any)
 			genericOption[netlabel.GenericData] = config
-			if err := d.CreateNetwork(context.Background(), name, genericOption, nil, ipV4Data, nil); err != nil {
+			if err := d.CreateNetwork(t.Context(), name, genericOption, nil, ipV4Data, nil); err != nil {
 				ch <- fmt.Errorf("failed to create %s", name)
 				return
 			}
-			if err := d.CreateNetwork(context.Background(), name, genericOption, nil, ipV4Data, nil); err == nil {
+			if err := d.CreateNetwork(t.Context(), name, genericOption, nil, ipV4Data, nil); err == nil {
 				ch <- fmt.Errorf("failed was able to create overlap %s", name)
 				return
 			}
@@ -1328,7 +1328,7 @@ func TestSetupIP6TablesWithHostIPv4(t *testing.T) {
 		driver: d,
 		bridge: br,
 	}
-	fwn, err := nw.newFirewallerNetwork(context.Background())
+	fwn, err := nw.newFirewallerNetwork(t.Context())
 	assert.NilError(t, err)
 	assert.Check(t, fwn != nil, "no firewaller network")
 }
