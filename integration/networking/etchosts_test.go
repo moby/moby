@@ -111,6 +111,7 @@ ff02::2	ip6-allrouters
 // network, the /etc/hosts entries for that network are removed (and no others).
 func TestEtcHostsDisconnect(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "/etc/hosts isn't set up on Windows")
+	skip.If(t, !testEnv.IsKernelModuleLoadable("ipvlan"), "ipvlan kernel module is not loadable")
 
 	ctx := setupTest(t)
 	d := daemon.New(t)
