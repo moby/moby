@@ -1,0 +1,10 @@
+{
+    "api_shortname": "compute-metadata",
+    "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/compute/latest/metadata",
+    "client_library_type": "manual",
+    "description": "Service Metadata API",
+    "distribution_name": "cloud.google.com/go/compute/metadata",
+    "language": "go",
+    "library_type": "CORE",
+    "release_level": "stable"
+}
