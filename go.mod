@@ -11,7 +11,7 @@ tool (
 )
 
 require (
-	cloud.google.com/go/compute/metadata v0.9.0
+	cloud.google.com/go/compute/metadata v0.9.1
 	cloud.google.com/go/logging v1.19.1
 	dario.cat/mergo v1.0.2
 	github.com/Azure/go-ansiterm v0.0.0-20260917205352-e937bb47801a
