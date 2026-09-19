@@ -113,16 +113,13 @@ func (ap *AnsiParser) handle(b byte) error {
 
 	if newState == nil {
 		ap.logf("WARNING: newState is nil")
-		return errors.New("New state of 'nil' is invalid.")
+		return errors.New("new state of 'nil' is invalid")
 	}
 
-	if newState != ap.currState {
-		if err := ap.changeState(newState); err != nil {
-			return err
-		}
+	if newState == ap.currState {
+		return nil
 	}
-
-	return nil
+	return ap.changeState(newState)
 }
 
 func (ap *AnsiParser) changeState(newState state) error {
@@ -136,7 +133,7 @@ func (ap *AnsiParser) changeState(newState state) error {
 
 	// Perform transition action
 	if err := ap.currState.Transition(newState); err != nil {
-		ap.logf("Transition from '%s' to '%s' failed with: '%v'", ap.currState.Name(), newState.Name, err)
+		ap.logf("Transition from '%s' to '%s' failed with: '%v'", ap.currState.Name(), newState.Name(), err)
 		return err
 	}
 
