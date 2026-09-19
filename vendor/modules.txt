@@ -996,10 +996,6 @@ github.com/hashicorp/golang-lru/v2/simplelru
 # github.com/hashicorp/memberlist v0.7.0
 ## explicit; go 1.25.0
 github.com/hashicorp/memberlist
-# github.com/hashicorp/serf v0.11.0
-## explicit; go 1.26.0
-github.com/hashicorp/serf/coordinate
-github.com/hashicorp/serf/serf
 # github.com/hiddeco/sshsig v0.2.0
 ## explicit; go 1.23.0
 github.com/hiddeco/sshsig

@@ -396,8 +396,6 @@ github.com/hashicorp/hcl v1.0.1-vault-7 h1:ag5OxFVy3QYTFTJODRzTKVZ6xvdfLLCA1cy/Y
 github.com/hashicorp/hcl v1.0.1-vault-7/go.mod h1:XYhtn6ijBSAj6n4YqAaf7RBPS4I06AItNorpy+MoQNM=
 github.com/hashicorp/memberlist v0.7.0 h1:JfqTDFUIAzDEYKMhSc3Gpwe05zvSU3/cYtiZ3yW59TM=
 github.com/hashicorp/memberlist v0.7.0/go.mod h1:Qar5D5CgaQAb74gk8Ph/jVcATn4epSDOHOvbSKOLHwg=
-github.com/hashicorp/serf v0.11.0 h1:8PbIr0pQOHs5hpBAkbX0teVLckuLvG3qIZm7hZJO0gc=
-github.com/hashicorp/serf v0.11.0/go.mod h1:k7zXXBvdNnDT5F1xrC0uMJB/0FWf6erElwZNQq/SsBA=
 github.com/hashicorp/vault/api v1.22.0 h1:+HYFquE35/B74fHoIeXlZIP2YADVboaPjaSicHEZiH0=
 github.com/hashicorp/vault/api v1.22.0/go.mod h1:IUZA2cDvr4Ok3+NtK2Oq/r+lJeXkeCrHRmqdyWfpmGM=
 github.com/hiddeco/sshsig v0.2.0 h1:gMWllgKCITXdydVkDL+Zro0PU96QI55LwUwebSwNTSw=
