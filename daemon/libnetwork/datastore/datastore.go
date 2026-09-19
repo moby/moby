@@ -163,6 +163,10 @@ func (ds *Store) List(kvObject KVObject) ([]KVObject, error) {
 	return ds.cache.list(kvObject)
 }
 
+func (ds *Store) KVStore() store.Store {
+	return ds.store
+}
+
 func (ds *Store) iterateKVPairsFromStore(key string, ctor KVObject, callback func(string, KVObject)) error {
 	// Make sure the parent key exists
 	if err := ds.ensureParent(key); err != nil {
