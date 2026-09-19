@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Package dependencyresolver resolves providers served through a gRPC
 // connection.
 package dependencyresolver

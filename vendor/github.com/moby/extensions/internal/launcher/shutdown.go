@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 package launcher
 
 import (
@@ -35,6 +38,7 @@ type processShutdown struct {
 // Close stops the extension once. The host and broker may both call it during
 // failure cleanup, so repeated calls are no-ops.
 func (s *processShutdown) Close(ctx context.Context) error {
+	// FIXME(thaJeztah): Use singleflight for shutdown, detach it from caller cancellation, and avoid waiting indefinitely for the process after SIGKILL.
 	s.once.Do(func() {
 		s.err = errors.Join(
 			s.conn.Close(),

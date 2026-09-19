@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 package launcher
 
 import (
@@ -120,7 +123,7 @@ func (l Launcher) Launch(ctx context.Context, bin string) (*Launched, error) {
 		return nil, fmt.Errorf("start extension %q: %w", name, err)
 	}
 	stop := func() {
-		_ = stopProcess(context.Background(), cmd, wait, shutdownTimeout)
+		_ = stopProcess(context.WithoutCancel(ctx), cmd, wait, shutdownTimeout)
 		_ = lifetime.Close()
 	}
 	startup := sdk.StartupConfig{

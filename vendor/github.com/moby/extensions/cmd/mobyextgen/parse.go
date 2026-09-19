@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
@@ -73,6 +76,27 @@ func parseContract(dir, serviceIdentity string) (point, error) {
 	ifaceType := findInterface(files, pt.iface)
 	if ifaceType == nil {
 		return point{}, fmt.Errorf("interface %q not found", pt.iface)
+	}
+	// Inherit the contract's copyright and license rather than imposing the
+	// generator's notices on output produced for other projects.
+	for _, f := range files {
+		if ifaceType.Pos() < f.Pos() || ifaceType.End() > f.End() {
+			continue
+		}
+		for _, group := range f.Comments {
+			if group.Pos() > f.Package {
+				break
+			}
+			for _, comment := range group.List {
+				if strings.HasPrefix(comment.Text, "// SPDX-FileCopyrightText:") ||
+					strings.HasPrefix(comment.Text, "// SPDX-License-Identifier:") {
+					pt.licenseHeader += comment.Text + "\n"
+				}
+			}
+		}
+	}
+	if pt.licenseHeader != "" {
+		pt.licenseHeader += "\n"
 	}
 	pt.methods, err = parseMethods(ifaceType)
 	if err != nil {
