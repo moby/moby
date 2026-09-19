@@ -27,9 +27,12 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listene
 		}
 		ls = append(ls, fds...)
 	case "tcp":
-		l, err := sockets.NewTCPSocket(addr, tlsConfig)
+		l, err := net.Listen("tcp", addr)
 		if err != nil {
 			return nil, err
+		}
+		if tlsConfig != nil {
+			l = tls.NewListener(l, tlsConfig)
 		}
 		ls = append(ls, l)
 	case "unix":
