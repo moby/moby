@@ -1,8 +1,10 @@
 package networking
 
 import (
+	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -72,4 +74,29 @@ func FirewalldReload(t *testing.T, d *daemon.Daemon) {
 		}
 		return poll.Continue("firewalld reload not complete")
 	}, poll.WithTimeout(30*time.Second))
+}
+
+// StrictRPFilter returns true if IPv4 reverse path filtering will be strict
+// for newly created interfaces. The effective setting for an interface is the
+// max of "all" and the interface's own setting, and a new interface inherits
+// "default" - so filtering is only strict if the max of those two is 1.
+//
+// Strict filtering drops packets arriving on an interface that would not be
+// used to send replies, breaking tests that rely on asymmetric routing. It is
+// the IPv4 counterpart of firewalld's IPv6_rpfilter, and it is enabled by
+// default on RHEL-like distributions.
+func StrictRPFilter() bool {
+	return max(rpFilter("all"), rpFilter("default")) == 1
+}
+
+func rpFilter(iface string) int {
+	val, err := os.ReadFile("/proc/sys/net/ipv4/conf/" + iface + "/rp_filter")
+	if err != nil {
+		return 0
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(string(val)))
+	if err != nil {
+		return 0
+	}
+	return n
 }

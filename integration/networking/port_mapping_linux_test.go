@@ -760,7 +760,9 @@ func TestDirectRoutingOpenPorts(t *testing.T) {
 		t.Parallel()
 		l3.Hosts["remote"].Do(t, func() {
 			t.Helper()
-			pingRes := icmd.RunCommand(cmd, "--numeric", "--count=1", "--timeout=3", addr)
+			// Use short options; GNU inetutils' ping accepts long options, but
+			// iputils' ping (used by most distros) does not.
+			pingRes := icmd.RunCommand(cmd, "-n", "-c1", "-w3", addr)
 			assert.Check(t, pingRes.ExitCode == expExit, "%s %s -> out:%s err:%s",
 				cmd, addr, pingRes.Stdout(), pingRes.Stderr())
 		})
@@ -881,7 +883,9 @@ func TestAcceptFwMark(t *testing.T) {
 		t.Parallel()
 		l3.Hosts["remote"].Do(t, func() {
 			t.Helper()
-			pingRes := icmd.RunCommand(cmd, "--numeric", "--count=1", "--timeout=3", addr)
+			// Use short options; GNU inetutils' ping accepts long options, but
+			// iputils' ping (used by most distros) does not.
+			pingRes := icmd.RunCommand(cmd, "-n", "-c1", "-w3", addr)
 			assert.Check(t, pingRes.ExitCode == expExit, "%s %s -> out:%s err:%s",
 				cmd, addr, pingRes.Stdout(), pingRes.Stderr())
 		})
@@ -939,6 +943,11 @@ func TestAcceptFwMark(t *testing.T) {
 func TestRoutedNonGateway(t *testing.T) {
 	skip.If(t, testEnv.IsRootless())
 	skip.If(t, networking.FirewalldRunning(), "Firewalld's IPv6_rpfilter=yes breaks IPv6 direct routing from L3Segment")
+	// The container replies to the remote host via its default gateway, so its
+	// replies reach the host on the NAT'd network's bridge, with a source address
+	// the host would route via the routed network's bridge. Strict rp_filter
+	// drops them.
+	skip.If(t, networking.StrictRPFilter(), "Strict rp_filter breaks IPv4 direct routing from L3Segment")
 
 	ctx := setupTest(t)
 	d := daemon.New(t)
@@ -1469,18 +1478,34 @@ func TestAccessPortPublishedOnLoopbackAddress(t *testing.T) {
 // But UDP is inherently unreliable, so we need to send the payload multiple
 // times.
 func sendPayloadFromHost(t *testing.T, host networking.Host, daddr, dport, payload string, check func() bool) bool {
+	_, err := exec.LookPath("nc")
+	assert.NilError(t, err, "netcat is needed to send probes")
+
 	var res bool
 	host.Do(t, func() {
-		for i := range 10 {
+		// Keep probing until the deadline. As well as UDP's unreliability, the
+		// container's IPv6 connectivity isn't ready for a moment after it starts,
+		// so the first probes can be dropped. Don't let netcat pace the probes:
+		// OpenBSD's netcat waits for "-w1" before exiting, but nmap's ncat exits
+		// as soon as it has sent the payload - which would leave less than a
+		// second for the whole loop.
+		deadline := time.Now().Add(10 * time.Second)
+		for i := 0; ; i++ {
 			t.Logf("Sending probe #%d to %s:%s from host %s", i, daddr, dport, host.Name)
-			icmd.RunCommand("/bin/sh", "-c", fmt.Sprintf("echo '%s' | nc -w1 -u %s %s", payload, daddr, dport)).Assert(t, icmd.Success)
+			// Don't check the exit status. Some implementations of netcat (for
+			// example, nmap's) report an error when the probe triggers an ICMP
+			// error - which is expected, for example, before the container's
+			// listener is ready. The payload is sent again, in that case.
+			if pRes := icmd.RunCommand("/bin/sh", "-c", fmt.Sprintf("echo '%s' | nc -w1 -u %s %s", payload, daddr, dport)); pRes.Error != nil {
+				t.Logf("Probe #%d failed: %v, %s", i, pRes.Error, pRes.Combined())
+			}
 
 			res = check()
-			if res {
+			if res || time.Now().After(deadline) {
 				return
 			}
 
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
 	})
 	return res
