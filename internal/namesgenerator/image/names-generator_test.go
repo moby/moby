@@ -1,7 +1,6 @@
 package image
 
 import (
-	"context"
 	"testing"
 
 	containernamegeneratorv0 "github.com/moby/moby/v2/extpoints/containernamegenerator/v0"
@@ -26,7 +25,7 @@ func TestGenerateContainerName(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			reply, err := (generator{}).GenerateContainerName(context.Background(), &containernamegeneratorv0.GenerateContainerNameRequest{
+			reply, err := (generator{}).GenerateContainerName(t.Context(), &containernamegeneratorv0.GenerateContainerNameRequest{
 				Retry:       tc.retry,
 				ContainerID: "0123456789abcdef",
 				Image:       "busybox:latest",
@@ -40,7 +39,7 @@ func TestGenerateContainerName(t *testing.T) {
 func TestGenerateServiceName(t *testing.T) {
 	t.Parallel()
 
-	reply, err := (generator{}).GenerateServiceName(context.Background(), &servicenamegeneratorv0.GenerateServiceNameRequest{
+	reply, err := (generator{}).GenerateServiceName(t.Context(), &servicenamegeneratorv0.GenerateServiceNameRequest{
 		Image: "busybox:latest",
 	})
 	assert.NilError(t, err)

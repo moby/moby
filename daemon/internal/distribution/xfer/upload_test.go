@@ -95,7 +95,7 @@ func TestSuccessfulUpload(t *testing.T) {
 	var currentUploads atomic.Int32
 	descriptors := uploadDescriptors(&currentUploads)
 
-	err := lum.Upload(context.Background(), descriptors, progress.ChanOutput(progressChan))
+	err := lum.Upload(t.Context(), descriptors, progress.ChanOutput(progressChan))
 	if err != nil {
 		t.Fatalf("upload error: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestCancelledUpload(t *testing.T) {
 		<-progressDone
 	})
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	go func() {
 		<-time.After(time.Millisecond)

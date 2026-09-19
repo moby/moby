@@ -3,7 +3,6 @@
 package daemon
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -32,7 +31,7 @@ func TestExecSetPlatformOptPreservesUmaskWhenResolvingUser(t *testing.T) {
 	p := &specs.Process{User: specs.User{Umask: &umask}}
 	cfg := &configStore{}
 
-	err := (&Daemon{}).execSetPlatformOpt(context.Background(), &cfg.Config, ec, p)
+	err := (&Daemon{}).execSetPlatformOpt(t.Context(), &cfg.Config, ec, p)
 	assert.NilError(t, err)
 	assert.Equal(t, p.User.UID, uint32(1234))
 	assert.Equal(t, p.User.GID, uint32(5678))
@@ -108,7 +107,7 @@ func TestExecSetPlatformOptAppArmor(t *testing.T) {
 				ec := &container.ExecConfig{Container: c, Privileged: execPrivileged}
 				p := &specs.Process{}
 
-				err := d.execSetPlatformOpt(context.Background(), &cfg.Config, ec, p)
+				err := d.execSetPlatformOpt(t.Context(), &cfg.Config, ec, p)
 				assert.NilError(t, err)
 				assert.Equal(t, p.ApparmorProfile, tc.expectedProfile)
 			})

@@ -38,14 +38,13 @@ func TestMiddlewareWrapHandler(t *testing.T) {
 	req.Header.Add("header", "value")
 
 	resp := httptest.NewRecorder()
-	ctx := context.Background()
 
 	t.Run("Error Test Case :", func(t *testing.T) {
 		server.replayResponse = Response{
 			Allow: false,
 			Msg:   "Server Auth Not Allowed",
 		}
-		if err := mdHandler(ctx, resp, req, map[string]string{}); err == nil {
+		if err := mdHandler(t.Context(), resp, req, map[string]string{}); err == nil {
 			assert.ErrorContains(t, err, "")
 		}
 	})
@@ -55,7 +54,7 @@ func TestMiddlewareWrapHandler(t *testing.T) {
 			Allow: true,
 			Msg:   "Server Auth Allowed",
 		}
-		if err := mdHandler(ctx, resp, req, map[string]string{}); err != nil {
+		if err := mdHandler(t.Context(), resp, req, map[string]string{}); err != nil {
 			assert.NilError(t, err)
 		}
 	})

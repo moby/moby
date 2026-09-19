@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -22,7 +21,7 @@ func TestServiceCreate(t *testing.T) {
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver("d1"), "d1"))
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver("d2"), "d2"))
 
-	ctx := context.Background()
+	ctx := t.Context()
 	service, cleanup := newTestService(t, ds)
 	defer cleanup()
 
@@ -57,7 +56,7 @@ func TestServiceList(t *testing.T) {
 	service, cleanup := newTestService(t, ds)
 	defer cleanup()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := service.Create(ctx, "v1", "d1")
 	assert.NilError(t, err)
@@ -110,7 +109,7 @@ func TestServiceRemove(t *testing.T) {
 
 	service, cleanup := newTestService(t, ds)
 	defer cleanup()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := service.Create(ctx, "test", "d1")
 	assert.NilError(t, err)
@@ -127,7 +126,7 @@ func TestServiceGet(t *testing.T) {
 
 	service, cleanup := newTestService(t, ds)
 	defer cleanup()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	v, err := service.Get(ctx, "notexist")
 	assert.Assert(t, IsNotExist(err))
@@ -165,7 +164,7 @@ func TestServicePrune(t *testing.T) {
 
 	service, cleanup := newTestService(t, ds)
 	defer cleanup()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := service.Create(ctx, "test", volume.DefaultDriverName)
 	assert.NilError(t, err)

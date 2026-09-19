@@ -1030,7 +1030,7 @@ func (d *Daemon) queryRootDir() (string, error) {
 func (d *Daemon) Info(t testing.TB) system.Info {
 	t.Helper()
 	c := d.NewClientT(t)
-	result, err := c.Info(context.Background(), client.InfoOptions{})
+	result, err := c.Info(t.Context(), client.InfoOptions{})
 	assert.NilError(t, err)
 	info := result.Info
 	assert.NilError(t, c.Close())

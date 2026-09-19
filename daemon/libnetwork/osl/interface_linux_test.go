@@ -1,7 +1,6 @@
 package osl
 
 import (
-	"context"
 	"fmt"
 	"runtime"
 	"sort"
@@ -75,7 +74,7 @@ func TestAddInterfaceInParallel(t *testing.T) {
 	for i := range 10 {
 		src := fmt.Sprintf("dummy%d", i)
 		wg.Go(func() {
-			err := ns.AddInterface(context.Background(), src, "eth", "", WithCreatedInContainer(true))
+			err := ns.AddInterface(t.Context(), src, "eth", "", WithCreatedInContainer(true))
 			assert.NilError(t, err)
 		})
 	}
@@ -123,7 +122,7 @@ func TestRemoveInterfaceTwice(t *testing.T) {
 	assert.NilError(t, nlh.LinkAdd(&netlink.Dummy{
 		LinkAttrs: netlink.LinkAttrs{Name: "dummy0"},
 	}))
-	assert.NilError(t, ns.AddInterface(context.Background(), "dummy0", "eth", "", WithCreatedInContainer(true)))
+	assert.NilError(t, ns.AddInterface(t.Context(), "dummy0", "eth", "", WithCreatedInContainer(true)))
 
 	ifaces := ns.Interfaces()
 	assert.Assert(t, is.Len(ifaces, 1))

@@ -1,7 +1,6 @@
 package cnmallocator
 
 import (
-	"context"
 	"net/netip"
 	"testing"
 
@@ -57,7 +56,7 @@ func TestOnGetNetworkUnallocated(t *testing.T) {
 		},
 	}
 
-	assert.NilError(t, na.OnGetNetwork(context.Background(), n, typeurl, appdata))
+	assert.NilError(t, na.OnGetNetwork(t.Context(), n, typeurl, appdata))
 	// There is no status to report, rather than an empty one: a client cannot
 	// tell an absent Status from a manager too old to report any, and the
 	// unallocated condition is already visible in the empty IPAM config.
@@ -87,7 +86,7 @@ func TestOnGetNetworkAllocated(t *testing.T) {
 	}
 	assert.NilError(t, na.(networkallocator.NetworkAllocator).Allocate(n))
 
-	assert.NilError(t, na.OnGetNetwork(context.Background(), n, typeurl, appdata))
+	assert.NilError(t, na.OnGetNetwork(t.Context(), n, typeurl, appdata))
 	assert.Assert(t, n.Extra != nil, "no status reported for an allocated network")
 
 	status, err := netextra.StatusFrom(n.Extra)
@@ -114,10 +113,10 @@ func TestOnGetNetworkWithoutStatusRequested(t *testing.T) {
 		},
 	}
 
-	assert.NilError(t, na.OnGetNetwork(context.Background(), n, "", nil))
+	assert.NilError(t, na.OnGetNetwork(t.Context(), n, "", nil))
 	assert.Check(t, is.Nil(n.Extra))
 
 	assert.NilError(t, na.(networkallocator.NetworkAllocator).Allocate(n))
-	assert.NilError(t, na.OnGetNetwork(context.Background(), n, "", nil))
+	assert.NilError(t, na.OnGetNetwork(t.Context(), n, "", nil))
 	assert.Check(t, is.Nil(n.Extra))
 }

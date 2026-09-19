@@ -1,7 +1,6 @@
 package distribution
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -34,7 +33,7 @@ func TestNoMatchesErr(t *testing.T) {
 }
 
 func TestPullSchema2Config(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	const imageJSON = `{
 	"architecture": "amd64",
@@ -177,7 +176,7 @@ func testNewPuller(t *testing.T, rawurl string) *puller {
 	}
 
 	p := newPuller(registry.APIEndpoint{URL: uri}, repoName, imagePullConfig, nil)
-	p.repo, err = newRepository(context.Background(), repoName, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	p.repo, err = newRepository(t.Context(), repoName, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	assert.NilError(t, err)
 	return p
 }

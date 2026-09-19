@@ -1,7 +1,6 @@
 package defaultipam
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/netip"
@@ -161,7 +160,7 @@ func allocate(t *testing.T, tctx *testContext, parallel int64) {
 	for {
 		wg.Add(1)
 		go func(id int) {
-			parallelExec.Acquire(context.Background(), 1)
+			parallelExec.Acquire(t.Context(), 1)
 			ip, _, _ := tctx.a.RequestAddress(tctx.pid, nil, tctx.opts)
 			ch <- ip
 			parallelExec.Release(1)
@@ -229,7 +228,7 @@ func release(t *testing.T, tctx *testContext, mode releaseMode, parallel int64) 
 	group := new(errgroup.Group)
 	for i := range ipIndex {
 		group.Go(func() error {
-			parallelExec.Acquire(context.Background(), 1)
+			parallelExec.Acquire(t.Context(), 1)
 			err := tctx.a.ReleaseAddress(tctx.pid, tctx.ipList[i].IP)
 			if err != nil {
 				return fmt.Errorf("routine %d got %v", id, err)

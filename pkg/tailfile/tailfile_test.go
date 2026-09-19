@@ -3,7 +3,6 @@ package tailfile
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -15,12 +14,11 @@ import (
 )
 
 func TestTailFile(t *testing.T) {
-	f, err := os.CreateTemp("", "tail-test")
+	f, err := os.CreateTemp(t.TempDir(), "tail-test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
-	defer os.RemoveAll(f.Name())
+	t.Cleanup(func() { _ = f.Close() })
 	testFile := []byte(`first line
 second line
 third line
@@ -69,12 +67,11 @@ truncated line`)
 }
 
 func TestTailFileManyLines(t *testing.T) {
-	f, err := os.CreateTemp("", "tail-test")
+	f, err := os.CreateTemp(t.TempDir(), "tail-test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
-	defer os.RemoveAll(f.Name())
+	t.Cleanup(func() { _ = f.Close() })
 	testFile := []byte(`first line
 second line
 truncated line`)
@@ -100,12 +97,11 @@ truncated line`)
 }
 
 func TestTailEmptyFile(t *testing.T) {
-	f, err := os.CreateTemp("", "tail-test")
+	f, err := os.CreateTemp(t.TempDir(), "tail-test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
-	defer os.RemoveAll(f.Name())
+	t.Cleanup(func() { _ = f.Close() })
 	res, err := TailFile(f, 10000)
 	if err != nil {
 		t.Fatal(err)
@@ -116,12 +112,11 @@ func TestTailEmptyFile(t *testing.T) {
 }
 
 func TestTailNegativeN(t *testing.T) {
-	f, err := os.CreateTemp("", "tail-test")
+	f, err := os.CreateTemp(t.TempDir(), "tail-test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
-	defer os.RemoveAll(f.Name())
+	t.Cleanup(func() { _ = f.Close() })
 	testFile := []byte(`first line
 second line
 truncated line`)
@@ -140,12 +135,11 @@ truncated line`)
 }
 
 func BenchmarkTail(b *testing.B) {
-	f, err := os.CreateTemp("", "tail-test")
+	f, err := os.CreateTemp(b.TempDir(), "tail-test")
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer f.Close()
-	defer os.RemoveAll(f.Name())
+	b.Cleanup(func() { _ = f.Close() })
 	for range 10000 {
 		if _, err := f.WriteString("tailfile pretty interesting line\n"); err != nil {
 			b.Fatal(err)
@@ -161,7 +155,6 @@ func BenchmarkTail(b *testing.B) {
 
 func TestNewTailReader(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
 
 	for dName, delim := range map[string][]byte{
 		"no delimiter":          {},
@@ -172,7 +165,6 @@ func TestNewTailReader(t *testing.T) {
 		"12 byte delimiter":     []byte("############"),
 	} {
 		t.Run(dName, func(t *testing.T) {
-			delim := delim
 			t.Parallel()
 
 			s1 := "Hello world."
@@ -207,7 +199,6 @@ func TestNewTailReader(t *testing.T) {
 				{desc: "same length as delimiter", data: []string{strings.Repeat("a", len(delim))}},
 			} {
 				t.Run(test.desc, func(t *testing.T) {
-					test := test
 					t.Parallel()
 
 					maxLen := min(len(test.data), 10)
@@ -219,11 +210,10 @@ func TestNewTailReader(t *testing.T) {
 
 					for i := 1; i <= maxLen; i++ {
 						t.Run(fmt.Sprintf("%d lines", i), func(t *testing.T) {
-							i := i
 							t.Parallel()
 
 							r := strings.NewReader(s)
-							tr, lines, err := NewTailReaderWithDelimiter(ctx, r, i, delim)
+							tr, lines, err := NewTailReaderWithDelimiter(t.Context(), r, i, delim)
 							if len(delim) == 0 {
 								assert.Assert(t, err != nil)
 								assert.Assert(t, lines == 0)
@@ -246,7 +236,7 @@ func TestNewTailReader(t *testing.T) {
 						t.Parallel()
 
 						r := strings.NewReader(s)
-						tr, lines, err := NewTailReaderWithDelimiter(ctx, r, len(test.data)*2, delim)
+						tr, lines, err := NewTailReaderWithDelimiter(t.Context(), r, len(test.data)*2, delim)
 						if len(delim) == 0 {
 							assert.Assert(t, err != nil)
 							assert.Assert(t, lines == 0)
@@ -269,7 +259,7 @@ func TestNewTailReader(t *testing.T) {
 	}
 	t.Run("truncated last line", func(t *testing.T) {
 		t.Run("more than available", func(t *testing.T) {
-			tail, nLines, err := NewTailReader(ctx, strings.NewReader("a\nb\nextra"), 3)
+			tail, nLines, err := NewTailReader(t.Context(), strings.NewReader("a\nb\nextra"), 3)
 			assert.NilError(t, err)
 			assert.Check(t, nLines == 2, nLines)
 
@@ -288,7 +278,7 @@ func TestNewTailReader(t *testing.T) {
 	})
 	t.Run("truncated last line", func(t *testing.T) {
 		t.Run("exact", func(t *testing.T) {
-			tail, nLines, err := NewTailReader(ctx, strings.NewReader("a\nb\nextra"), 2)
+			tail, nLines, err := NewTailReader(t.Context(), strings.NewReader("a\nb\nextra"), 2)
 			assert.NilError(t, err)
 			assert.Check(t, nLines == 2, nLines)
 
@@ -308,7 +298,7 @@ func TestNewTailReader(t *testing.T) {
 
 	t.Run("truncated last line", func(t *testing.T) {
 		t.Run("one line", func(t *testing.T) {
-			tail, nLines, err := NewTailReader(ctx, strings.NewReader("a\nb\nextra"), 1)
+			tail, nLines, err := NewTailReader(t.Context(), strings.NewReader("a\nb\nextra"), 1)
 			assert.NilError(t, err)
 			assert.Check(t, nLines == 1, nLines)
 

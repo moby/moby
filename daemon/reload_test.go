@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"context"
 	"net/netip"
 	"os"
 	"testing"
@@ -355,7 +354,7 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	controller, err := libnetwork.New(context.Background(), netOptions...)
+	controller, err := libnetwork.New(t.Context(), netOptions...)
 	if err != nil {
 		t.Fatal(err)
 	}

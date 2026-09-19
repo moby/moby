@@ -1,12 +1,11 @@
 package filedescriptors
 
 import (
-	"context"
 	"testing"
 )
 
 func BenchmarkGetTotalUsedFds(b *testing.B) {
-	ctx := context.Background()
+	ctx := b.Context()
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = GetTotalUsedFds(ctx)

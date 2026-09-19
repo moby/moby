@@ -81,7 +81,7 @@ func testStreamCopy(t *testing.T, stdin io.ReadCloser, stdout, stderr io.WriteCl
 	sc.AttachStreams(&cfg)
 	defer sc.CloseStreams()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	chErr := sc.CopyStreams(ctx, &cfg)
 
