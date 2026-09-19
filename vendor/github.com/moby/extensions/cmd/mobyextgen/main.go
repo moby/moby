@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Command mobyextgen generates an extension point or service's wire contract
 // and transport code from a Go interface and pb-tagged message structs.
 //

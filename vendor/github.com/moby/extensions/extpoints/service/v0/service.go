@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Package servicev0 defines metadata through which extensions offer ordinary
 // Points for Host-controlled publication.
 package servicev0

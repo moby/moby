@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 //go:generate go run github.com/moby/extensions/cmd/mobyextgen -service=moby.extension.runtime.v1.Extension
 
 // Package sdkapi defines the runtime protocol served by every out-of-process

@@ -373,3 +373,7 @@ extension API.
 - The mental model, principles, authoring flow, and glossary provide the short normative rules and definitions.
 - [DESIGN.md](./docs/DESIGN.md) - current behavior, constraints, wire protocol, and discovery security.
 - [AUTHORING.md](./docs/AUTHORING.md) - procedures, commands, code, and checklists.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE).

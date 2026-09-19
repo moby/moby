@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Package host runs extensions and resolves their point providers for a host
 // process such as the Moby daemon.
 package host
@@ -13,6 +16,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/containerd/log"
 	"github.com/moby/extensions"
 	"github.com/moby/extensions/clientpoint"
 	servicev0 "github.com/moby/extensions/extpoints/service/v0"
@@ -228,6 +232,11 @@ type loadedExtension struct {
 	close     func(context.Context) error
 }
 
+type registeredExtension struct {
+	identity  extensions.ExtensionIdentity
+	providers []extensions.Provider
+}
+
 // hostedExtension is the runtime-neutral declaration and lifecycle surface
 // needed to adapt an externally hosted extension to the broker.
 type hostedExtension struct {
@@ -297,6 +306,7 @@ func New(ctx context.Context, optionList ...Option) (_ *Host, retErr error) {
 	b := broker.New()
 	conns := make(map[extensions.ExtensionID]grpc.ClientConnInterface)
 	var loaded []loadedExtension
+	var registered []registeredExtension
 	publishedServices := make(map[extensions.ExtensionID]map[extensions.PointID][]string)
 	publishedOwners := make(map[string]extensions.ExtensionID)
 	var inProcessServices []servicegrpc.Service
@@ -305,8 +315,9 @@ func New(ctx context.Context, optionList ...Option) (_ *Host, retErr error) {
 	// also explicitly close loaded resources.
 	defer func() {
 		if retErr != nil {
-			_ = b.Shutdown(context.Background())
-			closeLoaded(context.Background(), loaded)
+			ctx := context.WithoutCancel(ctx)
+			_ = b.Shutdown(ctx)
+			closeLoaded(ctx, loaded)
 			if callback != nil {
 				callback.Stop()
 			}
@@ -341,6 +352,7 @@ func New(ctx context.Context, optionList ...Option) (_ *Host, retErr error) {
 		if err := b.Register(identity, extensions.New(decl)); err != nil {
 			return nil, err
 		}
+		registered = append(registered, registeredExtension{identity: identity, providers: admittedProviders})
 	}
 	l := launcher.Launcher{
 		RuntimeDir:       opts.runtimeDir,
@@ -374,6 +386,7 @@ func New(ctx context.Context, optionList ...Option) (_ *Host, retErr error) {
 			if err := b.Register(identity, extensions.New(decl)); err != nil {
 				return nil, err
 			}
+			registered = append(registered, registeredExtension{identity: identity, providers: admittedProviders})
 			conns[identity.ID] = started.Conn
 		}
 	}
@@ -404,6 +417,21 @@ func New(ctx context.Context, optionList ...Option) (_ *Host, retErr error) {
 
 	if err := b.Init(ctx, opts.extensionConfig); err != nil {
 		return nil, err
+	}
+	for _, ext := range registered {
+		providerIDs := make([]string, len(ext.providers))
+		for i, provider := range ext.providers {
+			providerIDs[i] = string(provider.Point)
+		}
+		fields := log.Fields{
+			"extension": ext.identity.ID,
+			"origin":    ext.identity.Origin.Kind,
+			"providers": providerIDs,
+		}
+		if executable := ext.identity.Origin.Executable; executable != nil {
+			fields["path"] = executable.Path
+		}
+		log.G(ctx).WithFields(fields).Info("loaded extension")
 	}
 	return &Host{broker: b, conns: conns, loaded: loaded, publishedServices: publishedServices, inProcessServices: inProcessServices, callback: callback}, nil
 }
@@ -649,7 +677,7 @@ func loadProcess(ctx context.Context, l launcher.Launcher, bin string, providers
 	owned := true
 	defer func() {
 		if owned {
-			_ = launched.Close(context.Background())
+			_ = launched.Close(context.WithoutCancel(ctx))
 		}
 	}()
 
