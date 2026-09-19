@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Package extensiondecl converts and validates declarations reported by
 // externally hosted extensions.
 package extensiondecl

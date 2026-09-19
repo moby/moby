@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Package grpcproxy forwards gRPC calls by service name without importing the
 // service's proto. It is used to publish extension services on the daemon socket.
 package grpcproxy
