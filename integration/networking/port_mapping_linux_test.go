@@ -1483,7 +1483,14 @@ func sendPayloadFromHost(t *testing.T, host networking.Host, daddr, dport, paylo
 
 	var res bool
 	host.Do(t, func() {
-		for i := range 10 {
+		// Keep probing until the deadline. As well as UDP's unreliability, the
+		// container's IPv6 connectivity isn't ready for a moment after it starts,
+		// so the first probes can be dropped. Don't let netcat pace the probes:
+		// OpenBSD's netcat waits for "-w1" before exiting, but nmap's ncat exits
+		// as soon as it has sent the payload - which would leave less than a
+		// second for the whole loop.
+		deadline := time.Now().Add(10 * time.Second)
+		for i := 0; ; i++ {
 			t.Logf("Sending probe #%d to %s:%s from host %s", i, daddr, dport, host.Name)
 			// Don't check the exit status. Some implementations of netcat (for
 			// example, nmap's) report an error when the probe triggers an ICMP
@@ -1494,11 +1501,11 @@ func sendPayloadFromHost(t *testing.T, host networking.Host, daddr, dport, paylo
 			}
 
 			res = check()
-			if res {
+			if res || time.Now().After(deadline) {
 				return
 			}
 
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
 	})
 	return res
