@@ -10,14 +10,13 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/serf/serf"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 // newTestNetworkDBWithPeer returns a NetworkDB which has joined network1, and
 // a peer node1 attached to it, along with the delegates needed to drive them.
-func newTestNetworkDBWithPeer(t *testing.T) (*NetworkDB, *eventDelegate, *memberlist.Node, func(ltime serf.LamportTime, typ TableEvent_Type, key string, value []byte)) {
+func newTestNetworkDBWithPeer(t *testing.T) (*NetworkDB, *eventDelegate, *memberlist.Node, func(ltime uint64, typ TableEvent_Type, key string, value []byte)) {
 	t.Helper()
 	nDB := newNetworkDB(DefaultConfig())
 	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{}
@@ -37,7 +36,7 @@ func newTestNetworkDBWithPeer(t *testing.T) (*NetworkDB, *eventDelegate, *member
 	d := &delegate{nDB}
 	msgs := &messageBuffer{t: t}
 	appendTableEvent := tableEventHelper(msgs, "node1", "network1", "table1")
-	deliver := func(ltime serf.LamportTime, typ TableEvent_Type, key string, value []byte) {
+	deliver := func(ltime uint64, typ TableEvent_Type, key string, value []byte) {
 		t.Helper()
 		msgs.Reset()
 		appendTableEvent(ltime, typ, key, value)

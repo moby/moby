@@ -8,7 +8,7 @@ import (
 
 	"github.com/docker/go-events"
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/serf/serf"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/lamport"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -105,7 +105,7 @@ func TestWatch_filters(t *testing.T) {
 		Addr: net.IPv4(1, 2, 3, 4),
 	})
 
-	var ltime serf.LamportClock
+	var ltime lamport.Clock
 	msgs := messageBuffer{t: t}
 	msgs.Append(MessageTypeNetworkEvent, &NetworkEvent{
 		Type:      NetworkEventTypeJoin,
@@ -314,8 +314,8 @@ func (mb *messageBuffer) Reset() {
 	mb.msgs = nil
 }
 
-func tableEventHelper(mb *messageBuffer, nodeName, networkID, tableName string) func(ltime serf.LamportTime, typ TableEvent_Type, key string, value []byte) {
-	return func(ltime serf.LamportTime, typ TableEvent_Type, key string, value []byte) {
+func tableEventHelper(mb *messageBuffer, nodeName, networkID, tableName string) func(ltime uint64, typ TableEvent_Type, key string, value []byte) {
+	return func(ltime uint64, typ TableEvent_Type, key string, value []byte) {
 		mb.t.Helper()
 		mb.Append(MessageTypeTableEvent, &TableEvent{
 			Type:      typ,
