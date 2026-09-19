@@ -85,7 +85,7 @@ func TestTokenPassThruDifferentHost(t *testing.T) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		http.Redirect(w, r, ts.URL+r.URL.Path, http.StatusMovedPermanently)
+		http.Redirect(w, r, ts.URL+r.URL.Path, http.StatusMovedPermanently) // #nosec G710 -- redirect stays on the fixed test-server origin.
 	}))
 	defer tsredirect.Close()
 
