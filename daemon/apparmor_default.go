@@ -126,7 +126,7 @@ func daemonAppArmorProfile() string {
 }
 
 func appArmorMacroExists(m string) bool {
-	_, err := os.Stat(filepath.Join("/etc/apparmor.d", m))
+	_, err := os.Stat(filepath.Join("/etc/apparmor.d", m)) // #nosec G703 -- only used with fixed / hardcoded paths.
 	return err == nil
 }
 

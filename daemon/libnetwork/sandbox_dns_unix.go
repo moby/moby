@@ -349,5 +349,5 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, sBytes, filePerm)
+	return os.WriteFile(dst, sBytes, filePerm) // #nosec G703 -- src and dst are trusted inputs.
 }

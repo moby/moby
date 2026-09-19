@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -472,9 +473,9 @@ func TestIteration(t *testing.T) {
 				Gname:    "users",
 				Size:     4,
 				Typeflag: tar.TypeReg,
-				Xattrs: map[string]string{
-					"user.key1": "value1",
-					"user.key2": "value2",
+				PAXRecords: map[string]string{
+					"SCHILY.xattr.user.key1": "value1",
+					"SCHILY.xattr.user.key2": "value2",
 				},
 			},
 			[]byte("test"),
@@ -490,9 +491,9 @@ func TestIteration(t *testing.T) {
 				Gname:    "users",
 				Size:     4,
 				Typeflag: tar.TypeReg,
-				Xattrs: map[string]string{
-					"user.KEY1": "value1", // adding different case to ensure different sum
-					"user.key2": "value2",
+				PAXRecords: map[string]string{
+					"SCHILY.xattr.user.KEY1": "value1", // adding different case to ensure different sum
+					"SCHILY.xattr.user.key2": "value2",
 				},
 			},
 			[]byte("test"),
@@ -508,8 +509,8 @@ func TestIteration(t *testing.T) {
 				Gname:    "users",
 				Size:     4,
 				Typeflag: tar.TypeReg,
-				Xattrs: map[string]string{
-					"user.NOT": "CALCULATED",
+				PAXRecords: map[string]string{
+					"SCHILY.xattr.user.NOT": "CALCULATED",
 				},
 			},
 			[]byte("test"),
@@ -524,6 +525,32 @@ func TestIteration(t *testing.T) {
 		if s != htest.expectedSum {
 			t.Errorf("expected sum: %q, got: %q", htest.expectedSum, s)
 		}
+	}
+}
+
+// TestV1TarHeaderSelectXattrsCompatibility verifies compatibility with the
+// deprecated Header.Xattrs field, including its precedence over equivalent
+// SCHILY.xattr entries in PAXRecords.
+func TestV1TarHeaderSelectXattrsCompatibility(t *testing.T) {
+	h := &tar.Header{
+		PAXRecords: map[string]string{
+			"SCHILY.xattr.user.pax-only": "pax-only",
+			"SCHILY.xattr.user.both":     "from-pax",
+		},
+		Xattrs: map[string]string{ //nolint:staticcheck // verify compatibility with deprecated field
+			"user.xattrs-only": "xattrs-only",
+			"user.both":        "from-xattrs",
+		},
+	}
+
+	got := v1TarHeaderSelect(h)
+
+	assert.Check(t, is.Contains(got, [2]string{"user.pax-only", "pax-only"}))
+	assert.Check(t, is.Contains(got, [2]string{"user.xattrs-only", "xattrs-only"}))
+	assert.Check(t, is.Contains(got, [2]string{"user.both", "from-xattrs"}))
+
+	if slices.Contains(got, [2]string{"user.both", "from-pax"}) {
+		t.Error(`unexpected PAX value for "user.both"`)
 	}
 }
 

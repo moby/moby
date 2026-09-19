@@ -19,19 +19,14 @@ var (
 type portConfigs []*PortConfig
 
 func (p portConfigs) String() string {
-	if len(p) == 0 {
-		return ""
+	var out strings.Builder
+	for i, pc := range p {
+		if i > 0 {
+			out.WriteByte(',')
+		}
+		_, _ = fmt.Fprintf(&out, "%d:%d/%s", pc.PublishedPort, pc.TargetPort, PortConfig_Protocol_name[int32(pc.Protocol)])
 	}
-
-	pc := p[0]
-	str := fmt.Sprintf("%d:%d/%s", pc.PublishedPort, pc.TargetPort, PortConfig_Protocol_name[int32(pc.Protocol)])
-	var strSb27 strings.Builder
-	for _, pc := range p[1:] {
-		strSb27.WriteString(fmt.Sprintf(",%d:%d/%s", pc.PublishedPort, pc.TargetPort, PortConfig_Protocol_name[int32(pc.Protocol)]))
-	}
-	str += strSb27.String()
-
-	return str
+	return out.String()
 }
 
 type serviceKey struct {
