@@ -19,7 +19,6 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/moby/moby/client"
-	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/moby/moby/v2/internal/testutil/registry"
@@ -82,9 +81,7 @@ func TestImagePullWithExistingSnapshot(t *testing.T) {
 
 	rdr, err := apiClient.ImagePull(ctx, remote, client.ImagePullOptions{})
 	assert.NilError(t, err)
-	defer rdr.Close()
-	assert.NilError(t, jsonmessage.DisplayStream(rdr, io.Discard))
-	assert.NilError(t, rdr.Close())
+	assert.NilError(t, rdr.Wait(ctx))
 
 	checkSavedLayers()
 
@@ -112,9 +109,7 @@ func TestImagePullWithExistingSnapshot(t *testing.T) {
 
 	rdr, err = apiClient.ImagePull(ctx, remote, client.ImagePullOptions{})
 	assert.NilError(t, err)
-	defer rdr.Close()
-	assert.NilError(t, jsonmessage.DisplayStream(rdr, io.Discard))
-	assert.NilError(t, rdr.Close())
+	assert.NilError(t, rdr.Wait(ctx))
 
 	checkSavedLayers()
 }
