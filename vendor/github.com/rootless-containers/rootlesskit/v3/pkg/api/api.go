@@ -5,7 +5,7 @@ import "net"
 const (
 	// Version of the REST API, not implementation version.
 	// See openapi.yaml for the definition.
-	Version = "1.1.2"
+	Version = "1.1.3"
 )
 
 // Info is the structure returned by `GET /info`
@@ -29,7 +29,8 @@ type NetworkDriverInfo struct {
 
 // PortDriverInfo in Info
 type PortDriverInfo struct {
-	Driver                  string   `json:"driver"`
-	Protos                  []string `json:"protos"`
-	DisallowLoopbackChildIP bool     `json:"disallowLoopbackChildIP,omitempty"` // since API v1.1.1
+	Driver                  string            `json:"driver"`
+	Protos                  []string          `json:"protos"`
+	DisallowLoopbackChildIP bool              `json:"disallowLoopbackChildIP,omitempty"` // since API v1.1.1
+	Extra                   map[string]string `json:"extra,omitempty"`                   // since API v1.1.3, driver-specific details, e.g. {"sourceIPTransparentBackend": "nft"} for the builtin driver
 }
