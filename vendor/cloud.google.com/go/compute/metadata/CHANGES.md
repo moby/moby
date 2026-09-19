@@ -1,5 +1,12 @@
 # Changes
 
+## [0.9.1](https://github.com/googleapis/google-cloud-go/compare/compute/metadata/v0.9.0...compute/metadata/v0.9.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* **compute/metadata:** Timeout initial metadata subscriber GET request ([#20488](https://github.com/googleapis/google-cloud-go/issues/20488)) ([f06f6b3](https://github.com/googleapis/google-cloud-go/commit/f06f6b35e4b7ae8b48a3f9d1715229fe81cb2ebd)), refs [#20487](https://github.com/googleapis/google-cloud-go/issues/20487)
+
 ## [0.9.0](https://github.com/googleapis/google-cloud-go/compare/compute/metadata/v0.8.4...compute/metadata/v0.9.0) (2025-09-24)
 
 
