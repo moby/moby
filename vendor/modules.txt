@@ -92,7 +92,7 @@ github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/exported
 github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/generated
 github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/shared
 github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas
-# github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c
+# github.com/Azure/go-ansiterm v0.0.0-20260917205352-e937bb47801a
 ## explicit; go 1.16
 github.com/Azure/go-ansiterm
 github.com/Azure/go-ansiterm/winterm

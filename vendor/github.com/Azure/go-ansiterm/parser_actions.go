@@ -15,10 +15,9 @@ func (ap *AnsiParser) collectInter() error {
 }
 
 func (ap *AnsiParser) escDispatch() error {
-	cmd, _ := parseCmd(*ap.context)
-	intermeds := ap.context.interBuffer
+	cmd := string(ap.context.currentChar)
 	ap.logf("escDispatch currentChar: %#x", ap.context.currentChar)
-	ap.logf("escDispatch: %v(%v)", cmd, intermeds)
+	ap.logf("escDispatch: %s(%q)", cmd, string(ap.context.interBuffer))
 
 	switch cmd {
 	case "D": // IND
@@ -31,14 +30,14 @@ func (ap *AnsiParser) escDispatch() error {
 		return err
 	case "M": // RI
 		return ap.eventHandler.RI()
+	default:
+		return nil
 	}
-
-	return nil
 }
 
 func (ap *AnsiParser) csiDispatch() error {
-	cmd, _ := parseCmd(*ap.context)
-	params, _ := parseParams(ap.context.paramBuffer)
+	cmd := string(ap.context.currentChar)
+	params := parseParams(ap.context.paramBuffer)
 	ap.logf("Parsed params: %v with length: %d", params, len(params))
 
 	ap.logf("csiDispatch: %v(%v)", cmd, params)
@@ -109,9 +108,8 @@ func (ap *AnsiParser) print() error {
 	return ap.eventHandler.Print(ap.context.currentChar)
 }
 
-func (ap *AnsiParser) clear() error {
+func (ap *AnsiParser) clear() {
 	ap.context = &ansiContext{}
-	return nil
 }
 
 func (ap *AnsiParser) execute() error {
