@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -78,6 +80,19 @@ type PutTransformerInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutTransformerInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutTransformerRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutTransformerInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LogGroupIdentifier != nil {
+		s.WriteString(schemas.PutTransformerRequest_logGroupIdentifier, *v.LogGroupIdentifier)
+	}
+	serializeProcessors(s, schemas.PutTransformerRequest_transformerConfig, v.TransformerConfig)
+}
+
 type PutTransformerOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -85,13 +100,26 @@ type PutTransformerOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutTransformerOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(nil)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutTransformerOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *PutTransformerOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, nil, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutTransformerMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutTransformer{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutTransformer, schemas.PutTransformerRequest, nil)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutTransformer{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutTransformer, schemas.PutTransformerRequest, nil), output: &PutTransformerOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

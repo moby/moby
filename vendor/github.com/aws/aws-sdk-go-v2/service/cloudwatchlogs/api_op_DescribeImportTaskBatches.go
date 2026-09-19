@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -46,6 +48,25 @@ type DescribeImportTaskBatchesInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeImportTaskBatchesInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeImportTaskBatchesRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeImportTaskBatchesInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeImportStatusList(s, schemas.DescribeImportTaskBatchesRequest_batchImportStatus, v.BatchImportStatus)
+	if v.ImportId != nil {
+		s.WriteString(schemas.DescribeImportTaskBatchesRequest_importId, *v.ImportId)
+	}
+	if v.Limit != nil {
+		s.WriteInt32(schemas.DescribeImportTaskBatchesRequest_limit, *v.Limit)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeImportTaskBatchesRequest_nextToken, *v.NextToken)
+	}
+}
+
 type DescribeImportTaskBatchesOutput struct {
 
 	// The list of import batches that match the request filters.
@@ -67,13 +88,47 @@ type DescribeImportTaskBatchesOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeImportTaskBatchesOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeImportTaskBatchesResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeImportTaskBatchesOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeImportBatchList(s, schemas.DescribeImportTaskBatchesResponse_importBatches, v.ImportBatches)
+	if v.ImportId != nil {
+		s.WriteString(schemas.DescribeImportTaskBatchesResponse_importId, *v.ImportId)
+	}
+	if v.ImportSourceArn != nil {
+		s.WriteString(schemas.DescribeImportTaskBatchesResponse_importSourceArn, *v.ImportSourceArn)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeImportTaskBatchesResponse_nextToken, *v.NextToken)
+	}
+}
+func (v *DescribeImportTaskBatchesOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DescribeImportTaskBatchesResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DescribeImportTaskBatchesResponse_importBatches:
+			return deserializeImportBatchList(d, schemas.DescribeImportTaskBatchesResponse_importBatches, &v.ImportBatches)
+		case schemas.DescribeImportTaskBatchesResponse_importId:
+			v.ImportId = new(string)
+			return d.ReadString(schemas.DescribeImportTaskBatchesResponse_importId, v.ImportId)
+		case schemas.DescribeImportTaskBatchesResponse_importSourceArn:
+			v.ImportSourceArn = new(string)
+			return d.ReadString(schemas.DescribeImportTaskBatchesResponse_importSourceArn, v.ImportSourceArn)
+		case schemas.DescribeImportTaskBatchesResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.DescribeImportTaskBatchesResponse_nextToken, v.NextToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDescribeImportTaskBatchesMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeImportTaskBatches{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeImportTaskBatches, schemas.DescribeImportTaskBatchesRequest, schemas.DescribeImportTaskBatchesResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeImportTaskBatches{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeImportTaskBatches, schemas.DescribeImportTaskBatchesRequest, schemas.DescribeImportTaskBatchesResponse), output: &DescribeImportTaskBatchesOutput{}}, middleware.After); err != nil {
 		return err
 	}
 
