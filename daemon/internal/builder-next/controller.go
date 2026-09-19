@@ -242,6 +242,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		ContentStore:   wo.ContentStore,
 		TraceCollector: getTraceExporter(ctx),
 		GarbageCollect: w.GarbageCollect,
+		ProxyNetwork:   opt.BuilderConfig.ProxyNetwork,
 	})
 }
 
@@ -523,6 +524,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 		HistoryConfig:  historyConf,
 		TraceCollector: getTraceExporter(ctx),
 		GarbageCollect: w.GarbageCollect,
+		ProxyNetwork:   opt.BuilderConfig.ProxyNetwork,
 	})
 }
 
