@@ -6,6 +6,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 echo "Validating swagger.yaml..."
 
+fy-tool --yaml-1.2 --null-output swagger.yaml
 yamllint -f parsable -c validate/yamllint.yaml swagger.yaml
 
 if out=$(swagger validate swagger.yaml); then
