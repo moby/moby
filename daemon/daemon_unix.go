@@ -15,7 +15,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -588,41 +587,11 @@ func verifyCgroupDriver(config *config.Config) error {
 	}
 }
 
-// UsingSystemd returns true if cli option includes native.cgroupdriver=systemd
-func UsingSystemd(config *config.Config) bool {
-	cd, _, _ := config.GetExecOpt("native.cgroupdriver")
-
-	if cd == cgroupSystemdDriver {
-		return true
-	}
-	// On cgroup v2 hosts, default to systemd driver
-	if cd == "" && cgroups.Mode() == cgroups.Unified && isRunningSystemd() {
-		return true
-	}
-	return false
-}
-
-var (
-	runningSystemd bool
-	detectSystemd  sync.Once
-)
-
-// isRunningSystemd checks whether the host was booted with systemd as its init
-// system. This functions similarly to systemd's `sd_booted(3)`: internally, it
-// checks whether /run/systemd/system/ exists and is a directory.
-// http://www.freedesktop.org/software/systemd/man/sd_booted.html
-//
-// NOTE: This function comes from package github.com/coreos/go-systemd/util
-// It was borrowed here to avoid a dependency on cgo.
-func isRunningSystemd() bool {
-	detectSystemd.Do(func() {
-		fi, err := os.Lstat("/run/systemd/system")
-		if err != nil {
-			return
-		}
-		runningSystemd = fi.IsDir()
-	})
-	return runningSystemd
+// UsingSystemd returns true if cli option includes native.cgroupdriver=systemd.
+// Logic lives in config.UsingSystemd so API-layer helpers can share it
+// without importing the daemon package (which would be an import cycle).
+func UsingSystemd(cfg *config.Config) bool {
+	return config.UsingSystemd(cfg)
 }
 
 // maxHostnameLen is the maximum length (in bytes) of a container hostname on
@@ -748,6 +717,9 @@ func verifyDaemonSettings(conf *config.Config) error {
 	}
 	if err := verifyCgroupDriver(conf); err != nil {
 		return err
+	}
+	if conf.CgroupParentFromClient && conf.CgroupParent != "" {
+		return errors.New("cgroup-parent-from-client and cgroup-parent are mutually exclusive: the client cgroup overrides the static parent, so only one may be set")
 	}
 	if conf.CgroupParent != "" && UsingSystemd(conf) {
 		if len(conf.CgroupParent) <= 6 || !strings.HasSuffix(conf.CgroupParent, ".slice") {
