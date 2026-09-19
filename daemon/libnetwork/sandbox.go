@@ -444,6 +444,11 @@ func (sb *Sandbox) ResolveService(ctx context.Context, name string) ([]*net.SRV,
 	return nil, nil
 }
 
+// internalDomainSuffix is the pseudo-TLD used to look up a container in a
+// user-defined network the sandbox is not attached to. See
+// https://github.com/moby/moby/issues/49572.
+const internalDomainSuffix = ".internal"
+
 func (sb *Sandbox) ResolveName(ctx context.Context, name string, ipType types.IPFamily) ([]net.IP, bool) {
 	// Embedded server owns the docker network domain. Resolution should work
 	// for both container_name and container_name.network_name
@@ -498,6 +503,13 @@ func (sb *Sandbox) ResolveName(ctx context.Context, name string, ipType types.IP
 			return ip, true
 		}
 	}
+
+	// Try the .internal pseudo-domain only after the in-sandbox path so that
+	// a user-defined network literally named "internal" (or "*.internal") is
+	// still resolved via its attached endpoint first.
+	if base, ok := strings.CutSuffix(name, internalDomainSuffix); ok {
+		return sb.resolveCrossNetwork(ctx, base, ipType)
+	}
 	return nil, false
 }
 
@@ -542,6 +554,31 @@ func (sb *Sandbox) resolveName(ctx context.Context, nameOrAlias string, networkN
 		ip, ok := nw.ResolveName(ctx, name, ipType)
 		if ok {
 			return ip, true
+		}
+	}
+	return nil, false
+}
+
+// resolveCrossNetwork looks up "<container>.<network>" in any non-internal
+// user-defined network, even one the sandbox is not attached to. Network names
+// may contain dots, so every split of base is tried from right to left.
+func (sb *Sandbox) resolveCrossNetwork(ctx context.Context, base string, ipType types.IPFamily) ([]net.IP, bool) {
+	ctx, span := otel.Tracer("").Start(ctx, "Sandbox.resolveCrossNetwork", trace.WithAttributes(
+		attribute.String("libnet.resolver.name", base),
+		attribute.Int("libnet.resolver.ip-family", int(ipType))))
+	defer span.End()
+
+	for i := strings.LastIndex(base, "."); i > 0; i = strings.LastIndex(base[:i], ".") {
+		ctrName, netName := base[:i], base[i+1:]
+		if netName == "" {
+			continue
+		}
+		nw, err := sb.controller.NetworkByName(netName)
+		if err != nil || nw.Internal() {
+			continue
+		}
+		if ips, ok := nw.ResolveName(ctx, ctrName, ipType); ok {
+			return ips, true
 		}
 	}
 	return nil, false
