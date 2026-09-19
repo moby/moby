@@ -49,7 +49,7 @@ target="_blank">moby/moby repository</a>.
    ```
 
     In Windows, you'll work in your Docker Quickstart Terminal window instead of
-    Powershell or a `cmd` window.
+    PowerShell or a `cmd` window.
 
 6. Create a `repos` directory.
 
