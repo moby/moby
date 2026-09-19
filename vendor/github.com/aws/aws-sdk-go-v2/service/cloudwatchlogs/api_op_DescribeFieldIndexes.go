@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -72,6 +74,20 @@ type DescribeFieldIndexesInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeFieldIndexesInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeFieldIndexesRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeFieldIndexesInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeIndexCategories(s, schemas.DescribeFieldIndexesRequest_indexCategories, v.IndexCategories)
+	serializeDescribeFieldIndexesLogGroupIdentifiers(s, schemas.DescribeFieldIndexesRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeFieldIndexesRequest_nextToken, *v.NextToken)
+	}
+}
+
 type DescribeFieldIndexesOutput struct {
 
 	// An array containing the field index information.
@@ -86,13 +102,35 @@ type DescribeFieldIndexesOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeFieldIndexesOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeFieldIndexesResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeFieldIndexesOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeFieldIndexes(s, schemas.DescribeFieldIndexesResponse_fieldIndexes, v.FieldIndexes)
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeFieldIndexesResponse_nextToken, *v.NextToken)
+	}
+}
+func (v *DescribeFieldIndexesOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DescribeFieldIndexesResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DescribeFieldIndexesResponse_fieldIndexes:
+			return deserializeFieldIndexes(d, schemas.DescribeFieldIndexesResponse_fieldIndexes, &v.FieldIndexes)
+		case schemas.DescribeFieldIndexesResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.DescribeFieldIndexesResponse_nextToken, v.NextToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDescribeFieldIndexesMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeFieldIndexes{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeFieldIndexes, schemas.DescribeFieldIndexesRequest, schemas.DescribeFieldIndexesResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeFieldIndexes{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeFieldIndexes, schemas.DescribeFieldIndexesRequest, schemas.DescribeFieldIndexesResponse), output: &DescribeFieldIndexesOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

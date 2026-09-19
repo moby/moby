@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -53,6 +55,19 @@ type UntagLogGroupInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *UntagLogGroupInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.UntagLogGroupRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *UntagLogGroupInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LogGroupName != nil {
+		s.WriteString(schemas.UntagLogGroupRequest_logGroupName, *v.LogGroupName)
+	}
+	serializeTagList(s, schemas.UntagLogGroupRequest_tags, v.Tags)
+}
+
 type UntagLogGroupOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -60,13 +75,26 @@ type UntagLogGroupOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *UntagLogGroupOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(nil)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *UntagLogGroupOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *UntagLogGroupOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, nil, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationUntagLogGroupMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpUntagLogGroup{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.UntagLogGroup, schemas.UntagLogGroupRequest, nil)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpUntagLogGroup{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.UntagLogGroup, schemas.UntagLogGroupRequest, nil), output: &UntagLogGroupOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

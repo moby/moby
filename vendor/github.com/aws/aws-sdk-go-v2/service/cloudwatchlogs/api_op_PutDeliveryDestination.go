@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -107,6 +109,30 @@ type PutDeliveryDestinationInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutDeliveryDestinationInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutDeliveryDestinationRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutDeliveryDestinationInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DeliveryDestinationConfiguration != nil {
+		s.WriteStruct(schemas.PutDeliveryDestinationRequest_deliveryDestinationConfiguration)
+		v.DeliveryDestinationConfiguration.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.DeliveryDestinationType != "" {
+		s.WriteString(schemas.PutDeliveryDestinationRequest_deliveryDestinationType, string(v.DeliveryDestinationType))
+	}
+	if v.Name != nil {
+		s.WriteString(schemas.PutDeliveryDestinationRequest_name, *v.Name)
+	}
+	if v.OutputFormat != "" {
+		s.WriteString(schemas.PutDeliveryDestinationRequest_outputFormat, string(v.OutputFormat))
+	}
+	serializeTags(s, schemas.PutDeliveryDestinationRequest_tags, v.Tags)
+}
+
 type PutDeliveryDestinationOutput struct {
 
 	// A structure containing information about the delivery destination that you just
@@ -119,13 +145,34 @@ type PutDeliveryDestinationOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutDeliveryDestinationOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutDeliveryDestinationResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutDeliveryDestinationOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DeliveryDestination != nil {
+		s.WriteStruct(schemas.PutDeliveryDestinationResponse_deliveryDestination)
+		v.DeliveryDestination.SerializeMembers(s)
+		s.CloseStruct()
+	}
+}
+func (v *PutDeliveryDestinationOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PutDeliveryDestinationResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PutDeliveryDestinationResponse_deliveryDestination:
+			v.DeliveryDestination = &types.DeliveryDestination{}
+			return v.DeliveryDestination.Deserialize(d)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutDeliveryDestinationMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutDeliveryDestination{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutDeliveryDestination, schemas.PutDeliveryDestinationRequest, schemas.PutDeliveryDestinationResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutDeliveryDestination{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutDeliveryDestination, schemas.PutDeliveryDestinationRequest, schemas.PutDeliveryDestinationResponse), output: &PutDeliveryDestinationOutput{}}, middleware.After); err != nil {
 		return err
 	}
 
