@@ -29,8 +29,16 @@ type Config struct {
 	// AllowDirectRouting means packets addressed directly to a container's IP address will be
 	// accepted, regardless of which network interface they are from.
 	AllowDirectRouting bool
-	// WSL2Mirrored is true if running under WSL2 with mirrored networking enabled.
-	WSL2Mirrored bool
+	// WSL2Mirrored reports whether the host is running under WSL2 with mirrored
+	// networking enabled. It is called when firewall rules are programmed because
+	// the interface used to detect mirrored mode may appear after daemon startup.
+	WSL2Mirrored func(context.Context) bool
+}
+
+// IsWSL2Mirrored reports whether the host is running under WSL2 with mirrored
+// networking enabled.
+func (c Config) IsWSL2Mirrored(ctx context.Context) bool {
+	return c.WSL2Mirrored != nil && c.WSL2Mirrored(ctx)
 }
 
 // NetworkConfig contains settings for a single bridge network.
