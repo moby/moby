@@ -13,7 +13,10 @@ COMMIT
 :DOCKER-FORWARD - [0:0]
 :DOCKER-INTERNAL - [0:0]
 -A FORWARD -j DOCKER-FORWARD
+-A DOCKER -d fd49:efd7:54aa::1/128 -i br-dummy -o br-dummy -p tcp -m tcp --dport 80 -m conntrack ! --ctorigdst fd49:efd7:54aa::1 -j ACCEPT
 -A DOCKER -d fd49:efd7:54aa::1/128 ! -i br-dummy -o br-dummy -p tcp -m tcp --dport 80 -j ACCEPT
+-A DOCKER -i br-dummy -o br-dummy -p ipv6-icmp -m icmp6 --icmpv6-type 135 -j ACCEPT
+-A DOCKER -i br-dummy -o br-dummy -p ipv6-icmp -m icmp6 --icmpv6-type 136 -j ACCEPT
 -A DOCKER ! -i br-dummy -o br-dummy -j DROP
 -A DOCKER-BRIDGE -o br-dummy -j DOCKER
 -A DOCKER-CT -o br-dummy -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT

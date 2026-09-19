@@ -1662,3 +1662,279 @@ func TestPortMappingOnDistinctLoopbackAddrs(t *testing.T) {
 			"%s answered by the wrong container", url)
 	}
 }
+
+// TestAccessPublishedPortFromCtrICCDisabled checks that a container can reach a
+// neighbour's published port via one of the host's addresses when the network
+// has inter-container communication disabled. Publishing a port makes it
+// reachable via the host's addresses from anywhere that can route to them, and
+// a peer on the same bridge is no exception.
+//
+// It also checks that this doesn't open up direct access to the neighbour's own
+// address on that port, which is what disabling ICC is meant to prevent.
+//
+// Regression test for https://github.com/moby/moby/issues/53713
+func TestAccessPublishedPortFromCtrICCDisabled(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "rootlesskit has its own netns")
+
+	const (
+		subnet4 = "192.168.135.0/24"
+		gw4     = "192.168.135.1"
+		subnet6 = "fd6d:9b09:5d3a::/64"
+		gw6     = "fd6d:9b09:5d3a::1"
+	)
+
+	for _, tc := range []struct {
+		name       string
+		daemonOpts []string
+		gwMode     string
+	}{
+		{
+			// Spelled out rather than left to the default, so that this keeps
+			// covering the docker-proxy path if the default ever changes.
+			name:       "with-proxy",
+			daemonOpts: []string{"--userland-proxy=true"},
+		},
+		{
+			// Without docker-proxy the traffic is DNATed across the bridge, so it
+			// has to get past the rules that implement icc=false.
+			name:       "no-proxy",
+			daemonOpts: []string{"--userland-proxy=false"},
+		},
+		{
+			// gw_mode=nat-unprotected skips the per-port forwarding rules
+			// entirely, and its blanket accept excludes traffic arriving on the
+			// bridge - so the hairpin needs its own rule there too.
+			name:       "no-proxy/nat-unprotected",
+			daemonOpts: []string{"--userland-proxy=false"},
+			gwMode:     "nat-unprotected",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := setupTest(t)
+
+			d := daemon.New(t)
+			d.StartWithBusybox(ctx, t, tc.daemonOpts...)
+			defer d.Stop(t)
+			c := d.NewClientT(t)
+			defer c.Close()
+
+			const netName = "ticcpubport"
+			nwOpts := []func(*client.NetworkCreateOptions){
+				network.WithDriver("bridge"),
+				network.WithIPv6(),
+				network.WithOption(bridge.EnableICC, "false"),
+				network.WithIPAM(subnet4, gw4),
+				network.WithIPAM(subnet6, gw6),
+			}
+			if tc.gwMode != "" {
+				nwOpts = append(nwOpts,
+					network.WithOption(bridge.IPv4GatewayMode, tc.gwMode),
+					network.WithOption(bridge.IPv6GatewayMode, tc.gwMode),
+				)
+			}
+			network.CreateNoError(ctx, t, c, netName, nwOpts...)
+			defer network.RemoveNoError(ctx, t, c, netName)
+
+			serverID := container.Run(ctx, t, c,
+				container.WithNetworkMode(netName),
+				container.WithExposedPorts("80"),
+				container.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {
+					{HostIP: netip.MustParseAddr("0.0.0.0")},
+					{HostIP: netip.MustParseAddr("::")},
+				}}),
+				container.WithCmd("httpd", "-f"),
+			)
+			defer c.ContainerRemove(ctx, serverID, client.ContainerRemoveOptions{Force: true})
+
+			inspect := container.Inspect(ctx, t, c, serverID)
+			ctrNet := inspect.NetworkSettings.Networks[netName]
+			bindings := inspect.NetworkSettings.Ports[networktypes.MustParsePort("80/tcp")]
+
+			// wget from a fresh container on the same network. The server responds
+			// 404 to any request, so "404 Not Found" means the connection got
+			// through. Let wget time out by itself rather than relying on the
+			// context deadline, so that a blocked probe still returns its output.
+			wget := func(t *testing.T, addr string) string {
+				t.Helper()
+				clientCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+				defer cancel()
+				res := container.RunAttach(clientCtx, t, c,
+					container.WithNetworkMode(netName),
+					container.WithCmd("wget", "-T", "3", "http://"+addr),
+				)
+				defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+				return res.Stderr.String()
+			}
+
+			for _, fam := range []struct {
+				name     string
+				hostAddr string
+				ctrAddr  netip.Addr
+			}{
+				{name: "ipv4", hostAddr: gw4, ctrAddr: ctrNet.IPAddress},
+				{name: "ipv6", hostAddr: gw6, ctrAddr: ctrNet.GlobalIPv6Address},
+			} {
+				var hostPort string
+				for _, b := range bindings {
+					if b.HostIP.Is4() == fam.ctrAddr.Is4() {
+						hostPort = b.HostPort
+					}
+				}
+				assert.Assert(t, hostPort != "", "%s: the port wasn't published (bindings: %v)", fam.name, bindings)
+
+				// The published port must be reachable via a host address. For
+				// IPv6 this also needs Neighbour Discovery to work between the two
+				// containers, so that the server can resolve the client's
+				// link-layer address in order to reply.
+				out := wget(t, net.JoinHostPort(fam.hostAddr, hostPort))
+				assert.Check(t, is.Contains(out, "404 Not Found"),
+					"%s: published port should be reachable from a neighbour via a host address, got: %s", fam.name, out)
+
+				// The container's own address must not be, even on the published
+				// port - that's what icc=false blocks.
+				out = wget(t, net.JoinHostPort(fam.ctrAddr.String(), "80"))
+				assert.Check(t, !strings.Contains(out, "404 Not Found"),
+					"%s: icc=false should still block direct access to the container's address, got: %s", fam.name, out)
+			}
+		})
+	}
+}
+
+// TestICMPErrorsFromPublishedPortICCDisabled checks that an ICMP/ICMPv6 error
+// generated by a container in response to traffic on a published port makes it
+// back to a peer on the same network, when ICC is disabled. Conntrack classes
+// the error as RELATED to the permitted flow, so it's accepted - without that,
+// error signalling (and PMTUD) would silently break for this path.
+//
+// It probes a published UDP port with nothing listening behind it, so the
+// container's kernel answers with a port-unreachable. "nc -u -z" reports the
+// port closed only if that error is delivered; if it were dropped, nc would see
+// nothing and report the port open - which is what a second, listening,
+// container is used to demonstrate.
+//
+// The two userland-proxy settings genuinely differ here, so each is spelled out
+// and asserted separately. With docker-proxy in the path the flow terminates in
+// the host's netns and is forwarded on the proxy's own socket, so the
+// container's error goes back to the proxy rather than to the peer, which sees
+// nothing and reads the port as open. That is a property of the userland proxy
+// rather than of these rules, but it's worth pinning down.
+//
+// Regression test for https://github.com/moby/moby/issues/53713
+func TestICMPErrorsFromPublishedPortICCDisabled(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "rootlesskit has its own netns")
+
+	for _, userlandProxy := range []bool{true, false} {
+		t.Run(fmt.Sprintf("proxy=%v", userlandProxy), func(t *testing.T) {
+			testICMPErrorsFromPublishedPortICCDisabled(t, userlandProxy)
+		})
+	}
+}
+
+func testICMPErrorsFromPublishedPortICCDisabled(t *testing.T, userlandProxy bool) {
+	const (
+		subnet4 = "192.168.139.0/24"
+		gw4     = "192.168.139.1"
+		subnet6 = "fd6d:9b09:5d3e::/64"
+		gw6     = "fd6d:9b09:5d3e::1"
+	)
+
+	ctx := setupTest(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t, fmt.Sprintf("--userland-proxy=%v", userlandProxy))
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	const netName = "ticcicmp"
+	network.CreateNoError(ctx, t, c, netName,
+		network.WithDriver("bridge"),
+		network.WithIPv6(),
+		network.WithOption(bridge.EnableICC, "false"),
+		network.WithIPAM(subnet4, gw4),
+		network.WithIPAM(subnet6, gw6),
+	)
+	// Everything below is torn down with defer, not t.Cleanup - t.Cleanup runs
+	// after every defer, including the one that stops the daemon.
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	// Two servers, both publishing udp/5000 - one with nothing listening on it,
+	// one with a listener.
+	runServer := func(t *testing.T, cmd ...string) (string, map[bool]string) {
+		t.Helper()
+		id := container.Run(ctx, t, c,
+			container.WithNetworkMode(netName),
+			container.WithExposedPorts("5000/udp"),
+			container.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("5000/udp"): {
+				{HostIP: netip.MustParseAddr("0.0.0.0")},
+				{HostIP: netip.MustParseAddr("::")},
+			}}),
+			container.WithCmd(cmd...),
+		)
+		hostPorts := map[bool]string{}
+		for _, b := range container.Inspect(ctx, t, c, id).NetworkSettings.Ports[networktypes.MustParsePort("5000/udp")] {
+			hostPorts[b.HostIP.Is4()] = b.HostPort
+		}
+		return id, hostPorts
+	}
+	closedID, closedPorts := runServer(t, "sleep", "300")
+	defer c.ContainerRemove(ctx, closedID, client.ContainerRemoveOptions{Force: true})
+	// "nc -lu" serves a single datagram and exits, and binds IPv4 only unless
+	// given an address - so loop it, and bind the IPv6 wildcard (which accepts
+	// IPv4 too) so that one container can answer probes for both families.
+	openID, openPorts := runServer(t, "sh", "-c", "while true; do nc -lu -s :: -p 5000 >/dev/null 2>&1; done")
+	defer c.ContainerRemove(ctx, openID, client.ContainerRemoveOptions{Force: true})
+
+	// "nc -u -z" exits non-zero, and doesn't report the port open, only when it
+	// gets an ICMP/ICMPv6 port-unreachable back.
+	scan := func(t *testing.T, addr, port string) (int, string) {
+		t.Helper()
+		clientCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		res := container.RunAttach(clientCtx, t, c,
+			container.WithNetworkMode(netName),
+			container.WithCmd("nc", "-u", "-z", "-v", "-w", "3", addr, port),
+		)
+		defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+		return res.ExitCode, res.Stderr.String()
+	}
+
+	// Check the probe can tell the two cases apart at all: with a listener
+	// behind the published port, no error is generated and it reads as open.
+	// (With docker-proxy that is true of the closed port too, so this only
+	// discriminates in the no-proxy case.)
+	// Only done once, over IPv4 - "nc -lu" serves a single datagram and exits,
+	// so a per-family control races with the loop restarting it, and what's
+	// being demonstrated here (that the probe discriminates) isn't
+	// family-specific.
+	assert.Assert(t, openPorts[true] != "", "the listening server's port wasn't published (bindings: %v)", openPorts)
+	exitCode, stderr := scan(t, gw4, openPorts[true])
+	assert.Check(t, exitCode == 0 && strings.Contains(stderr, "open"),
+		"expected a listening published port to read as open, got exit=%d stderr: %s", exitCode, stderr)
+
+	// Nothing listening: the container's port-unreachable must come back, for
+	// both address families. Were it dropped, the probe would see nothing and
+	// report the port open, as above.
+	for _, fam := range []struct {
+		name     string
+		hostAddr string
+		is4      bool
+	}{
+		{name: "ipv4", hostAddr: gw4, is4: true},
+		{name: "ipv6", hostAddr: gw6},
+	} {
+		hostPort := closedPorts[fam.is4]
+		assert.Assert(t, hostPort != "", "%s: the port wasn't published (bindings: %v)", fam.name, closedPorts)
+		exitCode, stderr := scan(t, fam.hostAddr, hostPort)
+		if !userlandProxy {
+			assert.Check(t, exitCode != 0,
+				"%s: expected the ICMP error to be delivered, so the port reads as closed (stderr: %s)", fam.name, stderr)
+			assert.Check(t, !strings.Contains(stderr, "open"),
+				"%s: port reported open, so no ICMP error was delivered: %s", fam.name, stderr)
+		} else {
+			assert.Check(t, exitCode == 0 && strings.Contains(stderr, "open"),
+				"%s: docker-proxy terminates the flow, so the peer should see no error; got exit=%d stderr: %s",
+				fam.name, exitCode, stderr)
+		}
+	}
+}

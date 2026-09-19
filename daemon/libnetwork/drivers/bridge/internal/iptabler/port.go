@@ -67,9 +67,17 @@ func (n *network) setPerPortIptables(ctx context.Context, b types.PortBinding, e
 	}
 
 	if !config.Unprotected {
-		if err := setPerPortForwarding(b, v, n.config.IfName, enable); err != nil {
+		if err := n.setPerPortForwarding(b, v, enable); err != nil {
 			return err
 		}
+	}
+
+	// Not conditional on Unprotected: that mode skips the per-port forwarding
+	// rules above, but its blanket accept excludes traffic arriving on the
+	// bridge just as the per-port rule does, so it doesn't cover the hairpin
+	// either.
+	if err := n.setPerPortHairpinForwarding(b, v, enable); err != nil {
+		return err
 	}
 	return nil
 }
@@ -123,7 +131,8 @@ func (n *network) setPerPortNAT(ipv iptables.IPVersion, b types.PortBinding, ena
 // setPerPortForwarding opens access to a container's published port, as described by binding b.
 // It also does something weird, broken, and disabled-by-default related to SCTP. Rules are added
 // if enable is true, else removed.
-func setPerPortForwarding(b types.PortBinding, ipv iptables.IPVersion, bridgeName string, enable bool) error {
+func (n *network) setPerPortForwarding(b types.PortBinding, ipv iptables.IPVersion, enable bool) error {
+	bridgeName := n.config.IfName
 	// Insert rules for open ports at the top of the filter table's DOCKER
 	// chain (a per-network DROP rule, which must come after these per-port
 	// per-container ACCEPT rules, is appended to the chain when the network
@@ -141,6 +150,38 @@ func setPerPortForwarding(b types.PortBinding, ipv iptables.IPVersion, bridgeNam
 	}
 
 	return nil
+}
+
+// setPerPortHairpinForwarding opens a container's published port to the other
+// containers on its own network, for traffic that reached it via one of the
+// host's addresses. Rules are added if enable is true, else removed.
+//
+// The rules that open a published port otherwise exclude packets arriving on
+// the bridge, so they don't match a container on this network reaching the port
+// via a host address. With ICC enabled that traffic is accepted by the
+// network-level rules anyway. With ICC disabled they drop it - but a published
+// port is meant to be reachable via the host's addresses from anywhere that can
+// route to them, and a peer on the same bridge is no exception.
+//
+// So, accept it - but only if it was DNATed, by requiring that the connection's
+// original destination wasn't the container's own address. Without that, this
+// rule would also open up direct access to the container's address, which is
+// exactly what ICC is meant to prevent. (Both cases are otherwise identical by
+// the time they get here: same in/out interface, same destination, same port.)
+func (n *network) setPerPortHairpinForwarding(b types.PortBinding, ipv iptables.IPVersion, enable bool) error {
+	if n.config.ICC || b.HostPort == 0 {
+		return nil
+	}
+	rule := iptables.Rule{IPVer: ipv, Table: iptables.Filter, Chain: dockerChain, Args: []string{
+		"-i", n.config.IfName,
+		"-o", n.config.IfName,
+		"-p", b.Proto.String(),
+		"-d", b.IP.String(),
+		"--dport", strconv.Itoa(int(b.Port)),
+		"-m", "conntrack", "!", "--ctorigdst", b.IP.String(),
+		"-j", "ACCEPT",
+	}}
+	return programChainRule(rule, "OPEN PORT HAIRPIN", enable)
 }
 
 // filterPortMappedOnLoopback adds an iptables rule that drops remote

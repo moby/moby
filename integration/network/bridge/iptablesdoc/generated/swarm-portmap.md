@@ -21,9 +21,10 @@ The filter table is:
     
     Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 ACCEPT     tcp  --  !docker_gwbridge docker_gwbridge  anywhere             172.18.0.2           tcp dpt:http-alt
-    2        0     0 DROP       all  --  !docker0 docker0  anywhere             anywhere            
-    3        0     0 DROP       all  --  !docker_gwbridge docker_gwbridge  anywhere             anywhere            
+    1        0     0 ACCEPT     tcp  --  docker_gwbridge docker_gwbridge  anywhere             172.18.0.2           tcp dpt:http-alt ! ctorigdst 172.18.0.2
+    2        0     0 ACCEPT     tcp  --  !docker_gwbridge docker_gwbridge  anywhere             172.18.0.2           tcp dpt:http-alt
+    3        0     0 DROP       all  --  !docker0 docker0  anywhere             anywhere            
+    4        0     0 DROP       all  --  !docker_gwbridge docker_gwbridge  anywhere             anywhere            
     
     Chain DOCKER-BRIDGE (1 references)
     num   pkts bytes target     prot opt in     out     source               destination         
@@ -65,6 +66,7 @@ The filter table is:
     -N DOCKER-USER
     -A FORWARD -j DOCKER-USER
     -A FORWARD -j DOCKER-FORWARD
+    -A DOCKER -d 172.18.0.2/32 -i docker_gwbridge -o docker_gwbridge -p tcp -m tcp --dport 8080 -m conntrack ! --ctorigdst 172.18.0.2 -j ACCEPT
     -A DOCKER -d 172.18.0.2/32 ! -i docker_gwbridge -o docker_gwbridge -p tcp -m tcp --dport 8080 -j ACCEPT
     -A DOCKER ! -i docker0 -o docker0 -j DROP
     -A DOCKER ! -i docker_gwbridge -o docker_gwbridge -j DROP
