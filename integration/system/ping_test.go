@@ -114,7 +114,7 @@ func TestPingBuilderHeader(t *testing.T) {
 		defer d.Stop(t)
 
 		expected := build.BuilderBuildKit
-		if runtime.GOOS == "windows" {
+		if runtime.GOOS == "windows" && !testEnv.UsingSnapshotter() {
 			expected = build.BuilderV1
 		}
 
