@@ -19,8 +19,8 @@ import (
 	"github.com/docker/go-events"
 	iradix "github.com/hashicorp/go-immutable-radix/v2"
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/serf/serf"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/lamport"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
@@ -36,10 +36,10 @@ type NetworkDB struct {
 	// in this struct due to Golang issue #599.
 
 	// Global lamport clock for node network attach events.
-	networkClock serf.LamportClock
+	networkClock lamport.Clock
 
 	// Global lamport clock for table events.
-	tableClock serf.LamportClock
+	tableClock lamport.Clock
 
 	sync.RWMutex
 
@@ -134,7 +134,7 @@ type PeerClusterInfo struct {
 
 type node struct {
 	memberlist.Node
-	ltime serf.LamportTime
+	ltime uint64
 	// Number of hours left before the reaper removes the node
 	reapTime time.Duration
 }
@@ -142,7 +142,7 @@ type node struct {
 // network describes the node/network attachment.
 type network struct {
 	// Lamport time for the latest state of the entry.
-	ltime serf.LamportTime
+	ltime uint64
 
 	// Node leave is in progress.
 	leaving bool
@@ -299,7 +299,7 @@ type entry struct {
 	node string
 
 	// Lamport time for the most recent update to the entry
-	ltime serf.LamportTime
+	ltime uint64
 
 	// Opaque value store in the entry
 	value []byte
@@ -318,7 +318,7 @@ type entry struct {
 // Done is closed when a bulk sync from the node is received with an LTime
 // greater than the subscription's LTime.
 type bulkSyncSubscription struct {
-	LTime serf.LamportTime
+	LTime uint64
 	Done  chan<- struct{}
 }
 

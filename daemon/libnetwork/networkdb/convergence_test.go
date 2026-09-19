@@ -13,7 +13,6 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/hashicorp/serf/serf"
 	"gotest.tools/v3/assert"
 )
 
@@ -388,7 +387,7 @@ func (c *memCluster) settle(t *testing.T, nw string, wantMembers []string) {
 // which decide whether it has caught up: its Lamport time and whether it is a
 // tombstone. The value itself is redundant -- it is a function of the ltime.
 type keyState struct {
-	ltime    serf.LamportTime
+	ltime    uint64
 	deleting bool
 }
 
@@ -558,14 +557,14 @@ func lookupEntry(db *NetworkDB, nw, key string) (entry, bool) {
 // entryReached returns a predicate reporting whether a node has caught up with a
 // write to nw/key at Lamport time ltime. deleting is what the entry should look
 // like once it has: a tombstone for a delete, a live value for anything else.
-func entryReached(nw, key string, ltime serf.LamportTime, deleting bool) func(*NetworkDB) bool {
+func entryReached(nw, key string, ltime uint64, deleting bool) func(*NetworkDB) bool {
 	return func(db *NetworkDB) bool {
 		e, ok := lookupEntry(db, nw, key)
 		return ok && e.ltime >= ltime && e.deleting == deleting
 	}
 }
 
-func entryLTime(t *testing.T, db *NetworkDB, nw, key string) serf.LamportTime {
+func entryLTime(t *testing.T, db *NetworkDB, nw, key string) uint64 {
 	t.Helper()
 	e, ok := lookupEntry(db, nw, key)
 	assert.Assert(t, ok, "originating node has no entry for %s/%s", nw, key)
