@@ -86,7 +86,8 @@ const (
 )
 
 type overlayOptions struct {
-	quota quota.Quota
+	quota        quota.Quota
+	forceIndexOn bool
 }
 
 // Driver contains information about the home directory and the list of active
@@ -202,7 +203,11 @@ func Init(home string, options []string, idMap user.IdentityMapping) (graphdrive
 	_, err = os.Stat("/sys/module/overlay/parameters/index")
 	switch {
 	case err == nil:
-		indexOff = "index=off,"
+		if opts.forceIndexOn {
+			indexOff = "index=on,"
+		} else {
+			indexOff = "index=off,"
+		}
 	case os.IsNotExist(err):
 		// old kernel, no index -- do nothing
 	default:
@@ -244,6 +249,11 @@ func parseOptions(options []string) (*overlayOptions, error) {
 				return nil, err
 			}
 			o.quota.Size = uint64(size)
+		case "overlay2.force_index_on":
+			o.forceIndexOn, err = strconv.ParseBool(val)
+			if err != nil {
+				return nil, err
+			}
 		default:
 			return nil, fmt.Errorf("overlay2: unknown option %s", key)
 		}
