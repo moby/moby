@@ -230,6 +230,8 @@ func withFetchProgress(cs content.Store, out progress.Output, ref reference.Name
 		key := remotes.MakeRefKey(ctx, desc)
 
 		go func() {
+			start := time.Now().Unix()
+
 			timer := time.NewTimer(100 * time.Millisecond)
 			if !timer.Stop() {
 				<-timer.C
@@ -285,7 +287,7 @@ func withFetchProgress(cs content.Store, out progress.Output, ref reference.Name
 					return
 				}
 
-				out.WriteProgress(progress.Progress{ID: id, Action: "Downloading", Current: s.Offset, Total: s.Total})
+				out.WriteProgress(progress.Progress{ID: id, Action: "Downloading", Current: s.Offset, Total: s.Total, Start: start})
 			}
 		}()
 		return nil, nil
