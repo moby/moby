@@ -75,12 +75,18 @@ func (pm PortMapper) MapPorts(ctx context.Context, cfg []portmapperapi.PortBindi
 		}
 	}()
 
+	var unsupported []portmapperapi.PortBindingReq
 	for i := len(cfg) - 1; i >= 0; i-- {
 		var supported bool
 		if cfg[i], supported = setChildHostIP(pm.pdc, cfg[i]); !supported {
+			unsupported = append(unsupported, cfg[i])
 			cfg = slices.Delete(cfg, i, i+1)
 			continue
 		}
+	}
+
+	if len(cfg) == 0 {
+		return nil, fmt.Errorf("port mapping %v is not supported by the RootlessKit port driver", unsupported)
 	}
 
 	addrs := sliceutil.Map(cfg, func(req portmapperapi.PortBindingReq) net.IP {
