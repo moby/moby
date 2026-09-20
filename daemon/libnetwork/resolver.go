@@ -304,6 +304,7 @@ func (r *Resolver) handleIPQuery(ctx context.Context, query *dns.Msg, ipType typ
 	r.log(ctx).Debugf("[resolver] lookup for %s: IP %v", name, addr)
 
 	resp := createRespMsg(query)
+	resp.Answer = make([]dns.RR, 0, len(addr))
 	rand.Shuffle(len(addr), func(i, j int) {
 		addr[i], addr[j] = addr[j], addr[i]
 	})
@@ -452,9 +453,13 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 			}
 		}
 		resp.Truncate(maxSize)
-		span.AddEvent("found local record", trace.WithAttributes(
-			attribute.String("libnet.resolver.resp", resp.String()),
-		))
+		// Formatting the response is expensive, only do it if there's a
+		// tracer to record it.
+		if span.IsRecording() {
+			span.AddEvent("found local record", trace.WithAttributes(
+				attribute.String("libnet.resolver.resp", resp.String()),
+			))
+		}
 		reply(resp)
 		return
 	}
@@ -604,12 +609,19 @@ func (r *Resolver) exchange(ctx context.Context, proto string, extDNS extDNSEntr
 	}
 	defer extConn.Close()
 
-	logger := r.log(ctx).WithFields(log.Fields{
-		"dns-server":  extConn.RemoteAddr().Network() + ":" + extConn.RemoteAddr().String(),
-		"client-addr": extConn.LocalAddr().Network() + ":" + extConn.LocalAddr().String(),
-		"question":    query.Question[0].String(),
-	})
-	logger.Debug("[resolver] forwarding query")
+	// Building the log fields allocates on every forwarded query, so only
+	// do it when a line is actually going to be logged.
+	logFields := func() log.Fields {
+		return log.Fields{
+			"dns-server":  extConn.RemoteAddr().Network() + ":" + extConn.RemoteAddr().String(),
+			"client-addr": extConn.LocalAddr().Network() + ":" + extConn.LocalAddr().String(),
+			"question":    query.Question[0].String(),
+		}
+	}
+	logger := r.log(ctx)
+	if logger.Logger.IsLevelEnabled(log.DebugLevel) {
+		logger.WithFields(logFields()).Debug("[resolver] forwarding query")
+	}
 
 	resp, _, err := (&dns.Client{
 		Timeout: extIOTimeout,
@@ -625,7 +637,7 @@ func (r *Resolver) exchange(ctx context.Context, proto string, extDNS extDNSEntr
 		UDPSize: dns.MaxMsgSize,
 	}).ExchangeWithConn(query, &dns.Conn{Conn: extConn})
 	if err != nil {
-		logger.WithError(err).Error("[resolver] failed to query external DNS server")
+		logger.WithFields(logFields()).WithError(err).Error("[resolver] failed to query external DNS server")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "ExchangeWithConn failed")
 		return nil
@@ -633,7 +645,7 @@ func (r *Resolver) exchange(ctx context.Context, proto string, extDNS extDNSEntr
 
 	if resp == nil {
 		// Should be impossible, so make noise if it happens anyway.
-		logger.Error("[resolver] external DNS returned empty response")
+		logger.WithFields(logFields()).Error("[resolver] external DNS returned empty response")
 		span.SetStatus(codes.Error, "External DNS returned empty response")
 	}
 	return resp
