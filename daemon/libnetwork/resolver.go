@@ -89,9 +89,11 @@ type Resolver struct {
 	proxyDNS      atomic.Bool
 	startCh       chan struct{}
 	logger        *log.Entry
+	metrics       *resolverMetrics
 
 	fwdSem      *semaphore.Weighted // Limit the number of concurrent external DNS requests in-flight
 	logInterval rate.Sometimes      // Rate-limit logging about hitting the fwdSem limit
+	ioTimeout   time.Duration       // Timeout for each dial, exchange and fwdSem wait; extIOTimeout unless a test shortens it
 }
 
 // NewResolver creates a new instance of the Resolver
@@ -100,8 +102,10 @@ func NewResolver(address string, proxyDNS bool, backend DNSBackend) *Resolver {
 		backend:     backend,
 		err:         errors.New("setup not done yet"),
 		startCh:     make(chan struct{}, 1),
+		metrics:     defaultResolverMetrics,
 		fwdSem:      semaphore.NewWeighted(maxConcurrent),
 		logInterval: rate.Sometimes{Interval: logInterval},
+		ioTimeout:   extIOTimeout,
 	}
 	r.listenAddress, _ = netip.ParseAddr(address)
 	r.proxyDNS.Store(proxyDNS)
@@ -386,8 +390,15 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 		return
 	}
 
+	start := time.Now()
 	queryName := query.Question[0].Name
 	queryType := query.Question[0].Qtype
+	proto := w.LocalAddr().Network()
+
+	outcome := queryOutcomeError
+	defer func() {
+		r.metrics.queryDuration.WithValues(qtypeLabel(queryType), proto, outcome).UpdateSince(start)
+	}()
 
 	ctx, span := otel.Tracer("").Start(context.Background(), "resolver.serveDNS", trace.WithAttributes(
 		attribute.String("libnet.resolver.query.name", queryName),
@@ -417,6 +428,7 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 
 	reply := func(msg *dns.Msg) {
 		if err := w.WriteMsg(msg); err != nil {
+			outcome = queryOutcomeWriteError
 			r.log(ctx).WithError(err).Error("[resolver] failed to write response")
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "WriteMsg failed")
@@ -433,17 +445,19 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 	}
 
 	if err != nil {
+		outcome = queryOutcomeError
 		r.log(ctx).WithError(err).Errorf("[resolver] failed to handle query: %s (%s)", queryName, dns.TypeToString[queryType])
 		reply(new(dns.Msg).SetRcode(query, dns.RcodeServerFailure))
 		return
 	}
 
 	if resp != nil {
+		outcome = queryOutcomeLocal
 		// We are the authoritative DNS server for this request so it's
 		// on us to truncate the response message to the size limit
 		// negotiated by the client.
 		maxSize := dns.MinMsgSize
-		if w.LocalAddr().Network() == "tcp" {
+		if proto == "tcp" {
 			maxSize = dns.MaxMsgSize
 		} else {
 			if optRR := query.IsEdns0(); optRR != nil {
@@ -470,9 +484,21 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 	// attached.
 	if (queryType == dns.TypeA || queryType == dns.TypeAAAA) && r.backend.NdotsSet() &&
 		!strings.Contains(strings.TrimSuffix(queryName, "."), ".") {
+		outcome = queryOutcomeNdots
 		resp = createRespMsg(query)
 	} else {
-		resp = r.forwardExtDNS(ctx, w.LocalAddr().Network(), w.RemoteAddr(), query)
+		resp = r.forwardExtDNS(ctx, proto, w.RemoteAddr(), query)
+		switch {
+		case resp == nil:
+			outcome = queryOutcomeUpstreamFailed
+		case resp.Rcode == dns.RcodeRefused:
+			// forwardExtDNS doesn't relay REFUSED from an upstream server,
+			// it moves on to the next server. So, REFUSED means the limit
+			// on concurrent forwarded queries was reached.
+			outcome = queryOutcomeRefused
+		default:
+			outcome = queryOutcomeForwarded
+		}
 	}
 
 	if resp == nil {
@@ -493,7 +519,7 @@ func (r *Resolver) dialExtDNS(proto string, server extDNSEntry) (net.Conn, error
 	addr := net.JoinHostPort(server.IPStr, port)
 
 	if server.HostLoopback {
-		return net.DialTimeout(proto, addr, extIOTimeout)
+		return net.DialTimeout(proto, addr, r.ioTimeout)
 	}
 
 	var (
@@ -501,7 +527,7 @@ func (r *Resolver) dialExtDNS(proto string, server extDNSEntry) (net.Conn, error
 		dialErr error
 	)
 	err := r.backend.ExecFunc(func() {
-		extConn, dialErr = net.DialTimeout(proto, addr, extIOTimeout)
+		extConn, dialErr = net.DialTimeout(proto, addr, r.ioTimeout)
 	})
 	if err != nil {
 		return nil, err
@@ -518,7 +544,8 @@ func (r *Resolver) forwardExtDNS(ctx context.Context, proto string, remoteAddr n
 	defer span.End()
 
 	proxyDNS := r.proxyDNS.Load()
-	for _, extDNS := range r.extDNS(netiputil.AddrPortFromNet(remoteAddr)) {
+	extDNSList := r.extDNS(netiputil.AddrPortFromNet(remoteAddr))
+	for i, extDNS := range extDNSList {
 		if extDNS.IPStr == "" {
 			break
 		}
@@ -531,7 +558,7 @@ func (r *Resolver) forwardExtDNS(ctx context.Context, proto string, remoteAddr n
 		}
 
 		// limits the number of outstanding concurrent queries.
-		semAcqCtx, cancelSemAcqCtx := context.WithTimeout(ctx, extIOTimeout)
+		semAcqCtx, cancelSemAcqCtx := context.WithTimeout(ctx, r.ioTimeout)
 		err := r.fwdSem.Acquire(semAcqCtx, 1)
 		cancelSemAcqCtx()
 
@@ -544,10 +571,15 @@ func (r *Resolver) forwardExtDNS(ctx context.Context, proto string, remoteAddr n
 			return new(dns.Msg).SetRcode(query, dns.RcodeRefused)
 		}
 		resp := func() *dns.Msg {
-			defer r.fwdSem.Release(1)
+			r.metrics.upstreamInFlight.Inc()
+			defer func() {
+				r.fwdSem.Release(1)
+				r.metrics.upstreamInFlight.Dec()
+			}()
 			return r.exchange(ctx, proto, extDNS, query)
 		}()
 		if resp == nil {
+			r.countFailover(extDNSList[i+1:], proxyDNS, failoverNoResponse)
 			continue
 		}
 
@@ -556,6 +588,11 @@ func (r *Resolver) forwardExtDNS(ctx context.Context, proto string, remoteAddr n
 			// Server returned FAILURE: continue with the next external DNS server
 			// Server returned REFUSED: this can be a transitional status, so continue with the next external DNS server
 			r.log(ctx).Debugf("[resolver] external DNS %s:%s returned failure:\n%s", proto, extDNS.IPStr, resp)
+			reason := failoverServFail
+			if resp.Rcode == dns.RcodeRefused {
+				reason = failoverRefused
+			}
+			r.countFailover(extDNSList[i+1:], proxyDNS, reason)
 			continue
 		}
 		answers := 0
@@ -586,6 +623,16 @@ func (r *Resolver) forwardExtDNS(ctx context.Context, proto string, remoteAddr n
 	return nil
 }
 
+// countFailover records that a request to an upstream server failed for the
+// given reason, if there's another server in remaining that will be tried.
+// When there's no server left to try, the failure is reported as the outcome
+// of the query rather than as a failover.
+func (r *Resolver) countFailover(remaining []extDNSEntry, proxyDNS bool, reason string) {
+	if hasUsableExtDNS(remaining, proxyDNS) {
+		r.metrics.upstreamFailovers.WithValues(reason).Inc()
+	}
+}
+
 func (r *Resolver) extDNS(remoteAddr netip.AddrPort) []extDNSEntry {
 	if res, ok := r.ipToExtDNS.get(remoteAddr.Addr()); ok {
 		return res[:]
@@ -600,8 +647,15 @@ func (r *Resolver) exchange(ctx context.Context, proto string, extDNS extDNSEntr
 		attribute.Bool("libnet.resolver.upstream.host-loopback", extDNS.HostLoopback)))
 	defer span.End()
 
+	start := time.Now()
+	result := upstreamResultError
+	defer func() {
+		r.metrics.upstreamDuration.WithValues(proto, result).UpdateSince(start)
+	}()
+
 	extConn, err := r.dialExtDNS(proto, extDNS)
 	if err != nil {
+		result = upstreamResultDialError
 		r.log(ctx).WithError(err).Warn("[resolver] connect failed")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "dialExtDNS failed")
@@ -624,7 +678,7 @@ func (r *Resolver) exchange(ctx context.Context, proto string, extDNS extDNSEntr
 	}
 
 	resp, _, err := (&dns.Client{
-		Timeout: extIOTimeout,
+		Timeout: r.ioTimeout,
 		// Following the robustness principle, make a best-effort
 		// attempt to receive oversized response messages without
 		// truncating them on our end to forward verbatim to the client.
@@ -637,6 +691,10 @@ func (r *Resolver) exchange(ctx context.Context, proto string, extDNS extDNSEntr
 		UDPSize: dns.MaxMsgSize,
 	}).ExchangeWithConn(query, &dns.Conn{Conn: extConn})
 	if err != nil {
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			result = upstreamResultTimeout
+		}
 		logger.WithFields(logFields()).WithError(err).Error("[resolver] failed to query external DNS server")
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "ExchangeWithConn failed")
@@ -647,6 +705,8 @@ func (r *Resolver) exchange(ctx context.Context, proto string, extDNS extDNSEntr
 		// Should be impossible, so make noise if it happens anyway.
 		logger.WithFields(logFields()).Error("[resolver] external DNS returned empty response")
 		span.SetStatus(codes.Error, "External DNS returned empty response")
+		return nil
 	}
+	result = upstreamResultLabel(resp.Rcode)
 	return resp
 }

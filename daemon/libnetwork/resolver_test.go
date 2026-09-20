@@ -328,15 +328,48 @@ func startFakeUpstream(t testing.TB, handler dns.HandlerFunc) (extDNSEntry, *net
 		<-serveDone
 	})
 
-	conn := srv.PacketConn.(*net.UDPConn)
-	srvAddr := conn.LocalAddr().(*net.UDPAddr)
+	conn, ok := srv.PacketConn.(*net.UDPConn)
+	assert.Assert(t, ok, "unexpected packet conn type %T", srv.PacketConn)
+	srvAddr, ok := conn.LocalAddr().(*net.UDPAddr)
+	assert.Assert(t, ok, "unexpected local addr type %T", conn.LocalAddr())
 	return extDNSEntry{IPStr: srvAddr.IP.String(), port: uint16(srvAddr.Port), HostLoopback: true}, conn
+}
+
+// answerRcode returns a handler for a fake upstream server that responds
+// with the given response code and no answers.
+func answerRcode(rcode int) dns.HandlerFunc {
+	return func(w dns.ResponseWriter, r *dns.Msg) {
+		w.WriteMsg(new(dns.Msg).SetRcode(r, rcode))
+	}
+}
+
+// answerA is a handler for a fake upstream server that responds with a
+// single A record.
+func answerA(w dns.ResponseWriter, r *dns.Msg) {
+	resp := new(dns.Msg).SetReply(r)
+	resp.Answer = append(resp.Answer, &dns.A{
+		Hdr: dns.RR_Header{Name: r.Question[0].Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
+		A:   net.ParseIP("93.184.215.14").To4(),
+	})
+	w.WriteMsg(resp)
+}
+
+// answerNothing is a handler for a fake upstream server that never responds,
+// so the resolver's request times out.
+func answerNothing(dns.ResponseWriter, *dns.Msg) {}
+
+// answerGarbage is a handler for a fake upstream server that responds with
+// something that isn't a DNS message, so the resolver gets no usable
+// response without having to wait for a timeout.
+func answerGarbage(w dns.ResponseWriter, _ *dns.Msg) {
+	w.Write([]byte("nope"))
 }
 
 // staticDNSBackend answers lookups from fixed tables. ResolveName returns a
 // fresh slice on each call because the resolver shuffles addresses in place.
 type staticDNSBackend struct {
 	noopDNSBackend
+
 	v4, v6 []net.IP
 	srv    []*net.SRV
 	srvIPs []net.IP
@@ -360,6 +393,19 @@ func (b *staticDNSBackend) ResolveService(_ context.Context, _ string) ([]*net.S
 
 func (b *staticDNSBackend) ResolveIP(_ context.Context, name string) string {
 	return b.ptr[name]
+}
+
+// newStaticDNSBackend returns a backend that knows the name "web" (two IPv4
+// and two IPv6 addresses, and an SRV record for "_http._tcp.web") and the
+// reverse mapping for 172.20.0.2.
+func newStaticDNSBackend() *staticDNSBackend {
+	return &staticDNSBackend{
+		v4:     []net.IP{net.ParseIP("172.20.0.2").To4(), net.ParseIP("172.20.0.3").To4()},
+		v6:     []net.IP{net.ParseIP("fd00::2"), net.ParseIP("fd00::3")},
+		srv:    []*net.SRV{{Target: "web1.", Port: 8080}, {Target: "web2.", Port: 8080}},
+		srvIPs: []net.IP{net.ParseIP("172.20.0.2").To4(), net.ParseIP("172.20.0.3").To4()},
+		ptr:    map[string]string{"2.0.20.172": "web1"},
+	}
 }
 
 func TestProxyNXDOMAIN(t *testing.T) {
@@ -423,22 +469,9 @@ func TestInvalidReverseDNS(t *testing.T) {
 }
 
 func BenchmarkServeDNS(b *testing.B) {
-	backend := &staticDNSBackend{
-		v4:     []net.IP{net.ParseIP("172.20.0.2").To4(), net.ParseIP("172.20.0.3").To4()},
-		v6:     []net.IP{net.ParseIP("fd00::2"), net.ParseIP("fd00::3")},
-		srv:    []*net.SRV{{Target: "web1.", Port: 8080}, {Target: "web2.", Port: 8080}},
-		srvIPs: []net.IP{net.ParseIP("172.20.0.2").To4(), net.ParseIP("172.20.0.3").To4()},
-		ptr:    map[string]string{"2.0.20.172": "web1"},
-	}
+	backend := newStaticDNSBackend()
 
-	upstream, _ := startFakeUpstream(b, func(w dns.ResponseWriter, r *dns.Msg) {
-		resp := new(dns.Msg).SetReply(r)
-		resp.Answer = append(resp.Answer, &dns.A{
-			Hdr: dns.RR_Header{Name: r.Question[0].Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
-			A:   net.ParseIP("93.184.215.14").To4(),
-		})
-		w.WriteMsg(resp)
-	})
+	upstream, _ := startFakeUpstream(b, answerA)
 	forwarding := NewResolver("", true, noopDNSBackend{})
 	forwarding.SetExtServers([]extDNSEntry{upstream})
 
