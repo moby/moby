@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net"
+	"slices"
 	"syscall"
 	"testing"
 	"time"
@@ -294,20 +295,18 @@ func (badSRVDNSBackend) ResolveService(_ context.Context, _ string) ([]*net.SRV,
 	return []*net.SRV{nil, nil, nil}, nil // Mismatched slice lengths
 }
 
-func TestProxyNXDOMAIN(t *testing.T) {
-	mockSOA, err := dns.NewRR(".	86367	IN	SOA	a.root-servers.net. nstld.verisign-grs.com. 2023051800 1800 900 604800 86400\n")
-	assert.NilError(t, err)
-	assert.Assert(t, mockSOA != nil)
-
+// startFakeUpstream starts an in-process DNS server on an ephemeral loopback
+// UDP port, serving requests with handler, and stops it when the test ends. It
+// returns an extDNSEntry the resolver can be pointed at, and the server's
+// socket. The entry is marked HostLoopback so the resolver dials it directly
+// rather than through DNSBackend.ExecFunc.
+func startFakeUpstream(t testing.TB, handler dns.HandlerFunc) (extDNSEntry, *net.UDPConn) {
+	t.Helper()
 	serveStarted := make(chan struct{})
 	srv := &dns.Server{
-		Net:  "udp",
-		Addr: "127.0.0.1:0",
-		Handler: dns.HandlerFunc(func(w dns.ResponseWriter, r *dns.Msg) {
-			msg := new(dns.Msg).SetRcode(r, dns.RcodeNameError)
-			msg.Ns = append(msg.Ns, dns.Copy(mockSOA))
-			w.WriteMsg(msg)
-		}),
+		Net:               "udp",
+		Addr:              "127.0.0.1:0",
+		Handler:           handler,
 		NotifyStartedFunc: func() { close(serveStarted) },
 	}
 	serveDone := make(chan error, 1)
@@ -322,31 +321,119 @@ func TestProxyNXDOMAIN(t *testing.T) {
 	case <-serveStarted:
 	}
 
-	defer func() {
+	t.Cleanup(func() {
 		if err := srv.Shutdown(); err != nil {
 			t.Error(err)
 		}
 		<-serveDone
-	}()
+	})
+
+	conn, ok := srv.PacketConn.(*net.UDPConn)
+	assert.Assert(t, ok, "unexpected packet conn type %T", srv.PacketConn)
+	srvAddr, ok := conn.LocalAddr().(*net.UDPAddr)
+	assert.Assert(t, ok, "unexpected local addr type %T", conn.LocalAddr())
+	return extDNSEntry{IPStr: srvAddr.IP.String(), port: uint16(srvAddr.Port), HostLoopback: true}, conn
+}
+
+// answerRcode returns a handler for a fake upstream server that responds
+// with the given response code and no answers.
+func answerRcode(rcode int) dns.HandlerFunc {
+	return func(w dns.ResponseWriter, r *dns.Msg) {
+		w.WriteMsg(new(dns.Msg).SetRcode(r, rcode))
+	}
+}
+
+// answerA is a handler for a fake upstream server that responds with a
+// single A record.
+func answerA(w dns.ResponseWriter, r *dns.Msg) {
+	resp := new(dns.Msg).SetReply(r)
+	resp.Answer = append(resp.Answer, &dns.A{
+		Hdr: dns.RR_Header{Name: r.Question[0].Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
+		A:   net.ParseIP("93.184.215.14").To4(),
+	})
+	w.WriteMsg(resp)
+}
+
+// answerNothing is a handler for a fake upstream server that never responds,
+// so the resolver's request times out.
+func answerNothing(dns.ResponseWriter, *dns.Msg) {}
+
+// answerGarbage is a handler for a fake upstream server that responds with
+// something that isn't a DNS message, so the resolver gets no usable
+// response without having to wait for a timeout.
+func answerGarbage(w dns.ResponseWriter, _ *dns.Msg) {
+	w.Write([]byte("nope"))
+}
+
+// staticDNSBackend answers lookups from fixed tables. ResolveName returns a
+// fresh slice on each call because the resolver shuffles addresses in place.
+type staticDNSBackend struct {
+	noopDNSBackend
+
+	v4, v6 []net.IP
+	srv    []*net.SRV
+	srvIPs []net.IP
+	ptr    map[string]string
+}
+
+func (b *staticDNSBackend) ResolveName(_ context.Context, _ string, ipType types.IPFamily) ([]net.IP, bool) {
+	addrs := b.v4
+	if ipType == types.IPv6 {
+		addrs = b.v6
+	}
+	if len(addrs) == 0 {
+		return nil, false
+	}
+	return slices.Clone(addrs), true
+}
+
+func (b *staticDNSBackend) ResolveService(_ context.Context, _ string) ([]*net.SRV, []net.IP) {
+	return b.srv, b.srvIPs
+}
+
+func (b *staticDNSBackend) ResolveIP(_ context.Context, name string) string {
+	return b.ptr[name]
+}
+
+// newStaticDNSBackend returns a backend that knows the name "web" (two IPv4
+// and two IPv6 addresses, and an SRV record for "_http._tcp.web") and the
+// reverse mapping for 172.20.0.2.
+func newStaticDNSBackend() *staticDNSBackend {
+	return &staticDNSBackend{
+		v4:     []net.IP{net.ParseIP("172.20.0.2").To4(), net.ParseIP("172.20.0.3").To4()},
+		v6:     []net.IP{net.ParseIP("fd00::2"), net.ParseIP("fd00::3")},
+		srv:    []*net.SRV{{Target: "web1.", Port: 8080}, {Target: "web2.", Port: 8080}},
+		srvIPs: []net.IP{net.ParseIP("172.20.0.2").To4(), net.ParseIP("172.20.0.3").To4()},
+		ptr:    map[string]string{"2.0.20.172": "web1"},
+	}
+}
+
+func TestProxyNXDOMAIN(t *testing.T) {
+	mockSOA, err := dns.NewRR(".	86367	IN	SOA	a.root-servers.net. nstld.verisign-grs.com. 2023051800 1800 900 604800 86400\n")
+	assert.NilError(t, err)
+	assert.Assert(t, mockSOA != nil)
+
+	upstream, conn := startFakeUpstream(t, func(w dns.ResponseWriter, r *dns.Msg) {
+		msg := new(dns.Msg).SetRcode(r, dns.RcodeNameError)
+		msg.Ns = append(msg.Ns, dns.Copy(mockSOA))
+		w.WriteMsg(msg)
+	})
 
 	// This test, by virtue of running a server and client in different
 	// not-locked-to-thread goroutines, happens to be a good canary for
 	// whether we are leaking unlocked OS threads set to the wrong network
 	// namespace. Make a best-effort attempt to detect that situation so we
 	// are not left chasing ghosts next time.
-	netnsutils.AssertSocketSameNetNS(t, srv.PacketConn.(*net.UDPConn))
+	netnsutils.AssertSocketSameNetNS(t, conn)
 
-	srvAddr := srv.PacketConn.LocalAddr().(*net.UDPAddr)
 	rsv := NewResolver("", true, noopDNSBackend{})
-	rsv.SetExtServers([]extDNSEntry{
-		{IPStr: srvAddr.IP.String(), port: uint16(srvAddr.Port), HostLoopback: true},
-	})
+	rsv.SetExtServers([]extDNSEntry{upstream})
 
 	// The resolver logs lots of valuable info at level debug. Redirect it
 	// to t.Log() so the log spew is emitted only if the test fails.
 	rsv.logger = testLogger(t)
 
-	w := &tstwriter{network: srvAddr.Network()}
+	w := &tstwriter{network: "udp"}
 	q := new(dns.Msg).SetQuestion("example.net.", dns.TypeA)
 	rsv.serveDNS(w, q)
 	resp := w.GetResponse()
@@ -379,4 +466,40 @@ func TestInvalidReverseDNS(t *testing.T) {
 	checkNonNullResponse(t, resp)
 	t.Log("Response: ", resp.String())
 	checkDNSResponseCode(t, resp, dns.RcodeServerFailure)
+}
+
+func BenchmarkServeDNS(b *testing.B) {
+	backend := newStaticDNSBackend()
+
+	upstream, _ := startFakeUpstream(b, answerA)
+	forwarding := NewResolver("", true, noopDNSBackend{})
+	forwarding.SetExtServers([]extDNSEntry{upstream})
+
+	benchmarks := []struct {
+		name string
+		rsv  *Resolver
+		q    *dns.Msg
+	}{
+		{name: "local-A", rsv: NewResolver("", true, backend), q: new(dns.Msg).SetQuestion("web.", dns.TypeA)},
+		{name: "local-AAAA", rsv: NewResolver("", true, backend), q: new(dns.Msg).SetQuestion("web.", dns.TypeAAAA)},
+		{name: "local-PTR", rsv: NewResolver("", true, backend), q: new(dns.Msg).SetQuestion("2.0.20.172.in-addr.arpa.", dns.TypePTR)},
+		{name: "local-SRV", rsv: NewResolver("", true, backend), q: new(dns.Msg).SetQuestion("_http._tcp.web.", dns.TypeSRV)},
+		// No local record and forwarding disabled: the SERVFAIL path, no network I/O.
+		{name: "miss-noproxy", rsv: NewResolver("", false, noopDNSBackend{}), q: new(dns.Msg).SetQuestion("example.com.", dns.TypeA)},
+		// Forwarded to an in-process upstream over loopback UDP, including the
+		// per-query socket setup and a real round trip.
+		{name: "forwarded-udp", rsv: forwarding, q: new(dns.Msg).SetQuestion("example.com.", dns.TypeA)},
+	}
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			w := &tstwriter{network: "udp"}
+			b.ReportAllocs()
+			for b.Loop() {
+				bm.rsv.serveDNS(w, bm.q)
+			}
+			if w.GetResponse() == nil {
+				b.Fatal("no response written")
+			}
+		})
+	}
 }
