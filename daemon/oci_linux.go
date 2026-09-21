@@ -695,7 +695,7 @@ func withMounts(daemon *Daemon, daemonCfg *configStore, c *container.Container, 
 // exist, so do not add the default ones if running on an old kernel.
 func sysctlExists(s string) bool {
 	f := filepath.Join("/proc", "sys", strings.ReplaceAll(s, ".", "/"))
-	_, err := os.Stat(f)
+	_, err := os.Stat(f) // #nosec G703 -- only used with fixed / hardcoded paths.
 	return err == nil
 }
 

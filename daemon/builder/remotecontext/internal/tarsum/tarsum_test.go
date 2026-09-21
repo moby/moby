@@ -472,9 +472,9 @@ func TestIteration(t *testing.T) {
 				Gname:    "users",
 				Size:     4,
 				Typeflag: tar.TypeReg,
-				Xattrs: map[string]string{
-					"user.key1": "value1",
-					"user.key2": "value2",
+				PAXRecords: map[string]string{
+					"SCHILY.xattr.user.key1": "value1",
+					"SCHILY.xattr.user.key2": "value2",
 				},
 			},
 			[]byte("test"),
@@ -490,9 +490,9 @@ func TestIteration(t *testing.T) {
 				Gname:    "users",
 				Size:     4,
 				Typeflag: tar.TypeReg,
-				Xattrs: map[string]string{
-					"user.KEY1": "value1", // adding different case to ensure different sum
-					"user.key2": "value2",
+				PAXRecords: map[string]string{
+					"SCHILY.xattr.user.KEY1": "value1", // adding different case to ensure different sum
+					"SCHILY.xattr.user.key2": "value2",
 				},
 			},
 			[]byte("test"),
@@ -508,8 +508,8 @@ func TestIteration(t *testing.T) {
 				Gname:    "users",
 				Size:     4,
 				Typeflag: tar.TypeReg,
-				Xattrs: map[string]string{
-					"user.NOT": "CALCULATED",
+				PAXRecords: map[string]string{
+					"SCHILY.xattr.user.NOT": "CALCULATED",
 				},
 			},
 			[]byte("test"),

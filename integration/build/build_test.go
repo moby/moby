@@ -526,6 +526,7 @@ func TestBuildWCOWSandboxSize(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "windows", "only Windows has sandbox size control")
 	ctx := setupTest(t)
 
+	//nolint:dupword // ignore duplicate "C:\\stuff"
 	const dockerfile = `
 FROM busybox AS intermediate
 WORKDIR C:\\stuff
