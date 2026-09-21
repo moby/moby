@@ -56,9 +56,7 @@ func TestRestoreReattachesRunningContainer(t *testing.T) {
 	fake.exit(run.ContainerID, 0, nil)
 	done := waitTerminal(t, m2, "backup", run.ID)
 	assert.Check(t, is.Equal(done.State, jobsv0.RunStateSucceeded))
-	job, err := m2.Inspect(t.Context(), "backup")
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(job.State, jobsv0.JobStateIdle))
+	waitJobSettled(t, m2, "backup", func(j *jobsv0.Job) bool { return j.State == jobsv0.JobStateIdle })
 }
 
 func TestRestoreResolvesContainerExitedDuringDowntime(t *testing.T) {
@@ -97,9 +95,7 @@ func TestRestoreFailsLostContainer(t *testing.T) {
 	done := waitTerminal(t, m2, "backup", run.ID)
 	assert.Check(t, is.Equal(done.State, jobsv0.RunStateFailed))
 	assert.Check(t, is.ErrorContains(errors.New(done.Error), "waiting on run container"))
-	job, err := m2.Inspect(t.Context(), "backup")
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(job.State, jobsv0.JobStateIdle))
+	waitJobSettled(t, m2, "backup", func(j *jobsv0.Job) bool { return j.State == jobsv0.JobStateIdle })
 }
 
 func TestRestoreFailsUnstartedRun(t *testing.T) {
@@ -133,9 +129,7 @@ func TestRestoreFailsUnstartedRun(t *testing.T) {
 			done := waitStoreTerminal(t, m2, job.ID, run.ID)
 			assert.Check(t, is.Equal(done.State, jobsv0.RunStateFailed))
 			assert.Check(t, is.ErrorContains(errors.New(done.Error), "before the run start was recorded"))
-			restored, err := m2.Inspect(t.Context(), job.ID)
-			assert.NilError(t, err)
-			assert.Check(t, is.Equal(restored.State, jobsv0.JobStateIdle))
+			waitJobSettled(t, m2, job.ID, func(j *jobsv0.Job) bool { return j.State == jobsv0.JobStateIdle })
 			if tc.withContainer {
 				// The best-effort stop runs on its own goroutine, unordered
 				// with the run's completion; wait for it.
