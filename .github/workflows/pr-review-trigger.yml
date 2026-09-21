@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   save-context:
-    if: github.event.requested_reviewer.login == 'GordonTheTurtle'
+    if: ${{ github.repository == 'moby/moby' && github.event.requested_reviewer.login == 'GordonTheTurtle' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
