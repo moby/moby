@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -12,7 +14,6 @@ import (
 	"github.com/moby/moby/v2/errdefs"
 	containernamegeneratorv0 "github.com/moby/moby/v2/extpoints/containernamegenerator/v0"
 	servicenamegeneratorv0 "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -61,8 +62,9 @@ func (daemon *Daemon) generateIDAndName(name, image string) (string, string, err
 }
 
 func (daemon *Daemon) reserveName(id, name string) (string, error) {
-	if !validContainerNamePattern.MatchString(strings.TrimPrefix(name, "/")) {
-		return "", errdefs.InvalidParameter(errors.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars))
+	effectiveName := strings.TrimPrefix(name, "/")
+	if !validContainerNamePattern.MatchString(effectiveName) {
+		return "", errdefs.InvalidParameter(fmt.Errorf("invalid container name (%s): only %s are allowed", effectiveName, validContainerNameChars))
 	}
 	if name[0] != '/' {
 		name = "/" + name
@@ -77,7 +79,7 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 			}
 			return "", nameConflictError{id: id, name: name}
 		}
-		return "", errors.Wrapf(err, "error reserving name: %q", name)
+		return "", fmt.Errorf("error reserving name: %q: %w", name, err)
 	}
 	return name, nil
 }
