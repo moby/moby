@@ -255,6 +255,8 @@ func WriteTarFileFromBackupStream(t *tar.Writer, r io.Reader, name string, size 
 
 		case winio.BackupAlternateData, winio.BackupLink, winio.BackupPropertyData, winio.BackupObjectId, winio.BackupTxfsData:
 			// ignore these streams
+		case winio.BackupSparseBlock:
+			// Skip sparse content during the metadata scan; copySparse handles it in the data pass.
 		default:
 			return fmt.Errorf("%s: unknown stream ID %d", name, bhdr.Id)
 		}
@@ -365,6 +367,8 @@ func WriteTarFileFromBackupStream(t *tar.Writer, r io.Reader, name string, size 
 			}
 		case winio.BackupEaData, winio.BackupLink, winio.BackupPropertyData, winio.BackupObjectId, winio.BackupTxfsData:
 			// ignore these streams
+		case winio.BackupSparseBlock:
+			// Empty sparse files skip copySparse and may leave a zero-size, zero-offset terminator.
 		default:
 			return fmt.Errorf("%s: unknown stream ID %d after data", name, bhdr.Id)
 		}

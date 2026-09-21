@@ -17,9 +17,11 @@
 // What's in a name? For image references, not nearly enough!
 //
 // Image references look a lot like URLs, but they differ in that they don't
-// contain the scheme (http or https), they can end with a :tag or a @digest
-// (the latter being validated), and they perform defaulting for missing
-// components.
+// contain the scheme (http or https), they can end with a :tag, an @digest
+// (the latter being validated), or both. When a reference includes both a tag
+// and a digest, it is treated as a digest reference: the digest is the
+// identifier used for verification, while the tag is retained only in the
+// original string form.
 //
 // Since image references don't contain the scheme, we do our best to infer
 // if we use http or https from the given hostname. We allow http fallback for

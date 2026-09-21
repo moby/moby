@@ -1,13 +1,17 @@
 * @cilium/ebpf-lib-maintainers
 
-features/ @rgo3
-link/ @mmat11
+/features/ @rgo3
+/link/ @mmat11 @rgo3
 
-perf/ @florianl
-ringbuf/ @florianl
+/perf/ @florianl
+/ringbuf/ @florianl
 
-btf/ @dylandreimerink
+/btf/ @dylandreimerink
 
-cmd/bpf2go/ @mejedi
+/docs/ @cilium/ebpf-go-reviewers @ti-mo
 
-docs/ @ti-mo
+# Windows specific code.
+/docs/**/windows*.md @cilium/ebpf-go-windows-reviewers
+/internal/efw @cilium/ebpf-go-windows-reviewers
+windows/ @cilium/ebpf-go-windows-reviewers # Folders
+*windows*.go @cilium/ebpf-go-windows-reviewers # Go code

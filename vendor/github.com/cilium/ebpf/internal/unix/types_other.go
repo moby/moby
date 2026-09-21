@@ -4,6 +4,7 @@ package unix
 
 import (
 	"syscall"
+	"unsafe"
 )
 
 // Constants are distinct to avoid breaking switch statements.
@@ -32,11 +33,14 @@ const (
 	EPOLL_CLOEXEC
 	O_CLOEXEC
 	O_NONBLOCK
+	O_DIRECTORY
+	O_RDONLY
 	PROT_NONE
 	PROT_READ
 	PROT_WRITE
 	MAP_ANON
 	MAP_SHARED
+	MAP_FIXED
 	MAP_PRIVATE
 	PERF_ATTR_SIZE_VER1
 	PERF_TYPE_SOFTWARE
@@ -71,6 +75,12 @@ const (
 	BPF_F_LOCK
 	AF_UNSPEC
 	IFF_UP
+	LINUX_CAPABILITY_VERSION_3
+	SOCK_CLOEXEC
+	FSOPEN_CLOEXEC
+	FSMOUNT_CLOEXEC
+	MSG_CMSG_CLOEXEC
+	SizeofInt
 )
 
 type Statfs_t struct {
@@ -111,6 +121,17 @@ type Signal int
 
 type Sigset_t struct {
 	Val [4]uint64
+}
+
+type CapUserHeader struct {
+	Version uint32
+	Pid     int32
+}
+
+type CapUserData struct {
+	Effective   uint32
+	Permitted   uint32
+	Inheritable uint32
 }
 
 func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
@@ -197,6 +218,10 @@ func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, e
 	return []byte{}, errNonLinux()
 }
 
+func MmapPtr(fd int, offset int64, addr unsafe.Pointer, length uintptr, prot int, flags int) (ret unsafe.Pointer, err error) {
+	return nil, errNonLinux()
+}
+
 func Munmap(b []byte) (err error) {
 	return errNonLinux()
 }
@@ -281,4 +306,12 @@ func SchedGetaffinity(pid int, set *CPUSet) error {
 
 func Auxv() ([][2]uintptr, error) {
 	return nil, errNonLinux()
+}
+
+func Capget(hdr *CapUserHeader, data *CapUserData) (err error) {
+	return errNonLinux()
+}
+
+func Capset(hdr *CapUserHeader, data *CapUserData) (err error) {
+	return errNonLinux()
 }

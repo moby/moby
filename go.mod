@@ -16,8 +16,8 @@ require (
 	dario.cat/mergo v1.0.2
 	github.com/Azure/go-ansiterm v0.0.0-20260917205352-e937bb47801a
 	github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0 // head of v2 branch
-	github.com/Microsoft/go-winio v0.6.3-0.20251027160822-ad3df93bed29 // see https://github.com/microsoft/hcsshim/pull/2545
-	github.com/Microsoft/hcsshim v0.15.0-rc.4
+	github.com/Microsoft/go-winio v0.6.3-0.20260917205003-526e22f39a0a // includes https://github.com/microsoft/go-winio/pull/375
+	github.com/Microsoft/hcsshim v0.15.0-rc.4.0.20260921194131-0e1f18b7ac56
 	github.com/RackSec/srslog v0.0.0-20180709174129-a4725f04ec91
 	github.com/aws/aws-sdk-go-v2 v1.47.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.4
@@ -156,7 +156,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cilium/ebpf v0.17.3 // indirect
+	github.com/cilium/ebpf v0.22.0 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/container-storage-interface/spec v1.10.0 // indirect
 	github.com/containerd/accelerated-container-image v1.3.0 // indirect
@@ -212,7 +212,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/certificate-transparency-go v1.3.3 // indirect
-	github.com/google/go-containerregistry v0.21.7 // indirect
+	github.com/google/go-containerregistry v0.22.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.17 // indirect

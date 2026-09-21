@@ -17,6 +17,10 @@ type FsHandle = types.FsHandle
 type StreamHandle = types.StreamHandle
 type FileMetadata = types.CimFsFileMetadata
 type ImagePath = types.CimFsImagePath
+type CimInfo = types.CimFsCimInfo
+type VerificationInfoFlags = types.CimGetVerificationInfoFlags
+type SignatureType = types.CimSignatureType
+type HashAlgorithm = types.CimHashAlgorithm
 
 //sys CimCreateImage(imagePath string, oldFSName *uint16, newFSName *uint16, cimFSHandle *FsHandle) (hr error) = cimwriter.CimCreateImage?
 //sys CimCreateImage2(imagePath string, flags uint32, oldFSName *uint16, newFSName *uint16, cimFSHandle *FsHandle) (hr error) = cimwriter.CimCreateImage2?
@@ -37,6 +41,8 @@ type ImagePath = types.CimFsImagePath
 //sys CimSealImage(blockCimPath string, hashSize *uint64, fixedHeaderSize *uint64, hash *byte) (hr error) = cimwriter.CimSealImage?
 
 //sys CimGetVerificationInformation(blockCimPath string, isSealed *uint32, hashSize *uint64, signatureSize *uint64, fixedHeaderSize *uint64, hash *byte, signature *byte) (hr error) = cimwriter.CimGetVerificationInformation?
+//sys CimGetVerificationInformation2(blockCimPath string, flags VerificationInfoFlags, isSealed *uint32, hashSize *uint64, signatureOffset *uint64, signatureSize *uint64, fixedHeaderSize *uint64, hash *byte, signature *byte, signatureType *SignatureType, hashAlgorithm *HashAlgorithm) (hr error) = cimwriter.CimGetVerificationInformation2?
+//sys CimQueryBlockInfo(blockCimPath string, cimInfoBufferSize uint32, cimInfoBuffer *CimInfo, requiredBufferSize *uint32, cimCount *uint32) (hr error) = cimwriter.CimQueryBlockInfo?
 
 var load = sync.OnceValue(func() error {
 	// Pre-load the DLL with a restricted search path (System32 + application directory only)
