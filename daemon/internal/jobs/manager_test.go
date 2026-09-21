@@ -16,6 +16,7 @@ import (
 	runtimev0 "github.com/moby/moby/v2/extpoints/runtime/v0"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 )
 
 // fakeStatus is a container exit observed by a fake wait.
@@ -203,6 +204,28 @@ func waitTerminal(t *testing.T, m *Manager, jobRef, runRef string) *jobsv0.Run {
 	return run
 }
 
+// waitJobSettled polls Inspect until settled reports true, and returns the
+// settled job. Wait's contract covers the run record only: the completion
+// transition writes the run's terminal state first (a crash between the two
+// must leave the run resolved), then returns the job record to idle — so
+// assertions on the job record after a wait must poll that second write.
+func waitJobSettled(t *testing.T, m *Manager, jobRef string, settled func(*jobsv0.Job) bool) *jobsv0.Job {
+	t.Helper()
+	var job *jobsv0.Job
+	poll.WaitOn(t, func(poll.LogT) poll.Result {
+		var err error
+		job, err = m.Inspect(t.Context(), jobRef)
+		if err != nil {
+			return poll.Error(err)
+		}
+		if settled(job) {
+			return poll.Success()
+		}
+		return poll.Continue("job not settled yet (state %s, next fire %d)", job.State, job.NextFireAtNano)
+	})
+	return job
+}
+
 // waitStoreTerminal observes a run in the store until it turns terminal,
 // for runs whose job record is gone (tombstone history) and which the
 // API-level Wait therefore correctly refuses to resolve.
@@ -352,9 +375,7 @@ func TestManagerRunLifecycle(t *testing.T) {
 	assert.Assert(t, done.ExitCode != nil)
 	assert.Check(t, is.Equal(done.ExitCode.Value, int64(0)))
 
-	inspected, err = m.Inspect(t.Context(), "backup")
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(inspected.State, jobsv0.JobStateIdle))
+	inspected = waitJobSettled(t, m, "backup", func(j *jobsv0.Job) bool { return j.State == jobsv0.JobStateIdle })
 	assert.Check(t, is.Equal(inspected.LatestRun.ID, run.ID))
 
 	// The next run continues the iteration sequence.

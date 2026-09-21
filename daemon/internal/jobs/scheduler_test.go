@@ -10,7 +10,6 @@ import (
 	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/poll"
 )
 
 // fakeClock is an injectable manager clock; the scheduler is exercised by
@@ -77,9 +76,8 @@ func TestSchedulerFiresAndRearms(t *testing.T) {
 	assert.Check(t, is.Equal(done.State, jobsv0.RunStateSucceeded))
 
 	// After completion the job advertises the re-armed next occurrence.
-	inspected, err := m.Inspect(t.Context(), job.ID)
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(inspected.NextFireAtNano, jan15.Add(27*time.Hour).UnixNano()))
+	rearmed := jan15.Add(27 * time.Hour).UnixNano()
+	waitJobSettled(t, m, job.ID, func(j *jobsv0.Job) bool { return j.NextFireAtNano == rearmed })
 }
 
 func TestSchedulerForbidSkipsWhileRunning(t *testing.T) {
@@ -174,19 +172,9 @@ func TestSchedulerMissedFiresOnStart(t *testing.T) {
 			// Either way the schedule re-armed from the next occurrence,
 			// not from the backlog. The catch-up fire runs concurrently
 			// with Start's own arm+persist, so the re-arm write can land
-			// an instant after the run turns terminal: poll rather than
-			// assert on the first read.
-			want := jan15.Add(27 * time.Hour).UnixNano()
-			poll.WaitOn(t, func(poll.LogT) poll.Result {
-				inspected, err := m.Inspect(t.Context(), job.ID)
-				if err != nil {
-					return poll.Error(err)
-				}
-				if inspected.NextFireAtNano == want {
-					return poll.Success()
-				}
-				return poll.Continue("schedule not re-armed yet (next fire %d, want %d)", inspected.NextFireAtNano, want)
-			})
+			// an instant after the run turns terminal.
+			rearmed := jan15.Add(27 * time.Hour).UnixNano()
+			waitJobSettled(t, m, job.ID, func(j *jobsv0.Job) bool { return j.NextFireAtNano == rearmed })
 		})
 	}
 }
@@ -203,9 +191,8 @@ func TestSchedulerReschedule(t *testing.T) {
 	fake.exit(run.ContainerID, 0, nil)
 	waitTerminal(t, m, job.ID, run.ID)
 
-	inspected, err := m.Inspect(t.Context(), job.ID)
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(inspected.NextFireAtNano, jan15.Add(27*time.Hour).UnixNano()))
+	rearmed := jan15.Add(27 * time.Hour).UnixNano()
+	waitJobSettled(t, m, job.ID, func(j *jobsv0.Job) bool { return j.NextFireAtNano == rearmed })
 
 	// Today's occurrence passes without a fire.
 	clk.Advance(4 * time.Hour)
