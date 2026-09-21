@@ -16,7 +16,7 @@ func TestPIDModeHost(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, testEnv.IsUserNamespace, "host PID mode is incompatible with user namespaces")
-	skip.If(t, testEnv.IsRootlessClient, "skipping test that requires root on client side")
+	skip.If(t, testEnv.IsNonRootClient, "skipping test that requires root on client side")
 
 	hostPid, err := os.Readlink("/proc/1/ns/pid")
 	assert.NilError(t, err)

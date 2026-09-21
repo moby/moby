@@ -171,10 +171,10 @@ func (e *Execution) IsRootless() bool {
 	return os.Getenv("DOCKER_ROOTLESS") != ""
 }
 
-// IsRootlessClient returns whether the client is running as a non-root user.
+// IsNonRootClient returns whether the client is running as a non-root user.
 // Not to be confused with [Execution.IsRootless], which returns whether the
 // daemon is running as a non-root user.
-func (e *Execution) IsRootlessClient() bool {
+func (e *Execution) IsNonRootClient() bool {
 	return os.Geteuid() != 0
 }
 
