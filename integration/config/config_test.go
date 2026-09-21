@@ -333,15 +333,20 @@ func TestTemplatedConfig(t *testing.T) {
 
 	outBuf.Reset()
 	errBuf.Reset()
+	// Read the mount table rather than running mount(8): busybox's mount stops
+	// parsing at an over-long entry and drops it along with everything after it,
+	// and the task carries one - the init binary is bind-mounted from an overlay
+	// whose options list every lower directory. /proc/mounts is what mount(8)
+	// reads anyway, and cat doesn't parse it.
 	resp = swarm.ExecTask(ctx, t, d, tasks[0], client.ExecCreateOptions{
-		Cmd:          []string{"mount"},
+		Cmd:          []string{"cat", "/proc/mounts"},
 		AttachStdout: true,
 		AttachStderr: true,
 	})
 
 	_, err = stdcopy.StdCopy(&outBuf, &errBuf, resp.Reader)
 	assert.NilError(t, err)
-	assert.Check(t, is.Contains(outBuf.String(), "tmpfs on /templated_config type tmpfs"), "expected to be mounted as tmpfs")
+	assert.Check(t, is.Contains(outBuf.String(), "tmpfs /templated_config tmpfs"), "expected to be mounted as tmpfs")
 	assert.Check(t, is.Equal(errBuf.String(), ""))
 }
 

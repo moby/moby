@@ -366,6 +366,8 @@ func createServices(ctx context.Context, t *testing.T, d *daemon.Daemon, section
 						ContainerSpec: &swarmtypes.ContainerSpec{
 							Image:   "busybox:latest",
 							Command: []string{"/bin/top"},
+							// top ignores SIGTERM as PID 1; an init forwards it.
+							Init: new(true),
 						},
 					},
 					EndpointSpec: &swarmtypes.EndpointSpec{

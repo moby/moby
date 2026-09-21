@@ -44,7 +44,10 @@ func testServiceCreateInit(ctx context.Context, daemonEnabled bool) func(t *test
 		booleanTrue := true
 		booleanFalse := false
 
-		serviceID := swarm.CreateService(ctx, t, d)
+		// An unset Init delegates to the daemon configuration, which is what this
+		// case is about - so ask for it explicitly, rather than relying on the
+		// spec helper leaving it unset.
+		serviceID := swarm.CreateService(ctx, t, d, swarm.ServiceWithInit(nil))
 		poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 1), swarm.ServicePoll)
 		i := inspectServiceContainer(ctx, t, apiClient, serviceID)
 		// HostConfig.Init == nil means that it delegates to daemon configuration
