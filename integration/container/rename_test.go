@@ -102,6 +102,14 @@ func TestRenameInvalidName(t *testing.T) {
 	inspect, err := apiClient.ContainerInspect(ctx, oldName, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(cID, inspect.Container.ID))
+
+	_, err = apiClient.ContainerRename(ctx, oldName, client.ContainerRenameOptions{NewName: "a"})
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+	assert.Check(t, is.ErrorContains(err, "invalid container name (a): name must be at least 2 characters"))
+
+	inspect, err = apiClient.ContainerInspect(ctx, oldName, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(cID, inspect.Container.ID))
 }
 
 // Test case for GitHub issue 22466

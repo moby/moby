@@ -63,6 +63,9 @@ func (daemon *Daemon) generateIDAndName(name, image string) (string, string, err
 
 func (daemon *Daemon) reserveName(id, name string) (string, error) {
 	effectiveName := strings.TrimPrefix(name, "/")
+	if len(effectiveName) < 2 {
+		return "", errdefs.InvalidParameter(fmt.Errorf("invalid container name (%s): name must be at least 2 characters", effectiveName))
+	}
 	if !validContainerNamePattern.MatchString(effectiveName) {
 		return "", errdefs.InvalidParameter(fmt.Errorf("invalid container name (%s): only %s are allowed", effectiveName, validContainerNameChars))
 	}
