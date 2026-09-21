@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Package serverpoint defines the SDK-side registration for generated
 // out-of-process point providers. It has no dependency on the SDK server so
 // generated code can reference it.

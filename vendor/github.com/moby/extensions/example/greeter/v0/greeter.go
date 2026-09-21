@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 //go:generate go run github.com/moby/extensions/cmd/mobyextgen
 
 // Package greeterv0 is an example service point used to exercise socket

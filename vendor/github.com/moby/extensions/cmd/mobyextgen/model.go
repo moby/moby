@@ -1,18 +1,22 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 // model
 
 type point struct {
-	pkgName    string // Go package name
-	importPath string // package import path
-	protoPath  string // module-relative path of the .proto
-	id         string // proto package: the point id, or the explicit package in service mode
-	service    string // gRPC service name: the contract interface name
-	iface      string // Go service interface name
-	isPoint    bool   // whether the contract declares an extensions.Point
-	isSingle   bool   // whether the point was declared with DefineSinglePoint
-	methods    []method
-	messages   []message
+	pkgName       string // Go package name
+	importPath    string // package import path
+	protoPath     string // module-relative path of the .proto
+	licenseHeader string // SPDX notices from the contract interface's source file
+	id            string // proto package: the point id, or the explicit package in service mode
+	service       string // gRPC service name: the contract interface name
+	iface         string // Go service interface name
+	isPoint       bool   // whether the contract declares an extensions.Point
+	isSingle      bool   // whether the point was declared with DefineSinglePoint
+	methods       []method
+	messages      []message
 }
 
 // grpcService returns the fully-qualified gRPC service name.

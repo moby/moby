@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Package servicegrpc adapts published ordinary generated points to the gRPC
 // transport without replacing their generated handlers.
 package servicegrpc

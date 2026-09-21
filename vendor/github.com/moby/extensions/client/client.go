@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The Moby Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Package client provides typed, lazy clients for extension points.
 //
 // Generated wire bindings expose a ClientPoint registration containing the

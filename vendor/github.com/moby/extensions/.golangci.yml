@@ -3,9 +3,23 @@ version: "2"
 linters:
   default: none
   enable:
+    - contextcheck
     - copyloopvar
     - errcheck
     - intrange
     - mirror
     - perfsprint
     - usestdlibvars
+    - usetesting                # Reports uses of functions with replacement inside the testing package.
+
+  settings:
+    usetesting:
+      context-background: true
+      context-todo: true
+
+issues:
+  # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
+  max-issues-per-linter: 0
+
+  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-same-issues: 0
