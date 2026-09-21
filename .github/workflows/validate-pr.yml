@@ -12,7 +12,7 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-check-labels
       cancel-in-progress: true
-    if: ${{ github.event.pull_request.state == 'open' }}
+    if: ${{ github.repository == 'moby/moby' && github.event.pull_request.state == 'open' }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
@@ -33,7 +33,7 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-check-changelog
       cancel-in-progress: true
-    if: ${{ github.event.pull_request.state == 'open' }}
+    if: ${{ github.repository == 'moby/moby' && github.event.pull_request.state == 'open' }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     env:
@@ -145,7 +145,7 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-check-pr-branch
       cancel-in-progress: true
-    if: ${{ github.event.pull_request.state == 'open' }}
+    if: ${{ github.repository == 'moby/moby' && github.event.pull_request.state == 'open' }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     env:
