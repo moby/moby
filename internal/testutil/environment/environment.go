@@ -171,6 +171,13 @@ func (e *Execution) IsRootless() bool {
 	return os.Getenv("DOCKER_ROOTLESS") != ""
 }
 
+// IsNonRootClient returns whether the client is running as a non-root user.
+// Not to be confused with [Execution.IsRootless], which returns whether the
+// daemon is running as a non-root user.
+func (e *Execution) IsNonRootClient() bool {
+	return os.Geteuid() != 0
+}
+
 // IsUserNamespaceInKernel returns whether the kernel supports user namespaces
 func (e *Execution) IsUserNamespaceInKernel() bool {
 	if _, err := os.Stat("/proc/self/uid_map"); os.IsNotExist(err) {
