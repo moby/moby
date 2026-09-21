@@ -89,6 +89,25 @@ func CreateServiceSpec(t *testing.T, opts ...ServiceSpecOpt) swarmtypes.ServiceS
 	for _, o := range opts {
 		o(&spec)
 	}
+
+	// Declare an update complete once its new task has settled. The default
+	// monitoring period guards against a task that starts and then flaps, which
+	// is not what any of these tests are asking about - they wait for the update
+	// to report itself complete, and pay the whole window while it does.
+	//
+	// Applied after the options, rather than as a default before them, because a
+	// caller setting UpdateConfig for the order replaces the struct wholesale;
+	// this fills the field in without overriding a caller that asked for its own.
+	// A job is rejected outright if it carries an update config, so they keep
+	// none - they run their tasks to completion instead of updating them.
+	if spec.Mode.ReplicatedJob == nil && spec.Mode.GlobalJob == nil {
+		if spec.UpdateConfig == nil {
+			spec.UpdateConfig = &swarmtypes.UpdateConfig{}
+		}
+		if spec.UpdateConfig.Monitor == 0 {
+			spec.UpdateConfig.Monitor = time.Second
+		}
+	}
 	return spec
 }
 
