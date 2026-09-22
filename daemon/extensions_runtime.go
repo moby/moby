@@ -13,7 +13,7 @@ import (
 
 // runtimeExtensionID identifies the builtin extension through which the
 // daemon provides the container runtime point.
-const runtimeExtensionID = "org.mobyproject.runtime.v1"
+const runtimeExtensionID = "org.mobyproject.runtime.v0"
 
 // runtimeExtension declares the builtin extension providing the container
 // runtime point, backed by the daemon.
