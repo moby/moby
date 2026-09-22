@@ -4206,7 +4206,6 @@ definitions:
         description: |
           List of ID's and addresses of other managers in the swarm.
         type: "array"
-        default: null
         x-nullable: true
         items:
           $ref: "#/definitions/PeerNode"
@@ -5302,7 +5301,7 @@ paths:
       consumes:
         - "application/octet-stream"
       produces:
-        - "text/plain"
+        - "application/json"
       responses:
         200:
           description: "no error"
@@ -5370,6 +5369,8 @@ paths:
           in: "query"
           description: "Override the key sequence for detaching a container. Format is a single character `[a-Z]` or `ctrl-<value>` where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`."
           type: "string"
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/stop:
     post:
@@ -5403,6 +5404,8 @@ paths:
           in: "query"
           description: "Number of seconds to wait before killing the container"
           type: "integer"
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/restart:
     post:
@@ -5432,6 +5435,8 @@ paths:
           in: "query"
           description: "Number of seconds to wait before killing the container"
           type: "integer"
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/kill:
     post:
@@ -5463,6 +5468,8 @@ paths:
           description: "Signal to send to the container as an integer or string (e.g. `SIGINT`)"
           type: "string"
           default: "SIGKILL"
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/update:
     post:
@@ -5557,6 +5564,8 @@ paths:
           required: true
           description: "New name for the container"
           type: "string"
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/pause:
     post:
@@ -5586,6 +5595,8 @@ paths:
           required: true
           description: "ID or name of the container"
           type: "string"
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/unpause:
     post:
@@ -5612,6 +5623,8 @@ paths:
           required: true
           description: "ID or name of the container"
           type: "string"
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/attach:
     post:
@@ -5910,6 +5923,8 @@ paths:
           description: "Remove the specified link associated with the container."
           type: "boolean"
           default: false
+      produces:
+        - "application/json"
       tags: ["Container"]
   /containers/{id}/archive:
     head:
@@ -5954,7 +5969,8 @@ paths:
       summary: "Get an archive of a filesystem resource in a container"
       description: "Get a tar archive of a resource in the filesystem of container id."
       operationId: "ContainerArchive"
-      produces: ["application/x-tar"]
+      produces:
+        - "application/x-tar"
       responses:
         200:
           description: "no error"
@@ -6927,7 +6943,8 @@ paths:
       summary: "Ping"
       description: "This is a dummy endpoint you can use to test if the server is accessible."
       operationId: "SystemPing"
-      produces: ["text/plain"]
+      produces:
+        - "text/plain"
       responses:
         200:
           description: "no error"
@@ -7275,8 +7292,9 @@ paths:
       parameters:
         - name: "names"
           in: "query"
-          description: "Image names to filter by"
+          description: "Image names to filter by. Repeat the parameter for multiple images."
           type: "array"
+          collectionFormat: "multi"
           items:
             type: "string"
       tags: ["Image"]
@@ -7717,6 +7735,8 @@ paths:
           description: "Force the removal of the volume"
           type: "boolean"
           default: false
+      produces:
+        - "application/json"
       tags: ["Volume"]
   /volumes/prune:
     post:
@@ -7901,6 +7921,8 @@ paths:
           description: "Network ID or name"
           required: true
           type: "string"
+      produces:
+        - "application/json"
       tags: ["Network"]
 
   /networks/create:
@@ -8444,6 +8466,8 @@ paths:
                 Description: ""
                 Value:
                   - "/dev/cpu_dma_latency"
+      produces:
+        - "application/json"
       tags: ["Plugin"]
   /plugins/create:
     post:
@@ -8470,6 +8494,8 @@ paths:
           schema:
             type: "string"
             format: "binary"
+      produces:
+        - "application/json"
       tags: ["Plugin"]
   /plugins/{name}/push:
     post:
@@ -8525,6 +8551,8 @@ paths:
           description: "Server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
+      produces:
+        - "application/json"
       tags: ["Plugin"]
   /nodes:
     get:
