@@ -7,38 +7,38 @@
 */}}
 {{ define "structfield" }}
   {{- if not $.IsBaseType -}}
-    // {{ template "docstring" . }}
+    {{ template "docstring" (dict "Ctx" .) }}
     {{- template "propertyValidationDocString" .}}
   {{- end}}
 {{- /* TODO(moby): Work around bug where "IPv4" and "IPv6" specifically get mangled to "IPV4" and "IPV6", respectively. */}}
-{{- /* {{ pascalize .Name}} {{ template "schemaType" . }} {{ .PrintTags }} */}}
-{{ pascalize .Name | replace "IPV4" "IPv4" | replace "IPV6" "IPv6" }} {{ template "schemaType" . }} {{ .PrintTags }}
+{{- /* {{ .GoName }} {{ template "schemaType" . }} {{ .PrintTags }} */}}
+{{ .GoName | replace "IPV4" "IPv4" | replace "IPV6" "IPv6" }} {{ template "schemaType" . }} {{ .PrintTags }}
 {{ end }}
 
 {{- define "tuplefield" }}
   {{- if not $.IsBaseType -}}
-    // {{ template "docstring" . }}
+    {{ template "docstring" (dict "Ctx" .) }}
     {{- template "propertyValidationDocString" .}}
 {{ end }}
-{{- pascalize .Name}} {{ template "schemaType" . }} `json:"-"
+{{- .GoName }} {{ template "schemaType" . }} `json:"-"
 {{- if .CustomTag }} {{ .CustomTag }}{{ end }}` // custom serializer
 {{ end }}
 
 {{- define "structfieldIface" }}
   {{- if not $.IsBaseType -}}
-    // {{ template "docstring" . }}
+    {{ template "docstring" (dict "Ctx" .) }}
     {{- template "propertyValidationDocString" .}}
   {{- end }}
-{{ pascalize .Name}}() {{ template "schemaType" . }}
-Set{{ pascalize .Name}}({{ template "schemaType" . }})
+{{ .GoName }}() {{ template "schemaType" . }}
+Set{{ .GoName }}({{ template "schemaType" . }})
 {{ end }}
 {{ define "tuplefieldIface" }}
   {{- if not $.IsBaseType -}}
-    // {{ template "docstring" . }}
+    {{ template "docstring" (dict "Ctx" .) }}
     {{- template "propertyValidationDocString" . }}
 {{ end }}
-{{- pascalize .Name}}() {{ template "schemaType" . }}
-Set{{ pascalize .Name}}({{ template "schemaType" . }})
+{{- .GoName }}() {{ template "schemaType" . }}
+Set{{ .GoName }}({{ template "schemaType" . }})
 {{ end }}
 
 {{- define "privstructfield" }}
