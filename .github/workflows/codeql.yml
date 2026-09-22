@@ -38,6 +38,7 @@ env:
 
 jobs:
   codeql:
+    if: github.repository == 'moby/moby'
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
