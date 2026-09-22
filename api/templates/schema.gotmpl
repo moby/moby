@@ -81,8 +81,11 @@
     {{- end }}
     {{ template "mapOrSliceGetter" . }}
   {{- end }}
-  {{/* {{ template "schemaSerializer" . }} */}}{{/* TODO(moby): Disabled for moby/api */}}
+  {{- if false }}{{/* TODO(moby): Disabled for moby/api */}}
+  {{ template "schemaSerializer" . }}
+  {{- end }}{{/* TODO(moby): Disabled for moby/api */}}
 {{- end }}
+{{- if false }}{{/* TODO(moby): Disabled for moby/api */}}
 {{- if and .IncludeValidator (not .IsSuperAlias) (not .IsEmbedded) }}{{/* aliased types type A = B do not redefine methods */}}
   {{- if and (not (or .IsInterface .IsStream)) (or .Required .HasValidations .HasBaseType) }}
     {{- if (eq .SwaggerType "string") }}{{/* Enum factory for enums for which we generate const (atm, only strings)*/}}
@@ -98,15 +101,14 @@ func ({{ .ReceiverName }} {{ .GoType }}) Pointer() *{{ .GoType }} {
 }
       {{- end }}
     {{- end }}
-    {{/* {{ template "schemavalidator" . }} */}}{{/* TODO(moby): Disabled for moby/api */}}
-  {{- else if and false not (or .IsInterface .IsStream) }}{{/* TODO(moby): Disabled for moby/api */}}
+    {{ template "schemavalidator" . }}
+  {{- else if not (or .IsInterface .IsStream) }}
 // Validate validates this {{ humanize .Name }}{{/* this schema implements the runtime.Validatable interface but has no validations to check */}}
 func ({{.ReceiverName}} {{ if or .IsTuple .IsComplexObject .IsAdditionalProperties }}*{{ end }}{{ if or (not .IsExported) .Discriminates }}{{ camelize .Name }}{{ else }}{{ pascalize .Name }}{{ end }}) Validate(formats strfmt.Registry) error {
   return nil
 }
   {{- else }}{{/* {{ .Name }} does not implement the runtime.Validatable interface: noop */}}
   {{- end }}
-{{- if false }}{{/* TODO(moby): Disabled for moby/api */}}
   {{- if and (not (or .IsInterface .IsStream)) (or .HasContextValidations) }}
     {{ template "schemacontextvalidator" . }}
   {{- else if not (or .IsInterface .IsStream) }}
@@ -117,10 +119,12 @@ func ({{.ReceiverName}} {{ if or .IsTuple .IsComplexObject .IsAdditionalProperti
   {{- else }}{{/* {{ .Name }} does not implement the runtime.Validatable interface: noop */}}
   {{- end }}
 {{- end }}
-{{- if .WantsMarshalBinary }}
-  {{/* {{ template "marshalBinarySerializer" . }} */}}{{/* TODO(moby): Disabled for moby/api */}}
 {{- end }}{{/* TODO(moby): Disabled for moby/api */}}
+{{- if false }}{{/* TODO(moby): Disabled for moby/api */}}
+{{- if .WantsMarshalBinary }}
+  {{ template "marshalBinarySerializer" . }}
 {{- end }}
+{{- end }}{{/* TODO(moby): Disabled for moby/api */}}
 {{- define "mapOrSliceGetter" }}{{/* signature for AdditionalProperties and AdditionalItems getter funcs */}}
   {{- if not .IsBaseType }}
     {{- if .HasAdditionalProperties }}
