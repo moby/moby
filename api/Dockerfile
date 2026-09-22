@@ -12,7 +12,7 @@ WORKDIR /go/src/github.com/go-swagger/go-swagger
 # GO_SWAGGER_VERSION specifies the version of the go-swagger binary to install.
 # Go-swagger is used in CI for generating types from swagger.yaml in
 # api/scripts/generate-swagger-api.sh
-ARG GO_SWAGGER_VERSION=v0.33.2
+ARG GO_SWAGGER_VERSION=v0.34.1
 ARG TARGETPLATFORM
 RUN --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLATFORM \
     --mount=type=cache,target=/go/pkg/mod \
