@@ -276,6 +276,7 @@ jobs:
           tree -nh $reportsPath
       -
         name: Send to Codecov
+        if: github.repository == 'moby/moby'
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           directory: ./bundles/test-integration
@@ -499,6 +500,7 @@ jobs:
           tree -nh $reportsPath
       -
         name: Send to Codecov
+        if: github.repository == 'moby/moby'
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           directory: ./bundles/test-integration

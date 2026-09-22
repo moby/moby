@@ -25,6 +25,7 @@ on:
 
 jobs:
   run:
+    if: github.repository == 'moby/moby'
     uses: crazy-max/.github/.github/workflows/zizmor.yml@f91220cba053bd54299ba645a599ee8ed436f222 # v1.11.0
     permissions:
       contents: read
