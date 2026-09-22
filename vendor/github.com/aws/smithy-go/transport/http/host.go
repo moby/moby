@@ -29,17 +29,23 @@ func ValidateEndpointHost(host string) error {
 		hostname = host
 	}
 
-	labels := strings.Split(hostname, ".")
-	for i, label := range labels {
-		if i == len(labels)-1 && len(label) == 0 {
-			// Allow trailing dot for FQDN hosts.
-			continue
+	for start := 0; ; {
+		idx := strings.IndexByte(hostname[start:], '.')
+		if idx < 0 {
+			// Last label. Allow it to be empty to permit a trailing dot for
+			// FQDN hosts.
+			if label := hostname[start:]; len(label) != 0 && !ValidHostLabel(label) {
+				errors.WriteString("\nendpoint host domain labels must match \"[a-zA-Z0-9-]{1,63}\", but found: ")
+				errors.WriteString(label)
+			}
+			break
 		}
 
-		if !ValidHostLabel(label) {
+		if label := hostname[start : start+idx]; !ValidHostLabel(label) {
 			errors.WriteString("\nendpoint host domain labels must match \"[a-zA-Z0-9-]{1,63}\", but found: ")
 			errors.WriteString(label)
 		}
+		start += idx + 1
 	}
 
 	if len(hostname) == 0 && len(port) != 0 {
