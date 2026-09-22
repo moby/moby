@@ -844,7 +844,7 @@ func buildRouters(opts routerOptions) []router.Router {
 			opts.daemon.ImageService(),
 			opts.daemon.RegistryService(),
 		),
-		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.builder.buildkit, opts.daemon.Features),
+		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.builder.buildkit),
 		volume.NewRouter(opts.daemon.VolumesService(), opts.cluster),
 		build.NewRouter(opts.builder.backend, opts.daemon),
 		sessionrouter.NewRouter(opts.builder.sessionManager), //nolint:staticcheck // Deprecated endpoint kept for backward compatibility

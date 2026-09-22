@@ -9,11 +9,10 @@ import (
 // systemRouter provides information about the Docker system overall.
 // It gathers information about host, daemon and container events.
 type systemRouter struct {
-	backend  Backend
-	cluster  ClusterBackend
-	routes   []router.Route
-	builder  BuildBackend
-	features func() map[string]bool
+	backend Backend
+	cluster ClusterBackend
+	routes  []router.Route
+	builder BuildBackend
 
 	// collectSystemInfo is a single-flight for the /info endpoint,
 	// unique per API version (as different API versions may return
@@ -22,12 +21,11 @@ type systemRouter struct {
 }
 
 // NewRouter initializes a new system router
-func NewRouter(b Backend, c ClusterBackend, builder BuildBackend, features func() map[string]bool) router.Router {
+func NewRouter(b Backend, c ClusterBackend, builder BuildBackend) router.Router {
 	r := &systemRouter{
-		backend:  b,
-		cluster:  c,
-		builder:  builder,
-		features: features,
+		backend: b,
+		cluster: c,
+		builder: builder,
 	}
 
 	r.routes = []router.Route{
