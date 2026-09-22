@@ -3,7 +3,7 @@
     and validation code, and contains a fix for CamelCase (IPv6 <--> IPV6).
 
     The orignal template can be found at:
-    https://github.com/go-swagger/go-swagger/blob/v0.34.1/generator/templates/schema.gotmpl
+    https://github.com/go-swagger/go-swagger/blob/v0.36.6/generator/templates/schema.gotmpl
 */}}
 {{- if and .IsBaseType .IsExported (not .IsSuperAlias) }}
   {{- template "schemaPolymorphic" . }}
@@ -56,7 +56,7 @@
   {{- if (and .IsPrimitive .IsAliased .IsCustomFormatter (not (stringContains .Zero "(\""))) }}
     {{ template "aliasedSerializer" . }}
   {{- end }}
-  {{- if .IsSubType }}
+  {{- if or .IsSubType (and .HasBaseType (gt (len .AllOf) 0)) }}
     {{ range .AllOf }}
       {{ range .Properties }}
         {{- if .IsBaseType }}
@@ -79,6 +79,8 @@
         {{- end }}
       {{- end }}{{/* TODO(fred): handle AdditionalProperties in base type */}}
     {{- end }}
+  {{- end }}
+  {{- if .IsSubType }}
     {{ template "mapOrSliceGetter" . }}
   {{- end }}
   {{- if false }}{{/* TODO(moby): Disabled for moby/api */}}
@@ -104,7 +106,7 @@ func ({{ .ReceiverName }} {{ .GoType }}) Pointer() *{{ .GoType }} {
     {{ template "schemavalidator" . }}
   {{- else if not (or .IsInterface .IsStream) }}
 // Validate validates this {{ humanize .Name }}{{/* this schema implements the runtime.Validatable interface but has no validations to check */}}
-func ({{.ReceiverName}} {{ if or .IsTuple .IsComplexObject .IsAdditionalProperties }}*{{ end }}{{ if or (not .IsExported) .Discriminates }}{{ camelize .Name }}{{ else }}{{ .GoName }}{{ end }}) Validate(formats strfmt.Registry) error {
+func ({{.ReceiverName}} {{ if or .IsTuple .IsComplexObject .IsAdditionalProperties }}*{{ end }}{{ if or (not .IsExported) .Discriminates }}{{ camelize .Name }}{{ else }}{{ .GoName }}{{ end }}) Validate(_ strfmt.Registry) error {
   return nil
 }
   {{- else }}{{/* {{ .Name }} does not implement the runtime.Validatable interface: noop */}}
@@ -113,7 +115,7 @@ func ({{.ReceiverName}} {{ if or .IsTuple .IsComplexObject .IsAdditionalProperti
     {{ template "schemacontextvalidator" . }}
   {{- else if not (or .IsInterface .IsStream) }}
 // ContextValidate validates this {{ humanize .Name }} based on context it is used {{/* this schema implements the runtime.ContextValidatable interface but has no validations to check */}}
-func ({{.ReceiverName}} {{ if or .IsTuple .IsComplexObject .IsAdditionalProperties }}*{{ end }}{{ if or (not .IsExported) .Discriminates }}{{ camelize .Name }}{{ else }}{{ .GoName }}{{ end }}) ContextValidate(ctx context.Context, formats strfmt.Registry) error {
+func ({{.ReceiverName}} {{ if or .IsTuple .IsComplexObject .IsAdditionalProperties }}*{{ end }}{{ if or (not .IsExported) .Discriminates }}{{ camelize .Name }}{{ else }}{{ .GoName }}{{ end }}) ContextValidate(_ context.Context, _ strfmt.Registry) error {
   return nil
 }
   {{- else }}{{/* {{ .Name }} does not implement the runtime.Validatable interface: noop */}}
@@ -127,8 +129,20 @@ func ({{.ReceiverName}} {{ if or .IsTuple .IsComplexObject .IsAdditionalProperti
 {{- if .WantsStringer }}
   {{ template "stringerSerializer" . }}
 {{- end }}
+{{- if .WantsGetters }}
+  {{- range .Properties }}
+    {{- if not .IsBaseType }}
+
+// Get{{ .GoName }} gets the {{ humanize .Name }} of this {{ $.GoName }}
+func ({{ $.ReceiverName }} *{{ $.GoName }}) Get{{ .GoName }}() {{ template "schemaType" . }} {
+  return {{ $.ReceiverName }}.{{ .GoName }}
+}
+    {{- end }}
+  {{- end }}
+{{- end }}
 {{- end }}{{/* TODO(moby): Disabled for moby/api */}}
 {{- define "mapOrSliceGetter" }}{{/* signature for AdditionalProperties and AdditionalItems getter funcs */}}
+{{- if false }}{{/* TODO(moby): Disabled for moby/api */}}
   {{- if not .IsBaseType }}
     {{- if .HasAdditionalProperties }}
       {{- with .AdditionalProperties }}
@@ -144,4 +158,5 @@ func ({{.ReceiverName}} {{ if or .IsTuple .IsComplexObject .IsAdditionalProperti
   // AdditionalProperties in base type shoud be handled just like regular properties{{/* TODO(fred): add full support for AdditionalProperties in base type */}}
   // At this moment, the base type property is pushed down to the subtype
   {{- end }}
+{{- end }}{{/* TODO(moby): Disabled for moby/api */}}
 {{- end }}
