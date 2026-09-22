@@ -26,7 +26,7 @@ smithy-publish-local:
 	cd codegen && ./gradlew publishToMavenLocal
 
 smithy-build:
-	cd codegen && ./gradlew build
+	cd codegen && ./gradlew build --stacktrace
 
 smithy-clean:
 	cd codegen && ./gradlew clean
