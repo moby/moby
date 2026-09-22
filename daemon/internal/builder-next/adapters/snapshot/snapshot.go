@@ -4,7 +4,6 @@ import (
 	"context"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/containerd/containerd/v2/core/leases"
@@ -149,14 +148,25 @@ func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 }
 
 func (s *snapshotter) chainID(key string) (layer.ChainID, bool) {
-	if strings.HasPrefix(key, "sha256:") {
-		dgst, err := digest.Parse(key)
-		if err != nil {
+	if chainID, ok := snapshot.ParseLayerSnapshotID(key); ok {
+		if chainID.Algorithm() != digest.SHA256 {
 			return "", false
 		}
-		return dgst, true
+		return chainID, true
 	}
-	return "", false
+
+	chainID, err := digest.Parse(key)
+	if err != nil || chainID.Algorithm() != digest.SHA256 {
+		return "", false
+	}
+	return chainID, true
+}
+
+func layerParentSnapshotID(key string, chainID layer.ChainID) string {
+	if _, ok := snapshot.ParseLayerSnapshotID(key); ok {
+		return snapshot.LayerSnapshotID(chainID)
+	}
+	return chainID.String()
 }
 
 func (s *snapshotter) GetLayer(key string) (layer.Layer, error) {
@@ -242,7 +252,7 @@ func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, err
 	}
 	if l != nil {
 		if p := l.Parent(); p != nil {
-			inf.Parent = p.ChainID().String()
+			inf.Parent = layerParentSnapshotID(key, p.ChainID())
 		}
 		inf.Kind = snapshots.KindCommitted
 		inf.Name = key
@@ -274,7 +284,7 @@ func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, err
 		}
 		if l != nil {
 			if p := l.Parent(); p != nil {
-				inf.Parent = p.ChainID().String()
+				inf.Parent = layerParentSnapshotID(key, p.ChainID())
 			}
 			inf.Kind = snapshots.KindCommitted
 		}
