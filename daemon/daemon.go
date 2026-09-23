@@ -250,9 +250,18 @@ func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string
 	sem := semaphore.NewWeighted(int64(parallelLimit))
 
 	for _, v := range dir {
+		if err := ctx.Err(); err != nil {
+			// Wait for already-started loads before returning.
+			group.Wait()
+			return nil, err
+		}
+
 		id := v.Name()
 		group.Go(func() {
-			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
+				return
+			}
 			defer sem.Release(1)
 
 			c, err := daemon.load(id)
@@ -281,6 +290,11 @@ func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string
 		})
 	}
 	group.Wait()
+
+	// A canceled acquire may have skipped one or more container loads.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	return driverContainers, nil
 }
