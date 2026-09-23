@@ -3,13 +3,14 @@
 package dockerfile
 
 import (
+	"context"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 )
 
-func fixPermissions(source, destination string, id identity, overrideSkip bool) error {
+func fixPermissions(_ context.Context, source, destination string, id identity, overrideSkip bool) error {
 	var (
 		skipChownRoot bool
 		err           error
