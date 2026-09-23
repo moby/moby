@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/containerd/log"
@@ -19,8 +20,15 @@ import (
 
 // newExtensionHost builds the daemon's extension host.
 func newExtensionHost(ctx context.Context, cfg *config.Config) (*host.Host, error) {
+	runtimeDir := filepath.Join(cfg.ExecRoot, "extensions")
+	if err := os.MkdirAll(runtimeDir, 0o700); err != nil {
+		return nil, fmt.Errorf("create extension runtime directory: %w", err)
+	}
+	if err := os.Chmod(runtimeDir, 0o700); err != nil {
+		return nil, fmt.Errorf("set permissions on extension runtime directory: %w", err)
+	}
 	return host.New(ctx,
-		host.WithRuntimeDir(filepath.Join(cfg.ExecRoot, "extensions")),
+		host.WithRuntimeDir(runtimeDir),
 		host.WithExtensions(builtinExtensions(cfg)...),
 		host.WithDirs(extensionDirs(cfg)...),
 		host.WithClientProviders(clientProviders()...),
