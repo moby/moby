@@ -3,7 +3,6 @@
 package config
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os/exec"
@@ -11,12 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/containerd/cgroups/v3"
-	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/system"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
-	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/pkg/homedir"
 	"github.com/pkg/errors"
@@ -26,23 +22,23 @@ const (
 	// DefaultIpcMode is default for container's IpcMode, if not set otherwise
 	DefaultIpcMode = container.IPCModePrivate
 
-	// DefaultCgroupNamespaceMode is the default mode for containers cgroup namespace when using cgroups v2.
+	// DefaultCgroupNamespaceMode is the default mode for containers cgroup
+	// namespace when using cgroups v2.
 	DefaultCgroupNamespaceMode = container.CgroupnsModePrivate
 
-	// DefaultCgroupV1NamespaceMode is the default mode for containers cgroup namespace when using cgroups v1.
+	// DefaultCgroupV1NamespaceMode is the default mode for containers cgroup
+	// namespace when using cgroups v1.
 	DefaultCgroupV1NamespaceMode = container.CgroupnsModeHost
 
 	// StockRuntimeName is the reserved name/alias used to represent the
 	// OCI runtime being shipped with the docker daemon package.
 	StockRuntimeName = "runc"
 
-	// userlandProxyBinary is the name of the userland-proxy binary.
-	userlandProxyBinary = "docker-proxy"
-
 	defaultStopTimeout = 10
 )
 
-// BridgeConfig stores all the parameters for both the bridge driver and the default bridge network.
+// BridgeConfig stores all the parameters for both the bridge driver and the
+// default bridge network.
 type BridgeConfig struct {
 	DefaultBridgeConfig
 
@@ -117,7 +113,9 @@ func (conf *Config) GetInitPath() string {
 	return DefaultInitBinary
 }
 
-// LookupInitPath returns an absolute path to the "docker-init" binary by searching relevant "libexec" directories (per FHS 3.0 & 2.3) followed by PATH
+// LookupInitPath returns an absolute path to the "docker-init" binary by
+// searching relevant "libexec" directories (per FHS 3.0 & 2.3) followed by
+// PATH.
 func (conf *Config) LookupInitPath() (string, error) {
 	return lookupBinPath(conf.GetInitPath())
 }
@@ -128,7 +126,7 @@ func (conf *Config) GetResolvConf() string {
 	return conf.ResolvConf
 }
 
-// IsSwarmCompatible defines if swarm mode can be enabled in this config
+// IsSwarmCompatible defines if swarm mode can be enabled in this config.
 func (conf *Config) IsSwarmCompatible() error {
 	if conf.LiveRestoreEnabled {
 		return errors.New("--live-restore daemon configuration is incompatible with swarm mode")
@@ -141,7 +139,7 @@ func (conf *Config) IsSwarmCompatible() error {
 	return nil
 }
 
-// IsRootless returns conf.Rootless on Linux but false on Windows
+// IsRootless returns conf.Rootless on Unix platforms.
 func (conf *Config) IsRootless() bool {
 	return conf.Rootless
 }
@@ -152,29 +150,9 @@ func setPlatformDefaults(cfg *Config) error {
 	cfg.SeccompProfile = SeccompProfileDefault
 	cfg.IpcMode = string(DefaultIpcMode)
 	cfg.Runtimes = make(map[string]system.Runtime)
-
-	if cgroups.Mode() != cgroups.Unified {
-		cfg.CgroupNamespaceMode = string(DefaultCgroupV1NamespaceMode)
-	} else {
-		cfg.CgroupNamespaceMode = string(DefaultCgroupNamespaceMode)
-	}
-
-	var err error
+	cfg.CgroupNamespaceMode = string(defaultCgroupNamespaceMode())
 	cfg.BridgeConfig.EnableUserlandProxy = true
-	cfg.BridgeConfig.UserlandProxyPath, err = lookupBinPath(userlandProxyBinary)
-	if err != nil {
-		// Log, but don't error here. This allows running a daemon with
-		// userland-proxy disabled (which does not require the binary
-		// to be present).
-		//
-		// An error is still produced by [Config.ValidatePlatformConfig] if
-		// userland-proxy is enabled in the configuration.
-		//
-		// We log this at "debug" level, as this code is also executed
-		// when running "--version", and we don't want to print logs in
-		// that case..
-		log.G(context.TODO()).WithError(err).Debug("failed to lookup default userland-proxy binary")
-	}
+	cfg.BridgeConfig.UserlandProxyPath = defaultUserlandProxyPath()
 
 	if rootless.RunningWithRootlessKit() {
 		cfg.Rootless = true
@@ -200,7 +178,8 @@ func setPlatformDefaults(cfg *Config) error {
 	return nil
 }
 
-// lookupBinPath returns an absolute path to the provided binary by searching relevant "libexec" locations (per FHS 3.0 & 2.3) followed by PATH
+// lookupBinPath returns an absolute path to the provided binary by searching
+// relevant "libexec" locations (per FHS 3.0 & 2.3) followed by PATH.
 func lookupBinPath(binary string) (string, error) {
 	if filepath.IsAbs(binary) {
 		return binary, nil
@@ -244,7 +223,7 @@ func validatePlatformConfig(conf *Config) error {
 	if err := verifyDefaultIpcMode(conf.IpcMode); err != nil {
 		return err
 	}
-	if err := bridge.ValidateFixedCIDRV6(conf.FixedCIDRv6); err != nil {
+	if err := validateFixedCIDRV6(conf.FixedCIDRv6); err != nil {
 		return errors.Wrap(err, "invalid fixed-cidr-v6")
 	}
 	if err := validateFirewallBackend(conf.FirewallBackend); err != nil {
@@ -254,41 +233,6 @@ func validatePlatformConfig(conf *Config) error {
 		return errors.Wrap(err, "invalid bridge-accept-fwmark")
 	}
 	return verifyDefaultCgroupNsMode(conf.CgroupNamespaceMode)
-}
-
-// validatePlatformExecOpt validates if the given exec-opt and value are valid
-// for the current platform.
-func validatePlatformExecOpt(opt, value string) error {
-	switch opt {
-	case "isolation":
-		return fmt.Errorf("option '%s' is only supported on windows", opt)
-	case "native.cgroupdriver":
-		// TODO(thaJeztah): add validation that's currently in daemon.verifyCgroupDriver
-		return nil
-	default:
-		return fmt.Errorf("unknown option: '%s'", opt)
-	}
-}
-
-// verifyUserlandProxyConfig verifies if a valid userland-proxy path
-// is configured if userland-proxy is enabled.
-func verifyUserlandProxyConfig(conf *Config) error {
-	if !conf.EnableUserlandProxy {
-		return nil
-	}
-	if conf.UserlandProxyPath == "" {
-		return errors.New("invalid userland-proxy-path: userland-proxy is enabled, but userland-proxy-path is not set")
-	}
-	if !filepath.IsAbs(conf.UserlandProxyPath) {
-		return errors.New("invalid userland-proxy-path: must be an absolute path: " + conf.UserlandProxyPath)
-	}
-	// Using exec.LookPath here, because it also produces an error if the
-	// given path is not a valid executable or a directory.
-	if _, err := exec.LookPath(conf.UserlandProxyPath); err != nil {
-		return errors.Wrap(err, "invalid userland-proxy-path")
-	}
-
-	return nil
 }
 
 func verifyDefaultIpcMode(mode string) error {
