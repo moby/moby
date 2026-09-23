@@ -43,6 +43,7 @@ func (i *ImageService) ImportImage(ctx context.Context, newRef reference.Named, 
 	if err != nil {
 		return "", err
 	}
+	defer func() { _ = inflatedLayerData.Close() }()
 	l, err := i.layerStore.Register(inflatedLayerData, "")
 	if err != nil {
 		return "", err
