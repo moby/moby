@@ -10,7 +10,6 @@ import (
 	"github.com/moby/extensions"
 	"github.com/moby/extensions/grpcproxy"
 	"github.com/moby/extensions/host"
-	"github.com/moby/extensions/serverpoint"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	servicegrpcv0 "github.com/moby/moby/v2/extpoints/servicegrpc/v0"
@@ -19,7 +18,8 @@ import (
 )
 
 // newExtensionHost builds the daemon's extension host.
-func newExtensionHost(ctx context.Context, cfg *config.Config) (*host.Host, error) {
+func (daemon *Daemon) newExtensionHost(ctx context.Context) (*host.Host, error) {
+	cfg := daemon.Config()
 	runtimeDir := filepath.Join(cfg.ExecRoot, "extensions")
 	if err := os.MkdirAll(runtimeDir, 0o700); err != nil {
 		return nil, fmt.Errorf("create extension runtime directory: %w", err)
@@ -29,20 +29,16 @@ func newExtensionHost(ctx context.Context, cfg *config.Config) (*host.Host, erro
 	}
 	return host.New(ctx,
 		host.WithRuntimeDir(runtimeDir),
-		host.WithExtensions(builtinExtensions(cfg)...),
-		host.WithDirs(extensionDirs(cfg)...),
+		host.WithExtensions(builtinExtensions...),
+		host.WithExtensions(daemon.daemonExtensions()...),
+		host.WithDirs(extensionDirs(&cfg)...),
 		host.WithClientProviders(clientProviders()...),
 		host.WithProviderPolicy(host.PointPolicyFunc(func(extensions.ExtensionIdentity, extensions.PointID) host.PointPolicyResult {
 			return host.Allow()
 		})),
 		host.WithDependencyProviders(dependencyProviders()...),
-		host.WithExtensionConfig(extensionConfig(cfg)),
+		host.WithExtensionConfig(extensionConfig(&cfg)),
 	)
-}
-
-// dependencyProviders lists points that launched extensions may call back into.
-func dependencyProviders() []serverpoint.Registration {
-	return nil
 }
 
 // extensionConfig converts daemon.json's extension-config entries to host form.
