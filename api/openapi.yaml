@@ -8274,7 +8274,7 @@ components:
           type: "object"
           x-nullable: true
           x-omitempty: true
-          required: ["Platform", "Containers", "Size", "UnpackedSize"]
+          required: ["Platform", "Containers", "Size"]
           properties:
             Platform:
               $ref: "#/components/schemas/OCIPlatform"
