@@ -3,6 +3,8 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"archive/tar"
 	"bytes"
+	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -134,5 +136,51 @@ RUN touch /root/nil && ln -s /root /sockets
 	)
 
 	err := apiClient.CopyToContainer(ctx, cid, "/sockets/", bytes.NewReader(nil), types.CopyToContainerOptions{})
+	assert.NilError(t, err)
+}
+
+// TestCopyWithNestedBindMountedSocket is a regression test for a container
+// with two overlapping bind mounts: one covering a directory, and one whose
+// destination is a path inside that directory.
+//
+// openContainerFS replays the container's bind mounts parent-first, so by the
+// time the inner mount is set up its destination resolves to the contents of
+// the outer mount, and may be any kind of file. The security fix in
+// GHSA-vp62-88p7-qqf5 started unconditionally opening that destination -- to
+// create it, and again to pin its inode -- which fails with ENXIO when it is a
+// socket, breaking docker cp in both directions for the whole container.
+func TestCopyWithNestedBindMountedSocket(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	// Use testutil.TempDir so the rootless daemon can access the bind-mount
+	// source: t.TempDir() creates a 0700 parent that the fake-root user
+	// cannot stat.
+	srcDir := testutil.TempDir(t)
+	l, err := net.Listen("unix", filepath.Join(srcDir, "sock"))
+	assert.NilError(t, err)
+	defer l.Close()
+
+	cid := container.Create(ctx, t, apiClient,
+		container.WithMount(mounttypes.Mount{
+			Type:   mounttypes.TypeBind,
+			Source: srcDir,
+			Target: "/mountpoint",
+		}),
+		container.WithMount(mounttypes.Mount{
+			Type:   mounttypes.TypeBind,
+			Source: filepath.Join(srcDir, "sock"),
+			Target: "/mountpoint/sock",
+		}),
+	)
+
+	rdr, _, err := apiClient.CopyFromContainer(ctx, cid, "/mountpoint")
+	assert.NilError(t, err)
+	defer rdr.Close()
+	_, err = io.Copy(io.Discard, rdr)
+	assert.NilError(t, err)
+
+	err = apiClient.CopyToContainer(ctx, cid, "/mountpoint/", bytes.NewReader(nil), types.CopyToContainerOptions{})
 	assert.NilError(t, err)
 }
