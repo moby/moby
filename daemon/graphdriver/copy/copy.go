@@ -236,7 +236,6 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyOpaqueXattrs bool) error 
 		}
 
 		// system.Chtimes doesn't support a NOFOLLOW flag atm
-		//nolint: unconvert
 		if f.IsDir() {
 			dirsToSetMtimes.PushFront(&dirMtimeInfo{dstPath: &dstPath, stat: stat})
 		} else if !isSymlink {
