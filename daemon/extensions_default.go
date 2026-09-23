@@ -5,10 +5,12 @@ import (
 	"github.com/moby/extensions/clientpoint"
 	"github.com/moby/extensions/serverpoint"
 	"github.com/moby/moby/v2/daemon/internal/extensionconfig"
+	"github.com/moby/moby/v2/daemon/internal/extensionstorage/bbolt"
 
 	containernamegeneratorpb "github.com/moby/moby/v2/extpoints/containernamegenerator/v0/protogen"
 	daemonconfigpb "github.com/moby/moby/v2/extpoints/daemonconfig/v0/protogen"
 	servicenamegeneratorpb "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0/protogen"
+	storagepb "github.com/moby/moby/v2/extpoints/storage/kv/v0/protogen"
 	namesgeneratorlegacy "github.com/moby/moby/v2/internal/namesgenerator/legacy"
 )
 
@@ -16,6 +18,7 @@ import (
 // engine by default.
 var builtinExtensions = []extensions.Extension{
 	namesgeneratorlegacy.Extension,
+	bbolt.Extension,
 }
 
 // daemonExtensions declares extensions that need daemon-owned state.
@@ -45,6 +48,7 @@ func clientProviders() []clientpoint.Registration {
 // Points not in this list will not be able to used as dependencies.
 func dependencyProviders() []serverpoint.Registration {
 	return []serverpoint.Registration{
+		storagepb.ServerPoint,
 		daemonconfigpb.ServerPoint,
 	}
 }
