@@ -42,7 +42,7 @@ jobs:
       cache: true
       cache-scope: bin-image
       output: image
-      push: ${{ github.event_name != 'pull_request' }}
+      push: ${{ github.event_name != 'pull_request' && github.repository == 'moby/moby' }}
       vars: |
         DOCKER_GITCOMMIT=${{ github.sha }}
         VERSION=${{ github.ref }}
