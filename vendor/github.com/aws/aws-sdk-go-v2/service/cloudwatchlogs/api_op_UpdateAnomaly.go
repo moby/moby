@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -76,6 +78,35 @@ type UpdateAnomalyInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *UpdateAnomalyInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.UpdateAnomalyRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *UpdateAnomalyInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AnomalyDetectorArn != nil {
+		s.WriteString(schemas.UpdateAnomalyRequest_anomalyDetectorArn, *v.AnomalyDetectorArn)
+	}
+	if v.AnomalyId != nil {
+		s.WriteString(schemas.UpdateAnomalyRequest_anomalyId, *v.AnomalyId)
+	}
+	if v.Baseline != nil {
+		s.WriteBool(schemas.UpdateAnomalyRequest_baseline, *v.Baseline)
+	}
+	if v.PatternId != nil {
+		s.WriteString(schemas.UpdateAnomalyRequest_patternId, *v.PatternId)
+	}
+	if v.SuppressionPeriod != nil {
+		s.WriteStruct(schemas.UpdateAnomalyRequest_suppressionPeriod)
+		v.SuppressionPeriod.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.SuppressionType != "" {
+		s.WriteString(schemas.UpdateAnomalyRequest_suppressionType, string(v.SuppressionType))
+	}
+}
+
 type UpdateAnomalyOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -83,13 +114,26 @@ type UpdateAnomalyOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *UpdateAnomalyOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(nil)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *UpdateAnomalyOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *UpdateAnomalyOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, nil, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationUpdateAnomalyMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpUpdateAnomaly{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.UpdateAnomaly, schemas.UpdateAnomalyRequest, nil)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpUpdateAnomaly{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.UpdateAnomaly, schemas.UpdateAnomalyRequest, nil), output: &UpdateAnomalyOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -56,6 +58,22 @@ type PutIntegrationInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutIntegrationInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutIntegrationRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutIntegrationInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.IntegrationName != nil {
+		s.WriteString(schemas.PutIntegrationRequest_integrationName, *v.IntegrationName)
+	}
+	if v.IntegrationType != "" {
+		s.WriteString(schemas.PutIntegrationRequest_integrationType, string(v.IntegrationType))
+	}
+	serializeResourceConfig(s, schemas.PutIntegrationRequest_resourceConfig, v.ResourceConfig)
+}
+
 type PutIntegrationOutput struct {
 
 	// The name of the integration that you just created.
@@ -73,13 +91,42 @@ type PutIntegrationOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutIntegrationOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutIntegrationResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutIntegrationOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.IntegrationName != nil {
+		s.WriteString(schemas.PutIntegrationResponse_integrationName, *v.IntegrationName)
+	}
+	if v.IntegrationStatus != "" {
+		s.WriteString(schemas.PutIntegrationResponse_integrationStatus, string(v.IntegrationStatus))
+	}
+}
+func (v *PutIntegrationOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PutIntegrationResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PutIntegrationResponse_integrationName:
+			v.IntegrationName = new(string)
+			return d.ReadString(schemas.PutIntegrationResponse_integrationName, v.IntegrationName)
+		case schemas.PutIntegrationResponse_integrationStatus:
+			var ev string
+			if err := d.ReadString(schemas.PutIntegrationResponse_integrationStatus, &ev); err != nil {
+				return err
+			}
+			v.IntegrationStatus = types.IntegrationStatus(ev)
+			return nil
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutIntegrationMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutIntegration{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutIntegration, schemas.PutIntegrationRequest, schemas.PutIntegrationResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutIntegration{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutIntegration, schemas.PutIntegrationRequest, schemas.PutIntegrationResponse), output: &PutIntegrationOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

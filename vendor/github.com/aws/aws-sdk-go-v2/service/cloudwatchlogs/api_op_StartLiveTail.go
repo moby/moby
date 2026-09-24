@@ -5,7 +5,9 @@ package cloudwatchlogs
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 	smithysync "github.com/aws/smithy-go/sync"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -131,6 +133,21 @@ type StartLiveTailInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *StartLiveTailInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.StartLiveTailRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *StartLiveTailInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LogEventFilterPattern != nil {
+		s.WriteString(schemas.StartLiveTailRequest_logEventFilterPattern, *v.LogEventFilterPattern)
+	}
+	serializeStartLiveTailLogGroupIdentifiers(s, schemas.StartLiveTailRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
+	serializeInputLogStreamNames(s, schemas.StartLiveTailRequest_logStreamNamePrefixes, v.LogStreamNamePrefixes)
+	serializeInputLogStreamNames(s, schemas.StartLiveTailRequest_logStreamNames, v.LogStreamNames)
+}
+
 type StartLiveTailOutput struct {
 	eventStream *StartLiveTailEventStream
 
@@ -140,24 +157,38 @@ type StartLiveTailOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *StartLiveTailOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.StartLiveTailResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *StartLiveTailOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *StartLiveTailOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.StartLiveTailResponse, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
+
 // GetStream returns the type to interact with the event stream.
 func (o *StartLiveTailOutput) GetStream() *StartLiveTailEventStream {
 	return o.eventStream
 }
 
 func (c *Client) addOperationStartLiveTailMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpStartLiveTail{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.StartLiveTail, schemas.StartLiveTailRequest, schemas.StartLiveTailResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpStartLiveTail{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.StartLiveTail, schemas.StartLiveTailRequest, schemas.StartLiveTailResponse), output: &StartLiveTailOutput{}}, middleware.After); err != nil {
+		return err
+	}
+	if err := stack.Deserialize.Insert(&deserializeOpEventStreamStartLiveTail{options: &options}, "OperationDeserializer", middleware.Before); err != nil {
 		return err
 	}
 
-	if err = addEventStreamStartLiveTailMiddleware(stack, options); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}

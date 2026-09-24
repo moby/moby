@@ -5,7 +5,9 @@ package cloudwatchlogs
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -41,6 +43,24 @@ type DescribeDestinationsInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeDestinationsInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeDestinationsRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeDestinationsInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DestinationNamePrefix != nil {
+		s.WriteString(schemas.DescribeDestinationsRequest_DestinationNamePrefix, *v.DestinationNamePrefix)
+	}
+	if v.Limit != nil {
+		s.WriteInt32(schemas.DescribeDestinationsRequest_limit, *v.Limit)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeDestinationsRequest_nextToken, *v.NextToken)
+	}
+}
+
 type DescribeDestinationsOutput struct {
 
 	// The destinations.
@@ -55,13 +75,35 @@ type DescribeDestinationsOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeDestinationsOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeDestinationsResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeDestinationsOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeDestinations(s, schemas.DescribeDestinationsResponse_destinations, v.Destinations)
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeDestinationsResponse_nextToken, *v.NextToken)
+	}
+}
+func (v *DescribeDestinationsOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DescribeDestinationsResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DescribeDestinationsResponse_destinations:
+			return deserializeDestinations(d, schemas.DescribeDestinationsResponse_destinations, &v.Destinations)
+		case schemas.DescribeDestinationsResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.DescribeDestinationsResponse_nextToken, v.NextToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDescribeDestinationsMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeDestinations{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeDestinations, schemas.DescribeDestinationsRequest, schemas.DescribeDestinationsResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeDestinations{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeDestinations, schemas.DescribeDestinationsRequest, schemas.DescribeDestinationsResponse), output: &DescribeDestinationsOutput{}}, middleware.After); err != nil {
 		return err
 	}
 
