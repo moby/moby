@@ -8,13 +8,12 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd/v2/core/content"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/manifestlist"
-	"github.com/docker/distribution/manifest/schema2"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -300,12 +299,12 @@ func detectManifestBlobMediaType(dt []byte) (string, error) {
 	// So pretty much if we don't have a media type we can fall back to OCI.
 	// This does have a special fallback for schema1 manifests just because it is easy to detect.
 	switch mfst.MediaType {
-	case schema2.MediaTypeManifest, ocispec.MediaTypeImageManifest:
+	case c8dimages.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
 		if mfst.Manifests != nil || mfst.FSLayers != nil {
 			return "", fmt.Errorf(`media-type: %q should not have "manifests" or "fsLayers"`, mfst.MediaType)
 		}
 		return mfst.MediaType, nil
-	case manifestlist.MediaTypeManifestList, ocispec.MediaTypeImageIndex:
+	case c8dimages.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
 		if mfst.Config != nil || mfst.Layers != nil || mfst.FSLayers != nil {
 			return "", fmt.Errorf(`media-type: %q should not have "config", "layers", or "fsLayers"`, mfst.MediaType)
 		}

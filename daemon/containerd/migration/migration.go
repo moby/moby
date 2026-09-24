@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/v2/core/content"
-	"github.com/containerd/containerd/v2/core/images"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/containerd/v2/core/snapshots"
@@ -35,7 +35,7 @@ type LayerMigrator struct {
 	dis     image.Store
 	leases  leases.Manager
 	content content.Store
-	cis     images.Store
+	cis     c8dimages.Store
 }
 
 type Config struct {
@@ -45,7 +45,7 @@ type Config struct {
 	DockerImageStore image.Store
 	Leases           leases.Manager
 	Content          content.Store
-	ImageStore       images.Store
+	ImageStore       c8dimages.Store
 }
 
 func NewLayerMigrator(config Config) *LayerMigrator {
@@ -252,15 +252,15 @@ func (lm *LayerMigrator) MigrateTocontainerd(ctx context.Context, snKey string, 
 			return err
 		}
 
-		childrenHandler := images.ChildrenHandler(lm.content)
-		childrenHandler = images.SetChildrenMappedLabels(lm.content, childrenHandler, nil)
-		if err = images.Walk(ctx, childrenHandler, manifestDesc); err != nil {
+		childrenHandler := c8dimages.ChildrenHandler(lm.content)
+		childrenHandler = c8dimages.SetChildrenMappedLabels(lm.content, childrenHandler, nil)
+		if err = c8dimages.Walk(ctx, childrenHandler, manifestDesc); err != nil {
 			return err
 		}
 
 		var added bool
 		for _, named := range lm.refs.References(digest.Digest(imgID)) {
-			img := images.Image{
+			img := c8dimages.Image{
 				Name:   named.String(),
 				Target: manifestDesc,
 				// TODO: Any labels?
@@ -278,7 +278,7 @@ func (lm *LayerMigrator) MigrateTocontainerd(ctx context.Context, snKey string, 
 		}
 
 		if !added {
-			img := images.Image{
+			img := c8dimages.Image{
 				Name:   "moby-dangling@" + manifestDesc.Digest.String(),
 				Target: manifestDesc,
 				// TODO: Any labels?

@@ -481,7 +481,7 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 }
 
 // manifest wraps an OCI manifest, because...
-// Historically the registry does not support plugins unless the media type on the manifest is specifically schema2.MediaTypeManifest
+// Historically the registry does not support plugins unless the media type on the manifest is specifically [c8dimages.MediaTypeDockerSchema2Manifest]
 // So the OCI manifest media type is not supported.
 // Additionally, there is extra validation for the docker schema2 manifest than there is a mediatype set on the manifest itself
 // even though this is set on the descriptor

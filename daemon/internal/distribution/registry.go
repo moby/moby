@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
@@ -36,7 +37,7 @@ var (
 
 	// defaultImageTypes represents the schema2 config types for images
 	defaultImageTypes = []string{
-		schema2.MediaTypeImageConfig,
+		c8dimages.MediaTypeDockerSchema2Config,
 		ocispec.MediaTypeImageConfig,
 		// Handle unexpected values from https://github.com/docker/distribution/issues/1621
 		// (see also https://github.com/moby/moby/issues/22378,
