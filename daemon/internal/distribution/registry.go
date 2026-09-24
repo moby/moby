@@ -9,10 +9,10 @@ import (
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	registrytypes "github.com/moby/moby/api/types/registry"
+	v2 "github.com/moby/moby/v2/daemon/pkg/plugin/v2"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/moby/moby/v2/dockerversion"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -51,7 +51,7 @@ var (
 
 	// pluginTypes represents the schema2 config types for plugins
 	pluginTypes = []string{
-		schema2.MediaTypePluginConfig,
+		v2.MediaTypePluginConfig,
 	}
 
 	mediaTypeClasses map[string]string

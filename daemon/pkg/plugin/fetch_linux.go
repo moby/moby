@@ -18,13 +18,12 @@ import (
 	progressutils "github.com/moby/moby/v2/daemon/internal/distribution/utils"
 	"github.com/moby/moby/v2/daemon/internal/progress"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
+	v2 "github.com/moby/moby/v2/daemon/pkg/plugin/v2"
 	"github.com/moby/moby/v2/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
-
-const mediaTypePluginConfig = "application/vnd.docker.plugin.v1+json"
 
 // setupProgressOutput sets up the passed in writer to stream progress.
 //
@@ -71,7 +70,7 @@ func (pm *Manager) fetch(ctx context.Context, ref reference.Named, auth *registr
 
 	// Make sure the fetch handler knows how to set a ref key for the plugin media type.
 	// Without this the ref key is "unknown" and we see a nasty warning message in the logs
-	ctx = remotes.WithMediaTypeKeyPrefix(ctx, mediaTypePluginConfig, "docker-plugin")
+	ctx = remotes.WithMediaTypeKeyPrefix(ctx, v2.MediaTypePluginConfig, "docker-plugin")
 
 	resolver, err := pm.newResolver(ctx, nil, auth, metaHeader, false)
 	if err != nil {
@@ -152,7 +151,7 @@ func childrenHandler(cs content.Store) c8dimages.HandlerFunc {
 	ch := c8dimages.ChildrenHandler(cs)
 	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		switch desc.MediaType {
-		case mediaTypePluginConfig:
+		case v2.MediaTypePluginConfig:
 			return nil, nil
 		default:
 			return ch(ctx, desc)
@@ -177,7 +176,7 @@ func storeFetchMetadata(m *fetchMeta) c8dimages.HandlerFunc {
 			m.blobs = append(m.blobs, desc.Digest)
 		case ocispec.MediaTypeImageManifest, c8dimages.MediaTypeDockerSchema2Manifest:
 			m.manifest = desc.Digest
-		case mediaTypePluginConfig:
+		case v2.MediaTypePluginConfig:
 			m.config = desc.Digest
 		}
 		return nil, nil

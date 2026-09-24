@@ -40,13 +40,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// MediaTypePluginConfig specifies the mediaType for plugin configuration.
-//
-// It is a copy of the mediaType defined in [schema2.MediaTypePluginConfig].
-//
-// [schema2.MediaTypePluginConfig]: https://pkg.go.dev/github.com/distribution/distribution/v3@v3.0.0/manifest/schema2#MediaTypePluginConfig
-const MediaTypePluginConfig = "application/vnd.docker.plugin.v1+json"
-
 var acceptedPluginFilterTags = map[string]bool{
 	"enabled":    true,
 	"capability": true,
@@ -185,7 +178,7 @@ func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHead
 				return nil, errors.Wrapf(err, "error unmarshaling image manifest for %s", ref)
 			}
 			return []ocispec.Descriptor{m.Config}, nil
-		case MediaTypePluginConfig:
+		case v2.MediaTypePluginConfig:
 			configSeen = true
 			data, err := content.ReadBlob(ctx, pm.blobStore, desc)
 			if err != nil {
@@ -501,7 +494,7 @@ func buildManifest(ctx context.Context, s content.Manager, config digest.Digest,
 		return m, errors.Wrapf(err, "error reading plugin config content for digest %s", config)
 	}
 	m.Config = ocispec.Descriptor{
-		MediaType: mediaTypePluginConfig,
+		MediaType: v2.MediaTypePluginConfig,
 		Size:      configInfo.Size,
 		Digest:    configInfo.Digest,
 	}
