@@ -35,8 +35,10 @@ const (
 const (
 	fwdInAcceptFwMarkRuleGroup = iota + initialRuleGroup + 1
 	fwdInLegacyLinksRuleGroup
-	// fwdInHairpinPortsRuleGroup must come before fwdInICCRuleGroup, because
-	// its rules accept packets that the ICC rule would otherwise drop.
+	// fwdInNDRuleGroup and fwdInHairpinPortsRuleGroup must come before
+	// fwdInICCRuleGroup, because their rules accept packets that the ICC rule
+	// would otherwise drop.
+	fwdInNDRuleGroup
 	fwdInHairpinPortsRuleGroup
 	fwdInICCRuleGroup
 	fwdInPortsRuleGroup
