@@ -1,22 +1,22 @@
+//go:build !linux && !windows
+
 package config
 
 import (
 	"fmt"
 
-	"github.com/containerd/cgroups/v3"
 	"github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 )
 
+// defaultCgroupNamespaceMode matches Linux hosts without cgroup v2.
 func defaultCgroupNamespaceMode() container.CgroupnsMode {
-	if cgroups.Mode() != cgroups.Unified {
-		return DefaultCgroupV1NamespaceMode
-	}
-	return DefaultCgroupNamespaceMode
+	return DefaultCgroupV1NamespaceMode
 }
 
-func validateFixedCIDRV6(val string) error {
-	return bridge.ValidateFixedCIDRV6(val)
+// validateFixedCIDRV6 accepts any value because the bridge driver that
+// validates it is Linux-only.
+func validateFixedCIDRV6(string) error {
+	return nil
 }
 
 // validatePlatformExecOpt validates if the given exec-opt and value are valid
@@ -26,8 +26,7 @@ func validatePlatformExecOpt(opt, value string) error {
 	case "isolation":
 		return fmt.Errorf("option '%s' is only supported on windows", opt)
 	case "native.cgroupdriver":
-		// TODO(thaJeztah): add validation that's currently in daemon.verifyCgroupDriver
-		return nil
+		return fmt.Errorf("option '%s' is only supported on linux", opt)
 	default:
 		return fmt.Errorf("unknown option: '%s'", opt)
 	}
