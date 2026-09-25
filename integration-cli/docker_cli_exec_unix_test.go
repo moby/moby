@@ -1,0 +1,98 @@
+//go:build !windows
+
+package main
+
+import (
+	"bytes"
+	"io"
+	"os/exec"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/creack/pty"
+	"github.com/moby/moby/v2/integration-cli/cli"
+	"gotest.tools/v3/assert"
+)
+
+// regression test for #12546
+func (s *DockerCLIExecSuite) TestExecInteractiveStdinClose(c *testing.T) {
+	testRequires(c, DaemonIsLinux)
+	out := cli.DockerCmd(c, "run", "-itd", "busybox", "/bin/cat").Stdout()
+	contID := strings.TrimSpace(out)
+
+	cmd := exec.Command(dockerBinary, "exec", "-i", contID, "echo", "-n", "hello")
+	p, err := pty.Start(cmd)
+	assert.NilError(c, err)
+
+	b := bytes.NewBuffer(nil)
+
+	ch := make(chan error, 1)
+	go func() { ch <- cmd.Wait() }()
+
+	select {
+	case err := <-ch:
+		assert.NilError(c, err)
+		io.Copy(b, p)
+		p.Close()
+		bs := b.Bytes()
+		bs = bytes.Trim(bs, "\x00")
+		output := string(bs[:])
+		assert.Equal(c, strings.TrimSpace(output), "hello")
+	case <-time.After(5 * time.Second):
+		p.Close()
+		c.Fatal("timed out running docker exec")
+	}
+}
+
+func (s *DockerCLIExecSuite) TestExecTTY(c *testing.T) {
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
+	cli.DockerCmd(c, "run", "-d", "--name=test", "busybox", "sh", "-c", "echo hello > /foo && top")
+
+	cmd := exec.Command(dockerBinary, "exec", "-it", "test", "sh")
+	p, err := pty.Start(cmd)
+	assert.NilError(c, err)
+	defer p.Close()
+
+	_, err = p.WriteString("cat /foo && exit\n")
+	assert.NilError(c, err)
+
+	chErr := make(chan error, 1)
+	go func() {
+		chErr <- cmd.Wait()
+	}()
+	select {
+	case err := <-chErr:
+		assert.NilError(c, err)
+	case <-time.After(3 * time.Second):
+		c.Fatal("timeout waiting for exec to exit")
+	}
+
+	buf := make([]byte, 256)
+	read, err := p.Read(buf)
+	assert.NilError(c, err)
+	assert.Assert(c, bytes.Contains(buf, []byte("hello")), string(buf[:read]))
+}
+
+// Test the TERM env var is set when -t is provided on exec
+func (s *DockerCLIExecSuite) TestExecWithTERM(c *testing.T) {
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
+	out := cli.DockerCmd(c, "run", "-id", "busybox", "/bin/cat").Stdout()
+	contID := strings.TrimSpace(out)
+	cmd := exec.Command(dockerBinary, "exec", "-t", contID, "sh", "-c", "if [ -z $TERM ]; then exit 1; else exit 0; fi")
+	if err := cmd.Run(); err != nil {
+		assert.NilError(c, err)
+	}
+}
+
+// Test that the TERM env var is not set on exec when -t is not provided, even if it was set
+// on run
+func (s *DockerCLIExecSuite) TestExecWithNoTERM(c *testing.T) {
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
+	out := cli.DockerCmd(c, "run", "-itd", "busybox", "/bin/cat").Stdout()
+	contID := strings.TrimSpace(out)
+	cmd := exec.Command(dockerBinary, "exec", contID, "sh", "-c", "if [ -z $TERM ]; then exit 0; else exit 1; fi")
+	if err := cmd.Run(); err != nil {
+		assert.NilError(c, err)
+	}
+}

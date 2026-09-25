@@ -1,0 +1,36 @@
+name: zizmor
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Cancel stale PR runs without interrupting push, tag, scheduled, or
+  # manually dispatched validation.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+      - '[0-9]+.[0-9]+'
+      - '[0-9]+.x'
+    tags:
+      - 'v*'
+      - 'docker-v*'
+      - 'api/v*'
+      - 'client/v*'
+  pull_request:
+
+jobs:
+  run:
+    if: github.repository == 'moby/moby'
+    uses: crazy-max/.github/.github/workflows/zizmor.yml@f91220cba053bd54299ba645a599ee8ed436f222 # v1.11.0
+    permissions:
+      contents: read
+      security-events: write
+    with:
+      min-severity: medium
+      min-confidence: medium
+      persona: pedantic

@@ -1,0 +1,57 @@
+; docker_client.cil
+;
+; This file defines a "docker_client.process" *container domain* (process type)
+; that can connect to the Docker daemon via /var/run/docker.sock. It assumes
+; the docker socket is labeled with "container_var_run_t", and  the dockerd
+; daemon is running in the "container_runtime_t" domain;
+;
+;   ls -Z /var/run/docker.sock
+;   # system_u:object_r:container_var_run_t:s0 /var/run/docker.sock
+;
+;   ps -eZ | awk '/dockerd/{print $1; exit}'
+;   # system_u:system_r:container_runtime_t:s0
+;
+; It inherits the "container" (container_base.cil) udica template, which must
+; be loaded before this. To load the "container_base" template;
+;
+;   sudo semodule -i /usr/share/udica/templates/base_container.cil
+;
+; Or, to load all udica templates:
+;
+;   sudo semodule -i /usr/share/udica/templates/*.cil
+;
+; Install this module:
+;
+;   sudo semodule -i docker_client.cil
+;
+; Usage example:
+;
+; Use the '--security-opt label=type:docker_client.process' option to
+; run a container with the docker_client process label. For example;
+;
+;   docker run -it --rm \
+;     --security-opt label=type:docker_client.process \
+;     -v /var/run/docker.sock:/var/run/docker.sock \
+;     docker:cli -H unix:///var/run/docker.sock version
+
+(block docker_client
+  (blockinherit container)  ; make this a proper container domain (MCS, attributes, etc.)
+
+  ; Allow opening /var/run/docker.sock by its pathname label.
+  ; Replace container_var_run_t if your host uses a different label (e.g., var_run_t).
+  (allow process container_var_run_t (sock_file (read write open getattr)))
+
+  ; Allow traversing /var/run (usually var_run_t) to reach the socket.
+  (allow process var_run_t (dir (search getattr read open)))
+)
+
+; Allow connecting to the daemon’s listening socket (dockerd runs in container_runtime_t).
+(allow docker_client.process container_runtime_t (unix_stream_socket (connectto)))
+
+; also include one (or both) of these if they exist on the host:
+(optional docker_client_dc1
+  (allow docker_client.process docker_t (unix_stream_socket (connectto)))
+)
+(optional docker_client_dc2
+  (allow docker_client.process container_engine_t (unix_stream_socket (connectto)))
+)

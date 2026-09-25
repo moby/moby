@@ -1,0 +1,16 @@
+package portallocator
+
+const (
+	// defaultPortRangeStart indicates the first port in port range
+	defaultPortRangeStart = 60000
+	// defaultPortRangeEnd indicates the last port in port range
+	defaultPortRangeEnd = 65000
+)
+
+func getDynamicPortRange() (start int, end int, _ error) {
+	return defaultPortRangeStart, defaultPortRangeEnd, nil
+}
+
+func getReservedPorts(_, _ int) (map[uint16]struct{}, error) {
+	return nil, nil
+}

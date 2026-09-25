@@ -1,0 +1,10 @@
+extends: default
+locale: C.UTF-8
+rules:
+  document-start: disable
+  line-length: disable
+  # ignore "warning  truthy value should be one of [false, true]" on GitHub
+  # actions workflows, which use "on:" to specify when to run.
+  truthy:
+    ignore: |
+      .github/workflows/

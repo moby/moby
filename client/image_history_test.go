@@ -1,0 +1,53 @@
+package client
+
+import (
+	"net/http"
+	"testing"
+
+	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/moby/api/types/image"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+)
+
+func TestImageHistoryError(t *testing.T) {
+	client, err := New(WithMockClient(errorMock(http.StatusInternalServerError, "Server error")))
+	assert.NilError(t, err)
+	_, err = client.ImageHistory(t.Context(), "nothing")
+	assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
+}
+
+func TestImageHistory(t *testing.T) {
+	const (
+		expectedURL      = "/images/image_id/history"
+		historyResponse  = `[{"Comment":"","Created":0,"CreatedBy":"","Id":"image_id1","Size":0,"Tags":["tag1","tag2"]},{"Comment":"","Created":0,"CreatedBy":"","Id":"image_id2","Size":0,"Tags":["tag1","tag2"]}]`
+		expectedPlatform = `{"architecture":"arm64","os":"linux","variant":"v8"}`
+	)
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		assert.Check(t, assertRequest(req, http.MethodGet, expectedURL))
+		assert.Check(t, is.Equal(req.URL.Query().Get("platform"), expectedPlatform))
+		return mockResponse(http.StatusOK, nil, historyResponse)(req)
+	}))
+	assert.NilError(t, err)
+	expected := ImageHistoryResult{
+		Items: []image.HistoryResponseItem{
+			{
+				ID:   "image_id1",
+				Tags: []string{"tag1", "tag2"},
+			},
+			{
+				ID:   "image_id2",
+				Tags: []string{"tag1", "tag2"},
+			},
+		},
+	}
+
+	imageHistories, err := client.ImageHistory(t.Context(), "image_id", ImageHistoryWithPlatform(ocispec.Platform{
+		Architecture: "arm64",
+		OS:           "linux",
+		Variant:      "v8",
+	}))
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(imageHistories, expected))
+}

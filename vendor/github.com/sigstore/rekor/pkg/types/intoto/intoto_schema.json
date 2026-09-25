@@ -1,0 +1,15 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "http://rekor.sigstore.dev/types/intoto/intoto_schema.json",
+    "title": "Intoto Schema",
+    "description": "Intoto for Rekord objects",
+    "type": "object",
+    "oneOf": [
+        {
+            "$ref": "v0.0.1/intoto_v0_0_1_schema.json"
+        },
+        {
+            "$ref": "v0.0.2/intoto_v0_0_2_schema.json"
+        }
+    ]
+}

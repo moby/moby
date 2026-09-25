@@ -1,0 +1,73 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    // https://docs.renovatebot.com/modules/manager/github-actions/
+    // https://docs.renovatebot.com/presets-helpers/
+    "helpers:pinGitHubActionDigestsToSemver",
+    "helpers:githubDigestChangelogs",
+    ":gitSignOff"
+  ],
+  "postUpdateOptions": ["gomodTidy"],
+  "minimumReleaseAge": "3 days",
+  "internalChecksFilter": "strict",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^Dockerfile$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) versioning=(?<versioning>\\S+)[ \\t]*\\r?\\n[ \\t]*ARG[ \\t]+\\w+=(?<currentValue>\\S+)"
+      ]
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^hack/make\\.ps1$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) versioning=(?<versioning>\\S+)[ \\t]*\\r?\\n[ \\t]*\\$\\w+[ \\t]*=[ \\t]*\"(?<currentValue>[^\"]+)\""
+      ]
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": ["docker", "github-tags"],
+      "matchDepNames": ["docker/buildx-bin", "docker/cli"],
+      "minimumReleaseAge": "0 days"
+    },
+    {
+      "matchManagers": ["gomod"],
+      "groupName": "golang.org/x packages",
+      "groupSlug": "golang-x",
+      "matchDepNames": ["/^golang\\.org\\/x\\//"]
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "docker GitHub Actions",
+      "groupSlug": "docker-actions",
+      "matchDepNames": ["/^docker\\//"]
+    },
+    {
+      // Keep all the google.golang.org/genproto modules at the same version.
+      "matchManagers": ["gomod"],
+      "groupName": "google.golang.org/genproto packages",
+      "groupSlug": "google-genproto",
+      "matchDepNames": ["/^google\\.golang\\.org\\/genproto(\\/|$)/"],
+      "schedule": ["every month"],
+    },
+    {
+      // Do not update "api" and "client" module dependencies. We keep dependency
+      // versions low for these to stick with "MVS" (Minimum Version Selection);
+      // https://research.swtch.com/vgo-mvs
+      //
+      // The order of rules matters, because later rules may override configuration
+      // options from earlier ones, if they both specify the same option.
+      // https://docs.renovatebot.com/configuration-options/#packagerules
+      "matchManagers": ["gomod"],
+      "matchFileNames": ["api/go.mod", "client/go.mod"],
+      "enabled": false
+    }
+  ],
+  "ignoreDeps": [
+    // We're using the "v2" branch, not the default ("v1") branch.
+    "github.com/Graylog2/go-gelf"
+  ]
+}

@@ -1,0 +1,65 @@
+{
+	"domain": null,
+	"certificate": {
+		"version": 3,
+		"serial_number": 123893,
+		"signature_algorithm": {
+			"id": 123,
+			"name": "SHA1"
+		},
+		"issuer": {
+			"common_name": "Starfield CA",
+			"attributes": [
+				{ "organization": "Startfield" },
+				{ "location": "Scottsdale" },
+				{ "state": "Arizona" },
+				{ "country": "US" }
+			]
+		},
+		"validity": {
+			"start": "20140102",
+			"end": "20150102",
+            "length" :8760    
+		},
+		"subject": {
+			"common_name": "*.tools.ieft.org",
+			"attributes": [
+				{ "organization_unit": "Domain Control Validated" }
+			]
+		},
+		"subject_key_info": {
+			"algorithm": {
+				"id": 234,
+				"name": "RSA"
+			},
+			"key": {
+				"modulus": "base64encodedmodulus",
+				"exponent": 65537
+			}
+		},
+		"extensions": [
+			{
+				"id": 345,
+				"name": "Certificate Basic Constraints",
+				"is_ca": false
+			},
+			{
+				"id": 456,
+				"name": "Alt Names",
+				"alt_names": [
+					"*.tools.ietf.org",
+					"tools.ietf.org"
+				]
+			}
+		]
+	},
+	"signature_algorithm": {
+		"id": 123,
+		"name": "SHA1"
+	},
+	"signature": {
+		"value": "base64encodedsignature",
+		"is_valid": true,
+		"matches_domain": null
+	}
+}

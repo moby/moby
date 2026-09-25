@@ -1,0 +1,12 @@
+;; Block AF_ALG sockets in container domains to mitigate CVE-2026-31431.
+;; AF_ALG exposes the kernel crypto API which has no legitimate use in containers and enables trivial privilege escalation
+;; on unpatched kernels.
+;;
+;; This rule targets container_domain (container_t, spc_t, etc.) and
+;; does not affect the container runtime (container_runtime_t) or host
+;; processes.
+;;
+;; Requires SELinux userspace >= 3.6 for CIL deny support.
+;; Requires container-selinux for the container_domain attribute.
+
+(deny container_domain self (alg_socket (create)))

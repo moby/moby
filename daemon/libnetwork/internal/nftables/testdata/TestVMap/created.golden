@@ -1,0 +1,9 @@
+table ip6 this_is_a_table {
+	map this_is_a_vmap {
+		type ifname : verdict
+		flags dynamic,timeout
+		counter
+		elements = { "eth0" counter packets 0 bytes 0 : return,
+			     "eth1" counter packets 0 bytes 0 comment "/// this is a comment on a map element \\\" : drop }
+	}
+}

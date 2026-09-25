@@ -1,0 +1,26 @@
+timeout: 300s
+options:
+  machineType: E2_HIGHCPU_32
+  volumes:
+  - name: go-modules
+    path: /go
+  env:
+  - GOPROXY=https://proxy.golang.org
+  - PROJECT_ROOT=github.com/transparency-dev/merkle
+  - GOPATH=/go
+
+# Cloud Build logs sent to GCS bucket
+logsBucket: 'gs://trillian-cloudbuild-logs'
+
+steps:
+- id: 'lint'
+  name: "golangci/golangci-lint:v1.51"
+  args: ["golangci-lint", "run", "--timeout", "10m"]
+
+- id: 'unit tests'
+  name: 'golang:1.19'
+  args: ['go', 'test', './...']
+
+- id: 'build'
+  name: 'golang:1.19'
+  args: ['go', 'build', './...']

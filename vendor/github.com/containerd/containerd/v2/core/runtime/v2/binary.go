@@ -1,0 +1,236 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
+package v2
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	gruntime "runtime"
+
+	"github.com/containerd/containerd/api/runtime/task/v2"
+	"github.com/containerd/containerd/v2/core/runtime"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
+	"github.com/containerd/containerd/v2/pkg/protobuf"
+	"github.com/containerd/containerd/v2/pkg/protobuf/proto"
+	"github.com/containerd/containerd/v2/pkg/protobuf/types"
+	client "github.com/containerd/containerd/v2/pkg/shim"
+	"github.com/containerd/log"
+)
+
+type shimBinaryConfig struct {
+	runtime      string
+	address      string
+	ttrpcAddress string
+	socketDir    string
+	env          []string
+}
+
+func shimBinary(bundle *Bundle, config shimBinaryConfig) *binary {
+	return &binary{
+		bundle:                 bundle,
+		runtime:                config.runtime,
+		containerdAddress:      config.address,
+		containerdTTRPCAddress: config.ttrpcAddress,
+		socketDir:              config.socketDir,
+		env:                    config.env,
+	}
+}
+
+type binary struct {
+	runtime                string
+	containerdAddress      string
+	containerdTTRPCAddress string
+	socketDir              string
+	bundle                 *Bundle
+	env                    []string
+}
+
+func (b *binary) Start(ctx context.Context, opts *types.Any, onClose func()) (_ *shim, err error) {
+	cmd, err := command(
+		ctx,
+		&commandConfig{
+			ID:           b.bundle.ID,
+			RuntimePath:  b.runtime,
+			GRPCAddress:  b.containerdAddress,
+			TTRPCAddress: b.containerdTTRPCAddress,
+			WorkDir:      b.bundle.Path,
+			Opts:         opts,
+			Env:          b.env,
+			LogLevel:     log.GetLevel(),
+			Action:       "start",
+			SocketDir:    b.socketDir,
+		})
+	if err != nil {
+		return nil, err
+	}
+	// Windows needs a namespace when openShimLog
+	ns, _ := namespaces.Namespace(ctx)
+	shimCtx, cancelShimLog := context.WithCancel(namespaces.WithNamespace(context.Background(), ns))
+	defer func() {
+		if err != nil {
+			cancelShimLog()
+		}
+	}()
+	f, err := openShimLog(shimCtx, b.bundle, client.AnonDialer)
+	if err != nil {
+		return nil, fmt.Errorf("open shim log pipe: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			f.Close()
+		}
+	}()
+	// open the log pipe and block until the writer is ready
+	// this helps with synchronization of the shim
+	// copy the shim's logs to containerd's output
+	go func() {
+		defer f.Close()
+		_, err := io.Copy(os.Stderr, f)
+		// To prevent flood of error messages, the expected error
+		// should be reset, like os.ErrClosed or os.ErrNotExist, which
+		// depends on platform.
+		err = checkCopyShimLogError(ctx, err)
+		if err != nil {
+			log.G(ctx).WithError(err).Error("copy shim log")
+		}
+	}()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, shimCallError(ctx.Err(), out, err)
+	}
+	onCloseWithShimLog := func() {
+		onClose()
+		cancelShimLog()
+		f.Close()
+	}
+	// Save runtime binary path for restore.
+	if err := os.WriteFile(filepath.Join(b.bundle.Path, "shim-binary-path"), []byte(b.runtime), 0600); err != nil {
+		return nil, err
+	}
+
+	params, err := parseStartResponse(out)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := makeConnection(ctx, b.bundle.ID, params, onCloseWithShimLog, client.AnonDialer)
+	if err != nil {
+		return nil, err
+	}
+
+	// Save bootstrap configuration (so containerd can restore shims after restart).
+	if err := writeBootstrapParams(filepath.Join(b.bundle.Path, "bootstrap.json"), params); err != nil {
+		return nil, fmt.Errorf("failed to write bootstrap.json: %w", err)
+	}
+	// The address is in the form like ttrpc+unix://<uds-path> or grpc+vsock://<cid>:<port>
+	address := fmt.Sprintf("%s+%s", params.Protocol, params.Address)
+	return &shim{
+		bundle:    b.bundle,
+		client:    conn,
+		address:   address,
+		version:   int(params.Version),
+		bootstrap: params,
+	}, nil
+}
+
+func (b *binary) Delete(ctx context.Context) (*runtime.Exit, error) {
+	log.G(ctx).WithField("id", b.bundle.ID).Info("cleaning up dead shim")
+
+	// On Windows and FreeBSD, the current working directory of the shim should
+	// not be the bundle path during the delete operation. Instead, we invoke
+	// with the default work dir and forward the bundle path on the cmdline.
+	// Windows cannot delete the current working directory while an executable
+	// is in use with it. On FreeBSD, fork/exec can fail.
+	var bundlePath string
+	if gruntime.GOOS != "windows" && gruntime.GOOS != "freebsd" {
+		bundlePath = b.bundle.Path
+	}
+
+	cmd, err := command(ctx,
+		&commandConfig{
+			ID:           b.bundle.ID,
+			RuntimePath:  b.runtime,
+			BundlePath:   b.bundle.Path,
+			GRPCAddress:  b.containerdAddress,
+			TTRPCAddress: b.containerdTTRPCAddress,
+			WorkDir:      bundlePath,
+			Opts:         nil,
+			LogLevel:     log.GetLevel(),
+			Action:       "delete",
+		})
+
+	if err != nil {
+		return nil, err
+	}
+	var (
+		out  = bytes.NewBuffer(nil)
+		errb = bytes.NewBuffer(nil)
+	)
+	cmd.Stdout = out
+	cmd.Stderr = errb
+	if err := cmd.Run(); err != nil {
+		log.G(ctx).WithFields(log.Fields{
+			"cmd":    cmd.String(),
+			"error":  err,
+			"id":     b.bundle.ID,
+			"stderr": errb.String(),
+		}).Error("failed to delete dead shim")
+		return nil, shimCallError(ctx.Err(), errb.Bytes(), err)
+	}
+	if s := errb.String(); s != "" {
+		log.G(ctx).WithFields(log.Fields{
+			"id":       b.bundle.ID,
+			"warnings": s,
+		}).Warn("warnings while cleaning up dead shim")
+	}
+	var response task.DeleteResponse
+	if err := proto.Unmarshal(out.Bytes(), &response); err != nil {
+		return nil, err
+	}
+	if err := b.bundle.Delete(); err != nil {
+		return nil, err
+	}
+	return &runtime.Exit{
+		Status:    response.ExitStatus,
+		Timestamp: protobuf.FromTimestamp(response.ExitedAt),
+		Pid:       response.Pid,
+	}, nil
+}
+
+// shimCallError builds an error for a failed shim binary invocation.
+//
+// command is run via exec.CommandContext, which kills the process
+// once ctx is done. On Windows that kill is TerminateProcess(handle, 1),
+// which is indistinguishable from the shim genuinely calling os.Exit(1),
+// and os/exec reports the wait status in preference to the context error.
+// A killed shim also writes nothing to stderr, so without surfacing ctxErr
+// the resulting message degenerates to ": exit status 1" with no
+// indication that containerd killed the process rather than the shim
+// exiting on its own.
+func shimCallError(ctxErr error, stderr []byte, err error) error {
+	if ctxErr != nil {
+		err = fmt.Errorf("shim killed after %w: %w", ctxErr, err)
+	}
+	if s := bytes.TrimSpace(stderr); len(s) > 0 {
+		err = fmt.Errorf("%s: %w", s, err)
+	}
+	return err
+}

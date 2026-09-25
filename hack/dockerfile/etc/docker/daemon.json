@@ -1,0 +1,7 @@
+{
+	"runtimes": {
+		"crun": {
+			"path": "/usr/local/bin/crun"
+		}
+	}
+}

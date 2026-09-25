@@ -1,0 +1,8 @@
+nameserver 127.0.0.53
+options ndots:1
+something unexpected
+unrecognised thing
+
+# Based on host file: '/etc/resolv.conf'
+# Overrides: []
+# Option ndots from: host

@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -e
+
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPTDIR}/.validate"
+
+IFS=$'\n'
+files=($(validate_diff --diff-filter=ACMR --name-only -- 'pkg/*.go' || true))
+unset IFS
+
+badFiles=()
+for f in "${files[@]}"; do
+	IFS=$'\n'
+	badImports=($(go list -e -f '{{ join .Deps "\n" }}' "$f" | sort -u \
+		| grep -vE '^github.com/moby/moby/v2/pkg/' \
+		| grep -vE '^github.com/moby/moby/v2/vendor' \
+		| grep -vE '^github.com/moby/moby/v2/internal' \
+		| grep -E '^github.com/moby/moby' \
+		|| true))
+	unset IFS
+
+	for import in "${badImports[@]}"; do
+		badFiles+=("$f imports $import")
+	done
+done
+
+if [ ${#badFiles[@]} -eq 0 ]; then
+	echo 'Congratulations!  Packages in "./pkg/..." are safely isolated from internal code.'
+else
+	{
+		echo 'These files import internal code: (either directly or indirectly)'
+		for f in "${badFiles[@]}"; do
+			echo " - $f"
+		done
+		echo
+	} >&2
+	false
+fi

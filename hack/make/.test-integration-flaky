@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+# The test-diff functions require validate_diff from hack/validate/.validate
+# before they are called.
+
+added_tests() {
+	validate_diff --diff-filter=ACMR --unified=0 -- 'integration/*_test.go' \
+		| grep -E '^(\+func Test)(.*)(\*testing\.T\))' \
+		| sed -E 's/^\+func (Test[A-Za-z0-9_]*).*/\1/' \
+		|| true
+}
+
+changed_tests() {
+	validate_diff --diff-filter=ACMR --function-context -- 'integration/*_test.go' \
+		| grep -E '^ func Test[A-Za-z0-9_]*\(.*\*testing\.T\)' \
+		| sed -E 's/^ func (Test[A-Za-z0-9_]*).*/\1/' \
+		|| true
+}
+
+# explicit_tests emits extra test names appended via the /flaky-check=TestA,TestB
+# directive in the PR body.  CI extracts that directive with flaky_check_tests
+# and passes it here as the FLAKY_EXTRA_TESTS variable.
+explicit_tests() {
+	if [ -n "${FLAKY_EXTRA_TESTS-}" ]; then
+		echo "$FLAKY_EXTRA_TESTS" | tr ',' '\n'
+	fi
+}
+
+flaky_check_tests() {
+	printf '%s\n' "${PR_BODY-}" \
+		| tr -d '\r' \
+		| grep -oEm1 '^/flaky-check=Test[A-Za-z0-9_]+(,Test[A-Za-z0-9_]+)*$' \
+		| sed 's|^/flaky-check=||' \
+		|| true
+}
+
+integration_flaky_tests() {
+	{
+		added_tests
+		changed_tests
+		explicit_tests
+	} | sort -u
+}
+
+# integration_flaky_test_filter joins the selected test names into a
+# -test.run filter such as TestA|TestB. Empty when no tests are selected.
+integration_flaky_test_filter() {
+	integration_flaky_tests | tr '\n' '|' | sed 's/|$//'
+}

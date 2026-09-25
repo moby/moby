@@ -1,0 +1,1388 @@
+// Package archive provides helper functions for dealing with archive files.
+package archive
+
+import (
+	"archive/tar"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/containerd/log"
+	"github.com/moby/go-archive/internal/archiveoptions"
+	"github.com/moby/patternmatcher"
+	"github.com/moby/sys/sequential"
+	"github.com/moby/sys/user"
+
+	"github.com/moby/go-archive/compression"
+	"github.com/moby/go-archive/tarheader"
+)
+
+// ImpliedDirectoryMode represents the mode (Unix permissions) applied to directories that are implied by files in a
+// tar, but that do not have their own header entry.
+//
+// The permissions mask is stored in a constant instead of locally to ensure that magic numbers do not
+// proliferate in the codebase. The default value 0755 has been selected based on the default umask of 0022, and
+// a convention of mkdir(1) calling mkdir(2) with permissions of 0777, resulting in a final value of 0755.
+//
+// This value is currently implementation-defined, and not captured in any cross-runtime specification. Thus, it is
+// subject to change in Moby at any time -- image authors who require consistent or known directory permissions
+// should explicitly control them by ensuring that header entries exist for any applicable path.
+const ImpliedDirectoryMode = 0o755
+
+type (
+	// WhiteoutFormat is the format of whiteouts unpacked
+	WhiteoutFormat int
+
+	ChownOpts struct {
+		UID int
+		GID int
+	}
+
+	// TarOptions wraps the tar options.
+	TarOptions struct {
+		// IncludeFiles lists archive-relative paths to include.
+		// Paths use POSIX ('/') separators.
+		IncludeFiles []string
+
+		// ExcludePatterns lists archive-relative exclude patterns.
+		// Patterns use POSIX ('/') separators, matching patternmatcher semantics.
+		ExcludePatterns []string
+		Compression     compression.Compression
+		// NoLchown disables applying ownership from the archive to extracted files
+		// and directories. Despite its historical name, it applies to all ownership
+		// changes, leaving extracted filesystem objects owned by the user performing
+		// the extraction.
+		NoLchown         bool
+		IDMap            user.IdentityMapping
+		ChownOpts        *ChownOpts
+		IncludeSourceDir bool
+		// WhiteoutFormat is the expected on disk format for whiteout files.
+		// This format will be converted to the standard format on pack
+		// and from the standard format on unpack.
+		WhiteoutFormat WhiteoutFormat
+		// When unpacking, specifies whether overwriting a directory with a
+		// non-directory is allowed and vice versa.
+		NoOverwriteDirNonDir bool
+		// For each include when creating an archive, the included name will be
+		// replaced with the matching name from this map.
+		RebaseNames map[string]string
+		InUserNS    bool
+		// Allow unpacking to succeed in spite of failures to set extended
+		// attributes on the unpacked files due to the destination filesystem
+		// not supporting them or a lack of permissions. Extended attributes
+		// were probably in the archive for a reason, so set this option at
+		// your own peril.
+		BestEffortXattrs bool
+
+		// internalOptions contains options for use by packages within this module.
+		internalOptions *archiveoptions.Options
+	}
+)
+
+// WithProcSelfFD returns a copy of opts prepared for extraction in a
+// filesystem context where /proc/self/fd may not be accessible by path.
+//
+// The caller must invoke the returned cleanup function after extraction
+// completes. On platforms that do not use /proc/self/fd for extraction,
+// the returned cleanup function is a no-op.
+func WithProcSelfFD(opts *TarOptions) (*TarOptions, func(), error) {
+	return withProcSelfFD(opts)
+}
+
+// Archiver implements the Archiver interface and allows the reuse of most utility functions of
+// this package with a pluggable Untar function. Also, to facilitate the passing of specific id
+// mappings for untar, an Archiver can be created with maps which will then be passed to Untar operations.
+type Archiver struct {
+	Untar     func(io.Reader, string, *TarOptions) error
+	IDMapping user.IdentityMapping
+}
+
+// NewDefaultArchiver returns a new Archiver without any IdentityMapping
+func NewDefaultArchiver() *Archiver {
+	return &Archiver{Untar: Untar}
+}
+
+// isPathEscapes reports whether err is os.Root's path-containment error.
+//
+// os.Root currently returns an unexported errPathEscapes sentinel, so callers
+// cannot detect it with errors.Is. Keep the string comparison isolated here
+// until Go exports the error; see https://go.dev/issue/74640.
+func isPathEscapes(err error) bool {
+	// https://github.com/golang/go/blob/go1.26.5/src/os/file.go#L421
+	const errPathEscapes = "path escapes from parent"
+	for err != nil {
+		if errors.Unwrap(err) == nil {
+			return err.Error() == errPathEscapes
+		}
+		err = errors.Unwrap(err)
+	}
+	return false
+}
+
+// breakoutErr marks errors caused by archive breakout attempts.
+// Unit tests use it to distinguish expected breakout failures from other
+// errors.
+type breakoutErr struct{ error }
+
+func breakoutError(err error) error {
+	return &breakoutErr{error: err}
+}
+
+func (e *breakoutErr) Unwrap() error { return e.error }
+
+const (
+	AUFSWhiteoutFormat    WhiteoutFormat = 0 // AUFSWhiteoutFormat is the default format for whiteouts
+	OverlayWhiteoutFormat WhiteoutFormat = 1 // OverlayWhiteoutFormat formats whiteout according to the overlay standard.
+)
+
+// IsArchivePath checks if the (possibly compressed) file at the given path
+// starts with a tar file header.
+func IsArchivePath(filePath string) bool {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return false
+	}
+	defer func() { _ = file.Close() }()
+	rdr, err := compression.DecompressStream(file)
+	if err != nil {
+		return false
+	}
+	defer func() { _ = rdr.Close() }()
+	r := tar.NewReader(rdr)
+	_, err = r.Next()
+	return err == nil
+}
+
+// TarModifierFunc is a function that can be passed to ReplaceFileTarWrapper to
+// modify the contents or header of an entry in the archive. If the file already
+// exists in the archive the TarModifierFunc will be called with the Header and
+// a reader which will return the files content. If the file does not exist both
+// header and content will be nil.
+type TarModifierFunc func(path string, header *tar.Header, content io.Reader) (*tar.Header, []byte, error)
+
+// ReplaceFileTarWrapper converts inputTarStream to a new tar stream. Files in the
+// tar stream are modified if they match any of the keys in mods.
+func ReplaceFileTarWrapper(inputTarStream io.ReadCloser, mods map[string]TarModifierFunc) io.ReadCloser {
+	pipeReader, pipeWriter := io.Pipe()
+
+	go func() {
+		tarReader := tar.NewReader(inputTarStream)
+		tarWriter := tar.NewWriter(pipeWriter)
+		defer func() {
+			_ = tarWriter.Close()
+			_ = inputTarStream.Close()
+		}()
+
+		modify := func(name string, original *tar.Header, modifier TarModifierFunc, tarReader io.Reader) error {
+			header, data, err := modifier(name, original, tarReader)
+			switch {
+			case err != nil:
+				return err
+			case header == nil:
+				return nil
+			}
+
+			if header.Name == "" {
+				header.Name = name
+			}
+			header.Size = int64(len(data))
+			if err := tarWriter.WriteHeader(header); err != nil {
+				return err
+			}
+			if len(data) != 0 {
+				if _, err := tarWriter.Write(data); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
+		var err error
+		var originalHeader *tar.Header
+		for {
+			originalHeader, err = tarReader.Next()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				_ = pipeWriter.CloseWithError(err)
+				return
+			}
+
+			modifier, ok := mods[originalHeader.Name]
+			if !ok {
+				// No modifiers for this file, copy the header and data
+				if err := tarWriter.WriteHeader(originalHeader); err != nil {
+					_ = pipeWriter.CloseWithError(err)
+					return
+				}
+				if err := copyWithBuffer(tarWriter, tarReader); err != nil {
+					_ = pipeWriter.CloseWithError(err)
+					return
+				}
+				continue
+			}
+			delete(mods, originalHeader.Name)
+
+			if err := modify(originalHeader.Name, originalHeader, modifier, tarReader); err != nil {
+				_ = pipeWriter.CloseWithError(err)
+				return
+			}
+		}
+
+		// Apply the modifiers that haven't matched any files in the archive
+		for name, modifier := range mods {
+			if err := modify(name, nil, modifier, nil); err != nil {
+				_ = pipeWriter.CloseWithError(err)
+				return
+			}
+		}
+
+		_ = pipeWriter.Close()
+	}()
+	return pipeReader
+}
+
+// FileInfoHeader creates a populated Header from fi.
+//
+// Compared to the archive/tar package, this function fills in less information
+// but is safe to call from a chrooted process. The AccessTime and ChangeTime
+// fields are not set in the returned header, ModTime is truncated to one-second
+// precision, and the Uname and Gname fields are only set when fi is a FileInfo
+// value returned from tar.Header.FileInfo().
+func FileInfoHeader(name string, fi os.FileInfo, link string) (*tar.Header, error) {
+	hdr, err := tarheader.FileInfoHeaderNoLookups(fi, link)
+	if err != nil {
+		return nil, err
+	}
+	hdr.Format = tar.FormatPAX
+	hdr.ModTime = hdr.ModTime.Truncate(time.Second)
+	hdr.AccessTime = time.Time{}
+	hdr.ChangeTime = time.Time{}
+	hdr.Mode = chmodTarEntry(hdr.Mode)
+	hdr.Name = canonicalTarName(name, fi.IsDir())
+	return hdr, nil
+}
+
+const paxSchilyXattr = "SCHILY.xattr."
+
+// ReadSecurityXattrToTarHeader reads security.capability xattr from filesystem
+// to a tar header
+func ReadSecurityXattrToTarHeader(filePath string, hdr *tar.Header) error {
+	const (
+		// Values based on linux/include/uapi/linux/capability.h
+		xattrCapsSz2    = 20
+		versionOffset   = 3
+		vfsCapRevision2 = 2
+		vfsCapRevision3 = 3
+	)
+	capability, _ := lgetxattr(filePath, "security.capability")
+	if capability != nil {
+		if capability[versionOffset] == vfsCapRevision3 {
+			// Convert VFS_CAP_REVISION_3 to VFS_CAP_REVISION_2 as root UID makes no
+			// sense outside the user namespace the archive is built in.
+			capability[versionOffset] = vfsCapRevision2
+			capability = capability[:xattrCapsSz2]
+		}
+		if hdr.PAXRecords == nil {
+			hdr.PAXRecords = make(map[string]string)
+		}
+		hdr.PAXRecords[paxSchilyXattr+"security.capability"] = string(capability)
+	}
+	return nil
+}
+
+type tarWhiteoutConverter interface {
+	ConvertWrite(*tar.Header, string, os.FileInfo) (*tar.Header, error)
+	ConvertRead(*os.Root, *tar.Header, string) (bool, error)
+}
+
+type tarAppender struct {
+	TarWriter *tar.Writer
+
+	// for hardlink mapping
+	SeenFiles       map[uint64]string
+	IdentityMapping user.IdentityMapping
+	ChownOpts       *ChownOpts
+
+	// For packing and unpacking whiteout files in the
+	// non standard format. The whiteout files defined
+	// by the AUFS standard are used as the tar whiteout
+	// standard.
+	WhiteoutConverter tarWhiteoutConverter
+}
+
+func newTarAppender(idMapping user.IdentityMapping, writer io.Writer, chownOpts *ChownOpts) *tarAppender {
+	return &tarAppender{
+		SeenFiles:       make(map[uint64]string),
+		TarWriter:       tar.NewWriter(writer),
+		IdentityMapping: idMapping,
+		ChownOpts:       chownOpts,
+	}
+}
+
+// canonicalTarName provides a platform-independent and consistent POSIX-style
+// path for files and directories to be archived regardless of the platform.
+func canonicalTarName(name string, isDir bool) string {
+	name = filepath.ToSlash(name)
+
+	// suffix with '/' for directories
+	if isDir && !strings.HasSuffix(name, "/") {
+		name += "/"
+	}
+	return name
+}
+
+// addTarFile adds to the tar archive a file from `srcPath` as `name`
+func (ta *tarAppender) addTarFile(srcPath, archivePath string) error {
+	archivePath = filepath.ToSlash(archivePath)
+	fi, err := os.Lstat(srcPath)
+	if err != nil {
+		return err
+	}
+
+	var link string
+	if fi.Mode()&os.ModeSymlink != 0 {
+		var err error
+		link, err = os.Readlink(srcPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	hdr, err := FileInfoHeader(archivePath, fi, link)
+	if err != nil {
+		return err
+	}
+	if err := ReadSecurityXattrToTarHeader(srcPath, hdr); err != nil {
+		return err
+	}
+
+	// if it's not a directory and has more than 1 link,
+	// it's hard linked, so set the type flag accordingly
+	if !fi.IsDir() && hasHardlinks(fi) {
+		inode, err := getInodeFromStat(fi.Sys())
+		if err != nil {
+			return fmt.Errorf("unexpected file info for %q: %w", srcPath, err)
+		}
+		// a link should have a name that it links too
+		// and that linked name should be first in the tar archive
+		if oldpath, ok := ta.SeenFiles[inode]; ok {
+			hdr.Typeflag = tar.TypeLink
+			hdr.Linkname = oldpath
+			hdr.Size = 0 // This Must be here for the writer math to add up!
+		} else {
+			ta.SeenFiles[inode] = hdr.Name
+		}
+	}
+
+	// check whether the file is overlayfs whiteout
+	// if yes, skip re-mapping container ID mappings.
+	isOverlayWhiteout := fi.Mode()&os.ModeCharDevice != 0 && hdr.Devmajor == 0 && hdr.Devminor == 0
+
+	// handle re-mapping container ID mappings back to host ID mappings before
+	// writing tar headers/files. We skip whiteout files because they were written
+	// by the kernel and already have proper ownership relative to the host
+	if !isOverlayWhiteout && !strings.HasPrefix(path.Base(hdr.Name), WhiteoutPrefix) && !ta.IdentityMapping.Empty() {
+		uid, gid, err := getFileUIDGID(fi.Sys())
+		if err != nil {
+			return err
+		}
+		hdr.Uid, hdr.Gid, err = ta.IdentityMapping.ToContainer(uid, gid)
+		if err != nil {
+			return err
+		}
+	}
+
+	// explicitly override with ChownOpts
+	if ta.ChownOpts != nil {
+		hdr.Uid = ta.ChownOpts.UID
+		hdr.Gid = ta.ChownOpts.GID
+	}
+
+	if ta.WhiteoutConverter != nil {
+		wo, err := ta.WhiteoutConverter.ConvertWrite(hdr, srcPath, fi)
+		if err != nil {
+			return err
+		}
+
+		// If a new whiteout file exists, write original hdr, then
+		// replace hdr with wo to be written after. Whiteouts should
+		// always be written after the original. Note the original
+		// hdr may have been updated to be a whiteout with returning
+		// a whiteout header
+		if wo != nil {
+			if hdr.Typeflag == tar.TypeReg && hdr.Size > 0 {
+				return fmt.Errorf("tar: cannot use whiteout for non-empty file %q", hdr.Name)
+			}
+			if err := ta.TarWriter.WriteHeader(hdr); err != nil {
+				return err
+			}
+			hdr = wo
+		}
+	}
+
+	if err := ta.TarWriter.WriteHeader(hdr); err != nil {
+		return err
+	}
+
+	if hdr.Typeflag == tar.TypeReg && hdr.Size > 0 {
+		// We use sequential file access to avoid depleting the standby list on
+		// Windows. On Linux, this equates to a regular os.Open.
+		file, err := sequential.Open(srcPath)
+		if err != nil {
+			return err
+		}
+
+		err = copyWithBuffer(ta.TarWriter, file)
+		_ = file.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// resolveArchivePath resolves intermediate symlinks in name using chroot-like
+// semantics when os.Root cannot traverse them. The final path component is
+// intentionally preserved because archive extraction may create or replace it.
+//
+// This is a compatibility workaround rather than the preferred long-term
+// implementation. It resolves the path separately before the actual operation,
+// so a concurrent filesystem change may cause the operation to affect a
+// different path within root. The subsequent os.Root operation still confines
+// the operation to root and prevents such a change from escaping it.
+//
+// Paths with missing components are supported. Existing symlinks are resolved,
+// and any remaining nonexistent components are retained for later creation.
+//
+// This helper should eventually be replaced by handle-relative resolution and
+// operations with resolve-in-root semantics, avoiding the resolution/use race
+// and repeated path traversal.
+func resolveArchivePath(root *os.Root, name string) (string, error) {
+	parent, base := filepath.Split(name)
+	if parent == "" {
+		return name, nil
+	}
+
+	parent = filepath.Clean(parent)
+
+	// Follow the final parent component: it is an intermediate component of name,
+	// and an absolute symlink there must trigger the resolve-in-root fallback.
+	_, statErr := root.Stat(parent)
+	switch {
+	case statErr == nil:
+		return name, nil
+	case !os.IsNotExist(statErr) && !isPathEscapes(statErr):
+		return "", statErr
+	}
+
+	// Resolve the parent both to handle ENOENT from missing components or dangling
+	// symlinks, and to determine whether an os.Root breakout was caused by an
+	// absolute symlink. Relative symlink escapes preserve the original Stat error.
+	resolved, err := resolveFSRootPath(root.Name(), parent)
+	if err != nil {
+		return "", err
+	}
+
+	if isPathEscapes(statErr) && (!resolved.followedAbsoluteLink || resolved.relativeEscapeBeforeAbsolute) {
+		return "", statErr
+	}
+
+	relParent, err := filepath.Rel(root.Name(), resolved.path)
+	if err != nil {
+		return "", breakoutError(fmt.Errorf(
+			"could not make resolved parent %q relative to root %q: %w",
+			resolved.path,
+			root.Name(),
+			err,
+		))
+	}
+	if relParent != "." && !filepath.IsLocal(relParent) {
+		return "", breakoutError(fmt.Errorf(
+			"resolved parent %q escapes root %q",
+			resolved.path,
+			root.Name(),
+		))
+	}
+
+	return filepath.Join(relParent, base), nil
+}
+
+// resolveHardlinkTarget validates a POSIX hardlink target and resolves it to
+// the native, root-relative filesystem path used for extraction.
+func resolveHardlinkTarget(root *os.Root, linkname string) (string, error) {
+	cleaned := path.Clean(linkname)
+	if strings.HasPrefix(cleaned, "/") {
+		// Some image builders (e.g. kaniko) write hardlink targets as absolute
+		// paths. Resolve those relative to the extraction root, with chroot-like
+		// semantics matching absolute symlink targets. Strip the root from the
+		// original linkname rather than the cleaned one so that ".." components
+		// are not collapsed against "/" but instead rejected below.
+		cleaned = path.Clean(strings.TrimLeft(linkname, "/"))
+	}
+	if cleaned == "." || !filepath.IsLocal(cleaned) {
+		return "", breakoutError(fmt.Errorf("invalid hardlink target %q", linkname))
+	}
+	return resolveArchivePath(root, filepath.FromSlash(cleaned))
+}
+
+// createTarFile extracts a single tar entry into the given root. dstPath is the
+// root-relative path of the entry being extracted, in native (host-separator)
+// form so it can be passed directly to os.Root methods and fsRootPath.
+func createTarFile(root *os.Root, dstPath string, hdr *tar.Header, reader io.Reader, opts *TarOptions) error {
+	var (
+		Lchown                     = true
+		inUserns, bestEffortXattrs bool
+		chownOpts                  *ChownOpts
+		internalOpts               *archiveoptions.Options
+	)
+
+	// TODO(thaJeztah): make opts a required argument.
+	if opts != nil {
+		Lchown = !opts.NoLchown
+		inUserns = opts.InUserNS // TODO(thaJeztah): consider deprecating opts.InUserNS and detect locally.
+		chownOpts = opts.ChownOpts
+		bestEffortXattrs = opts.BestEffortXattrs
+		internalOpts = opts.internalOptions
+	}
+
+	// hdr.Mode is in linux format, which we can use for sycalls,
+	// but for os.Foo() calls we need the mode converted to os.FileMode,
+	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
+	hdrInfo := hdr.FileInfo()
+
+	var hardlinkTarget string
+	if hdr.Typeflag == tar.TypeLink {
+		var err error
+		hardlinkTarget, err = resolveHardlinkTarget(root, hdr.Linkname)
+		if err != nil {
+			return err
+		}
+	}
+
+	switch hdr.Typeflag {
+	case tar.TypeDir:
+		// Create directory unless it already exists as one; merge in that case.
+		// os.Root.Mkdir only accepts the nine least-significant permission
+		// bits; special bits (setuid, setgid, sticky) are applied afterward
+		// by handleLChmod via root.Chmod.
+		if fi, err := root.Lstat(dstPath); err != nil || !fi.IsDir() {
+			if err := root.Mkdir(dstPath, hdrInfo.Mode()&0o777); err != nil {
+				return err
+			}
+		}
+
+	case tar.TypeReg:
+		// Source is a regular file. Use os.Root.OpenFile so that all
+		// path resolution is bounded within root using openat(2) semantics.
+		// os.Root.OpenFile only accepts the nine least-significant permission
+		// bits; special bits are applied afterward by handleLChmod.
+		// We use sequential file access to avoid depleting the standby list
+		// on Windows (go1.26). On Linux, this equates to a regular os.OpenFile.
+		file, err := root.OpenFile(dstPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|windows_O_FILE_FLAG_SEQUENTIAL_SCAN, hdrInfo.Mode()&0o777)
+		if err != nil {
+			return err
+		}
+		if err := copyWithBuffer(file, reader); err != nil {
+			_ = file.Close()
+			return err
+		}
+		_ = file.Close()
+
+	case tar.TypeBlock, tar.TypeChar:
+		if inUserns { // cannot create devices in a userns
+			log.G(context.TODO()).WithFields(log.Fields{"path": dstPath, "type": hdr.Typeflag}).Debug("skipping device nodes in a userns")
+			return nil
+		}
+		if err := handleTarTypeBlockCharFifo(root, hdr, dstPath); err != nil {
+			return err
+		}
+
+	case tar.TypeFifo:
+		if err := handleTarTypeBlockCharFifo(root, hdr, dstPath); err != nil {
+			if inUserns && errors.Is(err, syscall.EPERM) {
+				// In most cases, cannot create a fifo if running in user namespace
+				log.G(context.TODO()).WithFields(log.Fields{"error": err, "path": dstPath, "type": hdr.Typeflag}).Debug("creating fifo node in a userns")
+				return nil
+			}
+			return err
+		}
+
+	case tar.TypeLink:
+		if err := root.Link(hardlinkTarget, dstPath); err != nil {
+			return err
+		}
+
+	case tar.TypeSymlink:
+		// Symlink targets are archive data, not filesystem paths. Preserve the
+		// target verbatim rather than cleaning or converting it (filepath.FromSlash).
+		linkTarget := hdr.Linkname
+
+		// os.Root.Symlink contains the symlink's location (newname) within
+		// root but stores the target (oldname) verbatim, so absolute targets
+		// such as /usr/lib -- common and legitimate in container images -- are
+		// preserved rather than rejected. The symlink node is therefore always
+		// created within root via openat(2) semantics, without resolving to an
+		// absolute path; containment applies when the symlink is followed, not
+		// at creation.
+		if err := root.Symlink(linkTarget, dstPath); err != nil {
+			return err
+		}
+
+	case tar.TypeXGlobalHeader:
+		log.G(context.TODO()).Debug("PAX Global Extended Headers found and ignored")
+		return nil
+
+	default:
+		return fmt.Errorf("unhandled tar header type %d", hdr.Typeflag)
+	}
+
+	// Lchown is not supported on Windows.
+	if Lchown && runtime.GOOS != "windows" {
+		if chownOpts == nil {
+			chownOpts = &ChownOpts{UID: hdr.Uid, GID: hdr.Gid}
+		}
+		if err := root.Lchown(dstPath, chownOpts.UID, chownOpts.GID); err != nil {
+			var msg string
+			if inUserns && errors.Is(err, syscall.EINVAL) {
+				msg = " (try increasing the number of subordinate IDs in /etc/subuid and /etc/subgid)"
+			}
+			return fmt.Errorf("failed to Lchown %q for UID %d, GID %d%s: %w", dstPath, hdr.Uid, hdr.Gid, msg, err)
+		}
+	}
+
+	var xattrErrs []string
+	absPath := sync.OnceValues(func() (string, error) {
+		return fsRootPath(root.Name(), dstPath)
+	})
+	for key, value := range hdr.PAXRecords {
+		xattr, ok := strings.CutPrefix(key, paxSchilyXattr)
+		if !ok {
+			continue
+		}
+		// os.Root has no xattr support; use the absolute path derived from
+		// the root so the path remains bounded.
+		ap, err := absPath()
+		if err != nil {
+			return err
+		}
+		if err := lsetxattr(ap, xattr, []byte(value), 0); err != nil {
+			if bestEffortXattrs && errors.Is(err, syscall.ENOTSUP) || errors.Is(err, syscall.EPERM) {
+				// EPERM occurs if modifying xattrs is not allowed. This can
+				// happen when running in userns with restrictions (ChromeOS).
+				xattrErrs = append(xattrErrs, err.Error())
+				continue
+			}
+			return err
+		}
+	}
+
+	if len(xattrErrs) > 0 {
+		log.G(context.TODO()).WithFields(log.Fields{
+			"errors": xattrErrs,
+		}).Warn("ignored xattrs in archive: underlying filesystem doesn't support them")
+	}
+
+	// There is no LChmod, so ignore mode for symlink. Also, this
+	// must happen after chown, as that can modify the file mode
+	if err := handleLChmod(root, dstPath, hardlinkTarget, hdr, hdrInfo, internalOpts); err != nil {
+		return err
+	}
+
+	aTime := boundTime(latestTime(hdr.AccessTime, hdr.ModTime))
+	mTime := boundTime(hdr.ModTime)
+
+	switch hdr.Typeflag {
+	case tar.TypeSymlink:
+		// Apply timestamps to the symlink itself (AT_SYMLINK_NOFOLLOW).
+		if err := lchtimes(root, dstPath, aTime, mTime); err != nil {
+			return err
+		}
+	case tar.TypeLink:
+		// Follow the hardlink only when its target is not itself a symlink.
+		fi, err := root.Lstat(hardlinkTarget)
+		if err == nil && fi.Mode()&os.ModeSymlink == 0 {
+			if err := chtimes(root, dstPath, aTime, mTime); err != nil {
+				return err
+			}
+		}
+	default:
+		// All other file types follow symlinks.
+		if err := chtimes(root, dstPath, aTime, mTime); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Tar creates an archive from the directory at `srcPath`, and returns it as a
+// stream of bytes.
+func Tar(srcPath string, comp compression.Compression) (io.ReadCloser, error) {
+	return TarWithOptions(srcPath, &TarOptions{Compression: comp})
+}
+
+// TarWithOptions creates an archive from the directory at `srcPath`, only including files whose relative
+// paths are included in `options.IncludeFiles` (if non-nil) or not in `options.ExcludePatterns`.
+func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) {
+	tb, err := NewTarballer(srcPath, options)
+	if err != nil {
+		return nil, err
+	}
+	go tb.Do()
+	return tb.Reader(), nil
+}
+
+// Tarballer is a lower-level interface to TarWithOptions which gives the caller
+// control over which goroutine the archiving operation executes on.
+type Tarballer struct {
+	srcPath           string
+	options           *TarOptions
+	pm                *patternmatcher.PatternMatcher
+	pipeReader        *io.PipeReader
+	pipeWriter        *io.PipeWriter
+	compressWriter    io.WriteCloser
+	whiteoutConverter tarWhiteoutConverter
+}
+
+// NewTarballer constructs a new tarballer. The arguments are the same as for
+// TarWithOptions.
+func NewTarballer(srcPath string, options *TarOptions) (*Tarballer, error) {
+	pm, err := patternmatcher.New(options.ExcludePatterns)
+	if err != nil {
+		return nil, err
+	}
+
+	pipeReader, pipeWriter := io.Pipe()
+
+	compressWriter, err := compression.CompressStream(pipeWriter, options.Compression)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Tarballer{
+		// Fix the source path to work with long path names. This is a no-op
+		// on platforms other than Windows.
+		srcPath:           addLongPathPrefix(srcPath),
+		options:           options,
+		pm:                pm,
+		pipeReader:        pipeReader,
+		pipeWriter:        pipeWriter,
+		compressWriter:    compressWriter,
+		whiteoutConverter: getWhiteoutConverter(options.WhiteoutFormat),
+	}, nil
+}
+
+// Reader returns the reader for the created archive.
+func (t *Tarballer) Reader() io.ReadCloser {
+	return t.pipeReader
+}
+
+// Do performs the archiving operation in the background. The resulting archive
+// can be read from t.Reader(). Do should only be called once on each Tarballer
+// instance.
+func (t *Tarballer) Do() {
+	ta := newTarAppender(
+		t.options.IDMap,
+		t.compressWriter,
+		t.options.ChownOpts,
+	)
+	ta.WhiteoutConverter = t.whiteoutConverter
+
+	defer func() {
+		// Make sure to check the error on Close.
+		if err := ta.TarWriter.Close(); err != nil && !errors.Is(err, io.ErrClosedPipe) {
+			log.G(context.TODO()).Errorf("Can't close tar writer: %s", err)
+		}
+		if err := t.compressWriter.Close(); err != nil && !errors.Is(err, io.ErrClosedPipe) {
+			log.G(context.TODO()).Errorf("Can't close compress writer: %s", err)
+		}
+		if err := t.pipeWriter.Close(); err != nil && !errors.Is(err, io.ErrClosedPipe) {
+			log.G(context.TODO()).Errorf("Can't close pipe writer: %s", err)
+		}
+	}()
+
+	// In general we log errors here but ignore them because
+	// during e.g. a diff operation the container can continue
+	// mutating the filesystem and we can see transient errors
+	// from this
+
+	stat, err := os.Lstat(t.srcPath)
+	if err != nil {
+		return
+	}
+
+	if !stat.IsDir() {
+		// We can't later join a non-dir with any includes because the
+		// 'walk' will error if "file/." is stat-ed and "file" is not a
+		// directory. So, we must split the source path and use the
+		// basename as the include.
+		if len(t.options.IncludeFiles) > 0 {
+			log.G(context.TODO()).Warn("Tar: Can't archive a file with includes")
+		}
+
+		dir, base := SplitPathDirEntry(t.srcPath)
+		t.srcPath = dir
+		t.options.IncludeFiles = []string{base}
+	}
+
+	if len(t.options.IncludeFiles) == 0 {
+		t.options.IncludeFiles = []string{"."}
+	}
+
+	seen := make(map[string]bool)
+
+	for _, include := range t.options.IncludeFiles {
+		rebaseName := t.options.RebaseNames[include]
+
+		var (
+			parentMatchInfo []patternmatcher.MatchInfo
+			parentDirs      []string
+		)
+
+		walkRoot := getWalkRoot(t.srcPath, include)
+		// TODO(thaJeztah): should this error be handled?
+		_ = filepath.WalkDir(walkRoot, func(filePath string, f os.DirEntry, err error) error {
+			if err != nil {
+				log.G(context.TODO()).Errorf("Tar: Can't stat file %s to tar: %s", t.srcPath, err)
+				return nil
+			}
+
+			relFilePath, err := filepath.Rel(t.srcPath, filePath)
+			if err != nil || (!t.options.IncludeSourceDir && relFilePath == "." && f.IsDir()) {
+				// Error getting relative path OR we are looking
+				// at the source directory path. Skip in both situations.
+				return nil
+			}
+
+			if t.options.IncludeSourceDir && include == "." && relFilePath != "." {
+				relFilePath = strings.Join([]string{".", relFilePath}, string(filepath.Separator))
+			}
+
+			skip := false
+
+			// If "include" is an exact match for the current file
+			// then even if there's an "excludePatterns" pattern that
+			// matches it, don't skip it. IOW, assume an explicit 'include'
+			// is asking for that file no matter what - which is true
+			// for some files, like .dockerignore and Dockerfile (sometimes)
+			if include != relFilePath {
+				for len(parentDirs) != 0 {
+					lastParentDir := parentDirs[len(parentDirs)-1]
+					if strings.HasPrefix(relFilePath, lastParentDir+string(os.PathSeparator)) {
+						break
+					}
+					parentDirs = parentDirs[:len(parentDirs)-1]
+					parentMatchInfo = parentMatchInfo[:len(parentMatchInfo)-1]
+				}
+
+				var matchInfo patternmatcher.MatchInfo
+				if len(parentMatchInfo) != 0 {
+					skip, matchInfo, err = t.pm.MatchesUsingParentResults(relFilePath, parentMatchInfo[len(parentMatchInfo)-1])
+				} else {
+					skip, matchInfo, err = t.pm.MatchesUsingParentResults(relFilePath, patternmatcher.MatchInfo{})
+				}
+				if err != nil {
+					log.G(context.TODO()).Errorf("Error matching %s: %v", relFilePath, err)
+					return err
+				}
+
+				if f.IsDir() {
+					parentDirs = append(parentDirs, relFilePath)
+					parentMatchInfo = append(parentMatchInfo, matchInfo)
+				}
+			}
+
+			if skip {
+				// If we want to skip this file and its a directory
+				// then we should first check to see if there's an
+				// excludes pattern (e.g. !dir/file) that starts with this
+				// dir. If so then we can't skip this dir.
+
+				// Its not a dir then so we can just return/skip.
+				if !f.IsDir() {
+					return nil
+				}
+
+				// No exceptions (!...) in patterns so just skip dir
+				if !t.pm.Exclusions() {
+					return filepath.SkipDir
+				}
+
+				dirSlash := relFilePath + string(filepath.Separator)
+
+				for _, pat := range t.pm.Patterns() {
+					if !pat.Exclusion() {
+						continue
+					}
+					if strings.HasPrefix(pat.String()+string(filepath.Separator), dirSlash) {
+						// found a match - so can't skip this dir
+						return nil
+					}
+				}
+
+				// No matching exclusion dir so just skip dir
+				return filepath.SkipDir
+			}
+
+			if seen[relFilePath] {
+				return nil
+			}
+			seen[relFilePath] = true
+
+			// Rename the base resource.
+			if rebaseName != "" {
+				var replacement string
+				if rebaseName != string(filepath.Separator) {
+					// Special case the root directory to replace with an
+					// empty string instead so that we don't end up with
+					// double slashes in the paths.
+					replacement = rebaseName
+				}
+
+				relFilePath = strings.Replace(relFilePath, include, replacement, 1)
+			}
+
+			if err := ta.addTarFile(filePath, relFilePath); err != nil {
+				log.G(context.TODO()).Errorf("Can't add file %s to tar: %s", filePath, err)
+				// if pipe is broken, stop writing tar stream to it
+				if errors.Is(err, io.ErrClosedPipe) {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+}
+
+// unpackedDir records a directory whose mtime must be restored after all
+// entries are extracted, along with the root-relative entry name used during
+// extraction.
+type unpackedDir struct {
+	hdr  *tar.Header
+	name string // root-relative entry name
+}
+
+// Unpack unpacks the decompressedArchive to dest with options.
+func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) error {
+	if options == nil {
+		options = &TarOptions{}
+	}
+	root, err := os.OpenRoot(dest)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
+
+	tr := tar.NewReader(decompressedArchive)
+
+	var dirs []unpackedDir
+	whiteoutConverter := getWhiteoutConverter(options.WhiteoutFormat)
+
+	// Iterate through the files in the archive.
+loop:
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			// end of tar archive
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		// ignore XGlobalHeader early to avoid creating parent directories for them
+		if hdr.Typeflag == tar.TypeXGlobalHeader {
+			log.G(context.TODO()).Debugf("PAX Global Extended Headers found for %s and ignored", hdr.Name)
+			continue
+		}
+
+		// Strip a leading "/" so absolute entries stay root-relative, and
+		// normalize the POSIX tar path. Skip entries referring to the extraction
+		// root and reject paths that escape it.
+		name := path.Clean(strings.TrimLeft(hdr.Name, "/"))
+		if name == "." {
+			continue
+		}
+		if !filepath.IsLocal(name) {
+			return breakoutError(fmt.Errorf("invalid entry name %q", hdr.Name))
+		}
+		for _, exclude := range options.ExcludePatterns {
+			if strings.HasPrefix(name, exclude) {
+				continue loop
+			}
+		}
+
+		hdr.Name = name
+
+		// Skip entries whose name (or hardlink target) Windows cannot represent.
+		if err := unrepresentableOnWindows(hdr); err != nil {
+			log.G(context.TODO()).Warnf("Windows: ignoring entry: %v", err)
+			continue loop
+		}
+
+		// dstPath is the native (host-separator) form of the entry name,
+		// used at all filesystem boundaries (os.Root methods, fsRootPath).
+		// hdr.Name stays POSIX (forward-slash) for logical string checks.
+		dstPath, err := resolveArchivePath(root, filepath.FromSlash(hdr.Name))
+		if err != nil {
+			return err
+		}
+
+		// If dstPath exists we almost always just want to remove and replace it.
+		// The only exception is when it is a directory *and* the file from
+		// the layer is also a directory. Then we want to merge them (i.e.
+		// just apply the metadata from the layer).
+		if fi, err := root.Lstat(dstPath); err == nil {
+			if options.NoOverwriteDirNonDir && fi.IsDir() && hdr.Typeflag != tar.TypeDir {
+				// If NoOverwriteDirNonDir is true then we cannot replace
+				// an existing directory with a non-directory from the archive.
+				return fmt.Errorf("cannot overwrite directory %q with non-directory %q", hdr.Name, dest)
+			}
+
+			if options.NoOverwriteDirNonDir && !fi.IsDir() && hdr.Typeflag == tar.TypeDir {
+				// If NoOverwriteDirNonDir is true then we cannot replace
+				// an existing non-directory with a directory from the archive.
+				return fmt.Errorf("cannot overwrite non-directory %q with directory %q", hdr.Name, dest)
+			}
+
+			if fi.IsDir() && hdr.Name == "." {
+				continue
+			}
+
+			if !fi.IsDir() || hdr.Typeflag != tar.TypeDir {
+				if err := root.RemoveAll(dstPath); err != nil {
+					return err
+				}
+			}
+		}
+
+		if err := remapIDs(options.IDMap, hdr); err != nil {
+			return err
+		}
+
+		// Ensure that the parent directory exists.
+		//
+		// This must be done before whiteoutConverter.ConvertRead, which
+		// may set xattrs on the directory or create whiteout files.
+		if err := createImpliedDirectories(root, dstPath, options); err != nil {
+			return err
+		}
+
+		if whiteoutConverter != nil {
+			writeFile, err := whiteoutConverter.ConvertRead(root, hdr, dstPath)
+			if err != nil {
+				return err
+			}
+			if !writeFile {
+				continue
+			}
+		}
+
+		if err := createTarFile(root, dstPath, hdr, tr, options); err != nil {
+			return err
+		}
+
+		// Directory mtimes must be handled at the end to avoid further
+		// file creation in them to modify the directory mtime
+		if hdr.Typeflag == tar.TypeDir {
+			dirs = append(dirs, unpackedDir{hdr: hdr, name: dstPath})
+		}
+	}
+
+	for _, d := range dirs {
+		aTime := boundTime(latestTime(d.hdr.AccessTime, d.hdr.ModTime))
+		if err := chtimes(root, d.name, aTime, boundTime(d.hdr.ModTime)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// unrepresentableOnWindows returns an error describing why a tar entry cannot
+// be faithfully created on Windows, or nil if it can (always on non-Windows).
+// On Windows ":" is illegal in a filename and "\" is a path separator, so a tar
+// name or hardlink target containing them (they use POSIX semantics) would be
+// misinterpreted by os.Root (e.g. "a\b" resolved as two components). Symlink
+// targets are stored verbatim (not resolved at creation), so they are exempt.
+func unrepresentableOnWindows(hdr *tar.Header) error {
+	if runtime.GOOS != "windows" {
+		return nil
+	}
+	if strings.ContainsAny(hdr.Name, `:\`) {
+		return fmt.Errorf("entry name %q contains a character Windows cannot represent in a path", hdr.Name)
+	}
+	// A hardlink target is resolved within the root by os.Root.Link; a symlink
+	// target is stored verbatim, so only hardlinks need the target checked.
+	if hdr.Typeflag == tar.TypeLink && strings.ContainsAny(hdr.Linkname, `:\`) {
+		return fmt.Errorf("hardlink target %q contains a character Windows cannot represent in a path", hdr.Linkname)
+	}
+	return nil
+}
+
+// createImpliedDirectories creates all parent directories of dstPath with
+// default permissions if they do not already exist. This is necessary because
+// the tar format permits implicit directories whose existence is defined only
+// by file paths, without corresponding directory headers from which metadata
+// could be restored.
+//
+// The caller must pass a normalized, root-relative local path. Any archive-path
+// conversion and resolve-in-root handling must already have been applied.
+// Directory creation is performed through root, so it remains confined to the
+// extraction destination even if the destination tree changes concurrently.
+func createImpliedDirectories(root *os.Root, dstPath string, options *TarOptions) error {
+	parent := filepath.Dir(dstPath)
+
+	// Skip when the parent is the root itself; nothing to create.
+	if parent == "." || parent == "" {
+		return nil
+	}
+	if _, err := root.Lstat(parent); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	// RootPair() is confined inside this loop as most cases will not require a call, so we can spend some
+	// unneeded function calls in the uncommon case to encapsulate logic -- implied directories are a niche
+	// usage that reduces the portability of an image.
+	uid, gid := options.IDMap.RootPair()
+
+	// Similar to [user.MkdirAllAndChown]
+	//
+	// [user.MkdirAllAndChown]: https://pkg.go.dev/github.com/moby/sys/user#MkdirAllAndChown
+	var cur string
+	for c := range strings.SplitSeq(parent, string(os.PathSeparator)) {
+		if c == "" {
+			continue
+		}
+		cur = filepath.Join(cur, c)
+		if err := root.Mkdir(cur, ImpliedDirectoryMode); err != nil {
+			if !errors.Is(err, os.ErrExist) {
+				return err
+			}
+
+			fi, err := root.Stat(cur)
+			if err != nil {
+				return err
+			}
+			if fi.IsDir() {
+				continue
+			}
+			return &os.PathError{Op: "mkdir", Path: cur, Err: syscall.ENOTDIR}
+		}
+		if options.NoLchown {
+			continue
+		}
+		// Only the successful Mkdir case is newly-created.
+		dir, err := root.Open(cur)
+		if err != nil {
+			return err
+		}
+		if uid != 0 || gid != 0 {
+			if err := dir.Chown(uid, gid); err != nil {
+				_ = dir.Close()
+				return err
+			}
+		}
+		// root.Mkdir applies the mode subject to the process umask, so
+		// re-apply it with Chmod to guarantee ImpliedDirectoryMode
+		// independent of umask, matching the previous MkdirAllAndChown
+		// behavior.
+		if err := dir.Chmod(ImpliedDirectoryMode); err != nil {
+			_ = dir.Close()
+			return err
+		}
+		if err := dir.Close(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Untar reads a stream of bytes from `archive`, parses it as a tar archive,
+// and unpacks it into the directory at `dest`.
+// The archive may be compressed with one of the following algorithms:
+// identity (uncompressed), gzip, bzip2, xz.
+//
+// FIXME: specify behavior when target path exists vs. doesn't exist.
+func Untar(tarArchive io.Reader, dest string, options *TarOptions) error {
+	return untarHandler(tarArchive, dest, options, true)
+}
+
+// UntarUncompressed reads a stream of bytes from `archive`, parses it as a tar archive,
+// and unpacks it into the directory at `dest`.
+// The archive must be an uncompressed stream.
+func UntarUncompressed(tarArchive io.Reader, dest string, options *TarOptions) error {
+	return untarHandler(tarArchive, dest, options, false)
+}
+
+// Handler for teasing out the automatic decompression
+func untarHandler(tarArchive io.Reader, dest string, options *TarOptions, decompress bool) error {
+	if tarArchive == nil {
+		return errors.New("empty archive")
+	}
+	dest = filepath.Clean(dest)
+	if options == nil {
+		options = &TarOptions{}
+	}
+
+	r := tarArchive
+	if decompress {
+		decompressedArchive, err := compression.DecompressStream(tarArchive)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = decompressedArchive.Close() }()
+		r = decompressedArchive
+	}
+
+	return Unpack(r, dest, options)
+}
+
+// TarUntar is a convenience function which calls Tar and Untar, with the output of one piped into the other.
+// If either Tar or Untar fails, TarUntar aborts and returns the error.
+func (archiver *Archiver) TarUntar(src, dst string) error {
+	archive, err := Tar(src, compression.None)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = archive.Close() }()
+	return archiver.Untar(archive, dst, &TarOptions{
+		IDMap: archiver.IDMapping,
+	})
+}
+
+// UntarPath untar a file from path to a destination, src is the source tar file path.
+func (archiver *Archiver) UntarPath(src, dst string) error {
+	archive, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = archive.Close() }()
+	return archiver.Untar(archive, dst, &TarOptions{
+		IDMap: archiver.IDMapping,
+	})
+}
+
+// CopyWithTar creates a tar archive of filesystem path `src`, and
+// unpacks it at filesystem path `dst`.
+// The archive is streamed directly with fixed buffering and no
+// intermediary disk IO.
+func (archiver *Archiver) CopyWithTar(src, dst string) error {
+	srcSt, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if !srcSt.IsDir() {
+		return archiver.CopyFileWithTar(src, dst)
+	}
+
+	// if this Archiver is set up with ID mapping we need to create
+	// the new destination directory with the remapped root UID/GID pair
+	// as owner
+	uid, gid := archiver.IDMapping.RootPair()
+	// Create dst, copy src's content into it
+	if err := user.MkdirAllAndChown(dst, 0o755, uid, gid, user.WithOnlyNew); err != nil {
+		return err
+	}
+	return archiver.TarUntar(src, dst)
+}
+
+// CopyFileWithTar emulates the behavior of the 'cp' command-line
+// for a single file. It copies a regular file from path `src` to
+// path `dst`, and preserves all its metadata.
+func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
+	srcSt, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	if srcSt.IsDir() {
+		return errors.New("can't copy a directory")
+	}
+
+	// Clean up the trailing slash. This must be done in an operating
+	// system specific manner.
+	if dst[len(dst)-1] == os.PathSeparator {
+		dst = filepath.Join(dst, filepath.Base(src))
+	}
+	// Create the holding directory if necessary
+	if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
+		return err
+	}
+
+	r, w := io.Pipe()
+	errC := make(chan error, 1)
+
+	go func() {
+		defer close(errC)
+
+		errC <- func() error {
+			defer func() { _ = w.Close() }()
+
+			srcF, err := os.Open(src)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = srcF.Close() }()
+
+			hdr, err := tarheader.FileInfoHeaderNoLookups(srcSt, "")
+			if err != nil {
+				return err
+			}
+			hdr.Format = tar.FormatPAX
+			hdr.ModTime = hdr.ModTime.Truncate(time.Second)
+			hdr.AccessTime = time.Time{}
+			hdr.ChangeTime = time.Time{}
+			hdr.Name = filepath.Base(dst)
+			hdr.Mode = chmodTarEntry(hdr.Mode)
+
+			if err := remapIDs(archiver.IDMapping, hdr); err != nil {
+				return err
+			}
+
+			tw := tar.NewWriter(w)
+			defer func() { _ = tw.Close() }()
+			if err := tw.WriteHeader(hdr); err != nil {
+				return err
+			}
+			if err := copyWithBuffer(tw, srcF); err != nil {
+				return err
+			}
+			return nil
+		}()
+	}()
+	defer func() {
+		if er := <-errC; err == nil && er != nil {
+			err = er
+		}
+	}()
+
+	err = archiver.Untar(r, filepath.Dir(dst), nil)
+	if err != nil {
+		_ = r.CloseWithError(err)
+	}
+	return err
+}
+
+// IdentityMapping returns the IdentityMapping of the archiver.
+func (archiver *Archiver) IdentityMapping() user.IdentityMapping {
+	return archiver.IDMapping
+}
+
+func remapIDs(idMapping user.IdentityMapping, hdr *tar.Header) error {
+	uid, gid, err := idMapping.ToHost(hdr.Uid, hdr.Gid)
+	hdr.Uid, hdr.Gid = uid, gid
+	return err
+}

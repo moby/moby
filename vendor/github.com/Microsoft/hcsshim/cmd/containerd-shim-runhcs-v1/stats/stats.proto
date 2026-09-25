@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package containerd.runhcs.stats.v1;
+
+import "google/protobuf/timestamp.proto";
+import "github.com/containerd/cgroups/v3/cgroup1/stats/metrics.proto";
+
+option go_package = "github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/stats;stats";
+
+message Statistics {
+	oneof container {
+		WindowsContainerStatistics windows = 1;
+		io.containerd.cgroups.v1.Metrics linux = 2;
+	}
+	VirtualMachineStatistics vm = 3;
+}
+
+message WindowsContainerStatistics {
+	google.protobuf.Timestamp timestamp = 1;
+	google.protobuf.Timestamp container_start_time = 2;
+	uint64 uptime_ns = 3;
+	WindowsContainerProcessorStatistics processor = 4;
+	WindowsContainerMemoryStatistics memory = 5;
+	WindowsContainerStorageStatistics storage = 6;
+}
+
+message WindowsContainerProcessorStatistics {
+	uint64 total_runtime_ns = 1;
+	uint64 runtime_user_ns = 2;
+	uint64 runtime_kernel_ns = 3;
+}
+
+message WindowsContainerMemoryStatistics {
+	uint64 memory_usage_commit_bytes = 1;
+	uint64 memory_usage_commit_peak_bytes = 2;
+	uint64 memory_usage_private_working_set_bytes = 3;
+}
+
+message WindowsContainerStorageStatistics {
+	uint64 read_count_normalized = 1;
+	uint64 read_size_bytes = 2;
+	uint64 write_count_normalized = 3;
+	uint64 write_size_bytes = 4;
+}
+
+message VirtualMachineStatistics {
+	VirtualMachineProcessorStatistics processor = 1;
+	VirtualMachineMemoryStatistics memory = 2;
+}
+
+message VirtualMachineProcessorStatistics {
+	uint64 total_runtime_ns = 1;
+}
+
+message VirtualMachineMemoryStatistics {
+	uint64 working_set_bytes = 1;
+	uint32 virtual_node_count = 2;
+	VirtualMachineMemory vm_memory = 3;
+}
+
+message VirtualMachineMemory {
+	int32 available_memory = 1;
+	int32 available_memory_buffer = 2;
+	uint64 reserved_memory = 3;
+	uint64 assigned_memory = 4;
+	bool slp_active = 5;
+	bool balancing_enabled = 6;
+	bool dm_operation_in_progress = 7;
+}

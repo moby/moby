@@ -1,0 +1,21 @@
+{
+  "name": "moby",
+  "build": {
+    "context": "..",
+    "dockerfile": "../Dockerfile",
+    "target": "devcontainer"
+  },
+  "workspaceFolder": "/usr/src/moby",
+  "workspaceMount": "source=${localWorkspaceFolder},target=${containerWorkspaceFolder},type=bind,consistency=cached",
+
+  "remoteUser": "root",
+  "runArgs": ["--privileged"],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go"
+      ]
+    }
+  }
+}

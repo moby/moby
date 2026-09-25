@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -e -o pipefail
+
+source hack/validate/.validate
+source hack/make/.test-integration-flaky
+
+run_integration_flaky() {
+	tests=$(integration_flaky_tests)
+
+	if [ -z "$tests" ]; then
+		echo 'No new or modified tests found in integration.'
+		return
+	fi
+
+	echo
+	echo "Found new or modified integration tests:"
+	echo "$tests"
+	echo "Running stress test for them."
+
+	(
+		# Note: TEST_REPEAT will make the test suite run 10 times, restarting the daemon
+		# and each test will run 10 times in a row under the same daemon.
+		# This will make a total of 100 runs for each selected test.
+		export TEST_REPEAT=10
+		export TESTFLAGS="-test.count ${TEST_REPEAT} -test.run $(integration_flaky_test_filter)"
+		echo "Using test flags: $TESTFLAGS"
+		source hack/make/test-integration
+	)
+}
+
+run_integration_flaky

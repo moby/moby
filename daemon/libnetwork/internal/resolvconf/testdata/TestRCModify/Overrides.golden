@@ -1,0 +1,8 @@
+nameserver 2.3.4.5
+nameserver fdba:acdd:587c::53
+search com invalid example
+options ndots:1 edns0 trust-ad
+
+# Based on host file: ''
+# Overrides: [nameservers search options]
+# Option ndots from: override

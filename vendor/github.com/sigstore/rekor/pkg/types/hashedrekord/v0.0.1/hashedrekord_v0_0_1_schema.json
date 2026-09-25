@@ -1,0 +1,54 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "http://rekor.sigstore.dev/types/rekord/hashedrekord_v0_0_1_schema.json",
+    "title": "Hashed Rekor v0.0.1 Schema",
+    "description": "Schema for Hashed Rekord object",
+    "type": "object",
+    "properties": {
+        "signature": {
+            "description": "Information about the detached signature associated with the entry",
+            "type": "object",
+            "properties": {
+                "content": {
+                    "description": "Specifies the content of the signature inline within the document",
+                    "type": "string",
+                    "format": "byte"
+                },
+                "publicKey" : {
+                    "description": "The public key that can verify the signature; this can also be an X509 code signing certificate that contains the raw public key information",
+                    "type": "object",
+                    "properties": {
+                        "content": {
+                            "description": "Specifies the content of the public key or code signing certificate inline within the document",
+                            "type": "string",
+                            "format": "byte"
+                        }
+                    }
+                }
+            }
+        },
+        "data": {
+            "description": "Information about the content associated with the entry",
+            "type": "object",
+            "properties": {
+                "hash": {
+                    "description": "Specifies the hash algorithm and value for the content",
+                    "type": "object",
+                    "properties": {
+                        "algorithm": {
+                            "description": "The hashing function used to compute the hash value",
+                            "type": "string",
+                            "enum": [ "sha256", "sha384", "sha512" ]
+                        },
+                        "value": {
+                            "description": "The hash value for the content, as represented by a lower case hexadecimal string",
+                            "type": "string"
+                        }
+                    },
+                    "required": [ "algorithm", "value" ]
+                }
+            }
+        }
+    },
+    "required": [ "signature", "data" ]
+}

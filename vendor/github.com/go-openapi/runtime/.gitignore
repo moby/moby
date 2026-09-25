@@ -1,0 +1,7 @@
+*.out
+*.cov
+.idea
+.env
+.mcp.json
+go.work.sum
+.worktrees/

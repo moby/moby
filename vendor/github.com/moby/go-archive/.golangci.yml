@@ -1,0 +1,45 @@
+version: "2"
+
+issues:
+  # Disable maximum issues count per one linter.
+  max-issues-per-linter: 0
+  # Disable maximum count of issues with the same text.
+  max-same-issues: 0
+
+linters:
+  enable:
+    - errorlint
+    - gosec
+    - unconvert
+    - unparam
+  exclusions:
+    generated: disable
+    presets:
+      - comments
+      - std-error-handling
+    rules:
+      # Ignore "G204: Subprocess launched with a potential tainted input or cmd arguments"
+      - path: '(.+)_test\.go'
+        linters:
+          - gosec
+        text: 'G204: Subprocess launched'
+  settings:
+    gosec:
+      excludes:
+        - G301 # Expect directory permissions to be 0750 or less
+        - G304 # Potential file inclusion via variable
+        - G306 # Expect WriteFile permissions to be 0600 or less
+    staticcheck:
+      # Enable all options, with some exceptions.
+      # For defaults, see https://golangci-lint.run/usage/linters/#staticcheck
+      checks:
+        - all
+        - -QF1008     # Omit embedded fields from selector expression; https://staticcheck.dev/docs/checks/#QF1008
+        - -ST1003     # Poorly chosen identifier; https://staticcheck.dev/docs/checks/#ST1003
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: disable

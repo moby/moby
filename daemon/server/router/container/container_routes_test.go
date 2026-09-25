@@ -1,0 +1,405 @@
+package container
+
+import (
+	"maps"
+	"strings"
+	"testing"
+
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+)
+
+func TestHandleMACAddressBC(t *testing.T) {
+	testcases := []struct {
+		name                string
+		apiVersion          string
+		ctrWideMAC          network.HardwareAddr
+		networkMode         container.NetworkMode
+		epConfig            map[string]*network.EndpointSettings
+		expEpWithCtrWideMAC string
+		expEpWithNoMAC      string
+		expCtrWideMAC       network.HardwareAddr
+		expWarning          string
+		expError            string
+	}{
+		{
+			name:                "old api ctr-wide mac mix id and name",
+			apiVersion:          "1.43",
+			ctrWideMAC:          network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+			networkMode:         "aNetId",
+			epConfig:            map[string]*network.EndpointSettings{"aNetName": {}},
+			expEpWithCtrWideMAC: "aNetName",
+			expCtrWideMAC:       network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+		},
+		{
+			name:           "old api clear ep mac",
+			apiVersion:     "1.43",
+			networkMode:    "aNetId",
+			epConfig:       map[string]*network.EndpointSettings{"aNetName": {MacAddress: network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}}},
+			expEpWithNoMAC: "aNetName",
+		},
+		{
+			name:          "old api no-network ctr-wide mac",
+			apiVersion:    "1.43",
+			networkMode:   "none",
+			ctrWideMAC:    network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+			expError:      "conflicting options: mac-address and the network mode",
+			expCtrWideMAC: network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+		},
+		{
+			name:                "old api create ep",
+			apiVersion:          "1.43",
+			networkMode:         "aNetId",
+			ctrWideMAC:          network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+			epConfig:            map[string]*network.EndpointSettings{},
+			expEpWithCtrWideMAC: "aNetId",
+			expCtrWideMAC:       network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+		},
+		{
+			name:                "old api migrate ctr-wide mac",
+			apiVersion:          "1.43",
+			ctrWideMAC:          network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+			networkMode:         "aNetName",
+			epConfig:            map[string]*network.EndpointSettings{"aNetName": {}},
+			expEpWithCtrWideMAC: "aNetName",
+			expCtrWideMAC:       network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+		},
+		{
+			name:        "api 1.44 no macs",
+			apiVersion:  "1.44",
+			networkMode: "aNetId",
+			epConfig:    map[string]*network.EndpointSettings{"aNetName": {}},
+		},
+		{
+			name:        "api 1.44 ep specific mac",
+			apiVersion:  "1.44",
+			networkMode: "aNetName",
+			epConfig:    map[string]*network.EndpointSettings{"aNetName": {MacAddress: network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}}},
+		},
+		{
+			name:                "api 1.44 migrate ctr-wide mac to new ep",
+			apiVersion:          "1.44",
+			ctrWideMAC:          network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+			networkMode:         "aNetName",
+			epConfig:            map[string]*network.EndpointSettings{},
+			expEpWithCtrWideMAC: "aNetName",
+			expWarning:          "The container-wide MacAddress field is now deprecated",
+			expCtrWideMAC:       network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+		},
+		{
+			name:                "api 1.44 migrate ctr-wide mac to existing ep",
+			apiVersion:          "1.44",
+			ctrWideMAC:          network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+			networkMode:         "aNetName",
+			epConfig:            map[string]*network.EndpointSettings{"aNetName": {}},
+			expEpWithCtrWideMAC: "aNetName",
+			expWarning:          "The container-wide MacAddress field is now deprecated",
+			expCtrWideMAC:       network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+		},
+		{
+			name:          "api 1.44 mode vs name mismatch",
+			apiVersion:    "1.44",
+			ctrWideMAC:    network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+			networkMode:   "aNetId",
+			epConfig:      map[string]*network.EndpointSettings{"aNetName": {}},
+			expError:      "unable to migrate container-wide MAC address to a specific network: HostConfig.NetworkMode must match the identity of a network in NetworkSettings.Networks",
+			expCtrWideMAC: network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+		},
+		{
+			name:          "api 1.44 mac mismatch",
+			apiVersion:    "1.44",
+			ctrWideMAC:    network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+			networkMode:   "aNetName",
+			epConfig:      map[string]*network.EndpointSettings{"aNetName": {MacAddress: network.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}}},
+			expError:      "the container-wide MAC address must match the endpoint-specific MAC address",
+			expCtrWideMAC: network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+		},
+		{
+			name:        "api 1.52 reject ctr-wide mac",
+			apiVersion:  "1.52",
+			ctrWideMAC:  network.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0x66},
+			networkMode: "aNetName",
+			epConfig:    map[string]*network.EndpointSettings{},
+			expError:    "container-wide MAC address no longer supported; use endpoint-specific MAC address instead",
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			hostCfg := &container.HostConfig{
+				NetworkMode: tc.networkMode,
+			}
+			epConfig := make(map[string]*network.EndpointSettings, len(tc.epConfig))
+			for k, v := range tc.epConfig {
+				v := *v
+				epConfig[k] = &v
+			}
+			netCfg := &network.NetworkingConfig{
+				EndpointsConfig: epConfig,
+			}
+
+			warning, err := handleMACAddressBC(hostCfg, netCfg, tc.apiVersion, tc.ctrWideMAC)
+
+			if tc.expError == "" {
+				assert.Check(t, err)
+			} else {
+				assert.Check(t, is.ErrorContains(err, tc.expError))
+			}
+			if tc.expWarning == "" {
+				assert.Check(t, is.Equal(warning, ""))
+			} else {
+				assert.Check(t, is.Contains(warning, tc.expWarning))
+			}
+			if tc.expEpWithCtrWideMAC != "" {
+				got := netCfg.EndpointsConfig[tc.expEpWithCtrWideMAC].MacAddress
+				assert.Check(t, is.DeepEqual(got, tc.expCtrWideMAC, cmpopts.EquateEmpty()))
+			}
+			if tc.expEpWithNoMAC != "" {
+				got := netCfg.EndpointsConfig[tc.expEpWithNoMAC].MacAddress
+				assert.Check(t, is.DeepEqual(got, network.HardwareAddr{}, cmpopts.EquateEmpty()))
+			}
+		})
+	}
+}
+
+func TestEpConfigForNetMode(t *testing.T) {
+	testcases := []struct {
+		name        string
+		apiVersion  string
+		networkMode string
+		epConfig    map[string]*network.EndpointSettings
+		expEpId     string
+		expNumEps   int
+		expError    bool
+	}{
+		{
+			name:        "old api no eps",
+			apiVersion:  "1.43",
+			networkMode: "mynet",
+			expNumEps:   1,
+		},
+		{
+			name:        "new api no eps",
+			apiVersion:  "1.44",
+			networkMode: "mynet",
+			expNumEps:   1,
+		},
+		{
+			name:        "old api with ep",
+			apiVersion:  "1.43",
+			networkMode: "mynet",
+			epConfig: map[string]*network.EndpointSettings{
+				"anything": {EndpointID: "epone"},
+			},
+			expEpId:   "epone",
+			expNumEps: 1,
+		},
+		{
+			name:        "new api with matching ep",
+			apiVersion:  "1.44",
+			networkMode: "mynet",
+			epConfig: map[string]*network.EndpointSettings{
+				"mynet": {EndpointID: "epone"},
+			},
+			expEpId:   "epone",
+			expNumEps: 1,
+		},
+		{
+			name:        "new api with mismatched ep",
+			apiVersion:  "1.44",
+			networkMode: "mynet",
+			epConfig: map[string]*network.EndpointSettings{
+				"shortid": {EndpointID: "epone"},
+			},
+			expError: true,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			netConfig := &network.NetworkingConfig{
+				EndpointsConfig: tc.epConfig,
+			}
+			ep, err := epConfigForNetMode(tc.apiVersion, container.NetworkMode(tc.networkMode), netConfig)
+			if tc.expError {
+				assert.Check(t, is.ErrorContains(err, "HostConfig.NetworkMode must match the identity of a network in NetworkSettings.Networks"))
+			} else {
+				assert.Assert(t, err)
+				assert.Check(t, is.Equal(ep.EndpointID, tc.expEpId))
+				assert.Check(t, is.Len(netConfig.EndpointsConfig, tc.expNumEps))
+			}
+		})
+	}
+}
+
+func TestRejectLegacyCapabilities(t *testing.T) {
+	testcases := []struct {
+		name         string
+		apiVersion   string
+		capabilities []string
+		expError     bool
+	}{
+		{
+			name:         "API 1.40 with capabilities is rejected",
+			apiVersion:   "1.40",
+			capabilities: []string{"CAP_NET_RAW", "CAP_SYS_CHROOT"},
+			expError:     true,
+		},
+		{
+			name:         "API 1.40 with empty capabilities is allowed",
+			apiVersion:   "1.40",
+			capabilities: []string{},
+		},
+		{
+			name:         "API 1.40 with nil capabilities is allowed",
+			apiVersion:   "1.40",
+			capabilities: nil,
+		},
+		{
+			name:         "API 1.41 with capabilities is ignored",
+			apiVersion:   "1.41",
+			capabilities: []string{"CAP_NET_RAW"},
+		},
+		{
+			name:         "API 1.43 with capabilities is ignored",
+			apiVersion:   "1.43",
+			capabilities: []string{"CAP_NET_RAW"},
+		},
+		{
+			name:         "API 1.44 with capabilities is ignored",
+			apiVersion:   "1.44",
+			capabilities: []string{"CAP_NET_RAW"},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := rejectLegacyCapabilities(tc.capabilities, tc.apiVersion)
+			if !tc.expError {
+				assert.Check(t, err)
+			} else {
+				assert.Check(t, is.ErrorIs(err, errLegacyCapabilities))
+			}
+		})
+	}
+}
+
+func TestHandleSysctlBC(t *testing.T) {
+	testcases := []struct {
+		name               string
+		apiVersion         string
+		networkMode        string
+		sysctls            map[string]string
+		epConfig           map[string]*network.EndpointSettings
+		expEpSysctls       []string
+		expSysctls         map[string]string
+		expWarningContains []string
+		expError           string
+	}{
+		{
+			name:        "migrate to new ep",
+			apiVersion:  "1.46",
+			networkMode: "mynet",
+			sysctls: map[string]string{
+				"net.ipv6.conf.all.disable_ipv6": "0",
+				"net.ipv6.conf.eth0.accept_ra":   "2",
+				"net.ipv6.conf.eth0.forwarding":  "1",
+			},
+			expSysctls: map[string]string{
+				"net.ipv6.conf.all.disable_ipv6": "0",
+			},
+			expEpSysctls: []string{"net.ipv6.conf.IFNAME.forwarding=1", "net.ipv6.conf.IFNAME.accept_ra=2"},
+			expWarningContains: []string{
+				"Migrated",
+				"net.ipv6.conf.eth0.accept_ra", "net.ipv6.conf.IFNAME.accept_ra=2",
+				"net.ipv6.conf.eth0.forwarding", "net.ipv6.conf.IFNAME.forwarding=1",
+			},
+		},
+		{
+			name:        "migrate nothing",
+			apiVersion:  "1.46",
+			networkMode: "mynet",
+			sysctls: map[string]string{
+				"net.ipv6.conf.all.disable_ipv6": "0",
+			},
+			expSysctls: map[string]string{
+				"net.ipv6.conf.all.disable_ipv6": "0",
+			},
+		},
+		{
+			name:        "migration disabled for newer api",
+			apiVersion:  "1.48",
+			networkMode: "mynet",
+			sysctls: map[string]string{
+				"net.ipv6.conf.eth0.accept_ra": "2",
+			},
+			expError: "must be supplied using driver option 'com.docker.network.endpoint.sysctls'",
+		},
+		{
+			name:        "only migrate eth0",
+			apiVersion:  "1.46",
+			networkMode: "mynet",
+			sysctls: map[string]string{
+				"net.ipv6.conf.eth1.accept_ra": "2",
+			},
+			expError: "unable to determine network endpoint",
+		},
+		{
+			name:        "net name mismatch",
+			apiVersion:  "1.46",
+			networkMode: "mynet",
+			epConfig: map[string]*network.EndpointSettings{
+				"shortid": {EndpointID: "epone"},
+			},
+			sysctls: map[string]string{
+				"net.ipv6.conf.eth1.accept_ra": "2",
+			},
+			expError: "unable to find a network for sysctl",
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			hostCfg := &container.HostConfig{
+				NetworkMode: container.NetworkMode(tc.networkMode),
+				Sysctls:     map[string]string{},
+			}
+			maps.Copy(hostCfg.Sysctls, tc.sysctls)
+			netCfg := &network.NetworkingConfig{
+				EndpointsConfig: tc.epConfig,
+			}
+
+			warnings, err := handleSysctlBC(hostCfg, netCfg, tc.apiVersion)
+
+			for _, s := range tc.expWarningContains {
+				assert.Check(t, is.Contains(warnings, s))
+			}
+
+			if tc.expError != "" {
+				assert.Check(t, is.ErrorContains(err, tc.expError))
+			} else {
+				assert.Check(t, err)
+
+				assert.Check(t, is.DeepEqual(hostCfg.Sysctls, tc.expSysctls))
+
+				ep := netCfg.EndpointsConfig[tc.networkMode]
+				if ep == nil {
+					assert.Check(t, is.Nil(tc.expEpSysctls))
+				} else {
+					got, ok := ep.DriverOpts[netlabel.EndpointSysctls]
+					assert.Check(t, ok)
+					// Check for expected ep-sysctls.
+					for _, want := range tc.expEpSysctls {
+						assert.Check(t, is.Contains(got, want))
+					}
+					// Check for unexpected ep-sysctls.
+					assert.Check(t, is.Len(got, len(strings.Join(tc.expEpSysctls, ","))))
+				}
+			}
+		})
+	}
+}

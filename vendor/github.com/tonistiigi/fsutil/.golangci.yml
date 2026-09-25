@@ -1,0 +1,35 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - depguard
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - unused
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: io/ioutil
+              desc: The io/ioutil package has been deprecated.
+  exclusions:
+    generated: lax
+    paths:
+      - .*\.pb\.go$
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - .*\.pb\.go$
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

@@ -1,0 +1,6 @@
+/.git
+
+# build artifacts
+/bundles/
+/cmd/dockerd/winresources/winres.json
+/cmd/dockerd/*.syso

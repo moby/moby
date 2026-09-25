@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+set -e
+
+# docker-proxy is Linux only
+[ "$(go env GOOS)" != 'linux' ] || (
+	export CGO_ENABLED=0
+
+	DOCKER_STATIC=1
+	GO_PACKAGE='github.com/moby/moby/v2/cmd/docker-proxy'
+	BINARY_NAME='docker-proxy'
+	source "${MAKEDIR}/.binary"
+)

@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package docker.engine.netextra;
+
+option go_package = "netextra";
+
+message GetNetworkExtraOptions {
+	bool WithIPAMStatus = 1;
+}
+
+message Extra {
+	repeated IPAMStatus IPAMStatus = 1;
+}
+
+message IPAMStatus {
+	bytes Subnet = 1; // netip.Prefix marshaled to binary
+	uint64 IPsInUse = 2;
+	uint64 DynamicIPsAvailable = 3;
+}

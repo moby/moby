@@ -1,0 +1,124 @@
+package usergroup
+
+import (
+	"os"
+	"os/exec"
+	"os/user"
+	"syscall"
+	"testing"
+
+	mobyuser "github.com/moby/sys/user"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
+)
+
+const (
+	tempUser = "tempuser"
+)
+
+func TestNewIDMappings(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
+	_, _, err := AddNamespaceRangesUser(tempUser)
+	assert.Check(t, err)
+	defer delUser(t, tempUser)
+
+	tmpUser, err := user.Lookup(tempUser)
+	assert.Check(t, err)
+
+	idMapping, err := LoadIdentityMapping(tmpUser.Username)
+	assert.Check(t, err)
+
+	rootUID, rootGID := idMapping.RootPair()
+
+	dirName, err := os.MkdirTemp("", "mkdirall")
+	assert.Check(t, err, "Couldn't create temp directory")
+	defer os.RemoveAll(dirName)
+
+	err = mobyuser.MkdirAllAndChown(dirName, 0o700, rootUID, rootGID)
+	assert.Check(t, err, "Couldn't change ownership of file path. Got error")
+	cmd := exec.Command("ls", "-la", dirName)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Credential: &syscall.Credential{Uid: uint32(rootUID), Gid: uint32(rootGID)},
+	}
+	out, err := cmd.CombinedOutput()
+	assert.Check(t, err, "Unable to access %s directory with user UID:%d and GID:%d:\n%s", dirName, rootUID, rootGID, string(out))
+}
+
+func TestLookupUserAndGroup(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
+	uid, gid, err := AddNamespaceRangesUser(tempUser)
+	assert.Check(t, err)
+	defer delUser(t, tempUser)
+
+	fetchedUser, err := LookupUser(tempUser)
+	assert.Check(t, err)
+
+	fetchedUserByID, err := LookupUID(uid)
+	assert.Check(t, err)
+	assert.Check(t, is.DeepEqual(fetchedUserByID, fetchedUser))
+
+	fetchedGroup, err := LookupGroup(tempUser)
+	assert.Check(t, err)
+
+	fetchedGroupByID, err := LookupGID(gid)
+	assert.Check(t, err)
+	assert.Check(t, is.DeepEqual(fetchedGroupByID, fetchedGroup))
+}
+
+// TestFindNextRangeStart verifies that findNextRangeStart selects the first
+// available range, including when existing ranges are unsorted or fully
+// contained within the candidate range.
+func TestFindNextRangeStart(t *testing.T) {
+	tests := []struct {
+		name   string
+		ranges []mobyuser.SubID
+		want   int
+	}{
+		{
+			name: "empty",
+			want: defaultRangeStart,
+		},
+		{
+			name: "range at start",
+			ranges: []mobyuser.SubID{
+				{SubID: defaultRangeStart, Count: 100},
+			},
+			want: defaultRangeStart + 100,
+		},
+		{
+			name: "range contained within candidate",
+			ranges: []mobyuser.SubID{
+				{SubID: defaultRangeStart + 100, Count: 100},
+			},
+			want: defaultRangeStart + 200,
+		},
+		{
+			name: "range immediately after candidate",
+			ranges: []mobyuser.SubID{
+				{SubID: defaultRangeStart + defaultRangeLen, Count: 100},
+			},
+			want: defaultRangeStart,
+		},
+		{
+			name: "unsorted ranges",
+			ranges: []mobyuser.SubID{
+				{SubID: defaultRangeStart + 200, Count: 100},
+				{SubID: defaultRangeStart, Count: 100},
+			},
+			want: defaultRangeStart + 300,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, findNextRangeStart(tc.ranges), tc.want)
+		})
+	}
+}
+
+func delUser(t *testing.T, name string) {
+	t.Helper()
+	out, err := exec.Command("userdel", name).CombinedOutput()
+	assert.Check(t, err, out)
+}

@@ -1,0 +1,22 @@
+name: Flaky test
+description: Report a test that fails intermittently
+title: "Flaky test: "
+type: "bug"
+labels:
+  - flaky
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Add optional context, such as CI links, affected platforms or jobs, passing runs, frequency, suspected cause, or related issues
+    validations:
+      required: false
+  - type: textarea
+    id: failure_output
+    attributes:
+      label: Failure output
+      description: Paste the complete failure output, including the fully qualified test name
+      render: text
+    validations:
+      required: false

@@ -1,0 +1,39 @@
+version: "2"
+linters:
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: ^golang.org/x/net/context$
+            - pkg: github.com/gogo/protobuf/proto
+            - pkg: encoding/asn1
+            - pkg: crypto/x509
+    gocyclo:
+      min-complexity: 25
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - staticcheck
+        text: 'SA1019: grpc.Dial is deprecated: use NewClient instead'
+      - linters:
+          - staticcheck
+        text: 'SA1019: grpc.DialContext is deprecated: use NewClient instead'
+      - linters:
+          - staticcheck
+        text: 'SA1019: grpc.WithBlock is deprecated: this DialOption is not supported by NewClient'
+    paths:
+      - (^|/)x509($|/)
+      - (^|/)x509util($|/)
+      - (^|/)asn1($|/)
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

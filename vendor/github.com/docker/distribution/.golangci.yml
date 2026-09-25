@@ -1,0 +1,33 @@
+linters:
+  enable:
+    - staticcheck
+    - unconvert
+    - gofmt
+    - goimports
+    - golint
+    - ineffassign
+    - vet
+    - unused
+    - misspell
+  disable:
+    - errcheck
+
+linters-settings:
+  revive:
+    rules:
+      # TODO(thaJeztah): temporarily disabled the "unused-parameter" check.
+      # It produces many warnings, and some of those may need to be looked at.
+      - name: unused-parameter
+        disabled: true
+
+run:
+  deadline: 2m
+  skip-dirs:
+    - vendor
+
+issues:
+  exclude-rules:
+    # io/ioutil is deprecated, but won't be removed until Go v2. It's safe to ignore for the release/2.8 branch.
+    - text: "SA1019: \"io/ioutil\" has been deprecated since Go 1.16"
+      linters:
+        - staticcheck

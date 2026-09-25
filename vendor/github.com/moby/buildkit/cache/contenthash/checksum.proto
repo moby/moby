@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package contenthash;
+
+option go_package = "github.com/moby/buildkit/cache/contenthash";
+
+enum CacheRecordType {
+	FILE = 0;
+	DIR = 1;
+	DIR_HEADER = 2;
+	SYMLINK = 3;
+}
+
+message CacheRecord {
+	string digest = 1;
+	CacheRecordType type = 2;
+	string linkname = 3;
+}
+
+message CacheRecordWithPath {
+	string path = 1;
+	CacheRecord record = 2;
+}
+
+message CacheRecords {
+	repeated CacheRecordWithPath paths = 1;
+}

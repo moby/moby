@@ -1,0 +1,35 @@
+*raw
+:PREROUTING ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+-A PREROUTING -d 127.0.0.1/32 -i loopback0 -p tcp -m tcp --dport 8080 -j ACCEPT
+-A PREROUTING -d 127.0.0.1/32 ! -i lo -p tcp -m tcp --dport 8080 -j DROP
+COMMIT
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:DOCKER - [0:0]
+:DOCKER-BRIDGE - [0:0]
+:DOCKER-CT - [0:0]
+:DOCKER-FORWARD - [0:0]
+:DOCKER-INTERNAL - [0:0]
+-A FORWARD -j DOCKER-FORWARD
+-A DOCKER ! -i br-dummy -o br-dummy -j ACCEPT
+-A DOCKER-BRIDGE -o br-dummy -j DOCKER
+-A DOCKER-CT -o br-dummy -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A DOCKER-FORWARD -j DOCKER-CT
+-A DOCKER-FORWARD -j DOCKER-INTERNAL
+-A DOCKER-FORWARD -j DOCKER-BRIDGE
+-A DOCKER-FORWARD -i br-dummy -j ACCEPT
+COMMIT
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+:DOCKER - [0:0]
+-A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+-A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER
+-A DOCKER -d 127.0.0.0/8 -i loopback0 -j RETURN
+-A DOCKER -d 127.0.0.1/32 ! -i br-dummy -p tcp -m tcp --dport 8080 -j DNAT --to-destination 192.168.0.2:80
+COMMIT

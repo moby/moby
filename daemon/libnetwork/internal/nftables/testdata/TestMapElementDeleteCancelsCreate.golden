@@ -1,0 +1,6 @@
+table ip x {
+	map a_map {
+		typeof numgen random mod 1024 : ip daddr
+		flags interval
+	}
+}

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -e
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPTDIR}/.validate"
+
+if [ -n "${TEST_FORCE_VALIDATE:-}" ]; then
+	files=(docs/api/*.yaml)
+else
+	IFS=$'\n'
+	files=($(validate_diff --diff-filter=ACMR --name-only -- docs/*.yaml || true))
+	unset IFS
+fi
+
+# validate the yamllint configuration file before anything else
+if out=$(yamllint -f parsable -d "{extends: default, rules: {document-start: disable}}" "${SCRIPTDIR}"/yamllint.yaml); then
+	echo "Congratulations! yamllint config file formatted correctly"
+else
+	echo "${out}" >&2
+	false
+fi
+
+# Then validate GitHub actions workflows, and conditionally lint the swagger
+# files in the docs directory, as these are large files and take some time.
+if out=$(yamllint -f parsable -c "${SCRIPTDIR}"/yamllint.yaml .github/workflows/*.yml "${files[@]}"); then
+	echo "Congratulations! YAML files are formatted correctly"
+else
+	echo "${out}" >&2
+	false
+fi

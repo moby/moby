@@ -1,0 +1,459 @@
+//go:build !windows
+
+package daemon
+
+import (
+	"io/fs"
+	"os"
+	"strings"
+	"testing"
+
+	"dario.cat/mergo"
+	runcoptions "github.com/containerd/containerd/api/types/runc/options"
+	runtimeoptions "github.com/containerd/containerd/api/types/runtimeoptions/v1"
+	"github.com/containerd/containerd/v2/plugins"
+	cerrdefs "github.com/containerd/errdefs"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/moby/moby/api/types/system"
+	"github.com/moby/moby/v2/daemon/config"
+	"google.golang.org/protobuf/proto"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
+)
+
+func TestSetupRuntimes(t *testing.T) {
+	tests := []struct {
+		name      string
+		config    *config.Config
+		expectErr string
+	}{
+		{
+			name: "Empty",
+			config: &config.Config{
+				Runtimes: map[string]system.Runtime{
+					"myruntime": {},
+				},
+			},
+			expectErr: "either a runtimeType or a path must be configured",
+		},
+		{
+			name: "ArgsOnly",
+			config: &config.Config{
+				Runtimes: map[string]system.Runtime{
+					"myruntime": {Args: []string{"foo", "bar"}},
+				},
+			},
+			expectErr: "either a runtimeType or a path must be configured",
+		},
+		{
+			name: "OptionsOnly",
+			config: &config.Config{
+				Runtimes: map[string]system.Runtime{
+					"myruntime": {Options: map[string]any{"hello": "world"}},
+				},
+			},
+			expectErr: "either a runtimeType or a path must be configured",
+		},
+		{
+			name: "PathAndType",
+			config: &config.Config{
+				Runtimes: map[string]system.Runtime{
+					"myruntime": {Path: "/bin/true", Type: "io.containerd.runsc.v1"},
+				},
+			},
+			expectErr: "cannot configure both",
+		},
+		{
+			name: "PathAndOptions",
+			config: &config.Config{
+				Runtimes: map[string]system.Runtime{
+					"myruntime": {Path: "/bin/true", Options: map[string]any{"a": "b"}},
+				},
+			},
+			expectErr: "options cannot be used with a path runtime",
+		},
+		{
+			name: "TypeAndArgs",
+			config: &config.Config{
+				Runtimes: map[string]system.Runtime{
+					"myruntime": {Type: "io.containerd.runsc.v1", Args: []string{"--version"}},
+				},
+			},
+			expectErr: "args cannot be used with a runtimeType runtime",
+		},
+		{
+			name: "PathArgsOptions",
+			config: &config.Config{
+				Runtimes: map[string]system.Runtime{
+					"myruntime": {
+						Path:    "/bin/true",
+						Args:    []string{"--version"},
+						Options: map[string]any{"hmm": 3},
+					},
+				},
+			},
+			expectErr: "options cannot be used with a path runtime",
+		},
+		{
+			name: "TypeOptionsArgs",
+			config: &config.Config{
+				Runtimes: map[string]system.Runtime{
+					"myruntime": {
+						Type:    "io.containerd.kata.v2",
+						Options: map[string]any{"a": "b"},
+						Args:    []string{"--help"},
+					},
+				},
+			},
+			expectErr: "args cannot be used with a runtimeType runtime",
+		},
+		{
+			name: "PathArgsTypeOptions",
+			config: &config.Config{
+				Runtimes: map[string]system.Runtime{
+					"myruntime": {
+						Path:    "/bin/true",
+						Args:    []string{"foo"},
+						Type:    "io.containerd.runsc.v1",
+						Options: map[string]any{"a": "b"},
+					},
+				},
+			},
+			expectErr: "cannot configure both",
+		},
+		{
+			name: "CannotOverrideStockRuntime",
+			config: &config.Config{
+				Runtimes: map[string]system.Runtime{
+					config.StockRuntimeName: {},
+				},
+			},
+			expectErr: `runtime name 'runc' is reserved`,
+		},
+		{
+			name: "SetStockRuntimeAsDefault",
+			config: &config.Config{
+				CommonConfig: config.CommonConfig{
+					DefaultRuntime: config.StockRuntimeName,
+				},
+			},
+		},
+		{
+			name: "SetLinuxRuntimeAsDefault",
+			config: &config.Config{
+				CommonConfig: config.CommonConfig{
+					DefaultRuntime: linuxV2RuntimeName,
+				},
+			},
+		},
+		{
+			name: "CannotSetBogusRuntimeAsDefault",
+			config: &config.Config{
+				CommonConfig: config.CommonConfig{
+					DefaultRuntime: "notdefined",
+				},
+			},
+			expectErr: "specified default runtime 'notdefined' does not exist",
+		},
+		{
+			name: "SetDefinedRuntimeAsDefault",
+			config: &config.Config{
+				Runtimes: map[string]system.Runtime{
+					"some-runtime": {
+						Path: "/usr/local/bin/file-not-found",
+					},
+				},
+				CommonConfig: config.CommonConfig{
+					DefaultRuntime: "some-runtime",
+				},
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg, err := config.New()
+			assert.NilError(t, err)
+			cfg.Root = t.TempDir()
+			assert.NilError(t, mergo.Merge(cfg, tc.config, mergo.WithOverride))
+			assert.Assert(t, initRuntimesDir(cfg))
+
+			_, err = setupRuntimes(cfg)
+			if tc.expectErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tc.expectErr)
+			}
+		})
+	}
+}
+
+func TestGetRuntime(t *testing.T) {
+	// Configured runtimes can have any arbitrary name, including names
+	// which would not be allowed as implicit runtime names. Explicit takes
+	// precedence over implicit.
+	const configuredRtName = "my/custom.runtime.v1"
+	configuredRuntime := system.Runtime{Path: "/bin/true"}
+
+	const rtWithArgsName = "withargs"
+	rtWithArgs := system.Runtime{
+		Path: "/bin/false",
+		Args: []string{"--version"},
+	}
+
+	const shimWithOptsName = "shimwithopts"
+	shimWithOpts := system.Runtime{
+		Type:    plugins.RuntimeRuncV2,
+		Options: map[string]any{"IoUid": 42},
+	}
+
+	const shimAliasName = "wasmedge"
+	shimAlias := system.Runtime{Type: "io.containerd.wasmedge.v1"}
+
+	const configuredShimByPathName = "shimwithpath"
+	configuredShimByPath := system.Runtime{Type: "/path/to/my/shim"}
+
+	// A runtime configured with the generic 'runtimeoptions/v1.Options' shim configuration options.
+	// https://gvisor.dev/docs/user_guide/containerd/configuration/#:~:text=to%20the%20shim.-,Containerd%201.3%2B,-Starting%20in%201.3
+	const gvisorName = "gvisor"
+	gvisorRuntime := system.Runtime{
+		Type: "io.containerd.runsc.v1",
+		Options: map[string]any{
+			"TypeUrl":    "io.containerd.runsc.v1.options",
+			"ConfigPath": "/path/to/runsc.toml",
+		},
+	}
+
+	cfg, err := config.New()
+	assert.NilError(t, err)
+
+	cfg.Root = t.TempDir()
+	cfg.Runtimes = map[string]system.Runtime{
+		configuredRtName:         configuredRuntime,
+		rtWithArgsName:           rtWithArgs,
+		shimWithOptsName:         shimWithOpts,
+		shimAliasName:            shimAlias,
+		configuredShimByPathName: configuredShimByPath,
+		gvisorName:               gvisorRuntime,
+	}
+	assert.NilError(t, initRuntimesDir(cfg))
+	runtimes, err := setupRuntimes(cfg)
+	assert.NilError(t, err)
+
+	stockRuntime, ok := runtimes.configured[config.StockRuntimeName]
+	assert.Assert(t, ok, "stock runtime could not be found (test needs to be updated)")
+	stockRuntime.Features = nil
+
+	configdOpts := proto.Clone(stockRuntime.Opts.(*runcoptions.Options)).(*runcoptions.Options)
+	configdOpts.BinaryName = configuredRuntime.Path
+	wantConfigdRuntime := &shimConfig{
+		Shim: stockRuntime.Shim,
+		Opts: configdOpts,
+	}
+
+	for _, tc := range []struct {
+		name, runtime string
+		want          *shimConfig
+	}{
+		{
+			name:    "StockRuntime",
+			runtime: config.StockRuntimeName,
+			want:    stockRuntime,
+		},
+		{
+			name:    "ShimName",
+			runtime: "io.containerd.my-shim.v42",
+			want:    &shimConfig{Shim: "io.containerd.my-shim.v42"},
+		},
+		{
+			// containerd is pretty loose about the format of runtime names. Perhaps too
+			// loose. The only requirements are that the name contain a dot and (depending
+			// on the containerd version) not start with a dot. It does not enforce any
+			// particular format of the dot-delimited components of the name.
+			name:    "VersionlessShimName",
+			runtime: "io.containerd.my-shim",
+			want:    &shimConfig{Shim: "io.containerd.my-shim"},
+		},
+		{
+			name:    "IllformedShimName",
+			runtime: "myshim",
+		},
+		{
+			name:    "EmptyString",
+			runtime: "",
+			want:    stockRuntime,
+		},
+		{
+			name:    "PathToShim",
+			runtime: "/path/to/runc",
+		},
+		{
+			name:    "PathToShimName",
+			runtime: "/path/to/io.containerd.runc.v2",
+		},
+		{
+			name:    "RelPathToShim",
+			runtime: "my/io.containerd.runc.v2",
+		},
+		{
+			name:    "ConfiguredRuntime",
+			runtime: configuredRtName,
+			want:    wantConfigdRuntime,
+		},
+		{
+			name:    "ShimWithOpts",
+			runtime: shimWithOptsName,
+			want: &shimConfig{
+				Shim: shimWithOpts.Type,
+				Opts: &runcoptions.Options{IoUid: 42},
+			},
+		},
+		{
+			name:    "ShimAlias",
+			runtime: shimAliasName,
+			want:    &shimConfig{Shim: shimAlias.Type},
+		},
+		{
+			name:    "ConfiguredShimByPath",
+			runtime: configuredShimByPathName,
+			want:    &shimConfig{Shim: configuredShimByPath.Type},
+		},
+		{
+			name:    "ConfiguredShimWithRuntimeoptionsShimConfig",
+			runtime: gvisorName,
+			want: &shimConfig{
+				Shim: gvisorRuntime.Type,
+				Opts: &runtimeoptions.Options{
+					TypeUrl:    gvisorRuntime.Options["TypeUrl"].(string),
+					ConfigPath: gvisorRuntime.Options["ConfigPath"].(string),
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			shim, opts, err := runtimes.Get(tc.runtime)
+			if tc.want != nil {
+				assert.Check(t, err)
+				got := &shimConfig{Shim: shim, Opts: opts}
+				assert.Check(t, is.DeepEqual(got, tc.want,
+					cmpopts.IgnoreUnexported(runtimeoptions.Options{}),
+					cmpopts.IgnoreUnexported(runcoptions.Options{}),
+				))
+			} else {
+				assert.Check(t, is.Equal(shim, ""))
+				assert.Check(t, is.Nil(opts))
+				assert.Check(t, cerrdefs.IsInvalidArgument(err), "[%T] %[1]v", err)
+			}
+		})
+	}
+	t.Run("RuntimeWithArgs", func(t *testing.T) {
+		shim, opts, err := runtimes.Get(rtWithArgsName)
+		assert.Check(t, err)
+		assert.Check(t, is.Equal(shim, stockRuntime.Shim))
+		runcopts, ok := opts.(*runcoptions.Options)
+		if assert.Check(t, ok, "runtimes.Get() opts = type %T, want *runcoptions.Options", opts) {
+			wrapper, err := os.ReadFile(runcopts.BinaryName)
+			if assert.Check(t, err) {
+				assert.Check(t, is.Contains(string(wrapper),
+					strings.Join(append([]string{rtWithArgs.Path}, rtWithArgs.Args...), " ")))
+			}
+		}
+	})
+}
+
+func TestGetRuntime_PreflightCheck(t *testing.T) {
+	cfg, err := config.New()
+	assert.NilError(t, err)
+
+	cfg.Root = t.TempDir()
+	cfg.Runtimes = map[string]system.Runtime{
+		"path-only": {
+			Path: "/usr/local/bin/file-not-found",
+		},
+		"with-args": {
+			Path: "/usr/local/bin/file-not-found",
+			Args: []string{"--arg"},
+		},
+	}
+	assert.NilError(t, initRuntimesDir(cfg))
+	runtimes, err := setupRuntimes(cfg)
+	assert.NilError(t, err, "runtime paths should not be validated during setupRuntimes()")
+
+	t.Run("PathOnly", func(t *testing.T) {
+		_, _, err := runtimes.Get("path-only")
+		assert.NilError(t, err, "custom runtimes without wrapper scripts should not have pre-flight checks")
+	})
+	t.Run("WithArgs", func(t *testing.T) {
+		_, _, err := runtimes.Get("with-args")
+		assert.ErrorIs(t, err, fs.ErrNotExist)
+	})
+}
+
+// TestRuntimeWrapping checks that reloading runtime config does not delete or
+// modify existing wrapper scripts, which could break lifecycle management of
+// existing containers.
+func TestRuntimeWrapping(t *testing.T) {
+	cfg, err := config.New()
+	assert.NilError(t, err)
+	cfg.Root = t.TempDir()
+	cfg.Runtimes = map[string]system.Runtime{
+		"change-args": {
+			Path: "/bin/true",
+			Args: []string{"foo", "bar"},
+		},
+		"dupe": {
+			Path: "/bin/true",
+			Args: []string{"foo", "bar"},
+		},
+		"change-path": {
+			Path: "/bin/true",
+			Args: []string{"baz"},
+		},
+		"drop-args": {
+			Path: "/bin/true",
+			Args: []string{"some", "arguments"},
+		},
+		"goes-away": {
+			Path: "/bin/true",
+			Args: []string{"bye"},
+		},
+	}
+	assert.NilError(t, initRuntimesDir(cfg))
+	rt, err := setupRuntimes(cfg)
+	assert.Check(t, err)
+
+	type WrapperInfo struct{ BinaryName, Content string }
+	wrappers := make(map[string]WrapperInfo)
+	for name := range cfg.Runtimes {
+		_, opts, err := rt.Get(name)
+		if assert.Check(t, err, "rt.Get(%q)", name) {
+			binary := opts.(*runcoptions.Options).BinaryName
+			content, err := os.ReadFile(binary)
+			assert.Check(t, err, "could not read wrapper script contents for runtime %q", binary)
+			wrappers[name] = WrapperInfo{BinaryName: binary, Content: string(content)}
+		}
+	}
+
+	cfg.Runtimes["change-args"] = system.Runtime{
+		Path: cfg.Runtimes["change-args"].Path,
+		Args: []string{"baz", "quux"},
+	}
+	cfg.Runtimes["change-path"] = system.Runtime{
+		Path: "/bin/false",
+		Args: cfg.Runtimes["change-path"].Args,
+	}
+	cfg.Runtimes["drop-args"] = system.Runtime{
+		Path: cfg.Runtimes["drop-args"].Path,
+	}
+	delete(cfg.Runtimes, "goes-away")
+
+	_, err = setupRuntimes(cfg)
+	assert.Check(t, err)
+
+	for name, info := range wrappers {
+		t.Run(name, func(t *testing.T) {
+			content, err := os.ReadFile(info.BinaryName)
+			assert.NilError(t, err)
+			assert.DeepEqual(t, info.Content, string(content))
+		})
+	}
+}

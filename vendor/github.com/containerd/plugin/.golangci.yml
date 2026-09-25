@@ -1,0 +1,49 @@
+version: "2"
+linters:
+  enable:
+    - copyloopvar
+    - dupword
+    - gosec
+    - misspell
+    - nolintlint
+    - revive
+    - unconvert
+  disable:
+    - errcheck
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - api
+      - cluster
+      - design
+      - docs
+      - docs/man
+      - releases
+      - reports
+      - test
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - api
+      - cluster
+      - design
+      - docs
+      - docs/man
+      - releases
+      - reports
+      - test
+      - third_party$
+      - builtin$
+      - examples$

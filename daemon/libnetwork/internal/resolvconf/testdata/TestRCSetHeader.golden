@@ -1,0 +1,6 @@
+# This is a comment.
+
+nameserver 127.0.0.53
+
+# Based on host file: '/etc/resolv.conf'
+# Overrides: []

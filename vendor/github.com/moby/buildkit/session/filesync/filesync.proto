@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package moby.filesync.v1;
+
+option go_package = "github.com/moby/buildkit/session/filesync";
+
+import "github.com/tonistiigi/fsutil/types/wire.proto";
+
+// FileSync exposes local files from the client to the server.
+service FileSync{
+	rpc DiffCopy(stream fsutil.types.Packet) returns (stream fsutil.types.Packet);
+	rpc TarStream(stream fsutil.types.Packet) returns (stream fsutil.types.Packet);
+}
+
+// FileSend allows sending files from the server back to the client.
+service FileSend{
+	rpc DiffCopy(stream BytesMessage) returns (stream BytesMessage);
+}
+
+// BytesMessage contains a chunk of byte data
+message BytesMessage {
+	bytes data = 1;
+}

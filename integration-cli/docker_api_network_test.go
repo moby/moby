@@ -1,0 +1,124 @@
+package main
+
+import (
+	"encoding/json"
+	"net/http"
+	"strings"
+	"testing"
+
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/integration-cli/cli"
+	"github.com/moby/moby/v2/internal/testutil"
+	"github.com/moby/moby/v2/internal/testutil/request"
+	"gotest.tools/v3/assert"
+)
+
+func (s *DockerAPISuite) TestAPINetworkConnectDisconnect(c *testing.T) {
+	testRequires(c, DaemonIsLinux)
+	// Create test network
+	name := "testnetwork"
+	config := network.CreateRequest{
+		Name: name,
+	}
+	id := createNetwork(c, config, http.StatusCreated)
+	nr := getNetworkResource(c, id)
+	assert.Equal(c, nr.Name, name)
+	assert.Equal(c, nr.ID, id)
+	assert.Equal(c, len(nr.Containers), 0)
+
+	// run a container
+	out := cli.DockerCmd(c, "run", "-d", "--name", "test", "busybox", "top").Stdout()
+	containerID := strings.TrimSpace(out)
+
+	// connect the container to the test network
+	resp, _, err := request.Post(testutil.GetContext(c), "/networks/"+nr.ID+"/connect", request.JSONBody(network.ConnectRequest{
+		Container: containerID,
+	}))
+	assert.NilError(c, err)
+	assert.Equal(c, resp.StatusCode, http.StatusOK)
+
+	// inspect the network to make sure container is connected
+	nr = getNetworkResource(c, nr.ID)
+	assert.Equal(c, len(nr.Containers), 1)
+	_, ok := nr.Containers[containerID]
+	assert.Assert(c, ok)
+
+	// check if container IP matches network inspect
+	containerIP := findContainerIP(c, "test", "testnetwork")
+	assert.Equal(c, nr.Containers[containerID].IPv4Address.Addr().String(), containerIP)
+
+	// disconnect container from the network
+	res, _, err := request.Post(testutil.GetContext(c), "/networks/"+nr.ID+"/disconnect", request.JSONBody(client.NetworkDisconnectOptions{
+		Container: containerID,
+	}))
+	assert.NilError(c, err)
+	assert.Equal(c, res.StatusCode, http.StatusOK)
+
+	nr = getNetworkResource(c, nr.ID)
+	assert.Equal(c, nr.Name, name)
+	assert.Equal(c, len(nr.Containers), 0)
+
+	// delete the network
+	deleteNetwork(c, nr.ID, true)
+}
+
+func (s *DockerAPISuite) TestAPICreateDeletePredefinedNetworks(c *testing.T) {
+	testRequires(c, DaemonIsLinux, SwarmInactive)
+	createDeletePredefinedNetwork(c, "bridge")
+	createDeletePredefinedNetwork(c, "none")
+	createDeletePredefinedNetwork(c, "host")
+}
+
+func createDeletePredefinedNetwork(t *testing.T, name string) {
+	// Create pre-defined network
+	config := network.CreateRequest{Name: name}
+	expectedStatus := http.StatusForbidden
+	createNetwork(t, config, expectedStatus)
+	deleteNetwork(t, name, false)
+}
+
+func getNetworkResource(t *testing.T, id string) *network.Inspect {
+	_, obj, err := request.Get(testutil.GetContext(t), "/networks/"+id)
+	assert.NilError(t, err)
+
+	nr := network.Inspect{}
+	err = json.NewDecoder(obj).Decode(&nr)
+	assert.NilError(t, err)
+
+	return &nr
+}
+
+func createNetwork(t *testing.T, config network.CreateRequest, expectedStatusCode int) string {
+	t.Helper()
+
+	resp, body, err := request.Post(testutil.GetContext(t), "/networks/create", request.JSONBody(config))
+	assert.NilError(t, err)
+	defer resp.Body.Close()
+
+	if expectedStatusCode >= 0 {
+		assert.Equal(t, resp.StatusCode, expectedStatusCode)
+	} else {
+		assert.Assert(t, resp.StatusCode != -expectedStatusCode)
+	}
+
+	if expectedStatusCode == http.StatusCreated || expectedStatusCode < 0 {
+		var nr network.CreateResponse
+		err = json.NewDecoder(body).Decode(&nr)
+		assert.NilError(t, err)
+
+		return nr.ID
+	}
+	return ""
+}
+
+func deleteNetwork(t *testing.T, id string, shouldSucceed bool) {
+	resp, _, err := request.Delete(testutil.GetContext(t), "/networks/"+id)
+	assert.NilError(t, err)
+	defer resp.Body.Close()
+	if !shouldSucceed {
+		assert.Assert(t, resp.StatusCode != http.StatusOK)
+		return
+	}
+	assert.Equal(t, resp.StatusCode, http.StatusNoContent)
+}

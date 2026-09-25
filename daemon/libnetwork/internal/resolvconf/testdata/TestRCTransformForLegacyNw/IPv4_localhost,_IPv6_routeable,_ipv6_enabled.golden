@@ -1,0 +1,4 @@
+nameserver fd3e:2d1a:1f5a::1
+
+# Based on host file: '/etc/resolv.conf' (legacy)
+# Overrides: []
