@@ -203,7 +203,6 @@ func TestSwarmScopedNetFromConfig(t *testing.T) {
 func TestDockerIngressPortAfterRestart(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-	skip.If(t, testEnv.FirewallBackendDriver() == "nftables")
 	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
 	ctx := setupTest(t)
 
@@ -274,7 +273,7 @@ func TestDockerIngressPortAfterRestart(t *testing.T) {
 func TestRestoreIngressRulesOnFirewalldReload(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-	skip.If(t, testEnv.FirewallBackendDriver() != "iptables+firewalld", "nftables backend doesn't support Swarm-mode")
+	skip.If(t, !strings.HasSuffix(testEnv.FirewallBackendDriver(), "+firewalld"))
 	skip.If(t, !networking.FirewalldRunning(), "Need firewalld to test restoration ingress rules")
 	ctx := setupTest(t)
 
@@ -491,7 +490,6 @@ func createIngressService(ctx context.Context, t *testing.T, d *daemon.Daemon, c
 func TestIngressPortsAcrossServiceUpdate(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-	skip.If(t, testEnv.FirewallBackendDriver() == "nftables")
 	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
 	ctx := setupTest(t)
 
