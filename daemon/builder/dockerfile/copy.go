@@ -458,7 +458,7 @@ type copyFileOptions struct {
 	archiver   *archive.Archiver
 }
 
-func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions) error {
+func performCopyForInfo(ctx context.Context, dest copyInfo, source copyInfo, options copyFileOptions) error {
 	srcPath, err := source.fullPath()
 	if err != nil {
 		return err
@@ -476,7 +476,7 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 		return errors.Wrapf(err, "source path not found")
 	}
 	if src.IsDir() {
-		return copyDirectory(archiver, srcPath, destPath, options.identity)
+		return copyDirectory(ctx, archiver, srcPath, destPath, options.identity)
 	}
 	if options.decompress && archive.IsArchivePath(srcPath) && !source.noDecompress {
 		f, err := os.Open(srcPath)
@@ -501,10 +501,10 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 		// is a symlink
 		destPath = filepath.Join(destPath, filepath.Base(source.path))
 	}
-	return copyFile(archiver, srcPath, destPath, options.identity)
+	return copyFile(ctx, archiver, srcPath, destPath, options.identity)
 }
 
-func copyDirectory(archiver *archive.Archiver, source, dest string, identity *identity) error {
+func copyDirectory(ctx context.Context, archiver *archive.Archiver, source, dest string, identity *identity) error {
 	destExists, err := isExistingDirectory(dest)
 	if err != nil {
 		return errors.Wrapf(err, "failed to query destination path")
@@ -514,12 +514,12 @@ func copyDirectory(archiver *archive.Archiver, source, dest string, identity *id
 		return errors.Wrapf(err, "failed to copy directory")
 	}
 	if identity != nil {
-		return fixPermissions(source, dest, *identity, !destExists)
+		return fixPermissions(ctx, source, dest, *identity, !destExists)
 	}
 	return nil
 }
 
-func copyFile(archiver *archive.Archiver, source, dest string, identity *identity) error {
+func copyFile(ctx context.Context, archiver *archive.Archiver, source, dest string, identity *identity) error {
 	if identity == nil {
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return err
@@ -534,7 +534,7 @@ func copyFile(archiver *archive.Archiver, source, dest string, identity *identit
 		return errors.Wrapf(err, "failed to copy file")
 	}
 	if identity != nil {
-		return fixPermissions(source, dest, *identity, false)
+		return fixPermissions(ctx, source, dest, *identity, false)
 	}
 	return nil
 }

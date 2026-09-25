@@ -1424,9 +1424,10 @@ github.com/moby/sys/mount
 # github.com/moby/sys/mountinfo v0.7.2
 ## explicit; go 1.17
 github.com/moby/sys/mountinfo
-# github.com/moby/sys/reexec v0.1.0
-## explicit; go 1.18
+# github.com/moby/sys/reexec v0.1.1-0.20260923110344-a6f0ddce7a6e
+## explicit; go 1.24
 github.com/moby/sys/reexec
+github.com/moby/sys/reexec/internal/reexecoverride
 # github.com/moby/sys/sequential v0.7.0
 ## explicit; go 1.24.0
 github.com/moby/sys/sequential
