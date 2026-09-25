@@ -58,10 +58,10 @@ Check out the [getting started documentation](https://github.com/docker/labs/blo
 To contribute to the Docker project, you need a <a href="https://github.com" target="_blank">GitHub account</a>.
 A free account is fine. All the Moby project repositories are public and visible to everyone.
 
-This guide assumes that you have basic familiarity with Git and Github terminology
+This guide assumes that you have basic familiarity with Git and GitHub terminology
 and usage.
 Refer to [GitHub For Beginners: Don’t Get Scared, Get Started](http://readwrite.com/2013/09/30/understanding-github-a-journey-for-beginners-part-1/)
-to get up to speed on Github.
+to get up to speed on GitHub.
 
 ### 3. Git
 
