@@ -67,7 +67,7 @@ require (
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/moby/buildkit v0.33.0 // FIXME(thaJeztah): remove BUILDKIT_REF override in github actions workflow when updating.
 	github.com/moby/docker-image-spec v1.3.1
-	github.com/moby/extensions v0.0.0-20260918151408-e4c23d866037
+	github.com/moby/extensions v0.0.0-20260924093257-c10023566cbd
 	github.com/moby/go-archive v0.3.3
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
