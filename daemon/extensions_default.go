@@ -9,6 +9,7 @@ import (
 
 	"github.com/moby/extensions"
 	"github.com/moby/extensions/clientpoint"
+	"github.com/moby/extensions/host"
 	"github.com/moby/extensions/serverpoint"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/internal/jobs"
@@ -27,35 +28,48 @@ func clientProviders() []clientpoint.Registration {
 	}
 }
 
-// builtinExtensions returns the in-process extensions: the always-on ones,
-// plus those built-ins that ship disabled and were opted into through
-// enable-extensions. The list is read once at startup; changing it with a
-// config reload takes effect on the next daemon start.
+// optionalBuiltins lists built-in extensions that ship with the daemon but
+// stay disabled until opted into through enable-extensions.
+var optionalBuiltins = map[string]bool{
+	jobs.ExtensionID: true,
+}
+
+// builtinExtensions returns the in-process extensions. The list is
+// unconditional: which optional built-ins actually run is the provider
+// policy's decision (see builtinPolicy). enable-extensions is validated
+// here so an unknown ID fails startup rather than silently enabling
+// nothing. The setting is read once at startup; changing it with a config
+// reload takes effect on the next daemon start.
 func builtinExtensions(cfg *config.Config, d *Daemon) ([]extensions.Extension, error) {
-	exts := []extensions.Extension{
+	for _, id := range cfg.EnableExtensions {
+		if !optionalBuiltins[id] {
+			return nil, fmt.Errorf("enable-extensions: unknown built-in extension %q (available: %s)", id, strings.Join(slices.Sorted(maps.Keys(optionalBuiltins)), ", "))
+		}
+	}
+	return []extensions.Extension{
 		namesgeneratorlegacy.Extension,
 		runtimeExtension(d),
-	}
-	// Built-in extensions that ship with the daemon but stay disabled until
-	// opted into by extension ID.
-	optional := map[string]func() extensions.Extension{
-		jobs.ExtensionID: func() extensions.Extension {
-			return jobs.NewExtension(filepath.Join(cfg.Root, "jobs"))
-		},
-	}
-	seen := make(map[string]bool, len(cfg.EnableExtensions))
+		jobs.NewExtension(filepath.Join(cfg.Root, "jobs")),
+	}, nil
+}
+
+// builtinPolicy admits every point use except those of optional built-ins
+// that were not opted into through enable-extensions. Dropping all of an
+// extension's providers makes the host skip it entirely: not initialized,
+// no services published. The origin check keeps the gate to built-ins:
+// an extension loaded from --extension-dir is enabled by its presence
+// there, whatever ID it declares.
+func builtinPolicy(cfg *config.Config) host.PointPolicy {
+	enabled := make(map[string]bool, len(cfg.EnableExtensions))
 	for _, id := range cfg.EnableExtensions {
-		if seen[id] {
-			continue
-		}
-		seen[id] = true
-		build, ok := optional[id]
-		if !ok {
-			return nil, fmt.Errorf("enable-extensions: unknown built-in extension %q (available: %s)", id, strings.Join(slices.Sorted(maps.Keys(optional)), ", "))
-		}
-		exts = append(exts, build())
+		enabled[id] = true
 	}
-	return exts, nil
+	return host.PointPolicyFunc(func(identity extensions.ExtensionIdentity, _ extensions.PointID) host.PointPolicyResult {
+		if identity.Origin.Kind == extensions.ExtensionOriginBuiltin && optionalBuiltins[string(identity.ID)] && !enabled[string(identity.ID)] {
+			return host.Drop()
+		}
+		return host.Allow()
+	})
 }
 
 // pointServers lists the generated server adapters for the points that

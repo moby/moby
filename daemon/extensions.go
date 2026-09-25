@@ -28,9 +28,7 @@ func setupExtensionHost(ctx context.Context, cfg *config.Config, d *Daemon) (*ho
 		host.WithExtensions(builtins...),
 		host.WithDirs(extensionDirs(cfg)...),
 		host.WithClientProviders(clientProviders()...),
-		host.WithProviderPolicy(host.PointPolicyFunc(func(extensions.ExtensionIdentity, extensions.PointID) host.PointPolicyResult {
-			return host.Allow()
-		})),
+		host.WithProviderPolicy(builtinPolicy(cfg)),
 		host.WithPointServers(pointServers()...),
 		host.WithDependencyProviders(dependencyProviders()...),
 		host.WithExtensionConfig(extensionConfig(cfg)),
