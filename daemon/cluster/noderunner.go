@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/netip"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -107,7 +108,7 @@ func (n *nodeRunner) Start(conf nodeStartConfig) error {
 
 func (n *nodeRunner) start(conf nodeStartConfig) error {
 	var control string
-	if isWindows {
+	if runtime.GOOS == "windows" {
 		control = `\\.\pipe\` + controlSocket
 	} else {
 		control = filepath.Join(n.cluster.runtimeRoot, controlSocket)
