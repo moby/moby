@@ -256,7 +256,7 @@ func TestRunMountImage(t *testing.T) {
 // |   |-- bad                        (symlink to root)
 func setupTestVolume(t *testing.T, apiClient client.APIClient) string {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	volumeName := t.Name() + "-volume"
 

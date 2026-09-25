@@ -162,7 +162,7 @@ func TestSetParallelInsertDelete(t *testing.T) {
 	parallelRoutines := 6
 	endCh := make(chan int)
 	// Let the routines running and competing for 10s
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 	for i := 0; i < parallelRoutines; i++ {
 		go insertDeleteRotuine(ctx, endCh, &s, "key-"+strconv.Itoa(i%3), strconv.Itoa(i))

@@ -478,14 +478,8 @@ func (s *DockerCLICpSuite) TestCpToDot(c *testing.T) {
 	out := cli.DockerCmd(c, "wait", containerID).Combined()
 	assert.Equal(c, strings.TrimSpace(out), "0", "failed to set up container")
 
-	tmpdir, err := os.MkdirTemp("", "docker-integration")
-	assert.NilError(c, err)
-	defer os.RemoveAll(tmpdir)
-	cwd, err := os.Getwd()
-	assert.NilError(c, err)
-	defer os.Chdir(cwd)
-	err = os.Chdir(tmpdir)
-	assert.NilError(c, err)
+	tmpDir := c.TempDir()
+	c.Chdir(tmpDir)
 
 	cli.DockerCmd(c, "cp", containerID+":/test", ".")
 	content, err := os.ReadFile("./test")

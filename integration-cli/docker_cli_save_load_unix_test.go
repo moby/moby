@@ -30,9 +30,9 @@ func (s *DockerCLISaveLoadSuite) TestSaveAndLoadRepoStdout(c *testing.T) {
 	before := cli.DockerCmd(c, "commit", name, imgRepoName).Stdout()
 	before = strings.TrimRight(before, "\n")
 
-	tmpFile, err := os.CreateTemp("", "foobar-save-load-test.tar")
+	tmpFile, err := os.CreateTemp(c.TempDir(), "foobar-save-load-test.tar")
 	assert.NilError(c, err)
-	defer os.Remove(tmpFile.Name())
+	c.Cleanup(func() { _ = tmpFile.Close() })
 
 	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "save", imgRepoName},
@@ -41,7 +41,7 @@ func (s *DockerCLISaveLoadSuite) TestSaveAndLoadRepoStdout(c *testing.T) {
 
 	tmpFile, err = os.Open(tmpFile.Name())
 	assert.NilError(c, err)
-	defer tmpFile.Close()
+	c.Cleanup(func() { _ = tmpFile.Close() })
 
 	deleteImages(imgRepoName)
 
@@ -84,7 +84,7 @@ func (s *DockerCLISaveLoadSuite) TestSaveAndLoadWithProgressBar(c *testing.T) {
 
 	tmptar := name + ".tar"
 	cli.DockerCmd(c, "save", "-o", tmptar, name)
-	defer os.Remove(tmptar)
+	c.Cleanup(func() { _ = os.Remove(tmptar) })
 
 	cli.DockerCmd(c, "rmi", name)
 	cli.DockerCmd(c, "tag", "busybox", name)

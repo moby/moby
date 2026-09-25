@@ -31,7 +31,7 @@ func TestGenerateServiceName(t *testing.T) {
 		Impl: provider,
 	})
 
-	reply, err := GenerateServiceName(context.Background(), resolver, &GenerateServiceNameRequest{
+	reply, err := GenerateServiceName(t.Context(), resolver, &GenerateServiceNameRequest{
 		Retry: 3,
 		Image: "image:latest",
 	})

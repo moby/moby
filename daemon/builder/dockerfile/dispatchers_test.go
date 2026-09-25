@@ -2,7 +2,6 @@ package dockerfile
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"net/netip"
 	"reflect"
@@ -27,7 +26,7 @@ import (
 func newBuilderWithMockBackend(t *testing.T) *Builder {
 	t.Helper()
 	mockBackend := &MockBackend{}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	imageProber, err := newImageProber(ctx, mockBackend, nil, false)
 	assert.NilError(t, err, "Could not create image prober")

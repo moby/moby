@@ -191,7 +191,7 @@ func (r *V2) WriteBlobContents(t testing.TB, blobDigest digest.Digest, data []by
 // malicious blob of data for example.
 func (r *V2) TempMoveBlobData(t testing.TB, blobDigest digest.Digest) (undo func()) {
 	t.Helper()
-	tempFile, err := os.CreateTemp("", "registry-temp-blob-")
+	tempFile, err := os.CreateTemp(t.TempDir(), "registry-temp-blob-")
 	assert.NilError(t, err, "unable to get temporary blob file")
 	tempFile.Close()
 

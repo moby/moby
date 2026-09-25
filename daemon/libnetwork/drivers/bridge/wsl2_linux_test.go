@@ -3,7 +3,6 @@
 package bridge
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -43,7 +42,7 @@ func TestMirroredWSL2Workaround(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
 			simulateWSL2MirroredMode(t, tc.loopback0, tc.wslinfoPerm)
-			assert.Check(t, is.Equal(isRunningUnderWSL2MirroredMode(context.Background()), tc.expMirrored))
+			assert.Check(t, is.Equal(isRunningUnderWSL2MirroredMode(t.Context()), tc.expMirrored))
 		})
 	}
 }

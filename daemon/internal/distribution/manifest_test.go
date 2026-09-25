@@ -101,7 +101,7 @@ func TestManifestStore(t *testing.T) {
 		return ref.(reference.Named), desc, mg, store, cs
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	m, _, err := distribution.UnmarshalManifest(ocispec.MediaTypeImageManifest, serialized)
 	assert.NilError(t, err)

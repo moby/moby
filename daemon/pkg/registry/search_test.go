@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -19,7 +18,7 @@ import (
 
 func spawnTestRegistrySession(t *testing.T) (*http.Client, *v1Endpoint) {
 	t.Helper()
-	endpoint, err := newV1Endpoint(context.Background(), makeIndex("/v1/"), nil)
+	endpoint, err := newV1Endpoint(t.Context(), makeIndex("/v1/"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +28,7 @@ func spawnTestRegistrySession(t *testing.T) (*http.Client, *v1Endpoint) {
 	tr = transport.NewTransport(newAuthTransport(tr, authConfig, false), Headers(userAgent, nil)...)
 	client := httpClient(tr)
 
-	if err := authorizeClient(context.Background(), client, authConfig, endpoint); err != nil {
+	if err := authorizeClient(t.Context(), client, authConfig, endpoint); err != nil {
 		t.Fatal(err)
 	}
 	// In a normal scenario for the v1 registry, the client should send a `X-Docker-Token: true`
@@ -71,7 +70,7 @@ func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func TestSearchRepositories(t *testing.T) {
 	client, ep := spawnTestRegistrySession(t)
-	results, err := searchRepositories(context.Background(), client, ep, "fakequery", 25)
+	results, err := searchRepositories(t.Context(), client, ep, "fakequery", 25)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +145,7 @@ func TestSearchErrors(t *testing.T) {
 
 			reg, err := NewService(ServiceOptions{})
 			assert.NilError(t, err)
-			_, err = reg.Search(context.Background(), tc.filtersArgs, term, 0, nil, map[string][]string{})
+			_, err = reg.Search(t.Context(), tc.filtersArgs, term, 0, nil, map[string][]string{})
 			assert.ErrorContains(t, err, tc.expectedError)
 			if tc.shouldReturnError {
 				assert.Check(t, cerrdefs.IsUnknown(err), "got: %T: %v", err, err)
@@ -410,7 +409,7 @@ func TestSearch(t *testing.T) {
 
 			reg, err := NewService(ServiceOptions{})
 			assert.NilError(t, err)
-			results, err := reg.Search(context.Background(), tc.filtersArgs, searchTerm, 0, nil, map[string][]string{})
+			results, err := reg.Search(t.Context(), tc.filtersArgs, searchTerm, 0, nil, map[string][]string{})
 			assert.NilError(t, err)
 			assert.DeepEqual(t, results, tc.expectedResults)
 		})

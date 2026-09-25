@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -110,7 +109,7 @@ func TestContainerList(t *testing.T) {
 			}
 
 			// list them and verify correctness
-			containerList, err := d.Containers(context.Background(), &backend.ContainerListOptions{All: true})
+			containerList, err := d.Containers(t.Context(), &backend.ContainerListOptions{All: true})
 			assert.NilError(t, err)
 			assert.Assert(t, is.Len(containerList, num))
 
@@ -129,7 +128,7 @@ func TestContainerList_InvalidFilter(t *testing.T) {
 		containersReplica: db,
 	}
 
-	_, err = d.Containers(context.Background(), &backend.ContainerListOptions{
+	_, err = d.Containers(t.Context(), &backend.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("invalid", "foo")),
 	})
 	assert.Assert(t, is.Error(err, "invalid filter 'invalid'"))
@@ -150,7 +149,7 @@ func TestContainerList_NameFilter(t *testing.T) {
 
 	// moby/moby #37453 - ^ regex not working due to prefix slash
 	// not being stripped
-	containerList, err := d.Containers(context.Background(), &backend.ContainerListOptions{
+	containerList, err := d.Containers(t.Context(), &backend.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "^a")),
 	})
 	assert.NilError(t, err)
@@ -159,7 +158,7 @@ func TestContainerList_NameFilter(t *testing.T) {
 	assert.Assert(t, containerListContainsName(containerList, two.Name))
 
 	// Same as above but with slash prefix should produce the same result
-	containerListWithPrefix, err := d.Containers(context.Background(), &backend.ContainerListOptions{
+	containerListWithPrefix, err := d.Containers(t.Context(), &backend.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "^/a")),
 	})
 	assert.NilError(t, err)
@@ -168,7 +167,7 @@ func TestContainerList_NameFilter(t *testing.T) {
 	assert.Assert(t, containerListContainsName(containerListWithPrefix, two.Name))
 
 	// Same as above but make sure it works for exact names
-	containerList, err = d.Containers(context.Background(), &backend.ContainerListOptions{
+	containerList, err = d.Containers(t.Context(), &backend.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "b1")),
 	})
 	assert.NilError(t, err)
@@ -176,7 +175,7 @@ func TestContainerList_NameFilter(t *testing.T) {
 	assert.Assert(t, containerListContainsName(containerList, three.Name))
 
 	// Same as above but with slash prefix should produce the same result
-	containerListWithPrefix, err = d.Containers(context.Background(), &backend.ContainerListOptions{
+	containerListWithPrefix, err = d.Containers(t.Context(), &backend.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "/b1")),
 	})
 	assert.NilError(t, err)
@@ -234,7 +233,7 @@ func TestContainerList_AnnotationFilter(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			containerList, err := d.Containers(context.Background(), &backend.ContainerListOptions{
+			containerList, err := d.Containers(t.Context(), &backend.ContainerListOptions{
 				All:     true,
 				Filters: filters.NewArgs(tc.filters...),
 			})
@@ -280,7 +279,7 @@ func TestContainerList_LimitFilter(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			containerList, err := d.Containers(context.Background(), &backend.ContainerListOptions{Limit: tc.limit})
+			containerList, err := d.Containers(t.Context(), &backend.ContainerListOptions{Limit: tc.limit})
 			assert.NilError(t, err)
 			expectedListLen := num
 			if tc.limit > 0 {

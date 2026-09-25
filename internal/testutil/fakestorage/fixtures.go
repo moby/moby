@@ -1,7 +1,6 @@
 package fakestorage
 
 import (
-	"context"
 	"io"
 	"os"
 	"os/exec"
@@ -76,7 +75,7 @@ CMD ["./httpserver"]
 	assert.NilError(t, err)
 
 	apiClient := testEnv.APIClient()
-	resp, err := apiClient.ImageBuild(context.Background(), reader, client.ImageBuildOptions{
+	resp, err := apiClient.ImageBuild(t.Context(), reader, client.ImageBuildOptions{
 		Remove:      true,
 		ForceRemove: true,
 		Tags:        []string{"httpserver"},

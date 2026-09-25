@@ -164,7 +164,7 @@ func TestContainerMigrateOS(t *testing.T) {
 	} {
 		ctr := tc.ctr
 		t.Run(tc.name, func(t *testing.T) {
-			migrateContainerOS(context.Background(), mock, &ctr)
+			migrateContainerOS(t.Context(), mock, &ctr)
 
 			assert.DeepEqual(t, tc.expected, ctr.ImagePlatform)
 		})

@@ -748,11 +748,11 @@ func (s *DockerCLIRunSuite) TestRunWithShmSize(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestRunTmpfsMountsEnsureOrdered(c *testing.T) {
-	tmpFile, err := os.CreateTemp("", "test")
+	tmpFile := filepath.Join(c.TempDir(), "test-file")
+	err := os.WriteFile(tmpFile, []byte("test"), 0o600)
 	assert.NilError(c, err)
-	defer tmpFile.Close()
-	out := cli.DockerCmd(c, "run", "--tmpfs", "/run", "-v", tmpFile.Name()+":/run/test", "busybox", "ls", "/run").Combined()
-	assert.Assert(c, is.Contains(out, "test"))
+	out := cli.DockerCmd(c, "run", "--tmpfs", "/run", "-v", tmpFile+":/run/test-file", "busybox", "ls", "/run").Combined()
+	assert.Assert(c, is.Contains(out, "test-file"))
 }
 
 func (s *DockerCLIRunSuite) TestRunTmpfsMounts(c *testing.T) {
@@ -861,7 +861,7 @@ func (s *DockerCLIRunSuite) TestRunSysctls(c *testing.T) {
 // TestRunSeccompProfileDenyUnshare checks that 'docker run --security-opt seccomp=/tmp/profile.json debian:trixie-slim unshare' exits with operation not permitted.
 func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshare(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, Apparmor)
-	const jsonData = `{
+	tmpFile := writeProfile(c, `{
 	"defaultAction": "SCMP_ACT_ALLOW",
 	"syscalls": [
 		{
@@ -869,18 +869,10 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshare(c *testing.T) {
 			"action": "SCMP_ACT_ERRNO"
 		}
 	]
-}`
-	tmpFile, err := os.CreateTemp("", "profile.json")
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer tmpFile.Close()
+}`)
 
-	if _, err := tmpFile.WriteString(jsonData); err != nil {
-		c.Fatal(err)
-	}
 	icmd.RunCommand(dockerBinary, "run", "--security-opt", "apparmor=unconfined",
-		"--security-opt", "seccomp="+tmpFile.Name(),
+		"--security-opt", "seccomp="+tmpFile,
 		"debian:trixie-slim", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc").Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Operation not permitted",
@@ -890,7 +882,7 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshare(c *testing.T) {
 // TestRunSeccompProfileDenyChmod checks that 'docker run --security-opt seccomp=/tmp/profile.json busybox chmod 400 /etc/hostname' exits with operation not permitted.
 func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyChmod(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
-	const jsonData = `{
+	tmpFile := writeProfile(c, `{
 	"defaultAction": "SCMP_ACT_ALLOW",
 	"syscalls": [
 		{
@@ -906,16 +898,9 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyChmod(c *testing.T) {
 			"action":"SCMP_ACT_ERRNO"
 		}
 	]
-}`
-	tmpFile, err := os.CreateTemp("", "profile.json")
-	assert.NilError(c, err)
-	defer tmpFile.Close()
+}`)
 
-	if _, err := tmpFile.WriteString(jsonData); err != nil {
-		c.Fatal(err)
-	}
-	icmd.RunCommand(dockerBinary, "run", "--security-opt", "seccomp="+tmpFile.Name(),
-		"busybox", "chmod", "400", "/etc/hostname").Assert(c, icmd.Expected{
+	icmd.RunCommand(dockerBinary, "run", "--security-opt", "seccomp="+tmpFile, "busybox", "chmod", "400", "/etc/hostname").Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Operation not permitted",
 	})
@@ -942,18 +927,12 @@ func (s *DockerCLIRunSuite) TestRunSeccompProfileDenyUnshareUserns(c *testing.T)
 		}
 	]
 }`, uint64(0x10000000))
-	tmpFile, err := os.CreateTemp("", "profile.json")
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer tmpFile.Close()
 
-	if _, err := tmpFile.WriteString(jsonData); err != nil {
-		c.Fatal(err)
-	}
+	tmpFile := writeProfile(c, jsonData)
 	icmd.RunCommand(dockerBinary, "run",
-		"--security-opt", "apparmor=unconfined", "--security-opt", "seccomp="+tmpFile.Name(),
-		"debian:trixie-slim", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami").Assert(c, icmd.Expected{
+		"--security-opt", "apparmor=unconfined", "--security-opt", "seccomp="+tmpFile,
+		"debian:trixie-slim", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami",
+	).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Operation not permitted",
 	})
@@ -1422,13 +1401,12 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *testing.T) {
 		}
 	]
 }`
-	tmpFile, err := os.CreateTemp("", "profile.json")
-	assert.NilError(c, err)
-	defer tmpFile.Close()
-	_, err = tmpFile.WriteString(jsonData)
+
+	tmpFile := filepath.Join(c.TempDir(), "profile.json")
+	err := os.WriteFile(tmpFile, []byte(jsonData), 0o600)
 	assert.NilError(c, err)
 
-	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
+	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile, "busybox", "chmod", "777", ".")
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, is.Contains(out, "Operation not permitted"))
 }
@@ -1439,7 +1417,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *testing.T) {
 
 	s.d.StartWithBusybox(ctx, c)
 
-	const jsonData = `{
+	tmpFile := writeProfile(c, `{
 	"defaultAction": "SCMP_ACT_ALLOW",
 	"syscalls": [
 		{
@@ -1448,14 +1426,9 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *testing.T) {
 			"action": "SCMP_ACT_ERRNO"
 		}
 	]
-}`
-	tmpFile, err := os.CreateTemp("", "profile.json")
-	assert.NilError(c, err)
-	defer tmpFile.Close()
-	_, err = tmpFile.WriteString(jsonData)
-	assert.NilError(c, err)
+}`)
 
-	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
+	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile, "busybox", "chmod", "777", ".")
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, is.Contains(out, "use either 'name' or 'names'"))
 }
@@ -1466,7 +1439,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *testing.T) {
 
 	s.d.StartWithBusybox(ctx, c)
 
-	const jsonData = `{
+	tmpFile := writeProfile(c, `{
 	"archMap": [
 		{
 			"architecture": "SCMP_ARCH_X86_64",
@@ -1486,14 +1459,9 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *testing.T) {
 			"action": "SCMP_ACT_ERRNO"
 		}
 	]
-}`
-	tmpFile, err := os.CreateTemp("", "profile.json")
-	assert.NilError(c, err)
-	defer tmpFile.Close()
-	_, err = tmpFile.WriteString(jsonData)
-	assert.NilError(c, err)
+}`)
 
-	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
+	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile, "busybox", "chmod", "777", ".")
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, is.Contains(out, "use either 'architectures' or 'archMap'"))
 }
@@ -1508,7 +1476,7 @@ func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *testing.T)
 	_, err := s.d.Cmd("run", "busybox", "chmod", "777", ".")
 	assert.NilError(c, err)
 
-	const jsonData = `{
+	tmpFile := writeProfile(c, `{
 	"defaultAction": "SCMP_ACT_ALLOW",
 	"syscalls": [
 		{
@@ -1520,15 +1488,10 @@ func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *testing.T)
 			"action": "SCMP_ACT_ERRNO"
 		}
 	]
-}`
-	tmpFile, err := os.CreateTemp("", "profile.json")
-	assert.NilError(c, err)
-	defer tmpFile.Close()
-	_, err = tmpFile.WriteString(jsonData)
-	assert.NilError(c, err)
+}`)
 
 	// 2) restart the daemon and add a custom seccomp profile in which we deny chmod
-	s.d.Restart(c, "--seccomp-profile="+tmpFile.Name())
+	s.d.Restart(c, "--seccomp-profile="+tmpFile)
 
 	out, err := s.d.Cmd("run", "busybox", "chmod", "777", ".")
 	assert.ErrorContains(c, err, "")
@@ -1558,4 +1521,12 @@ func (s *DockerCLIRunSuite) TestRunWithNanoCPUs(c *testing.T) {
 	out, _, err = dockerCmdWithError("run", "--cpus", "0.5", "--cpu-quota", "50000", "--cpu-period", "100000", "busybox", "sh")
 	assert.ErrorContains(c, err, "")
 	assert.Assert(c, is.Contains(out, "Conflicting options: Nano CPUs and CPU Period cannot both be set"))
+}
+
+func writeProfile(t *testing.T, jsonData string) string {
+	t.Helper()
+	tmpFile := filepath.Join(t.TempDir(), "profile.json")
+	err := os.WriteFile(tmpFile, []byte(jsonData), 0o600)
+	assert.NilError(t, err)
+	return tmpFile
 }

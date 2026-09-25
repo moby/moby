@@ -146,7 +146,7 @@ func newRemoteFileServer(t testing.TB, ctx *fakecontext.Fake, c client.APIClient
 COPY . /static`); err != nil {
 		t.Fatal(err)
 	}
-	resp, err := c.ImageBuild(context.Background(), ctx.AsTarReader(t), client.ImageBuildOptions{
+	resp, err := c.ImageBuild(t.Context(), ctx.AsTarReader(t), client.ImageBuildOptions{
 		NoCache: true,
 		Tags:    []string{imgName},
 	})
@@ -155,17 +155,17 @@ COPY . /static`); err != nil {
 	assert.NilError(t, err)
 
 	// Start the container
-	b, err := c.ContainerCreate(context.Background(), client.ContainerCreateOptions{
+	b, err := c.ContainerCreate(t.Context(), client.ContainerCreateOptions{
 		Config:     &containertypes.Config{Image: imgName},
 		HostConfig: &containertypes.HostConfig{PublishAllPorts: true},
 		Name:       ctrName,
 	})
 	assert.NilError(t, err)
-	_, err = c.ContainerStart(context.Background(), b.ID, client.ContainerStartOptions{})
+	_, err = c.ContainerStart(t.Context(), b.ID, client.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	// Find out the system assigned port
-	inspect, err := c.ContainerInspect(context.Background(), b.ID, client.ContainerInspectOptions{})
+	inspect, err := c.ContainerInspect(t.Context(), b.ID, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	ports, exists := inspect.Container.NetworkSettings.Ports[network.MustParsePort("80/tcp")]
 	assert.Assert(t, exists, "unable to find port 80/tcp for %s", ctrName)

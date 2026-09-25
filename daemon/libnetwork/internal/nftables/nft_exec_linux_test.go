@@ -38,7 +38,7 @@ func TestApplyDrainsStderrConcurrently(t *testing.T) {
 	})
 	t.Setenv(nftStderrHelperEnv, "1")
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	done := make(chan error, 1)
 	go func() {

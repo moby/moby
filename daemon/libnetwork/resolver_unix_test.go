@@ -3,7 +3,6 @@
 package libnetwork
 
 import (
-	"context"
 	"net"
 	"testing"
 
@@ -16,14 +15,14 @@ import (
 // test only works on linux
 func TestDNSIPQuery(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()),
+	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Stop()
 
-	n, err := c.NewNetwork(context.Background(), "bridge", "dtnet1", "", NetworkOptionEnableIPv4(true))
+	n, err := c.NewNetwork(t.Context(), "bridge", "dtnet1", "", NetworkOptionEnableIPv4(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,25 +32,25 @@ func TestDNSIPQuery(t *testing.T) {
 		}
 	}()
 
-	ep, err := n.CreateEndpoint(context.Background(), "testep")
+	ep, err := n.CreateEndpoint(t.Context(), "testep")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sb, err := c.NewSandbox(context.Background(), "c1")
+	sb, err := c.NewSandbox(t.Context(), "c1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	defer func() {
-		if err := sb.Delete(context.Background()); err != nil {
+		if err := sb.Delete(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
 	// we need the endpoint only to populate ep_list for the sandbox as part of resolve_name
 	// it is not set as a target for name resolution and does not serve any other purpose
-	err = ep.Join(context.Background(), sb)
+	err = ep.Join(t.Context(), sb)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +113,7 @@ func TestDNSProxyServFail(t *testing.T) {
 	osctx := netnsutils.SetupTestOSContextEx(t)
 	defer osctx.Cleanup(t)
 
-	c, err := New(context.Background(),
+	c, err := New(t.Context(),
 		config.OptionDataDir(t.TempDir()),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
@@ -122,7 +121,7 @@ func TestDNSProxyServFail(t *testing.T) {
 	}
 	defer c.Stop()
 
-	n, err := c.NewNetwork(context.Background(), "bridge", "dtnet2", "", NetworkOptionEnableIPv4(true))
+	n, err := c.NewNetwork(t.Context(), "bridge", "dtnet2", "", NetworkOptionEnableIPv4(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,13 +131,13 @@ func TestDNSProxyServFail(t *testing.T) {
 		}
 	}()
 
-	sb, err := c.NewSandbox(context.Background(), "c1")
+	sb, err := c.NewSandbox(t.Context(), "c1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	defer func() {
-		if err := sb.Delete(context.Background()); err != nil {
+		if err := sb.Delete(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 	}()
