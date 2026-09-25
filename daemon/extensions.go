@@ -37,9 +37,7 @@ func (daemon *Daemon) newExtensionHost(ctx context.Context) (*host.Host, error) 
 		host.WithExtensions(daemonExts...),
 		host.WithDirs(extensionDirs(&cfg)...),
 		host.WithClientProviders(clientProviders()...),
-		host.WithProviderPolicy(host.PointPolicyFunc(func(extensions.ExtensionIdentity, extensions.PointID) host.PointPolicyResult {
-			return host.Allow()
-		})),
+		host.WithProviderPolicy(builtinPolicy(&cfg)),
 		host.WithPointServers(pointServers()...),
 		host.WithDependencyProviders(dependencyProviders()...),
 		host.WithExtensionConfig(extensionConfig(&cfg)),
