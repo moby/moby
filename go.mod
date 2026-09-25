@@ -64,7 +64,7 @@ require (
 	github.com/miekg/dns v1.1.73
 	github.com/mistifyio/go-zfs/v4 v4.0.0
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.33.0
+	github.com/moby/buildkit v0.33.0 // FIXME(thaJeztah): remove BUILDKIT_REF override in github actions workflow when updating.
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/extensions v0.0.0-20260918151408-e4c23d866037
 	github.com/moby/go-archive v0.3.3

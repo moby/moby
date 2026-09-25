@@ -24,6 +24,8 @@ env:
   SETUP_BUILDX_VERSION: edge
   SETUP_BUILDKIT_IMAGE: moby/buildkit:latest
 
+  BUILDKIT_REF: v0.33 # FIXME(thaJeztah): temporarily overriding to use tip of v0.33 branch for https://github.com/moby/buildkit/pull/7190
+
 jobs:
   validate-dco:
     permissions:
