@@ -195,8 +195,18 @@ func NewUnpacker(ctx context.Context, cs content.Store, opts ...UnpackerOpt) (*U
 // process will be started in a goroutine.
 func (u *Unpacker) Unpack(h images.Handler) images.Handler {
 	var (
-		lock   sync.Mutex
-		layers = map[digest.Digest][]ocispec.Descriptor{}
+		lock sync.Mutex
+		// Maps a config's digest to the layer descriptors of each manifest
+		// that names it, one slice per manifest. Layers cannot be unpacked
+		// until the diffIDs are known from the config. Manifests can share a
+		// config (compression variants of one image have identical diffIDs
+		// and so identical configs), which is why one digest can hold the
+		// layers of several manifests.
+		queuedLayers = map[digest.Digest][][]ocispec.Descriptor{}
+		// Maps a config's digest to the layer descriptors selected for unpack.
+		// Once these layers are queued for fetch, the value is set to nil. The key
+		// remains to prevent scheduling another unpack.
+		unpackedLayers = map[digest.Digest][]ocispec.Descriptor{}
 	)
 
 	var layerTypes map[string]bool
@@ -250,20 +260,53 @@ func (u *Unpacker) Unpack(h images.Handler) images.Handler {
 				}
 			}
 
+			if len(manifestLayers) == 0 {
+				return nonLayers, nil
+			}
+
 			lock.Lock()
 			for _, nl := range nonLayers {
-				layers[nl.Digest] = manifestLayers
+				if images.IsConfigType(nl.MediaType) || configTypes[nl.MediaType] {
+					queuedLayers[nl.Digest] = append(queuedLayers[nl.Digest], manifestLayers)
+				}
 			}
 			lock.Unlock()
 
 			children = nonLayers
 		} else if images.IsConfigType(desc.MediaType) || configTypes[desc.MediaType] {
 			lock.Lock()
-			l := layers[desc.Digest]
+			queued := queuedLayers[desc.Digest]
+			delete(queuedLayers, desc.Digest)
+			// Because manifests that share the same config unpack to the same
+			// snapshot chain, we only need to unpack the layers for one
+			// manifest. The layers for any remaining manifests sharing that
+			// config are still fetched to ensure they make it in the content
+			// store.
+			var first []ocispec.Descriptor
+			unpacked, ok := unpackedLayers[desc.Digest]
+			if !ok && len(queued) > 0 {
+				first, queued = queued[0], queued[1:]
+				unpacked = first
+				unpackedLayers[desc.Digest] = first
+			}
+			// Unpack may skip fetching layers whose snapshots already exist.
+			// If another manifest shares this config, explicitly fetch the first
+			// manifest's layers too so every manifest's blobs reach the content
+			// store. For a config used by only one manifest, leave fetching to
+			// unpack.
+			if len(queued) > 0 && len(unpacked) > 0 {
+				queued = append(queued, unpacked)
+				unpackedLayers[desc.Digest] = nil
+			}
 			lock.Unlock()
-			if len(l) > 0 {
+			if len(first) > 0 {
 				u.eg.Go(func() error {
-					return u.unpack(h, desc, l)
+					return u.unpack(h, desc, first)
+				})
+			}
+			for _, layers := range queued {
+				u.eg.Go(func() error {
+					return u.fetch(u.ctx, h, layers, nil)
 				})
 			}
 		}
