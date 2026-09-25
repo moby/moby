@@ -886,7 +886,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
 	}
-	if isWindows {
+	if runtime.GOOS == "windows" {
 		if err := os.MkdirAll(realTmp, 0); err != nil {
 			return nil, fmt.Errorf("Unable to create the TempDir (%s): %s", realTmp, err)
 		}
@@ -999,7 +999,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	if isWindows {
+	if runtime.GOOS == "windows" {
 		// Note that permissions (0o700) are ignored on Windows; passing them to
 		// show intent only. We could consider using idtools.MkdirAndChown here
 		// to apply an ACL.
@@ -1064,7 +1064,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			shim     string
 			shimOpts any
 		)
-		if !isWindows {
+		if runtime.GOOS != "windows" {
 			shim, shimOpts, err = rts.Get("")
 			if err != nil {
 				return nil, err
@@ -1631,7 +1631,7 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 		// The mount path reported by the graph driver should always be trusted on Windows, since the
 		// volume path for a given mounted layer may change over time.  This should only be an error
 		// on non-Windows operating systems.
-		if !isWindows {
+		if runtime.GOOS != "windows" {
 			daemon.Unmount(container)
 			driver := daemon.ImageService().StorageDriver()
 			return fmt.Errorf("driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
