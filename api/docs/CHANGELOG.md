@@ -13,6 +13,22 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.57 API changes
+
+* `POST /containers/create` now supports `BindOptions.IDMapping` for mounts
+  of type `bind`, making the mount an id-mapped mount without changing
+  ownership on the backing filesystem. The mapping is derived from the
+  intended result rather than explicit ID tables: with
+  `Source: "match-user"`, the owner of the mount's source appears inside
+  the container as the container user (or the user named by `User`), and
+  files created through the mount by that user are owned by the source's
+  owner on the host; with `Source: "userns"`, the mount follows the mapping
+  of the container's private user namespace (e.g. userns-remap). Not
+  supported for swarm services. Linux rootful daemons only; requires kernel
+  support for id-mapped mounts on the backing filesystem
+  (`MOUNT_ATTR_IDMAP`, Linux 5.12 or newer for most filesystems) and an OCI
+  runtime with id-mapped mount support (runc 1.2 or newer).
+
 ## v1.56 API changes
 
 * `GET /containers/json` now supports an `annotation` filter to filter
