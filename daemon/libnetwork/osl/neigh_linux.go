@@ -12,29 +12,29 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-// NeighborSearchError indicates that the neighbor is already present
+// NeighborSearchError indicates that the neighbor is missing or already present.
 type NeighborSearchError struct {
-	ip       net.IP
-	mac      net.HardwareAddr
-	linkName string
-	present  bool
+	IP       net.IP
+	MAC      net.HardwareAddr
+	LinkName string
+	Present  bool
 }
 
 func (n NeighborSearchError) Error() string {
 	var b strings.Builder
 	b.WriteString("neighbor entry ")
-	if n.present {
+	if n.Present {
 		b.WriteString("already exists ")
 	} else {
 		b.WriteString("not found ")
 	}
 	b.WriteString("for IP ")
-	b.WriteString(n.ip.String())
+	b.WriteString(n.IP.String())
 	b.WriteString(", mac ")
-	b.WriteString(n.mac.String())
-	if n.linkName != "" {
+	b.WriteString(n.MAC.String())
+	if n.LinkName != "" {
 		b.WriteString(", link ")
-		b.WriteString(n.linkName)
+		b.WriteString(n.LinkName)
 	}
 	return b.String()
 }
@@ -57,7 +57,7 @@ func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, option
 			"error": err,
 		}).Warn("error deleting neighbor entry")
 		if errors.Is(err, os.ErrNotExist) {
-			return NeighborSearchError{dstIP, dstMac, linkName, false}
+			return NeighborSearchError{IP: dstIP, MAC: dstMac, LinkName: linkName}
 		}
 		return fmt.Errorf("could not delete neighbor %+v: %w", nlnh, err)
 	}
@@ -114,7 +114,7 @@ func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, options .
 				"ifc":   linkName,
 				"neigh": fmt.Sprintf("%+v", nlnh),
 			}).Warn("Neighbor entry already present")
-			return NeighborSearchError{dstIP, dstMac, linkName, true}
+			return NeighborSearchError{IP: dstIP, MAC: dstMac, LinkName: linkName, Present: true}
 		} else {
 			return fmt.Errorf("could not add neighbor entry %+v: %w", nlnh, err)
 		}
