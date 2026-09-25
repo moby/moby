@@ -9,7 +9,8 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"sync"
+
+	"github.com/moby/locker"
 )
 
 // Record Structure for a single host record
@@ -36,37 +37,16 @@ var (
 		{Hosts: "ip6-allnodes", IP: netip.MustParseAddr("ff02::1")},
 		{Hosts: "ip6-allrouters", IP: netip.MustParseAddr("ff02::2")},
 	}
-
-	// A cache of path level locks for synchronizing /etc/hosts
-	// updates on a file level
-	pathMap = make(map[string]*sync.Mutex)
-
-	// A package level mutex to synchronize the cache itself
-	pathMutex sync.Mutex
 )
 
+// pathLocks synchronizes /etc/hosts updates on a per-file level.
+var pathLocks = locker.New()
+
 func pathLock(path string) func() {
-	pathMutex.Lock()
-	defer pathMutex.Unlock()
-
-	pl, ok := pathMap[path]
-	if !ok {
-		pl = &sync.Mutex{}
-		pathMap[path] = pl
-	}
-
-	pl.Lock()
+	pathLocks.Lock(path)
 	return func() {
-		pl.Unlock()
+		_ = pathLocks.Unlock(path)
 	}
-}
-
-// Drop drops the path string from the path cache
-func Drop(path string) {
-	pathMutex.Lock()
-	defer pathMutex.Unlock()
-
-	delete(pathMap, path)
 }
 
 // Build function
