@@ -135,7 +135,7 @@ var haveEnum64 = internal.NewFeatureTest("ENUM64", func() error {
 }, "6.0")
 
 func probeBTF(typ Type) error {
-	b, err := NewBuilder([]Type{typ})
+	b, err := NewBuilder([]Type{typ}, nil)
 	if err != nil {
 		return err
 	}
@@ -146,7 +146,7 @@ func probeBTF(typ Type) error {
 	}
 
 	fd, err := sys.BtfLoad(&sys.BtfLoadAttr{
-		Btf:     sys.NewSlicePointer(buf),
+		Btf:     sys.SlicePointer(buf),
 		BtfSize: uint32(len(buf)),
 	})
 

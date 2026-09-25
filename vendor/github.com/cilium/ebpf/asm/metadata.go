@@ -7,13 +7,13 @@ type Metadata struct {
 
 type metaElement struct {
 	next       *metaElement
-	key, value interface{}
+	key, value any
 }
 
 // Find the element containing key.
 //
 // Returns nil if there is no such element.
-func (m *Metadata) find(key interface{}) *metaElement {
+func (m *Metadata) find(key any) *metaElement {
 	for e := m.head; e != nil; e = e.next {
 		if e.key == key {
 			return e
@@ -49,7 +49,7 @@ func (m *Metadata) remove(r *metaElement) {
 //
 // If value is nil, the key is removed. Avoids modifying old metadata by
 // copying if necessary.
-func (m *Metadata) Set(key, value interface{}) {
+func (m *Metadata) Set(key, value any) {
 	if e := m.find(key); e != nil {
 		if e.value == value {
 			// Key is present and the value is the same. Nothing to do.
@@ -72,7 +72,7 @@ func (m *Metadata) Set(key, value interface{}) {
 // Get the value of a key.
 //
 // Returns nil if no value with the given key is present.
-func (m *Metadata) Get(key interface{}) interface{} {
+func (m *Metadata) Get(key any) any {
 	if e := m.find(key); e != nil {
 		return e.value
 	}

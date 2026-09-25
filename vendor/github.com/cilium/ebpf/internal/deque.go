@@ -75,10 +75,7 @@ func (dq *Deque[T]) Grow(n int) {
 
 	// Round up to the new power of two which is at least 8.
 	// See https://jameshfisher.com/2018/03/30/round-up-power-2/
-	capacity := 1 << (64 - bits.LeadingZeros64(need-1))
-	if capacity < 8 {
-		capacity = 8
-	}
+	capacity := max(1<<(64-bits.LeadingZeros64(need-1)), 8)
 
 	elems := make([]T, have, capacity)
 	pivot := dq.read & dq.mask

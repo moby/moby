@@ -39,27 +39,29 @@ func errnoErr(e syscall.Errno) error {
 var (
 	modcimfs = windows.NewLazySystemDLL("cimfs.dll")
 
-	procCimAddFsToMergedImage         = modcimfs.NewProc("CimAddFsToMergedImage")
-	procCimAddFsToMergedImage2        = modcimfs.NewProc("CimAddFsToMergedImage2")
-	procCimCloseImage                 = modcimfs.NewProc("CimCloseImage")
-	procCimCloseStream                = modcimfs.NewProc("CimCloseStream")
-	procCimCommitImage                = modcimfs.NewProc("CimCommitImage")
-	procCimCreateAlternateStream      = modcimfs.NewProc("CimCreateAlternateStream")
-	procCimCreateFile                 = modcimfs.NewProc("CimCreateFile")
-	procCimCreateHardLink             = modcimfs.NewProc("CimCreateHardLink")
-	procCimCreateImage                = modcimfs.NewProc("CimCreateImage")
-	procCimCreateImage2               = modcimfs.NewProc("CimCreateImage2")
-	procCimCreateMergeLink            = modcimfs.NewProc("CimCreateMergeLink")
-	procCimDeletePath                 = modcimfs.NewProc("CimDeletePath")
-	procCimDismountImage              = modcimfs.NewProc("CimDismountImage")
-	procCimGetVerificationInformation = modcimfs.NewProc("CimGetVerificationInformation")
-	procCimMergeMountImage            = modcimfs.NewProc("CimMergeMountImage")
-	procCimMergeMountVerifiedImage    = modcimfs.NewProc("CimMergeMountVerifiedImage")
-	procCimMountImage                 = modcimfs.NewProc("CimMountImage")
-	procCimMountVerifiedImage         = modcimfs.NewProc("CimMountVerifiedImage")
-	procCimSealImage                  = modcimfs.NewProc("CimSealImage")
-	procCimTombstoneFile              = modcimfs.NewProc("CimTombstoneFile")
-	procCimWriteStream                = modcimfs.NewProc("CimWriteStream")
+	procCimAddFsToMergedImage          = modcimfs.NewProc("CimAddFsToMergedImage")
+	procCimAddFsToMergedImage2         = modcimfs.NewProc("CimAddFsToMergedImage2")
+	procCimCloseImage                  = modcimfs.NewProc("CimCloseImage")
+	procCimCloseStream                 = modcimfs.NewProc("CimCloseStream")
+	procCimCommitImage                 = modcimfs.NewProc("CimCommitImage")
+	procCimCreateAlternateStream       = modcimfs.NewProc("CimCreateAlternateStream")
+	procCimCreateFile                  = modcimfs.NewProc("CimCreateFile")
+	procCimCreateHardLink              = modcimfs.NewProc("CimCreateHardLink")
+	procCimCreateImage                 = modcimfs.NewProc("CimCreateImage")
+	procCimCreateImage2                = modcimfs.NewProc("CimCreateImage2")
+	procCimCreateMergeLink             = modcimfs.NewProc("CimCreateMergeLink")
+	procCimDeletePath                  = modcimfs.NewProc("CimDeletePath")
+	procCimDismountImage               = modcimfs.NewProc("CimDismountImage")
+	procCimGetVerificationInformation  = modcimfs.NewProc("CimGetVerificationInformation")
+	procCimGetVerificationInformation2 = modcimfs.NewProc("CimGetVerificationInformation2")
+	procCimMergeMountImage             = modcimfs.NewProc("CimMergeMountImage")
+	procCimMergeMountVerifiedImage     = modcimfs.NewProc("CimMergeMountVerifiedImage")
+	procCimMountImage                  = modcimfs.NewProc("CimMountImage")
+	procCimMountVerifiedImage          = modcimfs.NewProc("CimMountVerifiedImage")
+	procCimQueryBlockInfo              = modcimfs.NewProc("CimQueryBlockInfo")
+	procCimSealImage                   = modcimfs.NewProc("CimSealImage")
+	procCimTombstoneFile               = modcimfs.NewProc("CimTombstoneFile")
+	procCimWriteStream                 = modcimfs.NewProc("CimWriteStream")
 )
 
 func CimAddFsToMergedImage(cimFSHandle FsHandle, path string) (hr error) {
@@ -366,6 +368,30 @@ func _CimGetVerificationInformation(blockCimPath *uint16, isSealed *uint32, hash
 	return
 }
 
+func CimGetVerificationInformation2(blockCimPath string, flags VerificationInfoFlags, isSealed *uint32, hashSize *uint64, signatureOffset *uint64, signatureSize *uint64, fixedHeaderSize *uint64, hash *byte, signature *byte, signatureType *SignatureType, hashAlgorithm *HashAlgorithm) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(blockCimPath)
+	if hr != nil {
+		return
+	}
+	return _CimGetVerificationInformation2(_p0, flags, isSealed, hashSize, signatureOffset, signatureSize, fixedHeaderSize, hash, signature, signatureType, hashAlgorithm)
+}
+
+func _CimGetVerificationInformation2(blockCimPath *uint16, flags VerificationInfoFlags, isSealed *uint32, hashSize *uint64, signatureOffset *uint64, signatureSize *uint64, fixedHeaderSize *uint64, hash *byte, signature *byte, signatureType *SignatureType, hashAlgorithm *HashAlgorithm) (hr error) {
+	hr = procCimGetVerificationInformation2.Find()
+	if hr != nil {
+		return
+	}
+	r0, _, _ := syscall.SyscallN(procCimGetVerificationInformation2.Addr(), uintptr(unsafe.Pointer(blockCimPath)), uintptr(flags), uintptr(unsafe.Pointer(isSealed)), uintptr(unsafe.Pointer(hashSize)), uintptr(unsafe.Pointer(signatureOffset)), uintptr(unsafe.Pointer(signatureSize)), uintptr(unsafe.Pointer(fixedHeaderSize)), uintptr(unsafe.Pointer(hash)), uintptr(unsafe.Pointer(signature)), uintptr(unsafe.Pointer(signatureType)), uintptr(unsafe.Pointer(hashAlgorithm)))
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
 func CimMergeMountImage(numCimPaths uint32, backingImagePaths *ImagePath, flags uint32, volumeID *GUID) (hr error) {
 	hr = procCimMergeMountImage.Find()
 	if hr != nil {
@@ -445,6 +471,30 @@ func _CimMountVerifiedImage(imagePath *uint16, fsName *uint16, flags uint32, vol
 		return
 	}
 	r0, _, _ := syscall.SyscallN(procCimMountVerifiedImage.Addr(), uintptr(unsafe.Pointer(imagePath)), uintptr(unsafe.Pointer(fsName)), uintptr(flags), uintptr(unsafe.Pointer(volumeID)), uintptr(hashSize), uintptr(unsafe.Pointer(hash)))
+	if int32(r0) < 0 {
+		if r0&0x1fff0000 == 0x00070000 {
+			r0 &= 0xffff
+		}
+		hr = syscall.Errno(r0)
+	}
+	return
+}
+
+func CimQueryBlockInfo(blockCimPath string, cimInfoBufferSize uint32, cimInfoBuffer *CimInfo, requiredBufferSize *uint32, cimCount *uint32) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(blockCimPath)
+	if hr != nil {
+		return
+	}
+	return _CimQueryBlockInfo(_p0, cimInfoBufferSize, cimInfoBuffer, requiredBufferSize, cimCount)
+}
+
+func _CimQueryBlockInfo(blockCimPath *uint16, cimInfoBufferSize uint32, cimInfoBuffer *CimInfo, requiredBufferSize *uint32, cimCount *uint32) (hr error) {
+	hr = procCimQueryBlockInfo.Find()
+	if hr != nil {
+		return
+	}
+	r0, _, _ := syscall.SyscallN(procCimQueryBlockInfo.Addr(), uintptr(unsafe.Pointer(blockCimPath)), uintptr(cimInfoBufferSize), uintptr(unsafe.Pointer(cimInfoBuffer)), uintptr(unsafe.Pointer(requiredBufferSize)), uintptr(unsafe.Pointer(cimCount)))
 	if int32(r0) < 0 {
 		if r0&0x1fff0000 == 0x00070000 {
 			r0 &= 0xffff

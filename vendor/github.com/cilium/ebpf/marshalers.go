@@ -20,7 +20,7 @@ import (
 // unsafe.Pointer.
 func marshalMapSyscallInput(data any, length int) (sys.Pointer, error) {
 	if ptr, ok := data.(unsafe.Pointer); ok {
-		return sys.NewPointer(ptr), nil
+		return sys.UnsafePointer(ptr), nil
 	}
 
 	buf, err := sysenc.Marshal(data, length)
@@ -62,7 +62,7 @@ func appendPerCPUSlice(buf []byte, slice any, possibleCPUs, elemLength, alignedE
 
 	// Grow increases the slice's capacity, _if_necessary_
 	buf = slices.Grow(buf, alignedElemLength*possibleCPUs)
-	for i := 0; i < sliceLen; i++ {
+	for i := range sliceLen {
 		elem := sliceValue.Index(i).Interface()
 		elemBytes, err := sysenc.Marshal(elem, elemLength)
 		if err != nil {
@@ -96,7 +96,7 @@ func marshalPerCPUValue(slice any, elemLength int) (sys.Pointer, error) {
 		return sys.Pointer{}, err
 	}
 
-	return sys.NewSlicePointer(buf), nil
+	return sys.UnsafeSlicePointer(buf), nil
 }
 
 // marshalBatchPerCPUValue encodes a batch-sized slice of slices containing
@@ -118,7 +118,7 @@ func marshalBatchPerCPUValue(slice any, batchLen, elemLength int) ([]byte, error
 	}
 	alignedElemLength := internal.Align(elemLength, 8)
 	buf := make([]byte, 0, batchLen*alignedElemLength*possibleCPUs)
-	for i := 0; i < batchLen; i++ {
+	for i := range batchLen {
 		batch := sliceValue.Slice(i*possibleCPUs, (i+1)*possibleCPUs).Interface()
 		buf, err = appendPerCPUSlice(buf, batch, possibleCPUs, elemLength, alignedElemLength)
 		if err != nil {
@@ -150,9 +150,9 @@ func unmarshalPerCPUValue(slice any, elemLength int, buf []byte) error {
 	}
 
 	sliceElemType := sliceType.Elem()
-	sliceElemIsPointer := sliceElemType.Kind() == reflect.Ptr
+	sliceElemIsPointer := sliceElemType.Kind() == reflect.Pointer
 	stride := internal.Align(elemLength, 8)
-	for i := 0; i < possibleCPUs; i++ {
+	for i := range possibleCPUs {
 		var elem any
 		v := sliceValue.Index(i)
 		if sliceElemIsPointer {
@@ -199,7 +199,7 @@ func unmarshalBatchPerCPUValue(slice any, batchLen, elemLength int, buf []byte) 
 			len(buf), batchLen*fullValueSize)
 	}
 
-	for i := 0; i < batchLen; i++ {
+	for i := range batchLen {
 		elem := sliceValue.Slice(i*possibleCPUs, (i+1)*possibleCPUs).Interface()
 		if err := unmarshalPerCPUValue(elem, elemLength, buf[:fullValueSize]); err != nil {
 			return fmt.Errorf("batch %d: %w", i, err)
