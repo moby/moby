@@ -675,7 +675,13 @@ func (n *network) maxMTU() int {
 	if n.mtu != 0 {
 		mtu = n.mtu
 	}
-	mtu -= vxlanEncap
+	encap := vxlanEncap
+	if n.driver != nil {
+		if v6, err := n.driver.isIPv6Transport(); err == nil && v6 {
+			encap = vxlanEncapIPv6
+		}
+	}
+	mtu -= encap
 	if n.secure {
 		// In case of encryption account for the
 		// esp packet expansion and padding
