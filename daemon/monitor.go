@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -189,7 +190,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 	switch e {
 	case libcontainerdtypes.EventOOM:
 		// StateOOM is Linux specific and should never be hit on Windows
-		if isWindows {
+		if runtime.GOOS == "windows" {
 			return errors.New("received StateOOM from libcontainerd on Windows. This should never happen")
 		}
 

@@ -45,7 +45,7 @@ func merge(userConf, imageConf *containertypes.Config) error {
 			imageEnvKey, _, _ := strings.Cut(imageEnv, "=")
 			for _, userEnv := range userConf.Env {
 				userEnvKey, _, _ := strings.Cut(userEnv, "=")
-				if isWindows {
+				if runtime.GOOS == "windows" {
 					// Case insensitive environment variables on Windows
 					found = strings.EqualFold(imageEnvKey, userEnvKey)
 				} else {
@@ -131,7 +131,7 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 	}
 
 	// It is not possible to commit a running container on Windows
-	if isWindows && container.State.IsRunning() {
+	if runtime.GOOS == "windows" && container.State.IsRunning() {
 		return "", errors.Errorf("%+v does not support commit of a running container", runtime.GOOS)
 	}
 
