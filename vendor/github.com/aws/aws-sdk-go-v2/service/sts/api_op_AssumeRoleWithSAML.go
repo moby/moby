@@ -202,6 +202,12 @@ type AssumeRoleWithSAMLInput struct {
 	// [Creating a URL that Enables Federated Users to Access the Amazon Web Services Management Console]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_enable-console-custom-url.html
 	DurationSeconds *int32
 
+	// The minimum size, in bytes, of the session token that STS issues for the
+	// request. STS increases the session token to at least this size, regardless of
+	// its actual content. The value must not exceed 4,096 bytes. When set to 0 or not
+	// specified, the session token size is unchanged.
+	MinimumSessionTokenSize *int32
+
 	// An IAM policy in JSON format that you want to use as an inline session policy.
 	//
 	// This parameter is optional. Passing policies to this operation returns new
@@ -305,7 +311,17 @@ type AssumeRoleWithSAMLOutput struct {
 	// session tags combined passed in the request. The request fails if the packed
 	// size is greater than 100 percent, which means the policies and tags exceeded the
 	// allowed space.
+	//
+	// Deprecated: Deprecated. Replaced by SessionTokenUtilization.
 	PackedPolicySize *int32
+
+	// The size, in bytes, of the session token returned in the Credentials for this
+	// response.
+	SessionTokenSize *int32
+
+	// The percentage (0-100) of the maximum allowed session token size that the
+	// returned session token consumes.
+	SessionTokenUtilization *int32
 
 	// The value in the SourceIdentity attribute in the SAML assertion. The source
 	// identity value persists across [chained role]sessions.

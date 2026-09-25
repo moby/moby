@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -73,6 +75,24 @@ type GetQueryResultsInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetQueryResultsInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetQueryResultsRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetQueryResultsInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.MaxItems != nil {
+		s.WriteInt32(schemas.GetQueryResultsRequest_maxItems, *v.MaxItems)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.GetQueryResultsRequest_nextToken, *v.NextToken)
+	}
+	if v.QueryId != nil {
+		s.WriteString(schemas.GetQueryResultsRequest_queryId, *v.QueryId)
+	}
+}
+
 type GetQueryResultsOutput struct {
 
 	// If you associated an KMS key with the CloudWatch Logs Insights query results in
@@ -122,13 +142,69 @@ type GetQueryResultsOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetQueryResultsOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetQueryResultsResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetQueryResultsOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.EncryptionKey != nil {
+		s.WriteString(schemas.GetQueryResultsResponse_encryptionKey, *v.EncryptionKey)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.GetQueryResultsResponse_nextToken, *v.NextToken)
+	}
+	if v.QueryLanguage != "" {
+		s.WriteString(schemas.GetQueryResultsResponse_queryLanguage, string(v.QueryLanguage))
+	}
+	serializeQueryResults(s, schemas.GetQueryResultsResponse_results, v.Results)
+	if v.Statistics != nil {
+		s.WriteStruct(schemas.GetQueryResultsResponse_statistics)
+		v.Statistics.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.Status != "" {
+		s.WriteString(schemas.GetQueryResultsResponse_status, string(v.Status))
+	}
+}
+func (v *GetQueryResultsOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.GetQueryResultsResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.GetQueryResultsResponse_encryptionKey:
+			v.EncryptionKey = new(string)
+			return d.ReadString(schemas.GetQueryResultsResponse_encryptionKey, v.EncryptionKey)
+		case schemas.GetQueryResultsResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.GetQueryResultsResponse_nextToken, v.NextToken)
+		case schemas.GetQueryResultsResponse_queryLanguage:
+			var ev string
+			if err := d.ReadString(schemas.GetQueryResultsResponse_queryLanguage, &ev); err != nil {
+				return err
+			}
+			v.QueryLanguage = types.QueryLanguage(ev)
+			return nil
+		case schemas.GetQueryResultsResponse_results:
+			return deserializeQueryResults(d, schemas.GetQueryResultsResponse_results, &v.Results)
+		case schemas.GetQueryResultsResponse_statistics:
+			v.Statistics = &types.QueryStatistics{}
+			return v.Statistics.Deserialize(d)
+		case schemas.GetQueryResultsResponse_status:
+			var ev string
+			if err := d.ReadString(schemas.GetQueryResultsResponse_status, &ev); err != nil {
+				return err
+			}
+			v.Status = types.QueryStatus(ev)
+			return nil
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationGetQueryResultsMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpGetQueryResults{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetQueryResults, schemas.GetQueryResultsRequest, schemas.GetQueryResultsResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpGetQueryResults{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetQueryResults, schemas.GetQueryResultsRequest, schemas.GetQueryResultsResponse), output: &GetQueryResultsOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

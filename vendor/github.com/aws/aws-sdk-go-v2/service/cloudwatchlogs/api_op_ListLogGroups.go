@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -104,6 +106,34 @@ type ListLogGroupsInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListLogGroupsInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListLogGroupsRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListLogGroupsInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeAccountIds(s, schemas.ListLogGroupsRequest_accountIdentifiers, v.AccountIdentifiers)
+	serializeDataSourceFilters(s, schemas.ListLogGroupsRequest_dataSources, v.DataSources)
+	serializeFieldIndexNames(s, schemas.ListLogGroupsRequest_fieldIndexNames, v.FieldIndexNames)
+	if v.IncludeLinkedAccounts != nil {
+		s.WriteBool(schemas.ListLogGroupsRequest_includeLinkedAccounts, *v.IncludeLinkedAccounts)
+	}
+	if v.Limit != nil {
+		s.WriteInt32(schemas.ListLogGroupsRequest_limit, *v.Limit)
+	}
+	if v.LogGroupClass != "" {
+		s.WriteString(schemas.ListLogGroupsRequest_logGroupClass, string(v.LogGroupClass))
+	}
+	if v.LogGroupNamePattern != nil {
+		s.WriteString(schemas.ListLogGroupsRequest_logGroupNamePattern, *v.LogGroupNamePattern)
+	}
+	serializeTagFilters(s, schemas.ListLogGroupsRequest_logGroupTags, v.LogGroupTags)
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListLogGroupsRequest_nextToken, *v.NextToken)
+	}
+}
+
 type ListLogGroupsOutput struct {
 
 	// An array of structures, where each structure contains the information about one
@@ -119,13 +149,35 @@ type ListLogGroupsOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListLogGroupsOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListLogGroupsResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListLogGroupsOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeLogGroupSummaries(s, schemas.ListLogGroupsResponse_logGroups, v.LogGroups)
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListLogGroupsResponse_nextToken, *v.NextToken)
+	}
+}
+func (v *ListLogGroupsOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ListLogGroupsResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ListLogGroupsResponse_logGroups:
+			return deserializeLogGroupSummaries(d, schemas.ListLogGroupsResponse_logGroups, &v.LogGroups)
+		case schemas.ListLogGroupsResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.ListLogGroupsResponse_nextToken, v.NextToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationListLogGroupsMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpListLogGroups{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListLogGroups, schemas.ListLogGroupsRequest, schemas.ListLogGroupsResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpListLogGroups{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListLogGroups, schemas.ListLogGroupsRequest, schemas.ListLogGroupsResponse), output: &ListLogGroupsOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -48,6 +50,21 @@ type GetLogRecordInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetLogRecordInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetLogRecordRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetLogRecordInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LogRecordPointer != nil {
+		s.WriteString(schemas.GetLogRecordRequest_logRecordPointer, *v.LogRecordPointer)
+	}
+	if v.Unmask != false {
+		s.WriteBool(schemas.GetLogRecordRequest_unmask, v.Unmask)
+	}
+}
+
 type GetLogRecordOutput struct {
 
 	// The requested log event, as a JSON string.
@@ -59,13 +76,29 @@ type GetLogRecordOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetLogRecordOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetLogRecordResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetLogRecordOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeLogRecord(s, schemas.GetLogRecordResponse_logRecord, v.LogRecord)
+}
+func (v *GetLogRecordOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.GetLogRecordResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.GetLogRecordResponse_logRecord:
+			return deserializeLogRecord(d, schemas.GetLogRecordResponse_logRecord, &v.LogRecord)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationGetLogRecordMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpGetLogRecord{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetLogRecord, schemas.GetLogRecordRequest, schemas.GetLogRecordResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpGetLogRecord{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetLogRecord, schemas.GetLogRecordRequest, schemas.GetLogRecordResponse), output: &GetLogRecordOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

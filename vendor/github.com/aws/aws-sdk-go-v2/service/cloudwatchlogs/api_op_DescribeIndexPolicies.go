@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -51,6 +53,19 @@ type DescribeIndexPoliciesInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeIndexPoliciesInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeIndexPoliciesRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeIndexPoliciesInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeDescribeIndexPoliciesLogGroupIdentifiers(s, schemas.DescribeIndexPoliciesRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeIndexPoliciesRequest_nextToken, *v.NextToken)
+	}
+}
+
 type DescribeIndexPoliciesOutput struct {
 
 	// An array containing the field index policies.
@@ -65,13 +80,35 @@ type DescribeIndexPoliciesOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeIndexPoliciesOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeIndexPoliciesResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeIndexPoliciesOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeIndexPolicies(s, schemas.DescribeIndexPoliciesResponse_indexPolicies, v.IndexPolicies)
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeIndexPoliciesResponse_nextToken, *v.NextToken)
+	}
+}
+func (v *DescribeIndexPoliciesOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DescribeIndexPoliciesResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DescribeIndexPoliciesResponse_indexPolicies:
+			return deserializeIndexPolicies(d, schemas.DescribeIndexPoliciesResponse_indexPolicies, &v.IndexPolicies)
+		case schemas.DescribeIndexPoliciesResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.DescribeIndexPoliciesResponse_nextToken, v.NextToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDescribeIndexPoliciesMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeIndexPolicies{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeIndexPolicies, schemas.DescribeIndexPoliciesRequest, schemas.DescribeIndexPoliciesResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeIndexPolicies{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeIndexPolicies, schemas.DescribeIndexPoliciesRequest, schemas.DescribeIndexPoliciesResponse), output: &DescribeIndexPoliciesOutput{}}, middleware.After); err != nil {
 		return err
 	}
 
