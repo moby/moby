@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	stdnet "net"
 	"net/netip"
 	"os"
@@ -10,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -419,11 +422,11 @@ func TestServiceVIPAcrossRollingUpdate(t *testing.T) {
 	poll.WaitOn(t, checkVIP, poll.WithTimeout(30*time.Second))
 }
 
-// checkIngressPort returns a poll check that a service's published port is
+// checkPublishedPort returns a poll check that a service's published port is
 // accessible from host. The tasks run httpd with nothing to serve, so a "404 Not
 // Found" is the proof that the request reached one - anything short of a task
 // answering is a connection error instead.
-func checkIngressPort(t *testing.T, host networking.Host, hostAddr, port string) func(poll.LogT) poll.Result {
+func checkPublishedPort(t *testing.T, host networking.Host, hostAddr, port string) func(poll.LogT) poll.Result {
 	return func(_ poll.LogT) poll.Result {
 		var res *icmd.Result
 		// This is called from inside a "Do()" thread in the docker host's netns, but it
@@ -440,25 +443,30 @@ func checkIngressPort(t *testing.T, host networking.Host, hostAddr, port string)
 }
 
 // ingressPortSpec is an endpoint spec publishing each of published on the ingress
-// network, every one of them mapped to target port 80.
+// network over TCP, every one of them mapped to target port 80.
 func ingressPortSpec(published ...uint32) *swarmtypes.EndpointSpec {
+	return portSpec(network.TCP, swarmtypes.PortConfigPublishModeIngress, published...)
+}
+
+func portSpec(proto network.IPProtocol, mode swarmtypes.PortConfigPublishMode, published ...uint32) *swarmtypes.EndpointSpec {
 	spec := &swarmtypes.EndpointSpec{}
 	for _, p := range published {
 		spec.Ports = append(spec.Ports, swarmtypes.PortConfig{
-			Protocol:      "tcp",
+			Protocol:      proto,
 			TargetPort:    80,
 			PublishedPort: p,
-			PublishMode:   swarmtypes.PortConfigPublishModeIngress,
+			PublishMode:   mode,
 		})
 	}
 	return spec
 }
 
-// createIngressService creates a service publishing endpoint's ports, and waits
-// for replicas of its tasks to be running.
-func createIngressService(ctx context.Context, t *testing.T, d *daemon.Daemon, c *client.Client, name string, replicas uint64, endpoint *swarmtypes.EndpointSpec) string {
+// createPublishingService creates a service publishing endpoint's ports, and waits
+// for replicas of its tasks to be running. It serves HTTP unless opts override
+// the command.
+func createPublishingService(ctx context.Context, t *testing.T, d *daemon.Daemon, c *client.Client, name string, replicas uint64, endpoint *swarmtypes.EndpointSpec, opts ...swarm.ServiceSpecOpt) string {
 	t.Helper()
-	id := swarm.CreateService(ctx, t, d,
+	id := swarm.CreateService(ctx, t, d, append([]swarm.ServiceSpecOpt{
 		swarm.ServiceWithName(name),
 		swarm.ServiceWithCommand([]string{"httpd", "-f"}),
 		swarm.ServiceWithEndpoint(endpoint),
@@ -471,7 +479,7 @@ func createIngressService(ctx context.Context, t *testing.T, d *daemon.Daemon, c
 			// one arrives, leaving nothing shared to get wrong.
 			spec.UpdateConfig = &swarmtypes.UpdateConfig{Order: swarmtypes.UpdateOrderStartFirst}
 		},
-	)
+	}, opts...)...)
 	t.Log("Waiting for service", name, "to start")
 	poll.WaitOn(t, swarm.RunningTasksCount(ctx, c, id, replicas), swarm.ServicePoll)
 	return id
@@ -504,7 +512,7 @@ func TestIngressPortsAcrossServiceUpdate(t *testing.T) {
 	l3.AddHost(t, l3SegHost, "ns-"+l3SegHost, "eth0", netip.MustParsePrefix(hostAddr+"/24"))
 
 	checkHTTP := func(port string) func(poll.LogT) poll.Result {
-		return checkIngressPort(t, l3.Hosts[l3SegHost], hostAddr, port)
+		return checkPublishedPort(t, l3.Hosts[l3SegHost], hostAddr, port)
 	}
 
 	l3.Hosts[l3SegHost].Do(t, func() {
@@ -514,7 +522,7 @@ func TestIngressPortsAcrossServiceUpdate(t *testing.T) {
 		defer c.Close()
 
 		createService := func(name string, endpoint *swarmtypes.EndpointSpec) string {
-			return createIngressService(ctx, t, d, c, name, 1, endpoint)
+			return createPublishingService(ctx, t, d, c, name, 1, endpoint)
 		}
 
 		serviceID := createService("test-"+l3SegHost, ingressPortSpec(8080))
@@ -598,7 +606,7 @@ func TestIngressPortsAfterFailedPublish(t *testing.T) {
 	l3.AddHost(t, l3SegHost, "ns-"+l3SegHost, "eth0", netip.MustParsePrefix(hostAddr+"/24"))
 
 	checkHTTP := func(port string) func(poll.LogT) poll.Result {
-		return checkIngressPort(t, l3.Hosts[l3SegHost], hostAddr, port)
+		return checkPublishedPort(t, l3.Hosts[l3SegHost], hostAddr, port)
 	}
 
 	// The daemon finds iptables on its PATH, so putting a wrapper ahead of the real
@@ -628,7 +636,7 @@ for arg in $@; do
 		c := d.NewClientT(t)
 		defer c.Close()
 
-		serviceID := createIngressService(ctx, t, d, c, "test-"+l3SegHost, 2, ingressPortSpec(8080))
+		serviceID := createPublishingService(ctx, t, d, c, "test-"+l3SegHost, 2, ingressPortSpec(8080))
 		t.Log("Checking http access on the initial published port")
 		poll.WaitOn(t, checkHTTP("8080"), poll.WithTimeout(30*time.Second))
 
@@ -684,4 +692,303 @@ for arg in $@; do
 			return poll.Success()
 		}, poll.WithTimeout(20*time.Second))
 	})
+}
+
+// TestSwarmPublishedPortsOverIPv6 checks that the ports a Swarm service publishes
+// are reachable over IPv6 - and that when the daemon is configured so they can't
+// be, an IPv6 client is refused rather than left waiting.
+//
+// Neither the ingress network nor docker_gwbridge has an IPv6 address, so there is
+// no IPv6 path to a task. Host IPv6 traffic reaches one the way it reaches any
+// other IPv4-only container: docker-proxy accepts it on "[::]" and forwards over
+// IPv4. Disabling the userland proxy takes that path away, along with the IPv6
+// binding, so the traffic is refused.
+//
+// Regression test for https://github.com/moby/moby/issues/53091.
+func TestSwarmPublishedPortsOverIPv6(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
+	skip.If(t, testEnv.FirewallBackendDriver() == "nftables")
+	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
+	ctx := setupTest(t)
+
+	// Run the test in its own netns, to avoid interfering with iptables on the test
+	// host - and so that the host ports it publishes are its own. A dual-stack
+	// segment, with a host per userland-proxy setting so the two can run at once
+	// without contending for ports, and a neighbour to probe from over the wire.
+	const (
+		hostProxy   = "spv6a"
+		hostNoProxy = "spv6b"
+		neighbour   = "spv6n"
+	)
+	l3 := networking.NewL3Segment(t, "test-spv6",
+		netip.MustParsePrefix("192.168.114.1/24"),
+		netip.MustParsePrefix("fd6a:9c1e:2f3b::1/64"))
+	// Cleanup rather than defer: the parallel subtests below don't start until this
+	// function has returned, and a defer would tear the segment down first.
+	t.Cleanup(func() { l3.Destroy(t) })
+	l3.AddHost(t, neighbour, "ns-"+neighbour, "eth0",
+		netip.MustParsePrefix("192.168.114.3/24"),
+		netip.MustParsePrefix("fd6a:9c1e:2f3b::3/64"))
+
+	// Ingress and host mode reach the bridge driver by different routes - the
+	// ingress sandbox's gateway endpoint, and the task's own - and TCP and UDP are
+	// bound and refused by different machinery, so all four combinations are
+	// published, by one service so there's only one to wait for.
+	const (
+		tcpIngressPort = 8080
+		tcpHostPort    = 8081
+		udpIngressPort = 8082
+		udpHostPort    = 8083
+
+		// httpd serves both TCP ports. The UDP ports get one container port each -
+		// a listening nc serves one peer at a time, so probes would otherwise queue.
+		httpPort         = 80
+		udpIngressTarget = 81
+		udpHostTarget    = 82
+	)
+
+	for _, tc := range []struct {
+		hostname      string
+		userlandProxy bool
+		addr4, addr6  string
+	}{
+		{hostname: hostProxy, userlandProxy: true, addr4: "192.168.114.2", addr6: "fd6a:9c1e:2f3b::2"},
+		{hostname: hostNoProxy, userlandProxy: false, addr4: "192.168.114.4", addr6: "fd6a:9c1e:2f3b::4"},
+	} {
+		l3.AddHost(t, tc.hostname, "ns-"+tc.hostname, "eth0",
+			netip.MustParsePrefix(tc.addr4+"/24"),
+			netip.MustParsePrefix(tc.addr6+"/64"))
+		// A refused UDP port answers with an ICMPv6 port-unreachable, rate limited
+		// by default (net.ipv6.icmp.ratelimit, 100ms) - and a refusal the limiter
+		// swallows is indistinguishable from the silent drop under test. Loopback
+		// is exempt, so it would pass locally and flake in CI. Spacing the probes
+		// out is no defence; turn the limit off where the errors originate.
+		l3.Hosts[tc.hostname].MustRun(t, "sysctl", "-w", "net.ipv6.icmp.ratelimit=0")
+
+		t.Run(fmt.Sprintf("userland-proxy=%t", tc.userlandProxy), func(t *testing.T) {
+			// Each setting has a netns and a daemon to itself, so the two can run
+			// side by side.
+			t.Parallel()
+
+			published := []*publishedTestPort{
+				{proto: network.TCP, mode: swarmtypes.PortConfigPublishModeIngress, modeName: "ingress", port: tcpIngressPort, target: httpPort},
+				{proto: network.TCP, mode: swarmtypes.PortConfigPublishModeHost, modeName: "host", port: tcpHostPort, target: httpPort},
+				{proto: network.UDP, mode: swarmtypes.PortConfigPublishModeIngress, modeName: "ingress", port: udpIngressPort, target: udpIngressTarget},
+				{proto: network.UDP, mode: swarmtypes.PortConfigPublishModeHost, modeName: "host", port: udpHostPort, target: udpHostTarget},
+			}
+			endpoint := &swarmtypes.EndpointSpec{}
+			for _, p := range published {
+				endpoint.Ports = append(endpoint.Ports, swarmtypes.PortConfig{
+					Protocol:      p.proto,
+					TargetPort:    uint32(p.target),
+					PublishedPort: uint32(p.port),
+					PublishMode:   p.mode,
+				})
+			}
+
+			var c *client.Client
+			l3.Hosts[tc.hostname].Do(t, func() {
+				d := swarm.NewSwarm(ctx, t, testEnv,
+					daemon.WithSwarmIptables(true),
+					daemon.WithUserlandProxy(tc.userlandProxy))
+				c = d.NewClientT(t)
+				// Cleanup rather than defer, again: the parallel checks below run
+				// after this returns, and a defer would stop the daemon first.
+				t.Cleanup(func() {
+					c.Close()
+					d.Stop(t)
+				})
+
+				// A listening nc latches onto the first peer it hears from and
+				// ignores every other source address for as long as it runs, so
+				// without -w only the first probe would ever be seen. It quits after
+				// a second's quiet; the loop brings up a fresh one.
+				id := createPublishingService(ctx, t, d, c, "test-"+tc.hostname, 1, endpoint,
+					swarm.ServiceWithCommand([]string{"sh", "-c", fmt.Sprintf(
+						"httpd -f & while true; do nc -u -l -p %d -w 1; done & while true; do nc -u -l -p %d -w 1; done",
+						udpIngressTarget, udpHostTarget)}))
+				for _, p := range published {
+					p.serviceID = id
+				}
+			})
+
+			for _, p := range published {
+				for _, from := range []struct {
+					name  string
+					host  networking.Host
+					addr4 string
+					addr6 string
+				}{
+					{name: "loopback", host: l3.Hosts[tc.hostname], addr4: "127.0.0.1", addr6: "::1"},
+					{name: "host-address", host: l3.Hosts[tc.hostname], addr4: tc.addr4, addr6: tc.addr6},
+					{name: "remote-host", host: l3.Hosts[neighbour], addr4: tc.addr4, addr6: tc.addr6},
+				} {
+					// A subtest per combination, so a check giving up takes only its
+					// own case down with it - poll.WaitOn ends the goroutine it runs
+					// on, and which ports broke shows how far a regression reaches.
+					// They only read, so they run in parallel: a broken port costs
+					// one timeout for the whole matrix, not one apiece.
+					t.Run(fmt.Sprintf("%s/%s/from-%s", p.proto, p.modeName, from.name), func(t *testing.T) {
+						t.Parallel()
+
+						// IPv4 works either way - through the proxy, or by DNAT
+						// without it - so checking it first settles that the port is
+						// published at all, and what IPv6 finds below is the steady
+						// state rather than a service still coming up.
+						t.Log("Checking IPv4 access")
+						p.checkReachable(ctx, t, c, from.host, from.addr4, from.name+"-v4")
+
+						if tc.userlandProxy {
+							t.Log("Checking IPv6 access")
+							p.checkReachable(ctx, t, c, from.host, from.addr6, from.name+"-v6")
+							return
+						}
+
+						// Without the proxy there's no IPv6 path to the task, and the
+						// port has to say so. ECONNREFUSED specifically: traffic
+						// accepted and never served fails a reachability check just as
+						// refused traffic does, while looking like success to a client
+						// that only asks whether it was accepted.
+						t.Log("Checking IPv6 is refused")
+						err := p.probeRefused(t, from.host, from.addr6)
+						assert.Check(t, errors.Is(err, syscall.ECONNREFUSED),
+							"connecting to [%s]:%d expected ECONNREFUSED, got %v",
+							from.addr6, p.port, err)
+					})
+				}
+			}
+		})
+	}
+}
+
+// publishedTestPort is one port published by TestSwarmPublishedPortsOverIPv6,
+// and the service publishing it.
+type publishedTestPort struct {
+	proto     network.IPProtocol
+	mode      swarmtypes.PortConfigPublishMode
+	modeName  string // mode, for test output
+	port      int
+	target    int // container port, which the UDP modes keep to themselves
+	serviceID string
+}
+
+// checkReachable waits for the published port to be reachable at hostAddr from
+// host, failing its subtest if it doesn't become so. label distinguishes this
+// check from the others in the run.
+func (p *publishedTestPort) checkReachable(ctx context.Context, t *testing.T, c *client.Client, host networking.Host, hostAddr, label string) {
+	t.Helper()
+	port := strconv.Itoa(p.port)
+	check := checkPublishedPort(t, host, hostAddr, port)
+	if p.proto == network.UDP {
+		payload := fmt.Sprintf("probe-%s-%s-%s", p.proto, p.modeName, label)
+		check = checkUDPPublishedPort(ctx, t, c, host, p.serviceID, hostAddr, port, payload)
+	}
+	poll.WaitOn(t, check, poll.WithTimeout(30*time.Second))
+}
+
+// probeRefused returns the error from a single attempt to reach the published
+// port at hostAddr from host - nil if the traffic was accepted.
+func (p *publishedTestPort) probeRefused(t *testing.T, host networking.Host, hostAddr string) error {
+	t.Helper()
+	port := strconv.Itoa(p.port)
+	if p.proto == network.UDP {
+		return probeUDPPort(t, host, hostAddr, port)
+	}
+	return dialPublishedPort(t, host, hostAddr, port)
+}
+
+// checkUDPPublishedPort returns a poll check that a datagram sent to a published
+// UDP port reaches a task. A UDP sender gets no feedback, so delivery is confirmed
+// from what the task logs. Every attempt re-sends: a datagram arriving while the
+// listener is between peers is lost, and UDP won't retransmit it.
+func checkUDPPublishedPort(ctx context.Context, t *testing.T, c *client.Client, host networking.Host, serviceID, hostAddr, port, payload string) func(poll.LogT) poll.Result {
+	return func(_ poll.LogT) poll.Result {
+		var sendErr error
+		// This is called from inside a "Do()" thread in the docker host's netns, but
+		// it uses poll.WaitOn - which runs the check in a different goroutine.
+		host.Do(t, func() {
+			var conn stdnet.Conn
+			conn, sendErr = stdnet.Dial("udp", stdnet.JoinHostPort(hostAddr, port))
+			if sendErr != nil {
+				return
+			}
+			defer conn.Close()
+			_, sendErr = conn.Write([]byte(payload + "\n"))
+		})
+		if sendErr != nil {
+			return poll.Continue("sending to %s: %v", stdnet.JoinHostPort(hostAddr, port), sendErr)
+		}
+
+		logs, err := serviceStdout(ctx, c, serviceID)
+		if err != nil {
+			return poll.Continue("reading service logs: %v", err)
+		}
+		if !strings.Contains(logs, payload) {
+			return poll.Continue("%q not found in service logs", payload)
+		}
+		return poll.Success()
+	}
+}
+
+func serviceStdout(ctx context.Context, c *client.Client, serviceID string) (string, error) {
+	rdr, err := c.ServiceLogs(ctx, serviceID, client.ServiceLogsOptions{ShowStdout: true})
+	if err != nil {
+		return "", err
+	}
+	defer rdr.Close()
+	out, err := io.ReadAll(rdr)
+	return string(out), err
+}
+
+// dialPublishedPort opens a TCP connection to hostAddr:port from host's netns and
+// returns the error the attempt failed with, or nil if it was accepted. Unlike
+// checkPublishedPort it says nothing about what's behind the port - only what the
+// host did with the handshake.
+func dialPublishedPort(t *testing.T, host networking.Host, hostAddr, port string) error {
+	t.Helper()
+	var err error
+	host.Do(t, func() {
+		var conn stdnet.Conn
+		// Dial on this goroutine, which Do has locked to a thread in the host's
+		// netns - the connection must be made from in there.
+		conn, err = stdnet.DialTimeout("tcp", stdnet.JoinHostPort(hostAddr, port), 5*time.Second)
+		if err == nil {
+			conn.Close()
+		}
+	})
+	return err
+}
+
+// probeUDPPort sends datagrams to hostAddr:port from host's netns until one of them
+// draws an error, and returns that error - or nil if they were all swallowed.
+//
+// UDP has no handshake to refuse, so nothing fails at connect time: a host with
+// nothing bound answers with an ICMP port-unreachable, which the kernel reports on
+// the connected socket's next operation. Re-sending, rather than sending once and
+// reading, is what makes that robust - a read only ever reports on the datagram
+// already sent, and one lost on the way draws no error to wait for. A miss reads as
+// no error at all, just like a reintroduced bug, and repeating costs nothing here:
+// ICMP rate limiting is off in this netns.
+func probeUDPPort(t *testing.T, host networking.Host, hostAddr, port string) error {
+	t.Helper()
+	var err error
+	host.Do(t, func() {
+		var conn stdnet.Conn
+		conn, err = stdnet.Dial("udp", stdnet.JoinHostPort(hostAddr, port))
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		if _, err = conn.Write([]byte("probe\n")); err != nil {
+			return
+		}
+		for range 5 {
+			time.Sleep(200 * time.Millisecond)
+			if _, err = conn.Write([]byte("probe\n")); err != nil {
+				return
+			}
+		}
+	})
+	return err
 }
