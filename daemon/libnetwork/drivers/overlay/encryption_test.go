@@ -49,3 +49,90 @@ func TestBuildSPI(t *testing.T) {
 		}
 	}
 }
+
+func TestMaxMTU(t *testing.T) {
+	cases := []struct {
+		name     string
+		advAddr  string
+		netMTU   int
+		secure   bool
+		expected int
+	}{
+		{
+			name:     "default ipv4 unencrypted",
+			advAddr:  "192.168.1.1",
+			netMTU:   0,
+			secure:   false,
+			expected: 1450,
+		},
+		{
+			name:     "default ipv4 encrypted",
+			advAddr:  "192.168.1.1",
+			netMTU:   0,
+			secure:   true,
+			expected: 1424,
+		},
+		{
+			name:     "default ipv6 unencrypted",
+			advAddr:  "2001:db8::1",
+			netMTU:   0,
+			secure:   false,
+			expected: 1430,
+		},
+		{
+			name:     "default ipv6 encrypted",
+			advAddr:  "2001:db8::1",
+			netMTU:   0,
+			secure:   true,
+			expected: 1404,
+		},
+		{
+			name:     "custom mtu ipv6 unencrypted",
+			advAddr:  "2001:db8::1",
+			netMTU:   9000,
+			secure:   false,
+			expected: 8930,
+		},
+		{
+			name:     "custom mtu ipv6 encrypted",
+			advAddr:  "2001:db8::1",
+			netMTU:   9000,
+			secure:   true,
+			expected: 8904,
+		},
+		{
+			name:     "unknown transport defaults to ipv4 encap",
+			advAddr:  "",
+			netMTU:   0,
+			secure:   false,
+			expected: 1450,
+		},
+		{
+			name:     "nil driver defaults to ipv4 encap",
+			advAddr:  "nil",
+			netMTU:   0,
+			secure:   false,
+			expected: 1450,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var d *driver
+			if tc.advAddr != "nil" {
+				d = &driver{}
+				if tc.advAddr != "" {
+					d.advertiseAddress = netip.MustParseAddr(tc.advAddr)
+				}
+			}
+			n := &network{
+				driver: d,
+				mtu:    tc.netMTU,
+				secure: tc.secure,
+			}
+			if got := n.maxMTU(); got != tc.expected {
+				t.Errorf("maxMTU() = %d, want %d", got, tc.expected)
+			}
+		})
+	}
+}

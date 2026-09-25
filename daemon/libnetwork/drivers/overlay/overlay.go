@@ -18,11 +18,12 @@ import (
 )
 
 const (
-	NetworkType  = "overlay"
-	vethPrefix   = "veth"
-	vethLen      = len(vethPrefix) + 7
-	vxlanEncap   = 50
-	secureOption = "encrypted"
+	NetworkType    = "overlay"
+	vethPrefix     = "veth"
+	vethLen        = len(vethPrefix) + 7
+	vxlanEncap     = 50
+	vxlanEncapIPv6 = 70
+	secureOption   = "encrypted"
 )
 
 var (
