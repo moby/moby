@@ -29,10 +29,12 @@ func (id ID) Digest() digest.Digest {
 
 // V1Image stores the V1 image configuration.
 type V1Image struct {
-	// ID is a unique 64 character identifier of the image
+	// ID is the legacy V1 image ID, encoded as a 64-character hexadecimal
+	// string without the digest algorithm.
 	ID string `json:"id,omitempty"`
 
-	// Parent is the ID of the parent image.
+	// Parent is the legacy V1 ID of the parent image, encoded without the
+	// digest algorithm.
 	//
 	// Depending on how the image was created, this field may be empty and
 	// is only set for images that were built/created locally. This field
@@ -84,12 +86,16 @@ type V1Image struct {
 type Image struct {
 	V1Image
 
-	// Parent is the ID of the parent image.
+	// Parent is the content-addressable ID of the parent image.
+	//
+	// This field intentionally shadows V1Image.Parent: V1Image.Parent stores
+	// the legacy V1 ID without its digest algorithm, whereas Parent stores the
+	// full content-addressable image ID.
 	//
 	// Depending on how the image was created, this field may be empty and
 	// is only set for images that were built/created locally. This field
 	// is empty if the image was pulled from an image registry.
-	Parent ID `json:"parent,omitempty"` //nolint:govet
+	Parent ID `json:"parent,omitempty"`
 
 	// RootFS contains information about the image's RootFS, including the
 	// layer IDs.
