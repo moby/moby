@@ -35,6 +35,15 @@ func TestCopystructureNetipAddr(t *testing.T) {
 	assert.Check(t, is.DeepEqual(copied.([]netip.Addr), original, cmpopts.EquateComparable(netip.Addr{})))
 }
 
+func TestCopystructureNetipPrefix(t *testing.T) {
+	// Verify that our custom copier for netip.Prefix works correctly.
+	// Without it, copystructure.Copy produces zero-value (invalid) prefixes.
+	original := []netip.Prefix{netip.MustParsePrefix("172.30.0.0/16")}
+	copied, err := copystructure.Copy(original)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(copied.([]netip.Prefix), original, cmpopts.EquateComparable(netip.Prefix{})))
+}
+
 func newDaemonForReloadT(t *testing.T, cfg *config.Config) *Daemon {
 	t.Helper()
 	daemon := &Daemon{
