@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/internal/distribution/metadata"
@@ -225,7 +225,7 @@ func TestLayerAlreadyExists(t *testing.T) {
 			metadata:           []metadata.V2Metadata{{Digest: digest.Digest("apple"), SourceRepository: "docker.io/library/busybox"}},
 			maxExistenceChecks: 3,
 			remoteBlobs:        map[digest.Digest]distribution.Descriptor{digest.Digest("apple"): {Digest: digest.Digest("apple")}},
-			expectedDescriptor: distribution.Descriptor{Digest: digest.Digest("apple"), MediaType: schema2.MediaTypeLayer},
+			expectedDescriptor: distribution.Descriptor{Digest: digest.Digest("apple"), MediaType: c8dimages.MediaTypeDockerSchema2LayerGzip},
 			expectedExists:     true,
 			expectedRequests:   []string{"apple"},
 		},
@@ -235,7 +235,7 @@ func TestLayerAlreadyExists(t *testing.T) {
 			metadata:           []metadata.V2Metadata{{SourceRepository: "docker.io/library/busybox", Digest: digest.Digest("apple"), HMAC: "dummyhmac"}},
 			maxExistenceChecks: 3,
 			remoteBlobs:        map[digest.Digest]distribution.Descriptor{digest.Digest("apple"): {Digest: digest.Digest("apple")}},
-			expectedDescriptor: distribution.Descriptor{Digest: digest.Digest("apple"), MediaType: schema2.MediaTypeLayer},
+			expectedDescriptor: distribution.Descriptor{Digest: digest.Digest("apple"), MediaType: c8dimages.MediaTypeDockerSchema2LayerGzip},
 			expectedExists:     true,
 			expectedRequests:   []string{"apple"},
 			expectedAdditions:  []metadata.V2Metadata{{Digest: digest.Digest("apple"), SourceRepository: "docker.io/library/busybox"}},
@@ -247,7 +247,7 @@ func TestLayerAlreadyExists(t *testing.T) {
 			hmacKey:            "key",
 			maxExistenceChecks: 3,
 			remoteBlobs:        map[digest.Digest]distribution.Descriptor{digest.Digest("apple"): {Digest: digest.Digest("apple"), MediaType: "custom-media-type"}},
-			expectedDescriptor: distribution.Descriptor{Digest: digest.Digest("apple"), MediaType: schema2.MediaTypeLayer},
+			expectedDescriptor: distribution.Descriptor{Digest: digest.Digest("apple"), MediaType: c8dimages.MediaTypeDockerSchema2LayerGzip},
 			expectedExists:     true,
 			expectedRequests:   []string{"apple"},
 			expectedAdditions:  []metadata.V2Metadata{taggedMetadata("key", "apple", "docker.io/library/busybox")},
@@ -263,7 +263,7 @@ func TestLayerAlreadyExists(t *testing.T) {
 			},
 			maxExistenceChecks: 3,
 			remoteBlobs:        map[digest.Digest]distribution.Descriptor{digest.Digest("pear"): {Digest: digest.Digest("pear")}},
-			expectedDescriptor: distribution.Descriptor{Digest: digest.Digest("pear"), MediaType: schema2.MediaTypeLayer},
+			expectedDescriptor: distribution.Descriptor{Digest: digest.Digest("pear"), MediaType: c8dimages.MediaTypeDockerSchema2LayerGzip},
 			expectedExists:     true,
 			expectedRequests:   []string{"apple", "plum", "pear"},
 			expectedAdditions:  []metadata.V2Metadata{taggedMetadata("key", "pear", "127.0.0.1/myapp")},
@@ -313,7 +313,7 @@ func TestLayerAlreadyExists(t *testing.T) {
 			},
 			maxExistenceChecks: 3,
 			remoteBlobs:        map[digest.Digest]distribution.Descriptor{digest.Digest("pear"): {Digest: digest.Digest("pear")}},
-			expectedDescriptor: distribution.Descriptor{Digest: digest.Digest("pear"), MediaType: schema2.MediaTypeLayer},
+			expectedDescriptor: distribution.Descriptor{Digest: digest.Digest("pear"), MediaType: c8dimages.MediaTypeDockerSchema2LayerGzip},
 			expectedExists:     true,
 			expectedRequests:   []string{"apple", "pear"},
 			expectedAdditions:  []metadata.V2Metadata{{Digest: digest.Digest("pear"), SourceRepository: "docker.io/library/busybox"}},
@@ -375,7 +375,7 @@ func TestLayerAlreadyExists(t *testing.T) {
 			},
 			remoteBlobs:        map[digest.Digest]distribution.Descriptor{digest.Digest("1"): {Digest: digest.Digest("1")}},
 			maxExistenceChecks: 3,
-			expectedDescriptor: distribution.Descriptor{Digest: digest.Digest("1"), MediaType: schema2.MediaTypeLayer},
+			expectedDescriptor: distribution.Descriptor{Digest: digest.Digest("1"), MediaType: c8dimages.MediaTypeDockerSchema2LayerGzip},
 			expectedExists:     true,
 			expectedRequests:   []string{"2", "3", "1"},
 			expectedAdditions:  []metadata.V2Metadata{{Digest: digest.Digest("1"), SourceRepository: "docker.io/library/busybox"}},

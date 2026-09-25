@@ -6,14 +6,13 @@ import (
 	"testing"
 
 	"github.com/containerd/containerd/v2/core/content"
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/plugins/content/local"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/distribution/reference"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/ocischema"
-	"github.com/docker/distribution/manifest/schema2"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/v2/internal/testutil/labelstore"
 	"github.com/opencontainers/go-digest"
@@ -314,11 +313,11 @@ func TestDetectManifestBlobMediaTypeInvalid(t *testing.T) {
 	}
 	cases := map[string]testCase{
 		"schema 2 mediaType with manifests": {
-			[]byte(`{"mediaType": "` + schema2.MediaTypeManifest + `","manifests":[]}`),
+			[]byte(`{"mediaType": "` + c8dimages.MediaTypeDockerSchema2Manifest + `","manifests":[]}`),
 			`media-type: "application/vnd.docker.distribution.manifest.v2+json" should not have "manifests" or "fsLayers"`,
 		},
 		"schema 2 mediaType with fsLayers": {
-			[]byte(`{"mediaType": "` + schema2.MediaTypeManifest + `","fsLayers":[]}`),
+			[]byte(`{"mediaType": "` + c8dimages.MediaTypeDockerSchema2Manifest + `","fsLayers":[]}`),
 			`media-type: "application/vnd.docker.distribution.manifest.v2+json" should not have "manifests" or "fsLayers"`,
 		},
 		"oci manifest mediaType with manifests": {
@@ -326,7 +325,7 @@ func TestDetectManifestBlobMediaTypeInvalid(t *testing.T) {
 			`media-type: "application/vnd.oci.image.manifest.v1+json" should not have "manifests" or "fsLayers"`,
 		},
 		"manifest list mediaType with fsLayers": {
-			[]byte(`{"mediaType": "` + manifestlist.MediaTypeManifestList + `","fsLayers":[]}`),
+			[]byte(`{"mediaType": "` + c8dimages.MediaTypeDockerSchema2ManifestList + `","fsLayers":[]}`),
 			`media-type: "application/vnd.docker.distribution.manifest.list.v2+json" should not have "config", "layers", or "fsLayers"`,
 		},
 		"index mediaType with layers": {
