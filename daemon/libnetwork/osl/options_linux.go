@@ -28,6 +28,14 @@ func WithFamily(family int) NeighOption {
 	}
 }
 
+// WithReplace makes [Namespace.AddNeighbor] replace an entry already present
+// for the address instead of returning [NeighborSearchError].
+func WithReplace() NeighOption {
+	return func(nh *neigh) {
+		nh.replace = true
+	}
+}
+
 // WithIsBridge sets whether the interface is a bridge.
 func WithIsBridge(isBridge bool) IfaceOption {
 	return func(i *Interface) error {
