@@ -20,6 +20,15 @@ const (
 	// it can set the client to use an incompatible (or invalid) API version.
 	EnvOverrideAPIVersion = "DOCKER_API_VERSION"
 
+	// EnvOverrideMinAPIVersion is the name of the environment-variable to
+	// override the minimum API version provided by the client within constraints
+	// of the minimum and maximum (current) supported API versions.
+	//
+	// API versions older than [defaultMinimumAPIVersion] are deprecated and
+	// to be removed in a future release. This environment variable should
+	// only be used for exceptional cases.
+	EnvOverrideMinAPIVersion = "DOCKER_MIN_API_VERSION"
+
 	// EnvOverrideCertPath is the name of the environment variable that can be
 	// used to specify the directory from which to load the TLS certificates
 	// (ca.pem, cert.pem, key.pem) from. These certificates are used to configure
