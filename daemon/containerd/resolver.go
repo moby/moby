@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -21,15 +22,30 @@ import (
 	"github.com/moby/moby/v2/pkg/useragent"
 )
 
+// credsPolicy controls what happens when a request's registry host does not
+// match the host the credentials were configured for.
+type credsPolicy int
+
+const (
+	// credsLenient sends no credentials to non-matching hosts; used for
+	// pulls, which may contact mirrors or fallback hosts.
+	credsLenient credsPolicy = iota
+
+	// credsStrict fails instead of proceeding anonymously; used for
+	// pushes, which only ever contact the target registry.
+	credsStrict
+)
+
 // resolverAuth carries the parameters shared between the resolver's host
 // lookup and the authorizers it creates for each host.
 type resolverAuth struct {
 	authConfig registrytypes.AuthConfig
 	ref        reference.Named
+	policy     credsPolicy
 	userAgent  string
 }
 
-func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig *registrytypes.AuthConfig, ref reference.Named, metaHeaders http.Header) (remotes.Resolver, docker.StatusTracker) {
+func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig *registrytypes.AuthConfig, ref reference.Named, metaHeaders http.Header, policy credsPolicy) (remotes.Resolver, docker.StatusTracker) {
 	tracker := docker.NewInMemoryTracker()
 
 	headers := http.Header{}
@@ -43,6 +59,7 @@ func (i *ImageService) newResolverFromAuthConfig(ctx context.Context, authConfig
 		auth := resolverAuth{
 			authConfig: *authConfig,
 			ref:        ref,
+			policy:     policy,
 			userAgent:  headers.Get("User-Agent"),
 		}
 		var mu sync.Mutex
@@ -175,12 +192,16 @@ func authorizerFromAuthConfig(auth resolverAuth, client *http.Client) docker.Aut
 		return &bearerAuthorizer{
 			host:   cfgHost,
 			bearer: authConfig.RegistryToken,
+			strict: auth.policy == credsStrict,
 		}
 	}
 
 	opts := []docker.AuthorizerOpt{
 		docker.WithAuthCreds(func(host string) (string, string, error) {
-			if cfgHost != host {
+			if !hostMatches(cfgHost, host) {
+				if auth.policy == credsStrict && (authConfig.Password != "" || authConfig.IdentityToken != "") {
+					return "", "", fmt.Errorf("credentials configured for registry %q do not match the registry host %q; refusing to continue without credentials", cfgHost, host)
+				}
 				log.G(context.TODO()).WithFields(log.Fields{
 					"host":    host,
 					"cfgHost": cfgHost,
@@ -202,10 +223,14 @@ func authorizerFromAuthConfig(auth resolverAuth, client *http.Client) docker.Aut
 type bearerAuthorizer struct {
 	host   string
 	bearer string
+	strict bool
 }
 
 func (a *bearerAuthorizer) Authorize(ctx context.Context, req *http.Request) error {
-	if req.Host != a.host {
+	if !hostMatches(a.host, req.Host) {
+		if a.strict {
+			return fmt.Errorf("registry token configured for host %q does not match the registry host %q; refusing to continue without credentials", a.host, req.Host)
+		}
 		log.G(ctx).WithFields(log.Fields{
 			"host":    req.Host,
 			"cfgHost": a.host,

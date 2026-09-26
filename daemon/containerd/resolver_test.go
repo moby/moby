@@ -1,6 +1,7 @@
 package containerd
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -110,7 +111,7 @@ func TestResolverReusesRegistryHostsAndBearerTokensAcrossPhases(t *testing.T) {
 	}
 	authConfig := registrytypes.AuthConfig{ServerAddress: registries[0].server.URL}
 	imageService := ImageService{registryHosts: hostsFn}
-	resolver, _ := imageService.newResolverFromAuthConfig(t.Context(), &authConfig, ref, nil)
+	resolver, _ := imageService.newResolverFromAuthConfig(t.Context(), &authConfig, ref, nil, credsLenient)
 
 	_, desc, err := resolver.Resolve(t.Context(), ref.String())
 	assert.NilError(t, err)
@@ -219,7 +220,7 @@ func TestResolverPrimesAuthChallengeBeforeRegistryRequests(t *testing.T) {
 	}
 	authConfig := registrytypes.AuthConfig{ServerAddress: reg.server.URL, Username: "user", Password: "pass"}
 	imageService := ImageService{registryHosts: hostsFn}
-	resolver, _ := imageService.newResolverFromAuthConfig(t.Context(), &authConfig, ref, nil)
+	resolver, _ := imageService.newResolverFromAuthConfig(t.Context(), &authConfig, ref, nil, credsLenient)
 
 	_, desc, err := resolver.Resolve(t.Context(), ref.String())
 	assert.NilError(t, err)
@@ -228,4 +229,65 @@ func TestResolverPrimesAuthChallengeBeforeRegistryRequests(t *testing.T) {
 	assert.Equal(t, probeRequests.Load(), int32(1), "registry should have been probed for a challenge")
 	assert.Equal(t, tokenRequests.Load(), int32(1))
 	assert.Equal(t, unauthorizedContent.Load(), int32(0), "content requests must not be sent unauthenticated first")
+}
+
+func TestAuthorizerCredentialHostMatching(t *testing.T) {
+	t.Parallel()
+
+	bearerChallenge := func(host string) *http.Response {
+		req := httptest.NewRequest(http.MethodGet, "https://"+host+"/v2/", nil)
+		header := http.Header{}
+		header.Set("WWW-Authenticate", `Bearer realm="https://auth.example.com/token",service="test"`)
+		return &http.Response{StatusCode: http.StatusUnauthorized, Header: header, Request: req}
+	}
+	basicChallenge := func(host string) *http.Response {
+		req := httptest.NewRequest(http.MethodGet, "https://"+host+"/v2/", nil)
+		header := http.Header{}
+		header.Set("WWW-Authenticate", `Basic realm="test"`)
+		return &http.Response{StatusCode: http.StatusUnauthorized, Header: header, Request: req}
+	}
+
+	creds := registrytypes.AuthConfig{ServerAddress: "https://REG.Example.com:443", Username: "user", Password: "pass"}
+
+	t.Run("strict mismatch fails instead of going anonymous", func(t *testing.T) {
+		auth := authorizerFromAuthConfig(resolverAuth{authConfig: creds, policy: credsStrict}, nil)
+		err := auth.AddResponses(t.Context(), []*http.Response{bearerChallenge("other.example.com")})
+		assert.ErrorContains(t, err, `credentials configured for registry "REG.Example.com:443" do not match the registry host "other.example.com"`)
+	})
+
+	t.Run("lenient mismatch falls back to anonymous", func(t *testing.T) {
+		auth := authorizerFromAuthConfig(resolverAuth{authConfig: creds, policy: credsLenient}, nil)
+		assert.NilError(t, auth.AddResponses(t.Context(), []*http.Response{bearerChallenge("other.example.com")}))
+	})
+
+	t.Run("strict mismatch without credentials allows anonymous access", func(t *testing.T) {
+		anonymous := registrytypes.AuthConfig{ServerAddress: "https://REG.Example.com:443"}
+		auth := authorizerFromAuthConfig(resolverAuth{authConfig: anonymous, policy: credsStrict}, nil)
+		assert.NilError(t, auth.AddResponses(t.Context(), []*http.Response{bearerChallenge("other.example.com")}))
+	})
+
+	t.Run("default-port and case differences still match", func(t *testing.T) {
+		auth := authorizerFromAuthConfig(resolverAuth{authConfig: creds, policy: credsStrict}, nil)
+		assert.NilError(t, auth.AddResponses(t.Context(), []*http.Response{basicChallenge("reg.example.com")}))
+
+		req := httptest.NewRequest(http.MethodPost, "https://reg.example.com/v2/repo/blobs/uploads/", nil)
+		assert.NilError(t, auth.Authorize(t.Context(), req))
+		expected := "Basic " + base64.StdEncoding.EncodeToString([]byte("user:pass"))
+		assert.Equal(t, req.Header.Get("Authorization"), expected)
+	})
+
+	t.Run("matching host with empty credentials reports missing credentials", func(t *testing.T) {
+		// Also the error when the client resolves no usable credentials.
+		anonymous := registrytypes.AuthConfig{ServerAddress: "https://REG.Example.com:443"}
+		auth := authorizerFromAuthConfig(resolverAuth{authConfig: anonymous, policy: credsStrict}, nil)
+		err := auth.AddResponses(t.Context(), []*http.Response{basicChallenge("reg.example.com")})
+		assert.ErrorContains(t, err, "no basic auth credentials")
+	})
+
+	t.Run("strict bearer token authorizer rejects host mismatch", func(t *testing.T) {
+		a := &bearerAuthorizer{host: "reg.example.com", bearer: "token", strict: true}
+		req := httptest.NewRequest(http.MethodGet, "https://other.example.com/v2/", nil)
+		err := a.Authorize(t.Context(), req)
+		assert.ErrorContains(t, err, "does not match")
+	})
 }
