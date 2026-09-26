@@ -44,10 +44,11 @@ func (n NeighborSearchError) Error() string {
 // To delete an entry inserted by [AddNeighbor] the caller must provide the same
 // parameters used to add it.
 func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, options ...NeighOption) error {
-	nlnh, linkName, err := n.nlNeigh(dstIP, dstMac, options...)
+	nlnh, nh, err := n.nlNeigh(dstIP, dstMac, options...)
 	if err != nil {
 		return err
 	}
+	linkName := nh.linkName
 
 	if err := n.nlHandle.NeighDel(nlnh); err != nil {
 		log.G(context.TODO()).WithFields(log.Fields{
@@ -86,16 +87,17 @@ func (n *Namespace) DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr, option
 
 // AddNeighbor adds a neighbor entry into the sandbox.
 //
-// An FDB entry (family AF_BRIDGE) replaces any existing entry for the same
-// MAC. Any other entry is only added when absent, and [NeighborSearchError]
-// is returned when it is already present.
+// An FDB entry (family AF_BRIDGE), or any entry added [WithReplace], replaces
+// an existing entry for the same address. Any other entry is only added when
+// absent, and [NeighborSearchError] is returned when it is already present.
 func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, options ...NeighOption) error {
-	nlnh, linkName, err := n.nlNeigh(dstIP, dstMac, options...)
+	nlnh, nh, err := n.nlNeigh(dstIP, dstMac, options...)
 	if err != nil {
 		return err
 	}
+	linkName := nh.linkName
 
-	if nlnh.Family > 0 {
+	if nlnh.Family > 0 || nh.replace {
 		// The VXLAN device learns FDB entries from inbound traffic, so the
 		// kernel may already hold a dynamic entry for this MAC by the time
 		// the permanent one is (re)added, e.g. after a peer node failed and
@@ -132,9 +134,10 @@ func (n *Namespace) AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, options .
 type neigh struct {
 	linkName string
 	family   int
+	replace  bool
 }
 
-func (n *Namespace) nlNeigh(dstIP net.IP, dstMac net.HardwareAddr, options ...NeighOption) (*netlink.Neigh, string, error) {
+func (n *Namespace) nlNeigh(dstIP net.IP, dstMac net.HardwareAddr, options ...NeighOption) (*netlink.Neigh, neigh, error) {
 	var nh neigh
 	nh.processNeighOptions(options...)
 
@@ -152,14 +155,14 @@ func (n *Namespace) nlNeigh(dstIP net.IP, dstMac net.HardwareAddr, options ...Ne
 	if nh.linkName != "" {
 		linkDst := n.findDst(nh.linkName, false)
 		if linkDst == "" {
-			return nil, nh.linkName, fmt.Errorf("could not find the interface with name %s", nh.linkName)
+			return nil, nh, fmt.Errorf("could not find the interface with name %s", nh.linkName)
 		}
 		iface, err := n.nlHandle.LinkByName(linkDst)
 		if err != nil {
-			return nil, nh.linkName, fmt.Errorf("could not find interface with destination name %s: %w", linkDst, err)
+			return nil, nh, fmt.Errorf("could not find interface with destination name %s: %w", linkDst, err)
 		}
 		nlnh.LinkIndex = iface.Attrs().Index
 	}
 
-	return nlnh, nh.linkName, nil
+	return nlnh, nh, nil
 }

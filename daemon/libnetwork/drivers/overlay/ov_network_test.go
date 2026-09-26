@@ -88,7 +88,7 @@ func TestAddNeighborRollsBackEncryptionRef(t *testing.T) {
 	withSandbox(t, n, "addnbrollback")
 
 	vtep := netip.MustParseAddr("192.0.2.2")
-	err := n.addNeighbor(netip.MustParsePrefix("10.0.0.5/24"), mustMAC("02:42:0a:00:00:05"), vtep)
+	err := n.addNeighbor(netip.MustParsePrefix("10.0.0.5/24"), mustMAC("02:42:0a:00:00:05"), vtep, false)
 
 	// The tunnel reference is taken before the neighbor entry is programmed,
 	// and the VXLAN link the entry needs does not exist.

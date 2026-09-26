@@ -97,7 +97,7 @@ func (n *network) initSandboxPeerDB() error {
 	var errs []error
 	n.peerdb.Walk(func(peerIP netip.Prefix, pEntry peerEntry) {
 		if !pEntry.isLocal() {
-			if err := n.addNeighbor(peerIP, pEntry.mac, pEntry.vtep); err != nil {
+			if err := n.addNeighbor(peerIP, pEntry.mac, pEntry.vtep, false); err != nil {
 				errs = append(errs, fmt.Errorf("failed to add neighbor entries for %s: %w", peerIP, err))
 			}
 		}
@@ -124,7 +124,12 @@ func (n *network) peerAdd(eid string, peerIP netip.Prefix, peerMac hashable.MACA
 		}).Warn("peerAdd: entry already present in db")
 	}
 	if vtep.IsValid() {
-		if err := n.addNeighbor(peerIP, peerMac, vtep); err != nil {
+		// With this peer newly inserted and no other endpoint in the peer db
+		// using this IP, a neighbor entry for it in the kernel was left behind
+		// by a peer whose removal did not complete, e.g. because its FDB entry
+		// was already gone. A repeated add of a peer already in the db finds
+		// its own entry, which must not be replaced.
+		if err := n.addNeighbor(peerIP, peerMac, vtep, inserted && dbEntries == 1); err != nil {
 			var nserr osl.NeighborSearchError
 			if dbEntries > 1 && errors.As(err, &nserr) && nserr.Present {
 				// Conflicting neighbor entries are already programmed into the kernel and we are in the transient case.
@@ -138,7 +143,11 @@ func (n *network) peerAdd(eid string, peerIP netip.Prefix, peerMac hashable.MACA
 }
 
 // addNeighbor programs the kernel so the given peer is reachable through the VXLAN tunnel.
-func (n *network) addNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) (retErr error) {
+//
+// If replaceStale is set, the caller knows that no other peer accounts for a
+// neighbor entry already present for peerIP, and that entry is replaced.
+// Otherwise [osl.NeighborSearchError] is returned for it.
+func (n *network) addNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr, replaceStale bool) (retErr error) {
 	if n.sbox == nil {
 		// We are hitting this case for all the events that are arriving before that the sandbox
 		// is being created. The peer got already added into the database and the sandbox init will
@@ -169,7 +178,17 @@ func (n *network) addNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, vte
 	}
 
 	// Add neighbor entry for the peer IP
-	if err := n.sbox.AddNeighbor(peerIP.Addr().AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName)); err != nil {
+	err := n.sbox.AddNeighbor(peerIP.Addr().AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName))
+	if nserr := (osl.NeighborSearchError{}); replaceStale && errors.As(err, &nserr) && nserr.Present {
+		log.G(context.TODO()).WithFields(log.Fields{
+			"nid":     n.id,
+			"peerIP":  peerIP,
+			"peerMac": peerMac,
+			"vtep":    vtep,
+		}).Warn("Replacing stale neighbor entry")
+		err = n.sbox.AddNeighbor(peerIP.Addr().AsSlice(), peerMac.AsSlice(), osl.WithLinkName(s.vxlanName), osl.WithReplace())
+	}
+	if err != nil {
 		return fmt.Errorf("could not add neighbor entry into the sandbox: %w", err)
 	}
 	defer func() {
@@ -230,7 +249,7 @@ func (n *network) peerDelete(eid string, peerIP netip.Prefix, peerMac hashable.M
 		if !ok {
 			return fmt.Errorf("peerDelete: unable to restore a configuration: no entry for %v found in the database", peerIP)
 		}
-		if err := n.addNeighbor(peerIP, peer.mac, peer.vtep); err != nil {
+		if err := n.addNeighbor(peerIP, peer.mac, peer.vtep, false); err != nil {
 			return fmt.Errorf("peer delete operation failed: %w", err)
 		}
 	}
