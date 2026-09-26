@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/serf/serf"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/lamport"
 )
 
 const broadcastTimeout = 5 * time.Second
@@ -13,7 +13,7 @@ const broadcastTimeout = 5 * time.Second
 type networkEventMessage struct {
 	id    string
 	node  string
-	ltime serf.LamportTime
+	ltime lamport.Time
 	msg   []byte
 }
 
@@ -40,7 +40,7 @@ func (m *networkEventMessage) Message() []byte {
 func (m *networkEventMessage) Finished() {
 }
 
-func (nDB *NetworkDB) sendNetworkEvent(nid string, event NetworkEvent_Type, ltime serf.LamportTime) error {
+func (nDB *NetworkDB) sendNetworkEvent(nid string, event NetworkEvent_Type, ltime lamport.Time) error {
 	nEvent := NetworkEvent{
 		Type:      event,
 		LTime:     ltime,
@@ -97,7 +97,7 @@ func (m *ownNodeEventMessage) Finished() {
 // relayedNodeEventMessage is a peer's node event being passed on.
 type relayedNodeEventMessage struct {
 	node  string
-	ltime serf.LamportTime
+	ltime lamport.Time
 	msg   []byte
 }
 
@@ -172,7 +172,7 @@ type tableEventMessage struct {
 	id    string
 	tname string
 	key   string
-	ltime serf.LamportTime
+	ltime lamport.Time
 	msg   []byte
 }
 

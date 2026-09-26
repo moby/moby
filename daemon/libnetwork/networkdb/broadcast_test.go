@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/serf/serf"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/lamport"
 	"gotest.tools/v3/assert"
 )
 
@@ -29,7 +29,7 @@ func queuedMessages(t *testing.T, order ...memberlist.Broadcast) []string {
 }
 
 func TestTableEventMessageInvalidates(t *testing.T) {
-	msg := func(nid, tname, key string, ltime serf.LamportTime) *tableEventMessage {
+	msg := func(nid, tname, key string, ltime lamport.Time) *tableEventMessage {
 		return &tableEventMessage{id: nid, tname: tname, key: key, ltime: ltime}
 	}
 
@@ -69,7 +69,7 @@ func TestTableEventQueueKeepsFreshest(t *testing.T) {
 }
 
 func TestRelayedNodeEventMessageInvalidates(t *testing.T) {
-	msg := func(node string, ltime serf.LamportTime) *relayedNodeEventMessage {
+	msg := func(node string, ltime lamport.Time) *relayedNodeEventMessage {
 		return &relayedNodeEventMessage{node: node, ltime: ltime}
 	}
 
@@ -95,7 +95,7 @@ func TestRelayedNodeEventMessageInvalidates(t *testing.T) {
 // A flapping peer's churn collapses to the newest event known of it, since
 // handleNodeEvent would discard the rest on arrival anyway.
 func TestRelayedNodeEventQueueCollapsesChurn(t *testing.T) {
-	relay := func(node string, ltime serf.LamportTime, body string) *relayedNodeEventMessage {
+	relay := func(node string, ltime lamport.Time, body string) *relayedNodeEventMessage {
 		return &relayedNodeEventMessage{node: node, ltime: ltime, msg: []byte(body)}
 	}
 
@@ -147,7 +147,7 @@ func TestOwnNodeEventSurvivesRelayedEvents(t *testing.T) {
 // applied the event under, and gossip and bulk sync do not share a goroutine,
 // so a stale relay can reach the queue behind a fresher one.
 func TestNetworkEventMessageInvalidates(t *testing.T) {
-	msg := func(nid, node string, ltime serf.LamportTime) *networkEventMessage {
+	msg := func(nid, node string, ltime lamport.Time) *networkEventMessage {
 		return &networkEventMessage{id: nid, node: node, ltime: ltime}
 	}
 
