@@ -29,7 +29,7 @@ ARG DOCKER_STATIC=1
 
 # REGISTRY_VERSION is the version of the registry to use for integration tests.
 # It must be a valid tag in the docker.io/library/registry image repository.
-ARG REGISTRY_VERSION=3.1.1
+ARG REGISTRY_VERSION=3.1.2
 
 # delve is currently only supported on linux/amd64, linux/arm64, and linux/ppc64le;
 # https://github.com/go-delve/delve/blob/v1.26.0/pkg/proc/native/support_sentinel.go#L1
