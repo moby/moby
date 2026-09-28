@@ -252,7 +252,7 @@ func TestExecSocketDenied(t *testing.T) {
 			}
 			serverResult := make(chan exchangeResult, 1)
 			go func() {
-				conn, _, err := listener.Accept(context.Background(), 0)
+				conn, _, err := listener.Accept(t.Context(), 0)
 				if err != nil {
 					serverResult <- exchangeResult{err: fmt.Errorf("accept AF_VSOCK connection: %w", err)}
 					return

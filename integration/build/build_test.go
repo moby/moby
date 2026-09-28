@@ -827,7 +827,7 @@ func TestBuildEmitsEvents(t *testing.T) {
 					// Clean up tagged image if we created one
 					if tc.tag != "" {
 						t.Cleanup(func() {
-							if _, err := apiClient.ImageRemove(context.Background(), tc.tag, client.ImageRemoveOptions{Force: true}); err != nil {
+							if _, err := apiClient.ImageRemove(t.Context(), tc.tag, client.ImageRemoveOptions{Force: true}); err != nil {
 								t.Logf("failed to remove image %s: %v", tc.tag, err)
 							}
 						})

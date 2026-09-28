@@ -34,7 +34,7 @@ func TestPrepareMountPointsSerializesLiveRestoreWithCleanup(t *testing.T) {
 	cleanupBeforeRestore := ctr.TryLock()
 	var cleanupErr error
 	if cleanupBeforeRestore {
-		cleanupErr = mountPoint.Cleanup(context.Background())
+		cleanupErr = mountPoint.Cleanup(t.Context())
 		ctr.Unlock()
 	}
 
@@ -43,7 +43,7 @@ func TestPrepareMountPointsSerializesLiveRestoreWithCleanup(t *testing.T) {
 
 	if !cleanupBeforeRestore {
 		ctr.Lock()
-		cleanupErr = mountPoint.Cleanup(context.Background())
+		cleanupErr = mountPoint.Cleanup(t.Context())
 		ctr.Unlock()
 	}
 	assert.NilError(t, cleanupErr)

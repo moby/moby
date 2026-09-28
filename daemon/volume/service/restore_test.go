@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/volume"
@@ -24,7 +23,7 @@ func TestRestore(t *testing.T) {
 	assert.NilError(t, err)
 	defer s.Shutdown()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = s.Create(ctx, "test1", driverName)
 	assert.NilError(t, err)
 

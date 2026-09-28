@@ -1,7 +1,6 @@
 package bridge
 
 import (
-	"context"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -31,19 +30,19 @@ func TestLinkCreate(t *testing.T) {
 
 	ipdList := getIPv4Data(t)
 	ipd6List := getIPv6Data(t)
-	err = d.CreateNetwork(context.Background(), "dummy", option, nil, ipdList, ipd6List)
+	err = d.CreateNetwork(t.Context(), "dummy", option, nil, ipdList, ipd6List)
 	assert.NilError(t, err, "Failed to create bridge")
 
 	te := newTestEndpoint46(ipdList[0].Pool, ipd6List[0].Pool, 10)
-	err = d.CreateEndpoint(context.Background(), "dummy", "", te.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "dummy", "", te.Interface(), nil)
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
 	assert.Check(t, is.Error(err, "invalid endpoint id: "))
 
 	// Good endpoint creation
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep", te.Interface(), nil)
 	assert.NilError(t, err)
 
-	err = d.Join(context.Background(), "dummy", "ep", "sbox", te, nil, nil)
+	err = d.Join(t.Context(), "dummy", "ep", "sbox", te, nil, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, te.iface.dstPrefix != "", "got: %q, want: %q", te.iface.dstPrefix, "")
 
@@ -56,7 +55,7 @@ func TestLinkCreate(t *testing.T) {
 	// then we could check the MTU on hostLnk as well.
 
 	te1 := newTestEndpoint(ipdList[0].Pool, 11)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te1.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep", te1.Interface(), nil)
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 	assert.Assert(t, is.Error(err, "Endpoint (ep) already exists (Only one endpoint allowed)"), "Failed to detect duplicate endpoint id on same network")
 
@@ -90,15 +89,15 @@ func TestLinkCreateTwo(t *testing.T) {
 	}
 
 	ipdList := getIPv4Data(t)
-	err = d.CreateNetwork(context.Background(), "dummy", option, nil, ipdList, getIPv6Data(t))
+	err = d.CreateNetwork(t.Context(), "dummy", option, nil, ipdList, getIPv6Data(t))
 	assert.NilError(t, err, "Failed to create bridge")
 
 	te1 := newTestEndpoint(ipdList[0].Pool, 11)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te1.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep", te1.Interface(), nil)
 	assert.NilError(t, err)
 
 	te2 := newTestEndpoint(ipdList[0].Pool, 12)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te2.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep", te2.Interface(), nil)
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsPermissionDenied))
 	assert.Assert(t, is.Error(err, "Endpoint (ep) already exists (Only one endpoint allowed)"), "Failed to detect duplicate endpoint id on same network")
 }
@@ -116,11 +115,11 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	}
 
 	ipdList := getIPv4Data(t)
-	err = d.CreateNetwork(context.Background(), "dummy", option, nil, ipdList, getIPv6Data(t))
+	err = d.CreateNetwork(t.Context(), "dummy", option, nil, ipdList, getIPv6Data(t))
 	assert.NilError(t, err, "Failed to create bridge")
 
 	te := newTestEndpoint(ipdList[0].Pool, 30)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep", te.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep", te.Interface(), nil)
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Nil(te.iface.addrv6), "Expected IPv6 address to be nil when IPv6 is not enabled, got %s", te.iface.addrv6)
@@ -141,11 +140,11 @@ func TestLinkDelete(t *testing.T) {
 	}
 
 	ipdList := getIPv4Data(t)
-	err = d.CreateNetwork(context.Background(), "dummy", option, nil, ipdList, getIPv6Data(t))
+	err = d.CreateNetwork(t.Context(), "dummy", option, nil, ipdList, getIPv6Data(t))
 	assert.NilError(t, err, "Failed to create bridge")
 
 	te := newTestEndpoint(ipdList[0].Pool, 30)
-	err = d.CreateEndpoint(context.Background(), "dummy", "ep1", te.Interface(), nil)
+	err = d.CreateEndpoint(t.Context(), "dummy", "ep1", te.Interface(), nil)
 	assert.NilError(t, err)
 
 	err = d.DeleteEndpoint("dummy", "")

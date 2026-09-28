@@ -32,7 +32,7 @@ func TestCall(t *testing.T) {
 		return errors.Join(errX, fmt.Errorf("joined: %w", errYZ))
 	})
 
-	err := c.Call(context.Background())
+	err := c.Call(t.Context())
 
 	errs := err.(interface{ Unwrap() []error }).Unwrap()
 

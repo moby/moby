@@ -323,7 +323,7 @@ func compareNwLists(a, b []*net.IPNet) bool {
 func TestAuxAddresses(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()))
+	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,12 +366,12 @@ func TestEndpointNameLabel(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test causes sync issue with Windows HNS")
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()))
+	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()))
 	assert.NilError(t, err)
 	defer c.Stop()
 
 	ipamOpt := NetworkOptionIpam(defaultipam.DriverName, "", []*IpamConf{{PreferredPool: "10.35.0.0/16", Gateway: "10.35.255.253"}}, nil, nil)
-	gnw, err := c.NewNetwork(context.Background(), "bridge", "label-test", "",
+	gnw, err := c.NewNetwork(t.Context(), "bridge", "label-test", "",
 		NetworkOptionEnableIPv4(true),
 		ipamOpt,
 	)
@@ -382,12 +382,12 @@ func TestEndpointNameLabel(t *testing.T) {
 	}()
 
 	createOptions := CreateOptionIPAM(net.ParseIP("10.35.0.10"), nil, nil)
-	ep, err := gnw.CreateEndpoint(context.Background(), "ep1", createOptions)
+	ep, err := gnw.CreateEndpoint(t.Context(), "ep1", createOptions)
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Equal(ep.ipamOptions[netlabel.EndpointName], "ep1"), "got: %s; expected: ep1", ep.ipamOptions[netlabel.EndpointName])
 
-	defer ep.Delete(context.Background(), false) //nolint:errcheck
+	defer ep.Delete(t.Context(), false) //nolint:errcheck
 }
 
 func TestUpdateSvcRecord(t *testing.T) {
@@ -427,7 +427,7 @@ func TestUpdateSvcRecord(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
-			ctrlr, err := New(context.Background(), config.OptionDataDir(t.TempDir()))
+			ctrlr, err := New(t.Context(), config.OptionDataDir(t.TempDir()))
 			assert.NilError(t, err)
 			defer ctrlr.Stop()
 
@@ -445,20 +445,20 @@ func TestUpdateSvcRecord(t *testing.T) {
 				assert.NilError(t, err)
 				ipam6 = []*IpamConf{{PreferredPool: net6.String()}}
 			}
-			n, err := ctrlr.NewNetwork(context.Background(), "bridge", "net1", "", nil,
+			n, err := ctrlr.NewNetwork(t.Context(), "bridge", "net1", "", nil,
 				NetworkOptionEnableIPv4(tc.addr4 != ""),
 				NetworkOptionEnableIPv6(tc.addr6 != ""),
 				NetworkOptionIpam(defaultipam.DriverName, "", ipam4, ipam6, nil),
 			)
 			assert.NilError(t, err)
 			dnsName := "id-" + tc.epName
-			ep, err := n.CreateEndpoint(context.Background(), tc.epName,
+			ep, err := n.CreateEndpoint(t.Context(), tc.epName,
 				CreateOptionDNSNames([]string{tc.epName, dnsName}),
 				CreateOptionIPAM(ip4, ip6, nil),
 			)
 			assert.NilError(t, err)
 
-			n.updateSvcRecord(context.Background(), ep, true)
+			n.updateSvcRecord(t.Context(), ep, true)
 			for _, name := range []string{tc.epName, dnsName} {
 				addrs, found4, found6 := getSvcRecords(t, n, name)
 				assert.Check(t, found4 == (tc.addr4 != ""), "name:%s", name)
@@ -466,7 +466,7 @@ func TestUpdateSvcRecord(t *testing.T) {
 				assert.Check(t, is.DeepEqual(addrs, tc.expAddrs, cmpopts.EquateComparable(netip.Addr{})))
 			}
 
-			n.updateSvcRecord(context.Background(), ep, false)
+			n.updateSvcRecord(t.Context(), ep, false)
 			for _, name := range []string{tc.epName, dnsName} {
 				addrs, found4, found6 := getSvcRecords(t, n, tc.epName)
 				assert.Check(t, !found4, "name:%s", name)
@@ -506,14 +506,14 @@ func TestSRVServiceQuery(t *testing.T) {
 
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()),
+	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Stop()
 
-	n, err := c.NewNetwork(context.Background(), "bridge", "net1", "",
+	n, err := c.NewNetwork(t.Context(), "bridge", "net1", "",
 		NetworkOptionEnableIPv4(true),
 	)
 	if err != nil {
@@ -525,22 +525,22 @@ func TestSRVServiceQuery(t *testing.T) {
 		}
 	}()
 
-	ep, err := n.CreateEndpoint(context.Background(), "testep")
+	ep, err := n.CreateEndpoint(t.Context(), "testep")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sb, err := c.NewSandbox(context.Background(), "c1")
+	sb, err := c.NewSandbox(t.Context(), "c1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := sb.Delete(context.Background()); err != nil {
+		if err := sb.Delete(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	err = ep.Join(context.Background(), sb)
+	err = ep.Join(t.Context(), sb)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -576,7 +576,7 @@ func TestSRVServiceQuery(t *testing.T) {
 
 	c.svcRecords[n.ID()] = sr
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, ip := ep.Info().Sandbox().ResolveService(ctx, "_http._tcp.web.swarm")
 
 	if len(ip) == 0 {
@@ -607,14 +607,14 @@ func TestServiceVIPReuse(t *testing.T) {
 
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()),
+	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Stop()
 
-	n, err := c.NewNetwork(context.Background(), "bridge", "net1", "", nil,
+	n, err := c.NewNetwork(t.Context(), "bridge", "net1", "", nil,
 		NetworkOptionEnableIPv4(true),
 	)
 	if err != nil {
@@ -626,22 +626,22 @@ func TestServiceVIPReuse(t *testing.T) {
 		}
 	}()
 
-	ep, err := n.CreateEndpoint(context.Background(), "testep")
+	ep, err := n.CreateEndpoint(t.Context(), "testep")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sb, err := c.NewSandbox(context.Background(), "c1")
+	sb, err := c.NewSandbox(t.Context(), "c1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := sb.Delete(context.Background()); err != nil {
+		if err := sb.Delete(t.Context()); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	err = ep.Join(context.Background(), sb)
+	err = ep.Join(t.Context(), sb)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -652,7 +652,7 @@ func TestServiceVIPReuse(t *testing.T) {
 
 	ipToResolve := netutils.ReverseIP("192.168.0.1")
 
-	ctx := context.Background()
+	ctx := t.Context()
 	ipList, _ := n.ResolveName(ctx, "service_test", types.IPv4)
 	if len(ipList) == 0 {
 		t.Fatal("There must be the VIP")
@@ -728,7 +728,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New(context.Background(), config.OptionDataDir(t.TempDir()))
+	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -741,10 +741,10 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	// Test whether ipam state release is invoked  on network create failure from net driver
 	// by checking whether subsequent network creation requesting same gateway IP succeeds
 	ipamOpt := NetworkOptionIpam(defaultipam.DriverName, "", []*IpamConf{{PreferredPool: "10.34.0.0/16", Gateway: "10.34.255.254"}}, nil, nil)
-	_, err = c.NewNetwork(context.Background(), badDriverName, "badnet1", "", ipamOpt)
+	_, err = c.NewNetwork(t.Context(), badDriverName, "badnet1", "", ipamOpt)
 	assert.Check(t, is.ErrorContains(err, "I will not create any network"))
 
-	gnw, err := c.NewNetwork(context.Background(), "bridge", "goodnet1", "",
+	gnw, err := c.NewNetwork(t.Context(), "bridge", "goodnet1", "",
 		NetworkOptionEnableIPv4(true),
 		ipamOpt,
 	)
@@ -757,7 +757,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 
 	// Now check whether ipam release works on endpoint creation failure
 	bd.failNetworkCreation = false
-	bnw, err := c.NewNetwork(context.Background(), badDriverName, "badnet2", "",
+	bnw, err := c.NewNetwork(t.Context(), badDriverName, "badnet2", "",
 		NetworkOptionEnableIPv4(true),
 		ipamOpt,
 	)
@@ -770,13 +770,13 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 		}
 	}()
 
-	if _, err := bnw.CreateEndpoint(context.Background(), "ep0"); err == nil {
+	if _, err := bnw.CreateEndpoint(t.Context(), "ep0"); err == nil {
 		t.Fatalf("bad network driver should have failed endpoint creation")
 	}
 
 	// Now create good bridge network with different gateway
 	ipamOpt2 := NetworkOptionIpam(defaultipam.DriverName, "", []*IpamConf{{PreferredPool: "10.35.0.0/16", Gateway: "10.35.255.253"}}, nil, nil)
-	gnw, err = c.NewNetwork(context.Background(), "bridge", "goodnet2", "",
+	gnw, err = c.NewNetwork(t.Context(), "bridge", "goodnet2", "",
 		NetworkOptionEnableIPv4(true),
 		ipamOpt2,
 	)
@@ -789,11 +789,11 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 		}
 	}()
 
-	ep, err := gnw.CreateEndpoint(context.Background(), "ep1")
+	ep, err := gnw.CreateEndpoint(t.Context(), "ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ep.Delete(context.Background(), false) //nolint:errcheck
+	defer ep.Delete(t.Context(), false) //nolint:errcheck
 
 	expectedIP, _ := types.ParseCIDR("10.35.0.1/16")
 	if !types.CompareIPNet(ep.Info().Iface().Address(), expectedIP) {

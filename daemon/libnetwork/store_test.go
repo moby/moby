@@ -1,7 +1,6 @@
 package libnetwork
 
 import (
-	"context"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
@@ -13,16 +12,16 @@ func testLocalBackend(t *testing.T, path, bucket string) {
 		func(c *config.Config) { c.DatastoreBucket = bucket },
 	}
 
-	testController, err := New(context.Background(), cfgOptions...)
+	testController, err := New(t.Context(), cfgOptions...)
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}
 	defer testController.Stop()
-	nw, err := testController.NewNetwork(context.Background(), "host", "host", "")
+	nw, err := testController.NewNetwork(t.Context(), "host", "host", "")
 	if err != nil {
 		t.Fatalf(`Error creating default "host" network: %v`, err)
 	}
-	ep, err := nw.CreateEndpoint(context.Background(), "newendpoint", []EndpointOption{}...)
+	ep, err := nw.CreateEndpoint(t.Context(), "newendpoint", []EndpointOption{}...)
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
@@ -47,7 +46,7 @@ func testLocalBackend(t *testing.T, path, bucket string) {
 	testController.Stop()
 
 	// test restore of local store
-	testController, err = New(context.Background(), cfgOptions...)
+	testController, err = New(t.Context(), cfgOptions...)
 	if err != nil {
 		t.Fatalf("Error creating controller: %v", err)
 	}

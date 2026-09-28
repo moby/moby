@@ -1,7 +1,6 @@
 package container
 
 import (
-	"context"
 	"math/rand"
 	"net/netip"
 	"os"
@@ -33,7 +32,7 @@ func TestViewSaveDelete(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	c := newContainer(t, tmpDir)
-	assert.NilError(t, c.CheckpointTo(context.Background(), db))
+	assert.NilError(t, c.CheckpointTo(t.Context(), db))
 	assert.NilError(t, db.Delete(c))
 }
 
@@ -46,10 +45,10 @@ func TestViewAll(t *testing.T) {
 	two := newContainer(t, tmpDir)
 
 	one.State.Pid = 10
-	assert.NilError(t, one.CheckpointTo(context.Background(), db))
+	assert.NilError(t, one.CheckpointTo(t.Context(), db))
 
 	two.State.Pid = 20
-	assert.NilError(t, two.CheckpointTo(context.Background(), db))
+	assert.NilError(t, two.CheckpointTo(t.Context(), db))
 
 	all, err := db.Snapshot().All()
 	assert.NilError(t, err)
@@ -76,7 +75,7 @@ func TestViewGet(t *testing.T) {
 	const imgID = "some-image-123"
 	one.ImageID = imgID
 
-	assert.NilError(t, one.CheckpointTo(context.Background(), db))
+	assert.NilError(t, one.CheckpointTo(t.Context(), db))
 	s, err := db.Snapshot().Get(one.ID)
 	assert.NilError(t, err)
 	assert.Equal(t, s.ID, one.ID)
@@ -155,7 +154,7 @@ func TestViewWithHealthCheck(t *testing.T) {
 			Status: container.Starting,
 		},
 	}
-	assert.NilError(t, one.CheckpointTo(context.Background(), db))
+	assert.NilError(t, one.CheckpointTo(t.Context(), db))
 	s, err := db.Snapshot().Get(one.ID)
 	assert.NilError(t, err)
 	assert.Equal(t, s.Health, container.Starting)
@@ -213,7 +212,7 @@ func TestViewWithPortBindings(t *testing.T) {
 				Ports: tc.ports,
 			}
 
-			assert.NilError(t, ctr.CheckpointTo(context.Background(), db))
+			assert.NilError(t, ctr.CheckpointTo(t.Context(), db))
 
 			s, err := db.Snapshot().Get(ctr.ID)
 			assert.NilError(t, err)

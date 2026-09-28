@@ -1,7 +1,6 @@
 package defaultipam
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -1238,7 +1237,7 @@ func TestRequestReleaseAddressDuplicate(t *testing.T) {
 	t.Logf("Random seed: %v", seed)
 	rng := rand.New(rand.NewSource(seed))
 
-	group, ctx := errgroup.WithContext(context.Background())
+	group, ctx := errgroup.WithContext(t.Context())
 outer:
 	for range 10000 {
 		var c *net.IPNet

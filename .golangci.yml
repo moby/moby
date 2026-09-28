@@ -48,6 +48,7 @@ linters:
     - unconvert                 # Detects unnecessary type conversions.
     - unused
     - usestdlibvars             # Detects the possibility to use variables/constants from the Go standard library.
+    - usetesting                # Reports uses of functions with replacement inside the testing package.
     - wastedassign              # Detects wasted assignment statements.
 
   disable:
@@ -268,6 +269,12 @@ linters:
       http-method: true
       # Suggest the use of http.StatusXX.
       http-status-code: true
+
+    usetesting:
+      context-background: true
+      context-todo: true
+      os-mkdir-temp: false # TODO(thaJeztah): enable after https://github.com/moby/moby/pull/43346
+      os-temp-dir: false   # TODO(thaJeztah): enable after https://github.com/moby/moby/pull/43346
 
   exclusions:
     rules:

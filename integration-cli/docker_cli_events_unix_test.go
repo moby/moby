@@ -27,11 +27,11 @@ func (s *DockerCLIEventSuite) TestEventsRedirectStdout(c *testing.T) {
 	since := daemonUnixTime(c)
 	cli.DockerCmd(c, "run", "busybox", "true")
 
-	file, err := os.CreateTemp("", "")
+	tmpFile, err := os.CreateTemp(c.TempDir(), "")
 	assert.NilError(c, err, "could not create temp file")
-	defer os.Remove(file.Name())
+	c.Cleanup(func() { _ = tmpFile.Close() })
 
-	command := fmt.Sprintf("%s events --since=%s --until=%s > %s", dockerBinary, since, daemonUnixTime(c), file.Name())
+	command := fmt.Sprintf("%s events --since=%s --until=%s > %s", dockerBinary, since, daemonUnixTime(c), tmpFile.Name())
 	_, tty, err := pty.Open()
 	assert.NilError(c, err, "Could not open pty")
 	cmd := exec.Command("sh", "-c", command)
@@ -40,7 +40,7 @@ func (s *DockerCLIEventSuite) TestEventsRedirectStdout(c *testing.T) {
 	cmd.Stderr = tty
 	assert.NilError(c, cmd.Run(), "run err for command %q", command)
 
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(tmpFile)
 	for scanner.Scan() {
 		for _, ch := range scanner.Text() {
 			assert.Check(c, unicode.IsControl(ch) == false, "found control character %v", []byte(string(ch)))

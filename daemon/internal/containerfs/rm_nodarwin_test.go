@@ -25,7 +25,7 @@ func TestEnsureRemoveAllWithDir(t *testing.T) {
 }
 
 func TestEnsureRemoveAllWithFile(t *testing.T) {
-	tmp, err := os.CreateTemp("", "test-ensure-removeall-with-dir")
+	tmp, err := os.CreateTemp(t.TempDir(), "test-ensure-removeall-with-dir")
 	if err != nil {
 		t.Fatal(err)
 	}

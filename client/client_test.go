@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -188,14 +187,13 @@ func TestGetAPIPath(t *testing.T) {
 		},
 	}
 
-	ctx := context.TODO()
 	for _, tc := range tests {
 		client, err := New(
 			WithAPIVersion(tc.version),
 			WithHost("tcp://localhost:2375"),
 		)
 		assert.NilError(t, err)
-		actual := client.getAPIPath(ctx, tc.path, tc.query)
+		actual := client.getAPIPath(t.Context(), tc.path, tc.query)
 		assert.Check(t, is.Equal(actual, tc.expected))
 	}
 }

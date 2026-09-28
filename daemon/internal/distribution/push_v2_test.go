@@ -394,7 +394,7 @@ func TestLayerAlreadyExists(t *testing.T) {
 			blobs:    tc.remoteBlobs,
 			requests: []string{},
 		}
-		ctx := context.Background()
+		ctx := t.Context()
 		ms := &mockV2MetadataService{}
 		pd := &pushDescriptor{
 			hmacKey:  []byte(tc.hmacKey),
@@ -517,7 +517,7 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 				},
 			},
 		}
-		_ = testPusher.push(context.Background())
+		_ = testPusher.push(t.Context())
 		if testPusher.pushState.hasAuthInfo != authInfo.expected {
 			t.Errorf("hasAuthInfo does not match expected: %t != %t", authInfo.expected, testPusher.pushState.hasAuthInfo)
 		}
@@ -593,7 +593,7 @@ func TestPushRegistryWhenAuthInfoEmpty(t *testing.T) {
 		},
 		checkedDigests: make(map[digest.Digest]struct{}),
 	}
-	pd.Upload(context.Background(), &progressSink{t})
+	pd.Upload(t.Context(), &progressSink{t})
 	if removeMetadata {
 		t.Fatalf("expect remove not be called but called")
 	}

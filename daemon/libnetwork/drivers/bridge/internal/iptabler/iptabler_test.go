@@ -3,7 +3,6 @@
 package iptabler
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/netip"
@@ -44,7 +43,7 @@ func TestCleanupIptableRules(t *testing.T) {
 	ipVersions := []iptables.IPVersion{iptables.IPv4, iptables.IPv6}
 
 	for _, version := range ipVersions {
-		err := setupIPChains(context.Background(), version, firewaller.Config{Hairpin: true})
+		err := setupIPChains(t.Context(), version, firewaller.Config{Hairpin: true})
 		assert.NilError(t, err, "version:%s", version)
 
 		iptable := iptables.GetIptable(version)
@@ -61,7 +60,7 @@ func TestCleanupIptableRules(t *testing.T) {
 				version, chainInfo.name, chainInfo.table, out)
 		}
 
-		removeIPChains(context.Background(), version)
+		removeIPChains(t.Context(), version)
 
 		for _, chainInfo := range bridgeChains {
 			exists := iptable.Exists(chainInfo.table, chainInfo.name, "-A", chainInfo.name, "-j", "RETURN")
@@ -197,19 +196,19 @@ func testIptabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 
 	// Initialise iptables, check the iptables config looks like it should look at the
 	// end of the test (after deleting per-network and per-port rules).
-	fw, err := NewIptabler(context.Background(), config)
+	fw, err := NewIptabler(t.Context(), config)
 	assert.NilError(t, err)
 	checkResults("iptables", rnWSL2Mirrored(fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin)), config.IPv4)
 	checkResults("ip6tables", fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin), config.IPv6)
 
 	// Add the network.
-	nw, err := fw.NewNetwork(context.Background(), netConfig)
+	nw, err := fw.NewNetwork(t.Context(), netConfig)
 	assert.NilError(t, err)
 
 	// Add an endpoint.
 	epAddr4 := netip.MustParseAddr("192.168.0.2")
 	epAddr6 := netip.MustParseAddr("fd49:efd7:54aa::1")
-	err = nw.AddEndpoint(context.Background(), epAddr4, epAddr6)
+	err = nw.AddEndpoint(t.Context(), epAddr4, epAddr6)
 	assert.NilError(t, err)
 
 	// Add IPv4 and IPv6 port mappings.
@@ -221,7 +220,7 @@ func testIptabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 		pb4 = makePB("0.0.0.0", epAddr4)
 		pb6 = makePB("::", epAddr6)
 	}
-	err = nw.AddPorts(context.Background(), []types.PortBinding{pb4, pb6})
+	err = nw.AddPorts(t.Context(), []types.PortBinding{pb4, pb6})
 	assert.NilError(t, err)
 
 	// Check the resulting iptables config.
@@ -229,11 +228,11 @@ func testIptabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 	checkResults("ip6tables", resName, config.IPv6)
 
 	// Remove the port mappings and the network, and check the result.
-	err = nw.DelPorts(context.Background(), []types.PortBinding{pb4, pb6})
+	err = nw.DelPorts(t.Context(), []types.PortBinding{pb4, pb6})
 	assert.NilError(t, err)
-	err = nw.DelEndpoint(context.Background(), epAddr4, epAddr6)
+	err = nw.DelEndpoint(t.Context(), epAddr4, epAddr6)
 	assert.NilError(t, err)
-	err = nw.DelNetworkLevelRules(context.Background())
+	err = nw.DelNetworkLevelRules(t.Context())
 	assert.NilError(t, err)
 	checkResults("iptables", rnWSL2Mirrored(fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin)), config.IPv4)
 	checkResults("ip6tables", fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin), config.IPv6)

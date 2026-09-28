@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -23,7 +22,7 @@ func TestCreate(t *testing.T) {
 	defer cleanup()
 	s.drivers.Register(volumetestutils.NewFakeDriver("fake"), "fake")
 
-	ctx := context.Background()
+	ctx := t.Context()
 	v, err := s.Create(ctx, "fake1", "fake")
 	if err != nil {
 		t.Fatal(err)
@@ -55,7 +54,7 @@ func TestRemove(t *testing.T) {
 	s.drivers.Register(volumetestutils.NewFakeDriver("fake"), "fake")
 	s.drivers.Register(volumetestutils.NewFakeDriver("noop"), "noop")
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// doing string compare here since this error comes directly from the driver
 	expected := "no such volume"
@@ -92,7 +91,7 @@ func TestList(t *testing.T) {
 	s, err := NewStore(tmpDir, drivers)
 	assert.NilError(t, err)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	if _, err := s.Create(ctx, "test", "fake"); err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +133,7 @@ func TestFindByDriver(t *testing.T) {
 	assert.Assert(t, s.drivers.Register(volumetestutils.NewFakeDriver("fake"), "fake"))
 	assert.Assert(t, s.drivers.Register(volumetestutils.NewFakeDriver("noop"), "noop"))
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := s.Create(ctx, "fake1", "fake")
 	assert.NilError(t, err)
 
@@ -165,7 +164,7 @@ func TestFindByReferenced(t *testing.T) {
 	s.drivers.Register(volumetestutils.NewFakeDriver("fake"), "fake")
 	s.drivers.Register(volumetestutils.NewFakeDriver("noop"), "noop")
 
-	ctx := context.Background()
+	ctx := t.Context()
 	if _, err := s.Create(ctx, "fake1", "fake", opts.WithCreateReference("volReference")); err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +189,7 @@ func TestDerefMultipleOfSameRef(t *testing.T) {
 	defer cleanup()
 	s.drivers.Register(volumetestutils.NewFakeDriver("fake"), "fake")
 
-	ctx := context.Background()
+	ctx := t.Context()
 	v, err := s.Create(ctx, "fake1", "fake", opts.WithCreateReference("volReference"))
 	if err != nil {
 		t.Fatal(err)
@@ -219,7 +218,7 @@ func TestCreateKeepOptsLabelsWhenExistsRemotely(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	v, err := s.Create(ctx, "foo", "fake", opts.WithCreateLabels(map[string]string{"hello": "world"}))
 	if err != nil {
 		t.Fatal(err)
@@ -263,7 +262,7 @@ func TestDefererencePluginOnCreateError(t *testing.T) {
 	pg := volumetestutils.NewFakePluginGetter(p)
 	s.drivers = volumedrivers.NewStore(pg)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	// create a good volume so we have a plugin reference
 	_, err = s.Create(ctx, "fake1", d.Name())
 	if err != nil {
@@ -290,7 +289,7 @@ func TestRefDerefRemove(t *testing.T) {
 	defer cleanup()
 	s.drivers.Register(volumetestutils.NewFakeDriver(driverName), driverName)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	v, err := s.Create(ctx, "test", driverName, opts.WithCreateReference("test-ref"))
 	assert.NilError(t, err)
 
@@ -311,7 +310,7 @@ func TestGet(t *testing.T) {
 	defer cleanup()
 	s.drivers.Register(volumetestutils.NewFakeDriver(driverName), driverName)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := s.Get(ctx, "not-exist")
 	assert.ErrorContains(t, err, "")
 	assert.Equal(t, errNoSuchVolume, err.(*OpErr).Err)
@@ -338,7 +337,7 @@ func TestGetWithReference(t *testing.T) {
 	defer cleanup()
 	s.drivers.Register(volumetestutils.NewFakeDriver(driverName), driverName)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := s.Get(ctx, "not-exist", opts.WithGetDriver(driverName), opts.WithGetReference("test-ref"))
 	assert.ErrorContains(t, err, "")
 

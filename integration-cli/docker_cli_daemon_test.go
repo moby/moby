@@ -1543,7 +1543,7 @@ func (s *DockerDaemonSuite) TestDaemonDebugLog(c *testing.T) {
 
 	logFile, err := os.CreateTemp(c.TempDir(), "dockerd-debug-*.log")
 	assert.NilError(c, err)
-	defer logFile.Close()
+	c.Cleanup(func() { _ = logFile.Close() })
 
 	err = s.d.StartWithLogFile(logFile, "--debug", "--log-format=json")
 	assert.NilError(c, err)
@@ -1690,12 +1690,6 @@ func (s *DockerDaemonSuite) TestDaemonDNSFlagsInHostMode(c *testing.T) {
 }
 
 func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
-	conf, err := os.CreateTemp("", "config-file-")
-	assert.NilError(c, err)
-	configName := conf.Name()
-	conf.Close()
-	defer os.Remove(configName)
-
 	config := `
 {
     "runtimes": {
@@ -1711,8 +1705,10 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
     }
 }
 `
-	os.WriteFile(configName, []byte(config), 0o644)
-	s.d.StartWithBusybox(testutil.GetContext(c), c, "--config-file", configName)
+	cfgFile := filepath.Join(c.TempDir(), "config.json")
+	err := os.WriteFile(cfgFile, []byte(config), 0o644)
+	assert.NilError(c, err)
+	s.d.StartWithBusybox(testutil.GetContext(c), c, "--config-file", cfgFile)
 
 	// Run with default runtime
 	out, err := s.d.Cmd("run", "--rm", "busybox", "ls")
@@ -1737,7 +1733,9 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
     }
 }
 `
-	os.WriteFile(configName, []byte(config), 0o644)
+
+	err = os.WriteFile(cfgFile, []byte(config), 0o644)
+	assert.NilError(c, err)
 	assert.NilError(c, s.d.Signal(unix.SIGHUP))
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
@@ -1764,7 +1762,8 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
     }
 }
 `
-	os.WriteFile(configName, []byte(config), 0o644)
+	err = os.WriteFile(cfgFile, []byte(config), 0o644)
+	assert.NilError(c, err)
 	assert.NilError(c, s.d.Signal(unix.SIGHUP))
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
@@ -1789,7 +1788,8 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *testing.T) {
     }
 }
 `
-	os.WriteFile(configName, []byte(config), 0o644)
+	err = os.WriteFile(cfgFile, []byte(config), 0o644)
+	assert.NilError(c, err)
 	assert.NilError(c, s.d.Signal(unix.SIGHUP))
 	// Give daemon time to reload config
 	<-time.After(1 * time.Second)
@@ -1921,7 +1921,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *testing.T)
 
 func (s *DockerDaemonSuite) TestDaemonWithUserlandProxyPath(c *testing.T) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
-	ctx := context.TODO()
+	ctx := c.Context()
 
 	dockerProxyPath, err := exec.LookPath("docker-proxy")
 	assert.NilError(c, err)
@@ -2190,15 +2190,11 @@ func testDaemonStartIpcMode(t *testing.T, from, mode string, valid bool) {
 	var serr error
 	switch from {
 	case "config":
-		f, err := os.CreateTemp("", "test-daemon-ipc-config")
-		assert.NilError(t, err)
-		defer os.Remove(f.Name())
+		cfgFile := filepath.Join(t.TempDir(), "config.json")
 		config := `{"default-ipc-mode": "` + mode + `"}`
-		_, err = f.WriteString(config)
-		assert.NilError(t, f.Close())
+		err := os.WriteFile(cfgFile, []byte(config), 0o600)
 		assert.NilError(t, err)
-
-		serr = d.StartWithError("--config-file", f.Name())
+		serr = d.StartWithError("--config-file", cfgFile)
 	case "cli":
 		serr = d.StartWithError("--default-ipc-mode", mode)
 	default:

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -430,21 +431,18 @@ func (s *DockerCLIEventSuite) TestEventsCopy(c *testing.T) {
 	id := getIDByName(c, "cpimg")
 
 	// Create an empty test file.
-	tempFile, err := os.CreateTemp("", "test-events-copy-")
+	tmpFile := filepath.Join(os.TempDir(), "events_copy.txt")
+	err := os.WriteFile(tmpFile, nil, 0o600)
 	assert.NilError(c, err)
-	defer os.Remove(tempFile.Name())
-
-	assert.NilError(c, tempFile.Close())
 
 	cli.DockerCmd(c, "create", "--name=cptest", id)
-
-	cli.DockerCmd(c, "cp", "cptest:/file", tempFile.Name())
+	cli.DockerCmd(c, "cp", "cptest:/file", tmpFile)
 
 	until := daemonUnixTime(c)
 	out := cli.DockerCmd(c, "events", "--since=0", "-f", "container=cptest", "--until="+until).Stdout()
 	assert.Assert(c, strings.Contains(out, "archive-path"), "Missing 'archive-path' log event")
 
-	cli.DockerCmd(c, "cp", tempFile.Name(), "cptest:/filecopy")
+	cli.DockerCmd(c, "cp", tmpFile, "cptest:/filecopy")
 
 	until = daemonUnixTime(c)
 	out = cli.DockerCmd(c, "events", "-f", "container=cptest", "--until="+until).Stdout()

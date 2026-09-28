@@ -15,7 +15,7 @@ func (r blockingReader) Read(p []byte) (int, error) {
 }
 
 func TestCopyCtx(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*5)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Millisecond*5)
 	defer cancel()
 
 	dst := new(bytes.Buffer)
