@@ -70,12 +70,12 @@ func BuildNoIPv6(path string, extraContent []Record) error {
 func build(path string, contents ...[]Record) error {
 	defer pathLock(path)()
 
-	buf := bytes.NewBuffer(nil)
+	var buf bytes.Buffer
 
 	// Write content from function arguments
 	for _, content := range contents {
 		for _, c := range content {
-			if _, err := c.WriteTo(buf); err != nil {
+			if _, err := c.WriteTo(&buf); err != nil {
 				return err
 			}
 		}
@@ -92,9 +92,9 @@ func Add(path string, recs []Record) error {
 
 	defer pathLock(path)()
 
-	content := bytes.NewBuffer(nil)
+	var buf bytes.Buffer
 	for _, r := range recs {
-		if _, err := r.WriteTo(content); err != nil {
+		if _, err := r.WriteTo(&buf); err != nil {
 			return err
 		}
 	}
@@ -103,7 +103,7 @@ func Add(path string, recs []Record) error {
 	if err != nil {
 		return err
 	}
-	_, err = f.Write(content.Bytes())
+	_, err = f.Write(buf.Bytes())
 	_ = f.Close()
 	return err
 }
