@@ -18,12 +18,14 @@ package logging
 
 import (
 	"context"
+	"iter"
 	"time"
 
 	loggingpb "cloud.google.com/go/logging/apiv2/loggingpb"
 	"cloud.google.com/go/longrunning"
 	longrunningpb "cloud.google.com/go/longrunning/autogen/longrunningpb"
 	gax "github.com/googleapis/gax-go/v2"
+	gaxiter "github.com/googleapis/gax-go/v2/iterator"
 	"google.golang.org/api/iterator"
 	monitoredrespb "google.golang.org/genproto/googleapis/api/monitoredres"
 )
@@ -337,6 +339,12 @@ func (op *UpdateBucketAsyncOperation) Name() string {
 	return op.lro.Name()
 }
 
+// All returns an iterator. If an error is returned by the iterator, the
+// iterator will stop after that iteration.
+func (it *LinkIterator) All() iter.Seq2[*loggingpb.Link, error] {
+	return gaxiter.RangeAdapter(it.Next)
+}
+
 // LinkIterator manages a stream of *loggingpb.Link.
 type LinkIterator struct {
 	items    []*loggingpb.Link
@@ -382,6 +390,12 @@ func (it *LinkIterator) takeBuf() interface{} {
 	b := it.items
 	it.items = nil
 	return b
+}
+
+// All returns an iterator. If an error is returned by the iterator, the
+// iterator will stop after that iteration.
+func (it *LogBucketIterator) All() iter.Seq2[*loggingpb.LogBucket, error] {
+	return gaxiter.RangeAdapter(it.Next)
 }
 
 // LogBucketIterator manages a stream of *loggingpb.LogBucket.
@@ -431,6 +445,12 @@ func (it *LogBucketIterator) takeBuf() interface{} {
 	return b
 }
 
+// All returns an iterator. If an error is returned by the iterator, the
+// iterator will stop after that iteration.
+func (it *LogEntryIterator) All() iter.Seq2[*loggingpb.LogEntry, error] {
+	return gaxiter.RangeAdapter(it.Next)
+}
+
 // LogEntryIterator manages a stream of *loggingpb.LogEntry.
 type LogEntryIterator struct {
 	items    []*loggingpb.LogEntry
@@ -476,6 +496,12 @@ func (it *LogEntryIterator) takeBuf() interface{} {
 	b := it.items
 	it.items = nil
 	return b
+}
+
+// All returns an iterator. If an error is returned by the iterator, the
+// iterator will stop after that iteration.
+func (it *LogExclusionIterator) All() iter.Seq2[*loggingpb.LogExclusion, error] {
+	return gaxiter.RangeAdapter(it.Next)
 }
 
 // LogExclusionIterator manages a stream of *loggingpb.LogExclusion.
@@ -525,6 +551,12 @@ func (it *LogExclusionIterator) takeBuf() interface{} {
 	return b
 }
 
+// All returns an iterator. If an error is returned by the iterator, the
+// iterator will stop after that iteration.
+func (it *LogMetricIterator) All() iter.Seq2[*loggingpb.LogMetric, error] {
+	return gaxiter.RangeAdapter(it.Next)
+}
+
 // LogMetricIterator manages a stream of *loggingpb.LogMetric.
 type LogMetricIterator struct {
 	items    []*loggingpb.LogMetric
@@ -570,6 +602,12 @@ func (it *LogMetricIterator) takeBuf() interface{} {
 	b := it.items
 	it.items = nil
 	return b
+}
+
+// All returns an iterator. If an error is returned by the iterator, the
+// iterator will stop after that iteration.
+func (it *LogSinkIterator) All() iter.Seq2[*loggingpb.LogSink, error] {
+	return gaxiter.RangeAdapter(it.Next)
 }
 
 // LogSinkIterator manages a stream of *loggingpb.LogSink.
@@ -619,6 +657,12 @@ func (it *LogSinkIterator) takeBuf() interface{} {
 	return b
 }
 
+// All returns an iterator. If an error is returned by the iterator, the
+// iterator will stop after that iteration.
+func (it *LogViewIterator) All() iter.Seq2[*loggingpb.LogView, error] {
+	return gaxiter.RangeAdapter(it.Next)
+}
+
 // LogViewIterator manages a stream of *loggingpb.LogView.
 type LogViewIterator struct {
 	items    []*loggingpb.LogView
@@ -664,6 +708,12 @@ func (it *LogViewIterator) takeBuf() interface{} {
 	b := it.items
 	it.items = nil
 	return b
+}
+
+// All returns an iterator. If an error is returned by the iterator, the
+// iterator will stop after that iteration.
+func (it *MonitoredResourceDescriptorIterator) All() iter.Seq2[*monitoredrespb.MonitoredResourceDescriptor, error] {
+	return gaxiter.RangeAdapter(it.Next)
 }
 
 // MonitoredResourceDescriptorIterator manages a stream of *monitoredrespb.MonitoredResourceDescriptor.
@@ -713,6 +763,12 @@ func (it *MonitoredResourceDescriptorIterator) takeBuf() interface{} {
 	return b
 }
 
+// All returns an iterator. If an error is returned by the iterator, the
+// iterator will stop after that iteration.
+func (it *OperationIterator) All() iter.Seq2[*longrunningpb.Operation, error] {
+	return gaxiter.RangeAdapter(it.Next)
+}
+
 // OperationIterator manages a stream of *longrunningpb.Operation.
 type OperationIterator struct {
 	items    []*longrunningpb.Operation
@@ -758,6 +814,12 @@ func (it *OperationIterator) takeBuf() interface{} {
 	b := it.items
 	it.items = nil
 	return b
+}
+
+// All returns an iterator. If an error is returned by the iterator, the
+// iterator will stop after that iteration.
+func (it *StringIterator) All() iter.Seq2[string, error] {
+	return gaxiter.RangeAdapter(it.Next)
 }
 
 // StringIterator manages a stream of string.
