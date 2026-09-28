@@ -169,16 +169,32 @@ loop:
 // path is path to host file
 // IP is new IP address
 // hostname is hostname to search for to replace IP
-func Update(path, IP, hostname string) error {
+func Update(path, IP, hostname string) (retErr error) {
 	re, err := regexp.Compile(fmt.Sprintf(`(\S*)(\t%s)(\s|\.)`, regexp.QuoteMeta(hostname)))
 	if err != nil {
 		return err
 	}
-	defer pathLock(path)()
 
-	old, err := os.ReadFile(path)
+	defer pathLock(path)()
+	f, err := os.OpenFile(path, os.O_RDWR, 0)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2"+"$3")), 0o644) // #nosec G703 -- path argument is from trusted source.
+	defer func() {
+		if err := f.Close(); retErr == nil {
+			retErr = err
+		}
+	}()
+
+	old, err := io.ReadAll(f)
+	if err != nil {
+		return err
+	}
+	updated := re.ReplaceAll(old, []byte(IP+"$2"+"$3"))
+
+	if err := f.Truncate(0); err != nil {
+		return err
+	}
+	_, err = f.WriteAt(updated, 0)
+	return err
 }
