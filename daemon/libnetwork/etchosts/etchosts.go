@@ -68,8 +68,6 @@ func BuildNoIPv6(path string, extraContent []Record) error {
 }
 
 func build(path string, contents ...[]Record) error {
-	defer pathLock(path)()
-
 	var buf bytes.Buffer
 
 	// Write content from function arguments
@@ -81,6 +79,7 @@ func build(path string, contents ...[]Record) error {
 		}
 	}
 
+	defer pathLock(path)()
 	return os.WriteFile(path, buf.Bytes(), 0o644)
 }
 
@@ -90,8 +89,6 @@ func Add(path string, recs []Record) error {
 		return nil
 	}
 
-	defer pathLock(path)()
-
 	var buf bytes.Buffer
 	for _, r := range recs {
 		if _, err := r.WriteTo(&buf); err != nil {
@@ -99,6 +96,7 @@ func Add(path string, recs []Record) error {
 		}
 	}
 
+	defer pathLock(path)()
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
 	if err != nil {
 		return err
@@ -121,7 +119,7 @@ func Delete(path string, recs []Record) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var buf bytes.Buffer
 
