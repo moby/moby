@@ -19,9 +19,15 @@ package oci
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
 
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -186,19 +192,7 @@ func populateDefaultUnixSpec(ctx context.Context, s *Spec, id string) error {
 			},
 		},
 		Linux: &specs.Linux{
-			MaskedPaths: []string{
-				"/proc/acpi",
-				"/proc/asound",
-				"/proc/kcore",
-				"/proc/keys",
-				"/proc/latency_stats",
-				"/proc/timer_list",
-				"/proc/timer_stats",
-				"/proc/sched_debug",
-				"/sys/firmware",
-				"/sys/devices/virtual/powercap",
-				"/proc/scsi",
-			},
+			MaskedPaths: defaultLinuxMaskedPaths(),
 			ReadonlyPaths: []string{
 				"/proc/bus",
 				"/proc/fs",
@@ -263,4 +257,78 @@ func DescriptorToProto(d ocispec.Descriptor) *types.Descriptor {
 		Size:        d.Size,
 		Annotations: d.Annotations,
 	}
+}
+
+var cachedDefaultLinuxMaskedPaths = sync.OnceValue(func() []string {
+	maskedPaths := []string{
+		"/proc/acpi",
+		"/proc/asound",
+		"/proc/interrupts",
+		"/proc/kcore",
+		"/proc/keys",
+		"/proc/latency_stats",
+		"/proc/timer_list",
+		"/proc/timer_stats",
+		"/proc/sched_debug",
+		"/sys/firmware",
+		"/sys/devices/virtual/powercap",
+		"/proc/scsi",
+	}
+
+	return appendCPUThrottlePaths(maskedPaths, possibleCPUs())
+})
+
+func defaultLinuxMaskedPaths() []string {
+	return slices.Clone(cachedDefaultLinuxMaskedPaths())
+}
+
+func possibleCPUs() []int {
+	if cpus, err := possibleCPUsParsed(); err == nil && len(cpus) > 0 {
+		return cpus
+	}
+
+	var cpus []int
+	for i := range runtime.NumCPU() {
+		cpus = append(cpus, i)
+	}
+	return cpus
+}
+
+func parsePossibleCPUs(content string) ([]int, error) {
+	if content == "" {
+		return nil, errors.New("empty possible cpu string")
+	}
+	ranges := strings.Split(content, ",")
+	var cpus []int
+	for _, r := range ranges {
+		if rStart, rEnd, ok := strings.Cut(r, "-"); ok {
+			start, err := strconv.Atoi(rStart)
+			if err != nil {
+				return nil, fmt.Errorf("invalid cpu range start %q: %w", rStart, err)
+			}
+			if start < 0 {
+				return nil, fmt.Errorf("negative cpu range start %d", start)
+			}
+			end, err := strconv.Atoi(rEnd)
+			if err != nil {
+				return nil, fmt.Errorf("invalid cpu range end %q: %w", rEnd, err)
+			}
+			if start > end {
+				return nil, fmt.Errorf("invalid cpu range %d-%d: start greater than end", start, end)
+			}
+			for i := start; i <= end; i++ {
+				cpus = append(cpus, i)
+			}
+		} else {
+			cpu, err := strconv.Atoi(rStart)
+			if err != nil {
+				return nil, fmt.Errorf("invalid cpu number %q: %w", rStart, err)
+			}
+			if cpu < 0 {
+				return nil, fmt.Errorf("negative cpu number %d", cpu)
+			}
+			cpus = append(cpus, cpu)
+		}
+	}
+	return cpus, nil
 }

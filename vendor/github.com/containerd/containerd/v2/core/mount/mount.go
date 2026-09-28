@@ -102,9 +102,9 @@ func (m *Mount) Mount(target string) error {
 	return m.mount(target)
 }
 
-// readonlyMounts modifies the received mount options
-// to make them readonly
+// readonlyMounts returns mounts with readonly options applied.
 func readonlyMounts(mounts []Mount) []Mount {
+	mounts = slices.Clone(mounts)
 	for i, m := range mounts {
 		if m.Type == "overlay" {
 			mounts[i].Options = readonlyOverlay(m.Options)
