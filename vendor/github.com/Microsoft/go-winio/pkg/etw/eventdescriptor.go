@@ -23,7 +23,7 @@ var _ fmt.Stringer = Level(0)
 
 // Predefined ETW log levels from winmeta.xml in the Windows SDK.
 //
-//go:generate go run golang.org/x/tools/cmd/stringer -type=Level -trimprefix=Level
+//go:generate go tool stringer -type=Level -trimprefix=Level
 const (
 	LevelAlways Level = iota
 	LevelCritical
@@ -40,7 +40,7 @@ var _ fmt.Stringer = Opcode(0)
 
 // Predefined ETW opcodes from winmeta.xml in the Windows SDK.
 //
-//go:generate go run golang.org/x/tools/cmd/stringer -type=Opcode -trimprefix=Opcode
+//go:generate go tool stringer -type=Opcode -trimprefix=Opcode
 const (
 	// OpcodeInfo indicates an informational event.
 	OpcodeInfo Opcode = iota
@@ -55,6 +55,8 @@ const (
 )
 
 // eventDescriptor represents various metadata for an ETW event.
+//
+//nolint:unused,nolintlint // only used on Windows.
 type eventDescriptor struct {
 	id      uint16
 	version uint8
@@ -67,6 +69,8 @@ type eventDescriptor struct {
 
 // newEventDescriptor returns an EventDescriptor initialized for use with
 // TraceLogging.
+//
+//nolint:unused,nolintlint // only used on Windows.
 func newEventDescriptor() *eventDescriptor {
 	// Standard TraceLogging events default to the TraceLogging channel, and
 	// verbose level.

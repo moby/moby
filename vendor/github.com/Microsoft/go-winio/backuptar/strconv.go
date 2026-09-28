@@ -22,8 +22,8 @@ func parsePAXTime(s string) (time.Time, error) {
 
 	// Split string into seconds and sub-seconds parts.
 	ss, sn := s, ""
-	if pos := strings.IndexByte(s, '.'); pos >= 0 {
-		ss, sn = s[:pos], s[pos+1:]
+	if before, after, ok := strings.Cut(s, "."); ok {
+		ss, sn = before, after
 	}
 
 	// Parse the seconds.
