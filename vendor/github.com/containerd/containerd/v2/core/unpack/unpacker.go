@@ -352,6 +352,20 @@ type unpackStatus struct {
 	startAt time.Time
 }
 
+// layerSnapshotLabels filters out containerd.io/snapshot/uidmapping and
+// .../gidmapping annotations from the (untrusted) image manifest to prevent
+// snapshotters from incorrectly chowning the extracted layer to the supplied
+// mapped host uid/gid.
+func layerSnapshotLabels(annotations map[string]string) map[string]string {
+	labels := snapshots.FilterInheritedLabels(annotations)
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	delete(labels, snapshots.LabelSnapshotUIDMapping)
+	delete(labels, snapshots.LabelSnapshotGIDMapping)
+	return labels
+}
+
 func (u *Unpacker) unpack(
 	h images.Handler,
 	config ocispec.Descriptor,
@@ -470,11 +484,8 @@ func (u *Unpacker) unpack(
 			}
 		}()
 
-		// inherits annotations which are provided as snapshot labels.
-		snapshotLabels := snapshots.FilterInheritedLabels(desc.Annotations)
-		if snapshotLabels == nil {
-			snapshotLabels = make(map[string]string)
-		}
+		// inherits a filtered set of annotations which are provided as snapshot labels
+		snapshotLabels := layerSnapshotLabels(desc.Annotations)
 		snapshotLabels[snapshots.LabelSnapshotRef] = chainID
 		snapshotLabels[snapshots.LabelSnapshotDiffID] = diffIDs[i].String()
 		if i > 0 {
