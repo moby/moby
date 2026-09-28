@@ -99,7 +99,7 @@ func Add(path string, recs []Record) error {
 		}
 	}
 
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func Delete(path string, recs []Record) error {
 		return nil
 	}
 	defer pathLock(path)()
-	f, err := os.OpenFile(path, os.O_RDWR, 0o644)
+	f, err := os.OpenFile(path, os.O_RDWR, 0)
 	if err != nil {
 		return err
 	}
