@@ -1308,10 +1308,9 @@ definitions:
           enum:
             - {}
           default: {}
-        example: {
-          "80/tcp": {},
+        example:
+          "80/tcp": {}
           "443/tcp": {}
-        }
       Tty:
         description: |
           Attach standard streams to a TTY, including `stdin` if it is not closed.
@@ -1504,10 +1503,9 @@ definitions:
           enum:
             - {}
           default: {}
-        example: {
-          "80/tcp": {},
+        example:
+          "80/tcp": {}
           "443/tcp": {}
-        }
       Tty:
         description: |
           Attach standard streams to a TTY, including `stdin` if it is not closed.
@@ -1679,36 +1677,32 @@ definitions:
       "AttachStdin": false
       "AttachStdout": false
       "AttachStderr": false
-      "ExposedPorts": {
-        "80/tcp": {},
+      "ExposedPorts":
+        "80/tcp": {}
         "443/tcp": {}
-      }
       "Tty": false
       "OpenStdin": false
       "StdinOnce": false
       "Env": ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"]
       "Cmd": ["/bin/sh"]
-      "Healthcheck": {
-        "Test": ["string"],
-        "Interval": 0,
-        "Timeout": 0,
-        "Retries": 0,
-        "StartPeriod": 0,
+      "Healthcheck":
+        "Test": ["string"]
+        "Interval": 0
+        "Timeout": 0
+        "Retries": 0
+        "StartPeriod": 0
         "StartInterval": 0
-      }
       "ArgsEscaped": true
       "Image": ""
-      "Volumes": {
-        "/app/data": {},
+      "Volumes":
+        "/app/data": {}
         "/app/config": {}
-      }
       "WorkingDir": "/public/"
       "Entrypoint": []
       "OnBuild": []
-      "Labels": {
-        "com.example.some-label": "some-value",
+      "Labels":
+        "com.example.some-label": "some-value"
         "com.example.some-other-label": "some-other-value"
-      }
       "StopSignal": "SIGTERM"
       "Shell": ["/bin/sh", "-c"]
 
@@ -1997,11 +1991,10 @@ definitions:
         x-nullable: false
         additionalProperties:
           type: "string"
-        example: {
-          "MergedDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/merged",
-          "UpperDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/diff",
+        example:
+          "MergedDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/merged"
+          "UpperDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/diff"
           "WorkDir": "/var/lib/docker/overlay2/ef749362d13333e65fc95c572eb525abbe0052e16e086cb64bc3b98ae9aa6d74/work"
-        }
 
   FilesystemChange:
     description: |
