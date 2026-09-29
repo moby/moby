@@ -29,6 +29,7 @@ import (
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/internal/testutil/request"
 	"github.com/moby/moby/v2/pkg/ioutils"
+	"github.com/moby/moby/v2/pkg/pidfile"
 	"github.com/moby/moby/v2/pkg/tailfile"
 	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
@@ -709,9 +710,23 @@ func (d *Daemon) Kill() error {
 	return nil
 }
 
-// Pid returns the pid of the daemon
+// Pid returns the pid of the daemon's direct child process. In rootless
+// mode, this is the outermost process started by the test framework (e.g.
+// sudo), not dockerd itself.
 func (d *Daemon) Pid() int {
 	return d.cmd.Process.Pid
+}
+
+// DockerdPid returns the pid of the dockerd process itself, as recorded by
+// dockerd in its pidfile. Unlike Pid, this is accurate in rootless mode.
+func (d *Daemon) DockerdPid(t testing.TB) int {
+	t.Helper()
+
+	pid, err := pidfile.Read(d.pidFile)
+	assert.NilError(t, err)
+	assert.Assert(t, pid != 0, "no running process found in %s", d.pidFile)
+
+	return pid
 }
 
 // Interrupt stops the daemon by sending it an Interrupt signal

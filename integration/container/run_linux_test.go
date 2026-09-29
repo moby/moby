@@ -139,6 +139,7 @@ func TestPrivilegedHostDevices(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsUserNamespace, "privileged mode is incompatible with user namespaces")
+	skip.If(t, testEnv.IsNonRootClient, "skipping test that requires root on client side")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
