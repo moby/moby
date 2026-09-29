@@ -19,8 +19,9 @@ func clientProviders() []clientpoint.Registration {
 }
 
 // builtinExtensions returns the in-process extensions selected by daemon config.
-func builtinExtensions(*config.Config) []extensions.Extension {
+func builtinExtensions(_ *config.Config, d *Daemon) []extensions.Extension {
 	return []extensions.Extension{
 		namesgeneratorlegacy.Extension,
+		runtimeExtension(d),
 	}
 }
