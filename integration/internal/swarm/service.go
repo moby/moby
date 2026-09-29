@@ -68,16 +68,45 @@ func CreateService(ctx context.Context, t *testing.T, d *daemon.Daemon, opts ...
 	return resp.ID
 }
 
-// CreateServiceSpec creates a default service-spec, and applies the provided options
+// CreateServiceSpec creates a default service-spec, and applies the provided options.
+//
+// The defaults include running tasks under an init, so a test that wants the
+// daemon's own default instead has to say so with ServiceWithInit(nil) - saying
+// nothing gets the init.
 func CreateServiceSpec(t *testing.T, opts ...ServiceSpecOpt) swarmtypes.ServiceSpec {
 	t.Helper()
 	var spec swarmtypes.ServiceSpec
 	ServiceWithImage("busybox:latest")(&spec)
 	ServiceWithCommand([]string{"/bin/top"})(&spec)
 	ServiceWithReplicas(1)(&spec)
+	// Run tasks under an init. None of the commands these tests run install a
+	// SIGTERM handler, and a signal sent to PID 1 has no default action - so as
+	// PID 1 they ignore the stop signal, and every task teardown waits out the
+	// container's whole stop timeout before the kill. An init takes PID 1 and
+	// forwards the signal to a process the default action applies to.
+	ServiceWithInit(new(true))(&spec)
 
 	for _, o := range opts {
 		o(&spec)
+	}
+
+	// Declare an update complete once its new task has settled. The default
+	// monitoring period guards against a task that starts and then flaps, which
+	// is not what any of these tests are asking about - they wait for the update
+	// to report itself complete, and pay the whole window while it does.
+	//
+	// Applied after the options, rather than as a default before them, because a
+	// caller setting UpdateConfig for the order replaces the struct wholesale;
+	// this fills the field in without overriding a caller that asked for its own.
+	// A job is rejected outright if it carries an update config, so they keep
+	// none - they run their tasks to completion instead of updating them.
+	if spec.Mode.ReplicatedJob == nil && spec.Mode.GlobalJob == nil {
+		if spec.UpdateConfig == nil {
+			spec.UpdateConfig = &swarmtypes.UpdateConfig{}
+		}
+		if spec.UpdateConfig.Monitor == 0 {
+			spec.UpdateConfig.Monitor = time.Second
+		}
 	}
 	return spec
 }
