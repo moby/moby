@@ -17,6 +17,7 @@ start participating.
 * [Design and Cleanup Proposals](#design-and-cleanup-proposals)
 * [Reporting Issues](#reporting-other-issues)
 * [Quick Contribution Tips and Guidelines](#quick-contribution-tips-and-guidelines)
+* [AI Usage Policy](#ai-usage-policy)
 * [Community Guidelines](#moby-community-guidelines)
 
 ## Reporting security issues
@@ -236,10 +237,8 @@ Remember, you're telling part of the story with the commit message. Don't make
 your chapter weird.
 
 Contributors are responsible for their commits, including any AI-assisted work.
-Do not credit LLMs or AI agents with `Co-Authored-By` trailers; reserve those for
-human contributors.
-Credit agents in the pull request body or with an `Assisted-By: <agent name>`
-commit trailer instead.
+Do not credit LLMs or AI agents with `Co-Authored-By` trailers; reserve those for human contributors.
+Disclose AI usage in the issue or pull request description, not in commit messages, as required by the [AI usage policy](#ai-usage-policy).
 
 ### Review
 
@@ -347,6 +346,11 @@ file in this repository.
 Don't forget: being a maintainer is a time investment. Make sure you
 will have time to make yourself available. You don't have to be a
 maintainer to make a difference on the project!
+
+## AI usage policy
+
+Moby follows the shared [Moby and Docker AI usage policy](https://github.com/moby/.github/blob/main/AI_POLICY.md) for AI-assisted issues, pull requests, and discussions.
+Read and follow it before contributing with AI tools.
 
 ## Moby community guidelines
 
