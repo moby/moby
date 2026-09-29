@@ -17,15 +17,18 @@ import (
 )
 
 func init() {
-	// Register a custom copier for netip.Addr. The copystructure library uses
-	// reflection which cannot access unexported fields in netip.Addr, resulting
-	// in zero-value copies. Since netip.Addr is an immutable value type, we can
-	// safely return it as-is.
+	// Register custom copiers for netip values. The copystructure library uses
+	// reflection which cannot access unexported fields in these types, resulting
+	// in zero-value copies. Since netip values are immutable, we can safely return
+	// them as-is.
 	//
 	// Note: copystructure is archived (https://github.com/mitchellh/copystructure)
 	// and won't receive upstream fixes for this limitation.
 	copystructure.Copiers[reflect.TypeFor[netip.Addr]()] = func(v any) (any, error) {
 		return v.(netip.Addr), nil
+	}
+	copystructure.Copiers[reflect.TypeFor[netip.Prefix]()] = func(v any) (any, error) {
+		return v.(netip.Prefix), nil
 	}
 }
 
