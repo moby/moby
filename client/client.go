@@ -60,7 +60,6 @@ import (
 	"net/url"
 	"path"
 	"runtime"
-	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -253,7 +252,7 @@ func New(ops ...Opt) (*Client, error) {
 	if len(cfg.responseHooks) > 0 {
 		c.client.Transport = &hookTransport{
 			base:      c.client.Transport,
-			respHooks: slices.Clone(cfg.responseHooks),
+			respHooks: cfg.responseHooks,
 		}
 	}
 
