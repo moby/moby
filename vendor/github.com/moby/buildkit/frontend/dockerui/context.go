@@ -220,9 +220,7 @@ func archiveMaxTimeFromHTTPArchive(ctx context.Context, bctx *buildContext) (*ti
 	if bctx.contextRef == nil || bctx.httpContextFilename == "" {
 		return nil, nil
 	}
-	dt, err := bctx.contextRef.ReadFile(ctx, client.ReadRequest{
-		Filename: bctx.httpContextFilename,
-	})
+	dt, err := ReadFile(ctx, bctx.contextRef, bctx.httpContextFilename)
 	if err != nil {
 		return nil, err
 	}

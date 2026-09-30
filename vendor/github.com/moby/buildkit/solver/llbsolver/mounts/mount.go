@@ -154,6 +154,9 @@ func (g *cacheRefGetter) getRefCacheDirNoCache(ctx context.Context, key string, 
 }
 
 func (mm *MountManager) getSSHMountable(ctx context.Context, m *pb.Mount, g session.Group) (cache.Mountable, error) {
+	if m.SSHOpt == nil {
+		return nil, errors.New("invalid SSH mount options")
+	}
 	var caller session.Caller
 	err := mm.sm.Any(ctx, g, func(ctx context.Context, _ string, c session.Caller) error {
 		if err := sshforward.CheckSSHID(ctx, c, m.SSHOpt.ID); err != nil {

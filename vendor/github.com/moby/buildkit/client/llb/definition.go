@@ -75,7 +75,13 @@ func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 		}
 
 		for dgst, locs := range def.Source.Locations {
+			if locs == nil {
+				return nil, errors.Errorf("invalid nil source locations for vertex %s", dgst)
+			}
 			for _, loc := range locs.Locations {
+				if loc == nil {
+					return nil, errors.Errorf("invalid nil source location for vertex %s", dgst)
+				}
 				if loc.SourceIndex < 0 || int(loc.SourceIndex) >= len(sourceMaps) {
 					return nil, errors.Errorf("failed to find source map with index %d", loc.SourceIndex)
 				}
@@ -90,6 +96,9 @@ func NewDefinitionOp(def *pb.Definition) (*DefinitionOp, error) {
 
 	var index pb.OutputIndex
 	if dgst != "" {
+		if len(ops[dgst].Inputs) == 0 {
+			return nil, errors.New("invalid definition with no inputs on last vertex")
+		}
 		index = pb.OutputIndex(ops[dgst].Inputs[0].Index)
 		dgst = digest.Digest(ops[dgst].Inputs[0].Digest)
 	}

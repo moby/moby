@@ -345,9 +345,7 @@ func sourceDateEpochFromMetadata(md *sourceresolver.MetaResponse) (*time.Time, b
 }
 
 func archiveMaxTimeFromRef(ctx context.Context, ref gwclient.Reference, filename string, allowNonArchive bool) (*time.Time, error) {
-	dt, err := ref.ReadFile(ctx, gwclient.ReadRequest{
-		Filename: filename,
-	})
+	dt, err := dockerui.ReadFile(ctx, ref, filename)
 	if err != nil {
 		return nil, err
 	}

@@ -217,6 +217,9 @@ func (e *ExecOp) CacheMap(ctx context.Context, jobCtx solver.JobContext, index i
 		for _, d := range e.op.CdiDevices {
 			setup, ok := e.w.CDIManager().OnDemandInstaller(d.Name)
 			if ok {
+				if len(cm.Deps) == 0 {
+					return nil, false, errors.Errorf("cannot set up CDI device %q without an input", d.Name)
+				}
 				prev := cm.Deps[0].PreprocessFunc
 				cm.Deps[0].PreprocessFunc = func(ctx context.Context, r solver.Result, g session.Group) error {
 					if err := prev(ctx, r, g); err != nil {

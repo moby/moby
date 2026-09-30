@@ -5,11 +5,13 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
 	"github.com/moby/buildkit/frontend/gateway"
 	gatewaypb "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/pb"
+	srctypes "github.com/moby/buildkit/source/types"
 	"github.com/moby/buildkit/sourcepolicy"
 	spb "github.com/moby/buildkit/sourcepolicy/pb"
 	"github.com/moby/buildkit/sourcepolicy/policysession"
@@ -49,6 +51,41 @@ func (p *policyEvaluator) Evaluate(ctx context.Context, op *pb.Op) (bool, error)
 }
 
 func (p *policyEvaluator) evaluate(ctx context.Context, op *pb.Op, max int) (bool, error) {
+	mutated, err := p.evaluateSource(ctx, op, max)
+	if err != nil {
+		return false, err
+	}
+
+	nestedMutated, err := p.evaluateNestedSources(ctx, op, max)
+	if err != nil {
+		return false, err
+	}
+	return mutated || nestedMutated, nil
+}
+
+// evaluateNestedSources applies policy to resources embedded in a source op
+// that are fetched independently of the source identified by the op itself.
+func (p *policyEvaluator) evaluateNestedSources(ctx context.Context, op *pb.Op, max int) (bool, error) {
+	// A Git bundle is transported as a container blob, so evaluate its locator
+	// as the equivalent containerblob source before the Git source can use it.
+	bundleOp, ok, err := gitBundleSourceOp(op)
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		return false, nil
+	}
+	bundleMutated, err := p.evaluateSource(ctx, bundleOp, max)
+	if err != nil {
+		return false, errors.Wrap(err, "error evaluating git bundle source policy")
+	}
+	if bundleMutated {
+		applyGitBundleSourceOp(op.GetSource(), bundleOp.GetSource())
+	}
+	return bundleMutated, nil
+}
+
+func (p *policyEvaluator) evaluateSource(ctx context.Context, op *pb.Op, max int) (bool, error) {
 	source := op.GetSource()
 	if source == nil {
 		return false, nil
@@ -165,7 +202,7 @@ func (p *policyEvaluator) evaluate(ctx context.Context, op *pb.Op, max int) (boo
 			}
 			source.Identifier = newSrc.Identifier
 			source.Attrs = newSrc.Attrs
-			_, err = p.evaluate(ctx, op, max)
+			_, err = p.evaluateSource(ctx, op, max)
 			if err != nil {
 				return false, err
 			}
@@ -177,6 +214,84 @@ func (p *policyEvaluator) evaluate(ctx context.Context, op *pb.Op, max int) (boo
 		}
 		return ok, nil
 	}
+}
+
+func gitBundleSourceOp(op *pb.Op) (*pb.Op, bool, error) {
+	source := op.GetSource()
+	if source == nil || !strings.HasPrefix(source.Identifier, srctypes.GitScheme+"://") {
+		return nil, false, nil
+	}
+
+	bundle := source.Attrs[pb.AttrGitBundle]
+	if bundle == "" {
+		return nil, false, nil
+	}
+	scheme, ref, ok := strings.Cut(bundle, "://")
+	if !ok {
+		return nil, false, errors.Errorf("failed to parse git.bundle locator %q: missing scheme", bundle)
+	}
+	if scheme != srctypes.DockerImageBlobScheme && scheme != srctypes.OCIBlobScheme {
+		return nil, false, errors.Errorf("git.bundle locator scheme %q is not supported", scheme)
+	}
+	// Parse the reference to match containerblob identifier normalization. The
+	// Git source remains responsible for bundle-specific validation such as the
+	// required digest algorithm.
+	parsed, err := reference.Parse(ref)
+	if err != nil {
+		return nil, false, errors.Wrapf(err, "failed to parse git.bundle locator %q", bundle)
+	}
+
+	attrs := map[string]string{}
+	if scheme == srctypes.OCIBlobScheme {
+		if value, ok := source.Attrs[pb.AttrOCILayoutSessionID]; ok {
+			attrs[pb.AttrOCILayoutSessionID] = value
+		}
+		if storeID := source.Attrs[pb.AttrOCILayoutStoreID]; storeID != "" {
+			attrs[pb.AttrOCILayoutStoreID] = storeID
+		} else {
+			// Git bundle locators use the reference locator as the default OCI
+			// store, while a standalone containerblob source requires it as an
+			// explicit attribute.
+			attrs[pb.AttrOCILayoutStoreID] = parsed.Locator
+		}
+	}
+	return &pb.Op{
+		Op: &pb.Op_Source{Source: &pb.SourceOp{
+			Identifier: scheme + "://" + parsed.String(),
+			Attrs:      attrs,
+		}},
+		Platform: op.Platform,
+	}, true, nil
+}
+
+func applyGitBundleSourceOp(gitSource, bundleSource *pb.SourceOp) {
+	implicitStoreID := gitBundleImplicitStoreID(gitSource)
+	gitSource.Attrs[pb.AttrGitBundle] = bundleSource.Identifier
+	for _, key := range []string{pb.AttrOCILayoutSessionID, pb.AttrOCILayoutStoreID} {
+		delete(gitSource.Attrs, key)
+		if value, ok := bundleSource.Attrs[key]; ok {
+			if key == pb.AttrOCILayoutStoreID && value == implicitStoreID {
+				continue
+			}
+			gitSource.Attrs[key] = value
+		}
+	}
+}
+
+func gitBundleImplicitStoreID(source *pb.SourceOp) string {
+	if source.Attrs[pb.AttrOCILayoutStoreID] != "" {
+		return ""
+	}
+	bundle := source.Attrs[pb.AttrGitBundle]
+	scheme, ref, ok := strings.Cut(bundle, "://")
+	if !ok || scheme != srctypes.OCIBlobScheme {
+		return ""
+	}
+	parsed, err := reference.Parse(ref)
+	if err != nil {
+		return ""
+	}
+	return parsed.Locator
 }
 
 func mapsEqual[K comparable, V comparable](a, b map[K]V) error {
