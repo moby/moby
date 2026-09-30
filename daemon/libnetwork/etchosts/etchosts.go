@@ -84,7 +84,7 @@ func build(path string, contents ...[]Record) error {
 }
 
 // Add adds an arbitrary number of Records to an already existing /etc/hosts file
-func Add(path string, recs []Record) error {
+func Add(path string, recs []Record) (retErr error) {
 	if len(recs) == 0 {
 		return nil
 	}
@@ -101,8 +101,12 @@ func Add(path string, recs []Record) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err := f.Close(); retErr == nil {
+			retErr = err
+		}
+	}()
 	_, err = f.Write(buf.Bytes())
-	_ = f.Close()
 	return err
 }
 
@@ -110,7 +114,7 @@ func Add(path string, recs []Record) error {
 // The hostnames must be an exact match (if the user has modified the record,
 // it won't be deleted). The address, parsed as a netip.Addr must also match
 // the value in recs.
-func Delete(path string, recs []Record) error {
+func Delete(path string, recs []Record) (retErr error) {
 	if len(recs) == 0 {
 		return nil
 	}
@@ -119,7 +123,11 @@ func Delete(path string, recs []Record) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = f.Close() }()
+	defer func() {
+		if err := f.Close(); retErr == nil {
+			retErr = err
+		}
+	}()
 
 	var buf bytes.Buffer
 
