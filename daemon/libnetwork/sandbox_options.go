@@ -24,9 +24,10 @@ func OptionDomainname(name string) SandboxOption {
 	}
 }
 
-// OptionHostsPath function returns an option setter for hostspath option to
-// be passed to NewSandbox method.
-func OptionHostsPath(path string) SandboxOption {
+// OptionWriteHostsFile returns an option setter for the sandbox to write its
+// hosts file to path. A sandbox created without it does not have a hosts file.
+// The caller is responsible for removing the file.
+func OptionWriteHostsFile(path string) SandboxOption {
 	return func(sb *Sandbox) {
 		sb.config.hostsPath = path
 	}
@@ -48,11 +49,14 @@ func OptionExtraHost(name string, IP netip.Addr) SandboxOption {
 	}
 }
 
-// OptionResolvConfPath function returns an option setter for resolvconfpath option to
-// be passed to net container methods.
-func OptionResolvConfPath(path string) SandboxOption {
+// OptionWriteResolvConf returns an option setter for the sandbox to write its
+// resolv.conf to path, and a hash of its contents to path+".hash". A sandbox
+// created without it does not have a resolv.conf. The caller is responsible
+// for removing both files.
+func OptionWriteResolvConf(path string) SandboxOption {
 	return func(sb *Sandbox) {
 		sb.config.resolvConfPath = path
+		sb.config.resolvConfHashFile = path + ".hash"
 	}
 }
 

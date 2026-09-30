@@ -855,7 +855,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 	sbx2, err := controller.NewSandbox(t.Context(), "c2",
 		libnetwork.OptionHostname("test2"),
 		libnetwork.OptionDomainname("example.com"),
-		libnetwork.OptionHostsPath("/var/lib/docker/test_network/container2/hosts"),
+		libnetwork.OptionWriteHostsFile("/var/lib/docker/test_network/container2/hosts"),
 		libnetwork.OptionExtraHost("web", netip.MustParseAddr("192.168.0.2")))
 	assert.NilError(t, err)
 	defer func() {
@@ -1363,7 +1363,7 @@ func TestResolvConf(t *testing.T) {
 			}
 
 			sbOpts := append(tc.sbOpts,
-				libnetwork.OptionResolvConfPath(resolvConfPath),
+				libnetwork.OptionWriteResolvConf(resolvConfPath),
 				libnetwork.OptionOriginResolvConfPath(originResolvConfPath),
 			)
 			sb, err := c.NewSandbox(t.Context(), containerID, sbOpts...)

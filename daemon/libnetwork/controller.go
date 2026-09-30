@@ -47,7 +47,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -929,8 +928,6 @@ func (c *Controller) NewSandbox(ctx context.Context, containerID string, options
 
 	if sb.ingress {
 		c.ingressSandbox = sb
-		sb.config.hostsPath = filepath.Join(c.cfg.DataDir, "hosts")
-		sb.config.resolvConfPath = filepath.Join(c.cfg.DataDir, "resolv.conf")
 		sb.id = "ingress_sbox"
 	} else if sb.loadBalancerNID != "" {
 		sb.id = "lb_" + sb.loadBalancerNID
