@@ -25,6 +25,10 @@ const (
 	secureOption = "encrypted"
 )
 
+// vxlanOuterIPv6Extra is the additional VXLAN encapsulation overhead on an
+// IPv6 transport: the outer IP header is 40 bytes instead of 20.
+const vxlanOuterIPv6Extra = 20
+
 var (
 	_ discoverapi.Discover   = (*driver)(nil)
 	_ driverapi.TableWatcher = (*driver)(nil)
