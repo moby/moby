@@ -23,7 +23,10 @@ type diffOp struct {
 }
 
 func NewDiffOp(v solver.Vertex, op *pb.Op_Diff, w worker.Worker) (solver.Op, error) {
-	if err := opsutils.Validate(&pb.Op{Op: op}); err != nil {
+	if err := opsutils.Validate(&pb.Op{
+		Inputs: make([]*pb.Input, len(v.Inputs())),
+		Op:     op,
+	}); err != nil {
 		return nil, err
 	}
 	return &diffOp{

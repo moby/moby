@@ -11,6 +11,7 @@ import (
 	"github.com/containerd/containerd/v2/core/containers"
 	containerdoci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/continuity/fs"
+	"github.com/moby/buildkit/util/openfile"
 	"github.com/moby/sys/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -71,31 +72,30 @@ func ParseUIDGID(str string) (uid uint32, gid uint32, err error) {
 	return
 }
 
-func openUserFile(root, p string) (io.ReadCloser, error) {
-	p, err := fs.RootPath(root, p)
+func openUserFile(root, orig string) (_ io.ReadCloser, retErr error) {
+	// paths below are daemon-side locations, report the path as the build
+	// asked for it
+	defer func() {
+		var pathErr *os.PathError
+		if errors.As(retErr, &pathErr) {
+			pathErr.Path = orig
+		}
+	}()
+
+	p, err := fs.RootPath(root, orig)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	f, err := os.Open(p)
+	f, err := openfile.Regular(p)
 	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	info, err := f.Stat()
-	if err != nil {
-		f.Close()
-		return nil, errors.WithStack(err)
-	}
-	if !info.Mode().IsRegular() {
-		f.Close()
-		return nil, errors.Errorf("%s is not a regular file", p)
+		return nil, err
 	}
 
 	return &limitedReadCloser{
 		ReadCloser: f,
 		r:          &io.LimitedReader{R: f, N: maxUserFileBytes + 1},
-		name:       p,
+		name:       orig,
 	}, nil
 }
 

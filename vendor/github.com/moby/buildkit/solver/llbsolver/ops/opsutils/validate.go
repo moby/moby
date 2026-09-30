@@ -16,6 +16,9 @@ func Validate(op *pb.Op) error {
 		if op.Source == nil {
 			return errors.New("invalid nil source op")
 		}
+		if inputCount != 0 {
+			return errors.Errorf("invalid source op with %d inputs", inputCount)
+		}
 	case *pb.Op_Exec:
 		if op.Exec == nil {
 			return errors.New("invalid nil exec op")
@@ -55,12 +58,25 @@ func Validate(op *pb.Op) error {
 		if op.Merge == nil {
 			return errors.New("invalid nil merge op")
 		}
+		if len(op.Merge.Inputs) != inputCount {
+			return errors.Errorf("invalid merge op with %d inner inputs and %d outer inputs", len(op.Merge.Inputs), inputCount)
+		}
 	case *pb.Op_Diff:
 		if op.Diff == nil {
 			return errors.New("invalid nil diff op")
 		}
 		if op.Diff.Lower == nil || op.Diff.Upper == nil {
 			return errors.New("invalid diff op with nil lower or upper input")
+		}
+		var diffInputCount int
+		if op.Diff.Lower.Input != int64(pb.Empty) {
+			diffInputCount++
+		}
+		if op.Diff.Upper.Input != int64(pb.Empty) {
+			diffInputCount++
+		}
+		if diffInputCount != inputCount {
+			return errors.Errorf("invalid diff op with %d inner inputs and %d outer inputs", diffInputCount, inputCount)
 		}
 	case *pb.Op_Passthrough:
 		if op.Passthrough == nil {
