@@ -670,12 +670,23 @@ func updateNodeKey(lIP, aIP, rIP netip.Addr, idxs []spi, curKeys []*key, newIdx,
 	return spis
 }
 
+// encapOverhead returns the VXLAN encapsulation overhead for this network's
+// transport: 50 bytes on IPv4 (inner Ethernet 14 + outer IPv4 20 + UDP 8 +
+// VXLAN 8), 70 bytes on IPv6 where the outer header is 40 bytes. When the
+// transport family is unknown, it falls back to the IPv4 allowance.
+func (n *network) encapOverhead() int {
+	if v6, err := n.driver.isIPv6Transport(); err == nil && v6 {
+		return vxlanEncap + vxlanOuterIPv6Extra
+	}
+	return vxlanEncap
+}
+
 func (n *network) maxMTU() int {
 	mtu := 1500
 	if n.mtu != 0 {
 		mtu = n.mtu
 	}
-	mtu -= vxlanEncap
+	mtu -= n.encapOverhead()
 	if n.secure {
 		// In case of encryption account for the
 		// esp packet expansion and padding
