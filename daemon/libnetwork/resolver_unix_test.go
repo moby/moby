@@ -4,6 +4,7 @@ package libnetwork
 
 import (
 	"net"
+	"sync/atomic"
 	"testing"
 
 	"github.com/miekg/dns"
@@ -142,15 +143,24 @@ func TestDNSProxyServFail(t *testing.T) {
 		}
 	}()
 
-	var nRequests int
+	var nRequests atomic.Int32
 	// initialize a local DNS server and configure it to fail the first query
 	dns.HandleFunc(".", newDNSHandlerServFailOnce(&nRequests))
-	// use TCP for predictable results. Connection tests (to figure out DNS server initialization) don't work with UDP
-	server := &dns.Server{Addr: "127.0.0.1:53", Net: "tcp"}
+	serveStarted := make(chan struct{})
+	server := &dns.Server{
+		Addr:              "127.0.0.1:53",
+		Net:               "udp",
+		NotifyStartedFunc: func() { close(serveStarted) },
+	}
 	srvErrCh := make(chan error, 1)
 	osctx.Go(t, func() {
 		srvErrCh <- server.ListenAndServe()
 	})
+	select {
+	case err := <-srvErrCh:
+		t.Fatal(err)
+	case <-serveStarted:
+	}
 	defer func() {
 		server.Shutdown() //nolint:errcheck
 		if err := <-srvErrCh; err != nil {
@@ -158,10 +168,7 @@ func TestDNSProxyServFail(t *testing.T) {
 		}
 	}()
 
-	waitForLocalDNSServer(t)
-	t.Log("DNS Server can be reached")
-
-	w := new(tstwriter)
+	w := &tstwriter{network: "udp"}
 	r := NewResolver(resolverIPSandbox, true, sb)
 	q := new(dns.Msg)
 	q.SetQuestion("name1.", dns.TypeA)
@@ -176,8 +183,8 @@ func TestDNSProxyServFail(t *testing.T) {
 	// this should generate two requests: the first will fail leading to a retry
 	r.SetExtServers(localDNSEntries)
 	r.serveDNS(w, q)
-	if nRequests != 2 {
-		t.Fatalf("Expected 2 DNS queries. Found: %d", nRequests)
+	if n := nRequests.Load(); n != 2 {
+		t.Fatalf("Expected 2 DNS queries. Found: %d", n)
 	}
 	t.Logf("Expected number of DNS requests generated")
 }
