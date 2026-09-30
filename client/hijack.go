@@ -22,7 +22,7 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 	if err != nil {
 		return HijackedResponse{}, err
 	}
-	conn, mediaType, err := setupHijackConn(cli.dialer(), req, "tcp")
+	conn, mediaType, err := cli.setupHijackConn(req, "tcp")
 	if err != nil {
 		return HijackedResponse{}, err
 	}
@@ -38,16 +38,17 @@ func (cli *Client) DialHijack(ctx context.Context, url, proto string, meta map[s
 	}
 	req = cli.addHeaders(req, meta)
 
-	conn, _, err := setupHijackConn(cli.Dialer(), req, proto)
+	conn, _, err := cli.setupHijackConn(req, proto)
 	return conn, err
 }
 
-func setupHijackConn(dialer func(context.Context) (net.Conn, error), req *http.Request, proto string) (_ net.Conn, _ string, retErr error) {
+func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn, _ string, retErr error) {
 	ctx := req.Context()
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", proto)
 
-	conn, err := dialer(ctx)
+	dial := cli.dialer()
+	conn, err := dial(ctx)
 	if err != nil {
 		return nil, "", fmt.Errorf("cannot connect to the Docker daemon. Is 'docker daemon' running on this host?: %w", err)
 	}
@@ -69,8 +70,18 @@ func setupHijackConn(dialer func(context.Context) (net.Conn, error), req *http.R
 
 	hc := &hijackedConn{conn, bufio.NewReader(conn)}
 
+	cfg := &cli.clientConfig
+
+	var rt http.RoundTripper = otelhttp.NewTransport(hc, cli.traceOpts...)
+	if len(cfg.responseHooks) > 0 {
+		rt = &hookTransport{
+			base:      rt,
+			respHooks: cfg.responseHooks,
+		}
+	}
+
 	// Server hijacks the connection, error 'connection closed' expected
-	resp, err := otelhttp.NewTransport(hc).RoundTrip(req)
+	resp, err := rt.RoundTrip(req)
 	if err != nil {
 		return nil, "", err
 	}
