@@ -75,6 +75,34 @@ func TestCleanupIptableRules(t *testing.T) {
 	}
 }
 
+// TestCleanupOldIngressChains checks that removeIPChains removes the DOCKER-INGRESS
+// chains, and the jumps to them, created by daemons older than 28.0.1.
+func TestCleanupOldIngressChains(t *testing.T) {
+	skip.If(t, iptables.UsingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")
+
+	defer netnsutils.SetupTestOSContext(t)()
+	iptable := iptables.GetIptable(iptables.IPv4)
+	for _, args := range [][]string{
+		{"-t", "nat", "-N", oldIngressChain},
+		{"-t", "nat", "-A", oldIngressChain, "-j", "RETURN"},
+		{"-t", "nat", "-I", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", oldIngressChain},
+		{"-t", "nat", "-I", "OUTPUT", "-m", "addrtype", "--dst-type", "LOCAL", "-j", oldIngressChain},
+		{"-N", oldIngressChain},
+		{"-A", oldIngressChain, "-j", "RETURN"},
+		{"-I", "FORWARD", "-j", oldIngressChain},
+	} {
+		out, err := iptable.Raw(args...)
+		assert.NilError(t, err, "args:%v out:%s", args, out)
+	}
+
+	removeIPChains(t.Context(), iptables.IPv4)
+
+	assert.Check(t, !iptable.Exists(iptables.Filter, "FORWARD", "-j", oldIngressChain))
+	for _, table := range []iptables.Table{iptables.Nat, iptables.Filter} {
+		assert.Check(t, !iptable.ExistChain(oldIngressChain, table), "table:%v", table)
+	}
+}
+
 // TestIptabler tests combinations of firewaller options against golden results.
 func TestIptabler(t *testing.T) {
 	skip.If(t, iptables.UsingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")

@@ -413,6 +413,7 @@ func removeIPChains(ctx context.Context, version iptables.IPVersion) {
 
 	// Remove obsolete rules from default chains
 	ipt.ProgramRule(iptables.Filter, "FORWARD", iptables.Delete, []string{"-j", oldIsolationChain})
+	ipt.ProgramRule(iptables.Filter, "FORWARD", iptables.Delete, []string{"-j", oldIngressChain})
 
 	// Remove chains
 	for _, chainInfo := range []iptables.ChainInfo{
