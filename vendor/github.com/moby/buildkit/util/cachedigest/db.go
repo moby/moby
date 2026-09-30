@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"sync"
 
+	"github.com/moby/buildkit/util/db"
+	"github.com/moby/buildkit/util/db/boltutil"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
@@ -16,7 +18,7 @@ var ErrNotFound = errors.New("not found")
 const bucketName = "byhash"
 
 type DB struct {
-	db *bolt.DB
+	db db.DB
 	wg sync.WaitGroup
 }
 
@@ -31,8 +33,9 @@ func GetDefaultDB() *DB {
 }
 
 func NewDB(path string) (*DB, error) {
-	db, err := bolt.Open(path, 0600, &bolt.Options{
-		FreelistType: bolt.FreelistMapType,
+	db, err := boltutil.SafeOpen(path, 0600, &bolt.Options{
+		FreelistType:   bolt.FreelistMapType,
+		NoFreelistSync: true,
 	})
 	if err != nil {
 		return nil, err

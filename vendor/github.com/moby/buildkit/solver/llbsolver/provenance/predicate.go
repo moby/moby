@@ -251,6 +251,7 @@ func NewPredicate(c *Capture) (*provenancetypes.ProvenancePredicateSLSA1, error)
 
 	internal := provenancetypes.ProvenanceInternalParametersSLSA1{}
 	internal.BuilderPlatform = platforms.Format(platforms.Normalize(platforms.DefaultSpec()))
+	internal.TargetPlatform = c.TargetPlatform
 
 	for _, s := range c.Sources.Local {
 		req.Locals = append(req.Locals, &provenancetypes.LocalSource{

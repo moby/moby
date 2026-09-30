@@ -27,7 +27,9 @@ import (
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
+	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver/compat"
+	"github.com/moby/buildkit/solver/result"
 	"github.com/moby/buildkit/util/compression"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/errutil"
@@ -252,7 +254,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 		}
 	}()
 
-	desc, err := e.opt.ImageWriter.Commit(ctx, src, buildInfo.SessionID, buildInfo.InlineCache, &opts, buildInfo.CompatibilityVersion, e.Type())
+	desc, committedRemotes, err := e.opt.ImageWriter.Commit(ctx, src, buildInfo.SessionID, buildInfo.InlineCache, &opts, buildInfo.CompatibilityVersion, e.Type())
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -323,14 +325,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 				tagDone(nil)
 
 				if e.unpack {
-					if opts.RewriteTimestamp {
-						// e.unpackImage cannot be used because src ref does not point to the rewritten image
-						// /
-						// TODO: change e.unpackImage so that it takes Result[Remote] as parameter.
-						// https://github.com/moby/buildkit/pull/4057#discussion_r1324106088
-						return nil, nil, nil, errors.New("exporter option \"rewrite-timestamp\" conflicts with \"unpack\"")
-					}
-					if err := e.unpackImage(ctx, img, src, session.NewGroup(buildInfo.SessionID)); err != nil {
+					if err := e.unpackImage(ctx, img, src, committedRemotes); err != nil {
 						return nil, nil, nil, err
 					}
 				}
@@ -441,7 +436,7 @@ func (e *imageExporterInstance) pushImage(ctx context.Context, src *exporter.Sou
 	return push.Push(ctx, e.opt.SessionManager, sessionID, mprovider, e.opt.ImageWriter.ContentStore(), dgst, targetName, e.insecure, e.opt.RegistryHosts, e.pushByDigest, annotations)
 }
 
-func (e *imageExporterInstance) unpackImage(ctx context.Context, img images.Image, src *exporter.Source, s session.Group) (err0 error) {
+func (e *imageExporterInstance) unpackImage(ctx context.Context, img images.Image, src *exporter.Source, remotes *result.Result[*solver.Remote]) (err0 error) {
 	matcher := platforms.Only(platforms.Normalize(platforms.DefaultSpec()))
 
 	ps, err := exptypes.ParsePlatforms(src.Metadata)
@@ -462,9 +457,9 @@ func (e *imageExporterInstance) unpackImage(ctx context.Context, img images.Imag
 		return matcher.Less(matching[i].Platform, matching[j].Platform)
 	})
 
-	ref, _ := src.FindRef(matching[0].ID)
-	if ref == nil {
-		// ref has no layers, so nothing to unpack
+	remote, _ := remotes.FindRef(matching[0].ID)
+	if remote == nil || len(remote.Descriptors) == 0 {
+		// image has no layers, so nothing to unpack
 		return nil
 	}
 
@@ -484,12 +479,6 @@ func (e *imageExporterInstance) unpackImage(ctx context.Context, img images.Imag
 	if err != nil {
 		return err
 	}
-
-	remotes, err := ref.GetRemotes(ctx, true, e.opts.RefCfg, false, s)
-	if err != nil {
-		return err
-	}
-	remote := remotes[0]
 
 	// ensure the content for each layer exists locally in case any are lazy
 	if unlazier, ok := remote.Provider.(cache.Unlazier); ok {

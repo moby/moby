@@ -1,4 +1,4 @@
-// Copyright The Moby Authors.
+// SPDX-FileCopyrightText: Copyright The Moby Authors
 // SPDX-License-Identifier: Apache-2.0
 
 //go:generate go run -tags 'seccomp' generate.go

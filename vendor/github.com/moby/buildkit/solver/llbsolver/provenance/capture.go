@@ -16,8 +16,12 @@ import (
 type Result = result.Result[*Capture]
 
 type Capture struct {
-	Request             provenancetypes.Parameters
-	Sources             provenancetypes.Sources
+	Request provenancetypes.Parameters
+	Sources provenancetypes.Sources
+
+	// TargetPlatform is set from the final result's platform mapping after capture merging.
+	TargetPlatform string
+
 	NetworkAccess       bool
 	ProxyNetwork        bool
 	IncompleteMaterials bool
@@ -30,6 +34,7 @@ func (c *Capture) Clone() *Capture {
 		return nil
 	}
 	out := &Capture{
+		TargetPlatform:      c.TargetPlatform,
 		NetworkAccess:       c.NetworkAccess,
 		ProxyNetwork:        c.ProxyNetwork,
 		IncompleteMaterials: c.IncompleteMaterials,
