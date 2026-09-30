@@ -3,6 +3,7 @@ package storagekvv0
 import (
 	"context"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/errdefs/pkg/errgrpc"
 	"github.com/moby/extensions"
 	"github.com/moby/moby/v2/errdefs"
@@ -80,8 +81,11 @@ func (kv *KV) List(ctx context.Context, opts ListOptions) (*ListResponse, error)
 // Preserve native errors, including context cancellation and filesystem causes.
 // RPC clients need their status errors translated back to Go error categories.
 func recordError(err error) error {
+	if err == nil || cerrdefs.IsUnavailable(err) {
+		return err
+	}
 	s, ok := status.FromError(err)
-	if !ok || err == nil {
+	if !ok {
 		return err
 	}
 	native := errgrpc.ToNative(err)

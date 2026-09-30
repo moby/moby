@@ -11,12 +11,15 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/extensions"
 	daemonconfigv0 "github.com/moby/moby/v2/extpoints/daemonconfig/v0"
 	storagekv "github.com/moby/moby/v2/extpoints/storage/kv/v0"
 	storagepb "github.com/moby/moby/v2/extpoints/storage/kv/v0/protogen"
+	bolt "go.etcd.io/bbolt"
+	bolterrors "go.etcd.io/bbolt/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"gotest.tools/v3/assert"
@@ -273,6 +276,175 @@ func TestStorageConcurrentCreate(t *testing.T) {
 		}
 	}
 	assert.Equal(t, successes, 1)
+}
+
+func TestStorageConcurrentReads(t *testing.T) {
+	t.Parallel()
+	s := newTestStorage(t, t.TempDir()).(*storage)
+	const readers = 2
+	entered := make(chan struct{}, readers)
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	releaseReaders := func() { releaseOnce.Do(func() { close(release) }) }
+	var wg sync.WaitGroup
+	results := make(chan error, readers)
+	for range readers {
+		wg.Go(func() {
+			results <- s.transaction(t.Context(), false, func(*bolt.Tx) error {
+				entered <- struct{}{}
+				<-release
+				return nil
+			})
+		})
+	}
+	finished := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(finished)
+	}()
+
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+	for range readers {
+		select {
+		case <-entered:
+		case <-timer.C:
+			releaseReaders()
+			select {
+			case <-finished:
+			case <-time.After(2 * time.Second):
+				t.Fatal("read transactions did not finish after release")
+			}
+			t.Fatal("read transactions did not overlap")
+		}
+	}
+	releaseReaders()
+	select {
+	case <-finished:
+	case <-time.After(2 * time.Second):
+		t.Fatal("read transactions did not finish")
+	}
+	for range readers {
+		assert.NilError(t, <-results)
+	}
+}
+
+func TestStorageShutdownWaitsForTransaction(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	provider := newTestStorage(t, root)
+	s := provider.(*storage)
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	transactionResult := make(chan error, 1)
+	go func() {
+		transactionResult <- s.transaction(t.Context(), true, func(tx *bolt.Tx) error {
+			bucket, err := tx.CreateBucket([]byte("shutdown"))
+			if err != nil {
+				return err
+			}
+			if err := bucket.Put([]byte("key"), []byte("committed")); err != nil {
+				return err
+			}
+			close(entered)
+			<-release
+			return nil
+		})
+	}()
+
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		close(release)
+		t.Fatal("transaction did not reach its synchronization point")
+	}
+
+	shutdownResult := make(chan error, 1)
+	go func() {
+		shutdownResult <- s.shutdown(t.Context())
+	}()
+
+	// A pending shutdown writer prevents new readers from acquiring the lock.
+	// Wait for that state instead of assuming the goroutine has been scheduled.
+	deadline := time.NewTimer(2 * time.Second)
+	defer deadline.Stop()
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for s.lifecycle.TryRLock() {
+		s.lifecycle.RUnlock()
+		select {
+		case err := <-shutdownResult:
+			close(release)
+			t.Fatalf("shutdown returned before the active transaction completed: %v", err)
+		case <-deadline.C:
+			close(release)
+			t.Fatal("shutdown did not wait on the active transaction")
+		case <-ticker.C:
+		}
+	}
+	close(release)
+	select {
+	case err := <-transactionResult:
+		assert.NilError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("transaction did not finish after release")
+	}
+	select {
+	case err := <-shutdownResult:
+		assert.NilError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("shutdown did not finish after the transaction committed")
+	}
+	assert.Check(t, cerrdefs.IsUnavailable(s.Create(t.Context(), &storagekv.WriteRequest{
+		Namespace: "shutdown",
+		Key:       "after",
+	})))
+
+	reopened := testKV(t, newTestStorage(t, root), "shutdown")
+	value, err := reopened.Get(t.Context(), "key")
+	assert.NilError(t, err)
+	assert.Equal(t, string(value), "committed")
+}
+
+func TestStorageOpenFailureUnavailable(t *testing.T) {
+	t.Parallel()
+	root := filepath.Join(t.TempDir(), "missing")
+	provider := newTestStorage(t, root)
+	_, err := provider.Get(t.Context(), &storagekv.RecordRequest{Namespace: "jobs", Key: "key"})
+	assert.Check(t, cerrdefs.IsUnavailable(err), "%v", err)
+	assert.ErrorIs(t, err, os.ErrNotExist)
+
+	err = testKV(t, provider, "jobs").Create(t.Context(), "key", nil)
+	assert.Check(t, cerrdefs.IsUnavailable(err), "%v", err)
+	assert.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestStorageOpenContentionUnavailable(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	first := newTestStorage(t, root)
+	second := newTestStorage(t, root)
+	firstKV := testKV(t, first, "jobs")
+	assert.NilError(t, firstKV.Create(t.Context(), "held", []byte("value")))
+
+	err := second.Create(t.Context(), &storagekv.WriteRequest{
+		Namespace: "jobs",
+		Key:       "provider",
+	})
+	assert.Check(t, cerrdefs.IsUnavailable(err), "%v", err)
+	assert.ErrorIs(t, err, bolterrors.ErrTimeout)
+
+	secondKV := testKV(t, second, "jobs")
+	err = secondKV.Create(t.Context(), "direct-helper", nil)
+	assert.Check(t, cerrdefs.IsUnavailable(err), "%v", err)
+	assert.ErrorIs(t, err, bolterrors.ErrTimeout)
+
+	rpcKV := testKV(t, rpcStorage(t, second), "jobs")
+	err = rpcKV.Create(t.Context(), "rpc-helper", nil)
+	assert.Check(t, cerrdefs.IsUnavailable(err), "%v", err)
+
+	assert.NilError(t, first.(*storage).shutdown(t.Context()))
+	assert.NilError(t, secondKV.Create(t.Context(), "retry", []byte("available")))
 }
 
 func TestStorageValidationBeforeIO(t *testing.T) {

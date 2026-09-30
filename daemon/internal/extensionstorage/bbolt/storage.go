@@ -44,10 +44,23 @@ func (definition) Declaration() extensions.Declaration {
 }
 
 type storage struct {
-	mu       sync.Mutex
-	dataRoot string
-	db       *bolt.DB
-	closed   bool
+	lifecycle sync.RWMutex
+	mu        sync.Mutex
+	dataRoot  string
+	db        *bolt.DB
+	closed    bool
+}
+
+type databaseUnavailableError struct{ error }
+
+func (databaseUnavailableError) Unavailable() {}
+
+func (e databaseUnavailableError) GRPCStatus() *status.Status {
+	return status.New(codes.Unavailable, e.Error())
+}
+
+func (e databaseUnavailableError) Unwrap() error {
+	return e.error
 }
 
 func (s *storage) init(ctx context.Context, _ extensions.Config, resolver extensions.Resolver) error {
@@ -65,40 +78,65 @@ func (s *storage) init(ctx context.Context, _ extensions.Config, resolver extens
 	if !filepath.IsAbs(response.RootDir) {
 		return fmt.Errorf("daemon config persistent root %q must be absolute", response.RootDir)
 	}
+	s.mu.Lock()
 	s.dataRoot = response.RootDir
+	s.mu.Unlock()
 	return nil
 }
 
 func (s *storage) shutdown(context.Context) error {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.closed {
+		return nil
+	}
 	s.closed = true
 	if s.db != nil {
-		return s.db.Close()
+		err := s.db.Close()
+		s.db = nil
+		return err
 	}
 	return nil
 }
 
-// transaction also serializes lazy opening and shutdown with active operations.
+// transaction holds the lifecycle read lock through transaction completion so
+// shutdown cannot close the database between capturing it and beginning work.
 func (s *storage) transaction(ctx context.Context, write bool, fn func(*bolt.Tx) error) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if s.closed {
-		return errdefs.Unavailable(status.Error(codes.Unavailable, "extension storage is closed"))
-	}
-	if s.dataRoot == "" {
-		return errors.New("extension storage is not initialized")
-	}
-	if s.db == nil {
-		db, err := openDatabase(s.dataRoot)
-		if err != nil {
+	s.lifecycle.RLock()
+	defer s.lifecycle.RUnlock()
+
+	var db *bolt.DB
+	err := func() error {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if err := ctx.Err(); err != nil {
 			return err
 		}
-		s.db = db
+		if s.closed {
+			return errdefs.Unavailable(status.Error(codes.Unavailable, "extension storage is closed"))
+		}
+		if s.dataRoot == "" {
+			return errors.New("extension storage is not initialized")
+		}
+		if s.db == nil {
+			var err error
+			s.db, err = openDatabase(s.dataRoot)
+			if err != nil {
+				return databaseUnavailableError{err}
+			}
+		}
+		db = s.db
+		return nil
+	}()
+	if err != nil {
+		return err
 	}
+
 	operation := func(tx *bolt.Tx) error {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -109,9 +147,9 @@ func (s *storage) transaction(ctx context.Context, write bool, fn func(*bolt.Tx)
 		return ctx.Err()
 	}
 	if write {
-		return s.db.Update(operation)
+		return db.Update(operation)
 	}
-	return s.db.View(operation)
+	return db.View(operation)
 }
 
 func (s *storage) Get(ctx context.Context, req *storagekv.RecordRequest) (*storagekv.GetResponse, error) {
@@ -121,11 +159,15 @@ func (s *storage) Get(ctx context.Context, req *storagekv.RecordRequest) (*stora
 	resp := &storagekv.GetResponse{}
 	err := s.transaction(ctx, false, func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(req.Namespace))
-		if bucket == nil || bucket.Get([]byte(req.Key)) == nil {
+		if bucket == nil {
+			return recordNotFound(req.Key)
+		}
+		value := bucket.Get([]byte(req.Key))
+		if value == nil {
 			return recordNotFound(req.Key)
 		}
 		// Bolt values are valid only for the lifetime of the transaction.
-		resp.Value = bytes.Clone(bucket.Get([]byte(req.Key)))
+		resp.Value = bytes.Clone(value)
 		return nil
 	})
 	if err != nil {
