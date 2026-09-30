@@ -3,11 +3,70 @@
 package daemon
 
 import (
+	"context"
+	"io"
+	"net/http"
+	"strings"
 	"testing"
 
+	"github.com/moby/moby/api/types/system"
+	rkclient "github.com/rootless-containers/rootlesskit/v3/pkg/api/client"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+func TestFillRootlessVersionClosesIdleConnections(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		response string
+		wantErr  bool
+	}{
+		{
+			name:     "success",
+			response: `{"version":"3.1.0","apiVersion":"1.1.2","stateDir":"/run/rootlesskit","networkDriver":{"driver":"host"}}`,
+		},
+		{
+			name:     "invalid response",
+			response: `{`,
+			wantErr:  true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			transport := &trackingTransport{RoundTripper: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+					Body:       io.NopCloser(strings.NewReader(tc.response)),
+				}, nil
+			})}
+			client := rkclient.NewWithHTTPClient(&http.Client{Transport: transport})
+			v := &system.VersionResponse{}
+			err := (&Daemon{}).fillRootlessVersionWithClient(context.Background(), v, client)
+			if tc.wantErr {
+				assert.ErrorContains(t, err, "failed to retrieve RootlessKit version")
+			} else {
+				assert.NilError(t, err)
+				assert.Equal(t, len(v.Components), 1)
+			}
+			assert.Equal(t, transport.closed, 1)
+		})
+	}
+}
+
+type trackingTransport struct {
+	http.RoundTripper
+	closed int
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
+
+func (t *trackingTransport) CloseIdleConnections() {
+	t.closed++
+}
 
 func TestParseInitVersion(t *testing.T) {
 	tests := []struct {

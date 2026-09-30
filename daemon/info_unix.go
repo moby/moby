@@ -225,6 +225,11 @@ func (daemon *Daemon) fillRootlessVersion(ctx context.Context, v *system.Version
 	if err != nil {
 		return errors.Wrap(err, "failed to create RootlessKit client")
 	}
+	return daemon.fillRootlessVersionWithClient(ctx, v, rlc)
+}
+
+func (daemon *Daemon) fillRootlessVersionWithClient(ctx context.Context, v *system.VersionResponse, rlc rkclient.Client) error {
+	defer rlc.HTTPClient().CloseIdleConnections()
 	rlInfo, err := rlc.Info(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve RootlessKit version")
