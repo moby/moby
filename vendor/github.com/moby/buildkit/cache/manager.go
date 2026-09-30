@@ -19,6 +19,7 @@ import (
 	"github.com/containerd/containerd/v2/pkg/gc"
 	"github.com/containerd/containerd/v2/pkg/labels"
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/stargz-snapshotter/estargz"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/identity"
@@ -107,6 +108,34 @@ type cacheManager struct {
 	unlazyG flightcontrol.Group[struct{}]
 }
 
+// isLegacyLayerSnapshotID reports whether ref uses a pre-versioning layer snapshot ID.
+func isLegacyLayerSnapshotID(ref *immutableRef) bool {
+	return isLegacyLayerRecord(ref.cacheRecord)
+}
+
+func isLegacyLayerRecord(ref *cacheRecord) bool {
+	switch ref.kind() {
+	case BaseLayer, Layer:
+	default:
+		return false
+	}
+	chainID := ref.getChainID()
+	return chainID != "" && ref.getBlob() != "" && ref.getSnapshotID() == chainID.String()
+}
+
+// hasLegacyLayerSnapshotID reports whether ref depends on a pre-versioning layer snapshot.
+func hasLegacyLayerSnapshotID(ref *immutableRef) bool {
+	var legacy bool
+	_ = ref.walkUniqueAncestors(func(record *cacheRecord) error {
+		if isLegacyLayerRecord(record) {
+			legacy = true
+			return errSkipWalk
+		}
+		return nil
+	})
+	return legacy
+}
+
 func NewManager(opt ManagerOpt) (Manager, error) {
 	cm := &cacheManager{
 		Snapshotter:     snapshot.NewMergeSnapshotter(context.TODO(), opt.Snapshotter, opt.LeaseManager),
@@ -141,7 +170,20 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor,
 	if err != nil {
 		return nil, err
 	}
-	chainID := diffID
+	layerIdentity := diffID
+	if cm.Snapshotter.Name() == "stargz" {
+		if tocDigestStr, ok := desc.Annotations[estargz.TOCJSONDigestAnnotation]; ok {
+			// Stargz snapshots can stay lazy, so unlazyLayer may never verify
+			// the real DiffID. Keep the DiffID intact, but bind the shared
+			// snapshot key to the TOC digest verified by stargz-snapshotter.
+			tocDigest, err := digest.Parse(tocDigestStr)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to parse stargz TOC digest %q for %s", tocDigestStr, desc.Digest)
+			}
+			layerIdentity = imagespecidentity.ChainID([]digest.Digest{diffID, tocDigest})
+		}
+	}
+	chainID := layerIdentity
 	blobChainID := imagespecidentity.ChainID([]digest.Digest{desc.Digest, diffID})
 
 	descHandlers := descHandlersOf(opts...)
@@ -166,7 +208,7 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor,
 			return nil, err
 		}
 
-		if p.getChainID() == "" || p.getBlobChainID() == "" {
+		if p.getChainID() == "" || p.getBlobChainID() == "" || hasLegacyLayerSnapshotID(p) {
 			_ = p.Release(context.WithoutCancel(ctx))
 			return nil, errors.Errorf("failed to get ref by blob on non-addressable parent")
 		}
@@ -204,6 +246,16 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor,
 		if ref == nil {
 			continue
 		}
+		if hasLegacyLayerSnapshotID(ref) {
+			go ref.Release(context.WithoutCancel(ctx))
+			continue
+		}
+		// Blob-chain inputs are not necessarily verified by lazy snapshotters.
+		// Only reuse a record with the same snapshot-sharing identity.
+		if ref.getChainID() != chainID {
+			go ref.Release(context.WithoutCancel(ctx))
+			continue
+		}
 		if p != nil {
 			releaseParent = true
 		}
@@ -226,13 +278,17 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor,
 			return nil, errors.Wrapf(err, "failed to get record %s by chainid", si.ID())
 		}
 		if ref != nil {
+			if hasLegacyLayerSnapshotID(ref) {
+				go ref.Release(context.WithoutCancel(ctx))
+				continue
+			}
 			link = ref
 			break
 		}
 	}
 
 	id := identity.NewID()
-	snapshotID := chainID.String()
+	snapshotID := snapshot.LayerSnapshotID(chainID)
 	if link != nil {
 		snapshotID = link.getSnapshotID()
 		go link.Release(context.WithoutCancel(ctx))
@@ -295,6 +351,7 @@ func (cm *cacheManager) GetByBlob(ctx context.Context, desc ocispecs.Descriptor,
 	}
 
 	rec.queueDiffID(diffID)
+	rec.queueLayerIdentity(layerIdentity)
 	rec.queueBlob(desc.Digest)
 	rec.queueChainID(chainID)
 	rec.queueBlobChainID(blobChainID)

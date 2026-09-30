@@ -73,7 +73,9 @@ func (f *fileOp) CacheMap(ctx context.Context, jobCtx solver.JobContext, index i
 		case *pb.FileAction_Mkdir:
 			p := a.Mkdir.CloneVT()
 			markInvalid(action.Input)
-			processOwner(p.Owner, selectors)
+			if err := processOwner(p.GetOwner(), selectors); err != nil {
+				return nil, false, err
+			}
 			dt, err = json.Marshal(p)
 			if err != nil {
 				return nil, false, err
@@ -81,7 +83,9 @@ func (f *fileOp) CacheMap(ctx context.Context, jobCtx solver.JobContext, index i
 		case *pb.FileAction_Mkfile:
 			p := a.Mkfile.CloneVT()
 			markInvalid(action.Input)
-			processOwner(p.Owner, selectors)
+			if err := processOwner(p.GetOwner(), selectors); err != nil {
+				return nil, false, err
+			}
 			dt, err = json.Marshal(p)
 			if err != nil {
 				return nil, false, err
@@ -89,6 +93,9 @@ func (f *fileOp) CacheMap(ctx context.Context, jobCtx solver.JobContext, index i
 		case *pb.FileAction_Symlink:
 			p := a.Symlink.CloneVT()
 			markInvalid(action.Input)
+			if err := processOwner(p.GetOwner(), selectors); err != nil {
+				return nil, false, err
+			}
 			dt, err = json.Marshal(p)
 			if err != nil {
 				return nil, false, err
@@ -103,7 +110,9 @@ func (f *fileOp) CacheMap(ctx context.Context, jobCtx solver.JobContext, index i
 		case *pb.FileAction_Copy:
 			p := a.Copy.CloneVT()
 			markInvalid(action.Input)
-			processOwner(p.Owner, selectors)
+			if err := processOwner(p.GetOwner(), selectors); err != nil {
+				return nil, false, err
+			}
 			if action.SecondaryInput != -1 && int(action.SecondaryInput) < f.numInputs {
 				addSelector(selectors, int(action.SecondaryInput), p.Src, p.AllowWildcard, p.FollowSymlink, p.IncludePatterns, p.ExcludePatterns, p.RequiredPaths)
 				p.Src = path.Base(p.Src)
@@ -285,6 +294,9 @@ func processOwner(chopt *pb.ChownOpt, selectors map[int][]opsutils.Selector) err
 	}
 	if chopt.User != nil {
 		if u, ok := chopt.User.User.(*pb.UserOpt_ByName); ok {
+			if u.ByName == nil {
+				return errors.New("invalid nil named user")
+			}
 			if u.ByName.Input < 0 {
 				return errors.Errorf("invalid user index %d", u.ByName.Input)
 			}
@@ -293,10 +305,33 @@ func processOwner(chopt *pb.ChownOpt, selectors map[int][]opsutils.Selector) err
 	}
 	if chopt.Group != nil {
 		if u, ok := chopt.Group.User.(*pb.UserOpt_ByName); ok {
+			if u.ByName == nil {
+				return errors.New("invalid nil named user")
+			}
 			if u.ByName.Input < 0 {
 				return errors.Errorf("invalid user index %d", u.ByName.Input)
 			}
 			addSelector(selectors, int(u.ByName.Input), "/etc/group", false, true, nil, nil, nil)
+		}
+	}
+	return nil
+}
+
+func validateOwner(chopt *pb.ChownOpt, maxInput int) error {
+	if chopt == nil {
+		return nil
+	}
+	for _, uopt := range []*pb.UserOpt{chopt.User, chopt.Group} {
+		if uopt == nil {
+			continue
+		}
+		if u, ok := uopt.User.(*pb.UserOpt_ByName); ok {
+			if u.ByName == nil {
+				return errors.New("invalid nil named user")
+			}
+			if u.ByName.Input < 0 || u.ByName.Input >= int64(maxInput) {
+				return errors.Errorf("invalid user index: %d", u.ByName.Input)
+			}
 		}
 	}
 	return nil
@@ -336,6 +371,21 @@ func (s *FileOpSolver) Solve(ctx context.Context, inputs []fileoptypes.Ref, acti
 		}
 		if int(a.SecondaryInput) < -1 || int(a.SecondaryInput) >= len(inputs)+len(actions) {
 			return nil, errors.Errorf("invalid secondary input index %d, %d provided", a.Input, len(inputs))
+		}
+
+		var owner *pb.ChownOpt
+		switch action := a.Action.(type) {
+		case *pb.FileAction_Mkdir:
+			owner = action.Mkdir.GetOwner()
+		case *pb.FileAction_Mkfile:
+			owner = action.Mkfile.GetOwner()
+		case *pb.FileAction_Symlink:
+			owner = action.Symlink.GetOwner()
+		case *pb.FileAction_Copy:
+			owner = action.Copy.GetOwner()
+		}
+		if err := validateOwner(owner, len(inputs)+len(actions)); err != nil {
+			return nil, err
 		}
 
 		inp, ok := s.ins[int(a.Input)]
@@ -530,7 +580,7 @@ func (s *FileOpSolver) getInput(ctx context.Context, idx int, inputs []fileoptyp
 			switch u := uopt.User.(type) {
 			case *pb.UserOpt_ByName:
 				var m fileoptypes.Mount
-				if u.ByName.Input < 0 {
+				if u.ByName.Input < 0 || u.ByName.Input >= int64(len(inputs)+len(actions)) {
 					return nil, errors.Errorf("invalid user index: %d", u.ByName.Input)
 				}
 				inp, err := s.getInput(ctx, int(u.ByName.Input), inputs, actions, g)

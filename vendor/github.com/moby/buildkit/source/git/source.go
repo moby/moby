@@ -107,8 +107,9 @@ func (gs *Source) Identifier(scheme, ref string, attrs map[string]string, platfo
 				id.KeepGitDir = true
 			}
 		case pb.AttrFullRemoteURL:
-			if !gitutil.IsGitTransport(v) {
-				v = "https://" + v
+			v, err = validateFullRemoteURL(id.Remote, v)
+			if err != nil {
+				return nil, err
 			}
 			id.Remote = v
 		case pb.AttrAuthHeaderSecret:

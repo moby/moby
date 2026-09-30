@@ -108,6 +108,8 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 	if opt.Ref != "" {
 		ref = opt.Ref
 	}
+
+	callerCtx := ctx
 	eg, ctx := errgroup.WithContext(ctx)
 
 	statusContext, cancelStatus := context.WithCancelCause(context.Background())
@@ -439,8 +441,8 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 	}
 	// Reset cache stores that have reset=true — delete unreferenced blobs
 	for _, ref := range cacheOpt.storesToReset {
-		if err := resetCacheStore(ctx, ref.store, ref.path); err != nil {
-			bklog.G(ctx).WithError(err).Warn("failed to reset cache store")
+		if err := resetCacheStore(callerCtx, ref.store, ref.path); err != nil {
+			bklog.G(callerCtx).WithError(err).Warn("failed to reset cache store")
 		}
 	}
 	return res, nil

@@ -98,9 +98,11 @@ func (rp *resultProxy) wrapError(err error) error {
 	var ve *errdefs.VertexError
 	if errors.As(err, &ve) {
 		if rp.req.Definition.Source != nil {
-			locs, ok := rp.req.Definition.Source.Locations[ve.Digest]
-			if ok {
+			if locs := rp.req.Definition.Source.Locations[ve.Digest]; locs != nil {
 				for _, loc := range locs.Locations {
+					if loc == nil || loc.SourceIndex < 0 || int(loc.SourceIndex) >= len(rp.req.Definition.Source.Infos) {
+						continue
+					}
 					err = errdefs.WithSource(err, &errdefs.Source{
 						Info:   rp.req.Definition.Source.Infos[loc.SourceIndex],
 						Ranges: loc.Ranges,

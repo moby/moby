@@ -1166,6 +1166,12 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (resp *cacheMapResp,
 			}()
 		}
 		res, done, err := op.CacheMap(ctx, s.st, len(s.cacheRes))
+		if err == nil && res == nil {
+			err = errors.New("invalid nil cache map")
+		}
+		if err == nil && len(res.Deps) != len(s.st.vtx.Inputs()) {
+			err = errors.Errorf("invalid cache map: expected dependency count %d, got %d", len(s.st.vtx.Inputs()), len(res.Deps))
+		}
 		complete := true
 		if err != nil {
 			select {
