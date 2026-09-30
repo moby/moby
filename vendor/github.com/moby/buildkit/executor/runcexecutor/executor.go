@@ -5,6 +5,7 @@ package runcexecutor
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"io"
 	"os"
 	"os/exec"
@@ -279,11 +280,18 @@ func (w *runcExecutor) Run(ctx context.Context, id string, root executor.Mount, 
 
 	defer executor.MountStubsCleaner(context.WithoutCancel(ctx), rootFSPath, mounts, meta.RemoveMountStubsRecursive)()
 	if proxyNS, ok := namespace.(network.ProxyNamespace); ok {
-		cleanProxyCA, err := executor.InjectProxyCA(rootFSPath, proxyNS.ProxyCACert())
-		if err != nil {
-			return nil, err
+		cleanProxyCA, injectErr := executor.InjectProxyCA(rootFSPath, proxyNS.ProxyCACert())
+		if injectErr != nil {
+			return nil, injectErr
 		}
-		defer cleanProxyCA()
+		defer func() {
+			if cleanupErr := cleanProxyCA(); cleanupErr != nil {
+				err = errors.WithStack(stderrors.Join(
+					err,
+					errors.Wrap(cleanupErr, "failed to clean up proxy CA"),
+				))
+			}
+		}()
 	}
 
 	uid, gid, sgids, err := oci.GetUser(rootFSPath, meta.User)

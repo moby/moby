@@ -1063,8 +1063,8 @@ github.com/mitchellh/copystructure
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.33.0
-## explicit; go 1.26.3
+# github.com/moby/buildkit v0.33.1
+## explicit; go 1.26.8
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
 github.com/moby/buildkit/cache
@@ -1214,6 +1214,7 @@ github.com/moby/buildkit/util/network/cniprovider
 github.com/moby/buildkit/util/network/netpool
 github.com/moby/buildkit/util/network/netproviders
 github.com/moby/buildkit/util/network/proxyprovider
+github.com/moby/buildkit/util/openfile
 github.com/moby/buildkit/util/overlay
 github.com/moby/buildkit/util/pgpsign
 github.com/moby/buildkit/util/pools

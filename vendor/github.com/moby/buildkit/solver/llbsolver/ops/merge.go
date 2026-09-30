@@ -18,19 +18,24 @@ import (
 const mergeCacheType = "buildkit.merge.v0"
 
 type mergeOp struct {
-	op     *pb.MergeOp
-	worker worker.Worker
-	vtx    solver.Vertex
+	op        *pb.MergeOp
+	numInputs int
+	worker    worker.Worker
+	vtx       solver.Vertex
 }
 
 func NewMergeOp(v solver.Vertex, op *pb.Op_Merge, w worker.Worker) (solver.Op, error) {
-	if err := opsutils.Validate(&pb.Op{Op: op}); err != nil {
+	if err := opsutils.Validate(&pb.Op{
+		Inputs: make([]*pb.Input, len(v.Inputs())),
+		Op:     op,
+	}); err != nil {
 		return nil, err
 	}
 	return &mergeOp{
-		op:     op.Merge,
-		worker: w,
-		vtx:    v,
+		op:        op.Merge,
+		numInputs: len(v.Inputs()),
+		worker:    w,
+		vtx:       v,
 	}, nil
 }
 
@@ -56,7 +61,7 @@ func (m *mergeOp) CacheMap(ctx context.Context, jobCtx solver.JobContext, index 
 			Selector          digest.Digest
 			ComputeDigestFunc solver.ResultBasedCacheFunc
 			PreprocessFunc    solver.PreprocessFunc
-		}, len(m.op.Inputs)),
+		}, m.numInputs),
 	}
 
 	return cm, true, nil

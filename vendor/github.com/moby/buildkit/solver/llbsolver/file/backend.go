@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/containerd/continuity/fs"
@@ -108,9 +109,14 @@ func mkfile(d string, action *pb.FileActionMkFile, user *copy.User, idmap *user.
 		}
 	}()
 
-	p, err := fs.RootPath(d, filepath.Join("/", action.Path))
+	target := filepath.Join("/", action.Path)
+	p, err := fs.RootPath(d, target)
 	if err != nil {
 		return errors.WithStack(err)
+	}
+	if p == d {
+		// the root has no parent inside the mount to stage a file in
+		return errors.WithStack(&os.PathError{Op: "mkfile", Path: target, Err: syscall.EISDIR})
 	}
 
 	ch, err := mapUserToChowner(user, idmap)
@@ -118,19 +124,74 @@ func mkfile(d string, action *pb.FileActionMkFile, user *copy.User, idmap *user.
 		return err
 	}
 
-	if err := os.WriteFile(p, action.Data, os.FileMode(action.Mode)&0777); err != nil {
+	return replaceWithFile(p, action.Data, os.FileMode(action.Mode)&0777, ch, timestampToTime(action.Timestamp))
+}
+
+// replaceWithFile writes dt to a new file next to p and renames it into place.
+// p is never opened, so a non-regular inode left there by an earlier action is
+// replaced instead of written through. Opening a device node would resolve its
+// rdev against the host device table and write outside the snapshot.
+func replaceWithFile(p string, dt []byte, mode os.FileMode, ch copy.Chowner, tm *time.Time) (err error) {
+	var tmp string
+	defer func() {
+		if err == nil {
+			return
+		}
+		if tmp != "" {
+			os.Remove(tmp)
+		}
+		err = pathErrorFor(err, p)
+	}()
+
+	f, err := os.CreateTemp(filepath.Dir(p), ".tmp-mkfile")
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	tmp = f.Name()
+
+	if _, err := f.Write(dt); err != nil {
+		f.Close()
+		return errors.WithStack(err)
+	}
+	if err := f.Close(); err != nil {
 		return errors.WithStack(err)
 	}
 
-	if err := copy.Chown(p, nil, ch); err != nil {
+	// CreateTemp always uses 0600, so the requested mode is applied separately.
+	if err := os.Chmod(tmp, mode); err != nil {
 		return errors.WithStack(err)
 	}
 
-	if err := copy.Utimes(p, timestampToTime(action.Timestamp)); err != nil {
+	if err := copy.Chown(tmp, nil, ch); err != nil {
 		return errors.WithStack(err)
 	}
 
-	return nil
+	// copy.Utimes formats the path into its message and wraps a bare errno, so a
+	// failure would carry the staged name past pathErrorFor. os.Chtimes reports
+	// an *os.PathError instead, and the staged file is always a regular file so
+	// the symlink handling in copy.Utimes is not needed here.
+	if tm != nil {
+		if err := os.Chtimes(tmp, *tm, *tm); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+
+	return errors.WithStack(os.Rename(tmp, p))
+}
+
+// pathErrorFor restates err as an *os.PathError naming p. The staged file is an
+// implementation detail, and rename reports an *os.LinkError that names it
+// alongside the destination.
+func pathErrorFor(err error, p string) error {
+	var linkErr *os.LinkError
+	if errors.As(err, &linkErr) {
+		return errors.WithStack(&os.PathError{Op: linkErr.Op, Path: p, Err: linkErr.Err})
+	}
+	var pathErr *os.PathError
+	if errors.As(err, &pathErr) {
+		pathErr.Path = p
+	}
+	return err
 }
 
 func rm(d string, action *pb.FileActionRm) (err error) {

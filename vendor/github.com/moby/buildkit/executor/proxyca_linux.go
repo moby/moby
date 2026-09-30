@@ -13,6 +13,8 @@ import (
 	"syscall"
 
 	"github.com/containerd/continuity/fs"
+	"github.com/moby/buildkit/identity"
+	"github.com/moby/buildkit/util/openfile"
 	"github.com/pkg/errors"
 )
 
@@ -58,30 +60,46 @@ func InjectProxyCA(rootfsPath string, caPEM []byte) (func() error, error) {
 	if bundle == "" {
 		return func() error { return nil }, nil
 	}
-
-	original, st, err := readCertBundle(bundle)
+	bundleRel, err := filepath.Rel(rootfsPath, bundle)
 	if err != nil {
+		return nil, errors.Wrapf(err, "failed to relativize certificate bundle %s", bundle)
+	}
+	root, err := os.OpenRoot(rootfsPath)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	original, st, err := readCertBundle(root, bundleRel)
+	if err != nil {
+		_ = root.Close()
 		return nil, err
 	}
 	if containsCertificate(original, certSum) {
+		if err := root.Close(); err != nil {
+			return nil, errors.WithStack(err)
+		}
 		return func() error { return nil }, nil
 	}
 	next := append([]byte{}, original...)
-	if len(next) > 0 && next[len(next)-1] != '\n' {
-		next = append(next, '\n')
-	}
 	next = append(next, proxyCABegin...)
 	next = append(next, caPEM...)
 	if len(next) > 0 && next[len(next)-1] != '\n' {
 		next = append(next, '\n')
 	}
 	next = append(next, proxyCAEnd...)
-	if err := writeCertBundle(bundle, next, st); err != nil {
+	if err := writeCertBundle(root, bundleRel, next, st); err != nil {
+		_ = root.Close()
 		return nil, err
 	}
 
-	return func() error {
-		current, st, err := readCertBundle(bundle)
+	return func() (retErr error) {
+		defer func() {
+			if err := root.Close(); retErr == nil && err != nil {
+				retErr = errors.WithStack(err)
+			}
+		}()
+
+		current, st, err := readCertBundle(root, bundleRel)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				return nil
@@ -92,12 +110,12 @@ func InjectProxyCA(rootfsPath string, caPEM []byte) (func() error, error) {
 		if bytes.Equal(current, cleaned) {
 			return nil
 		}
-		return writeCertBundle(bundle, cleaned, st)
+		return writeCertBundle(root, bundleRel, cleaned, st)
 	}, nil
 }
 
-func readCertBundle(path string) ([]byte, os.FileInfo, error) {
-	f, err := os.Open(path)
+func readCertBundle(root *os.Root, path string) ([]byte, os.FileInfo, error) {
+	f, err := openfile.RegularInRoot(root.Name(), path)
 	if err != nil {
 		return nil, nil, errors.WithStack(err)
 	}
@@ -106,9 +124,6 @@ func readCertBundle(path string) ([]byte, os.FileInfo, error) {
 	st, err := f.Stat()
 	if err != nil {
 		return nil, nil, errors.WithStack(err)
-	}
-	if !st.Mode().IsRegular() {
-		return nil, nil, errors.Errorf("%s is not a regular file", path)
 	}
 
 	limited := &io.LimitedReader{R: f, N: maxCertBundleBytes + 1}
@@ -193,13 +208,13 @@ func removeInjectedCA(dt []byte, sum [sha256.Size]byte) []byte {
 	return out
 }
 
-func writeCertBundle(path string, dt []byte, st os.FileInfo) error {
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".buildkit-ca-*")
+func writeCertBundle(root *os.Root, path string, dt []byte, st os.FileInfo) error {
+	tmpName := filepath.Join(filepath.Dir(path), ".buildkit-ca-"+identity.NewID())
+	tmp, err := root.OpenFile(tmpName, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
+	defer root.Remove(tmpName)
 	if _, err := tmp.Write(dt); err != nil {
 		tmp.Close()
 		return errors.WithStack(err)
@@ -217,5 +232,5 @@ func writeCertBundle(path string, dt []byte, st os.FileInfo) error {
 	if err := tmp.Close(); err != nil {
 		return errors.WithStack(err)
 	}
-	return errors.WithStack(os.Rename(tmpName, path))
+	return errors.WithStack(root.Rename(tmpName, path))
 }

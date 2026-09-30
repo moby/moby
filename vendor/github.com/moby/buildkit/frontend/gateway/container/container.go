@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -14,8 +15,10 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/containerd/containerd/v2/defaults"
 	"github.com/moby/buildkit/session/secrets"
 	"github.com/moby/buildkit/util/bklog"
+	"github.com/moby/buildkit/util/openfile"
 	"github.com/moby/buildkit/util/system"
 
 	"github.com/moby/buildkit/cache"
@@ -31,6 +34,8 @@ import (
 	fstypes "github.com/tonistiigi/fsutil/types"
 	"golang.org/x/sync/errgroup"
 )
+
+const maxReadFileSize = defaults.DefaultMaxRecvMsgSize
 
 type NewContainerRequest struct {
 	ContainerID string
@@ -51,6 +56,19 @@ type Mount struct {
 }
 
 func NewContainer(ctx context.Context, cm cache.Manager, exec executor.Executor, sm *session.Manager, g session.Group, req NewContainerRequest) (client.Container, error) {
+	hasRoot := false
+	for i, m := range req.Mounts {
+		if m.Mount == nil {
+			return nil, errors.Errorf("mount %d is nil", i)
+		}
+		if m.Dest == opspb.RootMount {
+			hasRoot = true
+		}
+	}
+	if !hasRoot {
+		return nil, errors.New("root mount is required")
+	}
+
 	ctx, cancel := context.WithCancelCause(ctx)
 	eg, ctx := errgroup.WithContext(ctx)
 	platform := &opspb.Platform{
@@ -321,6 +339,7 @@ type gatewayContainer struct {
 	sm          *session.Manager
 	group       session.Group
 	started     bool
+	closed      bool
 	errGroup    *errgroup.Group
 	mu          sync.Mutex
 	cleanup     []func() error
@@ -365,41 +384,48 @@ func (gwCtr *gatewayContainer) Start(ctx context.Context, req client.StartReques
 	}
 	procInfo.Meta.Env = append(procInfo.Meta.Env, secretEnv...)
 
-	// mark that we have started on the first call to execProcess for this
-	// container, so that future calls will call Exec rather than Run
+	// Register the process while holding the lifecycle lock so Release cannot
+	// begin waiting until every admitted process is visible.
 	gwCtr.mu.Lock()
-	started := gwCtr.started
-	gwCtr.started = true
-	gwCtr.mu.Unlock()
-
-	eg, ctx := errgroup.WithContext(gwCtr.ctx)
+	if gwCtr.closed {
+		gwCtr.mu.Unlock()
+		return nil, errors.New("container is closed")
+	}
+	eg, procCtx := errgroup.WithContext(gwCtr.ctx)
 	gwProc := &gatewayContainerProcess{
 		resize:   resize,
 		signal:   signal,
 		errGroup: eg,
-		groupCtx: ctx,
+		groupCtx: procCtx,
 	}
+	started := gwCtr.started
+	gwCtr.started = true
 
+	var startedCh chan struct{}
 	if !started {
-		startedCh := make(chan struct{})
+		startedCh = make(chan struct{})
 		gwProc.errGroup.Go(func() error {
 			bklog.G(gwCtr.ctx).Debugf("Starting new container for %s with args: %q", gwCtr.id, procInfo.Meta.Args)
-			_, err := gwCtr.executor.Run(ctx, gwCtr.id, gwCtr.rootFS, gwCtr.mounts, procInfo, startedCh)
+			_, err := gwCtr.executor.Run(procCtx, gwCtr.id, gwCtr.rootFS, gwCtr.mounts, procInfo, startedCh)
 			return stack.Enable(err)
 		})
-		select {
-		case <-ctx.Done():
-		case <-startedCh:
-		}
 	} else {
 		gwProc.errGroup.Go(func() error {
 			bklog.G(gwCtr.ctx).Debugf("Execing into container %s with args: %q", gwCtr.id, procInfo.Meta.Args)
-			err := gwCtr.executor.Exec(ctx, gwCtr.id, procInfo)
+			err := gwCtr.executor.Exec(procCtx, gwCtr.id, procInfo)
 			return stack.Enable(err)
 		})
 	}
 
 	gwCtr.errGroup.Go(gwProc.errGroup.Wait)
+	gwCtr.mu.Unlock()
+
+	if startedCh != nil {
+		select {
+		case <-procCtx.Done():
+		case <-startedCh:
+		}
+	}
 
 	return gwProc, nil
 }
@@ -431,6 +457,7 @@ func (gwCtr *gatewayContainer) loadSecretEnv(ctx context.Context, secretEnv []*o
 func (gwCtr *gatewayContainer) Release(ctx context.Context) error {
 	gwCtr.mu.Lock()
 	defer gwCtr.mu.Unlock()
+	gwCtr.closed = true
 	gwCtr.cancel(errors.WithStack(context.Canceled))
 	err1 := gwCtr.errGroup.Wait()
 
@@ -449,8 +476,8 @@ func (gwCtr *gatewayContainer) Release(ctx context.Context) error {
 	return stack.Enable(err2)
 }
 
-func (gwCtr *gatewayContainer) ReadFile(ctx context.Context, req client.ReadContainerRequest) ([]byte, error) {
-	fsys, err := gwCtr.mount(ctx, req.MountIndex)
+func (gwCtr *gatewayContainer) ReadFile(ctx context.Context, req client.ReadContainerRequest) (_ []byte, retErr error) {
+	m, err := gwCtr.localMount(ctx, req.MountIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -459,7 +486,50 @@ func (gwCtr *gatewayContainer) ReadFile(ctx context.Context, req client.ReadCont
 	if err != nil {
 		return nil, err
 	}
-	return fs.ReadFile(fsys, fpath)
+
+	// os.Root names paths relative to the mount, while reads on the open file
+	// name the daemon-side path. Report what the caller asked for in both cases.
+	defer func() {
+		var pathErr *os.PathError
+		if errors.As(retErr, &pathErr) {
+			pathErr.Path = req.Filename
+		}
+	}()
+
+	// The mount is mutable while the container runs, so resolution and open
+	// have to be one operation. Anything but a regular file is refused without
+	// its driver's open method running.
+	f, err := openfile.RegularInRoot(m.Root.Name(), fpath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var rdr io.Reader
+	var rangeLimited bool
+	if req.Range != nil {
+		if req.Range.Offset < 0 || req.Range.Length < 0 {
+			return nil, errors.Errorf("invalid range for %s", req.Filename)
+		}
+		// One extra byte is allowed for callers that detect oversized files by
+		// reading maxReadFileSize+1 bytes.
+		length := req.Range.Length
+		if length > maxReadFileSize+1 {
+			length = maxReadFileSize + 1
+			rangeLimited = true
+		}
+		rdr = io.NewSectionReader(f, int64(req.Range.Offset), int64(length))
+	} else {
+		rdr = io.LimitReader(f, maxReadFileSize+1)
+	}
+	dt, err := io.ReadAll(rdr)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	if (req.Range == nil || rangeLimited) && len(dt) > maxReadFileSize {
+		return nil, errors.Errorf("%s exceeds maximum allowed size of %d bytes", req.Filename, maxReadFileSize)
+	}
+	return dt, nil
 }
 
 func (gwCtr *gatewayContainer) ReadDir(ctx context.Context, req client.ReadDirContainerRequest) ([]*fstypes.Stat, error) {
@@ -525,6 +595,14 @@ func (gwCtr *gatewayContainer) StatFile(ctx context.Context, req client.StatCont
 }
 
 func (gwCtr *gatewayContainer) mount(ctx context.Context, index int) (fs.FS, error) {
+	m, err := gwCtr.localMount(ctx, index)
+	if err != nil {
+		return nil, err
+	}
+	return m.FS, nil
+}
+
+func (gwCtr *gatewayContainer) localMount(ctx context.Context, index int) (*gatewayContainerMount, error) {
 	// No lock needed for this because the number of mounts does
 	// not change.
 	if index < 0 || index >= len(gwCtr.localMounts) {
@@ -538,7 +616,7 @@ func (gwCtr *gatewayContainer) mount(ctx context.Context, index int) (fs.FS, err
 
 	// Already mounted?
 	if mount.FS != nil {
-		return mount.FS, nil
+		return &gwCtr.localMounts[index], nil
 	}
 
 	// Defensively check that this mount really exists.
@@ -572,9 +650,9 @@ func (gwCtr *gatewayContainer) mount(ctx context.Context, index int) (fs.FS, err
 		return root.Close()
 	})
 
-	f := root.FS()
-	gwCtr.localMounts[index].FS = f
-	return f, nil
+	gwCtr.localMounts[index].Root = root
+	gwCtr.localMounts[index].FS = root.FS()
+	return &gwCtr.localMounts[index], nil
 }
 
 type gatewayContainerProcess struct {
@@ -735,6 +813,7 @@ func relpath(p string) (string, error) {
 }
 
 type gatewayContainerMount struct {
-	Src executor.Mountable
-	FS  fs.FS
+	Src  executor.Mountable
+	Root *os.Root
+	FS   fs.FS
 }

@@ -282,6 +282,7 @@ type puller struct {
 	is               *Source
 	resolveLocalOnce sync.Once
 	g                flightcontrol.Group[struct{}]
+	verifiedLocal    bool
 	src              *containerimage.ImageIdentifier
 	desc             ocispec.Descriptor
 	ref              string
@@ -289,6 +290,8 @@ type puller struct {
 	platform         ocispec.Platform
 	sm               *session.Manager
 }
+
+const verifiedLocalCacheKeyPrefix = "moby.buildkit.local-image.v1:"
 
 func (p *puller) resolver(g session.Group) remotes.Resolver {
 	return resolver.DefaultPool.GetResolver(p.is.RegistryHosts, p.src.Reference.String(), resolver.ScopeType{}, p.sm, g)
@@ -344,7 +347,15 @@ func (p *puller) resolveLocal() {
 						path.Join(img.OS, img.Architecture, img.Variant),
 					)
 				} else {
+					if len(img.RootFS.DiffIDs) > 0 {
+						l, err := p.is.LayerStore.Get(img.RootFS.ChainID())
+						if err != nil {
+							return
+						}
+						layer.ReleaseAndLog(p.is.LayerStore, l)
+					}
 					p.config = img.RawJSON()
+					p.verifiedLocal = true
 				}
 			}
 		}
@@ -417,14 +428,11 @@ func (p *puller) CacheKey(ctx context.Context, jobCtx solver.JobContext, index i
 		if err != nil {
 			return "", "", nil, false, err
 		}
-		return dgst.String(), p.desc.Digest.String(), nil, false, nil
+		return dgst.String(), p.desc.Digest.String(), nil, !p.verifiedLocal, nil
 	}
 
-	if p.config != nil {
-		k := cacheKeyFromConfig(p.config).String()
-		if k == "" {
-			return digest.FromBytes(p.config).String(), digest.FromBytes(p.config).String(), nil, true, nil
-		}
+	if p.verifiedLocal && p.config != nil {
+		k := verifiedLocalCacheKey(p.config).String()
 		return k, k, nil, true, nil
 	}
 
@@ -437,23 +445,18 @@ func (p *puller) CacheKey(ctx context.Context, jobCtx solver.JobContext, index i
 		if err != nil {
 			return "", "", nil, false, err
 		}
-		return dgst.String(), p.desc.Digest.String(), nil, false, nil
+		return dgst.String(), p.desc.Digest.String(), nil, true, nil
 	}
 
 	if len(p.config) == 0 && p.desc.MediaType != c8dimages.MediaTypeDockerSchema1Manifest {
 		return "", "", nil, false, errors.Errorf("invalid empty config file resolved for %s", p.src.Reference.String())
 	}
 
-	k := cacheKeyFromConfig(p.config).String()
-	if k == "" || p.desc.MediaType == c8dimages.MediaTypeDockerSchema1Manifest {
-		dgst, err := p.mainManifestKey(p.platform)
-		if err != nil {
-			return "", "", nil, false, err
-		}
-		return dgst.String(), p.desc.Digest.String(), nil, true, nil
+	dgst, err := p.mainManifestKey(p.platform)
+	if err != nil {
+		return "", "", nil, false, err
 	}
-
-	return k, k, nil, true, nil
+	return dgst.String(), p.desc.Digest.String(), nil, true, nil
 }
 
 func (p *puller) getRef(ctx context.Context, diffIDs []layer.DiffID, opts ...cache.RefOption) (cache.ImmutableRef, error) {
@@ -911,19 +914,20 @@ type statusInfo struct {
 	UpdatedAt time.Time
 }
 
-// cacheKeyFromConfig returns a stable digest from image config. If image config
-// is a known oci image we will use chainID of layers.
-func cacheKeyFromConfig(dt []byte) digest.Digest {
+// verifiedLocalCacheKey returns a cache key for an image backed by the classic
+// layer store. Keep this namespace distinct from unverified rootfs keys emitted
+// by older daemons so an upgrade cannot reuse a poisoned remote source result.
+func verifiedLocalCacheKey(dt []byte) digest.Digest {
 	var img ocispec.Image
 	err := json.Unmarshal(dt, &img)
 	if err != nil {
 		log.G(context.TODO()).WithError(err).Errorf("failed to unmarshal image config for cache key %v", err)
-		return digest.FromBytes(dt)
+		return digest.FromString(verifiedLocalCacheKeyPrefix + digest.FromBytes(dt).String())
 	}
 	if img.RootFS.Type != "layers" || len(img.RootFS.DiffIDs) == 0 {
-		return ""
+		return digest.FromString(verifiedLocalCacheKeyPrefix + digest.FromBytes(dt).String())
 	}
-	return identity.ChainID(img.RootFS.DiffIDs)
+	return digest.FromString(verifiedLocalCacheKeyPrefix + identity.ChainID(img.RootFS.DiffIDs).String())
 }
 
 func platformMatches(img *image.Image, p *ocispec.Platform) bool {
