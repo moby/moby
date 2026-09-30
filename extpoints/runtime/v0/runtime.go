@@ -25,16 +25,10 @@ var Point = extensions.DefineSinglePoint[Runtime]("org.mobyproject.extension.run
 // Runtime is the container runtime surface the daemon provides.
 //
 // Container operations only work once the daemon has restored its
-// containers, which happens after extensions initialize: callers must wait
-// for Ready before issuing container calls — from a background goroutine,
-// never synchronously inside an extension's Init, which runs before Ready
-// can ever unblock and would deadlock daemon startup.
+// containers, which happens after extensions initialize. The point does not
+// expose a startup gate: sequencing extension work after daemon readiness is
+// a host concern, to be addressed at the framework level.
 type Runtime interface {
-	// Ready blocks until the provider can serve container operations, or
-	// until ctx is done. It is the startup gate: the daemon builds the
-	// extension host before its container backend is usable.
-	Ready(ctx context.Context) error
-
 	ContainerCreate(ctx context.Context, req ContainerCreateRequest) (container.CreateResponse, error)
 	ContainerStart(ctx context.Context, name string) error
 	// ContainerStop stops a container using its configured stop signal and

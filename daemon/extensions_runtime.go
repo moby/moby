@@ -33,18 +33,6 @@ type daemonRuntime struct {
 	d *Daemon
 }
 
-// Ready blocks until container restore has completed: the extension host is
-// built early in daemon construction, before the container backend can serve
-// requests.
-func (r daemonRuntime) Ready(ctx context.Context) error {
-	select {
-	case <-r.d.startupDone:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
 func (r daemonRuntime) ContainerCreate(ctx context.Context, req runtimev0.ContainerCreateRequest) (container.CreateResponse, error) {
 	return r.d.ContainerCreate(ctx, backendCreateConfig(req))
 }
