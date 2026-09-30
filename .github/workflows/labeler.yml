@@ -12,6 +12,7 @@ on:
 
 jobs:
   labeler:
+    if: github.repository == 'moby/moby'
     permissions:
       contents: read
       pull-requests: write
