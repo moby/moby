@@ -58,12 +58,22 @@ type clientConfig struct {
 	// takes precedence. Either field disables API-version negotiation.
 	envAPIVersion string
 
+	// requestHooks contains hooks to call before requests are made.
+	requestHooks []RequestHook
 	// responseHooks contains hooks to call on responses.
 	responseHooks []ResponseHook
 
 	// traceOpts is a list of options to configure the tracing span.
 	traceOpts []otelhttp.Option
 }
+
+// RequestHook is called for each HTTP request made by the client.
+// Hooks are invoked in the order they were added.
+//
+// Hooks may inspect the request and modify request metadata, such as headers,
+// before the request is sent. The request body cannot be read or closed by
+// the hook.
+type RequestHook func(*http.Request) error
 
 // ResponseHook is called for each HTTP response returned by the daemon.
 // Hooks are invoked in the order they were added.
@@ -407,6 +417,19 @@ func WithTraceProvider(provider trace.TracerProvider) Opt {
 func WithTraceOptions(opts ...otelhttp.Option) Opt {
 	return func(c *clientConfig) error {
 		c.traceOpts = append(c.traceOpts, opts...)
+		return nil
+	}
+}
+
+// WithHTTPRequestHook adds a [RequestHook] to the client. RequestHooks are called
+// before an HTTP request is made to the daemon. Hooks are invoked in the order
+// they were added.
+func WithHTTPRequestHook(h RequestHook) Opt {
+	return func(c *clientConfig) error {
+		if h == nil {
+			return errors.New("invalid request hook: hook is nil")
+		}
+		c.requestHooks = append(c.requestHooks, h)
 		return nil
 	}
 }
