@@ -13,6 +13,11 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.57 API changes
+
+* The API specification has been migrated from Swagger 2.0 to OpenAPI 3.2.0.
+  The generated Swagger 2.0 specification remains available for compatibility.
+
 ## v1.56 API changes
 
 * `GET /containers/json` now supports an `annotation` filter to filter
