@@ -177,7 +177,7 @@ func (b *Builder) performCopy(ctx context.Context, req dispatchRequest, inst cop
 		if !inst.preserveOwnership {
 			opts.identity = &id
 		}
-		if err := performCopyForInfo(destInfo, info, opts); err != nil {
+		if err := performCopyForInfo(ctx, destInfo, info, opts); err != nil {
 			return errors.Wrapf(err, "failed to copy files")
 		}
 	}
