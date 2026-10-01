@@ -143,17 +143,6 @@ func (ds *Store) GetObject(o KVObject) error {
 	return ds.cache.get(o)
 }
 
-func (ds *Store) ensureParent(parent string) error {
-	exists, err := ds.store.Exists(parent)
-	if err != nil {
-		return err
-	}
-	if exists {
-		return nil
-	}
-	return ds.store.Put(parent, []byte{})
-}
-
 // List returns of a list of KVObjects belonging to the parent key. The caller
 // must pass a KVObject of the same type as the objects that need to be listed.
 func (ds *Store) List(kvObject KVObject) ([]KVObject, error) {
@@ -161,52 +150,6 @@ func (ds *Store) List(kvObject KVObject) ([]KVObject, error) {
 	defer ds.mu.Unlock()
 
 	return ds.cache.list(kvObject)
-}
-
-func (ds *Store) iterateKVPairsFromStore(key string, ctor KVObject, callback func(string, KVObject)) error {
-	// Make sure the parent key exists
-	if err := ds.ensureParent(key); err != nil {
-		return err
-	}
-
-	kvList, err := ds.store.List(key)
-	if err != nil {
-		return err
-	}
-
-	for _, kvPair := range kvList {
-		if len(kvPair.Value) == 0 {
-			continue
-		}
-
-		dstO := ctor.New()
-		if err := dstO.SetValue(kvPair.Value); err != nil {
-			return err
-		}
-
-		// Make sure the object has a correct view of the DB index in
-		// case we need to modify it and update the DB.
-		dstO.SetIndex(kvPair.LastIndex)
-		callback(kvPair.Key, dstO)
-	}
-
-	return nil
-}
-
-// Map returns a Map of KVObjects.
-func (ds *Store) Map(key string, kvObject KVObject) (map[string]KVObject, error) {
-	ds.mu.Lock()
-	defer ds.mu.Unlock()
-
-	results := map[string]KVObject{}
-	err := ds.iterateKVPairsFromStore(key, kvObject, func(key string, val KVObject) {
-		// Trim the leading & trailing "/" to make it consistent across all stores
-		results[strings.Trim(key, "/")] = val
-	})
-	if err != nil {
-		return nil, err
-	}
-	return results, nil
 }
 
 // DeleteObject deletes a kvObject from the on-disk DB and the in-memory cache.
