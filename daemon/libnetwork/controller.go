@@ -67,6 +67,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipams"
+	"github.com/moby/moby/v2/daemon/libnetwork/kvstore/memstore"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
@@ -151,15 +152,15 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 	}()
 
 	cfg := config.New(cfgOptions...)
-	store, err := datastore.New(cfg.DataDir, cfg.DatastoreBucket)
-	if err != nil {
-		return nil, fmt.Errorf("libnet controller initialization: %w", err)
+	kv := cfg.KVStore
+	if kv == nil {
+		kv = memstore.New()
 	}
 
 	c := &Controller{
 		id:               stringid.GenerateRandomID(),
 		cfg:              cfg,
-		store:            store,
+		store:            datastore.New(kv),
 		sandboxes:        map[string]*Sandbox{},
 		networks:         map[string]*Network{},
 		endpoints:        map[string]*Endpoint{},
@@ -1115,7 +1116,6 @@ func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 
 // Stop stops the network controller.
 func (c *Controller) Stop() {
-	c.store.Close()
 	c.stopExternalKeyListener()
 }
 

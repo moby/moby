@@ -2,8 +2,10 @@ package datastore
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"testing"
 
+	"github.com/moby/moby/v2/daemon/libnetwork/kvstore/boltdb"
 	"github.com/moby/moby/v2/daemon/libnetwork/kvstore/memstore"
 	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"gotest.tools/v3/assert"
@@ -12,12 +14,6 @@ import (
 
 const dummyKey = "dummy"
 
-// newEphemeralStore returns a Store backed by a MemStore.
-func newEphemeralStore() *Store {
-	s := memstore.New()
-	return &Store{store: s, cache: newCache(s)}
-}
-
 func TestKey(t *testing.T) {
 	sKey := Key("hello", "world")
 	const expected = "docker/network/v1.0/hello/world/"
@@ -25,7 +21,7 @@ func TestKey(t *testing.T) {
 }
 
 func TestKVObjectFlatKey(t *testing.T) {
-	store := newEphemeralStore()
+	store := New(memstore.New())
 	expected := dummyKVObject("1000", true)
 	err := store.PutObjectAtomic(expected)
 	assert.Check(t, err)
@@ -37,7 +33,7 @@ func TestKVObjectFlatKey(t *testing.T) {
 }
 
 func TestAtomicKVObjectFlatKey(t *testing.T) {
-	store := newEphemeralStore()
+	store := New(memstore.New())
 	expected := dummyKVObject("1111", true)
 	assert.Check(t, !expected.Exists())
 	err := store.PutObjectAtomic(expected)
@@ -74,16 +70,16 @@ func TestAtomicOperations(t *testing.T) {
 		name     string
 		newStore func(*testing.T) *Store
 	}{
-		{name: "memstore", newStore: func(*testing.T) *Store { return newEphemeralStore() }},
+		{name: "memstore", newStore: func(*testing.T) *Store { return New(memstore.New()) }},
 		{name: "boltdb", newStore: func(t *testing.T) *Store {
-			ds, err := New(t.TempDir(), DefaultBucket)
+			kv, err := boltdb.New(filepath.Join(t.TempDir(), "local-kv.db"))
 			assert.NilError(t, err)
-			return ds
+			t.Cleanup(kv.Close)
+			return New(kv)
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := tc.newStore(t)
-			defer ds.Close()
 
 			assert.Check(t, is.ErrorIs(ds.GetObject(&dummyObject{ID: "1000"}), ErrKeyNotFound))
 			obj := dummyKVObject("1000", true)

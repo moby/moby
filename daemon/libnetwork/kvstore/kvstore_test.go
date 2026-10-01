@@ -22,8 +22,9 @@ func TestStores(t *testing.T) {
 		newStore func(*testing.T) store.Store
 	}{
 		{name: "boltdb", newStore: func(t *testing.T) store.Store {
-			s, err := boltdb.New(filepath.Join(t.TempDir(), "local-kv.db"), "test")
+			s, err := boltdb.New(filepath.Join(t.TempDir(), "local-kv.db"))
 			assert.NilError(t, err)
+			t.Cleanup(s.Close)
 			return s
 		}},
 		{name: "memstore", newStore: func(*testing.T) store.Store { return memstore.New() }},
@@ -31,7 +32,6 @@ func TestStores(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Run("Put", func(t *testing.T) {
 				s := tc.newStore(t)
-				defer s.Close()
 
 				ok, err := s.Exists("a/1")
 				assert.Check(t, is.ErrorIs(err, store.ErrKeyNotFound))
@@ -65,7 +65,6 @@ func TestStores(t *testing.T) {
 
 			t.Run("AtomicPut", func(t *testing.T) {
 				s := tc.newStore(t)
-				defer s.Close()
 
 				_, err := s.AtomicPut("k", []byte("v"), &store.KVPair{Key: "k", LastIndex: 1})
 				assert.Check(t, is.ErrorIs(err, store.ErrKeyNotFound), "update of a missing key")
@@ -90,7 +89,6 @@ func TestStores(t *testing.T) {
 
 			t.Run("AtomicDelete", func(t *testing.T) {
 				s := tc.newStore(t)
-				defer s.Close()
 
 				assert.Check(t, is.ErrorIs(s.AtomicDelete("k", &store.KVPair{Key: "k", LastIndex: 1}), store.ErrKeyNotFound), "delete of a missing key")
 
@@ -117,7 +115,6 @@ func TestStores(t *testing.T) {
 
 			t.Run("InvalidKey", func(t *testing.T) {
 				s := tc.newStore(t)
-				defer s.Close()
 
 				long := strings.Repeat("k", bolt.MaxKeySize+1)
 				assert.Check(t, is.ErrorIs(s.Put("", []byte("v")), berrors.ErrKeyRequired))
@@ -135,7 +132,6 @@ func TestStores(t *testing.T) {
 
 			t.Run("Delete", func(t *testing.T) {
 				s := tc.newStore(t)
-				defer s.Close()
 
 				assert.Check(t, is.ErrorIs(s.Delete("k"), store.ErrKeyNotFound))
 				assert.NilError(t, s.Put("k", []byte("v")))

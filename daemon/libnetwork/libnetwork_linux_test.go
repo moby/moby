@@ -48,7 +48,6 @@ func newController(t *testing.T) *libnetwork.Controller {
 	t.Helper()
 	c, err := libnetwork.New(
 		t.Context(),
-		config.OptionDataDir(t.TempDir()),
 		config.OptionBridgeConfig(bridge.Configuration{
 			EnableIPForwarding: true,
 		}),
@@ -888,7 +887,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 	err = os.WriteFile(filepath.Join(specPath, "invalid-network-driver.spec"), []byte(server.URL), 0o644)
 	assert.NilError(t, err)
 
-	ctrlr, err := libnetwork.New(t.Context(), config.OptionDataDir(t.TempDir()))
+	ctrlr, err := libnetwork.New(t.Context())
 	assert.NilError(t, err)
 	defer ctrlr.Stop()
 

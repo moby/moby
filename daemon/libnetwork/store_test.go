@@ -4,15 +4,15 @@ import (
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
+	"github.com/moby/moby/v2/daemon/libnetwork/kvstore/boltdb"
 )
 
-func testLocalBackend(t *testing.T, path, bucket string) {
-	cfgOptions := []config.Option{
-		config.OptionDataDir(path),
-		func(c *config.Config) { c.DatastoreBucket = bucket },
+func testLocalBackend(t *testing.T, path string) {
+	kv, err := boltdb.New(path)
+	if err != nil {
+		t.Fatalf("Error opening datastore: %v", err)
 	}
-
-	testController, err := New(t.Context(), cfgOptions...)
+	testController, err := New(t.Context(), config.WithKVStore(kv))
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}
@@ -44,9 +44,15 @@ func testLocalBackend(t *testing.T, path, bucket string) {
 		t.Errorf("Endpoint key should have been created.")
 	}
 	testController.Stop()
+	kv.Close()
 
 	// test restore of local store
-	testController, err = New(t.Context(), cfgOptions...)
+	kv, err = boltdb.New(path)
+	if err != nil {
+		t.Fatalf("Error opening datastore: %v", err)
+	}
+	defer kv.Close()
+	testController, err = New(t.Context(), config.WithKVStore(kv))
 	if err != nil {
 		t.Fatalf("Error creating controller: %v", err)
 	}

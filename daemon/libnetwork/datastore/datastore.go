@@ -2,12 +2,10 @@ package datastore
 
 import (
 	"errors"
-	"path"
 	"strings"
 	"sync"
 
 	store "github.com/moby/moby/v2/daemon/libnetwork/kvstore"
-	"github.com/moby/moby/v2/daemon/libnetwork/kvstore/boltdb"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
@@ -17,6 +15,8 @@ var (
 	ErrKeyNotFound = store.ErrKeyNotFound
 )
 
+// Store keeps KVObjects in memory, and writes them through to a [store.Store],
+// except those whose Skip method returns true.
 type Store struct {
 	mu    sync.Mutex
 	store store.Store
@@ -62,8 +62,6 @@ var (
 	rootChain        = defaultRootChain
 )
 
-const DefaultBucket = "libnetwork"
-
 // Key provides convenient method to create a Key
 func Key(key ...string) string {
 	var b strings.Builder
@@ -76,26 +74,9 @@ func Key(key ...string) string {
 	return b.String()
 }
 
-// New creates a new Store instance.
-func New(dir, bucket string) (*Store, error) {
-	if dir == "" {
-		return nil, errors.New("empty dir")
-	}
-	if bucket == "" {
-		return nil, errors.New("empty bucket")
-	}
-
-	s, err := boltdb.New(path.Join(dir, "local-kv.db"), bucket)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Store{store: s, cache: newCache(s)}, nil
-}
-
-// Close closes the data store.
-func (ds *Store) Close() {
-	ds.store.Close()
+// New returns a Store that writes its objects through to kv.
+func New(kv store.Store) *Store {
+	return &Store{store: kv, cache: newCache(kv)}
 }
 
 // PutObjectAtomic provides an atomic add and update operation for a Record.

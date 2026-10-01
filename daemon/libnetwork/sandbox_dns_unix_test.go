@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/resolvconf"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"github.com/opencontainers/go-digest"
@@ -28,7 +27,7 @@ func getResolvConfOptions(t *testing.T, rcPath string) []string {
 }
 
 func TestDNSOptions(t *testing.T) {
-	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()))
+	c, err := New(t.Context())
 	assert.NilError(t, err)
 
 	sb, err := c.NewSandbox(t.Context(), "cnt1", OptionWriteResolvConf(filepath.Join(t.TempDir(), "resolv.conf")))
@@ -134,7 +133,6 @@ func TestSandboxWritesFilesOnlyWhenAsked(t *testing.T) {
 			assert.Check(t, sb.resolver != nil, "embedded DNS resolver did not start")
 
 			assert.Check(t, is.DeepEqual(dirNames(t, dir), want))
-			assert.Check(t, is.DeepEqual(dirNames(t, c.cfg.DataDir), []string{"local-kv.db"}))
 			_, err = os.Stat(filepath.Join("/var/lib/docker/network/files", sb.ID()))
 			assert.Check(t, is.ErrorIs(err, fs.ErrNotExist))
 		})
@@ -157,7 +155,7 @@ func dirNames(t *testing.T, dir string) []string {
 func TestDNSRebuildAfterUpgradeWithStaleHash(t *testing.T) {
 	ctx := t.Context()
 	tmpDir := t.TempDir()
-	c, err := New(ctx, config.OptionDataDir(tmpDir))
+	c, err := New(ctx)
 	assert.NilError(t, err)
 
 	hostResolvConfPath := filepath.Join(tmpDir, "host-resolv.conf")

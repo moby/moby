@@ -143,6 +143,3 @@ func (m *MemStore) Delete(key string) error {
 	delete(m.entries, key)
 	return nil
 }
-
-// Close does nothing. A MemStore stays usable after it is closed.
-func (m *MemStore) Close() {}

@@ -16,7 +16,10 @@ import (
 	berrors "go.etcd.io/bbolt/errors"
 )
 
-const filePerm = 0o644
+const (
+	filePerm   = 0o644
+	bucketName = "libnetwork"
+)
 
 // BoltDB type implements the Store interface
 type BoltDB struct {
@@ -27,10 +30,12 @@ type BoltDB struct {
 	path       string
 }
 
+var _ store.Store = (*BoltDB)(nil)
+
 const libkvmetadatalen = 8
 
-// New opens a new BoltDB connection to the specified path and bucket
-func New(path, bucket string) (store.Store, error) {
+// New opens the BoltDB database at path. The caller closes it.
+func New(path string) (*BoltDB, error) {
 	dir, _ := filepath.Split(path)
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
@@ -58,7 +63,7 @@ func New(path, bucket string) (store.Store, error) {
 	b := &BoltDB{
 		client:     db,
 		path:       path,
-		boltBucket: []byte(bucket),
+		boltBucket: []byte(bucketName),
 	}
 
 	return b, nil

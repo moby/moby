@@ -21,7 +21,6 @@ import (
 func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network) {
 	c, err := New(
 		t.Context(),
-		config.OptionDataDir(t.TempDir()),
 		config.OptionBridgeConfig(bridge.Configuration{
 			EnableIPForwarding: true,
 		}),
