@@ -49,6 +49,8 @@ func (t *hookTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	if len(t.respHooks) > 0 {
 		hookResp := *resp
+		hookResp.Header = resp.Header.Clone()
+
 		if hookResp.Body != nil {
 			hookResp.Body = hookBody{}
 		}
