@@ -85,14 +85,12 @@ type NetworkWalker func(nw *Network) bool
 
 // Controller manages networks.
 type Controller struct {
-	id               string
 	drvRegistry      drvregistry.Networks
 	ipamRegistry     drvregistry.IPAMs
 	pmRegistry       drvregistry.PortMappers
 	sandboxes        map[string]*Sandbox
 	cfg              *config.Config
 	store            *datastore.Store
-	extKeyListener   net.Listener
 	svcRecords       map[string]*svcInfo
 	serviceBindings  map[serviceKey]*service
 	ingressSandbox   *Sandbox
@@ -158,7 +156,6 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 	}
 
 	c := &Controller{
-		id:               stringid.GenerateRandomID(),
 		cfg:              cfg,
 		store:            store,
 		sandboxes:        map[string]*Sandbox{},
@@ -220,10 +217,6 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 		log.G(ctx).WithError(err).Warnf("error during endpoint cleanup")
 	}
 	c.networkCleanup()
-
-	if err := c.startExternalKeyListener(); err != nil {
-		return nil, err
-	}
 
 	c.setupPlatformFirewall()
 	return c, nil
@@ -383,11 +376,6 @@ func (c *Controller) agentStopComplete() {
 		c.agentStopDone = nil
 	}
 	c.mu.Unlock()
-}
-
-// ID returns the controller's unique identity.
-func (c *Controller) ID() string {
-	return c.id
 }
 
 // BuiltinDrivers returns the list of builtin network drivers.
@@ -1119,7 +1107,6 @@ func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 // Stop stops the network controller.
 func (c *Controller) Stop() {
 	c.store.Close()
-	c.stopExternalKeyListener()
 }
 
 // StartDiagnostic starts the network diagnostic server listening on port.
