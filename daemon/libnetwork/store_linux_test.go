@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
-	store "github.com/moby/moby/v2/daemon/libnetwork/internal/kvstore"
+	store "github.com/moby/moby/v2/daemon/libnetwork/kvstore"
 )
 
 func TestBoltdbBackend(t *testing.T) {

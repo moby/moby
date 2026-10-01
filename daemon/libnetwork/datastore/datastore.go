@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	store "github.com/moby/moby/v2/daemon/libnetwork/internal/kvstore"
-	"github.com/moby/moby/v2/daemon/libnetwork/internal/kvstore/boltdb"
+	store "github.com/moby/moby/v2/daemon/libnetwork/kvstore"
+	"github.com/moby/moby/v2/daemon/libnetwork/kvstore/boltdb"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 

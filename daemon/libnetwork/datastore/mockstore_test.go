@@ -3,7 +3,7 @@ package datastore
 import (
 	"strings"
 
-	store "github.com/moby/moby/v2/daemon/libnetwork/internal/kvstore"
+	store "github.com/moby/moby/v2/daemon/libnetwork/kvstore"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
 
