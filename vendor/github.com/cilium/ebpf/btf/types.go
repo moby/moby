@@ -1,12 +1,10 @@
 package btf
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"math"
-	"slices"
 	"strings"
 
 	"github.com/cilium/ebpf/asm"
@@ -23,14 +21,24 @@ type TypeID = sys.TypeID
 
 // Type represents a type described by BTF.
 //
-// Identity of Type follows the [Go specification]: two Types are considered
-// equal if they have the same concrete type and the same dynamic value, aka
-// they point at the same location in memory. This means that the following
-// Types are considered distinct even though they have the same "shape".
+// A Type has three properties where compared to other Types.
+//
+// Identity: follows the [Go specification], two Types are considered identical
+// if they have the same concrete type and the same dynamic value, aka they point
+// at the same location in memory. This means that the following Types are
+// considered distinct even though they have the same "shape".
 //
 //	a := &Int{Size: 1}
 //	b := &Int{Size: 1}
 //	a != b
+//
+// Equivalence: two Types are considered equivalent if they have the same shape
+// and thus are functionally interchangeable, even if they are located at different
+// memory addresses. The above two Int types are equivalent.
+//
+// Compatibility: two Types are considered compatible according to the rules of CO-RE
+// see [coreAreTypesCompatible] for details. This is a non-commutative property,
+// so A may be compatible with B, but B not compatible with A.
 //
 // [Go specification]: https://go.dev/ref/spec#Comparison_operators
 type Type interface {
@@ -52,7 +60,7 @@ type Type interface {
 	// Make a copy of the type, without copying Type members.
 	copy() Type
 
-	// New implementations must update walkType.
+	// New implementations must update children, deduper.typeHash, and typesEquivalent.
 }
 
 var (
@@ -172,8 +180,15 @@ type Struct struct {
 	Tags    []string
 }
 
+// Format supports the width option to %v to limit or extend the number of
+// struct member names printed (default 5).
+//
+// For example, %1v will print only the first member name followed by '...':
+//
+//	Struct:"struct"[fields=3 fieldNames=[a ...]]
 func (s *Struct) Format(fs fmt.State, verb rune) {
-	formatType(fs, verb, s, "fields=", len(s.Members))
+	max, _ := fs.Width()
+	formatType(fs, verb, s, "fields=", len(s.Members), "fieldNames=", memberNames(s.Members, max))
 }
 
 func (s *Struct) TypeName() string { return s.Name }
@@ -200,8 +215,15 @@ type Union struct {
 	Tags    []string
 }
 
+// Format supports the width option to %v to limit or extend the number of
+// union member names printed (default 5).
+//
+// For example, %1v will print only the first member name followed by '...':
+//
+//	Union:"union"[fields=3 fieldNames=[a ...]]
 func (u *Union) Format(fs fmt.State, verb rune) {
-	formatType(fs, verb, u, "fields=", len(u.Members))
+	max, _ := fs.Width()
+	formatType(fs, verb, u, "fields=", len(u.Members), "fieldNames=", memberNames(u.Members, max))
 }
 
 func (u *Union) TypeName() string { return u.Name }
@@ -217,6 +239,29 @@ func (u *Union) copy() Type {
 
 func (u *Union) members() []Member {
 	return u.Members
+}
+
+// memberNames returns the names of members, or its index in the list of members
+// if the name is empty.
+//
+// Returns up to max entries (default 5), followed by '...'.
+func memberNames(members []Member, max int) []string {
+	if max <= 0 {
+		max = 5
+	}
+	names := make([]string, min(len(members), max+1))
+	for i, m := range members {
+		if i >= max {
+			names[i] = "..."
+			break
+		}
+		if m.Name == "" {
+			names[i] = fmt.Sprintf("<%d>", i)
+			continue
+		}
+		names[i] = m.Name
+	}
+	return names
 }
 
 func copyMembers(orig []Member) []Member {
@@ -429,6 +474,8 @@ type Func struct {
 	// The inner slice contains the tags and may be nil/len(ParamTags[i])==0 if no tags are present for that param.
 	ParamTags [][]string
 }
+
+type funcInfoMeta struct{}
 
 func FuncMetadata(ins *asm.Instruction) *Func {
 	fn, _ := ins.Metadata.Get(funcInfoMeta{}).(*Func)
@@ -646,7 +693,7 @@ func Sizeof(typ Type) (int, error) {
 		elem int64
 	)
 
-	for i := 0; i < maxResolveDepth; i++ {
+	for range maxResolveDepth {
 		switch v := typ.(type) {
 		case *Array:
 			if n > 0 && int64(v.Nelems) > math.MaxInt64/n {
@@ -740,519 +787,14 @@ func copyType(typ Type, ids map[Type]TypeID, copies map[Type]Type, copiedIDs map
 		copiedIDs[cpy] = id
 	}
 
-	children(cpy, func(child *Type) bool {
+	for child := range children(cpy) {
 		*child = copyType(*child, ids, copies, copiedIDs)
-		return true
-	})
+	}
 
 	return cpy
 }
 
 type typeDeque = internal.Deque[*Type]
-
-// readAndInflateTypes reads the raw btf type info and turns it into a graph
-// of Types connected via pointers.
-//
-// If base is provided, then the types are considered to be of a split BTF
-// (e.g., a kernel module).
-//
-// Returns a slice of types indexed by TypeID. Since BTF ignores compilation
-// units, multiple types may share the same name. A Type may form a cyclic graph
-// by pointing at itself.
-func readAndInflateTypes(r io.Reader, bo binary.ByteOrder, typeLen uint32, rawStrings *stringTable, base *Spec) ([]Type, error) {
-	// because of the interleaving between types and struct members it is difficult to
-	// precompute the numbers of raw types this will parse
-	// this "guess" is a good first estimation
-	sizeOfbtfType := uintptr(btfTypeLen)
-	tyMaxCount := uintptr(typeLen) / sizeOfbtfType / 2
-	types := make([]Type, 0, tyMaxCount)
-
-	// Void is defined to always be type ID 0, and is thus omitted from BTF.
-	types = append(types, (*Void)(nil))
-
-	firstTypeID := TypeID(0)
-	if base != nil {
-		var err error
-		firstTypeID, err = base.nextTypeID()
-		if err != nil {
-			return nil, err
-		}
-
-		// Split BTF doesn't contain Void.
-		types = types[:0]
-	}
-
-	type fixupDef struct {
-		id  TypeID
-		typ *Type
-	}
-
-	var fixups []fixupDef
-	fixup := func(id TypeID, typ *Type) {
-		if id < firstTypeID {
-			if baseType, err := base.TypeByID(id); err == nil {
-				*typ = baseType
-				return
-			}
-		}
-
-		idx := int(id - firstTypeID)
-		if idx < len(types) {
-			// We've already inflated this type, fix it up immediately.
-			*typ = types[idx]
-			return
-		}
-
-		fixups = append(fixups, fixupDef{id, typ})
-	}
-
-	type bitfieldFixupDef struct {
-		id TypeID
-		m  *Member
-	}
-
-	var (
-		legacyBitfields = make(map[TypeID][2]Bits) // offset, size
-		bitfieldFixups  []bitfieldFixupDef
-	)
-	convertMembers := func(raw []btfMember, kindFlag bool) ([]Member, error) {
-		// NB: The fixup below relies on pre-allocating this array to
-		// work, since otherwise append might re-allocate members.
-		members := make([]Member, 0, len(raw))
-		for i, btfMember := range raw {
-			name, err := rawStrings.Lookup(btfMember.NameOff)
-			if err != nil {
-				return nil, fmt.Errorf("can't get name for member %d: %w", i, err)
-			}
-
-			members = append(members, Member{
-				Name:   name,
-				Offset: Bits(btfMember.Offset),
-			})
-
-			m := &members[i]
-			fixup(raw[i].Type, &m.Type)
-
-			if kindFlag {
-				m.BitfieldSize = Bits(btfMember.Offset >> 24)
-				m.Offset &= 0xffffff
-				// We ignore legacy bitfield definitions if the current composite
-				// is a new-style bitfield. This is kind of safe since offset and
-				// size on the type of the member must be zero if kindFlat is set
-				// according to spec.
-				continue
-			}
-
-			// This may be a legacy bitfield, try to fix it up.
-			data, ok := legacyBitfields[raw[i].Type]
-			if ok {
-				// Bingo!
-				m.Offset += data[0]
-				m.BitfieldSize = data[1]
-				continue
-			}
-
-			if m.Type != nil {
-				// We couldn't find a legacy bitfield, but we know that the member's
-				// type has already been inflated. Hence we know that it can't be
-				// a legacy bitfield and there is nothing left to do.
-				continue
-			}
-
-			// We don't have fixup data, and the type we're pointing
-			// at hasn't been inflated yet. No choice but to defer
-			// the fixup.
-			bitfieldFixups = append(bitfieldFixups, bitfieldFixupDef{
-				raw[i].Type,
-				m,
-			})
-		}
-		return members, nil
-	}
-
-	var (
-		buf       = make([]byte, 1024)
-		header    btfType
-		bInt      btfInt
-		bArr      btfArray
-		bMembers  []btfMember
-		bEnums    []btfEnum
-		bParams   []btfParam
-		bVariable btfVariable
-		bSecInfos []btfVarSecinfo
-		bDeclTag  btfDeclTag
-		bEnums64  []btfEnum64
-	)
-
-	var declTags []*declTag
-	for {
-		var (
-			id  = firstTypeID + TypeID(len(types))
-			typ Type
-		)
-
-		if _, err := io.ReadFull(r, buf[:btfTypeLen]); err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, fmt.Errorf("can't read type info for id %v: %v", id, err)
-		}
-
-		if _, err := unmarshalBtfType(&header, buf[:btfTypeLen], bo); err != nil {
-			return nil, fmt.Errorf("can't unmarshal type info for id %v: %v", id, err)
-		}
-
-		if id < firstTypeID {
-			return nil, fmt.Errorf("no more type IDs")
-		}
-
-		name, err := rawStrings.Lookup(header.NameOff)
-		if err != nil {
-			return nil, fmt.Errorf("get name for type id %d: %w", id, err)
-		}
-
-		switch header.Kind() {
-		case kindInt:
-			size := header.Size()
-			buf = buf[:btfIntLen]
-			if _, err := io.ReadFull(r, buf); err != nil {
-				return nil, fmt.Errorf("can't read btfInt, id: %d: %w", id, err)
-			}
-			if _, err := unmarshalBtfInt(&bInt, buf, bo); err != nil {
-				return nil, fmt.Errorf("can't unmarshal btfInt, id: %d: %w", id, err)
-			}
-			if bInt.Offset() > 0 || bInt.Bits().Bytes() != size {
-				legacyBitfields[id] = [2]Bits{bInt.Offset(), bInt.Bits()}
-			}
-			typ = &Int{name, header.Size(), bInt.Encoding()}
-
-		case kindPointer:
-			ptr := &Pointer{nil}
-			fixup(header.Type(), &ptr.Target)
-			typ = ptr
-
-		case kindArray:
-			buf = buf[:btfArrayLen]
-			if _, err := io.ReadFull(r, buf); err != nil {
-				return nil, fmt.Errorf("can't read btfArray, id: %d: %w", id, err)
-			}
-			if _, err := unmarshalBtfArray(&bArr, buf, bo); err != nil {
-				return nil, fmt.Errorf("can't unmarshal btfArray, id: %d: %w", id, err)
-			}
-
-			arr := &Array{nil, nil, bArr.Nelems}
-			fixup(bArr.IndexType, &arr.Index)
-			fixup(bArr.Type, &arr.Type)
-			typ = arr
-
-		case kindStruct:
-			vlen := header.Vlen()
-			bMembers = slices.Grow(bMembers[:0], vlen)[:vlen]
-			buf = slices.Grow(buf[:0], vlen*btfMemberLen)[:vlen*btfMemberLen]
-			if _, err := io.ReadFull(r, buf); err != nil {
-				return nil, fmt.Errorf("can't read btfMembers, id: %d: %w", id, err)
-			}
-			if _, err := unmarshalBtfMembers(bMembers, buf, bo); err != nil {
-				return nil, fmt.Errorf("can't unmarshal btfMembers, id: %d: %w", id, err)
-			}
-
-			members, err := convertMembers(bMembers, header.Bitfield())
-			if err != nil {
-				return nil, fmt.Errorf("struct %s (id %d): %w", name, id, err)
-			}
-			typ = &Struct{name, header.Size(), members, nil}
-
-		case kindUnion:
-			vlen := header.Vlen()
-			bMembers = slices.Grow(bMembers[:0], vlen)[:vlen]
-			buf = slices.Grow(buf[:0], vlen*btfMemberLen)[:vlen*btfMemberLen]
-			if _, err := io.ReadFull(r, buf); err != nil {
-				return nil, fmt.Errorf("can't read btfMembers, id: %d: %w", id, err)
-			}
-			if _, err := unmarshalBtfMembers(bMembers, buf, bo); err != nil {
-				return nil, fmt.Errorf("can't unmarshal btfMembers, id: %d: %w", id, err)
-			}
-
-			members, err := convertMembers(bMembers, header.Bitfield())
-			if err != nil {
-				return nil, fmt.Errorf("union %s (id %d): %w", name, id, err)
-			}
-			typ = &Union{name, header.Size(), members, nil}
-
-		case kindEnum:
-			vlen := header.Vlen()
-			bEnums = slices.Grow(bEnums[:0], vlen)[:vlen]
-			buf = slices.Grow(buf[:0], vlen*btfEnumLen)[:vlen*btfEnumLen]
-			if _, err := io.ReadFull(r, buf); err != nil {
-				return nil, fmt.Errorf("can't read btfEnums, id: %d: %w", id, err)
-			}
-			if _, err := unmarshalBtfEnums(bEnums, buf, bo); err != nil {
-				return nil, fmt.Errorf("can't unmarshal btfEnums, id: %d: %w", id, err)
-			}
-
-			vals := make([]EnumValue, 0, vlen)
-			signed := header.Signed()
-			for i, btfVal := range bEnums {
-				name, err := rawStrings.Lookup(btfVal.NameOff)
-				if err != nil {
-					return nil, fmt.Errorf("get name for enum value %d: %s", i, err)
-				}
-				value := uint64(btfVal.Val)
-				if signed {
-					// Sign extend values to 64 bit.
-					value = uint64(int32(btfVal.Val))
-				}
-				vals = append(vals, EnumValue{name, value})
-			}
-			typ = &Enum{name, header.Size(), signed, vals}
-
-		case kindForward:
-			typ = &Fwd{name, header.FwdKind()}
-
-		case kindTypedef:
-			typedef := &Typedef{name, nil, nil}
-			fixup(header.Type(), &typedef.Type)
-			typ = typedef
-
-		case kindVolatile:
-			volatile := &Volatile{nil}
-			fixup(header.Type(), &volatile.Type)
-			typ = volatile
-
-		case kindConst:
-			cnst := &Const{nil}
-			fixup(header.Type(), &cnst.Type)
-			typ = cnst
-
-		case kindRestrict:
-			restrict := &Restrict{nil}
-			fixup(header.Type(), &restrict.Type)
-			typ = restrict
-
-		case kindFunc:
-			fn := &Func{name, nil, header.Linkage(), nil, nil}
-			fixup(header.Type(), &fn.Type)
-			typ = fn
-
-		case kindFuncProto:
-			vlen := header.Vlen()
-			bParams = slices.Grow(bParams[:0], vlen)[:vlen]
-			buf = slices.Grow(buf[:0], vlen*btfParamLen)[:vlen*btfParamLen]
-			if _, err := io.ReadFull(r, buf); err != nil {
-				return nil, fmt.Errorf("can't read btfParams, id: %d: %w", id, err)
-			}
-			if _, err := unmarshalBtfParams(bParams, buf, bo); err != nil {
-				return nil, fmt.Errorf("can't unmarshal btfParams, id: %d: %w", id, err)
-			}
-
-			params := make([]FuncParam, 0, vlen)
-			for i, param := range bParams {
-				name, err := rawStrings.Lookup(param.NameOff)
-				if err != nil {
-					return nil, fmt.Errorf("get name for func proto parameter %d: %s", i, err)
-				}
-				params = append(params, FuncParam{
-					Name: name,
-				})
-			}
-			for i := range params {
-				fixup(bParams[i].Type, &params[i].Type)
-			}
-
-			fp := &FuncProto{nil, params}
-			fixup(header.Type(), &fp.Return)
-			typ = fp
-
-		case kindVar:
-			buf = buf[:btfVariableLen]
-			if _, err := io.ReadFull(r, buf); err != nil {
-				return nil, fmt.Errorf("can't read btfVariable, id: %d: %w", id, err)
-			}
-			if _, err := unmarshalBtfVariable(&bVariable, buf, bo); err != nil {
-				return nil, fmt.Errorf("can't read btfVariable, id: %d: %w", id, err)
-			}
-
-			v := &Var{name, nil, VarLinkage(bVariable.Linkage), nil}
-			fixup(header.Type(), &v.Type)
-			typ = v
-
-		case kindDatasec:
-			vlen := header.Vlen()
-			bSecInfos = slices.Grow(bSecInfos[:0], vlen)[:vlen]
-			buf = slices.Grow(buf[:0], vlen*btfVarSecinfoLen)[:vlen*btfVarSecinfoLen]
-			if _, err := io.ReadFull(r, buf); err != nil {
-				return nil, fmt.Errorf("can't read btfVarSecInfos, id: %d: %w", id, err)
-			}
-			if _, err := unmarshalBtfVarSecInfos(bSecInfos, buf, bo); err != nil {
-				return nil, fmt.Errorf("can't unmarshal btfVarSecInfos, id: %d: %w", id, err)
-			}
-
-			vars := make([]VarSecinfo, 0, vlen)
-			for _, btfVar := range bSecInfos {
-				vars = append(vars, VarSecinfo{
-					Offset: btfVar.Offset,
-					Size:   btfVar.Size,
-				})
-			}
-			for i := range vars {
-				fixup(bSecInfos[i].Type, &vars[i].Type)
-			}
-			typ = &Datasec{name, header.Size(), vars}
-
-		case kindFloat:
-			typ = &Float{name, header.Size()}
-
-		case kindDeclTag:
-			buf = buf[:btfDeclTagLen]
-			if _, err := io.ReadFull(r, buf); err != nil {
-				return nil, fmt.Errorf("can't read btfDeclTag, id: %d: %w", id, err)
-			}
-			if _, err := unmarshalBtfDeclTag(&bDeclTag, buf, bo); err != nil {
-				return nil, fmt.Errorf("can't read btfDeclTag, id: %d: %w", id, err)
-			}
-
-			btfIndex := bDeclTag.ComponentIdx
-			if uint64(btfIndex) > math.MaxInt {
-				return nil, fmt.Errorf("type id %d: index exceeds int", id)
-			}
-
-			dt := &declTag{nil, name, int(int32(btfIndex))}
-			fixup(header.Type(), &dt.Type)
-			typ = dt
-
-			declTags = append(declTags, dt)
-
-		case kindTypeTag:
-			tt := &TypeTag{nil, name}
-			fixup(header.Type(), &tt.Type)
-			typ = tt
-
-		case kindEnum64:
-			vlen := header.Vlen()
-			bEnums64 = slices.Grow(bEnums64[:0], vlen)[:vlen]
-			buf = slices.Grow(buf[:0], vlen*btfEnum64Len)[:vlen*btfEnum64Len]
-			if _, err := io.ReadFull(r, buf); err != nil {
-				return nil, fmt.Errorf("can't read btfEnum64s, id: %d: %w", id, err)
-			}
-			if _, err := unmarshalBtfEnums64(bEnums64, buf, bo); err != nil {
-				return nil, fmt.Errorf("can't unmarshal btfEnum64s, id: %d: %w", id, err)
-			}
-
-			vals := make([]EnumValue, 0, vlen)
-			for i, btfVal := range bEnums64 {
-				name, err := rawStrings.Lookup(btfVal.NameOff)
-				if err != nil {
-					return nil, fmt.Errorf("get name for enum64 value %d: %s", i, err)
-				}
-				value := (uint64(btfVal.ValHi32) << 32) | uint64(btfVal.ValLo32)
-				vals = append(vals, EnumValue{name, value})
-			}
-			typ = &Enum{name, header.Size(), header.Signed(), vals}
-
-		default:
-			return nil, fmt.Errorf("type id %d: unknown kind: %v", id, header.Kind())
-		}
-
-		types = append(types, typ)
-	}
-
-	for _, fixup := range fixups {
-		if fixup.id < firstTypeID {
-			return nil, fmt.Errorf("fixup for base type id %d is not expected", fixup.id)
-		}
-
-		idx := int(fixup.id - firstTypeID)
-		if idx >= len(types) {
-			return nil, fmt.Errorf("reference to invalid type id: %d", fixup.id)
-		}
-
-		*fixup.typ = types[idx]
-	}
-
-	for _, bitfieldFixup := range bitfieldFixups {
-		if bitfieldFixup.id < firstTypeID {
-			return nil, fmt.Errorf("bitfield fixup from split to base types is not expected")
-		}
-
-		data, ok := legacyBitfields[bitfieldFixup.id]
-		if ok {
-			// This is indeed a legacy bitfield, fix it up.
-			bitfieldFixup.m.Offset += data[0]
-			bitfieldFixup.m.BitfieldSize = data[1]
-		}
-	}
-
-	for _, dt := range declTags {
-		switch t := dt.Type.(type) {
-		case *Var:
-			if dt.Index != -1 {
-				return nil, fmt.Errorf("type %s: component idx %d is not -1", dt, dt.Index)
-			}
-			t.Tags = append(t.Tags, dt.Value)
-
-		case *Typedef:
-			if dt.Index != -1 {
-				return nil, fmt.Errorf("type %s: component idx %d is not -1", dt, dt.Index)
-			}
-			t.Tags = append(t.Tags, dt.Value)
-
-		case composite:
-			if dt.Index >= 0 {
-				members := t.members()
-				if dt.Index >= len(members) {
-					return nil, fmt.Errorf("type %s: component idx %d exceeds members of %s", dt, dt.Index, t)
-				}
-
-				members[dt.Index].Tags = append(members[dt.Index].Tags, dt.Value)
-				continue
-			}
-
-			if dt.Index == -1 {
-				switch t2 := t.(type) {
-				case *Struct:
-					t2.Tags = append(t2.Tags, dt.Value)
-				case *Union:
-					t2.Tags = append(t2.Tags, dt.Value)
-				}
-
-				continue
-			}
-
-			return nil, fmt.Errorf("type %s: decl tag for type %s has invalid component idx", dt, t)
-
-		case *Func:
-			fp, ok := t.Type.(*FuncProto)
-			if !ok {
-				return nil, fmt.Errorf("type %s: %s is not a FuncProto", dt, t.Type)
-			}
-
-			// Ensure the number of argument tag lists equals the number of arguments
-			if len(t.ParamTags) == 0 {
-				t.ParamTags = make([][]string, len(fp.Params))
-			}
-
-			if dt.Index >= 0 {
-				if dt.Index >= len(fp.Params) {
-					return nil, fmt.Errorf("type %s: component idx %d exceeds params of %s", dt, dt.Index, t)
-				}
-
-				t.ParamTags[dt.Index] = append(t.ParamTags[dt.Index], dt.Value)
-				continue
-			}
-
-			if dt.Index == -1 {
-				t.Tags = append(t.Tags, dt.Value)
-				continue
-			}
-
-			return nil, fmt.Errorf("type %s: decl tag for type %s has invalid component idx", dt, t)
-
-		default:
-			return nil, fmt.Errorf("type %s: decl tag for type %s is not supported", dt, t)
-		}
-	}
-
-	return types, nil
-}
 
 // essentialName represents the name of a BTF type stripped of any flavor
 // suffixes after a ___ delimiter.
@@ -1347,7 +889,7 @@ type formattableType interface {
 // Handles cyclical types by only printing cycles up to a certain depth. Elements
 // in extra are separated by spaces unless the preceding element is a string
 // ending in '='.
-func formatType(f fmt.State, verb rune, t formattableType, extra ...interface{}) {
+func formatType(f fmt.State, verb rune, t formattableType, extra ...any) {
 	if verb != 'v' && verb != 's' {
 		fmt.Fprintf(f, "{UNRECOGNIZED: %c}", verb)
 		return

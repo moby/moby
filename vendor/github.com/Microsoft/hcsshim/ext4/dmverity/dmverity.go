@@ -199,6 +199,9 @@ func ReadDMVerityInfoReader(r io.Reader) (*VerityInfo, error) {
 	if string(bytes.Trim(dmvSB.Signature[:], "\x00")[:]) != VeritySignature {
 		return nil, ErrNotVeritySuperBlock
 	}
+	if int(dmvSB.SaltSize) > len(dmvSB.Salt) {
+		return nil, fmt.Errorf("%w: salt size %d exceeds salt capacity %d", ErrSuperBlockParseFailure, dmvSB.SaltSize, len(dmvSB.Salt))
+	}
 
 	if s, err := r.Read(block); err != nil || s != blockSize {
 		if err != nil {

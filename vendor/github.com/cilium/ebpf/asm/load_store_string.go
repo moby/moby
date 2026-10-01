@@ -14,7 +14,7 @@ func _() {
 	_ = x[IndMode-64]
 	_ = x[MemMode-96]
 	_ = x[MemSXMode-128]
-	_ = x[XAddMode-192]
+	_ = x[AtomicMode-192]
 }
 
 const (
@@ -23,7 +23,7 @@ const (
 	_Mode_name_2 = "IndMode"
 	_Mode_name_3 = "MemMode"
 	_Mode_name_4 = "MemSXMode"
-	_Mode_name_5 = "XAddMode"
+	_Mode_name_5 = "AtomicMode"
 	_Mode_name_6 = "InvalidMode"
 )
 

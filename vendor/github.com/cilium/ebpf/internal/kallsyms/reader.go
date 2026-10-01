@@ -2,9 +2,8 @@ package kallsyms
 
 import (
 	"bufio"
+	"bytes"
 	"io"
-	"unicode"
-	"unicode/utf8"
 )
 
 // reader is a line and word-oriented reader built for reading /proc/kallsyms.
@@ -71,46 +70,18 @@ func (r *reader) Line() bool {
 // Returns true if a word is found and Word should be called again. Returns
 // false when all words on the line have been read.
 func (r *reader) Word() bool {
-	if len(r.line) == 0 {
+	line := bytes.TrimSpace(r.line)
+
+	if len(line) == 0 {
 		return false
 	}
 
-	// Find next word start, skipping leading spaces.
-	start := 0
-	for width := 0; start < len(r.line); start += width {
-		var c rune
-		c, width = utf8.DecodeRune(r.line[start:])
-		if !unicode.IsSpace(c) {
-			break
-		}
+	var found bool
+	r.word, r.line, found = bytes.Cut(line, []byte{' '})
+	if !found {
+		r.word, r.line, _ = bytes.Cut(line, []byte{'\t'})
 	}
-
-	// Whitespace scanning reached the end of the line due to trailing whitespace,
-	// meaning there are no more words to read
-	if start == len(r.line) {
-		return false
-	}
-
-	// Find next word end.
-	for width, i := 0, start; i < len(r.line); i += width {
-		var c rune
-		c, width = utf8.DecodeRune(r.line[i:])
-		if unicode.IsSpace(c) {
-			r.word = r.line[start:i]
-			r.line = r.line[i:]
-			return true
-		}
-	}
-
-	// The line contains data, but no end-of-word boundary was found. This is the
-	// last, unterminated word in the line.
-	if len(r.line) > start {
-		r.word = r.line[start:]
-		r.line = nil
-		return true
-	}
-
-	return false
+	return true
 }
 
 func (r *reader) Err() error {

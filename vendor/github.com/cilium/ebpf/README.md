@@ -59,8 +59,11 @@ This library includes the following packages:
 
 * A version of Go that is [supported by
   upstream](https://golang.org/doc/devel/release.html#policy)
-* CI is run against kernel.org LTS releases. >= 4.4 should work but EOL'ed versions
-  are not supported.
+* Linux (amd64, arm64): CI is run against kernel.org LTS releases. >= 4.4 should work but EOL'ed
+  versions are not supported.
+* Windows (amd64): CI is run against Windows Server 2022. Only the latest eBPF for Windows
+  release is supported.
+* Other architectures are best effort. 32bit arches are not supported.
 
 ## License
 

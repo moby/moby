@@ -92,6 +92,11 @@ func GoTypeName(t any) string {
 	for rT.Kind() == reflect.Pointer {
 		rT = rT.Elem()
 	}
-	// Doesn't return the correct Name for generic types due to https://github.com/golang/go/issues/55924
-	return rT.Name()
+
+	name := rT.Name()
+	if pkgPath := rT.PkgPath(); pkgPath != "" {
+		name = strings.ReplaceAll(name, pkgPath+".", "")
+	}
+
+	return name
 }
