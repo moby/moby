@@ -18,7 +18,7 @@ func isDHIIndex(idx ocispecs.Index) bool {
 			return false
 		}
 	}
-	return strings.HasPrefix(idx.Annotations["org.opencontainers.image.title"], "dhi/")
+	return strings.HasPrefix(idx.Annotations[ocispecs.AnnotationTitle], "dhi/")
 }
 
 func contextWithDHI(ctx context.Context) context.Context {
