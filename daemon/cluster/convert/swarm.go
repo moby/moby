@@ -63,6 +63,13 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 
 	swarm.Spec.CAConfig.NodeCertExpiry, _ = gogotypes.DurationFromProto(c.Spec.CAConfig.NodeCertExpiry)
 
+	if ld := c.Spec.TaskDefaults.LogDriver; ld != nil {
+		swarm.Spec.TaskDefaults.LogDriver = &types.Driver{
+			Name:    ld.Name,
+			Options: ld.Options,
+		}
+	}
+
 	for _, ca := range c.Spec.CAConfig.ExternalCAs {
 		swarm.Spec.CAConfig.ExternalCAs = append(swarm.Spec.CAConfig.ExternalCAs, &types.ExternalCA{
 			Protocol: types.ExternalCAProtocol(strings.ToLower(ca.Protocol.String())),
@@ -132,6 +139,13 @@ func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.Clu
 		spec.CAConfig.SigningCAKey = []byte(s.CAConfig.SigningCAKey)
 	}
 	spec.CAConfig.ForceRotate = s.CAConfig.ForceRotate
+
+	if ld := s.TaskDefaults.LogDriver; ld != nil {
+		spec.TaskDefaults.LogDriver = &swarmapi.Driver{
+			Name:    ld.Name,
+			Options: ld.Options,
+		}
+	}
 
 	for _, ca := range s.CAConfig.ExternalCAs {
 		protocol, ok := swarmapi.ExternalCA_CAProtocol_value[strings.ToUpper(string(ca.Protocol))]
