@@ -225,6 +225,9 @@ func (daemon *Daemon) fillRootlessVersion(ctx context.Context, v *system.Version
 	if err != nil {
 		return errors.Wrap(err, "failed to create RootlessKit client")
 	}
+	// TODO: replace with rlc.Close() once rootless-containers/rootlesskit#646 is
+	// accepted and vendored.
+	defer rlc.HTTPClient().CloseIdleConnections()
 	rlInfo, err := rlc.Info(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve RootlessKit version")
