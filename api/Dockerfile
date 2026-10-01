@@ -3,7 +3,7 @@
 ARG GO_VERSION=1.26.8
 
 FROM golang:${GO_VERSION}-alpine AS base
-RUN apk add --no-cache bash make yamllint
+RUN apk add --no-cache bash libfyaml make yamllint
 CMD ["/bin/bash"]
 
 # go-swagger
