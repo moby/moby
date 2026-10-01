@@ -28,6 +28,7 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/initlayer"
+	"github.com/moby/moby/v2/daemon/internal/ocihook"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/internal/usergroup"
 	"github.com/moby/moby/v2/daemon/libnetwork"
@@ -824,6 +825,17 @@ func configureKernelSecuritySupport(config *config.Config, driverName string) er
 	} else {
 		selinux.SetDisabled()
 	}
+	return nil
+}
+
+// initOCIHooks starts the server for OCI hooks the daemon installs in
+// containers it does not start itself.
+func (daemon *Daemon) initOCIHooks(cfg *config.Config) error {
+	s, err := ocihook.Listen(filepath.Join(cfg.GetExecRoot(), "oci-hook.sock"))
+	if err != nil {
+		return fmt.Errorf("error starting OCI hook server: %w", err)
+	}
+	daemon.ociHooks = s
 	return nil
 }
 
