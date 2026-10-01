@@ -70,6 +70,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd"
 	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
+	"github.com/moby/moby/v2/daemon/internal/ocihook"
 	pluginexec "github.com/moby/moby/v2/daemon/internal/plugin/executor/containerd"
 	refstore "github.com/moby/moby/v2/daemon/internal/refstore"
 	"github.com/moby/moby/v2/daemon/libnetwork"
@@ -121,6 +122,7 @@ type Daemon struct {
 	registryService   *registry.Service
 	EventsService     *events.Events
 	netController     *libnetwork.Controller
+	ociHooks          *ocihook.Server
 	volumes           *volumesservice.VolumesService
 	root              string
 	sysInfoOnce       sync.Once
@@ -1015,6 +1017,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
+	if err := d.initOCIHooks(&cfgStore.Config); err != nil {
+		return nil, err
+	}
+
 	const connTimeout = 60 * time.Second
 
 	gopts := []grpc.DialOption{
@@ -1588,6 +1594,14 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 
 	if daemon.nri != nil {
 		daemon.nri.Shutdown(ctx)
+	}
+
+	// Hook callbacks may use the network controller, so wait for them to
+	// return first.
+	if daemon.ociHooks != nil {
+		if err := daemon.ociHooks.Shutdown(ctx); err != nil {
+			log.G(ctx).WithError(err).Warn("error shutting down OCI hook server")
+		}
 	}
 
 	// trigger libnetwork Stop only if it's initialized
