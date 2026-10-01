@@ -95,7 +95,7 @@ func writeEa(buf *bytes.Buffer, ea *ExtendedAttribute, last bool) error {
 		return err
 	}
 
-	_, err = buf.Write([]byte(ea.Name))
+	_, err = buf.WriteString(ea.Name)
 	if err != nil {
 		return err
 	}
