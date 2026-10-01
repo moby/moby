@@ -34,7 +34,7 @@ func (sr *immutableRef) tryComputeOverlayBlob(ctx context.Context, lower, upper 
 		return emptyDesc, false, nil
 	}
 
-	cw, err := sr.cm.ContentStore.Writer(ctx,
+	cw, err := content.OpenWriter(ctx, sr.cm.ContentStore,
 		content.WithRef(ref),
 		content.WithDescriptor(ocispecs.Descriptor{
 			MediaType: mediaType, // most contentstore implementations just ignore this
@@ -45,15 +45,8 @@ func (sr *immutableRef) tryComputeOverlayBlob(ctx context.Context, lower, upper 
 
 	defer func() {
 		if cw != nil {
-			ctx := context.WithoutCancel(ctx)
-			// after commit success cw will be set to nil, if cw isn't nil, error
-			// happened before commit, we should abort this ingest, and because the
-			// error may incured by ctx cancel, use a new context here. And since
-			// cm.Close will unlock this ref in the content store, we invoke abort
-			// to remove the ingest root in advance.
-			if aerr := sr.cm.ContentStore.Abort(ctx, ref); aerr != nil {
-				bklog.G(ctx).WithError(aerr).Warnf("failed to abort writer %q", ref)
-			}
+			// Do not abort a stable ref after closing it: another writer waiter
+			// may already own the same ingest by the time Abort is processed.
 			if cerr := cw.Close(); cerr != nil {
 				bklog.G(ctx).WithError(cerr).Warnf("failed to close writer %q", ref)
 			}
@@ -97,15 +90,13 @@ func (sr *immutableRef) tryComputeOverlayBlob(ctx context.Context, lower, upper 
 		commitopts = append(commitopts, content.WithLabels(labels))
 	}
 	dgst := cw.Digest()
-	if err := cw.Commit(ctx, 0, dgst, commitopts...); err != nil {
-		if !cerrdefs.IsAlreadyExists(err) {
-			return emptyDesc, false, errors.Wrap(err, "failed to commit")
+	commitErr := cw.Commit(ctx, 0, dgst, commitopts...)
+	cw = nil // Commit always closes the writer, including on error.
+	if commitErr != nil {
+		if !cerrdefs.IsAlreadyExists(commitErr) {
+			return emptyDesc, false, errors.Wrap(commitErr, "failed to commit")
 		}
 	}
-	if err := cw.Close(); err != nil {
-		return emptyDesc, false, err
-	}
-	cw = nil
 	cinfo, err := sr.cm.ContentStore.Info(ctx, dgst)
 	if err != nil {
 		return emptyDesc, false, errors.Wrap(err, "failed to get info from content store")

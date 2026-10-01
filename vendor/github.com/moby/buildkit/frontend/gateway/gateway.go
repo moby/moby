@@ -393,9 +393,10 @@ func (lbf *llbBridgeForwarder) discard() {
 	}
 	lbf.mountsMu.Unlock()
 
-	for id, workerRef := range lbf.workerRefByID {
-		workerRef.Release(context.TODO())
-		delete(lbf.workerRefByID, id)
+	lbf.discarded = true
+	for id, res := range lbf.resultByID {
+		res.Release(context.TODO())
+		delete(lbf.resultByID, id)
 	}
 	if lbf.err != nil && lbf.result != nil {
 		lbf.result.EachRef(func(r solver.ResultProxy) error {
@@ -471,7 +472,7 @@ func newBridgeForwarder(ctx context.Context, llbBridge frontend.FrontendLLBBridg
 		cancelContainerCtx: cancelContainerCtx,
 		llbBridge:          llbBridge,
 		refs:               map[string]solver.ResultProxy{},
-		workerRefByID:      map[string]*worker.WorkerRef{},
+		resultByID:         map[string]solver.Result{},
 		doneCh:             make(chan struct{}),
 		pipe:               newPipe(),
 		workers:            workers,
@@ -582,11 +583,12 @@ type llbBridgeForwarder struct {
 	containerCtx       context.Context
 	cancelContainerCtx context.CancelCauseFunc
 	// newContainer is overridden by tests.
-	newContainer  func(context.Context, container.NewContainerRequest) (gwclient.Container, error)
-	callCtx       context.Context
-	llbBridge     frontend.FrontendLLBBridge
-	refs          map[string]solver.ResultProxy
-	workerRefByID map[string]*worker.WorkerRef
+	newContainer func(context.Context, container.NewContainerRequest) (gwclient.Container, error)
+	callCtx      context.Context
+	llbBridge    frontend.FrontendLLBBridge
+	refs         map[string]solver.ResultProxy
+	resultByID   map[string]solver.Result
+	discarded    bool
 	// lastRef      solver.CachedResult
 	// lastRefs     map[string]solver.CachedResult
 	// err          error
@@ -728,7 +730,7 @@ func (lbf *llbBridgeForwarder) wrapSolveError(solveErr error) error {
 	}
 	if errors.As(solveErr, &sce) {
 		var err error
-		inputIDs, err = lbf.registerResultIDs(sce.Result)
+		inputIDs, err = lbf.registerSlowCacheResult(sce.Result)
 		if err != nil {
 			return err
 		}
@@ -741,6 +743,28 @@ func (lbf *llbBridgeForwarder) registerResultIDs(results ...solver.Result) (ids 
 	lbf.mu.Lock()
 	defer lbf.mu.Unlock()
 
+	return lbf.registerResultIDsLocked(results...)
+}
+
+// registerSlowCacheResult registers a clone of a result borrowed from the
+// solver job. The clone is only taken before the forwarder is discarded, as the
+// job may be released after that.
+func (lbf *llbBridgeForwarder) registerSlowCacheResult(res solver.Result) ([]string, error) {
+	lbf.mu.Lock()
+	defer lbf.mu.Unlock()
+
+	if lbf.discarded {
+		return nil, nil
+	}
+	// Validate before cloning so a type error can't leak the clone. Once
+	// cloned, registerResultIDsLocked either keeps or releases it.
+	if _, ok := res.Sys().(*worker.WorkerRef); !ok {
+		return nil, errors.Errorf("unexpected type for result, got %T", res.Sys())
+	}
+	return lbf.registerResultIDsLocked(res.Clone())
+}
+
+func (lbf *llbBridgeForwarder) registerResultIDsLocked(results ...solver.Result) (ids []string, err error) {
 	ids = make([]string, len(results))
 	for i, res := range results {
 		if res == nil {
@@ -752,15 +776,16 @@ func (lbf *llbBridgeForwarder) registerResultIDs(results ...solver.Result) (ids 
 		}
 		id := workerRef.ID()
 		ids[i] = id
-		if existing, ok := lbf.workerRefByID[id]; ok {
-			if existing != workerRef {
-				if err := workerRef.Release(context.TODO()); err != nil {
+		if existing, ok := lbf.resultByID[id]; ok {
+			if existing != res {
+				if err := res.Release(context.TODO()); err != nil {
 					return ids, errors.WithStack(err)
 				}
 			}
 			continue
 		}
-		lbf.workerRefByID[id] = workerRef
+		// Keep the result wrapper so Release balances split-result ownership.
+		lbf.resultByID[id] = res
 	}
 	return ids, nil
 }
@@ -1172,10 +1197,13 @@ func (lbf *llbBridgeForwarder) NewContainer(ctx context.Context, in *pb.NewConta
 	for _, m := range in.Mounts {
 		var workerRef *worker.WorkerRef
 		if m.ResultID != "" {
-			var ok bool
 			lbf.mu.Lock()
-			workerRef, ok = lbf.workerRefByID[m.ResultID]
+			res, found := lbf.resultByID[m.ResultID]
 			lbf.mu.Unlock()
+			var ok bool
+			if found {
+				workerRef, ok = res.Sys().(*worker.WorkerRef)
+			}
 			if !ok {
 				refProxy, err := lbf.convertRef(m.ResultID)
 				if err != nil {
@@ -1847,7 +1875,7 @@ func serve(ctx context.Context, grpcServer *grpc.Server, conn net.Conn) {
 		conn.Close()
 	}()
 	bklog.G(ctx).Debugf("serving grpc connection")
-	(&http2.Server{}).ServeConn(conn, &http2.ServeConnOpts{Handler: grpcServer})
+	(&http2.Server{}).ServeConn(conn, &http2.ServeConnOpts{Handler: grpcServer}) //nolint:staticcheck // This existing HTTP/2 connection is already established.
 }
 
 type markTypeFrontend struct{}

@@ -7,6 +7,7 @@ import (
 	"io"
 	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/images"
 	contentlocal "github.com/containerd/containerd/v2/plugins/content/local"
+	"github.com/gofrs/flock"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/client/ociindex"
@@ -42,6 +44,7 @@ type SolveOpt struct {
 	CompatibilityVersion  int
 	EnableSessionExporter bool
 	LocalMounts           map[string]fsutil.FS
+	LocalFilterOpt        filesync.FilterOptFunc
 	OCIStores             map[string]content.Store
 	SharedKey             string
 	Frontend              string
@@ -136,11 +139,25 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		return nil, err
 	}
 
+	cacheStores := make(map[string]*cacheExportStore)
+	for storePath := range cacheOpt.storesToUpdate {
+		key := "local:" + storePath
+		store := &cacheExportStore{
+			Store: cacheOpt.contentStores[key],
+			lock:  flock.New(filepath.Join(storePath, "cache.lock")),
+		}
+		// Defer until solve returns: export locks must outlive index publication,
+		// and also be released on error. Closing again after explicit cleanup is safe.
+		defer store.Close()
+		cacheOpt.contentStores[key] = store
+		cacheStores[storePath] = store
+	}
+
 	storesToUpdate := []string{}
 
 	if !opt.SessionPreInitialized {
 		if len(syncedDirs) > 0 {
-			s.Allow(filesync.NewFSSyncProvider(syncedDirs))
+			s.Allow(filesync.NewFSSyncProvider(syncedDirs, opt.LocalFilterOpt))
 		}
 
 		for _, a := range opt.Session {
@@ -439,18 +456,69 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 			}
 		}
 	}
+	// Release all export locks before attempting an exclusive reset lock.
+	for _, store := range cacheStores {
+		if err := store.Close(); err != nil {
+			bklog.G(callerCtx).WithError(err).WithField("cache_store_path", filepath.Dir(store.lock.Path())).Warn("failed to unlock cache store")
+		}
+	}
 	// Reset cache stores that have reset=true — delete unreferenced blobs
 	for _, ref := range cacheOpt.storesToReset {
-		if err := resetCacheStore(callerCtx, ref.store, ref.path); err != nil {
-			bklog.G(callerCtx).WithError(err).Warn("failed to reset cache store")
+		if err := resetCacheStore(callerCtx, ref.store, ref.path, cacheStores[ref.path].lock); err != nil {
+			bklog.G(callerCtx).WithError(err).WithField("cache_store_path", ref.path).Warn("failed to reset cache store")
 		}
 	}
 	return res, nil
 }
 
+// cacheExportStore protects blobs from reset starting at the first write attempt,
+// including attempts that reuse existing blobs. The caller releases the lock only
+// after publishing the export in index.json, or when the solve fails.
+type cacheExportStore struct {
+	content.Store
+	mu     sync.RWMutex
+	lock   *flock.Flock
+	closed bool
+}
+
+func (s *cacheExportStore) Writer(ctx context.Context, opts ...content.WriterOpt) (content.Writer, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed {
+		return nil, errors.WithStack(os.ErrClosed)
+	}
+	if !s.lock.RLocked() {
+		_, err := s.lock.TryRLockContext(ctx, 100*time.Millisecond)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to lock cache store for export")
+		}
+	}
+	return s.Store.Writer(ctx, opts...)
+}
+
+// Close is called after session requests have finished or been canceled. Prevent
+// late handlers from reacquiring the lock after the solve has returned.
+func (s *cacheExportStore) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.closed = true
+	return s.lock.Close()
+}
+
 // resetCacheStore deletes all blobs not referenced by any manifest in
 // index.json. Referenced blobs are always preserved.
-func resetCacheStore(ctx context.Context, cs content.Store, storePath string) error {
+func resetCacheStore(ctx context.Context, cs content.Store, storePath string, lock *flock.Flock) error {
+	// Keep the lock file: unlinking it could allow another process to lock a
+	// different inode while an exporter is still using the original one.
+	defer lock.Close()
+	locked, err := lock.TryLock()
+	if err != nil {
+		return errors.Wrap(err, "reset: failed to lock cache store")
+	}
+	if !locked {
+		return errors.New("reset: cache store is in use, skipping cleanup")
+	}
+
 	idx := ociindex.NewStoreIndex(storePath)
 	index, err := idx.Read()
 	if err != nil {

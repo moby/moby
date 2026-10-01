@@ -120,7 +120,7 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits n>0:", err)
 					}
-					f.err = err
+					f.err = noEOF(err)
 					return
 				}
 				f.roffset++
@@ -148,7 +148,7 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<5:", err)
 					}
-					f.err = err
+					f.err = noEOF(err)
 					return
 				}
 				f.roffset++
@@ -216,7 +216,7 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<nb:", err)
 					}
-					f.err = err
+					f.err = noEOF(err)
 					return
 				}
 				f.roffset++
@@ -371,7 +371,7 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits n>0:", err)
 					}
-					f.err = err
+					f.err = noEOF(err)
 					return
 				}
 				f.roffset++
@@ -399,7 +399,7 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<5:", err)
 					}
-					f.err = err
+					f.err = noEOF(err)
 					return
 				}
 				f.roffset++
@@ -467,7 +467,7 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<nb:", err)
 					}
-					f.err = err
+					f.err = noEOF(err)
 					return
 				}
 				f.roffset++
@@ -638,7 +638,7 @@ readLiteral:
 						if debugDecode {
 							fmt.Println("morebits n>0:", err)
 						}
-						f.err = err
+						f.err = noEOF(err)
 						return
 					}
 				}
@@ -674,7 +674,7 @@ readLiteral:
 						if debugDecode {
 							fmt.Println("morebits f.nb<5:", err)
 						}
-						f.err = err
+						f.err = noEOF(err)
 						return
 					}
 				}
@@ -757,7 +757,7 @@ readLiteral:
 						if debugDecode {
 							fmt.Println("morebits f.nb<nb:", err)
 						}
-						f.err = err
+						f.err = noEOF(err)
 						return
 					}
 				}
@@ -918,7 +918,7 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits n>0:", err)
 					}
-					f.err = err
+					f.err = noEOF(err)
 					return
 				}
 				f.roffset++
@@ -946,7 +946,7 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<5:", err)
 					}
-					f.err = err
+					f.err = noEOF(err)
 					return
 				}
 				f.roffset++
@@ -1014,7 +1014,7 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<nb:", err)
 					}
-					f.err = err
+					f.err = noEOF(err)
 					return
 				}
 				f.roffset++
@@ -1169,7 +1169,7 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits n>0:", err)
 					}
-					f.err = err
+					f.err = noEOF(err)
 					return
 				}
 				f.roffset++
@@ -1197,7 +1197,7 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<5:", err)
 					}
-					f.err = err
+					f.err = noEOF(err)
 					return
 				}
 				f.roffset++
@@ -1265,7 +1265,7 @@ readLiteral:
 					if debugDecode {
 						fmt.Println("morebits f.nb<nb:", err)
 					}
-					f.err = err
+					f.err = noEOF(err)
 					return
 				}
 				f.roffset++

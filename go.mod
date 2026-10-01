@@ -63,7 +63,7 @@ require (
 	github.com/miekg/dns v1.1.73
 	github.com/mistifyio/go-zfs/v4 v4.0.0
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.33.1
+	github.com/moby/buildkit v0.34.0-rc1
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/extensions v0.0.0-20260918151408-e4c23d866037
 	github.com/moby/go-archive v0.3.3
@@ -74,7 +74,7 @@ require (
 	github.com/moby/patternmatcher v0.6.1
 	github.com/moby/policy-helpers v0.0.0-20260901142052-72f704e6cdb6
 	github.com/moby/profiles/apparmor v0.2.2
-	github.com/moby/profiles/seccomp v0.2.3
+	github.com/moby/profiles/seccomp v0.2.4
 	github.com/moby/pubsub v1.0.0
 	github.com/moby/swarmkit/v2 v2.1.3-0.20260917205909-1fd637ba5cc3
 	github.com/moby/sys/atomicwriter v0.1.0
@@ -231,7 +231,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/intel/goresctrl v0.13.0 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
-	github.com/klauspost/compress v1.20.0 // indirect
+	github.com/klauspost/compress v1.20.1 // indirect
 	github.com/knqyf263/go-plugin v0.9.0 // indirect
 	github.com/mdlayher/vsock v1.3.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
@@ -239,7 +239,7 @@ require (
 	github.com/morikuni/aec v1.1.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
-	github.com/package-url/packageurl-go v0.1.1 // indirect
+	github.com/package-url/packageurl-go v0.1.7 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/petermattis/goid v0.0.0-20240813172612-4fcff4a6cae7 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
@@ -263,7 +263,7 @@ require (
 	github.com/theupdateframework/go-tuf/v2 v2.4.2 // indirect
 	github.com/tinylib/msgp v1.3.0 // indirect
 	github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323 // indirect
-	github.com/tonistiigi/go-actions-cache v0.0.0-20260120203934-54bc28c26fd2 // indirect
+	github.com/tonistiigi/go-actions-cache v0.0.0-20260930145529-afe8013b5ac4 // indirect
 	github.com/tonistiigi/go-csvvalue v0.0.0-20240814133006-030d3b2625d0 // indirect
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea // indirect
 	github.com/tonistiigi/vt100 v0.0.0-20240514184818-90bafcd6abab // indirect

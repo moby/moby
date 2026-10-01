@@ -95,6 +95,7 @@ func (r *RestAPI) listKeysPage(ctx context.Context, prefix, ref string, page int
 	if err != nil {
 		return nil, 0, err
 	}
+	defer resp.Body.Close()
 
 	dec := json.NewDecoder(resp.Body)
 	var keys struct {
@@ -106,6 +107,5 @@ func (r *RestAPI) listKeysPage(ctx context.Context, prefix, ref string, page int
 		return nil, 0, err
 	}
 
-	resp.Body.Close()
 	return keys.Caches, keys.Total, nil
 }

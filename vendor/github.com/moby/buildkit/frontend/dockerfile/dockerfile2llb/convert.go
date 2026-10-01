@@ -1465,6 +1465,7 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 
 	shlex := *dopt.shlex
 	shlex.RawQuotes = true
+	shlex.RawEscapes = true
 	shlex.SkipUnsetEnv = true
 
 	pl, err := d.state.GetPlatform(context.TODO())

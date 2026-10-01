@@ -1025,7 +1025,7 @@ github.com/ishidawataru/sctp
 # github.com/jmoiron/sqlx v1.4.0
 ## explicit; go 1.10
 github.com/jmoiron/sqlx/types
-# github.com/klauspost/compress v1.20.0
+# github.com/klauspost/compress v1.20.1
 ## explicit; go 1.25
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
@@ -1059,7 +1059,7 @@ github.com/mitchellh/copystructure
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.33.1
+# github.com/moby/buildkit v0.34.0-rc1
 ## explicit; go 1.26.8
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1177,6 +1177,7 @@ github.com/moby/buildkit/util/apicaps
 github.com/moby/buildkit/util/apicaps/pb
 github.com/moby/buildkit/util/appcontext
 github.com/moby/buildkit/util/appdefaults
+github.com/moby/buildkit/util/archiveutil
 github.com/moby/buildkit/util/archutil
 github.com/moby/buildkit/util/attestation
 github.com/moby/buildkit/util/bklog
@@ -1191,6 +1192,7 @@ github.com/moby/buildkit/util/converter/tarconverter
 github.com/moby/buildkit/util/cpuset
 github.com/moby/buildkit/util/db
 github.com/moby/buildkit/util/db/boltutil
+github.com/moby/buildkit/util/db/compaction
 github.com/moby/buildkit/util/disk
 github.com/moby/buildkit/util/entitlements
 github.com/moby/buildkit/util/entitlements/security
@@ -1335,7 +1337,7 @@ github.com/moby/policy-helpers/types
 # github.com/moby/profiles/apparmor v0.2.2
 ## explicit; go 1.23.0
 github.com/moby/profiles/apparmor
-# github.com/moby/profiles/seccomp v0.2.3
+# github.com/moby/profiles/seccomp v0.2.4
 ## explicit; go 1.23.0
 github.com/moby/profiles/seccomp
 # github.com/moby/pubsub v1.0.0
@@ -1474,8 +1476,8 @@ github.com/opencontainers/runtime-spec/specs-go/features
 github.com/opencontainers/selinux/go-selinux
 github.com/opencontainers/selinux/go-selinux/label
 github.com/opencontainers/selinux/pkg/pwalkdir
-# github.com/package-url/packageurl-go v0.1.1
-## explicit; go 1.17
+# github.com/package-url/packageurl-go v0.1.7
+## explicit; go 1.18
 github.com/package-url/packageurl-go
 # github.com/pelletier/go-toml v1.9.5
 ## explicit; go 1.12
@@ -1687,8 +1689,8 @@ github.com/tonistiigi/dchapes-mode
 github.com/tonistiigi/fsutil
 github.com/tonistiigi/fsutil/copy
 github.com/tonistiigi/fsutil/types
-# github.com/tonistiigi/go-actions-cache v0.0.0-20260120203934-54bc28c26fd2
-## explicit; go 1.23.0
+# github.com/tonistiigi/go-actions-cache v0.0.0-20260930145529-afe8013b5ac4
+## explicit; go 1.25.0
 github.com/tonistiigi/go-actions-cache
 # github.com/tonistiigi/go-archvariant v1.0.0
 ## explicit; go 1.17

@@ -31,6 +31,11 @@ func addDefaultPort(hostport string, defaultPort int) string {
 	if err == nil {
 		return hostport
 	}
+	// Strip brackets from an IPv6 host before JoinHostPort adds its own.
+	// SplitHostPort cannot extract the host here because it requires a port.
+	if strings.HasPrefix(hostport, "[") && strings.HasSuffix(hostport, "]") {
+		hostport = hostport[1 : len(hostport)-1]
+	}
 	hostport = net.JoinHostPort(hostport, strconv.Itoa(defaultPort))
 	return hostport
 }

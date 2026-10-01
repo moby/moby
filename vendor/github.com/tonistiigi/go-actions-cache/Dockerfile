@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.24
-ARG XX_VERSION=1.6.1
+ARG GO_VERSION=1.26
+ARG XX_VERSION=1.9.0
 
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
 

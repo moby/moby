@@ -163,7 +163,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, src *exporter.Source
 		}
 	}()
 
-	desc, err := e.opt.ImageWriter.Commit(ctx, src, buildInfo.SessionID, buildInfo.InlineCache, &opts, buildInfo.CompatibilityVersion, e.Type())
+	desc, _, err := e.opt.ImageWriter.Commit(ctx, src, buildInfo.SessionID, buildInfo.InlineCache, &opts, buildInfo.CompatibilityVersion, e.Type())
 	if err != nil {
 		return nil, nil, nil, err
 	}

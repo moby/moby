@@ -893,6 +893,13 @@ func getProvenance(ref solver.ResultProxy, br *provenanceBridge, id string, reqs
 		return nil, err
 	}
 	pr.Sort()
+	// The platform belongs to the final result, not to any merged input capture.
+	for _, p := range reqs.platforms {
+		if p.ID == id || (id == "" && len(reqs.platforms) == 1) {
+			pr.TargetPlatform = platforms.FormatAll(p.Platform)
+			break
+		}
+	}
 
 	return pr, nil
 }

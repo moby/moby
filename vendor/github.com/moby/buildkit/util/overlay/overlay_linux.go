@@ -111,20 +111,8 @@ func GetOverlayLayers(m mount.Mount) ([]string, error) {
 // WriteUpperdir writes a layer tar archive into the specified writer, based on
 // the diff information stored in the upperdir.
 func WriteUpperdir(ctx context.Context, w io.Writer, upperdir string, lower []mount.Mount) error {
-	emptyLower, err := os.MkdirTemp("", "buildkit") // empty directory used for the lower of diff view
-	if err != nil {
-		return errors.Wrapf(err, "failed to create temp dir")
-	}
-	defer os.Remove(emptyLower)
-	upperView := []mount.Mount{
-		{
-			Type:    "overlay",
-			Source:  "overlay",
-			Options: []string{fmt.Sprintf("lowerdir=%s", strings.Join([]string{upperdir, emptyLower}, ":"))},
-		},
-	}
 	return mount.WithTempMount(ctx, lower, func(lowerRoot string) error {
-		return mount.WithTempMount(ctx, upperView, func(upperViewRoot string) error {
+		return withUpperdirView(ctx, upperdir, func(upperViewRoot string) error {
 			cw := archive.NewChangeWriter(&cancellableWriter{ctx, w}, upperViewRoot)
 			if err := Changes(ctx, cw.HandleChange, upperdir, upperViewRoot, lowerRoot); err != nil {
 				if err2 := cw.Close(); err2 != nil {
@@ -135,6 +123,48 @@ func WriteUpperdir(ctx context.Context, w io.Writer, upperdir string, lower []mo
 			return cw.Close()
 		})
 	})
+}
+
+// withUpperdirView mounts a read-only overlayfs view of upperdir that doesn't
+// contain whiteouts and calls fn with the root of that view. The view is
+// unmounted and its temporary directory is removed once fn returns.
+//
+// The containerd overlayfs snapshotter mounts these very directories with
+// "index=off" (and "userxattr" when needed). Mounting them here with the
+// kernel default instead fails with EBUSY as soon as the directory is in
+// use as the upperdir/workdir of another overlay mount:
+//
+//	overlayfs: lowerdir is in-use as upperdir/workdir of another mount,
+//	mount with '-o index=off' to override exclusive upperdir protection.
+//
+// Use the same option so the read-only view can always be mounted.
+func withUpperdirView(ctx context.Context, upperdir string, fn func(root string) error) error {
+	emptyLower, err := os.MkdirTemp("", "buildkit") // empty directory used for the lower of diff view
+	if err != nil {
+		return errors.Wrapf(err, "failed to create temp dir")
+	}
+	defer os.RemoveAll(emptyLower)
+	opts := []string{fmt.Sprintf("lowerdir=%s", strings.Join([]string{upperdir, emptyLower}, ":"))}
+	if supportsIndex() {
+		opts = append(opts, "index=off")
+	}
+	upperView := []mount.Mount{
+		{
+			Type:    "overlay",
+			Source:  "overlay",
+			Options: opts,
+		},
+	}
+	return mount.WithTempMount(ctx, upperView, fn)
+}
+
+// supportsIndex reports whether the kernel understands the "index=off" mount
+// option. Same check as containerd's overlayfs snapshotter: when the module
+// parameter is missing the option must not be passed, otherwise mount fails
+// with EINVAL.
+func supportsIndex() bool {
+	_, err := os.Stat("/sys/module/overlay/parameters/index")
+	return err == nil
 }
 
 type cancellableWriter struct {
