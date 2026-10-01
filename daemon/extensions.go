@@ -18,10 +18,10 @@ import (
 )
 
 // newExtensionHost builds the daemon's extension host.
-func newExtensionHost(ctx context.Context, cfg *config.Config) (*host.Host, error) {
+func newExtensionHost(ctx context.Context, cfg *config.Config, d *Daemon) (*host.Host, error) {
 	return host.New(ctx,
 		host.WithRuntimeDir(filepath.Join(cfg.ExecRoot, "extensions")),
-		host.WithExtensions(builtinExtensions(cfg)...),
+		host.WithExtensions(builtinExtensions(cfg, d)...),
 		host.WithDirs(extensionDirs(cfg)...),
 		host.WithClientProviders(clientProviders()...),
 		host.WithProviderPolicy(host.PointPolicyFunc(func(extensions.ExtensionIdentity, extensions.PointID) host.PointPolicyResult {
