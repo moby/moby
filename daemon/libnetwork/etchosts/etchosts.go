@@ -68,43 +68,45 @@ func BuildNoIPv6(path string, extraContent []Record) error {
 }
 
 func build(path string, contents ...[]Record) error {
-	defer pathLock(path)()
-
-	buf := bytes.NewBuffer(nil)
+	var buf bytes.Buffer
 
 	// Write content from function arguments
 	for _, content := range contents {
 		for _, c := range content {
-			if _, err := c.WriteTo(buf); err != nil {
+			if _, err := c.WriteTo(&buf); err != nil {
 				return err
 			}
 		}
 	}
 
+	defer pathLock(path)()
 	return os.WriteFile(path, buf.Bytes(), 0o644)
 }
 
 // Add adds an arbitrary number of Records to an already existing /etc/hosts file
-func Add(path string, recs []Record) error {
+func Add(path string, recs []Record) (retErr error) {
 	if len(recs) == 0 {
 		return nil
 	}
 
-	defer pathLock(path)()
-
-	content := bytes.NewBuffer(nil)
+	var buf bytes.Buffer
 	for _, r := range recs {
-		if _, err := r.WriteTo(content); err != nil {
+		if _, err := r.WriteTo(&buf); err != nil {
 			return err
 		}
 	}
 
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
+	defer pathLock(path)()
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
 	if err != nil {
 		return err
 	}
-	_, err = f.Write(content.Bytes())
-	_ = f.Close()
+	defer func() {
+		if err := f.Close(); retErr == nil {
+			retErr = err
+		}
+	}()
+	_, err = f.Write(buf.Bytes())
 	return err
 }
 
@@ -112,16 +114,20 @@ func Add(path string, recs []Record) error {
 // The hostnames must be an exact match (if the user has modified the record,
 // it won't be deleted). The address, parsed as a netip.Addr must also match
 // the value in recs.
-func Delete(path string, recs []Record) error {
+func Delete(path string, recs []Record) (retErr error) {
 	if len(recs) == 0 {
 		return nil
 	}
 	defer pathLock(path)()
-	f, err := os.OpenFile(path, os.O_RDWR, 0o644)
+	f, err := os.OpenFile(path, os.O_RDWR, 0)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); retErr == nil {
+			retErr = err
+		}
+	}()
 
 	var buf bytes.Buffer
 
@@ -163,16 +169,32 @@ loop:
 // path is path to host file
 // IP is new IP address
 // hostname is hostname to search for to replace IP
-func Update(path, IP, hostname string) error {
+func Update(path, IP, hostname string) (retErr error) {
 	re, err := regexp.Compile(fmt.Sprintf(`(\S*)(\t%s)(\s|\.)`, regexp.QuoteMeta(hostname)))
 	if err != nil {
 		return err
 	}
-	defer pathLock(path)()
 
-	old, err := os.ReadFile(path)
+	defer pathLock(path)()
+	f, err := os.OpenFile(path, os.O_RDWR, 0)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2"+"$3")), 0o644) // #nosec G703 -- path argument is from trusted source.
+	defer func() {
+		if err := f.Close(); retErr == nil {
+			retErr = err
+		}
+	}()
+
+	old, err := io.ReadAll(f)
+	if err != nil {
+		return err
+	}
+	updated := re.ReplaceAll(old, []byte(IP+"$2"+"$3"))
+
+	if err := f.Truncate(0); err != nil {
+		return err
+	}
+	_, err = f.WriteAt(updated, 0)
+	return err
 }
