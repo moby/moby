@@ -250,9 +250,18 @@ func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string
 	sem := semaphore.NewWeighted(int64(parallelLimit))
 
 	for _, v := range dir {
+		if err := ctx.Err(); err != nil {
+			// Wait for already-started loads before returning.
+			group.Wait()
+			return nil, err
+		}
+
 		id := v.Name()
 		group.Go(func() {
-			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
+			if err := sem.Acquire(ctx, 1); err != nil {
+				// ctx is done.
+				return
+			}
 			defer sem.Release(1)
 
 			c, err := daemon.load(id)
@@ -282,6 +291,11 @@ func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string
 	}
 	group.Wait()
 
+	// A canceled acquire may have skipped one or more container loads.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	return driverContainers, nil
 }
 
@@ -307,10 +321,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 	for _, c := range containers {
 		group.Go(func() {
-			if err := sem.Acquire(context.WithoutCancel(ctx), 1); err != nil {
-				// ctx is done; should never happen.
-				return
-			}
+			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
 			defer sem.Release(1)
 
 			logger := log.G(ctx).WithField("container", c.ID)
@@ -346,9 +357,15 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	}
 	group.Wait()
 
+	// Stop restoring before starting the next phase if startup was canceled.
+	if err := ctx.Err(); err != nil {
+		log.G(ctx).WithError(err).Debug("container restore interrupted")
+		return err
+	}
+
 	for _, c := range containers {
 		group.Go(func() {
-			_ = sem.Acquire(context.Background(), 1)
+			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
 			defer sem.Release(1)
 
 			baseLogger := log.G(ctx).WithField("container", c.ID)
@@ -599,6 +616,11 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	}
 	group.Wait()
 
+	if err := ctx.Err(); err != nil {
+		log.G(ctx).WithError(err).Debug("container restore interrupted")
+		return err
+	}
+
 	// Initialize the network controller and configure network settings.
 	//
 	// Note that we cannot initialize the network controller earlier, as it
@@ -628,20 +650,25 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	// Now that all the containers are registered, register the links
 	for _, c := range containers {
 		group.Go(func() {
-			_ = sem.Acquire(context.Background(), 1)
+			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
+			defer sem.Release(1)
 
 			if err := daemon.registerLinks(c); err != nil {
 				log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to register link for container")
 			}
-
-			sem.Release(1)
 		})
 	}
 	group.Wait()
 
+	if err := ctx.Err(); err != nil {
+		log.G(ctx).WithError(err).Debug("container restore interrupted")
+		return err
+	}
+
 	for c, notifyChan := range restartContainers {
 		group.Go(func() {
-			_ = sem.Acquire(context.Background(), 1)
+			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
+			defer sem.Release(1)
 
 			logger := log.G(ctx).WithField("container", c.ID)
 
@@ -670,15 +697,18 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 				logger.WithError(err).Error("failed to start container")
 			}
 			close(notifyChan)
-
-			sem.Release(1)
 		})
 	}
 	group.Wait()
 
+	if err := ctx.Err(); err != nil {
+		log.G(ctx).WithError(err).Debug("container restore interrupted")
+		return err
+	}
+
 	for cid, c := range removeContainers {
 		group.Go(func() {
-			_ = sem.Acquire(context.Background(), 1)
+			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
 			defer sem.Release(1)
 
 			if c.State.IsDead() {
@@ -694,6 +724,11 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 		})
 	}
 	group.Wait()
+
+	if err := ctx.Err(); err != nil {
+		log.G(ctx).WithError(err).Debug("container restore interrupted")
+		return err
+	}
 
 	// any containers that were started above would already have had this done,
 	// however we need to now prepare the mountpoints for the rest of the containers as well.
@@ -713,16 +748,20 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 		}
 
 		group.Go(func() {
-			_ = sem.Acquire(context.Background(), 1)
+			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
+			defer sem.Release(1)
 
 			if err := daemon.prepareMountPoints(c); err != nil {
 				log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to prepare mountpoints for container")
 			}
-
-			sem.Release(1)
 		})
 	}
 	group.Wait()
+
+	if err := ctx.Err(); err != nil {
+		log.G(ctx).WithError(err).Debug("container restore interrupted")
+		return err
+	}
 
 	log.G(ctx).Info("Loading containers: done.")
 
@@ -731,11 +770,11 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 // RestartSwarmContainers restarts any autostart container which has a
 // swarm endpoint.
-func (daemon *Daemon) RestartSwarmContainers() {
-	daemon.restartSwarmContainers(context.Background(), daemon.config())
+func (daemon *Daemon) RestartSwarmContainers(ctx context.Context) error {
+	return daemon.restartSwarmContainers(ctx, daemon.config())
 }
 
-func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configStore) {
+func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configStore) error {
 	// parallelLimit is the maximum number of parallel startup jobs that we
 	// allow (this is the limited used for all startup semaphores). The multiplier
 	// (128) was chosen after some fairly significant benchmarking -- don't change
@@ -747,6 +786,11 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 	sem := semaphore.NewWeighted(int64(parallelLimit))
 
 	for _, c := range daemon.List() {
+		if err := ctx.Err(); err != nil {
+			group.Wait()
+			return err
+		}
+
 		if c.State.IsRunning() || c.State.IsPaused() {
 			continue
 		}
@@ -757,19 +801,24 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 		if cfg.AutoRestart && c.ShouldRestart() && c.NetworkSettings.HasSwarmEndpoint && c.HasBeenStartedBefore {
 			group.Go(func() {
 				if err := sem.Acquire(ctx, 1); err != nil {
-					// ctx is done.
 					return
 				}
+				defer sem.Release(1)
 
 				if err := daemon.containerStart(ctx, cfg, c, "", "", true); err != nil {
 					log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
 				}
-
-				sem.Release(1)
 			})
 		}
 	}
 	group.Wait()
+
+	// A canceled acquire may have skipped one or more container starts.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (daemon *Daemon) registerLink(parent, child *container.Container, alias string) error {
