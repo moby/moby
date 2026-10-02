@@ -51,8 +51,9 @@ var (
 )
 
 type Snapshotter struct {
-	lg  *zap.Logger
-	dir string
+	lg       *zap.Logger
+	dir      string
+	fsyncDir func(string) error
 }
 
 func New(lg *zap.Logger, dir string) *Snapshotter {
@@ -60,8 +61,9 @@ func New(lg *zap.Logger, dir string) *Snapshotter {
 		lg = zap.NewNop()
 	}
 	return &Snapshotter{
-		lg:  lg,
-		dir: dir,
+		lg:       lg,
+		dir:      dir,
+		fsyncDir: fsyncSnapDir,
 	}
 }
 
