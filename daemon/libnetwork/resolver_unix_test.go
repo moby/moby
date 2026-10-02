@@ -10,13 +10,14 @@ import (
 	"github.com/miekg/dns"
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
+	"github.com/moby/moby/v2/internal/testutil/libnetworkutils"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 )
 
 // test only works on linux
 func TestDNSIPQuery(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
-	c, err := New(t.Context(),
+	c, err := New(t.Context(), libnetworkutils.OptionTempNetnsDir(t),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
 		t.Fatal(err)
@@ -113,7 +114,7 @@ func TestDNSProxyServFail(t *testing.T) {
 	osctx := netnsutils.SetupTestOSContextEx(t)
 	defer osctx.Cleanup(t)
 
-	c, err := New(t.Context(),
+	c, err := New(t.Context(), libnetworkutils.OptionTempNetnsDir(t),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
 		t.Fatal(err)

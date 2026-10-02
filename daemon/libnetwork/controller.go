@@ -168,6 +168,10 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 		diagnosticServer: diagnostic.New(),
 	}
 
+	if err := c.createNetnsDir(); err != nil {
+		return nil, err
+	}
+
 	if err := c.selectFirewallBackend(); err != nil {
 		return nil, err
 	}
@@ -861,6 +865,9 @@ func (c *Controller) NetworkByID(id string) (*Network, error) {
 func (c *Controller) NewSandbox(ctx context.Context, containerID string, options ...SandboxOption) (_ *Sandbox, retErr error) {
 	if containerID == "" {
 		return nil, types.InvalidParameterErrorf("invalid container ID")
+	}
+	if err := c.requireNetnsDir(); err != nil {
+		return nil, err
 	}
 
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Controller.NewSandbox")

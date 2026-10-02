@@ -14,6 +14,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/internal/testutil/libnetworkutils"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -175,7 +176,7 @@ func TestLoadBalancerSandboxHasNoResolver(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
-			c, err := New(t.Context(), config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
+			c, err := New(t.Context(), libnetworkutils.OptionTempNetnsDir(t), config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 			assert.NilError(t, err)
 			assert.NilError(t, c.drvRegistry.RegisterDriver(gatewaylessDriverName, gatewaylessDriver{},
 				driverapi.Capability{DataScope: scope.Global}))

@@ -85,13 +85,6 @@ func WithKVStore(kv kvstore.Store) Option {
 	}
 }
 
-// OptionExecRoot function returns an option setter for exec root folder.
-//
-// On Linux, it sets osl.basePath. It is a no-op on other platforms.
-func OptionExecRoot(execRoot string) Option {
-	return optionExecRoot(execRoot)
-}
-
 // OptionPluginGetter returns a plugingetter for remote drivers.
 func OptionPluginGetter(pg plugingetter.PluginGetter) Option {
 	return func(c *Config) {

@@ -927,6 +927,7 @@ func setHostGatewayIP(controller *libnetwork.Controller, config *config.Config) 
 // options.
 func networkPlatformOptions(conf *config.Config) []nwconfig.Option {
 	return []nwconfig.Option{
+		nwconfig.OptionNetnsDir(filepath.Join(conf.GetExecRoot(), "netns")),
 		nwconfig.OptionRootless(conf.Rootless),
 		nwconfig.OptionUserlandProxy(conf.EnableUserlandProxy, conf.UserlandProxyPath),
 		nwconfig.OptionBridgeConfig(bridge.Configuration{

@@ -29,6 +29,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/internal/testutil"
+	"github.com/moby/moby/v2/internal/testutil/libnetworkutils"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"github.com/moby/moby/v2/pkg/plugins"
 	"github.com/pkg/errors"
@@ -46,6 +47,7 @@ func newController(t *testing.T) *libnetwork.Controller {
 	t.Helper()
 	c, err := libnetwork.New(
 		t.Context(),
+		libnetworkutils.OptionTempNetnsDir(t),
 		config.OptionBridgeConfig(bridge.Configuration{
 			EnableIPForwarding: true,
 		}),
@@ -53,6 +55,34 @@ func newController(t *testing.T) *libnetwork.Controller {
 	)
 	assert.NilError(t, err)
 	return c
+}
+
+func TestNewSandboxWithoutNetnsDir(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	c, err := libnetwork.New(t.Context())
+	assert.NilError(t, err)
+	_, err = c.NewSandbox(t.Context(), "ctr")
+	assert.Check(t, is.ErrorContains(err, "no netns directory is configured"))
+}
+
+func TestSandboxKeyInNetnsDir(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	// Controllers in the same process keep their sandboxes' network
+	// namespaces in their own netns directories.
+	for _, netnsDir := range []string{netnsutils.TempNetnsDir(t), netnsutils.TempNetnsDir(t)} {
+		c, err := libnetwork.New(
+			t.Context(),
+			config.OptionNetnsDir(netnsDir),
+		)
+		assert.NilError(t, err)
+
+		sb, err := c.NewSandbox(t.Context(), "ctr-"+filepath.Base(netnsDir), libnetwork.OptionUseExternalKey())
+		assert.NilError(t, err)
+		t.Cleanup(func() { assert.Check(t, sb.Delete(context.WithoutCancel(t.Context()))) })
+		assert.Check(t, is.Equal(filepath.Dir(sb.Key()), netnsDir))
+	}
 }
 
 func createTestNetwork(c *libnetwork.Controller, networkType, networkName string, netOption options.Generic, ipamV4Configs, ipamV6Configs []*libnetwork.IpamConf) (*libnetwork.Network, error) {
