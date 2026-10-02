@@ -200,6 +200,9 @@ func registerService() (retErr error) {
 	return eventlog.Install(*flServiceName, p, false, eventlog.Info|eventlog.Warning|eventlog.Error)
 }
 
+// unregisterService unregisters the Docker Windows service and removes its
+// event log registration. It succeeds if the service is already absent or
+// already marked for deletion.
 func unregisterService() error {
 	m, err := mgr.Connect()
 	if err != nil {
@@ -208,12 +211,16 @@ func unregisterService() error {
 	defer m.Disconnect()
 
 	s, err := m.OpenService(*flServiceName)
-	if err != nil {
-		return err
-	}
-	defer s.Close()
+	switch {
+	case err == nil:
+		defer s.Close()
 
-	if err := s.Delete(); err != nil {
+		if err := s.Delete(); err != nil && !errors.Is(err, windows.ERROR_SERVICE_MARKED_FOR_DELETE) {
+			return err
+		}
+	case errors.Is(err, windows.ERROR_SERVICE_DOES_NOT_EXIST):
+		// Continue to remove a potentially stale event log registration.
+	default:
 		return err
 	}
 	if err := eventlog.Remove(*flServiceName); err != nil && !errors.Is(err, registry.ErrNotExist) {
