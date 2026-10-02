@@ -146,7 +146,7 @@ func (h *etwHook) Fire(e *log.Entry) error {
 	return windows.ReportEvent(h.log.Handle, etype, 0, eid, 0, count, 0, &ss[0], nil)
 }
 
-func registerService() error {
+func registerService() (retErr error) {
 	p, err := os.Executable()
 	if err != nil {
 		return err
@@ -177,7 +177,13 @@ func registerService() error {
 	if err != nil {
 		return err
 	}
-	defer s.Close()
+	defer func() {
+		if retErr != nil {
+			// Roll back the service if registration fails after it was created.
+			_ = s.Delete()
+		}
+		_ = s.Close()
+	}()
 
 	err = s.SetRecoveryActions(
 		[]mgr.RecoveryAction{
