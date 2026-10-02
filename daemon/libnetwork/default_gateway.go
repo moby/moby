@@ -48,7 +48,9 @@ func (sb *Sandbox) setupDefaultGW() error {
 		}
 	}
 
-	createOptions := []EndpointOption{}
+	// Whether the sandbox runs the embedded DNS resolver is up to the
+	// endpoint that needs the gateway.
+	createOptions := []EndpointOption{CreateOptionDisableResolution()}
 
 	var gwName string
 	if len(sb.containerID) <= gwEPlen {
