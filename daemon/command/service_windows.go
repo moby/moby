@@ -14,6 +14,7 @@ import (
 	"github.com/moby/moby/v2/daemon"
 	"github.com/spf13/pflag"
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/debug"
 	"golang.org/x/sys/windows/svc/eventlog"
@@ -206,9 +207,10 @@ func unregisterService() error {
 	}
 	defer s.Close()
 
-	eventlog.Remove(*flServiceName)
-	err = s.Delete()
-	if err != nil {
+	if err := s.Delete(); err != nil {
+		return err
+	}
+	if err := eventlog.Remove(*flServiceName); err != nil && !errors.Is(err, registry.ErrNotExist) {
 		return err
 	}
 	return nil
