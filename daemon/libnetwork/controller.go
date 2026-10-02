@@ -168,6 +168,10 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 		diagnosticServer: diagnostic.New(),
 	}
 
+	if err := c.createNetnsDir(); err != nil {
+		return nil, err
+	}
+
 	if err := c.selectFirewallBackend(); err != nil {
 		return nil, err
 	}

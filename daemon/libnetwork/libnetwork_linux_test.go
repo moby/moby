@@ -56,6 +56,27 @@ func newController(t *testing.T) *libnetwork.Controller {
 	return c
 }
 
+func TestSandboxKeyInNetnsDir(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	// Controllers in the same process keep their sandboxes' network
+	// namespaces in their own netns directories.
+	for _, netnsDir := range []string{t.TempDir(), t.TempDir()} {
+		c, err := libnetwork.New(
+			t.Context(),
+			config.OptionDataDir(t.TempDir()),
+			config.OptionNetnsDir(netnsDir),
+		)
+		assert.NilError(t, err)
+		t.Cleanup(c.Stop)
+
+		sb, err := c.NewSandbox(t.Context(), "ctr-"+filepath.Base(netnsDir), libnetwork.OptionUseExternalKey())
+		assert.NilError(t, err)
+		t.Cleanup(func() { assert.Check(t, sb.Delete(context.WithoutCancel(t.Context()))) })
+		assert.Check(t, is.Equal(filepath.Dir(sb.Key()), netnsDir))
+	}
+}
+
 func createTestNetwork(c *libnetwork.Controller, networkType, networkName string, netOption options.Generic, ipamV4Configs, ipamV6Configs []*libnetwork.IpamConf) (*libnetwork.Network, error) {
 	return c.NewNetwork(context.Background(), networkType, networkName, "",
 		libnetwork.NetworkOptionGeneric(netOption),

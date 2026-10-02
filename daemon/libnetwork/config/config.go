@@ -39,6 +39,7 @@ type Config struct {
 // New creates a new Config and initializes it with the given Options.
 func New(opts ...Option) *Config {
 	cfg := &Config{
+		PlatformConfig:  defaultPlatformConfig(),
 		DatastoreBucket: datastore.DefaultBucket,
 	}
 
@@ -83,13 +84,6 @@ func OptionDataDir(dataDir string) Option {
 	return func(c *Config) {
 		c.DataDir = dataDir
 	}
-}
-
-// OptionExecRoot function returns an option setter for exec root folder.
-//
-// On Linux, it sets osl.basePath. It is a no-op on other platforms.
-func OptionExecRoot(execRoot string) Option {
-	return optionExecRoot(execRoot)
 }
 
 // OptionPluginGetter returns a plugingetter for remote drivers.

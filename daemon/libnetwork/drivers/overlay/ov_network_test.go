@@ -5,6 +5,7 @@ package overlay
 import (
 	"errors"
 	"net/netip"
+	"path/filepath"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/countmap"
@@ -65,7 +66,7 @@ func addPeer(t *testing.T, n *network, vtep netip.Addr, mac hashable.MACAddr) {
 // which does not exist, so programming a neighbor entry into the sandbox fails.
 func withSandbox(t *testing.T, n *network, key string) {
 	t.Helper()
-	sbox, err := osl.NewSandbox(osl.GenerateKey(key), true, false)
+	sbox, err := osl.NewSandbox(filepath.Join(t.TempDir(), key), true, false)
 	assert.NilError(t, err)
 	t.Cleanup(func() { _ = sbox.Destroy() })
 

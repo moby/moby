@@ -252,7 +252,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
 	// If there is a race between two go routines here only one will win
 	// the other will wait.
-	networkOnce.Do(populateVNITbl)
+	networkOnce.Do(func() { populateVNITbl(n.driver.netnsDir) })
 
 	var initialized bool
 
@@ -368,8 +368,8 @@ func (n *network) releaseEncryptionRefs() {
 	clear(n.fdbCnt)
 }
 
-func populateVNITbl() {
-	filepath.WalkDir(filepath.Dir(osl.GenerateKey("walk")),
+func populateVNITbl(netnsDir string) {
+	filepath.WalkDir(netnsDir,
 		// NOTE(cpuguy83): The linter picked up on the fact that this walk function was not using this error argument
 		// That seems wrong... however I'm not familiar with this code or if that error matters
 		func(path string, _ os.DirEntry, _ error) error {
@@ -575,7 +575,7 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 }
 
 func (n *network) cleanupStaleSandboxes() {
-	filepath.WalkDir(filepath.Dir(osl.GenerateKey("walk")),
+	filepath.WalkDir(n.driver.netnsDir,
 		func(path string, _ os.DirEntry, _ error) error {
 			_, fname := filepath.Split(path)
 
@@ -616,7 +616,7 @@ func (n *network) initSandbox() error {
 	// from previous daemon life clean it up here
 	n.cleanupStaleSandboxes()
 
-	key := osl.GenerateKey(fmt.Sprintf("%d-", n.initEpoch) + n.id)
+	key := sandboxKey(n.driver.netnsDir, n.initEpoch, n.id)
 	sbox, err := osl.NewSandbox(key, true, false)
 	if err != nil {
 		return fmt.Errorf("could not get network sandbox: %v", err)
@@ -627,6 +627,14 @@ func (n *network) initSandbox() error {
 	n.fdbCnt = countmap.Map[hashable.IPMAC]{}
 
 	return nil
+}
+
+// sandboxKey returns the key of the sandbox for network nid created in the
+// given epoch: the path of its network namespace. The name is truncated to
+// 12 characters, the length of a container sandbox's key.
+func sandboxKey(netnsDir string, epoch int, nid string) string {
+	name := fmt.Sprintf("%d-%s", epoch, nid)
+	return filepath.Join(netnsDir, name[:min(len(name), 12)])
 }
 
 // lockNetwork returns the network object for nid, locked for exclusive access.
