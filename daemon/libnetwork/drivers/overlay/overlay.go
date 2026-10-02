@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"path/filepath"
 	"sync"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/discoverapi"
@@ -56,18 +57,24 @@ type driver struct {
 	bindAddress      netip.Addr
 	advertiseAddress netip.Addr
 	networks         networkTable
-	// netnsDir is the directory the network namespaces of sandboxes are
-	// kept in, the overlay networks' sandboxes alongside the containers'.
-	netnsDir string
+	// sandboxDir is the directory the network namespaces of the overlay
+	// networks' sandboxes are kept in.
+	sandboxDir string
+	// legacySandboxDir is the directory earlier daemons kept them in,
+	// alongside the network namespaces of containers' sandboxes.
+	legacySandboxDir string
 }
 
-// Register registers a new instance of the overlay driver, which keeps the
-// network namespaces of its sandboxes in netnsDir.
+// Register registers a new instance of the overlay driver. It keeps the
+// network namespaces of its sandboxes in the "overlay" subdirectory of
+// netnsDir, the directory of the network namespaces of containers'
+// sandboxes.
 func Register(r driverapi.Registerer, netnsDir string) error {
 	d := &driver{
-		networks: networkTable{},
-		secMap:   encrMap{},
-		netnsDir: netnsDir,
+		networks:         networkTable{},
+		secMap:           encrMap{},
+		sandboxDir:       filepath.Join(netnsDir, "overlay"),
+		legacySandboxDir: netnsDir,
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
 		DataScope:         scope.Global,
@@ -82,6 +89,7 @@ func (d *driver) configure() error {
 		if !nftables.Enabled() {
 			d.cleanupNft(context.TODO())
 		}
+		d.removeStaleSandboxes()
 	})
 
 	return nil
