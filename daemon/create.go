@@ -18,10 +18,12 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/images"
+	"github.com/moby/moby/v2/daemon/internal/cgrouputil"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
 	"github.com/moby/moby/v2/daemon/internal/multierror"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
+	"github.com/moby/moby/v2/daemon/internal/peercred"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
@@ -119,6 +121,43 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 
 	if opts.params.HostConfig == nil {
 		opts.params.HostConfig = &containertypes.HostConfig{}
+	}
+	// If the daemon is configured to enforce the client's cgroup, override
+	// HostConfig.CgroupParent with the cgroup of the calling process (via
+	// SO_PEERCRED). This is for shared HPC/Slurm environments. Fail-closed
+	// when enabled: missing peer credentials (e.g. TCP, which has no
+	// SO_PEERCRED), PID-owner mismatch, unreadable cgroup, or empty/root
+	// cgroup all return an error instead of silently falling back to the
+	// daemon's cgroup (which would break isolation).
+	// Systemd scope paths (e.g. Slurm's slurmstepd.scope) require the
+	// cgroupfs driver (--exec-opt native.cgroupdriver=cgroupfs): the
+	// systemd driver requires a "xxx.slice" parent and rejects scopes, while
+	// cgroupfs uses the scope path as-is via mkdir. See discussion in #53514.
+	if daemonCfg.CgroupParentFromClient {
+		cred, ok := peercred.FromContext(ctx)
+		if !ok || cred == nil {
+			return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(errors.New("cgroup-parent-from-client is enabled but no peer credentials available (is the request via Unix socket?)"))
+		}
+		cgroupPath, err := cgrouputil.GetClientCgroup(cred.PID)
+		if err != nil {
+			return containertypes.CreateResponse{Warnings: warnings}, errdefs.System(fmt.Errorf("failed to get client cgroup for PID %d: %w", cred.PID, err))
+		}
+		if err := cgrouputil.VerifyPIDOwner(cred.PID, cred.UID); err != nil {
+			return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(fmt.Errorf("cgroup-parent-from-client: refusing creation: %w", err))
+		}
+		if cgroupPath == "" || cgroupPath == "/" {
+			return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(fmt.Errorf("client cgroup is empty or root (%q), refusing container creation", cgroupPath))
+		}
+		if err := cgrouputil.ValidateScopeForDriver(cgroupPath, UsingSystemd(&daemonCfg.Config)); err != nil {
+			return containertypes.CreateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
+		}
+		if cgrouputil.IsScopePath(cgroupPath) {
+			log.G(ctx).WithFields(log.Fields{"clientPID": cred.PID, "clientCgroup": cgroupPath}).Debug("allowing scope parent with cgroupfs driver for cgroup-parent-from-client")
+		}
+		if opts.params.HostConfig.CgroupParent != cgroupPath {
+			log.G(ctx).WithFields(log.Fields{"clientPID": cred.PID, "clientCgroup": cgroupPath, "previous": opts.params.HostConfig.CgroupParent}).Debug("enforcing cgroup parent from client")
+			opts.params.HostConfig.CgroupParent = cgroupPath
+		}
 	}
 	err = daemon.adaptContainerSettings(&daemonCfg.Config, opts.params.HostConfig)
 	if err != nil {

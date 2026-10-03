@@ -228,6 +228,12 @@ type CommonConfig struct {
 	// alive upon daemon shutdown/start
 	LiveRestoreEnabled bool `json:"live-restore,omitempty"`
 
+	// CgroupParentFromClient determines whether containers should inherit the
+	// cgroup of the client process (via SO_PEERCRED on Unix sockets). This is
+	// useful on shared HPC systems (e.g. Slurm) to enforce per-user cgroup
+	// constraints without requiring --cgroup-parent on every create.
+	CgroupParentFromClient bool `json:"cgroup-parent-from-client,omitempty"`
+
 	// MaxConcurrentDownloads is the maximum number of downloads that
 	// may take place at a time across all pulls.
 	MaxConcurrentDownloads int `json:"max-concurrent-downloads,omitempty"`
