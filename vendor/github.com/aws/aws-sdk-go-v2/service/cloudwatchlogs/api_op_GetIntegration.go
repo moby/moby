@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -38,6 +40,18 @@ type GetIntegrationInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetIntegrationInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetIntegrationRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetIntegrationInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.IntegrationName != nil {
+		s.WriteString(schemas.GetIntegrationRequest_integrationName, *v.IntegrationName)
+	}
+}
+
 type GetIntegrationOutput struct {
 
 	// A structure that contains information about the integration configuration. For
@@ -62,13 +76,55 @@ type GetIntegrationOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetIntegrationOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetIntegrationResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetIntegrationOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeIntegrationDetails(s, schemas.GetIntegrationResponse_integrationDetails, v.IntegrationDetails)
+	if v.IntegrationName != nil {
+		s.WriteString(schemas.GetIntegrationResponse_integrationName, *v.IntegrationName)
+	}
+	if v.IntegrationStatus != "" {
+		s.WriteString(schemas.GetIntegrationResponse_integrationStatus, string(v.IntegrationStatus))
+	}
+	if v.IntegrationType != "" {
+		s.WriteString(schemas.GetIntegrationResponse_integrationType, string(v.IntegrationType))
+	}
+}
+func (v *GetIntegrationOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.GetIntegrationResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.GetIntegrationResponse_integrationDetails:
+			return deserializeIntegrationDetails(d, schemas.GetIntegrationResponse_integrationDetails, &v.IntegrationDetails)
+		case schemas.GetIntegrationResponse_integrationName:
+			v.IntegrationName = new(string)
+			return d.ReadString(schemas.GetIntegrationResponse_integrationName, v.IntegrationName)
+		case schemas.GetIntegrationResponse_integrationStatus:
+			var ev string
+			if err := d.ReadString(schemas.GetIntegrationResponse_integrationStatus, &ev); err != nil {
+				return err
+			}
+			v.IntegrationStatus = types.IntegrationStatus(ev)
+			return nil
+		case schemas.GetIntegrationResponse_integrationType:
+			var ev string
+			if err := d.ReadString(schemas.GetIntegrationResponse_integrationType, &ev); err != nil {
+				return err
+			}
+			v.IntegrationType = types.IntegrationType(ev)
+			return nil
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationGetIntegrationMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpGetIntegration{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetIntegration, schemas.GetIntegrationRequest, schemas.GetIntegrationResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpGetIntegration{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetIntegration, schemas.GetIntegrationRequest, schemas.GetIntegrationResponse), output: &GetIntegrationOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

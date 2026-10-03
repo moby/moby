@@ -2728,6 +2728,40 @@ func awsAwsquery_deserializeOpDocumentAssumeRoleOutput(v **AssumeRoleOutput, dec
 				sv.PackedPolicySize = ptr.Int32(int32(i64))
 			}
 
+		case strings.EqualFold("SessionTokenSize", t.Name.Local):
+			val, err := decoder.Value()
+			if err != nil {
+				return err
+			}
+			if val == nil {
+				break
+			}
+			{
+				xtv := string(val)
+				i64, err := strconv.ParseInt(xtv, 10, 64)
+				if err != nil {
+					return err
+				}
+				sv.SessionTokenSize = ptr.Int32(int32(i64))
+			}
+
+		case strings.EqualFold("SessionTokenUtilization", t.Name.Local):
+			val, err := decoder.Value()
+			if err != nil {
+				return err
+			}
+			if val == nil {
+				break
+			}
+			{
+				xtv := string(val)
+				i64, err := strconv.ParseInt(xtv, 10, 64)
+				if err != nil {
+					return err
+				}
+				sv.SessionTokenUtilization = ptr.Int32(int32(i64))
+			}
+
 		case strings.EqualFold("SourceIdentity", t.Name.Local):
 			val, err := decoder.Value()
 			if err != nil {
@@ -2843,6 +2877,40 @@ func awsAwsquery_deserializeOpDocumentAssumeRoleWithSAMLOutput(v **AssumeRoleWit
 					return err
 				}
 				sv.PackedPolicySize = ptr.Int32(int32(i64))
+			}
+
+		case strings.EqualFold("SessionTokenSize", t.Name.Local):
+			val, err := decoder.Value()
+			if err != nil {
+				return err
+			}
+			if val == nil {
+				break
+			}
+			{
+				xtv := string(val)
+				i64, err := strconv.ParseInt(xtv, 10, 64)
+				if err != nil {
+					return err
+				}
+				sv.SessionTokenSize = ptr.Int32(int32(i64))
+			}
+
+		case strings.EqualFold("SessionTokenUtilization", t.Name.Local):
+			val, err := decoder.Value()
+			if err != nil {
+				return err
+			}
+			if val == nil {
+				break
+			}
+			{
+				xtv := string(val)
+				i64, err := strconv.ParseInt(xtv, 10, 64)
+				if err != nil {
+					return err
+				}
+				sv.SessionTokenUtilization = ptr.Int32(int32(i64))
 			}
 
 		case strings.EqualFold("SourceIdentity", t.Name.Local):
@@ -2975,6 +3043,40 @@ func awsAwsquery_deserializeOpDocumentAssumeRoleWithWebIdentityOutput(v **Assume
 				sv.Provider = ptr.String(xtv)
 			}
 
+		case strings.EqualFold("SessionTokenSize", t.Name.Local):
+			val, err := decoder.Value()
+			if err != nil {
+				return err
+			}
+			if val == nil {
+				break
+			}
+			{
+				xtv := string(val)
+				i64, err := strconv.ParseInt(xtv, 10, 64)
+				if err != nil {
+					return err
+				}
+				sv.SessionTokenSize = ptr.Int32(int32(i64))
+			}
+
+		case strings.EqualFold("SessionTokenUtilization", t.Name.Local):
+			val, err := decoder.Value()
+			if err != nil {
+				return err
+			}
+			if val == nil {
+				break
+			}
+			{
+				xtv := string(val)
+				i64, err := strconv.ParseInt(xtv, 10, 64)
+				if err != nil {
+					return err
+				}
+				sv.SessionTokenUtilization = ptr.Int32(int32(i64))
+			}
+
 		case strings.EqualFold("SourceIdentity", t.Name.Local):
 			val, err := decoder.Value()
 			if err != nil {
@@ -3041,6 +3143,40 @@ func awsAwsquery_deserializeOpDocumentAssumeRootOutput(v **AssumeRootOutput, dec
 			nodeDecoder := smithyxml.WrapNodeDecoder(decoder.Decoder, t)
 			if err := awsAwsquery_deserializeDocumentCredentials(&sv.Credentials, nodeDecoder); err != nil {
 				return err
+			}
+
+		case strings.EqualFold("SessionTokenSize", t.Name.Local):
+			val, err := decoder.Value()
+			if err != nil {
+				return err
+			}
+			if val == nil {
+				break
+			}
+			{
+				xtv := string(val)
+				i64, err := strconv.ParseInt(xtv, 10, 64)
+				if err != nil {
+					return err
+				}
+				sv.SessionTokenSize = ptr.Int32(int32(i64))
+			}
+
+		case strings.EqualFold("SessionTokenUtilization", t.Name.Local):
+			val, err := decoder.Value()
+			if err != nil {
+				return err
+			}
+			if val == nil {
+				break
+			}
+			{
+				xtv := string(val)
+				i64, err := strconv.ParseInt(xtv, 10, 64)
+				if err != nil {
+					return err
+				}
+				sv.SessionTokenUtilization = ptr.Int32(int32(i64))
 			}
 
 		case strings.EqualFold("SourceIdentity", t.Name.Local):
@@ -3366,6 +3502,40 @@ func awsAwsquery_deserializeOpDocumentGetFederationTokenOutput(v **GetFederation
 				sv.PackedPolicySize = ptr.Int32(int32(i64))
 			}
 
+		case strings.EqualFold("SessionTokenSize", t.Name.Local):
+			val, err := decoder.Value()
+			if err != nil {
+				return err
+			}
+			if val == nil {
+				break
+			}
+			{
+				xtv := string(val)
+				i64, err := strconv.ParseInt(xtv, 10, 64)
+				if err != nil {
+					return err
+				}
+				sv.SessionTokenSize = ptr.Int32(int32(i64))
+			}
+
+		case strings.EqualFold("SessionTokenUtilization", t.Name.Local):
+			val, err := decoder.Value()
+			if err != nil {
+				return err
+			}
+			if val == nil {
+				break
+			}
+			{
+				xtv := string(val)
+				i64, err := strconv.ParseInt(xtv, 10, 64)
+				if err != nil {
+					return err
+				}
+				sv.SessionTokenUtilization = ptr.Int32(int32(i64))
+			}
+
 		default:
 			// Do nothing and ignore the unexpected tag element
 			err = decoder.Decoder.Skip()
@@ -3406,6 +3576,40 @@ func awsAwsquery_deserializeOpDocumentGetSessionTokenOutput(v **GetSessionTokenO
 			nodeDecoder := smithyxml.WrapNodeDecoder(decoder.Decoder, t)
 			if err := awsAwsquery_deserializeDocumentCredentials(&sv.Credentials, nodeDecoder); err != nil {
 				return err
+			}
+
+		case strings.EqualFold("SessionTokenSize", t.Name.Local):
+			val, err := decoder.Value()
+			if err != nil {
+				return err
+			}
+			if val == nil {
+				break
+			}
+			{
+				xtv := string(val)
+				i64, err := strconv.ParseInt(xtv, 10, 64)
+				if err != nil {
+					return err
+				}
+				sv.SessionTokenSize = ptr.Int32(int32(i64))
+			}
+
+		case strings.EqualFold("SessionTokenUtilization", t.Name.Local):
+			val, err := decoder.Value()
+			if err != nil {
+				return err
+			}
+			if val == nil {
+				break
+			}
+			{
+				xtv := string(val)
+				i64, err := strconv.ParseInt(xtv, 10, 64)
+				if err != nil {
+					return err
+				}
+				sv.SessionTokenUtilization = ptr.Int32(int32(i64))
 			}
 
 		default:

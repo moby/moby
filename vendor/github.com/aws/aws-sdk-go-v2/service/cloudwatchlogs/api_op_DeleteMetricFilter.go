@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -38,6 +40,21 @@ type DeleteMetricFilterInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DeleteMetricFilterInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DeleteMetricFilterRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DeleteMetricFilterInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.FilterName != nil {
+		s.WriteString(schemas.DeleteMetricFilterRequest_filterName, *v.FilterName)
+	}
+	if v.LogGroupName != nil {
+		s.WriteString(schemas.DeleteMetricFilterRequest_logGroupName, *v.LogGroupName)
+	}
+}
+
 type DeleteMetricFilterOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -45,13 +62,26 @@ type DeleteMetricFilterOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DeleteMetricFilterOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(nil)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DeleteMetricFilterOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *DeleteMetricFilterOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, nil, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDeleteMetricFilterMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDeleteMetricFilter{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteMetricFilter, schemas.DeleteMetricFilterRequest, nil)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDeleteMetricFilter{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteMetricFilter, schemas.DeleteMetricFilterRequest, nil), output: &DeleteMetricFilterOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

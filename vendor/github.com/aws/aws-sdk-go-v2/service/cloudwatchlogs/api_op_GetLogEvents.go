@@ -5,7 +5,9 @@ package cloudwatchlogs
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -119,6 +121,42 @@ type GetLogEventsInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetLogEventsInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetLogEventsRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetLogEventsInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.EndTime != nil {
+		s.WriteInt64(schemas.GetLogEventsRequest_endTime, *v.EndTime)
+	}
+	if v.Limit != nil {
+		s.WriteInt32(schemas.GetLogEventsRequest_limit, *v.Limit)
+	}
+	if v.LogGroupIdentifier != nil {
+		s.WriteString(schemas.GetLogEventsRequest_logGroupIdentifier, *v.LogGroupIdentifier)
+	}
+	if v.LogGroupName != nil {
+		s.WriteString(schemas.GetLogEventsRequest_logGroupName, *v.LogGroupName)
+	}
+	if v.LogStreamName != nil {
+		s.WriteString(schemas.GetLogEventsRequest_logStreamName, *v.LogStreamName)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.GetLogEventsRequest_nextToken, *v.NextToken)
+	}
+	if v.StartFromHead != nil {
+		s.WriteBool(schemas.GetLogEventsRequest_startFromHead, *v.StartFromHead)
+	}
+	if v.StartTime != nil {
+		s.WriteInt64(schemas.GetLogEventsRequest_startTime, *v.StartTime)
+	}
+	if v.Unmask != false {
+		s.WriteBool(schemas.GetLogEventsRequest_unmask, v.Unmask)
+	}
+}
+
 type GetLogEventsOutput struct {
 
 	// The events.
@@ -140,13 +178,41 @@ type GetLogEventsOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *GetLogEventsOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.GetLogEventsResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *GetLogEventsOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeOutputLogEvents(s, schemas.GetLogEventsResponse_events, v.Events)
+	if v.NextBackwardToken != nil {
+		s.WriteString(schemas.GetLogEventsResponse_nextBackwardToken, *v.NextBackwardToken)
+	}
+	if v.NextForwardToken != nil {
+		s.WriteString(schemas.GetLogEventsResponse_nextForwardToken, *v.NextForwardToken)
+	}
+}
+func (v *GetLogEventsOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.GetLogEventsResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.GetLogEventsResponse_events:
+			return deserializeOutputLogEvents(d, schemas.GetLogEventsResponse_events, &v.Events)
+		case schemas.GetLogEventsResponse_nextBackwardToken:
+			v.NextBackwardToken = new(string)
+			return d.ReadString(schemas.GetLogEventsResponse_nextBackwardToken, v.NextBackwardToken)
+		case schemas.GetLogEventsResponse_nextForwardToken:
+			v.NextForwardToken = new(string)
+			return d.ReadString(schemas.GetLogEventsResponse_nextForwardToken, v.NextForwardToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationGetLogEventsMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpGetLogEvents{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetLogEvents, schemas.GetLogEventsRequest, schemas.GetLogEventsResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpGetLogEvents{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.GetLogEvents, schemas.GetLogEventsRequest, schemas.GetLogEventsResponse), output: &GetLogEventsOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

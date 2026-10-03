@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -96,6 +98,30 @@ type PutLogEventsInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutLogEventsInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutLogEventsRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutLogEventsInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Entity != nil {
+		s.WriteStruct(schemas.PutLogEventsRequest_entity)
+		v.Entity.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	serializeInputLogEvents(s, schemas.PutLogEventsRequest_logEvents, v.LogEvents)
+	if v.LogGroupName != nil {
+		s.WriteString(schemas.PutLogEventsRequest_logGroupName, *v.LogGroupName)
+	}
+	if v.LogStreamName != nil {
+		s.WriteString(schemas.PutLogEventsRequest_logStreamName, *v.LogStreamName)
+	}
+	if v.SequenceToken != nil {
+		s.WriteString(schemas.PutLogEventsRequest_sequenceToken, *v.SequenceToken)
+	}
+}
+
 type PutLogEventsOutput struct {
 
 	// The next sequence token.
@@ -124,13 +150,48 @@ type PutLogEventsOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutLogEventsOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutLogEventsResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutLogEventsOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.NextSequenceToken != nil {
+		s.WriteString(schemas.PutLogEventsResponse_nextSequenceToken, *v.NextSequenceToken)
+	}
+	if v.RejectedEntityInfo != nil {
+		s.WriteStruct(schemas.PutLogEventsResponse_rejectedEntityInfo)
+		v.RejectedEntityInfo.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.RejectedLogEventsInfo != nil {
+		s.WriteStruct(schemas.PutLogEventsResponse_rejectedLogEventsInfo)
+		v.RejectedLogEventsInfo.SerializeMembers(s)
+		s.CloseStruct()
+	}
+}
+func (v *PutLogEventsOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PutLogEventsResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PutLogEventsResponse_nextSequenceToken:
+			v.NextSequenceToken = new(string)
+			return d.ReadString(schemas.PutLogEventsResponse_nextSequenceToken, v.NextSequenceToken)
+		case schemas.PutLogEventsResponse_rejectedEntityInfo:
+			v.RejectedEntityInfo = &types.RejectedEntityInfo{}
+			return v.RejectedEntityInfo.Deserialize(d)
+		case schemas.PutLogEventsResponse_rejectedLogEventsInfo:
+			v.RejectedLogEventsInfo = &types.RejectedLogEventsInfo{}
+			return v.RejectedLogEventsInfo.Deserialize(d)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutLogEventsMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutLogEvents{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutLogEvents, schemas.PutLogEventsRequest, schemas.PutLogEventsResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutLogEvents{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutLogEvents, schemas.PutLogEventsRequest, schemas.PutLogEventsResponse), output: &PutLogEventsOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -43,6 +45,17 @@ type TestTransformerInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *TestTransformerInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.TestTransformerRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *TestTransformerInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeTestEventMessages(s, schemas.TestTransformerRequest_logEventMessages, v.LogEventMessages)
+	serializeProcessors(s, schemas.TestTransformerRequest_transformerConfig, v.TransformerConfig)
+}
+
 type TestTransformerOutput struct {
 
 	// An array where each member of the array includes both the original version and
@@ -55,13 +68,29 @@ type TestTransformerOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *TestTransformerOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.TestTransformerResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *TestTransformerOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeTransformedLogs(s, schemas.TestTransformerResponse_transformedLogs, v.TransformedLogs)
+}
+func (v *TestTransformerOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.TestTransformerResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.TestTransformerResponse_transformedLogs:
+			return deserializeTransformedLogs(d, schemas.TestTransformerResponse_transformedLogs, &v.TransformedLogs)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationTestTransformerMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpTestTransformer{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.TestTransformer, schemas.TestTransformerRequest, schemas.TestTransformerResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpTestTransformer{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.TestTransformer, schemas.TestTransformerRequest, schemas.TestTransformerResponse), output: &TestTransformerOutput{}}, middleware.After); err != nil {
 		return err
 	}
 
