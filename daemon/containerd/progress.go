@@ -116,7 +116,7 @@ func (j *jobs) Jobs() []ocispec.Descriptor {
 type pullProgress struct {
 	store       content.Store
 	showExists  bool
-	hideLayers  bool
+	hideLayers  atomic.Bool
 	snapshotter snapshots.Snapshotter
 	layers      []ocispec.Descriptor
 	unpackStart map[digest.Digest]time.Time
@@ -139,7 +139,7 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 	}
 
 	for _, j := range ongoing.Jobs() {
-		if p.hideLayers {
+		if p.hideLayers.Load() {
 			ongoing.Remove(j)
 			continue
 		}
