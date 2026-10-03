@@ -191,7 +191,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 				progress.Message(out, "", `WARNING: AI models are not supported by the Engine yet, did you mean to use "docker model pull/run" instead?`)
 			}
 		}
-		if c8dimages.IsLayerType(desc.MediaType) {
+		if c8dimages.IsLayerType(desc.MediaType) && !pp.hideLayers.Load() {
 			id := stringid.TruncateID(desc.Digest.String())
 			progress.Update(out, id, "Pulling fs layer")
 		}
@@ -211,8 +211,8 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 			if err != nil {
 				return nil, err
 			}
-			// If we already have all the contents pull shouldn't show any layer
-			// download progress, not even a "Already present" message.
+			// If we already have all the content, don't show any layer download
+			// progress, not even an "Already exists" message.
 			if available && len(missing) == 0 {
 				pp.hideLayers.Store(true)
 			}
