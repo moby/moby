@@ -839,8 +839,7 @@ func (daemon *Daemon) initNetworkController(cfg *config.Config, activeSandboxes 
 	ctx := baggage.ContextWithBaggage(context.TODO(), otelutil.MustNewBaggage(
 		otelutil.MustNewMemberRaw(otelutil.TriggerKey, "daemon.initNetworkController"),
 	))
-	daemon.netController, err = libnetwork.New(ctx, netOptions...)
-	if err != nil {
+	if err := daemon.newNetworkController(ctx, cfg, netOptions); err != nil {
 		return fmt.Errorf("error obtaining controller instance: %v", err)
 	}
 

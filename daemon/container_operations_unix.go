@@ -586,8 +586,8 @@ func buildSandboxPlatformOptions(ctr *container.Container, cfg *config.Config) (
 
 	ctr.HostsPath, ctr.ResolvConfPath = hostsPath, resolvConfPath
 	sboxOptions = append(sboxOptions,
-		libnetwork.OptionHostsPath(hostsPath),
-		libnetwork.OptionResolvConfPath(resolvConfPath),
+		libnetwork.OptionWriteHostsFile(hostsPath),
+		libnetwork.OptionWriteResolvConf(resolvConfPath),
 	)
 
 	return sboxOptions, nil
