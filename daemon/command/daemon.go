@@ -480,6 +480,7 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon, cdiCache *cdi.Cache, co
 		Dist:                d.DistributionServices(),
 		ImageTagger:         d.ImageService(),
 		NetworkController:   d.NetworkController(),
+		OCIHooks:            d.OCIHooks(),
 		DefaultCgroupParent: newCgroupParent(&cfg),
 		RegistryHosts:       d.RegistryHosts,
 		BuilderConfig:       cfg.Builder,

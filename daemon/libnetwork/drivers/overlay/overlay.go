@@ -56,13 +56,18 @@ type driver struct {
 	bindAddress      netip.Addr
 	advertiseAddress netip.Addr
 	networks         networkTable
+	// netnsDir is the directory the network namespaces of sandboxes are
+	// kept in, the overlay networks' sandboxes alongside the containers'.
+	netnsDir string
 }
 
-// Register registers a new instance of the overlay driver.
-func Register(r driverapi.Registerer) error {
+// Register registers a new instance of the overlay driver, which keeps the
+// network namespaces of its sandboxes in netnsDir.
+func Register(r driverapi.Registerer, netnsDir string) error {
 	d := &driver{
 		networks: networkTable{},
 		secMap:   encrMap{},
+		netnsDir: netnsDir,
 	}
 	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
 		DataScope:         scope.Global,
