@@ -18,6 +18,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
@@ -885,14 +886,18 @@ func TestInvalidRemoteDriver(t *testing.T) {
 		assert.Check(t, os.RemoveAll(specPath))
 	}()
 
-	err = os.WriteFile(filepath.Join(specPath, "invalid-network-driver.spec"), []byte(server.URL), 0o644)
+	// pkg/plugins caches plugins by name for the life of the process, so
+	// a fixed name would resolve to the plugin, and the closed server, of
+	// a previous run of this test (go test -count).
+	driverName := "invalid-network-driver-" + stringid.TruncateID(stringid.GenerateRandomID())
+	err = os.WriteFile(filepath.Join(specPath, driverName+".spec"), []byte(server.URL), 0o644)
 	assert.NilError(t, err)
 
 	ctrlr, err := libnetwork.New(t.Context(), config.OptionDataDir(t.TempDir()))
 	assert.NilError(t, err)
 	defer ctrlr.Stop()
 
-	_, err = ctrlr.NewNetwork(t.Context(), "invalid-network-driver", "dummy", "",
+	_, err = ctrlr.NewNetwork(t.Context(), driverName, "dummy", "",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	assert.Check(t, is.ErrorIs(err, plugins.ErrNotImplements))
 }
@@ -925,11 +930,15 @@ func TestValidRemoteDriver(t *testing.T) {
 		assert.Check(t, os.RemoveAll(specPath))
 	}()
 
-	err = os.WriteFile(filepath.Join(specPath, "valid-network-driver.spec"), []byte(server.URL), 0o644)
+	// pkg/plugins caches plugins by name for the life of the process, so
+	// a fixed name would resolve to the plugin, and the closed server, of
+	// a previous run of this test (go test -count).
+	driverName := "valid-network-driver-" + stringid.TruncateID(stringid.GenerateRandomID())
+	err = os.WriteFile(filepath.Join(specPath, driverName+".spec"), []byte(server.URL), 0o644)
 	assert.NilError(t, err)
 
 	controller := newController(t)
-	n, err := controller.NewNetwork(t.Context(), "valid-network-driver", "dummy", "",
+	n, err := controller.NewNetwork(t.Context(), driverName, "dummy", "",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err != nil {
 		// Only fail if we could not find the plugin driver
