@@ -11,7 +11,7 @@ import (
 
 func TestOpenFileDelete(t *testing.T) {
 	tmpDir := t.TempDir()
-	f, err := openFile(filepath.Join(tmpDir, "test.txt"), os.O_CREATE|os.O_RDWR, 644)
+	f, err := openFile(filepath.Join(tmpDir, "test.txt"), os.O_CREATE|os.O_RDWR, 0o644)
 	assert.NilError(t, err)
 	defer f.Close()
 

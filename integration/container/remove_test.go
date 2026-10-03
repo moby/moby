@@ -2,6 +2,7 @@ package container
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/fs"
 	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
@@ -33,22 +33,25 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
 
-	tempDir := fs.NewDir(t, "test-rm-container-with-removed-volume", fs.WithMode(0o755))
+	tempDir := t.TempDir()
+	err := os.Chmod(tempDir, 0o777)
+	assert.Check(t, err)
+	hostPath := filepath.Join(tempDir, "hostPath")
 
-	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithBind(tempDir.Path(), dPath("/test")))
+	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"), container.WithBind(hostPath, dPath("/test")))
 	var pollOps []poll.SettingOp
 	if testEnv.DaemonInfo.OSType == "windows" {
 		pollOps = append(pollOps, poll.WithTimeout(StopContainerWindowsPollTimeout))
 	}
 	poll.WaitOn(t, container.IsInState(ctx, apiClient, cID, containertypes.StateExited), pollOps...)
 
-	err := os.RemoveAll(tempDir.Path())
+	err = os.RemoveAll(hostPath)
 	assert.NilError(t, err)
 
 	_, err = apiClient.ContainerRemove(ctx, cID, client.ContainerRemoveOptions{
 		RemoveVolumes: true,
 	})
-	assert.NilError(t, err)
+	assert.Check(t, err)
 
 	_, err = apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))

@@ -25,8 +25,7 @@ func (s *DockerCLICpSuite) TestCpFromSymlinkDestination(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
 
-	tmpDir := getTestDir(c, "test-cp-from-err-dst-not-dir")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -103,8 +102,7 @@ func (s *DockerCLICpSuite) TestCpFromCaseA(c *testing.T) {
 		addContent: true, workDir: "/root",
 	})
 
-	tmpDir := getTestDir(c, "test-cp-from-case-a")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	srcPath := containerCpPath(containerID, "/root/file1")
 	dstPath := cpPath(tmpDir, "itWorks.txt")
@@ -121,8 +119,7 @@ func (s *DockerCLICpSuite) TestCpFromCaseB(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
 
-	tmpDir := getTestDir(c, "test-cp-from-case-b")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	srcPath := containerCpPath(containerID, "/file1")
 	dstDir := cpPathTrailingSep(tmpDir, "testDir")
@@ -141,8 +138,7 @@ func (s *DockerCLICpSuite) TestCpFromCaseC(c *testing.T) {
 		addContent: true, workDir: "/root",
 	})
 
-	tmpDir := getTestDir(c, "test-cp-from-case-c")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -163,8 +159,7 @@ func (s *DockerCLICpSuite) TestCpFromCaseD(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
 
-	tmpDir := getTestDir(c, "test-cp-from-case-d")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -199,8 +194,7 @@ func (s *DockerCLICpSuite) TestCpFromCaseE(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
 
-	tmpDir := getTestDir(c, "test-cp-from-case-e")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	srcDir := containerCpPath(containerID, "dir1")
 	dstDir := cpPath(tmpDir, "testDir")
@@ -229,8 +223,7 @@ func (s *DockerCLICpSuite) TestCpFromCaseF(c *testing.T) {
 		addContent: true, workDir: "/root",
 	})
 
-	tmpDir := getTestDir(c, "test-cp-from-case-f")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -252,8 +245,7 @@ func (s *DockerCLICpSuite) TestCpFromCaseG(c *testing.T) {
 		addContent: true, workDir: "/root",
 	})
 
-	tmpDir := getTestDir(c, "test-cp-from-case-g")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -285,8 +277,7 @@ func (s *DockerCLICpSuite) TestCpFromCaseH(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
 
-	tmpDir := getTestDir(c, "test-cp-from-case-h")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	srcDir := containerCpPathTrailingSep(containerID, "dir1") + "."
 	dstDir := cpPath(tmpDir, "testDir")
@@ -315,8 +306,7 @@ func (s *DockerCLICpSuite) TestCpFromCaseI(c *testing.T) {
 		addContent: true, workDir: "/root",
 	})
 
-	tmpDir := getTestDir(c, "test-cp-from-case-i")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 
@@ -339,8 +329,7 @@ func (s *DockerCLICpSuite) TestCpFromCaseJ(c *testing.T) {
 		addContent: true, workDir: "/root",
 	})
 
-	tmpDir := getTestDir(c, "test-cp-from-case-j")
-	defer os.RemoveAll(tmpDir)
+	tmpDir := c.TempDir()
 
 	makeTestContentInDir(c, tmpDir)
 

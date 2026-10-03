@@ -248,12 +248,10 @@ func TestRootMountCleanup(t *testing.T) {
 
 	t.Parallel()
 
-	testRoot, err := os.MkdirTemp("", t.Name())
-	assert.NilError(t, err)
-	defer os.RemoveAll(testRoot)
+	testRoot := t.TempDir()
 	cfg := &configStore{}
 
-	err = mount.MakePrivate(testRoot)
+	err := mount.MakePrivate(testRoot)
 	assert.NilError(t, err)
 	defer mount.Unmount(testRoot)
 
