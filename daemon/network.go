@@ -22,6 +22,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/multierror"
 	"github.com/moby/moby/v2/daemon/internal/netipstringer"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
+	"github.com/moby/moby/v2/daemon/internal/ocihook"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	lncluster "github.com/moby/moby/v2/daemon/libnetwork/cluster"
@@ -54,6 +55,12 @@ func (pnr PredefinedNetworkError) Forbidden() {}
 // NetworkController returns the network controller created by the daemon.
 func (daemon *Daemon) NetworkController() *libnetwork.Controller {
 	return daemon.netController
+}
+
+// OCIHooks returns the server for OCI hooks the daemon installs in
+// containers it does not start itself. It is nil on Windows.
+func (daemon *Daemon) OCIHooks() *ocihook.Server {
+	return daemon.ociHooks
 }
 
 // FindNetwork returns a network based on:

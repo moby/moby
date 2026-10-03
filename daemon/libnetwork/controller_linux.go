@@ -3,6 +3,8 @@ package libnetwork
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -50,6 +52,21 @@ func (c *Controller) enabledIptablesVersions() []iptables.IPVersion {
 		versions = append(versions, iptables.IPv6)
 	}
 	return versions
+}
+
+// createNetnsDir creates the directory the network namespaces of sandboxes
+// are kept in.
+func (c *Controller) createNetnsDir() error {
+	if err := os.MkdirAll(c.cfg.NetnsDir, 0o755); err != nil {
+		return fmt.Errorf("creating netns directory: %w", err)
+	}
+	return nil
+}
+
+// sandboxKey returns the key of the sandbox with the given ID: the path of
+// its network namespace.
+func (c *Controller) sandboxKey(sandboxID string) string {
+	return filepath.Join(c.cfg.NetnsDir, sandboxID[:min(len(sandboxID), 12)])
 }
 
 // getDefaultOSLSandbox returns the controller's default [osl.Sandbox]. It
