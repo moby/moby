@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -36,6 +38,18 @@ type DeleteDeliveryDestinationPolicyInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DeleteDeliveryDestinationPolicyInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DeleteDeliveryDestinationPolicyRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DeleteDeliveryDestinationPolicyInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DeliveryDestinationName != nil {
+		s.WriteString(schemas.DeleteDeliveryDestinationPolicyRequest_deliveryDestinationName, *v.DeliveryDestinationName)
+	}
+}
+
 type DeleteDeliveryDestinationPolicyOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -43,13 +57,26 @@ type DeleteDeliveryDestinationPolicyOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DeleteDeliveryDestinationPolicyOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(nil)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DeleteDeliveryDestinationPolicyOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *DeleteDeliveryDestinationPolicyOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, nil, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDeleteDeliveryDestinationPolicyMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDeleteDeliveryDestinationPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteDeliveryDestinationPolicy, schemas.DeleteDeliveryDestinationPolicyRequest, nil)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDeleteDeliveryDestinationPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteDeliveryDestinationPolicy, schemas.DeleteDeliveryDestinationPolicyRequest, nil), output: &DeleteDeliveryDestinationPolicyOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

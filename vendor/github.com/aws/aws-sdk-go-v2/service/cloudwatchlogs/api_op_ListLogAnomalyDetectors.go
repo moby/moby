@@ -5,7 +5,9 @@ package cloudwatchlogs
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -41,6 +43,24 @@ type ListLogAnomalyDetectorsInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListLogAnomalyDetectorsInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListLogAnomalyDetectorsRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListLogAnomalyDetectorsInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.FilterLogGroupArn != nil {
+		s.WriteString(schemas.ListLogAnomalyDetectorsRequest_filterLogGroupArn, *v.FilterLogGroupArn)
+	}
+	if v.Limit != nil {
+		s.WriteInt32(schemas.ListLogAnomalyDetectorsRequest_limit, *v.Limit)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListLogAnomalyDetectorsRequest_nextToken, *v.NextToken)
+	}
+}
+
 type ListLogAnomalyDetectorsOutput struct {
 
 	// An array of structures, where each structure in the array contains information
@@ -56,13 +76,35 @@ type ListLogAnomalyDetectorsOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListLogAnomalyDetectorsOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListLogAnomalyDetectorsResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListLogAnomalyDetectorsOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeAnomalyDetectors(s, schemas.ListLogAnomalyDetectorsResponse_anomalyDetectors, v.AnomalyDetectors)
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListLogAnomalyDetectorsResponse_nextToken, *v.NextToken)
+	}
+}
+func (v *ListLogAnomalyDetectorsOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ListLogAnomalyDetectorsResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ListLogAnomalyDetectorsResponse_anomalyDetectors:
+			return deserializeAnomalyDetectors(d, schemas.ListLogAnomalyDetectorsResponse_anomalyDetectors, &v.AnomalyDetectors)
+		case schemas.ListLogAnomalyDetectorsResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.ListLogAnomalyDetectorsResponse_nextToken, v.NextToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationListLogAnomalyDetectorsMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpListLogAnomalyDetectors{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListLogAnomalyDetectors, schemas.ListLogAnomalyDetectorsRequest, schemas.ListLogAnomalyDetectorsResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpListLogAnomalyDetectors{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListLogAnomalyDetectors, schemas.ListLogAnomalyDetectorsRequest, schemas.ListLogAnomalyDetectorsResponse), output: &ListLogAnomalyDetectorsOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

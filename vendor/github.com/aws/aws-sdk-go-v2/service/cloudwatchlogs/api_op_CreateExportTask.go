@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -101,6 +103,36 @@ type CreateExportTaskInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *CreateExportTaskInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.CreateExportTaskRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *CreateExportTaskInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Destination != nil {
+		s.WriteString(schemas.CreateExportTaskRequest_destination, *v.Destination)
+	}
+	if v.DestinationPrefix != nil {
+		s.WriteString(schemas.CreateExportTaskRequest_destinationPrefix, *v.DestinationPrefix)
+	}
+	if v.From != nil {
+		s.WriteInt64(schemas.CreateExportTaskRequest_from, *v.From)
+	}
+	if v.LogGroupName != nil {
+		s.WriteString(schemas.CreateExportTaskRequest_logGroupName, *v.LogGroupName)
+	}
+	if v.LogStreamNamePrefix != nil {
+		s.WriteString(schemas.CreateExportTaskRequest_logStreamNamePrefix, *v.LogStreamNamePrefix)
+	}
+	if v.TaskName != nil {
+		s.WriteString(schemas.CreateExportTaskRequest_taskName, *v.TaskName)
+	}
+	if v.To != nil {
+		s.WriteInt64(schemas.CreateExportTaskRequest_to, *v.To)
+	}
+}
+
 type CreateExportTaskOutput struct {
 
 	// The ID of the export task.
@@ -112,13 +144,32 @@ type CreateExportTaskOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *CreateExportTaskOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.CreateExportTaskResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *CreateExportTaskOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.TaskId != nil {
+		s.WriteString(schemas.CreateExportTaskResponse_taskId, *v.TaskId)
+	}
+}
+func (v *CreateExportTaskOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.CreateExportTaskResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.CreateExportTaskResponse_taskId:
+			v.TaskId = new(string)
+			return d.ReadString(schemas.CreateExportTaskResponse_taskId, v.TaskId)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationCreateExportTaskMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpCreateExportTask{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.CreateExportTask, schemas.CreateExportTaskRequest, schemas.CreateExportTaskResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpCreateExportTask{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.CreateExportTask, schemas.CreateExportTaskRequest, schemas.CreateExportTaskResponse), output: &CreateExportTaskOutput{}}, middleware.After); err != nil {
 		return err
 	}
 
