@@ -424,6 +424,10 @@ func WithTraceOptions(opts ...otelhttp.Option) Opt {
 // WithHTTPRequestHook adds a [RequestHook] to the client. RequestHooks are called
 // before an HTTP request is made to the daemon. Hooks are invoked in the order
 // they were added.
+//
+// Hooks may inspect the request and modify request metadata, such as headers.
+// Changes made by hooks are applied to the request passed to the transport.
+// Hooks must not read or close req.Body.
 func WithHTTPRequestHook(h RequestHook) Opt {
 	return func(c *clientConfig) error {
 		if h == nil {
@@ -438,7 +442,9 @@ func WithHTTPRequestHook(h RequestHook) Opt {
 // for each HTTP response returned by the daemon. Hooks are invoked in the order
 // they were added.
 //
-// Hooks must not read or close resp.Body.
+// Hooks may inspect the response, but changes made by hooks are not reflected
+// in the response returned to the caller. Hooks must not read or close
+// resp.Body.
 func WithHTTPResponseHook(h ResponseHook) Opt {
 	return func(c *clientConfig) error {
 		if h == nil {
