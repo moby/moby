@@ -214,7 +214,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 			// If we already have all the contents pull shouldn't show any layer
 			// download progress, not even a "Already present" message.
 			if available && len(missing) == 0 {
-				pp.hideLayers = true
+				pp.hideLayers.Store(true)
 			}
 		}
 		return nil, nil
