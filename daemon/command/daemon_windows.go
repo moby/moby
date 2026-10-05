@@ -3,10 +3,10 @@ package command
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/containerd/log"
@@ -84,7 +84,7 @@ func (cli *daemonCLI) setupConfigReloadTrap() {
 	ctx := context.TODO()
 
 	go func() {
-		event := "Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid())
+		event := `Global\docker-daemon-config-` + strconv.Itoa(os.Getpid())
 		ev, _ := windows.UTF16PtrFromString(event)
 		h, err := windows.CreateEvent(nil, 0, 0, ev)
 		if err != nil && !errors.Is(err, windows.ERROR_ALREADY_EXISTS) {
