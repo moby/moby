@@ -80,9 +80,7 @@ func notifyShutdown(ctx context.Context, err error) {
 }
 
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.
-func (cli *daemonCLI) setupConfigReloadTrap() {
-	ctx := context.TODO()
-
+func (cli *daemonCLI) setupConfigReloadTrap(ctx context.Context) {
 	go func() {
 		event := `Global\docker-daemon-config-` + strconv.Itoa(os.Getpid())
 		ev, _ := windows.UTF16PtrFromString(event)
@@ -91,11 +89,25 @@ func (cli *daemonCLI) setupConfigReloadTrap() {
 			log.G(ctx).WithError(err).Errorf("Failed to create config reload event %s", event)
 			return
 		}
-		defer func() { _ = windows.CloseHandle(h) }()
+		stopDone := make(chan struct{})
+		stop := context.AfterFunc(ctx, func() {
+			// Wake the blocking wait so the goroutine can exit on shutdown.
+			_ = windows.SetEvent(h)
+			close(stopDone)
+		})
+		defer func() {
+			if !stop() {
+				<-stopDone
+			}
+			_ = windows.CloseHandle(h)
+		}()
 
 		log.G(ctx).Debugf("Config reload - waiting signal at %s", event)
 		for {
 			windows.WaitForSingleObject(h, windows.INFINITE)
+			if ctx.Err() != nil {
+				return
+			}
 			cli.reloadConfig()
 		}
 	}()

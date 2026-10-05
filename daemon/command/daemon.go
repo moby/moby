@@ -363,7 +363,7 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 
-	cli.setupConfigReloadTrap()
+	cli.setupConfigReloadTrap(ctx)
 
 	log.G(ctx).Info("Daemon has completed initialization")
 
