@@ -66,6 +66,9 @@ type copyInstruction struct {
 	chownStr                string
 	allowLocalDecompression bool
 	preserveOwnership       bool
+	// fromImage is set when the sources are in another build stage or image,
+	// in which case they are already owned by host (remapped) IDs.
+	fromImage bool
 }
 
 // copier reads a raw COPY or ADD command, fetches remote sources using a downloader,
@@ -97,8 +100,9 @@ func copierFromDispatchRequest(req dispatchRequest, download sourceDownloader, i
 
 func (o *copier) createCopyInstruction(sourcesAndDest instructions.SourcesAndDest, cmdName string) (copyInstruction, error) {
 	inst := copyInstruction{
-		cmdName: cmdName,
-		dest:    filepath.FromSlash(sourcesAndDest.DestPath),
+		cmdName:   cmdName,
+		dest:      filepath.FromSlash(sourcesAndDest.DestPath),
+		fromImage: o.imageSource != nil,
 	}
 	infos, err := o.getCopyInfosForSourcePaths(sourcesAndDest.SourcePaths, inst.dest)
 	if err != nil {
@@ -455,7 +459,11 @@ type identity struct {
 type copyFileOptions struct {
 	decompress bool
 	identity   *identity
-	archiver   *archive.Archiver
+	// rootUID and rootGID are the IDs of the (remapped) root user, which
+	// owns newly created parent directories of the destination.
+	rootUID  int
+	rootGID  int
+	archiver *archive.Archiver
 }
 
 func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions) error {
@@ -476,7 +484,7 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 		return errors.Wrapf(err, "source path not found")
 	}
 	if src.IsDir() {
-		return copyDirectory(archiver, srcPath, destPath, options.identity)
+		return copyDirectory(archiver, srcPath, destPath, options.identity, options.rootUID, options.rootGID)
 	}
 	if options.decompress && archive.IsArchivePath(srcPath) && !source.noDecompress {
 		f, err := os.Open(srcPath)
@@ -501,13 +509,19 @@ func performCopyForInfo(dest copyInfo, source copyInfo, options copyFileOptions)
 		// is a symlink
 		destPath = filepath.Join(destPath, filepath.Base(source.path))
 	}
-	return copyFile(archiver, srcPath, destPath, options.identity)
+	return copyFile(archiver, srcPath, destPath, options.identity, options.rootUID, options.rootGID)
 }
 
-func copyDirectory(archiver *archive.Archiver, source, dest string, identity *identity) error {
+func copyDirectory(archiver *archive.Archiver, source, dest string, identity *identity, rootUID, rootGID int) error {
 	destExists, err := isExistingDirectory(dest)
 	if err != nil {
 		return errors.Wrapf(err, "failed to query destination path")
+	}
+	// Create the destination directory and its parents owned by root,
+	// as the archiver may not have the ID mapping to do so. If chown is
+	// requested, the destination directory is chowned later.
+	if err := user.MkdirAllAndChown(dest, 0o755, rootUID, rootGID, user.WithOnlyNew); err != nil {
+		return errors.Wrapf(err, "failed to create new directory")
 	}
 
 	if err := archiver.CopyWithTar(source, dest); err != nil {
@@ -519,10 +533,10 @@ func copyDirectory(archiver *archive.Archiver, source, dest string, identity *id
 	return nil
 }
 
-func copyFile(archiver *archive.Archiver, source, dest string, identity *identity) error {
+func copyFile(archiver *archive.Archiver, source, dest string, identity *identity, rootUID, rootGID int) error {
 	if identity == nil {
-		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-			return err
+		if err := user.MkdirAllAndChown(filepath.Dir(dest), 0o755, rootUID, rootGID, user.WithOnlyNew); err != nil {
+			return errors.Wrapf(err, "failed to create new directory")
 		}
 	} else {
 		if err := user.MkdirAllAndChown(filepath.Dir(dest), 0o755, identity.UID, identity.GID, user.WithOnlyNew); err != nil {
