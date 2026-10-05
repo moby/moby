@@ -31,6 +31,7 @@ require (
 	github.com/containerd/containerd/v2 v2.4.1
 	github.com/containerd/continuity v0.5.0
 	github.com/containerd/errdefs v1.0.0
+	github.com/containerd/errdefs/pkg v0.3.0
 	github.com/containerd/fifo v1.1.0
 	github.com/containerd/log v0.2.0
 	github.com/containerd/log/otel v0.1.0
@@ -65,7 +66,7 @@ require (
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/moby/buildkit v0.34.0-rc1
 	github.com/moby/docker-image-spec v1.3.1
-	github.com/moby/extensions v0.0.0-20260918151408-e4c23d866037
+	github.com/moby/extensions v0.0.0-20260924093257-c10023566cbd
 	github.com/moby/go-archive v0.3.3
 	github.com/moby/ipvs v1.1.0
 	github.com/moby/locker v1.0.1
@@ -160,7 +161,6 @@ require (
 	github.com/container-storage-interface/spec v1.10.0 // indirect
 	github.com/containerd/accelerated-container-image v1.3.0 // indirect
 	github.com/containerd/console v1.0.5 // indirect
-	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/go-cni v1.1.14 // indirect
 	github.com/containerd/go-runc v1.2.1 // indirect
 	github.com/containerd/nydus-snapshotter v0.15.15 // indirect
