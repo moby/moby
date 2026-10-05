@@ -1,6 +1,8 @@
 package asm
 
-//go:generate go run golang.org/x/tools/cmd/stringer@latest -output load_store_string.go -type=Mode,Size
+import "fmt"
+
+//go:generate go tool stringer -output load_store_string.go -type=Mode,Size
 
 // Mode for load and store operations
 //
@@ -26,9 +28,118 @@ const (
 	MemMode Mode = 0x60
 	// MemSXMode - load from memory, sign extension
 	MemSXMode Mode = 0x80
-	// XAddMode - add atomically across processors.
-	XAddMode Mode = 0xc0
+	// AtomicMode - add atomically across processors.
+	AtomicMode Mode = 0xc0
 )
+
+const atomicMask OpCode = 0x0001_ff00
+
+type AtomicOp uint32
+
+const (
+	InvalidAtomic AtomicOp = 0xffff_ffff
+
+	// AddAtomic - add src to memory address dst atomically
+	AddAtomic AtomicOp = AtomicOp(Add) << 8
+	// FetchAdd - add src to memory address dst atomically, store result in src
+	FetchAdd AtomicOp = AddAtomic | fetch
+	// AndAtomic - bitwise AND src with memory address at dst atomically
+	AndAtomic AtomicOp = AtomicOp(And) << 8
+	// FetchAnd - bitwise AND src with memory address at dst atomically, store result in src
+	FetchAnd AtomicOp = AndAtomic | fetch
+	// OrAtomic - bitwise OR src with memory address at dst atomically
+	OrAtomic AtomicOp = AtomicOp(Or) << 8
+	// FetchOr - bitwise OR src with memory address at dst atomically, store result in src
+	FetchOr AtomicOp = OrAtomic | fetch
+	// XorAtomic - bitwise XOR src with memory address at dst atomically
+	XorAtomic AtomicOp = AtomicOp(Xor) << 8
+	// FetchXor - bitwise XOR src with memory address at dst atomically, store result in src
+	FetchXor AtomicOp = XorAtomic | fetch
+
+	// Xchg - atomically exchange the old value with the new value
+	//
+	// src gets populated with the old value of *(size *)(dst + offset).
+	Xchg AtomicOp = 0x0000_e000 | fetch
+	// CmpXchg - atomically compare and exchange the old value with the new value
+	//
+	// Compares R0 and *(size *)(dst + offset), writes src to *(size *)(dst + offset) on match.
+	// R0 gets populated with the old value of *(size *)(dst + offset), even if no exchange occurs.
+	CmpXchg AtomicOp = 0x0000_f000 | fetch
+
+	// fetch modifier for copy-modify-write atomics
+	fetch AtomicOp = 0x0000_0100
+	// loadAcquire - atomically load with acquire semantics
+	loadAcquire AtomicOp = 0x0001_0000
+	// storeRelease - atomically store with release semantics
+	storeRelease AtomicOp = 0x0001_1000
+)
+
+func (op AtomicOp) String() string {
+	var name string
+	switch op {
+	case AddAtomic, AndAtomic, OrAtomic, XorAtomic:
+		name = ALUOp(op >> 8).String()
+	case FetchAdd, FetchAnd, FetchOr, FetchXor:
+		name = "Fetch" + ALUOp((op^fetch)>>8).String()
+	case Xchg:
+		name = "Xchg"
+	case CmpXchg:
+		name = "CmpXchg"
+	case loadAcquire:
+		name = "LdAcq"
+	case storeRelease:
+		name = "StRel"
+	default:
+		name = fmt.Sprintf("AtomicOp(%#x)", uint32(op))
+	}
+
+	return name
+}
+
+func (op AtomicOp) OpCode(size Size) OpCode {
+	switch op {
+	case AddAtomic, AndAtomic, OrAtomic, XorAtomic,
+		FetchAdd, FetchAnd, FetchOr, FetchXor,
+		Xchg, CmpXchg:
+		switch size {
+		case Byte, Half:
+			// 8-bit and 16-bit atomic copy-modify-write atomics are not supported
+			return InvalidOpCode
+		}
+	}
+
+	return OpCode(StXClass).SetMode(AtomicMode).SetSize(size).SetAtomicOp(op)
+}
+
+// Mem emits `*(size *)(dst + offset) (op) src`.
+func (op AtomicOp) Mem(dst, src Register, size Size, offset int16) Instruction {
+	return Instruction{
+		OpCode: op.OpCode(size),
+		Dst:    dst,
+		Src:    src,
+		Offset: offset,
+	}
+}
+
+// Emits `lock-acquire dst = *(size *)(src + offset)`.
+func LoadAcquire(dst, src Register, size Size, offset int16) Instruction {
+	return Instruction{
+		OpCode: loadAcquire.OpCode(size),
+		Dst:    dst,
+		Src:    src,
+		Offset: offset,
+	}
+}
+
+// Emits `lock-release *(size *)(dst + offset) = src`.
+func StoreRelease(dst, src Register, size Size, offset int16) Instruction {
+	return Instruction{
+		OpCode: storeRelease.OpCode(size),
+		Dst:    dst,
+		Src:    src,
+		Offset: offset,
+	}
+}
 
 // Size of load and store operations
 //
@@ -202,6 +313,10 @@ func StoreImmOp(size Size) OpCode {
 
 // StoreImm emits `*(size *)(dst + offset) = value`.
 func StoreImm(dst Register, offset int16, value int64, size Size) Instruction {
+	if size == DWord {
+		return Instruction{OpCode: InvalidOpCode}
+	}
+
 	return Instruction{
 		OpCode:   StoreImmOp(size),
 		Dst:      dst,
@@ -212,14 +327,10 @@ func StoreImm(dst Register, offset int16, value int64, size Size) Instruction {
 
 // StoreXAddOp returns the OpCode to atomically add a register to a value in memory.
 func StoreXAddOp(size Size) OpCode {
-	return OpCode(StXClass).SetMode(XAddMode).SetSize(size)
+	return AddAtomic.OpCode(size)
 }
 
 // StoreXAdd atomically adds src to *dst.
 func StoreXAdd(dst, src Register, size Size) Instruction {
-	return Instruction{
-		OpCode: StoreXAddOp(size),
-		Dst:    dst,
-		Src:    src,
-	}
+	return AddAtomic.Mem(dst, src, size, 0)
 }

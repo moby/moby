@@ -40,6 +40,7 @@ const (
 	PseudoCall      = R1 // BPF_PSEUDO_CALL
 	PseudoFunc      = R4 // BPF_PSEUDO_FUNC
 	PseudoKfuncCall = R2 // BPF_PSEUDO_KFUNC_CALL
+	PseudoMayGoto   = R0 // BPF_MAY_GOTO
 )
 
 func (r Register) String() string {

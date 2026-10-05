@@ -17,8 +17,9 @@ const _ProbeType_name = "kprobeuprobe"
 var _ProbeType_index = [...]uint8{0, 6, 12}
 
 func (i ProbeType) String() string {
-	if i >= ProbeType(len(_ProbeType_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_ProbeType_index)-1 {
 		return "ProbeType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _ProbeType_name[_ProbeType_index[i]:_ProbeType_index[i+1]]
+	return _ProbeType_name[_ProbeType_index[idx]:_ProbeType_index[idx+1]]
 }
