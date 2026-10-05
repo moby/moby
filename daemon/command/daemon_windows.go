@@ -81,18 +81,22 @@ func notifyShutdown(ctx context.Context, err error) {
 
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.
 func (cli *daemonCLI) setupConfigReloadTrap() {
+	ctx := context.TODO()
+
 	go func() {
-		sa := windows.SecurityAttributes{
-			Length: 0,
-		}
 		event := "Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid())
 		ev, _ := windows.UTF16PtrFromString(event)
-		if h, _ := windows.CreateEvent(&sa, 0, 0, ev); h != 0 {
-			log.G(context.TODO()).Debugf("Config reload - waiting signal at %s", event)
-			for {
-				windows.WaitForSingleObject(h, windows.INFINITE)
-				cli.reloadConfig()
-			}
+		h, err := windows.CreateEvent(nil, 0, 0, ev)
+		if err != nil && !errors.Is(err, windows.ERROR_ALREADY_EXISTS) {
+			log.G(ctx).WithError(err).Errorf("Failed to create config reload event %s", event)
+			return
+		}
+		defer func() { _ = windows.CloseHandle(h) }()
+
+		log.G(ctx).Debugf("Config reload - waiting signal at %s", event)
+		for {
+			windows.WaitForSingleObject(h, windows.INFINITE)
+			cli.reloadConfig()
 		}
 	}()
 }
