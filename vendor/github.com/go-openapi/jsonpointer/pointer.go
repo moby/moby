@@ -284,7 +284,7 @@ func (p *Pointer) set(node, data any, nameProvider NameProvider) (any, error) {
 // new child reference (e.g. a slice header returned by an "-" append) into its parent on the way
 // back up.
 //
-// Returning the (possibly new) node at each level is what makes append work at any depth without
+// Returning the (possibly new) node at each level makes append work at any depth without
 // requiring the caller to pass a pointer to the containing slice: the new slice header propagates
 // up and each parent rebinds it via the appropriate kind-specific setter.
 func (p *Pointer) setAt(node any, tokens []string, data any, nameProvider NameProvider) (any, error) {

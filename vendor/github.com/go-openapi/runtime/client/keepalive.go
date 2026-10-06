@@ -35,6 +35,7 @@ func (k *keepAliveTransport) RoundTrip(r *http.Request) (*http.Response, error) 
 type drainingReadCloser struct {
 	rdr     io.ReadCloser
 	seenEOF atomic.Uint32
+	discard io.Writer
 }
 
 func (d *drainingReadCloser) Read(p []byte) (n int, err error) {
@@ -51,7 +52,11 @@ func (d *drainingReadCloser) Close() error {
 		// If the reader side (a HTTP server) is misbehaving, it still may send
 		// some bytes, but the closer ignores them to keep the underling
 		// connection open.
-		_, _ = io.Copy(io.Discard, d.rdr)
+		discard := d.discard
+		if discard == nil {
+			discard = io.Discard
+		}
+		_, _ = io.Copy(discard, d.rdr)
 	}
 	return d.rdr.Close()
 }

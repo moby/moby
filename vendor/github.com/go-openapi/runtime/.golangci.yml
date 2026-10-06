@@ -5,6 +5,7 @@ linters:
     - depguard
     - err113 # disabled temporarily: there are just too many issues to address
     - exhaustruct
+    - exhaustruct_v5
     - funlen
     - gochecknoglobals
     - gochecknoinits

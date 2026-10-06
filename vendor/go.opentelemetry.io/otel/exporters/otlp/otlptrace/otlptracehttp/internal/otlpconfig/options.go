@@ -34,6 +34,9 @@ const (
 	// DefaultMaxRequestSize is the default maximum size of a serialized export
 	// request, before compression.
 	DefaultMaxRequestSize int = 64 * 1024 * 1024
+	// DefaultMaxResponseSize is the default maximum size of an OTLP/HTTP
+	// response body, after decompression.
+	DefaultMaxResponseSize int64 = 4 * 1024 * 1024
 	// DefaultTimeout is a default max waiting time for the backend to process
 	// each span batch.
 	DefaultTimeout time.Duration = 10 * time.Second
@@ -44,16 +47,18 @@ type (
 	// This type is compatible with `http.Transport.Proxy` and can be used to set a custom proxy function to the OTLP HTTP client.
 	HTTPTransportProxyFunc func(*http.Request) (*url.URL, error)
 
+	// SignalConfig holds the configuration for exporting a single signal.
 	SignalConfig struct {
-		Endpoint       string
-		Insecure       bool
-		TLSCfg         *tls.Config
-		Headers        map[string]string
-		Compression    Compression
-		Protocol       Protocol
-		MaxRequestSize int
-		Timeout        time.Duration
-		URLPath        string
+		Endpoint        string
+		Insecure        bool
+		TLSCfg          *tls.Config
+		Headers         map[string]string
+		Compression     Compression
+		Protocol        Protocol
+		MaxRequestSize  int
+		MaxResponseSize int64
+		Timeout         time.Duration
+		URLPath         string
 
 		// gRPC configurations
 		GRPCCredentials credentials.TransportCredentials
@@ -63,6 +68,7 @@ type (
 		HTTPClient *http.Client
 	}
 
+	// Config holds the configuration for an otlptrace exporter.
 	Config struct {
 		// Signal specific configurations
 		Traces SignalConfig
@@ -82,12 +88,13 @@ type (
 func NewHTTPConfig(opts ...HTTPOption) Config {
 	cfg := Config{
 		Traces: SignalConfig{
-			Endpoint:       fmt.Sprintf("%s:%d", DefaultCollectorHost, DefaultCollectorHTTPPort),
-			URLPath:        DefaultTracesPath,
-			Compression:    NoCompression,
-			Protocol:       ProtocolHTTPProtobuf,
-			MaxRequestSize: DefaultMaxRequestSize,
-			Timeout:        DefaultTimeout,
+			Endpoint:        fmt.Sprintf("%s:%d", DefaultCollectorHost, DefaultCollectorHTTPPort),
+			URLPath:         DefaultTracesPath,
+			Compression:     NoCompression,
+			Protocol:        ProtocolHTTPProtobuf,
+			MaxRequestSize:  DefaultMaxRequestSize,
+			MaxResponseSize: DefaultMaxResponseSize,
+			Timeout:         DefaultTimeout,
 		},
 		RetryConfig: retry.DefaultConfig,
 	}
@@ -126,37 +133,42 @@ func NewGRPCConfig(opts ...GRPCOption) Config {
 			Timeout:        DefaultTimeout,
 		},
 		RetryConfig: retry.DefaultConfig,
-		DialOptions: []grpc.DialOption{grpc.WithUserAgent(userAgent)},
 	}
 	cfg = ApplyGRPCEnvConfigs(cfg)
 	for _, opt := range opts {
 		cfg = opt.ApplyGRPCOption(cfg)
 	}
 
+	// dialOptsPrefix holds the internally computed defaults. It is prepended
+	// to cfg.DialOptions so that a raw grpc.DialOption supplied via WithDialOption
+	// always takes precedence: grpc.DialOption values are opaque closures, so this code has no way to
+	// detect a conflicting user-supplied option and defer to it instead.
+	dialOptsPrefix := []grpc.DialOption{grpc.WithUserAgent(userAgent)}
 	if cfg.ServiceConfig != "" {
-		cfg.DialOptions = append(cfg.DialOptions, grpc.WithDefaultServiceConfig(cfg.ServiceConfig))
+		dialOptsPrefix = append(dialOptsPrefix, grpc.WithDefaultServiceConfig(cfg.ServiceConfig))
 	}
 	// Prioritize GRPCCredentials over Insecure (passing both is an error).
 	if cfg.Traces.GRPCCredentials != nil { //nolint:gocritic // if-else is clearer than switch
-		cfg.DialOptions = append(cfg.DialOptions, grpc.WithTransportCredentials(cfg.Traces.GRPCCredentials))
+		dialOptsPrefix = append(dialOptsPrefix, grpc.WithTransportCredentials(cfg.Traces.GRPCCredentials))
 	} else if cfg.Traces.Insecure {
-		cfg.DialOptions = append(cfg.DialOptions, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		dialOptsPrefix = append(dialOptsPrefix, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else {
 		// Default to using the host's root CA.
 		creds := credentials.NewTLS(nil)
 		cfg.Traces.GRPCCredentials = creds
-		cfg.DialOptions = append(cfg.DialOptions, grpc.WithTransportCredentials(creds))
+		dialOptsPrefix = append(dialOptsPrefix, grpc.WithTransportCredentials(creds))
 	}
 	if cfg.Traces.Compression == GzipCompression {
-		cfg.DialOptions = append(cfg.DialOptions, grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)))
+		dialOptsPrefix = append(dialOptsPrefix, grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)))
 	}
 	if cfg.ReconnectionPeriod != 0 {
 		p := grpc.ConnectParams{
 			Backoff:           backoff.DefaultConfig,
 			MinConnectTimeout: cfg.ReconnectionPeriod,
 		}
-		cfg.DialOptions = append(cfg.DialOptions, grpc.WithConnectParams(p))
+		dialOptsPrefix = append(dialOptsPrefix, grpc.WithConnectParams(p))
 	}
+	cfg.DialOptions = append(dialOptsPrefix, cfg.DialOptions...)
 
 	return cfg
 }
@@ -246,6 +258,7 @@ func (h *httpOption) ApplyHTTPOption(cfg Config) Config {
 
 func (httpOption) private() {}
 
+// NewHTTPOption creates an option that is only applied to the HTTP driver.
 func NewHTTPOption(fn func(cfg Config) Config) HTTPOption {
 	return &httpOption{fn: fn}
 }
@@ -261,6 +274,7 @@ func (h *grpcOption) ApplyGRPCOption(cfg Config) Config {
 
 func (grpcOption) private() {}
 
+// NewGRPCOption creates an option that is only applied to the gRPC driver.
 func NewGRPCOption(fn func(cfg Config) Config) GRPCOption {
 	return &grpcOption{fn: fn}
 }
@@ -300,6 +314,7 @@ func WithEndpointURL(v string) GenericOption {
 	})
 }
 
+// WithCompression configures the compression used for exports.
 func WithCompression(compression Compression) GenericOption {
 	return newGenericOption(func(cfg Config) Config {
 		cfg.Traces.Compression = compression
@@ -307,6 +322,7 @@ func WithCompression(compression Compression) GenericOption {
 	})
 }
 
+// WithURLPath configures the URL path the exporter sends requests to.
 func WithURLPath(urlPath string) GenericOption {
 	return newGenericOption(func(cfg Config) Config {
 		cfg.Traces.URLPath = urlPath
@@ -314,6 +330,7 @@ func WithURLPath(urlPath string) GenericOption {
 	})
 }
 
+// WithRetry configures the retry policy used on failed exports.
 func WithRetry(rc retry.Config) GenericOption {
 	return newGenericOption(func(cfg Config) Config {
 		cfg.RetryConfig = rc
@@ -321,6 +338,8 @@ func WithRetry(rc retry.Config) GenericOption {
 	})
 }
 
+// WithTLSClientConfig configures the TLS configuration used by the
+// exporter's client.
 func WithTLSClientConfig(tlsCfg *tls.Config) GenericOption {
 	return newSplitOption(func(cfg Config) Config {
 		cfg.Traces.TLSCfg = tlsCfg.Clone()
@@ -331,6 +350,8 @@ func WithTLSClientConfig(tlsCfg *tls.Config) GenericOption {
 	})
 }
 
+// WithInsecure disables client transport security for the exporter's
+// connection.
 func WithInsecure() GenericOption {
 	return newGenericOption(func(cfg Config) Config {
 		cfg.Traces.Insecure = true
@@ -338,6 +359,8 @@ func WithInsecure() GenericOption {
 	})
 }
 
+// WithSecure enables client transport security for the exporter's
+// connection.
 func WithSecure() GenericOption {
 	return newGenericOption(func(cfg Config) Config {
 		cfg.Traces.Insecure = false
@@ -345,6 +368,7 @@ func WithSecure() GenericOption {
 	})
 }
 
+// WithHeaders configures headers sent with every export request.
 func WithHeaders(headers map[string]string) GenericOption {
 	return newGenericOption(func(cfg Config) Config {
 		cfg.Traces.Headers = headers
@@ -352,6 +376,8 @@ func WithHeaders(headers map[string]string) GenericOption {
 	})
 }
 
+// WithTimeout configures the max waiting time for the backend to process
+// each export batch.
 func WithTimeout(duration time.Duration) GenericOption {
 	return newGenericOption(func(cfg Config) Config {
 		cfg.Traces.Timeout = duration
@@ -359,6 +385,8 @@ func WithTimeout(duration time.Duration) GenericOption {
 	})
 }
 
+// WithMaxRequestSize configures the maximum size, in bytes, of a serialized
+// export request, before compression.
 func WithMaxRequestSize(size int) GenericOption {
 	return newGenericOption(func(cfg Config) Config {
 		cfg.Traces.MaxRequestSize = size
@@ -366,6 +394,19 @@ func WithMaxRequestSize(size int) GenericOption {
 	})
 }
 
+// WithMaxResponseSize configures the maximum size, in bytes, of an OTLP/HTTP
+// response body, after decompression.
+func WithMaxResponseSize(size int64) HTTPOption {
+	return NewHTTPOption(func(cfg Config) Config {
+		if size > 0 {
+			cfg.Traces.MaxResponseSize = size
+		}
+		return cfg
+	})
+}
+
+// WithProxy configures the proxy function used by the exporter's HTTP
+// client.
 func WithProxy(pf HTTPTransportProxyFunc) GenericOption {
 	return newGenericOption(func(cfg Config) Config {
 		cfg.Traces.Proxy = pf
@@ -373,6 +414,7 @@ func WithProxy(pf HTTPTransportProxyFunc) GenericOption {
 	})
 }
 
+// WithHTTPClient configures the HTTP client used to make requests.
 func WithHTTPClient(c *http.Client) GenericOption {
 	return newGenericOption(func(cfg Config) Config {
 		cfg.Traces.HTTPClient = c
@@ -380,6 +422,7 @@ func WithHTTPClient(c *http.Client) GenericOption {
 	})
 }
 
+// WithProtocol configures the protocol used to encode and send telemetry.
 func WithProtocol(protocol Protocol) GenericOption {
 	return newSplitOption(
 		// For OTLP/HTTP endpoints, this is the encoding format of the payloads sent to the collector.

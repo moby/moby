@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"net/textproto"
@@ -157,7 +158,7 @@ func annotateContext(ctx context.Context, mux *ServeMux, req *http.Request, rpcM
 
 		for _, val := range vals {
 			// For backwards-compatibility, pass through 'authorization' header with no prefix.
-			if key == "Authorization" {
+			if key == "Authorization" && isValidGRPCMetadataTextValue(val) {
 				pairs = append(pairs, "authorization", val)
 			}
 			if h, ok := mux.incomingHeaderMatcher(key); ok {
@@ -182,9 +183,9 @@ func annotateContext(ctx context.Context, mux *ServeMux, req *http.Request, rpcM
 			}
 		}
 	}
-	if host := req.Header.Get(xForwardedHost); host != "" {
+	if host := req.Header.Get(xForwardedHost); host != "" && isValidGRPCMetadataTextValue(host) {
 		pairs = append(pairs, strings.ToLower(xForwardedHost), host)
-	} else if req.Host != "" {
+	} else if req.Host != "" && isValidGRPCMetadataTextValue(req.Host) {
 		pairs = append(pairs, strings.ToLower(xForwardedHost), req.Host)
 	}
 
@@ -195,7 +196,9 @@ func annotateContext(ctx context.Context, mux *ServeMux, req *http.Request, rpcM
 		}
 	}
 	if len(xff) > 0 {
-		pairs = append(pairs, strings.ToLower(xForwardedFor), strings.Join(xff, ", "))
+		if value := strings.Join(xff, ", "); isValidGRPCMetadataTextValue(value) {
+			pairs = append(pairs, strings.ToLower(xForwardedFor), value)
+		}
 	}
 
 	if timeout != 0 {
@@ -302,9 +305,15 @@ func timeoutDecode(s string) (time.Duration, error) {
 	if !ok {
 		return 0, fmt.Errorf("timeout unit is not recognized: %q", s)
 	}
-	t, err := strconv.ParseInt(s[:size-1], 10, 64)
+	t, err := strconv.ParseUint(s[:size-1], 10, 64)
 	if err != nil {
 		return 0, err
+	}
+	// Guard against overflowing time.Duration, which is an int64 nanosecond
+	// count: without this a large value wraps to a bogus (often negative)
+	// deadline instead of the long timeout the client asked for.
+	if t > uint64(math.MaxInt64)/uint64(d) {
+		return time.Duration(math.MaxInt64), nil
 	}
 	return d * time.Duration(t), nil
 }

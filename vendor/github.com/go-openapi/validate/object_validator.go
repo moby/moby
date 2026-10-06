@@ -4,7 +4,6 @@
 package validate
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
 
@@ -14,7 +13,7 @@ import (
 )
 
 type objectValidator struct {
-	Path                 string
+	Path                 pathSegments
 	In                   string
 	MaxProperties        *int64
 	MinProperties        *int64
@@ -25,10 +24,9 @@ type objectValidator struct {
 	Root                 any
 	KnownFormats         strfmt.Registry
 	Options              *SchemaValidatorOptions
-	splitPath            []string
 }
 
-func newObjectValidator(path, in string,
+func newObjectValidator(path pathSegments, in string,
 	maxProperties, minProperties *int64, required []string, properties spec.SchemaProperties,
 	additionalProperties *spec.SchemaOrBool, patternProperties spec.SchemaProperties,
 	root any, formats strfmt.Registry, opts *SchemaValidatorOptions,
@@ -39,7 +37,7 @@ func newObjectValidator(path, in string,
 
 	var v *objectValidator
 	if opts.recycleValidators {
-		v = pools.poolOfObjectValidators.BorrowValidator()
+		v = validatorPools.objectValidators.Borrow()
 	} else {
 		v = new(objectValidator)
 	}
@@ -55,7 +53,6 @@ func newObjectValidator(path, in string,
 	v.Root = root
 	v.KnownFormats = formats
 	v.Options = opts
-	v.splitPath = strings.Split(v.Path, ".")
 
 	return v
 }
@@ -72,21 +69,21 @@ func (o *objectValidator) Validate(data any) *Result {
 		var ok bool
 		val, ok = data.(map[string]any)
 		if !ok {
-			return errorHelp.sErr(invalidObjectMsg(o.Path, o.In), o.Options.recycleResult)
+			return errorHelp.sErrAt(o.Path, invalidObjectMsg(o.Path.dotted(), o.In), o.Options.recycleResult)
 		}
 	}
 	numKeys := int64(len(val))
 
 	if o.MinProperties != nil && numKeys < *o.MinProperties {
-		return errorHelp.sErr(errors.TooFewProperties(o.Path, o.In, *o.MinProperties), o.Options.recycleResult)
+		return errorHelp.sErrAt(o.Path, errors.TooFewProperties(o.Path.dotted(), o.In, *o.MinProperties), o.Options.recycleResult)
 	}
 	if o.MaxProperties != nil && numKeys > *o.MaxProperties {
-		return errorHelp.sErr(errors.TooManyProperties(o.Path, o.In, *o.MaxProperties), o.Options.recycleResult)
+		return errorHelp.sErrAt(o.Path, errors.TooManyProperties(o.Path.dotted(), o.In, *o.MaxProperties), o.Options.recycleResult)
 	}
 
 	var res *Result
 	if o.Options.recycleResult {
-		res = pools.poolOfResults.BorrowResult()
+		res = validatorPools.results.Borrow()
 	} else {
 		res = new(Result)
 	}
@@ -106,7 +103,8 @@ func (o *objectValidator) Validate(data any) *Result {
 
 	// Check patternProperties
 	// NOTE: it looks like we have done that twice in many cases
-	for key, value := range val {
+	for _, key := range sortedKeys(val) {
+		value := val[key]
 		_, regularProperty := o.Properties[key]
 		matched, _, patterns := o.validatePatternProperty(key, value, res) // applies to regular properties as well
 		if regularProperty || !matched {
@@ -115,18 +113,13 @@ func (o *objectValidator) Validate(data any) *Result {
 
 		for _, pName := range patterns {
 			if v, ok := o.PatternProperties[pName]; ok {
-				r := newSchemaValidator(&v, o.Root, o.Path+"."+key, o.KnownFormats, o.Options).Validate(value)
+				r := newSchemaValidator(&v, o.Root, o.Path.child(key), o.KnownFormats, o.Options).Validate(value)
 				res.mergeForField(data.(map[string]any), key, r) //nolint:forcetypeassert // data is always map[string]any at this point
 			}
 		}
 	}
 
 	return res
-}
-
-func (o *objectValidator) SetPath(path string) {
-	o.Path = path
-	o.splitPath = strings.Split(path, ".")
 }
 
 func (o *objectValidator) Applies(source any, kind reflect.Kind) bool {
@@ -137,19 +130,29 @@ func (o *objectValidator) Applies(source any, kind reflect.Kind) bool {
 	return isSchema && (kind == reflect.Map || kind == reflect.Struct)
 }
 
+// The three predicates below tell what kind of content the validated object
+// is, so that schema-only checks are not run against plain data.
+//
+// Array indices are trimmed first: an element of an example is example data
+// just as much as the example itself.
+
 func (o *objectValidator) isProperties() bool {
-	p := o.splitPath
-	return len(p) > 1 && p[len(p)-1] == jsonProperties && p[len(p)-2] != jsonProperties
+	p := o.Path.trimIndexes()
+
+	return p.last() == jsonProperties && p.beforeLast() != jsonProperties
 }
 
 func (o *objectValidator) isDefault() bool {
-	p := o.splitPath
-	return len(p) > 1 && p[len(p)-1] == jsonDefault && p[len(p)-2] != jsonDefault
+	p := o.Path.trimIndexes()
+
+	return p.last() == jsonDefault && p.beforeLast() != jsonDefault
 }
 
 func (o *objectValidator) isExample() bool {
-	p := o.splitPath
-	return len(p) > 1 && (p[len(p)-1] == swaggerExample || p[len(p)-1] == swaggerExamples) && p[len(p)-2] != swaggerExample
+	p := o.Path.trimIndexes()
+	last := p.last()
+
+	return (last == swaggerExample || last == swaggerExamples) && p.beforeLast() != swaggerExample
 }
 
 func (o *objectValidator) checkArrayMustHaveItems(res *Result, val map[string]any) {
@@ -174,7 +177,7 @@ func (o *objectValidator) checkArrayMustHaveItems(res *Result, val map[string]an
 		return
 	}
 
-	res.AddErrors(errors.Required(jsonItems, o.Path, item))
+	res.addErrorsAt(o.Path, errors.Required(jsonItems, o.Path.dotted(), item))
 }
 
 func (o *objectValidator) checkItemsMustBeTypeArray(res *Result, val map[string]any) {
@@ -194,11 +197,11 @@ func (o *objectValidator) checkItemsMustBeTypeArray(res *Result, val map[string]
 	t, typeFound := val[jsonType]
 	if !typeFound {
 		// there is no type
-		res.AddErrors(errors.Required(jsonType, o.Path, t))
+		res.addErrorsAt(o.Path, errors.Required(jsonType, o.Path.dotted(), t))
 	}
 
 	if tpe, isString := t.(string); !isString || tpe != arrayType {
-		res.AddErrors(errors.InvalidType(o.Path, o.In, arrayType, nil))
+		res.addErrorsAt(o.Path, errors.InvalidType(o.Path.dotted(), o.In, arrayType, nil))
 	}
 }
 
@@ -212,7 +215,7 @@ func (o *objectValidator) precheck(res *Result, val map[string]any) {
 }
 
 func (o *objectValidator) validateNoAdditionalProperties(val map[string]any, res *Result) {
-	for k := range val {
+	for _, k := range sortedKeys(val) {
 		if k == "$schema" || k == "id" {
 			// special properties "$schema" and "id" are ignored
 			continue
@@ -238,7 +241,7 @@ func (o *objectValidator) validateNoAdditionalProperties(val map[string]any, res
 			continue
 		}
 
-		res.AddErrors(errors.PropertyNotAllowed(o.Path, o.In, k))
+		res.addErrorsAt(o.Path.child(k), errors.PropertyNotAllowed(o.Path.dotted(), o.In, k))
 
 		// BUG(fredbi): This section should move to a part dedicated to spec validation as
 		// it will conflict with regular schemas where a property "headers" is defined.
@@ -261,7 +264,8 @@ func (o *objectValidator) validateNoAdditionalProperties(val map[string]any, res
 			continue
 		}
 
-		for headerKey, headerBody := range headers {
+		for _, headerKey := range sortedKeys(headers) {
+			headerBody := headers[headerKey]
 			if headerBody == nil {
 				continue
 			}
@@ -282,7 +286,7 @@ func (o *objectValidator) validateNoAdditionalProperties(val map[string]any, res
 			}
 
 			msg := strings.Join([]string{", one may not use $ref=\":", refString, "\""}, "")
-			res.AddErrors(refNotAllowedInHeaderMsg(o.Path, headerKey, msg))
+			res.addErrorsAt(o.Path, refNotAllowedInHeaderMsg(o.Path.dotted(), headerKey, msg))
 			/*
 				case "$ref":
 					if val[k] != nil {
@@ -294,7 +298,8 @@ func (o *objectValidator) validateNoAdditionalProperties(val map[string]any, res
 }
 
 func (o *objectValidator) validateAdditionalProperties(val map[string]any, res *Result) {
-	for key, value := range val {
+	for _, key := range sortedKeys(val) {
+		value := val[key]
 		_, regularProperty := o.Properties[key]
 		if regularProperty {
 			continue
@@ -315,7 +320,7 @@ func (o *objectValidator) validateAdditionalProperties(val map[string]any, res *
 
 		// Cases: properties which are not regular properties and have not been matched by the PatternProperties validator
 		// AdditionalProperties as Schema
-		r := newSchemaValidator(o.AdditionalProperties.Schema, o.Root, o.Path+"."+key, o.KnownFormats, o.Options).Validate(value)
+		r := newSchemaValidator(o.AdditionalProperties.Schema, o.Root, o.Path.child(key), o.KnownFormats, o.Options).Validate(value)
 		res.mergeForField(val, key, r)
 	}
 	// Valid cases: additionalProperties: true or undefined
@@ -326,19 +331,14 @@ func (o *objectValidator) validatePropertiesSchema(val map[string]any, res *Resu
 
 	// Property types:
 	// - regular Property
-	pSchema := pools.poolOfSchemas.BorrowSchema() // recycle a spec.Schema object which lifespan extends only to the validation of properties
+	pSchema := validatorPools.schemas.Borrow() // recycle a spec.Schema object which lifespan extends only to the validation of properties
 	defer func() {
-		pools.poolOfSchemas.RedeemSchema(pSchema)
+		validatorPools.schemas.Redeem(pSchema)
 	}()
 
-	for pName := range o.Properties {
+	for _, pName := range sortedKeys(o.Properties) {
 		*pSchema = o.Properties[pName]
-		var rName string
-		if o.Path == "" {
-			rName = pName
-		} else {
-			rName = o.Path + "." + pName
-		}
+		rName := o.Path.child(pName)
 
 		// Recursively validates each property against its schema
 		v, ok := val[pName]
@@ -374,7 +374,9 @@ func (o *objectValidator) validatePropertiesSchema(val map[string]any, res *Resu
 			continue
 		}
 
-		res.AddErrors(errors.Required(fmt.Sprintf("%s.%s", o.Path, k), o.In, v))
+		// located on the object that lacks the property: the property itself
+		// has no node to point at, and the object has to be amended
+		res.addErrorsAt(o.Path, errors.Required(o.Path.child(k).dotted(), o.In, v))
 	}
 }
 
@@ -388,12 +390,12 @@ func (o *objectValidator) validatePatternProperty(key string, value any, result 
 	succeededOnce := false
 	patterns := make([]string, 0, len(o.PatternProperties))
 
-	schema := pools.poolOfSchemas.BorrowSchema()
+	schema := validatorPools.schemas.Borrow()
 	defer func() {
-		pools.poolOfSchemas.RedeemSchema(schema)
+		validatorPools.schemas.Redeem(schema)
 	}()
 
-	for k := range o.PatternProperties {
+	for _, k := range sortedKeys(o.PatternProperties) {
 		re, err := compileRegexp(k)
 		if err != nil {
 			continue
@@ -407,7 +409,7 @@ func (o *objectValidator) validatePatternProperty(key string, value any, result 
 		*schema = o.PatternProperties[k]
 		patterns = append(patterns, k)
 		matched = true
-		validator := newSchemaValidator(schema, o.Root, fmt.Sprintf("%s.%s", o.Path, key), o.KnownFormats, o.Options)
+		validator := newSchemaValidator(schema, o.Root, o.Path.child(key), o.KnownFormats, o.Options)
 
 		res := validator.Validate(value)
 		result.Merge(res)
@@ -416,6 +418,10 @@ func (o *objectValidator) validatePatternProperty(key string, value any, result 
 	return matched, succeededOnce, patterns
 }
 
+func (o *objectValidator) setPath(path pathSegments) {
+	o.Path = path
+}
+
 func (o *objectValidator) redeem() {
-	pools.poolOfObjectValidators.RedeemValidator(o)
+	validatorPools.objectValidators.Redeem(o)
 }

@@ -4,12 +4,15 @@
 package metric
 
 import (
+	"errors"
 	"os"
 	"strconv"
 	"time"
 
 	"go.opentelemetry.io/otel/internal/global"
 )
+
+var errDurationOverflow = errors.New("duration overflows time.Duration")
 
 // Environment variable names.
 const (
@@ -26,13 +29,17 @@ func envDuration(key string, defaultValue time.Duration) time.Duration {
 	if v == "" {
 		return defaultValue
 	}
-	d, err := strconv.Atoi(v)
+	d, err := strconv.ParseInt(v, 10, 64)
 	if err != nil {
 		global.Error(err, "parse duration", "environment variable", key, "value", v)
 		return defaultValue
 	}
 	if d <= 0 {
 		global.Error(errNonPositiveDuration, "non-positive duration", "environment variable", key, "value", v)
+		return defaultValue
+	}
+	if d > int64(time.Duration(1<<63-1)/time.Millisecond) {
+		global.Error(errDurationOverflow, "duration overflows time.Duration", "environment variable", key, "value", v)
 		return defaultValue
 	}
 	return time.Duration(d) * time.Millisecond

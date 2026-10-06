@@ -12,7 +12,7 @@ import (
 )
 
 type schemaPropsValidator struct {
-	Path            string
+	Path            pathSegments
 	In              string
 	AllOf           []spec.Schema
 	OneOf           []spec.Schema
@@ -28,12 +28,8 @@ type schemaPropsValidator struct {
 	Options         *SchemaValidatorOptions
 }
 
-func (s *schemaPropsValidator) SetPath(path string) {
-	s.Path = path
-}
-
 func newSchemaPropsValidator(
-	path string, in string, allOf, oneOf, anyOf []spec.Schema, not *spec.Schema, deps spec.Dependencies, root any, formats strfmt.Registry,
+	path pathSegments, in string, allOf, oneOf, anyOf []spec.Schema, not *spec.Schema, deps spec.Dependencies, root any, formats strfmt.Registry,
 	opts *SchemaValidatorOptions,
 ) *schemaPropsValidator {
 	if opts == nil {
@@ -60,7 +56,7 @@ func newSchemaPropsValidator(
 
 	var s *schemaPropsValidator
 	if opts.recycleValidators {
-		s = pools.poolOfSchemaPropsValidators.BorrowValidator()
+		s = validatorPools.schemaPropsValidators.Borrow()
 	} else {
 		s = new(schemaPropsValidator)
 	}
@@ -91,7 +87,7 @@ func (s *schemaPropsValidator) Applies(source any, _ reflect.Kind) bool {
 func (s *schemaPropsValidator) Validate(data any) *Result {
 	var mainResult *Result
 	if s.Options.recycleResult {
-		mainResult = pools.poolOfResults.BorrowResult()
+		mainResult = validatorPools.results.Borrow()
 	} else {
 		mainResult = new(Result)
 	}
@@ -111,17 +107,17 @@ func (s *schemaPropsValidator) Validate(data any) *Result {
 	}
 
 	if len(s.anyOfValidators) > 0 {
-		keepResultAnyOf = pools.poolOfResults.BorrowResult()
+		keepResultAnyOf = validatorPools.results.Borrow()
 		s.validateAnyOf(data, mainResult, keepResultAnyOf)
 	}
 
 	if len(s.oneOfValidators) > 0 {
-		keepResultOneOf = pools.poolOfResults.BorrowResult()
+		keepResultOneOf = validatorPools.results.Borrow()
 		s.validateOneOf(data, mainResult, keepResultOneOf)
 	}
 
 	if len(s.allOfValidators) > 0 {
-		keepResultAllOf = pools.poolOfResults.BorrowResult()
+		keepResultAllOf = validatorPools.results.Borrow()
 		s.validateAllOf(data, mainResult, keepResultAllOf)
 	}
 
@@ -154,7 +150,7 @@ func (s *schemaPropsValidator) validateAnyOf(data any, mainResult, keepResultAny
 
 		if result.IsValid() {
 			if bestFailures != nil && bestFailures.wantsRedeemOnMerge {
-				pools.poolOfResults.RedeemResult(bestFailures)
+				redeemResult(bestFailures)
 			}
 
 			_ = keepResultAnyOf.cleared()
@@ -166,7 +162,7 @@ func (s *schemaPropsValidator) validateAnyOf(data any, mainResult, keepResultAny
 		// MatchCount is used to select errors from the schema with most positive checks
 		if bestFailures == nil || result.MatchCount > bestFailures.MatchCount {
 			if bestFailures != nil && bestFailures.wantsRedeemOnMerge {
-				pools.poolOfResults.RedeemResult(bestFailures)
+				redeemResult(bestFailures)
 			}
 			bestFailures = result
 
@@ -174,11 +170,11 @@ func (s *schemaPropsValidator) validateAnyOf(data any, mainResult, keepResultAny
 		}
 
 		if result.wantsRedeemOnMerge {
-			pools.poolOfResults.RedeemResult(result) // this result is ditched
+			redeemResult(result) // this result is ditched
 		}
 	}
 
-	mainResult.AddErrors(mustValidateAtLeastOneSchemaMsg(s.Path))
+	mainResult.addErrorsAt(s.Path, mustValidateAtLeastOneSchemaMsg(s.Path.dotted()))
 	mainResult.Merge(bestFailures)
 }
 
@@ -205,7 +201,7 @@ func (s *schemaPropsValidator) validateOneOf(data any, mainResult, keepResultOne
 			if firstSuccess == nil {
 				firstSuccess = result
 			} else if result.wantsRedeemOnMerge {
-				pools.poolOfResults.RedeemResult(result) // this result is ditched
+				redeemResult(result) // this result is ditched
 			}
 
 			continue
@@ -214,29 +210,29 @@ func (s *schemaPropsValidator) validateOneOf(data any, mainResult, keepResultOne
 		// MatchCount is used to select errors from the schema with most positive checks
 		if validated == 0 && (bestFailures == nil || result.MatchCount > bestFailures.MatchCount) {
 			if bestFailures != nil && bestFailures.wantsRedeemOnMerge {
-				pools.poolOfResults.RedeemResult(bestFailures)
+				redeemResult(bestFailures)
 			}
 			bestFailures = result
 		} else if result.wantsRedeemOnMerge {
-			pools.poolOfResults.RedeemResult(result) // this result is ditched
+			redeemResult(result) // this result is ditched
 		}
 	}
 
 	switch validated {
 	case 0:
-		mainResult.AddErrors(mustValidateOnlyOneSchemaMsg(s.Path, "Found none valid"))
+		mainResult.addErrorsAt(s.Path, mustValidateOnlyOneSchemaMsg(s.Path.dotted(), "Found none valid"))
 		mainResult.Merge(bestFailures)
 		// firstSucess necessarily nil
 	case 1:
 		mainResult.Merge(firstSuccess)
 		if bestFailures != nil && bestFailures.wantsRedeemOnMerge {
-			pools.poolOfResults.RedeemResult(bestFailures)
+			redeemResult(bestFailures)
 		}
 	default:
-		mainResult.AddErrors(mustValidateOnlyOneSchemaMsg(s.Path, fmt.Sprintf("Found %d valid alternatives", validated)))
+		mainResult.addErrorsAt(s.Path, mustValidateOnlyOneSchemaMsg(s.Path.dotted(), fmt.Sprintf("Found %d valid alternatives", validated)))
 		mainResult.Merge(bestFailures)
 		if firstSuccess != nil && firstSuccess.wantsRedeemOnMerge {
-			pools.poolOfResults.RedeemResult(firstSuccess)
+			redeemResult(firstSuccess)
 		}
 	}
 }
@@ -260,10 +256,10 @@ func (s *schemaPropsValidator) validateAllOf(data any, mainResult, keepResultAll
 
 	switch validated {
 	case 0:
-		mainResult.AddErrors(mustValidateAllSchemasMsg(s.Path, ". None validated"))
+		mainResult.addErrorsAt(s.Path, mustValidateAllSchemasMsg(s.Path.dotted(), ". None validated"))
 	case len(s.allOfValidators):
 	default:
-		mainResult.AddErrors(mustValidateAllSchemasMsg(s.Path, ""))
+		mainResult.addErrorsAt(s.Path, mustValidateAllSchemasMsg(s.Path.dotted(), ""))
 	}
 }
 
@@ -274,16 +270,16 @@ func (s *schemaPropsValidator) validateNot(data any, mainResult *Result) {
 	}
 	// We keep inner IMPORTANT! errors no matter what MatchCount tells us
 	if result.IsValid() {
-		mainResult.AddErrors(mustNotValidatechemaMsg(s.Path))
+		mainResult.addErrorsAt(s.Path, mustNotValidatechemaMsg(s.Path.dotted()))
 	}
 	if result.wantsRedeemOnMerge {
-		pools.poolOfResults.RedeemResult(result) // this result is ditched
+		redeemResult(result) // this result is ditched
 	}
 }
 
 func (s *schemaPropsValidator) validateDependencies(data any, mainResult *Result) {
 	val := data.(map[string]any) //nolint:forcetypeassert // caller guarantees map[string]any
-	for key := range val {
+	for _, key := range sortedKeys(val) {
 		dep, ok := s.Dependencies[key]
 		if !ok {
 			continue
@@ -291,7 +287,7 @@ func (s *schemaPropsValidator) validateDependencies(data any, mainResult *Result
 
 		if dep.Schema != nil {
 			mainResult.Merge(
-				newSchemaValidator(dep.Schema, s.Root, s.Path+"."+key, s.KnownFormats, s.Options).Validate(data),
+				newSchemaValidator(dep.Schema, s.Root, s.Path.child(key), s.KnownFormats, s.Options).Validate(data),
 			)
 			continue
 		}
@@ -299,15 +295,19 @@ func (s *schemaPropsValidator) validateDependencies(data any, mainResult *Result
 		if len(dep.Property) > 0 {
 			for _, depKey := range dep.Property {
 				if _, ok := val[depKey]; !ok {
-					mainResult.AddErrors(hasADependencyMsg(s.Path, depKey))
+					mainResult.addErrorsAt(s.Path, hasADependencyMsg(s.Path.dotted(), depKey))
 				}
 			}
 		}
 	}
 }
 
+func (s *schemaPropsValidator) setPath(path pathSegments) {
+	s.Path = path
+}
+
 func (s *schemaPropsValidator) redeem() {
-	pools.poolOfSchemaPropsValidators.RedeemValidator(s)
+	validatorPools.schemaPropsValidators.Redeem(s)
 }
 
 func (s *schemaPropsValidator) redeemChildren() {

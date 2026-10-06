@@ -12,6 +12,11 @@
 // Validates a spec document (from JSON or YAML) against the JSON schema for swagger,
 // then checks a number of extra rules that can't be expressed in JSON schema.
 //
+// The lists below hold the extra rules only. The meta-schema already settles a great deal on its
+// own, and where it does, no rule is repeated here: collectionFormat, say, must be one of csv, ssv,
+// tsv or pipes, widened with multi for a query or formData parameter, and a body parameter may not
+// carry one at all — all of that comes out of the meta-schema, at every location it applies to.
+//
 // Entry points:
 //
 //   - Spec()
@@ -25,6 +30,9 @@
 //	[x] path uniqueness: each api path should be non-verbatim (account for path param names) unique per method. Validation can be laxed by disabling StrictPathParamUniqueness.
 //	[x] each security reference should contain only unique scopes
 //	[x] each security scope in a security definition should be unique
+//	[x] a discriminator must name a property the schema defines and lists as required
+//	[x] each security requirement must name a scheme declared in securityDefinitions
+//	[x] only an oauth2 security requirement may list scopes: every other scheme type must list none
 //	[x] parameters in path must be unique
 //	[x] each path parameter must correspond to a parameter placeholder and vice versa
 //	[x] each referenceable definition must have references
@@ -47,6 +55,8 @@
 //	[x] unsupported validation of examples on non-JSON media types
 //	[x] examples in response without schema
 //	[x] readOnly properties should not be required
+//	[x] an oauth2 security requirement names a scope its security scheme does not declare
+//	[x] collectionFormat is written on a parameter, header or items whose type is not array
 //
 // # Validating a schema
 //
@@ -69,8 +79,11 @@
 //	[ ] errors and warnings are not reported with key/line number in spec
 //	[ ] default values and examples on responses only support application/json producer type
 //	[ ] invalid numeric constraints (such as Minimum, etc..) are not checked except for default and example values
-//	[ ] rules for collectionFormat are not implemented
-//	[ ] no validation rule for polymorphism support (discriminator) [not done here]
 //	[ ] valid js ECMA regexp not supported by Go regexp engine are considered invalid
 //	[ ] arbitrary large numbers are not supported: max is math.MaxFloat64
+//
+// Left out by design, rather than pending: a discriminator value is not checked against the schema
+// names it may take. That clause of the swagger rule constrains an instance rather than the
+// document, so there is nothing in a specification for [SpecValidator] to read, and checking it
+// would mean resolving polymorphic payloads, which this package does not do.
 package validate

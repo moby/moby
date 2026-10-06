@@ -4,4 +4,4 @@
 package baggagecopy
 
 // Version is the current release version of the baggagecopy processor.
-const Version = "0.16.3"
+const Version = "0.17.0"

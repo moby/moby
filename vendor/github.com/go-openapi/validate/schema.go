@@ -15,7 +15,17 @@ import (
 
 // SchemaValidator validates data against a JSON schema.
 type SchemaValidator struct {
-	Path         string
+	// Path is the location of the validated value, in the legacy dot-separated
+	// notation. It is what surfaces as the name of a validation error.
+	//
+	// Deprecated: a dotted path is ambiguous whenever a property name contains
+	// a dot. Prefer the JSON pointer rendering of the same location.
+	Path string
+
+	// path is the same location, kept as JSON pointer reference tokens so that
+	// children may be derived from it unambiguously.
+	path pathSegments
+
 	in           string
 	Schema       *spec.Schema
 	validators   [8]valueValidator
@@ -32,7 +42,7 @@ func AgainstSchema(schema *spec.Schema, data any, formats strfmt.Registry, optio
 		append(options, WithRecycleValidators(true), withRecycleResults(true))...,
 	).Validate(data)
 	defer func() {
-		pools.poolOfResults.RedeemResult(res)
+		redeemResult(res)
 	}()
 
 	if res.HasErrors() {
@@ -51,10 +61,39 @@ func NewSchemaValidator(schema *spec.Schema, rootSchema any, root string, format
 		o(opts)
 	}
 
-	return newSchemaValidator(schema, rootSchema, root, formats, opts)
+	// the caller still owns this schema, and validation expands what it walks: work on a copy,
+	// once, here - every validator below this one is then free to expand in place
+	if !opts.ownSchemata && schema != nil {
+		cloned, err := deepCloneSchema(*schema)
+		if err != nil {
+			panic(invalidSchemaProvidedMsg(err).Error())
+		}
+
+		if rootSchema == schema {
+			rootSchema = &cloned
+		}
+
+		schema = &cloned
+		opts.ownSchemata = true
+	}
+
+	return newSchemaValidator(schema, rootSchema, rootPathFromString(root), formats, opts)
 }
 
-func newSchemaValidator(schema *spec.Schema, rootSchema any, root string, formats strfmt.Registry, opts *SchemaValidatorOptions) *SchemaValidator {
+// rootPathFromString interprets the root path of the exported constructors.
+//
+// The caller hands over an opaque string, so there is no telling which of its
+// dots are separators and which belong to a name: it is taken as a single
+// reference token.
+func rootPathFromString(root string) pathSegments {
+	if root == "" {
+		return rootPath()
+	}
+
+	return newPathSegments(root)
+}
+
+func newSchemaValidator(schema *spec.Schema, rootSchema any, root pathSegments, formats strfmt.Registry, opts *SchemaValidatorOptions) *SchemaValidator {
 	if schema == nil {
 		return nil
 	}
@@ -77,12 +116,13 @@ func newSchemaValidator(schema *spec.Schema, rootSchema any, root string, format
 
 	var s *SchemaValidator
 	if opts.recycleValidators {
-		s = pools.poolOfSchemaValidators.BorrowValidator()
+		s = validatorPools.schemaValidators.Borrow()
 	} else {
 		s = new(SchemaValidator)
 	}
 
-	s.Path = root
+	s.path = root
+	s.Path = root.dotted()
 	s.in = "body"
 	s.Schema = schema
 	s.Root = rootSchema
@@ -104,8 +144,11 @@ func newSchemaValidator(schema *spec.Schema, rootSchema any, root string, format
 }
 
 // SetPath sets the path for this schema validator.
+//
+// Note that the sub-validators are built when the validator is created, so
+// this only affects errors reported by this validator, not by its children.
 func (s *SchemaValidator) SetPath(path string) {
-	s.Path = path
+	s.setPath(rootPathFromString(path))
 }
 
 // Applies returns true when this schema validator applies.
@@ -131,7 +174,7 @@ func (s *SchemaValidator) Validate(data any) *Result {
 
 	var result *Result
 	if s.Options.recycleResult {
-		result = pools.poolOfResults.BorrowResult()
+		result = validatorPools.results.Borrow()
 		result.data = data
 	} else {
 		result = &Result{data: data}
@@ -169,7 +212,7 @@ func (s *SchemaValidator) Validate(data any) *Result {
 		// to map[string]interface{}.
 		var dd any
 		if err := jsonutils.FromDynamicJSON(data, &dd); err != nil {
-			result.AddErrors(err)
+			result.addErrorsAt(s.path, err)
 			result.Inc()
 
 			return result
@@ -185,7 +228,7 @@ func (s *SchemaValidator) Validate(data any) *Result {
 		if s.Schema.Type.Contains(integerType) { // avoid lossy conversion
 			in, erri := num.Int64()
 			if erri != nil {
-				result.AddErrors(invalidTypeConversionMsg(s.Path, erri))
+				result.addErrorsAt(s.path, invalidTypeConversionMsg(s.Path, erri))
 				result.Inc()
 
 				return result
@@ -194,7 +237,7 @@ func (s *SchemaValidator) Validate(data any) *Result {
 		} else {
 			nf, errf := num.Float64()
 			if errf != nil {
-				result.AddErrors(invalidTypeConversionMsg(s.Path, errf))
+				result.addErrorsAt(s.path, invalidTypeConversionMsg(s.Path, errf))
 				result.Inc()
 
 				return result
@@ -235,7 +278,7 @@ func (s *SchemaValidator) Validate(data any) *Result {
 
 func (s *SchemaValidator) typeValidator() valueValidator {
 	return newTypeValidator(
-		s.Path,
+		s.path,
 		s.in,
 		s.Schema.Type,
 		s.Schema.Nullable,
@@ -246,7 +289,7 @@ func (s *SchemaValidator) typeValidator() valueValidator {
 
 func (s *SchemaValidator) commonValidator() valueValidator {
 	return newBasicCommonValidator(
-		s.Path,
+		s.path,
 		s.in,
 		s.Schema.Default,
 		s.Schema.Enum,
@@ -256,7 +299,7 @@ func (s *SchemaValidator) commonValidator() valueValidator {
 
 func (s *SchemaValidator) sliceValidator() valueValidator {
 	return newSliceValidator(
-		s.Path,
+		s.path,
 		s.in,
 		s.Schema.MaxItems,
 		s.Schema.MinItems,
@@ -271,7 +314,7 @@ func (s *SchemaValidator) sliceValidator() valueValidator {
 
 func (s *SchemaValidator) numberValidator() valueValidator {
 	return newNumberValidator(
-		s.Path,
+		s.path,
 		s.in,
 		s.Schema.Default,
 		s.Schema.MultipleOf,
@@ -287,7 +330,7 @@ func (s *SchemaValidator) numberValidator() valueValidator {
 
 func (s *SchemaValidator) stringValidator() valueValidator {
 	return newStringValidator(
-		s.Path,
+		s.path,
 		s.in,
 		nil,
 		false,
@@ -301,7 +344,7 @@ func (s *SchemaValidator) stringValidator() valueValidator {
 
 func (s *SchemaValidator) formatValidator() valueValidator {
 	return newFormatValidator(
-		s.Path,
+		s.path,
 		s.in,
 		s.Schema.Format,
 		s.KnownFormats,
@@ -312,14 +355,14 @@ func (s *SchemaValidator) formatValidator() valueValidator {
 func (s *SchemaValidator) schemaPropsValidator() valueValidator {
 	sch := s.Schema
 	return newSchemaPropsValidator(
-		s.Path, s.in, sch.AllOf, sch.OneOf, sch.AnyOf, sch.Not, sch.Dependencies, s.Root, s.KnownFormats,
+		s.path, s.in, sch.AllOf, sch.OneOf, sch.AnyOf, sch.Not, sch.Dependencies, s.Root, s.KnownFormats,
 		s.Options,
 	)
 }
 
 func (s *SchemaValidator) objectValidator() valueValidator {
 	return newObjectValidator(
-		s.Path,
+		s.path,
 		s.in,
 		s.Schema.MaxProperties,
 		s.Schema.MinProperties,
@@ -333,8 +376,13 @@ func (s *SchemaValidator) objectValidator() valueValidator {
 	)
 }
 
+func (s *SchemaValidator) setPath(path pathSegments) {
+	s.path = path
+	s.Path = path.dotted()
+}
+
 func (s *SchemaValidator) redeem() {
-	pools.poolOfSchemaValidators.RedeemValidator(s)
+	validatorPools.schemaValidators.Redeem(s)
 }
 
 func (s *SchemaValidator) redeemChildren() {

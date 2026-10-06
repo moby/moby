@@ -144,6 +144,7 @@ func (l *logger) newRecord(ctx context.Context, r log.Record) Record {
 		resource:                  l.provider.resource,
 		scope:                     &l.instrumentationScope,
 		attributeValueLengthLimit: l.provider.attributeValueLengthLimit,
+		attributeValueDepthLimit:  l.provider.attrValueDepthLimit(),
 		attributeCountLimit:       l.provider.attributeCountLimit,
 		allowDupKeys:              l.provider.allowDupKeys,
 	}
