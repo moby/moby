@@ -179,6 +179,8 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	var sentPullingFrom, sentModelNotSupported atomic.Bool
 	ah := c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		if desc.MediaType == c8dimages.MediaTypeDockerSchema1Manifest {
+			// Containerd no longer rejects schema1 manifests before invoking
+			// handlers, so return the daemon's deprecation error here.
 			return nil, distribution.DeprecatedSchema1ImageError(ref)
 		}
 
