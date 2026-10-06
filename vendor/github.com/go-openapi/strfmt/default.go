@@ -119,6 +119,7 @@ func IsHostname(str string) bool {
 	}
 
 	// IDNA check
+	str, _ = strings.CutSuffix(str, ".") // tolerates trailing ".", whereas IDNA ValidateLabel rule does not
 	res, err := idnaHostChecker.ToASCII(strings.ToLower(str))
 	if err != nil || res == "" {
 		return false
@@ -1976,7 +1977,7 @@ func isISBN(str string, version int) bool {
 		for i = range isbnVersion13 - 1 {
 			checksum += factor[i%2] * int32(sanitized[i]-'0')
 		}
-		return (int32(sanitized[isbnVersion13-1]-'0'))-((decimalBase-(checksum%decimalBase))%decimalBase) == 0
+		return int32(sanitized[isbnVersion13-1]-'0')-((decimalBase-(checksum%decimalBase))%decimalBase) == 0
 	default:
 		return isISBN(str, isbnVersion10) || isISBN(str, isbnVersion13)
 	}

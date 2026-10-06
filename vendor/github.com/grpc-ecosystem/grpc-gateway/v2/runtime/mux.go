@@ -158,7 +158,15 @@ func DefaultHeaderMatcher(key string) (string, bool) {
 	case isPermanentHTTPHeader(key):
 		return MetadataPrefix + key, true
 	case strings.HasPrefix(key, MetadataHeaderPrefix):
-		return key[len(MetadataHeaderPrefix):], true
+		mdKey := key[len(MetadataHeaderPrefix):]
+		// The grpcgateway- namespace is reserved for permanent HTTP headers the
+		// gateway maps itself, so refuse to forward a Grpc-Metadata- header that
+		// strips into it. Otherwise Grpc-Metadata-grpcgateway-host lets a client
+		// inject a value indistinguishable from the gateway-set grpcgateway-host.
+		if strings.HasPrefix(strings.ToLower(mdKey), MetadataPrefix) {
+			return "", false
+		}
+		return mdKey, true
 	}
 	return "", false
 }

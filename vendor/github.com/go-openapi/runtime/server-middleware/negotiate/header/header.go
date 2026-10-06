@@ -300,7 +300,13 @@ func expectQuality(s string) (q float64, rest string) {
 		n = n*10 + int(b) - '0'
 		d *= 10
 	}
-	return q + float64(n)/float64(d), s[i:]
+	result := q + float64(n)/float64(d)
+	// RFC 7231 §5.3.1: qvalue is in [0, 1]. Inputs like "1.1"
+	// would otherwise yield > 1; reject as malformed.
+	if result > 1 {
+		return -1, s[i:]
+	}
+	return result, s[i:]
 }
 
 func expectTokenOrQuoted(s string) (value string, rest string) {

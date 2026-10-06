@@ -34,12 +34,12 @@ const minDistinctHostsToWarn = 2
 //
 // All findings are warnings: they do not affect validity (see Result.IsValid).
 func (s *SpecValidator) validateDubiousRefs() *Result {
-	res := pools.poolOfResults.BorrowResult()
+	res := validatorPools.results.Borrow()
 
 	baseDir, hasBase := s.localBaseDir()
 
 	remoteHosts := make(map[string]struct{})
-	for _, r := range s.analyzer.AllRefs() {
+	for _, r := range sortedRefs(s.analyzer.AllRefs()) {
 		u := r.GetURL()
 		if u == nil { // Safeguard: a valid spec always yields parseable refs
 			continue
@@ -48,7 +48,7 @@ func (s *SpecValidator) validateDubiousRefs() *Result {
 		// Rule 1: absolute local reference escaping the base path.
 		if refPath, isLocalAbs := absoluteLocalRefPath(r, u); isLocalAbs {
 			if !hasBase || !isBeneathBase(refPath, baseDir) {
-				res.AddWarnings(dubiousAbsoluteRefMsg(r.String()))
+				res.addWarningsAt(s.refLocations.at(r.String()), dubiousAbsoluteRefMsg(r.String()))
 			}
 			continue
 		}

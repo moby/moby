@@ -119,10 +119,20 @@ func withEndpointScheme(u *url.URL) GenericOption {
 }
 
 func withEndpointForGRPC(u *url.URL) func(cfg Config) Config {
+	target := u.String()
+	switch strings.ToLower(u.Scheme) {
+	case "http", "https":
+		target = u.Host
+	case "":
+		if u.Host != "" {
+			target = path.Join(u.Host, u.Path)
+		}
+	}
+
 	return func(cfg Config) Config {
 		// For OTLP/gRPC endpoints, this is the target to which the
 		// exporter is going to send telemetry.
-		cfg.Traces.Endpoint = path.Join(u.Host, u.Path)
+		cfg.Traces.Endpoint = target
 		return cfg
 	}
 }

@@ -19,6 +19,7 @@ import (
 
 const (
 	definitionsPath = "#/definitions"
+	jsonRef         = "$ref"
 	allocMediumMap  = 64
 )
 
@@ -217,6 +218,17 @@ func UpdateRef(sp any, key string, ref spec.Ref) error {
 	switch refable := value.(type) {
 	case *spec.Schema:
 		refable.Ref = ref
+	case map[string]any:
+		// a keyword the Swagger 2.0 model does not map: the node is raw JSON, and the map it
+		// holds is the one in the document - writing to it reaches the document
+		refable[jsonRef] = ref.String()
+	case *any:
+		raw, ok := (*refable).(map[string]any)
+		if !ok {
+			return ErrNoSchemaWithRef(key, value)
+		}
+
+		raw[jsonRef] = ref.String()
 	case *spec.SchemaOrArray:
 		if refable.Schema != nil {
 			refable.Schema.Ref = ref

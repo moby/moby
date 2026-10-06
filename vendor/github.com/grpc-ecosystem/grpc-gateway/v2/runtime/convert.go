@@ -90,7 +90,7 @@ func Float32Slice(val, sep string) ([]float32, error) {
 
 // Int64 converts the given string representation of an integer into int64.
 func Int64(val string) (int64, error) {
-	return strconv.ParseInt(val, 0, 64)
+	return strconv.ParseInt(val, 10, 64)
 }
 
 // Int64Slice converts 'val' where individual integers are separated by
@@ -110,7 +110,7 @@ func Int64Slice(val, sep string) ([]int64, error) {
 
 // Int32 converts the given string representation of an integer into int32.
 func Int32(val string) (int32, error) {
-	i, err := strconv.ParseInt(val, 0, 32)
+	i, err := strconv.ParseInt(val, 10, 32)
 	if err != nil {
 		return 0, err
 	}
@@ -134,7 +134,7 @@ func Int32Slice(val, sep string) ([]int32, error) {
 
 // Uint64 converts the given string representation of an integer into uint64.
 func Uint64(val string) (uint64, error) {
-	return strconv.ParseUint(val, 0, 64)
+	return strconv.ParseUint(val, 10, 64)
 }
 
 // Uint64Slice converts 'val' where individual integers are separated by
@@ -154,7 +154,7 @@ func Uint64Slice(val, sep string) ([]uint64, error) {
 
 // Uint32 converts the given string representation of an integer into uint32.
 func Uint32(val string) (uint32, error) {
-	i, err := strconv.ParseUint(val, 0, 32)
+	i, err := strconv.ParseUint(val, 10, 32)
 	if err != nil {
 		return 0, err
 	}

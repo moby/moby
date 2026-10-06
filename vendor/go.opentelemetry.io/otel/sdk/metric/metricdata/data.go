@@ -190,7 +190,7 @@ type ExponentialHistogramDataPoint[N int64 | float64] struct {
 type ExponentialBucket struct {
 	// Offset is the bucket index of the first entry in the Counts slice.
 	Offset int32
-	// Counts is an slice where Counts[i] carries the count of the bucket at
+	// Counts is a slice where Counts[i] carries the count of the bucket at
 	// index (Offset+i). Counts[i] is the count of values greater than
 	// base^(Offset+i) and less than or equal to base^(Offset+i+1).
 	Counts []uint64
