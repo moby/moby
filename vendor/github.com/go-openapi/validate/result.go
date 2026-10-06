@@ -14,6 +14,25 @@ import (
 
 var emptyResult = &Result{MatchCount: 1}
 
+// Located pairs a validation error with the location of the value that caused it.
+type Located struct {
+	// Err is the reported error or warning.
+	Err error
+
+	// Pointer locates the offending value as an RFC 6901 JSON pointer,
+	// relative to the validated document.
+	//
+	// It is empty when the document as a whole is the answer: either because
+	// the finding is about the document rather than a value in it, such as a
+	// duplicate operation id, or because the value in question is the root.
+	// An empty pointer is a valid one, addressing the whole document.
+	//
+	// A finding about something a document does not contain, a missing
+	// required property say, is located on the value that should contain it:
+	// what is absent has no node to point at.
+	Pointer string
+}
+
 // Result represents a validation result set, composed of
 // errors and warnings.
 //
@@ -25,11 +44,16 @@ var emptyResult = &Result{MatchCount: 1}
 // schema validation. Results from the validation branch
 // with most matches get eventually selected.
 //
-// Proposal for enhancement: keep path of key originating the error.
+// Use [Result.LocatedErrors] to know where each error happened.
 type Result struct {
 	Errors     []error
 	Warnings   []error
 	MatchCount int
+
+	// errorLocations[i] locates Errors[i], and likewise for warnings. Kept
+	// aligned by the add methods; see [Result.LocatedErrors].
+	errorLocations   []string
+	warningLocations []string
 
 	// the object data
 	data any
@@ -110,7 +134,7 @@ func (r *Result) Merge(others ...*Result) *Result {
 		r.mergeWithoutRootSchemata(other)
 		r.rootObjectSchemata.Append(other.rootObjectSchemata)
 		if other.wantsRedeemOnMerge {
-			pools.poolOfResults.RedeemResult(other)
+			redeemResult(other)
 		}
 	}
 	return r
@@ -173,11 +197,11 @@ func (r *Result) MergeAsErrors(others ...*Result) *Result {
 	for _, other := range others {
 		if other != nil {
 			r.resetCaches()
-			r.AddErrors(other.Errors...)
-			r.AddErrors(other.Warnings...)
+			r.carryErrors(other.Errors, other.errorLocations)
+			r.carryErrors(other.Warnings, other.warningLocations)
 			r.MatchCount += other.MatchCount
 			if other.wantsRedeemOnMerge {
-				pools.poolOfResults.RedeemResult(other)
+				redeemResult(other)
 			}
 		}
 	}
@@ -191,11 +215,11 @@ func (r *Result) MergeAsWarnings(others ...*Result) *Result {
 	for _, other := range others {
 		if other != nil {
 			r.resetCaches()
-			r.AddWarnings(other.Errors...)
-			r.AddWarnings(other.Warnings...)
+			r.carryWarnings(other.Errors, other.errorLocations)
+			r.carryWarnings(other.Warnings, other.warningLocations)
 			r.MatchCount += other.MatchCount
 			if other.wantsRedeemOnMerge {
-				pools.poolOfResults.RedeemResult(other)
+				redeemResult(other)
 			}
 		}
 	}
@@ -207,39 +231,79 @@ func (r *Result) MergeAsWarnings(others ...*Result) *Result {
 // Since the same check may be passed several times while exploring the
 // spec structure (via $ref, ...) reported messages are kept
 // unique.
+//
+// Errors added this way carry no location. Validators use [Result.addErrorsAt]
+// so that [Result.LocatedErrors] can tell where the failure happened.
 func (r *Result) AddErrors(errors ...error) {
-	for _, e := range errors {
-		found := false
-		if e != nil {
-			for _, isReported := range r.Errors {
-				if e.Error() == isReported.Error() {
-					found = true
-					break
-				}
-			}
-			if !found {
-				r.Errors = append(r.Errors, e)
-			}
-		}
-	}
+	r.addLocatedErrors("", errors...)
 }
 
 // AddWarnings adds warnings to this validation result (if not already reported).
 func (r *Result) AddWarnings(warnings ...error) {
-	for _, e := range warnings {
-		found := false
-		if e != nil {
-			for _, isReported := range r.Warnings {
-				if e.Error() == isReported.Error() {
-					found = true
-					break
-				}
-			}
-			if !found {
-				r.Warnings = append(r.Warnings, e)
-			}
+	r.addLocatedWarnings("", warnings...)
+}
+
+// isReportedError tells if the same message is already part of a collection.
+func isReportedError(reported []error, e error) bool {
+	msg := e.Error()
+	for _, isReported := range reported {
+		if msg == isReported.Error() {
+			return true
 		}
 	}
+
+	return false
+}
+
+// locationAt reads a location out of a slice that may be shorter than the
+// errors it describes.
+func locationAt(locations []string, i int) string {
+	if i < len(locations) {
+		return locations[i]
+	}
+
+	return ""
+}
+
+// appendLocation records the location of the error that has just been appended,
+// keeping the location slice aligned with the error slice it describes.
+//
+// Errors may reach a Result without going through the methods here (a caller
+// assigning Errors directly, say), so the slice is padded rather than assumed
+// to be in step.
+func appendLocation(locations []string, upTo int, pointer string) []string {
+	for len(locations) < upTo-1 {
+		locations = append(locations, "")
+	}
+
+	return append(locations, pointer)
+}
+
+// LocatedErrors returns the reported errors, each paired with the JSON pointer
+// of the value that caused it.
+//
+// The pointer is empty whenever the location is unknown, so callers should
+// treat it as a hint and keep using the error message as the primary report.
+func (r *Result) LocatedErrors() []Located {
+	return locate(r.Errors, r.errorLocations)
+}
+
+// LocatedWarnings returns the reported warnings, each paired with the JSON
+// pointer of the value that caused it.
+func (r *Result) LocatedWarnings() []Located {
+	return locate(r.Warnings, r.warningLocations)
+}
+
+func locate(errs []error, locations []string) []Located {
+	located := make([]Located, len(errs))
+	for i, err := range errs {
+		located[i] = Located{Err: err}
+		if i < len(locations) {
+			located[i].Pointer = locations[i]
+		}
+	}
+
+	return located
 }
 
 // IsValid returns true when this result is valid.
@@ -298,6 +362,106 @@ func (r *Result) AsError() error {
 	return errors.CompositeValidationError(r.Errors...)
 }
 
+// Reset clears this result so it may be reused, keeping allocated capacity.
+//
+// It implements the hook the pool calls when a result is borrowed and when it
+// is redeemed. Calling it on a result still in use loses its findings.
+func (r *Result) Reset() {
+	_ = r.cleared()
+}
+
+// addErrorsAt adds errors located at the given path.
+func (r *Result) addErrorsAt(at pathSegments, errors ...error) {
+	r.addLocatedErrors(at.pointer(), errors...)
+}
+
+// addWarningsAt adds warnings located at the given path.
+func (r *Result) addWarningsAt(at pathSegments, warnings ...error) {
+	r.addLocatedWarnings(at.pointer(), warnings...)
+}
+
+func (r *Result) addLocatedErrors(pointer string, errors ...error) {
+	for _, e := range errors {
+		if e == nil {
+			continue
+		}
+
+		if isReportedError(r.Errors, e) {
+			continue
+		}
+
+		r.Errors = append(r.Errors, e)
+		r.errorLocations = appendLocation(r.errorLocations, len(r.Errors), pointer)
+	}
+}
+
+func (r *Result) addLocatedWarnings(pointer string, warnings ...error) {
+	for _, e := range warnings {
+		if e == nil {
+			continue
+		}
+
+		if isReportedError(r.Warnings, e) {
+			continue
+		}
+
+		r.Warnings = append(r.Warnings, e)
+		r.warningLocations = appendLocation(r.warningLocations, len(r.Warnings), pointer)
+	}
+}
+
+// relocate rewrites every location this result recorded.
+//
+// The parameter and header validators are the ones a generated client uses at
+// runtime, so they locate a finding by the name of the parameter or header it
+// concerns: a name is all the caller has. When spec validation borrows them to
+// check a default or an example, that name addresses nothing in the document,
+// and the value's own node is the best location available for everything the
+// borrowed validator found.
+func (r *Result) relocate(at pathSegments) {
+	if r == nil {
+		return
+	}
+
+	pointer := at.pointer()
+	r.errorLocations = fillLocations(r.errorLocations[:0], len(r.Errors), pointer)
+	r.warningLocations = fillLocations(r.warningLocations[:0], len(r.Warnings), pointer)
+}
+
+// fillLocations records the same location for a whole run of findings.
+func fillLocations(locations []string, count int, pointer string) []string {
+	for range count {
+		locations = append(locations, pointer)
+	}
+
+	return locations
+}
+
+// redirect rewrites every location this result recorded with the given mapping.
+func (r *Result) redirect(through func(string) string) {
+	for i, pointer := range r.errorLocations {
+		r.errorLocations[i] = through(pointer)
+	}
+	for i, pointer := range r.warningLocations {
+		r.warningLocations[i] = through(pointer)
+	}
+}
+
+// carryErrors adds errors from another result as errors, one by one, so that
+// each keeps the location that result recorded for it.
+func (r *Result) carryErrors(errs []error, locations []string) {
+	for i, e := range errs {
+		r.addLocatedErrors(locationAt(locations, i), e)
+	}
+}
+
+// carryWarnings adds errors from another result as warnings, keeping locations.
+func (r *Result) carryWarnings(errs []error, locations []string) {
+	for i, e := range errs {
+		r.addLocatedWarnings(locationAt(locations, i), e)
+	}
+}
+
 func (r *Result) resetCaches() {
 	r.cachedFieldSchemata = nil
 	r.cachedItemSchemata = nil
@@ -324,7 +488,7 @@ func (r *Result) mergeForField(obj map[string]any, field string, other *Result) 
 		})
 	}
 	if other.wantsRedeemOnMerge {
-		pools.poolOfResults.RedeemResult(other)
+		redeemResult(other)
 	}
 
 	return r
@@ -352,7 +516,7 @@ func (r *Result) mergeForSlice(slice reflect.Value, i int, other *Result) *Resul
 	}
 
 	if other.wantsRedeemOnMerge {
-		pools.poolOfResults.RedeemResult(other)
+		redeemResult(other)
 	}
 
 	return r
@@ -391,8 +555,8 @@ func (r *Result) addSliceSchemata(slice reflect.Value, i int, schema *spec.Schem
 // mergeWithoutRootSchemata merges other into r, ignoring the rootObject schemata.
 func (r *Result) mergeWithoutRootSchemata(other *Result) {
 	r.resetCaches()
-	r.AddErrors(other.Errors...)
-	r.AddWarnings(other.Warnings...)
+	r.carryErrors(other.Errors, other.errorLocations)
+	r.carryWarnings(other.Warnings, other.warningLocations)
 	r.MatchCount += other.MatchCount
 
 	if other.fieldSchemata != nil {
@@ -438,32 +602,40 @@ func (r *Result) keepRelevantErrors() *Result {
 	// codes would require to change a lot here. So, for the moment, let's go with
 	// placeholders.
 	strippedErrors := []error{}
-	for _, e := range r.Errors {
+	strippedErrorLocations := []string{}
+	for i, e := range r.Errors {
 		if isImportant(e) {
 			strippedErrors = append(strippedErrors, stripImportantTag(e))
+			strippedErrorLocations = append(strippedErrorLocations, locationAt(r.errorLocations, i))
 		}
 	}
 	strippedWarnings := []error{}
-	for _, e := range r.Warnings {
+	strippedWarningLocations := []string{}
+	for i, e := range r.Warnings {
 		if isImportant(e) {
 			strippedWarnings = append(strippedWarnings, stripImportantTag(e))
+			strippedWarningLocations = append(strippedWarningLocations, locationAt(r.warningLocations, i))
 		}
 	}
 	var strippedResult *Result
 	if r.wantsRedeemOnMerge {
-		strippedResult = pools.poolOfResults.BorrowResult()
+		strippedResult = validatorPools.results.Borrow()
 	} else {
 		strippedResult = new(Result)
 	}
 	strippedResult.Errors = strippedErrors
+	strippedResult.errorLocations = strippedErrorLocations
 	strippedResult.Warnings = strippedWarnings
+	strippedResult.warningLocations = strippedWarningLocations
 	return strippedResult
 }
 
 func (r *Result) cleared() *Result {
 	// clear the Result to be reusable. Keep allocated capacity.
 	r.Errors = r.Errors[:0]
+	r.errorLocations = r.errorLocations[:0]
 	r.Warnings = r.Warnings[:0]
+	r.warningLocations = r.warningLocations[:0]
 	r.MatchCount = 0
 	r.data = nil
 	r.rootObjectSchemata.one = nil

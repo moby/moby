@@ -10,6 +10,7 @@ linters:
     - gomodguard
     - gomodguard_v2
     - exhaustruct
+    - exhaustruct_v5
     - nlreturn
     - nonamedreturns
     - noinlineerr

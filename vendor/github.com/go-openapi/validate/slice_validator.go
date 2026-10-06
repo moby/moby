@@ -4,7 +4,6 @@
 package validate
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/go-openapi/spec"
@@ -12,7 +11,7 @@ import (
 )
 
 type schemaSliceValidator struct {
-	Path            string
+	Path            pathSegments
 	In              string
 	MaxItems        *int64
 	MinItems        *int64
@@ -24,7 +23,7 @@ type schemaSliceValidator struct {
 	Options         *SchemaValidatorOptions
 }
 
-func newSliceValidator(path, in string,
+func newSliceValidator(path pathSegments, in string,
 	maxItems, minItems *int64, uniqueItems bool,
 	additionalItems *spec.SchemaOrBool, items *spec.SchemaOrArray,
 	root any, formats strfmt.Registry, opts *SchemaValidatorOptions,
@@ -35,7 +34,7 @@ func newSliceValidator(path, in string,
 
 	var v *schemaSliceValidator
 	if opts.recycleValidators {
-		v = pools.poolOfSliceValidators.BorrowValidator()
+		v = validatorPools.sliceValidators.Borrow()
 	} else {
 		v = new(schemaSliceValidator)
 	}
@@ -54,10 +53,6 @@ func newSliceValidator(path, in string,
 	return v
 }
 
-func (s *schemaSliceValidator) SetPath(path string) {
-	s.Path = path
-}
-
 func (s *schemaSliceValidator) Applies(source any, kind reflect.Kind) bool {
 	_, ok := source.(*spec.Schema)
 	r := ok && kind == reflect.Slice
@@ -73,7 +68,7 @@ func (s *schemaSliceValidator) Validate(data any) *Result {
 
 	var result *Result
 	if s.Options.recycleResult {
-		result = pools.poolOfResults.BorrowResult()
+		result = validatorPools.results.Borrow()
 	} else {
 		result = new(Result)
 	}
@@ -85,8 +80,10 @@ func (s *schemaSliceValidator) Validate(data any) *Result {
 
 	if s.Items != nil && s.Items.Schema != nil {
 		for i := range size {
-			validator := newSchemaValidator(s.Items.Schema, s.Root, s.Path, s.KnownFormats, s.Options)
-			validator.SetPath(fmt.Sprintf("%s.%d", s.Path, i))
+			// the index has to reach the constructor: the sub-validators that
+			// report the error are built there, and setting the path afterwards
+			// would leave them located on the array rather than on the item.
+			validator := newSchemaValidator(s.Items.Schema, s.Root, s.Path.item(i), s.KnownFormats, s.Options)
 			value := val.Index(i)
 			result.mergeForSlice(val, i, validator.Validate(value.Interface()))
 		}
@@ -100,41 +97,45 @@ func (s *schemaSliceValidator) Validate(data any) *Result {
 				break
 			}
 
-			validator := newSchemaValidator(&s.Items.Schemas[i], s.Root, fmt.Sprintf("%s.%d", s.Path, i), s.KnownFormats, s.Options)
+			validator := newSchemaValidator(&s.Items.Schemas[i], s.Root, s.Path.item(i), s.KnownFormats, s.Options)
 			result.mergeForSlice(val, i, validator.Validate(val.Index(i).Interface()))
 		}
 	}
 	if s.AdditionalItems != nil && itemsSize < size {
 		if s.Items != nil && len(s.Items.Schemas) > 0 && !s.AdditionalItems.Allows {
-			result.AddErrors(arrayDoesNotAllowAdditionalItemsMsg())
+			result.addErrorsAt(s.Path, arrayDoesNotAllowAdditionalItemsMsg())
 		}
 		if s.AdditionalItems.Schema != nil {
 			for i := itemsSize; i < size-itemsSize+1; i++ {
-				validator := newSchemaValidator(s.AdditionalItems.Schema, s.Root, fmt.Sprintf("%s.%d", s.Path, i), s.KnownFormats, s.Options)
+				validator := newSchemaValidator(s.AdditionalItems.Schema, s.Root, s.Path.item(i), s.KnownFormats, s.Options)
 				result.mergeForSlice(val, i, validator.Validate(val.Index(i).Interface()))
 			}
 		}
 	}
 
 	if s.MinItems != nil {
-		if err := MinItems(s.Path, s.In, int64(size), *s.MinItems); err != nil {
-			result.AddErrors(err)
+		if err := MinItems(s.Path.dotted(), s.In, int64(size), *s.MinItems); err != nil {
+			result.addErrorsAt(s.Path, err)
 		}
 	}
 	if s.MaxItems != nil {
-		if err := MaxItems(s.Path, s.In, int64(size), *s.MaxItems); err != nil {
-			result.AddErrors(err)
+		if err := MaxItems(s.Path.dotted(), s.In, int64(size), *s.MaxItems); err != nil {
+			result.addErrorsAt(s.Path, err)
 		}
 	}
 	if s.UniqueItems {
-		if err := UniqueItems(s.Path, s.In, val.Interface()); err != nil {
-			result.AddErrors(err)
+		if err := UniqueItems(s.Path.dotted(), s.In, val.Interface()); err != nil {
+			result.addErrorsAt(s.Path, err)
 		}
 	}
 	result.Inc()
 	return result
 }
 
+func (s *schemaSliceValidator) setPath(path pathSegments) {
+	s.Path = path
+}
+
 func (s *schemaSliceValidator) redeem() {
-	pools.poolOfSliceValidators.RedeemValidator(s)
+	validatorPools.sliceValidators.Redeem(s)
 }
