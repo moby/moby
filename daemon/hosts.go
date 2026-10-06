@@ -43,7 +43,7 @@ func configureRegistryHosts(host string, insecure bool) ([]docker.RegistryHost, 
 // RegistryHosts returns the registry hosts configuration for the host component
 // of a distribution image reference.
 func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) {
-	hosts, err := configureRegistryHosts(host, daemon.registryService.IsInsecureRegistry(host))
+	hosts, err := configureRegistryHosts(host, docker.IsLocalhost(host) && daemon.registryService.IsInsecureRegistry(host))
 	if err == nil {
 		// Merge in legacy configuration if provided
 		if cfg := daemon.config().Config; len(cfg.Mirrors) > 0 || len(cfg.InsecureRegistries) > 0 {
