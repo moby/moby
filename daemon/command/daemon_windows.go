@@ -102,7 +102,7 @@ func (cli *daemonCLI) setupConfigReloadTrap(ctx context.Context) {
 			_ = windows.CloseHandle(h)
 		}()
 
-		log.G(ctx).Debugf("Config reload - waiting signal at %s", event)
+		log.G(ctx).WithField("event", event).Info("Registered config reload event")
 		for {
 			windows.WaitForSingleObject(h, windows.INFINITE)
 			if ctx.Err() != nil {
