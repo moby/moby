@@ -47,9 +47,6 @@ type Driver interface {
 	// Leave method is invoked when a Sandbox detaches from an endpoint.
 	Leave(nid, eid string) error
 
-	// Type returns the type of this driver, the network type this driver manages
-	Type() string
-
 	// IsBuiltIn returns true if it is a built-in driver
 	IsBuiltIn() bool
 }

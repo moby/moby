@@ -838,10 +838,6 @@ func (b *badDriver) Leave(nid, eid string) error {
 	return nil
 }
 
-func (b *badDriver) Type() string {
-	return "bad network driver"
-}
-
 func (b *badDriver) IsBuiltIn() bool {
 	return false
 }

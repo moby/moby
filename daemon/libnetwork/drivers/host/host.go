@@ -62,10 +62,6 @@ func (d *driver) Leave(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) Type() string {
-	return NetworkType
-}
-
 func (d *driver) IsBuiltIn() bool {
 	return true
 }
