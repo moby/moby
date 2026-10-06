@@ -60,14 +60,15 @@ type Config struct {
 }
 
 type CompactionConfig struct {
-	Enabled           bool      `toml:"enabled"`
-	IdleTimeout       *Duration `toml:"idleTimeout"`
-	MaxRetry          *int      `toml:"maxRetry"`
-	WritesPerCheck    *uint64   `toml:"writesPerCheck"`
-	SizeWatermark     *int64    `toml:"sizeWatermark"`
-	SizeGrowthPercent *int64    `toml:"sizeGrowthPercent"`
-	MinReclaimBytes   *int64    `toml:"minReclaimBytes"`
-	MinReclaimPercent *int64    `toml:"minReclaimPercent"`
+	Enabled                bool      `toml:"enabled"`
+	IdleTimeout            *Duration `toml:"idleTimeout"`
+	MaxRetry               *int      `toml:"maxRetry"`
+	WritesPerCheck         *uint64   `toml:"writesPerCheck"`
+	SizeWatermark          *int64    `toml:"sizeWatermark"`
+	SizeGrowthPercent      *int64    `toml:"sizeGrowthPercent"`
+	MinReclaimBytes        *int64    `toml:"minReclaimBytes"`
+	MinReclaimPercent      *int64    `toml:"minReclaimPercent"`
+	MinReclaimPercentFloor *int64    `toml:"minReclaimPercentFloor"`
 }
 
 func (c CompactionConfig) Policy() (compaction.Config, error) {
@@ -93,6 +94,12 @@ func (c CompactionConfig) Policy() (compaction.Config, error) {
 	}
 	if c.MinReclaimPercent != nil {
 		policy.MinReclaimPercent = *c.MinReclaimPercent
+		if c.MinReclaimPercentFloor == nil {
+			policy.MinReclaimPercentFloor = min(policy.MinReclaimPercentFloor, policy.MinReclaimPercent)
+		}
+	}
+	if c.MinReclaimPercentFloor != nil {
+		policy.MinReclaimPercentFloor = *c.MinReclaimPercentFloor
 	}
 	return policy, policy.Validate()
 }

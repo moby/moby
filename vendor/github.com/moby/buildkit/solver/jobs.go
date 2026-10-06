@@ -1294,6 +1294,7 @@ func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result,
 
 				s.execRes = &execRes{execRes: wrapShared(res), execExporters: subExporters}
 			}
+			s.st.cloneErrorRefs(err)
 			s.execErr = err
 		}
 		if s.execRes == nil || err != nil {
@@ -1437,6 +1438,20 @@ func WrapSlowCache(err error, index Index, res Result) error {
 		return nil
 	}
 	return &SlowCacheError{Index: index, Result: res, error: err}
+}
+
+// cloneErrorRefs retains a cached error's refs until the state is released.
+func (s *state) cloneErrorRefs(err error) {
+	for ; err != nil; err = errors.Unwrap(err) {
+		if re, ok := err.(interface {
+			EachRef(func(Result) error) error
+		}); ok {
+			re.EachRef(func(r Result) error {
+				s.cloneUntilRelease(r)
+				return nil
+			})
+		}
+	}
 }
 
 func releaseError(err error) {

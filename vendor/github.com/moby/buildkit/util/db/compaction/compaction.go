@@ -29,31 +29,33 @@ var (
 )
 
 type Config struct {
-	ManualOnly        bool
-	WritesPerCheck    uint64
-	SizeWatermark     int64
-	SizeGrowthPercent int64
-	MinReclaimBytes   int64
-	IdleTimeout       time.Duration
-	MaxRetry          int
-	MinReclaimPercent int64
-	Metrics           *Metrics `json:"-"`
+	ManualOnly             bool
+	WritesPerCheck         uint64
+	SizeWatermark          int64
+	SizeGrowthPercent      int64
+	MinReclaimBytes        int64
+	IdleTimeout            time.Duration
+	MaxRetry               int
+	MinReclaimPercent      int64
+	MinReclaimPercentFloor int64
+	Metrics                *Metrics `json:"-"`
 }
 
 func DefaultConfig() Config {
 	return Config{
-		WritesPerCheck:    10000,
-		SizeWatermark:     128 << 20,
-		SizeGrowthPercent: 100,
-		MinReclaimBytes:   256 << 20,
-		IdleTimeout:       time.Minute,
-		MaxRetry:          3,
-		MinReclaimPercent: 25,
+		WritesPerCheck:         10000,
+		SizeWatermark:          128 << 20,
+		SizeGrowthPercent:      100,
+		MinReclaimBytes:        256 << 20,
+		IdleTimeout:            time.Minute,
+		MaxRetry:               3,
+		MinReclaimPercent:      30,
+		MinReclaimPercentFloor: 10,
 	}
 }
 
 func (c Config) Validate() error {
-	if c.WritesPerCheck == 0 || c.SizeWatermark <= 0 || c.SizeGrowthPercent <= 0 || c.MinReclaimBytes <= 0 || c.IdleTimeout <= 0 || c.MaxRetry < 0 || c.MinReclaimPercent <= 0 || c.MinReclaimPercent > 100 {
+	if c.WritesPerCheck == 0 || c.SizeWatermark <= 0 || c.SizeGrowthPercent <= 0 || c.MinReclaimBytes <= 0 || c.IdleTimeout <= 0 || c.MaxRetry < 0 || c.MinReclaimPercent <= 0 || c.MinReclaimPercent > 100 || c.MinReclaimPercentFloor <= 0 || c.MinReclaimPercentFloor > c.MinReclaimPercent {
 		return errors.New("invalid database compaction policy")
 	}
 	return nil
@@ -289,7 +291,7 @@ func (s *Scheduler) check() {
 		}
 		return
 	}
-	opt := db.CompactOptions{MinReclaimBytes: s.config.MinReclaimBytes, MinReclaimPercent: s.config.MinReclaimPercent}
+	opt := db.CompactOptions{MinReclaimBytes: s.config.MinReclaimBytes, MinReclaimPercent: s.config.MinReclaimPercent, MinReclaimPercentFloor: s.config.MinReclaimPercentFloor}
 	sizeReached := stats.Size >= watermark
 	writesReached := fullCheck && stats.Size >= s.config.SizeWatermark
 	pending := (sizeReached || writesReached) && opt.MeetsReclaimThreshold(stats.Size, stats.Reclaimable)
@@ -324,7 +326,7 @@ func (s *Scheduler) compact() {
 	s.metrics.wait(false, false)
 	writes := s.state.Writes
 	s.mu.Unlock()
-	res, err := s.backend.Compact(ctx, db.CompactOptions{MinReclaimBytes: s.config.MinReclaimBytes, MinReclaimPercent: s.config.MinReclaimPercent})
+	res, err := s.backend.Compact(ctx, db.CompactOptions{MinReclaimBytes: s.config.MinReclaimBytes, MinReclaimPercent: s.config.MinReclaimPercent, MinReclaimPercentFloor: s.config.MinReclaimPercentFloor})
 	cause := context.Cause(ctx)
 	cancel(context.Canceled)
 	<-capacity

@@ -101,7 +101,7 @@ func (s *Scheduler) runRequest(r *Request, checkpoint <-chan time.Time) {
 				s.metrics.wait(true, false)
 				writes := s.state.Writes
 				s.mu.Unlock()
-				result, err := s.backend.Compact(ctx, db.CompactOptions{MinReclaimBytes: s.config.MinReclaimBytes, MinReclaimPercent: s.config.MinReclaimPercent, Progress: r.events})
+				result, err := s.backend.Compact(ctx, db.CompactOptions{MinReclaimBytes: s.config.MinReclaimBytes, MinReclaimPercent: s.config.MinReclaimPercent, MinReclaimPercentFloor: s.config.MinReclaimPercentFloor, Progress: r.events})
 				cause := context.Cause(ctx)
 				<-capacity
 				outcome.Result = result

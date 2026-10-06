@@ -212,8 +212,8 @@ github.com/dimchansky/utfbom v1.1.1 h1:vV6w1AhK4VMnhBno/TPVCoK9U/LP0PkLCS9tbxHdi
 github.com/dimchansky/utfbom v1.1.1/go.mod h1:SxdoEBH5qIqFocHMyGOXVAybYJdr71b1Q/j0mACtrfE=
 github.com/distribution/reference v0.6.0 h1:0IXCQ5g4/QMHHkarYzh5l+u8T3t73zM5QvfrDyIgxBk=
 github.com/distribution/reference v0.6.0/go.mod h1:BbU0aIcezP1/5jX/8MP0YiH4SdvB5Y4f/wlDRiLyi3E=
-github.com/docker/cli v29.8.1+incompatible h1:qYL1bCp6cRw2SB1xmLlIOPyV171dilw9W2Jew38vy9c=
-github.com/docker/cli v29.8.1+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
+github.com/docker/cli v29.8.2+incompatible h1:2zgdFuoFst2T80oS42vhKGxkd0JRo305eIEKTsxR7pQ=
+github.com/docker/cli v29.8.2+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
 github.com/docker/distribution v2.8.3+incompatible h1:AtKxIZ36LoNK51+Z6RpzLpddBirtxJnzDrHLEKxTAYk=
 github.com/docker/distribution v2.8.3+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
 github.com/docker/docker-credential-helpers v0.9.9 h1:BkydjIgZ46JnDbqyM2p2fc63KMw6y+KHL3Em/2AGJ7w=
@@ -467,8 +467,8 @@ github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyua
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/mitchellh/reflectwalk v1.0.2 h1:G2LzWKi524PWgd3mLHV8Y5k7s6XUvT0Gef6zxSIeXaQ=
 github.com/mitchellh/reflectwalk v1.0.2/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
-github.com/moby/buildkit v0.34.0-rc1 h1:qOTkL8d6+OE0AWcys7TGoKin+GakmPB+xUnA6TV6ITY=
-github.com/moby/buildkit v0.34.0-rc1/go.mod h1:lMgrNGaeFwArTsLFFdRps7P81vdAwACPJoRIvLjO5tQ=
+github.com/moby/buildkit v0.34.0-rc2 h1:GRqHSi9Bia5l+KiiWqV5BQOzx36I85FMyawI0jQbsMk=
+github.com/moby/buildkit v0.34.0-rc2/go.mod h1:e+Za70y2a3nL1U2Y0P8TvhPyKp2Ok2NS+Q4siSArDiM=
 github.com/moby/docker-image-spec v1.3.1 h1:jMKff3w6PgbfSa69GfNg+zN/XLhfXJGnEx3Nl2EsFP0=
 github.com/moby/docker-image-spec v1.3.1/go.mod h1:eKmb5VW8vQEh/BAr2yvVNvuiJuY6UIocYsFu/DxxRpo=
 github.com/moby/extensions v0.0.0-20260918151408-e4c23d866037 h1:i1M45d/grN16YYOstJ1aGWgo4QOnItgAAa/X4z2+Y9Q=
@@ -485,8 +485,8 @@ github.com/moby/moby/client v0.6.1 h1:gvfKmdcWw+9MzXYP0vAUKQtBTGu1L8475K2nsmL7O9
 github.com/moby/moby/client v0.6.1/go.mod h1:XHgTFqz9NCgS/VuoxXMmEDVmVgXQ4vFEc15wsCIwb24=
 github.com/moby/patternmatcher v0.6.1 h1:qlhtafmr6kgMIJjKJMDmMWq7WLkKIo23hsrpR3x084U=
 github.com/moby/patternmatcher v0.6.1/go.mod h1:hDPoyOpDY7OrrMDLaYoY3hf52gNCR/YOUYxkhApJIxc=
-github.com/moby/policy-helpers v0.0.0-20260928152613-27d9ecfb5a76 h1:SoAHs7DdRBdg5tD3smzcUBgrj/k0RMgPfc82WRu4OII=
-github.com/moby/policy-helpers v0.0.0-20260928152613-27d9ecfb5a76/go.mod h1:hNMdiq4WjSmuyvy8lWcflH6erzSg/MgZlFyM7vC7Z2c=
+github.com/moby/policy-helpers v0.0.0-20261006174519-bd98f4747414 h1:gOgxy0eXQlhvC5hB7CE+tJLLzrC9+gjTWlU+Bv5T8Ck=
+github.com/moby/policy-helpers v0.0.0-20261006174519-bd98f4747414/go.mod h1:hNMdiq4WjSmuyvy8lWcflH6erzSg/MgZlFyM7vC7Z2c=
 github.com/moby/profiles/apparmor v0.2.2 h1:HZ0mRg+3z4eElTBp75PCFmvKYLZD+iovVi2xbPWs5hU=
 github.com/moby/profiles/apparmor v0.2.2/go.mod h1:QatdynU8N2E+cQ5obf9JRwq05Wb7bPdyrAEUf6NDyK8=
 github.com/moby/profiles/seccomp v0.2.4 h1:CNKIR4jNYCGIdstSZ3plN/yF3WCqlupmNLwO1ckLwz4=
