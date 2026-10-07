@@ -9,10 +9,6 @@ import (
 func TestDriver(t *testing.T) {
 	d := &driver{}
 
-	if d.Type() != NetworkType {
-		t.Fatalf("Unexpected network type returned by driver")
-	}
-
 	err := d.CreateNetwork(t.Context(), "first", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)

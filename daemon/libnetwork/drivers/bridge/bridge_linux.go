@@ -2059,10 +2059,6 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, enable b
 	return nil
 }
 
-func (d *driver) Type() string {
-	return NetworkType
-}
-
 func (d *driver) IsBuiltIn() bool {
 	return true
 }

@@ -946,10 +946,6 @@ func (d *driver) Leave(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) Type() string {
-	return d.name
-}
-
 func (d *driver) IsBuiltIn() bool {
 	return true
 }

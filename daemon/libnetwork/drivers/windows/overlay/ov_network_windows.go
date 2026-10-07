@@ -295,7 +295,7 @@ func (d *driver) createHnsNetwork(n *network) error {
 
 	network := &hcsshim.HNSNetwork{
 		Name:               n.name,
-		Type:               d.Type(),
+		Type:               NetworkType,
 		Subnets:            subnets,
 		NetworkAdapterName: n.interfaceName,
 		AutomaticDNS:       true,

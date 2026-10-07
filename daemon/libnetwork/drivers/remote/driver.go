@@ -25,7 +25,6 @@ var _ discoverapi.Discover = (*driver)(nil)
 
 type driver struct {
 	endpoint       *plugins.Client
-	networkType    string
 	gwAllocChecker bool
 	nwEndpoints    map[string]*nwEndpoint // Set of endpoint ids that are currently acting as container gateways.
 	nwEndpointsMu  sync.Mutex
@@ -42,9 +41,8 @@ type maybeError interface {
 	GetError() string
 }
 
-func newDriver(name string, client *plugins.Client) *driver {
+func newDriver(client *plugins.Client) *driver {
 	return &driver{
-		networkType: name,
 		endpoint:    client,
 		nwEndpoints: make(map[string]*nwEndpoint),
 	}
@@ -55,7 +53,7 @@ func newDriver(name string, client *plugins.Client) *driver {
 func Register(r driverapi.Registerer, pg plugingetter.PluginGetter) error {
 	newPluginHandler := func(name string, client *plugins.Client) {
 		// negotiate driver capability with client
-		d := newDriver(name, client)
+		d := newDriver(client)
 		c, err := d.getCapabilities()
 		if err != nil {
 			log.G(context.TODO()).Errorf("error getting capability for %s due to %v", name, err)
@@ -436,10 +434,6 @@ func (d *driver) revokeExternalConnectivity(nid, eid string) error {
 		return nil
 	}
 	return err
-}
-
-func (d *driver) Type() string {
-	return d.networkType
 }
 
 func (d *driver) IsBuiltIn() bool {

@@ -52,15 +52,3 @@ func TestMacvlanNilConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-
-func TestMacvlanType(t *testing.T) {
-	dt := &driverTester{t: t}
-	if err := Register(dt, storeutils.NewTempStore(t)); err != nil {
-		t.Fatal(err)
-	}
-
-	if dt.d.Type() != testNetworkType {
-		t.Fatalf("Expected Type() to return %q. Instead got %q", testNetworkType,
-			dt.d.Type())
-	}
-}

@@ -734,7 +734,9 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	}
 	defer c.Stop()
 
-	if err := badDriverRegister(&c.drvRegistry); err != nil {
+	const badDriverName = "bad network driver"
+	bd := &badDriver{failNetworkCreation: true}
+	if err := c.drvRegistry.RegisterDriver(badDriverName, bd, driverapi.Capability{DataScope: scope.Local}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -801,16 +803,8 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	}
 }
 
-var badDriverName = "bad network driver"
-
 type badDriver struct {
 	failNetworkCreation bool
-}
-
-var bd = badDriver{failNetworkCreation: true}
-
-func badDriverRegister(reg driverapi.Registerer) error {
-	return reg.RegisterDriver(badDriverName, &bd, driverapi.Capability{DataScope: scope.Local})
 }
 
 func (b *badDriver) CreateNetwork(ctx context.Context, nid string, options map[string]any, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
@@ -842,10 +836,6 @@ func (b *badDriver) Join(_ context.Context, nid, eid string, sboxKey string, jin
 
 func (b *badDriver) Leave(nid, eid string) error {
 	return nil
-}
-
-func (b *badDriver) Type() string {
-	return badDriverName
 }
 
 func (b *badDriver) IsBuiltIn() bool {
