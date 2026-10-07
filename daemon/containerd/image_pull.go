@@ -227,11 +227,14 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 
 	// Fetch missing layer content even when snapshots already exist,
 	// so the pulled image can also be saved or pushed.
+	// Lazy pulls skip this to keep the download savings of remote
+	// snapshotters, at the cost of images that may lack layer blobs.
 	// See https://github.com/moby/moby/issues/49784.
-	unpackOpts := []containerd.UnpackOpt{
-		containerd.WithUnpackFetchAllContent(),
+	if !i.lazyPull(i.snapshotter) {
+		opts = append(opts, containerd.WithUnpackOpts([]containerd.UnpackOpt{
+			containerd.WithUnpackFetchAllContent(),
+		}))
 	}
-	opts = append(opts, containerd.WithUnpackOpts(unpackOpts))
 
 	// AppendInfoHandlerWrapper will annotate the image with basic information like manifest and layer digests as labels;
 	// this information is used to enable remote snapshotters like nydus and stargz to query a registry.
@@ -301,6 +304,27 @@ func joinHandlerWrappers(funcs ...func(c8dimages.Handler) c8dimages.Handler) fun
 		}
 		return h
 	}
+}
+
+var knownRemoteSnapshotters = map[string]struct{}{
+	"nydus":     {},
+	"overlaybd": {},
+	"soci":      {},
+	"stargz":    {},
+}
+
+// lazyPull reports whether a pull into the given snapshotter may leave layer
+// blobs unfetched when the snapshotter already provides their snapshots.
+// The "lazy-pull" feature overrides the default, which enables lazy pulls only
+// for known remote snapshotters.
+func (i *ImageService) lazyPull(snapshotter string) bool {
+	if i.features != nil {
+		if enabled, ok := i.features.Features()["lazy-pull"]; ok {
+			return enabled
+		}
+	}
+	_, ok := knownRemoteSnapshotters[snapshotter]
+	return ok
 }
 
 type referrersForPull struct {

@@ -1347,6 +1347,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			PolicyVerifierProvider: verifierProvider(cfgStore.Root),
 			MaxConcurrentDownloads: config.MaxConcurrentDownloads,
 			MaxConcurrentUploads:   config.MaxConcurrentUploads,
+			Features:               d,
 		})
 
 		if migrationConfig.ImageCount > 0 {
