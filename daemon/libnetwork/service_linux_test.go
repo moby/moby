@@ -3,10 +3,18 @@
 package libnetwork
 
 import (
+	"context"
 	"math"
+	"net"
 	"testing"
 
+	"github.com/moby/moby/v2/daemon/libnetwork/config"
+	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipams/defaultipam"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
+	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
+	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -152,3 +160,72 @@ func TestUnrefIngressPortsIgnoresUnknown(t *testing.T) {
 	assert.Check(t, is.Len(unrefIngressPorts([]types.PublishedPort{pp}), 0))
 	assert.Check(t, is.Len(portConfigTbl, 0))
 }
+
+// TestLoadBalancerSandboxHasNoResolver checks that neither a network's
+// load-balancer sandbox nor the ingress sandbox runs the embedded DNS
+// resolver. Like overlay, the test driver doesn't give its endpoints a
+// gateway, so the ingress sandbox also joins docker_gwbridge.
+func TestLoadBalancerSandboxHasNoResolver(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		ingress bool
+	}{
+		{name: "network"},
+		{name: "ingress", ingress: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			defer netnsutils.SetupTestOSContext(t)()
+			c, err := New(t.Context(), config.OptionDataDir(t.TempDir()),
+				config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
+			assert.NilError(t, err)
+			defer c.Stop()
+			assert.NilError(t, c.drvRegistry.RegisterDriver(gatewaylessDriverName, gatewaylessDriver{},
+				driverapi.Capability{DataScope: scope.Global}))
+
+			n, err := c.NewNetwork(t.Context(), gatewaylessDriverName, "testlb", "",
+				NetworkOptionEnableIPv4(true),
+				NetworkOptionIpam(defaultipam.DriverName, "", []*IpamConf{{PreferredPool: "192.0.2.0/24"}}, nil, nil),
+				NetworkOptionLBEndpoint(net.ParseIP("192.0.2.2")),
+				NetworkOptionIngress(tc.ingress))
+			assert.NilError(t, err)
+			defer func() {
+				assert.Check(t, n.Delete(NetworkDeleteOptionRemoveLB))
+			}()
+
+			sb, err := c.GetSandbox(n.lbSandboxName())
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(sb.getEndpointInGWNetwork() != nil, tc.ingress))
+			assert.Check(t, sb.resolver == nil, "embedded DNS resolver started")
+		})
+	}
+}
+
+const gatewaylessDriverName = "gatewayless"
+
+// gatewaylessDriver is a global-scope network driver that accepts every
+// request and does nothing.
+type gatewaylessDriver struct{}
+
+func (gatewaylessDriver) CreateNetwork(context.Context, string, map[string]any, driverapi.NetworkInfo, []driverapi.IPAMData, []driverapi.IPAMData) error {
+	return nil
+}
+
+func (gatewaylessDriver) DeleteNetwork(string) error { return nil }
+
+func (gatewaylessDriver) CreateEndpoint(context.Context, string, string, driverapi.InterfaceInfo, map[string]any) error {
+	return nil
+}
+
+func (gatewaylessDriver) DeleteEndpoint(string, string) error { return nil }
+
+func (gatewaylessDriver) EndpointOperInfo(string, string) (map[string]any, error) { return nil, nil }
+
+func (gatewaylessDriver) Join(context.Context, string, string, string, driverapi.JoinInfo, map[string]any, map[string]any) error {
+	return nil
+}
+
+func (gatewaylessDriver) Leave(string, string) error { return nil }
+
+func (gatewaylessDriver) Type() string { return gatewaylessDriverName }
+
+func (gatewaylessDriver) IsBuiltIn() bool { return false }
