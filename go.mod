@@ -14,7 +14,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.10.0
 	cloud.google.com/go/logging v1.20.0
 	dario.cat/mergo v1.0.2
-	github.com/Azure/go-ansiterm v0.0.0-20260917205352-e937bb47801a
+	github.com/Azure/go-ansiterm v0.0.0-20261006220739-8c912ac31dd4
 	github.com/Graylog2/go-gelf v0.0.0-20191017102106-1550ee647df0 // head of v2 branch
 	github.com/Microsoft/go-winio v0.6.3-0.20260930231756-f19d9717deb0 // see https://github.com/microsoft/hcsshim/pull/2545
 	github.com/Microsoft/hcsshim v0.15.0-rc.4
