@@ -4,7 +4,7 @@ package overlay2
 
 import (
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/moby/go-archive"
@@ -94,18 +94,18 @@ func TestRemoveInvalidLink(t *testing.T) {
 			id := "invalid-link-" + tc.name
 			assert.NilError(t, d.Create(id, "", nil))
 
-			linkFile := path.Join(d.dir(id), "link")
+			linkFile := filepath.Join(d.dir(id), "link")
 			linkID, err := os.ReadFile(linkFile)
 			assert.NilError(t, err)
 
 			// Remove can no longer discover the original link after corrupting
 			// the metadata below, so clean it up explicitly.
 			t.Cleanup(func() {
-				_ = os.Remove(path.Join(d.home, linkDir, string(linkID)))
+				_ = os.Remove(filepath.Join(d.home, linkDir, string(linkID)))
 			})
 
-			target := path.Join(d.home, linkDir, tc.linkID)
-			sentinel := path.Join(target, "sentinel")
+			target := filepath.Join(d.home, linkDir, tc.linkID)
+			sentinel := filepath.Join(target, "sentinel")
 			assert.NilError(t, os.MkdirAll(target, 0o755))
 			assert.NilError(t, os.WriteFile(sentinel, nil, 0o644))
 			assert.NilError(t, os.WriteFile(linkFile, []byte(tc.linkID), 0o644))
