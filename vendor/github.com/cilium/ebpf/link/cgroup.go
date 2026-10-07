@@ -1,3 +1,5 @@
+//go:build !windows
+
 package link
 
 import (
@@ -163,6 +165,10 @@ func (cg *progAttachCgroup) Pin(string) error {
 
 func (cg *progAttachCgroup) Unpin() error {
 	return fmt.Errorf("can't unpin cgroup: %w", ErrNotSupported)
+}
+
+func (cg *progAttachCgroup) Detach() error {
+	return fmt.Errorf("can't detach cgroup: %w", ErrNotSupported)
 }
 
 func (cg *progAttachCgroup) Info() (*Info, error) {

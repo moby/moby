@@ -1,3 +1,5 @@
+//go:build !windows
+
 package link
 
 import (
@@ -8,26 +10,6 @@ import (
 	"github.com/cilium/ebpf/internal"
 	"github.com/cilium/ebpf/internal/sys"
 	"github.com/cilium/ebpf/internal/unix"
-)
-
-// Type is the kind of link.
-type Type = sys.LinkType
-
-// Valid link types.
-const (
-	UnspecifiedType   = sys.BPF_LINK_TYPE_UNSPEC
-	RawTracepointType = sys.BPF_LINK_TYPE_RAW_TRACEPOINT
-	TracingType       = sys.BPF_LINK_TYPE_TRACING
-	CgroupType        = sys.BPF_LINK_TYPE_CGROUP
-	IterType          = sys.BPF_LINK_TYPE_ITER
-	NetNsType         = sys.BPF_LINK_TYPE_NETNS
-	XDPType           = sys.BPF_LINK_TYPE_XDP
-	PerfEventType     = sys.BPF_LINK_TYPE_PERF_EVENT
-	KprobeMultiType   = sys.BPF_LINK_TYPE_KPROBE_MULTI
-	TCXType           = sys.BPF_LINK_TYPE_TCX
-	UprobeMultiType   = sys.BPF_LINK_TYPE_UPROBE_MULTI
-	NetfilterType     = sys.BPF_LINK_TYPE_NETFILTER
-	NetkitType        = sys.BPF_LINK_TYPE_NETKIT
 )
 
 var haveProgAttach = internal.NewFeatureTest("BPF_PROG_ATTACH", func() error {

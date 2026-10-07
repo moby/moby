@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
-	"strings"
 	"sync"
+
+	"github.com/cilium/ebpf/internal/platform"
 )
 
 // ErrNotSupported indicates that a feature is not supported.
@@ -14,6 +15,10 @@ var ErrNotSupported = errors.New("not supported")
 // ErrNotSupportedOnOS indicates that a feature is not supported on the current
 // operating system.
 var ErrNotSupportedOnOS = fmt.Errorf("%w on %s", ErrNotSupported, runtime.GOOS)
+
+// ErrRestrictedKernel is returned when kernel address information is restricted
+// by kernel.kptr_restrict and/or net.core.bpf_jit_harden sysctls.
+var ErrRestrictedKernel = errors.New("restricted by kernel.kptr_restrict and/or net.core.bpf_jit_harden sysctls")
 
 // UnsupportedFeatureError is returned by FeatureTest() functions.
 type UnsupportedFeatureError struct {
@@ -74,38 +79,23 @@ type FeatureTestFn func() error
 // Linux. Returns [ErrNotSupportedOnOS] if there is no version specified for the
 // current OS.
 func NewFeatureTest(name string, fn FeatureTestFn, versions ...string) func() error {
-	const nativePrefix = runtime.GOOS + ":"
-
-	if len(versions) == 0 {
-		return func() error {
-			return fmt.Errorf("feature test %q: no versions specified", name)
-		}
+	version, err := platform.SelectVersion(versions)
+	if err != nil {
+		return func() error { return err }
 	}
 
-	ft := &FeatureTest{
-		Name: name,
-		Fn:   fn,
-	}
-
-	for _, version := range versions {
-		if strings.HasPrefix(version, nativePrefix) {
-			ft.Version = strings.TrimPrefix(version, nativePrefix)
-			break
-		}
-
-		if OnLinux && !strings.ContainsRune(version, ':') {
-			// Allow version numbers without a GOOS prefix on Linux.
-			ft.Version = version
-			break
-		}
-	}
-
-	if ft.Version == "" {
+	if version == "" {
 		return func() error {
 			// We don't return an UnsupportedFeatureError here, since that will
 			// trigger version checks which don't make sense.
 			return fmt.Errorf("%s: %w", name, ErrNotSupportedOnOS)
 		}
+	}
+
+	ft := &FeatureTest{
+		Name:    name,
+		Version: version,
+		Fn:      fn,
 	}
 
 	return ft.execute
@@ -175,10 +165,16 @@ type FeatureMatrix[K comparable] map[K]*FeatureTest
 // Result returns the outcome of the feature test for the given key.
 //
 // It's safe to call this function concurrently.
+//
+// Always returns [ErrNotSupportedOnOS] on Windows.
 func (fm FeatureMatrix[K]) Result(key K) error {
 	ft, ok := fm[key]
 	if !ok {
 		return fmt.Errorf("no feature probe for %v", key)
+	}
+
+	if platform.IsWindows {
+		return fmt.Errorf("%s: %w", ft.Name, ErrNotSupportedOnOS)
 	}
 
 	return ft.execute()
@@ -201,6 +197,10 @@ func NewFeatureCache[K comparable](newTest func(K) *FeatureTest) *FeatureCache[K
 }
 
 func (fc *FeatureCache[K]) Result(key K) error {
+	if platform.IsWindows {
+		return fmt.Errorf("feature probe for %v: %w", key, ErrNotSupportedOnOS)
+	}
+
 	// NB: Executing the feature test happens without fc.mu taken.
 	return fc.retrieve(key).execute()
 }
