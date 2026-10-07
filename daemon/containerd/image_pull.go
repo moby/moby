@@ -306,6 +306,26 @@ func joinHandlerWrappers(funcs ...func(c8dimages.Handler) c8dimages.Handler) fun
 	}
 }
 
+// knownRemoteSnapshotters are the names that remote snapshotters are
+// conventionally registered under as containerd proxy plugins.
+//
+// The snapshotter interface offers no reliable way to detect a remote snapshotter:
+//   - Snapshotter introspection has no standard capability or export for
+//     remote or lazy snapshotters, and being a proxy plugin doesn't imply
+//     either.
+//   - The enable_remote_snapshot_annotations export is only present if the
+//     containerd configuration sets it in the proxy plugin's exports.
+//     containerd builds proxy plugin exports from its own configuration, and
+//     the snapshotter has no way to report them over the snapshots API.
+//   - When preparing a layer, a remote snapshotter reports the snapshot as
+//     already existing, just like a snapshot that existed before the pull.
+//     The containerd.io/snapshot/remote label is a stargz and soci
+//     convention that nydus doesn't use, and it only appears after the
+//     snapshot is created.
+//   - Fetching all layer content is decided for the whole pull before any
+//     snapshot exists, so it can't be decided per layer.
+//
+// The "lazy-pull" feature overrides this list in either direction.
 var knownRemoteSnapshotters = map[string]struct{}{
 	"nydus":     {},
 	"overlaybd": {},
