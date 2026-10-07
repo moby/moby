@@ -46,6 +46,7 @@ type ImageService struct {
 	idMapping           user.IdentityMapping
 	policyVerifier      func() (*policyverifier.Verifier, error)
 	identity            imageIdentityState
+	features            featuresProvider
 
 	// transferLimitMu keeps limiter pointers and their settings consistent while
 	// configuration reload replaces them.
@@ -78,6 +79,14 @@ type ImageServiceConfig struct {
 	PolicyVerifierProvider func() (*policyverifier.Verifier, error)
 	MaxConcurrentDownloads int
 	MaxConcurrentUploads   int
+	Features               featuresProvider
+}
+
+// featuresProvider provides the daemon's feature flags.
+type featuresProvider interface {
+	// Features returns the current feature flags, which can change when the
+	// daemon configuration is reloaded.
+	Features() map[string]bool
 }
 
 // NewService creates a new ImageService.
@@ -100,6 +109,7 @@ func NewService(config ImageServiceConfig) *ImageService {
 		refCountMounter: config.RefCountMounter,
 		idMapping:       config.IDMapping,
 		policyVerifier:  config.PolicyVerifierProvider,
+		features:        config.Features,
 		identity: imageIdentityState{
 			cache: make(map[string]imageIdentityCacheEntry),
 			cacheStore: func() identitycache.Backend {
