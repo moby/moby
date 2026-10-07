@@ -1,9 +1,11 @@
 package storeutils
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
+	"github.com/moby/moby/v2/daemon/libnetwork/kvstore/boltdb"
 	"gotest.tools/v3/assert"
 )
 
@@ -13,8 +15,9 @@ import (
 func NewTempStore(t *testing.T) *datastore.Store {
 	t.Helper()
 
-	ds, err := datastore.New(t.TempDir(), "libnetwork")
+	kv, err := boltdb.New(filepath.Join(t.TempDir(), "local-kv.db"))
 	assert.NilError(t, err)
+	t.Cleanup(kv.Close)
 
-	return ds
+	return datastore.New(kv)
 }

@@ -2,20 +2,17 @@ package datastore
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"testing"
 
+	"github.com/moby/moby/v2/daemon/libnetwork/kvstore/boltdb"
+	"github.com/moby/moby/v2/daemon/libnetwork/kvstore/memstore"
 	"github.com/moby/moby/v2/daemon/libnetwork/options"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
 const dummyKey = "dummy"
-
-// NewTestDataStore can be used by other Tests in order to use custom datastore
-func NewTestDataStore() *Store {
-	s := NewMockStore()
-	return &Store{store: s, cache: newCache(s)}
-}
 
 func TestKey(t *testing.T) {
 	sKey := Key("hello", "world")
@@ -24,7 +21,7 @@ func TestKey(t *testing.T) {
 }
 
 func TestKVObjectFlatKey(t *testing.T) {
-	store := NewTestDataStore()
+	store := New(memstore.New())
 	expected := dummyKVObject("1000", true)
 	err := store.PutObjectAtomic(expected)
 	assert.Check(t, err)
@@ -36,7 +33,7 @@ func TestKVObjectFlatKey(t *testing.T) {
 }
 
 func TestAtomicKVObjectFlatKey(t *testing.T) {
-	store := NewTestDataStore()
+	store := New(memstore.New())
 	expected := dummyKVObject("1111", true)
 	assert.Check(t, !expected.Exists())
 	err := store.PutObjectAtomic(expected)
@@ -64,6 +61,51 @@ func TestAtomicKVObjectFlatKey(t *testing.T) {
 	assert.Check(t, newObj.Exists())
 	err = store.PutObjectAtomic(&n)
 	assert.Check(t, err)
+}
+
+// TestAtomicOperations checks that a Store backed by a MemStore refuses the
+// same updates and deletes as one backed by BoltDB.
+func TestAtomicOperations(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		newStore func(*testing.T) *Store
+	}{
+		{name: "memstore", newStore: func(*testing.T) *Store { return New(memstore.New()) }},
+		{name: "boltdb", newStore: func(t *testing.T) *Store {
+			kv, err := boltdb.New(filepath.Join(t.TempDir(), "local-kv.db"))
+			assert.NilError(t, err)
+			t.Cleanup(kv.Close)
+			return New(kv)
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := tc.newStore(t)
+
+			assert.Check(t, is.ErrorIs(ds.GetObject(&dummyObject{ID: "1000"}), ErrKeyNotFound))
+			obj := dummyKVObject("1000", true)
+			assert.NilError(t, ds.PutObjectAtomic(obj))
+			stale := &dummyObject{ID: "1000"}
+			assert.NilError(t, ds.GetObject(stale))
+			stale.ReturnValue = true
+			assert.NilError(t, ds.PutObjectAtomic(obj))
+
+			assert.Check(t, is.ErrorIs(ds.PutObjectAtomic(stale), ErrKeyModified))
+			assert.Check(t, is.ErrorIs(ds.DeleteObjectAtomic(stale), ErrKeyModified))
+			list, err := ds.List(&dummyObject{})
+			assert.NilError(t, err)
+			assert.Check(t, is.Len(list, 1))
+
+			assert.NilError(t, ds.DeleteObjectAtomic(obj))
+			assert.Check(t, is.ErrorIs(ds.GetObject(&dummyObject{ID: "1000"}), ErrKeyNotFound))
+			assert.Check(t, is.ErrorIs(ds.PutObjectAtomic(obj), ErrKeyNotFound), "update of a deleted object")
+			assert.Check(t, is.ErrorIs(ds.DeleteObjectAtomic(obj), ErrKeyNotFound), "delete of a deleted object")
+
+			// The object created again has an index that none of its
+			// earlier versions had.
+			assert.NilError(t, ds.PutObjectAtomic(dummyKVObject("1000", true)))
+			assert.Check(t, is.ErrorIs(ds.PutObjectAtomic(stale), ErrKeyModified), "update through a copy from before the delete")
+		})
+	}
 }
 
 // dummy data used to test the datastore

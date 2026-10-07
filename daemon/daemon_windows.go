@@ -238,8 +238,7 @@ func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSand
 	if err != nil {
 		return err
 	}
-	daemon.netController, err = libnetwork.New(context.TODO(), netOptions...)
-	if err != nil {
+	if err := daemon.newNetworkController(context.TODO(), daemonCfg, netOptions); err != nil {
 		return errors.Wrap(err, "error obtaining controller instance")
 	}
 

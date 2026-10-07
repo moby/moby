@@ -323,7 +323,7 @@ func compareNwLists(a, b []*net.IPNet) bool {
 func TestAuxAddresses(t *testing.T) {
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()))
+	c, err := New(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,7 +366,7 @@ func TestEndpointNameLabel(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "test causes sync issue with Windows HNS")
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()))
+	c, err := New(t.Context())
 	assert.NilError(t, err)
 	defer c.Stop()
 
@@ -427,7 +427,7 @@ func TestUpdateSvcRecord(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
-			ctrlr, err := New(t.Context(), config.OptionDataDir(t.TempDir()))
+			ctrlr, err := New(t.Context())
 			assert.NilError(t, err)
 			defer ctrlr.Stop()
 
@@ -506,7 +506,7 @@ func TestSRVServiceQuery(t *testing.T) {
 
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()),
+	c, err := New(t.Context(),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
 		t.Fatal(err)
@@ -607,7 +607,7 @@ func TestServiceVIPReuse(t *testing.T) {
 
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()),
+	c, err := New(t.Context(),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	if err != nil {
 		t.Fatal(err)
@@ -728,7 +728,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 
 	defer netnsutils.SetupTestOSContext(t)()
 
-	c, err := New(t.Context(), config.OptionDataDir(t.TempDir()))
+	c, err := New(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

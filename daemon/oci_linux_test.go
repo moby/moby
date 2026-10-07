@@ -12,7 +12,6 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/libnetwork"
-	nwconfig "github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/network"
 	daemonoci "github.com/moby/moby/v2/daemon/pkg/oci"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -30,7 +29,7 @@ func setupFakeDaemon(t *testing.T, c *container.Container) *Daemon {
 	err := os.MkdirAll(rootfs, 0o755)
 	assert.NilError(t, err)
 
-	netController, err := libnetwork.New(t.Context(), nwconfig.OptionDataDir(t.TempDir()))
+	netController, err := libnetwork.New(t.Context())
 	assert.NilError(t, err)
 
 	d := &Daemon{

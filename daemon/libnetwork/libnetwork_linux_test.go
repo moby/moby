@@ -49,7 +49,6 @@ func newController(t *testing.T) *libnetwork.Controller {
 	t.Helper()
 	c, err := libnetwork.New(
 		t.Context(),
-		config.OptionDataDir(t.TempDir()),
 		config.OptionBridgeConfig(bridge.Configuration{
 			EnableIPForwarding: true,
 		}),
@@ -856,7 +855,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 	sbx2, err := controller.NewSandbox(t.Context(), "c2",
 		libnetwork.OptionHostname("test2"),
 		libnetwork.OptionDomainname("example.com"),
-		libnetwork.OptionHostsPath("/var/lib/docker/test_network/container2/hosts"),
+		libnetwork.OptionWriteHostsFile("/var/lib/docker/test_network/container2/hosts"),
 		libnetwork.OptionExtraHost("web", netip.MustParseAddr("192.168.0.2")))
 	assert.NilError(t, err)
 	defer func() {
@@ -893,7 +892,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 	err = os.WriteFile(filepath.Join(specPath, driverName+".spec"), []byte(server.URL), 0o644)
 	assert.NilError(t, err)
 
-	ctrlr, err := libnetwork.New(t.Context(), config.OptionDataDir(t.TempDir()))
+	ctrlr, err := libnetwork.New(t.Context())
 	assert.NilError(t, err)
 	defer ctrlr.Stop()
 
@@ -1372,7 +1371,7 @@ func TestResolvConf(t *testing.T) {
 			}
 
 			sbOpts := append(tc.sbOpts,
-				libnetwork.OptionResolvConfPath(resolvConfPath),
+				libnetwork.OptionWriteResolvConf(resolvConfPath),
 				libnetwork.OptionOriginResolvConfPath(originResolvConfPath),
 			)
 			sb, err := c.NewSandbox(t.Context(), containerID, sbOpts...)

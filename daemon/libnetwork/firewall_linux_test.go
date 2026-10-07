@@ -54,7 +54,6 @@ func TestUserChain(t *testing.T) {
 
 			c, err := New(
 				t.Context(),
-				config.OptionDataDir(t.TempDir()),
 				config.OptionBridgeConfig(bridge.Configuration{
 					EnableIPTables:  tc.iptables,
 					EnableIP6Tables: tc.iptables,
