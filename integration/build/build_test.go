@@ -20,6 +20,7 @@ import (
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"github.com/moby/moby/v2/internal/testutil/request"
@@ -172,7 +173,7 @@ func TestBuildMultiStageCopy(t *testing.T) {
 			assert.NilError(t, err)
 
 			out := bytes.NewBuffer(nil)
-			_, err = io.Copy(out, resp.Body)
+			err = readBuildResponse(resp.Body, out)
 			_ = resp.Body.Close()
 			if err != nil {
 				t.Log(out)
@@ -215,7 +216,7 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 		Tags:        []string{imgName},
 	})
 	assert.NilError(t, err)
-	_, err = io.Copy(io.Discard, resp.Body)
+	err = readBuildResponse(resp.Body, nil)
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
@@ -262,7 +263,7 @@ func TestBuildLabelWithTargets(t *testing.T) {
 		Target:      "target-a",
 	})
 	assert.NilError(t, err)
-	_, err = io.Copy(io.Discard, resp.Body)
+	err = readBuildResponse(resp.Body, nil)
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
@@ -289,7 +290,7 @@ func TestBuildLabelWithTargets(t *testing.T) {
 			Target:      "target-b",
 		})
 	assert.NilError(t, err)
-	_, err = io.Copy(io.Discard, resp.Body)
+	err = readBuildResponse(resp.Body, nil)
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
@@ -325,7 +326,7 @@ COPY    3/ /target/
 		ForceRemove: true,
 	})
 	assert.NilError(t, err)
-	_, err = io.Copy(io.Discard, resp.Body)
+	err = readBuildResponse(resp.Body, nil)
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 }
@@ -361,7 +362,7 @@ RUN cat somefile`
 
 	out := bytes.NewBuffer(nil)
 	assert.NilError(t, err)
-	_, err = io.Copy(out, resp.Body)
+	err = readBuildResponse(resp.Body, out)
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
@@ -410,7 +411,7 @@ COPY bar /
 
 	out := bytes.NewBuffer(nil)
 	assert.NilError(t, err)
-	_, err = io.Copy(out, resp.Body)
+	err = readBuildResponse(resp.Body, out)
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
@@ -433,7 +434,7 @@ COPY bar /
 
 	out = bytes.NewBuffer(nil)
 	assert.NilError(t, err)
-	_, err = io.Copy(out, resp.Body)
+	err = readBuildResponse(resp.Body, out)
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 	assert.Assert(t, !strings.Contains(out.String(), "Using cache"))
@@ -470,7 +471,7 @@ RUN [ ! -f foo ]
 
 	out := bytes.NewBuffer(nil)
 	assert.NilError(t, err)
-	_, err = io.Copy(out, resp.Body)
+	err = readBuildResponse(resp.Body, out)
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
@@ -515,7 +516,7 @@ RUN for g in $(seq 0 8); do dd if=/dev/urandom of=rnd bs=1K count=1 seek=$((1024
 
 	out := bytes.NewBuffer(nil)
 	assert.NilError(t, err)
-	_, err = io.Copy(out, resp.Body)
+	err = readBuildResponse(resp.Body, out)
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(out.String(), "Successfully built"))
@@ -709,7 +710,7 @@ ENV CACHE_TEST=1
 		defer resp.Body.Close()
 
 		out := bytes.NewBuffer(nil)
-		_, err = io.Copy(out, resp.Body)
+		err = readBuildResponse(resp.Body, out)
 		assert.NilError(t, err)
 		return out.String()
 	}
@@ -818,7 +819,7 @@ func TestBuildEmitsEvents(t *testing.T) {
 					defer resp.Body.Close()
 
 					out := bytes.NewBuffer(nil)
-					_, err = io.Copy(out, resp.Body)
+					err = readBuildResponse(resp.Body, out)
 					assert.NilError(t, err)
 					buildLogs := out.String()
 					imageID := readBuildImageIDs(t, bytes.NewReader(out.Bytes()))
@@ -905,7 +906,7 @@ func TestBuildHistoryDoesNotPreventRemoval(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
-		_, err = io.Copy(io.Discard, resp.Body)
+		err = readBuildResponse(resp.Body, nil)
 		return err
 	}
 
@@ -917,6 +918,16 @@ func TestBuildHistoryDoesNotPreventRemoval(t *testing.T) {
 	assert.Check(t, slices.ContainsFunc(res.Items, func(r image.DeleteResponse) bool {
 		return r.Deleted != ""
 	}))
+}
+
+// readBuildResponse reads the build response stream from body, copying it
+// as is to out (unless nil). Unlike io.Copy, it returns an error if the
+// stream contains one, such as a build error.
+func readBuildResponse(body io.Reader, out io.Writer) error {
+	if out != nil {
+		body = io.TeeReader(body, out)
+	}
+	return jsonmessage.DisplayStream(body, io.Discard)
 }
 
 func readBuildImageIDs(t *testing.T, rd io.Reader) string {

@@ -56,7 +56,7 @@ func TestBuildSquashParent(t *testing.T) {
 		Tags:        []string{name},
 	})
 	assert.NilError(t, err)
-	_, err = io.Copy(io.Discard, resp.Body)
+	err = readBuildResponse(resp.Body, nil)
 	resp.Body.Close()
 	assert.NilError(t, err)
 
@@ -74,7 +74,7 @@ func TestBuildSquashParent(t *testing.T) {
 			Tags:        []string{name},
 		})
 	assert.NilError(t, err)
-	_, err = io.Copy(io.Discard, resp.Body)
+	err = readBuildResponse(resp.Body, nil)
 	resp.Body.Close()
 	assert.NilError(t, err)
 
