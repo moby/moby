@@ -58,12 +58,23 @@ func setDefaultUmask() error {
 }
 
 // setupConfigReloadTrap configures the SIGHUP signal to reload the configuration.
-func (cli *daemonCLI) setupConfigReloadTrap() {
+func (cli *daemonCLI) setupConfigReloadTrap(ctx context.Context) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, unix.SIGHUP)
+
 	go func() {
-		for range c {
-			cli.reloadConfig()
+		defer signal.Stop(c)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-c:
+				if ctx.Err() != nil {
+					return
+				}
+				cli.reloadConfig()
+			}
 		}
 	}()
 }

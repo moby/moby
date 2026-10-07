@@ -3,10 +3,10 @@ package command
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/containerd/log"
@@ -80,19 +80,35 @@ func notifyShutdown(ctx context.Context, err error) {
 }
 
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.
-func (cli *daemonCLI) setupConfigReloadTrap() {
+func (cli *daemonCLI) setupConfigReloadTrap(ctx context.Context) {
 	go func() {
-		sa := windows.SecurityAttributes{
-			Length: 0,
-		}
-		event := "Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid())
+		event := `Global\docker-daemon-config-` + strconv.Itoa(os.Getpid())
 		ev, _ := windows.UTF16PtrFromString(event)
-		if h, _ := windows.CreateEvent(&sa, 0, 0, ev); h != 0 {
-			log.G(context.TODO()).Debugf("Config reload - waiting signal at %s", event)
-			for {
-				windows.WaitForSingleObject(h, windows.INFINITE)
-				cli.reloadConfig()
+		h, err := windows.CreateEvent(nil, 0, 0, ev)
+		if err != nil && !errors.Is(err, windows.ERROR_ALREADY_EXISTS) {
+			log.G(ctx).WithError(err).Errorf("Failed to create config reload event %s", event)
+			return
+		}
+		stopDone := make(chan struct{})
+		stop := context.AfterFunc(ctx, func() {
+			// Wake the blocking wait so the goroutine can exit on shutdown.
+			_ = windows.SetEvent(h)
+			close(stopDone)
+		})
+		defer func() {
+			if !stop() {
+				<-stopDone
 			}
+			_ = windows.CloseHandle(h)
+		}()
+
+		log.G(ctx).WithField("event", event).Info("Registered config reload event")
+		for {
+			windows.WaitForSingleObject(h, windows.INFINITE)
+			if ctx.Err() != nil {
+				return
+			}
+			cli.reloadConfig()
 		}
 	}()
 }
