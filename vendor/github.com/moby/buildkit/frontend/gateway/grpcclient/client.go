@@ -866,6 +866,9 @@ type messageForwarder struct {
 	mu     sync.Mutex
 	pids   map[string]*procMessageForwarder
 	stream pb.LLBBridge_ExecProcessClient
+	// Keep send serialization separate from mu so the receive loop can deliver
+	// process output while Send is blocked on flow control.
+	sendMu sync.Mutex
 	// startOnce used to only start the exec message forwarder once,
 	// so we only have one exec stream per client
 	startOnce sync.Once
@@ -955,11 +958,13 @@ func debugMessage(msg *pb.ExecMessage) string {
 func (m *messageForwarder) Send(msg *pb.ExecMessage) error {
 	m.mu.Lock()
 	_, ok := m.pids[msg.ProcessID]
-	defer m.mu.Unlock()
+	m.mu.Unlock()
 	if !ok {
 		return errors.Errorf("process %s has ended, not sending message %#v", msg.ProcessID, msg.Input)
 	}
 	bklog.G(m.ctx).Debugf("|---> %s", debugMessage(msg))
+	m.sendMu.Lock()
+	defer m.sendMu.Unlock()
 	return m.stream.Send(msg)
 }
 
@@ -1180,6 +1185,7 @@ func (ctr *container) Start(ctx context.Context, req client.StartRequest) (clien
 
 	ctrProc.eg.Go(func() error {
 		var closeDoneOnce sync.Once
+		defer closeDoneOnce.Do(func() { close(done) })
 		var exitError error
 		for {
 			msg, ok := msgs.Recv(ctx)

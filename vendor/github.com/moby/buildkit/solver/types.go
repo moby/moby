@@ -176,6 +176,8 @@ type Op interface {
 	CacheMap(context.Context, JobContext, int) (*CacheMap, bool, error)
 
 	// Exec runs an operation given results from previous operations.
+	// On error, outputs must be nil; the operation must release any outputs
+	// it created or transfer their ownership to the error.
 	Exec(ctx context.Context, jobCtx JobContext, inputs []Result) (outputs []Result, err error)
 
 	// Acquire acquires the necessary resources to execute the `Op`.

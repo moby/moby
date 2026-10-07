@@ -103,6 +103,7 @@ func ParseAnnotationKey(result string) (AnnotationKey, bool, error) {
 		if err != nil {
 			return AnnotationKey{}, true, err
 		}
+		p = platforms.Normalize(p)
 		ociPlatform = &p
 	}
 
