@@ -327,7 +327,6 @@ func TestAuxAddresses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Stop()
 
 	n := &Network{
 		enableIPv4:  true,
@@ -368,7 +367,6 @@ func TestEndpointNameLabel(t *testing.T) {
 
 	c, err := New(t.Context())
 	assert.NilError(t, err)
-	defer c.Stop()
 
 	ipamOpt := NetworkOptionIpam(defaultipam.DriverName, "", []*IpamConf{{PreferredPool: "10.35.0.0/16", Gateway: "10.35.255.253"}}, nil, nil)
 	gnw, err := c.NewNetwork(t.Context(), "bridge", "label-test", "",
@@ -429,7 +427,6 @@ func TestUpdateSvcRecord(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
 			ctrlr, err := New(t.Context())
 			assert.NilError(t, err)
-			defer ctrlr.Stop()
 
 			var ipam4, ipam6 []*IpamConf
 			var ip4, ip6 net.IP
@@ -511,7 +508,6 @@ func TestSRVServiceQuery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Stop()
 
 	n, err := c.NewNetwork(t.Context(), "bridge", "net1", "",
 		NetworkOptionEnableIPv4(true),
@@ -612,7 +608,6 @@ func TestServiceVIPReuse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Stop()
 
 	n, err := c.NewNetwork(t.Context(), "bridge", "net1", "", nil,
 		NetworkOptionEnableIPv4(true),
@@ -732,7 +727,6 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Stop()
 
 	const badDriverName = "bad network driver"
 	bd := &badDriver{failNetworkCreation: true}

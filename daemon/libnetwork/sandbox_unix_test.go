@@ -29,7 +29,6 @@ func getTestEnv(t *testing.T, opts ...[]NetworkOption) (*Controller, []*Network)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(c.Stop)
 
 	if len(opts) == 0 {
 		return c, nil

@@ -21,7 +21,6 @@ func TestDNSIPQuery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Stop()
 
 	n, err := c.NewNetwork(t.Context(), "bridge", "dtnet1", "", NetworkOptionEnableIPv4(true))
 	if err != nil {
@@ -119,7 +118,6 @@ func TestDNSProxyServFail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Stop()
 
 	n, err := c.NewNetwork(t.Context(), "bridge", "dtnet2", "", NetworkOptionEnableIPv4(true))
 	if err != nil {

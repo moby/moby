@@ -177,7 +177,6 @@ func TestLoadBalancerSandboxHasNoResolver(t *testing.T) {
 			defer netnsutils.SetupTestOSContext(t)()
 			c, err := New(t.Context(), config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 			assert.NilError(t, err)
-			defer c.Stop()
 			assert.NilError(t, c.drvRegistry.RegisterDriver(gatewaylessDriverName, gatewaylessDriver{},
 				driverapi.Capability{DataScope: scope.Global}))
 

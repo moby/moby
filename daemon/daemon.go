@@ -1600,17 +1600,13 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	}
 
 	// Hook callbacks may use the network controller, so wait for them to
-	// return first.
+	// return before closing its store.
 	if daemon.ociHooks != nil {
 		if err := daemon.ociHooks.Shutdown(ctx); err != nil {
 			log.G(ctx).WithError(err).Warn("error shutting down OCI hook server")
 		}
 	}
 
-	// trigger libnetwork Stop only if it's initialized
-	if daemon.netController != nil {
-		daemon.netController.Stop()
-	}
 	if daemon.netStore != nil {
 		daemon.netStore.Close()
 	}

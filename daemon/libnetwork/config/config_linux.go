@@ -17,10 +17,9 @@ func OptionBridgeConfig(config bridge.Configuration) Option {
 	}
 }
 
-// optionExecRoot on Linux sets both the controller's ExecRoot and osl.basePath.
+// optionExecRoot on Linux sets osl.basePath.
 func optionExecRoot(execRoot string) Option {
-	return func(c *Config) {
-		c.ExecRoot = execRoot
+	return func(*Config) {
 		osl.SetBasePath(execRoot)
 	}
 }

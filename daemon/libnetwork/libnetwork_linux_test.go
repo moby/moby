@@ -2,14 +2,12 @@ package libnetwork_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -33,7 +31,6 @@ import (
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"github.com/moby/moby/v2/pkg/plugins"
-	"github.com/moby/sys/reexec"
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sync/errgroup"
@@ -55,7 +52,6 @@ func newController(t *testing.T) *libnetwork.Controller {
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()),
 	)
 	assert.NilError(t, err)
-	t.Cleanup(c.Stop)
 	return c
 }
 
@@ -894,7 +890,6 @@ func TestInvalidRemoteDriver(t *testing.T) {
 
 	ctrlr, err := libnetwork.New(t.Context())
 	assert.NilError(t, err)
-	defer ctrlr.Stop()
 
 	_, err = ctrlr.NewNetwork(t.Context(), driverName, "dummy", "",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
@@ -1193,10 +1188,6 @@ func TestEndpointJoin(t *testing.T) {
 }
 
 func TestExternalKey(t *testing.T) {
-	externalKeyTest(t, false)
-}
-
-func externalKeyTest(t *testing.T, reexec bool) {
 	defer netnsutils.SetupTestOSContext(t)()
 	controller := newController(t)
 
@@ -1254,16 +1245,9 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	sbox := ep.Info().Sandbox()
 	assert.Assert(t, sbox != nil, "Expected to have a valid Sandbox")
 
-	if reexec {
-		err := reexecSetKey("this-must-fail", containerID, controller.ID())
-		if err == nil {
-			t.Fatalf("libnetwork-setkey must fail if the corresponding namespace is not created")
-		}
-	} else {
-		// Setting an non-existing key (namespace) must fail
-		if err := sbox.SetKey(t.Context(), "this-must-fail"); err == nil {
-			t.Fatalf("Setkey must fail if the corresponding namespace is not created")
-		}
+	// Setting an non-existing key (namespace) must fail
+	if err := sbox.SetKey(t.Context(), "this-must-fail"); err == nil {
+		t.Fatalf("Setkey must fail if the corresponding namespace is not created")
 	}
 
 	// Create a new OS sandbox using the osl API before using it in SetKey
@@ -1275,13 +1259,8 @@ func externalKeyTest(t *testing.T, reexec bool) {
 		}
 	}()
 
-	if reexec {
-		err = reexecSetKey("ValidKey", containerID, controller.ID())
-		assert.NilError(t, err, "libnetwork-setkey failed")
-	} else {
-		err = sbox.SetKey(t.Context(), "ValidKey")
-		assert.NilError(t, err, "setkey failed")
-	}
+	err = sbox.SetKey(t.Context(), "ValidKey")
+	assert.NilError(t, err, "setkey failed")
 
 	// Join endpoint to sandbox after SetKey
 	err = ep2.Join(t.Context(), sbox)
@@ -1293,31 +1272,6 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	assert.Assert(t, is.Equal(ep.Info().Sandbox().Key(), ep2.Info().Sandbox().Key()), "ep1 and ep2 returned different container sandbox key")
 
 	checkSandbox(t, ep.Info())
-}
-
-func reexecSetKey(key string, containerID string, controllerID string) error {
-	type libcontainerState struct {
-		NamespacePaths map[string]string
-	}
-	var (
-		state libcontainerState
-		b     []byte
-		err   error
-	)
-
-	state.NamespacePaths = make(map[string]string)
-	state.NamespacePaths["NEWNET"] = key
-	if b, err = json.Marshal(state); err != nil {
-		return err
-	}
-	cmd := &exec.Cmd{
-		Path:   reexec.Self(),
-		Args:   append([]string{"libnetwork-setkey"}, containerID, controllerID),
-		Stdin:  strings.NewReader(string(b)),
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-	}
-	return cmd.Run()
 }
 
 func TestResolvConf(t *testing.T) {
