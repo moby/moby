@@ -1295,7 +1295,7 @@ github.com/moby/ipvs
 # github.com/moby/locker v1.0.1
 ## explicit; go 1.13
 github.com/moby/locker
-# github.com/moby/moby/api v1.56.1
+# github.com/moby/moby/api v1.56.1 => ./api
 ## explicit; go 1.24
 github.com/moby/moby/api/pkg/authconfig
 github.com/moby/moby/api/pkg/stdcopy
@@ -1312,12 +1312,13 @@ github.com/moby/moby/api/types/jsonstream
 github.com/moby/moby/api/types/mount
 github.com/moby/moby/api/types/network
 github.com/moby/moby/api/types/plugin
+github.com/moby/moby/api/types/prune
 github.com/moby/moby/api/types/registry
 github.com/moby/moby/api/types/storage
 github.com/moby/moby/api/types/swarm
 github.com/moby/moby/api/types/system
 github.com/moby/moby/api/types/volume
-# github.com/moby/moby/client v0.6.2
+# github.com/moby/moby/client v0.6.2 => ./client
 ## explicit; go 1.24
 github.com/moby/moby/client
 github.com/moby/moby/client/internal
@@ -2062,6 +2063,8 @@ golang.org/x/text/unicode/norm
 # golang.org/x/time v0.16.0
 ## explicit; go 1.26.0
 golang.org/x/time/rate
+# golang.org/x/tools v0.50.0
+## explicit; go 1.26.0
 # google.golang.org/api v0.287.1
 ## explicit; go 1.25.0
 google.golang.org/api/googleapi
@@ -2286,3 +2289,5 @@ tags.cncf.io/container-device-interface/pkg/parser
 # tags.cncf.io/container-device-interface/specs-go v1.1.1
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
+# github.com/moby/moby/api => ./api
+# github.com/moby/moby/client => ./client
