@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -12,6 +11,12 @@ import (
 // ContainerPruneOptions holds parameters to prune containers.
 type ContainerPruneOptions struct {
 	Filters Filters
+
+	// OnProgress receives successful deletions as they occur. Requires API v1.56.
+	// Returning an error stops reading the stream and cancels the request.
+	// The daemon may return only the final report, for example when response
+	// authorization is enabled; in that case OnProgress is not called.
+	OnProgress func(PruneProgress) error
 }
 
 // ContainerPruneResult holds the result from the [Client.ContainerPrune] method.
@@ -24,15 +29,9 @@ func (cli *Client) ContainerPrune(ctx context.Context, opts ContainerPruneOption
 	query := url.Values{}
 	opts.Filters.updateURLValues(query)
 
-	resp, err := cli.post(ctx, "/containers/prune", query, nil, nil)
-	defer ensureReaderClosed(resp)
-	if err != nil {
-		return ContainerPruneResult{}, err
-	}
-
 	var report container.PruneReport
-	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
-		return ContainerPruneResult{}, fmt.Errorf("Error retrieving disk usage: %v", err)
+	if err := cli.prune(ctx, "/containers/prune", query, opts.OnProgress, &report); err != nil {
+		return ContainerPruneResult{}, fmt.Errorf("error retrieving container prune report: %w", err)
 	}
 
 	return ContainerPruneResult{Report: report}, nil

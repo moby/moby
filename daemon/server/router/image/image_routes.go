@@ -651,11 +651,9 @@ func (ir *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 
-	pruneReport, err := ir.backend.ImagePrune(ctx, pruneFilters)
-	if err != nil {
-		return err
-	}
-	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+	return httputils.WritePruneResponse(ctx, w, r, func(ctx context.Context) (any, error) {
+		return ir.backend.ImagePrune(ctx, pruneFilters)
+	})
 }
 
 func (ir *imageRouter) getImageAttestations(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

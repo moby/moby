@@ -14,6 +14,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
@@ -137,6 +138,14 @@ deleteImagesLoop:
 		}
 
 		rep.ImagesDeleted = append(rep.ImagesDeleted, deletedImages...)
+		for _, deleted := range deletedImages {
+			if deleted.Untagged != "" {
+				pruneprogress.Notify(ctx, deleted.Untagged, "untagged")
+			}
+			if deleted.Deleted != "" {
+				pruneprogress.Notify(ctx, deleted.Deleted, "deleted")
+			}
+		}
 	}
 
 	// Compute how much space was freed

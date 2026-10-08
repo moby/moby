@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -18,6 +17,10 @@ type VolumePruneOptions struct {
 
 	// Filters to apply when pruning.
 	Filters Filters
+
+	// OnProgress receives successful deletions as they occur. Requires API v1.56.
+	// Returning an error cancels the request.
+	OnProgress func(PruneProgress) error
 }
 
 // VolumePruneResult holds the result from the [Client.VolumePrune] method.
@@ -40,15 +43,9 @@ func (cli *Client) VolumePrune(ctx context.Context, options VolumePruneOptions) 
 	query := url.Values{}
 	options.Filters.updateURLValues(query)
 
-	resp, err := cli.post(ctx, "/volumes/prune", query, nil, nil)
-	defer ensureReaderClosed(resp)
-	if err != nil {
-		return VolumePruneResult{}, err
-	}
-
 	var report volume.PruneReport
-	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
-		return VolumePruneResult{}, fmt.Errorf("error retrieving volume prune report: %v", err)
+	if err := cli.prune(ctx, "/volumes/prune", query, options.OnProgress, &report); err != nil {
+		return VolumePruneResult{}, fmt.Errorf("error retrieving volume prune report: %w", err)
 	}
 
 	return VolumePruneResult{Report: report}, nil

@@ -16,6 +16,7 @@ import (
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/daemon/internal/filters"
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -279,6 +280,7 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8
 
 		familiarName := imageFamiliarName(img)
 		i.logImageEvent(img, familiarName, events.ActionUnTag)
+		pruneprogress.Notify(ctx, familiarName, "untagged")
 		report.ImagesDeleted = append(report.ImagesDeleted,
 			image.DeleteResponse{
 				Untagged: familiarName,
@@ -293,6 +295,7 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8
 			if cerrdefs.IsNotFound(err) {
 				if c8dimages.IsManifestType(blob.MediaType) || c8dimages.IsIndexType(blob.MediaType) {
 					deleted = true
+					pruneprogress.Notify(ctx, blob.Digest.String(), "deleted")
 					report.ImagesDeleted = append(report.ImagesDeleted,
 						image.DeleteResponse{
 							Deleted: blob.Digest.String(),

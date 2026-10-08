@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -12,6 +11,10 @@ import (
 // NetworkPruneOptions holds parameters to prune networks.
 type NetworkPruneOptions struct {
 	Filters Filters
+
+	// OnProgress receives successful deletions as they occur. Requires API v1.56.
+	// Returning an error cancels the request.
+	OnProgress func(PruneProgress) error
 }
 
 // NetworkPruneResult holds the result from the [Client.NetworkPrune] method.
@@ -24,15 +27,9 @@ func (cli *Client) NetworkPrune(ctx context.Context, opts NetworkPruneOptions) (
 	query := url.Values{}
 	opts.Filters.updateURLValues(query)
 
-	resp, err := cli.post(ctx, "/networks/prune", query, nil, nil)
-	defer ensureReaderClosed(resp)
-	if err != nil {
-		return NetworkPruneResult{}, err
-	}
-
 	var report network.PruneReport
-	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
-		return NetworkPruneResult{}, fmt.Errorf("Error retrieving network prune report: %v", err)
+	if err := cli.prune(ctx, "/networks/prune", query, opts.OnProgress, &report); err != nil {
+		return NetworkPruneResult{}, fmt.Errorf("error retrieving network prune report: %w", err)
 	}
 
 	return NetworkPruneResult{Report: report}, nil

@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -12,6 +11,10 @@ import (
 // ImagePruneOptions holds parameters to prune images.
 type ImagePruneOptions struct {
 	Filters Filters
+
+	// OnProgress receives successful deletions and untagging as they occur.
+	// Requires API v1.56. Returning an error cancels the request.
+	OnProgress func(PruneProgress) error
 }
 
 // ImagePruneResult holds the result from the [Client.ImagePrune] method.
@@ -24,15 +27,9 @@ func (cli *Client) ImagePrune(ctx context.Context, opts ImagePruneOptions) (Imag
 	query := url.Values{}
 	opts.Filters.updateURLValues(query)
 
-	resp, err := cli.post(ctx, "/images/prune", query, nil, nil)
-	defer ensureReaderClosed(resp)
-	if err != nil {
-		return ImagePruneResult{}, err
-	}
-
 	var report image.PruneReport
-	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
-		return ImagePruneResult{}, fmt.Errorf("Error retrieving disk usage: %v", err)
+	if err := cli.prune(ctx, "/images/prune", query, opts.OnProgress, &report); err != nil {
+		return ImagePruneResult{}, fmt.Errorf("error retrieving image prune report: %w", err)
 	}
 
 	return ImagePruneResult{Report: report}, nil

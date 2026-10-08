@@ -1268,9 +1268,7 @@ func (c *containerRouter) postContainersPrune(ctx context.Context, w http.Respon
 		return err
 	}
 
-	pruneReport, err := c.backend.ContainerPrune(ctx, pruneFilters)
-	if err != nil {
-		return err
-	}
-	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+	return httputils.WritePruneResponse(ctx, w, r, func(ctx context.Context) (any, error) {
+		return c.backend.ContainerPrune(ctx, pruneFilters)
+	})
 }

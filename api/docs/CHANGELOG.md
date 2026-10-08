@@ -15,6 +15,16 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.56 API changes
 
+* `POST /containers/prune`, `POST /networks/prune`, `POST /volumes/prune`,
+  `POST /images/prune`, and `POST /build/prune` now accept a `stream` query
+  parameter (default `false`). When enabled, the response uses
+  `application/jsonl` and reports successful deletions as they occur, with
+  `id` and `status` fields. The final message contains the complete prune
+  report in `aux`, or `errorDetail` if the operation fails after progress
+  has begun. The default response remains a single JSON report. Daemons with
+  authorization plugins also return that report so response authorization
+  remains effective. Each streaming write has a 30-second timeout; object
+  deletion time is not limited by this timeout.
 * `GET /containers/json` now supports an `annotation` filter to filter
   containers by annotation, either by key (`annotation=key`) or by key and
   value (`annotation="key=value"`), similar to the existing `label` filter.

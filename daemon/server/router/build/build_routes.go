@@ -229,11 +229,9 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 		}
 	}
 
-	report, err := br.backend.PruneCache(ctx, opts)
-	if err != nil {
-		return err
-	}
-	return httputils.WriteJSON(w, http.StatusOK, report)
+	return httputils.WritePruneResponse(ctx, w, r, func(ctx context.Context) (any, error) {
+		return br.backend.PruneCache(ctx, opts)
+	})
 }
 
 func (br *buildRouter) postCancel(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

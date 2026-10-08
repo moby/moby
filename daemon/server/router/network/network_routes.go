@@ -349,11 +349,9 @@ func (n *networkRouter) postNetworkPrune(ctx context.Context, w http.ResponseWri
 		return err
 	}
 
-	pruneReport, err := n.backend.NetworkPrune(ctx, pruneFilters)
-	if err != nil {
-		return err
-	}
-	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+	return httputils.WritePruneResponse(ctx, w, r, func(ctx context.Context) (any, error) {
+		return n.backend.NetworkPrune(ctx, pruneFilters)
+	})
 }
 
 // findUniqueNetwork will search network across different scopes (both local and swarm).
