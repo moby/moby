@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestHookTransportRequest(t *testing.T) {
@@ -59,6 +60,49 @@ func TestHookTransportRequest(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Equal(t, originalHeader.Get(hdrKey), "")
+}
+
+func TestHookTransportResponse(t *testing.T) {
+	const (
+		hdrKey = "X-Test-Header"
+		hdrVal = "hello-world"
+	)
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			hdrKey: []string{hdrVal},
+		},
+		Body: http.NoBody,
+	}
+
+	tr := &hookTransport{
+		respHooks: []ResponseHook{
+			func(resp *http.Response) {
+				assert.Equal(t, resp.Header.Get(hdrKey), hdrVal)
+
+				resp.StatusCode = http.StatusTeapot
+				resp.Header.Set(hdrKey, "modified")
+				resp.Header.Add(hdrKey, "another")
+				resp.Header.Set("X-Added-Header", "added")
+			},
+		},
+		base: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+			return resp, nil
+		}),
+	}
+
+	req, err := http.NewRequest(http.MethodGet, "https://example.com", http.NoBody)
+	assert.NilError(t, err)
+
+	got, err := tr.RoundTrip(req)
+	assert.NilError(t, err)
+
+	assert.Check(t, got == resp)
+	assert.Check(t, is.Equal(got.StatusCode, http.StatusOK))
+	assert.Check(t, is.Equal(got.Header.Get(hdrKey), hdrVal))
+	assert.Check(t, is.DeepEqual(got.Header.Values(hdrKey), []string{hdrVal}))
+	assert.Check(t, is.Equal(got.Header.Get("X-Added-Header"), ""))
 }
 
 type roundTripperFunc func(*http.Request) (*http.Response, error)
