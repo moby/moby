@@ -42,7 +42,7 @@ func (cli *Client) DialHijack(ctx context.Context, url, proto string, meta map[s
 	return conn, err
 }
 
-func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn, _ string, retErr error) {
+func (cli *Client) setupHijackConn(req *http.Request, proto string) (retConn net.Conn, mediaType string, retErr error) {
 	ctx := req.Context()
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", proto)
@@ -69,6 +69,20 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 	}
 
 	hc := &hijackedConn{conn, bufio.NewReader(conn)}
+
+	// Cancel the handshake without tying the returned connection to ctx.
+	cancelled := make(chan struct{})
+	stop := context.AfterFunc(ctx, func() {
+		_ = hc.Conn.Close()
+		close(cancelled)
+	})
+	defer func() {
+		if !stop() {
+			// Cancellation won the race; don't return a connection being closed.
+			<-cancelled
+			retConn, mediaType, retErr = nil, "", ctx.Err()
+		}
+	}()
 
 	cfg := &cli.clientConfig
 
