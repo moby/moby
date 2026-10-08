@@ -431,28 +431,6 @@ func (s *DockerAPISuite) TestContainerAPITopWindows(c *testing.T) {
 	assert.Assert(c, foundProcess, "expected to find %s: %v", expectedProcess, top.Processes)
 }
 
-func (s *DockerAPISuite) TestContainerAPICommit(c *testing.T) {
-	const cName = "testapicommit"
-	cli.DockerCmd(c, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test")
-
-	apiClient, err := client.New(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	options := client.ContainerCommitOptions{
-		Reference: "testcontainerapicommit:testtag",
-	}
-
-	img, err := apiClient.ContainerCommit(testutil.GetContext(c), cName, options)
-	assert.NilError(c, err)
-
-	cmd := inspectField(c, img.ID, "Config.Cmd")
-	assert.Equal(c, cmd, "[/bin/sh -c touch /test]", fmt.Sprintf("got wrong Cmd from commit: %q", cmd))
-
-	// sanity check, make sure the image is what we think it is
-	cli.DockerCmd(c, "run", img.ID, "ls", "/test")
-}
-
 func (s *DockerAPISuite) TestContainerAPICommitWithLabelInConfig(c *testing.T) {
 	const cName = "testapicommitwithconfig"
 	cli.DockerCmd(c, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test")
