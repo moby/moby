@@ -3,6 +3,13 @@
 # Run all validation
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS=(
+	default
+	vendor
+)
 
-. ${SCRIPTDIR}/default
-. ${SCRIPTDIR}/vendor
+RET=0
+for SCR in "${SCRIPTS[@]}"; do
+	"${SCRIPTDIR}/$SCR" || RET=$?
+done
+exit $RET

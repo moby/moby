@@ -3,10 +3,17 @@
 # Run default validation, exclude vendor because it's slow
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS=(
+	# Skip DCO check here, as it's already checked in a separate check in ci
+	# dco
+	pkg-imports
+	deprecate-integration-cli
+	golangci-lint
+	shfmt
+)
 
-# Skip DCO check here, as it's already checked in a separate check in ci
-#. "${SCRIPTDIR}"/dco
-. "${SCRIPTDIR}"/pkg-imports
-. "${SCRIPTDIR}"/deprecate-integration-cli
-. "${SCRIPTDIR}"/golangci-lint
-. "${SCRIPTDIR}"/shfmt
+RET=0
+for SCR in "${SCRIPTS[@]}"; do
+	"$SCRIPTDIR/$SCR" || RET=$?
+done
+exit $RET
