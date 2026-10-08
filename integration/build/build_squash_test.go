@@ -8,6 +8,7 @@ import (
 
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
@@ -50,33 +51,23 @@ func TestBuildSquashParent(t *testing.T) {
 	defer source.Close()
 
 	name := strings.ToLower(t.Name())
-	resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
+	build.Do(ctx, t, apiClient, source, client.ImageBuildOptions{
 		Remove:      true,
 		ForceRemove: true,
 		Tags:        []string{name},
 	})
-	assert.NilError(t, err)
-	_, err = io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
-	assert.NilError(t, err)
 
 	inspect, err := apiClient.ImageInspect(ctx, name)
 	assert.NilError(t, err)
 	origID := inspect.ID
 
 	// build with squash
-	resp, err = apiClient.ImageBuild(ctx,
-		source.AsTarReader(t),
-		client.ImageBuildOptions{
-			Remove:      true,
-			ForceRemove: true,
-			Squash:      true,
-			Tags:        []string{name},
-		})
-	assert.NilError(t, err)
-	_, err = io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
-	assert.NilError(t, err)
+	build.Do(ctx, t, apiClient, source, client.ImageBuildOptions{
+		Remove:      true,
+		ForceRemove: true,
+		Squash:      true,
+		Tags:        []string{name},
+	})
 
 	cid := container.Run(ctx, t, apiClient,
 		container.WithImage(name),

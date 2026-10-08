@@ -15,11 +15,13 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
-	"github.com/moby/moby/api/types/build"
+	buildtypes "github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/jsonmessage"
+	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"github.com/moby/moby/v2/internal/testutil/request"
@@ -161,30 +163,12 @@ func TestBuildMultiStageCopy(t *testing.T) {
 
 	for _, target := range []string{"copy_to_root", "copy_to_newdir", "copy_to_newdir_nested", "copy_to_existingdir", "copy_to_newsubdir"} {
 		t.Run(target, func(t *testing.T) {
-			imgName := strings.ToLower(t.Name())
-
-			resp, err := apiclient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
+			build.Do(ctx, t, apiclient, source, client.ImageBuildOptions{
 				Remove:      true,
 				ForceRemove: true,
 				Target:      target,
-				Tags:        []string{imgName},
+				Tags:        []string{strings.ToLower(t.Name())},
 			})
-			assert.NilError(t, err)
-
-			out := bytes.NewBuffer(nil)
-			_, err = io.Copy(out, resp.Body)
-			_ = resp.Body.Close()
-			if err != nil {
-				t.Log(out)
-			}
-			assert.NilError(t, err)
-
-			// verify the image was successfully built
-			_, err = apiclient.ImageInspect(ctx, imgName)
-			if err != nil {
-				t.Log(out)
-			}
-			assert.NilError(t, err)
 		})
 	}
 }
@@ -209,15 +193,11 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 
 	apiclient := testEnv.APIClient()
 	imgName := strings.ToLower(t.Name())
-	resp, err := apiclient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
+	build.Do(ctx, t, apiclient, source, client.ImageBuildOptions{
 		Remove:      true,
 		ForceRemove: true,
 		Tags:        []string{imgName},
 	})
-	assert.NilError(t, err)
-	_, err = io.Copy(io.Discard, resp.Body)
-	assert.Check(t, resp.Body.Close())
-	assert.NilError(t, err)
 
 	img, err := apiclient.ImageInspect(ctx, imgName)
 	assert.NilError(t, err)
@@ -254,17 +234,13 @@ func TestBuildLabelWithTargets(t *testing.T) {
 
 	apiclient := testEnv.APIClient()
 	// For `target-a` build
-	resp, err := apiclient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
+	build.Do(ctx, t, apiclient, source, client.ImageBuildOptions{
 		Remove:      true,
 		ForceRemove: true,
 		Tags:        []string{imgName},
 		Labels:      testLabels,
 		Target:      "target-a",
 	})
-	assert.NilError(t, err)
-	_, err = io.Copy(io.Discard, resp.Body)
-	assert.Check(t, resp.Body.Close())
-	assert.NilError(t, err)
 
 	img, err := apiclient.ImageInspect(ctx, imgName)
 	assert.NilError(t, err)
@@ -279,19 +255,13 @@ func TestBuildLabelWithTargets(t *testing.T) {
 	// For `target-b` build
 	imgName = strings.ToLower(t.Name() + "-b")
 	delete(testLabels, "label-a")
-	resp, err = apiclient.ImageBuild(ctx,
-		source.AsTarReader(t),
-		client.ImageBuildOptions{
-			Remove:      true,
-			ForceRemove: true,
-			Tags:        []string{imgName},
-			Labels:      testLabels,
-			Target:      "target-b",
-		})
-	assert.NilError(t, err)
-	_, err = io.Copy(io.Discard, resp.Body)
-	assert.Check(t, resp.Body.Close())
-	assert.NilError(t, err)
+	build.Do(ctx, t, apiclient, source, client.ImageBuildOptions{
+		Remove:      true,
+		ForceRemove: true,
+		Tags:        []string{imgName},
+		Labels:      testLabels,
+		Target:      "target-b",
+	})
 
 	img, err = apiclient.ImageInspect(ctx, imgName)
 	assert.NilError(t, err)
@@ -320,14 +290,10 @@ COPY    3/ /target/
 	defer source.Close()
 
 	apiclient := testEnv.APIClient()
-	resp, err := apiclient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
+	build.Do(ctx, t, apiclient, source, client.ImageBuildOptions{
 		Remove:      true,
 		ForceRemove: true,
 	})
-	assert.NilError(t, err)
-	_, err = io.Copy(io.Discard, resp.Body)
-	assert.Check(t, resp.Body.Close())
-	assert.NilError(t, err)
 }
 
 // TestBuildMultiStageOnBuild checks that ONBUILD commands are applied to
@@ -361,7 +327,7 @@ RUN cat somefile`
 
 	out := bytes.NewBuffer(nil)
 	assert.NilError(t, err)
-	_, err = io.Copy(out, resp.Body)
+	err = readBuildResponse(resp.Body, out)
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
@@ -410,7 +376,7 @@ COPY bar /
 
 	out := bytes.NewBuffer(nil)
 	assert.NilError(t, err)
-	_, err = io.Copy(out, resp.Body)
+	err = readBuildResponse(resp.Body, out)
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 
@@ -433,7 +399,7 @@ COPY bar /
 
 	out = bytes.NewBuffer(nil)
 	assert.NilError(t, err)
-	_, err = io.Copy(out, resp.Body)
+	err = readBuildResponse(resp.Body, out)
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 	assert.Assert(t, !strings.Contains(out.String(), "Using cache"))
@@ -463,18 +429,10 @@ RUN [ ! -f foo ]
 	defer source.Close()
 
 	apiClient := testEnv.APIClient()
-	resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
+	build.Do(ctx, t, apiClient, source, client.ImageBuildOptions{
 		Remove:      true,
 		ForceRemove: true,
 	})
-
-	out := bytes.NewBuffer(nil)
-	assert.NilError(t, err)
-	_, err = io.Copy(out, resp.Body)
-	assert.Check(t, resp.Body.Close())
-	assert.NilError(t, err)
-
-	assert.Check(t, is.Contains(out.String(), "Successfully built"))
 }
 
 // #37581
@@ -515,7 +473,7 @@ RUN for g in $(seq 0 8); do dd if=/dev/urandom of=rnd bs=1K count=1 seek=$((1024
 
 	out := bytes.NewBuffer(nil)
 	assert.NilError(t, err)
-	_, err = io.Copy(out, resp.Body)
+	err = readBuildResponse(resp.Body, out)
 	assert.Check(t, resp.Body.Close())
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(out.String(), "Successfully built"))
@@ -703,13 +661,13 @@ ENV CACHE_TEST=1
 
 	buildImage := func() string {
 		resp, err := testEnv.APIClient().ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
-			Version: build.BuilderV1,
+			Version: buildtypes.BuilderV1,
 		})
 		assert.NilError(t, err)
 		defer resp.Body.Close()
 
 		out := bytes.NewBuffer(nil)
-		_, err = io.Copy(out, resp.Body)
+		err = readBuildResponse(resp.Body, out)
 		assert.NilError(t, err)
 		return out.String()
 	}
@@ -741,7 +699,7 @@ func TestBuildWorkdirNoCacheMiss(t *testing.T) {
 
 			buildAndGetID := func() string {
 				resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
-					Version: build.BuilderV1,
+					Version: buildtypes.BuilderV1,
 				})
 				assert.NilError(t, err)
 				defer resp.Body.Close()
@@ -768,9 +726,9 @@ func TestBuildEmitsEvents(t *testing.T) {
 
 	apiClient := testEnv.APIClient()
 
-	for _, builderVersion := range []build.BuilderVersion{build.BuilderV1, build.BuilderBuildKit} {
+	for _, builderVersion := range []buildtypes.BuilderVersion{buildtypes.BuilderV1, buildtypes.BuilderBuildKit} {
 		t.Run("v"+string(builderVersion), func(t *testing.T) {
-			skip.If(t, builderVersion == build.BuilderBuildKit && testEnv.DaemonInfo.OSType == "windows" && !testEnv.UsingSnapshotter(),
+			skip.If(t, builderVersion == buildtypes.BuilderBuildKit && testEnv.DaemonInfo.OSType == "windows" && !testEnv.UsingSnapshotter(),
 				"Buildkit is not supported on Windows with graphdrivers")
 			for _, tc := range []struct {
 				name           string
@@ -818,7 +776,7 @@ func TestBuildEmitsEvents(t *testing.T) {
 					defer resp.Body.Close()
 
 					out := bytes.NewBuffer(nil)
-					_, err = io.Copy(out, resp.Body)
+					err = readBuildResponse(resp.Body, out)
 					assert.NilError(t, err)
 					buildLogs := out.String()
 					imageID := readBuildImageIDs(t, bytes.NewReader(out.Bytes()))
@@ -898,14 +856,14 @@ func TestBuildHistoryDoesNotPreventRemoval(t *testing.T) {
 			Remove:      true,
 			ForceRemove: true,
 			Tags:        []string{imgName},
-			Version:     build.BuilderBuildKit,
+			Version:     buildtypes.BuilderBuildKit,
 		})
 		if err != nil {
 			return err
 		}
 		defer resp.Body.Close()
 
-		_, err = io.Copy(io.Discard, resp.Body)
+		err = readBuildResponse(resp.Body, nil)
 		return err
 	}
 
@@ -917,6 +875,16 @@ func TestBuildHistoryDoesNotPreventRemoval(t *testing.T) {
 	assert.Check(t, slices.ContainsFunc(res.Items, func(r image.DeleteResponse) bool {
 		return r.Deleted != ""
 	}))
+}
+
+// readBuildResponse reads the build response stream from body, copying it
+// as is to out (unless nil). Unlike io.Copy, it returns an error if the
+// stream contains one, such as a build error.
+func readBuildResponse(body io.Reader, out io.Writer) error {
+	if out != nil {
+		body = io.TeeReader(body, out)
+	}
+	return jsonmessage.DisplayStream(body, io.Discard)
 }
 
 func readBuildImageIDs(t *testing.T, rd io.Reader) string {
