@@ -34,12 +34,6 @@ import (
 
 func TestNISDomainname(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-	skip.If(t, testEnv.IsUserNamespace, "user namespaces cannot write the kernel domainname sysctl")
-
-	// Rootless supports custom Hostname but doesn't support custom Domainname
-	//  OCI runtime create failed: container_linux.go:349: starting container process caused "process_linux.go:449: container init caused \
-	//  "write sysctl key kernel.domainname: open /proc/sys/kernel/domainname: permission denied\"": unknown.
-	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support setting Domainname (TODO: https://github.com/moby/moby/issues/40632)")
 
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()

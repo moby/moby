@@ -290,11 +290,13 @@ func TestSysctlOverride(t *testing.T) {
 	}
 	d := setupFakeDaemon(t, c)
 
-	// Ensure that the implicit sysctl is set correctly.
+	// Ensure that the domainname is set, and the sysctl is not.
 	s, err := d.createSpec(ctx, &configStore{}, c, nil)
 	assert.NilError(t, err)
 	assert.Equal(t, s.Hostname, "foobar")
-	assert.Equal(t, s.Linux.Sysctl["kernel.domainname"], c.Config.Domainname)
+	assert.Equal(t, s.Domainname, c.Config.Domainname)
+	_, hasDomainnameSysctl := s.Linux.Sysctl["kernel.domainname"]
+	assert.Check(t, !hasDomainnameSysctl)
 	if sysctlExists("net.ipv4.ip_unprivileged_port_start") {
 		assert.Equal(t, s.Linux.Sysctl["net.ipv4.ip_unprivileged_port_start"], "0")
 	}
