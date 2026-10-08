@@ -25,10 +25,6 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 	container.Lock()
 	defer container.Unlock()
 
-	if err := checkContainerFSAvailable(container); err != nil {
-		return nil, err
-	}
-
 	cfs, err := daemon.openContainerFS(container)
 	if err != nil {
 		return nil, err
@@ -52,10 +48,6 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 			container.Unlock()
 		}
 	}()
-
-	if err := checkContainerFSAvailable(container); err != nil {
-		return nil, nil, err
-	}
 
 	cfs, err := daemon.openContainerFS(container)
 	if err != nil {
@@ -109,10 +101,6 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, allowOverwriteDirWithFile bool, content io.Reader) error {
 	container.Lock()
 	defer container.Unlock()
-
-	if err := checkContainerFSAvailable(container); err != nil {
-		return err
-	}
 
 	options := daemon.defaultTarCopyOptions(allowOverwriteDirWithFile)
 	options, cleanup, err := archive.WithProcSelfFD(options)
