@@ -726,6 +726,74 @@ func TestFirewalldReloadNoZombies(t *testing.T) {
 		"After deletes: did not expect rules for %s in: %s", bridgeName, resAfterReload.Combined())
 }
 
+// TestFirewalldBridgeInOtherZone checks that a bridge network is restored when
+// the daemon restarts after its bridge has been moved from firewalld's "docker"
+// zone to another zone.
+//
+// Regression test for https://github.com/moby/moby/issues/53901
+func TestFirewalldBridgeInOtherZone(t *testing.T) {
+	skip.If(t, !networking.FirewalldRunning(), "firewalld is not running")
+	skip.If(t, testEnv.IsRootless, "no firewalld in rootless netns")
+
+	ctx := setupTest(t)
+
+	testcases := []struct {
+		name       string
+		daemonArgs []string
+		// Whether the daemon puts the bridge in firewalld's docker zone.
+		inDockerZone bool
+	}{
+		{
+			name:         "iptables",
+			inDockerZone: true,
+		},
+		{
+			name:       "no iptables",
+			daemonArgs: []string{"--iptables=false", "--ip6tables=false"},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+			d := daemon.New(t)
+			d.StartWithBusybox(ctx, t, tc.daemonArgs...)
+			defer d.Stop(t)
+			c := d.NewClientT(t)
+
+			const (
+				bridgeName = "br-otherzone"
+				zone       = "drop"
+			)
+			nw := network.CreateNoError(ctx, t, c, "testnet",
+				network.WithOption(bridge.BridgeName, bridgeName))
+			defer func() {
+				// The daemon does not delete a bridge it failed to restore.
+				if link, err := netlink.LinkByName(bridgeName); err == nil {
+					assert.Check(t, netlink.LinkDel(link))
+				}
+			}()
+			defer network.RemoveNoError(ctx, t, c, nw)
+
+			res := icmd.RunCommand("firewall-cmd", "--get-zone-of-interface="+bridgeName)
+			assert.Check(t, is.Equal(strings.TrimSpace(res.Stdout()) == "docker", tc.inDockerZone),
+				"zone of %s: %s", bridgeName, res.Combined())
+
+			res = icmd.RunCommand("firewall-cmd", "--zone="+zone, "--change-interface="+bridgeName)
+			res.Assert(t, icmd.Success)
+			defer icmd.RunCommand("firewall-cmd", "--zone="+zone, "--remove-interface="+bridgeName)
+
+			d.Restart(t, tc.daemonArgs...)
+
+			res = icmd.RunCommand("firewall-cmd", "--get-zone-of-interface="+bridgeName)
+			assert.Check(t, is.Equal(strings.TrimSpace(res.Stdout()), zone))
+
+			cid := ctr.Run(ctx, t, c, ctr.WithNetworkMode(nw))
+			defer ctr.Remove(ctx, t, c, cid, client.ContainerRemoveOptions{Force: true})
+		})
+	}
+}
+
 // TestLegacyLink checks that a legacy link ("--link" in the default bridge network)
 // sets up a hostname and opens ports when the daemon is running with icc=false.
 func TestLegacyLink(t *testing.T) {

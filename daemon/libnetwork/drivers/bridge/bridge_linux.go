@@ -13,6 +13,7 @@ import (
 	"sync"
 	"syscall"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
@@ -462,16 +463,21 @@ func (n *bridgeNetwork) newFirewallerNetwork(ctx context.Context) (_ firewaller.
 		return nil, err
 	}
 
-	if err := iptables.AddInterfaceFirewalld(n.config.BridgeName); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if retErr != nil {
-			if err := iptables.DelInterfaceFirewalld(n.config.BridgeName); err != nil {
-				log.G(ctx).WithError(err).Errorf("failed to delete network level rules following error")
-			}
+	// A firewalld zone applies to an interface, not to an address family. So
+	// the bridge goes in the docker zone if the daemon manages either family's
+	// firewall rules, and is left for the user to place if it manages neither.
+	if n.driver.config.EnableIPTables || n.driver.config.EnableIP6Tables {
+		if err := iptables.AddInterfaceFirewalld(n.config.BridgeName); err != nil {
+			return nil, err
 		}
-	}()
+		defer func() {
+			if retErr != nil {
+				if err := iptables.DelInterfaceFirewalld(n.config.BridgeName); err != nil {
+					log.G(ctx).WithError(err).Errorf("failed to delete network level rules following error")
+				}
+			}
+		}()
+	}
 
 	return n.driver.firewaller.NewNetwork(ctx, firewaller.NetworkConfig{
 		IfName:                n.config.BridgeName,
@@ -1025,7 +1031,11 @@ func (d *driver) deleteNetwork(nid string) error {
 			log.G(context.TODO()).WithError(err).Warnf("Failed to clean iptables rules for bridge network")
 		}
 	}
-	if err := iptables.DelInterfaceFirewalld(n.config.BridgeName); err != nil {
+	// Remove the bridge from the docker zone even if iptables is disabled, in
+	// case it was added when the daemon ran with iptables enabled. It may not be
+	// there: the daemon leaves it out when iptables is disabled, and the user
+	// may have put it in another zone.
+	if err := iptables.DelInterfaceFirewalld(n.config.BridgeName); err != nil && !cerrdefs.IsNotFound(err) {
 		log.G(context.TODO()).WithError(err).Warnf("Failed to clean firewalld rules for bridge network")
 	}
 
