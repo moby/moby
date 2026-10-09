@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
@@ -29,6 +30,34 @@ func TestCommitInheritsCmd(t *testing.T) {
 
 	imgInspect, err := apiClient.ImageInspect(ctx, img.ID)
 	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(imgInspect.Config.Cmd, expectedCmd))
+
+	// Verify that the committed image contains the file created by the container.
+	cID = container.Run(ctx, t, apiClient, container.WithImage(img.ID), container.WithCmd("ls", "/test"))
+	poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, cID))
+}
+
+func TestCommitWithLabelInConfig(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "test requires a Linux container")
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	expectedCmd := []string{"/bin/sh", "-c", "touch /test"}
+	cID := container.Run(ctx, t, apiClient, container.WithCmd(expectedCmd...))
+	poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, cID))
+
+	img, err := apiClient.ContainerCommit(ctx, cID, client.ContainerCommitOptions{
+		Reference: strings.ToLower(t.Name()),
+		Config: &containertypes.Config{
+			Labels: map[string]string{"key1": "value1", "key2": "value2"},
+		},
+	})
+	assert.NilError(t, err)
+
+	imgInspect, err := apiClient.ImageInspect(ctx, img.ID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(imgInspect.Config.Labels["key1"], "value1"))
+	assert.Check(t, is.Equal(imgInspect.Config.Labels["key2"], "value2"))
 	assert.Check(t, is.DeepEqual(imgInspect.Config.Cmd, expectedCmd))
 
 	// Verify that the committed image contains the file created by the container.
