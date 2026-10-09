@@ -9736,8 +9736,24 @@ paths:
       summary: "Delete stopped containers"
       produces:
         - "application/json"
+        - "application/jsonl"
       operationId: "ContainerPrune"
       parameters:
+        - name: "stream"
+          in: "query"
+          type: "boolean"
+          default: false
+          description: |
+            Stream progress as JSON Lines (API v1.56 and later). Each successful
+            deletion produces a message with `id` and `status` (`deleted`). The
+            last message contains the complete prune response in `aux`, or
+            `errorDetail` if pruning fails after progress has begun. Errors before
+            the first progress message retain their normal HTTP status. When false,
+            the response is the usual single JSON report. Older API versions ignore
+            this parameter. Progress does not include an estimated total. When an authorization
+            plugin is enabled, the daemon returns the normal JSON report so the
+            plugin can inspect and authorize the complete response. A stalled
+            streaming write times out after 30 seconds and cancels pruning.
         - name: "filters"
           in: "query"
           description: |
@@ -10042,8 +10058,24 @@ paths:
       summary: "Delete builder cache"
       produces:
         - "application/json"
+        - "application/jsonl"
       operationId: "BuildPrune"
       parameters:
+        - name: "stream"
+          in: "query"
+          type: "boolean"
+          default: false
+          description: |
+            Stream progress as JSON Lines (API v1.56 and later). Each successfully
+            pruned cache record produces a message with its `id` and `status`
+            (`deleted`). The last message contains the complete prune response in
+            `aux`, or `errorDetail` if pruning fails after progress has begun. Errors
+            before the first progress message retain their normal HTTP status. When
+            false, the response is the usual single JSON report. Older API versions
+            ignore this parameter. Progress does not include an estimated total. When an authorization
+            plugin is enabled, the daemon returns the normal JSON report so the
+            plugin can inspect and authorize the complete response. A stalled
+            streaming write times out after 30 seconds and cancels pruning.
         - name: "reserved-space"
           in: "query"
           description: "Amount of disk space in bytes to keep for cache"
@@ -10665,8 +10697,25 @@ paths:
       summary: "Delete unused images"
       produces:
         - "application/json"
+        - "application/jsonl"
       operationId: "ImagePrune"
       parameters:
+        - name: "stream"
+          in: "query"
+          type: "boolean"
+          default: false
+          description: |
+            Stream progress as JSON Lines (API v1.56 and later). Each successful
+            deletion or untagging produces a message with `id` and `status`
+            (`deleted` or `untagged`). IDs match entries in `ImagesDeleted`. The
+            last message contains the complete prune response in `aux`, or
+            `errorDetail` if pruning fails after progress has begun. Errors before
+            the first progress message retain their normal HTTP status. When false,
+            the response is the usual single JSON report. Older API versions ignore
+            this parameter. Progress does not include an estimated total. When an authorization
+            plugin is enabled, the daemon returns the normal JSON report so the
+            plugin can inspect and authorize the complete response. A stalled
+            streaming write times out after 30 seconds and cancels pruning.
         - name: "filters"
           in: "query"
           description: |
@@ -11640,8 +11689,24 @@ paths:
       summary: "Delete unused volumes"
       produces:
         - "application/json"
+        - "application/jsonl"
       operationId: "VolumePrune"
       parameters:
+        - name: "stream"
+          in: "query"
+          type: "boolean"
+          default: false
+          description: |
+            Stream progress as JSON Lines (API v1.56 and later). Each successfully
+            deleted volume produces a message with its name in `id` and `status`
+            (`deleted`). The last message contains the complete prune response in
+            `aux`, or `errorDetail` if pruning fails after progress has begun. Errors
+            before the first progress message retain their normal HTTP status. When
+            false, the response is the usual single JSON report. Older API versions
+            ignore this parameter. Progress does not include an estimated total. When an authorization
+            plugin is enabled, the daemon returns the normal JSON report so the
+            plugin can inspect and authorize the complete response. A stalled
+            streaming write times out after 30 seconds and cancels pruning.
         - name: "filters"
           in: "query"
           description: |
@@ -12031,8 +12096,24 @@ paths:
       summary: "Delete unused networks"
       produces:
         - "application/json"
+        - "application/jsonl"
       operationId: "NetworkPrune"
       parameters:
+        - name: "stream"
+          in: "query"
+          type: "boolean"
+          default: false
+          description: |
+            Stream progress as JSON Lines (API v1.56 and later). Each successfully
+            deleted network produces a message with its name in `id` and `status`
+            (`deleted`). The last message contains the complete prune response in
+            `aux`, or `errorDetail` if pruning fails after progress has begun. Errors
+            before the first progress message retain their normal HTTP status. When
+            false, the response is the usual single JSON report. Older API versions
+            ignore this parameter. Progress does not include an estimated total. When an authorization
+            plugin is enabled, the daemon returns the normal JSON report so the
+            plugin can inspect and authorize the complete response. A stalled
+            streaming write times out after 30 seconds and cancels pruning.
         - name: "filters"
           in: "query"
           description: |

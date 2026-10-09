@@ -11,6 +11,7 @@ import (
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	dnetwork "github.com/moby/moby/v2/daemon/network"
@@ -86,6 +87,7 @@ func (daemon *Daemon) ContainerPrune(ctx context.Context, pruneFilters filters.A
 				rep.SpaceReclaimed += uint64(cSize)
 			}
 			rep.ContainersDeleted = append(rep.ContainersDeleted, c.ID)
+			pruneprogress.Notify(ctx, c.ID, "deleted")
 		}
 	}
 	daemon.EventsService.Log(events.ActionPrune, events.ContainerEventType, events.Actor{
@@ -123,6 +125,7 @@ func (daemon *Daemon) localNetworkPrune(ctx context.Context, pruneFilters dnetwo
 			return false
 		}
 		rep.NetworksDeleted = append(rep.NetworksDeleted, nw.Name())
+		pruneprogress.Notify(ctx, nw.Name(), "deleted")
 		return false
 	})
 	return rep
@@ -167,6 +170,7 @@ func (daemon *Daemon) clusterNetworkPrune(ctx context.Context, pruneFilters dnet
 				continue
 			}
 			rep.NetworksDeleted = append(rep.NetworksDeleted, nw.Name)
+			pruneprogress.Notify(ctx, nw.Name, "deleted")
 		}
 	}
 	return rep, nil

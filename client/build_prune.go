@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -18,6 +17,10 @@ type BuildCachePruneOptions struct {
 	MaxUsedSpace  int64
 	MinFreeSpace  int64
 	Filters       Filters
+
+	// OnProgress receives successful deletions as they occur. Requires API v1.56.
+	// Returning an error cancels the request.
+	OnProgress func(PruneProgress) error
 }
 
 // BuildCachePruneResult holds the result from the BuildCachePrune method.
@@ -50,15 +53,8 @@ func (cli *Client) BuildCachePrune(ctx context.Context, opts BuildCachePruneOpti
 	}
 	opts.Filters.updateURLValues(query)
 
-	resp, err := cli.post(ctx, "/build/prune", query, nil, nil)
-	defer ensureReaderClosed(resp)
-
-	if err != nil {
-		return BuildCachePruneResult{}, err
-	}
-
 	report := build.CachePruneReport{}
-	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
+	if err := cli.prune(ctx, "/build/prune", query, opts.OnProgress, &report); err != nil {
 		return BuildCachePruneResult{}, fmt.Errorf("error retrieving disk usage: %w", err)
 	}
 

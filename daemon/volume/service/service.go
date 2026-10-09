@@ -11,6 +11,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/directory"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/idtools"
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/volume"
 	"github.com/moby/moby/v2/daemon/volume/drivers"
@@ -259,6 +260,7 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*volum
 		}
 		rep.SpaceReclaimed += uint64(vSize)
 		rep.VolumesDeleted = append(rep.VolumesDeleted, v.Name())
+		pruneprogress.Notify(ctx, v.Name(), "deleted")
 	}
 	s.eventLogger.LogVolumeEvent("", events.ActionPrune, map[string]string{
 		"reclaimed": strconv.FormatInt(int64(rep.SpaceReclaimed), 10),

@@ -5,7 +5,9 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/v2/daemon/internal/filters"
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
 	"github.com/moby/moby/v2/daemon/volume"
 	volumedrivers "github.com/moby/moby/v2/daemon/volume/drivers"
 	"github.com/moby/moby/v2/daemon/volume/service/opts"
@@ -164,7 +166,10 @@ func TestServicePrune(t *testing.T) {
 
 	service, cleanup := newTestService(t, ds)
 	defer cleanup()
-	ctx := t.Context()
+	var progress []jsonstream.Message
+	ctx := pruneprogress.WithReporter(t.Context(), func(message jsonstream.Message) {
+		progress = append(progress, message)
+	})
 
 	_, err := service.Create(ctx, "test", volume.DefaultDriverName)
 	assert.NilError(t, err)
@@ -174,11 +179,13 @@ func TestServicePrune(t *testing.T) {
 	pr, err := service.Prune(ctx, filters.NewArgs(filters.Arg("label", "banana"), filters.Arg("all", "true")))
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(pr.VolumesDeleted, 0))
+	assert.Assert(t, is.Len(progress, 0), "filtered volumes must not be reported as deleted")
 
 	pr, err = service.Prune(ctx, filters.NewArgs(filters.Arg("all", "true")))
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(pr.VolumesDeleted, 1))
 	assert.Assert(t, is.Equal(pr.VolumesDeleted[0], "test"))
+	assert.DeepEqual(t, progress, []jsonstream.Message{{ID: "test", Status: "deleted"}})
 
 	_, err = service.Get(ctx, "test")
 	assert.Assert(t, IsNotExist(err), err)

@@ -204,9 +204,7 @@ func (v *volumeRouter) postVolumesPrune(ctx context.Context, w http.ResponseWrit
 		pruneFilters.Add("all", "true")
 	}
 
-	pruneReport, err := v.backend.Prune(ctx, pruneFilters)
-	if err != nil {
-		return err
-	}
-	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+	return httputils.WritePruneResponse(ctx, w, r, func(ctx context.Context) (any, error) {
+		return v.backend.Prune(ctx, pruneFilters)
+	})
 }
