@@ -1,6 +1,7 @@
 package dockerfile
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,12 +23,12 @@ func init() {
 	reexec.Register("windows-fix-permissions", fixPermissionsReexec)
 }
 
-func fixPermissions(source, destination string, id identity, _ bool) error {
+func fixPermissions(ctx context.Context, source, destination string, id identity, _ bool) error {
 	if id.SID == "" {
 		return nil
 	}
 
-	cmd := reexec.Command("windows-fix-permissions", source, destination, id.SID)
+	cmd := reexec.CommandContext(ctx, "windows-fix-permissions", source, destination, id.SID)
 	output, err := cmd.CombinedOutput()
 
 	return errors.Wrapf(err, "failed to exec windows-fix-permissions: %s", output)
