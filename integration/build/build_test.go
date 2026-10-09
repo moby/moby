@@ -598,20 +598,11 @@ func TestBuildPreserveOwnership(t *testing.T) {
 		t.Run(target, func(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 
-			resp, err := apiClient.ImageBuild(ctx, source.AsTarReader(t), client.ImageBuildOptions{
+			build.Do(ctx, t, apiClient, source, client.ImageBuildOptions{
 				Remove:      true,
 				ForceRemove: true,
 				Target:      target,
 			})
-			assert.NilError(t, err)
-
-			out := bytes.NewBuffer(nil)
-			_, err = io.Copy(out, resp.Body)
-			_ = resp.Body.Close()
-			if err != nil {
-				t.Log(out)
-			}
-			assert.NilError(t, err)
 		})
 	}
 }
