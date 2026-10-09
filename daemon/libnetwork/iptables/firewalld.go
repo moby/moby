@@ -316,17 +316,6 @@ func AddInterfaceFirewalld(intf string) error {
 		return nil
 	}
 
-	var intfs []string
-	// Check if interface is already added to the zone
-	if err := connection.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
-		return err
-	}
-	// Return if interface is already part of the zone
-	if contains(intfs, intf) {
-		log.G(context.TODO()).Infof("Firewalld: interface %s already part of %s zone, returning", intf, dockerZone)
-		return nil
-	}
-
 	log.G(context.TODO()).Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
 	// Runtime
 	if err := connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
@@ -352,19 +341,14 @@ func DelInterfaceFirewalld(intf string) error {
 		return nil
 	}
 
-	var intfs []string
-	// Check if interface is part of the zone
-	if err := connection.sysObj.Call(dbusInterface+".zone.getInterfaces", 0, dockerZone).Store(&intfs); err != nil {
-		return err
-	}
-	// Remove interface if it exists
-	if !contains(intfs, intf) {
-		return &interfaceNotFound{fmt.Errorf("firewalld: interface %q not found in %s zone", intf, dockerZone)}
-	}
-
 	log.G(context.TODO()).Debugf("Firewalld: removing %s interface from %s zone", intf, dockerZone)
 	// Runtime
 	if err := connection.sysObj.Call(dbusInterface+".zone.removeInterface", 0, dockerZone, intf).Err; err != nil {
+		switch firewalldErrorCode(err) {
+		case "UNKNOWN_INTERFACE", "ZONE_CONFLICT":
+			// The interface is in no zone, or in another zone.
+			return &interfaceNotFound{fmt.Errorf("firewalld: interface %q not found in %s zone: %w", intf, dockerZone, err)}
+		}
 		return err
 	}
 	return nil
