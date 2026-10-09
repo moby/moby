@@ -309,7 +309,8 @@ func setupDockerForwardingPolicy() (bool, error) {
 }
 
 // AddInterfaceFirewalld adds the interface to the trusted zone. It is a
-// no-op if firewalld is not running.
+// no-op if firewalld is not running, or if the interface is already bound
+// to another zone.
 func AddInterfaceFirewalld(intf string) error {
 	if !UsingFirewalld() {
 		return nil
@@ -329,8 +330,14 @@ func AddInterfaceFirewalld(intf string) error {
 	log.G(context.TODO()).Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
 	// Runtime
 	if err := connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
-		if firewalldErrorCode(err) == "ZONE_ALREADY_SET" {
+		switch firewalldErrorCode(err) {
+		case "ZONE_ALREADY_SET":
 			log.G(context.TODO()).Infof("Firewalld: interface %s already part of %s zone, returning", intf, dockerZone)
+			return nil
+		case "ZONE_CONFLICT":
+			// The interface has been bound to another zone outside the daemon.
+			// Respect that, rather than failing to set up the network.
+			log.G(context.TODO()).WithError(err).Infof("Firewalld: not adding interface %s to %s zone", intf, dockerZone)
 			return nil
 		}
 		return err
