@@ -70,6 +70,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd"
 	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
+	"github.com/moby/moby/v2/daemon/internal/ocihook"
 	pluginexec "github.com/moby/moby/v2/daemon/internal/plugin/executor/containerd"
 	refstore "github.com/moby/moby/v2/daemon/internal/refstore"
 	"github.com/moby/moby/v2/daemon/libnetwork"
@@ -123,6 +124,7 @@ type Daemon struct {
 	EventsService     *events.Events
 	netController     *libnetwork.Controller
 	netStore          *boltdb.BoltDB
+	ociHooks          *ocihook.Server
 	volumes           *volumesservice.VolumesService
 	root              string
 	sysInfoOnce       sync.Once
@@ -1017,6 +1019,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
+	if err := d.initOCIHooks(&cfgStore.Config); err != nil {
+		return nil, err
+	}
+
 	const connTimeout = 60 * time.Second
 
 	gopts := []grpc.DialOption{
@@ -1593,10 +1599,14 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 		daemon.nri.Shutdown(ctx)
 	}
 
-	// trigger libnetwork Stop only if it's initialized
-	if daemon.netController != nil {
-		daemon.netController.Stop()
+	// Hook callbacks may use the network controller, so wait for them to
+	// return before closing its store.
+	if daemon.ociHooks != nil {
+		if err := daemon.ociHooks.Shutdown(ctx); err != nil {
+			log.G(ctx).WithError(err).Warn("error shutting down OCI hook server")
+		}
 	}
+
 	if daemon.netStore != nil {
 		daemon.netStore.Close()
 	}
@@ -1746,7 +1756,6 @@ func (daemon *Daemon) newNetworkController(ctx context.Context, conf *config.Con
 
 func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.PluginGetter, hostID string, activeSandboxes map[string]any) ([]nwconfig.Option, error) {
 	options := []nwconfig.Option{
-		nwconfig.OptionExecRoot(conf.GetExecRoot()),
 		nwconfig.OptionDefaultDriver(network.DefaultNetwork),
 		nwconfig.OptionDefaultNetwork(network.DefaultNetwork),
 		nwconfig.OptionNetworkControlPlaneMTU(conf.NetworkControlPlaneMTU),

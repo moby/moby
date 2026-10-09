@@ -5,12 +5,17 @@ package overlay
 import (
 	"errors"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/countmap"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/hashable"
+	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
+	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -65,14 +70,14 @@ func addPeer(t *testing.T, n *network, vtep netip.Addr, mac hashable.MACAddr) {
 // which does not exist, so programming a neighbor entry into the sandbox fails.
 func withSandbox(t *testing.T, n *network, key string) {
 	t.Helper()
-	sbox, err := osl.NewSandbox(osl.GenerateKey(key), true, false)
+	sbox, err := osl.NewSandbox(filepath.Join(t.TempDir(), key), true, false)
 	assert.NilError(t, err)
 	t.Cleanup(func() { _ = sbox.Destroy() })
 
 	n.sbox = sbox
 	n.sboxInit = true
 	n.subnets = []*subnet{{
-		sboxInit:  true,
+		initDone:  true,
 		vxlanName: "vx-absent",
 		subnetIP:  netip.MustParsePrefix("10.0.0.0/24"),
 	}}
@@ -238,4 +243,60 @@ func TestDeleteNetworkReleasesEncryptionRefs(t *testing.T) {
 
 	assert.Check(t, is.Len(d.secMap, 0))
 	assert.Check(t, is.Len(d.networks, 0))
+}
+
+func TestRemoveStaleSandboxes(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+
+	netnsDir := t.TempDir()
+	d := &driver{
+		sandboxDir:       filepath.Join(netnsDir, "overlay"),
+		legacySandboxDir: netnsDir,
+	}
+	stale := filepath.Join(d.sandboxDir, "0-0123456789abcdef")
+	legacy := filepath.Join(netnsDir, "1-0123456789")
+	other := filepath.Join(netnsDir, "0123456789ab")
+	assert.NilError(t, os.Mkdir(d.sandboxDir, 0o755))
+	for _, key := range []string{stale, legacy, other} {
+		_, err := osl.NewSandbox(key, true, false)
+		assert.NilError(t, err)
+	}
+	t.Cleanup(func() {
+		_ = unix.Unmount(other, unix.MNT_DETACH)
+		_ = os.Remove(other)
+	})
+
+	// A VXLAN link left in a stale sandbox keeps its VNI claimed.
+	const vni = 4242
+	assert.NilError(t, createVxlan("vx-stale", vni, 1450, false))
+	link, err := ns.NlHandle().LinkByName("vx-stale")
+	assert.NilError(t, err)
+	legacyNS, err := netns.GetFromPath(legacy)
+	assert.NilError(t, err)
+	err = ns.NlHandle().LinkSetNsFd(link, int(legacyNS))
+	_ = legacyNS.Close()
+	assert.NilError(t, err)
+
+	d.removeStaleSandboxes()
+
+	for _, key := range []string{stale, legacy} {
+		_, err := os.Lstat(key)
+		assert.Check(t, is.ErrorIs(err, os.ErrNotExist), "stale sandbox %s was not removed", key)
+	}
+	_, err = os.Lstat(other)
+	assert.Check(t, err, "a network namespace the driver did not create must not be removed")
+
+	// The VNI can be reused straight away.
+	assert.Check(t, createVxlan("vx-new", vni, 1450, false))
+	_ = deleteInterface("vx-new")
+}
+
+func TestInitSandboxWithoutNetnsDir(t *testing.T) {
+	dt := &driverTester{t: t}
+	assert.NilError(t, Register(dt, ""))
+	n := &network{id: "0123456789abcdef", driver: dt.d}
+
+	assert.Check(t, is.ErrorContains(n.initSandbox(), "no netns directory is configured"))
+	assert.Check(t, is.Equal(dt.d.sandboxDir, ""))
+	dt.d.removeStaleSandboxes()
 }
