@@ -293,16 +293,14 @@ func setupDockerForwardingPolicy() (bool, error) {
 		"target":        "ACCEPT",
 	}
 	if err := connection.sysConfObj.Call(dbusInterface+".config.addPolicy", 0, dockerFwdPolicy, policy).Err; err != nil {
+		if firewalldErrorCode(err) == "NAME_CONFLICT" {
+			log.G(context.TODO()).Debugf("Firewalld: %s policy already exists", dockerFwdPolicy)
+			return false, nil
+		}
 		var derr dbus.Error
-		if errors.As(err, &derr) {
-			if derr.Name == dbusInterface+".Exception" && strings.HasPrefix(err.Error(), "NAME_CONFLICT") {
-				log.G(context.TODO()).Debugf("Firewalld: %s policy already exists", dockerFwdPolicy)
-				return false, nil
-			}
-			if derr.Name == dbus.ErrMsgUnknownMethod.Name {
-				log.G(context.TODO()).Debugf("Firewalld: addPolicy %s: unknown method", dockerFwdPolicy)
-				return false, nil
-			}
+		if errors.As(err, &derr) && derr.Name == dbus.ErrMsgUnknownMethod.Name {
+			log.G(context.TODO()).Debugf("Firewalld: addPolicy %s: unknown method", dockerFwdPolicy)
+			return false, nil
 		}
 		return false, err
 	}
@@ -331,8 +329,7 @@ func AddInterfaceFirewalld(intf string) error {
 	log.G(context.TODO()).Debugf("Firewalld: adding %s interface to %s zone", intf, dockerZone)
 	// Runtime
 	if err := connection.sysObj.Call(dbusInterface+".zone.addInterface", 0, dockerZone, intf).Err; err != nil {
-		var derr dbus.Error
-		if errors.As(err, &derr) && derr.Name == dbusInterface+".Exception" && strings.HasPrefix(err.Error(), "ZONE_ALREADY_SET:") {
+		if firewalldErrorCode(err) == "ZONE_ALREADY_SET" {
 			log.G(context.TODO()).Infof("Firewalld: interface %s already part of %s zone, returning", intf, dockerZone)
 			return nil
 		}
@@ -364,6 +361,18 @@ func DelInterfaceFirewalld(intf string) error {
 		return err
 	}
 	return nil
+}
+
+// firewalldErrorCode returns the code of an error raised by firewalld, such
+// as "ZONE_CONFLICT", or "" if err is not a firewalld error.
+func firewalldErrorCode(err error) string {
+	var derr dbus.Error
+	if !errors.As(err, &derr) || derr.Name != dbusInterface+".Exception" {
+		return ""
+	}
+	// firewalld formats its errors as "CODE: message", or just "CODE".
+	code, _, _ := strings.Cut(derr.Error(), ":")
+	return code
 }
 
 type interfaceNotFound struct{ error }

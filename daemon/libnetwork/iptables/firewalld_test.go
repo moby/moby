@@ -3,11 +3,15 @@
 package iptables
 
 import (
+	"errors"
+	"fmt"
 	"net/netip"
 	"strconv"
 	"testing"
 
 	"github.com/godbus/dbus/v5"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func skipIfNoFirewalld(t *testing.T) {
@@ -112,5 +116,26 @@ func TestPassthrough(t *testing.T) {
 	}
 	if GetIptable(IPv4).Exists(Filter, rule1[1], rule1[2:]...) {
 		t.Fatal("rule1 still exists")
+	}
+}
+
+func TestFirewalldErrorCode(t *testing.T) {
+	fwErr := func(msg string) error {
+		return dbus.Error{Name: dbusInterface + ".Exception", Body: []any{msg}}
+	}
+	testcases := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{name: "code and message", err: fwErr("ZONE_CONFLICT: 'br0' already bound to 'drop'"), want: "ZONE_CONFLICT"},
+		{name: "code only", err: fwErr("NAME_CONFLICT"), want: "NAME_CONFLICT"},
+		{name: "wrapped", err: fmt.Errorf("wrapped: %w", fwErr("ZONE_ALREADY_SET: br0")), want: "ZONE_ALREADY_SET"},
+		{name: "other dbus error", err: dbus.Error{Name: dbus.ErrMsgUnknownMethod.Name, Body: []any{"NAME_CONFLICT: x"}}, want: ""},
+		{name: "not a dbus error", err: errors.New("ZONE_CONFLICT: x"), want: ""},
+		{name: "nil", err: nil, want: ""},
+	}
+	for _, tc := range testcases {
+		assert.Check(t, is.Equal(firewalldErrorCode(tc.err), tc.want), tc.name)
 	}
 }
