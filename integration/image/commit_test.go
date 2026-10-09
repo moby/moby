@@ -65,6 +65,28 @@ func TestCommitWithLabelInConfig(t *testing.T) {
 	poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, cID))
 }
 
+// TestCommitPausedContainer tests that committing a paused container leaves it paused.
+func TestCommitPausedContainer(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux", "test requires a Linux container")
+	skip.If(t, testEnv.DaemonInfo.CgroupDriver == "none")
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, apiClient)
+	_, err := apiClient.ContainerPause(ctx, cID, client.ContainerPauseOptions{})
+	assert.NilError(t, err)
+
+	img, err := apiClient.ContainerCommit(ctx, cID, client.ContainerCommitOptions{})
+	assert.NilError(t, err)
+
+	_, err = apiClient.ImageInspect(ctx, img.ID)
+	assert.NilError(t, err)
+
+	inspect, err := apiClient.ContainerInspect(ctx, cID, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, inspect.Container.State.Paused)
+}
+
 func TestCommitInheritsEnv(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	ctx := setupTest(t)

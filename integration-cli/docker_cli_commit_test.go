@@ -7,7 +7,6 @@ import (
 
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -39,22 +38,6 @@ func (s *DockerCLICommitSuite) TestCommitWithoutPause(c *testing.T) {
 	imageID := cli.DockerCmd(c, "commit", "-p=false", cID).Combined()
 	imageID = strings.TrimSpace(imageID)
 	cli.DockerCmd(c, "inspect", imageID)
-}
-
-// TestCommitPausedContainer tests that a paused container is not unpaused after being committed
-func (s *DockerCLICommitSuite) TestCommitPausedContainer(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	cID := cli.DockerCmd(c, "run", "-dit", "busybox").Combined()
-	cID = strings.TrimSpace(cID)
-	cli.DockerCmd(c, "pause", cID)
-
-	imageID := cli.DockerCmd(c, "commit", cID).Combined()
-	imageID = strings.TrimSpace(imageID)
-	cli.DockerCmd(c, "inspect", imageID)
-
-	// commit should not unpause a paused container
-	out := inspectField(c, cID, "State.Paused")
-	assert.Assert(c, is.Contains(out, "true"))
 }
 
 func (s *DockerCLICommitSuite) TestCommitNewFile(c *testing.T) {
