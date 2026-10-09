@@ -436,7 +436,7 @@ func (cli *Client) dialer() func(context.Context) (net.Conn, error) {
 			return dialPipeContext(ctx, cli.addr)
 		default:
 			if tlsConfig := cli.tlsConfig(); tlsConfig != nil {
-				return tls.Dial(cli.proto, cli.addr, tlsConfig)
+				return (&tls.Dialer{Config: tlsConfig}).DialContext(ctx, cli.proto, cli.addr)
 			}
 			return net.Dial(cli.proto, cli.addr)
 		}
