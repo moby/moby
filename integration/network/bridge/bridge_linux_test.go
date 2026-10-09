@@ -740,9 +740,12 @@ func TestFirewalldBridgeInOtherZone(t *testing.T) {
 	testcases := []struct {
 		name       string
 		daemonArgs []string
+		// Whether the daemon puts the bridge in firewalld's docker zone.
+		inDockerZone bool
 	}{
 		{
-			name: "iptables",
+			name:         "iptables",
+			inDockerZone: true,
 		},
 		{
 			name:       "no iptables",
@@ -772,7 +775,11 @@ func TestFirewalldBridgeInOtherZone(t *testing.T) {
 			}()
 			defer network.RemoveNoError(ctx, t, c, nw)
 
-			res := icmd.RunCommand("firewall-cmd", "--zone="+zone, "--change-interface="+bridgeName)
+			res := icmd.RunCommand("firewall-cmd", "--get-zone-of-interface="+bridgeName)
+			assert.Check(t, is.Equal(strings.TrimSpace(res.Stdout()) == "docker", tc.inDockerZone),
+				"zone of %s: %s", bridgeName, res.Combined())
+
+			res = icmd.RunCommand("firewall-cmd", "--zone="+zone, "--change-interface="+bridgeName)
 			res.Assert(t, icmd.Success)
 			defer icmd.RunCommand("firewall-cmd", "--zone="+zone, "--remove-interface="+bridgeName)
 
