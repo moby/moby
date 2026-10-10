@@ -3,8 +3,9 @@
 package winio
 
 import (
-	"errors"
+	"context"
 	"io"
+	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -20,16 +21,33 @@ import (
 //sys setFileCompletionNotificationModes(h windows.Handle, flags uint8) (err error) = SetFileCompletionNotificationModes
 //sys wsaGetOverlappedResult(h windows.Handle, o *windows.Overlapped, bytes *uint32, wait bool, flags *uint32) (err error) = ws2_32.WSAGetOverlappedResult
 
-var (
-	ErrFileClosed = errors.New("file has already been closed")
-	ErrTimeout    = &timeoutError{}
-)
+// ErrFileClosed is returned when an operation is performed on a closed file.
+//
+// Deprecated: use [os.ErrClosed] instead.
+var ErrFileClosed = os.ErrClosed
 
+// ErrTimeout is returned when an I/O operation exceeds its deadline.
+//
+// It matches both [context.DeadlineExceeded] and [os.ErrDeadlineExceeded]
+// with [errors.Is].
+var ErrTimeout error = &timeoutError{}
+
+// timeoutError preserves the historical "i/o timeout" error while matching
+// both context.DeadlineExceeded and os.ErrDeadlineExceeded through errors.Is.
+// This mirrors the behavior of net.errTimeout:
+// https://github.com/golang/go/blob/go1.27.1/src/net/net.go
+//
+// TODO: consider replacing ErrTimeout with os.ErrDeadlineExceeded if os.ErrDeadlineExceeded is changed to match context.DeadlineExceeded.
 type timeoutError struct{}
 
 func (*timeoutError) Error() string   { return "i/o timeout" }
 func (*timeoutError) Timeout() bool   { return true }
 func (*timeoutError) Temporary() bool { return true }
+func (*timeoutError) Unwrap() error   { return os.ErrDeadlineExceeded }
+
+func (*timeoutError) Is(err error) bool {
+	return err == context.DeadlineExceeded
+}
 
 type timeoutChan chan struct{}
 
@@ -143,7 +161,7 @@ func (f *win32File) prepareIO() (*ioOperation, error) {
 	f.wgLock.RLock()
 	if f.closing.Load() {
 		f.wgLock.RUnlock()
-		return nil, ErrFileClosed
+		return nil, os.ErrClosed
 	}
 	f.wg.Add(1)
 	f.wgLock.RUnlock()
@@ -192,7 +210,7 @@ func (f *win32File) asyncIO(c *ioOperation, d *deadlineHandler, bytes uint32, er
 		err = r.err
 		if err == windows.ERROR_OPERATION_ABORTED { //nolint:errorlint // err is Errno
 			if f.closing.Load() {
-				err = ErrFileClosed
+				err = os.ErrClosed
 			}
 		} else if err != nil && f.socket {
 			// err is from Win32. Query the overlapped structure to get the winsock error.
