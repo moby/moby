@@ -23,7 +23,7 @@ on the command line.
 
 ## Task 2. Install git
 
-Install `git` on your local system. You can check if `git` is on already on your
+Install `git` on your local system. You can check if `git` is already on your
 system and properly installed with the following command:
 
 ```bash
