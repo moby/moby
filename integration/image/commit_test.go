@@ -147,3 +147,37 @@ func TestUsernsCommit(t *testing.T) {
 	assert.Check(t, is.Equal(res.Stderr.String(), ""))
 	assert.Assert(t, is.Equal(strings.TrimSpace(res.Stdout.String()), "1000:1000"))
 }
+
+func TestCommitChangeLabels(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	// Start with a label that will be overridden in the committed image.
+	cID := container.Run(ctx, t, apiClient,
+		container.WithCmd("true"),
+		func(c *container.TestContainerConfig) {
+			c.Config.Labels = map[string]string{"some": "label"}
+		},
+	)
+	poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, cID))
+
+	img, err := apiClient.ContainerCommit(ctx, cID, client.ContainerCommitOptions{
+		Changes: []string{"LABEL some=label2"},
+	})
+	assert.NilError(t, err)
+
+	// The committed image should contain the replacement label.
+	imgInspect, err := apiClient.ImageInspect(ctx, img.ID)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(
+		imgInspect.Config.Labels,
+		map[string]string{"some": "label2"},
+	))
+
+	// Changing the image label must not change the source container.
+	source := container.Inspect(ctx, t, apiClient, cID)
+	assert.Check(t, is.DeepEqual(
+		source.Config.Labels,
+		map[string]string{"some": "label"},
+	))
+}
