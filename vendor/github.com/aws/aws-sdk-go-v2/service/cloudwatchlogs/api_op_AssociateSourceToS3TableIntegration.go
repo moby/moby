@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -43,6 +45,23 @@ type AssociateSourceToS3TableIntegrationInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *AssociateSourceToS3TableIntegrationInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.AssociateSourceToS3TableIntegrationRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *AssociateSourceToS3TableIntegrationInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DataSource != nil {
+		s.WriteStruct(schemas.AssociateSourceToS3TableIntegrationRequest_dataSource)
+		v.DataSource.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.IntegrationArn != nil {
+		s.WriteString(schemas.AssociateSourceToS3TableIntegrationRequest_integrationArn, *v.IntegrationArn)
+	}
+}
+
 type AssociateSourceToS3TableIntegrationOutput struct {
 
 	// The unique identifier for the association between the data source and S3 Table
@@ -55,13 +74,32 @@ type AssociateSourceToS3TableIntegrationOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *AssociateSourceToS3TableIntegrationOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.AssociateSourceToS3TableIntegrationResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *AssociateSourceToS3TableIntegrationOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Identifier != nil {
+		s.WriteString(schemas.AssociateSourceToS3TableIntegrationResponse_identifier, *v.Identifier)
+	}
+}
+func (v *AssociateSourceToS3TableIntegrationOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.AssociateSourceToS3TableIntegrationResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.AssociateSourceToS3TableIntegrationResponse_identifier:
+			v.Identifier = new(string)
+			return d.ReadString(schemas.AssociateSourceToS3TableIntegrationResponse_identifier, v.Identifier)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationAssociateSourceToS3TableIntegrationMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpAssociateSourceToS3TableIntegration{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.AssociateSourceToS3TableIntegration, schemas.AssociateSourceToS3TableIntegrationRequest, schemas.AssociateSourceToS3TableIntegrationResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpAssociateSourceToS3TableIntegration{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.AssociateSourceToS3TableIntegration, schemas.AssociateSourceToS3TableIntegrationRequest, schemas.AssociateSourceToS3TableIntegrationResponse), output: &AssociateSourceToS3TableIntegrationOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

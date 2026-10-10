@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -38,6 +40,18 @@ type PutStorageTierPolicyInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutStorageTierPolicyInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutStorageTierPolicyRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutStorageTierPolicyInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.StorageTier != "" {
+		s.WriteString(schemas.PutStorageTierPolicyRequest_storageTier, string(v.StorageTier))
+	}
+}
+
 type PutStorageTierPolicyOutput struct {
 
 	// The time when the storage tier policy was last updated, expressed as the number
@@ -53,13 +67,42 @@ type PutStorageTierPolicyOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutStorageTierPolicyOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutStorageTierPolicyResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutStorageTierPolicyOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LastUpdatedTime != nil {
+		s.WriteInt64(schemas.PutStorageTierPolicyResponse_lastUpdatedTime, *v.LastUpdatedTime)
+	}
+	if v.StorageTier != "" {
+		s.WriteString(schemas.PutStorageTierPolicyResponse_storageTier, string(v.StorageTier))
+	}
+}
+func (v *PutStorageTierPolicyOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PutStorageTierPolicyResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PutStorageTierPolicyResponse_lastUpdatedTime:
+			v.LastUpdatedTime = new(int64)
+			return d.ReadInt64(schemas.PutStorageTierPolicyResponse_lastUpdatedTime, v.LastUpdatedTime)
+		case schemas.PutStorageTierPolicyResponse_storageTier:
+			var ev string
+			if err := d.ReadString(schemas.PutStorageTierPolicyResponse_storageTier, &ev); err != nil {
+				return err
+			}
+			v.StorageTier = types.StorageTier(ev)
+			return nil
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutStorageTierPolicyMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutStorageTierPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutStorageTierPolicy, schemas.PutStorageTierPolicyRequest, schemas.PutStorageTierPolicyResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutStorageTierPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutStorageTierPolicy, schemas.PutStorageTierPolicyRequest, schemas.PutStorageTierPolicyResponse), output: &PutStorageTierPolicyOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -121,6 +123,21 @@ type PutIndexPolicyInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutIndexPolicyInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutIndexPolicyRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutIndexPolicyInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.LogGroupIdentifier != nil {
+		s.WriteString(schemas.PutIndexPolicyRequest_logGroupIdentifier, *v.LogGroupIdentifier)
+	}
+	if v.PolicyDocument != nil {
+		s.WriteString(schemas.PutIndexPolicyRequest_policyDocument, *v.PolicyDocument)
+	}
+}
+
 type PutIndexPolicyOutput struct {
 
 	// The index policy that you just created or updated.
@@ -132,13 +149,34 @@ type PutIndexPolicyOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutIndexPolicyOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutIndexPolicyResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutIndexPolicyOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.IndexPolicy != nil {
+		s.WriteStruct(schemas.PutIndexPolicyResponse_indexPolicy)
+		v.IndexPolicy.SerializeMembers(s)
+		s.CloseStruct()
+	}
+}
+func (v *PutIndexPolicyOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PutIndexPolicyResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PutIndexPolicyResponse_indexPolicy:
+			v.IndexPolicy = &types.IndexPolicy{}
+			return v.IndexPolicy.Deserialize(d)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutIndexPolicyMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutIndexPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutIndexPolicy, schemas.PutIndexPolicyRequest, schemas.PutIndexPolicyResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutIndexPolicy{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutIndexPolicy, schemas.PutIndexPolicyRequest, schemas.PutIndexPolicyResponse), output: &PutIndexPolicyOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

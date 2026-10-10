@@ -5,7 +5,9 @@ package cloudwatchlogs
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -46,6 +48,27 @@ type ListScheduledQueriesInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListScheduledQueriesInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListScheduledQueriesRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListScheduledQueriesInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.MaxResults != nil {
+		s.WriteInt32(schemas.ListScheduledQueriesRequest_maxResults, *v.MaxResults)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListScheduledQueriesRequest_nextToken, *v.NextToken)
+	}
+	if v.ScheduleType != "" {
+		s.WriteString(schemas.ListScheduledQueriesRequest_scheduleType, string(v.ScheduleType))
+	}
+	if v.State != "" {
+		s.WriteString(schemas.ListScheduledQueriesRequest_state, string(v.State))
+	}
+}
+
 type ListScheduledQueriesOutput struct {
 
 	// The token for the next set of items to return. The token expires after 24 hours.
@@ -60,13 +83,35 @@ type ListScheduledQueriesOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListScheduledQueriesOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListScheduledQueriesResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListScheduledQueriesOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListScheduledQueriesResponse_nextToken, *v.NextToken)
+	}
+	serializeScheduledQuerySummaryList(s, schemas.ListScheduledQueriesResponse_scheduledQueries, v.ScheduledQueries)
+}
+func (v *ListScheduledQueriesOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ListScheduledQueriesResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ListScheduledQueriesResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.ListScheduledQueriesResponse_nextToken, v.NextToken)
+		case schemas.ListScheduledQueriesResponse_scheduledQueries:
+			return deserializeScheduledQuerySummaryList(d, schemas.ListScheduledQueriesResponse_scheduledQueries, &v.ScheduledQueries)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationListScheduledQueriesMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpListScheduledQueries{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListScheduledQueries, schemas.ListScheduledQueriesRequest, schemas.ListScheduledQueriesResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpListScheduledQueries{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListScheduledQueries, schemas.ListScheduledQueriesRequest, schemas.ListScheduledQueriesResponse), output: &ListScheduledQueriesOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

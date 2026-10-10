@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -67,6 +69,25 @@ type DescribeAccountPoliciesInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeAccountPoliciesInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeAccountPoliciesRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeAccountPoliciesInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeAccountIds(s, schemas.DescribeAccountPoliciesRequest_accountIdentifiers, v.AccountIdentifiers)
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeAccountPoliciesRequest_nextToken, *v.NextToken)
+	}
+	if v.PolicyName != nil {
+		s.WriteString(schemas.DescribeAccountPoliciesRequest_policyName, *v.PolicyName)
+	}
+	if v.PolicyType != "" {
+		s.WriteString(schemas.DescribeAccountPoliciesRequest_policyType, string(v.PolicyType))
+	}
+}
+
 type DescribeAccountPoliciesOutput struct {
 
 	// An array of structures that contain information about the CloudWatch Logs
@@ -83,13 +104,35 @@ type DescribeAccountPoliciesOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeAccountPoliciesOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeAccountPoliciesResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeAccountPoliciesOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeAccountPolicies(s, schemas.DescribeAccountPoliciesResponse_accountPolicies, v.AccountPolicies)
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeAccountPoliciesResponse_nextToken, *v.NextToken)
+	}
+}
+func (v *DescribeAccountPoliciesOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DescribeAccountPoliciesResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DescribeAccountPoliciesResponse_accountPolicies:
+			return deserializeAccountPolicies(d, schemas.DescribeAccountPoliciesResponse_accountPolicies, &v.AccountPolicies)
+		case schemas.DescribeAccountPoliciesResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.DescribeAccountPoliciesResponse_nextToken, v.NextToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDescribeAccountPoliciesMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeAccountPolicies{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeAccountPolicies, schemas.DescribeAccountPoliciesRequest, schemas.DescribeAccountPoliciesResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeAccountPolicies{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeAccountPolicies, schemas.DescribeAccountPoliciesRequest, schemas.DescribeAccountPoliciesResponse), output: &DescribeAccountPoliciesOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

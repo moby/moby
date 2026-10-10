@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -69,6 +71,31 @@ type CreateLookupTableInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *CreateLookupTableInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.CreateLookupTableRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *CreateLookupTableInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Description != nil {
+		s.WriteString(schemas.CreateLookupTableRequest_description, *v.Description)
+	}
+	if v.KmsKeyId != nil {
+		s.WriteString(schemas.CreateLookupTableRequest_kmsKeyId, *v.KmsKeyId)
+	}
+	if v.LookupTableName != nil {
+		s.WriteString(schemas.CreateLookupTableRequest_lookupTableName, *v.LookupTableName)
+	}
+	if v.QueryId != nil {
+		s.WriteString(schemas.CreateLookupTableRequest_queryId, *v.QueryId)
+	}
+	if v.TableBody != nil {
+		s.WriteString(schemas.CreateLookupTableRequest_tableBody, *v.TableBody)
+	}
+	serializeTags(s, schemas.CreateLookupTableRequest_tags, v.Tags)
+}
+
 type CreateLookupTableOutput struct {
 
 	// The time when the lookup table was created, expressed as the number of
@@ -84,13 +111,38 @@ type CreateLookupTableOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *CreateLookupTableOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.CreateLookupTableResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *CreateLookupTableOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.CreatedAt != nil {
+		s.WriteInt64(schemas.CreateLookupTableResponse_createdAt, *v.CreatedAt)
+	}
+	if v.LookupTableArn != nil {
+		s.WriteString(schemas.CreateLookupTableResponse_lookupTableArn, *v.LookupTableArn)
+	}
+}
+func (v *CreateLookupTableOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.CreateLookupTableResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.CreateLookupTableResponse_createdAt:
+			v.CreatedAt = new(int64)
+			return d.ReadInt64(schemas.CreateLookupTableResponse_createdAt, v.CreatedAt)
+		case schemas.CreateLookupTableResponse_lookupTableArn:
+			v.LookupTableArn = new(string)
+			return d.ReadString(schemas.CreateLookupTableResponse_lookupTableArn, v.LookupTableArn)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationCreateLookupTableMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpCreateLookupTable{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.CreateLookupTable, schemas.CreateLookupTableRequest, schemas.CreateLookupTableResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpCreateLookupTable{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.CreateLookupTable, schemas.CreateLookupTableRequest, schemas.CreateLookupTableResponse), output: &CreateLookupTableOutput{}}, middleware.After); err != nil {
 		return err
 	}
 
