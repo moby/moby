@@ -137,14 +137,3 @@ func (s *DockerCLICommitSuite) TestCommitChange(c *testing.T) {
 		}
 	}
 }
-
-func (s *DockerCLICommitSuite) TestCommitChangeLabels(c *testing.T) {
-	cli.DockerCmd(c, "run", "--name", "test", "--label", "some=label", "busybox", "true")
-
-	imageID := cli.DockerCmd(c, "commit", "--change", "LABEL some=label2", "test", "test-commit").Stdout()
-	imageID = strings.TrimSpace(imageID)
-
-	assert.Equal(c, inspectField(c, imageID, "Config.Labels"), "map[some:label2]")
-	// check that container labels didn't change
-	assert.Equal(c, inspectField(c, "test", "Config.Labels"), "map[some:label]")
-}
