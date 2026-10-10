@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -69,6 +71,25 @@ type PutDestinationInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutDestinationInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutDestinationRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutDestinationInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DestinationName != nil {
+		s.WriteString(schemas.PutDestinationRequest_destinationName, *v.DestinationName)
+	}
+	if v.RoleArn != nil {
+		s.WriteString(schemas.PutDestinationRequest_roleArn, *v.RoleArn)
+	}
+	serializeTags(s, schemas.PutDestinationRequest_tags, v.Tags)
+	if v.TargetArn != nil {
+		s.WriteString(schemas.PutDestinationRequest_targetArn, *v.TargetArn)
+	}
+}
+
 type PutDestinationOutput struct {
 
 	// The destination.
@@ -80,13 +101,34 @@ type PutDestinationOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutDestinationOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutDestinationResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutDestinationOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Destination != nil {
+		s.WriteStruct(schemas.PutDestinationResponse_destination)
+		v.Destination.SerializeMembers(s)
+		s.CloseStruct()
+	}
+}
+func (v *PutDestinationOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PutDestinationResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PutDestinationResponse_destination:
+			v.Destination = &types.Destination{}
+			return v.Destination.Deserialize(d)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutDestinationMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutDestination{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutDestination, schemas.PutDestinationRequest, schemas.PutDestinationResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutDestination{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutDestination, schemas.PutDestinationRequest, schemas.PutDestinationResponse), output: &PutDestinationOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

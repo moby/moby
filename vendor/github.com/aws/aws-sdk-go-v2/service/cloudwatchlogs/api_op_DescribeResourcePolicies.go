@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -43,6 +45,27 @@ type DescribeResourcePoliciesInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeResourcePoliciesInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeResourcePoliciesRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeResourcePoliciesInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Limit != nil {
+		s.WriteInt32(schemas.DescribeResourcePoliciesRequest_limit, *v.Limit)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeResourcePoliciesRequest_nextToken, *v.NextToken)
+	}
+	if v.PolicyScope != "" {
+		s.WriteString(schemas.DescribeResourcePoliciesRequest_policyScope, string(v.PolicyScope))
+	}
+	if v.ResourceArn != nil {
+		s.WriteString(schemas.DescribeResourcePoliciesRequest_resourceArn, *v.ResourceArn)
+	}
+}
+
 type DescribeResourcePoliciesOutput struct {
 
 	// The token for the next set of items to return. The token expires after 24 hours.
@@ -57,13 +80,35 @@ type DescribeResourcePoliciesOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeResourcePoliciesOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeResourcePoliciesResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeResourcePoliciesOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeResourcePoliciesResponse_nextToken, *v.NextToken)
+	}
+	serializeResourcePolicies(s, schemas.DescribeResourcePoliciesResponse_resourcePolicies, v.ResourcePolicies)
+}
+func (v *DescribeResourcePoliciesOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DescribeResourcePoliciesResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DescribeResourcePoliciesResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.DescribeResourcePoliciesResponse_nextToken, v.NextToken)
+		case schemas.DescribeResourcePoliciesResponse_resourcePolicies:
+			return deserializeResourcePolicies(d, schemas.DescribeResourcePoliciesResponse_resourcePolicies, &v.ResourcePolicies)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDescribeResourcePoliciesMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeResourcePolicies{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeResourcePolicies, schemas.DescribeResourcePoliciesRequest, schemas.DescribeResourcePoliciesResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeResourcePolicies{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeResourcePolicies, schemas.DescribeResourcePoliciesRequest, schemas.DescribeResourcePoliciesResponse), output: &DescribeResourcePoliciesOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

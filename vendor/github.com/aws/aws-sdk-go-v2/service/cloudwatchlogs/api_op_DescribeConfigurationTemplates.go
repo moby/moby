@@ -5,7 +5,9 @@ package cloudwatchlogs
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -57,6 +59,27 @@ type DescribeConfigurationTemplatesInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeConfigurationTemplatesInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeConfigurationTemplatesRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeConfigurationTemplatesInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeDeliveryDestinationTypes(s, schemas.DescribeConfigurationTemplatesRequest_deliveryDestinationTypes, v.DeliveryDestinationTypes)
+	if v.Limit != nil {
+		s.WriteInt32(schemas.DescribeConfigurationTemplatesRequest_limit, *v.Limit)
+	}
+	serializeLogTypes(s, schemas.DescribeConfigurationTemplatesRequest_logTypes, v.LogTypes)
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeConfigurationTemplatesRequest_nextToken, *v.NextToken)
+	}
+	serializeResourceTypes(s, schemas.DescribeConfigurationTemplatesRequest_resourceTypes, v.ResourceTypes)
+	if v.Service != nil {
+		s.WriteString(schemas.DescribeConfigurationTemplatesRequest_service, *v.Service)
+	}
+}
+
 type DescribeConfigurationTemplatesOutput struct {
 
 	// An array of objects, where each object describes one configuration template
@@ -72,13 +95,35 @@ type DescribeConfigurationTemplatesOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DescribeConfigurationTemplatesOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DescribeConfigurationTemplatesResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DescribeConfigurationTemplatesOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeConfigurationTemplates(s, schemas.DescribeConfigurationTemplatesResponse_configurationTemplates, v.ConfigurationTemplates)
+	if v.NextToken != nil {
+		s.WriteString(schemas.DescribeConfigurationTemplatesResponse_nextToken, *v.NextToken)
+	}
+}
+func (v *DescribeConfigurationTemplatesOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DescribeConfigurationTemplatesResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.DescribeConfigurationTemplatesResponse_configurationTemplates:
+			return deserializeConfigurationTemplates(d, schemas.DescribeConfigurationTemplatesResponse_configurationTemplates, &v.ConfigurationTemplates)
+		case schemas.DescribeConfigurationTemplatesResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.DescribeConfigurationTemplatesResponse_nextToken, v.NextToken)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDescribeConfigurationTemplatesMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpDescribeConfigurationTemplates{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeConfigurationTemplates, schemas.DescribeConfigurationTemplatesRequest, schemas.DescribeConfigurationTemplatesResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpDescribeConfigurationTemplates{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DescribeConfigurationTemplates, schemas.DescribeConfigurationTemplatesRequest, schemas.DescribeConfigurationTemplatesResponse), output: &DescribeConfigurationTemplatesOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

@@ -4,7 +4,9 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -66,20 +68,14 @@ type PutDeliverySourceInput struct {
 
 	// Defines the type of log that the source is sending.
 	//
+	//   - For Amazon Web Services Amplify, the valid values are ACCESS_LOGS and
+	//   WAF_LOGS .
+	//
 	//   - For Application Load Balancer, the valid values are ALB_ACCESS_LOGS ,
 	//   ALB_CONNECTION_LOGS , and ALB_HEALTH_CHECK_LOGS .
 	//
-	//   - For Amazon Bedrock Agents, the valid values are APPLICATION_LOGS and
-	//   EVENT_LOGS .
-	//
-	//   - For Amazon Bedrock Knowledge Bases, the valid values are APPLICATION_LOGS
+	//   - For Amazon Bedrock AgentCore Gateway, the valid values are APPLICATION_LOGS
 	//   and TRACES .
-	//
-	//   - For Amazon Bedrock AgentCore Runtime, the valid values are APPLICATION_LOGS
-	//   , USAGE_LOGS and TRACES .
-	//
-	//   - For Amazon Bedrock AgentCore Tools, the valid values are APPLICATION_LOGS ,
-	//   USAGE_LOGS and TRACES .
 	//
 	//   - For Amazon Bedrock AgentCore Identity, the valid values are APPLICATION_LOGS
 	//   and TRACES .
@@ -87,23 +83,29 @@ type PutDeliverySourceInput struct {
 	//   - For Amazon Bedrock AgentCore Memory, the valid values are APPLICATION_LOGS
 	//   and TRACES .
 	//
-	//   - For Amazon Bedrock AgentCore Gateway, the valid values are APPLICATION_LOGS
+	//   - For Amazon Bedrock AgentCore Payments, the valid values are APPLICATION_LOGS
 	//   and TRACES .
 	//
-	//   - For Amazon Bedrock AgentCore Payments, the valid values are APPLICATION_LOGS
+	//   - For Amazon Bedrock AgentCore Runtime, the valid values are APPLICATION_LOGS
+	//   , USAGE_LOGS , and TRACES .
+	//
+	//   - For Amazon Bedrock AgentCore Tools, the valid values are APPLICATION_LOGS ,
+	//   USAGE_LOGS , and TRACES .
+	//
+	//   - For Amazon Bedrock Agents, the valid values are APPLICATION_LOGS and
+	//   EVENT_LOGS .
+	//
+	//   - For Amazon Bedrock Knowledge Bases, the valid values are APPLICATION_LOGS
 	//   and TRACES .
 	//
 	//   - For CloudFront, the valid value is ACCESS_LOGS .
 	//
-	//   - For DevOps Agent, the valid value is APPLICATION_LOGS .
+	//   - For query execution logs from CloudWatch Logs Insights, the valid value is
+	//   INSIGHTS_QUERY_LOGS .
 	//
 	//   - For Amazon CodeWhisperer, the valid value is EVENT_LOGS .
 	//
-	//   - For Elemental MediaPackage, the valid values are EGRESS_ACCESS_LOGS and
-	//   INGRESS_ACCESS_LOGS .
-	//
-	//   - For Elemental MediaTailor, the valid values are AD_DECISION_SERVER_LOGS ,
-	//   MANIFEST_SERVICE_LOGS , and TRANSCODE_LOGS .
+	//   - For DevOps Agent, the valid value is APPLICATION_LOGS .
 	//
 	//   - For Amazon EKS Auto Mode, the valid values are AUTO_MODE_BLOCK_STORAGE_LOGS
 	//   , AUTO_MODE_COMPUTE_LOGS , AUTO_MODE_IPAM_LOGS , and
@@ -115,6 +117,15 @@ type PutDeliverySourceInput struct {
 	//   EKS_CAPABILITY_ARGOCD_COMMITSERVER_LOGS ,
 	//   EKS_CAPABILITY_ARGOCD_REPOSERVER_LOGS , EKS_CAPABILITY_ARGOCD_SERVER_LOGS ,
 	//   and EKS_CAPABILITY_KRO_LOGS .
+	//
+	//   - For Amazon Web Services Elemental Inference, the valid value is
+	//   APPLICATION_LOGS .
+	//
+	//   - For Elemental MediaPackage, the valid values are EGRESS_ACCESS_LOGS and
+	//   INGRESS_ACCESS_LOGS .
+	//
+	//   - For Elemental MediaTailor, the valid values are AD_DECISION_SERVER_LOGS ,
+	//   MANIFEST_SERVICE_LOGS , and TRANSCODE_LOGS .
 	//
 	//   - For Entity Resolution, the valid value is WORKFLOW_LOGS .
 	//
@@ -128,29 +139,36 @@ type PutDeliverySourceInput struct {
 	//   - For PCS, the valid values are PCS_SCHEDULER_LOGS , PCS_JOBCOMP_LOGS , and
 	//   PCS_SCHEDULER_AUDIT_LOGS .
 	//
-	//   - For Quick, the valid values are AGENT_HOURS_LOGS , CHAT_LOGS , FEEDBACK_LOGS
-	//   , and INDEX_USAGE_LOGS .
-	//
-	//   - For Amazon Web Services RTB Fabric, the valid values is APPLICATION_LOGS .
-	//
 	//   - For Amazon Q, the valid values are EVENT_LOGS and SYNC_JOB_LOGS .
+	//
+	//   - For Amazon Q in Connect AI agents, the valid value is EVENT_LOGS .
+	//
+	//   - For Quick, the valid values are AGENT_HOURS_LOGS , AGENT_METADATA_LOGS ,
+	//   CHAT_LOGS , DLP_LOGS , FEEDBACK_LOGS , INDEX_USAGE_LOGS , and
+	//   KB_FILE_SYNC_LOGS .
+	//
+	//   - For Route 53 Global Resolver, the valid value is GLOBAL_RESOLVER_LOGS .
+	//
+	//   - For Amazon Web Services RTB Fabric, the valid value is APPLICATION_LOGS .
 	//
 	//   - For Amazon S3, the valid value is S3_SERVER_ACCESS_LOGS .
 	//
-	//   - For Amazon Web Services Security Hub CSPM, the valid value is
+	//   - For Amazon Web Services Security Hub, the valid value is
 	//   SECURITY_FINDING_LOGS .
 	//
-	//   - For Amazon Web Services Security Hub, the valid value is
+	//   - For Amazon Web Services Security Hub CSPM, the valid value is
 	//   SECURITY_FINDING_LOGS .
 	//
 	//   - For Amazon SES mail manager, the valid values are APPLICATION_LOGS and
 	//   TRAFFIC_POLICY_DEBUG_LOGS .
 	//
+	//   - For Amazon Web Services Shield Advanced, the valid value is FLOW_LOGS .
+	//
+	//   - For Amazon VPC Route Server, the valid value is EVENT_LOGS .
+	//
 	//   - For Amazon WorkMail, the valid values are ACCESS_CONTROL_LOGS ,
 	//   AUTHENTICATION_LOGS , WORKMAIL_AVAILABILITY_PROVIDER_LOGS ,
 	//   WORKMAIL_MAILBOX_ACCESS_LOGS , and WORKMAIL_PERSONAL_ACCESS_TOKEN_LOGS .
-	//
-	//   - For Amazon VPC Route Server, the valid value is EVENT_LOGS .
 	//
 	// This member is required.
 	LogType *string
@@ -170,6 +188,10 @@ type PutDeliverySourceInput struct {
 	// arn:aws:securityhub:us-east-1:111122223333:hub/* and for Amazon Web Services
 	// Security Hub, use arn:aws:securityhub:us-east-1:111122223333:hubv2/*
 	//
+	// For the INSIGHTS_QUERY_LOGS log type, use a wildcard log group ARN, such as
+	// arn:aws:logs:us-east-1:111122223333:log-group:* . Amazon Web Services does not
+	// support a specific log group ARN for this log type.
+	//
 	// This member is required.
 	ResourceArn *string
 
@@ -188,6 +210,26 @@ type PutDeliverySourceInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutDeliverySourceInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutDeliverySourceRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutDeliverySourceInput) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeDeliverySourceConfiguration(s, schemas.PutDeliverySourceRequest_deliverySourceConfiguration, v.DeliverySourceConfiguration)
+	if v.LogType != nil {
+		s.WriteString(schemas.PutDeliverySourceRequest_logType, *v.LogType)
+	}
+	if v.Name != nil {
+		s.WriteString(schemas.PutDeliverySourceRequest_name, *v.Name)
+	}
+	if v.ResourceArn != nil {
+		s.WriteString(schemas.PutDeliverySourceRequest_resourceArn, *v.ResourceArn)
+	}
+	serializeTags(s, schemas.PutDeliverySourceRequest_tags, v.Tags)
+}
+
 type PutDeliverySourceOutput struct {
 
 	// A structure containing information about the delivery source that was just
@@ -200,13 +242,34 @@ type PutDeliverySourceOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutDeliverySourceOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutDeliverySourceResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutDeliverySourceOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DeliverySource != nil {
+		s.WriteStruct(schemas.PutDeliverySourceResponse_deliverySource)
+		v.DeliverySource.SerializeMembers(s)
+		s.CloseStruct()
+	}
+}
+func (v *PutDeliverySourceOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PutDeliverySourceResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PutDeliverySourceResponse_deliverySource:
+			v.DeliverySource = &types.DeliverySource{}
+			return v.DeliverySource.Deserialize(d)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutDeliverySourceMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutDeliverySource{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutDeliverySource, schemas.PutDeliverySourceRequest, schemas.PutDeliverySourceResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutDeliverySource{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutDeliverySource, schemas.PutDeliverySourceRequest, schemas.PutDeliverySourceResponse), output: &PutDeliverySourceOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

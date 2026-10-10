@@ -4,6 +4,8 @@ package cloudwatchlogs
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -56,6 +58,21 @@ type PutBearerTokenAuthenticationInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutBearerTokenAuthenticationInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutBearerTokenAuthenticationRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutBearerTokenAuthenticationInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.BearerTokenAuthenticationEnabled != nil {
+		s.WriteBool(schemas.PutBearerTokenAuthenticationRequest_bearerTokenAuthenticationEnabled, *v.BearerTokenAuthenticationEnabled)
+	}
+	if v.LogGroupIdentifier != nil {
+		s.WriteString(schemas.PutBearerTokenAuthenticationRequest_logGroupIdentifier, *v.LogGroupIdentifier)
+	}
+}
+
 type PutBearerTokenAuthenticationOutput struct {
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -63,13 +80,26 @@ type PutBearerTokenAuthenticationOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutBearerTokenAuthenticationOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(nil)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutBearerTokenAuthenticationOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *PutBearerTokenAuthenticationOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, nil, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutBearerTokenAuthenticationMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsAwsjson11_serializeOpPutBearerTokenAuthentication{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutBearerTokenAuthentication, schemas.PutBearerTokenAuthenticationRequest, nil)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsAwsjson11_deserializeOpPutBearerTokenAuthentication{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutBearerTokenAuthentication, schemas.PutBearerTokenAuthenticationRequest, nil), output: &PutBearerTokenAuthenticationOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

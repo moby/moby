@@ -897,6 +897,11 @@ func awsAwsquery_serializeOpDocumentAssumeRoleInput(v *AssumeRoleInput, value qu
 		objectKey.String(*v.ExternalId)
 	}
 
+	if v.MinimumSessionTokenSize != nil {
+		objectKey := object.Key("MinimumSessionTokenSize")
+		objectKey.Integer(*v.MinimumSessionTokenSize)
+	}
+
 	if v.Policy != nil {
 		objectKey := object.Key("Policy")
 		objectKey.String(*v.Policy)
@@ -967,6 +972,11 @@ func awsAwsquery_serializeOpDocumentAssumeRoleWithSAMLInput(v *AssumeRoleWithSAM
 		objectKey.Integer(*v.DurationSeconds)
 	}
 
+	if v.MinimumSessionTokenSize != nil {
+		objectKey := object.Key("MinimumSessionTokenSize")
+		objectKey.Integer(*v.MinimumSessionTokenSize)
+	}
+
 	if v.Policy != nil {
 		objectKey := object.Key("Policy")
 		objectKey.String(*v.Policy)
@@ -1004,6 +1014,11 @@ func awsAwsquery_serializeOpDocumentAssumeRoleWithWebIdentityInput(v *AssumeRole
 	if v.DurationSeconds != nil {
 		objectKey := object.Key("DurationSeconds")
 		objectKey.Integer(*v.DurationSeconds)
+	}
+
+	if v.MinimumSessionTokenSize != nil {
+		objectKey := object.Key("MinimumSessionTokenSize")
+		objectKey.Integer(*v.MinimumSessionTokenSize)
 	}
 
 	if v.Policy != nil {
@@ -1048,6 +1063,11 @@ func awsAwsquery_serializeOpDocumentAssumeRootInput(v *AssumeRootInput, value qu
 	if v.DurationSeconds != nil {
 		objectKey := object.Key("DurationSeconds")
 		objectKey.Integer(*v.DurationSeconds)
+	}
+
+	if v.MinimumSessionTokenSize != nil {
+		objectKey := object.Key("MinimumSessionTokenSize")
+		objectKey.Integer(*v.MinimumSessionTokenSize)
 	}
 
 	if v.TargetPrincipal != nil {
@@ -1117,6 +1137,11 @@ func awsAwsquery_serializeOpDocumentGetFederationTokenInput(v *GetFederationToke
 		objectKey.Integer(*v.DurationSeconds)
 	}
 
+	if v.MinimumSessionTokenSize != nil {
+		objectKey := object.Key("MinimumSessionTokenSize")
+		objectKey.Integer(*v.MinimumSessionTokenSize)
+	}
+
 	if v.Name != nil {
 		objectKey := object.Key("Name")
 		objectKey.String(*v.Name)
@@ -1151,6 +1176,11 @@ func awsAwsquery_serializeOpDocumentGetSessionTokenInput(v *GetSessionTokenInput
 	if v.DurationSeconds != nil {
 		objectKey := object.Key("DurationSeconds")
 		objectKey.Integer(*v.DurationSeconds)
+	}
+
+	if v.MinimumSessionTokenSize != nil {
+		objectKey := object.Key("MinimumSessionTokenSize")
+		objectKey.Integer(*v.MinimumSessionTokenSize)
 	}
 
 	if v.SerialNumber != nil {
