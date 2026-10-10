@@ -181,3 +181,53 @@ func TestCommitChangeLabels(t *testing.T) {
 		map[string]string{"some": "label"},
 	))
 }
+
+func TestCommitChange(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	// Wait for the container to finish before committing its changes.
+	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"))
+	poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, cID))
+
+	img, err := apiClient.ContainerCommit(ctx, cID, client.ContainerCommitOptions{
+		Changes: []string{
+			"EXPOSE 8080",
+			"ENV DEBUG true",
+			"ENV test 1",
+			"ENV PATH /foo",
+			"LABEL foo bar",
+			`CMD ["/bin/sh"]`,
+			"WORKDIR /opt",
+			`ENTRYPOINT ["/bin/sh"]`,
+			"USER testuser",
+			"VOLUME /var/lib/docker",
+			"ONBUILD /usr/local/bin/python-build --dir /app/src",
+		},
+	})
+	assert.NilError(t, err)
+
+	imgInspect, err := apiClient.ImageInspect(ctx, img.ID)
+	assert.NilError(t, err)
+	assert.Assert(t, imgInspect.Config != nil)
+	config := imgInspect.Config
+
+	expectedEnv := []string{"PATH=/foo", "DEBUG=true", "test=1"}
+	expectedWorkingDir := "/opt"
+	if testEnv.DaemonInfo.OSType == "windows" {
+		// Windows has no inherited PATH, and normalizes WORKDIR to a drive path.
+		expectedEnv = []string{"DEBUG=true", "test=1", "PATH=/foo"}
+		expectedWorkingDir = `C:\opt`
+	}
+
+	// Check all nine configuration fields covered by the legacy test.
+	assert.Check(t, is.DeepEqual(config.ExposedPorts, map[string]struct{}{"8080/tcp": {}}))
+	assert.Check(t, is.DeepEqual(config.Env, expectedEnv))
+	assert.Check(t, is.DeepEqual(config.Labels, map[string]string{"foo": "bar"}))
+	assert.Check(t, is.DeepEqual(config.Cmd, []string{"/bin/sh"}))
+	assert.Check(t, is.Equal(config.WorkingDir, expectedWorkingDir))
+	assert.Check(t, is.DeepEqual(config.Entrypoint, []string{"/bin/sh"}))
+	assert.Check(t, is.Equal(config.User, "testuser"))
+	assert.Check(t, is.DeepEqual(config.Volumes, map[string]struct{}{"/var/lib/docker": {}}))
+	assert.Check(t, is.DeepEqual(config.OnBuild, []string{"/usr/local/bin/python-build --dir /app/src"}))
+}
