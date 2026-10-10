@@ -8,7 +8,7 @@ import (
 	context "context"
 	extensions "github.com/moby/extensions"
 	clientpoint "github.com/moby/extensions/clientpoint"
-	greeterv0 "github.com/moby/extensions/example/greeter/v0"
+	mobyextcontract "github.com/moby/extensions/example/greeter/v0"
 	serverpoint "github.com/moby/extensions/serverpoint"
 	grpc "google.golang.org/grpc"
 )
@@ -76,29 +76,29 @@ func (c *serviceClient) Greet(ctx context.Context, in *HelloRequest, opts ...grp
 // ServerPoint serves the Greeter point: it registers the point's gRPC service for
 // a provider with an SDK server. A binary passes it to (*sdk.Server).Register.
 var ServerPoint = serverpoint.Registration{
-	Point: greeterv0.Point.ID(),
+	Point: mobyextcontract.Point.ID(),
 	Register: func(r grpc.ServiceRegistrar, impl any) {
-		r.RegisterService(&serviceDesc, &grpcServer{impl: impl.(greeterv0.Greeter)})
+		r.RegisterService(&serviceDesc, &grpcServer{impl: impl.(mobyextcontract.Greeter)})
 	},
 }
 
 // ClientProvider builds a broker provider for the Greeter point from an
 // out-of-process gRPC connection.
 func ClientProvider(conn grpc.ClientConnInterface) extensions.Provider {
-	return greeterv0.Point.Provide(NewClient(conn))
+	return mobyextcontract.Point.Provide(NewClient(conn))
 }
 
 // ClientPoint registers ClientProvider for the Greeter point with a host.
-var ClientPoint = clientpoint.Registration{Point: greeterv0.Point.ID(), Provider: ClientProvider}
+var ClientPoint = clientpoint.Registration{Point: mobyextcontract.Point.ID(), Provider: ClientProvider}
 
-// NewClient returns a greeterv0.Greeter that calls the Greeter point over conn.
-func NewClient(conn grpc.ClientConnInterface) greeterv0.Greeter {
+// NewClient returns a mobyextcontract.Greeter that calls the Greeter point over conn.
+func NewClient(conn grpc.ClientConnInterface) mobyextcontract.Greeter {
 	return &grpcClient{client: NewGreeterClient(conn)}
 }
 
 // grpcServer serves an implementation of the contract's Go interface.
 type grpcServer struct {
-	impl greeterv0.Greeter
+	impl mobyextcontract.Greeter
 }
 
 func (s *grpcServer) Greet(ctx context.Context, req *HelloRequest) (*HelloReply, error) {
@@ -113,7 +113,7 @@ type grpcClient struct {
 	client GreeterClient
 }
 
-func (c *grpcClient) Greet(ctx context.Context, req *greeterv0.HelloRequest) (*greeterv0.HelloReply, error) {
+func (c *grpcClient) Greet(ctx context.Context, req *mobyextcontract.HelloRequest) (*mobyextcontract.HelloReply, error) {
 	resp, err := c.client.Greet(ctx, helloRequestToProto(req))
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func (c *grpcClient) Greet(ctx context.Context, req *greeterv0.HelloRequest) (*g
 	return helloReplyFromProto(resp), nil
 }
 
-func helloReplyToProto(in *greeterv0.HelloReply) *HelloReply {
+func helloReplyToProto(in *mobyextcontract.HelloReply) *HelloReply {
 	if in == nil {
 		return nil
 	}
@@ -130,16 +130,16 @@ func helloReplyToProto(in *greeterv0.HelloReply) *HelloReply {
 	return out
 }
 
-func helloReplyFromProto(in *HelloReply) *greeterv0.HelloReply {
+func helloReplyFromProto(in *HelloReply) *mobyextcontract.HelloReply {
 	if in == nil {
 		return nil
 	}
-	out := &greeterv0.HelloReply{}
+	out := &mobyextcontract.HelloReply{}
 	out.Message = in.GetMessage()
 	return out
 }
 
-func helloRequestToProto(in *greeterv0.HelloRequest) *HelloRequest {
+func helloRequestToProto(in *mobyextcontract.HelloRequest) *HelloRequest {
 	if in == nil {
 		return nil
 	}
@@ -148,11 +148,11 @@ func helloRequestToProto(in *greeterv0.HelloRequest) *HelloRequest {
 	return out
 }
 
-func helloRequestFromProto(in *HelloRequest) *greeterv0.HelloRequest {
+func helloRequestFromProto(in *HelloRequest) *mobyextcontract.HelloRequest {
 	if in == nil {
 		return nil
 	}
-	out := &greeterv0.HelloRequest{}
+	out := &mobyextcontract.HelloRequest{}
 	out.Name = in.GetName()
 	return out
 }

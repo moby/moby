@@ -6,7 +6,6 @@ package main
 // model
 
 type point struct {
-	pkgName       string // Go package name
 	importPath    string // package import path
 	protoPath     string // module-relative path of the .proto
 	licenseHeader string // SPDX notices from the contract interface's source file

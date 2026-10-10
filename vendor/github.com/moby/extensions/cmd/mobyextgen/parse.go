@@ -38,21 +38,21 @@ func parseContract(dir, serviceIdentity string) (point, error) {
 	}
 
 	var files []*ast.File
-	var pkgName string
+	foundPackage := false
 	for name, pkg := range pkgs {
 		if strings.HasSuffix(name, "_test") {
 			continue
 		}
-		pkgName = name
+		foundPackage = true
 		for _, f := range pkg.Files {
 			files = append(files, f)
 		}
 	}
-	if pkgName == "" {
+	if !foundPackage {
 		return point{}, fmt.Errorf("no package found in %s", dir)
 	}
 
-	pt := point{pkgName: pkgName}
+	var pt point
 
 	if serviceIdentity != "" {
 		pkg, service, ok := splitServiceIdentity(serviceIdentity)
