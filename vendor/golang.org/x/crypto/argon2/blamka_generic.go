@@ -6,6 +6,10 @@ package argon2
 
 var useSSE4 bool
 
+// useLSX reports whether the loong64 LSX vector implementation should be
+// used. It is set from cpu.Loong64.HasLSX in blamka_loong64.go's init().
+var useLSX bool
+
 func processBlockGeneric(out, in1, in2 *block, xor bool) {
 	var t block
 	for i := range t {
