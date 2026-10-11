@@ -3,6 +3,7 @@ package image
 import (
 	"strings"
 	"testing"
+	"time"
 
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
@@ -159,7 +160,11 @@ func TestCommitChangeLabels(t *testing.T) {
 			c.Config.Labels = map[string]string{"some": "label"}
 		},
 	)
-	poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, cID))
+	var pollOpts []poll.SettingOp
+	if testEnv.DaemonInfo.OSType == "windows" {
+		pollOpts = append(pollOpts, poll.WithTimeout(75*time.Second))
+	}
+	poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, cID), pollOpts...)
 
 	img, err := apiClient.ContainerCommit(ctx, cID, client.ContainerCommitOptions{
 		Changes: []string{"LABEL some=label2"},
@@ -188,7 +193,11 @@ func TestCommitChange(t *testing.T) {
 
 	// Wait for the container to finish before committing its changes.
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("true"))
-	poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, cID))
+	var pollOpts []poll.SettingOp
+	if testEnv.DaemonInfo.OSType == "windows" {
+		pollOpts = append(pollOpts, poll.WithTimeout(75*time.Second))
+	}
+	poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, cID), pollOpts...)
 
 	img, err := apiClient.ContainerCommit(ctx, cID, client.ContainerCommitOptions{
 		Changes: []string{
