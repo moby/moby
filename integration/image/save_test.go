@@ -2,26 +2,38 @@ package image
 
 import (
 	"archive/tar"
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	"github.com/containerd/containerd/v2/plugins/content/local"
+	cerrdefs "github.com/containerd/errdefs"
+	"github.com/containerd/platforms"
 	"github.com/cpuguy83/tar2go"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/go-archive/compression"
+	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
 	"github.com/moby/moby/v2/internal/testutil"
+	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
+	"github.com/moby/moby/v2/internal/testutil/registry"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -552,5 +564,338 @@ func listTar(f io.Reader) ([]string, error) {
 			return entries, err
 		}
 		entries = append(entries, th.Name)
+	}
+}
+
+type saveContentEnv struct {
+	ctx               context.Context
+	apiClient         *client.Client
+	cs                content.Store
+	reg               *registry.V2
+	remote            string
+	manifest          ocispec.Manifest
+	manifestDesc      ocispec.Descriptor
+	platformManifests []ocispec.Descriptor
+}
+
+func setupSaveContentEnv(t *testing.T, imageFn specialimage.SpecialImageFunc, authCfgs ...*registrytypes.AuthConfig) *saveContentEnv {
+	ctx := context.Background()
+
+	useAuth := len(authCfgs) > 0 && authCfgs[0] != nil
+
+	var regOps []func(*registry.Config)
+	if useAuth {
+		regOps = append(regOps, registry.Htpasswd)
+	}
+	reg := registry.NewV2(t, regOps...)
+	t.Cleanup(reg.Close)
+	reg.WaitReady(t)
+
+	dir := t.TempDir()
+	index, err := imageFn(dir)
+	assert.NilError(t, err)
+	manifestDesc := index.Manifests[0]
+
+	store, err := local.NewStore(dir)
+	assert.NilError(t, err)
+
+	publisher, err := containerd.New("", containerd.WithServices(containerd.WithContentStore(store)))
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = publisher.Close() })
+
+	remote := path.Join(registry.DefaultURL, strings.ToLower(t.Name())+":latest")
+
+	var pushOpts []containerd.RemoteOpt
+	if useAuth {
+		authConfig := authCfgs[0]
+		resolver := docker.NewResolver(docker.ResolverOptions{
+			Host: func(ns string) (string, error) {
+				return registry.DefaultURL, nil
+			},
+			PlainHTTP: true,
+			Credentials: func(host string) (string, string, error) {
+				return authConfig.Username, authConfig.Password, nil
+			},
+		})
+		pushOpts = append(pushOpts, containerd.WithResolver(resolver))
+	}
+
+	assert.NilError(t, publisher.Push(ctx, remote, manifestDesc, pushOpts...))
+
+	d := daemon.New(t)
+	d.Start(t)
+	t.Cleanup(func() { d.Cleanup(t) })
+	apiClient := d.NewClientT(t)
+
+	var pullOpts client.ImagePullOptions
+	if useAuth {
+		authConfig := authCfgs[0]
+		authJSON, err := json.Marshal(authConfig)
+		assert.NilError(t, err)
+		pullOpts.RegistryAuth = base64.URLEncoding.EncodeToString(authJSON)
+	}
+
+	rdr, err := apiClient.ImagePull(ctx, remote, pullOpts)
+	assert.NilError(t, err)
+	_, err = io.Copy(io.Discard, rdr)
+	rdr.Close()
+	assert.NilError(t, err)
+
+	info, err := apiClient.Info(ctx, client.InfoOptions{})
+	assert.NilError(t, err)
+	c8dClient, err := containerd.New(info.Info.Containerd.Address, containerd.WithDefaultNamespace(info.Info.Containerd.Namespaces.Containers))
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = c8dClient.Close() })
+	cs := c8dClient.ContentStore()
+
+	manifestJSON, err := content.ReadBlob(ctx, cs, manifestDesc)
+	assert.NilError(t, err)
+
+	var manifest ocispec.Manifest
+
+	if manifestDesc.MediaType == ocispec.MediaTypeImageIndex {
+		var innerIndex ocispec.Index
+		assert.NilError(t, json.Unmarshal(manifestJSON, &innerIndex))
+
+		env := &saveContentEnv{
+			ctx:               ctx,
+			apiClient:         apiClient,
+			cs:                cs,
+			reg:               reg,
+			remote:            remote,
+			manifestDesc:      manifestDesc,
+			platformManifests: innerIndex.Manifests,
+		}
+
+		hostPlatform := platforms.DefaultSpec()
+		pm := platforms.NewMatcher(hostPlatform)
+		for _, pmd := range innerIndex.Manifests {
+			if pmd.Platform != nil && pm.Match(*pmd.Platform) {
+				mJSON, err := content.ReadBlob(ctx, cs, pmd)
+				assert.NilError(t, err)
+				assert.NilError(t, json.Unmarshal(mJSON, &manifest))
+				env.manifest = manifest
+				break
+			}
+		}
+
+		return env
+	}
+
+	assert.NilError(t, json.Unmarshal(manifestJSON, &manifest))
+
+	return &saveContentEnv{
+		ctx:          ctx,
+		apiClient:    apiClient,
+		cs:           cs,
+		reg:          reg,
+		remote:       remote,
+		manifest:     manifest,
+		manifestDesc: manifestDesc,
+	}
+}
+
+func assertContentPresent(t *testing.T, ctx context.Context, cs content.Store, desc ocispec.Descriptor) {
+	t.Helper()
+	exists, err := content.Exists(ctx, cs, desc)
+	assert.NilError(t, err)
+	assert.Assert(t, exists, "content blob %s not found in store", desc.Digest)
+}
+
+func assertContentAbsent(t *testing.T, ctx context.Context, cs content.Store, desc ocispec.Descriptor) {
+	t.Helper()
+	exists, err := content.Exists(ctx, cs, desc)
+	assert.NilError(t, err)
+	assert.Assert(t, !exists, "content blob %s should not be in store", desc.Digest)
+}
+
+func deleteContent(t *testing.T, ctx context.Context, cs content.Store, desc ocispec.Descriptor) {
+	t.Helper()
+	err := cs.Delete(ctx, desc.Digest)
+	if err != nil && !cerrdefs.IsNotFound(err) {
+		assert.NilError(t, err)
+	}
+}
+
+func expectedDescriptors(manifest ocispec.Manifest, manifestDesc ocispec.Descriptor) []ocispec.Descriptor {
+	descs := []ocispec.Descriptor{manifestDesc}
+	descs = append(descs, manifest.Config)
+	descs = append(descs, manifest.Layers...)
+	return descs
+}
+
+func (env *saveContentEnv) expectedArchiveDescriptors() []ocispec.Descriptor {
+	if len(env.platformManifests) > 0 {
+		descs := []ocispec.Descriptor{env.manifestDesc}
+		hostPlatform := platforms.DefaultSpec()
+		pm := platforms.NewMatcher(hostPlatform)
+		for _, pmd := range env.platformManifests {
+			if pmd.Platform != nil && pm.Match(*pmd.Platform) {
+				descs = append(descs, pmd)
+				break
+			}
+		}
+		descs = append(descs, env.manifest.Config)
+		descs = append(descs, env.manifest.Layers...)
+		return descs
+	}
+	return expectedDescriptors(env.manifest, env.manifestDesc)
+}
+
+func assertArchiveHasBlob(t *testing.T, tarfs fs.FS, desc ocispec.Descriptor) {
+	t.Helper()
+	blobPath := "blobs/" + desc.Digest.Algorithm().String() + "/" + desc.Digest.Encoded()
+	_, err := fs.Stat(tarfs, blobPath)
+	assert.NilError(t, err, "blob %s not found in archive at %s", desc.Digest, blobPath)
+}
+
+// Case A: blob present in content store, save should produce complete archive.
+func TestSaveContentStoreBlobPresent(t *testing.T) {
+	env := setupSaveContentEnv(t, specialimage.MultiLayer)
+
+	config := env.manifest.Config
+	assertContentPresent(t, env.ctx, env.cs, config)
+
+	rdr, err := env.apiClient.ImageSave(env.ctx, []string{env.remote})
+	assert.NilError(t, err)
+	defer func() { _ = rdr.Close() }()
+
+	tarfs := tarIndexFS(t, rdr)
+	for _, desc := range expectedDescriptors(env.manifest, env.manifestDesc) {
+		assertArchiveHasBlob(t, tarfs, desc)
+	}
+}
+
+// Case B: missing blob but public source available, recovery should materialize.
+func TestSaveContentStoreMissingButRecoverable(t *testing.T) {
+	env := setupSaveContentEnv(t, specialimage.MultiLayer)
+
+	config := env.manifest.Config
+	assertContentPresent(t, env.ctx, env.cs, config)
+
+	deleteContent(t, env.ctx, env.cs, config)
+	assertContentAbsent(t, env.ctx, env.cs, config)
+
+	rdr, err := env.apiClient.ImageSave(env.ctx, []string{env.remote})
+	assert.NilError(t, err)
+	defer func() { _ = rdr.Close() }()
+
+	assertContentPresent(t, env.ctx, env.cs, config)
+
+	tarfs := tarIndexFS(t, rdr)
+	for _, desc := range expectedDescriptors(env.manifest, env.manifestDesc) {
+		assertArchiveHasBlob(t, tarfs, desc)
+	}
+}
+
+// Case C: missing blob, no source available (moved from registry → 404).
+func TestSaveContentStoreMissingNoSource(t *testing.T) {
+	env := setupSaveContentEnv(t, specialimage.MultiLayer)
+
+	config := env.manifest.Config
+	assertContentPresent(t, env.ctx, env.cs, config)
+
+	deleteContent(t, env.ctx, env.cs, config)
+	assertContentAbsent(t, env.ctx, env.cs, config)
+
+	undo := env.reg.TempMoveBlobData(t, config.Digest)
+	defer undo()
+
+	rdr, err := env.apiClient.ImageSave(env.ctx, []string{env.remote})
+	assert.Assert(t, err != nil, "save with missing, unrecoverable content should fail")
+	if rdr != nil {
+		assert.Check(t, rdr.Close())
+	}
+	assertContentAbsent(t, env.ctx, env.cs, config)
+}
+
+// Case D: missing blob, auth-protected source (anonymous recovery → 401).
+func TestSaveContentStoreMissingSourceUnavailable(t *testing.T) {
+	env := setupSaveContentEnv(t, specialimage.MultiLayer, &registrytypes.AuthConfig{})
+
+	config := env.manifest.Config
+	assertContentPresent(t, env.ctx, env.cs, config)
+
+	deleteContent(t, env.ctx, env.cs, config)
+	assertContentAbsent(t, env.ctx, env.cs, config)
+
+	// Unlike Case C (which moves the blob from the registry to produce a 404),
+	// Case D leaves the blob in the auth-protected registry. The save recovery
+	// path calls newResolverFromAuthConfig with a nil authConfig, so the
+	// anonymous fetch is rejected with HTTP 401.
+	rdr, err := env.apiClient.ImageSave(env.ctx, []string{env.remote})
+	assert.Assert(t, err != nil, "save with missing content and auth-protected source should fail")
+	if rdr != nil {
+		assert.Check(t, rdr.Close())
+	}
+	assertContentAbsent(t, env.ctx, env.cs, config)
+}
+
+// Case E: non-distributable (foreign) layer is never fetched from registry.
+func TestSaveContentStoreNonDistributableNotFetched(t *testing.T) {
+	env := setupSaveContentEnv(t, specialimage.ForeignLayer)
+
+	layer := env.manifest.Layers[0]
+	assertContentPresent(t, env.ctx, env.cs, layer)
+
+	deleteContent(t, env.ctx, env.cs, layer)
+	assertContentAbsent(t, env.ctx, env.cs, layer)
+
+	rdr, err := env.apiClient.ImageSave(env.ctx, []string{env.remote})
+	assert.NilError(t, err)
+	defer func() { _ = rdr.Close() }()
+
+	// Non-distributable blobs are never recovered from the registry.
+	assertContentAbsent(t, env.ctx, env.cs, layer)
+}
+
+// Case F: repeated save with content already present should not re-fetch.
+func TestSaveContentStoreRepeatedSaveNoRefetch(t *testing.T) {
+	env := setupSaveContentEnv(t, specialimage.MultiLayer)
+
+	rdr1, err := env.apiClient.ImageSave(env.ctx, []string{env.remote})
+	assert.NilError(t, err)
+	tarfs1 := tarIndexFS(t, rdr1)
+	_ = rdr1.Close()
+
+	for _, desc := range expectedDescriptors(env.manifest, env.manifestDesc) {
+		assertContentPresent(t, env.ctx, env.cs, desc)
+		assertArchiveHasBlob(t, tarfs1, desc)
+	}
+
+	rdr2, err := env.apiClient.ImageSave(env.ctx, []string{env.remote})
+	assert.NilError(t, err)
+	tarfs2 := tarIndexFS(t, rdr2)
+	_ = rdr2.Close()
+
+	for _, desc := range expectedDescriptors(env.manifest, env.manifestDesc) {
+		assertContentPresent(t, env.ctx, env.cs, desc)
+		assertArchiveHasBlob(t, tarfs2, desc)
+	}
+}
+
+// Case G: multi-platform image graph — recursive Walk discovers nested platform manifests.
+func TestSaveContentStoreRecursiveWalkDiscovery(t *testing.T) {
+	env := setupSaveContentEnv(t, specialimage.TwoPlatform)
+	assert.Assert(t, len(env.platformManifests) > 0, "TwoPlatform should produce a multi-platform image with nested platform manifests")
+
+	var layers []ocispec.Descriptor
+	for _, layer := range env.manifest.Layers {
+		assertContentPresent(t, env.ctx, env.cs, layer)
+		deleteContent(t, env.ctx, env.cs, layer)
+		assertContentAbsent(t, env.ctx, env.cs, layer)
+		layers = append(layers, layer)
+	}
+
+	rdr, err := env.apiClient.ImageSave(env.ctx, []string{env.remote})
+	assert.NilError(t, err)
+	defer func() { _ = rdr.Close() }()
+
+	tarfs := tarIndexFS(t, rdr)
+	for _, layer := range layers {
+		assertContentPresent(t, env.ctx, env.cs, layer)
+	}
+	for _, desc := range env.expectedArchiveDescriptors() {
+		assertArchiveHasBlob(t, tarfs, desc)
 	}
 }

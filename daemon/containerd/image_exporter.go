@@ -12,6 +12,7 @@ import (
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/images/archive"
 	"github.com/containerd/containerd/v2/core/leases"
+	"github.com/containerd/containerd/v2/core/remotes"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
@@ -80,6 +81,15 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 				return errors.Wrap(err, "no suitable export target found")
 			}
 			target = newTarget
+		}
+
+		// Recover missing content BEFORE archive.WithManifest is added.
+		// This ensures blobs that were GC'd but can be re-fetched are
+		// restored so the archive is complete.
+		// Uses daemon-global registry hosts only (no authConfig available
+		// in the save/export path).
+		if err := i.recoverMissingContent(ctx, target, pm, names); err != nil {
+			return fmt.Errorf("failed to recover missing content for save: %w", err)
 		}
 
 		if err := addLease(ctx, target); err != nil {
@@ -205,6 +215,97 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 	opts = append(opts, archive.WithReferrersProvider(referrers))
 
 	return i.client.Export(ctx, outStream, opts...)
+}
+
+// recoverMissingContent walks the target descriptor tree and attempts to
+// re-fetch any missing content blobs. This is used during image save/export
+// to ensure a complete archive even when blobs were previously garbage
+// collected. Only ordinary (non-non-distributable) content is recovered.
+// Distribution sources are read from the target manifest's labels; if no
+// sources are found, the image names being saved are used as a fallback.
+func (i *ImageService) recoverMissingContent(ctx context.Context, target ocispec.Descriptor, pm platforms.Matcher, names []string) error {
+	var missing []ocispec.Descriptor
+
+	handler := c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		exists, err := content.Exists(ctx, i.content, desc)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			if c8dimages.IsNonDistributable(desc.MediaType) {
+				return nil, nil
+			}
+			missing = append(missing, desc)
+		}
+
+		children, err := c8dimages.Children(ctx, i.content, desc)
+		if err != nil {
+			if cerrdefs.IsNotFound(err) {
+				return nil, nil
+			}
+			return nil, err
+		}
+
+		if pm != nil && c8dimages.IsIndexType(desc.MediaType) && len(children) > 0 {
+			filtered := make([]ocispec.Descriptor, 0, len(children))
+			for _, child := range children {
+				if child.Platform != nil && !pm.Match(*child.Platform) {
+					continue
+				}
+				filtered = append(filtered, child)
+			}
+			children = filtered
+		}
+
+		return children, nil
+	})
+
+	if err := c8dimages.Walk(ctx, handler, target); err != nil {
+		return err
+	}
+
+	if len(missing) == 0 {
+		return nil
+	}
+
+	// Try to determine the source repository from the target manifest's
+	// distribution source labels. Fall back to image names if not available.
+	var sourceRef reference.Named
+	if sources, err := getDigestSources(ctx, i.content, target.Digest); err == nil && len(sources) > 0 {
+		sourceRef = sources[0].registryRef
+	}
+
+	if sourceRef == nil {
+		for _, name := range names {
+			if ref, err := reference.ParseNormalizedNamed(name); err == nil {
+				sourceRef = ref
+				break
+			}
+		}
+	}
+
+	if sourceRef == nil {
+		return fmt.Errorf("no source repository available to recover missing content for target %s", target.Digest)
+	}
+
+	for _, desc := range missing {
+		ref, err := reference.WithDigest(sourceRef, desc.Digest)
+		if err != nil {
+			return fmt.Errorf("failed to create reference for missing content %s: %w", desc.Digest, err)
+		}
+
+		resolver, _ := i.newResolverFromAuthConfig(ctx, nil, ref, nil)
+		fetcher, err := resolver.Fetcher(ctx, ref.String())
+		if err != nil {
+			return fmt.Errorf("failed to create fetcher for %s: %w", desc.Digest, err)
+		}
+
+		if err := remotes.Fetch(ctx, i.content, fetcher, desc); err != nil {
+			return fmt.Errorf("failed to recover missing content %s from %s: %w", desc.Digest, ref.String(), err)
+		}
+	}
+
+	return nil
 }
 
 // leaseContent will add a resource to the lease for each child of the descriptor making sure that it and

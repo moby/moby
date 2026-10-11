@@ -355,3 +355,34 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 	// TODO(thaJeztah): include content-store size for the image (similar to "GET /images/json")
 	return rwLayerUsage.Size, rwLayerUsage.Size + unpackedUsage.Size, nil
 }
+
+// isRemoteSnapshotter returns true if the given snapshotter name is not a
+// known local snapshotter. Local snapshotters (overlayfs, native, erofs, windows)
+// perform eager fetching of layer content. Remote/lazy snapshotters (stargz,
+// nydus, overlaybd, custom) defer blob fetching to their snapshot protocol
+// and should NOT have WithUnpackFetchAllContent enabled.
+func isRemoteSnapshotter(name string) bool {
+	if name == "" {
+		return false
+	}
+	// Verified local snapshotter IDs from containerd defaults:
+	//   overlayfs (defaults_linux.go:32), native (defaults_unix_other.go:32),
+	//   erofs (defaults_darwin.go:32), windows (defaults_windows.go:55)
+	localSnapshotters := map[string]struct{}{
+		"overlayfs": {},
+		"native":    {},
+		"erofs":     {},
+		"windows":   {},
+	}
+	_, ok := localSnapshotters[name]
+	return !ok
+}
+
+// unpackFetchAllContentForSnapshotter returns true if WithUnpackFetchAllContent
+// should be enabled for the given snapshotter. Eager fetching is only needed
+// for local snapshotters to satisfy issue #49784 (retained snapshots + GC'd
+// blobs must be re-fetched on re-pull). Remote/lazy snapshotters use their own
+// on-demand fetching protocol.
+func unpackFetchAllContentForSnapshotter(snapshotter string) bool {
+	return !isRemoteSnapshotter(snapshotter)
+}

@@ -8,10 +8,12 @@ import (
 	"testing"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
+	containerdlabels "github.com/containerd/containerd/v2/pkg/labels"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -282,4 +284,79 @@ func candidateNotFound(t *testing.T, _ c8dimages.Image, desc ocispec.Descriptor,
 // multipleCandidates asserts that multiple matching candidates were found and no decision could be made.
 func multipleCandidates(t *testing.T, _ c8dimages.Image, desc ocispec.Descriptor, err error) {
 	assert.Check(t, cerrdefs.IsConflict(err), "expected Conflict error, got %v, candidate: %v", err, desc.Platform)
+}
+
+// TestExtractDistributionSources verifies that distribution source labels
+// are correctly parsed with the trailing-dot prefix fix. The bug was using
+// CutPrefix without the trailing ".", which would produce ".docker.io"
+// instead of "docker.io", causing reference.ParseNamed to fail.
+func TestExtractDistributionSources(t *testing.T) {
+	t.Run("correctly parses distribution source labels", func(t *testing.T) {
+		labels := map[string]string{
+			containerdlabels.LabelDistributionSource + ".docker.io": "library/redis",
+			containerdlabels.LabelDistributionSource + ".gcr.io":      "my-project/my-image",
+			"unrelated.label":                                       "value",
+		}
+
+		sources := extractDistributionSources(labels)
+		assert.Assert(t, is.Len(sources, 2), "expected 2 sources, got %d", len(sources))
+
+		// Verify each source produces a valid reference
+		for _, src := range sources {
+			ref, err := src.GetReference(digest.FromString("test"))
+			assert.NilError(t, err)
+			assert.Assert(t, ref != nil)
+		}
+	})
+
+	t.Run("does not parse labels without trailing dot", func(t *testing.T) {
+		// This label key has no "." suffix after the prefix, so it should
+		// NOT be parsed. Before the fix, CutPrefix without "." would match
+		// and produce ".docker.io" which fails ParseNamed.
+		labels := map[string]string{
+			containerdlabels.LabelDistributionSource: "docker.io/library/redis",
+		}
+
+		sources := extractDistributionSources(labels)
+		assert.Assert(t, is.Len(sources, 0), "should not parse labels without trailing dot")
+	})
+
+	t.Run("multiple repos per source", func(t *testing.T) {
+		labels := map[string]string{
+			containerdlabels.LabelDistributionSource + ".docker.io": "library/redis,library/nginx",
+		}
+
+		sources := extractDistributionSources(labels)
+		assert.Assert(t, is.Len(sources, 2), "expected 2 sources from comma-separated value, got %d", len(sources))
+
+		for _, src := range sources {
+			ref, err := src.GetReference(digest.FromString("test"))
+			assert.NilError(t, err)
+			assert.Assert(t, ref != nil)
+		}
+	})
+
+	t.Run("no sources returns nil", func(t *testing.T) {
+		labels := map[string]string{"foo": "bar"}
+		sources := extractDistributionSources(labels)
+		assert.Assert(t, is.Nil(sources))
+	})
+
+	t.Run("empty labels returns nil", func(t *testing.T) {
+		sources := extractDistributionSources(nil)
+		assert.Assert(t, is.Nil(sources))
+	})
+
+	t.Run("docker.io domain is correctly extracted", func(t *testing.T) {
+		labels := map[string]string{
+			containerdlabels.LabelDistributionSource + ".docker.io": "library/test",
+		}
+
+		sources := extractDistributionSources(labels)
+		assert.Assert(t, is.Len(sources, 1))
+
+		ref, err := sources[0].GetReference(digest.FromString("test"))
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(ref.Name(), "docker.io/library/test"))
+	})
 }

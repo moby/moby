@@ -228,8 +228,13 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	// Fetch missing layer content even when snapshots already exist,
 	// so the pulled image can also be saved or pushed.
 	// See https://github.com/moby/moby/issues/49784.
-	unpackOpts := []containerd.UnpackOpt{
-		containerd.WithUnpackFetchAllContent(),
+	// For remote/lazy snapshotters (stargz, nydus, overlaybd), do NOT
+	// eagerly fetch all layer blobs — the snapshotter handles on-demand
+	// fetching via its own protocol.
+	// See https://github.com/moby/moby/issues/53864.
+	unpackOpts := []containerd.UnpackOpt{}
+	if unpackFetchAllContentForSnapshotter(i.snapshotter) {
+		unpackOpts = append(unpackOpts, containerd.WithUnpackFetchAllContent())
 	}
 	opts = append(opts, containerd.WithUnpackOpts(unpackOpts))
 
