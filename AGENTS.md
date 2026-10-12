@@ -1,3 +1,11 @@
+# Commits
+
+Keep each commit focused on one atomic, independently reviewable change.
+A pull request may contain multiple commits when they represent separate changes.
+Fold review fixes into the commits they correct before merging, rather than leaving a separate commit for each review fix.
+Temporary fixup commits are fine during review, but squash them into the appropriate commits before merging.
+Prefer separate commits for unrelated changes rather than squashing them just to make the pull request a single commit.
+
 # Pull requests
 
 When opening a pull request:
