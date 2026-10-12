@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -326,6 +327,7 @@ func TestManagerValidation(t *testing.T) {
 		{doc: "reserved job label", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox"}`), Labels: map[string]string{"com.docker.job.id": "x"}}},
 		{doc: "reserved container label", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox","Labels":{"com.docker.job.run-id":"x"}}`)}},
 		{doc: "negative timeout", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox"}`), TimeoutSeconds: -1}},
+		{doc: "oversized container spec", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: append([]byte(`{"Image":"busybox","Env":["`), append(bytes.Repeat([]byte{'x'}, maxContainerSpecSize), []byte(`"]}`)...)...)}},
 		{doc: "empty trigger declares no kind", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox"}`), Trigger: &jobsv0.Trigger{}}},
 		{doc: "two trigger kinds", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox"}`), Trigger: &jobsv0.Trigger{Manual: true, Schedule: &jobsv0.ScheduleTrigger{Cron: "* * * * *"}}}},
 		{doc: "empty cron", name: "j", spec: &jobsv0.JobSpec{ContainerSpec: []byte(`{"Image":"busybox"}`), Trigger: &jobsv0.Trigger{Schedule: &jobsv0.ScheduleTrigger{Cron: "  "}}}},

@@ -53,7 +53,7 @@ func (m *Manager) restoreJobLocked(ctx context.Context, job *jobsv0.Job) {
 		if job.State == jobsv0.JobStateRunning {
 			job.State = jobsv0.JobStateIdle
 			job.UpdatedAtNano = m.now().UnixNano()
-			if err := m.store.UpdateJob(job); err != nil {
+			if err := m.store.UpdateJob(ctx, job); err != nil {
 				log.G(ctx).WithError(err).WithFields(log.Fields{"job": job.ID}).Warn("could not return restored job to idle")
 			}
 			m.broadcast(job.ID)

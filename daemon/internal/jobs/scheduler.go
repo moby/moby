@@ -194,7 +194,7 @@ func (s *scheduler) tick(ctx context.Context) time.Duration {
 		if fire.hasNext {
 			nextNano = fire.next.UnixNano()
 		}
-		s.m.persistNextFire(fire.jobID, nextNano)
+		s.m.persistNextFire(ctx, fire.jobID, nextNano)
 	}
 	return wait
 }
@@ -249,7 +249,7 @@ func (m *Manager) fireScheduled(ctx context.Context, jobID string, scheduledAt t
 
 // persistNextFire records a job's armed occurrence (zero for none) on its
 // stored record, where inspect and list read it from.
-func (m *Manager) persistNextFire(jobID string, atNano int64) {
+func (m *Manager) persistNextFire(ctx context.Context, jobID string, atNano int64) {
 	m.locks.Lock(jobID)
 	defer m.locks.Unlock(jobID)
 	job, err := m.store.Job(jobID)
@@ -266,7 +266,7 @@ func (m *Manager) persistNextFire(jobID string, atNano int64) {
 	}
 	job.NextFireAtNano = atNano
 	job.UpdatedAtNano = m.now().UnixNano()
-	if err := m.store.UpdateJob(job); err != nil {
-		log.G(context.Background()).WithError(err).WithFields(log.Fields{"job": jobID}).Warn("could not record next fire time")
+	if err := m.store.UpdateJob(ctx, job); err != nil {
+		log.G(ctx).WithError(err).WithFields(log.Fields{"job": jobID}).Warn("could not record next fire time")
 	}
 }

@@ -10,15 +10,14 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"os"
-	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/errdefs"
 	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
-	"github.com/moby/sys/atomicwriter"
+	storagekvv0 "github.com/moby/moby/v2/extpoints/storage/kv/v0"
 )
 
 // storeSchemaVersion is written into every record so that a future schema
@@ -35,7 +34,33 @@ const DefaultRunHistoryLimit = 10000
 // Limit at zero.
 const defaultRunsPageSize = 20
 
-// jobRecord is the on-disk envelope of a job. NextIteration lives here
+// Record keys in the extension's storage namespace. Jobs and runs live under
+// distinct prefixes so each kind loads with one prefix listing, and a job's
+// whole run history is one prefix deletion.
+const (
+	jobKeyPrefix = "job/"
+	runKeyPrefix = "run/"
+)
+
+func jobKey(jobID string) string { return jobKeyPrefix + jobID }
+
+func runKey(jobID, runID string) string { return runKeyPrefix + jobID + "/" + runID }
+
+func runsPrefix(jobID string) string { return runKeyPrefix + jobID + "/" }
+
+// KV is the slice of the storage point's record access the store uses,
+// satisfied by *storagekvv0.KV. It is an interface so tests can persist to
+// memory without the provider's host wiring.
+type KV interface {
+	Get(ctx context.Context, key string) ([]byte, error)
+	Create(ctx context.Context, key string, value []byte) error
+	Update(ctx context.Context, key string, value []byte) error
+	Delete(ctx context.Context, key string) error
+	DeletePrefix(ctx context.Context, prefix string) error
+	List(ctx context.Context, opts storagekvv0.ListOptions) (*storagekvv0.ListResponse, error)
+}
+
+// jobRecord is the stored envelope of a job. NextIteration lives here
 // rather than on the wire type so that iteration numbers stay monotonic
 // even after old run records were evicted from history.
 type jobRecord struct {
@@ -44,7 +69,7 @@ type jobRecord struct {
 	Job           jobsv0.Job `json:"job"`
 }
 
-// runRecord is the on-disk envelope of a run.
+// runRecord is the stored envelope of a run.
 type runRecord struct {
 	SchemaVersion int        `json:"schemaVersion"`
 	Run           jobsv0.Run `json:"run"`
@@ -56,15 +81,12 @@ type storedJob struct {
 	nextIteration uint64
 }
 
-// Store persists jobs and runs as one directory per job under root:
-//
-//	<root>/<jobID>/job.json
-//	<root>/<jobID>/runs/<runID>.json
-//
-// Every write replaces a single file atomically, so a crash mid-write can
-// damage at most the record being written and never a neighbor. All records
-// are also kept in memory (run volumes are bounded by RunHistoryLimit), so
-// reads never touch the disk.
+// Store persists jobs and runs as records in the extension's storage
+// namespace: a job under job/<jobID>, each of its runs under
+// run/<jobID>/<runID>. Every write replaces a single record atomically, so a
+// crash mid-write can damage at most the record being written and never a
+// neighbor. All records are also kept in memory (run volumes are bounded by
+// RunHistoryLimit), so reads never touch storage.
 //
 // A job whose record was deleted but whose run history was kept (the default
 // removal mode) leaves a tombstone: its runs remain listable by job ID until
@@ -74,7 +96,7 @@ type storedJob struct {
 // collection. The store neither persists nor returns it; callers compose it
 // from LatestRun when they need it.
 type Store struct {
-	root string
+	kv KV
 
 	mu   sync.RWMutex
 	jobs map[string]*storedJob   // job ID -> live job
@@ -82,68 +104,87 @@ type Store struct {
 	runs map[string][]jobsv0.Run // job ID -> runs, newest first; includes tombstones
 }
 
-// NewStore loads the store rooted at root, creating it when absent.
+// NewStore loads the store from kv. A listing or read error fails the load:
+// it is the storage backend failing, and a store built from a partial read
+// would silently drop jobs.
 //
-// Loading is tolerant: a record that cannot be decoded, or whose schema
-// version is newer than this daemon understands, is skipped with a warning
-// instead of failing the whole store. The damaged file is left in place for
-// inspection; the affected job is invisible until repaired, other jobs are
-// unaffected.
-func NewStore(ctx context.Context, root string) (*Store, error) {
-	if err := os.MkdirAll(root, 0o700); err != nil {
-		return nil, fmt.Errorf("creating jobs store root: %w", err)
-	}
+// Record-level damage is tolerated: a record that cannot be decoded, or
+// whose schema version is newer than this daemon understands, is skipped
+// with a warning instead of failing the whole store. The damaged record is
+// left in place for inspection; the affected job is invisible until
+// repaired, other jobs are unaffected.
+func NewStore(ctx context.Context, kv KV) (*Store, error) {
 	s := &Store{
-		root: root,
+		kv:   kv,
 		jobs: make(map[string]*storedJob),
 		ids:  make(map[string]string),
 		runs: make(map[string][]jobsv0.Run),
 	}
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return nil, fmt.Errorf("reading jobs store root: %w", err)
+	if err := s.loadJobs(ctx); err != nil {
+		return nil, err
 	}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		s.loadJobDir(ctx, entry.Name())
+	if err := s.loadRuns(ctx); err != nil {
+		return nil, err
+	}
+	for _, runs := range s.runs {
+		sortRunsNewestFirst(runs)
 	}
 	return s, nil
 }
 
-// loadJobDir loads one job directory into memory, quarantining what it
-// cannot read.
-func (s *Store) loadJobDir(ctx context.Context, id string) {
-	logger := log.G(ctx).WithFields(log.Fields{"job": id})
+// listKeys collects every key under prefix, page by page. Values then load
+// with one Get per key: the point offers no bulk read, and the cost is paid
+// once, at daemon startup, on a volume bounded by job count and run history
+// caps.
+func (s *Store) listKeys(ctx context.Context, prefix string) ([]string, error) {
+	var keys []string
+	var cursor string
+	for {
+		page, err := s.kv.List(ctx, storagekvv0.ListOptions{Prefix: prefix, Limit: storagekvv0.MaxPageSize, Cursor: cursor})
+		if err != nil {
+			return nil, fmt.Errorf("listing %s records: %w", prefix, err)
+		}
+		keys = append(keys, page.Keys...)
+		if page.NextCursor == "" {
+			return keys, nil
+		}
+		cursor = page.NextCursor
+	}
+}
 
-	recordPath := filepath.Join(s.jobDir(id), "job.json")
-	data, err := os.ReadFile(recordPath)
-	switch {
-	case errors.Is(err, os.ErrNotExist):
-		// No job record: either a tombstone (job removed, history kept) or
-		// a crash between directory creation and the first record write.
-		// Load whatever run history exists.
-	case err != nil:
-		logger.WithError(err).Warn("skipping unreadable job record")
-		return
-	default:
+// loadJobs loads every job record into memory, quarantining damaged records.
+// Keys list in ascending byte order, so when two records claim the same name
+// the lexically earlier job ID keeps it, deterministically.
+func (s *Store) loadJobs(ctx context.Context) error {
+	keys, err := s.listKeys(ctx, jobKeyPrefix)
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
+		id := strings.TrimPrefix(key, jobKeyPrefix)
+		logger := log.G(ctx).WithFields(log.Fields{"job": id})
+		data, err := s.kv.Get(ctx, key)
+		if err != nil {
+			// A read error is the storage backend failing, not one damaged
+			// record; proceeding would silently drop jobs.
+			return fmt.Errorf("reading job record %s: %w", id, err)
+		}
 		var record jobRecord
 		if err := json.Unmarshal(data, &record); err != nil {
 			logger.WithError(err).Warn("quarantining undecodable job record")
-			return
+			continue
 		}
 		if record.SchemaVersion > storeSchemaVersion {
 			logger.WithFields(log.Fields{"schemaVersion": record.SchemaVersion}).Warn("quarantining job record with unsupported schema version")
-			return
+			continue
 		}
 		if record.Job.ID != id {
-			logger.WithFields(log.Fields{"recordID": record.Job.ID}).Warn("quarantining job record whose ID does not match its directory")
-			return
+			logger.WithFields(log.Fields{"recordID": record.Job.ID}).Warn("quarantining job record whose ID does not match its key")
+			continue
 		}
 		if prev, taken := s.ids[record.Job.Name]; taken {
 			logger.WithFields(log.Fields{"name": record.Job.Name, "conflictingJob": prev}).Warn("quarantining job record with duplicate name")
-			return
+			continue
 		}
 		// LatestRun is derived state; whatever a record carries is stale by
 		// definition and must not survive the load.
@@ -151,49 +192,60 @@ func (s *Store) loadJobDir(ctx context.Context, id string) {
 		s.jobs[id] = &storedJob{job: record.Job, nextIteration: record.NextIteration}
 		s.ids[record.Job.Name] = id
 	}
+	return nil
+}
 
-	runEntries, err := os.ReadDir(s.runsDir(id))
-	if errors.Is(err, os.ErrNotExist) {
-		return
-	}
+// loadRuns loads every run record into memory, quarantining damaged records.
+func (s *Store) loadRuns(ctx context.Context) error {
+	keys, err := s.listKeys(ctx, runKeyPrefix)
 	if err != nil {
-		logger.WithError(err).Warn("skipping unreadable runs directory")
-		return
+		return err
 	}
-	var runs []jobsv0.Run
-	for _, entry := range runEntries {
-		data, err := os.ReadFile(filepath.Join(s.runsDir(id), entry.Name()))
-		if err != nil {
-			logger.WithError(err).WithFields(log.Fields{"run": entry.Name()}).Warn("skipping unreadable run record")
+	for _, key := range keys {
+		jobID, runID, ok := strings.Cut(strings.TrimPrefix(key, runKeyPrefix), "/")
+		if !ok {
+			log.G(ctx).WithFields(log.Fields{"key": key}).Warn("skipping run record with a malformed key")
 			continue
+		}
+		logger := log.G(ctx).WithFields(log.Fields{"job": jobID, "run": runID})
+		data, err := s.kv.Get(ctx, key)
+		if err != nil {
+			// A read error is the storage backend failing, not one damaged
+			// record; proceeding would silently drop run history.
+			return fmt.Errorf("reading run record %s/%s: %w", jobID, runID, err)
 		}
 		var record runRecord
 		if err := json.Unmarshal(data, &record); err != nil {
-			logger.WithError(err).WithFields(log.Fields{"run": entry.Name()}).Warn("skipping undecodable run record")
+			logger.WithError(err).Warn("skipping undecodable run record")
 			continue
 		}
 		if record.SchemaVersion > storeSchemaVersion {
-			logger.WithFields(log.Fields{"schemaVersion": record.SchemaVersion, "run": entry.Name()}).Warn("skipping run record with unsupported schema version")
+			logger.WithFields(log.Fields{"schemaVersion": record.SchemaVersion}).Warn("skipping run record with unsupported schema version")
 			continue
 		}
-		// A record whose identity does not match its file would be removed
-		// at the wrong path later (silently, as remove tolerates absence)
+		// A record whose identity does not match its key would be removed
+		// at the wrong key later (silently, as remove tolerates absence)
 		// and resurrect at every load; quarantine it instead.
-		if record.Run.JobID != id || entry.Name() != record.Run.ID+".json" {
-			logger.WithFields(log.Fields{"run": entry.Name(), "recordRun": record.Run.ID, "recordJob": record.Run.JobID}).Warn("skipping run record whose identity does not match its file")
+		if record.Run.JobID != jobID || record.Run.ID != runID {
+			logger.WithFields(log.Fields{"recordRun": record.Run.ID, "recordJob": record.Run.JobID}).Warn("skipping run record whose identity does not match its key")
 			continue
 		}
-		runs = append(runs, record.Run)
+		s.runs[jobID] = append(s.runs[jobID], record.Run)
 	}
-	if len(runs) > 0 {
-		sortRunsNewestFirst(runs)
-		s.runs[id] = runs
-	}
+	return nil
 }
 
+// maxJobRecordSize caps a job record at creation, with headroom under the
+// storage point's value limit for the runtime fields that grow by a few
+// bytes on later updates (state, timestamps, the iteration counter): a
+// record accepted here must never become too big to update. Checked on the
+// encoded record, it bounds every user-controlled field — spec, labels,
+// name — without enumerating them.
+const maxJobRecordSize = storagekvv0.MaxValueSize - 64*1024
+
 // CreateJob registers a new job. The job's ID and name must both be unused.
-func (s *Store) CreateJob(job *jobsv0.Job) error {
-	if err := validatePathComponent(job.ID); err != nil {
+func (s *Store) CreateJob(ctx context.Context, job *jobsv0.Job) error {
+	if err := validateKeyComponent(job.ID); err != nil {
 		return errdefs.InvalidParameter(fmt.Errorf("job ID: %w", err))
 	}
 	s.mu.Lock()
@@ -206,11 +258,19 @@ func (s *Store) CreateJob(job *jobsv0.Job) error {
 	}
 	stored := &storedJob{job: *cloneJob(job), nextIteration: 1}
 	stored.job.LatestRun = nil
-	if err := os.MkdirAll(s.runsDir(job.ID), 0o700); err != nil {
-		return fmt.Errorf("creating job directory: %w", err)
+	data, err := json.Marshal(jobRecord{
+		SchemaVersion: storeSchemaVersion,
+		NextIteration: stored.nextIteration,
+		Job:           stored.job,
+	})
+	if err != nil {
+		return fmt.Errorf("encoding job record: %w", err)
 	}
-	if err := s.writeJobRecord(stored); err != nil {
-		return err
+	if len(data) > maxJobRecordSize {
+		return errdefs.InvalidParameter(fmt.Errorf("job definition too large: its record is %d bytes encoded, the maximum is %d", len(data), maxJobRecordSize))
+	}
+	if err := s.kv.Create(ctx, jobKey(job.ID), data); err != nil {
+		return fmt.Errorf("writing job record: %w", err)
 	}
 	s.jobs[job.ID] = stored
 	s.ids[job.Name] = job.ID
@@ -221,7 +281,7 @@ func (s *Store) CreateJob(job *jobsv0.Job) error {
 // UpdatedAtNano) for an existing job. The name, spec, and creation time are
 // immutable: a name or spec-hash change is rejected, and the stored spec and
 // creation time are preserved even when the caller's copy diverges.
-func (s *Store) UpdateJob(job *jobsv0.Job) error {
+func (s *Store) UpdateJob(ctx context.Context, job *jobsv0.Job) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	stored, exists := s.jobs[job.ID]
@@ -238,7 +298,7 @@ func (s *Store) UpdateJob(job *jobsv0.Job) error {
 	next.job.LatestRun = nil
 	next.job.Spec = cloneSpec(stored.job.Spec)
 	next.job.CreatedAtNano = stored.job.CreatedAtNano
-	if err := s.writeJobRecord(next); err != nil {
+	if err := s.writeJobRecord(ctx, next, s.kv.Update); err != nil {
 		return err
 	}
 	s.jobs[job.ID] = next
@@ -246,21 +306,15 @@ func (s *Store) UpdateJob(job *jobsv0.Job) error {
 }
 
 // DeleteJob removes a job's record while keeping its run history as a
-// tombstone. A job with no history leaves nothing behind: its whole
-// directory is removed, as an empty tombstone would be unreachable (and
-// unpurgeable) by ID. Use PurgeJob to drop the history too.
-func (s *Store) DeleteJob(id string) error {
+// tombstone. Use PurgeJob to drop the history too.
+func (s *Store) DeleteJob(ctx context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	stored, exists := s.jobs[id]
 	if !exists {
 		return errdefs.NotFound(fmt.Errorf("no such job: %s", id))
 	}
-	if len(s.runs[id]) == 0 {
-		if err := os.RemoveAll(s.jobDir(id)); err != nil {
-			return fmt.Errorf("removing job directory: %w", err)
-		}
-	} else if err := os.Remove(filepath.Join(s.jobDir(id), "job.json")); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := s.kv.Delete(ctx, jobKey(id)); err != nil {
 		return fmt.Errorf("removing job record: %w", err)
 	}
 	delete(s.ids, stored.job.Name)
@@ -268,10 +322,12 @@ func (s *Store) DeleteJob(id string) error {
 	return nil
 }
 
-// PurgeJob removes every trace of a job: its record, its run history, and
-// its directory. It also erases tombstones left by DeleteJob.
-func (s *Store) PurgeJob(id string) error {
-	if err := validatePathComponent(id); err != nil {
+// PurgeJob removes every trace of a job: its record and its run history. It
+// also erases tombstones left by DeleteJob. The record goes first: a crash
+// in between leaves a tombstone, which stays reachable for another purge,
+// rather than a live job that silently lost its history.
+func (s *Store) PurgeJob(ctx context.Context, id string) error {
+	if err := validateKeyComponent(id); err != nil {
 		return errdefs.InvalidParameter(fmt.Errorf("job ID: %w", err))
 	}
 	s.mu.Lock()
@@ -281,8 +337,11 @@ func (s *Store) PurgeJob(id string) error {
 	if !live && !tombstone {
 		return errdefs.NotFound(fmt.Errorf("no such job: %s", id))
 	}
-	if err := os.RemoveAll(s.jobDir(id)); err != nil {
-		return fmt.Errorf("removing job directory: %w", err)
+	if err := s.kv.Delete(ctx, jobKey(id)); err != nil {
+		return fmt.Errorf("removing job record: %w", err)
+	}
+	if err := s.kv.DeletePrefix(ctx, runsPrefix(id)); err != nil {
+		return fmt.Errorf("removing run records: %w", err)
 	}
 	if live {
 		delete(s.ids, stored.job.Name)
@@ -329,8 +388,8 @@ func (s *Store) Jobs() []*jobsv0.Job {
 // the job's persisted counter (the passed run is mutated). Creating the run
 // evicts the oldest terminal runs beyond the job's RunHistoryLimit; a
 // non-terminal run is never evicted, even above the cap.
-func (s *Store) CreateRun(run *jobsv0.Run) error {
-	if err := validatePathComponent(run.ID); err != nil {
+func (s *Store) CreateRun(ctx context.Context, run *jobsv0.Run) error {
+	if err := validateKeyComponent(run.ID); err != nil {
 		return errdefs.InvalidParameter(fmt.Errorf("run ID: %w", err))
 	}
 	s.mu.Lock()
@@ -349,15 +408,15 @@ func (s *Store) CreateRun(run *jobsv0.Run) error {
 	// The counter is persisted before the run record: re-persisting the
 	// counter after a crash costs one skipped iteration number, while a run
 	// record with a reused iteration would corrupt history ordering.
-	if err := s.writeJobRecord(next); err != nil {
+	if err := s.writeJobRecord(ctx, next, s.kv.Update); err != nil {
 		return err
 	}
-	if err := s.writeRunRecord(clone); err != nil {
+	if err := s.writeRunRecord(ctx, clone, s.kv.Create); err != nil {
 		return err
 	}
 	s.jobs[run.JobID] = next
 	s.runs[run.JobID] = append([]jobsv0.Run{*clone}, s.runs[run.JobID]...)
-	s.evictLocked(run.JobID, stored.job.Spec)
+	s.evictLocked(ctx, run.JobID, stored.job.Spec)
 	run.Iteration = clone.Iteration
 	return nil
 }
@@ -366,7 +425,7 @@ func (s *Store) CreateRun(run *jobsv0.Run) error {
 // immutable: re-execution creates a new run instead. A transition to a
 // terminal state makes the run eligible for history eviction, which may
 // collect it immediately when the job is over its cap.
-func (s *Store) UpdateRun(run *jobsv0.Run) error {
+func (s *Store) UpdateRun(ctx context.Context, run *jobsv0.Run) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	runs := s.runs[run.JobID]
@@ -380,20 +439,20 @@ func (s *Store) UpdateRun(run *jobsv0.Run) error {
 	if run.Iteration != runs[i].Iteration {
 		return errdefs.InvalidParameter(errors.New("run iterations are immutable"))
 	}
-	if err := s.writeRunRecord(run); err != nil {
+	if err := s.writeRunRecord(ctx, run, s.kv.Update); err != nil {
 		return err
 	}
 	runs[i] = *cloneRun(run)
 	if isTerminalRunState(run.State) {
 		if stored, live := s.jobs[run.JobID]; live {
-			s.evictLocked(run.JobID, stored.job.Spec)
+			s.evictLocked(ctx, run.JobID, stored.job.Spec)
 		}
 	}
 	return nil
 }
 
 // DeleteRun removes a single terminal run record.
-func (s *Store) DeleteRun(jobID, runID string) error {
+func (s *Store) DeleteRun(ctx context.Context, jobID, runID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	runs := s.runs[jobID]
@@ -404,7 +463,7 @@ func (s *Store) DeleteRun(jobID, runID string) error {
 	if !isTerminalRunState(runs[i].State) {
 		return errdefs.Conflict(fmt.Errorf("run %s is not terminal", runID))
 	}
-	if err := s.removeRunLocked(jobID, runID); err != nil {
+	if err := s.removeRunLocked(ctx, jobID, runID); err != nil {
 		return err
 	}
 	s.runs[jobID] = slices.Delete(runs, i, i+1)
@@ -475,7 +534,7 @@ func (s *Store) Runs(jobID string, limit int, before string) (page []*jobsv0.Run
 
 // evictLocked drops the oldest terminal runs beyond the job's history limit.
 // The caller holds the write lock.
-func (s *Store) evictLocked(jobID string, spec *jobsv0.JobSpec) {
+func (s *Store) evictLocked(ctx context.Context, jobID string, spec *jobsv0.JobSpec) {
 	limit := DefaultRunHistoryLimit
 	if spec != nil && spec.RunHistoryLimit > 0 {
 		limit = int(spec.RunHistoryLimit)
@@ -486,8 +545,8 @@ func (s *Store) evictLocked(jobID string, spec *jobsv0.JobSpec) {
 			continue
 		}
 		// Eviction is best-effort: a record that cannot be removed stays
-		// both on disk and in history rather than diverging the two.
-		if err := s.removeRunLocked(jobID, runs[i].ID); err != nil {
+		// both in storage and in history rather than diverging the two.
+		if err := s.removeRunLocked(ctx, jobID, runs[i].ID); err != nil {
 			continue
 		}
 		runs = slices.Delete(runs, i, i+1)
@@ -495,45 +554,42 @@ func (s *Store) evictLocked(jobID string, spec *jobsv0.JobSpec) {
 	s.runs[jobID] = runs
 }
 
-func (s *Store) writeJobRecord(stored *storedJob) error {
-	data, err := json.MarshalIndent(jobRecord{
+// writeJobRecord persists a job record with write, the Create or Update
+// operation matching the caller's intent.
+func (s *Store) writeJobRecord(ctx context.Context, stored *storedJob, write func(context.Context, string, []byte) error) error {
+	data, err := json.Marshal(jobRecord{
 		SchemaVersion: storeSchemaVersion,
 		NextIteration: stored.nextIteration,
 		Job:           stored.job,
-	}, "", "  ")
+	})
 	if err != nil {
 		return fmt.Errorf("encoding job record: %w", err)
 	}
-	if err := atomicwriter.WriteFile(filepath.Join(s.jobDir(stored.job.ID), "job.json"), data, 0o600); err != nil {
+	if err := write(ctx, jobKey(stored.job.ID), data); err != nil {
 		return fmt.Errorf("writing job record: %w", err)
 	}
 	return nil
 }
 
-func (s *Store) writeRunRecord(run *jobsv0.Run) error {
-	data, err := json.MarshalIndent(runRecord{SchemaVersion: storeSchemaVersion, Run: *run}, "", "  ")
+// writeRunRecord persists a run record with write, the Create or Update
+// operation matching the caller's intent.
+func (s *Store) writeRunRecord(ctx context.Context, run *jobsv0.Run, write func(context.Context, string, []byte) error) error {
+	data, err := json.Marshal(runRecord{SchemaVersion: storeSchemaVersion, Run: *run})
 	if err != nil {
 		return fmt.Errorf("encoding run record: %w", err)
 	}
-	if err := atomicwriter.WriteFile(filepath.Join(s.runsDir(run.JobID), run.ID+".json"), data, 0o600); err != nil {
+	if err := write(ctx, runKey(run.JobID, run.ID), data); err != nil {
 		return fmt.Errorf("writing run record: %w", err)
 	}
 	return nil
 }
 
-func (s *Store) removeRunLocked(jobID, runID string) error {
-	if err := os.Remove(filepath.Join(s.runsDir(jobID), runID+".json")); err != nil && !errors.Is(err, os.ErrNotExist) {
+func (s *Store) removeRunLocked(ctx context.Context, jobID, runID string) error {
+	// Deleting an absent record succeeds, per the point's contract.
+	if err := s.kv.Delete(ctx, runKey(jobID, runID)); err != nil {
 		return fmt.Errorf("removing run record: %w", err)
 	}
 	return nil
-}
-
-func (s *Store) jobDir(id string) string {
-	return filepath.Join(s.root, id)
-}
-
-func (s *Store) runsDir(id string) string {
-	return filepath.Join(s.jobDir(id), "runs")
 }
 
 // sortRunsNewestFirst orders runs by descending iteration.
@@ -553,20 +609,20 @@ func isTerminalRunState(state string) bool {
 	return false
 }
 
-// validatePathComponent guards IDs that become file names. IDs are
-// daemon-generated hex, so anything else indicates a bug rather than bad
-// user input.
-func validatePathComponent(id string) error {
+// validateKeyComponent guards IDs that become components of record keys. IDs
+// are daemon-generated hex, so anything else indicates a bug rather than bad
+// user input. A separator would corrupt the key structure; NUL and the
+// length cap are the storage point's key constraints an ID could otherwise
+// break (hex IDs cannot produce the invalid UTF-8 it also rejects).
+func validateKeyComponent(id string) error {
 	switch {
 	case id == "":
 		return errors.New("must not be empty")
-	case id == "." || id == "..":
-		return fmt.Errorf("must not be %q", id)
 	case len(id) > 128:
 		return errors.New("must not exceed 128 characters")
 	}
 	for _, r := range id {
-		if r == '/' || r == '\\' || r == 0 {
+		if r == '/' || r == 0 {
 			return fmt.Errorf("must not contain %q", r)
 		}
 	}

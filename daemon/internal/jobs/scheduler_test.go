@@ -244,7 +244,7 @@ func TestSchedulerStartWithUnparseableStoredCron(t *testing.T) {
 	store, _ := newTestStore(t)
 	job := makeJob("job1", "broken")
 	job.Spec.Trigger.Schedule.Cron = "not a cron"
-	assert.NilError(t, store.CreateJob(job))
+	assert.NilError(t, store.CreateJob(t.Context(), job))
 
 	m := NewManager(store, newFakeBackend(), testNameGenerator)
 	clk := &fakeClock{t: jan15}

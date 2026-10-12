@@ -12,22 +12,29 @@ import (
 	containernamegeneratorv0 "github.com/moby/moby/v2/extpoints/containernamegenerator/v0"
 	jobsv0 "github.com/moby/moby/v2/extpoints/jobs/api/v0"
 	runtimev0 "github.com/moby/moby/v2/extpoints/runtime/v0"
+	storagekvv0 "github.com/moby/moby/v2/extpoints/storage/kv/v0"
 )
 
 // ExtensionID identifies the builtin jobs extension.
 const ExtensionID = "org.mobyproject.jobs.v1"
 
+// storageNamespace partitions this extension's records from other cooperating
+// extensions in the storage point; v0 namespaces are not an authorization
+// boundary. Drop the constant once the framework derives namespaces from
+// host-resolved extension identity.
+const storageNamespace = ExtensionID
+
 // Extension is the builtin jobs extension. It provides the Jobs point and
 // offers it for publication on the daemon socket; the container runtime
-// point it depends on supplies the backend that runs job containers, and the
-// container name-generator point names unnamed job registrations.
+// point it depends on supplies the backend that runs job containers, the
+// storage point persists its jobs and runs, and the container name-generator
+// point names unnamed job registrations.
 //
 // The extension host initializes during daemon construction, before the
 // runtime can serve container operations, so activation waits out the
 // runtime's readiness gate in the background. API calls arriving before
 // activation completes are answered with Unavailable.
 type Extension struct {
-	root  string
 	ready func(context.Context) error
 
 	mu               sync.Mutex
@@ -35,12 +42,12 @@ type Extension struct {
 	cancelActivation context.CancelFunc
 }
 
-// NewExtension builds the jobs extension, persisting its state under root.
-// ready reports when the provider of the runtime point can serve container
-// operations; activation waits for it in the background. It is injected by
-// the daemon until the framework offers a general readiness mechanism.
-func NewExtension(root string, ready func(context.Context) error) *Extension {
-	return &Extension{root: root, ready: ready}
+// NewExtension builds the jobs extension. ready reports when the provider of
+// the runtime point can serve container operations; activation waits for it
+// in the background. It is injected by the daemon until the framework offers
+// a general readiness mechanism.
+func NewExtension(ready func(context.Context) error) *Extension {
+	return &Extension{ready: ready}
 }
 
 // Declaration describes the extension to the host.
@@ -53,6 +60,7 @@ func (e *Extension) Declaration() extensions.Declaration {
 		},
 		Dependencies: []extensions.Dependency{
 			runtimev0.Point.Dependency(),
+			storagekvv0.Point.Dependency(),
 			containernamegeneratorv0.Point.Dependency(),
 		},
 		Init:     e.init,
@@ -60,17 +68,22 @@ func (e *Extension) Declaration() extensions.Declaration {
 	}
 }
 
-// init resolves the runtime dependency, builds the manager — an unreadable
-// state directory fails daemon startup loudly rather than surfacing later as
-// a mysteriously empty API — and finishes activation in the background:
-// container operations only work once the runtime reports ready, which
-// happens after the host (and this init) runs.
+// init resolves the runtime and storage dependencies, builds the manager —
+// a storage backend that cannot list or read records fails daemon startup
+// loudly rather than surfacing later as a mysteriously empty API, while
+// individually damaged records are quarantined — and finishes activation in
+// the background: container operations only work once the runtime reports
+// ready, which happens after the host (and this init) runs.
 func (e *Extension) init(ctx context.Context, _ extensions.Config, resolver extensions.Resolver) error {
 	backend, err := runtimev0.Point.Single(resolver)
 	if err != nil {
 		return fmt.Errorf("resolving the container runtime point: %w", err)
 	}
-	manager, err := e.buildManager(ctx, backend, nameGenerator(resolver))
+	kv, err := storagekvv0.GetKV(resolver, storageNamespace)
+	if err != nil {
+		return fmt.Errorf("resolving the storage point: %w", err)
+	}
+	manager, err := e.buildManager(ctx, kv, backend, nameGenerator(resolver))
 	if err != nil {
 		return err
 	}
@@ -98,11 +111,11 @@ func (e *Extension) init(ctx context.Context, _ extensions.Config, resolver exte
 	return nil
 }
 
-// buildManager loads the store under the extension's root and builds the
-// manager driving backend. The store is pure file I/O and needs no running
-// container backend.
-func (e *Extension) buildManager(ctx context.Context, backend Backend, generateName NameGenerator) (*Manager, error) {
-	store, err := NewStore(ctx, e.root)
+// buildManager loads the store from the extension's storage namespace and
+// builds the manager driving backend. The store is pure record I/O and needs
+// no running container backend.
+func (e *Extension) buildManager(ctx context.Context, kv KV, backend Backend, generateName NameGenerator) (*Manager, error) {
+	store, err := NewStore(ctx, kv)
 	if err != nil {
 		return nil, err
 	}

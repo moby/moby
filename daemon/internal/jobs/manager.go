@@ -152,7 +152,7 @@ func (m *Manager) Start(ctx context.Context) {
 			log.G(ctx).WithError(err).WithFields(log.Fields{"job": job.ID}).Warn("leaving job with unparseable schedule disarmed")
 			// The record must not keep advertising an occurrence that will
 			// never fire.
-			m.persistNextFire(job.ID, 0)
+			m.persistNextFire(ctx, job.ID, 0)
 			continue
 		}
 		// A job loaded in the running state is a crash leftover awaiting
@@ -168,14 +168,14 @@ func (m *Manager) Start(ctx context.Context) {
 		}
 		next, ok := schedule.next(now, loc)
 		if !ok {
-			m.persistNextFire(job.ID, 0)
+			m.persistNextFire(ctx, job.ID, 0)
 			continue
 		}
 		m.sched.arm(job.ID, schedule, loc, next)
 		if stale {
-			m.persistNextFire(job.ID, 0)
+			m.persistNextFire(ctx, job.ID, 0)
 		} else {
-			m.persistNextFire(job.ID, next.UnixNano())
+			m.persistNextFire(ctx, job.ID, next.UnixNano())
 		}
 	}
 	m.background.Go(func() { m.sched.run(ctx) })
@@ -281,7 +281,7 @@ func (m *Manager) Create(ctx context.Context, name string, spec *jobsv0.JobSpec)
 	if schedule != nil {
 		job.NextFireAtNano = next.UnixNano()
 	}
-	if err := m.store.CreateJob(job); err != nil {
+	if err := m.store.CreateJob(ctx, job); err != nil {
 		// A name conflict is idempotent when the stored spec matches;
 		// re-read under the store's authority rather than trusting a
 		// pre-flight lookup, so concurrent creates converge.
@@ -398,11 +398,22 @@ func (m *Manager) composeJob(job *jobsv0.Job) *jobsv0.Job {
 	return job
 }
 
+// maxContainerSpecSize bounds the raw container definition, the dominant
+// term of the job record's size against the storage point's value limit
+// (storagekvv0.MaxValueSize, 1 MiB): the spec is base64-encoded inside the
+// record's JSON (4/3 growth). Rejecting it here names the offending field;
+// the store caps the whole encoded record, covering the remaining
+// user-controlled fields.
+const maxContainerSpecSize = 512 * 1024
+
 // validateSpec checks everything the contract rejects at registration time
 // and returns the decoded container definition.
 func (m *Manager) validateSpec(spec *jobsv0.JobSpec) (*container.CreateRequest, error) {
 	if spec == nil {
 		return nil, errdefs.InvalidParameter(errors.New("a job spec is required"))
+	}
+	if len(spec.ContainerSpec) > maxContainerSpecSize {
+		return nil, errdefs.InvalidParameter(fmt.Errorf("container spec: definition exceeds the maximum size of %d bytes", maxContainerSpecSize))
 	}
 	if err := validateTrigger(spec.Trigger, m.validateCron); err != nil {
 		return nil, errdefs.InvalidParameter(err)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -55,7 +54,7 @@ func (daemon *Daemon) daemonExtensions() ([]extensions.Extension, error) {
 	return []extensions.Extension{
 		extensionconfig.New(&cfg),
 		runtimeExtension(daemon),
-		jobs.NewExtension(filepath.Join(cfg.Root, "jobs"), daemonReady(daemon)),
+		jobs.NewExtension(daemonReady(daemon)),
 	}, nil
 }
 

@@ -79,7 +79,7 @@ func (m *Manager) tryFire(ctx context.Context, jobID string, evidence *jobsv0.Tr
 	// crash-safety property depends on this ordering: a daemon crash or a
 	// container-create failure leaves a discoverable run record instead of
 	// an orphaned container. Do not reorder.
-	if err := m.store.CreateRun(run); err != nil {
+	if err := m.store.CreateRun(ctx, run); err != nil {
 		return nil, err
 	}
 	job.State = jobsv0.JobStateRunning
@@ -87,8 +87,8 @@ func (m *Manager) tryFire(ctx context.Context, jobID string, evidence *jobsv0.Tr
 	// restores it from the scheduler's armed occurrence.
 	job.NextFireAtNano = 0
 	job.UpdatedAtNano = now
-	if err := m.store.UpdateJob(job); err != nil {
-		m.completeRunLocked(context.WithoutCancel(ctx), job, run, terminalOutcome{state: jobsv0.RunStateFailed, errMsg: "recording job state: " + err.Error()})
+	if err := m.store.UpdateJob(ctx, job); err != nil {
+		m.completeRunLocked(ctx, job, run, terminalOutcome{state: jobsv0.RunStateFailed, errMsg: "recording job state: " + err.Error()})
 		return m.store.Run(job.ID, run.ID)
 	}
 	m.broadcast(job.ID)
@@ -96,7 +96,7 @@ func (m *Manager) tryFire(ctx context.Context, jobID string, evidence *jobsv0.Tr
 	if err := m.startContainer(ctx, job, run); err != nil {
 		// The failure is recorded on the run, not returned: the run exists
 		// and its record is the outcome, per the API contract.
-		m.completeRunLocked(context.WithoutCancel(ctx), job, run, terminalOutcome{state: jobsv0.RunStateFailed, errMsg: err.Error()})
+		m.completeRunLocked(ctx, job, run, terminalOutcome{state: jobsv0.RunStateFailed, errMsg: err.Error()})
 	}
 	return m.store.Run(job.ID, run.ID)
 }
@@ -128,7 +128,7 @@ func (m *Manager) startContainer(ctx context.Context, job *jobsv0.Job, run *jobs
 		return fmt.Errorf("creating run container: %w", err)
 	}
 	run.ContainerID = created.ID
-	if err := m.store.UpdateRun(run); err != nil {
+	if err := m.store.UpdateRun(ctx, run); err != nil {
 		return fmt.Errorf("recording run container: %w", err)
 	}
 
@@ -137,7 +137,7 @@ func (m *Manager) startContainer(ctx context.Context, job *jobsv0.Job, run *jobs
 	}
 	run.State = jobsv0.RunStateRunning
 	run.StartedAtNano = m.now().UnixNano()
-	if err := m.store.UpdateRun(run); err != nil {
+	if err := m.store.UpdateRun(ctx, run); err != nil {
 		return fmt.Errorf("recording run start: %w", err)
 	}
 	m.broadcast(job.ID)
@@ -211,6 +211,10 @@ func (m *Manager) watch(ctx context.Context, job *jobsv0.Job, run *jobsv0.Run) {
 // the snapshot taken at fire time (its spec is immutable, its runtime state
 // is re-read).
 func (m *Manager) completeRunLocked(ctx context.Context, job *jobsv0.Job, run *jobsv0.Run, outcome terminalOutcome) {
+	// A terminal outcome must be recorded even when the triggering context
+	// was cancelled: dropping the write would leave the job and run stuck
+	// in running until restart reconciliation.
+	ctx = context.WithoutCancel(ctx)
 	m.disarmTimeout(run.ID)
 	m.clearOverride(run.ID)
 
@@ -235,9 +239,10 @@ func (m *Manager) completeRunLocked(ctx context.Context, job *jobsv0.Job, run *j
 	}
 	run.Error = outcome.errMsg
 	run.FinishedAtNano = m.now().UnixNano()
-	if err := m.store.UpdateRun(run); err != nil {
-		// The job may have been purged while the run was in flight; there
-		// is nothing left to record on.
+	if err := m.store.UpdateRun(ctx, run); err != nil {
+		// The job may have been purged while the run was in flight — there
+		// is then nothing left to record on — or the storage backend failed
+		// the write.
 		log.G(ctx).WithError(err).WithFields(log.Fields{"job": job.ID, "run": run.ID}).Warn("could not record run outcome")
 	}
 
@@ -249,7 +254,7 @@ func (m *Manager) completeRunLocked(ctx context.Context, job *jobsv0.Job, run *j
 			current.NextFireAtNano = next.UnixNano()
 		}
 		current.UpdatedAtNano = m.now().UnixNano()
-		if err := m.store.UpdateJob(current); err != nil {
+		if err := m.store.UpdateJob(ctx, current); err != nil {
 			log.G(ctx).WithError(err).WithFields(log.Fields{"job": job.ID}).Warn("could not return job to idle")
 		}
 	}

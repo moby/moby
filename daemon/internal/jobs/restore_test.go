@@ -13,25 +13,25 @@ import (
 	"gotest.tools/v3/poll"
 )
 
-// newRestartableManager builds a manager whose store root is kept so a test
-// can simulate a daemon restart against the same on-disk state.
-func newRestartableManager(t *testing.T) (*Manager, *fakeBackend, string) {
+// newRestartableManager builds a manager whose storage is kept so a test
+// can simulate a daemon restart against the same persisted records.
+func newRestartableManager(t *testing.T) (*Manager, *fakeBackend, *testKV) {
 	t.Helper()
-	root := t.TempDir()
-	store, err := NewStore(t.Context(), root)
+	kv := newTestKV(t)
+	store, err := NewStore(t.Context(), kv)
 	assert.NilError(t, err)
 	fake := newFakeBackend()
 	m := NewManager(store, fake, testNameGenerator)
 	t.Cleanup(func() { assert.Check(t, m.Shutdown(shutdownCtx(t))) })
-	return m, fake, root
+	return m, fake, kv
 }
 
 // restartManager shuts the previous manager down, reloads the store from
-// disk — the path a real daemon restart takes — and reconciles.
-func restartManager(t *testing.T, prev *Manager, root string, fake *fakeBackend) *Manager {
+// storage — the path a real daemon restart takes — and reconciles.
+func restartManager(t *testing.T, prev *Manager, kv *testKV, fake *fakeBackend) *Manager {
 	t.Helper()
 	assert.NilError(t, prev.Shutdown(shutdownCtx(t)))
-	store, err := NewStore(t.Context(), root)
+	store, err := NewStore(t.Context(), kv)
 	assert.NilError(t, err)
 	m := NewManager(store, fake, testNameGenerator)
 	t.Cleanup(func() { assert.Check(t, m.Shutdown(shutdownCtx(t))) })
@@ -40,14 +40,14 @@ func restartManager(t *testing.T, prev *Manager, root string, fake *fakeBackend)
 }
 
 func TestRestoreReattachesRunningContainer(t *testing.T) {
-	m1, fake, root := newRestartableManager(t)
+	m1, fake, kv := newRestartableManager(t)
 	_, _, err := m1.Create(t.Context(), "backup", manualSpec())
 	assert.NilError(t, err)
 	run, err := m1.Run(t.Context(), "backup", false)
 	assert.NilError(t, err)
 
 	// The container is still running across the restart (live-restore).
-	m2 := restartManager(t, m1, root, fake)
+	m2 := restartManager(t, m1, kv, fake)
 	kept, err := m2.InspectRun(t.Context(), "backup", run.ID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(kept.State, jobsv0.RunStateRunning))
@@ -60,7 +60,7 @@ func TestRestoreReattachesRunningContainer(t *testing.T) {
 }
 
 func TestRestoreResolvesContainerExitedDuringDowntime(t *testing.T) {
-	m1, fake, root := newRestartableManager(t)
+	m1, fake, kv := newRestartableManager(t)
 	_, _, err := m1.Create(t.Context(), "backup", manualSpec())
 	assert.NilError(t, err)
 	run, err := m1.Run(t.Context(), "backup", false)
@@ -71,7 +71,7 @@ func TestRestoreResolvesContainerExitedDuringDowntime(t *testing.T) {
 	// running when the store reloads.
 	fake.exit(run.ContainerID, 3, nil)
 
-	store, err := NewStore(t.Context(), root)
+	store, err := NewStore(t.Context(), kv)
 	assert.NilError(t, err)
 	m2 := NewManager(store, fake, testNameGenerator)
 	t.Cleanup(func() { assert.Check(t, m2.Shutdown(shutdownCtx(t))) })
@@ -84,14 +84,14 @@ func TestRestoreResolvesContainerExitedDuringDowntime(t *testing.T) {
 }
 
 func TestRestoreFailsLostContainer(t *testing.T) {
-	m1, _, root := newRestartableManager(t)
+	m1, _, kv := newRestartableManager(t)
 	_, _, err := m1.Create(t.Context(), "backup", manualSpec())
 	assert.NilError(t, err)
 	run, err := m1.Run(t.Context(), "backup", false)
 	assert.NilError(t, err)
 
 	// The container vanished entirely while the daemon was down.
-	m2 := restartManager(t, m1, root, newFakeBackend())
+	m2 := restartManager(t, m1, kv, newFakeBackend())
 	done := waitTerminal(t, m2, "backup", run.ID)
 	assert.Check(t, is.Equal(done.State, jobsv0.RunStateFailed))
 	assert.Check(t, is.ErrorContains(errors.New(done.Error), "waiting on run container"))
@@ -107,7 +107,7 @@ func TestRestoreFailsUnstartedRun(t *testing.T) {
 		{doc: "a container was left behind", withContainer: true},
 	} {
 		t.Run(tc.doc, func(t *testing.T) {
-			m1, fake, root := newRestartableManager(t)
+			m1, fake, kv := newRestartableManager(t)
 			job, _, err := m1.Create(t.Context(), "backup", manualSpec())
 			assert.NilError(t, err)
 
@@ -119,13 +119,13 @@ func TestRestoreFailsUnstartedRun(t *testing.T) {
 				assert.NilError(t, err)
 				run.ContainerID = created.ID
 			}
-			assert.NilError(t, m1.store.CreateRun(run))
+			assert.NilError(t, m1.store.CreateRun(t.Context(), run))
 			stored, err := m1.store.Job(job.ID)
 			assert.NilError(t, err)
 			stored.State = jobsv0.JobStateRunning
-			assert.NilError(t, m1.store.UpdateJob(stored))
+			assert.NilError(t, m1.store.UpdateJob(t.Context(), stored))
 
-			m2 := restartManager(t, m1, root, fake)
+			m2 := restartManager(t, m1, kv, fake)
 			done := waitStoreTerminal(t, m2, job.ID, run.ID)
 			assert.Check(t, is.Equal(done.State, jobsv0.RunStateFailed))
 			assert.Check(t, is.ErrorContains(errors.New(done.Error), "before the run start was recorded"))
@@ -145,7 +145,7 @@ func TestRestoreFailsUnstartedRun(t *testing.T) {
 }
 
 func TestRestoreIdlesStuckJob(t *testing.T) {
-	m1, fake, root := newRestartableManager(t)
+	m1, fake, kv := newRestartableManager(t)
 	_, _, err := m1.Create(t.Context(), "backup", manualSpec())
 	assert.NilError(t, err)
 	run, err := m1.Run(t.Context(), "backup", false)
@@ -158,9 +158,9 @@ func TestRestoreIdlesStuckJob(t *testing.T) {
 	stored, err := m1.store.Job(run.JobID)
 	assert.NilError(t, err)
 	stored.State = jobsv0.JobStateRunning
-	assert.NilError(t, m1.store.UpdateJob(stored))
+	assert.NilError(t, m1.store.UpdateJob(t.Context(), stored))
 
-	m2 := restartManager(t, m1, root, fake)
+	m2 := restartManager(t, m1, kv, fake)
 	job, err := m2.Inspect(t.Context(), "backup")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(job.State, jobsv0.JobStateIdle))
@@ -168,7 +168,7 @@ func TestRestoreIdlesStuckJob(t *testing.T) {
 
 func TestRestoreTimeouts(t *testing.T) {
 	t.Run("expired deadline is enforced on restore", func(t *testing.T) {
-		m1, fake, root := newRestartableManager(t)
+		m1, fake, kv := newRestartableManager(t)
 		clk := &fakeClock{t: jan15}
 		m1.now = clk.Now
 		spec := manualSpec()
@@ -179,7 +179,7 @@ func TestRestoreTimeouts(t *testing.T) {
 		assert.NilError(t, err)
 
 		assert.NilError(t, m1.Shutdown(shutdownCtx(t)))
-		store, err := NewStore(t.Context(), root)
+		store, err := NewStore(t.Context(), kv)
 		assert.NilError(t, err)
 		m2 := NewManager(store, fake, testNameGenerator)
 		t.Cleanup(func() { assert.Check(t, m2.Shutdown(shutdownCtx(t))) })
@@ -194,7 +194,7 @@ func TestRestoreTimeouts(t *testing.T) {
 	})
 
 	t.Run("remaining deadline is re-armed", func(t *testing.T) {
-		m1, fake, root := newRestartableManager(t)
+		m1, fake, kv := newRestartableManager(t)
 		spec := manualSpec()
 		spec.TimeoutSeconds = 3600
 		_, _, err := m1.Create(t.Context(), "slow", spec)
@@ -202,7 +202,7 @@ func TestRestoreTimeouts(t *testing.T) {
 		run, err := m1.Run(t.Context(), "slow", false)
 		assert.NilError(t, err)
 
-		m2 := restartManager(t, m1, root, fake)
+		m2 := restartManager(t, m1, kv, fake)
 		m2.mu.Lock()
 		_, armed := m2.timers[run.ID]
 		m2.mu.Unlock()

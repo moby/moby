@@ -3,7 +3,6 @@ package jobs
 import (
 	"context"
 	"net"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -11,8 +10,8 @@ import (
 	"github.com/moby/extensions/host"
 	jobspb "github.com/moby/moby/v2/extpoints/jobs/api/v0/protogen"
 	runtimev0 "github.com/moby/moby/v2/extpoints/runtime/v0"
+	storagekvv0 "github.com/moby/moby/v2/extpoints/storage/kv/v0"
 	namesgeneratorlegacy "github.com/moby/moby/v2/internal/namesgenerator/legacy"
-	"github.com/moby/moby/v2/internal/testutil/staticresolver"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -26,9 +25,9 @@ import (
 // generated ServerPoint wiring registered on a gRPC server — and returns a
 // generated client dialing it, so the tests cover the exact path an API
 // consumer takes.
-func newTestService(t *testing.T) (jobspb.JobsClient, *Extension, *fakeBackend) {
+func newTestService(t *testing.T) (jobspb.JobsClient, *Extension, *testKV, *fakeBackend) {
 	t.Helper()
-	ext := NewExtension(filepath.Join(t.TempDir(), "jobs"), readyNow)
+	ext := NewExtension(readyNow)
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(t.Context()), 10*time.Second)
 		defer cancel()
@@ -37,7 +36,7 @@ func newTestService(t *testing.T) (jobspb.JobsClient, *Extension, *fakeBackend) 
 
 	return serveJobsClient(t, func(r grpc.ServiceRegistrar) {
 		jobspb.ServerPoint.Register(r, &service{ext: ext})
-	}), ext, newFakeBackend()
+	}), ext, newTestKV(t), newFakeBackend()
 }
 
 // serveJobsClient serves whatever register installs on a gRPC server over a
@@ -60,8 +59,8 @@ func serveJobsClient(t *testing.T, register func(grpc.ServiceRegistrar)) jobspb.
 
 // activateExtension activates ext on backend the way init's background
 // goroutine does once the runtime reports ready.
-func activateExtension(ctx context.Context, ext *Extension, backend Backend) error {
-	manager, err := ext.buildManager(ctx, backend, testNameGenerator)
+func activateExtension(ctx context.Context, ext *Extension, kv KV, backend Backend) error {
+	manager, err := ext.buildManager(ctx, kv, backend, testNameGenerator)
 	if err != nil {
 		return err
 	}
@@ -69,14 +68,18 @@ func activateExtension(ctx context.Context, ext *Extension, backend Backend) err
 }
 
 func TestServiceUnavailableBeforeActivation(t *testing.T) {
-	client, _, _ := newTestService(t)
+	// No fixture: an extension that was never activated needs no cleanup.
+	ext := NewExtension(readyNow)
+	client := serveJobsClient(t, func(r grpc.ServiceRegistrar) {
+		jobspb.ServerPoint.Register(r, &service{ext: ext})
+	})
 	_, err := client.List(t.Context(), &jobspb.ListRequest{})
 	assert.Check(t, is.Equal(status.Code(err), codes.Unavailable))
 }
 
 func TestServiceJourney(t *testing.T) {
-	client, ext, fake := newTestService(t)
-	assert.NilError(t, activateExtension(t.Context(), ext, fake))
+	client, ext, kv, fake := newTestService(t)
+	assert.NilError(t, activateExtension(t.Context(), ext, kv, fake))
 
 	// Register a manual job; re-applying is a no-op, a different spec under
 	// the same name is a conflict surfaced as AlreadyExists.
@@ -128,16 +131,16 @@ func TestServiceJourney(t *testing.T) {
 }
 
 func TestExtensionRejectsDoubleActivation(t *testing.T) {
-	_, ext, fake := newTestService(t)
-	assert.NilError(t, activateExtension(t.Context(), ext, fake))
+	_, ext, kv, fake := newTestService(t)
+	assert.NilError(t, activateExtension(t.Context(), ext, kv, fake))
 	// A second activation would leak the first manager's scheduler and
-	// have two stores writing the same directory.
-	assert.Check(t, is.ErrorContains(activateExtension(t.Context(), ext, fake), "already active"))
+	// have two stores writing the same records.
+	assert.Check(t, is.ErrorContains(activateExtension(t.Context(), ext, kv, fake), "already active"))
 }
 
 func TestServicePersistsAcrossActivations(t *testing.T) {
-	client, ext, fake := newTestService(t)
-	assert.NilError(t, activateExtension(t.Context(), ext, fake))
+	client, ext, kv, fake := newTestService(t)
+	assert.NilError(t, activateExtension(t.Context(), ext, kv, fake))
 
 	_, err := client.Create(t.Context(), &jobspb.CreateRequest{Name: "durable", Spec: &jobspb.JobSpec{ContainerSpec: []byte(`{"Image":"busybox"}`)}})
 	assert.NilError(t, err)
@@ -150,7 +153,7 @@ func TestServicePersistsAcrossActivations(t *testing.T) {
 	_, err = client.Inspect(t.Context(), &jobspb.InspectRequest{JobRef: "durable"})
 	assert.Check(t, is.Equal(status.Code(err), codes.Unavailable))
 
-	assert.NilError(t, activateExtension(t.Context(), ext, fake))
+	assert.NilError(t, activateExtension(t.Context(), ext, kv, fake))
 	inspected, err := client.Inspect(t.Context(), &jobspb.InspectRequest{JobRef: "durable"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspected.GetJob().GetName(), "durable"))
@@ -169,10 +172,14 @@ func TestExtensionThroughHost(t *testing.T) {
 		ID:        "org.mobyproject.test-runtime.v1",
 		Providers: []extensions.Provider{runtimev0.Point.Provide(Backend(fake))},
 	})
-	ext := NewExtension(filepath.Join(t.TempDir(), "jobs"), readyNow)
+	storageExt := extensions.New(extensions.Declaration{
+		ID:        "org.mobyproject.test-storage.v1",
+		Providers: []extensions.Provider{storagekvv0.Point.Provide(newFakeStorage())},
+	})
+	ext := NewExtension(readyNow)
 	h, err := host.New(t.Context(),
 		host.WithRuntimeDir(t.TempDir()),
-		host.WithExtensions(runtimeExt, namesgeneratorlegacy.Extension, ext),
+		host.WithExtensions(runtimeExt, storageExt, namesgeneratorlegacy.Extension, ext),
 		host.WithPointServers(jobspb.ServerPoint),
 		host.WithProviderPolicy(host.PointPolicyFunc(func(extensions.ExtensionIdentity, extensions.PointID) host.PointPolicyResult {
 			return host.Allow()
@@ -232,8 +239,11 @@ func parkedReady(released chan error) func(context.Context) error {
 // goroutine must be released and no manager may start afterwards.
 func TestExtensionShutdownReleasesPendingActivation(t *testing.T) {
 	released := make(chan error, 1)
-	ext := NewExtension(filepath.Join(t.TempDir(), "jobs"), parkedReady(released))
-	assert.NilError(t, ext.init(t.Context(), nil, staticresolver.New(extensions.ResolvedProvider{Impl: Backend(newFakeBackend())})))
+	ext := NewExtension(parkedReady(released))
+	assert.NilError(t, ext.init(t.Context(), nil, pointResolver{
+		runtimev0.Point.ID():   Backend(newFakeBackend()),
+		storagekvv0.Point.ID(): storagekvv0.Storage(newFakeStorage()),
+	}))
 
 	assert.NilError(t, ext.shutdownManager(t.Context()))
 	select {

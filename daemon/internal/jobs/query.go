@@ -79,16 +79,16 @@ func (m *Manager) List(ctx context.Context, req *jobsv0.ListRequest) ([]*jobsv0.
 // Pause suppresses a job's schedule trigger. An in-flight run is not
 // affected; explicit runs still work. Idempotent, a no-op for manual jobs.
 func (m *Manager) Pause(ctx context.Context, jobRef string) error {
-	return m.setPaused(jobRef, true)
+	return m.setPaused(ctx, jobRef, true)
 }
 
 // Resume re-arms a paused job's schedule trigger from the next tick.
 // Idempotent, a no-op for manual jobs.
 func (m *Manager) Resume(ctx context.Context, jobRef string) error {
-	return m.setPaused(jobRef, false)
+	return m.setPaused(ctx, jobRef, false)
 }
 
-func (m *Manager) setPaused(jobRef string, paused bool) error {
+func (m *Manager) setPaused(ctx context.Context, jobRef string, paused bool) error {
 	job, err := m.resolveJob(jobRef)
 	if err != nil {
 		return err
@@ -124,7 +124,7 @@ func (m *Manager) setPaused(jobRef string, paused bool) error {
 		}
 	}
 	job.UpdatedAtNano = m.now().UnixNano()
-	return m.store.UpdateJob(job)
+	return m.store.UpdateJob(ctx, job)
 }
 
 // removeRunsPageSize is the page size Remove drains terminal runs with; a
@@ -165,7 +165,7 @@ func (m *Manager) Remove(ctx context.Context, jobRef, runsRemoval string) error 
 	var removeErr error
 	switch runsRemoval {
 	case jobsv0.RunsRemove:
-		removeErr = m.store.PurgeJob(job.ID)
+		removeErr = m.store.PurgeJob(ctx, job.ID)
 	case jobsv0.RunsRemoveFinished:
 		for {
 			page, cursor, _, err := m.store.Runs(job.ID, removeRunsPageSize, "")
@@ -175,7 +175,7 @@ func (m *Manager) Remove(ctx context.Context, jobRef, runsRemoval string) error 
 			deleted := false
 			for _, run := range page {
 				if isTerminalRunState(run.State) {
-					if err := m.store.DeleteRun(job.ID, run.ID); err != nil {
+					if err := m.store.DeleteRun(ctx, job.ID, run.ID); err != nil {
 						return err
 					}
 					deleted = true
@@ -189,9 +189,9 @@ func (m *Manager) Remove(ctx context.Context, jobRef, runsRemoval string) error 
 				break
 			}
 		}
-		removeErr = m.store.DeleteJob(job.ID)
+		removeErr = m.store.DeleteJob(ctx, job.ID)
 	default:
-		removeErr = m.store.DeleteJob(job.ID)
+		removeErr = m.store.DeleteJob(ctx, job.ID)
 	}
 	if removeErr == nil {
 		m.sched.disarm(job.ID)
@@ -219,7 +219,7 @@ func (m *Manager) Prune(ctx context.Context, labels []string) ([]string, error) 
 		// removed since the snapshot.
 		current, err := m.store.Job(job.ID)
 		if err == nil && current.State == jobsv0.JobStateIdle {
-			if err := m.store.DeleteJob(job.ID); err == nil {
+			if err := m.store.DeleteJob(ctx, job.ID); err == nil {
 				removed = append(removed, job.ID)
 				m.broadcast(job.ID)
 			}
@@ -354,7 +354,7 @@ func (m *Manager) Run(ctx context.Context, jobRef string, reschedule bool) (*job
 	}
 	if reschedule && !expected.IsZero() {
 		if next, ok := m.sched.skipNext(job.ID, expected); ok {
-			m.persistNextFire(job.ID, next.UnixNano())
+			m.persistNextFire(ctx, job.ID, next.UnixNano())
 		}
 	}
 	return run, nil
