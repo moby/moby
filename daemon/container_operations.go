@@ -744,14 +744,19 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 		}
 	}
 
-	// Snapshot Networks so a failure anywhere in the rest of this function
-	// rolls it back to its pre-call state. Without this, a failed start (e.g.
-	// published port already in use) would leave Networks empty and the next
-	// start would silently "succeed" with no networking configured.
-	origNetworks := maps.Clone(ctr.NetworkSettings.Networks)
+	// If the connection fails, restore the container's networks so that the
+	// failed endpoint config isn't used when the container next starts. Restore
+	// rather than delete, because on container start the entry already holds
+	// the user's config for this network. Copy the entries too, because on
+	// container start endpointConfig is the stored entry, and it's modified
+	// below.
+	prevNetworks := maps.Clone(ctr.NetworkSettings.Networks)
+	for name, es := range prevNetworks {
+		prevNetworks[name] = es.Copy()
+	}
 	defer func() {
 		if retErr != nil {
-			ctr.NetworkSettings.Networks = origNetworks
+			ctr.NetworkSettings.Networks = prevNetworks
 		}
 	}()
 
