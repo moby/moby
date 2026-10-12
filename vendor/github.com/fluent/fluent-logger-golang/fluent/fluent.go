@@ -458,31 +458,40 @@ func (f *Fluent) close() {
 // connect establishes a new connection using the specified transport. Caller should
 // take care of locking muconn first.
 func (f *Fluent) connect(ctx context.Context) (err error) {
+	var conn net.Conn
+
 	switch f.Config.FluentNetwork {
 	case "tcp":
-		f.conn, err = f.dialer.DialContext(ctx,
+		conn, err = f.dialer.DialContext(ctx,
 			f.Config.FluentNetwork,
 			f.Config.FluentHost+":"+strconv.Itoa(f.Config.FluentPort))
 	case "tls":
 		tlsConfig := &tls.Config{InsecureSkipVerify: f.Config.TlsInsecureSkipVerify}
-		f.conn, err = tls.DialWithDialer(
+		var tlsConn *tls.Conn
+		tlsConn, err = tls.DialWithDialer(
 			&net.Dialer{Timeout: f.Config.Timeout},
 			"tcp",
 			f.Config.FluentHost+":"+strconv.Itoa(f.Config.FluentPort), tlsConfig,
 		)
+		if err == nil {
+			conn = tlsConn
+		}
 	case "unix":
-		f.conn, err = f.dialer.DialContext(ctx,
+		conn, err = f.dialer.DialContext(ctx,
 			f.Config.FluentNetwork,
 			f.Config.FluentSocketPath)
 	default:
 		err = NewErrUnknownNetwork(f.Config.FluentNetwork)
 	}
 
-	if err == nil {
-		f.latestReconnectTime = time.Now()
+	if err != nil {
+		return err
 	}
 
-	return err
+	f.conn = conn
+	f.latestReconnectTime = time.Now()
+
+	return nil
 }
 
 var errIsClosing = errors.New("fluent logger is closing")
