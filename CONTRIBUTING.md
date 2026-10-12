@@ -43,6 +43,7 @@ Regenerate vendored files with the repository's vendoring tooling rather than ed
 ### Conventions
 
 Keep the pull request focused and explain the problem and solution in its description.
+Fill in the applicable sections of the [pull request template](.github/PULL_REQUEST_TEMPLATE.md).
 Put related issue and PR links there, using a closing keyword such as `Fixes` when appropriate.
 
 Include tests for your changes; see [TESTING.md](TESTING.md) for guidance and test filters.
@@ -54,6 +55,11 @@ Include relevant API and reference documentation updates with the code change.
 User guides live in [docker/docs](https://github.com/docker/docs); follow its [style guide](https://github.com/docker/docs/blob/main/STYLE.md) and [contribution instructions](https://github.com/docker/docs/blob/main/CONTRIBUTING.md).
 Check documentation for clarity, correctness, and broken links, and run the relevant validation.
 The `AUTHORS` file is generated from Git history; leave it unchanged.
+
+### Release notes
+
+For changes worth a user-facing changelog entry, include a brief release note, ideally one sentence.
+Use present tense and imperative tone; see [Docker Engine release notes](https://docs.docker.com/engine/release-notes/) for examples.
 
 ### Commit Messages
 
@@ -95,6 +101,7 @@ Signed-off-by: Joe Smith <joe.smith@email.com>
 
 Read and follow the shared [Moby and Docker AI usage policy](https://github.com/moby/.github/blob/main/AI_POLICY.md).
 Disclose which tools you used and roughly how much work they did in the issue or PR description, not in commit messages.
+For AI-assisted pull requests, add a `Created with: <AGENT NAME>` note at the end of the description.
 Review and edit AI-assisted content before posting; you remain responsible for the submission.
 Reserve `Co-Authored-By` trailers for human contributors, not LLMs or AI agents.
 
