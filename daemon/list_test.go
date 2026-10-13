@@ -1,6 +1,8 @@
 package daemon
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -287,5 +289,47 @@ func TestContainerList_LimitFilter(t *testing.T) {
 			}
 			assert.Assert(t, is.Len(containerList, expectedListLen))
 		})
+	}
+}
+
+// layerSizeErrImageService fails GetContainerLayerSize for the containers
+// listed in failIDs and reports a fixed size for all others.
+type layerSizeErrImageService struct {
+	ImageService
+	failIDs map[string]struct{}
+}
+
+func (s *layerSizeErrImageService) GetContainerLayerSize(_ context.Context, id string) (int64, int64, error) {
+	if _, ok := s.failIDs[id]; ok {
+		return 0, 0, errors.New("snapshotter.Usage failed: lstat: no such file or directory")
+	}
+	return 10, 20, nil
+}
+
+// A container whose size cannot be computed must not fail the whole listing.
+func TestContainerList_SizeError(t *testing.T) {
+	db, err := container.NewViewDB()
+	assert.NilError(t, err)
+	imgSvc := &layerSizeErrImageService{failIDs: map[string]struct{}{}}
+	d := &Daemon{
+		containersReplica: db,
+		imageService:      imgSvc,
+	}
+
+	setupContainerWithName(t, "ok", d)
+	bad := setupContainerWithName(t, "bad", d)
+	imgSvc.failIDs[bad.ID] = struct{}{}
+
+	list, err := d.Containers(t.Context(), &backend.ContainerListOptions{All: true, Size: true})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(list, 2))
+	for _, c := range list {
+		if c.ID == bad.ID {
+			assert.Check(t, is.Equal(c.SizeRw, int64(-1)))
+			assert.Check(t, is.Equal(c.SizeRootFs, int64(-1)))
+		} else {
+			assert.Check(t, is.Equal(c.SizeRw, int64(10)))
+			assert.Check(t, is.Equal(c.SizeRootFs, int64(20)))
+		}
 	}
 }
