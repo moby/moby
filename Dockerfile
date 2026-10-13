@@ -6,7 +6,7 @@ ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
 # XX_VERSION specifies the version of the xx utility to use.
 # It must be a valid tag in the docker.io/tonistiigi/xx image repository.
-ARG XX_VERSION=1.9.0
+ARG XX_VERSION=1.10.0
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
 # renovate: datasource=github-tags depName=docker/cli versioning=semver
