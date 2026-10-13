@@ -1,9 +1,14 @@
 package plugin
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/distribution/reference"
+	"github.com/moby/moby/v2/daemon/pkg/registry"
+	"gotest.tools/v3/assert"
 )
 
 func TestAtomicRemoveAllNormal(t *testing.T) {
@@ -65,4 +70,20 @@ func TestAtomicRemoveAllNotExist(t *testing.T) {
 	if _, err := os.Stat(removing); !os.IsNotExist(err) {
 		t.Fatalf("dir should be gone: %v", err)
 	}
+}
+
+func TestPrivilegesFetchError(t *testing.T) {
+	want := errors.New("registry lookup failed")
+	pm := &Manager{config: ManagerConfig{RegistryService: failingEndpointResolver{err: want}}}
+	ref, err := reference.ParseNormalizedNamed("example.com/test/plugin:latest")
+	assert.NilError(t, err)
+
+	_, err = pm.Privileges(t.Context(), ref, nil, nil)
+	assert.ErrorIs(t, err, want)
+}
+
+type failingEndpointResolver struct{ err error }
+
+func (r failingEndpointResolver) LookupPullEndpoints(string) ([]registry.APIEndpoint, error) {
+	return nil, r.err
 }
