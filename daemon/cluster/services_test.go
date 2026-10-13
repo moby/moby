@@ -2,11 +2,17 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
+	"github.com/distribution/reference"
+	"github.com/docker/distribution"
+	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
+	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
 	swarmapi "github.com/moby/swarmkit/v2/api"
+	"github.com/opencontainers/go-digest"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,6 +38,36 @@ func (f *fakeServiceCreator) CreateService(_ context.Context, req *swarmapi.Crea
 		return nil, status.Errorf(codes.AlreadyExists, "name conflicts with an existing object: service %s already exists", name)
 	}
 	return &swarmapi.CreateServiceResponse{Service: &swarmapi.Service{ID: "serviceid"}}, nil
+}
+
+type fakeRepository struct {
+	distribution.Repository
+	tags distribution.TagService
+}
+
+func (r fakeRepository) Tags(context.Context) distribution.TagService {
+	return r.tags
+}
+
+type fakeTagService struct {
+	distribution.TagService
+	digest digest.Digest
+	err    error
+	calls  *int
+}
+
+func (s fakeTagService) Get(context.Context, string) (distribution.Descriptor, error) {
+	*s.calls++
+	return distribution.Descriptor{Digest: s.digest}, s.err
+}
+
+type fakeImageBackend struct {
+	executorpkg.ImageBackend
+	repos []distribution.Repository
+}
+
+func (b fakeImageBackend) GetRepositories(context.Context, reference.Named, *registry.AuthConfig) ([]distribution.Repository, error) {
+	return b.repos, nil
 }
 
 func TestCreateServiceNameConflict(t *testing.T) {
@@ -100,6 +136,69 @@ func TestCreateServiceNameConflict(t *testing.T) {
 			if tc.expErr == codes.OK {
 				assert.Check(t, is.Equal(resp.ID, "serviceid"))
 			}
+		})
+	}
+}
+
+// TestImageWithDigestString verifies that repository lookups stop at the first
+// successful digest resolution and return an error if all lookups fail.
+//
+// Regression test for https://github.com/moby/moby/issues/53929
+func TestImageWithDigestString(t *testing.T) {
+	dgst := digest.FromString("manifest")
+	lookupErr := errors.New("lookup failed")
+
+	tests := []struct {
+		doc      string
+		errs     []error
+		expCalls []int
+		expErr   error
+	}{
+		{
+			doc:      "mirror succeeds",
+			errs:     []error{nil, lookupErr},
+			expCalls: []int{1, 0},
+		},
+		{
+			doc:      "upstream succeeds",
+			errs:     []error{lookupErr, nil},
+			expCalls: []int{1, 1},
+		},
+		{
+			doc:      "both fail",
+			errs:     []error{lookupErr, lookupErr},
+			expCalls: []int{1, 1},
+			expErr:   lookupErr,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			calls := make([]int, len(tc.errs))
+			repos := make([]distribution.Repository, len(tc.errs))
+
+			for i, err := range tc.errs {
+				repos[i] = fakeRepository{
+					tags: fakeTagService{
+						digest: dgst,
+						err:    err,
+						calls:  &calls[i],
+					},
+				}
+			}
+
+			cluster := &Cluster{
+				config: Config{ImageBackend: fakeImageBackend{repos: repos}},
+			}
+			got, err := cluster.imageWithDigestString(t.Context(), "busybox:latest", nil)
+
+			if tc.expErr != nil {
+				assert.ErrorIs(t, err, tc.expErr)
+			} else {
+				assert.NilError(t, err)
+				assert.Equal(t, got, "busybox:latest@"+dgst.String())
+			}
+			assert.DeepEqual(t, calls, tc.expCalls)
 		})
 	}
 }

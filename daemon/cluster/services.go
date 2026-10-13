@@ -18,7 +18,6 @@ import (
 	"github.com/moby/moby/v2/daemon/server/swarmbackend"
 	"github.com/moby/moby/v2/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
-	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -676,28 +675,22 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 		return "", err
 	}
 
-	var (
-		imgDigest digest.Digest
-		lastErr   error
-	)
+	var lastErr error
 	for _, repo := range repos {
 		dscrptr, err := repo.Tags(ctx).Get(ctx, taggedRef.Tag())
 		if err != nil {
 			lastErr = err
 			continue
 		}
-		imgDigest = dscrptr.Digest
-	}
-	if lastErr != nil {
-		return "", lastErr
-	}
 
-	namedDigestedRef, err := reference.WithDigest(taggedRef, imgDigest)
-	if err != nil {
-		return "", err
+		namedDigestedRef, err := reference.WithDigest(taggedRef, dscrptr.Digest)
+		if err != nil {
+			return "", err
+		}
+		// return familiar form until interface updated to return type
+		return reference.FamiliarString(namedDigestedRef), nil
 	}
-	// return familiar form until interface updated to return type
-	return reference.FamiliarString(namedDigestedRef), nil
+	return "", lastErr
 }
 
 // digestWarning constructs a formatted warning string
