@@ -18,7 +18,6 @@ import (
 	"github.com/moby/moby/v2/daemon/server/swarmbackend"
 	"github.com/moby/moby/v2/errdefs"
 	swarmapi "github.com/moby/swarmkit/v2/api"
-	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -657,47 +656,41 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 		}
 		return "", errors.Errorf("unknown image reference format: %s", image)
 	}
-	// only query registry if not a canonical reference (i.e. with digest)
-	if _, ok := namedRef.(reference.Canonical); !ok {
-		namedRef = reference.TagNameOnly(namedRef)
 
-		taggedRef, ok := namedRef.(reference.NamedTagged)
-		if !ok {
-			return "", errors.Errorf("image reference not tagged: %s", image)
-		}
+	if _, ok := namedRef.(reference.Canonical); ok {
+		// reference already contains a digest, so just return it
+		return reference.FamiliarString(ref), nil
+	}
 
-		// Fetch the image manifest's digest; if a mirror is configured, try the
-		// mirror first, but continue with upstream on failure.
-		repos, err := c.config.ImageBackend.GetRepositories(ctx, taggedRef, authConfig)
+	namedRef = reference.TagNameOnly(namedRef)
+	taggedRef, ok := namedRef.(reference.NamedTagged)
+	if !ok {
+		return "", errors.Errorf("image reference not tagged: %s", image)
+	}
+
+	// Fetch the image manifest's digest; if a mirror is configured, try the
+	// mirror first, but continue with upstream on failure.
+	repos, err := c.config.ImageBackend.GetRepositories(ctx, taggedRef, authConfig)
+	if err != nil {
+		return "", err
+	}
+
+	var lastErr error
+	for _, repo := range repos {
+		dscrptr, err := repo.Tags(ctx).Get(ctx, taggedRef.Tag())
 		if err != nil {
-			return "", err
+			lastErr = err
+			continue
 		}
 
-		var (
-			imgDigest digest.Digest
-			lastErr   error
-		)
-		for _, repo := range repos {
-			dscrptr, err := repo.Tags(ctx).Get(ctx, taggedRef.Tag())
-			if err != nil {
-				lastErr = err
-				continue
-			}
-			imgDigest = dscrptr.Digest
-		}
-		if lastErr != nil {
-			return "", lastErr
-		}
-
-		namedDigestedRef, err := reference.WithDigest(taggedRef, imgDigest)
+		namedDigestedRef, err := reference.WithDigest(taggedRef, dscrptr.Digest)
 		if err != nil {
 			return "", err
 		}
 		// return familiar form until interface updated to return type
 		return reference.FamiliarString(namedDigestedRef), nil
 	}
-	// reference already contains a digest, so just return it
-	return reference.FamiliarString(ref), nil
+	return "", lastErr
 }
 
 // digestWarning constructs a formatted warning string
