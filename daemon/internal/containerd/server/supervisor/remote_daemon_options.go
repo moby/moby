@@ -46,6 +46,19 @@ func WithCRIDisabled() DaemonOpt {
 	}
 }
 
+// WithConfigDropInDir imports the containerd configuration files (*.toml) in
+// dir into the generated containerd configuration.
+// Files are merged in lexical order, but cannot override the root, state, and
+// gRPC address configured by dockerd.
+// Drop-in files with non-empty imports are rejected.
+// A missing or empty directory is ignored.
+func WithConfigDropInDir(dir string) DaemonOpt {
+	return func(r *Daemon) error {
+		r.dropInDir = dir
+		return nil
+	}
+}
+
 // WithDetectLocalBinary checks if a containerd binary is present in the same
 // directory as the dockerd binary, and overrides the path of the containerd
 // binary to start if found. If no binary is found, no changes are made.
