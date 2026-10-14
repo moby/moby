@@ -194,7 +194,7 @@ func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHead
 	}
 
 	if err := pm.fetch(ctx, ref, authConfig, progress.DiscardOutput(), metaHeader, c8dimages.HandlerFunc(h)); err != nil {
-		return plugin.Privileges{}, nil
+		return plugin.Privileges{}, err
 	}
 
 	if !configSeen {
