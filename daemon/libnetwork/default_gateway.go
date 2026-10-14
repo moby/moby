@@ -52,6 +52,14 @@ func (sb *Sandbox) setupDefaultGW() error {
 	// endpoint that needs the gateway.
 	createOptions := []EndpointOption{CreateOptionDisableResolution()}
 
+	// The ingress sandbox only forwards IPv4 (see configureFWMark), so don't give
+	// it an IPv6 address on docker_gwbridge. Its endpoint then serves as the IPv6
+	// gateway via its IPv4 address, and the userland proxy forwards host IPv6
+	// traffic to its published ports over IPv4.
+	if sb.ingress {
+		createOptions = append(createOptions, CreateOptionDisableIPv6())
+	}
+
 	var gwName string
 	if len(sb.containerID) <= gwEPlen {
 		gwName = "gateway_" + sb.containerID
