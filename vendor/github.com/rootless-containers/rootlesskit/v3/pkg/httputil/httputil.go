@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 )
 
 // ErrorJSON is returned with "application/json" content type and non-2XX status code
@@ -70,18 +71,32 @@ func Successful(resp *http.Response) error {
 	return nil
 }
 
+// NewHTTPClient returns an HTTP client configured to communicate with the
+// RootlessKit API over the Unix socket at socketPath.
 func NewHTTPClient(socketPath string) (*http.Client, error) {
 	if _, err := os.Stat(socketPath); err != nil {
 		return nil, err
 	}
 	return &http.Client{
+		// Use the dial and idle connection timeouts from http.DefaultTransport.
+		//
+		// Other defaults are either TCP/TLS-specific or unnecessary for the
+		// local Unix socket connection.
+		// See https://github.com/golang/go/blob/go1.27.2/src/net/http/transport.go#L42-L58
 		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				var d net.Dialer
-				return d.DialContext(ctx, "unix", socketPath)
-			},
+			DialContext: unixDialContext(socketPath, &net.Dialer{
+				Timeout: 30 * time.Second,
+			}),
+			IdleConnTimeout: 90 * time.Second,
 		},
 	}, nil
+}
+
+// unixDialContext returns a dial function that connects to socketPath using dialer.
+func unixDialContext(socketPath string, dialer *net.Dialer) func(context.Context, string, string) (net.Conn, error) {
+	return func(ctx context.Context, _, _ string) (net.Conn, error) {
+		return dialer.DialContext(ctx, "unix", socketPath)
+	}
 }
 
 // WriteError writes an error.
