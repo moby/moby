@@ -70,8 +70,11 @@ func (n *Network) addLBBackendIPTables(ip net.IP, ep *Endpoint, sb *Sandbox, lb 
 	s.SchedName = ""
 
 	var flags uint32
-	if n.loadBalancerMode == loadBalancerModeDSR {
+	switch n.loadBalancerMode {
+	case loadBalancerModeDSR:
 		flags = ipvs.ConnFwdDirectRoute
+	case loadBalancerModeSourceIP:
+		flags = ipvs.ConnFwdTunnel
 	}
 	err = i.NewDestination(s, &ipvs.Destination{
 		AddressFamily:   nl.FAMILY_V4,
@@ -114,8 +117,11 @@ func (n *Network) rmLBBackendIPTables(ip net.IP, ep *Endpoint, sb *Sandbox, lb *
 		Address:       ip,
 		Weight:        1,
 	}
-	if n.loadBalancerMode == loadBalancerModeDSR {
+	switch n.loadBalancerMode {
+	case loadBalancerModeDSR:
 		d.ConnectionFlags = ipvs.ConnFwdDirectRoute
+	case loadBalancerModeSourceIP:
+		d.ConnectionFlags = ipvs.ConnFwdTunnel
 	}
 
 	if fullRemove {
@@ -176,6 +182,41 @@ func (sb *Sandbox) configureFWMarkIPTables(vip net.IP, fwMark uint32, ingressPor
 
 	var innerErr error
 	err := sb.ExecFunc(func() {
+		if !isDelete && lbMode == loadBalancerModeSourceIP {
+			// Replies arrive with the gateway address as their source. They
+			// must be forwarded to reverse both namespace and host DNAT.
+			if err := os.WriteFile("/proc/sys/net/ipv4/vs/conntrack", []byte{'1', '\n'}, 0o644); err != nil {
+				innerErr = err
+				return
+			}
+			var iface string
+			for _, endpoint := range sb.Endpoints() {
+				if endpoint.loadBalancer && endpoint.network.ingress {
+					iface = findIfaceDstName(sb, endpoint)
+					break
+				}
+			}
+			if iface == "" {
+				innerErr = errors.New("ingress gateway interface is unavailable")
+				return
+			}
+			if err := os.WriteFile("/proc/sys/net/ipv4/conf/"+iface+"/accept_local", []byte("1\n"), 0o644); err != nil {
+				innerErr = err
+				return
+			}
+		}
+		if lbMode == loadBalancerModeSourceIP && len(ingressPorts) > 0 {
+			gateway, _ := sb.getGatewayEndpoint()
+			if gateway == nil || gateway.Iface() == nil || gateway.Iface().Address() == nil {
+				innerErr = errors.New("ingress gateway endpoint is unavailable")
+				return
+			}
+			for _, port := range ingressPorts {
+				rules = append(rules, []string{"-t", "nat", addDelOpt, "PREROUTING",
+					"-d", gateway.Iface().Address().IP.String(), "-p", strings.ToLower(port.Protocol.String()),
+					"--dport", strconv.FormatUint(uint64(port.PublishedPort), 10), "-j", "DNAT", "--to-destination", eIP.IP.String()})
+			}
+		}
 		if !isDelete && lbMode == loadBalancerModeNAT {
 			subnet := net.IPNet{IP: eIP.IP.Mask(eIP.Mask), Mask: eIP.Mask}
 			ruleParams := []string{"-m", "ipvs", "--ipvs", "-d", subnet.String(), "-j", "SNAT", "--to-source", eIP.IP.String()}
