@@ -27,6 +27,7 @@ import (
 
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/errdefs"
+	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/sync/errgroup"
@@ -57,6 +58,12 @@ var (
 	// ErrEmptyWalk is used when the WalkNotEmpty handlers return no
 	// children (e.g.: they were filtered out).
 	ErrEmptyWalk = errors.New("image might be filtered out")
+)
+
+const (
+	// referrerLabelDigestLen is the number of hex characters from a digest
+	// used in referrer GC labels (e.g., containerd.io/gc.ref.content.referrer.sha256.abc123def456).
+	referrerLabelDigestLen = 12
 )
 
 // Handler handles image manifests
@@ -331,7 +338,20 @@ func SetChildrenMappedLabels(manager content.Manager, f HandlerFunc, labelMap fu
 					idx := keys[key]
 					keys[key] = idx + 1
 					if strings.HasSuffix(key, ".sha256.") {
-						key = fmt.Sprintf("%s%s", key, ch.Digest.Hex()[:12])
+						// The digest of a child is not validated until its
+						// content is fetched, but the referrer label derived
+						// here requires a valid, truncatable digest. Skip
+						// malformed digests instead of panicking on them.
+						if err := ch.Digest.Validate(); err != nil {
+							log.G(ctx).WithFields(log.Fields{"digest": ch.Digest, "error": err}).Warn("skipping child with invalid digest for referrer label")
+							continue
+						}
+						encoded := ch.Digest.Encoded()
+						if len(encoded) < referrerLabelDigestLen {
+							log.G(ctx).WithField("digest", ch.Digest).Warn("skipping child with digest too short for referrer label")
+							continue
+						}
+						key += encoded[:referrerLabelDigestLen]
 					} else if idx > 0 || key[len(key)-1] == '.' {
 						key = fmt.Sprintf("%s%d", key, idx)
 					}

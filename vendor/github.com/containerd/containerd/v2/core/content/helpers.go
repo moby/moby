@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"sync"
 	"time"
 
@@ -189,7 +190,9 @@ func OpenWriter(ctx context.Context, cs Ingester, opts ...WriterOpt) (Writer, er
 //
 // Copy is buffered, so no need to wrap reader in buffered io.
 func Copy(ctx context.Context, cw Writer, or io.Reader, size int64, expected digest.Digest, opts ...Opt) error {
-	r := or
+	if size < 0 {
+		return fmt.Errorf("invalid content size %d: %w", size, errdefs.ErrInvalidArgument)
+	}
 	for i := 0; ; i++ {
 		if i >= 1 {
 			log.G(ctx).WithField("digest", expected).Debugf("retrying copy due to reset")
@@ -199,6 +202,7 @@ func Copy(ctx context.Context, cw Writer, or io.Reader, size int64, expected dig
 		if err != nil {
 			return fmt.Errorf("failed to get status: %w", err)
 		}
+		r := or
 		// Reset the original reader if
 		// 1. there is an offset, or
 		// 2. this is a retry due to Reset error
@@ -206,6 +210,14 @@ func Copy(ctx context.Context, cw Writer, or io.Reader, size int64, expected dig
 			r, err = seekReader(or, ws.Offset, size)
 			if err != nil {
 				return fmt.Errorf("unable to resume write to %v: %w", ws.Ref, err)
+			}
+		}
+		if size > 0 {
+			if ws.Offset > size {
+				return fmt.Errorf("writer offset %d exceeds expected size %d: %w", ws.Offset, size, errdefs.ErrFailedPrecondition)
+			}
+			if rem := size - ws.Offset; rem < math.MaxInt64 {
+				r = io.LimitReader(r, rem+1)
 			}
 		}
 
@@ -219,6 +231,9 @@ func Copy(ctx context.Context, cw Writer, or io.Reader, size int64, expected dig
 		if size != 0 && copied < size-ws.Offset {
 			// Short writes would return its own error, this indicates a read failure
 			return fmt.Errorf("short read: expected %d bytes but got %d: %w", size-ws.Offset, copied, io.ErrUnexpectedEOF)
+		}
+		if size > 0 && copied > size-ws.Offset {
+			return fmt.Errorf("read exceeds expected size %d: %w", size-ws.Offset, errdefs.ErrFailedPrecondition)
 		}
 		if err := cw.Commit(ctx, size, expected, opts...); err != nil {
 			if errors.Is(err, ErrReset) {
