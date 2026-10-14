@@ -325,6 +325,9 @@ FROM tini-${TARGETOS} AS tini
 # rootlesskit
 FROM base AS rootlesskit-src
 WORKDIR /usr/src/rootlesskit
+
+# ROOTLESSKIT_VERSION is the version of rootlesskit to install in the dev-container.
+# renovate: datasource=github-tags depName=rootless-containers/rootlesskit
 ARG ROOTLESSKIT_VERSION=v3.2.0
 ADD https://github.com/rootless-containers/rootlesskit.git?ref=${ROOTLESSKIT_VERSION}&keep-git-dir=1 .
 
