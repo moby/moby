@@ -165,7 +165,14 @@ func (daemon *Daemon) Containers(ctx context.Context, config *backend.ContainerL
 					var err error
 					newC.SizeRw, newC.SizeRootFs, err = daemon.imageService.GetContainerLayerSize(ctx, newC.ID)
 					if err != nil {
-						return err
+						// Don't fail the whole listing because the size of a
+						// single container can't be determined.
+						log.G(ctx).WithFields(log.Fields{
+							"error":       err,
+							"containerID": newC.ID,
+						}).Debug("failed to get container layer size")
+						newC.SizeRw = -1
+						newC.SizeRootFs = -1
 					}
 				}
 
