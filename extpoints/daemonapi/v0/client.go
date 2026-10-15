@@ -13,8 +13,8 @@ import (
 // Point.Dependency().
 // opts are applied after the endpoint, so they may override it.
 //
-// The daemon serves the API only after every extension has initialized, so do
-// not make API calls from Init; they would block daemon startup.
+// The daemon serves the API only after it finishes initializing, so API calls
+// made before then, including from Init, fail.
 // The caller owns the returned client and must close it.
 func NewClient(ctx context.Context, api DaemonAPI, opts ...client.Opt) (*client.Client, error) {
 	resp, err := api.Get(ctx, &GetRequest{})
